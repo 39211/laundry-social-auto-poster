@@ -1,0 +1,31 @@
+{
+  "name": "laundry-social-auto-poster",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Codex Automation workflow for daily laundry shop social content and dry-run Meta publishing.",
+  "scripts": {
+    "generate": "tsx src/generateDailyContent.ts",
+    "generate-image-manifest": "tsx src/generateImage.ts",
+    "validate-images": "tsx src/generateImage.ts --validate",
+    "post": "tsx src/postCurrentSlot.ts --all-due",
+    "post-current-slot": "tsx src/postCurrentSlot.ts",
+    "publish-pages": "tsx src/publishPages.ts",
+    "daily": "npm run generate && npm run generate-image-manifest",
+    "schedule": "tsx src/scheduler.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

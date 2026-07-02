@@ -1,0 +1,33 @@
+{
+  "name": "私享家洗衣店",
+  "google_business_profile_name": "私享家 旗艦總店",
+  "alternate_names": ["私享家 旗艦總店", "私享家 旗艦店", "私享家精品洗護"],
+  "address_text": "407 臺中市西屯區至善里青海路二段365號",
+  "address": {
+    "@type": "PostalAddress",
+    "postalCode": "407",
+    "addressRegion": "臺中市",
+    "addressLocality": "西屯區",
+    "streetAddress": "至善里青海路二段365號",
+    "addressCountry": "TW"
+  },
+  "landmark": "青海路二段",
+  "telephone": "+886-4-2452-7411",
+  "telephone_local": "04-2452-7411",
+  "line_url": "https://line.me/ti/p/4m-rA6hxf6",
+  "line_id": "0968327653",
+  "mobile_or_line_local": "0968-327-653",
+  "opening_hours_text": "週一至週五 10:00-20:00；週六 12:00-18:00；週日公休",
+  "opening_hours_schema": ["Mo-Fr 10:00-20:00", "Sa 12:00-18:00"],
+  "map_url": "https://maps.app.goo.gl/kUREPkWDXYNTkpct7",
+  "google_maps_feature_id": "0x34691713872dd6f5:0x41f4295a6302e177",
+  "google_maps_cid": "0x41f4295a6302e177",
+  "google_place_id": null,
+  "facebook_url": "https://www.facebook.com/100083194756904/",
+  "facebook_share_url": "https://www.facebook.com/share/1BZF4VnihJ/",
+  "instagram_url": "https://www.instagram.com/si_xiang_jia/",
+  "public_site_url": "https://39211.github.io/laundry-social-auto-poster/",
+  "service_topics": ["衣物清潔", "鞋包清潔", "白鞋清潔", "布品收納", "雨季洗護", "換季收納"],
+  "content_rule": "所有由排程產生並審核通過的 FB / IG 貼文，才同步進 SEO / AIO / GEO；手動發文需補登後才進公開資料。",
+  "holiday_content_rule": "重大節日與通過洗護後果判斷的活動，用海報；其他日常照護內容，以真實門市照片為主。"
+}

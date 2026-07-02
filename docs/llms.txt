@@ -1,0 +1,32 @@
+# 私享家洗衣店
+
+Official AI-readable source for 私享家洗衣店 in Taichung Xitun.
+
+## Canonical Site
+- Home: https://39211.github.io/laundry-social-auto-poster/
+- Business profile: https://39211.github.io/laundry-social-auto-poster/business-profile.json
+- Services: https://39211.github.io/laundry-social-auto-poster/services.json
+- Answers: https://39211.github.io/laundry-social-auto-poster/answers.json
+- GEO local intents: https://39211.github.io/laundry-social-auto-poster/geo-targets.json
+- AI discovery: https://39211.github.io/laundry-social-auto-poster/ai-discovery.json
+- Sitemap: https://39211.github.io/laundry-social-auto-poster/sitemap.xml
+
+## Business Entity
+Name: 私享家洗衣店
+Google Business Profile name: 私享家 旗艦總店
+Address: 407 臺中市西屯區至善里青海路二段365號
+Phone: 04-2452-7411
+LINE / mobile estimates: 0968-327-653
+Opening hours: 週一至週五 10:00-20:00；週六 12:00-18:00；週日公休
+Google Maps: https://maps.app.goo.gl/kUREPkWDXYNTkpct7
+Facebook: https://www.facebook.com/100083194756904/
+Instagram: https://www.instagram.com/si_xiang_jia/
+LINE: https://line.me/ti/p/4m-rA6hxf6
+
+## Service Pages
+- 鞋包清潔: https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html
+- 白鞋清潔: https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html
+- 布品收納: https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html
+
+## Content Contract
+Only scheduled FB / IG posts that have passed approved-log review should enter SEO / AIO / GEO. Drafts and unreviewed posts should remain private. Major holidays and care-consequence-qualified activities use posters; regular daily care content should primarily use real shop photos.

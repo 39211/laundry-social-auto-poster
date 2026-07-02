@@ -1,0 +1,58 @@
+{
+  "schema_version": "2026-07-03",
+  "site_name": "私享家洗衣店",
+  "business_name": "私享家洗衣店",
+  "canonical_url": "https://39211.github.io/laundry-social-auto-poster/",
+  "language": "zh-Hant-TW",
+  "timezone": "Asia/Taipei",
+  "description": "私享家洗衣店的官方 SEO / AIO / GEO 內容來源，涵蓋台中西屯洗衣、鞋包清潔、白鞋清潔、布品收納與社群內容規則。",
+  "business_profile": "https://39211.github.io/laundry-social-auto-poster/business-profile.json",
+  "entrypoints": {
+    "home": "https://39211.github.io/laundry-social-auto-poster/",
+    "llms": "https://39211.github.io/laundry-social-auto-poster/llms.txt",
+    "well_known_llms": "https://39211.github.io/laundry-social-auto-poster/.well-known/llms.txt",
+    "robots": "https://39211.github.io/laundry-social-auto-poster/robots.txt",
+    "sitemap": "https://39211.github.io/laundry-social-auto-poster/sitemap.xml",
+    "services": "https://39211.github.io/laundry-social-auto-poster/services.json",
+    "answers": "https://39211.github.io/laundry-social-auto-poster/answers.json",
+    "geo_targets": "https://39211.github.io/laundry-social-auto-poster/geo-targets.json",
+    "business_profile": "https://39211.github.io/laundry-social-auto-poster/business-profile.json",
+    "social_posts": "https://39211.github.io/laundry-social-auto-poster/social-posts.json",
+    "latest": "https://39211.github.io/laundry-social-auto-poster/latest.json"
+  },
+  "service_pages": [
+    {
+      "slug": "shoe-bag-care",
+      "name": "鞋包清潔",
+      "url": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html",
+      "image_url": "https://sixiangjia-laundry-social.netlify.app/assets/services/shoe-bag-care-hero-product.png",
+      "answer_summary": "台中西屯鞋包清潔建議先看鞋面、鞋底、包角、提把與內裡濕氣，再依材質判斷清潔方式。"
+    },
+    {
+      "slug": "white-shoe-cleaning",
+      "name": "白鞋清潔",
+      "url": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html",
+      "image_url": "https://sixiangjia-laundry-social.netlify.app/assets/services/white-shoe-cleaning-hero-product.png",
+      "answer_summary": "台中西屯白鞋清潔不建議直接漂白或硬刷，應先檢查鞋面、膠邊、縫線、鞋墊與內裡狀態。"
+    },
+    {
+      "slug": "fabric-storage",
+      "name": "布品收納",
+      "url": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html",
+      "image_url": "https://sixiangjia-laundry-social.netlify.app/assets/services/fabric-storage-hero-product.png",
+      "answer_summary": "台中西屯布品收納建議在收納前先確認衣物、外套、寢具是否乾燥、有無悶味、黃痕或局部髒污。"
+    }
+  ],
+  "content_contract": {
+    "public_sync_rule": "所有由排程產生並審核通過的 FB / IG 貼文，才同步進 SEO / AIO / GEO；手動發文需補登後才進公開資料。",
+    "daily_schedule": "06:30 產草稿與圖片；10:20 審核後重產 SEO/AIO/GEO；11:30 / 19:30 讀 approved-log 發 FB/IG。",
+    "visual_rule": "重大節日與通過洗護後果判斷的活動，用海報；其他日常照護內容，以真實門市照片為主。"
+  },
+  "data_quality": {
+    "github_pages_fallback_active": true,
+    "image_asset_host": "https://sixiangjia-laundry-social.netlify.app/assets/",
+    "google_place_id": "not_verified",
+    "holiday_hours_overrides": "not_configured",
+    "unreviewed_drafts_excluded": true
+  }
+}

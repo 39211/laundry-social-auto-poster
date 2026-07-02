@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-07-03T00:00:00+08:00",
+  "site_name": "私享家洗衣店",
+  "primary_area": "台中市西屯區",
+  "address": "407 臺中市西屯區至善里青海路二段365號",
+  "map_url": "https://maps.app.goo.gl/kUREPkWDXYNTkpct7",
+  "local_intents": [
+    { "query": "台中西屯 鞋包清潔", "service_slug": "shoe-bag-care", "url": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html" },
+    { "query": "台中西屯 包包清潔", "service_slug": "shoe-bag-care", "url": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html" },
+    { "query": "台中西屯 白鞋清潔", "service_slug": "white-shoe-cleaning", "url": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html" },
+    { "query": "台中西屯 布品收納", "service_slug": "fabric-storage", "url": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html" },
+    { "query": "台中西屯 換季收納 洗衣店", "service_slug": "fabric-storage", "url": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html" }
+  ],
+  "decision_situations": [
+    "雨季通勤後鞋底泥灰、包角水痕、鞋內濕氣",
+    "白鞋鞋邊泛灰、縫線卡灰、內裡悶味",
+    "換季前外套、寢具、厚棉布品收納檢查",
+    "重大節日或活動前後的衣物、鞋包、外套照護"
+  ]
+}

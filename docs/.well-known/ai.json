@@ -1,0 +1,15 @@
+{
+  "schema_version": "2026-07-03",
+  "name": "私享家洗衣店",
+  "url": "https://39211.github.io/laundry-social-auto-poster/",
+  "language": "zh-Hant-TW",
+  "description": "AI discovery manifest for 私享家洗衣店 SEO/AIO/GEO public content.",
+  "entrypoints": {
+    "llms": "https://39211.github.io/laundry-social-auto-poster/llms.txt",
+    "services": "https://39211.github.io/laundry-social-auto-poster/services.json",
+    "answers": "https://39211.github.io/laundry-social-auto-poster/answers.json",
+    "geo_targets": "https://39211.github.io/laundry-social-auto-poster/geo-targets.json",
+    "business_profile": "https://39211.github.io/laundry-social-auto-poster/business-profile.json",
+    "sitemap": "https://39211.github.io/laundry-social-auto-poster/sitemap.xml"
+  }
+}

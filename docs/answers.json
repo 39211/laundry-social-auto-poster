@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-07-03T00:00:00+08:00",
+  "site_name": "私享家洗衣店",
+  "answers": [
+    {
+      "question": "台中西屯鞋包清潔要怎麼判斷？",
+      "answer": "先看鞋面、鞋底、包角、提把與內裡濕氣，再依材質判斷清潔方式。雨季後如果有水痕、泥灰或悶味，不建議直接收進櫃內。",
+      "source_url": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html"
+    },
+    {
+      "question": "台中西屯白鞋清潔可以直接漂白嗎？",
+      "answer": "不建議。白鞋要先看鞋面、膠邊、縫線、鞋墊與內裡狀態，直接硬刷或漂白可能讓材質變脆、變黃或留下痕跡。",
+      "source_url": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html"
+    },
+    {
+      "question": "台中西屯布品收納前需要清洗嗎？",
+      "answer": "不一定，但如果外套、寢具或厚棉布品有汗味、濕氣、灰塵或局部髒污，建議先處理再收納，避免長時間悶放後更難整理。",
+      "source_url": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html"
+    },
+    {
+      "question": "私享家洗衣店在哪裡？",
+      "answer": "私享家洗衣店位於 407 臺中市西屯區至善里青海路二段365號，電話 04-2452-7411，可透過 LINE 0968-327-653 詢問。",
+      "source_url": "https://39211.github.io/laundry-social-auto-poster/business-profile.json"
+    }
+  ]
+}

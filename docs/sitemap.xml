@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url><loc>https://39211.github.io/laundry-social-auto-poster/</loc><changefreq>daily</changefreq><priority>1.0</priority><image:image><image:loc>https://sixiangjia-laundry-social.netlify.app/assets/services/fabric-storage-hero-product.png</image:loc></image:image></url>
+  <url><loc>https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html</loc><changefreq>weekly</changefreq><priority>0.9</priority><image:image><image:loc>https://sixiangjia-laundry-social.netlify.app/assets/services/shoe-bag-care-hero-product.png</image:loc></image:image></url>
+  <url><loc>https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html</loc><changefreq>weekly</changefreq><priority>0.9</priority><image:image><image:loc>https://sixiangjia-laundry-social.netlify.app/assets/services/white-shoe-cleaning-hero-product.png</image:loc></image:image></url>
+  <url><loc>https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html</loc><changefreq>weekly</changefreq><priority>0.9</priority><image:image><image:loc>https://sixiangjia-laundry-social.netlify.app/assets/services/fabric-storage-hero-product.png</image:loc></image:image></url>
+  <url><loc>https://39211.github.io/laundry-social-auto-poster/business-profile.json</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://39211.github.io/laundry-social-auto-poster/services.json</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://39211.github.io/laundry-social-auto-poster/answers.json</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://39211.github.io/laundry-social-auto-poster/geo-targets.json</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://39211.github.io/laundry-social-auto-poster/ai-discovery.json</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://39211.github.io/laundry-social-auto-poster/llms.txt</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://39211.github.io/laundry-social-auto-poster/.well-known/llms.txt</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+</urlset>

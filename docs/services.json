@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-07-03T00:00:00+08:00",
+  "site_name": "私享家洗衣店",
+  "base_url": "https://39211.github.io/laundry-social-auto-poster",
+  "services": [
+    {
+      "slug": "shoe-bag-care",
+      "name": "鞋包清潔",
+      "url": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html",
+      "description": "雨季通勤後的鞋底泥灰、包角水痕、提把油痕與鞋內濕氣，先分開檢查再判斷洗護方式。",
+      "keywords": ["鞋包清潔", "包包清潔", "鞋子清潔", "台中西屯鞋包清潔"],
+      "visual_route": "premium-product-hero",
+      "image_url": "https://sixiangjia-laundry-social.netlify.app/assets/services/shoe-bag-care-hero-product.png",
+      "answer_summary": "台中西屯鞋包清潔建議先看鞋面、鞋底、包角、提把與內裡濕氣，再依材質判斷清潔方式。"
+    },
+    {
+      "slug": "white-shoe-cleaning",
+      "name": "白鞋清潔",
+      "url": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html",
+      "description": "白鞋清潔前先檢查鞋面、膠邊、縫線、鞋墊與內裡狀態，不建議直接硬刷或漂白。",
+      "keywords": ["白鞋清潔", "白鞋保養", "鞋邊泛灰", "台中西屯白鞋清潔"],
+      "visual_route": "premium-product-hero",
+      "image_url": "https://sixiangjia-laundry-social.netlify.app/assets/services/white-shoe-cleaning-hero-product.png",
+      "answer_summary": "台中西屯白鞋清潔不建議直接漂白或硬刷，應先檢查鞋面、膠邊、縫線、鞋墊與內裡狀態。"
+    },
+    {
+      "slug": "fabric-storage",
+      "name": "布品收納",
+      "url": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html",
+      "description": "外套、寢具與厚棉布品收納前，先確認濕氣、味道、灰塵與清潔狀態。",
+      "keywords": ["布品收納", "換季收納", "衣物收納", "台中西屯布品整理"],
+      "visual_route": "premium-product-hero",
+      "image_url": "https://sixiangjia-laundry-social.netlify.app/assets/services/fabric-storage-hero-product.png",
+      "answer_summary": "台中西屯布品收納建議在收納前先確認衣物、外套、寢具是否乾燥、有無悶味、黃痕或局部髒污。"
+    }
+  ]
+}

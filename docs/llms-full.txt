@@ -3,49 +3,49 @@
 > AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.
 
 ## Source Of Record
-- Canonical URL: https://39211.github.io/laundry-social-auto-poster/
-- Generated at: 2026-07-03T17:30:29.833Z
+- Canonical URL: https://39211.github.io/
+- Generated at: 2026-07-03T19:56:05.873Z
 - Timezone: Asia/Taipei
 - Base URL configured: yes
 
 ## Endpoint Map
-- index: https://39211.github.io/laundry-social-auto-poster/index.html
-- llms: https://39211.github.io/laundry-social-auto-poster/llms.txt
-- llms_lite: https://39211.github.io/laundry-social-auto-poster/llms-lite.txt
-- llms_full: https://39211.github.io/laundry-social-auto-poster/llms-full.txt
-- well_known_llms: https://39211.github.io/laundry-social-auto-poster/.well-known/llms.txt
-- well_known_ai: https://39211.github.io/laundry-social-auto-poster/.well-known/ai.json
-- robots: https://39211.github.io/laundry-social-auto-poster/robots.txt
-- sitemap: https://39211.github.io/laundry-social-auto-poster/sitemap.xml
-- ai_sitemap: https://39211.github.io/laundry-social-auto-poster/ai-sitemap.xml
-- latest: https://39211.github.io/laundry-social-auto-poster/latest.json
-- social_posts: https://39211.github.io/laundry-social-auto-poster/social-posts.json
-- business_profile: https://39211.github.io/laundry-social-auto-poster/business-profile.json
-- services: https://39211.github.io/laundry-social-auto-poster/services.json
-- answers: https://39211.github.io/laundry-social-auto-poster/answers.json
-- geo_targets: https://39211.github.io/laundry-social-auto-poster/geo-targets.json
-- llms_jsonl: https://39211.github.io/laundry-social-auto-poster/llms.jsonl
-- service_pages.shoe-bag-care: https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html
-- service_pages.white-shoe-cleaning: https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html
-- service_pages.fabric-storage: https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html
-- service_pages.taichung-xitun-laundry: https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html
-- feed: https://39211.github.io/laundry-social-auto-poster/feed.json
-- knowledge_graph: https://39211.github.io/laundry-social-auto-poster/knowledge-graph.json
-- ai_discovery: https://39211.github.io/laundry-social-auto-poster/ai-discovery.json
+- index: https://39211.github.io/index.html
+- llms: https://39211.github.io/llms.txt
+- llms_lite: https://39211.github.io/llms-lite.txt
+- llms_full: https://39211.github.io/llms-full.txt
+- well_known_llms: https://39211.github.io/.well-known/llms.txt
+- well_known_ai: https://39211.github.io/.well-known/ai.json
+- robots: https://39211.github.io/robots.txt
+- sitemap: https://39211.github.io/sitemap.xml
+- ai_sitemap: https://39211.github.io/ai-sitemap.xml
+- latest: https://39211.github.io/latest.json
+- social_posts: https://39211.github.io/social-posts.json
+- business_profile: https://39211.github.io/business-profile.json
+- services: https://39211.github.io/services.json
+- answers: https://39211.github.io/answers.json
+- geo_targets: https://39211.github.io/geo-targets.json
+- llms_jsonl: https://39211.github.io/llms.jsonl
+- service_pages.shoe-bag-care: https://39211.github.io/services/shoe-bag-care.html
+- service_pages.white-shoe-cleaning: https://39211.github.io/services/white-shoe-cleaning.html
+- service_pages.fabric-storage: https://39211.github.io/services/fabric-storage.html
+- service_pages.taichung-xitun-laundry: https://39211.github.io/services/taichung-xitun-laundry.html
+- feed: https://39211.github.io/feed.json
+- knowledge_graph: https://39211.github.io/knowledge-graph.json
+- ai_discovery: https://39211.github.io/ai-discovery.json
 
 ## Business Entity
 ```json
 {
   "@context": "https://schema.org",
   "@type": "DryCleaningOrLaundry",
-  "@id": "https://39211.github.io/laundry-social-auto-poster/#business",
+  "@id": "https://39211.github.io/#business",
   "name": "私享家洗衣店",
   "alternateName": [
     "私享家 旗艦總店",
     "私享家 旗艦店",
     "私享家精品洗護"
   ],
-  "url": "https://39211.github.io/laundry-social-auto-poster/",
+  "url": "https://39211.github.io/",
   "description": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。",
   "inLanguage": "zh-Hant",
   "address": {
@@ -166,7 +166,7 @@
           "serviceType": "鞋包清潔",
           "description": "台中西屯洗鞋洗包建議先拍鞋面、鞋底、包角、提把與內裡，私享家會依材質、濕氣、水痕與磨耗程度判斷清潔方式與可改善範圍。",
           "areaServed": "台中西屯",
-          "url": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html"
+          "url": "https://39211.github.io/services/shoe-bag-care.html"
         }
       },
       {
@@ -177,7 +177,7 @@
           "serviceType": "白鞋清潔",
           "description": "台中西屯白鞋清潔不建議直接漂白或硬刷，應先看鞋面材質、膠邊氧化、縫線卡灰、鞋墊與內裡味道，再判斷可清潔程度。",
           "areaServed": "台中西屯",
-          "url": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html"
+          "url": "https://39211.github.io/services/white-shoe-cleaning.html"
         }
       },
       {
@@ -188,7 +188,7 @@
           "serviceType": "布品收納",
           "description": "台中西屯布品收納建議先確認衣物、外套、寢具、被套與厚棉布品是否乾燥，有無汗味、悶味、黃痕或局部髒污，再決定是否清潔後收納。",
           "areaServed": "台中西屯",
-          "url": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html"
+          "url": "https://39211.github.io/services/fabric-storage.html"
         }
       },
       {
@@ -199,7 +199,7 @@
           "serviceType": "台中西屯洗衣店",
           "description": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋包清潔、白鞋清潔與布品收納前檢查，可先用 LINE 傳照片詢問。",
           "areaServed": "台中西屯",
-          "url": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html"
+          "url": "https://39211.github.io/services/taichung-xitun-laundry.html"
         }
       }
     ]
@@ -232,7 +232,7 @@
 ## Posts
 ### 2026-07-02 11:30 白鞋鞋邊與內裡的濕悶痕跡
 
-- id: https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-02.json#post-2026-07-02-slot-01
+- id: https://39211.github.io/content-calendar/2026-07-02.json#post-2026-07-02-slot-01
 - published local time: 2026-07-02T11:30:00+08:00
 - category: 知識文
 - platforms: facebook, instagram
@@ -240,7 +240,7 @@
 - traffic_route: object-proof
 - hashtags: #私享家洗衣店 #白鞋清潔 #鞋子保養
 - image: https://sixiangjia-laundry-social.netlify.app/assets/2026-07-02/slot-01.png
-- calendar: https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-02.json
+- calendar: https://39211.github.io/content-calendar/2026-07-02.json
 
 Facebook caption:
 
@@ -272,7 +272,7 @@ Instagram caption:
 
 ### 2026-07-02 19:30 雨季通勤後的包角與鞋底檢查
 
-- id: https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-02.json#post-2026-07-02-slot-02
+- id: https://39211.github.io/content-calendar/2026-07-02.json#post-2026-07-02-slot-02
 - published local time: 2026-07-02T19:30:00+08:00
 - category: 情境文
 - platforms: facebook, instagram
@@ -280,7 +280,7 @@ Instagram caption:
 - traffic_route: value-prop-lead
 - hashtags: #私享家洗衣店 #雨季保養 #鞋包清潔
 - image: https://sixiangjia-laundry-social.netlify.app/assets/2026-07-02/slot-02.png
-- calendar: https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-02.json
+- calendar: https://39211.github.io/content-calendar/2026-07-02.json
 
 Facebook caption:
 
@@ -312,7 +312,7 @@ Instagram caption:
 
 ### 2026-07-03 11:30 白鞋鞋邊與內裡的濕悶痕跡
 
-- id: https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-03.json#post-2026-07-03-slot-01
+- id: https://39211.github.io/content-calendar/2026-07-03.json#post-2026-07-03-slot-01
 - published local time: 2026-07-03T11:30:00+08:00
 - category: 知識文
 - platforms: facebook, instagram
@@ -320,7 +320,7 @@ Instagram caption:
 - traffic_route: object-proof
 - hashtags: #私享家洗衣店 #白鞋清潔 #鞋子保養
 - image: https://sixiangjia-laundry-social.netlify.app/assets/2026-07-03/slot-01.png
-- calendar: https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-03.json
+- calendar: https://39211.github.io/content-calendar/2026-07-03.json
 
 Facebook caption:
 
@@ -352,7 +352,7 @@ Instagram caption:
 
 ### 2026-07-03 19:30 雨季通勤後的包角與鞋底檢查
 
-- id: https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-03.json#post-2026-07-03-slot-02
+- id: https://39211.github.io/content-calendar/2026-07-03.json#post-2026-07-03-slot-02
 - published local time: 2026-07-03T19:30:00+08:00
 - category: 情境文
 - platforms: facebook, instagram
@@ -360,7 +360,7 @@ Instagram caption:
 - traffic_route: value-prop-lead
 - hashtags: #私享家洗衣店 #雨季保養 #鞋包清潔
 - image: https://sixiangjia-laundry-social.netlify.app/assets/2026-07-03/slot-02.png
-- calendar: https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-03.json
+- calendar: https://39211.github.io/content-calendar/2026-07-03.json
 
 Facebook caption:
 

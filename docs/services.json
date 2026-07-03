@@ -1,18 +1,18 @@
 {
   "schema_version": "2026-07-02",
-  "generated_at": "2026-07-03T17:30:29.833Z",
+  "generated_at": "2026-07-03T19:56:05.873Z",
   "name": "私享家洗衣店 service pages",
   "description": "Service-level SEO, AIO, and GEO source records for 私享家洗衣店.",
-  "canonical_url": "https://39211.github.io/laundry-social-auto-poster/",
-  "business_profile_url": "https://39211.github.io/laundry-social-auto-poster/business-profile.json",
+  "canonical_url": "https://39211.github.io/",
+  "business_profile_url": "https://39211.github.io/business-profile.json",
   "services": [
     {
       "slug": "shoe-bag-care",
       "name": "鞋包清潔",
       "title": "鞋包清潔｜台中西屯洗鞋、洗包與材質照護｜私享家洗衣店",
       "description": "台中西屯鞋包清潔與洗鞋洗包諮詢，私享家洗衣店會先看鞋面、鞋底、包角、提把、內裡與材質狀態，再判斷適合的清潔方式。",
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html",
-      "canonical_url": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html",
+      "url": "https://39211.github.io/services/shoe-bag-care.html",
+      "canonical_url": "https://39211.github.io/services/shoe-bag-care.html",
       "in_language": "zh-Hant-TW",
       "keywords": [
         "鞋包清潔",
@@ -83,10 +83,10 @@
         "opening_hours_text": "週一至週五 10:00-20:00；週六 12:00-18:00；週日公休"
       },
       "schema_ids": {
-        "webpage": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html#webpage",
-        "service": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html#service",
-        "faq": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html#faq",
-        "business": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "webpage": "https://39211.github.io/services/shoe-bag-care.html#webpage",
+        "service": "https://39211.github.io/services/shoe-bag-care.html#service",
+        "faq": "https://39211.github.io/services/shoe-bag-care.html#faq",
+        "business": "https://39211.github.io/#business"
       }
     },
     {
@@ -94,8 +94,8 @@
       "name": "白鞋清潔",
       "title": "白鞋清潔｜台中西屯白鞋泛黃、鞋邊與內裡整理｜私享家洗衣店",
       "description": "台中西屯白鞋清潔諮詢，針對白鞋泛黃、鞋邊泛灰、縫線卡灰、內裡濕悶與鞋墊狀態，私享家洗衣店先判斷材質再處理。",
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html",
-      "canonical_url": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html",
+      "url": "https://39211.github.io/services/white-shoe-cleaning.html",
+      "canonical_url": "https://39211.github.io/services/white-shoe-cleaning.html",
       "in_language": "zh-Hant-TW",
       "keywords": [
         "白鞋清潔",
@@ -165,10 +165,10 @@
         "opening_hours_text": "週一至週五 10:00-20:00；週六 12:00-18:00；週日公休"
       },
       "schema_ids": {
-        "webpage": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html#webpage",
-        "service": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html#service",
-        "faq": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html#faq",
-        "business": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "webpage": "https://39211.github.io/services/white-shoe-cleaning.html#webpage",
+        "service": "https://39211.github.io/services/white-shoe-cleaning.html#service",
+        "faq": "https://39211.github.io/services/white-shoe-cleaning.html#faq",
+        "business": "https://39211.github.io/#business"
       }
     },
     {
@@ -176,8 +176,8 @@
       "name": "布品收納",
       "title": "布品收納｜台中西屯換季衣物、外套與寢具整理｜私享家洗衣店",
       "description": "台中西屯布品收納與換季整理建議，私享家洗衣店協助檢查衣物、外套、寢具、被套與厚棉布品在收納前的濕氣、味道與髒污。",
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html",
-      "canonical_url": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html",
+      "url": "https://39211.github.io/services/fabric-storage.html",
+      "canonical_url": "https://39211.github.io/services/fabric-storage.html",
       "in_language": "zh-Hant-TW",
       "keywords": [
         "布品收納",
@@ -247,10 +247,10 @@
         "opening_hours_text": "週一至週五 10:00-20:00；週六 12:00-18:00；週日公休"
       },
       "schema_ids": {
-        "webpage": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html#webpage",
-        "service": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html#service",
-        "faq": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html#faq",
-        "business": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "webpage": "https://39211.github.io/services/fabric-storage.html#webpage",
+        "service": "https://39211.github.io/services/fabric-storage.html#service",
+        "faq": "https://39211.github.io/services/fabric-storage.html#faq",
+        "business": "https://39211.github.io/#business"
       }
     },
     {
@@ -258,8 +258,8 @@
       "name": "台中西屯洗衣店",
       "title": "台中西屯洗衣店｜青海路衣物、洗鞋洗包與布品收納｜私享家洗衣店",
       "description": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、洗鞋、洗包、白鞋清潔與布品收納前檢查，可用 LINE 先傳照片詢問。",
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html",
-      "canonical_url": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html",
+      "url": "https://39211.github.io/services/taichung-xitun-laundry.html",
+      "canonical_url": "https://39211.github.io/services/taichung-xitun-laundry.html",
       "in_language": "zh-Hant-TW",
       "keywords": [
         "台中西屯洗衣店",
@@ -329,10 +329,10 @@
         "opening_hours_text": "週一至週五 10:00-20:00；週六 12:00-18:00；週日公休"
       },
       "schema_ids": {
-        "webpage": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html#webpage",
-        "service": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html#service",
-        "faq": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html#faq",
-        "business": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "webpage": "https://39211.github.io/services/taichung-xitun-laundry.html#webpage",
+        "service": "https://39211.github.io/services/taichung-xitun-laundry.html#service",
+        "faq": "https://39211.github.io/services/taichung-xitun-laundry.html#faq",
+        "business": "https://39211.github.io/#business"
       }
     }
   ]

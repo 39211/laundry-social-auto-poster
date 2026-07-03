@@ -4,14 +4,14 @@
     {
       "@context": "https://schema.org",
       "@type": "DryCleaningOrLaundry",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/#business",
+      "@id": "https://39211.github.io/#business",
       "name": "私享家洗衣店",
       "alternateName": [
         "私享家 旗艦總店",
         "私享家 旗艦店",
         "私享家精品洗護"
       ],
-      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "url": "https://39211.github.io/",
       "description": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。",
       "inLanguage": "zh-Hant",
       "address": {
@@ -132,7 +132,7 @@
               "serviceType": "鞋包清潔",
               "description": "台中西屯洗鞋洗包建議先拍鞋面、鞋底、包角、提把與內裡，私享家會依材質、濕氣、水痕與磨耗程度判斷清潔方式與可改善範圍。",
               "areaServed": "台中西屯",
-              "url": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html"
+              "url": "https://39211.github.io/services/shoe-bag-care.html"
             }
           },
           {
@@ -143,7 +143,7 @@
               "serviceType": "白鞋清潔",
               "description": "台中西屯白鞋清潔不建議直接漂白或硬刷，應先看鞋面材質、膠邊氧化、縫線卡灰、鞋墊與內裡味道，再判斷可清潔程度。",
               "areaServed": "台中西屯",
-              "url": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html"
+              "url": "https://39211.github.io/services/white-shoe-cleaning.html"
             }
           },
           {
@@ -154,7 +154,7 @@
               "serviceType": "布品收納",
               "description": "台中西屯布品收納建議先確認衣物、外套、寢具、被套與厚棉布品是否乾燥，有無汗味、悶味、黃痕或局部髒污，再決定是否清潔後收納。",
               "areaServed": "台中西屯",
-              "url": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html"
+              "url": "https://39211.github.io/services/fabric-storage.html"
             }
           },
           {
@@ -165,7 +165,7 @@
               "serviceType": "台中西屯洗衣店",
               "description": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋包清潔、白鞋清潔與布品收納前檢查，可先用 LINE 傳照片詢問。",
               "areaServed": "台中西屯",
-              "url": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html"
+              "url": "https://39211.github.io/services/taichung-xitun-laundry.html"
             }
           }
         ]
@@ -173,39 +173,39 @@
     },
     {
       "@type": "WebSite",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/#website",
+      "@id": "https://39211.github.io/#website",
       "name": "私享家洗衣店",
-      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "url": "https://39211.github.io/",
       "inLanguage": "zh-Hant",
       "description": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
     },
     {
       "@type": "Dataset",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/#social-post-dataset",
+      "@id": "https://39211.github.io/#social-post-dataset",
       "name": "私享家洗衣店 social post dataset",
       "description": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。",
-      "url": "https://39211.github.io/laundry-social-auto-poster/social-posts.json",
-      "dateModified": "2026-07-03T17:30:29.833Z",
+      "url": "https://39211.github.io/social-posts.json",
+      "dateModified": "2026-07-03T19:56:05.873Z",
       "inLanguage": "zh-Hant",
       "isPartOf": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#website"
+        "@id": "https://39211.github.io/#website"
       },
       "about": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "@id": "https://39211.github.io/#business"
       }
     },
     {
       "@type": "WebPage",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html#webpage",
+      "@id": "https://39211.github.io/services/shoe-bag-care.html#webpage",
       "name": "鞋包清潔｜台中西屯洗鞋、洗包與材質照護｜私享家洗衣店",
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html",
+      "url": "https://39211.github.io/services/shoe-bag-care.html",
       "description": "台中西屯鞋包清潔與洗鞋洗包諮詢，私享家洗衣店會先看鞋面、鞋底、包角、提把、內裡與材質狀態，再判斷適合的清潔方式。",
       "inLanguage": "zh-Hant-TW",
       "isPartOf": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#website"
+        "@id": "https://39211.github.io/#website"
       },
       "about": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html#service"
+        "@id": "https://39211.github.io/services/shoe-bag-care.html#service"
       },
       "primaryImageOfPage": {
         "@type": "ImageObject",
@@ -215,12 +215,12 @@
     },
     {
       "@type": "Service",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html#service",
+      "@id": "https://39211.github.io/services/shoe-bag-care.html#service",
       "name": "鞋包清潔",
       "description": "台中西屯洗鞋洗包建議先拍鞋面、鞋底、包角、提把與內裡，私享家會依材質、濕氣、水痕與磨耗程度判斷清潔方式與可改善範圍。",
       "serviceType": "鞋包清潔",
       "provider": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "@id": "https://39211.github.io/#business"
       },
       "areaServed": {
         "@type": "AdministrativeArea",
@@ -235,12 +235,12 @@
         "台中西屯鞋包清潔",
         "青海路洗鞋"
       ],
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html"
+      "url": "https://39211.github.io/services/shoe-bag-care.html"
     },
     {
       "@type": "FAQPage",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html#faq",
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/shoe-bag-care.html#faq",
+      "@id": "https://39211.github.io/services/shoe-bag-care.html#faq",
+      "url": "https://39211.github.io/services/shoe-bag-care.html#faq",
       "mainEntity": [
         {
           "@type": "Question",
@@ -278,16 +278,16 @@
     },
     {
       "@type": "WebPage",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html#webpage",
+      "@id": "https://39211.github.io/services/white-shoe-cleaning.html#webpage",
       "name": "白鞋清潔｜台中西屯白鞋泛黃、鞋邊與內裡整理｜私享家洗衣店",
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html",
+      "url": "https://39211.github.io/services/white-shoe-cleaning.html",
       "description": "台中西屯白鞋清潔諮詢，針對白鞋泛黃、鞋邊泛灰、縫線卡灰、內裡濕悶與鞋墊狀態，私享家洗衣店先判斷材質再處理。",
       "inLanguage": "zh-Hant-TW",
       "isPartOf": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#website"
+        "@id": "https://39211.github.io/#website"
       },
       "about": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html#service"
+        "@id": "https://39211.github.io/services/white-shoe-cleaning.html#service"
       },
       "primaryImageOfPage": {
         "@type": "ImageObject",
@@ -297,12 +297,12 @@
     },
     {
       "@type": "Service",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html#service",
+      "@id": "https://39211.github.io/services/white-shoe-cleaning.html#service",
       "name": "白鞋清潔",
       "description": "台中西屯白鞋清潔不建議直接漂白或硬刷，應先看鞋面材質、膠邊氧化、縫線卡灰、鞋墊與內裡味道，再判斷可清潔程度。",
       "serviceType": "白鞋清潔",
       "provider": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "@id": "https://39211.github.io/#business"
       },
       "areaServed": {
         "@type": "AdministrativeArea",
@@ -316,12 +316,12 @@
         "台中西屯白鞋清潔",
         "青海路洗鞋"
       ],
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html"
+      "url": "https://39211.github.io/services/white-shoe-cleaning.html"
     },
     {
       "@type": "FAQPage",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html#faq",
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/white-shoe-cleaning.html#faq",
+      "@id": "https://39211.github.io/services/white-shoe-cleaning.html#faq",
+      "url": "https://39211.github.io/services/white-shoe-cleaning.html#faq",
       "mainEntity": [
         {
           "@type": "Question",
@@ -359,16 +359,16 @@
     },
     {
       "@type": "WebPage",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html#webpage",
+      "@id": "https://39211.github.io/services/fabric-storage.html#webpage",
       "name": "布品收納｜台中西屯換季衣物、外套與寢具整理｜私享家洗衣店",
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html",
+      "url": "https://39211.github.io/services/fabric-storage.html",
       "description": "台中西屯布品收納與換季整理建議，私享家洗衣店協助檢查衣物、外套、寢具、被套與厚棉布品在收納前的濕氣、味道與髒污。",
       "inLanguage": "zh-Hant-TW",
       "isPartOf": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#website"
+        "@id": "https://39211.github.io/#website"
       },
       "about": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html#service"
+        "@id": "https://39211.github.io/services/fabric-storage.html#service"
       },
       "primaryImageOfPage": {
         "@type": "ImageObject",
@@ -378,12 +378,12 @@
     },
     {
       "@type": "Service",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html#service",
+      "@id": "https://39211.github.io/services/fabric-storage.html#service",
       "name": "布品收納",
       "description": "台中西屯布品收納建議先確認衣物、外套、寢具、被套與厚棉布品是否乾燥，有無汗味、悶味、黃痕或局部髒污，再決定是否清潔後收納。",
       "serviceType": "布品收納",
       "provider": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "@id": "https://39211.github.io/#business"
       },
       "areaServed": {
         "@type": "AdministrativeArea",
@@ -397,12 +397,12 @@
         "外套清潔",
         "台中西屯布品整理"
       ],
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html"
+      "url": "https://39211.github.io/services/fabric-storage.html"
     },
     {
       "@type": "FAQPage",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html#faq",
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/fabric-storage.html#faq",
+      "@id": "https://39211.github.io/services/fabric-storage.html#faq",
+      "url": "https://39211.github.io/services/fabric-storage.html#faq",
       "mainEntity": [
         {
           "@type": "Question",
@@ -440,26 +440,26 @@
     },
     {
       "@type": "WebPage",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html#webpage",
+      "@id": "https://39211.github.io/services/taichung-xitun-laundry.html#webpage",
       "name": "台中西屯洗衣店｜青海路衣物、洗鞋洗包與布品收納｜私享家洗衣店",
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html",
+      "url": "https://39211.github.io/services/taichung-xitun-laundry.html",
       "description": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、洗鞋、洗包、白鞋清潔與布品收納前檢查，可用 LINE 先傳照片詢問。",
       "inLanguage": "zh-Hant-TW",
       "isPartOf": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#website"
+        "@id": "https://39211.github.io/#website"
       },
       "about": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html#service"
+        "@id": "https://39211.github.io/services/taichung-xitun-laundry.html#service"
       }
     },
     {
       "@type": "Service",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html#service",
+      "@id": "https://39211.github.io/services/taichung-xitun-laundry.html#service",
       "name": "台中西屯洗衣店",
       "description": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋包清潔、白鞋清潔與布品收納前檢查，可先用 LINE 傳照片詢問。",
       "serviceType": "台中西屯洗衣店",
       "provider": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "@id": "https://39211.github.io/#business"
       },
       "areaServed": {
         "@type": "AdministrativeArea",
@@ -473,12 +473,12 @@
         "台中洗包",
         "私享家洗衣店"
       ],
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html"
+      "url": "https://39211.github.io/services/taichung-xitun-laundry.html"
     },
     {
       "@type": "FAQPage",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html#faq",
-      "url": "https://39211.github.io/laundry-social-auto-poster/services/taichung-xitun-laundry.html#faq",
+      "@id": "https://39211.github.io/services/taichung-xitun-laundry.html#faq",
+      "url": "https://39211.github.io/services/taichung-xitun-laundry.html#faq",
       "mainEntity": [
         {
           "@type": "Question",
@@ -516,7 +516,7 @@
     },
     {
       "@type": "SocialMediaPosting",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-02.json#post-2026-07-02-slot-01",
+      "@id": "https://39211.github.io/content-calendar/2026-07-02.json#post-2026-07-02-slot-01",
       "headline": "2026-07-02 11:30 白鞋鞋邊與內裡的濕悶痕跡",
       "text": "白鞋鞋邊如果開始泛灰，內裡又有一點濕悶味，先不要急著用漂白水或硬刷把表面刷白。\n\n私享家洗衣店\n\n這類鞋子常見的問題不是單一髒污，而是鞋面材質、膠邊、縫線和鞋墊吸附狀態不一樣。處理前如果沒有分開看，容易讓鞋邊變毛、膠痕更明顯，或把內裡味道留住。\n\n我們會先看鞋面是皮革、布面還是合成材質，再檢查鞋邊磨耗、內裡濕氣、鞋墊能不能拆，以及髒污是表面灰塵還是已經滲進纖維。\n\n不確定能不能整理，先拍鞋面、鞋邊和內裡給我們看，我們再幫你判斷適合怎麼處理。\n\n#私享家洗衣店 #白鞋清潔 #鞋子保養",
       "datePublished": "2026-07-02T11:30:00+08:00",
@@ -527,19 +527,19 @@
         "#鞋子保養"
       ],
       "image": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-02.json#post-2026-07-02-slot-01:image"
+        "@id": "https://39211.github.io/content-calendar/2026-07-02.json#post-2026-07-02-slot-01:image"
       },
       "isPartOf": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#social-post-dataset"
+        "@id": "https://39211.github.io/#social-post-dataset"
       },
       "about": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "@id": "https://39211.github.io/#business"
       },
-      "url": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-02.json#post-2026-07-02-slot-01"
+      "url": "https://39211.github.io/content-calendar/2026-07-02.json#post-2026-07-02-slot-01"
     },
     {
       "@type": "ImageObject",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-02.json#post-2026-07-02-slot-01:image",
+      "@id": "https://39211.github.io/content-calendar/2026-07-02.json#post-2026-07-02-slot-01:image",
       "contentUrl": "https://sixiangjia-laundry-social.netlify.app/assets/2026-07-02/slot-01.png",
       "url": "https://sixiangjia-laundry-social.netlify.app/assets/2026-07-02/slot-01.png",
       "caption": "白鞋鞋邊與內裡的濕悶痕跡",
@@ -547,7 +547,7 @@
     },
     {
       "@type": "SocialMediaPosting",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-02.json#post-2026-07-02-slot-02",
+      "@id": "https://39211.github.io/content-calendar/2026-07-02.json#post-2026-07-02-slot-02",
       "headline": "2026-07-02 19:30 雨季通勤後的包角與鞋底檢查",
       "text": "雨季通勤後，包包四角和鞋底邊緣常常比外觀看起來更早累積水痕、泥灰和摩擦痕。\n\n私享家洗衣店\n\n如果回家後直接收進鞋櫃或衣櫃，濕氣會悶在鞋內、包角或提把裡，下一次拿出來才發現味道變重，邊角也比較暗。\n\n我們會先看包包材質是皮革、尼龍還是帆布，再判斷包角是否只是表面灰、是否有水痕滲入；鞋子則會看鞋底邊緣、內裡濕氣和鞋墊狀態，避免用錯方式讓材質變硬或褪色。\n\n你可以先拍包角、提把、鞋底邊緣和鞋內照片傳來，我們幫你看狀態，再決定值不值得整理。\n\n#私享家洗衣店 #雨季保養 #鞋包清潔",
       "datePublished": "2026-07-02T19:30:00+08:00",
@@ -558,19 +558,19 @@
         "#鞋包清潔"
       ],
       "image": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-02.json#post-2026-07-02-slot-02:image"
+        "@id": "https://39211.github.io/content-calendar/2026-07-02.json#post-2026-07-02-slot-02:image"
       },
       "isPartOf": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#social-post-dataset"
+        "@id": "https://39211.github.io/#social-post-dataset"
       },
       "about": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "@id": "https://39211.github.io/#business"
       },
-      "url": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-02.json#post-2026-07-02-slot-02"
+      "url": "https://39211.github.io/content-calendar/2026-07-02.json#post-2026-07-02-slot-02"
     },
     {
       "@type": "ImageObject",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-02.json#post-2026-07-02-slot-02:image",
+      "@id": "https://39211.github.io/content-calendar/2026-07-02.json#post-2026-07-02-slot-02:image",
       "contentUrl": "https://sixiangjia-laundry-social.netlify.app/assets/2026-07-02/slot-02.png",
       "url": "https://sixiangjia-laundry-social.netlify.app/assets/2026-07-02/slot-02.png",
       "caption": "雨季通勤後的包角與鞋底檢查",
@@ -578,7 +578,7 @@
     },
     {
       "@type": "SocialMediaPosting",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-03.json#post-2026-07-03-slot-01",
+      "@id": "https://39211.github.io/content-calendar/2026-07-03.json#post-2026-07-03-slot-01",
       "headline": "2026-07-03 11:30 白鞋鞋邊與內裡的濕悶痕跡",
       "text": "白鞋鞋邊如果開始泛灰，內裡又有一點濕悶味，先不要急著用漂白水或硬刷把表面刷白。\n\n私享家洗衣店\n\n這類鞋子常見的問題不是單一髒污，而是鞋面材質、膠邊、縫線和鞋墊吸附狀態不一樣。處理前如果沒有分開看，容易讓鞋邊變毛、膠痕更明顯，或把內裡味道留住。\n\n我們會先看鞋面是皮革、布面還是合成材質，再檢查鞋邊磨耗、內裡濕氣、鞋墊能不能拆，以及髒污是表面灰塵還是已經滲進纖維。\n\n不確定能不能整理，先拍鞋面、鞋邊和內裡給我們看，我們再幫你判斷適合怎麼處理。\n\n#私享家洗衣店 #白鞋清潔 #鞋子保養",
       "datePublished": "2026-07-03T11:30:00+08:00",
@@ -589,19 +589,19 @@
         "#鞋子保養"
       ],
       "image": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-03.json#post-2026-07-03-slot-01:image"
+        "@id": "https://39211.github.io/content-calendar/2026-07-03.json#post-2026-07-03-slot-01:image"
       },
       "isPartOf": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#social-post-dataset"
+        "@id": "https://39211.github.io/#social-post-dataset"
       },
       "about": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "@id": "https://39211.github.io/#business"
       },
-      "url": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-03.json#post-2026-07-03-slot-01"
+      "url": "https://39211.github.io/content-calendar/2026-07-03.json#post-2026-07-03-slot-01"
     },
     {
       "@type": "ImageObject",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-03.json#post-2026-07-03-slot-01:image",
+      "@id": "https://39211.github.io/content-calendar/2026-07-03.json#post-2026-07-03-slot-01:image",
       "contentUrl": "https://sixiangjia-laundry-social.netlify.app/assets/2026-07-03/slot-01.png",
       "url": "https://sixiangjia-laundry-social.netlify.app/assets/2026-07-03/slot-01.png",
       "caption": "白鞋鞋邊與內裡的濕悶痕跡",
@@ -609,7 +609,7 @@
     },
     {
       "@type": "SocialMediaPosting",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-03.json#post-2026-07-03-slot-02",
+      "@id": "https://39211.github.io/content-calendar/2026-07-03.json#post-2026-07-03-slot-02",
       "headline": "2026-07-03 19:30 雨季通勤後的包角與鞋底檢查",
       "text": "雨季通勤後，包包四角和鞋底邊緣常常比外觀看起來更早累積水痕、泥灰和摩擦痕。\n\n私享家洗衣店\n\n如果回家後直接收進鞋櫃或衣櫃，濕氣會悶在鞋內、包角或提把裡，下一次拿出來才發現味道變重，邊角也比較暗。\n\n我們會先看包包材質是皮革、尼龍還是帆布，再判斷包角是否只是表面灰、是否有水痕滲入；鞋子則會看鞋底邊緣、內裡濕氣和鞋墊狀態，避免用錯方式讓材質變硬或褪色。\n\n你可以先拍包角、提把、鞋底邊緣和鞋內照片傳來，我們幫你看狀態，再決定值不值得整理。\n\n#私享家洗衣店 #雨季保養 #鞋包清潔",
       "datePublished": "2026-07-03T19:30:00+08:00",
@@ -620,19 +620,19 @@
         "#鞋包清潔"
       ],
       "image": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-03.json#post-2026-07-03-slot-02:image"
+        "@id": "https://39211.github.io/content-calendar/2026-07-03.json#post-2026-07-03-slot-02:image"
       },
       "isPartOf": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#social-post-dataset"
+        "@id": "https://39211.github.io/#social-post-dataset"
       },
       "about": {
-        "@id": "https://39211.github.io/laundry-social-auto-poster/#business"
+        "@id": "https://39211.github.io/#business"
       },
-      "url": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-03.json#post-2026-07-03-slot-02"
+      "url": "https://39211.github.io/content-calendar/2026-07-03.json#post-2026-07-03-slot-02"
     },
     {
       "@type": "ImageObject",
-      "@id": "https://39211.github.io/laundry-social-auto-poster/content-calendar/2026-07-03.json#post-2026-07-03-slot-02:image",
+      "@id": "https://39211.github.io/content-calendar/2026-07-03.json#post-2026-07-03-slot-02:image",
       "contentUrl": "https://sixiangjia-laundry-social.netlify.app/assets/2026-07-03/slot-02.png",
       "url": "https://sixiangjia-laundry-social.netlify.app/assets/2026-07-03/slot-02.png",
       "caption": "雨季通勤後的包角與鞋底檢查",

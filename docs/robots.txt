@@ -2,9 +2,9 @@ User-agent: *
 Allow: /
 
 # AI-readable entry points
-# llms.txt: https://39211.github.io/laundry-social-auto-poster/llms.txt
-# llms-full.txt: https://39211.github.io/laundry-social-auto-poster/llms-full.txt
-# ai-discovery.json: https://39211.github.io/laundry-social-auto-poster/ai-discovery.json
+# llms.txt: https://39211.github.io/llms.txt
+# llms-full.txt: https://39211.github.io/llms-full.txt
+# ai-discovery.json: https://39211.github.io/ai-discovery.json
 
 User-agent: GPTBot
 Allow: /
@@ -114,4 +114,4 @@ Allow: /geo-targets.json
 Allow: /feed.json
 Allow: /knowledge-graph.json
 
-Sitemap: https://39211.github.io/laundry-social-auto-poster/sitemap.xml
+Sitemap: https://39211.github.io/sitemap.xml

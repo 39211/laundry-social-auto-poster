@@ -1,33 +1,117 @@
 User-agent: *
 Allow: /
 
+# AI-readable entry points
+# llms.txt: https://39211.github.io/laundry-social-auto-poster/llms.txt
+# llms-full.txt: https://39211.github.io/laundry-social-auto-poster/llms-full.txt
+# ai-discovery.json: https://39211.github.io/laundry-social-auto-poster/ai-discovery.json
+
 User-agent: GPTBot
 Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: Claude-Web
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
-User-agent: Google-Extended
-Allow: /
-
+Allow: /llms.txt
+Allow: /llms-lite.txt
+Allow: /llms-full.txt
+Allow: /llms.jsonl
 Allow: /services.json
 Allow: /answers.json
 Allow: /geo-targets.json
-Allow: /ai-discovery.json
-Allow: /business-profile.json
+Allow: /feed.json
+Allow: /knowledge-graph.json
+
+User-agent: ChatGPT-User
+Allow: /
 Allow: /llms.txt
-Allow: /.well-known/llms.txt
-Allow: /services/shoe-bag-care.html
-Allow: /services/white-shoe-cleaning.html
-Allow: /services/fabric-storage.html
+Allow: /llms-lite.txt
+Allow: /llms-full.txt
+Allow: /llms.jsonl
+Allow: /services.json
+Allow: /answers.json
+Allow: /geo-targets.json
+Allow: /feed.json
+Allow: /knowledge-graph.json
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-lite.txt
+Allow: /llms-full.txt
+Allow: /llms.jsonl
+Allow: /services.json
+Allow: /answers.json
+Allow: /geo-targets.json
+Allow: /feed.json
+Allow: /knowledge-graph.json
+
+User-agent: Claude-Web
+Allow: /
+Allow: /llms.txt
+Allow: /llms-lite.txt
+Allow: /llms-full.txt
+Allow: /llms.jsonl
+Allow: /services.json
+Allow: /answers.json
+Allow: /geo-targets.json
+Allow: /feed.json
+Allow: /knowledge-graph.json
+
+User-agent: anthropic-ai
+Allow: /
+Allow: /llms.txt
+Allow: /llms-lite.txt
+Allow: /llms-full.txt
+Allow: /llms.jsonl
+Allow: /services.json
+Allow: /answers.json
+Allow: /geo-targets.json
+Allow: /feed.json
+Allow: /knowledge-graph.json
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-lite.txt
+Allow: /llms-full.txt
+Allow: /llms.jsonl
+Allow: /services.json
+Allow: /answers.json
+Allow: /geo-targets.json
+Allow: /feed.json
+Allow: /knowledge-graph.json
+
+User-agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+Allow: /llms-lite.txt
+Allow: /llms-full.txt
+Allow: /llms.jsonl
+Allow: /services.json
+Allow: /answers.json
+Allow: /geo-targets.json
+Allow: /feed.json
+Allow: /knowledge-graph.json
+
+User-agent: Applebot-Extended
+Allow: /
+Allow: /llms.txt
+Allow: /llms-lite.txt
+Allow: /llms-full.txt
+Allow: /llms.jsonl
+Allow: /services.json
+Allow: /answers.json
+Allow: /geo-targets.json
+Allow: /feed.json
+Allow: /knowledge-graph.json
+
+User-agent: Amazonbot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-lite.txt
+Allow: /llms-full.txt
+Allow: /llms.jsonl
+Allow: /services.json
+Allow: /answers.json
+Allow: /geo-targets.json
+Allow: /feed.json
+Allow: /knowledge-graph.json
 
 Sitemap: https://39211.github.io/laundry-social-auto-poster/sitemap.xml

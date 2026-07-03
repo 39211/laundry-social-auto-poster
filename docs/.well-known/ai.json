@@ -1,7 +1,7 @@
 {
   "schema_version": "2026-07-02",
   "standard_level": "standard",
-  "generated_at": "2026-07-03T08:03:24.150Z",
+  "generated_at": "2026-07-03T08:16:57.354Z",
   "website": {
     "name": "私享家洗衣店",
     "business_name": "私享家洗衣店",
@@ -457,6 +457,11 @@
       "image_url",
       "calendar_url"
     ],
+    "homepage_archive_policy": {
+      "expanded_recent_days": 7,
+      "expanded_behavior": "Homepage renders approved posts from the newest seven content dates directly.",
+      "archive_behavior": "Older approved posts stay in SEO/AIO/GEO data and render inside a collapsed homepage archive."
+    },
     "omitted_until_verified": [
       "google_place_id",
       "holiday_hours_overrides"

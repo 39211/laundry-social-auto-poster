@@ -4,7 +4,7 @@
 
 ## Source Of Record
 - Canonical URL: https://39211.github.io/laundry-social-auto-poster/
-- Generated at: 2026-07-03T08:49:08.673Z
+- Generated at: 2026-07-03T10:15:34.689Z
 - Timezone: Asia/Taipei
 - Base URL configured: yes
 
@@ -143,7 +143,16 @@
     "鞋包清潔",
     "布品收納",
     "白鞋清潔",
-    "雨季保養"
+    "雨季保養",
+    "洗衣店",
+    "台中洗衣店",
+    "西屯洗衣店",
+    "台中西屯洗衣店",
+    "青海路洗衣店",
+    "台中西屯洗鞋",
+    "台中西屯洗包",
+    "台中西屯白鞋清潔",
+    "台中西屯布品收納"
   ],
   "hasOfferCatalog": {
     "@type": "OfferCatalog",

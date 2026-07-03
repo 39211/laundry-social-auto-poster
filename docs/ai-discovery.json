@@ -1,7 +1,7 @@
 {
   "schema_version": "2026-07-02",
   "standard_level": "standard",
-  "generated_at": "2026-07-03T08:49:08.673Z",
+  "generated_at": "2026-07-03T10:15:34.689Z",
   "website": {
     "name": "私享家洗衣店",
     "business_name": "私享家洗衣店",
@@ -110,6 +110,23 @@
       "holiday_hours_rule": "owner_rule_configured",
       "holiday_hours_overrides": "not_configured"
     }
+  },
+  "local_search_targets": {
+    "primary_queries": [
+      "洗衣店",
+      "台中洗衣店",
+      "西屯洗衣店",
+      "台中西屯洗衣店",
+      "青海路洗衣店",
+      "台中西屯洗鞋",
+      "台中西屯洗包",
+      "台中西屯白鞋清潔",
+      "台中西屯布品收納"
+    ],
+    "primary_area": "西屯區",
+    "street_anchor": "青海路二段",
+    "canonical_url": "https://39211.github.io/laundry-social-auto-poster/",
+    "intent_note": "Use these as local SEO/AIO/GEO query anchors for people searching laundry, shoe cleaning, bag cleaning, white shoe cleaning, and fabric storage near Taichung Xitun."
   },
   "entrypoints": {
     "index": "https://39211.github.io/laundry-social-auto-poster/index.html",
@@ -282,7 +299,16 @@
       "鞋包清潔",
       "布品收納",
       "白鞋清潔",
-      "雨季保養"
+      "雨季保養",
+      "洗衣店",
+      "台中洗衣店",
+      "西屯洗衣店",
+      "台中西屯洗衣店",
+      "青海路洗衣店",
+      "台中西屯洗鞋",
+      "台中西屯洗包",
+      "台中西屯白鞋清潔",
+      "台中西屯布品收納"
     ],
     "hasOfferCatalog": {
       "@type": "OfferCatalog",

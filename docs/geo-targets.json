@@ -1,6 +1,6 @@
 {
   "schema_version": "2026-07-02",
-  "generated_at": "2026-07-03T08:49:08.673Z",
+  "generated_at": "2026-07-03T10:15:34.689Z",
   "business": {
     "name": "私享家洗衣店",
     "google_business_profile_name": "私享家 旗艦總店",
@@ -55,7 +55,135 @@
     "longitude": null,
     "status": "not_verified"
   },
+  "primary_local_queries": [
+    {
+      "query": "洗衣店",
+      "business": "私享家洗衣店",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "台中洗衣店",
+      "business": "私享家洗衣店",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "西屯洗衣店",
+      "business": "私享家洗衣店",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "台中西屯洗衣店",
+      "business": "私享家洗衣店",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "青海路洗衣店",
+      "business": "私享家洗衣店",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "台中西屯洗鞋",
+      "business": "私享家洗衣店",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "台中西屯洗包",
+      "business": "私享家洗衣店",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "台中西屯白鞋清潔",
+      "business": "私享家洗衣店",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "台中西屯布品收納",
+      "business": "私享家洗衣店",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    }
+  ],
   "local_intents": [
+    {
+      "query": "洗衣店",
+      "service": "衣物洗護、鞋包清潔、白鞋清潔、布品收納",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "台中洗衣店",
+      "service": "衣物洗護、鞋包清潔、白鞋清潔、布品收納",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "西屯洗衣店",
+      "service": "衣物洗護、鞋包清潔、白鞋清潔、布品收納",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "台中西屯洗衣店",
+      "service": "衣物洗護、鞋包清潔、白鞋清潔、布品收納",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "青海路洗衣店",
+      "service": "衣物洗護、鞋包清潔、白鞋清潔、布品收納",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "台中西屯洗鞋",
+      "service": "衣物洗護、鞋包清潔、白鞋清潔、布品收納",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "台中西屯洗包",
+      "service": "衣物洗護、鞋包清潔、白鞋清潔、布品收納",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "台中西屯白鞋清潔",
+      "service": "衣物洗護、鞋包清潔、白鞋清潔、布品收納",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
+    {
+      "query": "台中西屯布品收納",
+      "service": "衣物洗護、鞋包清潔、白鞋清潔、布品收納",
+      "area": "西屯區",
+      "url": "https://39211.github.io/laundry-social-auto-poster/",
+      "answer_summary": "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。"
+    },
     {
       "query": "台中西屯 鞋包清潔",
       "service": "鞋包清潔",

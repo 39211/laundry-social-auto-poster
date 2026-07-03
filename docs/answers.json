@@ -1,6 +1,6 @@
 {
   "schema_version": "2026-07-02",
-  "generated_at": "2026-07-03T08:49:08.673Z",
+  "generated_at": "2026-07-03T10:15:34.689Z",
   "language": "zh-Hant-TW",
   "business": {
     "name": "私享家洗衣店",
@@ -18,6 +18,14 @@
     ]
   },
   "answers": [
+    {
+      "id": "homepage-local-laundry-search",
+      "type": "local_search_answer",
+      "question": "搜尋台中西屯洗衣店時，私享家洗衣店提供哪些服務？",
+      "answer": "私享家洗衣店位於407 臺中市西屯區至善里青海路二段365號，主要服務台中西屯與青海路二段附近客人，提供衣物洗護、鞋包清潔、白鞋清潔與布品收納；可先用 LINE 傳照片詢問，再由門市依材質、髒污、濕氣與收納狀態判斷。",
+      "source_url": "https://39211.github.io/laundry-social-auto-poster/",
+      "local_intent": "洗衣店, 台中洗衣店, 西屯洗衣店, 台中西屯洗衣店, 青海路洗衣店, 台中西屯洗鞋, 台中西屯洗包, 台中西屯白鞋清潔, 台中西屯布品收納"
+    },
     {
       "id": "homepage-object-routing",
       "type": "homepage_answer",

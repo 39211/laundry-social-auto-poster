@@ -50,8 +50,21 @@ export function postedLogPath(date: string, root = projectRoot()): string {
   return join(root, "data", "posted-log", `${date}.json`);
 }
 
+export function postedLogDirectory(root = projectRoot()): string {
+  return join(root, "data", "posted-log");
+}
+
 export function approvedLogPath(date: string, root = projectRoot()): string {
   return join(root, "data", "approved-log", `${date}.json`);
+}
+
+export function instagramInsightsDirectory(root = projectRoot()): string {
+  return join(root, "data", "insights", "instagram");
+}
+
+export function instagramInsightsReportPath(since: string, until: string, root = projectRoot()): string {
+  const fileName = since === until ? `${since}.json` : `${since}_to_${until}.json`;
+  return join(instagramInsightsDirectory(root), fileName);
 }
 
 export async function ensureProjectDirectories(date: string, root = projectRoot()): Promise<void> {
@@ -63,6 +76,7 @@ export async function ensureProjectDirectories(date: string, root = projectRoot(
     mkdir(join(root, "data", "image-prompts"), { recursive: true }),
     mkdir(join(root, "data", "image-sources"), { recursive: true }),
     mkdir(join(root, "data", "approved-log"), { recursive: true }),
-    mkdir(join(root, "data", "posted-log"), { recursive: true })
+    mkdir(join(root, "data", "posted-log"), { recursive: true }),
+    mkdir(instagramInsightsDirectory(root), { recursive: true })
   ]);
 }

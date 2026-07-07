@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
-import { getOption, isMain } from "./cli";
+import { auditPublicSite, formatPublicSiteAudit, publicSiteAuditFailures } from "./auditPublicSite";
+import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { docsContentCalendarPath, projectRoot, relativeAssetPath } from "./paths";
 import { getZonedDateParts } from "./scheduler";
@@ -122,7 +123,22 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const config = getConfig();
   const date = getOption(args, "date") || getZonedDateParts(new Date(), config.timezone).date;
-  console.log(publishPagesAssets(date, projectRoot(getOption(args, "root"))));
+  const root = projectRoot(getOption(args, "root"));
+  console.log(publishPagesAssets(date, root));
+  if (!getFlag(args, "skip-audit")) {
+    const auditMode = getOption(args, "audit-mode") === "local" ? "local" : "public";
+    const audit = await auditPublicSite({
+      root,
+      siteBaseUrl: config.publicImageBaseUrl,
+      mode: auditMode,
+      retries: getNumberOption(args, "audit-retries") ?? 1,
+      retryMs: getNumberOption(args, "audit-retry-ms") ?? 30000
+    });
+    console.log(formatPublicSiteAudit(audit));
+    if (publicSiteAuditFailures(audit).length > 0) {
+      process.exitCode = 1;
+    }
+  }
 }
 
 if (isMain(import.meta.url)) {

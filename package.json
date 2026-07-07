@@ -8,6 +8,7 @@
     "generate": "tsx src/generateDailyContent.ts",
     "generate-image-manifest": "tsx src/generateImage.ts",
     "validate-images": "tsx src/generateImage.ts --validate",
+    "audit-public-site": "tsx src/auditPublicSite.ts",
     "post": "tsx src/postCurrentSlot.ts --all-due",
     "post-current-slot": "tsx src/postCurrentSlot.ts",
     "publish-pages": "tsx src/publishPages.ts",

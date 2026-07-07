@@ -38,16 +38,31 @@ export function imagePromptManifestPath(date: string, root = projectRoot()): str
   return join(root, "data", "image-prompts", `${date}.json`);
 }
 
+export function dailyContextPath(date: string, root = projectRoot()): string {
+  return join(root, "data", "daily-context", `${date}.json`);
+}
+
+export function imageSourcesPath(date: string, root = projectRoot()): string {
+  return join(root, "data", "image-sources", `${date}.json`);
+}
+
 export function postedLogPath(date: string, root = projectRoot()): string {
   return join(root, "data", "posted-log", `${date}.json`);
+}
+
+export function approvedLogPath(date: string, root = projectRoot()): string {
+  return join(root, "data", "approved-log", `${date}.json`);
 }
 
 export async function ensureProjectDirectories(date: string, root = projectRoot()): Promise<void> {
   await Promise.all([
     mkdir(assetDirectory(date, root), { recursive: true }),
     mkdir(join(root, "docs", "content-calendar"), { recursive: true }),
+    mkdir(join(root, "data", "daily-context"), { recursive: true }),
     mkdir(join(root, "data", "content-calendar"), { recursive: true }),
     mkdir(join(root, "data", "image-prompts"), { recursive: true }),
+    mkdir(join(root, "data", "image-sources"), { recursive: true }),
+    mkdir(join(root, "data", "approved-log"), { recursive: true }),
     mkdir(join(root, "data", "posted-log"), { recursive: true })
   ]);
 }

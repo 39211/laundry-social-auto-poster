@@ -23,6 +23,8 @@ export interface DailySlot {
   instagram_caption: string;
   facebook_caption: string;
   image_prompt: string;
+  visual_route?: string;
+  traffic_route?: string;
   local_image_path: string;
   public_image_url: string;
   status: PostStatus;
@@ -35,6 +37,15 @@ export interface DailyContent {
   slots: DailySlot[];
 }
 
+export interface ApprovalLogEntry {
+  date: string;
+  slot: number;
+  platform: Platform;
+  status: "approved";
+  approved_by: string;
+  note?: string;
+  created_at: string;
+}
 export interface PostLogEntry {
   date: string;
   slot: number;
@@ -54,7 +65,9 @@ export interface AppConfig {
   metaAccessToken?: string;
   facebookPageId?: string;
   instagramUserId?: string;
+  publicSiteBaseUrl?: string;
   publicImageBaseUrl: string;
+  publicRootPagesRepo?: string;
   verifyPublicImageUrl: boolean;
 }
 

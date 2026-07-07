@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { contentCalendarPath, docsContentCalendarPath, postedLogPath, projectRoot } from "./paths";
-import type { DailyContent, Platform, PostLogEntry } from "./types";
+import { approvedLogPath, contentCalendarPath, docsContentCalendarPath, postedLogPath, projectRoot } from "./paths";
+import type { ApprovalLogEntry, DailyContent, Platform, PostLogEntry } from "./types";
 
 export async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
   try {
@@ -52,6 +52,26 @@ export async function appendPostLog(entry: PostLogEntry, root = projectRoot()): 
   await writePostLog(entry.date, entries, root);
 }
 
+export async function loadApprovalLog(date: string, root = projectRoot()): Promise<ApprovalLogEntry[]> {
+  return readJsonFile<ApprovalLogEntry[]>(approvedLogPath(date, root), []);
+}
+
+export async function writeApprovalLog(
+  date: string,
+  entries: ApprovalLogEntry[],
+  root = projectRoot()
+): Promise<void> {
+  await writeJsonAtomic(approvedLogPath(date, root), entries);
+}
+
+export async function appendApprovalLog(entry: ApprovalLogEntry, root = projectRoot()): Promise<void> {
+  const entries = (await loadApprovalLog(entry.date, root)).filter(
+    (item) => !(item.slot === entry.slot && item.platform === entry.platform)
+  );
+  entries.push(entry);
+  entries.sort((a, b) => a.slot - b.slot || a.platform.localeCompare(b.platform));
+  await writeApprovalLog(entry.date, entries, root);
+}
 export function hasRecordedPost(
   entries: PostLogEntry[],
   slot: number,
@@ -63,4 +83,9 @@ export function hasRecordedPost(
     if (dryRun) return entry.dry_run && ["success", "dry_run"].includes(entry.status);
     return !entry.dry_run && ["success", "posted"].includes(entry.status);
   });
+}
+export function hasApprovedPost(entries: ApprovalLogEntry[], slot: number, platform: Platform): boolean {
+  return entries.some(
+    (entry) => entry.slot === slot && entry.platform === platform && entry.status === "approved"
+  );
 }

@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { extname, join } from "node:path";
 import { auditPublicSite, formatPublicSiteAudit, publicSiteAuditFailures } from "./auditPublicSite";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
@@ -9,6 +10,22 @@ import { getZonedDateParts } from "./scheduler";
 
 function runGit(args: string[], root: string): string {
   return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+}
+
+function gitConfigValue(root: string, key: string): string {
+  try {
+    return runGit(["config", "--get", key], root);
+  } catch {
+    return "";
+  }
+}
+
+function checkoutMain(root: string): void {
+  try {
+    runGit(["checkout", "-B", "main", "origin/main"], root);
+  } catch {
+    runGit(["checkout", "-B", "main"], root);
+  }
 }
 
 function hasOrigin(root: string): boolean {
@@ -96,15 +113,91 @@ function assertNoSecretsInPublishTargets(root: string, paths: string[]): void {
   }
 }
 
-export function publishPagesAssets(date: string, root = projectRoot()): string {
+function existingPublishPaths(root: string, paths: string[]): string[] {
+  return paths.filter((path) => existsSync(join(root, ...path.split("/"))));
+}
+
+function copyDirectoryContents(source: string, target: string): void {
+  mkdirSync(target, { recursive: true });
+  for (const entry of readdirSync(source, { withFileTypes: true })) {
+    const sourcePath = join(source, entry.name);
+    const targetPath = join(target, entry.name);
+    if (entry.isDirectory()) {
+      copyDirectoryContents(sourcePath, targetPath);
+    } else if (entry.isFile()) {
+      copyFileSync(sourcePath, targetPath);
+    }
+  }
+}
+
+function clearMirrorWorktree(root: string): void {
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (entry.name === ".git") continue;
+    rmSync(join(root, entry.name), { recursive: true, force: true });
+  }
+}
+
+function publishRootPagesMirror(date: string, root: string, rootPagesRepo: string): string {
+  if (!rootPagesRepo) return "";
+
+  const docsRoot = join(root, "docs");
+  if (!existsSync(docsRoot)) return "Root Pages mirror skipped because docs/ does not exist.";
+
+  const mirrorRoot = mkdtempSync(join(tmpdir(), "laundry-root-pages-"));
+  runGit(["clone", rootPagesRepo, mirrorRoot], root);
+  runGit(["config", "user.name", gitConfigValue(root, "user.name") || "Codex Automation"], mirrorRoot);
+  runGit(["config", "user.email", gitConfigValue(root, "user.email") || "codex-automation@users.noreply.github.com"], mirrorRoot);
+  checkoutMain(mirrorRoot);
+  clearMirrorWorktree(mirrorRoot);
+  copyDirectoryContents(docsRoot, mirrorRoot);
+
+  runGit(["add", "-A"], mirrorRoot);
+  const status = runGit(["status", "--porcelain"], mirrorRoot);
+  if (!status) return `No root Pages mirror changes to publish for ${date}.`;
+
+  runGit(["commit", "-m", `Mirror public site ${date}`], mirrorRoot);
+  runGit(["push", "origin", "HEAD:main"], mirrorRoot);
+  return `Mirrored public site to root Pages repo for ${date}.`;
+}
+
+export function publishPagesAssets(date: string, root = projectRoot(), rootPagesRepo = ""): string {
   if (!hasOrigin(root)) {
     return "Git remote origin is not configured; skipped GitHub Pages commit and push.";
   }
 
   const assetDir = relativeAssetPath(date, 1).replace(/\/slot-01\.png$/, "");
   const docsCalendar = docsContentCalendarPath(date, root);
-  const docsCalendarRelative = `docs/content-calendar/${date}.json`;
-  const paths = [assetDir, docsCalendarRelative, "docs/index.html"];
+  const publicSiteFiles = [
+    "docs/index.html",
+    "docs/404.html",
+    "docs/docs",
+    "docs/assets/backgrounds",
+    "docs/assets/services",
+    "docs/content-calendar",
+    "docs/services",
+    "docs/guides",
+    "docs/local",
+    "docs/llms-lite.txt",
+    "docs/llms.txt",
+    "docs/llms-full.txt",
+    "docs/.well-known/llms.txt",
+    "docs/.well-known/ai.json",
+    "docs/robots.txt",
+    "docs/sitemap.xml",
+    "docs/ai-sitemap.xml",
+    "docs/social-posts.json",
+    "docs/business-profile.json",
+    "docs/latest.json",
+    "docs/services.json",
+    "docs/answers.json",
+    "docs/geo-targets.json",
+    "docs/llms.jsonl",
+    "docs/feed.json",
+    "docs/knowledge-graph.json",
+    "docs/ai-discovery.json",
+    "docs/.nojekyll"
+  ];
+  const paths = existingPublishPaths(root, [assetDir, ...publicSiteFiles]);
 
   assertNoForbiddenStagedPaths(root);
   assertNoSecretsInPublishTargets(root, paths);
@@ -116,7 +209,8 @@ export function publishPagesAssets(date: string, root = projectRoot()): string {
 
   runGit(["commit", "-m", `Generate daily Pages assets ${date}`, "--", ...paths], root);
   runGit(["push"], root);
-  return `Published GitHub Pages assets for ${date}: ${assetDir}, ${docsCalendar}`;
+  const mirrorResult = publishRootPagesMirror(date, root, rootPagesRepo);
+  return [`Published GitHub Pages assets for ${date}: ${assetDir}, ${docsCalendar}`, mirrorResult].filter(Boolean).join("\n");
 }
 
 async function main(): Promise<void> {
@@ -124,7 +218,7 @@ async function main(): Promise<void> {
   const config = getConfig();
   const date = getOption(args, "date") || getZonedDateParts(new Date(), config.timezone).date;
   const root = projectRoot(getOption(args, "root"));
-  console.log(publishPagesAssets(date, root));
+  console.log(publishPagesAssets(date, root, config.publicRootPagesRepo || ""));
   if (!getFlag(args, "skip-audit")) {
     const auditMode = getOption(args, "audit-mode") === "local" ? "local" : "public";
     const audit = await auditPublicSite({

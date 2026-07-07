@@ -3,7 +3,7 @@ import { getConfig } from "../src/config";
 import { buildDailyContent } from "../src/contentPlan";
 
 describe("DailyContent schema", () => {
-  it("builds 10 complete slots", () => {
+  it("builds 2 complete slots", () => {
     const content = buildDailyContent(
       "2026-05-15",
       getConfig({
@@ -15,7 +15,7 @@ describe("DailyContent schema", () => {
 
     expect(content.date).toBe("2026-05-15");
     expect(content.timezone).toBe("Asia/Taipei");
-    expect(content.slots).toHaveLength(10);
+    expect(content.slots).toHaveLength(2);
 
     for (const slot of content.slots) {
       expect(slot.slot).toBeGreaterThanOrEqual(1);
@@ -23,7 +23,8 @@ describe("DailyContent schema", () => {
       expect(slot.topic.length).toBeGreaterThan(0);
       expect(slot.instagram_caption).toContain("私享家洗衣店");
       expect(slot.facebook_caption).toContain("私享家洗衣店");
-      expect(slot.image_prompt).toContain("no");
+      expect(slot.image_prompt).toContain("Realistic");
+      expect(slot.visual_route).toBeTruthy();
       expect(slot.local_image_path).toMatch(/^docs\/assets\/2026-05-15\/slot-\d{2}\.png$/);
       expect(slot.public_image_url).toMatch(/\/assets\/2026-05-15\/slot-\d{2}\.png$/);
       expect(slot.status).toBe("pending");

@@ -2,7 +2,8 @@ import { access } from "node:fs/promises";
 import { getFlag, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { buildDailyContent } from "./contentPlan";
-import { docsContentCalendarPath, ensureProjectDirectories, projectRoot } from "./paths";
+import { contentCalendarPath, ensureProjectDirectories, projectRoot } from "./paths";
+import { generateDailyContext } from "./generateDailyContext";
 import { getZonedDateParts } from "./scheduler";
 import { writeDailyContent } from "./logging";
 
@@ -25,9 +26,10 @@ export async function generateDailyContent(options: GenerateDailyContentOptions 
   const root = projectRoot(options.root);
   const config = getConfig();
   const date = options.date || getZonedDateParts(new Date(), config.timezone).date;
-  const calendarPath = docsContentCalendarPath(date, root);
+  const calendarPath = contentCalendarPath(date, root);
 
   await ensureProjectDirectories(date, root);
+  await generateDailyContext({ date, root, force: options.force });
 
   if (!options.force && (await exists(calendarPath))) {
     return calendarPath;

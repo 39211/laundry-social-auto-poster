@@ -7,7 +7,9 @@ const config: AppConfig = {
   dryRun: true,
   timezone: "Asia/Taipei",
   graphApiVersion: "v25.0",
+  publicSiteBaseUrl: "https://example.github.io/laundry-social-auto-poster",
   publicImageBaseUrl: "https://example.github.io/laundry-social-auto-poster",
+  publicRootPagesRepo: "",
   verifyPublicImageUrl: false
 };
 

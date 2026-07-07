@@ -1,18 +1,30 @@
 export type Platform = "facebook" | "instagram";
 
-export type PostStatus = "pending" | "success" | "dry_run" | "posted" | "failed" | "skipped";
+export type PostStatus = "pending" | "success" | "dry_run" | "posted" | "failed" | "skipped" | "missed";
 
-export type Category =
-  | "知識文"
-  | "情境文"
-  | "優惠提醒"
-  | "生活洗衣小技巧"
-  | "品牌形象文";
+export type Category = "知識文" | "情境文";
+
+export type VisualRoute = "shop-inspection" | "macro-detail" | "customer-consultation";
+
+export type TrafficRoute = "object-proof" | "value-prop-lead" | "dwell-detail" | "share-worthy-care" | "trust-reset";
 
 export interface SlotSchedule {
   slot: number;
   time: string;
   category: Category;
+}
+
+export interface DailyContext {
+  date: string;
+  timezone: string;
+  generated_at: string;
+  weather: {
+    location: string;
+    summary: string;
+    care_bridge: string;
+  };
+  local_hooks: string[];
+  warnings: string[];
 }
 
 export interface DailySlot {
@@ -23,8 +35,8 @@ export interface DailySlot {
   instagram_caption: string;
   facebook_caption: string;
   image_prompt: string;
-  visual_route?: string;
-  traffic_route?: string;
+  visual_route: VisualRoute;
+  traffic_route: TrafficRoute;
   local_image_path: string;
   public_image_url: string;
   status: PostStatus;
@@ -37,6 +49,14 @@ export interface DailyContent {
   slots: DailySlot[];
 }
 
+export interface ImageSourceRecord {
+  date: string;
+  slot: number;
+  source: string;
+  image_path: string;
+  marked_at: string;
+}
+
 export interface ApprovalLogEntry {
   date: string;
   slot: number;
@@ -46,6 +66,7 @@ export interface ApprovalLogEntry {
   note?: string;
   created_at: string;
 }
+
 export interface PostLogEntry {
   date: string;
   slot: number;
@@ -65,9 +86,9 @@ export interface AppConfig {
   metaAccessToken?: string;
   facebookPageId?: string;
   instagramUserId?: string;
-  publicSiteBaseUrl?: string;
+  publicSiteBaseUrl: string;
   publicImageBaseUrl: string;
-  publicRootPagesRepo?: string;
+  publicRootPagesRepo: string;
   verifyPublicImageUrl: boolean;
 }
 
@@ -80,7 +101,7 @@ export interface PostInput {
 
 export interface PostResult {
   platform: Platform;
-  status: Exclude<PostStatus, "pending">;
+  status: Exclude<PostStatus, "pending" | "missed">;
   dry_run: boolean;
   attempts: number;
   post_id?: string;

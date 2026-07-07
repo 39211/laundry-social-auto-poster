@@ -1,10 +1,17 @@
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
-import { assertPublicImageBaseUrl, getConfig } from "./config";
+import { assertLiveMetaConfig, assertPublicImageBaseUrl, getConfig } from "./config";
 import { generateDailyContent } from "./generateDailyContent";
-import { verifyPublicImageUrl } from "./githubPages";
-import { appendPostLog, hasRecordedPost, loadDailyContent, loadPostLog } from "./logging";
+import { buildGitHubPagesImageUrl, verifyPublicImageUrl } from "./githubPages";
+import {
+  appendPostLog,
+  hasApprovedPost,
+  hasRecordedPost,
+  loadApprovalLog,
+  loadDailyContent,
+  loadPostLog
+} from "./logging";
 import { projectRoot } from "./paths";
 import { postFacebookPhoto } from "./postFacebook";
 import { postInstagramPhoto } from "./postInstagram";
@@ -20,6 +27,7 @@ export interface PostCurrentSlotOptions {
   allDue?: boolean;
   root?: string;
   verifyPublicImageUrl?: boolean;
+  preflightOnly?: boolean;
   fetchImpl?: typeof fetch;
 }
 
@@ -63,26 +71,50 @@ async function postOneSlot(
   config: AppConfig,
   date: string,
   root: string,
-  fetchImpl: typeof fetch
+  fetchImpl: typeof fetch,
+  preflightOnly = false
 ): Promise<PostLogEntry[]> {
   await assertLocalImageExists(slot, root);
+  const imageUrl = slot.public_image_url || buildGitHubPagesImageUrl(config.publicImageBaseUrl, date, slot.slot);
 
   if (config.verifyPublicImageUrl) {
-    await verifyPublicImageUrl(slot.public_image_url, fetchImpl);
+    await verifyPublicImageUrl(imageUrl, fetchImpl);
   }
 
   const existing = await loadPostLog(date, root);
+  const approvals = await loadApprovalLog(date, root);
   const outputs: PostLogEntry[] = [];
   const platformInputs: Array<{ platform: Platform; input: PostInput }> = [
     {
       platform: "facebook",
-      input: { date, slot: slot.slot, caption: slot.facebook_caption, imageUrl: slot.public_image_url }
+      input: { date, slot: slot.slot, caption: slot.facebook_caption, imageUrl }
     },
     {
       platform: "instagram",
-      input: { date, slot: slot.slot, caption: slot.instagram_caption, imageUrl: slot.public_image_url }
+      input: { date, slot: slot.slot, caption: slot.instagram_caption, imageUrl }
     }
   ];
+  const missingApprovals = platformInputs
+    .filter(({ platform }) => !hasApprovedPost(approvals, slot.slot, platform))
+    .map(({ platform }) => platform);
+
+  if (missingApprovals.length > 0) {
+    throw new Error(
+      `Post ${date} slot ${slot.slot} is not approved for: ${missingApprovals.join(", ")}. Run approve-post before posting.`
+    );
+  }
+
+  if (preflightOnly) {
+    return platformInputs.map(({ platform }) => ({
+      date,
+      slot: slot.slot,
+      platform,
+      status: "pending",
+      dry_run: config.dryRun,
+      attempts: 0,
+      created_at: new Date().toISOString()
+    }));
+  }
 
   for (const { platform, input } of platformInputs) {
     if (hasRecordedPost(existing, slot.slot, platform, config.dryRun)) {
@@ -132,6 +164,7 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
     verifyPublicImageUrl: options.verifyPublicImageUrl ?? baseConfig.verifyPublicImageUrl
   };
   assertPublicImageBaseUrl(config);
+  assertLiveMetaConfig(config);
 
   const now = options.now ? new Date(options.now) : new Date();
   const date = options.date || getZonedDateParts(now, config.timezone).date;
@@ -156,7 +189,7 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
   for (const schedule of targetSchedules) {
     const slot = content.slots.find((item) => item.slot === schedule.slot);
     if (!slot) throw new Error(`Content slot ${schedule.slot} is missing for ${date}`);
-    results.push(...(await postOneSlot(slot, config, date, root, options.fetchImpl ?? fetch)));
+    results.push(...(await postOneSlot(slot, config, date, root, options.fetchImpl ?? fetch, options.preflightOnly)));
   }
 
   return results;
@@ -171,6 +204,7 @@ async function main(): Promise<void> {
     dryRun: getFlag(args, "live") ? false : getFlag(args, "dry-run") ? true : undefined,
     allDue: getFlag(args, "all-due"),
     root: getOption(args, "root"),
+    preflightOnly: getFlag(args, "preflight-only"),
     verifyPublicImageUrl: getFlag(args, "check-url")
       ? true
       : getFlag(args, "skip-url-check")

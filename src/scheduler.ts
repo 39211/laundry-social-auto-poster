@@ -2,16 +2,8 @@ import { isMain } from "./cli";
 import type { SlotSchedule } from "./types";
 
 export const DAILY_SCHEDULE: SlotSchedule[] = [
-  { slot: 1, time: "07:30", category: "生活洗衣小技巧" },
-  { slot: 2, time: "09:30", category: "知識文" },
-  { slot: 3, time: "11:30", category: "情境文" },
-  { slot: 4, time: "13:30", category: "知識文" },
-  { slot: 5, time: "15:30", category: "優惠提醒" },
-  { slot: 6, time: "17:30", category: "生活洗衣小技巧" },
-  { slot: 7, time: "19:30", category: "情境文" },
-  { slot: 8, time: "21:00", category: "知識文" },
-  { slot: 9, time: "22:00", category: "優惠提醒" },
-  { slot: 10, time: "23:00", category: "品牌形象文" }
+  { slot: 1, time: "11:30", category: "知識文" },
+  { slot: 2, time: "19:30", category: "情境文" }
 ];
 
 export function getZonedDateParts(now: Date, timezone = "Asia/Taipei"): { date: string; time: string } {

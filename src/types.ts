@@ -84,6 +84,7 @@ export interface AppConfig {
   timezone: string;
   graphApiVersion: string;
   metaAccessToken?: string;
+  metaAnalyticsAccessToken?: string;
   facebookPageId?: string;
   instagramUserId?: string;
   publicSiteBaseUrl: string;

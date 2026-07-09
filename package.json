@@ -17,6 +17,7 @@
     "post": "tsx src/postCurrentSlot.ts --all-due",
     "post-current-slot": "tsx src/postCurrentSlot.ts",
     "fetch-instagram-insights": "tsx src/fetchInstagramInsights.ts",
+    "audit-meta-access": "tsx src/auditMetaAccess.ts",
     "publish-pages": "tsx src/publishPages.ts",
     "daily": "npm run generate && npm run generate-image-manifest && npm run generate-public-site",
     "schedule": "tsx src/scheduler.ts",

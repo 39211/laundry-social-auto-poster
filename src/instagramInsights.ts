@@ -170,8 +170,9 @@ export async function fetchInstagramMediaInsights(options: InstagramInsightsOpti
   if (!postId) {
     throw new Error("--post-id is required.");
   }
-  if (!hasCredential(options.config.metaAccessToken)) {
-    throw new Error("META_ACCESS_TOKEN is required for read-only Instagram insights.");
+  const accessToken = options.config.metaAnalyticsAccessToken || options.config.metaAccessToken;
+  if (!hasCredential(accessToken)) {
+    throw new Error("META_ANALYTICS_ACCESS_TOKEN or META_ACCESS_TOKEN is required for read-only Instagram insights.");
   }
 
   const metrics = normalizeMetrics(options.metrics);
@@ -183,7 +184,7 @@ export async function fetchInstagramMediaInsights(options: InstagramInsightsOpti
   const response = await fetchImpl(url.toString(), {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${options.config.metaAccessToken}`
+      Authorization: `Bearer ${accessToken}`
     }
   });
   const raw = await readJson(response);

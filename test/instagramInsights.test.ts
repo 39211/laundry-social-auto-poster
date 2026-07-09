@@ -17,6 +17,7 @@ const config: AppConfig = {
   timezone: "Asia/Taipei",
   graphApiVersion: "v25.0",
   metaAccessToken: "EAAabcdefghijklmnopqrstuvwxyz1234567890",
+  metaAnalyticsAccessToken: "EAAabcdefghijklmnopqrstuvwxyz1234567890",
   facebookPageId: "123456789012345",
   instagramUserId: "12345678901234567",
   publicSiteBaseUrl: "https://example.github.io/laundry-social-auto-poster",
@@ -54,7 +55,29 @@ describe("Instagram media insights client", () => {
     expect(init).toMatchObject({
       method: "GET",
       headers: {
-        Authorization: `Bearer ${config.metaAccessToken}`
+        Authorization: `Bearer ${config.metaAnalyticsAccessToken}`
+      }
+    });
+  });
+
+  it("prefers the analytics token without changing the publishing token", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ data: [] }), { status: 200 })) as unknown as typeof fetch;
+
+    await fetchInstagramMediaInsights({
+      postId: "18097273807967885",
+      config: {
+        ...config,
+        metaAccessToken: "EAA-publishing-token",
+        metaAnalyticsAccessToken: "EAA-analytics-token"
+      },
+      metrics: ["reach"],
+      fetchImpl
+    });
+
+    const [, init] = vi.mocked(fetchImpl).mock.calls[0] ?? [];
+    expect(init).toMatchObject({
+      headers: {
+        Authorization: "Bearer EAA-analytics-token"
       }
     });
   });
@@ -98,10 +121,10 @@ describe("Instagram media insights client", () => {
     await expect(
       fetchInstagramMediaInsights({
         postId: "18097273807967885",
-        config: { ...config, metaAccessToken: "[REDACTED]" },
+        config: { ...config, metaAccessToken: "[REDACTED]", metaAnalyticsAccessToken: "" },
         fetchImpl
       })
-    ).rejects.toThrow("META_ACCESS_TOKEN is required");
+    ).rejects.toThrow("META_ANALYTICS_ACCESS_TOKEN or META_ACCESS_TOKEN is required");
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -193,7 +216,7 @@ describe("Instagram media insights client", () => {
     expect(init).toMatchObject({
       method: "GET",
       headers: {
-        Authorization: `Bearer ${config.metaAccessToken}`
+        Authorization: `Bearer ${config.metaAnalyticsAccessToken}`
       }
     });
   });

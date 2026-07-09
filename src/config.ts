@@ -23,6 +23,7 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     timezone: env.TIMEZONE || "Asia/Taipei",
     graphApiVersion: env.META_GRAPH_API_VERSION || "v25.0",
     metaAccessToken: env.META_ACCESS_TOKEN,
+    metaAnalyticsAccessToken: env.META_ANALYTICS_ACCESS_TOKEN,
     facebookPageId: env.FB_PAGE_ID,
     instagramUserId: env.IG_USER_ID,
     publicSiteBaseUrl: (env.PUBLIC_SITE_BASE_URL || env.PUBLIC_IMAGE_BASE_URL || "").replace(/\/+$/, ""),

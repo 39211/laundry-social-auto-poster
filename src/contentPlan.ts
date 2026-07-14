@@ -2,7 +2,7 @@ import { buildGitHubPagesImageUrl } from "./githubPages";
 import { buildGrowthPlaybook, type GrowthFormat, type GrowthPlaybookSlot } from "./growthPlaybook";
 import { relativeAssetPath } from "./paths";
 import { DAILY_SCHEDULE } from "./scheduler";
-import type { AppConfig, Category, DailyContent, DailySlot, TrafficRoute, VisualRoute } from "./types";
+import type { AppConfig, Category, DailyContent, DailySlot, Platform, TrafficRoute, VisualRoute } from "./types";
 
 interface SlotTemplate {
   topic: string;
@@ -523,20 +523,24 @@ function inspectionFor(slot: GrowthPlaybookSlot): string {
   return "遇到這類狀況，我會先看材質、髒污停留的位置、是否有濕氣或異味，再判斷適合局部處理、整件整理，還是先保守觀察。";
 }
 
-function actionCtaFor(slot: GrowthPlaybookSlot): string {
+function actionCtaFor(slot: GrowthPlaybookSlot, platform: Platform): string {
   if (slot.seo_sync_page.includes("photo-before-laundry")) {
-    return "你可以先拍正面、近照、內裡或洗標，再傳 LINE，這樣我們比較能先幫你判斷方向。";
+    return platform === "instagram"
+      ? "先拍完整外觀、局部、內裡和洗標，再傳 LINE，初步判斷會更清楚。"
+      : "你可以先拍正面、近照、內裡或洗標，再傳 LINE，這樣我們比較能先幫你判斷方向。";
   }
-  return "如果你也有類似物件，可以先拍正面、近照、邊角、內裡或洗標，再傳 LINE 讓我們初步判斷。";
+  return platform === "instagram"
+    ? "有類似狀況時，先拍完整外觀、局部、邊角或洗標，再傳 LINE 讓我們初步看方向。"
+    : "如果你也有類似物件，可以先拍正面、近照、邊角、內裡或洗標，再傳 LINE 讓我們初步判斷。";
 }
 
-function captionFromPlaybook(slot: GrowthPlaybookSlot): string {
+function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): string {
   return [
     slot.hook,
     brandLine,
     careBridgeFor(slot),
     inspectionFor(slot),
-    actionCtaFor(slot),
+    actionCtaFor(slot, platform),
     slot.follow_cta,
     slot.hashtags.join(" ")
   ].join("\n\n");
@@ -573,16 +577,18 @@ function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string)
 }
 
 function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): DailySlot {
-  const caption = captionFromPlaybook(slot);
-  assertPlaybookCaptionQuality(slot, caption);
+  const facebookCaption = captionFromPlaybook(slot, "facebook");
+  const instagramCaption = captionFromPlaybook(slot, "instagram");
+  assertPlaybookCaptionQuality(slot, facebookCaption);
+  assertPlaybookCaptionQuality(slot, instagramCaption);
   return {
     slot: slot.slot,
     time: slot.time,
     category: slot.slot === 1 ? "知識文" : "情境文",
     topic: slot.topic,
     format: slot.format,
-    instagram_caption: caption,
-    facebook_caption: caption,
+    instagram_caption: instagramCaption,
+    facebook_caption: facebookCaption,
     image_prompt: imagePromptFromPlaybook(slot),
     visual_route: slot.visual_route,
     traffic_route: slot.traffic_route,

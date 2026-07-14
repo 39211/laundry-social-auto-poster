@@ -99,7 +99,9 @@ describe("DailyContent schema", () => {
       expect(slot.facebook_caption).toContain(objectWord);
       expect(slot.facebook_caption).toContain(hashtag);
       expect(hashtags.length).toBe(4);
-      expect(slot.instagram_caption).toBe(slot.facebook_caption);
+      expect(slot.instagram_caption).not.toBe(slot.facebook_caption);
+      expect(slot.instagram_caption).toContain(objectWord);
+      expect(slot.instagram_caption).toContain(hashtag);
       expect(slot.facebook_caption).not.toMatch(/畫面維持|這支內容會用|短影音題|轉詢問題|9:16|主視覺|route|SEO/);
     }
   });

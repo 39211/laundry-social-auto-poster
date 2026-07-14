@@ -185,6 +185,7 @@ export function publishPagesAssets(date: string, root = projectRoot(), rootPages
     "docs/robots.txt",
     "docs/sitemap.xml",
     "docs/ai-sitemap.xml",
+    "docs/indexnow-key.txt",
     "docs/social-posts.json",
     "docs/business-profile.json",
     "docs/latest.json",

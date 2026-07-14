@@ -320,25 +320,18 @@ describe("generatePublicSite", () => {
     expect(robots).toContain("Allow: /llms-full.txt");
     expect(robots).toContain("Sitemap: https://example.com/laundry-social-auto-poster/sitemap.xml");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/llms-full.txt</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/feed.json</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/business-profile.json</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/services.json</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/answers.json</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/geo-targets.json</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/llms.jsonl</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/services/shoe-bag-care.html</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/services/white-shoe-cleaning.html</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/services/fabric-storage.html</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-hero-product.png</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/knowledge-graph.json</loc>");
-    expect(sitemap).toContain("<changefreq>daily</changefreq>");
     expect(sitemap).toContain("<priority>1.0</priority>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/.well-known/llms.txt</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/.well-known/ai.json</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/ai-discovery.json</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/content-calendar/2026-07-02.json</loc>");
+    expect(sitemap).not.toContain("index.html");
+    expect(sitemap).not.toContain(".json");
+    expect(sitemap).not.toContain("llms");
+    expect(sitemap).not.toContain("/assets/");
+    expect(aiSitemap).toContain("<!-- answer-engine-records -->");
+    expect(aiSitemap).toContain("<!-- calendar-slot-1 -->");
+    expect(aiSitemap).toContain("<!-- service-image-generated-product-image -->");
     expect(aiSitemap).toContain("<!-- full-context -->");
     expect(aiSitemap).toContain("<!-- business-profile -->");
     expect(aiSitemap).toContain("<!-- service-records -->");
@@ -424,6 +417,7 @@ describe("generatePublicSite", () => {
     expect(shoeBagCareHtml).toContain("常見問題");
     expect(shoeBagCareHtml).toContain("台中西屯洗鞋洗包建議先拍鞋面、鞋底、包角、提把與內裡");
     expect(shoeBagCareHtml).toContain("雨季通勤後的鞋包狀況");
+    expect(shoeBagCareHtml).toContain("不是特定客戶成果，也不代表效果保證");
     expect(shoeBagCareHtml).toContain("材質與風險判斷");
     expect(shoeBagCareHtml).toContain("處理前要先說清楚");
     expect(shoeBagCareHtml).toContain('"@type":"FAQPage"');
@@ -497,7 +491,7 @@ describe("generatePublicSite", () => {
     expect(html).toContain('href="https://tester.github.io/laundry-social-auto-poster/"');
     expect(html).toContain('content="https://assets.example.net/laundry/assets/services/fabric-storage-hero-product.png"');
     expect(sitemap).toContain("<loc>https://tester.github.io/laundry-social-auto-poster/</loc>");
-    expect(sitemap).toContain("<loc>https://assets.example.net/laundry/assets/services/fabric-storage-hero-product.png</loc>");
+    expect(sitemap).not.toContain("https://assets.example.net/laundry/assets/services/fabric-storage-hero-product.png");
   });
 
   it("writes guide and local support pages into SEO and AI indexes", async () => {
@@ -541,6 +535,7 @@ describe("generatePublicSite", () => {
     expect(services.services.find((service: { slug: string }) => service.slug === "fabric-storage").related_support_pages).toHaveLength(1);
     expect(services.services.find((service: { slug: string }) => service.slug === "shoe-bag-care").related_support_pages).toHaveLength(3);
     expect(services.services.find((service: { slug: string }) => service.slug === "white-shoe-cleaning").related_support_pages).toHaveLength(1);
+    expect(services.services.every((service: { case_studies?: unknown[] }) => service.case_studies?.length === 3)).toBe(true);
     expect(answers.answers.some((answer: { source_url: string }) => answer.source_url.endsWith("/guides/photo-before-laundry.html"))).toBe(true);
     expect(answers.answers.some((answer: { source_url: string }) => answer.source_url.endsWith("/local/qinghai-road-shoe-cleaning.html"))).toBe(true);
     expect(answers.answer_engine_optimization.citation_ready_summary).toContain("私享家洗衣店");

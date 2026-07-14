@@ -113,6 +113,14 @@ interface ServicePageDefinition {
     inspection: string;
     recommendation: string;
   };
+  case_studies: Array<{
+    label: string;
+    object: string;
+    material: string;
+    concern: string;
+    inspection: string;
+    boundary: string;
+  }>;
   sections: Array<{ heading: string; body: string }>;
   inspection_table?: Array<{ item: string; focus: string; risk: string }>;
   faqs: ServiceFaq[];
@@ -317,6 +325,11 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       recommendation:
         "如果照片中看到包角濕痕、提把發暗、鞋內悶味或鞋底邊緣泛灰，建議先不要直接收進鞋櫃或防塵袋，拍照詢問後再決定是否送洗或局部處理。"
     },
+    case_studies: [
+      { label: "情境 01", object: "通勤帆布鞋", material: "網布鞋面與橡膠鞋邊", concern: "雨後鞋邊卡泥灰、鞋內有濕悶感", inspection: "先看鞋面是否吸水、鞋底邊緣與縫線是否卡灰，再確認鞋墊可否拆出通風。", boundary: "不以硬刷或漂白處理；膠邊氧化與材質磨耗不承諾回到全新。" },
+      { label: "情境 02", object: "日常肩背包", material: "尼龍或帆布包身、皮革感提把", concern: "包角雨水痕與提把發暗", inspection: "分開看包角摩擦、提把油脂吸附和內裡是否受潮，不把水痕與掉色混為同一種問題。", boundary: "已掉色或磨損的位置先說明，清潔不等同補色修復。" },
+      { label: "情境 03", object: "久放鞋包", material: "混合材質鞋面與防塵袋收納", concern: "外觀不髒但鞋內與包內有悶味", inspection: "確認味道來源、收納環境與可拆部件，再判斷是否先通風、局部整理或送洗。", boundary: "不以香味覆蓋悶味，也不建議在未乾燥前重新密封。" }
+    ],
     sections: [
       {
         heading: "適合整理的狀況",
@@ -407,6 +420,11 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       recommendation:
         "如果鞋邊已經變毛、膠邊有氧化、縫線卡灰或內裡有味道，建議先拍鞋邊、鞋面和鞋內給門市看，再判斷可整理程度。"
     },
+    case_studies: [
+      { label: "情境 01", object: "白色運動鞋鞋邊", material: "橡膠膠邊", concern: "鞋邊泛灰、局部泛黃", inspection: "先區分灰塵、摩擦、氧化與膠邊老化的位置，避免把所有黃痕都當成可洗掉的髒污。", boundary: "氧化造成的變色只能評估可改善範圍，不保證全白。" },
+      { label: "情境 02", object: "白色帆布鞋縫線", material: "帆布鞋面與縫線", concern: "鞋頭折痕和縫線卡灰", inspection: "看灰塵是否集中在縫線、折痕與鞋舌邊，再確認鞋面纖維是否已起毛。", boundary: "不先自行硬刷；過度摩擦可能讓毛邊與色差更明顯。" },
+      { label: "情境 03", object: "久放白鞋內裡", material: "布料內裡與可拆鞋墊", concern: "內裡悶味、鞋墊潮感", inspection: "確認鞋墊可拆性、內裡磨耗與味道是否來自長期潮氣或收納。", boundary: "不以香味掩蓋，必須先判斷乾燥與處理方式。" }
+    ],
     sections: [
       {
         heading: "白鞋常見問題",
@@ -497,6 +515,11 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       recommendation:
         "如果布品有汗味、潮氣、局部髒污或收納袋內有悶味，不建議直接密封收納；可以先拍照詢問，再決定是否需要清潔整理。"
     },
+    case_studies: [
+      { label: "情境 01", object: "換季外套", material: "棉質或混紡外套", concern: "領口袖口暗沉、穿過後直接收納", inspection: "先看接觸皮膚的位置、材質標籤與是否還有汗味或潮氣。", boundary: "有味道或局部髒污時不直接壓縮收納，先評估是否適合清潔。" },
+      { label: "情境 02", object: "寢具與被套", material: "棉質布品與填充寢具", concern: "表面乾淨但收納袋有悶味", inspection: "確認被套內側、枕套接觸皮膚處與收納袋本身是否有潮味。", boundary: "環境異味會重新附著，未乾燥的布品不適合密封。" },
+      { label: "情境 03", object: "厚棉布品", material: "厚棉或有填充結構布品", concern: "摺痕邊角灰塵與局部黃痕", inspection: "看折痕、邊角、填充狀態與黃痕形成時間，避免只處理表面。", boundary: "不將久放黃痕承諾為可完全消除，先說明可能的改善範圍。" }
+    ],
     sections: [
       {
         heading: "收納前先檢查",
@@ -586,6 +609,11 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       recommendation:
         "建議先用 LINE 傳整體照片、局部近照和材質標籤，再補充大概什麼時候弄髒、放多久、是否淋雨或有味道，門市會先協助判斷。"
     },
+    case_studies: [
+      { label: "情境 01", object: "通勤外套", material: "依洗標與布料判斷", concern: "領口袖口使用痕跡、換季前想收納", inspection: "先看材質標籤、髒污位置與是否有汗味或潮氣。", boundary: "沒有看過物件前不報固定價格，也不承諾所有黃痕可消除。" },
+      { label: "情境 02", object: "雨後鞋子", material: "鞋面、膠邊與內裡分開判斷", concern: "鞋邊泥灰與鞋內濕悶", inspection: "需看鞋面材質、鞋底邊緣、鞋墊與內裡是否可拆。", boundary: "不建議自行漂白或高溫烘乾，避免材質變形或色差。" },
+      { label: "情境 03", object: "家用布品", material: "寢具、被套或厚棉布品", concern: "收納前猶豫是否需要整理", inspection: "先確認是否乾燥、是否有局部髒污、悶味或久放黃痕。", boundary: "不以密封收納掩蓋濕氣；處理方式需依材質與狀態決定。" }
+    ],
     sections: [
       {
         heading: "服務範圍",
@@ -1803,35 +1831,15 @@ function buildSitemapXml(index: PublicPostIndex): string {
   const urls = index.base_url_configured
     ? [
         index.canonical_url,
-        index.entrypoints.index,
-        index.entrypoints.llms,
-        index.entrypoints.llms_lite,
-        index.entrypoints.llms_full,
-        index.entrypoints.well_known_llms,
-        index.entrypoints.well_known_ai,
-        index.entrypoints.robots,
-        index.entrypoints.latest,
-        index.entrypoints.social_posts,
-        index.entrypoints.business_profile,
-        index.entrypoints.services,
-        index.entrypoints.answers,
-        index.entrypoints.geo_targets,
-        index.entrypoints.llms_jsonl,
         ...Object.values(index.entrypoints.service_pages),
-        ...Object.values(index.entrypoints.support_pages),
-        index.entrypoints.feed,
-        index.entrypoints.knowledge_graph,
-        index.entrypoints.ai_discovery,
-        index.entrypoints.ai_sitemap,
-        ...allServiceImages(index).map((image) => image.image_url),
-        ...index.posts.flatMap((post) => [post.calendar_url, post.image_url])
+        ...Object.values(index.entrypoints.support_pages)
       ]
     : [];
   const uniqueUrls = Array.from(new Set(urls));
   const items = uniqueUrls
     .map((url) => {
-      const priority = url === index.canonical_url || url === index.entrypoints.index ? "1.0" : url.includes("/assets/") ? "0.4" : "0.7";
-      const changefreq = url.includes("/assets/") ? "monthly" : "daily";
+      const priority = url === index.canonical_url ? "1.0" : "0.7";
+      const changefreq = url === index.canonical_url ? "weekly" : "monthly";
       return `  <url><loc>${escapeXml(url)}</loc><lastmod>${escapeXml(index.generated_at)}</lastmod><changefreq>${changefreq}</changefreq><priority>${priority}</priority></url>`;
     })
     .join("\n");
@@ -1953,6 +1961,7 @@ function serviceToPublicRecord(service: ServicePageDefinition, index: PublicPost
     source_post_id: image?.source_post_id ?? "",
     source_post_topic: image?.topic ?? "",
     case_story: service.case_story,
+    case_studies: service.case_studies,
     sections: service.sections,
     faqs: service.faqs,
     related_support_pages: SUPPORT_PAGE_DEFINITIONS.filter((page) => page.service_slug === service.slug).map((page) => ({
@@ -3209,6 +3218,17 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const businessProfileHref = index.base_url_configured ? index.entrypoints.business_profile : "../business-profile.json";
   const description = escapeHtml(service.description);
+  const caseStudies = service.case_studies
+    .map(
+      (study) => `<article class="card">
+              <p class="eyebrow">${escapeHtml(study.label)}｜${escapeHtml(study.object)}</p>
+              <h3>${escapeHtml(study.concern)}</h3>
+              <p><strong>材質：</strong>${escapeHtml(study.material)}</p>
+              <p><strong>門市先看：</strong>${escapeHtml(study.inspection)}</p>
+              <p><strong>處理界線：</strong>${escapeHtml(study.boundary)}</p>
+            </article>`
+    )
+    .join("\n");
   const inspectionTable =
     service.inspection_table && service.inspection_table.length > 0
       ? `<section class="product-band">
@@ -3313,23 +3333,12 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
       <section class="product-band story-band">
         <div class="section-inner">
           <div class="section-header">
-            <p class="eyebrow">Case logic</p>
+            <p class="eyebrow">門市判斷情境</p>
             <h2>${escapeHtml(service.case_story.label)}</h2>
+            <p>以下為常見送件情境與處理界線，用於協助送洗前判斷；不是特定客戶成果，也不代表效果保證。</p>
           </div>
-          <div class="case-grid">
-            <article class="card">
-              <p class="eyebrow">客人情境</p>
-              <p>${escapeHtml(service.case_story.situation)}</p>
-            </article>
-            <article class="card">
-              <p class="eyebrow">門市會先看</p>
-              <p>${escapeHtml(service.case_story.inspection)}</p>
-            </article>
-            <article class="card">
-              <p class="eyebrow">建議做法</p>
-              <p>${escapeHtml(service.case_story.recommendation)}</p>
-            </article>
-          </div>
+          <p class="lead">${escapeHtml(service.case_story.situation)}</p>
+          <div class="case-grid">${caseStudies}</div>
         </div>
       </section>
       <section class="product-band surface">
@@ -3613,6 +3622,7 @@ function buildAiDiscovery(index: PublicPostIndex): object {
         image_alt: service.image_alt,
         image_note: service.image_note,
         case_story: service.case_story,
+        case_studies: service.case_studies,
         faq_count: service.faqs.length
       };
     }),
@@ -3789,6 +3799,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     robots: join(docsRoot, "robots.txt"),
     sitemap: join(docsRoot, "sitemap.xml"),
     aiSitemap: join(docsRoot, "ai-sitemap.xml"),
+    indexNowKey: join(docsRoot, "indexnow-key.txt"),
     index: join(docsRoot, "index.html"),
     notFound: join(docsRoot, "404.html"),
     compatibilityDocsIndex: join(compatibilityDocsRoot, "index.html"),
@@ -3818,6 +3829,9 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await writeFile(outputs.robots, buildRobotsText(index), "utf8");
   await writeFile(outputs.sitemap, buildSitemapXml(index), "utf8");
   await writeFile(outputs.aiSitemap, buildAiSitemapXml(index), "utf8");
+  const indexNowKey = process.env.INDEXNOW_KEY?.trim();
+  if (indexNowKey) await writeFile(outputs.indexNowKey, `${indexNowKey}\n`, "utf8");
+  else await unlink(outputs.indexNowKey).catch(() => undefined);
   await writeFile(outputs.index, buildIndexHtml(index), "utf8");
   await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
   await writeFile(outputs.compatibilityDocsIndex, buildNotFoundHtml(index), "utf8");

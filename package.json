@@ -12,6 +12,7 @@
     "mark-image-source": "tsx src/markImageSource.ts",
     "validate-publishable-images": "tsx src/generateImage.ts --validate-publishable",
     "generate-public-site": "tsx src/generatePublicSite.ts",
+    "submit-indexnow": "tsx src/submitIndexNow.ts",
     "audit-public-site": "tsx src/auditPublicSite.ts",
     "approve-post": "tsx src/approvePost.ts",
     "post": "tsx src/postCurrentSlot.ts --all-due",

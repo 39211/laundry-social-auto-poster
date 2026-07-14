@@ -48,7 +48,12 @@ export async function submitIndexNow(options: SubmitIndexNowOptions = {}): Promi
   const keyLocation = new URL(keyFileName, firstUrl).toString();
   if (!options.live) return { dryRun: true, urlCount: urlList.length, host: firstUrl.host };
 
-  const localKey = (await readFile(join(root, "docs", keyFileName), "utf8")).trim();
+  let localKey = "";
+  try {
+    localKey = (await readFile(join(root, "docs", keyFileName), "utf8")).trim();
+  } catch {
+    throw new Error(`docs/${keyFileName} does not match INDEXNOW_KEY. Run generate-public-site and publish-pages before live submission.`);
+  }
   if (localKey !== key) {
     throw new Error(`docs/${keyFileName} does not match INDEXNOW_KEY. Run generate-public-site and publish-pages before live submission.`);
   }

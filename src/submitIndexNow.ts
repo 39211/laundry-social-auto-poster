@@ -28,6 +28,7 @@ function parseCanonicalHtmlUrls(sitemap: string): string[] {
 function requireIndexNowKey(value: string | undefined): string {
   const key = value?.trim();
   if (!key) throw new Error("INDEXNOW_KEY is required. Set it, regenerate the public site, publish the key file, then rerun with --live.");
+  if (!/^[A-Za-z0-9-]{8,128}$/.test(key)) throw new Error("INDEXNOW_KEY must be 8-128 letters, numbers, or hyphens.");
   return key;
 }
 
@@ -43,12 +44,13 @@ export async function submitIndexNow(options: SubmitIndexNowOptions = {}): Promi
     throw new Error("The canonical sitemap must contain URLs for one host before IndexNow submission.");
   }
 
-  const keyLocation = new URL("indexnow-key.txt", firstUrl).toString();
+  const keyFileName = `${key}.txt`;
+  const keyLocation = new URL(keyFileName, firstUrl).toString();
   if (!options.live) return { dryRun: true, urlCount: urlList.length, host: firstUrl.host };
 
-  const localKey = (await readFile(join(root, "docs", "indexnow-key.txt"), "utf8")).trim();
+  const localKey = (await readFile(join(root, "docs", keyFileName), "utf8")).trim();
   if (localKey !== key) {
-    throw new Error("docs/indexnow-key.txt does not match INDEXNOW_KEY. Run generate-public-site and publish-pages before live submission.");
+    throw new Error(`docs/${keyFileName} does not match INDEXNOW_KEY. Run generate-public-site and publish-pages before live submission.`);
   }
 
   const fetchImpl = options.fetchImpl ?? fetch;

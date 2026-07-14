@@ -102,6 +102,27 @@ describe("publishPagesAssets", () => {
     expect(mirrorTree).not.toContain(".env");
   }, 45000);
 
+  gitIt("publishes approved post article pages alongside the rest of the SEO assets", () => {
+    const { root } = makeGitRepo();
+    const date = "2026-05-15";
+
+    mkdirSync(join(root, "docs", "assets", date), { recursive: true });
+    mkdirSync(join(root, "docs", "content-calendar"), { recursive: true });
+    mkdirSync(join(root, "docs", "posts"), { recursive: true });
+    writeFileSync(join(root, "docs", "index.html"), "<!doctype html><title>ok</title>\n");
+    writeFileSync(join(root, "docs", "content-calendar", `${date}.json`), '{"slots":[]}\n');
+    writeFileSync(join(root, "docs", "assets", date, "slot-01.png"), "fake image");
+    writeFileSync(join(root, "docs", "posts", `${date}-slot-01.html`), "<!doctype html><title>post</title>\n");
+    writeFileSync(join(root, "docs", "posts", `${date}-slot-02.html`), "<!doctype html><title>post-2</title>\n");
+
+    const result = publishPagesAssets(date, root);
+    const tree = git(root, ["ls-tree", "-r", "HEAD", "--name-only"]);
+
+    expect(result).toContain("Published GitHub Pages assets");
+    expect(tree).toContain(`docs/posts/${date}-slot-01.html`);
+    expect(tree).toContain(`docs/posts/${date}-slot-02.html`);
+  }, 15000);
+
   gitIt("refuses to publish text files that look like they contain secrets", () => {
     const { root } = makeGitRepo();
     const date = "2026-05-15";

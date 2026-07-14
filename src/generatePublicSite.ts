@@ -32,6 +32,8 @@ interface PublicPost {
   image_url: string;
   calendar_path: string;
   calendar_url: string;
+  article_path: string;
+  article_url: string;
   url: string;
   facebook_caption: string;
   instagram_caption: string;
@@ -83,6 +85,7 @@ interface PublicPostIndex {
   };
   business_profile: BusinessProfile;
   posts: PublicPost[];
+  article_posts: PublicPost[];
 }
 
 interface ServiceFaq {
@@ -242,6 +245,7 @@ const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";
 const AI_CRAWLERS = [
+  "OAI-SearchBot",
   "GPTBot",
   "ChatGPT-User",
   "ClaudeBot",
@@ -1245,6 +1249,43 @@ function supportPageUrl(page: SupportPageDefinition, index: PublicPostIndex): st
   return index.entrypoints.support_pages[page.slug] ?? page.path;
 }
 
+function postArticlePath(date: string, slot: number): string {
+  return `posts/${date}-slot-${String(slot).padStart(2, "0")}.html`;
+}
+
+function postArticleUrl(post: Pick<PublicPost, "date" | "slot">, siteBaseUrl: string | undefined): string {
+  return publicUrl(postArticlePath(post.date, post.slot), siteBaseUrl);
+}
+
+function normalizedCaptionForArticle(post: PublicPost): string {
+  return post.facebook_caption.replace(/\s+/gu, " ").trim().toLocaleLowerCase("zh-Hant-TW");
+}
+
+function uniqueArticlePosts(posts: PublicPost[]): PublicPost[] {
+  const seenCaptions = new Set<string>();
+  return posts.filter((post) => {
+    const normalizedCaption = normalizedCaptionForArticle(post);
+    if (!normalizedCaption || seenCaptions.has(normalizedCaption)) return false;
+    seenCaptions.add(normalizedCaption);
+    return true;
+  });
+}
+
+function hasArticlePage(post: PublicPost, index: PublicPostIndex): boolean {
+  return index.article_posts.some((item) => item.id === post.id);
+}
+
+function postHumanUrl(post: PublicPost, index: PublicPostIndex): string {
+  return hasArticlePage(post, index) ? post.article_url : post.calendar_url;
+}
+
+function indexNowKeyFileName(key: string): string {
+  if (!/^[A-Za-z0-9-]{8,128}$/.test(key)) {
+    throw new Error("INDEXNOW_KEY must be 8-128 letters, numbers, or hyphens.");
+  }
+  return `${key}.txt`;
+}
+
 function findServiceBySlug(slug: string): ServicePageDefinition | undefined {
   return SERVICE_PAGE_DEFINITIONS.find((service) => service.slug === slug);
 }
@@ -1541,6 +1582,21 @@ async function writeApprovedPublicContentCalendar(
   });
 }
 
+async function writePostArticlePages(posts: PublicPost[], index: PublicPostIndex, postsRoot: string): Promise<string[]> {
+  await mkdir(postsRoot, { recursive: true });
+  const expected = new Set(posts.map((post) => post.article_path.split("/").at(-1)!));
+  const existing = await readdir(postsRoot);
+  await Promise.all(
+    existing
+      .filter((name) => name.endsWith(".html") && !expected.has(name))
+      .map((name) => unlink(join(postsRoot, name)))
+  );
+
+  const paths = posts.map((post) => join(postsRoot, post.article_path.split("/").at(-1)!));
+  await Promise.all(paths.map((path, indexPosition) => writeFile(path, buildPostPageHtml(posts[indexPosition]!, index), "utf8")));
+  return paths;
+}
+
 function slotToPublicPost(
   date: string,
   slot: DailySlot,
@@ -1549,6 +1605,7 @@ function slotToPublicPost(
 ): PublicPost {
   const imagePath = publicAssetPath(date, slot.slot);
   const calendarPath = `content-calendar/${date}.json`;
+  const articlePath = postArticlePath(date, slot.slot);
   const id = postId(date, slot.slot, siteBaseUrl);
 
   return {
@@ -1569,6 +1626,8 @@ function slotToPublicPost(
     image_url: publicUrl(imagePath, imageBaseUrl ?? siteBaseUrl),
     calendar_path: calendarPath,
     calendar_url: publicUrl(calendarPath, siteBaseUrl),
+    article_path: articlePath,
+    article_url: postArticleUrl({ date, slot: slot.slot }, siteBaseUrl),
     url: id,
     facebook_caption: slot.facebook_caption,
     instagram_caption: slot.instagram_caption
@@ -1679,7 +1738,7 @@ function buildLlmsText(index: PublicPostIndex): string {
     "",
     "## Published Posts",
     ...(publishedPosts.length > 0 ? publishedPosts : []).flatMap((post) => [
-      `- [${post.title}](${post.url})`,
+      `- [${post.title}](${postHumanUrl(post, index)})`,
       `  platform targets: ${post.platforms.join(", ")}`,
       `  routes: visual_route=${post.visual_route}; traffic_route=${post.traffic_route}`,
       `  hashtags: ${post.hashtags.join(" ") || "(none)"}`,
@@ -1832,14 +1891,15 @@ function buildSitemapXml(index: PublicPostIndex): string {
     ? [
         index.canonical_url,
         ...Object.values(index.entrypoints.service_pages),
-        ...Object.values(index.entrypoints.support_pages)
+        ...Object.values(index.entrypoints.support_pages),
+        ...index.article_posts.map((post) => post.article_url)
       ]
     : [];
   const uniqueUrls = Array.from(new Set(urls));
   const items = uniqueUrls
     .map((url) => {
-      const priority = url === index.canonical_url ? "1.0" : "0.7";
-      const changefreq = url === index.canonical_url ? "weekly" : "monthly";
+      const priority = url === index.canonical_url ? "1.0" : url.includes("/posts/") ? "0.6" : "0.7";
+      const changefreq = url === index.canonical_url ? "weekly" : url.includes("/posts/") ? "never" : "monthly";
       return `  <url><loc>${escapeXml(url)}</loc><lastmod>${escapeXml(index.generated_at)}</lastmod><changefreq>${changefreq}</changefreq><priority>${priority}</priority></url>`;
     })
     .join("\n");
@@ -1879,6 +1939,7 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
         { loc: index.entrypoints.feed, purpose: "updates-feed" },
         { loc: index.entrypoints.social_posts, purpose: "post-records" },
         { loc: index.entrypoints.latest, purpose: "latest-package" },
+        ...index.article_posts.map((post) => ({ loc: post.article_url, purpose: `published-post-${post.slot}` })),
         ...allServiceImages(index).map((image) => ({ loc: image.image_url, purpose: `service-image-${image.source_type}` })),
         ...index.posts.map((post) => ({ loc: post.calendar_url, purpose: `calendar-slot-${post.slot}` })),
         ...index.posts.map((post) => ({ loc: post.image_url, purpose: `image-slot-${post.slot}` }))
@@ -1920,7 +1981,7 @@ function buildJsonFeed(index: PublicPostIndex): object {
     authors: [{ name: index.business_profile.name, url: index.canonical_url }],
     items: index.posts.map((post) => ({
       id: post.id,
-      url: post.url,
+      url: postHumanUrl(post, index),
       title: post.title,
       date_published: post.date_published,
       content_text: post.facebook_caption,
@@ -2868,9 +2929,152 @@ function captionPreview(caption: string): string {
     .find(Boolean) ?? caption.trim();
 }
 
+function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object | undefined {
+  if (!index.base_url_configured) return undefined;
+  const profile = index.business_profile;
+  const description = captionPreview(post.facebook_caption).slice(0, 180);
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "@id": `${post.article_url}#article`,
+        url: post.article_url,
+        mainEntityOfPage: { "@id": `${post.article_url}#webpage` },
+        headline: post.topic,
+        description,
+        datePublished: post.date_published,
+        dateModified: index.generated_at,
+        inLanguage: "zh-Hant-TW",
+        author: { "@id": `${index.canonical_url}#business` },
+        publisher: { "@id": `${index.canonical_url}#business` },
+        image: { "@type": "ImageObject", contentUrl: post.image_url, caption: `${post.topic} - ${profile.name}` },
+        about: { "@id": `${index.canonical_url}#business` },
+        keywords: post.hashtags.map((tag) => tag.replace(/^#/, ""))
+      },
+      {
+        "@type": "WebPage",
+        "@id": `${post.article_url}#webpage`,
+        url: post.article_url,
+        name: post.topic,
+        description,
+        isPartOf: { "@id": `${index.canonical_url}#website` },
+        about: { "@id": `${index.canonical_url}#business` },
+        primaryImageOfPage: { "@id": `${post.article_url}#image` }
+      },
+      {
+        "@type": "ImageObject",
+        "@id": `${post.article_url}#image`,
+        contentUrl: post.image_url,
+        caption: `${post.topic} - ${profile.name}`
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: profile.name, item: index.canonical_url },
+          { "@type": "ListItem", position: 2, name: "Care journal", item: post.article_url },
+          { "@type": "ListItem", position: 3, name: post.topic, item: post.article_url }
+        ]
+      }
+    ]
+  };
+}
+
+function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
+  const profile = index.business_profile;
+  const canonical = post.article_url;
+  const schema = buildPostPageSchema(post, index);
+  const service = findServiceBySlug("taichung-xitun-laundry") ?? SERVICE_PAGE_DEFINITIONS[0];
+  const serviceHref = service ? servicePageUrl(service, index) : index.canonical_url;
+  const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
+  const imageSrc = visibleImageSrc(post, index);
+  const description = captionPreview(post.facebook_caption).slice(0, 180);
+  const hashtags = post.hashtags.map((tag) => `<span class="chip on-light">${escapeHtml(tag)}</span>`).join("\n");
+
+  return `<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="${escapeHtml(description)}" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="googlebot" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="${escapeHtml(profile.name)}" />
+    <meta name="theme-color" content="#f5f5f7" />
+    <link rel="canonical" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" hreflang="zh-Hant-TW" href="${escapeHtml(canonical)}" />
+    <meta property="og:title" content="${escapeHtml(post.topic)}" />
+    <meta property="og:description" content="${escapeHtml(description)}" />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="${escapeHtml(canonical)}" />
+    <meta property="og:site_name" content="${escapeHtml(profile.name)}" />
+    <meta property="og:locale" content="${escapeHtml(SITE_LOCALE)}" />
+    <meta property="og:image" content="${escapeHtml(post.image_url)}" />
+    <meta property="og:image:alt" content="${escapeHtml(`${post.topic} - ${profile.name}`)}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(post.topic)}" />
+    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:image" content="${escapeHtml(post.image_url)}" />
+    ${schema ? `<script type="application/ld+json">${escapeJsonLd(schema)}</script>` : ""}
+    <style>${buildPublicSiteCss()}</style>
+    <title>${escapeHtml(`${post.topic} | ${profile.name}`)}</title>
+  </head>
+  <body>
+    <main>
+      <header class="topbar">
+        <a class="brand" href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a>
+        <nav class="nav" aria-label="Primary navigation">
+          <a href="${escapeHtml(serviceHref)}">Service</a>
+          <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
+          <a href="${escapeHtml(profile.line_url)}">LINE</a>
+        </nav>
+      </header>
+      <section class="product-hero hero-light service-hero">
+        <div class="section-inner hero-copy">
+          <p class="eyebrow">Care journal | ${escapeHtml(post.date)} ${escapeHtml(post.time)}</p>
+          <h1>${escapeHtml(post.topic)}</h1>
+          <p class="lead">${escapeHtml(description)}</p>
+          <div class="hero-actions">
+            <a class="primary-link" href="${escapeHtml(profile.line_url)}">LINE</a>
+            <a class="secondary-link" href="${escapeHtml(serviceHref)}">Service details</a>
+          </div>
+        </div>
+        <figure class="service-photo">
+          <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(`${post.topic} - ${profile.name}`)}" loading="eager" fetchpriority="high" width="1200" />
+          <figcaption>${escapeHtml(post.topic)}</figcaption>
+        </figure>
+      </section>
+      <section class="product-band surface">
+        <div class="section-inner two-col">
+          <article>
+            <p class="eyebrow">Store note</p>
+            <h2>Check the item before choosing the next step</h2>
+            <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
+            <div class="meta-row local-query-row">${hashtags}</div>
+          </article>
+          <aside class="card">
+            <h2>${escapeHtml(profile.name)}</h2>
+            <p>${escapeHtml(profile.address_text)}</p>
+            <p>${escapeHtml(profile.opening_hours_text)}</p>
+            <div class="link-row">
+              <a href="${escapeHtml(profile.line_url)}">LINE</a>
+              <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
+              <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
+              <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
+`;
+}
+
 function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: BusinessProfile): string {
   const imageSrc = visibleImageSrc(post, index);
   const preview = captionPreview(post.facebook_caption);
+  const articleHref = hasArticlePage(post, index) ? post.article_url : post.calendar_path;
   return `<article class="post-tile post-card">
         <h3>${escapeHtml(post.topic)}</h3>
         <p><strong>${escapeHtml(post.date)} ${escapeHtml(post.time)}</strong>｜${escapeHtml(post.visual_route)} / ${escapeHtml(post.traffic_route)}</p>
@@ -2882,7 +3086,7 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
           <summary>閱讀完整文案</summary>
           <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
         </details>
-        <p><a href="${escapeHtml(post.calendar_path)}">content calendar</a></p>
+        <p><a href="${escapeHtml(articleHref)}">read full post</a></p>
       </article>`;
 }
 
@@ -3527,7 +3731,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
 `;
 }
 
-function postToDiscoveryRecord(post: PublicPost): object {
+function postToDiscoveryRecord(post: PublicPost, index: PublicPostIndex): object {
   return {
     id: post.id,
     date: post.date,
@@ -3542,6 +3746,7 @@ function postToDiscoveryRecord(post: PublicPost): object {
     platforms: post.platforms,
     image_url: post.image_url,
     calendar_url: post.calendar_url,
+    article_url: hasArticlePage(post, index) ? post.article_url : "",
     facebook_caption: post.facebook_caption,
     instagram_caption: post.instagram_caption
   };
@@ -3651,7 +3856,8 @@ function buildAiDiscovery(index: PublicPostIndex): object {
         "facebook_caption",
         "instagram_caption",
         "image_url",
-        "calendar_url"
+        "calendar_url",
+        "article_url"
       ],
       homepage_archive_policy: {
         expanded_recent_days: HOME_EXPANDED_RECENT_DAYS,
@@ -3671,9 +3877,9 @@ function buildAiDiscovery(index: PublicPostIndex): object {
     latest_date: index.latest_date,
     latest_posts: index.posts
       .filter((post) => post.date === index.latest_date)
-      .map(postToDiscoveryRecord),
-    recent_posts: publishedPosts.slice(0, 30).map(postToDiscoveryRecord),
-    published_posts: index.posts.map(postToDiscoveryRecord)
+      .map((post) => postToDiscoveryRecord(post, index)),
+    recent_posts: publishedPosts.slice(0, 30).map((post) => postToDiscoveryRecord(post, index)),
+    published_posts: index.posts.map((post) => postToDiscoveryRecord(post, index))
   };
 }
 
@@ -3700,6 +3906,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     record ? record.approvedSlots.map((slot) => slotToPublicPost(record.calendar.date, slot, siteBaseUrl, imageBaseUrl)) : []
   );
   posts.sort((a, b) => a.date.localeCompare(b.date) || a.slot - b.slot);
+  const articlePosts = uniqueArticlePosts(posts);
 
   const index: PublicPostIndex = {
     generated_at: generatedAt,
@@ -3750,7 +3957,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       ai_discovery: publicUrl("ai-discovery.json", siteBaseUrl)
     },
     business_profile: businessProfile,
-    posts
+    posts,
+    article_posts: articlePosts
   };
   index.open_graph = buildOpenGraph(index);
 
@@ -3772,13 +3980,16 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const servicesRoot = join(docsRoot, "services");
   const guidesRoot = join(docsRoot, "guides");
   const localRoot = join(docsRoot, "local");
+  const postsRoot = join(docsRoot, "posts");
   const compatibilityDocsRoot = join(docsRoot, "docs");
   await mkdir(docsRoot, { recursive: true });
   await mkdir(wellKnownRoot, { recursive: true });
   await mkdir(servicesRoot, { recursive: true });
   await mkdir(guidesRoot, { recursive: true });
   await mkdir(localRoot, { recursive: true });
+  await mkdir(postsRoot, { recursive: true });
   await mkdir(compatibilityDocsRoot, { recursive: true });
+  const indexNowKey = process.env.INDEXNOW_KEY?.trim();
 
   const outputs = {
     socialPosts: join(docsRoot, "social-posts.json"),
@@ -3799,7 +4010,6 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     robots: join(docsRoot, "robots.txt"),
     sitemap: join(docsRoot, "sitemap.xml"),
     aiSitemap: join(docsRoot, "ai-sitemap.xml"),
-    indexNowKey: join(docsRoot, "indexnow-key.txt"),
     index: join(docsRoot, "index.html"),
     notFound: join(docsRoot, "404.html"),
     compatibilityDocsIndex: join(compatibilityDocsRoot, "index.html"),
@@ -3829,9 +4039,10 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await writeFile(outputs.robots, buildRobotsText(index), "utf8");
   await writeFile(outputs.sitemap, buildSitemapXml(index), "utf8");
   await writeFile(outputs.aiSitemap, buildAiSitemapXml(index), "utf8");
-  const indexNowKey = process.env.INDEXNOW_KEY?.trim();
-  if (indexNowKey) await writeFile(outputs.indexNowKey, `${indexNowKey}\n`, "utf8");
-  else await unlink(outputs.indexNowKey).catch(() => undefined);
+  if (indexNowKey) {
+    await writeFile(join(docsRoot, indexNowKeyFileName(indexNowKey)), `${indexNowKey}\n`, "utf8");
+    await unlink(join(docsRoot, "indexnow-key.txt")).catch(() => undefined);
+  }
   await writeFile(outputs.index, buildIndexHtml(index), "utf8");
   await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
   await writeFile(outputs.compatibilityDocsIndex, buildNotFoundHtml(index), "utf8");
@@ -3843,9 +4054,10 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await Promise.all(
     SUPPORT_PAGE_DEFINITIONS.map((page) => writeFile(join(docsRoot, page.path), buildSupportPageHtml(page, index), "utf8"))
   );
+  const postArticleOutputs = await writePostArticlePages(articlePosts, index, postsRoot);
   await writeFile(outputs.nojekyll, "", "utf8");
 
-  return Object.values(outputs);
+  return [...Object.values(outputs), ...postArticleOutputs];
 }
 
 async function main(): Promise<void> {

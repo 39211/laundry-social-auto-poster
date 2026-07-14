@@ -119,6 +119,7 @@ describe("generatePublicSite", () => {
     const robots = await readFile(join(root, "docs", "robots.txt"), "utf8");
     const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
     const aiSitemap = await readFile(join(root, "docs", "ai-sitemap.xml"), "utf8");
+    const firstPostHtml = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
     const html = await readFile(join(root, "docs", "index.html"), "utf8");
     const notFoundHtml = await readFile(join(root, "docs", "404.html"), "utf8");
     const compatibilityDocsHtml = await readFile(join(root, "docs", "docs", "index.html"), "utf8");
@@ -142,6 +143,8 @@ describe("generatePublicSite", () => {
       locale: "zh_TW"
     });
     expect(index.posts).toHaveLength(2);
+    expect(index.article_posts).toHaveLength(2);
+    expect(index.posts[0].article_url).toBe("https://example.com/laundry-social-auto-poster/posts/2026-07-02-slot-01.html");
     expect(index.entrypoints.llms_lite).toBe("https://example.com/laundry-social-auto-poster/llms-lite.txt");
     expect(index.entrypoints.llms_full).toBe("https://example.com/laundry-social-auto-poster/llms-full.txt");
     expect(index.entrypoints.feed).toBe("https://example.com/laundry-social-auto-poster/feed.json");
@@ -311,6 +314,7 @@ describe("generatePublicSite", () => {
     expect(llmsFull).toContain("Facebook caption:");
     expect(wellKnownLlms).toBe(llms);
     expect(robots).toContain("User-agent: GPTBot");
+    expect(robots).toContain("User-agent: OAI-SearchBot");
     expect(robots).toContain("User-agent: ChatGPT-User");
     expect(robots).toContain("User-agent: Claude-Web");
     expect(robots).toContain("Allow: /services.json");
@@ -324,6 +328,7 @@ describe("generatePublicSite", () => {
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/services/white-shoe-cleaning.html</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/services/fabric-storage.html</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html</loc>");
+    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/posts/2026-07-02-slot-01.html</loc>");
     expect(sitemap).toContain("<priority>1.0</priority>");
     expect(sitemap).not.toContain("index.html");
     expect(sitemap).not.toContain(".json");
@@ -331,6 +336,7 @@ describe("generatePublicSite", () => {
     expect(sitemap).not.toContain("/assets/");
     expect(aiSitemap).toContain("<!-- answer-engine-records -->");
     expect(aiSitemap).toContain("<!-- calendar-slot-1 -->");
+    expect(aiSitemap).toContain("<!-- published-post-1 -->");
     expect(aiSitemap).toContain("<!-- service-image-generated-product-image -->");
     expect(aiSitemap).toContain("<!-- full-context -->");
     expect(aiSitemap).toContain("<!-- business-profile -->");
@@ -367,6 +373,10 @@ describe("generatePublicSite", () => {
     expect(html).toContain("<img ");
     expect(html).toContain("assets/services/fabric-storage-hero-product.png");
     expect(html).toContain('class="service-card-image"');
+    expect(html).toContain('href="https://example.com/laundry-social-auto-poster/posts/2026-07-02-slot-01.html"');
+    expect(firstPostHtml).toContain('rel="canonical" href="https://example.com/laundry-social-auto-poster/posts/2026-07-02-slot-01.html"');
+    expect(firstPostHtml).toContain('"@type":"BlogPosting"');
+    expect(firstPostHtml).toContain('"@type":"BreadcrumbList"');
     expect(html).toContain("depth-band depth-laundry");
     expect(html).toContain("depth-band depth-shoe-bag");
     expect(html).toContain("depth-band depth-white-shoe");
@@ -624,8 +634,10 @@ describe("generatePublicSite", () => {
     const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8"));
     const html = await readFile(join(root, "docs", "index.html"), "utf8");
     const llms = await readFile(join(root, "docs", "llms.txt"), "utf8");
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
 
     expect(index.posts).toHaveLength(4);
+    expect(index.article_posts).toHaveLength(2);
     expect(index.latest_date).toBe("2026-07-03");
     expect(latest.date).toBe("2026-07-03");
     expect(latest.posts).toHaveLength(2);
@@ -643,6 +655,9 @@ describe("generatePublicSite", () => {
     expect(llms).toContain("## Published Posts");
     expect(llms).toContain("2026-07-02 11:30 Sneaker edge inspection");
     expect(llms).toContain("2026-07-03 19:30 Bag corner care");
+    expect(sitemap).toContain("posts/2026-07-02-slot-01.html");
+    expect(sitemap).not.toContain("posts/2026-07-03-slot-01.html");
+    expect(await exists(join(root, "docs", "posts", "2026-07-03-slot-01.html"))).toBe(false);
   });
 
   it("expands recent approved dates on the homepage and collapses older approved posts into an archive", async () => {
@@ -731,5 +746,130 @@ describe("generatePublicSite", () => {
     expect(index.canonical_url).toBe("index.html");
     expect(index.posts[0].image_url).toBe("assets/2026-07-02/slot-01.png");
     expect(robots).not.toContain("Sitemap: https://");
+  });
+
+  it("writes canonical article pages with BlogPosting, breadcrumb, image alt, caption, and a real service link", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-article-metadata-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-02T01:00:00.000Z"
+    });
+
+    const firstPostHtml = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
+    const secondPostHtml = await readFile(join(root, "docs", "posts", "2026-07-02-slot-02.html"), "utf8");
+
+    expect(firstPostHtml).toContain('rel="canonical" href="https://example.com/laundry-social-auto-poster/posts/2026-07-02-slot-01.html"');
+    expect(firstPostHtml).toContain('property="og:title"');
+    expect(firstPostHtml).toContain('property="og:description"');
+    expect(firstPostHtml).toContain('property="og:type" content="article"');
+    expect(firstPostHtml).toContain('property="og:image" content="https://example.com/laundry-social-auto-poster/assets/2026-07-02/slot-01.png"');
+    expect(firstPostHtml).toContain('property="og:image:alt"');
+    expect(firstPostHtml).toMatch(/name="twitter:card" content="summary_large_image"/);
+    expect(firstPostHtml).toContain('"@type":"BlogPosting"');
+    expect(firstPostHtml).toContain('"@type":"BreadcrumbList"');
+    expect(firstPostHtml).toContain('FB caption #test');
+    expect(firstPostHtml).toContain('alt="Sneaker edge inspection - 私享家洗衣店"');
+    expect(firstPostHtml).toContain('href="https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html"');
+    expect(secondPostHtml).toContain('href="https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html"');
+    expect(secondPostHtml).toContain('alt="Bag corner care - 私享家洗衣店"');
+  });
+
+  it("does not generate a second article page or sitemap URL when the post caption is a duplicate", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-dedup-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeCalendar(root, "2026-07-05");
+    await writeApprovalLog(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-05");
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-05T03:00:00.000Z"
+    });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8"));
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const aiSitemap = await readFile(join(root, "docs", "ai-sitemap.xml"), "utf8");
+    const html = await readFile(join(root, "docs", "index.html"), "utf8");
+
+    expect(index.posts).toHaveLength(4);
+    expect(index.article_posts).toHaveLength(2);
+    expect(sitemap).toContain("posts/2026-07-04-slot-01.html");
+    expect(sitemap).toContain("posts/2026-07-04-slot-02.html");
+    expect(sitemap).not.toContain("posts/2026-07-05-slot-01.html");
+    expect(sitemap).not.toContain("posts/2026-07-05-slot-02.html");
+    expect(aiSitemap).toContain("posts/2026-07-04-slot-01.html");
+    expect(aiSitemap).toContain("posts/2026-07-04-slot-02.html");
+    expect(aiSitemap).not.toContain("posts/2026-07-05-slot-01.html");
+    expect(aiSitemap).not.toContain("posts/2026-07-05-slot-02.html");
+    expect(await exists(join(root, "docs", "posts", "2026-07-04-slot-01.html"))).toBe(true);
+    expect(await exists(join(root, "docs", "posts", "2026-07-04-slot-02.html"))).toBe(true);
+    expect(await exists(join(root, "docs", "posts", "2026-07-05-slot-01.html"))).toBe(false);
+    expect(await exists(join(root, "docs", "posts", "2026-07-05-slot-02.html"))).toBe(false);
+    expect((html.match(/class="post-tile post-card"/g) ?? [])).toHaveLength(4);
+    expect(html).toContain("posts/2026-07-04-slot-01.html");
+    expect(html).toContain("content-calendar/2026-07-05.json");
+  });
+
+  it("publishes the IndexNow key file as ${INDEXNOW_KEY}.txt and removes the legacy indexnow-key.txt", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-indexnow-key-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    await mkdir(join(root, "docs"), { recursive: true });
+    await writeFile(join(root, "docs", "indexnow-key.txt"), "stale-legacy-key\n", "utf8");
+
+    const previousKey = process.env.INDEXNOW_KEY;
+    process.env.INDEXNOW_KEY = "laundry-test-key-2026";
+    try {
+      await generatePublicSite({
+        root,
+        baseUrl: "https://example.com/laundry-social-auto-poster",
+        now: "2026-07-02T01:00:00.000Z"
+      });
+    } finally {
+      if (previousKey === undefined) delete process.env.INDEXNOW_KEY;
+      else process.env.INDEXNOW_KEY = previousKey;
+    }
+
+    expect(await exists(join(root, "docs", "laundry-test-key-2026.txt"))).toBe(true);
+    expect(await exists(join(root, "docs", "indexnow-key.txt"))).toBe(false);
+    const keyFile = await readFile(join(root, "docs", "laundry-test-key-2026.txt"), "utf8");
+    expect(keyFile).toBe("laundry-test-key-2026\n");
+  });
+
+  it("allows OAI-SearchBot to crawl the same AI entry points as other bot agents", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-oai-searchbot-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-02T01:00:00.000Z"
+    });
+
+    const robots = await readFile(join(root, "docs", "robots.txt"), "utf8");
+    const oaiBlock = robots.split("User-agent: OAI-SearchBot").at(1)?.split("User-agent:").at(0) ?? "";
+
+    expect(robots).toContain("User-agent: OAI-SearchBot");
+    expect(oaiBlock).toContain("Allow: /llms.txt");
+    expect(oaiBlock).toContain("Allow: /llms-lite.txt");
+    expect(oaiBlock).toContain("Allow: /llms-full.txt");
+    expect(oaiBlock).toContain("Allow: /services.json");
+    expect(oaiBlock).toContain("Allow: /answers.json");
+    expect(oaiBlock).toContain("Allow: /geo-targets.json");
+    expect(oaiBlock).toContain("Allow: /llms.jsonl");
+    expect(oaiBlock).toContain("Allow: /feed.json");
+    expect(oaiBlock).toContain("Allow: /knowledge-graph.json");
+    expect(oaiBlock).toContain("Allow: /guides/");
+    expect(oaiBlock).toContain("Allow: /local/");
   });
 });

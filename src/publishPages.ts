@@ -117,6 +117,14 @@ function existingPublishPaths(root: string, paths: string[]): string[] {
   return paths.filter((path) => existsSync(join(root, ...path.split("/"))));
 }
 
+function indexNowKeyPublishPaths(root: string): string[] {
+  const docsRoot = join(root, "docs");
+  if (!existsSync(docsRoot)) return [];
+  return readdirSync(docsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name !== "indexnow-key.txt" && /^[A-Za-z0-9-]{8,128}\.txt$/.test(entry.name))
+    .map((entry) => `docs/${entry.name}`);
+}
+
 function copyDirectoryContents(source: string, target: string): void {
   mkdirSync(target, { recursive: true });
   for (const entry of readdirSync(source, { withFileTypes: true })) {
@@ -174,6 +182,7 @@ export function publishPagesAssets(date: string, root = projectRoot(), rootPages
     "docs/assets/backgrounds",
     "docs/assets/services",
     "docs/content-calendar",
+    "docs/posts",
     "docs/services",
     "docs/guides",
     "docs/local",
@@ -185,7 +194,6 @@ export function publishPagesAssets(date: string, root = projectRoot(), rootPages
     "docs/robots.txt",
     "docs/sitemap.xml",
     "docs/ai-sitemap.xml",
-    "docs/indexnow-key.txt",
     "docs/social-posts.json",
     "docs/business-profile.json",
     "docs/latest.json",
@@ -198,7 +206,7 @@ export function publishPagesAssets(date: string, root = projectRoot(), rootPages
     "docs/ai-discovery.json",
     "docs/.nojekyll"
   ];
-  const paths = existingPublishPaths(root, [assetDir, ...publicSiteFiles]);
+  const paths = existingPublishPaths(root, [assetDir, ...publicSiteFiles, ...indexNowKeyPublishPaths(root)]);
 
   assertNoForbiddenStagedPaths(root);
   assertNoSecretsInPublishTargets(root, paths);

@@ -540,9 +540,17 @@ describe("generatePublicSite", () => {
     expect(index.entrypoints.support_pages).toMatchObject({
       "photo-before-laundry": "https://example.com/laundry-social-auto-poster/guides/photo-before-laundry.html",
       "white-shoe-yellowing": "https://example.com/laundry-social-auto-poster/guides/white-shoe-yellowing.html",
+      "shirt-suit-dry-cleaning": "https://example.com/laundry-social-auto-poster/guides/shirt-suit-dry-cleaning.html",
+      "bedding-duvet-cleaning": "https://example.com/laundry-social-auto-poster/guides/bedding-duvet-cleaning.html",
+      "plush-doll-cleaning": "https://example.com/laundry-social-auto-poster/guides/plush-doll-cleaning.html",
+      "luxury-dry-cleaning": "https://example.com/laundry-social-auto-poster/guides/luxury-dry-cleaning.html",
       "qinghai-road-shoe-cleaning": "https://example.com/laundry-social-auto-poster/local/qinghai-road-shoe-cleaning.html"
     });
-    expect(services.services.find((service: { slug: string }) => service.slug === "fabric-storage").related_support_pages).toHaveLength(1);
+    expect(
+      services.services
+        .find((service: { slug: string }) => service.slug === "fabric-storage")
+        .related_support_pages.map((page: { slug: string }) => page.slug)
+    ).toEqual(expect.arrayContaining(["bedding-storage-check", "bedding-duvet-cleaning"]));
     expect(services.services.find((service: { slug: string }) => service.slug === "shoe-bag-care").related_support_pages).toHaveLength(3);
     expect(services.services.find((service: { slug: string }) => service.slug === "white-shoe-cleaning").related_support_pages).toHaveLength(1);
     expect(services.services.every((service: { case_studies?: unknown[] }) => service.case_studies?.length === 3)).toBe(true);
@@ -568,7 +576,7 @@ describe("generatePublicSite", () => {
       )
     ).toBe(true);
     expect(discovery.capabilities.supports_support_pages).toBe(true);
-    expect(discovery.support_pages).toHaveLength(6);
+    expect(discovery.support_pages).toHaveLength(10);
     expect(discovery.support_pages[0]).toMatchObject({
       slug: "photo-before-laundry",
       category: "guide",
@@ -596,6 +604,10 @@ describe("generatePublicSite", () => {
     expect(robots).toContain("Allow: /guides/");
     expect(robots).toContain("Allow: /local/");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/guides/photo-before-laundry.html</loc>");
+    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/guides/shirt-suit-dry-cleaning.html</loc>");
+    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/guides/bedding-duvet-cleaning.html</loc>");
+    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/guides/plush-doll-cleaning.html</loc>");
+    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/guides/luxury-dry-cleaning.html</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/local/qinghai-road-shoe-cleaning.html</loc>");
     expect(aiSitemap).toContain("<!-- guide-page-photo-before-laundry -->");
     expect(aiSitemap).toContain("<!-- local-page-qinghai-road-shoe-cleaning -->");

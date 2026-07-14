@@ -1,4 +1,5 @@
 import { buildGitHubPagesImageUrl } from "./githubPages";
+import { buildGrowthPlaybook, type GrowthFormat, type GrowthPlaybookSlot } from "./growthPlaybook";
 import { relativeAssetPath } from "./paths";
 import { DAILY_SCHEDULE } from "./scheduler";
 import type { AppConfig, Category, DailyContent, DailySlot, TrafficRoute, VisualRoute } from "./types";
@@ -481,26 +482,151 @@ function captionFromTemplate(template: SlotTemplate): string {
   ].join("\n\n");
 }
 
+function playbookSlotsForDate(date: string): GrowthPlaybookSlot[] | undefined {
+  const day = buildGrowthPlaybook().days.find((item) => item.date === date);
+  return day?.slots;
+}
+
+function cleanTopic(topic: string): string {
+  return topic
+    .replace(/^(先看懂|今天情境|可收藏|細節拆解|到店前判斷|送洗前先問)：/, "")
+    .replace(/處理順序$/, "")
+    .trim();
+}
+
+function careBridgeFor(slot: GrowthPlaybookSlot): string {
+  if (slot.seo_sync_page.includes("shirt-suit-dry-cleaning")) {
+    return "襯衫的領口袖口、西裝的面料、內襯和飾件，不適合只看表面乾不乾淨；洗標與既有痕跡都會影響送洗判斷。";
+  }
+  if (slot.seo_sync_page.includes("bedding-duvet-cleaning")) {
+    return "床組、棉被和寢具要一起看表布、填充、潮氣與尺寸；收納前已經有味道時，不適合直接密封進櫃子。";
+  }
+  if (slot.seo_sync_page.includes("plush-doll-cleaning")) {
+    return "娃娃與絨毛玩偶要先看填充物、五官、刺繡和黏貼配件；不同結構不能直接套用一般衣物的洗法。";
+  }
+  if (slot.seo_sync_page.includes("luxury-dry-cleaning")) {
+    return "精品與精緻材質要先看洗標、面料、五金、飾件和既有磨損；品牌名稱不能取代實際材質判斷。";
+  }
+  if (slot.seo_sync_page.includes("white-shoe") || slot.seo_sync_page.includes("shoe-bag")) {
+    return "鞋子和包包最容易被忽略的地方，通常不是正面，而是鞋邊、提把、包角、內裡或縫線這些每天被摩擦的位置。";
+  }
+  if (slot.seo_sync_page.includes("photo-before-laundry")) {
+    return "送洗前先把物件狀態拍清楚，比直接問能不能洗更有用；材質、髒污位置和使用時間都會影響判斷。";
+  }
+  if (slot.seo_sync_page.includes("taichung-xitun")) {
+    return "西屯日常通勤、下雨、外食和連假移動，都會讓衣物、鞋包和布品累積不同類型的濕氣與灰塵。";
+  }
+  return "衣物、寢具和居家布品在收納或常用之後，領口、袖口、縫線、厚布和內層位置通常比表面更早累積味道。";
+}
+
+function inspectionFor(slot: GrowthPlaybookSlot): string {
+  return "遇到這類狀況，我會先看材質、髒污停留的位置、是否有濕氣或異味，再判斷適合局部處理、整件整理，還是先保守觀察。";
+}
+
+function actionCtaFor(slot: GrowthPlaybookSlot): string {
+  if (slot.seo_sync_page.includes("photo-before-laundry")) {
+    return "你可以先拍正面、近照、內裡或洗標，再傳 LINE，這樣我們比較能先幫你判斷方向。";
+  }
+  return "如果你也有類似物件，可以先拍正面、近照、邊角、內裡或洗標，再傳 LINE 讓我們初步判斷。";
+}
+
+function captionFromPlaybook(slot: GrowthPlaybookSlot): string {
+  return [
+    slot.hook,
+    brandLine,
+    careBridgeFor(slot),
+    inspectionFor(slot),
+    actionCtaFor(slot),
+    slot.follow_cta,
+    slot.hashtags.join(" ")
+  ].join("\n\n");
+}
+
+function imagePromptFromPlaybook(slot: GrowthPlaybookSlot): string {
+  const topic = cleanTopic(slot.topic);
+  const formatPrefix: Record<GrowthFormat, string> = {
+    "image-post": "Realistic square shop photo",
+    "real-shop-photo": "Realistic square shop photo",
+    reel: "Realistic vertical-style reel cover frame",
+    "carousel-guide": "Realistic square carousel cover photo",
+    poster: "Realistic premium square poster-style campaign image"
+  };
+
+  return `${formatPrefix[slot.format]} for 私享家洗衣店: ${topic}. ${slot.image_or_reel_direction} Premium Taiwanese laundry and shoe-care shop mood, clean counter, clear object detail, restrained Apple-like spacing when poster-like, no fake logo, no readable text, no watermark.`;
+}
+
+function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string): void {
+  const paragraphs = caption.split("\n\n");
+  const forbidden = ["畫面維持", "這支內容會用", "短影音題", "轉詢問題", "9:16", "主視覺", "route", "SEO"];
+  if (paragraphs[1] !== brandLine) {
+    throw new Error(`Invalid playbook caption for ${slot.date} slot ${slot.slot}: brand line must be second paragraph.`);
+  }
+  if (!caption.includes(slot.follow_cta)) {
+    throw new Error(`Invalid playbook caption for ${slot.date} slot ${slot.slot}: missing follow CTA.`);
+  }
+  if (!slot.hashtags.every((hashtag) => caption.includes(hashtag))) {
+    throw new Error(`Invalid playbook caption for ${slot.date} slot ${slot.slot}: missing hashtags.`);
+  }
+  if (forbidden.some((text) => caption.includes(text))) {
+    throw new Error(`Invalid playbook caption for ${slot.date} slot ${slot.slot}: contains planning language.`);
+  }
+}
+
+function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): DailySlot {
+  const caption = captionFromPlaybook(slot);
+  assertPlaybookCaptionQuality(slot, caption);
+  return {
+    slot: slot.slot,
+    time: slot.time,
+    category: slot.slot === 1 ? "知識文" : "情境文",
+    topic: slot.topic,
+    format: slot.format,
+    instagram_caption: caption,
+    facebook_caption: caption,
+    image_prompt: imagePromptFromPlaybook(slot),
+    visual_route: slot.visual_route,
+    traffic_route: slot.traffic_route,
+    views_target: slot.views_target,
+    follower_target: slot.follower_target,
+    follow_cta: slot.follow_cta,
+    seo_sync_page: slot.seo_sync_page,
+    ten_day_review_metric: slot.ten_day_review_metric,
+    content_plan_source: "growth-playbook",
+    local_image_path: relativeAssetPath(slot.date, slot.slot),
+    public_image_url: config.publicImageBaseUrl
+      ? buildGitHubPagesImageUrl(config.publicImageBaseUrl, slot.date, slot.slot)
+      : "",
+    status: "pending"
+  };
+}
+
+function dailySlotFromTemplate(date: string, schedule: (typeof DAILY_SCHEDULE)[number], config: AppConfig): DailySlot {
+  const template = templateFor(date, schedule.category);
+  const caption = captionFromTemplate(template);
+  return {
+    slot: schedule.slot,
+    time: schedule.time,
+    category: schedule.category,
+    topic: template.topic,
+    instagram_caption: caption,
+    facebook_caption: caption,
+    image_prompt: template.imagePrompt,
+    visual_route: template.visualRoute,
+    traffic_route: template.trafficRoute,
+    content_plan_source: "legacy-template",
+    local_image_path: relativeAssetPath(date, schedule.slot),
+    public_image_url: config.publicImageBaseUrl
+      ? buildGitHubPagesImageUrl(config.publicImageBaseUrl, date, schedule.slot)
+      : "",
+    status: "pending"
+  };
+}
+
 export function buildDailyContent(date: string, config: AppConfig): DailyContent {
+  const playbookSlots = playbookSlotsForDate(date);
   const slots: DailySlot[] = DAILY_SCHEDULE.map((schedule) => {
-    const template = templateFor(date, schedule.category);
-    const caption = captionFromTemplate(template);
-    return {
-      slot: schedule.slot,
-      time: schedule.time,
-      category: schedule.category,
-      topic: template.topic,
-      instagram_caption: caption,
-      facebook_caption: caption,
-      image_prompt: template.imagePrompt,
-      visual_route: template.visualRoute,
-      traffic_route: template.trafficRoute,
-      local_image_path: relativeAssetPath(date, schedule.slot),
-      public_image_url: config.publicImageBaseUrl
-        ? buildGitHubPagesImageUrl(config.publicImageBaseUrl, date, schedule.slot)
-        : "",
-      status: "pending"
-    };
+    const playbookSlot = playbookSlots?.find((slot) => slot.slot === schedule.slot);
+    return playbookSlot ? dailySlotFromPlaybook(playbookSlot, config) : dailySlotFromTemplate(date, schedule, config);
   });
 
   return {

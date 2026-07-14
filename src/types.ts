@@ -32,11 +32,18 @@ export interface DailySlot {
   time: string;
   category: Category;
   topic: string;
+  format?: string;
   instagram_caption: string;
   facebook_caption: string;
   image_prompt: string;
   visual_route: VisualRoute;
   traffic_route: TrafficRoute;
+  views_target?: number;
+  follower_target?: number;
+  follow_cta?: string;
+  seo_sync_page?: string;
+  ten_day_review_metric?: string;
+  content_plan_source?: "growth-playbook" | "legacy-template";
   local_image_path: string;
   public_image_url: string;
   status: PostStatus;

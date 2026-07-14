@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { config as loadDotenv } from "dotenv";
 import { getFlag, getOption, isMain } from "./cli";
 import { projectRoot } from "./paths";
 
@@ -32,9 +33,15 @@ function requireIndexNowKey(value: string | undefined): string {
   return key;
 }
 
+function configuredIndexNowKey(root: string): string | undefined {
+  const direct = process.env.INDEXNOW_KEY?.trim();
+  if (direct) return direct;
+  return loadDotenv({ path: join(root, ".env"), processEnv: {} }).parsed?.INDEXNOW_KEY?.trim();
+}
+
 export async function submitIndexNow(options: SubmitIndexNowOptions = {}): Promise<{ dryRun: boolean; urlCount: number; host: string }> {
   const root = projectRoot(options.root);
-  const key = requireIndexNowKey(options.key ?? process.env.INDEXNOW_KEY);
+  const key = requireIndexNowKey(options.key ?? configuredIndexNowKey(root));
   const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
   const urlList = parseCanonicalHtmlUrls(sitemap);
   if (urlList.length === 0) throw new Error("The canonical sitemap has no human-facing HTML URLs to submit.");

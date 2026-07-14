@@ -1,5 +1,6 @@
 import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
 import { hasApprovedPost, loadApprovalLog, readJsonFile, writeJsonAtomic } from "./logging";
@@ -1284,6 +1285,12 @@ function indexNowKeyFileName(key: string): string {
     throw new Error("INDEXNOW_KEY must be 8-128 letters, numbers, or hyphens.");
   }
   return `${key}.txt`;
+}
+
+function configuredIndexNowKey(root: string): string | undefined {
+  const direct = process.env.INDEXNOW_KEY?.trim();
+  if (direct) return direct;
+  return loadDotenv({ path: join(root, ".env"), processEnv: {} }).parsed?.INDEXNOW_KEY?.trim();
 }
 
 function findServiceBySlug(slug: string): ServicePageDefinition | undefined {
@@ -3989,7 +3996,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await mkdir(localRoot, { recursive: true });
   await mkdir(postsRoot, { recursive: true });
   await mkdir(compatibilityDocsRoot, { recursive: true });
-  const indexNowKey = process.env.INDEXNOW_KEY?.trim();
+  const indexNowKey = configuredIndexNowKey(root);
 
   const outputs = {
     socialPosts: join(docsRoot, "social-posts.json"),

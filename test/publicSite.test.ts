@@ -824,6 +824,7 @@ describe("generatePublicSite", () => {
     await writeApprovalLog(root, "2026-07-02");
     await mkdir(join(root, "docs"), { recursive: true });
     await writeFile(join(root, "docs", "indexnow-key.txt"), "stale-legacy-key\n", "utf8");
+    await writeFile(join(root, "docs", "stale-indexnow-key-2025.txt"), "stale-indexnow-key-2025\n", "utf8");
 
     const previousKey = process.env.INDEXNOW_KEY;
     process.env.INDEXNOW_KEY = "laundry-test-key-2026";
@@ -840,6 +841,7 @@ describe("generatePublicSite", () => {
 
     expect(await exists(join(root, "docs", "laundry-test-key-2026.txt"))).toBe(true);
     expect(await exists(join(root, "docs", "indexnow-key.txt"))).toBe(false);
+    expect(await exists(join(root, "docs", "stale-indexnow-key-2025.txt"))).toBe(false);
     const keyFile = await readFile(join(root, "docs", "laundry-test-key-2026.txt"), "utf8");
     expect(keyFile).toBe("laundry-test-key-2026\n");
   });

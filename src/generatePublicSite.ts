@@ -1,4 +1,4 @@
-import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
@@ -4047,8 +4047,19 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await writeFile(outputs.sitemap, buildSitemapXml(index), "utf8");
   await writeFile(outputs.aiSitemap, buildAiSitemapXml(index), "utf8");
   if (indexNowKey) {
-    await writeFile(join(docsRoot, indexNowKeyFileName(indexNowKey)), `${indexNowKey}\n`, "utf8");
+    const keyFileName = indexNowKeyFileName(indexNowKey);
+    await writeFile(join(docsRoot, keyFileName), `${indexNowKey}\n`, "utf8");
     await unlink(join(docsRoot, "indexnow-key.txt")).catch(() => undefined);
+    const docsEntries = await readdir(docsRoot);
+    await Promise.all(
+      docsEntries
+        .filter((name) => name !== keyFileName && /^[A-Za-z0-9-]{8,128}\.txt$/.test(name))
+        .map(async (name) => {
+          const path = join(docsRoot, name);
+          const content = await readFile(path, "utf8").catch(() => "");
+          if (content.trim() === name.replace(/\.txt$/u, "")) await unlink(path);
+        })
+    );
   }
   await writeFile(outputs.index, buildIndexHtml(index), "utf8");
   await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");

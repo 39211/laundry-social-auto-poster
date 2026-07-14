@@ -121,7 +121,13 @@ function indexNowKeyPublishPaths(root: string): string[] {
   const docsRoot = join(root, "docs");
   if (!existsSync(docsRoot)) return [];
   return readdirSync(docsRoot, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name !== "indexnow-key.txt" && /^[A-Za-z0-9-]{8,128}\.txt$/.test(entry.name))
+    .filter(
+      (entry) =>
+        entry.isFile() &&
+        entry.name !== "indexnow-key.txt" &&
+        /^[A-Za-z0-9-]{8,128}\.txt$/.test(entry.name) &&
+        readFileSync(join(docsRoot, entry.name), "utf8").trim() === entry.name.replace(/\.txt$/u, "")
+    )
     .map((entry) => `docs/${entry.name}`);
 }
 

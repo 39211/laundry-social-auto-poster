@@ -130,11 +130,15 @@ describe("generatePublicSite", () => {
       join(root, "docs", "services", "taichung-xitun-laundry.html"),
       "utf8"
     );
+    const taichungCitywidePickupHtml = await readFile(
+      join(root, "docs", "services", "taichung-citywide-laundry-pickup.html"),
+      "utf8"
+    );
 
     expect(index.base_url_configured).toBe(true);
     expect(index.canonical_url).toBe("https://example.com/laundry-social-auto-poster/");
     expect(index.open_graph).toMatchObject({
-      title: "私享家洗衣店｜台中西屯青海路洗衣、洗鞋、洗包、布品收納",
+      title: "私享家洗衣店｜台中西屯門市・台中全市免費洗衣收送",
       type: "website",
       url: "https://example.com/laundry-social-auto-poster/",
       site_name: "私享家洗衣店",
@@ -157,7 +161,9 @@ describe("generatePublicSite", () => {
       "shoe-bag-care": "https://example.com/laundry-social-auto-poster/services/shoe-bag-care.html",
       "white-shoe-cleaning": "https://example.com/laundry-social-auto-poster/services/white-shoe-cleaning.html",
       "fabric-storage": "https://example.com/laundry-social-auto-poster/services/fabric-storage.html",
-      "taichung-xitun-laundry": "https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html"
+      "taichung-xitun-laundry": "https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html",
+      "taichung-citywide-laundry-pickup":
+        "https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html"
     });
     expect(index.entrypoints.knowledge_graph).toBe("https://example.com/laundry-social-auto-poster/knowledge-graph.json");
     expect(index.entrypoints.well_known_ai).toBe("https://example.com/laundry-social-auto-poster/.well-known/ai.json");
@@ -177,14 +183,23 @@ describe("generatePublicSite", () => {
     expect(latest.date).toBe("2026-07-02");
     expect(latest.posts[0].hashtags).toEqual(["#test"]);
     expect(feed.version).toBe("https://jsonfeed.org/version/1.1");
-    expect(feed.title).toBe("私享家洗衣店｜台中西屯青海路洗衣、洗鞋、洗包、布品收納");
+    expect(feed.title).toBe("私享家洗衣店｜台中西屯門市・台中全市免費洗衣收送");
     expect(feed.items[0].tags).toEqual(["test"]);
     expect(businessProfile.line_url).toBe("https://line.me/ti/p/4m-rA6hxf6");
     expect(businessProfile.google_maps_cid).toBe("0x41f4295a6302e177");
     expect(knowledgeGraph["@graph"].some((item: { "@type"?: string }) => item["@type"] === "Dataset")).toBe(true);
     expect(knowledgeGraph["@graph"].some((item: { "@type"?: string }) => item["@type"] === "SocialMediaPosting")).toBe(true);
     expect(knowledgeGraph["@graph"].some((item: { "@type"?: string; name?: string }) => item["@type"] === "Service" && item.name === "布品收納")).toBe(true);
-    expect(services.services).toHaveLength(4);
+    const knowledgeDataset = knowledgeGraph["@graph"].find(
+      (item: { "@type"?: string }) => item["@type"] === "Dataset"
+    );
+    expect(knowledgeDataset.dateModified).toBe("2026-07-02");
+    expect(knowledgeDataset.dateModified).not.toBe(index.generated_at);
+    const knowledgeBusiness = knowledgeGraph["@graph"].find(
+      (item: { "@type"?: string }) => item["@type"] === "DryCleaningOrLaundry"
+    );
+    expect(knowledgeBusiness["@context"]).toBeUndefined();
+    expect(services.services).toHaveLength(5);
     expect(services.services[2]).toMatchObject({
       slug: "fabric-storage",
       image_url: "https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-hero-product.png",
@@ -226,8 +241,7 @@ describe("generatePublicSite", () => {
       hasMap: "https://maps.app.goo.gl/kUREPkWDXYNTkpct7",
       sameAs: [
         "https://www.facebook.com/100083194756904/",
-        "https://www.instagram.com/si_xiang_jia/",
-        "https://line.me/ti/p/4m-rA6hxf6"
+        "https://www.instagram.com/si_xiang_jia/"
       ],
       openingHours: ["Mo-Fr 10:00-20:00", "Sa 12:00-18:00"],
       address: {
@@ -247,6 +261,14 @@ describe("generatePublicSite", () => {
       }
     ]);
     expect(discovery.structured_data.specialOpeningHoursSpecification).toBeUndefined();
+    expect(discovery.structured_data.contactPoint).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ areaServed: { "@type": "AdministrativeArea", name: "台中市" } })
+      ])
+    );
+    expect(discovery.structured_data.areaServed).not.toContainEqual(
+      expect.objectContaining({ "@type": "Country", name: "Taiwan" })
+    );
     expect(discovery.website.map_url).toBe("https://maps.app.goo.gl/kUREPkWDXYNTkpct7");
     expect(discovery.website.google_maps_feature_id).toBe("0x34691713872dd6f5:0x41f4295a6302e177");
     expect(discovery.website.google_maps_cid).toBe("0x41f4295a6302e177");
@@ -277,7 +299,7 @@ describe("generatePublicSite", () => {
     });
     expect(discovery.content_contract.omitted_until_verified).toEqual(["google_place_id", "holiday_hours_overrides"]);
     expect(discovery.capabilities.supports_full_context).toBe(true);
-    expect(discovery.service_pages).toHaveLength(4);
+    expect(discovery.service_pages).toHaveLength(5);
     expect(discovery.service_pages[0]).toMatchObject({
       slug: "shoe-bag-care",
       name: "鞋包清潔",
@@ -300,6 +322,9 @@ describe("generatePublicSite", () => {
     expect(llms).toContain("[白鞋清潔](https://example.com/laundry-social-auto-poster/services/white-shoe-cleaning.html)");
     expect(llms).toContain("[布品收納](https://example.com/laundry-social-auto-poster/services/fabric-storage.html)");
     expect(llms).toContain("[台中西屯洗衣店](https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html)");
+    expect(llms).toContain(
+      "[台中全市免費洗衣收送](https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html)"
+    );
     expect(llms).toContain("Address: 407 臺中市西屯區至善里青海路二段365號");
     expect(llms).toContain("Phone: 04-2452-7411");
     expect(llms).toContain("LINE / mobile estimates: 0968-327-653");
@@ -328,8 +353,12 @@ describe("generatePublicSite", () => {
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/services/white-shoe-cleaning.html</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/services/fabric-storage.html</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html</loc>");
+    expect(sitemap).toContain(
+      "<loc>https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html</loc>"
+    );
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/posts/2026-07-02-slot-01.html</loc>");
-    expect(sitemap).toContain("<priority>1.0</priority>");
+    expect(sitemap).not.toContain("<priority>");
+    expect(sitemap).not.toContain("<changefreq>");
     expect(sitemap).not.toContain("index.html");
     expect(sitemap).not.toContain(".json");
     expect(sitemap).not.toContain("llms");
@@ -348,14 +377,15 @@ describe("generatePublicSite", () => {
     expect(aiSitemap).toContain("<!-- service-page-white-shoe-cleaning -->");
     expect(aiSitemap).toContain("<!-- service-page-fabric-storage -->");
     expect(aiSitemap).toContain("<!-- service-page-taichung-xitun-laundry -->");
+    expect(aiSitemap).toContain("<!-- service-page-taichung-citywide-laundry-pickup -->");
     expect(aiSitemap).toContain("<!-- service-image-generated-product-image -->");
     expect(aiSitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/knowledge-graph.json</loc>");
     expect(html).toContain('<link rel="canonical" href="https://example.com/laundry-social-auto-poster/"');
-    expect(html).toContain('<title>私享家洗衣店｜台中西屯青海路洗衣、洗鞋、洗包、布品收納</title>');
-    expect(html).toContain('name="description" content="私享家洗衣店位於台中市西屯區青海路二段365號');
+    expect(html).toContain('<title>私享家洗衣店｜台中西屯門市・台中全市免費洗衣收送</title>');
+    expect(html).toContain('name="description" content="私享家洗衣店門市在台中市西屯區青海路二段365號');
     expect(html).toContain('name="robots" content="index, follow, max-image-preview:large"');
     expect(html).toContain('hreflang="zh-Hant-TW"');
-    expect(html).toContain('property="og:title" content="私享家洗衣店｜台中西屯青海路洗衣、洗鞋、洗包、布品收納"');
+    expect(html).toContain('property="og:title" content="私享家洗衣店｜台中西屯門市・台中全市免費洗衣收送"');
     expect(html).toContain('property="og:type" content="website"');
     expect(html).toContain('property="og:url" content="https://example.com/laundry-social-auto-poster/"');
     expect(html).toContain('property="og:image" content="https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-hero-product.png"');
@@ -364,12 +394,17 @@ describe("generatePublicSite", () => {
     expect(html).toContain('"@type":"WebPage"');
     expect(html).toContain('"@type":"BreadcrumbList"');
     expect(html).toContain('"@type":"ItemList"');
+    expect(html).toContain('"@type":"FAQPage"');
+    expect(html).toContain('"hasPart":[{"@id":"https://example.com/laundry-social-auto-poster/#homepage-faq"}');
     expect(html).toContain('"@type":"DryCleaningOrLaundry"');
-    expect(html).toContain("<h1>台中西屯青海路洗衣、洗鞋、洗包、布品收納</h1>");
+    expect(html).toContain("<h1>台中西屯洗衣門市，台中全市免費洗衣收送</h1>");
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/shoe-bag-care.html"');
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/white-shoe-cleaning.html"');
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/fabric-storage.html"');
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html"');
+    expect(html).toContain(
+      'href="https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html"'
+    );
     expect(html).toContain("<img ");
     expect(html).toContain("assets/services/fabric-storage-hero-product.png");
     expect(html).toContain('class="service-card-image"');
@@ -377,6 +412,7 @@ describe("generatePublicSite", () => {
     expect(firstPostHtml).toContain('rel="canonical" href="https://example.com/laundry-social-auto-poster/posts/2026-07-02-slot-01.html"');
     expect(firstPostHtml).toContain('"@type":"BlogPosting"');
     expect(firstPostHtml).toContain('"@type":"BreadcrumbList"');
+    expect(firstPostHtml).toContain('class="breadcrumb"');
     expect(html).toContain("depth-band depth-laundry");
     expect(html).toContain("depth-band depth-shoe-bag");
     expect(html).toContain("depth-band depth-white-shoe");
@@ -433,6 +469,9 @@ describe("generatePublicSite", () => {
     expect(shoeBagCareHtml).toContain('"@type":"FAQPage"');
     expect(shoeBagCareHtml).toContain('"@type":"Service"');
     expect(shoeBagCareHtml).toContain('"@type":"DryCleaningOrLaundry"');
+    expect(shoeBagCareHtml).toContain("相關送洗指南");
+    expect(shoeBagCareHtml).toContain("guides/rainy-shoe-care.html");
+    expect(shoeBagCareHtml).toContain('class="breadcrumb"');
     expect(shoeBagCareHtml).toContain("https://example.com/laundry-social-auto-poster/assets/services/shoe-bag-care-hero-product.png");
     expect(shoeBagCareHtml).toContain("鞋包清潔前的包角、鞋面與皮革檢查主圖");
     expect(shoeBagCareHtml).toContain("AI 生成的高擬真產品風格主圖");
@@ -459,6 +498,17 @@ describe("generatePublicSite", () => {
     expect(taichungXitunLaundryHtml).toContain("LINE 先傳照片詢問");
     expect(taichungXitunLaundryHtml).toContain('"@type":"FAQPage"');
     expect(taichungXitunLaundryHtml).not.toContain('class="service-photo"');
+    expect(taichungCitywidePickupHtml).toContain("<title>台中全市免費洗衣收送｜私享家洗衣店 LINE 預約</title>");
+    expect(taichungCitywidePickupHtml).toContain("<h1>台中全市免費洗衣收送</h1>");
+    expect(taichungCitywidePickupHtml).toContain("台中市");
+    expect(taichungCitywidePickupHtml).toContain("收送本身免費");
+    expect(taichungCitywidePickupHtml).toContain("https://line.me/ti/p/4m-rA6hxf6");
+    expect(taichungCitywidePickupHtml).toContain("青海路二段365號");
+    expect(taichungCitywidePickupHtml).toContain("收送免費不代表清潔免費");
+    expect(taichungCitywidePickupHtml).toContain('"@type":"Service"');
+    expect(taichungCitywidePickupHtml).toContain('"name":"台中市"');
+    expect(taichungCitywidePickupHtml).not.toContain('"price":0');
+    expect(taichungCitywidePickupHtml).not.toContain('"price":"0"');
   });
 
   it("can use GitHub Pages as the public site while images stay on a separate asset host", async () => {
@@ -622,6 +672,10 @@ describe("generatePublicSite", () => {
     expect(photoGuideHtml).toContain('<link rel="canonical" href="https://example.com/laundry-social-auto-poster/guides/photo-before-laundry.html"');
     expect(photoGuideHtml).toContain('"@type":"HowTo"');
     expect(photoGuideHtml).toContain('"@type":"FAQPage"');
+    expect(photoGuideHtml).toContain('<html lang="zh-Hant-TW">');
+    expect(photoGuideHtml).toContain('class="breadcrumb"');
+    expect(photoGuideHtml).toContain('class="answer-box"');
+    expect(photoGuideHtml).toContain('"mainEntityOfPage":{"@id":"https://example.com/laundry-social-auto-poster/guides/photo-before-laundry.html#webpage"}');
     expect(whiteShoeGuideHtml).toContain("white-shoe-cleaning.html");
     expect(localShoePageHtml).toContain("shoe-bag-care.html");
     expect(localShoePageHtml).toContain("https://example.com/laundry-social-auto-poster/#business");
@@ -885,5 +939,219 @@ describe("generatePublicSite", () => {
     expect(oaiBlock).toContain("Allow: /knowledge-graph.json");
     expect(oaiBlock).toContain("Allow: /guides/");
     expect(oaiBlock).toContain("Allow: /local/");
+  });
+
+  it("publishes citywide free pickup page with internal links, schema, sitemap, and stable lastmod", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-citywide-pickup-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    const pickupPath = "services/taichung-citywide-laundry-pickup.html";
+    const pickupUrl = `${baseUrl}/${pickupPath}`;
+
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now: "2026-07-10T03:00:00.000Z"
+    });
+
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+    const pickupHtml = await readFile(join(root, "docs", pickupPath), "utf8");
+    const sitemap1 = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const services = JSON.parse(await readFile(join(root, "docs", "services.json"), "utf8"));
+    const answers = JSON.parse(await readFile(join(root, "docs", "answers.json"), "utf8"));
+    const geoTargets = JSON.parse(await readFile(join(root, "docs", "geo-targets.json"), "utf8"));
+    const knowledgeGraph = JSON.parse(await readFile(join(root, "docs", "knowledge-graph.json"), "utf8"));
+    const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8"));
+
+    expect(homepage).toContain(`href="${pickupUrl}"`);
+    expect(homepage).toContain("台中全市免費洗衣收送");
+    expect(homepage).toContain("id=\"citywide-pickup\"");
+    expect(homepage).toContain("台中洗衣收送");
+    expect(homepage).toContain("台中免費收送");
+    expect(homepage).toContain('"@type":"DryCleaningOrLaundry"');
+    expect(homepage).toContain('"@type":"FAQPage"');
+    expect(homepage).toContain('id="homepage-faq"');
+    expect(homepage).toContain("台中洗衣與免費收送常見問題");
+    expect(homepage).toContain("收送免費等於清潔免費嗎？");
+    expect(homepage).toContain('<html lang="zh-Hant-TW">');
+    expect(homepage).toContain('<time datetime="2026-07-20">2026-07-20</time>');
+    expect(homepage).toContain('"name":"台中市"');
+    expect(homepage).not.toContain('"price":0');
+    expect(homepage).not.toContain('"price":"0"');
+
+    expect(pickupHtml).toContain("<h1>台中全市免費洗衣收送</h1>");
+    expect(pickupHtml).toContain("收送範圍為台中市");
+    expect(pickupHtml).toContain("收送本身免費");
+    expect(pickupHtml).toContain("https://line.me/ti/p/4m-rA6hxf6");
+    expect(pickupHtml).toContain("西屯區青海路二段365號");
+    expect(pickupHtml).toContain('"@type":"Service"');
+    expect(pickupHtml).toContain('"@type":"AdministrativeArea"');
+    expect(pickupHtml).toContain('"name":"台中市"');
+    expect(pickupHtml).toContain('"mainEntityOfPage":{"@id":"' + pickupUrl + '#webpage"}');
+    expect(pickupHtml).toContain('class="breadcrumb"');
+    expect(pickupHtml).toContain('<time datetime="2026-07-20">2026-07-20</time>');
+    expect(pickupHtml).toContain("相關送洗指南");
+    expect(pickupHtml).toContain(`${baseUrl}/guides/photo-before-laundry.html`);
+    expect(pickupHtml).not.toContain('"price":0');
+    expect(pickupHtml).not.toContain('"price":"0"');
+
+    expect(sitemap1).toContain(`<loc>${pickupUrl}</loc>`);
+    // Posts keep publication-day lastmod; intentional content pages keep 2026-07-20.
+    expect(sitemap1).toContain("<lastmod>2026-07-02</lastmod>");
+    expect(sitemap1).toContain("<lastmod>2026-07-20</lastmod>");
+    expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
+    expect(sitemap1).toMatch(
+      new RegExp(
+        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-07-20</lastmod>`
+      )
+    );
+    expect(sitemap1).toMatch(
+      new RegExp(
+        `<loc>${pickupUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}</loc><lastmod>2026-07-20</lastmod>`
+      )
+    );
+    expect(sitemap1).toMatch(
+      /posts\/2026-07-02-slot-01\.html<\/loc><lastmod>2026-07-02<\/lastmod>/
+    );
+
+    // Static service pages without explicit content_lastmod must omit lastmod (no invented default).
+    const shoeBagEntry =
+      sitemap1.match(
+        new RegExp(
+          `<url><loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/services/shoe-bag-care\\.html</loc>(.*?)</url>`,
+          "u"
+        )
+      )?.[1] ?? "";
+    expect(shoeBagEntry).not.toContain("<lastmod>");
+    expect(shoeBagEntry).not.toContain("<changefreq>");
+    expect(sitemap1).not.toContain("<priority>");
+
+    expect(
+      answers.answers.some(
+        (item: { question: string; local_intent?: string }) =>
+          item.question === "台中市全區免費洗衣收送怎麼預約？" &&
+          item.local_intent === "台中市 洗衣免費收送 LINE 預約"
+      )
+    ).toBe(true);
+    expect(
+      answers.answers.some((item: { question: string }) => item.question.includes("台中西屯台中洗衣收送"))
+    ).toBe(false);
+    expect(geoTargets.service_areas).toContainEqual(
+      expect.objectContaining({ label: "台中市", type: "municipality" })
+    );
+    expect(geoTargets.coverage_boundaries.pickup_delivery).toMatchObject({
+      area: "台中市",
+      pickup_delivery_fee: "free",
+      cleaning_fee: "quoted separately after item review",
+      booking_channel: "LINE"
+    });
+    expect(
+      geoTargets.local_intents.some(
+        (item: { query: string; area: string; url: string }) =>
+          item.query === "台中市 洗衣免費收送" && item.area === "台中市" && item.url === pickupUrl
+      )
+    ).toBe(true);
+    expect(
+      geoTargets.local_intents.some((item: { query: string }) => item.query.includes("台中西屯 台中西屯"))
+    ).toBe(false);
+
+    const extractJsonLdBlocks = (html: string): unknown[] =>
+      [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gu)].map((match) =>
+        JSON.parse(match[1] ?? "{}")
+      );
+
+    const findWebPageDateModified = (html: string): string | undefined => {
+      for (const block of extractJsonLdBlocks(html)) {
+        const graph = (block as { "@graph"?: Array<Record<string, unknown>> })["@graph"];
+        if (!Array.isArray(graph)) continue;
+        const webpage = graph.find((node) => node["@type"] === "WebPage");
+        if (webpage && typeof webpage.dateModified === "string") return webpage.dateModified;
+      }
+      return undefined;
+    };
+
+    const findArticleDateModified = (html: string): string | undefined => {
+      for (const block of extractJsonLdBlocks(html)) {
+        const graph = (block as { "@graph"?: Array<Record<string, unknown>> })["@graph"];
+        if (!Array.isArray(graph)) continue;
+        const article = graph.find(
+          (node) => node["@type"] === "BlogPosting" || node["@type"] === "Article"
+        );
+        if (article && typeof article.dateModified === "string") return article.dateModified;
+      }
+      return undefined;
+    };
+
+    const homepageDateModified1 = findWebPageDateModified(homepage);
+    const pickupDateModified1 = findWebPageDateModified(pickupHtml);
+    const shoeBagHtml1 = await readFile(join(root, "docs", "services", "shoe-bag-care.html"), "utf8");
+    const shoeBagDateModified1 = findWebPageDateModified(shoeBagHtml1);
+    const guideHtml1 = await readFile(join(root, "docs", "guides", "photo-before-laundry.html"), "utf8");
+    const guideDateModified1 = findWebPageDateModified(guideHtml1);
+    const postHtml1 = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
+    const postDateModified1 = findArticleDateModified(postHtml1);
+
+    expect(homepageDateModified1).toBe("2026-07-20");
+    expect(pickupDateModified1).toBe("2026-07-20");
+    // Unknown static pages omit dateModified rather than using build generated_at.
+    expect(shoeBagDateModified1).toBeUndefined();
+    expect(guideDateModified1).toBeUndefined();
+    expect(postDateModified1).toBe("2026-07-02T11:30:00+08:00");
+    expect(homepage).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
+    expect(pickupHtml).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
+    expect(shoeBagHtml1).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
+    expect(postHtml1).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
+
+    expect(services.services.some((item: { slug: string }) => item.slug === "taichung-citywide-laundry-pickup")).toBe(
+      true
+    );
+    expect(
+      knowledgeGraph["@graph"].some(
+        (item: { "@type"?: string; name?: string; areaServed?: { name?: string } }) =>
+          item["@type"] === "Service" &&
+          item.name === "台中全市免費洗衣收送" &&
+          item.areaServed?.name === "台中市"
+      )
+    ).toBe(true);
+    expect(
+      discovery.structured_data.areaServed.some(
+        (area: { "@type"?: string; name?: string }) =>
+          area["@type"] === "AdministrativeArea" && area.name === "台中市"
+      )
+    ).toBe(true);
+    expect(JSON.stringify(discovery.structured_data)).not.toContain('"price":0');
+    expect(JSON.stringify(discovery.structured_data)).not.toContain('"price":"0"');
+
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now: "2026-07-18T12:00:00.000Z"
+    });
+    const sitemap2 = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const homepage2 = await readFile(join(root, "docs", "index.html"), "utf8");
+    const pickupHtml2 = await readFile(join(root, "docs", pickupPath), "utf8");
+    const shoeBagHtml2 = await readFile(join(root, "docs", "services", "shoe-bag-care.html"), "utf8");
+    const postHtml2 = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
+
+    // Rebuild with a later now must not rewrite sitemap lastmod or page schema dateModified.
+    expect(sitemap2).toBe(sitemap1);
+    expect(findWebPageDateModified(homepage2)).toBe(homepageDateModified1);
+    expect(findWebPageDateModified(pickupHtml2)).toBe(pickupDateModified1);
+    expect(findWebPageDateModified(shoeBagHtml2)).toBeUndefined();
+    expect(findArticleDateModified(postHtml2)).toBe(postDateModified1);
+    expect(sitemap2).not.toContain("<lastmod>2026-07-18T12:00:00.000Z</lastmod>");
+    expect(sitemap2).not.toContain("<lastmod>2026-07-18</lastmod>");
+    expect(homepage2).not.toContain(`"dateModified":"2026-07-18T12:00:00.000Z"`);
+    expect(pickupHtml2).not.toContain(`"dateModified":"2026-07-18T12:00:00.000Z"`);
+    expect(postHtml2).not.toContain(`"dateModified":"2026-07-18T12:00:00.000Z"`);
+
+    const serviceLastmodsWithDate = [
+      ...sitemap2.matchAll(/services\/[^<]+<\/loc><lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/gu)
+    ].map((match) => match[1]);
+    expect(serviceLastmodsWithDate.every((day) => day === "2026-07-20")).toBe(true);
+    expect(serviceLastmodsWithDate.length).toBe(1);
   });
 });

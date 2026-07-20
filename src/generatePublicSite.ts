@@ -4,7 +4,15 @@ import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
 import { hasApprovedPost, loadApprovalLog, readJsonFile, writeJsonAtomic } from "./logging";
-import { contentCalendarPath, docsContentCalendarPath, projectRoot, publicAssetPath } from "./paths";
+import {
+  contentCalendarPath,
+  docsContentCalendarPath,
+  projectRoot,
+  publicAssetPath,
+  publicCarouselAssetPath,
+  publicVideoAssetPath
+} from "./paths";
+import { imageAssetsForSlot } from "./mediaAssets";
 import type { ApprovalLogEntry, DailyContent, DailySlot, Platform } from "./types";
 
 interface GeneratePublicSiteOptions {
@@ -31,6 +39,11 @@ interface PublicPost {
   in_language: string;
   image_path: string;
   image_url: string;
+  image_paths: string[];
+  image_urls: string[];
+  media_type: "image" | "carousel" | "reel";
+  video_path: string;
+  video_url: string;
   calendar_path: string;
   calendar_url: string;
   article_path: string;
@@ -110,6 +123,10 @@ interface ServicePageDefinition {
   static_image_path?: string;
   static_image_topic?: string;
   static_image_source?: string;
+  /** Stable YYYY-MM-DD used for sitemap lastmod when content last intentionally changed. */
+  content_lastmod?: string;
+  /** Explicit areaServed name for schema (default: 台中西屯). */
+  area_served_name?: string;
   answer_summary: string;
   case_story: {
     label: string;
@@ -141,6 +158,8 @@ interface SupportPageDefinition {
   keywords: string[];
   service_slug?: string;
   local_intent: string;
+  /** Stable YYYY-MM-DD used for sitemap lastmod when content last intentionally changed. */
+  content_lastmod?: string;
   steps: Array<{ name: string; text: string }>;
   faqs: ServiceFaq[];
 }
@@ -239,9 +258,11 @@ interface BusinessProfile {
 }
 
 const SITE_NAME = "私享家洗衣店";
-const SITE_TITLE = "私享家洗衣店｜台中西屯青海路洗衣、洗鞋、洗包、布品收納";
+const SITE_TITLE = "私享家洗衣店｜台中西屯門市・台中全市免費洗衣收送";
 const SITE_DESCRIPTION =
-  "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋子清潔、包包清潔與布品收納。可先用 LINE 傳照片詢問，電話 04-2452-7411。";
+  "私享家洗衣店門市在台中市西屯區青海路二段365號，提供衣物洗護、洗鞋、洗包與布品收納；台中全市可預約免費收送，主要透過 LINE 詢問與預約。";
+/** Homepage last intentional content change (YYYY-MM-DD). Not rewritten on every build. */
+const HOMEPAGE_CONTENT_LASTMOD = "2026-07-20";
 const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";
@@ -297,6 +318,8 @@ const LOCAL_SEARCH_QUERY_TARGETS = [
   "西屯洗衣店",
   "台中西屯洗衣店",
   "青海路洗衣店",
+  "台中洗衣收送",
+  "台中免費收送",
   "台中西屯洗鞋",
   "台中西屯洗包",
   "台中西屯白鞋清潔",
@@ -638,7 +661,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       {
         heading: "社群內容也會同步成搜尋資料",
         body:
-          "審核通過的 Facebook 與 Instagram 貼文會同步進公開 SEO / AIO / GEO feed，讓日常門市案例、雨季提醒、節日海報和服務頁互相連回官方內容來源。"
+          "審核通過的 Facebook 與 Instagram 貼文會同步進公開 SEO / AEO / GEO feed，讓日常門市案例、雨季提醒、節日海報和服務頁互相連回官方內容來源。"
       }
     ],
     inspection_table: [
@@ -678,7 +701,124 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       },
       {
         question: "社群貼文內容會和服務頁連在一起嗎？",
-        answer: "會。排程產生且審核通過的 FB / IG 貼文會同步成公開 SEO / AIO / GEO 資料，讓服務頁和日常案例互相補強。"
+        answer: "會。排程產生且審核通過的 FB / IG 貼文會同步成公開 SEO / AEO / GEO 資料，讓服務頁和日常案例互相補強。"
+      }
+    ]
+  },
+  {
+    slug: "taichung-citywide-laundry-pickup",
+    name: "台中全市免費洗衣收送",
+    local_query_name: "台中洗衣收送",
+    title: "台中全市免費洗衣收送｜私享家洗衣店 LINE 預約",
+    description:
+      "私享家洗衣店提供台中全市免費洗衣收送；門市在西屯區青海路二段365號。收送範圍為台中市，主要透過 LINE 傳照片詢問與預約。",
+    h1: "台中全市免費洗衣收送",
+    summary:
+      "私享家洗衣店提供台中全市免費收送服務。門市位置仍在台中市西屯區青海路二段365號；收送範圍涵蓋台中市，不以西屯為限。預約與詢問以 LINE 為主，先傳照片說明衣物、鞋子、包包或布品狀況，再安排後續。",
+    keywords: ["台中洗衣收送", "台中免費收送", "台中全市收送", "洗衣店收送", "私享家洗衣店", "LINE 預約洗衣"],
+    image_hint: "收送",
+    image_alt: "台中全市免費洗衣收送服務說明｜私享家洗衣店",
+    image_note: "台中全市免費洗衣收送說明頁；門市在西屯，收送範圍為台中市。",
+    allow_image_fallback: false,
+    content_lastmod: "2026-07-20",
+    area_served_name: "台中市",
+    answer_summary:
+      "私享家洗衣店提供台中全市免費洗衣收送；門市在西屯區青海路二段365號，收送範圍為台中市，主要透過 LINE 預約與傳照片詢問。",
+    case_story: {
+      label: "住在台中其他行政區，也能先用 LINE 問收送",
+      situation:
+        "客人可能住在台中市內、不在西屯門市旁邊，手上有衣物、鞋子、包包或布品需要整理，想先確認能不能收送、要怎麼開始。",
+      inspection:
+        "門市會先依照片看物件類型與狀態，再說明收送範圍是台中市、收送本身免費，以及後續是否適合整理；清潔費用與處理方式需另依物件判斷，不以收送免費代表清潔免費。",
+      recommendation:
+        "建議先加 LINE 傳整體照與局部近照，並說明大致所在區域與想整理的品項；確認方向後再約定收送，門市地址仍以西屯青海路為實體店面。"
+    },
+    case_studies: [
+      {
+        label: "情境 01",
+        object: "台中市內住家衣物",
+        material: "依洗標與布料判斷",
+        concern: "不方便到店，想先確認收送",
+        inspection: "先確認收送範圍為台中市、收送免費，再依照片看衣物狀態。",
+        boundary: "收送免費不等於清潔免費；不報未經確認的處理天數或最低消費。"
+      },
+      {
+        label: "情境 02",
+        object: "鞋包與白鞋",
+        material: "鞋面、膠邊、包角分開判斷",
+        concern: "想先問能不能收、要拍什麼",
+        inspection: "先傳鞋面、鞋邊、包角與整體照片，門市再回覆是否適合整理與收送安排。",
+        boundary: "不以保證變全新為前提；材質與痕跡需先看再判斷。"
+      },
+      {
+        label: "情境 03",
+        object: "換季布品",
+        material: "外套、寢具或厚棉布品",
+        concern: "量大、想約收送",
+        inspection: "先確認品項、是否乾燥與有無悶味，再談收送與整理方向。",
+        boundary: "不承諾固定取件時段或保證所有黃痕可消除。"
+      }
+    ],
+    sections: [
+      {
+        heading: "先回答：台中全市可以免費收送嗎？",
+        body:
+          "可以。私享家洗衣店的收送範圍是台中市全市，收送本身免費。實體門市在台中市西屯區青海路二段365號；收送服務不限於西屯住戶。清潔、洗護或其他整理項目的費用需另依物件狀態判斷，收送免費不代表清潔免費。"
+      },
+      {
+        heading: "怎麼預約？",
+        body:
+          "預約與詢問以 LINE 為主。請先傳照片（整體、局部、材質標籤或最在意的痕跡），並簡單說明所在區域與想整理的品項。門市會先回覆方向，再與您約定收送。LINE：https://line.me/ti/p/4m-rA6hxf6"
+      },
+      {
+        heading: "誠實邊界",
+        body:
+          "本頁只說明已確認事實：台中全市可收送、收送免費、以 LINE 為主要預約管道、門市在西屯。未在此承諾處理天數、最低消費金額、清潔報價、固定取件時段或效果保證；這些需看實際物件與當下門市回覆。"
+      },
+      {
+        heading: "門市與收送的關係",
+        body:
+          "實體店面與現場諮詢仍以西屯青海路門市為準；收送是把台中市內的衣物、鞋包與布品接到門市處理流程的方式。不方便到店的客人，可先用 LINE 完成詢問與收送安排。"
+      }
+    ],
+    inspection_table: [
+      {
+        item: "收送範圍",
+        focus: "台中市全市",
+        risk: "台中市以外區域不在本頁確認範圍內，需另詢問。"
+      },
+      {
+        item: "收送費用",
+        focus: "收送本身免費",
+        risk: "清潔與洗護費用另計，不以 price=0 或「全免費」誤解為清潔免錢。"
+      },
+      {
+        item: "預約管道",
+        focus: "主要透過 LINE 傳照片詢問與預約",
+        risk: "未看過照片前不承諾處理方式或報價細節。"
+      },
+      {
+        item: "實體門市",
+        focus: "台中市西屯區青海路二段365號",
+        risk: "門市地址與收送範圍不同：地址在西屯，收送涵蓋台中市。"
+      }
+    ],
+    faqs: [
+      {
+        question: "私享家洗衣店收送範圍到哪裡？",
+        answer: "收送範圍為台中市全市。門市在台中市西屯區青海路二段365號。"
+      },
+      {
+        question: "收送要錢嗎？",
+        answer: "收送本身免費。清潔、洗護或其他整理項目的費用需另依物件狀態判斷，收送免費不代表清潔免費。"
+      },
+      {
+        question: "怎麼預約收送？",
+        answer: "主要透過 LINE 傳照片詢問與預約：https://line.me/ti/p/4m-rA6hxf6 。請附上整體與局部照片，並說明大致區域與品項。"
+      },
+      {
+        question: "一定要到西屯門市嗎？",
+        answer: "不一定。台中市內可約免費收送；若方便到店，門市仍在西屯區青海路二段365號。"
       }
     ]
   }
@@ -1047,8 +1187,13 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
   },
   {
     heading: "依地區找服務",
-    intro: "把店家位置和生活圈寫成可讀內容，讓搜尋引擎與 AI 清楚知道私享家洗衣店服務的是台中西屯、青海路與周邊客人的實際送洗需求。",
+    intro: "把店家位置、台中全市收送和生活圈寫成可讀內容，讓搜尋引擎與 AI 清楚知道門市在西屯，收送涵蓋台中市。",
     items: [
+      {
+        label: "台中全市免費收送",
+        description: "台中市可預約免費洗衣收送；以 LINE 傳照片詢問與預約為主。",
+        serviceSlug: "taichung-citywide-laundry-pickup"
+      },
       {
         label: "台中西屯洗衣店",
         description: "適合第一次想了解私享家位置、服務範圍、LINE 詢問流程與送洗前準備。",
@@ -1057,11 +1202,6 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
       {
         label: "青海路二段附近",
         description: "適合青海路、至善里與西屯生活圈客人查找衣物、鞋包與布品整理資訊。",
-        serviceSlug: "taichung-xitun-laundry"
-      },
-      {
-        label: "逢甲與西屯通勤後",
-        description: "適合雨後鞋底泥灰、包角水痕、外套汗味與換季收納前檢查。",
         serviceSlug: "taichung-xitun-laundry"
       }
     ]
@@ -1263,7 +1403,10 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
         "@type": "ContactPoint",
         telephone: profile.telephone,
         contactType: "customer service",
-        areaServed: "TW",
+        areaServed: {
+          "@type": "AdministrativeArea",
+          name: "台中市"
+        },
         availableLanguage: ["zh-Hant"]
       },
       {
@@ -1271,7 +1414,10 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
         telephone: profile.mobile_or_line,
         url: profile.line_url,
         contactType: "LINE / mobile estimates",
-        areaServed: "TW",
+        areaServed: {
+          "@type": "AdministrativeArea",
+          name: "台中市"
+        },
         availableLanguage: ["zh-Hant"]
       }
     ],
@@ -1279,12 +1425,12 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
     openingHoursSpecification: profile.opening_hours_specification,
     ...(specialOpeningHoursSpecification.length > 0 ? { specialOpeningHoursSpecification } : {}),
     hasMap: profile.map_url,
-    sameAs: [profile.facebook_url, profile.instagram_url, profile.line_url],
+    sameAs: [profile.facebook_url, profile.instagram_url],
     image: images,
     areaServed: [
       {
-        "@type": "Country",
-        name: "Taiwan"
+        "@type": "AdministrativeArea",
+        name: "台中市"
       },
       {
         "@type": "AdministrativeArea",
@@ -1306,9 +1452,17 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
           name: service.name,
           serviceType: service.name,
           description: service.answer_summary,
-          areaServed: "台中西屯",
+          areaServed: serviceAreaServedSchema(service),
           url: servicePageUrl(service, index)
-        }
+        },
+        // Free pickup/delivery only — never encode cleaning as price 0.
+        ...(service.slug === "taichung-citywide-laundry-pickup"
+          ? {
+              name: "台中全市免費洗衣收送",
+              description:
+                "台中市全市免費收送；清潔與洗護費用另計。預約以 LINE 為主。"
+            }
+          : {})
       }))
     }
   };
@@ -1321,6 +1475,7 @@ function buildHomePageSchema(index: PublicPostIndex): object | undefined {
 
   const businessNode = { ...(business as Record<string, unknown>) };
   delete businessNode["@context"];
+  const faqs = homeFaqs(index.business_profile);
 
   return {
     "@context": "https://schema.org",
@@ -1345,6 +1500,12 @@ function buildHomePageSchema(index: PublicPostIndex): object | undefined {
         inLanguage: "zh-Hant-TW",
         isPartOf: { "@id": `${index.canonical_url}#website` },
         about: { "@id": `${index.canonical_url}#business` },
+        mainEntity: { "@id": `${index.canonical_url}#business` },
+        breadcrumb: { "@id": `${index.canonical_url}#breadcrumb` },
+        hasPart: [
+          { "@id": `${index.canonical_url}#homepage-faq` },
+          { "@id": `${index.canonical_url}#service-discovery` }
+        ],
         ...(index.open_graph.image
           ? {
               primaryImageOfPage: {
@@ -1354,7 +1515,7 @@ function buildHomePageSchema(index: PublicPostIndex): object | undefined {
               }
             }
           : {}),
-        dateModified: index.generated_at
+        ...optionalSchemaDateModified(HOMEPAGE_CONTENT_LASTMOD)
       },
       {
         "@type": "BreadcrumbList",
@@ -1381,6 +1542,21 @@ function buildHomePageSchema(index: PublicPostIndex): object | undefined {
             url: homeDiscoveryItemUrl(item, index)
           }))
         )
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${index.canonical_url}#homepage-faq`,
+        url: `${index.canonical_url}#homepage-faq`,
+        isPartOf: { "@id": `${index.canonical_url}#webpage` },
+        about: { "@id": `${index.canonical_url}#business` },
+        mainEntity: faqs.map((faq) => ({
+          "@type": "Question",
+          name: faq.question,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: faq.answer
+          }
+        }))
       }
     ]
   };
@@ -1396,6 +1572,111 @@ function servicePageUrl(service: ServicePageDefinition, index: PublicPostIndex):
 
 function supportPageUrl(page: SupportPageDefinition, index: PublicPostIndex): string {
   return index.entrypoints.support_pages[page.slug] ?? page.path;
+}
+
+function serviceAreaServedName(service: ServicePageDefinition): string {
+  return service.area_served_name ?? "台中西屯";
+}
+
+function serviceAreaServedSchema(service: ServicePageDefinition): {
+  "@type": "AdministrativeArea";
+  name: string;
+} {
+  return {
+    "@type": "AdministrativeArea",
+    name: serviceAreaServedName(service)
+  };
+}
+
+function homeFaqs(profile: BusinessProfile): ServiceFaq[] {
+  return [
+    {
+      question: "私享家洗衣店在哪裡？",
+      answer: `私享家洗衣店位於${profile.address_text}，可用 Google Maps 導航；也可以先透過 LINE 傳照片詢問。`
+    },
+    {
+      question: "台中市哪些地方可以預約洗衣收送？",
+      answer: "收送範圍為台中市全區，收送本身免費；清潔、洗護與其他整理費用另依實際物件狀態判斷。"
+    },
+    {
+      question: "怎麼預約台中洗衣收送？",
+      answer: "主要透過 LINE 預約。請先傳物件整體照、局部近照、材質標籤，並說明所在區域與品項，門市確認方向後再約定收送。"
+    },
+    {
+      question: "收送免費等於清潔免費嗎？",
+      answer: "不等於。免費的是台中市內的收送服務，清潔與洗護費用仍需依材質、髒污與物件狀態另行判斷。"
+    }
+  ];
+}
+
+/** Prefer YYYY-MM-DD from ISO-ish timestamps; return undefined when not defensible. */
+function toSitemapLastmodDate(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const match = value.trim().match(/^(\d{4}-\d{2}-\d{2})/u);
+  return match?.[1];
+}
+
+/**
+ * Schema.org dateModified only when a defensible content date exists.
+ * Prefer full ISO timestamps; fall back to YYYY-MM-DD. Never use build generated_at.
+ */
+function optionalSchemaDateModified(value: string | undefined): { dateModified: string } | Record<string, never> {
+  if (!value) return {};
+  const trimmed = value.trim();
+  if (!trimmed) return {};
+  // Keep full ISO-ish timestamps when provided (e.g. post.date_published).
+  if (/^\d{4}-\d{2}-\d{2}T/u.test(trimmed)) {
+    return { dateModified: trimmed };
+  }
+  const day = toSitemapLastmodDate(trimmed);
+  return day ? { dateModified: day } : {};
+}
+
+/** Explicit content_lastmod only — do not invent defaults for static service pages. */
+function serviceContentLastmod(service: ServicePageDefinition): string | undefined {
+  return toSitemapLastmodDate(service.content_lastmod);
+}
+
+/** Explicit content_lastmod only — do not invent defaults for static support pages. */
+function supportContentLastmod(page: SupportPageDefinition): string | undefined {
+  return toSitemapLastmodDate(page.content_lastmod);
+}
+
+function postContentLastmod(post: PublicPost): string | undefined {
+  return toSitemapLastmodDate(post.date_published) ?? toSitemapLastmodDate(post.date);
+}
+
+function sitemapLastmodForUrl(url: string, index: PublicPostIndex): string | undefined {
+  if (url === index.canonical_url) {
+    return toSitemapLastmodDate(HOMEPAGE_CONTENT_LASTMOD);
+  }
+
+  for (const service of SERVICE_PAGE_DEFINITIONS) {
+    if (url === servicePageUrl(service, index) || url.endsWith(`/services/${service.slug}.html`)) {
+      return serviceContentLastmod(service);
+    }
+  }
+
+  for (const page of SUPPORT_PAGE_DEFINITIONS) {
+    if (url === supportPageUrl(page, index) || url.endsWith(`/${page.path}`) || url.endsWith(page.path)) {
+      return supportContentLastmod(page);
+    }
+  }
+
+  for (const post of index.article_posts) {
+    if (url === post.article_url || url.endsWith(`/posts/${post.date}-slot-${String(post.slot).padStart(2, "0")}.html`)) {
+      return postContentLastmod(post);
+    }
+  }
+
+  // Omit lastmod when no stable modification date is known.
+  return undefined;
+}
+
+function sitemapUrlEntry(url: string, index: PublicPostIndex): string {
+  const lastmod = sitemapLastmodForUrl(url, index);
+  const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
+  return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
 }
 
 function postArticlePath(date: string, slot: number): string {
@@ -1538,6 +1819,9 @@ function buildServicePageSchema(service: ServicePageDefinition, index: PublicPos
         inLanguage: "zh-Hant-TW",
         isPartOf: { "@id": `${index.canonical_url}#website` },
         about: { "@id": `${canonical}#service` },
+        mainEntity: { "@id": `${canonical}#service` },
+        breadcrumb: { "@id": `${canonical}#breadcrumb` },
+        hasPart: { "@id": `${canonical}#faq` },
         ...(image?.image_url
           ? {
               primaryImageOfPage: {
@@ -1547,24 +1831,26 @@ function buildServicePageSchema(service: ServicePageDefinition, index: PublicPos
               }
             }
           : {}),
-        dateModified: index.generated_at
+        ...optionalSchemaDateModified(service.content_lastmod)
       },
       {
         "@type": "Service",
         "@id": `${canonical}#service`,
+        url: canonical,
+        mainEntityOfPage: { "@id": `${canonical}#webpage` },
         name: service.name,
         description: service.summary,
         serviceType: service.name,
         provider: { "@id": `${index.canonical_url}#business` },
-        areaServed: {
-          "@type": "AdministrativeArea",
-          name: "台中西屯"
-        },
+        areaServed: serviceAreaServedSchema(service),
         keywords: service.keywords
       },
       {
         "@type": "FAQPage",
         "@id": `${canonical}#faq`,
+        url: `${canonical}#faq`,
+        isPartOf: { "@id": `${canonical}#webpage` },
+        about: { "@id": `${canonical}#service` },
         mainEntity: service.faqs.map((faq) => ({
           "@type": "Question",
           name: faq.question,
@@ -1619,11 +1905,16 @@ function buildSupportPageSchema(page: SupportPageDefinition, index: PublicPostIn
         inLanguage: "zh-Hant-TW",
         isPartOf: { "@id": `${index.canonical_url}#website` },
         about: serviceUrl ? { "@id": `${serviceUrl}#service` } : { "@id": `${index.canonical_url}#business` },
-        dateModified: index.generated_at
+        mainEntity: { "@id": `${canonical}#howto` },
+        breadcrumb: { "@id": `${canonical}#breadcrumb` },
+        hasPart: { "@id": `${canonical}#faq` },
+        ...optionalSchemaDateModified(page.content_lastmod)
       },
       {
         "@type": "HowTo",
         "@id": `${canonical}#howto`,
+        url: canonical,
+        mainEntityOfPage: { "@id": `${canonical}#webpage` },
         name: page.h1,
         description: page.summary,
         inLanguage: "zh-Hant-TW",
@@ -1648,6 +1939,8 @@ function buildSupportPageSchema(page: SupportPageDefinition, index: PublicPostIn
       {
         "@type": "FAQPage",
         "@id": `${canonical}#faq`,
+        url: `${canonical}#faq`,
+        isPartOf: { "@id": `${canonical}#webpage` },
         mainEntity: page.faqs.map((faq) => ({
           "@type": "Question",
           name: faq.question,
@@ -1758,7 +2051,11 @@ function slotToPublicPost(
   siteBaseUrl: string | undefined,
   imageBaseUrl: string | undefined
 ): PublicPost {
-  const imagePath = publicAssetPath(date, slot.slot);
+  const slotImages = imageAssetsForSlot(slot);
+  const imagePaths = slotImages.map((asset) => publicCarouselAssetPath(date, slot.slot, asset.slide));
+  const imageUrls = imagePaths.map((path) => publicUrl(path, imageBaseUrl ?? siteBaseUrl));
+  const imagePath = imagePaths[0] ?? publicAssetPath(date, slot.slot);
+  const videoPath = slot.media_type === "reel" ? publicVideoAssetPath(date, slot.slot) : "";
   const calendarPath = `content-calendar/${date}.json`;
   const articlePath = postArticlePath(date, slot.slot);
   const id = postId(date, slot.slot, siteBaseUrl);
@@ -1778,7 +2075,12 @@ function slotToPublicPost(
     platforms: PLATFORM_NAMES,
     in_language: "zh-Hant",
     image_path: imagePath,
-    image_url: publicUrl(imagePath, imageBaseUrl ?? siteBaseUrl),
+    image_url: imageUrls[0] ?? publicUrl(imagePath, imageBaseUrl ?? siteBaseUrl),
+    image_paths: imagePaths,
+    image_urls: imageUrls,
+    media_type: slot.media_type === "reel" ? "reel" : slot.media_type === "carousel" ? "carousel" : "image",
+    video_path: videoPath,
+    video_url: videoPath ? publicUrl(videoPath, imageBaseUrl ?? siteBaseUrl) : "",
     calendar_path: calendarPath,
     calendar_url: publicUrl(calendarPath, siteBaseUrl),
     article_path: articlePath,
@@ -1847,7 +2149,7 @@ function buildLlmsText(index: PublicPostIndex): string {
     `- [Full structured post feed](${index.entrypoints.social_posts}): all generated post records with captions, images, routes, and hashtags.`,
     `- [Business profile](${index.entrypoints.business_profile}): official NAP, social links, map identifiers, service topics, and verification status.`,
     `- [Services JSON](${index.entrypoints.services}): service-page records with answer summaries, case stories, images, FAQ, and LocalBusiness links.`,
-    `- [Answers JSON](${index.entrypoints.answers}): concise AIO/GEO answers for service and local-intent queries.`,
+    `- [Answers JSON](${index.entrypoints.answers}): concise AEO/GEO answers for service and local-intent queries.`,
     `- [Geo targets JSON](${index.entrypoints.geo_targets}): local service areas, address anchors, and query-intent map for 台中西屯 searches.`,
     `- [LLMS JSONL](${index.entrypoints.llms_jsonl}): line-delimited business, service, answer, and post records for AI ingestion.`,
     ...SERVICE_PAGE_DEFINITIONS.map(
@@ -1882,7 +2184,7 @@ function buildLlmsText(index: PublicPostIndex): string {
     "",
     "## Data Contract",
     "- Cadence: two daily social slots, 11:30 and 19:30 Asia/Taipei.",
-    "- Each post includes: date, slot, time, title, topic, visual_route, traffic_route, hashtags, image_url, calendar_url, facebook_caption, instagram_caption.",
+    "- Each post includes: date, slot, time, title, topic, visual_route, traffic_route, hashtags, media_type, image_url, video_url when applicable, calendar_url, facebook_caption, instagram_caption.",
     "- Use the business profile and structured data as the source of record for phone, hours, map, and social links.",
     "- Do not treat Google Maps CID as Google Place ID. Use google_place_id only when it is non-null.",
     "- Emit concrete holiday opening hours only from owner-verified holiday_hours_rule.overrides.",
@@ -1898,6 +2200,7 @@ function buildLlmsText(index: PublicPostIndex): string {
       `  routes: visual_route=${post.visual_route}; traffic_route=${post.traffic_route}`,
       `  hashtags: ${post.hashtags.join(" ") || "(none)"}`,
       `  image: ${post.image_url}`,
+      ...(post.video_url ? [`  video: ${post.video_url}`] : []),
       `  calendar: ${post.calendar_url}`
     ]),
     ...(publishedPosts.length > 0 ? [] : ["- (none yet)"]),
@@ -2051,13 +2354,7 @@ function buildSitemapXml(index: PublicPostIndex): string {
       ]
     : [];
   const uniqueUrls = Array.from(new Set(urls));
-  const items = uniqueUrls
-    .map((url) => {
-      const priority = url === index.canonical_url ? "1.0" : url.includes("/posts/") ? "0.6" : "0.7";
-      const changefreq = url === index.canonical_url ? "weekly" : url.includes("/posts/") ? "never" : "monthly";
-      return `  <url><loc>${escapeXml(url)}</loc><lastmod>${escapeXml(index.generated_at)}</lastmod><changefreq>${changefreq}</changefreq><priority>${priority}</priority></url>`;
-    })
-    .join("\n");
+  const items = uniqueUrls.map((url) => sitemapUrlEntry(url, index)).join("\n");
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -2108,10 +2405,12 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
       seen.add(item.loc);
       return true;
     })
-    .map(
-      (item) =>
-        `  <url><loc>${escapeXml(item.loc)}</loc><lastmod>${escapeXml(index.generated_at)}</lastmod><changefreq>daily</changefreq><!-- ${escapeXml(item.purpose)} --></url>`
-    )
+    .map((item) => {
+      // Human sitemap URLs keep truthful lastmod; machine/AI-only assets omit lastmod unless known.
+      const lastmod = sitemapLastmodForUrl(item.loc, index);
+      const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
+      return `  <url><loc>${escapeXml(item.loc)}</loc>${lastmodXml}<changefreq>daily</changefreq><!-- ${escapeXml(item.purpose)} --></url>`;
+    })
     .join("\n");
 
   return [
@@ -2209,7 +2508,7 @@ function buildServicesJson(index: PublicPostIndex): object {
     schema_version: "2026-07-02",
     generated_at: index.generated_at,
     name: `${profile.name} service pages`,
-    description: "Service-level SEO, AIO, and GEO source records for 私享家洗衣店.",
+    description: "Service-level SEO, AEO, and GEO source records for 私享家洗衣店.",
     canonical_url: index.canonical_url,
     business_profile_url: index.entrypoints.business_profile,
     services: SERVICE_PAGE_DEFINITIONS.map((service) => serviceToPublicRecord(service, index))
@@ -2220,14 +2519,36 @@ function serviceLocalQueryName(service: ServicePageDefinition): string {
   return service.local_query_name ?? service.name;
 }
 
+function serviceAnswerQuestion(service: ServicePageDefinition): string {
+  if (service.slug === "taichung-citywide-laundry-pickup") {
+    return "台中市全區免費洗衣收送怎麼預約？";
+  }
+  return `台中西屯${serviceLocalQueryName(service)}要怎麼判斷？`;
+}
+
+function serviceLocalIntent(service: ServicePageDefinition): string {
+  if (service.slug === "taichung-citywide-laundry-pickup") {
+    return "台中市 洗衣免費收送 LINE 預約";
+  }
+  return `台中西屯 ${serviceLocalQueryName(service)}`;
+}
+
 function buildAnswersJson(index: PublicPostIndex): object {
   const profile = index.business_profile;
+  const coreHomeAnswers = homeFaqs(profile).map((faq, faqIndex) => ({
+    id: `homepage-core-faq-${String(faqIndex + 1).padStart(2, "0")}`,
+    type: "homepage_faq",
+    question: faq.question,
+    answer: faq.answer,
+    source_url: `${index.canonical_url}#homepage-faq`,
+    local_intent: faqIndex === 0 ? "台中西屯 私享家洗衣店" : "台中市 洗衣免費收送 LINE 預約"
+  }));
   const homeAnswers = [
     {
       id: "homepage-local-laundry-search",
       type: "local_search_answer",
       question: "搜尋台中西屯洗衣店時，私享家洗衣店提供哪些服務？",
-      answer: `私享家洗衣店位於${profile.address_text}，主要服務台中西屯與青海路二段附近客人，提供衣物洗護、鞋包清潔、白鞋清潔與布品收納；可先用 LINE 傳照片詢問，再由門市依材質、髒污、濕氣與收納狀態判斷。`,
+      answer: `私享家洗衣店位於${profile.address_text}，提供衣物洗護、鞋包清潔、白鞋清潔與布品收納；台中全市可預約免費收送，主要透過 LINE 傳照片詢問與預約，再由門市依材質、髒污、濕氣與收納狀態判斷。收送免費不代表清潔免費。`,
       source_url: index.canonical_url,
       local_intent: LOCAL_SEARCH_QUERY_TARGETS.join(", ")
     },
@@ -2258,16 +2579,15 @@ function buildAnswersJson(index: PublicPostIndex): object {
   ];
   const serviceAnswers = SERVICE_PAGE_DEFINITIONS.flatMap((service) => {
     const url = servicePageUrl(service, index);
-    const localQueryName = serviceLocalQueryName(service);
     return [
       {
         id: `${service.slug}-summary`,
         type: "service_summary",
-        question: `台中西屯${localQueryName}要怎麼判斷？`,
+        question: serviceAnswerQuestion(service),
         answer: service.answer_summary,
         service: service.name,
         source_url: url,
-        local_intent: `台中西屯 ${localQueryName}`,
+        local_intent: serviceLocalIntent(service),
         image_url: findServiceImage(service, index)?.image_url ?? ""
       },
       ...service.faqs.map((faq, faqIndex) => ({
@@ -2277,7 +2597,7 @@ function buildAnswersJson(index: PublicPostIndex): object {
         answer: faq.answer,
         service: service.name,
         source_url: `${url}#faq`,
-        local_intent: `台中西屯 ${localQueryName}`
+        local_intent: serviceLocalIntent(service)
       }))
     ];
   });
@@ -2327,13 +2647,24 @@ function buildAnswersJson(index: PublicPostIndex): object {
       do_not_infer_rules: [...AI_DO_NOT_INFER_RULES],
       omitted_until_verified: ["google_place_id", "holiday_hours_overrides"]
     },
-    answers: [...homeAnswers, ...serviceAnswers, ...supportAnswers].map((answer) => addAnswerSafety(answer, profile))
+    answers: [...coreHomeAnswers, ...homeAnswers, ...serviceAnswers, ...supportAnswers].map((answer) =>
+      addAnswerSafety(answer, profile)
+    )
   };
 }
 
 function buildGeoTargetsJson(index: PublicPostIndex): object {
   const profile = index.business_profile;
   const serviceAreas = [
+    {
+      label: "台中市",
+      type: "municipality",
+      country: "TW",
+      region: profile.address.addressRegion,
+      locality: "",
+      street: "",
+      note: "Confirmed pickup and delivery service area; pickup and delivery are free, while cleaning is billed separately."
+    },
     {
       label: "台中西屯",
       type: "district",
@@ -2362,6 +2693,7 @@ function buildGeoTargetsJson(index: PublicPostIndex): object {
       note: "Neighborhood anchor from business address."
     }
   ];
+  const localStoreAreas = serviceAreas.filter((area) => area.type !== "municipality");
 
   return {
     schema_version: "2026-07-02",
@@ -2380,6 +2712,20 @@ function buildGeoTargetsJson(index: PublicPostIndex): object {
       opening_hours_text: profile.opening_hours_text
     },
     service_areas: serviceAreas,
+    coverage_boundaries: {
+      physical_store: {
+        area: profile.address.addressLocality,
+        address_text: profile.address_text,
+        note: "The physical storefront is in Xitun District."
+      },
+      pickup_delivery: {
+        area: "台中市",
+        pickup_delivery_fee: "free",
+        cleaning_fee: "quoted separately after item review",
+        booking_channel: "LINE",
+        note: "Citywide pickup and delivery does not mean cleaning is free."
+      }
+    },
     coordinates: {
       latitude: null,
       longitude: null,
@@ -2401,8 +2747,14 @@ function buildGeoTargetsJson(index: PublicPostIndex): object {
         answer_summary: SITE_DESCRIPTION
       })),
       ...SERVICE_PAGE_DEFINITIONS.flatMap((service) =>
-        serviceAreas.map((area) => ({
-          query: `${area.label} ${serviceLocalQueryName(service)}`,
+        (service.slug === "taichung-citywide-laundry-pickup"
+          ? serviceAreas.filter((area) => area.type === "municipality")
+          : localStoreAreas
+        ).map((area) => ({
+          query:
+            service.slug === "taichung-citywide-laundry-pickup"
+              ? "台中市 洗衣免費收送"
+              : `${area.label} ${serviceLocalQueryName(service)}`,
           service: service.name,
           area: area.label,
           url: servicePageUrl(service, index),
@@ -2410,8 +2762,11 @@ function buildGeoTargetsJson(index: PublicPostIndex): object {
         }))
       ),
       ...SUPPORT_PAGE_DEFINITIONS.flatMap((page) =>
-        serviceAreas.map((area) => ({
-          query: `${area.label} ${page.local_intent}`,
+        localStoreAreas.map((area) => ({
+          query:
+            area.label === "台中西屯"
+              ? page.local_intent
+              : `${area.label} ${page.local_intent.replace(/^台中西屯\s+/u, "")}`,
           service: linkedSupportService(page)?.name ?? page.h1,
           area: area.label,
           url: supportPageUrl(page, index),
@@ -2509,17 +2864,48 @@ function buildLlmsJsonl(index: PublicPostIndex): string {
 function buildKnowledgeGraph(index: PublicPostIndex): object {
   const business = buildBusinessSchema(index);
   const profile = index.business_profile;
+  const businessNode = business ? { ...(business as Record<string, unknown>) } : undefined;
+  if (businessNode) delete businessNode["@context"];
+  const homepageFaqs = homeFaqs(profile);
   return {
     "@context": "https://schema.org",
     "@graph": [
-      business,
+      businessNode,
       {
         "@type": "WebSite",
         "@id": `${index.canonical_url}#website`,
         name: SITE_NAME,
         url: index.canonical_url,
         inLanguage: "zh-Hant",
-        description: SITE_DESCRIPTION
+        description: SITE_DESCRIPTION,
+        publisher: business ? { "@id": `${index.canonical_url}#business` } : undefined
+      },
+      {
+        "@type": "WebPage",
+        "@id": `${index.canonical_url}#webpage`,
+        name: SITE_TITLE,
+        url: index.canonical_url,
+        description: SITE_DESCRIPTION,
+        inLanguage: "zh-Hant-TW",
+        isPartOf: { "@id": `${index.canonical_url}#website` },
+        mainEntity: business ? { "@id": `${index.canonical_url}#business` } : undefined,
+        hasPart: { "@id": `${index.canonical_url}#homepage-faq` },
+        ...optionalSchemaDateModified(HOMEPAGE_CONTENT_LASTMOD)
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${index.canonical_url}#homepage-faq`,
+        url: `${index.canonical_url}#homepage-faq`,
+        isPartOf: { "@id": `${index.canonical_url}#webpage` },
+        about: business ? { "@id": `${index.canonical_url}#business` } : undefined,
+        mainEntity: homepageFaqs.map((faq) => ({
+          "@type": "Question",
+          name: faq.question,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: faq.answer
+          }
+        }))
       },
       {
         "@type": "Dataset",
@@ -2527,7 +2913,7 @@ function buildKnowledgeGraph(index: PublicPostIndex): object {
         name: `${profile.name} social post dataset`,
         description: SITE_DESCRIPTION,
         url: index.entrypoints.social_posts,
-        dateModified: index.generated_at,
+        ...optionalSchemaDateModified(index.latest_date),
         inLanguage: "zh-Hant",
         isPartOf: { "@id": `${index.canonical_url}#website` },
         about: business ? { "@id": `${index.canonical_url}#business` } : undefined
@@ -2545,6 +2931,9 @@ function buildKnowledgeGraph(index: PublicPostIndex): object {
             inLanguage: "zh-Hant-TW",
             isPartOf: { "@id": `${index.canonical_url}#website` },
             about: { "@id": `${canonical}#service` },
+            mainEntity: { "@id": `${canonical}#service` },
+            hasPart: { "@id": `${canonical}#faq` },
+            ...optionalSchemaDateModified(service.content_lastmod),
             ...(image?.image_url
               ? {
                   primaryImageOfPage: {
@@ -2561,11 +2950,9 @@ function buildKnowledgeGraph(index: PublicPostIndex): object {
             name: service.name,
             description: service.answer_summary,
             serviceType: service.name,
+            mainEntityOfPage: { "@id": `${canonical}#webpage` },
             provider: business ? { "@id": `${index.canonical_url}#business` } : undefined,
-            areaServed: {
-              "@type": "AdministrativeArea",
-              name: "台中西屯"
-            },
+            areaServed: serviceAreaServedSchema(service),
             keywords: service.keywords,
             url: canonical
           },
@@ -2573,6 +2960,8 @@ function buildKnowledgeGraph(index: PublicPostIndex): object {
             "@type": "FAQPage",
             "@id": `${canonical}#faq`,
             url: `${canonical}#faq`,
+            isPartOf: { "@id": `${canonical}#webpage` },
+            about: { "@id": `${canonical}#service` },
             mainEntity: service.faqs.map((faq) => ({
               "@type": "Question",
               name: faq.question,
@@ -2598,11 +2987,16 @@ function buildKnowledgeGraph(index: PublicPostIndex): object {
             inLanguage: "zh-Hant-TW",
             isPartOf: { "@id": `${index.canonical_url}#website` },
             about: serviceUrl ? { "@id": `${serviceUrl}#service` } : { "@id": `${index.canonical_url}#business` },
+            mainEntity: { "@id": `${canonical}#howto` },
+            hasPart: { "@id": `${canonical}#faq` },
+            ...optionalSchemaDateModified(page.content_lastmod),
             keywords: page.keywords
           },
           {
             "@type": "HowTo",
             "@id": `${canonical}#howto`,
+            url: canonical,
+            mainEntityOfPage: { "@id": `${canonical}#webpage` },
             name: page.h1,
             description: page.summary,
             inLanguage: "zh-Hant-TW",
@@ -2617,6 +3011,7 @@ function buildKnowledgeGraph(index: PublicPostIndex): object {
             "@type": "FAQPage",
             "@id": `${canonical}#faq`,
             url: `${canonical}#faq`,
+            isPartOf: { "@id": `${canonical}#webpage` },
             mainEntity: page.faqs.map((faq) => ({
               "@type": "Question",
               name: faq.question,
@@ -2716,6 +3111,17 @@ function buildPublicSiteCss(): string {
       text-decoration: none;
     }
     .nav a:hover { color: var(--ink); text-decoration: none; }
+    .breadcrumb {
+      width: min(var(--max), calc(100% - 44px));
+      margin: 0 auto;
+      padding: 18px 0 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .breadcrumb ol { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .breadcrumb li + li::before { content: "/"; margin-right: 8px; color: var(--line); }
+    .breadcrumb a { color: var(--muted-strong); }
+    .last-updated { margin: 12px 0 0; color: var(--muted); font-size: 0.88rem; }
     .section-inner { width: min(var(--max), calc(100% - 44px)); min-width: 0; margin: 0 auto; }
     .product-hero {
       text-align: center;
@@ -2790,12 +3196,18 @@ function buildPublicSiteCss(): string {
       width: min(1120px, calc(100% - 44px));
       margin: 0 auto;
     }
-    .hero-media img, .service-photo img, .product-visual img {
+    .hero-media img, .service-photo img, .service-photo video, .product-visual img {
       width: 100%;
       aspect-ratio: 16 / 9;
       object-fit: cover;
       border-radius: 8px;
       box-shadow: var(--shadow);
+    }
+    .service-photo video {
+      width: min(100%, 430px);
+      aspect-ratio: 9 / 16;
+      margin: 0 auto;
+      background: #000;
     }
     .hero-media figcaption, .service-photo figcaption, .product-visual figcaption {
       max-width: 760px;
@@ -3024,6 +3436,7 @@ function buildPublicSiteCss(): string {
         width: min(var(--max), calc(100vw - 24px));
         max-width: calc(100vw - 24px);
       }
+      .breadcrumb { width: calc(100vw - 32px); }
       .hero-copy, .section-header, .answer-box, .card, .lead { max-width: 100%; }
       .product-hero { padding-top: 50px; }
       .product-band { padding: 54px 0; }
@@ -3088,50 +3501,68 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
   if (!index.base_url_configured) return undefined;
   const profile = index.business_profile;
   const description = captionPreview(post.facebook_caption).slice(0, 180);
+  const graph: object[] = [
+    {
+      "@type": "BlogPosting",
+      "@id": `${post.article_url}#article`,
+      url: post.article_url,
+      mainEntityOfPage: { "@id": `${post.article_url}#webpage` },
+      headline: post.topic,
+      description,
+      datePublished: post.date_published,
+      ...optionalSchemaDateModified(post.date_published ?? post.date),
+      inLanguage: "zh-Hant-TW",
+      author: { "@id": `${index.canonical_url}#business` },
+      publisher: { "@id": `${index.canonical_url}#business` },
+      image: { "@type": "ImageObject", contentUrl: post.image_url, caption: `${post.topic} - ${profile.name}` },
+      ...(post.video_url ? { video: { "@id": `${post.article_url}#video` } } : {}),
+      about: { "@id": `${index.canonical_url}#business` },
+      keywords: post.hashtags.map((tag) => tag.replace(/^#/, ""))
+    },
+    {
+      "@type": "WebPage",
+      "@id": `${post.article_url}#webpage`,
+      url: post.article_url,
+      name: post.topic,
+      description,
+      isPartOf: { "@id": `${index.canonical_url}#website` },
+      about: { "@id": `${index.canonical_url}#business` },
+      mainEntity: { "@id": `${post.article_url}#article` },
+      breadcrumb: { "@id": `${post.article_url}#breadcrumb` },
+      primaryImageOfPage: { "@id": `${post.article_url}#image` }
+    },
+    {
+      "@type": "ImageObject",
+      "@id": `${post.article_url}#image`,
+      contentUrl: post.image_url,
+      caption: `${post.topic} - ${profile.name}`
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": `${post.article_url}#breadcrumb`,
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: profile.name, item: index.canonical_url },
+        { "@type": "ListItem", position: 2, name: "Care journal", item: post.article_url },
+        { "@type": "ListItem", position: 3, name: post.topic, item: post.article_url }
+      ]
+    }
+  ];
+  if (post.video_url) {
+    graph.push({
+      "@type": "VideoObject",
+      "@id": `${post.article_url}#video`,
+      name: post.topic,
+      description,
+      thumbnailUrl: post.image_url,
+      contentUrl: post.video_url,
+      uploadDate: post.date_published,
+      inLanguage: "zh-Hant-TW"
+    });
+  }
+
   return {
     "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "BlogPosting",
-        "@id": `${post.article_url}#article`,
-        url: post.article_url,
-        mainEntityOfPage: { "@id": `${post.article_url}#webpage` },
-        headline: post.topic,
-        description,
-        datePublished: post.date_published,
-        dateModified: index.generated_at,
-        inLanguage: "zh-Hant-TW",
-        author: { "@id": `${index.canonical_url}#business` },
-        publisher: { "@id": `${index.canonical_url}#business` },
-        image: { "@type": "ImageObject", contentUrl: post.image_url, caption: `${post.topic} - ${profile.name}` },
-        about: { "@id": `${index.canonical_url}#business` },
-        keywords: post.hashtags.map((tag) => tag.replace(/^#/, ""))
-      },
-      {
-        "@type": "WebPage",
-        "@id": `${post.article_url}#webpage`,
-        url: post.article_url,
-        name: post.topic,
-        description,
-        isPartOf: { "@id": `${index.canonical_url}#website` },
-        about: { "@id": `${index.canonical_url}#business` },
-        primaryImageOfPage: { "@id": `${post.article_url}#image` }
-      },
-      {
-        "@type": "ImageObject",
-        "@id": `${post.article_url}#image`,
-        contentUrl: post.image_url,
-        caption: `${post.topic} - ${profile.name}`
-      },
-      {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: profile.name, item: index.canonical_url },
-          { "@type": "ListItem", position: 2, name: "Care journal", item: post.article_url },
-          { "@type": "ListItem", position: 3, name: post.topic, item: post.article_url }
-        ]
-      }
-    ]
+    "@graph": graph
   };
 }
 
@@ -3147,7 +3578,7 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
   const hashtags = post.hashtags.map((tag) => `<span class="chip on-light">${escapeHtml(tag)}</span>`).join("\n");
 
   return `<!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant-TW">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -3166,7 +3597,8 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
     <meta property="og:locale" content="${escapeHtml(SITE_LOCALE)}" />
     <meta property="og:image" content="${escapeHtml(post.image_url)}" />
     <meta property="og:image:alt" content="${escapeHtml(`${post.topic} - ${profile.name}`)}" />
-    <meta name="twitter:card" content="summary_large_image" />
+${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.video_url)}" /><meta property="og:video:type" content="video/mp4" />
+` : ""}    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtml(post.topic)}" />
     <meta name="twitter:description" content="${escapeHtml(description)}" />
     <meta name="twitter:image" content="${escapeHtml(post.image_url)}" />
@@ -3184,6 +3616,12 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
           <a href="${escapeHtml(profile.line_url)}">LINE</a>
         </nav>
       </header>
+      <nav class="breadcrumb" aria-label="麵包屑">
+        <ol>
+          <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
+          <li aria-current="page">${escapeHtml(post.topic)}</li>
+        </ol>
+      </nav>
       <section class="product-hero hero-light service-hero">
         <div class="section-inner hero-copy">
           <p class="eyebrow">Care journal | ${escapeHtml(post.date)} ${escapeHtml(post.time)}</p>
@@ -3195,7 +3633,11 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
           </div>
         </div>
         <figure class="service-photo">
-          <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(`${post.topic} - ${profile.name}`)}" loading="eager" fetchpriority="high" width="1200" />
+          ${
+            post.video_url
+              ? `<video src="${escapeHtml(post.video_url)}" poster="${escapeHtml(imageSrc)}" controls playsinline preload="metadata" aria-label="${escapeHtml(`${post.topic} - ${profile.name}`)}"></video>`
+              : `<img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(`${post.topic} - ${profile.name}`)}" loading="eager" fetchpriority="high" width="1200" />`
+          }
           <figcaption>${escapeHtml(post.topic)}</figcaption>
         </figure>
       </section>
@@ -3251,6 +3693,14 @@ function buildIndexHtml(index: PublicPostIndex): string {
   const heroImage = primaryHomeImage(index);
   const heroImageSrc = heroImage ? visibleImageSrc(heroImage, index) : "";
   const homePageSchema = buildHomePageSchema(index);
+  const citywidePickupService =
+    findServiceBySlug("taichung-citywide-laundry-pickup") ??
+    SERVICE_PAGE_DEFINITIONS.find((service) => service.slug === "taichung-citywide-laundry-pickup") ??
+    SERVICE_PAGE_DEFINITIONS[0];
+  if (!citywidePickupService) {
+    throw new Error("Missing taichung-citywide-laundry-pickup service page definition");
+  }
+  const citywidePickupUrl = servicePageUrl(citywidePickupService, index);
   const rows =
     recentPosts.length > 0
       ? recentPosts.map((post) => renderHomePostTile(post, index, profile)).join("\n")
@@ -3260,7 +3710,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
     archivePosts.length > 0
       ? `<details class="post-archive">
             <summary>較早內容（${archiveDateCount} 天，${archivePosts.length} 篇）</summary>
-            <p class="section-copy">這些貼文仍保留在 SEO / AIO / GEO 和社群內容資料庫中，預設收合，避免首頁太長。</p>
+            <p class="section-copy">這些貼文仍保留在 SEO / AEO / GEO 和社群內容資料庫中，預設收合，避免首頁太長。</p>
             <div class="post-list archive-list">
         ${archiveRows}
             </div>
@@ -3322,12 +3772,20 @@ function buildIndexHtml(index: PublicPostIndex): string {
         <p>${escapeHtml(item.body)}</p>
       </article>`
   ).join("\n");
+  const homepageFaqItems = homeFaqs(profile)
+    .map(
+      (faq) => `<article class="card">
+        <h3>${escapeHtml(faq.question)}</h3>
+        <p>${escapeHtml(faq.answer)}</p>
+      </article>`
+    )
+    .join("\n");
   const localSearchChips = LOCAL_SEARCH_QUERY_TARGETS.map(
     (query) => `<span class="chip on-light">${escapeHtml(query)}</span>`
   ).join("\n");
 
   return `<!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant-TW">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -3381,12 +3839,14 @@ function buildIndexHtml(index: PublicPostIndex): string {
       </header>
       <section class="product-hero hero-dark">
         <div class="section-inner hero-copy">
-          <p class="eyebrow">台中西屯洗護與收納</p>
-          <h1>台中西屯青海路洗衣、洗鞋、洗包、布品收納</h1>
-          <p class="lead">私享家洗衣店先看衣物、鞋子、包包與布品的實際狀態，再決定怎麼洗護與收納。</p>
+          <p class="eyebrow">台中西屯門市・台中全市收送</p>
+          <h1>台中西屯洗衣門市，台中全市免費洗衣收送</h1>
+          <p class="lead">門市在青海路；衣物、鞋子、包包與布品先看狀態再整理。台中市可約免費收送，主要用 LINE 詢問與預約。</p>
+          <p class="last-updated">內容更新：<time datetime="${HOMEPAGE_CONTENT_LASTMOD}">${HOMEPAGE_CONTENT_LASTMOD}</time></p>
           <div class="hero-actions">
-            <a class="primary-link" href="#services">查看服務</a>
-            <a class="secondary-link" href="${escapeHtml(profile.line_url)}">LINE 詢問</a>
+            <a class="primary-link" href="${escapeHtml(citywidePickupUrl)}">台中全市免費收送</a>
+            <a class="secondary-link" href="${escapeHtml(profile.line_url)}">LINE 預約</a>
+            <a class="secondary-link" href="#services">查看服務</a>
           </div>
           <div class="meta-row">
             <span class="chip">${escapeHtml(profile.address.addressLocality)}</span>
@@ -3411,7 +3871,20 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <div class="section-header section-header-bottom">
             <p class="eyebrow">Search intent</p>
             <h2>依需求找到服務。</h2>
-            <p class="section-copy">把客人真正會問的物件、情境、送洗前問題拆清楚，讓搜尋「台中西屯洗衣店」「青海路洗衣店」的人，也能快速理解私享家在判斷什麼。</p>
+            <p class="section-copy">把客人真正會問的物件、情境、收送與送洗前問題拆清楚，讓搜尋「台中西屯洗衣店」「台中洗衣收送」「青海路洗衣店」的人，也能快速理解私享家在判斷什麼。</p>
+          </div>
+        </div>
+      </section>
+      <section class="product-band surface depth-band depth-local-store" id="citywide-pickup">
+        <div class="section-inner">
+          <div class="section-header">
+            <p class="eyebrow">Pickup &amp; delivery</p>
+            <h2>台中全市免費洗衣收送</h2>
+            <p class="section-copy">收送範圍為台中市全市，收送本身免費；清潔與洗護費用另計。門市在西屯區青海路二段365號。預約與詢問以 <a href="${escapeHtml(profile.line_url)}">LINE</a> 為主，先傳照片再約定收送。</p>
+          </div>
+          <div class="link-row">
+            <a class="primary-link" href="${escapeHtml(citywidePickupUrl)}">閱讀收送說明頁</a>
+            <a class="secondary-link" href="${escapeHtml(profile.line_url)}">LINE 預約收送</a>
           </div>
         </div>
       </section>
@@ -3419,8 +3892,8 @@ function buildIndexHtml(index: PublicPostIndex): string {
         <div class="section-inner">
           <div class="section-header">
             <p class="eyebrow">Services</p>
-            <h2>四個主要服務入口。</h2>
-            <p class="section-copy">用服務頁承接 SEO / AIO / GEO，也讓社群貼文不只是今天看完就消失。</p>
+            <h2>主要服務入口。</h2>
+            <p class="section-copy">用服務頁承接 SEO / AEO / GEO，也讓社群貼文不只是今天看完就消失。</p>
           </div>
           <div class="product-grid">
           ${serviceCards}
@@ -3461,6 +3934,18 @@ function buildIndexHtml(index: PublicPostIndex): string {
           </div>
         </div>
       </section>
+      <section class="product-band surface" id="homepage-faq">
+        <div class="section-inner">
+          <div class="section-header">
+            <p class="eyebrow">Quick answers</p>
+            <h2>台中洗衣與免費收送常見問題</h2>
+            <p class="section-copy">先把門市位置、台中市收送範圍、LINE 預約與費用邊界說清楚。</p>
+          </div>
+          <div class="grid">
+          ${homepageFaqItems}
+          </div>
+        </div>
+      </section>
       <section class="product-band surface depth-band depth-local-store">
         <div class="section-inner two-col">
           <div>
@@ -3482,7 +3967,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <div class="card local-search-card">
             <p class="eyebrow">Local search</p>
             <h3>搜尋洗衣店時，讓地區和服務都說清楚。</h3>
-            <p>這個公開站會固定把私享家洗衣店、台中市西屯區、青海路二段、衣物洗護、洗鞋、洗包、白鞋清潔與布品收納連在一起，提供服務頁、社群圖文、LocalBusiness schema、AI 入口與在地搜尋資料。</p>
+            <p>這個公開站會固定把私享家洗衣店、台中市、西屯門市、青海路二段、免費收送、衣物洗護、洗鞋、洗包、白鞋清潔與布品收納連在一起，提供服務頁、社群圖文、LocalBusiness schema、AI 入口與在地搜尋資料。</p>
             <div class="meta-row local-query-row">
               ${localSearchChips}
             </div>
@@ -3538,7 +4023,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
 function buildNotFoundHtml(index: PublicPostIndex): string {
   const homeHref = index.canonical_url;
   return `<!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant-TW">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -3559,7 +4044,7 @@ function buildNotFoundHtml(index: PublicPostIndex): string {
       <section class="not-found-panel">
         <p class="eyebrow">Page moved</p>
         <h1>回到私享家首頁。</h1>
-        <p>這個網址可能多了 docs 或少了專案路徑，系統會自動帶你回到私享家洗衣店的公開 SEO / AIO / GEO 主站。</p>
+        <p>這個網址可能多了 docs 或少了專案路徑，系統會自動帶你回到私享家洗衣店的公開 SEO / AEO / GEO 主站。</p>
         <a class="primary-link" href="${escapeHtml(homeHref)}">回到首頁</a>
       </section>
     </main>
@@ -3577,6 +4062,9 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const businessProfileHref = index.base_url_configured ? index.entrypoints.business_profile : "../business-profile.json";
   const description = escapeHtml(service.description);
+  const lastUpdatedMarkup = service.content_lastmod
+    ? `\n          <p class="last-updated">內容更新：<time datetime="${escapeHtml(service.content_lastmod)}">${escapeHtml(service.content_lastmod)}</time></p>`
+    : "";
   const caseStudies = service.case_studies
     .map(
       (study) => `<article class="card">
@@ -3621,9 +4109,34 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
         </div>
       </section>`
       : "";
+  const directlyRelatedGuides = SUPPORT_PAGE_DEFINITIONS.filter((page) => page.service_slug === service.slug);
+  const generalPhotoGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "photo-before-laundry");
+  const relatedGuides = directlyRelatedGuides.length > 0 ? directlyRelatedGuides : generalPhotoGuide ? [generalPhotoGuide] : [];
+  const relatedGuidesSection =
+    relatedGuides.length > 0
+      ? `<section class="product-band surface">
+        <div class="section-inner">
+          <div class="section-header">
+            <p class="eyebrow">Related guides</p>
+            <h2>相關送洗指南</h2>
+            <p class="section-copy">先看對應的判斷步驟，再用 LINE 傳照片詢問。</p>
+          </div>
+          <div class="grid">
+            ${relatedGuides
+              .map(
+                (page) => `<article class="card">
+              <h3><a href="${escapeHtml(supportPageUrl(page, index))}">${escapeHtml(page.h1)}</a></h3>
+              <p>${escapeHtml(page.summary)}</p>
+            </article>`
+              )
+              .join("\n")}
+          </div>
+        </div>
+      </section>`
+      : "";
 
   return `<!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant-TW">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -3667,11 +4180,17 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
           <a href="${escapeHtml(businessProfileHref)}">店家資料</a>
         </nav>
       </header>
+      <nav class="breadcrumb" aria-label="麵包屑">
+        <ol>
+          <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
+          <li aria-current="page">${escapeHtml(service.name)}</li>
+        </ol>
+      </nav>
       <section class="product-hero hero-light service-hero">
         <div class="section-inner hero-copy">
-          <p class="eyebrow">台中西屯｜${escapeHtml(service.name)}</p>
+          <p class="eyebrow">${escapeHtml(serviceAreaServedName(service))}｜${escapeHtml(service.name)}</p>
           <h1>${escapeHtml(service.h1)}</h1>
-          <p class="lead">${escapeHtml(service.summary)}</p>
+          <p class="lead">${escapeHtml(service.summary)}</p>${lastUpdatedMarkup}
           <div class="hero-actions">
             <a class="primary-link" href="${escapeHtml(profile.line_url)}">LINE 詢問</a>
             <a class="secondary-link" href="#faq">常見問題</a>
@@ -3728,6 +4247,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
         </div>
       </section>
       ${inspectionTable}
+      ${relatedGuidesSection}
       <section class="product-band" id="faq">
         <div class="section-inner">
           <div class="section-header">
@@ -3764,6 +4284,9 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
   const servicesHref = index.base_url_configured ? index.entrypoints.services : `${relativePrefix}services.json`;
   const answersHref = index.base_url_configured ? index.entrypoints.answers : `${relativePrefix}answers.json`;
   const description = escapeHtml(page.description);
+  const lastUpdatedMarkup = page.content_lastmod
+    ? `\n          <p class="last-updated">內容更新：<time datetime="${escapeHtml(page.content_lastmod)}">${escapeHtml(page.content_lastmod)}</time></p>`
+    : "";
   const stepItems = page.steps
     .map(
       (step, index) => `<article class="spec-tile">
@@ -3784,7 +4307,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
   const keywordChips = page.keywords.map((keyword) => `<span class="chip on-light">${escapeHtml(keyword)}</span>`).join("\n");
 
   return `<!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant-TW">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -3824,17 +4347,26 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
           <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
         </nav>
       </header>
+      <nav class="breadcrumb" aria-label="麵包屑">
+        <ol>
+          <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
+          <li aria-current="page">${escapeHtml(page.h1)}</li>
+        </ol>
+      </nav>
       <section class="product-hero hero-light service-hero">
         <div class="section-inner hero-copy">
           <p class="eyebrow">${page.category === "local" ? "Local guide" : "Care guide"}</p>
           <h1>${escapeHtml(page.h1)}</h1>
-          <p class="lead">${escapeHtml(page.summary)}</p>
+          <p class="lead">${escapeHtml(page.summary)}</p>${lastUpdatedMarkup}
           <div class="hero-actions">
             <a class="primary-link" href="${escapeHtml(profile.line_url)}">LINE 詢問</a>
             <a class="secondary-link" href="${escapeHtml(serviceHref)}">${escapeHtml(service?.name ?? "回到首頁")}</a>
           </div>
           <div class="meta-row local-query-row">
             ${keywordChips}
+          </div>
+          <div class="answer-box">
+            <p>${escapeHtml(page.description)}</p>
           </div>
         </div>
       </section>
@@ -3900,6 +4432,9 @@ function postToDiscoveryRecord(post: PublicPost, index: PublicPostIndex): object
     hashtags: post.hashtags,
     platforms: post.platforms,
     image_url: post.image_url,
+    image_urls: post.image_urls,
+    media_type: post.media_type,
+    video_url: post.video_url,
     calendar_url: post.calendar_url,
     article_url: hasArticlePage(post, index) ? post.article_url : "",
     facebook_caption: post.facebook_caption,
@@ -3938,7 +4473,7 @@ function buildAiDiscovery(index: PublicPostIndex): object {
       street_anchor: "青海路二段",
       canonical_url: index.canonical_url,
       intent_note:
-        "Use these as local SEO/AIO/GEO query anchors for people searching laundry, shoe cleaning, bag cleaning, white shoe cleaning, and fabric storage near Taichung Xitun."
+        "Use these as local SEO/AEO/GEO query anchors for people searching laundry, shoe cleaning, bag cleaning, white shoe cleaning, and fabric storage near Taichung Xitun."
     },
     entrypoints: index.entrypoints,
     recommended_read_order: [
@@ -4017,7 +4552,7 @@ function buildAiDiscovery(index: PublicPostIndex): object {
       homepage_archive_policy: {
         expanded_recent_days: HOME_EXPANDED_RECENT_DAYS,
         expanded_behavior: "Homepage renders approved posts from the newest seven content dates directly.",
-        archive_behavior: "Older approved posts stay in SEO/AIO/GEO data and render inside a collapsed homepage archive."
+        archive_behavior: "Older approved posts stay in SEO/AEO/GEO data and render inside a collapsed homepage archive."
       },
       omitted_until_verified: ["google_place_id", "holiday_hours_overrides"]
     },

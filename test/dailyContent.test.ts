@@ -137,7 +137,10 @@ describe("DailyContent schema", () => {
         // zero, so every Instagram caption must ask for a direct message instead.
         expect(slot.instagram_caption).toContain("私訊");
         expect(slot.instagram_caption).not.toContain("點個人檔案連結");
-        expect(slot.instagram_caption).toContain("留言");
+        // A question invites a reply; an explicit "leave a comment" on every one
+        // of the 180 posts is the engagement-bait pattern that costs reach.
+        expect(slot.instagram_caption).toContain("？");
+        expect(slot.instagram_caption).not.toMatch(/留言(告訴|讓我們|說說)/);
         for (const caption of [slot.facebook_caption, slot.instagram_caption]) {
           const hashtags = caption.match(/#[\p{L}\p{N}_]+/gu) ?? [];
           expect(caption.split("\n\n")[1]).toBe("私享家洗衣店");

@@ -41,12 +41,42 @@ if (-not (Test-Path $approvedPath)) {
     exit 0
 }
 
+# A slot recovers only within a few hours of its own time. Past that the evening
+# run would fire both slots minutes apart, which reaches fewer people than one
+# well-placed post and reads as automated. A stale slot is reported, not posted.
+$slotTimes = @{ 1 = [TimeSpan]"11:30"; 2 = [TimeSpan]"19:30" }
+$recoveryWindow = [TimeSpan]::FromHours(4)
+
 $dueSlots = @()
-if ($now.TimeOfDay -ge [TimeSpan]"11:30") { $dueSlots += 1 }
-if ($now.TimeOfDay -ge [TimeSpan]"19:30") { $dueSlots += 2 }
+$staleSlots = @()
+foreach ($slot in 1, 2) {
+    $scheduled = $slotTimes[$slot]
+    if ($now.TimeOfDay -lt $scheduled) { continue }
+    if (($now.TimeOfDay - $scheduled) -le $recoveryWindow) { $dueSlots += $slot }
+    else { $staleSlots += $slot }
+}
+
+if ($staleSlots.Count -gt 0) {
+    $stale = $staleSlots -join ", "
+    Write-Log "Slot $stale is past its $($recoveryWindow.TotalHours)h recovery window; not publishing it late."
+}
 
 if ($dueSlots.Count -eq 0) {
-    Write-Log "No slot is due yet."
+    if ($staleSlots.Count -gt 0) {
+        $unposted = @()
+        $postedPath = Join-Path $root "data\posted-log\$date.json"
+        $postedSlots = @()
+        if (Test-Path $postedPath) {
+            $postedParsed = Get-Content $postedPath -Raw -Encoding utf8 | ConvertFrom-Json
+            $postedSlots = @(@($postedParsed) | Where-Object { $_.status -eq "success" -and -not $_.dry_run } | ForEach-Object { $_.slot })
+        }
+        $unposted = @($staleSlots | Where-Object { $postedSlots -notcontains $_ })
+        if ($unposted.Count -gt 0) {
+            Show-Toast ("今天 slot {0} 已超過補發時限,不會補發以免和下一篇擠在一起。" -f ($unposted -join ", "))
+        }
+    } else {
+        Write-Log "No slot is due yet."
+    }
     exit 0
 }
 

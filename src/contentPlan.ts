@@ -574,31 +574,34 @@ function normalizeInstagramCta(caption: string): string {
   return caption;
 }
 
-// 34 Instagram posts produced zero comments. A low-effort question gives readers
-// something to answer, and comments carry the most distribution weight.
+// 34 Instagram posts produced zero comments, and a question gives readers
+// something to answer. It is deliberately just a question: an explicit "leave a
+// comment" on all 180 posts is the pattern Instagram treats as engagement bait,
+// and bait suppresses reach rather than earning it. The question has to be
+// answerable in a few words from the reader's own home.
 function engagementQuestionFor(slot: GrowthPlaybookSlot): string {
   if (slot.seo_sync_page.includes("shirt-suit-dry-cleaning")) {
-    return "你的襯衫比較常出問題的是領口還是袖口？留言告訴我們。";
+    return "你的襯衫比較常出問題的，是領口還是袖口？";
   }
   if (slot.seo_sync_page.includes("bedding-duvet-cleaning")) {
-    return "你家的棉被大概多久整理一次？留言讓我們知道。";
+    return "你家的棉被大概多久整理一次？";
   }
   if (slot.seo_sync_page.includes("plush-doll-cleaning")) {
-    return "家裡有那種一直想洗又不敢洗的娃娃嗎？留言說說看。";
+    return "家裡有沒有那種一直想洗、又不太敢洗的娃娃？";
   }
   if (slot.seo_sync_page.includes("luxury-dry-cleaning")) {
-    return "哪一件是你最不敢自己下手處理的？留言告訴我們。";
+    return "哪一件是你最不敢自己動手處理的？";
   }
   if (slot.seo_sync_page.includes("white-shoe") || slot.seo_sync_page.includes("shoe-bag")) {
-    return "如果只能先救一樣，你會選鞋子還是包包？留言告訴我們。";
+    return "如果只能先救一樣，你會選鞋子還是包包？";
   }
   if (slot.seo_sync_page.includes("photo-before-laundry")) {
-    return "你送洗前會先拍照嗎？留言讓我們知道。";
+    return "你送洗前會先拍照嗎？";
   }
   if (slot.seo_sync_page.includes("taichung-xitun")) {
-    return "你住西屯哪一帶？留言讓我們知道收送方向。";
+    return "你住西屯哪一帶？我們排收送路線時會參考。";
   }
-  return "你家最常送洗的是哪一件？留言告訴我們。";
+  return "你家最常送洗的是哪一件？";
 }
 
 function withEngagementQuestion(caption: string, slot: GrowthPlaybookSlot): string {

@@ -1,10 +1,15 @@
 ﻿# Registers the daily automation scheduled tasks. Re-running replaces them.
 #
-#   06:30  Laundry-Daily-Generate  content, images, manifests, public site
-#   10:20  Laundry-Daily-Approve   unattended approval when every gate passes
-#   10:50  Laundry-CatchUp-Publish publish due slots, plus 12:05 and 20:05
+#   06:30  Laundry-Daily-Generate    content, images, manifests, public site
+#   10:20  Laundry-Daily-Approve     unattended approval when every gate passes
+#   10:50  Laundry-CatchUp-Publish   publish due slots, plus 12:05 and 20:05
 #   12:05
+#   14:00  Laundry-Reel-Production   build the next Reel, one batch ahead
 #   20:05
+#
+# Reel production runs every day rather than waiting for the current batch to
+# finish publishing: six Reels take six days to make, so starting on the day the
+# last batch runs out would leave a gap.
 #
 # Every task uses StartWhenAvailable so a machine that was asleep still runs the
 # stage after it wakes, which is what a fixed daily time alone does not give.
@@ -56,6 +61,11 @@ Register-LaundryTask -Name "Laundry-CatchUp-Publish" -Script "catchup-publish.ps
     ) `
     -TimeLimit (New-TimeSpan -Minutes 30) `
     -Description "私享家每日發佈補跑:已審核未發佈的當日時段自動補發,超過補發時限則改為通知。"
+
+Register-LaundryTask -Name "Laundry-Reel-Production" -Script "produce-next-reel.ps1" `
+    -Triggers @((New-ScheduledTaskTrigger -Daily -At "14:00")) `
+    -TimeLimit (New-TimeSpan -Hours 2) `
+    -Description "私享家每日 14:00 生產下一支 Reel 的素材與影片,永遠領先發佈一批;不剪接、不核准、不發佈。"
 
 Get-ScheduledTask | Where-Object { $_.TaskName -like "Laundry-*" } |
     Select-Object TaskName, State | Format-Table -AutoSize

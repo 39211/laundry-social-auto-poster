@@ -38,7 +38,17 @@ export const REEL_SCHEDULE: Array<{ date: string; conceptId: string }> = [
   { date: "2026-07-31", conceptId: "leather-shoe-rain" },
   { date: "2026-08-01", conceptId: "white-shoe-yellowing" },
   { date: "2026-08-02", conceptId: "handbag-handle" },
-  { date: "2026-08-03", conceptId: "duvet-storage" }
+  { date: "2026-08-03", conceptId: "duvet-storage" },
+
+  // Batch two, produced one a day during batch one's run. The order puts the
+  // clearest before/after contrast first again, and the 2026-08-04 batch review
+  // can still reorder or replace the later entries before they are assembled.
+  { date: "2026-08-04", conceptId: "shirt-collar" },
+  { date: "2026-08-05", conceptId: "luggage-wheel" },
+  { date: "2026-08-06", conceptId: "canvas-shoe-mud" },
+  { date: "2026-08-07", conceptId: "suit-shoulder" },
+  { date: "2026-08-08", conceptId: "backpack-base" },
+  { date: "2026-08-09", conceptId: "curtain-hem" }
 ];
 
 function shareInviteFor(concept: ReelConcept): string {

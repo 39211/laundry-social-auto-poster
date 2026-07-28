@@ -82,8 +82,71 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     narration: "精品包最先出問題的是邊角。邊油磨掉補不回來，要在磨穿前處理。",
     before_subject: "a close view of one unbranded leather bag corner, edge coating worn and abraded",
     after_subject: "the same corner, same angle, edge treated and even, wear honestly reduced not erased"
+  },
+
+  // Batch two. Produced during batch one's run so 2026-08-04 follows without a
+  // gap, and drawn from six more of the shop's real service pages so no object
+  // type repeats across twelve days.
+  {
+    id: "shirt-collar",
+    object_type: "shirt",
+    hook: "襯衫領口發黃，洗衣精加倍沒有用",
+    close: "領口開始黃就可以私訊我們",
+    narration: "襯衫領口發黃不是洗不乾淨，是皮脂氧化。加倍洗衣精只會傷布，處理方式不一樣。",
+    before_subject: "one white dress shirt laid flat, collar band and inner collar edge yellowed",
+    after_subject: "the same shirt, same position, collar even and clean, fabric still showing normal wear"
+  },
+  {
+    id: "suit-shoulder",
+    object_type: "suit",
+    hook: "西裝變形，通常從肩線開始",
+    close: "收起來前想檢查？台中收送",
+    narration: "西裝走樣多半從肩線開始。掛錯衣架、擠在衣櫃裡，肩襯一塌就回不去了。",
+    before_subject: "one suit jacket on a padded hanger, shoulder line collapsed and lapel edge creased",
+    after_subject: "the same jacket, same hanger and position, shoulder line restored and lapel flat"
+  },
+  {
+    id: "curtain-hem",
+    object_type: "curtain",
+    hook: "窗簾最髒的地方，你可能沒看過",
+    close: "整片窗簾不用自己拆，我們收",
+    narration: "窗簾下緣是整片最髒的地方，灰塵和濕氣都積在那裡。摸起來乾，其實味道都在裡面。",
+    before_subject: "the lower hem section of one curtain panel spread on the counter, dust ingrained along the fold",
+    after_subject: "the same hem section, same position, dust removed and fabric evenly toned"
+  },
+  {
+    id: "luggage-wheel",
+    object_type: "luggage",
+    hook: "行李箱收進櫃子前，先看輪子",
+    close: "旅行回來想清一次？私訊我們",
+    narration: "行李箱最容易被忽略的是輪子和底部。帶著外面的灰進櫃子，下次拿出來就是那個味道。",
+    before_subject: "one fabric suitcase on a floor mat, wheels and lower panel visibly grimy",
+    after_subject: "the same suitcase, same position, wheels and lower panel clean, fabric still worn"
+  },
+  {
+    id: "backpack-base",
+    object_type: "backpack",
+    hook: "後背包底部，是全包最髒的一面",
+    close: "背了一年沒洗過？私訊我們",
+    narration: "後背包底部天天放在地上，卻幾乎沒人洗。背帶的汗和底部的灰，是兩種不同的髒。",
+    before_subject: "one fabric backpack tipped to show its base, ground grime across the bottom panel",
+    after_subject: "the same backpack, same angle, base panel clean, straps and fabric still worn"
+  },
+  {
+    id: "canvas-shoe-mud",
+    object_type: "canvas-shoe",
+    hook: "帆布鞋沾泥，越用力刷越糟",
+    close: "沾到泥先別刷，拍給我們看",
+    narration: "帆布鞋沾泥硬刷，泥會被推進織紋裡，還會把布面刷毛。乾了再處理反而比較好救。",
+    before_subject: "one pair of canvas shoes with dried mud worked into the woven fabric",
+    after_subject: "the same shoes, same position, mud gone, canvas texture intact and not fluffed"
   }
 ];
+
+// The batch the schedule is currently publishing. Production runs one batch
+// ahead: while these six publish, the next six are being made.
+export const BATCH_ONE = REEL_CONCEPTS.slice(0, 6).map((concept) => concept.id);
+export const BATCH_TWO = REEL_CONCEPTS.slice(6).map((concept) => concept.id);
 
 // Kept identical across every still so that separate generation sessions still
 // cut together, and so that a single regenerated still drops back into a pair
@@ -114,6 +177,8 @@ export interface ConceptStatus {
   id: string;
   object_type: string;
   hook: string;
+  close: string;
+  narration: string;
   has_before: boolean;
   has_after: boolean;
   ready: boolean;
@@ -138,6 +203,8 @@ export async function conceptStatuses(root = projectRoot()): Promise<ConceptStat
       id: concept.id,
       object_type: concept.object_type,
       hook: concept.hook,
+      close: concept.close,
+      narration: concept.narration,
       has_before: hasBefore,
       has_after: hasAfter,
       ready: hasBefore && hasAfter

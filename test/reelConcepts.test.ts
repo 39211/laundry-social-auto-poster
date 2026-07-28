@@ -30,7 +30,7 @@ describe("reel concepts", () => {
         return prompt.slice(prompt.indexOf("Shot on a phone"));
       })
     );
-    expect(looks).toHaveLength(12);
+    expect(looks).toHaveLength(REEL_CONCEPTS.length * 2);
     expect(new Set(looks).size).toBe(1);
   });
 

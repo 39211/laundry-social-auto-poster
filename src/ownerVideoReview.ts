@@ -79,15 +79,27 @@ export async function recordOwnerVideoReview(input: {
   const metadata = await probeVideo(absolutePath);
   assertMetaReelMetadata(metadata);
 
-  // The gate requires generated_clip_audio_used to be false. An audio stream in
-  // the file is not automatically the model's own track, but with no separate
-  // evidence of a replacement, an embedded track cannot honestly be recorded as
-  // excluded — deliver the file with the post-production bed instead.
+  // The gate requires generated_clip_audio_used to be false. An audio stream is
+  // not automatically the model's own track — the assembly step lays a quiet
+  // ambient bed in post and declares it in a sidecar. Without that declaration,
+  // an embedded track cannot honestly be recorded as excluded.
   const hasAudioStream = metadata.audio_codec !== undefined;
   if (hasAudioStream) {
-    throw new Error(
-      `${slot.local_video_path} carries an embedded audio stream (${metadata.audio_codec}). Replace it with the ambient bed in post before review, or strip it; the review record must state that generated clip audio was not used.`
-    );
+    let declaredPostAudio = false;
+    try {
+      const sidecar = JSON.parse(await readFile(`${absolutePath}.audio.json`, "utf8")) as {
+        source?: string;
+        generated_clip_audio_used?: boolean;
+      };
+      declaredPostAudio = sidecar.source === "post-ambient-bed" && sidecar.generated_clip_audio_used === false;
+    } catch {
+      declaredPostAudio = false;
+    }
+    if (!declaredPostAudio) {
+      throw new Error(
+        `${slot.local_video_path} carries an audio stream (${metadata.audio_codec}) with no post-production declaration beside it. Assemble through scripts/assemble-reel.ps1, which lays the ambient bed and writes the sidecar, or strip the track.`
+      );
+    }
   }
 
   const record: VideoReviewRecord = {

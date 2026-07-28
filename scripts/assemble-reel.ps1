@@ -13,7 +13,14 @@ param(
     [Parameter(Mandatory = $true)][string]$Hook,
     [Parameter(Mandatory = $true)][string]$Close,
     [string]$Run = "C:\Users\cyc39\Documents\New project 5\output\reels-run\2026-07-29",
-    [double]$Dissolve = 0.4
+    [double]$Dissolve = 0.4,
+    # Per-channel gains that pull the after clip's exposure onto the before
+    # clip's, measured from the background regions where nothing legitimately
+    # changed. Each pair drifts differently — some brighter, some darker — so a
+    # single generic correction cannot work.
+    [double]$GainR = 1.0,
+    [double]$GainG = 1.0,
+    [double]$GainB = 1.0
 )
 
 $ErrorActionPreference = "Stop"
@@ -48,14 +55,26 @@ $closeText = Get-DrawText -Text $Close -From 6.4 -To 9.6 -Y 120
 # stream's range; xfade then hides whatever difference survives.
 $filter = @"
 [0:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1[v0];
-[1:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1,histeq=strength=0.1:intensity=0.08[v1];
+[1:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1,colorchannelmixer=rr=$($GainR):gg=$($GainG):bb=$($GainB)[v1];
 [v0][v1]xfade=transition=fade:duration=$($Dissolve):offset=$(5 - $Dissolve)[vx];
 [vx]$hookText,$closeText[vout]
 "@ -replace "`r`n", ""
 
-& ffmpeg -v error -y -i $before -i $after -filter_complex $filter -map "[vout]" `
-    -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -an $out
+# Dead silence measurably costs watch time, and the generated clips' own audio
+# is excluded by policy, so a quiet synthetic room tone goes underneath: brown
+# noise rolled off at 350Hz reads as building hum, at roughly -35dB it sits
+# under the viewer's attention. A sidecar declares the audio is post-added so
+# the review gate can tell it apart from a model-generated track.
+& ffmpeg -v error -y -i $before -i $after `
+    -f lavfi -t 9.67 -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
+    -filter_complex $filter -map "[vout]" -map "2:a" `
+    -af "lowpass=f=350,volume=0.55" `
+    -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p `
+    -c:a aac -b:a 96k -shortest $out
 
 if (-not (Test-Path $out)) { throw "Assembly produced no file for $ConceptId" }
+
+@{ source = "post-ambient-bed"; generated_clip_audio_used = $false } |
+    ConvertTo-Json | Set-Content "$out.audio.json" -Encoding utf8
 $info = & ffprobe -v error -select_streams v:0 -show_entries stream=width,height -show_entries format=duration -of csv=p=0 $out
 "{0}  ->  {1}" -f $ConceptId, ($info -join " ")

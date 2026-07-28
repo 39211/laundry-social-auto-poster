@@ -5,6 +5,7 @@ import { getFlag, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { validatePublishableImages } from "./generateImage";
 import { hasApprovedPost, loadApprovalLog, loadDailyContent, loadImageSources } from "./logging";
+import { inspectDailyImageProvenance } from "./imageProvenance";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
@@ -35,6 +36,10 @@ export interface AutoApproveResult {
   approved_slots: number[];
   blockers: string[];
   checks: Array<{ name: string; ok: boolean; detail?: string }>;
+  // Reported, never gated: whether the day's images still carry the image
+  // model's C2PA manifest decides whether Meta shows its "AI info" label, and
+  // a resize can drop it without anyone choosing to. Visibility, not a verdict.
+  ai_provenance: { with_manifest: number; without_manifest: number; consistent: boolean };
 }
 
 async function loadPolicy(root: string): Promise<PublishingPolicy | undefined> {
@@ -80,9 +85,24 @@ export async function autoApprove(
   const content = await loadDailyContent(date, root);
   if (!content) {
     record("daily_content", false, `No content calendar for ${date}.`);
-    return { date, approved: false, already_approved: false, approved_slots: [], blockers, checks };
+    return {
+      date,
+      approved: false,
+      already_approved: false,
+      approved_slots: [],
+      blockers,
+      checks,
+      ai_provenance: { with_manifest: 0, without_manifest: 0, consistent: true }
+    };
   }
   record("daily_content", true);
+
+  const provenance = await inspectDailyImageProvenance(date, root);
+  const aiProvenance = {
+    with_manifest: provenance.with_manifest,
+    without_manifest: provenance.without_manifest,
+    consistent: provenance.consistent
+  };
 
   const policySlots = policy?.slots?.map((item) => item.slot) ?? [];
   for (const slot of content.slots) {
@@ -125,12 +145,13 @@ export async function autoApprove(
       already_approved: true,
       approved_slots: [],
       blockers,
-      checks
+      checks,
+      ai_provenance: aiProvenance
     };
   }
 
   if (blockers.length > 0) {
-    return { date, approved: false, already_approved: false, approved_slots: [], blockers, checks };
+    return { date, approved: false, already_approved: false, approved_slots: [], blockers, checks, ai_provenance: aiProvenance };
   }
 
   const approvedSlots: number[] = [];
@@ -146,7 +167,7 @@ export async function autoApprove(
     approvedSlots.push(slot.slot);
   }
 
-  return { date, approved: true, already_approved: false, approved_slots: approvedSlots, blockers, checks };
+  return { date, approved: true, already_approved: false, approved_slots: approvedSlots, blockers, checks, ai_provenance: aiProvenance };
 }
 
 async function main(): Promise<void> {

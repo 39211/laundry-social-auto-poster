@@ -32,6 +32,7 @@
     "record-conversion": "tsx src/conversionFunnel.ts",
     "review-72h": "tsx src/review72Hours.ts",
     "local-reach": "tsx src/localReach.ts",
+    "owner-video-review": "tsx src/ownerVideoReview.ts",
     "fetch-instagram-insights": "tsx src/fetchInstagramInsights.ts",
     "fetch-facebook-insights": "tsx src/fetchFacebookInsights.ts",
     "sync-meta-insights": "tsx src/syncMetaInsights.ts",

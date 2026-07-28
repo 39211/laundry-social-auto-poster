@@ -128,4 +128,25 @@ if (Test-Path $queuePath) {
     }
 }
 
+# End-of-day snapshot of the numbers that precede a booking. Reach as a share of
+# followers is not one of them: this shop only serves Taichung, so what matters
+# is how many local strangers it reached and how many of them did anything.
+if ($now.TimeOfDay -ge [TimeSpan]"19:30") {
+    Push-Location $root
+    $reachOut = cmd /c "npm.cmd run local-reach 2>&1"
+    Pop-Location
+    $reachOut | Out-File -FilePath $logFile -Append -Encoding utf8
+
+    $reachPath = Join-Path $root "output\operations\local-reach.json"
+    if (Test-Path $reachPath) {
+        try {
+            $reach = Get-Content $reachPath -Raw -Encoding utf8 | ConvertFrom-Json
+            Write-Log ("28d: non-follower reach {0}, accounts engaged {1}, followers gained {2}" -f `
+                $reach.reach_non_follower, $reach.accounts_engaged, $reach.followers_gained)
+        } catch {
+            Write-Log ("Could not read local-reach report: " + $_.Exception.Message)
+        }
+    }
+}
+
 Write-Log "Catch-up run finished."

@@ -31,6 +31,7 @@
     "check-publishing-sla": "tsx src/publishingSla.ts",
     "record-conversion": "tsx src/conversionFunnel.ts",
     "review-72h": "tsx src/review72Hours.ts",
+    "local-reach": "tsx src/localReach.ts",
     "fetch-instagram-insights": "tsx src/fetchInstagramInsights.ts",
     "fetch-facebook-insights": "tsx src/fetchFacebookInsights.ts",
     "sync-meta-insights": "tsx src/syncMetaInsights.ts",

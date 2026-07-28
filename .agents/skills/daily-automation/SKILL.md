@@ -35,6 +35,39 @@ Run for the current Asia/Taipei date:
 - Compare eligible posts using views/reach, saves, shares, LINE clicks, inquiries, and bookings. Preserve unavailable metrics as `null`; never claim improvement from generation quality or view counts alone.
 - Learn methods, not wording: never copy another creator's script, shot list, prompt, or brand treatment verbatim.
 
+## Shot Design Within Model Limits
+Independent testing of this video model class establishes what it holds and what
+it breaks. Design each shot inside these limits instead of fighting them; a shot
+that asks for the impossible fails on the frame a viewer screenshots.
+
+- Detailed finger work deforms: scrubbing, folding, fastening, flipping a
+  collar. Fingers fuse, extra fingers appear, joints bend the wrong way. Keep
+  hands out of close-up and never ask for finger detail.
+- A person still has to be present. This is a trust business, and an object
+  alone on a turntable reads as a cold product demo. Let a forearm, or a tool
+  such as a spray bottle, brush or hanger, enter from the edge of frame.
+- A stain changing to clean inside one continuous shot is not held: the stain
+  drifts or the fabric texture collapses partway through. Show a state, not a
+  transformation. Where a before and after is wanted, generate two clips and
+  join them.
+- One generation carries one continuous take with one slow camera move. More
+  than one hard cut inside a generation breaks consistency.
+- Joining two clips needs histogram matching and a 0.3 to 0.5 second dissolve.
+  Two generations will not agree on colour temperature or shadow direction, and
+  an unmatched hard cut reads as two unrelated images. This is the most likely
+  thing to fail in a two-clip Reel.
+- Both clips of a pair start from the same base still where possible, and both
+  prompts pin the same lighting: fluorescent ceiling light mixed with cool
+  window daylight from the left, roughly 4500K, same shadow direction and
+  exposure.
+- Subtitles are mandatory. More than 40% of viewers watch muted, so the hook in
+  the first two seconds and the closing line must carry the message with the
+  sound off.
+- Keep generated audio out of the delivered file. Lay one ambient shop bed at
+  roughly -25 to -20 dB underneath. Exporting silent measurably costs watch time.
+- Cap Reels at three to four a week on distinct topics. A run of near identical
+  generated clips is what triggers repetition downranking.
+
 ## Rules
 - Daily cadence is exactly 2 slots: 11:30 knowledge and 19:30 situation.
 - Do not use local SVG/template fallback images for final publishable assets.

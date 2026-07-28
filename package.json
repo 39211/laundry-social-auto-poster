@@ -8,20 +8,38 @@
     "generate-context": "tsx src/generateDailyContext.ts",
     "generate": "tsx src/generateDailyContent.ts",
     "generate-image-manifest": "tsx src/generateImage.ts",
+    "generate-video-manifest": "tsx src/generateVideo.ts",
+    "generate-video-candidate-manifest": "tsx src/generateVideoCandidate.ts",
+    "review-video-scripts": "tsx src/videoScriptQuality.ts",
+    "record-video-review": "tsx src/videoReviewGate.ts",
+    "generate-grok-videos": "tsx src/generateGrokVideo.ts",
+    "import-grok-video": "tsx src/importGrokVideo.ts",
+    "validate-grok-handoff": "tsx src/validateGrokHandoff.ts",
     "validate-images": "tsx src/generateImage.ts --validate",
     "mark-image-source": "tsx src/markImageSource.ts",
     "validate-publishable-images": "tsx src/generateImage.ts --validate-publishable",
+    "validate-publishable-media": "tsx src/generateVideo.ts --validate-publishable",
     "generate-public-site": "tsx src/generatePublicSite.ts",
     "submit-indexnow": "tsx src/submitIndexNow.ts",
     "audit-public-site": "tsx src/auditPublicSite.ts",
+    "audit-sitemap": "tsx src/auditSitemap.ts",
     "approve-post": "tsx src/approvePost.ts",
     "post": "tsx src/postCurrentSlot.ts --all-due",
     "post-current-slot": "tsx src/postCurrentSlot.ts",
+    "check-publishing-sla": "tsx src/publishingSla.ts",
+    "record-conversion": "tsx src/conversionFunnel.ts",
+    "review-72h": "tsx src/review72Hours.ts",
     "fetch-instagram-insights": "tsx src/fetchInstagramInsights.ts",
+    "fetch-facebook-insights": "tsx src/fetchFacebookInsights.ts",
+    "sync-meta-insights": "tsx src/syncMetaInsights.ts",
+    "generate-performance-optimization": "tsx src/performanceOptimization.ts",
+    "generate-multimedia-operations-plan": "tsx src/multimediaOperationsPlan.ts",
     "audit-meta-access": "tsx src/auditMetaAccess.ts",
+    "repair-meta-token": "tsx src/repairMetaToken.ts",
     "generate-growth-playbook": "tsx src/generateGrowthPlaybook.ts",
+    "generate-operations-dashboard": "tsx src/generateOperationsDashboard.ts",
     "publish-pages": "tsx src/publishPages.ts",
-    "daily": "npm run generate && npm run generate-image-manifest && npm run generate-public-site",
+    "daily": "npm run generate && npm run generate-image-manifest && npm run generate-video-candidate-manifest && npm run generate-public-site",
     "schedule": "tsx src/scheduler.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -36,6 +54,6 @@
     "vitest": "^4.1.6"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.5"
   }
 }

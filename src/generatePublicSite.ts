@@ -13,7 +13,12 @@ import {
   publicVideoAssetPath
 } from "./paths";
 import { imageAssetsForSlot } from "./mediaAssets";
-import type { ApprovalLogEntry, DailyContent, DailySlot, Platform } from "./types";
+import {
+  AI_VISIBILITY_REVIEW_28D,
+  COMMUNITY_PRACTICE_SOURCES,
+  SEARCH_INTENT_CLUSTERS
+} from "./searchVisibilityStrategy";
+import type { ApprovalLogEntry, CarouselItem, DailyContent, DailySlot, Platform } from "./types";
 
 interface GeneratePublicSiteOptions {
   root?: string;
@@ -34,6 +39,10 @@ interface PublicPost {
   topic: string;
   visual_route: string;
   traffic_route: string;
+  content_role: "reach-answer" | "evidence-conversion";
+  search_intent: string;
+  target_queries: string[];
+  evidence_type: string;
   hashtags: string[];
   platforms: string[];
   in_language: string;
@@ -41,6 +50,7 @@ interface PublicPost {
   image_url: string;
   image_paths: string[];
   image_urls: string[];
+  carousel_items: CarouselItem[];
   media_type: "image" | "carousel" | "reel";
   video_path: string;
   video_url: string;
@@ -58,6 +68,7 @@ interface PublicPostIndex {
   site_name: string;
   description: string;
   timezone: string;
+  ga4_measurement_id: string;
   base_url: string;
   base_url_configured: boolean;
   image_base_url: string;
@@ -90,6 +101,7 @@ interface PublicPostIndex {
     services: string;
     answers: string;
     geo_targets: string;
+    search_visibility: string;
     llms_jsonl: string;
     service_pages: Record<string, string>;
     support_pages: Record<string, string>;
@@ -258,11 +270,11 @@ interface BusinessProfile {
 }
 
 const SITE_NAME = "私享家洗衣店";
-const SITE_TITLE = "私享家洗衣店｜台中西屯門市・台中全市免費洗衣收送";
+const SITE_TITLE = "台中免費收送｜逢甲洗鞋・西屯洗鞋｜私享家洗衣店";
 const SITE_DESCRIPTION =
-  "私享家洗衣店門市在台中市西屯區青海路二段365號，提供衣物洗護、洗鞋、洗包與布品收納；台中全市可預約免費收送，主要透過 LINE 詢問與預約。";
+  "找台中免費收送、逢甲洗鞋或西屯洗鞋？私享家洗衣店提供台中市全區免費收送，門市在西屯青海路二段365號，可先用 LINE 傳照片預約。";
 /** Homepage last intentional content change (YYYY-MM-DD). Not rewritten on every build. */
-const HOMEPAGE_CONTENT_LASTMOD = "2026-07-20";
+const HOMEPAGE_CONTENT_LASTMOD = "2026-07-22";
 const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";
@@ -329,21 +341,22 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
   {
     slug: "shoe-bag-care",
     name: "鞋包清潔",
-    title: "鞋包清潔｜台中西屯洗鞋、洗包與材質照護｜私享家洗衣店",
+    title: "逢甲洗鞋・西屯洗鞋｜鞋包清潔先看材質｜私享家洗衣店",
     description:
-      "台中西屯鞋包清潔與洗鞋洗包諮詢，私享家洗衣店會先看鞋面、鞋底、包角、提把、內裡與材質狀態，再判斷適合的清潔方式。",
-    h1: "鞋包清潔",
+      "找逢甲洗鞋或西屯洗鞋？私享家洗衣店在青海路二段365號，先看鞋面、鞋底、內裡與材質再判斷清潔方式，台中市可免費收送。",
+    h1: "逢甲洗鞋・西屯洗鞋",
     summary:
       "鞋子和包包常見問題不只表面髒，還包括包角水痕、鞋底泥灰、提把油痕、內裡濕氣與材質摩擦痕。私享家會先看材質、位置與痕跡深度，再決定是清潔、局部整理、通風觀察，還是需要先提醒客人可改善的限度。",
-    keywords: ["鞋包清潔", "洗鞋", "洗包", "包包清潔", "鞋子清潔", "台中西屯鞋包清潔", "青海路洗鞋"],
+    keywords: ["逢甲洗鞋", "西屯洗鞋", "台中西屯洗鞋", "鞋包清潔", "洗包", "包包清潔", "青海路洗鞋"],
     image_hint: "鞋包",
     image_alt: "鞋包清潔前的包角、鞋面與皮革檢查主圖",
     image_note: "AI 生成的高擬真產品風格主圖，用於呈現鞋包清潔前的包角、鞋面、皮革水痕與邊緣檢查情境；不是實際客戶物件照片。",
     static_image_path: "assets/services/shoe-bag-care-hero-product.png",
     static_image_topic: "鞋包清潔前的包角、鞋面與皮革檢查主圖",
     static_image_source: "ai-generated premium product hero image",
+    content_lastmod: "2026-07-22",
     answer_summary:
-      "台中西屯洗鞋洗包建議先拍鞋面、鞋底、包角、提把與內裡，私享家會依材質、濕氣、水痕與磨耗程度判斷清潔方式與可改善範圍。",
+      "逢甲與西屯需要洗鞋，可先把鞋面、鞋底、鞋內與材質照片傳 LINE；私享家門市在青海路二段365號，會先說明清潔方式與可改善範圍，台中市可免費收送。",
     case_story: {
       label: "雨季通勤後的鞋包狀況",
       situation:
@@ -706,13 +719,138 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     ]
   },
   {
+    slug: "business-bulk-laundry",
+    name: "店家與公司大量衣物送洗",
+    local_query_name: "公司大量衣物送洗",
+    title: "台中店家・公司大量衣物送洗｜全市免費收送｜私享家洗衣店",
+    description:
+      "台中店家、公司或工作室有大量衣物、制服與布品需要送洗，可先用 LINE 整理品項與照片；私享家提供台中市全區免費收送，洗護費另計。",
+    h1: "台中店家・公司大量衣物送洗",
+    summary:
+      "店家、公司、工作室或團隊一次有多件制服、工作衣、毛巾、床組或其他布品需要整理時，重點不是先承諾固定價格或天數，而是先確認品項、數量、材質、髒污與交接方式。私享家可在台中市全區安排免費收送，主要透過 LINE 傳照片與清單詢問；清潔與洗護費用另依實際物件判斷。",
+    keywords: [
+      "台中公司衣物送洗",
+      "台中店家大量送洗",
+      "台中制服送洗",
+      "台中布品送洗",
+      "大量衣物收送",
+      "公司洗衣收送",
+      "LINE 預約送洗"
+    ],
+    image_hint: "店家與公司的大量衣物",
+    image_alt: "台中店家與公司大量衣物送洗前的分類與交接說明",
+    image_note: "服務說明頁；只有在已核准公開內容中找到相符案例時才使用社群圖片。",
+    allow_image_fallback: false,
+    content_lastmod: "2026-07-28",
+    area_served_name: "台中市",
+    answer_summary:
+      "台中店家、公司或工作室有大量制服、工作衣、毛巾、床組或布品需要送洗，可先用 LINE 提供品項、數量與照片；私享家可安排台中市全區免費收送，洗護費與處理方式另依實際物件判斷。",
+    case_story: {
+      label: "一次有多件衣物或布品，需要先分類再安排收送",
+      situation:
+        "店家或公司可能累積一批制服、工作衣、毛巾、床組或活動後布品，不方便逐件帶到門市，也擔心不同材質混在一起後無法說清楚。",
+      inspection:
+        "門市會先看品項清單、件數、材質標籤、主要髒污、是否潮濕，以及是否有需要分開交接的特殊物件；這些資訊會影響後續洗護判斷與收送安排。",
+      recommendation:
+        "先用 LINE 傳一張整批照片，再補充各類品項與大約件數；有特殊污漬、深淺色、填充物或不能混洗的物件，請另外拍近照與標籤。"
+    },
+    case_studies: [
+      {
+        label: "情境 01",
+        object: "公司制服與工作衣",
+        material: "棉、聚酯纖維或混紡",
+        concern: "件數多、領口袖口與工作環境髒污不同",
+        inspection: "先分品項、顏色、洗標與主要髒污，再確認是否有需要個別標記的衣物。",
+        boundary: "未看品項前不承諾固定報價、固定完成天數或所有污漬都能去除。"
+      },
+      {
+        label: "情境 02",
+        object: "店家毛巾與日常布品",
+        material: "棉質、混紡或不同厚度布料",
+        concern: "汗氣、油脂、濕氣與使用頻率不同",
+        inspection: "先確認是否潮濕、是否混有特殊污漬，以及需要分開處理的布品。",
+        boundary: "不把不同材質與不同用途物件視為同一種清洗條件。"
+      },
+      {
+        label: "情境 03",
+        object: "活動後床組或大量衣物",
+        material: "床包、被套、衣物與其他布品",
+        concern: "體積大、不方便自行搬運",
+        inspection: "先列出品項與數量，拍整批和特殊物件照片，再確認台中市內收送安排。",
+        boundary: "收送本身免費不代表洗護免費；品項與處理方式需另行確認。"
+      }
+    ],
+    sections: [
+      {
+        heading: "先回答：店家或公司大量衣物可以安排收送嗎？",
+        body:
+          "可以先詢問。私享家提供台中市全區免費收送，店家、公司、工作室或團隊可先透過 LINE 提供品項、數量與照片。門市會先確認是否適合承接與如何分類，再安排後續；收送免費不代表清潔與洗護免費。"
+      },
+      {
+        heading: "LINE 詢問需要準備什麼？",
+        body:
+          "建議準備整批照片、品項清單、大約件數、材質或洗標、最在意的污漬，以及所在區域。若有深淺色、特殊材質、填充物、油污、潮濕或需要個別標記的物件，請分開拍照說明。"
+      },
+      {
+        heading: "為什麼不先寫固定報價與完成天數？",
+        body:
+          "大量送洗的品項、材質、件數與狀況差異很大。沒有看過物件前直接承諾固定價格、最低消費、完成時間或清潔效果，容易造成期待落差；本頁只公開已確認的服務範圍、收送方式與詢問流程。"
+      },
+      {
+        heading: "台中市全區免費收送的邊界",
+        body:
+          "收送範圍為台中市，收送本身免費；清潔、洗護與其他整理費用另計。台中市以外、固定交接時段、急件或其他特殊安排，需由門市在 LINE 對話中另行確認。"
+      }
+    ],
+    inspection_table: [
+      {
+        item: "品項與件數",
+        focus: "制服、工作衣、毛巾、床組或其他布品分開列出",
+        risk: "只說一大袋無法判斷材質、數量與處理差異。"
+      },
+      {
+        item: "材質與洗標",
+        focus: "棉、混紡、填充物與特殊材質是否混在一起",
+        risk: "不同材質不能直接假設使用相同洗護方式。"
+      },
+      {
+        item: "髒污與濕氣",
+        focus: "油脂、汗氣、泥灰、潮濕或特殊污漬",
+        risk: "潮濕物件若長時間密封，味道與痕跡可能加重。"
+      },
+      {
+        item: "交接資訊",
+        focus: "所在區域、聯絡方式與需要個別標記的物件",
+        risk: "未確認前不承諾固定收送時段或完成時間。"
+      }
+    ],
+    faqs: [
+      {
+        question: "台中店家或公司有大量衣物可以送洗嗎？",
+        answer: "可以先用 LINE 提供品項、件數與照片詢問；門市確認物件狀態與承接方式後，再安排台中市內免費收送。"
+      },
+      {
+        question: "大量衣物收送要付收送費嗎？",
+        answer: "台中市內收送本身免費；清潔、洗護與其他整理費用另依品項與實際狀態判斷。"
+      },
+      {
+        question: "公司制服、毛巾和床組可以放在同一批詢問嗎？",
+        answer: "可以一起詢問，但請分開列出品項與件數，並拍材質標籤或特殊污漬；不同材質與用途會分開判斷。"
+      },
+      {
+        question: "大量送洗有固定價格或固定完成天數嗎？",
+        answer: "本頁不承諾固定價格、最低消費或完成天數。需要先看品項、件數、材質與狀態，再由門市回覆。"
+      }
+    ]
+  },
+  {
     slug: "taichung-citywide-laundry-pickup",
     name: "台中全市免費洗衣收送",
     local_query_name: "台中洗衣收送",
-    title: "台中全市免費洗衣收送｜私享家洗衣店 LINE 預約",
+    title: "台中免費收送洗衣｜全市到府、LINE 預約｜私享家洗衣店",
     description:
-      "私享家洗衣店提供台中全市免費洗衣收送；門市在西屯區青海路二段365號。收送範圍為台中市，主要透過 LINE 傳照片詢問與預約。",
-    h1: "台中全市免費洗衣收送",
+      "台中免費收送洗衣服務涵蓋全市，收送本身免費、洗護費另計。私享家門市在西屯青海路二段365號，先用 LINE 傳照片預約。",
+    h1: "台中免費收送洗衣",
     summary:
       "私享家洗衣店提供台中全市免費收送服務。門市位置仍在台中市西屯區青海路二段365號；收送範圍涵蓋台中市，不以西屯為限。預約與詢問以 LINE 為主，先傳照片說明衣物、鞋子、包包或布品狀況，再安排後續。",
     keywords: ["台中洗衣收送", "台中免費收送", "台中全市收送", "洗衣店收送", "私享家洗衣店", "LINE 預約洗衣"],
@@ -720,7 +858,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     image_alt: "台中全市免費洗衣收送服務說明｜私享家洗衣店",
     image_note: "台中全市免費洗衣收送說明頁；門市在西屯，收送範圍為台中市。",
     allow_image_fallback: false,
-    content_lastmod: "2026-07-20",
+    content_lastmod: "2026-07-22",
     area_served_name: "台中市",
     answer_summary:
       "私享家洗衣店提供台中全市免費洗衣收送；門市在西屯區青海路二段365號，收送範圍為台中市，主要透過 LINE 預約與傳照片詢問。",
@@ -1113,16 +1251,86 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     ]
   },
   {
+    slug: "taichung-laundry-service-search",
+    path: "guides/taichung-laundry-service-search.html",
+    category: "guide",
+    service_slug: "taichung-xitun-laundry",
+    title: "台中洗衣、洗鞋、洗包與免費收送怎麼找？｜私享家洗衣店",
+    description:
+      "依物件、問題、材質與收送需求找台中洗衣店：整理洗鞋、洗包、白鞋、床組、棉被、襯衫、西裝、娃娃、精品乾洗與台中市免費收送的查詢入口。",
+    h1: "台中洗衣、洗鞋、洗包與免費收送怎麼找？",
+    summary:
+      "先用手上的物件和問題找服務，不必只搜尋店名。私享家把台中洗衣、洗鞋、洗包、床組棉被、襯衫西裝、娃娃、精品乾洗與免費收送分成可核對的服務與指南；每個答案都回到材質、位置、狀態與處理界線。",
+    keywords: [
+      "台中洗衣店",
+      "西屯洗衣店",
+      "台中洗鞋店",
+      "台中洗包包",
+      "台中棉被清洗",
+      "台中西裝乾洗",
+      "台中娃娃清洗",
+      "台中精品乾洗",
+      "台中洗衣免費收送"
+    ],
+    local_intent: "台中西屯 洗衣 洗鞋 洗包 床組 西裝 娃娃 精品乾洗 免費收送",
+    content_lastmod: "2026-07-28",
+    steps: [
+      {
+        name: "先找物件",
+        text: "衣物、白鞋、其他鞋款、包包、床組棉被、娃娃與精品材質的檢查位置不同，先選對物件頁比只搜尋洗衣店更準。"
+      },
+      {
+        name: "再說問題",
+        text: "泛黃、雨水、潮味、油痕、磨損與長期收納不是同一種狀況；傳照片時標出最在意的位置。"
+      },
+      {
+        name: "比較處理方向",
+        text: "自行處理、局部整理、清洗或乾洗各有材質風險；私享家會先說可行方向與不能保證的界線。"
+      },
+      {
+        name: "核對門市證據",
+        text: "查看地址、營業時間、服務頁、門市檢查方式與案例圖片；推薦型查詢不以自稱最好取代可驗證資訊。"
+      },
+      {
+        name: "確認收送",
+        text: "台中市全區可預約免費收送，清潔費另依物件判斷；用 LINE 提供照片、品項與大致地區。"
+      },
+      {
+        name: "保留後續照護",
+        text: "雨季、清洗後與換季收納仍要看乾燥和保存狀態；有異味、受潮或材質疑慮時先停止強洗並詢問。"
+      }
+    ],
+    faqs: [
+      {
+        question: "搜尋台中洗衣店時，要怎麼判斷能不能處理我的物件？",
+        answer: "先看網站是否把物件、材質、問題位置與處理界線說清楚，再傳整體、局部和洗標照片詢問，不要只看一個泛用價目或保證字句。"
+      },
+      {
+        question: "台中洗鞋、洗包、床組和西裝可以一起詢問嗎？",
+        answer: "可以先在 LINE 一次列出品項並附照片，但每件物件仍會依材質、結構、髒污與既有磨損分別判斷。"
+      },
+      {
+        question: "私享家的台中市收送真的免費嗎？",
+        answer: "收送本身免費，清潔、洗護或其他整理費用另計；預約時請提供大致地區、品項與照片。"
+      },
+      {
+        question: "AI 或搜尋結果寫的價格、效果可以直接相信嗎？",
+        answer: "不建議。請回到私享家店家資料、服務頁或 LINE 核對；網站不提供未驗證價格，也不保證完全洗白、去除全部痕跡或恢復新品。"
+      }
+    ]
+  },
+  {
     slug: "qinghai-road-shoe-cleaning",
     path: "local/qinghai-road-shoe-cleaning.html",
     category: "local",
     service_slug: "shoe-bag-care",
-    title: "青海路附近洗鞋洗包服務｜私享家洗衣店",
-    description: "私享家洗衣店位於台中市西屯區青海路二段，提供白鞋清潔、鞋包照護、衣物洗護與布品收納，可先用 LINE 傳照片詢問。",
-    h1: "青海路附近洗鞋洗包服務",
-    summary: "如果你在青海路二段、西屯區附近找洗鞋、洗包或洗衣店，可以先把鞋邊、包角、提把、衣物標籤和髒污位置拍給私享家判斷。",
-    keywords: ["青海路洗衣店", "青海路洗鞋", "台中西屯洗鞋", "西屯洗包"],
-    local_intent: "青海路 洗鞋 洗包 洗衣店",
+    title: "逢甲洗鞋・西屯洗鞋｜青海路私享家洗衣店",
+    description: "逢甲、西屯需要洗鞋，可到青海路二段365號私享家洗衣店，先傳鞋面、鞋邊、鞋底與鞋內照片；台中市亦可預約免費收送。",
+    h1: "逢甲洗鞋・西屯洗鞋",
+    summary: "私享家位於西屯青海路二段365號，承接逢甲生活圈與西屯洗鞋需求。先拍鞋面、鞋邊、鞋底與鞋內，門市會依材質和痕跡判斷處理方向。",
+    keywords: ["逢甲洗鞋", "西屯洗鞋", "台中西屯洗鞋", "青海路洗鞋", "西屯洗包"],
+    local_intent: "逢甲洗鞋 西屯洗鞋 青海路洗鞋",
+    content_lastmod: "2026-07-22",
     steps: [
       { name: "確認位置", text: "店址在台中市西屯區青海路二段365號。" },
       { name: "先傳照片", text: "鞋子、包包、衣物和布品都可以先傳照片判斷方向。" },
@@ -1182,6 +1390,11 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
         label: "白鞋要重新整理",
         description: "先判斷是表面灰塵、膠邊氧化、縫線卡灰或內裡味道。",
         serviceSlug: "white-shoe-cleaning"
+      },
+      {
+        label: "店家與公司大量送洗",
+        description: "先整理品項、件數、材質與特殊污漬，再用 LINE 詢問台中市收送安排。",
+        serviceSlug: "business-bulk-laundry"
       }
     ]
   },
@@ -1275,6 +1488,65 @@ function publicUrl(path: string, baseUrl: string | undefined): string {
 
 function canonicalUrl(baseUrl: string | undefined): string {
   return baseUrl ? `${baseUrl}/` : "index.html";
+}
+
+function trackedLineUrl(index: PublicPostIndex, source: string): string {
+  const root = index.base_url_configured ? index.base_url : "";
+  return `${root}/go/line.html?source=${encodeURIComponent(source)}`;
+}
+
+// Without site-wide pageviews there is no way to tell whether the SEO/AEO/GEO
+// pages bring anyone in. Emits nothing when PUBLIC_GA4_MEASUREMENT_ID is unset.
+// The LINE redirect page suppresses the pageview because it sends its own event.
+function buildAnalyticsTag(measurementId: string, sendPageView = true): string {
+  if (!measurementId) return "";
+  const options = sendPageView ? "" : ",{send_page_view:false}";
+  return `<script async src="https://www.googletagmanager.com/gtag/js?id=${escapeHtml(measurementId)}"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config',${JSON.stringify(measurementId)}${options});</script>`;
+}
+
+function buildLineRedirectHtml(index: PublicPostIndex, ga4MeasurementId?: string): string {
+  const profile = index.business_profile;
+  const analytics = buildAnalyticsTag(ga4MeasurementId ?? "", false);
+  return `<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="refresh" content="3;url=${escapeHtml(profile.line_url)}" />
+    <title>前往私享家 LINE</title>
+    ${analytics}
+  </head>
+  <body>
+    <main><p>正在前往私享家 LINE；若沒有自動開啟，請<a href="${escapeHtml(profile.line_url)}">點這裡</a>。</p></main>
+    <script>
+      (() => {
+        const destination = ${JSON.stringify(profile.line_url)};
+        const params = new URLSearchParams(location.search);
+        const source = params.get('source') || 'unknown';
+        const content = params.get('content') || '';
+        const slot = params.get('slot') || '';
+        let redirected = false;
+        const redirect = () => { if (!redirected) { redirected = true; location.replace(destination); } };
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', 'line_click', {
+            source,
+            content,
+            slot,
+            transport_type: 'beacon',
+            event_callback: redirect,
+            event_timeout: 1200
+          });
+          setTimeout(redirect, 1500);
+        } else {
+          setTimeout(redirect, 250);
+        }
+      })();
+    </script>
+  </body>
+</html>
+`;
 }
 
 function slotDateTime(date: string, time: string): string {
@@ -2054,6 +2326,13 @@ function slotToPublicPost(
   const slotImages = imageAssetsForSlot(slot);
   const imagePaths = slotImages.map((asset) => publicCarouselAssetPath(date, slot.slot, asset.slide));
   const imageUrls = imagePaths.map((path) => publicUrl(path, imageBaseUrl ?? siteBaseUrl));
+  const carouselItems =
+    slot.media_type === "carousel"
+      ? slotImages.map((asset, index) => ({
+          ...asset,
+          public_image_url: imageUrls[index]!
+        }))
+      : [];
   const imagePath = imagePaths[0] ?? publicAssetPath(date, slot.slot);
   const videoPath = slot.media_type === "reel" ? publicVideoAssetPath(date, slot.slot) : "";
   const calendarPath = `content-calendar/${date}.json`;
@@ -2071,6 +2350,10 @@ function slotToPublicPost(
     topic: slot.topic,
     visual_route: slot.visual_route ?? "",
     traffic_route: slot.traffic_route ?? "",
+    content_role: slot.content_role ?? (slot.slot === 1 ? "reach-answer" : "evidence-conversion"),
+    search_intent: slot.search_intent ?? "",
+    target_queries: slot.target_queries ?? [],
+    evidence_type: slot.evidence_type ?? "",
     hashtags: extractHashtags(slot.facebook_caption, slot.instagram_caption),
     platforms: PLATFORM_NAMES,
     in_language: "zh-Hant",
@@ -2078,6 +2361,7 @@ function slotToPublicPost(
     image_url: imageUrls[0] ?? publicUrl(imagePath, imageBaseUrl ?? siteBaseUrl),
     image_paths: imagePaths,
     image_urls: imageUrls,
+    carousel_items: carouselItems,
     media_type: slot.media_type === "reel" ? "reel" : slot.media_type === "carousel" ? "carousel" : "image",
     video_path: videoPath,
     video_url: videoPath ? publicUrl(videoPath, imageBaseUrl ?? siteBaseUrl) : "",
@@ -2102,6 +2386,7 @@ function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: st
   const fabricStorage = findServiceBySlug("fabric-storage");
   const taichungXitunLaundry = findServiceBySlug("taichung-xitun-laundry");
   const photoBeforeLaundry = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "photo-before-laundry");
+  const serviceSearchGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "taichung-laundry-service-search");
   return [
     { label: "Business profile", url: index.entrypoints.business_profile },
     ...(taichungXitunLaundry ? [{ label: "Local laundry service", url: servicePageUrl(taichungXitunLaundry, index) }] : []),
@@ -2109,7 +2394,9 @@ function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: st
     ...(whiteShoeCleaning ? [{ label: "White shoe cleaning", url: servicePageUrl(whiteShoeCleaning, index) }] : []),
     ...(fabricStorage ? [{ label: "Fabric storage", url: servicePageUrl(fabricStorage, index) }] : []),
     ...(photoBeforeLaundry ? [{ label: "Photo-before-laundry guide", url: supportPageUrl(photoBeforeLaundry, index) }] : []),
+    ...(serviceSearchGuide ? [{ label: "Taichung laundry service search guide", url: supportPageUrl(serviceSearchGuide, index) }] : []),
     { label: "Answers", url: index.entrypoints.answers },
+    { label: "Search visibility", url: index.entrypoints.search_visibility },
     { label: "AI discovery", url: index.entrypoints.ai_discovery }
   ];
 }
@@ -2151,6 +2438,7 @@ function buildLlmsText(index: PublicPostIndex): string {
     `- [Services JSON](${index.entrypoints.services}): service-page records with answer summaries, case stories, images, FAQ, and LocalBusiness links.`,
     `- [Answers JSON](${index.entrypoints.answers}): concise AEO/GEO answers for service and local-intent queries.`,
     `- [Geo targets JSON](${index.entrypoints.geo_targets}): local service areas, address anchors, and query-intent map for 台中西屯 searches.`,
+    `- [Search visibility JSON](${index.entrypoints.search_visibility}): query clusters, fixed cross-engine prompt panel, mention-versus-citation fields, and 28-day review rules.`,
     `- [LLMS JSONL](${index.entrypoints.llms_jsonl}): line-delimited business, service, answer, and post records for AI ingestion.`,
     ...SERVICE_PAGE_DEFINITIONS.map(
       (service) => `- [${service.name}](${servicePageUrl(service, index)}): service SEO page with NAP, image, FAQ, and structured data.`
@@ -2184,11 +2472,11 @@ function buildLlmsText(index: PublicPostIndex): string {
     "",
     "## Data Contract",
     "- Cadence: two daily social slots, 11:30 and 19:30 Asia/Taipei.",
-    "- Each post includes: date, slot, time, title, topic, visual_route, traffic_route, hashtags, media_type, image_url, video_url when applicable, calendar_url, facebook_caption, instagram_caption.",
+    "- Each post includes: date, slot, time, title, topic, content_role, visual_route, traffic_route, search_intent, target_queries, evidence_type, hashtags, media_type, image_url, video_url when applicable, calendar_url, facebook_caption, instagram_caption.",
     "- Use the business profile and structured data as the source of record for phone, hours, map, and social links.",
     "- Do not treat Google Maps CID as Google Place ID. Use google_place_id only when it is non-null.",
     "- Emit concrete holiday opening hours only from owner-verified holiday_hours_rule.overrides.",
-    "- Use visual_route, traffic_route, and hashtags as observable labels for later performance analysis.",
+    "- Use content_role, visual_route, traffic_route, search_intent, target_queries, evidence_type, and hashtags as observable labels for later performance analysis.",
     "",
     "## Business Data Sources",
     ...profile.source_notes.map((note) => `- ${note}`),
@@ -2197,7 +2485,9 @@ function buildLlmsText(index: PublicPostIndex): string {
     ...(publishedPosts.length > 0 ? publishedPosts : []).flatMap((post) => [
       `- [${post.title}](${postHumanUrl(post, index)})`,
       `  platform targets: ${post.platforms.join(", ")}`,
-      `  routes: visual_route=${post.visual_route}; traffic_route=${post.traffic_route}`,
+      `  routes: content_role=${post.content_role}; visual_route=${post.visual_route}; traffic_route=${post.traffic_route}; search_intent=${post.search_intent || "(legacy-unassigned)"}`,
+      `  target_queries: ${post.target_queries.length > 0 ? post.target_queries.join(" | ") : "(legacy-unassigned)"}`,
+      `  evidence_type: ${post.evidence_type || "(legacy-unassigned)"}`,
       `  hashtags: ${post.hashtags.join(" ") || "(none)"}`,
       `  image: ${post.image_url}`,
       ...(post.video_url ? [`  video: ${post.video_url}`] : []),
@@ -2231,6 +2521,7 @@ function buildLlmsLiteText(index: PublicPostIndex): string {
     `Services: ${index.entrypoints.services}`,
     `Answers: ${index.entrypoints.answers}`,
     `Geo targets: ${index.entrypoints.geo_targets}`,
+    `Search visibility: ${index.entrypoints.search_visibility}`,
     `LLMS JSONL: ${index.entrypoints.llms_jsonl}`,
     ...SERVICE_PAGE_DEFINITIONS.map((service) => `${service.name}: ${servicePageUrl(service, index)}`),
     ...SUPPORT_PAGE_DEFINITIONS.map((page) => `${page.h1}: ${supportPageUrl(page, index)}`),
@@ -2266,7 +2557,7 @@ function buildLlmsFullText(index: PublicPostIndex): string {
     "- Posts are generated as operational social content for Facebook and Instagram.",
     "- Captions are Traditional Chinese unless explicitly marked otherwise.",
     "- Image URLs point to static publishable PNG assets.",
-    "- Performance labels are preserved as visual_route, traffic_route, and hashtags.",
+    "- Performance labels are preserved as visual_route, traffic_route, search_intent, target_queries, evidence_type, and hashtags.",
     "- Business phone, hours, map, Facebook, and Instagram are emitted from the centralized business profile.",
     "- Business profile data is loaded from data/business-profile.json.",
     "- Google Maps CID is not the same thing as Google Place ID; Google Place ID remains null until verified.",
@@ -2291,6 +2582,9 @@ function buildLlmsFullText(index: PublicPostIndex): string {
       `- platforms: ${post.platforms.join(", ")}`,
       `- visual_route: ${post.visual_route}`,
       `- traffic_route: ${post.traffic_route}`,
+      `- search_intent: ${post.search_intent || "(legacy-unassigned)"}`,
+      `- target_queries: ${post.target_queries.join(" | ") || "(legacy-unassigned)"}`,
+      `- evidence_type: ${post.evidence_type || "(legacy-unassigned)"}`,
       `- hashtags: ${post.hashtags.join(" ") || "(none)"}`,
       `- image: ${post.image_url}`,
       `- calendar: ${post.calendar_url}`,
@@ -2332,6 +2626,7 @@ function buildRobotsText(index: PublicPostIndex): string {
       "Allow: /services.json",
       "Allow: /answers.json",
       "Allow: /geo-targets.json",
+      "Allow: /search-visibility.json",
       "Allow: /feed.json",
       "Allow: /knowledge-graph.json",
       "Allow: /guides/",
@@ -2379,6 +2674,7 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
         { loc: index.entrypoints.services, purpose: "service-records" },
         { loc: index.entrypoints.answers, purpose: "answer-engine-records" },
         { loc: index.entrypoints.geo_targets, purpose: "geo-target-records" },
+        { loc: index.entrypoints.search_visibility, purpose: "search-intent-and-ai-visibility-review" },
         { loc: index.entrypoints.llms_jsonl, purpose: "line-delimited-ai-records" },
         ...SERVICE_PAGE_DEFINITIONS.map((service) => ({
           loc: servicePageUrl(service, index),
@@ -2447,6 +2743,10 @@ function buildJsonFeed(index: PublicPostIndex): object {
         category: post.category,
         visual_route: post.visual_route,
         traffic_route: post.traffic_route,
+        content_role: post.content_role,
+        search_intent: post.search_intent,
+        target_queries: post.target_queries,
+        evidence_type: post.evidence_type,
         platforms: post.platforms,
         calendar_url: post.calendar_url
       }
@@ -2523,12 +2823,18 @@ function serviceAnswerQuestion(service: ServicePageDefinition): string {
   if (service.slug === "taichung-citywide-laundry-pickup") {
     return "台中市全區免費洗衣收送怎麼預約？";
   }
+  if (service.slug === "business-bulk-laundry") {
+    return "台中店家或公司有大量衣物可以預約收送嗎？";
+  }
   return `台中西屯${serviceLocalQueryName(service)}要怎麼判斷？`;
 }
 
 function serviceLocalIntent(service: ServicePageDefinition): string {
   if (service.slug === "taichung-citywide-laundry-pickup") {
     return "台中市 洗衣免費收送 LINE 預約";
+  }
+  if (service.slug === "business-bulk-laundry") {
+    return "台中市 店家 公司 大量衣物 送洗 收送";
   }
   return `台中西屯 ${serviceLocalQueryName(service)}`;
 }
@@ -2548,7 +2854,7 @@ function buildAnswersJson(index: PublicPostIndex): object {
       id: "homepage-local-laundry-search",
       type: "local_search_answer",
       question: "搜尋台中西屯洗衣店時，私享家洗衣店提供哪些服務？",
-      answer: `私享家洗衣店位於${profile.address_text}，提供衣物洗護、鞋包清潔、白鞋清潔與布品收納；台中全市可預約免費收送，主要透過 LINE 傳照片詢問與預約，再由門市依材質、髒污、濕氣與收納狀態判斷。收送免費不代表清潔免費。`,
+      answer: `私享家洗衣店位於${profile.address_text}，提供衣物洗護、鞋包清潔、白鞋清潔、布品收納，以及店家與公司大量衣物送洗諮詢；台中全市可預約免費收送，主要透過 LINE 傳照片與品項清單詢問，再由門市依材質、件數、髒污、濕氣與收納狀態判斷。收送免費不代表清潔免費。`,
       source_url: index.canonical_url,
       local_intent: LOCAL_SEARCH_QUERY_TARGETS.join(", ")
     },
@@ -2747,14 +3053,16 @@ function buildGeoTargetsJson(index: PublicPostIndex): object {
         answer_summary: SITE_DESCRIPTION
       })),
       ...SERVICE_PAGE_DEFINITIONS.flatMap((service) =>
-        (service.slug === "taichung-citywide-laundry-pickup"
+        (service.area_served_name === "台中市"
           ? serviceAreas.filter((area) => area.type === "municipality")
           : localStoreAreas
         ).map((area) => ({
           query:
             service.slug === "taichung-citywide-laundry-pickup"
               ? "台中市 洗衣免費收送"
-              : `${area.label} ${serviceLocalQueryName(service)}`,
+              : service.area_served_name === "台中市"
+                ? `台中市 ${serviceLocalQueryName(service)}`
+                : `${area.label} ${serviceLocalQueryName(service)}`,
           service: service.name,
           area: area.label,
           url: servicePageUrl(service, index),
@@ -2784,6 +3092,88 @@ function buildGeoTargetsJson(index: PublicPostIndex): object {
         url: homeDiscoveryItemUrl(item, index)
       }))
     }))
+  };
+}
+
+function buildSearchVisibilityJson(index: PublicPostIndex): object {
+  const resolveRoute = (route: string): string => publicUrl(route, index.base_url_configured ? index.base_url : undefined);
+  const discoveryPrompts = SEARCH_INTENT_CLUSTERS.flatMap((cluster) =>
+    cluster.query_examples.slice(0, 3).map((query, queryIndex) => ({
+      id: `${cluster.id}-${String(queryIndex + 1).padStart(2, "0")}`,
+      prompt_type: "unbranded-customer-query",
+      search_intent: cluster.id,
+      prompt: query,
+      expected_source_pages: cluster.primary_routes.map(resolveRoute)
+    }))
+  );
+
+  return {
+    schema_version: "2026-07-28",
+    generated_at: index.generated_at,
+    name: "私享家 SEO / AIO / GEO 搜尋意圖與 28 天能見度規格",
+    status: "strategy-and-measurement-contract",
+    canonical_url: index.canonical_url,
+    strategy_note:
+      "這份資料把客戶查詢、可直接回答的內容、第一手證據與轉換量測接在一起；llms.txt、schema 或爬蟲紀錄只代表可讀性，不代表已獲得排名、推薦或引用。",
+    content_principles: [
+      "同一份內容同時服務人類與搜尋或 AI，不另外製造隱藏文字或 AI 專用薄頁。",
+      "先直接回答客戶問題，再提供物件、材質、問題位置、門市判斷、處理界線與可核對來源。",
+      "在地頁必須有真實地址、服務範圍、收送方式或門市情境，不用大量地名替換頁。",
+      "案例只使用可證明的門市觀察；AI 生成圖要標示來源，不冒充真實客戶成果。",
+      "推薦型問題提供選店條件與證據，不自稱最好，也不捏造評論、價格或保證效果。"
+    ],
+    query_clusters: SEARCH_INTENT_CLUSTERS.map((cluster) => ({
+      ...cluster,
+      primary_routes: cluster.primary_routes.map(resolveRoute)
+    })),
+    prompt_panel: {
+      rules: AI_VISIBILITY_REVIEW_28D.prompt_rules,
+      unbranded_customer_queries: discoveryPrompts,
+      brand_verification_queries: [
+        {
+          id: "brand-facts-01",
+          prompt_type: "brand-fact-check",
+          prompt: "私享家洗衣店位於哪裡、營業時間是什麼？",
+          expected_source_pages: [index.entrypoints.business_profile, index.canonical_url]
+        },
+        {
+          id: "brand-facts-02",
+          prompt_type: "brand-fact-check",
+          prompt: "私享家洗衣店是否提供台中市全區免費收送？免費包含哪些範圍？",
+          expected_source_pages: [
+            index.entrypoints.service_pages["taichung-citywide-laundry-pickup"] ?? index.canonical_url,
+            index.entrypoints.business_profile
+          ]
+        },
+        {
+          id: "brand-facts-03",
+          prompt_type: "brand-fact-check",
+          prompt: "私享家洗衣店可以處理哪些衣物、鞋包、寢具、娃娃與精品材質？",
+          expected_source_pages: [index.entrypoints.services, index.entrypoints.answers]
+        }
+      ]
+    },
+    review_28_days: AI_VISIBILITY_REVIEW_28D,
+    result_record_template: {
+      checked_at: null,
+      engine: null,
+      prompt_id: null,
+      query: null,
+      search_intent: null,
+      brand_mentioned: null,
+      linked_citation: null,
+      cited_url: null,
+      recommendation_position: null,
+      answer_accuracy: null,
+      competitor_sources: [],
+      ai_referral: null,
+      line_click: null,
+      qualified_inquiry: null,
+      booking_or_revenue: null,
+      evidence_url_or_screenshot: null,
+      notes: null
+    },
+    community_practice_sources: COMMUNITY_PRACTICE_SOURCES
   };
 }
 
@@ -2852,8 +3242,16 @@ function buildLlmsJsonl(index: PublicPostIndex): string {
       topic: post.topic,
       visual_route: post.visual_route,
       traffic_route: post.traffic_route,
+      content_role: post.content_role,
+      search_intent: post.search_intent,
+      target_queries: post.target_queries,
+      evidence_type: post.evidence_type,
       hashtags: post.hashtags,
       image_url: post.image_url,
+      image_urls: post.image_urls,
+      carousel_items: post.carousel_items,
+      media_type: post.media_type,
+      video_url: post.video_url,
       calendar_url: post.calendar_url
     }))
   ];
@@ -3517,7 +3915,9 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       image: { "@type": "ImageObject", contentUrl: post.image_url, caption: `${post.topic} - ${profile.name}` },
       ...(post.video_url ? { video: { "@id": `${post.article_url}#video` } } : {}),
       about: { "@id": `${index.canonical_url}#business` },
-      keywords: post.hashtags.map((tag) => tag.replace(/^#/, ""))
+      keywords: Array.from(
+        new Set([...post.target_queries, ...post.hashtags.map((tag) => tag.replace(/^#/, ""))])
+      )
     },
     {
       "@type": "WebPage",
@@ -3568,6 +3968,7 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
 
 function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
   const profile = index.business_profile;
+  const lineHref = trackedLineUrl(index, `post-${post.date}-slot-${post.slot}`);
   const canonical = post.article_url;
   const schema = buildPostPageSchema(post, index);
   const service = findServiceBySlug("taichung-xitun-laundry") ?? SERVICE_PAGE_DEFINITIONS[0];
@@ -3576,6 +3977,15 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
   const imageSrc = visibleImageSrc(post, index);
   const description = captionPreview(post.facebook_caption).slice(0, 180);
   const hashtags = post.hashtags.map((tag) => `<span class="chip on-light">${escapeHtml(tag)}</span>`).join("\n");
+  const targetQueries =
+    post.target_queries.length > 0
+      ? `<div class="answer-box">
+              <p class="eyebrow">客人常用查詢</p>
+              <div class="meta-row local-query-row">${post.target_queries
+                .map((query) => `<span class="chip on-light">${escapeHtml(query)}</span>`)
+                .join("\n")}</div>
+            </div>`
+      : "";
 
   return `<!doctype html>
 <html lang="zh-Hant-TW">
@@ -3605,6 +4015,7 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
     ${schema ? `<script type="application/ld+json">${escapeJsonLd(schema)}</script>` : ""}
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(`${post.topic} | ${profile.name}`)}</title>
+    ${buildAnalyticsTag(index.ga4_measurement_id)}
   </head>
   <body>
     <main>
@@ -3613,7 +4024,7 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
         <nav class="nav" aria-label="Primary navigation">
           <a href="${escapeHtml(serviceHref)}">Service</a>
           <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
-          <a href="${escapeHtml(profile.line_url)}">LINE</a>
+          <a href="${escapeHtml(lineHref)}">LINE</a>
         </nav>
       </header>
       <nav class="breadcrumb" aria-label="麵包屑">
@@ -3628,7 +4039,7 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
           <h1>${escapeHtml(post.topic)}</h1>
           <p class="lead">${escapeHtml(description)}</p>
           <div class="hero-actions">
-            <a class="primary-link" href="${escapeHtml(profile.line_url)}">LINE</a>
+            <a class="primary-link" href="${escapeHtml(lineHref)}">LINE</a>
             <a class="secondary-link" href="${escapeHtml(serviceHref)}">Service details</a>
           </div>
         </div>
@@ -3647,14 +4058,14 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
             <p class="eyebrow">Store note</p>
             <h2>Check the item before choosing the next step</h2>
             <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
-            <div class="meta-row local-query-row">${hashtags}</div>
+            <div class="meta-row local-query-row">${hashtags}</div>${targetQueries}
           </article>
           <aside class="card">
             <h2>${escapeHtml(profile.name)}</h2>
             <p>${escapeHtml(profile.address_text)}</p>
             <p>${escapeHtml(profile.opening_hours_text)}</p>
             <div class="link-row">
-              <a href="${escapeHtml(profile.line_url)}">LINE</a>
+              <a href="${escapeHtml(lineHref)}">LINE</a>
               <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
               <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
               <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
@@ -3674,7 +4085,7 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
   const articleHref = hasArticlePage(post, index) ? post.article_url : post.calendar_path;
   return `<article class="post-tile post-card">
         <h3>${escapeHtml(post.topic)}</h3>
-        <p><strong>${escapeHtml(post.date)} ${escapeHtml(post.time)}</strong>｜${escapeHtml(post.visual_route)} / ${escapeHtml(post.traffic_route)}</p>
+        <p><strong>${escapeHtml(post.date)} ${escapeHtml(post.time)}</strong>｜${escapeHtml(post.content_role)} / ${escapeHtml(post.visual_route)} / ${escapeHtml(post.traffic_route)}</p>
         <a href="${escapeHtml(imageSrc)}">
           <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(`${post.topic} - ${profile.name}洗護內容照片`)}" loading="lazy" width="1200" />
         </a>
@@ -3689,6 +4100,7 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
 
 function buildIndexHtml(index: PublicPostIndex): string {
   const profile = index.business_profile;
+  const lineHref = trackedLineUrl(index, "homepage");
   const { recentPosts, archivePosts, recentDateCount, archiveDateCount } = homepagePostGroups(index.posts);
   const heroImage = primaryHomeImage(index);
   const heroImageSrc = heroImage ? visibleImageSrc(heroImage, index) : "";
@@ -3805,6 +4217,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
     <link rel="alternate" type="application/json" href="services.json" />
     <link rel="alternate" type="application/json" href="answers.json" />
     <link rel="alternate" type="application/json" href="geo-targets.json" />
+    <link rel="alternate" type="application/json" href="search-visibility.json" />
     <link rel="alternate" type="application/jsonl" href="llms.jsonl" />
     <link rel="alternate" type="application/json" href="feed.json" />
     <link rel="alternate" type="application/ld+json" href="knowledge-graph.json" />
@@ -3824,6 +4237,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
     ${homePageSchema ? `<script type="application/ld+json">${escapeJsonLd(homePageSchema)}</script>` : ""}
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(SITE_TITLE)}</title>
+    ${buildAnalyticsTag(index.ga4_measurement_id)}
   </head>
   <body>
     <main>
@@ -3834,18 +4248,18 @@ function buildIndexHtml(index: PublicPostIndex): string {
             (service) => `<a href="${escapeHtml(servicePageUrl(service, index))}">${escapeHtml(service.name)}</a>`
           ).join("\n")}
           <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
-          <a href="${escapeHtml(profile.line_url)}">LINE</a>
+          <a href="${escapeHtml(lineHref)}">LINE</a>
         </nav>
       </header>
       <section class="product-hero hero-dark">
         <div class="section-inner hero-copy">
           <p class="eyebrow">台中西屯門市・台中全市收送</p>
-          <h1>台中西屯洗衣門市，台中全市免費洗衣收送</h1>
-          <p class="lead">門市在青海路；衣物、鞋子、包包與布品先看狀態再整理。台中市可約免費收送，主要用 LINE 詢問與預約。</p>
+          <h1>台中免費收送，逢甲・西屯洗鞋先看材質</h1>
+          <p class="lead">台中市全區可預約免費收送，收送本身免費、洗護費另計。逢甲與西屯洗鞋可到青海路二段365號門市，或先用 LINE 傳鞋面、鞋底與鞋內照片。</p>
           <p class="last-updated">內容更新：<time datetime="${HOMEPAGE_CONTENT_LASTMOD}">${HOMEPAGE_CONTENT_LASTMOD}</time></p>
           <div class="hero-actions">
             <a class="primary-link" href="${escapeHtml(citywidePickupUrl)}">台中全市免費收送</a>
-            <a class="secondary-link" href="${escapeHtml(profile.line_url)}">LINE 預約</a>
+            <a class="secondary-link" href="${escapeHtml(lineHref)}">LINE 預約</a>
             <a class="secondary-link" href="#services">查看服務</a>
           </div>
           <div class="meta-row">
@@ -3880,11 +4294,11 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <div class="section-header">
             <p class="eyebrow">Pickup &amp; delivery</p>
             <h2>台中全市免費洗衣收送</h2>
-            <p class="section-copy">收送範圍為台中市全市，收送本身免費；清潔與洗護費用另計。門市在西屯區青海路二段365號。預約與詢問以 <a href="${escapeHtml(profile.line_url)}">LINE</a> 為主，先傳照片再約定收送。</p>
+            <p class="section-copy">收送範圍為台中市全市，收送本身免費；清潔與洗護費用另計。門市在西屯區青海路二段365號。預約與詢問以 <a href="${escapeHtml(lineHref)}">LINE</a> 為主，先傳照片再約定收送。</p>
           </div>
           <div class="link-row">
             <a class="primary-link" href="${escapeHtml(citywidePickupUrl)}">閱讀收送說明頁</a>
-            <a class="secondary-link" href="${escapeHtml(profile.line_url)}">LINE 預約收送</a>
+            <a class="secondary-link" href="${escapeHtml(lineHref)}">LINE 預約收送</a>
           </div>
         </div>
       </section>
@@ -3961,7 +4375,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
               <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
               <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
               <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
-              <a href="${escapeHtml(profile.line_url)}">LINE</a>
+              <a href="${escapeHtml(lineHref)}">LINE</a>
             </div>
           </div>
           <div class="card local-search-card">
@@ -3989,6 +4403,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <a href="services.json">services.json</a>
           <a href="answers.json">answers.json</a>
           <a href="geo-targets.json">geo-targets.json</a>
+          <a href="search-visibility.json">search-visibility.json</a>
           <a href="social-posts.json">social-posts.json</a>
           <a href="business-profile.json">店家資料</a>
           <a href="latest.json">latest.json</a>
@@ -4038,6 +4453,7 @@ function buildNotFoundHtml(index: PublicPostIndex): string {
       .not-found-panel p { color: var(--muted); font-size: 1.2rem; line-height: 1.7; margin: 0 auto 30px; max-width: 620px; }
     </style>
     <title>${escapeHtml(`${SITE_NAME} | Page moved`)}</title>
+    ${buildAnalyticsTag(index.ga4_measurement_id)}
   </head>
   <body>
     <main class="not-found-hero">
@@ -4055,6 +4471,7 @@ function buildNotFoundHtml(index: PublicPostIndex): string {
 
 function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostIndex): string {
   const profile = index.business_profile;
+  const lineHref = trackedLineUrl(index, `service-${service.slug}`);
   const canonical = servicePageUrl(service, index);
   const serviceSchema = buildServicePageSchema(service, index);
   const image = findServiceImage(service, index);
@@ -4152,6 +4569,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
     <link rel="alternate" type="application/json" href="${escapeHtml(index.base_url_configured ? index.entrypoints.services : "../services.json")}" />
     <link rel="alternate" type="application/json" href="${escapeHtml(index.base_url_configured ? index.entrypoints.answers : "../answers.json")}" />
     <link rel="alternate" type="application/json" href="${escapeHtml(index.base_url_configured ? index.entrypoints.geo_targets : "../geo-targets.json")}" />
+    <link rel="alternate" type="application/json" href="${escapeHtml(index.base_url_configured ? index.entrypoints.search_visibility : "../search-visibility.json")}" />
     <meta property="og:title" content="${escapeHtml(service.title)}" />
     <meta property="og:description" content="${description}" />
     <meta property="og:type" content="article" />
@@ -4168,6 +4586,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
     ${serviceSchema ? `<script type="application/ld+json">${escapeJsonLd(serviceSchema)}</script>` : ""}
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(service.title)}</title>
+    ${buildAnalyticsTag(index.ga4_measurement_id)}
   </head>
   <body>
     <main>
@@ -4192,7 +4611,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
           <h1>${escapeHtml(service.h1)}</h1>
           <p class="lead">${escapeHtml(service.summary)}</p>${lastUpdatedMarkup}
           <div class="hero-actions">
-            <a class="primary-link" href="${escapeHtml(profile.line_url)}">LINE 詢問</a>
+            <a class="primary-link" href="${escapeHtml(lineHref)}">LINE 詢問</a>
             <a class="secondary-link" href="#faq">常見問題</a>
           </div>
           <div class="answer-box">
@@ -4239,7 +4658,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
             <p>營業時間：${escapeHtml(profile.opening_hours_text)}</p>
             <div class="link-row">
               <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
-              <a href="${escapeHtml(profile.line_url)}">LINE</a>
+              <a href="${escapeHtml(lineHref)}">LINE</a>
               <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
               <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
             </div>
@@ -4274,6 +4693,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
 
 function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostIndex): string {
   const profile = index.business_profile;
+  const lineHref = trackedLineUrl(index, `support-${page.slug}`);
   const canonical = supportPageUrl(page, index);
   const supportSchema = buildSupportPageSchema(page, index);
   const service = linkedSupportService(page);
@@ -4283,6 +4703,9 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
   const businessProfileHref = index.base_url_configured ? index.entrypoints.business_profile : `${relativePrefix}business-profile.json`;
   const servicesHref = index.base_url_configured ? index.entrypoints.services : `${relativePrefix}services.json`;
   const answersHref = index.base_url_configured ? index.entrypoints.answers : `${relativePrefix}answers.json`;
+  const searchVisibilityHref = index.base_url_configured
+    ? index.entrypoints.search_visibility
+    : `${relativePrefix}search-visibility.json`;
   const description = escapeHtml(page.description);
   const lastUpdatedMarkup = page.content_lastmod
     ? `\n          <p class="last-updated">內容更新：<time datetime="${escapeHtml(page.content_lastmod)}">${escapeHtml(page.content_lastmod)}</time></p>`
@@ -4322,6 +4745,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
     <link rel="alternate" type="application/json" href="${escapeHtml(businessProfileHref)}" />
     <link rel="alternate" type="application/json" href="${escapeHtml(servicesHref)}" />
     <link rel="alternate" type="application/json" href="${escapeHtml(answersHref)}" />
+    <link rel="alternate" type="application/json" href="${escapeHtml(searchVisibilityHref)}" />
     <meta property="og:title" content="${escapeHtml(page.title)}" />
     <meta property="og:description" content="${description}" />
     <meta property="og:type" content="article" />
@@ -4334,6 +4758,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
     ${supportSchema ? `<script type="application/ld+json">${escapeJsonLd(supportSchema)}</script>` : ""}
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(page.title)}</title>
+    ${buildAnalyticsTag(index.ga4_measurement_id)}
   </head>
   <body>
     <main>
@@ -4343,7 +4768,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
           ${SERVICE_PAGE_DEFINITIONS.map(
             (item) => `<a href="${escapeHtml(servicePageUrl(item, index))}">${escapeHtml(item.name)}</a>`
           ).join("\n")}
-          <a href="${escapeHtml(profile.line_url)}">LINE</a>
+          <a href="${escapeHtml(lineHref)}">LINE</a>
           <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
         </nav>
       </header>
@@ -4359,7 +4784,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
           <h1>${escapeHtml(page.h1)}</h1>
           <p class="lead">${escapeHtml(page.summary)}</p>${lastUpdatedMarkup}
           <div class="hero-actions">
-            <a class="primary-link" href="${escapeHtml(profile.line_url)}">LINE 詢問</a>
+            <a class="primary-link" href="${escapeHtml(lineHref)}">LINE 詢問</a>
             <a class="secondary-link" href="${escapeHtml(serviceHref)}">${escapeHtml(service?.name ?? "回到首頁")}</a>
           </div>
           <div class="meta-row local-query-row">
@@ -4389,7 +4814,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
             <p class="section-copy">${escapeHtml(page.local_intent)}</p>
             <div class="link-row">
               <a href="${escapeHtml(serviceHref)}">${escapeHtml(service?.name ?? "查看私享家服務")}</a>
-              <a href="${escapeHtml(profile.line_url)}">傳照片詢問</a>
+              <a href="${escapeHtml(lineHref)}">傳照片詢問</a>
             </div>
           </div>
           <aside class="card">
@@ -4429,10 +4854,15 @@ function postToDiscoveryRecord(post: PublicPost, index: PublicPostIndex): object
     topic: post.topic,
     visual_route: post.visual_route,
     traffic_route: post.traffic_route,
+    content_role: post.content_role,
+    search_intent: post.search_intent,
+    target_queries: post.target_queries,
+    evidence_type: post.evidence_type,
     hashtags: post.hashtags,
     platforms: post.platforms,
     image_url: post.image_url,
     image_urls: post.image_urls,
+    carousel_items: post.carousel_items,
     media_type: post.media_type,
     video_url: post.video_url,
     calendar_url: post.calendar_url,
@@ -4475,12 +4905,19 @@ function buildAiDiscovery(index: PublicPostIndex): object {
       intent_note:
         "Use these as local SEO/AEO/GEO query anchors for people searching laundry, shoe cleaning, bag cleaning, white shoe cleaning, and fabric storage near Taichung Xitun."
     },
+    search_visibility: {
+      source_url: index.entrypoints.search_visibility,
+      query_clusters: SEARCH_INTENT_CLUSTERS.map((cluster) => cluster.id),
+      review_checkpoints: AI_VISIBILITY_REVIEW_28D.checkpoints.map((checkpoint) => checkpoint.day),
+      measurement_note: "Brand mention, linked citation, cited URL, answer accuracy, referral, LINE inquiry, and booking are separate fields."
+    },
     entrypoints: index.entrypoints,
     recommended_read_order: [
       index.entrypoints.llms,
       index.entrypoints.services,
       index.entrypoints.answers,
       index.entrypoints.geo_targets,
+      index.entrypoints.search_visibility,
       ...SERVICE_PAGE_DEFINITIONS.map((service) => servicePageUrl(service, index)),
       ...SUPPORT_PAGE_DEFINITIONS.map((page) => supportPageUrl(page, index)),
       index.entrypoints.latest,
@@ -4497,6 +4934,8 @@ function buildAiDiscovery(index: PublicPostIndex): object {
       supports_service_records: true,
       supports_answer_records: true,
       supports_geo_targets: true,
+      supports_search_intent_clusters: true,
+      supports_28_day_ai_visibility_review: true,
       supports_support_pages: true,
       supports_jsonl_ingestion: true,
       update_frequency: "daily"
@@ -4540,8 +4979,12 @@ function buildAiDiscovery(index: PublicPostIndex): object {
         "slot",
         "time",
         "topic",
+        "content_role",
         "visual_route",
         "traffic_route",
+        "search_intent",
+        "target_queries",
+        "evidence_type",
         "hashtags",
         "facebook_caption",
         "instagram_caption",
@@ -4562,7 +5005,11 @@ function buildAiDiscovery(index: PublicPostIndex): object {
       latest_date: index.latest_date,
       all_posts_have_images: index.posts.every((post) => Boolean(post.image_url)),
       all_posts_have_hashtags: index.posts.every((post) => post.hashtags.length > 0),
-      all_posts_have_routes: index.posts.every((post) => Boolean(post.visual_route && post.traffic_route))
+      all_posts_have_routes: index.posts.every((post) => Boolean(post.visual_route && post.traffic_route)),
+      all_posts_have_content_roles: index.posts.every((post) => Boolean(post.content_role)),
+      posts_with_search_intent: index.posts.filter((post) => Boolean(post.search_intent)).length,
+      posts_with_target_queries: index.posts.filter((post) => post.target_queries.length > 0).length,
+      posts_with_evidence_type: index.posts.filter((post) => Boolean(post.evidence_type)).length
     },
     latest_date: index.latest_date,
     latest_posts: index.posts
@@ -4603,6 +5050,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     site_name: SITE_NAME,
     description: SITE_DESCRIPTION,
     timezone: config.timezone,
+    ga4_measurement_id: config.ga4MeasurementId ?? "",
     base_url: siteBaseUrl ?? "",
     base_url_configured: Boolean(siteBaseUrl),
     image_base_url: imageBaseUrl ?? "",
@@ -4635,6 +5083,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       services: publicUrl("services.json", siteBaseUrl),
       answers: publicUrl("answers.json", siteBaseUrl),
       geo_targets: publicUrl("geo-targets.json", siteBaseUrl),
+      search_visibility: publicUrl("search-visibility.json", siteBaseUrl),
       llms_jsonl: publicUrl("llms.jsonl", siteBaseUrl),
       service_pages: Object.fromEntries(
         SERVICE_PAGE_DEFINITIONS.map((service) => [service.slug, publicUrl(servicePagePath(service), siteBaseUrl)])
@@ -4671,6 +5120,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const guidesRoot = join(docsRoot, "guides");
   const localRoot = join(docsRoot, "local");
   const postsRoot = join(docsRoot, "posts");
+  const goRoot = join(docsRoot, "go");
   const compatibilityDocsRoot = join(docsRoot, "docs");
   await mkdir(docsRoot, { recursive: true });
   await mkdir(wellKnownRoot, { recursive: true });
@@ -4678,6 +5128,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await mkdir(guidesRoot, { recursive: true });
   await mkdir(localRoot, { recursive: true });
   await mkdir(postsRoot, { recursive: true });
+  await mkdir(goRoot, { recursive: true });
   await mkdir(compatibilityDocsRoot, { recursive: true });
   const indexNowKey = configuredIndexNowKey(root);
 
@@ -4688,6 +5139,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     services: join(docsRoot, "services.json"),
     answers: join(docsRoot, "answers.json"),
     geoTargets: join(docsRoot, "geo-targets.json"),
+    searchVisibility: join(docsRoot, "search-visibility.json"),
     llmsJsonl: join(docsRoot, "llms.jsonl"),
     feed: join(docsRoot, "feed.json"),
     knowledgeGraph: join(docsRoot, "knowledge-graph.json"),
@@ -4702,6 +5154,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     aiSitemap: join(docsRoot, "ai-sitemap.xml"),
     index: join(docsRoot, "index.html"),
     notFound: join(docsRoot, "404.html"),
+    lineRedirect: join(goRoot, "line.html"),
     compatibilityDocsIndex: join(compatibilityDocsRoot, "index.html"),
     ...Object.fromEntries(
       SERVICE_PAGE_DEFINITIONS.map((service) => [`servicePage-${service.slug}`, join(servicesRoot, `${service.slug}.html`)])
@@ -4716,6 +5169,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await writeJsonAtomic(outputs.services, buildServicesJson(index));
   await writeJsonAtomic(outputs.answers, buildAnswersJson(index));
   await writeJsonAtomic(outputs.geoTargets, buildGeoTargetsJson(index));
+  await writeJsonAtomic(outputs.searchVisibility, buildSearchVisibilityJson(index));
   await writeJsonAtomic(outputs.feed, buildJsonFeed(index));
   await writeJsonAtomic(outputs.knowledgeGraph, buildKnowledgeGraph(index));
   const aiDiscovery = buildAiDiscovery(index);
@@ -4746,6 +5200,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   }
   await writeFile(outputs.index, buildIndexHtml(index), "utf8");
   await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
+  await writeFile(outputs.lineRedirect, buildLineRedirectHtml(index, config.ga4MeasurementId), "utf8");
   await writeFile(outputs.compatibilityDocsIndex, buildNotFoundHtml(index), "utf8");
   await Promise.all(
     SERVICE_PAGE_DEFINITIONS.map((service) =>

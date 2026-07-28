@@ -1,8 +1,26 @@
-import { buildGitHubPagesImageUrl } from "./githubPages";
-import { buildGrowthPlaybook, type GrowthFormat, type GrowthPlaybookSlot } from "./growthPlaybook";
-import { relativeAssetPath } from "./paths";
+import {
+  buildGitHubPagesCarouselImageUrl,
+  buildGitHubPagesImageUrl,
+  buildGitHubPagesVideoUrl
+} from "./githubPages";
+import {
+  buildGrowthPlaybook,
+  COMPANION_MEDIA_START_DATE,
+  type GrowthFormat,
+  type GrowthPlaybookSlot
+} from "./growthPlaybook";
+import { relativeAssetPath, relativeCarouselAssetPath, relativeVideoAssetPath } from "./paths";
 import { DAILY_SCHEDULE } from "./scheduler";
-import type { AppConfig, Category, DailyContent, DailySlot, Platform, TrafficRoute, VisualRoute } from "./types";
+import type {
+  AppConfig,
+  CarouselItem,
+  Category,
+  DailyContent,
+  DailySlot,
+  Platform,
+  TrafficRoute,
+  VisualRoute
+} from "./types";
 
 interface SlotTemplate {
   topic: string;
@@ -523,18 +541,100 @@ function inspectionFor(slot: GrowthPlaybookSlot): string {
   return "遇到這類狀況，我會先看材質、髒污停留的位置、是否有濕氣或異味，再判斷適合局部處理、整件整理，還是先保守觀察。";
 }
 
+// Instagram captions carry no tappable link, and the first 30 days of account
+// insights recorded zero profile-link taps. Instagram readers are sent to a
+// direct message instead; Facebook keeps LINE, where links do work.
 function actionCtaFor(slot: GrowthPlaybookSlot, platform: Platform): string {
   if (slot.seo_sync_page.includes("photo-before-laundry")) {
     return platform === "instagram"
-      ? "先拍完整外觀、局部、內裡和洗標，再傳 LINE，初步判斷會更清楚。"
+      ? "先拍完整外觀、局部、內裡和洗標，直接私訊傳給我們，初步判斷會更清楚。"
       : "你可以先拍正面、近照、內裡或洗標，再傳 LINE，這樣我們比較能先幫你判斷方向。";
   }
   return platform === "instagram"
-    ? "有類似狀況時，先拍完整外觀、局部、邊角或洗標，再傳 LINE 讓我們初步看方向。"
+    ? "有類似狀況時，先拍完整外觀、局部、邊角或洗標，直接私訊傳給我們，我們會先幫你看方向。"
     : "如果你也有類似物件，可以先拍正面、近照、邊角、內裡或洗標，再傳 LINE 讓我們初步判斷。";
 }
 
+// Pre-authored campaign copy is written around LINE. Rewrite the first
+// LINE-bearing action phrase so the Instagram version asks for a direct message.
+function normalizeInstagramCta(caption: string): string {
+  if (caption.includes("私訊")) return caption;
+
+  const rewrites: Array<[RegExp, string]> = [
+    [/點個人檔案連結加\s*LINE\s*，\s*傳/, "直接私訊傳"],
+    [/點個人檔案連結加\s*LINE/, "直接私訊"],
+    [/(?:直接在\s*|在\s*)?LINE\s*傳/, "直接私訊傳"],
+    [/\s*LINE\s*/, "私訊"]
+  ];
+
+  for (const [from, to] of rewrites) {
+    const next = caption.replace(from, to);
+    if (next !== caption) return next;
+  }
+  return caption;
+}
+
+// 34 Instagram posts produced zero comments. A low-effort question gives readers
+// something to answer, and comments carry the most distribution weight.
+function engagementQuestionFor(slot: GrowthPlaybookSlot): string {
+  if (slot.seo_sync_page.includes("shirt-suit-dry-cleaning")) {
+    return "你的襯衫比較常出問題的是領口還是袖口？留言告訴我們。";
+  }
+  if (slot.seo_sync_page.includes("bedding-duvet-cleaning")) {
+    return "你家的棉被大概多久整理一次？留言讓我們知道。";
+  }
+  if (slot.seo_sync_page.includes("plush-doll-cleaning")) {
+    return "家裡有那種一直想洗又不敢洗的娃娃嗎？留言說說看。";
+  }
+  if (slot.seo_sync_page.includes("luxury-dry-cleaning")) {
+    return "哪一件是你最不敢自己下手處理的？留言告訴我們。";
+  }
+  if (slot.seo_sync_page.includes("white-shoe") || slot.seo_sync_page.includes("shoe-bag")) {
+    return "如果只能先救一樣，你會選鞋子還是包包？留言告訴我們。";
+  }
+  if (slot.seo_sync_page.includes("photo-before-laundry")) {
+    return "你送洗前會先拍照嗎？留言讓我們知道。";
+  }
+  if (slot.seo_sync_page.includes("taichung-xitun")) {
+    return "你住西屯哪一帶？留言讓我們知道收送方向。";
+  }
+  return "你家最常送洗的是哪一件？留言告訴我們。";
+}
+
+function withEngagementQuestion(caption: string, slot: GrowthPlaybookSlot): string {
+  const question = engagementQuestionFor(slot);
+  if (caption.includes(question)) return caption;
+  return caption.replace(slot.follow_cta, `${question}\n\n${slot.follow_cta}`);
+}
+
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): string {
+  const caption = baseCaptionFromPlaybook(slot, platform);
+  return withEngagementQuestion(caption, slot);
+}
+
+function baseCaptionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): string {
+  const explicitCaption = platform === "facebook" ? slot.facebook_caption : slot.instagram_caption;
+  if (explicitCaption) {
+    return platform === "instagram" ? normalizeInstagramCta(explicitCaption) : explicitCaption;
+  }
+
+  if (slot.campaign === "taichung-free-pickup-delivery") {
+    const actionCta = platform === "instagram" ? slot.instagram_action_cta ?? slot.action_cta : slot.action_cta;
+    if (!slot.story || !slot.service_message || !actionCta) {
+      throw new Error(`Invalid pickup-delivery campaign copy for ${slot.date} slot ${slot.slot}.`);
+    }
+    const caption = [
+      slot.hook,
+      brandLine,
+      slot.story,
+      slot.service_message,
+      actionCta,
+      slot.follow_cta,
+      slot.hashtags.join(" ")
+    ].join("\n\n");
+    return platform === "instagram" ? normalizeInstagramCta(caption) : caption;
+  }
+
   return [
     slot.hook,
     brandLine,
@@ -559,6 +659,93 @@ function imagePromptFromPlaybook(slot: GrowthPlaybookSlot): string {
   return `${formatPrefix[slot.format]} for 私享家洗衣店: ${topic}. ${slot.image_or_reel_direction} Premium Taiwanese laundry and shoe-care shop mood, clean counter, clear object detail, restrained Apple-like spacing when poster-like, no fake logo, no readable text, no watermark.`;
 }
 
+function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
+  const shared =
+    "Create one photorealistic portrait 4:5 editorial shop photo for a premium Taiwanese laundry-care shop. Keep the exact featured object consistent across all four photos, with natural material texture, believable weight and contact shadows, a restrained navy and warm-white shop palette, layered foreground and background depth, and realistic soft window lighting. No poster layout, no graphic panel, no readable text, no logo, no address, no phone number, no watermark.";
+
+  if (slot.date === "2026-07-20" && slot.slot === 1) {
+    return [
+      `${shared} Photo 1 of 4. Show one complete white shirt laid naturally on a clean inspection counter, with the collar and both underarm areas visible. Preserve the whole shirt and do not imply a cleaning result.`,
+      `${shared} Photo 2 of 4. Show a close inspection of the same shirt's collar edge and one underarm area, with one complete adult hand pointing gently without covering the fabric. Preserve five fingers and the original yellowing.`,
+      `${shared} Photo 3 of 4. Show the same shirt lying flat beside one clean dry towel while one stiff brush is clearly placed aside and not touching the fabric. No warning icon and no cleaning action.`,
+      `${shared} Photo 4 of 4. Show one phone camera framing the same full shirt while the collar detail and care label remain visible on the counter. The phone screen may show the camera view but must contain no readable interface text.`
+    ];
+  }
+
+  const topic = cleanTopic(slot.topic);
+  const headline = /床單|被套|棉被|床組|枕/.test(topic)
+    ? "床組"
+    : /童鞋/.test(topic)
+      ? "童鞋"
+      : /鞋/.test(topic) && /包/.test(topic)
+        ? "鞋子與包包"
+        : /鞋/.test(topic)
+          ? "鞋子"
+          : /襯衫/.test(topic) && /西裝/.test(topic)
+            ? "襯衫與西裝"
+            : /襯衫/.test(topic)
+              ? "襯衫"
+              : /牛仔/.test(topic)
+                ? "牛仔褲"
+                : /娃娃|玩偶/.test(topic)
+                  ? "娃娃"
+                  : /包/.test(topic)
+                  ? "包包"
+                    : "衣物";
+  const subject =
+    headline === "鞋子"
+      ? "exactly one paired set of two unbranded navy-and-warm-white sneakers"
+      : headline === "床組"
+        ? "exactly one complete folded warm-white cotton duvet cover with a thin navy piping edge"
+        : `exactly one complete ${headline} item`;
+  const sameSubject =
+    headline === "鞋子"
+      ? "the same paired set of two sneakers"
+      : headline === "床組"
+        ? "the same folded duvet cover"
+        : `the same complete ${headline} item`;
+
+  if (slot.seo_sync_page.includes("taichung-citywide-laundry-pickup")) {
+    return [
+      `${shared} Photo 1 of 4. Present ${topic} with ${subject} on a sturdy wooden bench beside one low-profile blue woven polypropylene laundry bag. Show both complete bag handles and all four attachment points; the bag is open and not overfilled.`,
+      `${shared} Photo 2 of 4. Show ${sameSubject} and the same blue woven bag. One complete adult hand gently lifts only the duvet-cover corner to reveal the care label. Preserve five fingers, seams, piping, both bag handles and original condition.`,
+      `${shared} Photo 3 of 4. Show ${sameSubject} neatly separated beside the same open blue woven bag instead of being forced inside. The bench fully supports both objects; preserve realistic fabric volume, both complete handles and four attachment points.`,
+      `${shared} Photo 4 of 4. Show one phone photographing ${sameSubject}, the care label and the same complete blue woven bag on the bench. The phone screen may show the camera view but must contain no readable interface text.`
+    ];
+  }
+
+  return [
+    `${shared} Photo 1 of 4. Present ${topic} through ${subject} as the main close-up on a clean inspection counter. Keep the entire object readable and do not imply a cleaning result.`,
+    `${shared} Photo 2 of 4. Show ${sameSubject}'s material and affected area being inspected closely by one complete adult hand. Preserve five fingers, seams, edges, object count and original condition.`,
+    `${shared} Photo 3 of 4. Show ${sameSubject} handled conservatively while one harsh brush and one chemical bottle are placed aside and not touching it. No cleaning action, warning symbol or transformation.`,
+    `${shared} Photo 4 of 4. Show one phone photographing ${sameSubject}, with one relevant close-up and the care label or lining also visible. The phone screen may show the camera view but must contain no readable interface text.`
+  ];
+}
+
+function carouselItemsFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): CarouselItem[] | undefined {
+  if (slot.format !== "carousel-guide" && slot.date < COMPANION_MEDIA_START_DATE) return undefined;
+  return carouselPromptsFromPlaybook(slot).map((prompt, index) => {
+    const slide = index + 1;
+    return {
+      slide,
+      image_prompt: prompt,
+      local_image_path: relativeCarouselAssetPath(slot.date, slot.slot, slide),
+      public_image_url: config.publicImageBaseUrl
+        ? buildGitHubPagesCarouselImageUrl(config.publicImageBaseUrl, slot.date, slot.slot, slide)
+        : ""
+    };
+  });
+}
+
+function videoPromptFromPlaybook(slot: GrowthPlaybookSlot): string | undefined {
+  if (slot.video_candidate) return slot.video_candidate.grok_motion_prompt;
+  if (slot.format !== "reel") return undefined;
+  if (slot.video_prompt) return slot.video_prompt;
+
+  const topic = cleanTopic(slot.topic);
+  return `Photorealistic premium 10-second vertical commercial for a Taiwanese laundry and item-care shop. Focus on ${topic}. Begin with a clear close view of the exact item and problem area, move once to a careful staff inspection of material, edge, lining or care label, and end on the same item resting neatly on a clean service counter. Natural shop lighting, believable hands and object geometry, restrained documentary camera movement, no before-after guarantee, no readable text, no logos, no watermark.`;
+}
+
 function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string): void {
   const paragraphs = caption.split("\n\n");
   const forbidden = ["畫面維持", "這支內容會用", "短影音題", "轉詢問題", "9:16", "主視覺", "route", "SEO"];
@@ -579,6 +766,15 @@ function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string)
 function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): DailySlot {
   const facebookCaption = captionFromPlaybook(slot, "facebook");
   const instagramCaption = captionFromPlaybook(slot, "instagram");
+  const isReel = slot.format === "reel";
+  const carouselItems = carouselItemsFromPlaybook(slot, config);
+  const mediaType = slot.media_package
+    ? "mixed-carousel"
+    : carouselItems
+      ? "carousel"
+      : isReel
+        ? "reel"
+        : "image";
   assertPlaybookCaptionQuality(slot, facebookCaption);
   assertPlaybookCaptionQuality(slot, instagramCaption);
   return {
@@ -587,21 +783,36 @@ function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): Dai
     category: slot.slot === 1 ? "知識文" : "情境文",
     topic: slot.topic,
     format: slot.format,
+    media_type: mediaType,
     instagram_caption: instagramCaption,
     facebook_caption: facebookCaption,
-    image_prompt: imagePromptFromPlaybook(slot),
+    image_prompt: carouselItems?.[0]?.image_prompt ?? imagePromptFromPlaybook(slot),
+    carousel_items: carouselItems,
+    video_prompt: videoPromptFromPlaybook(slot),
+    video_candidate: slot.video_candidate,
+    media_package: slot.media_package,
     visual_route: slot.visual_route,
     traffic_route: slot.traffic_route,
+    content_role: slot.content_role,
     views_target: slot.views_target,
     follower_target: slot.follower_target,
     follow_cta: slot.follow_cta,
     seo_sync_page: slot.seo_sync_page,
+    search_intent: slot.search_intent,
+    target_queries: slot.target_queries,
+    evidence_type: slot.evidence_type,
     ten_day_review_metric: slot.ten_day_review_metric,
     content_plan_source: "growth-playbook",
-    local_image_path: relativeAssetPath(slot.date, slot.slot),
-    public_image_url: config.publicImageBaseUrl
-      ? buildGitHubPagesImageUrl(config.publicImageBaseUrl, slot.date, slot.slot)
-      : "",
+    local_image_path: carouselItems?.[0]?.local_image_path ?? relativeAssetPath(slot.date, slot.slot),
+    public_image_url:
+      carouselItems?.[0]?.public_image_url ??
+      (config.publicImageBaseUrl ? buildGitHubPagesImageUrl(config.publicImageBaseUrl, slot.date, slot.slot) : ""),
+    local_video_path:
+      slot.video_candidate || isReel ? relativeVideoAssetPath(slot.date, slot.slot) : undefined,
+    public_video_url:
+      (slot.video_candidate || isReel) && config.publicImageBaseUrl
+        ? buildGitHubPagesVideoUrl(config.publicImageBaseUrl, slot.date, slot.slot)
+        : undefined,
     status: "pending"
   };
 }
@@ -614,11 +825,13 @@ function dailySlotFromTemplate(date: string, schedule: (typeof DAILY_SCHEDULE)[n
     time: schedule.time,
     category: schedule.category,
     topic: template.topic,
+    media_type: "image",
     instagram_caption: caption,
     facebook_caption: caption,
     image_prompt: template.imagePrompt,
     visual_route: template.visualRoute,
     traffic_route: template.trafficRoute,
+    content_role: schedule.slot === 1 ? "reach-answer" : "evidence-conversion",
     content_plan_source: "legacy-template",
     local_image_path: relativeAssetPath(date, schedule.slot),
     public_image_url: config.publicImageBaseUrl

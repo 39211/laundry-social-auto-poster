@@ -55,7 +55,27 @@ describe("DailyContent schema", () => {
       expect(caption).not.toContain("9:16");
       expect(slot.image_prompt).toContain("Realistic");
       expect(slot.image_prompt).toContain("私享家洗衣店");
+      expect(slot.search_intent).toBeTruthy();
+      expect(slot.target_queries?.length).toBeGreaterThanOrEqual(3);
+      expect(slot.evidence_type).toBeTruthy();
     }
+  });
+
+  it("keeps the 7/20 white-shirt guide as a real four-image carousel", () => {
+    const content = buildDailyContent("2026-07-20", config);
+    const carousel = content.slots[0]!;
+    const pickup = content.slots[1]!;
+
+    expect(carousel.format).toBe("carousel-guide");
+    expect(carousel.media_type).toBe("carousel");
+    expect(carousel.carousel_items).toHaveLength(4);
+    expect(carousel.carousel_items?.map((item) => item.slide)).toEqual([1, 2, 3, 4]);
+    expect(new Set(carousel.carousel_items?.map((item) => item.local_image_path)).size).toBe(4);
+    expect(carousel.carousel_items?.[0]?.local_image_path).toBe(carousel.local_image_path);
+    expect(carousel.facebook_caption).toContain("領口常累積皮脂");
+    expect(carousel.facebook_caption).toContain("先別用硬刷");
+    expect(carousel.instagram_caption).toContain("私訊");
+    expect(pickup.instagram_caption).toContain("私訊");
   });
 
   it("does not repeat planned topics across a 14-day content cycle", () => {
@@ -113,6 +133,11 @@ describe("DailyContent schema", () => {
       const content = buildDailyContent(date, config);
 
       for (const slot of content.slots) {
+        // Instagram captions have no tappable link and profile-link taps measured
+        // zero, so every Instagram caption must ask for a direct message instead.
+        expect(slot.instagram_caption).toContain("私訊");
+        expect(slot.instagram_caption).not.toContain("點個人檔案連結");
+        expect(slot.instagram_caption).toContain("留言");
         for (const caption of [slot.facebook_caption, slot.instagram_caption]) {
           const hashtags = caption.match(/#[\p{L}\p{N}_]+/gu) ?? [];
           expect(caption.split("\n\n")[1]).toBe("私享家洗衣店");

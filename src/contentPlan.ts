@@ -788,10 +788,14 @@ function videoPromptFromPlaybook(slot: GrowthPlaybookSlot): string | undefined {
   if (slot.video_prompt) return slot.video_prompt;
 
   const topic = cleanTopic(slot.topic);
-  // A Reel competes on watch time, and a clip that reads as an advert loses it
-  // in the first second. This asks for the same shot a staff member would grab
-  // on their own phone between jobs.
-  return `Vertical 9:16 smartphone video, filmed handheld on a phone by staff inside an ordinary Taiwanese laundry shop, about 10 seconds. Focus on ${topic}. Begin with a close view of the exact item and problem area, move once to a staff hand checking material, edge, lining or care label, and end on the same item on the service counter. Slight natural camera shake and imperfect framing, fluorescent ceiling light mixed with window daylight, realistic fabric texture with slight wrinkles, ordinary shop surroundings, believable hands and object geometry, ambient shop sound. Not cinematic, not a commercial, no studio lighting, no smooth gimbal move, no drone, no colour grade, no before-after guarantee, no on-screen text, no logos, no watermark.`;
+  // Written around what this class of model actually does well. Detailed finger
+  // work (scrubbing, flipping a collar) deforms, and a stain changing to clean
+  // inside one shot is not held consistently, so this asks for one object, one
+  // slow move, and a person implied at the edge of frame rather than rendered.
+  // Trust matters for laundry, so the shot cannot be a cold product turntable
+  // either: an arm or a tool entering frame carries "someone is working here"
+  // without asking the model to draw a hand in close-up.
+  return `Vertical 9:16 smartphone video, filmed handheld on a phone by staff inside an ordinary Taiwanese laundry shop, one continuous shot of 8 to 10 seconds. Subject: ${topic}. Hold on the exact item with one slow gentle push-in and slight natural camera shake. A forearm, or a tool such as a spray bottle, brush or hanger, may enter from the edge of frame to suggest someone working, but keep hands out of close-up and never show finger detail. Lighting: soft fluorescent ceiling light mixed with cool window daylight from the left, roughly 4500K, consistent shadow direction and exposure throughout. Realistic fabric texture with slight wrinkles, ordinary shop surroundings, near-silent with only faint room tone. One dominant action only. No scrubbing or folding, no stain changing to clean within the shot, no cut to a second setup, no cinematic look, no studio lighting, no gimbal or drone move, no colour grade, no on-screen text, no logos, no watermark.`;
 }
 
 function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string): void {

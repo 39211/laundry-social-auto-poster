@@ -220,8 +220,14 @@ export function publishPagesAssets(date: string, root = projectRoot(), rootPages
   assertNoSecretsInPublishTargets(root, paths);
 
   runGit(["add", "--", ...paths], root);
+  // The mirror is what actually serves the public site, and it can be behind
+  // even when this repo has nothing left to commit — assets committed by hand,
+  // or a mirror push that failed after a successful commit here. Returning
+  // early on "nothing to commit" skipped it, which left published URLs 404 with
+  // everything looking done. The mirror runs either way.
   if (!hasStagedChanges(root, paths)) {
-    return `No GitHub Pages changes to publish for ${date}.`;
+    const mirrorOnly = publishRootPagesMirror(date, root, rootPagesRepo);
+    return [`No GitHub Pages changes to publish for ${date}.`, mirrorOnly].filter(Boolean).join("\n");
   }
 
   runGit(["commit", "-m", `Generate daily Pages assets ${date}`, "--", ...paths], root);

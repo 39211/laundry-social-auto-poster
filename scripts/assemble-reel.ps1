@@ -20,7 +20,10 @@ param(
     # single generic correction cannot work.
     [double]$GainR = 1.0,
     [double]$GainG = 1.0,
-    [double]$GainB = 1.0
+    [double]$GainB = 1.0,
+    # zh-TW narration laid over the ambient bed. Optional: a reel without a
+    # narration file ships with the bed alone.
+    [string]$NarrationFile = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -61,20 +64,32 @@ $filter = @"
 "@ -replace "`r`n", ""
 
 # Dead silence measurably costs watch time, and the generated clips' own audio
-# is excluded by policy, so a quiet synthetic room tone goes underneath: brown
-# noise rolled off at 350Hz reads as building hum, at roughly -35dB it sits
-# under the viewer's attention. A sidecar declares the audio is post-added so
-# the review gate can tell it apart from a model-generated track.
-& ffmpeg -v error -y -i $before -i $after `
-    -f lavfi -t 9.67 -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
-    -filter_complex $filter -map "[vout]" -map "2:a" `
-    -af "lowpass=f=350,volume=0.55" `
-    -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p `
-    -c:a aac -b:a 96k -shortest $out
+# is excluded by policy. A quiet synthetic room tone goes underneath — brown
+# noise rolled off at 350Hz reads as building hum — and the zh-TW narration sits
+# on top, delayed half a second so it does not collide with the hook subtitle
+# landing. A sidecar declares all audio as post-added so the review gate can
+# tell it apart from a model-generated track.
+$hasNarration = $NarrationFile -and (Test-Path $NarrationFile)
+if ($hasNarration) {
+    $audioGraph = "[2:a]lowpass=f=350,volume=0.55[bed];[3:a]adelay=500:all=1,volume=1.4[voice];[bed][voice]amix=inputs=2:duration=first:normalize=0[aout]"
+    & ffmpeg -v error -y -i $before -i $after `
+        -f lavfi -t 9.67 -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
+        -i $NarrationFile `
+        -filter_complex "$filter;$audioGraph" -map "[vout]" -map "[aout]" `
+        -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p `
+        -c:a aac -b:a 96k -shortest $out
+} else {
+    & ffmpeg -v error -y -i $before -i $after `
+        -f lavfi -t 9.67 -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
+        -filter_complex $filter -map "[vout]" -map "2:a" `
+        -af "lowpass=f=350,volume=0.55" `
+        -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p `
+        -c:a aac -b:a 96k -shortest $out
+}
 
 if (-not (Test-Path $out)) { throw "Assembly produced no file for $ConceptId" }
 
-@{ source = "post-ambient-bed"; generated_clip_audio_used = $false } |
+@{ source = "post-ambient-bed"; narration = $hasNarration; generated_clip_audio_used = $false } |
     ConvertTo-Json | Set-Content "$out.audio.json" -Encoding utf8
 $info = & ffprobe -v error -select_streams v:0 -show_entries stream=width,height -show_entries format=duration -of csv=p=0 $out
 "{0}  ->  {1}" -f $ConceptId, ($info -join " ")

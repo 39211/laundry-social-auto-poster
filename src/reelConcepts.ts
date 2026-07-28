@@ -27,7 +27,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     hook: "白鞋泛黃，不是刷得不夠用力",
     close: "台中收送，拍給我們看能不能救",
     narration:
-      "白鞋放久會泛黃，問題通常不在鞋面，在中底和鞋邊。硬刷只會讓布面起毛。拍給我們看，先幫你判斷。",
+      "白鞋泛黃，問題常在中底和鞋邊。硬刷只會起毛，拍給我們先幫你判斷。",
     before_subject:
       "one pair of unbranded white sneakers, midsole edge and rubber trim visibly greyed and yellowed",
     after_subject:
@@ -39,7 +39,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     hook: "包包最先變舊的地方，是提把",
     close: "提把開始發黏就可以私訊我們",
     narration:
-      "包包最先看起來變舊的，幾乎都是提把。那不是灰塵，是手汗和保養品堆起來的。發黏之前處理，比較好救。",
+      "包包最先變舊的是提把。那不是灰塵，是手汗堆的，發黏前處理比較好救。",
     before_subject:
       "one everyday unbranded handbag, the handle darkened and slightly glossy where it is gripped",
     after_subject: "the same handbag, same position, handle restored to matte even colour"
@@ -50,7 +50,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     hook: "皮鞋淋雨，擦乾就沒事了嗎",
     close: "別急著上油，先拍給我們看",
     narration:
-      "皮鞋淋過雨，擦乾當下看起來沒事，水痕通常過幾天才浮出來。這時候上油反而會讓顏色不均。",
+      "皮鞋淋過雨，水痕會過幾天才浮出來。先別上油，先拍給我們看。",
     before_subject: "one pair of unbranded leather dress shoes, faint dried rain marks across both vamps",
     after_subject: "the same shoes, same position, rain marks gone, leather evenly toned and not glossy"
   },
@@ -59,7 +59,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "plush-doll",
     hook: "娃娃不是不能洗，是不能亂洗",
     close: "家裡有不敢洗的娃娃？私訊我們",
-    narration: "娃娃可以洗，但不能當一般衣服洗。填充物和黏上去的五官，最怕的是脫水那一段。",
+    narration: "娃娃可以洗，但不能當一般衣服洗。填充和五官最怕脫水那一段。",
     before_subject: "one unbranded plush toy, fur flattened and dulled grey",
     after_subject: "the same toy, same position, fur lifted and clean, stitching and features unchanged"
   },
@@ -69,7 +69,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     hook: "棉被收進櫃子前，先聞一下",
     close: "換季前想清一次？台中收送",
     narration:
-      "棉被收進櫃子之前先聞一下。表面乾不代表裡面乾，帶著濕氣收起來，下一季拿出來就是那個味道。",
+      "棉被收櫃前先聞一下。帶著濕氣收，下一季就是那個味道。",
     before_subject:
       "one folded duvet with a fabric storage bag beside it, cover slightly limp and dull",
     after_subject: "the same duvet, same position, cover clean and evenly pressed"
@@ -79,7 +79,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "leather-bag",
     hook: "精品包最怕的不是髒，是邊角",
     close: "邊角開始磨就該處理了",
-    narration: "精品包最先出問題的是邊角。邊油一旦磨掉，就補不回原本的樣子，所以要在磨穿之前處理。",
+    narration: "精品包最先出問題的是邊角。邊油磨掉補不回來，要在磨穿前處理。",
     before_subject: "a close view of one unbranded leather bag corner, edge coating worn and abraded",
     after_subject: "the same corner, same angle, edge treated and even, wear honestly reduced not erased"
   }

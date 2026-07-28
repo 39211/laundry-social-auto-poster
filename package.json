@@ -33,6 +33,7 @@
     "review-72h": "tsx src/review72Hours.ts",
     "local-reach": "tsx src/localReach.ts",
     "checkpoint": "tsx src/programCheckpoint.ts",
+    "reel-concepts": "tsx src/reelConcepts.ts",
     "owner-video-review": "tsx src/ownerVideoReview.ts",
     "fetch-instagram-insights": "tsx src/fetchInstagramInsights.ts",
     "fetch-facebook-insights": "tsx src/fetchFacebookInsights.ts",

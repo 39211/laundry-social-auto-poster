@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
+import { loadConversionEvents, type ConversionEventType } from "./conversionFunnel";
 import { projectRoot } from "./paths";
 
 // Reach as a percentage of followers is the wrong yardstick for a shop that only
@@ -22,6 +23,10 @@ export interface LocalReachReport {
   followers_now: number | null;
   followers_gained: number | null;
   local_follower_share: number | null;
+  // The numbers a booking actually comes from. Reach and engagement are
+  // upstream of these; on their own they say nothing about the shop.
+  inquiries: number;
+  bookings: number;
   data_gaps: string[];
 }
 
@@ -150,6 +155,15 @@ export async function buildLocalReachReport(
   }
 
   const toDate = (seconds: number) => new Date(seconds * 1000).toISOString().slice(0, 10);
+  const sinceDate = toDate(since);
+  const untilDate = toDate(until);
+
+  const events = await loadConversionEvents(projectRoot(options.root));
+  const inWindow = events.filter(
+    (event) => event.event_date >= sinceDate && event.event_date <= untilDate
+  );
+  const totalOf = (type: ConversionEventType) =>
+    inWindow.filter((event) => event.event_type === type).reduce((sum, event) => sum + event.count, 0);
 
   return {
     generated_at: new Date().toISOString(),
@@ -164,6 +178,8 @@ export async function buildLocalReachReport(
     followers_now: typeof profile.followers_count === "number" ? profile.followers_count : null,
     followers_gained: gained.ok ? daySeriesTotal(gained.body) : null,
     local_follower_share: localShare,
+    inquiries: totalOf("inquiry"),
+    bookings: totalOf("booking"),
     data_gaps: gaps
   };
 }

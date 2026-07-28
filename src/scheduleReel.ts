@@ -28,15 +28,17 @@ export const REEL_MOTION_PROMPT =
 
 const RUN_DIR = "output/reels-run/2026-07-29";
 
-// Release order follows the frame-review ranking: the strongest before/after
-// contrast goes out first.
+// Six consecutive days, strongest before/after contrast first so the earliest
+// data comes from the batch's best work. No two consecutive days share an
+// object type, which is what keeps a run of generated clips from reading as
+// repetition. Batch two follows immediately on 2026-08-04.
 export const REEL_SCHEDULE: Array<{ date: string; conceptId: string }> = [
-  { date: "2026-07-30", conceptId: "leather-bag-corner" },
-  { date: "2026-08-01", conceptId: "plush-doll" },
-  { date: "2026-08-03", conceptId: "leather-shoe-rain" },
-  { date: "2026-08-05", conceptId: "white-shoe-yellowing" },
-  { date: "2026-08-07", conceptId: "handbag-handle" },
-  { date: "2026-08-09", conceptId: "duvet-storage" }
+  { date: "2026-07-29", conceptId: "leather-bag-corner" },
+  { date: "2026-07-30", conceptId: "plush-doll" },
+  { date: "2026-07-31", conceptId: "leather-shoe-rain" },
+  { date: "2026-08-01", conceptId: "white-shoe-yellowing" },
+  { date: "2026-08-02", conceptId: "handbag-handle" },
+  { date: "2026-08-03", conceptId: "duvet-storage" }
 ];
 
 function shareInviteFor(concept: ReelConcept): string {

@@ -35,6 +35,7 @@
     "checkpoint": "tsx src/programCheckpoint.ts",
     "reel-concepts": "tsx src/reelConcepts.ts",
     "schedule-reel": "tsx src/scheduleReel.ts",
+    "reel-batch-review": "tsx src/reelBatchReview.ts",
     "owner-video-review": "tsx src/ownerVideoReview.ts",
     "fetch-instagram-insights": "tsx src/fetchInstagramInsights.ts",
     "fetch-facebook-insights": "tsx src/fetchFacebookInsights.ts",

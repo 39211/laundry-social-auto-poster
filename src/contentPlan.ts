@@ -604,10 +604,36 @@ function engagementQuestionFor(slot: GrowthPlaybookSlot): string {
   return "你家最常送洗的是哪一件？";
 }
 
+// Sending a post to a specific person is the heaviest discovery signal there is,
+// and nothing in these captions ever invited it. It goes only on the 19:30
+// situation posts, which are the ones a reader would actually forward, and it is
+// phrased from the situation rather than as a generic "share this" — a uniform
+// share instruction on all 180 posts would be the same bait pattern the question
+// was just rescued from.
+function shareInviteFor(slot: GrowthPlaybookSlot): string | undefined {
+  if (slot.slot !== 2) return undefined;
+  if (slot.seo_sync_page.includes("bedding-duvet-cleaning")) {
+    return "家裡那位總說「棉被還可以再放一下」的人，這篇可以轉給他。";
+  }
+  if (slot.seo_sync_page.includes("shirt-suit-dry-cleaning")) {
+    return "如果同事每天穿襯衫上班，這篇可以順手傳給他。";
+  }
+  if (slot.seo_sync_page.includes("white-shoe") || slot.seo_sync_page.includes("shoe-bag")) {
+    return "認識那種鞋子捨不得丟、又不知道怎麼救的人嗎？傳給他。";
+  }
+  if (slot.seo_sync_page.includes("taichung-citywide-laundry-pickup")) {
+    return "住台中、又一直抽不出時間送洗的朋友，這篇傳給他最實用。";
+  }
+  return "家裡衣服堆到不想開始整理的那個人，這篇傳給他。";
+}
+
 function withEngagementQuestion(caption: string, slot: GrowthPlaybookSlot): string {
   const question = engagementQuestionFor(slot);
   if (caption.includes(question)) return caption;
-  return caption.replace(slot.follow_cta, `${question}\n\n${slot.follow_cta}`);
+
+  const share = shareInviteFor(slot);
+  const tail = share ? `${question}\n\n${share}` : question;
+  return caption.replace(slot.follow_cta, `${tail}\n\n${slot.follow_cta}`);
 }
 
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): string {

@@ -141,6 +141,10 @@ describe("DailyContent schema", () => {
         // of the 180 posts is the engagement-bait pattern that costs reach.
         expect(slot.instagram_caption).toContain("？");
         expect(slot.instagram_caption).not.toMatch(/留言(告訴|讓我們|說說)/);
+        // Sending a post to someone is the heaviest discovery signal, but a
+        // uniform "share this" everywhere is the same bait pattern. It belongs
+        // on the 19:30 situation post, which is the one a reader forwards.
+        expect(/(?:傳|轉)給他/.test(slot.instagram_caption)).toBe(slot.slot === 2);
         for (const caption of [slot.facebook_caption, slot.instagram_caption]) {
           const hashtags = caption.match(/#[\p{L}\p{N}_]+/gu) ?? [];
           expect(caption.split("\n\n")[1]).toBe("私享家洗衣店");

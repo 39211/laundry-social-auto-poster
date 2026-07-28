@@ -87,7 +87,8 @@ export async function recordOwnerVideoReview(input: {
   if (hasAudioStream) {
     let declaredPostAudio = false;
     try {
-      const sidecar = JSON.parse(await readFile(`${absolutePath}.audio.json`, "utf8")) as {
+      // PowerShell's utf8 encoding writes a BOM, which JSON.parse rejects.
+      const sidecar = JSON.parse((await readFile(`${absolutePath}.audio.json`, "utf8")).replace(/^﻿/, "")) as {
         source?: string;
         generated_clip_audio_used?: boolean;
       };

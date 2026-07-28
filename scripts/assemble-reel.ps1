@@ -77,14 +77,14 @@ if ($hasNarration) {
         -i $NarrationFile `
         -filter_complex "$filter;$audioGraph" -map "[vout]" -map "[aout]" `
         -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p `
-        -c:a aac -b:a 96k -shortest $out
+        -c:a aac -ar 48000 -b:a 96k -shortest $out
 } else {
     & ffmpeg -v error -y -i $before -i $after `
         -f lavfi -t 9.67 -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
         -filter_complex $filter -map "[vout]" -map "2:a" `
         -af "lowpass=f=350,volume=0.55" `
         -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p `
-        -c:a aac -b:a 96k -shortest $out
+        -c:a aac -ar 48000 -b:a 96k -shortest $out
 }
 
 if (-not (Test-Path $out)) { throw "Assembly produced no file for $ConceptId" }

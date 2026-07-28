@@ -34,6 +34,7 @@
     "local-reach": "tsx src/localReach.ts",
     "checkpoint": "tsx src/programCheckpoint.ts",
     "reel-concepts": "tsx src/reelConcepts.ts",
+    "schedule-reel": "tsx src/scheduleReel.ts",
     "owner-video-review": "tsx src/ownerVideoReview.ts",
     "fetch-instagram-insights": "tsx src/fetchInstagramInsights.ts",
     "fetch-facebook-insights": "tsx src/fetchFacebookInsights.ts",

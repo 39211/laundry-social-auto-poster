@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { generatePublicSite } from "../src/generatePublicSite";
 
-async function writeCalendar(root: string, date: string): Promise<void> {
+async function writeCalendar(root: string, date: string, options: { carouselSlot1?: boolean } = {}): Promise<void> {
   await Promise.all([
     mkdir(join(root, "data", "content-calendar"), { recursive: true }),
     mkdir(join(root, "docs", "content-calendar"), { recursive: true })
@@ -24,8 +24,36 @@ async function writeCalendar(root: string, date: string): Promise<void> {
           instagram_caption: "IG caption #test",
           facebook_caption: "FB caption #test",
           image_prompt: "photo prompt",
+          ...(options.carouselSlot1
+            ? {
+                media_type: "carousel",
+                carousel_items: [
+                  {
+                    slide: 3,
+                    image_prompt: "slide 3 prompt",
+                    local_image_path: `docs/assets/${date}/slot-01-slide-03.png`,
+                    public_image_url: ""
+                  },
+                  {
+                    slide: 1,
+                    image_prompt: "slide 1 prompt",
+                    local_image_path: `docs/assets/${date}/slot-01.png`,
+                    public_image_url: ""
+                  },
+                  {
+                    slide: 2,
+                    image_prompt: "slide 2 prompt",
+                    local_image_path: `docs/assets/${date}/slot-01-slide-02.png`,
+                    public_image_url: ""
+                  }
+                ]
+              }
+            : {}),
           visual_route: "shop-inspection",
           traffic_route: "object-proof",
+          search_intent: "problem-diagnosis",
+          target_queries: ["台中洗鞋店", "白鞋泛黃怎麼辦"],
+          evidence_type: "first-party-inspection",
           local_image_path: `docs/assets/${date}/slot-01.png`,
           public_image_url: "",
           status: "pending"
@@ -40,6 +68,9 @@ async function writeCalendar(root: string, date: string): Promise<void> {
           image_prompt: "photo prompt 2",
           visual_route: "macro-detail",
           traffic_route: "value-prop-lead",
+          search_intent: "trust-proof",
+          target_queries: ["台中洗包包", "洗包包會不會掉色"],
+          evidence_type: "real-case-photo",
           local_image_path: `docs/assets/${date}/slot-02.png`,
           public_image_url: "",
           status: "pending"
@@ -92,7 +123,7 @@ describe("generatePublicSite", () => {
   it("writes AI-readable public indexes with absolute URLs when a base URL is configured", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-"));
     await writeBusinessProfile(root);
-    await writeCalendar(root, "2026-07-02");
+    await writeCalendar(root, "2026-07-02", { carouselSlot1: true });
     await writeApprovalLog(root, "2026-07-02");
 
     await generatePublicSite({
@@ -107,6 +138,7 @@ describe("generatePublicSite", () => {
     const services = JSON.parse(await readFile(join(root, "docs", "services.json"), "utf8"));
     const answers = JSON.parse(await readFile(join(root, "docs", "answers.json"), "utf8"));
     const geoTargets = JSON.parse(await readFile(join(root, "docs", "geo-targets.json"), "utf8"));
+    const searchVisibility = JSON.parse(await readFile(join(root, "docs", "search-visibility.json"), "utf8"));
     const feed = JSON.parse(await readFile(join(root, "docs", "feed.json"), "utf8"));
     const knowledgeGraph = JSON.parse(await readFile(join(root, "docs", "knowledge-graph.json"), "utf8"));
     const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8"));
@@ -138,7 +170,7 @@ describe("generatePublicSite", () => {
     expect(index.base_url_configured).toBe(true);
     expect(index.canonical_url).toBe("https://example.com/laundry-social-auto-poster/");
     expect(index.open_graph).toMatchObject({
-      title: "私享家洗衣店｜台中西屯門市・台中全市免費洗衣收送",
+      title: "台中免費收送｜逢甲洗鞋・西屯洗鞋｜私享家洗衣店",
       type: "website",
       url: "https://example.com/laundry-social-auto-poster/",
       site_name: "私享家洗衣店",
@@ -156,12 +188,17 @@ describe("generatePublicSite", () => {
     expect(index.entrypoints.services).toBe("https://example.com/laundry-social-auto-poster/services.json");
     expect(index.entrypoints.answers).toBe("https://example.com/laundry-social-auto-poster/answers.json");
     expect(index.entrypoints.geo_targets).toBe("https://example.com/laundry-social-auto-poster/geo-targets.json");
+    expect(index.entrypoints.search_visibility).toBe(
+      "https://example.com/laundry-social-auto-poster/search-visibility.json"
+    );
     expect(index.entrypoints.llms_jsonl).toBe("https://example.com/laundry-social-auto-poster/llms.jsonl");
     expect(index.entrypoints.service_pages).toEqual({
       "shoe-bag-care": "https://example.com/laundry-social-auto-poster/services/shoe-bag-care.html",
       "white-shoe-cleaning": "https://example.com/laundry-social-auto-poster/services/white-shoe-cleaning.html",
       "fabric-storage": "https://example.com/laundry-social-auto-poster/services/fabric-storage.html",
       "taichung-xitun-laundry": "https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html",
+      "business-bulk-laundry":
+        "https://example.com/laundry-social-auto-poster/services/business-bulk-laundry.html",
       "taichung-citywide-laundry-pickup":
         "https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html"
     });
@@ -172,18 +209,61 @@ describe("generatePublicSite", () => {
     expect(notFoundHtml).toContain('window.location.replace("https://example.com/laundry-social-auto-poster/")');
     expect(compatibilityDocsHtml).toContain('http-equiv="refresh" content="0; url=https://example.com/laundry-social-auto-poster/"');
     expect(index.posts[0].image_url).toBe("https://example.com/laundry-social-auto-poster/assets/2026-07-02/slot-01.png");
+    expect(index.posts[0].image_urls).toEqual([
+      "https://example.com/laundry-social-auto-poster/assets/2026-07-02/slot-01.png",
+      "https://example.com/laundry-social-auto-poster/assets/2026-07-02/slot-01-slide-02.png",
+      "https://example.com/laundry-social-auto-poster/assets/2026-07-02/slot-01-slide-03.png"
+    ]);
+    expect(index.posts[0].carousel_items).toEqual([
+      {
+        slide: 1,
+        image_prompt: "slide 1 prompt",
+        local_image_path: "docs/assets/2026-07-02/slot-01.png",
+        public_image_url: "https://example.com/laundry-social-auto-poster/assets/2026-07-02/slot-01.png"
+      },
+      {
+        slide: 2,
+        image_prompt: "slide 2 prompt",
+        local_image_path: "docs/assets/2026-07-02/slot-01-slide-02.png",
+        public_image_url: "https://example.com/laundry-social-auto-poster/assets/2026-07-02/slot-01-slide-02.png"
+      },
+      {
+        slide: 3,
+        image_prompt: "slide 3 prompt",
+        local_image_path: "docs/assets/2026-07-02/slot-01-slide-03.png",
+        public_image_url: "https://example.com/laundry-social-auto-poster/assets/2026-07-02/slot-01-slide-03.png"
+      }
+    ]);
+    expect(latest.posts[0].carousel_items).toEqual(index.posts[0].carousel_items);
+    expect(discovery.latest_posts.find((post: { slot: number }) => post.slot === 1).carousel_items).toEqual(
+      index.posts[0].carousel_items
+    );
+    const socialPostRecord = llmsJsonl
+      .split(/\r?\n/u)
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+      .find((record) => record.type === "social_post" && record.id.endsWith("#post-2026-07-02-slot-01"));
+    expect(socialPostRecord.carousel_items).toEqual(index.posts[0].carousel_items);
     expect(index.posts[0].hashtags).toEqual(["#test"]);
     expect(index.posts[0]).toMatchObject({
       id: "https://example.com/laundry-social-auto-poster/content-calendar/2026-07-02.json#post-2026-07-02-slot-01",
       date_published: "2026-07-02T11:30:00+08:00",
       platforms: ["facebook", "instagram"],
-      in_language: "zh-Hant"
+      in_language: "zh-Hant",
+      search_intent: "problem-diagnosis",
+      target_queries: ["台中洗鞋店", "白鞋泛黃怎麼辦"],
+      evidence_type: "first-party-inspection"
+    });
+    expect(socialPostRecord).toMatchObject({
+      search_intent: "problem-diagnosis",
+      target_queries: ["台中洗鞋店", "白鞋泛黃怎麼辦"],
+      evidence_type: "first-party-inspection"
     });
     expect(latest.canonical_url).toBe("https://example.com/laundry-social-auto-poster/");
     expect(latest.date).toBe("2026-07-02");
     expect(latest.posts[0].hashtags).toEqual(["#test"]);
     expect(feed.version).toBe("https://jsonfeed.org/version/1.1");
-    expect(feed.title).toBe("私享家洗衣店｜台中西屯門市・台中全市免費洗衣收送");
+    expect(feed.title).toBe("台中免費收送｜逢甲洗鞋・西屯洗鞋｜私享家洗衣店");
     expect(feed.items[0].tags).toEqual(["test"]);
     expect(businessProfile.line_url).toBe("https://line.me/ti/p/4m-rA6hxf6");
     expect(businessProfile.google_maps_cid).toBe("0x41f4295a6302e177");
@@ -199,7 +279,7 @@ describe("generatePublicSite", () => {
       (item: { "@type"?: string }) => item["@type"] === "DryCleaningOrLaundry"
     );
     expect(knowledgeBusiness["@context"]).toBeUndefined();
-    expect(services.services).toHaveLength(5);
+    expect(services.services).toHaveLength(6);
     expect(services.services[2]).toMatchObject({
       slug: "fabric-storage",
       image_url: "https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-hero-product.png",
@@ -224,6 +304,22 @@ describe("generatePublicSite", () => {
     expect(geoTargets.local_intents.some((item: { query: string }) => item.query === "台中西屯 布品收納")).toBe(true);
     expect(geoTargets.local_intents.some((item: { query: string }) => item.query === "台中西屯 洗衣店")).toBe(true);
     expect(geoTargets.discovery_groups.some((group: { heading: string }) => group.heading === "依情境找服務")).toBe(true);
+    expect(searchVisibility.query_clusters.map((cluster: { id: string }) => cluster.id)).toEqual([
+      "local-discovery",
+      "problem-diagnosis",
+      "service-comparison",
+      "trust-proof",
+      "pickup-logistics",
+      "aftercare"
+    ]);
+    expect(searchVisibility.prompt_panel.unbranded_customer_queries).toHaveLength(18);
+    expect(searchVisibility.review_28_days.checkpoints.map((item: { day: number }) => item.day)).toEqual([0, 7, 28]);
+    expect(searchVisibility.review_28_days.metrics.map((item: { id: string }) => item.id)).toContain(
+      "linked_citation"
+    );
+    expect(
+      searchVisibility.community_practice_sources.some((source: { platform: string }) => source.platform === "X")
+    ).toBe(true);
     expect(llmsJsonl.split(/\r?\n/).filter(Boolean).some((line) => JSON.parse(line).type === "service")).toBe(true);
     expect(discovery.entrypoints.social_posts).toBe("https://example.com/laundry-social-auto-poster/social-posts.json");
     expect(discovery.website.url).toBe("https://example.com/laundry-social-auto-poster/");
@@ -299,12 +395,14 @@ describe("generatePublicSite", () => {
     });
     expect(discovery.content_contract.omitted_until_verified).toEqual(["google_place_id", "holiday_hours_overrides"]);
     expect(discovery.capabilities.supports_full_context).toBe(true);
-    expect(discovery.service_pages).toHaveLength(5);
+    expect(discovery.capabilities.supports_search_intent_clusters).toBe(true);
+    expect(discovery.capabilities.supports_28_day_ai_visibility_review).toBe(true);
+    expect(discovery.service_pages).toHaveLength(6);
     expect(discovery.service_pages[0]).toMatchObject({
       slug: "shoe-bag-care",
       name: "鞋包清潔",
       url: "https://example.com/laundry-social-auto-poster/services/shoe-bag-care.html",
-      answer_summary: "台中西屯洗鞋洗包建議先拍鞋面、鞋底、包角、提把與內裡，私享家會依材質、濕氣、水痕與磨耗程度判斷清潔方式與可改善範圍。",
+      answer_summary: "逢甲與西屯需要洗鞋，可先把鞋面、鞋底、鞋內與材質照片傳 LINE；私享家門市在青海路二段365號，會先說明清潔方式與可改善範圍，台中市可免費收送。",
       image_url: "https://example.com/laundry-social-auto-poster/assets/services/shoe-bag-care-hero-product.png",
       image_alt: "鞋包清潔前的包角、鞋面與皮革檢查主圖",
       faq_count: 4
@@ -317,6 +415,9 @@ describe("generatePublicSite", () => {
     expect(llms).toContain("[Services JSON](https://example.com/laundry-social-auto-poster/services.json)");
     expect(llms).toContain("[Answers JSON](https://example.com/laundry-social-auto-poster/answers.json)");
     expect(llms).toContain("[Geo targets JSON](https://example.com/laundry-social-auto-poster/geo-targets.json)");
+    expect(llms).toContain(
+      "[Search visibility JSON](https://example.com/laundry-social-auto-poster/search-visibility.json)"
+    );
     expect(llms).toContain("[LLMS JSONL](https://example.com/laundry-social-auto-poster/llms.jsonl)");
     expect(llms).toContain("[鞋包清潔](https://example.com/laundry-social-auto-poster/services/shoe-bag-care.html)");
     expect(llms).toContain("[白鞋清潔](https://example.com/laundry-social-auto-poster/services/white-shoe-cleaning.html)");
@@ -345,6 +446,7 @@ describe("generatePublicSite", () => {
     expect(robots).toContain("Allow: /services.json");
     expect(robots).toContain("Allow: /answers.json");
     expect(robots).toContain("Allow: /geo-targets.json");
+    expect(robots).toContain("Allow: /search-visibility.json");
     expect(robots).toContain("Allow: /llms.jsonl");
     expect(robots).toContain("Allow: /llms-full.txt");
     expect(robots).toContain("Sitemap: https://example.com/laundry-social-auto-poster/sitemap.xml");
@@ -364,6 +466,7 @@ describe("generatePublicSite", () => {
     expect(sitemap).not.toContain("llms");
     expect(sitemap).not.toContain("/assets/");
     expect(aiSitemap).toContain("<!-- answer-engine-records -->");
+    expect(aiSitemap).toContain("<!-- search-intent-and-ai-visibility-review -->");
     expect(aiSitemap).toContain("<!-- calendar-slot-1 -->");
     expect(aiSitemap).toContain("<!-- published-post-1 -->");
     expect(aiSitemap).toContain("<!-- service-image-generated-product-image -->");
@@ -381,11 +484,11 @@ describe("generatePublicSite", () => {
     expect(aiSitemap).toContain("<!-- service-image-generated-product-image -->");
     expect(aiSitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/knowledge-graph.json</loc>");
     expect(html).toContain('<link rel="canonical" href="https://example.com/laundry-social-auto-poster/"');
-    expect(html).toContain('<title>私享家洗衣店｜台中西屯門市・台中全市免費洗衣收送</title>');
-    expect(html).toContain('name="description" content="私享家洗衣店門市在台中市西屯區青海路二段365號');
+    expect(html).toContain('<title>台中免費收送｜逢甲洗鞋・西屯洗鞋｜私享家洗衣店</title>');
+    expect(html).toContain('name="description" content="找台中免費收送、逢甲洗鞋或西屯洗鞋？');
     expect(html).toContain('name="robots" content="index, follow, max-image-preview:large"');
     expect(html).toContain('hreflang="zh-Hant-TW"');
-    expect(html).toContain('property="og:title" content="私享家洗衣店｜台中西屯門市・台中全市免費洗衣收送"');
+    expect(html).toContain('property="og:title" content="台中免費收送｜逢甲洗鞋・西屯洗鞋｜私享家洗衣店"');
     expect(html).toContain('property="og:type" content="website"');
     expect(html).toContain('property="og:url" content="https://example.com/laundry-social-auto-poster/"');
     expect(html).toContain('property="og:image" content="https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-hero-product.png"');
@@ -397,7 +500,7 @@ describe("generatePublicSite", () => {
     expect(html).toContain('"@type":"FAQPage"');
     expect(html).toContain('"hasPart":[{"@id":"https://example.com/laundry-social-auto-poster/#homepage-faq"}');
     expect(html).toContain('"@type":"DryCleaningOrLaundry"');
-    expect(html).toContain("<h1>台中西屯洗衣門市，台中全市免費洗衣收送</h1>");
+    expect(html).toContain("<h1>台中免費收送，逢甲・西屯洗鞋先看材質</h1>");
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/shoe-bag-care.html"');
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/white-shoe-cleaning.html"');
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/fabric-storage.html"');
@@ -413,6 +516,8 @@ describe("generatePublicSite", () => {
     expect(firstPostHtml).toContain('"@type":"BlogPosting"');
     expect(firstPostHtml).toContain('"@type":"BreadcrumbList"');
     expect(firstPostHtml).toContain('class="breadcrumb"');
+    expect(firstPostHtml).toContain("客人常用查詢");
+    expect(firstPostHtml).toContain("白鞋泛黃怎麼辦");
     expect(html).toContain("depth-band depth-laundry");
     expect(html).toContain("depth-band depth-shoe-bag");
     expect(html).toContain("depth-band depth-white-shoe");
@@ -456,12 +561,12 @@ describe("generatePublicSite", () => {
     expect(html).toContain('href=".well-known/ai.json"');
     expect(html).toContain('class="machine-details"');
     expect(html).toContain('class="caption-details"');
-    expect(shoeBagCareHtml).toContain("<title>鞋包清潔｜台中西屯洗鞋、洗包與材質照護｜私享家洗衣店</title>");
-    expect(shoeBagCareHtml).toContain("<h1>鞋包清潔</h1>");
+    expect(shoeBagCareHtml).toContain("<title>逢甲洗鞋・西屯洗鞋｜鞋包清潔先看材質｜私享家洗衣店</title>");
+    expect(shoeBagCareHtml).toContain("<h1>逢甲洗鞋・西屯洗鞋</h1>");
     expect(shoeBagCareHtml).toContain(">店家資料</a>");
     expect(shoeBagCareHtml).toContain("店家資訊");
     expect(shoeBagCareHtml).toContain("常見問題");
-    expect(shoeBagCareHtml).toContain("台中西屯洗鞋洗包建議先拍鞋面、鞋底、包角、提把與內裡");
+    expect(shoeBagCareHtml).toContain("逢甲與西屯需要洗鞋，可先把鞋面、鞋底、鞋內與材質照片傳 LINE");
     expect(shoeBagCareHtml).toContain("雨季通勤後的鞋包狀況");
     expect(shoeBagCareHtml).toContain("不是特定客戶成果，也不代表效果保證");
     expect(shoeBagCareHtml).toContain("材質與風險判斷");
@@ -498,8 +603,8 @@ describe("generatePublicSite", () => {
     expect(taichungXitunLaundryHtml).toContain("LINE 先傳照片詢問");
     expect(taichungXitunLaundryHtml).toContain('"@type":"FAQPage"');
     expect(taichungXitunLaundryHtml).not.toContain('class="service-photo"');
-    expect(taichungCitywidePickupHtml).toContain("<title>台中全市免費洗衣收送｜私享家洗衣店 LINE 預約</title>");
-    expect(taichungCitywidePickupHtml).toContain("<h1>台中全市免費洗衣收送</h1>");
+    expect(taichungCitywidePickupHtml).toContain("<title>台中免費收送洗衣｜全市到府、LINE 預約｜私享家洗衣店</title>");
+    expect(taichungCitywidePickupHtml).toContain("<h1>台中免費收送洗衣</h1>");
     expect(taichungCitywidePickupHtml).toContain("台中市");
     expect(taichungCitywidePickupHtml).toContain("收送本身免費");
     expect(taichungCitywidePickupHtml).toContain("https://line.me/ti/p/4m-rA6hxf6");
@@ -570,6 +675,7 @@ describe("generatePublicSite", () => {
     const services = JSON.parse(await readFile(join(root, "docs", "services.json"), "utf8"));
     const answers = JSON.parse(await readFile(join(root, "docs", "answers.json"), "utf8"));
     const geoTargets = JSON.parse(await readFile(join(root, "docs", "geo-targets.json"), "utf8"));
+    const searchVisibility = JSON.parse(await readFile(join(root, "docs", "search-visibility.json"), "utf8"));
     const knowledgeGraph = JSON.parse(await readFile(join(root, "docs", "knowledge-graph.json"), "utf8"));
     const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8"));
     const llms = await readFile(join(root, "docs", "llms.txt"), "utf8");
@@ -581,6 +687,10 @@ describe("generatePublicSite", () => {
     const html = await readFile(join(root, "docs", "index.html"), "utf8");
     const photoGuideHtml = await readFile(join(root, "docs", "guides", "photo-before-laundry.html"), "utf8");
     const whiteShoeGuideHtml = await readFile(join(root, "docs", "guides", "white-shoe-yellowing.html"), "utf8");
+    const serviceSearchGuideHtml = await readFile(
+      join(root, "docs", "guides", "taichung-laundry-service-search.html"),
+      "utf8"
+    );
     const localShoePageHtml = await readFile(join(root, "docs", "local", "qinghai-road-shoe-cleaning.html"), "utf8");
     const jsonlTypes = llmsJsonl
       .split(/\r?\n/)
@@ -594,6 +704,8 @@ describe("generatePublicSite", () => {
       "bedding-duvet-cleaning": "https://example.com/laundry-social-auto-poster/guides/bedding-duvet-cleaning.html",
       "plush-doll-cleaning": "https://example.com/laundry-social-auto-poster/guides/plush-doll-cleaning.html",
       "luxury-dry-cleaning": "https://example.com/laundry-social-auto-poster/guides/luxury-dry-cleaning.html",
+      "taichung-laundry-service-search":
+        "https://example.com/laundry-social-auto-poster/guides/taichung-laundry-service-search.html",
       "qinghai-road-shoe-cleaning": "https://example.com/laundry-social-auto-poster/local/qinghai-road-shoe-cleaning.html"
     });
     expect(
@@ -606,6 +718,11 @@ describe("generatePublicSite", () => {
     expect(services.services.every((service: { case_studies?: unknown[] }) => service.case_studies?.length === 3)).toBe(true);
     expect(answers.answers.some((answer: { source_url: string }) => answer.source_url.endsWith("/guides/photo-before-laundry.html"))).toBe(true);
     expect(answers.answers.some((answer: { source_url: string }) => answer.source_url.endsWith("/local/qinghai-road-shoe-cleaning.html"))).toBe(true);
+    expect(
+      answers.answers.some((answer: { source_url: string }) =>
+        answer.source_url.endsWith("/guides/taichung-laundry-service-search.html")
+      )
+    ).toBe(true);
     expect(answers.answer_engine_optimization.citation_ready_summary).toContain("私享家洗衣店");
     expect(answers.answer_engine_optimization.do_not_infer_rules).toContain("Do not infer pricing.");
     expect(answers.answer_engine_optimization.best_source_pages).toContainEqual({
@@ -626,7 +743,8 @@ describe("generatePublicSite", () => {
       )
     ).toBe(true);
     expect(discovery.capabilities.supports_support_pages).toBe(true);
-    expect(discovery.support_pages).toHaveLength(10);
+    expect(discovery.support_pages).toHaveLength(11);
+    expect(searchVisibility.query_clusters).toHaveLength(6);
     expect(discovery.support_pages[0]).toMatchObject({
       slug: "photo-before-laundry",
       category: "guide",
@@ -658,8 +776,12 @@ describe("generatePublicSite", () => {
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/guides/bedding-duvet-cleaning.html</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/guides/plush-doll-cleaning.html</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/guides/luxury-dry-cleaning.html</loc>");
+    expect(sitemap).toContain(
+      "<loc>https://example.com/laundry-social-auto-poster/guides/taichung-laundry-service-search.html</loc>"
+    );
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/local/qinghai-road-shoe-cleaning.html</loc>");
     expect(aiSitemap).toContain("<!-- guide-page-photo-before-laundry -->");
+    expect(aiSitemap).toContain("<!-- guide-page-taichung-laundry-service-search -->");
     expect(aiSitemap).toContain("<!-- local-page-qinghai-road-shoe-cleaning -->");
     expect(
       knowledgeGraph["@graph"].some(
@@ -677,6 +799,8 @@ describe("generatePublicSite", () => {
     expect(photoGuideHtml).toContain('class="answer-box"');
     expect(photoGuideHtml).toContain('"mainEntityOfPage":{"@id":"https://example.com/laundry-social-auto-poster/guides/photo-before-laundry.html#webpage"}');
     expect(whiteShoeGuideHtml).toContain("white-shoe-cleaning.html");
+    expect(serviceSearchGuideHtml).toContain("台中洗衣、洗鞋、洗包與免費收送怎麼找？");
+    expect(serviceSearchGuideHtml).toContain("台中洗衣免費收送");
     expect(localShoePageHtml).toContain("shoe-bag-care.html");
     expect(localShoePageHtml).toContain("https://example.com/laundry-social-auto-poster/#business");
   });
@@ -950,6 +1074,8 @@ describe("generatePublicSite", () => {
     const baseUrl = "https://example.com/laundry-social-auto-poster";
     const pickupPath = "services/taichung-citywide-laundry-pickup.html";
     const pickupUrl = `${baseUrl}/${pickupPath}`;
+    const businessBulkPath = "services/business-bulk-laundry.html";
+    const businessBulkUrl = `${baseUrl}/${businessBulkPath}`;
 
     await generatePublicSite({
       root,
@@ -959,6 +1085,7 @@ describe("generatePublicSite", () => {
 
     const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
     const pickupHtml = await readFile(join(root, "docs", pickupPath), "utf8");
+    const businessBulkHtml = await readFile(join(root, "docs", businessBulkPath), "utf8");
     const sitemap1 = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
     const services = JSON.parse(await readFile(join(root, "docs", "services.json"), "utf8"));
     const answers = JSON.parse(await readFile(join(root, "docs", "answers.json"), "utf8"));
@@ -977,12 +1104,14 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("台中洗衣與免費收送常見問題");
     expect(homepage).toContain("收送免費等於清潔免費嗎？");
     expect(homepage).toContain('<html lang="zh-Hant-TW">');
-    expect(homepage).toContain('<time datetime="2026-07-20">2026-07-20</time>');
+    expect(homepage).toContain('<time datetime="2026-07-22">2026-07-22</time>');
+    expect(homepage).toContain("台中免費收送，逢甲・西屯洗鞋先看材質");
+    expect(homepage).toContain(`${baseUrl}/go/line.html?source=homepage`);
     expect(homepage).toContain('"name":"台中市"');
     expect(homepage).not.toContain('"price":0');
     expect(homepage).not.toContain('"price":"0"');
 
-    expect(pickupHtml).toContain("<h1>台中全市免費洗衣收送</h1>");
+    expect(pickupHtml).toContain("<h1>台中免費收送洗衣</h1>");
     expect(pickupHtml).toContain("收送範圍為台中市");
     expect(pickupHtml).toContain("收送本身免費");
     expect(pickupHtml).toContain("https://line.me/ti/p/4m-rA6hxf6");
@@ -992,32 +1121,49 @@ describe("generatePublicSite", () => {
     expect(pickupHtml).toContain('"name":"台中市"');
     expect(pickupHtml).toContain('"mainEntityOfPage":{"@id":"' + pickupUrl + '#webpage"}');
     expect(pickupHtml).toContain('class="breadcrumb"');
-    expect(pickupHtml).toContain('<time datetime="2026-07-20">2026-07-20</time>');
+    expect(pickupHtml).toContain('<time datetime="2026-07-22">2026-07-22</time>');
     expect(pickupHtml).toContain("相關送洗指南");
     expect(pickupHtml).toContain(`${baseUrl}/guides/photo-before-laundry.html`);
     expect(pickupHtml).not.toContain('"price":0');
     expect(pickupHtml).not.toContain('"price":"0"');
 
+    expect(homepage).toContain(`href="${businessBulkUrl}"`);
+    expect(homepage).toContain("店家與公司大量送洗");
+    expect(businessBulkHtml).toContain("<h1>台中店家・公司大量衣物送洗</h1>");
+    expect(businessBulkHtml).toContain("台中市全區免費收送");
+    expect(businessBulkHtml).toContain("清潔與洗護費用另依實際物件判斷");
+    expect(businessBulkHtml).toContain('"@type":"Service"');
+    expect(businessBulkHtml).toContain('"@type":"AdministrativeArea"');
+    expect(businessBulkHtml).toContain('"name":"台中市"');
+    expect(businessBulkHtml).not.toContain('"price":0');
+    expect(businessBulkHtml).not.toContain('"price":"0"');
+
     expect(sitemap1).toContain(`<loc>${pickupUrl}</loc>`);
-    // Posts keep publication-day lastmod; intentional content pages keep 2026-07-20.
+    expect(sitemap1).toContain(`<loc>${businessBulkUrl}</loc>`);
+    expect(sitemap1).toMatch(
+      new RegExp(
+        `<loc>${businessBulkUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}</loc><lastmod>2026-07-28</lastmod>`
+      )
+    );
+    // Posts keep publication-day lastmod; intentional content pages keep 2026-07-22.
     expect(sitemap1).toContain("<lastmod>2026-07-02</lastmod>");
-    expect(sitemap1).toContain("<lastmod>2026-07-20</lastmod>");
+    expect(sitemap1).toContain("<lastmod>2026-07-22</lastmod>");
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
-        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-07-20</lastmod>`
+        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-07-22</lastmod>`
       )
     );
     expect(sitemap1).toMatch(
       new RegExp(
-        `<loc>${pickupUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}</loc><lastmod>2026-07-20</lastmod>`
+        `<loc>${pickupUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}</loc><lastmod>2026-07-22</lastmod>`
       )
     );
     expect(sitemap1).toMatch(
       /posts\/2026-07-02-slot-01\.html<\/loc><lastmod>2026-07-02<\/lastmod>/
     );
 
-    // Static service pages without explicit content_lastmod must omit lastmod (no invented default).
+    // Intentionally updated service pages carry their stable content lastmod.
     const shoeBagEntry =
       sitemap1.match(
         new RegExp(
@@ -1025,7 +1171,7 @@ describe("generatePublicSite", () => {
           "u"
         )
       )?.[1] ?? "";
-    expect(shoeBagEntry).not.toContain("<lastmod>");
+    expect(shoeBagEntry).toContain("<lastmod>2026-07-22</lastmod>");
     expect(shoeBagEntry).not.toContain("<changefreq>");
     expect(sitemap1).not.toContain("<priority>");
 
@@ -1034,6 +1180,14 @@ describe("generatePublicSite", () => {
         (item: { question: string; local_intent?: string }) =>
           item.question === "台中市全區免費洗衣收送怎麼預約？" &&
           item.local_intent === "台中市 洗衣免費收送 LINE 預約"
+      )
+    ).toBe(true);
+    expect(
+      answers.answers.some(
+        (item: { question: string; local_intent?: string; source_url?: string }) =>
+          item.question === "台中店家或公司有大量衣物可以預約收送嗎？" &&
+          item.local_intent === "台中市 店家 公司 大量衣物 送洗 收送" &&
+          item.source_url === businessBulkUrl
       )
     ).toBe(true);
     expect(
@@ -1052,6 +1206,14 @@ describe("generatePublicSite", () => {
       geoTargets.local_intents.some(
         (item: { query: string; area: string; url: string }) =>
           item.query === "台中市 洗衣免費收送" && item.area === "台中市" && item.url === pickupUrl
+      )
+    ).toBe(true);
+    expect(
+      geoTargets.local_intents.some(
+        (item: { query: string; area: string; url: string }) =>
+          item.query === "台中市 公司大量衣物送洗" &&
+          item.area === "台中市" &&
+          item.url === businessBulkUrl
       )
     ).toBe(true);
     expect(
@@ -1094,10 +1256,9 @@ describe("generatePublicSite", () => {
     const postHtml1 = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
     const postDateModified1 = findArticleDateModified(postHtml1);
 
-    expect(homepageDateModified1).toBe("2026-07-20");
-    expect(pickupDateModified1).toBe("2026-07-20");
-    // Unknown static pages omit dateModified rather than using build generated_at.
-    expect(shoeBagDateModified1).toBeUndefined();
+    expect(homepageDateModified1).toBe("2026-07-22");
+    expect(pickupDateModified1).toBe("2026-07-22");
+    expect(shoeBagDateModified1).toBe("2026-07-22");
     expect(guideDateModified1).toBeUndefined();
     expect(postDateModified1).toBe("2026-07-02T11:30:00+08:00");
     expect(homepage).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
@@ -1140,7 +1301,7 @@ describe("generatePublicSite", () => {
     expect(sitemap2).toBe(sitemap1);
     expect(findWebPageDateModified(homepage2)).toBe(homepageDateModified1);
     expect(findWebPageDateModified(pickupHtml2)).toBe(pickupDateModified1);
-    expect(findWebPageDateModified(shoeBagHtml2)).toBeUndefined();
+    expect(findWebPageDateModified(shoeBagHtml2)).toBe("2026-07-22");
     expect(findArticleDateModified(postHtml2)).toBe(postDateModified1);
     expect(sitemap2).not.toContain("<lastmod>2026-07-18T12:00:00.000Z</lastmod>");
     expect(sitemap2).not.toContain("<lastmod>2026-07-18</lastmod>");
@@ -1151,7 +1312,6 @@ describe("generatePublicSite", () => {
     const serviceLastmodsWithDate = [
       ...sitemap2.matchAll(/services\/[^<]+<\/loc><lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/gu)
     ].map((match) => match[1]);
-    expect(serviceLastmodsWithDate.every((day) => day === "2026-07-20")).toBe(true);
-    expect(serviceLastmodsWithDate.length).toBe(1);
+    expect(serviceLastmodsWithDate.sort()).toEqual(["2026-07-22", "2026-07-22", "2026-07-28"]);
   });
 });

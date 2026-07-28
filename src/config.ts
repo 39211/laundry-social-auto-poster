@@ -29,7 +29,11 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     publicSiteBaseUrl: (env.PUBLIC_SITE_BASE_URL || env.PUBLIC_IMAGE_BASE_URL || "").replace(/\/+$/, ""),
     publicImageBaseUrl: (env.PUBLIC_IMAGE_BASE_URL || "").replace(/\/+$/, ""),
     publicRootPagesRepo: env.PUBLIC_ROOT_PAGES_REPO || "",
-    verifyPublicImageUrl: boolEnv(env.VERIFY_PUBLIC_IMAGE_URL, !dryRun)
+    verifyPublicImageUrl: boolEnv(env.VERIFY_PUBLIC_IMAGE_URL, !dryRun),
+    grokReelsEnabled: boolEnv(env.GROK_REELS_ENABLED, false),
+    ga4MeasurementId: /^G-[A-Z0-9]+$/i.test(env.PUBLIC_GA4_MEASUREMENT_ID?.trim() ?? "")
+      ? env.PUBLIC_GA4_MEASUREMENT_ID?.trim().toUpperCase()
+      : undefined
   };
 }
 

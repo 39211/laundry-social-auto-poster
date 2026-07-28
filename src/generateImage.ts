@@ -5,11 +5,13 @@ import { getConfig } from "./config";
 import { imagePromptManifestPath, projectRoot } from "./paths";
 import { generateDailyContent } from "./generateDailyContent";
 import { loadDailyContent, loadImageSources, writeJsonAtomic } from "./logging";
+import { imageAssetsForSlot } from "./mediaAssets";
 import { getZonedDateParts } from "./scheduler";
 import type { VisualRoute } from "./types";
 
 interface ImagePromptManifestItem {
   slot: number;
+  slide: number;
   topic: string;
   prompt: string;
   visual_route: VisualRoute;
@@ -31,14 +33,17 @@ export async function writeImagePromptManifest(date: string, root = projectRoot(
   const content = await loadDailyContent(date, root);
   if (!content) throw new Error(`No content calendar found for ${date}`);
 
-  const manifest: ImagePromptManifestItem[] = content.slots.map((slot) => ({
-    slot: slot.slot,
-    topic: slot.topic,
-    prompt: slot.image_prompt,
-    visual_route: slot.visual_route,
-    target_path: slot.local_image_path,
-    public_image_url: slot.public_image_url
-  }));
+  const manifest: ImagePromptManifestItem[] = content.slots.flatMap((slot) =>
+    imageAssetsForSlot(slot).map((asset) => ({
+      slot: slot.slot,
+      slide: asset.slide,
+      topic: slot.topic,
+      prompt: asset.image_prompt,
+      visual_route: slot.visual_route,
+      target_path: asset.local_image_path,
+      public_image_url: asset.public_image_url
+    }))
+  );
 
   const output = imagePromptManifestPath(date, root);
   await writeJsonAtomic(output, manifest);
@@ -51,13 +56,15 @@ export async function validateImageAssets(date: string, root = projectRoot()): P
 
   const missing: string[] = [];
   for (const slot of content.slots) {
-    const fullPath = join(root, ...slot.local_image_path.split("/"));
-    if (!(await fileExists(fullPath))) {
-      missing.push(slot.local_image_path);
-      continue;
+    for (const asset of imageAssetsForSlot(slot)) {
+      const fullPath = join(root, ...asset.local_image_path.split("/"));
+      if (!(await fileExists(fullPath))) {
+        missing.push(asset.local_image_path);
+        continue;
+      }
+      const info = await stat(fullPath);
+      if (info.size === 0) missing.push(`${asset.local_image_path} (empty)`);
     }
-    const info = await stat(fullPath);
-    if (info.size === 0) missing.push(`${slot.local_image_path} (empty)`);
   }
 
   if (missing.length > 0) {
@@ -71,17 +78,19 @@ export async function validatePublishableImages(date: string, root = projectRoot
   if (!content) throw new Error(`No content calendar found for ${date}`);
 
   const sources = await loadImageSources(date, root);
-  const missingSources = content.slots
-    .filter(
-      (slot) =>
+  const missingSources = content.slots.flatMap((slot) =>
+    imageAssetsForSlot(slot)
+      .filter(
+        (asset) =>
         !sources.some(
           (source) =>
             source.slot === slot.slot &&
             source.source === "gpt-image-2" &&
-            source.image_path === slot.local_image_path
+            source.image_path === asset.local_image_path
         )
-    )
-    .map((slot) => `slot ${slot.slot}: ${slot.local_image_path}`);
+      )
+      .map((asset) => `slot ${slot.slot} slide ${asset.slide}: ${asset.local_image_path}`)
+  );
 
   if (missingSources.length > 0) {
     throw new Error(`Missing gpt-image-2 source records:\n${missingSources.map((item) => `- ${item}`).join("\n")}`);

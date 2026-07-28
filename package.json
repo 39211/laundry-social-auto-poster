@@ -12,6 +12,7 @@
     "generate-video-candidate-manifest": "tsx src/generateVideoCandidate.ts",
     "review-video-scripts": "tsx src/videoScriptQuality.ts",
     "record-video-review": "tsx src/videoReviewGate.ts",
+    "resolve-video-repair": "tsx src/resolveVideoRepair.ts",
     "generate-grok-videos": "tsx src/generateGrokVideo.ts",
     "import-grok-video": "tsx src/importGrokVideo.ts",
     "validate-grok-handoff": "tsx src/validateGrokHandoff.ts",

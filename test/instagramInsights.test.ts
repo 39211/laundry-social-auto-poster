@@ -92,7 +92,7 @@ describe("Instagram media insights client", () => {
     });
 
     const [url] = vi.mocked(fetchImpl).mock.calls[0] ?? [];
-    expect(decodeURIComponent(String(url))).toContain("metric=reach,likes,comments,shares,saved,total_interactions");
+    expect(decodeURIComponent(String(url))).toContain("metric=views,reach,likes,comments,shares,saved,total_interactions");
   });
 
   it("returns raw Meta errors without inventing metrics", async () => {

@@ -1,4 +1,6 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import type { FileHandle } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
   approvedLogPath,
@@ -7,14 +9,25 @@ import {
   docsContentCalendarPath,
   imageSourcesPath,
   postedLogPath,
-  projectRoot
+  projectRoot,
+  videoRepairQueuePath,
+  videoSourcesPath
 } from "./paths";
-import type { ApprovalLogEntry, DailyContent, DailyContext, ImageSourceRecord, Platform, PostLogEntry } from "./types";
+import type {
+  ApprovalLogEntry,
+  DailyContent,
+  DailyContext,
+  ImageSourceRecord,
+  Platform,
+  PostLogEntry,
+  VideoRepairQueueEntry,
+  VideoSourceRecord
+} from "./types";
 
 export async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
   try {
     const raw = await readFile(filePath, "utf8");
-    return JSON.parse(raw) as T;
+    return JSON.parse(raw.replace(/^\uFEFF/u, "")) as T;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return fallback;
     throw error;
@@ -23,9 +36,53 @@ export async function readJsonFile<T>(filePath: string, fallback: T): Promise<T>
 
 export async function writeJsonAtomic(filePath: string, value: unknown): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true });
-  const tempPath = `${filePath}.tmp`;
-  await writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-  await rename(tempPath, filePath);
+  const tempPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    await rename(tempPath, filePath);
+  } finally {
+    await unlink(tempPath).catch(() => undefined);
+  }
+}
+
+const JSON_LOCK_TIMEOUT_MS = 10_000;
+const JSON_LOCK_STALE_MS = 30_000;
+
+async function withJsonFileLock<T>(filePath: string, operation: () => Promise<T>): Promise<T> {
+  await mkdir(dirname(filePath), { recursive: true });
+  const lockPath = `${filePath}.lock`;
+  const startedAt = Date.now();
+
+  while (true) {
+    let handle: FileHandle;
+    try {
+      handle = await open(lockPath, "wx");
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EEXIST") throw error;
+
+      const lockAgeMs = await stat(lockPath)
+        .then((info) => Date.now() - info.mtimeMs)
+        .catch(() => 0);
+      if (lockAgeMs > JSON_LOCK_STALE_MS) {
+        await unlink(lockPath).catch(() => undefined);
+        continue;
+      }
+      if (Date.now() - startedAt >= JSON_LOCK_TIMEOUT_MS) {
+        throw new Error(`Timed out waiting for JSON log lock: ${lockPath}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      continue;
+    }
+
+    try {
+      await handle.writeFile(`${process.pid} ${new Date().toISOString()}\n`, "utf8");
+      return await operation();
+    } finally {
+      await handle.close();
+      await unlink(lockPath).catch(() => undefined);
+    }
+  }
 }
 
 export async function loadDailyContent(date: string, root = projectRoot()): Promise<DailyContent | undefined> {
@@ -52,9 +109,12 @@ export async function writePostLog(date: string, entries: PostLogEntry[], root =
 }
 
 export async function appendPostLog(entry: PostLogEntry, root = projectRoot()): Promise<void> {
-  const entries = await loadPostLog(entry.date, root);
-  entries.push(entry);
-  await writePostLog(entry.date, entries, root);
+  const filePath = postedLogPath(entry.date, root);
+  await withJsonFileLock(filePath, async () => {
+    const entries = await readJsonFile<PostLogEntry[]>(filePath, []);
+    entries.push(entry);
+    await writeJsonAtomic(filePath, entries);
+  });
 }
 
 export async function loadApprovalLog(date: string, root = projectRoot()): Promise<ApprovalLogEntry[]> {
@@ -70,12 +130,15 @@ export async function writeApprovalLog(
 }
 
 export async function appendApprovalLog(entry: ApprovalLogEntry, root = projectRoot()): Promise<void> {
-  const entries = (await loadApprovalLog(entry.date, root)).filter(
-    (item) => !(item.slot === entry.slot && item.platform === entry.platform)
-  );
-  entries.push(entry);
-  entries.sort((a, b) => a.slot - b.slot || a.platform.localeCompare(b.platform));
-  await writeApprovalLog(entry.date, entries, root);
+  const filePath = approvedLogPath(entry.date, root);
+  await withJsonFileLock(filePath, async () => {
+    const entries = (await readJsonFile<ApprovalLogEntry[]>(filePath, [])).filter(
+      (item) => !(item.slot === entry.slot && item.platform === entry.platform)
+    );
+    entries.push(entry);
+    entries.sort((a, b) => a.slot - b.slot || a.platform.localeCompare(b.platform));
+    await writeJsonAtomic(filePath, entries);
+  });
 }
 
 export async function loadDailyContext(date: string, root = projectRoot()): Promise<DailyContext | undefined> {
@@ -96,6 +159,89 @@ export async function writeImageSources(
   root = projectRoot()
 ): Promise<void> {
   await writeJsonAtomic(imageSourcesPath(date, root), entries);
+}
+
+export async function loadVideoSources(date: string, root = projectRoot()): Promise<VideoSourceRecord[]> {
+  return readJsonFile<VideoSourceRecord[]>(videoSourcesPath(date, root), []);
+}
+
+export async function writeVideoSources(
+  date: string,
+  entries: VideoSourceRecord[],
+  root = projectRoot()
+): Promise<void> {
+  await writeJsonAtomic(videoSourcesPath(date, root), entries);
+}
+
+export async function loadVideoRepairQueue(root = projectRoot()): Promise<VideoRepairQueueEntry[]> {
+  return readJsonFile<VideoRepairQueueEntry[]>(videoRepairQueuePath(root), []);
+}
+
+export async function upsertVideoRepairQueue(
+  entry: VideoRepairQueueEntry,
+  root = projectRoot()
+): Promise<void> {
+  const filePath = videoRepairQueuePath(root);
+  await withJsonFileLock(filePath, async () => {
+    const entries = await readJsonFile<VideoRepairQueueEntry[]>(filePath, []);
+    const existingIndex = entries.findIndex(
+      (item) => item.source_date === entry.source_date && item.source_slot === entry.source_slot
+    );
+    if (existingIndex >= 0) {
+      const existing = entries[existingIndex]!;
+      if (existing.status !== "RESOLVED") entries[existingIndex] = { ...existing, ...entry };
+    } else entries.push(entry);
+    entries.sort((a, b) => a.source_date.localeCompare(b.source_date) || a.source_slot - b.source_slot);
+    await writeJsonAtomic(filePath, entries);
+  });
+}
+
+export async function resolveVideoRepairQueue(
+  sourceDate: string,
+  sourceSlot: number,
+  replacementDate: string,
+  replacementSlot: number,
+  root = projectRoot()
+): Promise<void> {
+  const filePath = videoRepairQueuePath(root);
+  await withJsonFileLock(filePath, async () => {
+    const entries = await readJsonFile<VideoRepairQueueEntry[]>(filePath, []);
+    const existing = entries.find(
+      (item) => item.source_date === sourceDate && item.source_slot === sourceSlot
+    );
+    if (!existing) {
+      throw new Error(`Video repair item not found: ${sourceDate} slot ${sourceSlot}.`);
+    }
+    existing.status = "RESOLVED";
+    existing.resolved_at = new Date().toISOString();
+    existing.replacement_date = replacementDate;
+    existing.replacement_slot = replacementSlot;
+    await writeJsonAtomic(filePath, entries);
+  });
+}
+
+export async function markVideoRepairReady(
+  sourceDate: string,
+  sourceSlot: number,
+  replacementDate: string,
+  replacementSlot: number,
+  root = projectRoot()
+): Promise<void> {
+  const filePath = videoRepairQueuePath(root);
+  await withJsonFileLock(filePath, async () => {
+    const entries = await readJsonFile<VideoRepairQueueEntry[]>(filePath, []);
+    const existing = entries.find(
+      (item) => item.source_date === sourceDate && item.source_slot === sourceSlot
+    );
+    if (!existing) {
+      throw new Error(`Video repair item not found: ${sourceDate} slot ${sourceSlot}.`);
+    }
+    existing.status = "VIDEO_DEFERRED";
+    existing.replacement_ready_at = new Date().toISOString();
+    existing.replacement_candidate_date = replacementDate;
+    existing.replacement_candidate_slot = replacementSlot;
+    await writeJsonAtomic(filePath, entries);
+  });
 }
 
 export function hasRecordedPost(

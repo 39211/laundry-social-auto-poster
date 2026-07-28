@@ -71,6 +71,10 @@ function firstMediaId(result: GraphResult): string | undefined {
   return first?.id;
 }
 
+function dataCount(result: GraphResult): number {
+  return Array.isArray(result.body.data) ? result.body.data.length : 0;
+}
+
 export async function auditMetaAccess(): Promise<{
   generated_at: string;
   graph_api_version: string;
@@ -146,7 +150,7 @@ export async function auditMetaAccess(): Promise<{
       config.graphApiVersion
     );
     checks.push(
-      check("instagram_media_insights", igInsights, ["instagram_business_basic", "instagram_business_manage_insights"], {
+      check("instagram_media_insights", igInsights, ["instagram_basic", "instagram_manage_insights"], {
         sample_media_id: mediaId
       })
     );
@@ -160,9 +164,44 @@ export async function auditMetaAccess(): Promise<{
   );
   checks.push(
     check("facebook_page_insights", pageInsights, ["pages_read_engagement", "read_insights"], {
-      page_id: facebookPageId
+      page_id: facebookPageId,
+      row_count: dataCount(pageInsights)
     })
   );
+
+  const facebookPosts = await graph(
+    `${facebookPageId}/published_posts`,
+    { limit: "5", fields: "id,created_time,permalink_url" },
+    graphAccessToken,
+    config.graphApiVersion
+  );
+  const facebookPostId = firstMediaId(facebookPosts);
+  checks.push(
+    check("facebook_published_posts", facebookPosts, ["pages_read_engagement"], {
+      sample_post_id: facebookPostId,
+      sample_count: dataCount(facebookPosts)
+    })
+  );
+
+  if (facebookPostId) {
+    const facebookInteractions = await graph(
+      `${facebookPostId}`,
+      { fields: "id,reactions.limit(0).summary(true),comments.limit(0).summary(true),shares" },
+      graphAccessToken,
+      config.graphApiVersion
+    );
+    checks.push(
+      check(
+        "facebook_post_interactions",
+        facebookInteractions,
+        ["pages_read_engagement", "pages_read_user_content"],
+        {
+          sample_post_id: facebookPostId,
+          alternative_access: "Page Public Content Access may be required for non-managed public Page content"
+        }
+      )
+    );
+  }
 
   const missing = new Set<string>();
   for (const item of checks) {
@@ -170,10 +209,23 @@ export async function auditMetaAccess(): Promise<{
   }
 
   const recommendedActions = [
-    "Keep META_ACCESS_TOKEN for publishing so the live posting chain is not disrupted.",
-    "Create a separate META_ANALYTICS_ACCESS_TOKEN with the missing analytics permissions, then rerun npm run audit-meta-access.",
-    ...Array.from(missing).map((permission) => `Request or grant Meta permission: ${permission}`)
+    "Keep META_ACCESS_TOKEN for publishing so the live posting chain is not disrupted."
   ];
+  if (missing.size > 0) {
+    recommendedActions.push(
+      "Create a separate META_ANALYTICS_ACCESS_TOKEN with the missing analytics permissions, then rerun npm run audit-meta-access.",
+      ...Array.from(missing).map((permission) => `Request or grant Meta permission: ${permission}`)
+    );
+  } else {
+    recommendedActions.push(
+      "All current read-only Meta checks passed. No App Review action is required for this owner-managed Standard Access workflow."
+    );
+  }
+  if (pageInsights.ok && dataCount(pageInsights) === 0) {
+    recommendedActions.push(
+      "Facebook Page Insights is authorized but returned no rows; collect per-post reactions/comments/shares and verify the +72h observation window."
+    );
+  }
 
   return {
     generated_at: new Date().toISOString(),

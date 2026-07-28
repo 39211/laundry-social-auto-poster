@@ -3,21 +3,41 @@ import { join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { assertLiveMetaConfig, assertPublicImageBaseUrl, getConfig } from "./config";
 import { generateDailyContent } from "./generateDailyContent";
-import { buildGitHubPagesImageUrl, verifyPublicImageUrl } from "./githubPages";
+import { validatePublishableReel } from "./generateVideo";
+import {
+  buildGitHubPagesCarouselImageUrl,
+  buildGitHubPagesImageUrl,
+  buildGitHubPagesVideoUrl,
+  verifyPublicAssetUrl,
+  verifyPublicImageUrl
+} from "./githubPages";
 import {
   appendPostLog,
   hasApprovedPost,
   hasRecordedPost,
   loadApprovalLog,
   loadDailyContent,
-  loadPostLog
+  loadPostLog,
+  loadVideoRepairQueue,
+  resolveVideoRepairQueue,
+  upsertVideoRepairQueue
 } from "./logging";
+import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot } from "./paths";
-import { postFacebookPhoto } from "./postFacebook";
-import { postInstagramPhoto } from "./postInstagram";
+import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
+import { postInstagramCarousel, postInstagramPhoto, postInstagramReel } from "./postInstagram";
 import { withRetry } from "./retry";
 import { DAILY_SCHEDULE, findSlotByNumber, getZonedDateParts, resolveCurrentSlot } from "./scheduler";
-import type { AppConfig, DailySlot, Platform, PostInput, PostLogEntry, PostResult } from "./types";
+import type {
+  AppConfig,
+  DailySlot,
+  MediaType,
+  Platform,
+  PostInput,
+  PostLogEntry,
+  PostResult,
+  VideoDeferKind
+} from "./types";
 
 export interface PostCurrentSlotOptions {
   now?: string | Date;
@@ -31,18 +51,75 @@ export interface PostCurrentSlotOptions {
   fetchImpl?: typeof fetch;
 }
 
-async function assertLocalImageExists(slot: DailySlot, root: string): Promise<void> {
-  const fullPath = join(root, ...slot.local_image_path.split("/"));
-  try {
-    await access(fullPath);
-  } catch {
-    throw new Error(
-      `Image is missing for slot ${slot.slot}: ${slot.local_image_path}. Run the Codex imagegen automation first.`
-    );
+async function assertLocalImagesExist(slot: DailySlot, root: string): Promise<void> {
+  for (const asset of imageAssetsForSlot(slot)) {
+    try {
+      await access(join(root, ...asset.local_image_path.split("/")));
+    } catch {
+      throw new Error(
+        `Image is missing for slot ${slot.slot}: ${asset.local_image_path}. Run the Codex imagegen automation first.`
+      );
+    }
   }
 }
 
-function resultToLog(date: string, slot: number, result: PostResult): PostLogEntry {
+interface ResolvedPublishMedia {
+  mediaType: MediaType;
+  videoDeferred: boolean;
+  videoDeferKind?: VideoDeferKind;
+  videoDeferredReason?: string;
+}
+
+// A video that is not ready and a video check that crashed both have to fall back,
+// because neither may cancel an approved image post. They must not look the same
+// afterwards: the first is a pending gate, the second is a fault to go and fix.
+// Validation gates raise a plain Error; programmer faults arrive as an Error
+// subclass or a non-Error throw, and a filesystem error other than "not found"
+// means the file check itself failed rather than the file being absent.
+export function classifyVideoFailure(error: unknown): VideoDeferKind {
+  if (!(error instanceof Error)) return "unexpected";
+  if (error.constructor !== Error) return "unexpected";
+  const code = (error as NodeJS.ErrnoException).code;
+  if (code !== undefined && code !== "ENOENT") return "unexpected";
+  return "expected";
+}
+
+export async function resolveSlotPublishMedia(
+  slot: DailySlot,
+  date: string,
+  root: string
+): Promise<ResolvedPublishMedia> {
+  await assertLocalImagesExist(slot, root);
+  if (slot.media_type !== "reel" && slot.media_type !== "mixed-carousel") {
+    return { mediaType: slot.media_type ?? "image", videoDeferred: false };
+  }
+
+  try {
+    const localPath = slot.local_video_path;
+    if (!localPath) throw new Error(`Video path is missing for slot ${slot.slot}.`);
+    try {
+      await access(join(root, ...localPath.split("/")));
+    } catch {
+      throw new Error(`Video file is missing for slot ${slot.slot}: ${localPath}.`);
+    }
+    await validatePublishableReel(slot, date, root);
+    return { mediaType: slot.media_type, videoDeferred: false };
+  } catch (error) {
+    return {
+      mediaType: slot.media_type === "mixed-carousel" ? "carousel" : "image",
+      videoDeferred: true,
+      videoDeferKind: classifyVideoFailure(error),
+      videoDeferredReason: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+function resultToLog(
+  date: string,
+  slot: number,
+  result: PostResult,
+  media: ResolvedPublishMedia
+): PostLogEntry {
   return {
     date,
     slot,
@@ -50,6 +127,16 @@ function resultToLog(date: string, slot: number, result: PostResult): PostLogEnt
     status: result.status,
     dry_run: result.dry_run,
     attempts: result.attempts,
+    published_media_type: result.platform === "facebook" && media.mediaType === "mixed-carousel"
+      ? "reel"
+      : media.mediaType,
+    video_status: media.videoDeferred
+      ? "VIDEO_DEFERRED"
+      : media.mediaType === "reel" || media.mediaType === "mixed-carousel"
+        ? "published"
+        : "not_planned",
+    video_defer_kind: media.videoDeferKind,
+    video_deferred_reason: media.videoDeferredReason,
     post_id: result.post_id,
     created_at: new Date().toISOString()
   };
@@ -61,7 +148,15 @@ async function postPlatform(
   config: AppConfig,
   fetchImpl: typeof fetch
 ): Promise<PostResult> {
-  const publish = platform === "facebook" ? postFacebookPhoto : postInstagramPhoto;
+  const publish = input.mediaType === "reel"
+    ? platform === "facebook" ? postFacebookReel : postInstagramReel
+    : input.mediaType === "mixed-carousel"
+      ? platform === "instagram"
+        ? postInstagramCarousel
+        : postFacebookReel
+    : input.mediaType === "carousel"
+      ? platform === "facebook" ? postFacebookCarousel : postInstagramCarousel
+      : platform === "facebook" ? postFacebookPhoto : postInstagramPhoto;
   const { value, attempts } = await withRetry(() => publish(input, config, fetchImpl), 3);
   return { ...value, attempts };
 }
@@ -74,11 +169,28 @@ async function postOneSlot(
   fetchImpl: typeof fetch,
   preflightOnly = false
 ): Promise<PostLogEntry[]> {
-  await assertLocalImageExists(slot, root);
-  const imageUrl = slot.public_image_url || buildGitHubPagesImageUrl(config.publicImageBaseUrl, date, slot.slot);
+  const resolvedMedia = await resolveSlotPublishMedia(slot, date, root);
+  const imageAssets = imageAssetsForSlot(slot);
+  const imageUrls = imageAssets.map(
+    (asset) =>
+      asset.public_image_url ||
+      buildGitHubPagesCarouselImageUrl(config.publicImageBaseUrl, date, slot.slot, asset.slide)
+  );
+  const imageUrl = imageUrls[0] || slot.public_image_url || buildGitHubPagesImageUrl(config.publicImageBaseUrl, date, slot.slot);
+  const isReel = resolvedMedia.mediaType === "reel";
+  const isMixedCarousel = resolvedMedia.mediaType === "mixed-carousel";
+  const isCarousel = resolvedMedia.mediaType === "carousel" || isMixedCarousel;
+  const videoUrl = isReel || isMixedCarousel
+    ? slot.public_video_url || buildGitHubPagesVideoUrl(config.publicImageBaseUrl, date, slot.slot)
+    : undefined;
+  const publicMediaUrl = videoUrl ?? imageUrl;
 
   if (config.verifyPublicImageUrl) {
-    await verifyPublicImageUrl(imageUrl, fetchImpl);
+    if (isReel) await verifyPublicAssetUrl(publicMediaUrl, fetchImpl);
+    else {
+      for (const url of imageUrls) await verifyPublicImageUrl(url, fetchImpl);
+      if (isMixedCarousel && videoUrl) await verifyPublicAssetUrl(videoUrl, fetchImpl);
+    }
   }
 
   const existing = await loadPostLog(date, root);
@@ -87,11 +199,27 @@ async function postOneSlot(
   const platformInputs: Array<{ platform: Platform; input: PostInput }> = [
     {
       platform: "facebook",
-      input: { date, slot: slot.slot, caption: slot.facebook_caption, imageUrl }
+      input: {
+        date,
+        slot: slot.slot,
+        caption: slot.facebook_caption,
+        imageUrl,
+        imageUrls: isCarousel ? imageUrls : undefined,
+        mediaType: isReel || isMixedCarousel ? "reel" : isCarousel ? "carousel" : "image",
+        videoUrl
+      }
     },
     {
       platform: "instagram",
-      input: { date, slot: slot.slot, caption: slot.instagram_caption, imageUrl }
+      input: {
+        date,
+        slot: slot.slot,
+        caption: slot.instagram_caption,
+        imageUrl,
+        imageUrls: isCarousel ? imageUrls : undefined,
+        mediaType: isReel ? "reel" : isMixedCarousel ? "mixed-carousel" : isCarousel ? "carousel" : "image",
+        videoUrl
+      }
     }
   ];
   const missingApprovals = platformInputs
@@ -104,16 +232,40 @@ async function postOneSlot(
     );
   }
 
+  // A preflight is a check, so it reports the deferral without recording it.
   if (preflightOnly) {
-    return platformInputs.map(({ platform }) => ({
+    return platformInputs.map(({ platform, input }) => ({
       date,
       slot: slot.slot,
       platform,
       status: "pending",
       dry_run: config.dryRun,
       attempts: 0,
+      published_media_type: input.mediaType,
+      video_status: resolvedMedia.videoDeferred
+        ? "VIDEO_DEFERRED"
+        : isReel || isMixedCarousel
+          ? "published"
+          : "not_planned",
+      video_defer_kind: resolvedMedia.videoDeferKind,
+      video_deferred_reason: resolvedMedia.videoDeferredReason,
       created_at: new Date().toISOString()
     }));
+  }
+
+  if (resolvedMedia.videoDeferred) {
+    await upsertVideoRepairQueue({
+      source_date: date,
+      source_slot: slot.slot,
+      status: "VIDEO_DEFERRED",
+      original_media_type: slot.media_type as "reel" | "mixed-carousel",
+      fallback_media_type: resolvedMedia.mediaType as "image" | "carousel",
+      defer_kind: resolvedMedia.videoDeferKind ?? "unexpected",
+      dry_run: config.dryRun ? true : undefined,
+      failure_reason: resolvedMedia.videoDeferredReason ?? "Unknown video validation failure.",
+      detected_at: new Date().toISOString(),
+      next_attempt: "next-production-cycle"
+    }, root);
   }
 
   for (const { platform, input } of platformInputs) {
@@ -132,7 +284,7 @@ async function postOneSlot(
 
     try {
       const result = await postPlatform(platform, input, config, fetchImpl);
-      const entry = resultToLog(date, slot.slot, result);
+      const entry = resultToLog(date, slot.slot, result, resolvedMedia);
       await appendPostLog(entry, root);
       outputs.push(entry);
     } catch (error) {
@@ -143,12 +295,45 @@ async function postOneSlot(
         status: "failed",
         dry_run: config.dryRun,
         attempts: 3,
+        published_media_type: input.mediaType,
+        video_status: resolvedMedia.videoDeferred
+          ? "VIDEO_DEFERRED"
+          : isReel || isMixedCarousel
+            ? "published"
+            : "not_planned",
+        video_defer_kind: resolvedMedia.videoDeferKind,
+        video_deferred_reason: resolvedMedia.videoDeferredReason,
         error: error instanceof Error ? error.message : String(error),
         created_at: new Date().toISOString()
       };
       await appendPostLog(entry, root);
       outputs.push(entry);
       throw error;
+    }
+  }
+
+  if (!config.dryRun && !resolvedMedia.videoDeferred && (isReel || isMixedCarousel)) {
+    const completed = await loadPostLog(date, root);
+    const bothPlatformsPublished = (["facebook", "instagram"] as const).every((platform) =>
+      completed.some(
+        (entry) =>
+          entry.slot === slot.slot &&
+          entry.platform === platform &&
+          !entry.dry_run &&
+          (entry.status === "success" || entry.status === "posted")
+      )
+    );
+    if (bothPlatformsPublished) {
+      const repairs = await loadVideoRepairQueue(root);
+      for (const repair of repairs) {
+        if (
+          repair.status === "VIDEO_DEFERRED" &&
+          repair.replacement_candidate_date === date &&
+          repair.replacement_candidate_slot === slot.slot
+        ) {
+          await resolveVideoRepairQueue(repair.source_date, repair.source_slot, date, slot.slot, root);
+        }
+      }
     }
   }
 

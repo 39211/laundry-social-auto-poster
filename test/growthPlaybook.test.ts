@@ -23,6 +23,7 @@ describe("growth playbook", () => {
       expect(row.format).toBeTruthy();
       expect(row.visual_route).toBeTruthy();
       expect(row.traffic_route).toBeTruthy();
+      expect(row.content_role).toBe(row.slot === 1 ? "reach-answer" : "evidence-conversion");
       expect(row.views_target).toBeGreaterThan(0);
       expect(row.follower_target).toBeGreaterThan(0);
       expect(row.hook).toContain(row.topic);
@@ -35,7 +36,61 @@ describe("growth playbook", () => {
       expect(row.caption).not.toMatch(/保證|百分之百|完全去除|恢復全新|一定洗白/);
       expect(row.image_or_reel_direction.length).toBeGreaterThan(20);
       expect(row.seo_sync_page).toMatch(/^\/(services|guides)\//);
+      expect(row.search_intent).toMatch(
+        /^(local-discovery|problem-diagnosis|service-comparison|trust-proof|pickup-logistics|aftercare)$/
+      );
+      expect(row.target_queries.length).toBeGreaterThanOrEqual(3);
+      expect(new Set(row.target_queries).size).toBe(row.target_queries.length);
+      expect(row.evidence_type).toMatch(
+        /^(verified-business-fact|first-party-inspection|real-case-photo|service-boundary|customer-question|pickup-logistics)$/
+      );
       expect(row.ten_day_review_metric.length).toBeGreaterThan(20);
+    }
+
+    expect(playbook.search_intent_clusters.map((cluster) => cluster.id)).toEqual([
+      "local-discovery",
+      "problem-diagnosis",
+      "service-comparison",
+      "trust-proof",
+      "pickup-logistics",
+      "aftercare"
+    ]);
+    expect(playbook.ai_visibility_review_28d.checkpoints.map((checkpoint) => checkpoint.day)).toEqual([0, 7, 28]);
+    expect(playbook.ai_visibility_review_28d.engines).toContain("chatgpt-search");
+    expect(playbook.ai_visibility_review_28d.engines).toContain("grok-search");
+    expect(playbook.community_practice_sources.some((source) => source.platform === "X")).toBe(true);
+    expect(playbook.community_practice_sources.some((source) => source.platform === "GitHub")).toBe(true);
+  });
+
+  it("enforces one reach-answer and one evidence-conversion role on every day", () => {
+    const playbook = buildGrowthPlaybook("2026-07-11", 90);
+
+    for (const day of playbook.days) {
+      expect(day.slots.map((slot) => slot.content_role), day.date).toEqual([
+        "reach-answer",
+        "evidence-conversion"
+      ]);
+    }
+  });
+
+  it("adds the unpublished four-image plus companion-video package from 2026-07-29 onward", () => {
+    const playbook = buildGrowthPlaybook("2026-07-11", 90);
+    const before = playbook.days.find((day) => day.date === "2026-07-28");
+    const after = playbook.days.filter((day) => day.date >= "2026-07-29");
+
+    expect(before?.slots.every((slot) => slot.media_package === undefined)).toBe(true);
+    expect(after.length).toBeGreaterThan(0);
+    for (const day of after) {
+      for (const slot of day.slots) {
+        expect(slot.media_package).toMatchObject({
+          image_count: 4,
+          companion_video_required: true,
+          publish_authorized: false,
+          included_in_kpi: false
+        });
+        expect(slot.video_candidate?.memory_hook.length).toBeGreaterThanOrEqual(6);
+        expect(slot.video_candidate?.duration_seconds).toBe(12);
+      }
     }
   });
 

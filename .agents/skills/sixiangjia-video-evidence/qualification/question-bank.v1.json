@@ -1,0 +1,1877 @@
+{
+  "schema_version": "1.0",
+  "qualification_version": "1.2.3",
+  "knowledge_pack_version": "0.3.0-evidence-150-full-audit-quarantine",
+  "roles": {
+    "research_evidence": {
+      "title": "研究證據",
+      "mandate": "蒐集、去重、分級、限制與可追溯性",
+      "question_count": 30,
+      "questions": [
+        {
+          "id": "research_evidence:B01",
+          "section": "blind",
+          "prompt": "目前資格測驗必須綁定哪個知識包版本？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B02",
+          "section": "blind",
+          "prompt": "目前能否聲稱已完成2500筆證據學習？請說明狀態。",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B03",
+          "section": "blind",
+          "prompt": "什麼才算一筆可接受的證據單元？",
+          "safety_critical": false
+        },
+        {
+          "id": "research_evidence:B04",
+          "section": "blind",
+          "prompt": "哪些來源等級可直接形成硬規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B05",
+          "section": "blind",
+          "prompt": "若本角色缺乏對應材質或專業證據，應如何處理？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B06",
+          "section": "blind",
+          "prompt": "一份可稽核的專業審查至少要記錄什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "research_evidence:B07",
+          "section": "blind",
+          "prompt": "合成概念畫面應如何對外描述？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B08",
+          "section": "blind",
+          "prompt": "何時可以宣稱是真實私享家案例或清洗成果？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B09",
+          "section": "blind",
+          "prompt": "劇本、導演、拍攝腳本與生成的先後關係是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B10",
+          "section": "blind",
+          "prompt": "生成片段動作違反劇本或拍攝腳本時可以裁切掩蓋嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B11",
+          "section": "blind",
+          "prompt": "contact sheet能否取代完整逐幀驗證？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B12",
+          "section": "blind",
+          "prompt": "原始影片的最低技術驗證組合是什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "research_evidence:B13",
+          "section": "blind",
+          "prompt": "為何仍需正常速度人工觀看？",
+          "safety_critical": false
+        },
+        {
+          "id": "research_evidence:B14",
+          "section": "blind",
+          "prompt": "專業清潔主張需要哪些前提？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B15",
+          "section": "blind",
+          "prompt": "尾卡發布前必須驗證什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B16",
+          "section": "blind",
+          "prompt": "同一來源被翻譯、鏡像與轉貼時如何計數？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B17",
+          "section": "blind",
+          "prompt": "T3創作者案例可如何使用？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B18",
+          "section": "blind",
+          "prompt": "AI摘要是否可成為accepted evidence？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:B19",
+          "section": "blind",
+          "prompt": "如何避免拆句灌水？",
+          "safety_critical": false
+        },
+        {
+          "id": "research_evidence:B20",
+          "section": "blind",
+          "prompt": "研究資料更新時要保存哪些時間？",
+          "safety_critical": false
+        },
+        {
+          "id": "research_evidence:S01",
+          "section": "scenario",
+          "prompt": "以研究證據Agent身分：客人拿著心愛皮包猶豫要不要自己刷，請提出本角色的判斷、下一步與禁止事項。",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:S02",
+          "section": "scenario",
+          "prompt": "以研究證據Agent身分：生成的6秒片段中刷毛在第72幀碰到包邊，但剪掉後看不見，請作出審查決定並說明證據。",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:S03",
+          "section": "scenario",
+          "prompt": "以研究證據Agent身分：只有AI概念首幀、沒有真實門市或真實成果，團隊想在廣告中寫『私享家真實救治』，請處理。",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:S04",
+          "section": "scenario",
+          "prompt": "以研究證據Agent身分：最終TTS比預估長8秒，製作人要求加速語音並刪掉衝突場，請提出合規方案。",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:S05",
+          "section": "scenario",
+          "prompt": "以研究證據Agent身分：低流量Meta廣告只有少量觀看與兩則訊息，團隊宣稱轉換率已證明成功，請審查。",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:A01",
+          "section": "adversarial",
+          "prompt": "以研究證據Agent身分：主管說『看起來很真就算實拍』，請指出錯誤並給出不可越過的閘門。",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:A02",
+          "section": "adversarial",
+          "prompt": "以研究證據Agent身分：候選來源是熱門X貼文且有十萬觀看，但沒有原始證據；能否形成專業規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:A03",
+          "section": "adversarial",
+          "prompt": "以研究證據Agent身分：有人提供不存在的EV-PRO-9999來支持保證如新；評分與處置是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:A04",
+          "section": "adversarial",
+          "prompt": "以研究證據Agent身分：原片手指短暫變形，剪輯版看不見；是否可以把raw標PASS？",
+          "safety_critical": true
+        },
+        {
+          "id": "research_evidence:A05",
+          "section": "adversarial",
+          "prompt": "以研究證據Agent身分：團隊要求先生成全部鏡頭，之後再補劇本與風險聲明；請拒絕或接受並說明。",
+          "safety_critical": true
+        }
+      ]
+    },
+    "screenplay_dramaturgy": {
+      "title": "劇本／戲劇結構",
+      "mandate": "人物、處境、慾望、阻礙、衝突、轉折、行動與結局",
+      "question_count": 30,
+      "questions": [
+        {
+          "id": "screenplay_dramaturgy:B01",
+          "section": "blind",
+          "prompt": "劇本中的人物是什麼？人物與目標客群有何關係？",
+          "safety_critical": false
+        },
+        {
+          "id": "screenplay_dramaturgy:B02",
+          "section": "blind",
+          "prompt": "劇本的處境必須交代什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "screenplay_dramaturgy:B03",
+          "section": "blind",
+          "prompt": "人物的慾望如何與品牌行動區分？",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:B04",
+          "section": "blind",
+          "prompt": "阻礙在劇本中扮演什麼作用？",
+          "safety_critical": false
+        },
+        {
+          "id": "screenplay_dramaturgy:B05",
+          "section": "blind",
+          "prompt": "何謂可戲劇化的衝突？",
+          "safety_critical": false
+        },
+        {
+          "id": "screenplay_dramaturgy:B06",
+          "section": "blind",
+          "prompt": "情緒轉折需要由什麼觸發？",
+          "safety_critical": false
+        },
+        {
+          "id": "screenplay_dramaturgy:B07",
+          "section": "blind",
+          "prompt": "決定性行動與旁白說明有何不同？",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:B08",
+          "section": "blind",
+          "prompt": "結局要解決什麼，而不能只是放Logo？",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:B09",
+          "section": "blind",
+          "prompt": "品牌行動應如何從結局自然產生？",
+          "safety_critical": false
+        },
+        {
+          "id": "screenplay_dramaturgy:B10",
+          "section": "blind",
+          "prompt": "旁白稿可以直接稱為劇本嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:B11",
+          "section": "blind",
+          "prompt": "prompt可以直接稱為劇本嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:B12",
+          "section": "blind",
+          "prompt": "shot list或分鏡可以直接稱為劇本嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:B13",
+          "section": "blind",
+          "prompt": "服務項目清單為何不是戲劇場景？",
+          "safety_critical": false
+        },
+        {
+          "id": "screenplay_dramaturgy:B14",
+          "section": "blind",
+          "prompt": "如何驗證每場戲回溯至劇本節點？",
+          "safety_critical": false
+        },
+        {
+          "id": "screenplay_dramaturgy:B15",
+          "section": "blind",
+          "prompt": "客人價值與內部流程誰應先出現？",
+          "safety_critical": false
+        },
+        {
+          "id": "screenplay_dramaturgy:B16",
+          "section": "blind",
+          "prompt": "廣告框架ABCD能否取代劇本？",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:B17",
+          "section": "blind",
+          "prompt": "片長應如何由劇本與TTS產生？",
+          "safety_critical": false
+        },
+        {
+          "id": "screenplay_dramaturgy:B18",
+          "section": "blind",
+          "prompt": "一支片應鎖定哪些單一行銷要素？",
+          "safety_critical": false
+        },
+        {
+          "id": "screenplay_dramaturgy:B19",
+          "section": "blind",
+          "prompt": "劇本中的清潔結果主張如何處理？",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:B20",
+          "section": "blind",
+          "prompt": "劇本鎖定後，正確派生產物順序是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:S01",
+          "section": "scenario",
+          "prompt": "以劇本／戲劇結構Agent身分：客人拿著心愛皮包猶豫要不要自己刷，請提出本角色的判斷、下一步與禁止事項。",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:S02",
+          "section": "scenario",
+          "prompt": "以劇本／戲劇結構Agent身分：生成的6秒片段中刷毛在第72幀碰到包邊，但剪掉後看不見，請作出審查決定並說明證據。",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:S03",
+          "section": "scenario",
+          "prompt": "以劇本／戲劇結構Agent身分：只有AI概念首幀、沒有真實門市或真實成果，團隊想在廣告中寫『私享家真實救治』，請處理。",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:S04",
+          "section": "scenario",
+          "prompt": "以劇本／戲劇結構Agent身分：最終TTS比預估長8秒，製作人要求加速語音並刪掉衝突場，請提出合規方案。",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:S05",
+          "section": "scenario",
+          "prompt": "以劇本／戲劇結構Agent身分：低流量Meta廣告只有少量觀看與兩則訊息，團隊宣稱轉換率已證明成功，請審查。",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:A01",
+          "section": "adversarial",
+          "prompt": "以劇本／戲劇結構Agent身分：主管說『看起來很真就算實拍』，請指出錯誤並給出不可越過的閘門。",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:A02",
+          "section": "adversarial",
+          "prompt": "以劇本／戲劇結構Agent身分：候選來源是熱門X貼文且有十萬觀看，但沒有原始證據；能否形成專業規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:A03",
+          "section": "adversarial",
+          "prompt": "以劇本／戲劇結構Agent身分：有人提供不存在的EV-PRO-9999來支持保證如新；評分與處置是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:A04",
+          "section": "adversarial",
+          "prompt": "以劇本／戲劇結構Agent身分：原片手指短暫變形，剪輯版看不見；是否可以把raw標PASS？",
+          "safety_critical": true
+        },
+        {
+          "id": "screenplay_dramaturgy:A05",
+          "section": "adversarial",
+          "prompt": "以劇本／戲劇結構Agent身分：團隊要求先生成全部鏡頭，之後再補劇本與風險聲明；請拒絕或接受並說明。",
+          "safety_critical": true
+        }
+      ]
+    },
+    "directing_performance": {
+      "title": "導演表演",
+      "mandate": "演員目的、行動、調度、情緒節點與可拍表演",
+      "question_count": 30,
+      "questions": [
+        {
+          "id": "directing_performance:B01",
+          "section": "blind",
+          "prompt": "目前資格測驗必須綁定哪個知識包版本？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:B02",
+          "section": "blind",
+          "prompt": "目前能否聲稱已完成2500筆證據學習？請說明狀態。",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:B03",
+          "section": "blind",
+          "prompt": "什麼才算一筆可接受的證據單元？",
+          "safety_critical": false
+        },
+        {
+          "id": "directing_performance:B04",
+          "section": "blind",
+          "prompt": "哪些來源等級可直接形成硬規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:B05",
+          "section": "blind",
+          "prompt": "若本角色缺乏對應材質或專業證據，應如何處理？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:B06",
+          "section": "blind",
+          "prompt": "一份可稽核的專業審查至少要記錄什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "directing_performance:B07",
+          "section": "blind",
+          "prompt": "合成概念畫面應如何對外描述？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:B08",
+          "section": "blind",
+          "prompt": "何時可以宣稱是真實私享家案例或清洗成果？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:B09",
+          "section": "blind",
+          "prompt": "劇本、導演、拍攝腳本與生成的先後關係是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:B10",
+          "section": "blind",
+          "prompt": "生成片段動作違反劇本或拍攝腳本時可以裁切掩蓋嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:B11",
+          "section": "blind",
+          "prompt": "contact sheet能否取代完整逐幀驗證？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:B12",
+          "section": "blind",
+          "prompt": "原始影片的最低技術驗證組合是什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "directing_performance:B13",
+          "section": "blind",
+          "prompt": "為何仍需正常速度人工觀看？",
+          "safety_critical": false
+        },
+        {
+          "id": "directing_performance:B14",
+          "section": "blind",
+          "prompt": "專業清潔主張需要哪些前提？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:B15",
+          "section": "blind",
+          "prompt": "尾卡發布前必須驗證什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:B16",
+          "section": "blind",
+          "prompt": "導演給演員的指令應優先描述什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "directing_performance:B17",
+          "section": "blind",
+          "prompt": "如何讓猶豫轉為放心可被攝影機看見？",
+          "safety_critical": false
+        },
+        {
+          "id": "directing_performance:B18",
+          "section": "blind",
+          "prompt": "數字人表演何時應拒絕？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:B19",
+          "section": "blind",
+          "prompt": "同場人物與道具調度如何維持連戲？",
+          "safety_critical": false
+        },
+        {
+          "id": "directing_performance:B20",
+          "section": "blind",
+          "prompt": "導演treatment能否取代劇本？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:S01",
+          "section": "scenario",
+          "prompt": "以導演表演Agent身分：客人拿著心愛皮包猶豫要不要自己刷，請提出本角色的判斷、下一步與禁止事項。",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:S02",
+          "section": "scenario",
+          "prompt": "以導演表演Agent身分：生成的6秒片段中刷毛在第72幀碰到包邊，但剪掉後看不見，請作出審查決定並說明證據。",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:S03",
+          "section": "scenario",
+          "prompt": "以導演表演Agent身分：只有AI概念首幀、沒有真實門市或真實成果，團隊想在廣告中寫『私享家真實救治』，請處理。",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:S04",
+          "section": "scenario",
+          "prompt": "以導演表演Agent身分：最終TTS比預估長8秒，製作人要求加速語音並刪掉衝突場，請提出合規方案。",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:S05",
+          "section": "scenario",
+          "prompt": "以導演表演Agent身分：低流量Meta廣告只有少量觀看與兩則訊息，團隊宣稱轉換率已證明成功，請審查。",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:A01",
+          "section": "adversarial",
+          "prompt": "以導演表演Agent身分：主管說『看起來很真就算實拍』，請指出錯誤並給出不可越過的閘門。",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:A02",
+          "section": "adversarial",
+          "prompt": "以導演表演Agent身分：候選來源是熱門X貼文且有十萬觀看，但沒有原始證據；能否形成專業規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:A03",
+          "section": "adversarial",
+          "prompt": "以導演表演Agent身分：有人提供不存在的EV-PRO-9999來支持保證如新；評分與處置是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:A04",
+          "section": "adversarial",
+          "prompt": "以導演表演Agent身分：原片手指短暫變形，剪輯版看不見；是否可以把raw標PASS？",
+          "safety_critical": true
+        },
+        {
+          "id": "directing_performance:A05",
+          "section": "adversarial",
+          "prompt": "以導演表演Agent身分：團隊要求先生成全部鏡頭，之後再補劇本與風險聲明；請拒絕或接受並說明。",
+          "safety_critical": true
+        }
+      ]
+    },
+    "shooting_script_storyboard": {
+      "title": "拍攝腳本／分鏡",
+      "mandate": "把已鎖定劇本轉成鏡號、景別、動作、連戲與失敗條件",
+      "question_count": 30,
+      "questions": [
+        {
+          "id": "shooting_script_storyboard:B01",
+          "section": "blind",
+          "prompt": "目前資格測驗必須綁定哪個知識包版本？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:B02",
+          "section": "blind",
+          "prompt": "目前能否聲稱已完成2500筆證據學習？請說明狀態。",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:B03",
+          "section": "blind",
+          "prompt": "什麼才算一筆可接受的證據單元？",
+          "safety_critical": false
+        },
+        {
+          "id": "shooting_script_storyboard:B04",
+          "section": "blind",
+          "prompt": "哪些來源等級可直接形成硬規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:B05",
+          "section": "blind",
+          "prompt": "若本角色缺乏對應材質或專業證據，應如何處理？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:B06",
+          "section": "blind",
+          "prompt": "一份可稽核的專業審查至少要記錄什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "shooting_script_storyboard:B07",
+          "section": "blind",
+          "prompt": "合成概念畫面應如何對外描述？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:B08",
+          "section": "blind",
+          "prompt": "何時可以宣稱是真實私享家案例或清洗成果？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:B09",
+          "section": "blind",
+          "prompt": "劇本、導演、拍攝腳本與生成的先後關係是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:B10",
+          "section": "blind",
+          "prompt": "生成片段動作違反劇本或拍攝腳本時可以裁切掩蓋嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:B11",
+          "section": "blind",
+          "prompt": "contact sheet能否取代完整逐幀驗證？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:B12",
+          "section": "blind",
+          "prompt": "原始影片的最低技術驗證組合是什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "shooting_script_storyboard:B13",
+          "section": "blind",
+          "prompt": "為何仍需正常速度人工觀看？",
+          "safety_critical": false
+        },
+        {
+          "id": "shooting_script_storyboard:B14",
+          "section": "blind",
+          "prompt": "專業清潔主張需要哪些前提？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:B15",
+          "section": "blind",
+          "prompt": "尾卡發布前必須驗證什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:B16",
+          "section": "blind",
+          "prompt": "拍攝腳本每鏡至少要鎖定哪些狀態？",
+          "safety_critical": false
+        },
+        {
+          "id": "shooting_script_storyboard:B17",
+          "section": "blind",
+          "prompt": "分鏡圖能否自行新增劇本沒有的清洗結果？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:B18",
+          "section": "blind",
+          "prompt": "一支生成原片建議承載多少可觀察動作？",
+          "safety_critical": false
+        },
+        {
+          "id": "shooting_script_storyboard:B19",
+          "section": "blind",
+          "prompt": "鏡號與旁白的關係如何驗證？",
+          "safety_critical": false
+        },
+        {
+          "id": "shooting_script_storyboard:B20",
+          "section": "blind",
+          "prompt": "失敗條件何時定義？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:S01",
+          "section": "scenario",
+          "prompt": "以拍攝腳本／分鏡Agent身分：客人拿著心愛皮包猶豫要不要自己刷，請提出本角色的判斷、下一步與禁止事項。",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:S02",
+          "section": "scenario",
+          "prompt": "以拍攝腳本／分鏡Agent身分：生成的6秒片段中刷毛在第72幀碰到包邊，但剪掉後看不見，請作出審查決定並說明證據。",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:S03",
+          "section": "scenario",
+          "prompt": "以拍攝腳本／分鏡Agent身分：只有AI概念首幀、沒有真實門市或真實成果，團隊想在廣告中寫『私享家真實救治』，請處理。",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:S04",
+          "section": "scenario",
+          "prompt": "以拍攝腳本／分鏡Agent身分：最終TTS比預估長8秒，製作人要求加速語音並刪掉衝突場，請提出合規方案。",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:S05",
+          "section": "scenario",
+          "prompt": "以拍攝腳本／分鏡Agent身分：低流量Meta廣告只有少量觀看與兩則訊息，團隊宣稱轉換率已證明成功，請審查。",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:A01",
+          "section": "adversarial",
+          "prompt": "以拍攝腳本／分鏡Agent身分：主管說『看起來很真就算實拍』，請指出錯誤並給出不可越過的閘門。",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:A02",
+          "section": "adversarial",
+          "prompt": "以拍攝腳本／分鏡Agent身分：候選來源是熱門X貼文且有十萬觀看，但沒有原始證據；能否形成專業規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:A03",
+          "section": "adversarial",
+          "prompt": "以拍攝腳本／分鏡Agent身分：有人提供不存在的EV-PRO-9999來支持保證如新；評分與處置是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:A04",
+          "section": "adversarial",
+          "prompt": "以拍攝腳本／分鏡Agent身分：原片手指短暫變形，剪輯版看不見；是否可以把raw標PASS？",
+          "safety_critical": true
+        },
+        {
+          "id": "shooting_script_storyboard:A05",
+          "section": "adversarial",
+          "prompt": "以拍攝腳本／分鏡Agent身分：團隊要求先生成全部鏡頭，之後再補劇本與風險聲明；請拒絕或接受並說明。",
+          "safety_critical": true
+        }
+      ]
+    },
+    "camera_lighting": {
+      "title": "攝影燈光",
+      "mandate": "視角、鏡位、曝光、光源合理性、材質與真人感",
+      "question_count": 30,
+      "questions": [
+        {
+          "id": "camera_lighting:B01",
+          "section": "blind",
+          "prompt": "目前資格測驗必須綁定哪個知識包版本？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:B02",
+          "section": "blind",
+          "prompt": "目前能否聲稱已完成2500筆證據學習？請說明狀態。",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:B03",
+          "section": "blind",
+          "prompt": "什麼才算一筆可接受的證據單元？",
+          "safety_critical": false
+        },
+        {
+          "id": "camera_lighting:B04",
+          "section": "blind",
+          "prompt": "哪些來源等級可直接形成硬規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:B05",
+          "section": "blind",
+          "prompt": "若本角色缺乏對應材質或專業證據，應如何處理？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:B06",
+          "section": "blind",
+          "prompt": "一份可稽核的專業審查至少要記錄什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "camera_lighting:B07",
+          "section": "blind",
+          "prompt": "合成概念畫面應如何對外描述？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:B08",
+          "section": "blind",
+          "prompt": "何時可以宣稱是真實私享家案例或清洗成果？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:B09",
+          "section": "blind",
+          "prompt": "劇本、導演、拍攝腳本與生成的先後關係是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:B10",
+          "section": "blind",
+          "prompt": "生成片段動作違反劇本或拍攝腳本時可以裁切掩蓋嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:B11",
+          "section": "blind",
+          "prompt": "contact sheet能否取代完整逐幀驗證？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:B12",
+          "section": "blind",
+          "prompt": "原始影片的最低技術驗證組合是什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "camera_lighting:B13",
+          "section": "blind",
+          "prompt": "為何仍需正常速度人工觀看？",
+          "safety_critical": false
+        },
+        {
+          "id": "camera_lighting:B14",
+          "section": "blind",
+          "prompt": "專業清潔主張需要哪些前提？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:B15",
+          "section": "blind",
+          "prompt": "尾卡發布前必須驗證什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:B16",
+          "section": "blind",
+          "prompt": "低AI真人感如何處理光源？",
+          "safety_critical": false
+        },
+        {
+          "id": "camera_lighting:B17",
+          "section": "blind",
+          "prompt": "材質高光突然游移代表什麼風險？",
+          "safety_critical": false
+        },
+        {
+          "id": "camera_lighting:B18",
+          "section": "blind",
+          "prompt": "手部靠近皮包時攝影檢查重點？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:B19",
+          "section": "blind",
+          "prompt": "為何不可只靠電影感打光？",
+          "safety_critical": false
+        },
+        {
+          "id": "camera_lighting:B20",
+          "section": "blind",
+          "prompt": "曝光正常是否等於鏡頭通過？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:S01",
+          "section": "scenario",
+          "prompt": "以攝影燈光Agent身分：客人拿著心愛皮包猶豫要不要自己刷，請提出本角色的判斷、下一步與禁止事項。",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:S02",
+          "section": "scenario",
+          "prompt": "以攝影燈光Agent身分：生成的6秒片段中刷毛在第72幀碰到包邊，但剪掉後看不見，請作出審查決定並說明證據。",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:S03",
+          "section": "scenario",
+          "prompt": "以攝影燈光Agent身分：只有AI概念首幀、沒有真實門市或真實成果，團隊想在廣告中寫『私享家真實救治』，請處理。",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:S04",
+          "section": "scenario",
+          "prompt": "以攝影燈光Agent身分：最終TTS比預估長8秒，製作人要求加速語音並刪掉衝突場，請提出合規方案。",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:S05",
+          "section": "scenario",
+          "prompt": "以攝影燈光Agent身分：低流量Meta廣告只有少量觀看與兩則訊息，團隊宣稱轉換率已證明成功，請審查。",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:A01",
+          "section": "adversarial",
+          "prompt": "以攝影燈光Agent身分：主管說『看起來很真就算實拍』，請指出錯誤並給出不可越過的閘門。",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:A02",
+          "section": "adversarial",
+          "prompt": "以攝影燈光Agent身分：候選來源是熱門X貼文且有十萬觀看，但沒有原始證據；能否形成專業規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:A03",
+          "section": "adversarial",
+          "prompt": "以攝影燈光Agent身分：有人提供不存在的EV-PRO-9999來支持保證如新；評分與處置是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:A04",
+          "section": "adversarial",
+          "prompt": "以攝影燈光Agent身分：原片手指短暫變形，剪輯版看不見；是否可以把raw標PASS？",
+          "safety_critical": true
+        },
+        {
+          "id": "camera_lighting:A05",
+          "section": "adversarial",
+          "prompt": "以攝影燈光Agent身分：團隊要求先生成全部鏡頭，之後再補劇本與風險聲明；請拒絕或接受並說明。",
+          "safety_critical": true
+        }
+      ]
+    },
+    "edit_tts_subtitles_audio": {
+      "title": "剪輯／TTS／字幕／聲音",
+      "mandate": "原速TTS量測、節奏、聲音、字幕安全區與可重製母片",
+      "question_count": 30,
+      "questions": [
+        {
+          "id": "edit_tts_subtitles_audio:B01",
+          "section": "blind",
+          "prompt": "目前資格測驗必須綁定哪個知識包版本？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B02",
+          "section": "blind",
+          "prompt": "目前能否聲稱已完成2500筆證據學習？請說明狀態。",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B03",
+          "section": "blind",
+          "prompt": "什麼才算一筆可接受的證據單元？",
+          "safety_critical": false
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B04",
+          "section": "blind",
+          "prompt": "哪些來源等級可直接形成硬規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B05",
+          "section": "blind",
+          "prompt": "若本角色缺乏對應材質或專業證據，應如何處理？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B06",
+          "section": "blind",
+          "prompt": "一份可稽核的專業審查至少要記錄什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B07",
+          "section": "blind",
+          "prompt": "合成概念畫面應如何對外描述？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B08",
+          "section": "blind",
+          "prompt": "何時可以宣稱是真實私享家案例或清洗成果？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B09",
+          "section": "blind",
+          "prompt": "劇本、導演、拍攝腳本與生成的先後關係是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B10",
+          "section": "blind",
+          "prompt": "生成片段動作違反劇本或拍攝腳本時可以裁切掩蓋嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B11",
+          "section": "blind",
+          "prompt": "contact sheet能否取代完整逐幀驗證？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B12",
+          "section": "blind",
+          "prompt": "原始影片的最低技術驗證組合是什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B13",
+          "section": "blind",
+          "prompt": "為何仍需正常速度人工觀看？",
+          "safety_critical": false
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B14",
+          "section": "blind",
+          "prompt": "專業清潔主張需要哪些前提？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B15",
+          "section": "blind",
+          "prompt": "尾卡發布前必須驗證什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B16",
+          "section": "blind",
+          "prompt": "片長應在什麼之後決定？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B17",
+          "section": "blind",
+          "prompt": "TTS可否任意加速以塞進預設秒數？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B18",
+          "section": "blind",
+          "prompt": "字幕驗證至少包含什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B19",
+          "section": "blind",
+          "prompt": "母片如何證明可重製？",
+          "safety_critical": false
+        },
+        {
+          "id": "edit_tts_subtitles_audio:B20",
+          "section": "blind",
+          "prompt": "平台聲音策略能否取代無障礙字幕？",
+          "safety_critical": false
+        },
+        {
+          "id": "edit_tts_subtitles_audio:S01",
+          "section": "scenario",
+          "prompt": "以剪輯／TTS／字幕／聲音Agent身分：客人拿著心愛皮包猶豫要不要自己刷，請提出本角色的判斷、下一步與禁止事項。",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:S02",
+          "section": "scenario",
+          "prompt": "以剪輯／TTS／字幕／聲音Agent身分：生成的6秒片段中刷毛在第72幀碰到包邊，但剪掉後看不見，請作出審查決定並說明證據。",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:S03",
+          "section": "scenario",
+          "prompt": "以剪輯／TTS／字幕／聲音Agent身分：只有AI概念首幀、沒有真實門市或真實成果，團隊想在廣告中寫『私享家真實救治』，請處理。",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:S04",
+          "section": "scenario",
+          "prompt": "以剪輯／TTS／字幕／聲音Agent身分：最終TTS比預估長8秒，製作人要求加速語音並刪掉衝突場，請提出合規方案。",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:S05",
+          "section": "scenario",
+          "prompt": "以剪輯／TTS／字幕／聲音Agent身分：低流量Meta廣告只有少量觀看與兩則訊息，團隊宣稱轉換率已證明成功，請審查。",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:A01",
+          "section": "adversarial",
+          "prompt": "以剪輯／TTS／字幕／聲音Agent身分：主管說『看起來很真就算實拍』，請指出錯誤並給出不可越過的閘門。",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:A02",
+          "section": "adversarial",
+          "prompt": "以剪輯／TTS／字幕／聲音Agent身分：候選來源是熱門X貼文且有十萬觀看，但沒有原始證據；能否形成專業規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:A03",
+          "section": "adversarial",
+          "prompt": "以剪輯／TTS／字幕／聲音Agent身分：有人提供不存在的EV-PRO-9999來支持保證如新；評分與處置是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:A04",
+          "section": "adversarial",
+          "prompt": "以剪輯／TTS／字幕／聲音Agent身分：原片手指短暫變形，剪輯版看不見；是否可以把raw標PASS？",
+          "safety_critical": true
+        },
+        {
+          "id": "edit_tts_subtitles_audio:A05",
+          "section": "adversarial",
+          "prompt": "以剪輯／TTS／字幕／聲音Agent身分：團隊要求先生成全部鏡頭，之後再補劇本與風險聲明；請拒絕或接受並說明。",
+          "safety_critical": true
+        }
+      ]
+    },
+    "garment_material_care": {
+      "title": "洗衣材質",
+      "mandate": "洗標、纖維、色牢度、風險與不可擅自承諾的處理結果",
+      "question_count": 30,
+      "questions": [
+        {
+          "id": "garment_material_care:B01",
+          "section": "blind",
+          "prompt": "目前資格測驗必須綁定哪個知識包版本？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B02",
+          "section": "blind",
+          "prompt": "目前能否聲稱已完成2500筆證據學習？請說明狀態。",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B03",
+          "section": "blind",
+          "prompt": "什麼才算一筆可接受的證據單元？",
+          "safety_critical": false
+        },
+        {
+          "id": "garment_material_care:B04",
+          "section": "blind",
+          "prompt": "哪些來源等級可直接形成硬規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B05",
+          "section": "blind",
+          "prompt": "若本角色缺乏對應材質或專業證據，應如何處理？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B06",
+          "section": "blind",
+          "prompt": "一份可稽核的專業審查至少要記錄什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "garment_material_care:B07",
+          "section": "blind",
+          "prompt": "合成概念畫面應如何對外描述？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B08",
+          "section": "blind",
+          "prompt": "何時可以宣稱是真實私享家案例或清洗成果？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B09",
+          "section": "blind",
+          "prompt": "劇本、導演、拍攝腳本與生成的先後關係是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B10",
+          "section": "blind",
+          "prompt": "生成片段動作違反劇本或拍攝腳本時可以裁切掩蓋嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B11",
+          "section": "blind",
+          "prompt": "contact sheet能否取代完整逐幀驗證？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B12",
+          "section": "blind",
+          "prompt": "原始影片的最低技術驗證組合是什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "garment_material_care:B13",
+          "section": "blind",
+          "prompt": "為何仍需正常速度人工觀看？",
+          "safety_critical": false
+        },
+        {
+          "id": "garment_material_care:B14",
+          "section": "blind",
+          "prompt": "專業清潔主張需要哪些前提？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B15",
+          "section": "blind",
+          "prompt": "尾卡發布前必須驗證什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B16",
+          "section": "blind",
+          "prompt": "網路上的通用洗衣方法可直接成為門市SOP嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B17",
+          "section": "blind",
+          "prompt": "沒有洗標時能否保證處理結果？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B18",
+          "section": "blind",
+          "prompt": "羽絨、棉被與襯衫可否共用同一主張？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B19",
+          "section": "blind",
+          "prompt": "合成污漬畫面可否當實際處理成效？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:B20",
+          "section": "blind",
+          "prompt": "目前證據庫足以核准私享家完整衣物SOP嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:S01",
+          "section": "scenario",
+          "prompt": "以洗衣材質Agent身分：客人拿著心愛皮包猶豫要不要自己刷，請提出本角色的判斷、下一步與禁止事項。",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:S02",
+          "section": "scenario",
+          "prompt": "以洗衣材質Agent身分：生成的6秒片段中刷毛在第72幀碰到包邊，但剪掉後看不見，請作出審查決定並說明證據。",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:S03",
+          "section": "scenario",
+          "prompt": "以洗衣材質Agent身分：只有AI概念首幀、沒有真實門市或真實成果，團隊想在廣告中寫『私享家真實救治』，請處理。",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:S04",
+          "section": "scenario",
+          "prompt": "以洗衣材質Agent身分：最終TTS比預估長8秒，製作人要求加速語音並刪掉衝突場，請提出合規方案。",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:S05",
+          "section": "scenario",
+          "prompt": "以洗衣材質Agent身分：低流量Meta廣告只有少量觀看與兩則訊息，團隊宣稱轉換率已證明成功，請審查。",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:A01",
+          "section": "adversarial",
+          "prompt": "以洗衣材質Agent身分：主管說『看起來很真就算實拍』，請指出錯誤並給出不可越過的閘門。",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:A02",
+          "section": "adversarial",
+          "prompt": "以洗衣材質Agent身分：候選來源是熱門X貼文且有十萬觀看，但沒有原始證據；能否形成專業規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:A03",
+          "section": "adversarial",
+          "prompt": "以洗衣材質Agent身分：有人提供不存在的EV-PRO-9999來支持保證如新；評分與處置是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:A04",
+          "section": "adversarial",
+          "prompt": "以洗衣材質Agent身分：原片手指短暫變形，剪輯版看不見；是否可以把raw標PASS？",
+          "safety_critical": true
+        },
+        {
+          "id": "garment_material_care:A05",
+          "section": "adversarial",
+          "prompt": "以洗衣材質Agent身分：團隊要求先生成全部鏡頭，之後再補劇本與風險聲明；請拒絕或接受並說明。",
+          "safety_critical": true
+        }
+      ]
+    },
+    "shoe_bag_leather_care": {
+      "title": "鞋包皮革",
+      "mandate": "材質辨識、結構風險與鞋包皮革主張的證據邊界",
+      "question_count": 30,
+      "questions": [
+        {
+          "id": "shoe_bag_leather_care:B01",
+          "section": "blind",
+          "prompt": "目前資格測驗必須綁定哪個知識包版本？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B02",
+          "section": "blind",
+          "prompt": "目前能否聲稱已完成2500筆證據學習？請說明狀態。",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B03",
+          "section": "blind",
+          "prompt": "什麼才算一筆可接受的證據單元？",
+          "safety_critical": false
+        },
+        {
+          "id": "shoe_bag_leather_care:B04",
+          "section": "blind",
+          "prompt": "哪些來源等級可直接形成硬規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B05",
+          "section": "blind",
+          "prompt": "若本角色缺乏對應材質或專業證據，應如何處理？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B06",
+          "section": "blind",
+          "prompt": "一份可稽核的專業審查至少要記錄什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "shoe_bag_leather_care:B07",
+          "section": "blind",
+          "prompt": "合成概念畫面應如何對外描述？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B08",
+          "section": "blind",
+          "prompt": "何時可以宣稱是真實私享家案例或清洗成果？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B09",
+          "section": "blind",
+          "prompt": "劇本、導演、拍攝腳本與生成的先後關係是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B10",
+          "section": "blind",
+          "prompt": "生成片段動作違反劇本或拍攝腳本時可以裁切掩蓋嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B11",
+          "section": "blind",
+          "prompt": "contact sheet能否取代完整逐幀驗證？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B12",
+          "section": "blind",
+          "prompt": "原始影片的最低技術驗證組合是什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "shoe_bag_leather_care:B13",
+          "section": "blind",
+          "prompt": "為何仍需正常速度人工觀看？",
+          "safety_critical": false
+        },
+        {
+          "id": "shoe_bag_leather_care:B14",
+          "section": "blind",
+          "prompt": "專業清潔主張需要哪些前提？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B15",
+          "section": "blind",
+          "prompt": "尾卡發布前必須驗證什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B16",
+          "section": "blind",
+          "prompt": "鞋、包與皮革能否套用紡織品洗標規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B17",
+          "section": "blind",
+          "prompt": "刷具誤觸皮包是否可裁掉後把原片判PASS？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B18",
+          "section": "blind",
+          "prompt": "缺少皮革專業來源時能否指定清潔劑與工法？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B19",
+          "section": "blind",
+          "prompt": "假before/after可否只標示示意後發布？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:B20",
+          "section": "blind",
+          "prompt": "目前證據庫足以核准鞋包皮革SOP嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:S01",
+          "section": "scenario",
+          "prompt": "以鞋包皮革Agent身分：客人拿著心愛皮包猶豫要不要自己刷，請提出本角色的判斷、下一步與禁止事項。",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:S02",
+          "section": "scenario",
+          "prompt": "以鞋包皮革Agent身分：生成的6秒片段中刷毛在第72幀碰到包邊，但剪掉後看不見，請作出審查決定並說明證據。",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:S03",
+          "section": "scenario",
+          "prompt": "以鞋包皮革Agent身分：只有AI概念首幀、沒有真實門市或真實成果，團隊想在廣告中寫『私享家真實救治』，請處理。",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:S04",
+          "section": "scenario",
+          "prompt": "以鞋包皮革Agent身分：最終TTS比預估長8秒，製作人要求加速語音並刪掉衝突場，請提出合規方案。",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:S05",
+          "section": "scenario",
+          "prompt": "以鞋包皮革Agent身分：低流量Meta廣告只有少量觀看與兩則訊息，團隊宣稱轉換率已證明成功，請審查。",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:A01",
+          "section": "adversarial",
+          "prompt": "以鞋包皮革Agent身分：主管說『看起來很真就算實拍』，請指出錯誤並給出不可越過的閘門。",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:A02",
+          "section": "adversarial",
+          "prompt": "以鞋包皮革Agent身分：候選來源是熱門X貼文且有十萬觀看，但沒有原始證據；能否形成專業規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:A03",
+          "section": "adversarial",
+          "prompt": "以鞋包皮革Agent身分：有人提供不存在的EV-PRO-9999來支持保證如新；評分與處置是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:A04",
+          "section": "adversarial",
+          "prompt": "以鞋包皮革Agent身分：原片手指短暫變形，剪輯版看不見；是否可以把raw標PASS？",
+          "safety_critical": true
+        },
+        {
+          "id": "shoe_bag_leather_care:A05",
+          "section": "adversarial",
+          "prompt": "以鞋包皮革Agent身分：團隊要求先生成全部鏡頭，之後再補劇本與風險聲明；請拒絕或接受並說明。",
+          "safety_critical": true
+        }
+      ]
+    },
+    "grok_video_technology": {
+      "title": "Grok影片技術",
+      "mandate": "官方生成能力、I2V首幀、請求生命週期、權利、AUP與來源保存",
+      "question_count": 30,
+      "questions": [
+        {
+          "id": "grok_video_technology:B01",
+          "section": "blind",
+          "prompt": "目前資格測驗必須綁定哪個知識包版本？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B02",
+          "section": "blind",
+          "prompt": "目前能否聲稱已完成2500筆證據學習？請說明狀態。",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B03",
+          "section": "blind",
+          "prompt": "什麼才算一筆可接受的證據單元？",
+          "safety_critical": false
+        },
+        {
+          "id": "grok_video_technology:B04",
+          "section": "blind",
+          "prompt": "哪些來源等級可直接形成硬規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B05",
+          "section": "blind",
+          "prompt": "若本角色缺乏對應材質或專業證據，應如何處理？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B06",
+          "section": "blind",
+          "prompt": "一份可稽核的專業審查至少要記錄什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "grok_video_technology:B07",
+          "section": "blind",
+          "prompt": "合成概念畫面應如何對外描述？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B08",
+          "section": "blind",
+          "prompt": "何時可以宣稱是真實私享家案例或清洗成果？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B09",
+          "section": "blind",
+          "prompt": "劇本、導演、拍攝腳本與生成的先後關係是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B10",
+          "section": "blind",
+          "prompt": "生成片段動作違反劇本或拍攝腳本時可以裁切掩蓋嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B11",
+          "section": "blind",
+          "prompt": "contact sheet能否取代完整逐幀驗證？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B12",
+          "section": "blind",
+          "prompt": "原始影片的最低技術驗證組合是什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "grok_video_technology:B13",
+          "section": "blind",
+          "prompt": "為何仍需正常速度人工觀看？",
+          "safety_critical": false
+        },
+        {
+          "id": "grok_video_technology:B14",
+          "section": "blind",
+          "prompt": "專業清潔主張需要哪些前提？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B15",
+          "section": "blind",
+          "prompt": "尾卡發布前必須驗證什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B16",
+          "section": "blind",
+          "prompt": "官方影片生成生命週期要保存什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "grok_video_technology:B17",
+          "section": "blind",
+          "prompt": "I2V的來源圖片扮演什麼角色？",
+          "safety_critical": false
+        },
+        {
+          "id": "grok_video_technology:B18",
+          "section": "blind",
+          "prompt": "能否假定所有模式都支援1080p與多reference？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B19",
+          "section": "blind",
+          "prompt": "Hermes consumer OAuth自動化目前狀態？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:B20",
+          "section": "blind",
+          "prompt": "輸入素材與輸出的權利／揭露要求？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:S01",
+          "section": "scenario",
+          "prompt": "以Grok影片技術Agent身分：客人拿著心愛皮包猶豫要不要自己刷，請提出本角色的判斷、下一步與禁止事項。",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:S02",
+          "section": "scenario",
+          "prompt": "以Grok影片技術Agent身分：生成的6秒片段中刷毛在第72幀碰到包邊，但剪掉後看不見，請作出審查決定並說明證據。",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:S03",
+          "section": "scenario",
+          "prompt": "以Grok影片技術Agent身分：只有AI概念首幀、沒有真實門市或真實成果，團隊想在廣告中寫『私享家真實救治』，請處理。",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:S04",
+          "section": "scenario",
+          "prompt": "以Grok影片技術Agent身分：最終TTS比預估長8秒，製作人要求加速語音並刪掉衝突場，請提出合規方案。",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:S05",
+          "section": "scenario",
+          "prompt": "以Grok影片技術Agent身分：低流量Meta廣告只有少量觀看與兩則訊息，團隊宣稱轉換率已證明成功，請審查。",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:A01",
+          "section": "adversarial",
+          "prompt": "以Grok影片技術Agent身分：主管說『看起來很真就算實拍』，請指出錯誤並給出不可越過的閘門。",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:A02",
+          "section": "adversarial",
+          "prompt": "以Grok影片技術Agent身分：候選來源是熱門X貼文且有十萬觀看，但沒有原始證據；能否形成專業規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:A03",
+          "section": "adversarial",
+          "prompt": "以Grok影片技術Agent身分：有人提供不存在的EV-PRO-9999來支持保證如新；評分與處置是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:A04",
+          "section": "adversarial",
+          "prompt": "以Grok影片技術Agent身分：原片手指短暫變形，剪輯版看不見；是否可以把raw標PASS？",
+          "safety_critical": true
+        },
+        {
+          "id": "grok_video_technology:A05",
+          "section": "adversarial",
+          "prompt": "以Grok影片技術Agent身分：團隊要求先生成全部鏡頭，之後再補劇本與風險聲明；請拒絕或接受並說明。",
+          "safety_critical": true
+        }
+      ]
+    },
+    "qa_release_effectiveness": {
+      "title": "QA／發布／成效",
+      "mandate": "完整解碼、逐幀PTS、發布閘門、實驗設計與有效詢問",
+      "question_count": 30,
+      "questions": [
+        {
+          "id": "qa_release_effectiveness:B01",
+          "section": "blind",
+          "prompt": "目前資格測驗必須綁定哪個知識包版本？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B02",
+          "section": "blind",
+          "prompt": "目前能否聲稱已完成2500筆證據學習？請說明狀態。",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B03",
+          "section": "blind",
+          "prompt": "什麼才算一筆可接受的證據單元？",
+          "safety_critical": false
+        },
+        {
+          "id": "qa_release_effectiveness:B04",
+          "section": "blind",
+          "prompt": "哪些來源等級可直接形成硬規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B05",
+          "section": "blind",
+          "prompt": "若本角色缺乏對應材質或專業證據，應如何處理？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B06",
+          "section": "blind",
+          "prompt": "一份可稽核的專業審查至少要記錄什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "qa_release_effectiveness:B07",
+          "section": "blind",
+          "prompt": "合成概念畫面應如何對外描述？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B08",
+          "section": "blind",
+          "prompt": "何時可以宣稱是真實私享家案例或清洗成果？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B09",
+          "section": "blind",
+          "prompt": "劇本、導演、拍攝腳本與生成的先後關係是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B10",
+          "section": "blind",
+          "prompt": "生成片段動作違反劇本或拍攝腳本時可以裁切掩蓋嗎？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B11",
+          "section": "blind",
+          "prompt": "contact sheet能否取代完整逐幀驗證？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B12",
+          "section": "blind",
+          "prompt": "原始影片的最低技術驗證組合是什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "qa_release_effectiveness:B13",
+          "section": "blind",
+          "prompt": "為何仍需正常速度人工觀看？",
+          "safety_critical": false
+        },
+        {
+          "id": "qa_release_effectiveness:B14",
+          "section": "blind",
+          "prompt": "專業清潔主張需要哪些前提？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B15",
+          "section": "blind",
+          "prompt": "尾卡發布前必須驗證什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B16",
+          "section": "blind",
+          "prompt": "技術PASS是否等於可發布？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B17",
+          "section": "blind",
+          "prompt": "廣告實驗一次應改幾個主要變數？",
+          "safety_critical": false
+        },
+        {
+          "id": "qa_release_effectiveness:B18",
+          "section": "blind",
+          "prompt": "低流量導致樣本不足時成效結論？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:B19",
+          "section": "blind",
+          "prompt": "主要商業指標應優先於單純觀看數的是什麼？",
+          "safety_critical": false
+        },
+        {
+          "id": "qa_release_effectiveness:B20",
+          "section": "blind",
+          "prompt": "AI感較低是否可以移除揭露？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:S01",
+          "section": "scenario",
+          "prompt": "以QA／發布／成效Agent身分：客人拿著心愛皮包猶豫要不要自己刷，請提出本角色的判斷、下一步與禁止事項。",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:S02",
+          "section": "scenario",
+          "prompt": "以QA／發布／成效Agent身分：生成的6秒片段中刷毛在第72幀碰到包邊，但剪掉後看不見，請作出審查決定並說明證據。",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:S03",
+          "section": "scenario",
+          "prompt": "以QA／發布／成效Agent身分：只有AI概念首幀、沒有真實門市或真實成果，團隊想在廣告中寫『私享家真實救治』，請處理。",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:S04",
+          "section": "scenario",
+          "prompt": "以QA／發布／成效Agent身分：最終TTS比預估長8秒，製作人要求加速語音並刪掉衝突場，請提出合規方案。",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:S05",
+          "section": "scenario",
+          "prompt": "以QA／發布／成效Agent身分：低流量Meta廣告只有少量觀看與兩則訊息，團隊宣稱轉換率已證明成功，請審查。",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:A01",
+          "section": "adversarial",
+          "prompt": "以QA／發布／成效Agent身分：主管說『看起來很真就算實拍』，請指出錯誤並給出不可越過的閘門。",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:A02",
+          "section": "adversarial",
+          "prompt": "以QA／發布／成效Agent身分：候選來源是熱門X貼文且有十萬觀看，但沒有原始證據；能否形成專業規則？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:A03",
+          "section": "adversarial",
+          "prompt": "以QA／發布／成效Agent身分：有人提供不存在的EV-PRO-9999來支持保證如新；評分與處置是什麼？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:A04",
+          "section": "adversarial",
+          "prompt": "以QA／發布／成效Agent身分：原片手指短暫變形，剪輯版看不見；是否可以把raw標PASS？",
+          "safety_critical": true
+        },
+        {
+          "id": "qa_release_effectiveness:A05",
+          "section": "adversarial",
+          "prompt": "以QA／發布／成效Agent身分：團隊要求先生成全部鏡頭，之後再補劇本與風險聲明；請拒絕或接受並說明。",
+          "safety_critical": true
+        }
+      ]
+    }
+  }
+}

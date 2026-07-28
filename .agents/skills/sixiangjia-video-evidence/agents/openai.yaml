@@ -1,0 +1,5 @@
+interface:
+  display_name: "私享家影片證據與驗證"
+  short_description: "研究、製作、驗證、發布閘門與回測私享家宣傳影片"
+  default_prompt: "Use $sixiangjia-video-evidence to build and validate a source-backed customer-facing Sixiangjia promotional video."
+

@@ -1,12 +1,19 @@
 import { access, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getConfig } from "../src/config";
 import { buildDailyContent } from "../src/contentPlan";
 import { generateDailyContent } from "../src/generateDailyContent";
-import { loadPostLog, writePostLog } from "../src/logging";
-import { postCurrentSlot } from "../src/postCurrentSlot";
+import {
+  loadDailyContent,
+  loadPostLog,
+  loadVideoRepairQueue,
+  markVideoRepairReady,
+  resolveVideoRepairQueue,
+  writePostLog
+} from "../src/logging";
+import { classifyVideoFailure, postCurrentSlot } from "../src/postCurrentSlot";
 import { approvePost } from "../src/approvePost";
 
 async function exists(filePath: string): Promise<boolean> {
@@ -68,6 +75,115 @@ describe("postCurrentSlot dry-run integration", () => {
 
     const log = await loadPostLog("2026-05-15", root);
     expect(log).toHaveLength(2);
+  });
+
+  it("publishes the four-image carousel and marks VIDEO_DEFERRED when a planned mixed video is missing", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-video-fallback-"));
+    const date = "2026-07-29";
+    await generateDailyContent({ date, root, force: true });
+    await approveSlot(root, date);
+    const content = await loadDailyContent(date, root);
+    const slot = content?.slots.find((item) => item.slot === 1);
+    expect(slot?.media_type).toBe("mixed-carousel");
+    expect(slot?.carousel_items).toHaveLength(4);
+
+    for (const item of slot?.carousel_items ?? []) {
+      const filePath = join(root, ...item.local_image_path.split("/"));
+      await mkdir(dirname(filePath), { recursive: true });
+      await writeFile(filePath, `fake image ${item.slide}`);
+    }
+
+    const results = await postCurrentSlot({
+      root,
+      date,
+      slot: 1,
+      dryRun: true,
+      verifyPublicImageUrl: false,
+      fetchImpl: vi.fn() as unknown as typeof fetch
+    });
+
+    expect(results).toHaveLength(2);
+    expect(results.every((entry) => entry.status === "success")).toBe(true);
+    expect(results.every((entry) => entry.published_media_type === "carousel")).toBe(true);
+    expect(results.every((entry) => entry.video_status === "VIDEO_DEFERRED")).toBe(true);
+
+    // A video that has not cleared its review gate is a pending gate, not a fault.
+    expect(results.every((entry) => entry.video_defer_kind === "expected")).toBe(true);
+
+    const repairs = await loadVideoRepairQueue(root);
+    expect(repairs).toEqual([
+      expect.objectContaining({
+        source_date: date,
+        source_slot: 1,
+        status: "VIDEO_DEFERRED",
+        original_media_type: "mixed-carousel",
+        fallback_media_type: "carousel",
+        defer_kind: "expected",
+        dry_run: true,
+        next_attempt: "next-production-cycle"
+      })
+    ]);
+
+    await markVideoRepairReady(date, 1, "2026-07-30", 2, root);
+    await expect(loadVideoRepairQueue(root)).resolves.toEqual([
+      expect.objectContaining({
+        source_date: date,
+        source_slot: 1,
+        status: "VIDEO_DEFERRED",
+        replacement_candidate_date: "2026-07-30",
+        replacement_candidate_slot: 2
+      })
+    ]);
+
+    await resolveVideoRepairQueue(date, 1, "2026-07-30", 2, root);
+    await expect(loadVideoRepairQueue(root)).resolves.toEqual([
+      expect.objectContaining({
+        source_date: date,
+        source_slot: 1,
+        status: "RESOLVED",
+        replacement_date: "2026-07-30",
+        replacement_slot: 2
+      })
+    ]);
+  });
+
+  it("reports a deferred video from a preflight without recording it in the repair queue", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-video-preflight-"));
+    const date = "2026-07-29";
+    await generateDailyContent({ date, root, force: true });
+    await approveSlot(root, date);
+    const content = await loadDailyContent(date, root);
+    const slot = content?.slots.find((item) => item.slot === 1);
+
+    for (const item of slot?.carousel_items ?? []) {
+      const filePath = join(root, ...item.local_image_path.split("/"));
+      await mkdir(dirname(filePath), { recursive: true });
+      await writeFile(filePath, `fake image ${item.slide}`);
+    }
+
+    const results = await postCurrentSlot({
+      root,
+      date,
+      slot: 1,
+      dryRun: true,
+      preflightOnly: true,
+      verifyPublicImageUrl: false,
+      fetchImpl: vi.fn() as unknown as typeof fetch
+    });
+
+    expect(results.every((entry) => entry.video_status === "VIDEO_DEFERRED")).toBe(true);
+    expect(results.every((entry) => entry.video_defer_kind === "expected")).toBe(true);
+    await expect(loadVideoRepairQueue(root)).resolves.toEqual([]);
+  });
+
+  it("separates a pending video gate from a fault so a broken check cannot look like waiting", () => {
+    expect(classifyVideoFailure(new Error("Dual video review is missing for slot 1."))).toBe("expected");
+    expect(classifyVideoFailure(Object.assign(new Error("no such file"), { code: "ENOENT" }))).toBe("expected");
+
+    expect(classifyVideoFailure(new TypeError("probeVideo is not a function"))).toBe("unexpected");
+    expect(classifyVideoFailure(new RangeError("Maximum call stack size exceeded"))).toBe("unexpected");
+    expect(classifyVideoFailure(Object.assign(new Error("permission denied"), { code: "EACCES" }))).toBe("unexpected");
+    expect(classifyVideoFailure("boom")).toBe("unexpected");
   });
 
   it("prefers docs/content-calendar without requiring data/content-calendar", async () => {

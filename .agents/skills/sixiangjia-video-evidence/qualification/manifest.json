@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "qualification_version": "1.2.3",
+  "knowledge_pack": {
+    "pack_id": "sixiangjia-video-evidence",
+    "version": "0.3.0-evidence-150-full-audit-quarantine",
+    "cutoff_date": "2026-07-20",
+    "status": "cannot_ship_all_150_pending_independent_re_review",
+    "accepted_count": 0,
+    "candidate_count": 150
+  },
+  "qualification_availability": {
+    "status": "closed_fail_closed",
+    "reason": "Live knowledge pack has zero accepted evidence and remains pending/quarantined.",
+    "diagnostic_use_only": true,
+    "professional_approval_allowed": false
+  },
+  "roles": [
+    "research_evidence",
+    "screenplay_dramaturgy",
+    "directing_performance",
+    "shooting_script_storyboard",
+    "camera_lighting",
+    "edit_tts_subtitles_audio",
+    "garment_material_care",
+    "shoe_bag_leather_care",
+    "grok_video_technology",
+    "qa_release_effectiveness"
+  ],
+  "questions_per_role": {
+    "blind": 20,
+    "scenario": 5,
+    "adversarial": 5,
+    "total": 30
+  },
+  "thresholds": {
+    "overall_percent_minimum": 90,
+    "traceable_citations_percent_minimum": 100,
+    "safety_critical_percent_minimum": 100,
+    "invented_sources_maximum": 0,
+    "knowledge_pack_version_must_match": true,
+    "live_manifest_must_exist_and_parse": true,
+    "live_manifest_version_must_match_bank": true,
+    "live_accepted_count_minimum": 1,
+    "registry_evidence_must_be_accepted_and_independently_passed": true,
+    "manifest_accepted_count_must_match_eligible_registry_count": true,
+    "manifest_double_review_ledger_must_exist_and_pass_contract": true,
+    "live_status_forbidden_tokens": ["quarantine", "pending"]
+  },
+  "separation_rule": "劇本先建立人物、處境、慾望、阻礙、衝突、情緒轉折、決定性行動與結局；旁白稿、prompt、shot list、分鏡及拍攝腳本只能在劇本鎖定後派生，不得冒充劇本。",
+  "artifacts": {
+    "question-bank.v1.json": "0c3b01e103ec59b5501e619d7971f5a0cabbc07d363ee0317458c9e6a28cd4cf",
+    "answer-key.v1.json": "458db10d4636b5e78ce2727368c58e5a242bacab159aa36a164daf470f53e22d",
+    "score_qualification.py": "d1f3036f4d12c31899805864d2c3f643befcce53b4011e5d8dbed0f648322669",
+    "build_question_bank.py": "ef2d5f628c5867a55c2cfdeca7b9d806599f6961e973ac50420533c58af857be",
+    "README.md": "ffad710c202e8a5fb91ac91a06e748c581638a8d9f7b8e799bb894ec0fe23280"
+  }
+}

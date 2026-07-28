@@ -19,6 +19,29 @@ function toMarkdown(playbook: ReturnType<typeof buildGrowthPlaybook>): string {
     `- 目標：${playbook.objective}`,
     `- 節奏：${playbook.cadence}`,
     "",
+    "## 搜尋意圖題組",
+    "",
+    "| intent | 客戶目標 | 查詢例 | 答案與證據規則 |",
+    "|---|---|---|---|",
+    ...playbook.search_intent_clusters.map(
+      (cluster) =>
+        `| ${escapeCell(cluster.id)} | ${escapeCell(cluster.customer_goal)} | ${escapeCell(cluster.query_examples)} | ${escapeCell(`${cluster.answer_pattern} ${cluster.guardrail}`)} |`
+    ),
+    "",
+    "## 28 天 SEO / AIO / GEO 複盤",
+    "",
+    `- 引擎：${playbook.ai_visibility_review_28d.engines.join("、")}`,
+    ...playbook.ai_visibility_review_28d.checkpoints.map(
+      (checkpoint) => `- Day ${checkpoint.day}：${checkpoint.action}`
+    ),
+    `- 必分開記錄：${playbook.ai_visibility_review_28d.metrics.map((metric) => metric.id).join("、")}`,
+    "",
+    "## 社群與開源實作參考",
+    "",
+    ...playbook.community_practice_sources.map(
+      (source) => `- ${source.platform}｜${source.observed_practice}｜${source.url}`
+    ),
+    "",
     "## 10 日複盤階梯",
     "",
     "| 天數 | daily views target | daily follower target | 複盤重點 |",
@@ -30,8 +53,8 @@ function toMarkdown(playbook: ReturnType<typeof buildGrowthPlaybook>): string {
     "",
     "## 90 天內容母表",
     "",
-    "| date | slot | topic | format | visual_route | traffic_route | views_target | follower_target | hook | follow_cta | caption | hashtags | image_or_reel_direction | SEO同步頁 | 10日複盤指標 |",
-    "|---|---:|---|---|---|---|---:|---:|---|---|---|---|---|---|---|",
+    "| date | slot | topic | format | visual_route | traffic_route | search_intent | target_queries | evidence_type | views_target | follower_target | hook | follow_cta | caption | hashtags | image_or_reel_direction | SEO同步頁 | 10日複盤指標 |",
+    "|---|---:|---|---|---|---|---|---|---|---:|---:|---|---|---|---|---|---|---|",
     ...rows.map((row) =>
       [
         row.date,
@@ -40,6 +63,9 @@ function toMarkdown(playbook: ReturnType<typeof buildGrowthPlaybook>): string {
         row.format,
         row.visual_route,
         row.traffic_route,
+        row.search_intent,
+        row.target_queries,
+        row.evidence_type,
         row.views_target,
         row.follower_target,
         row.hook,

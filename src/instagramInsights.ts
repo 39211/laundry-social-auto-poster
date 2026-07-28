@@ -4,6 +4,7 @@ import { loadDailyContent, loadPostLog, writeJsonAtomic } from "./logging";
 import { instagramInsightsReportPath, postedLogDirectory, projectRoot } from "./paths";
 
 export const DEFAULT_INSTAGRAM_MEDIA_INSIGHT_METRICS = [
+  "views",
   "reach",
   "likes",
   "comments",

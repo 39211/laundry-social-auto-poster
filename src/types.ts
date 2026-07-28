@@ -206,6 +206,7 @@ export interface AppConfig {
   metaAccessToken?: string;
   metaAnalyticsAccessToken?: string;
   facebookPageId?: string;
+  instagramLocationId?: string;
   instagramUserId?: string;
   publicSiteBaseUrl: string;
   publicImageBaseUrl: string;

@@ -101,6 +101,14 @@ async function waitForPublishedReel(
   throw new Error(`Instagram published media ${mediaId} was not verified as a Reel.`);
 }
 
+// A carousel carries its location on the parent container; the children are just
+// the media. Meta rejects an id that is not a location page, so a wrong value
+// fails loudly at container creation rather than publishing a mistagged post.
+function withLocation(params: URLSearchParams, config: AppConfig): URLSearchParams {
+  if (config.instagramLocationId) params.set("location_id", config.instagramLocationId);
+  return params;
+}
+
 export async function postInstagramPhoto(
   input: PostInput,
   config: AppConfig,
@@ -122,11 +130,14 @@ export async function postInstagramPhoto(
   const base = `https://graph.facebook.com/${config.graphApiVersion}/${config.instagramUserId}`;
   const media = await postForm(
     `${base}/media`,
-    new URLSearchParams({
-      image_url: input.imageUrl,
-      caption: input.caption,
-      access_token: config.metaAccessToken ?? ""
-    }),
+    withLocation(
+      new URLSearchParams({
+        image_url: input.imageUrl,
+        caption: input.caption,
+        access_token: config.metaAccessToken ?? ""
+      }),
+      config
+    ),
     fetchImpl
   );
 
@@ -212,12 +223,15 @@ export async function postInstagramCarousel(
 
   const parent = await postForm(
     `${base}/media`,
-    new URLSearchParams({
-      media_type: "CAROUSEL",
-      children: children.join(","),
-      caption: input.caption,
-      access_token: config.metaAccessToken ?? ""
-    }),
+    withLocation(
+      new URLSearchParams({
+        media_type: "CAROUSEL",
+        children: children.join(","),
+        caption: input.caption,
+        access_token: config.metaAccessToken ?? ""
+      }),
+      config
+    ),
     fetchImpl
   );
   await waitForPublishableContainer(parent.id ?? "", config, fetchImpl, pollingOptions);
@@ -262,13 +276,16 @@ export async function postInstagramReel(
   const base = `https://graph.facebook.com/${config.graphApiVersion}/${config.instagramUserId}`;
   const media = await postForm(
     `${base}/media`,
-    new URLSearchParams({
-      media_type: "REELS",
-      video_url: input.videoUrl,
-      caption: input.caption,
-      share_to_feed: "true",
-      access_token: config.metaAccessToken ?? ""
-    }),
+    withLocation(
+      new URLSearchParams({
+        media_type: "REELS",
+        video_url: input.videoUrl,
+        caption: input.caption,
+        share_to_feed: "true",
+        access_token: config.metaAccessToken ?? ""
+      }),
+      config
+    ),
     fetchImpl
   );
 

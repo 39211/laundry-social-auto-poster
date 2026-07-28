@@ -83,4 +83,28 @@ describe("postInstagramPhoto container readiness", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(3);
     expect(appendPostLog).not.toHaveBeenCalled();
   });
+
+  it("tags the shop's location when one is configured, and omits it when it is not", async () => {
+    const call = async (config: AppConfig) => {
+      const fetchImpl = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ id: "container-3" }))
+        .mockResolvedValueOnce(jsonResponse({ id: "container-3", status_code: "FINISHED" }))
+        .mockResolvedValueOnce(jsonResponse({ id: "published-3" })) as unknown as typeof fetch;
+
+      await postInstagramPhoto(input, config, fetchImpl, {
+        maxAttempts: 2,
+        intervalMs: 0,
+        sleep: async () => undefined
+      });
+
+      const body = ((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as RequestInit)
+        .body as URLSearchParams;
+      return body.get("location_id");
+    };
+
+    // Meta rejects an id that is not a location page, so this value is load-bearing.
+    expect(await call({ ...liveConfig, instagramLocationId: "102911372343400" })).toBe("102911372343400");
+    expect(await call(liveConfig)).toBeNull();
+  });
 });

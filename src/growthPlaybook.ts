@@ -285,6 +285,15 @@ function companionVideoCandidate(
   };
 }
 
+// Targets are derived from what this account actually does, not from a curve
+// drawn before launch. The original plan escalated to 35 new followers a day and
+// about 1,090 across the programme; the measured rate is 0.18 a day, roughly 5
+// in 28 days. A target sixty times reality does not stretch anyone, it just
+// makes every reading on the dashboard meaningless, and it pushes the account
+// toward posting volume and engagement bait, which is what suppressed reach in
+// the first place. These assume Reels lift the rate to between 1 and 3 a day,
+// which for a single-city service account is already good. The numbers that
+// decide whether this is working are inquiries and bookings, tracked separately.
 const reviewWindows: ReviewWindow[] = [
   {
     start_day: 1,
@@ -305,56 +314,56 @@ const reviewWindows: ReviewWindow[] = [
   {
     start_day: 21,
     end_day: 30,
-    daily_views_target: 180,
-    daily_follower_target: 3,
+    daily_views_target: 200,
+    daily_follower_target: 1,
     review_metric:
       "比較 image-post、carousel-guide、reel 的停留、分享、LINE 點擊與預約；同步檢查 GSC、Bing 與 AI 問題面板中的曝光、品牌提及和引用網址。"
   },
   {
     start_day: 31,
     end_day: 40,
-    daily_views_target: 300,
-    daily_follower_target: 5,
+    daily_views_target: 250,
+    daily_follower_target: 1,
     review_metric:
       "短影音週：每支 Reel 看 3 秒觀看、平均觀看時間、完整觀看、分享、非粉比例與 LINE 點擊；淘汰太像硬廣且沒有後續行動的開頭。"
   },
   {
     start_day: 41,
     end_day: 50,
-    daily_views_target: 450,
-    daily_follower_target: 8,
+    daily_views_target: 300,
+    daily_follower_target: 2,
     review_metric:
       "答案資產週：把高收藏、高分享與真實詢問題目寫成可索引答案頁；分開記錄搜尋 CTR、AI 品牌提及、引用率與被引用頁面。"
   },
   {
     start_day: 51,
     end_day: 60,
-    daily_views_target: 600,
-    daily_follower_target: 12,
+    daily_views_target: 350,
+    daily_follower_target: 2,
     review_metric:
       "在地週：分開比較 Local Pack、自然搜尋與 AI 答案；檢查台中全區免費收送、西屯、青海路與洗鞋查詢帶來的 LINE 詢問與預約。"
   },
   {
     start_day: 61,
     end_day: 70,
-    daily_views_target: 750,
-    daily_follower_target: 18,
+    daily_views_target: 400,
+    daily_follower_target: 3,
     review_metric:
       "轉換週：追蹤內容或查詢到個人檔案、LINE 點擊、詢問、預約與營收的完整漏斗；引用或觀看增加但沒有轉換時不得判定成功。"
   },
   {
     start_day: 71,
     end_day: 80,
-    daily_views_target: 900,
-    daily_follower_target: 25,
+    daily_views_target: 450,
+    daily_follower_target: 3,
     review_metric:
       "節慶週：比較預告海報、真實門市照與短影音的非粉觸及、分享、LINE 點擊與預約，不用單純發文數或觀看目標代替成果。"
   },
   {
     start_day: 81,
     end_day: 90,
-    daily_views_target: 1000,
-    daily_follower_target: 35,
+    daily_views_target: 500,
+    daily_follower_target: 3,
     review_metric:
       "收斂週：只保留能同時帶來有效觸及、搜尋或 AI 能見度及 LINE 預約的前三名題組；以滿 72 小時的實際資料決定下一輪。"
   }

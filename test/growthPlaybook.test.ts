@@ -111,12 +111,19 @@ describe("growth playbook", () => {
     }
   });
 
-  it("ends with 1000 daily views plus follower growth targets and includes major poster nodes", () => {
+  it("keeps final targets within reach of the measured rate and includes major poster nodes", () => {
     const playbook = buildGrowthPlaybook("2026-07-11", 90);
     const rows = flattenGrowthPlaybook(playbook);
 
-    expect(playbook.days.at(-1)?.daily_views_target).toBe(1000);
-    expect(playbook.days.at(-1)?.daily_follower_target).toBe(35);
+    // The measured rate is 0.18 new followers a day. A closing target of 35,
+    // as the plan originally carried, is sixty times that and makes every
+    // reading on the dashboard meaningless. Reels are assumed to lift it to a
+    // few a day at best, which for a single-city service account is good.
+    expect(playbook.days.at(-1)?.daily_follower_target).toBeLessThanOrEqual(5);
+    expect(playbook.days.at(-1)?.daily_views_target).toBeLessThanOrEqual(600);
+    expect(playbook.days.at(-1)?.daily_follower_target).toBeGreaterThan(
+      playbook.days[0]?.daily_follower_target ?? 0
+    );
     expect(rows.filter((row) => row.format === "poster").map((row) => row.date)).toEqual([
       "2026-08-05",
       "2026-08-16",

@@ -221,7 +221,9 @@ describe("Taichung free pickup-delivery campaign", () => {
       for (const slot of slots) {
         expect(slot.media_type).toBe("mixed-carousel");
         expect(slot.carousel_items).toHaveLength(4);
-        expect(slot.carousel_items?.every((item) => item.image_prompt.includes("photorealistic"))).toBe(true);
+        expect(slot.carousel_items?.every((item) => /phone/i.test(item.image_prompt))).toBe(true);
+        expect(slot.carousel_items?.every((item) => /not editorial|not cinematic/i.test(item.image_prompt))).toBe(true);
+        expect(slot.carousel_items?.every((item) => !/premium/i.test(item.image_prompt))).toBe(true);
         expect(slot.carousel_items?.every((item) => item.image_prompt.includes("No poster layout"))).toBe(true);
         expect(slot.carousel_items?.every((item) => item.image_prompt.includes("no readable text"))).toBe(true);
         expect(slot.media_package).toMatchObject({

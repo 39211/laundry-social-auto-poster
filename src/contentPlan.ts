@@ -675,22 +675,38 @@ function baseCaptionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): 
   ].join("\n\n");
 }
 
+// Instagram's 2026 ranking notes say plainly that raw, real human content is
+// rewarded over polished AI-looking material. "Premium", "editorial" and
+// Apple-like spacing were pushing every frame toward an advert, which is the
+// look that reads as synthetic and loses watch time. These ask instead for what
+// a shop owner's own phone would produce.
+const PHONE_REALISM =
+  "Shot on a phone by shop staff, handheld with slight natural camera shake and imperfect framing, " +
+  "ordinary Taiwanese shop interior with tiled floor and metal racks, fluorescent ceiling light mixed " +
+  "with daylight from the window, realistic fabric texture with slight wrinkles and everyday clutter " +
+  "at the edges of frame. Not cinematic, not studio lighting, not glossy, not perfectly symmetrical, " +
+  "no stock-photo feel, no dramatic colour grade, no fake logo, no readable text, no watermark.";
+
 function imagePromptFromPlaybook(slot: GrowthPlaybookSlot): string {
   const topic = cleanTopic(slot.topic);
   const formatPrefix: Record<GrowthFormat, string> = {
-    "image-post": "Realistic square shop photo",
-    "real-shop-photo": "Realistic square shop photo",
-    reel: "Realistic vertical-style reel cover frame",
-    "carousel-guide": "Realistic square carousel cover photo",
-    poster: "Realistic premium square poster-style campaign image"
+    "image-post": "Ordinary square shop photo",
+    "real-shop-photo": "Ordinary square shop photo",
+    reel: "Ordinary vertical phone frame",
+    "carousel-guide": "Ordinary square carousel cover photo",
+    poster: "Ordinary square campaign photo"
   };
 
-  return `${formatPrefix[slot.format]} for 私享家洗衣店: ${topic}. ${slot.image_or_reel_direction} Premium Taiwanese laundry and shoe-care shop mood, clean counter, clear object detail, restrained Apple-like spacing when poster-like, no fake logo, no readable text, no watermark.`;
+  return `${formatPrefix[slot.format]} for 私享家洗衣店: ${topic}. ${slot.image_or_reel_direction} ${PHONE_REALISM}`;
 }
 
 function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
   const shared =
-    "Create one photorealistic portrait 4:5 editorial shop photo for a premium Taiwanese laundry-care shop. Keep the exact featured object consistent across all four photos, with natural material texture, believable weight and contact shadows, a restrained navy and warm-white shop palette, layered foreground and background depth, and realistic soft window lighting. No poster layout, no graphic panel, no readable text, no logo, no address, no phone number, no watermark.";
+    "Create one portrait 4:5 photo that looks taken on a phone inside an ordinary Taiwanese laundry shop. " +
+    "Keep the exact featured object consistent across all four photos, with natural material texture, believable " +
+    "weight and contact shadows, and everyday shop surroundings. Handheld framing with slight imperfection, " +
+    "fluorescent ceiling light mixed with daylight. Not editorial, not cinematic, not studio lighting, not glossy. " +
+    "No poster layout, no graphic panel, no readable text, no logo, no address, no phone number, no watermark.";
 
   if (slot.date === "2026-07-20" && slot.slot === 1) {
     return [
@@ -772,7 +788,10 @@ function videoPromptFromPlaybook(slot: GrowthPlaybookSlot): string | undefined {
   if (slot.video_prompt) return slot.video_prompt;
 
   const topic = cleanTopic(slot.topic);
-  return `Photorealistic premium 10-second vertical commercial for a Taiwanese laundry and item-care shop. Focus on ${topic}. Begin with a clear close view of the exact item and problem area, move once to a careful staff inspection of material, edge, lining or care label, and end on the same item resting neatly on a clean service counter. Natural shop lighting, believable hands and object geometry, restrained documentary camera movement, no before-after guarantee, no readable text, no logos, no watermark.`;
+  // A Reel competes on watch time, and a clip that reads as an advert loses it
+  // in the first second. This asks for the same shot a staff member would grab
+  // on their own phone between jobs.
+  return `Vertical 9:16 smartphone video, filmed handheld on a phone by staff inside an ordinary Taiwanese laundry shop, about 10 seconds. Focus on ${topic}. Begin with a close view of the exact item and problem area, move once to a staff hand checking material, edge, lining or care label, and end on the same item on the service counter. Slight natural camera shake and imperfect framing, fluorescent ceiling light mixed with window daylight, realistic fabric texture with slight wrinkles, ordinary shop surroundings, believable hands and object geometry, ambient shop sound. Not cinematic, not a commercial, no studio lighting, no smooth gimbal move, no drone, no colour grade, no before-after guarantee, no on-screen text, no logos, no watermark.`;
 }
 
 function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string): void {

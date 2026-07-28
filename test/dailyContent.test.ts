@@ -53,7 +53,13 @@ describe("DailyContent schema", () => {
       expect(caption).not.toContain("畫面維持");
       expect(caption).not.toContain("這支內容會用");
       expect(caption).not.toContain("9:16");
-      expect(slot.image_prompt).toContain("Realistic");
+      // Instagram rewards raw over polished, so the prompt has to ask for what a
+      // phone in a working shop produces and rule out the advert look. "premium"
+      // never appears as a negation, unlike "not cinematic", so its absence is
+      // the honest check.
+      expect(slot.image_prompt).toMatch(/phone/i);
+      expect(slot.image_prompt).toMatch(/not cinematic|not studio/i);
+      expect(slot.image_prompt).not.toMatch(/premium|Apple-like/i);
       expect(slot.image_prompt).toContain("私享家洗衣店");
       expect(slot.search_intent).toBeTruthy();
       expect(slot.target_queries?.length).toBeGreaterThanOrEqual(3);

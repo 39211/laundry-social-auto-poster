@@ -1305,17 +1305,20 @@ function captionForSpecialCampaign(special: SpecialSlot, hook: string, followCta
   return [hook, brand, special.story, special.service_message, special.action_cta, followCta].join("\n\n");
 }
 
+// Direction is written for a phone in a working shop, not for a campaign.
+// Polished framing is what makes generated material read as an advert, and an
+// advert is what viewers scroll past.
 function directionFor(topic: string, format: GrowthFormat, visual: VisualRoute): string {
   if (format === "reel") {
-    return `9:16 短影音：開頭 2 秒直接近拍「${topic}」，第二鏡手指指出邊角/內裡/布面，第三鏡回到門市櫃台判斷；不加浮誇字幕。`;
+    return `9:16 手機直拍:開頭 2 秒直接近拍「${topic}」,第二鏡手指指出邊角/內裡/布面,第三鏡回到門市櫃台判斷;手持、略有晃動,不加浮誇字幕。`;
   }
   if (format === "carousel-guide") {
-    return `輪播 4 張：1 主物件近拍、2 要看哪個位置、3 不建議自己硬刷/悶收、4 傳 LINE 前拍照清單；風格乾淨高級。`;
+    return `輪播 4 張:1 主物件近拍、2 要看哪個位置、3 不建議自己硬刷/悶收、4 送洗前拍照清單;像店員用手機隨手拍,不要修得太乾淨。`;
   }
   if (format === "poster") {
-    return `高級海報：${topic}；背景用物件透視層次，文字少且清楚，類 Apple 產品頁留白，不要像促銷傳單。`;
+    return `單張說明照:${topic};物件放在工作中的檯面,背景是真實店內環境,文字少且清楚,不要像促銷傳單也不要像產品型錄。`;
   }
-  return `真實門市照片：${visual} 路線，物件放在乾淨櫃台，手部檢查材質或邊角，光線明亮，不放假品牌、不做誇張對比。`;
+  return `門市隨手拍:${visual} 路線,物件放在使用中的櫃台,手部檢查材質或邊角,日光燈加窗光,不放假品牌、不做誇張對比。`;
 }
 
 function hashtagsFor(seed: TopicSeed, extra: string[] = []): string[] {

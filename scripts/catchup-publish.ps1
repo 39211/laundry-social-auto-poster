@@ -71,4 +71,31 @@ if ($failed.Count -gt 0) {
     exit 1
 }
 
+# Nothing else reads the repair queue, so a deferred video would otherwise sit
+# there unseen. An "unexpected" defer means the video check itself failed and is
+# a defect to fix, not a job waiting on review.
+$queuePath = Join-Path $root "data\video-repair-queue\queue.json"
+if (Test-Path $queuePath) {
+    try {
+        # Assign before wrapping: in PowerShell 5.1 ConvertFrom-Json emits a
+        # whole array as one pipeline object, so @(... | ConvertFrom-Json) would
+        # yield a single element and every filter below would match nothing.
+        $parsed = Get-Content $queuePath -Raw -Encoding utf8 | ConvertFrom-Json
+        $queue = @($parsed)
+        $open = @($queue | Where-Object { $_.status -eq "VIDEO_DEFERRED" -and -not $_.dry_run })
+        $faults = @($open | Where-Object { $_.defer_kind -eq "unexpected" })
+
+        if ($faults.Count -gt 0) {
+            $first = $faults[0]
+            Write-Log ("UNEXPECTED video failure: {0} slot {1} - {2}" -f $first.source_date, $first.source_slot, $first.failure_reason)
+            Show-Toast ("影片檢查本身出錯({0} 筆),不是等待複審。{1} slot {2}:{3}" -f $faults.Count, $first.source_date, $first.source_slot, $first.failure_reason)
+        } elseif ($open.Count -gt 0 -and $now.TimeOfDay -ge [TimeSpan]"19:30") {
+            Write-Log ("{0} video repair(s) still open." -f $open.Count)
+            Show-Toast ("有 {0} 支影片待修復,今天已改發圖片。修好後放進下一篇題材相符的貼文。" -f $open.Count)
+        }
+    } catch {
+        Write-Log ("Could not read repair queue: " + $_.Exception.Message)
+    }
+}
+
 Write-Log "Catch-up run finished."

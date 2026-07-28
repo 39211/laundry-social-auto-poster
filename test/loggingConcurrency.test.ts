@@ -14,7 +14,15 @@ describe("concurrent JSON log writes", () => {
   const roots: string[] = [];
 
   afterEach(async () => {
-    await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+    // These tests deliberately contend for lock files, and Windows releases the
+    // last handle a moment after the write resolves, so an immediate delete can
+    // still hit ENOTEMPTY. Without retries the cleanup, not the code under test,
+    // is what fails the suite.
+    await Promise.all(
+      roots
+        .splice(0)
+        .map((root) => rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 25 }))
+    );
   });
 
   it("preserves approvals written by concurrent slot processes", async () => {

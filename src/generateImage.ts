@@ -19,6 +19,38 @@ interface ImagePromptManifestItem {
   public_image_url: string;
 }
 
+// The boutique look was retired from the prompt code, but calendars written
+// before that carry the old prompt text verbatim, and this manifest is built
+// from the calendar -- so the look kept coming back on every pre-generated
+// date. Those calendars cannot be regenerated (their slot 2 may hold a
+// reviewed, scheduled Reel), so the stale styling is rewritten here, at the
+// point every image prompt passes through.
+//
+// The wear line exists because "preserve original condition" on a rendered
+// image means brand new: today's post about damp shoe linings went out with a
+// spotless boutique product shot. A care shop photographs items customers
+// actually brought in.
+const RETIRED_STYLE =
+  /Premium Taiwanese laundry[^.]*Apple-like spacing[^.]*\.|restrained Apple-like spacing[^.]*\./g;
+
+const PHONE_REALISM_REWRITE =
+  "Shot on a phone by shop staff inside an ordinary Taiwanese laundry shop, handheld with slight " +
+  "natural camera shake and imperfect framing, tiled floor and metal racks visible, fluorescent " +
+  "ceiling light mixed with window daylight. The featured item shows honest everyday use consistent " +
+  "with the topic - dust, scuffs, creases or slight discolouration where the topic describes them - " +
+  "and must not look brand new or freshly styled. Not cinematic, not studio lighting, not glossy, " +
+  "no boutique or showroom interior, no stock-photo feel, no laundry basket as a featured object, " +
+  "no fake logo, no readable text, no watermark.";
+
+export function sanitizeImagePrompt(prompt: string): string {
+  if (!RETIRED_STYLE.test(prompt)) {
+    RETIRED_STYLE.lastIndex = 0;
+    return prompt;
+  }
+  RETIRED_STYLE.lastIndex = 0;
+  return `${prompt.replace(RETIRED_STYLE, "").replace(/\s+/g, " ").trim()} ${PHONE_REALISM_REWRITE}`;
+}
+
 async function fileExists(filePath: string): Promise<boolean> {
   try {
     await access(filePath);
@@ -38,7 +70,7 @@ export async function writeImagePromptManifest(date: string, root = projectRoot(
       slot: slot.slot,
       slide: asset.slide,
       topic: slot.topic,
-      prompt: asset.image_prompt,
+      prompt: sanitizeImagePrompt(asset.image_prompt),
       visual_route: slot.visual_route,
       target_path: asset.local_image_path,
       public_image_url: asset.public_image_url

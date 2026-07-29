@@ -1,4 +1,4 @@
-import {
+﻿import {
   buildGitHubPagesCarouselImageUrl,
   buildGitHubPagesImageUrl,
   buildGitHubPagesVideoUrl
@@ -977,12 +977,19 @@ function baseCaptionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): 
 // Apple-like spacing were pushing every frame toward an advert, which is the
 // look that reads as synthetic and loses watch time. These ask instead for what
 // a shop owner's own phone would produce.
+// "Realistic texture" alone still yields a brand-new item, and a brand-new
+// item contradicts every caption this shop writes: a post about damp shoe
+// linings shipped with a spotless boutique product shot. The wear line makes
+// the item look like something a customer actually brought in.
 const PHONE_REALISM =
   "Shot on a phone by shop staff, handheld with slight natural camera shake and imperfect framing, " +
   "ordinary Taiwanese shop interior with tiled floor and metal racks, fluorescent ceiling light mixed " +
   "with daylight from the window, realistic fabric texture with slight wrinkles and everyday clutter " +
-  "at the edges of frame. Not cinematic, not studio lighting, not glossy, not perfectly symmetrical, " +
-  "no stock-photo feel, no dramatic colour grade, no fake logo, no readable text, no watermark.";
+  "at the edges of frame. The featured item shows honest everyday use consistent with the topic - " +
+  "dust, scuffs, creases or slight discolouration where the topic describes them - and must not look " +
+  "brand new or freshly styled. Not cinematic, not studio lighting, not glossy, not perfectly " +
+  "symmetrical, no boutique or showroom interior, no stock-photo feel, no dramatic colour grade, " +
+  "no laundry basket as a featured object, no fake logo, no readable text, no watermark.";
 
 function imagePromptFromPlaybook(slot: GrowthPlaybookSlot): string {
   const topic = cleanTopic(slot.topic);
@@ -1001,9 +1008,11 @@ function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
   const shared =
     "Create one portrait 4:5 photo that looks taken on a phone inside an ordinary Taiwanese laundry shop. " +
     "Keep the exact featured object consistent across all four photos, with natural material texture, believable " +
-    "weight and contact shadows, and everyday shop surroundings. Handheld framing with slight imperfection, " +
-    "fluorescent ceiling light mixed with daylight. Not editorial, not cinematic, not studio lighting, not glossy. " +
-    "No poster layout, no graphic panel, no readable text, no logo, no address, no phone number, no watermark.";
+    "weight and contact shadows, and everyday shop surroundings. The object shows honest everyday use consistent " +
+    "with the topic - dust, scuffs, creases or slight discolouration where the topic describes them - and must " +
+    "not look brand new or freshly styled. Handheld framing with slight imperfection, fluorescent ceiling light " +
+    "mixed with daylight. Not editorial, not cinematic, not studio lighting, not glossy, no boutique or showroom " +
+    "interior. No poster layout, no graphic panel, no readable text, no logo, no address, no phone number, no watermark.";
 
   if (slot.date === "2026-07-20" && slot.slot === 1) {
     return [

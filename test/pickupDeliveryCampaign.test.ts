@@ -54,7 +54,7 @@ describe("Taichung free pickup-delivery campaign", () => {
       expect(slot.format).toBe(expected.format);
       expect(slot.topic).toContain(expected.topicIncludes);
       expect(slot.facebook_caption).toContain(expected.storyIncludes);
-      expect(slot.facebook_caption.split("\n\n")[1]).toBe("私享家洗衣店");
+      expect(slot.facebook_caption.split("\n\n")[1]).not.toBe("私享家洗衣店");
       expect(slot.facebook_caption).toContain("台中市全區免費到府收送");
       expect(slot.facebook_caption).toContain("LINE");
       expect(slot.facebook_caption).toContain("#台中洗衣收送");

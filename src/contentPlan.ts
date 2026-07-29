@@ -492,10 +492,10 @@ function templateFor(date: string, category: Category): SlotTemplate {
 function captionFromTemplate(template: SlotTemplate): string {
   return [
     template.opener,
-    brandLine,
     template.context,
     template.inspection,
     template.cta,
+    `${brandLine}｜台中市區免費到府收送`,
     template.hashtags.join(" ")
   ].join("\n\n");
 }
@@ -512,47 +512,238 @@ function cleanTopic(topic: string): string {
     .trim();
 }
 
-function careBridgeFor(slot: GrowthPlaybookSlot): string {
-  if (slot.seo_sync_page.includes("shirt-suit-dry-cleaning")) {
-    return "襯衫的領口袖口、西裝的面料、內襯和飾件，不適合只看表面乾不乾淨；洗標與既有痕跡都會影響送洗判斷。";
-  }
-  if (slot.seo_sync_page.includes("bedding-duvet-cleaning")) {
-    return "床組、棉被和寢具要一起看表布、填充、潮氣與尺寸；收納前已經有味道時，不適合直接密封進櫃子。";
-  }
-  if (slot.seo_sync_page.includes("plush-doll-cleaning")) {
-    return "娃娃與絨毛玩偶要先看填充物、五官、刺繡和黏貼配件；不同結構不能直接套用一般衣物的洗法。";
-  }
-  if (slot.seo_sync_page.includes("luxury-dry-cleaning")) {
-    return "精品與精緻材質要先看洗標、面料、五金、飾件和既有磨損；品牌名稱不能取代實際材質判斷。";
-  }
-  if (slot.seo_sync_page.includes("white-shoe") || slot.seo_sync_page.includes("shoe-bag")) {
-    return "鞋子和包包最容易被忽略的地方，通常不是正面，而是鞋邊、提把、包角、內裡或縫線這些每天被摩擦的位置。";
-  }
-  if (slot.seo_sync_page.includes("photo-before-laundry")) {
-    return "送洗前先把物件狀態拍清楚，比直接問能不能洗更有用；材質、髒污位置和使用時間都會影響判斷。";
-  }
-  if (slot.seo_sync_page.includes("taichung-xitun")) {
-    return "西屯日常通勤、下雨、外食和連假移動，都會讓衣物、鞋包和布品累積不同類型的濕氣與灰塵。";
-  }
-  return "衣物、寢具和居家布品在收納或常用之後，領口、袖口、縫線、厚布和內層位置通常比表面更早累積味道。";
+// The hook is the first line and, with the shop name gone from block 2, the
+// larger half of what Instagram shows before folding. In the playbook it is
+// filed rather than written: a category label on the front of 155 of the 180
+// hooks, and a fixed tail -- "重點不是急著洗，是先看材質、位置和狀態" -- on 105 of
+// them. At a median of 44 characters that leaves about twenty that say anything
+// about today. Both ends are stripped so the specific middle leads.
+//
+// Dated prefixes such as 父親節前 survive: those are real timing, not filing.
+function cleanHook(hook: string): string {
+  const cleaned = hook
+    .replace(/^(先看懂|今天情境|可收藏|細節拆解|到店前判斷|送洗前先問)：/, "")
+    .replace(/[，,]?\s*重點不是急著洗[，,]\s*是先看材質、位置和狀態/g, "")
+    .replace(/[，,]?\s*用\s*15\s*秒看懂材質與狀況判斷/g, "")
+    .replace(/[，,。]+$/, "")
+    .trim();
+
+  // A hook that was nothing but boilerplate is worse gone than kept.
+  return cleaned.length >= 6 ? `${cleaned}。` : hook;
 }
 
+// With the shop name gone from block 2, this is the fold line: the last thing
+// a scrolling reader sees. Eight variants across 180 posts put the same
+// sentence in that position 26 times, so each service carries two and they
+// alternate by day. They are written as one plain observation rather than as a
+// list of everything that could matter, because a list at the fold reads as a
+// specification and gets scrolled past.
+// With the shop name gone from block 2, this is the fold line: the last thing
+// a scrolling reader sees. Eight variants across 180 posts put the same
+// sentence in that position 26 times, so the count of variants now follows how
+// often each service actually appears in the plan -- fabric storage carries 70
+// of the 180 posts and shoe-and-bag care another 49, so those two get four
+// each. Shoes and bags are separate: sharing a branch let a post whose hook was
+// about white shoes open with a sentence about handbags.
+function pickFor(slot: GrowthPlaybookSlot, variants: string[]): string {
+  return variants[dayIndex(slot.date) % variants.length] ?? variants[0] ?? "";
+}
+
+function careBridgeFor(slot: GrowthPlaybookSlot): string {
+  const page = slot.seo_sync_page;
+  const variants = ((): string[] => {
+    if (page.includes("shirt-suit-dry-cleaning")) {
+      return [
+        "襯衫的領口和袖口不是洗不乾淨，是皮脂氧化。加倍洗衣精只會把布洗薄。",
+        "西裝走樣多半從肩線開始。掛錯衣架、擠在衣櫃裡，肩襯塌了就回不去。"
+      ];
+    }
+    if (page.includes("bedding-duvet-cleaning")) {
+      return [
+        "棉被收櫃前先聞一下。帶著濕氣收，下一季拿出來就是那個味道。",
+        "寢具最厚的地方最慢乾。表面摸起來乾了，中間通常還沒。"
+      ];
+    }
+    if (page.includes("plush-doll-cleaning")) {
+      return [
+        "娃娃可以洗，但不能當一般衣服洗。填充和五官最怕脫水那一段。",
+        "絨毛壓塌了不是髒，是纖維倒了。洗法不對，形狀就回不來。"
+      ];
+    }
+    if (page.includes("luxury-dry-cleaning")) {
+      return [
+        "精品最先出問題的是邊角。邊油磨掉補不回來，要在磨穿前處理。",
+        "同一個牌子會用不同的皮。看品牌決定怎麼洗，比看材質更容易出事。"
+      ];
+    }
+    if (page.includes("white-shoe")) {
+      return [
+        "白鞋泛黃，問題常在中底和鞋邊，不在鞋面。硬刷只會起毛。",
+        "白鞋放久了會黃，不是因為髒。那是材質本身在氧化。"
+      ];
+    }
+    if (page.includes("shoe-bag")) {
+      return [
+        "包包最先變舊的是提把。那不是灰塵，是手汗堆的。",
+        "鞋子真正的問題常在鞋口內裡。外面看起來乾，裡面不一定。",
+        "包角和邊油是先磨掉的地方。等到看得出來，通常已經磨進去了。",
+        "鞋底邊那一圈最容易被跳過。它決定整雙看起來新不新。"
+      ];
+    }
+    if (page.includes("photo-before-laundry")) {
+      return [
+        "同一塊污漬，在領口和在下擺，處理起來是兩回事。位置比種類重要。",
+        "沾到當天和放了兩週，能不能救差很多。時間是最關鍵的一個條件。"
+      ];
+    }
+    if (page.includes("taichung-xitun") || page.includes("taichung-citywide")) {
+      return [
+        "下雨和通勤是兩種不同的髒。雨痕要等乾才浮出來，汗漬則是越放越難救。",
+        "台中這幾個月的濕度，衣服收進櫃子前沒乾透，味道就是那時候留下的。"
+      ];
+    }
+    // fabric-storage: 70 of the 180 posts.
+    return [
+      "衣服收起來之前那一下沒檢查，下次拿出來通常就是味道的來源。",
+      "領口、袖口和內層比表面先累積。看起來還好的時候，其實已經開始了。",
+      "厚一點的布收進櫃子，摸起來乾不代表乾透。中間那層最慢。",
+      "衣櫃的味道多半不是衣櫃的問題，是收進去的時候就帶著了。"
+    ];
+  })();
+
+  return pickFor(slot, variants);
+}
+
+// This block is the one place the shop speaks as itself rather than as a
+// service description, so it is the block a returning reader notices first.
+// It took a slot and ignored it: the same sentence went out on all sixty of the
+// last thirty days' posts. Each service now has two, alternating by day, and
+// each says what is actually looked at rather than listing the categories of
+// thing that could be looked at.
 function inspectionFor(slot: GrowthPlaybookSlot): string {
-  return "遇到這類狀況，我會先看材質、髒污停留的位置、是否有濕氣或異味，再判斷適合局部處理、整件整理，還是先保守觀察。";
+  const page = slot.seo_sync_page;
+  const variants = ((): string[] => {
+    if (page.includes("shirt-suit-dry-cleaning")) {
+      return [
+        "領口這種黃，我會先確認是布本身黃了，還是只浮在表面。兩種處理方式不一樣，用力洗只會把布洗薄。",
+        "襯衫我會先看領臺和袖口內側。那裡先垮的話，整件看起來就會舊，跟乾不乾淨沒什麼關係。"
+      ];
+    }
+    if (page.includes("bedding-duvet-cleaning")) {
+      return [
+        "棉被我會先聞內層再看表布。濕氣的味道和髒的味道不一樣，處理方式也不同。",
+        "寢具我會先摸厚的地方乾透了沒。表面摸起來乾，中間還帶著濕氣，是最常見的狀況。"
+      ];
+    }
+    if (page.includes("plush-doll-cleaning")) {
+      return [
+        "娃娃我會先看五官是繡的還是黏的。黏的那種怕水也怕脫水，得換一種洗法。",
+        "絨毛我會先按一按填充物，確認裡面有沒有硬塊。那比表面髒難處理得多。"
+      ];
+    }
+    if (page.includes("luxury-dry-cleaning")) {
+      return [
+        "精品我會先看邊角和五金。能處理的時間比大家想的短，拖過頭就只能維持現狀。",
+        "這類東西我不太看品牌，先看材質和已經有的磨損。同一個牌子用不同皮，做法就不一樣。"
+      ];
+    }
+    if (page.includes("white-shoe")) {
+      return [
+        "鞋子我會先看中底和鞋邊。泛黃多半從那裡開始，鞋面反而還好。",
+        "白鞋我會先確認是表面髒還是材質本身變色。這兩種能做到的程度差很多。"
+      ];
+    }
+    if (page.includes("shoe-bag")) {
+      return [
+        "包我會先看提把和包角。那兩個地方是天天被摸、被撞的，比整體髒不髒更說明狀況。",
+        "鞋子我會先翻開鞋口看內裡。那裡的狀況通常比鞋面誠實。",
+        "我會先確認邊油還剩多少。磨到底層之後，能做的就只有維持。",
+        "我會先分開看布面和五金。同一個包，這兩塊常常不是同一種處理方式。"
+      ];
+    }
+    if (page.includes("photo-before-laundry")) {
+      return [
+        "照片我會先看髒的位置在哪。同一塊污漬，在領口和在下擺，處理起來是兩回事。",
+        "我會先問這件多久沒整理了。有些痕跡還浮在上面，有些已經跟纖維結在一起。"
+      ];
+    }
+    if (page.includes("taichung-xitun")) {
+      return [
+        "西屯通勤的客人多，我最常看到的是領口和袖口先出問題。那是每天摩擦的位置，跟洗不洗得乾淨無關。",
+        "這幾個月我遇到最多的是雨痕。它要等乾了才浮出來，當下擦掉不代表沒事。"
+      ];
+    }
+    // fabric-storage: 70 of the 180 posts.
+    return [
+      "我會先看髒污停在哪一層。浮在表面的和吃進纖維的，處理方式差很多。",
+      "我會先問這件平常怎麼用、多久沒整理。同樣的痕跡，成因不同就不能用同一種做法。",
+      "我會先摸厚的地方確認乾透了沒。收進去之前那一步，決定下次拿出來的味道。",
+      "我會先分開看正面和內層。內層通常比外面早出狀況，只是看不到。"
+    ];
+  })();
+
+  return pickFor(slot, variants);
 }
 
 // Instagram captions carry no tappable link, and the first 30 days of account
 // insights recorded zero profile-link taps. Instagram readers are sent to a
 // direct message instead; Facebook keeps LINE, where links do work.
+// The first ask was four photographs -- full view, detail, edge, care label --
+// before any exchange had happened, on 58 of the last 60 posts. Thirty days of
+// that produced no inquiries at all. The ask is now one photo, and it leads
+// with the question the reader already has rather than with an instruction.
+// Asking for the rest is a reply, not a requirement for writing in.
 function actionCtaFor(slot: GrowthPlaybookSlot, platform: Platform): string {
-  if (slot.seo_sync_page.includes("photo-before-laundry")) {
-    return platform === "instagram"
-      ? "先拍完整外觀、局部、內裡和洗標，直接私訊傳給我們，初步判斷會更清楚。"
-      : "你可以先拍正面、近照、內裡或洗標，再傳 LINE，這樣我們比較能先幫你判斷方向。";
-  }
-  return platform === "instagram"
-    ? "有類似狀況時，先拍完整外觀、局部、邊角或洗標，直接私訊傳給我們，我們會先幫你看方向。"
-    : "如果你也有類似物件，可以先拍正面、近照、邊角、內裡或洗標，再傳 LINE 讓我們初步判斷。";
+  const channel = platform === "instagram" ? "私訊" : "傳 LINE";
+  const page = slot.seo_sync_page;
+
+  const variants = ((): string[] => {
+    if (page.includes("white-shoe") || page.includes("shoe-bag")) {
+      return [
+        `不確定還救不救得回來？拍一張${channel}給我們，先幫你看。`,
+        `想問問看能處理到什麼程度？拍一張${channel}就可以。`,
+        `台中市區我們到府收，${channel}說一聲就好。`
+      ];
+    }
+    if (page.includes("luxury-dry-cleaning")) {
+      return [
+        `不確定這件能不能處理？拍一張${channel}，我們先看材質再說。`,
+        `捨不得亂試的那件，先拍一張${channel}，我們幫你判斷。`
+      ];
+    }
+    if (page.includes("plush-doll-cleaning")) {
+      return [
+        `家裡有不敢洗的娃娃？拍一張${channel}，我們先幫你看能不能洗。`,
+        `不確定這隻經不經得起洗？拍一張${channel}，我們先看結構。`
+      ];
+    }
+    if (page.includes("bedding-duvet-cleaning")) {
+      return [
+        `想收之前先清一次？${channel}跟我們說一聲，台中市區我們到府收。`,
+        `換季要整理寢具的話，${channel}說一下數量就可以，我們去收。`
+      ];
+    }
+    if (page.includes("taichung-citywide-laundry-pickup") || page.includes("taichung-xitun")) {
+      return [
+        `台中市區免費到府收送，${channel}跟我們說你在哪一區就可以。`,
+        `不用出門，台中市區我們去收。${channel}說個地址和時間就好。`
+      ];
+    }
+    if (page.includes("shirt-suit-dry-cleaning")) {
+      return [
+        `領口開始黃了？拍一張${channel}，我們先看是哪一種。`,
+        `不確定還洗不洗得回來？拍一張${channel}給我們看看。`
+      ];
+    }
+    return [
+      `不確定該怎麼處理？拍一張${channel}給我們，先幫你看方向。`,
+      `想先問問看再決定？拍一張${channel}，我們幫你判斷。`,
+      `收之前想先整理一次？${channel}跟我們說，台中市區到府收。`,
+      `不知道該不該送洗？拍一張${channel}，我們老實跟你說。`
+    ];
+  })();
+
+  return pickFor(slot, variants);
 }
 
 // Pre-authored campaign copy is written around LINE. Rewrite the first
@@ -580,28 +771,46 @@ function normalizeInstagramCta(caption: string): string {
 // and bait suppresses reach rather than earning it. The question has to be
 // answerable in a few words from the reader's own home.
 function engagementQuestionFor(slot: GrowthPlaybookSlot): string {
-  if (slot.seo_sync_page.includes("shirt-suit-dry-cleaning")) {
-    return "你的襯衫比較常出問題的，是領口還是袖口？";
-  }
-  if (slot.seo_sync_page.includes("bedding-duvet-cleaning")) {
-    return "你家的棉被大概多久整理一次？";
-  }
-  if (slot.seo_sync_page.includes("plush-doll-cleaning")) {
-    return "家裡有沒有那種一直想洗、又不太敢洗的娃娃？";
-  }
-  if (slot.seo_sync_page.includes("luxury-dry-cleaning")) {
-    return "哪一件是你最不敢自己動手處理的？";
-  }
-  if (slot.seo_sync_page.includes("white-shoe") || slot.seo_sync_page.includes("shoe-bag")) {
-    return "如果只能先救一樣，你會選鞋子還是包包？";
-  }
-  if (slot.seo_sync_page.includes("photo-before-laundry")) {
-    return "你送洗前會先拍照嗎？";
-  }
-  if (slot.seo_sync_page.includes("taichung-xitun")) {
-    return "你住西屯哪一帶？我們排收送路線時會參考。";
-  }
-  return "你家最常送洗的是哪一件？";
+  const page = slot.seo_sync_page;
+  const variants = ((): string[] => {
+    if (page.includes("shirt-suit-dry-cleaning")) {
+      return ["你的襯衫比較常出問題的，是領口還是袖口？", "你有幾件襯衫是黃了以後就沒再穿的？"];
+    }
+    if (page.includes("bedding-duvet-cleaning")) {
+      return ["你家的棉被大概多久整理一次？", "你收棉被之前會先曬嗎，還是直接收？"];
+    }
+    if (page.includes("plush-doll-cleaning")) {
+      return ["家裡有沒有那種一直想洗、又不太敢洗的娃娃？", "你家那隻娃娃陪多久了？"];
+    }
+    if (page.includes("luxury-dry-cleaning")) {
+      return ["哪一件是你最不敢自己動手處理的？", "你最常用的那個包，哪裡先磨壞的？"];
+    }
+    if (page.includes("white-shoe")) {
+      return ["你那雙白鞋放多久沒穿了？", "你都怎麼洗白鞋？"];
+    }
+    if (page.includes("shoe-bag")) {
+      return [
+        "如果只能先救一樣，你會選鞋子還是包包？",
+        "你最常背的那個包，哪裡先磨壞的？",
+        "你有幾雙鞋是因為不知道怎麼洗就一直放著？",
+        "鞋子和包，你比較捨不得哪一個？"
+      ];
+    }
+    if (page.includes("photo-before-laundry")) {
+      return ["你送洗前會先拍照嗎？", "你上次遇到不確定能不能洗的，最後怎麼處理？"];
+    }
+    if (page.includes("taichung-xitun")) {
+      return ["你住西屯哪一帶？我們排收送路線時會參考。", "你平常都幾點方便收件？"];
+    }
+    return [
+      "你家最常送洗的是哪一件？",
+      "你現在最想處理掉的是哪一件？",
+      "你衣櫃裡放最久沒動的是什麼？",
+      "你換季整理最卡關的是哪一步？"
+    ];
+  })();
+
+  return pickFor(slot, variants);
 }
 
 // Sending a post to a specific person is the heaviest discovery signal there is,
@@ -612,19 +821,43 @@ function engagementQuestionFor(slot: GrowthPlaybookSlot): string {
 // was just rescued from.
 function shareInviteFor(slot: GrowthPlaybookSlot): string | undefined {
   if (slot.slot !== 2) return undefined;
-  if (slot.seo_sync_page.includes("bedding-duvet-cleaning")) {
-    return "家裡那位總說「棉被還可以再放一下」的人，這篇可以轉給他。";
-  }
-  if (slot.seo_sync_page.includes("shirt-suit-dry-cleaning")) {
-    return "如果同事每天穿襯衫上班，這篇可以順手傳給他。";
-  }
-  if (slot.seo_sync_page.includes("white-shoe") || slot.seo_sync_page.includes("shoe-bag")) {
-    return "認識那種鞋子捨不得丟、又不知道怎麼救的人嗎？傳給他。";
-  }
-  if (slot.seo_sync_page.includes("taichung-citywide-laundry-pickup")) {
-    return "住台中、又一直抽不出時間送洗的朋友，這篇傳給他最實用。";
-  }
-  return "家裡衣服堆到不想開始整理的那個人，這篇傳給他。";
+  const page = slot.seo_sync_page;
+  const variants = ((): string[] => {
+    if (page.includes("bedding-duvet-cleaning")) {
+      return [
+        "家裡那位總說「棉被還可以再放一下」的人，這篇可以轉給他。",
+        "換季前負責整理寢具的那個人，這篇傳給他。"
+      ];
+    }
+    if (page.includes("shirt-suit-dry-cleaning")) {
+      return [
+        "如果同事每天穿襯衫上班，這篇可以順手傳給他。",
+        "家裡那個襯衫領口都黃了還在穿的人，傳給他。"
+      ];
+    }
+    if (page.includes("white-shoe") || page.includes("shoe-bag")) {
+      return [
+        "認識那種鞋子捨不得丟、又不知道怎麼救的人嗎？傳給他。",
+        "朋友那個包背到提把都變色了，這篇傳給他。",
+        "家裡有人白鞋放到發黃還沒處理嗎？傳給他看看。",
+        "那個總說「再穿一次就拿去洗」的朋友，這篇傳給他。"
+      ];
+    }
+    if (page.includes("taichung-citywide-laundry-pickup") || page.includes("taichung-xitun")) {
+      return [
+        "住台中、又一直抽不出時間送洗的朋友，這篇傳給他最實用。",
+        "台中不想出門又要送洗的那個人，這篇傳給他。"
+      ];
+    }
+    return [
+      "家裡衣服堆到不想開始整理的那個人，這篇傳給他。",
+      "那個每次換季都說「下週再整理」的人，傳給他。",
+      "衣櫃塞到關不起來的朋友，這篇傳給他。",
+      "家裡負責收衣服的那位，這篇傳給他。"
+    ];
+  })();
+
+  return pickFor(slot, variants);
 }
 
 function withEngagementQuestion(caption: string, slot: GrowthPlaybookSlot): string {
@@ -641,10 +874,21 @@ function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): stri
   return withEngagementQuestion(caption, slot);
 }
 
+// Pre-authored playbook captions carry the same defect the assembled ones did:
+// a bare shop name in block 2, where Instagram folds. Dropping the block moves
+// the next real sentence up into that position. The name still reaches the
+// reader through the hashtags and the follow line.
+function demoteBrandLine(caption: string): string {
+  const blocks = caption.split("\n\n");
+  if (blocks[1] !== brandLine) return caption;
+  return [blocks[0], ...blocks.slice(2)].join("\n\n");
+}
+
 function baseCaptionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): string {
   const explicitCaption = platform === "facebook" ? slot.facebook_caption : slot.instagram_caption;
   if (explicitCaption) {
-    return platform === "instagram" ? normalizeInstagramCta(explicitCaption) : explicitCaption;
+    const demoted = demoteBrandLine(explicitCaption);
+    return platform === "instagram" ? normalizeInstagramCta(demoted) : demoted;
   }
 
   if (slot.campaign === "taichung-free-pickup-delivery") {
@@ -653,8 +897,7 @@ function baseCaptionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): 
       throw new Error(`Invalid pickup-delivery campaign copy for ${slot.date} slot ${slot.slot}.`);
     }
     const caption = [
-      slot.hook,
-      brandLine,
+      cleanHook(slot.hook),
       slot.story,
       slot.service_message,
       actionCta,
@@ -664,9 +907,13 @@ function baseCaptionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): 
     return platform === "instagram" ? normalizeInstagramCta(caption) : caption;
   }
 
+  // Instagram folds the caption at roughly 125 characters, so whatever sits in
+  // block 2 is the last thing most readers see. It held the shop name -- which
+  // is already the account handle directly above the caption -- on every post.
+  // The observation the hook promises goes there instead, and the shop name
+  // moves down to the follow line where it is doing actual work.
   return [
-    slot.hook,
-    brandLine,
+    cleanHook(slot.hook),
     careBridgeFor(slot),
     inspectionFor(slot),
     actionCtaFor(slot, platform),
@@ -801,8 +1048,16 @@ function videoPromptFromPlaybook(slot: GrowthPlaybookSlot): string | undefined {
 function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string): void {
   const paragraphs = caption.split("\n\n");
   const forbidden = ["畫面維持", "這支內容會用", "短影音題", "轉詢問題", "9:16", "主視覺", "route", "SEO"];
-  if (paragraphs[1] !== brandLine) {
-    throw new Error(`Invalid playbook caption for ${slot.date} slot ${slot.slot}: brand line must be second paragraph.`);
+  // Block 2 is the last line most readers see before Instagram folds the
+  // caption, so it may not be spent on the shop name that is already the
+  // account handle above it. The name still has to appear, in the follow line.
+  if (paragraphs[1] === brandLine) {
+    throw new Error(
+      `Invalid playbook caption for ${slot.date} slot ${slot.slot}: block 2 is the fold line and must not be the bare brand name.`
+    );
+  }
+  if (!caption.includes(brandLine)) {
+    throw new Error(`Invalid playbook caption for ${slot.date} slot ${slot.slot}: missing brand name.`);
   }
   if (!caption.includes(slot.follow_cta)) {
     throw new Error(`Invalid playbook caption for ${slot.date} slot ${slot.slot}: missing follow CTA.`);

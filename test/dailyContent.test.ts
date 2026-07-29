@@ -22,7 +22,9 @@ describe("DailyContent schema", () => {
       expect(slot.topic.length).toBeGreaterThan(0);
       expect(slot.instagram_caption).toContain("私享家洗衣店");
       expect(slot.facebook_caption).toContain("私享家洗衣店");
-      expect(slot.instagram_caption.split("\n\n")[1]).toBe("私享家洗衣店");
+      // Block 2 is where Instagram folds, so it carries the post's own
+      // observation rather than the account name shown directly above it.
+      expect(slot.instagram_caption.split("\n\n")[1]).not.toBe("私享家洗衣店");
       expect(slot.image_prompt).toContain("Realistic");
       expect(slot.visual_route).toBeTruthy();
       expect(slot.local_image_path).toMatch(/^docs\/assets\/2026-05-15\/slot-\d{2}\.png$/);
@@ -46,7 +48,7 @@ describe("DailyContent schema", () => {
 
     for (const slot of content.slots) {
       const caption = slot.instagram_caption;
-      expect(caption.split("\n\n")[1]).toBe("私享家洗衣店");
+      expect(caption.split("\n\n")[1]).not.toBe("私享家洗衣店");
       expect(caption).toContain(slot.follow_cta);
       expect(caption).toContain("#私享家洗衣店");
       expect(caption).toContain("#台中西屯洗衣店");
@@ -121,7 +123,7 @@ describe("DailyContent schema", () => {
       const hashtags = slot.facebook_caption.match(/#[\p{L}\p{N}_]+/gu) ?? [];
 
       expect(slot.seo_sync_page).toBe(route);
-      expect(paragraphs[1]).toBe("私享家洗衣店");
+      expect(paragraphs[1]).not.toBe("私享家洗衣店");
       expect(slot.facebook_caption).toContain(objectWord);
       expect(slot.facebook_caption).toContain(hashtag);
       expect(hashtags.length).toBe(4);
@@ -153,7 +155,7 @@ describe("DailyContent schema", () => {
         expect(/(?:傳|轉)給他/.test(slot.instagram_caption)).toBe(slot.slot === 2);
         for (const caption of [slot.facebook_caption, slot.instagram_caption]) {
           const hashtags = caption.match(/#[\p{L}\p{N}_]+/gu) ?? [];
-          expect(caption.split("\n\n")[1]).toBe("私享家洗衣店");
+          expect(caption.split("\n\n")[1]).not.toBe("私享家洗衣店");
           expect(hashtags).toHaveLength(4);
           expect(caption).not.toMatch(/畫面維持|這支內容會用|短影音題|轉詢問題|9:16|主視覺|route|SEO/);
           expect(caption).not.toMatch(/保證|百分之百|完全去除|恢復全新|一定洗白/);

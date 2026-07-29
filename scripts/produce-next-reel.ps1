@@ -96,26 +96,31 @@ Do not read any workspace file and do not run any shell command; the local shell
 "@
 
     Write-Log "Generating stills through Codex."
+    $genStart = Get-Date
     ($header + $promptBody) | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - *>$null
 
     # Codex cannot write into the repo from its sandbox, so the images are
-    # collected from its output directory here.
-    $session = Get-ChildItem "$env:USERPROFILE\.codex\generated_images" -Directory -ErrorAction SilentlyContinue |
-        Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    $images = @()
-    if ($session) { $images = @(Get-ChildItem $session.FullName -File | Sort-Object LastWriteTime | Select-Object -Last 2) }
+    # collected from its output directory here. One run does not reliably keep
+    # its images in one session directory -- a single generation has landed its
+    # tool calls across two -- so every file written since the run started
+    # counts, wherever it landed. The earliest is the before and the latest is
+    # the after (the final edit); anything between is a discarded draft.
+    $images = @(
+        Get-ChildItem "$env:USERPROFILE\.codex\generated_images" -Directory -ErrorAction SilentlyContinue |
+            Get-ChildItem -File -Filter *.png |
+            Where-Object { $_.LastWriteTime -ge $genStart } |
+            Sort-Object LastWriteTime
+    )
 
-    # Codex returning instantly means it produced nothing new and the newest
-    # session is stale; the timestamp check refuses those leftovers.
-    if ($images.Count -ne 2 -or $images[0].LastWriteTime -lt (Get-Date).AddMinutes(-30)) {
-        Write-Log "Codex did not return two fresh images for $concept."
+    if ($images.Count -lt 2) {
+        Write-Log "Codex returned $($images.Count) fresh image(s) for $concept; need 2."
         Show-Toast "$concept 的素材生成失敗，今天沒有產出新 Reel。"
         exit 1
     }
 
     Copy-Item $images[0].FullName (Join-Path $libDir "$concept-before.png") -Force
-    Copy-Item $images[1].FullName (Join-Path $libDir "$concept-after.png") -Force
-    Write-Log "Stills saved for $concept."
+    Copy-Item $images[-1].FullName (Join-Path $libDir "$concept-after.png") -Force
+    Write-Log "Stills saved for $concept ($($images.Count) fresh files, first and last kept)."
 }
 
 # --- clips -------------------------------------------------------------------

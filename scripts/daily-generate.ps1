@@ -68,26 +68,24 @@ if (-not (Test-Path $codex)) {
 # with a fresh plan, so those days are told to fill in only what is missing.
 if ($hasCalendar) {
     Write-Log "Calendar for $date exists but its images do not; generating images only."
-    # The action goes first. An earlier version led with the constraint and
-    # Codex treated the constraint as the whole task: it replied that it would
-    # not touch the calendar, generated nothing, and stopped.
-    $prompt = @"
-Generate the missing publishable images for $date (Asia/Taipei), following .agents/skills/daily-automation/SKILL.md.
+    # Driving Codex through its workspace-write sandbox fails here:
+    # `CryptUnprotectData failed: 2148073483` blocks every workspace read and
+    # write, so it reports the day as blocked and generates nothing. The
+    # images-only path therefore runs Codex read-only and places the files
+    # itself. The calendar is never handed to Codex at all, so the reviewed Reel
+    # already in slot 2 cannot be overwritten.
+    Push-Location $root
+    cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-Null
+    Pop-Location
 
-Do this now, in order:
-1. Run npm run validate-publishable-images -- --date $date to list exactly which image files are missing.
-2. Run npm run generate-image-manifest -- --date $date.
-3. Generate each missing image with the built-in image model (gpt-image-2), once per manifest item, and save it to the exact path the manifest gives.
-4. Run npm run mark-image-source -- --date $date --slot X --source gpt-image-2 for each image you saved.
-5. Run npm run generate-public-site.
-6. Run npm run validate-publishable-images -- --date $date again and report the result.
-
-The task is not complete until step 6 passes.
-
-One constraint while you do it: data/content-calendar/$date.json already exists and its contents must not change. Slot 2 may hold a Reel that has already been reviewed and scheduled, and rewriting the calendar would discard it. Read it, generate the images it asks for, but do not edit it.
-
-Do not approve posts, do not write approved-log or posted-log entries, and do not publish to Facebook or Instagram: approval and publishing are separate stages.
-"@
+    & (Join-Path $PSScriptRoot "generate-missing-images.ps1") -Date $date -LogFile $logFile
+    if ($LASTEXITCODE -eq 0) {
+        Write-Log "Images for $date are ready."
+        exit 0
+    }
+    Write-Log "Image backfill for $date did not complete."
+    Show-Toast "$date 的圖片沒有補齊,slot 1 可能發不出去,請看 log。"
+    exit 1
 } else {
     $prompt = @"
 Run the 06:30 daily generation for $date (Asia/Taipei) exactly as defined in .agents/skills/daily-automation/SKILL.md.

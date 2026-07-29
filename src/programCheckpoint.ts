@@ -98,6 +98,21 @@ export async function evaluateCheckpoint(
   // Day 30 looks at the 12 days since the plan was rewritten; day 60 at 30 days.
   const windowDays = checkpoint === 30 ? 12 : 30;
   const report = await buildLocalReachReport({ days: windowDays, root: options.root });
+
+  // A failed insight fetch reports null metrics and fills data_gaps rather
+  // than throwing, and null coalesces to zero in the decision rules -- so an
+  // expired token on checkpoint day would have produced a permanent "stop the
+  // programme" verdict that reads exactly like a measured one. No data is a
+  // fault to fix, never a verdict of record.
+  const engagementUnmeasured =
+    report.accounts_engaged === null && report.followers_gained === null && report.reach_non_follower === null;
+  if (report.data_gaps.length > 0 && engagementUnmeasured) {
+    throw new Error(
+      `Checkpoint ${checkpoint} cannot be judged: insight metrics are unmeasured (${report.data_gaps.join("; ")}). ` +
+        "Fix the data access and rerun; this failure records no verdict."
+    );
+  }
+
   const decision = checkpoint === 30 ? decideDay30(report) : decideDay60(report);
 
   return {

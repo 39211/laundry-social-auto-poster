@@ -81,6 +81,10 @@ async function waitForPublishedReel(
   const intervalMs = options.intervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const sleep = options.sleep ?? ((delayMs: number) => new Promise((resolve) => setTimeout(resolve, delayMs)));
 
+  // media_publish has already committed by the time this runs: the Reel is
+  // live. Throwing here would feed withRetry, which reruns container creation
+  // and publish and puts a second identical Reel on the account. Verification
+  // that cannot confirm in time is reported, not raised.
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const query = new URLSearchParams({
       fields: "id,media_type,media_product_type",
@@ -92,13 +96,19 @@ async function waitForPublishedReel(
     );
     const payload = (await response.json()) as InstagramResponse;
     if (!response.ok || payload.error) {
-      throw new Error(payload.error?.message || `Instagram published Reel verification failed with ${response.status}`);
+      console.warn(
+        payload.error?.message ||
+          `Instagram published Reel verification failed with ${response.status}; the publish itself succeeded.`
+      );
+      return;
     }
     if (payload.media_type === "VIDEO" && payload.media_product_type === "REELS") return;
     if (attempt < maxAttempts) await sleep(intervalMs);
   }
 
-  throw new Error(`Instagram published media ${mediaId} was not verified as a Reel.`);
+  console.warn(
+    `Instagram media ${mediaId} is published but not yet verified as a Reel; not retrying a committed publish.`
+  );
 }
 
 // A carousel carries its location on the parent container; the children are just

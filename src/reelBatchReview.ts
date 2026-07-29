@@ -93,8 +93,15 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
     const content = await loadDailyContent(entry.date, root);
     const slot = content?.slots.find((item) => item.slot === 2);
     const posts = await loadPostLog(entry.date, root);
+    // "posted" and "success" are the same live outcome everywhere else in the
+    // codebase; matching only one of them filed a published Reel as
+    // not_published and shrank the sample this whole review judges.
     const live = posts.find(
-      (post) => post.slot === 2 && post.platform === "instagram" && !post.dry_run && post.status === "success"
+      (post) =>
+        post.slot === 2 &&
+        post.platform === "instagram" &&
+        !post.dry_run &&
+        ["success", "posted"].includes(post.status)
     );
 
     const base = {

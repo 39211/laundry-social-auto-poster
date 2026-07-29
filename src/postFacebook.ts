@@ -185,6 +185,12 @@ export async function postFacebookReel(
   );
   if (finished.success !== true) throw new Error("Facebook Reel publish did not return success=true.");
 
+  // The finish call above is the commit point: the Reel is live on the Page
+  // the moment it returns success. Everything after is observation, and it
+  // must not throw on a timeout -- a throw here feeds withRetry, which reruns
+  // the whole upload and publishes the same Reel again, up to three copies per
+  // run. A transcode still in progress after the polling budget is a slow
+  // transcode, not a failed publish; only a terminal error status is a fault.
   const maxAttempts = polling.maxAttempts ?? 12;
   const intervalMs = polling.intervalMs ?? 5_000;
   const sleep = polling.sleep ?? ((milliseconds: number) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
@@ -205,7 +211,10 @@ export async function postFacebookReel(
     if (attempt < maxAttempts) await sleep(intervalMs);
   }
   if (videoStatus !== "ready") {
-    throw new Error(`Facebook Reel was not ready after ${maxAttempts} status checks (last status: ${videoStatus}).`);
+    console.warn(
+      `Facebook Reel ${started.video_id} is published but still transcoding after ` +
+        `${maxAttempts} checks (last status: ${videoStatus}); not retrying a committed publish.`
+    );
   }
 
   return {

@@ -198,7 +198,11 @@ export interface ProductionRunway {
 export async function productionRunway(
   today: string,
   root = projectRoot(),
-  warnBelowDays = 14
+  // The schedule holds 12 entries, so a threshold of 14 made the warning fire
+  // on every run from day one -- indistinguishable noise, which is the exact
+  // failure this warning exists to prevent. Five days is enough time to write,
+  // produce and review a new batch before the schedule runs dry.
+  warnBelowDays = 5
 ): Promise<ProductionRunway> {
   const remaining = REEL_SCHEDULE.filter((entry) => entry.date >= today);
   const last = REEL_SCHEDULE[REEL_SCHEDULE.length - 1]?.date ?? today;

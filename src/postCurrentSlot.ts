@@ -268,6 +268,12 @@ async function postOneSlot(
     }, root);
   }
 
+  // A Facebook failure must not cost the Instagram post: the loop runs
+  // facebook first, and rethrowing inside it meant the platform this account's
+  // whole strategy lives on was never even attempted whenever Facebook had a
+  // bad night. Every platform gets its attempt; the first failure is rethrown
+  // afterwards so the run still reports failure and the catch-up retries.
+  let firstFailure: unknown;
   for (const { platform, input } of platformInputs) {
     if (hasRecordedPost(existing, slot.slot, platform, config.dryRun)) {
       outputs.push({
@@ -308,9 +314,10 @@ async function postOneSlot(
       };
       await appendPostLog(entry, root);
       outputs.push(entry);
-      throw error;
+      firstFailure = firstFailure ?? error;
     }
   }
+  if (firstFailure !== undefined) throw firstFailure;
 
   if (!config.dryRun && !resolvedMedia.videoDeferred && (isReel || isMixedCarousel)) {
     const completed = await loadPostLog(date, root);

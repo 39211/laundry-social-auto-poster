@@ -59,7 +59,11 @@ describe("Meta Reel publishers", () => {
     );
   });
 
-  it("does not report success until the Facebook Reel is ready", async () => {
+  it("treats a slow transcode as success, because the publish already committed", async () => {
+    // The finish call publishes the Reel irreversibly. Throwing on a polling
+    // timeout after that point fed withRetry, which reran the whole upload and
+    // put duplicate Reels on the Page — so a still-processing status must
+    // resolve, not reject. Only a terminal error status is a failure.
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ video_id: "video-1", upload_url: "https://rupload.test/video-1" }))
@@ -71,7 +75,24 @@ describe("Meta Reel publishers", () => {
       maxAttempts: 1,
       intervalMs: 0,
       sleep: async () => undefined
-    })).rejects.toThrow("was not ready");
+    })).resolves.toMatchObject({ status: "success" });
+    // Exactly one upload cycle: start, upload, finish, one status poll.
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+  });
+
+  it("still fails on a terminal Facebook video status", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ video_id: "video-1", upload_url: "https://rupload.test/video-1" }))
+      .mockResolvedValueOnce(jsonResponse({ success: true }))
+      .mockResolvedValueOnce(jsonResponse({ success: true }))
+      .mockResolvedValueOnce(jsonResponse({ status: { video_status: "error" } })) as unknown as typeof fetch;
+
+    await expect(postFacebookReel(input, config, fetchImpl, {
+      maxAttempts: 1,
+      intervalMs: 0,
+      sleep: async () => undefined
+    })).rejects.toThrow("terminal status");
   });
 
   it("creates, waits for, and publishes an Instagram Reel container", async () => {
@@ -106,7 +127,10 @@ describe("Meta Reel publishers", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("does not report success when the published Instagram media is not a Reel", async () => {
+  it("does not retry a committed Instagram publish when verification lags", async () => {
+    // media_publish is the commit point. Rejecting afterwards fed withRetry,
+    // which recreated the container and published the same Reel again — so an
+    // unconfirmed verification resolves and is logged, never raised.
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ id: "container-1" }))
@@ -118,6 +142,8 @@ describe("Meta Reel publishers", () => {
       maxAttempts: 1,
       intervalMs: 0,
       sleep: async () => undefined
-    })).rejects.toThrow("was not verified as a Reel");
+    })).resolves.toMatchObject({ status: "success", post_id: "published-1" });
+    // One container, one status wait, one publish, one verification — no rerun.
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
   });
 });

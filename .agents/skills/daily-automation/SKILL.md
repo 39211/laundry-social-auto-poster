@@ -88,7 +88,8 @@ that asks for the impossible fails on the frame a viewer screenshots.
 ## Standing Authorization
 - Read `data/publishing-policy.json` before approval or live posting.
 - An active, unexpired policy is the owner's explicit authorization only for the listed dates, platforms, slots, and service facts. Do not require a new daily chat message when today's action is fully inside that scope.
-- The policy never bypasses content review, Grok judgment, Sol review, local media validation, approval-log, public HTTPS asset, duplicate, or Meta API gates.
+- The policy never bypasses content review, video review, local media validation, approval-log, public HTTPS asset, duplicate, or Meta API gates.
+- The review of record for a video is the owner's, recorded by `npm run owner-video-review -- --date YYYY-MM-DD --slot X --watched`. The earlier dual Grok-and-Sol review is retired: it never once produced a record, so every planned video silently fell back to images. Never write a review record on the owner's behalf; an unreviewed video defers to its approved images, which is the designed outcome and not a fault.
 - Missing, expired, or out-of-scope policy data must stop the action. Never infer authorization for ads, paid APIs, extra posts, new platforms, service changes, or prior-date backfills.
 
 ## Grok CLI Reliability

@@ -85,7 +85,11 @@ function collectFiles(root: string, relativePath: string): string[] {
 }
 
 function isTextPublishFile(filePath: string): boolean {
-  return [".html", ".json", ".md", ".txt", ".js", ".ts", ".css"].includes(extname(filePath).toLowerCase());
+  // .xml and .jsonl are in the publish list (sitemaps, llms.jsonl); leaving
+  // them out of this list meant they were published without the secret scan.
+  return [".html", ".json", ".jsonl", ".md", ".txt", ".js", ".ts", ".css", ".xml"].includes(
+    extname(filePath).toLowerCase()
+  );
 }
 
 function assertNoSecretsInPublishTargets(root: string, paths: string[]): void {

@@ -72,7 +72,10 @@ if ($dueSlots.Count -eq 0) {
         $postedSlots = @()
         if (Test-Path $postedPath) {
             $postedParsed = Get-Content $postedPath -Raw -Encoding utf8 | ConvertFrom-Json
-            $postedSlots = @(@($postedParsed) | Where-Object { $_.status -eq "success" -and -not $_.dry_run } | ForEach-Object { $_.slot })
+            # Matches hasRecordedPost in src/logging.ts, which accepts either
+            # status string; checking only "success" here reported a "posted"
+            # slot as missed.
+            $postedSlots = @(@($postedParsed) | Where-Object { @("success", "posted") -contains $_.status -and -not $_.dry_run } | ForEach-Object { $_.slot })
         }
         $unposted = @($staleSlots | Where-Object { $postedSlots -notcontains $_ })
         if ($unposted.Count -gt 0) {

@@ -135,4 +135,39 @@ describe("publishPagesAssets", () => {
 
     expect(() => publishPagesAssets(date, root)).toThrow("possible secret");
   }, 15000);
+
+  gitIt("catches a bare token pasted into content, with no variable name beside it", () => {
+    // The named-key patterns never fire on the realistic leak: a raw token
+    // that ended up inside a caption or feed. Only the bare-value regexes
+    // catch that, and they had no positive case at all.
+    const { root } = makeGitRepo();
+    const date = "2026-05-15";
+
+    mkdirSync(join(root, "docs", "assets", date), { recursive: true });
+    mkdirSync(join(root, "docs", "content-calendar"), { recursive: true });
+    writeFileSync(join(root, "docs", "index.html"), "<!doctype html><title>ok</title>\n");
+    writeFileSync(join(root, "docs", "assets", date, "slot-01.png"), "fake image");
+    writeFileSync(
+      join(root, "docs", "content-calendar", `${date}.json`),
+      `{"caption":"contact us EAA${"a1B2".repeat(8)} thanks"}\n`
+    );
+
+    expect(() => publishPagesAssets(date, root)).toThrow("possible secret");
+  }, 15000);
+
+  gitIt("scans xml and jsonl publish targets too", () => {
+    // sitemap.xml and llms.jsonl are in the publish list but were not in the
+    // text-file extension list, so they shipped unscanned.
+    const { root } = makeGitRepo();
+    const date = "2026-05-15";
+
+    mkdirSync(join(root, "docs", "assets", date), { recursive: true });
+    mkdirSync(join(root, "docs", "content-calendar"), { recursive: true });
+    writeFileSync(join(root, "docs", "index.html"), "<!doctype html><title>ok</title>\n");
+    writeFileSync(join(root, "docs", "content-calendar", `${date}.json`), '{"slots":[]}\n');
+    writeFileSync(join(root, "docs", "assets", date, "slot-01.png"), "fake image");
+    writeFileSync(join(root, "docs", "sitemap.xml"), `<urlset>sk-${"x".repeat(24)}</urlset>\n`);
+
+    expect(() => publishPagesAssets(date, root)).toThrow("possible secret");
+  }, 15000);
 });

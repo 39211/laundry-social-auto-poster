@@ -21,6 +21,14 @@ export interface VideoReviewRecord {
   generated_clip_audio_used: false;
   status: "approved";
   reviewed_at: string;
+  /**
+   * "owner-watched": the owner played this exact file through to the end.
+   * "owner-standing-policy-2026-07-29": published under the owner's standing
+   * auto-publish authorization; the owner reviews the uploaded Reel afterwards
+   * and corrections feed the next day's production. The record must say which
+   * one actually happened.
+   */
+  reviewed_by?: "owner-watched" | "owner-standing-policy-2026-07-29";
 }
 
 async function sha256File(path: string): Promise<string> {

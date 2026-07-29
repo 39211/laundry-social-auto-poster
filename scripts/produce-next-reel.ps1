@@ -206,4 +206,38 @@ if (-not (Test-Path (Join-Path $run "reels\$concept.mp4"))) {
 }
 
 Write-Log "$concept finished: output\reels-run\2026-07-29\reels\$concept.mp4"
-Show-Toast "$concept 成片完成，看過沒問題就會排進發布。"
+
+# --- schedule and go live ----------------------------------------------------
+# On 2026-07-29 the owner switched to post-publish review: the finished reel is
+# scheduled into its publish date automatically, and the owner reviews the
+# uploaded Reel afterwards -- corrections feed the next day's production. The
+# review record carries the standing-policy marker, never a watch that did not
+# happen, and every machine gate (full decode, metadata, audio sidecar) still
+# has to pass before the slot accepts the file.
+$publishDate = $conceptInfo.publish_date
+if (-not $publishDate) {
+    Write-Log "$concept has no publish date; leaving it unscheduled."
+    Show-Toast "$concept 成片完成，但排程表沒有它的發布日，需要手動處理。"
+    exit 1
+}
+
+Push-Location $root
+cmd /c "npm.cmd run schedule-reel -- --date $publishDate --concept $concept 2>&1" | Out-Null
+$scheduled = ($LASTEXITCODE -eq 0)
+if ($scheduled) {
+    cmd /c "npm.cmd run owner-video-review -- --date $publishDate --slot 2 --standing-policy 2>&1" | Out-Null
+    $reviewed = ($LASTEXITCODE -eq 0)
+} else { $reviewed = $false }
+if ($reviewed) {
+    cmd /c "npm.cmd run publish-pages -- --date $publishDate --skip-audit 2>&1" | Out-Null
+}
+Pop-Location
+
+if (-not $scheduled -or -not $reviewed) {
+    Write-Log "Scheduling failed for $concept -> $publishDate (scheduled=$scheduled reviewed=$reviewed)."
+    Show-Toast "$concept 成片完成但排程失敗，請看 log。"
+    exit 1
+}
+
+Write-Log "$concept scheduled into $publishDate slot 2 under the standing policy."
+Show-Toast "$concept 已排入 $publishDate 發布。發布後請看片，哪裡不足告訴我，隔天改進。"

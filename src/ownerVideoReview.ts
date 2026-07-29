@@ -57,12 +57,22 @@ export async function recordOwnerVideoReview(input: {
   date: string;
   slot: number;
   watched: boolean;
+  /**
+   * On 2026-07-29 the owner changed the review model: publish automatically,
+   * they review the uploaded Reel afterwards and feed corrections into the
+   * next day's production. This mode records that standing authorization
+   * honestly — reviewed_by names the policy, never a watch that did not
+   * happen. Every machine check below still runs and still refuses: the
+   * standing policy covers the owner's eyes, not a broken file.
+   */
+  standingPolicy?: boolean;
   root?: string;
   now?: Date;
 }): Promise<OwnerReviewResult> {
-  if (!input.watched) {
+  if (!input.watched && !input.standingPolicy) {
     throw new Error(
-      "Refusing to record: pass --watched only after playing this exact file through to the end."
+      "Refusing to record: pass --watched after playing this exact file through to the end, " +
+        "or --standing-policy to record the owner's 2026-07-29 auto-publish authorization."
     );
   }
 
@@ -117,7 +127,8 @@ export async function recordOwnerVideoReview(input: {
     separate_zh_tw_tts_review: "pass",
     generated_clip_audio_used: false,
     status: "approved",
-    reviewed_at: (input.now ?? new Date()).toISOString()
+    reviewed_at: (input.now ?? new Date()).toISOString(),
+    reviewed_by: input.watched ? "owner-watched" : "owner-standing-policy-2026-07-29"
   };
 
   const path = videoReviewsPath(input.date, root);
@@ -147,6 +158,7 @@ async function main(): Promise<void> {
     date,
     slot,
     watched: getFlag(args, "watched"),
+    standingPolicy: getFlag(args, "standing-policy"),
     root: getOption(args, "root")
   });
 

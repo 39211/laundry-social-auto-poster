@@ -127,3 +127,23 @@ if ((Test-Path $calendar) -and $imagesReadyNow) {
     Show-Toast "生成流程跑完但沒有產生內容檔,請檢查 log。"
     exit 1
 }
+
+# Publish-Pages
+# Generating a file does not put it online, and publishing checks the public
+# HTTPS URL before posting: an image that exists only on this disk fails that
+# check and the slot is skipped. Nothing else in the schedule pushes the site,
+# so the push happens here, in the same run that made the files. IndexNow then
+# tells search engines the site changed; it too existed only as an unscheduled
+# command, so nothing had ever been submitted.
+Push-Location $root
+cmd /c "npm.cmd run publish-pages -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+$publishOk = ($LASTEXITCODE -eq 0)
+if ($publishOk) {
+    cmd /c "npm.cmd run submit-indexnow -- --live 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    Write-Log "Public site pushed and IndexNow submitted."
+} else {
+    Write-Log "publish-pages failed; assets are generated but not online."
+    Show-Toast "$date 的公開站沒推上去,發文會被公開資產檢查擋下,請看 log。"
+}
+Pop-Location
+if (-not $publishOk) { exit 1 }

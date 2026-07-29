@@ -69,8 +69,12 @@ $($item.prompt)
     Copy-Item $image.FullName $target -Force
     Write-Step "Saved slot $($item.slot)."
 
+    # A carousel slot has one record per slide, so the path identifies which
+    # image was just written. Marking by slot alone left three of four slides
+    # of every carousel without a source record, which the publish gate reads
+    # as an unverified image.
     Push-Location $root
-    cmd /c "npm.cmd run mark-image-source -- --date $Date --slot $($item.slot) --source gpt-image-2 2>&1" | Out-Null
+    cmd /c "npm.cmd run mark-image-source -- --date $Date --slot $($item.slot) --path $($item.target_path) --source gpt-image-2 2>&1" | Out-Null
     Pop-Location
     $generated += 1
 }

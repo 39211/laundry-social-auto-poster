@@ -162,20 +162,24 @@ function publishRootPagesMirror(date: string, root: string, rootPagesRepo: strin
   if (!existsSync(docsRoot)) return "Root Pages mirror skipped because docs/ does not exist.";
 
   const mirrorRoot = mkdtempSync(join(tmpdir(), "laundry-root-pages-"));
-  runGit(["clone", rootPagesRepo, mirrorRoot], root);
-  runGit(["config", "user.name", gitConfigValue(root, "user.name") || "Codex Automation"], mirrorRoot);
-  runGit(["config", "user.email", gitConfigValue(root, "user.email") || "codex-automation@users.noreply.github.com"], mirrorRoot);
-  checkoutMain(mirrorRoot);
-  clearMirrorWorktree(mirrorRoot);
-  copyDirectoryContents(docsRoot, mirrorRoot);
+  try {
+    runGit(["clone", rootPagesRepo, mirrorRoot], root);
+    runGit(["config", "user.name", gitConfigValue(root, "user.name") || "Codex Automation"], mirrorRoot);
+    runGit(["config", "user.email", gitConfigValue(root, "user.email") || "codex-automation@users.noreply.github.com"], mirrorRoot);
+    checkoutMain(mirrorRoot);
+    clearMirrorWorktree(mirrorRoot);
+    copyDirectoryContents(docsRoot, mirrorRoot);
 
-  runGit(["add", "-A"], mirrorRoot);
-  const status = runGit(["status", "--porcelain"], mirrorRoot);
-  if (!status) return `No root Pages mirror changes to publish for ${date}.`;
+    runGit(["add", "-A"], mirrorRoot);
+    const status = runGit(["status", "--porcelain"], mirrorRoot);
+    if (!status) return `No root Pages mirror changes to publish for ${date}.`;
 
-  runGit(["commit", "-m", `Mirror public site ${date}`], mirrorRoot);
-  runGit(["push", "origin", "HEAD:main"], mirrorRoot);
-  return `Mirrored public site to root Pages repo for ${date}.`;
+    runGit(["commit", "-m", `Mirror public site ${date}`], mirrorRoot);
+    runGit(["push", "origin", "HEAD:main"], mirrorRoot);
+    return `Mirrored public site to root Pages repo for ${date}.`;
+  } finally {
+    rmSync(mirrorRoot, { recursive: true, force: true });
+  }
 }
 
 export function publishPagesAssets(date: string, root = projectRoot(), rootPagesRepo = ""): string {

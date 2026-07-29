@@ -61,10 +61,19 @@ Register-LaundryTask -Name "Laundry-Weekly-Review" -Script "weekly-review.ps1" `
     -TimeLimit (New-TimeSpan -Minutes 30) `
     -Description "私享家成效檢討:每天判斷是否有滿 72 小時的 Reel 可評,並在第 30/60 天各跑一次檢查點。只在有結果時通知。"
 
+# Approval gets a second attempt because it is the step that silently loses a
+# day. On 2026-07-28 generation finished late, so 10:20 had nothing to approve;
+# by the time an approval existed, slot 1's 4-hour recovery window had closed
+# and the post was correctly refused as stale. A retry at 11:15 still lands
+# before the 11:30 slot. Approval is idempotent: an already-approved day is a
+# no-op.
 Register-LaundryTask -Name "Laundry-Daily-Approve" -Script "daily-approve.ps1" `
-    -Triggers @((New-ScheduledTaskTrigger -Daily -At "10:20")) `
+    -Triggers @(
+        (New-ScheduledTaskTrigger -Daily -At "10:20"),
+        (New-ScheduledTaskTrigger -Daily -At "11:15")
+    ) `
     -TimeLimit (New-TimeSpan -Minutes 30) `
-    -Description "私享家每日 10:20 自動審核:所有客觀閘門通過才核准,否則停下並通知。"
+    -Description "私享家每日自動審核:10:20 主跑、11:15 補跑(趕在 11:30 檔期前)。所有客觀閘門通過才核准,否則停下並通知。"
 
 Register-LaundryTask -Name "Laundry-CatchUp-Publish" -Script "catchup-publish.ps1" `
     -Triggers @(

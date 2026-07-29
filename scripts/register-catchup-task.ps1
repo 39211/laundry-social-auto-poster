@@ -1,6 +1,7 @@
 ﻿# Registers the daily automation scheduled tasks. Re-running replaces them.
 #
 #   06:30  Laundry-Daily-Generate    content, images, manifests, public site
+#   09:00  Laundry-Weekly-Review     batch review, and day-30/60 checkpoints
 #   10:20  Laundry-Daily-Approve     unattended approval when every gate passes
 #   11:35  Laundry-CatchUp-Publish   slot 1 (11:30), retried at 13:30
 #   13:30
@@ -54,6 +55,11 @@ Register-LaundryTask -Name "Laundry-Daily-Generate" -Script "daily-generate.ps1"
     -Triggers @((New-ScheduledTaskTrigger -Daily -At "06:30")) `
     -TimeLimit (New-TimeSpan -Hours 2) `
     -Description "私享家每日 06:30 生成:內容、圖片、影片候選與公開站,不核准也不發佈。"
+
+Register-LaundryTask -Name "Laundry-Weekly-Review" -Script "weekly-review.ps1" `
+    -Triggers @((New-ScheduledTaskTrigger -Daily -At "09:00")) `
+    -TimeLimit (New-TimeSpan -Minutes 30) `
+    -Description "私享家成效檢討:每天判斷是否有滿 72 小時的 Reel 可評,並在第 30/60 天各跑一次檢查點。只在有結果時通知。"
 
 Register-LaundryTask -Name "Laundry-Daily-Approve" -Script "daily-approve.ps1" `
     -Triggers @((New-ScheduledTaskTrigger -Daily -At "10:20")) `

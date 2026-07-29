@@ -119,26 +119,37 @@ foreach ($state in @("before", "after")) {
     & ffmpeg -v error -y -i $src -vf "crop=ih*9/16:ih,scale=720:1280:flags=lanczos" $dst 2>&1 | Out-Null
 
     $manifest = Join-Path $run "manifests\$concept-$state.json"
-    $template = Get-Content (Join-Path $run "manifests\white-shoe-yellowing-before.json") -Raw | ConvertFrom-Json
-    $template.generation_id = "sixiangjia_$($concept -replace '-','_')_$($state)_v01"
-    $template.source_shot_id = "$concept-$state"
-    $template.input_image = "references/$concept-$state.png"
-    $template.output_file = "raw/$concept-$state.mp4"
-    $template | ConvertTo-Json -Depth 5 | Set-Content $manifest -Encoding utf8
-
     $out = Join-Path $run "raw\$concept-$state.mp4"
     if (Test-Path $out) { Write-Log "Clip already exists: $concept-$state"; continue }
 
-    Write-Log "Generating clip $concept-$state."
-    try {
-        & (Join-Path $root "..\Codex\2026-06-30\copx\scripts\generate-shot.ps1") `
-            -Manifest $manifest -Root $run -ConfirmPaidRun -PollTimeoutSeconds 900 `
-            -OutputReport (Join-Path $run "report-$concept-$state.json") 2>&1 | Out-Null
-    } catch { }
-    # The pipeline writes progress to stderr and PowerShell raises that as an
-    # error even on success, so the file on disk is the only reliable signal.
-    if (-not (Test-Path $out)) {
-        Write-Log "Clip generation failed: $concept-$state"
+    # A resubmission under an id the service has already seen comes back as
+    # ambiguous rather than as a new clip, so each attempt gets its own id.
+    # Two attempts only: a third would burn subscription quota on what is more
+    # likely a bad reference image than a transient fault.
+    $generated = $false
+    foreach ($attempt in 1, 2) {
+        $template = Get-Content (Join-Path $run "manifests\white-shoe-yellowing-before.json") -Raw | ConvertFrom-Json
+        $template.generation_id = "sixiangjia_$($concept -replace '-','_')_$($state)_v{0:d2}" -f $attempt
+        $template.source_shot_id = "$concept-$state"
+        $template.input_image = "references/$concept-$state.png"
+        $template.output_file = "raw/$concept-$state.mp4"
+        $template | ConvertTo-Json -Depth 5 | Set-Content $manifest -Encoding utf8
+
+        Write-Log "Generating clip $concept-$state (attempt $attempt)."
+        try {
+            & (Join-Path $root "..\Codex\2026-06-30\copx\scripts\generate-shot.ps1") `
+                -Manifest $manifest -Root $run -ConfirmPaidRun -PollTimeoutSeconds 900 `
+                -OutputReport (Join-Path $run "report-$concept-$state.json") 2>&1 | Out-Null
+        } catch { }
+        # The pipeline writes progress to stderr and PowerShell raises that as
+        # an error even on success, so the file on disk is the only reliable
+        # signal.
+        if (Test-Path $out) { $generated = $true; break }
+        Write-Log "Attempt $attempt produced no clip for $concept-$state."
+    }
+
+    if (-not $generated) {
+        Write-Log "Clip generation failed after 2 attempts: $concept-$state"
         Show-Toast "$concept 的 $state 影片生成失敗，請看 log。"
         exit 1
     }

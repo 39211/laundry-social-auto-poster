@@ -20,3 +20,16 @@ output/visual-qa/
 output/playwright/
 .playwright-cli/
 **/chrome-profile/
+
+# A blanket `git add -A` once swallowed 963 files and hundreds of megabytes of
+# these; the hygiene audit measured ~600 MB of machine artifacts among the
+# untracked set. output/ is local pipeline state (reels-run, logs, handoffs);
+# .Codex/ is an agent bridge scratch area; the video-production research and
+# reference trees are gigabytes of collected footage. None of it belongs in a
+# repo whose public half is served from docs/.
+output/
+.Codex/
+video-production/research/
+video-production/references/
+audits/service-page-visual-qa-2026-07-03/
+research/**/*.verification-failure.png

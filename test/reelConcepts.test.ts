@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { REEL_CONCEPTS, promptFor, stillPathsFor } from "../src/reelConcepts";
+import {
+  REEL_CONCEPTS,
+  REEL_SCHEDULE,
+  conceptStatuses,
+  promptFor,
+  publishDateFor,
+  stillPathsFor
+} from "../src/reelConcepts";
 
 describe("reel concepts", () => {
   it("covers six distinct object types so no two Reels look alike", () => {
@@ -44,6 +51,39 @@ describe("reel concepts", () => {
       expect(concept.hook.length).toBeGreaterThan(6);
       expect(concept.close.length).toBeGreaterThan(6);
       expect(concept.narration.length).toBeGreaterThan(20);
+    }
+  });
+
+  it("schedules every concept exactly once, on consecutive days", () => {
+    expect(REEL_SCHEDULE).toHaveLength(REEL_CONCEPTS.length);
+    expect(new Set(REEL_SCHEDULE.map((entry) => entry.conceptId)).size).toBe(REEL_CONCEPTS.length);
+    for (const concept of REEL_CONCEPTS) {
+      expect(publishDateFor(concept.id)).toBeDefined();
+    }
+
+    const dates = REEL_SCHEDULE.map((entry) => Date.parse(entry.date));
+    for (let index = 1; index < dates.length; index += 1) {
+      // A gap means a day with no Reel; a repeat means two on one day.
+      expect(dates[index]! - dates[index - 1]!).toBe(86_400_000);
+    }
+  });
+
+  it("orders production by deadline, not by the order concepts were written", async () => {
+    // Publishing deliberately alternates object types, so the schedule order is
+    // not the list order. Producing in list order would build the concept that
+    // is needed last, and one failed day would then land on a publishing date.
+    const statuses = await conceptStatuses();
+    const produced = statuses.map((status) => status.publish_date);
+    expect(produced).toEqual([...produced].sort());
+    expect(statuses[0]?.id).toBe(REEL_SCHEDULE[0]?.conceptId);
+  });
+
+  it("gives no two consecutive publishing days the same object type", () => {
+    const types = REEL_SCHEDULE.map(
+      (entry) => REEL_CONCEPTS.find((concept) => concept.id === entry.conceptId)?.object_type
+    );
+    for (let index = 1; index < types.length; index += 1) {
+      expect(types[index]).not.toBe(types[index - 1]);
     }
   });
 });

@@ -2,10 +2,17 @@
 #
 #   06:30  Laundry-Daily-Generate    content, images, manifests, public site
 #   10:20  Laundry-Daily-Approve     unattended approval when every gate passes
-#   10:50  Laundry-CatchUp-Publish   publish due slots, plus 12:05 and 20:05
-#   12:05
+#   11:35  Laundry-CatchUp-Publish   slot 1 (11:30), retried at 13:30
+#   13:30
 #   14:00  Laundry-Reel-Production   build the next Reel, one batch ahead
-#   20:05
+#   19:35  Laundry-CatchUp-Publish   slot 2, the Reel (19:30), retried at 21:30
+#   21:30
+#
+# Publishing runs five minutes after each slot rather than on a generic hourly
+# sweep: the old 10:50 trigger fired before slot 1 was even due and the next one
+# was not until 12:05, so every post went out 35 minutes late. The retries sit
+# inside the script's own 4-hour recovery window, so a failed attempt still
+# lands at a sensible hour instead of being posted stale.
 #
 # Reel production runs every day rather than waiting for the current batch to
 # finish publishing: six Reels take six days to make, so starting on the day the
@@ -55,12 +62,13 @@ Register-LaundryTask -Name "Laundry-Daily-Approve" -Script "daily-approve.ps1" `
 
 Register-LaundryTask -Name "Laundry-CatchUp-Publish" -Script "catchup-publish.ps1" `
     -Triggers @(
-        (New-ScheduledTaskTrigger -Daily -At "10:50"),
-        (New-ScheduledTaskTrigger -Daily -At "12:05"),
-        (New-ScheduledTaskTrigger -Daily -At "20:05")
+        (New-ScheduledTaskTrigger -Daily -At "11:35"),
+        (New-ScheduledTaskTrigger -Daily -At "13:30"),
+        (New-ScheduledTaskTrigger -Daily -At "19:35"),
+        (New-ScheduledTaskTrigger -Daily -At "21:30")
     ) `
     -TimeLimit (New-TimeSpan -Minutes 30) `
-    -Description "私享家每日發佈補跑:已審核未發佈的當日時段自動補發,超過補發時限則改為通知。"
+    -Description "私享家每日發佈:11:35 發 slot 1、19:35 發 slot 2(Reel),各留一次補發。超過 4 小時補發時限則改為通知。"
 
 Register-LaundryTask -Name "Laundry-Reel-Production" -Script "produce-next-reel.ps1" `
     -Triggers @((New-ScheduledTaskTrigger -Daily -At "14:00")) `

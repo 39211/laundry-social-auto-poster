@@ -6,7 +6,7 @@ import { generateDailyContent } from "./generateDailyContent";
 import { buildGitHubPagesImageUrl, buildGitHubPagesVideoUrl } from "./githubPages";
 import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
 import { contentCalendarPath, padSlot, projectRoot } from "./paths";
-import { REEL_CONCEPTS, type ReelConcept } from "./reelConcepts";
+import { REEL_CONCEPTS, REEL_SCHEDULE, type ReelConcept } from "./reelConcepts";
 import { hashVideoPrompt, videoRunReportPath } from "./videoRunFreshness";
 import type { DailyContent, DailySlot } from "./types";
 
@@ -27,29 +27,6 @@ export const REEL_MOTION_PROMPT =
   "Animate the supplied image while preserving its exact composition, object placement, materials, surface wear, lighting direction and colour temperature. One restrained continuous action only: an extremely gentle push-in with slight natural handheld shake, as if held by a person. Keep every object in its original position and its original condition. Do not clean, repair, alter or transform the object. Do not add or remove anything. No hands in close-up and no finger detail. Do not add people, readable text, captions, logos, dialogue or music. No morphing, warping, flicker, jump cuts, sudden motion or collapsing geometry. Audio near-silent with only faint room tone. Natural restrained motion, stable first and final frames. Duration: 5 seconds. Aspect ratio: 9:16. Resolution: 720p.";
 
 const RUN_DIR = "output/reels-run/2026-07-29";
-
-// Six consecutive days, strongest before/after contrast first so the earliest
-// data comes from the batch's best work. No two consecutive days share an
-// object type, which is what keeps a run of generated clips from reading as
-// repetition. Batch two follows immediately on 2026-08-04.
-export const REEL_SCHEDULE: Array<{ date: string; conceptId: string }> = [
-  { date: "2026-07-29", conceptId: "leather-bag-corner" },
-  { date: "2026-07-30", conceptId: "plush-doll" },
-  { date: "2026-07-31", conceptId: "leather-shoe-rain" },
-  { date: "2026-08-01", conceptId: "white-shoe-yellowing" },
-  { date: "2026-08-02", conceptId: "handbag-handle" },
-  { date: "2026-08-03", conceptId: "duvet-storage" },
-
-  // Batch two, produced one a day during batch one's run. The order puts the
-  // clearest before/after contrast first again, and the 2026-08-04 batch review
-  // can still reorder or replace the later entries before they are assembled.
-  { date: "2026-08-04", conceptId: "shirt-collar" },
-  { date: "2026-08-05", conceptId: "luggage-wheel" },
-  { date: "2026-08-06", conceptId: "canvas-shoe-mud" },
-  { date: "2026-08-07", conceptId: "suit-shoulder" },
-  { date: "2026-08-08", conceptId: "backpack-base" },
-  { date: "2026-08-09", conceptId: "curtain-hem" }
-];
 
 function shareInviteFor(concept: ReelConcept): string {
   switch (concept.object_type) {

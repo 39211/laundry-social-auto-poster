@@ -42,13 +42,24 @@ Pop-Location
 $m = [regex]::Match(($statusJson -join "`n"), '(?s)\{.*\}')
 if (-not $m.Success) { Write-Log "Could not read concept status."; exit 1 }
 $status = $m.Value | ConvertFrom-Json
+
+# Running out of concepts looks identical to a healthy quiet day, so the runway
+# is reported on every run and warned about while there is still time to write
+# more. The 90-day programme runs well past the current schedule.
+$runway = $status.runway
+Write-Log "Runway: $($runway.days_of_runway) scheduled days left, last is $($runway.last_scheduled_date)."
+if ($runway.needs_new_concepts) {
+    Show-Toast "排程剩 $($runway.days_of_runway) 天($($runway.last_scheduled_date) 之後就沒有了),需要再想新主題。"
+}
+
 # A concept counts as done only when its finished reel exists. Judging by
 # stills would skip a concept forever if a later stage failed after the stills
-# were saved.
+# were saved. Concepts arrive already sorted by publishing date, so production
+# always builds the one that runs out first.
 $pending = @($status.concepts | Where-Object { -not (Test-Path (Join-Path $run "reels\$($_.id).mp4")) })
 
 if ($pending.Count -eq 0) {
-    Write-Log "Every concept has a finished reel. Nothing to produce."
+    Write-Log "Every scheduled concept is built. Nothing to produce."
     exit 0
 }
 

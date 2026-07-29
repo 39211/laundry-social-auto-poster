@@ -1,7 +1,9 @@
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
+import { getConfig } from "./config";
 import { projectRoot } from "./paths";
+import { getZonedDateParts } from "./scheduler";
 
 // The concept list is the thing that gets iterated, so it lives in code where a
 // change is reviewable and a regeneration can be scoped to one concept. Chasing
@@ -148,6 +150,71 @@ export const REEL_CONCEPTS: ReelConcept[] = [
 export const BATCH_ONE = REEL_CONCEPTS.slice(0, 6).map((concept) => concept.id);
 export const BATCH_TWO = REEL_CONCEPTS.slice(6).map((concept) => concept.id);
 
+// Which day each concept publishes. This lives beside the concepts because
+// production order has to follow it: daily production must always build the
+// one that runs out first, not the next one in the list. The two orders are
+// deliberately different — publishing alternates object types so consecutive
+// days do not look alike — so following the list would build the least urgent
+// concept first and a single failed day would land on a publishing date.
+export const REEL_SCHEDULE: Array<{ date: string; conceptId: string }> = [
+  { date: "2026-07-29", conceptId: "leather-bag-corner" },
+  { date: "2026-07-30", conceptId: "plush-doll" },
+  { date: "2026-07-31", conceptId: "leather-shoe-rain" },
+  { date: "2026-08-01", conceptId: "white-shoe-yellowing" },
+  { date: "2026-08-02", conceptId: "handbag-handle" },
+  { date: "2026-08-03", conceptId: "duvet-storage" },
+  { date: "2026-08-04", conceptId: "shirt-collar" },
+  { date: "2026-08-05", conceptId: "luggage-wheel" },
+  { date: "2026-08-06", conceptId: "canvas-shoe-mud" },
+  { date: "2026-08-07", conceptId: "suit-shoulder" },
+  { date: "2026-08-08", conceptId: "backpack-base" },
+  { date: "2026-08-09", conceptId: "curtain-hem" }
+];
+
+export function publishDateFor(conceptId: string): string | undefined {
+  return REEL_SCHEDULE.find((entry) => entry.conceptId === conceptId)?.date;
+}
+
+export interface ProductionRunway {
+  today: string;
+  last_scheduled_date: string;
+  days_of_runway: number;
+  scheduled_unproduced: number;
+  needs_new_concepts: boolean;
+}
+
+/**
+ * How many more days of Reels are scheduled. Production goes quiet once every
+ * concept is built, and a quiet daily task looks exactly like a healthy one, so
+ * the runway is reported rather than inferred from silence: writing six more
+ * concepts takes a sitting, but only if someone knows it is due.
+ */
+export async function productionRunway(
+  today: string,
+  root = projectRoot(),
+  warnBelowDays = 14
+): Promise<ProductionRunway> {
+  const remaining = REEL_SCHEDULE.filter((entry) => entry.date >= today);
+  const last = REEL_SCHEDULE[REEL_SCHEDULE.length - 1]?.date ?? today;
+
+  let unproduced = 0;
+  for (const entry of remaining) {
+    try {
+      await access(join(root, "output", "reels-run", "2026-07-29", "reels", `${entry.conceptId}.mp4`));
+    } catch {
+      unproduced += 1;
+    }
+  }
+
+  return {
+    today,
+    last_scheduled_date: last,
+    days_of_runway: remaining.length,
+    scheduled_unproduced: unproduced,
+    needs_new_concepts: remaining.length < warnBelowDays
+  };
+}
+
 // Kept identical across every still so that separate generation sessions still
 // cut together, and so that a single regenerated still drops back into a pair
 // without the join showing.
@@ -179,6 +246,7 @@ export interface ConceptStatus {
   hook: string;
   close: string;
   narration: string;
+  publish_date?: string;
   has_before: boolean;
   has_after: boolean;
   ready: boolean;
@@ -205,13 +273,16 @@ export async function conceptStatuses(root = projectRoot()): Promise<ConceptStat
       hook: concept.hook,
       close: concept.close,
       narration: concept.narration,
+      publish_date: publishDateFor(concept.id),
       has_before: hasBefore,
       has_after: hasAfter,
       ready: hasBefore && hasAfter
     });
   }
 
-  return statuses;
+  // Production order is deadline order. An unscheduled concept sorts last: it
+  // has no date to miss.
+  return statuses.sort((a, b) => (a.publish_date ?? "9999").localeCompare(b.publish_date ?? "9999"));
 }
 
 async function main(): Promise<void> {
@@ -239,11 +310,13 @@ async function main(): Promise<void> {
     return;
   }
 
+  const today = getOption(args, "today") ?? getZonedDateParts(new Date(), getConfig().timezone).date;
   console.log(
     JSON.stringify(
       {
         total: statuses.length,
         ready: statuses.filter((status) => status.ready).length,
+        runway: await productionRunway(today, root),
         concepts: only ? statuses.filter((status) => status.id === only) : statuses
       },
       null,

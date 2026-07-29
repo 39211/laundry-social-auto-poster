@@ -2,8 +2,7 @@ import { getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { loadDailyContent, loadPostLog } from "./logging";
 import { projectRoot } from "./paths";
-import { REEL_CONCEPTS } from "./reelConcepts";
-import { REEL_SCHEDULE } from "./scheduleReel";
+import { REEL_CONCEPTS, REEL_SCHEDULE } from "./reelConcepts";
 
 // Judges a published batch of Reels against the per-Reel thresholds in
 // docs/reels-roadmap.md, so the next batch is built from what happened rather

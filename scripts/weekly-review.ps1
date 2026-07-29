@@ -39,6 +39,17 @@ function Show-Toast([string]$text) {
     } catch { Write-Log ("Toast failed: " + $_.Exception.Message) }
 }
 
+# --- fresh insights ----------------------------------------------------------
+# The batch review judges each Reel against its 72-hour Instagram numbers, and
+# nothing else fetches those on a schedule: the review would otherwise keep
+# reading whatever window was last synced by hand. A failed fetch is logged and
+# the review still runs -- stale data with a warning beats no verdict.
+Write-Log "Syncing Meta insights."
+Push-Location $root
+$sync = cmd /c "npm.cmd run sync-meta-insights 2>&1"
+if ($LASTEXITCODE -ne 0) { Write-Log "Insights sync failed; review will use the last synced window." }
+Pop-Location
+
 # --- Reel batch review -------------------------------------------------------
 Write-Log "Running Reel batch review."
 Push-Location $root

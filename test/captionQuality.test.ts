@@ -100,6 +100,26 @@ describe("caption quality", () => {
     }
   });
 
+  it("keeps one caption about one object", () => {
+    // shoe-bag-care covers shoes and bags, and each block is picked from its
+    // own list by the same day number. Lists that alternated object differently
+    // produced a caption that observed a shoe and then asked about a handbag.
+    const shoeOnly = (text: string) => /鞋/.test(text) && !/包/.test(text);
+    const bagOnly = (text: string) => /包/.test(text) && !/鞋/.test(text);
+
+    for (const caption of captions) {
+      const body = caption.blocks.filter(
+        (block) => !block.startsWith("#") && !block.startsWith("追蹤")
+      );
+      const hasShoe = body.some(shoeOnly);
+      const hasBag = body.some(bagOnly);
+      expect(
+        hasShoe && hasBag,
+        `${caption.date} slot ${caption.slot} mixes shoes and bags:\n${body.join("\n")}`
+      ).toBe(false);
+    }
+  });
+
   it("routes Instagram readers to a direct message, never to the profile link", () => {
     // Thirty days of account insights recorded zero profile-link taps.
     for (const caption of captions) {

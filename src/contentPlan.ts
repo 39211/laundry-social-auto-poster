@@ -549,6 +549,27 @@ function pickFor(slot: GrowthPlaybookSlot, variants: string[]): string {
   return variants[dayIndex(slot.date) % variants.length] ?? variants[0] ?? "";
 }
 
+/**
+ * shoe-bag-care covers two objects, and the hook comes from the plan rather
+ * than from here. Rotating the blocks purely by day therefore produced posts
+ * whose hook was about a handbag and whose every other line was about shoes.
+ * The object is read off the hook so the rest of the caption follows it.
+ */
+function shoeOrBag(slot: GrowthPlaybookSlot): "shoe" | "bag" {
+  const text = `${slot.hook} ${slot.topic}`;
+  if (/包/.test(text) && !/鞋/.test(text)) return "bag";
+  if (/鞋/.test(text) && !/包/.test(text)) return "shoe";
+  // A hook naming both, or neither, alternates so the pair still varies.
+  return dayIndex(slot.date) % 2 === 0 ? "bag" : "shoe";
+}
+
+function pickByObject(
+  slot: GrowthPlaybookSlot,
+  options: { shoe: string[]; bag: string[] }
+): string {
+  return pickFor(slot, options[shoeOrBag(slot)]);
+}
+
 function careBridgeFor(slot: GrowthPlaybookSlot): string {
   const page = slot.seo_sync_page;
   const variants = ((): string[] => {
@@ -584,10 +605,16 @@ function careBridgeFor(slot: GrowthPlaybookSlot): string {
     }
     if (page.includes("shoe-bag")) {
       return [
-        "包包最先變舊的是提把。那不是灰塵，是手汗堆的。",
-        "鞋子真正的問題常在鞋口內裡。外面看起來乾，裡面不一定。",
-        "包角和邊油是先磨掉的地方。等到看得出來，通常已經磨進去了。",
-        "鞋底邊那一圈最容易被跳過。它決定整雙看起來新不新。"
+        pickByObject(slot, {
+          bag: [
+            "包包最先變舊的是提把。那不是灰塵，是手汗堆的。",
+            "包角和邊油是先磨掉的地方。等到看得出來，通常已經磨進去了。"
+          ],
+          shoe: [
+            "鞋子真正的問題常在鞋口內裡。外面看起來乾，裡面不一定。",
+            "鞋底邊那一圈最常被跳過。它決定整雙看起來新不新。"
+          ]
+        })
       ];
     }
     if (page.includes("photo-before-laundry")) {
@@ -623,10 +650,11 @@ function careBridgeFor(slot: GrowthPlaybookSlot): string {
 function inspectionFor(slot: GrowthPlaybookSlot): string {
   const page = slot.seo_sync_page;
   const variants = ((): string[] => {
+    // Index 0 is the shirt and index 1 the suit here, matching the care bridge.
     if (page.includes("shirt-suit-dry-cleaning")) {
       return [
         "領口這種黃，我會先確認是布本身黃了，還是只浮在表面。兩種處理方式不一樣，用力洗只會把布洗薄。",
-        "襯衫我會先看領臺和袖口內側。那裡先垮的話，整件看起來就會舊，跟乾不乾淨沒什麼關係。"
+        "西裝我會先看肩線和領片有沒有塌。那比表面髒不髒更決定它還能不能穿出去。"
       ];
     }
     if (page.includes("bedding-duvet-cleaning")) {
@@ -653,12 +681,22 @@ function inspectionFor(slot: GrowthPlaybookSlot): string {
         "白鞋我會先確認是表面髒還是材質本身變色。這兩種能做到的程度差很多。"
       ];
     }
+    // shoe-bag-care covers two objects. Every list on this branch alternates
+    // bag, shoe, bag, shoe on the same index, because the blocks are picked by
+    // the same day number: lists that alternate differently produced a caption
+    // that observed a shoe and then asked about a handbag.
     if (page.includes("shoe-bag")) {
       return [
-        "包我會先看提把和包角。那兩個地方是天天被摸、被撞的，比整體髒不髒更說明狀況。",
-        "鞋子我會先翻開鞋口看內裡。那裡的狀況通常比鞋面誠實。",
-        "我會先確認邊油還剩多少。磨到底層之後，能做的就只有維持。",
-        "我會先分開看布面和五金。同一個包，這兩塊常常不是同一種處理方式。"
+        pickByObject(slot, {
+          bag: [
+            "包我會先看提把和包角。那兩個地方天天被摸、被撞，比整體髒不髒更說明狀況。",
+            "我會先確認邊油還剩多少。磨到底層之後，能做的就只有維持。"
+          ],
+          shoe: [
+            "鞋子我會先翻開鞋口看內裡。那裡的狀況通常比鞋面誠實。",
+            "鞋子我會先看鞋墊和後跟內側。腳汗停在那裡，比外面的灰更難處理。"
+          ]
+        })
       ];
     }
     if (page.includes("photo-before-laundry")) {
@@ -790,10 +828,10 @@ function engagementQuestionFor(slot: GrowthPlaybookSlot): string {
     }
     if (page.includes("shoe-bag")) {
       return [
-        "如果只能先救一樣，你會選鞋子還是包包？",
-        "你最常背的那個包，哪裡先磨壞的？",
-        "你有幾雙鞋是因為不知道怎麼洗就一直放著？",
-        "鞋子和包，你比較捨不得哪一個？"
+        pickByObject(slot, {
+          bag: ["你最常背的那個包，哪裡先磨壞的？", "你那個包用多久了？"],
+          shoe: ["你有幾雙鞋是因為不知道怎麼洗就一直放著？", "你多久整理一次鞋子？"]
+        })
       ];
     }
     if (page.includes("photo-before-laundry")) {
@@ -835,12 +873,24 @@ function shareInviteFor(slot: GrowthPlaybookSlot): string | undefined {
         "家裡那個襯衫領口都黃了還在穿的人，傳給他。"
       ];
     }
-    if (page.includes("white-shoe") || page.includes("shoe-bag")) {
+    if (page.includes("white-shoe")) {
       return [
-        "認識那種鞋子捨不得丟、又不知道怎麼救的人嗎？傳給他。",
-        "朋友那個包背到提把都變色了，這篇傳給他。",
-        "家裡有人白鞋放到發黃還沒處理嗎？傳給他看看。",
+        "認識那種白鞋放到發黃還沒處理的人嗎？傳給他。",
         "那個總說「再穿一次就拿去洗」的朋友，這篇傳給他。"
+      ];
+    }
+    if (page.includes("shoe-bag")) {
+      return [
+        pickByObject(slot, {
+          bag: [
+            "朋友那個包背到提把都變色了，這篇傳給他。",
+            "那個包用了好幾年沒整理過的朋友，這篇傳給他。"
+          ],
+          shoe: [
+            "認識那種鞋子捨不得丟、又不知道怎麼救的人嗎？傳給他。",
+            "家裡鞋櫃塞滿卻幾雙都沒在穿的那個人，這篇傳給他。"
+          ]
+        })
       ];
     }
     if (page.includes("taichung-citywide-laundry-pickup") || page.includes("taichung-xitun")) {

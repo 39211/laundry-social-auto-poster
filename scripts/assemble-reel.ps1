@@ -45,14 +45,24 @@ $out = Join-Path $outDir "$ConceptId.mp4"
 # the subtitles are Chinese, so the default Latin fallback would render boxes.
 $FontFile = "C\:/Windows/Fonts/msjhbd.ttc"
 
+# CJK glyphs are square, so a line is about fontsize x character-count wide. At
+# a fixed 52 that made a 15-character hook 780px on a 720px frame: x came out
+# negative and the first and last characters were sliced in half on screen --
+# on the one element that has to land in the first two seconds. The size is
+# derived from the line instead, and capped so short hooks stay large.
+$MaxTextWidth = 648  # 90% of 720, leaving a margin either side
+
 function Get-DrawText {
     param([string]$Text, [double]$From, [double]$To, [int]$Y)
     $escaped = $Text.Replace("\", "\\").Replace(":", "\:").Replace("'", "\'")
-    return "drawtext=fontfile='$FontFile':text='$escaped':fontsize=52:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=$($Y):enable='between(t,$From,$To)'"
+    $size = [Math]::Min(52, [Math]::Floor($MaxTextWidth / $Text.Length))
+    return "drawtext=fontfile='$FontFile':text='$escaped':fontsize=$($size):fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=$($Y):enable='between(t,$From,$To)'"
 }
 
-$hookText = Get-DrawText -Text $Hook -From 0 -To 2.6 -Y 120
-$closeText = Get-DrawText -Text $Close -From 6.4 -To 9.6 -Y 120
+# Instagram draws its own chrome over the top of a Reel, so a subtitle at y=120
+# sat under it. 200 keeps the line in the upper third and clear of the overlay.
+$hookText = Get-DrawText -Text $Hook -From 0 -To 2.6 -Y 200
+$closeText = Get-DrawText -Text $Close -From 6.4 -To 9.6 -Y 200
 
 # histeq on the after stream pulls its exposure and contrast toward the before
 # stream's range; xfade then hides whatever difference survives.

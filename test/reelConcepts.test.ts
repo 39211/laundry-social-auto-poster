@@ -54,6 +54,32 @@ describe("reel concepts", () => {
     }
   });
 
+  it("never has the narration restate the hook", () => {
+    // The hook is burned in as a subtitle for the first 2.6 seconds and the
+    // narration starts at 0.5s, so a narration that opens with the hook makes
+    // the viewer read and hear one sentence at once. Eight of the twelve did.
+    for (const concept of REEL_CONCEPTS) {
+      const hookBody = concept.hook.replace(/[，。？、]/g, "");
+      const narrationBody = concept.narration.replace(/[，。？、]/g, "");
+      for (let length = 5; length <= hookBody.length; length += 1) {
+        const piece = hookBody.slice(0, length);
+        expect(
+          narrationBody.includes(piece),
+          `${concept.id}: narration repeats the hook's "${piece}"`
+        ).toBe(false);
+      }
+    }
+  });
+
+  it("keeps narration short enough to finish inside the reel", () => {
+    // The reel is 9.67s and narration starts at 0.5s. zh-TW at this voice runs
+    // near 0.25s a character, so past about 36 characters the line is still
+    // being spoken when the video ends.
+    for (const concept of REEL_CONCEPTS) {
+      expect(concept.narration.length, `${concept.id} narration is too long`).toBeLessThanOrEqual(36);
+    }
+  });
+
   it("schedules every concept exactly once, on consecutive days", () => {
     expect(REEL_SCHEDULE).toHaveLength(REEL_CONCEPTS.length);
     expect(new Set(REEL_SCHEDULE.map((entry) => entry.conceptId)).size).toBe(REEL_CONCEPTS.length);

@@ -2,6 +2,10 @@
 # src/autoApprove.ts passes, and notifies either way. Approval happens ~70
 # minutes before the 11:30 slot, which is the window to intervene.
 $ErrorActionPreference = "Continue"
+# Task Scheduler consoles default to cp950, which mangles the UTF-8 JSON npm
+# prints and broke a scheduled parse; interactive sessions never hit this.
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+$OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path -Parent $PSScriptRoot
 
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")

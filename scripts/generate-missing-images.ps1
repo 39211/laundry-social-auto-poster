@@ -13,6 +13,10 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
+# Task Scheduler consoles default to cp950, which mangles the UTF-8 JSON npm
+# prints and broke a scheduled parse; interactive sessions never hit this.
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+$OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path -Parent $PSScriptRoot
 
 function Write-Step([string]$m) {

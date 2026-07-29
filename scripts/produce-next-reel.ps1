@@ -8,6 +8,12 @@
 # next unfinished concept and stops, so a failed day costs that day only. It
 # never approves and never publishes.
 $ErrorActionPreference = "Continue"
+# Under Task Scheduler the console codepage is cp950, which mangles the UTF-8
+# JSON that npm prints: the 14:00 run parsed an empty concept id out of it and
+# produced nothing. Interactive runs never hit this because the session is
+# already UTF-8.
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+$OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path -Parent $PSScriptRoot
 $run = Join-Path $root "output\reels-run\2026-07-29"
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
@@ -20,7 +26,11 @@ $logFile = Join-Path $logDir "$date.log"
 
 function Write-Log([string]$m) {
     $stamp = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
-    ("[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $stamp, $m) | Tee-Object -FilePath $logFile -Append
+    $line = "[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $stamp, $m
+    Write-Host $line
+    # Tee-Object appends UTF-16 in PS 5.1, which turned the log into a mix of
+    # encodings once the scheduled task wrote to it.
+    Add-Content -Path $logFile -Value $line -Encoding UTF8
 }
 
 function Show-Toast([string]$text) {

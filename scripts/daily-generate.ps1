@@ -111,6 +111,9 @@ if ($hasCalendar) {
     }
     Write-Log "Image backfill for $date did not complete."
     Show-Toast "$date 的圖片沒有補齊,slot 1 可能發不出去,請看 log。"
+    # The day failed, but the site must not stay frozen on yesterday: whatever
+    # is already valid still gets pushed so SEO freshness survives a bad morning.
+    Publish-Site | Out-Null
     exit 1
 } else {
     $prompt = @"
@@ -132,6 +135,7 @@ $output | Out-File -FilePath $logFile -Append -Encoding utf8
 if ($exitCode -ne 0) {
     Write-Log "Codex exited with $exitCode."
     Show-Toast "今天 ($date) 的內容生成失敗,請看 output\daily-generate-logs\$date.log"
+    Publish-Site | Out-Null
     exit 1
 }
 
@@ -147,10 +151,12 @@ if ((Test-Path $calendar) -and $imagesReadyNow) {
 } elseif (Test-Path $calendar) {
     Write-Log "Codex finished but images for $date are still missing."
     Show-Toast "今天 ($date) 的圖片沒有生成完整,slot 1 可能發不出去,請看 log。"
+    Publish-Site | Out-Null
     exit 1
 } else {
     Write-Log "Codex finished but no content calendar was written."
     Show-Toast "生成流程跑完但沒有產生內容檔,請檢查 log。"
+    Publish-Site | Out-Null
     exit 1
 }
 

@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -21,19 +21,26 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 25 });
 });
 
+async function scheduleReelInto(date: string, withFile: boolean): Promise<void> {
+  const scheduled = await loadDailyContent(date, root);
+  const reelSlot = scheduled!.slots.find((slot) => slot.slot === 2)!;
+  reelSlot.media_type = "reel";
+  reelSlot.format = "reel";
+  reelSlot.topic = "排定的 Reel";
+  reelSlot.local_video_path = `docs/assets/${date}/slot-02.mp4`;
+  reelSlot.video_prompt = "motion prompt";
+  await writeDailyContent(scheduled!, root);
+  if (withFile) {
+    await mkdir(join(root, "docs", "assets", date), { recursive: true });
+    await writeFile(join(root, "docs", "assets", date, "slot-02.mp4"), "video bytes", "utf8");
+  }
+}
+
 describe("forced regeneration", () => {
   it("carries a scheduled reel slot through instead of reverting it", async () => {
     const date = "2026-08-20";
     await generateDailyContent({ date, root });
-
-    const scheduled = await loadDailyContent(date, root);
-    const reelSlot = scheduled!.slots.find((slot) => slot.slot === 2)!;
-    reelSlot.media_type = "reel";
-    reelSlot.format = "reel";
-    reelSlot.topic = "排定的 Reel";
-    reelSlot.local_video_path = `docs/assets/${date}/slot-02.mp4`;
-    reelSlot.video_prompt = "motion prompt";
-    await writeDailyContent(scheduled!, root);
+    await scheduleReelInto(date, true);
 
     await generateDailyContent({ date, root, force: true });
 
@@ -44,5 +51,18 @@ describe("forced regeneration", () => {
     expect(slot2.local_video_path).toBe(`docs/assets/${date}/slot-02.mp4`);
     // The rest of the day is still the regenerator's to rewrite.
     expect(regenerated!.slots.find((slot) => slot.slot === 1)!.media_type).not.toBe("reel");
+  });
+
+  it("does not preserve a reel whose file is gone", async () => {
+    // A dangling path would pin the slot to a video that cannot publish and
+    // make it immune to the regeneration that could fix it.
+    const date = "2026-08-21";
+    await generateDailyContent({ date, root });
+    await scheduleReelInto(date, false);
+
+    await generateDailyContent({ date, root, force: true });
+
+    const regenerated = await loadDailyContent(date, root);
+    expect(regenerated!.slots.find((slot) => slot.slot === 2)!.media_type).not.toBe("reel");
   });
 });

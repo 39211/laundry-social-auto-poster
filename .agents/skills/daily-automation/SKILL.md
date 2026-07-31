@@ -5,26 +5,42 @@ description: Daily Codex Project Automation workflow for the laundry social publ
 
 # Daily Automation Skill
 
+## Who does what (read this before generating anything)
+
+Since 2026-07-29 the content for each day is produced AHEAD of time by the
+scheduled pipeline (`Laundry-Daily-Generate` 06:30, `Laundry-Reel-Production`
+14:00). On a normal morning the calendar, images and the slot 2 Reel for today
+ALREADY EXIST and are already reviewed. The morning agent's job is to verify
+and fill gaps, never to rebuild.
+
+🔴 **Never run `npm run generate` with `--force`, and never delete or rewrite
+an existing `data/content-calendar/<date>.json`.** A forced regeneration on
+2026-07-30 and 07-31 reverted scheduled, reviewed Reels to carousels whose
+slides never existed: both days published nothing or lost their Reel. The
+generator now preserves reel slots even under force, but force remains
+forbidden here — regenerating same-day content is an owner-requested repair
+action only.
+
 ## Morning Generation
 Run for the current Asia/Taipei date:
 1. Read `data/video-learning/index.json`, the latest daily learning log, and the newest eligible 72-hour review.
-2. Research 3-5 current, reproducible sources from upstream GitHub repositories, releases, official video/camera documentation, or primary platform guidance. On the first run use a 30-day baseline; later runs only collect changes since `last_checked_at`.
-3. Deduplicate by canonical repository, file, revision, or release. Save the canonical URL, revision/date, license, exact reusable method, evidence tier, limitation, and adopt/test/reject decision in `data/video-learning/YYYY-MM-DD.json`; then update `data/video-learning/index.json`.
-4. Choose exactly one main creative experiment per slot. Treat every new method as a hypothesis until an eligible 72-hour comparison supports it.
-5. Use `laundry-content`.
-6. Run `npm run generate-context -- --date YYYY-MM-DD`.
-7. Run `npm run generate -- --date YYYY-MM-DD`.
-8. Use `laundry-image`.
-9. Run `npm run generate-image-manifest -- --date YYYY-MM-DD`.
-10. Use built-in `image_gen` / gpt-image-2 exactly once per manifest item.
-11. Save final images into `docs/assets/YYYY-MM-DD/slot-XX.png`.
-12. After each saved image, run `npm run mark-image-source -- --date YYYY-MM-DD --slot X --source gpt-image-2`.
-13. Run `npm run generate-video-manifest -- --date YYYY-MM-DD`.
-14. If the manifest contains video slots, use the official xAI-supported Hermes OAuth subscription route in `C:\Users\cyc39\Documents\Codex\2026-06-30\copx`. Run its sanitized Hermes readiness check, require `xai_oauth_logged_in=true` and `video_gen_enabled=true`, then submit each reviewed shot exactly once through `generate-shot.ps1 -ConfirmPaidRun`.
-    Never automate grok.com. Never fall back from Hermes OAuth to `XAI_API_KEY`. Use the separately billed xAI API route only when the owner explicitly requests that different billing route.
-15. Run technical, normal-speed, continuity, physics, claim, caption, and audio review. A contact sheet is only triage evidence.
-16. Validate each planned video independently. A validated MP4 keeps the planned video delivery. A failed or missing video must not cancel an otherwise approved image post: publish the validated image or four-image carousel, mark the operational record `VIDEO_DEFERRED`, and add the exact failure to `data/video-repair-queue/queue.json`.
-17. Run `npm run generate-public-site` so `docs/llms.txt`, `docs/social-posts.json`, `docs/latest.json`, `docs/robots.txt`, and `docs/sitemap.xml` include the newest daily package.
+2. Choose at most one creative experiment per slot, and only for content that does not exist yet. Treat every new method as a hypothesis until an eligible 72-hour comparison supports it.
+3. If `data/content-calendar/YYYY-MM-DD.json` does not exist: run `npm run generate-context -- --date YYYY-MM-DD` then `npm run generate -- --date YYYY-MM-DD` (no --force). If it exists, do not touch it.
+4. Run `npm run validate-publishable-images -- --date YYYY-MM-DD`. If it passes, the day is complete — skip to step 8.
+5. Run `npm run generate-image-manifest -- --date YYYY-MM-DD` and generate ONLY the missing images with built-in `image_gen` / gpt-image-2, once per missing manifest item, saving to the exact manifest path.
+6. After each saved image, run `npm run mark-image-source -- --date YYYY-MM-DD --slot X --path <manifest target_path> --source gpt-image-2` (the --path is required: carousels need one record per slide).
+7. Re-run `npm run validate-publishable-images -- --date YYYY-MM-DD`; the day is not done until it passes.
+8. Run `npm run generate-public-site` so `docs/llms.txt`, `docs/social-posts.json`, `docs/latest.json`, `docs/robots.txt`, and `docs/sitemap.xml` include the newest daily package. Site push and IndexNow are handled by the scheduled task; do not push.
+
+Video is NOT part of the morning run. The slot 2 Reel is produced by the 14:00
+task one batch ahead (see `src/reelConcepts.ts` REEL_SCHEDULE), reviewed under
+the owner's standing policy, and scheduled by `npm run schedule-reel`. The
+Hermes OAuth route in `C:\Users\cyc39\Documents\Codex\2026-06-30\copx` remains
+the only video generation route: never automate grok.com, never fall back to
+`XAI_API_KEY`, and never submit a generation the schedule did not ask for.
+A failed or missing video must not cancel an otherwise approved image post:
+publishing degrades it and records `VIDEO_DEFERRED` in
+`data/video-repair-queue/queue.json` by itself.
 
 ## Daily Improvement Contract
 - Every slot keeps the stable spine: the item or problem is visible in the first second, one observable conflict, one physical action, one payoff, and one direct CTA.

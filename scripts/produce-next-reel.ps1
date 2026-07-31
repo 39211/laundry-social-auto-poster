@@ -222,20 +222,26 @@ if (-not $publishDate) {
 }
 
 Push-Location $root
-cmd /c "npm.cmd run schedule-reel -- --date $publishDate --concept $concept 2>&1" | Out-Null
+cmd /c "npm.cmd run schedule-reel -- --date $publishDate --concept $concept 2>&1" | Add-Content -Path $logFile -Encoding UTF8
 $scheduled = ($LASTEXITCODE -eq 0)
+$reviewed = $false
+$pushed = $false
 if ($scheduled) {
-    cmd /c "npm.cmd run owner-video-review -- --date $publishDate --slot 2 --standing-policy 2>&1" | Out-Null
+    cmd /c "npm.cmd run owner-video-review -- --date $publishDate --slot 2 --standing-policy 2>&1" | Add-Content -Path $logFile -Encoding UTF8
     $reviewed = ($LASTEXITCODE -eq 0)
-} else { $reviewed = $false }
+}
 if ($reviewed) {
-    cmd /c "npm.cmd run publish-pages -- --date $publishDate --skip-audit 2>&1" | Out-Null
+    # An unpushed asset fails the public-URL check at 19:35 with no posted-log
+    # entry at all, hours after this script claimed success -- so the push is
+    # checked like every other step, and its output is kept.
+    cmd /c "npm.cmd run publish-pages -- --date $publishDate --skip-audit 2>&1" | Add-Content -Path $logFile -Encoding UTF8
+    $pushed = ($LASTEXITCODE -eq 0)
 }
 Pop-Location
 
-if (-not $scheduled -or -not $reviewed) {
-    Write-Log "Scheduling failed for $concept -> $publishDate (scheduled=$scheduled reviewed=$reviewed)."
-    Show-Toast "$concept 成片完成但排程失敗，請看 log。"
+if (-not $scheduled -or -not $reviewed -or -not $pushed) {
+    Write-Log "Scheduling failed for $concept -> $publishDate (scheduled=$scheduled reviewed=$reviewed pushed=$pushed)."
+    Show-Toast "$concept 成片完成但排程或上線失敗，請看 log。"
     exit 1
 }
 

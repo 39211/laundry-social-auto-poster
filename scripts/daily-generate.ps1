@@ -64,7 +64,11 @@ if ($hasCalendar) {
 function Publish-Site {
     Push-Location $root
     cmd /c "npm.cmd run generate-public-site 2>&1" | Out-Null
-    cmd /c "npm.cmd run publish-pages -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    # --skip-audit: the audit fetches ~50 live URLs and one transient non-2xx
+    # would mark a successful push as failed, skipping IndexNow for the day and
+    # crying wolf on the same toast channel real faults use. The weekly review
+    # is where a genuine broken-URL sweep belongs.
+    cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     $ok = ($LASTEXITCODE -eq 0)
     if ($ok) {
         cmd /c "npm.cmd run submit-indexnow -- --live 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8

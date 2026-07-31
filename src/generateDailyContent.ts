@@ -1,4 +1,5 @@
 import { access } from "node:fs/promises";
+import { join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { buildDailyContent } from "./contentPlan";
@@ -50,7 +51,12 @@ export async function generateDailyContent(options: GenerateDailyContentOptions 
     for (const [index, slot] of content.slots.entries()) {
       const current = existing.slots.find((item) => item.slot === slot.slot);
       if (current?.media_type === "reel" && current.local_video_path) {
-        content.slots[index] = current;
+        // Only a reel whose file is actually on disk is worth preserving; a
+        // dangling path would pin a slot to a video that cannot publish and
+        // make the slot immune to the regeneration that could fix it.
+        const videoPath = join(root, ...current.local_video_path.split("/"));
+        const videoExists = await exists(videoPath);
+        if (videoExists) content.slots[index] = current;
       }
     }
   }

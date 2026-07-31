@@ -1,126 +1,124 @@
 {
-  "generated_at": "2026-07-30T23:13:45.969Z",
+  "generated_at": "2026-07-31T15:57:37.295Z",
   "site_name": "私享家洗衣店",
   "description": "找台中免費收送、逢甲洗鞋或西屯洗鞋？私享家洗衣店提供台中市全區免費收送，門市在西屯青海路二段365號，可先用 LINE 傳照片預約。",
   "timezone": "Asia/Taipei",
   "base_url": "https://39211.github.io",
   "base_url_configured": true,
   "canonical_url": "https://39211.github.io/",
-  "date": "2026-07-30",
+  "date": "2026-07-31",
   "posts": [
     {
-      "id": "https://39211.github.io/content-calendar/2026-07-30.json#post-2026-07-30-slot-01",
-      "date": "2026-07-30",
-      "date_published": "2026-07-30T11:30:00+08:00",
+      "id": "https://39211.github.io/content-calendar/2026-07-31.json#post-2026-07-31-slot-01",
+      "date": "2026-07-31",
+      "date_published": "2026-07-31T11:30:00+08:00",
       "slot": 1,
       "time": "11:30",
       "category": "知識文",
-      "title": "2026-07-30 11:30 童鞋送洗前，鞋口內裡與鞋底邊要一起拍",
-      "topic": "童鞋送洗前，鞋口內裡與鞋底邊要一起拍",
+      "title": "2026-07-31 11:30 球鞋鞋舌翻進去，只拍鞋面會漏掉鞋口內裡",
+      "topic": "球鞋鞋舌翻進去，只拍鞋面會漏掉鞋口內裡",
       "visual_route": "macro-detail",
       "traffic_route": "dwell-detail",
       "content_role": "reach-answer",
       "search_intent": "problem-diagnosis",
       "target_queries": [
-        "台中白鞋清潔",
-        "台中洗鞋店",
-        "白鞋泛黃怎麼辦",
-        "鞋子淋雨怎麼處理"
+        "球鞋送洗前怎麼拍",
+        "鞋口內裡怎麼看",
+        "台中鞋子清洗"
       ],
       "evidence_type": "first-party-inspection",
       "hashtags": [
         "#私享家洗衣店",
-        "#台中西屯洗衣店",
-        "#童鞋清潔",
-        "#鞋子保養"
+        "#球鞋送洗",
+        "#鞋子檢查",
+        "#台中洗衣"
       ],
       "platforms": [
         "facebook",
         "instagram"
       ],
       "in_language": "zh-Hant",
-      "image_path": "assets/2026-07-30/slot-01.png",
-      "image_url": "https://39211.github.io/assets/2026-07-30/slot-01.png",
+      "image_path": "assets/2026-07-31/slot-01.png",
+      "image_url": "https://39211.github.io/assets/2026-07-31/slot-01.png",
       "image_paths": [
-        "assets/2026-07-30/slot-01.png",
-        "assets/2026-07-30/slot-01-slide-02.png",
-        "assets/2026-07-30/slot-01-slide-03.png",
-        "assets/2026-07-30/slot-01-slide-04.png"
+        "assets/2026-07-31/slot-01.png",
+        "assets/2026-07-31/slot-01-slide-02.png",
+        "assets/2026-07-31/slot-01-slide-03.png",
+        "assets/2026-07-31/slot-01-slide-04.png"
       ],
       "image_urls": [
-        "https://39211.github.io/assets/2026-07-30/slot-01.png",
-        "https://39211.github.io/assets/2026-07-30/slot-01-slide-02.png",
-        "https://39211.github.io/assets/2026-07-30/slot-01-slide-03.png",
-        "https://39211.github.io/assets/2026-07-30/slot-01-slide-04.png"
+        "https://39211.github.io/assets/2026-07-31/slot-01.png",
+        "https://39211.github.io/assets/2026-07-31/slot-01-slide-02.png",
+        "https://39211.github.io/assets/2026-07-31/slot-01-slide-03.png",
+        "https://39211.github.io/assets/2026-07-31/slot-01-slide-04.png"
       ],
       "carousel_items": [],
       "media_type": "image",
       "video_path": "",
       "video_url": "",
-      "calendar_path": "content-calendar/2026-07-30.json",
-      "calendar_url": "https://39211.github.io/content-calendar/2026-07-30.json",
-      "article_path": "posts/2026-07-30-slot-01.html",
-      "article_url": "https://39211.github.io/posts/2026-07-30-slot-01.html",
-      "url": "https://39211.github.io/content-calendar/2026-07-30.json#post-2026-07-30-slot-01",
-      "facebook_caption": "童鞋送洗前，鞋口內裡與鞋底邊要一起拍。孩子每天活動量大，最早累積痕跡的未必是鞋面。\n\n私享家洗衣店\n\n左右鞋並排看鞋口、鞋舌、後跟內裡與鞋底邊，確認磨損是否對稱、黏合處有沒有翹起，以及污痕集中在哪一側。\n\n不要只為了鞋底邊發黑就大力刷同一處，也不要自行拉扯已經翹起的黏合邊；保留原狀比較容易判斷。\n\n拍左右鞋全貌、鞋口內裡、鞋底邊與尺寸標示傳 LINE，讓我們先看狀態。\n\n你那雙白鞋放多久沒穿了？\n\n追蹤私享家，之後會持續整理童鞋內裡、磨損與黏合處的送洗前判斷。\n\n#私享家洗衣店 #台中西屯洗衣店 #童鞋清潔 #鞋子保養",
-      "instagram_caption": "童鞋送洗前，鞋口內裡與鞋底邊要一起拍。孩子每天活動量大，最早累積痕跡的未必是鞋面。\n\n私享家洗衣店\n\n左右鞋並排看鞋口、鞋舌、後跟內裡與鞋底邊，確認磨損是否對稱、黏合處有沒有翹起，以及污痕集中在哪一側。\n\n不要只為了鞋底邊發黑就大力刷同一處，也不要自行拉扯已經翹起的黏合邊；保留原狀比較容易判斷。\n\n拍好左右鞋全貌、鞋口內裡、鞋底邊與尺寸標示後，直接私訊，讓我們先看狀態。\n\n你那雙白鞋放多久沒穿了？\n\n追蹤私享家，之後會持續整理童鞋內裡、磨損與黏合處的送洗前判斷。\n\n#私享家洗衣店 #台中西屯洗衣店 #童鞋清潔 #鞋子保養"
+      "calendar_path": "content-calendar/2026-07-31.json",
+      "calendar_url": "https://39211.github.io/content-calendar/2026-07-31.json",
+      "article_path": "posts/2026-07-31-slot-01.html",
+      "article_url": "https://39211.github.io/posts/2026-07-31-slot-01.html",
+      "url": "https://39211.github.io/content-calendar/2026-07-31.json#post-2026-07-31-slot-01",
+      "facebook_caption": "球鞋鞋舌翻進去，只拍鞋面會漏掉鞋口內裡。\n\n私享家洗衣店\n\n同一雙鞋先拍完整左右腳，再補鞋口、鞋舌、後跟內裡與鞋底邊。帆布、網布和合成材質的紋理不同，既有磨痕、脫線與變形位置也要留在原始照片裡。\n\n不要先遮掉污痕，也不要只拍最乾淨的角度。把全貌與局部放在同一組照片，比較容易說清楚你在意的位置。\n\n拍好左右腳全貌、鞋口內裡與鞋底邊，直接用 LINE 傳來先詢問。\n\n#私享家洗衣店 #球鞋送洗 #鞋子檢查 #台中洗衣",
+      "instagram_caption": "球鞋鞋舌翻進去，只拍鞋面會漏掉鞋口內裡。\n\n私享家洗衣店\n\n同一雙鞋先拍完整左右腳，再補鞋口、鞋舌、後跟內裡與鞋底邊。帆布、網布和合成材質的紋理不同，既有磨痕、脫線與變形位置也要留在原始照片裡。\n\n不要先遮掉污痕，也不要只拍最乾淨的角度。把全貌與局部放在同一組照片，比較容易說清楚你在意的位置。\n\n拍好左右腳全貌、鞋口內裡與鞋底邊，直接用 LINE 傳來先詢問。\n\n#私享家洗衣店 #球鞋送洗 #鞋子檢查 #台中洗衣"
     },
     {
-      "id": "https://39211.github.io/content-calendar/2026-07-30.json#post-2026-07-30-slot-02",
-      "date": "2026-07-30",
-      "date_published": "2026-07-30T19:30:00+08:00",
+      "id": "https://39211.github.io/content-calendar/2026-07-31.json#post-2026-07-31-slot-02",
+      "date": "2026-07-31",
+      "date_published": "2026-07-31T19:30:00+08:00",
       "slot": 2,
       "time": "19:30",
       "category": "情境文",
-      "title": "2026-07-30 19:30 孩子的鞋一次整理，家長不用再多跑一趟",
-      "topic": "孩子的鞋一次整理，家長不用再多跑一趟",
-      "visual_route": "shop-inspection",
+      "title": "2026-07-31 19:30 床單被套不用自己扛下樓，先分件拍好再約收送",
+      "topic": "床單被套不用自己扛下樓，先分件拍好再約收送",
+      "visual_route": "customer-consultation",
       "traffic_route": "value-prop-lead",
       "content_role": "evidence-conversion",
       "search_intent": "pickup-logistics",
       "target_queries": [
-        "台中洗衣收送",
-        "台中免費收送洗衣",
-        "台中到府收送洗衣",
-        "台中公司大量衣物送洗"
+        "台中棉被清洗",
+        "台中床單被套送洗",
+        "台中免費收送洗衣"
       ],
       "evidence_type": "pickup-logistics",
       "hashtags": [
         "#私享家洗衣店",
-        "#台中西屯洗衣店",
+        "#床單被套",
         "#台中免費收送",
-        "#童鞋清潔"
+        "#寢具送洗"
       ],
       "platforms": [
         "facebook",
         "instagram"
       ],
       "in_language": "zh-Hant",
-      "image_path": "assets/2026-07-30/slot-02.png",
-      "image_url": "https://39211.github.io/assets/2026-07-30/slot-02.png",
+      "image_path": "assets/2026-07-31/slot-02.png",
+      "image_url": "https://39211.github.io/assets/2026-07-31/slot-02.png",
       "image_paths": [
-        "assets/2026-07-30/slot-02.png",
-        "assets/2026-07-30/slot-02-slide-02.png",
-        "assets/2026-07-30/slot-02-slide-03.png",
-        "assets/2026-07-30/slot-02-slide-04.png"
+        "assets/2026-07-31/slot-02.png",
+        "assets/2026-07-31/slot-02-slide-02.png",
+        "assets/2026-07-31/slot-02-slide-03.png",
+        "assets/2026-07-31/slot-02-slide-04.png"
       ],
       "image_urls": [
-        "https://39211.github.io/assets/2026-07-30/slot-02.png",
-        "https://39211.github.io/assets/2026-07-30/slot-02-slide-02.png",
-        "https://39211.github.io/assets/2026-07-30/slot-02-slide-03.png",
-        "https://39211.github.io/assets/2026-07-30/slot-02-slide-04.png"
+        "https://39211.github.io/assets/2026-07-31/slot-02.png",
+        "https://39211.github.io/assets/2026-07-31/slot-02-slide-02.png",
+        "https://39211.github.io/assets/2026-07-31/slot-02-slide-03.png",
+        "https://39211.github.io/assets/2026-07-31/slot-02-slide-04.png"
       ],
       "carousel_items": [],
       "media_type": "image",
       "video_path": "",
       "video_url": "",
-      "calendar_path": "content-calendar/2026-07-30.json",
-      "calendar_url": "https://39211.github.io/content-calendar/2026-07-30.json",
-      "article_path": "posts/2026-07-30-slot-02.html",
-      "article_url": "https://39211.github.io/posts/2026-07-30-slot-02.html",
-      "url": "https://39211.github.io/content-calendar/2026-07-30.json#post-2026-07-30-slot-02",
-      "facebook_caption": "孩子的鞋一次整理，家長不用再多跑一趟。先分雙拍照，收送時比較不會混在一起。\n\n私享家洗衣店\n\n運動鞋、上學鞋與備用鞋同時要整理時，最容易漏掉的是左右鞋配對、尺寸與各自的在意位置。先分雙排好，比直接堆袋更清楚。\n\n私享家提供台中市全區免費收送，主要透過 LINE 預約。預約前先拍每一雙全貌、鞋底、內裡與所在區域。\n\n把每雙照片、雙數與方便時段傳 LINE，我們再確認收送。\n\n你家最常送洗的是哪一件？\n\n住台中、又一直抽不出時間送洗的朋友，這篇傳給他最實用。\n\n追蹤私享家，之後會持續整理台中免費收送與家庭鞋類一次整理的實用方法。\n\n#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #童鞋清潔",
-      "instagram_caption": "孩子的鞋一次整理，家長不用再多跑一趟。先分雙拍照，收送時比較不會混在一起。\n\n私享家洗衣店\n\n運動鞋、上學鞋與備用鞋同時要整理時，最容易漏掉的是左右鞋配對、尺寸與各自的在意位置。先分雙排好，比直接堆袋更清楚。\n\n私享家提供台中市全區免費收送，主要透過 LINE 預約。預約前先拍每一雙全貌、鞋底、內裡與所在區域。\n\n每雙拍好後，直接私訊傳雙數、區域與方便時段。\n\n你家最常送洗的是哪一件？\n\n住台中、又一直抽不出時間送洗的朋友，這篇傳給他最實用。\n\n追蹤私享家，之後會持續整理台中免費收送與家庭鞋類一次整理的實用方法。\n\n#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #童鞋清潔"
+      "calendar_path": "content-calendar/2026-07-31.json",
+      "calendar_url": "https://39211.github.io/content-calendar/2026-07-31.json",
+      "article_path": "posts/2026-07-31-slot-02.html",
+      "article_url": "https://39211.github.io/posts/2026-07-31-slot-02.html",
+      "url": "https://39211.github.io/content-calendar/2026-07-31.json#post-2026-07-31-slot-02",
+      "facebook_caption": "床單被套不用自己扛下樓，先分件拍好再約收送。\n\n私享家洗衣店\n\n先把床單、被套與枕套分開，拍完整件數、材質表面、洗標與在意位置。折疊後仍要保留每件的邊角與體積，不要把不同布品塞成一團才拍。\n\n私享家提供台中市全區免費收送，主要透過 LINE 預約。把件數、所在區域與可配合時段一起傳來，後續再確認收送安排。\n\n分件拍好後，直接用 LINE 傳件數、區域與可配合時段。\n\n#私享家洗衣店 #床單被套 #台中免費收送 #寢具送洗",
+      "instagram_caption": "床單被套不用自己扛下樓，先分件拍好再約收送。\n\n私享家洗衣店\n\n先把床單、被套與枕套分開，拍完整件數、材質表面、洗標與在意位置。折疊後仍要保留每件的邊角與體積，不要把不同布品塞成一團才拍。\n\n私享家提供台中市全區免費收送，主要透過 LINE 預約。把件數、所在區域與可配合時段一起傳來，後續再確認收送安排。\n\n分件拍好後，直接用 LINE 傳件數、區域與可配合時段。\n\n#私享家洗衣店 #床單被套 #台中免費收送 #寢具送洗"
     }
   ]
 }

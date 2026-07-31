@@ -92,6 +92,22 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - Holiday hours are managed as owner-approved overrides; no specific holiday date is emitted until it is explicitly verified.
 
 ## Published Posts
+- [2026-07-30 19:30 孩子的鞋一次整理，家長不用再多跑一趟](https://39211.github.io/posts/2026-07-30-slot-02.html)
+  platform targets: facebook, instagram
+  routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=value-prop-lead; search_intent=pickup-logistics
+  target_queries: 台中洗衣收送 | 台中免費收送洗衣 | 台中到府收送洗衣 | 台中公司大量衣物送洗
+  evidence_type: pickup-logistics
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #童鞋清潔
+  image: https://39211.github.io/assets/2026-07-30/slot-02.png
+  calendar: https://39211.github.io/content-calendar/2026-07-30.json
+- [2026-07-30 11:30 童鞋送洗前，鞋口內裡與鞋底邊要一起拍](https://39211.github.io/posts/2026-07-30-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=macro-detail; traffic_route=dwell-detail; search_intent=problem-diagnosis
+  target_queries: 台中白鞋清潔 | 台中洗鞋店 | 白鞋泛黃怎麼辦 | 鞋子淋雨怎麼處理
+  evidence_type: first-party-inspection
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #童鞋清潔 #鞋子保養
+  image: https://39211.github.io/assets/2026-07-30/slot-01.png
+  calendar: https://39211.github.io/content-calendar/2026-07-30.json
 - [2026-07-29 19:30 床單被套一次多袋，不用自己再扛下樓](https://39211.github.io/posts/2026-07-29-slot-02.html)
   platform targets: facebook, instagram
   routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=value-prop-lead; search_intent=pickup-logistics

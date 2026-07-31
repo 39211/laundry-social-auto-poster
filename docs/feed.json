@@ -1343,6 +1343,76 @@
         ],
         "calendar_url": "https://39211.github.io/content-calendar/2026-07-29.json"
       }
+    },
+    {
+      "id": "https://39211.github.io/content-calendar/2026-07-30.json#post-2026-07-30-slot-01",
+      "url": "https://39211.github.io/posts/2026-07-30-slot-01.html",
+      "title": "2026-07-30 11:30 童鞋送洗前，鞋口內裡與鞋底邊要一起拍",
+      "date_published": "2026-07-30T11:30:00+08:00",
+      "content_text": "童鞋送洗前，鞋口內裡與鞋底邊要一起拍。孩子每天活動量大，最早累積痕跡的未必是鞋面。\n\n私享家洗衣店\n\n左右鞋並排看鞋口、鞋舌、後跟內裡與鞋底邊，確認磨損是否對稱、黏合處有沒有翹起，以及污痕集中在哪一側。\n\n不要只為了鞋底邊發黑就大力刷同一處，也不要自行拉扯已經翹起的黏合邊；保留原狀比較容易判斷。\n\n拍左右鞋全貌、鞋口內裡、鞋底邊與尺寸標示傳 LINE，讓我們先看狀態。\n\n你那雙白鞋放多久沒穿了？\n\n追蹤私享家，之後會持續整理童鞋內裡、磨損與黏合處的送洗前判斷。\n\n#私享家洗衣店 #台中西屯洗衣店 #童鞋清潔 #鞋子保養",
+      "summary": "童鞋送洗前，鞋口內裡與鞋底邊要一起拍",
+      "image": "https://39211.github.io/assets/2026-07-30/slot-01.png",
+      "tags": [
+        "私享家洗衣店",
+        "台中西屯洗衣店",
+        "童鞋清潔",
+        "鞋子保養"
+      ],
+      "_sixiangjia": {
+        "slot": 1,
+        "category": "知識文",
+        "visual_route": "macro-detail",
+        "traffic_route": "dwell-detail",
+        "content_role": "reach-answer",
+        "search_intent": "problem-diagnosis",
+        "target_queries": [
+          "台中白鞋清潔",
+          "台中洗鞋店",
+          "白鞋泛黃怎麼辦",
+          "鞋子淋雨怎麼處理"
+        ],
+        "evidence_type": "first-party-inspection",
+        "platforms": [
+          "facebook",
+          "instagram"
+        ],
+        "calendar_url": "https://39211.github.io/content-calendar/2026-07-30.json"
+      }
+    },
+    {
+      "id": "https://39211.github.io/content-calendar/2026-07-30.json#post-2026-07-30-slot-02",
+      "url": "https://39211.github.io/posts/2026-07-30-slot-02.html",
+      "title": "2026-07-30 19:30 孩子的鞋一次整理，家長不用再多跑一趟",
+      "date_published": "2026-07-30T19:30:00+08:00",
+      "content_text": "孩子的鞋一次整理，家長不用再多跑一趟。先分雙拍照，收送時比較不會混在一起。\n\n私享家洗衣店\n\n運動鞋、上學鞋與備用鞋同時要整理時，最容易漏掉的是左右鞋配對、尺寸與各自的在意位置。先分雙排好，比直接堆袋更清楚。\n\n私享家提供台中市全區免費收送，主要透過 LINE 預約。預約前先拍每一雙全貌、鞋底、內裡與所在區域。\n\n把每雙照片、雙數與方便時段傳 LINE，我們再確認收送。\n\n你家最常送洗的是哪一件？\n\n住台中、又一直抽不出時間送洗的朋友，這篇傳給他最實用。\n\n追蹤私享家，之後會持續整理台中免費收送與家庭鞋類一次整理的實用方法。\n\n#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #童鞋清潔",
+      "summary": "孩子的鞋一次整理，家長不用再多跑一趟",
+      "image": "https://39211.github.io/assets/2026-07-30/slot-02.png",
+      "tags": [
+        "私享家洗衣店",
+        "台中西屯洗衣店",
+        "台中免費收送",
+        "童鞋清潔"
+      ],
+      "_sixiangjia": {
+        "slot": 2,
+        "category": "情境文",
+        "visual_route": "shop-inspection",
+        "traffic_route": "value-prop-lead",
+        "content_role": "evidence-conversion",
+        "search_intent": "pickup-logistics",
+        "target_queries": [
+          "台中洗衣收送",
+          "台中免費收送洗衣",
+          "台中到府收送洗衣",
+          "台中公司大量衣物送洗"
+        ],
+        "evidence_type": "pickup-logistics",
+        "platforms": [
+          "facebook",
+          "instagram"
+        ],
+        "calendar_url": "https://39211.github.io/content-calendar/2026-07-30.json"
+      }
     }
   ]
 }

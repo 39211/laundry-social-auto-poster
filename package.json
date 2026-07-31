@@ -50,7 +50,9 @@
     "daily": "npm run generate && npm run generate-image-manifest && npm run generate-video-candidate-manifest && npm run generate-public-site",
     "schedule": "tsx src/scheduler.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "post-youtube": "tsx src/postYouTube.ts",
+    "youtube-auth": "tsx src/postYouTube.ts --auth"
   },
   "dependencies": {
     "dotenv": "^16.4.7"

@@ -85,6 +85,16 @@ Register-LaundryTask -Name "Laundry-CatchUp-Publish" -Script "catchup-publish.ps
     -TimeLimit (New-TimeSpan -Minutes 30) `
     -Description "私享家每日發佈:11:35 發 slot 1、19:35 發 slot 2(Reel),各留一次補發。超過 4 小時補發時限則改為通知。"
 
+# After both evening publish windows: uploads the day's live Reel to YouTube.
+# Separate task so a YouTube fault never blocks the Meta chain.
+Register-LaundryTask -Name "Laundry-YouTube-Upload" -Script "youtube-upload.ps1" `
+    -Triggers @(
+        (New-ScheduledTaskTrigger -Daily -At "20:00"),
+        (New-ScheduledTaskTrigger -Daily -At "21:50")
+    ) `
+    -TimeLimit (New-TimeSpan -Minutes 30) `
+    -Description "私享家每日 YouTube Shorts 上傳:slot 2 的 Reel 在 IG 實際發布後才上傳;未授權時提醒不報錯。"
+
 Register-LaundryTask -Name "Laundry-Reel-Production" -Script "produce-next-reel.ps1" `
     -Triggers @((New-ScheduledTaskTrigger -Daily -At "14:00")) `
     -TimeLimit (New-TimeSpan -Hours 2) `

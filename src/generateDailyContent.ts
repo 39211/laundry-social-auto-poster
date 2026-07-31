@@ -5,7 +5,7 @@ import { buildDailyContent } from "./contentPlan";
 import { contentCalendarPath, ensureProjectDirectories, projectRoot } from "./paths";
 import { generateDailyContext } from "./generateDailyContext";
 import { getZonedDateParts } from "./scheduler";
-import { writeDailyContent } from "./logging";
+import { loadDailyContent, writeDailyContent } from "./logging";
 
 export interface GenerateDailyContentOptions {
   date?: string;
@@ -36,6 +36,25 @@ export async function generateDailyContent(options: GenerateDailyContentOptions 
   }
 
   const content = buildDailyContent(date, config);
+
+  // A scheduled Reel survives regeneration, forced or not. schedule-reel
+  // places a reviewed video into slot 2 days ahead of publishing, and a force
+  // regeneration -- Codex's own morning flow runs one -- was rebuilding the
+  // day from the playbook and silently reverting that slot to a carousel whose
+  // slides were never produced: 2026-07-30 lost both posts and 2026-07-31 lost
+  // its Reel exactly this way. Regeneration owns the day's plan; it does not
+  // own a slot another workflow already filled with reviewed, published-ready
+  // media.
+  const existing = await loadDailyContent(date, root);
+  if (existing) {
+    for (const [index, slot] of content.slots.entries()) {
+      const current = existing.slots.find((item) => item.slot === slot.slot);
+      if (current?.media_type === "reel" && current.local_video_path) {
+        content.slots[index] = current;
+      }
+    }
+  }
+
   await writeDailyContent(content, root);
   return calendarPath;
 }

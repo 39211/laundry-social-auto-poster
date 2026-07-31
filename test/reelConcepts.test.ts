@@ -80,16 +80,20 @@ describe("reel concepts", () => {
     }
   });
 
-  it("schedules every concept exactly once, on consecutive days", () => {
+  it("schedules every concept exactly once, with no gap in the days still ahead", () => {
     expect(REEL_SCHEDULE).toHaveLength(REEL_CONCEPTS.length);
     expect(new Set(REEL_SCHEDULE.map((entry) => entry.conceptId)).size).toBe(REEL_CONCEPTS.length);
     for (const concept of REEL_CONCEPTS) {
       expect(publishDateFor(concept.id)).toBeDefined();
     }
 
-    const dates = REEL_SCHEDULE.map((entry) => Date.parse(entry.date));
+    // History is allowed to contain losses — 07-30 and 07-31 were clobbered
+    // before publishing and their Reels moved to the end — but the stretch
+    // from 08-01 on must stay one Reel a day with no repeats and no gaps.
+    const dates = REEL_SCHEDULE.map((entry) => Date.parse(entry.date)).filter(
+      (time) => time >= Date.parse("2026-08-01")
+    );
     for (let index = 1; index < dates.length; index += 1) {
-      // A gap means a day with no Reel; a repeat means two on one day.
       expect(dates[index]! - dates[index - 1]!).toBe(86_400_000);
     }
   });

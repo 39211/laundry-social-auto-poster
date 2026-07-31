@@ -40,16 +40,29 @@ $output = cmd /c "npm.cmd run auto-approve -- --date $date 2>&1"
 Pop-Location
 $output | Out-File -FilePath $logFile -Append -Encoding utf8
 
-$text = ($output -join "`n")
-$start = $text.IndexOf("{")
-$stop = $text.LastIndexOf("}")
-if ($start -lt 0 -or $stop -le $start) {
-    Write-Log "Could not parse the auto-approve report."
-    Show-Toast "自動審核沒有回傳可解讀的結果,請看 output\daily-approve-logs\$date.log"
+# The verdict is read from the report file autoApprove writes, never scraped
+# out of npm stdout: a brace inside any npm warning used to shift the substring
+# parse, and a "successful" parse into an object whose .approved was null
+# silently skipped the day. An absent or unreadable report is an explicit
+# failure, never a quiet skip.
+$reportPath = Join-Path $root "output\operations\auto-approve-$date.json"
+if (-not (Test-Path $reportPath)) {
+    Write-Log "Auto-approve wrote no report file."
+    Show-Toast "自動審核沒有產生報告檔,今天的審核狀態不明,請看 output\daily-approve-logs\$date.log"
     exit 1
 }
-
-$result = $text.Substring($start, $stop - $start + 1) | ConvertFrom-Json
+try {
+    $result = [IO.File]::ReadAllText($reportPath, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
+} catch {
+    Write-Log ("Report file unreadable: " + $_.Exception.Message)
+    Show-Toast "自動審核報告檔無法解讀,請看 output\daily-approve-logs\$date.log"
+    exit 1
+}
+if ($null -eq $result.date -or $result.date -ne $date) {
+    Write-Log "Report file is for '$($result.date)', expected '$date'."
+    Show-Toast "自動審核報告檔日期不符,請看 log。"
+    exit 1
+}
 
 if ($result.already_approved) {
     Write-Log "Already approved; nothing to do."

@@ -207,13 +207,21 @@ export async function autoApprove(
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  const root = projectRoot(getOption(args, "root"));
   const result = await autoApprove({
     date: getOption(args, "date"),
-    root: getOption(args, "root"),
+    root,
     approvedBy: getOption(args, "approved-by")
   });
 
   console.log(JSON.stringify(result, null, 2));
+  // The scheduled wrapper reads this file instead of scraping stdout: any npm
+  // warning containing a brace shifted the substring parse, and a "successful"
+  // parse into an object with a null .approved silently skipped the day.
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  const reportDir = join(root, "output", "operations");
+  await mkdir(reportDir, { recursive: true });
+  await writeFile(join(reportDir, `auto-approve-${result.date}.json`), JSON.stringify(result, null, 2), "utf8");
   // Non-zero lets the scheduled task raise a notification when nothing was approved.
   if (!result.approved && !result.already_approved && !getFlag(args, "no-fail")) process.exitCode = 1;
 }

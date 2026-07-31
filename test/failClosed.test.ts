@@ -73,6 +73,39 @@ describe("unattended approval fails closed", () => {
     // read as consent.
     expect(await fileExists(join(root, "data", "approved-log", `${DATE}.json`))).toBe(false);
   });
+
+  it("approves the healthy slot when only the other slot is broken", async () => {
+    // Approval used to be all-or-nothing: on 2026-08-01 a regenerated slot 1
+    // pointing at slides that were never produced would have blocked the
+    // reviewed Reel in slot 2 as well, repeating the zero-publish day.
+    await writeMinimalCalendar(root, DATE);
+    await writeFile(
+      join(root, "data", "publishing-policy.json"),
+      JSON.stringify({
+        status: "active",
+        start_date: "2026-08-01",
+        end_date: "2026-12-31",
+        platforms: ["facebook", "instagram"],
+        slots: [{ slot: 1 }, { slot: 2 }],
+        same_day_catch_up: true
+      }),
+      "utf8"
+    );
+    // Slot 2's image exists with a source record; slot 1's does not.
+    await mkdir(join(root, "docs", "assets", DATE), { recursive: true });
+    await writeFile(join(root, "docs", "assets", DATE, "slot-02.png"), "image bytes", "utf8");
+    await mkdir(join(root, "data", "image-sources"), { recursive: true });
+    await writeFile(
+      join(root, "data", "image-sources", `${DATE}.json`),
+      JSON.stringify([{ image_path: `docs/assets/${DATE}/slot-02.png`, source: "gpt-image-2" }]),
+      "utf8"
+    );
+
+    const result = await autoApprove({ date: DATE, root });
+
+    expect(result.approved_slots).toEqual([2]);
+    expect(result.blockers.some((text) => text.includes("slot-01"))).toBe(true);
+  });
 });
 
 describe("scheduling a reel", () => {

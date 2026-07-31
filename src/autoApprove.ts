@@ -1,9 +1,8 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { approvePost } from "./approvePost";
 import { getFlag, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
-import { validatePublishableImages } from "./generateImage";
 import { hasApprovedPost, loadApprovalLog, loadDailyContent, loadImageSources } from "./logging";
 import { inspectDailyImageProvenance } from "./imageProvenance";
 import { imageAssetsForSlot } from "./mediaAssets";
@@ -113,25 +112,42 @@ export async function autoApprove(
     );
   }
 
-  try {
-    await validatePublishableImages(date, root);
-    record("publishable_images", true);
-  } catch (error) {
-    record("publishable_images", false, error instanceof Error ? error.message : String(error));
-  }
+  // Asset readiness is judged per slot. The day-level check made approval
+  // all-or-nothing, and one broken slot then cost the whole day: on
+  // 2026-08-01 a morning regeneration rewrote slot 1's carousel while slot 2
+  // held a reviewed, published-ready Reel — and the Reel would have been
+  // blocked by slot 1's missing slides. Policy gates above stay day-level:
+  // no policy, nothing publishes. Asset gates below block only their slot.
+  const slotBlockers = new Map<number, string[]>();
+  const blockSlot = (slot: number, reason: string) => {
+    slotBlockers.set(slot, [...(slotBlockers.get(slot) ?? []), reason]);
+    // Recorded as a failing check but NOT through record(), which feeds the
+    // day-level blockers list — that is exactly the all-or-nothing coupling
+    // this rewrite removes.
+    checks.push({ name: `slot_${slot}`, ok: false, detail: reason });
+  };
 
-  // A publishable image must also be a real generated asset, not a placeholder
-  // that happens to sit at the right path.
   const sources = await loadImageSources(date, root);
   for (const slot of content.slots) {
-    const missing = imageAssetsForSlot(slot)
-      .map((asset) => asset.local_image_path)
-      .filter((path) => !sources.some((entry) => entry.image_path === path && entry.source));
-    record(
-      `image_source_slot_${slot.slot}`,
-      missing.length === 0,
-      missing.length ? `no source record for ${missing.join(", ")}` : undefined
-    );
+    for (const asset of imageAssetsForSlot(slot)) {
+      const fullPath = join(root, ...asset.local_image_path.split("/"));
+      let assetExists = false;
+      try {
+        assetExists = (await stat(fullPath)).size > 0;
+      } catch {
+        assetExists = false;
+      }
+      if (!assetExists) {
+        blockSlot(slot.slot, `missing image ${asset.local_image_path}`);
+        continue;
+      }
+      // A publishable image must also be a real generated asset, not a
+      // placeholder that happens to sit at the right path.
+      if (!sources.some((entry) => entry.image_path === asset.local_image_path && entry.source)) {
+        blockSlot(slot.slot, `no source record for ${asset.local_image_path}`);
+      }
+    }
+    if (!slotBlockers.has(slot.slot)) record(`slot_${slot.slot}`, true);
   }
 
   const approvals = await loadApprovalLog(date, root);
@@ -144,18 +160,28 @@ export async function autoApprove(
       approved: false,
       already_approved: true,
       approved_slots: [],
-      blockers,
+      blockers: [...blockers, ...[...slotBlockers.values()].flat()],
       checks,
       ai_provenance: aiProvenance
     };
   }
 
+  // Day-level blockers (policy, calendar) refuse everything.
   if (blockers.length > 0) {
-    return { date, approved: false, already_approved: false, approved_slots: [], blockers, checks, ai_provenance: aiProvenance };
+    return {
+      date,
+      approved: false,
+      already_approved: false,
+      approved_slots: [],
+      blockers: [...blockers, ...[...slotBlockers.values()].flat()],
+      checks,
+      ai_provenance: aiProvenance
+    };
   }
 
   const approvedSlots: number[] = [];
   for (const slot of pending) {
+    if (slotBlockers.has(slot.slot)) continue;
     await approvePost({
       date,
       slot: slot.slot,
@@ -167,7 +193,16 @@ export async function autoApprove(
     approvedSlots.push(slot.slot);
   }
 
-  return { date, approved: true, already_approved: false, approved_slots: approvedSlots, blockers, checks, ai_provenance: aiProvenance };
+  const remainingBlockers = [...slotBlockers.values()].flat();
+  return {
+    date,
+    approved: approvedSlots.length > 0,
+    already_approved: false,
+    approved_slots: approvedSlots,
+    blockers: remainingBlockers,
+    checks,
+    ai_provenance: aiProvenance
+  };
 }
 
 async function main(): Promise<void> {

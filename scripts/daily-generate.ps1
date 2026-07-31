@@ -55,9 +55,31 @@ if ($hasCalendar) {
     Pop-Location
 }
 
+# Every path out of this script must end with the site publish chain: the
+# public site is what SEO, AI crawlers and the publish-time asset checks all
+# read, and it only updates when this pushes it. The publish steps used to sit
+# at the end of the full-generation path only -- but once content began being
+# generated ahead of time, every morning took the "already ready" early exit,
+# and the site silently stopped updating from the schedule at all.
+function Publish-Site {
+    Push-Location $root
+    cmd /c "npm.cmd run generate-public-site 2>&1" | Out-Null
+    cmd /c "npm.cmd run publish-pages -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    $ok = ($LASTEXITCODE -eq 0)
+    if ($ok) {
+        cmd /c "npm.cmd run submit-indexnow -- --live 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        Write-Log "Public site pushed and IndexNow submitted."
+    } else {
+        Write-Log "publish-pages failed; assets exist locally but are not online."
+        Show-Toast "$date 的公開站沒推上去,發文會被公開資產檢查擋下,請看 log。"
+    }
+    Pop-Location
+    return $ok
+}
+
 if ($hasCalendar -and $imagesReady) {
-    Write-Log "Content calendar and images for $date are both ready; nothing to generate."
-    exit 0
+    Write-Log "Content calendar and images for $date are both ready; publishing the site refresh."
+    if (Publish-Site) { exit 0 } else { exit 1 }
 }
 
 $codex = Join-Path $env:APPDATA "npm\codex.cmd"
@@ -85,7 +107,7 @@ if ($hasCalendar) {
     & (Join-Path $PSScriptRoot "generate-missing-images.ps1") -Date $date -LogFile $logFile
     if ($LASTEXITCODE -eq 0) {
         Write-Log "Images for $date are ready."
-        exit 0
+        if (Publish-Site) { exit 0 } else { exit 1 }
     }
     Write-Log "Image backfill for $date did not complete."
     Show-Toast "$date 的圖片沒有補齊,slot 1 可能發不出去,請看 log。"
@@ -132,22 +154,4 @@ if ((Test-Path $calendar) -and $imagesReadyNow) {
     exit 1
 }
 
-# Publish-Pages
-# Generating a file does not put it online, and publishing checks the public
-# HTTPS URL before posting: an image that exists only on this disk fails that
-# check and the slot is skipped. Nothing else in the schedule pushes the site,
-# so the push happens here, in the same run that made the files. IndexNow then
-# tells search engines the site changed; it too existed only as an unscheduled
-# command, so nothing had ever been submitted.
-Push-Location $root
-cmd /c "npm.cmd run publish-pages -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-$publishOk = ($LASTEXITCODE -eq 0)
-if ($publishOk) {
-    cmd /c "npm.cmd run submit-indexnow -- --live 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-    Write-Log "Public site pushed and IndexNow submitted."
-} else {
-    Write-Log "publish-pages failed; assets are generated but not online."
-    Show-Toast "$date 的公開站沒推上去,發文會被公開資產檢查擋下,請看 log。"
-}
-Pop-Location
-if (-not $publishOk) { exit 1 }
+if (Publish-Site) { exit 0 } else { exit 1 }

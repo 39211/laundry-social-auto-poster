@@ -52,7 +52,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "post-youtube": "tsx src/postYouTube.ts",
-    "youtube-auth": "tsx src/postYouTube.ts --auth"
+    "youtube-auth": "tsx src/postYouTube.ts --auth",
+    "heal-reel-slot": "tsx src/scheduleReel.ts --heal"
   },
   "dependencies": {
     "dotenv": "^16.4.7"

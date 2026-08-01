@@ -34,6 +34,14 @@ function Show-Toast([string]$text) {
     }
 }
 
+# Codex's morning flow writes calendar files directly and has reverted a
+# scheduled Reel three times. Healing before judging means approval always
+# evaluates the day as scheduled, not as clobbered.
+Write-Log "Healing today's reel slot if it was rewritten."
+Push-Location $root
+cmd /c "npm.cmd run heal-reel-slot -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+Pop-Location
+
 Write-Log "Running auto-approve for $date."
 Push-Location $root
 $output = cmd /c "npm.cmd run auto-approve -- --date $date 2>&1"

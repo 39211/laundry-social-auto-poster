@@ -164,11 +164,10 @@ export const BATCH_TWO = REEL_CONCEPTS.slice(6).map((concept) => concept.id);
 // concept first and a single failed day would land on a publishing date.
 export const REEL_SCHEDULE: Array<{ date: string; conceptId: string }> = [
   { date: "2026-07-29", conceptId: "leather-bag-corner" },
-  // 07-30 and 07-31 were lost: a forced morning regeneration reverted their
-  // scheduled Reels to carousels before publishing (fixed in
-  // generateDailyContent, which now carries reel slots through). The two
-  // finished Reels move to the end of the run instead of being thrown away.
-  { date: "2026-08-01", conceptId: "white-shoe-yellowing" },
+  // 07-30, 07-31 and 08-01 were lost to morning rewrites of the calendar (the
+  // last one bypassed the preservation guard by writing the file directly;
+  // --heal now restores the slot before approval and publishing). Every lost
+  // Reel moves to the end of the run instead of being thrown away.
   { date: "2026-08-02", conceptId: "handbag-handle" },
   { date: "2026-08-03", conceptId: "duvet-storage" },
   { date: "2026-08-04", conceptId: "shirt-collar" },
@@ -178,7 +177,8 @@ export const REEL_SCHEDULE: Array<{ date: string; conceptId: string }> = [
   { date: "2026-08-08", conceptId: "backpack-base" },
   { date: "2026-08-09", conceptId: "curtain-hem" },
   { date: "2026-08-10", conceptId: "plush-doll" },
-  { date: "2026-08-11", conceptId: "leather-shoe-rain" }
+  { date: "2026-08-11", conceptId: "leather-shoe-rain" },
+  { date: "2026-08-12", conceptId: "white-shoe-yellowing" }
 ];
 
 export function publishDateFor(conceptId: string): string | undefined {

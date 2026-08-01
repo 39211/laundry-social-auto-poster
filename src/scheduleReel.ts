@@ -7,6 +7,7 @@ import { buildGitHubPagesImageUrl, buildGitHubPagesVideoUrl } from "./githubPage
 import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
 import { contentCalendarPath, padSlot, projectRoot } from "./paths";
 import { REEL_CONCEPTS, REEL_SCHEDULE, type ReelConcept } from "./reelConcepts";
+import { getZonedDateParts } from "./scheduler";
 import { hashVideoPrompt, videoRunReportPath } from "./videoRunFreshness";
 import type { DailyContent, DailySlot } from "./types";
 
@@ -200,9 +201,44 @@ async function main(): Promise<void> {
     return;
   }
 
+  // --heal: put the day's Reel back if something rewrote the calendar.
+  // Codex's morning flow writes calendar files directly, bypassing the
+  // preservation guard in generateDailyContent, and twice reverted a
+  // scheduled Reel to a carousel whose slides never existed. Approval and
+  // publishing run this first, so a clobbered morning self-repairs before
+  // anything is judged against the broken state. Healing only ever restores
+  // what REEL_SCHEDULE already says and only when the finished reel exists;
+  // a day with no scheduled concept, or a slot already correct, is a no-op.
+  if (getFlag(args, "heal")) {
+    const config = getConfig();
+    const date = getOption(args, "date") ?? getZonedDateParts(new Date(), config.timezone).date;
+    const root = projectRoot(getOption(args, "root"));
+    const entry = REEL_SCHEDULE.find((item) => item.date === date);
+    if (!entry) {
+      console.log(`${date}: no reel scheduled, nothing to heal.`);
+      return;
+    }
+    const content = await loadDailyContent(date, root);
+    const slot = content?.slots.find((item) => item.slot === 2);
+    if (slot?.media_type === "reel" && slot.local_video_path) {
+      console.log(`${date}: slot 2 already carries the ${entry.conceptId} reel.`);
+      return;
+    }
+    const reelFile = join(root, RUN_DIR, "reels", `${entry.conceptId}.mp4`);
+    try {
+      await readFile(reelFile);
+    } catch {
+      console.log(`${date}: reel ${entry.conceptId} is not built yet; leaving the day as generated.`);
+      return;
+    }
+    await scheduleReel({ date, conceptId: entry.conceptId, root: getOption(args, "root") });
+    console.log(`${date}: healed slot 2 back to ${entry.conceptId}.`);
+    return;
+  }
+
   const date = getOption(args, "date");
   const conceptId = getOption(args, "concept");
-  if (!date || !conceptId) throw new Error("Required: --date YYYY-MM-DD --concept <id>, or --plan.");
+  if (!date || !conceptId) throw new Error("Required: --date YYYY-MM-DD --concept <id>, --heal, or --plan.");
   await scheduleReel({ date, conceptId, root: getOption(args, "root") });
 }
 

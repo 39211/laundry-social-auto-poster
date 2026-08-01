@@ -38,6 +38,13 @@ function Show-Toast([string]$text) {
 
 Write-Log "Catch-up run started (Taipei time $($now.ToString('HH:mm')))."
 
+# Restore today's scheduled Reel before publishing anything: a morning rewrite
+# of the calendar (it has happened three times) must cost nothing more than
+# this heal step. No-op when the slot is already correct.
+Push-Location $root
+cmd /c "npm.cmd run heal-reel-slot -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+Pop-Location
+
 $approvedPath = Join-Path $root "data\approved-log\$date.json"
 if (-not (Test-Path $approvedPath)) {
     Write-Log "No approved-log for $date. Nothing can be published yet."

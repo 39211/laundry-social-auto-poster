@@ -38,7 +38,13 @@ function Show-Toast([string]$text) {
 # Only upload what actually went live on the primary platform.
 $postedPath = Join-Path $root "data\posted-log\$date.json"
 if (-not (Test-Path $postedPath)) { Write-Log "No posted-log yet; nothing to upload."; exit 0 }
-$posted = @(Get-Content $postedPath -Raw -Encoding utf8 | ConvertFrom-Json)
+# Assign before wrapping: PS 5.1's ConvertFrom-Json emits a JSON array as one
+# pipeline object, so @(pipeline) yields a single element and every filter
+# below matches nothing — which is exactly how tonight's live Reel was
+# misjudged as "no live Reel today". Same pitfall documented in
+# catchup-publish.ps1; same fix.
+$postedParsed = Get-Content $postedPath -Raw -Encoding utf8 | ConvertFrom-Json
+$posted = @($postedParsed)
 $reelLive = @($posted | Where-Object {
     $_.slot -eq 2 -and $_.platform -eq "instagram" -and -not $_.dry_run -and
     (@("success", "posted") -contains $_.status) -and $_.published_media_type -eq "reel"

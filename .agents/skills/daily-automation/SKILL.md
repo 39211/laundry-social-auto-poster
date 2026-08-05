@@ -13,6 +13,15 @@ scheduled pipeline (`Laundry-Daily-Generate` 06:30, `Laundry-Reel-Production`
 ALREADY EXIST and are already reviewed. The morning agent's job is to verify
 and fill gaps, never to rebuild.
 
+🔴 **Never publish to any platform, never disable or modify any scheduled
+task, and never edit files under `src/` or `scripts/`.** Publishing outside
+the 11:30/19:30 windows is refused by the tooling itself; a disabled task is
+re-enabled and reported by the 06:30 watchdog; uncommitted edits to
+production code are stashed before the day runs. On 2026-08-05 a midnight run
+that did all three cost the shop a day and a half of publishing — the guards
+exist because of it, and working around them only produces a report to the
+owner, not a publish.
+
 🔴 **Never run `npm run generate` with `--force`, and never delete or rewrite
 an existing `data/content-calendar/<date>.json`.** A forced regeneration on
 2026-07-30 and 07-31 reverted scheduled, reviewed Reels to carousels whose

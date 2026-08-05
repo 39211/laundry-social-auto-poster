@@ -56,6 +56,20 @@ foreach ($t in Get-ScheduledTask | Where-Object { $_.TaskName -like "Laundry-*" 
     Show-Toast "$($t.TaskName) 被停用了,已自動重新啟用。若是刻意停用請告訴我。"
 }
 
+# The pipeline runs tsx from the working tree, so uncommitted edits to src/ or
+# scripts/ are live in production the moment they land -- one such edit (an
+# unreviewed manual-QA gate) silently blocked a night's Reel. Overnight edits
+# are stashed, not deleted: the work stays recoverable under a named stash,
+# and today's schedule runs the committed, tested code.
+Push-Location $root
+$dirty = @(cmd /c "git status --short src scripts 2>&1" | Where-Object { $_ -match "^\s*[MADR]" })
+if ($dirty.Count -gt 0) {
+    cmd /c "git stash push -m ""watchdog: uncommitted production-code edits found $date"" -- src scripts 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    Write-Log "Watchdog stashed $($dirty.Count) uncommitted production-code change(s); schedule runs committed code."
+    Show-Toast "發現 $($dirty.Count) 個未提交的程式修改,已暫存(git stash)。排程改跑已提交版本,請告訴我要不要採用那些修改。"
+}
+Pop-Location
+
 $calendar = Join-Path $root "data\content-calendar\$date.json"
 $hasCalendar = Test-Path $calendar
 $imagesReady = $false

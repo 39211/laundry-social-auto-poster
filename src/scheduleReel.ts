@@ -6,7 +6,7 @@ import { generateDailyContent } from "./generateDailyContent";
 import { buildGitHubPagesImageUrl, buildGitHubPagesVideoUrl } from "./githubPages";
 import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
 import { contentCalendarPath, padSlot, projectRoot } from "./paths";
-import { REEL_CONCEPTS, REEL_SCHEDULE, type ReelConcept } from "./reelConcepts";
+import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions, type ReelConcept } from "./reelConcepts";
 import { getZonedDateParts } from "./scheduler";
 import { hashVideoPrompt, videoRunReportPath } from "./videoRunFreshness";
 import type { DailyContent, DailySlot } from "./types";
@@ -193,6 +193,9 @@ export async function scheduleReel(input: { date: string; conceptId: string; roo
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  // Data-authored extension concepts join the schedule before any decision
+  // reads it, so healing and scheduling see the same world as production.
+  loadExtensions(projectRoot(getOption(args, "root")));
 
   if (getFlag(args, "plan")) {
     for (const entry of REEL_SCHEDULE) {

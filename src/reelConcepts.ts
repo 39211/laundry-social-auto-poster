@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
@@ -156,6 +157,95 @@ export const REEL_CONCEPTS: ReelConcept[] = [
 export const BATCH_ONE = REEL_CONCEPTS.slice(0, 6).map((concept) => concept.id);
 export const BATCH_TWO = REEL_CONCEPTS.slice(6).map((concept) => concept.id);
 
+// ---------------------------------------------------------------------------
+// Extension concepts, authored as data so the pipeline keeps running without
+// anyone editing code. The morning agent (Codex) writes new batches into
+// data/reel-concepts-extension.json when the runway warning fires; this loader
+// admits an entry only when it satisfies every rule the built-in concepts are
+// tested against, and silently-but-loggedly rejects the rest. A bad or missing
+// extension file leaves the built-in schedule untouched: extensions can add
+// days, never break them.
+interface ExtensionFile {
+  concepts?: unknown[];
+  schedule?: unknown[];
+}
+
+export interface ExtensionReport {
+  accepted_concepts: string[];
+  accepted_dates: string[];
+  rejected: string[];
+}
+
+function isSafeConcept(entry: unknown, existingIds: Set<string>): entry is ReelConcept {
+  if (typeof entry !== "object" || entry === null) return false;
+  const c = entry as Record<string, unknown>;
+  const strings = ["id", "object_type", "hook", "close", "narration", "before_subject", "after_subject"];
+  if (!strings.every((key) => typeof c[key] === "string" && (c[key] as string).length > 0)) return false;
+  if (!/^[a-z0-9-]{3,40}$/.test(c.id as string)) return false;
+  if (existingIds.has(c.id as string)) return false;
+  const hook = c.hook as string;
+  const narration = c.narration as string;
+  if (hook.length < 7 || hook.length > 20) return false;
+  if ((c.close as string).length < 7 || narration.length < 21 || narration.length > 36) return false;
+  // The narration must continue the hook, not restate it (it plays while the
+  // hook is on screen as a subtitle).
+  const hookBody = hook.replace(/[，。？、]/g, "");
+  const narrationBody = narration.replace(/[，。？、]/g, "");
+  for (let length = 5; length <= hookBody.length; length += 1) {
+    if (narrationBody.includes(hookBody.slice(0, length))) return false;
+  }
+  return true;
+}
+
+export function loadExtensions(root = projectRoot()): ExtensionReport {
+  const report: ExtensionReport = { accepted_concepts: [], accepted_dates: [], rejected: [] };
+  let parsed: ExtensionFile;
+  try {
+    parsed = JSON.parse(
+      readFileSync(join(root, "data", "reel-concepts-extension.json"), "utf8").replace(/^﻿/, "")
+    ) as ExtensionFile;
+  } catch {
+    return report; // no file or unreadable: built-ins stand alone
+  }
+
+  const ids = new Set(REEL_CONCEPTS.map((concept) => concept.id));
+  for (const entry of parsed.concepts ?? []) {
+    if (isSafeConcept(entry, ids)) {
+      REEL_CONCEPTS.push(entry);
+      ids.add(entry.id);
+      report.accepted_concepts.push(entry.id);
+    } else {
+      report.rejected.push(`concept:${JSON.stringify(entry).slice(0, 60)}`);
+    }
+  }
+
+  // Schedule entries must extend the run day by day, never rewrite it: each
+  // accepted date is exactly one day after the current last date, names a
+  // known concept, and never repeats the previous day's object type.
+  for (const entry of parsed.schedule ?? []) {
+    const item = entry as { date?: unknown; conceptId?: unknown };
+    const last = REEL_SCHEDULE[REEL_SCHEDULE.length - 1];
+    const expected = new Date(Date.parse(`${last?.date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+    const concept = REEL_CONCEPTS.find((c) => c.id === item.conceptId);
+    const lastConcept = REEL_CONCEPTS.find((c) => c.id === last?.conceptId);
+    const scheduledIds = new Set(REEL_SCHEDULE.map((s) => s.conceptId));
+    if (
+      typeof item.date === "string" &&
+      item.date === expected &&
+      concept &&
+      !scheduledIds.has(concept.id) &&
+      concept.object_type !== lastConcept?.object_type
+    ) {
+      REEL_SCHEDULE.push({ date: item.date, conceptId: concept.id });
+      report.accepted_dates.push(item.date);
+    } else {
+      report.rejected.push(`schedule:${JSON.stringify(entry).slice(0, 60)}`);
+    }
+  }
+
+  return report;
+}
+
 // Which day each concept publishes. This lives beside the concepts because
 // production order has to follow it: daily production must always build the
 // one that runs out first, not the next one in the list. The two orders are
@@ -308,6 +398,7 @@ async function main(): Promise<void> {
   const wantPrompts = getFlag(args, "prompts");
   const root = projectRoot(getOption(args, "root"));
 
+  const extensions = loadExtensions(root);
   const statuses = await conceptStatuses(root);
   const selected = only ? REEL_CONCEPTS.filter((concept) => concept.id === only) : REEL_CONCEPTS;
   if (only && selected.length === 0) {
@@ -334,6 +425,7 @@ async function main(): Promise<void> {
         total: statuses.length,
         ready: statuses.filter((status) => status.ready).length,
         runway: await productionRunway(today, root),
+        extensions,
         concepts: only ? statuses.filter((status) => status.id === only) : statuses
       },
       null,

@@ -41,6 +41,36 @@ Run for the current Asia/Taipei date:
 7. Re-run `npm run validate-publishable-images -- --date YYYY-MM-DD`; the day is not done until it passes.
 8. Run `npm run generate-public-site` so `docs/llms.txt`, `docs/social-posts.json`, `docs/latest.json`, `docs/robots.txt`, and `docs/sitemap.xml` include the newest daily package. Site push and IndexNow are handled by the scheduled task; do not push.
 
+## Concept authoring duty (this is how the line keeps running)
+
+When the runway report from `npm run reel-concepts` shows
+`needs_new_concepts: true`, author the next batch of six Reel concepts as
+DATA in `data/reel-concepts-extension.json` (create it if absent):
+
+```json
+{
+  "concepts": [
+    { "id": "kebab-case-id", "object_type": "one-word-type",
+      "hook": "7-20字，具體、講一個物件的一個問題",
+      "close": "7字以上，私訊/收送 CTA",
+      "narration": "21-36字，接續 hook 往下講，絕不可重述 hook 開頭",
+      "before_subject": "one <object>, <honest visible problem>, English",
+      "after_subject": "the same <object>, same position, treated, English" }
+  ],
+  "schedule": [ { "date": "接在現有排程最後一天的隔天", "conceptId": "kebab-case-id" } ]
+}
+```
+
+Rules the validator enforces (entries that break them are rejected and
+logged, never fixed up): unique new ids; hook 7-20 chars; narration 21-36
+chars that does NOT begin with the hook's opening; schedule dates strictly
+consecutive after the current last date; no two consecutive days sharing an
+object_type. Base each new batch on `output/reviews/batch-review-*.json`:
+keep what cleared the bar, change ONE variable, and pick object types from
+the shop's real service pages. Never edit `src/reelConcepts.ts` — the
+extension file is the only place new concepts go, and the pipeline ingests
+it automatically.
+
 Video is NOT part of the morning run. The slot 2 Reel is produced by the 14:00
 task one batch ahead (see `src/reelConcepts.ts` REEL_SCHEDULE), reviewed under
 the owner's standing policy, and scheduled by `npm run schedule-reel`. The

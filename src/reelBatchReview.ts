@@ -2,7 +2,7 @@ import { getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { loadDailyContent, loadPostLog } from "./logging";
 import { projectRoot } from "./paths";
-import { REEL_CONCEPTS, REEL_SCHEDULE } from "./reelConcepts";
+import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions } from "./reelConcepts";
 
 // Judges a published batch of Reels against the per-Reel thresholds in
 // docs/reels-roadmap.md, so the next batch is built from what happened rather
@@ -83,6 +83,7 @@ async function loadReelMetrics(
 
 export async function reviewBatch(options: { asOf?: string; root?: string } = {}): Promise<BatchReview> {
   const root = projectRoot(options.root);
+  loadExtensions(root);
   const config = getConfig();
   const now = options.asOf ? new Date(`${options.asOf}T23:59:59+08:00`) : new Date();
   const gaps: string[] = [];

@@ -1,4 +1,5 @@
-import { access } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { assertLiveMetaConfig, assertPublicImageBaseUrl, getConfig } from "./config";
@@ -26,7 +27,6 @@ import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
 import { postInstagramCarousel, postInstagramPhoto, postInstagramReel } from "./postInstagram";
-import { withRetry } from "./retry";
 import { DAILY_SCHEDULE, findSlotByNumber, getZonedDateParts, resolveCurrentSlot } from "./scheduler";
 import type {
   AppConfig,
@@ -59,6 +59,63 @@ async function assertLocalImagesExist(slot: DailySlot, root: string): Promise<vo
       throw new Error(
         `Image is missing for slot ${slot.slot}: ${asset.local_image_path}. Run the Codex imagegen automation first.`
       );
+    }
+  }
+}
+
+interface ManualImageQaFile {
+  slots?: Array<{
+    slot?: number;
+    status?: string;
+    decision?: string;
+  }>;
+  assets?: Array<{
+    path?: string;
+    sha256?: string;
+  }>;
+}
+
+export async function assertManualImageQaAllowsPublishing(
+  date: string,
+  slot: DailySlot,
+  root: string
+): Promise<void> {
+  const qaPath = join(root, "output", "operations", `${date}-image-manual-qa.json`);
+  let raw: string;
+  try {
+    raw = await readFile(qaPath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      if (imageAssetsForSlot(slot).length === 1) return;
+      throw new Error(`Manual image QA is required for ${date} slot ${slot.slot}: ${qaPath}.`);
+    }
+    throw error;
+  }
+
+  let qa: ManualImageQaFile;
+  try {
+    qa = JSON.parse(raw) as ManualImageQaFile;
+  } catch {
+    throw new Error(`Manual image QA is invalid JSON for ${date}: ${qaPath}.`);
+  }
+  const record = qa.slots?.find((entry) => entry.slot === slot.slot);
+  if (!record) {
+    throw new Error(`Manual image QA has no slot ${slot.slot} decision for ${date}: ${qaPath}.`);
+  }
+  if (record.status !== "PASS") {
+    const decision = record.decision ? ` (${record.decision})` : "";
+    throw new Error(`Manual image QA blocks ${date} slot ${slot.slot}: ${record.status ?? "UNKNOWN"}${decision}.`);
+  }
+
+  for (const asset of imageAssetsForSlot(slot)) {
+    const reviewed = qa.assets?.find((entry) => entry.path === asset.local_image_path);
+    if (!reviewed?.sha256) {
+      throw new Error(`Manual image QA has no hash for ${date} slot ${slot.slot}: ${asset.local_image_path}.`);
+    }
+    const bytes = await readFile(join(root, ...asset.local_image_path.split("/")));
+    const actual = createHash("sha256").update(bytes).digest("hex").toUpperCase();
+    if (actual !== reviewed.sha256.toUpperCase()) {
+      throw new Error(`Manual image QA hash mismatch for ${date} slot ${slot.slot}: ${asset.local_image_path}.`);
     }
   }
 }
@@ -157,8 +214,8 @@ async function postPlatform(
     : input.mediaType === "carousel"
       ? platform === "facebook" ? postFacebookCarousel : postInstagramCarousel
       : platform === "facebook" ? postFacebookPhoto : postInstagramPhoto;
-  const { value, attempts } = await withRetry(() => publish(input, config, fetchImpl), 3);
-  return { ...value, attempts };
+  const value = await publish(input, config, fetchImpl);
+  return { ...value, attempts: 1 };
 }
 
 async function postOneSlot(
@@ -169,6 +226,33 @@ async function postOneSlot(
   fetchImpl: typeof fetch,
   preflightOnly = false
 ): Promise<PostLogEntry[]> {
+  const existing = await loadPostLog(date, root);
+  const platforms: Platform[] = ["facebook", "instagram"];
+  if (platforms.every((platform) => hasRecordedPost(existing, slot.slot, platform, config.dryRun))) {
+    return platforms.map((platform) => ({
+      date,
+      slot: slot.slot,
+      platform,
+      status: "skipped",
+      dry_run: config.dryRun,
+      attempts: 0,
+      created_at: new Date().toISOString()
+    }));
+  }
+
+  const approvals = await loadApprovalLog(date, root);
+  const missingApprovals = platforms.filter(
+    (platform) =>
+      !hasRecordedPost(existing, slot.slot, platform, config.dryRun) &&
+      !hasApprovedPost(approvals, slot.slot, platform)
+  );
+  if (missingApprovals.length > 0) {
+    throw new Error(
+      `Post ${date} slot ${slot.slot} is not approved for: ${missingApprovals.join(", ")}. Run approve-post before posting.`
+    );
+  }
+
+  await assertManualImageQaAllowsPublishing(date, slot, root);
   const resolvedMedia = await resolveSlotPublishMedia(slot, date, root);
   const imageAssets = imageAssetsForSlot(slot);
   const imageUrls = imageAssets.map(
@@ -193,8 +277,6 @@ async function postOneSlot(
     }
   }
 
-  const existing = await loadPostLog(date, root);
-  const approvals = await loadApprovalLog(date, root);
   const outputs: PostLogEntry[] = [];
   const platformInputs: Array<{ platform: Platform; input: PostInput }> = [
     {
@@ -222,16 +304,6 @@ async function postOneSlot(
       }
     }
   ];
-  const missingApprovals = platformInputs
-    .filter(({ platform }) => !hasApprovedPost(approvals, slot.slot, platform))
-    .map(({ platform }) => platform);
-
-  if (missingApprovals.length > 0) {
-    throw new Error(
-      `Post ${date} slot ${slot.slot} is not approved for: ${missingApprovals.join(", ")}. Run approve-post before posting.`
-    );
-  }
-
   // A preflight is a check, so it reports the deferral without recording it.
   if (preflightOnly) {
     return platformInputs.map(({ platform, input }) => ({
@@ -268,12 +340,8 @@ async function postOneSlot(
     }, root);
   }
 
-  // A Facebook failure must not cost the Instagram post: the loop runs
-  // facebook first, and rethrowing inside it meant the platform this account's
-  // whole strategy lives on was never even attempted whenever Facebook had a
-  // bad night. Every platform gets its attempt; the first failure is rethrown
-  // afterwards so the run still reports failure and the catch-up retries.
-  let firstFailure: unknown;
+  // Meta writes are non-idempotent. Stop after the first failed platform so an
+  // ambiguous response cannot trigger another write or a second-platform post.
   for (const { platform, input } of platformInputs) {
     if (hasRecordedPost(existing, slot.slot, platform, config.dryRun)) {
       outputs.push({
@@ -300,7 +368,7 @@ async function postOneSlot(
         platform,
         status: "failed",
         dry_run: config.dryRun,
-        attempts: 3,
+        attempts: 1,
         published_media_type: input.mediaType,
         video_status: resolvedMedia.videoDeferred
           ? "VIDEO_DEFERRED"
@@ -314,10 +382,9 @@ async function postOneSlot(
       };
       await appendPostLog(entry, root);
       outputs.push(entry);
-      firstFailure = firstFailure ?? error;
+      throw error;
     }
   }
-  if (firstFailure !== undefined) throw firstFailure;
 
   if (!config.dryRun && !resolvedMedia.videoDeferred && (isReel || isMixedCarousel)) {
     const completed = await loadPostLog(date, root);

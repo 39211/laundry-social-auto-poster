@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { access, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -34,6 +35,22 @@ async function approveSlot(root: string, date: string, slot = 1): Promise<void> 
     note: "Test approval",
     root
   });
+}
+
+async function writeManualImageQaPass(root: string, date: string, paths: string[], slot = 1): Promise<void> {
+  const qaPath = join(root, "output", "operations", `${date}-image-manual-qa.json`);
+  await mkdir(dirname(qaPath), { recursive: true });
+  const assets = await Promise.all(paths.map(async (path) => ({
+    path,
+    sha256: createHash("sha256")
+      .update(await readFile(join(root, ...path.split("/"))))
+      .digest("hex")
+      .toUpperCase()
+  })));
+  await writeFile(
+    qaPath,
+    JSON.stringify({ date, slots: [{ slot, status: "PASS", decision: "APPROVE_PACKAGE" }], assets })
+  );
 }
 
 describe("postCurrentSlot dry-run integration", () => {
@@ -92,6 +109,7 @@ describe("postCurrentSlot dry-run integration", () => {
       await mkdir(dirname(filePath), { recursive: true });
       await writeFile(filePath, `fake image ${item.slide}`);
     }
+    await writeManualImageQaPass(root, date, (slot?.carousel_items ?? []).map((item) => item.local_image_path));
 
     const results = await postCurrentSlot({
       root,
@@ -160,6 +178,7 @@ describe("postCurrentSlot dry-run integration", () => {
       await mkdir(dirname(filePath), { recursive: true });
       await writeFile(filePath, `fake image ${item.slide}`);
     }
+    await writeManualImageQaPass(root, date, (slot?.carousel_items ?? []).map((item) => item.local_image_path));
 
     const results = await postCurrentSlot({
       root,
@@ -174,6 +193,144 @@ describe("postCurrentSlot dry-run integration", () => {
     expect(results.every((entry) => entry.video_status === "VIDEO_DEFERRED")).toBe(true);
     expect(results.every((entry) => entry.video_defer_kind === "expected")).toBe(true);
     await expect(loadVideoRepairQueue(root)).resolves.toEqual([]);
+  });
+
+  it("fails closed when authoritative manual image QA rejects the fallback", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-manual-image-qa-"));
+    const date = "2026-07-29";
+    await generateDailyContent({ date, root, force: true });
+    await approveSlot(root, date);
+    const content = await loadDailyContent(date, root);
+    const slot = content?.slots.find((item) => item.slot === 1);
+    for (const item of slot?.carousel_items ?? []) {
+      const filePath = join(root, ...item.local_image_path.split("/"));
+      await mkdir(dirname(filePath), { recursive: true });
+      await writeFile(filePath, `fake image ${item.slide}`);
+    }
+    const qaPath = join(root, "output", "operations", `${date}-image-manual-qa.json`);
+    await mkdir(dirname(qaPath), { recursive: true });
+    await writeFile(
+      qaPath,
+      JSON.stringify({
+        date,
+        slots: [{ slot: 1, status: "MATERIAL_NO_GO", decision: "REJECT_PACKAGE_NO_REGENERATION" }]
+      })
+    );
+
+    await expect(postCurrentSlot({
+      root,
+      date,
+      slot: 1,
+      dryRun: true,
+      preflightOnly: true,
+      verifyPublicImageUrl: false,
+      fetchImpl: vi.fn() as unknown as typeof fetch
+    })).rejects.toThrow(
+      `Manual image QA blocks ${date} slot 1: MATERIAL_NO_GO (REJECT_PACKAGE_NO_REGENERATION).`
+    );
+    await expect(loadVideoRepairQueue(root)).resolves.toEqual([]);
+    await expect(loadPostLog(date, root)).resolves.toEqual([]);
+  });
+
+  it("fails closed when a carousel has no authoritative manual image QA", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-missing-manual-image-qa-"));
+    const date = "2026-07-29";
+    await generateDailyContent({ date, root, force: true });
+    await approveSlot(root, date);
+    const content = await loadDailyContent(date, root);
+    const slot = content?.slots.find((item) => item.slot === 1);
+    for (const item of slot?.carousel_items ?? []) {
+      const filePath = join(root, ...item.local_image_path.split("/"));
+      await mkdir(dirname(filePath), { recursive: true });
+      await writeFile(filePath, `fake image ${item.slide}`);
+    }
+
+    await expect(postCurrentSlot({
+      root,
+      date,
+      slot: 1,
+      dryRun: true,
+      preflightOnly: true,
+      verifyPublicImageUrl: false,
+      fetchImpl: vi.fn() as unknown as typeof fetch
+    })).rejects.toThrow(`Manual image QA is required for ${date} slot 1`);
+    await expect(loadVideoRepairQueue(root)).resolves.toEqual([]);
+    await expect(loadPostLog(date, root)).resolves.toEqual([]);
+  });
+
+  it("fails closed when a reviewed carousel image changes after QA", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-stale-manual-image-qa-"));
+    const date = "2026-07-29";
+    await generateDailyContent({ date, root, force: true });
+    await approveSlot(root, date);
+    const content = await loadDailyContent(date, root);
+    const slot = content?.slots.find((item) => item.slot === 1);
+    const paths = (slot?.carousel_items ?? []).map((item) => item.local_image_path);
+    for (const [index, path] of paths.entries()) {
+      const filePath = join(root, ...path.split("/"));
+      await mkdir(dirname(filePath), { recursive: true });
+      await writeFile(filePath, `fake image ${index + 1}`);
+    }
+    await writeManualImageQaPass(root, date, paths);
+    await writeFile(join(root, ...paths[0]!.split("/")), "changed after review");
+
+    await expect(postCurrentSlot({
+      root,
+      date,
+      slot: 1,
+      dryRun: true,
+      preflightOnly: true,
+      verifyPublicImageUrl: false,
+      fetchImpl: vi.fn() as unknown as typeof fetch
+    })).rejects.toThrow(`Manual image QA hash mismatch for ${date} slot 1: ${paths[0]}`);
+    await expect(loadPostLog(date, root)).resolves.toEqual([]);
+  });
+
+  it("stops at a terminal duplicate before carousel QA, local media or URL checks", async () => {
+    vi.stubEnv("DRY_RUN", "false");
+    vi.stubEnv("META_ACCESS_TOKEN", "EAAabcdefghijklmnopqrstuvwxyz1234567890");
+    vi.stubEnv("FB_PAGE_ID", "123456789012345");
+    vi.stubEnv("IG_USER_ID", "12345678901234567");
+    const root = await mkdtemp(join(tmpdir(), "laundry-carousel-duplicate-first-"));
+    const date = "2026-07-29";
+    await generateDailyContent({ date, root, force: true });
+    await writePostLog(date, [
+      {
+        date,
+        slot: 1,
+        platform: "facebook",
+        status: "success",
+        dry_run: false,
+        attempts: 1,
+        post_id: "facebook-existing",
+        created_at: "2026-07-29T03:31:00.000Z"
+      },
+      {
+        date,
+        slot: 1,
+        platform: "instagram",
+        status: "success",
+        dry_run: false,
+        attempts: 1,
+        post_id: "instagram-existing",
+        created_at: "2026-07-29T03:31:01.000Z"
+      }
+    ], root);
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+
+    const results = await postCurrentSlot({
+      root,
+      date,
+      slot: 1,
+      dryRun: false,
+      preflightOnly: true,
+      verifyPublicImageUrl: true,
+      fetchImpl
+    });
+
+    expect(results.map((entry) => entry.status)).toEqual(["skipped", "skipped"]);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    await expect(loadPostLog(date, root)).resolves.toHaveLength(2);
   });
 
   it("separates a pending video gate from a fault so a broken check cannot look like waiting", () => {
@@ -427,6 +584,46 @@ describe("postCurrentSlot dry-run integration", () => {
     const raw = await readFile(join(root, "data", "posted-log", "2026-05-15.json"), "utf8");
     expect(raw).toContain('"status": "success"');
     expect(raw).toContain('"dry_run": true');
+  });
+
+  it("stops after the first failed live Meta write without retrying or posting the second platform", async () => {
+    vi.stubEnv("DRY_RUN", "false");
+    vi.stubEnv("META_ACCESS_TOKEN", "EAAabcdefghijklmnopqrstuvwxyz1234567890");
+    vi.stubEnv("FB_PAGE_ID", "123456789012345");
+    vi.stubEnv("IG_USER_ID", "12345678901234567");
+
+    const root = await mkdtemp(join(tmpdir(), "laundry-social-fail-stop-"));
+    const date = "2026-05-15";
+    await generateDailyContent({ date, root, force: true });
+    await approveSlot(root, date);
+    await mkdir(join(root, "docs", "assets", date), { recursive: true });
+    await writeFile(join(root, "docs", "assets", date, "slot-01.png"), "fake image");
+
+    const fetchImpl = vi.fn(async () => ({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: { message: "ambiguous Meta failure" } })
+    })) as unknown as typeof fetch;
+
+    await expect(postCurrentSlot({
+      root,
+      date,
+      slot: 1,
+      dryRun: false,
+      verifyPublicImageUrl: false,
+      fetchImpl
+    })).rejects.toThrow("ambiguous Meta failure");
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    await expect(loadPostLog(date, root)).resolves.toEqual([
+      expect.objectContaining({
+        platform: "facebook",
+        status: "failed",
+        dry_run: false,
+        attempts: 1,
+        error: "ambiguous Meta failure"
+      })
+    ]);
   });
 
   it("treats missed live records as terminal and skips later publish attempts", async () => {

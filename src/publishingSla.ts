@@ -65,7 +65,10 @@ export function resolveSlaCheckpoint(now: Date, timezone = "Asia/Taipei"): SlaCh
     { slot: 2, mode: "overdue", expected_time: "19:45" }
   ];
   const current = minutesOfDay(time);
-  const matched = checkpoints.find((checkpoint) => Math.abs(current - minutesOfDay(checkpoint.expected_time)) <= 10);
+  const matched = checkpoints.find((checkpoint) => {
+    const minutesAfterCheckpoint = current - minutesOfDay(checkpoint.expected_time);
+    return minutesAfterCheckpoint >= 0 && minutesAfterCheckpoint <= 10;
+  });
   if (!matched) {
     throw new Error(`No publishing SLA checkpoint is scheduled around ${time}. Use --mode and --slot for a manual check.`);
   }
@@ -86,8 +89,8 @@ export async function calculateRollingPublishingSla(
     const date = addDays(startDate, offset);
     const entries = await loadPostLog(date, root);
     for (const slot of [1, 2] as const) {
-      const scheduled = slot === 1 ? "11:30" : "19:30";
-      if (date > endDate || (date === endDate && scheduled > time)) continue;
+      const overdueCheckpoint = slot === 1 ? "11:45" : "19:45";
+      if (date > endDate || (date === endDate && overdueCheckpoint > time)) continue;
       dueSlots += 1;
       if (PLATFORMS.every((platform) => isLiveSuccess(entries, slot, platform))) {
         dualPlatformSuccessSlots += 1;

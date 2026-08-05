@@ -29,7 +29,7 @@ Use this skill for Facebook Page and Instagram professional account publishing.
 - Facebook uses `/{page_id}/photos` with `url`, `caption`, and `published=true`.
 - Facebook Reels use the official `me/video_reels` start, hosted upload, and finish flow.
 - Instagram photos use `/{ig_user_id}/media` with `image_url`; Reels use `media_type=REELS`, `video_url`, and `share_to_feed=true`, then `/{ig_user_id}/media_publish`.
-- Retry up to 3 attempts.
+- Make exactly one Meta write attempt per platform. On the first platform failure, record that single failed attempt through `post-current-slot`, stop immediately, and do not try the second platform or retry an ambiguous/non-idempotent write.
 - Successful dry-run entries use `status: "success"` and `dry_run: true`.
 - Do not duplicate a dry-run or live post already logged for the same date, slot, and platform.
 

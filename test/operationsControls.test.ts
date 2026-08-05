@@ -32,6 +32,33 @@ describe("publishing SLA and 72-hour review controls", () => {
     expect(resolveSlaCheckpoint(new Date("2026-07-22T19:45:00+08:00"))).toMatchObject({ slot: 2, mode: "overdue" });
   });
 
+  it("never labels a checkpoint before its stated time", () => {
+    expect(() => resolveSlaCheckpoint(new Date("2026-07-22T19:35:00+08:00"))).toThrow(
+      "No publishing SLA checkpoint is scheduled around 19:35"
+    );
+    expect(resolveSlaCheckpoint(new Date("2026-07-22T19:55:00+08:00"))).toMatchObject({
+      slot: 2,
+      mode: "overdue"
+    });
+    expect(() => resolveSlaCheckpoint(new Date("2026-07-22T19:56:00+08:00"))).toThrow(
+      "No publishing SLA checkpoint is scheduled around 19:56"
+    );
+  });
+
+  it("does not include today's slot in fulfillment until its overdue checkpoint", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-sla-window-"));
+    const beforeOverdue = await calculateRollingPublishingSla(
+      root,
+      new Date("2026-07-22T19:35:00+08:00")
+    );
+    const atOverdue = await calculateRollingPublishingSla(
+      root,
+      new Date("2026-07-22T19:45:00+08:00")
+    );
+    expect(beforeOverdue.due_slots).toBe(27);
+    expect(atOverdue.due_slots).toBe(28);
+  });
+
   it("calculates dual-platform fulfillment without counting one-platform posts", async () => {
     const root = await mkdtemp(join(tmpdir(), "laundry-sla-"));
     await writePostLog("2026-07-21", [

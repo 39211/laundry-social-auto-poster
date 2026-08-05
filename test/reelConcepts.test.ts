@@ -87,11 +87,12 @@ describe("reel concepts", () => {
       expect(publishDateFor(concept.id)).toBeDefined();
     }
 
-    // History is allowed to contain losses — 07-30 and 07-31 were clobbered
-    // before publishing and their Reels moved to the end — but the stretch
-    // from 08-01 on must stay one Reel a day with no repeats and no gaps.
+    // History is allowed to contain losses — 07-30/31 and 08-04/05 were lost
+    // to calendar clobbers and a disabled publish task, and their Reels moved
+    // to the end — but the stretch still ahead must stay one Reel a day with
+    // no repeats and no gaps. Advance this boundary when history grows.
     const dates = REEL_SCHEDULE.map((entry) => Date.parse(entry.date)).filter(
-      (time) => time >= Date.parse("2026-08-01")
+      (time) => time >= Date.parse("2026-08-06")
     );
     for (let index = 1; index < dates.length; index += 1) {
       expect(dates[index]! - dates[index - 1]!).toBe(86_400_000);

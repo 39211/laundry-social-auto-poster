@@ -220,7 +220,12 @@ async function main(): Promise<void> {
     }
     const content = await loadDailyContent(date, root);
     const slot = content?.slots.find((item) => item.slot === 2);
-    if (slot?.media_type === "reel" && slot.local_video_path) {
+    const concept = REEL_CONCEPTS.find((item) => item.id === entry.conceptId);
+    // Checking only "is it a reel" let a foreign flow park its own Reel in the
+    // slot and sail through healing: on 2026-08-05 a midnight run replaced the
+    // scheduled luggage-wheel with an off-plan reel and healing approved it.
+    // The slot is only healthy when it carries THIS concept's reel.
+    if (slot?.media_type === "reel" && slot.local_video_path && slot.topic === concept?.hook) {
       console.log(`${date}: slot 2 already carries the ${entry.conceptId} reel.`);
       return;
     }

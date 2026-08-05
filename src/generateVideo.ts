@@ -11,6 +11,7 @@ import { assertMetaReelMetadata, probeVideo } from "./videoMedia";
 import { assertReelRunFresh, assessReelRunFreshness } from "./videoRunFreshness";
 import { assertVideoReviewApproved } from "./videoReviewGate";
 import type { DailySlot } from "./types";
+import { profileForVideoTopic, type VideoItemCategory } from "./videoItemProfiles";
 
 export interface VideoPromptManifestItem {
   date: string;
@@ -24,6 +25,11 @@ export interface VideoPromptManifestItem {
   target_path: string;
   public_video_url: string;
   status: "generation_pending";
+  item_category?: VideoItemCategory;
+  category_profile_version?: "2026-08-05-v1";
+  category_prompt_directive?: string;
+  category_guardrails?: string[];
+  category_primary_metric?: "saves" | "shares" | "inquiries";
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -46,6 +52,7 @@ export async function writeVideoPromptManifest(date: string, root = projectRoot(
       if (!slot.video_prompt || !slot.local_video_path) {
         throw new Error(`Reel slot ${slot.slot} is missing video prompt or target path for ${date}.`);
       }
+      const profile = profileForVideoTopic(slot.topic);
       return {
         date,
         slot: slot.slot,
@@ -57,7 +64,12 @@ export async function writeVideoPromptManifest(date: string, root = projectRoot(
         resolution: "720p",
         target_path: slot.local_video_path,
         public_video_url: slot.public_video_url ?? "",
-        status: "generation_pending"
+        status: "generation_pending",
+        item_category: profile.category,
+        category_profile_version: profile.version,
+        category_prompt_directive: profile.prompt_directive,
+        category_guardrails: profile.forbidden_claims,
+        category_primary_metric: profile.primary_metric
       };
     });
 

@@ -434,6 +434,9 @@ describe("postCurrentSlot dry-run integration", () => {
     vi.stubEnv("META_ACCESS_TOKEN", "EAAabcdefghijklmnopqrstuvwxyz1234567890");
     vi.stubEnv("FB_PAGE_ID", "123456789012345");
     vi.stubEnv("IG_USER_ID", "12345678901234567");
+    // The suite runs at arbitrary wall-clock times; without this the
+    // off-schedule publish guard (rightly) refuses a simulated live post.
+    vi.stubEnv("ALLOW_OFF_SCHEDULE_PUBLISH", "true");
 
     const root = await mkdtemp(join(tmpdir(), "laundry-social-missed-"));
     const date = "2026-05-15";

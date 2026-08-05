@@ -170,15 +170,18 @@ export const REEL_SCHEDULE: Array<{ date: string; conceptId: string }> = [
   // Reel moves to the end of the run instead of being thrown away.
   { date: "2026-08-02", conceptId: "handbag-handle" },
   { date: "2026-08-03", conceptId: "duvet-storage" },
-  { date: "2026-08-04", conceptId: "shirt-collar" },
-  { date: "2026-08-05", conceptId: "luggage-wheel" },
+  // 08-04 and 08-05 were lost to a midnight automation that disabled the
+  // publish task and pushed its own off-plan content; both finished Reels move
+  // to the end of the run, the same salvage as the three losses before them.
   { date: "2026-08-06", conceptId: "canvas-shoe-mud" },
   { date: "2026-08-07", conceptId: "suit-shoulder" },
   { date: "2026-08-08", conceptId: "backpack-base" },
   { date: "2026-08-09", conceptId: "curtain-hem" },
   { date: "2026-08-10", conceptId: "plush-doll" },
   { date: "2026-08-11", conceptId: "leather-shoe-rain" },
-  { date: "2026-08-12", conceptId: "white-shoe-yellowing" }
+  { date: "2026-08-12", conceptId: "white-shoe-yellowing" },
+  { date: "2026-08-13", conceptId: "shirt-collar" },
+  { date: "2026-08-14", conceptId: "luggage-wheel" }
 ];
 
 export function publishDateFor(conceptId: string): string | undefined {

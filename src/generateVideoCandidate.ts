@@ -5,6 +5,7 @@ import { loadDailyContent, writeJsonAtomic } from "./logging";
 import { projectRoot, relativeVideoAssetPath, videoCandidateManifestPath } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 import type { MediaType, VideoCandidatePlan } from "./types";
+import { profileForVideoTopic, type VideoItemCategory } from "./videoItemProfiles";
 
 export interface VideoCandidateManifestItem extends VideoCandidatePlan {
   date: string;
@@ -48,6 +49,11 @@ export interface VideoCandidateManifestItem extends VideoCandidatePlan {
     "owner_media_reviewed",
     "publish_approval_recorded"
   ];
+  item_category?: VideoItemCategory;
+  category_profile_version?: "2026-08-05-v1";
+  category_prompt_directive?: string;
+  category_guardrails?: string[];
+  category_primary_metric?: "saves" | "shares" | "inquiries";
 }
 
 export async function writeVideoCandidateManifest(date: string, root = projectRoot()): Promise<string> {
@@ -61,6 +67,8 @@ export async function writeVideoCandidateManifest(date: string, root = projectRo
       .replace(/也可以送洗$/, "")
       .replace(/先別/, "")
       .trim();
+
+    const profile = profileForVideoTopic(slot.topic);
 
     return [
       {
@@ -114,7 +122,12 @@ export async function writeVideoCandidateManifest(date: string, root = projectRo
           "separate_zh_tw_tts_reviewed",
           "owner_media_reviewed",
           "publish_approval_recorded"
-        ]
+        ],
+        item_category: profile.category,
+        category_profile_version: profile.version,
+        category_prompt_directive: profile.prompt_directive,
+        category_guardrails: profile.forbidden_claims,
+        category_primary_metric: profile.primary_metric
       }
     ];
   });

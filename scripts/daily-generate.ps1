@@ -45,6 +45,17 @@ function Show-Toast([string]$text) {
 # and treating the calendar as proof of completion silently skipped image
 # generation for every such day, leaving slot 1 unpublishable on the morning it
 # was due. Completion is decided by the assets the calendar actually references.
+# Watchdog: on 2026-08-04 something disabled Laundry-CatchUp-Publish and the
+# next day and a half published nothing on schedule. This run is the one task
+# guaranteed to fire every morning, so it re-arms any sibling that was turned
+# off. Disabling a task on purpose now requires also silencing this watchdog,
+# which is exactly the friction an accidental or unauthorized disable should hit.
+foreach ($t in Get-ScheduledTask | Where-Object { $_.TaskName -like "Laundry-*" -and $_.State -eq "Disabled" }) {
+    Enable-ScheduledTask -TaskName $t.TaskName | Out-Null
+    Write-Log "Watchdog re-enabled disabled task: $($t.TaskName)"
+    Show-Toast "$($t.TaskName) 被停用了,已自動重新啟用。若是刻意停用請告訴我。"
+}
+
 $calendar = Join-Path $root "data\content-calendar\$date.json"
 $hasCalendar = Test-Path $calendar
 $imagesReady = $false

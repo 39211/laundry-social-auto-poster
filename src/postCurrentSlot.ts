@@ -161,6 +161,33 @@ async function postPlatform(
   return { ...value, attempts };
 }
 
+/**
+ * A live publish only happens inside its slot's window: from the scheduled
+ * time to four hours after it, matching the catch-up recovery window. On
+ * 2026-08-05 a midnight automation used this same tooling to publish off-plan
+ * content at 01:45 and 03:07 — hours nobody schedules for and nobody reviews.
+ * The window is enforced here, at the last common gate before Meta, so no
+ * caller can publish at 2 a.m. by accident or by initiative. Dry runs and
+ * preflights are exempt; a deliberate off-schedule repair passes
+ * ALLOW_OFF_SCHEDULE_PUBLISH=true explicitly.
+ */
+function assertInsidePublishWindow(slotNumber: number, config: AppConfig): void {
+  if (process.env.ALLOW_OFF_SCHEDULE_PUBLISH === "true") return;
+  const schedule = findSlotByNumber(slotNumber);
+  if (!schedule) return;
+  const { time } = getZonedDateParts(new Date(), config.timezone);
+  const [nowH = 0, nowM = 0] = time.split(":").map(Number);
+  const [slotH = 0, slotM = 0] = schedule.time.split(":").map(Number);
+  const minutesNow = nowH * 60 + nowM;
+  const minutesSlot = slotH * 60 + slotM;
+  if (minutesNow < minutesSlot || minutesNow > minutesSlot + 240) {
+    throw new Error(
+      `Refusing to live-publish slot ${slotNumber} at ${time}: its window is ${schedule.time} to four hours after. ` +
+        "Off-schedule publishing reaches fewer people and bypasses the day's review; set ALLOW_OFF_SCHEDULE_PUBLISH=true only for a deliberate manual repair."
+    );
+  }
+}
+
 async function postOneSlot(
   slot: DailySlot,
   config: AppConfig,
@@ -169,6 +196,7 @@ async function postOneSlot(
   fetchImpl: typeof fetch,
   preflightOnly = false
 ): Promise<PostLogEntry[]> {
+  if (!config.dryRun && !preflightOnly) assertInsidePublishWindow(slot.slot, config);
   const resolvedMedia = await resolveSlotPublishMedia(slot, date, root);
   const imageAssets = imageAssetsForSlot(slot);
   const imageUrls = imageAssets.map(

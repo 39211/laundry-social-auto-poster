@@ -41,8 +41,12 @@ function Register-LaundryTask {
 
     try { Unregister-ScheduledTask -TaskName $Name -Confirm:$false -ErrorAction Stop } catch {}
 
+    # -WindowStyle Hidden: the visible console window these tasks used to open
+    # on the desktop got closed mid-run at 06:30 on 2026-08-03 (task result
+    # 0xC000013A, console interrupt), killing the morning site push. Hidden
+    # windows cannot be closed by accident.
     $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$root\scripts\$Script`"" `
+        -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$root\scripts\$Script`"" `
         -WorkingDirectory $root
     $settings = New-ScheduledTaskSettingsSet @common -ExecutionTimeLimit $TimeLimit
 

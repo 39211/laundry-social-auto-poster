@@ -21,6 +21,7 @@ import type {
   TrafficRoute,
   VisualRoute
 } from "./types";
+import { withVideoItemProfilePrompt } from "./videoItemProfiles";
 
 interface SlotTemplate {
   topic: string;
@@ -1089,7 +1090,9 @@ function carouselItemsFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig):
 }
 
 function videoPromptFromPlaybook(slot: GrowthPlaybookSlot): string | undefined {
-  if (slot.video_candidate) return slot.video_candidate.grok_motion_prompt;
+  if (slot.video_candidate) {
+    return withVideoItemProfilePrompt(slot.video_candidate.grok_motion_prompt, slot.topic);
+  }
   if (slot.format !== "reel") return undefined;
   if (slot.video_prompt) return slot.video_prompt;
 
@@ -1101,7 +1104,10 @@ function videoPromptFromPlaybook(slot: GrowthPlaybookSlot): string | undefined {
   // Trust matters for laundry, so the shot cannot be a cold product turntable
   // either: an arm or a tool entering frame carries "someone is working here"
   // without asking the model to draw a hand in close-up.
-  return `Vertical 9:16 smartphone video, filmed handheld on a phone by staff inside an ordinary Taiwanese laundry shop, one continuous shot of 8 to 10 seconds. Subject: ${topic}. Hold on the exact item with one slow gentle push-in and slight natural camera shake. A forearm, or a tool such as a spray bottle, brush or hanger, may enter from the edge of frame to suggest someone working, but keep hands out of close-up and never show finger detail. Lighting: soft fluorescent ceiling light mixed with cool window daylight from the left, roughly 4500K, consistent shadow direction and exposure throughout. Realistic fabric texture with slight wrinkles, ordinary shop surroundings, near-silent with only faint room tone. One dominant action only. No scrubbing or folding, no stain changing to clean within the shot, no cut to a second setup, no cinematic look, no studio lighting, no gimbal or drone move, no colour grade, no on-screen text, no logos, no watermark.`;
+  return withVideoItemProfilePrompt(
+    `Vertical 9:16 smartphone video, filmed handheld on a phone by staff inside an ordinary Taiwanese laundry shop, one continuous shot of 8 to 10 seconds. Subject: ${topic}. Hold on the exact item with one slow gentle push-in and slight natural camera shake. A forearm, or a tool such as a spray bottle, brush or hanger, may enter from the edge of frame to suggest someone working, but keep hands out of close-up and never show finger detail. Lighting: soft fluorescent ceiling light mixed with cool window daylight from the left, roughly 4500K, consistent shadow direction and exposure throughout. Realistic fabric texture with slight wrinkles, ordinary shop surroundings, near-silent with only faint room tone. One dominant action only. No scrubbing or folding, no stain changing to clean within the shot, no cut to a second setup, no cinematic look, no studio lighting, no gimbal or drone move, no colour grade, no on-screen text, no logos, no watermark.`,
+    topic
+  );
 }
 
 function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string): void {
@@ -1134,6 +1140,10 @@ function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): Dai
   const instagramCaption = captionFromPlaybook(slot, "instagram");
   const isReel = slot.format === "reel";
   const carouselItems = carouselItemsFromPlaybook(slot, config);
+  const videoPrompt = videoPromptFromPlaybook(slot);
+  const videoCandidate = slot.video_candidate
+    ? { ...slot.video_candidate, grok_motion_prompt: videoPrompt ?? slot.video_candidate.grok_motion_prompt }
+    : undefined;
   const mediaType = slot.media_package
     ? "mixed-carousel"
     : carouselItems
@@ -1154,8 +1164,8 @@ function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): Dai
     facebook_caption: facebookCaption,
     image_prompt: carouselItems?.[0]?.image_prompt ?? imagePromptFromPlaybook(slot),
     carousel_items: carouselItems,
-    video_prompt: videoPromptFromPlaybook(slot),
-    video_candidate: slot.video_candidate,
+    video_prompt: videoPrompt,
+    video_candidate: videoCandidate,
     media_package: slot.media_package,
     visual_route: slot.visual_route,
     traffic_route: slot.traffic_route,

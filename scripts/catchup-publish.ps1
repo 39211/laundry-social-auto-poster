@@ -56,12 +56,12 @@ if (-not (Test-Path $approvedPath)) {
 # A slot recovers only within a few hours of its own time. Past that the evening
 # run would fire both slots minutes apart, which reaches fewer people than one
 # well-placed post and reads as automated. A stale slot is reported, not posted.
-$slotTimes = @{ 1 = [TimeSpan]"11:30"; 2 = [TimeSpan]"19:30" }
+$slotTimes = @{ 1 = [TimeSpan]"11:30"; 2 = [TimeSpan]"20:30"; 3 = [TimeSpan]"12:00" }
 $recoveryWindow = [TimeSpan]::FromHours(4)
 
 $dueSlots = @()
 $staleSlots = @()
-foreach ($slot in 1, 2) {
+foreach ($slot in 1, 2, 3) {
     $scheduled = $slotTimes[$slot]
     if ($now.TimeOfDay -lt $scheduled) { continue }
     if (($now.TimeOfDay - $scheduled) -le $recoveryWindow) { $dueSlots += $slot }
@@ -134,7 +134,7 @@ if (Test-Path $queuePath) {
             $first = $faults[0]
             Write-Log ("UNEXPECTED video failure: {0} slot {1} - {2}" -f $first.source_date, $first.source_slot, $first.failure_reason)
             Show-Toast ("影片檢查本身出錯({0} 筆),不是等待複審。{1} slot {2}:{3}" -f $faults.Count, $first.source_date, $first.source_slot, $first.failure_reason)
-        } elseif ($open.Count -gt 0 -and $now.TimeOfDay -ge [TimeSpan]"19:30") {
+        } elseif ($open.Count -gt 0 -and $now.TimeOfDay -ge [TimeSpan]"20:30") {
             Write-Log ("{0} video repair(s) still open." -f $open.Count)
             Show-Toast ("有 {0} 支影片待修復,今天已改發圖片。修好後放進下一篇題材相符的貼文。" -f $open.Count)
         }
@@ -146,7 +146,7 @@ if (Test-Path $queuePath) {
 # End-of-day snapshot of the numbers that precede a booking. Reach as a share of
 # followers is not one of them: this shop only serves Taichung, so what matters
 # is how many local strangers it reached and how many of them did anything.
-if ($now.TimeOfDay -ge [TimeSpan]"19:30") {
+if ($now.TimeOfDay -ge [TimeSpan]"20:30") {
     Push-Location $root
     $reachOut = cmd /c "npm.cmd run local-reach 2>&1"
     Pop-Location

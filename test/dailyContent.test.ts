@@ -9,14 +9,17 @@ describe("DailyContent schema", () => {
     PUBLIC_IMAGE_BASE_URL: "https://tester.github.io/laundry-social-auto-poster"
   });
 
-  it("builds 2 complete slots", () => {
+  it("builds complete primary slots plus optional noon reel slot", () => {
     const content = buildDailyContent("2026-05-15", config);
 
     expect(content.date).toBe("2026-05-15");
     expect(content.timezone).toBe("Asia/Taipei");
-    expect(content.slots).toHaveLength(2);
+    expect(content.slots.length).toBeGreaterThanOrEqual(2);
+    expect(content.slots.map((s) => s.slot).sort()).toEqual(
+      content.slots.length === 3 ? [1, 2, 3] : [1, 2]
+    );
 
-    for (const slot of content.slots) {
+    for (const slot of content.slots.filter((s) => s.slot <= 2)) {
       expect(slot.slot).toBeGreaterThanOrEqual(1);
       expect(slot.time).toMatch(/^\d{2}:\d{2}$/);
       expect(slot.topic.length).toBeGreaterThan(0);
@@ -36,8 +39,9 @@ describe("DailyContent schema", () => {
 
   it("uses the 90-day growth playbook for dates in the active plan", () => {
     const content = buildDailyContent("2026-07-11", config);
+    const primary = content.slots.filter((s) => s.slot <= 2);
 
-    expect(content.slots).toHaveLength(2);
+    expect(primary).toHaveLength(2);
     expect(content.slots[0]?.content_plan_source).toBe("growth-playbook");
     expect(content.slots[0]?.topic).toBe("先看懂：白鞋鞋邊泛灰前的檢查");
     expect(content.slots[0]?.format).toBe("image-post");
@@ -46,7 +50,7 @@ describe("DailyContent schema", () => {
     expect(content.slots[0]?.follow_cta).toContain("追蹤");
     expect(content.slots[0]?.seo_sync_page).toBe("/services/white-shoe-cleaning.html");
 
-    for (const slot of content.slots) {
+    for (const slot of primary) {
       const caption = slot.instagram_caption;
       expect(caption.split("\n\n")[1]).not.toBe("私享家洗衣店");
       expect(caption).toContain(slot.follow_cta);
@@ -140,7 +144,7 @@ describe("DailyContent schema", () => {
       const date = new Date(start + index * 86_400_000).toISOString().slice(0, 10);
       const content = buildDailyContent(date, config);
 
-      for (const slot of content.slots) {
+      for (const slot of content.slots.filter((s) => s.slot <= 2)) {
         // Instagram captions have no tappable link and profile-link taps measured
         // zero, so every Instagram caption must ask for a direct message instead.
         expect(slot.instagram_caption).toContain("私訊");
@@ -151,7 +155,7 @@ describe("DailyContent schema", () => {
         expect(slot.instagram_caption).not.toMatch(/留言(告訴|讓我們|說說)/);
         // Sending a post to someone is the heaviest discovery signal, but a
         // uniform "share this" everywhere is the same bait pattern. It belongs
-        // on the 19:30 situation post, which is the one a reader forwards.
+        // on the evening situation post, which is the one a reader forwards.
         expect(/(?:傳|轉)給他/.test(slot.instagram_caption)).toBe(slot.slot === 2);
         for (const caption of [slot.facebook_caption, slot.instagram_caption]) {
           const hashtags = caption.match(/#[\p{L}\p{N}_]+/gu) ?? [];

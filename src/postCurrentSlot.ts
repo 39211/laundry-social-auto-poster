@@ -27,6 +27,7 @@ import { projectRoot } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
 import { postInstagramCarousel, postInstagramPhoto, postInstagramReel } from "./postInstagram";
 import { withRetry } from "./retry";
+import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
 import { DAILY_SCHEDULE, findSlotByNumber, getZonedDateParts, resolveCurrentSlot } from "./scheduler";
 import type {
   AppConfig,
@@ -118,7 +119,8 @@ function resultToLog(
   date: string,
   slot: number,
   result: PostResult,
-  media: ResolvedPublishMedia
+  media: ResolvedPublishMedia,
+  abVariant?: AbVariant
 ): PostLogEntry {
   return {
     date,
@@ -137,6 +139,7 @@ function resultToLog(
         : "not_planned",
     video_defer_kind: media.videoDeferKind,
     video_deferred_reason: media.videoDeferredReason,
+    ...(abVariant ? { ab_variant: abVariant } : {}),
     post_id: result.post_id,
     created_at: new Date().toISOString()
   };
@@ -171,11 +174,15 @@ async function postPlatform(
  * preflights are exempt; a deliberate off-schedule repair passes
  * ALLOW_OFF_SCHEDULE_PUBLISH=true explicitly.
  */
-function assertInsidePublishWindow(slotNumber: number, config: AppConfig): void {
+export function assertInsidePublishWindow(
+  slotNumber: number,
+  config: AppConfig,
+  now: Date = new Date()
+): void {
   if (process.env.ALLOW_OFF_SCHEDULE_PUBLISH === "true") return;
   const schedule = findSlotByNumber(slotNumber);
   if (!schedule) return;
-  const { time } = getZonedDateParts(new Date(), config.timezone);
+  const { time } = getZonedDateParts(now, config.timezone);
   const [nowH = 0, nowM = 0] = time.split(":").map(Number);
   const [slotH = 0, slotM = 0] = schedule.time.split(":").map(Number);
   const minutesNow = nowH * 60 + nowM;
@@ -194,9 +201,11 @@ async function postOneSlot(
   date: string,
   root: string,
   fetchImpl: typeof fetch,
-  preflightOnly = false
+  preflightOnly = false,
+  abVariant?: AbVariant,
+  now: Date = new Date()
 ): Promise<PostLogEntry[]> {
-  if (!config.dryRun && !preflightOnly) assertInsidePublishWindow(slot.slot, config);
+  if (!config.dryRun && !preflightOnly) assertInsidePublishWindow(slot.slot, config, now);
   const resolvedMedia = await resolveSlotPublishMedia(slot, date, root);
   const imageAssets = imageAssetsForSlot(slot);
   const imageUrls = imageAssets.map(
@@ -266,17 +275,18 @@ async function postOneSlot(
       date,
       slot: slot.slot,
       platform,
-      status: "pending",
+      status: "pending" as const,
       dry_run: config.dryRun,
       attempts: 0,
       published_media_type: input.mediaType,
       video_status: resolvedMedia.videoDeferred
-        ? "VIDEO_DEFERRED"
+        ? ("VIDEO_DEFERRED" as const)
         : isReel || isMixedCarousel
-          ? "published"
-          : "not_planned",
+          ? ("published" as const)
+          : ("not_planned" as const),
       video_defer_kind: resolvedMedia.videoDeferKind,
       video_deferred_reason: resolvedMedia.videoDeferredReason,
+      ...(abVariant ? { ab_variant: abVariant } : {}),
       created_at: new Date().toISOString()
     }));
   }
@@ -311,6 +321,7 @@ async function postOneSlot(
         status: "skipped",
         dry_run: config.dryRun,
         attempts: 0,
+        ...(abVariant ? { ab_variant: abVariant } : {}),
         created_at: new Date().toISOString()
       });
       continue;
@@ -318,7 +329,7 @@ async function postOneSlot(
 
     try {
       const result = await postPlatform(platform, input, config, fetchImpl);
-      const entry = resultToLog(date, slot.slot, result, resolvedMedia);
+      const entry = resultToLog(date, slot.slot, result, resolvedMedia, abVariant);
       await appendPostLog(entry, root);
       outputs.push(entry);
     } catch (error) {
@@ -337,6 +348,7 @@ async function postOneSlot(
             : "not_planned",
         video_defer_kind: resolvedMedia.videoDeferKind,
         video_deferred_reason: resolvedMedia.videoDeferredReason,
+        ...(abVariant ? { ab_variant: abVariant } : {}),
         error: error instanceof Error ? error.message : String(error),
         created_at: new Date().toISOString()
       };
@@ -405,11 +417,24 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
 
   if (targetSchedules.length === 0) return [];
 
+  const abDay = planForDate(await loadAbTestPlan(root), date);
   const results: PostLogEntry[] = [];
   for (const schedule of targetSchedules) {
     const slot = content.slots.find((item) => item.slot === schedule.slot);
     if (!slot) throw new Error(`Content slot ${schedule.slot} is missing for ${date}`);
-    results.push(...(await postOneSlot(slot, config, date, root, options.fetchImpl ?? fetch, options.preflightOnly)));
+    const abVariant = planSlot(abDay, schedule.slot)?.variant;
+    results.push(
+      ...(await postOneSlot(
+        slot,
+        config,
+        date,
+        root,
+        options.fetchImpl ?? fetch,
+        options.preflightOnly,
+        abVariant,
+        now
+      ))
+    );
   }
 
   return results;

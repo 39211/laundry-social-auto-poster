@@ -3,7 +3,7 @@ import { getConfig } from "./config";
 import { loadPostLog } from "./logging";
 import { postCurrentSlot } from "./postCurrentSlot";
 import { projectRoot } from "./paths";
-import { getZonedDateParts } from "./scheduler";
+import { DAILY_SCHEDULE, getZonedDateParts } from "./scheduler";
 import type { Platform, PostLogEntry } from "./types";
 
 const PLATFORMS: Platform[] = ["facebook", "instagram"];
@@ -11,10 +11,12 @@ const SLA_TARGET = 0.95;
 
 export type SlaCheckpointMode = "preflight" | "overdue";
 
+export type SlaSlot = 1 | 2 | 3;
+
 export interface SlaCheckpoint {
-  slot: 1 | 2;
+  slot: SlaSlot;
   mode: SlaCheckpointMode;
-  expected_time: "10:45" | "11:45" | "18:45" | "19:45";
+  expected_time: string;
 }
 
 export interface PublishingSlaReport {
@@ -46,6 +48,23 @@ function minutesOfDay(time: string): number {
   return hour * 60 + minute;
 }
 
+function formatTime(totalMinutes: number): string {
+  const hour = Math.floor(totalMinutes / 60) % 24;
+  const minute = totalMinutes % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+/** Preflight 45 minutes before the slot; overdue 15 minutes after. */
+export function slaTimesForSlot(slot: SlaSlot): { preflight: string; overdue: string } {
+  const schedule = DAILY_SCHEDULE.find((item) => item.slot === slot);
+  if (!schedule) throw new Error(`Unknown SLA slot: ${slot}`);
+  const scheduled = minutesOfDay(schedule.time);
+  return {
+    preflight: formatTime(scheduled - 45),
+    overdue: formatTime(scheduled + 15)
+  };
+}
+
 function isLiveSuccess(entries: PostLogEntry[], slot: number, platform: Platform): boolean {
   return entries.some(
     (entry) =>
@@ -58,12 +77,13 @@ function isLiveSuccess(entries: PostLogEntry[], slot: number, platform: Platform
 
 export function resolveSlaCheckpoint(now: Date, timezone = "Asia/Taipei"): SlaCheckpoint {
   const { time } = getZonedDateParts(now, timezone);
-  const checkpoints: SlaCheckpoint[] = [
-    { slot: 1, mode: "preflight", expected_time: "10:45" },
-    { slot: 1, mode: "overdue", expected_time: "11:45" },
-    { slot: 2, mode: "preflight", expected_time: "18:45" },
-    { slot: 2, mode: "overdue", expected_time: "19:45" }
-  ];
+  const checkpoints: SlaCheckpoint[] = ([1, 2, 3] as const).flatMap((slot) => {
+    const times = slaTimesForSlot(slot);
+    return [
+      { slot, mode: "preflight" as const, expected_time: times.preflight },
+      { slot, mode: "overdue" as const, expected_time: times.overdue }
+    ];
+  });
   const current = minutesOfDay(time);
   const matched = checkpoints.find((checkpoint) => Math.abs(current - minutesOfDay(checkpoint.expected_time)) <= 10);
   if (!matched) {
@@ -85,11 +105,10 @@ export async function calculateRollingPublishingSla(
   for (let offset = 0; offset < 14; offset += 1) {
     const date = addDays(startDate, offset);
     const entries = await loadPostLog(date, root);
-    for (const slot of [1, 2] as const) {
-      const scheduled = slot === 1 ? "11:30" : "19:30";
-      if (date > endDate || (date === endDate && scheduled > time)) continue;
+    for (const schedule of DAILY_SCHEDULE) {
+      if (date > endDate || (date === endDate && schedule.time > time)) continue;
       dueSlots += 1;
-      if (PLATFORMS.every((platform) => isLiveSuccess(entries, slot, platform))) {
+      if (PLATFORMS.every((platform) => isLiveSuccess(entries, schedule.slot, platform))) {
         dualPlatformSuccessSlots += 1;
       }
     }
@@ -110,7 +129,7 @@ export async function calculateRollingPublishingSla(
 export async function runPublishingSlaCheck(options: {
   root?: string;
   now?: Date;
-  slot?: 1 | 2;
+  slot?: SlaSlot;
   mode?: SlaCheckpointMode;
   fetchImpl?: typeof fetch;
 } = {}): Promise<PublishingSlaReport> {
@@ -121,11 +140,10 @@ export async function runPublishingSlaCheck(options: {
     ? {
         slot: options.slot,
         mode: options.mode,
-        expected_time:
-          options.slot === 1
-            ? options.mode === "preflight" ? "10:45" : "11:45"
-            : options.mode === "preflight" ? "18:45" : "19:45"
-      } as SlaCheckpoint
+        expected_time: options.mode === "preflight"
+          ? slaTimesForSlot(options.slot).preflight
+          : slaTimesForSlot(options.slot).overdue
+      }
     : resolveSlaCheckpoint(now, config.timezone);
   const { date } = getZonedDateParts(now, config.timezone);
   const rolling = await calculateRollingPublishingSla(root, now, config.timezone);
@@ -177,7 +195,7 @@ async function main(): Promise<void> {
   const report = await runPublishingSlaCheck({
     root: getOption(args, "root"),
     now: getOption(args, "now") ? new Date(getOption(args, "now")!) : undefined,
-    slot: slotOption ? Number(slotOption) as 1 | 2 : undefined,
+    slot: slotOption ? Number(slotOption) as SlaSlot : undefined,
     mode: modeOption as SlaCheckpointMode | undefined
   });
   console.log(JSON.stringify(report, null, 2));

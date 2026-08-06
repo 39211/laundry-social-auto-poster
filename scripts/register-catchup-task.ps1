@@ -6,8 +6,11 @@
 #   11:35  Laundry-CatchUp-Publish   slot 1 (11:30), retried at 13:30
 #   13:30
 #   14:00  Laundry-Reel-Production   build the next Reel, one batch ahead
-#   19:35  Laundry-CatchUp-Publish   slot 2, the Reel (19:30), retried at 21:30
-#   21:30
+#   12:05  Laundry-CatchUp-Publish   slot 3 noon Reel (12:00), retried at 13:50
+#   13:50
+#   20:35  Laundry-CatchUp-Publish   slot 2 evening Reel (20:30), retried at 22:15
+#   21:00  Laundry-YouTube-Upload    after Meta, retried at 22:30
+#   22:15 / 22:30
 #
 # Publishing runs five minutes after each slot rather than on a generic hourly
 # sweep: the old 10:50 trigger fired before slot 1 was even due and the next one
@@ -83,21 +86,23 @@ Register-LaundryTask -Name "Laundry-CatchUp-Publish" -Script "catchup-publish.ps
     -Triggers @(
         (New-ScheduledTaskTrigger -Daily -At "11:35"),
         (New-ScheduledTaskTrigger -Daily -At "13:30"),
-        (New-ScheduledTaskTrigger -Daily -At "19:35"),
-        (New-ScheduledTaskTrigger -Daily -At "21:30")
+        (New-ScheduledTaskTrigger -Daily -At "12:05"),
+        (New-ScheduledTaskTrigger -Daily -At "13:50"),
+        (New-ScheduledTaskTrigger -Daily -At "20:35"),
+        (New-ScheduledTaskTrigger -Daily -At "22:15")
     ) `
     -TimeLimit (New-TimeSpan -Minutes 30) `
-    -Description "私享家每日發佈:11:35 發 slot 1、19:35 發 slot 2(Reel),各留一次補發。超過 4 小時補發時限則改為通知。"
+    -Description "私享家每日發佈:11:35 slot1、12:05 slot3(中午Reel)、20:35 slot2(晚上Reel),各留一次補發。超過 4 小時補發時限則改為通知。"
 
 # After both evening publish windows: uploads the day's live Reel to YouTube.
 # Separate task so a YouTube fault never blocks the Meta chain.
 Register-LaundryTask -Name "Laundry-YouTube-Upload" -Script "youtube-upload.ps1" `
     -Triggers @(
-        (New-ScheduledTaskTrigger -Daily -At "20:00"),
-        (New-ScheduledTaskTrigger -Daily -At "21:50")
+        (New-ScheduledTaskTrigger -Daily -At "21:00"),
+        (New-ScheduledTaskTrigger -Daily -At "22:30")
     ) `
     -TimeLimit (New-TimeSpan -Minutes 30) `
-    -Description "私享家每日 YouTube Shorts 上傳:slot 2 的 Reel 在 IG 實際發布後才上傳;未授權時提醒不報錯。"
+    -Description "私享家每日 YouTube Shorts 上傳:slot 2/3 的 Reel 在 IG 實際發布後各上傳一筆;未授權時提醒不報錯。"
 
 Register-LaundryTask -Name "Laundry-Reel-Production" -Script "produce-next-reel.ps1" `
     -Triggers @((New-ScheduledTaskTrigger -Daily -At "14:00")) `

@@ -90,8 +90,10 @@ export async function loadDailyContent(date: string, root = projectRoot()): Prom
     (await readJsonFile<DailyContent | undefined>(contentCalendarPath(date, root), undefined)) ??
     (await readJsonFile<DailyContent | undefined>(docsContentCalendarPath(date, root), undefined));
   if (!content) return undefined;
-  if (!Array.isArray(content.slots) || content.slots.length !== 2) {
-    throw new Error(`Invalid daily content for ${date}: expected 2 slots.`);
+  // Slot 3 is the optional noon Reel for dual-length A/B days. Existing
+  // calendars stay at 2 slots; new days and healed A/B days may carry 3.
+  if (!Array.isArray(content.slots) || content.slots.length < 2 || content.slots.length > 3) {
+    throw new Error(`Invalid daily content for ${date}: expected 2 or 3 slots.`);
   }
   return content;
 }

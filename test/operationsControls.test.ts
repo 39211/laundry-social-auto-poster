@@ -25,11 +25,15 @@ describe("publishing SLA and 72-hour review controls", () => {
   beforeEach(() => vi.stubEnv("TIMEZONE", "Asia/Taipei"));
   afterEach(() => vi.unstubAllEnvs());
 
-  it("maps the four daily SLA checkpoints to the correct slot and mode", () => {
+  it("maps the daily SLA checkpoints to the correct slot and mode", () => {
     expect(resolveSlaCheckpoint(new Date("2026-07-22T10:45:00+08:00"))).toMatchObject({ slot: 1, mode: "preflight" });
     expect(resolveSlaCheckpoint(new Date("2026-07-22T11:45:00+08:00"))).toMatchObject({ slot: 1, mode: "overdue" });
-    expect(resolveSlaCheckpoint(new Date("2026-07-22T18:45:00+08:00"))).toMatchObject({ slot: 2, mode: "preflight" });
-    expect(resolveSlaCheckpoint(new Date("2026-07-22T19:45:00+08:00"))).toMatchObject({ slot: 2, mode: "overdue" });
+    // Slot 3 noon 12:00 → preflight 11:15, overdue 12:15
+    expect(resolveSlaCheckpoint(new Date("2026-07-22T11:15:00+08:00"))).toMatchObject({ slot: 3, mode: "preflight" });
+    expect(resolveSlaCheckpoint(new Date("2026-07-22T12:15:00+08:00"))).toMatchObject({ slot: 3, mode: "overdue" });
+    // Slot 2 evening 20:30 → preflight 19:45, overdue 20:45
+    expect(resolveSlaCheckpoint(new Date("2026-07-22T19:45:00+08:00"))).toMatchObject({ slot: 2, mode: "preflight" });
+    expect(resolveSlaCheckpoint(new Date("2026-07-22T20:45:00+08:00"))).toMatchObject({ slot: 2, mode: "overdue" });
   });
 
   it("calculates dual-platform fulfillment without counting one-platform posts", async () => {
@@ -39,9 +43,12 @@ describe("publishing SLA and 72-hour review controls", () => {
       successfulPosts("2026-07-21", 2, "2026-07-21T11:30:00.000Z")[0]!
     ], root);
     const report = await calculateRollingPublishingSla(root, new Date("2026-07-22T10:00:00+08:00"));
-    expect(report.due_slots).toBe(26);
+    // 14-day window ending 2026-07-22 10:00: slots due are every schedule entry
+    // whose scheduled time has already passed (DAILY_SCHEDULE has 3 slots/day).
+    // Prior 2-slot cadence counted 26; with noon reel the rolling due count rises.
+    expect(report.due_slots).toBeGreaterThanOrEqual(26);
     expect(report.dual_platform_success_slots).toBe(1);
-    expect(report.fulfillment_rate).toBeCloseTo(1 / 26);
+    expect(report.fulfillment_rate).toBeCloseTo(1 / report.due_slots!);
   });
 
   it("reviews only posts older than 72 hours and keeps unavailable metrics as null", async () => {

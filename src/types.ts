@@ -169,6 +169,8 @@ export interface PostLogEntry {
   video_status?: "published" | "VIDEO_DEFERRED" | "not_planned";
   video_defer_kind?: VideoDeferKind;
   video_deferred_reason?: string;
+  /** Present only on dual-Reel A/B days that have an ab-test-plan entry. */
+  ab_variant?: "10s" | "15s";
   post_id?: string;
   error?: string;
   created_at: string;

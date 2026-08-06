@@ -8,10 +8,11 @@ describe("scheduler", () => {
     expect(resolveCurrentSlot(now)?.slot).toBe(1);
   });
 
-  it("keeps the 2-post premium cadence", () => {
+  it("keeps the dual-reel A/B cadence (image + evening reel + noon reel)", () => {
     expect(DAILY_SCHEDULE).toEqual([
       { slot: 1, time: "11:30", category: "知識文" },
-      { slot: 2, time: "19:30", category: "情境文" }
+      { slot: 2, time: "20:30", category: "情境文" },
+      { slot: 3, time: "12:00", category: "情境文" }
     ]);
   });
 });

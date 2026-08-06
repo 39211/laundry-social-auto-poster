@@ -1,9 +1,10 @@
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { getFlag, getOption, isMain } from "./cli";
+import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { generateDailyContent } from "./generateDailyContent";
 import { buildGitHubPagesImageUrl, buildGitHubPagesVideoUrl } from "./githubPages";
+import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
 import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
 import { contentCalendarPath, padSlot, projectRoot } from "./paths";
 import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions, type ReelConcept } from "./reelConcepts";
@@ -11,7 +12,7 @@ import { getZonedDateParts } from "./scheduler";
 import { hashVideoPrompt, videoRunReportPath } from "./videoRunFreshness";
 import type { DailyContent, DailySlot } from "./types";
 
-// Places one reviewed Reel into a future day's 19:30 slot, writing every record
+// Places one reviewed Reel into a future day's Reel slot, writing every record
 // the publish gates check: the video and its audio declaration, the cover still
 // and its source record, the provider source entry, and the freshness run
 // report. The slot's video_prompt is the exact motion prompt the clip was
@@ -75,13 +76,44 @@ function captionsFor(concept: ReelConcept): { instagram: string; facebook: strin
   return { instagram, facebook };
 }
 
-export async function scheduleReel(input: { date: string; conceptId: string; root?: string }): Promise<void> {
+function reelAssetName(conceptId: string, variant: AbVariant = "10s"): string {
+  return variant === "15s" ? `${conceptId}-15s.mp4` : `${conceptId}.mp4`;
+}
+
+function emptySlotStub(date: string, slotNumber: number, time: string): DailySlot {
+  return {
+    slot: slotNumber,
+    time,
+    category: "情境文",
+    topic: "pending-reel",
+    format: "reel",
+    media_type: "image",
+    instagram_caption: "",
+    facebook_caption: "",
+    image_prompt: "",
+    visual_route: "shop-inspection",
+    traffic_route: "share-worthy-care",
+    local_image_path: `docs/assets/${date}/slot-${padSlot(slotNumber)}.png`,
+    public_image_url: "",
+    status: "pending"
+  };
+}
+
+export async function scheduleReel(input: {
+  date: string;
+  conceptId: string;
+  root?: string;
+  slot?: number;
+  variant?: AbVariant;
+}): Promise<void> {
   const root = projectRoot(input.root);
   const config = getConfig();
   const concept = REEL_CONCEPTS.find((item) => item.id === input.conceptId);
   if (!concept) throw new Error(`Unknown concept: ${input.conceptId}`);
 
-  const reelSource = join(root, RUN_DIR, "reels", `${concept.id}.mp4`);
+  const slotNumber = input.slot ?? 2;
+  const variant: AbVariant = input.variant ?? "10s";
+  const reelSource = join(root, RUN_DIR, "reels", reelAssetName(concept.id, variant));
   const sidecarSource = `${reelSource}.audio.json`;
   const coverSource = join(root, RUN_DIR, "references", `${concept.id}-before.png`);
   for (const required of [reelSource, sidecarSource, coverSource]) {
@@ -91,8 +123,19 @@ export async function scheduleReel(input: { date: string; conceptId: string; roo
   await generateDailyContent({ date: input.date, root });
   const content = await loadDailyContent(input.date, root);
   if (!content) throw new Error(`No content calendar for ${input.date}`);
-  const slotNumber = 2;
-  const slot = content.slots.find((item) => item.slot === slotNumber);
+
+  let working: DailyContent = content;
+  let slot = working.slots.find((item) => item.slot === slotNumber);
+  if (!slot) {
+    // A/B noon slot may be absent on older 2-slot calendars; append a stub so
+    // the reel can be written without rewriting the rest of the day.
+    if (slotNumber !== 3) throw new Error(`Slot ${slotNumber} missing for ${input.date}`);
+    working = {
+      ...working,
+      slots: [...working.slots, emptySlotStub(input.date, 3, "12:00")].sort((a, b) => a.slot - b.slot)
+    };
+    slot = working.slots.find((item) => item.slot === slotNumber);
+  }
   if (!slot) throw new Error(`Slot ${slotNumber} missing for ${input.date}`);
 
   const assetDir = join(root, "docs", "assets", input.date);
@@ -106,8 +149,10 @@ export async function scheduleReel(input: { date: string; conceptId: string; roo
   await copyFile(coverSource, join(root, coverRel));
 
   const captions = captionsFor(concept);
+  const scheduleTime = slotNumber === 3 ? "12:00" : slotNumber === 2 ? "20:30" : slot.time;
   const patched: DailySlot = {
     ...slot,
+    time: scheduleTime,
     topic: concept.hook,
     format: "reel",
     media_type: "reel",
@@ -130,8 +175,8 @@ export async function scheduleReel(input: { date: string; conceptId: string; roo
       : undefined
   };
   const nextContent: DailyContent = {
-    ...content,
-    slots: content.slots.map((item) => (item.slot === slotNumber ? patched : item))
+    ...working,
+    slots: working.slots.map((item) => (item.slot === slotNumber ? patched : item))
   };
   await writeJsonAtomic(contentCalendarPath(input.date, root), nextContent);
 
@@ -175,6 +220,10 @@ export async function scheduleReel(input: { date: string; conceptId: string; roo
   // route; this records that run against the slot the reel now occupies.
   const runPath = videoRunReportPath(input.date, slotNumber, root);
   await mkdir(join(runPath, ".."), { recursive: true });
+  const assembledFrom =
+    variant === "15s"
+      ? [`${concept.id}-before.mp4`, `${concept.id}-middle.mp4`, `${concept.id}-after.mp4`]
+      : [`${concept.id}-before.mp4`, `${concept.id}-after.mp4`];
   await writeJsonAtomic(runPath, {
     version: "1.0",
     status: "complete",
@@ -183,12 +232,48 @@ export async function scheduleReel(input: { date: string; conceptId: string; roo
     generation_id: generationReport.generation_id ?? `sixiangjia_${concept.id.replace(/-/g, "_")}`,
     prompt_hash: hashVideoPrompt(REEL_MOTION_PROMPT),
     target_path: videoRel,
-    assembled_from: [`${concept.id}-before.mp4`, `${concept.id}-after.mp4`],
+    assembled_from: assembledFrom,
+    ab_variant: variant,
     assembly: "scripts/assemble-reel.ps1 (colour-matched dissolve, subtitles, zh-TW narration, ambient bed)",
     completed_at: new Date().toISOString()
   });
 
-  console.log(`${input.date} slot ${slotNumber} <- ${concept.id}`);
+  console.log(`${input.date} slot ${slotNumber} (${variant}) <- ${concept.id}`);
+}
+
+async function healOneSlot(input: {
+  date: string;
+  slotNumber: number;
+  conceptId: string;
+  variant: AbVariant;
+  root: string;
+}): Promise<void> {
+  const concept = REEL_CONCEPTS.find((item) => item.id === input.conceptId);
+  const content = await loadDailyContent(input.date, input.root);
+  const slot = content?.slots.find((item) => item.slot === input.slotNumber);
+  if (slot?.media_type === "reel" && slot.local_video_path && slot.topic === concept?.hook) {
+    console.log(
+      `${input.date}: slot ${input.slotNumber} already carries the ${input.conceptId} reel (${input.variant}).`
+    );
+    return;
+  }
+  const reelFile = join(input.root, RUN_DIR, "reels", reelAssetName(input.conceptId, input.variant));
+  try {
+    await readFile(reelFile);
+  } catch {
+    console.log(
+      `${input.date}: reel ${input.conceptId} (${input.variant}) is not built yet; leaving slot ${input.slotNumber} as generated.`
+    );
+    return;
+  }
+  await scheduleReel({
+    date: input.date,
+    conceptId: input.conceptId,
+    slot: input.slotNumber,
+    variant: input.variant,
+    root: input.root
+  });
+  console.log(`${input.date}: healed slot ${input.slotNumber} back to ${input.conceptId} (${input.variant}).`);
 }
 
 async function main(): Promise<void> {
@@ -210,44 +295,57 @@ async function main(): Promise<void> {
   // scheduled Reel to a carousel whose slides never existed. Approval and
   // publishing run this first, so a clobbered morning self-repairs before
   // anything is judged against the broken state. Healing only ever restores
-  // what REEL_SCHEDULE already says and only when the finished reel exists;
-  // a day with no scheduled concept, or a slot already correct, is a no-op.
+  // what REEL_SCHEDULE / ab-test-plan already says and only when the finished
+  // reel exists; a day with no scheduled concept, or a slot already correct,
+  // is a no-op. Without an A/B plan, behaviour matches the original single
+  // evening Reel heal (slot 2 only).
   if (getFlag(args, "heal")) {
     const config = getConfig();
     const date = getOption(args, "date") ?? getZonedDateParts(new Date(), config.timezone).date;
     const root = projectRoot(getOption(args, "root"));
+    const abPlan = planForDate(await loadAbTestPlan(root), date);
+
+    if (abPlan) {
+      await healOneSlot({
+        date,
+        slotNumber: 3,
+        conceptId: abPlan.noon.conceptId,
+        variant: abPlan.noon.variant,
+        root
+      });
+      await healOneSlot({
+        date,
+        slotNumber: 2,
+        conceptId: abPlan.evening.conceptId,
+        variant: abPlan.evening.variant,
+        root
+      });
+      return;
+    }
+
     const entry = REEL_SCHEDULE.find((item) => item.date === date);
     if (!entry) {
       console.log(`${date}: no reel scheduled, nothing to heal.`);
       return;
     }
-    const content = await loadDailyContent(date, root);
-    const slot = content?.slots.find((item) => item.slot === 2);
-    const concept = REEL_CONCEPTS.find((item) => item.id === entry.conceptId);
-    // Checking only "is it a reel" let a foreign flow park its own Reel in the
-    // slot and sail through healing: on 2026-08-05 a midnight run replaced the
-    // scheduled luggage-wheel with an off-plan reel and healing approved it.
-    // The slot is only healthy when it carries THIS concept's reel.
-    if (slot?.media_type === "reel" && slot.local_video_path && slot.topic === concept?.hook) {
-      console.log(`${date}: slot 2 already carries the ${entry.conceptId} reel.`);
-      return;
-    }
-    const reelFile = join(root, RUN_DIR, "reels", `${entry.conceptId}.mp4`);
-    try {
-      await readFile(reelFile);
-    } catch {
-      console.log(`${date}: reel ${entry.conceptId} is not built yet; leaving the day as generated.`);
-      return;
-    }
-    await scheduleReel({ date, conceptId: entry.conceptId, root: getOption(args, "root") });
-    console.log(`${date}: healed slot 2 back to ${entry.conceptId}.`);
+    await healOneSlot({
+      date,
+      slotNumber: 2,
+      conceptId: entry.conceptId,
+      variant: "10s",
+      root
+    });
     return;
   }
 
   const date = getOption(args, "date");
   const conceptId = getOption(args, "concept");
   if (!date || !conceptId) throw new Error("Required: --date YYYY-MM-DD --concept <id>, --heal, or --plan.");
-  await scheduleReel({ date, conceptId, root: getOption(args, "root") });
+  const slot = getNumberOption(args, "slot") ?? 2;
+  const variantRaw = getOption(args, "variant");
+  const variant: AbVariant | undefined =
+    variantRaw === "15s" || variantRaw === "10s" ? variantRaw : undefined;
+  await scheduleReel({ date, conceptId, slot, variant, root: getOption(args, "root") });
 }
 
 if (isMain(import.meta.url)) {

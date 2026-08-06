@@ -36,7 +36,9 @@ function Show-Toast([string]$text) {
     } catch { Write-Log ("Toast failed: " + $_.Exception.Message) }
 }
 
-# Only upload what actually went live on the primary platform.
+# Only upload what actually went live on the primary platform. Slot 2 (evening)
+# and slot 3 (noon A/B) are each checked and uploaded independently; a day with
+# only one live Reel still uploads that one.
 $postedPath = Join-Path $root "data\posted-log\$date.json"
 if (-not (Test-Path $postedPath)) { Write-Log "No posted-log yet; nothing to upload."; exit 0 }
 # Assign before wrapping: PS 5.1's ConvertFrom-Json emits a JSON array as one
@@ -46,31 +48,56 @@ if (-not (Test-Path $postedPath)) { Write-Log "No posted-log yet; nothing to upl
 # catchup-publish.ps1; same fix.
 $postedParsed = Get-Content $postedPath -Raw -Encoding utf8 | ConvertFrom-Json
 $posted = @($postedParsed)
-$reelLive = @($posted | Where-Object {
-    $_.slot -eq 2 -and $_.platform -eq "instagram" -and -not $_.dry_run -and
-    (@("success", "posted") -contains $_.status) -and $_.published_media_type -eq "reel"
-})
-if ($reelLive.Count -eq 0) { Write-Log "Slot 2 has no live Reel today; nothing to upload."; exit 0 }
 
-Push-Location $root
-$out = cmd /c "npm.cmd run post-youtube -- --date $date --slot 2 2>&1"
-$code = $LASTEXITCODE
-Pop-Location
-$out | Add-Content -Path $logFile -Encoding UTF8
+$failed = $false
+$anyUpload = $false
+$anySkip = $false
+$needAuth = $false
 
-$joined = $out -join "`n"
-if ($code -ne 0) {
-    Write-Log "Upload failed (exit $code)."
-    Show-Toast "今天的 Reel 上傳 YouTube 失敗，請看 output\youtube-logs\$date.log"
-    exit 1
+foreach ($slotNumber in @(2, 3)) {
+    $reelLive = @($posted | Where-Object {
+        $_.slot -eq $slotNumber -and $_.platform -eq "instagram" -and -not $_.dry_run -and
+        (@("success", "posted") -contains $_.status) -and $_.published_media_type -eq "reel"
+    })
+    if ($reelLive.Count -eq 0) {
+        Write-Log "Slot $slotNumber has no live Reel today; skip."
+        continue
+    }
+
+    Push-Location $root
+    $out = cmd /c "npm.cmd run post-youtube -- --date $date --slot $slotNumber 2>&1"
+    $code = $LASTEXITCODE
+    Pop-Location
+    $out | Add-Content -Path $logFile -Encoding UTF8
+
+    $joined = $out -join "`n"
+    if ($code -ne 0) {
+        Write-Log "Slot $slotNumber upload failed (exit $code)."
+        $failed = $true
+        continue
+    }
+    if ($joined -match "credentials not configured") {
+        Write-Log "Credentials not configured; skipped slot $slotNumber."
+        $needAuth = $true
+        continue
+    }
+    if ($joined -match '"video_id"') {
+        Write-Log "Slot $slotNumber uploaded to YouTube."
+        $anyUpload = $true
+    } else {
+        Write-Log "Slot $slotNumber skipped (already uploaded or no video)."
+        $anySkip = $true
+    }
 }
-if ($joined -match "credentials not configured") {
-    Write-Log "Credentials not configured; skipped."
+
+if ($needAuth) {
     Show-Toast "Reel 已發布，但 YouTube 還沒授權。跑一次 npm run youtube-auth 完成設定。"
     exit 0
 }
-if ($joined -match '"video_id"') {
-    Write-Log "Uploaded to YouTube."
-} else {
-    Write-Log "Skipped (already uploaded or no video)."
+if ($failed) {
+    Show-Toast "今天的 Reel 上傳 YouTube 失敗，請看 output\youtube-logs\$date.log"
+    exit 1
+}
+if (-not $anyUpload -and -not $anySkip) {
+    Write-Log "No live Reel on slot 2 or 3 today; nothing to upload."
 }

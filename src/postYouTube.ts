@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
+import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
@@ -27,6 +28,8 @@ interface YouTubeLogEntry {
   video_id: string;
   title: string;
   uploaded_at: string;
+  /** Present only on dual-Reel A/B days that have an ab-test-plan entry. */
+  ab_variant?: AbVariant;
 }
 
 function credentials(): { clientId: string; clientSecret: string; refreshToken: string } | undefined {
@@ -140,12 +143,14 @@ export async function uploadShort(input: {
     throw new Error(`YouTube upload failed: ${payload.error?.message ?? response.status}`);
   }
 
+  const abVariant = planSlot(planForDate(await loadAbTestPlan(root), input.date), slotNumber)?.variant;
   const entry: YouTubeLogEntry = {
     date: input.date,
     slot: slotNumber,
     video_id: payload.id,
     title,
-    uploaded_at: new Date().toISOString()
+    uploaded_at: new Date().toISOString(),
+    ...(abVariant ? { ab_variant: abVariant } : {})
   };
   await writeJsonAtomic(logPath, [...existing, entry]);
   return entry;

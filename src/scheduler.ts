@@ -3,7 +3,9 @@ import type { SlotSchedule } from "./types";
 
 export const DAILY_SCHEDULE: SlotSchedule[] = [
   { slot: 1, time: "11:30", category: "知識文" },
-  { slot: 2, time: "19:30", category: "情境文" }
+  { slot: 2, time: "20:30", category: "情境文" },
+  // Noon Reel for the dual-length A/B test (paired with evening slot 2).
+  { slot: 3, time: "12:00", category: "情境文" }
 ];
 
 export function getZonedDateParts(now: Date, timezone = "Asia/Taipei"): { date: string; time: string } {

@@ -246,7 +246,7 @@ describe("postCurrentSlot dry-run integration", () => {
 
     const results = await postCurrentSlot({
       root,
-      now: "2026-05-15T19:30:00+08:00",
+      now: "2026-05-15T20:30:00+08:00",
       dryRun: true,
       verifyPublicImageUrl: false,
       fetchImpl: vi.fn() as unknown as typeof fetch

@@ -14,7 +14,8 @@ describe("video script quality", () => {
       })
     );
 
-    const reviews = content.slots.map((slot) => {
+    const primary = content.slots.filter((slot) => slot.slot <= 2);
+    const reviews = primary.map((slot) => {
       const candidate = slot.video_candidate!;
       const subject = candidate.memory_hook.replace(/也可以送洗$/, "");
       return reviewVideoScript({

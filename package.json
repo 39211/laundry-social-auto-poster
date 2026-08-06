@@ -53,7 +53,9 @@
     "test": "vitest run",
     "post-youtube": "tsx src/postYouTube.ts",
     "youtube-auth": "tsx src/postYouTube.ts --auth",
-    "heal-reel-slot": "tsx src/scheduleReel.ts --heal"
+    "heal-reel-slot": "tsx src/scheduleReel.ts --heal",
+    "ab-plan": "tsx src/abTestPlan.ts",
+    "ab-report": "tsx src/abTestReport.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.7"

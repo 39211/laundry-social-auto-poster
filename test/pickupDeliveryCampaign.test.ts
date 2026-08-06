@@ -116,10 +116,11 @@ describe("Taichung free pickup-delivery campaign", () => {
 
     for (const date of campaignDates) {
       const day = buildDailyContent(date, config);
-      expect(day.slots).toHaveLength(2);
+      expect(day.slots.filter((s) => s.slot <= 2)).toHaveLength(2);
       expect(day.slots[0]?.time).toBe("11:30");
       expect(day.slots[0]?.category).toBe("知識文");
       expect(day.slots[0]?.facebook_caption).not.toContain("台中市全區免費到府收送");
+      // Playbook still authors slot 2 at 19:30; publish schedule is 20:30 via DAILY_SCHEDULE.
       expect(day.slots[1]?.time).toBe("19:30");
       expect(day.slots[1]?.category).toBe("情境文");
       expect(day.slots[1]?.facebook_caption).toContain("台中市全區免費到府收送");
@@ -216,7 +217,7 @@ describe("Taichung free pickup-delivery campaign", () => {
     expect(legacy.slots[1]?.media_type).toBe("image");
 
     for (const date of ["2026-07-29", "2026-07-30", "2026-08-01"]) {
-      const slots = buildDailyContent(date, getConfig(process.env)).slots;
+      const slots = buildDailyContent(date, getConfig(process.env)).slots.filter((s) => s.slot <= 2);
       expect(slots).toHaveLength(2);
       for (const slot of slots) {
         expect(slot.media_type).toBe("mixed-carousel");

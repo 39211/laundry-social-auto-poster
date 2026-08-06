@@ -10,13 +10,17 @@ const config = getConfig();
 const dates = Array.from({ length: 30 }, (_, offset) =>
   new Date(Date.UTC(2026, 7, 10 + offset)).toISOString().slice(0, 10)
 );
+// Slot 3 is the optional noon A/B Reel stub; caption quality gates still apply
+// to the primary two posts that the 90-day programme is measured on.
 const captions = dates.flatMap((date) =>
-  buildDailyContent(date, config).slots.map((slot) => ({
-    date,
-    slot: slot.slot,
-    text: slot.instagram_caption ?? "",
-    blocks: (slot.instagram_caption ?? "").split("\n\n")
-  }))
+  buildDailyContent(date, config)
+    .slots.filter((slot) => slot.slot <= 2)
+    .map((slot) => ({
+      date,
+      slot: slot.slot,
+      text: slot.instagram_caption ?? "",
+      blocks: (slot.instagram_caption ?? "").split("\n\n")
+    }))
 );
 
 describe("caption quality", () => {

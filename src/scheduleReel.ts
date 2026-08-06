@@ -58,19 +58,46 @@ function questionFor(concept: ReelConcept): string {
   }
 }
 
+// One-photo CTA, matching contentPlan.actionCtaFor: Instagram uses 私訊,
+// Facebook uses 傳 LINE. Multi-photo asks ("完整外觀和局部") are banned on IG.
+function reelActionCta(concept: ReelConcept, platform: "instagram" | "facebook"): string {
+  const channel = platform === "instagram" ? "私訊" : "傳 LINE";
+  switch (concept.object_type) {
+    case "duvet":
+      return `換季要整理寢具的話，${channel}說一下數量就可以，我們去收。`;
+    case "plush-doll":
+      return `家裡有不敢洗的娃娃？拍一張${channel}，我們先幫你看能不能洗。`;
+    case "leather-bag":
+    case "handbag":
+      return `不確定這只包還救不救得回來？拍一張${channel}給我們，先幫你看。`;
+    default:
+      return `不確定該怎麼處理？拍一張${channel}給我們，先幫你看方向。`;
+  }
+}
+
+const LINE_CONTACT = "加 LINE 直接問：0968327653";
+const FOLLOW_LINE = "私享家洗衣店｜台中市區免費到府收送";
+
 function captionsFor(concept: ReelConcept): { instagram: string; facebook: string } {
   const hashtags = ["#私享家洗衣店", "#台中西屯洗衣店", "#台中免費收送", "#洗護日常"].join(" ");
-  const shared = [concept.hook + "。", "私享家洗衣店", concept.narration];
+  // Block 2 is the observation (narration), never the bare shop name — Instagram
+  // folds there. Brand lives on the follow line with the free-pickup offer.
   const instagram = [
-    ...shared,
-    "有類似狀況，先拍完整外觀和局部，直接私訊傳給我們，我們會先幫你看方向。",
+    concept.hook + "。",
+    concept.narration,
+    reelActionCta(concept, "instagram"),
+    LINE_CONTACT,
     `${questionFor(concept)}\n\n${shareInviteFor(concept)}`,
+    FOLLOW_LINE,
     hashtags
   ].join("\n\n");
   const facebook = [
-    ...shared,
-    "有類似狀況，可以先拍正面、近照、邊角或洗標，再傳 LINE 讓我們初步判斷。",
+    concept.hook + "。",
+    concept.narration,
+    reelActionCta(concept, "facebook"),
+    LINE_CONTACT,
     questionFor(concept),
+    FOLLOW_LINE,
     hashtags
   ].join("\n\n");
   return { instagram, facebook };
@@ -241,17 +268,39 @@ export async function scheduleReel(input: {
   console.log(`${input.date} slot ${slotNumber} (${variant}) <- ${concept.id}`);
 }
 
-async function healOneSlot(input: {
+/**
+ * True when the calendar slot already holds the planned concept AND length
+ * variant. Topic alone is not enough: a 10s file left in a 15s plan slot is a
+ * silent A/B contamination and must be rewritten.
+ */
+export async function slotMatchesPlanReel(input: {
+  date: string;
+  slotNumber: number;
+  conceptId: string;
+  variant: AbVariant;
+  root: string;
+}): Promise<boolean> {
+  const concept = REEL_CONCEPTS.find((item) => item.id === input.conceptId);
+  const content = await loadDailyContent(input.date, input.root);
+  const slot = content?.slots.find((item) => item.slot === input.slotNumber);
+  if (!(slot?.media_type === "reel" && slot.local_video_path && slot.topic === concept?.hook)) {
+    return false;
+  }
+  const run = await readJsonFile<{ ab_variant?: AbVariant }>(
+    videoRunReportPath(input.date, input.slotNumber, input.root),
+    {}
+  );
+  return run.ab_variant === input.variant;
+}
+
+export async function healOneSlot(input: {
   date: string;
   slotNumber: number;
   conceptId: string;
   variant: AbVariant;
   root: string;
 }): Promise<void> {
-  const concept = REEL_CONCEPTS.find((item) => item.id === input.conceptId);
-  const content = await loadDailyContent(input.date, input.root);
-  const slot = content?.slots.find((item) => item.slot === input.slotNumber);
-  if (slot?.media_type === "reel" && slot.local_video_path && slot.topic === concept?.hook) {
+  if (await slotMatchesPlanReel(input)) {
     console.log(
       `${input.date}: slot ${input.slotNumber} already carries the ${input.conceptId} reel (${input.variant}).`
     );

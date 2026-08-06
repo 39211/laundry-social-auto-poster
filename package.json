@@ -55,7 +55,8 @@
     "youtube-auth": "tsx src/postYouTube.ts --auth",
     "heal-reel-slot": "tsx src/scheduleReel.ts --heal",
     "ab-plan": "tsx src/abTestPlan.ts",
-    "ab-report": "tsx src/abTestReport.ts"
+    "ab-report": "tsx src/abTestReport.ts",
+    "tts": "tsx src/tts.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.7"

@@ -151,6 +151,11 @@ function copyDirectoryContents(source: string, target: string): void {
 function clearMirrorWorktree(root: string): void {
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     if (entry.name === ".git") continue;
+    // .github holds the Pages deploy workflow. The mirror moved to
+    // Actions-based deployment on 2026-08-07 because legacy Jekyll builds
+    // began failing on the 646MB asset tree; wiping the workflow on every
+    // mirror push would silently remove the only thing that deploys the site.
+    if (entry.name === ".github") continue;
     rmSync(join(root, entry.name), { recursive: true, force: true });
   }
 }

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
-import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
+import { loadDailyContent, loadPostLog, readJsonFile, writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 
@@ -90,6 +90,23 @@ export async function uploadShort(input: {
   const existing = await readJsonFile<YouTubeLogEntry[]>(logPath, []);
   if (existing.some((entry) => entry.slot === slotNumber)) {
     return { skipped: `already uploaded for ${input.date} slot ${slotNumber}` };
+  }
+
+  // YouTube is a secondary shelf: never upload a Short before the same date+slot
+  // Reel is live on Instagram. Dry-run and non-reel Meta posts do not open the gate.
+  const posted = await loadPostLog(input.date, root);
+  const igLiveReel = posted.some(
+    (entry) =>
+      entry.slot === slotNumber &&
+      entry.platform === "instagram" &&
+      !entry.dry_run &&
+      (entry.status === "success" || entry.status === "posted") &&
+      entry.published_media_type === "reel"
+  );
+  if (!igLiveReel) {
+    return {
+      skipped: `no IG live reel for ${input.date} slot ${slotNumber}; YouTube waits for Instagram`
+    };
   }
 
   if (!credentials()) {

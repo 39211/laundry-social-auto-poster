@@ -38,6 +38,8 @@ interface VariantTotals {
   };
 }
 
+export type ReportVariant = AbVariant | "unattributed";
+
 export interface AbTestReport {
   generated_at: string;
   as_of: string;
@@ -45,6 +47,7 @@ export interface AbTestReport {
   variants: {
     "10s": VariantTotals;
     "15s": VariantTotals;
+    unattributed: VariantTotals;
   };
   comparison: {
     reach_ratio_15s_over_10s: number | null;
@@ -55,7 +58,7 @@ export interface AbTestReport {
   rows: Array<{
     date: string;
     slot: number;
-    variant: AbVariant;
+    variant: ReportVariant;
     conceptId: string;
     platforms_posted: string[];
     youtube_uploaded: boolean;
@@ -130,7 +133,11 @@ export async function buildAbTestReport(options: {
   if (igRows.length === 0) dataGaps.push("No Instagram insight rows under data/insights/instagram.");
   if (fbRows.length === 0) dataGaps.push("No Facebook insight rows under data/insights/facebook.");
 
-  const variants = { "10s": emptyTotals(), "15s": emptyTotals() };
+  const variants = {
+    "10s": emptyTotals(),
+    "15s": emptyTotals(),
+    unattributed: emptyTotals()
+  };
   const reportRows: AbTestReport["rows"] = [];
 
   for (const day of plan) {
@@ -145,21 +152,45 @@ export async function buildAbTestReport(options: {
       { slot: 3, plan: day.noon },
       { slot: 2, plan: day.evening }
     ] as const) {
-      const variant = half.plan.variant;
-      variants[variant].posts += 1;
-
-      const livePlatforms = (["facebook", "instagram"] as const).filter((platform) =>
-        posts.some(
-          (entry) =>
-            entry.slot === half.slot &&
-            entry.platform === platform &&
-            !entry.dry_run &&
-            ["success", "posted"].includes(entry.status)
-        )
+      // Variant attribution is only from posted-log.ab_variant — never inferred
+      // from the plan. A missing field is unattributed contamination, not a free
+      // fill from ab-test-plan.json.
+      const liveEntries = posts.filter(
+        (entry) =>
+          entry.slot === half.slot &&
+          !entry.dry_run &&
+          ["success", "posted"].includes(entry.status)
       );
-      if (livePlatforms.length === 0) {
-        dataGaps.push(`${day.date} slot ${half.slot} (${variant}): no live posted-log entry.`);
+      const livePlatforms = (["facebook", "instagram"] as const).filter((platform) =>
+        liveEntries.some((entry) => entry.platform === platform)
+      );
+
+      let variant: ReportVariant = "unattributed";
+      if (liveEntries.length === 0) {
+        dataGaps.push(
+          `${day.date} slot ${half.slot}: no live posted-log entry (plan said ${half.plan.variant}).`
+        );
+      } else {
+        const attributed = liveEntries
+          .map((entry) => entry.ab_variant)
+          .filter((value): value is AbVariant => value === "10s" || value === "15s");
+        if (attributed.length === 0) {
+          variant = "unattributed";
+          dataGaps.push(
+            `${day.date} slot ${half.slot}: posted-log missing ab_variant; counted as unattributed.`
+          );
+        } else {
+          // Prefer the first recorded live ab_variant; mixed values are a gap.
+          variant = attributed[0]!;
+          if (new Set(attributed).size > 1) {
+            dataGaps.push(
+              `${day.date} slot ${half.slot}: mixed ab_variant on live posts (${[...new Set(attributed)].join(",")}).`
+            );
+          }
+        }
       }
+
+      variants[variant].posts += 1;
 
       const ig = igRows.find((row) => row.date === day.date && row.slot === half.slot);
       const fb = fbRows.find((row) => row.date === day.date && row.slot === half.slot);
@@ -205,7 +236,7 @@ export async function buildAbTestReport(options: {
   }
 
   // Null out totals that never received a real sample so zeros are not faked.
-  for (const variant of ["10s", "15s"] as const) {
+  for (const variant of ["10s", "15s", "unattributed"] as const) {
     for (const field of ["reach", "views", "interactions"] as const) {
       if (variants[variant].samples[field] === 0) variants[variant][field] = null;
     }

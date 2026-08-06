@@ -23,6 +23,7 @@ $date = $now.ToString("yyyy-MM-dd")
 $logDir = Join-Path $root "output\reel-production-logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $logFile = Join-Path $logDir "$date.log"
+. (Join-Path $PSScriptRoot "_watchdog.ps1")
 
 function Write-Log([string]$m) {
     $stamp = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)

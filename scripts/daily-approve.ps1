@@ -15,6 +15,7 @@ $date = $now.ToString("yyyy-MM-dd")
 $logDir = Join-Path $root "output\daily-approve-logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $logFile = Join-Path $logDir "$date.log"
+. (Join-Path $PSScriptRoot "_watchdog.ps1")
 
 function Write-Log([string]$message) {
     ("[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $now, $message) | Out-File -FilePath $logFile -Append -Encoding utf8

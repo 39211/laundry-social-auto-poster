@@ -16,6 +16,7 @@ $date = $now.ToString("yyyy-MM-dd")
 $logDir = Join-Path $root "output\catch-up-logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $logFile = Join-Path $logDir "$date.log"
+. (Join-Path $PSScriptRoot "_watchdog.ps1")
 
 function Write-Log([string]$message) {
     $line = "[{0}] {1}" -f $now.ToString("yyyy-MM-dd HH:mm:ss"), $message

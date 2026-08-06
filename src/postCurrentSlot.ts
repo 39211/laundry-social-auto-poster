@@ -195,6 +195,22 @@ export function assertInsidePublishWindow(
   }
 }
 
+/**
+ * Older content calendars only had slots 1 and 2. Slot 3 (noon dual-Reel) is
+ * optional on those days: missing means "no noon file today", not a publish
+ * failure. Slots 1 and 2 still fail hard when absent.
+ */
+export type CalendarSlotPresence = "present" | "absent_skip" | "absent_fail";
+
+export function classifyCalendarSlotPresence(
+  slotNumber: number,
+  hasSlot: boolean
+): CalendarSlotPresence {
+  if (hasSlot) return "present";
+  if (slotNumber === 3) return "absent_skip";
+  return "absent_fail";
+}
+
 async function postOneSlot(
   slot: DailySlot,
   config: AppConfig,
@@ -421,7 +437,17 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
   const results: PostLogEntry[] = [];
   for (const schedule of targetSchedules) {
     const slot = content.slots.find((item) => item.slot === schedule.slot);
-    if (!slot) throw new Error(`Content slot ${schedule.slot} is missing for ${date}`);
+    const presence = classifyCalendarSlotPresence(schedule.slot, Boolean(slot));
+    if (presence === "absent_skip") {
+      // Distinct from a post failure: log only, no throw, no toast at CLI layer.
+      console.log(
+        `Content slot ${schedule.slot} is absent for ${date}; skipping (no file for this day).`
+      );
+      continue;
+    }
+    if (presence === "absent_fail" || !slot) {
+      throw new Error(`Content slot ${schedule.slot} is missing for ${date}`);
+    }
     const abVariant = planSlot(abDay, schedule.slot)?.variant;
     results.push(
       ...(await postOneSlot(

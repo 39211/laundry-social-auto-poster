@@ -97,6 +97,27 @@ if ($dueSlots.Count -eq 0) {
 
 $failed = @()
 foreach ($slot in $dueSlots) {
+    # Slot 3 is optional on older 2-slot calendars. Missing ≠ failed: log once
+    # and continue so catch-up still publishes slots 1/2 without a toast or
+    # non-zero exit. post-current-slot also skips absent slot 3; this check
+    # avoids a wasted npm invocation and keeps the log wording explicit.
+    if ($slot -eq 3) {
+        $calendarPath = Join-Path $root "data\content-calendar\$date.json"
+        $hasSlot3 = $false
+        if (Test-Path $calendarPath) {
+            try {
+                $calendarParsed = Get-Content $calendarPath -Raw -Encoding utf8 | ConvertFrom-Json
+                $hasSlot3 = @(@($calendarParsed.slots) | Where-Object { $_.slot -eq 3 }).Count -gt 0
+            } catch {
+                Write-Log ("Could not read content calendar for slot-3 presence: " + $_.Exception.Message)
+            }
+        }
+        if (-not $hasSlot3) {
+            Write-Log "Slot 3 absent on calendar for $date; skipping (not a failure)."
+            continue
+        }
+    }
+
     Write-Log "Running post-current-slot --slot $slot"
     Push-Location $root
     $output = cmd /c "npm.cmd run post-current-slot -- --slot $slot 2>&1"

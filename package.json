@@ -56,7 +56,8 @@
     "heal-reel-slot": "tsx src/scheduleReel.ts --heal",
     "ab-plan": "tsx src/abTestPlan.ts",
     "ab-report": "tsx src/abTestReport.ts",
-    "tts": "tsx src/tts.ts"
+    "tts": "tsx src/tts.ts",
+    "first-comment": "tsx src/firstComment.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.7"

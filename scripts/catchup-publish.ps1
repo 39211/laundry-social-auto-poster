@@ -137,6 +137,14 @@ if ($failed.Count -gt 0) {
     exit 1
 }
 
+# The shop opens the comment thread on its own post right after publishing:
+# a zero-comment thread rarely starts itself, and the first reply is the
+# cheapest distribution push a post gets. Idempotent per slot; a failure here
+# never blocks publishing and is only logged.
+Push-Location $root
+cmd /c "npm.cmd run first-comment -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+Pop-Location
+
 # Nothing else reads the repair queue, so a deferred video would otherwise sit
 # there unseen. An "unexpected" defer means the video check itself failed and is
 # a defect to fix, not a job waiting on review.

@@ -38,6 +38,14 @@ describe("caption quality", () => {
     }
   });
 
+  it("gives the reader the LINE ID the videos point at", () => {
+    // The Reels say "LINE 聯絡" but until 2026-08-07 no caption carried the
+    // actual ID, so the call to action pointed at nothing findable.
+    for (const caption of captions) {
+      expect(caption.text).toContain("0968327653");
+    }
+  });
+
   it("asks something answerable", () => {
     for (const caption of captions) {
       expect(caption.text).toContain("？");
@@ -51,7 +59,9 @@ describe("caption quality", () => {
     const counts = new Map<string, number>();
     for (const caption of captions) {
       for (const block of caption.blocks) {
-        if (block.startsWith("#") || block.length < 12) continue;
+        // Hashtags and the LINE contact line are deliberate boilerplate, like
+        // the follow line: identical on purpose, not accidental repetition.
+        if (block.startsWith("#") || block.startsWith("加 LINE") || block.length < 12) continue;
         counts.set(block, (counts.get(block) ?? 0) + 1);
       }
     }

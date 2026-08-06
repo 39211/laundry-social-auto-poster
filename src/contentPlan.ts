@@ -497,6 +497,7 @@ function captionFromTemplate(template: SlotTemplate): string {
     template.inspection,
     template.cta,
     `${brandLine}｜台中市區免費到府收送`,
+    "加 LINE 直接問：0968327653",
     template.hashtags.join(" ")
   ].join("\n\n");
 }
@@ -920,9 +921,24 @@ function withEngagementQuestion(caption: string, slot: GrowthPlaybookSlot): stri
   return caption.replace(slot.follow_cta, `${tail}\n\n${slot.follow_cta}`);
 }
 
+// The owner's LINE ID, requested in the caption on 2026-08-07: the videos say
+// "LINE 聯絡" but never gave the reader the actual ID to add. It belongs in
+// the caption, never burned into the video. One line, right before the
+// hashtags, on every post and both platforms.
+const LINE_CONTACT = "加 LINE 直接問：0968327653";
+
+function withLineContact(caption: string): string {
+  if (caption.includes("0968327653")) return caption;
+  const blocks = caption.split("\n\n");
+  const hashtagIndex = blocks.findIndex((block) => block.startsWith("#"));
+  if (hashtagIndex === -1) return `${caption}\n\n${LINE_CONTACT}`;
+  blocks.splice(hashtagIndex, 0, LINE_CONTACT);
+  return blocks.join("\n\n");
+}
+
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): string {
   const caption = baseCaptionFromPlaybook(slot, platform);
-  return withEngagementQuestion(caption, slot);
+  return withLineContact(withEngagementQuestion(caption, slot));
 }
 
 // Pre-authored playbook captions carry the same defect the assembled ones did:

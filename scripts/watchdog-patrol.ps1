@@ -1,0 +1,52 @@
+﻿# Every-30-minutes patrol. Exists because the publish task keeps getting
+# disabled with surgical timing: on 2026-08-07 it was killed in the twenty
+# minutes between the 11:15 approval and the 11:35 publish, and the next
+# sibling watchdog (14:00) revived it only after every noon trigger was lost.
+# The patrol shrinks the maximum kill window to thirty minutes, and it does
+# not just revive the task -- when a publish window is open and its slot has
+# not published, it starts the catch-up task immediately instead of waiting
+# for the next trigger.
+$ErrorActionPreference = "Continue"
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+$OutputEncoding = [Text.UTF8Encoding]::new($false)
+$root = Split-Path -Parent $PSScriptRoot
+$tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
+$now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
+$date = $now.ToString("yyyy-MM-dd")
+
+$logDir = Join-Path $root "output\watchdog-logs"
+New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+$logFile = Join-Path $logDir "$date.log"
+
+. (Join-Path $PSScriptRoot "_watchdog.ps1")
+
+# Nothing to do unless approvals exist (before 10:20 the day has not started).
+$approvedPath = Join-Path $root "data\approved-log\$date.json"
+if (-not (Test-Path $approvedPath)) { exit 0 }
+
+$slotTimes = @{ 1 = [TimeSpan]"11:30"; 2 = [TimeSpan]"20:30"; 3 = [TimeSpan]"12:00" }
+$recovery = [TimeSpan]::FromHours(4)
+
+$postedSlots = @()
+$postedPath = Join-Path $root "data\posted-log\$date.json"
+if (Test-Path $postedPath) {
+    try {
+        $parsed = Get-Content $postedPath -Raw -Encoding utf8 | ConvertFrom-Json
+        $postedSlots = @(@($parsed) | Where-Object {
+            $_.platform -eq "instagram" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status)
+        } | ForEach-Object { $_.slot })
+    } catch {}
+}
+
+$needsRescue = $false
+foreach ($slot in 1, 2, 3) {
+    $t = $slotTimes[$slot]
+    $inWindow = ($now.TimeOfDay -ge $t) -and (($now.TimeOfDay - $t) -le $recovery)
+    if ($inWindow -and ($postedSlots -notcontains $slot)) { $needsRescue = $true }
+}
+
+if ($needsRescue) {
+    $line = "[{0:yyyy-MM-dd HH:mm:ss}] Patrol found an open window with an unpublished slot; starting catch-up." -f $now
+    $line | Add-Content -Path $logFile -Encoding UTF8
+    Start-ScheduledTask -TaskName "Laundry-CatchUp-Publish" -ErrorAction SilentlyContinue
+}

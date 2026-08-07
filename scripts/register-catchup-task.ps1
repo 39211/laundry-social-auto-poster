@@ -104,6 +104,16 @@ Register-LaundryTask -Name "Laundry-YouTube-Upload" -Script "youtube-upload.ps1"
     -TimeLimit (New-TimeSpan -Minutes 30) `
     -Description "私享家每日 YouTube Shorts 上傳:slot 2/3 的 Reel 在 IG 實際發布後各上傳一筆;未授權時提醒不報錯。"
 
+# Thirty-minute patrol: revives disabled siblings and starts catch-up when a
+# publish window is open with its slot unpublished. See watchdog-patrol.ps1
+# for the incident history that makes this necessary.
+$patrolTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).Date `
+    -RepetitionInterval (New-TimeSpan -Minutes 30) -RepetitionDuration (New-TimeSpan -Hours 24)
+Register-LaundryTask -Name "Laundry-Watchdog-Patrol" -Script "watchdog-patrol.ps1" `
+    -Triggers @($patrolTrigger) `
+    -TimeLimit (New-TimeSpan -Minutes 10) `
+    -Description "私享家看門狗巡邏:每 30 分鐘救活被停用任務;發布窗開著卻沒發文時立刻啟動補發。"
+
 Register-LaundryTask -Name "Laundry-Reel-Production" -Script "produce-next-reel.ps1" `
     -Triggers @((New-ScheduledTaskTrigger -Daily -At "14:00")) `
     -TimeLimit (New-TimeSpan -Hours 2) `

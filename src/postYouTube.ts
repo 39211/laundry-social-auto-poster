@@ -67,11 +67,16 @@ export function buildShortMetadata(input: { topic: string; caption: string }): {
 } {
   // YouTube titles cap at 100 characters; the hook is already short. #Shorts
   // in title or description is what routes the upload into the Shorts shelf.
-  const title = `${input.topic}`.slice(0, 88) + " #Shorts";
+  // The geo suffix is what YouTube/Google video search matches for "台中洗鞋"
+  // queries — the bare hook alone carries no locality at all.
+  const geoSuffix = /[鞋包靴]/.test(input.topic) ? "台中洗鞋洗包 免費收送" : "台中洗衣店 免費收送";
+  const title = `${input.topic}`.slice(0, 70) + `｜${geoSuffix} #Shorts`;
   const description = [
     input.caption.split("\n\n").slice(0, 3).join("\n\n"),
-    "台中市區免費到府收送｜私享家洗衣店",
-    "#Shorts #台中洗衣店 #洗鞋 #洗包"
+    "台中市全區免費到府收送｜私享家洗衣店(西屯青海路二段365號)",
+    "LINE 傳照片先估:0968327653",
+    "服務與案例:https://39211.github.io/",
+    "#Shorts #台中洗衣店 #台中洗鞋 #西屯洗鞋 #逢甲洗鞋 #洗包"
   ].join("\n\n");
   return { title, description };
 }

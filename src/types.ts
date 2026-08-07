@@ -216,6 +216,7 @@ export interface AppConfig {
   verifyPublicImageUrl: boolean;
   grokReelsEnabled?: boolean;
   ga4MeasurementId?: string;
+  googleSiteVerification?: string;
 }
 
 export interface PostInput {

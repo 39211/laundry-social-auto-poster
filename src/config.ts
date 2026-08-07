@@ -39,6 +39,11 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     grokReelsEnabled: boolEnv(env.GROK_REELS_ENABLED, false),
     ga4MeasurementId: /^G-[A-Z0-9]+$/i.test(env.PUBLIC_GA4_MEASUREMENT_ID?.trim() ?? "")
       ? env.PUBLIC_GA4_MEASUREMENT_ID?.trim().toUpperCase()
+      : undefined,
+    // Search Console ownership proof; the value is the content= token from the
+    // GSC "HTML tag" verification method. Emits nothing when unset.
+    googleSiteVerification: /^[A-Za-z0-9_-]{20,}$/.test(env.PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() ?? "")
+      ? env.PUBLIC_GOOGLE_SITE_VERIFICATION?.trim()
       : undefined
   };
 }

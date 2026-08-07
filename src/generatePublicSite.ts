@@ -1516,9 +1516,12 @@ function trackedLineUrl(index: PublicPostIndex, source: string): string {
 // pages bring anyone in. Emits nothing when PUBLIC_GA4_MEASUREMENT_ID is unset.
 // The LINE redirect page suppresses the pageview because it sends its own event.
 function buildAnalyticsTag(measurementId: string, sendPageView = true): string {
-  if (!measurementId) return "";
+  const verification = getConfig().googleSiteVerification
+    ? `<meta name="google-site-verification" content="${escapeHtml(getConfig().googleSiteVerification ?? "")}">\n    `
+    : "";
+  if (!measurementId) return verification.trim();
   const options = sendPageView ? "" : ",{send_page_view:false}";
-  return `<script async src="https://www.googletagmanager.com/gtag/js?id=${escapeHtml(measurementId)}"></script>
+  return `${verification}<script async src="https://www.googletagmanager.com/gtag/js?id=${escapeHtml(measurementId)}"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config',${JSON.stringify(measurementId)}${options});</script>`;
 }
 

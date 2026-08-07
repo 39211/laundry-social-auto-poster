@@ -43,6 +43,9 @@ Write-Log "Catch-up run started (Taipei time $($now.ToString('HH:mm')))."
 # of the calendar (it has happened three times) must cost nothing more than
 # this heal step. No-op when the slot is already correct.
 Push-Location $root
+# Slot 1 heals from the day lock too: on 2026-08-07 a morning rewrite swapped
+# slot 1's topic after the images were made, and the mismatch published.
+cmd /c "npm.cmd run day-lock -- --date $date --heal 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
 cmd /c "npm.cmd run heal-reel-slot -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
 Pop-Location
 

@@ -177,6 +177,12 @@ Pop-Location
 
 if ((Test-Path $calendar) -and $imagesReadyNow) {
     Write-Log "Generation finished; calendar and images are both ready."
+    # Lock slot 1 the moment its images verifiably exist. Anything that rewrites
+    # the calendar after this point gets healed back before approval/publish.
+    # A deliberate slot-1 redo must delete data\day-locks\<date>.json first.
+    Push-Location $root
+    cmd /c "npm.cmd run day-lock -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    Pop-Location
 } elseif (Test-Path $calendar) {
     Write-Log "Codex finished but images for $date are still missing."
     Show-Toast "今天 ($date) 的圖片沒有生成完整,slot 1 可能發不出去,請看 log。"

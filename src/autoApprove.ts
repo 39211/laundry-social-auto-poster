@@ -127,6 +127,49 @@ export async function autoApprove(
     checks.push({ name: `slot_${slot}`, ok: false, detail: reason });
   };
 
+  // The makeup-bag topic ran four times in five days (08-03, 08-04, 08-05,
+  // 08-07) because the morning flow recycles its own earlier slot-1 packages;
+  // the owner recognized the reused caption on sight. A slot-1 topic that
+  // shares a three-character run (within the leading object phrase) with any
+  // topic from the previous seven days is a rerun and must not publish.
+  const slot1 = content.slots.find((slot) => slot.slot === 1);
+  if (slot1) {
+    const head = slot1.topic.slice(0, 8);
+    repeatScan: for (let back = 1; back <= 7; back++) {
+      const base = new Date(`${date}T00:00:00Z`);
+      base.setUTCDate(base.getUTCDate() - back);
+      const prevDate = base.toISOString().slice(0, 10);
+      const prev = await loadDailyContent(prevDate, root);
+      for (const prevSlot of prev?.slots ?? []) {
+        const prevHead = prevSlot.topic.slice(0, 8);
+        for (let i = 0; i + 3 <= prevHead.length; i++) {
+          const gram = prevHead.slice(i, i + 3);
+          if (/^[一-鿿]{3}$/.test(gram) && head.includes(gram)) {
+            blockSlot(1, `slot 1 主題與 ${prevDate} 重複(共用「${gram}」),七天內不得重複物件`);
+            break repeatScan;
+          }
+        }
+      }
+    }
+  }
+
+  // The caption comes from the calendar; the images were generated for the
+  // topic recorded in the image-prompts manifest. When the two disagree the
+  // post is caption-over-wrong-photos, which is worse than not posting.
+  if (slot1) {
+    try {
+      const manifestRaw = await readFile(join(root, "data", "image-prompts", `${date}.json`), "utf8");
+      const manifest = JSON.parse(manifestRaw) as Array<{ slot?: number; topic?: string }>;
+      const imageTopic = manifest.find((item) => item.slot === 1)?.topic;
+      if (imageTopic && imageTopic !== slot1.topic) {
+        blockSlot(1, `slot 1 文不配圖:圖片為「${imageTopic.slice(0, 16)}」生成,文案是「${slot1.topic.slice(0, 16)}」`);
+      }
+    } catch {
+      // No manifest means the image gates below decide; absence is not proof
+      // of mismatch.
+    }
+  }
+
   const sources = await loadImageSources(date, root);
   for (const slot of content.slots) {
     for (const asset of imageAssetsForSlot(slot)) {

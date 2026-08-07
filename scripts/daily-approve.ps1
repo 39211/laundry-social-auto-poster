@@ -38,8 +38,12 @@ function Show-Toast([string]$text) {
 # Codex's morning flow writes calendar files directly and has reverted a
 # scheduled Reel three times. Healing before judging means approval always
 # evaluates the day as scheduled, not as clobbered.
-Write-Log "Healing today's reel slot if it was rewritten."
+Write-Log "Healing today's slots if they were rewritten."
 Push-Location $root
+# Slot 1 heals from the day lock (created at 06:30 once images exist);
+# 2026-08-07 published a rewritten caption over images made for the locked
+# topic. Reel slots heal from REEL_SCHEDULE as before.
+cmd /c "npm.cmd run day-lock -- --date $date --heal 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
 cmd /c "npm.cmd run heal-reel-slot -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
 Pop-Location
 

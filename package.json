@@ -57,7 +57,8 @@
     "ab-plan": "tsx src/abTestPlan.ts",
     "ab-report": "tsx src/abTestReport.ts",
     "tts": "tsx src/tts.ts",
-    "first-comment": "tsx src/firstComment.ts"
+    "first-comment": "tsx src/firstComment.ts",
+    "day-lock": "tsx src/dayLock.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.7"

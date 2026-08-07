@@ -170,7 +170,7 @@ describe("generatePublicSite", () => {
     expect(index.base_url_configured).toBe(true);
     expect(index.canonical_url).toBe("https://example.com/laundry-social-auto-poster/");
     expect(index.open_graph).toMatchObject({
-      title: "台中免費收送｜逢甲洗鞋・西屯洗鞋｜私享家洗衣店",
+      title: "私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋",
       type: "website",
       url: "https://example.com/laundry-social-auto-poster/",
       site_name: "私享家洗衣店",
@@ -263,7 +263,7 @@ describe("generatePublicSite", () => {
     expect(latest.date).toBe("2026-07-02");
     expect(latest.posts[0].hashtags).toEqual(["#test"]);
     expect(feed.version).toBe("https://jsonfeed.org/version/1.1");
-    expect(feed.title).toBe("台中免費收送｜逢甲洗鞋・西屯洗鞋｜私享家洗衣店");
+    expect(feed.title).toBe("私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋");
     expect(feed.items[0].tags).toEqual(["test"]);
     expect(businessProfile.line_url).toBe("https://line.me/ti/p/4m-rA6hxf6");
     expect(businessProfile.google_maps_cid).toBe("0x41f4295a6302e177");
@@ -484,11 +484,11 @@ describe("generatePublicSite", () => {
     expect(aiSitemap).toContain("<!-- service-image-generated-product-image -->");
     expect(aiSitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/knowledge-graph.json</loc>");
     expect(html).toContain('<link rel="canonical" href="https://example.com/laundry-social-auto-poster/"');
-    expect(html).toContain('<title>台中免費收送｜逢甲洗鞋・西屯洗鞋｜私享家洗衣店</title>');
+    expect(html).toContain('<title>私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋</title>');
     expect(html).toContain('name="description" content="找台中免費收送、逢甲洗鞋或西屯洗鞋？');
     expect(html).toContain('name="robots" content="index, follow, max-image-preview:large"');
     expect(html).toContain('hreflang="zh-Hant-TW"');
-    expect(html).toContain('property="og:title" content="台中免費收送｜逢甲洗鞋・西屯洗鞋｜私享家洗衣店"');
+    expect(html).toContain('property="og:title" content="私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋"');
     expect(html).toContain('property="og:type" content="website"');
     expect(html).toContain('property="og:url" content="https://example.com/laundry-social-auto-poster/"');
     expect(html).toContain('property="og:image" content="https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-hero-product.png"');
@@ -1104,7 +1104,7 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("台中洗衣與免費收送常見問題");
     expect(homepage).toContain("收送免費等於清潔免費嗎？");
     expect(homepage).toContain('<html lang="zh-Hant-TW">');
-    expect(homepage).toContain('<time datetime="2026-07-22">2026-07-22</time>');
+    expect(homepage).toContain('<time datetime="2026-08-08">2026-08-08</time>');
     expect(homepage).toContain("台中免費收送，逢甲・西屯洗鞋先看材質");
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=homepage`);
     expect(homepage).toContain('"name":"台中市"');
@@ -1145,13 +1145,13 @@ describe("generatePublicSite", () => {
         `<loc>${businessBulkUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}</loc><lastmod>2026-07-28</lastmod>`
       )
     );
-    // Posts keep publication-day lastmod; intentional content pages keep 2026-07-22.
+    // Posts keep publication-day lastmod; each intentional content page keeps its own stable date.
     expect(sitemap1).toContain("<lastmod>2026-07-02</lastmod>");
-    expect(sitemap1).toContain("<lastmod>2026-07-22</lastmod>");
+    expect(sitemap1).toContain("<lastmod>2026-08-08</lastmod>");
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
-        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-07-22</lastmod>`
+        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-08-08</lastmod>`
       )
     );
     expect(sitemap1).toMatch(
@@ -1256,7 +1256,7 @@ describe("generatePublicSite", () => {
     const postHtml1 = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
     const postDateModified1 = findArticleDateModified(postHtml1);
 
-    expect(homepageDateModified1).toBe("2026-07-22");
+    expect(homepageDateModified1).toBe("2026-08-08");
     expect(pickupDateModified1).toBe("2026-07-22");
     expect(shoeBagDateModified1).toBe("2026-07-22");
     expect(guideDateModified1).toBeUndefined();

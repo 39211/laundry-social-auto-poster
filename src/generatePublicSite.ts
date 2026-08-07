@@ -270,11 +270,11 @@ interface BusinessProfile {
 }
 
 const SITE_NAME = "私享家洗衣店";
-const SITE_TITLE = "台中免費收送｜逢甲洗鞋・西屯洗鞋｜私享家洗衣店";
+const SITE_TITLE = "私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋";
 const SITE_DESCRIPTION =
   "找台中免費收送、逢甲洗鞋或西屯洗鞋？私享家洗衣店提供台中市全區免費收送，門市在西屯青海路二段365號，可先用 LINE 傳照片預約。";
 /** Homepage last intentional content change (YYYY-MM-DD). Not rewritten on every build. */
-const HOMEPAGE_CONTENT_LASTMOD = "2026-07-22";
+const HOMEPAGE_CONTENT_LASTMOD = "2026-08-08";
 const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";

@@ -41,6 +41,7 @@
     "fetch-facebook-insights": "tsx src/fetchFacebookInsights.ts",
     "sync-meta-insights": "tsx src/syncMetaInsights.ts",
     "generate-performance-optimization": "tsx src/performanceOptimization.ts",
+    "analyze-gsc": "tsx src/gscPerformance.ts --page-lastmods config/gsc-page-lastmods.json",
     "generate-multimedia-operations-plan": "tsx src/multimediaOperationsPlan.ts",
     "audit-meta-access": "tsx src/auditMetaAccess.ts",
     "repair-meta-token": "tsx src/repairMetaToken.ts",

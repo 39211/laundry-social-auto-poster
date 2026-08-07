@@ -50,7 +50,7 @@ async function loadPolicy(root: string): Promise<PublishingPolicy | undefined> {
 }
 
 export async function autoApprove(
-  options: { date?: string; root?: string; approvedBy?: string } = {}
+  options: { date?: string; root?: string; approvedBy?: string; dryRun?: boolean } = {}
 ): Promise<AutoApproveResult> {
   const root = projectRoot(options.root);
   const config = getConfig();
@@ -225,6 +225,13 @@ export async function autoApprove(
   const approvedSlots: number[] = [];
   for (const slot of pending) {
     if (slotBlockers.has(slot.slot)) continue;
+    // A dry run evaluates every gate but must leave no trace: on 2026-08-07 a
+    // gate test invoked with a then-nonexistent --dry-run flag silently wrote
+    // real approvals for the next day.
+    if (options.dryRun) {
+      approvedSlots.push(slot.slot);
+      continue;
+    }
     await approvePost({
       date,
       slot: slot.slot,
@@ -251,13 +258,16 @@ export async function autoApprove(
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const root = projectRoot(getOption(args, "root"));
+  const dryRun = getFlag(args, "dry-run");
   const result = await autoApprove({
     date: getOption(args, "date"),
     root,
-    approvedBy: getOption(args, "approved-by")
+    approvedBy: getOption(args, "approved-by"),
+    dryRun
   });
 
-  console.log(JSON.stringify(result, null, 2));
+  console.log(JSON.stringify(dryRun ? { ...result, dry_run: true } : result, null, 2));
+  if (dryRun) return;
   // The scheduled wrapper reads this file instead of scraping stdout: any npm
   // warning containing a brace shifted the substring parse, and a "successful"
   // parse into an object with a null .approved silently skipped the day.

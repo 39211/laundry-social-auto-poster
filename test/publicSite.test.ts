@@ -713,7 +713,7 @@ describe("generatePublicSite", () => {
         .find((service: { slug: string }) => service.slug === "fabric-storage")
         .related_support_pages.map((page: { slug: string }) => page.slug)
     ).toEqual(expect.arrayContaining(["bedding-storage-check", "bedding-duvet-cleaning"]));
-    expect(services.services.find((service: { slug: string }) => service.slug === "shoe-bag-care").related_support_pages).toHaveLength(3);
+    expect(services.services.find((service: { slug: string }) => service.slug === "shoe-bag-care").related_support_pages).toHaveLength(4);
     expect(services.services.find((service: { slug: string }) => service.slug === "white-shoe-cleaning").related_support_pages).toHaveLength(1);
     expect(services.services.every((service: { case_studies?: unknown[] }) => service.case_studies?.length === 3)).toBe(true);
     expect(answers.answers.some((answer: { source_url: string }) => answer.source_url.endsWith("/guides/photo-before-laundry.html"))).toBe(true);
@@ -743,7 +743,7 @@ describe("generatePublicSite", () => {
       )
     ).toBe(true);
     expect(discovery.capabilities.supports_support_pages).toBe(true);
-    expect(discovery.support_pages).toHaveLength(11);
+    expect(discovery.support_pages).toHaveLength(14);
     expect(searchVisibility.query_clusters).toHaveLength(6);
     expect(discovery.support_pages[0]).toMatchObject({
       slug: "photo-before-laundry",

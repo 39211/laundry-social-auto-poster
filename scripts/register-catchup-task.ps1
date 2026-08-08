@@ -107,8 +107,13 @@ Register-LaundryTask -Name "Laundry-YouTube-Upload" -Script "youtube-upload.ps1"
 # Thirty-minute patrol: revives disabled siblings and starts catch-up when a
 # publish window is open with its slot unpublished. See watchdog-patrol.ps1
 # for the incident history that makes this necessary.
-$patrolTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).Date `
-    -RepetitionInterval (New-TimeSpan -Minutes 30) -RepetitionDuration (New-TimeSpan -Hours 24)
+# A -Once trigger with a 24-hour repetition duration STOPS FOREVER after that
+# day: on 2026-08-08 the patrol's NextRunTime was empty from midnight onward,
+# so nothing rescued the noon Reel when its publish triggers did not fire. The
+# daily trigger re-arms the 30-minute repetition every day.
+$patrolTrigger = New-ScheduledTaskTrigger -Daily -At "00:00"
+$patrolTrigger.Repetition = (New-ScheduledTaskTrigger -Once -At "00:00" `
+    -RepetitionInterval (New-TimeSpan -Minutes 30) -RepetitionDuration (New-TimeSpan -Hours 24)).Repetition
 Register-LaundryTask -Name "Laundry-Watchdog-Patrol" -Script "watchdog-patrol.ps1" `
     -Triggers @($patrolTrigger) `
     -TimeLimit (New-TimeSpan -Minutes 10) `

@@ -1145,8 +1145,10 @@ describe("generatePublicSite", () => {
         `<loc>${businessBulkUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}</loc><lastmod>2026-07-28</lastmod>`
       )
     );
-    // Posts keep publication-day lastmod; each intentional content page keeps its own stable date.
-    expect(sitemap1).toContain("<lastmod>2026-07-02</lastmod>");
+    // A post's lastmod is the later of its publication day and the post-template
+    // content date, so a template rewrite tells crawlers to come back; each
+    // intentional content page keeps its own stable date either way.
+    expect(sitemap1).not.toContain("<lastmod>2026-07-02</lastmod>");
     expect(sitemap1).toContain("<lastmod>2026-08-08</lastmod>");
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
@@ -1159,8 +1161,10 @@ describe("generatePublicSite", () => {
         `<loc>${pickupUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}</loc><lastmod>2026-07-22</lastmod>`
       )
     );
+    // The post-template content date wins over the older publication day, so a
+    // template rewrite is visible to crawlers instead of silently unannounced.
     expect(sitemap1).toMatch(
-      /posts\/2026-07-02-slot-01\.html<\/loc><lastmod>2026-07-02<\/lastmod>/
+      /posts\/2026-07-02-slot-01\.html<\/loc><lastmod>2026-08-08<\/lastmod>/
     );
 
     // Intentionally updated service pages carry their stable content lastmod.

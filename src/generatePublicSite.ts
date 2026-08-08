@@ -2048,8 +2048,23 @@ function supportContentLastmod(page: SupportPageDefinition): string | undefined 
   return toSitemapLastmodDate(page.content_lastmod);
 }
 
+/**
+ * Bump this when the post page template's visible content materially changes.
+ * A post's lastmod is the later of its own date and this, because a template
+ * change rewrites every post page: on 2026-08-08 all 57 post pages gained
+ * inspection points, FAQs and related links, but their lastmod still claimed
+ * their original publish date, so crawlers had no reason to come back and see
+ * any of it. It is deliberately a hand-set constant -- claiming "everything
+ * changed today" on every build is how a sitemap's lastmod stops being trusted.
+ */
+const POST_TEMPLATE_CONTENT_LASTMOD = "2026-08-08";
+
 function postContentLastmod(post: PublicPost): string | undefined {
-  return toSitemapLastmodDate(post.date_published) ?? toSitemapLastmodDate(post.date);
+  const own = toSitemapLastmodDate(post.date_published) ?? toSitemapLastmodDate(post.date);
+  const template = toSitemapLastmodDate(POST_TEMPLATE_CONTENT_LASTMOD);
+  if (!own) return template;
+  if (!template) return own;
+  return own > template ? own : template;
 }
 
 function sitemapLastmodForUrl(url: string, index: PublicPostIndex): string | undefined {

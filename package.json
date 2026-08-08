@@ -59,7 +59,8 @@
     "ab-report": "tsx src/abTestReport.ts",
     "tts": "tsx src/tts.ts",
     "first-comment": "tsx src/firstComment.ts",
-    "day-lock": "tsx src/dayLock.ts"
+    "day-lock": "tsx src/dayLock.ts",
+    "indexing-push": "tsx src/indexingPush.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.7"

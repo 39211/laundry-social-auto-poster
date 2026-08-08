@@ -97,7 +97,17 @@ function Publish-Site {
     $ok = ($LASTEXITCODE -eq 0)
     if ($ok) {
         cmd /c "npm.cmd run submit-indexnow -- --live 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-        Write-Log "Public site pushed and IndexNow submitted."
+        # Daily indexing push and audit: resubmits today's changed URLs plus the
+        # landing pages, then verifies each is reachable and above the thin-page
+        # floor. Thin pages are what Google reports as "crawled, currently not
+        # indexed", so they get flagged the day they appear instead of silently
+        # sitting in the sitemap. Never blocks the publish result.
+        cmd /c "npm.cmd run indexing-push -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "Indexing audit flagged thin or unreachable pages; see output\operations\indexing-push-$date.json"
+            Show-Toast "$date 索引稽核有頁面過薄或連不到,請看 output\operations\indexing-push-$date.json"
+        }
+        Write-Log "Public site pushed, IndexNow submitted, indexing audit run."
     } else {
         Write-Log "publish-pages failed; assets exist locally but are not online."
         Show-Toast "$date 的公開站沒推上去,發文會被公開資產檢查擋下,請看 log。"

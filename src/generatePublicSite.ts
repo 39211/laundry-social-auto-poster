@@ -4100,13 +4100,219 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
   };
 }
 
+// Post pages carried only the caption -- about 470 characters of text -- and
+// every one of them linked to the same generic service page. 57 of the site's
+// 78 URLs are post pages, so that thinness was the site's dominant quality
+// signal and the most likely reason Google reports "crawled, currently not
+// indexed". Each post now carries the inspection points for its own object
+// family plus links to the matching service and guide, which both deepens the
+// page and gives crawlers real paths between related pages.
+interface CareContext {
+  family: string;
+  serviceSlug: string;
+  guideSlugs: string[];
+  checkpoints: string[];
+  faqs: Array<{ question: string; answer: string }>;
+}
+
+const CARE_CONTEXTS: Array<{ match: RegExp; context: CareContext }> = [
+  {
+    match: /白鞋|球鞋|帆布鞋|運動鞋/,
+    context: {
+      family: "白鞋與球鞋",
+      serviceSlug: "white-shoe-cleaning",
+      guideSlugs: ["white-shoe-yellowing", "rainy-shoe-care"],
+      checkpoints: [
+        "鞋面材質先分清楚:皮革、布面、網布或合成材質,能用的清潔方式完全不同。",
+        "膠邊看是髒污還是氧化。氧化泛黃不是刷得掉的髒,硬刷只會讓膠面起毛。",
+        "鞋內與鞋墊的濕氣常被忽略,悶味多半來自這裡,不是鞋面。"
+      ],
+      faqs: [
+        {
+          question: "鞋子可以自己先刷再送洗嗎?",
+          answer: "不確定材質時不建議。強力清潔劑和硬刷會造成褪色、起毛或留下刷痕,反而讓後續處理變難。"
+        },
+        {
+          question: "泛黃一定能洗回全白嗎?",
+          answer: "表面髒污機會較高;膠邊氧化或材質變色只能降低痕跡,門市會先說明能處理到什麼程度。"
+        }
+      ]
+    }
+  },
+  {
+    match: /包|背包|提把|包角|化妝包|行李箱/,
+    context: {
+      family: "包款與提把",
+      serviceSlug: "shoe-bag-care",
+      guideSlugs: ["bag-handle-cleaning", "leather-jacket-care"],
+      checkpoints: [
+        "提把與包角是最先磨損的兩個位置,油痕和磨白的處理方向不一樣。",
+        "內裡常有粉塵、筆漬或食物殘留,外觀乾淨不代表內袋乾淨。",
+        "五金氧化與縫線鬆脫要在清潔前確認,清洗過程可能讓既有損傷擴大。"
+      ],
+      faqs: [
+        {
+          question: "包包清潔會不會讓皮面變色?",
+          answer: "會先依材質判斷。真皮、合成皮與麂皮的清潔和補色方式不同,無法保證完全均勻時會先告知。"
+        },
+        {
+          question: "內裡的味道洗得掉嗎?",
+          answer: "多數可明顯改善。味道來源是濕氣或殘留物,要先找出來源才處理,單純噴香只會蓋住。"
+        }
+      ]
+    }
+  },
+  {
+    match: /西裝|襯衫|外套|大衣|領口|肩線/,
+    context: {
+      family: "襯衫與西裝",
+      serviceSlug: "taichung-xitun-laundry",
+      guideSlugs: ["shirt-suit-dry-cleaning", "dry-cleaning-guide"],
+      checkpoints: [
+        "肩線與領片有沒有塌,比表面髒不髒更決定衣服還能不能穿出門。",
+        "領口與袖口的油光屬於油性髒污,和汗味的處理方式不同。",
+        "洗標決定乾洗或水洗;有墊肩襯裡的外套水洗容易縮皺變形。"
+      ],
+      faqs: [
+        {
+          question: "西裝多久乾洗一次?",
+          answer: "常穿的每季一到兩次即可。穿一次洗一次反而傷纖維,平時掛通風處、局部除味就好。"
+        },
+        {
+          question: "襯衫領口的黃漬洗得掉嗎?",
+          answer: "多數能明顯改善。長期累積的皮脂氧化較難完全還原,處理前會先說明界線。"
+        }
+      ]
+    }
+  },
+  {
+    match: /羽絨|棉被|寢具|床組|被單|枕|窗簾|沙發|布品|收納/,
+    context: {
+      family: "寢具與布品",
+      serviceSlug: "fabric-storage",
+      guideSlugs: ["bedding-duvet-cleaning", "down-jacket-cleaning"],
+      checkpoints: [
+        "收納前一定要完全乾燥,沒乾透就壓縮會悶出味道也會失去蓬鬆度。",
+        "黃斑多半是汗漬或濕氣長期作用,越早處理越容易淡化。",
+        "體積大的布品要先確認車線與破口,清洗時破口會擴大。"
+      ],
+      faqs: [
+        {
+          question: "棉被多久洗一次?",
+          answer: "一般建議每年換季收納前清洗一次;有汗味、潮味或黃斑時就不要再等。"
+        },
+        {
+          question: "體積太大不好帶怎麼辦?",
+          answer: "台中市全區可預約免費收送,到府收件即可,不用自己搬。"
+        }
+      ]
+    }
+  },
+  {
+    match: /娃娃|絨毛|玩偶/,
+    context: {
+      family: "絨毛娃娃",
+      serviceSlug: "taichung-xitun-laundry",
+      guideSlugs: ["plush-doll-cleaning", "photo-before-laundry"],
+      checkpoints: [
+        "先確認填充材質與是否含電子零件,音樂盒與發聲器要先取出。",
+        "縫線與眼鼻配件鬆動時,清洗過程可能脫落,清潔前要先固定。",
+        "毛料清洗後需要梳理才會回復蓬鬆,不梳會結塊。"
+      ],
+      faqs: [
+        {
+          question: "娃娃洗完會不會變形?",
+          answer: "會先依填充材質選擇方式。棉花與PP棉的耐受度不同,處理前會說明可能的蓬鬆度變化。"
+        },
+        {
+          question: "小孩每天抱的娃娃可以洗嗎?",
+          answer: "可以,而且建議定期清潔。清洗會處理塵蟎與汗漬,取回前會確認完全乾燥。"
+        }
+      ]
+    }
+  }
+];
+
+const DEFAULT_CARE_CONTEXT: CareContext = {
+  family: "日常衣物",
+  serviceSlug: "taichung-xitun-laundry",
+  guideSlugs: ["photo-before-laundry", "taichung-laundry-service-search"],
+  checkpoints: [
+    "先看洗標,材質決定能用的方式,看不懂符號就拍照詢問。",
+    "把最在意的位置單獨拍一張,整體照看不出局部問題。",
+    "不要先自行強洗或用未知藥劑,處理過的痕跡會讓後續判斷變難。"
+  ],
+  faqs: [
+    {
+      question: "送洗前需要先自己清嗎?",
+      answer: "不需要,也不建議。保留原始狀態門市才判斷得準,先處理過反而可能定色或留下痕跡。"
+    },
+    {
+      question: "怎麼估價?",
+      answer: "網站不提供未驗證價目。用 LINE 傳整體與局部照片,門市會先給判斷與費用範圍再由你決定。"
+    }
+  ]
+};
+
+function careContextFor(topic: string): CareContext {
+  return CARE_CONTEXTS.find((entry) => entry.match.test(topic))?.context ?? DEFAULT_CARE_CONTEXT;
+}
+
 function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
   const profile = index.business_profile;
   const lineHref = trackedLineUrl(index, `post-${post.date}-slot-${post.slot}`);
   const canonical = post.article_url;
   const schema = buildPostPageSchema(post, index);
-  const service = findServiceBySlug("taichung-xitun-laundry") ?? SERVICE_PAGE_DEFINITIONS[0];
+  const care = careContextFor(post.topic);
+  const service = findServiceBySlug(care.serviceSlug) ?? SERVICE_PAGE_DEFINITIONS[0];
   const serviceHref = service ? servicePageUrl(service, index) : index.canonical_url;
+  // Same-family neighbours give crawlers a path between post pages instead of
+  // leaving each one reachable only from the home page listing.
+  const relatedPosts = index.article_posts
+    .filter((item) => item.id !== post.id && careContextFor(item.topic).family === care.family)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .slice(0, 3);
+  const relatedGuides = care.guideSlugs
+    .map((slug) => SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === slug))
+    .filter((page): page is SupportPageDefinition => Boolean(page));
+  const careBlock = `<div class="answer-box">
+              <p class="eyebrow">${escapeHtml(care.family)}的檢查重點</p>
+              <ul>${care.checkpoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("\n")}</ul>
+            </div>
+            <div class="answer-box">
+              <p class="eyebrow">常見問題</p>
+              ${care.faqs
+                .map(
+                  (faq) =>
+                    `<h3>${escapeHtml(faq.question)}</h3><p>${escapeHtml(faq.answer)}</p>`
+                )
+                .join("\n")}
+            </div>
+            ${
+              relatedPosts.length > 0
+                ? `<div class="answer-box">
+              <p class="eyebrow">同類的其他檢查紀錄</p>
+              <ul>${relatedPosts
+                .map(
+                  (item) =>
+                    `<li><a href="${escapeHtml(item.article_url)}">${escapeHtml(item.topic)}</a>（${escapeHtml(item.date)}）</li>`
+                )
+                .join("\n")}</ul>
+            </div>`
+                : ""
+            }
+            <div class="answer-box">
+              <p class="eyebrow">延伸閱讀</p>
+              <div class="link-row">
+                <a href="${escapeHtml(serviceHref)}">${escapeHtml(service?.h1 ?? "服務說明")}</a>
+                ${relatedGuides
+                  .map(
+                    (page) =>
+                      `<a href="${escapeHtml(supportPageUrl(page, index))}">${escapeHtml(page.h1)}</a>`
+                  )
+                  .join("\n")}
+              </div>
+            </div>`;
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const imageSrc = visibleImageSrc(post, index);
   const description = captionPreview(post.facebook_caption).slice(0, 180);
@@ -4192,6 +4398,7 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
             <p class="eyebrow">Store note</p>
             <h2>Check the item before choosing the next step</h2>
             <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
+            ${careBlock}
             <div class="meta-row local-query-row">${hashtags}</div>${targetQueries}
           </article>
           <aside class="card">

@@ -254,6 +254,7 @@ interface BusinessProfile {
   facebook_url: string;
   facebook_share_url: string;
   instagram_url: string;
+  youtube_url?: string;
   line_url: string;
   line_id: string;
   telephone: string;
@@ -1831,7 +1832,14 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
     openingHoursSpecification: profile.opening_hours_specification,
     ...(specialOpeningHoursSpecification.length > 0 ? { specialOpeningHoursSpecification } : {}),
     hasMap: profile.map_url,
-    sameAs: [profile.facebook_url, profile.instagram_url],
+    // Every profile the shop actually owns belongs here: sameAs is how search
+    // engines and LLMs decide that the site, the Maps listing, the YouTube
+    // channel and the social accounts are one entity rather than four unrelated
+    // results. It listed only Facebook and Instagram while the shop had been
+    // publishing to YouTube daily and had a live Maps listing.
+    sameAs: [profile.facebook_url, profile.instagram_url, profile.youtube_url, profile.map_url].filter(
+      (url): url is string => Boolean(url)
+    ),
     image: images,
     areaServed: [
       {

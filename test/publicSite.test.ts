@@ -335,9 +335,13 @@ describe("generatePublicSite", () => {
       url: "https://example.com/laundry-social-auto-poster/",
       telephone: "+886-4-2452-7411",
       hasMap: "https://maps.app.goo.gl/kUREPkWDXYNTkpct7",
+      // Entity consolidation: every owned profile, so the site, Maps listing,
+      // YouTube channel and socials read as one business.
       sameAs: [
         "https://www.facebook.com/100083194756904/",
-        "https://www.instagram.com/si_xiang_jia/"
+        "https://www.instagram.com/si_xiang_jia/",
+        "https://www.youtube.com/channel/UCcVDFN7Ve-cD9duxRdM5VXQ",
+        "https://maps.app.goo.gl/kUREPkWDXYNTkpct7"
       ],
       openingHours: ["Mo-Fr 10:00-20:00", "Sa 12:00-18:00"],
       address: {

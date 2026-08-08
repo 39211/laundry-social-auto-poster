@@ -71,14 +71,42 @@ export function buildShortMetadata(input: { topic: string; caption: string }): {
   // queries — the bare hook alone carries no locality at all.
   const geoSuffix = /[鞋包靴]/.test(input.topic) ? "台中洗鞋洗包 免費收送" : "台中洗衣店 免費收送";
   const title = `${input.topic}`.slice(0, 70) + `｜${geoSuffix} #Shorts`;
+  // AI answer engines quote YouTube descriptions, so the first line has to
+  // stand alone as a fact rather than continue the video, and the link has to
+  // land on the page that answers this topic. A generic home-page link gives a
+  // reader nowhere to go and gives a crawler no topical connection.
+  const deepLink = guideLinkFor(input.topic);
   const description = [
+    `台中西屯的私享家洗衣店在處理${topicObject(input.topic)}時的判斷方式;台中市全區免費到府收送,清潔費另依物件判斷。`,
     input.caption.split("\n\n").slice(0, 3).join("\n\n"),
-    "台中市全區免費到府收送｜私享家洗衣店(西屯青海路二段365號)",
-    "LINE 傳照片先估:0968327653",
-    "服務與案例:https://39211.github.io/",
+    "門市:台中市西屯區青海路二段365號｜LINE 傳照片先估:0968327653",
+    `這個主題的完整說明:${deepLink}`,
     "#Shorts #台中洗衣店 #台中洗鞋 #西屯洗鞋 #逢甲洗鞋 #洗包"
   ].join("\n\n");
   return { title, description };
+}
+
+const SITE = "https://39211.github.io";
+
+/** Deep link to the page that answers this topic, not the site root. */
+export function guideLinkFor(topic: string): string {
+  if (/白鞋|泛黃/.test(topic)) return `${SITE}/guides/white-shoe-yellowing.html`;
+  if (/雨|淋濕|進水/.test(topic)) return `${SITE}/guides/rainy-shoe-care.html`;
+  if (/鞋|靴/.test(topic)) return `${SITE}/services/white-shoe-cleaning.html`;
+  if (/包|提把|包角|背包|行李/.test(topic)) return `${SITE}/guides/bag-handle-cleaning.html`;
+  if (/皮衣|皮革|發霉/.test(topic)) return `${SITE}/guides/leather-jacket-care.html`;
+  if (/羽絨/.test(topic)) return `${SITE}/guides/down-jacket-cleaning.html`;
+  if (/西裝|襯衫|肩線|領口/.test(topic)) return `${SITE}/guides/shirt-suit-dry-cleaning.html`;
+  if (/棉被|寢具|床組|被單|枕/.test(topic)) return `${SITE}/guides/bedding-duvet-cleaning.html`;
+  if (/窗簾|沙發|布品|收納/.test(topic)) return `${SITE}/services/fabric-storage.html`;
+  if (/娃娃|絨毛|玩偶/.test(topic)) return `${SITE}/guides/plush-doll-cleaning.html`;
+  if (/乾洗/.test(topic)) return `${SITE}/guides/dry-cleaning-guide.html`;
+  return `${SITE}/services/taichung-xitun-laundry.html`;
+}
+
+function topicObject(topic: string): string {
+  const match = topic.match(/^[^，,。:：]{2,8}/);
+  return match ? match[0] : "衣物";
 }
 
 export async function uploadShort(input: {

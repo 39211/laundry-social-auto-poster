@@ -132,16 +132,25 @@ export async function autoApprove(
   // the owner recognized the reused caption on sight. A slot-1 topic that
   // shares a three-character run (within the leading object phrase) with any
   // topic from the previous seven days is a rerun and must not publish.
+  //
+  // Template lead-in phrases must not count as "the object": on 2026-08-09
+  // the gate matched 「先看懂」 -- a stylistic opener two unrelated topics
+  // shared -- and blocked a legitimate day; slot 1 never published. Grams are
+  // taken from the topic with lead-in wording stripped, so only object words
+  // remain comparable.
+  const TOPIC_LEAD_INS = /先看懂|怎麼判斷|怎麼辦|你可能|其實|今天|當天|門市檢查|最髒的|先看|再看/g;
+  const objectHead = (topic: string): string =>
+    topic.replace(/[（(].*?[)）]/g, "").replace(TOPIC_LEAD_INS, "").replace(/[：:，,。!？?\s]/g, "").slice(0, 8);
   const slot1 = content.slots.find((slot) => slot.slot === 1);
   if (slot1) {
-    const head = slot1.topic.slice(0, 8);
+    const head = objectHead(slot1.topic);
     repeatScan: for (let back = 1; back <= 7; back++) {
       const base = new Date(`${date}T00:00:00Z`);
       base.setUTCDate(base.getUTCDate() - back);
       const prevDate = base.toISOString().slice(0, 10);
       const prev = await loadDailyContent(prevDate, root);
       for (const prevSlot of prev?.slots ?? []) {
-        const prevHead = prevSlot.topic.slice(0, 8);
+        const prevHead = objectHead(prevSlot.topic);
         for (let i = 0; i + 3 <= prevHead.length; i++) {
           const gram = prevHead.slice(i, i + 3);
           if (/^[一-鿿]{3}$/.test(gram) && head.includes(gram)) {

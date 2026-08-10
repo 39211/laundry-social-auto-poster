@@ -1,4 +1,5 @@
 import { assertLiveMetaConfig } from "./config";
+import { NonRetryableError } from "./retry";
 import type { AppConfig, PostInput, PostResult } from "./types";
 
 interface InstagramResponse {
@@ -24,10 +25,30 @@ async function postForm(
   body: URLSearchParams,
   fetchImpl: typeof fetch
 ): Promise<InstagramResponse> {
-  const response = await fetchImpl(endpoint, { method: "POST", body });
+  // media_publish is the commit point: a lost response or a late error after
+  // this call may leave the post LIVE, so retrying the whole flow would put a
+  // duplicate on the account (luna, high). Container creation before it is
+  // safely retryable.
+  const isCommit = endpoint.endsWith("/media_publish");
+  let response: Response;
+  try {
+    response = await fetchImpl(endpoint, { method: "POST", body });
+  } catch (error) {
+    if (isCommit) {
+      throw new NonRetryableError(
+        `Instagram media_publish response was lost; the post may already be live. Not retrying.`,
+        { cause: error }
+      );
+    }
+    throw error;
+  }
   const payload = (await response.json()) as InstagramResponse;
   if (!response.ok || payload.error || !payload.id) {
-    throw new Error(payload.error?.message || `Instagram request failed with ${response.status}`);
+    const message = payload.error?.message || `Instagram request failed with ${response.status}`;
+    if (isCommit && response.status >= 500) {
+      throw new NonRetryableError(`${message} (media_publish 5xx; the post may already be live. Not retrying.)`);
+    }
+    throw new Error(message);
   }
   return payload;
 }

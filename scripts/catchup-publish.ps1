@@ -49,9 +49,19 @@ Push-Location $root
 # no generate branch ever locked the day, and a midday rewrite went unhealed.
 # Locking at first publish attempt freezes whatever is about to be published.
 cmd /c "npm.cmd run day-lock -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+$lockExit = $LASTEXITCODE
 cmd /c "npm.cmd run day-lock -- --date $date --heal 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+$healExit = $LASTEXITCODE
 cmd /c "npm.cmd run heal-reel-slot -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+$reelHealExit = $LASTEXITCODE
 Pop-Location
+# A failed heal means the calendar may still be clobbered; publishing an
+# unrepaired package is worse than publishing late (luna, high).
+if ($lockExit -ne 0 -or $healExit -ne 0 -or $reelHealExit -ne 0) {
+    Write-Log "Lock/heal step failed (lock=$lockExit heal=$healExit reel=$reelHealExit); refusing to publish."
+    Show-Toast "$date 自癒步驟失敗,補發已停止,請看 output\catch-up-logs\$date.log"
+    exit 1
+}
 
 $approvedPath = Join-Path $root "data\approved-log\$date.json"
 # Late-images day: when the package became complete only after the 11:15
@@ -138,7 +148,10 @@ foreach ($slot in $dueSlots) {
 
     Write-Log "Running post-current-slot --slot $slot"
     Push-Location $root
-    $output = cmd /c "npm.cmd run post-current-slot -- --slot $slot 2>&1"
+    # Explicit --date: PowerShell resolves Taipei but Node falls back to its
+    # own TIMEZONE env; around midnight the two can disagree and publish
+    # yesterday's slot into today's logs (luna, high).
+    $output = cmd /c "npm.cmd run post-current-slot -- --slot $slot --date $date 2>&1"
     $exitCode = $LASTEXITCODE
     Pop-Location
     $output | Out-File -FilePath $logFile -Append -Encoding utf8

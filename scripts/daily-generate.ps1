@@ -98,7 +98,14 @@ function Lock-Day {
 
 function Publish-Site {
     Push-Location $root
-    cmd /c "npm.cmd run generate-public-site 2>&1" | Out-Null
+    cmd /c "npm.cmd run generate-public-site 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    if ($LASTEXITCODE -ne 0) {
+        # Publishing yesterday's docs/ over a failed regeneration silently
+        # drifts the public site from the local package (luna, high).
+        Write-Log "generate-public-site failed; refusing to publish stale output."
+        Pop-Location
+        return $false
+    }
     # --skip-audit: the audit fetches ~50 live URLs and one transient non-2xx
     # would mark a successful push as failed, skipping IndexNow for the day and
     # crying wolf on the same toast channel real faults use. The weekly review

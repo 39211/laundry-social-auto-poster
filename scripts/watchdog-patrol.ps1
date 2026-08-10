@@ -46,9 +46,16 @@ $postedPath = Join-Path $root "data\posted-log\$date.json"
 if (Test-Path $postedPath) {
     try {
         $parsed = Get-Content $postedPath -Raw -Encoding utf8 | ConvertFrom-Json
-        $postedSlots = @(@($parsed) | Where-Object {
+        # Both platforms must have succeeded before a slot counts as done:
+        # IG-only success used to mark the slot complete and FB stayed
+        # permanently unpublished if the retry trigger died (luna, high).
+        $igSlots = @(@($parsed) | Where-Object {
             $_.platform -eq "instagram" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status)
         } | ForEach-Object { $_.slot })
+        $fbSlots = @(@($parsed) | Where-Object {
+            $_.platform -eq "facebook" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status)
+        } | ForEach-Object { $_.slot })
+        $postedSlots = @($igSlots | Where-Object { $fbSlots -contains $_ })
     } catch {}
 }
 

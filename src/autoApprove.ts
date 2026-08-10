@@ -82,6 +82,20 @@ export async function autoApprove(
   }
 
   const content = await loadDailyContent(date, root);
+  // A calendar copied into the wrong date's path must not be approved as that
+  // date: the file's own date field is the identity, not the filename (luna).
+  if (content && (content as { date?: string }).date && (content as { date?: string }).date !== date) {
+    record("daily_content_date", false, `calendar says ${(content as { date?: string }).date}, expected ${date}`);
+    return {
+      date,
+      approved: false,
+      already_approved: false,
+      approved_slots: [],
+      blockers,
+      checks,
+      ai_provenance: { with_manifest: 0, without_manifest: 0, consistent: true }
+    };
+  }
   if (!content) {
     record("daily_content", false, `No content calendar for ${date}.`);
     return {
@@ -170,12 +184,17 @@ export async function autoApprove(
       const manifestRaw = await readFile(join(root, "data", "image-prompts", `${date}.json`), "utf8");
       const manifest = JSON.parse(manifestRaw) as Array<{ slot?: number; topic?: string }>;
       const imageTopic = manifest.find((item) => item.slot === 1)?.topic;
-      if (imageTopic && imageTopic !== slot1.topic) {
+      if (!imageTopic) {
+        blockSlot(1, "slot 1 圖片 manifest 缺 slot 1 條目,無法證明圖文一致");
+      } else if (imageTopic !== slot1.topic) {
         blockSlot(1, `slot 1 文不配圖:圖片為「${imageTopic.slice(0, 16)}」生成,文案是「${slot1.topic.slice(0, 16)}」`);
       }
     } catch {
-      // No manifest means the image gates below decide; absence is not proof
-      // of mismatch.
+      // Fail closed: a missing or unreadable manifest means consistency is
+      // UNPROVEN, and unproven must not publish (luna, high). The old
+      // "absence is not proof of mismatch" stance let a malformed manifest
+      // waive the strongest gate.
+      blockSlot(1, "slot 1 圖片 manifest 缺失或無法解析,圖文一致性未證明");
     }
   }
 
@@ -192,6 +211,25 @@ export async function autoApprove(
       if (!assetExists) {
         blockSlot(slot.slot, `missing image ${asset.local_image_path}`);
         continue;
+      }
+      // Any non-empty file used to pass; a text file or corrupt download at
+      // the right path could be approved and published (luna, high). All
+      // pipeline images are PNG, so the signature is the cheapest real proof.
+      if (asset.local_image_path.endsWith(".png")) {
+        try {
+          const { open } = await import("node:fs/promises");
+          const handle = await open(fullPath, "r");
+          const header = Buffer.alloc(8);
+          await handle.read(header, 0, 8, 0);
+          await handle.close();
+          if (!header.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+            blockSlot(slot.slot, `not a real PNG: ${asset.local_image_path}`);
+            continue;
+          }
+        } catch {
+          blockSlot(slot.slot, `unreadable image ${asset.local_image_path}`);
+          continue;
+        }
       }
       // A publishable image must also be a real generated asset, not a
       // placeholder that happens to sit at the right path.

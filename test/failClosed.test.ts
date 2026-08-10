@@ -91,9 +91,15 @@ describe("unattended approval fails closed", () => {
       }),
       "utf8"
     );
-    // Slot 2's image exists with a source record; slot 1's does not.
+    // Slot 2's image exists with a source record; slot 1's does not. The
+    // fixture must carry a real PNG signature: approval now verifies magic
+    // bytes, so text placeholders are (correctly) blocked.
     await mkdir(join(root, "docs", "assets", DATE), { recursive: true });
-    await writeFile(join(root, "docs", "assets", DATE, "slot-02.png"), "image bytes", "utf8");
+    const pngFixture = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from("image bytes")
+    ]);
+    await writeFile(join(root, "docs", "assets", DATE, "slot-02.png"), pngFixture);
     await mkdir(join(root, "data", "image-sources"), { recursive: true });
     await writeFile(
       join(root, "data", "image-sources", `${DATE}.json`),

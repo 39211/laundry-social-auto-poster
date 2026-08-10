@@ -27,16 +27,35 @@ function lockPath(date: string, root: string): string {
 }
 
 export async function lockDay(date: string, root = projectRooted()): Promise<string> {
-  const existing = await readJsonFile<DayLock | null>(lockPath(date, root), null);
-  if (existing) return "already locked";
   const content = await loadDailyContent(date, root);
   const slot1 = content?.slots.find((slot) => slot.slot === 1);
   if (!slot1) return "no slot 1 to lock";
-  await writeJsonAtomic(lockPath(date, root), {
-    date,
-    locked_at: new Date().toISOString(),
-    slot1
-  } satisfies DayLock);
+  // Never freeze an incomplete package: a lock taken before the images exist
+  // makes every later heal restore the broken snapshot (luna, high).
+  if (slot1.local_image_path) {
+    try {
+      const { stat } = await import("node:fs/promises");
+      const info = await stat(join(root, ...slot1.local_image_path.split("/")));
+      if (info.size === 0) return "slot 1 image is empty; not locking";
+    } catch {
+      return "slot 1 image missing; not locking";
+    }
+  }
+  // flag wx = atomic check-and-create: two concurrent lockDay calls cannot
+  // both win, so first-writer-wins actually holds (luna, high).
+  const { writeFile, mkdir } = await import("node:fs/promises");
+  const target = lockPath(date, root);
+  await mkdir(join(root, "data", "day-locks"), { recursive: true });
+  try {
+    await writeFile(
+      target,
+      JSON.stringify({ date, locked_at: new Date().toISOString(), slot1 } satisfies DayLock, null, 2),
+      { flag: "wx" }
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") return "already locked";
+    throw error;
+  }
   return "locked";
 }
 
@@ -53,9 +72,13 @@ export async function healDay(date: string, root = projectRooted()): Promise<str
   if (JSON.stringify(slot1) === JSON.stringify(lock.slot1)) {
     return "intact";
   }
+  // Re-read immediately before writing: the first read may be seconds old and
+  // another process may have legitimately updated slot 2/3 in between; writing
+  // the stale whole-calendar back would clobber their work (luna, high).
+  const fresh = (await loadDailyContent(date, root)) ?? content;
   const restored = {
-    ...content,
-    slots: content.slots.map((slot) => (slot.slot === 1 ? lock.slot1 : slot))
+    ...fresh,
+    slots: fresh.slots.map((slot) => (slot.slot === 1 ? lock.slot1 : slot))
   };
   await writeDailyContent(restored, root);
   return `restored slot 1 to "${lock.slot1.topic.slice(0, 24)}" (was "${slot1.topic.slice(0, 24)}")`;

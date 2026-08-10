@@ -998,15 +998,26 @@ function baseCaptionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): 
 // item contradicts every caption this shop writes: a post about damp shoe
 // linings shipped with a spotless boutique product shot. The wear line makes
 // the item look like something a customer actually brought in.
+// Style master v1 (data/style-master.md is the human-readable source of
+// record). Scene DNA comes from the shop's real Google Maps photos -- the
+// pink cutting mat, white slat-wall and covered-garment conveyor are what
+// 私享家 actually looks like -- and the photographic spec follows the
+// 船長AI視界 method: lens feel, depth-of-field feel, light with direction
+// and falloff, ONE tone anchor, and film grain, so "realistic" is expressed
+// as visible camera behaviour instead of the word "realistic".
 const PHONE_REALISM =
-  "Shot on a phone by shop staff, handheld with slight natural camera shake and imperfect framing, " +
-  "ordinary Taiwanese shop interior with tiled floor and metal racks, fluorescent ceiling light mixed " +
-  "with daylight from the window, realistic fabric texture with slight wrinkles and everyday clutter " +
-  "at the edges of frame. The featured item shows honest everyday use consistent with the topic - " +
-  "dust, scuffs, creases or slight discolouration where the topic describes them - and must not look " +
-  "brand new or freshly styled. Not cinematic, not studio lighting, not glossy, not perfectly " +
-  "symmetrical, no boutique or showroom interior, no stock-photo feel, no dramatic colour grade, " +
-  "no laundry basket as a featured object, no fake logo, no readable text, no watermark.";
+  "Shot on a phone, 35mm documentary perspective, f/2.8 feel with the featured object sharp and the " +
+  "background still recognizable. Scene: a light counter with a pink cutting mat, white slat-wall " +
+  "panels behind, a garment conveyor with plastic-covered clothes softly blurred in the background, " +
+  "everyday Taiwanese laundry shop clutter at the frame edges. Soft mixed light from the storefront " +
+  "window and fluorescent ceiling, gentle shadow falloff, natural highlight roll-off, Kodak Portra 400 " +
+  "inspired warm tone, subtle film grain, slight handheld framing imperfection. The featured item shows " +
+  "honest everyday use consistent with the topic - dust, scuffs, creases or slight discolouration exactly " +
+  "where the topic describes them, with visible material grain, contact shadow under the object, and " +
+  "believable weight - and must not look brand new or freshly styled. Not editorial, not cinematic, not " +
+  "studio lighting, no plastic or waxy surfaces, no artificial background blur, no oversaturated colors, " +
+  "no boutique or showroom interior, no stock-photo feel, no laundry basket as a featured object, " +
+  "no fake logo, no readable text, no watermark.";
 
 function imagePromptFromPlaybook(slot: GrowthPlaybookSlot): string {
   const topic = cleanTopic(slot.topic);
@@ -1023,13 +1034,9 @@ function imagePromptFromPlaybook(slot: GrowthPlaybookSlot): string {
 
 function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
   const shared =
-    "Create one portrait 4:5 photo that looks taken on a phone inside an ordinary Taiwanese laundry shop. " +
-    "Keep the exact featured object consistent across all four photos, with natural material texture, believable " +
-    "weight and contact shadows, and everyday shop surroundings. The object shows honest everyday use consistent " +
-    "with the topic - dust, scuffs, creases or slight discolouration where the topic describes them - and must " +
-    "not look brand new or freshly styled. Handheld framing with slight imperfection, fluorescent ceiling light " +
-    "mixed with daylight. Not editorial, not cinematic, not studio lighting, not glossy, no boutique or showroom " +
-    "interior. No poster layout, no graphic panel, no readable text, no logo, no address, no phone number, no watermark.";
+    "Create one portrait 4:5 photo. Keep the exact featured object consistent across all four photos. " +
+    PHONE_REALISM +
+    " No poster layout, no graphic panel, no address, no phone number.";
 
   if (slot.date === "2026-07-20" && slot.slot === 1) {
     return [

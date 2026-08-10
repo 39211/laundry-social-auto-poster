@@ -50,3 +50,24 @@ if ($needsRescue) {
     $line | Add-Content -Path $logFile -Encoding UTF8
     Start-ScheduledTask -TaskName "Laundry-CatchUp-Publish" -ErrorAction SilentlyContinue
 }
+
+# YouTube rescue, session-independent: after 21:05 every live IG Reel should
+# have its Short. The upload script is idempotent (skips already-uploaded), so
+# starting it again is safe. Before this, YT rescue lived only in ad-hoc
+# session monitors, which die with the session.
+if ($now.TimeOfDay -ge [TimeSpan]"21:05") {
+    $liveReels = @($postedSlots | Where-Object { $_ -in 2, 3 } | Sort-Object -Unique).Count
+    $ytCount = 0
+    $ytPath = Join-Path $root "data\youtube-log\$date.json"
+    if (Test-Path $ytPath) {
+        try {
+            $ytParsed = [IO.File]::ReadAllText($ytPath, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
+            $ytCount = @(@($ytParsed) | Where-Object { $_.video_id }).Count
+        } catch {}
+    }
+    if ($liveReels -gt $ytCount) {
+        $line = "[{0:yyyy-MM-dd HH:mm:ss}] Patrol: {1} live Reel(s) but {2} Short(s); starting YouTube upload." -f $now, $liveReels, $ytCount
+        $line | Add-Content -Path $logFile -Encoding UTF8
+        Start-ScheduledTask -TaskName "Laundry-YouTube-Upload" -ErrorAction SilentlyContinue
+    }
+}

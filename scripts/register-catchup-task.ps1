@@ -124,5 +124,13 @@ Register-LaundryTask -Name "Laundry-Reel-Production" -Script "produce-next-reel.
     -TimeLimit (New-TimeSpan -Hours 2) `
     -Description "私享家每日 14:00 生產下一支 Reel 的素材與影片,永遠領先發佈一批;不剪接、不核准、不發佈。"
 
+# End-of-day settlement: evidence-based verdict on posts, comments, Shorts and
+# tomorrow's assets, with last-chance rescues. Session-independent by design --
+# every ad-hoc monitor dies with its session; this one lives in the scheduler.
+Register-LaundryTask -Name "Laundry-Day-Audit" -Script "day-audit.ps1" `
+    -Triggers @((New-ScheduledTaskTrigger -Daily -At "22:50")) `
+    -TimeLimit (New-TimeSpan -Minutes 15) `
+    -Description "私享家每日 22:50 結算:對帳三檔發文、頭香、Shorts 與明日備料;缺口先自救再通知。"
+
 Get-ScheduledTask | Where-Object { $_.TaskName -like "Laundry-*" } |
     Select-Object TaskName, State | Format-Table -AutoSize

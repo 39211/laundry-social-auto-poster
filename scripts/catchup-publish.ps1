@@ -132,25 +132,43 @@ foreach ($slot in $dueSlots) {
     Pop-Location
     $output | Out-File -FilePath $logFile -Append -Encoding utf8
     if ($exitCode -ne 0) {
-        Write-Log "Slot $slot failed with exit code $exitCode."
-        $failed += $slot
+        # The exit code alone is not evidence: on 2026-08-08 the process was
+        # terminated (-1) after both platforms had already recorded success,
+        # the slot was misjudged as failed, and first comments were skipped.
+        # The posted-log is the ground truth, so consult it before declaring
+        # failure.
+        $postedOk = $false
+        try {
+            $postedRaw = [IO.File]::ReadAllText((Join-Path $root "data\posted-log\$date.json"), [Text.UTF8Encoding]::new($false))
+            $entries = @(ConvertFrom-Json $postedRaw)
+            $igOk = @($entries | Where-Object { $_.slot -eq $slot -and $_.platform -eq "instagram" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status) }).Count -gt 0
+            $fbOk = @($entries | Where-Object { $_.slot -eq $slot -and $_.platform -eq "facebook" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status) }).Count -gt 0
+            $postedOk = $igOk -and $fbOk
+        } catch {}
+        if ($postedOk) {
+            Write-Log "Slot $slot exited $exitCode but the posted-log records success on both platforms; treating as published."
+        } else {
+            Write-Log "Slot $slot failed with exit code $exitCode."
+            $failed += $slot
+        }
     } else {
         Write-Log "Slot $slot finished (published or already recorded)."
     }
 }
 
+# The shop opens the comment thread on its own post right after publishing:
+# a zero-comment thread rarely starts itself, and the first reply is the
+# cheapest distribution push a post gets. Idempotent per slot, and it runs
+# before the failure exit so slots that DID publish still get their comment
+# when a sibling slot failed (one slot's failure used to skip all comments).
+Push-Location $root
+cmd /c "npm.cmd run first-comment -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+Pop-Location
+
 if ($failed.Count -gt 0) {
     Show-Toast ("今天 slot {0} 補發失敗,請看 output\catch-up-logs\{1}.log" -f ($failed -join ", "), $date)
     exit 1
 }
-
-# The shop opens the comment thread on its own post right after publishing:
-# a zero-comment thread rarely starts itself, and the first reply is the
-# cheapest distribution push a post gets. Idempotent per slot; a failure here
-# never blocks publishing and is only logged.
-Push-Location $root
-cmd /c "npm.cmd run first-comment -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-Pop-Location
 
 # Nothing else reads the repair queue, so a deferred video would otherwise sit
 # there unseen. An "unexpected" defer means the video check itself failed and is

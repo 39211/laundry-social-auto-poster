@@ -54,6 +54,17 @@ cmd /c "npm.cmd run heal-reel-slot -- --date $date 2>&1" | Out-File -FilePath $l
 Pop-Location
 
 $approvedPath = Join-Path $root "data\approved-log\$date.json"
+# Late-images day: when the package became complete only after the 11:15
+# approve retry, no scheduled run ever re-judges it and the whole day used to
+# publish nothing (both review families flagged this; it happened on 08-10).
+# auto-approve is idempotent and every gate still applies -- this only moves
+# WHEN the judgment happens, never what it decides.
+if (-not (Test-Path $approvedPath)) {
+    Write-Log "No approved-log for $date; running auto-approve now (gates unchanged)."
+    Push-Location $root
+    cmd /c "npm.cmd run auto-approve -- --date $date --no-fail 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    Pop-Location
+}
 if (-not (Test-Path $approvedPath)) {
     Write-Log "No approved-log for $date. Nothing can be published yet."
     Show-Toast "今天 ($date) 還沒有審核紀錄,請執行 Codex 審核流程,否則今天不會發文。"

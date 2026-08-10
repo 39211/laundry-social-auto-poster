@@ -47,7 +47,10 @@ export async function healDay(date: string, root = projectRooted()): Promise<str
   if (!content) return "no calendar";
   const slot1 = content.slots.find((slot) => slot.slot === 1);
   if (!slot1) return "no slot 1";
-  if (slot1.topic === lock.slot1.topic && slot1.instagram_caption === lock.slot1.instagram_caption) {
+  // Full-slot comparison: both review families showed that comparing only
+  // topic + instagram_caption lets a rewrite of facebook_caption, image
+  // paths or media_type pass as intact and publish a split-brain package.
+  if (JSON.stringify(slot1) === JSON.stringify(lock.slot1)) {
     return "intact";
   }
   const restored = {

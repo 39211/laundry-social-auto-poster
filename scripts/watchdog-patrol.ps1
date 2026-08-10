@@ -20,6 +20,20 @@ $logFile = Join-Path $logDir "$date.log"
 
 . (Join-Path $PSScriptRoot "_watchdog.ps1")
 
+# Dead-trigger detection (both review families): a task can be State=Ready
+# with an empty NextRunTime -- the exact way the patrol itself died on 08-08.
+# Enable-only watchdogs never catch that; re-registering rebuilds the triggers.
+$deadTasks = @(Get-ScheduledTask | Where-Object { $_.TaskName -like "Laundry-*" } | Where-Object {
+    $info = Get-ScheduledTaskInfo -TaskName $_.TaskName -ErrorAction SilentlyContinue
+    $null -ne $info -and ($null -eq $info.NextRunTime)
+})
+if ($deadTasks.Count -gt 0) {
+    $names = ($deadTasks | ForEach-Object { $_.TaskName }) -join ", "
+    "[{0:yyyy-MM-dd HH:mm:ss}] Dead trigger (empty NextRunTime) on: {1}; re-registering all tasks." -f $now, $names |
+        Add-Content -Path $logFile -Encoding UTF8
+    & (Join-Path $PSScriptRoot "register-catchup-task.ps1") *>> $logFile
+}
+
 # Nothing to do unless approvals exist (before 10:20 the day has not started).
 $approvedPath = Join-Path $root "data\approved-log\$date.json"
 if (-not (Test-Path $approvedPath)) { exit 0 }

@@ -157,6 +157,10 @@ if ($hasCalendar) {
     & (Join-Path $PSScriptRoot "generate-missing-images.ps1") -Date $date -LogFile $logFile
     if ($LASTEXITCODE -eq 0) {
         Write-Log "Images for $date are ready."
+        # Third completion path. Both review families flagged that this branch
+        # published without locking, which is exactly the 08-10 unlocked-day
+        # hole surviving under a different entrance.
+        Lock-Day
         if (Publish-Site) { exit 0 } else { exit 1 }
     }
     Write-Log "Image backfill for $date did not complete."

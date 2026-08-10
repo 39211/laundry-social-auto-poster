@@ -190,17 +190,19 @@ Do not read any workspace file and do not run any shell command; the local shell
 
     $middlePng = Join-Path $libDir "$concept-middle.png"
     if ($targetVariant -eq "15s" -and -not (Test-Path $middlePng)) {
-        # Middle still: same scene as before, tools entering frame, object state
-        # between before and after. Edit from the before so camera/lighting hold.
+        # Middle still: pure GENERATION, never edit-by-reference. The old prompt
+        # said "do not read any workspace file" and then asked Codex to edit the
+        # before file -- an instruction contradiction that made it return nothing
+        # on 08-08, 08-09 and 08-10, which cost 08-09 its noon Reel. Direct
+        # generation with a rich scene description was verified working three
+        # times on 2026-08-10.
         $middleHeader = @"
-Do not read any workspace file and do not run any shell command; the local shell is broken and will only stall you. Use the built-in image model only. Edit the supplied before image into ONE middle-state still for a laundry-shop before/middle/after Reel. Keep the exact same camera, lighting, counter and framing. The object's condition must sit between dirty and cleaned. Include shop tools or hands-with-tools entering the frame in a natural work moment. No readable text, logos, or captions. Do not save into the repository: leave the image in your output directory and report the filename.
+Use the built-in image model only. Do not read any workspace file and do not run any shell command. Generate ONE portrait 4:5 photorealistic photo taken on a phone inside an ordinary Taiwanese laundry shop: the object below on a clean inspection counter in a MID-CLEANING state - condition clearly between dirty and cleaned, with a hand and a shop tool (soft cloth, soft-bristle brush, or steam tool as fits the object) entering the frame in a natural work moment, partial cleaning progress visible on the object. Fluorescent ceiling light mixed with daylight, handheld framing, everyday shop surroundings. Not editorial, not studio. No readable text, logos, or captions. Leave the image in your output directory and report the filename.
 
 "@
-        Write-Log "Generating middle still through Codex (from before reference)."
+        Write-Log "Generating middle still through Codex (pure generation)."
         $genStart = Get-Date
-        # Codex image edit: pass path context in the prompt; the before file is
-        # available under the read-only sandbox root for models that accept it.
-        $middlePrompt = $middleHeader + "Before reference path (read only): $beforePng`nConcept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n"
+        $middlePrompt = $middleHeader + "Object/concept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n"
         $middlePrompt | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - *>$null
 
         $images = @(

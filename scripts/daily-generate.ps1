@@ -86,6 +86,16 @@ if ($hasCalendar) {
 # at the end of the full-generation path only -- but once content began being
 # generated ahead of time, every morning took the "already ready" early exit,
 # and the site silently stopped updating from the schedule at all.
+# Lock slot 1 whenever the day is verifiably complete. Both completion paths
+# must lock: on 2026-08-10 only the "generation finished" branch locked, the
+# images-arrived-later day never got a lock, and a midday rewrite went
+# unhealed. Idempotent -- an existing lock is kept, never replaced.
+function Lock-Day {
+    Push-Location $root
+    cmd /c "npm.cmd run day-lock -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    Pop-Location
+}
+
 function Publish-Site {
     Push-Location $root
     cmd /c "npm.cmd run generate-public-site 2>&1" | Out-Null
@@ -118,6 +128,7 @@ function Publish-Site {
 
 if ($hasCalendar -and $imagesReady) {
     Write-Log "Content calendar and images for $date are both ready; publishing the site refresh."
+    Lock-Day
     if (Publish-Site) { exit 0 } else { exit 1 }
 }
 

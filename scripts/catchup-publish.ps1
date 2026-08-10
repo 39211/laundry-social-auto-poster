@@ -45,6 +45,10 @@ Write-Log "Catch-up run started (Taipei time $($now.ToString('HH:mm')))."
 Push-Location $root
 # Slot 1 heals from the day lock too: on 2026-08-07 a morning rewrite swapped
 # slot 1's topic after the images were made, and the mismatch published.
+# Create-if-absent first: on 2026-08-10 the images arrived hours after 06:30,
+# no generate branch ever locked the day, and a midday rewrite went unhealed.
+# Locking at first publish attempt freezes whatever is about to be published.
+cmd /c "npm.cmd run day-lock -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
 cmd /c "npm.cmd run day-lock -- --date $date --heal 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
 cmd /c "npm.cmd run heal-reel-slot -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
 Pop-Location

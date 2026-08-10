@@ -166,9 +166,25 @@ if ($hasCalendar) {
     Publish-Site | Out-Null
     exit 1
 } else {
+    # Slot 1's object comes from the committed 90-day plan, not from free
+    # invention: left to choose, the generator recycled the makeup-bag package
+    # four times in five days and then looped 帆布鞋/襯衫領 reruns on 08-10.
+    # The repeat/mismatch gates still verify afterwards; this just makes the
+    # first attempt the right one.
+    $plannedObject = ""
+    try {
+        $planRaw = [IO.File]::ReadAllText((Join-Path $root "data\slot1-plan.json"), [Text.UTF8Encoding]::new($false))
+        $plan = ConvertFrom-Json $planRaw
+        $plannedObject = $plan.$date
+    } catch {}
+    $planLine = ""
+    if ($plannedObject) {
+        $planLine = "`nToday's slot 1 MUST be about this object (from the committed 90-day plan): $plannedObject. Write a fresh hook and captions for it; do not substitute another object. Slot 1 topics from the last 7 days are off-limits.`n"
+        Write-Log "Slot 1 planned object for ${date}: $plannedObject"
+    }
     $prompt = @"
 Run the 06:30 daily generation for $date (Asia/Taipei) exactly as defined in .agents/skills/daily-automation/SKILL.md.
-
+$planLine
 Generate the daily context, the content calendar, the image prompt manifest, the final images through the built-in image model, the image source records, and the video candidate manifest, then refresh the public site.
 
 Stop and report if any required step cannot complete. Do not approve posts, do not write approved-log or posted-log entries, and do not publish to Facebook or Instagram: approval and publishing are separate stages.

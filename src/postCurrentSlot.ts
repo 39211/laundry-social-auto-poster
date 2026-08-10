@@ -1,4 +1,4 @@
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { assertLiveMetaConfig, assertPublicImageBaseUrl, getConfig } from "./config";
@@ -256,6 +256,24 @@ async function postOneSlot(
     };
   }
   try {
+  // The approval fingerprint pins WHAT was approved: a slot rewritten after
+  // its approval must not publish on the old grant (luna, high). Absent
+  // sidecar = legacy day, no check; present sidecar with a different hash =
+  // refuse and say so.
+  if (!config.dryRun && !preflightOnly) {
+    const { createHash } = await import("node:crypto");
+    const fpRaw = await readFile(join(root, "data", "approved-log", `${date}.fingerprints.json`), "utf8").catch(() => null);
+    if (fpRaw) {
+      const fingerprints = JSON.parse(fpRaw) as Record<string, string>;
+      const expected = fingerprints[String(slot.slot)];
+      const actual = createHash("sha256").update(JSON.stringify(slot)).digest("hex");
+      if (expected && expected !== actual) {
+        throw new Error(
+          `Slot ${slot.slot} content changed after approval (fingerprint mismatch); re-run auto-approve before publishing.`
+        );
+      }
+    }
+  }
   const resolvedMedia = await resolveSlotPublishMedia(slot, date, root);
   const imageAssets = imageAssetsForSlot(slot);
   const imageUrls = imageAssets.map(

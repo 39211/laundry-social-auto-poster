@@ -269,6 +269,16 @@ export async function autoApprove(
     };
   }
 
+  // Approval is a judgment about specific content: the fingerprint sidecar
+  // records the sha256 of each approved slot so publishing can refuse a
+  // package rewritten after its approval (luna, high — the already_approved
+  // short-circuit used to let any post-approval rewrite ride the old grant).
+  const { createHash } = await import("node:crypto");
+  const fingerprintPath = join(root, "data", "approved-log", `${date}.fingerprints.json`);
+  const fingerprints: Record<string, string> = JSON.parse(
+    await readFile(fingerprintPath, "utf8").catch(() => "{}")
+  );
+
   const approvedSlots: number[] = [];
   for (const slot of pending) {
     if (slotBlockers.has(slot.slot)) continue;
@@ -287,7 +297,12 @@ export async function autoApprove(
       note: "Unattended approval: publishing policy, content, publishable images and image sources all verified.",
       root
     });
+    fingerprints[String(slot.slot)] = createHash("sha256").update(JSON.stringify(slot)).digest("hex");
     approvedSlots.push(slot.slot);
+  }
+  if (approvedSlots.length > 0) {
+    const { writeFile: writeFp } = await import("node:fs/promises");
+    await writeFp(fingerprintPath, JSON.stringify(fingerprints, null, 2), "utf8");
   }
 
   const remainingBlockers = [...slotBlockers.values()].flat();

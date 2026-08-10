@@ -222,6 +222,40 @@ async function postOneSlot(
   now: Date = new Date()
 ): Promise<PostLogEntry[]> {
   if (!config.dryRun && !preflightOnly) assertInsidePublishWindow(slot.slot, config, now);
+  // Single-flight per date+slot: scheduler retries, the patrol and a manual
+  // run can overlap; two publishers that both read "no success yet" would
+  // both post to Meta and both succeed (luna, high). flag wx makes the
+  // check-and-claim atomic; a stale lock (>30 min) is treated as a crashed
+  // run and reclaimed.
+  let releaseLock: (() => Promise<void>) | undefined;
+  if (!config.dryRun && !preflightOnly) {
+    const { mkdir, writeFile, stat: statFile, unlink } = await import("node:fs/promises");
+    const lockDir = join(root, "data", "publish-locks");
+    await mkdir(lockDir, { recursive: true });
+    const lockFile = join(lockDir, `${date}-slot${slot.slot}.lock`);
+    try {
+      await writeFile(lockFile, new Date().toISOString(), { flag: "wx" });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+        const age = Date.now() - (await statFile(lockFile)).mtimeMs;
+        if (age < 30 * 60 * 1000) {
+          throw new Error(`Another publisher holds the lock for ${date} slot ${slot.slot} (${Math.round(age / 1000)}s old); refusing to double-publish.`);
+        }
+        await unlink(lockFile);
+        await writeFile(lockFile, new Date().toISOString(), { flag: "wx" });
+      } else {
+        throw error;
+      }
+    }
+    releaseLock = async () => {
+      try {
+        await unlink(lockFile);
+      } catch {
+        // A missing lock file at release is harmless.
+      }
+    };
+  }
+  try {
   const resolvedMedia = await resolveSlotPublishMedia(slot, date, root);
   const imageAssets = imageAssetsForSlot(slot);
   const imageUrls = imageAssets.map(
@@ -401,6 +435,9 @@ async function postOneSlot(
   }
 
   return outputs;
+  } finally {
+    if (releaseLock) await releaseLock();
+  }
 }
 
 export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Promise<PostLogEntry[]> {
@@ -416,6 +453,17 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
 
   const now = options.now ? new Date(options.now) : new Date();
   const date = options.date || getZonedDateParts(now, config.timezone).date;
+
+  // A live run may only publish today's calendar: --date with any other day
+  // plus --live used to sail straight through the slot-time window check and
+  // publish an old package as new (luna, high). Deliberate repairs go through
+  // ALLOW_OFF_SCHEDULE_PUBLISH, same as off-window publishing.
+  const today = getZonedDateParts(now, config.timezone).date;
+  if (!config.dryRun && !options.preflightOnly && date !== today && process.env.ALLOW_OFF_SCHEDULE_PUBLISH !== "true") {
+    throw new Error(
+      `Refusing to live-publish ${date} on ${today}: live runs are same-day only. Set ALLOW_OFF_SCHEDULE_PUBLISH=true only for a deliberate manual repair.`
+    );
+  }
 
   let content = await loadDailyContent(date, root);
   if (!content) {

@@ -16,6 +16,25 @@ $ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path -Parent $PSScriptRoot
+# Single-flight (luna, high): the scheduler retry, the patrol rescue and a
+# manual run can overlap; this script is not re-entrant. An exclusive-create
+# lock file makes the second instance exit instead of racing; a lock older
+# than 45 minutes is a crashed run and is reclaimed.
+$singleFlight = Join-Path $root ("data\run-locks\" + $MyInvocation.MyCommand.Name + ".lock")
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $singleFlight) | Out-Null
+try {
+    $fs = [IO.File]::Open($singleFlight, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write)
+    $fs.Close()
+} catch {
+    $lockAge = (Get-Date) - (Get-Item $singleFlight).LastWriteTime
+    if ($lockAge.TotalMinutes -lt 45) { exit 0 }
+    Remove-Item $singleFlight -Force
+    $fs = [IO.File]::Open($singleFlight, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write)
+    $fs.Close()
+}
+Register-EngineEvent PowerShell.Exiting -Action { Remove-Item $using:singleFlight -Force -ErrorAction SilentlyContinue } | Out-Null
+try {
+
 $run = Join-Path $root "output\reels-run\2026-07-29"
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
 $now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
@@ -462,4 +481,7 @@ if ($concept) {
     Write-Log "No new production; existing assets re-scheduled for plan window."
 } else {
     Write-Log "Nothing produced and nothing scheduled."
+}
+} finally {
+    Remove-Item $singleFlight -Force -ErrorAction SilentlyContinue
 }

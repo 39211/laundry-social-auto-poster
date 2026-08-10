@@ -51,7 +51,10 @@ function Register-LaundryTask {
     $action = New-ScheduledTaskAction -Execute "powershell.exe" `
         -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$root\scripts\$Script`"" `
         -WorkingDirectory $root
-    $settings = New-ScheduledTaskSettingsSet @common -ExecutionTimeLimit $TimeLimit
+    # IgnoreNew: whether overlapping triggers (retry slots, patrol starts) run
+    # concurrently used to depend on the host default; publishing scripts are
+    # not re-entrant, so a second instance must simply not start (luna, high).
+    $settings = New-ScheduledTaskSettingsSet @common -ExecutionTimeLimit $TimeLimit -MultipleInstances IgnoreNew
 
     Register-ScheduledTask -TaskName $Name -Action $action -Trigger $Triggers `
         -Settings $settings -Description $Description | Out-Null

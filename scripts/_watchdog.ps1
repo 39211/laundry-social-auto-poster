@@ -5,6 +5,26 @@
 # re-arming its siblings, a disable now holds only until whichever sibling
 # fires next, at most a few hours.
 # Expects $logFile to be defined by the caller; falls back to silent enable.
+#
+# Maintenance suppression (luna, high): a human who disables a task to STOP a
+# bad publish used to be overruled within 30 minutes by whichever sibling
+# fired next. An explicit, expiring token now pauses the watchdog:
+#   data\maintenance-suppress.json  ->  { "until": "2026-08-11T15:00:00+08:00", "reason": "..." }
+# Expired or malformed tokens are ignored, so the pause can never become
+# permanent by accident.
+$watchdogSuppressPath = Join-Path (Split-Path -Parent $PSScriptRoot) "data\maintenance-suppress.json"
+if (Test-Path $watchdogSuppressPath) {
+    try {
+        $watchdogSuppress = ConvertFrom-Json ([IO.File]::ReadAllText($watchdogSuppressPath, [Text.UTF8Encoding]::new($false)))
+        if ([DateTime]::Parse($watchdogSuppress.until) -gt (Get-Date)) {
+            if ($logFile) {
+                "[{0:yyyy-MM-dd HH:mm:ss}] Watchdog suppressed until {1}: {2}" -f (Get-Date), $watchdogSuppress.until, $watchdogSuppress.reason |
+                    Add-Content -Path $logFile -Encoding UTF8
+            }
+            return
+        }
+    } catch {}
+}
 foreach ($watchdogTask in Get-ScheduledTask -ErrorAction SilentlyContinue |
     Where-Object { $_.TaskName -like "Laundry-*" -and $_.State -eq "Disabled" }) {
     Enable-ScheduledTask -TaskName $watchdogTask.TaskName -ErrorAction SilentlyContinue | Out-Null

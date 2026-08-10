@@ -21,11 +21,19 @@ function Read-Json([string]$path) {
     # the pipeline emits a JSON array as ONE object, downstream Where-Object
     # then filters the array itself (property enumeration made every slot look
     # unposted in the first live test of this script).
-    try {
-        $raw = [IO.File]::ReadAllText($path, [Text.UTF8Encoding]::new($false))
-        $parsed = ConvertFrom-Json $raw
-        return $parsed
-    } catch { return $null }
+    # One retry after a beat: writers use temp-file-then-rename, and the 22:50
+    # run on 2026-08-10 hit exactly that rename window on youtube-log, counting
+    # two live uploads as zero.
+    foreach ($attempt in 1, 2) {
+        try {
+            $raw = [IO.File]::ReadAllText($path, [Text.UTF8Encoding]::new($false))
+            $parsed = ConvertFrom-Json $raw
+            return $parsed
+        } catch {
+            if ($attempt -eq 1 -and (Test-Path $path)) { Start-Sleep -Seconds 2 } else { return $null }
+        }
+    }
+    return $null
 }
 
 function Show-Toast([string]$text) {

@@ -61,7 +61,9 @@
     "first-comment": "tsx src/firstComment.ts",
     "day-lock": "tsx src/dayLock.ts",
     "indexing-push": "tsx src/indexingPush.ts",
-    "share-story": "tsx src/postStory.ts"
+    "share-story": "tsx src/postStory.ts",
+    "ga4-report": "tsx src/ga4Report.ts",
+    "ga4-authorize": "node scripts/ga4-authorize.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.7"

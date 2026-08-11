@@ -131,4 +131,12 @@ if ($ok) {
     if ($tomorrowReels -like "missing*") { $gaps += "明日影片素材缺" }
     Show-Toast ("$date 有缺口:" + ($gaps -join ";") + "。報告:output\day-reports\$date.json")
 }
+
+# --- GA4 line_click into the leads ledger ------------------------------------
+# Reporting only, never a gate: an unconfigured or failing read side writes
+# source_clicks_status="unmeasured" and the settlement carries on. What it must
+# never do is write a zero -- the whole reason this exists is that a zero
+# nobody fetched was being read as evidence that nobody clicked.
+cmd /c "npm.cmd run ga4-report -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+
 exit 0

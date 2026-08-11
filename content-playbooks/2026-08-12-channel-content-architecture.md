@@ -78,8 +78,8 @@
 |---|---|---|
 | 寫入端 | ✅ `go/line.html` 帶 gtag,`line_click` by source 事件已埋 | `docs/go/line.html:9-23`(G-ZKHW4MTBZJ) |
 | 讀取端 | ❌ **不存在**(全庫 grep runReport/analyticsdata 0 命中)——所以 line_click 永遠讀成預設 0 | 六席審核+自驗 |
-| **建案** | `src/ga4Report.ts`:Data API 拉 line_click by source 日粒度 → 寫進 leads ledger 的 source_clicks 欄;掛進 22:50 前 | 程式 P1 內寫好 |
-| **前置(老闆一次性)** | `.env` 只有量測 ID,**無 Data API 憑證**——需老闆在 GA4 後台開 property 存取(服務帳戶或 OAuth,約 10 分鐘,步驟我備好) | 加入「等老闆」清單第 5 件 |
+| 讀取端(程式) | ✅ **已建** `src/ga4Report.ts`:Data API runReport 拉 line_click by source,寫進 ledger;已掛 22:50;5 個測試含突變實測(改成回 0 會判紅) | 2026-08-12 |
+| **只缺兩個值(老闆 5 分鐘)** | `GA4_REFRESH_TOKEN`(跑 `npm run ga4-authorize` 產生)+ `GA4_PROPERTY_ID`(GA4 後台的資源 ID 純數字)。步驟:`docs-internal/ga4-setup.md` | 等老闆 |
 
 讀取端建好前,**全系統禁用「line_click=0」這種寫法**,一律寫「未量測」。
 

@@ -187,6 +187,10 @@ foreach ($slot in $dueSlots) {
 # when a sibling slot failed (one slot's failure used to skip all comments).
 Push-Location $root
 cmd /c "npm.cmd run first-comment -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+# Story re-share: a second surface with its own ranking, reaching followers who
+# never see the feed post. Idempotent per slot, only for posts confirmed live,
+# and a failure here is logged rather than treated as a publishing failure.
+cmd /c "npm.cmd run share-story -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
 Pop-Location
 
 if ($failed.Count -gt 0) {

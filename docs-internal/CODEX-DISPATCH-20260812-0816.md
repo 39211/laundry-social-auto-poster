@@ -41,7 +41,8 @@
 
 | 時間 | 任務 | Codex 要做的 |
 |---|---|---|
-| 06:30 | Daily-Generate(生成當日圖文) | 07:30 前看一眼 `data/content-calendar/<今天>.json` 生出來沒 |
+| **開工第一件** | — | **讀 `docs-internal/ERROR-BOOK.md`**,對照今天要碰的東西掃相關段落(改內容看 A、驗證看 B、排程看 D、發布看 E) |
+| 06:30 | Daily-Generate(生成當日圖文) | 07:30 前看一眼 `data/content-calendar/<今天>.json` 生出來沒;同時看 `output/operations/indexing-push-<今天>.json` 是否 `indexnow_status: 200`、`thin_pages` 空 |
 | 09:00 | 審核提醒 | 無 |
 | 10:20/11:15 | Auto-Approve(閘門+核准) | 10:30 看 `data/approved-log/<今天>.json` 有 [1,2,3];沒有→讀 stdout 找哪個閘攔的 |
 | 11:35 | slot1 圖文發布 | 12:00 看 posted-log |
@@ -51,38 +52,60 @@
 | 20:35 | 晚間 Reel 發布 | 21:00 看 posted-log |
 | 21:00/22:15 | YT Shorts 上傳 | 21:30 看 `data/youtube-log/<今天>.json` 兩筆 video_id |
 | 22:50 | day-audit 結算 | 23:00 讀 `output/day-reports/<今天>.json`,`ok:false` 才動手 |
+| **收工最後一件** | — | **今天有沒有踩到新坑?有就當天補進 `ERROR-BOOK.md` 並 commit**(格式:症狀→真因→修法→怎麼再驗)。同時把當日優化寫進 `output/daily-optimization-log.md` |
 | 每 30 分 | watchdog 巡邏(含救援) | 無 |
 
 **排錯順序**:day-report 的 `missing_posts` → 對應 log → 只有在 watchdog 兩輪(1 小時)沒救回來時才手動跑 `powershell -File scripts/catchup-publish.ps1`。
 
+**「踩到坑」的判準**(不要只記大事故,這樣會漏掉最有價值的):
+凡是**你以為會 A、結果是 B**,而且下一個人也會這樣以為的,就是一個坑。
+包含:某個指令的行為跟你預期不同、某個檔案的欄位不是你想的那個意思、
+某個驗證方法回了讓你誤判的結果、你查了超過 15 分鐘才搞懂的任何事。
+**修好了不等於記下來了**——修法留在你的上下文裡,對下一個執行者等於不存在。
+
 ## 三、逐日任務(核心)
 
 ### 8/12(三)
+- [ ] **開工**:掃 `ERROR-BOOK.md` 今天相關段落
 - [ ] 例行看守(上表)。今日內容已備妥上鎖:slot1=午睡枕套(圖已驗)、中午=襯衫領 15s、晚間=白鞋 15s。
 - [ ] **14:00 治療 A 首次實產**:今天生產的是治療 A(快節奏旁白)版本。產完後必驗:`ffprobe` 時長、聽 TTS 有沒有斷句錯誤、抽 3 幀親眼看(第 1 秒/第 4 秒/最後 1 秒)。治療對照表:`data/mid-treatment-plan.json`(8/12=A、8/13=B、8/14=C)。
 - [ ] **16:00 一次性補產觸發會自己跑**(已註冊),驗證 `luggage-wheel-15s.mp4` 之外還產了什麼,對 `data/ab-test-plan.json` 檢查 8/15-16 素材齊不齊。
 - [ ] 每日研究(常設):X 搜尋「洗鞋」「開學 洗衣」等關鍵詞 10 分鐘,發現可用鉤子就 append 進 `data/hooks-bank.json`(格式照現有條目)。
 - [ ] 22:50 後把 day-report 濃縮三行回報老闆。
 
+- [ ] **收工**:新坑補進 `ERROR-BOOK.md`(沒踩到就寫「無」)+ 當日優化寫進 `output/daily-optimization-log.md`
+
 ### 8/13(四)
+- [ ] **開工**:掃 `ERROR-BOOK.md` 今天相關段落
 - [ ] 例行看守。治療 B(第 4 秒給答案)生產與驗證,方法同上。
 - [ ] **72h 數據迭代日**:跑 `npx tsx src/instagramInsights.ts --limit 6`,對照 8/10-11 各貼文的 reach/ig_reels_avg_watch_time。規則:哪支 watch-time 最高,把它的開頭句式(前 5 個字的結構)寫進 `data/hooks-bank.json` 置頂;**只改這一個變數**。
 - [ ] 檢查 GSC 索引數:`npx tsx src/searchConsole.ts --report coverage`(若腳本不存在改用 GSC 網頁版,讀 sitemap 已提交/已索引數),記錄到 `output/seo-tracking.json`(date, submitted, indexed 三欄,append)。
 
+- [ ] **收工**:新坑補進 `ERROR-BOOK.md`(沒踩到就寫「無」)+ 當日優化寫進 `output/daily-optimization-log.md`
+
 ### 8/14(五)
+- [ ] **開工**:掃 `ERROR-BOOK.md` 今天相關段落
 - [ ] 例行看守。治療 C(中段插入第二鉤)生產與驗證。
 - [ ] **A/B 資料收官前檢查**:確認 8/12-14 三天的 posted-log 與 treatment manifest(`output/reels-run/2026-07-29/treatments/`)對得上——哪天發的是哪個治療,不能有含糊。
 - [ ] 準備長片素材:`data/longform-ep1-spec.json` 的 `new_stills_needed` 四張特寫,用 Codex 圖像生成(風格規則照 `data/style-master.md`,**手機感、不准電影感**),存 `output/longform/ep1/stills/`,親眼驗每一張。
 
+- [ ] **收工**:新坑補進 `ERROR-BOOK.md`(沒踩到就寫「無」)+ 當日優化寫進 `output/daily-optimization-log.md`
+
 ### 8/15(六)
+- [ ] **開工**:掃 `ERROR-BOOK.md` 今天相關段落
 - [ ] 例行看守。**15:00 長片生產觸發會自己跑**;若 produce 腳本不支援長片(它目前只做 Reel),就手動組裝:照 `content-playbooks/longform-ep1-script.md` 的六場腳本,用已有素材+新特寫,ffmpeg concat,TTS 旁白(聲音照 spec),目標 85-95 秒,9:16。
 - [ ] **三治療首批數據**(8/12 的 A 已滿 72h?未滿就只看 24-48h 趨勢,不下結論):記進 `data/mid-treatment-results.json`(date, treatment, avg_watch_time, reach)。**8/17 才做裁決,不要提前**。
 - [ ] 驗證 8/15 起統一 15s 的排程正確發布(中午+晚間都應是 15s 檔)。
 
+- [ ] **收工**:新坑補進 `ERROR-BOOK.md`(沒踩到就寫「無」)+ 當日優化寫進 `output/daily-optimization-log.md`
+
 ### 8/16(日)
+- [ ] **開工**:掃 `ERROR-BOOK.md` 今天相關段落
 - [ ] 例行看守(週日店休,發布照常)。
 - [ ] **長片 ep1 發布**:YT 正片(不是 Shorts)+ FB/IG。標題與描述照 `data/longform-ep1-spec.json` 的 yt 欄(渠道碼 `source=yt-long`)。上傳後親自打開連結驗證公開可看+描述六要素(參考價/至善國中/儲值/source=/電話/指南連結)——**驗證用 Python 單程序抓頁面比對,不要用 shell 管線**。
 - [ ] 週結:五天 day-reports 彙整一頁給老闆(發布率/素材產出/治療初步觀察/索引數變化)。
+
+- [ ] **收工**:新坑補進 `ERROR-BOOK.md`(沒踩到就寫「無」)+ 當日優化寫進 `output/daily-optimization-log.md`
 
 ## 四、影片生產規格(完整,照抄即可)
 

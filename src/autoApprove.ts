@@ -240,6 +240,26 @@ export async function autoApprove(
     if (!slotBlockers.has(slot.slot)) record(`slot_${slot.slot}`, true);
   }
 
+  // Conversion-field soft gate (luna fatal 1層/01): every caption should carry
+  // a price cue, the free-pickup line and the LINE ID -- posts without them
+  // reach people but give a ready buyer nothing to act on. Soft for one week
+  // (warnings in checks, never blocks); hardens 2026-08-18 if the false-alarm
+  // rate stays low.
+  for (const slot of content.slots) {
+    const caption = slot.instagram_caption ?? "";
+    const missing: string[] = [];
+    if (!/參考價|\$\d|LINE 傳照片|報價/.test(caption)) missing.push("價格線索");
+    if (!/收送|到府/.test(caption)) missing.push("收送句");
+    if (!caption.includes("0968327653")) missing.push("LINE ID");
+    if (missing.length > 0) {
+      checks.push({
+        name: `conversion_fields_slot_${slot.slot}`,
+        ok: true,
+        detail: `soft warning: 缺 ${missing.join("/")}`
+      });
+    }
+  }
+
   const approvals = await loadApprovalLog(date, root);
   const pending = content.slots.filter((slot) =>
     PLATFORMS.some((platform) => !hasApprovedPost(approvals, slot.slot, platform))

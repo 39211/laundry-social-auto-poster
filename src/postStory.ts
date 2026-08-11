@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { getOption, isMain } from "./cli";
 import { getConfig } from "./config";
+import { verifyPublicAssetUrl } from "./githubPages";
 import { loadDailyContent, loadPostLog, readJsonFile, writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
@@ -103,7 +104,18 @@ export async function shareLivePostsToStories(options: { date?: string; root?: s
       continue;
     }
 
-    const videoUrl = slot.public_video_url;
+    // The calendar carries a video URL for every slot, including days whose
+    // video was deferred and never rendered. Handing Meta a 404 produced a
+    // container in ERROR state (2026-08-11 slot 1), so the video URL is used
+    // only when it is actually fetchable; otherwise the slot's image is.
+    let videoUrl = slot.public_video_url;
+    if (videoUrl) {
+      try {
+        await verifyPublicAssetUrl(videoUrl);
+      } catch {
+        videoUrl = undefined;
+      }
+    }
     const imageUrl = slot.public_image_url;
     const mediaUrl = videoUrl || imageUrl;
     if (!mediaUrl) {

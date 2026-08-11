@@ -99,4 +99,39 @@ foreach ($checkpoint in 30, 60) {
     }
 }
 
+# --- weekly SEO iteration (Wednesdays, from 2026-08-15) ----------------------
+# The site's own numbers decide what to strengthen: Search Console shows which
+# queries already have impressions, and a page with impressions but no clicks
+# is a title/description problem, not a content-volume problem. Running it
+# inside the existing 09:00 review means no new scheduled task to keep alive.
+if ($now.DayOfWeek -eq "Wednesday" -and $now -ge [DateTime]"2026-08-15") {
+    Write-Log "Weekly SEO iteration: running indexing audit and writing the review queue."
+    Push-Location $root
+    cmd /c "npm.cmd run indexing-push -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    $indexingExit = $LASTEXITCODE
+    Pop-Location
+
+    $seoQueue = Join-Path $outDir "seo-weekly-$date.json"
+    $gscReport = Join-Path $root "output\operations\gsc-performance-optimization.json"
+    $gscAge = if (Test-Path $gscReport) { [int]((Get-Date) - (Get-Item $gscReport).LastWriteTime).TotalDays } else { -1 }
+    $payload = [ordered]@{
+        date              = $date
+        indexing_audit_ok = ($indexingExit -eq 0)
+        gsc_report_age_days = $gscAge
+        needs_fresh_gsc_export = ($gscAge -lt 0 -or $gscAge -gt 7)
+        next_actions      = @(
+            "Export Search Console 查詢/網頁/查詢與網頁 CSV (last 28 days)",
+            "Rank pages by impressions with CTR below 1%: those are title/description work",
+            "Rank queries at position 4-15 with zero clicks: those are the winnable ones",
+            "Apply at most one change per page, then hold it for 7 days"
+        )
+    }
+    $payload | ConvertTo-Json -Depth 4 | Out-File -FilePath $seoQueue -Encoding utf8
+    if ($payload.needs_fresh_gsc_export) {
+        Show-Toast "每週 SEO 迭代:需要新的 Search Console 匯出資料才能判讀。清單:output\reviews\seo-weekly-$date.json"
+    } else {
+        Show-Toast "每週 SEO 迭代清單已產生:output\reviews\seo-weekly-$date.json"
+    }
+}
+
 Write-Log "Review run finished."

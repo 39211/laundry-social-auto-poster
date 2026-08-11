@@ -1,0 +1,76 @@
+{
+ "version": 1,
+ "created": "2026-08-11",
+ "principle": "架構先行,數字觸發,老闆按鍵(boost 需本人帳號),素材永遠用當週實測最佳",
+ "audience_pack": {
+  "name": "西屯家庭主受眾",
+  "geo": {
+   "center": "台中市西屯區青海路二段365號",
+   "radius_km": 5
+  },
+  "age": [
+   25,
+   45
+  ],
+  "gender": "all",
+  "interests_hint": [
+   "家庭",
+   "育兒",
+   "居家生活",
+   "逢甲商圈"
+  ],
+  "exclusions": [
+   "同業從業者(若可)"
+  ],
+  "placement": "Advantage+(讓系統跑),首選 Reels/限動",
+  "language": "zh_TW"
+ },
+ "creative_spec": {
+  "source": "當週 72h 檢討分數最高的一支 Reel(唯一準則,不憑喜好)",
+  "must_have": [
+   "前2秒磨損特寫",
+   "參考價行",
+   "至善國中對面",
+   "LINE ID 0968327653"
+  ],
+  "landing": "IG 主頁(冷帳號先養權重)→ A3 起改 LINE 深連結"
+ },
+ "ladder": [
+  {
+   "stage": "A0",
+   "status": "ready",
+   "trigger": "現在",
+   "action": "本檔案+受眾包完成,零花費",
+   "budget_ntd": 0
+  },
+  {
+   "stage": "A1",
+   "status": "waiting_trigger",
+   "trigger": "任一支 Reel 收藏+分享 ≥3(72h檢討首次達標)",
+   "action": "Boost 該支 3 天,受眾=西屯家庭主受眾",
+   "budget_ntd": 300,
+   "success": "觸及≥2000 或 LINE點擊≥5 或 詢問≥1"
+  },
+  {
+   "stage": "A2",
+   "status": "locked",
+   "trigger": "A1 帶來 ≥2 則詢問",
+   "action": "每週 boost 當週最佳一支",
+   "budget_ntd": 500,
+   "success": "每週詢問≥3"
+  },
+  {
+   "stage": "A3",
+   "status": "locked",
+   "trigger": "月詢問 ≥10",
+   "action": "開廣告帳戶,目標=訊息/LINE點擊,轉換追蹤=GA4 line_click",
+   "budget_ntd": "老闆定(建議月3000起)"
+  }
+ ],
+ "owner_steps_when_A1_fires": [
+  "我會把素材與這份受眾設定整理成逐步截圖指引",
+  "老闆在 IG App 按『加強推廣貼文』照指引選受眾與預算",
+  "3 天後我出成效報告,決定 A2"
+ ],
+ "review": "每次投放後 72h 出報告:花費/觸及/點擊/詢問,每次詢問成本(CPI)。CPI>150 即停該素材。"
+}

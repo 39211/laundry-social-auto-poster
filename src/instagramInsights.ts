@@ -3,6 +3,13 @@ import type { AppConfig, DailySlot, PostLogEntry } from "./types";
 import { loadDailyContent, loadPostLog, writeJsonAtomic } from "./logging";
 import { instagramInsightsReportPath, postedLogDirectory, projectRoot } from "./paths";
 
+// Watch-through metrics matter more than any other number we collect: 2026
+// reach research puts Reels holding past three seconds at 5-10x the reach of
+// ones that do not, and our own reels fail on saves and shares while nobody
+// measured whether viewers even stayed. ig_reels_avg_watch_time (ms) against
+// the clip's own length is the closest available proxy for hold rate.
+// Metrics unavailable for a media type come back as errors per metric, which
+// the caller already records as null rather than failing the row.
 export const DEFAULT_INSTAGRAM_MEDIA_INSIGHT_METRICS = [
   "views",
   "reach",
@@ -10,7 +17,9 @@ export const DEFAULT_INSTAGRAM_MEDIA_INSIGHT_METRICS = [
   "comments",
   "shares",
   "saved",
-  "total_interactions"
+  "total_interactions",
+  "ig_reels_avg_watch_time",
+  "ig_reels_video_view_total_time"
 ] as const;
 
 export interface InstagramInsightsOptions {

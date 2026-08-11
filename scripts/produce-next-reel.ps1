@@ -571,9 +571,46 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
                 }
                 default { "One restrained continuous action: an extremely gentle push-in with slight natural handheld shake." }
             }
-            $template.prompt = "Animate the supplied image while preserving its exact composition, object placement, materials, surface wear, lighting direction and colour temperature. " +
-                $actDirection +
-                " Keep every object in its original position and its original condition. Do not clean, repair, alter or transform the object beyond what the supplied image already shows. Do not add or remove anything. Do not add people, readable text, captions, logos, dialogue or music. No morphing, warping, flicker, jump cuts, sudden motion or collapsing geometry. Audio near-silent with only faint room tone. Stable first and final frames. Duration: 5 seconds. Aspect ratio: 9:16. Resolution: 720p."
+            # Field order and the fields themselves come from the reference
+            # repository's prompt structure: a fixed opening, style stated up
+            # front in blocks rather than trailing adjectives, an asset handle,
+            # an explicit shot count, then per-shot action summary, framing,
+            # camera, motion and sound in that order.
+            #
+            # Two of its rules cannot be followed here and it is worth saying
+            # why. It requires a continuous unit to be one prompt with internal
+            # shot timings, but grok-imagine-video-1.5 caps a generation at five
+            # seconds, so three acts remain three generations; continuity is
+            # bought at the stills stage instead, where all three now come from
+            # editing one image. And it writes prompts in Chinese because its
+            # target model is Chinese -- the structure is what transfers, not
+            # the language, and English is what this model has been producing
+            # good stills from for a month.
+            $sceneSound = switch ($state) {
+                "middle" { "Sound: the brush or cloth moving against the surface, faint room tone, nothing else. No music, no voice." }
+                default { "Sound: faint room tone only. No music, no voice." }
+            }
+            $actSummary = switch ($state) {
+                "before" { "Shot summary: the object sits untouched and the camera finds the worn area the topic is about." }
+                "middle" { "Shot summary: a hand and a shop tool are already working on that same worn area, and the work continues." }
+                "after"  { "Shot summary: the same object, cleaned, settles in frame." }
+                default  { "Shot summary: the object holds in frame." }
+            }
+            $template.prompt = "No music, no on-screen text, no subtitles, no captions. " +
+                "[Overall look] Handheld phone photography, real physics, ordinary shop lighting; not cinematic, not a studio, no 3D-render or game-engine look, no illustration. " +
+                "[Material] Keep the object's exact material, colour, wear marks, fittings and laces as supplied -- leather grain, fabric weave, rubber edge and every existing mark stay identical. " +
+                "[Light] Keep the supplied image's light: window key from one side, weak fluorescent fill, uneven counter brightness, same colour temperature throughout. " +
+                "[Core physics] The object has weight and a continuous contact shadow that stays attached to it; anything touching it deforms slightly at the point of contact. " +
+                "Source: the supplied image is the only reference for object identity, framing and background. " +
+                "This clip is exactly ONE continuous shot -- do not add a second shot, do not cut, do not insert an establishing frame. " +
+                $actSummary + " " +
+                "Framing: preserve the supplied composition and object placement; the object stays in the same third of the frame it starts in. " +
+                $actDirection + " " + $sceneSound + " " +
+                # Duration, aspect and resolution are manifest fields, and a
+                # fixed tail repeating them in the prose spends weight on
+                # something the API already knows. What stays here are the
+                # failures this model actually makes on this kind of clip.
+                "Keep every object in its original position and its original condition. Do not clean, repair, alter or transform the object beyond what the supplied image already shows. Do not add or remove anything. Do not add people or faces. No morphing, warping, flicker, jump cuts, sudden motion or collapsing geometry. Stable first and final frames."
             $template | ConvertTo-Json -Depth 5 | Set-Content $manifest -Encoding utf8
 
             Write-Log "Generating clip $concept-$state (attempt $attempt)."

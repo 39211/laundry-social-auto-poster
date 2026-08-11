@@ -57,17 +57,23 @@ export async function generateDailyContent(options: GenerateDailyContentOptions 
         const videoPath = join(root, ...current.local_video_path.split("/"));
         const videoExists = await exists(videoPath);
         if (videoExists) {
-          // Carry the media, not the words. Keeping the whole slot meant a
-          // video scheduled from yesterday's slot 3 into today's slot 2
+          // Replace the words, keep everything else. Keeping the whole slot
+          // meant a video scheduled from yesterday's slot 3 into today's slot 2
           // brought its caption along, so five days of August published four
           // pairs of byte-identical posts one day apart -- and the plan for
-          // 08-13/08-14 had already queued a fifth. The caption belongs to the
-          // day being generated; only the reviewed file survives.
+          // 08-13/08-14 had already queued a fifth.
+          //
+          // Listing the media fields to carry over is the wrong way round: the
+          // first attempt at this carried media_type and local_video_path and
+          // dropped public_video_url and video_prompt, both of which
+          // validatePublishableReel requires. A reviewed Reel would have failed
+          // validation and published its cover image instead, silently. The
+          // scheduled slot stays intact and only the captions -- the fields
+          // that caused the duplication -- come from the new generation.
           content.slots[index] = {
-            ...slot,
-            media_type: current.media_type,
-            local_video_path: current.local_video_path,
-            topic: current.topic,
+            ...current,
+            instagram_caption: slot.instagram_caption,
+            facebook_caption: slot.facebook_caption,
           };
         }
       }

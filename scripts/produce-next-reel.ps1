@@ -818,8 +818,36 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
 $scheduledAny = $false
 $failedSchedule = $false
 
+# A treated cut has to sit at the canonical name to be scheduled, but this loop
+# walks four days and every one of them resolves the same canonical name. Left
+# alone, the treatment produced for 08-14 would also be scheduled for 08-15's
+# untreated occurrence of the same concept -- the experiment contaminating the
+# days it is supposed to be compared against, and every later rerun of that
+# concept shipping a treatment nobody recorded. Before each day is scheduled,
+# the canonical name is pointed at the version that day is entitled to.
+function Set-CanonicalForDate {
+    param([string]$ForDate, [string]$ConceptId, [string]$Variant)
+    $canonical = Get-ReelAssetPath $ConceptId $Variant
+    $untreated = [IO.Path]::ChangeExtension($canonical, $null).TrimEnd('.') + "-untreated.mp4"
+    $treatment = Get-MidTreatment $ForDate
+    $wanted = if ($treatment -and $treatment -ne "none") {
+        $suffix = Get-TreatmentSuffix $treatment
+        [IO.Path]::ChangeExtension($canonical, $null).TrimEnd('.') + $suffix + ".mp4"
+    } else {
+        $untreated
+    }
+    if (-not (Test-Path $wanted)) { return }        # nothing to swap in
+    if (-not (Test-Path $canonical)) { return }
+    if ((Get-FileHash $wanted -Algorithm SHA256).Hash -eq (Get-FileHash $canonical -Algorithm SHA256).Hash) { return }
+    Copy-Item $wanted $canonical -Force
+    if (Test-Path "$wanted.audio.json") { Copy-Item "$wanted.audio.json" "$canonical.audio.json" -Force }
+    Write-Log "Canonical asset for $ForDate set to $(Split-Path -Leaf $wanted)."
+}
+
 if ($windowDays.Count -gt 0) {
     foreach ($day in $windowDays) {
+        Set-CanonicalForDate -ForDate $day.date -ConceptId $day.noon.conceptId -Variant $day.noon.variant
+        Set-CanonicalForDate -ForDate $day.date -ConceptId $day.evening.conceptId -Variant $day.evening.variant
         $noonAsset = Get-ReelAssetPath $day.noon.conceptId $day.noon.variant
         $eveAsset = Get-ReelAssetPath $day.evening.conceptId $day.evening.variant
         if (-not ((Test-Path $noonAsset) -and (Test-Path $eveAsset))) {

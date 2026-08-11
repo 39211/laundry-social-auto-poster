@@ -1,8 +1,9 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { postCurrentSlot } from "../src/postCurrentSlot";
+import { generateDailyContent } from "../src/generateDailyContent";
 
 // The 199 tests this suite joins say nothing about whether the publish guards
 // hold: deleting the repeat gate, the manifest gate, the fingerprint check or
@@ -118,4 +119,37 @@ describe("publish guards", () => {
   // survives deleting the thing it guards is worse than no test. The leak's
   // actual consequence -- an empty sidecar disabling the check -- is what the
   // test above covers, and that one does fail when its guard is removed.
+
+  it("regeneration keeps a scheduled reel's validation fields and replaces only its captions", async () => {
+    // The duplicate-caption fix first carried media_type and local_video_path
+    // across and dropped public_video_url and video_prompt, which
+    // validatePublishableReel requires. A reviewed reel would have failed
+    // validation and published its cover image instead, saying nothing.
+    const scheduled = {
+      ...slot(2, "昨天寫的文案,不該跟著影片過來。"),
+      media_type: "reel" as const,
+      local_video_path: `docs/assets/${DATE}/slot-02.mp4`,
+      public_video_url: "https://example.test/slot-02.mp4",
+      video_prompt: "the exact motion prompt the freshness gate checks",
+    };
+    await mkdir(join(root, "data", "content-calendar"), { recursive: true });
+    await writeFile(
+      join(root, "data", "content-calendar", `${DATE}.json`),
+      JSON.stringify({ date: DATE, slots: [slot(1, "填充"), scheduled, slot(3, "填充")] }),
+      "utf8"
+    );
+    await mkdir(join(root, "docs", "assets", DATE), { recursive: true });
+    await writeFile(join(root, "docs", "assets", DATE, "slot-02.mp4"), "video", "utf8");
+
+    await generateDailyContent({ date: DATE, root, force: true });
+
+    const after = JSON.parse(
+      await readFile(join(root, "data", "content-calendar", `${DATE}.json`), "utf8")
+    ) as { slots: Record<string, unknown>[] };
+    const kept = after.slots.find((s) => s.slot === 2)!;
+    expect(kept.public_video_url).toBe("https://example.test/slot-02.mp4");
+    expect(kept.video_prompt).toBe("the exact motion prompt the freshness gate checks");
+    expect(kept.local_video_path).toBe(`docs/assets/${DATE}/slot-02.mp4`);
+    expect(kept.instagram_caption).not.toBe("昨天寫的文案,不該跟著影片過來。");
+  });
 });

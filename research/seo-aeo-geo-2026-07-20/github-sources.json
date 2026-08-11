@@ -1,0 +1,6253 @@
+{
+  "generated_at": "2026-07-19T21:01:51.940Z",
+  "methodology": {
+    "search_count": 9,
+    "unique_repositories_discovered": 672,
+    "readme_candidates_checked": 360,
+    "relevant_after_validation": 322,
+    "selected_count": 160,
+    "selection_note": "Repositories are discovery and implementation evidence, not proof of ranking causation. Each selected item matched at least one explicit SEO/AEO/GEO term in metadata or the first 80k README characters."
+  },
+  "category_counts": {
+    "ai-discovery": 101,
+    "geo-aeo": 54,
+    "ai-crawlers": 27,
+    "structured-data": 94,
+    "indexing": 98,
+    "local-seo": 20,
+    "measurement": 50,
+    "technical-seo": 66
+  },
+  "searches": [
+    {
+      "category": "ai-discovery",
+      "query": "\"llms.txt\" in:name,description,readme pushed:>=2025-01-01 stars:>=2"
+    },
+    {
+      "category": "geo-aeo",
+      "query": "\"generative engine optimization\" in:name,description,readme pushed:>=2025-01-01 stars:>=2"
+    },
+    {
+      "category": "geo-aeo",
+      "query": "\"answer engine optimization\" in:name,description,readme pushed:>=2025-01-01 stars:>=2"
+    },
+    {
+      "category": "ai-crawlers",
+      "query": "\"OAI-SearchBot\" OR \"PerplexityBot\" in:name,description,readme pushed:>=2025-01-01 stars:>=1"
+    },
+    {
+      "category": "structured-data",
+      "query": "\"schema.org\" \"JSON-LD\" SEO in:name,description,readme pushed:>=2024-01-01 stars:>=5"
+    },
+    {
+      "category": "indexing",
+      "query": "IndexNow SEO in:name,description,readme pushed:>=2024-01-01 stars:>=2"
+    },
+    {
+      "category": "local-seo",
+      "query": "\"local SEO\" \"Google Business Profile\" in:name,description,readme pushed:>=2024-01-01 stars:>=2"
+    },
+    {
+      "category": "measurement",
+      "query": "\"Google Search Console\" SEO in:name,description,readme pushed:>=2024-01-01 stars:>=5"
+    },
+    {
+      "category": "technical-seo",
+      "query": "sitemap robots.txt canonical lighthouse SEO in:name,description,readme pushed:>=2024-01-01 stars:>=10"
+    }
+  ],
+  "sources": [
+    {
+      "full_name": "AnswerDotAI/fasthtml",
+      "url": "https://github.com/AnswerDotAI/fasthtml",
+      "description": "The fastest way to create an HTML app",
+      "owner": "AnswerDotAI",
+      "stars": 6962,
+      "forks": 315,
+      "open_issues": 68,
+      "language": "Jupyter Notebook",
+      "license": "Apache-2.0",
+      "created_at": "2024-05-17T05:16:59Z",
+      "updated_at": "2026-07-19T18:44:10Z",
+      "pushed_at": "2026-07-19T11:17:26Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 7639,
+      "relevance_score": 81
+    },
+    {
+      "full_name": "vercel/chat",
+      "url": "https://github.com/vercel/chat",
+      "description": "A unified TypeScript SDK for building chat bots across Slack, Microsoft Teams, Google Chat, Discord, and more.",
+      "owner": "vercel",
+      "stars": 2214,
+      "forks": 265,
+      "open_issues": 30,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2025-12-22T04:45:42Z",
+      "updated_at": "2026-07-19T20:07:34Z",
+      "pushed_at": "2026-07-18T12:36:15Z",
+      "archived": false,
+      "topics": [
+        "ai",
+        "chat",
+        "discord",
+        "google-chat",
+        "slack",
+        "teams",
+        "vercel"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 4701,
+      "relevance_score": 81
+    },
+    {
+      "full_name": "microsoft/skills",
+      "url": "https://github.com/microsoft/skills",
+      "description": "Skills, MCP servers, Custom Agents, Agents.md for SDKs to ground Coding Agents",
+      "owner": "microsoft",
+      "stars": 2773,
+      "forks": 314,
+      "open_issues": 63,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2026-01-16T18:34:20Z",
+      "updated_at": "2026-07-19T19:58:54Z",
+      "pushed_at": "2026-07-17T21:06:30Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "agents",
+        "azure",
+        "foundry",
+        "mcp",
+        "sdk",
+        "skills"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 44177,
+      "relevance_score": 80.9
+    },
+    {
+      "full_name": "ai-boost/awesome-prompts",
+      "url": "https://github.com/ai-boost/awesome-prompts",
+      "description": "Curated list of chatgpt prompts from the top-rated GPTs in the GPTs Store. Prompt Engineering, prompt attack & prompt protect. Advanced Prompt Engineering papers.",
+      "owner": "ai-boost",
+      "stars": 8507,
+      "forks": 804,
+      "open_issues": 33,
+      "language": null,
+      "license": "GPL-3.0",
+      "created_at": "2024-01-19T15:15:10Z",
+      "updated_at": "2026-07-19T17:13:50Z",
+      "pushed_at": "2026-07-19T14:50:32Z",
+      "archived": false,
+      "topics": [
+        "awesome",
+        "awesome-list",
+        "chatgpt",
+        "gpt4",
+        "gpts",
+        "gptstore",
+        "papers",
+        "prompt",
+        "prompt-engineering"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 76
+    },
+    {
+      "full_name": "nowork-studio/NotFair",
+      "url": "https://github.com/nowork-studio/NotFair",
+      "description": "Open-source Claude Code skills for SEO, GEO, Google Ads, Meta Ads",
+      "owner": "nowork-studio",
+      "stars": 3157,
+      "forks": 386,
+      "open_issues": 5,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2026-03-27T06:39:58Z",
+      "updated_at": "2026-07-19T16:59:27Z",
+      "pushed_at": "2026-07-19T08:50:36Z",
+      "archived": false,
+      "topics": [
+        "claude-code-plugin",
+        "claude-skills",
+        "geo",
+        "googleads",
+        "googleadsmcp",
+        "mcp",
+        "metaads",
+        "seo"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "structured-data",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 20068,
+      "relevance_score": 76
+    },
+    {
+      "full_name": "aaron-he-zhu/aaron-marketing-skills",
+      "url": "https://github.com/aaron-he-zhu/aaron-marketing-skills",
+      "description": "120 marketing skills + 8 commands for Claude Code & AI agents across 7 disciplines — SEO/GEO, influencer, paid ads, email, product launch, organic social & brand narrative — on one shared contract, with 8 auditor gates: CORE-EEAT · CITE · STAR · ROAS · SEND · RAMP · ECHO · TALE.",
+      "owner": "aaron-he-zhu",
+      "stars": 2420,
+      "forks": 332,
+      "open_issues": 1,
+      "language": "Python",
+      "license": "Apache-2.0",
+      "created_at": "2025-12-18T03:35:29Z",
+      "updated_at": "2026-07-19T18:20:08Z",
+      "pushed_at": "2026-07-19T08:32:55Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "brand-messaging",
+        "brand-narrative",
+        "claude-code",
+        "claude-skills",
+        "content-optimization",
+        "creator-marketing",
+        "email-marketing",
+        "generative-engine-optimization",
+        "geo",
+        "influencer-marketing",
+        "marketing",
+        "marketing-automation",
+        "organic-social",
+        "paid-advertising",
+        "product-hunt",
+        "product-launch",
+        "roas",
+        "seo",
+        "social-media-marketing"
+      ],
+      "search_categories": [
+        "structured-data",
+        "indexing",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 72593,
+      "relevance_score": 76
+    },
+    {
+      "full_name": "harlan-zw/nuxt-seo",
+      "url": "https://github.com/harlan-zw/nuxt-seo",
+      "description": "Fully equipped Technical SEO & AEO for busy Nuxters.",
+      "owner": "harlan-zw",
+      "stars": 1415,
+      "forks": 93,
+      "open_issues": 6,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2022-12-13T03:45:51Z",
+      "updated_at": "2026-07-19T15:13:51Z",
+      "pushed_at": "2026-07-19T15:13:51Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-crawlers",
+        "structured-data",
+        "indexing"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 7518,
+      "relevance_score": 76
+    },
+    {
+      "full_name": "msitarzewski/agency-agents",
+      "url": "https://github.com/msitarzewski/agency-agents",
+      "description": "A complete AI agency at your fingertips - From frontend wizards to Reddit community ninjas, from whimsy injectors to reality checkers. Each agent is a specialized expert with personality, processes, and proven deliverables.",
+      "owner": "msitarzewski",
+      "stars": 133865,
+      "forks": 21864,
+      "open_issues": 100,
+      "language": "Shell",
+      "license": "MIT",
+      "created_at": "2025-10-13T12:12:29Z",
+      "updated_at": "2026-07-19T20:55:48Z",
+      "pushed_at": "2026-07-17T15:25:48Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 79002,
+      "relevance_score": 75.9
+    },
+    {
+      "full_name": "matomo-org/device-detector",
+      "url": "https://github.com/matomo-org/device-detector",
+      "description": "The Universal Device Detection library will parse any User Agent and detect the browser, operating system, device used (desktop, tablet, mobile, tv, cars, console, etc.), brand and model. ",
+      "owner": "matomo-org",
+      "stars": 3506,
+      "forks": 511,
+      "open_issues": 74,
+      "language": "PHP",
+      "license": "LGPL-3.0",
+      "created_at": "2014-04-02T21:41:32Z",
+      "updated_at": "2026-07-19T11:02:52Z",
+      "pushed_at": "2026-07-15T11:03:00Z",
+      "archived": false,
+      "topics": [
+        "bot-detection",
+        "detection-library",
+        "device-detector",
+        "hacktoberfest",
+        "mobile-detection",
+        "php",
+        "user-agent"
+      ],
+      "search_categories": [
+        "ai-crawlers",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 64799,
+      "relevance_score": 75.9
+    },
+    {
+      "full_name": "AnswerDotAI/llms-txt",
+      "url": "https://github.com/AnswerDotAI/llms-txt",
+      "description": "The /llms.txt file, helping language models use your website",
+      "owner": "AnswerDotAI",
+      "stars": 2514,
+      "forks": 152,
+      "open_issues": 95,
+      "language": "Jupyter Notebook",
+      "license": "Apache-2.0",
+      "created_at": "2024-09-01T00:01:58Z",
+      "updated_at": "2026-07-19T06:25:46Z",
+      "pushed_at": "2026-07-11T01:16:52Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 13,
+      "relevance_score": 75.7
+    },
+    {
+      "full_name": "AgriciDaniel/claude-seo",
+      "url": "https://github.com/AgriciDaniel/claude-seo",
+      "description": "Universal SEO skill for Claude Code. 25 sub-skills + 18 sub-agents covering technical SEO, E-E-A-T, schema, GEO/AEO, backlinks, local SEO, maps intelligence, semantic clustering, e-commerce SEO, international SEO, Google APIs, and PDF/Excel reporting. Optional DataForSEO, Firecrawl, and Banana extensions.",
+      "owner": "AgriciDaniel",
+      "stars": 11806,
+      "forks": 1720,
+      "open_issues": 36,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-02-07T08:17:38Z",
+      "updated_at": "2026-07-19T20:54:16Z",
+      "pushed_at": "2026-07-06T20:48:21Z",
+      "archived": false,
+      "topics": [
+        "ai",
+        "ai-seo",
+        "claude-code",
+        "claude-code-skill",
+        "marketing-automation",
+        "open-source",
+        "seo"
+      ],
+      "search_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 37463,
+      "relevance_score": 75.6
+    },
+    {
+      "full_name": "yzfly/Awesome-MCP-ZH",
+      "url": "https://github.com/yzfly/Awesome-MCP-ZH",
+      "description": "MCP 资源精选， MCP指南，Claude MCP，MCP Servers, MCP Clients",
+      "owner": "yzfly",
+      "stars": 7450,
+      "forks": 649,
+      "open_issues": 24,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2025-04-03T00:38:51Z",
+      "updated_at": "2026-07-19T18:04:32Z",
+      "pushed_at": "2026-07-03T22:06:18Z",
+      "archived": false,
+      "topics": [
+        "claude",
+        "claude-mcp",
+        "deepseek",
+        "deepseek-mcp",
+        "mcp",
+        "mcp-clients",
+        "mcp-host",
+        "mcp-server",
+        "mcp-servers",
+        "mcp-servers-directory",
+        "mcp-tools",
+        "qwen-mcp"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 75.5
+    },
+    {
+      "full_name": "zhuima/awesome-cloudflare",
+      "url": "https://github.com/zhuima/awesome-cloudflare",
+      "description": "⛅️ 精选的 Cloudflare 工具、开源项目、指南、博客和其他资源列表。/ ⛅️ A curated list of Cloudflare tools, open source projects, guides, blogs and other resources.",
+      "owner": "zhuima",
+      "stars": 14888,
+      "forks": 1362,
+      "open_issues": 17,
+      "language": null,
+      "license": null,
+      "created_at": "2024-04-07T02:19:38Z",
+      "updated_at": "2026-07-19T19:29:21Z",
+      "pushed_at": "2026-06-30T01:51:01Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 75.3
+    },
+    {
+      "full_name": "thedaviddias/Front-End-Checklist",
+      "url": "https://github.com/thedaviddias/Front-End-Checklist",
+      "description": "🗂 The essential checklist for modern web development, for humans and AI agents",
+      "owner": "thedaviddias",
+      "stars": 73256,
+      "forks": 6653,
+      "open_issues": 4,
+      "language": "MDX",
+      "license": null,
+      "created_at": "2017-10-16T10:12:36Z",
+      "updated_at": "2026-07-19T18:07:05Z",
+      "pushed_at": "2026-06-18T03:46:44Z",
+      "archived": false,
+      "topics": [
+        "ai-agent",
+        "ai-agents",
+        "checklist",
+        "css",
+        "front-end-developer-tool",
+        "front-end-development",
+        "frontend",
+        "guidelines",
+        "html",
+        "javascript",
+        "lists",
+        "reference",
+        "resources",
+        "rules",
+        "web-development"
+      ],
+      "search_categories": [
+        "ai-discovery",
+        "structured-data",
+        "technical-seo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 74.9
+    },
+    {
+      "full_name": "santifer/cv-santiago",
+      "url": "https://github.com/santifer/cv-santiago",
+      "description": "Interactive CV with AI chat integration. Built with React 19, TypeScript, Claude API. Chat with my AI avatar about my experience.",
+      "owner": "santifer",
+      "stars": 757,
+      "forks": 263,
+      "open_issues": 4,
+      "language": "HTML",
+      "license": null,
+      "created_at": "2026-01-23T18:38:48Z",
+      "updated_at": "2026-07-19T08:49:30Z",
+      "pushed_at": "2026-07-17T09:18:39Z",
+      "archived": false,
+      "topics": [
+        "ai",
+        "chatbot",
+        "claude",
+        "langfuse",
+        "llm",
+        "llmops",
+        "observability",
+        "portfolio",
+        "react",
+        "tailwindcss",
+        "typescript",
+        "vercel",
+        "vite"
+      ],
+      "search_categories": [
+        "indexing"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 26867,
+      "relevance_score": 74.7
+    },
+    {
+      "full_name": "zubair-trabzada/geo-seo-claude",
+      "url": "https://github.com/zubair-trabzada/geo-seo-claude",
+      "description": "GEO-first SEO skill for Claude Code. Comprehensive AI search optimization for any website — citability scoring, AI crawler analysis, brand authority, schema markup, platform-specific optimization, and PDF reports.  If you want learn how to sell this to real businesses, check out the skool community",
+      "owner": "zubair-trabzada",
+      "stars": 9039,
+      "forks": 1443,
+      "open_issues": 19,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-02-18T09:01:07Z",
+      "updated_at": "2026-07-19T20:18:25Z",
+      "pushed_at": "2026-05-27T01:40:01Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-discovery",
+        "ai-crawlers"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 10007,
+      "relevance_score": 74.2
+    },
+    {
+      "full_name": "Bhanunamikaze/Agentic-SEO-Skill",
+      "url": "https://github.com/Bhanunamikaze/Agentic-SEO-Skill",
+      "description": "An LLM-first SEO analysis skill for Antigravity, Codex, Claude with 16 specialized sub-skills, 10 specialist agents, and 88 optional utility scripts used as evidence collectors.",
+      "owner": "Bhanunamikaze",
+      "stars": 778,
+      "forks": 126,
+      "open_issues": 7,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-03-02T17:37:53Z",
+      "updated_at": "2026-07-19T17:33:04Z",
+      "pushed_at": "2026-06-18T17:33:53Z",
+      "archived": false,
+      "topics": [
+        "ai-skill",
+        "ai-skills",
+        "antigravity-ai",
+        "antigravity-skills",
+        "antigravity-tools",
+        "claude-skill",
+        "claude-skills",
+        "codex-skill",
+        "codex-skills",
+        "seo",
+        "seo-optimization",
+        "skills"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 27734,
+      "relevance_score": 73.9
+    },
+    {
+      "full_name": "rohitg00/awesome-claude-code-toolkit",
+      "url": "https://github.com/rohitg00/awesome-claude-code-toolkit",
+      "description": "The most comprehensive toolkit for Claude Code -- 135 agents, 35 curated skills, 42 commands, 176+ plugins, 20 hooks, 15 rules, 7 templates, 14 MCP configs, 26 companion apps, 52 ecosystem entries, and more.",
+      "owner": "rohitg00",
+      "stars": 2350,
+      "forks": 821,
+      "open_issues": 235,
+      "language": "JavaScript",
+      "license": "Apache-2.0",
+      "created_at": "2026-02-04T21:09:33Z",
+      "updated_at": "2026-07-19T11:25:03Z",
+      "pushed_at": "2026-05-12T07:18:34Z",
+      "archived": false,
+      "topics": [
+        "claude",
+        "claude-code",
+        "claudecode",
+        "claudecode-hooks",
+        "plugins",
+        "skills"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 73.7
+    },
+    {
+      "full_name": "Auriti-Labs/geo-optimizer-skill",
+      "url": "https://github.com/Auriti-Labs/geo-optimizer-skill",
+      "description": "Open-source Answer Engine Optimization (AEO) & Generative Engine Optimization (GEO) toolkit — audit, optimize & track whether ChatGPT, Perplexity, Gemini & Google AI Overviews cite your site. AI SEO / LLM SEO. CLI, Python, MCP, Astro.",
+      "owner": "Auriti-Labs",
+      "stars": 599,
+      "forks": 72,
+      "open_issues": 5,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-02-18T04:55:11Z",
+      "updated_at": "2026-07-19T19:45:09Z",
+      "pushed_at": "2026-07-17T11:16:07Z",
+      "archived": false,
+      "topics": [
+        "aeo",
+        "ai-search-optimization",
+        "ai-seo",
+        "ai-visibility",
+        "answer-engine-optimization",
+        "astro",
+        "chatgpt",
+        "citation-tracking",
+        "claude",
+        "cli",
+        "gemini",
+        "generative-engine-optimization",
+        "geo",
+        "llm-seo",
+        "llms-txt",
+        "mcp",
+        "perplexity",
+        "python",
+        "schema-markup",
+        "seo"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "ai-crawlers"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 25760,
+      "relevance_score": 73.7
+    },
+    {
+      "full_name": "OpenClaudia/openclaudia-skills",
+      "url": "https://github.com/OpenClaudia/openclaudia-skills",
+      "description": "34 open-source marketing skills for Claude Code. SEO, content, email, ads, analytics, and growth.",
+      "owner": "OpenClaudia",
+      "stars": 580,
+      "forks": 35,
+      "open_issues": 0,
+      "language": "JavaScript",
+      "license": "MIT",
+      "created_at": "2026-02-11T06:13:09Z",
+      "updated_at": "2026-07-18T23:59:48Z",
+      "pushed_at": "2026-07-18T18:55:04Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "geo-aeo",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 14286,
+      "relevance_score": 73.6
+    },
+    {
+      "full_name": "Varnan-Tech/opendirectory",
+      "url": "https://github.com/Varnan-Tech/opendirectory",
+      "description": " AI Agent Skills built for Founders who hate Marketing",
+      "owner": "Varnan-Tech",
+      "stars": 549,
+      "forks": 59,
+      "open_issues": 0,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-04-13T10:40:28Z",
+      "updated_at": "2026-07-19T09:27:33Z",
+      "pushed_at": "2026-07-03T19:32:56Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "gtm",
+        "hermes-agent",
+        "marketing-skills",
+        "openclaw-skills",
+        "skill-pack",
+        "skills",
+        "technical-seo"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 32561,
+      "relevance_score": 72.9
+    },
+    {
+      "full_name": "rampstackco/claude-skills",
+      "url": "https://github.com/rampstackco/claude-skills",
+      "description": "Stack-agnostic Claude Skills covering the full website lifecycle: brand, design, content, SEO, dev, ops, growth, and research. Build, ship, audit, optimize.",
+      "owner": "rampstackco",
+      "stars": 470,
+      "forks": 62,
+      "open_issues": 2,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-04-28T22:33:51Z",
+      "updated_at": "2026-07-19T19:52:25Z",
+      "pushed_at": "2026-07-12T05:43:04Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "ai-agents",
+        "anthropic",
+        "claude",
+        "claude-ai",
+        "claude-code",
+        "claude-skills",
+        "mcp",
+        "product-management",
+        "rampstack",
+        "seo",
+        "skills-collection",
+        "web-design",
+        "web-development"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 64983,
+      "relevance_score": 72.5
+    },
+    {
+      "full_name": "unifapi-agent/agents",
+      "url": "https://github.com/unifapi-agent/agents",
+      "description": "Open-source marketing agents for Claude, ChatGPT, Codex, OpenClaw & Hermes. One plugin: SEO audits, GEO / AI-visibility, local SEO, KOL pricing, social listening & competitive intelligence from read-only public data over MCP.",
+      "owner": "unifapi-agent",
+      "stars": 525,
+      "forks": 108,
+      "open_issues": 0,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2012-12-18T01:52:43Z",
+      "updated_at": "2026-07-19T13:12:40Z",
+      "pushed_at": "2026-06-26T06:38:50Z",
+      "archived": false,
+      "topics": [
+        "ai-visibility",
+        "answer-engine-optimization",
+        "brand-monitoring",
+        "competitive-intelligence",
+        "creator-discovery",
+        "creator-marketing",
+        "geo-optimization",
+        "influencer-marketing",
+        "kol-pricing",
+        "local-seo",
+        "marketing-agent",
+        "marketing-agents",
+        "marketing-mcp",
+        "mcp-marketplace",
+        "mcp-skills",
+        "public-data-api",
+        "rank-tracking",
+        "reputation-management",
+        "seo-agent",
+        "unifapi"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 17575,
+      "relevance_score": 72.4
+    },
+    {
+      "full_name": "cwinvestments/memstack",
+      "url": "https://github.com/cwinvestments/memstack",
+      "description": "Structured skill framework for Claude Code | 128 skills, localhost dashboard with 3-agent orchestration, real-time streaming, MCP tools management, session memory, and project handoffs via markdown-based skills",
+      "owner": "cwinvestments",
+      "stars": 408,
+      "forks": 45,
+      "open_issues": 0,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-02-19T03:45:26Z",
+      "updated_at": "2026-07-18T03:00:12Z",
+      "pushed_at": "2026-07-18T03:00:04Z",
+      "archived": false,
+      "topics": [
+        "ai-coding-",
+        "anthropic-",
+        "claude-",
+        "claude-code-",
+        "developer-tools-",
+        "mcp-",
+        "skills-",
+        "vibe-coding"
+      ],
+      "search_categories": [
+        "local-seo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 34830,
+      "relevance_score": 72
+    },
+    {
+      "full_name": "totpero/DeviceDetector.NET",
+      "url": "https://github.com/totpero/DeviceDetector.NET",
+      "description": "The Universal Device Detection library will parse any User Agent and detect the browser, operating system, device used (desktop, tablet, mobile, tv, cars, console, etc.), brand and model. ",
+      "owner": "totpero",
+      "stars": 405,
+      "forks": 73,
+      "open_issues": 3,
+      "language": "C#",
+      "license": "Apache-2.0",
+      "created_at": "2018-01-27T18:08:51Z",
+      "updated_at": "2026-07-16T06:45:33Z",
+      "pushed_at": "2026-07-16T06:45:24Z",
+      "archived": false,
+      "topics": [
+        "bot-detection",
+        "c-sharp",
+        "detection-library",
+        "dotnet",
+        "mobile-detection",
+        "user-agent"
+      ],
+      "search_categories": [
+        "ai-crawlers",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 60766,
+      "relevance_score": 72
+    },
+    {
+      "full_name": "searchsolved/search-solved-public-seo",
+      "url": "https://github.com/searchsolved/search-solved-public-seo",
+      "description": "SEO Python scripts and Apps by Lee Foot",
+      "owner": "searchsolved",
+      "stars": 404,
+      "forks": 177,
+      "open_issues": 8,
+      "language": "Python",
+      "license": "NOASSERTION",
+      "created_at": "2021-01-07T10:12:10Z",
+      "updated_at": "2026-07-15T20:08:21Z",
+      "pushed_at": "2026-07-15T20:08:09Z",
+      "archived": false,
+      "topics": [
+        "ecommerce",
+        "python",
+        "seo",
+        "seo-automation",
+        "seo-optimization",
+        "seo-tools",
+        "seotools",
+        "streamlit-application"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 22862,
+      "relevance_score": 71.9
+    },
+    {
+      "full_name": "AgriciDaniel/codex-seo",
+      "url": "https://github.com/AgriciDaniel/codex-seo",
+      "description": "Codex-first SEO skill suite. 26 workflows, 24 TOML agents, DataForSEO/Gemini/Google/Firecrawl integrations, GEO/AEO, CWV, schema, backlinks, local/maps, and deterministic reports.",
+      "owner": "AgriciDaniel",
+      "stars": 449,
+      "forks": 69,
+      "open_issues": 17,
+      "language": "Python",
+      "license": "NOASSERTION",
+      "created_at": "2026-04-27T22:43:34Z",
+      "updated_at": "2026-07-19T19:41:50Z",
+      "pushed_at": "2026-06-22T14:35:00Z",
+      "archived": false,
+      "topics": [
+        "ai-search",
+        "ai-seo",
+        "automation",
+        "codex",
+        "codex-cli",
+        "codex-skills",
+        "content-strategy",
+        "core-web-vitals",
+        "dataforseo",
+        "ecommerce-seo",
+        "generative-engine-optimization",
+        "google-search-console",
+        "local-seo",
+        "marketing-automation",
+        "mcp",
+        "open-source",
+        "python",
+        "schema-markup",
+        "seo",
+        "technical-seo"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 24560,
+      "relevance_score": 71.6
+    },
+    {
+      "full_name": "marcusquinn/aidevops",
+      "url": "https://github.com/marcusquinn/aidevops",
+      "description": "Vibe-Coding is easy. DevOps is hard. OpenCode & Git token-efficient AI agent automation for your app, business, and personal development. Opinionated tools, services, CLI & API stack for speed, security, and 24/7 results. Open-source first. SOTA everything. Try on your repos for money-making magic.",
+      "owner": "marcusquinn",
+      "stars": 339,
+      "forks": 52,
+      "open_issues": 40,
+      "language": "Shell",
+      "license": "MIT",
+      "created_at": "2025-11-09T05:15:11Z",
+      "updated_at": "2026-07-19T19:03:48Z",
+      "pushed_at": "2026-07-19T20:56:58Z",
+      "archived": false,
+      "topics": [
+        "agents",
+        "agents-md",
+        "ai",
+        "ai-agents",
+        "ai-assistant",
+        "ai-assistants",
+        "ai-assisted-development",
+        "ai-code-review",
+        "ai-coding",
+        "ai-dev-ops",
+        "ai-devops",
+        "ai-system-admin",
+        "claude",
+        "devops",
+        "devops-tools",
+        "git-workflow",
+        "git-worktrees",
+        "opencode",
+        "opencode-plugin"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 71.3
+    },
+    {
+      "full_name": "serpapi/awesome-seo-tools",
+      "url": "https://github.com/serpapi/awesome-seo-tools",
+      "description": "Curated list of awesome SEO tools",
+      "owner": "serpapi",
+      "stars": 1023,
+      "forks": 279,
+      "open_issues": 144,
+      "language": "HTML",
+      "license": null,
+      "created_at": "2023-10-17T02:12:04Z",
+      "updated_at": "2026-07-17T20:14:40Z",
+      "pushed_at": "2026-02-24T08:04:53Z",
+      "archived": false,
+      "topics": [
+        "beginner-friendly",
+        "first-timers-friendly",
+        "hacktoberfest",
+        "hacktoberfest2023",
+        "seo",
+        "seo-free",
+        "seo-optimization",
+        "seo-tools",
+        "seotools"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "indexing",
+        "local-seo",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 19703,
+      "relevance_score": 71.1
+    },
+    {
+      "full_name": "ncdai/chanhdai.com",
+      "url": "https://github.com/ncdai/chanhdai.com",
+      "description": "A pixel-perfect dev portfolio and shadcn registry.",
+      "owner": "ncdai",
+      "stars": 2135,
+      "forks": 313,
+      "open_issues": 3,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2023-08-20T15:34:19Z",
+      "updated_at": "2026-07-19T15:55:51Z",
+      "pushed_at": "2026-07-18T10:05:46Z",
+      "archived": false,
+      "topics": [
+        "base-ui",
+        "components",
+        "dev-portfolio",
+        "motion",
+        "nextjs",
+        "portfolio",
+        "radix-ui",
+        "react",
+        "shadcn",
+        "shadcn-components",
+        "shadcn-registry",
+        "shadcn-ui",
+        "tailwindcss",
+        "ui"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 10875,
+      "relevance_score": 71
+    },
+    {
+      "full_name": "kairichard/awesome-nocode-lowcode",
+      "url": "https://github.com/kairichard/awesome-nocode-lowcode",
+      "description": "A curated list of awesome nocode / lowcode applications to build other applications",
+      "owner": "kairichard",
+      "stars": 1186,
+      "forks": 187,
+      "open_issues": 5,
+      "language": null,
+      "license": "CC0-1.0",
+      "created_at": "2020-01-07T10:25:09Z",
+      "updated_at": "2026-07-19T16:34:06Z",
+      "pushed_at": "2026-07-19T06:33:49Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 31778,
+      "relevance_score": 71
+    },
+    {
+      "full_name": "awesome-gptX/awesome-gpt",
+      "url": "https://github.com/awesome-gptX/awesome-gpt",
+      "description": "🏆 An awe-inspiring collection of resources, encompassing a wide range of tools, documents, resources, applications, and use cases related to ChatGPT.",
+      "owner": "awesome-gptX",
+      "stars": 1122,
+      "forks": 117,
+      "open_issues": 6,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2023-02-16T08:46:20Z",
+      "updated_at": "2026-07-19T16:21:29Z",
+      "pushed_at": "2026-07-19T04:16:25Z",
+      "archived": false,
+      "topics": [
+        "awesome",
+        "awesome-list",
+        "chat-gpt-tool",
+        "chatbot",
+        "chatgpt",
+        "chatgpt-chrome-extension",
+        "chatgpt4",
+        "chatgptapi",
+        "openai",
+        "tipschatgpt",
+        "usingchatgpt"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-crawlers",
+        "structured-data",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 36011,
+      "relevance_score": 71
+    },
+    {
+      "full_name": "VoltAgent/awesome-openclaw-skills",
+      "url": "https://github.com/VoltAgent/awesome-openclaw-skills",
+      "description": "The awesome collection of OpenClaw skills. 5,400+ skills filtered and categorized from the official OpenClaw Skills Registry.🦞",
+      "owner": "VoltAgent",
+      "stars": 51359,
+      "forks": 4959,
+      "open_issues": 11,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2026-01-25T09:22:32Z",
+      "updated_at": "2026-07-19T20:08:32Z",
+      "pushed_at": "2026-07-16T06:17:12Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "awesome",
+        "awesome-list",
+        "awesome-lists",
+        "clawd",
+        "clawdbot",
+        "clawdbot-skill",
+        "clawdhub",
+        "moltbot",
+        "moltbot-skills",
+        "openclaw",
+        "openclaw-skills"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "structured-data",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 70.9
+    },
+    {
+      "full_name": "0xNyk/awesome-hermes-agent",
+      "url": "https://github.com/0xNyk/awesome-hermes-agent",
+      "description": "Independent directory of useful skills, plugins, memory providers, tools, surfaces, and guides for Nous Research's open-source Hermes Agent.",
+      "owner": "0xNyk",
+      "stars": 4782,
+      "forks": 337,
+      "open_issues": 7,
+      "language": null,
+      "license": "NOASSERTION",
+      "created_at": "2026-03-23T05:34:37Z",
+      "updated_at": "2026-07-19T20:18:28Z",
+      "pushed_at": "2026-07-17T13:22:11Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "ai-agents",
+        "ai-tools",
+        "awesome",
+        "awesome-list",
+        "hermes-agent",
+        "mcp",
+        "memory",
+        "nous-research",
+        "skills"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 79282,
+      "relevance_score": 70.9
+    },
+    {
+      "full_name": "typicms/typicms",
+      "url": "https://github.com/typicms/typicms",
+      "description": "A modular multilingual CMS built with Laravel, enabling developers to manage structured content like pages, news, events, and more.",
+      "owner": "typicms",
+      "stars": 1619,
+      "forks": 489,
+      "open_issues": 4,
+      "language": "PHP",
+      "license": "MIT",
+      "created_at": "2014-12-26T14:15:30Z",
+      "updated_at": "2026-07-19T14:51:16Z",
+      "pushed_at": "2026-07-17T12:06:32Z",
+      "archived": false,
+      "topics": [
+        "cms",
+        "laravel",
+        "multilingual",
+        "php",
+        "website-builder"
+      ],
+      "search_categories": [
+        "ai-discovery",
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 10222,
+      "relevance_score": 70.9
+    },
+    {
+      "full_name": "cporter202/API-mega-list",
+      "url": "https://github.com/cporter202/API-mega-list",
+      "description": "This GitHub repo is a powerhouse collection of APIs you can start using immediately to build everything from simple automations to full-scale applications. One of the most valuable API lists on GitHub—period. 💪",
+      "owner": "cporter202",
+      "stars": 7291,
+      "forks": 1414,
+      "open_issues": 17,
+      "language": "JavaScript",
+      "license": null,
+      "created_at": "2025-12-09T15:36:20Z",
+      "updated_at": "2026-07-19T20:26:35Z",
+      "pushed_at": "2026-07-13T16:19:00Z",
+      "archived": false,
+      "topics": [
+        "ai-tools",
+        "api",
+        "api-collection",
+        "api-directory",
+        "api-list",
+        "apify",
+        "artificial-intelligence",
+        "automation",
+        "awesome-list",
+        "data-collection",
+        "developer-resources",
+        "developer-tools",
+        "ecommerce",
+        "lead-generation",
+        "mcp",
+        "open-source",
+        "public-apis",
+        "real-estate",
+        "social-media",
+        "web-scraping"
+      ],
+      "search_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "measurement",
+        "technical-seo"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "structured-data",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 70.8
+    },
+    {
+      "full_name": "wong2/awesome-mcp-servers",
+      "url": "https://github.com/wong2/awesome-mcp-servers",
+      "description": "A curated list of Model Context Protocol (MCP) servers",
+      "owner": "wong2",
+      "stars": 4217,
+      "forks": 1667,
+      "open_issues": 36,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2024-11-28T12:27:45Z",
+      "updated_at": "2026-07-19T18:47:40Z",
+      "pushed_at": "2026-07-13T12:44:30Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 70.8
+    },
+    {
+      "full_name": "seo-skills/seo-audit-skill",
+      "url": "https://github.com/seo-skills/seo-audit-skill",
+      "description": "A comprehensive SEO audit command-line tool with 108 audit rules across 12 categories. Analyze any website for SEO best practices, Core Web Vitals, security headers, structured data, accessibility, and more.",
+      "owner": "seo-skills",
+      "stars": 327,
+      "forks": 39,
+      "open_issues": 0,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2026-01-23T13:14:35Z",
+      "updated_at": "2026-07-19T07:06:35Z",
+      "pushed_at": "2026-07-07T10:46:44Z",
+      "archived": false,
+      "topics": [
+        "claude",
+        "claude-skills",
+        "seo",
+        "seo-audit",
+        "seo-audit-skill",
+        "website-audit"
+      ],
+      "search_categories": [
+        "structured-data",
+        "technical-seo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 32004,
+      "relevance_score": 70.7
+    },
+    {
+      "full_name": "yaojingang/GEORank",
+      "url": "https://github.com/yaojingang/GEORank",
+      "description": "Open-source GEO ranking and generative engine optimization platform.",
+      "owner": "yaojingang",
+      "stars": 297,
+      "forks": 65,
+      "open_issues": 0,
+      "language": "Python",
+      "license": "Apache-2.0",
+      "created_at": "2026-06-17T04:10:32Z",
+      "updated_at": "2026-07-19T16:30:46Z",
+      "pushed_at": "2026-07-17T20:45:22Z",
+      "archived": false,
+      "topics": [
+        "fastapi",
+        "generative-engine-optimization",
+        "geo",
+        "nextjs",
+        "seo"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 6059,
+      "relevance_score": 70.7
+    },
+    {
+      "full_name": "satnaing/astro-paper",
+      "url": "https://github.com/satnaing/astro-paper",
+      "description": "A minimal, accessible and SEO-friendly Astro blog theme.",
+      "owner": "satnaing",
+      "stars": 4857,
+      "forks": 1029,
+      "open_issues": 35,
+      "language": "Astro",
+      "license": "MIT",
+      "created_at": "2022-09-08T12:46:37Z",
+      "updated_at": "2026-07-19T17:14:47Z",
+      "pushed_at": "2026-07-07T15:51:48Z",
+      "archived": false,
+      "topics": [
+        "a11y",
+        "accessibility",
+        "astro",
+        "astro-theme",
+        "astro-themes",
+        "blog",
+        "jamstack",
+        "markdown",
+        "ssg",
+        "static-site",
+        "static-site-generator",
+        "tailwindcss",
+        "template",
+        "theme",
+        "typescript"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 7437,
+      "relevance_score": 70.6
+    },
+    {
+      "full_name": "peltmonger/stardrive",
+      "url": "https://github.com/peltmonger/stardrive",
+      "description": "The Astro boilerplate to create super stable and fast websites in the AI age",
+      "owner": "peltmonger",
+      "stars": 289,
+      "forks": 48,
+      "open_issues": 0,
+      "language": "Astro",
+      "license": "MIT",
+      "created_at": "2026-05-12T09:05:47Z",
+      "updated_at": "2026-07-19T18:11:58Z",
+      "pushed_at": "2026-07-18T21:35:36Z",
+      "archived": false,
+      "topics": [
+        "astro",
+        "astrojs",
+        "astrojs-boilerplate",
+        "astrojs-template",
+        "javascript",
+        "typescript"
+      ],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 25780,
+      "relevance_score": 70.6
+    },
+    {
+      "full_name": "thedaviddias/llms-txt-hub",
+      "url": "https://github.com/thedaviddias/llms-txt-hub",
+      "description": "🤖 The largest directory for AI-ready documentation and tools implementing the proposed llms.txt standard",
+      "owner": "thedaviddias",
+      "stars": 878,
+      "forks": 550,
+      "open_issues": 121,
+      "language": "TypeScript",
+      "license": "NOASSERTION",
+      "created_at": "2025-02-20T15:59:19Z",
+      "updated_at": "2026-07-19T19:32:02Z",
+      "pushed_at": "2026-07-19T19:32:44Z",
+      "archived": false,
+      "topics": [
+        "cursor",
+        "cursor-ai",
+        "directory",
+        "llms",
+        "llms-txt",
+        "llmstxt",
+        "nextjs",
+        "robots-txt",
+        "supabase",
+        "supabase-auth",
+        "taiwindcss"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 70.4
+    },
+    {
+      "full_name": "ookyet/web3-identity-seo",
+      "url": "https://github.com/ookyet/web3-identity-seo",
+      "description": "Open-source architecture for making ENS identities into Google-recognized entities: Schema.org structured data, verification, and indexing for Web3 identity pages.",
+      "owner": "ookyet",
+      "stars": 267,
+      "forks": 27,
+      "open_issues": 2,
+      "language": "Shell",
+      "license": "MIT",
+      "created_at": "2025-05-09T09:10:45Z",
+      "updated_at": "2026-07-19T19:03:48Z",
+      "pushed_at": "2026-07-18T14:27:31Z",
+      "archived": false,
+      "topics": [
+        "blockchain",
+        "dentity",
+        "ens",
+        "ens-domains",
+        "entity-seo",
+        "ethereum",
+        "identity",
+        "indexing-api",
+        "indexnow",
+        "json-ld",
+        "knowledge-graph",
+        "knowledge-panel",
+        "rich-results",
+        "schema-org",
+        "seo",
+        "structured-data",
+        "technical-seo",
+        "web3",
+        "web3-identity"
+      ],
+      "search_categories": [
+        "structured-data",
+        "indexing",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 22191,
+      "relevance_score": 70.2
+    },
+    {
+      "full_name": "bradAGI/awesome-cli-coding-agents",
+      "url": "https://github.com/bradAGI/awesome-cli-coding-agents",
+      "description": "Curated directory of terminal-native AI coding agents and the harnesses that orchestrate them. Covers open-source tools (Pi, OpenCode, Aider, Goose), platform agents (Claude Code, Codex, Gemini CLI), parallel runners, autonomous loops, and agent infrastructure. ",
+      "owner": "bradAGI",
+      "stars": 833,
+      "forks": 222,
+      "open_issues": 27,
+      "language": "Python",
+      "license": null,
+      "created_at": "2026-02-07T00:53:24Z",
+      "updated_at": "2026-07-19T18:20:05Z",
+      "pushed_at": "2026-07-13T12:56:17Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 63205,
+      "relevance_score": 70
+    },
+    {
+      "full_name": "backstagephp/laravel-seo-scanner",
+      "url": "https://github.com/backstagephp/laravel-seo-scanner",
+      "description": "Scan your Laravel application routes for SEO improvements suggestions.",
+      "owner": "backstagephp",
+      "stars": 270,
+      "forks": 29,
+      "open_issues": 1,
+      "language": "PHP",
+      "license": "MIT",
+      "created_at": "2022-10-21T08:53:40Z",
+      "updated_at": "2026-07-19T10:16:13Z",
+      "pushed_at": "2026-07-08T14:26:00Z",
+      "archived": false,
+      "topics": [
+        "crawler",
+        "laravel",
+        "laravel-framework",
+        "laravel-seo",
+        "laravel-seo-scanner",
+        "scanner",
+        "seo",
+        "seo-optimization",
+        "seo-tools",
+        "seotools"
+      ],
+      "search_categories": [
+        "ai-crawlers",
+        "technical-seo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 24208,
+      "relevance_score": 69.9
+    },
+    {
+      "full_name": "addyosmani/web-quality-skills",
+      "url": "https://github.com/addyosmani/web-quality-skills",
+      "description": "Agent Skills for optimizing web quality based on Lighthouse and Core Web Vitals.",
+      "owner": "addyosmani",
+      "stars": 2518,
+      "forks": 230,
+      "open_issues": 8,
+      "language": "Shell",
+      "license": "MIT",
+      "created_at": "2026-01-18T10:53:04Z",
+      "updated_at": "2026-07-19T13:08:31Z",
+      "pushed_at": "2026-06-14T09:08:35Z",
+      "archived": false,
+      "topics": [
+        "accessibility",
+        "agent-skills",
+        "claude-skills",
+        "core-web-vitals",
+        "lighthouse",
+        "skills",
+        "testing",
+        "web-performance"
+      ],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 8413,
+      "relevance_score": 69.8
+    },
+    {
+      "full_name": "indranilbanerjee/digital-marketing-pro",
+      "url": "https://github.com/indranilbanerjee/digital-marketing-pro",
+      "description": "Open-source AI marketing plugin for agencies & in-house teams — 158 skills, 25 specialist agents, 12-Part Strategy Flow, Cowork team-persistent, EU AI Act Article 50 ready, 6-platform AEO/GEO incl. Google AI Mode. Installs on Claude Code, Cowork, Codex, Cursor, Copilot CLI, Antigravity. MIT-licensed.",
+      "owner": "indranilbanerjee",
+      "stars": 237,
+      "forks": 52,
+      "open_issues": 1,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-02-11T07:57:53Z",
+      "updated_at": "2026-07-19T05:00:10Z",
+      "pushed_at": "2026-07-18T13:29:29Z",
+      "archived": false,
+      "topics": [
+        "aeo",
+        "agent-skills",
+        "ai-marketing",
+        "c2pa",
+        "claude-code",
+        "claude-plugin",
+        "claude-skills",
+        "content-marketing",
+        "copilot-cli-plugin",
+        "cursor-plugin",
+        "eu-ai-act",
+        "gemini-cli-extension",
+        "geo",
+        "google-antigravity",
+        "hermes-plugin",
+        "marketing-agency",
+        "marketing-automation",
+        "openai-codex",
+        "openclaw-plugin",
+        "seo"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 69.7
+    },
+    {
+      "full_name": "onvoyage-ai/gtm-engineer-skills",
+      "url": "https://github.com/onvoyage-ai/gtm-engineer-skills",
+      "description": "Claude Code skill for improving website AEO (AI Engine Optimization) and GEO (Generative Engine Optimization) scores — 16 foundational checks, 6 intelligence dimensions, framework-specific fixes",
+      "owner": "onvoyage-ai",
+      "stars": 1252,
+      "forks": 34,
+      "open_issues": 22,
+      "language": "HTML",
+      "license": "MIT",
+      "created_at": "2026-02-26T02:33:35Z",
+      "updated_at": "2026-07-18T22:24:24Z",
+      "pushed_at": "2026-06-07T13:24:29Z",
+      "archived": false,
+      "topics": [
+        "aeo",
+        "ai-optimization",
+        "claude-code",
+        "geo",
+        "llms-txt",
+        "seo",
+        "structured-data"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 10153,
+      "relevance_score": 69.6
+    },
+    {
+      "full_name": "sundial-org/awesome-openclaw-skills",
+      "url": "https://github.com/sundial-org/awesome-openclaw-skills",
+      "description": "Top OpenClaw skills, with the most popular and useful ones.",
+      "owner": "sundial-org",
+      "stars": 630,
+      "forks": 89,
+      "open_issues": 36,
+      "language": "Python",
+      "license": null,
+      "created_at": "2026-02-01T05:53:14Z",
+      "updated_at": "2026-07-17T16:54:14Z",
+      "pushed_at": "2026-03-07T06:57:19Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "geo-aeo",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "indexing",
+        "local-seo",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 69.5
+    },
+    {
+      "full_name": "LeoYeAI/openclaw-marketing-skills",
+      "url": "https://github.com/LeoYeAI/openclaw-marketing-skills",
+      "description": "33 battle-tested marketing skills for OpenClaw agents — Powered by MyClaw.ai",
+      "owner": "LeoYeAI",
+      "stars": 1083,
+      "forks": 405,
+      "open_issues": 0,
+      "language": null,
+      "license": "NOASSERTION",
+      "created_at": "2026-03-17T13:04:22Z",
+      "updated_at": "2026-07-19T07:31:28Z",
+      "pushed_at": "2026-06-02T06:16:24Z",
+      "archived": false,
+      "topics": [
+        "copywriting",
+        "cro",
+        "email-marketing",
+        "growth",
+        "marketing",
+        "myclaw",
+        "openclaw",
+        "paid-ads",
+        "saas-marketing",
+        "seo"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 13508,
+      "relevance_score": 69.4
+    },
+    {
+      "full_name": "gbessoni/seobuild-onpage",
+      "url": "https://github.com/gbessoni/seobuild-onpage",
+      "description": "SEOBuild Onpage - The first AI agent that writes pages Google ranks AND LLMs cite. One command in, ranking page out. Built on DeerFlow, powered by 2026 SEO + GEO strategies tested / working. Forensic competitive analysis, 500-token chunk architecture, entity consensus, verification tags. BYOK GSC, DataforSEO. Works w/ OpenClaw, Claude Code, Codex",
+      "owner": "gbessoni",
+      "stars": 227,
+      "forks": 38,
+      "open_issues": 1,
+      "language": "Python",
+      "license": null,
+      "created_at": "2026-03-18T13:00:19Z",
+      "updated_at": "2026-07-15T09:51:57Z",
+      "pushed_at": "2026-07-09T12:39:12Z",
+      "archived": false,
+      "topics": [
+        "aeo",
+        "agent-skills",
+        "ahrefs",
+        "ai-agent",
+        "claude-code",
+        "claude-code-skills",
+        "dataforseo",
+        "geo",
+        "gsc",
+        "llm-seo",
+        "open-source",
+        "semrush",
+        "seo",
+        "seo-tools"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 30951,
+      "relevance_score": 69.2
+    },
+    {
+      "full_name": "iAmCorey/awesome-indie-hacker-tools",
+      "url": "https://github.com/iAmCorey/awesome-indie-hacker-tools",
+      "description": "独立开发/出海开发相关技术栈及工具收录 / Find the best tools for indie hackers here",
+      "owner": "iAmCorey",
+      "stars": 1382,
+      "forks": 177,
+      "open_issues": 78,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2024-09-30T17:34:21Z",
+      "updated_at": "2026-07-15T02:40:00Z",
+      "pushed_at": "2026-05-16T13:09:14Z",
+      "archived": false,
+      "topics": [
+        "awesome-list",
+        "indiehacker",
+        "indiehackers"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 16516,
+      "relevance_score": 68.9
+    },
+    {
+      "full_name": "JeffLi1993/seo-audit-skill",
+      "url": "https://github.com/JeffLi1993/seo-audit-skill",
+      "description": "SEO agent skill for OpenClaw,Claude Code, and AI agents. Generate beginner SEO audits and advanced technical SEO reports for any page.",
+      "owner": "JeffLi1993",
+      "stars": 610,
+      "forks": 77,
+      "open_issues": 1,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-03-10T15:58:10Z",
+      "updated_at": "2026-07-18T15:52:19Z",
+      "pushed_at": "2026-06-17T15:54:51Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "technical-seo"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 9871,
+      "relevance_score": 67.8
+    },
+    {
+      "full_name": "osgbayyildiz/News-Portal-Blog-Architect",
+      "url": "https://github.com/osgbayyildiz/News-Portal-Blog-Architect",
+      "description": "Best Premium Blogger News Templates 2026 for Magazine Sites",
+      "owner": "osgbayyildiz",
+      "stars": 152,
+      "forks": 0,
+      "open_issues": 0,
+      "language": "HTML",
+      "license": null,
+      "created_at": "2026-06-28T19:28:04Z",
+      "updated_at": "2026-07-19T20:07:00Z",
+      "pushed_at": "2026-07-19T20:06:57Z",
+      "archived": false,
+      "topics": [
+        "blogger-template",
+        "blogger-templates",
+        "blogger-theme",
+        "free-blogger-template",
+        "imamuddinwp",
+        "magazine-theme",
+        "newspaper",
+        "newspaper-theme",
+        "premium-blogger-templates"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 9472,
+      "relevance_score": 67.8
+    },
+    {
+      "full_name": "Gridea-Pro/gridea-pro",
+      "url": "https://github.com/Gridea-Pro/gridea-pro",
+      "description": "Gridea Pro - 下一代桌面静态博客写作客户端 —— 像用 Notion 一样写博客。",
+      "owner": "Gridea-Pro",
+      "stars": 429,
+      "forks": 28,
+      "open_issues": 19,
+      "language": "Go",
+      "license": "GPL-3.0",
+      "created_at": "2026-02-05T06:04:02Z",
+      "updated_at": "2026-07-19T02:20:38Z",
+      "pushed_at": "2026-07-12T04:35:31Z",
+      "archived": false,
+      "topics": [
+        "ai-blog",
+        "ai-blog-generator",
+        "blog",
+        "blog-editor",
+        "blog-engine",
+        "blog-writing",
+        "go",
+        "gridea",
+        "gridea-pro",
+        "hexo",
+        "hexo-alternative",
+        "hugo",
+        "hugo-alternative",
+        "static-blog",
+        "static-blog-engine",
+        "static-blog-generator",
+        "static-site",
+        "wails-app"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 8503,
+      "relevance_score": 67.1
+    },
+    {
+      "full_name": "mverab/eGEOagents",
+      "url": "https://github.com/mverab/eGEOagents",
+      "description": "Open-source Generative Engine Optimization (GEO) & Answer Engine Optimization (AEO) toolkit — optimize content to rank in ChatGPT, Perplexity, Gemini & Claude. AI SEO / LLM SEO. CLI, Claude Code, MCP.",
+      "owner": "mverab",
+      "stars": 137,
+      "forks": 39,
+      "open_issues": 4,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-01-12T05:29:45Z",
+      "updated_at": "2026-07-17T06:26:00Z",
+      "pushed_at": "2026-07-02T09:13:31Z",
+      "archived": false,
+      "topics": [
+        "aeo",
+        "ai-search-optimization",
+        "ai-seo",
+        "ai-visibility",
+        "answer-engine-optimization",
+        "chatgpt",
+        "citation-tracking",
+        "claude",
+        "cli",
+        "content-optimization",
+        "gemini",
+        "generative-engine-optimization",
+        "geo",
+        "llm-seo",
+        "llms-txt",
+        "mcp",
+        "perplexity",
+        "python",
+        "schema-markup",
+        "seo"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 18802,
+      "relevance_score": 66.8
+    },
+    {
+      "full_name": "teles/awesome-seo",
+      "url": "https://github.com/teles/awesome-seo",
+      "description": ":star2: A curated list of SEO (Search Engine Optimization) links.",
+      "owner": "teles",
+      "stars": 861,
+      "forks": 145,
+      "open_issues": 82,
+      "language": "TypeScript",
+      "license": null,
+      "created_at": "2015-09-26T03:53:53Z",
+      "updated_at": "2026-07-11T10:48:10Z",
+      "pushed_at": "2026-04-02T07:42:41Z",
+      "archived": false,
+      "topics": [
+        "hacktoberfest",
+        "seo"
+      ],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "local-seo",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 4730,
+      "relevance_score": 66.7
+    },
+    {
+      "full_name": "podigee/device_detector",
+      "url": "https://github.com/podigee/device_detector",
+      "description": "DeviceDetector is a precise and fast user agent parser and device detector written in Ruby",
+      "owner": "podigee",
+      "stars": 771,
+      "forks": 115,
+      "open_issues": 6,
+      "language": "Ruby",
+      "license": "NOASSERTION",
+      "created_at": "2014-12-18T11:47:17Z",
+      "updated_at": "2026-07-05T19:37:24Z",
+      "pushed_at": "2025-11-10T14:54:26Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-crawlers",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 45939,
+      "relevance_score": 66.5
+    },
+    {
+      "full_name": "chicogong/html-tools",
+      "url": "https://github.com/chicogong/html-tools",
+      "description": "🛠️ 1088+ 纯前端在线工具集 | 单文件·零构建·可离线·隐私优先 | Pure HTML Tools - Single file, Zero build, Offline-ready, Privacy-first",
+      "owner": "chicogong",
+      "stars": 117,
+      "forks": 48,
+      "open_issues": 14,
+      "language": "HTML",
+      "license": "MIT",
+      "created_at": "2025-12-25T06:15:43Z",
+      "updated_at": "2026-07-18T15:07:04Z",
+      "pushed_at": "2026-07-09T02:04:20Z",
+      "archived": false,
+      "topics": [
+        "ai-tools",
+        "developer-tools",
+        "free-tools",
+        "frontend-tools",
+        "html",
+        "html-tools",
+        "mcp",
+        "no-build",
+        "no-tracking",
+        "offline-first",
+        "online-tools",
+        "privacy-first",
+        "productivity-tools",
+        "pwa",
+        "seo-tools",
+        "single-file",
+        "tools",
+        "vanilla-js",
+        "web-tools",
+        "web-utilities"
+      ],
+      "search_categories": [
+        "indexing",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 30253,
+      "relevance_score": 66.3
+    },
+    {
+      "full_name": "codepurse/SEOCORE",
+      "url": "https://github.com/codepurse/SEOCORE",
+      "description": "Enterprise-grade, multi-threaded SEO Crawler, Rule Engine, and Link Graph Analyzer. Built in TypeScript for speed, compliance, and deep site health audits.",
+      "owner": "codepurse",
+      "stars": 109,
+      "forks": 0,
+      "open_issues": 0,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2026-05-23T11:02:24Z",
+      "updated_at": "2026-07-16T07:17:05Z",
+      "pushed_at": "2026-07-16T07:16:38Z",
+      "archived": false,
+      "topics": [
+        "crawler",
+        "free",
+        "seo",
+        "typescript"
+      ],
+      "search_categories": [
+        "ai-crawlers",
+        "structured-data",
+        "technical-seo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 34314,
+      "relevance_score": 66.3
+    },
+    {
+      "full_name": "Houseofmvps/ultraship",
+      "url": "https://github.com/Houseofmvps/ultraship",
+      "description": "\"ULTRASHIP\" Claude Code plugin — 39 skills, 33 tools, 11 agents for ship-ready workflows: planning, review, pentesting, safety guardrails, canary monitoring, SEO/AI-readiness check, penetration testing, code review, competitive analysis, incident response. 1 dependency. 180 tests. MIT.",
+      "owner": "Houseofmvps",
+      "stars": 114,
+      "forks": 13,
+      "open_issues": 0,
+      "language": "JavaScript",
+      "license": "MIT",
+      "created_at": "2026-03-24T17:54:10Z",
+      "updated_at": "2026-07-18T01:33:22Z",
+      "pushed_at": "2026-07-08T00:07:40Z",
+      "archived": false,
+      "topics": [
+        "aeo",
+        "ai",
+        "claude",
+        "claude-code",
+        "claude-code-plugin",
+        "claude-code-plugins",
+        "code-review",
+        "competitive-analysis",
+        "developer-tools",
+        "generative-engine-optimization",
+        "geo",
+        "indie-hackers",
+        "lighthouse",
+        "llms-txt",
+        "mcp",
+        "performance",
+        "playwright",
+        "saas",
+        "security",
+        "seo"
+      ],
+      "search_categories": [
+        "ai-crawlers",
+        "indexing",
+        "technical-seo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 24513,
+      "relevance_score": 66.2
+    },
+    {
+      "full_name": "multivmlabs/aeo.js",
+      "url": "https://github.com/multivmlabs/aeo.js",
+      "description": "Answer Engine Optimization for the modern web. Make your site discoverable by ChatGPT, Claude, Perplexity & AI search engines. Generates llms.txt, robots.txt, sitemap, JSON-LD & more.",
+      "owner": "multivmlabs",
+      "stars": 110,
+      "forks": 15,
+      "open_issues": 2,
+      "language": "TypeScript",
+      "license": null,
+      "created_at": "2026-02-20T14:03:10Z",
+      "updated_at": "2026-07-18T18:04:40Z",
+      "pushed_at": "2026-07-13T12:27:52Z",
+      "archived": false,
+      "topics": [
+        "aeo",
+        "ai-crawlers",
+        "ai-search",
+        "answer-engine-optimization",
+        "astro",
+        "chatgpt",
+        "geo",
+        "json-ld",
+        "llm",
+        "llms-txt",
+        "nextjs",
+        "npm-package",
+        "nuxt",
+        "perplexity",
+        "robots-txt",
+        "seo",
+        "sitemap",
+        "structured-data",
+        "typescript",
+        "vite"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 9066,
+      "relevance_score": 66.2
+    },
+    {
+      "full_name": "affaan-m/ECC",
+      "url": "https://github.com/affaan-m/ECC",
+      "description": "The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
+      "owner": "affaan-m",
+      "stars": 231203,
+      "forks": 35276,
+      "open_issues": 113,
+      "language": "JavaScript",
+      "license": "MIT",
+      "created_at": "2026-01-18T00:51:51Z",
+      "updated_at": "2026-07-19T20:52:28Z",
+      "pushed_at": "2026-07-19T19:47:10Z",
+      "archived": false,
+      "topics": [
+        "ai-agents",
+        "anthropic",
+        "claude",
+        "claude-code",
+        "developer-tools",
+        "llm",
+        "mcp",
+        "productivity"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "headroomlabs-ai/headroom",
+      "url": "https://github.com/headroomlabs-ai/headroom",
+      "description": "Compress tool outputs, logs, files, and RAG chunks before they reach the LLM. 20% fewer tokens for coding agents, 60-95% fewer tokens for JSON, same answers. Library, proxy, MCP server.",
+      "owner": "headroomlabs-ai",
+      "stars": 60233,
+      "forks": 4511,
+      "open_issues": 476,
+      "language": "Python",
+      "license": "Apache-2.0",
+      "created_at": "2026-01-07T19:58:51Z",
+      "updated_at": "2026-07-19T20:57:20Z",
+      "pushed_at": "2026-07-19T19:24:41Z",
+      "archived": false,
+      "topics": [
+        "agent",
+        "ai",
+        "anthropic",
+        "claude-code",
+        "compression",
+        "context-engineering",
+        "context-window",
+        "cursor",
+        "fastapi",
+        "langchain",
+        "llm",
+        "mcp",
+        "openai",
+        "prompt-engineering",
+        "proxy",
+        "python",
+        "rag",
+        "token-optimization",
+        "tokens",
+        "typescript"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 32992,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "academic/awesome-datascience",
+      "url": "https://github.com/academic/awesome-datascience",
+      "description": ":memo: An awesome Data Science repository to learn and apply for real world problems.",
+      "owner": "academic",
+      "stars": 29658,
+      "forks": 6594,
+      "open_issues": 2,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2014-07-05T07:07:43Z",
+      "updated_at": "2026-07-19T20:15:36Z",
+      "pushed_at": "2026-07-18T20:56:57Z",
+      "archived": false,
+      "topics": [
+        "analytics",
+        "awesome-list",
+        "data-mining",
+        "data-science",
+        "data-scientists",
+        "data-visualization",
+        "deep-learning",
+        "hacktoberfest",
+        "machine-learning",
+        "science"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "PrefectHQ/fastmcp",
+      "url": "https://github.com/PrefectHQ/fastmcp",
+      "description": "🚀 The fast, Pythonic way to build MCP servers and clients.",
+      "owner": "PrefectHQ",
+      "stars": 26291,
+      "forks": 2144,
+      "open_issues": 252,
+      "language": "Python",
+      "license": "Apache-2.0",
+      "created_at": "2024-11-30T01:47:40Z",
+      "updated_at": "2026-07-19T21:01:01Z",
+      "pushed_at": "2026-07-19T20:42:08Z",
+      "archived": false,
+      "topics": [
+        "agents",
+        "fastmcp",
+        "llms",
+        "mcp",
+        "mcp-clients",
+        "mcp-servers",
+        "mcp-tools",
+        "model-context-protocol",
+        "python"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 6920,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "spree/spree",
+      "url": "https://github.com/spree/spree",
+      "description": "Open Source eCommerce Platform for B2B, Marketplace, and Enterprise. REST API, TypeScript SDK, and production-ready Next.js storefront. Self-host it. Own your stack. No vendor lock-in. Zero platform fees.",
+      "owner": "spree",
+      "stars": 15562,
+      "forks": 5286,
+      "open_issues": 124,
+      "language": "Ruby",
+      "license": "BSD-3-Clause",
+      "created_at": "2008-03-10T14:45:35Z",
+      "updated_at": "2026-07-19T20:30:19Z",
+      "pushed_at": "2026-07-19T19:28:51Z",
+      "archived": false,
+      "topics": [
+        "b2b-commerce",
+        "e-commerce",
+        "ecommerce",
+        "ecommerce-api",
+        "ecommerce-framework",
+        "ecommerce-platform",
+        "headless",
+        "headless-commerce",
+        "headless-ecommerce",
+        "marketplace",
+        "multi-tenant",
+        "multi-vendor",
+        "multi-vendor-ecommerce",
+        "open-source",
+        "spree-commerce"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 14327,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "yusufkaraaslan/Skill_Seekers",
+      "url": "https://github.com/yusufkaraaslan/Skill_Seekers",
+      "description": "Convert documentation websites, GitHub repositories, and PDFs into Claude AI skills with automatic conflict detection",
+      "owner": "yusufkaraaslan",
+      "stars": 14499,
+      "forks": 1474,
+      "open_issues": 46,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2025-10-17T14:43:48Z",
+      "updated_at": "2026-07-19T20:34:02Z",
+      "pushed_at": "2026-07-19T20:50:14Z",
+      "archived": false,
+      "topics": [
+        "ai-tools",
+        "ast-parser",
+        "automation",
+        "claude-ai",
+        "claude-skills",
+        "code-analysis",
+        "conflict-detection",
+        "documentation",
+        "documentation-generator",
+        "github",
+        "github-scraper",
+        "mcp",
+        "mcp-server",
+        "multi-source",
+        "ocr",
+        "pdf",
+        "python",
+        "web-scraping"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 56505,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "kyegomez/swarms",
+      "url": "https://github.com/kyegomez/swarms",
+      "description": "The Enterprise-Grade Production-Ready Multi-Agent Orchestration Framework. Website: https://swarms.ai",
+      "owner": "kyegomez",
+      "stars": 6962,
+      "forks": 965,
+      "open_issues": 76,
+      "language": "Python",
+      "license": "Apache-2.0",
+      "created_at": "2023-05-11T01:09:00Z",
+      "updated_at": "2026-07-19T20:53:17Z",
+      "pushed_at": "2026-07-19T20:53:11Z",
+      "archived": false,
+      "topics": [
+        "agentic-ai",
+        "agentic-workflow",
+        "agents",
+        "ai",
+        "artificial-intelligence",
+        "chatgpt",
+        "claude-code",
+        "gpt4all",
+        "huggingface",
+        "langchain",
+        "langchain-python",
+        "machine-learning",
+        "multi-agent-systems",
+        "prompt-engineering",
+        "prompt-toolkit",
+        "prompting",
+        "swarms",
+        "tree-of-thoughts"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 49325,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "sooperset/mcp-atlassian",
+      "url": "https://github.com/sooperset/mcp-atlassian",
+      "description": "MCP server for Atlassian tools (Confluence, Jira)",
+      "owner": "sooperset",
+      "stars": 5584,
+      "forks": 1274,
+      "open_issues": 171,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2024-12-03T09:25:20Z",
+      "updated_at": "2026-07-19T12:54:26Z",
+      "pushed_at": "2026-07-19T06:32:59Z",
+      "archived": false,
+      "topics": [
+        "atlassian",
+        "confluence",
+        "jira",
+        "mcp"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 5128,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "mitchellkrogza/nginx-ultimate-bad-bot-blocker",
+      "url": "https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker",
+      "description": "Nginx Block Bad Bots, Spam Referrer Blocker, Vulnerability Scanners, User-Agents, Malware, Adware, Ransomware, Malicious Sites, with anti-DDOS, Wordpress Theme Detector Blocking and Fail2Ban Jail for Repeat Offenders",
+      "owner": "mitchellkrogza",
+      "stars": 4764,
+      "forks": 521,
+      "open_issues": 149,
+      "language": "Shell",
+      "license": "NOASSERTION",
+      "created_at": "2016-07-23T16:44:49Z",
+      "updated_at": "2026-07-19T10:37:55Z",
+      "pushed_at": "2026-07-19T10:37:51Z",
+      "archived": false,
+      "topics": [
+        "adware",
+        "bot-blocker",
+        "bots",
+        "gambling-filter",
+        "malware",
+        "nginx",
+        "nginx-server",
+        "porn-filter",
+        "referer-blocker",
+        "referrer-spam",
+        "scanners",
+        "spam-blocker",
+        "spam-filtering",
+        "spam-prevention",
+        "spam-protection",
+        "spam-referers",
+        "spam-referrer-blocker",
+        "spambot-security",
+        "spyware",
+        "vulnerability-scanners"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "indexing",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 51411,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "taishi-i/awesome-ChatGPT-repositories",
+      "url": "https://github.com/taishi-i/awesome-ChatGPT-repositories",
+      "description": "A curated list of open source GitHub repositories related to ChatGPT, the OpenAI API, and Codex. Searchable via Claude Code skills.",
+      "owner": "taishi-i",
+      "stars": 3150,
+      "forks": 423,
+      "open_issues": 19,
+      "language": "Python",
+      "license": "CC0-1.0",
+      "created_at": "2023-04-02T14:00:07Z",
+      "updated_at": "2026-07-19T19:58:53Z",
+      "pushed_at": "2026-07-19T14:29:38Z",
+      "archived": false,
+      "topics": [
+        "agent",
+        "agent-skills",
+        "ai",
+        "awesome",
+        "awesome-list",
+        "chatgpt",
+        "codex",
+        "gpt-5",
+        "llm",
+        "openai",
+        "skills"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-crawlers",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "yaojingang/GEOFlow",
+      "url": "https://github.com/yaojingang/GEOFlow",
+      "description": "Open-source GEO content engineering and multi-site distribution system with AI tasks, RAG/semantic chunking, analytics, GEOFlow Agent and WordPress target publishing.",
+      "owner": "yaojingang",
+      "stars": 2970,
+      "forks": 683,
+      "open_issues": 1,
+      "language": "PHP",
+      "license": "Apache-2.0",
+      "created_at": "2026-04-13T11:42:03Z",
+      "updated_at": "2026-07-19T13:58:39Z",
+      "pushed_at": "2026-07-19T13:58:34Z",
+      "archived": false,
+      "topics": [
+        "ai",
+        "cms",
+        "content-automation",
+        "geo",
+        "openai-compatible",
+        "php",
+        "postgresql",
+        "seo"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 13263,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "nteract/semiotic",
+      "url": "https://github.com/nteract/semiotic",
+      "description": "React data visualization library for streaming, networks, and AI-assisted development",
+      "owner": "nteract",
+      "stars": 2686,
+      "forks": 137,
+      "open_issues": 1,
+      "language": "TypeScript",
+      "license": "Apache-2.0",
+      "created_at": "2017-03-16T17:46:24Z",
+      "updated_at": "2026-07-19T20:52:10Z",
+      "pushed_at": "2026-07-19T20:57:15Z",
+      "archived": false,
+      "topics": [
+        "ai",
+        "d3",
+        "data-visualization",
+        "nteract",
+        "react",
+        "streaming",
+        "visualization"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 35199,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "sheeki03/tirith",
+      "url": "https://github.com/sheeki03/tirith",
+      "description": "Terminal security for developers and AI agents. Intercepts homograph URLs, pipe-to-shell, ANSI injection, obfuscated payloads, data exfiltration, and malicious AI skills/configs before they execute.",
+      "owner": "sheeki03",
+      "stars": 2608,
+      "forks": 87,
+      "open_issues": 25,
+      "language": "Rust",
+      "license": "AGPL-3.0",
+      "created_at": "2026-02-02T04:33:47Z",
+      "updated_at": "2026-07-19T18:45:58Z",
+      "pushed_at": "2026-07-19T06:52:28Z",
+      "archived": false,
+      "topics": [
+        "cli",
+        "devtools",
+        "homograph-attack",
+        "rust",
+        "security",
+        "shell",
+        "supply-chain-security",
+        "terminal",
+        "unicode",
+        "url-security"
+      ],
+      "search_categories": [
+        "ai-crawlers"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "ai-crawlers"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 57294,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "docmd-io/docmd",
+      "url": "https://github.com/docmd-io/docmd",
+      "description": "Build production-ready documentation from Markdown in seconds. No React, no bloat, just content.",
+      "owner": "docmd-io",
+      "stars": 2174,
+      "forks": 119,
+      "open_issues": 4,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2025-05-08T04:58:58Z",
+      "updated_at": "2026-07-19T20:01:31Z",
+      "pushed_at": "2026-07-19T13:47:15Z",
+      "archived": false,
+      "topics": [
+        "ai-skills",
+        "api",
+        "context-api",
+        "docker",
+        "docmd",
+        "documentation",
+        "i18n",
+        "javascript",
+        "markdown",
+        "mcp",
+        "nodejs",
+        "openapi",
+        "plugins",
+        "pwa",
+        "semantic-search",
+        "seo",
+        "static-site-generator",
+        "themes",
+        "typescript",
+        "version-control"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 11176,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "mvanhorn/printing-press-library",
+      "url": "https://github.com/mvanhorn/printing-press-library",
+      "description": "Official library of CLIs generated by the CLI Printing Press. Endorsed, tested, and community-contributed.",
+      "owner": "mvanhorn",
+      "stars": 1817,
+      "forks": 527,
+      "open_issues": 232,
+      "language": "Go",
+      "license": null,
+      "created_at": "2026-03-28T00:11:49Z",
+      "updated_at": "2026-07-19T20:24:40Z",
+      "pushed_at": "2026-07-18T15:51:26Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "geo-aeo",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "internet-development/www-sacred",
+      "url": "https://github.com/internet-development/www-sacred",
+      "description": "SRCL is an open-source React component and style repository that helps you build web applications, desktop applications, and static websites with terminal aesthetics.",
+      "owner": "internet-development",
+      "stars": 1548,
+      "forks": 81,
+      "open_issues": 4,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2024-11-14T21:29:03Z",
+      "updated_at": "2026-07-19T20:26:18Z",
+      "pushed_at": "2026-07-18T20:44:23Z",
+      "archived": false,
+      "topics": [
+        "component-library",
+        "design-system",
+        "monospace",
+        "nextjs",
+        "react",
+        "scss"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 4783,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "mearashadowfax/ScrewFast",
+      "url": "https://github.com/mearashadowfax/ScrewFast",
+      "description": "Open-source Astro website template with sleek, customizable TailwindCSS components.",
+      "owner": "mearashadowfax",
+      "stars": 1371,
+      "forks": 378,
+      "open_issues": 5,
+      "language": "Astro",
+      "license": "MIT",
+      "created_at": "2024-02-09T23:52:17Z",
+      "updated_at": "2026-07-17T02:10:46Z",
+      "pushed_at": "2026-07-19T17:24:00Z",
+      "archived": false,
+      "topics": [
+        "astro",
+        "astro-template",
+        "astro-theme",
+        "blog",
+        "landing-page",
+        "preline",
+        "preline-ui",
+        "tailwindcss",
+        "tailwindcss-template",
+        "template",
+        "theme",
+        "website-template"
+      ],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 29118,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "JustinBeckwith/linkinator",
+      "url": "https://github.com/JustinBeckwith/linkinator",
+      "description": "Broken link checker that crawls websites and validates links. Find broken links, dead links, and invalid URLs in websites, documentation, and local files. Perfect for SEO audits and CI/CD.",
+      "owner": "JustinBeckwith",
+      "stars": 1237,
+      "forks": 103,
+      "open_issues": 9,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2019-02-12T02:13:33Z",
+      "updated_at": "2026-07-18T22:59:09Z",
+      "pushed_at": "2026-07-18T22:59:29Z",
+      "archived": false,
+      "topics": [
+        "404",
+        "broken-link-checker",
+        "broken-links",
+        "ci-cd",
+        "dead-links",
+        "html",
+        "link-checker",
+        "link-validator",
+        "nodejs",
+        "seo",
+        "seo-tools",
+        "testing",
+        "typescript",
+        "url-validator",
+        "web-crawler",
+        "website-crawler"
+      ],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 24371,
+      "relevance_score": 66
+    },
+    {
+      "full_name": "KeygraphHQ/shannon",
+      "url": "https://github.com/KeygraphHQ/shannon",
+      "description": "Shannon is an autonomous, white-box AI pentester for web applications and APIs. It analyzes your source code, identifies attack vectors, and executes real exploits to prove vulnerabilities before they reach production.",
+      "owner": "KeygraphHQ",
+      "stars": 45881,
+      "forks": 5319,
+      "open_issues": 23,
+      "language": "TypeScript",
+      "license": "AGPL-3.0",
+      "created_at": "2025-09-27T01:51:47Z",
+      "updated_at": "2026-07-19T19:09:37Z",
+      "pushed_at": "2026-07-16T17:30:47Z",
+      "archived": false,
+      "topics": [
+        "penetration-testing",
+        "pentesting",
+        "security-audit",
+        "security-automation",
+        "security-tools"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 15384,
+      "relevance_score": 65.9
+    },
+    {
+      "full_name": "garrytan/gbrain",
+      "url": "https://github.com/garrytan/gbrain",
+      "description": "Garry's Opinionated OpenClaw/Hermes Agent Brain",
+      "owner": "garrytan",
+      "stars": 26613,
+      "forks": 3859,
+      "open_issues": 1108,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2026-04-05T14:40:56Z",
+      "updated_at": "2026-07-19T20:47:14Z",
+      "pushed_at": "2026-07-17T22:43:09Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 39635,
+      "relevance_score": 65.9
+    },
+    {
+      "full_name": "alirezarezvani/claude-skills",
+      "url": "https://github.com/alirezarezvani/claude-skills",
+      "description": "345 Claude Code skills & agent skills & plugins (30+ Agents, 70+ custom commands, 330+ skills, customizable references, scripts)for Claude Code, Codex, Gemini CLI, Cursor, and 8 more coding agents — engineering, marketing, product, compliance, C-level advisory, research, business operations, commercial & finance, and your daily productivity skills.",
+      "owner": "alirezarezvani",
+      "stars": 22814,
+      "forks": 3087,
+      "open_issues": 5,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2025-10-19T04:04:05Z",
+      "updated_at": "2026-07-19T20:45:49Z",
+      "pushed_at": "2026-07-17T13:02:50Z",
+      "archived": false,
+      "topics": [
+        "agent-plugins",
+        "agent-skills",
+        "agentic-ai",
+        "ai-coding-agent",
+        "anthropic-claude",
+        "claude-ai",
+        "claude-code",
+        "claude-code-plugins",
+        "claude-code-skills",
+        "claude-skills",
+        "codex-skills",
+        "coding-agent-plugins",
+        "cursor-skills",
+        "developer-tools",
+        "gemini-cli-skills",
+        "openai-codex",
+        "openclaw",
+        "openclaw-plugins",
+        "openclaw-skills",
+        "prompt-engineering"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 22608,
+      "relevance_score": 65.9
+    },
+    {
+      "full_name": "garmeeh/next-seo",
+      "url": "https://github.com/garmeeh/next-seo",
+      "description": "Next SEO is a plug in that makes managing your SEO easier in Next.js projects.",
+      "owner": "garmeeh",
+      "stars": 8491,
+      "forks": 454,
+      "open_issues": 11,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2018-06-12T21:19:56Z",
+      "updated_at": "2026-07-18T19:27:04Z",
+      "pushed_at": "2026-02-15T13:53:54Z",
+      "archived": false,
+      "topics": [
+        "hacktoberfest",
+        "hacktoberfest-accepted",
+        "json-ld",
+        "nextjs",
+        "react",
+        "seo",
+        "typescript"
+      ],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing",
+        "local-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 65.9
+    },
+    {
+      "full_name": "Ataraxy-Labs/sem",
+      "url": "https://github.com/Ataraxy-Labs/sem",
+      "description": "Semantic version control => entity-level diffs, blame, and impact analysis on top of git. 28 languages via tree-sitter. Built for coding agents.",
+      "owner": "Ataraxy-Labs",
+      "stars": 3230,
+      "forks": 97,
+      "open_issues": 4,
+      "language": "Rust",
+      "license": "Apache-2.0",
+      "created_at": "2026-02-05T19:49:35Z",
+      "updated_at": "2026-07-19T20:28:53Z",
+      "pushed_at": "2026-07-18T05:05:05Z",
+      "archived": false,
+      "topics": [
+        "ai-agents",
+        "code-intelligence",
+        "coding-agents",
+        "developer-tools",
+        "git",
+        "llm-tools",
+        "semantic-diff",
+        "tree-sitter",
+        "typescript",
+        "version-control"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 18496,
+      "relevance_score": 65.9
+    },
+    {
+      "full_name": "nuxt-content/docus",
+      "url": "https://github.com/nuxt-content/docus",
+      "description": "Write beautiful documentations with Nuxt and Markdown.",
+      "owner": "nuxt-content",
+      "stars": 2927,
+      "forks": 271,
+      "open_issues": 45,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2020-11-12T15:30:07Z",
+      "updated_at": "2026-07-18T11:54:38Z",
+      "pushed_at": "2026-07-16T14:22:42Z",
+      "archived": false,
+      "topics": [
+        "documentation-generator",
+        "nuxt",
+        "nuxt-theme"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 7333,
+      "relevance_score": 65.9
+    },
+    {
+      "full_name": "tractorjuice/arc-kit",
+      "url": "https://github.com/tractorjuice/arc-kit",
+      "description": "The Enterprise Architecture Governance Harness — strategy, architecture, delivery, and assurance for AI coding assistants",
+      "owner": "tractorjuice",
+      "stars": 2093,
+      "forks": 254,
+      "open_issues": 16,
+      "language": "JavaScript",
+      "license": "NOASSERTION",
+      "created_at": "2025-10-14T10:25:11Z",
+      "updated_at": "2026-07-18T16:54:31Z",
+      "pushed_at": "2026-07-16T09:05:36Z",
+      "archived": false,
+      "topics": [
+        "ai-agents",
+        "ai-governance",
+        "architecture-decision-records",
+        "architecture-governance",
+        "arckit",
+        "claude-code",
+        "codex-cli",
+        "compliance",
+        "enterprise-architecture",
+        "gemini-cli",
+        "github-copilot",
+        "govtech",
+        "mcp",
+        "model-context-protocol",
+        "opencode",
+        "procurement",
+        "public-sector",
+        "requirements-engineering",
+        "software-architecture",
+        "traceability"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 65.9
+    },
+    {
+      "full_name": "atomicstrata/llm-wiki-compiler",
+      "url": "https://github.com/atomicstrata/llm-wiki-compiler",
+      "description": "The knowledge compiler. Raw sources in, interlinked wiki out. Inspired by Karpathy's LLM Wiki pattern.",
+      "owner": "atomicstrata",
+      "stars": 1793,
+      "forks": 171,
+      "open_issues": 7,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2026-04-05T19:53:06Z",
+      "updated_at": "2026-07-19T12:07:07Z",
+      "pushed_at": "2026-07-16T00:33:36Z",
+      "archived": false,
+      "topics": [
+        "cli",
+        "compiler",
+        "context-engineering",
+        "karpathy",
+        "knowledge-base",
+        "knowledge-compilation",
+        "llm",
+        "markdown",
+        "obsidian",
+        "wiki"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 24454,
+      "relevance_score": 65.9
+    },
+    {
+      "full_name": "fullstack-build/tslog",
+      "url": "https://github.com/fullstack-build/tslog",
+      "description": "📝 tslog - Universal Logger for TypeScript and JavaScript",
+      "owner": "fullstack-build",
+      "stars": 1628,
+      "forks": 73,
+      "open_issues": 0,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2020-04-23T09:08:24Z",
+      "updated_at": "2026-07-16T22:15:02Z",
+      "pushed_at": "2026-07-16T22:14:58Z",
+      "archived": false,
+      "topics": [
+        "error-handling",
+        "exceptions",
+        "json",
+        "json-api",
+        "logger",
+        "logging",
+        "logging-library",
+        "pretty-print",
+        "stack",
+        "stacktrace",
+        "typescript-library"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 56890,
+      "relevance_score": 65.9
+    },
+    {
+      "full_name": "marcelscruz/dev-resources",
+      "url": "https://github.com/marcelscruz/dev-resources",
+      "description": "A collaborative list of resources for developers",
+      "owner": "marcelscruz",
+      "stars": 1312,
+      "forks": 752,
+      "open_issues": 76,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2021-01-25T19:34:25Z",
+      "updated_at": "2026-07-17T20:58:50Z",
+      "pushed_at": "2026-07-16T20:28:12Z",
+      "archived": false,
+      "topics": [
+        "assets",
+        "awesome",
+        "awesome-list",
+        "courses",
+        "design",
+        "dev-resources",
+        "development",
+        "hacktoberfest",
+        "information",
+        "infrastructure",
+        "jobs",
+        "programming",
+        "public-apis",
+        "resources",
+        "tools"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 65.9
+    },
+    {
+      "full_name": "AminForou/mcp-gsc",
+      "url": "https://github.com/AminForou/mcp-gsc",
+      "description": "Google Search Console Insights with Claude AI for SEOs",
+      "owner": "AminForou",
+      "stars": 1201,
+      "forks": 168,
+      "open_issues": 5,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2025-03-14T01:35:38Z",
+      "updated_at": "2026-07-19T20:15:31Z",
+      "pushed_at": "2026-07-17T01:08:58Z",
+      "archived": false,
+      "topics": [
+        "claude",
+        "google-search-console",
+        "mcp-server",
+        "seo"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "indexing",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 19162,
+      "relevance_score": 65.9
+    },
+    {
+      "full_name": "pingcap/ossinsight",
+      "url": "https://github.com/pingcap/ossinsight",
+      "description": "Analysis, Comparison, Trends, Rankings of Open Source Software, you can also get insight from more than 10 billion with natural language (powered by LLM). Follow us on Twitter: https://twitter.com/ossinsight",
+      "owner": "pingcap",
+      "stars": 2465,
+      "forks": 439,
+      "open_issues": 18,
+      "language": "TypeScript",
+      "license": "Apache-2.0",
+      "created_at": "2022-01-19T10:41:15Z",
+      "updated_at": "2026-07-18T15:59:29Z",
+      "pushed_at": "2026-07-15T02:28:40Z",
+      "archived": false,
+      "topics": [
+        "aisql",
+        "analytics",
+        "chat2query",
+        "demo",
+        "github",
+        "htap",
+        "insight",
+        "openai",
+        "oss",
+        "realtime",
+        "text2sql"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 8607,
+      "relevance_score": 65.8
+    },
+    {
+      "full_name": "planetjekyll/awesome-jekyll-plugins",
+      "url": "https://github.com/planetjekyll/awesome-jekyll-plugins",
+      "description": "A collection of awesome Jekyll plugins (gems, scripts, pasties, etc.)",
+      "owner": "planetjekyll",
+      "stars": 1413,
+      "forks": 87,
+      "open_issues": 0,
+      "language": null,
+      "license": null,
+      "created_at": "2016-04-20T15:46:45Z",
+      "updated_at": "2026-07-12T09:52:24Z",
+      "pushed_at": "2026-07-12T09:52:06Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "indexing",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 39870,
+      "relevance_score": 65.8
+    },
+    {
+      "full_name": "dodopayments/dualmark",
+      "url": "https://github.com/dodopayments/dualmark",
+      "description": "Open-source AEO (Answer Engine Optimization) infrastructure — every page, dual-marked. Markdown twins for AI agents alongside HTML for humans, picked by HTTP content negotiation.",
+      "owner": "dodopayments",
+      "stars": 95,
+      "forks": 27,
+      "open_issues": 22,
+      "language": "TypeScript",
+      "license": "Apache-2.0",
+      "created_at": "2026-05-05T06:55:19Z",
+      "updated_at": "2026-07-19T19:58:35Z",
+      "pushed_at": "2026-07-19T19:58:53Z",
+      "archived": false,
+      "topics": [
+        "aeo",
+        "ai-bots",
+        "ai-search",
+        "ai-seo",
+        "answer-engine-optimization",
+        "astro-integration",
+        "cloudflare-workers",
+        "content-negotiation",
+        "generative-engine-optimization",
+        "geo",
+        "llms-txt",
+        "markdown",
+        "nextjs",
+        "open-source",
+        "typescript"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "ai-crawlers"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 16813,
+      "relevance_score": 65.8
+    },
+    {
+      "full_name": "VoltAgent/awesome-agent-skills",
+      "url": "https://github.com/VoltAgent/awesome-agent-skills",
+      "description": "A curated collection of 1000+ agent skills from official dev teams and the community, compatible with Claude Code, Codex, Gemini CLI, Cursor, and more.",
+      "owner": "VoltAgent",
+      "stars": 28441,
+      "forks": 3067,
+      "open_issues": 55,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2025-10-28T08:55:32Z",
+      "updated_at": "2026-07-19T21:01:34Z",
+      "pushed_at": "2026-07-10T13:55:37Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "ai-agents",
+        "antigravity-skills",
+        "awesome",
+        "awesome-list",
+        "awesome-lists",
+        "claude-code",
+        "claude-code-skills",
+        "claude-skills",
+        "codex-skills",
+        "cursor-skills",
+        "gemini-skills",
+        "opencode-skills",
+        "skills"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 65.7
+    },
+    {
+      "full_name": "vonzosten/awesome-LangGraph",
+      "url": "https://github.com/vonzosten/awesome-LangGraph",
+      "description": "An index of the LangChain + LangGraph ecosystem: concepts, projects, tools, templates, and guides for LLM & multi-agent apps.",
+      "owner": "vonzosten",
+      "stars": 1911,
+      "forks": 240,
+      "open_issues": 14,
+      "language": "JavaScript",
+      "license": "CC0-1.0",
+      "created_at": "2024-11-02T15:54:00Z",
+      "updated_at": "2026-07-17T13:55:03Z",
+      "pushed_at": "2026-07-10T12:16:13Z",
+      "archived": false,
+      "topics": [
+        "ai",
+        "awesome",
+        "awesome-list",
+        "langchain",
+        "langgraph",
+        "llm",
+        "llm-agents"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 65.7
+    },
+    {
+      "full_name": "PixelOrange7/orangeo-ai-visibility-skill",
+      "url": "https://github.com/PixelOrange7/orangeo-ai-visibility-skill",
+      "description": "Open-source GEO / AEO skill for AI visibility readiness: check robots.txt, llms.txt, schema, citation signals, competitor gaps, and buyer prompts",
+      "owner": "PixelOrange7",
+      "stars": 127,
+      "forks": 26,
+      "open_issues": 0,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-06-09T04:10:52Z",
+      "updated_at": "2026-07-14T13:37:25Z",
+      "pushed_at": "2026-06-09T04:12:03Z",
+      "archived": false,
+      "topics": [
+        "aeo",
+        "ai-search",
+        "ai-visibility",
+        "answer-engine-optimization",
+        "brand-monitoring",
+        "chatgpt",
+        "claude-code",
+        "claude-code-skill",
+        "claude-skills",
+        "codex-skill",
+        "gemini",
+        "generative-engine-optimization",
+        "geo",
+        "grok",
+        "llm-seo",
+        "llms-txt",
+        "openai-codex",
+        "perplexity",
+        "robots-txt",
+        "seo"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "ai-crawlers"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 4814,
+      "relevance_score": 65.7
+    },
+    {
+      "full_name": "spronta/crawlie",
+      "url": "https://github.com/spronta/crawlie",
+      "description": "Fast, free, open-source technical SEO + GEO crawler: built for humans and agents.",
+      "owner": "spronta",
+      "stars": 91,
+      "forks": 10,
+      "open_issues": 1,
+      "language": "Rust",
+      "license": "NOASSERTION",
+      "created_at": "2026-06-18T21:18:06Z",
+      "updated_at": "2026-07-18T20:02:53Z",
+      "pushed_at": "2026-07-18T20:02:49Z",
+      "archived": false,
+      "topics": [
+        "aeo",
+        "crawler",
+        "geo",
+        "marketing-tools",
+        "mcp",
+        "search-optimisation",
+        "search-optimization",
+        "seo"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 13628,
+      "relevance_score": 65.6
+    },
+    {
+      "full_name": "yaolifeng0629/Awesome-independent-tools",
+      "url": "https://github.com/yaolifeng0629/Awesome-independent-tools",
+      "description": "收录独立开发、AI出海领域最新、最实用的工具与资源（Build Faster with Better Tools）",
+      "owner": "yaolifeng0629",
+      "stars": 2392,
+      "forks": 245,
+      "open_issues": 42,
+      "language": null,
+      "license": "AGPL-3.0",
+      "created_at": "2024-09-10T15:03:15Z",
+      "updated_at": "2026-07-19T18:34:55Z",
+      "pushed_at": "2026-07-04T09:40:16Z",
+      "archived": false,
+      "topics": [
+        "awesome",
+        "awesome-list",
+        "awesome-resources",
+        "dev",
+        "developer",
+        "developer-tools",
+        "development",
+        "independent",
+        "indiehacker",
+        "indiehackers",
+        "tools"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 24237,
+      "relevance_score": 65.5
+    },
+    {
+      "full_name": "JSONbored/awesome-claude",
+      "url": "https://github.com/JSONbored/awesome-claude",
+      "description": "HeyClaude is a curated registry and distribution surface for Claude and AI-workflow assets: agents, MCP servers, skills, commands, hooks, rules, guides, tools, jobs, Raycast feeds, static data exports, and an npm MCP package.",
+      "owner": "JSONbored",
+      "stars": 280,
+      "forks": 98,
+      "open_issues": 55,
+      "language": "MDX",
+      "license": "MIT",
+      "created_at": "2025-09-15T04:40:32Z",
+      "updated_at": "2026-07-19T18:30:23Z",
+      "pushed_at": "2026-07-19T18:20:20Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "ai-agents",
+        "ai-directory",
+        "ai-tools",
+        "anthropic",
+        "artificial-intelligence",
+        "awesome-list",
+        "claude",
+        "claude-ai",
+        "claude-api",
+        "claude-code",
+        "claude-desktop",
+        "claude-skills",
+        "claudecode",
+        "developer-tools",
+        "gittensor",
+        "llm",
+        "mcp-servers",
+        "open-source",
+        "openclaw-skills"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 65.5
+    },
+    {
+      "full_name": "MentionNetwork/awesome-agentic-commerce",
+      "url": "https://github.com/MentionNetwork/awesome-agentic-commerce",
+      "description": "A curated list of awesome agentic commerce resources — protocols, MCP servers, tools, apps, APIs and services for AI agents that shop, sell and transact. For store owners, developers, agencies and marketers.",
+      "owner": "MentionNetwork",
+      "stars": 89,
+      "forks": 21,
+      "open_issues": 0,
+      "language": null,
+      "license": "CC0-1.0",
+      "created_at": "2026-07-07T06:43:17Z",
+      "updated_at": "2026-07-17T06:25:36Z",
+      "pushed_at": "2026-07-13T10:52:01Z",
+      "archived": false,
+      "topics": [
+        "acp",
+        "agentic-ai",
+        "agentic-commerce",
+        "ai-agents",
+        "ai-commerce",
+        "ai-search",
+        "awesome",
+        "awesome-list",
+        "awesome-lists",
+        "bigcommerce",
+        "ecommerce",
+        "ecommerce-tools",
+        "geo",
+        "headless-commerce",
+        "llm",
+        "mcp",
+        "model-context-protocol",
+        "shopify",
+        "woocommerce",
+        "wordpress"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 28612,
+      "relevance_score": 65.3
+    },
+    {
+      "full_name": "SamurAIGPT/awesome-hermes-agent",
+      "url": "https://github.com/SamurAIGPT/awesome-hermes-agent",
+      "description": "A curated list of skills, plugins, tools, integrations, and resources for Hermes Agent by Nous Research",
+      "owner": "SamurAIGPT",
+      "stars": 1841,
+      "forks": 349,
+      "open_issues": 23,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2023-05-05T05:41:49Z",
+      "updated_at": "2026-07-19T16:17:34Z",
+      "pushed_at": "2026-06-25T20:49:46Z",
+      "archived": false,
+      "topics": [
+        "agent-tools",
+        "agentic-ai",
+        "ai-agents",
+        "autonomous-agents",
+        "awesome",
+        "awesome-list",
+        "chatbot",
+        "deployment",
+        "hermes-agent",
+        "integrations",
+        "llm",
+        "mcp",
+        "memory",
+        "multi-agent",
+        "nous-research",
+        "open-source",
+        "plugins",
+        "self-improving",
+        "skill-registry",
+        "skills"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 52169,
+      "relevance_score": 65.2
+    },
+    {
+      "full_name": "Houseofmvps/claude-rank",
+      "url": "https://github.com/Houseofmvps/claude-rank",
+      "description": "Claude Code plugin that tells you why your site won't get cited by AI — and fixes the discoverability files automatically. 170+ rules across 10 scanners.",
+      "owner": "Houseofmvps",
+      "stars": 89,
+      "forks": 6,
+      "open_issues": 0,
+      "language": "JavaScript",
+      "license": "MIT",
+      "created_at": "2026-03-27T22:49:47Z",
+      "updated_at": "2026-07-15T09:28:27Z",
+      "pushed_at": "2026-07-08T00:07:38Z",
+      "archived": false,
+      "topics": [
+        "aeo",
+        "ai-search",
+        "answer-engine-optimization",
+        "claude-code",
+        "generative-engine-optimization",
+        "geo",
+        "marketing",
+        "search-optimization",
+        "seo",
+        "structured-data"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "ai-crawlers",
+        "indexing",
+        "technical-seo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 25316,
+      "relevance_score": 65.1
+    },
+    {
+      "full_name": "cporter202/scraping-apis-for-devs",
+      "url": "https://github.com/cporter202/scraping-apis-for-devs",
+      "description": "This GitHub repo is a powerhouse collection of scraping APIs for developers that you can start using immediately to build everything from simple automations to full-scale applications. ",
+      "owner": "cporter202",
+      "stars": 3789,
+      "forks": 681,
+      "open_issues": 1,
+      "language": "JavaScript",
+      "license": null,
+      "created_at": "2025-12-10T18:35:41Z",
+      "updated_at": "2026-07-18T22:57:46Z",
+      "pushed_at": "2026-01-20T17:54:18Z",
+      "archived": false,
+      "topics": [
+        "api-library",
+        "api-list",
+        "developer-api",
+        "scraping-api"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 65
+    },
+    {
+      "full_name": "brightdata/brightdata-mcp",
+      "url": "https://github.com/brightdata/brightdata-mcp",
+      "description": "A powerful Model Context Protocol (MCP) server that provides an all-in-one solution for public web access.",
+      "owner": "brightdata",
+      "stars": 2515,
+      "forks": 316,
+      "open_issues": 19,
+      "language": "JavaScript",
+      "license": "MIT",
+      "created_at": "2025-04-15T10:55:56Z",
+      "updated_at": "2026-07-19T17:14:26Z",
+      "pushed_at": "2026-06-21T08:55:29Z",
+      "archived": false,
+      "topics": [
+        "ai-agents",
+        "ai-integrations",
+        "anti-bot-detection",
+        "browser-automation",
+        "data-collection",
+        "data-extraction",
+        "llm",
+        "mcp",
+        "mcp-server",
+        "modelcontextprotocol",
+        "scraping",
+        "scraping-tools",
+        "structured-data",
+        "web-crawling",
+        "web-data",
+        "web-scraping"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "structured-data"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 19786,
+      "relevance_score": 65
+    },
+    {
+      "full_name": "Infrasity-Labs/dev-gtm-claude-skills",
+      "url": "https://github.com/Infrasity-Labs/dev-gtm-claude-skills",
+      "description": "Open-source Claude skills for GEO, AI discoverability, and developer GTM workflows. Built for developer-focused companies that want their documentation to be found, parsed, and cited by AI systems.",
+      "owner": "Infrasity-Labs",
+      "stars": 92,
+      "forks": 4,
+      "open_issues": 0,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-05-10T08:29:06Z",
+      "updated_at": "2026-07-18T11:34:31Z",
+      "pushed_at": "2026-06-28T19:34:19Z",
+      "archived": false,
+      "topics": [
+        "ai-citation",
+        "ai-visibility",
+        "claude",
+        "claude-skills",
+        "dev-gtm",
+        "geo",
+        "skills"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "structured-data",
+        "indexing"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 64.9
+    },
+    {
+      "full_name": "SamurAIGPT/awesome-openclaw",
+      "url": "https://github.com/SamurAIGPT/awesome-openclaw",
+      "description": "A curated list of OpenClaw resources, tools, skills, tutorials & articles. OpenClaw (formerly Moltbot / Clawdbot) — open-source self-hosted AI agent for WhatsApp, Telegram, Discord & 50+ integrations.",
+      "owner": "SamurAIGPT",
+      "stars": 976,
+      "forks": 238,
+      "open_issues": 27,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2024-04-10T14:26:10Z",
+      "updated_at": "2026-07-18T12:20:52Z",
+      "pushed_at": "2026-06-16T14:20:43Z",
+      "archived": false,
+      "topics": [
+        "agentic-ai",
+        "ai-agent",
+        "ai-automation",
+        "autonomous-agents",
+        "awesome",
+        "awesome-list",
+        "chatbot",
+        "clawdbot",
+        "llm-agent",
+        "local-llm",
+        "mcp",
+        "model-context-protocol",
+        "moltbot",
+        "nodejs",
+        "open-source-ai",
+        "openclaw",
+        "personal-assistant",
+        "self-hosted",
+        "telegram-bot",
+        "whatsapp-bot"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 52442,
+      "relevance_score": 64.8
+    },
+    {
+      "full_name": "seranking/seo-skills",
+      "url": "https://github.com/seranking/seo-skills",
+      "description": "Claude SEO Skills — production Claude Agent Skills for the SE Ranking MCP server. Content briefs, AI Search share of voice, audits, backlink gaps, keyword clusters, schema, sitemap, GEO, and more.",
+      "owner": "seranking",
+      "stars": 91,
+      "forks": 20,
+      "open_issues": 2,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-04-24T14:59:21Z",
+      "updated_at": "2026-07-18T08:51:11Z",
+      "pushed_at": "2026-06-25T14:18:13Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "ai-search",
+        "answer-engine-optimization",
+        "anthropic",
+        "backlinks",
+        "claude",
+        "claude-code",
+        "claude-plugin",
+        "claude-skills",
+        "content-brief",
+        "ga4",
+        "generative-engine-optimization",
+        "keyword-research",
+        "mcp",
+        "mcp-server",
+        "search-console",
+        "seo",
+        "seo-tools",
+        "seranking",
+        "site-audit"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "local-seo"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 25481,
+      "relevance_score": 64.8
+    },
+    {
+      "full_name": "melbahja/seo",
+      "url": "https://github.com/melbahja/seo",
+      "description": "🐘 Simple PHP library to help developers 🍻 do better on-page SEO optimization 🤖",
+      "owner": "melbahja",
+      "stars": 359,
+      "forks": 56,
+      "open_issues": 0,
+      "language": "PHP",
+      "license": "MIT",
+      "created_at": "2019-03-02T13:18:29Z",
+      "updated_at": "2026-06-30T14:11:35Z",
+      "pushed_at": "2026-05-26T16:17:42Z",
+      "archived": false,
+      "topics": [
+        "google-indexing-api",
+        "indexing-api",
+        "indexnow",
+        "json-ld",
+        "metatags",
+        "php",
+        "php8",
+        "robots-txt",
+        "schema-org",
+        "search-engine-optimization",
+        "seo",
+        "seo-meta",
+        "seo-metadata",
+        "seo-optimization",
+        "seo-tools",
+        "seotools",
+        "sitemap",
+        "sitemap-builder",
+        "sitemap-generator",
+        "sitemap-xml"
+      ],
+      "search_categories": [
+        "indexing"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 13276,
+      "relevance_score": 64.7
+    },
+    {
+      "full_name": "ralphjsmit/laravel-seo",
+      "url": "https://github.com/ralphjsmit/laravel-seo",
+      "description": "A package to handle the SEO in any Laravel application, big or small.",
+      "owner": "ralphjsmit",
+      "stars": 858,
+      "forks": 66,
+      "open_issues": 6,
+      "language": "PHP",
+      "license": "MIT",
+      "created_at": "2022-02-04T08:56:27Z",
+      "updated_at": "2026-07-13T16:46:08Z",
+      "pushed_at": "2026-06-22T22:12:14Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 21505,
+      "relevance_score": 64.4
+    },
+    {
+      "full_name": "IT-NuanxinPro/wallpaper-gallery",
+      "url": "https://github.com/IT-NuanxinPro/wallpaper-gallery",
+      "description": "基于 Vue 3 + Vite 7 的高清壁纸展示网站。支持 4K 预览下载、GSAP 动画、响应式设计、暗黑主题。",
+      "owner": "IT-NuanxinPro",
+      "stars": 214,
+      "forks": 57,
+      "open_issues": 1,
+      "language": "Vue",
+      "license": null,
+      "created_at": "2025-12-19T05:45:42Z",
+      "updated_at": "2026-07-19T18:29:58Z",
+      "pushed_at": "2026-07-19T18:29:54Z",
+      "archived": false,
+      "topics": [
+        "element-plus",
+        "github-actions",
+        "gsap",
+        "postcss",
+        "sass",
+        "vant4",
+        "vue3",
+        "wallpaper"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 16366,
+      "relevance_score": 64.3
+    },
+    {
+      "full_name": "tribixbite/awesome",
+      "url": "https://github.com/tribixbite/awesome",
+      "description": "awesome github repos",
+      "owner": "tribixbite",
+      "stars": 81,
+      "forks": 6,
+      "open_issues": 0,
+      "language": "JavaScript",
+      "license": "MIT",
+      "created_at": "2022-03-20T19:34:45Z",
+      "updated_at": "2026-07-10T19:51:01Z",
+      "pushed_at": "2026-06-25T12:57:08Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "technical-seo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 64.3
+    },
+    {
+      "full_name": "nubenetes/awesome-kubernetes",
+      "url": "https://github.com/nubenetes/awesome-kubernetes",
+      "description": "A curated list of awesome references collected since 2018.",
+      "owner": "nubenetes",
+      "stars": 667,
+      "forks": 137,
+      "open_issues": 5,
+      "language": "HTML",
+      "license": "Apache-2.0",
+      "created_at": "2018-12-06T12:51:15Z",
+      "updated_at": "2026-07-17T17:33:35Z",
+      "pushed_at": "2026-07-17T17:33:31Z",
+      "archived": false,
+      "topics": [
+        "agentic-ai",
+        "ai",
+        "architecture",
+        "awesome-list",
+        "aws",
+        "azure",
+        "cloud-native",
+        "cncf",
+        "devops",
+        "devsecops",
+        "finops",
+        "gcp",
+        "gitops",
+        "infrastructure-as-code",
+        "kubernetes",
+        "multicloud",
+        "observability",
+        "platform-engineering",
+        "service-mesh",
+        "sre"
+      ],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 64.2
+    },
+    {
+      "full_name": "Aperivue/medsci-skills",
+      "url": "https://github.com/Aperivue/medsci-skills",
+      "description": "Agent Skills for medical research — literature search, reporting-guideline & citation checks, statistics, publication figures, submission. Works with Claude Code, Codex, Cursor & GitHub Copilot. Built by a physician-researcher, tested on real publications. MIT.",
+      "owner": "Aperivue",
+      "stars": 204,
+      "forks": 52,
+      "open_issues": 7,
+      "language": "Python",
+      "license": "NOASSERTION",
+      "created_at": "2026-04-06T07:00:46Z",
+      "updated_at": "2026-07-19T20:00:28Z",
+      "pushed_at": "2026-07-19T09:55:54Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "biostatistics",
+        "claude-code",
+        "claude-skills",
+        "clinical-research",
+        "codex",
+        "cursor",
+        "diagnostic-accuracy",
+        "irb-protocol",
+        "literature-review",
+        "manuscript",
+        "medical-ai",
+        "medical-research",
+        "meta-analysis",
+        "physician-researcher",
+        "prisma",
+        "pubmed",
+        "radiology",
+        "reporting-guidelines",
+        "systematic-review"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 64.1
+    },
+    {
+      "full_name": "luka2chat/awesome-geo",
+      "url": "https://github.com/luka2chat/awesome-geo",
+      "description": "🚀 A curated list of awesome resources for Generative Engine Optimization (GEO) - optimizing content for AI search engines like ChatGPT, Perplexity, Claude, and Google AI Overviews.",
+      "owner": "luka2chat",
+      "stars": 142,
+      "forks": 40,
+      "open_issues": 24,
+      "language": null,
+      "license": "CC0-1.0",
+      "created_at": "2025-12-08T15:58:10Z",
+      "updated_at": "2026-07-11T10:17:52Z",
+      "pushed_at": "2026-04-09T11:59:34Z",
+      "archived": false,
+      "topics": [
+        "ai-search",
+        "awesome",
+        "awesome-list",
+        "generative-engine-optimization",
+        "geo",
+        "geography",
+        "gis",
+        "resources",
+        "seo"
+      ],
+      "search_categories": [
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 45117,
+      "relevance_score": 64.1
+    },
+    {
+      "full_name": "xpaysh/awesome-agentic-commerce",
+      "url": "https://github.com/xpaysh/awesome-agentic-commerce",
+      "description": "Curated list of active protocols and implementations for agent-to-merchant commerce (ACP, UCP, AP2, x402, MPP, stablecoins). Every entry earns its line.",
+      "owner": "xpaysh",
+      "stars": 79,
+      "forks": 54,
+      "open_issues": 2,
+      "language": null,
+      "license": null,
+      "created_at": "2025-11-10T07:12:42Z",
+      "updated_at": "2026-07-17T05:48:13Z",
+      "pushed_at": "2026-06-24T16:02:45Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-crawlers"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "ai-crawlers",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 20627,
+      "relevance_score": 64.1
+    },
+    {
+      "full_name": "yaojingang/yao-geo-skills",
+      "url": "https://github.com/yaojingang/yao-geo-skills",
+      "description": "An open-source Skill collection for GEO content and workflows, continuously updated.",
+      "owner": "yaojingang",
+      "stars": 636,
+      "forks": 120,
+      "open_issues": 0,
+      "language": "HTML",
+      "license": "MIT",
+      "created_at": "2026-04-10T00:19:50Z",
+      "updated_at": "2026-07-19T11:00:58Z",
+      "pushed_at": "2026-07-19T11:00:50Z",
+      "archived": false,
+      "topics": [
+        "ai-agent",
+        "automation",
+        "cli",
+        "codex",
+        "geoflow",
+        "skills",
+        "workflow"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "structured-data"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 26251,
+      "relevance_score": 64
+    },
+    {
+      "full_name": "thinkwelltwd/device_detector",
+      "url": "https://github.com/thinkwelltwd/device_detector",
+      "description": null,
+      "owner": "thinkwelltwd",
+      "stars": 146,
+      "forks": 56,
+      "open_issues": 2,
+      "language": "Python",
+      "license": null,
+      "created_at": "2018-05-25T18:05:41Z",
+      "updated_at": "2026-06-25T22:02:15Z",
+      "pushed_at": "2026-04-02T18:08:34Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-crawlers",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-crawlers",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 58572,
+      "relevance_score": 64
+    },
+    {
+      "full_name": "MariusYvard/NullToHero",
+      "url": "https://github.com/MariusYvard/NullToHero",
+      "description": "From zero knowledge to hero website. Design + SEO skills that make Claude your expert co-pilot for building beautiful, high-ranking websites.",
+      "owner": "MariusYvard",
+      "stars": 61,
+      "forks": 0,
+      "open_issues": 0,
+      "language": "JavaScript",
+      "license": "Apache-2.0",
+      "created_at": "2026-05-03T18:14:43Z",
+      "updated_at": "2026-07-19T09:17:58Z",
+      "pushed_at": "2026-07-19T09:24:01Z",
+      "archived": false,
+      "topics": [
+        "accessibility",
+        "ai-search",
+        "anti-patterns",
+        "core-web-vitals",
+        "design",
+        "frontend",
+        "geo",
+        "gestalt",
+        "information-architecture",
+        "motion",
+        "parallax",
+        "schema",
+        "seo",
+        "ux-research",
+        "wcag-2-2"
+      ],
+      "search_categories": [
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "technical-seo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 25600,
+      "relevance_score": 63.8
+    },
+    {
+      "full_name": "we0-dev/we0",
+      "url": "https://github.com/we0-dev/we0",
+      "description": "we0 is an AI code editor for development programmers and product managers. same v0, bolt.new,lovable",
+      "owner": "we0-dev",
+      "stars": 926,
+      "forks": 137,
+      "open_issues": 8,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2025-02-02T15:42:50Z",
+      "updated_at": "2026-07-19T12:49:12Z",
+      "pushed_at": "2026-05-20T16:30:55Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "structured-data"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 10109,
+      "relevance_score": 63.7
+    },
+    {
+      "full_name": "idosal/git-mcp",
+      "url": "https://github.com/idosal/git-mcp",
+      "description": "Put an end to code hallucinations! GitMCP is a free, open-source, remote MCP server for any GitHub project",
+      "owner": "idosal",
+      "stars": 8267,
+      "forks": 736,
+      "open_issues": 77,
+      "language": "TypeScript",
+      "license": "Apache-2.0",
+      "created_at": "2025-03-29T00:44:19Z",
+      "updated_at": "2026-07-19T18:52:20Z",
+      "pushed_at": "2026-05-08T14:21:24Z",
+      "archived": false,
+      "topics": [
+        "agentic-ai",
+        "agents",
+        "ai",
+        "claude",
+        "copilot",
+        "cursor",
+        "git",
+        "llm",
+        "mcp"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 15830,
+      "relevance_score": 63.6
+    },
+    {
+      "full_name": "hellotham/hello-astro",
+      "url": "https://github.com/hellotham/hello-astro",
+      "description": "Hello Astro is a multi purpose Astro starter theme written in Typescript, TailwindCSS and AlpineJS. It supports Markdown and MDX based pages and blog posts.",
+      "owner": "hellotham",
+      "stars": 195,
+      "forks": 58,
+      "open_issues": 6,
+      "language": "Astro",
+      "license": "MIT",
+      "created_at": "2022-08-12T02:13:10Z",
+      "updated_at": "2026-07-13T19:58:45Z",
+      "pushed_at": "2026-07-10T07:29:47Z",
+      "archived": false,
+      "topics": [
+        "alpinejs",
+        "astro",
+        "blog",
+        "dark-mode",
+        "katex",
+        "leafletjs",
+        "lunrjs",
+        "markdown",
+        "markmap",
+        "mdx",
+        "mermaidjs",
+        "open-street-map",
+        "photoswipe",
+        "plantuml",
+        "starter",
+        "static-site",
+        "tailwindcss",
+        "typescript"
+      ],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 14564,
+      "relevance_score": 63.6
+    },
+    {
+      "full_name": "kostja94/marketing-skills",
+      "url": "https://github.com/kostja94/marketing-skills",
+      "description": "Agent Skills for Marketing — SEO, Social, Influencer & More. 160+ open-source skills for SEO, content, 40+ page types, paid ads, channels, and strategies. Add project context; get tailored, production-ready output. Cursor, Claude Code, OpenClaw — no lock-in.",
+      "owner": "kostja94",
+      "stars": 742,
+      "forks": 108,
+      "open_issues": 7,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2026-02-26T06:24:41Z",
+      "updated_at": "2026-07-19T04:05:15Z",
+      "pushed_at": "2026-06-09T05:13:07Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "cursor",
+        "growth-marketing",
+        "marketing",
+        "seo",
+        "skills-sh",
+        "vibe-coding"
+      ],
+      "search_categories": [
+        "indexing",
+        "measurement"
+      ],
+      "evidence_categories": [
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 10742,
+      "relevance_score": 63.3
+    },
+    {
+      "full_name": "JackyST0/awesome-agent-skills",
+      "url": "https://github.com/JackyST0/awesome-agent-skills",
+      "description": "🤖 精选的 AI Agent Skills 列表，适用于 Cursor、Claude Code、GitHub Copilot 等 AI 编程工具",
+      "owner": "JackyST0",
+      "stars": 597,
+      "forks": 88,
+      "open_issues": 7,
+      "language": "Shell",
+      "license": "CC0-1.0",
+      "created_at": "2026-01-28T02:08:09Z",
+      "updated_at": "2026-07-19T04:41:19Z",
+      "pushed_at": "2026-07-06T00:41:22Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "ai",
+        "awesome",
+        "awesome-list",
+        "claude",
+        "copilot",
+        "cursor"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 15972,
+      "relevance_score": 63.3
+    },
+    {
+      "full_name": "greensock/gsap-skills",
+      "url": "https://github.com/greensock/gsap-skills",
+      "description": "Official AI skills for GSAP. These skills teach AI coding agents how to correctly use GSAP (GreenSock Animation Platform), including best practices, common animation patterns, and plugin usage.",
+      "owner": "greensock",
+      "stars": 11920,
+      "forks": 699,
+      "open_issues": 6,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2026-03-04T17:22:35Z",
+      "updated_at": "2026-07-19T20:20:59Z",
+      "pushed_at": "2026-04-21T23:47:09Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 7654,
+      "relevance_score": 63
+    },
+    {
+      "full_name": "buybitart/cloudflare-security-art",
+      "url": "https://github.com/buybitart/cloudflare-security-art",
+      "description": "Cloudflare Free Plan security rules (Zero Trust approach) for small websites",
+      "owner": "buybitart",
+      "stars": 196,
+      "forks": 13,
+      "open_issues": 0,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2025-07-25T11:38:34Z",
+      "updated_at": "2026-07-16T19:22:47Z",
+      "pushed_at": "2026-06-23T06:34:43Z",
+      "archived": false,
+      "topics": [
+        "antibots",
+        "art",
+        "bitcoin",
+        "cloudflare",
+        "cloudflare-expression",
+        "cloudflare-firewall-rules",
+        "cloudflare-waf-expression",
+        "cloudflare-waf-expressions",
+        "cloudflare-waf-rules",
+        "ddos-protection",
+        "security-headers",
+        "waf"
+      ],
+      "search_categories": [
+        "ai-crawlers"
+      ],
+      "evidence_categories": [
+        "ai-crawlers",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 29416,
+      "relevance_score": 63
+    },
+    {
+      "full_name": "artiebits/svelte-seo",
+      "url": "https://github.com/artiebits/svelte-seo",
+      "description": "Optimize your website for search engines and social media with meta tags, Open Graph, and JSON-LD.",
+      "owner": "artiebits",
+      "stars": 558,
+      "forks": 25,
+      "open_issues": 5,
+      "language": "JavaScript",
+      "license": "MIT",
+      "created_at": "2020-08-03T17:49:06Z",
+      "updated_at": "2026-07-17T16:52:40Z",
+      "pushed_at": "2026-06-30T14:25:03Z",
+      "archived": false,
+      "topics": [
+        "json-ld",
+        "meta-tags",
+        "open-graph",
+        "open-graph-tags",
+        "sapper",
+        "search-engines",
+        "seo",
+        "ssr",
+        "svelte",
+        "svelte-kit"
+      ],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 18551,
+      "relevance_score": 62.8
+    },
+    {
+      "full_name": "Piebald-AI/awesome-gemini-cli",
+      "url": "https://github.com/Piebald-AI/awesome-gemini-cli",
+      "description": "A curated list of awesome tools, extensions, and resources for Gemini CLI.",
+      "owner": "Piebald-AI",
+      "stars": 487,
+      "forks": 87,
+      "open_issues": 0,
+      "language": null,
+      "license": "CC0-1.0",
+      "created_at": "2025-07-30T16:01:03Z",
+      "updated_at": "2026-07-18T14:59:03Z",
+      "pushed_at": "2026-07-18T14:58:59Z",
+      "archived": false,
+      "topics": [
+        "awesome",
+        "awesome-gemini-cli",
+        "awesome-list",
+        "awesome-lists",
+        "gemini",
+        "gemini-api",
+        "gemini-cli",
+        "llxprt",
+        "qwen",
+        "qwen-code"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "indexing",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 39729,
+      "relevance_score": 62.8
+    },
+    {
+      "full_name": "rszin001/booru-navigator-v2",
+      "url": "https://github.com/rszin001/booru-navigator-v2",
+      "description": "Top Booru Image Browsers 2026 – Rule 34 App Discovery",
+      "owner": "rszin001",
+      "stars": 151,
+      "forks": 0,
+      "open_issues": 0,
+      "language": "HTML",
+      "license": null,
+      "created_at": "2026-06-28T19:23:52Z",
+      "updated_at": "2026-07-19T20:43:48Z",
+      "pushed_at": "2026-07-19T20:43:45Z",
+      "archived": false,
+      "topics": [
+        "booru",
+        "boorus",
+        "danbooru",
+        "e621",
+        "gelbooru",
+        "hentai",
+        "netlify",
+        "nuxt",
+        "porn",
+        "r34",
+        "rule-34",
+        "rule34",
+        "vue"
+      ],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 10417,
+      "relevance_score": 62.8
+    },
+    {
+      "full_name": "alexpospekhov/searchstack-aeo",
+      "url": "https://github.com/alexpospekhov/searchstack-aeo",
+      "description": "Searchstack — Open-source AEO/GEO/SEO tech stack for AI-native founders. Monitor your visibility across Google, AI Overviews, ChatGPT, Perplexity, Claude & Grok from one CLI. 22 commands, 9 APIs, llms.txt generator, Markdown reports, cron-ready.",
+      "owner": "alexpospekhov",
+      "stars": 86,
+      "forks": 13,
+      "open_issues": 4,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-04-01T08:11:10Z",
+      "updated_at": "2026-07-10T14:49:03Z",
+      "pushed_at": "2026-05-04T12:56:30Z",
+      "archived": false,
+      "topics": [
+        "aeo",
+        "ai-search",
+        "backlinks",
+        "chatgpt",
+        "cli",
+        "geo",
+        "google-ai-overview",
+        "google-search-console",
+        "grok",
+        "indexnow",
+        "keyword-research",
+        "llms-txt",
+        "ollama",
+        "perplexity",
+        "python",
+        "seo",
+        "seo-tools",
+        "serp"
+      ],
+      "search_categories": [
+        "indexing"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 21486,
+      "relevance_score": 62.8
+    },
+    {
+      "full_name": "TheCraigHewitt/seomachine",
+      "url": "https://github.com/TheCraigHewitt/seomachine",
+      "description": "A specialized Claude Code workspace for creating long-form, SEO-optimized blog content for any business. This system helps you research, write, analyze, and optimize content that ranks well and serves your target audience.",
+      "owner": "TheCraigHewitt",
+      "stars": 7252,
+      "forks": 976,
+      "open_issues": 20,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2025-10-29T20:50:23Z",
+      "updated_at": "2026-07-19T20:50:53Z",
+      "pushed_at": "2026-04-10T17:41:07Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 31221,
+      "relevance_score": 62.7
+    },
+    {
+      "full_name": "heilcheng/awesome-agent-skills",
+      "url": "https://github.com/heilcheng/awesome-agent-skills",
+      "description": "Tutorials, Guides and Agent Skills Directories",
+      "owner": "heilcheng",
+      "stars": 5994,
+      "forks": 569,
+      "open_issues": 209,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2025-12-29T21:13:40Z",
+      "updated_at": "2026-07-19T20:04:23Z",
+      "pushed_at": "2026-04-05T20:39:24Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "ai-agents",
+        "ai-development",
+        "anthropic",
+        "automation",
+        "awesome",
+        "awesome-list",
+        "claude",
+        "codex",
+        "github-copilot",
+        "llm",
+        "mcp",
+        "openai",
+        "productivity",
+        "skill-md",
+        "vscode"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 48948,
+      "relevance_score": 62.5
+    },
+    {
+      "full_name": "onvoyage-ai/best-ai-marketing-platform-benchmark",
+      "url": "https://github.com/onvoyage-ai/best-ai-marketing-platform-benchmark",
+      "description": "a systematic benchmark for best AI marketing related tools ",
+      "owner": "onvoyage-ai",
+      "stars": 102,
+      "forks": 1,
+      "open_issues": 0,
+      "language": null,
+      "license": "MIT",
+      "created_at": "2026-04-02T01:55:31Z",
+      "updated_at": "2026-06-04T18:10:32Z",
+      "pushed_at": "2026-04-04T01:26:46Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "structured-data",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 14874,
+      "relevance_score": 62.5
+    },
+    {
+      "full_name": "mrgoonie/claudekit-skills",
+      "url": "https://github.com/mrgoonie/claudekit-skills",
+      "description": "All powerful skills of ClaudeKit.cc!",
+      "owner": "mrgoonie",
+      "stars": 2183,
+      "forks": 425,
+      "open_issues": 10,
+      "language": "Python",
+      "license": null,
+      "created_at": "2025-10-23T04:43:54Z",
+      "updated_at": "2026-07-18T06:13:00Z",
+      "pushed_at": "2026-04-03T06:19:25Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 18849,
+      "relevance_score": 62.4
+    },
+    {
+      "full_name": "artesaos/seotools",
+      "url": "https://github.com/artesaos/seotools",
+      "description": "SEO Tools for Laravel",
+      "owner": "artesaos",
+      "stars": 3361,
+      "forks": 516,
+      "open_issues": 33,
+      "language": "PHP",
+      "license": "MIT",
+      "created_at": "2015-02-23T19:21:45Z",
+      "updated_at": "2026-07-16T07:25:06Z",
+      "pushed_at": "2026-03-28T12:40:38Z",
+      "archived": false,
+      "topics": [
+        "facade",
+        "json-ld",
+        "laravel",
+        "lumen",
+        "meta-tags",
+        "opengraph",
+        "opengraph-tags",
+        "php",
+        "seo",
+        "seo-meta",
+        "seometa",
+        "seotools",
+        "twitter",
+        "webmaster",
+        "webmasters"
+      ],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 25034,
+      "relevance_score": 62.2
+    },
+    {
+      "full_name": "Bomx/distribb-skill",
+      "url": "https://github.com/Bomx/distribb-skill",
+      "description": "Distribb CLI, Claude, Codex, Hermes, OpenClaw skill for AI-powered SEO. Write content with your own AI, publish through Distribb's backlink network.",
+      "owner": "Bomx",
+      "stars": 140,
+      "forks": 18,
+      "open_issues": 4,
+      "language": "Python",
+      "license": null,
+      "created_at": "2026-03-22T15:08:22Z",
+      "updated_at": "2026-07-18T16:28:46Z",
+      "pushed_at": "2026-07-12T14:01:28Z",
+      "archived": false,
+      "topics": [
+        "ai-agent",
+        "backlinks",
+        "claude-code",
+        "cli",
+        "codex",
+        "openclaw",
+        "seo"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "local-seo",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 12011,
+      "relevance_score": 62.2
+    },
+    {
+      "full_name": "davidpc007/openclaw-marketing-skills",
+      "url": "https://github.com/davidpc007/openclaw-marketing-skills",
+      "description": "openclaw marketing skills which ships 38 agent skills covering CRO, copywriting, SEO, paid ads, growth, and GTM",
+      "owner": "davidpc007",
+      "stars": 139,
+      "forks": 1301,
+      "open_issues": 0,
+      "language": null,
+      "license": "NOASSERTION",
+      "created_at": "2026-07-03T09:12:14Z",
+      "updated_at": "2026-07-18T08:41:49Z",
+      "pushed_at": "2026-07-06T07:46:03Z",
+      "archived": false,
+      "topics": [
+        "ai-marketing",
+        "ai-marketing-skills",
+        "ai-skills",
+        "marketing-skills",
+        "openclaw",
+        "openclaw-marketing",
+        "openclaw-skills"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 13508,
+      "relevance_score": 62
+    },
+    {
+      "full_name": "onvoyage-ai/voyage-geo-agent",
+      "url": "https://github.com/onvoyage-ai/voyage-geo-agent",
+      "description": "Agentic Generative Engine Optimizaiton",
+      "owner": "onvoyage-ai",
+      "stars": 380,
+      "forks": 22,
+      "open_issues": 2,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-02-09T06:59:06Z",
+      "updated_at": "2026-06-15T07:59:56Z",
+      "pushed_at": "2026-02-24T02:16:00Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "geo-aeo",
+        "indexing",
+        "measurement"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 11583,
+      "relevance_score": 61.9
+    },
+    {
+      "full_name": "one-ie/one",
+      "url": "https://github.com/one-ie/one",
+      "description": "Make Your Ideas Real. Build Apps, Websites and AI Agents with Plain English with Astro, React, Shadcn and Cloudflare",
+      "owner": "one-ie",
+      "stars": 127,
+      "forks": 24,
+      "open_issues": 0,
+      "language": "Astro",
+      "license": "NOASSERTION",
+      "created_at": "2024-11-12T12:59:19Z",
+      "updated_at": "2026-07-15T10:20:25Z",
+      "pushed_at": "2026-07-15T10:20:19Z",
+      "archived": false,
+      "topics": [
+        "ai",
+        "astro",
+        "astro-7",
+        "astrojs",
+        "astrojs-template",
+        "claude",
+        "codex",
+        "cursor",
+        "react",
+        "react-19",
+        "reactjs",
+        "shadcn",
+        "shadcn-ui",
+        "shadcnui",
+        "starter-template",
+        "vercel-ai-sdk"
+      ],
+      "search_categories": [
+        "structured-data"
+      ],
+      "evidence_categories": [
+        "structured-data",
+        "indexing",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 13525,
+      "relevance_score": 61.9
+    },
+    {
+      "full_name": "ChanMeng666/server-google-news",
+      "url": "https://github.com/ChanMeng666/server-google-news",
+      "description": "【Star-crossed coders unite!⭐️】Model Context Protocol (MCP) server implementation providing Google News search capabilities via SerpAPI, with automatic news categorization and multi-language support.",
+      "owner": "ChanMeng666",
+      "stars": 125,
+      "forks": 20,
+      "open_issues": 5,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2024-12-29T12:48:15Z",
+      "updated_at": "2026-07-13T12:05:39Z",
+      "pushed_at": "2026-07-08T21:13:22Z",
+      "archived": false,
+      "topics": [
+        "ai",
+        "claude",
+        "claude-desktop",
+        "google-news-api",
+        "mcp",
+        "mcp-server",
+        "modelcontextprotocol",
+        "news-aggregation",
+        "news-search",
+        "nodejs",
+        "serpapi",
+        "typescript"
+      ],
+      "search_categories": [
+        "geo-aeo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 13071,
+      "relevance_score": 61.6
+    },
+    {
+      "full_name": "XiaomingX/awesome-seo-tools",
+      "url": "https://github.com/XiaomingX/awesome-seo-tools",
+      "description": "Curated list of awesome SEO tools",
+      "owner": "XiaomingX",
+      "stars": 121,
+      "forks": 30,
+      "open_issues": 16,
+      "language": null,
+      "license": "Apache-2.0",
+      "created_at": "2024-11-24T15:24:19Z",
+      "updated_at": "2026-07-16T00:27:27Z",
+      "pushed_at": "2026-02-03T05:46:44Z",
+      "archived": false,
+      "topics": [
+        "ahrefs",
+        "awesome",
+        "awesome-list",
+        "awesome-lists",
+        "semrush",
+        "seo"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "structured-data",
+        "indexing",
+        "local-seo",
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 10075,
+      "relevance_score": 61.3
+    },
+    {
+      "full_name": "AgriciDaniel/flow",
+      "url": "https://github.com/AgriciDaniel/flow",
+      "description": "Find · Leverage · Optimize · Win — an evidence-led SEO playbook for the AI-search era. 72 docs · 42 AI prompts · 27 diagrams · 15 sourced 2026 stats. CC BY 4.0.",
+      "owner": "AgriciDaniel",
+      "stars": 65,
+      "forks": 14,
+      "open_issues": 0,
+      "language": "Python",
+      "license": "NOASSERTION",
+      "created_at": "2026-04-25T09:38:23Z",
+      "updated_at": "2026-07-10T23:11:26Z",
+      "pushed_at": "2026-04-26T10:24:06Z",
+      "archived": false,
+      "topics": [
+        "ai-agents",
+        "ai-citation",
+        "ai-overviews",
+        "ai-search",
+        "b2b-seo",
+        "claude-code",
+        "content-strategy",
+        "ecommerce-seo",
+        "generative-engine-optimization",
+        "geo",
+        "knowledge-base",
+        "llm-citations",
+        "llms-txt",
+        "local-seo",
+        "obsidian",
+        "obsidian-vault",
+        "saas-seo",
+        "search-engine-optimization",
+        "search-marketing",
+        "seo"
+      ],
+      "search_categories": [
+        "local-seo"
+      ],
+      "evidence_categories": [
+        "ai-discovery",
+        "geo-aeo",
+        "ai-crawlers",
+        "local-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 13000,
+      "relevance_score": 61.3
+    },
+    {
+      "full_name": "mascanho/RustySEO",
+      "url": "https://github.com/mascanho/RustySEO",
+      "description": "SEO/GEO toolkit to analyse, crawl, parse and optimise websites & logs (Nginx & Apache)",
+      "owner": "mascanho",
+      "stars": 326,
+      "forks": 59,
+      "open_issues": 12,
+      "language": "TypeScript",
+      "license": "GPL-3.0",
+      "created_at": "2024-06-24T17:16:09Z",
+      "updated_at": "2026-07-17T17:34:20Z",
+      "pushed_at": "2026-07-17T14:36:57Z",
+      "archived": false,
+      "topics": [
+        "ai",
+        "crawler",
+        "cwv",
+        "geo",
+        "google",
+        "marketing",
+        "rust",
+        "screamingfrog",
+        "seo",
+        "spider",
+        "tauri"
+      ],
+      "search_categories": [
+        "measurement"
+      ],
+      "evidence_categories": [
+        "measurement",
+        "technical-seo"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 6313,
+      "relevance_score": 61.1
+    },
+    {
+      "full_name": "koala73/worldmonitor",
+      "url": "https://github.com/koala73/worldmonitor",
+      "description": "Real-time global intelligence dashboard. AI-powered news aggregation, geopolitical monitoring, and infrastructure tracking in a unified situational awareness interface",
+      "owner": "koala73",
+      "stars": 62044,
+      "forks": 9656,
+      "open_issues": 202,
+      "language": "TypeScript",
+      "license": "NOASSERTION",
+      "created_at": "2026-01-08T17:26:06Z",
+      "updated_at": "2026-07-19T20:48:16Z",
+      "pushed_at": "2026-07-18T17:34:23Z",
+      "archived": false,
+      "topics": [
+        "agent",
+        "ai",
+        "dashboard",
+        "geopolitics",
+        "mcp",
+        "mcp-server",
+        "monitoring",
+        "news",
+        "opensource",
+        "osint",
+        "palantir",
+        "situation"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 12986,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "tw93/Pake",
+      "url": "https://github.com/tw93/Pake",
+      "description": "🤱🏻 Turn any webpage into a desktop app with one command.",
+      "owner": "tw93",
+      "stars": 60037,
+      "forks": 12149,
+      "open_issues": 0,
+      "language": "Rust",
+      "license": "GPL-3.0",
+      "created_at": "2022-10-14T09:32:57Z",
+      "updated_at": "2026-07-19T20:54:57Z",
+      "pushed_at": "2026-07-19T14:26:30Z",
+      "archived": false,
+      "topics": [
+        "chatgpt",
+        "claude",
+        "desktop",
+        "gemini",
+        "hight-performance",
+        "linux",
+        "macos",
+        "no-electron",
+        "package",
+        "rust",
+        "tauri",
+        "windows",
+        "youtube"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 15556,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "vercel-labs/agent-browser",
+      "url": "https://github.com/vercel-labs/agent-browser",
+      "description": "Browser automation CLI for AI agents",
+      "owner": "vercel-labs",
+      "stars": 38760,
+      "forks": 2521,
+      "open_issues": 594,
+      "language": "Rust",
+      "license": "Apache-2.0",
+      "created_at": "2026-01-11T05:38:15Z",
+      "updated_at": "2026-07-19T20:58:07Z",
+      "pushed_at": "2026-07-19T17:03:43Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 78141,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "github/awesome-copilot",
+      "url": "https://github.com/github/awesome-copilot",
+      "description": "Community-contributed instructions, agents, skills, and configurations to help you make the most of GitHub Copilot.",
+      "owner": "github",
+      "stars": 36775,
+      "forks": 4605,
+      "open_issues": 54,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2025-06-11T16:57:39Z",
+      "updated_at": "2026-07-19T20:52:03Z",
+      "pushed_at": "2026-07-19T21:00:59Z",
+      "archived": false,
+      "topics": [
+        "agent-skills",
+        "agents",
+        "ai",
+        "awesome",
+        "custom-agents",
+        "github-copilot",
+        "hacktoberfest",
+        "prompt-engineering"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 80000,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "pubkey/rxdb",
+      "url": "https://github.com/pubkey/rxdb",
+      "description": "The local-first database that runs on every JS runtime and replicates with your existing backend - no vendor, no lock-in - https://rxdb.info/",
+      "owner": "pubkey",
+      "stars": 23278,
+      "forks": 1168,
+      "open_issues": 18,
+      "language": "TypeScript",
+      "license": "Apache-2.0",
+      "created_at": "2016-12-02T19:34:42Z",
+      "updated_at": "2026-07-19T20:37:10Z",
+      "pushed_at": "2026-07-19T04:39:00Z",
+      "archived": false,
+      "topics": [
+        "angular",
+        "browser-database",
+        "couchdb",
+        "crdt",
+        "database",
+        "firebase",
+        "graphql",
+        "indexeddb",
+        "ionic",
+        "local-first",
+        "localstorage",
+        "nodejs",
+        "nosql",
+        "postgres",
+        "pouchdb",
+        "react-native",
+        "realtime",
+        "realtime-database",
+        "rxdb",
+        "sqlite"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 13122,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "langbot-app/LangBot",
+      "url": "https://github.com/langbot-app/LangBot",
+      "description": "Production-grade platform for building agentic IM bots - 生产级多平台智能机器人开发平台/ Agent、知识库编排、插件系统 / Bots for Discord / Slack / LINE / Telegram / WeChat(企业微信, 企微智能机器人, 公众号) / 飞书 / 钉钉 / QQ / Matrix e.g. Integrated with ChatGPT(GPT), DeepSeek, Dify, n8n, Langflow, Coze, Claude, Gemini, GLM, Ollama, SiliconFlow, Moonshot, openclaw / hermes agent, deerflow",
+      "owner": "langbot-app",
+      "stars": 16949,
+      "forks": 1507,
+      "open_issues": 116,
+      "language": "Python",
+      "license": "Apache-2.0",
+      "created_at": "2022-12-07T08:48:02Z",
+      "updated_at": "2026-07-19T17:55:31Z",
+      "pushed_at": "2026-07-19T20:03:45Z",
+      "archived": false,
+      "topics": [
+        "agent",
+        "coze",
+        "deepseek",
+        "dify",
+        "dingtalk",
+        "discord",
+        "feishu",
+        "kook",
+        "langbot",
+        "lark",
+        "line",
+        "llm",
+        "n8n",
+        "ollama",
+        "openai",
+        "plugins",
+        "qq",
+        "rag",
+        "telegram",
+        "wechat"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 12218,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "browser-use/browser-harness",
+      "url": "https://github.com/browser-use/browser-harness",
+      "description": "Browser Harness | Self-healing harness that enables LLMs to complete any task.",
+      "owner": "browser-use",
+      "stars": 16111,
+      "forks": 1516,
+      "open_issues": 202,
+      "language": "Python",
+      "license": "MIT",
+      "created_at": "2026-04-17T01:56:15Z",
+      "updated_at": "2026-07-19T18:20:43Z",
+      "pushed_at": "2026-07-19T05:05:17Z",
+      "archived": false,
+      "topics": [
+        "ai-agent",
+        "browser-agent",
+        "browser-automation",
+        "browser-use",
+        "browser-use-box",
+        "browser-use-cloud",
+        "cdp",
+        "cloud-browser",
+        "llm",
+        "persistent-browser",
+        "playwright",
+        "telegram-agent",
+        "vps-agent",
+        "web-automation"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 4834,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "FlorianBruniaux/claude-code-ultimate-guide",
+      "url": "https://github.com/FlorianBruniaux/claude-code-ultimate-guide",
+      "description": "The most comprehensive Claude Code guide: agentic workflows, hooks, skills, MCP servers, quizzes, and production-ready templates. 430K+ lines.",
+      "owner": "FlorianBruniaux",
+      "stars": 5503,
+      "forks": 725,
+      "open_issues": 14,
+      "language": "Python",
+      "license": "CC-BY-SA-4.0",
+      "created_at": "2026-01-09T13:42:10Z",
+      "updated_at": "2026-07-19T16:23:54Z",
+      "pushed_at": "2026-07-19T14:45:21Z",
+      "archived": false,
+      "topics": [
+        "agentic-coding",
+        "ai-assistant",
+        "ai-coding",
+        "ai-pair-programming",
+        "ai-security",
+        "anthropic",
+        "best-practices",
+        "claude",
+        "claude-code",
+        "claude-code-guide",
+        "claude-code-tutorial",
+        "cli-tool",
+        "coding-assistant",
+        "cursor-alternative",
+        "developer-tools",
+        "llm",
+        "mcp-servers",
+        "prompt-engineering",
+        "tutorial",
+        "vibe-coding"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 51502,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "mock-server/mockserver-monorepo",
+      "url": "https://github.com/mock-server/mockserver-monorepo",
+      "description": "MockServer is an HTTP(S) mock server and proxy for testing that lets you mock APIs, inspect and modify live traffic, and inject failures. It supports HTTP/1.1, HTTP/2, gRPC, WebSockets, TCP and more on a single port, with additional support for HTTP/3, message brokers, and AI/LLM APIs.",
+      "owner": "mock-server",
+      "stars": 4918,
+      "forks": 1113,
+      "open_issues": 1,
+      "language": "Java",
+      "license": "Apache-2.0",
+      "created_at": "2013-02-26T06:09:52Z",
+      "updated_at": "2026-07-19T19:48:50Z",
+      "pushed_at": "2026-07-19T19:48:44Z",
+      "archived": false,
+      "topics": [
+        "ai",
+        "chaos-engineering",
+        "grunt-plugin",
+        "homebrew",
+        "java-client",
+        "javascript-client",
+        "llm",
+        "mcp",
+        "mock-server",
+        "node-client",
+        "node-module",
+        "proxy",
+        "python",
+        "ruby-client",
+        "testing"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 29577,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "github/gh-aw",
+      "url": "https://github.com/github/gh-aw",
+      "description": "GitHub Agentic Workflows",
+      "owner": "github",
+      "stars": 4779,
+      "forks": 458,
+      "open_issues": 250,
+      "language": "Go",
+      "license": "MIT",
+      "created_at": "2025-08-12T17:40:41Z",
+      "updated_at": "2026-07-19T20:26:56Z",
+      "pushed_at": "2026-07-19T21:00:19Z",
+      "archived": false,
+      "topics": [
+        "actions",
+        "cai",
+        "ci",
+        "claude-code",
+        "codex",
+        "copilot",
+        "gh-extension",
+        "github-actions"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 38018,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "tortuvshin/open-apps",
+      "url": "https://github.com/tortuvshin/open-apps",
+      "description": "A curated, self-refreshing directory of real open-source application codebases - built for developers who want to learn from production apps and find projects worth contributing to.",
+      "owner": "tortuvshin",
+      "stars": 4333,
+      "forks": 788,
+      "open_issues": 0,
+      "language": "Astro",
+      "license": "NOASSERTION",
+      "created_at": "2017-08-29T14:32:13Z",
+      "updated_at": "2026-07-19T09:11:13Z",
+      "pushed_at": "2026-07-19T09:11:08Z",
+      "archived": false,
+      "topics": [
+        "android",
+        "android-app",
+        "application",
+        "awesome-list",
+        "dart",
+        "flutter",
+        "flutter-apps",
+        "flutter-examples",
+        "ios",
+        "ios-app",
+        "kotlin-apps",
+        "opensource",
+        "opensource-apps",
+        "react-native-apps"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 3646,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "mbloch/mapshaper",
+      "url": "https://github.com/mbloch/mapshaper",
+      "description": "Tools for editing Shapefile, GeoJSON, TopoJSON and CSV files",
+      "owner": "mbloch",
+      "stars": 4149,
+      "forks": 576,
+      "open_issues": 134,
+      "language": "JavaScript",
+      "license": "NOASSERTION",
+      "created_at": "2013-02-19T19:49:05Z",
+      "updated_at": "2026-07-19T14:44:12Z",
+      "pushed_at": "2026-07-19T14:46:01Z",
+      "archived": false,
+      "topics": [
+        "csv",
+        "geojson",
+        "gis",
+        "shapefile",
+        "svg",
+        "topojson"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 6013,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "fallow-rs/fallow",
+      "url": "https://github.com/fallow-rs/fallow",
+      "description": "Codebase intelligence for TypeScript and JavaScript. Free static analysis of code and styles: unused code, duplication, circular deps, complexity hotspots, architecture boundaries, design-system drift. Optional paid runtime layer (Fallow Runtime): hot-path review and cold-path deletion evidence from real production traffic.",
+      "owner": "fallow-rs",
+      "stars": 4138,
+      "forks": 133,
+      "open_issues": 6,
+      "language": "Rust",
+      "license": "MIT",
+      "created_at": "2026-03-17T08:40:57Z",
+      "updated_at": "2026-07-19T19:06:12Z",
+      "pushed_at": "2026-07-19T19:13:24Z",
+      "archived": false,
+      "topics": [
+        "cli",
+        "code-duplication",
+        "code-quality",
+        "codebase-intelligence",
+        "copy-paste-detection",
+        "dead-code",
+        "developer-tools",
+        "duplicate-code",
+        "javascript",
+        "linter",
+        "oxc",
+        "runtime-intelligence",
+        "rust",
+        "static-analysis",
+        "typescript",
+        "unused-code",
+        "unused-dependencies",
+        "unused-exports"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 22408,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "jay3-yy/BiliPai",
+      "url": "https://github.com/jay3-yy/BiliPai",
+      "description": "原生、纯净、可扩展 —— 重新定义你的 B 站体验",
+      "owner": "jay3-yy",
+      "stars": 3796,
+      "forks": 352,
+      "open_issues": 428,
+      "language": "Kotlin",
+      "license": "NOASSERTION",
+      "created_at": "2025-11-28T11:17:48Z",
+      "updated_at": "2026-07-19T18:08:47Z",
+      "pushed_at": "2026-07-19T16:57:14Z",
+      "archived": false,
+      "topics": [],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 9688,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "OvidijusParsiunas/deep-chat",
+      "url": "https://github.com/OvidijusParsiunas/deep-chat",
+      "description": "Fully customizable AI chatbot component for your website",
+      "owner": "OvidijusParsiunas",
+      "stars": 3674,
+      "forks": 446,
+      "open_issues": 35,
+      "language": "TypeScript",
+      "license": "MIT",
+      "created_at": "2023-02-19T19:44:18Z",
+      "updated_at": "2026-07-19T06:45:22Z",
+      "pushed_at": "2026-07-19T06:02:49Z",
+      "archived": false,
+      "topics": [
+        "ai",
+        "ai-chatbot",
+        "chat",
+        "chatbot",
+        "chatgpt",
+        "claude",
+        "component",
+        "deepseek",
+        "gemini",
+        "huggingface",
+        "next",
+        "nextjs",
+        "ollama",
+        "openai",
+        "react",
+        "react-chatbot",
+        "realtime",
+        "solid",
+        "svelte",
+        "vue"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 19091,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "yvgude/lean-ctx",
+      "url": "https://github.com/yvgude/lean-ctx",
+      "description": "Control what your AI can see. LeanCTX (Lean Context) is the context intelligence layer for AI agents — one local Rust binary that decides what they read, remembers what they learn, guards what they touch, and proves what they save. 60–90% fewer tokens as the receipt. 76 MCP tools, 30+ agents, local-first.",
+      "owner": "yvgude",
+      "stars": 3297,
+      "forks": 307,
+      "open_issues": 7,
+      "language": "Rust",
+      "license": "Apache-2.0",
+      "created_at": "2026-03-23T19:48:59Z",
+      "updated_at": "2026-07-19T20:59:46Z",
+      "pushed_at": "2026-07-19T21:01:42Z",
+      "archived": false,
+      "topics": [
+        "agentic-coding",
+        "ai",
+        "ai-agents",
+        "ai-coding",
+        "claude-code",
+        "context-engineering",
+        "context-intelligence",
+        "context-layer",
+        "copilot",
+        "cursor",
+        "developer-tools",
+        "gemini-cli",
+        "lean-context",
+        "llm",
+        "mcp",
+        "mcp-server",
+        "reduce-token-costs",
+        "rust",
+        "token-optimization"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 34562,
+      "relevance_score": 61
+    },
+    {
+      "full_name": "carbon-design-system/carbon-components-svelte",
+      "url": "https://github.com/carbon-design-system/carbon-components-svelte",
+      "description": "Svelte implementation of the Carbon Design System",
+      "owner": "carbon-design-system",
+      "stars": 2891,
+      "forks": 262,
+      "open_issues": 31,
+      "language": "TypeScript",
+      "license": "Apache-2.0",
+      "created_at": "2019-12-15T18:16:39Z",
+      "updated_at": "2026-07-19T20:16:54Z",
+      "pushed_at": "2026-07-19T20:16:52Z",
+      "archived": false,
+      "topics": [
+        "carbon",
+        "carbon-design-system",
+        "component-library",
+        "design-system",
+        "svelte",
+        "svelte-components",
+        "typescript",
+        "ui-components",
+        "ui-library"
+      ],
+      "search_categories": [
+        "ai-discovery"
+      ],
+      "evidence_categories": [
+        "ai-discovery"
+      ],
+      "readme_checked": true,
+      "readme_characters_checked": 12791,
+      "relevance_score": 61
+    }
+  ]
+}

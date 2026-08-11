@@ -1,0 +1,370 @@
+[
+  {
+    "url": "https://about.fb.com/news/2024/04/metas-approach-to-labeling-ai-generated-content-and-manipulated-media/",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://about.fb.com/news/2024/04/metas-approach-to-labeling-ai-generated-content-and-manipulated-media/",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://ads.tiktok.com/business/en/creative-codes",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://ads.tiktok.com/business/en/creative-codes",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://arxiv.org/abs/2407.14505",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://arxiv.org/abs/2407.14505",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://arxiv.org/abs/2504.00983",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://arxiv.org/abs/2504.00983",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://docs.acescentral.com/",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://docs.acescentral.com/",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://docs.acescentral.com/system-components/input-transforms/",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://docs.acescentral.com/system-components/input-transforms/",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://docs.x.ai/developers/model-capabilities/imagine",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://docs.x.ai/developers/model-capabilities/imagine",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://docs.x.ai/developers/model-capabilities/video/generation",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://docs.x.ai/developers/model-capabilities/video/generation",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://ffmpeg.org/ffmpeg-filters.html",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://ffmpeg.org/ffmpeg-filters.html",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://ffmpeg.org/ffmpeg.html#Stream-selection",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://ffmpeg.org/ffmpeg.html#Stream-selection",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://finance.hermes.com/en/circular-economy/",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://finance.hermes.com/en/circular-economy/",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://fountain.io/syntax/",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://fountain.io/syntax/",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://github.com/xai-org/xai-sdk-python",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://github.com/xai-org/xai-sdk-python",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://iultcs.org/iuc-iuf-iup-leather-test-methods-commissions/",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://iultcs.org/iuc-iuf-iup-leather-test-methods-commissions/",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://openaccess.thecvf.com/content/CVPR2024/html/Huang_VBench_Comprehensive_Benchmark_Suite_for_Video_Generative_Models_CVPR_2024_paper.html",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://openaccess.thecvf.com/content/CVPR2024/html/Huang_VBench_Comprehensive_Benchmark_Suite_for_Video_Generative_Models_CVPR_2024_paper.html",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://openaccess.thecvf.com/content/CVPR2024/html/Liu_EvalCrafter_Benchmarking_and_Evaluating_Large_Video_Generation_Models_CVPR_2024_paper.html",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://openaccess.thecvf.com/content/CVPR2024/html/Liu_EvalCrafter_Benchmarking_and_Evaluating_Large_Video_Generation_Models_CVPR_2024_paper.html",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://openaccess.thecvf.com/content/CVPR2025/html/Han_Video-Bench_Human-Aligned_Video_Generation_Benchmark_CVPR_2025_paper.html",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://openaccess.thecvf.com/content/CVPR2025/html/Han_Video-Bench_Human-Aligned_Video_Generation_Benchmark_CVPR_2025_paper.html",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://partnerhelp.netflixstudios.com/hc/en-us/articles/215994807-Traditional-Chinese-Timed-Text-Style-Guide",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://partnerhelp.netflixstudios.com/hc/en-us/articles/215994807-Chinese-Traditional-Timed-Text-Style-Guide",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://partnerhelp.netflixstudios.com/hc/en-us/articles/360000579527-Cameras-and-Image-Capture",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://partnerhelp.netflixstudios.com/hc/en-us/articles/360000579527-Cameras-Image-Capture-Requirements-and-Best-Practices",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://support.google.com/google-ads/answer/10436762?hl=en",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://support.google.com/google-ads/answer/10436762?hl=en",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://support.google.com/google-ads/answer/14783551?hl=en",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://support.google.com/google-ads/answer/14783551?hl=en",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://support.google.com/youtube/answer/141805?hl=en",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://support.google.com/youtube/answer/141805?hl=en",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://tech.ebu.ch/publications/r128",
+    "status": 403,
+    "ok": false,
+    "final_url": "https://tech.ebu.ch/publications/r128",
+    "checked_at": "2026-07-20",
+    "manual_verification": {
+      "status": "approved",
+      "method": "independent web rendering of official page",
+      "verified_at": "2026-07-20",
+      "locator": "page lines 44-65; R128 v5.0, 21 Nov 2023"
+    }
+  },
+  {
+    "url": "https://www.adobe.com/creativecloud/video/production.html",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.adobe.com/creativecloud/video/production.html",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.adobe.com/sg/creativecloud/video/discover/shooting-script.html",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.adobe.com/sg/creativecloud/video/discover/shooting-script.html",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.arri.com/en/learn-help/arri-academy",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.arri.com/en/learn-help/arri-academy",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.bbc.co.uk/writers/scripts/",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.bbc.co.uk/writers/scripts/",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.dga.org/en/Contracts/Creative-Rights",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.dga.org/en/Contracts/Creative-Rights",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.facebook.com/business/ads/facebook-instagram-reels-ads",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.facebook.com/business/ads/facebook-instagram-reels-ads",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.facebook.com/business/help/1738164643098669",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.facebook.com/business/help/1738164643098669",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.facebook.com/business/help/2041148702652965",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.facebook.com/business/help/2041148702652965",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.facebook.com/business/help/AboutConversionsAPI",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.facebook.com/business/help/AboutConversionsAPI",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.ftc.gov/legal-library/browse/ftc-policy-statement-regarding-advertising-substantiation",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.ftc.gov/legal-library/browse/ftc-policy-statement-regarding-advertising-substantiation",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.ftc.gov/legal-library/browse/rules/care-labeling-textile-wearing-apparel-certain-piece-goods-text",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.ftc.gov/legal-library/browse/rules/care-labeling-textile-wearing-apparel-certain-piece-goods-text",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.ginetex.net/GB/labelling/care-labelling.asp",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.ginetex.net/GB/labelling/care-labelling.asp",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.gore-tex.com/support/care",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.gore-tex.com/support/care",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.iso.org/standard/87431.html",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.iso.org/standard/87431.html",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.itu.int/rec/R-REC-BS.1770-5-202311-I",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.itu.int/rec/R-REC-BS.1770-5-202311-I",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.khanacademy.org/computing/pixar/storytelling",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.khanacademy.org/computing/pixar/storytelling",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.leatherworkinggroup.com/our-impact/standards-certification/",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.leatherworkinggroup.com/our-impact/standards-certification/",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.nike.com/a/how-to-clean-shoes",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.nike.com/a/how-to-clean-shoes",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.oscars.org/nicholl/screenwriting-resources",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.oscars.org/nicholl/screenwriting-resources",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.osha.gov/workers",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.osha.gov/workers",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.patagonia.com/repairs/",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.patagonia.com/repairs/",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.red.com/red-101",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.reddigitalcinema.com/red-101",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.sony.com/electronics/support/compact-cameras-dsc-rx-series/dsc-rx10m4/articles/00268257",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.sony.com/electronics/support/compact-cameras-dsc-rx-series/dsc-rx10m4/articles/00268257",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.w3.org/TR/webvtt1/",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.w3.org/TR/webvtt1/",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://www.woolmark.com/care/",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://www.woolmark.com/care/",
+    "checked_at": "2026-07-20"
+  },
+  {
+    "url": "https://x.ai/legal/acceptable-use-policy",
+    "status": 403,
+    "ok": false,
+    "final_url": "https://x.ai/legal/acceptable-use-policy",
+    "checked_at": "2026-07-20",
+    "manual_verification": {
+      "status": "approved",
+      "method": "independent web rendering of official page",
+      "verified_at": "2026-07-20",
+      "locator": "page lines 24-40 and 82-85; effective 26 Jun 2026"
+    }
+  },
+  {
+    "url": "https://x.ai/legal/terms-of-service-enterprise",
+    "status": 200,
+    "ok": true,
+    "final_url": "https://x.ai/legal/terms-of-service-enterprise",
+    "checked_at": "2026-07-20",
+    "manual_verification": {
+      "status": "approved",
+      "method": "independent web rendering of official page",
+      "verified_at": "2026-07-20",
+      "locator": "page lines 24-44 and 60-65; updated 12 May 2026"
+    }
+  }
+]

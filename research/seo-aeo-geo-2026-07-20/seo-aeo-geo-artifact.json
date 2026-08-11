@@ -1,0 +1,217 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "私享家搜尋稽核",
+    "description": "2026-07-20 搜尋成效、索引瓶頸、研究證據與後續判定門檻。",
+    "generatedAt": "2026-07-20T06:08:00+08:00",
+    "cards": [
+      {
+        "id": "impressions_card",
+        "description": "Google Web Search 在 2026-07-03 至 2026-07-17 顯示網站網址的次數。",
+        "dataset": "gsc_baseline",
+        "sourceId": "gsc_live_20260720",
+        "metrics": [
+          { "label": "搜尋曝光", "field": "impressions", "format": "number" }
+        ]
+      },
+      {
+        "id": "clicks_card",
+        "description": "同一資料區間內，由 Google 搜尋結果進站的點擊。",
+        "dataset": "gsc_baseline",
+        "sourceId": "gsc_live_20260720",
+        "metrics": [
+          { "label": "搜尋點擊", "field": "clicks", "format": "number" }
+        ]
+      },
+      {
+        "id": "ctr_card",
+        "description": "搜尋點擊除以搜尋曝光；1.5% 以 0.015 儲存。",
+        "dataset": "gsc_baseline",
+        "sourceId": "gsc_live_20260720",
+        "metrics": [
+          { "label": "搜尋 CTR", "field": "ctr", "format": "percent" }
+        ]
+      },
+      {
+        "id": "position_card",
+        "description": "Google Search Console 對所有曝光計算的平均排名。",
+        "dataset": "gsc_baseline",
+        "sourceId": "gsc_live_20260720",
+        "metrics": [
+          { "label": "平均排名", "field": "averagePosition", "format": "number" }
+        ]
+      },
+      {
+        "id": "indexed_card",
+        "description": "索引報告 2026-07-10 快照中的已索引頁數；唯一頁面是舊子路徑。",
+        "dataset": "gsc_baseline",
+        "sourceId": "gsc_live_20260720",
+        "metrics": [
+          { "label": "已索引頁面", "field": "indexedPages", "format": "number" }
+        ]
+      },
+      {
+        "id": "sitemap_card",
+        "description": "Search Console 在 2026-07-20 對主 sitemap 回報的已探索網頁數。",
+        "dataset": "gsc_baseline",
+        "sourceId": "gsc_live_20260720",
+        "metrics": [
+          { "label": "Sitemap 探索頁數", "field": "sitemapDiscovered", "format": "number" }
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "research_corpus_chart",
+        "title": "研究語料規模",
+        "subtitle": "2026-07-20 納入數量",
+        "type": "bar",
+        "dataset": "research_counts",
+        "sourceId": "research_corpus_20260720",
+        "valueFormat": "number",
+        "encodings": {
+          "x": { "field": "channel", "type": "nominal", "label": "來源" },
+          "y": { "field": "count", "type": "quantitative", "label": "納入數量" }
+        }
+      }
+    ],
+    "tables": [
+      {
+        "id": "query_table",
+        "title": "Google 搜尋查詢（2026-07-03 至 2026-07-17）",
+        "subtitle": "品牌詞已有曝光，服務意圖詞仍很少。",
+        "dataset": "gsc_queries",
+        "sourceId": "gsc_live_20260720",
+        "defaultSort": { "field": "impressions", "direction": "desc" },
+        "columns": [
+          { "field": "query", "label": "查詢", "type": "text" },
+          { "field": "impressions", "label": "曝光", "format": "number" },
+          { "field": "clicks", "label": "點擊", "format": "number" }
+        ]
+      },
+      {
+        "id": "diagnostic_table",
+        "title": "搜尋可見性六層診斷",
+        "subtitle": "每一層分開判定，不以技術完成冒充實際成效。",
+        "dataset": "diagnostic_layers",
+        "sourceId": "site_validation_20260720",
+        "defaultSort": { "field": "layer", "direction": "asc" },
+        "columns": [
+          { "field": "layer", "label": "層級", "type": "text" },
+          { "field": "status", "label": "判定", "type": "text" },
+          { "field": "evidence", "label": "現有證據", "type": "text" }
+        ]
+      },
+      {
+        "id": "research_table",
+        "title": "2026-07-20 研究語料規模",
+        "subtitle": "社群訊號只作模式探索；官方文件與可重現測試仍有較高決策權重。",
+        "dataset": "research_counts",
+        "sourceId": "research_corpus_20260720",
+        "defaultSort": { "field": "count", "direction": "desc" },
+        "columns": [
+          { "field": "channel", "label": "來源", "type": "text" },
+          { "field": "count", "label": "納入數量", "format": "number" },
+          { "field": "use", "label": "用途", "type": "text" }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "gsc_live_20260720",
+        "label": "Google Search Console 即時複查",
+        "path": "gsc-live-20260720.sql"
+      },
+      {
+        "id": "site_validation_20260720",
+        "label": "Sitemap、robots 與 URL 公開驗證",
+        "path": "site-validation-20260720.sql"
+      },
+      {
+        "id": "research_corpus_20260720",
+        "label": "X 與 GitHub 研究語料摘要",
+        "path": "research-corpus-20260720.sql"
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# 私享家搜尋稽核"
+      },
+      {
+        "id": "executive_summary",
+        "type": "markdown",
+        "body": "## Executive Summary\n\n- **已更新並有早期流量。** 目前 135 次曝光、2 次點擊，尚無預約歸因。\n- **索引仍是瓶頸。** 首頁可索引；主 Sitemap 仍失敗，24 至 72 小時內複查。\n- **研究量已達標。** X 153 筆、GitHub 討論 119 筆、實作 160 筆；不保證第一名。"
+      },
+      {
+        "id": "research_visual",
+        "type": "chart",
+        "chartId": "research_corpus_chart"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-07-20T06:08:00+08:00",
+    "status": "ready",
+    "datasets": {
+      "gsc_baseline": [
+        {
+          "windowStart": "2026-07-03",
+          "windowEnd": "2026-07-17",
+          "impressions": 135,
+          "clicks": 2,
+          "ctr": 0.015,
+          "averagePosition": 7,
+          "indexedPages": 1,
+          "sitemapDiscovered": 0
+        }
+      ],
+      "gsc_queries": [
+        { "query": "私享", "impressions": 17, "clicks": 0 },
+        { "query": "私享家", "impressions": 14, "clicks": 0 },
+        { "query": "享家", "impressions": 5, "clicks": 0 },
+        { "query": "洗衣店", "impressions": 5, "clicks": 0 },
+        { "query": "西屯洗鞋", "impressions": 2, "clicks": 0 },
+        { "query": "逢甲洗鞋", "impressions": 2, "clicks": 0 },
+        { "query": "乾洗", "impressions": 2, "clicks": 0 },
+        { "query": "洗包包", "impressions": 1, "clicks": 0 },
+        { "query": "洗鞋子", "impressions": 1, "clicks": 0 },
+        { "query": "烘鞋子", "impressions": 1, "clicks": 0 }
+      ],
+      "diagnostic_layers": [
+        { "layer": "1 抓取", "status": "通過公開測試", "evidence": "首頁、robots、sitemap 與 44 個 sitemap URL 均回 HTTP 200" },
+        { "layer": "2 索引", "status": "未通過", "evidence": "7/10 報表只有舊子路徑 1 頁；首頁即時可索引但尚未收錄" },
+        { "layer": "3 排名", "status": "僅有早期訊號", "evidence": "平均排名 7，但樣本只有 135 次曝光" },
+        { "layer": "4 AI 引用", "status": "未量測", "evidence": "尚無 Bing AI Performance 或其他 citation 報表證據" },
+        { "layer": "5 網站流量", "status": "少量", "evidence": "Google 搜尋帶來 2 次點擊" },
+        { "layer": "6 LINE／預約", "status": "無法歸因", "evidence": "沒有站內 outbound click 與預約端核對資料" }
+      ],
+      "research_counts": [
+        { "channel": "X", "count": 153 },
+        { "channel": "GitHub 討論", "count": 119 },
+        { "channel": "GitHub 實作", "count": 160 }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "gsc_live_20260720",
+      "label": "Google Search Console 即時複查",
+      "path": "gsc-live-20260720.sql"
+    },
+    {
+      "id": "site_validation_20260720",
+      "label": "Sitemap、robots 與 URL 公開驗證",
+      "path": "site-validation-20260720.sql"
+    },
+    {
+      "id": "research_corpus_20260720",
+      "label": "X 與 GitHub 研究語料摘要",
+      "path": "research-corpus-20260720.sql"
+    }
+  ]
+}

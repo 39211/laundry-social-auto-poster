@@ -1,0 +1,23 @@
+topic: 私享家每日 8-15 秒短影音劇本與迭代
+time_range: 2025-07-28 to 2026-07-28
+items:
+  - hook_and_first_frame
+  - one_action_grok_generation
+  - object_and_geometry_continuity
+  - traditional_chinese_tts
+  - postproduction_rhythm
+  - meta_safe_zone_and_audio
+  - dual_review_and_rejection
+  - 72_hour_iteration
+execution:
+  batch_size: 1
+  items_per_agent: 8
+  output_dir: ./research/video-script-learning-2026-07-28/results
+scope:
+  platforms:
+    - Facebook
+    - Instagram
+  generation_model: grok-imagine-video-1.5
+  final_duration_seconds: 12
+  raw_clip_duration_seconds: 6
+  language: zh-TW

@@ -1,0 +1,73 @@
+schema_version: "1.0"
+fields:
+  identity:
+    - name: case_id
+      description: "穩定本地ID。"
+      detail_level: brief
+    - name: title
+      description: "專案或案例名稱。"
+      detail_level: brief
+    - name: direct_url
+      description: "原始repo、影片或文章網址。"
+      detail_level: detailed
+    - name: author_org
+      description: "可識別作者或組織。"
+      detail_level: brief
+    - name: published_updated_at
+      description: "發布或最後更新日期。"
+      detail_level: detailed
+  classification:
+    - name: evidence_tier
+      description: "依私享家來源政策分T1-T4。"
+      detail_level: detailed
+    - name: integration_class
+      description: "exact_codex_doubao、agent_seedance、seedance_tooling、creator_adjacent。"
+      detail_level: detailed
+    - name: codex_evidence
+      description: "Codex實際參與的檔案、命令或示範；沒有則明記none。"
+      detail_level: detailed
+    - name: doubao_seedance_evidence
+      description: "模型名稱、版本、端點或展示證據。"
+      detail_level: detailed
+  workflow:
+    - name: screenplay_story_method
+      description: "是否真正處理人物、欲望、阻礙、衝突、轉折與結局。"
+      detail_level: detailed
+    - name: production_bible_and_continuity
+      description: "人物、場景、道具、鏡位、狀態與連戲控制。"
+      detail_level: detailed
+    - name: reference_and_first_frame
+      description: "首幀、角色、物件與場景reference方法。"
+      detail_level: detailed
+    - name: generation_method
+      description: "I2V/T2V、多段生成、長度、提示詞與重試策略。"
+      detail_level: detailed
+    - name: performance_audio_lipsync
+      description: "人物動作、聲音、TTS、口型與字幕流程。"
+      detail_level: detailed
+    - name: edit_and_qa
+      description: "剪輯、色彩、聲音、逐幀、連戲、失敗判定與發布規格。"
+      detail_level: detailed
+  audit:
+    - name: exact_locator
+      description: "README段落、檔案、symbol、commit、影片時間碼或文章章節。"
+      detail_level: detailed
+    - name: reproducibility
+      description: "可重跑程度、必要帳號、付費、私有端點與缺失資產。"
+      detail_level: detailed
+    - name: license_rights
+      description: "程式碼與素材授權、人物/品牌/聲音權利。"
+      detail_level: detailed
+    - name: transferable_rule
+      description: "可移植到私享家的單一方法。"
+      detail_level: detailed
+    - name: limitations_conflicts
+      description: "不可移植、未證明或與其他來源衝突之處。"
+      detail_level: detailed
+    - name: verdict
+      description: "accepted_candidate、conditional、rejected。"
+      detail_level: brief
+uncertain:
+  - "豆包2.0是否指Seedance 2.0；研究將保留原產品名稱與版本，不自行合併。"
+  - "公開網路是否存在30個真正同時使用Codex與Doubao/Seedance的案例；不足時不得以相鄰工作流偽裝。"
+

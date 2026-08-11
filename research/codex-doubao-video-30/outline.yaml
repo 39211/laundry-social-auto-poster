@@ -1,0 +1,26 @@
+topic: "Codex + 豆包／Doubao／Seedance 影片製作案例與私享家多 Agent 製片系統"
+cutoff_date: "2026-07-20"
+status: "research_in_progress_no_video_generation"
+interpretation:
+  doubao_2_0: "同時搜尋豆包影片能力、Doubao、Seedance 1.5 與 Seedance 2.0；不預設它們是完全相同的產品名稱。"
+  exactness_rule: "來源同時明示 Codex 與 Doubao/Seedance 才能進 exact 群；另強制拆成 exact-executed（有runtime/成片/trace）與 exact-preproduction（只有前製、skill或prompt方法）。其餘標 adjacent，不得冒充精確執行案例。"
+items:
+  - group: github_exact_or_agent_integrations
+    target: 10
+    description: "Codex 或可驗證 coding-agent orchestration 與 Doubao/Seedance 的直接整合。"
+  - group: github_seedance_production_tooling
+    target: 10
+    description: "可重現的 Seedance 影片生產、reference、聲音、剪輯、QA 工具；若沒有 Codex，明確標 adjacent。"
+  - group: demonstrated_creator_workflows
+    target: 10
+    description: "有完整示範、字幕、章節、程式碼或產出證據的 YouTube/X/技術案例。"
+execution:
+  batch_size: 3
+  items_per_agent: 10
+  output_dir: "research/codex-doubao-video-30"
+gates:
+  - "至少30個去重候選；精確案例與相鄰案例分開計數。"
+  - "每案必須有直接URL與實際內容定位，搜尋結果與AI摘要不算案例。"
+  - "GitHub必須檢查README以外的實作、release/commit、授權及是否只有API包裝。"
+  - "YouTube/X必須有字幕、章節、描述、程式碼或具體畫面證據；純展示不算方法案例。"
+  - "案例研究未通過雙審前，不能成為正式劇本、導演或生成硬規則。"

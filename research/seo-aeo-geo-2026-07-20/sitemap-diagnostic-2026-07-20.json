@@ -1,0 +1,62 @@
+{
+  "checkedAt": "2026-07-20T06:08:00+08:00",
+  "site": "https://39211.github.io/",
+  "sitemap": {
+    "url": "https://39211.github.io/sitemap.xml",
+    "httpStatus": 200,
+    "contentType": "application/xml",
+    "bytes": 6847,
+    "wellFormedXml": true,
+    "urlCount": 44,
+    "uniqueUrlCount": 44,
+    "urlsInPropertyScope": 44,
+    "googlebotUrlChecks": {
+      "tested": 44,
+      "http200": 44,
+      "html": 44,
+      "failures": 0
+    },
+    "userAgentChecks": [
+      "browser",
+      "Googlebot",
+      "Google Inspection Tool",
+      "Bingbot"
+    ],
+    "xRobotsTag": null
+  },
+  "robots": {
+    "url": "https://39211.github.io/robots.txt",
+    "googlebotHttpStatus": 200,
+    "allowsRoot": true,
+    "declaresSitemap": true
+  },
+  "searchConsole": {
+    "sitemapLastRead": "2026-07-20",
+    "sitemapStatus": "無法讀取 Sitemap",
+    "sitemapDiscoveredPages": 0,
+    "indexReportLastUpdated": "2026-07-10",
+    "indexedPages": 1,
+    "onlyIndexedUrl": "https://39211.github.io/laundry-social-auto-poster/",
+    "onlyIndexedUrlLastCrawl": "2026-07-03",
+    "homepageHistoricalStatus": "網址不在 Google 服務中",
+    "homepageLiveTest": "Google 可為網址建立索引",
+    "homepageBreadcrumbItems": 1,
+    "homepageIndexRequest": "已加入優先檢索佇列",
+    "sitemapLiveTest": "發生錯誤；如果問題仍未解決，請過幾小時後再試一次"
+  },
+  "diagnosis": {
+    "verified": [
+      "公開 sitemap 可擷取且 XML 有效",
+      "robots.txt 未封鎖抓取並正確宣告 sitemap",
+      "sitemap 內 44 個網址全部回 HTTP 200",
+      "首頁即時測試可編入索引"
+    ],
+    "likely": [
+      "Search Console sitemap 的處理或抓取狀態尚未完成或暫時異常"
+    ],
+    "unresolved": [
+      "Search Console 尚未把 sitemap 狀態轉為成功",
+      "首頁與新服務頁尚未出現已索引證據"
+    ]
+  }
+}

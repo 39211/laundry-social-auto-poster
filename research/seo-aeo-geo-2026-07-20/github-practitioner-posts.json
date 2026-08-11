@@ -1,0 +1,2729 @@
+{
+  "generated_at": "2026-07-19T21:08:47.457Z",
+  "methodology": {
+    "public_only": true,
+    "search_count": 9,
+    "unique_items_discovered": 290,
+    "selected_count": 119,
+    "note": "Items are public GitHub issues whose title explicitly names the selected SEO/AEO/GEO topic, then filtered for substantive discussion (at least three comments/reactions, or an official platform project). Automated maintenance, autohealing, CI-failure, and bounty noise is excluded. Titles and metadata are retained; issue bodies are not copied."
+  },
+  "query_stats": [
+    {
+      "category": "llms-txt",
+      "query": "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01",
+      "total_count": 9816,
+      "fetched": 100
+    },
+    {
+      "category": "geo",
+      "query": "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+      "total_count": 504,
+      "fetched": 99
+    },
+    {
+      "category": "aeo",
+      "query": "\"answer engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+      "total_count": 278,
+      "fetched": 100
+    },
+    {
+      "category": "ai-crawlers",
+      "query": "\"OAI-SearchBot\" in:title,body type:issue is:public created:>=2024-01-01",
+      "total_count": 188,
+      "fetched": 100
+    },
+    {
+      "category": "ai-crawlers",
+      "query": "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01",
+      "total_count": 488,
+      "fetched": 100
+    },
+    {
+      "category": "indexnow",
+      "query": "IndexNow in:title,body type:issue is:public updated:>=2024-01-01",
+      "total_count": 871,
+      "fetched": 100
+    },
+    {
+      "category": "structured-data",
+      "query": "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01",
+      "total_count": 312,
+      "fetched": 100
+    },
+    {
+      "category": "measurement",
+      "query": "\"Google Search Console\" AI in:title,body type:issue is:public created:>=2024-01-01",
+      "total_count": 795,
+      "fetched": 100
+    },
+    {
+      "category": "local-seo",
+      "query": "\"Google Business Profile\" \"local SEO\" in:title,body type:issue is:public updated:>=2024-01-01",
+      "total_count": 364,
+      "fetched": 100
+    }
+  ],
+  "category_counts": {
+    "llms-txt": 22,
+    "geo": 26,
+    "aeo": 7,
+    "ai-crawlers": 11,
+    "indexnow": 16,
+    "structured-data": 25,
+    "measurement": 6,
+    "local-seo": 9
+  },
+  "evidence_tier_counts": {
+    "maintainer-practitioner": 63,
+    "official-or-platform-project": 6,
+    "community-implementation": 50
+  },
+  "sources": [
+    {
+      "title": "Onboarding docs nits: CLI 404 redirect, pip package name, llms.txt links, signup form (MNE-196)",
+      "url": "https://github.com/mnemom/docs/issues/192",
+      "repository": "mnemom/docs",
+      "number": 192,
+      "state": "closed",
+      "created_at": "2026-06-04T04:06:07Z",
+      "updated_at": "2026-06-04T05:38:29Z",
+      "closed_at": "2026-06-04T05:38:29Z",
+      "comments": 30,
+      "reactions": 0,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 58.2
+    },
+    {
+      "title": "Create llms.txt for kubernetes.io",
+      "url": "https://github.com/kubernetes/website/issues/51544",
+      "repository": "kubernetes/website",
+      "number": 51544,
+      "state": "closed",
+      "created_at": "2025-07-08T04:55:44Z",
+      "updated_at": "2026-06-04T07:12:55Z",
+      "closed_at": "2026-05-26T23:24:51Z",
+      "comments": 17,
+      "reactions": 5,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 56.1
+    },
+    {
+      "title": "PLIP: Add llms.txt and llms-full.txt views to plone.restapi",
+      "url": "https://github.com/plone/Products.CMFPlone/issues/4284",
+      "repository": "plone/Products.CMFPlone",
+      "number": 4284,
+      "state": "open",
+      "created_at": "2026-02-25T10:57:56Z",
+      "updated_at": "2026-06-15T14:17:44Z",
+      "closed_at": null,
+      "comments": 15,
+      "reactions": 2,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01",
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 54.7
+    },
+    {
+      "title": "Add HearingAidStore as a subset of MedicalBusiness and LocalBusiness",
+      "url": "https://github.com/schemaorg/schemaorg/issues/4566",
+      "repository": "schemaorg/schemaorg",
+      "number": 4566,
+      "state": "open",
+      "created_at": "2025-11-06T00:46:16Z",
+      "updated_at": "2026-06-30T05:42:22Z",
+      "closed_at": null,
+      "comments": 7,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "official-or-platform-project",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 54.3
+    },
+    {
+      "title": "llms.txt onboarding links (/quickstart, /for-agents entry points)",
+      "url": "https://github.com/mnemom/docs/issues/249",
+      "repository": "mnemom/docs",
+      "number": 249,
+      "state": "closed",
+      "created_at": "2026-06-17T22:27:28Z",
+      "updated_at": "2026-06-18T04:36:06Z",
+      "closed_at": "2026-06-18T04:36:06Z",
+      "comments": 14,
+      "reactions": 0,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 53.5
+    },
+    {
+      "title": "Improve markdown structure of docs llms.txt & Actor detail",
+      "url": "https://github.com/apify/apify-docs/issues/1783",
+      "repository": "apify/apify-docs",
+      "number": 1783,
+      "state": "closed",
+      "created_at": "2025-08-11T13:07:56Z",
+      "updated_at": "2026-05-06T13:01:12Z",
+      "closed_at": "2026-05-06T13:01:12Z",
+      "comments": 14,
+      "reactions": 0,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 52.1
+    },
+    {
+      "title": "Agent Task: Complete SEO and Local SEO evidence packs",
+      "url": "https://github.com/aymanmahrous/swim-fluent-uae/issues/58",
+      "repository": "aymanmahrous/swim-fluent-uae",
+      "number": 58,
+      "state": "closed",
+      "created_at": "2026-07-15T04:14:40Z",
+      "updated_at": "2026-07-19T14:29:46Z",
+      "closed_at": "2026-07-19T14:29:46Z",
+      "comments": 7,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "local-seo"
+      ],
+      "matched_queries": [
+        "\"Google Business Profile\" \"local SEO\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 50
+    },
+    {
+      "title": "llms.txt to make the docs more accessible to LLMs",
+      "url": "https://github.com/wagtail/wagtail/issues/13097",
+      "repository": "wagtail/wagtail",
+      "number": 13097,
+      "state": "closed",
+      "created_at": "2025-05-09T07:12:49Z",
+      "updated_at": "2026-01-13T00:39:58Z",
+      "closed_at": "2026-01-12T09:16:57Z",
+      "comments": 15,
+      "reactions": 0,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 48.7
+    },
+    {
+      "title": "SEO, E-E-A-T, AEO & GEO Improvements for Blog Content",
+      "url": "https://github.com/Divkix/divkix.me/issues/42",
+      "repository": "Divkix/divkix.me",
+      "number": 42,
+      "state": "closed",
+      "created_at": "2026-05-11T04:14:40Z",
+      "updated_at": "2026-05-11T04:36:09Z",
+      "closed_at": "2026-05-11T04:36:09Z",
+      "comments": 6,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo",
+        "aeo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"answer engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 46.7
+    },
+    {
+      "title": "feat(schema): trust/conversion fields — GBP/social links, logo, per-service pricing, explicit image alt",
+      "url": "https://github.com/hirobius/site-engine/issues/87",
+      "repository": "hirobius/site-engine",
+      "number": 87,
+      "state": "closed",
+      "created_at": "2026-07-11T08:11:48Z",
+      "updated_at": "2026-07-16T06:09:53Z",
+      "closed_at": "2026-07-16T06:09:53Z",
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "COLLABORATOR",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "local-seo"
+      ],
+      "matched_queries": [
+        "\"Google Business Profile\" \"local SEO\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 46.5
+    },
+    {
+      "title": "Growth OS: Local SEO, Google Business Profile and reviews operating model",
+      "url": "https://github.com/weppa-cloud/bukeer-studio/issues/335",
+      "repository": "weppa-cloud/bukeer-studio",
+      "number": 335,
+      "state": "open",
+      "created_at": "2026-04-26T01:55:30Z",
+      "updated_at": "2026-04-30T19:24:52Z",
+      "closed_at": null,
+      "comments": 6,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "local-seo"
+      ],
+      "matched_queries": [
+        "\"Google Business Profile\" \"local SEO\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 46.4
+    },
+    {
+      "title": "AEO improvements",
+      "url": "https://github.com/bafu/bafu.github.io/issues/28",
+      "repository": "bafu/bafu.github.io",
+      "number": 28,
+      "state": "open",
+      "created_at": "2026-04-05T08:12:38Z",
+      "updated_at": "2026-06-03T02:16:13Z",
+      "closed_at": null,
+      "comments": 5,
+      "reactions": 0,
+      "author_association": "COLLABORATOR",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "aeo"
+      ],
+      "matched_queries": [
+        "\"answer engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 46.4
+    },
+    {
+      "title": "mismatch in docs and validators regarding address requirement on localbusiness",
+      "url": "https://github.com/schemaorg/schemaorg/issues/4643",
+      "repository": "schemaorg/schemaorg",
+      "number": 4643,
+      "state": "closed",
+      "created_at": "2025-12-16T10:32:32Z",
+      "updated_at": "2025-12-30T16:23:06Z",
+      "closed_at": "2025-12-30T15:07:17Z",
+      "comments": 5,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "official-or-platform-project",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 46.2
+    },
+    {
+      "title": "feat(perf): emit Last-Modified headers from Payload updatedAt for AI crawler efficiency",
+      "url": "https://github.com/julianken/detached-node/issues/418",
+      "repository": "julianken/detached-node",
+      "number": 418,
+      "state": "closed",
+      "created_at": "2026-05-18T22:52:08Z",
+      "updated_at": "2026-05-19T03:56:46Z",
+      "closed_at": "2026-05-19T03:56:46Z",
+      "comments": 5,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "ai-crawlers"
+      ],
+      "matched_queries": [
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 45.9
+    },
+    {
+      "title": "Growth OS Max Matrix: Business Data and Reviews local SEO normalizer",
+      "url": "https://github.com/weppa-cloud/bukeer-studio/issues/383",
+      "repository": "weppa-cloud/bukeer-studio",
+      "number": 383,
+      "state": "open",
+      "created_at": "2026-04-30T16:30:30Z",
+      "updated_at": "2026-04-30T21:52:40Z",
+      "closed_at": null,
+      "comments": 5,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "local-seo"
+      ],
+      "matched_queries": [
+        "\"Google Business Profile\" \"local SEO\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 45.3
+    },
+    {
+      "title": "[Hooks] IndexNow auto-submit never fires — hook reads $CLAUDE_FILE_PATH (unset) instead of stdin JSON",
+      "url": "https://github.com/jsschrstrcks1/InTheWake/issues/1837",
+      "repository": "jsschrstrcks1/InTheWake",
+      "number": 1837,
+      "state": "closed",
+      "created_at": "2026-06-02T13:18:24Z",
+      "updated_at": "2026-06-05T22:23:54Z",
+      "closed_at": "2026-06-05T22:23:54Z",
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 45.1
+    },
+    {
+      "title": "Community Example: CleaningService + LocalBusiness markup for multi-location service companies",
+      "url": "https://github.com/schemaorg/schemaorg/issues/4790",
+      "repository": "schemaorg/schemaorg",
+      "number": 4790,
+      "state": "open",
+      "created_at": "2026-04-02T01:21:59Z",
+      "updated_at": "2026-07-17T04:38:40Z",
+      "closed_at": null,
+      "comments": 1,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "official-or-platform-project",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 44.9
+    },
+    {
+      "title": "JSON-LD example: Healthcare facility cleaning service with VOC compliance data",
+      "url": "https://github.com/schemaorg/schemaorg/issues/4792",
+      "repository": "schemaorg/schemaorg",
+      "number": 4792,
+      "state": "open",
+      "created_at": "2026-04-07T14:09:05Z",
+      "updated_at": "2026-07-17T04:38:39Z",
+      "closed_at": null,
+      "comments": 1,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "official-or-platform-project",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 44.9
+    },
+    {
+      "title": "[FEATURE]: provide llms.txt and docs as markdown",
+      "url": "https://github.com/anomalyco/opencode/issues/8816",
+      "repository": "anomalyco/opencode",
+      "number": 8816,
+      "state": "open",
+      "created_at": "2026-01-16T06:13:12Z",
+      "updated_at": "2026-07-11T20:21:09Z",
+      "closed_at": null,
+      "comments": 16,
+      "reactions": 35,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 44.7
+    },
+    {
+      "title": "SEO-005: Переработать JSON-LD для персонального бренда",
+      "url": "https://github.com/Brutich/LuizaEstate.Web/issues/11",
+      "repository": "Brutich/LuizaEstate.Web",
+      "number": 11,
+      "state": "closed",
+      "created_at": "2026-07-11T12:11:48Z",
+      "updated_at": "2026-07-11T20:58:22Z",
+      "closed_at": "2026-07-11T20:58:22Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 44.7
+    },
+    {
+      "title": "Wire up analytics: GA4, IndexNow, Bing Webmaster, Google Search Console",
+      "url": "https://github.com/laazyj/ukehoot.net/issues/7",
+      "repository": "laazyj/ukehoot.net",
+      "number": 7,
+      "state": "closed",
+      "created_at": "2026-05-10T09:28:55Z",
+      "updated_at": "2026-05-20T07:02:11Z",
+      "closed_at": "2026-05-20T07:02:11Z",
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 44.6
+    },
+    {
+      "title": "Auditoria completa: Blog, Landing Pages e SPIN — SEO/GEO/E-E-A-T/AI-Readiness",
+      "url": "https://github.com/SmartDentUSA/print-params-hub/issues/4",
+      "repository": "SmartDentUSA/print-params-hub",
+      "number": 4,
+      "state": "open",
+      "created_at": "2026-03-06T17:43:27Z",
+      "updated_at": "2026-03-06T19:48:10Z",
+      "closed_at": null,
+      "comments": 6,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 44.5
+    },
+    {
+      "title": "Feature Request: We need llms-full.txt, llms.txt for better llm understanding",
+      "url": "https://github.com/TanStack/tanstack.com/issues/398",
+      "repository": "TanStack/tanstack.com",
+      "number": 398,
+      "state": "closed",
+      "created_at": "2025-05-05T09:12:16Z",
+      "updated_at": "2026-07-01T00:44:33Z",
+      "closed_at": "2026-02-21T16:15:35Z",
+      "comments": 23,
+      "reactions": 61,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 44.4
+    },
+    {
+      "title": "LLM SEO / Generative Engine Optimization for AI Discovery",
+      "url": "https://github.com/brightdigit/atleast.app/issues/8",
+      "repository": "brightdigit/atleast.app",
+      "number": 8,
+      "state": "closed",
+      "created_at": "2026-02-26T20:54:37Z",
+      "updated_at": "2026-07-02T14:49:53Z",
+      "closed_at": "2026-07-02T14:49:53Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 44.4
+    },
+    {
+      "title": "Add support for llms.txt (similar to robots.txt, humans.txt, ads.txt, security.txt support)",
+      "url": "https://github.com/nystudio107/craft-seomatic/issues/1641",
+      "repository": "nystudio107/craft-seomatic",
+      "number": 1641,
+      "state": "open",
+      "created_at": "2025-08-22T17:50:27Z",
+      "updated_at": "2026-06-29T20:46:01Z",
+      "closed_at": null,
+      "comments": 17,
+      "reactions": 18,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 44.3
+    },
+    {
+      "title": "[Tony] Research GEO — Generative Engine Optimization",
+      "url": "https://github.com/Pachara/thaisugars-landing/issues/15",
+      "repository": "Pachara/thaisugars-landing",
+      "number": 15,
+      "state": "closed",
+      "created_at": "2026-03-28T16:58:18Z",
+      "updated_at": "2026-03-28T17:07:41Z",
+      "closed_at": "2026-03-28T17:07:41Z",
+      "comments": 5,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 44.2
+    },
+    {
+      "title": "Add Microsoft Clarity for product analytics",
+      "url": "https://github.com/mkerchenski/hurrah-tv/issues/63",
+      "repository": "mkerchenski/hurrah-tv",
+      "number": 63,
+      "state": "closed",
+      "created_at": "2026-05-07T13:54:21Z",
+      "updated_at": "2026-06-24T14:53:02Z",
+      "closed_at": "2026-06-24T14:53:02Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "measurement"
+      ],
+      "matched_queries": [
+        "\"Google Search Console\" AI in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 44.2
+    },
+    {
+      "title": "SEO: /llms/battles/ — 8 per-matchup LLM files exist but absent from sitemap (AI crawlers blind)",
+      "url": "https://github.com/ricardoparro/MetalDrummerGear/issues/1703",
+      "repository": "ricardoparro/MetalDrummerGear",
+      "number": 1703,
+      "state": "closed",
+      "created_at": "2026-06-19T02:12:22Z",
+      "updated_at": "2026-06-20T10:48:03Z",
+      "closed_at": "2026-06-20T10:48:03Z",
+      "comments": 34,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "ai-crawlers"
+      ],
+      "matched_queries": [
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 44
+    },
+    {
+      "title": "admin observability: Search Console panels (clicks, impressions, top queries)",
+      "url": "https://github.com/BimRoss/makeacompany-ai/issues/260",
+      "repository": "BimRoss/makeacompany-ai",
+      "number": 260,
+      "state": "closed",
+      "created_at": "2026-06-03T13:34:36Z",
+      "updated_at": "2026-06-15T13:09:49Z",
+      "closed_at": "2026-06-15T13:09:49Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "COLLABORATOR",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "measurement"
+      ],
+      "matched_queries": [
+        "\"Google Search Console\" AI in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 43.9
+    },
+    {
+      "title": "Traffic Growth Roadmap — sequence Bing/IndexNow → backlinks (#483) → cluster expansion (#488)",
+      "url": "https://github.com/saurabhav88/EnviousWispr/issues/526",
+      "repository": "saurabhav88/EnviousWispr",
+      "number": 526,
+      "state": "closed",
+      "created_at": "2026-04-30T23:37:29Z",
+      "updated_at": "2026-06-13T05:58:46Z",
+      "closed_at": "2026-06-13T05:58:46Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 43.8
+    },
+    {
+      "title": "GEO/SEO P0: Cloudflare blocks all AI crawlers + site not indexed (visibility is off at the switch)",
+      "url": "https://github.com/Tamok/wymber/issues/139",
+      "repository": "Tamok/wymber",
+      "number": 139,
+      "state": "open",
+      "created_at": "2026-06-12T09:33:24Z",
+      "updated_at": "2026-06-14T08:22:43Z",
+      "closed_at": null,
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "ai-crawlers"
+      ],
+      "matched_queries": [
+        "\"OAI-SearchBot\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"Google Search Console\" AI in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 43.8
+    },
+    {
+      "title": "feat: robots.txt AI 爬蟲規則 — GPTBot, Claude-Web 等",
+      "url": "https://github.com/cyclone-tw/cyclone-workflow/issues/137",
+      "repository": "cyclone-tw/cyclone-workflow",
+      "number": 137,
+      "state": "closed",
+      "created_at": "2026-04-22T15:15:24Z",
+      "updated_at": "2026-04-24T16:42:52Z",
+      "closed_at": "2026-04-24T02:24:30Z",
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "COLLABORATOR",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "ai-crawlers"
+      ],
+      "matched_queries": [
+        "\"OAI-SearchBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 43.7
+    },
+    {
+      "title": "SEO-202: усилить schema.org для товаров, категорий, поиска и магазинов",
+      "url": "https://github.com/AlexandrUlyanov/techaks-app/issues/146",
+      "repository": "AlexandrUlyanov/techaks-app",
+      "number": 146,
+      "state": "closed",
+      "created_at": "2026-06-06T15:41:37Z",
+      "updated_at": "2026-06-06T16:15:32Z",
+      "closed_at": "2026-06-06T16:15:32Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 43.6
+    },
+    {
+      "title": "Auditoria completa: Blog, Landing Pages e SPIN — SEO/GEO/E-E-A-T/AI - Sistama A",
+      "url": "https://github.com/SmartDentUSA/landing-craftsman-76/issues/1",
+      "repository": "SmartDentUSA/landing-craftsman-76",
+      "number": 1,
+      "state": "open",
+      "created_at": "2026-03-06T21:14:27Z",
+      "updated_at": "2026-03-06T21:31:59Z",
+      "closed_at": null,
+      "comments": 5,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 43.4
+    },
+    {
+      "title": "IndexNow integration for instant search engine indexing",
+      "url": "https://github.com/robhunter/agentdeals/issues/814",
+      "repository": "robhunter/agentdeals",
+      "number": 814,
+      "state": "closed",
+      "created_at": "2026-04-15T10:07:42Z",
+      "updated_at": "2026-04-15T20:02:49Z",
+      "closed_at": "2026-04-15T20:02:49Z",
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "COLLABORATOR",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 43.4
+    },
+    {
+      "title": "Post-launch: submit sitemaps + IndexNow + field CWV monitoring",
+      "url": "https://github.com/rsicarelli/personal-site/issues/146",
+      "repository": "rsicarelli/personal-site",
+      "number": 146,
+      "state": "closed",
+      "created_at": "2026-06-02T12:44:54Z",
+      "updated_at": "2026-06-02T15:42:34Z",
+      "closed_at": "2026-06-02T15:42:34Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01",
+        "\"Google Search Console\" AI in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 43.4
+    },
+    {
+      "title": "SEO: set up Google Search Console + wire to GCP analytics project",
+      "url": "https://github.com/BimRoss/makeacompany-ai/issues/74",
+      "repository": "BimRoss/makeacompany-ai",
+      "number": 74,
+      "state": "closed",
+      "created_at": "2026-05-27T06:26:30Z",
+      "updated_at": "2026-05-28T13:38:44Z",
+      "closed_at": "2026-05-28T13:38:44Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "COLLABORATOR",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "measurement"
+      ],
+      "matched_queries": [
+        "\"Google Search Console\" AI in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 43.3
+    },
+    {
+      "title": "feat(seo): explicit Allow/Disallow rules for AI crawlers in robots.txt",
+      "url": "https://github.com/julianken/detached-node/issues/417",
+      "repository": "julianken/detached-node",
+      "number": 417,
+      "state": "closed",
+      "created_at": "2026-05-18T22:52:06Z",
+      "updated_at": "2026-05-19T05:42:53Z",
+      "closed_at": "2026-05-19T05:42:53Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "ai-crawlers"
+      ],
+      "matched_queries": [
+        "\"OAI-SearchBot\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.9
+    },
+    {
+      "title": "Wire Bing Webmaster Tools + IndexNow for enviouswispr.com",
+      "url": "https://github.com/saurabhav88/EnviousWispr/issues/532",
+      "repository": "saurabhav88/EnviousWispr",
+      "number": 532,
+      "state": "closed",
+      "created_at": "2026-05-01T00:34:35Z",
+      "updated_at": "2026-05-16T15:44:18Z",
+      "closed_at": "2026-05-16T15:44:18Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.9
+    },
+    {
+      "title": "Expose Agent Revenue Copilot updates through IndexNow",
+      "url": "https://github.com/Olddun/earn10-clawtasks-deliverables/issues/24",
+      "repository": "Olddun/earn10-clawtasks-deliverables",
+      "number": 24,
+      "state": "closed",
+      "created_at": "2026-05-11T14:51:35Z",
+      "updated_at": "2026-05-13T14:16:21Z",
+      "closed_at": "2026-05-11T14:56:05Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.8
+    },
+    {
+      "title": "seo-growth-workspace: reject GBP profile proliferation as a ranking tactic",
+      "url": "https://github.com/JorgeMenaDev/skills/issues/125",
+      "repository": "JorgeMenaDev/skills",
+      "number": 125,
+      "state": "closed",
+      "created_at": "2026-07-14T19:10:34Z",
+      "updated_at": "2026-07-15T10:05:53Z",
+      "closed_at": "2026-07-15T10:05:53Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "local-seo"
+      ],
+      "matched_queries": [
+        "\"Google Business Profile\" \"local SEO\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.8
+    },
+    {
+      "title": "S19: LLM/AI-search visibility (GEO) — site + author structured data, llms.txt, AI-crawler access",
+      "url": "https://github.com/novaspatial/nova/issues/29",
+      "repository": "novaspatial/nova",
+      "number": 29,
+      "state": "open",
+      "created_at": "2026-06-26T13:43:07Z",
+      "updated_at": "2026-07-15T17:09:31Z",
+      "closed_at": null,
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "COLLABORATOR",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"OAI-SearchBot\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.8
+    },
+    {
+      "title": "feat(sites): Schema.org builders + SiteSchema per-route (S1)",
+      "url": "https://github.com/gasparellodev/gasp-search/issues/211",
+      "repository": "gasparellodev/gasp-search",
+      "number": 211,
+      "state": "closed",
+      "created_at": "2026-05-10T22:17:18Z",
+      "updated_at": "2026-05-11T06:26:39Z",
+      "closed_at": "2026-05-11T06:26:39Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.7
+    },
+    {
+      "title": "feat(seo): machine-parseable JSON-LD hours, robots.txt with Sitemap directive, OG completeness, remove dead NOINDEX path",
+      "url": "https://github.com/hirobius/site-engine/issues/83",
+      "repository": "hirobius/site-engine",
+      "number": 83,
+      "state": "closed",
+      "created_at": "2026-07-11T08:10:54Z",
+      "updated_at": "2026-07-11T18:32:13Z",
+      "closed_at": "2026-07-11T18:32:13Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "COLLABORATOR",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.7
+    },
+    {
+      "title": "Phase 14: AEO entity presence (Wikidata + FAQPage schema from twin log + static-HTML-facts audit)",
+      "url": "https://github.com/Jin-HoMLee/jin-ho-lee-cv/issues/113",
+      "repository": "Jin-HoMLee/jin-ho-lee-cv",
+      "number": 113,
+      "state": "closed",
+      "created_at": "2026-07-01T14:27:32Z",
+      "updated_at": "2026-07-14T15:12:28Z",
+      "closed_at": "2026-07-14T15:12:28Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "aeo"
+      ],
+      "matched_queries": [
+        "\"answer engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.7
+    },
+    {
+      "title": "docs: Google Search Console reporting indexing issues on readthedocs.io",
+      "url": "https://github.com/kornia/kornia/issues/3587",
+      "repository": "kornia/kornia",
+      "number": 3587,
+      "state": "closed",
+      "created_at": "2026-02-23T10:09:37Z",
+      "updated_at": "2026-03-20T17:21:04Z",
+      "closed_at": "2026-03-20T17:21:04Z",
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "measurement"
+      ],
+      "matched_queries": [
+        "\"Google Search Console\" AI in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.6
+    },
+    {
+      "title": "Implement LLM SEO / Generative Engine Optimization (AI-CITE Framework)",
+      "url": "https://github.com/brightdigit/month.bar/issues/21",
+      "repository": "brightdigit/month.bar",
+      "number": 21,
+      "state": "closed",
+      "created_at": "2026-02-26T20:52:34Z",
+      "updated_at": "2026-03-19T23:53:40Z",
+      "closed_at": "2026-03-19T23:53:40Z",
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"Google Search Console\" AI in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.5
+    },
+    {
+      "title": "Evaluate SEO, Answer Engine Optimization (AEO), and Artificial Intelligence Optimization (AIO)",
+      "url": "https://github.com/cilium/cilium.io/issues/633",
+      "repository": "cilium/cilium.io",
+      "number": 633,
+      "state": "closed",
+      "created_at": "2025-06-27T13:44:42Z",
+      "updated_at": "2025-12-04T16:31:25Z",
+      "closed_at": "2025-12-04T16:31:25Z",
+      "comments": 7,
+      "reactions": 0,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "aeo"
+      ],
+      "matched_queries": [
+        "\"answer engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.4
+    },
+    {
+      "title": "[Epic 5] Headless Portfolio API (projects.json for LLM Answer Engines)",
+      "url": "https://github.com/mechanistic-org/portfolio/issues/31",
+      "repository": "mechanistic-org/portfolio",
+      "number": 31,
+      "state": "closed",
+      "created_at": "2026-03-15T20:07:09Z",
+      "updated_at": "2026-07-03T15:58:07Z",
+      "closed_at": "2026-07-03T15:58:07Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "COLLABORATOR",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "aeo"
+      ],
+      "matched_queries": [
+        "\"answer engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.4
+    },
+    {
+      "title": "Meetup rich snippets readiness: schema.org for Event, WebPage, ProfilePage and public models",
+      "url": "https://github.com/laraxot/laravelpizza.com/issues/551",
+      "repository": "laraxot/laravelpizza.com",
+      "number": 551,
+      "state": "open",
+      "created_at": "2026-03-09T20:16:06Z",
+      "updated_at": "2026-03-10T14:31:47Z",
+      "closed_at": null,
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.2
+    },
+    {
+      "title": "Gnoweb: Make gno.land discoverable by AI assistants (SEO + GEO/AEO)",
+      "url": "https://github.com/gnolang/gno/issues/5769",
+      "repository": "gnolang/gno",
+      "number": 5769,
+      "state": "open",
+      "created_at": "2026-06-03T07:49:26Z",
+      "updated_at": "2026-06-27T06:35:03Z",
+      "closed_at": null,
+      "comments": 1,
+      "reactions": 1,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 42.2
+    },
+    {
+      "title": "unglue.it (new Django 4.2 box) CPU-saturated by AI crawlers — load 27 on 4 cores (ClaudeBot = 26% of traffic)",
+      "url": "https://github.com/Gluejar/regluit/issues/1172",
+      "repository": "Gluejar/regluit",
+      "number": 1172,
+      "state": "open",
+      "created_at": "2026-06-18T14:56:05Z",
+      "updated_at": "2026-06-18T15:49:07Z",
+      "closed_at": null,
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "ai-crawlers"
+      ],
+      "matched_queries": [
+        "\"OAI-SearchBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 41.9
+    },
+    {
+      "title": "feat(llm): robots.txt explicit AI crawler allow rules (split 3/3 of #873)",
+      "url": "https://github.com/ricardoparro/MetalDrummerGear/issues/1004",
+      "repository": "ricardoparro/MetalDrummerGear",
+      "number": 1004,
+      "state": "closed",
+      "created_at": "2026-06-07T22:45:59Z",
+      "updated_at": "2026-06-07T23:29:17Z",
+      "closed_at": "2026-06-07T23:28:47Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "ai-crawlers"
+      ],
+      "matched_queries": [
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 41.5
+    },
+    {
+      "title": "[Ron] Test V18 GEO — Generative Engine Optimization",
+      "url": "https://github.com/Pachara/thaisugars-landing/issues/16",
+      "repository": "Pachara/thaisugars-landing",
+      "number": 16,
+      "state": "closed",
+      "created_at": "2026-03-28T17:00:57Z",
+      "updated_at": "2026-03-28T17:07:44Z",
+      "closed_at": "2026-03-28T17:07:44Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 41.2
+    },
+    {
+      "title": "Generative Engine Optimization (GEO) - optimize for LLM and AI search discovery",
+      "url": "https://github.com/benpeter/web-resource-ledger/issues/137",
+      "repository": "benpeter/web-resource-ledger",
+      "number": 137,
+      "state": "closed",
+      "created_at": "2026-03-23T03:29:58Z",
+      "updated_at": "2026-03-25T18:17:05Z",
+      "closed_at": "2026-03-25T18:17:05Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 41.1
+    },
+    {
+      "title": "[R6] SEO & structured program data (Schema.org, sitemap)",
+      "url": "https://github.com/moldovancsaba/budapest-night/issues/7",
+      "repository": "moldovancsaba/budapest-night",
+      "number": 7,
+      "state": "closed",
+      "created_at": "2026-05-18T21:09:25Z",
+      "updated_at": "2026-05-19T14:46:07Z",
+      "closed_at": "2026-05-19T14:46:07Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 40.9
+    },
+    {
+      "title": "enhancement: GEO(생성형 검색 최적화) 대응 조사 및 블로그 적용 검토",
+      "url": "https://github.com/idean3885/idean3885.github.io/issues/88",
+      "repository": "idean3885/idean3885.github.io",
+      "number": 88,
+      "state": "closed",
+      "created_at": "2026-03-11T15:13:26Z",
+      "updated_at": "2026-03-15T13:45:26Z",
+      "closed_at": "2026-03-15T13:45:26Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"Google Search Console\" AI in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 40.8
+    },
+    {
+      "title": "[SEO Phase 3] Schema Markup & Structured Data",
+      "url": "https://github.com/aleisterai/aleister-site/issues/84",
+      "repository": "aleisterai/aleister-site",
+      "number": 84,
+      "state": "closed",
+      "created_at": "2026-03-12T20:47:42Z",
+      "updated_at": "2026-03-13T13:45:47Z",
+      "closed_at": "2026-03-13T13:37:37Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 40.7
+    },
+    {
+      "title": "Google Business Profile API (local SEO + reviews)",
+      "url": "https://github.com/vgpastor/RankPulse/issues/38",
+      "repository": "vgpastor/RankPulse",
+      "number": 38,
+      "state": "open",
+      "created_at": "2026-05-05T19:21:42Z",
+      "updated_at": "2026-05-08T19:43:23Z",
+      "closed_at": null,
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "local-seo"
+      ],
+      "matched_queries": [
+        "\"Google Business Profile\" \"local SEO\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 40.5
+    },
+    {
+      "title": "SEO: consolider les JSON-LD via @graph",
+      "url": "https://github.com/efficience-it/website/issues/671",
+      "repository": "efficience-it/website",
+      "number": 671,
+      "state": "closed",
+      "created_at": "2026-04-20T08:25:03Z",
+      "updated_at": "2026-04-28T14:26:32Z",
+      "closed_at": "2026-04-28T14:26:32Z",
+      "comments": 1,
+      "reactions": 1,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 40.2
+    },
+    {
+      "title": "docs: AI-consumption surface — standards llms.txt/llms-full.txt, MCP-servable docs, prompt-ready term cards",
+      "url": "https://github.com/Blackcat-Informatics/gmeow-ontology/issues/1027",
+      "repository": "Blackcat-Informatics/gmeow-ontology",
+      "number": 1027,
+      "state": "closed",
+      "created_at": "2026-06-26T03:46:37Z",
+      "updated_at": "2026-06-27T02:27:43Z",
+      "closed_at": "2026-06-27T02:27:43Z",
+      "comments": 16,
+      "reactions": 1,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 40.1
+    },
+    {
+      "title": "task/implement Technical AEO Schema (JSON-LD) for AI engine discoverability",
+      "url": "https://github.com/Nerajno/portfolio_v3/issues/357",
+      "repository": "Nerajno/portfolio_v3",
+      "number": 357,
+      "state": "open",
+      "created_at": "2026-04-20T00:08:38Z",
+      "updated_at": "2026-04-20T00:18:02Z",
+      "closed_at": null,
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "aeo"
+      ],
+      "matched_queries": [
+        "\"answer engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 39.9
+    },
+    {
+      "title": "feat(geo): add llms.txt and llms-full.txt for AI-search discoverability",
+      "url": "https://github.com/RapierCraftStudios/ForgeDock/issues/2125",
+      "repository": "RapierCraftStudios/ForgeDock",
+      "number": 2125,
+      "state": "closed",
+      "created_at": "2026-07-16T05:57:50Z",
+      "updated_at": "2026-07-16T06:28:29Z",
+      "closed_at": "2026-07-16T06:28:02Z",
+      "comments": 14,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt",
+        "geo"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01",
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 39.4
+    },
+    {
+      "title": "Implement LLM SEO / Generative Engine Optimization (AI-CITE Framework)",
+      "url": "https://github.com/brightdigit/atleast.app/issues/11",
+      "repository": "brightdigit/atleast.app",
+      "number": 11,
+      "state": "closed",
+      "created_at": "2026-03-24T12:37:30Z",
+      "updated_at": "2026-03-24T14:06:34Z",
+      "closed_at": "2026-03-24T14:06:34Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 39
+    },
+    {
+      "title": "Build website audit engine — full SEO/GEO/content analysis at signup",
+      "url": "https://github.com/CMacDaddyVael/Hospitality_god/issues/29",
+      "repository": "CMacDaddyVael/Hospitality_god",
+      "number": 29,
+      "state": "closed",
+      "created_at": "2026-03-19T12:51:10Z",
+      "updated_at": "2026-03-21T00:17:02Z",
+      "closed_at": "2026-03-21T00:17:02Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"answer engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 38.9
+    },
+    {
+      "title": "Enhance SEO and GEO for gaming-blog",
+      "url": "https://github.com/giacomomicoli/gaming-blog/issues/18",
+      "repository": "giacomomicoli/gaming-blog",
+      "number": 18,
+      "state": "open",
+      "created_at": "2026-03-19T01:51:04Z",
+      "updated_at": "2026-03-22T13:06:52Z",
+      "closed_at": null,
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"answer engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 38.9
+    },
+    {
+      "title": "[SEO Phase 4] Google Business Profile & Local SEO",
+      "url": "https://github.com/aleisterai/aleister-site/issues/85",
+      "repository": "aleisterai/aleister-site",
+      "number": 85,
+      "state": "closed",
+      "created_at": "2026-03-12T20:47:48Z",
+      "updated_at": "2026-03-13T13:46:09Z",
+      "closed_at": "2026-03-13T13:37:39Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "local-seo"
+      ],
+      "matched_queries": [
+        "\"Google Business Profile\" \"local SEO\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 38.6
+    },
+    {
+      "title": "Support for generating llms.txt file",
+      "url": "https://github.com/sybrew/the-seo-framework/issues/732",
+      "repository": "sybrew/the-seo-framework",
+      "number": 732,
+      "state": "open",
+      "created_at": "2025-07-10T19:04:06Z",
+      "updated_at": "2026-04-15T21:36:26Z",
+      "closed_at": null,
+      "comments": 17,
+      "reactions": 2,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01",
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 38.4
+    },
+    {
+      "title": "🗂️ Master Implementation Checklist — Greenline365 AEO, SEA, GEO, New Sections & Discovery Pipeline",
+      "url": "https://github.com/jaredtucker13-byte/greenline365-web/issues/11",
+      "repository": "jaredtucker13-byte/greenline365-web",
+      "number": 11,
+      "state": "closed",
+      "created_at": "2026-02-18T18:05:07Z",
+      "updated_at": "2026-02-19T08:44:10Z",
+      "closed_at": "2026-02-19T08:44:10Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "geo",
+        "aeo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"answer engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 37.9
+    },
+    {
+      "title": "feat(llms.txt): just like `https://ant.design/llms.txt`",
+      "url": "https://github.com/dotnetcore/BootstrapBlazor/issues/7400",
+      "repository": "dotnetcore/BootstrapBlazor",
+      "number": 7400,
+      "state": "closed",
+      "created_at": "2025-12-23T13:24:33Z",
+      "updated_at": "2025-12-26T00:24:30Z",
+      "closed_at": "2025-12-25T11:06:54Z",
+      "comments": 27,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 37.2
+    },
+    {
+      "title": "Add Schema.org Structured Data Support (Maho_StructuredData Module)",
+      "url": "https://github.com/MahoCommerce/maho/issues/483",
+      "repository": "MahoCommerce/maho",
+      "number": 483,
+      "state": "closed",
+      "created_at": "2026-01-05T13:55:07Z",
+      "updated_at": "2026-07-13T16:29:55Z",
+      "closed_at": "2026-06-23T22:16:31Z",
+      "comments": 9,
+      "reactions": 1,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 37.1
+    },
+    {
+      "title": "Support IndexNow",
+      "url": "https://github.com/cmb69/sitemapper_xh/issues/21",
+      "repository": "cmb69/sitemapper_xh",
+      "number": 21,
+      "state": "open",
+      "created_at": "2021-11-03T18:08:19Z",
+      "updated_at": "2025-08-08T06:07:06Z",
+      "closed_at": null,
+      "comments": 5,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 36.4
+    },
+    {
+      "title": "[FR] - IndexNow Support",
+      "url": "https://github.com/nystudio107/craft-seomatic/issues/1570",
+      "repository": "nystudio107/craft-seomatic",
+      "number": 1570,
+      "state": "open",
+      "created_at": "2025-02-12T14:47:39Z",
+      "updated_at": "2026-04-06T22:15:22Z",
+      "closed_at": null,
+      "comments": 14,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 36.1
+    },
+    {
+      "title": "[Feature]: add llms.txt to docs",
+      "url": "https://github.com/BerriAI/litellm/issues/9294",
+      "repository": "BerriAI/litellm",
+      "number": 9294,
+      "state": "closed",
+      "created_at": "2025-03-16T20:55:12Z",
+      "updated_at": "2026-03-05T17:44:59Z",
+      "closed_at": "2025-08-27T00:02:46Z",
+      "comments": 14,
+      "reactions": 1,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 35.5
+    },
+    {
+      "title": "feat: add llms.txt generation and documentation versioning",
+      "url": "https://github.com/zudolab/zudo-doc/issues/33",
+      "repository": "zudolab/zudo-doc",
+      "number": 33,
+      "state": "closed",
+      "created_at": "2026-03-14T17:35:26Z",
+      "updated_at": "2026-03-15T07:17:48Z",
+      "closed_at": "2026-03-15T07:17:48Z",
+      "comments": 14,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 35.3
+    },
+    {
+      "title": "Organization/LocalBusiness/xxxxService/Occupation",
+      "url": "https://github.com/schemaorg/schemaorg/issues/1276",
+      "repository": "schemaorg/schemaorg",
+      "number": 1276,
+      "state": "closed",
+      "created_at": "2016-08-03T19:18:34Z",
+      "updated_at": "2024-11-05T02:33:51Z",
+      "closed_at": "2024-11-05T02:33:51Z",
+      "comments": 7,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "official-or-platform-project",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 35
+    },
+    {
+      "title": "Feature Request: LocalBusiness -> store -> MedicalSupplies",
+      "url": "https://github.com/schemaorg/schemaorg/issues/1428",
+      "repository": "schemaorg/schemaorg",
+      "number": 1428,
+      "state": "closed",
+      "created_at": "2016-11-14T16:23:05Z",
+      "updated_at": "2024-10-29T02:38:34Z",
+      "closed_at": "2024-10-29T02:38:33Z",
+      "comments": 7,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "official-or-platform-project",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 35
+    },
+    {
+      "title": "📚 - Suggestion: Add a docs/llms.txt file to support LLMs",
+      "url": "https://github.com/taiga-family/taiga-ui/issues/11053",
+      "repository": "taiga-family/taiga-ui",
+      "number": 11053,
+      "state": "closed",
+      "created_at": "2025-05-31T20:31:40Z",
+      "updated_at": "2025-11-21T14:49:04Z",
+      "closed_at": "2025-06-25T09:48:31Z",
+      "comments": 18,
+      "reactions": 2,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 34
+    },
+    {
+      "title": "Configure AI crawler access with robots.txt and llms.txt",
+      "url": "https://github.com/bdougie/contributor.info/issues/268",
+      "repository": "bdougie/contributor.info",
+      "number": 268,
+      "state": "closed",
+      "created_at": "2025-08-05T12:36:02Z",
+      "updated_at": "2025-08-12T12:14:31Z",
+      "closed_at": "2025-08-05T13:13:38Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "ai-crawlers"
+      ],
+      "matched_queries": [
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 33.6
+    },
+    {
+      "title": "Add llms.txt file for better LLM integration",
+      "url": "https://github.com/rio-labs/rio/issues/264",
+      "repository": "rio-labs/rio",
+      "number": 264,
+      "state": "open",
+      "created_at": "2025-08-09T12:34:55Z",
+      "updated_at": "2026-01-29T09:22:22Z",
+      "closed_at": null,
+      "comments": 13,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 33.3
+    },
+    {
+      "title": "Improve Local SEO with Accurate Geo-Targeted Search Analysis",
+      "url": "https://github.com/Mia-Anderson/serpspur/issues/53",
+      "repository": "Mia-Anderson/serpspur",
+      "number": 53,
+      "state": "open",
+      "created_at": "2026-07-04T05:00:35Z",
+      "updated_at": "2026-07-07T06:16:57Z",
+      "closed_at": null,
+      "comments": 3,
+      "reactions": 2,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "local-seo"
+      ],
+      "matched_queries": [
+        "\"Google Business Profile\" \"local SEO\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 32.5
+    },
+    {
+      "title": "Google Search Console - Localized pages not indexed",
+      "url": "https://github.com/responsible-ai-collaborative/aiid/issues/3640",
+      "repository": "responsible-ai-collaborative/aiid",
+      "number": 3640,
+      "state": "closed",
+      "created_at": "2025-06-23T21:59:57Z",
+      "updated_at": "2025-06-27T18:45:01Z",
+      "closed_at": "2025-06-27T18:45:01Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "COLLABORATOR",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "measurement"
+      ],
+      "matched_queries": [
+        "\"Google Search Console\" AI in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 32.1
+    },
+    {
+      "title": "[AI, RAG, Docs] generate and expose llms.txt and llms-full.txt files on the docs website",
+      "url": "https://github.com/angular/angular/issues/60434",
+      "repository": "angular/angular",
+      "number": 60434,
+      "state": "closed",
+      "created_at": "2025-03-18T08:33:41Z",
+      "updated_at": "2025-06-17T00:13:36Z",
+      "closed_at": "2025-05-16T21:33:48Z",
+      "comments": 19,
+      "reactions": 24,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 31.7
+    },
+    {
+      "title": "vim9script llms.txt",
+      "url": "https://github.com/vim/vim/issues/18576",
+      "repository": "vim/vim",
+      "number": 18576,
+      "state": "closed",
+      "created_at": "2025-10-15T03:51:11Z",
+      "updated_at": "2025-11-12T20:13:01Z",
+      "closed_at": "2025-11-12T20:13:01Z",
+      "comments": 15,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 31.7
+    },
+    {
+      "title": "GEO agent documented but not deployed or integrated into audits",
+      "url": "https://github.com/AgriciDaniel/claude-seo/issues/17",
+      "repository": "AgriciDaniel/claude-seo",
+      "number": 17,
+      "state": "closed",
+      "created_at": "2026-03-12T11:05:32Z",
+      "updated_at": "2026-05-09T12:55:05Z",
+      "closed_at": "2026-05-09T12:55:05Z",
+      "comments": 6,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 31.7
+    },
+    {
+      "title": "llms.txt ignores the wpseo_metadesc and wpseo_opengraph_desc filters",
+      "url": "https://github.com/Yoast/wordpress-seo/issues/22556",
+      "repository": "Yoast/wordpress-seo",
+      "number": 22556,
+      "state": "closed",
+      "created_at": "2025-09-08T19:08:19Z",
+      "updated_at": "2025-09-24T09:06:51Z",
+      "closed_at": "2025-09-11T07:11:13Z",
+      "comments": 18,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 31.3
+    },
+    {
+      "title": "[Feature Request]: do you have a llms.txt file with docs or a mcp server ?",
+      "url": "https://github.com/cloudscape-design/components/issues/3746",
+      "repository": "cloudscape-design/components",
+      "number": 3746,
+      "state": "open",
+      "created_at": "2025-08-11T16:14:37Z",
+      "updated_at": "2025-11-03T14:57:24Z",
+      "closed_at": null,
+      "comments": 13,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 30.4
+    },
+    {
+      "title": "Documenting for Machines: A Technical Guide to Generative Engine Optimization (GEO)",
+      "url": "https://github.com/Technical-writing-mentorship-program/Technicalwritingcourse/issues/340",
+      "repository": "Technical-writing-mentorship-program/Technicalwritingcourse",
+      "number": 340,
+      "state": "open",
+      "created_at": "2026-03-12T17:10:54Z",
+      "updated_at": "2026-03-29T21:39:04Z",
+      "closed_at": null,
+      "comments": 6,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"answer engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 30.3
+    },
+    {
+      "title": "Add support for Bing's `indexNow` feature",
+      "url": "https://github.com/harlan-zw/nuxt-seo/issues/306",
+      "repository": "harlan-zw/nuxt-seo",
+      "number": 306,
+      "state": "closed",
+      "created_at": "2024-09-02T18:08:12Z",
+      "updated_at": "2026-03-22T14:36:32Z",
+      "closed_at": "2026-03-22T14:36:32Z",
+      "comments": 4,
+      "reactions": 2,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 30.1
+    },
+    {
+      "title": "Local SEO: capture \"near me\" + NYC/borough search demand (GBP + location pages)",
+      "url": "https://github.com/Marketing-Bull/hbotq/issues/4",
+      "repository": "Marketing-Bull/hbotq",
+      "number": 4,
+      "state": "open",
+      "created_at": "2026-06-04T06:55:14Z",
+      "updated_at": "2026-06-04T07:14:53Z",
+      "closed_at": null,
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "local-seo"
+      ],
+      "matched_queries": [
+        "\"Google Business Profile\" \"local SEO\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 30.1
+    },
+    {
+      "title": "Add localized structured data and FAQ content for AI-search readiness",
+      "url": "https://github.com/MALIEV-Co-Ltd/Legacy.Maliev.Web/issues/22",
+      "repository": "MALIEV-Co-Ltd/Legacy.Maliev.Web",
+      "number": 22,
+      "state": "closed",
+      "created_at": "2026-07-16T04:15:09Z",
+      "updated_at": "2026-07-18T16:58:17Z",
+      "closed_at": "2026-07-18T16:58:17Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01",
+        "\"Google Search Console\" AI in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 30
+    },
+    {
+      "title": "[FEAT][SEO] Sub: implementar GEO (Generative Engine Optimization)",
+      "url": "https://github.com/felipewilliam2/AV-SITE/issues/198",
+      "repository": "felipewilliam2/AV-SITE",
+      "number": 198,
+      "state": "closed",
+      "created_at": "2026-03-03T16:49:28Z",
+      "updated_at": "2026-04-18T03:30:25Z",
+      "closed_at": "2026-04-18T03:30:25Z",
+      "comments": 5,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 29.8
+    },
+    {
+      "title": "LLMs.txt",
+      "url": "https://github.com/graycoreio/daffodil/issues/4098",
+      "repository": "graycoreio/daffodil",
+      "number": 4098,
+      "state": "open",
+      "created_at": "2025-10-04T14:54:21Z",
+      "updated_at": "2025-10-23T13:55:49Z",
+      "closed_at": null,
+      "comments": 12,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "llms-txt"
+      ],
+      "matched_queries": [
+        "\"llms.txt\" in:title,body type:issue is:public created:>=2025-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 29.5
+    },
+    {
+      "title": "[Tool] IndexNow Changed URL Payload Builder",
+      "url": "https://github.com/shanselman/TinyToolTown/issues/460",
+      "repository": "shanselman/TinyToolTown",
+      "number": 460,
+      "state": "closed",
+      "created_at": "2026-05-11T11:01:18Z",
+      "updated_at": "2026-05-11T17:50:28Z",
+      "closed_at": "2026-05-11T17:50:28Z",
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 29.3
+    },
+    {
+      "title": "Swap current Bing/Google indexing for IndexNow",
+      "url": "https://github.com/minisat0shi/minisatoshi.cash/issues/88",
+      "repository": "minisat0shi/minisatoshi.cash",
+      "number": 88,
+      "state": "closed",
+      "created_at": "2025-03-28T14:12:04Z",
+      "updated_at": "2025-04-02T05:38:10Z",
+      "closed_at": "2025-04-02T05:38:10Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "OWNER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 29.2
+    },
+    {
+      "title": "Best Practices for Generating Valid JSON-LD Across Multiple Schema Types",
+      "url": "https://github.com/bobdenotter/seo/issues/115",
+      "repository": "bobdenotter/seo",
+      "number": 115,
+      "state": "open",
+      "created_at": "2026-06-13T10:52:12Z",
+      "updated_at": "2026-06-18T10:15:58Z",
+      "closed_at": null,
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 29
+    },
+    {
+      "title": "follow-up(#929): 3 item deferred — fix(ci): unblock indexnow build (OOM) + stale staticOverlay test gate",
+      "url": "https://github.com/valerielinc-ops/frontaliere-si-o-no/issues/934",
+      "repository": "valerielinc-ops/frontaliere-si-o-no",
+      "number": 934,
+      "state": "closed",
+      "created_at": "2026-05-29T11:16:16Z",
+      "updated_at": "2026-05-29T12:46:21Z",
+      "closed_at": "2026-05-29T12:46:20Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 28.3
+    },
+    {
+      "title": "[Skill Submission] Ultimate Seo Geo Skill",
+      "url": "https://github.com/curiositech/some_claude_skills/issues/26",
+      "repository": "curiositech/some_claude_skills",
+      "number": 26,
+      "state": "closed",
+      "created_at": "2026-03-25T19:05:12Z",
+      "updated_at": "2026-03-28T07:33:36Z",
+      "closed_at": "2026-03-28T07:16:02Z",
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 27.8
+    },
+    {
+      "title": "Build SEO and GEO foundation",
+      "url": "https://github.com/genfeedai/genfeed.ai/issues/757",
+      "repository": "genfeedai/genfeed.ai",
+      "number": 757,
+      "state": "closed",
+      "created_at": "2026-06-23T07:06:01Z",
+      "updated_at": "2026-07-12T16:12:42Z",
+      "closed_at": "2026-07-12T16:12:42Z",
+      "comments": 1,
+      "reactions": 1,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 27.7
+    },
+    {
+      "title": "SEO/GEO: Add structured data, canonical URLs, and AI crawler access",
+      "url": "https://github.com/alephium/www/issues/430",
+      "repository": "alephium/www",
+      "number": 430,
+      "state": "open",
+      "created_at": "2026-03-13T09:03:22Z",
+      "updated_at": "2026-03-18T10:29:51Z",
+      "closed_at": null,
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "ai-crawlers"
+      ],
+      "matched_queries": [
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 27.5
+    },
+    {
+      "title": "PP-207: GEO Discoverability — llms.txt, Schema.org, FAQ, Open Graph",
+      "url": "https://github.com/Beagle-AI-automation/promptperfect/issues/19",
+      "repository": "Beagle-AI-automation/promptperfect",
+      "number": 19,
+      "state": "open",
+      "created_at": "2026-02-25T21:18:48Z",
+      "updated_at": "2026-03-15T21:00:56Z",
+      "closed_at": null,
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 27.4
+    },
+    {
+      "title": "schema/local-business: recognized types list missing common Schema.org business subtypes",
+      "url": "https://github.com/squirrelscan/squirrelscan/issues/7",
+      "repository": "squirrelscan/squirrelscan",
+      "number": 7,
+      "state": "closed",
+      "created_at": "2026-02-01T20:54:31Z",
+      "updated_at": "2026-02-02T20:33:30Z",
+      "closed_at": "2026-02-02T18:41:43Z",
+      "comments": 4,
+      "reactions": 1,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 27.4
+    },
+    {
+      "title": "No structured data (JSON-LD) — missed rich result opportunities",
+      "url": "https://github.com/quilar-de/quilar-website/issues/9",
+      "repository": "quilar-de/quilar-website",
+      "number": 9,
+      "state": "closed",
+      "created_at": "2026-06-12T14:55:59Z",
+      "updated_at": "2026-06-16T18:14:30Z",
+      "closed_at": "2026-06-16T18:14:30Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 26.8
+    },
+    {
+      "title": "[Chore] Add llms.txt and GEO artefacts for blendavit site",
+      "url": "https://github.com/me2resh/apexyard/issues/576",
+      "repository": "me2resh/apexyard",
+      "number": 576,
+      "state": "closed",
+      "created_at": "2026-06-07T11:35:57Z",
+      "updated_at": "2026-06-07T16:49:18Z",
+      "closed_at": "2026-06-07T15:46:01Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 26.5
+    },
+    {
+      "title": "IndexNow: Modify removal of `http://rpc.pingomatic.com/`",
+      "url": "https://github.com/fairpm/fair-plugin/issues/161",
+      "repository": "fairpm/fair-plugin",
+      "number": 161,
+      "state": "open",
+      "created_at": "2025-07-12T23:00:14Z",
+      "updated_at": "2026-03-30T17:25:21Z",
+      "closed_at": null,
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 26.3
+    },
+    {
+      "title": "schema/json-ld-valid: accesses parsed.schemas.valid instead of parsed.schema.valid (always fails)",
+      "url": "https://github.com/squirrelscan/squirrelscan/issues/3",
+      "repository": "squirrelscan/squirrelscan",
+      "number": 3,
+      "state": "closed",
+      "created_at": "2026-02-01T20:51:41Z",
+      "updated_at": "2026-02-02T20:34:03Z",
+      "closed_at": "2026-02-02T19:35:44Z",
+      "comments": 4,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 26
+    },
+    {
+      "title": "@type array in JSON-LD: parser strips to first element, losing multi-type schemas",
+      "url": "https://github.com/squirrelscan/squirrelscan/issues/5",
+      "repository": "squirrelscan/squirrelscan",
+      "number": 5,
+      "state": "closed",
+      "created_at": "2026-02-01T20:53:30Z",
+      "updated_at": "2026-02-02T20:33:50Z",
+      "closed_at": "2026-02-02T19:37:05Z",
+      "comments": 3,
+      "reactions": 1,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 26
+    },
+    {
+      "title": "[Tool] AI Crawler Robots.txt Builder",
+      "url": "https://github.com/shanselman/TinyToolTown/issues/473",
+      "repository": "shanselman/TinyToolTown",
+      "number": 473,
+      "state": "closed",
+      "created_at": "2026-05-13T11:07:24Z",
+      "updated_at": "2026-05-14T22:18:56Z",
+      "closed_at": "2026-05-14T22:18:56Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "ai-crawlers"
+      ],
+      "matched_queries": [
+        "\"OAI-SearchBot\" in:title,body type:issue is:public created:>=2024-01-01",
+        "\"PerplexityBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 25.7
+    },
+    {
+      "title": "[plan] Improve GEO (Generative Engine Optimization) scores for docs site and README",
+      "url": "https://github.com/github/gh-aw/issues/31242",
+      "repository": "github/gh-aw",
+      "number": 31242,
+      "state": "closed",
+      "created_at": "2026-05-09T16:49:38Z",
+      "updated_at": "2026-05-09T19:00:55Z",
+      "closed_at": "2026-05-09T19:00:55Z",
+      "comments": 1,
+      "reactions": 1,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 25.6
+    },
+    {
+      "title": "GEO / LLM discoverability: get Engram cited by ChatGPT & Claude when users ask about AI memory",
+      "url": "https://github.com/get-engram/engram/issues/6",
+      "repository": "get-engram/engram",
+      "number": 6,
+      "state": "closed",
+      "created_at": "2026-04-11T11:03:00Z",
+      "updated_at": "2026-04-12T20:31:51Z",
+      "closed_at": "2026-04-12T20:31:51Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 24.7
+    },
+    {
+      "title": "What is Generative Engine Optimization and how can you excel at GEO?",
+      "url": "https://github.com/Pinggy-io/pinggy_website/issues/630",
+      "repository": "Pinggy-io/pinggy_website",
+      "number": 630,
+      "state": "closed",
+      "created_at": "2026-03-16T17:02:56Z",
+      "updated_at": "2026-03-25T17:08:56Z",
+      "closed_at": "2026-03-25T17:08:56Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "geo"
+      ],
+      "matched_queries": [
+        "\"generative engine optimization\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 24.1
+    },
+    {
+      "title": "SEO. Correct structured data issue on blog pages",
+      "url": "https://github.com/activebridge/activebridge.github.io/issues/165",
+      "repository": "activebridge/activebridge.github.io",
+      "number": 165,
+      "state": "closed",
+      "created_at": "2024-04-06T20:42:19Z",
+      "updated_at": "2024-04-08T12:26:23Z",
+      "closed_at": "2024-04-08T12:26:23Z",
+      "comments": 2,
+      "reactions": 0,
+      "author_association": "MEMBER",
+      "evidence_tier": "maintainer-practitioner",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 22.9
+    },
+    {
+      "title": "IndexNow: Render key request on `parse_request` hook to improve performance.",
+      "url": "https://github.com/fairpm/fair-plugin/issues/162",
+      "repository": "fairpm/fair-plugin",
+      "number": 162,
+      "state": "closed",
+      "created_at": "2025-07-12T23:10:16Z",
+      "updated_at": "2025-11-17T18:04:36Z",
+      "closed_at": "2025-11-17T18:04:35Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 21.9
+    },
+    {
+      "title": "[BUG] Bug Report: Google Search Console MCP Tools Failing Due to Tool Name Length Limit",
+      "url": "https://github.com/PipedreamHQ/pipedream/issues/17092",
+      "repository": "PipedreamHQ/pipedream",
+      "number": 17092,
+      "state": "closed",
+      "created_at": "2025-06-12T19:15:02Z",
+      "updated_at": "2025-06-18T09:50:46Z",
+      "closed_at": "2025-06-17T21:00:37Z",
+      "comments": 5,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "measurement"
+      ],
+      "matched_queries": [
+        "\"Google Search Console\" AI in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 19.7
+    },
+    {
+      "title": "OAI-SearchBot was misidentified as browser",
+      "url": "https://github.com/allinurl/goaccess/issues/2856",
+      "repository": "allinurl/goaccess",
+      "number": 2856,
+      "state": "closed",
+      "created_at": "2025-06-14T12:58:01Z",
+      "updated_at": "2025-06-24T12:59:00Z",
+      "closed_at": "2025-06-24T12:59:00Z",
+      "comments": 3,
+      "reactions": 1,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "ai-crawlers"
+      ],
+      "matched_queries": [
+        "\"OAI-SearchBot\" in:title,body type:issue is:public created:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 18.6
+    },
+    {
+      "title": "Add venue type support for http://schema.org/Place micro-formatting",
+      "url": "https://github.com/jemproject/JEM-Project/issues/165",
+      "repository": "jemproject/JEM-Project",
+      "number": 165,
+      "state": "closed",
+      "created_at": "2013-05-24T03:01:50Z",
+      "updated_at": "2024-11-14T07:57:19Z",
+      "closed_at": "2024-11-14T07:57:19Z",
+      "comments": 10,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 17.3
+    },
+    {
+      "title": "Add IndexNow",
+      "url": "https://github.com/FriendsOfFlarum/seo/issues/82",
+      "repository": "FriendsOfFlarum/seo",
+      "number": 82,
+      "state": "open",
+      "created_at": "2022-12-23T12:39:01Z",
+      "updated_at": "2024-10-01T01:55:15Z",
+      "closed_at": null,
+      "comments": 5,
+      "reactions": 2,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "indexnow"
+      ],
+      "matched_queries": [
+        "IndexNow in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 15
+    },
+    {
+      "title": "StructuredDataParser fails on london camera exchange structured data",
+      "url": "https://github.com/alltheplaces/alltheplaces/issues/7218",
+      "repository": "alltheplaces/alltheplaces",
+      "number": 7218,
+      "state": "closed",
+      "created_at": "2024-02-14T22:05:07Z",
+      "updated_at": "2024-02-15T07:47:30Z",
+      "closed_at": "2024-02-15T07:47:30Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "CONTRIBUTOR",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 10
+    },
+    {
+      "title": "[RC] LocalBusiness",
+      "url": "https://github.com/ODTA/ds/issues/21",
+      "repository": "ODTA/ds",
+      "number": 21,
+      "state": "closed",
+      "created_at": "2023-03-03T13:33:26Z",
+      "updated_at": "2024-02-06T18:16:14Z",
+      "closed_at": "2024-02-06T18:16:13Z",
+      "comments": 3,
+      "reactions": 0,
+      "author_association": "NONE",
+      "evidence_tier": "community-implementation",
+      "categories": [
+        "structured-data"
+      ],
+      "matched_queries": [
+        "\"LocalBusiness\" \"schema.org\" in:title,body type:issue is:public updated:>=2024-01-01"
+      ],
+      "evidence_use": "Practitioner implementation, bug, or discussion evidence only; not proof that the described tactic causes rankings or AI citations.",
+      "relevance_score": 10
+    }
+  ]
+}

@@ -28,7 +28,7 @@
 
 1. **表是正本**:`data/slot1-plan.json` 決定每天 slot1 主題。行事曆與表不符時,照表改行事曆,不是改表。
 2. **改主題必須連 image_prompt 一起換,並親眼看生成圖**。只改文字不改 prompt = 文不配圖事故(已發生過一次,零容忍)。
-3. **day-lock 流程**:改當天/明天內容前先刪 `data/day-locks/<date>.json`,改完+圖驗完立刻 `npm run day-lock -- --date <date>` 重鎖。鎖著的內容不准直接改。
+3. **day-lock 流程**:改當天/明天內容前先刪 `data/day-locks/<date>.json`,改完+圖驗完立刻 `npm run day-lock -- --date <date>` 重鎖。鎖著的內容不准直接改。改完當場跑 `python scripts/nightly_optimize.py` 確認沒把別的東西弄壞。
 4. **published = 不可重試**:`media_publish` 進 commit point 後任何錯誤都不准重發(NonRetryableError 機制已內建,不要繞過)。
 5. **posted-log 是發布真相**,退出碼不是。判斷有沒有發成功,只看 `data/posted-log/<date>.json`。
 6. **不碰控制面**:`scripts/watchdog-patrol.ps1`、`scripts/day-audit.ps1`、`src/autoApprove.ts`、fingerprints 機制、Task Scheduler 排程定義。要改必須先留單給老闆,等 Claude 回來審。
@@ -52,6 +52,7 @@
 | 20:35 | 晚間 Reel 發布 | 21:00 看 posted-log |
 | 21:00/22:15 | YT Shorts 上傳 | 21:30 看 `data/youtube-log/<今天>.json` 兩筆 video_id |
 | 22:50 | day-audit 結算 | 23:00 讀 `output/day-reports/<今天>.json`,`ok:false` 才動手 |
+| 23:10 | **Nightly-Optimize 自檢**(已註冊,自動跑) | 23:20 讀 `output/nightly-optimize/<今天>.md`。**HIGH 當晚處理完再睡**,MED 隔天早上處理。這份是「明天會不會出事」的預警,不是今天的成績單 |
 | **收工最後一件** | — | **今天有沒有踩到新坑?有就當天補進 `ERROR-BOOK.md` 並 commit**(格式:症狀→真因→修法→怎麼再驗)。同時把當日優化寫進 `output/daily-optimization-log.md` |
 | 每 30 分 | watchdog 巡邏(含救援) | 無 |
 

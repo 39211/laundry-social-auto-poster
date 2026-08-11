@@ -974,9 +974,44 @@ function withPriceLine(caption: string, topic: string): string {
   return blocks.join("\n\n");
 }
 
+// Hashtag science v1 (2026 practice): a tag set works as a ladder -- a few
+// large-reach tags for the algorithm's topic classification, several mid-size
+// local tags where a small account can actually rank, and precise small tags
+// that match buying intent. The playbook's per-slot tags are mostly brand and
+// generic care tags, so the ladder fills in what the topic needs. Capped at
+// 12 total: past ~15, 2026 guidance treats tag walls as spam signal.
+const HASHTAG_LARGE = ["#台中", "#台中美食圈外的日常", "#taichung"];
+const HASHTAG_LOCAL = ["#台中洗衣店", "#西屯", "#逢甲", "#西屯洗衣", "#台中生活"];
+const HASHTAG_INTENT: Array<{ match: RegExp; tags: string[] }> = [
+  { match: /鞋|靴/, tags: ["#台中洗鞋", "#洗鞋推薦", "#球鞋清洗"] },
+  { match: /包|袋/, tags: ["#洗包包", "#精品包保養", "#名牌包清潔"] },
+  { match: /被|床|寢|毯|枕/, tags: ["#棉被送洗", "#寢具清潔", "#換季收納"] },
+  { match: /衣|裝|衫|服|羽絨/, tags: ["#衣物送洗", "#乾洗", "#台中乾洗"] },
+  { match: /娃娃|絨毛/, tags: ["#娃娃清洗", "#絨毛娃娃"] },
+  { match: /窗簾|地毯/, tags: ["#窗簾清洗", "#居家清潔"] }
+];
+
+function upgradeHashtags(existing: string[], topic: string): string[] {
+  const intent = HASHTAG_INTENT.find((entry) => entry.match.test(topic))?.tags ?? [];
+  const ladder = [...existing, ...intent, ...HASHTAG_LOCAL.slice(0, 3), HASHTAG_LARGE[0] ?? "#台中"];
+  return [...new Set(ladder)].filter((tag): tag is string => Boolean(tag)).slice(0, 12);
+}
+
+function withUpgradedHashtags(caption: string, topic: string): string {
+  const blocks = caption.split("\n\n");
+  const tagIndex = blocks.findIndex((block) => block.startsWith("#"));
+  if (tagIndex === -1) return caption;
+  const tags = (blocks[tagIndex] ?? "").split(/\s+/).filter((tag) => tag.startsWith("#"));
+  blocks[tagIndex] = upgradeHashtags(tags, topic).join(" ");
+  return blocks.join("\n\n");
+}
+
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): string {
   const caption = baseCaptionFromPlaybook(slot, platform);
-  return withPriceLine(withLineContact(withEngagementQuestion(caption, slot)), slot.topic);
+  return withUpgradedHashtags(
+    withPriceLine(withLineContact(withEngagementQuestion(caption, slot)), slot.topic),
+    slot.topic
+  );
 }
 
 // Pre-authored playbook captions carry the same defect the assembled ones did:

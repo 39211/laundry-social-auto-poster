@@ -130,7 +130,10 @@ describe("DailyContent schema", () => {
       expect(paragraphs[1]).not.toBe("私享家洗衣店");
       expect(slot.facebook_caption).toContain(objectWord);
       expect(slot.facebook_caption).toContain(hashtag);
-      expect(hashtags.length).toBe(4);
+      // Hashtag ladder v1: brand/care tags + intent + local + one large,
+      // capped at 12. Fixed-four was the pre-ladder world.
+      expect(hashtags.length).toBeGreaterThanOrEqual(6);
+      expect(hashtags.length).toBeLessThanOrEqual(12);
       expect(slot.instagram_caption).not.toBe(slot.facebook_caption);
       expect(slot.instagram_caption).toContain(objectWord);
       expect(slot.instagram_caption).toContain(hashtag);
@@ -160,7 +163,8 @@ describe("DailyContent schema", () => {
         for (const caption of [slot.facebook_caption, slot.instagram_caption]) {
           const hashtags = caption.match(/#[\p{L}\p{N}_]+/gu) ?? [];
           expect(caption.split("\n\n")[1]).not.toBe("私享家洗衣店");
-          expect(hashtags).toHaveLength(4);
+          expect(hashtags.length).toBeGreaterThanOrEqual(4);
+      expect(hashtags.length).toBeLessThanOrEqual(12);
           expect(caption).not.toMatch(/畫面維持|這支內容會用|短影音題|轉詢問題|9:16|主視覺|route|SEO/);
           expect(caption).not.toMatch(/保證|百分之百|完全去除|恢復全新|一定洗白/);
         }

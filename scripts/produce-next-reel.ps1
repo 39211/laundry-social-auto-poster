@@ -5,9 +5,18 @@
 # days first, then (2) falls back to the next unfinished 10s concept, and
 # (3) schedules both plan halves for the days those assets serve.
 #
+# Mid-treatment A/B/C (2026-08-12..14): when data/mid-treatment-plan.json maps
+# today's date to A/B/C, assembly applies that mid-video treatment, writes
+# reels with -tA/-tB/-tC suffix, records treatment on the concept manifest, and
+# copies to the scheduleReel standard name. Missing plan -> current three-act
+# + warning. -MidTestDryRun writes storyboard timelines only (no paid gen).
+#
 # Every step is resumable. The script does the next unfinished thing and stops,
 # so a failed day costs that day only. It never approves and never live-publishes
 # to Meta (publish-pages only pushes the public asset host).
+param(
+    [switch]$MidTestDryRun
+)
 $ErrorActionPreference = "Continue"
 # Under Task Scheduler the console codepage is cp950, which mangles the UTF-8
 # JSON that npm prints: the 14:00 run parsed an empty concept id out of it and
@@ -94,6 +103,212 @@ function Get-PlanDaysInWindow([datetime]$fromDate, [int]$days) {
     return @($plan | Where-Object { $_.date -ge $fromStr -and $_.date -le $endStr })
 }
 
+# --- mid-treatment A/B/C (watch-time batch 2026-08-12..14) --------------------
+function Get-MidTreatment([string]$forDate) {
+    $planPath = Join-Path $root "data\mid-treatment-plan.json"
+    if (-not (Test-Path $planPath)) {
+        Write-Log "WARN: mid-treatment-plan.json missing; falling back to current three-act layout."
+        return "none"
+    }
+    try {
+        $parsed = Get-Content $planPath -Raw -Encoding utf8 | ConvertFrom-Json
+        $code = $parsed.$forDate
+        if ($code -eq "A" -or $code -eq "B" -or $code -eq "C") {
+            return [string]$code
+        }
+        return "none"
+    } catch {
+        Write-Log ("WARN: could not read mid-treatment-plan.json: " + $_.Exception.Message + "; falling back to current three-act.")
+        return "none"
+    }
+}
+
+function Get-TreatmentSuffix([string]$treatment) {
+    if ($treatment -eq "A") { return "-tA" }
+    if ($treatment -eq "B") { return "-tB" }
+    if ($treatment -eq "C") { return "-tC" }
+    return ""
+}
+
+function Get-TreatedNarrationText([string]$narration, [string]$treatment) {
+    if ($treatment -ne "A" -and $treatment -ne "B") { return $narration }
+    $parts = [regex]::Split($narration, '(?<=[。！？])') | Where-Object { $_.Trim().Length -gt 0 }
+    if ($parts.Count -lt 2) { return $narration }
+    if ($treatment -eq "A") {
+        # Judgment first (first sentence is the craftsman diagnostic).
+        return ($parts -join "")
+    }
+    # B: result/consequence sentences first, cause last.
+    $head = $parts[0]
+    $rest = ($parts[1..($parts.Count - 1)] -join "")
+    return ($rest + $head)
+}
+
+function Write-TreatmentManifest {
+    param(
+        [string]$ConceptId,
+        [string]$Treatment,
+        [string]$ForDate,
+        [string]$Variant,
+        [string]$TreatedAsset,
+        [string]$ScheduledAs,
+        [string]$NarrationUsed
+    )
+    $manifestPath = Join-Path $run "manifests\$ConceptId-treatment.json"
+    $payload = [ordered]@{
+        concept_id     = $ConceptId
+        date           = $ForDate
+        treatment      = $Treatment
+        suffix         = (Get-TreatmentSuffix $Treatment)
+        variant        = $Variant
+        treated_asset  = $TreatedAsset
+        scheduled_as   = $ScheduledAs
+        narration      = $NarrationUsed
+        recorded_at    = (Get-Date).ToString("o")
+    }
+    $payload | ConvertTo-Json -Depth 4 | Set-Content $manifestPath -Encoding utf8
+    Write-Log "Treatment manifest: manifests\$ConceptId-treatment.json (treatment=$Treatment)"
+}
+
+function Invoke-TreatedAssembly {
+    param(
+        [string]$ConceptId,
+        [string]$Treatment,
+        [string]$Hook,
+        [string]$Close,
+        [string]$NarrationFile,
+        [string]$BeforeClip,
+        [string]$MiddleClip,
+        [string]$AfterClip,
+        [string]$OutPath,
+        [double]$GainR,
+        [double]$GainG,
+        [double]$GainB
+    )
+    if (-not (Test-Path $BeforeClip)) { throw "Missing before clip: $BeforeClip" }
+    if (-not (Test-Path $AfterClip)) { throw "Missing after clip: $AfterClip" }
+    if (-not (Test-Path $MiddleClip)) { throw "Missing middle clip: $MiddleClip" }
+
+    $FontFile = "C\:/Windows/Fonts/msjhbd.ttc"
+    $MaxTextWidth = 648
+    $escHook = $Hook.Replace("\", "\\").Replace(":", "\:").Replace("'", "\'")
+    $escClose = $Close.Replace("\", "\\").Replace(":", "\:").Replace("'", "\'")
+    $hookSize = [Math]::Min(52, [Math]::Floor($MaxTextWidth / [Math]::Max(1, $Hook.Length)))
+    $closeSize = [Math]::Min(52, [Math]::Floor($MaxTextWidth / [Math]::Max(1, $Close.Length)))
+    $gR = $GainR.ToString([Globalization.CultureInfo]::InvariantCulture)
+    $gG = $GainG.ToString([Globalization.CultureInfo]::InvariantCulture)
+    $gB = $GainB.ToString([Globalization.CultureInfo]::InvariantCulture)
+    $work = Join-Path $run "raw\$ConceptId-treat-work"
+    New-Item -ItemType Directory -Force -Path $work | Out-Null
+
+    $scale = "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1"
+    $totalDur = 14.0
+    $narrDelayMs = 500
+    $filter = $null
+    $inputs = @()
+
+    if ($Treatment -eq "A") {
+        # 4 / 6 / 4 — judgment window is 4–6s (narration delayed to 4s).
+        $totalDur = 14.0
+        $narrDelayMs = 4000
+        $closeFrom = 10.8
+        $hookText = "drawtext=fontfile='$FontFile':text='$escHook':fontsize=$hookSize:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,0,2.6)'"
+        $closeText = "drawtext=fontfile='$FontFile':text='$escClose':fontsize=$closeSize:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,$closeFrom,$totalDur)'"
+        # Middle is ~5s raw; tpad clones last frame to fill 6s.
+        $filter = @"
+[0:v]trim=0:4,setpts=PTS-STARTPTS,$scale[v0];
+[1:v]trim=0:5,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=1,$scale,colorchannelmixer=rr=${gR}:gg=${gG}:bb=${gB}[v1];
+[2:v]trim=0:4,setpts=PTS-STARTPTS,$scale,colorchannelmixer=rr=${gR}:gg=${gG}:bb=${gB}[v2];
+[v0][v1][v2]concat=n=3:v=1:a=0[vx];
+[vx]$hookText,$closeText[vout]
+"@ -replace "`r`n", ""
+        $inputs = @($BeforeClip, $MiddleClip, $AfterClip)
+    }
+    elseif ($Treatment -eq "B") {
+        # before(3) → after(4) → middle(4) → after(3)
+        $totalDur = 14.0
+        $narrDelayMs = 3000
+        $closeFrom = 10.8
+        $hookText = "drawtext=fontfile='$FontFile':text='$escHook':fontsize=$hookSize:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,0,2.6)'"
+        $closeText = "drawtext=fontfile='$FontFile':text='$escClose':fontsize=$closeSize:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,$closeFrom,$totalDur)'"
+        $filter = @"
+[0:v]trim=0:3,setpts=PTS-STARTPTS,$scale[v0];
+[1:v]trim=0:4,setpts=PTS-STARTPTS,$scale,colorchannelmixer=rr=${gR}:gg=${gG}:bb=${gB}[v1];
+[2:v]trim=0:4,setpts=PTS-STARTPTS,$scale,colorchannelmixer=rr=${gR}:gg=${gG}:bb=${gB}[v2];
+[3:v]trim=0:3,setpts=PTS-STARTPTS,$scale,colorchannelmixer=rr=${gR}:gg=${gG}:bb=${gB}[v3];
+[v0][v1][v2][v3]concat=n=4:v=1:a=0[vx];
+[vx]$hookText,$closeText[vout]
+"@ -replace "`r`n", ""
+        $inputs = @($BeforeClip, $AfterClip, $MiddleClip, $AfterClip)
+    }
+    elseif ($Treatment -eq "C") {
+        # Middle → 3 close-up quick cuts (2s + 2s + 1.5s), then stitch with before/after.
+        $cuPath = Join-Path $work "middle-cu.mp4"
+        $cuFilter = @"
+[0:v]trim=0:2,setpts=PTS-STARTPTS,crop=iw*0.72:ih*0.48:iw*0.14:ih*0.08,scale=720:1280:flags=lanczos,setsar=1[c1];
+[0:v]trim=0:2,setpts=PTS-STARTPTS,crop=iw*0.72:ih*0.48:iw*0.14:ih*0.26,scale=720:1280:flags=lanczos,setsar=1[c2];
+[0:v]trim=0:1.5,setpts=PTS-STARTPTS,crop=iw*0.72:ih*0.42:iw*0.14:ih*0.40,scale=720:1280:flags=lanczos,setsar=1[c3];
+[c1][c2][c3]concat=n=3:v=1:a=0[vout]
+"@ -replace "`r`n", ""
+        & ffmpeg -v error -y -i $MiddleClip -filter_complex $cuFilter -map "[vout]" `
+            -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -an $cuPath 2>&1 | Out-Null
+        if (-not (Test-Path $cuPath)) { throw "Treatment C close-up concat failed for $ConceptId" }
+
+        $totalDur = 14.0
+        $narrDelayMs = 500
+        $closeFrom = 10.8
+        $hookText = "drawtext=fontfile='$FontFile':text='$escHook':fontsize=$hookSize:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,0,2.6)'"
+        $closeText = "drawtext=fontfile='$FontFile':text='$escClose':fontsize=$closeSize:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,$closeFrom,$totalDur)'"
+        $filter = @"
+[0:v]trim=0:4,setpts=PTS-STARTPTS,$scale[v0];
+[1:v]$scale,colorchannelmixer=rr=${gR}:gg=${gG}:bb=${gB}[v1];
+[2:v]trim=0:4.5,setpts=PTS-STARTPTS,$scale,colorchannelmixer=rr=${gR}:gg=${gG}:bb=${gB}[v2];
+[v0][v1][v2]concat=n=3:v=1:a=0[vx];
+[vx]$hookText,$closeText[vout]
+"@ -replace "`r`n", ""
+        $inputs = @($BeforeClip, $cuPath, $AfterClip)
+    }
+    else {
+        throw "Invoke-TreatedAssembly called with non-treatment: $Treatment"
+    }
+
+    $audioDur = [string]::Format([Globalization.CultureInfo]::InvariantCulture, "{0:0.##}", $totalDur)
+    $ffArgs = @("-v", "error", "-y")
+    foreach ($inp in $inputs) { $ffArgs += @("-i", $inp) }
+    $ffArgs += @("-f", "lavfi", "-t", $audioDur, "-i", "anoisesrc=colour=brown:amplitude=0.02:seed=7")
+    $bedIdx = $inputs.Count
+    $hasNarration = $NarrationFile -and (Test-Path $NarrationFile)
+    if ($hasNarration) {
+        $voiceIdx = $bedIdx + 1
+        $ffArgs += @("-i", $NarrationFile)
+        $audioGraph = "[${bedIdx}:a]lowpass=f=350,volume=0.55[bed];[${voiceIdx}:a]adelay=${narrDelayMs}:all=1,volume=1.4[voice];[bed][voice]amix=inputs=2:duration=first:normalize=0[aout]"
+        $ffArgs += @("-filter_complex", "$filter;$audioGraph", "-map", "[vout]", "-map", "[aout]")
+    } else {
+        $ffArgs += @("-filter_complex", $filter, "-map", "[vout]", "-map", "${bedIdx}:a", "-af", "lowpass=f=350,volume=0.55")
+    }
+    $ffArgs += @("-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-ar", "48000", "-b:a", "96k", "-shortest", $OutPath)
+    & ffmpeg @ffArgs 2>&1 | Out-Null
+    if (-not (Test-Path $OutPath)) { throw "Treated assembly produced no file: $OutPath" }
+    @{ source = "post-ambient-bed"; narration = [bool]$hasNarration; generated_clip_audio_used = $false; treatment = $Treatment } |
+        ConvertTo-Json | Set-Content "$OutPath.audio.json" -Encoding utf8
+}
+
+# --- mid-test dry-run: storyboard+narration timelines only --------------------
+if ($MidTestDryRun) {
+    Write-Log "Mid-test dry-run: writing storyboard timelines to output/mid-test/"
+    Push-Location $root
+    cmd /c "npm.cmd run reel-concepts -- --mid-test 2>&1" | ForEach-Object { Write-Log $_ }
+    $midExit = $LASTEXITCODE
+    Pop-Location
+    if ($midExit -ne 0) {
+        Write-Log "Mid-test dry-run failed."
+        exit 1
+    }
+    Write-Log "Mid-test dry-run done."
+    exit 0
+}
+
 # --- concept status (for 10s backlog + stills metadata) ----------------------
 Push-Location $root
 $statusJson = cmd /c "npm.cmd run reel-concepts 2>&1"
@@ -107,6 +322,16 @@ Write-Log "Runway: $($runway.days_of_runway) scheduled days left, last is $($run
 if ($runway.needs_new_concepts) {
     Show-Toast "排程剩 $($runway.days_of_runway) 天($($runway.last_scheduled_date) 之後就沒有了),需要再想新主題。"
 }
+
+# Today's mid-treatment (A/B/C or none). Drives assembly + attribution only.
+$midTreatment = Get-MidTreatment $date
+$midSuffix = Get-TreatmentSuffix $midTreatment
+if ($midTreatment -ne "none") {
+    Write-Log "Mid-treatment for $date : $midTreatment (suffix $midSuffix)"
+} else {
+    Write-Log "Mid-treatment for $date : none (current three-act)"
+}
+$treatmentNeedsMiddle = ($midTreatment -eq "A" -or $midTreatment -eq "B" -or $midTreatment -eq "C")
 
 # --- pick work: prefer missing 15s for the next 3 plan days ------------------
 $windowDays = Get-PlanDaysInWindow $now.Date 3
@@ -208,7 +433,9 @@ Do not read any workspace file and do not run any shell command; the local shell
     }
 
     $middlePng = Join-Path $libDir "$concept-middle.png"
-    if ($targetVariant -eq "15s" -and -not (Test-Path $middlePng)) {
+    # Treatments A/B/C all need a middle act; force middle still even when the
+    # plan only asked for 10s on a treatment day.
+    if (($targetVariant -eq "15s" -or $treatmentNeedsMiddle) -and -not (Test-Path $middlePng)) {
         # Middle still: pure GENERATION, never edit-by-reference. The old prompt
         # said "do not read any workspace file" and then asked Codex to edit the
         # before file -- an instruction contradiction that made it return nothing
@@ -239,9 +466,9 @@ Use the built-in image model only. Do not read any workspace file and do not run
         Write-Log "Middle still saved for $concept."
     }
 
-    # --- clips: before/after, and middle for 15s -----------------------------
+    # --- clips: before/after, and middle for 15s or mid-treatment ------------
     $states = @("before", "after")
-    if ($targetVariant -eq "15s") { $states = @("before", "after", "middle") }
+    if ($targetVariant -eq "15s" -or $treatmentNeedsMiddle) { $states = @("before", "after", "middle") }
 
     foreach ($state in $states) {
         $src = Join-Path $libDir "$concept-$state.png"
@@ -313,7 +540,7 @@ Use the built-in image model only. Do not read any workspace file and do not run
     # suit-shoulder-middle-graded.mp4). Assemble then uses the graded file.
     $middleRaw = Join-Path $run "raw\$concept-middle.mp4"
     $middleGraded = Join-Path $run "raw\$concept-middle-graded.mp4"
-    if ($targetVariant -eq "15s") {
+    if ($targetVariant -eq "15s" -or $treatmentNeedsMiddle) {
         if (-not (Test-Path $middleGraded)) {
             $midGainLine = python (Join-Path $root "scripts\measure-pair-gain.py") `
                 (Join-Path $run "raw\$concept-before.mp4") $middleRaw 2>&1 |
@@ -340,6 +567,8 @@ Use the built-in image model only. Do not read any workspace file and do not run
     }
 
     # --- narration, colour match, assembly -----------------------------------
+    # Base TTS (control / scheduleReel path). Treatment A/B may also write a
+    # rearranged sidecar so attribution keeps both the stock and treated voice.
     $ttsFile = Join-Path $run "tts\$concept.mp3"
     if (-not (Test-Path $ttsFile)) {
         Write-Log "Generating narration."
@@ -348,6 +577,20 @@ Use the built-in image model only. Do not read any workspace file and do not run
             Write-Log "Narration failed for $concept."
             Show-Toast "$concept 的旁白生成失敗，請看 log。"
             exit 1
+        }
+    }
+
+    $treatedNarrationText = Get-TreatedNarrationText ([string]$conceptInfo.narration) $midTreatment
+    $ttsTreated = $ttsFile
+    if ($midTreatment -eq "A" -or $midTreatment -eq "B") {
+        $ttsTreated = Join-Path $run ("tts\$concept" + $midSuffix + ".mp3")
+        if (-not (Test-Path $ttsTreated)) {
+            Write-Log "Generating treated narration ($midTreatment)."
+            python -m edge_tts --voice zh-TW-HsiaoChenNeural --text $treatedNarrationText --write-media $ttsTreated 2>&1 | Out-Null
+            if (-not (Test-Path $ttsTreated)) {
+                Write-Log "Treated narration failed for $concept; using base TTS."
+                $ttsTreated = $ttsFile
+            }
         }
     }
 
@@ -362,7 +605,66 @@ Use the built-in image model only. Do not read any workspace file and do not run
         Write-Log "Gain measurement failed; assembling uncorrected."
     }
 
-    if ($targetVariant -eq "15s") {
+    # Mid-treatment path: three-act treated assembly with -tA/-tB/-tC suffix.
+    # scheduleReel keeps the standard name, so we also copy treated -> standard.
+    if ($treatmentNeedsMiddle) {
+        $beforeClip = Join-Path $run "raw\$concept-before.mp4"
+        $afterClip = Join-Path $run "raw\$concept-after.mp4"
+        if (-not (Test-Path $middleGraded)) {
+            Write-Log "Middle-graded missing; cannot apply treatment $midTreatment."
+            Show-Toast "$concept 缺少中段,無法套用治療 $midTreatment。"
+            exit 1
+        }
+        $baseName = if ($targetVariant -eq "15s") { "$concept-15s" } else { $concept }
+        $treatedName = $baseName + $midSuffix + ".mp4"
+        $treatedOut = Join-Path $run "reels\$treatedName"
+        $standardOut = Get-ReelAssetPath $concept $targetVariant
+        if (-not (Test-Path $treatedOut)) {
+            Write-Log "Assembling mid-treatment $midTreatment -> reels\$treatedName"
+            try {
+                Invoke-TreatedAssembly -ConceptId $concept -Treatment $midTreatment `
+                    -Hook ([string]$conceptInfo.hook) -Close ([string]$conceptInfo.close) `
+                    -NarrationFile $ttsTreated `
+                    -BeforeClip $beforeClip -MiddleClip $middleGraded -AfterClip $afterClip `
+                    -OutPath $treatedOut `
+                    -GainR $gains.GainR -GainG $gains.GainG -GainB $gains.GainB
+            } catch {
+                Write-Log ("Treated assembly failed: " + $_.Exception.Message)
+                Show-Toast "$concept 治療 $midTreatment 剪接失敗，請看 log。"
+                exit 1
+            }
+            if (-not (Test-Path $treatedOut)) {
+                Write-Log "Treated assembly produced no file for $concept."
+                exit 1
+            }
+        } else {
+            Write-Log "Treated reel already exists: reels\$treatedName"
+        }
+        # scheduleReel still looks up the standard name — copy, do not rename away
+        # the attributed -tX asset.
+        Copy-Item $treatedOut $standardOut -Force
+        if (Test-Path "$treatedOut.audio.json") {
+            Copy-Item "$treatedOut.audio.json" "$standardOut.audio.json" -Force
+        }
+        Write-TreatmentManifest -ConceptId $concept -Treatment $midTreatment -ForDate $date `
+            -Variant $targetVariant -TreatedAsset ("reels/" + $treatedName) `
+            -ScheduledAs ("reels/" + [IO.Path]::GetFileName($standardOut)) `
+            -NarrationUsed $treatedNarrationText
+        Write-Log "$concept finished treatment $midTreatment : reels\$treatedName (also $([IO.Path]::GetFileName($standardOut)))"
+
+        # When the plan asked for 15s, also keep a 10s control if still missing
+        # (untreated two-act — does not carry -tX; pre-8/11 assets untouched).
+        if ($targetVariant -eq "15s") {
+            $out10 = Get-ReelAssetPath $concept "10s"
+            if (-not (Test-Path $out10)) {
+                & (Join-Path $root "scripts\assemble-reel.ps1") -ConceptId $concept `
+                    -Hook $conceptInfo.hook -Close $conceptInfo.close -Run $run `
+                    -GainR $gains.GainR -GainG $gains.GainG -GainB $gains.GainB `
+                    -NarrationFile $ttsFile
+            }
+        }
+    }
+    elseif ($targetVariant -eq "15s") {
         $out15 = Get-ReelAssetPath $concept "15s"
         if (-not (Test-Path $out15)) {
             & (Join-Path $root "scripts\assemble-reel.ps1") -ConceptId $concept `

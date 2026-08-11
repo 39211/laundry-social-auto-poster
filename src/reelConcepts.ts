@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
@@ -278,6 +278,388 @@ export function publishDateFor(conceptId: string): string | undefined {
   return REEL_SCHEDULE.find((entry) => entry.conceptId === conceptId)?.date;
 }
 
+// ---------------------------------------------------------------------------
+// Mid-video treatments for 2026-08-12..14 watch-time A/B/C.
+// Plan file: data/mid-treatment-plan.json maps date → "A"|"B"|"C".
+// Missing plan falls back to the current three-act layout and warns.
+// ---------------------------------------------------------------------------
+
+export type MidTreatmentCode = "A" | "B" | "C";
+export type MidTreatment = MidTreatmentCode | "none";
+
+export interface MidTreatmentSelection {
+  date: string;
+  treatment: MidTreatment;
+  /** Filename suffix for attribution: -tA / -tB / -tC, or empty for none. */
+  suffix: string;
+  label: string;
+  plan_found: boolean;
+  warning?: string;
+}
+
+export interface TimelineAct {
+  role: string;
+  source: string;
+  duration_s: number;
+  start_s: number;
+  end_s: number;
+  notes: string;
+}
+
+export interface NarrationSegment {
+  role: string;
+  start_s: number;
+  end_s: number;
+  text: string;
+}
+
+export interface MidTreatmentStoryboard {
+  date: string;
+  concept_id: string;
+  treatment: MidTreatment;
+  suffix: string;
+  label: string;
+  total_duration_s: number;
+  acts: TimelineAct[];
+  narration_segments: NarrationSegment[];
+  narration_full: string;
+  warning?: string;
+  text: string;
+}
+
+const MID_TREATMENT_LABELS: Record<MidTreatment, string> = {
+  A: "判斷答案型(旁白重排,第4-6秒職人判斷,三幕4/6/4)",
+  B: "結果前置型(幕序 before3→after4→middle4→after3回味)",
+  C: "特寫快切型(中段2-3個快切特寫,旁白不變)",
+  none: "現行三幕(before5→middle5→after5,無治療)"
+};
+
+export function treatmentSuffix(treatment: MidTreatment): string {
+  if (treatment === "A") return "-tA";
+  if (treatment === "B") return "-tB";
+  if (treatment === "C") return "-tC";
+  return "";
+}
+
+function isMidTreatmentCode(value: unknown): value is MidTreatmentCode {
+  return value === "A" || value === "B" || value === "C";
+}
+
+/**
+ * Load date→treatment map. Returns null when the plan file is missing or unreadable
+ * (callers must fall back to the current three-act layout and warn).
+ */
+export function loadMidTreatmentPlan(root = projectRoot()): Record<string, MidTreatmentCode> | null {
+  try {
+    const raw = readFileSync(join(root, "data", "mid-treatment-plan.json"), "utf8").replace(/^\uFEFF/, "");
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+    const out: Record<string, MidTreatmentCode> = {};
+    for (const [date, code] of Object.entries(parsed)) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date) && isMidTreatmentCode(code)) {
+        out[date] = code;
+      }
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Select mid-video treatment for a calendar date.
+ * Mutation contract: date 2026-08-13 → B when plan present; missing plan → none + warning.
+ */
+export function selectMidTreatment(date: string, root = projectRoot()): MidTreatmentSelection {
+  const plan = loadMidTreatmentPlan(root);
+  if (!plan) {
+    return {
+      date,
+      treatment: "none",
+      suffix: "",
+      label: MID_TREATMENT_LABELS.none,
+      plan_found: false,
+      warning: "mid-treatment-plan.json missing or unreadable; falling back to current three-act layout"
+    };
+  }
+  const code = plan[date];
+  if (!code) {
+    return {
+      date,
+      treatment: "none",
+      suffix: "",
+      label: MID_TREATMENT_LABELS.none,
+      plan_found: true,
+      warning: `No mid-treatment entry for ${date}; falling back to current three-act layout`
+    };
+  }
+  return {
+    date,
+    treatment: code,
+    suffix: treatmentSuffix(code),
+    label: MID_TREATMENT_LABELS[code],
+    plan_found: true
+  };
+}
+
+/** Split narration on sentence boundaries (Chinese full stop / Latin period). */
+export function splitNarrationSentences(narration: string): string[] {
+  const trimmed = narration.trim();
+  if (!trimmed) return [];
+  const parts = trimmed
+    .split(/(?<=[。！？.!?])/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (parts.length === 0) return [trimmed];
+  return parts;
+}
+
+/**
+ * Core craftsman judgment pulled from narration for treatment A.
+ * Prefer the first sentence (diagnostic); fall back to the whole line.
+ */
+export function extractJudgmentSentence(narration: string): string {
+  const parts = splitNarrationSentences(narration);
+  return parts[0] ?? narration;
+}
+
+/**
+ * Rearrange spoken text for a treatment. A: judgment first (lands in 4–6s window
+ * when timed); B: result/consequence first then cause; C/none: original order.
+ */
+export function narrationForTreatment(narration: string, treatment: MidTreatment): {
+  full: string;
+  judgment: string;
+  remainder: string;
+  segments_plain: string[];
+} {
+  const parts = splitNarrationSentences(narration);
+  const judgment = parts[0] ?? narration;
+  const remainder = parts.slice(1).join("");
+
+  if (treatment === "A") {
+    // Judgment answer: speak the diagnostic first so assembly can place it at 4–6s.
+    const full = [judgment, remainder].filter(Boolean).join("");
+    return { full: full || narration, judgment, remainder, segments_plain: [judgment, remainder].filter(Boolean) };
+  }
+  if (treatment === "B") {
+    // Result-first: put consequence/result phrasing ahead of the cause when two+ sentences.
+    if (parts.length >= 2) {
+      const reordered = [...parts.slice(1), parts[0]!].join("");
+      return {
+        full: reordered,
+        judgment,
+        remainder,
+        segments_plain: [...parts.slice(1), parts[0]!]
+      };
+    }
+    return { full: narration, judgment, remainder: "", segments_plain: [narration] };
+  }
+  // C and none: narration unchanged
+  return { full: narration, judgment, remainder, segments_plain: parts.length > 0 ? parts : [narration] };
+}
+
+function buildActsForTreatment(treatment: MidTreatment): TimelineAct[] {
+  if (treatment === "A") {
+    return [
+      { role: "before", source: "before", duration_s: 4, start_s: 0, end_s: 4, notes: "問題入場,鏡頭推進到磨損處" },
+      {
+        role: "middle",
+        source: "middle",
+        duration_s: 6,
+        start_s: 4,
+        end_s: 10,
+        notes: "職人處理中;第4-6秒播核心判斷句"
+      },
+      { role: "after", source: "after", duration_s: 4, start_s: 10, end_s: 14, notes: "結果落定" }
+    ];
+  }
+  if (treatment === "B") {
+    return [
+      { role: "before", source: "before", duration_s: 3, start_s: 0, end_s: 3, notes: "問題快閃" },
+      { role: "after_first", source: "after", duration_s: 4, start_s: 3, end_s: 7, notes: "結果前置" },
+      { role: "middle", source: "middle", duration_s: 4, start_s: 7, end_s: 11, notes: "過程回看" },
+      { role: "after_echo", source: "after", duration_s: 3, start_s: 11, end_s: 14, notes: "結果回味" }
+    ];
+  }
+  if (treatment === "C") {
+    return [
+      { role: "before", source: "before", duration_s: 4, start_s: 0, end_s: 4, notes: "問題入場" },
+      {
+        role: "middle_cu1",
+        source: "middle",
+        duration_s: 2,
+        start_s: 4,
+        end_s: 6,
+        notes: "特寫快切1:裁中上區放大(ffmpeg crop+scale)"
+      },
+      {
+        role: "middle_cu2",
+        source: "middle",
+        duration_s: 2,
+        start_s: 6,
+        end_s: 8,
+        notes: "特寫快切2:裁中央區放大"
+      },
+      {
+        role: "middle_cu3",
+        source: "middle",
+        duration_s: 1.5,
+        start_s: 8,
+        end_s: 9.5,
+        notes: "特寫快切3:裁中下接觸點放大"
+      },
+      { role: "after", source: "after", duration_s: 4.5, start_s: 9.5, end_s: 14, notes: "結果落定" }
+    ];
+  }
+  // Current three-act control (matches assemble-reel.ps1 ~5+5+5 with dissolves)
+  return [
+    { role: "before", source: "before", duration_s: 5, start_s: 0, end_s: 5, notes: "現行第一幕" },
+    { role: "middle", source: "middle", duration_s: 5, start_s: 5, end_s: 10, notes: "現行中段" },
+    { role: "after", source: "after", duration_s: 5, start_s: 10, end_s: 15, notes: "現行結果幕" }
+  ];
+}
+
+function buildNarrationSegments(
+  narration: string,
+  treatment: MidTreatment
+): { segments: NarrationSegment[]; full: string } {
+  const rearranged = narrationForTreatment(narration, treatment);
+
+  if (treatment === "A") {
+    // Judgment lands in the critical 4–6s retention window; remainder after.
+    const segments: NarrationSegment[] = [
+      { role: "judgment", start_s: 4, end_s: 6, text: rearranged.judgment }
+    ];
+    if (rearranged.remainder) {
+      segments.push({ role: "follow", start_s: 6, end_s: 10, text: rearranged.remainder });
+    }
+    return { segments, full: rearranged.full };
+  }
+
+  if (treatment === "B") {
+    const segments: NarrationSegment[] = [];
+    const plain = rearranged.segments_plain;
+    // Align TTS beats with the four visual acts: open / result / process / echo.
+    if (plain.length >= 2) {
+      segments.push({ role: "result", start_s: 3, end_s: 7, text: plain[0]! });
+      segments.push({ role: "cause", start_s: 7, end_s: 11, text: plain.slice(1).join("") });
+    } else {
+      segments.push({ role: "full", start_s: 0.5, end_s: 12, text: rearranged.full });
+    }
+    return { segments, full: rearranged.full };
+  }
+
+  // C and none: single narration starting at 0.5s (assemble-reel adelay)
+  return {
+    segments: [{ role: "full", start_s: 0.5, end_s: 12, text: rearranged.full }],
+    full: rearranged.full
+  };
+}
+
+export function buildMidTreatmentStoryboard(input: {
+  date: string;
+  concept: ReelConcept;
+  treatment?: MidTreatment;
+  root?: string;
+}): MidTreatmentStoryboard {
+  const root = input.root ?? projectRoot();
+  const selection =
+    input.treatment !== undefined
+      ? {
+          date: input.date,
+          treatment: input.treatment,
+          suffix: treatmentSuffix(input.treatment),
+          label: MID_TREATMENT_LABELS[input.treatment],
+          plan_found: true as boolean,
+          warning: undefined as string | undefined
+        }
+      : selectMidTreatment(input.date, root);
+
+  const acts = buildActsForTreatment(selection.treatment);
+  const { segments, full } = buildNarrationSegments(input.concept.narration, selection.treatment);
+  const total = acts.length > 0 ? acts[acts.length - 1]!.end_s : 0;
+
+  const lines: string[] = [
+    `# Mid-treatment storyboard`,
+    `date: ${input.date}`,
+    `concept: ${input.concept.id}`,
+    `treatment: ${selection.treatment}`,
+    `suffix: ${selection.suffix || "(none)"}`,
+    `label: ${selection.label}`,
+    selection.warning ? `warning: ${selection.warning}` : "",
+    `total_duration_s: ${total}`,
+    ``,
+    `## Acts (visual)`,
+    ...acts.map(
+      (act, i) =>
+        `${i + 1}. [${act.start_s.toFixed(1)}–${act.end_s.toFixed(1)}s] ${act.role} ← ${act.source} (${act.duration_s}s) — ${act.notes}`
+    ),
+    ``,
+    `## Narration timeline`,
+    `full: ${full}`,
+    ...segments.map(
+      (seg) =>
+        `- [${seg.start_s.toFixed(1)}–${seg.end_s.toFixed(1)}s] (${seg.role}) ${seg.text}`
+    ),
+    ``,
+    `## Hook / close (subtitles, unchanged)`,
+    `hook: ${input.concept.hook}`,
+    `close: ${input.concept.close}`,
+    ``,
+    `## Attribution`,
+    `mp4 suffix: ${selection.suffix || "(scheduleReel standard name only)"}`,
+    `manifest field: treatment=${selection.treatment}`
+  ].filter((line) => line !== undefined);
+
+  return {
+    date: input.date,
+    concept_id: input.concept.id,
+    treatment: selection.treatment,
+    suffix: selection.suffix,
+    label: selection.label,
+    total_duration_s: total,
+    acts,
+    narration_segments: segments,
+    narration_full: full,
+    warning: selection.warning,
+    text: lines.join("\n")
+  };
+}
+
+/**
+ * Dry-run: write one storyboard+narration timeline file per treatment day
+ * into output/mid-test/ for human review.
+ */
+export function writeMidTestTimelines(root = projectRoot()): string[] {
+  const outDir = join(root, "output", "mid-test");
+  mkdirSync(outDir, { recursive: true });
+
+  const days: Array<{ date: string; treatment: MidTreatmentCode }> = [
+    { date: "2026-08-12", treatment: "A" },
+    { date: "2026-08-13", treatment: "B" },
+    { date: "2026-08-14", treatment: "C" }
+  ];
+
+  const written: string[] = [];
+  for (const day of days) {
+    const scheduled = REEL_SCHEDULE.find((entry) => entry.date === day.date);
+    const concept =
+      REEL_CONCEPTS.find((c) => c.id === scheduled?.conceptId) ?? REEL_CONCEPTS[0]!;
+    const board = buildMidTreatmentStoryboard({
+      date: day.date,
+      concept,
+      treatment: day.treatment,
+      root
+    });
+    const fileName = `${day.date}-t${day.treatment}-${concept.id}.txt`;
+    const path = join(outDir, fileName);
+    writeFileSync(path, board.text, "utf8");
+    written.push(path);
+  }
+  return written;
+}
+
 export interface ProductionRunway {
   today: string;
   last_scheduled_date: string;
@@ -396,7 +778,33 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const only = getOption(args, "concept");
   const wantPrompts = getFlag(args, "prompts");
+  const wantMidTest = getFlag(args, "mid-test");
+  const selectDate = getOption(args, "select-treatment");
   const root = projectRoot(getOption(args, "root"));
+
+  // Dry-run: three storyboard+narration timelines for human review.
+  if (wantMidTest) {
+    const written = writeMidTestTimelines(root);
+    console.log(
+      JSON.stringify(
+        {
+          mode: "mid-test",
+          files: written.map((path) => path.replace(/\\/g, "/")),
+          plan: loadMidTreatmentPlan(root)
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  // Mutation/self-check helper: print treatment selection for one date.
+  if (selectDate) {
+    const selection = selectMidTreatment(selectDate, root);
+    console.log(JSON.stringify(selection, null, 2));
+    return;
+  }
 
   const extensions = loadExtensions(root);
   const statuses = await conceptStatuses(root);
@@ -426,6 +834,7 @@ async function main(): Promise<void> {
         ready: statuses.filter((status) => status.ready).length,
         runway: await productionRunway(today, root),
         extensions,
+        mid_treatment: selectMidTreatment(today, root),
         concepts: only ? statuses.filter((status) => status.id === only) : statuses
       },
       null,

@@ -270,6 +270,26 @@ Use the built-in image model only. Do not read any workspace file and do not run
             $template.source_shot_id = "$concept-$state"
             $template.input_image = "references/$concept-$state.png"
             $template.output_file = "raw/$concept-$state.mp4"
+            # Per-act camera direction (船長 method, digest sections C+D). All
+            # three acts used to share one generic push-in, so the opening
+            # three seconds carried no question -- the distribution report's
+            # root cause #2. Each act now has its own beat, its own focus lock
+            # and its own stopping point.
+            $actDirection = switch ($state) {
+                "before" {
+                    "One restrained continuous action: a slow push-in that ends framed on the worn area the topic is about, so the viewer's eye lands on the problem within the first two seconds. Total camera travel about 10-15cm, slow enough to be barely perceptible, with slight natural handheld shake. The focal plane stays locked on the object from the first frame to the last -- no focus drift, no rack focus, no zoom. The motion completes and settles; it does not drift on afterwards."
+                }
+                "middle" {
+                    "One restrained continuous action: the hand and tool already in the frame continue their working motion for the length of the shot -- the cloth keeps wiping, the brush keeps its stroke -- with believable weight and a contact shadow that moves with the touch. The camera holds nearly still with slight natural handheld shake. The focal plane stays locked on the contact point between tool and object -- no focus drift, no zoom. Fingers stay anatomically correct: five fingers, no fusing, no extra hand entering."
+                }
+                "after" {
+                    "One restrained continuous action: an extremely gentle pull-back that opens a little breathing room around the cleaned object, letting it settle in frame. Total camera travel about 10-15cm, slow and even, with slight natural handheld shake. The focal plane stays locked on the object -- no focus drift, no zoom. The final frame is stable and holds."
+                }
+                default { "One restrained continuous action: an extremely gentle push-in with slight natural handheld shake." }
+            }
+            $template.prompt = "Animate the supplied image while preserving its exact composition, object placement, materials, surface wear, lighting direction and colour temperature. " +
+                $actDirection +
+                " Keep every object in its original position and its original condition. Do not clean, repair, alter or transform the object beyond what the supplied image already shows. Do not add or remove anything. Do not add people, readable text, captions, logos, dialogue or music. No morphing, warping, flicker, jump cuts, sudden motion or collapsing geometry. Audio near-silent with only faint room tone. Stable first and final frames. Duration: 5 seconds. Aspect ratio: 9:16. Resolution: 720p."
             $template | ConvertTo-Json -Depth 5 | Set-Content $manifest -Encoding utf8
 
             Write-Log "Generating clip $concept-$state (attempt $attempt)."

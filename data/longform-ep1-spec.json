@@ -1,0 +1,31 @@
+{
+ "id": "longform-ep1-white-shoe",
+ "publish_date": "2026-08-16",
+ "produce_date": "2026-08-15",
+ "duration_target_s": 90,
+ "aspect": "9:16",
+ "platforms": [
+  "youtube",
+  "instagram",
+  "facebook"
+ ],
+ "source_assets": {
+  "reuse": [
+   "output/reels-run/2026-07-29/reels/white-shoe-yellowing-15s.mp4 的三幕素材"
+  ],
+  "new_stills_needed": [
+   "midsole-edge-closeup: 白鞋膠邊泛黃特寫,手指劃過",
+   "detergent-ring: 布面洗劑殘留圈,斜光打出邊界",
+   "insole-lifted: 鞋墊翻開露出深色汗垢",
+   "side-by-side-result: 救回來的 vs 只能淡化的兩雙並排"
+  ]
+ },
+ "narration_file": "content-playbooks/longform-ep1-script.md",
+ "tts_voice": "male-qn-jingying",
+ "yt": {
+  "title": "白鞋泛黃 3 種原因一次看懂|哪種救得回?台中洗鞋",
+  "source_code": "yt-long"
+ },
+ "captions": "燒字卡三個檢查點(檢查點1 膠邊/2 洗劑圈/3 鞋墊)",
+ "status": "spec_ready"
+}

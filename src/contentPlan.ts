@@ -1005,19 +1005,38 @@ function baseCaptionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): 
 // 船長AI視界 method: lens feel, depth-of-field feel, light with direction
 // and falloff, ONE tone anchor, and film grain, so "realistic" is expressed
 // as visible camera behaviour instead of the word "realistic".
-const PHONE_REALISM =
-  "Shot on a phone, 35mm documentary perspective, f/2.8 feel with the featured object sharp and the " +
-  "background still recognizable. Scene: a light counter with a pink cutting mat, white slat-wall " +
-  "panels behind, a garment conveyor with plastic-covered clothes softly blurred in the background, " +
-  "everyday Taiwanese laundry shop clutter at the frame edges. Soft mixed light from the storefront " +
-  "window and fluorescent ceiling, gentle shadow falloff, natural highlight roll-off, Kodak Portra 400 " +
-  "inspired warm tone, subtle film grain, slight handheld framing imperfection. The featured item shows " +
-  "honest everyday use consistent with the topic - dust, scuffs, creases or slight discolouration exactly " +
-  "where the topic describes them, with visible material grain, contact shadow under the object, and " +
-  "believable weight - and must not look brand new or freshly styled. Not editorial, not cinematic, not " +
-  "studio lighting, no plastic or waxy surfaces, no artificial background blur, no oversaturated colors, " +
-  "no boutique or showroom interior, no stock-photo feel, no laundry basket as a featured object, " +
-  "no fake logo, no readable text, no watermark.";
+// Style master v2 (data/style-master.md). v1's film-look stack (35mm lens
+// feel, Portra tone, film grain) contradicted "shot on a phone" -- phones
+// don't produce film stock artifacts, and the mismatch itself reads as AI.
+// The cross-family red team also split the plastic ban (garment covers in the
+// background ARE plastic; only the hero must not look waxy), merged the three
+// self-contradicting depth-of-field clauses, moved wear enumeration out to
+// the topic line, and rotates the third background anchor because identical
+// backgrounds across daily posts invite Meta's duplicate-content dampening.
+const BACKGROUND_ANCHORS = [
+  "a garment conveyor with plastic-covered clothes softly out of focus in the background",
+  "glass display shelves with rows of cleaned sneakers softly out of focus in the background",
+  "retail shelves with fabric-care products softly out of focus in the background"
+];
+
+function phoneRealism(anchorIndex = 0): string {
+  const anchor = BACKGROUND_ANCHORS[anchorIndex % BACKGROUND_ANCHORS.length];
+  return (
+    "Shot on a phone, slightly high handheld angle looking down about 15 degrees, the featured object " +
+    "filling roughly 35-50% of the frame height with natural phone-camera depth: object sharp, background " +
+    `softened but still recognizable. Scene: a light counter with a pink cutting mat, white slat-wall panels behind, ${anchor}, ` +
+    "everyday Taiwanese laundry shop clutter at the frame edges. Key light from the storefront window on one side, " +
+    "fluorescent ceiling fill, gentle shadow falloff, neutral warm indoor tone, slight handheld framing imperfection. " +
+    "The featured item's condition matches the topic exactly, at the positions the topic names, with visible material " +
+    "grain, a real contact shadow under the object, and believable weight; it must not look brand new unless the topic " +
+    "is the after state. Any shop paperwork or labels in the background must be out of focus and unreadable. " +
+    "The featured object must not look waxy or plastic-coated. Not editorial, not cinematic, not studio lighting, " +
+    "no oversaturated colors, no boutique or showroom interior, no stock-photo feel, no laundry basket as a featured " +
+    "object, no readable text on the featured object, no brand logos or logo-like marks, no watermark."
+  );
+}
+
+const PHONE_REALISM = phoneRealism(0);
 
 function imagePromptFromPlaybook(slot: GrowthPlaybookSlot): string {
   const topic = cleanTopic(slot.topic);
@@ -1033,9 +1052,13 @@ function imagePromptFromPlaybook(slot: GrowthPlaybookSlot): string {
 }
 
 function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
+  // One shoot = one scene: all four slides share the day's anchor, and the
+  // anchor rotates by date so consecutive days don't publish fingerprint-
+  // identical backgrounds.
+  const dayIndex = Number(slot.date.replace(/-/g, "")) % BACKGROUND_ANCHORS.length;
   const shared =
     "Create one portrait 4:5 photo. Keep the exact featured object consistent across all four photos. " +
-    PHONE_REALISM +
+    phoneRealism(dayIndex) +
     " No poster layout, no graphic panel, no address, no phone number.";
 
   if (slot.date === "2026-07-20" && slot.slot === 1) {

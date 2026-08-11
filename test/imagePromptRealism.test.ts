@@ -24,7 +24,10 @@ describe("image prompt realism", () => {
         expect(prompts.length).toBeGreaterThan(0);
         for (const prompt of prompts) {
           if (prompt.startsWith("Reel cover still")) continue;
-          expect(prompt).toContain("honest everyday use");
+          // v2 binds wear to the topic instead of a generic enumeration; the
+          // honesty contract is "condition matches the topic exactly" plus
+          // the brand-new ban.
+          expect(prompt).toContain("condition matches the topic exactly");
           expect(prompt).toContain("must not look brand new");
           expect(prompt).not.toMatch(/Premium|Apple-like|editorial spacing/);
         }

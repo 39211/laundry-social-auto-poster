@@ -1,5 +1,5 @@
 {
- "version": 1,
+ "version": 2,
  "created": "2026-08-11",
  "principle": "架構先行,數字觸發,老闆按鍵(boost 需本人帳號),素材永遠用當週實測最佳",
  "audience_pack": {
@@ -33,38 +33,38 @@
    "至善國中對面",
    "LINE ID 0968327653"
   ],
-  "landing": "IG 主頁(冷帳號先養權重)→ A3 起改 LINE 深連結"
+  "landing": "全部階段直接導 https://39211.github.io/go/line.html?source=ad-<stage>(帶碼歸因),絕不導 IG 主頁"
  },
  "ladder": [
   {
    "stage": "A0",
    "status": "ready",
    "trigger": "現在",
-   "action": "本檔案+受眾包完成,零花費",
+   "action": "受眾包+素材規格就緒,零花費",
    "budget_ntd": 0
   },
   {
    "stage": "A1",
    "status": "waiting_trigger",
-   "trigger": "任一支 Reel 收藏+分享 ≥3(72h檢討首次達標)",
-   "action": "Boost 該支 3 天,受眾=西屯家庭主受眾",
+   "trigger": "任一週 GA4 line_click ≥5(自然流量先證明有人想問)",
+   "action": "Boost 當週最佳 Reel 3 天,導 ad-a1 帶碼連結",
    "budget_ntd": 300,
-   "success": "觸及≥2000 或 LINE點擊≥5 或 詢問≥1"
+   "success": "合格詢問(line_click from ad-a1)≥3;收藏分享僅診斷不作成敗"
   },
   {
    "stage": "A2",
    "status": "locked",
-   "trigger": "A1 帶來 ≥2 則詢問",
-   "action": "每週 boost 當週最佳一支",
+   "trigger": "A1 產生 ≥1 筆成交(老闆口頭確認即可)",
+   "action": "每週 boost 最佳一支,ad-a2 帶碼",
    "budget_ntd": 500,
-   "success": "每週詢問≥3"
+   "success": "週合格詢問 ≥5"
   },
   {
    "stage": "A3",
    "status": "locked",
-   "trigger": "月詢問 ≥10",
-   "action": "開廣告帳戶,目標=訊息/LINE點擊,轉換追蹤=GA4 line_click",
-   "budget_ntd": "老闆定(建議月3000起)"
+   "trigger": "月成交 ≥8",
+   "action": "正式廣告帳戶,轉換=line_click,campaign 逐支帶碼",
+   "budget_ntd": "月3000起,老闆定"
   }
  ],
  "owner_steps_when_A1_fires": [
@@ -72,5 +72,12 @@
   "老闆在 IG App 按『加強推廣貼文』照指引選受眾與預算",
   "3 天後我出成效報告,決定 A2"
  ],
- "review": "每次投放後 72h 出報告:花費/觸及/點擊/詢問,每次詢問成本(CPI)。CPI>150 即停該素材。"
+ "review": "每次投放後 72h 出報告:花費/觸及/點擊/詢問,每次詢問成本(CPI)。CPI>150 即停該素材。",
+ "cost_ceiling": {
+  "basis": "價目中位數約$400/單、毛利假設60%(待老闆校正)",
+  "CPL_max": 80,
+  "CPA_max": 240,
+  "rule": "任一素材 CPL>80 即停該素材;連續14天0詢問即停該渠道"
+ },
+ "manual_exception": "Boost 需老闆在 IG App 按鍵(誠實列人工例外);觸發時我給逐步截圖指引"
 }

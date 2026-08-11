@@ -50,3 +50,16 @@
 - one complete adult hand, five fingers, natural knuckle creases
 - 右手做動作、左手穩定物體;接觸點與受力寫清楚
 - 動作像正在發生:布剛壓下、拉鍊拉到一半、標籤剛翻開
+
+
+---
+
+## 品牌級同等質感詞彙(完整版)
+
+12 個名牌家族(LV/Chanel/Hermès/Gucci/Prada/Coach/球鞋四家/Timberland/Dr.Martens/UGG/羽絨/Burberry)的材質與磨損英文攝影用語,每家 3 材質 + 3 磨損,見:
+`docs-internal/chuanzhang/brand-wear-vocab.md`
+
+**取用規則(紅線)**:
+- 只取材質工法與磨損位置(塗層帆布、Vachetta 氧化蜜色、菱格絎縫、Togo 壓紋、嘎巴甸斜紋…)
+- **絕不寫** logo、monogram 圖樣、品牌字樣、可辨識商標紋 —— 生成的是「同級質感的無標物件」
+- 對應價目:名牌包 $1500 / 特殊類名牌包 $2500 / 名牌鞋 $600(文案帶價時用真實級距)

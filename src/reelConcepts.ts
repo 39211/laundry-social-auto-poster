@@ -707,15 +707,40 @@ export async function productionRunway(
 // Kept identical across every still so that separate generation sessions still
 // cut together, and so that a single regenerated still drops back into a pair
 // without the join showing.
+// Three acts have to look like one shop. They did not: before and after were
+// square photos on a tiled floor with metal racks, while the middle act was
+// generated separately as a 4:5 portrait on a pink cutting mat against a white
+// slat wall -- a different counter, a different room, and for the white-shoe
+// reel a different pair of shoes, leather in two acts and canvas in the third.
+// Fourteen seconds in which the object changes identity is most of what "it
+// doesn't look real" means. The scene is now stated once, in the aspect the
+// reel is actually cut to, and every act is generated from it.
+const SHOP_SCENE =
+  "a Taiwanese laundry and shoe-care shop: a light counter with a pink cutting mat, white slat-wall " +
+  "panels behind, shelves of fabric-care bottles softly out of focus, everyday clutter at the frame edge. " +
+  "Shot on a phone main camera at about 26mm equivalent, held at chest height and angled 20-35 degrees " +
+  "down at the counter, handheld with imperfect framing. The storefront window is the key light from one " +
+  "side, weak fluorescent ceiling fill, uneven brightness across the counter, slightly imperfect auto " +
+  "white balance, phone sensor noise in the deep shadows only. The item rests fully on the surface with a " +
+  "continuous hard contact shadow. Not cinematic, not studio lighting, no film grain, no film colour " +
+  "grade, no creamy background blur, no waxy surfaces, no readable text, no logo, no watermark, no faces.";
+
 export const SHARED_STILL_PROMPT =
-  "Ordinary square shop photo for 私享家洗衣店. [SUBJECT] on the inspection counter of a Taiwanese " +
-  "laundry and item-care shop. Shot on a phone by shop staff, handheld with slight natural camera shake " +
-  "and imperfect framing, tiled floor and metal racks visible, soft fluorescent ceiling light mixed with " +
-  "cool window daylight from the left at roughly 4500K, consistent shadow direction, realistic material " +
-  "texture with genuine wear, everyday clutter at the edge of frame. No laundry basket, no washing " +
-  "machine, no domestic living room, no shopfront. Not cinematic, not studio lighting, not glossy, not " +
-  "perfectly symmetrical, no stock-photo feel, no dramatic colour grade. No brand name, no logo, no " +
-  "readable text, no watermark, no faces.";
+  `Ordinary portrait 4:5 shop photo. [SUBJECT] on the inspection counter of ${SHOP_SCENE} ` +
+  "The item fills 45-65% of the frame height and stays sharp; the background is readable, not blurred away.";
+
+// The middle act is the one most likely to drift, because it is the only one
+// with a hand and a tool in it. Generating it by editing the before image --
+// the same route that already keeps before and after consistent -- is what
+// holds the object, counter, background and light identical across the cut.
+export const MIDDLE_STILL_PROMPT =
+  "Edit the supplied BEFORE image, do not generate a new scene. Keep the same camera position, the same " +
+  "counter, the same background, the same light direction and the same white balance. The item must be " +
+  "the SAME physical object: same material, same colour, same laces or fittings, same wear marks. " +
+  "Add one adult hand entering from the right holding a soft-bristle brush, the brush in contact with " +
+  "[WEAR_LOCATION], a small wet cleaned patch already visible at that exact spot, and the rest of the " +
+  "item still in its BEFORE condition. Fingers anatomically correct: five fingers, no fusing, no second " +
+  "hand. Portrait 4:5. No readable text, no logo, no watermark, no faces.";
 
 export function stillPathsFor(concept: ReelConcept): { before: string; after: string } {
   return {

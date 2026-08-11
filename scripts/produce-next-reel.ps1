@@ -374,7 +374,31 @@ if ($missing15s.Count -gt 0) {
     $pending = @($status.concepts | Where-Object { -not (Test-Path (Get-ReelAssetPath $_.id "10s")) })
     if ($pending.Count -eq 0) {
         Write-Log "Every scheduled 10s concept is built and the next 3 plan days have their 15s assets. Nothing to produce."
-        # Still try to schedule any plan day in the window whose assets are ready.
+        # A mid-treatment day still has work even when nothing is missing. The
+        # treatment re-cuts clips that already exist; it does not need a new
+        # concept. Tying it to "is anything unproduced?" meant 08-12 to 08-14
+        # would have run the A/B/C experiment on zero assembled assets and
+        # returned "middle treatment had no effect" -- an answer produced by
+        # never having treated anything. Pick the concept the plan actually
+        # publishes that day so the treatment lands on the reel that airs.
+        $todayStr = $now.ToString("yyyy-MM-dd")
+        $todayTreatment = Get-MidTreatment $todayStr
+        if ($todayTreatment -and $todayTreatment -ne "none") {
+            $planRow = @(Get-AbTestPlan | Where-Object { $_.date -eq $todayStr }) | Select-Object -First 1
+            $airing = if ($planRow) { $planRow.noon.conceptId } else { $null }
+            if ($airing) {
+                $conceptInfo = @($status.concepts | Where-Object { $_.id -eq $airing }) | Select-Object -First 1
+                if ($conceptInfo) {
+                    $concept = $airing
+                    $targetVariant = if ($planRow.noon.variant) { $planRow.noon.variant } else { "15s" }
+                    Write-Log "Mid-treatment $todayTreatment day: re-cutting $concept ($targetVariant) from existing clips."
+                }
+            }
+            if (-not $concept) {
+                Write-Log "Mid-treatment $todayTreatment day but no airing concept resolved for $todayStr; no treatment produced."
+                Show-Toast "$todayStr 是治療 $todayTreatment 日,但找不到當天要播的概念,治療沒有產出。"
+            }
+        }
     } else {
         $concept = $pending[0].id
         $conceptInfo = $pending[0]
@@ -439,19 +463,27 @@ Do not read any workspace file and do not run any shell command; the local shell
     # Treatments A/B/C all need a middle act; force middle still even when the
     # plan only asked for 10s on a treatment day.
     if (($targetVariant -eq "15s" -or $treatmentNeedsMiddle) -and -not (Test-Path $middlePng)) {
-        # Middle still: pure GENERATION, never edit-by-reference. The old prompt
-        # said "do not read any workspace file" and then asked Codex to edit the
-        # before file -- an instruction contradiction that made it return nothing
-        # on 08-08, 08-09 and 08-10, which cost 08-09 its noon Reel. Direct
-        # generation with a rich scene description was verified working three
-        # times on 2026-08-10.
+        # Middle still: edit the BEFORE image, do not invent a new scene. Pure
+        # generation was adopted on 08-10 after an edit-by-reference prompt
+        # failed three days running -- but that prompt told Codex "do not read
+        # any workspace file" and then asked it to edit a workspace file, so it
+        # returned nothing. The contradiction was the bug, not the approach.
+        #
+        # Pure generation cost continuity: the white-shoe reel cut from leather
+        # shoes on one counter to a canvas shoe on another, and fourteen seconds
+        # in which the object changes identity is most of what the owner meant
+        # by "it doesn't look real". Editing the before image is what holds the
+        # object, counter, background and light across the cut. Generation is
+        # kept as the fallback so a refused edit still costs continuity rather
+        # than the whole Reel.
         $middleHeader = @"
-Use the built-in image model only. Do not read any workspace file and do not run any shell command. Generate ONE portrait 4:5 photo: the object below in a MID-CLEANING state on a light counter with a pink cutting mat, white slat-wall panels behind, a garment conveyor with plastic-covered clothes softly blurred in the background. One hand and one shop tool (soft cloth, soft-bristle brush, or steam tool as fits the object) entering the frame in a natural work moment, partial cleaning progress visible at a specific spot on the object. Shot on a phone, slightly high handheld angle looking down about 15 degrees, the object filling roughly 35-50% of the frame height with natural phone-camera depth: object sharp, background softened but still recognizable. Key light from the storefront window on one side, fluorescent ceiling fill, gentle shadow falloff, neutral warm indoor tone, slight handheld imperfection. Visible material grain and contact shadow under the object. Not editorial, not studio, no plastic surfaces, no readable text or logos. Leave the image in your output directory and report the filename.
+Read the image file at the path given below and EDIT it. Keep the same camera position, the same counter, the same background, the same light direction and the same white balance as that image. The featured item must remain the SAME physical object: same material, same colour, same fittings or laces, same wear marks. Add one adult hand entering from the right holding one shop tool (soft cloth, soft-bristle brush, or steam tool as fits the object), the tool in contact with the worn area the narration is about, and a small partially-cleaned patch already visible at that exact spot while the rest of the item stays in its original condition. Fingers anatomically correct: five fingers, no fusing, no second hand. Portrait 4:5. No readable text, no logo, no watermark, no faces. Leave the edited image in your output directory and report the filename.
 
 "@
-        Write-Log "Generating middle still through Codex (pure generation)."
+
+        Write-Log "Generating middle still by editing the before still."
         $genStart = Get-Date
-        $middlePrompt = $middleHeader + "Object/concept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n"
+        $middlePrompt = $middleHeader + "Image to edit: $beforePng`nObject/concept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n"
         $middlePrompt | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - *>$null
 
         $images = @(
@@ -461,9 +493,31 @@ Use the built-in image model only. Do not read any workspace file and do not run
                 Sort-Object LastWriteTime
         )
         if ($images.Count -lt 1) {
-            Write-Log "Codex returned no middle still for $concept."
-            Show-Toast "$concept 的中段素材生成失敗，今天沒有產出 15s。"
-            exit 1
+            # An edit can be refused where a generation would have succeeded, so
+            # fall back rather than lose the Reel -- 2026-08-09 lost its noon
+            # slot to exactly this. The fallback costs continuity, which is a
+            # worse cut, not a missing one, so it is logged loudly enough to be
+            # noticed in the day's report.
+            Write-Log "Edit-by-reference returned nothing for $concept; falling back to pure generation (continuity will be weaker)."
+            $genStart = Get-Date
+            $fallback = @"
+Use the built-in image model only. Do not read any workspace file. Generate ONE portrait 4:5 photo of the object below in a MID-CLEANING state, on the inspection counter of a Taiwanese laundry and shoe-care shop: a light counter with a pink cutting mat, white slat-wall panels behind, shelves of fabric-care bottles softly out of focus. One adult hand and one shop tool entering frame, partial cleaning progress at a specific worn spot, the rest of the item still soiled. Shot on a phone main camera about 26mm equivalent, chest height angled 20-35 degrees down, handheld with imperfect framing, item filling 45-65% of frame height and sharp, background readable. Storefront window key light from one side, weak fluorescent fill, continuous hard contact shadow under the item. Not cinematic, not studio, no film grain, no waxy surfaces, no readable text, no logo, no faces. Leave the image in your output directory and report the filename.
+
+"@
+            $fallback + "Object/concept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n" |
+                & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - *>$null
+            $images = @(
+                Get-ChildItem "$env:USERPROFILE\.codex\generated_images" -Directory -ErrorAction SilentlyContinue |
+                    Get-ChildItem -File -Filter *.png |
+                    Where-Object { $_.LastWriteTime -ge $genStart } |
+                    Sort-Object LastWriteTime
+            )
+            if ($images.Count -lt 1) {
+                Write-Log "Codex returned no middle still for $concept, edit and generation both."
+                Show-Toast "$concept 的中段素材生成失敗，今天沒有產出 15s。"
+                exit 1
+            }
+            Show-Toast "$concept 中段改用純生成，三幕連續性會變弱，請抽幀確認是不是同一個物件。"
         }
         Copy-Item $images[-1].FullName $middlePng -Force
         Write-Log "Middle still saved for $concept."
@@ -645,6 +699,18 @@ Use the built-in image model only. Do not read any workspace file and do not run
         }
         # scheduleReel still looks up the standard name — copy, do not rename away
         # the attributed -tX asset.
+        # The treated cut has to occupy the canonical name for the day it airs,
+        # because that is the name the scheduler copies from. But the copy is
+        # permanent, and the plan republishes these same concepts well after the
+        # experiment window -- shirt-collar and white-shoe both come round again
+        # later in August. Without a preserved original, those later airings
+        # would quietly ship a treatment cut and nothing would record it. Keep
+        # the untreated file beside it the first time it is displaced.
+        $preserved = [IO.Path]::ChangeExtension($standardOut, $null).TrimEnd('.') + "-untreated.mp4"
+        if ((Test-Path $standardOut) -and -not (Test-Path $preserved)) {
+            Copy-Item $standardOut $preserved -Force
+            Write-Log "Preserved untreated cut: $(Split-Path -Leaf $preserved)"
+        }
         Copy-Item $treatedOut $standardOut -Force
         if (Test-Path "$treatedOut.audio.json") {
             Copy-Item "$treatedOut.audio.json" "$standardOut.audio.json" -Force

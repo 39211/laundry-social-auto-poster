@@ -190,7 +190,16 @@ if ($hasCalendar) {
     } catch {}
     $planLine = ""
     if ($plannedObject) {
-        $planLine = "`nToday's slot 1 MUST be about this object (from the committed 90-day plan): $plannedObject. Write a fresh hook and captions for it; do not substitute another object. Slot 1 topics from the last 7 days are off-limits.`n"
+            $hookLine = ""
+    try {
+        $hooksRaw = [IO.File]::ReadAllText((Join-Path $root "data\hooks-bank.json"), [Text.UTF8Encoding]::new($false))
+        $hooks = (ConvertFrom-Json $hooksRaw).hooks
+        if ($hooks.Count -gt 0) {
+            $pick = $hooks[(Get-Date).DayOfYear % $hooks.Count]
+            $hookLine = "`nHook style reference for today (rewrite for the object, do not copy verbatim): $pick`n"
+        }
+    } catch {}
+    $planLine = $hookLine + "`nToday's slot 1 MUST be about this object (from the committed 90-day plan): $plannedObject. Write a fresh hook and captions for it; do not substitute another object. Slot 1 topics from the last 7 days are off-limits.`n"
         Write-Log "Slot 1 planned object for ${date}: $plannedObject"
     }
     $prompt = @"

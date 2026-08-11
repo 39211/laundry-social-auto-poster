@@ -1752,7 +1752,19 @@ function buildAnalyticsTag(measurementId: string, sendPageView = true): string {
   const verification = getConfig().googleSiteVerification
     ? `<meta name="google-site-verification" content="${escapeHtml(getConfig().googleSiteVerification ?? "")}">\n    `
     : "";
-  if (!measurementId) return verification.trim();
+  // Missing measurement ID used to degrade silently to "no analytics" -- a
+  // fail-open for measurement. One env regression and every page ships
+  // without gtag, line_click stops firing, and nothing says so; an audit
+  // then reads the resulting zero as "no demand". The live site must refuse
+  // to build untracked instead.
+  if (!measurementId) {
+    if (!getConfig().dryRun) {
+      throw new Error(
+        "PUBLIC_GA4_MEASUREMENT_ID is not set; refusing to build the live site without analytics. Set it or build with DRY_RUN=true."
+      );
+    }
+    return verification.trim();
+  }
   const options = sendPageView ? "" : ",{send_page_view:false}";
   return `${verification}<script async src="https://www.googletagmanager.com/gtag/js?id=${escapeHtml(measurementId)}"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config',${JSON.stringify(measurementId)}${options});</script>`;

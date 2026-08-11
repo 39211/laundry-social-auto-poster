@@ -192,6 +192,26 @@ else:
             f"{thin[:5]}", "補實質內容,不要湊字數")
 
 
+# --- 9. The measurement point itself must be verified alive ------------------
+# A false P0 on 08-12 claimed no page loads gtag; live checks disproved it.
+# The durable version of that alarm is checking the real page nightly: if the
+# redirect page ever ships without its analytics tag, line_click silently
+# stops firing and every later audit misreads the zero.
+try:
+    import urllib.request
+    req = urllib.request.Request(
+        "https://39211.github.io/go/line.html", headers={"User-Agent": "Mozilla/5.0"}
+    )
+    page = urllib.request.urlopen(req, timeout=30).read().decode("utf-8", errors="replace")
+    if "googletagmanager.com/gtag/js" not in page or "line_click" not in page:
+        add("HIGH", "量測", "線上 go/line.html 缺 gtag 或 line_click 事件",
+            "頁面抓回後字串不含 gtag/line_click",
+            "檢查 PUBLIC_GA4_MEASUREMENT_ID 與 publish-pages;量測斷了,之後所有 0 都不可判讀")
+except OSError:
+    add("LOW", "量測", "無法抓取線上 go/line.html(網路?)",
+        "urllib 逾時或連線失敗", "隔天自檢會再試;連續多天失敗才需要人工看")
+
+
 # --- Report ------------------------------------------------------------------
 os.makedirs("output/nightly-optimize", exist_ok=True)
 rank = {"HIGH": 0, "MED": 1, "LOW": 2}

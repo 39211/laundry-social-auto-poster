@@ -61,3 +61,11 @@ auto-approve 新增軟閘(待實作,本週):每則文案必含 ①參考價或�
 ## 素材誠信(第1層/05)
 
 AI 示範圖不冒充實拍案例;取得老闆同意的真實完成案例(照片由老闆日常 LINE 已有的成品照,經同意後用)進「真實案例」標籤;素材來源記 data/asset-ledger.json(逐步補)。
+
+
+## 附錄:8/11 晚衝刺落地紀錄
+- slot1-plan 23 天改為鞋主題(小月救援,無鞋日=0);md 逐日表以 slot1-plan.json 為準
+- hooks-bank.json 建立並接進 06:30 生成(X 掃描來源,每日輪替)
+- 三份可印檔於 output/print/(渠道碼 poster-front/poster-dm)
+- 長片首集腳本 content-playbooks/longform-ep1-script.md(8/15 產 8/16 發)
+- 職人人設 data/persona-master.md+三候選臉待老闆選

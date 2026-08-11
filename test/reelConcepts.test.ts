@@ -71,12 +71,25 @@ describe("reel concepts", () => {
     }
   });
 
-  it("keeps narration short enough to finish inside the reel", () => {
-    // The reel is 9.67s and narration starts at 0.5s. zh-TW at this voice runs
-    // near 0.25s a character, so past about 36 characters the line is still
-    // being spoken when the video ends.
+  it("fills the reel with narration without overrunning it", () => {
+    // Two failures to avoid, and the old cap only guarded one of them.
+    //
+    // Overrun: the line is still being spoken when the video ends. The voice
+    // runs near 0.25s a character and the TTS call now asks for +10%, so the
+    // budget is (reel - start) / (0.25 / 1.10).
+    //
+    // Underrun: measured silence detection on the shipped reels found every one
+    // of them going quiet from around 7s to the end, and a句-gap at 3.4-4.4s --
+    // which is exactly where median watch time (4.2s) sits. A 36-character cap
+    // on a 14.2s reel guaranteed that hole. The floor is what closes it.
+    const REEL_SECONDS = 14.2;
+    const NARRATION_STARTS_AT = 0.5;
+    const SECONDS_PER_CHAR = 0.25 / 1.1;
+    const ceiling = Math.floor((REEL_SECONDS - NARRATION_STARTS_AT) / SECONDS_PER_CHAR);
+    const floor = Math.floor(ceiling * 0.75);
     for (const concept of REEL_CONCEPTS) {
-      expect(concept.narration.length, `${concept.id} narration is too long`).toBeLessThanOrEqual(36);
+      expect(concept.narration.length, `${concept.id} narration overruns the reel`).toBeLessThanOrEqual(ceiling);
+      expect(concept.narration.length, `${concept.id} narration leaves the reel silent`).toBeGreaterThanOrEqual(floor);
     }
   });
 

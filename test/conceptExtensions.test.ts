@@ -39,7 +39,8 @@ const goodConcept = {
   object_type: "pillow",
   hook: "枕頭發黃，曬太陽是不夠的",
   close: "換季想一起處理？私訊我們",
-  narration: "那是汗和皮脂滲進纖維的顏色。日曬只能除味，黃漬要用對方式才退。",
+  narration:
+    "那是汗和皮脂滲進纖維的顏色，日曬只能除味，黃漬要用對方式才退。枕頭套一件三十，整組拍給我們看先報價。",
   before_subject: "one pillow with visible yellowed patches, laid on the counter",
   after_subject: "the same pillow, same position, evenly clean, fabric still used"
 };
@@ -67,7 +68,8 @@ describe("concept extensions", () => {
     await writeFile(
       join(root, "data", "reel-concepts-extension.json"),
       JSON.stringify({
-        concepts: [{ ...goodConcept, narration: "枕頭發黃，曬太陽是不夠的，要用別的方法處理它。" }]
+        concepts: [{ ...goodConcept, narration:
+          "枕頭發黃，曬太陽是不夠的，要用別的方法處理它。枕頭套一件三十，整組拍給我們看先報價。" }]
       }),
       "utf8"
     );

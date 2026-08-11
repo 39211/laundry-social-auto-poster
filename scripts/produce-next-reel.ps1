@@ -629,7 +629,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
     $ttsFile = Join-Path $run "tts\$concept.mp3"
     if (-not (Test-Path $ttsFile)) {
         Write-Log "Generating narration."
-        python -m edge_tts --voice zh-TW-HsiaoChenNeural --text $conceptInfo.narration --write-media $ttsFile 2>&1 | Out-Null
+        python -m edge_tts --voice zh-TW-HsiaoChenNeural --rate=+10% --text $conceptInfo.narration --write-media $ttsFile 2>&1 | Out-Null
         if (-not (Test-Path $ttsFile)) {
             Write-Log "Narration failed for $concept."
             Show-Toast "$concept 的旁白生成失敗，請看 log。"
@@ -643,7 +643,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
         $ttsTreated = Join-Path $run ("tts\$concept" + $midSuffix + ".mp3")
         if (-not (Test-Path $ttsTreated)) {
             Write-Log "Generating treated narration ($midTreatment)."
-            python -m edge_tts --voice zh-TW-HsiaoChenNeural --text $treatedNarrationText --write-media $ttsTreated 2>&1 | Out-Null
+            python -m edge_tts --voice zh-TW-HsiaoChenNeural --rate=+10% --text $treatedNarrationText --write-media $ttsTreated 2>&1 | Out-Null
             if (-not (Test-Path $ttsTreated)) {
                 Write-Log "Treated narration failed for $concept; using base TTS."
                 $ttsTreated = $ttsFile

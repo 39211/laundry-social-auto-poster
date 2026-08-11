@@ -3,7 +3,7 @@
   "date": "2026-08-07",
   "noon": {
    "conceptId": "backpack-base",
-   "variant": "10s"
+   "variant": "15s"
   },
   "evening": {
    "conceptId": "suit-shoulder",
@@ -25,11 +25,11 @@
   "date": "2026-08-09",
   "noon": {
    "conceptId": "plush-doll",
-   "variant": "10s"
+   "variant": "15s"
   },
   "evening": {
    "conceptId": "curtain-hem",
-   "variant": "10s"
+   "variant": "15s"
   }
  },
  {
@@ -47,11 +47,11 @@
   "date": "2026-08-11",
   "noon": {
    "conceptId": "white-shoe-yellowing",
-   "variant": "10s"
+   "variant": "15s"
   },
   "evening": {
    "conceptId": "leather-shoe-rain",
-   "variant": "10s"
+   "variant": "15s"
   }
  },
  {
@@ -69,11 +69,11 @@
   "date": "2026-08-13",
   "noon": {
    "conceptId": "luggage-wheel",
-   "variant": "10s"
+   "variant": "15s"
   },
   "evening": {
    "conceptId": "shirt-collar",
-   "variant": "10s"
+   "variant": "15s"
   }
  },
  {

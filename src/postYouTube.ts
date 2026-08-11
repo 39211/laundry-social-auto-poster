@@ -81,6 +81,7 @@ export function buildShortMetadata(input: { topic: string; caption: string }): {
     input.caption.split("\n\n").slice(0, 3).join("\n\n"),
     priceLineFor(input.topic),
     "門市:台中市西屯區青海路二段365號(至善國中對面)｜LINE 傳照片先估:0968327653",
+    `一鍵加 LINE:${SITE}/go/line.html?source=yt`,
     "儲值優惠:滿1000送100、儲3000送400、儲6000送1000",
     `這個主題的完整說明:${deepLink}`,
     "#Shorts #台中洗衣店 #台中洗鞋 #西屯洗鞋 #逢甲洗鞋 #洗包"

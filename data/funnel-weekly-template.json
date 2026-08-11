@@ -1,0 +1,13 @@
+{
+ "week": "2026-W34(首份 8/18 產出)",
+ "sources": {},
+ "template": {
+  "per_source": [
+   "clicks(GA4 line_click)",
+   "inquiries(老闆自願提供才記)",
+   "won",
+   "notes"
+  ],
+  "kill_rule": "付費渠道連續14天 clicks=0 即停"
+ }
+}

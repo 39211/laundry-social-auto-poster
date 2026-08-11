@@ -1,0 +1,47 @@
+{
+ "note": "AI 示範素材不冒充實際客件;真實客件案例須經老闆同意後另標 real-case",
+ "entries": [
+  {
+   "path": "data/reference-photos/poster-hero-diptych.png",
+   "kind": "ai-generated",
+   "source": "codex gpt-image-2, style-master v2",
+   "sha16": "d277bcd3f9b8d5ac",
+   "note": "海報主圖,示範性質,非實際客件"
+  },
+  {
+   "path": "data/reference-photos/persona-candidate-1.png",
+   "kind": "ai-generated",
+   "source": "codex, persona-master v1",
+   "sha16": "62c6e48040dfdf25",
+   "note": "AI 職人候選,非真人"
+  },
+  {
+   "path": "data/reference-photos/persona-candidate-2.png",
+   "kind": "ai-generated",
+   "source": "codex, persona-master v1",
+   "sha16": "453c7a5b41019de8",
+   "note": ""
+  },
+  {
+   "path": "data/reference-photos/persona-candidate-3.png",
+   "kind": "ai-generated",
+   "source": "codex, persona-master v1",
+   "sha16": "3148472628d78984",
+   "note": ""
+  },
+  {
+   "path": "output/print/poster-A4-shoes-sixiangjia-v2.png",
+   "kind": "composed",
+   "source": "PIL 排版+AI主圖",
+   "sha16": "1c3f9bc7931d7d2e",
+   "note": "印刷檔"
+  },
+  {
+   "path": "docs/assets/2026-08-11/slot-01.png",
+   "kind": "ai-generated",
+   "source": "codex, style-master v2",
+   "sha16": "b3a81a8c1bd7acc7",
+   "note": "書包貼文主圖"
+  }
+ ]
+}

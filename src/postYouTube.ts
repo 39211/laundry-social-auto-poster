@@ -79,14 +79,33 @@ export function buildShortMetadata(input: { topic: string; caption: string }): {
   const description = [
     `台中西屯的私享家洗衣店在處理${topicObject(input.topic)}時的判斷方式;台中市全區免費到府收送,清潔費另依物件判斷。`,
     input.caption.split("\n\n").slice(0, 3).join("\n\n"),
-    "門市:台中市西屯區青海路二段365號｜LINE 傳照片先估:0968327653",
+    priceLineFor(input.topic),
+    "門市:台中市西屯區青海路二段365號(至善國中對面)｜LINE 傳照片先估:0968327653",
+    "儲值優惠:滿1000送100、儲3000送400、儲6000送1000",
     `這個主題的完整說明:${deepLink}`,
     "#Shorts #台中洗衣店 #台中洗鞋 #西屯洗鞋 #逢甲洗鞋 #洗包"
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   return { title, description };
 }
 
 const SITE = "https://39211.github.io";
+
+/** Public price for the topic's object family; empty when it is ambiguous. */
+function priceLineFor(topic: string): string {
+  const families = [/鞋|靴/, /包|袋/, /衣|裝|衫|服/, /被|床|寢|毯|枕/].filter((f) => f.test(topic));
+  if (families.length !== 1) return "";
+  if (/白鞋|球鞋|運動鞋|帆布/.test(topic)) return "參考價:一般運動鞋 $250、皮類運動鞋 $300(水洗價)";
+  if (/皮鞋|靴/.test(topic)) return "參考價:皮鞋 $400、低靴 $350、高靴 $550(水洗價)";
+  if (/書包|背包/.test(topic)) return "參考價:背包 $500(水洗價)";
+  if (/包|袋/.test(topic)) return "參考價:一般包 $600、皮包 $1000、名牌包 $1500(水洗價)";
+  if (/皮衣/.test(topic)) return "參考價:皮衣 $1200、特殊皮衣 $2000";
+  if (/襯衫|制服/.test(topic)) return "參考價:襯衫 $70、整燙 $50(水洗價)";
+  if (/西裝|大衣|外套/.test(topic)) return "參考價:長大衣 $300、羽絨外套 $280(水洗價,乾洗另計)";
+  if (/被|床|寢|毯|枕/.test(topic)) return "參考價:棉被單人 $350、雙人 $500、羽絨羊毛被 $800(水洗價)";
+  return "";
+}
 
 /** Deep link to the page that answers this topic, not the site root. */
 export function guideLinkFor(topic: string): string {

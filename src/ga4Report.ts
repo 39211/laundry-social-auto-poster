@@ -31,6 +31,8 @@ export interface Ga4DayReport {
   fetched_at: string;
   total_line_clicks: number;
   by_source: Ga4SourceRow[];
+  /** Set when the per-source split could not be fetched but the total could. */
+  breakdown_unavailable?: string;
 }
 
 export class Ga4NotConfiguredError extends Error {
@@ -105,29 +107,58 @@ export async function fetchLineClicks(input: {
   if (missing.length > 0) throw new Ga4NotConfiguredError(missing);
 
   const token = await accessToken(fetchImpl, env);
-  const response = await fetchImpl(
-    `https://analyticsdata.googleapis.com/v1beta/properties/${encodeURIComponent(propertyId)}:runReport`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dateRanges: [{ startDate: input.date, endDate: input.date }],
-        dimensions: [{ name: "customEvent:source" }],
-        metrics: [{ name: "eventCount" }],
-        dimensionFilter: {
-          filter: { fieldName: "eventName", stringFilter: { value: "line_click" } }
-        },
-        limit: 100
-      })
-    }
-  );
-  const payload = (await response.json()) as {
-    rows?: { dimensionValues?: { value?: string }[]; metricValues?: { value?: string }[] }[];
-    error?: { message?: string };
+  const runReport = async (dimension: string) => {
+    const response = await fetchImpl(
+      `https://analyticsdata.googleapis.com/v1beta/properties/${encodeURIComponent(propertyId)}:runReport`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dateRanges: [{ startDate: input.date, endDate: input.date }],
+          dimensions: [{ name: dimension }],
+          metrics: [{ name: "eventCount" }],
+          dimensionFilter: {
+            filter: { fieldName: "eventName", stringFilter: { value: "line_click" } }
+          },
+          limit: 100
+        })
+      }
+    );
+    return (await response.json()) as {
+      rows?: { dimensionValues?: { value?: string }[]; metricValues?: { value?: string }[] }[];
+      error?: { message?: string };
+      _ok?: boolean;
+    } & { _status: number };
   };
-  if (!response.ok || payload.error) {
-    throw new Error(`GA4 runReport failed: ${payload.error?.message ?? response.status}`);
+
+  // The total is asked for with eventName, a built-in dimension, so it works
+  // today and answers for days already past. The per-source breakdown needs
+  // customEvent:source, which only exists once someone registers "source" as a
+  // custom dimension in the GA4 property -- and even then only from that day
+  // forward. Splitting the two calls means a missing registration costs the
+  // breakdown, not the number.
+  const totalPayload = await runReport("eventName");
+  if (totalPayload.error) {
+    throw new Error(`GA4 runReport failed: ${totalPayload.error.message}`);
   }
+  const total = (totalPayload.rows ?? []).reduce(
+    (sum, row) => sum + Number(row.metricValues?.[0]?.value ?? 0),
+    0
+  );
+
+  let sourcePayload: Awaited<ReturnType<typeof runReport>> | null = null;
+  let breakdownUnavailable: string | undefined;
+  try {
+    sourcePayload = await runReport("customEvent:source");
+    if (sourcePayload.error) {
+      breakdownUnavailable = sourcePayload.error.message;
+      sourcePayload = null;
+    }
+  } catch (error) {
+    breakdownUnavailable = error instanceof Error ? error.message : String(error);
+    sourcePayload = null;
+  }
+  const payload = sourcePayload ?? { rows: [] };
 
   const bySource: Ga4SourceRow[] = (payload.rows ?? []).map((row) => ({
     // "(not set)" is what GA4 returns for clicks on links that carry no source
@@ -142,14 +173,17 @@ export async function fetchLineClicks(input: {
     date: input.date,
     property_id: propertyId,
     fetched_at: new Date().toISOString(),
-    total_line_clicks: bySource.reduce((sum, row) => sum + row.line_clicks, 0),
-    by_source: bySource
+    total_line_clicks: total,
+    by_source: bySource,
+    ...(breakdownUnavailable ? { breakdown_unavailable: breakdownUnavailable } : {})
   };
 }
 
 interface LedgerDay {
+  line_clicks_total?: number;
   source_clicks?: Record<string, number>;
-  source_clicks_status?: string;
+  source_clicks_status?: "measured" | "total_only" | "unmeasured";
+  source_clicks_note?: string;
   inquiries?: number | null;
   [key: string]: unknown;
 }
@@ -182,11 +216,23 @@ export async function recordLineClicksToLedger(input: {
   let result: { status: "recorded" | "unmeasured"; total?: number; reason?: string };
   try {
     const report = await fetchLineClicks({ date: input.date, fetchImpl: input.fetchImpl, env: input.env });
-    day.source_clicks = Object.fromEntries(report.by_source.map((row) => [row.source, row.line_clicks]));
-    day.source_clicks_status = "measured";
+    day.line_clicks_total = report.total_line_clicks;
+    if (report.breakdown_unavailable) {
+      // An empty source_clicks next to a non-zero total reads as "every source
+      // got nothing", which is a different claim from "we know the total but
+      // not the split". Leave the map out entirely and say which it is.
+      delete day.source_clicks;
+      day.source_clicks_status = "total_only";
+      day.source_clicks_note = report.breakdown_unavailable;
+    } else {
+      day.source_clicks = Object.fromEntries(report.by_source.map((row) => [row.source, row.line_clicks]));
+      day.source_clicks_status = "measured";
+      delete day.source_clicks_note;
+    }
     result = { status: "recorded", total: report.total_line_clicks };
   } catch (error) {
     delete day.source_clicks;
+    delete day.line_clicks_total;
     day.source_clicks_status = "unmeasured";
     result = { status: "unmeasured", reason: error instanceof Error ? error.message : String(error) };
   }

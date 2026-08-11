@@ -936,9 +936,47 @@ function withLineContact(caption: string): string {
   return blocks.join("\n\n");
 }
 
+// The owner made the price list public (data/prices.json, 109 items) and the
+// distribution report identified "no price, no landmark" as conversion killer
+// number three: a reader with a real need saves the post that already answers
+// 多少錢. One line, matched to the topic's object family, ahead of the LINE line.
+const PRICE_LINES: Array<{ match: RegExp; line: string }> = [
+  { match: /名牌包|精品包|皮包/, line: "參考價：皮包包 $1000、名牌包 $1500 起（發霉特污另計）" },
+  { match: /書包|背包/, line: "參考價：背包清洗 $500（水洗價，以實際報價為主）" },
+  { match: /白鞋|球鞋|運動鞋|帆布鞋/, line: "參考價：一般運動鞋 $250、皮類 $300（水洗價）" },
+  { match: /皮鞋|靴/, line: "參考價：皮鞋 $400、低靴 $350、高靴 $550（水洗價）" },
+  { match: /皮衣/, line: "參考價：皮衣 $1200、特殊皮衣 $2000（發霉另計）" },
+  { match: /襯衫|制服/, line: "參考價：襯衫 $70、整燙 $50（水洗價）" },
+  { match: /西裝|大衣/, line: "參考價：西裝背心 $80、長大衣 $300（水洗價，乾洗另計）" },
+  { match: /羽絨/, line: "參考價：羽絨外套 $280、羽絨羊毛被 $800（水洗價）" },
+  { match: /棉被|床組|寢具|被套/, line: "參考價：棉被單人 $350、雙人 $500、床組四件套 $300（水洗價）" },
+  { match: /窗簾|地毯/, line: "參考價：窗簾地毯依尺寸報價，LINE 傳照片先估" },
+  { match: /娃娃|絨毛/, line: "參考價：絨毛娃娃依大小報價，LINE 傳照片先估" }
+];
+
+function withPriceLine(caption: string, topic: string): string {
+  if (caption.includes("參考價")) return caption;
+  // A mixed-object topic (七夕 shoes-and-bag checks) must not carry a single
+  // family's price -- the wrong number under the wrong object reads as bait.
+  // Family-level check first: the price rules are finer-grained than the
+  // object families, so 白鞋+包角 matched only the sneaker rule and slipped by.
+  const families = [/鞋|靴/, /包/, /衣|裝|衫|服|袍/, /被|床|寢|毯|枕/].filter((f) => f.test(topic));
+  if (families.length > 1) return caption;
+  const matches = PRICE_LINES.filter((entry) => entry.match.test(topic));
+  if (matches.length !== 1) return caption;
+  const rule = matches[0];
+  if (!rule) return caption;
+  const blocks = caption.split("\n\n");
+  const lineIndex = blocks.findIndex((block) => block.includes("0968327653"));
+  const hashtagIndex = blocks.findIndex((block) => block.startsWith("#"));
+  const insertAt = lineIndex !== -1 ? lineIndex : hashtagIndex !== -1 ? hashtagIndex : blocks.length;
+  blocks.splice(insertAt, 0, rule.line);
+  return blocks.join("\n\n");
+}
+
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): string {
   const caption = baseCaptionFromPlaybook(slot, platform);
-  return withLineContact(withEngagementQuestion(caption, slot));
+  return withPriceLine(withLineContact(withEngagementQuestion(caption, slot)), slot.topic);
 }
 
 // Pre-authored playbook captions carry the same defect the assembled ones did:

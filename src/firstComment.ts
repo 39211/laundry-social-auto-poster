@@ -5,6 +5,8 @@ import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 import { join } from "node:path";
 
+const SITE = "https://39211.github.io";
+
 // The shop replies first on its own Instagram post. A comment is the highest
 // distribution signal a post can earn and a thread with zero comments rarely
 // starts itself; the shop opening the thread within the first half hour is the
@@ -32,7 +34,12 @@ function commentTextFor(topic: string): string {
         : /棉被|寢具|床/.test(topic)
           ? "補充:收納前挑有太陽的早上曬兩小時,味道差很多。"
           : "有任何不確定的,拍張照傳過來,我們先幫你看。";
-  return `${tip} 加 LINE 直接問:0968327653`;
+  // The first comment is the one place Instagram lets a link be tapped without
+  // costing reach, and it was spending that on a ten-digit number nobody can
+  // tap. Twenty-eight days of profile-link taps sat at zero because no tappable
+  // path to LINE existed anywhere. The coded redirect is what feeds GA4, so the
+  // ads ladder finally has a number to read.
+  return `${tip} 直接點這裡問:${SITE}/go/line.html?source=ig-comment(或加 LINE:0968327653)`;
 }
 
 export async function postFirstComment(input: {

@@ -267,13 +267,64 @@ async function postOneSlot(
       const fingerprints = JSON.parse(fpRaw) as Record<string, string>;
       const expected = fingerprints[String(slot.slot)];
       const actual = createHash("sha256").update(JSON.stringify(slot)).digest("hex");
-      if (expected && expected !== actual) {
+      // A sidecar that exists but has no entry for this slot used to pass: the
+      // `expected &&` short-circuit turned a missing fingerprint into consent.
+      // That is backwards -- the sidecar's presence is the claim that this day
+      // was fingerprinted, so a gap in it is the one thing that should stop a
+      // publish rather than wave it through.
+      if (!expected) {
+        throw new Error(
+          `Slot ${slot.slot} has no approval fingerprint although ${date} has a fingerprint file; re-run auto-approve before publishing.`
+        );
+      }
+      if (expected !== actual) {
         throw new Error(
           `Slot ${slot.slot} content changed after approval (fingerprint mismatch); re-run auto-approve before publishing.`
         );
       }
     }
   }
+  // Nothing checked whether this exact post had already gone out. Between
+  // 08-07 and 08-11 the account published the same reel with the same caption
+  // four times, each pair a day apart, because a scheduled reel carried its
+  // caption from one day's noon slot into the next day's evening slot. Reach
+  // fell from 169 to the 26-87 range over the same window. The caption side is
+  // fixed at generation now; this is the backstop that refuses to put an
+  // identical post out twice regardless of how it got here.
+  if (!config.dryRun && !preflightOnly) {
+    const caption = (slot.instagram_caption ?? "").trim();
+    if (caption) {
+      const { createHash } = await import("node:crypto");
+      const captionHash = createHash("sha256").update(caption).digest("hex");
+      for (let back = 1; back <= 7; back += 1) {
+        const past = new Date(`${date}T00:00:00Z`);
+        past.setUTCDate(past.getUTCDate() - back);
+        const pastDate = past.toISOString().slice(0, 10);
+        const pastContent = await loadDailyContent(pastDate, root).catch(() => null);
+        if (!pastContent) continue;
+        const pastPosts = await loadPostLog(pastDate, root).catch(() => []);
+        for (const pastSlot of pastContent.slots) {
+          const pastCaption = (pastSlot.instagram_caption ?? "").trim();
+          if (!pastCaption) continue;
+          const sameCaption =
+            createHash("sha256").update(pastCaption).digest("hex") === captionHash;
+          if (!sameCaption) continue;
+          const wentLive = pastPosts.some(
+            (post) =>
+              post.slot === pastSlot.slot &&
+              !post.dry_run &&
+              ["success", "posted"].includes(post.status)
+          );
+          if (wentLive) {
+            throw new Error(
+              `Slot ${slot.slot} caption is byte-identical to ${pastDate} slot ${pastSlot.slot}, which published live. Refusing to repeat it; rewrite the caption or regenerate the day.`
+            );
+          }
+        }
+      }
+    }
+  }
+
   const resolvedMedia = await resolveSlotPublishMedia(slot, date, root);
   const imageAssets = imageAssetsForSlot(slot);
   const imageUrls = imageAssets.map(

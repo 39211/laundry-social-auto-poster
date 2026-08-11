@@ -56,7 +56,20 @@ export async function generateDailyContent(options: GenerateDailyContentOptions 
         // make the slot immune to the regeneration that could fix it.
         const videoPath = join(root, ...current.local_video_path.split("/"));
         const videoExists = await exists(videoPath);
-        if (videoExists) content.slots[index] = current;
+        if (videoExists) {
+          // Carry the media, not the words. Keeping the whole slot meant a
+          // video scheduled from yesterday's slot 3 into today's slot 2
+          // brought its caption along, so five days of August published four
+          // pairs of byte-identical posts one day apart -- and the plan for
+          // 08-13/08-14 had already queued a fifth. The caption belongs to the
+          // day being generated; only the reviewed file survives.
+          content.slots[index] = {
+            ...slot,
+            media_type: current.media_type,
+            local_video_path: current.local_video_path,
+            topic: current.topic,
+          };
+        }
       }
     }
   }

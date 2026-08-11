@@ -497,7 +497,7 @@ function captionFromTemplate(template: SlotTemplate): string {
     template.inspection,
     template.cta,
     `${brandLine}｜台中市區免費到府收送`,
-    "加 LINE 直接問：0968327653",
+    LINE_CONTACT,
     template.hashtags.join(" ")
   ].join("\n\n");
 }
@@ -925,7 +925,13 @@ function withEngagementQuestion(caption: string, slot: GrowthPlaybookSlot): stri
 // "LINE 聯絡" but never gave the reader the actual ID to add. It belongs in
 // the caption, never burned into the video. One line, right before the
 // hashtags, on every post and both platforms.
-const LINE_CONTACT = "加 LINE 直接問：0968327653";
+// A phone number is not a tap target. Instagram bio taps sat at zero for
+// twenty-eight days because nothing in any caption could be followed, so the
+// contact line now leads with the coded redirect -- tappable on Facebook,
+// long-pressable on Instagram, and the only thing that puts a number into the
+// GA4 report the ads ladder waits on.
+export const LINE_CONTACT =
+  "直接點這裡問:https://39211.github.io/go/line.html?source=post(或加 LINE:0968327653)";
 
 function withLineContact(caption: string): string {
   if (caption.includes("0968327653")) return caption;

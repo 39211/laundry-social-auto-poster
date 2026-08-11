@@ -320,7 +320,13 @@ export async function autoApprove(
     fingerprints[String(slot.slot)] = createHash("sha256").update(JSON.stringify(slot)).digest("hex");
     approvedSlots.push(slot.slot);
   }
-  if (approvedSlots.length > 0) {
+  // A dry run must leave nothing behind. It already skips the approval log, but
+  // it was still writing the fingerprint sidecar -- and because a dry run never
+  // fills the map, what landed on disk was `{}`. The publish check reads
+  // `fingerprints[slot]`, gets undefined, and short-circuits: an empty sidecar
+  // does not fail the check, it disables it. 2026-08-12 already had one of
+  // these sitting on disk from a dry run the evening before.
+  if (!options.dryRun && approvedSlots.length > 0) {
     const { writeFile: writeFp } = await import("node:fs/promises");
     await writeFp(fingerprintPath, JSON.stringify(fingerprints, null, 2), "utf8");
   }

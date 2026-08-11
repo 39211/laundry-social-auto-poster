@@ -722,8 +722,9 @@ const SHOP_SCENE =
   "down at the counter, handheld with imperfect framing. The storefront window is the key light from one " +
   "side, weak fluorescent ceiling fill, uneven brightness across the counter, slightly imperfect auto " +
   "white balance, phone sensor noise in the deep shadows only. The item rests fully on the surface with a " +
-  "continuous hard contact shadow. Not cinematic, not studio lighting, no film grain, no film colour " +
-  "grade, no creamy background blur, no waxy surfaces, no readable text, no logo, no watermark, no faces.";
+  "continuous hard contact shadow. No laundry basket, no washing machine, no domestic living room, no " +
+  "shopfront. Not cinematic, not studio lighting, no film grain, no film colour grade, no creamy " +
+  "background blur, no waxy surfaces, no readable text, no logo, no watermark, no faces.";
 
 export const SHARED_STILL_PROMPT =
   `Ordinary portrait 4:5 shop photo. [SUBJECT] on the inspection counter of ${SHOP_SCENE} ` +

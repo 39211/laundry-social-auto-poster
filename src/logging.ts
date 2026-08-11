@@ -256,7 +256,10 @@ export function hasRecordedPost(
     if (entry.slot !== slot || entry.platform !== platform) return false;
     if (entry.status === "missed") return true;
     if (dryRun) return entry.dry_run && ["success", "dry_run"].includes(entry.status);
-    return !entry.dry_run && ["success", "posted"].includes(entry.status);
+    // "uncertain" counts as recorded: the post may be live, so the only safe
+    // reading is "do not publish this again"; a human clears it after checking
+    // the platform's own dashboard.
+    return !entry.dry_run && ["success", "posted", "uncertain"].includes(entry.status);
   });
 }
 

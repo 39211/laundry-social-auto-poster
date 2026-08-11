@@ -2,7 +2,12 @@ export type Platform = "facebook" | "instagram";
 
 export type MediaType = "image" | "carousel" | "reel" | "mixed-carousel";
 
-export type PostStatus = "pending" | "success" | "dry_run" | "posted" | "failed" | "skipped" | "missed";
+// "uncertain" records a commit-point failure: the API call that creates the
+// post errored AFTER the point where the post may already exist. It is the
+// one status that must stop the catch-up chain from publishing again -- the
+// 2026-08-11 double-publications happened because these were recorded as
+// "failed", which catch-up reads as "never went out".
+export type PostStatus = "pending" | "success" | "dry_run" | "posted" | "failed" | "skipped" | "missed" | "uncertain";
 
 export type Category = "知識文" | "情境文";
 

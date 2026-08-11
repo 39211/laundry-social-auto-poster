@@ -169,3 +169,10 @@
 - **真因**:沒有把「這個字要在幾公尺外被讀到」變成參數,只憑畫面比例挑大小。
 - **修法**:字高 = 閱讀距離(m) × 8.33(業界規則:1 英寸/10 英尺);先宣告每個元素的目標距離,字級由公式產生。主圖高度是可以退讓的,字高不行。
 - **再驗**:拿同一把尺回頭量舊版,失敗項要能被指認出來(已量,v3/v4 各三項不合格)。
+
+### E4|「發布後絕不重試」只在單一行程內成立,補跑鏈照樣重發
+- **症狀**:8/11 slot 2 IG attempts=2;圍堵令記載 dual-Reel publication。
+- **真因**:三層洞。①FB 發布端(photos published:true、Reel finish、輪播 /feed)完全沒有 commit 保護,普通 Error → withRetry 重跑整條上傳;②IG 的 response.json() 在 try 外,回應在傳輸中斷線 = 可重試的 SyntaxError —— 正是它要擋的那種情況;③commit 失敗記成 "failed",補跑鏈把 failed 讀成「沒發過」→ 兩小時後再發一次。
+- **修法**:兩平台 commit point 統一白名單制(只有明確成功可繞過,其餘一律 NonRetryable);新增 posted-log 狀態 "uncertain",hasRecordedPost 視為已記錄,人工查後台後才清除。
+- **再驗**:突變實測 —— 把 uncertain 從 hasRecordedPost 拿掉,測試變紅(已驗)。
+- **通則**:**「絕不重試」要在每一個會重新進場的路徑上成立**:行程內(withRetry)、跨行程(補跑鏈)、跨日(排程救援)。只擋一層等於沒擋。

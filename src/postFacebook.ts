@@ -1,4 +1,5 @@
 import { assertLiveMetaConfig } from "./config";
+import { NonRetryableError } from "./retry";
 import type { AppConfig, PostInput, PostResult } from "./types";
 
 interface FacebookResponse {
@@ -21,6 +22,43 @@ async function readFacebookResponse(response: Response, fallback: string): Promi
   const payload = (await response.json()) as FacebookResponse;
   if (!response.ok || payload.error) {
     throw new Error(payload.error?.message || `${fallback} with ${response.status}`);
+  }
+  return payload;
+}
+
+// The Facebook side had no commit protection at all: the photo POST with
+// published:"true" and the Reel upload_phase:"finish" both create the post the
+// moment the server acts, and both threw plain Errors on a lost response or a
+// late 5xx -- which withRetry reran, republishing. The 2026-08-11 containment
+// note names exactly this ("unsafe three-attempt publisher"). Same contract as
+// Instagram's media_publish: at a commit point, only confirmed success is
+// retryable-around; every other outcome must be assumed live.
+async function commitFacebookCall(
+  call: () => Promise<Response>,
+  what: string
+): Promise<FacebookResponse> {
+  let response: Response;
+  try {
+    response = await call();
+  } catch (error) {
+    throw new NonRetryableError(
+      `${what} response was lost; the post may already be live. Not retrying.`,
+      { cause: error }
+    );
+  }
+  let payload: FacebookResponse;
+  try {
+    payload = (await response.json()) as FacebookResponse;
+  } catch (error) {
+    throw new NonRetryableError(
+      `${what} response could not be read; the post may already be live. Not retrying.`,
+      { cause: error }
+    );
+  }
+  if (!response.ok || payload.error) {
+    throw new NonRetryableError(
+      `${payload.error?.message || `${what} failed with ${response.status}`} (commit point; the post may already be live. Not retrying.)`
+    );
   }
   return payload;
 }
@@ -50,8 +88,10 @@ export async function postFacebookPhoto(
     access_token: config.metaAccessToken ?? ""
   });
 
-  const response = await fetchImpl(endpoint, { method: "POST", body });
-  const payload = await readFacebookResponse(response, "Facebook publish failed");
+  const payload = await commitFacebookCall(
+    () => fetchImpl(endpoint, { method: "POST", body }),
+    "Facebook photo publish"
+  );
 
   return {
     platform: "facebook",
@@ -107,12 +147,14 @@ export async function postFacebookCarousel(
   photoIds.forEach((id, index) => {
     body.set(`attached_media[${index}]`, JSON.stringify({ media_fbid: id }));
   });
-  const published = await readFacebookResponse(
-    await fetchImpl(`https://graph.facebook.com/${config.graphApiVersion}/${config.facebookPageId}/feed`, {
+  // The /feed POST is the carousel's commit point; the unpublished photo
+  // uploads before it are safely retryable.
+  const published = await commitFacebookCall(
+    () => fetchImpl(`https://graph.facebook.com/${config.graphApiVersion}/${config.facebookPageId}/feed`, {
       method: "POST",
       body
     }),
-    "Facebook carousel publish failed"
+    "Facebook carousel publish"
   );
 
   return {
@@ -157,6 +199,7 @@ export async function postFacebookReel(
   if (!started.video_id || !started.upload_url) {
     throw new Error("Facebook Reel session did not return video_id and upload_url.");
   }
+  const startedVideoId = started.video_id;
 
   const uploaded = await readFacebookResponse(
     await fetchImpl(started.upload_url, {
@@ -170,20 +213,24 @@ export async function postFacebookReel(
   );
   if (uploaded.success !== true) throw new Error("Facebook Reel upload did not return success=true.");
 
-  const finished = await readFacebookResponse(
-    await fetchImpl(endpoint, {
+  const finished = await commitFacebookCall(
+    () => fetchImpl(endpoint, {
       method: "POST",
       body: new URLSearchParams({
         access_token: config.metaAccessToken ?? "",
-        video_id: started.video_id,
+        video_id: startedVideoId,
         upload_phase: "finish",
         video_state: "PUBLISHED",
         description: input.caption
       })
     }),
-    "Facebook Reel publish failed"
+    "Facebook Reel publish"
   );
-  if (finished.success !== true) throw new Error("Facebook Reel publish did not return success=true.");
+  if (finished.success !== true) {
+    throw new NonRetryableError(
+      "Facebook Reel publish did not return success=true (commit point; the Reel may already be live. Not retrying.)"
+    );
+  }
 
   // The finish call above is the commit point: the Reel is live on the Page
   // the moment it returns success. Everything after is observation, and it

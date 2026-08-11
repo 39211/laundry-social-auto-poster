@@ -42,11 +42,30 @@ async function postForm(
     }
     throw error;
   }
-  const payload = (await response.json()) as InstagramResponse;
+  // Past the commit point the burden of proof flips: only an explicit success
+  // may be retried-around, and everything else must be treated as possibly
+  // live. The earlier shape had two holes the audit walked through. The body
+  // read sat outside the try, so a connection dropped mid-body threw a plain
+  // SyntaxError -- retryable -- for exactly the "response lost in transit"
+  // case the guard was written for. And only status >= 500 was non-retryable,
+  // although Meta can return an error envelope on a 200/4xx after the publish
+  // has committed.
+  let payload: InstagramResponse;
+  try {
+    payload = (await response.json()) as InstagramResponse;
+  } catch (error) {
+    if (isCommit) {
+      throw new NonRetryableError(
+        `Instagram media_publish response could not be read; the post may already be live. Not retrying.`,
+        { cause: error }
+      );
+    }
+    throw error;
+  }
   if (!response.ok || payload.error || !payload.id) {
     const message = payload.error?.message || `Instagram request failed with ${response.status}`;
-    if (isCommit && response.status >= 500) {
-      throw new NonRetryableError(`${message} (media_publish 5xx; the post may already be live. Not retrying.)`);
+    if (isCommit) {
+      throw new NonRetryableError(`${message} (media_publish did not confirm success; the post may already be live. Not retrying.)`);
     }
     throw new Error(message);
   }

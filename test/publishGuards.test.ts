@@ -152,4 +152,20 @@ describe("publish guards", () => {
     expect(kept.local_video_path).toBe(`docs/assets/${DATE}/slot-02.mp4`);
     expect(kept.instagram_caption).not.toBe("昨天寫的文案,不該跟著影片過來。");
   });
+
+  it("a commit-point failure blocks the catch-up chain from publishing again", async () => {
+    // The 08-11 containment exists because commit failures were recorded as
+    // "failed", which hasRecordedPost reads as "never went out" -- so catch-up
+    // republished a post that was already live. "uncertain" must read as
+    // recorded, and plain failures must still allow the retry.
+    const { hasRecordedPost } = await import("../src/logging");
+    const uncertain = [
+      { date: DATE, slot: 2, platform: "instagram", status: "uncertain", dry_run: false, attempts: 3, created_at: "" },
+    ] as never[];
+    const failed = [
+      { date: DATE, slot: 2, platform: "instagram", status: "failed", dry_run: false, attempts: 3, created_at: "" },
+    ] as never[];
+    expect(hasRecordedPost(uncertain, 2, "instagram", false)).toBe(true);
+    expect(hasRecordedPost(failed, 2, "instagram", false)).toBe(false);
+  });
 });

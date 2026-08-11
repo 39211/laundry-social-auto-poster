@@ -26,7 +26,7 @@ import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
 import { postInstagramCarousel, postInstagramPhoto, postInstagramReel } from "./postInstagram";
-import { withRetry } from "./retry";
+import { NonRetryableError, withRetry } from "./retry";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
 import { DAILY_SCHEDULE, findSlotByNumber, getZonedDateParts, resolveCurrentSlot } from "./scheduler";
 import type {
@@ -452,11 +452,15 @@ async function postOneSlot(
       await appendPostLog(entry, root);
       outputs.push(entry);
     } catch (error) {
+      // A NonRetryableError from a commit point means the post may already be
+      // live. Recording it as "failed" is what let the catch-up chain publish
+      // the same slot again two hours later.
+      const commitUncertain = error instanceof NonRetryableError;
       const entry: PostLogEntry = {
         date,
         slot: slot.slot,
         platform,
-        status: "failed",
+        status: commitUncertain ? "uncertain" : "failed",
         dry_run: config.dryRun,
         attempts: 3,
         published_media_type: input.mediaType,

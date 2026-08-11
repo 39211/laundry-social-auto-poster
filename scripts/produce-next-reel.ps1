@@ -334,7 +334,10 @@ if ($midTreatment -ne "none") {
 $treatmentNeedsMiddle = ($midTreatment -eq "A" -or $midTreatment -eq "B" -or $midTreatment -eq "C")
 
 # --- pick work: prefer missing 15s for the next 3 plan days ------------------
-$windowDays = Get-PlanDaysInWindow $now.Date 3
+# Four-day window, not three: with one asset produced per run, a day needing
+# two 15s cuts (2026-08-14) only entered view 48 hours out, leaving no room for
+# a failed generation. Four days keeps a spare day for every plan slot.
+$windowDays = Get-PlanDaysInWindow $now.Date 4
 $targetVariant = "10s"
 $concept = $null
 $conceptInfo = $null

@@ -1169,15 +1169,33 @@ function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
                   : /包/.test(topic)
                   ? "包包"
                     : "衣物";
+  // The subject used to be a constant per category, so every shoe topic asked
+  // for "navy-and-warm-white sneakers" -- including 白鞋泛黃 and 白鞋鞋邊泛灰,
+  // which produced navy canvas shoes for posts about white ones. A category is
+  // not a subject: the topic already says which object it means, and the colour
+  // it names is usually the whole point of the post.
+  const shoeColour = /白鞋/.test(topic)
+    ? "white leather low-top sneakers with a white rubber midsole"
+    : /帆布/.test(topic)
+      ? "off-white canvas low-top sneakers"
+      : /皮鞋/.test(topic)
+        ? "dark brown leather dress shoes"
+        : /靴/.test(topic)
+          ? "mid-height brown leather boots"
+          : /勃肯|拖鞋|涼鞋/.test(topic)
+            ? "cork-footbed leather sandals"
+            : /運動鞋|球鞋/.test(topic)
+              ? "grey-and-white running shoes"
+              : "unbranded navy-and-warm-white sneakers";
   const subject =
     headline === "鞋子"
-      ? "exactly one paired set of two unbranded navy-and-warm-white sneakers"
+      ? `exactly one paired set of two ${shoeColour}`
       : headline === "床組"
         ? "exactly one complete folded warm-white cotton duvet cover with a thin navy piping edge"
         : `exactly one complete ${headline} item`;
   const sameSubject =
     headline === "鞋子"
-      ? "the same paired set of two sneakers"
+      ? `the same paired set of two ${shoeColour}`
       : headline === "床組"
         ? "the same folded duvet cover"
         : `the same complete ${headline} item`;

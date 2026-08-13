@@ -23,6 +23,32 @@ const captions = dates.flatMap((date) =>
     }))
 );
 
+// Prompts, not just captions: the 2026-08-14 carousel for 白鞋鞋邊泛灰 was
+// generated as navy canvas shoes because the subject was a per-category
+// constant. No gate could see it -- they check that an image exists, not that
+// it shows the object the words are about.
+const prompted = dates.flatMap((date) =>
+  buildDailyContent(date, config).slots.flatMap((slot) => [
+    { date, topic: slot.topic, prompt: slot.image_prompt ?? "" },
+    ...(slot.carousel_items ?? []).map((item) => ({
+      date,
+      topic: slot.topic,
+      prompt: item.image_prompt ?? ""
+    }))
+  ])
+);
+
+describe("image prompts name the object the topic is about", () => {
+  it("never asks for navy shoes on a white-shoe topic", () => {
+    const whiteShoe = prompted.filter((entry) => /白鞋/.test(entry.topic) && entry.prompt);
+    expect(whiteShoe.length, "no 白鞋 topic in the sampled month").toBeGreaterThan(0);
+    for (const entry of whiteShoe) {
+      expect(entry.prompt, `${entry.date} 白鞋 prompt asks for navy`).not.toMatch(/navy/i);
+      expect(entry.prompt, `${entry.date} 白鞋 prompt never says white`).toMatch(/white/i);
+    }
+  });
+});
+
 describe("caption quality", () => {
   it("never spends the fold line on the shop name", () => {
     // Instagram folds around 125 characters, so block 2 is the last thing most

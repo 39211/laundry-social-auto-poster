@@ -849,8 +849,12 @@ if ($windowDays.Count -gt 0) {
         Set-CanonicalForDate -ForDate $day.date -ConceptId $day.noon.conceptId -Variant $day.noon.variant
         Set-CanonicalForDate -ForDate $day.date -ConceptId $day.evening.conceptId -Variant $day.evening.variant
         $noonAsset = Get-ReelAssetPath $day.noon.conceptId $day.noon.variant
+        # A paused half must not hold the day hostage: requiring its asset would
+        # block the noon post that is still meant to go out.
+        $evePaused = $day.evening.paused -eq $true
         $eveAsset = Get-ReelAssetPath $day.evening.conceptId $day.evening.variant
-        if (-not ((Test-Path $noonAsset) -and (Test-Path $eveAsset))) {
+        $eveReady = $evePaused -or (Test-Path $eveAsset)
+        if (-not ((Test-Path $noonAsset) -and $eveReady)) {
             Write-Log "Plan day $($day.date): assets not both ready (noon $($day.noon.conceptId)/$($day.noon.variant), evening $($day.evening.conceptId)/$($day.evening.variant)); skip schedule."
             continue
         }
@@ -861,6 +865,15 @@ if ($windowDays.Count -gt 0) {
             @{ slot = 3; plan = $day.noon; name = "noon" },
             @{ slot = 2; plan = $day.evening; name = "evening" }
         )) {
+            # The 90-day plan cuts daily output from seven pieces to three from
+            # 2026-08-15, on the evidence that the 211th post earned nothing.
+            # The half stays in the plan file rather than being deleted, so the
+            # concept rotation and the runway maths still see it and a later
+            # decision to resume is one flag away -- but it is not scheduled.
+            if ($half.plan.paused -eq $true) {
+                Write-Log "Plan day $($day.date) $($half.name): paused by plan (capacity 7->3); not scheduling."
+                continue
+            }
             $cId = $half.plan.conceptId
             $var = $half.plan.variant
             $slotN = $half.slot

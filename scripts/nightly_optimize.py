@@ -212,6 +212,41 @@ except OSError:
         "urllib 逾時或連線失敗", "隔天自檢會再試;連續多天失敗才需要人工看")
 
 
+# --- 10. Did the day actually publish, and can the machine wake to do it? ----
+# 2026-08-12 and 08-13 published nothing at all. No code failed: the machine
+# was asleep, every task had WakeToRun=False, and StartWhenAvailable quietly
+# deferred the whole day until it woke at 23:40 -- by which time the publish
+# windows had closed. Nothing in this audit noticed, because it only ever
+# checked tomorrow's readiness, never whether today shipped.
+posted = load(f"data/posted-log/{ds}.json", [])
+posted = posted if isinstance(posted, list) else [posted]
+live = {(e.get("slot"), e.get("platform")) for e in posted
+        if e.get("status") in ("success", "posted") and not e.get("dry_run")}
+if not live:
+    add("HIGH", "今日發布", "今天一則都沒發出去",
+        f"data/posted-log/{ds}.json 沒有任何 success/posted",
+        "查排程 LastTaskResult;3221225786=行程被殺(多半是睡眠或關機)。"
+        "確認 WakeToRun=True,並檢查是否有人整天關機")
+
+try:
+    ps = subprocess.run(
+        ["powershell", "-NoProfile", "-Command",
+         "Get-ScheduledTask | Where-Object {$_.TaskName -in "
+         "'Laundry-Daily-Generate','Laundry-Daily-Approve','Laundry-CatchUp-Publish'} | "
+         "ForEach-Object { '{0}|{1}' -f $_.TaskName, $_.Settings.WakeToRun }"],
+        capture_output=True, text=True, timeout=120,
+    )
+    for line in ps.stdout.strip().splitlines():
+        if "|" in line:
+            name, wake = line.split("|", 1)
+            if wake.strip().lower() not in ("true", "$true"):
+                add("HIGH", "排程", f"{name.strip()} 的 WakeToRun 是 False",
+                    "機器睡著時排程不會叫醒它,整天會靜默不發",
+                    "Set-ScheduledTask 把 WakeToRun 設為 True")
+except (subprocess.SubprocessError, OSError):
+    pass
+
+
 # --- Report ------------------------------------------------------------------
 os.makedirs("output/nightly-optimize", exist_ok=True)
 rank = {"HIGH": 0, "MED": 1, "LOW": 2}

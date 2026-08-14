@@ -254,5 +254,557 @@
    "variant": "15s",
    "paused": true
   }
+ },
+ {
+  "date": "2026-08-29",
+  "noon": {
+   "conceptId": "canvas-shoe-mud",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "duvet-storage",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-08-30",
+  "noon": {
+   "conceptId": "suit-shoulder",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "canvas-shoe-mud",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-08-31",
+  "noon": {
+   "conceptId": "backpack-base",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "suit-shoulder",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-01",
+  "noon": {
+   "conceptId": "curtain-hem",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "backpack-base",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-02",
+  "noon": {
+   "conceptId": "plush-doll",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "curtain-hem",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-03",
+  "noon": {
+   "conceptId": "leather-shoe-rain",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "plush-doll",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-04",
+  "noon": {
+   "conceptId": "white-shoe-yellowing",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "leather-shoe-rain",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-05",
+  "noon": {
+   "conceptId": "shirt-collar",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "white-shoe-yellowing",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-06",
+  "noon": {
+   "conceptId": "luggage-wheel",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "shirt-collar",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-07",
+  "noon": {
+   "conceptId": "down-jacket-cuff",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "luggage-wheel",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-08",
+  "noon": {
+   "conceptId": "wool-coat-shoulder",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "down-jacket-cuff",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-09",
+  "noon": {
+   "conceptId": "suede-shoe-nap",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "wool-coat-shoulder",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-10",
+  "noon": {
+   "conceptId": "heel-tip-scuff",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "suede-shoe-nap",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-11",
+  "noon": {
+   "conceptId": "leather-belt-crease",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "heel-tip-scuff",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-12",
+  "noon": {
+   "conceptId": "mattress-pad-sweat",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "leather-belt-crease",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-13",
+  "noon": {
+   "conceptId": "blanket-pilling",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "mattress-pad-sweat",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-14",
+  "noon": {
+   "conceptId": "denim-knee-fade",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "blanket-pilling",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-15",
+  "noon": {
+   "conceptId": "wallet-edge-wear",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "denim-knee-fade",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-16",
+  "noon": {
+   "conceptId": "kids-shoe-toe",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "wallet-edge-wear",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-17",
+  "noon": {
+   "conceptId": "hiking-boot-mud",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "kids-shoe-toe",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-18",
+  "noon": {
+   "conceptId": "sweater-underarm",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "hiking-boot-mud",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-19",
+  "noon": {
+   "conceptId": "leather-bag-corner",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "sweater-underarm",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-20",
+  "noon": {
+   "conceptId": "handbag-handle",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "leather-bag-corner",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-21",
+  "noon": {
+   "conceptId": "duvet-storage",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "handbag-handle",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-22",
+  "noon": {
+   "conceptId": "canvas-shoe-mud",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "duvet-storage",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-23",
+  "noon": {
+   "conceptId": "suit-shoulder",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "canvas-shoe-mud",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-24",
+  "noon": {
+   "conceptId": "backpack-base",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "suit-shoulder",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-25",
+  "noon": {
+   "conceptId": "curtain-hem",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "backpack-base",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-26",
+  "noon": {
+   "conceptId": "plush-doll",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "curtain-hem",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-27",
+  "noon": {
+   "conceptId": "leather-shoe-rain",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "plush-doll",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-28",
+  "noon": {
+   "conceptId": "white-shoe-yellowing",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "leather-shoe-rain",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-29",
+  "noon": {
+   "conceptId": "shirt-collar",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "white-shoe-yellowing",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-09-30",
+  "noon": {
+   "conceptId": "luggage-wheel",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "shirt-collar",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-01",
+  "noon": {
+   "conceptId": "down-jacket-cuff",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "luggage-wheel",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-02",
+  "noon": {
+   "conceptId": "wool-coat-shoulder",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "down-jacket-cuff",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-03",
+  "noon": {
+   "conceptId": "suede-shoe-nap",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "wool-coat-shoulder",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-04",
+  "noon": {
+   "conceptId": "heel-tip-scuff",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "suede-shoe-nap",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-05",
+  "noon": {
+   "conceptId": "leather-belt-crease",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "heel-tip-scuff",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-06",
+  "noon": {
+   "conceptId": "mattress-pad-sweat",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "leather-belt-crease",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-07",
+  "noon": {
+   "conceptId": "blanket-pilling",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "mattress-pad-sweat",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-08",
+  "noon": {
+   "conceptId": "denim-knee-fade",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "blanket-pilling",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-09",
+  "noon": {
+   "conceptId": "wallet-edge-wear",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "denim-knee-fade",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-10",
+  "noon": {
+   "conceptId": "kids-shoe-toe",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "wallet-edge-wear",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-11",
+  "noon": {
+   "conceptId": "hiking-boot-mud",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "kids-shoe-toe",
+   "variant": "15s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-12",
+  "noon": {
+   "conceptId": "sweater-underarm",
+   "variant": "15s"
+  },
+  "evening": {
+   "conceptId": "hiking-boot-mud",
+   "variant": "10s",
+   "paused": true
+  }
+ },
+ {
+  "date": "2026-10-13",
+  "noon": {
+   "conceptId": "leather-bag-corner",
+   "variant": "10s"
+  },
+  "evening": {
+   "conceptId": "sweater-underarm",
+   "variant": "15s",
+   "paused": true
+  }
  }
 ]

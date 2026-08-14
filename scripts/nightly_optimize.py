@@ -74,9 +74,34 @@ ts = TOMORROW.isoformat()
 # --- 1. Tomorrow has to be ready tonight, not at 06:30 -----------------------
 cal = load(f"data/content-calendar/{ts}.json")
 if cal is None:
-    add("HIGH", "明日備妥", f"{ts} 行事曆不存在",
-        f"data/content-calendar/{ts}.json 缺檔",
-        "06:30 會自動生成,但若隔天沒生成就是零內容;明早 07:30 必須確認")
+    # A calendar is generated at 06:30 on its own day, so tomorrow's is missing
+    # every night by design and this fired HIGH every single run. A finding that
+    # is always true teaches you to scroll past the whole report -- and this
+    # report is the only thing standing between a broken morning and a silent
+    # zero-publish day.
+    #
+    # What actually protects tomorrow is that the 06:30 trigger is armed and can
+    # wake the machine, so that is what gets checked. Absent calendar plus
+    # healthy trigger is normal; absent calendar plus dead trigger is the real
+    # emergency, and it used to be buried under the noise.
+    gen = run(["powershell", "-NoProfile", "-Command",
+               "$t = Get-ScheduledTask -TaskName 'Laundry-Daily-Generate' -ErrorAction SilentlyContinue; "
+               "if ($t) { $i = $t | Get-ScheduledTaskInfo; "
+               "'{0}|{1}|{2}' -f $t.State, $t.Settings.WakeToRun, $i.NextRunTime } else { 'MISSING||' }"])
+    line = gen.strip().splitlines()[0] if gen.strip() else ""
+    state, wake, nxt = (line.split("|") + ["", "", ""])[:3]
+    if not line:
+        add("HIGH", "明日備妥", "查不到 06:30 生成排程的狀態",
+            "PowerShell 探測沒有回傳",
+            "人工確認 Laundry-Daily-Generate 還在、而且排得到明天")
+    elif state == "MISSING" or not nxt.strip():
+        add("HIGH", "明日備妥", f"{ts} 沒有行事曆,而且 06:30 生成排程不會再跑",
+            f"Laundry-Daily-Generate state={state} NextRunTime='{nxt.strip()}'",
+            "重新註冊該排程,否則明天零內容(ERROR-BOOK D1)")
+    elif wake.strip().lower() not in ("true", "$true"):
+        add("HIGH", "明日備妥", f"{ts} 沒有行事曆,而 06:30 叫不醒睡著的機器",
+            f"Laundry-Daily-Generate WakeToRun={wake}",
+            "Set-ScheduledTask 把 WakeToRun 設為 True(8/12-13 就是這樣零發布)")
 else:
     slots = cal.get("slots", [])
     for s in slots:

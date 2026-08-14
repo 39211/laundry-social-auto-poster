@@ -670,7 +670,13 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
 
     # Base TTS (control / scheduleReel path). Treatment A/B may also write a
     # rearranged sidecar so attribution keeps both the stock and treated voice.
-    $ttsFile = Join-Path $run "tts\$concept.mp3"
+    # The voice is part of the cache key. Narration is only generated when the
+    # file is absent, so switching voices without this would leave every concept
+    # that already had an mp3 speaking in the old one -- the change would apply
+    # to new concepts only, silently, which is ERROR-BOOK A2 wearing a new hat.
+    # With the voice in the name, changing it simply misses the cache.
+    $voiceTag = ($narrationVoice -replace '^zh-TW-', '' -replace 'Neural$', '').ToLower()
+    $ttsFile = Join-Path $run "tts\$concept-$voiceTag.mp3"
     if (-not (Test-Path $ttsFile)) {
         Write-Log "Generating narration."
         python -m edge_tts --voice $narrationVoice --rate=+8% --text $conceptInfo.narration --write-media $ttsFile 2>&1 | Out-Null
@@ -684,7 +690,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
     $treatedNarrationText = Get-TreatedNarrationText ([string]$conceptInfo.narration) $midTreatment
     $ttsTreated = $ttsFile
     if ($midTreatment -eq "A" -or $midTreatment -eq "B") {
-        $ttsTreated = Join-Path $run ("tts\$concept" + $midSuffix + ".mp3")
+        $ttsTreated = Join-Path $run ("tts\$concept" + $midSuffix + "-$voiceTag.mp3")
         if (-not (Test-Path $ttsTreated)) {
             Write-Log "Generating treated narration ($midTreatment)."
             python -m edge_tts --voice $narrationVoice --rate=+8% --text $treatedNarrationText --write-media $ttsTreated 2>&1 | Out-Null

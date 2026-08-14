@@ -204,18 +204,34 @@ export async function autoApprove(
       blockSlot(1, "slot 1 圖片 manifest 缺失或無法解析,圖文一致性未證明");
     }
 
-    // Second witness: the topic stamped onto each file by `mark-image-source`,
-    // which the generator runs in the same breath as writing the file.
-    // Boundary, stated rather than overclaimed: this defends against the
-    // automated failure -- a manifest rebuilt after the images were made -- and
-    // not against someone re-running `mark-image-source` by hand on a stale
-    // file. No record written by a separate command can defend against that
-    // command being run again.
+    // Second witness: the topic stamped onto each file's source record by
+    // `mark-image-source`, which the image placer runs right after writing the
+    // file.
+    //
+    // What it actually covers, corrected after review -- the first version of
+    // this comment claimed more than the code does, in both directions:
+    //   IT DOES stop the 2026-08-14 case: manifest rebuilt, images untouched.
+    //   IT DOES NOT prove the image matches the caption. The stamp records the
+    //     calendar topic at marking time, not what the image was generated
+    //     from. Change the topic, leave `image_prompt` stale, delete the files
+    //     and regenerate: both witnesses go green over a picture of the old
+    //     object. That is ERROR-BOOK A1, and it is automated, not manual.
+    //   IT DOES NOT cover slots 2 and 3, which have carried carousels.
+    //   IT DOES NOT bind to the file's bytes, so re-marking a stale file
+    //     relabels it.
+    // Closing those needs the stamp to carry the prompt hash and the file
+    // hash, and to apply to every slot. Until then this is one path closed,
+    // not the invariant enforced.
     const slot1Sources = (await loadImageSources(date, root)).filter((entry) => entry.slot === 1);
     const slot1Assets = imageAssetsForSlot(slot1).map((asset) => asset.local_image_path);
     for (const path of slot1Assets) {
       const record = slot1Sources.find((entry) => entry.image_path === path);
-      if (!record) continue; // the missing-source gate below already covers this
+      // Not "covered by the missing-source gate below" -- that gate matches on
+      // image_path alone and ignores entry.slot, so a record filed under the
+      // wrong slot satisfies it while never reaching this loop. The only
+      // writer validates slot/path agreement, so nothing automated produces
+      // that shape today; the `continue` is still unproven ground.
+      if (!record) continue;
       if (record.topic === undefined) {
         blockSlot(1, `slot 1 ${path} 沒有記錄產生當下的主題,圖文一致性未證明`);
       } else if (record.topic !== slot1.topic) {

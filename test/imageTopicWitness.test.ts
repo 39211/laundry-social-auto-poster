@@ -107,6 +107,26 @@ describe("the topic stamped on each image file", () => {
     );
   });
 
+  // The shape of the actual 2026-08-14 accident, and the one the first three
+  // tests could not see: the manifest has been rebuilt so it agrees with the
+  // caption, while the file on disk was made for something else. Designed by
+  // the grok review seat, which pointed out that the fixture never writes an
+  // image-prompts file at all -- so the first witness always lands in its catch
+  // branch and the tests never exercise "manifest green, file stale".
+  it("blocks when the manifest agrees but the file's own stamp does not", async () => {
+    await writeSource({ topic: "行李箱收進櫃子前,先看輪子" });
+    await mkdir(join(root, "data", "image-prompts"), { recursive: true });
+    await writeFile(
+      join(root, "data", "image-prompts", `${DATE}.json`),
+      JSON.stringify([{ slot: 1, topic: CAPTION_TOPIC }]),
+      "utf8"
+    );
+
+    const result = await autoApprove({ date: DATE, root });
+
+    expect(witnessBlockers(result.blockers).some((text) => text.includes("文不配圖"))).toBe(true);
+  });
+
   it("says nothing about the file when the stamped topic matches the caption", async () => {
     await writeSource({ topic: CAPTION_TOPIC });
 

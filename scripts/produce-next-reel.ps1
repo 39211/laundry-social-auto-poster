@@ -661,12 +661,19 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
     }
 
     # --- narration, colour match, assembly -----------------------------------
+    # The narrator is the craftsman. The persona the whole shop is built on is a
+    # 職人師傅 -- a male master -- and the narration shipped in a female voice for
+    # weeks, so the one voice the account has was contradicting the one thing it
+    # claims. Rate eased from +10% to +8%: a master explaining a judgement does
+    # not rush.
+    $narrationVoice = "zh-TW-YunJheNeural"
+
     # Base TTS (control / scheduleReel path). Treatment A/B may also write a
     # rearranged sidecar so attribution keeps both the stock and treated voice.
     $ttsFile = Join-Path $run "tts\$concept.mp3"
     if (-not (Test-Path $ttsFile)) {
         Write-Log "Generating narration."
-        python -m edge_tts --voice zh-TW-HsiaoChenNeural --rate=+10% --text $conceptInfo.narration --write-media $ttsFile 2>&1 | Out-Null
+        python -m edge_tts --voice $narrationVoice --rate=+8% --text $conceptInfo.narration --write-media $ttsFile 2>&1 | Out-Null
         if (-not (Test-Path $ttsFile)) {
             Write-Log "Narration failed for $concept."
             Show-Toast "$concept 的旁白生成失敗，請看 log。"
@@ -680,7 +687,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
         $ttsTreated = Join-Path $run ("tts\$concept" + $midSuffix + ".mp3")
         if (-not (Test-Path $ttsTreated)) {
             Write-Log "Generating treated narration ($midTreatment)."
-            python -m edge_tts --voice zh-TW-HsiaoChenNeural --rate=+10% --text $treatedNarrationText --write-media $ttsTreated 2>&1 | Out-Null
+            python -m edge_tts --voice $narrationVoice --rate=+8% --text $treatedNarrationText --write-media $ttsTreated 2>&1 | Out-Null
             if (-not (Test-Path $ttsTreated)) {
                 Write-Log "Treated narration failed for $concept; using base TTS."
                 $ttsTreated = $ttsFile

@@ -747,9 +747,43 @@ const SHOP_SCENE =
   "shopfront. Not cinematic, not studio lighting, no film grain, no film colour grade, no creamy " +
   "background blur, no waxy surfaces, no readable text, no logo, no watermark, no faces.";
 
+// The craftsman, described once so he is the same person in every act and every
+// reel. The shop's whole position is that a person looked at your thing and
+// made a judgement, and for weeks the videos showed only objects on a counter --
+// the one claim the account makes was the one thing never on screen.
+//
+// Hands and forearms only, and that is deliberate rather than a limitation:
+// faces are where generated video breaks continuity most visibly, and a
+// generated face standing in for a real shop owner is a claim the shop cannot
+// make. Hands doing skilled work say "someone is doing this" without pretending
+// to be a specific person.
+export const ARTISAN =
+  "the craftsman's hands: an adult man's working hands, dry and clean with short unpolished nails, " +
+  "one thin old scar across the back of the left hand, forearms lightly tanned, sleeves of a faded " +
+  "indigo work shirt rolled to just below the elbow, a dark canvas apron edge visible at the frame " +
+  "bottom. No rings, no watch, no gloves. Hands anatomically correct: five fingers each, no fusing, " +
+  "no extra hand entering frame. No face, no head, no torso above the elbow.";
+
 export const SHARED_STILL_PROMPT =
   `Ordinary portrait 4:5 shop photo. [SUBJECT] on the inspection counter of ${SHOP_SCENE} ` +
   "The item fills 45-65% of the frame height and stays sharp; the background is readable, not blurred away.";
+
+/**
+ * The closing act, with the craftsman's hands presenting the finished item.
+ *
+ * The AFTER shot is where the judgement is delivered, so it is the act that
+ * most needs a person in it. Built by editing the BEFORE image for the same
+ * reason the middle act is: it is the only way the object, counter, background
+ * and light stay identical across a cut.
+ */
+export const AFTER_STILL_PROMPT =
+  "Edit the supplied BEFORE image, do not generate a new scene. Keep the same camera position, the same " +
+  "counter, the same background, the same light direction and the same white balance. The item must be " +
+  "the SAME physical object: same material, same colour, same fittings, same shape. Change only its " +
+  "condition to [AFTER_STATE]. " +
+  `Add ${ARTISAN} One hand steadies the item and the other turns it slightly toward the camera, as if ` +
+  "showing the finished result to the customer across the counter. Natural use creases stay: the item " +
+  "is clean, not new. Portrait 4:5. No readable text, no logo, no watermark.";
 
 // The middle act is the one most likely to drift, because it is the only one
 // with a hand and a tool in it. Generating it by editing the before image --
@@ -759,10 +793,11 @@ export const MIDDLE_STILL_PROMPT =
   "Edit the supplied BEFORE image, do not generate a new scene. Keep the same camera position, the same " +
   "counter, the same background, the same light direction and the same white balance. The item must be " +
   "the SAME physical object: same material, same colour, same laces or fittings, same wear marks. " +
-  "Add one adult hand entering from the right holding a soft-bristle brush, the brush in contact with " +
+  `Add ${ARTISAN} ` +
+  "One hand enters from the right holding a soft-bristle brush, the brush in contact with " +
   "[WEAR_LOCATION], a small wet cleaned patch already visible at that exact spot, and the rest of the " +
-  "item still in its BEFORE condition. Fingers anatomically correct: five fingers, no fusing, no second " +
-  "hand. Portrait 4:5. No readable text, no logo, no watermark, no faces.";
+  "item still in its BEFORE condition. The other hand steadies the item from the left. " +
+  "Portrait 4:5. No readable text, no logo, no watermark.";
 
 export function stillPathsFor(concept: ReelConcept): { before: string; after: string } {
   return {

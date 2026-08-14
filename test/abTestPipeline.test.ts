@@ -384,7 +384,14 @@ describe("A/B dual-reel pipeline", () => {
     expect(slot).toBeTruthy();
     for (const caption of [slot!.instagram_caption, slot!.facebook_caption]) {
       expect(caption).toContain("0968327653");
-      expect(caption).toContain("加 LINE 直接問：");
+      // This used to assert the bare "加 LINE 直接問：0968327653" line, which is
+      // how every Reel shipped without anything GA4 could count: a phone number
+      // is not a tap target. Reels now go through the shared caption rules, so
+      // the coded redirect is what has to be here.
+      expect(caption).toContain("https://39211.github.io/go/line.html?source=post");
+      // Local tags are part of the same shared ladder; the four generic Reel
+      // tags carried none.
+      expect(caption).toMatch(/#西屯|#台中洗衣店/);
       expect(caption).toContain("私享家洗衣店｜台中市區免費到府收送");
       const blocks = caption.split("\n\n");
       expect(blocks[1]).not.toBe("私享家洗衣店");

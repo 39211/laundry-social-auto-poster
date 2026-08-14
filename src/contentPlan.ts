@@ -930,11 +930,15 @@ function withEngagementQuestion(caption: string, slot: GrowthPlaybookSlot): stri
 // contact line now leads with the coded redirect -- tappable on Facebook,
 // long-pressable on Instagram, and the only thing that puts a number into the
 // GA4 report the ads ladder waits on.
-export const LINE_CONTACT =
-  "直接點這裡問:https://39211.github.io/go/line.html?source=post(或加 LINE:0968327653)";
+const LINE_REDIRECT = "https://39211.github.io/go/line.html?source=post";
+export const LINE_CONTACT = `直接點這裡問:${LINE_REDIRECT}(或加 LINE:0968327653)`;
 
 function withLineContact(caption: string): string {
-  if (caption.includes("0968327653")) return caption;
+  // Testing for the phone number was the wrong test: a caption that merely
+  // printed the digits ("加 LINE 直接問：0968327653") satisfied it and opted
+  // itself out of the coded link -- which is the only thing GA4 can count.
+  // Every scheduled Reel did exactly that. Test for the tappable link.
+  if (caption.includes(LINE_REDIRECT)) return caption;
   const blocks = caption.split("\n\n");
   const hashtagIndex = blocks.findIndex((block) => block.startsWith("#"));
   if (hashtagIndex === -1) return `${caption}\n\n${LINE_CONTACT}`;
@@ -1012,12 +1016,20 @@ function withUpgradedHashtags(caption: string, topic: string): string {
   return blocks.join("\n\n");
 }
 
+/**
+ * The contact line, the price line and the hashtag ladder, applied in that
+ * order. Exported because Reel captions are assembled elsewhere and were
+ * therefore getting none of the three: no tappable link, no price, and four
+ * generic tags with no local one among them. A rule that only one caption
+ * builder obeys is not a rule.
+ */
+export function withSharedCaptionRules(caption: string, topic: string): string {
+  return withUpgradedHashtags(withPriceLine(withLineContact(caption), topic), topic);
+}
+
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): string {
   const caption = baseCaptionFromPlaybook(slot, platform);
-  return withUpgradedHashtags(
-    withPriceLine(withLineContact(withEngagementQuestion(caption, slot)), slot.topic),
-    slot.topic
-  );
+  return withSharedCaptionRules(withEngagementQuestion(caption, slot), slot.topic);
 }
 
 // Pre-authored playbook captions carry the same defect the assembled ones did:

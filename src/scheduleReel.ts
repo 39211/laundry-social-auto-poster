@@ -2,6 +2,7 @@ import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
+import { LINE_CONTACT, withSharedCaptionRules } from "./contentPlan";
 import { generateDailyContent } from "./generateDailyContent";
 import { buildGitHubPagesImageUrl, buildGitHubPagesVideoUrl } from "./githubPages";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
@@ -75,7 +76,6 @@ function reelActionCta(concept: ReelConcept, platform: "instagram" | "facebook")
   }
 }
 
-const LINE_CONTACT = "加 LINE 直接問：0968327653";
 const FOLLOW_LINE = "私享家洗衣店｜台中市區免費到府收送";
 
 function captionsFor(concept: ReelConcept): { instagram: string; facebook: string } {
@@ -100,7 +100,15 @@ function captionsFor(concept: ReelConcept): { instagram: string; facebook: strin
     FOLLOW_LINE,
     hashtags
   ].join("\n\n");
-  return { instagram, facebook };
+  // Reels were assembled here and never passed through the shared rules, so
+  // every one of them published without a tappable link, without a price and
+  // with four generic tags. The topic is the concept's object, which is what
+  // the price and intent-tag rules match on.
+  const topic = `${concept.hook}${concept.narration}`;
+  return {
+    instagram: withSharedCaptionRules(instagram, topic),
+    facebook: withSharedCaptionRules(facebook, topic)
+  };
 }
 
 function reelAssetName(conceptId: string, variant: AbVariant = "10s"): string {

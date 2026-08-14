@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,7 +9,6 @@ import {
   imagesDifferFromApproval,
   loadApprovedImageDigests
 } from "../src/imageStamp";
-import { loadPostLog } from "../src/logging";
 import { markImageSource } from "../src/markImageSource";
 import { postCurrentSlot } from "../src/postCurrentSlot";
 
@@ -375,11 +374,11 @@ describe("what the approval gate refuses", () => {
     });
 
     it("is wired into the live publish boundary before any Meta call or post log", async () => {
-      const hero = SLOTS[0]!.paths[0]!;
+      const swappedSlide = SLOTS[0]!.paths[2]!;
       const approval = await autoApprove({ date: DATE, root });
       expect(approval.approved_slots).toContain(1);
 
-      await writeFile(join(root, ...hero.split("/")), png("swapped after approval"));
+      await writeFile(join(root, ...swappedSlide.split("/")), png("swapped after approval"));
 
       vi.stubEnv("DRY_RUN", "false");
       vi.stubEnv("PUBLIC_IMAGE_BASE_URL", "https://example.com/laundry");
@@ -398,10 +397,15 @@ describe("what the approval gate refuses", () => {
           verifyPublicImageUrl: false,
           fetchImpl
         })
-      ).rejects.toThrow(/images changed after approval/);
+      ).rejects.toThrow(/images changed after approval:[\s\S]*slot-01-slide-03\.png/);
 
       expect(fetchImpl).not.toHaveBeenCalled();
-      expect(await loadPostLog(DATE, root)).toEqual([]);
+      await expect(
+        access(join(root, "data", "posted-log", `${DATE}.json`))
+      ).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(
+        access(join(root, "data", "publish-locks", `${DATE}-slot1.lock`))
+      ).rejects.toMatchObject({ code: "ENOENT" });
     });
 
     it("treats an image approval never saw as a change", async () => {

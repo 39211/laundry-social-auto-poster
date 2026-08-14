@@ -29,6 +29,7 @@ import {
   loadApprovedImageDigests
 } from "./imageStamp";
 import { imageAssetsForSlot } from "./mediaAssets";
+import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
 import { postInstagramCarousel, postInstagramPhoto, postInstagramReel } from "./postInstagram";
@@ -227,6 +228,14 @@ async function postOneSlot(
   abVariant?: AbVariant,
   now: Date = new Date()
 ): Promise<PostLogEntry[]> {
+  // The brake comes before the publish window, the lock, and every other
+  // check: whatever else is true, a paused line does not put anything in front
+  // of a customer. Dry runs and preflights are allowed through, since they
+  // publish nothing and are how you inspect a paused day.
+  if (!config.dryRun && !preflightOnly) {
+    const paused = await readPause(root);
+    if (paused) throw new NonRetryableError(pauseMessage(paused));
+  }
   if (!config.dryRun && !preflightOnly) assertInsidePublishWindow(slot.slot, config, now);
   // Single-flight per date+slot: scheduler retries, the patrol and a manual
   // run can overlap; two publishers that both read "no success yet" would

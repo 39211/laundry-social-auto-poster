@@ -13,6 +13,7 @@ import {
   type ApprovedImageDigests
 } from "./imageStamp";
 import { imageAssetsForSlot } from "./mediaAssets";
+import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 import type { Platform } from "./types";
@@ -65,6 +66,22 @@ export async function autoApprove(
 
   const checks: AutoApproveResult["checks"] = [];
   const blockers: string[] = [];
+
+  // Checked before anything else: while the owner's brake is on, this function
+  // must not grant consent by any path, including the catch-up chain that
+  // re-runs it when a slot is unapproved.
+  const paused = await readPause(root);
+  if (paused) {
+    return {
+      date,
+      approved: false,
+      already_approved: false,
+      approved_slots: [],
+      blockers: [pauseMessage(paused)],
+      checks: [{ name: "not_paused", ok: false, detail: pauseMessage(paused) }],
+      ai_provenance: { with_manifest: 0, without_manifest: 0, consistent: true }
+    };
+  }
   // Detail is written to explain a failure, so attaching it to a passing check
   // would print "outside 2026-07-18..2026-10-08" next to an OK and read as broken.
   const record = (name: string, ok: boolean, failureDetail?: string) => {

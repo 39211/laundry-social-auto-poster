@@ -237,11 +237,36 @@ except OSError:
 # deferred the whole day until it woke at 23:40 -- by which time the publish
 # windows had closed. Nothing in this audit noticed, because it only ever
 # checked tomorrow's readiness, never whether today shipped.
+# A brake nobody can see is its own outage. The owner's pause stops approval and
+# publishing on purpose, which is right -- but a pause left on for a week looks
+# exactly like a pipeline that quietly died, and the whole point of check 10 is
+# to tell those apart.
+pause = load("data/PAUSED.json")
+if pause is not None:
+    since = str(pause.get("since", ""))[:10] if isinstance(pause, dict) else ""
+    reason = pause.get("reason", "(未寫原因)") if isinstance(pause, dict) else "(無法解析)"
+    held_days = 0
+    try:
+        held_days = (TODAY - date.fromisoformat(since)).days
+    except ValueError:
+        held_days = 99
+    add(
+        "HIGH" if held_days >= 1 else "MED",
+        "人工暫停",
+        f"發布被人工暫停中(已 {held_days} 天):{reason}",
+        "data/PAUSED.json 存在;核准與發布都會拒絕",
+        "確認還要不要停;要恢復就跑 npm run pause -- --clear",
+    )
+
 posted = load(f"data/posted-log/{ds}.json", [])
 posted = posted if isinstance(posted, list) else [posted]
 live = {(e.get("slot"), e.get("platform")) for e in posted
         if e.get("status") in ("success", "posted") and not e.get("dry_run")}
-if not live:
+# Scheduled for 23:10, after every publish window has closed. Run by hand at
+# 02:00 it would flag a day that has simply not happened yet -- and a check that
+# cries wolf when you run it manually is a check you learn to scroll past.
+too_early_to_judge = datetime.now().hour < 21
+if not live and pause is None and not too_early_to_judge:
     add("HIGH", "今日發布", "今天一則都沒發出去",
         f"data/posted-log/{ds}.json 沒有任何 success/posted",
         "查排程 LastTaskResult;3221225786=行程被殺(多半是睡眠或關機)。"

@@ -2,14 +2,16 @@ import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { autoApprove } from "../src/autoApprove";
 import {
   imagesChangedSinceStamp,
   imagesDifferFromApproval,
   loadApprovedImageDigests
 } from "../src/imageStamp";
+import { loadPostLog } from "../src/logging";
 import { markImageSource } from "../src/markImageSource";
+import { postCurrentSlot } from "../src/postCurrentSlot";
 
 // The invariant: a slot must not be approved unless every image it will publish
 // is provably the file that was generated for that slot's current topic.
@@ -160,6 +162,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 25 });
 });
 
@@ -371,6 +374,36 @@ describe("what the approval gate refuses", () => {
       expect(byApproval[0]).toContain("不是被核准的那一張");
     });
 
+    it("is wired into the live publish boundary before any Meta call or post log", async () => {
+      const hero = SLOTS[0]!.paths[0]!;
+      const approval = await autoApprove({ date: DATE, root });
+      expect(approval.approved_slots).toContain(1);
+
+      await writeFile(join(root, ...hero.split("/")), png("swapped after approval"));
+
+      vi.stubEnv("DRY_RUN", "false");
+      vi.stubEnv("PUBLIC_IMAGE_BASE_URL", "https://example.com/laundry");
+      vi.stubEnv("META_ACCESS_TOKEN", "EAAabcdefghijklmnopqrstuvwxyz1234567890");
+      vi.stubEnv("FB_PAGE_ID", "123456789012345");
+      vi.stubEnv("IG_USER_ID", "12345678901234567");
+      const fetchImpl = vi.fn() as unknown as typeof fetch;
+
+      await expect(
+        postCurrentSlot({
+          root,
+          date: DATE,
+          slot: 1,
+          now: `${DATE}T11:30:00+08:00`,
+          dryRun: false,
+          verifyPublicImageUrl: false,
+          fetchImpl
+        })
+      ).rejects.toThrow(/images changed after approval/);
+
+      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(await loadPostLog(DATE, root)).toEqual([]);
+    });
+
     it("treats an image approval never saw as a change", async () => {
       await autoApprove({ date: DATE, root });
       const snapshot = await loadApprovedImageDigests(root, DATE);
@@ -403,6 +436,45 @@ describe("what the approval gate refuses", () => {
       // publishing, which is a worse failure than the one it would catch.
       expect(changed).toEqual([]);
     });
+  });
+
+  // ERROR-BOOK A1 and A7, and the one path both review seats left open: every
+  // record agrees with every other record, and all of them describe the wrong
+  // object, because the prompt was never regenerated when the topic moved.
+  it("blocks when the prompt asks for a different object than the caption names", async () => {
+    const hero = SLOTS[0]!.paths[0]!;
+    const manifestPath = join(root, "data", "image-prompts", `${DATE}.json`);
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as Array<Record<string, unknown>>;
+    // The exact shape of 2026-08-14: caption about greying white shoes, prompt
+    // still asking for the canvas pair from the topic before it.
+    const stale = "photo of off-white canvas low-top sneakers on a mat";
+    manifest.find((e) => e.target_path === hero)!.prompt = stale;
+    await writeFile(manifestPath, JSON.stringify(manifest), "utf8");
+    // Re-stamp so the prompt hash agrees too: every other witness is happy.
+    await writeFile(join(root, ...hero.split("/")), png("regenerated from the stale prompt"));
+    await markImageSource({ root, date: DATE, slot: 1, source: "gpt-image-2", imagePath: hero });
+
+    const result = await autoApprove({ date: DATE, root });
+
+    expect(about(result.blockers, hero).some((t) => t.includes("提示詞要的是"))).toBe(true);
+    expect(result.approved_slots).not.toContain(1);
+  });
+
+  it("says nothing when the prompt names the object the caption is about", async () => {
+    const hero = SLOTS[0]!.paths[0]!;
+    const manifestPath = join(root, "data", "image-prompts", `${DATE}.json`);
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as Array<Record<string, unknown>>;
+    const right = "photo of white leather low-top sneakers with a white rubber midsole";
+    manifest.find((e) => e.target_path === hero)!.prompt = right;
+    await writeFile(manifestPath, JSON.stringify(manifest), "utf8");
+    await writeFile(join(root, ...hero.split("/")), png("regenerated correctly"));
+    await markImageSource({ root, date: DATE, slot: 1, source: "gpt-image-2", imagePath: hero });
+
+    const result = await autoApprove({ date: DATE, root });
+
+    // A prompt that describes the right object must not be blocked just for
+    // wording it differently -- reel covers do exactly that.
+    expect(about(result.blockers, hero)).toEqual([]);
   });
 
   it("blocks when the manifest has two entries for the same file", async () => {

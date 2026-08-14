@@ -930,6 +930,58 @@ function withEngagementQuestion(caption: string, slot: GrowthPlaybookSlot): stri
 // contact line now leads with the coded redirect -- tappable on Facebook,
 // long-pressable on Instagram, and the only thing that puts a number into the
 // GA4 report the ads ladder waits on.
+/**
+ * Which shoe a topic is about, and the phrase the prompt uses to ask for it.
+ *
+ * A category is not a subject: every shoe topic used to ask for "navy-and-warm-
+ * white sneakers", including 白鞋泛黃, which produced navy canvas shoes for
+ * posts about white ones. The topic already says which object it means, and the
+ * colour it names is usually the whole point of the post.
+ */
+const SHOE_SUBJECTS: Array<{ match: RegExp; subject: string }> = [
+  { match: /白鞋/, subject: "white leather low-top sneakers with a white rubber midsole" },
+  { match: /帆布/, subject: "off-white canvas low-top sneakers" },
+  { match: /皮鞋/, subject: "dark brown leather dress shoes" },
+  { match: /靴/, subject: "mid-height brown leather boots" },
+  { match: /勃肯|拖鞋|涼鞋/, subject: "cork-footbed leather sandals" },
+  { match: /運動鞋|球鞋/, subject: "grey-and-white running shoes" }
+];
+const DEFAULT_SHOE_SUBJECT = "unbranded navy-and-warm-white sneakers";
+
+export function shoeSubjectFor(topic: string): string {
+  return SHOE_SUBJECTS.find((entry) => entry.match.test(topic))?.subject ?? DEFAULT_SHOE_SUBJECT;
+}
+
+/**
+ * A prompt that asks for a different object than the topic names.
+ *
+ * ERROR-BOOK A1 and A7: change a topic and forget its image_prompt, delete the
+ * images and let the placer regenerate from the stale prompt, and every witness
+ * agrees -- the manifest, the stamp and the file hashes are all consistent with
+ * each other, and all three describe a picture of the wrong object. Nothing
+ * else in the chain compares what the caption says to what the prompt asks for.
+ *
+ * Deliberately reports contradiction rather than requiring the marker to be
+ * present. Reel covers describe their subject in their own words ("a tan suede
+ * shoe whose nap has flattened"), and demanding a canonical phrase would block
+ * every one of them. What is never legitimate is a 白鞋 caption over a prompt
+ * that explicitly asks for canvas.
+ */
+export function contradictorySubject(
+  topic: string,
+  prompt: string
+): { expected: string; found: string } | undefined {
+  const expected = SHOE_SUBJECTS.find((entry) => entry.match.test(topic));
+  if (!expected) return undefined; // topic names no specific shoe: no opinion
+  if (prompt.includes(expected.subject)) return undefined;
+  const contradiction = SHOE_SUBJECTS.find(
+    (entry) => entry !== expected && prompt.includes(entry.subject)
+  );
+  return contradiction
+    ? { expected: expected.subject, found: contradiction.subject }
+    : undefined;
+}
+
 const LINE_REDIRECT = "https://39211.github.io/go/line.html?source=post";
 export const LINE_CONTACT = `直接點這裡問:${LINE_REDIRECT}(或加 LINE:0968327653)`;
 
@@ -1186,19 +1238,7 @@ function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
   // which produced navy canvas shoes for posts about white ones. A category is
   // not a subject: the topic already says which object it means, and the colour
   // it names is usually the whole point of the post.
-  const shoeColour = /白鞋/.test(topic)
-    ? "white leather low-top sneakers with a white rubber midsole"
-    : /帆布/.test(topic)
-      ? "off-white canvas low-top sneakers"
-      : /皮鞋/.test(topic)
-        ? "dark brown leather dress shoes"
-        : /靴/.test(topic)
-          ? "mid-height brown leather boots"
-          : /勃肯|拖鞋|涼鞋/.test(topic)
-            ? "cork-footbed leather sandals"
-            : /運動鞋|球鞋/.test(topic)
-              ? "grey-and-white running shoes"
-              : "unbranded navy-and-warm-white sneakers";
+  const shoeColour = shoeSubjectFor(topic);
   const subject =
     headline === "鞋子"
       ? `exactly one paired set of two ${shoeColour}`

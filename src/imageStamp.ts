@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { contradictorySubject } from "./contentPlan";
 
 /**
  * The evidence an image file carries about how it was made.
@@ -114,6 +115,19 @@ export async function imageEvidenceFailures(
       say(
         `文不配圖:manifest 記為「${String(entry.topic).slice(0, 16)}」,文案是「${slot.topic.slice(0, 16)}」`
       );
+      continue;
+    }
+
+    // Everything above compares records to records. They can all agree while
+    // describing the wrong object, which is exactly ERROR-BOOK A1 and A7:
+    // change the topic, leave image_prompt stale, delete the images and let the
+    // placer regenerate from that stale prompt. The manifest topic is fresh,
+    // the stamp is fresh, the hashes match -- and the picture is of the old
+    // object, because nothing compared the caption to what the prompt asked
+    // for.
+    const clash = contradictorySubject(slot.topic, String(entry.prompt ?? ""));
+    if (clash) {
+      say(`提示詞要的是「${clash.found}」,文案講的是「${clash.expected}」`);
       continue;
     }
 

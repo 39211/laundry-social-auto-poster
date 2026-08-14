@@ -1,4 +1,5 @@
-﻿import { mkdtemp, mkdir, readFile, rm, writeFile, access } from "node:fs/promises";
+﻿import { createHash } from "node:crypto";
+import { mkdtemp, mkdir, readFile, rm, writeFile, access } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -100,10 +101,34 @@ describe("unattended approval fails closed", () => {
       Buffer.from("image bytes")
     ]);
     await writeFile(join(root, "docs", "assets", DATE, "slot-02.png"), pngFixture);
+    // Slot 2 has to be healthy under every gate, not just the ones that existed
+    // when this test was written: approval now demands, for every image of every
+    // slot, a manifest entry agreeing with the topic and a source record bound
+    // to the file's bytes and to the prompt that made them.
+    const slot2Path = `docs/assets/${DATE}/slot-02.png`;
+    const slot2Prompt = "prompt";
+    await mkdir(join(root, "data", "image-prompts"), { recursive: true });
+    await writeFile(
+      join(root, "data", "image-prompts", `${DATE}.json`),
+      JSON.stringify([{ slot: 2, target_path: slot2Path, topic: "測試", prompt: slot2Prompt }]),
+      "utf8"
+    );
+    const hash = (v: Buffer | string) => createHash("sha256").update(v).digest("hex");
     await mkdir(join(root, "data", "image-sources"), { recursive: true });
     await writeFile(
       join(root, "data", "image-sources", `${DATE}.json`),
-      JSON.stringify([{ image_path: `docs/assets/${DATE}/slot-02.png`, source: "gpt-image-2" }]),
+      JSON.stringify([
+        {
+          date: DATE,
+          slot: 2,
+          source: "gpt-image-2",
+          image_path: slot2Path,
+          marked_at: new Date().toISOString(),
+          topic: "測試",
+          prompt_sha256: hash(slot2Prompt),
+          image_sha256: hash(pngFixture)
+        }
+      ]),
       "utf8"
     );
 

@@ -5,6 +5,12 @@ import { getFlag, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { hasApprovedPost, loadApprovalLog, loadDailyContent, loadImageSources } from "./logging";
 import { inspectDailyImageProvenance } from "./imageProvenance";
+import {
+  hashImageFile,
+  loadImagePromptManifest,
+  manifestEntryFor,
+  promptHashFor
+} from "./imageStamp";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
@@ -186,61 +192,85 @@ export async function autoApprove(
   // rebuild alone flipped this gate from red to green while the files on disk
   // were still pictures of a different pair of shoes. A file cannot be
   // vouched for by a document written after it.
-  if (slot1) {
-    try {
-      const manifestRaw = await readFile(join(root, "data", "image-prompts", `${date}.json`), "utf8");
-      const manifest = JSON.parse(manifestRaw) as Array<{ slot?: number; topic?: string }>;
-      const imageTopic = manifest.find((item) => item.slot === 1)?.topic;
-      if (!imageTopic) {
-        blockSlot(1, "slot 1 圖片 manifest 缺 slot 1 條目,無法證明圖文一致");
-      } else if (imageTopic !== slot1.topic) {
-        blockSlot(1, `slot 1 文不配圖:圖片為「${imageTopic.slice(0, 16)}」生成,文案是「${slot1.topic.slice(0, 16)}」`);
-      }
-    } catch {
+  {
+    const manifest = await loadImagePromptManifest(root, date);
+    const sourceRecords = await loadImageSources(date, root);
+    if (!manifest) {
       // Fail closed: a missing or unreadable manifest means consistency is
       // UNPROVEN, and unproven must not publish (luna, high). The old
       // "absence is not proof of mismatch" stance let a malformed manifest
       // waive the strongest gate.
-      blockSlot(1, "slot 1 圖片 manifest 缺失或無法解析,圖文一致性未證明");
-    }
+      for (const slot of content.slots) {
+        if (imageAssetsForSlot(slot).length > 0) {
+          blockSlot(slot.slot, `slot ${slot.slot} 圖片 manifest 缺失或無法解析,圖文一致性未證明`);
+        }
+      }
+    } else {
+      for (const slot of content.slots) {
+        for (const asset of imageAssetsForSlot(slot)) {
+          const path = asset.local_image_path;
+          const say = (why: string) => blockSlot(slot.slot, `slot ${slot.slot} ${path} ${why}`);
 
-    // Second witness: the topic stamped onto each file's source record by
-    // `mark-image-source`, which the image placer runs right after writing the
-    // file.
-    //
-    // What it actually covers, corrected after review -- the first version of
-    // this comment claimed more than the code does, in both directions:
-    //   IT DOES stop the 2026-08-14 case: manifest rebuilt, images untouched.
-    //   IT DOES NOT prove the image matches the caption. The stamp records the
-    //     calendar topic at marking time, not what the image was generated
-    //     from. Change the topic, leave `image_prompt` stale, delete the files
-    //     and regenerate: both witnesses go green over a picture of the old
-    //     object. That is ERROR-BOOK A1, and it is automated, not manual.
-    //   IT DOES NOT cover slots 2 and 3, which have carried carousels.
-    //   IT DOES NOT bind to the file's bytes, so re-marking a stale file
-    //     relabels it.
-    // Closing those needs the stamp to carry the prompt hash and the file
-    // hash, and to apply to every slot. Until then this is one path closed,
-    // not the invariant enforced.
-    const slot1Sources = (await loadImageSources(date, root)).filter((entry) => entry.slot === 1);
-    const slot1Assets = imageAssetsForSlot(slot1).map((asset) => asset.local_image_path);
-    for (const path of slot1Assets) {
-      const record = slot1Sources.find((entry) => entry.image_path === path);
-      // Not "covered by the missing-source gate below" -- that gate matches on
-      // image_path alone and ignores entry.slot, so a record filed under the
-      // wrong slot satisfies it while never reaching this loop. The only
-      // writer validates slot/path agreement, so nothing automated produces
-      // that shape today; the `continue` is still unproven ground.
-      if (!record) continue;
-      if (record.topic === undefined) {
-        blockSlot(1, `slot 1 ${path} 沒有記錄產生當下的主題,圖文一致性未證明`);
-      } else if (record.topic !== slot1.topic) {
-        blockSlot(
-          1,
-          `slot 1 文不配圖:${path} 是為「${record.topic.slice(0, 16)}」產生的,文案是「${slot1.topic.slice(0, 16)}」`
-        );
+          const manifestEntry = manifestEntryFor(manifest, path);
+          if (!manifestEntry) {
+            say("在圖片 manifest 中沒有對應條目,圖文一致性未證明");
+            continue;
+          }
+          if (manifestEntry.topic !== slot.topic) {
+            say(
+              `文不配圖:manifest 記為「${String(manifestEntry.topic).slice(0, 16)}」,文案是「${slot.topic.slice(0, 16)}」`
+            );
+            continue;
+          }
+
+          // Matched on slot AND path. The downstream source gate matches on
+          // path alone, so a record filed under the wrong slot satisfies it
+          // while proving nothing here -- which is why this refuses instead of
+          // deferring to it.
+          const record = sourceRecords.find(
+            (entry) => entry.slot === slot.slot && entry.image_path === path
+          );
+          if (!record) {
+            say("沒有屬於這一格的來源紀錄,圖文一致性未證明");
+            continue;
+          }
+          if (typeof record.topic !== "string") {
+            say("來源紀錄沒有記錄產生當下的主題,圖文一致性未證明");
+            continue;
+          }
+          if (record.topic !== slot.topic) {
+            say(`文不配圖:這個檔案是為「${record.topic.slice(0, 16)}」產生的,文案是「${slot.topic.slice(0, 16)}」`);
+            continue;
+          }
+
+          // The bytes must be the bytes that were stamped. Without this the
+          // topic is just a label anyone can move onto any file.
+          const onDisk = await hashImageFile(root, path);
+          if (!onDisk) {
+            say("讀不到檔案,無法比對蓋章時的位元");
+            continue;
+          }
+          if (typeof record.image_sha256 !== "string") {
+            say("來源紀錄沒有記錄蓋章時的檔案雜湊,圖文一致性未證明");
+            continue;
+          }
+          if (record.image_sha256 !== onDisk) {
+            say("圖片在蓋章之後被換過,現在的檔案沒有被任何紀錄背書");
+            continue;
+          }
+
+          const currentPromptHash = promptHashFor(manifest, path);
+          if (typeof record.prompt_sha256 !== "string" || currentPromptHash === undefined) {
+            say("來源紀錄或 manifest 沒有提示詞雜湊,圖文一致性未證明");
+            continue;
+          }
+          if (record.prompt_sha256 !== currentPromptHash) {
+            say("提示詞已經改過,但圖片還是舊的那一張");
+          }
+        }
       }
     }
+
   }
 
   const sources = await loadImageSources(date, root);

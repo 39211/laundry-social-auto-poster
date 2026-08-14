@@ -140,6 +140,16 @@ export interface ImageSourceRecord {
    * Optional only for records predating the field.
    */
   topic?: string;
+  /** sha256 of the prompt that produced these bytes. */
+  prompt_sha256?: string;
+  /**
+   * sha256 of the file's bytes at stamping time. This is what makes the other
+   * two fields worth anything: re-running mark-image-source over an unchanged
+   * file is refused, so a stale image cannot be relabelled with today's topic.
+   * A stamp that can be rewritten at will is not evidence -- that was the whole
+   * lesson of ERROR-BOOK A6.
+   */
+  image_sha256?: string;
 }
 
 export interface VideoSourceRecord {

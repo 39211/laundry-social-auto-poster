@@ -104,6 +104,39 @@ if ($missingComments.Count -gt 0) {
     $actions += "posted first comments for slot $($missingComments -join ',')"
 }
 
+# --- GA4 line_click into the leads ledger ------------------------------------
+# Reporting only, never a gate: an unconfigured or failing read side writes
+# source_clicks_status="unmeasured" and the settlement carries on. What it must
+# never do is write a zero -- the whole reason this exists is that a zero
+# nobody fetched was being read as evidence that nobody clicked.
+#
+# Moved ahead of the report so the number can appear in it. It used to run as
+# the last line of the script, writing into data/leads/<month>.json and nothing
+# else. On 08-14 that file recorded 14 clicks -- the first non-zero this
+# programme has ever measured, after thirty days of nothing -- and not one
+# thing surfaced it. A number nobody sees is worth the same as no number.
+Push-Location $root
+cmd /c "npm.cmd run ga4-report -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+Pop-Location
+
+$clicks = $null
+$clickSources = ""
+$ledger = Read-Json (Join-Path $root "data\leads\$($now.ToString('yyyy-MM')).json")
+if ($ledger -and $ledger.days -and $ledger.days.$date) {
+    $today = $ledger.days.$date
+    $clicks = $today.line_clicks_total
+    if ($today.source_clicks) {
+        $clickSources = (
+            $today.source_clicks.PSObject.Properties |
+                Sort-Object { -[int]$_.Value } |
+                ForEach-Object { "$($_.Name) $($_.Value)" }
+        ) -join "、"
+    }
+}
+$clickLine = if ($null -eq $clicks) { "LINE 點擊:查不到" }
+             elseif ($clickSources) { "LINE 點擊 $clicks($clickSources)" }
+             else { "LINE 點擊 $clicks" }
+
 # --- report -----------------------------------------------------------------------
 $ok = ($missingPosts.Count -eq 0) -and ($missingComments.Count -eq 0) -and ($ytGap -le 0) -and $tomorrowCalendar -and ($tomorrowReels -eq "ready" -or $tomorrowReels -eq "unknown")
 $report = [ordered]@{
@@ -116,12 +149,17 @@ $report = [ordered]@{
     youtube           = @{ live_reels = $liveReels; uploaded = $ytCount }
     tomorrow          = @{ calendar = $tomorrowCalendar; reels = $tomorrowReels }
     rescue_actions    = $actions
+    line_clicks       = $clicks
+    line_click_sources = $clickSources
 }
 $reportPath = Join-Path $reportDir "$date.json"
 $report | ConvertTo-Json -Depth 5 | Out-File -FilePath $reportPath -Encoding utf8
 
+# The clicks number rides on both branches. It is the only number on this line
+# that tracks whether any of the work reached a person, so it must not be
+# something you see only on a day that also went wrong.
 if ($ok) {
-    Show-Toast "$date 全部完成:$($expectedSlots.Count) 檔已發、頭香齊、YT $ytCount/$liveReels、明日備料 OK"
+    Show-Toast "$date 全部完成:$($expectedSlots.Count) 檔已發、頭香齊、YT $ytCount/$liveReels、明日備料 OK。$clickLine"
 } else {
     $gaps = @()
     if ($missingPosts.Count -gt 0) { $gaps += "缺發文 slot $($missingPosts -join ',')" }
@@ -129,14 +167,7 @@ if ($ok) {
     if ($ytGap -gt 0) { $gaps += "YT 缺 $ytGap" }
     if (-not $tomorrowCalendar) { $gaps += "明日行事曆缺" }
     if ($tomorrowReels -like "missing*") { $gaps += "明日影片素材缺" }
-    Show-Toast ("$date 有缺口:" + ($gaps -join ";") + "。報告:output\day-reports\$date.json")
+    Show-Toast ("$date 有缺口:" + ($gaps -join ";") + "。$clickLine。報告:output\day-reports\$date.json")
 }
-
-# --- GA4 line_click into the leads ledger ------------------------------------
-# Reporting only, never a gate: an unconfigured or failing read side writes
-# source_clicks_status="unmeasured" and the settlement carries on. What it must
-# never do is write a zero -- the whole reason this exists is that a zero
-# nobody fetched was being read as evidence that nobody clicked.
-cmd /c "npm.cmd run ga4-report -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
 
 exit 0

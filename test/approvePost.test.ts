@@ -18,7 +18,10 @@ describe("approvePost", () => {
       platforms: ["facebook", "instagram"],
       approvedBy: "Codex-Auto",
       note: "Auto-reviewed medium-depth launch baseline",
-      root
+      root,
+      // No images exist in this fixture, and manual approval refuses unproven
+      // images now. The override is what the second test below pins down.
+      force: true
     });
 
     expect(entries.map((entry) => entry.platform)).toEqual(["facebook", "instagram"]);
@@ -30,6 +33,38 @@ describe("approvePost", () => {
     expect(await readFile(join(root, "data", "approved-log", "2026-05-15.json"), "utf8")).toContain(
       "Auto-reviewed medium-depth launch baseline"
     );
+
+    vi.unstubAllEnvs();
+  });
+
+  // Manual approval wrote consent with no image checks whatsoever, which made
+  // it a complete way around the gate unattended approval exists to enforce.
+  it("refuses unproven images, and records the override when forced", async () => {
+    vi.stubEnv("PUBLIC_IMAGE_BASE_URL", "https://tester.github.io/laundry-social-auto-poster");
+    const root = await mkdtemp(join(tmpdir(), "laundry-approval-refuse-"));
+    await generateDailyContent({ date: "2026-05-16", root, force: true });
+
+    const attempt = approvePost({
+      date: "2026-05-16",
+      slot: 1,
+      platforms: ["facebook"],
+      approvedBy: "Owner",
+      root
+    });
+    await expect(attempt).rejects.toThrow(/do not prove they belong to this caption/);
+    // A refusal must leave nothing a later publish run could read as consent.
+    expect(await loadApprovalLog("2026-05-16", root)).toHaveLength(0);
+
+    const forced = await approvePost({
+      date: "2026-05-16",
+      slot: 1,
+      platforms: ["facebook"],
+      approvedBy: "Owner",
+      root,
+      force: true
+    });
+    // An override that leaves no trace is indistinguishable from a clean pass.
+    expect(forced[0]?.note).toContain("FORCED");
 
     vi.unstubAllEnvs();
   });

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { autoApprove } from "../src/autoApprove";
+import { imagesChangedSinceStamp } from "../src/imageStamp";
 import { markImageSource } from "../src/markImageSource";
 
 // The invariant: a slot must not be approved unless every image it will publish
@@ -291,6 +292,60 @@ describe("what the approval gate refuses", () => {
     const result = await autoApprove({ date: DATE, root });
 
     expect(about(result.blockers, hero).some((t) => t.includes("沒有屬於這一格的來源紀錄"))).toBe(true);
+  });
+
+  // Publishing asks a narrower question than approval: not "is this proven"
+  // but "did it change since we agreed to it". Approval already happened by
+  // then, so re-asking for proof would strand every day approved before stamps
+  // existed -- while a swap after approval is invisible to the fingerprint,
+  // which hashes the calendar slot and not one byte of any image.
+  describe("the narrower check publishing runs", () => {
+    it("reports an image whose bytes moved after stamping", async () => {
+      const hero = SLOTS[0]!.paths[0]!;
+      await writeFile(join(root, ...hero.split("/")), png("swapped after approval"));
+
+      const changed = await imagesChangedSinceStamp(
+        root,
+        SLOTS[0]!,
+        [{ local_image_path: hero }],
+        (await sources()) as never
+      );
+
+      expect(changed).toHaveLength(1);
+      expect(changed[0]).toContain("核准之後被換過");
+    });
+
+    it("says nothing when the bytes are untouched", async () => {
+      const hero = SLOTS[0]!.paths[0]!;
+
+      const changed = await imagesChangedSinceStamp(
+        root,
+        SLOTS[0]!,
+        [{ local_image_path: hero }],
+        (await sources()) as never
+      );
+
+      expect(changed).toEqual([]);
+    });
+
+    it("says nothing about an unstamped file, because that is approval's business", async () => {
+      const hero = SLOTS[0]!.paths[0]!;
+      const entries = await sources();
+      delete entries.find((e) => e.image_path === hero)!.image_sha256;
+      await writeSources(entries);
+      await writeFile(join(root, ...hero.split("/")), png("swapped after approval"));
+
+      const changed = await imagesChangedSinceStamp(
+        root,
+        SLOTS[0]!,
+        [{ local_image_path: hero }],
+        (await sources()) as never
+      );
+
+      // Fail-closed here would block every legacy day at the moment of
+      // publishing, which is a worse failure than the one it would catch.
+      expect(changed).toEqual([]);
+    });
   });
 
   it("blocks every image-bearing slot when the manifest cannot be read", async () => {

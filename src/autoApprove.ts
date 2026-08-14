@@ -5,12 +5,7 @@ import { getFlag, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { hasApprovedPost, loadApprovalLog, loadDailyContent, loadImageSources } from "./logging";
 import { inspectDailyImageProvenance } from "./imageProvenance";
-import {
-  hashImageFile,
-  loadImagePromptManifest,
-  manifestEntryFor,
-  promptHashFor
-} from "./imageStamp";
+import { imageEvidenceFailures } from "./imageStamp";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
@@ -193,84 +188,18 @@ export async function autoApprove(
   // were still pictures of a different pair of shoes. A file cannot be
   // vouched for by a document written after it.
   {
-    const manifest = await loadImagePromptManifest(root, date);
     const sourceRecords = await loadImageSources(date, root);
-    if (!manifest) {
-      // Fail closed: a missing or unreadable manifest means consistency is
-      // UNPROVEN, and unproven must not publish (luna, high). The old
-      // "absence is not proof of mismatch" stance let a malformed manifest
-      // waive the strongest gate.
-      for (const slot of content.slots) {
-        if (imageAssetsForSlot(slot).length > 0) {
-          blockSlot(slot.slot, `slot ${slot.slot} 圖片 manifest 缺失或無法解析,圖文一致性未證明`);
-        }
-      }
-    } else {
-      for (const slot of content.slots) {
-        for (const asset of imageAssetsForSlot(slot)) {
-          const path = asset.local_image_path;
-          const say = (why: string) => blockSlot(slot.slot, `slot ${slot.slot} ${path} ${why}`);
-
-          const manifestEntry = manifestEntryFor(manifest, path);
-          if (!manifestEntry) {
-            say("在圖片 manifest 中沒有對應條目,圖文一致性未證明");
-            continue;
-          }
-          if (manifestEntry.topic !== slot.topic) {
-            say(
-              `文不配圖:manifest 記為「${String(manifestEntry.topic).slice(0, 16)}」,文案是「${slot.topic.slice(0, 16)}」`
-            );
-            continue;
-          }
-
-          // Matched on slot AND path. The downstream source gate matches on
-          // path alone, so a record filed under the wrong slot satisfies it
-          // while proving nothing here -- which is why this refuses instead of
-          // deferring to it.
-          const record = sourceRecords.find(
-            (entry) => entry.slot === slot.slot && entry.image_path === path
-          );
-          if (!record) {
-            say("沒有屬於這一格的來源紀錄,圖文一致性未證明");
-            continue;
-          }
-          if (typeof record.topic !== "string") {
-            say("來源紀錄沒有記錄產生當下的主題,圖文一致性未證明");
-            continue;
-          }
-          if (record.topic !== slot.topic) {
-            say(`文不配圖:這個檔案是為「${record.topic.slice(0, 16)}」產生的,文案是「${slot.topic.slice(0, 16)}」`);
-            continue;
-          }
-
-          // The bytes must be the bytes that were stamped. Without this the
-          // topic is just a label anyone can move onto any file.
-          const onDisk = await hashImageFile(root, path);
-          if (!onDisk) {
-            say("讀不到檔案,無法比對蓋章時的位元");
-            continue;
-          }
-          if (typeof record.image_sha256 !== "string") {
-            say("來源紀錄沒有記錄蓋章時的檔案雜湊,圖文一致性未證明");
-            continue;
-          }
-          if (record.image_sha256 !== onDisk) {
-            say("圖片在蓋章之後被換過,現在的檔案沒有被任何紀錄背書");
-            continue;
-          }
-
-          const currentPromptHash = promptHashFor(manifest, path);
-          if (typeof record.prompt_sha256 !== "string" || currentPromptHash === undefined) {
-            say("來源紀錄或 manifest 沒有提示詞雜湊,圖文一致性未證明");
-            continue;
-          }
-          if (record.prompt_sha256 !== currentPromptHash) {
-            say("提示詞已經改過,但圖片還是舊的那一張");
-          }
-        }
+    for (const slot of content.slots) {
+      for (const failure of await imageEvidenceFailures(
+        root,
+        date,
+        slot,
+        imageAssetsForSlot(slot),
+        sourceRecords
+      )) {
+        blockSlot(slot.slot, failure);
       }
     }
-
   }
 
   const sources = await loadImageSources(date, root);

@@ -240,7 +240,9 @@ describe("A/B dual-reel pipeline", () => {
       slot: 1,
       platforms: ["facebook", "instagram"],
       approvedBy: "test",
-      root
+      root,
+      // A/B plumbing fixture, no image stamps; see postCurrentSlot.test.ts.
+      force: true
     });
     await mkdir(join(root, "docs", "assets", date), { recursive: true });
     await writeFile(join(root, "docs", "assets", date, "slot-01.png"), "img");
@@ -269,7 +271,9 @@ describe("A/B dual-reel pipeline", () => {
       slot: 1,
       platforms: ["facebook", "instagram"],
       approvedBy: "test",
-      root
+      root,
+      // A/B plumbing fixture, no image stamps; see postCurrentSlot.test.ts.
+      force: true
     });
     await mkdir(join(root, "docs", "assets", date), { recursive: true });
     await writeFile(join(root, "docs", "assets", date, "slot-01.png"), "img");

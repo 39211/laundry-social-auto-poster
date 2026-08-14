@@ -17,11 +17,13 @@ import {
   hasRecordedPost,
   loadApprovalLog,
   loadDailyContent,
+  loadImageSources,
   loadPostLog,
   loadVideoRepairQueue,
   resolveVideoRepairQueue,
   upsertVideoRepairQueue
 } from "./logging";
+import { imagesChangedSinceStamp } from "./imageStamp";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
@@ -282,6 +284,26 @@ async function postOneSlot(
           `Slot ${slot.slot} content changed after approval (fingerprint mismatch); re-run auto-approve before publishing.`
         );
       }
+    }
+
+    // The fingerprint hashes the calendar slot, which does not contain a single
+    // byte of any image, and the catch-up chain does not re-approve a day that
+    // already has an approval log. So swapping a picture after approval was
+    // invisible everywhere. This asks only whether the bytes moved since they
+    // were stamped -- proving provenance stays at approval, because re-asking it
+    // here would strand every day approved before stamps existed.
+    const swapped = await imagesChangedSinceStamp(
+      root,
+      slot,
+      imageAssetsForSlot(slot),
+      await loadImageSources(date, root)
+    );
+    if (swapped.length > 0) {
+      throw new Error(
+        `Slot ${slot.slot} images changed after approval:\n` +
+          swapped.map((line) => `  - ${line}`).join("\n") +
+          `\nRe-run auto-approve before publishing.`
+      );
     }
   }
   // Nothing checked whether this exact post had already gone out. Between

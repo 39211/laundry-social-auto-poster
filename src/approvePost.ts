@@ -1,5 +1,7 @@
-import { getNumberOption, getOption, isMain } from "./cli";
-import { appendApprovalLog, loadDailyContent } from "./logging";
+import { getFlag, getNumberOption, getOption, isMain } from "./cli";
+import { imageEvidenceFailures } from "./imageStamp";
+import { appendApprovalLog, loadDailyContent, loadImageSources } from "./logging";
+import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot } from "./paths";
 import type { ApprovalLogEntry, Platform } from "./types";
 
@@ -10,6 +12,8 @@ export interface ApprovePostOptions {
   approvedBy: string;
   note?: string;
   root?: string;
+  /** Approve despite unproven images. Recorded in the approval note. */
+  force?: boolean;
 }
 
 function parsePlatforms(value: string | undefined): Platform[] {
@@ -34,6 +38,30 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
   const slot = content.slots.find((item) => item.slot === options.slot);
   if (!slot) throw new Error(`Content slot ${options.slot} is missing for ${options.date}`);
 
+  // Manual approval used to write consent with no image checks at all, which
+  // made it a complete way around the gate that unattended approval spends all
+  // its effort on. It asks the same question now. --force still exists, because
+  // a human overriding a machine is legitimate, but it has to be deliberate and
+  // it is written into the approval record where an audit can find it.
+  const failures = await imageEvidenceFailures(
+    root,
+    options.date,
+    slot,
+    imageAssetsForSlot(slot),
+    await loadImageSources(options.date, root)
+  );
+  if (failures.length > 0 && !options.force) {
+    throw new Error(
+      `Refusing to approve slot ${options.slot}: the images do not prove they belong to this caption.\n` +
+        failures.map((line) => `  - ${line}`).join("\n") +
+        `\nRegenerate the images, or pass --force if you have checked them yourself.`
+    );
+  }
+  const forcedNote =
+    failures.length > 0
+      ? `FORCED over ${failures.length} unproven image(s): ${failures.join(" | ")}`
+      : undefined;
+
   const entries: ApprovalLogEntry[] = [];
   for (const platform of options.platforms) {
     const entry: ApprovalLogEntry = {
@@ -42,7 +70,7 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
       platform,
       status: "approved",
       approved_by: options.approvedBy,
-      note: options.note,
+      note: [options.note, forcedNote].filter(Boolean).join(" — ") || undefined,
       created_at: new Date().toISOString()
     };
     await appendApprovalLog(entry, root);
@@ -68,7 +96,8 @@ async function main(): Promise<void> {
     platforms: parsePlatforms(getOption(args, "platform")),
     approvedBy,
     note: getOption(args, "note"),
-    root: getOption(args, "root")
+    root: getOption(args, "root"),
+    force: getFlag(args, "force")
   });
 
   console.log(JSON.stringify(entries, null, 2));

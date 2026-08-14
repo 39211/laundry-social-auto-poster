@@ -32,7 +32,11 @@ async function approveSlot(root: string, date: string, slot = 1): Promise<void> 
     platforms: ["facebook", "instagram"],
     approvedBy: "Test",
     note: "Test approval",
-    root
+    root,
+    // These fixtures exercise publishing, not image provenance, and do not
+    // build stamps. Approval refuses unproven images now, so the override is
+    // explicit here rather than the check being weakened for everyone.
+    force: true
   });
 }
 

@@ -197,6 +197,9 @@ function isSafeConcept(entry: unknown, existingIds: Set<string>): entry is ReelC
   return true;
 }
 
+/** Days that must pass before a concept can be scheduled again. */
+export const CONCEPT_COOLDOWN_DAYS = 21;
+
 export function loadExtensions(root = projectRoot()): ExtensionReport {
   const report: ExtensionReport = { accepted_concepts: [], accepted_dates: [], rejected: [] };
   let parsed: ExtensionFile;
@@ -221,19 +224,37 @@ export function loadExtensions(root = projectRoot()): ExtensionReport {
 
   // Schedule entries must extend the run day by day, never rewrite it: each
   // accepted date is exactly one day after the current last date, names a
-  // known concept, and never repeats the previous day's object type.
+  // known concept, does not repeat the previous day's object type, and has not
+  // used the same concept within the cooldown.
+  //
+  // The cooldown replaced a never-repeat rule on 2026-08-15 (owner's call). The
+  // old rule made the run exactly as long as the concept list and no longer: on
+  // 08-14 every built-in was spent and the line had no next day at all. Never
+  // repeating is not what protects a reader from déjà vu anyway -- distance is,
+  // and three weeks is further apart than anyone remembers a laundry Reel.
   for (const entry of parsed.schedule ?? []) {
     const item = entry as { date?: unknown; conceptId?: unknown };
     const last = REEL_SCHEDULE[REEL_SCHEDULE.length - 1];
     const expected = new Date(Date.parse(`${last?.date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
     const concept = REEL_CONCEPTS.find((c) => c.id === item.conceptId);
     const lastConcept = REEL_CONCEPTS.find((c) => c.id === last?.conceptId);
-    const scheduledIds = new Set(REEL_SCHEDULE.map((s) => s.conceptId));
+    // Gap of at least CONCEPT_COOLDOWN_DAYS between two runs of one concept.
+    // Measured from the candidate date backwards, so a concept last used
+    // exactly 21 days ago is allowed and 20 days ago is not.
+    const cooldownStart =
+      typeof item.date === "string"
+        ? new Date(Date.parse(`${item.date}T00:00:00Z`) - CONCEPT_COOLDOWN_DAYS * 86_400_000)
+            .toISOString()
+            .slice(0, 10)
+        : "";
+    const usedWithinCooldown = REEL_SCHEDULE.some(
+      (s) => s.conceptId === item.conceptId && s.date > cooldownStart
+    );
     if (
       typeof item.date === "string" &&
       item.date === expected &&
       concept &&
-      !scheduledIds.has(concept.id) &&
+      !usedWithinCooldown &&
       concept.object_type !== lastConcept?.object_type
     ) {
       REEL_SCHEDULE.push({ date: item.date, conceptId: concept.id });

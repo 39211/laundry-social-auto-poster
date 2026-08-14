@@ -4,7 +4,7 @@
 
 ## Source Of Record
 - Canonical URL: https://39211.github.io/
-- Generated at: 2026-08-14T09:49:23.521Z
+- Generated at: 2026-08-14T22:30:41.096Z
 - Timezone: Asia/Taipei
 - Base URL configured: yes
 
@@ -217,6 +217,7 @@
     "https://39211.github.io/assets/2026-08-11/slot-01.png",
     "https://39211.github.io/assets/2026-08-11/slot-02.png",
     "https://39211.github.io/assets/2026-08-11/slot-03.png",
+    "https://39211.github.io/assets/2026-08-14/slot-01.png",
     "https://39211.github.io/assets/2026-08-14/slot-02.png",
     "https://39211.github.io/assets/2026-08-14/slot-03.png",
     "https://39211.github.io/assets/services/shoe-bag-care-hero-product.png",
@@ -3780,6 +3781,61 @@ Instagram caption:
 私享家洗衣店｜台中市區免費到府收送
 
 #私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #洗護日常
+
+### 2026-08-14 11:30 可收藏：白鞋鞋邊泛灰前的檢查，送洗前先看三個位置
+
+- id: https://39211.github.io/content-calendar/2026-08-14.json#post-2026-08-14-slot-01
+- published local time: 2026-08-14T11:30:00+08:00
+- category: 知識文
+- platforms: facebook, instagram
+- visual_route: macro-detail
+- traffic_route: object-proof
+- search_intent: problem-diagnosis
+- target_queries: 台中白鞋清潔 | 台中洗鞋店 | 白鞋泛黃怎麼辦 | 鞋子淋雨怎麼處理
+- evidence_type: first-party-inspection
+- hashtags: #台中洗鞋 #西屯洗鞋 #洗鞋推薦 #白鞋泛黃 #白鞋清潔 #球鞋清洗 #台中洗衣店 #鞋子保養 #西屯 #逢甲
+- image: https://39211.github.io/assets/2026-08-14/slot-01.png
+- calendar: https://39211.github.io/content-calendar/2026-08-14.json
+
+Facebook caption:
+
+白鞋鞋邊開始泛灰,送洗前先看這三個位置。
+
+第一個看鞋邊那圈膠條。灰是附著的髒,擦得掉;黃是膠本身氧化,那只能淡化不能回白。
+
+第二個看布面靠鞋頭的地方。兩道洗不掉的灰帶,通常是刷過頭把纖維刷起毛了,越刷越舊。
+
+第三個看鞋帶孔周圍。金屬圈旁邊一圈深色是汗漬,滲進去久了會連布一起染。
+
+三個都是灰的,多半救得回來;鞋邊已經轉黃,就先講清楚只能淡化。
+
+一般運動鞋 $250 起、皮類 $300(水洗價)。台中全區免費到府收送。
+
+分不出來是灰還是黃?直接點這裡問:https://39211.github.io/go/line.html?source=post(或加 LINE:0968327653)
+
+你家白鞋是鞋邊灰,還是布面灰?
+
+#台中洗鞋 #西屯洗鞋 #洗鞋推薦 #白鞋泛黃 #白鞋清潔 #球鞋清洗 #台中洗衣店 #鞋子保養 #西屯 #逢甲
+
+Instagram caption:
+
+白鞋鞋邊開始泛灰,送洗前先看這三個位置。
+
+第一個看鞋邊那圈膠條。灰是附著的髒,擦得掉;黃是膠本身氧化,那只能淡化不能回白。
+
+第二個看布面靠鞋頭的地方。兩道洗不掉的灰帶,通常是刷過頭把纖維刷起毛了,越刷越舊。
+
+第三個看鞋帶孔周圍。金屬圈旁邊一圈深色是汗漬,滲進去久了會連布一起染。
+
+三個都是灰的,多半救得回來;鞋邊已經轉黃,就先講清楚只能淡化。
+
+一般運動鞋 $250 起、皮類 $300(水洗價)。台中全區免費到府收送。
+
+分不出來是灰還是黃?直接點這裡問:https://39211.github.io/go/line.html?source=post(或加 LINE:0968327653)
+
+你家白鞋是鞋邊灰,還是布面灰?
+
+#台中洗鞋 #西屯洗鞋 #洗鞋推薦 #白鞋泛黃 #白鞋清潔 #球鞋清洗 #台中洗衣店 #鞋子保養 #西屯 #逢甲
 
 ### 2026-08-14 20:30 行李箱收進櫃子前，先看輪子
 

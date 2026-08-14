@@ -162,6 +162,7 @@
         "https://39211.github.io/assets/2026-08-11/slot-01.png",
         "https://39211.github.io/assets/2026-08-11/slot-02.png",
         "https://39211.github.io/assets/2026-08-11/slot-03.png",
+        "https://39211.github.io/assets/2026-08-14/slot-01.png",
         "https://39211.github.io/assets/2026-08-14/slot-02.png",
         "https://39211.github.io/assets/2026-08-14/slot-03.png",
         "https://39211.github.io/assets/services/shoe-bag-care-hero-product.png",
@@ -5062,6 +5063,44 @@
       "contentUrl": "https://39211.github.io/assets/2026-08-11/slot-03.png",
       "url": "https://39211.github.io/assets/2026-08-11/slot-03.png",
       "caption": "白鞋泛黃，不是刷得不夠用力",
+      "inLanguage": "zh-Hant"
+    },
+    {
+      "@type": "SocialMediaPosting",
+      "@id": "https://39211.github.io/content-calendar/2026-08-14.json#post-2026-08-14-slot-01",
+      "headline": "2026-08-14 11:30 可收藏：白鞋鞋邊泛灰前的檢查，送洗前先看三個位置",
+      "text": "白鞋鞋邊開始泛灰,送洗前先看這三個位置。\n\n第一個看鞋邊那圈膠條。灰是附著的髒,擦得掉;黃是膠本身氧化,那只能淡化不能回白。\n\n第二個看布面靠鞋頭的地方。兩道洗不掉的灰帶,通常是刷過頭把纖維刷起毛了,越刷越舊。\n\n第三個看鞋帶孔周圍。金屬圈旁邊一圈深色是汗漬,滲進去久了會連布一起染。\n\n三個都是灰的,多半救得回來;鞋邊已經轉黃,就先講清楚只能淡化。\n\n一般運動鞋 $250 起、皮類 $300(水洗價)。台中全區免費到府收送。\n\n分不出來是灰還是黃?直接點這裡問:https://39211.github.io/go/line.html?source=post(或加 LINE:0968327653)\n\n你家白鞋是鞋邊灰,還是布面灰?\n\n#台中洗鞋 #西屯洗鞋 #洗鞋推薦 #白鞋泛黃 #白鞋清潔 #球鞋清洗 #台中洗衣店 #鞋子保養 #西屯 #逢甲",
+      "datePublished": "2026-08-14T11:30:00+08:00",
+      "inLanguage": "zh-Hant",
+      "keywords": [
+        "#台中洗鞋",
+        "#西屯洗鞋",
+        "#洗鞋推薦",
+        "#白鞋泛黃",
+        "#白鞋清潔",
+        "#球鞋清洗",
+        "#台中洗衣店",
+        "#鞋子保養",
+        "#西屯",
+        "#逢甲"
+      ],
+      "image": {
+        "@id": "https://39211.github.io/content-calendar/2026-08-14.json#post-2026-08-14-slot-01:image"
+      },
+      "isPartOf": {
+        "@id": "https://39211.github.io/#social-post-dataset"
+      },
+      "about": {
+        "@id": "https://39211.github.io/#business"
+      },
+      "url": "https://39211.github.io/content-calendar/2026-08-14.json#post-2026-08-14-slot-01"
+    },
+    {
+      "@type": "ImageObject",
+      "@id": "https://39211.github.io/content-calendar/2026-08-14.json#post-2026-08-14-slot-01:image",
+      "contentUrl": "https://39211.github.io/assets/2026-08-14/slot-01.png",
+      "url": "https://39211.github.io/assets/2026-08-14/slot-01.png",
+      "caption": "可收藏：白鞋鞋邊泛灰前的檢查，送洗前先看三個位置",
       "inLanguage": "zh-Hant"
     },
     {

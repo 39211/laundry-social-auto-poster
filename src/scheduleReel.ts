@@ -7,6 +7,7 @@ import { generateDailyContent } from "./generateDailyContent";
 import { buildGitHubPagesImageUrl, buildGitHubPagesVideoUrl } from "./githubPages";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
 import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
+import { markImageSource } from "./markImageSource";
 import { contentCalendarPath, padSlot, projectRoot } from "./paths";
 import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions, type ReelConcept } from "./reelConcepts";
 import { getZonedDateParts } from "./scheduler";
@@ -215,20 +216,45 @@ export async function scheduleReel(input: {
   };
   await writeJsonAtomic(contentCalendarPath(input.date, root), nextContent);
 
-  // Cover source record, required by validate-publishable-images.
-  const imageSourcesPath = join(root, "data", "image-sources", `${input.date}.json`);
-  const imageSources = await readJsonFile<Array<Record<string, unknown>>>(imageSourcesPath, []);
-  const filteredImageSources = imageSources.filter(
-    (item) => !(item.slot === slotNumber && item.image_path === coverRel)
-  );
-  filteredImageSources.push({
+  // Cover evidence. This used to write a five-field record with no topic and no
+  // hashes, which was fine while approval only looked at slot 1 and never at a
+  // Reel cover. It is not fine now: approval demands a full stamp for every
+  // image of every slot, and 10:20 runs heal-reel-slot *before* auto-approve --
+  // so a Reel healed into the day would be stamped by this writer, judged by
+  // that gate, and blocked. The day would then approve slot 1 only, and the
+  // catch-up chain does not re-approve a day that already has an approval log.
+  // A gate the production writer cannot satisfy is not a gate, it is an outage.
+  //
+  // The manifest entry has to be written here too. It is built at 06:30 from the
+  // calendar, and a Reel healed in at 10:20 did not exist then, so nothing else
+  // will ever describe this cover.
+  const manifestPath = join(root, "data", "image-prompts", `${input.date}.json`);
+  const manifest = await readJsonFile<Array<Record<string, unknown>>>(manifestPath, []);
+  const coverPrompt = patched.image_prompt;
+  const nextManifest = [
+    ...manifest.filter((item) => item.target_path !== coverRel),
+    {
+      slot: slotNumber,
+      slide: 1,
+      target_path: coverRel,
+      topic: patched.topic,
+      prompt: coverPrompt,
+      public_image_url: patched.public_image_url,
+      visual_route: patched.visual_route
+    }
+  ];
+  await writeJsonAtomic(manifestPath, nextManifest);
+
+  // Stamped through the one writer, so the cover carries the same evidence as
+  // any other image: the topic it was made for, and hashes binding it to those
+  // exact bytes and that exact prompt.
+  await markImageSource({
+    root,
     date: input.date,
     slot: slotNumber,
     source: "gpt-image-2",
-    image_path: coverRel,
-    marked_at: new Date().toISOString()
+    imagePath: coverRel
   });
-  await writeJsonAtomic(imageSourcesPath, filteredImageSources);
 
   // Provider source record, required by validatePublishableReel.
   const generationReport = await readJsonFile<Record<string, unknown>>(
@@ -363,20 +389,22 @@ async function main(): Promise<void> {
     const abPlan = planForDate(await loadAbTestPlan(root), date);
 
     if (abPlan) {
-      await healOneSlot({
-        date,
-        slotNumber: 3,
-        conceptId: abPlan.noon.conceptId,
-        variant: abPlan.noon.variant,
-        root
-      });
-      await healOneSlot({
-        date,
-        slotNumber: 2,
-        conceptId: abPlan.evening.conceptId,
-        variant: abPlan.evening.variant,
-        root
-      });
+      // Read the halves through planSlot rather than off the day object, so a
+      // paused half is absent here the same way it is absent everywhere else.
+      for (const slotNumber of [3, 2]) {
+        const half = planSlot(abPlan, slotNumber);
+        if (!half) {
+          console.log(`${date}: slot ${slotNumber} is paused in the plan, leaving it alone.`);
+          continue;
+        }
+        await healOneSlot({
+          date,
+          slotNumber,
+          conceptId: half.conceptId,
+          variant: half.variant,
+          root
+        });
+      }
       return;
     }
 

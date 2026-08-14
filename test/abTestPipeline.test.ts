@@ -376,6 +376,76 @@ describe("A/B dual-reel pipeline", () => {
     ).toBe(true);
   });
 
+  // 10:20 runs heal-reel-slot before auto-approve, so whatever this writer
+  // produces is immediately judged by the image-evidence gate. It used to write
+  // a five-field record with no topic and no hashes, which that gate reads as
+  // unproven -- the Reel slots would have been blocked, the day would have
+  // approved slot 1 alone, and the catch-up chain does not re-approve a day
+  // that already has an approval log. A gate the production writer cannot
+  // satisfy is an outage, not a gate.
+  it("stamps the reel cover with everything the approval gate demands", async () => {
+    const conceptId = "leather-bag-corner";
+    await requireFixture(join(RUN_REELS, `${conceptId}.mp4`), `${conceptId}.mp4`);
+    const root = await mkdtemp(join(tmpdir(), "ab-cover-stamp-"));
+    await seedReelFixtures(root, conceptId, ["10s"]);
+    const date = "2026-08-23";
+
+    await scheduleReel({ date, conceptId, slot: 2, variant: "10s", root });
+
+    const cover = `docs/assets/${date}/slot-02.png`;
+    const sources = JSON.parse(
+      await readFile(join(root, "data", "image-sources", `${date}.json`), "utf8")
+    ) as Array<Record<string, unknown>>;
+    const record = sources.find((entry) => entry.image_path === cover);
+    const content = await loadDailyContent(date, root);
+    const slot = content?.slots.find((s) => s.slot === 2);
+
+    expect(record).toBeTruthy();
+    expect(record!.topic).toBe(slot!.topic);
+    expect(record!.image_sha256).toBe(
+      createHash("sha256").update(await readFile(join(root, ...cover.split("/")))).digest("hex")
+    );
+    expect(typeof record!.prompt_sha256).toBe("string");
+
+    // The manifest is built at 06:30 from the calendar; a Reel healed in at
+    // 10:20 did not exist then, so this writer has to describe its own cover or
+    // nothing ever will.
+    const manifest = JSON.parse(
+      await readFile(join(root, "data", "image-prompts", `${date}.json`), "utf8")
+    ) as Array<Record<string, unknown>>;
+    const entry = manifest.find((item) => item.target_path === cover);
+    expect(entry).toBeTruthy();
+    expect(entry!.topic).toBe(slot!.topic);
+    expect(createHash("sha256").update(String(entry!.prompt)).digest("hex")).toBe(
+      record!.prompt_sha256
+    );
+  });
+
+  it("leaves a paused plan half alone instead of healing it back in", async () => {
+    const conceptId = "leather-bag-corner";
+    await requireFixture(join(RUN_REELS, `${conceptId}.mp4`), `${conceptId}.mp4`);
+    const root = await mkdtemp(join(tmpdir(), "ab-paused-"));
+    await seedReelFixtures(root, conceptId, ["10s"]);
+    const date = "2026-08-24";
+    await saveAbTestPlan(
+      [
+        {
+          date,
+          noon: { conceptId, variant: "10s" },
+          evening: { conceptId, variant: "10s", paused: true }
+        }
+      ],
+      root
+    );
+
+    const plan = planForDate(await loadAbTestPlan(root), date);
+
+    // The retired evening half must be absent, not merely flagged: the 7-to-3
+    // capacity decision is only real if every reader sees the same thing.
+    expect(planSlot(plan, 2)).toBeUndefined();
+    expect(planSlot(plan, 3)?.conceptId).toBe(conceptId);
+  });
+
   it("captionsFor includes LINE id and never bare-shops in block 2", async () => {
     const conceptId = "leather-bag-corner";
     await requireFixture(join(RUN_REELS, `${conceptId}.mp4`), `${conceptId}.mp4`);

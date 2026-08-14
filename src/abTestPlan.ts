@@ -15,6 +15,14 @@ export type AbVariant = "10s" | "15s";
 export interface AbSlotPlan {
   conceptId: string;
   variant: AbVariant;
+  /**
+   * Set when the 7-to-3 capacity decision retired this half. The flag has been
+   * in data/ab-test-plan.json since that decision, but only the production
+   * PowerShell script read it -- planSlot handed the half out regardless, so
+   * healing would put a retired evening Reel back into the day it was removed
+   * from. A pause that only one of two readers honours is not a pause.
+   */
+  paused?: boolean;
 }
 
 export interface AbDayPlan {
@@ -113,9 +121,11 @@ export function planSlot(
   slot: number
 ): AbSlotPlan | undefined {
   if (!day) return undefined;
-  if (slot === 2) return day.evening;
-  if (slot === 3) return day.noon;
-  return undefined;
+  const half = slot === 2 ? day.evening : slot === 3 ? day.noon : undefined;
+  // A paused half is not a half with a different concept -- it is no half at
+  // all. Returning it and expecting every caller to remember to check is how
+  // healing kept reviving the retired evening Reel.
+  return half?.paused ? undefined : half;
 }
 
 /** Slot number that carries the given plan half. */

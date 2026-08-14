@@ -231,6 +231,14 @@
 - **再驗**:三次超寬全部是 F9 的 `maxw` 斷言擋下的,**沒有一次是我眼睛看出來的**。
 - **通則**:**把一次性版面變成模板時,新的失敗模式是內容而不是程式。** 模板本身不會壞,壞的是塞進去的字——所以斷言要留著,不能因為「上次跑過了」就拿掉。
 
+### B8|檢查器自己死在第 7 項,後面三項從來沒跑過(而且沒人知道)
+- **症狀**:23:10 的 `nightly_optimize.py` 手動一跑就 `UnicodeDecodeError: 'cp950' codec can't decode byte 0x8b`,接著 `AttributeError` 整支中止。
+- **真因**:兩層。①`subprocess.run(..., text=True)` 用**系統語系**解碼,這台是 cp950,PowerShell 吐出的 UTF-8 位元組直接炸;②`except (subprocess.SubprocessError, OSError)` **沒有涵蓋 UnicodeDecodeError**,例外穿出去把整支殺掉。
+- **後果**:第 8(IndexNow)、第 9(線上 gtag 存活)、**第 10(今天到底有沒有發)** 全部沒跑。第 10 正是 8/12-13 連兩天零發布之後才加的那一條——**為了防止靜默失敗而加的檢查,自己靜默失敗了**。
+- **修法**:所有子行程改走 `run()` helper(強制 `encoding="utf-8", errors="replace"`,任何例外回傳 `""`);兩個 PowerShell 探測加上「一行都沒回 = 也是 HIGH」,因為**空結果不等於健康**。
+- **再驗**:突變實測——把當天 `posted-log` 移走再跑,第 10 項立刻報「今天一則都沒發出去」;移回來就消失。修好前整支 exit 1、印不出任何 finding;修好後 exit 0、印出 1 筆。
+- **通則**:🔴 **稽核腳本要有「我跑完了嗎」的證據,不能只看有沒有噴錯。** 一支中途死掉的檢查器,和一支「什麼都沒發現」的檢查器,在排程紀錄裡長得一模一樣。任何探測「沒有回傳」都要當成 finding,不能當成通過。
+
 ### B7|`python` 在 PATH 上的那一支,不一定是有裝套件的那一支
 - **症狀**:`python scripts/build-poster-knowledge.py` → `ModuleNotFoundError: No module named 'qrcode'`,但這支腳本前一天才成功產出海報。
 - **真因**:這台機器有多個 Python;PATH 上的沒裝 qrcode/Pillow,有裝的是 `C:/Users/cyc39/AppData/Local/Python/pythoncore-3.14-64/python.exe`(Vault 協定指定的那一支)。

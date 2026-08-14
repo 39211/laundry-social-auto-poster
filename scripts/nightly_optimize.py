@@ -43,6 +43,28 @@ def load(path, default=None):
         return default
 
 
+def run(argv, timeout=120):
+    """Read a child process as UTF-8 no matter what the console codepage says.
+
+    `text=True` decodes with the locale codec, which is cp950 here. On
+    2026-08-14 the scheduled-task probe below hit a byte cp950 cannot represent
+    and raised UnicodeDecodeError -- which is not a SubprocessError, so it was
+    not caught, and the script died at check 7. Checks 8, 9 and 10 never ran,
+    and check 10 is the one that asks whether today actually published. The
+    guard written after three silent zero-publish days was itself silently
+    dead. Returns "" on any failure so one broken probe cannot take the rest
+    of the audit with it.
+    """
+    try:
+        out = subprocess.run(
+            argv, capture_output=True, timeout=timeout,
+            encoding="utf-8", errors="replace",
+        ).stdout
+        return out or ""
+    except (subprocess.SubprocessError, OSError, ValueError):
+        return ""
+
+
 TODAY = date.today()
 TOMORROW = TODAY + timedelta(days=1)
 ds = TODAY.isoformat()
@@ -143,37 +165,34 @@ if not os.path.exists(opt) or ds not in open(opt, encoding="utf-8").read():
         opt,
         "只看守不迭代等於沒做事。寫「改了什麼/為什麼/怎麼驗」")
 
-try:
-    changed = subprocess.run(
-        ["git", "log", "--since", f"{ds} 00:00", "--name-only", "--pretty=format:"],
-        capture_output=True, text=True, timeout=60,
-    ).stdout
-    if "ERROR-BOOK.md" not in changed:
-        add("LOW", "自我迭代", "今天沒有新增踩坑紀錄",
-            "git log 未見 ERROR-BOOK.md 變更",
-            "沒踩到坑是可能的,但「查了超過 15 分鐘才搞懂的事」也算坑")
-except (subprocess.SubprocessError, OSError):
-    pass
+changed = run(["git", "log", "--since", f"{ds} 00:00", "--name-only", "--pretty=format:"], timeout=60)
+if "ERROR-BOOK.md" not in changed:
+    add("LOW", "自我迭代", "今天沒有新增踩坑紀錄",
+        "git log 未見 ERROR-BOOK.md 變更",
+        "沒踩到坑是可能的,但「查了超過 15 分鐘才搞懂的事」也算坑")
 
 
 # --- 7. A dead trigger looks exactly like a healthy one ----------------------
-try:
-    ps = subprocess.run(
-        ["powershell", "-NoProfile", "-Command",
-         "Get-ScheduledTask | Where-Object {$_.TaskName -like 'Laundry*'} | "
-         "ForEach-Object { $i=$_|Get-ScheduledTaskInfo; "
-         "'{0}|{1}' -f $_.TaskName, $i.NextRunTime }"],
-        capture_output=True, text=True, timeout=120,
-    )
-    for line in ps.stdout.strip().splitlines():
-        if "|" in line:
-            name, nxt = line.split("|", 1)
-            if not nxt.strip():
-                add("HIGH", "排程", f"{name.strip()} 沒有下次執行時間",
-                    "NextRunTime 空白 = 永遠不會跑",
-                    "重新註冊該排程(ERROR-BOOK D1)")
-except (subprocess.SubprocessError, OSError):
-    pass
+tasks = run(["powershell", "-NoProfile", "-Command",
+             "Get-ScheduledTask | Where-Object {$_.TaskName -like 'Laundry*'} | "
+             "ForEach-Object { $i=$_|Get-ScheduledTaskInfo; "
+             "'{0}|{1}' -f $_.TaskName, $i.NextRunTime }"])
+seen_tasks = 0
+for line in tasks.strip().splitlines():
+    if "|" in line:
+        seen_tasks += 1
+        name, nxt = line.split("|", 1)
+        if not nxt.strip():
+            add("HIGH", "排程", f"{name.strip()} 沒有下次執行時間",
+                "NextRunTime 空白 = 永遠不會跑",
+                "重新註冊該排程(ERROR-BOOK D1)")
+# Silence from this probe is not the same as "all triggers healthy": it is the
+# shape the crash took. Say so rather than letting an empty result read as a
+# clean bill of health.
+if seen_tasks == 0:
+    add("HIGH", "排程", "查不到任何 Laundry-* 排程",
+        "PowerShell 探測沒有回傳任何一行",
+        "可能是排程真的不見了,也可能是探測本身壞了 —— 兩種都要人工看一次")
 
 
 # --- 8. Indexing is only useful if it is landing -----------------------------
@@ -228,23 +247,23 @@ if not live:
         "查排程 LastTaskResult;3221225786=行程被殺(多半是睡眠或關機)。"
         "確認 WakeToRun=True,並檢查是否有人整天關機")
 
-try:
-    ps = subprocess.run(
-        ["powershell", "-NoProfile", "-Command",
-         "Get-ScheduledTask | Where-Object {$_.TaskName -in "
-         "'Laundry-Daily-Generate','Laundry-Daily-Approve','Laundry-CatchUp-Publish'} | "
-         "ForEach-Object { '{0}|{1}' -f $_.TaskName, $_.Settings.WakeToRun }"],
-        capture_output=True, text=True, timeout=120,
-    )
-    for line in ps.stdout.strip().splitlines():
-        if "|" in line:
-            name, wake = line.split("|", 1)
-            if wake.strip().lower() not in ("true", "$true"):
-                add("HIGH", "排程", f"{name.strip()} 的 WakeToRun 是 False",
-                    "機器睡著時排程不會叫醒它,整天會靜默不發",
-                    "Set-ScheduledTask 把 WakeToRun 設為 True")
-except (subprocess.SubprocessError, OSError):
-    pass
+wake_probe = run(["powershell", "-NoProfile", "-Command",
+                  "Get-ScheduledTask | Where-Object {$_.TaskName -in "
+                  "'Laundry-Daily-Generate','Laundry-Daily-Approve','Laundry-CatchUp-Publish'} | "
+                  "ForEach-Object { '{0}|{1}' -f $_.TaskName, $_.Settings.WakeToRun }"])
+seen_wake = 0
+for line in wake_probe.strip().splitlines():
+    if "|" in line:
+        seen_wake += 1
+        name, wake = line.split("|", 1)
+        if wake.strip().lower() not in ("true", "$true"):
+            add("HIGH", "排程", f"{name.strip()} 的 WakeToRun 是 False",
+                "機器睡著時排程不會叫醒它,整天會靜默不發",
+                "Set-ScheduledTask 把 WakeToRun 設為 True")
+if seen_wake == 0:
+    add("HIGH", "排程", "查不到三個關鍵排程的 WakeToRun 設定",
+        "PowerShell 探測沒有回傳任何一行",
+        "這是防止整天靜默的最後一道檢查,查不到就等於沒檢查 —— 人工確認一次")
 
 
 # --- Report ------------------------------------------------------------------

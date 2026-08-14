@@ -69,8 +69,29 @@ $approvedPath = Join-Path $root "data\approved-log\$date.json"
 # publish nothing (both review families flagged this; it happened on 08-10).
 # auto-approve is idempotent and every gate still applies -- this only moves
 # WHEN the judgment happens, never what it decides.
-if (-not (Test-Path $approvedPath)) {
-    Write-Log "No approved-log for $date; running auto-approve now (gates unchanged)."
+# A partial approval used to be permanent. The condition below was "no approval
+# log at all", so the moment ONE slot was approved the day stopped being
+# re-judged -- and a slot blocked at 10:20 for a fixable reason stayed blocked
+# until a human deleted the log. That failure mode got much more likely once
+# approval started demanding image evidence per slot, so re-judge whenever any
+# calendar slot is still missing its approval, not only when none has one.
+$needsJudging = $true
+if (Test-Path $approvedPath) {
+    try {
+        $calendarPath = Join-Path $root "data\content-calendar\$date.json"
+        $calendarSlots = ([IO.File]::ReadAllText($calendarPath, [Text.UTF8Encoding]::new($false)) |
+            ConvertFrom-Json).slots | ForEach-Object { $_.slot }
+        $approvedSlots = ([IO.File]::ReadAllText($approvedPath, [Text.UTF8Encoding]::new($false)) |
+            ConvertFrom-Json) | ForEach-Object { $_.slot } | Sort-Object -Unique
+        $needsJudging = @($calendarSlots | Where-Object { $approvedSlots -notcontains $_ }).Count -gt 0
+    } catch {
+        # Unreadable either file: re-judging is the safe direction, since
+        # auto-approve applies every gate and approves nothing it should not.
+        $needsJudging = $true
+    }
+}
+if ($needsJudging) {
+    Write-Log "One or more slots for $date are still unapproved; running auto-approve now (gates unchanged)."
     Push-Location $root
     cmd /c "npm.cmd run auto-approve -- --date $date --no-fail 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     Pop-Location

@@ -38,7 +38,8 @@ async function markImageSource(): Promise<void> {
     slot,
     source,
     image_path: target,
-    marked_at: new Date().toISOString()
+    marked_at: new Date().toISOString(),
+    topic: dailySlot.topic
   };
   entries.push(record);
   entries.sort((a, b) => a.slot - b.slot || a.image_path.localeCompare(b.image_path));

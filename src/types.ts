@@ -133,6 +133,13 @@ export interface ImageSourceRecord {
   source: string;
   image_path: string;
   marked_at: string;
+  /**
+   * The slot topic that was live when this file was written. The image-prompts
+   * manifest can be rebuilt at any time, so it cannot testify about a file that
+   * already exists; this can, because it is stamped at the moment of writing.
+   * Optional only for records predating the field.
+   */
+  topic?: string;
 }
 
 export interface VideoSourceRecord {

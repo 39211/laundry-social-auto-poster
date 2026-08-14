@@ -176,9 +176,16 @@ export async function autoApprove(
     }
   }
 
-  // The caption comes from the calendar; the images were generated for the
-  // topic recorded in the image-prompts manifest. When the two disagree the
-  // post is caption-over-wrong-photos, which is worse than not posting.
+  // The caption comes from the calendar; the images were generated for some
+  // other topic. When the two disagree the post is caption-over-wrong-photos,
+  // which is worse than not posting.
+  //
+  // This is checked twice against two different witnesses, because the first
+  // witness turned out to be able to change its story. The image-prompts
+  // manifest is rebuilt by `generate-image-manifest`, so on 2026-08-14 a manifest
+  // rebuild alone flipped this gate from red to green while the files on disk
+  // were still pictures of a different pair of shoes. A file cannot be
+  // vouched for by a document written after it.
   if (slot1) {
     try {
       const manifestRaw = await readFile(join(root, "data", "image-prompts", `${date}.json`), "utf8");
@@ -195,6 +202,28 @@ export async function autoApprove(
       // "absence is not proof of mismatch" stance let a malformed manifest
       // waive the strongest gate.
       blockSlot(1, "slot 1 圖片 manifest 缺失或無法解析,圖文一致性未證明");
+    }
+
+    // Second witness: the topic stamped onto each file by `mark-image-source`,
+    // which the generator runs in the same breath as writing the file.
+    // Boundary, stated rather than overclaimed: this defends against the
+    // automated failure -- a manifest rebuilt after the images were made -- and
+    // not against someone re-running `mark-image-source` by hand on a stale
+    // file. No record written by a separate command can defend against that
+    // command being run again.
+    const slot1Sources = (await loadImageSources(date, root)).filter((entry) => entry.slot === 1);
+    const slot1Assets = imageAssetsForSlot(slot1).map((asset) => asset.local_image_path);
+    for (const path of slot1Assets) {
+      const record = slot1Sources.find((entry) => entry.image_path === path);
+      if (!record) continue; // the missing-source gate below already covers this
+      if (record.topic === undefined) {
+        blockSlot(1, `slot 1 ${path} 沒有記錄產生當下的主題,圖文一致性未證明`);
+      } else if (record.topic !== slot1.topic) {
+        blockSlot(
+          1,
+          `slot 1 文不配圖:${path} 是為「${record.topic.slice(0, 16)}」產生的,文案是「${slot1.topic.slice(0, 16)}」`
+        );
+      }
     }
   }
 

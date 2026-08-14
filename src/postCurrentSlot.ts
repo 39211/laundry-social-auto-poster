@@ -23,7 +23,11 @@ import {
   resolveVideoRepairQueue,
   upsertVideoRepairQueue
 } from "./logging";
-import { imagesChangedSinceStamp } from "./imageStamp";
+import {
+  imagesChangedSinceStamp,
+  imagesDifferFromApproval,
+  loadApprovedImageDigests
+} from "./imageStamp";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
@@ -292,12 +296,20 @@ async function postOneSlot(
     // invisible everywhere. This asks only whether the bytes moved since they
     // were stamped -- proving provenance stays at approval, because re-asking it
     // here would strand every day approved before stamps existed.
-    const swapped = await imagesChangedSinceStamp(
-      root,
-      slot,
-      imageAssetsForSlot(slot),
-      await loadImageSources(date, root)
-    );
+    // Compared against what approval recorded, not against the source records.
+    // A source record is written by the marking command and can be written
+    // again, so approve -> swap -> re-stamp -> publish stayed green against it:
+    // the file always matched the most recent thing anyone had said about it.
+    // The approval snapshot is written once, by approval, and no other command
+    // touches it.
+    const assets = imageAssetsForSlot(slot);
+    const snapshot = await loadApprovedImageDigests(root, date);
+    const differ = await imagesDifferFromApproval(root, slot, assets, snapshot);
+    // Days approved before snapshots existed have none, so they fall back to
+    // the weaker byte check rather than becoming unpublishable.
+    const swapped = snapshot?.[String(slot.slot)]
+      ? differ
+      : await imagesChangedSinceStamp(root, slot, assets, await loadImageSources(date, root));
     if (swapped.length > 0) {
       throw new Error(
         `Slot ${slot.slot} images changed after approval:\n` +

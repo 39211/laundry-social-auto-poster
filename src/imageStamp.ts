@@ -47,18 +47,32 @@ export async function loadImagePromptManifest(
 
 export function manifestEntryFor(
   manifest: ManifestEntry[] | undefined,
-  imagePath: string
+  imagePath: string,
+  slot?: number
 ): ManifestEntry | undefined {
-  // Matched per file, not per slot. A carousel has one entry per slide, and
+  if (!manifest) return undefined;
+  // Matched per file, not per slot: a carousel has one entry per slide, and
   // matching by slot alone meant slides 2-4 were judged by slide 1's prompt.
-  return manifest?.find((entry) => entry.target_path === imagePath);
+  // But element shape is not assumed -- a null or non-object entry used to
+  // throw here, turning malformed data into a crash rather than a refusal --
+  // and an ambiguous manifest is not evidence, so duplicates are rejected
+  // rather than resolved by taking the first.
+  const matches = manifest.filter(
+    (entry): entry is ManifestEntry =>
+      Boolean(entry) &&
+      typeof entry === "object" &&
+      (entry as ManifestEntry).target_path === imagePath &&
+      (slot === undefined || (entry as ManifestEntry).slot === slot)
+  );
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 export function promptHashFor(
   manifest: ManifestEntry[] | undefined,
-  imagePath: string
+  imagePath: string,
+  slot?: number
 ): string | undefined {
-  const prompt = manifestEntryFor(manifest, imagePath)?.prompt;
+  const prompt = manifestEntryFor(manifest, imagePath, slot)?.prompt;
   return typeof prompt === "string" ? sha256(prompt) : undefined;
 }
 
@@ -91,9 +105,9 @@ export async function imageEvidenceFailures(
     const path = asset.local_image_path;
     const say = (why: string) => failures.push(`slot ${slot.slot} ${path} ${why}`);
 
-    const entry = manifestEntryFor(manifest, path);
+    const entry = manifestEntryFor(manifest, path, slot.slot);
     if (!entry) {
-      say("在圖片 manifest 中沒有對應條目,圖文一致性未證明");
+      say("在圖片 manifest 中沒有唯一對應的條目(缺漏、重複、或掛在別的時段),圖文一致性未證明");
       continue;
     }
     if (entry.topic !== slot.topic) {
@@ -136,7 +150,7 @@ export async function imageEvidenceFailures(
       continue;
     }
 
-    const currentPromptHash = promptHashFor(manifest, path);
+    const currentPromptHash = promptHashFor(manifest, path, slot.slot);
     if (typeof record.prompt_sha256 !== "string" || currentPromptHash === undefined) {
       say("來源紀錄或 manifest 沒有提示詞雜湊,圖文一致性未證明");
       continue;
@@ -146,6 +160,75 @@ export async function imageEvidenceFailures(
     }
   }
   return failures;
+}
+
+/**
+ * The digests approval actually saw, per slot, per image path.
+ *
+ * Kept apart from the source records on purpose. A source record is written by
+ * the marking command and can be written again; comparing a publish against it
+ * only ever asks "does this file match the most recent thing anyone said about
+ * it", which stays true through approve -> swap -> re-stamp -> publish. This
+ * file is written once, by approval, and no other command touches it, so it can
+ * answer the question that actually matters: is this the picture that was
+ * approved.
+ */
+export type ApprovedImageDigests = Record<string, Record<string, string>>;
+
+export function imageDigestsPath(root: string, date: string): string {
+  return join(root, "data", "approved-log", `${date}.image-digests.json`);
+}
+
+export async function loadApprovedImageDigests(
+  root: string,
+  date: string
+): Promise<ApprovedImageDigests | undefined> {
+  try {
+    const parsed = JSON.parse(await readFile(imageDigestsPath(root, date), "utf8"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as ApprovedImageDigests)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Images that are not the ones approval signed off on.
+ *
+ * Fail-closed within a slot that has a snapshot: an image approval never
+ * recorded is as suspect as one whose bytes moved, because both mean the set of
+ * pictures changed after consent. Slots with no snapshot fall through to the
+ * weaker byte check, which is what keeps days approved before snapshots existed
+ * publishable.
+ */
+export async function imagesDifferFromApproval(
+  root: string,
+  slot: { slot: number },
+  assets: Array<{ local_image_path: string }>,
+  snapshot: ApprovedImageDigests | undefined
+): Promise<string[]> {
+  const approved = snapshot?.[String(slot.slot)];
+  if (!approved) return [];
+
+  const problems: string[] = [];
+  for (const asset of assets) {
+    const path = asset.local_image_path;
+    const expected = approved[path];
+    if (!expected) {
+      problems.push(`slot ${slot.slot} ${path} 不在核准當下的圖片清單裡,核准後被加進來的`);
+      continue;
+    }
+    const onDisk = await hashImageFile(root, path);
+    if (!onDisk) {
+      problems.push(`slot ${slot.slot} ${path} 讀不到,無法確認是不是被核准的那一張`);
+      continue;
+    }
+    if (onDisk !== expected) {
+      problems.push(`slot ${slot.slot} ${path} 不是被核准的那一張,核准後被換過`);
+    }
+  }
+  return problems;
 }
 
 /**

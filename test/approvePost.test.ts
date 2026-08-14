@@ -63,8 +63,11 @@ describe("approvePost", () => {
       root,
       force: true
     });
-    // An override that leaves no trace is indistinguishable from a clean pass.
+    // An override that leaves no trace is indistinguishable from a clean pass,
+    // and a trace only in prose is one no code can act on.
     expect(forced[0]?.note).toContain("FORCED");
+    expect(forced[0]?.forced).toBe(true);
+    expect(forced[0]?.forced_reasons?.length).toBeGreaterThan(0);
 
     vi.unstubAllEnvs();
   });

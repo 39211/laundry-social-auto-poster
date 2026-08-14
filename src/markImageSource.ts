@@ -44,7 +44,7 @@ export async function markImageSource(options: {
   const all = await loadImageSources(date, root);
   const imageSha = await hashImageFile(root, target);
   if (!imageSha) throw new Error(`Cannot stamp an image that does not exist: ${target}`);
-  const promptSha = promptHashFor(await loadImagePromptManifest(root, date), target);
+  const promptSha = promptHashFor(await loadImagePromptManifest(root, date), target, slot);
 
   // Write-once over unchanged bytes. Re-running this command on a file that has
   // not been regenerated is exactly the move that would let a stale image be
@@ -61,6 +61,23 @@ export async function markImageSource(options: {
         `(topic 「${existing.topic ?? "(none)"}」), so nothing about how it was made can have ` +
         `changed. Regenerate the image if the topic changed.`
     );
+  }
+  // A record with no hash cannot say whether the file changed, so re-stamping
+  // it proves nothing -- and the review pointed out that this was the whole
+  // write-once rule's blind spot: every legacy record and every Reel cover took
+  // this branch, where a stale image could be relabelled with today's topic.
+  // Backfilling the hashes onto an unchanged record is allowed, because that
+  // adds evidence; changing what it claims is not.
+  if (existing && existing.image_sha256 === undefined) {
+    const claimsSomethingElse =
+      existing.topic !== undefined && existing.topic !== dailySlot.topic;
+    if (claimsSomethingElse) {
+      throw new Error(
+        `Refusing to re-stamp ${target}: the existing record has no file hash, so there is no way ` +
+          `to tell whether this file changed since it was recorded as 「${existing.topic}」. ` +
+          `Regenerate the image, or delete the record deliberately if you have verified it by eye.`
+      );
+    }
   }
 
   const entries = all.filter((entry) => !(entry.slot === slot && entry.image_path === target));

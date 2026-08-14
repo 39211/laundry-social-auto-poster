@@ -57,10 +57,10 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
         `\nRegenerate the images, or pass --force if you have checked them yourself.`
     );
   }
-  const forcedNote =
-    failures.length > 0
-      ? `FORCED over ${failures.length} unproven image(s): ${failures.join(" | ")}`
-      : undefined;
+  const forced = failures.length > 0;
+  const forcedNote = forced
+    ? `FORCED over ${failures.length} unproven image(s): ${failures.join(" | ")}`
+    : undefined;
 
   const entries: ApprovalLogEntry[] = [];
   for (const platform of options.platforms) {
@@ -71,7 +71,9 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
       status: "approved",
       approved_by: options.approvedBy,
       note: [options.note, forcedNote].filter(Boolean).join(" — ") || undefined,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      // Machine-readable, so an audit can find these without parsing prose.
+      ...(forced ? { forced: true as const, forced_reasons: failures } : {})
     };
     await appendApprovalLog(entry, root);
     entries.push(entry);

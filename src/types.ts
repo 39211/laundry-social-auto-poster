@@ -178,6 +178,14 @@ export interface ApprovalLogEntry {
   approved_by: string;
   note?: string;
   created_at: string;
+  /**
+   * Set when a human approved over failing image evidence. The reasons used to
+   * live only in `note`, which no code reads -- so a forced approval and a
+   * clean one were identical to `hasApprovedPost`, and an override invisible to
+   * every consumer is not an override, it is a hole.
+   */
+  forced?: true;
+  forced_reasons?: string[];
 }
 
 export interface PostLogEntry {

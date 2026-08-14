@@ -5,7 +5,13 @@ import { getFlag, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { hasApprovedPost, loadApprovalLog, loadDailyContent, loadImageSources } from "./logging";
 import { inspectDailyImageProvenance } from "./imageProvenance";
-import { imageEvidenceFailures } from "./imageStamp";
+import {
+  hashImageFile,
+  imageDigestsPath,
+  imageEvidenceFailures,
+  loadApprovedImageDigests,
+  type ApprovedImageDigests
+} from "./imageStamp";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
@@ -302,6 +308,8 @@ export async function autoApprove(
   const fingerprints: Record<string, string> = JSON.parse(
     await readFile(fingerprintPath, "utf8").catch(() => "{}")
   );
+  const approvedDigests: ApprovedImageDigests =
+    (await loadApprovedImageDigests(root, date)) ?? {};
 
   const approvedSlots: number[] = [];
   for (const slot of pending) {
@@ -322,6 +330,15 @@ export async function autoApprove(
       root
     });
     fingerprints[String(slot.slot)] = createHash("sha256").update(JSON.stringify(slot)).digest("hex");
+    // What approval actually saw. The fingerprint above hashes the calendar
+    // slot, which contains no image bytes, so without this the pictures were
+    // the one part of a post nothing recorded at the moment of consent.
+    const digests: Record<string, string> = {};
+    for (const asset of imageAssetsForSlot(slot)) {
+      const digest = await hashImageFile(root, asset.local_image_path);
+      if (digest) digests[asset.local_image_path] = digest;
+    }
+    approvedDigests[String(slot.slot)] = digests;
     approvedSlots.push(slot.slot);
   }
   // A dry run must leave nothing behind. It already skips the approval log, but
@@ -333,6 +350,11 @@ export async function autoApprove(
   if (!options.dryRun && approvedSlots.length > 0) {
     const { writeFile: writeFp } = await import("node:fs/promises");
     await writeFp(fingerprintPath, JSON.stringify(fingerprints, null, 2), "utf8");
+    await writeFp(
+      imageDigestsPath(root, date),
+      JSON.stringify(approvedDigests, null, 2),
+      "utf8"
+    );
   }
 
   const remainingBlockers = [...slotBlockers.values()].flat();

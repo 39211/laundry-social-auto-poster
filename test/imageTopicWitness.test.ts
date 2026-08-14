@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { autoApprove } from "../src/autoApprove";
-import { imagesChangedSinceStamp } from "../src/imageStamp";
+import {
+  imagesChangedSinceStamp,
+  imagesDifferFromApproval,
+  loadApprovedImageDigests
+} from "../src/imageStamp";
 import { markImageSource } from "../src/markImageSource";
 
 // The invariant: a slot must not be approved unless every image it will publish
@@ -328,6 +332,59 @@ describe("what the approval gate refuses", () => {
       expect(changed).toEqual([]);
     });
 
+    // The sequence the review named: approve, replace the picture, re-run the
+    // marker so the source record agrees with the new bytes, publish. Every
+    // check that compares a file to its own record stays green through this,
+    // because the record was rewritten to match. Only something written by
+    // approval and untouched afterwards can catch it.
+    it("catches a swap that was re-stamped to look consistent", async () => {
+      const hero = SLOTS[0]!.paths[0]!;
+      await autoApprove({ date: DATE, root });
+      const snapshot = await loadApprovedImageDigests(root, DATE);
+
+      await writeFile(join(root, ...hero.split("/")), png("a different picture entirely"));
+      await markImageSource({
+        root,
+        date: DATE,
+        slot: 1,
+        source: "gpt-image-2",
+        imagePath: hero
+      });
+
+      // The record now agrees with the new bytes, so the stamp check is happy.
+      const byStamp = await imagesChangedSinceStamp(
+        root,
+        SLOTS[0]!,
+        [{ local_image_path: hero }],
+        (await sources()) as never
+      );
+      expect(byStamp).toEqual([]);
+
+      // The approval snapshot is not.
+      const byApproval = await imagesDifferFromApproval(
+        root,
+        SLOTS[0]!,
+        [{ local_image_path: hero }],
+        snapshot
+      );
+      expect(byApproval).toHaveLength(1);
+      expect(byApproval[0]).toContain("不是被核准的那一張");
+    });
+
+    it("treats an image approval never saw as a change", async () => {
+      await autoApprove({ date: DATE, root });
+      const snapshot = await loadApprovedImageDigests(root, DATE);
+
+      const differ = await imagesDifferFromApproval(
+        root,
+        SLOTS[0]!,
+        [{ local_image_path: `docs/assets/${DATE}/slot-01-slide-05.png` }],
+        snapshot
+      );
+
+      expect(differ[0]).toContain("不在核准當下的圖片清單裡");
+    });
+
     it("says nothing about an unstamped file, because that is approval's business", async () => {
       const hero = SLOTS[0]!.paths[0]!;
       const entries = await sources();
@@ -346,6 +403,51 @@ describe("what the approval gate refuses", () => {
       // publishing, which is a worse failure than the one it would catch.
       expect(changed).toEqual([]);
     });
+  });
+
+  it("blocks when the manifest has two entries for the same file", async () => {
+    const hero = SLOTS[0]!.paths[0]!;
+    const manifestPath = join(root, "data", "image-prompts", `${DATE}.json`);
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as unknown[];
+    // An ambiguous manifest is not evidence. Taking the first match would let a
+    // conflicting second entry sit there unnoticed.
+    manifest.push({ slot: 1, target_path: hero, topic: SHOE, prompt: "a different prompt" });
+    await writeFile(manifestPath, JSON.stringify(manifest), "utf8");
+
+    const result = await autoApprove({ date: DATE, root });
+
+    expect(about(result.blockers, hero).some((t) => t.includes("沒有唯一對應的條目"))).toBe(true);
+  });
+
+  it("blocks rather than crashing when the manifest contains junk entries", async () => {
+    const manifestPath = join(root, "data", "image-prompts", `${DATE}.json`);
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as unknown[];
+    manifest.unshift(null, 42, "nonsense");
+    await writeFile(manifestPath, JSON.stringify(manifest), "utf8");
+
+    // Malformed data has to become a refusal, not an exception: a throw here
+    // escapes autoApprove and takes the whole day's approval with it, healthy
+    // slots included.
+    const result = await autoApprove({ date: DATE, root });
+
+    expect(result.approved_slots).toEqual([1, 2]);
+  });
+
+  it("refuses to re-topic a record that has no hash to prove the file is unchanged", async () => {
+    const hero = SLOTS[0]!.paths[0]!;
+    const entries = await sources();
+    // The shape every legacy record and every pre-fix Reel cover had.
+    delete entries.find((e) => e.image_path === hero)!.image_sha256;
+    await writeSources(entries);
+
+    const calendarPath = join(root, "data", "content-calendar", `${DATE}.json`);
+    const calendar = JSON.parse(await readFile(calendarPath, "utf8"));
+    calendar.slots[0].topic = "完全不同的主題";
+    await writeFile(calendarPath, JSON.stringify(calendar), "utf8");
+
+    await expect(
+      markImageSource({ root, date: DATE, slot: 1, source: "gpt-image-2", imagePath: hero })
+    ).rejects.toThrow(/no file hash/);
   });
 
   it("blocks every image-bearing slot when the manifest cannot be read", async () => {

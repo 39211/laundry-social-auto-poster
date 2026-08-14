@@ -143,6 +143,12 @@ $codex = Join-Path $env:APPDATA "npm\codex.cmd"
 if (-not (Test-Path $codex)) {
     Write-Log "codex.cmd not found at $codex."
     Show-Toast "找不到 codex.cmd,今天的內容沒有生成。"
+    # The site still gets pushed and resubmitted, for the same reason the image
+    # backfill failure below does it: indexing only ever runs as a side effect
+    # of this script, so an early exit here stops SEO for the day as collateral
+    # damage from a content problem. Nothing new is published -- whatever is
+    # already valid is simply kept fresh.
+    Publish-Site | Out-Null
     exit 1
 }
 

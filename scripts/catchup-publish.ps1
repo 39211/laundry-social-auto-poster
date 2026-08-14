@@ -96,6 +96,23 @@ if ($needsJudging) {
     cmd /c "npm.cmd run auto-approve -- --date $date --no-fail 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     Pop-Location
 }
+# Indexing has no trigger of its own -- it only ever runs as a side effect of
+# the 06:30 generate. So any morning that script does not complete, IndexNow is
+# silently skipped for the day and the loss shows up weeks later as pages that
+# were never recrawled. 08-12 and 08-13 have no indexing record for exactly
+# that reason: the machine was asleep and the script never ran at all.
+#
+# This runs many times a day, so it is the natural place to notice. It only
+# resubmits and re-audits; it publishes nothing.
+$indexingRecord = Join-Path $root "output\operations\indexing-push-$date.json"
+if (-not (Test-Path $indexingRecord)) {
+    Write-Log "No indexing record for $date; submitting IndexNow and running the indexing audit now."
+    Push-Location $root
+    cmd /c "npm.cmd run submit-indexnow -- --live 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    cmd /c "npm.cmd run indexing-push -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    Pop-Location
+}
+
 if (-not (Test-Path $approvedPath)) {
     Write-Log "No approved-log for $date. Nothing can be published yet."
     Show-Toast "今天 ($date) 還沒有審核紀錄,請執行 Codex 審核流程,否則今天不會發文。"

@@ -1,0 +1,162 @@
+{
+ "concepts": [
+  {
+   "id": "down-jacket-cuff",
+   "object_type": "down-jacket",
+   "hook": "羽絨外套袖口發黑",
+   "narration": "那是手腕的油脂日積月累壓進纖維裡,不是表面的髒。整件下水才會勻,只搓袖口反而會留下一圈更深的印子。",
+   "close": "羽絨外套 280 起,台中免費到府收送。",
+   "before_subject": "a navy down jacket sleeve cuff, the ribbed band darkened grey-black with ingrained skin oil, fabric intact",
+   "after_subject": "the same cuff clean and evenly navy again, the rib texture visible, no bleaching and no new fluff"
+  },
+  {
+   "id": "wool-coat-shoulder",
+   "object_type": "wool-coat",
+   "hook": "大衣肩線積一條灰",
+   "narration": "掛了一整季沒穿,灰會沿著肩膀那條線慢慢積起來。刷不掉是因為它早就卡進毛裡,要整件洗才拉得出來。",
+   "close": "長大衣 300 起,收前先拍一張給我看。",
+   "before_subject": "a charcoal wool coat shoulder line with a pale dust band settled along the seam, weave intact",
+   "after_subject": "the same shoulder clean and evenly charcoal, the twill weave crisp, shape unchanged"
+  },
+  {
+   "id": "suede-shoe-nap",
+   "object_type": "suede-shoe",
+   "hook": "麂皮鞋摸起來變硬",
+   "narration": "絨毛倒了就會發硬發亮,那不是髒。洗完得把整片絨面重新刷順才回得來,用濕布擦只會把它壓得更平。",
+   "close": "麂皮鞋 400 起,不確定材質先拍給我。",
+   "before_subject": "a tan suede shoe whose nap has flattened and gone shiny across the vamp, no tears",
+   "after_subject": "the same shoe with the nap lifted and even again, matte and soft-looking, colour unchanged"
+  },
+  {
+   "id": "heel-tip-scuff",
+   "object_type": "high-heel",
+   "hook": "高跟鞋跟頭磨白",
+   "narration": "包在外面的那層皮磨穿了,底下的材質才會露出來。清潔救不回這一塊,鞋面能洗,跟頭得換一片新的皮上去。",
+   "close": "高跟鞋 400 起,補跟另計,先拍給我看。",
+   "before_subject": "a black leather high heel with the heel tip covering worn through to pale base material",
+   "after_subject": "the same shoe cleaned, upper leather even and matt, the worn heel tip still visibly worn"
+  },
+  {
+   "id": "leather-belt-crease",
+   "object_type": "leather-belt",
+   "hook": "皮帶摺痕發白裂",
+   "narration": "老是扣同一格,那一摺的塗層會最先斷開來。清完顏色會淡一點,但斷掉的那條線還是要補色才會平回去。",
+   "close": "皮帶 400 起,補色另計。",
+   "before_subject": "a brown leather belt with a pale cracked crease at the habitual buckle hole, leather whole",
+   "after_subject": "the same belt cleaned and conditioned, colour even, the crease still faintly visible"
+  },
+  {
+   "id": "mattress-pad-sweat",
+   "object_type": "mattress-pad",
+   "hook": "保潔墊出現黃圈",
+   "narration": "汗滲過去再乾掉,就會留下一圈邊。它幫你擋的是整張床墊,所以換季的時候該跟被子一起洗過一次。",
+   "close": "保潔墊 120,台中免費到府收送。",
+   "before_subject": "a white quilted mattress pad with a faint yellow ring where sweat has soaked and dried",
+   "after_subject": "the same pad clean and evenly white, quilting intact, no bleach patches"
+  },
+  {
+   "id": "blanket-pilling",
+   "object_type": "blanket",
+   "hook": "毛毯起球摸起來粗",
+   "narration": "球是摩擦磨出來的,不是被你洗壞了。修掉之後手感就會回來,但下次要單獨洗,才不會再被拉鍊磨到。",
+   "close": "毛毯雙人 400,單人 200。",
+   "before_subject": "a grey fleece blanket surface covered in small pills, fabric otherwise whole",
+   "after_subject": "the same blanket with pills removed, surface flat and soft, colour unchanged"
+  },
+  {
+   "id": "denim-knee-fade",
+   "object_type": "denim",
+   "hook": "牛仔褲膝蓋鬆掉",
+   "narration": "布被撐開之後就回不去了,洗過也只會縮回一部分而已。想留住版型,別等到整片都發白了才送過來。",
+   "close": "牛仔褲 80,整燙 50。",
+   "before_subject": "a pair of indigo jeans with stretched pale knees holding a permanent bend, no holes",
+   "after_subject": "the same jeans washed and pressed, knees flatter and colour more even, honest wear still there"
+  },
+  {
+   "id": "wallet-edge-wear",
+   "object_type": "wallet",
+   "hook": "長夾邊角開始起毛",
+   "narration": "邊油磨掉之後,裡層纖維才會翹起來,那是最早的警訊。這時候補只要薄薄一層,再拖就得整條重上。",
+   "close": "長皮夾 600 起,補色另計。",
+   "before_subject": "a brown leather long wallet with the edge coating worn thin and fibres lifting at one corner",
+   "after_subject": "the same wallet cleaned, leather even, the thinned edge still visible but no loose fibres"
+  },
+  {
+   "id": "kids-shoe-toe",
+   "object_type": "kids-shoe",
+   "hook": "童鞋鞋頭磨到發花",
+   "narration": "小孩踢地板磨出來的,只要面料還在就一定洗得回來。與其急著買新的一雙,先看那層膠有沒有裂開。",
+   "close": "童鞋 150,兩雙以上一起收。",
+   "before_subject": "a small white children's sneaker with the rubber toe cap scuffed grey, upper intact",
+   "after_subject": "the same shoe clean, toe cap white again with honest fine scratches remaining"
+  },
+  {
+   "id": "hiking-boot-mud",
+   "object_type": "hiking-boot",
+   "hook": "登山鞋乾泥卡溝",
+   "narration": "泥乾掉之後會把鞋底的溝整個填平,抓地力就跟著沒了。硬刷會傷到防水層,要先泡開再慢慢帶出來。",
+   "close": "一般登山鞋 350,高筒 500。",
+   "before_subject": "a brown hiking boot with dried mud packed into the lug pattern of the sole",
+   "after_subject": "the same boot with the lugs clear and defined again, leather uppers clean and not over-wetted"
+  },
+  {
+   "id": "sweater-underarm",
+   "object_type": "sweater",
+   "hook": "毛衣腋下出現黃斑",
+   "narration": "汗和止汗劑會起反應變成黃斑,放得越久就越難退。當季就洗掉最好處理,收進櫃子放一季就定型了。",
+   "close": "毛衣 150,精品毛衣 210。",
+   "before_subject": "a cream knit sweater with a yellowed patch under the arm, knit structure intact",
+   "after_subject": "the same sweater clean and evenly cream, knit unchanged, no stretching"
+  }
+ ],
+ "schedule": [
+  {
+   "date": "2026-08-15",
+   "conceptId": "down-jacket-cuff"
+  },
+  {
+   "date": "2026-08-16",
+   "conceptId": "wool-coat-shoulder"
+  },
+  {
+   "date": "2026-08-17",
+   "conceptId": "suede-shoe-nap"
+  },
+  {
+   "date": "2026-08-18",
+   "conceptId": "heel-tip-scuff"
+  },
+  {
+   "date": "2026-08-19",
+   "conceptId": "leather-belt-crease"
+  },
+  {
+   "date": "2026-08-20",
+   "conceptId": "mattress-pad-sweat"
+  },
+  {
+   "date": "2026-08-21",
+   "conceptId": "blanket-pilling"
+  },
+  {
+   "date": "2026-08-22",
+   "conceptId": "denim-knee-fade"
+  },
+  {
+   "date": "2026-08-23",
+   "conceptId": "wallet-edge-wear"
+  },
+  {
+   "date": "2026-08-24",
+   "conceptId": "kids-shoe-toe"
+  },
+  {
+   "date": "2026-08-25",
+   "conceptId": "hiking-boot-mud"
+  },
+  {
+   "date": "2026-08-26",
+   "conceptId": "sweater-underarm"
+  }
+ ]
+}

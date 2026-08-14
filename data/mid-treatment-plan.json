@@ -1,5 +1,12 @@
 {
-  "2026-08-12": "A",
-  "2026-08-13": "B",
-  "2026-08-14": "C"
+  "_note": "2026-08-12..14 were scheduled A/B/C and none of the three ever ran: the machine was asleep on 08-12 and 08-13, and no treated reel (-tA/-tB/-tC) exists anywhere in output/. Rescheduled forward, three days per arm instead of one, because a single day per arm at this account's reach is noise. Do not read the old dates as a completed experiment.",
+  "2026-08-16": "A",
+  "2026-08-17": "A",
+  "2026-08-18": "A",
+  "2026-08-19": "B",
+  "2026-08-20": "B",
+  "2026-08-21": "B",
+  "2026-08-22": "C",
+  "2026-08-23": "C",
+  "2026-08-24": "C"
 }

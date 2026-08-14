@@ -241,6 +241,19 @@ except OSError:
 # publishing on purpose, which is right -- but a pause left on for a week looks
 # exactly like a pipeline that quietly died, and the whole point of check 10 is
 # to tell those apart.
+# The mid-clip A/B was scheduled for 08-12..14, all three arms failed to run,
+# and the plan simply sat there pointing at past dates. Production falls back to
+# the untreated layout silently in that state, so an experiment can die without
+# anyone noticing it never started.
+mt = load("data/mid-treatment-plan.json", {})
+if isinstance(mt, dict):
+    arms = [k for k in mt if not k.startswith("_")]
+    future_arms = [k for k in arms if k >= ds]
+    if arms and not future_arms:
+        add("MED", "影片實驗", "中段治療計畫只剩過去的日期,實驗不會再跑",
+            f"data/mid-treatment-plan.json 最後一天是 {max(arms)}",
+            "確認實驗結束了沒;沒跑完就往後重排,不要把沒跑過當成沒效果")
+
 pause = load("data/PAUSED.json")
 if pause is not None:
     since = str(pause.get("since", ""))[:10] if isinstance(pause, dict) else ""

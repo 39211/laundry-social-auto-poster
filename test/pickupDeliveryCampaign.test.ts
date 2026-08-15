@@ -38,7 +38,7 @@ const campaignScenarios = [
 describe("Taichung free pickup-delivery campaign", () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it("uses one distinct 19:30 pickup-delivery post every day for one week", () => {
+  it("uses one distinct evening pickup-delivery post every day for one week", () => {
     const config = getConfig({
       ...process.env,
       PUBLIC_IMAGE_BASE_URL: "https://39211.github.io",
@@ -50,7 +50,7 @@ describe("Taichung free pickup-delivery campaign", () => {
     for (const [index, slot] of slots.entries()) {
       const date = campaignDates[index]!;
       const expected = campaignScenarios[index]!;
-      expect(slot.time).toBe("19:30");
+      expect(slot.time).toBe("20:30");
       expect(slot.format).toBe(expected.format);
       expect(slot.topic).toContain(expected.topicIncludes);
       expect(slot.facebook_caption).toContain(expected.storyIncludes);
@@ -120,8 +120,10 @@ describe("Taichung free pickup-delivery campaign", () => {
       expect(day.slots[0]?.time).toBe("11:30");
       expect(day.slots[0]?.category).toBe("知識文");
       expect(day.slots[0]?.facebook_caption).not.toContain("台中市全區免費到府收送");
-      // Playbook still authors slot 2 at 19:30; publish schedule is 20:30 via DAILY_SCHEDULE.
-      expect(day.slots[1]?.time).toBe("19:30");
+      // One clock: the playbook authors slot 2 at whatever DAILY_SCHEDULE
+      // says, which is what the publish window enforces. This used to assert the
+      // divergence, pinning a defect in place as though it were the spec.
+      expect(day.slots[1]?.time).toBe("20:30");
       expect(day.slots[1]?.category).toBe("情境文");
       expect(day.slots[1]?.facebook_caption).toContain("台中市全區免費到府收送");
     }

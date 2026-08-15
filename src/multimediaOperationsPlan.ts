@@ -82,7 +82,7 @@ export function buildMultimediaOperationsPlan(now = new Date()): MultimediaOpera
       included_in_kpi: false
     },
     operating_goal:
-      "每天維持 11:30 觸及答案與 19:30 證據轉換兩個主題；每個主題先完成四張圖與一支短片，用 72 小時實際觸及、收藏、分享、LINE 點擊、詢問與預約決定下一輪，不把草稿或測試素材當成成長。",
+      "每天維持 11:30 觸及答案與 20:30 證據轉換兩個主題；每個主題先完成四張圖與一支短片，用 72 小時實際觸及、收藏、分享、LINE 點擊、詢問與預約決定下一輪，不把草稿或測試素材當成成長。",
     daily_runbook: [
       { time: "06:30", action: "同步前日 QA 與最近 72 小時合格樣本，重建兩篇內容", gate: "缺失值保留 null；每輪只測一個 hook 變數" },
       { time: "06:45", action: "腳本機器審查與最多三輪定向修正", gate: "兩篇各至少 90 分，前三秒直接說物件或痛點" },
@@ -93,9 +93,9 @@ export function buildMultimediaOperationsPlan(now = new Date()): MultimediaOpera
       { time: "10:20", action: "兩個 slot 分別執行發布核准", gate: "影片失敗改走合格四圖並標記 VIDEO_DEFERRED；圖片或發布授權失敗才阻擋" },
       { time: "10:45", action: "11:30 時段平台與公開資產前置檢查", gate: "未完成核准與平台預檢即 NO-GO" },
       { time: "11:30", action: "觸及答案時段", gate: "只有明確發布授權後才可發布" },
-      { time: "18:45", action: "19:30 時段平台與公開資產前置檢查", gate: "未完成核准與平台預檢即 NO-GO" },
-      { time: "19:30", action: "證據轉換時段", gate: "只有明確發布授權後才可發布" },
-      { time: "20:30", action: "同步當日發布結果與洞察", gate: "只記錄平台實際回傳成功的內容" }
+      { time: "19:45", action: "20:30 時段平台與公開資產前置檢查", gate: "未完成核准與平台預檢即 NO-GO" },
+      { time: "20:30", action: "證據轉換時段", gate: "只有明確發布授權後才可發布" },
+      { time: "21:30", action: "同步當日發布結果與洞察", gate: "只記錄平台實際回傳成功的內容" }
     ],
     creative_system: {
       caption: [

@@ -2758,7 +2758,7 @@ function buildLlmsText(index: PublicPostIndex): string {
     `- Topics: ${profile.service_topics.join(", ")}`,
     "",
     "## Data Contract",
-    "- Cadence: two daily social slots, 11:30 and 19:30 Asia/Taipei.",
+    "- Cadence: two daily social slots, 11:30 and 20:30 Asia/Taipei.",
     "- Each post includes: date, slot, time, title, topic, content_role, visual_route, traffic_route, search_intent, target_queries, evidence_type, hashtags, media_type, image_url, video_url when applicable, calendar_url, facebook_caption, instagram_caption.",
     "- Use the business profile and structured data as the source of record for phone, hours, map, and social links.",
     "- Do not treat Google Maps CID as Google Place ID. Use google_place_id only when it is non-null.",
@@ -5467,7 +5467,7 @@ function buildAiDiscovery(index: PublicPostIndex): object {
       step_count: page.steps.length
     })),
     content_contract: {
-      cadence: "Two daily social slots at 11:30 and 19:30 Asia/Taipei.",
+      cadence: "Two daily social slots at 11:30 and 20:30 Asia/Taipei.",
       fields: [
         "date",
         "slot",

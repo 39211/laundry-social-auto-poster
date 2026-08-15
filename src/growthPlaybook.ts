@@ -14,6 +14,7 @@ import {
   type SearchIntentCluster,
   type SearchIntentId
 } from "./searchVisibilityStrategy";
+import { DAILY_SCHEDULE, findSlotByNumber } from "./scheduler";
 
 export type GrowthFormat = "image-post" | "reel" | "carousel-guide" | "poster" | "real-shop-photo";
 
@@ -1394,7 +1395,13 @@ function seedForSlot(day: number, slot: number): TopicSeed | undefined {
 }
 
 function buildSlot(date: string, day: number, slot: number): GrowthPlaybookSlot {
-  const time = slot === 1 ? "11:30" : "19:30";
+  // Read from DAILY_SCHEDULE rather than repeating the times here. This line
+  // said 19:30 while every operational path -- the publish window, the catch-up
+  // chain, the patrol and the registered triggers -- said 20:30, so the
+  // calendar disagreed with the machinery that acts on it. On 2026-08-15 that
+  // showed up as slot 2 appearing overdue at 19:33 when it was not due for
+  // another hour. Two clocks means somebody eventually reads the wrong one.
+  const time = findSlotByNumber(slot)?.time ?? DAILY_SCHEDULE[0]!.time;
   const special = specialSlots[date]?.[slot];
   const seed = seedForSlot(day, slot);
   if (!seed) throw new Error(`Missing seed for day ${day} slot ${slot}`);
@@ -1477,7 +1484,7 @@ export function buildGrowthPlaybook(startDate = "2026-07-11", totalDays = 90): G
     end_date: lastDay.date,
     timezone,
     cadence:
-      "每天 2 則：11:30 觸及或可收藏的知識內容，19:30 證據或轉換內容；每篇滿 72 小時才比較非粉觸及、收藏、分享、LINE 點擊與預約。",
+      "每天 2 則：11:30 觸及或可收藏的知識內容，20:30 證據或轉換內容；每篇滿 72 小時才比較非粉觸及、收藏、分享、LINE 點擊與預約。",
     source_method: [
       "參考 90 天日更 playbook 的北極星指標、三階段主題弧線、內容支柱、CTA、Hashtag、圖片方向與 10 日複盤方式。",
       "新版以搜尋查詢、原創內容、可引用答案、品牌提及、LINE 點擊、詢問與預約組成同一條可量測漏斗；引用與品牌提及分開記錄。",

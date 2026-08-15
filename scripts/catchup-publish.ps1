@@ -113,6 +113,35 @@ if (-not (Test-Path $indexingRecord)) {
     Pop-Location
 }
 
+# Local images exist but the public copies are not live. Publishing verifies the
+# public URL, so this 404s every attempt and the day stalls with nothing to fix
+# it -- 2026-08-15: the site was pushed at 06:30:02 and the images landed at
+# 06:50, so every publish from 11:30 onward failed on an asset that was sitting
+# right there on disk. The push and the images had simply happened in the wrong
+# order, and nothing downstream re-pushed.
+#
+# Checked against the hero image of the first approved slot: if the file is here
+# and the web says 404, the site is stale, so push it again.
+$heroLocal = Join-Path $root "docs\assets\$date\slot-01.png"
+if (Test-Path $heroLocal) {
+    $heroUrl = "https://39211.github.io/assets/$date/slot-01.png"
+    # curl.exe, not Invoke-WebRequest. Under Task Scheduler PowerShell runs
+    # NonInteractive, where Invoke-WebRequest throws "Read and Prompt
+    # functionality is not available" before it ever reaches the network --
+    # every check would fail, every run would decide the site was stale, and it
+    # would re-push six times a day forever. Verified on this box: curl returns
+    # 200 on the same URL that makes Invoke-WebRequest throw.
+    $heroCode = (& curl.exe -s -o NUL -w "%{http_code}" --max-time 20 $heroUrl) 2>$null
+    $heroLive = ($heroCode -eq "200")
+    if (-not $heroLive) {
+        Write-Log "Local images exist for $date but $heroUrl is not live; re-publishing the site."
+        Push-Location $root
+        cmd /c "npm.cmd run generate-public-site 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        Pop-Location
+    }
+}
+
 if (-not (Test-Path $approvedPath)) {
     Write-Log "No approved-log for $date. Nothing can be published yet."
     Show-Toast "今天 ($date) 還沒有審核紀錄,請執行 Codex 審核流程,否則今天不會發文。"

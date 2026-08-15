@@ -776,14 +776,23 @@ export const SHARED_STILL_PROMPT =
  * reason the middle act is: it is the only way the object, counter, background
  * and light stay identical across a cut.
  */
-export const AFTER_STILL_PROMPT =
+/**
+ * Prefix, not a replacement.
+ *
+ * Written first as a standalone template, which quietly dropped two things the
+ * shared one carries and two tests guard: the vocabulary of a business this is
+ * not (the first batch produced laundry baskets and a domestic sofa), and the
+ * identical look block that lets a single regenerated still drop back into the
+ * pair it belongs to. Both came back the moment it became a prefix to
+ * SHARED_STILL_PROMPT rather than a rival to it.
+ */
+export const AFTER_STILL_PREFIX =
   "Edit the supplied BEFORE image, do not generate a new scene. Keep the same camera position, the same " +
   "counter, the same background, the same light direction and the same white balance. The item must be " +
   "the SAME physical object: same material, same colour, same fittings, same shape. Change only its " +
-  "condition to [AFTER_STATE]. " +
+  "condition, and keep natural use creases -- the item is clean, not new. " +
   `Add ${ARTISAN} One hand steadies the item and the other turns it slightly toward the camera, as if ` +
-  "showing the finished result to the customer across the counter. Natural use creases stay: the item " +
-  "is clean, not new. Portrait 4:5. No readable text, no logo, no watermark.";
+  "showing the finished result to the customer across the counter. ";
 
 // The middle act is the one most likely to drift, because it is the only one
 // with a hand and a tool in it. Generating it by editing the before image --
@@ -807,8 +816,20 @@ export function stillPathsFor(concept: ReelConcept): { before: string; after: st
 }
 
 export function promptFor(concept: ReelConcept, state: "before" | "after"): string {
-  const subject = state === "before" ? concept.before_subject : concept.after_subject;
-  return SHARED_STILL_PROMPT.replace("[SUBJECT]", subject);
+  // The before act is the customer's problem, so it stays object-only. The
+  // after act is where the judgement is delivered, so the craftsman is in it.
+  //
+  // This function is the wiring. Adding ARTISAN to a constant that nothing
+  // calls produced a reel with no person in it and a commit message claiming
+  // otherwise -- the constants were read by no one, because the production
+  // script gets these prompts through `reel-concepts --prompts`, which comes
+  // through here.
+  if (state === "before") {
+    return SHARED_STILL_PROMPT.replace("[SUBJECT]", concept.before_subject);
+  }
+  // Prefix + the same shared template, so the after still keeps the identical
+  // look block and the same negative list as the before still.
+  return AFTER_STILL_PREFIX + SHARED_STILL_PROMPT.replace("[SUBJECT]", concept.after_subject);
 }
 
 export interface ConceptStatus {

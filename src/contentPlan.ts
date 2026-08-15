@@ -982,6 +982,28 @@ export function contradictorySubject(
     : undefined;
 }
 
+/**
+ * The file-label prefixes the playbook puts in front of a topic.
+ *
+ * These name the format, not the object: 可收藏 means "this one is worth
+ * saving", the same way 先看懂 means "this one explains". Exported because the
+ * approval gate's seven-day repeat check kept its own shorter copy of this
+ * list, so two posts about completely different objects looked identical to it
+ * as long as they shared a label — and from day 31 the playbook labels every
+ * knowledge post 可收藏, which would have blocked the morning post every day
+ * from 2026-08-16 onward.
+ */
+export const TOPIC_LABEL_PREFIXES = [
+  "先看懂",
+  "今天情境",
+  "可收藏",
+  "細節拆解",
+  "到店前判斷",
+  "送洗前先問"
+] as const;
+
+export const TOPIC_LABEL_PREFIX_RE = new RegExp(`^(${TOPIC_LABEL_PREFIXES.join("|")})：`);
+
 const LINE_REDIRECT = "https://39211.github.io/go/line.html?source=post";
 export const LINE_CONTACT = `直接點這裡問:${LINE_REDIRECT}(或加 LINE:0968327653)`;
 

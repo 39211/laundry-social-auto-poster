@@ -12,6 +12,7 @@ import {
   loadApprovedImageDigests,
   type ApprovedImageDigests
 } from "./imageStamp";
+import { TOPIC_LABEL_PREFIX_RE } from "./contentPlan";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
@@ -176,9 +177,21 @@ export async function autoApprove(
   // shared -- and blocked a legitimate day; slot 1 never published. Grams are
   // taken from the topic with lead-in wording stripped, so only object words
   // remain comparable.
-  const TOPIC_LEAD_INS = /先看懂|怎麼判斷|怎麼辦|你可能|其實|今天|當天|門市檢查|最髒的|先看|再看/g;
+  // The label prefix comes off first, using the same list the captions use.
+  // This gate kept its own shorter copy, which did not include 可收藏 -- and
+  // from day 31 the playbook labels every knowledge post 可收藏. Two posts about
+  // a white shoe and a duvet then shared the three characters this scan
+  // compares, so 2026-08-16 onward would have blocked the morning post every
+  // single day, with the catch-up chain re-judging it into the same wall.
+  // A file label is not an object.
+  const TOPIC_LEAD_INS = /怎麼判斷|怎麼辦|你可能|其實|今天|當天|門市檢查|最髒的|先看|再看/g;
   const objectHead = (topic: string): string =>
-    topic.replace(/[（(].*?[)）]/g, "").replace(TOPIC_LEAD_INS, "").replace(/[：:，,。!？?\s]/g, "").slice(0, 8);
+    topic
+      .replace(TOPIC_LABEL_PREFIX_RE, "")
+      .replace(/[（(].*?[)）]/g, "")
+      .replace(TOPIC_LEAD_INS, "")
+      .replace(/[：:，,。!？?\s]/g, "")
+      .slice(0, 8);
   const slot1 = content.slots.find((slot) => slot.slot === 1);
   if (slot1) {
     const head = objectHead(slot1.topic);

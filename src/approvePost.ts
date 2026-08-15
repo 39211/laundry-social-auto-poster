@@ -1,7 +1,14 @@
+import { writeFile } from "node:fs/promises";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
-import { imageEvidenceFailures } from "./imageStamp";
+import {
+  hashImageFile,
+  imageDigestsPath,
+  imageEvidenceFailures,
+  loadApprovedImageDigests
+} from "./imageStamp";
 import { appendApprovalLog, loadDailyContent, loadImageSources } from "./logging";
 import { imageAssetsForSlot } from "./mediaAssets";
+import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
 import type { ApprovalLogEntry, Platform } from "./types";
 
@@ -32,6 +39,14 @@ function parsePlatforms(value: string | undefined): Platform[] {
 
 export async function approvePost(options: ApprovePostOptions): Promise<ApprovalLogEntry[]> {
   const root = projectRoot(options.root);
+
+  // The owner's brake stops every consent path, including this manual one.
+  // --force still overrides unproven image evidence; it does not override pause.
+  const paused = await readPause(root);
+  if (paused) {
+    throw new Error(pauseMessage(paused));
+  }
+
   const content = await loadDailyContent(options.date, root);
   if (!content) throw new Error(`No content calendar found for ${options.date}`);
 
@@ -78,6 +93,22 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
     await appendApprovalLog(entry, root);
     entries.push(entry);
   }
+
+  // Snapshot the pictures this grant actually saw. Publishing compares against
+  // this file; a missing slot key is treated as a pre-snapshot day and falls
+  // back to the weaker check, so even an empty map must be written.
+  const approvedDigests = (await loadApprovedImageDigests(root, options.date)) ?? {};
+  const digests: Record<string, string> = {};
+  for (const asset of imageAssetsForSlot(slot)) {
+    const digest = await hashImageFile(root, asset.local_image_path);
+    if (digest) digests[asset.local_image_path] = digest;
+  }
+  approvedDigests[String(options.slot)] = digests;
+  await writeFile(
+    imageDigestsPath(root, options.date),
+    JSON.stringify(approvedDigests, null, 2),
+    "utf8"
+  );
 
   return entries;
 }

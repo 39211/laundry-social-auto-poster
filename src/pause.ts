@@ -31,25 +31,48 @@ export function pausePath(root: string): string {
   return join(root, "data", "PAUSED.json");
 }
 
+function unreadablePause(): PauseState {
+  return { reason: "(pause file is unreadable)", since: "(unknown)", paused_by: "(unknown)" };
+}
+
+function isEnoent(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
+
 export async function readPause(root: string): Promise<PauseState | undefined> {
+  let raw: string;
   try {
-    const parsed = JSON.parse(await readFile(pausePath(root), "utf8"));
-    if (!parsed || typeof parsed !== "object") return undefined;
-    return {
-      reason: typeof parsed.reason === "string" ? parsed.reason : "(no reason recorded)",
-      since: typeof parsed.since === "string" ? parsed.since : "(unknown)",
-      paused_by: typeof parsed.paused_by === "string" ? parsed.paused_by : "(unknown)"
-    };
-  } catch {
-    // A malformed pause file still means someone tried to stop the line. The
-    // safe reading of "I cannot parse the brake" is that the brake is on.
-    try {
-      await readFile(pausePath(root));
-      return { reason: "(pause file is unreadable)", since: "(unknown)", paused_by: "(unknown)" };
-    } catch {
-      return undefined;
-    }
+    raw = await readFile(pausePath(root), "utf8");
+  } catch (error) {
+    // Only a missing file is "not paused". Permission, I/O, or a path that
+    // exists but cannot be read still means someone tried to stop the line.
+    if (isEnoent(error)) return undefined;
+    return unreadablePause();
   }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // The first read already proved the file is there. A second read cannot
+    // make a malformed brake safer, and it can fail-open if that read errors.
+    return unreadablePause();
+  }
+
+  // A legal JSON primitive used to fail-open: parse succeeded and this guard
+  // returned undefined as if nobody had set the brake.
+  if (!parsed || typeof parsed !== "object") return unreadablePause();
+  if (Array.isArray(parsed)) return unreadablePause();
+
+  // Narrowed to bare `object`, which has no index signature, so reading the
+  // fields off it does not compile. Runtime was already correct here -- tsx
+  // does not typecheck, so this only showed up under `tsc --noEmit`.
+  const fields = parsed as Partial<Record<keyof PauseState, unknown>>;
+  return {
+    reason: typeof fields.reason === "string" ? fields.reason : "(no reason recorded)",
+    since: typeof fields.since === "string" ? fields.since : "(unknown)",
+    paused_by: typeof fields.paused_by === "string" ? fields.paused_by : "(unknown)"
+  };
 }
 
 export function pauseMessage(state: PauseState): string {

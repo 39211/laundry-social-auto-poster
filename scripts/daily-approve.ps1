@@ -99,7 +99,12 @@ if ($result.approved) {
              elseif ($prov.with_manifest -eq 0) { " 今天的圖沒有 AI 出處資訊,貼文預期不會出現 AI 標籤。" }
              elseif ($prov.without_manifest -eq 0) { " 今天的圖帶有 AI 出處資訊,貼文預期會出現 AI 標籤。" }
              else { (" 今天的圖出處不一致({0} 有 / {1} 無)。" -f $prov.with_manifest, $prov.without_manifest) }
-    Show-Toast ("已自動核准今天 slot {0},11:30 起依序發佈。{1}要攔截請在 11:30 前刪除 data\approved-log\{2}.json" -f $slots, $label, $date)
+    # Do not tell the owner to delete the approval log. That was never a brake:
+    # the catch-up chain re-approves any unapproved slot, and it became more
+    # eager on 2026-08-15, so the deletion is undone within the hour. Point at
+    # the one that holds -- approval and publishing both refuse while it exists,
+    # and no automated path removes it.
+    Show-Toast ("已自動核准今天 slot {0},11:30 起依序發佈。{1}要停下今天:在終端機執行 npm run pause -- --reason 原因" -f $slots, $label)
     exit 0
 }
 

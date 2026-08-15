@@ -14,6 +14,7 @@ import {
 import {
   appendPostLog,
   hasApprovedPost,
+  hasPublishableApproval,
   hasRecordedPost,
   loadApprovalLog,
   loadDailyContent,
@@ -26,7 +27,8 @@ import {
 import {
   imagesChangedSinceStamp,
   imagesDifferFromApproval,
-  loadApprovedImageDigests
+  inspectApprovedImageDigestFile,
+  isApprovedSlotDigestMap
 } from "./imageStamp";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { pauseMessage, readPause } from "./pause";
@@ -311,14 +313,34 @@ async function postOneSlot(
     // the file always matched the most recent thing anyone had said about it.
     // The approval snapshot is written once, by approval, and no other command
     // touches it.
+    // Only a missing file is a pre-snapshot day. A file that is there but
+    // unreadable, or that has no key for this slot, is not "old" -- it is a
+    // snapshot we cannot use, and must not fall back to the weaker check.
     const assets = imageAssetsForSlot(slot);
-    const snapshot = await loadApprovedImageDigests(root, date);
-    const differ = await imagesDifferFromApproval(root, slot, assets, snapshot);
-    // Days approved before snapshots existed have none, so they fall back to
-    // the weaker byte check rather than becoming unpublishable.
-    const swapped = snapshot?.[String(slot.slot)]
-      ? differ
-      : await imagesChangedSinceStamp(root, slot, assets, await loadImageSources(date, root));
+    const digestFile = await inspectApprovedImageDigestFile(root, date);
+    let swapped: string[];
+    if (digestFile.kind === "unusable") {
+      throw new Error(
+        `Slot ${slot.slot} image-digest file for ${date} is damaged or not a plain object; refusing to treat it as a pre-snapshot day.`
+      );
+    }
+    if (digestFile.kind === "ready") {
+      const slotKey = String(slot.slot);
+      if (!Object.hasOwn(digestFile.snapshot, slotKey)) {
+        throw new Error(
+          `Slot ${slot.slot} has no image-digest entry although ${date} has a digest file; re-run auto-approve before publishing.`
+        );
+      }
+      const slotDigest: unknown = digestFile.snapshot[slotKey];
+      if (!isApprovedSlotDigestMap(slotDigest)) {
+        throw new Error(
+          `Slot ${slot.slot} image-digest entry is not a digest map; refusing to publish.`
+        );
+      }
+      swapped = await imagesDifferFromApproval(root, slot, assets, digestFile.snapshot);
+    } else {
+      swapped = await imagesChangedSinceStamp(root, slot, assets, await loadImageSources(date, root));
+    }
     if (swapped.length > 0) {
       throw new Error(
         `Slot ${slot.slot} images changed after approval:\n` +
@@ -421,13 +443,21 @@ async function postOneSlot(
       }
     }
   ];
-  const missingApprovals = platformInputs
-    .filter(({ platform }) => !hasApprovedPost(approvals, slot.slot, platform))
+  const unpublishable = platformInputs
+    .filter(({ platform }) => !hasPublishableApproval(approvals, slot.slot, platform))
     .map(({ platform }) => platform);
 
-  if (missingApprovals.length > 0) {
+  if (unpublishable.length > 0) {
+    const forcedOnly = unpublishable.filter((platform) =>
+      hasApprovedPost(approvals, slot.slot, platform)
+    );
+    if (forcedOnly.length > 0) {
+      throw new Error(
+        `Post ${date} slot ${slot.slot} has a forced approval for: ${forcedOnly.join(", ")}. Forced approval is not publishable consent.`
+      );
+    }
     throw new Error(
-      `Post ${date} slot ${slot.slot} is not approved for: ${missingApprovals.join(", ")}. Run approve-post before posting.`
+      `Post ${date} slot ${slot.slot} is not approved for: ${unpublishable.join(", ")}. Run approve-post before posting.`
     );
   }
 

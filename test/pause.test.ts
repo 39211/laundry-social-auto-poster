@@ -70,6 +70,31 @@ describe("the owner's brake", () => {
     expect((await autoApprove({ date: DATE, root })).approved).toBe(false);
   });
 
+  it.each([
+    ["null", "null"],
+    ["false", "false"],
+    ["0", "0"],
+    ["empty string", '""'],
+    ["paused string", '"paused"'],
+    ["array", "[]"]
+  ] as const)("treats a parsed %s brake as engaged, not as absent", async (_label, body) => {
+    // A legal JSON value that is not a pause object used to fail-open:
+    // parse succeeded, the object-guard rejected it, and the line ran.
+    await writeFile(pausePath(root), body, "utf8");
+
+    expect(await readPause(root)).toBeTruthy();
+    expect((await autoApprove({ date: DATE, root })).approved).toBe(false);
+  });
+
+  it("treats a brake that exists but cannot be read as engaged", async () => {
+    // A directory at the pause path is not ENOENT. The first read fails for a
+    // real I/O reason; that must not be read as "no one set the brake".
+    await mkdir(pausePath(root), { recursive: true });
+
+    expect(await readPause(root)).toBeTruthy();
+    expect((await autoApprove({ date: DATE, root })).approved).toBe(false);
+  });
+
   it("is absent when no one set it", async () => {
     expect(await readPause(root)).toBeUndefined();
   });

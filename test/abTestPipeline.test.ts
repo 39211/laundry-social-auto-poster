@@ -266,17 +266,34 @@ describe("A/B dual-reel pipeline", () => {
     const { generateDailyContent } = await import("../src/generateDailyContent");
     const { approvePost } = await import("../src/approvePost");
     await generateDailyContent({ date, root, force: true });
+
+    // A real, approvable day rather than a forced approval. Publishing refuses
+    // forced consent now, and rightly: this test is about ab_variant landing in
+    // the posted log, so it needs an approval that could actually publish.
+    const { markImageSource } = await import("../src/markImageSource");
+    const { loadDailyContent } = await import("../src/logging");
+    const calendar = await loadDailyContent(date, root);
+    const slot1 = calendar!.slots.find((s) => s.slot === 1)!;
+    const hero = slot1.local_image_path;
+    await mkdir(join(root, "docs", "assets", date), { recursive: true });
+    await writeFile(join(root, ...hero.split("/")), "img");
+    await mkdir(join(root, "data", "image-prompts"), { recursive: true });
+    await writeFile(
+      join(root, "data", "image-prompts", `${date}.json`),
+      JSON.stringify([
+        { slot: 1, target_path: hero, topic: slot1.topic, prompt: slot1.image_prompt }
+      ]),
+      "utf8"
+    );
+    await markImageSource({ root, date, slot: 1, source: "gpt-image-2", imagePath: hero });
+
     await approvePost({
       date,
       slot: 1,
       platforms: ["facebook", "instagram"],
       approvedBy: "test",
-      root,
-      // A/B plumbing fixture, no image stamps; see postCurrentSlot.test.ts.
-      force: true
+      root
     });
-    await mkdir(join(root, "docs", "assets", date), { recursive: true });
-    await writeFile(join(root, "docs", "assets", date, "slot-01.png"), "img");
 
     const results = await postCurrentSlot({
       root,

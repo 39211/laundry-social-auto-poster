@@ -97,3 +97,10 @@
 - Opus W3(視覺 QA)/W4(分鏡真相化)條款清單已入卷(runs/BOARD0817 + agent 卷);W3 前置=總指揮親跑讀幀探針;W4 前置=付費煞車先有牙(現行旗標 0 讀取方)。兩單依前置排程。
 - G3 cugfei 蒸餾入待辦(B13-B18);GBP OAuth 步驟文件落 docs-internal/gbp-oauth-setup.md。
 - ⚠ 新系統洞(Opus RISK3/4,進佇列):跨日同片重播無閘(caption 換寫反而讓它更隱形)、standing-policy 四欄恆 pass。
+
+### 05:55 板況終帳(自主佇列清空)
+- 實作 12 張全收卷:IGFIX/REPAIR/A7×3/EVENING/VQ/W3B/NIGHTLY/DUPGATE×2/STANDPOL;複審 5 席(luna×3+Opus+探針);commit 17 個;測試 303→435。
+- 發布閘終態:同片 21 天閘(雙源歷史窗)+只有看過的片能發影片+一切失敗退封面;luna 終審 5/6 HOLDS、唯一 HIGH 已接力修復並突變自證。
+- 視覺法官:警告模式運行中,校準門已開(缺 15s 綠例才轉強制)。
+- 等老闆:W4a 預算參數、wool-coat 看片、GBP OAuth、GSC 匯出、營收OS曆法、(DNS 超時則電話)。
+- 待機觸發:07:58 晨檢、10:20 核准(新閘首航,luna 已驗安全)、12:00/20:30 發布、14:00 產線、DNS 監視器。

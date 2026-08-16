@@ -13,6 +13,7 @@ import {
 } from "./githubPages";
 import {
   appendPostLog,
+  findDuplicateAiredReelVideo,
   hasApprovedPost,
   hasPublishableApproval,
   hasRecordedPost,
@@ -20,7 +21,9 @@ import {
   loadDailyContent,
   loadImageSources,
   loadPostLog,
+  loadRecentAiredReelVideoShas,
   loadVideoRepairQueue,
+  postedVideoShaFields,
   resolveVideoRepairQueue,
   upsertVideoRepairQueue
 } from "./logging";
@@ -37,6 +40,7 @@ import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./pos
 import { postInstagramCarousel, postInstagramPhoto, postInstagramReel } from "./postInstagram";
 import { NonRetryableError, withRetry } from "./retry";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
+import { CONCEPT_COOLDOWN_DAYS } from "./reelConcepts";
 import { DAILY_SCHEDULE, findSlotByNumber, getZonedDateParts, resolveCurrentSlot } from "./scheduler";
 import type {
   AppConfig,
@@ -78,6 +82,7 @@ interface ResolvedPublishMedia {
   videoDeferred: boolean;
   videoDeferKind?: VideoDeferKind;
   videoDeferredReason?: string;
+  videoSha256?: string;
 }
 
 // A video that is not ready and a video check that crashed both have to fall back,
@@ -113,7 +118,14 @@ export async function resolveSlotPublishMedia(
       throw new Error(`Video file is missing for slot ${slot.slot}: ${localPath}.`);
     }
     await validatePublishableReel(slot, date, root);
-    return { mediaType: slot.media_type, videoDeferred: false };
+    const { createHash } = await import("node:crypto");
+    const videoSha256 = createHash("sha256").update(await readFile(join(root, ...localPath.split("/")))).digest("hex");
+    const aired = await loadRecentAiredReelVideoShas(date, root, CONCEPT_COOLDOWN_DAYS);
+    const duplicate = findDuplicateAiredReelVideo(videoSha256, aired, date, slot.slot);
+    if (duplicate) {
+      throw new Error(`same video aired on ${duplicate.date} slot ${duplicate.slot}`);
+    }
+    return { mediaType: slot.media_type, videoDeferred: false, videoSha256 };
   } catch (error) {
     return {
       mediaType: slot.media_type === "mixed-carousel" ? "carousel" : "image",
@@ -148,6 +160,7 @@ function resultToLog(
         : "not_planned",
     video_defer_kind: media.videoDeferKind,
     video_deferred_reason: media.videoDeferredReason,
+    ...postedVideoShaFields(media.videoDeferred ? undefined : media.videoSha256),
     ...(abVariant ? { ab_variant: abVariant } : {}),
     post_id: result.post_id,
     created_at: new Date().toISOString()
@@ -478,6 +491,7 @@ async function postOneSlot(
           : ("not_planned" as const),
       video_defer_kind: resolvedMedia.videoDeferKind,
       video_deferred_reason: resolvedMedia.videoDeferredReason,
+      ...postedVideoShaFields(resolvedMedia.videoDeferred ? undefined : resolvedMedia.videoSha256),
       ...(abVariant ? { ab_variant: abVariant } : {}),
       created_at: new Date().toISOString()
     }));
@@ -544,6 +558,9 @@ async function postOneSlot(
             : "not_planned",
         video_defer_kind: resolvedMedia.videoDeferKind,
         video_deferred_reason: resolvedMedia.videoDeferredReason,
+        ...postedVideoShaFields(
+          resolvedMedia.videoDeferred || !commitUncertain ? undefined : resolvedMedia.videoSha256
+        ),
         ...(abVariant ? { ab_variant: abVariant } : {}),
         error: error instanceof Error ? error.message : String(error),
         created_at: new Date().toISOString()

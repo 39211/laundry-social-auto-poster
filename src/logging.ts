@@ -246,6 +246,81 @@ export async function markVideoRepairReady(
   });
 }
 
+export interface AiredReelVideoSha {
+  date: string;
+  slot: number;
+  video_sha256: string;
+}
+
+type PostLogEntryWithVideoSha = PostLogEntry & { video_sha256?: unknown };
+
+function postedVideoSha(entry: PostLogEntry): string | undefined {
+  const value = (entry as PostLogEntryWithVideoSha).video_sha256;
+  if (typeof value !== "string") return undefined;
+  const sha = value.trim().toLowerCase();
+  return sha.length > 0 ? sha : undefined;
+}
+
+/**
+ * A live Reel that actually went out. Historical rows without video_sha256
+ * are not evidence — the gate starts from the first recorded hash and does
+ * not invent one for older days.
+ */
+export function isLiveAiredReelEntry(entry: PostLogEntry): boolean {
+  if (entry.dry_run) return false;
+  if (!["success", "posted", "uncertain"].includes(entry.status)) return false;
+  if (entry.video_status === "VIDEO_DEFERRED") return false;
+  if (!postedVideoSha(entry)) return false;
+  return (
+    entry.video_status === "published" ||
+    entry.published_media_type === "reel" ||
+    entry.published_media_type === "mixed-carousel"
+  );
+}
+
+export function postedVideoShaFields(videoSha256: string | undefined): { video_sha256?: string } {
+  return videoSha256 ? { video_sha256: videoSha256 } : {};
+}
+
+export function findDuplicateAiredReelVideo(
+  videoSha256: string,
+  aired: AiredReelVideoSha[],
+  currentDate: string,
+  currentSlot: number
+): AiredReelVideoSha | undefined {
+  const wanted = videoSha256.trim().toLowerCase();
+  if (!wanted) return undefined;
+  return aired.find(
+    (item) =>
+      item.video_sha256 === wanted && (item.date !== currentDate || item.slot !== currentSlot)
+  );
+}
+
+export async function loadRecentAiredReelVideoShas(
+  date: string,
+  root: string,
+  windowDays: number
+): Promise<AiredReelVideoSha[]> {
+  const aired: AiredReelVideoSha[] = [];
+  const seen = new Set<string>();
+  for (let back = 0; back < windowDays; back += 1) {
+    const past = new Date(`${date}T00:00:00Z`);
+    past.setUTCDate(past.getUTCDate() - back);
+    const pastDate = past.toISOString().slice(0, 10);
+    const entries = await loadPostLog(pastDate, root);
+    for (const entry of entries) {
+      if (!isLiveAiredReelEntry(entry)) continue;
+      const videoSha256 = postedVideoSha(entry);
+      if (!videoSha256) continue;
+      const key = `${entry.date || pastDate}:${entry.slot}:${videoSha256}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      aired.push({ date: entry.date || pastDate, slot: entry.slot, video_sha256: videoSha256 });
+    }
+  }
+  return aired;
+}
+
 export function hasRecordedPost(
   entries: PostLogEntry[],
   slot: number,

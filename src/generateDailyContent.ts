@@ -80,6 +80,19 @@ export async function generateDailyContent(options: GenerateDailyContentOptions 
     }
   }
 
+  // Force already rebuilt non-reel slots. Move their old bytes before the new
+  // calendar lands, otherwise generate-missing-images sees the old files and
+  // reports the day complete. Dynamic import avoids the cycle with generateImage
+  // (that module calls this one to ensure a calendar exists).
+  if (existing) {
+    const { invalidateSlotImagesIfTopicChanged } = await import("./generateImage");
+    for (const next of content.slots) {
+      const previous = existing.slots.find((item) => item.slot === next.slot);
+      if (!previous) continue;
+      await invalidateSlotImagesIfTopicChanged({ date, root, previous, next });
+    }
+  }
+
   await writeDailyContent(content, root);
   return calendarPath;
 }

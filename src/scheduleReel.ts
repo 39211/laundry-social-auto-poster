@@ -9,7 +9,14 @@ import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestP
 import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
 import { markImageSource } from "./markImageSource";
 import { contentCalendarPath, padSlot, projectRoot } from "./paths";
-import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions, priorAirings, type ReelConcept } from "./reelConcepts";
+import {
+  REEL_CONCEPTS,
+  REEL_SCHEDULE,
+  loadExtensions,
+  priorAirings,
+  promptFor,
+  type ReelConcept
+} from "./reelConcepts";
 import { getZonedDateParts } from "./scheduler";
 import { hashVideoPrompt, videoRunReportPath } from "./videoRunFreshness";
 import type { DailyContent, DailySlot } from "./types";
@@ -31,6 +38,23 @@ export const REEL_MOTION_PROMPT =
   "Animate the supplied image while preserving its exact composition, object placement, materials, surface wear, lighting direction and colour temperature. One restrained continuous action only: an extremely gentle push-in with slight natural handheld shake, as if held by a person. Keep every object in its original position and its original condition. Do not clean, repair, alter or transform the object. Do not add or remove anything. No hands in close-up and no finger detail. Do not add people, readable text, captions, logos, dialogue or music. No morphing, warping, flicker, jump cuts, sudden motion or collapsing geometry. Audio near-silent with only faint room tone. Natural restrained motion, stable first and final frames. Duration: 5 seconds. Aspect ratio: 9:16. Resolution: 720p.";
 
 const RUN_DIR = "output/reels-run/2026-07-29";
+
+export function reelCoverSourceRel(conceptId: string): string {
+  return `${RUN_DIR}/references/${conceptId}-before.png`;
+}
+
+/**
+ * Cover prompt written into the calendar and the image manifest.
+ * A before still is a copy, not a generation: the prompt records the source
+ * path so generate-missing-images will not invent a catalogue still. Only a
+ * missing before still may generate, and then only inside SHARED_STILL_PROMPT.
+ */
+export function reelCoverPrompt(concept: ReelConcept, beforeStillRelativePath?: string): string {
+  if (beforeStillRelativePath) {
+    return `Copied reel cover from ${beforeStillRelativePath}`;
+  }
+  return promptFor(concept, "before");
+}
 
 function shareInviteFor(concept: ReelConcept): string {
   switch (concept.object_type) {
@@ -165,9 +189,17 @@ export async function scheduleReel(input: {
   const variant: AbVariant = input.variant ?? "10s";
   const reelSource = join(root, RUN_DIR, "reels", reelAssetName(concept.id, variant));
   const sidecarSource = `${reelSource}.audio.json`;
+  const coverSourceRel = reelCoverSourceRel(concept.id);
   const coverSource = join(root, RUN_DIR, "references", `${concept.id}-before.png`);
-  for (const required of [reelSource, sidecarSource, coverSource]) {
+  for (const required of [reelSource, sidecarSource]) {
     await readFile(required);
+  }
+  let coverExists = false;
+  try {
+    await readFile(coverSource);
+    coverExists = true;
+  } catch {
+    coverExists = false;
   }
 
   await generateDailyContent({ date: input.date, root });
@@ -194,9 +226,12 @@ export async function scheduleReel(input: {
   const coverRel = `docs/assets/${input.date}/slot-${padSlot(slotNumber)}.png`;
   await copyFile(reelSource, join(root, videoRel));
   await copyFile(sidecarSource, `${join(root, videoRel)}.audio.json`);
-  // The cover is the gpt-image-2 still the clip itself started from, which is
-  // what its source record claims.
-  await copyFile(coverSource, join(root, coverRel));
+  // The cover is the shop still the clip itself started from. Copy it; do not
+  // ask generate-missing-images to invent a new catalogue frame from the
+  // bare subject. Only a missing before still is allowed to generate.
+  if (coverExists) {
+    await copyFile(coverSource, join(root, coverRel));
+  }
 
   const captions = captionsFor(concept, priorAirings(concept.id, input.date));
   const scheduleTime = slotNumber === 3 ? "12:00" : slotNumber === 2 ? "20:30" : slot.time;
@@ -208,7 +243,7 @@ export async function scheduleReel(input: {
     media_type: "reel",
     instagram_caption: captions.instagram,
     facebook_caption: captions.facebook,
-    image_prompt: `Reel cover still: ${concept.before_subject}`,
+    image_prompt: reelCoverPrompt(concept, coverExists ? coverSourceRel : undefined),
     carousel_items: undefined,
     media_package: undefined,
     video_prompt: REEL_MOTION_PROMPT,
@@ -253,6 +288,7 @@ export async function scheduleReel(input: {
       target_path: coverRel,
       topic: patched.topic,
       prompt: coverPrompt,
+      source: coverExists ? coverSourceRel : undefined,
       public_image_url: patched.public_image_url,
       visual_route: patched.visual_route
     }
@@ -261,14 +297,17 @@ export async function scheduleReel(input: {
 
   // Stamped through the one writer, so the cover carries the same evidence as
   // any other image: the topic it was made for, and hashes binding it to those
-  // exact bytes and that exact prompt.
-  await markImageSource({
-    root,
-    date: input.date,
-    slot: slotNumber,
-    source: "gpt-image-2",
-    imagePath: coverRel
-  });
+  // exact bytes and that exact prompt. A missing before still has no bytes yet;
+  // generate-missing-images will write them from the SHARED_STILL_PROMPT shell.
+  if (coverExists) {
+    await markImageSource({
+      root,
+      date: input.date,
+      slot: slotNumber,
+      source: "gpt-image-2",
+      imagePath: coverRel
+    });
+  }
 
   // Provider source record, required by validatePublishableReel.
   const generationReport = await readJsonFile<Record<string, unknown>>(

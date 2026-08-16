@@ -1,4 +1,6 @@
-﻿import {
+﻿import { readFileSync } from "node:fs";
+import { abTestPlanPath, planForDate, planSlot, type AbDayPlan } from "./abTestPlan";
+import {
   buildGitHubPagesCarouselImageUrl,
   buildGitHubPagesImageUrl,
   buildGitHubPagesVideoUrl
@@ -9,7 +11,7 @@ import {
   type GrowthFormat,
   type GrowthPlaybookSlot
 } from "./growthPlaybook";
-import { relativeAssetPath, relativeCarouselAssetPath, relativeVideoAssetPath } from "./paths";
+import { contentCalendarPath, projectRoot, relativeAssetPath, relativeCarouselAssetPath, relativeVideoAssetPath } from "./paths";
 import { DAILY_SCHEDULE } from "./scheduler";
 import type {
   AppConfig,
@@ -1062,6 +1064,111 @@ export const TOPIC_LABEL_PREFIXES = [
 
 export const TOPIC_LABEL_PREFIX_RE = new RegExp(`^(${TOPIC_LABEL_PREFIXES.join("|")})：`);
 
+/** Same object-head scan autoApprove uses, applied here as a 15-day pre-check. */
+export const TOPIC_REPEAT_WINDOW_DAYS = 15;
+
+const TOPIC_LEAD_INS = /怎麼判斷|怎麼辦|你可能|其實|今天|當天|門市檢查|最髒的|先看|再看/g;
+
+export function topicObjectHead(topic: string): string {
+  return topic
+    .replace(TOPIC_LABEL_PREFIX_RE, "")
+    .replace(/[（(].*?[)）]/g, "")
+    .replace(TOPIC_LEAD_INS, "")
+    .replace(/[：:，,。!？?\s]/g, "")
+    .slice(0, 8);
+}
+
+/** Shared 3-character object gram, or undefined when the two topics do not collide. */
+export function repeatingObjectGram(left: string, right: string): string | undefined {
+  const head = topicObjectHead(left);
+  const other = topicObjectHead(right);
+  for (let i = 0; i + 3 <= other.length; i += 1) {
+    const gram = other.slice(i, i + 3);
+    if (/^[一-鿿]{3}$/.test(gram) && head.includes(gram)) return gram;
+  }
+  return undefined;
+}
+
+export function topicRepeatsInWindow(topic: string, others: string[]): string | undefined {
+  for (const other of others) {
+    const gram = repeatingObjectGram(topic, other);
+    if (gram) return gram;
+  }
+  return undefined;
+}
+
+function addUtcDays(date: string, amount: number): string {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + amount);
+  return value.toISOString().slice(0, 10);
+}
+
+function loadAbTestPlanSync(root: string): AbDayPlan[] {
+  try {
+    const raw = readFileSync(abTestPlanPath(root), "utf8").replace(/^\uFEFF/u, "");
+    const parsed = JSON.parse(raw) as AbDayPlan[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function recentCalendarTopics(date: string, days: number, root: string): string[] {
+  const topics: string[] = [];
+  for (let back = 1; back <= days; back += 1) {
+    const prevDate = addUtcDays(date, -back);
+    try {
+      const raw = readFileSync(contentCalendarPath(prevDate, root), "utf8").replace(/^\uFEFF/u, "");
+      const parsed = JSON.parse(raw) as { slots?: Array<{ topic?: string }> };
+      for (const slot of parsed.slots ?? []) {
+        if (slot.topic) topics.push(slot.topic);
+      }
+    } catch {
+      // Missing days are not a collision. The gate only compares what actually ran.
+    }
+  }
+  return topics;
+}
+
+/**
+ * A paused evening half is not "a reel with a different concept". It is no
+ * reel. Playbook Tuesdays/Thursdays/Saturdays still emit format=reel, which is
+ * the legacy fallback that then invited scheduleReel to drop a recently-aired
+ * concept onto the empty night slot.
+ */
+function asPlaybookImageSlot(slot: GrowthPlaybookSlot): GrowthPlaybookSlot {
+  if (slot.format !== "reel") return slot;
+  return {
+    ...slot,
+    format: "image-post",
+    image_or_reel_direction:
+      `門市隨手拍:${slot.visual_route} 路線,物件放在使用中的櫃台,手部檢查材質或邊角,日光燈加窗光,不放假品牌、不做誇張對比。`
+  };
+}
+
+function playbookSlotForPausedEvening(
+  playbookSlot: GrowthPlaybookSlot,
+  occupiedTopics: string[]
+): GrowthPlaybookSlot {
+  const primary = asPlaybookImageSlot(playbookSlot);
+  if (!topicRepeatsInWindow(primary.topic, occupiedTopics)) return primary;
+
+  const playbook = buildGrowthPlaybook();
+  for (const day of playbook.days) {
+    const candidate = day.slots.find((item) => item.slot === 2);
+    if (!candidate || candidate.topic === playbookSlot.topic) continue;
+    const rebased = asPlaybookImageSlot({
+      ...candidate,
+      date: playbookSlot.date,
+      day: playbookSlot.day,
+      slot: playbookSlot.slot,
+      time: playbookSlot.time
+    });
+    if (!topicRepeatsInWindow(rebased.topic, occupiedTopics)) return rebased;
+  }
+  return primary;
+}
+
 const LINE_REDIRECT = "https://39211.github.io/go/line.html?source=post";
 export const LINE_CONTACT = `直接點這裡問:${LINE_REDIRECT}(或加 LINE:0968327653)`;
 
@@ -1492,10 +1599,38 @@ function dailySlotFromTemplate(date: string, schedule: (typeof DAILY_SCHEDULE)[n
   };
 }
 
-export function buildDailyContent(date: string, config: AppConfig): DailyContent {
+export interface BuildDailyContentOptions {
+  root?: string;
+  abPlan?: AbDayPlan[];
+}
+
+export function buildDailyContent(
+  date: string,
+  config: AppConfig,
+  options: BuildDailyContentOptions = {}
+): DailyContent {
+  const root = projectRoot(options.root);
+  const abPlan = options.abPlan ?? loadAbTestPlanSync(root);
+  const dayPlan = planForDate(abPlan, date);
+  const eveningPaused = Boolean(dayPlan?.evening?.paused) && planSlot(dayPlan, 2) === undefined;
+  const occupiedTopics = eveningPaused
+    ? recentCalendarTopics(date, TOPIC_REPEAT_WINDOW_DAYS, root)
+    : [];
+
   const playbookSlots = playbookSlotsForDate(date);
   const slots: DailySlot[] = DAILY_SCHEDULE.map((schedule) => {
     const playbookSlot = playbookSlots?.find((slot) => slot.slot === schedule.slot);
+    if (schedule.slot === 2 && eveningPaused && playbookSlot) {
+      const slot1Topic = playbookSlots?.find((slot) => slot.slot === 1)?.topic;
+      const resolved = playbookSlotForPausedEvening(
+        playbookSlot,
+        slot1Topic ? [slot1Topic, ...occupiedTopics] : occupiedTopics
+      );
+      return dailySlotFromPlaybook(resolved, config);
+    }
+    if (schedule.slot === 2 && eveningPaused && !playbookSlot) {
+      return dailySlotFromTemplate(date, schedule, config);
+    }
     return playbookSlot ? dailySlotFromPlaybook(playbookSlot, config) : dailySlotFromTemplate(date, schedule, config);
   });
 

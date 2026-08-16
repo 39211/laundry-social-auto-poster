@@ -24,6 +24,11 @@ param(
     # zh-TW narration laid over the ambient bed. Optional: a reel without a
     # narration file ships with the bed alone.
     [string]$NarrationFile = "",
+    # The narration's text, for the full-narration subtitle burn. Optional so
+    # legacy callers keep working, but a call that passes -NarrationFile
+    # without it ships a reel whose spoken judgment is invisible to muted
+    # viewers — the wiring test counts the call sites that pass both.
+    [string]$NarrationText = "",
     # Optional middle act for the 15s three-shot A/B variant. When set, the
     # pipeline cuts before -> middle -> after with two dissolves (~14.2s).
     # When omitted, behaviour is the original two-clip dissolve (~9.67s).
@@ -150,7 +155,15 @@ if ($threeAct) {
 
 if (-not (Test-Path $out)) { throw "Assembly produced no file for $ConceptId" }
 
-@{ source = "post-ambient-bed"; narration = $hasNarration; generated_clip_audio_used = $false } |
+@{ source = "post-ambient-bed"; narration = $hasNarration; generated_clip_audio_used = $false; narr_delay_ms = 500 } |
     ConvertTo-Json | Set-Content "$out.audio.json" -Encoding utf8
+
+# Full-narration subtitles for muted viewers, burned as a second pass so the
+# assembly filter graphs above stay untouched. Runs only here, on a freshly
+# assembled file — never retroactively on an already-reviewed asset.
+if ($hasNarration -and $NarrationText.Trim()) {
+    & (Join-Path $PSScriptRoot "burn-narration-subs.ps1") -ReelPath $out `
+        -NarrationText $NarrationText -TtsFile $NarrationFile -DelayMs 500
+}
 $info = & ffprobe -v error -select_streams v:0 -show_entries stream=width,height -show_entries format=duration -of csv=p=0 $out
 "{0}  ->  {1}" -f $ConceptId, ($info -join " ")

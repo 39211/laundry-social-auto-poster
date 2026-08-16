@@ -177,6 +177,7 @@ function Invoke-TreatedAssembly {
         [string]$Hook,
         [string]$Close,
         [string]$NarrationFile,
+        [string]$NarrationText,
         [string]$BeforeClip,
         [string]$MiddleClip,
         [string]$AfterClip,
@@ -212,8 +213,8 @@ function Invoke-TreatedAssembly {
         $totalDur = 14.0
         $narrDelayMs = 4000
         $closeFrom = 10.8
-        $hookText = "drawtext=fontfile='$FontFile':text='$escHook':fontsize=$hookSize:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,0,2.6)'"
-        $closeText = "drawtext=fontfile='$FontFile':text='$escClose':fontsize=$closeSize:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,$closeFrom,$totalDur)'"
+        $hookText = "drawtext=fontfile='$FontFile':text='$escHook':fontsize=${hookSize}:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,0,2.6)'"
+        $closeText = "drawtext=fontfile='$FontFile':text='$escClose':fontsize=${closeSize}:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,$closeFrom,$totalDur)'"
         # Middle is ~5s raw; tpad clones last frame to fill 6s.
         $filter = @"
 [0:v]trim=0:4,setpts=PTS-STARTPTS,$scale[v0];
@@ -229,8 +230,8 @@ function Invoke-TreatedAssembly {
         $totalDur = 14.0
         $narrDelayMs = 3000
         $closeFrom = 10.8
-        $hookText = "drawtext=fontfile='$FontFile':text='$escHook':fontsize=$hookSize:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,0,2.6)'"
-        $closeText = "drawtext=fontfile='$FontFile':text='$escClose':fontsize=$closeSize:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,$closeFrom,$totalDur)'"
+        $hookText = "drawtext=fontfile='$FontFile':text='$escHook':fontsize=${hookSize}:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,0,2.6)'"
+        $closeText = "drawtext=fontfile='$FontFile':text='$escClose':fontsize=${closeSize}:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,$closeFrom,$totalDur)'"
         $filter = @"
 [0:v]trim=0:3,setpts=PTS-STARTPTS,$scale[v0];
 [1:v]trim=0:4,setpts=PTS-STARTPTS,$scale,colorchannelmixer=rr=${gR}:gg=${gG}:bb=${gB}[v1];
@@ -257,8 +258,8 @@ function Invoke-TreatedAssembly {
         $totalDur = 14.0
         $narrDelayMs = 500
         $closeFrom = 10.8
-        $hookText = "drawtext=fontfile='$FontFile':text='$escHook':fontsize=$hookSize:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,0,2.6)'"
-        $closeText = "drawtext=fontfile='$FontFile':text='$escClose':fontsize=$closeSize:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,$closeFrom,$totalDur)'"
+        $hookText = "drawtext=fontfile='$FontFile':text='$escHook':fontsize=${hookSize}:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,0,2.6)'"
+        $closeText = "drawtext=fontfile='$FontFile':text='$escClose':fontsize=${closeSize}:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=18:x=(w-text_w)/2:y=200:enable='between(t,$closeFrom,$totalDur)'"
         $filter = @"
 [0:v]trim=0:4,setpts=PTS-STARTPTS,$scale[v0];
 [1:v]$scale,colorchannelmixer=rr=${gR}:gg=${gG}:bb=${gB}[v1];
@@ -288,10 +289,24 @@ function Invoke-TreatedAssembly {
     }
     $ffArgs += @("-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-ar", "48000", "-b:a", "96k", "-shortest", $OutPath)
-    & ffmpeg @ffArgs 2>&1 | Out-Null
-    if (-not (Test-Path $OutPath)) { throw "Treated assembly produced no file: $OutPath" }
-    @{ source = "post-ambient-bed"; narration = [bool]$hasNarration; generated_clip_audio_used = $false; treatment = $Treatment } |
+    # Swallowing ffmpeg's stderr cost two diagnoses on 2026-08-16 alone (the
+    # out-of-range colour gain died invisibly). Keep the last run's output.
+    $ffLog = Join-Path $work "ffmpeg-treated.log"
+    & ffmpeg @ffArgs 2>&1 | ForEach-Object { "$_" } | Set-Content $ffLog -Encoding utf8
+    if (-not (Test-Path $OutPath)) {
+        $ffTail = (Get-Content $ffLog -Tail 5) -join " | "
+        throw "Treated assembly produced no file: $OutPath (ffmpeg said: $ffTail)"
+    }
+    @{ source = "post-ambient-bed"; narration = [bool]$hasNarration; generated_clip_audio_used = $false; treatment = $Treatment; narr_delay_ms = $narrDelayMs } |
         ConvertTo-Json | Set-Content "$OutPath.audio.json" -Encoding utf8
+
+    # Full-narration subtitles for muted viewers. Each treatment delays the
+    # voice differently (A=4000ms, B=3000ms, C=500ms), so the delay this very
+    # assembly applied is what the subtitle timing gets.
+    if ($hasNarration -and $NarrationText -and $NarrationText.Trim()) {
+        & (Join-Path $PSScriptRoot "burn-narration-subs.ps1") -ReelPath $OutPath `
+            -NarrationText $NarrationText -TtsFile $NarrationFile -DelayMs $narrDelayMs
+    }
 }
 
 # --- mid-test dry-run: storyboard+narration timelines only --------------------
@@ -707,6 +722,13 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
     $gains = @{ GainR = 1.0; GainG = 1.0; GainB = 1.0 }
     if ($gainLine -match "-GainR ([\d.]+) -GainG ([\d.]+) -GainB ([\d.]+)") {
         $gains.GainR = [double]$Matches[1]; $gains.GainG = [double]$Matches[2]; $gains.GainB = [double]$Matches[3]
+        # colorchannelmixer hard-rejects gains outside [-2,2] and the whole
+        # assembly dies with it (first hit: suede-shoe-nap 2026-08-16, R 2.1047
+        # — the after clip was more than twice as dark). A clamped gain ships a
+        # slightly under-corrected colour match instead of no reel at all.
+        foreach ($channel in @("GainR", "GainG", "GainB")) {
+            if ($gains[$channel] -gt 2.0) { $gains[$channel] = 2.0 }
+        }
         Write-Log "Measured gains (before->after): R $($gains.GainR) G $($gains.GainG) B $($gains.GainB)"
     } else {
         Write-Log "Gain measurement failed; assembling uncorrected."
@@ -731,7 +753,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
             try {
                 Invoke-TreatedAssembly -ConceptId $concept -Treatment $midTreatment `
                     -Hook ([string]$conceptInfo.hook) -Close ([string]$conceptInfo.close) `
-                    -NarrationFile $ttsTreated `
+                    -NarrationFile $ttsTreated -NarrationText $treatedNarrationText `
                     -BeforeClip $beforeClip -MiddleClip $middleGraded -AfterClip $afterClip `
                     -OutPath $treatedOut `
                     -GainR $gains.GainR -GainG $gains.GainG -GainB $gains.GainB
@@ -779,7 +801,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
                 & (Join-Path $root "scripts\assemble-reel.ps1") -ConceptId $concept `
                     -Hook $conceptInfo.hook -Close $conceptInfo.close -Run $run `
                     -GainR $gains.GainR -GainG $gains.GainG -GainB $gains.GainB `
-                    -NarrationFile $ttsFile
+                    -NarrationFile $ttsFile -NarrationText ([string]$conceptInfo.narration)
             }
         }
     }
@@ -789,7 +811,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
             & (Join-Path $root "scripts\assemble-reel.ps1") -ConceptId $concept `
                 -Hook $conceptInfo.hook -Close $conceptInfo.close -Run $run `
                 -GainR $gains.GainR -GainG $gains.GainG -GainB $gains.GainB `
-                -NarrationFile $ttsFile -MiddleClip $middleGraded
+                -NarrationFile $ttsFile -NarrationText ([string]$conceptInfo.narration) -MiddleClip $middleGraded
             if (-not (Test-Path $out15)) {
                 Write-Log "15s assembly failed for $concept."
                 Show-Toast "$concept 15s 剪接失敗，請看 log。"
@@ -804,7 +826,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
             & (Join-Path $root "scripts\assemble-reel.ps1") -ConceptId $concept `
                 -Hook $conceptInfo.hook -Close $conceptInfo.close -Run $run `
                 -GainR $gains.GainR -GainG $gains.GainG -GainB $gains.GainB `
-                -NarrationFile $ttsFile
+                -NarrationFile $ttsFile -NarrationText ([string]$conceptInfo.narration)
         }
         Write-Log "$concept finished 15s: output\reels-run\2026-07-29\reels\$concept-15s.mp4"
     } else {
@@ -813,7 +835,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
             & (Join-Path $root "scripts\assemble-reel.ps1") -ConceptId $concept `
                 -Hook $conceptInfo.hook -Close $conceptInfo.close -Run $run `
                 -GainR $gains.GainR -GainG $gains.GainG -GainB $gains.GainB `
-                -NarrationFile $ttsFile
+                -NarrationFile $ttsFile -NarrationText ([string]$conceptInfo.narration)
             if (-not (Test-Path $out10)) {
                 Write-Log "Assembly failed for $concept."
                 Show-Toast "$concept 剪接失敗，請看 log。"

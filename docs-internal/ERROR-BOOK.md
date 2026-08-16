@@ -81,6 +81,13 @@
 
 ---
 
+### F12|從未執行過的路徑,首次真實執行就是它的第一次測試
+- **症狀**:8/16 是第一個治療 A 日,`Invoke-TreatedAssembly` 每次都 `produced no file`,看不到任何 ffmpeg 錯誤。這段程式 8/11 就寫好了,躺了五天。
+- **真因(三層)**:①`"fontsize=$hookSize:fontcolor=white"` —— PS 雙引號字串裡變數後面直接接冒號,`$hookSize:fontcolor` 被解析成 scope 限定變數(同 `$env:PATH` 語法),不存在=展開為空,ffmpeg 收到 `fontsize==white` 直接炸,六處 drawtext 全中;②當天 suede 這對片實測增益 R 2.1047,超出 `colorchannelmixer` 的硬上限 [-2,2],filter 初始化整組失敗;③兩個錯都躲在 `2>&1 | Out-Null` 後面,外面只看得到「檔案沒生出來」。
+- **修法**:六處改 `${hookSize}`/`${closeSize}`;增益解析處夾住 ≤2(寧可色彩略欠校正也不要沒有片);ffmpeg stderr 落地 `ffmpeg-treated.log`,throw 訊息帶最後 5 行。
+- **再驗**:修完產線跑出 15s-tA+10s 控制組,兩支 `.subs.json` 都 `burned=true`;還原任一修法即重現原錯,錯誤訊息這次看得見。
+- **通則**:🔴 **代碼寫好躺著 ≠ 能跑;「還沒執行過的分支」就是還沒測試過的分支。** 治療剪 8/12-14 三天都因機器睡著沒跑,大家以為它 ready,其實它從未活過。吞掉 stderr 的地方,「真 bug」與「檔案沒生出來」長得一模一樣 —— 診斷成本全轉嫁給下一個人。
+
 ### F11|把別人改到一半的檔案掃進自己的 commit,自己的測試綠救不了你
 - **症狀**:8/16 整個上午發布 crash 在 import(缺三個匯出),slot 2/3 核准了發不出去,到 13:30 才有人發現。
 - **真因**:並行 session 在改 postCurrentSlot+imageStamp+logging;我提交 d0c82e8 時把**它改到一半的 postCurrentSlot** 一起 staged(我的 typecheck 是在它後續修改落地**之前**跑的);它的 imageStamp/logging 還沒提交,06:30 的 stash 守衛照設計把那些暫存 → HEAD 的 import 指向不存在的定義。

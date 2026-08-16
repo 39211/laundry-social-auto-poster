@@ -17,7 +17,15 @@ export const VISUAL_QA_AXES = [
 export type VisualQaAxis = (typeof VISUAL_QA_AXES)[number];
 export type AxisVerdict = "PASS" | "FAIL";
 export type VisualQaVerdict = "PASS" | "FAIL" | "FAIL_CLOSED";
-export type VisualQaFailClass = "content" | "judge_blind" | "missing_axis" | "unparseable" | "frames_not_read" | "hash_mismatch" | "still_missing";
+export type VisualQaFailClass =
+  | "content"
+  | "judge_blind"
+  | "missing_axis"
+  | "unparseable"
+  | "frames_not_read"
+  | "hash_mismatch"
+  | "still_missing"
+  | "rubric_incoherent";
 export type VisualQaReviewer = "codex-visual-qa" | "human-frames-review";
 export type ReelTreatment = "A" | "B" | "C" | "untreated-15s" | "10s";
 
@@ -25,6 +33,11 @@ export const VISUAL_QA_REVIEWERS: readonly VisualQaReviewer[] = ["codex-visual-q
 export const STORY_FAIL_AXES = ["MIDDLE_NOT_WORSE", "ACCESSORY_COLOR", "ORIENTATION"] as const;
 export const VISUAL_QA_BEGIN = "<<<VISUAL_QA_BEGIN>>>";
 export const VISUAL_QA_END = "<<<VISUAL_QA_END>>>";
+export const VISUAL_QA_OBSERVE_BEGIN = "<<<OBSERVE_BEGIN>>>";
+export const VISUAL_QA_OBSERVE_END = "<<<OBSERVE_END>>>";
+
+const JUDGE_PROMPT_OVERFIT_RE =
+  /suede-shoe-nap|backpack-base|leather-bag-corner|suit-shoulder|wool-coat-shoulder|tan\s*(to|->|→)\s*gray|laces\s+tan|米\s*(→|->)\s*灰|BK9C|6N5B|GTBC|B7UW|U5ER|SJ8K/iu;
 
 export interface SceneWindow {
   act: string;
@@ -217,10 +230,24 @@ export function assertJudgePromptSafe(prompt: string): void {
   if (!prompt.includes(VISUAL_QA_BEGIN) || !prompt.includes(VISUAL_QA_END)) {
     throw new Error("QA prompt must request the VISUAL_QA marker block.");
   }
+  if (!prompt.includes(VISUAL_QA_OBSERVE_BEGIN) || !prompt.includes(VISUAL_QA_OBSERVE_END)) {
+    throw new Error("QA prompt must request the OBSERVE marker block.");
+  }
+  if (JUDGE_PROMPT_OVERFIT_RE.test(prompt)) {
+    throw new Error("QA prompt must not overfit fixture names or answers.");
+  }
+}
+
+export function frameRoleFromAct(act: string): "BEFORE" | "MIDDLE" | "AFTER" | "UNKNOWN" {
+  const lower = act.toLowerCase();
+  if (lower.includes("middle")) return "MIDDLE";
+  if (lower.includes("before")) return "BEFORE";
+  if (lower.includes("after")) return "AFTER";
+  return "UNKNOWN";
 }
 
 export function buildJudgePrompt(input: {
-  frames: Array<{ imageIndex: number; name: string; act: string }>;
+  frames: Array<{ imageIndex: number; name: string; act: string; t?: number }>;
   stillsMissing?: string[];
   hasMiddle: boolean;
 }): string {
@@ -234,7 +261,9 @@ export function buildJudgePrompt(input: {
     ""
   ];
   for (const frame of input.frames) {
-    lines.push(`IMAGE_${frame.imageIndex} file=${frame.name} act=${frame.act}`);
+    const role = frameRoleFromAct(frame.act);
+    const timePart = typeof frame.t === "number" ? ` t=${frame.t}` : "";
+    lines.push(`IMAGE_${frame.imageIndex} file=${frame.name} act=${frame.act} role=${role}${timePart}`);
   }
   if (input.stillsMissing && input.stillsMissing.length > 0) {
     lines.push("");
@@ -242,15 +271,40 @@ export function buildJudgePrompt(input: {
   }
   lines.push("");
   lines.push("Then judge ONLY story continuity across these frames.");
-  lines.push("Axes (each must be PASS or FAIL, plus one visible-evidence sentence):");
+  lines.push("Roles: BEFORE = untreated start; MIDDLE = in-progress; AFTER = finished.");
+  lines.push("Judge by role labels, not file order alone. Two frames with the same role are one act.");
+  lines.push("");
+  lines.push("STEP 1 is mandatory. Declare one observation line per attached image BEFORE any axis verdict.");
+  lines.push("Use closed tokens only. Do not skip a field. Do not copy on-screen captions as proof.");
+  lines.push("Prefix must be OBS_N (not IMAGE_N) so canary lines stay distinct.");
+  lines.push("OBS_N role=BEFORE|MIDDLE|AFTER act=... laces_color=TOKEN hardware_color=TOKEN facing=TOKEN soil=TOKEN hands=NONE|OK|BAD scene=TOKEN");
+  lines.push("Color tokens: NONE BLACK WHITE GRAY TAN BROWN RED BLUE GOLD SILVER OTHER");
+  lines.push("Facing tokens: TQ_RIGHT TQ_LEFT CAMERA_ON TOP_DOWN OTHER");
+  lines.push("Soil tokens (WHOLE object dirt/mottle/darkening, not one patch): CLEAN LIGHT MODERATE HEAVY");
+  lines.push("Then write COMPARE lines derived ONLY from those declarations:");
+  lines.push("COMPARE ACCESSORY_COLOR identity_change=YES|NO");
+  lines.push("COMPARE ORIENTATION identity_flip=YES|NO");
+  lines.push("COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=YES|NO");
+  lines.push("");
+  lines.push("Derivation (you must follow; do not override a YES with a story):");
+  lines.push("- ACCESSORY_COLOR identity_change=YES if any visible laces_color or hardware_color token differs across frames (ignore NONE). Same token that looks brighter after cleaning = NO. A different token is identity-level, not cleaning.");
+  lines.push("- ORIENTATION identity_flip=YES if BEFORE facing differs from AFTER facing, OR any MIDDLE facing family differs from BEFORE (TQ_* vs CAMERA_ON vs TOP_DOWN). Same token with a slight crop or push-in = NO.");
+  lines.push("- MIDDLE_NOT_WORSE globally_worse_than_before=YES if any MIDDLE soil is heavier than the heaviest BEFORE soil (CLEAN<LIGHT<MODERATE<HEAVY). Compare the MIDDLE set against the BEFORE set only. AFTER is not the comparison target.");
+  lines.push("- A local cleaned patch does not set globally_worse_than_before=NO when the rest of the object is heavier, darker, or more mottled. Narration is not evidence.");
+  if (!input.hasMiddle) {
+    lines.push("- There is no MIDDLE role. COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO. STATE_ORDER is BEFORE then AFTER only.");
+  }
+  lines.push("- If a COMPARE flag is YES, that axis MUST be FAIL. PASS on that axis is invalid.");
+  lines.push("");
+  lines.push("STEP 2: derive each axis from STEP 1 (PASS or FAIL plus one visible-evidence sentence):");
   lines.push("- OBJECT_IDENTITY: same physical object across acts (material, outline, fittings, pair count). Different shoe/bag/animal = FAIL.");
-  lines.push("- ACCESSORY_COLOR: laces / piping / hardware / button colour. Identity-level change (tan to gray) = FAIL. Slight cleaning brightening is OK.");
-  lines.push("- ORIENTATION: before and after face the same way (slight push-in OK). Middle may be hand-held; a full identity flip (side vs camera-on) = FAIL.");
-  lines.push("- STATE_ORDER: before=problem untreated; middle=in progress (hands+tool+local progress); after not worse than before.");
+  lines.push("- ACCESSORY_COLOR: FAIL if COMPARE identity_change=YES. Slight cleaning brightening of the same token is OK.");
+  lines.push("- ORIENTATION: FAIL if COMPARE identity_flip=YES.");
+  lines.push("- STATE_ORDER: BEFORE=problem untreated; MIDDLE=in progress (hands+tool+local progress); AFTER not worse than BEFORE.");
   if (!input.hasMiddle) {
     lines.push("  There is no middle act. STATE_ORDER is before then after only. MIDDLE_NOT_WORSE must be PASS.");
   } else {
-    lines.push("- MIDDLE_NOT_WORSE: the middle must not be dirtier / flatter / more discolored than before as a whole. Local cleaned patches are progress; a globally dirtier middle is FAIL.");
+    lines.push("- MIDDLE_NOT_WORSE: FAIL if COMPARE globally_worse_than_before=YES. Local cleaned patches are progress; they must not cover a globally dirtier MIDDLE.");
   }
   if (input.hasMiddle) {
     lines.push("- HANDS: if hands are present they must have five fingers, no fusion, no third hand, plausible scale. Missing hands on before/after do not fail this axis.");
@@ -260,7 +314,13 @@ export function buildJudgePrompt(input: {
   lines.push("- SCENE: same counter / wall family. Pink mat + slat wall vs metal bench vs washer wall = FAIL.");
   lines.push("Do not judge subtitle placement, hook wording, TTS, or Meta specs.");
   lines.push("");
-  lines.push("Output ONLY this block (no other completed/self-score text):");
+  lines.push("Output ONLY these two blocks (no other completed/self-score text):");
+  lines.push(VISUAL_QA_OBSERVE_BEGIN);
+  lines.push("OBS_N role=... act=... laces_color=... hardware_color=... facing=... soil=... hands=... scene=...");
+  lines.push("COMPARE ACCESSORY_COLOR identity_change=YES|NO");
+  lines.push("COMPARE ORIENTATION identity_flip=YES|NO");
+  lines.push("COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=YES|NO");
+  lines.push(VISUAL_QA_OBSERVE_END);
   lines.push(VISUAL_QA_BEGIN);
   lines.push(
     '{"reel":"...","verdict":"PASS|FAIL","axes":{"OBJECT_IDENTITY":"PASS|FAIL","ACCESSORY_COLOR":"PASS|FAIL","ORIENTATION":"PASS|FAIL","STATE_ORDER":"PASS|FAIL","MIDDLE_NOT_WORSE":"PASS|FAIL","HANDS":"PASS|FAIL","SCENE":"PASS|FAIL"},"evidence":{"OBJECT_IDENTITY":"visible comparison"},"frames_used":["..."]}'
@@ -273,7 +333,7 @@ export function buildJudgePrompt(input: {
 
 export function parseCanaryReports(stdout: string, imageCount: number): Record<string, string> {
   const reported: Record<string, string> = {};
-  const re = /IMAGE[_\s-]?(\d+)\s*[:=, ]+\s*(?:canary\s*[:=]\s*)?([A-Za-z0-9]{4})/giu;
+  const re = /IMAGE[_\s-]?(\d+)\s*[:=, ]+\s*canary\s*[:=]\s*([A-Za-z0-9]{4})/giu;
   let match: RegExpExecArray | null;
   while ((match = re.exec(stdout)) !== null) {
     const index = match[1];
@@ -332,6 +392,185 @@ export function parseVisualQaBlock(stdout: string): {
       frames_used: []
     };
   }
+}
+
+export interface FrameObservation {
+  image: string;
+  role: string;
+  act: string;
+  laces_color: string;
+  hardware_color: string;
+  facing: string;
+  soil: string;
+}
+
+export interface ObserveCompare {
+  accessoryChange?: boolean;
+  orientationFlip?: boolean;
+  middleWorse?: boolean;
+}
+
+export interface ParsedObserveBlock {
+  frames: FrameObservation[];
+  compare: ObserveCompare;
+}
+
+const YES_RE = /^(YES|TRUE|Y|1)$/iu;
+const TOKEN_RE = /([a-z_]+)=([A-Za-z0-9_+-]+)/giu;
+
+function truthyToken(value: string | undefined): boolean | undefined {
+  if (!value) return undefined;
+  if (YES_RE.test(value)) return true;
+  if (/^(NO|FALSE|N|0)$/iu.test(value)) return false;
+  return undefined;
+}
+
+function colorFamily(token: string): string | null {
+  const t = token.toUpperCase().replace(/[^A-Z]/gu, "");
+  if (!t || t === "NONE" || t === "NA" || t === "ABSENT" || t === "UNREADABLE") return null;
+  if (["TAN", "BEIGE", "CAMEL", "KHAKI", "SAND"].includes(t)) return "TAN";
+  if (["GRAY", "GREY", "SILVER", "CHARCOAL"].includes(t)) return "GRAY";
+  if (["BROWN", "CHOCOLATE", "COFFEE"].includes(t)) return "BROWN";
+  if (["GOLD", "BRASS"].includes(t)) return "GOLD";
+  return t;
+}
+
+function facingFamily(token: string): string | null {
+  const t = token.toUpperCase().replace(/[^A-Z_]/gu, "");
+  if (!t || t === "OTHER" || t === "NONE" || t === "NA") return null;
+  if (t.startsWith("TQ_RIGHT") || t === "THREEQUARTERRIGHT") return "TQ_RIGHT";
+  if (t.startsWith("TQ_LEFT") || t === "THREEQUARTERLEFT") return "TQ_LEFT";
+  if (t.includes("CAMERA") || t === "CAMERA_ON") return "CAMERA_ON";
+  if (t.includes("TOP")) return "TOP_DOWN";
+  return t;
+}
+
+function soilRank(token: string): number | null {
+  const t = token.toUpperCase().replace(/[^A-Z]/gu, "");
+  if (t === "CLEAN" || t === "CLEAR") return 0;
+  if (t === "LIGHT" || t === "FAINT") return 1;
+  if (t === "MODERATE" || t === "MOTTLED" || t === "UNEVEN") return 2;
+  if (t === "HEAVY" || t === "DIRTY" || t === "DARK") return 3;
+  return null;
+}
+
+function parseTokenMap(line: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  TOKEN_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = TOKEN_RE.exec(line)) !== null) {
+    const key = match[1];
+    const value = match[2];
+    if (!key || !value) continue;
+    out[key.toLowerCase()] = value;
+  }
+  return out;
+}
+
+export function parseObserveBlock(stdout: string): ParsedObserveBlock | null {
+  const start = stdout.indexOf(VISUAL_QA_OBSERVE_BEGIN);
+  const end = stdout.indexOf(VISUAL_QA_OBSERVE_END);
+  if (start < 0 || end < 0 || end <= start) return null;
+  const raw = stdout.slice(start + VISUAL_QA_OBSERVE_BEGIN.length, end);
+  const frames: FrameObservation[] = [];
+  const compare: ObserveCompare = {};
+  for (const line of raw.split(/\r?\n/u)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const imageMatch = trimmed.match(/^(?:OBS|FRAME|IMAGE)[_\s-]?(\d+)\b/iu);
+    if (imageMatch) {
+      const tokens = parseTokenMap(trimmed);
+      frames.push({
+        image: `IMAGE_${imageMatch[1]}`,
+        role: (tokens.role ?? "").toUpperCase(),
+        act: (tokens.act ?? "").toLowerCase(),
+        laces_color: tokens.laces_color ?? tokens.lacescolor ?? "",
+        hardware_color: tokens.hardware_color ?? tokens.hardwarecolor ?? "",
+        facing: tokens.facing ?? "",
+        soil: tokens.soil ?? tokens.soil_overall ?? ""
+      });
+      continue;
+    }
+    const compareMatch = trimmed.match(/^COMPARE\s+(ACCESSORY_COLOR|ORIENTATION|MIDDLE_NOT_WORSE)\b(.*)$/iu);
+    if (!compareMatch) continue;
+    const axis = compareMatch[1]?.toUpperCase();
+    const tokens = parseTokenMap(compareMatch[2] ?? trimmed);
+    if (axis === "ACCESSORY_COLOR") {
+      compare.accessoryChange = truthyToken(
+        tokens.identity_change ?? tokens.identitychange ?? tokens.changed
+      );
+    } else if (axis === "ORIENTATION") {
+      compare.orientationFlip = truthyToken(
+        tokens.identity_flip ?? tokens.identityflip ?? tokens.flip
+      );
+    } else if (axis === "MIDDLE_NOT_WORSE") {
+      compare.middleWorse = truthyToken(
+        tokens.globally_worse_than_before ?? tokens.globally_worse ?? tokens.worse
+      );
+    }
+  }
+  if (frames.length === 0 && compare.accessoryChange === undefined && compare.orientationFlip === undefined && compare.middleWorse === undefined) {
+    return null;
+  }
+  return { frames, compare };
+}
+
+function accessoryTokensDiffer(frames: FrameObservation[]): boolean {
+  const laceFamilies = new Set<string>();
+  const hardwareFamilies = new Set<string>();
+  for (const frame of frames) {
+    const lace = colorFamily(frame.laces_color);
+    const hardware = colorFamily(frame.hardware_color);
+    if (lace) laceFamilies.add(lace);
+    if (hardware) hardwareFamilies.add(hardware);
+  }
+  return laceFamilies.size > 1 || hardwareFamilies.size > 1;
+}
+
+function facingFlips(frames: FrameObservation[]): boolean {
+  const before = frames
+    .filter((frame) => frame.role === "BEFORE" || frame.act.includes("before"))
+    .map((frame) => facingFamily(frame.facing))
+    .filter((value): value is string => Boolean(value));
+  const middle = frames
+    .filter((frame) => frame.role === "MIDDLE" || frame.act.includes("middle"))
+    .map((frame) => facingFamily(frame.facing))
+    .filter((value): value is string => Boolean(value));
+  const after = frames
+    .filter((frame) => frame.role === "AFTER" || frame.act.includes("after"))
+    .map((frame) => facingFamily(frame.facing))
+    .filter((value): value is string => Boolean(value));
+  const beforeFamily = before[0];
+  if (beforeFamily && after[0] && after[0] !== beforeFamily) return true;
+  return Boolean(beforeFamily && middle.some((value) => value !== beforeFamily));
+}
+
+function middleSoilWorse(frames: FrameObservation[]): boolean {
+  const beforeRanks = frames
+    .filter((frame) => frame.role === "BEFORE" || frame.act.includes("before"))
+    .map((frame) => soilRank(frame.soil))
+    .filter((value): value is number => value !== null);
+  const middleRanks = frames
+    .filter((frame) => frame.role === "MIDDLE" || frame.act.includes("middle"))
+    .map((frame) => soilRank(frame.soil))
+    .filter((value): value is number => value !== null);
+  if (beforeRanks.length === 0 || middleRanks.length === 0) return false;
+  return Math.max(...middleRanks) > Math.max(...beforeRanks);
+}
+
+export function detectRubricIncoherence(
+  stdout: string,
+  axes: Record<VisualQaAxis, AxisVerdict | "MISSING">
+): boolean {
+  const observed = parseObserveBlock(stdout);
+  if (!observed) return false;
+  const accessoryChange = observed.compare.accessoryChange === true || accessoryTokensDiffer(observed.frames);
+  if (accessoryChange && axes.ACCESSORY_COLOR === "PASS") return true;
+  const orientationFlip = observed.compare.orientationFlip === true || facingFlips(observed.frames);
+  if (orientationFlip && axes.ORIENTATION === "PASS") return true;
+  const middleWorse = observed.compare.middleWorse === true || middleSoilWorse(observed.frames);
+  if (middleWorse && axes.MIDDLE_NOT_WORSE === "PASS") return true;
+  return false;
 }
 
 function emptyAxes(): Record<VisualQaAxis, AxisVerdict | "MISSING"> {
@@ -433,6 +672,14 @@ export function evaluateJudgeStdout(input: {
       ...base,
       verdict: "FAIL_CLOSED",
       fail_class: "missing_axis"
+    };
+  }
+
+  if (detectRubricIncoherence(input.stdout, base.axes)) {
+    return {
+      ...base,
+      verdict: "FAIL_CLOSED",
+      fail_class: "rubric_incoherent"
     };
   }
 

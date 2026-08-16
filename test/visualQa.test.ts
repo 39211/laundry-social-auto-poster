@@ -18,8 +18,12 @@ import {
   isConceptRejected,
   loadRejectedConcepts,
   parseCanaryReports,
+  parseObserveBlock,
   parseVisualQaBlock,
   referenceStillPaths,
+  detectRubricIncoherence,
+  VISUAL_QA_OBSERVE_BEGIN,
+  VISUAL_QA_OBSERVE_END,
   sampleTimes,
   sceneWindows,
   standingPolicySatisfiesVisualQa,
@@ -203,6 +207,12 @@ describe("canary and judge contract", () => {
       IMAGE_1: "K7P2",
       IMAGE_2: "M3Q8"
     });
+    expect(
+      parseCanaryReports(
+        `${VISUAL_QA_OBSERVE_BEGIN}\nIMAGE_1 canary=K7P2\nOBS_1 role=BEFORE laces_color=TAN\n${VISUAL_QA_OBSERVE_END}`,
+        1
+      )
+    ).toEqual({ IMAGE_1: "K7P2" });
   });
 
   it("PASS with any axis FAIL becomes FAIL", () => {
@@ -243,6 +253,31 @@ describe("judge prompt", () => {
     for (const axis of VISUAL_QA_AXES) expect(prompt).toContain(axis);
     expect(prompt).toMatch(/Do not generate or edit any image/i);
     expect(prompt).toContain(VISUAL_QA_BEGIN);
+    expect(prompt).toContain(VISUAL_QA_OBSERVE_BEGIN);
+    expect(prompt).toMatch(/role=BEFORE/);
+    expect(prompt).toMatch(/role=MIDDLE/);
+    expect(prompt).toMatch(/globally_worse_than_before/);
+    expect(prompt).toMatch(/local cleaned patch/i);
+  });
+
+  it("mutation: fixture names or answers in the prompt fail the overfit guard", () => {
+    const prompt = buildJudgePrompt({
+      frames: [
+        { imageIndex: 1, name: "before-p20.png", act: "before" },
+        { imageIndex: 2, name: "middle-p20.png", act: "middle" }
+      ],
+      hasMiddle: true
+    });
+    expect(prompt).not.toMatch(/suede-shoe-nap|backpack-base|leather-bag-corner|suit-shoulder|wool-coat-shoulder/i);
+    expect(prompt).not.toMatch(/tan\s*(to|->|→)\s*gray/i);
+    expect(prompt).not.toMatch(/laces\s+tan/i);
+    const injectedName = `${prompt}\nfixture=suede-shoe-nap`;
+    expect(() => assertJudgePromptSafe(injectedName)).toThrow(/overfit/i);
+    const injectedAnswer = prompt.replace(
+      "Then judge ONLY story continuity across these frames.",
+      "Then judge ONLY story continuity across these frames. laces tan to gray."
+    );
+    expect(() => assertJudgePromptSafe(injectedAnswer)).toThrow(/overfit/i);
   });
 
   it("mutation 1: rewriting the prompt to always PASS is rejected", () => {
@@ -259,6 +294,109 @@ describe("judge prompt", () => {
     expect(checkSrc).toContain("run-codex");
     expect(checkSrc).not.toMatch(/\*>\s*\$null/u);
     expect(extractSrc).not.toMatch(/\*>\s*\$null/u);
+  });
+});
+
+function observeContradictionStdout(axisVerdicts: Partial<Record<string, "PASS" | "FAIL">> = {}): string {
+  const axes = Object.fromEntries(VISUAL_QA_AXES.map((axis) => [axis, axisVerdicts[axis] ?? "PASS"]));
+  return [
+    "IMAGE_1 canary=K7P2",
+    "IMAGE_2 canary=M3Q8",
+    VISUAL_QA_OBSERVE_BEGIN,
+    "OBS_1 role=BEFORE act=before laces_color=TAN hardware_color=NONE facing=TQ_RIGHT soil=LIGHT hands=NONE scene=PINK_MAT",
+    "OBS_2 role=MIDDLE act=middle laces_color=GRAY hardware_color=NONE facing=CAMERA_ON soil=HEAVY hands=OK scene=PINK_MAT",
+    "COMPARE ACCESSORY_COLOR identity_change=YES",
+    "COMPARE ORIENTATION identity_flip=YES",
+    "COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=YES",
+    VISUAL_QA_OBSERVE_END,
+    VISUAL_QA_BEGIN,
+    JSON.stringify({
+      reel: "x",
+      verdict: Object.values(axes).includes("FAIL") ? "FAIL" : "PASS",
+      axes,
+      evidence: { ACCESSORY_COLOR: "declared token change" },
+      frames_used: ["before-p20.png", "middle-p20.png"]
+    }),
+    VISUAL_QA_END
+  ].join("\n");
+}
+
+describe("rubric coherence", () => {
+  it("mutation: declared change with axis PASS is FAIL_CLOSED rubric_incoherent", () => {
+    const observed = parseObserveBlock(observeContradictionStdout());
+    expect(observed?.compare.accessoryChange).toBe(true);
+    expect(observed?.compare.orientationFlip).toBe(true);
+    expect(observed?.compare.middleWorse).toBe(true);
+    expect(
+      detectRubricIncoherence(
+        observeContradictionStdout(),
+        Object.fromEntries(VISUAL_QA_AXES.map((axis) => [axis, "PASS"])) as Record<(typeof VISUAL_QA_AXES)[number], "PASS">
+      )
+    ).toBe(true);
+
+    const record = evaluateJudgeStdout({
+      stdout: observeContradictionStdout(),
+      expectedCanaries: { IMAGE_1: "K7P2", IMAGE_2: "M3Q8" },
+      frameSha256s: { a: "1" },
+      reelSha256: "reel",
+      promptHash: "p",
+      runId: "r",
+      reel: "x.mp4",
+      frames: twoFrames()
+    });
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("rubric_incoherent");
+  });
+
+  it("declared change with matching FAIL stays content FAIL", () => {
+    const stdout = observeContradictionStdout({
+      ACCESSORY_COLOR: "FAIL",
+      ORIENTATION: "FAIL",
+      MIDDLE_NOT_WORSE: "FAIL"
+    });
+    const record = evaluateJudgeStdout({
+      stdout,
+      expectedCanaries: { IMAGE_1: "K7P2", IMAGE_2: "M3Q8" },
+      frameSha256s: { a: "1" },
+      reelSha256: "reel",
+      promptHash: "p",
+      runId: "r",
+      reel: "x.mp4",
+      frames: twoFrames()
+    });
+    expect(record.verdict).toBe("FAIL");
+    expect(record.fail_class).toBe("content");
+    expect(hitsStoryFailAxis(record)).toBe(true);
+  });
+
+  it("same-token observations with PASS stay PASS", () => {
+    const axes = Object.fromEntries(VISUAL_QA_AXES.map((axis) => [axis, "PASS"]));
+    const stdout = [
+      "IMAGE_1 canary=K7P2",
+      "IMAGE_2 canary=M3Q8",
+      VISUAL_QA_OBSERVE_BEGIN,
+      "OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=GOLD facing=TQ_RIGHT soil=MODERATE hands=NONE scene=COUNTER",
+      "OBS_2 role=AFTER act=after laces_color=NONE hardware_color=GOLD facing=TQ_RIGHT soil=LIGHT hands=NONE scene=COUNTER",
+      "COMPARE ACCESSORY_COLOR identity_change=NO",
+      "COMPARE ORIENTATION identity_flip=NO",
+      "COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO",
+      VISUAL_QA_OBSERVE_END,
+      VISUAL_QA_BEGIN,
+      JSON.stringify({ reel: "x", verdict: "PASS", axes, evidence: {}, frames_used: [] }),
+      VISUAL_QA_END
+    ].join("\n");
+    const record = evaluateJudgeStdout({
+      stdout,
+      expectedCanaries: { IMAGE_1: "K7P2", IMAGE_2: "M3Q8" },
+      frameSha256s: { a: "1" },
+      reelSha256: "reel",
+      promptHash: "p",
+      runId: "r",
+      reel: "x.mp4",
+      frames: twoFrames()
+    });
+    expect(record.verdict).toBe("PASS");
+    expect(record.fail_class).toBeNull();
   });
 });
 

@@ -13,16 +13,16 @@
 
 | 線 | TaskKey | 目標 | 席 | 狀態 |
 |---|---|---|---|---|
-| R1 | BOARD0817-VFP | G1 VideoForge-Pro 挖乾淨(轉場/節奏/BGM/模板→吸引力技術清單) | grok 唯讀 | 🔥已派 |
-| R2 | BOARD0817-PSMINES | E2 全 .ps1 掃四類地雷(冒號變數/吞錯/NonInteractive/cp950) | grok 唯讀 | 🔥已派 |
-| R3 | BOARD0817-IGGAP | E4 IG 量測率 25% 根因(52 筆 null 分類+修法) | grok 唯讀 | 🔥已派 |
-| R4 | BOARD0817-CAPT | G2 船長七模組落地稽核(找沒吃乾淨的) | grok 唯讀 | 🔥已派 |
-| R5 | BOARD0817-NIGHTLY | E3 夜檢恆真項複審(B9 外推) | grok 唯讀 | 🔥已派 |
-| R6 | BOARD0817-VQSPEC | E1 視覺 QA 規格(校準協定:壞例必紅) | grok 唯讀 | 🔥已派 |
-| R7 | BOARD0817-TRAFFIC | **推流方向偵查(老闆點名):先方向後加強,GA4/索引/GBP/AEO 該往哪打** | grok 唯讀 | 🔥已派 |
-| R8 | BOARD0817-NIGHTREV | 昨夜五 commit 跨家族缺陷複審(六不變量逐條) | luna 唯讀 | 🔥已派 |
-| W1 | (預備)w-psfix | E2 修雷(等 R2 附錄) | grok 實作 | 待點火 |
-| W2 | (預備)w-a7 | A7 改題自動重生圖 | grok 實作 | 待點火 |
+| R1 | BOARD0817-VFP | G1 VideoForge-Pro 挖乾淨(轉場/節奏/BGM/模板→吸引力技術清單) | grok 唯讀 | ✅回卷驗訖 |
+| R2 | BOARD0817-PSMINES | E2 全 .ps1 掃四類地雷(冒號變數/吞錯/NonInteractive/cp950) | grok 唯讀 | ✅回卷驗訖 |
+| R3 | BOARD0817-IGGAP | E4 IG 量測率 25% 根因(52 筆 null 分類+修法) | grok 唯讀 | ✅回卷驗訖 |
+| R4 | BOARD0817-CAPT | G2 船長七模組落地稽核(找沒吃乾淨的) | grok 唯讀 | ✅回卷驗訖 |
+| R5 | BOARD0817-NIGHTLY | E3 夜檢恆真項複審(B9 外推) | grok 唯讀 | ✅回卷驗訖 |
+| R6 | BOARD0817-VQSPEC | E1 視覺 QA 規格(校準協定:壞例必紅) | grok 唯讀 | ✅回卷驗訖 |
+| R7 | BOARD0817-TRAFFIC | **推流方向偵查(老闆點名):先方向後加強,GA4/索引/GBP/AEO 該往哪打** | grok 唯讀 | ✅回卷驗訖 |
+| R8 | BOARD0817-NIGHTREV | 昨夜五 commit 跨家族缺陷複審(六不變量逐條) | luna 唯讀 | ✅DEFECTS_FOUND(14)→併入 W-REPAIR |
+| W1 | w-repair | E2 修雷 27+luna 14 缺陷合併修復 | grok 實作 | 🔥點火中 |
+| W2 | w-a7 | A7 改題自動重生圖(規格已灌:10 條款) | grok 實作 | 排隊(W-REPAIR 後) |
 | W3 | (預備)w-vq | E1 視覺 QA 實作(等 R6+Opus 終裁附錄) | grok 實作 | 待點火 |
 | 裁決 | — | R6 規格回卷後 Opus 深審→產出 W3 附錄條款 | Opus | 排隊 |
 
@@ -82,3 +82,9 @@
 - 正本:`reports/daily-progress.md`;引擎:`scripts/daily_progress.py`(day-reports + IG insights + indexing-push 三源)。
 - 鐵則:null=未量測≠0,不算退步但必須查;比較永遠是「昨天 vs 前天」,因為 GA4/IG 隔夜才熟。
 - 目標:每天至少一項 ↑,且 null 欄位逐週變少。
+
+### 03:10 板況增補
+- W-IGFIX ✅ 結案 commit ad38f8f:IG 量測 52/69 整包失敗已修(指標拆組),12/12 綠+突變 3 紅;總指揮收卷補 2 行型別窄化(grok 沒跑 tsc,tsx 不查型別——老坑)。
+- 新增 ready:w-nightly(夜檢降噪,R5 判定已灌)。
+- ⚠ MOTIONSPEC 揪出 **8/18 slot3 綁了 8/14 才播過的 luggage-wheel 同一支成片**(video_sha256 相同=4 天內重播)。處置:今天產線照 plan 產 heel-tip-scuff → heal 8/18;8 點檢查與今日產線驗證此項。
+- Opus 裁決:R6(視覺QA)+MOTIONSPEC(分鏡真相化)合併深審,產 W3/W4 附錄。

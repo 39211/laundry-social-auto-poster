@@ -9,7 +9,7 @@ import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestP
 import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
 import { markImageSource } from "./markImageSource";
 import { contentCalendarPath, padSlot, projectRoot } from "./paths";
-import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions, type ReelConcept } from "./reelConcepts";
+import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions, priorAirings, type ReelConcept } from "./reelConcepts";
 import { getZonedDateParts } from "./scheduler";
 import { hashVideoPrompt, videoRunReportPath } from "./videoRunFreshness";
 import type { DailyContent, DailySlot } from "./types";
@@ -79,13 +79,28 @@ function reelActionCta(concept: ReelConcept, platform: "instagram" | "facebook")
 
 const FOLLOW_LINE = "私享家洗衣店｜台中市區免費到府收送";
 
-function captionsFor(concept: ReelConcept): { instagram: string; facebook: string } {
+export function captionsFor(
+  concept: ReelConcept,
+  airedBefore = 0
+): { instagram: string; facebook: string } {
   const hashtags = ["#私享家洗衣店", "#台中西屯洗衣店", "#台中免費收送", "#洗護日常"].join(" ");
   // Block 2 is the observation (narration), never the bare shop name — Instagram
   // folds there. Brand lives on the follow line with the free-pickup offer.
+  //
+  // A re-airing (post-cooldown) must not reprint the first run: the 8/16
+  // insight data measured -50%+ views on unchanged reruns. Same facts, other
+  // arrangement — the craftsman's diagnostic sentence takes the fold and the
+  // hook closes instead of opening. No new claims are invented.
+  const narrationEnd = concept.narration.indexOf("。");
+  const narrationLead =
+    narrationEnd === -1 ? concept.narration : concept.narration.slice(0, narrationEnd + 1);
+  const narrationRest = narrationEnd === -1 ? "" : concept.narration.slice(narrationEnd + 1);
+  const opening =
+    airedBefore > 0
+      ? [narrationLead, `${narrationRest ? narrationRest + "\n\n" : ""}${concept.hook}。`]
+      : [concept.hook + "。", concept.narration];
   const instagram = [
-    concept.hook + "。",
-    concept.narration,
+    ...opening,
     reelActionCta(concept, "instagram"),
     LINE_CONTACT,
     `${questionFor(concept)}\n\n${shareInviteFor(concept)}`,
@@ -93,8 +108,7 @@ function captionsFor(concept: ReelConcept): { instagram: string; facebook: strin
     hashtags
   ].join("\n\n");
   const facebook = [
-    concept.hook + "。",
-    concept.narration,
+    ...opening,
     reelActionCta(concept, "facebook"),
     LINE_CONTACT,
     questionFor(concept),
@@ -184,7 +198,7 @@ export async function scheduleReel(input: {
   // what its source record claims.
   await copyFile(coverSource, join(root, coverRel));
 
-  const captions = captionsFor(concept);
+  const captions = captionsFor(concept, priorAirings(concept.id, input.date));
   const scheduleTime = slotNumber === 3 ? "12:00" : slotNumber === 2 ? "20:30" : slot.time;
   const patched: DailySlot = {
     ...slot,

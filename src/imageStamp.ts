@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { contradictorySubject } from "./contentPlan";
 
@@ -191,6 +191,31 @@ export type ApprovedImageDigests = Record<string, Record<string, string>>;
 
 export function imageDigestsPath(root: string, date: string): string {
   return join(root, "data", "approved-log", `${date}.image-digests.json`);
+}
+
+/**
+ * The one writer for the digest snapshot (luna D6). A plain writeFile can be
+ * interrupted mid-write, and a half-written snapshot parses as "unusable",
+ * which downgrades the publish check for the whole day. Writing to a temp
+ * file and renaming over the target means the file on disk is always either
+ * the previous complete snapshot or the new complete snapshot — never a torn
+ * one. On any failure the temp file is removed and the target stays whatever
+ * it was.
+ */
+export async function writeApprovedImageDigests(
+  root: string,
+  date: string,
+  digests: ApprovedImageDigests
+): Promise<void> {
+  const target = imageDigestsPath(root, date);
+  const temp = `${target}.tmp-${process.pid}`;
+  try {
+    await writeFile(temp, JSON.stringify(digests, null, 2), "utf8");
+    await rename(temp, target);
+  } catch (error) {
+    await unlink(temp).catch(() => {});
+    throw error;
+  }
 }
 
 export async function loadApprovedImageDigests(

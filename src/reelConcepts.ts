@@ -299,6 +299,20 @@ export function publishDateFor(conceptId: string): string | undefined {
   return REEL_SCHEDULE.find((entry) => entry.conceptId === conceptId)?.date;
 }
 
+/**
+ * How many times this concept was scheduled before the given date. The
+ * 2026-08-16 insight data put a number on reruns: a topic re-aired days after
+ * its first showing lost more than half its views with the caption unchanged.
+ * The 21-day cooldown spaces the airings out; this counter is what lets the
+ * caption builder say something arranged differently the second time instead
+ * of reprinting the first run.
+ */
+export function priorAirings(conceptId: string, beforeDate: string): number {
+  return REEL_SCHEDULE.filter(
+    (entry) => entry.conceptId === conceptId && entry.date < beforeDate
+  ).length;
+}
+
 // ---------------------------------------------------------------------------
 // Mid-video treatments for 2026-08-12..14 watch-time A/B/C.
 // Plan file: data/mid-treatment-plan.json maps date → "A"|"B"|"C".

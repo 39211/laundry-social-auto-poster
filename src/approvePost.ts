@@ -1,10 +1,9 @@
-import { writeFile } from "node:fs/promises";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import {
   hashImageFile,
-  imageDigestsPath,
   imageEvidenceFailures,
-  loadApprovedImageDigests
+  loadApprovedImageDigests,
+  writeApprovedImageDigests
 } from "./imageStamp";
 import { appendApprovalLog, loadDailyContent, loadImageSources } from "./logging";
 import { imageAssetsForSlot } from "./mediaAssets";
@@ -104,11 +103,7 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
     if (digest) digests[asset.local_image_path] = digest;
   }
   approvedDigests[String(options.slot)] = digests;
-  await writeFile(
-    imageDigestsPath(root, options.date),
-    JSON.stringify(approvedDigests, null, 2),
-    "utf8"
-  );
+  await writeApprovedImageDigests(root, options.date, approvedDigests);
 
   return entries;
 }

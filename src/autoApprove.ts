@@ -7,9 +7,9 @@ import { hasApprovedPost, loadApprovalLog, loadDailyContent, loadImageSources } 
 import { inspectDailyImageProvenance } from "./imageProvenance";
 import {
   hashImageFile,
-  imageDigestsPath,
   imageEvidenceFailures,
   loadApprovedImageDigests,
+  writeApprovedImageDigests,
   type ApprovedImageDigests
 } from "./imageStamp";
 import { TOPIC_LABEL_PREFIX_RE } from "./contentPlan";
@@ -389,11 +389,7 @@ export async function autoApprove(
   if (!options.dryRun && approvedSlots.length > 0) {
     const { writeFile: writeFp } = await import("node:fs/promises");
     await writeFp(fingerprintPath, JSON.stringify(fingerprints, null, 2), "utf8");
-    await writeFp(
-      imageDigestsPath(root, date),
-      JSON.stringify(approvedDigests, null, 2),
-      "utf8"
-    );
+    await writeApprovedImageDigests(root, date, approvedDigests);
   }
 
   const remainingBlockers = [...slotBlockers.values()].flat();

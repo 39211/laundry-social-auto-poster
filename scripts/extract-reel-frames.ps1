@@ -9,9 +9,13 @@
 # order fails (defect act missing, object identity drifting between acts) goes
 # back for regeneration instead of to the owner.
 param(
-    [Parameter(Mandatory = $true)][string]$ReelPath
+    [Parameter(Mandatory = $true)][string]$ReelPath,
+    [string]$QaDir = "",
+    [string]$Treatment = "auto"
 )
 $ErrorActionPreference = "Stop"
+$scriptRoot = $PSScriptRoot
+$projectRoot = Split-Path -Parent $scriptRoot
 if (-not (Test-Path $ReelPath)) { throw "Reel not found: $ReelPath" }
 $probeOut = & ffprobe -v error -show_entries format=duration -of csv=p=0 $ReelPath 2>&1
 $probeExit = $LASTEXITCODE
@@ -51,3 +55,63 @@ foreach ($p in $points) {
 $made = @(Get-ChildItem $dir -Filter "*.png")
 if ($made.Count -lt 4) { throw "Expected 4 story frames, got $($made.Count) in $dir" }
 Write-Host "extract-reel-frames: $($made.Count) frames -> $dir"
+
+# QA copies are a separate directory: human frames stay clean. Each QA frame
+# is burned with a random 4-character canary so a silent -i drop cannot PASS.
+$qaTarget = $QaDir
+if (-not $qaTarget) {
+    $qaTarget = [IO.Path]::ChangeExtension($ReelPath, $null).TrimEnd('.') + ".qa-frames"
+}
+if (Test-Path $qaTarget) { Remove-Item $qaTarget -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $qaTarget | Out-Null
+
+$durStr = [string]::Format([Globalization.CultureInfo]::InvariantCulture, "{0:0.##}", $duration)
+$tsx = Join-Path $projectRoot "node_modules\.bin\tsx.cmd"
+$planRaw = & $tsx (Join-Path $projectRoot "src\visualQaCli.ts") --plan-frames --reel $ReelPath --duration $durStr --treatment $Treatment
+if ($LASTEXITCODE -ne 0 -or -not $planRaw) {
+    throw "visualQaCli --plan-frames failed for $ReelPath : $planRaw"
+}
+$planLine = @($planRaw | Where-Object { "$_" -match '^\s*\{' } | Select-Object -Last 1)[0]
+if (-not $planLine) { throw "visualQaCli --plan-frames returned no JSON: $planRaw" }
+$plan = $planLine | ConvertFrom-Json
+if (-not $plan.samples -or @($plan.samples).Count -lt 2) {
+    throw "visualQaCli returned no scene-aware samples for $ReelPath"
+}
+
+$font = "C\:/Windows/Fonts/consola.ttf"
+if (-not (Test-Path "C:\Windows\Fonts\consola.ttf")) { $font = "C\:/Windows/Fonts/arial.ttf" }
+$chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+$planned = @()
+foreach ($sample in @($plan.samples)) {
+    $t = [string]::Format([Globalization.CultureInfo]::InvariantCulture, "{0:0.###}", $sample.t)
+    $rawFrame = Join-Path $qaTarget ("raw-" + $sample.name + ".png")
+    $ffOut = & ffmpeg -v error -y -ss $t -i $ReelPath -frames:v 1 $rawFrame 2>&1
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $rawFrame) -or (Get-Item $rawFrame).Length -eq 0) {
+        throw "QA ffmpeg extract failed at $($sample.name) t=$t (exit $LASTEXITCODE): $ffOut"
+    }
+    $code = -join (1..4 | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
+    $qaFrame = Join-Path $qaTarget ($sample.name + ".png")
+    $draw = "drawtext=fontfile='$font':text='$code':x=16:y=h-56:fontsize=36:fontcolor=yellow:box=1:boxcolor=black@0.88:boxborderw=8"
+    $burnOut = & ffmpeg -v error -y -i $rawFrame -vf $draw $qaFrame 2>&1
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $qaFrame) -or (Get-Item $qaFrame).Length -eq 0) {
+        throw "QA canary burn failed at $($sample.name) (exit $LASTEXITCODE): $burnOut"
+    }
+    Remove-Item $rawFrame -Force
+    $planned += [ordered]@{
+        name   = [string]$sample.name
+        act    = [string]$sample.act
+        t      = [double]$sample.t
+        canary = $code
+    }
+}
+
+$plannedPath = Join-Path $qaTarget "planned.json"
+($planned | ConvertTo-Json -Depth 4) | Set-Content -Path $plannedPath -Encoding UTF8
+& $tsx (Join-Path $projectRoot "src\visualQaCli.ts") --build-sidecar --qa-dir $qaTarget --reel $ReelPath --duration $durStr --treatment $plan.treatment --canaries-file $plannedPath
+if ($LASTEXITCODE -ne 0) { throw "visualQaCli --build-sidecar failed for $ReelPath" }
+
+$pyListed = @(python (Join-Path $projectRoot "scripts\visual_qa_io.py") list-png $qaTarget)
+if ($pyListed.Count -lt 2) {
+    throw "Python list-png saw fewer than 2 QA frames in $qaTarget"
+}
+Write-Host "extract-reel-frames: $($planned.Count) QA canary frames -> $qaTarget (treatment=$($plan.treatment))"

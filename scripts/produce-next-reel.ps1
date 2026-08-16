@@ -130,6 +130,17 @@ function Get-TreatmentSuffix([string]$treatment) {
     return ""
 }
 
+function Get-RejectedConceptIds {
+    $listPath = Join-Path $root "data\rejected-concepts.json"
+    $ids = @(python (Join-Path $root "scripts\visual_qa_io.py") list-rejected $listPath)
+    return @($ids | Where-Object { $_ -and $_.ToString().Trim().Length -gt 0 })
+}
+
+function Test-ConceptRejected([string]$ConceptId) {
+    if (-not $ConceptId) { return $false }
+    return ((Get-RejectedConceptIds) -contains $ConceptId)
+}
+
 function Get-TreatedNarrationText([string]$narration, [string]$treatment) {
     if ($treatment -ne "A" -and $treatment -ne "B") { return $narration }
     $parts = [regex]::Split($narration, '(?<=[。！？])') | Where-Object { $_.Trim().Length -gt 0 }
@@ -379,6 +390,10 @@ foreach ($day in $windowDays) {
         if ($null -eq $half) { continue }
         if ($half.variant -ne "15s") { continue }
         $asset = Get-ReelAssetPath $half.conceptId "15s"
+        if (Test-ConceptRejected $half.conceptId) {
+            Write-Log "Skip rejected concept $($half.conceptId) for 15s gap on $($day.date)."
+            continue
+        }
         if (-not (Test-Path $asset)) {
             $missing15s += [pscustomobject]@{
                 conceptId = $half.conceptId
@@ -401,7 +416,9 @@ if ($missing15s.Count -gt 0) {
     }
     Write-Log "Next work: 15s for $concept (needed by plan day $($pick.date) $($pick.half); $($missing15s.Count) 15s gap(s) in 3-day window)."
 } else {
-    $pending = @($status.concepts | Where-Object { -not (Test-Path (Get-ReelAssetPath $_.id "10s")) })
+    $pending = @($status.concepts | Where-Object {
+        -not (Test-ConceptRejected $_.id) -and -not (Test-Path (Get-ReelAssetPath $_.id "10s"))
+    })
     if ($pending.Count -eq 0) {
         Write-Log "Every scheduled 10s concept is built and the next 3 plan days have their 15s assets. Nothing to produce."
         # A mid-treatment day still has work even when nothing is missing. The
@@ -416,6 +433,10 @@ if ($missing15s.Count -gt 0) {
         if ($todayTreatment -and $todayTreatment -ne "none") {
             $planRow = @(Get-AbTestPlan | Where-Object { $_.date -eq $todayStr }) | Select-Object -First 1
             $airing = if ($planRow) { $planRow.noon.conceptId } else { $null }
+            if ($airing -and (Test-ConceptRejected $airing)) {
+                Write-Log "Mid-treatment day airing $airing is rejected; not re-cutting it."
+                $airing = $null
+            }
             if ($airing) {
                 $conceptInfo = @($status.concepts | Where-Object { $_.id -eq $airing }) | Select-Object -First 1
                 if ($conceptInfo) {
@@ -438,6 +459,11 @@ if ($missing15s.Count -gt 0) {
 }
 
 # --- production body (skipped when nothing to build) -------------------------
+if ($concept -and $conceptInfo -and (Test-ConceptRejected $concept)) {
+    Write-Log "Refusing to produce rejected concept $concept."
+    $concept = $null
+    $conceptInfo = $null
+}
 if ($concept -and $conceptInfo) {
     $objectType = $conceptInfo.object_type
     $libDir = Join-Path $root "data\reference-photos\$objectType"
@@ -557,6 +583,14 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
         }
         Copy-Item $images[-1].FullName $middlePng -Force
         Write-Log "Middle still saved for $concept."
+    }
+
+    # Static visual QA on data/reference-photos originals, before paid shots.
+    # Warning mode: write the record, do not stop production.
+    Write-Log "Static visual-qa (warning) for $concept from data/reference-photos/$objectType"
+    & (Join-Path $root "scripts\check-reel-story.ps1") -StillsOnly -ConceptId $concept -ObjectType $objectType
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "Static visual-qa script error for $concept (warning mode continues)."
     }
 
     # --- clips: before/after, and middle for 15s or mid-treatment ------------
@@ -880,6 +914,21 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
         }
         Write-Log "$concept finished: output\reels-run\2026-07-29\reels\$concept.mp4"
     }
+
+    $qaReel = Get-ReelAssetPath $concept $targetVariant
+    if (-not (Test-Path $qaReel) -and $midSuffix) {
+        $treatedGuess = [IO.Path]::ChangeExtension((Get-ReelAssetPath $concept $targetVariant), $null).TrimEnd('.') + $midSuffix + ".mp4"
+        if (Test-Path $treatedGuess) { $qaReel = $treatedGuess }
+    }
+    if (Test-Path $qaReel) {
+        Write-Log "Story visual-qa (warning) for $qaReel"
+        & (Join-Path $root "scripts\check-reel-story.ps1") -ReelPath $qaReel -ConceptId $concept -ObjectType $objectType
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "Story visual-qa script error for $concept (warning mode continues)."
+        }
+    } else {
+        Write-Log "Story visual-qa skipped; no assembled reel at $qaReel"
+    }
 }
 
 # --- schedule from ab-test-plan (noon slot 3 + evening slot 2) ---------------
@@ -898,6 +947,10 @@ $failedSchedule = $false
 # the canonical name is pointed at the version that day is entitled to.
 function Set-CanonicalForDate {
     param([string]$ForDate, [string]$ConceptId, [string]$Variant)
+    if (Test-ConceptRejected $ConceptId) {
+        Write-Log "Set-CanonicalForDate skip rejected $ConceptId for $ForDate."
+        return
+    }
     $canonical = Get-ReelAssetPath $ConceptId $Variant
     $untreated = [IO.Path]::ChangeExtension($canonical, $null).TrimEnd('.') + "-untreated.mp4"
     $treatment = Get-MidTreatment $ForDate
@@ -948,6 +1001,10 @@ if ($windowDays.Count -gt 0) {
             $cId = $half.plan.conceptId
             $var = $half.plan.variant
             $slotN = $half.slot
+            if (Test-ConceptRejected $cId) {
+                Write-Log "Plan day $($day.date) $($half.name): $cId is on rejected-concepts; skip schedule."
+                continue
+            }
             Write-Log "Scheduling $($day.date) $($half.name) slot $slotN <- $cId ($var)"
             cmd /c "npm.cmd run schedule-reel -- --date $($day.date) --concept $cId --slot $slotN --variant $var 2>&1" | Add-Content -Path $logFile -Encoding UTF8
             if ($LASTEXITCODE -ne 0) {

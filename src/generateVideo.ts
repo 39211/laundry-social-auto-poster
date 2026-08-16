@@ -10,6 +10,7 @@ import { validatePublishableImages } from "./generateImage";
 import { assertMetaReelMetadata, probeVideo } from "./videoMedia";
 import { assertReelRunFresh, assessReelRunFreshness } from "./videoRunFreshness";
 import { assertVideoReviewApproved } from "./videoReviewGate";
+import { warnVisualQaForPublish } from "./visualQa";
 import type { DailySlot } from "./types";
 import { profileForVideoTopic, type VideoItemCategory } from "./videoItemProfiles";
 
@@ -159,6 +160,14 @@ export async function validatePublishableReel(
     slot: slot.slot,
     videoPath: slot.local_video_path,
     videoPrompt: slot.video_prompt,
+    root
+  });
+  // Warning mode (W3 phase 1): read visual-qa.json, never throw. Phase 2
+  // will turn a FAIL/missing/hash mismatch into a throw after calibration.
+  await warnVisualQaForPublish({
+    date,
+    slot: slot.slot,
+    videoPath: slot.local_video_path,
     root
   });
 }

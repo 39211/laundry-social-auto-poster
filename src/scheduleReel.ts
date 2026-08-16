@@ -10,6 +10,7 @@ import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestP
 import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
 import { markImageSource } from "./markImageSource";
 import { contentCalendarPath, padSlot, projectRoot } from "./paths";
+import { isConceptRejected, loadRejectedConcepts } from "./visualQa";
 import {
   REEL_CONCEPTS,
   REEL_SCHEDULE,
@@ -183,6 +184,10 @@ export async function scheduleReel(input: {
 }): Promise<void> {
   const root = projectRoot(input.root);
   const config = getConfig();
+  const rejected = await loadRejectedConcepts(root);
+  if (isConceptRejected(rejected, input.conceptId)) {
+    throw new Error(`Concept ${input.conceptId} is on rejected-concepts; refusing to schedule.`);
+  }
   const concept = REEL_CONCEPTS.find((item) => item.id === input.conceptId);
   if (!concept) throw new Error(`Unknown concept: ${input.conceptId}`);
 
@@ -388,6 +393,13 @@ export async function healOneSlot(input: {
   variant: AbVariant;
   root: string;
 }): Promise<void> {
+  const rejected = await loadRejectedConcepts(input.root);
+  if (isConceptRejected(rejected, input.conceptId)) {
+    console.log(
+      `${input.date}: ${input.conceptId} is on rejected-concepts; heal will not restore it.`
+    );
+    return;
+  }
   if (await slotMatchesPlanReel(input)) {
     console.log(
       `${input.date}: slot ${input.slotNumber} already carries the ${input.conceptId} reel (${input.variant}).`

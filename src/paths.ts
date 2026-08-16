@@ -84,6 +84,10 @@ export function videoReviewsPath(date: string, root = projectRoot()): string {
   return join(root, "data", "video-reviews", `${date}.json`);
 }
 
+export function rejectedConceptsPath(root = projectRoot()): string {
+  return join(root, "data", "rejected-concepts.json");
+}
+
 export function videoRepairQueuePath(root = projectRoot()): string {
   return join(root, "data", "video-repair-queue", "queue.json");
 }

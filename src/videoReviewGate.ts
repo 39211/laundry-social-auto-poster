@@ -28,7 +28,16 @@ export interface VideoReviewRecord {
    * and corrections feed the next day's production. The record must say which
    * one actually happened.
    */
-  reviewed_by?: "owner-watched" | "owner-standing-policy-2026-07-29";
+  reviewed_by?:
+    | "owner-watched"
+    | "owner-standing-policy-2026-07-29"
+    | "codex-visual-qa"
+    | "human-frames-review";
+}
+
+/** standing-policy proves decode/geometry only; it cannot satisfy visual-qa. */
+export function visualQaAcceptedReviewer(reviewedBy: string | undefined): boolean {
+  return reviewedBy === "codex-visual-qa" || reviewedBy === "human-frames-review";
 }
 
 async function sha256File(path: string): Promise<string> {

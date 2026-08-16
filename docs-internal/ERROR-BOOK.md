@@ -81,6 +81,13 @@
 
 ---
 
+### F11|把別人改到一半的檔案掃進自己的 commit,自己的測試綠救不了你
+- **症狀**:8/16 整個上午發布 crash 在 import(缺三個匯出),slot 2/3 核准了發不出去,到 13:30 才有人發現。
+- **真因**:並行 session 在改 postCurrentSlot+imageStamp+logging;我提交 d0c82e8 時把**它改到一半的 postCurrentSlot** 一起 staged(我的 typecheck 是在它後續修改落地**之前**跑的);它的 imageStamp/logging 還沒提交,06:30 的 stash 守衛照設計把那些暫存 → HEAD 的 import 指向不存在的定義。
+- **陷阱疊加**:我先把鍋甩給自動 Pages commit(A-2 原判),查證後發現該 commit 是 pathspec 限定、stash 守衛也有效 —— **兩層保護都在,漏的是我自己的 staging 紀律**。
+- **修法**:看到「檔案被並行修改」的提醒後要 commit 該檔,**必須在 `git add` 之後、`git commit` 之前重跑 typecheck**;或干脆不把該檔納入這次 commit。
+- **通則**:🔴 **測試綠只證明「跑測試那一刻」的樹,不證明「你 commit 那一刻」的樹。** staging 與驗證之間每多一秒,並行寫入就多一秒的窗。
+
 ## B. 驗證方法本身出錯(最陰險:讓你以為壞了,或以為好了)
 
 ### B1|cp950 假陰性:中文比對「不報錯、直接 0 命中」

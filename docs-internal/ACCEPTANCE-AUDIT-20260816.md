@@ -6,13 +6,19 @@
 ## A. 會讓我沒辦法順利工作的(依危險排序)
 
 ### A-1 🔴 兩個 session 同時寫同一批檔案(今天真的炸了)
-- **證據**:HEAD 上 `postCurrentSlot.ts` import 了三個不存在的匯出。另一 session 在 01:40–06:30 之間斷掉,改到一半的 refactor 被排程的 Pages commit 掃進主線。`tsx` 在執行期解析 named import → **發布程式直接 crash,今天到 13:30 一則都沒發**(slot 2/3 十點多就核准了,每次補跑都死在 import)。
+- **證據**:HEAD 上 `postCurrentSlot.ts` import 了三個不存在的匯出。另一 session 在 01:40–06:30 之間斷掉,改到一半的 postCurrentSlot **被我自己的 d0c82e8 掃進主線**(機制更正見 A-2)。`tsx` 在執行期解析 named import → **發布程式直接 crash,今天到 13:30 一則都沒發**(slot 2/3 十點多就核准了,每次補跑都死在 import)。
 - **已修**:13:30 補齊三個匯出(照死掉 session 留下的測試規格),276 測試綠,slot 3 已在窗口內發出。
 - **殘留風險**:只要兩個 session 還會同時開在這個 repo,同型事故就會再發生。**write-set 不重疊是鐵則,但這裡沒有 hook 強制。**
 
-### A-2 🔴 排程的 Pages commit 會把 src/ 的半成品掃進主線
-- **證據**:`81d85e7`(06:30 自動 commit)含 `postCurrentSlot.ts` 的半套 refactor。自動 commit 應該只碰 `docs/`,現在是整樹掃。
-- **未修**:要把自動 commit 的範圍鎖在 `docs/` + 產物路徑。已入 loop 佇列。
+### A-2 ~~排程的 Pages commit 會把 src/ 掃進主線~~(14:30 查證後撤回:診斷錯誤)
+- **原判**:自動 commit 掃整樹,把半成品帶進 HEAD。
+- **查證推翻**:`81d85e7` 只含 docs/(79 檔零 src);`publishPages.ts:246` 的 commit 本來就是 pathspec 限定;06:30 另有 stash 守衛會把未提交的 src/scripts 修改暫存。**保護早就存在。**
+- **真正的事故鏈**(證據:stash@{0}、d0c82e8 內容):
+  1. 另一 session 同時改 postCurrentSlot + imageStamp + logging(01:40)
+  2. **我把它改到一半的 postCurrentSlot 掃進我自己的 d0c82e8**(staging 後沒重跑 typecheck)
+  3. 06:30 stash 守衛照設計把它未提交的 imageStamp/logging 暫存 → HEAD 的 import 失去定義 → 發布 crash
+- **教訓**:錯不在自動 commit,在**我 commit 了一個別人正在動的檔案而沒有在 staging 之後重新驗證**。已入踩坑簿 F11。
+- **佇列第 1 項(鎖 docs/)作廢** —— 要防的東西已經有兩層在防。
 
 ### A-3 兩份排程各說各話(第三次同種病)
 - 時刻表(19:30/20:30)→ 已修。前綴表(可收藏)→ 已修。**這次是 REEL_SCHEDULE vs ab-test-plan**:產線照前者天天產新片,發布照後者輪播舊 12 支 —— **新片天天產、從來沒上檔**。

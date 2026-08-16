@@ -89,7 +89,7 @@ The homepage keeps the newest 7 approved content dates expanded for customers. O
 Daily posting is intentionally split into three stages:
 
 1. `06:30` generation automation creates the private content calendar, image prompt manifest, non-blocking video candidate manifest, final images, image source records, and runs `validate-publishable-images`.
-   Video candidates carry a memory hook, conflict, one dominant action, payoff, CTA, 9:16 first-frame direction, and a manual SuperGrok motion prompt. They remain image posts until a returned MP4 passes the Reel gates; see `docs/video-content-workflow.md`.
+   Video candidates carry a memory hook, conflict, one dominant action, payoff, CTA, 9:16 first-frame direction, and a manual SuperGrok motion prompt. They remain image posts until a returned MP4 passes the Reel gates; see `content-playbooks/video-content-workflow.md`.
 2. `10:20` approval automation reviews the generated package, writes `data/approved-log/YYYY-MM-DD.json` with `npm run approve-post`, then runs `npm run generate-public-site` so approved content enters SEO/AIO/GEO.
 3. `11:30` and `19:30` publishing automations run `npm run post-current-slot` for the due slot.
 

@@ -967,12 +967,70 @@ export function shoeSubjectFor(topic: string): string {
  * every one of them. What is never legitimate is a 白鞋 caption over a prompt
  * that explicitly asks for canvas.
  */
+/**
+ * Object families for the caption-versus-prompt cross-check.
+ *
+ * The Chinese side identifies what a topic is about; the English side is the
+ * narrow set of nouns whose presence means the prompt asks for that family.
+ * Two deliberate constraints, both learned the hard way:
+ *
+ * Topic patterns use compound words only. Bare 被 is the passive marker --
+ * 帆布鞋鞋口被遮住 is a shoe topic containing 被 -- and bare 衣 lives inside
+ * 洗衣店, the business's own name. A family that matches grammar instead of
+ * objects blocks legitimate days, and a blocked slot 1 is a silent morning.
+ *
+ * Marker regexes are word-bounded nouns, not adjectives. "quilted" describes
+ * down jackets as readily as duvets; \bquilts?\b does not match "quilted", so
+ * the adjective cannot vouch for the wrong family.
+ *
+ * 羽絨 is genuinely ambiguous (羽絨被 bedding, 羽絨外套 clothing), so both
+ * sides claim only their compound and bedding is listed first.
+ */
+const SUBJECT_FAMILIES: Array<{ label: string; topic: RegExp; markers: RegExp }> = [
+  { label: "鞋類", topic: /鞋|靴|勃肯/, markers: /\b(sneakers?|shoes?|boots?|sandals?|heels?|loafers?|footwear)\b/i },
+  { label: "行李箱", topic: /行李箱/, markers: /\b(suitcases?|luggage|trolley case)\b/i },
+  {
+    label: "包袋類",
+    topic: /書包|背包|皮夾|錢包|提包|皮包|名牌包|精品包|化妝包|托特|手提袋/,
+    markers: /\b(handbags?|backpacks?|wallets?|totes?|purses?|satchels?)\b/i
+  },
+  {
+    label: "寢具類",
+    topic: /棉被|羽絨被|被套|寢具|毛毯|枕|保潔墊|床單|床組|涼被|睡袋/,
+    markers: /\b(duvets?|quilts?|comforters?|bedding|blankets?|pillows?|mattress pads?)\b/i
+  },
+  {
+    label: "衣物類",
+    topic: /外套|襯衫|毛衣|大衣|洋裝|西裝|夾克|羽絨衣|牛仔褲|裙|制服|旗袍|禮服/,
+    markers: /\b(jackets?|shirts?|sweaters?|coats?|blouses?|dress(?:es)?|trousers|jeans|suits?|uniforms?|gowns?)\b/i
+  },
+  { label: "絨毛娃娃", topic: /娃娃|絨毛/, markers: /\b(plush|stuffed (?:toys?|animals?)|dolls?)\b/i }
+];
+
 export function contradictorySubject(
   topic: string,
   prompt: string
 ): { expected: string; found: string } | undefined {
+  // Family layer first: a duvet caption over a prompt that asks for sneakers
+  // is wrong regardless of which sneakers. Contradiction-only in both layers --
+  // a prompt that names the right family in its own words passes, because Reel
+  // covers describe their subject freely and demanding canonical phrasing
+  // would block every one of them. A prompt that names no family at all is no
+  // opinion, not a finding.
+  const family = SUBJECT_FAMILIES.find((f) => f.topic.test(topic));
+  if (family && !family.markers.test(prompt)) {
+    const other = SUBJECT_FAMILIES.find((f) => f !== family && f.markers.test(prompt));
+    if (other) {
+      const found = prompt.match(other.markers)?.[0] ?? other.label;
+      return { expected: family.label, found };
+    }
+  }
+
+  // Fine-grained layer, shoes only: 白鞋 caption over a canvas-shoe prompt is
+  // the 2026-08-14 accident, and both prompts are inside the shoe family, so
+  // the family layer cannot see it.
   const expected = SHOE_SUBJECTS.find((entry) => entry.match.test(topic));
-  if (!expected) return undefined; // topic names no specific shoe: no opinion
+  if (!expected) return undefined;
   if (prompt.includes(expected.subject)) return undefined;
   const contradiction = SHOE_SUBJECTS.find(
     (entry) => entry !== expected && prompt.includes(entry.subject)

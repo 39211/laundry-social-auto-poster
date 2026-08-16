@@ -3,13 +3,14 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { validatePublishableMedia } from "../src/generateVideo";
+import { markImageSource } from "../src/markImageSource";
 import {
   assertReelRunFresh,
   assessReelRunFreshness,
   hashVideoPrompt,
   videoRunReportPath
 } from "../src/videoRunFreshness";
-import { validatePublishableMedia } from "../src/generateVideo";
 
 const roots: string[] = [];
 
@@ -160,22 +161,23 @@ describe("Reel run/prompt freshness", () => {
       await writeFile(join(root, "docs", "assets", date, `slot-${pad}.png`), "png", "utf8");
     }
     await writeFile(join(root, "docs", "assets", date, "slot-02.mp4"), "mp4", "utf8");
-    await writeJson(join(root, "data", "image-sources", `${date}.json`), [
-      {
-        date,
-        slot: 1,
-        source: "gpt-image-2",
-        image_path: `docs/assets/${date}/slot-01.png`,
-        marked_at: `${date}T01:00:00.000Z`
-      },
-      {
-        date,
-        slot: 2,
-        source: "gpt-image-2",
-        image_path: `docs/assets/${date}/slot-02.png`,
-        marked_at: `${date}T01:00:00.000Z`
-      }
-    ]);
+    // A7 inventory now treats an unstamped file as unproven. Stamp through
+    // the real writer so the calendar-image ruler passes and the assertion
+    // can reach the stale-prompt gate.
+    await markImageSource({
+      root,
+      date,
+      slot: 1,
+      source: "gpt-image-2",
+      imagePath: `docs/assets/${date}/slot-01.png`
+    });
+    await markImageSource({
+      root,
+      date,
+      slot: 2,
+      source: "gpt-image-2",
+      imagePath: `docs/assets/${date}/slot-02.png`
+    });
     await writeJson(join(root, "data", "video-sources", `${date}.json`), [
       {
         date,

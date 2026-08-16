@@ -36,10 +36,51 @@ if (-not (Test-Path $manifestPath)) {
 $manifest = [IO.File]::ReadAllText($manifestPath, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
 $items = if ($manifest -is [array]) { $manifest } else { $manifest.items }
 
+# Inventory is the calendar (list-missing), not "every manifest target exists".
+# A complete-looking manifest with yesterday's two-ruler day used to print
+# "already present" while slot 1 and 2 were still missing.
+Push-Location $root
+$listOut = cmd /c "npm.cmd run generate-image-manifest -- --list-missing --date $Date 2>&1"
+$listExit = $LASTEXITCODE
+Pop-Location
+if ($LogFile) { $listOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
+else { $listOut | ForEach-Object { Write-Host $_ } }
+
+$listText = (@($listOut) | ForEach-Object { "$_" }) -join [Environment]::NewLine
+$alreadyPresentLine = "Every image for $Date was already present."
+$zeroMissing = $listText.Contains($alreadyPresentLine)
+$hasMissingReport = $listText -match "calendar image\(s\) missing"
+
 $codex = Join-Path $env:APPDATA "npm\codex.cmd"
 $generated = 0
 
+if ($zeroMissing) {
+    Write-Step $alreadyPresentLine
+} elseif (-not $hasMissingReport) {
+    Write-Step "list-missing did not report inventory for $Date (exit $listExit)."
+    exit 1
+} else {
+$missingPaths = New-Object 'System.Collections.Generic.HashSet[string]'
+foreach ($line in @($listOut)) {
+    if ("$line" -match '^\s*-\s+(\S+)\s+\(') {
+        [void]$missingPaths.Add(($Matches[1] -replace '\\', '/'))
+    }
+}
+
+$known = @{}
 foreach ($item in $items) {
+    $known[(([string]$item.target_path) -replace '\\', '/')] = $true
+}
+foreach ($missing in $missingPaths) {
+    if (-not $known.ContainsKey($missing)) {
+        Write-Step "Calendar missing $missing has no manifest prompt; run generate-image-manifest first."
+    }
+}
+
+foreach ($item in $items) {
+    $relNorm = ([string]$item.target_path) -replace '\\', '/'
+    if (-not $missingPaths.Contains($relNorm)) { continue }
+
     $target = Join-Path $root ($item.target_path -replace "/", "\")
     if (Test-Path $target) { continue }
 
@@ -91,10 +132,9 @@ $($item.prompt)
     $generated += 1
 }
 
-if ($generated -eq 0) {
-    Write-Step "Every image for $Date was already present."
-} else {
+if ($generated -gt 0) {
     Write-Step "Generated $generated image(s) for $Date."
+}
 }
 
 Push-Location $root

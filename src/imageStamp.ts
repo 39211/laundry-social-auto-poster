@@ -101,6 +101,10 @@ export async function imageEvidenceFailures(
     return [`slot ${slot.slot} 圖片 manifest 缺失或無法解析,圖文一致性未證明`];
   }
 
+  // Same topicIdentity the write-path uses. A playbook label is not an object:
+  // 可收藏 vs 先看懂 on the same item must not block approval.
+  const { topicIdentity } = await import("./generateImage");
+
   const failures: string[] = [];
   for (const asset of assets) {
     const path = asset.local_image_path;
@@ -111,7 +115,10 @@ export async function imageEvidenceFailures(
       say("在圖片 manifest 中沒有唯一對應的條目(缺漏、重複、或掛在別的時段),圖文一致性未證明");
       continue;
     }
-    if (entry.topic !== slot.topic) {
+    if (
+      typeof entry.topic !== "string" ||
+      topicIdentity(entry.topic) !== topicIdentity(slot.topic)
+    ) {
       say(
         `文不配圖:manifest 記為「${String(entry.topic).slice(0, 16)}」,文案是「${slot.topic.slice(0, 16)}」`
       );
@@ -143,7 +150,7 @@ export async function imageEvidenceFailures(
       say("來源紀錄沒有記錄產生當下的主題,圖文一致性未證明");
       continue;
     }
-    if (record.topic !== slot.topic) {
+    if (topicIdentity(record.topic) !== topicIdentity(slot.topic)) {
       say(`文不配圖:這個檔案是為「${record.topic.slice(0, 16)}」產生的,文案是「${slot.topic.slice(0, 16)}」`);
       continue;
     }

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { access, copyFile, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,6 +19,10 @@ import {
   classifyCalendarSlotPresence,
   postCurrentSlot
 } from "../src/postCurrentSlot";
+import { topicIdentity } from "../src/generateImage";
+import { sha256 } from "../src/imageStamp";
+import { markImageSource } from "../src/markImageSource";
+import { REEL_CONCEPTS } from "../src/reelConcepts";
 import { healOneSlot, scheduleReel, slotMatchesPlanReel } from "../src/scheduleReel";
 import { DAILY_SCHEDULE, findSlotByNumber } from "../src/scheduler";
 import { videoRunReportPath } from "../src/videoRunFreshness";
@@ -206,6 +210,139 @@ describe("A/B dual-reel pipeline", () => {
     );
     const runRaw = await readFile(videoRunReportPath(date, 3, root), "utf8");
     expect(JSON.parse(runRaw).ab_variant).toBe("15s");
+  });
+
+  it("invalidates the outgoing slot's images before heal overwrites the cover", async () => {
+    // Mutation target: if healOneSlot drops invalidateSlotImagesIfTopicChanged,
+    // the old hero never lands in _stale and this test goes red.
+    const conceptId = "leather-bag-corner";
+    const concept = REEL_CONCEPTS.find((item) => item.id === conceptId);
+    expect(concept).toBeTruthy();
+    await requireFixture(join(RUN_REELS, `${conceptId}.mp4`), `${conceptId}.mp4`);
+    const root = await mkdtemp(join(tmpdir(), "ab-heal-a7-"));
+    await seedReelFixtures(root, conceptId, ["10s"]);
+
+    const date = "2026-09-22";
+    const oldTopic = "可收藏：深色衣服收進衣櫃前的氣味檢查";
+    const oldPrompt = "Realistic shop photo of dark garments on a rack.";
+    const oldPath = `docs/assets/${date}/slot-02.png`;
+    const oldBytes = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from("old-dark-clothes-hero")
+    ]);
+
+    await mkdir(join(root, "data", "content-calendar"), { recursive: true });
+    await mkdir(join(root, "data", "image-prompts"), { recursive: true });
+    await mkdir(join(root, "docs", "assets", date), { recursive: true });
+    await writeFile(
+      join(root, "data", "content-calendar", `${date}.json`),
+      `${JSON.stringify({
+        date,
+        timezone: "Asia/Taipei",
+        generated_at: `${date}T00:00:00.000Z`,
+        slots: [
+          {
+            slot: 1,
+            time: "11:30",
+            category: "知識文",
+            topic: "其他主題",
+            format: "image-post",
+            media_type: "image",
+            instagram_caption: "caption",
+            facebook_caption: "caption",
+            image_prompt: "other prompt",
+            visual_route: "macro-detail",
+            traffic_route: "object-proof",
+            local_image_path: `docs/assets/${date}/slot-01.png`,
+            public_image_url: `https://example.com/assets/${date}/slot-01.png`,
+            status: "pending"
+          },
+          {
+            slot: 2,
+            time: "19:30",
+            category: "知識文",
+            topic: oldTopic,
+            format: "image-post",
+            media_type: "image",
+            instagram_caption: "caption",
+            facebook_caption: "caption",
+            image_prompt: oldPrompt,
+            visual_route: "macro-detail",
+            traffic_route: "object-proof",
+            local_image_path: oldPath,
+            public_image_url: `https://example.com/${oldPath}`,
+            status: "pending"
+          }
+        ]
+      }, null, 2)}\n`,
+      "utf8"
+    );
+    await writeFile(
+      join(root, "data", "image-prompts", `${date}.json`),
+      JSON.stringify([
+        {
+          slot: 2,
+          slide: 1,
+          topic: oldTopic,
+          prompt: oldPrompt,
+          target_path: oldPath,
+          public_image_url: `https://example.com/${oldPath}`,
+          visual_route: "macro-detail"
+        }
+      ]),
+      "utf8"
+    );
+    await writeFile(join(root, ...oldPath.split("/")), oldBytes);
+    await markImageSource({
+      root,
+      date,
+      slot: 2,
+      source: "gpt-image-2",
+      imagePath: oldPath
+    });
+
+    const healSource = await readFile(new URL("../src/scheduleReel.ts", import.meta.url), "utf8");
+    const healBody = healSource.slice(
+      healSource.indexOf("export async function healOneSlot"),
+      healSource.indexOf("async function main")
+    );
+    expect(healBody).toContain("invalidateSlotImagesIfTopicChanged");
+
+    await healOneSlot({
+      date,
+      slotNumber: 2,
+      conceptId,
+      variant: "10s",
+      root
+    });
+
+    const staleDir = join(
+      root,
+      "docs",
+      "assets",
+      date,
+      "_stale",
+      sha256(topicIdentity(oldTopic)).slice(0, 12)
+    );
+    const staleHero = join(staleDir, "slot-02.png");
+    await access(staleHero);
+    expect(await readFile(staleHero)).toEqual(oldBytes);
+
+    const liveCover = await readFile(join(root, ...oldPath.split("/")));
+    expect(liveCover.equals(oldBytes)).toBe(false);
+
+    const staleRoot = join(root, "docs", "assets", date, "_stale");
+    const staleNames = await readdir(staleRoot);
+    for (const dir of staleNames) {
+      const files = await readdir(join(staleRoot, dir));
+      for (const name of files) {
+        const bytes = await readFile(join(staleRoot, dir, name));
+        expect(bytes.equals(liveCover)).toBe(false);
+      }
+    }
+
+    const healed = await loadDailyContent(date, root);
+    expect(healed?.slots.find((slot) => slot.slot === 2)?.topic).toBe(concept!.hook);
   });
 
   it("classifies a missing slot 3 as skip, not fail (catch-up / post path)", () => {

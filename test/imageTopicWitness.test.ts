@@ -203,6 +203,73 @@ describe("the stamp each image file carries", () => {
 });
 
 describe("what the approval gate refuses", () => {
+  it("approves when only the TOPIC_LABEL_PREFIXES label differs", async () => {
+    // Mutation target: if imageEvidenceFailures goes back to raw topic ===,
+    // this prefix-only day is blocked and the test goes red.
+    const hero = SLOTS[0]!.paths[0]!;
+    const calendarPath = join(root, "data", "content-calendar", `${DATE}.json`);
+    const calendar = JSON.parse(await readFile(calendarPath, "utf8"));
+    calendar.slots[0].topic = "先看懂：白鞋鞋邊泛灰前的檢查";
+    await writeFile(calendarPath, JSON.stringify(calendar), "utf8");
+
+    const manifestPath = join(root, "data", "image-prompts", `${DATE}.json`);
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    for (const entry of manifest) {
+      if (entry.slot === 1) entry.topic = "可收藏：白鞋鞋邊泛灰前的檢查";
+    }
+    await writeFile(manifestPath, JSON.stringify(manifest), "utf8");
+
+    const entries = await sources();
+    for (const entry of entries) {
+      if (entry.slot === 1) entry.topic = "可收藏：白鞋鞋邊泛灰前的檢查";
+    }
+    await writeSources(entries);
+
+    const result = await autoApprove({ date: DATE, root });
+
+    expect(result.approved_slots).toContain(1);
+    expect(about(result.blockers, hero).some((text) => text.includes("文不配圖"))).toBe(false);
+  });
+
+  it("still blocks when the object word changes under the same prefix", async () => {
+    const hero = SLOTS[0]!.paths[0]!;
+    const calendarPath = join(root, "data", "content-calendar", `${DATE}.json`);
+    const calendar = JSON.parse(await readFile(calendarPath, "utf8"));
+    calendar.slots[0].topic = "可收藏：白鞋鞋邊泛灰前的檢查";
+    await writeFile(calendarPath, JSON.stringify(calendar), "utf8");
+
+    const manifestPath = join(root, "data", "image-prompts", `${DATE}.json`);
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    for (const entry of manifest) {
+      if (entry.slot === 1) entry.topic = "可收藏：行李箱收進櫃子前,先看輪子";
+    }
+    await writeFile(manifestPath, JSON.stringify(manifest), "utf8");
+
+    const entries = await sources();
+    for (const entry of entries) {
+      if (entry.slot === 1) entry.topic = "可收藏：行李箱收進櫃子前,先看輪子";
+    }
+    await writeSources(entries);
+
+    const result = await autoApprove({ date: DATE, root });
+
+    expect(about(result.blockers, hero).some((text) => text.includes("文不配圖"))).toBe(true);
+    expect(result.approved_slots).not.toContain(1);
+  });
+
+  it("imports topicIdentity from generateImage instead of comparing raw topic text", async () => {
+    const source = await readFile(new URL("../src/imageStamp.ts", import.meta.url), "utf8");
+    const start = source.indexOf("export async function imageEvidenceFailures");
+    const end = source.indexOf("export type ApprovedImageDigests");
+    const body = source.slice(start, end);
+    expect(body).toContain("topicIdentity");
+    expect(body).toMatch(/import\(["']\.\/generateImage["']\)/);
+    expect(body).not.toMatch(/entry\.topic !== slot\.topic/);
+    expect(body).not.toMatch(/record\.topic !== slot\.topic/);
+    expect(source).not.toMatch(/TOPIC_LABEL_PREFIX_RE/);
+    expect(source).not.toMatch(/TOPIC_LABEL_PREFIXES/);
+  });
+
   it("blocks when a stamp names a different topic than the caption", async () => {
     const hero = SLOTS[0]!.paths[0]!;
     const entries = await sources();

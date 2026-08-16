@@ -4,6 +4,7 @@ import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { LINE_CONTACT, withSharedCaptionRules } from "./contentPlan";
 import { generateDailyContent } from "./generateDailyContent";
+import { invalidateSlotImagesIfTopicChanged } from "./generateImage";
 import { buildGitHubPagesImageUrl, buildGitHubPagesVideoUrl } from "./githubPages";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
 import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
@@ -401,6 +402,42 @@ export async function healOneSlot(input: {
       `${input.date}: reel ${input.conceptId} (${input.variant}) is not built yet; leaving slot ${input.slotNumber} as generated.`
     );
     return;
+  }
+  const previous = (await loadDailyContent(input.date, input.root))?.slots.find(
+    (item) => item.slot === input.slotNumber
+  );
+  const concept = REEL_CONCEPTS.find((item) => item.id === input.conceptId);
+  if (previous && concept) {
+    // Move the outgoing slot first. scheduleReel then copies and stamps the
+    // new cover; calling invalidate after that stamp would quarantine the
+    // still that was just written.
+    const malformedCarousel =
+      (previous.media_type === "carousel" || previous.media_type === "mixed-carousel") &&
+      (previous.carousel_items?.length ?? 0) < 2;
+    const outgoing: DailySlot = malformedCarousel
+      ? { ...previous, media_type: "image", format: "image-post", carousel_items: undefined }
+      : previous;
+    const next: DailySlot = {
+      ...outgoing,
+      topic: concept.hook,
+      image_prompt: reelCoverPrompt(concept, reelCoverSourceRel(concept.id)),
+      media_type: "image",
+      format: "image-post",
+      carousel_items: undefined
+    };
+    try {
+      await invalidateSlotImagesIfTopicChanged({
+        date: input.date,
+        root: input.root,
+        previous: outgoing,
+        next
+      });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      console.log(
+        `${input.date}: slot ${input.slotNumber} invalidate skipped (${detail}); scheduleReel will still replace the cover.`
+      );
+    }
   }
   await scheduleReel({
     date: input.date,

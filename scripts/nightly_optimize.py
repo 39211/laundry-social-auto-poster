@@ -110,7 +110,7 @@ else:
         if not os.path.exists(img):
             add("HIGH", "明日備妥", f"slot {n} 主圖缺",
                 f"{img} 不存在",
-                f"跑 scripts/generate-missing-images.ps1 -Date {ts},產完親眼看圖")
+                f"先 invalidate 失效舊圖,再 npm run generate-image-manifest -- --date {ts} 重生 manifest,再跑 scripts/generate-missing-images.ps1 -Date {ts} 補產,產完親眼看圖")
     lock = load(f"data/day-locks/{ts}.json")
     if lock:
         lt = (lock.get("slot1") or {}).get("topic")

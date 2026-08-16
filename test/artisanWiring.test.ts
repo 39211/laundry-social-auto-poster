@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ARTISAN, REEL_CONCEPTS, promptFor } from "../src/reelConcepts";
 
@@ -40,5 +42,18 @@ describe("the craftsman reaches the prompts production actually uses", () => {
     const missing = REEL_CONCEPTS.filter((c) => !promptFor(c, "after").includes(ARTISAN));
 
     expect(missing.map((c) => c.id)).toEqual([]);
+  });
+
+  // The middle act's prompts live inline in the production PowerShell, which
+  // promptFor never touches -- which is exactly where the first "he's in two
+  // acts" claim died, twice: once as dead constants, once when only the
+  // fallback prompt was fixed and the primary edit prompt kept "one adult
+  // hand". A wiring test that reads the script is the only thing that sees it.
+  it("names the craftsman in both middle prompts of the production script", () => {
+    const script = readFileSync(join(process.cwd(), "scripts", "produce-next-reel.ps1"), "utf8");
+
+    const anchors = script.match(/craftsman's hands/g) ?? [];
+    expect(anchors.length).toBeGreaterThanOrEqual(2);
+    expect(script).not.toMatch(/Add one adult hand/i);
   });
 });

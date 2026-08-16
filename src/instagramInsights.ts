@@ -8,18 +8,30 @@ import { instagramInsightsReportPath, postedLogDirectory, projectRoot } from "./
 // ones that do not, and our own reels fail on saves and shares while nobody
 // measured whether viewers even stayed. ig_reels_avg_watch_time (ms) against
 // the clip's own length is the closest available proxy for hold rate.
-// Metrics unavailable for a media type come back as errors per metric, which
-// the caller already records as null rather than failing the row.
-export const DEFAULT_INSTAGRAM_MEDIA_INSIGHT_METRICS = [
+//
+// Graph does not null unsupported metrics one-by-one. Mixing Reels-only
+// metrics into a single GET for a non-Reel media product returns 400 + (#100)
+// and rejects the whole packet, so common metrics are requested for every
+// media and Reels metrics are requested only after the media is known to be
+// a Reel.
+export const INSTAGRAM_COMMON_MEDIA_INSIGHT_METRICS = [
   "views",
   "reach",
   "likes",
   "comments",
   "shares",
   "saved",
-  "total_interactions",
+  "total_interactions"
+] as const;
+
+export const INSTAGRAM_REELS_MEDIA_INSIGHT_METRICS = [
   "ig_reels_avg_watch_time",
   "ig_reels_video_view_total_time"
+] as const;
+
+export const DEFAULT_INSTAGRAM_MEDIA_INSIGHT_METRICS = [
+  ...INSTAGRAM_COMMON_MEDIA_INSIGHT_METRICS,
+  ...INSTAGRAM_REELS_MEDIA_INSIGHT_METRICS
 ] as const;
 
 export interface InstagramInsightsOptions {
@@ -27,6 +39,7 @@ export interface InstagramInsightsOptions {
   config: AppConfig;
   metrics?: string[];
   fetchImpl?: typeof fetch;
+  publishedMediaType?: string;
 }
 
 export interface InstagramInsightsResult {
@@ -104,6 +117,24 @@ function normalizeMetrics(metrics: string[] | undefined): string[] {
   return [...new Set(normalized)];
 }
 
+const REELS_METRIC_SET = new Set<string>(INSTAGRAM_REELS_MEDIA_INSIGHT_METRICS);
+
+function splitInstagramInsightMetrics(metrics: string[]): { common: string[]; reels: string[] } {
+  const common: string[] = [];
+  const reels: string[] = [];
+  for (const metric of metrics) {
+    if (REELS_METRIC_SET.has(metric)) reels.push(metric);
+    else common.push(metric);
+  }
+  return { common, reels };
+}
+
+function isReelMediaProduct(value: string | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === "reel" || normalized === "reels";
+}
+
 function assertDateRange(since: string, until: string): void {
   const datePattern = /^\d{4}-\d{2}-\d{2}$/;
   if (!datePattern.test(since)) throw new Error("--since must use YYYY-MM-DD.");
@@ -175,22 +206,19 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-export async function fetchInstagramMediaInsights(options: InstagramInsightsOptions): Promise<InstagramInsightsResult> {
-  const postId = options.postId.trim();
-  if (!postId) {
-    throw new Error("--post-id is required.");
-  }
-  const accessToken = options.config.metaAnalyticsAccessToken || options.config.metaAccessToken;
-  if (!hasCredential(accessToken)) {
-    throw new Error("META_ANALYTICS_ACCESS_TOKEN or META_ACCESS_TOKEN is required for read-only Instagram insights.");
-  }
+interface InsightsGetResult {
+  metrics: string[];
+  status: number;
+  ok: boolean;
+  raw: unknown;
+  error?: string;
+}
 
-  const metrics = normalizeMetrics(options.metrics);
-  const endpoint = `https://graph.facebook.com/${options.config.graphApiVersion}/${postId}/insights`;
-  const url = new URL(endpoint);
-  url.searchParams.set("metric", metrics.join(","));
-
-  const fetchImpl = options.fetchImpl ?? fetch;
+async function getGraphJson(
+  fetchImpl: typeof fetch,
+  url: URL,
+  accessToken: string
+): Promise<{ status: number; ok: boolean; raw: unknown; error?: string }> {
   const response = await fetchImpl(url.toString(), {
     method: "GET",
     headers: {
@@ -199,17 +227,139 @@ export async function fetchInstagramMediaInsights(options: InstagramInsightsOpti
   });
   const raw = await readJson(response);
   const metaError = raw as MetaErrorPayload;
+  return {
+    status: response.status,
+    ok: response.ok && !metaError?.error,
+    raw,
+    error: metaError?.error?.message
+  };
+}
+
+function mergeInsightData(payloads: unknown[]): unknown {
+  const data: unknown[] = [];
+  for (const payload of payloads) {
+    const record = asRecord(payload);
+    if (Array.isArray(record?.data)) data.push(...record.data);
+  }
+  return { data };
+}
+
+async function resolveIsReelMedia(options: {
+  postId: string;
+  config: AppConfig;
+  accessToken: string;
+  fetchImpl: typeof fetch;
+  publishedMediaType?: string;
+}): Promise<boolean> {
+  if (options.publishedMediaType !== undefined && options.publishedMediaType.trim() !== "") {
+    return isReelMediaProduct(options.publishedMediaType);
+  }
+
+  const url = new URL(`https://graph.facebook.com/${options.config.graphApiVersion}/${options.postId}`);
+  url.searchParams.set("fields", "media_product_type");
+  const result = await getGraphJson(options.fetchImpl, url, options.accessToken);
+  const record = asRecord(result.raw);
+  const productType = typeof record?.media_product_type === "string" ? record.media_product_type : undefined;
+  return isReelMediaProduct(productType);
+}
+
+async function requestMediaInsightGroup(
+  endpoint: string,
+  metrics: string[],
+  accessToken: string,
+  fetchImpl: typeof fetch
+): Promise<InsightsGetResult> {
+  const url = new URL(endpoint);
+  url.searchParams.set("metric", metrics.join(","));
+  const result = await getGraphJson(fetchImpl, url, accessToken);
+  return {
+    metrics,
+    status: result.status,
+    ok: result.ok,
+    raw: result.raw,
+    error: result.error
+  };
+}
+
+export async function fetchInstagramMediaInsights(options: InstagramInsightsOptions): Promise<InstagramInsightsResult> {
+  const postId = options.postId.trim();
+  if (!postId) {
+    throw new Error("--post-id is required.");
+  }
+  const accessToken = options.config.metaAnalyticsAccessToken || options.config.metaAccessToken;
+  if (!accessToken || !hasCredential(accessToken)) {
+    throw new Error("META_ANALYTICS_ACCESS_TOKEN or META_ACCESS_TOKEN is required for read-only Instagram insights.");
+  }
+
+  const metrics = normalizeMetrics(options.metrics);
+  const { common, reels } = splitInstagramInsightMetrics(metrics);
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const endpoint = `https://graph.facebook.com/${options.config.graphApiVersion}/${postId}/insights`;
+
+  const requestReels =
+    reels.length > 0 &&
+    (await resolveIsReelMedia({
+      postId,
+      config: options.config,
+      accessToken,
+      fetchImpl,
+      publishedMediaType: options.publishedMediaType
+    }));
+
+  const groups: string[][] = [];
+  if (common.length > 0) groups.push(common);
+  if (requestReels) groups.push(reels);
+
+  if (groups.length === 0) {
+    return {
+      post_id: postId,
+      requested_at: new Date().toISOString(),
+      graph_api_version: options.config.graphApiVersion,
+      endpoint,
+      metrics: [],
+      insights_status: 0,
+      insights_ok: false,
+      raw: null,
+      error: "No compatible Instagram insight metrics remain for this media type."
+    };
+  }
+
+  const responses: InsightsGetResult[] = [];
+  for (const group of groups) {
+    responses.push(await requestMediaInsightGroup(endpoint, group, accessToken, fetchImpl));
+  }
+
+  if (responses.length === 1) {
+    const only = responses[0]!;
+    return {
+      post_id: postId,
+      requested_at: new Date().toISOString(),
+      graph_api_version: options.config.graphApiVersion,
+      endpoint,
+      metrics: only.metrics,
+      insights_status: only.status,
+      insights_ok: only.ok,
+      raw: only.raw,
+      error: only.error
+    };
+  }
+
+  const commonResult = responses[0]!;
+  const reelsResult = responses[1]!;
+  const raw = commonResult.ok
+    ? mergeInsightData([commonResult.raw, reelsResult.ok ? reelsResult.raw : { data: [] }])
+    : commonResult.raw;
 
   return {
     post_id: postId,
     requested_at: new Date().toISOString(),
     graph_api_version: options.config.graphApiVersion,
     endpoint,
-    metrics,
-    insights_status: response.status,
-    insights_ok: response.ok && !metaError?.error,
+    metrics: [...commonResult.metrics, ...reelsResult.metrics],
+    insights_status: commonResult.status,
+    insights_ok: commonResult.ok,
     raw,
-    error: metaError?.error?.message
+    error: commonResult.ok ? undefined : commonResult.error
   };
 }
 
@@ -241,7 +391,8 @@ export async function fetchPostedInstagramInsights(
         postId: post.post_id,
         config: options.config,
         metrics,
-        fetchImpl: options.fetchImpl
+        fetchImpl: options.fetchImpl,
+        publishedMediaType: post.published_media_type
       });
 
       rows.push({

@@ -10,7 +10,7 @@ import { getZonedDateParts } from "./scheduler";
 // change is reviewable and a regeneration can be scoped to one concept. Chasing
 // a weak Reel by regenerating all twelve stills wastes the eleven that worked.
 //
-// Scripts are in docs/reels-concepts.md. This carries what the pipeline needs:
+// Scripts are in content-playbooks/reels-concepts.md. This carries what the pipeline needs:
 // which stills belong to which concept, and what each still is meant to show.
 
 export interface ReelConcept {

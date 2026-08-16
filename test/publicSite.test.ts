@@ -606,7 +606,10 @@ describe("generatePublicSite", () => {
     expect(taichungXitunLaundryHtml).toContain("台中市西屯區青海路二段365號");
     expect(taichungXitunLaundryHtml).toContain("LINE 先傳照片詢問");
     expect(taichungXitunLaundryHtml).toContain('"@type":"FAQPage"');
-    expect(taichungXitunLaundryHtml).not.toContain('class="service-photo"');
+    expect(taichungXitunLaundryHtml).toContain('class="service-photo"');
+    expect(taichungXitunLaundryHtml).toContain(
+      "https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-inspection.png"
+    );
     expect(taichungCitywidePickupHtml).toContain("<title>台中免費收送洗衣｜全市到府、LINE 預約｜私享家洗衣店</title>");
     expect(taichungCitywidePickupHtml).toContain("<h1>台中免費收送洗衣</h1>");
     expect(taichungCitywidePickupHtml).toContain("台中市");
@@ -1267,7 +1270,7 @@ describe("generatePublicSite", () => {
     expect(homepageDateModified1).toBe("2026-08-08");
     expect(pickupDateModified1).toBe("2026-07-22");
     expect(shoeBagDateModified1).toBe("2026-07-22");
-    expect(guideDateModified1).toBeUndefined();
+    expect(guideDateModified1).toBe("2026-07-08");
     expect(postDateModified1).toBe("2026-07-02T11:30:00+08:00");
     expect(homepage).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
     expect(pickupHtml).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
@@ -1320,6 +1323,13 @@ describe("generatePublicSite", () => {
     const serviceLastmodsWithDate = [
       ...sitemap2.matchAll(/services\/[^<]+<\/loc><lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/gu)
     ].map((match) => match[1]);
-    expect(serviceLastmodsWithDate.sort()).toEqual(["2026-07-22", "2026-07-22", "2026-07-28"]);
+    expect(serviceLastmodsWithDate.sort()).toEqual([
+      "2026-07-14",
+      "2026-07-14",
+      "2026-07-20",
+      "2026-07-22",
+      "2026-07-22",
+      "2026-07-28"
+    ]);
   });
 });

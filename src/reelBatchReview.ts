@@ -5,7 +5,7 @@ import { projectRoot } from "./paths";
 import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions } from "./reelConcepts";
 
 // Judges a published batch of Reels against the per-Reel thresholds in
-// docs/reels-roadmap.md, so the next batch is built from what happened rather
+// content-playbooks/reels-roadmap.md, so the next batch is built from what happened rather
 // than from taste. Without this the second batch is just six more guesses.
 //
 // A Reel is measured 72 hours after it published, which is the window the

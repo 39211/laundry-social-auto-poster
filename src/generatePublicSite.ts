@@ -1,3 +1,4 @@
+import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { config as loadDotenv } from "dotenv";
@@ -274,8 +275,13 @@ const SITE_NAME = "私享家洗衣店";
 const SITE_TITLE = "私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋";
 const SITE_DESCRIPTION =
   "找台中免費收送、逢甲洗鞋或西屯洗鞋？私享家洗衣店提供台中市全區免費收送，門市在西屯青海路二段365號，可先用 LINE 傳照片預約。";
-/** Homepage last intentional content change (YYYY-MM-DD). Not rewritten on every build. */
-const HOMEPAGE_CONTENT_LASTMOD = "2026-08-08";
+/**
+ * Last intentional change of the homepage's static sections (YYYY-MM-DD). Not rewritten on
+ * every build; the published homepage lastmod also advances with the newest approved post
+ * (see homepageContentLastmod). Their rename, our date: 2026-08-08 is the later
+ * real content change, made after this constant's line diverged.
+ */
+const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-08-08";
 const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";
@@ -449,6 +455,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     image_alt: "白鞋清潔前的鞋邊、縫線與內裡檢查主圖",
     image_note: "AI 生成的高擬真產品風格主圖，用於呈現白鞋清潔前的鞋邊、縫線、皮革鞋面與內裡檢查情境；不是實際客戶物件照片。",
     static_image_path: "assets/services/white-shoe-cleaning-hero-product.png",
+    content_lastmod: "2026-07-14",
     static_image_topic: "白鞋清潔前的鞋邊、縫線與內裡檢查主圖",
     static_image_source: "ai-generated premium product hero image",
     answer_summary:
@@ -544,6 +551,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     image_alt: "外套、寢具與布品收納前檢查主圖",
     image_note: "AI 生成的高擬真產品風格主圖，用於呈現外套、寢具與布品收納前檢查情境；不是實際客戶物件照片。",
     static_image_path: "assets/services/fabric-storage-hero-product.png",
+    content_lastmod: "2026-07-14",
     static_image_topic: "外套、寢具與布品收納前產品級檢查主圖",
     static_image_source: "ai-generated premium product hero image",
     answer_summary:
@@ -637,9 +645,13 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       "如果你正在找台中西屯或青海路附近的洗衣店，私享家洗衣店把衣物、鞋子、包包、白鞋與布品收納分開判斷。不是只問要不要洗，而是先看物件狀態、材質、痕跡位置和使用情境，再建議適合的整理方式。",
     keywords: ["台中西屯洗衣店", "青海路洗衣店", "西屯洗衣", "台中洗鞋", "台中洗包", "私享家洗衣店"],
     image_hint: "私享家",
-    image_alt: "私享家洗衣店台中西屯青海路服務導覽",
-    image_note: "台中西屯青海路洗衣、洗鞋、洗包與布品收納服務導覽頁。",
+    image_alt: "私享家洗衣店門市人員檢查外套與布品的服務情境主圖",
+    image_note: "AI 生成的門市檢查情境示意圖，呈現送洗前先看材質與狀態的服務方式；不是實際客戶物件照片。",
     allow_image_fallback: false,
+    static_image_path: "assets/services/fabric-storage-inspection.png",
+    static_image_topic: "門市人員檢查外套與布品的服務情境主圖",
+    static_image_source: "ai-generated in-store inspection scene",
+    content_lastmod: "2026-07-20",
     answer_summary:
       "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、鞋包清潔、白鞋清潔與布品收納前檢查，可先用 LINE 傳照片詢問。",
     case_story: {
@@ -740,8 +752,11 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     ],
     image_hint: "店家與公司的大量衣物",
     image_alt: "台中店家與公司大量衣物送洗前的分類與交接說明",
-    image_note: "服務說明頁；只有在已核准公開內容中找到相符案例時才使用社群圖片。",
+    image_note: "AI 生成的洗衣空間示意圖，呈現大量衣物與布品分批處理的情境；不是實際客戶物件照片。",
     allow_image_fallback: false,
+    static_image_path: "assets/backgrounds/premium-laundry-depth.png",
+    static_image_topic: "大量衣物與布品分批洗護的空間示意圖",
+    static_image_source: "ai-generated laundry scene background",
     content_lastmod: "2026-07-28",
     area_served_name: "台中市",
     answer_summary:
@@ -857,8 +872,11 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     keywords: ["台中洗衣收送", "台中免費收送", "台中全市收送", "洗衣店收送", "私享家洗衣店", "LINE 預約洗衣"],
     image_hint: "收送",
     image_alt: "台中全市免費洗衣收送服務說明｜私享家洗衣店",
-    image_note: "台中全市免費洗衣收送說明頁；門市在西屯，收送範圍為台中市。",
+    image_note: "AI 生成的門市與街景示意圖，呈現收送服務以西屯門市為起點；不是實際客戶物件照片。",
     allow_image_fallback: false,
+    static_image_path: "assets/backgrounds/local-store-depth.png",
+    static_image_topic: "門市與街景收送情境示意圖",
+    static_image_source: "ai-generated storefront scene background",
     content_lastmod: "2026-07-22",
     area_served_name: "台中市",
     answer_summary:
@@ -978,6 +996,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     summary: "先用照片把物件狀態說清楚，比只問價錢更有用。私享家會依材質、髒污來源、濕氣與磨耗狀態先做初步判斷。",
     keywords: ["送洗前拍照", "LINE 詢問洗衣店", "台中西屯洗衣店", "青海路洗衣店"],
     local_intent: "台中西屯 送洗前 LINE 詢問",
+    content_lastmod: "2026-07-08",
     steps: [
       { name: "拍整體", text: "先拍完整正面或整體外觀，讓門市知道物件類型、大小與主要材質。" },
       { name: "拍局部", text: "再拍污漬、泛黃、水痕、包角、鞋邊或領口袖口等局部近照。" },
@@ -1006,6 +1025,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["白鞋泛黃", "白鞋清潔", "台中西屯白鞋清潔", "鞋子保養"],
     service_slug: "white-shoe-cleaning",
     local_intent: "台中西屯 白鞋泛黃 白鞋清潔",
+    content_lastmod: "2026-07-08",
     steps: [
       { name: "看鞋面", text: "確認鞋面是皮革、布面、網布還是合成材質。" },
       { name: "看鞋邊", text: "檢查膠邊是否泛黃、磨耗或有清潔後留下的刷痕。" },
@@ -1262,6 +1282,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["雨天鞋子保養", "鞋子進水", "雨季保養", "台中洗鞋"],
     service_slug: "shoe-bag-care",
     local_intent: "台中西屯 雨天鞋子清潔",
+    content_lastmod: "2026-07-08",
     steps: [
       { name: "先通風", text: "回家後先放在通風處，不要直接塞進密閉鞋櫃。" },
       { name: "取出鞋墊", text: "能拆的鞋墊先取出，讓內部濕氣散出。" },
@@ -1290,6 +1311,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["包包清潔", "包包提把清潔", "包角清潔", "台中西屯洗包"],
     service_slug: "shoe-bag-care",
     local_intent: "台中西屯 包包清潔",
+    content_lastmod: "2026-07-08",
     steps: [
       { name: "看材質", text: "先分辨皮革、尼龍、帆布、麂皮或合成材質。" },
       { name: "看提把", text: "提把容易累積手汗和摩擦，拍近照才能判斷深淺。" },
@@ -1318,6 +1340,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["布品收納", "寢具收納", "外套收納", "換季清潔"],
     service_slug: "fabric-storage",
     local_intent: "台中西屯 布品收納 寢具清潔",
+    content_lastmod: "2026-07-08",
     steps: [
       { name: "看高接觸處", text: "外套先看領口、袖口、腋下和口袋邊。" },
       { name: "看厚棉邊角", text: "棉被、毯子和厚布品先看邊角、折線和收納袋內側。" },
@@ -1355,6 +1378,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "精緻乾洗"
     ],
     local_intent: "台中西屯 襯衫清洗 西裝乾洗 精緻乾洗",
+    content_lastmod: "2026-07-14",
     steps: [
       { name: "拍下材質與洗標", text: "先拍外層材質、洗標、領口袖口與明顯髒污的位置。" },
       { name: "標出在意細節", text: "內襯、鈕扣、拉鍊、燙痕或舊污漬，都應在送洗前一起說明。" },
@@ -1392,6 +1416,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "換季寢具收納"
     ],
     local_intent: "台中西屯 床組清洗 棉被清洗 寢具送洗",
+    content_lastmod: "2026-07-14",
     steps: [
       { name: "拍完整尺寸", text: "先拍床組、棉被或被套的完整外觀、尺寸標示與洗標。" },
       { name: "說明受潮與異味", text: "若有受潮、異味、局部污漬或長期收納狀況，送洗前一併說明。" },
@@ -1429,6 +1454,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "西屯洗衣店"
     ],
     local_intent: "台中西屯 娃娃清洗 絨毛玩偶清潔",
+    content_lastmod: "2026-07-14",
     steps: [
       { name: "拍正反面與配件", text: "正反面、五官、刺繡、吊牌、黏貼物與破損位置都先拍清楚。" },
       { name: "確認填充物狀態", text: "若有硬塊、潮味、掉毛或填充不均，先一併說明。" },
@@ -1466,6 +1492,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "精品清潔"
     ],
     local_intent: "台中西屯 精品乾洗 名牌衣服清潔 精緻乾洗",
+    content_lastmod: "2026-07-14",
     steps: [
       { name: "拍洗標與細節", text: "洗標、材質、五金、飾件、內襯與污漬位置都應清楚拍下。" },
       { name: "說明既有痕跡", text: "舊污漬、磨損、褪色、變形或曾自行處理的地方都先告知。" },
@@ -2013,28 +2040,59 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
   return schema;
 }
 
-function buildHomePageSchema(index: PublicPostIndex): object | undefined {
+/**
+ * Business node without @context, for inlining into a page-level @graph. JSON-LD @id
+ * references resolve per document, so every page that points at #business must carry the
+ * full node itself.
+ */
+function buildBusinessSchemaNode(index: PublicPostIndex): Record<string, unknown> | undefined {
   const business = buildBusinessSchema(index);
   if (!business) return undefined;
-
   const businessNode = { ...(business as Record<string, unknown>) };
   delete businessNode["@context"];
+  return businessNode;
+}
+
+/** WebSite node for inlining into a page-level @graph (same per-document rule as #business). */
+function buildWebsiteSchemaNode(index: PublicPostIndex): object {
+  return {
+    "@type": "WebSite",
+    "@id": `${index.canonical_url}#website`,
+    name: index.business_profile.name,
+    alternateName: SITE_TITLE,
+    url: index.canonical_url,
+    inLanguage: "zh-Hant-TW",
+    description: SITE_DESCRIPTION,
+    publisher: { "@id": `${index.canonical_url}#business` }
+  };
+}
+
+/** Service node for inlining into any page's @graph that references `<service page>#service`. */
+function buildServiceSchemaNode(service: ServicePageDefinition, index: PublicPostIndex): Record<string, unknown> {
+  const canonical = servicePageUrl(service, index);
+  return {
+    "@type": "Service",
+    "@id": `${canonical}#service`,
+    url: canonical,
+    name: service.name,
+    description: service.summary,
+    serviceType: service.name,
+    provider: { "@id": `${index.canonical_url}#business` },
+    areaServed: serviceAreaServedSchema(service),
+    keywords: service.keywords
+  };
+}
+
+function buildHomePageSchema(index: PublicPostIndex): object | undefined {
+  const businessNode = buildBusinessSchemaNode(index);
+  if (!businessNode) return undefined;
   const faqs = homeFaqs(index.business_profile);
 
   return {
     "@context": "https://schema.org",
     "@graph": [
       businessNode,
-      {
-        "@type": "WebSite",
-        "@id": `${index.canonical_url}#website`,
-        name: index.business_profile.name,
-        alternateName: SITE_TITLE,
-        url: index.canonical_url,
-        inLanguage: "zh-Hant-TW",
-        description: SITE_DESCRIPTION,
-        publisher: { "@id": `${index.canonical_url}#business` }
-      },
+      buildWebsiteSchemaNode(index),
       {
         "@type": "WebPage",
         "@id": `${index.canonical_url}#webpage`,
@@ -2059,7 +2117,7 @@ function buildHomePageSchema(index: PublicPostIndex): object | undefined {
               }
             }
           : {}),
-        ...optionalSchemaDateModified(HOMEPAGE_CONTENT_LASTMOD)
+        ...optionalSchemaDateModified(homepageContentLastmod(index))
       },
       {
         "@type": "BreadcrumbList",
@@ -2205,9 +2263,23 @@ function postContentLastmod(post: PublicPost): string | undefined {
   return own > template ? own : template;
 }
 
+/**
+ * Homepage content changes whenever a new approved post is published, so its lastmod is the
+ * newest approved post date, floored at the static-section baseline. Stable across rebuilds.
+ */
+function homepageContentLastmod(index: PublicPostIndex): string {
+  const baseline = toSitemapLastmodDate(HOMEPAGE_STATIC_CONTENT_LASTMOD) ?? HOMEPAGE_STATIC_CONTENT_LASTMOD;
+  const newestPostDate = index.posts
+    .map((post) => postContentLastmod(post))
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1);
+  return newestPostDate && newestPostDate > baseline ? newestPostDate : baseline;
+}
+
 function sitemapLastmodForUrl(url: string, index: PublicPostIndex): string | undefined {
   if (url === index.canonical_url) {
-    return toSitemapLastmodDate(HOMEPAGE_CONTENT_LASTMOD);
+    return homepageContentLastmod(index);
   }
 
   for (const service of SERVICE_PAGE_DEFINITIONS) {
@@ -2347,6 +2419,124 @@ function visibleImageSrc(image: PublicImageReference | PublicPost, index: Public
   return "";
 }
 
+interface ImagePixelSize {
+  width: number;
+  height: number;
+}
+
+/** Approved post images are generated at 1080x1350; used when the source file is unavailable. */
+const POST_IMAGE_FALLBACK_SIZE: ImagePixelSize = { width: 1080, height: 1350 };
+/** Static service hero assets are 1672x941; used when the source file is unavailable. */
+const SERVICE_IMAGE_FALLBACK_SIZE: ImagePixelSize = { width: 1672, height: 941 };
+/** Maximum pixel width for generated .webp derivatives. */
+const WEBP_MAX_WIDTH = 1200;
+
+/** docs/ root of the current generation run; set once per generatePublicSite call. */
+let activeDocsRoot = "";
+const pngSizeCache = new Map<string, ImagePixelSize | undefined>();
+
+function setActiveDocsRoot(docsRoot: string): void {
+  activeDocsRoot = docsRoot;
+  pngSizeCache.clear();
+}
+
+/** Read the intrinsic pixel size from a PNG IHDR chunk without decoding the image. */
+function readPngPixelSize(filePath: string): ImagePixelSize | undefined {
+  try {
+    const header = Buffer.alloc(24);
+    const fd = openSync(filePath, "r");
+    try {
+      if (readSync(fd, header, 0, 24, 0) !== 24) return undefined;
+    } finally {
+      closeSync(fd);
+    }
+    if (header.readUInt32BE(12) !== 0x49484452) return undefined; // "IHDR"
+    return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
+  } catch {
+    return undefined;
+  }
+}
+
+function imagePixelSize(imagePath: string, fallback: ImagePixelSize): ImagePixelSize {
+  if (!pngSizeCache.has(imagePath)) {
+    pngSizeCache.set(imagePath, activeDocsRoot ? readPngPixelSize(join(activeDocsRoot, imagePath)) : undefined);
+  }
+  return pngSizeCache.get(imagePath) ?? fallback;
+}
+
+function webpDocsPath(imagePath: string): string | undefined {
+  return /\.png$/iu.test(imagePath) ? imagePath.replace(/\.png$/iu, ".webp") : undefined;
+}
+
+/** webp URL/relative src matching `src`, only when the derivative exists in docs/. */
+function webpSrcFor(imagePath: string, src: string): string | undefined {
+  const webpPath = webpDocsPath(imagePath);
+  if (!webpPath || !activeDocsRoot || !existsSync(join(activeDocsRoot, webpPath))) return undefined;
+  return src.replace(/\.png$/iu, ".webp");
+}
+
+function responsiveImageHtml(options: {
+  imagePath: string;
+  src: string;
+  alt: string;
+  fallbackSize: ImagePixelSize;
+  className?: string;
+  loading?: "lazy" | "eager";
+  fetchpriority?: "high";
+}): string {
+  const { width, height } = imagePixelSize(options.imagePath, options.fallbackSize);
+  const webpSrc = webpSrcFor(options.imagePath, options.src);
+  const attributes = [
+    options.className ? `class="${options.className}"` : "",
+    `src="${escapeHtml(options.src)}"`,
+    `alt="${escapeHtml(options.alt)}"`,
+    `width="${width}"`,
+    `height="${height}"`,
+    options.loading ? `loading="${options.loading}"` : "",
+    options.fetchpriority ? `fetchpriority="${options.fetchpriority}"` : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const img = `<img ${attributes} />`;
+  if (!webpSrc) return img;
+  return `<picture><source type="image/webp" srcset="${escapeHtml(webpSrc)}" />${img}</picture>`;
+}
+
+/**
+ * Generate .webp derivatives (≤${WEBP_MAX_WIDTH}px wide) next to every PNG the HTML pages
+ * reference. PNGs stay as the src/og:image fallback; webp is offered via <picture>.
+ */
+async function generateWebpDerivatives(index: PublicPostIndex, docsRoot: string): Promise<void> {
+  const imagePaths = new Set<string>();
+  for (const post of index.posts) {
+    if (post.image_path) imagePaths.add(post.image_path);
+  }
+  for (const image of allServiceImages(index)) {
+    imagePaths.add(image.image_path);
+  }
+  const targets = [...imagePaths].filter(
+    (imagePath) => webpDocsPath(imagePath) !== undefined && existsSync(join(docsRoot, imagePath))
+  );
+  if (targets.length === 0) return;
+
+  let sharp: (typeof import("sharp"))["default"];
+  try {
+    sharp = (await import("sharp")).default;
+  } catch (error) {
+    console.warn(`webp derivatives skipped (sharp unavailable): ${error instanceof Error ? error.message : error}`);
+    return;
+  }
+  for (const imagePath of targets) {
+    const source = join(docsRoot, imagePath);
+    const target = join(docsRoot, webpDocsPath(imagePath)!);
+    if (existsSync(target) && statSync(target).mtimeMs >= statSync(source).mtimeMs) continue;
+    await sharp(source)
+      .resize({ width: WEBP_MAX_WIDTH, withoutEnlargement: true })
+      .webp({ quality: 82 })
+      .toFile(target);
+  }
+}
+
 function primaryHomeImage(index: PublicPostIndex): PublicImageReference | undefined {
   const fabricService = findServiceBySlug("fabric-storage");
   if (fabricService) {
@@ -2356,19 +2546,28 @@ function primaryHomeImage(index: PublicPostIndex): PublicImageReference | undefi
   return index.posts[0] ? postImageReference(index.posts[0]) : undefined;
 }
 
+/** Support pages reuse the linked service's hero image, falling back to the homepage hero. */
+function supportPageImage(page: SupportPageDefinition, index: PublicPostIndex): PublicImageReference | undefined {
+  const service = linkedSupportService(page);
+  return (service ? findServiceImage(service, index) : undefined) ?? primaryHomeImage(index);
+}
+
+function supportPageImageAlt(page: SupportPageDefinition, image: PublicImageReference): string {
+  return `${image.topic}｜${page.h1}`;
+}
+
 function buildServicePageSchema(service: ServicePageDefinition, index: PublicPostIndex): object | undefined {
-  const business = buildBusinessSchema(index);
-  if (!business) return undefined;
+  const businessNode = buildBusinessSchemaNode(index);
+  if (!businessNode) return undefined;
 
   const canonical = servicePageUrl(service, index);
   const image = findServiceImage(service, index);
-  const businessNode = { ...(business as Record<string, unknown>) };
-  delete businessNode["@context"];
 
   return {
     "@context": "https://schema.org",
     "@graph": [
       businessNode,
+      buildWebsiteSchemaNode(index),
       {
         "@type": "WebPage",
         "@id": `${canonical}#webpage`,
@@ -2393,16 +2592,8 @@ function buildServicePageSchema(service: ServicePageDefinition, index: PublicPos
         ...optionalSchemaDateModified(service.content_lastmod)
       },
       {
-        "@type": "Service",
-        "@id": `${canonical}#service`,
-        url: canonical,
-        mainEntityOfPage: { "@id": `${canonical}#webpage` },
-        name: service.name,
-        description: service.summary,
-        serviceType: service.name,
-        provider: { "@id": `${index.canonical_url}#business` },
-        areaServed: serviceAreaServedSchema(service),
-        keywords: service.keywords
+        ...buildServiceSchemaNode(service, index),
+        mainEntityOfPage: { "@id": `${canonical}#webpage` }
       },
       {
         "@type": "FAQPage",
@@ -2442,19 +2633,20 @@ function buildServicePageSchema(service: ServicePageDefinition, index: PublicPos
 }
 
 function buildSupportPageSchema(page: SupportPageDefinition, index: PublicPostIndex): object | undefined {
-  const business = buildBusinessSchema(index);
-  if (!business) return undefined;
+  const businessNode = buildBusinessSchemaNode(index);
+  if (!businessNode) return undefined;
 
   const canonical = supportPageUrl(page, index);
   const service = linkedSupportService(page);
   const serviceUrl = service ? servicePageUrl(service, index) : undefined;
-  const businessNode = { ...(business as Record<string, unknown>) };
-  delete businessNode["@context"];
+  const image = supportPageImage(page, index);
 
   return {
     "@context": "https://schema.org",
     "@graph": [
       businessNode,
+      buildWebsiteSchemaNode(index),
+      ...(service ? [buildServiceSchemaNode(service, index)] : []),
       {
         "@type": "WebPage",
         "@id": `${canonical}#webpage`,
@@ -2467,6 +2659,15 @@ function buildSupportPageSchema(page: SupportPageDefinition, index: PublicPostIn
         mainEntity: { "@id": `${canonical}#howto` },
         breadcrumb: { "@id": `${canonical}#breadcrumb` },
         hasPart: { "@id": `${canonical}#faq` },
+        ...(image?.image_url
+          ? {
+              primaryImageOfPage: {
+                "@type": "ImageObject",
+                contentUrl: image.image_url,
+                caption: supportPageImageAlt(page, image)
+              }
+            }
+          : {}),
         ...optionalSchemaDateModified(page.content_lastmod)
       },
       {
@@ -3575,7 +3776,7 @@ function buildKnowledgeGraph(index: PublicPostIndex): object {
         isPartOf: { "@id": `${index.canonical_url}#website` },
         mainEntity: business ? { "@id": `${index.canonical_url}#business` } : undefined,
         hasPart: { "@id": `${index.canonical_url}#homepage-faq` },
-        ...optionalSchemaDateModified(HOMEPAGE_CONTENT_LASTMOD)
+        ...optionalSchemaDateModified(homepageContentLastmod(index))
       },
       {
         "@type": "FAQPage",
@@ -4184,9 +4385,13 @@ function captionPreview(caption: string): string {
 
 function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object | undefined {
   if (!index.base_url_configured) return undefined;
+  const businessNode = buildBusinessSchemaNode(index);
+  if (!businessNode) return undefined;
   const profile = index.business_profile;
   const description = captionPreview(post.facebook_caption).slice(0, 180);
   const graph: object[] = [
+    businessNode,
+    buildWebsiteSchemaNode(index),
     {
       "@type": "BlogPosting",
       "@id": `${post.article_url}#article`,
@@ -4229,8 +4434,7 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       "@id": `${post.article_url}#breadcrumb`,
       itemListElement: [
         { "@type": "ListItem", position: 1, name: profile.name, item: index.canonical_url },
-        { "@type": "ListItem", position: 2, name: "Care journal", item: post.article_url },
-        { "@type": "ListItem", position: 3, name: post.topic, item: post.article_url }
+        { "@type": "ListItem", position: 2, name: post.topic, item: post.article_url }
       ]
     }
   ];
@@ -4540,7 +4744,14 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
           ${
             post.video_url
               ? `<video src="${escapeHtml(post.video_url)}" poster="${escapeHtml(imageSrc)}" controls playsinline preload="metadata" aria-label="${escapeHtml(`${post.topic} - ${profile.name}`)}"></video>`
-              : `<img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(`${post.topic} - ${profile.name}`)}" loading="eager" fetchpriority="high" width="1200" />`
+              : responsiveImageHtml({
+                  imagePath: post.image_path,
+                  src: imageSrc,
+                  alt: `${post.topic} - ${profile.name}`,
+                  fallbackSize: POST_IMAGE_FALLBACK_SIZE,
+                  loading: "eager",
+                  fetchpriority: "high"
+                })
           }
           <figcaption>${escapeHtml(post.topic)}</figcaption>
         </figure>
@@ -4549,7 +4760,7 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
         <div class="section-inner two-col">
           <article>
             <p class="eyebrow">Store note</p>
-            <h2>Check the item before choosing the next step</h2>
+            <h2>先看物件狀態，再決定下一步</h2>
             <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
             ${careBlock}
             <div class="meta-row local-query-row">${hashtags}</div>${targetQueries}
@@ -4581,7 +4792,13 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
         <h3>${escapeHtml(post.topic)}</h3>
         <p><strong>${escapeHtml(post.date)} ${escapeHtml(post.time)}</strong>｜${escapeHtml(post.content_role)} / ${escapeHtml(post.visual_route)} / ${escapeHtml(post.traffic_route)}</p>
         <a href="${escapeHtml(imageSrc)}">
-          <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(`${post.topic} - ${profile.name}洗護內容照片`)}" loading="lazy" width="1200" />
+          ${responsiveImageHtml({
+            imagePath: post.image_path,
+            src: imageSrc,
+            alt: `${post.topic} - ${profile.name}洗護內容照片`,
+            fallbackSize: POST_IMAGE_FALLBACK_SIZE,
+            loading: "lazy"
+          })}
         </a>
         <p class="post-caption post-preview">${escapeHtml(preview)}</p>
         <details class="caption-details">
@@ -4598,6 +4815,11 @@ function buildIndexHtml(index: PublicPostIndex): string {
   const { recentPosts, archivePosts, recentDateCount, archiveDateCount } = homepagePostGroups(index.posts);
   const heroImage = primaryHomeImage(index);
   const heroImageSrc = heroImage ? visibleImageSrc(heroImage, index) : "";
+  const heroWebpSrc = heroImage ? webpSrcFor(heroImage.image_path, heroImageSrc) : undefined;
+  const heroPreload = heroImage
+    ? `\n    <link rel="preload" as="image" href="${escapeHtml(heroWebpSrc ?? heroImageSrc)}"${heroWebpSrc ? ' type="image/webp"' : ""} fetchpriority="high" />`
+    : "";
+  const homeLastmod = homepageContentLastmod(index);
   const homePageSchema = buildHomePageSchema(index);
   const citywidePickupService =
     findServiceBySlug("taichung-citywide-laundry-pickup") ??
@@ -4626,7 +4848,14 @@ function buildIndexHtml(index: PublicPostIndex): string {
     const image = findServiceImage(service, index);
     const imageSrc = image ? visibleImageSrc(image, index, true) : "";
     const imageMarkup = image
-      ? `\n        <img class="service-card-image" src="${escapeHtml(imageSrc)}" alt="${escapeHtml(service.image_alt)}" loading="lazy" width="900" />`
+      ? `\n        ${responsiveImageHtml({
+          imagePath: image.image_path,
+          src: imageSrc,
+          alt: service.image_alt,
+          fallbackSize: SERVICE_IMAGE_FALLBACK_SIZE,
+          className: "service-card-image",
+          loading: "lazy"
+        })}`
       : "";
     return `<article class="product-tile service-card">
         <p class="eyebrow">Service</p>
@@ -4702,7 +4931,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
     <meta name="theme-color" content="#f5f5f7" />
     <link rel="canonical" href="${escapeHtml(index.canonical_url)}" />
     <link rel="alternate" hreflang="zh-Hant-TW" href="${escapeHtml(index.canonical_url)}" />
-    <link rel="alternate" hreflang="x-default" href="${escapeHtml(index.canonical_url)}" />
+    <link rel="alternate" hreflang="x-default" href="${escapeHtml(index.canonical_url)}" />${heroPreload}
     <link rel="llms" href="llms.txt" />
     <link rel="sitemap" type="application/xml" href="sitemap.xml" />
     <link rel="sitemap" type="application/xml" href="ai-sitemap.xml" />
@@ -4750,7 +4979,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <p class="eyebrow">台中西屯門市・台中全市收送</p>
           <h1>台中免費收送，逢甲・西屯洗鞋先看材質</h1>
           <p class="lead">台中市全區可預約免費收送，收送本身免費、洗護費另計。逢甲與西屯洗鞋可到青海路二段365號門市，或先用 LINE 傳鞋面、鞋底與鞋內照片。</p>
-          <p class="last-updated">內容更新：<time datetime="${HOMEPAGE_CONTENT_LASTMOD}">${HOMEPAGE_CONTENT_LASTMOD}</time></p>
+          <p class="last-updated">內容更新：<time datetime="${homeLastmod}">${homeLastmod}</time></p>
           <div class="hero-actions">
             <a class="primary-link" href="${escapeHtml(citywidePickupUrl)}">台中全市免費收送</a>
             <a class="secondary-link" href="${escapeHtml(lineHref)}">LINE 預約</a>
@@ -4758,14 +4987,21 @@ function buildIndexHtml(index: PublicPostIndex): string {
           </div>
           <div class="meta-row">
             <span class="chip">${escapeHtml(profile.address.addressLocality)}</span>
-            <span class="chip">${escapeHtml(profile.telephone_local)}</span>
+            <a class="chip" href="tel:${escapeHtml(profile.telephone)}">${escapeHtml(profile.telephone_local)}</a>
             <span class="chip">${escapeHtml(profile.opening_hours_text)}</span>
           </div>
         </div>
         ${
           heroImage
             ? `<figure class="hero-media">
-          <img src="${escapeHtml(heroImageSrc)}" alt="${escapeHtml(`${heroImage.topic} - ${profile.name}布品收納檢查示意圖`)}" width="1200" />
+          ${responsiveImageHtml({
+            imagePath: heroImage.image_path,
+            src: heroImageSrc,
+            alt: `${heroImage.topic} - ${profile.name}布品收納檢查示意圖`,
+            fallbackSize: SERVICE_IMAGE_FALLBACK_SIZE,
+            loading: "eager",
+            fetchpriority: "high"
+          })}
           <figcaption>${escapeHtml(heroImage.topic)}｜布品收納檢查示意圖</figcaption>
         </figure>`
             : ""
@@ -4861,7 +5097,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
             <address class="fact-list">
               <p><strong>${escapeHtml(profile.google_business_profile_name)}</strong></p>
               <p>${escapeHtml(profile.address_text)}（${escapeHtml(profile.landmark)}）</p>
-              <p>電話：${escapeHtml(profile.telephone_local)}｜LINE／手機：${escapeHtml(profile.mobile_or_line_local)}</p>
+              <p>電話：<a href="tel:${escapeHtml(profile.telephone)}">${escapeHtml(profile.telephone_local)}</a>｜LINE／手機：${escapeHtml(profile.mobile_or_line_local)}</p>
               <p>營業時間：${escapeHtml(profile.opening_hours_text)}</p>
               <p>節日營業：${escapeHtml(profile.holiday_hours_rule.default_rule)}</p>
             </address>
@@ -5115,7 +5351,14 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
         ${
           image
             ? `<figure class="service-photo">
-          <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(service.image_alt)}" loading="eager" fetchpriority="high" width="1200" />
+          ${responsiveImageHtml({
+            imagePath: image.image_path,
+            src: imageSrc,
+            alt: service.image_alt,
+            fallbackSize: SERVICE_IMAGE_FALLBACK_SIZE,
+            loading: "eager",
+            fetchpriority: "high"
+          })}
           <figcaption>${escapeHtml(image.topic)}｜${escapeHtml(service.image_note)}</figcaption>
         </figure>`
             : ""
@@ -5148,7 +5391,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
           <aside class="card">
             <h2>店家資訊</h2>
             <p>${escapeHtml(profile.name)}｜${escapeHtml(profile.address_text)}（${escapeHtml(profile.landmark)}）</p>
-            <p>電話：${escapeHtml(profile.telephone_local)}｜LINE：${escapeHtml(profile.mobile_or_line_local)}</p>
+            <p>電話：<a href="tel:${escapeHtml(profile.telephone)}">${escapeHtml(profile.telephone_local)}</a>｜LINE：${escapeHtml(profile.mobile_or_line_local)}</p>
             <p>營業時間：${escapeHtml(profile.opening_hours_text)}</p>
             <div class="link-row">
               <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
@@ -5201,6 +5444,9 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
     ? index.entrypoints.search_visibility
     : `${relativePrefix}search-visibility.json`;
   const description = escapeHtml(page.description);
+  const image = supportPageImage(page, index);
+  const imageSrc = image ? visibleImageSrc(image, index, Boolean(relativePrefix)) : "";
+  const imageAlt = image ? supportPageImageAlt(page, image) : "";
   const lastUpdatedMarkup = page.content_lastmod
     ? `\n          <p class="last-updated">內容更新：<time datetime="${escapeHtml(page.content_lastmod)}">${escapeHtml(page.content_lastmod)}</time></p>`
     : "";
@@ -5246,9 +5492,13 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
     <meta property="og:url" content="${escapeHtml(canonical)}" />
     <meta property="og:site_name" content="${escapeHtml(profile.name)}" />
     <meta property="og:locale" content="${escapeHtml(SITE_LOCALE)}" />
-    <meta name="twitter:card" content="summary" />
+    ${image ? `<meta property="og:image" content="${escapeHtml(image.image_url)}" />` : ""}
+    ${image ? `<meta property="og:image:alt" content="${escapeHtml(imageAlt)}" />` : ""}
+    <meta name="twitter:card" content="${image ? "summary_large_image" : "summary"}" />
     <meta name="twitter:title" content="${escapeHtml(page.title)}" />
     <meta name="twitter:description" content="${description}" />
+    ${image ? `<meta name="twitter:image" content="${escapeHtml(image.image_url)}" />` : ""}
+    ${image ? `<meta name="twitter:image:alt" content="${escapeHtml(imageAlt)}" />` : ""}
     ${supportSchema ? `<script type="application/ld+json">${escapeJsonLd(supportSchema)}</script>` : ""}
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(page.title)}</title>
@@ -5288,6 +5538,21 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
             <p>${escapeHtml(page.description)}</p>
           </div>
         </div>
+        ${
+          image
+            ? `<figure class="service-photo">
+          ${responsiveImageHtml({
+            imagePath: image.image_path,
+            src: imageSrc,
+            alt: imageAlt,
+            fallbackSize: SERVICE_IMAGE_FALLBACK_SIZE,
+            loading: "eager",
+            fetchpriority: "high"
+          })}
+          <figcaption>${escapeHtml(image.topic)}</figcaption>
+        </figure>`
+            : ""
+        }
       </section>
       <section class="product-band surface">
         <div class="section-inner">
@@ -5315,7 +5580,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
             <h2>店家資料</h2>
             <p>${escapeHtml(profile.name)}</p>
             <p>${escapeHtml(profile.address_text)}</p>
-            <p>${escapeHtml(profile.telephone_local)}｜${escapeHtml(profile.mobile_or_line_local)}</p>
+            <p><a href="tel:${escapeHtml(profile.telephone)}">${escapeHtml(profile.telephone_local)}</a>｜${escapeHtml(profile.mobile_or_line_local)}</p>
             <p>${escapeHtml(profile.opening_hours_text)}</p>
           </aside>
         </div>
@@ -5624,6 +5889,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await mkdir(postsRoot, { recursive: true });
   await mkdir(goRoot, { recursive: true });
   await mkdir(compatibilityDocsRoot, { recursive: true });
+  setActiveDocsRoot(docsRoot);
+  await generateWebpDerivatives(index, docsRoot);
   const indexNowKey = configuredIndexNowKey(root);
 
   const outputs = {

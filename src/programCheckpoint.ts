@@ -3,7 +3,7 @@ import { getConfig } from "./config";
 import { buildLocalReachReport, type LocalReachReport } from "./localReach";
 import { getZonedDateParts } from "./scheduler";
 
-// The day 30 and day 60 decision rules from docs/reels-roadmap.md, evaluated
+// The day 30 and day 60 decision rules from content-playbooks/reels-roadmap.md, evaluated
 // rather than remembered. A checkpoint that lives only in a document is a
 // checkpoint that gets skipped on the day, and the whole point of setting a
 // threshold in advance is to decide before the result is in front of you.

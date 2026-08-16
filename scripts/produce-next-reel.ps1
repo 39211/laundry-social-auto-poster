@@ -1012,9 +1012,10 @@ if ($windowDays.Count -gt 0) {
                 $dayOk = $false
                 break
             }
+            # Metadata only: schedule time + asset sha. Does not approve the Reel.
             cmd /c "npm.cmd run owner-video-review -- --date $($day.date) --slot $slotN --standing-policy 2>&1" | Add-Content -Path $logFile -Encoding UTF8
             if ($LASTEXITCODE -ne 0) {
-                Write-Log "owner-video-review failed for $($day.date) slot $slotN."
+                Write-Log "owner-video-review metadata failed for $($day.date) slot $slotN."
                 $dayOk = $false
                 break
             }
@@ -1047,24 +1048,25 @@ if ($windowDays.Count -gt 0) {
     Push-Location $root
     cmd /c "npm.cmd run schedule-reel -- --date $publishDate --concept $concept --slot 2 --variant 10s 2>&1" | Add-Content -Path $logFile -Encoding UTF8
     $scheduled = ($LASTEXITCODE -eq 0)
-    $reviewed = $false
+    $metadataRecorded = $false
     $pushed = $false
     if ($scheduled) {
+        # Metadata only: schedule time + asset sha. Does not approve the Reel.
         cmd /c "npm.cmd run owner-video-review -- --date $publishDate --slot 2 --standing-policy 2>&1" | Add-Content -Path $logFile -Encoding UTF8
-        $reviewed = ($LASTEXITCODE -eq 0)
+        $metadataRecorded = ($LASTEXITCODE -eq 0)
     }
-    if ($reviewed) {
+    if ($metadataRecorded) {
         cmd /c "npm.cmd run publish-pages -- --date $publishDate --skip-audit 2>&1" | Add-Content -Path $logFile -Encoding UTF8
         $pushed = ($LASTEXITCODE -eq 0)
     }
     Pop-Location
-    if (-not $scheduled -or -not $reviewed -or -not $pushed) {
-        Write-Log "Scheduling failed for $concept -> $publishDate (scheduled=$scheduled reviewed=$reviewed pushed=$pushed)."
+    if (-not $scheduled -or -not $metadataRecorded -or -not $pushed) {
+        Write-Log "Scheduling failed for $concept -> $publishDate (scheduled=$scheduled metadata=$metadataRecorded pushed=$pushed)."
         Show-Toast "$concept 成片完成但排程或上線失敗，請看 log。"
         exit 1
     }
     $scheduledAny = $true
-    Write-Log "$concept scheduled into $publishDate slot 2 under the standing policy."
+    Write-Log "$concept scheduled into $publishDate slot 2 with standing-policy metadata; review still pending."
 }
 
 if ($failedSchedule) {

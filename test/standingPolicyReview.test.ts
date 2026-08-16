@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -214,5 +214,84 @@ describe("standing-policy mutation locks", () => {
     expect(calls?.length).toBe(2);
     expect(src).toMatch(/Metadata only: schedule time \+ asset sha/u);
     expect(src).not.toMatch(/under the standing policy/u);
+  });
+});
+
+const HISTORICAL_STANDING_POLICY_STAMPS = [
+  { date: "2026-08-04", slot: 2 },
+  { date: "2026-08-07", slot: 2 },
+  { date: "2026-08-07", slot: 3 },
+  { date: "2026-08-08", slot: 2 },
+  { date: "2026-08-08", slot: 3 },
+  { date: "2026-08-09", slot: 2 },
+  { date: "2026-08-10", slot: 2 },
+  { date: "2026-08-10", slot: 3 },
+  { date: "2026-08-11", slot: 2 },
+  { date: "2026-08-11", slot: 3 },
+  { date: "2026-08-12", slot: 2 },
+  { date: "2026-08-12", slot: 3 },
+  { date: "2026-08-13", slot: 2 },
+  { date: "2026-08-13", slot: 3 },
+  { date: "2026-08-14", slot: 2 },
+  { date: "2026-08-14", slot: 3 },
+  { date: "2026-08-15", slot: 3 },
+  { date: "2026-08-16", slot: 3 }
+] as const;
+
+describe("historical standing-policy grandfather contract", () => {
+  it("keeps the 18 historical stamps publishable and refuses a new date", async () => {
+    expect(HISTORICAL_STANDING_POLICY_STAMPS).toHaveLength(18);
+
+    const reviewDir = join(__dirname, "../data/video-reviews");
+    const found: Array<{ date: string; slot: number }> = [];
+    for (const name of (await readdir(reviewDir)).sort()) {
+      if (!/^\d{4}-\d{2}-\d{2}\.json$/.test(name)) continue;
+      const records = JSON.parse(await readFile(join(reviewDir, name), "utf8")) as Array<
+        Record<string, unknown>
+      >;
+      for (const record of records) {
+        if (record.reviewed_by !== STANDING_POLICY_REVIEWER || record.status !== "approved") continue;
+        found.push({ date: String(record.date), slot: Number(record.slot) });
+      }
+    }
+    found.sort((a, b) => a.date.localeCompare(b.date) || a.slot - b.slot);
+    expect(found).toEqual([...HISTORICAL_STANDING_POLICY_STAMPS]);
+
+    const root = await mkdtemp(join(tmpdir(), "laundry-standing-grandfather-"));
+    for (const stamp of HISTORICAL_STANDING_POLICY_STAMPS) {
+      const videoPath = `docs/assets/${stamp.date}/slot-0${stamp.slot}.mp4`;
+      await mkdir(dirname(join(root, ...videoPath.split("/"))), { recursive: true });
+      await writeFile(join(root, ...videoPath.split("/")), VIDEO_BYTES, "utf8");
+      await writeJsonAtomic(videoReviewsPath(stamp.date, root), [
+        approvedStandingPolicyRecord(stamp.date, stamp.slot, videoPath)
+      ]);
+      await expect(
+        assertVideoReviewApproved({
+          date: stamp.date,
+          slot: stamp.slot,
+          videoPath,
+          videoPrompt: PROMPT,
+          root
+        })
+      ).resolves.toBeUndefined();
+    }
+
+    const { root: newRoot, videoPath, prompt, date } = await fixture("2026-09-01");
+    await recordOwnerVideoReview({
+      date,
+      slot: 1,
+      watched: false,
+      standingPolicy: true,
+      root: newRoot
+    });
+    await expect(
+      assertVideoReviewApproved({
+        date,
+        slot: 1,
+        videoPath,
+        videoPrompt: prompt,
+        root: newRoot
+      })
+    ).rejects.toThrow(/did not both pass|missing for slot/u);
   });
 });

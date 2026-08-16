@@ -11,6 +11,7 @@ import {
   postedLogPath,
   projectRoot,
   videoRepairQueuePath,
+  videoReviewsPath,
   videoSourcesPath
 } from "./paths";
 import type {
@@ -262,15 +263,16 @@ function postedVideoSha(entry: PostLogEntry): string | undefined {
 }
 
 /**
- * A live Reel that actually went out. Historical rows without video_sha256
- * are not evidence — the gate starts from the first recorded hash and does
- * not invent one for older days.
+ * A live Reel that actually went out. Hash is not required here: historical
+ * posted-log rows predate video_sha256. The 21-day window fills those from
+ * video-reviews for the same date+slot; it does not invent a hash when both
+ * sources are empty, and it never treats a review-only (never aired) row as
+ * an airing.
  */
 export function isLiveAiredReelEntry(entry: PostLogEntry): boolean {
   if (entry.dry_run) return false;
   if (!["success", "posted", "uncertain"].includes(entry.status)) return false;
   if (entry.video_status === "VIDEO_DEFERRED") return false;
-  if (!postedVideoSha(entry)) return false;
   return (
     entry.video_status === "published" ||
     entry.published_media_type === "reel" ||
@@ -296,6 +298,29 @@ export function findDuplicateAiredReelVideo(
   );
 }
 
+type ReviewShaRecord = { slot?: unknown; video_sha256?: unknown };
+
+async function loadVideoReviewShasBySlot(date: string, root: string): Promise<Map<number, string>> {
+  const records = await readJsonFile<ReviewShaRecord[]>(videoReviewsPath(date, root), []);
+  const bySlot = new Map<number, string>();
+  if (!Array.isArray(records)) return bySlot;
+  for (const record of records) {
+    const slot = typeof record.slot === "number" ? record.slot : Number(record.slot);
+    if (!Number.isInteger(slot) || slot < 1) continue;
+    const sha = typeof record.video_sha256 === "string" ? record.video_sha256.trim().toLowerCase() : "";
+    if (!sha) continue;
+    if (!bySlot.has(slot)) bySlot.set(slot, sha);
+  }
+  return bySlot;
+}
+
+function airedReelVideoSha(
+  entry: PostLogEntry,
+  reviewShas: Map<number, string>
+): string | undefined {
+  return postedVideoSha(entry) ?? reviewShas.get(entry.slot);
+}
+
 export async function loadRecentAiredReelVideoShas(
   date: string,
   root: string,
@@ -308,9 +333,10 @@ export async function loadRecentAiredReelVideoShas(
     past.setUTCDate(past.getUTCDate() - back);
     const pastDate = past.toISOString().slice(0, 10);
     const entries = await loadPostLog(pastDate, root);
+    const reviewShas = await loadVideoReviewShasBySlot(pastDate, root);
     for (const entry of entries) {
       if (!isLiveAiredReelEntry(entry)) continue;
-      const videoSha256 = postedVideoSha(entry);
+      const videoSha256 = airedReelVideoSha(entry, reviewShas);
       if (!videoSha256) continue;
       const key = `${entry.date || pastDate}:${entry.slot}:${videoSha256}`;
       if (seen.has(key)) continue;

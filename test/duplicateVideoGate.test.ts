@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { validatePublishableReel } from "../src/generateVideo";
 import {
   findDuplicateAiredReelVideo,
   isLiveAiredReelEntry,
@@ -10,6 +11,7 @@ import {
   loadRecentAiredReelVideoShas,
   loadVideoRepairQueue,
   writeApprovalLog,
+  writeJsonAtomic,
   writePostLog
 } from "../src/logging";
 import { CONCEPT_COOLDOWN_DAYS } from "../src/reelConcepts";
@@ -22,6 +24,8 @@ vi.mock("../src/generateVideo", () => ({
 
 const DATE = "2026-08-18";
 const AIRED = "2026-08-14";
+const HIST_DATE = "2026-08-16";
+const HIST_SLOT = 3;
 const VIDEO_BYTES = "same-mp4-bytes-across-days";
 const OTHER_VIDEO_BYTES = "a-different-mp4";
 
@@ -89,6 +93,12 @@ async function seedAssets(root: string, date: string, slot: number, videoBytes: 
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, `slot-0${slot}.png`), `cover ${date} ${slot}`, "utf8");
   await writeFile(join(dir, `slot-0${slot}.mp4`), videoBytes, "utf8");
+}
+
+async function seedReviewSha(root: string, date: string, slot: number, sha: string): Promise<void> {
+  await writeJsonAtomic(join(root, "data", "video-reviews", `${date}.json`), [
+    { date, slot, video_sha256: sha }
+  ]);
 }
 
 async function seedApprovals(root: string, date: string, slot: number): Promise<void> {
@@ -169,7 +179,67 @@ describe("posted-log video sha inventory", () => {
       )
     ).toBe(false);
     expect(isLiveAiredReelEntry(liveReelEntry(AIRED, 1, { dry_run: true, video_sha256: "abc" }))).toBe(false);
-    expect(isLiveAiredReelEntry(liveReelEntry(AIRED, 1))).toBe(false);
+    expect(isLiveAiredReelEntry(liveReelEntry(AIRED, 1))).toBe(true);
+  });
+
+  it("fills a historical posted-log hole from video-reviews when that date+slot actually aired (8/16 form)", async () => {
+    const root = await freshRoot();
+    const sha = shaOf(VIDEO_BYTES);
+    await writePostLog(HIST_DATE, [liveReelEntry(HIST_DATE, HIST_SLOT)], root);
+    await seedReviewSha(root, HIST_DATE, HIST_SLOT, sha);
+
+    const aired = await loadRecentAiredReelVideoShas(DATE, root, CONCEPT_COOLDOWN_DAYS);
+    expect(aired).toEqual([{ date: HIST_DATE, slot: HIST_SLOT, video_sha256: sha }]);
+    expect(findDuplicateAiredReelVideo(sha, aired, DATE, 1)).toEqual({
+      date: HIST_DATE,
+      slot: HIST_SLOT,
+      video_sha256: sha
+    });
+  });
+
+  it("does not list a reviewed file that never aired", async () => {
+    const root = await freshRoot();
+    const sha = shaOf(VIDEO_BYTES);
+    await seedReviewSha(root, HIST_DATE, HIST_SLOT, sha);
+    await writePostLog(
+      HIST_DATE,
+      [
+        liveReelEntry(HIST_DATE, 1, {
+          published_media_type: "carousel",
+          video_status: "VIDEO_DEFERRED"
+        })
+      ],
+      root
+    );
+
+    await expect(loadRecentAiredReelVideoShas(DATE, root, CONCEPT_COOLDOWN_DAYS)).resolves.toEqual([]);
+  });
+
+  it("covers same-day different slot and uncertain status from the review sha", async () => {
+    const root = await freshRoot();
+    const sameDaySha = shaOf(VIDEO_BYTES);
+    const uncertainSha = shaOf(OTHER_VIDEO_BYTES);
+    await writePostLog(DATE, [liveReelEntry(DATE, 3)], root);
+    await writePostLog(AIRED, [liveReelEntry(AIRED, 2, { status: "uncertain" })], root);
+    await seedReviewSha(root, DATE, 3, sameDaySha);
+    await seedReviewSha(root, AIRED, 2, uncertainSha);
+
+    const aired = await loadRecentAiredReelVideoShas(DATE, root, CONCEPT_COOLDOWN_DAYS);
+    expect(aired).toEqual([
+      { date: DATE, slot: 3, video_sha256: sameDaySha },
+      { date: AIRED, slot: 2, video_sha256: uncertainSha }
+    ]);
+    expect(findDuplicateAiredReelVideo(sameDaySha, aired, DATE, 1)).toEqual({
+      date: DATE,
+      slot: 3,
+      video_sha256: sameDaySha
+    });
+    expect(findDuplicateAiredReelVideo(sameDaySha, aired, DATE, 3)).toBeUndefined();
+    expect(findDuplicateAiredReelVideo(uncertainSha, aired, DATE, 1)).toEqual({
+      date: AIRED,
+      slot: 2,
+      video_sha256: uncertainSha
+    });
   });
 });
 
@@ -260,6 +330,55 @@ describe("resolveSlotPublishMedia duplicate video gate", () => {
     expect(resolved.videoDeferred).toBe(true);
     expect(resolved.videoDeferredReason).toBe(`same video aired on ${DATE} slot 3`);
   });
+
+  it("defers the 8/16 form: live posted-log without sha, review file supplies it", async () => {
+    const { root, slot } = await prepare(VIDEO_BYTES, "8/16 已播,sha 只在 video-reviews。");
+    await writePostLog(HIST_DATE, [liveReelEntry(HIST_DATE, HIST_SLOT)], root);
+    await seedReviewSha(root, HIST_DATE, HIST_SLOT, shaOf(VIDEO_BYTES));
+
+    const resolved = await resolveSlotPublishMedia(slot, DATE, root);
+    expect(resolved.videoDeferred).toBe(true);
+    expect(resolved.videoDeferKind).toBe("expected");
+    expect(resolved.videoDeferredReason).toBe(`same video aired on ${HIST_DATE} slot ${HIST_SLOT}`);
+  });
+
+  it("does not defer a file that was reviewed but never aired", async () => {
+    const { root, slot } = await prepare(VIDEO_BYTES, "有審核沒發出,不能誤擋。");
+    await seedReviewSha(root, HIST_DATE, HIST_SLOT, shaOf(VIDEO_BYTES));
+    await writePostLog(
+      HIST_DATE,
+      [
+        liveReelEntry(HIST_DATE, 1, {
+          published_media_type: "carousel",
+          video_status: "VIDEO_DEFERRED"
+        })
+      ],
+      root
+    );
+
+    const resolved = await resolveSlotPublishMedia(slot, DATE, root);
+    expect(resolved).toMatchObject({
+      mediaType: "reel",
+      videoDeferred: false,
+      videoSha256: shaOf(VIDEO_BYTES)
+    });
+  });
+
+  it("defers a same-day different slot and an uncertain airing filled from reviews", async () => {
+    const sameDay = await prepare(VIDEO_BYTES, "同日不同槽,sha 在 reviews。");
+    await writePostLog(DATE, [liveReelEntry(DATE, 3)], sameDay.root);
+    await seedReviewSha(sameDay.root, DATE, 3, shaOf(VIDEO_BYTES));
+    const blockedSameDay = await resolveSlotPublishMedia(sameDay.slot, DATE, sameDay.root);
+    expect(blockedSameDay.videoDeferred).toBe(true);
+    expect(blockedSameDay.videoDeferredReason).toBe(`same video aired on ${DATE} slot 3`);
+
+    const uncertain = await prepare(VIDEO_BYTES, "uncertain 也算已播。");
+    await writePostLog(AIRED, [liveReelEntry(AIRED, 2, { status: "uncertain" })], uncertain.root);
+    await seedReviewSha(uncertain.root, AIRED, 2, shaOf(VIDEO_BYTES));
+    const blockedUncertain = await resolveSlotPublishMedia(uncertain.slot, DATE, uncertain.root);
+    expect(blockedUncertain.videoDeferred).toBe(true);
+    expect(blockedUncertain.videoDeferredReason).toBe(`same video aired on ${AIRED} slot 2`);
+  });
 });
 
 describe("postCurrentSlot never stops the slot on a duplicate video", () => {
@@ -326,6 +445,59 @@ describe("postCurrentSlot never stops the slot on a duplicate video", () => {
         failure_reason: `same video aired on ${AIRED} slot 2`
       })
     ]);
+  });
+
+  it("publishes the cover when dual video review is missing", async () => {
+    vi.mocked(validatePublishableReel).mockRejectedValueOnce(
+      new Error("Dual video review is missing for slot 1.")
+    );
+    const root = await seedPublishableDay(OTHER_VIDEO_BYTES, "review 缺席,封面仍要發出。");
+
+    const results = await postCurrentSlot({
+      root,
+      date: DATE,
+      slot: 1,
+      dryRun: true,
+      verifyPublicImageUrl: false,
+      fetchImpl: vi.fn() as unknown as typeof fetch
+    });
+
+    expect(results).toHaveLength(2);
+    expect(results.every((entry) => entry.status === "success")).toBe(true);
+    expect(results.every((entry) => entry.published_media_type === "image")).toBe(true);
+    expect(results.every((entry) => entry.video_status === "VIDEO_DEFERRED")).toBe(true);
+    expect(results.every((entry) => entry.video_defer_kind === "expected")).toBe(true);
+    expect(
+      results.every((entry) => entry.video_deferred_reason === "Dual video review is missing for slot 1.")
+    ).toBe(true);
+
+    const log = await loadPostLog(DATE, root);
+    const persisted = log.filter((entry) => entry.slot === 1);
+    expect(persisted).toHaveLength(2);
+    expect(persisted.every((entry) => entry.published_media_type === "image")).toBe(true);
+    expect(persisted.every((entry) => entry.video_status === "VIDEO_DEFERRED")).toBe(true);
+  });
+
+  it("publishes the cover when the 8/16 historical review sha matches", async () => {
+    const root = await seedPublishableDay(VIDEO_BYTES, "8/16 已播,封面取代重播。");
+    await writePostLog(HIST_DATE, [liveReelEntry(HIST_DATE, HIST_SLOT)], root);
+    await seedReviewSha(root, HIST_DATE, HIST_SLOT, shaOf(VIDEO_BYTES));
+
+    const results = await postCurrentSlot({
+      root,
+      date: DATE,
+      slot: 1,
+      dryRun: true,
+      verifyPublicImageUrl: false,
+      fetchImpl: vi.fn() as unknown as typeof fetch
+    });
+
+    expect(results.every((entry) => entry.status === "success")).toBe(true);
+    expect(results.every((entry) => entry.published_media_type === "image")).toBe(true);
+    expect(results.every((entry) => entry.video_status === "VIDEO_DEFERRED")).toBe(true);
+    expect(
+      results.every((entry) => entry.video_deferred_reason === `same video aired on ${HIST_DATE} slot ${HIST_SLOT}`)
+    ).toBe(true);
   });
 
   it("writes video_sha256 when a new reel actually publishes", async () => {

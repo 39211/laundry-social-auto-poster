@@ -38,3 +38,17 @@ composer 的假轉場/佔位圖/正弦波旁白/死欄位 bitrate/checkpoint 假
 | B12 | R6 | 兩道視覺 QA 閘(靜態閘先殺、成片閘幕感知抽幀),七軸 PASS/FAIL;**探針+校準先行,無鑑別力不上線** | suede 必 FAIL、新產健康片必 PASS | M |
 
 R6 重要發現:白鞋等舊「健康」片中段換物件 —— 連戲病是舊庫系統病。綠例集用新分幕 prompt 產的片建,舊庫按重播日逐批重產+過閘。
+
+## 追加(G3 cugfei 回訪,2026-08-17 03:40;run 留底 BOARD0817-CUGFEI)
+
+| 批 | 技術(來源錨點) | 做法 | 驗收 | 成本 |
+|---|---|---|---|---|
+| B13 | 關鍵詞雙層字幕(caption_generator 參數層) | 現有 ASS 模組加「詞內變色/放大」:正文白 40px、關鍵詞 #F43F5E 44px、描邊 3;職人詞庫=去漬/整燙/發黃/還原/絨面(只偷參數,不偷它的單字蹦出實作) | 關鍵詞辨識抽測;3s 停留 A/B | S |
+| B14 | 忙背景字幕保底(effects_presets subtitle_bottom) | 蒸氣/花布/逆光鏡頭加 60% 黑底欄(我方 BorderStyle=3 已類似,補「偵測忙碌背景才啟用加深」) | 可讀率 ≥95% | S |
+| B15 | 前 3 秒鉤子閘(pace_analyzer 閾值換算) | 出片 QA 加規則:首刀 ≤3s、12s 內 4-6 刀、第 1 鏡=汙漬/蒸氣/對比(不是自我介紹);當驗收規則不當自動剪輯 | 3s 停留 vs 對照 | M |
+| B16 | 直式放行閘(quality_analyzer douyin 標準) | 出片自動擋:非 9:16、亮度均值 <0.2、音量 peak >-1dB;接在 burn 之後 review 之前 | 壞片 0 上架 | S |
+| B17 | 暖色風格層(FilterPreset warm) | 色彩增益(校正層)之上加 temperature +0.3/sat +0.1 風格層;白襯衫不發青 | 主觀偏好抽測;不削高光 | S |
+| B18 | 第一句=鉤子契約(script_generator) | 概念 narration 首句 ≤12 字且含結果/反差詞;寫進 isSafeConcept 驗收器 | 新概念批全過;首句與畫面衝突對齊 | S |
+
+BGM 躲語音(0.22 語音段)與 720p 字號帶(32-36/40-44)併入既有 B3/B13 參數。
+NOT_WORTH 已留 run 檔:假能量曲線、單字閃現 Karaoke、random 指紋、橫屏 delogo、超分補幀。

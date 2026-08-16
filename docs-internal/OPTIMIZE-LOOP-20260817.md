@@ -88,3 +88,12 @@
 - 新增 ready:w-nightly(夜檢降噪,R5 判定已灌)。
 - ⚠ MOTIONSPEC 揪出 **8/18 slot3 綁了 8/14 才播過的 luggage-wheel 同一支成片**(video_sha256 相同=4 天內重播)。處置:今天產線照 plan 產 heel-tip-scuff → heal 8/18;8 點檢查與今日產線驗證此項。
 - Opus 裁決:R6(視覺QA)+MOTIONSPEC(分鏡真相化)合併深審,產 W3/W4 附錄。
+
+### 05:10 板況增補(Opus 裁決執行+緊急拆彈)
+- ✅ W-REPAIR 結案 f0adbbb(41 項修復、333 綠、獨立重驗過)。
+- 🔴 Opus 揪出兩顆中午前的雷,已拆:①12:00 原定發出**老闆退件的 suede 原片**(sha 逐位元同)——審核綁定已拔+檔案已離開公開資產,中午自動發封面;②14:00 產線會用缺陷中段源圖**無授權付費重產 suede**——已用還原檔案擋住,缺陷源圖進隔離。
+- ✅ 8/18 重播事故(綁 8/14 luggage 同片)按 Opus Q4 裁定執行:換 **wool-coat-shoulder 10s**(從未上播、字幕已補燒、四幀故事軸過驗),排程三正本一致、模擬 60/60、cooldown 3/3 綠。過程踩三坑記 F15。
+- ✅ E4 關閉:IG 量測 **17/69 → 69/69**(live 重同步證實)。
+- Opus W3(視覺 QA)/W4(分鏡真相化)條款清單已入卷(runs/BOARD0817 + agent 卷);W3 前置=總指揮親跑讀幀探針;W4 前置=付費煞車先有牙(現行旗標 0 讀取方)。兩單依前置排程。
+- G3 cugfei 蒸餾入待辦(B13-B18);GBP OAuth 步驟文件落 docs-internal/gbp-oauth-setup.md。
+- ⚠ 新系統洞(Opus RISK3/4,進佇列):跨日同片重播無閘(caption 換寫反而讓它更隱形)、standing-policy 四欄恆 pass。

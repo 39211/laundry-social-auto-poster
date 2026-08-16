@@ -65,6 +65,117 @@ def run(argv, timeout=120):
         return ""
 
 
+# --- nightly-check helpers ---
+# Imported by test/nightlyChecks.test.ts via the markers. Keep these pure:
+# they are how we prove a quiet night stays quiet, and a broken night lights.
+URL_RE = re.compile(r"https?://\S+", re.I)
+PRICE_RE = re.compile(r"\$[0-9]+|[0-9]+元|參考價|[0-9]+起")
+PICKUP_RE = re.compile(r"收送|到府|外送")
+CONTACT_RE = re.compile(r"LINE|line|0968")
+QUESTION_RE = re.compile(r"[?？]")
+PRIMARY_SLOTS = {1, 2}
+CONVERSION_FIELDS = ("收送句", "價格線索", "提問", "聯絡方式")
+
+
+def strip_caption_urls(text):
+    return URL_RE.sub("", text or "")
+
+
+def caption_has(name, text):
+    raw = text or ""
+    if name == "提問":
+        return bool(QUESTION_RE.search(strip_caption_urls(raw)))
+    if name == "價格線索":
+        return bool(PRICE_RE.search(raw))
+    if name == "收送句":
+        return bool(PICKUP_RE.search(raw))
+    if name == "聯絡方式":
+        return bool(CONTACT_RE.search(raw))
+    return False
+
+
+def primary_captions(cal):
+    if not cal:
+        return []
+    out = []
+    for slot in cal.get("slots") or []:
+        if slot.get("slot") in PRIMARY_SLOTS:
+            out.append(slot.get("instagram_caption") or "")
+    return out
+
+
+def generator_lacks(name, *cals):
+    """True only when every primary caption on every given day lacks `name`.
+
+    One healthy day (or a missing calendar) is not a generator defect.
+    Two consecutive generated days all missing the same field is.
+    """
+    days = [primary_captions(cal) for cal in cals]
+    if len(days) < 2 or any(len(caps) == 0 for caps in days):
+        return False
+    return all(not caption_has(name, cap) for caps in days for cap in caps)
+
+
+def conversion_generator_findings(yesterday_cal, today_cal, yesterday, today):
+    rows = []
+    labels = {
+        "收送句": "產生器沒寫收送",
+        "價格線索": "產生器沒寫價格線索",
+        "提問": "產生器沒寫提問",
+        "聯絡方式": "產生器沒寫聯絡方式",
+    }
+    for name in CONVERSION_FIELDS:
+        if generator_lacks(name, yesterday_cal, today_cal):
+            rows.append({
+                "severity": "MED",
+                "area": "轉單要素",
+                "what": labels[name],
+                "evidence": (
+                    f"data/content-calendar/{yesterday}.json 與 {today}.json "
+                    f"的 slot 1/2 連續兩天缺 {name}"
+                ),
+                "fix": "修 src/contentPlan.ts 文案模板;06:30 generate 會覆寫明天草稿,不要手補明天曆",
+            })
+    return rows
+
+
+def ready_chain_breaks(line):
+    """Parse Generate-task probe `state|wake|next`. One list, one finding."""
+    line = (line or "").strip()
+    if not line:
+        return ["排程探測空"]
+    state, wake, nxt = (line.split("|") + ["", "", ""])[:3]
+    broken = []
+    if state == "MISSING":
+        broken.append("排程不在")
+    if state != "MISSING" and not nxt.strip():
+        broken.append("觸發器沒有下次")
+    if state != "MISSING" and wake.strip().lower() not in ("true", "$true"):
+        broken.append("叫不醒")
+    return broken
+
+
+def today_image_path(day, slot_n):
+    return f"docs/assets/{day}/slot-{int(slot_n):02d}.png"
+
+
+def today_image_fix(day):
+    return (
+        f"先 invalidate 失效舊圖,再 npm run generate-image-manifest -- --date {day} "
+        f"重生 manifest,再跑 scripts/generate-missing-images.ps1 -Date {day} 補產,產完親眼看圖"
+    )
+
+
+def opt_log_severity(has_log, has_success_post, has_git):
+    if has_log:
+        return None
+    if not has_success_post and not has_git:
+        return "HIGH"
+    return "MED"
+
+
+# --- end helpers ---
+
 TODAY = date.today()
 TOMORROW = TODAY + timedelta(days=1)
 ds = TODAY.isoformat()
@@ -73,44 +184,37 @@ ts = TOMORROW.isoformat()
 
 # --- 1. Tomorrow has to be ready tonight, not at 06:30 -----------------------
 cal = load(f"data/content-calendar/{ts}.json")
-if cal is None:
-    # A calendar is generated at 06:30 on its own day, so tomorrow's is missing
-    # every night by design and this fired HIGH every single run. A finding that
-    # is always true teaches you to scroll past the whole report -- and this
-    # report is the only thing standing between a broken morning and a silent
-    # zero-publish day.
-    #
-    # What actually protects tomorrow is that the 06:30 trigger is armed and can
-    # wake the machine, so that is what gets checked. Absent calendar plus
-    # healthy trigger is normal; absent calendar plus dead trigger is the real
-    # emergency, and it used to be buried under the noise.
-    gen = run(["powershell", "-NoProfile", "-Command",
-               "$t = Get-ScheduledTask -TaskName 'Laundry-Daily-Generate' -ErrorAction SilentlyContinue; "
-               "if ($t) { $i = $t | Get-ScheduledTaskInfo; "
-               "'{0}|{1}|{2}' -f $t.State, $t.Settings.WakeToRun, $i.NextRunTime } else { 'MISSING||' }"])
-    line = gen.strip().splitlines()[0] if gen.strip() else ""
-    state, wake, nxt = (line.split("|") + ["", "", ""])[:3]
-    if not line:
-        add("HIGH", "明日備妥", "查不到 06:30 生成排程的狀態",
-            "PowerShell 探測沒有回傳",
-            "人工確認 Laundry-Daily-Generate 還在、而且排得到明天")
-    elif state == "MISSING" or not nxt.strip():
-        add("HIGH", "明日備妥", f"{ts} 沒有行事曆,而且 06:30 生成排程不會再跑",
-            f"Laundry-Daily-Generate state={state} NextRunTime='{nxt.strip()}'",
-            "重新註冊該排程,否則明天零內容(ERROR-BOOK D1)")
-    elif wake.strip().lower() not in ("true", "$true"):
-        add("HIGH", "明日備妥", f"{ts} 沒有行事曆,而 06:30 叫不醒睡著的機器",
-            f"Laundry-Daily-Generate WakeToRun={wake}",
-            "Set-ScheduledTask 把 WakeToRun 設為 True(8/12-13 就是這樣零發布)")
-else:
-    slots = cal.get("slots", [])
-    for s in slots:
+# MERGE 1a/1b/1c: one 明日就緒鏈. Tomorrow's calendar is often still missing
+# at 23:10; that is normal. What protects the morning is that Generate is
+# registered, has a next run, and can wake the machine.
+gen = run(["powershell", "-NoProfile", "-Command",
+           "$t = Get-ScheduledTask -TaskName 'Laundry-Daily-Generate' -ErrorAction SilentlyContinue; "
+           "if ($t) { $i = $t | Get-ScheduledTaskInfo; "
+           "'{0}|{1}|{2}' -f $t.State, $t.Settings.WakeToRun, $i.NextRunTime } else { 'MISSING||' }"])
+line = gen.strip().splitlines()[0] if gen.strip() else ""
+chain_breaks = ready_chain_breaks(line)
+if chain_breaks:
+    state, wake, nxt = (line.split("|") + ["", "", ""])[:3] if line else ("", "", "")
+    add("HIGH", "明日備妥", f"明日就緒鏈斷了:{'、'.join(chain_breaks)}",
+        f"Laundry-Daily-Generate state={state} WakeToRun={wake} NextRunTime='{nxt.strip()}'",
+        "確認排程在、NextRunTime 非空、WakeToRun=True;缺一則明天 06:30 生不出來(ERROR-BOOK D1/B9)")
+
+# REWRITE 1d: at 23:10 today's images must already exist (06:30 has run).
+# Tomorrow's PNGs are not supposed to exist yet (ERROR-BOOK A7/B9).
+# Fix keeps the W-A7B invalidate chain; only the date is today, not tomorrow.
+today_cal = load(f"data/content-calendar/{ds}.json")
+if today_cal:
+    for s in today_cal.get("slots", []):
         n = s.get("slot")
-        img = f"docs/assets/{ts}/slot-{n:02d}.png"
+        img = today_image_path(ds, n)
         if not os.path.exists(img):
             add("HIGH", "明日備妥", f"slot {n} 主圖缺",
                 f"{img} 不存在",
-                f"先 invalidate 失效舊圖,再 npm run generate-image-manifest -- --date {ts} 重生 manifest,再跑 scripts/generate-missing-images.ps1 -Date {ts} 補產,產完親眼看圖")
+                today_image_fix(ds))
+
+# KEEP 1e
+if cal:
+    slots = cal.get("slots", [])
     lock = load(f"data/day-locks/{ts}.json")
     if lock:
         lt = (lock.get("slot1") or {}).get("topic")
@@ -164,37 +268,46 @@ for topic, days in recent.items():
 
 
 # --- 5. Captions that inform but never ask -----------------------------------
-if cal:
-    for s in cal.get("slots", []):
-        cap = s.get("instagram_caption", "") or ""
-        miss = [
-            name
-            for name, pat in (
-                ("價格線索", r"\$|元|參考價|起"),
-                ("收送句", r"收送|到府|外送"),
-                ("聯絡方式", r"LINE|line|0968"),
-                ("提問", r"[??]"),
-            )
-            if not re.search(pat, cap)
-        ]
-        if miss:
-            add("MED", "轉單要素", f"slot {s.get('slot')} 文案缺 {'、'.join(miss)}",
-                f"data/content-calendar/{ts}.json",
-                "補進文案;缺提問等於不邀請回覆,缺價格等於要對方多問一輪")
+# Don't nag tomorrow's draft: 06:30 overwrites it. If the generator template
+# omitted a conversion field two days running, say so once and point at the
+# template. Question marks are tested after stripping URLs; price no longer
+# treats a bare 起 (關不起來) as a price cue.
+yesterday = (TODAY - timedelta(days=1)).isoformat()
+yday_cal = load(f"data/content-calendar/{yesterday}.json")
+copy_today = today_cal if today_cal is not None else load(f"data/content-calendar/{ds}.json")
+for row in conversion_generator_findings(yday_cal, copy_today, yesterday, ds):
+    add(row["severity"], row["area"], row["what"], row["evidence"], row["fix"])
 
 
 # --- 6. Did today leave a trace of learning? --------------------------------
+# REWRITE 6a: missing log is MED unless the day also posted nothing and
+# committed nothing. DROP 6b: a quiet ERROR-BOOK day is a good day.
 opt = "output/daily-optimization-log.md"
-if not os.path.exists(opt) or ds not in open(opt, encoding="utf-8").read():
-    add("HIGH", "自我迭代", "今天沒有寫優化日誌",
-        opt,
-        "只看守不迭代等於沒做事。寫「改了什麼/為什麼/怎麼驗」")
-
-changed = run(["git", "log", "--since", f"{ds} 00:00", "--name-only", "--pretty=format:"], timeout=60)
-if "ERROR-BOOK.md" not in changed:
-    add("LOW", "自我迭代", "今天沒有新增踩坑紀錄",
-        "git log 未見 ERROR-BOOK.md 變更",
-        "沒踩到坑是可能的,但「查了超過 15 分鐘才搞懂的事」也算坑")
+try:
+    has_opt_log = os.path.exists(opt) and ds in open(opt, encoding="utf-8").read()
+except OSError:
+    has_opt_log = False
+posted_today = load(f"data/posted-log/{ds}.json", [])
+if not isinstance(posted_today, list):
+    posted_today = [posted_today]
+has_success_post = any(
+    isinstance(entry, dict)
+    and entry.get("status") in ("success", "posted")
+    and not entry.get("dry_run")
+    for entry in posted_today
+)
+git_today = run(
+    ["git", "log", "--since", f"{ds} 00:00", "--pretty=format:%H", "-n", "1"],
+    timeout=60,
+).strip()
+opt_sev = opt_log_severity(has_opt_log, has_success_post, bool(git_today))
+if opt_sev:
+    opt_evidence = opt
+    opt_fix = "只看守不迭代等於沒做事。寫「改了什麼/為什麼/怎麼驗」"
+    if opt_sev == "HIGH":
+        opt_evidence = f"{opt};posted-log 無 success 且 git log 空白"
+        opt_fix = "當天沒發布、沒 commit、沒日誌=真的沒做事。寫「改了什麼/為什麼/怎麼驗」"
+    add(opt_sev, "自我迭代", "今天沒有寫優化日誌", opt_evidence, opt_fix)
 
 
 # --- 7. A dead trigger looks exactly like a healthy one ----------------------

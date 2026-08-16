@@ -270,7 +270,10 @@ function previousTopicForScan(slot: DailySlot, sources: ImageSourceRecord[]): st
   const topics = imageAssetsForSlot(slot)
     .map((asset) => stampForAsset(sources, slot.slot, asset.local_image_path)?.topic)
     .filter((topic): topic is string => typeof topic === "string");
-  return topics[0];
+  // Any carousel slide whose stamp identity disagrees with the calendar
+  // invalidates the whole slot. Looking only at slide 1 would leave a mixed
+  // slot (new first slide, old later slide) in place.
+  return topics.find((topic) => !topicsShareIdentity(topic, slot.topic)) ?? topics[0];
 }
 
 function refuseIfUnsafeToRegenerate(
@@ -280,9 +283,11 @@ function refuseIfUnsafeToRegenerate(
 ): void {
   for (const asset of imageAssetsForSlot(next)) {
     const stamp = stampForAsset(sources, next.slot, asset.local_image_path);
+    const fromTopic = typeof stamp?.topic === "string" ? stamp.topic : previousTopic;
+    if (topicsShareIdentity(fromTopic, next.topic)) continue;
     throwIfRefused(
       next.slot,
-      regenerationRefusal(previousTopic, next.topic, asset.image_prompt, stamp?.prompt_sha256)
+      regenerationRefusal(fromTopic, next.topic, asset.image_prompt, stamp?.prompt_sha256)
     );
   }
 }

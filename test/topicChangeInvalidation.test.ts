@@ -352,6 +352,71 @@ describe("topic change actually moves bytes", () => {
     expect(report.moved.map((item) => item.from).sort()).toEqual([slide2, slide3].sort());
     expect(report.skipped.some((item) => item.reason === "protected-reel")).toBe(true);
   });
+
+  it("invalidates the whole carousel when any slide stamp identity differs", async () => {
+    // Mutation target: if previousTopicForScan / the date scan only read
+    // slide 1, a new first slide would hide an old later slide and this
+    // test would stay green while the mixed slot is left in place.
+    const hero = `docs/assets/${DATE}/slot-02.png`;
+    const slide2 = `docs/assets/${DATE}/slot-02-slide-02.png`;
+    const slot2: DailySlot = {
+      ...imageSlot(2, BOOTS, BOOT_PROMPT),
+      media_type: "carousel",
+      format: "carousel-guide",
+      carousel_items: [
+        { slide: 1, image_prompt: BOOT_PROMPT, local_image_path: hero, public_image_url: "https://example.com/h" },
+        { slide: 2, image_prompt: BOOT_PROMPT, local_image_path: slide2, public_image_url: "https://example.com/2" }
+      ]
+    };
+    const slot1 = imageSlot(1, "其他主題", "other prompt");
+    await writeCalendar([slot1, slot2]);
+    await writeManifest([slot1, slot2]);
+    await writePng(hero, "slide-1-new-boots");
+    await writePng(slide2, "slide-2-old-clothes");
+    await mkdir(join(root, "data", "image-sources"), { recursive: true });
+    await writeFile(
+      join(root, "data", "image-sources", `${DATE}.json`),
+      JSON.stringify([
+        {
+          date: DATE,
+          slot: 2,
+          source: "gpt-image-2",
+          image_path: hero,
+          topic: BOOTS,
+          prompt_sha256: sha256(BOOT_PROMPT),
+          image_sha256: sha256("slide-1-new-boots"),
+          marked_at: new Date().toISOString()
+        },
+        {
+          date: DATE,
+          slot: 2,
+          source: "gpt-image-2",
+          image_path: slide2,
+          topic: DARK_CLOTHES,
+          prompt_sha256: sha256(DARK_PROMPT),
+          image_sha256: sha256("slide-2-old-clothes"),
+          marked_at: new Date().toISOString()
+        }
+      ]),
+      "utf8"
+    );
+
+    const report = await invalidateStaleImagesForDate(DATE, root);
+    expect(await pathExists(hero)).toBe(false);
+    expect(await pathExists(slide2)).toBe(false);
+    expect(report.moved.map((item) => item.from).sort()).toEqual([hero, slide2].sort());
+    const destDir = staleDir(DARK_CLOTHES);
+    await access(join(destDir, "slot-02.png"));
+    await access(join(destDir, "slot-02-slide-02.png"));
+
+    const source = await readFile(new URL("../src/generateImage.ts", import.meta.url), "utf8");
+    const scanStart = source.indexOf("function previousTopicForScan");
+    const scanEnd = source.indexOf("function refuseIfUnsafeToRegenerate");
+    const scanBody = source.slice(scanStart, scanEnd);
+    expect(scanBody).toContain("topicsShareIdentity");
+    expect(scanBody).toContain("imageAssetsForSlot");
+    expect(scanBody).toMatch(/\.find\(/);
+  });
 });
 
 describe("A1 refuse regeneration", () => {

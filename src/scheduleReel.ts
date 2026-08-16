@@ -4,7 +4,13 @@ import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { LINE_CONTACT, withSharedCaptionRules } from "./contentPlan";
 import { generateDailyContent } from "./generateDailyContent";
-import { invalidateSlotImagesIfTopicChanged } from "./generateImage";
+import {
+  invalidateSlotImagesIfTopicChanged,
+  PromptSubjectClashError,
+  StalePromptAfterTopicChangeError,
+  topicIdentity,
+  type InvalidateReport
+} from "./generateImage";
 import { buildGitHubPagesImageUrl, buildGitHubPagesVideoUrl } from "./githubPages";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
 import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
@@ -361,10 +367,59 @@ export async function scheduleReel(input: {
   console.log(`${input.date} slot ${slotNumber} (${variant}) <- ${concept.id}`);
 }
 
+export type HealSlotAction =
+  | "healed"
+  | "already-matched"
+  | "missing-reel"
+  | "rejected-concept"
+  | "stopped";
+
+export interface HealSlotResult {
+  date: string;
+  slotNumber: number;
+  action: HealSlotAction;
+  stopReason?: string;
+  invalidate?: InvalidateReport;
+}
+
+function healStopReasonFromReport(report: InvalidateReport, slotNumber: number): string | undefined {
+  const refused = report.refused.find((item) => item.slot === slotNumber);
+  if (refused) {
+    return refused.reason.includes("A1-refusal") ? refused.reason : `A1-refusal:${refused.reason}`;
+  }
+  const skipped = report.skipped.find((item) => item.slot === slotNumber);
+  if (!skipped) return undefined;
+  if (skipped.reason === "approved-log" || skipped.reason === "posted-log" || skipped.reason === "protected-reel") {
+    return skipped.reason;
+  }
+  if (skipped.reason.includes("day-lock") || skipped.reason.startsWith("A3")) {
+    return "day-lock";
+  }
+  return skipped.reason;
+}
+
+function healStopped(
+  input: { date: string; slotNumber: number },
+  stopReason: string,
+  invalidate?: InvalidateReport
+): HealSlotResult {
+  const result: HealSlotResult = {
+    date: input.date,
+    slotNumber: input.slotNumber,
+    action: "stopped",
+    stopReason,
+    invalidate
+  };
+  console.log(`${input.date}: slot ${input.slotNumber} heal stopped (${stopReason}).`);
+  console.log(JSON.stringify({ stopReason, invalidate: invalidate ?? null }, null, 2));
+  return result;
+}
+
 /**
  * True when the calendar slot already holds the planned concept AND length
  * variant. Topic alone is not enough: a 10s file left in a 15s plan slot is a
- * silent A/B contamination and must be rewritten.
+ * silent A/B contamination and must be rewritten. Prefix-only label changes
+ * are the same object: compare topicIdentity, never the raw topic string.
  */
 export async function slotMatchesPlanReel(input: {
   date: string;
@@ -376,7 +431,10 @@ export async function slotMatchesPlanReel(input: {
   const concept = REEL_CONCEPTS.find((item) => item.id === input.conceptId);
   const content = await loadDailyContent(input.date, input.root);
   const slot = content?.slots.find((item) => item.slot === input.slotNumber);
-  if (!(slot?.media_type === "reel" && slot.local_video_path && slot.topic === concept?.hook)) {
+  if (!concept || slot?.media_type !== "reel" || !slot.local_video_path) {
+    return false;
+  }
+  if (topicIdentity(slot.topic) !== topicIdentity(concept.hook)) {
     return false;
   }
   const run = await readJsonFile<{ ab_variant?: AbVariant }>(
@@ -392,19 +450,19 @@ export async function healOneSlot(input: {
   conceptId: string;
   variant: AbVariant;
   root: string;
-}): Promise<void> {
+}): Promise<HealSlotResult> {
   const rejected = await loadRejectedConcepts(input.root);
   if (isConceptRejected(rejected, input.conceptId)) {
     console.log(
       `${input.date}: ${input.conceptId} is on rejected-concepts; heal will not restore it.`
     );
-    return;
+    return { date: input.date, slotNumber: input.slotNumber, action: "rejected-concept" };
   }
   if (await slotMatchesPlanReel(input)) {
     console.log(
       `${input.date}: slot ${input.slotNumber} already carries the ${input.conceptId} reel (${input.variant}).`
     );
-    return;
+    return { date: input.date, slotNumber: input.slotNumber, action: "already-matched" };
   }
   const reelFile = join(input.root, RUN_DIR, "reels", reelAssetName(input.conceptId, input.variant));
   try {
@@ -413,12 +471,13 @@ export async function healOneSlot(input: {
     console.log(
       `${input.date}: reel ${input.conceptId} (${input.variant}) is not built yet; leaving slot ${input.slotNumber} as generated.`
     );
-    return;
+    return { date: input.date, slotNumber: input.slotNumber, action: "missing-reel" };
   }
   const previous = (await loadDailyContent(input.date, input.root))?.slots.find(
     (item) => item.slot === input.slotNumber
   );
   const concept = REEL_CONCEPTS.find((item) => item.id === input.conceptId);
+  let invalidate: InvalidateReport | undefined;
   if (previous && concept) {
     // Move the outgoing slot first. scheduleReel then copies and stamps the
     // new cover; calling invalidate after that stamp would quarantine the
@@ -438,7 +497,7 @@ export async function healOneSlot(input: {
       carousel_items: undefined
     };
     try {
-      await invalidateSlotImagesIfTopicChanged({
+      invalidate = await invalidateSlotImagesIfTopicChanged({
         date: input.date,
         root: input.root,
         previous: outgoing,
@@ -446,9 +505,19 @@ export async function healOneSlot(input: {
       });
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      console.log(
-        `${input.date}: slot ${input.slotNumber} invalidate skipped (${detail}); scheduleReel will still replace the cover.`
-      );
+      const isA1 =
+        error instanceof StalePromptAfterTopicChangeError || error instanceof PromptSubjectClashError;
+      const stopReason = isA1 ? `A1-refusal:${detail}` : detail;
+      return healStopped(input, stopReason, {
+        date: input.date,
+        moved: [],
+        skipped: [],
+        refused: [{ slot: input.slotNumber, reason: stopReason }]
+      });
+    }
+    const stopReason = healStopReasonFromReport(invalidate, input.slotNumber);
+    if (stopReason) {
+      return healStopped(input, stopReason, invalidate);
     }
   }
   await scheduleReel({
@@ -459,6 +528,7 @@ export async function healOneSlot(input: {
     root: input.root
   });
   console.log(`${input.date}: healed slot ${input.slotNumber} back to ${input.conceptId} (${input.variant}).`);
+  return { date: input.date, slotNumber: input.slotNumber, action: "healed", invalidate };
 }
 
 async function main(): Promise<void> {

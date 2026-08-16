@@ -25,7 +25,9 @@ $logFile = Join-Path $outDir "$date.log"
 
 function Write-Log([string]$m) {
     $stamp = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
-    ("[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $stamp, $m) | Tee-Object -FilePath $logFile -Append
+    $line = "[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $stamp, $m
+    Write-Host $line
+    Add-Content -Path $logFile -Value $line -Encoding utf8
 }
 
 function Show-Toast([string]$text) {

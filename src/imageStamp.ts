@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { contradictorySubject } from "./contentPlan";
 
 /**
@@ -208,7 +208,8 @@ export async function writeApprovedImageDigests(
   digests: ApprovedImageDigests
 ): Promise<void> {
   const target = imageDigestsPath(root, date);
-  const temp = `${target}.tmp-${process.pid}`;
+  await mkdir(dirname(target), { recursive: true });
+  const temp = `${target}.tmp-${process.pid}-${Date.now()}`;
   try {
     await writeFile(temp, JSON.stringify(digests, null, 2), "utf8");
     await rename(temp, target);

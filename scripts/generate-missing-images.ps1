@@ -51,7 +51,9 @@ $($item.prompt)
 "@
 
     $before = Get-Date
-    $prompt | & $codex exec -C $root -s read-only - *>$null
+    $codexOut = $prompt | & $codex exec -C $root -s read-only - 2>&1
+    if ($LogFile) { $codexOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
+    else { $codexOut | ForEach-Object { Write-Host $_ } }
 
     $session = Get-ChildItem "$env:USERPROFILE\.codex\generated_images" -Directory -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -65,7 +67,8 @@ $($item.prompt)
     # Without the timestamp filter a failed run would silently republish an
     # older image belonging to a different day.
     if (-not $image) {
-        Write-Step "Codex returned no new image for slot $($item.slot)."
+        $codexTail = @($codexOut | Select-Object -Last 20) -join " | "
+        Write-Step "Codex returned no new image for slot $($item.slot). Codex said: $codexTail"
         exit 1
     }
 
@@ -78,7 +81,12 @@ $($item.prompt)
     # of every carousel without a source record, which the publish gate reads
     # as an unverified image.
     Push-Location $root
-    cmd /c "npm.cmd run mark-image-source -- --date $Date --slot $($item.slot) --path $($item.target_path) --source gpt-image-2 2>&1" | Out-Null
+    $markOut = cmd /c "npm.cmd run mark-image-source -- --date $Date --slot $($item.slot) --path $($item.target_path) --source gpt-image-2 2>&1"
+    if ($LogFile) { $markOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
+    else { $markOut | ForEach-Object { Write-Host $_ } }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Step "mark-image-source failed for slot $($item.slot) (exit $LASTEXITCODE)."
+    }
     Pop-Location
     $generated += 1
 }
@@ -90,9 +98,16 @@ if ($generated -eq 0) {
 }
 
 Push-Location $root
-cmd /c "npm.cmd run generate-public-site 2>&1" | Out-Null
-cmd /c "npm.cmd run validate-publishable-images -- --date $Date 2>&1" | Out-Null
+$siteOut = cmd /c "npm.cmd run generate-public-site 2>&1"
+$siteExit = $LASTEXITCODE
+if ($LogFile) { $siteOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
+else { $siteOut | ForEach-Object { Write-Host $_ } }
+if ($siteExit -ne 0) { Write-Step "generate-public-site failed (exit $siteExit)." }
+$valOut = cmd /c "npm.cmd run validate-publishable-images -- --date $Date 2>&1"
 $ok = ($LASTEXITCODE -eq 0)
+if ($LogFile) { $valOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
+else { $valOut | ForEach-Object { Write-Host $_ } }
+if (-not $ok) { Write-Step "validate-publishable-images failed (exit $LASTEXITCODE)." }
 Pop-Location
 
 if ($ok) { Write-Step "All publishable images for $Date are ready."; exit 0 }

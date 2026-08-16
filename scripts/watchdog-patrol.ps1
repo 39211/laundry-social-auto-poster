@@ -31,7 +31,8 @@ if ($deadTasks.Count -gt 0) {
     $names = ($deadTasks | ForEach-Object { $_.TaskName }) -join ", "
     "[{0:yyyy-MM-dd HH:mm:ss}] Dead trigger (empty NextRunTime) on: {1}; re-registering all tasks." -f $now, $names |
         Add-Content -Path $logFile -Encoding UTF8
-    & (Join-Path $PSScriptRoot "register-catchup-task.ps1") *>> $logFile
+    $regOut = & (Join-Path $PSScriptRoot "register-catchup-task.ps1") 2>&1
+    $regOut | ForEach-Object { Add-Content -Path $logFile -Value ([string]$_) -Encoding UTF8 }
 }
 
 # Nothing to do unless approvals exist (before 10:20 the day has not started).

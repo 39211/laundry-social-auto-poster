@@ -11,9 +11,10 @@
 //
 //  - Lossless splitting. A scratch splitter demonstrably lost one clause and
 //    duplicated another on a 49-character narration. splitNarration therefore
-//    treats "the segments joined back equal the input" as an invariant and
-//    throws if it ever fails, rather than shipping a subtitle that silently
-//    says something different from the voice.
+//    treats "the segments joined back equal the whitespace-normalized input"
+//    as an invariant and throws if it ever fails. Collapsing runs of
+//    whitespace to a single space (then trim) is design behaviour: join()
+//    reproduces that normalized source, not the raw caller string.
 //  - Proportional timing. VideoForge divides duration evenly by segment count,
 //    so a 17-character line and a 7-character line get the same seconds.
 //    Timing here allocates by character share of the real audio duration.
@@ -39,7 +40,8 @@ const CLAUSE_BREAK = /(?<=[。！？!?，,、；;：:…])/u;
 /**
  * Split a narration into subtitle lines of at most maxChars characters,
  * breaking at punctuation where possible. Invariant: joining the returned
- * segments reproduces the trimmed input exactly.
+ * segments reproduces the whitespace-normalized source exactly (runs of
+ * whitespace collapse to one space, then trim) — not the raw input.
  */
 export function splitNarration(text: string, maxChars = SUB_MAX_CHARS): string[] {
   const src = text.replace(/\s+/gu, " ").trim();
@@ -91,7 +93,7 @@ export interface TimingInput {
   delaySeconds: number;
   /** Real duration of the TTS file, from ffprobe — never estimated. */
   audioSeconds: number;
-  /** When set, cues are clipped to the video and never start beyond it. */
+  /** When set and shorter than the cue chain, the whole timeline is scaled to fit. */
   videoSeconds?: number;
 }
 
@@ -99,7 +101,9 @@ export interface TimingInput {
  * Allocate the audio duration across segments proportionally to character
  * count, so long lines stay up longer. Cues are contiguous: each starts where
  * the previous ended, the first at delaySeconds, the last ending exactly at
- * delaySeconds + audioSeconds (clipped to the video if shorter).
+ * delaySeconds + audioSeconds. If videoSeconds is shorter than that span,
+ * the whole timeline is scaled so every cue still appears — no tail text is
+ * dropped.
  */
 export function timeSegments(segments: string[], input: TimingInput): SubtitleCue[] {
   if (segments.length === 0) return [];
@@ -116,9 +120,14 @@ export function timeSegments(segments: string[], input: TimingInput): SubtitleCu
     cues.push({ text: segment, start, end });
   }
   if (input.videoSeconds === undefined) return cues;
-  return cues
-    .filter((cue) => cue.start < input.videoSeconds! - 0.05)
-    .map((cue) => ({ ...cue, end: Math.min(cue.end, input.videoSeconds!) }));
+  const lastEnd = cues[cues.length - 1]!.end;
+  if (!(lastEnd > input.videoSeconds)) return cues;
+  const scale = input.videoSeconds / lastEnd;
+  return cues.map((cue) => ({
+    text: cue.text,
+    start: cue.start * scale,
+    end: cue.end * scale,
+  }));
 }
 
 export interface AssOptions {
@@ -129,13 +138,14 @@ export interface AssOptions {
 }
 
 function assTime(seconds: number): string {
-  const total = Math.max(0, seconds);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = Math.floor(total % 60);
-  const cs = Math.round((total - Math.floor(total)) * 100);
-  // Rounding centiseconds up can carry into the next second.
-  if (cs === 100) return assTime(Math.floor(total) + 1);
+  // Integer centiseconds via milliseconds so half-cs boundaries such as
+  // 1.005 and 59.995 do not round the wrong way through float * 100.
+  const ms = Math.round(Math.max(0, seconds) * 1000);
+  const totalCs = Math.round(ms / 10);
+  const h = Math.floor(totalCs / 360000);
+  const m = Math.floor((totalCs % 360000) / 6000);
+  const s = Math.floor((totalCs % 6000) / 100);
+  const cs = totalCs % 100;
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${h}:${pad(m)}:${pad(s)}.${pad(cs)}`;
 }

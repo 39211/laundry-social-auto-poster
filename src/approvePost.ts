@@ -76,6 +76,19 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
     ? `FORCED over ${failures.length} unproven image(s): ${failures.join(" | ")}`
     : undefined;
 
+  // Snapshot first. Publishing treats a missing slot key as a pre-snapshot
+  // day and falls back to the weaker check, so an approval log without a
+  // snapshot is a silent downgrade. If this write fails the function throws
+  // before any consent is recorded.
+  const approvedDigests = (await loadApprovedImageDigests(root, options.date)) ?? {};
+  const digests: Record<string, string> = {};
+  for (const asset of imageAssetsForSlot(slot)) {
+    const digest = await hashImageFile(root, asset.local_image_path);
+    if (digest) digests[asset.local_image_path] = digest;
+  }
+  approvedDigests[String(options.slot)] = digests;
+  await writeApprovedImageDigests(root, options.date, approvedDigests);
+
   const entries: ApprovalLogEntry[] = [];
   for (const platform of options.platforms) {
     const entry: ApprovalLogEntry = {
@@ -92,18 +105,6 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
     await appendApprovalLog(entry, root);
     entries.push(entry);
   }
-
-  // Snapshot the pictures this grant actually saw. Publishing compares against
-  // this file; a missing slot key is treated as a pre-snapshot day and falls
-  // back to the weaker check, so even an empty map must be written.
-  const approvedDigests = (await loadApprovedImageDigests(root, options.date)) ?? {};
-  const digests: Record<string, string> = {};
-  for (const asset of imageAssetsForSlot(slot)) {
-    const digest = await hashImageFile(root, asset.local_image_path);
-    if (digest) digests[asset.local_image_path] = digest;
-  }
-  approvedDigests[String(options.slot)] = digests;
-  await writeApprovedImageDigests(root, options.date, approvedDigests);
 
   return entries;
 }

@@ -13,12 +13,15 @@ param(
 )
 $ErrorActionPreference = "Stop"
 if (-not (Test-Path $ReelPath)) { throw "Reel not found: $ReelPath" }
-$raw = & ffprobe -v error -show_entries format=duration -of csv=p=0 $ReelPath 2>$null | Select-Object -First 1
+$probeOut = & ffprobe -v error -show_entries format=duration -of csv=p=0 $ReelPath 2>&1
+$probeExit = $LASTEXITCODE
+$raw = @($probeOut | Select-Object -First 1)[0]
 $duration = 0.0
-if (-not [double]::TryParse($raw, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$duration)) {
-    throw "ffprobe returned no duration for $ReelPath"
+if ($probeExit -ne 0 -or -not [double]::TryParse([string]$raw, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$duration)) {
+    throw "ffprobe returned no duration for $ReelPath (exit $probeExit, got '$raw'; $probeOut)"
 }
 $dir = [IO.Path]::ChangeExtension($ReelPath, $null).TrimEnd('.') + ".frames"
+if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
 # Act sampling for the 10s two-act and 14s three-act cuts alike: early hook,
 # first third, second third, closing card.
@@ -30,7 +33,20 @@ $points = @(
 )
 foreach ($p in $points) {
     $t = [string]::Format([Globalization.CultureInfo]::InvariantCulture, "{0:0.##}", $p.t)
-    & ffmpeg -v error -y -ss $t -i $ReelPath -frames:v 1 (Join-Path $dir "$($p.name).png") 2>&1 | Out-Null
+    $framePath = Join-Path $dir "$($p.name).png"
+    $ffOut = & ffmpeg -v error -y -ss $t -i $ReelPath -frames:v 1 $framePath 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "ffmpeg extract failed at $($p.name) t=$t (exit $LASTEXITCODE): $ffOut"
+    }
+    if (-not (Test-Path $framePath) -or (Get-Item $framePath).Length -eq 0) {
+        throw "ffmpeg extract wrote no frame at $($p.name) t=$t : $ffOut"
+    }
+}
+foreach ($p in $points) {
+    $framePath = Join-Path $dir "$($p.name).png"
+    if (-not (Test-Path $framePath) -or (Get-Item $framePath).Length -eq 0) {
+        throw "Missing expected story frame $($p.name).png in $dir"
+    }
 }
 $made = @(Get-ChildItem $dir -Filter "*.png")
 if ($made.Count -lt 4) { throw "Expected 4 story frames, got $($made.Count) in $dir" }

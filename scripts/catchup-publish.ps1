@@ -131,8 +131,14 @@ if (Test-Path $heroLocal) {
     # every check would fail, every run would decide the site was stale, and it
     # would re-push six times a day forever. Verified on this box: curl returns
     # 200 on the same URL that makes Invoke-WebRequest throw.
-    $heroCode = (& curl.exe -s -o NUL -w "%{http_code}" --max-time 20 $heroUrl) 2>$null
-    $heroLive = ($heroCode -eq "200")
+    $heroOutput = & curl.exe -s -S -o NUL -w "%{http_code}" --max-time 20 $heroUrl 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "curl hero check failed (exit $LASTEXITCODE): $heroOutput"
+        $heroLive = $true
+    } else {
+        $heroCode = [string]$heroOutput
+        $heroLive = ($heroCode -eq "200")
+    }
     if (-not $heroLive) {
         Write-Log "Local images exist for $date but $heroUrl is not live; re-publishing the site."
         Push-Location $root

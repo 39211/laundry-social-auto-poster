@@ -14,6 +14,7 @@ $tomorrow = $now.AddDays(1).ToString("yyyy-MM-dd")
 
 $reportDir = Join-Path $root "output\day-reports"
 New-Item -ItemType Directory -Force -Path $reportDir | Out-Null
+$logFile = Join-Path $reportDir "$date.log"
 . (Join-Path $PSScriptRoot "_watchdog.ps1")
 
 function Read-Json([string]$path) {
@@ -99,9 +100,16 @@ if ($ytGap -gt 0) {
 }
 if ($missingComments.Count -gt 0) {
     Push-Location $root
-    cmd /c "npm.cmd run first-comment -- --date $date 2>&1" | Out-Null
+    $fcOut = cmd /c "npm.cmd run first-comment -- --date $date 2>&1"
+    $fcExit = $LASTEXITCODE
     Pop-Location
-    $actions += "posted first comments for slot $($missingComments -join ',')"
+    $fcOut | Out-File -FilePath $logFile -Append -Encoding utf8
+    if ($fcExit -eq 0) {
+        $actions += "posted first comments for slot $($missingComments -join ',')"
+    } else {
+        $actions += "first-comment failed (exit $fcExit) for slot $($missingComments -join ',')"
+        Write-Host "first-comment failed (exit $fcExit): $fcOut"
+    }
 }
 
 # --- GA4 line_click into the leads ledger ------------------------------------

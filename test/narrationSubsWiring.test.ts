@@ -53,8 +53,18 @@ describe("subtitle burn wiring", () => {
     expect(burnScript).toMatch(/-c:a copy/u);
   });
 
+  it("the CLI writes ASS through temp-plus-rename, not a raw overwrite", () => {
+    const cli = readFileSync(join(root, "src", "reelSubtitlesCli.ts"), "utf8");
+    expect(cli).toContain("renameSync(tempPath, outPath)");
+    expect(cli).not.toMatch(/writeFileSync\(outPath,\s*ass/u);
+  });
+
   it("every burned reel gets story frames extracted for the eyes-on acceptance pass", () => {
     expect(burnScript).toMatch(/extract-reel-frames\.ps1"\) -ReelPath \$ReelPath/u);
+  });
+
+  it("does not skip frame extraction when a burned marker exists without frames", () => {
+    expect(burnScript).toMatch(/already burned[\s\S]{0,800}extract-reel-frames/u);
   });
 
   it("the burn script degrades without blocking publishing, but leaves a visible marker", () => {

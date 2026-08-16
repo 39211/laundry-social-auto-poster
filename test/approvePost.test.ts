@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { describe, expect, it, vi } from "vitest";
 import { approvePost } from "../src/approvePost";
 import { generateDailyContent } from "../src/generateDailyContent";
+import * as imageStamp from "../src/imageStamp";
 import { loadApprovedImageDigests } from "../src/imageStamp";
 import { hasApprovedPost, hasPublishableApproval, loadApprovalLog } from "../src/logging";
 import type { ApprovalLogEntry } from "../src/types";
@@ -175,5 +176,32 @@ describe("approvePost", () => {
     expect(snapshot).toHaveProperty("2");
 
     vi.unstubAllEnvs();
+  });
+
+  it("leaves no approval log when the digest snapshot write fails", async () => {
+    vi.stubEnv("PUBLIC_IMAGE_BASE_URL", "https://tester.github.io/laundry-social-auto-poster");
+    const root = await mkdtemp(join(tmpdir(), "laundry-approval-snapfail-"));
+    await generateDailyContent({ date: "2026-05-20", root, force: true });
+
+    const spy = vi
+      .spyOn(imageStamp, "writeApprovedImageDigests")
+      .mockRejectedValue(new Error("ENOSPC snapshot"));
+    try {
+      await expect(
+        approvePost({
+          date: "2026-05-20",
+          slot: 1,
+          platforms: ["facebook"],
+          approvedBy: "Owner",
+          root,
+          force: true
+        })
+      ).rejects.toThrow(/ENOSPC snapshot/);
+      expect(await loadApprovalLog("2026-05-20", root)).toHaveLength(0);
+      expect(await loadApprovedImageDigests(root, "2026-05-20")).toBeUndefined();
+    } finally {
+      spy.mockRestore();
+      vi.unstubAllEnvs();
+    }
   });
 });

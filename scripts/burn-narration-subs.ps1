@@ -30,12 +30,23 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
 function Get-MediaSeconds([string]$path) {
-    $raw = & ffprobe -v error -show_entries format=duration -of csv=p=0 $path 2>$null | Select-Object -First 1
+    $probeOut = & ffprobe -v error -show_entries format=duration -of csv=p=0 $path 2>&1
+    $probeExit = $LASTEXITCODE
+    $raw = @($probeOut | Select-Object -First 1)[0]
     $seconds = 0.0
-    if (-not [double]::TryParse($raw, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$seconds)) {
-        throw "ffprobe returned no duration for $path (got '$raw')"
+    if ($probeExit -ne 0 -or -not [double]::TryParse([string]$raw, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$seconds)) {
+        throw "ffprobe returned no duration for $path (exit $probeExit, got '$raw'; $probeOut)"
     }
     return $seconds
+}
+
+function Test-StoryFrames([string]$reel) {
+    $dir = [IO.Path]::ChangeExtension($reel, $null).TrimEnd('.') + ".frames"
+    foreach ($name in @("1-hook.png", "2-early.png", "3-middle.png", "4-close.png")) {
+        $frame = Join-Path $dir $name
+        if (-not (Test-Path $frame) -or (Get-Item $frame).Length -eq 0) { return $false }
+    }
+    return $true
 }
 
 $marker = "$ReelPath.subs.json"
@@ -56,7 +67,16 @@ if (Test-Path $marker) {
     try {
         $existing = Get-Content $marker -Raw -Encoding UTF8 | ConvertFrom-Json
         if ($existing.burned -eq $true -and $existing.narration_sha256 -eq $narrationSha) {
-            Write-Host "burn-narration-subs: already burned for this narration, skipping $ReelPath"
+            if (Test-StoryFrames $ReelPath) {
+                Write-Host "burn-narration-subs: already burned for this narration, skipping $ReelPath"
+                exit 0
+            }
+            Write-Host "burn-narration-subs: already burned but frames missing; extracting $ReelPath"
+            try {
+                & (Join-Path $PSScriptRoot "extract-reel-frames.ps1") -ReelPath $ReelPath
+            } catch {
+                Write-Warning "extract-reel-frames failed for ${ReelPath}: $($_.Exception.Message)"
+            }
             exit 0
         }
     } catch {
@@ -75,7 +95,10 @@ try {
     $baseName = [IO.Path]::GetFileNameWithoutExtension($ReelPath)
     $narrationTxt = Join-Path $reelDir "$baseName.narration.txt"
     $assPath = Join-Path $reelDir "$baseName.ass"
-    $tmpOut = Join-Path $reelDir "$baseName.subs-tmp.mp4"
+    $oldTmp = Join-Path $reelDir "$baseName.subs-tmp.mp4"
+    if (Test-Path $oldTmp) { Remove-Item $oldTmp -Force }
+    $tmpOut = Join-Path $reelDir "$baseName.subs-tmp-$PID.mp4"
+    if (Test-Path $tmpOut) { Remove-Item $tmpOut -Force }
 
     [IO.File]::WriteAllText($narrationTxt, $narrationTrimmed, (New-Object Text.UTF8Encoding($false)))
 
@@ -88,16 +111,21 @@ try {
         throw "reelSubtitlesCli failed (exit $LASTEXITCODE): $cliOut"
     }
 
+    $tmpName = Split-Path -Leaf $tmpOut
     Push-Location $reelDir
     try {
-        & ffmpeg -v error -y -i "$baseName.mp4" -vf "ass=$baseName.ass" `
+        $ffOut = & ffmpeg -v error -y -i "$baseName.mp4" -vf "ass=$baseName.ass" `
             -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -c:a copy `
-            "$baseName.subs-tmp.mp4" 2>&1 | Out-Null
+            $tmpName 2>&1
+        $ffExit = $LASTEXITCODE
     } finally {
         Pop-Location
     }
+    if ($ffExit -ne 0) {
+        throw "ffmpeg ass burn failed for $ReelPath (exit $ffExit): $ffOut"
+    }
     if (-not (Test-Path $tmpOut) -or (Get-Item $tmpOut).Length -eq 0) {
-        throw "ffmpeg ass burn produced no output for $ReelPath"
+        throw "ffmpeg ass burn produced no output for $ReelPath (ffmpeg said: $ffOut)"
     }
     Move-Item $tmpOut $ReelPath -Force
     Remove-Item $narrationTxt -Force -ErrorAction SilentlyContinue

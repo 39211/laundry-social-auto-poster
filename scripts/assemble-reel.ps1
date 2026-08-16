@@ -57,6 +57,8 @@ if ($threeAct) {
 } else {
     $out = Join-Path $outDir "$ConceptId.mp4"
 }
+$assembledAt = Get-Date
+if (Test-Path $out) { Remove-Item $out -Force }
 
 # A phone-shot look has no clean font of its own, so the subtitle carries its
 # own contrast: white on a semi-opaque box rather than a drop shadow that
@@ -153,7 +155,9 @@ if ($threeAct) {
     }
 }
 
+if ($LASTEXITCODE -ne 0) { throw "Assembly ffmpeg failed (exit $LASTEXITCODE) for $ConceptId" }
 if (-not (Test-Path $out)) { throw "Assembly produced no file for $ConceptId" }
+if ((Get-Item $out).LastWriteTime -lt $assembledAt) { throw "Assembly left stale output for $ConceptId" }
 
 @{ source = "post-ambient-bed"; narration = $hasNarration; generated_clip_audio_used = $false; narr_delay_ms = 500 } |
     ConvertTo-Json | Set-Content "$out.audio.json" -Encoding utf8

@@ -75,7 +75,7 @@ $hasCalendar = Test-Path $calendar
 $imagesReady = $false
 if ($hasCalendar) {
     Push-Location $root
-    cmd /c "npm.cmd run validate-publishable-images -- --date $date 2>&1" | Out-Null
+    cmd /c "npm.cmd run validate-publishable-images -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     $imagesReady = ($LASTEXITCODE -eq 0)
     Pop-Location
 }
@@ -164,7 +164,7 @@ if ($hasCalendar) {
     # itself. The calendar is never handed to Codex at all, so the reviewed Reel
     # already in slot 2 cannot be overwritten.
     Push-Location $root
-    cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-Null
+    cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     Pop-Location
 
     & (Join-Path $PSScriptRoot "generate-missing-images.ps1") -Date $date -LogFile $logFile
@@ -234,7 +234,7 @@ if ($exitCode -ne 0) {
 # Codex exiting 0 is not proof the day can publish. The gate that matters is
 # whether the images the calendar references are actually on disk.
 Push-Location $root
-cmd /c "npm.cmd run validate-publishable-images -- --date $date 2>&1" | Out-Null
+cmd /c "npm.cmd run validate-publishable-images -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
 $imagesReadyNow = ($LASTEXITCODE -eq 0)
 Pop-Location
 

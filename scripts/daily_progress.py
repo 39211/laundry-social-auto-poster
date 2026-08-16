@@ -25,7 +25,9 @@ import os
 import sys
 from datetime import date, datetime, timedelta
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.environ.get("DAILY_PROGRESS_ROOT") or os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))
+)
 
 
 def read_json(path):
@@ -53,8 +55,12 @@ def ig_rows_for(d):
     for row in data.get("rows", []):
         if row.get("date") != d:
             continue
-        metrics = row.get("metrics") or row.get("insights") or {}
-        if any(v for v in metrics.values() if v):
+        metrics = row.get("metrics")
+        if metrics is None:
+            metrics = row.get("insights")
+        # Keep measured rows even when every metric is 0. Dropping them
+        # turned a measured-zero day into null at aggregate time.
+        if isinstance(metrics, dict):
             rows.append(metrics)
     return rows
 
@@ -67,14 +73,27 @@ def metrics_for(d):
     published_ok = None
     line_clicks = None
     if report:
-        slots = report.get("slots") or {}
-        flags = [v for slot in slots.values() for v in slot.values()]
-        published_ok = bool(flags) and all(flags) and not report.get("missing_posts")
+        slots = report.get("slots") if "slots" in report else None
+        if slots is None or slots == {} or slots == []:
+            published_ok = None
+        else:
+            flags = [v for slot in slots.values() for v in slot.values()]
+            published_ok = bool(flags) and all(flags) and not report.get("missing_posts")
         line_clicks = report.get("line_clicks", None)
 
     views = [m.get("views") for m in ig if isinstance(m.get("views"), (int, float))]
     watch = [m.get("ig_reels_avg_watch_time") for m in ig
              if isinstance(m.get("ig_reels_avg_watch_time"), (int, float))]
+
+    if idx is None:
+        pages_audited_ok = None
+    elif "audited" not in idx or idx.get("audited") is None:
+        pages_audited_ok = None
+    else:
+        pages_audited_ok = sum(
+            1 for p in idx.get("audited", [])
+            if isinstance(p, dict) and p.get("status") == 200 and not p.get("thin")
+        )
 
     return {
         "date": d,
@@ -85,10 +104,7 @@ def metrics_for(d):
         "ig_watch_avg_ms": round(sum(watch) / len(watch)) if watch else None,
         "indexnow_submitted": (idx or {}).get("submitted", None),
         "indexnow_status": (idx or {}).get("indexnow_status", None),
-        "pages_audited_ok": (
-            sum(1 for p in (idx or {}).get("audited", []) if p.get("status") == 200 and not p.get("thin"))
-            if idx else None
-        ),
+        "pages_audited_ok": pages_audited_ok,
     }
 
 
@@ -104,6 +120,47 @@ def verdict(today, yesterday):
 
 def fmt(value):
     return "null" if value is None else str(value)
+
+
+def replace_day_block(existing, target, block):
+    """Replace only the target day's section; keep earlier and later dates."""
+    marker = "## {0}(".format(target)
+    start = existing.find(marker)
+    if start < 0:
+        header = ""
+        if not existing.strip():
+            header = "# 每日進步帳\n\n每天問同一個問題:比昨天好嗎?null=未量測≠0。\n\n"
+        body = existing
+        if body and not body.endswith("\n"):
+            body += "\n"
+        return body + header + block + "\n"
+    next_h2 = existing.find("\n## ", start + len(marker))
+    prefix = existing[:start]
+    suffix = existing[next_h2 + 1:] if next_h2 >= 0 else ""
+    if prefix and not prefix.endswith("\n"):
+        prefix += "\n"
+    text = block if block.endswith("\n") else block + "\n"
+    if suffix:
+        return prefix + text + "\n" + suffix
+    return prefix + text
+
+
+def atomic_write(path, text):
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    tmp = "{0}.tmp-{1}-{2}".format(path, os.getpid(), int(datetime.now().timestamp() * 1000))
+    try:
+        with io.open(tmp, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def main():
@@ -141,16 +198,13 @@ def main():
     existing = ""
     if os.path.exists(ledger):
         existing = io.open(ledger, encoding="utf-8").read()
-    if f"## {target}(" in existing:
-        # Re-running a day replaces its block instead of appending a duplicate.
-        head = existing.split(f"## {target}(")[0]
-        existing = head
-    header = "" if existing.strip() else "# 每日進步帳\n\n每天問同一個問題:比昨天好嗎?null=未量測≠0。\n\n"
-    io.open(ledger, "w", encoding="utf-8", newline="\n").write(existing + header + block + "\n")
+    atomic_write(ledger, replace_day_block(existing, target, block))
 
     out_json = os.path.join(ROOT, "output", "operations", f"daily-progress-{target}.json")
-    io.open(out_json, "w", encoding="utf-8", newline="\n").write(
-        json.dumps({"target": today, "previous": yesterday}, ensure_ascii=False, indent=1))
+    atomic_write(
+        out_json,
+        json.dumps({"target": today, "previous": yesterday}, ensure_ascii=False, indent=1),
+    )
     print(block)
 
 

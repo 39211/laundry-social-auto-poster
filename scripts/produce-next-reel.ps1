@@ -251,9 +251,15 @@ function Invoke-TreatedAssembly {
 [0:v]trim=0:1.5,setpts=PTS-STARTPTS,crop=iw*0.72:ih*0.42:iw*0.14:ih*0.40,scale=720:1280:flags=lanczos,setsar=1[c3];
 [c1][c2][c3]concat=n=3:v=1:a=0[vout]
 "@ -replace "`r`n", ""
-        & ffmpeg -v error -y -i $MiddleClip -filter_complex $cuFilter -map "[vout]" `
-            -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -an $cuPath 2>&1 | Out-Null
-        if (-not (Test-Path $cuPath)) { throw "Treatment C close-up concat failed for $ConceptId" }
+        $cuLog = Join-Path $work "ffmpeg-cu.log"
+        if (Test-Path $cuPath) { Remove-Item $cuPath -Force }
+        $cuOut = & ffmpeg -v error -y -i $MiddleClip -filter_complex $cuFilter -map "[vout]" `
+            -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -an $cuPath 2>&1
+        $cuOut | Set-Content $cuLog -Encoding utf8
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $cuPath)) {
+            $cuTail = @($cuOut | Select-Object -Last 5) -join " | "
+            throw "Treatment C close-up concat failed for $ConceptId (exit $LASTEXITCODE): $cuTail"
+        }
 
         $totalDur = 14.0
         $narrDelayMs = 500
@@ -292,10 +298,19 @@ function Invoke-TreatedAssembly {
     # Swallowing ffmpeg's stderr cost two diagnoses on 2026-08-16 alone (the
     # out-of-range colour gain died invisibly). Keep the last run's output.
     $ffLog = Join-Path $work "ffmpeg-treated.log"
+    $assembledAt = Get-Date
+    if (Test-Path $OutPath) { Remove-Item $OutPath -Force }
     & ffmpeg @ffArgs 2>&1 | ForEach-Object { "$_" } | Set-Content $ffLog -Encoding utf8
+    if ($LASTEXITCODE -ne 0) {
+        $ffTail = (Get-Content $ffLog -Tail 5 -Encoding utf8) -join " | "
+        throw "Treated assembly ffmpeg failed (exit $LASTEXITCODE): $OutPath (ffmpeg said: $ffTail)"
+    }
     if (-not (Test-Path $OutPath)) {
-        $ffTail = (Get-Content $ffLog -Tail 5) -join " | "
+        $ffTail = (Get-Content $ffLog -Tail 5 -Encoding utf8) -join " | "
         throw "Treated assembly produced no file: $OutPath (ffmpeg said: $ffTail)"
+    }
+    if ((Get-Item $OutPath).LastWriteTime -lt $assembledAt) {
+        throw "Treated assembly left stale output: $OutPath"
     }
     @{ source = "post-ambient-bed"; narration = [bool]$hasNarration; generated_clip_audio_used = $false; treatment = $Treatment; narr_delay_ms = $narrDelayMs } |
         ConvertTo-Json | Set-Content "$OutPath.audio.json" -Encoding utf8
@@ -452,7 +467,8 @@ Do not read any workspace file and do not run any shell command; the local shell
 
         Write-Log "Generating before/after stills through Codex."
         $genStart = Get-Date
-        ($header + $promptBody) | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - *>$null
+        $codexBaOut = ($header + $promptBody) | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - 2>&1
+        $codexBaOut | ForEach-Object { Write-Log $_ }
 
         $images = @(
             Get-ChildItem "$env:USERPROFILE\.codex\generated_images" -Directory -ErrorAction SilentlyContinue |
@@ -462,7 +478,8 @@ Do not read any workspace file and do not run any shell command; the local shell
         )
 
         if ($images.Count -lt 2) {
-            Write-Log "Codex returned $($images.Count) fresh image(s) for $concept; need 2."
+            $codexTail = @($codexBaOut | Select-Object -Last 20) -join " | "
+            Write-Log "Codex returned $($images.Count) fresh image(s) for $concept; need 2. Codex said: $codexTail"
             Show-Toast "$concept 的素材生成失敗，今天沒有產出新 Reel。"
             exit 1
         }
@@ -499,7 +516,8 @@ Read the image file at the path given below and EDIT it. Keep the same camera po
         Write-Log "Generating middle still by editing the before still."
         $genStart = Get-Date
         $middlePrompt = $middleHeader + "Image to edit: $beforePng`nObject/concept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n"
-        $middlePrompt | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - *>$null
+        $codexMidOut = $middlePrompt | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - 2>&1
+        $codexMidOut | ForEach-Object { Write-Log $_ }
 
         $images = @(
             Get-ChildItem "$env:USERPROFILE\.codex\generated_images" -Directory -ErrorAction SilentlyContinue |
@@ -513,14 +531,16 @@ Read the image file at the path given below and EDIT it. Keep the same camera po
             # slot to exactly this. The fallback costs continuity, which is a
             # worse cut, not a missing one, so it is logged loudly enough to be
             # noticed in the day's report.
-            Write-Log "Edit-by-reference returned nothing for $concept; falling back to pure generation (continuity will be weaker)."
+            $codexMidTail = @($codexMidOut | Select-Object -Last 20) -join " | "
+            Write-Log "Edit-by-reference returned nothing for $concept; falling back to pure generation (continuity will be weaker). Codex said: $codexMidTail"
             $genStart = Get-Date
             $fallback = @"
 Use the built-in image model only. Do not read any workspace file. Generate ONE portrait 4:5 photo of the object below in a MID-CLEANING state, on the inspection counter of a Taiwanese laundry and shoe-care shop: a light counter with a pink cutting mat, white slat-wall panels behind, shelves of fabric-care bottles softly out of focus. The craftsman's hands are in frame: an adult man's working hands, dry and clean with short unpolished nails, one thin old scar across the back of the left hand, forearms lightly tanned, sleeves of a faded indigo work shirt rolled to just below the elbow, a dark canvas apron edge visible at the frame bottom. No rings, no watch, no gloves. One hand holds a shop tool working a specific worn spot with partial cleaning progress there, the other steadies the item, and the rest of the item is still soiled. Hands anatomically correct: five fingers each, no fusing, no extra hand entering frame. No face, no head, no torso above the elbow. Shot on a phone main camera about 26mm equivalent, chest height angled 20-35 degrees down, handheld with imperfect framing, item filling 45-65% of frame height and sharp, background readable. Storefront window key light from one side, weak fluorescent fill, continuous hard contact shadow under the item. Not cinematic, not studio, no film grain, no waxy surfaces, no readable text, no logo, no faces. Leave the image in your output directory and report the filename.
 
 "@
-            $fallback + "Object/concept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n" |
-                & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - *>$null
+            $codexFbOut = $fallback + "Object/concept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n" |
+                & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - 2>&1
+            $codexFbOut | ForEach-Object { Write-Log $_ }
             $images = @(
                 Get-ChildItem "$env:USERPROFILE\.codex\generated_images" -Directory -ErrorAction SilentlyContinue |
                     Get-ChildItem -File -Filter *.png |
@@ -528,7 +548,8 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
                     Sort-Object LastWriteTime
             )
             if ($images.Count -lt 1) {
-                Write-Log "Codex returned no middle still for $concept, edit and generation both."
+                $codexFbTail = @($codexFbOut | Select-Object -Last 20) -join " | "
+                Write-Log "Codex returned no middle still for $concept, edit and generation both. Codex said: $codexFbTail"
                 Show-Toast "$concept 的中段素材生成失敗，今天沒有產出 15s。"
                 exit 1
             }
@@ -550,7 +571,12 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
             exit 1
         }
         $dst = Join-Path $refs "$concept-$state.png"
-        & ffmpeg -v error -y -i $src -vf "crop=ih*9/16:ih,scale=720:1280:flags=lanczos" $dst 2>&1 | Out-Null
+        $cropOut = & ffmpeg -v error -y -i $src -vf "crop=ih*9/16:ih,scale=720:1280:flags=lanczos" $dst 2>&1
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $dst)) {
+            Write-Log "Still crop failed for $concept-$state (exit $LASTEXITCODE): $cropOut"
+            Show-Toast "$concept 的 $state 靜態圖裁切失敗。"
+            exit 1
+        }
 
         $manifest = Join-Path $run "manifests\$concept-$state.json"
         $out = Join-Path $run "raw\$concept-$state.mp4"
@@ -558,7 +584,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
 
         $generated = $false
         foreach ($attempt in 1, 2) {
-            $template = Get-Content (Join-Path $run "manifests\white-shoe-yellowing-before.json") -Raw | ConvertFrom-Json
+            $template = Get-Content (Join-Path $run "manifests\white-shoe-yellowing-before.json") -Raw -Encoding utf8 | ConvertFrom-Json
             # Middle generation_id carries _middle_ so Hermes idempotency never
             # collides with before/after of the same concept.
             if ($state -eq "middle") {
@@ -629,13 +655,20 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
             $template | ConvertTo-Json -Depth 5 | Set-Content $manifest -Encoding utf8
 
             Write-Log "Generating clip $concept-$state (attempt $attempt)."
+            $shotOut = @()
             try {
-                & (Join-Path $root "..\Codex\2026-06-30\copx\scripts\generate-shot.ps1") `
-                    -Manifest $manifest -Root $run -ConfirmPaidRun -PollTimeoutSeconds 900 `
-                    -OutputReport (Join-Path $run "report-$concept-$state.json") 2>&1 | Out-Null
-            } catch { }
+                $shotOut = @(
+                    & (Join-Path $root "..\Codex\2026-06-30\copx\scripts\generate-shot.ps1") `
+                        -Manifest $manifest -Root $run -ConfirmPaidRun -PollTimeoutSeconds 900 `
+                        -OutputReport (Join-Path $run "report-$concept-$state.json") 2>&1
+                )
+                $shotOut | ForEach-Object { Write-Log $_ }
+            } catch {
+                Write-Log "generate-shot threw: $($_.Exception.Message)"
+                $shotOut = @($_.Exception.Message)
+            }
             if (Test-Path $out) { $generated = $true; break }
-            Write-Log "Attempt $attempt produced no clip for $concept-$state."
+            Write-Log "Attempt $attempt produced no clip for $concept-$state. generate-shot said: $($shotOut -join ' | ')"
         }
 
         if (-not $generated) {
@@ -661,11 +694,12 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
             } else {
                 Write-Log "Middle gain measurement failed; grading with identity."
             }
-            & ffmpeg -v error -y -i $middleRaw `
+            $gradeOut = & ffmpeg -v error -y -i $middleRaw `
                 -vf "colorchannelmixer=rr=$($mR.ToString([Globalization.CultureInfo]::InvariantCulture)):gg=$($mG.ToString([Globalization.CultureInfo]::InvariantCulture)):bb=$($mB.ToString([Globalization.CultureInfo]::InvariantCulture))" `
-                -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -an $middleGraded 2>&1 | Out-Null
-            if (-not (Test-Path $middleGraded)) {
-                Write-Log "Failed to write middle-graded clip for $concept."
+                -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -an $middleGraded 2>&1
+            $gradeOut | ForEach-Object { Write-Log $_ }
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $middleGraded)) {
+                Write-Log "Failed to write middle-graded clip for $concept (exit $LASTEXITCODE): $gradeOut"
                 Show-Toast "$concept 中段校色失敗。"
                 exit 1
             }
@@ -694,9 +728,10 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
     $ttsFile = Join-Path $run "tts\$concept-$voiceTag.mp3"
     if (-not (Test-Path $ttsFile)) {
         Write-Log "Generating narration."
-        python -m edge_tts --voice $narrationVoice --rate=+8% --text $conceptInfo.narration --write-media $ttsFile 2>&1 | Out-Null
-        if (-not (Test-Path $ttsFile)) {
-            Write-Log "Narration failed for $concept."
+        $ttsOut = python -m edge_tts --voice $narrationVoice --rate=+8% --text $conceptInfo.narration --write-media $ttsFile 2>&1
+        $ttsOut | ForEach-Object { Write-Log $_ }
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $ttsFile)) {
+            Write-Log "Narration failed for $concept (exit $LASTEXITCODE): $ttsOut"
             Show-Toast "$concept 的旁白生成失敗，請看 log。"
             exit 1
         }
@@ -708,9 +743,10 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
         $ttsTreated = Join-Path $run ("tts\$concept" + $midSuffix + "-$voiceTag.mp3")
         if (-not (Test-Path $ttsTreated)) {
             Write-Log "Generating treated narration ($midTreatment)."
-            python -m edge_tts --voice $narrationVoice --rate=+8% --text $treatedNarrationText --write-media $ttsTreated 2>&1 | Out-Null
-            if (-not (Test-Path $ttsTreated)) {
-                Write-Log "Treated narration failed for $concept; using base TTS."
+            $ttsTOut = python -m edge_tts --voice $narrationVoice --rate=+8% --text $treatedNarrationText --write-media $ttsTreated 2>&1
+            $ttsTOut | ForEach-Object { Write-Log $_ }
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $ttsTreated)) {
+                Write-Log "Treated narration failed for $concept (exit $LASTEXITCODE); using base TTS. $ttsTOut"
                 $ttsTreated = $ttsFile
             }
         }

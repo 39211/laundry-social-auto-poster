@@ -8,7 +8,7 @@
 //   tsx src/reelSubtitlesCli.ts --narration-file f.txt --audio-seconds 9.312 \
 //     --delay-ms 500 --video-seconds 14.0 --out out.ass
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { narrationAss } from "./reelSubtitles";
 
 function argValue(name: string): string | undefined {
@@ -61,5 +61,18 @@ if (firstCue === undefined || lastCue === undefined) {
   process.exit(3);
 }
 
-writeFileSync(outPath, ass, "utf8");
+const tempPath = `${outPath}.tmp-${process.pid}-${Date.now()}`;
+try {
+  writeFileSync(tempPath, ass, "utf8");
+  renameSync(tempPath, outPath);
+} catch (error) {
+  if (existsSync(tempPath)) {
+    try {
+      unlinkSync(tempPath);
+    } catch {
+      // temp leftover is better than throwing over cleanup
+    }
+  }
+  throw error;
+}
 console.log(`cues=${cues.length} first=${firstCue.start.toFixed(2)}s last=${lastCue.end.toFixed(2)}s`);

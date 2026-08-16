@@ -21,6 +21,7 @@ describe("splitNarration", () => {
     expect(REEL_CONCEPTS.length).toBeGreaterThanOrEqual(24);
     for (const concept of REEL_CONCEPTS) {
       const segments = splitNarration(concept.narration);
+      // Design: join back to the whitespace-normalized source, not raw input.
       const normalized = concept.narration.replace(/\s+/gu, " ").trim();
       expect(segments.join(""), concept.id).toBe(normalized);
       expect(segments.length, concept.id).toBeGreaterThanOrEqual(2);
@@ -55,6 +56,13 @@ describe("splitNarration", () => {
     expect(splitNarration("")).toEqual([]);
     expect(splitNarration("   ")).toEqual([]);
   });
+
+  it("joins back to the whitespace-normalized source, not the raw input", () => {
+    const raw = "甲  乙\n丙";
+    const segments = splitNarration(raw);
+    expect(segments.join("")).toBe("甲 乙 丙");
+    expect(segments.join("")).not.toBe(raw);
+  });
 });
 
 describe("timeSegments", () => {
@@ -77,22 +85,30 @@ describe("timeSegments", () => {
     }
   });
 
-  it("clips to the video end and drops cues that would start after it", () => {
-    const clipped = timeSegments([long, short], {
-      delaySeconds: 0.5,
-      audioSeconds: 10,
-      videoSeconds: 9,
-    });
-    expect(clipped).toHaveLength(2);
-    expect(clipped[1]!.end).toBeCloseTo(9, 5);
-
-    const dropped = timeSegments([long, short], {
+  it("scales the whole timeline onto a shorter video instead of dropping tail cues", () => {
+    const scaled = timeSegments([long, short], {
       delaySeconds: 0.5,
       audioSeconds: 10,
       videoSeconds: 8,
     });
-    expect(dropped).toHaveLength(1);
-    expect(dropped[0]!.end).toBeCloseTo(8, 5);
+    expect(scaled).toHaveLength(2);
+    expect(scaled.map((cue) => cue.text).join("")).toBe(long + short);
+    expect(scaled[0]!.start).toBeCloseTo(0.5 * (8 / 10.5), 5);
+    expect(scaled[1]!.start).toBeCloseTo(scaled[0]!.end, 5);
+    expect(scaled[1]!.end).toBeCloseTo(8, 5);
+    // Character share is preserved after the scale (20/25 of the compressed span).
+    expect(scaled[0]!.end - scaled[0]!.start).toBeCloseTo(8 * (8 / 10.5), 5);
+  });
+
+  it("leaves timing alone when the video is long enough for every cue", () => {
+    const cues = timeSegments([long, short], {
+      delaySeconds: 0.5,
+      audioSeconds: 10,
+      videoSeconds: 14,
+    });
+    expect(cues).toHaveLength(2);
+    expect(cues[0]!.start).toBeCloseTo(0.5, 5);
+    expect(cues[1]!.end).toBeCloseTo(10.5, 5);
   });
 
   it("refuses a non-positive audio duration", () => {
@@ -117,6 +133,11 @@ describe("buildAss", () => {
     ]);
     expect(ass).toContain("Dialogue: 0,0:00:00.50,0:00:03.20,Narration");
     expect(ass).toContain("Dialogue: 0,0:00:04.00,0:01:05.50,Narration");
+  });
+
+  it("rounds half-centisecond boundaries through integer centiseconds", () => {
+    const ass = buildAss([{ text: "邊", start: 1.005, end: 59.995 }]);
+    expect(ass).toContain("Dialogue: 0,0:00:01.01,0:01:00.00,Narration");
   });
 
   it("neutralizes braces so text cannot open a libass override block", () => {

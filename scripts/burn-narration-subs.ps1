@@ -112,6 +112,13 @@ try {
         burned_at        = (Get-Date).ToString("o")
     } | ConvertTo-Json | Set-Content $marker -Encoding utf8
     Write-Host "burn-narration-subs: burned narration subtitles onto $ReelPath ($cliOut)"
+    # Story frames for the eyes-on acceptance pass (see extract-reel-frames).
+    # Best-effort like everything here: frames failing must not cost the reel.
+    try {
+        & (Join-Path $PSScriptRoot "extract-reel-frames.ps1") -ReelPath $ReelPath
+    } catch {
+        Write-Warning "extract-reel-frames failed for ${ReelPath}: $($_.Exception.Message)"
+    }
     exit 0
 } catch {
     $message = $_.Exception.Message

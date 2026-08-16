@@ -53,6 +53,10 @@ describe("subtitle burn wiring", () => {
     expect(burnScript).toMatch(/-c:a copy/u);
   });
 
+  it("every burned reel gets story frames extracted for the eyes-on acceptance pass", () => {
+    expect(burnScript).toMatch(/extract-reel-frames\.ps1"\) -ReelPath \$ReelPath/u);
+  });
+
   it("the burn script degrades without blocking publishing, but leaves a visible marker", () => {
     expect(burnScript).toMatch(/burned\s*=\s*\$false/u);
     expect(burnScript).toMatch(/catch \{[\s\S]*exit 0/u);

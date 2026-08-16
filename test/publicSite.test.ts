@@ -409,7 +409,7 @@ describe("generatePublicSite", () => {
       answer_summary: "逢甲與西屯需要洗鞋，可先把鞋面、鞋底、鞋內與材質照片傳 LINE；私享家門市在青海路二段365號，會先說明清潔方式與可改善範圍，台中市可免費收送。",
       image_url: "https://example.com/laundry-social-auto-poster/assets/services/shoe-bag-care-hero-product.png",
       image_alt: "鞋包清潔前的包角、鞋面與皮革檢查主圖",
-      faq_count: 4
+      faq_count: 6
     });
     expect(discovery.data_quality.all_posts_have_hashtags).toBe(true);
     expect(discovery.latest_posts[0].hashtags).toEqual(["#test"]);
@@ -447,12 +447,10 @@ describe("generatePublicSite", () => {
     expect(robots).toContain("User-agent: OAI-SearchBot");
     expect(robots).toContain("User-agent: ChatGPT-User");
     expect(robots).toContain("User-agent: Claude-Web");
-    expect(robots).toContain("Allow: /services.json");
-    expect(robots).toContain("Allow: /answers.json");
-    expect(robots).toContain("Allow: /geo-targets.json");
-    expect(robots).toContain("Allow: /search-visibility.json");
-    expect(robots).toContain("Allow: /llms.jsonl");
-    expect(robots).toContain("Allow: /llms-full.txt");
+    // `Allow: /` covers every path; per-file Allow lines are redundant and were removed.
+    expect(robots).not.toContain("Allow: /services.json");
+    expect(robots).not.toContain("Allow: /llms.jsonl");
+    expect(robots).not.toContain("Disallow:");
     expect(robots).toContain("Sitemap: https://example.com/laundry-social-auto-poster/sitemap.xml");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/services/shoe-bag-care.html</loc>");
@@ -462,7 +460,11 @@ describe("generatePublicSite", () => {
     expect(sitemap).toContain(
       "<loc>https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html</loc>"
     );
-    expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/posts/2026-07-02-slot-01.html</loc>");
+    // Thin near-duplicate caption pages stay published but out of the indexable surface.
+    expect(sitemap).not.toContain("/posts/");
+    expect(firstPostHtml).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
+    expect(html).toContain('name="robots" content="index, follow, max-image-preview:large"');
+    expect(shoeBagCareHtml).toContain('name="robots" content="index, follow, max-image-preview:large"');
     expect(sitemap).not.toContain("<priority>");
     expect(sitemap).not.toContain("<changefreq>");
     expect(sitemap).not.toContain("index.html");
@@ -472,7 +474,7 @@ describe("generatePublicSite", () => {
     expect(aiSitemap).toContain("<!-- answer-engine-records -->");
     expect(aiSitemap).toContain("<!-- search-intent-and-ai-visibility-review -->");
     expect(aiSitemap).toContain("<!-- calendar-slot-1 -->");
-    expect(aiSitemap).toContain("<!-- published-post-1 -->");
+    expect(aiSitemap).not.toContain("<!-- published-post-1 -->");
     expect(aiSitemap).toContain("<!-- service-image-generated-product-image -->");
     expect(aiSitemap).toContain("<!-- full-context -->");
     expect(aiSitemap).toContain("<!-- business-profile -->");
@@ -776,8 +778,8 @@ describe("generatePublicSite", () => {
           return record.type === "support_answer" && record.do_not_infer?.includes("Do not infer pricing.");
         })
     ).toBe(true);
-    expect(robots).toContain("Allow: /guides/");
-    expect(robots).toContain("Allow: /local/");
+    expect(robots).toContain("Allow: /");
+    expect(robots).not.toContain("Disallow:");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/guides/photo-before-laundry.html</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/guides/shirt-suit-dry-cleaning.html</loc>");
     expect(sitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/guides/bedding-duvet-cleaning.html</loc>");
@@ -852,7 +854,9 @@ describe("generatePublicSite", () => {
     expect(llms).toContain("## Published Posts");
     expect(llms).toContain("2026-07-02 11:30 Sneaker edge inspection");
     expect(llms).toContain("2026-07-03 19:30 Bag corner care");
-    expect(sitemap).toContain("posts/2026-07-02-slot-01.html");
+    // Post pages remain generated and reader-facing, but never enter the sitemap.
+    expect(await exists(join(root, "docs", "posts", "2026-07-02-slot-01.html"))).toBe(true);
+    expect(sitemap).not.toContain("posts/2026-07-02-slot-01.html");
     expect(sitemap).not.toContain("posts/2026-07-03-slot-01.html");
     expect(await exists(join(root, "docs", "posts", "2026-07-03-slot-01.html"))).toBe(false);
   });
@@ -997,12 +1001,11 @@ describe("generatePublicSite", () => {
 
     expect(index.posts).toHaveLength(4);
     expect(index.article_posts).toHaveLength(2);
-    expect(sitemap).toContain("posts/2026-07-04-slot-01.html");
-    expect(sitemap).toContain("posts/2026-07-04-slot-02.html");
+    // Dedup still decides which post pages exist on disk; none of them enter a sitemap.
+    expect(sitemap).not.toContain("/posts/");
+    expect(aiSitemap).not.toContain("/posts/");
     expect(sitemap).not.toContain("posts/2026-07-05-slot-01.html");
     expect(sitemap).not.toContain("posts/2026-07-05-slot-02.html");
-    expect(aiSitemap).toContain("posts/2026-07-04-slot-01.html");
-    expect(aiSitemap).toContain("posts/2026-07-04-slot-02.html");
     expect(aiSitemap).not.toContain("posts/2026-07-05-slot-01.html");
     expect(aiSitemap).not.toContain("posts/2026-07-05-slot-02.html");
     expect(await exists(join(root, "docs", "posts", "2026-07-04-slot-01.html"))).toBe(true);
@@ -1011,7 +1014,14 @@ describe("generatePublicSite", () => {
     expect(await exists(join(root, "docs", "posts", "2026-07-05-slot-02.html"))).toBe(false);
     expect((html.match(/class="post-tile post-card"/g) ?? [])).toHaveLength(4);
     expect(html).toContain("posts/2026-07-04-slot-01.html");
-    expect(html).toContain("content-calendar/2026-07-05.json");
+    // A duplicate-caption post has no article of its own, but "read full post" must still
+    // reach the article that owns that caption — never the raw calendar JSON.
+    const readFullPostHrefs = [...html.matchAll(/<a href="([^"]*)">read full post<\/a>/gu)].map(
+      (match) => match[1]
+    );
+    expect(readFullPostHrefs).toHaveLength(4);
+    expect(readFullPostHrefs.every((href) => href?.includes("/posts/"))).toBe(true);
+    expect(readFullPostHrefs.some((href) => href?.includes(".json"))).toBe(false);
   });
 
   it("publishes the IndexNow key file as ${INDEXNOW_KEY}.txt and removes the legacy indexnow-key.txt", async () => {
@@ -1056,20 +1066,16 @@ describe("generatePublicSite", () => {
     });
 
     const robots = await readFile(join(root, "docs", "robots.txt"), "utf8");
-    const oaiBlock = robots.split("User-agent: OAI-SearchBot").at(1)?.split("User-agent:").at(0) ?? "";
 
+    // OAI-SearchBot must sit in a group whose rule allows the whole site. The per-file Allow
+    // list it used to carry was redundant under `Allow: /`.
     expect(robots).toContain("User-agent: OAI-SearchBot");
-    expect(oaiBlock).toContain("Allow: /llms.txt");
-    expect(oaiBlock).toContain("Allow: /llms-lite.txt");
-    expect(oaiBlock).toContain("Allow: /llms-full.txt");
-    expect(oaiBlock).toContain("Allow: /services.json");
-    expect(oaiBlock).toContain("Allow: /answers.json");
-    expect(oaiBlock).toContain("Allow: /geo-targets.json");
-    expect(oaiBlock).toContain("Allow: /llms.jsonl");
-    expect(oaiBlock).toContain("Allow: /feed.json");
-    expect(oaiBlock).toContain("Allow: /knowledge-graph.json");
-    expect(oaiBlock).toContain("Allow: /guides/");
-    expect(oaiBlock).toContain("Allow: /local/");
+    const afterOai = robots.split("User-agent: OAI-SearchBot").at(1) ?? "";
+    expect(afterOai).toMatch(/^\n(?:User-agent: [^\n]+\n)*Allow: \/\n/u);
+    expect(robots).not.toContain("Disallow:");
+    for (const crawler of ["GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended"]) {
+      expect(robots).toContain(`User-agent: ${crawler}`);
+    }
   });
 
   it("publishes citywide free pickup page with internal links, schema, sitemap, and stable lastmod", async () => {
@@ -1126,13 +1132,24 @@ describe("generatePublicSite", () => {
     expect(pickupHtml).toContain('"@type":"Service"');
     expect(pickupHtml).toContain('"@type":"AdministrativeArea"');
     expect(pickupHtml).toContain('"name":"台中市"');
-    expect(pickupHtml).toContain('"mainEntityOfPage":{"@id":"' + pickupUrl + '#webpage"}');
+    expect(pickupHtml).toContain('"mainEntityOfPage":"' + pickupUrl + '"');
     expect(pickupHtml).toContain('class="breadcrumb"');
     expect(pickupHtml).toContain('<time datetime="2026-07-22">2026-07-22</time>');
     expect(pickupHtml).toContain("相關送洗指南");
     expect(pickupHtml).toContain(`${baseUrl}/guides/photo-before-laundry.html`);
     expect(pickupHtml).not.toContain('"price":0');
     expect(pickupHtml).not.toContain('"price":"0"');
+
+    // The free-pickup differentiator must read as an affirmative fact an answer engine can
+    // quote ("there is no minimum"), never as a refusal to state one ("we do not commit to
+    // a minimum") — the latter reads as "we won't say" and cannot be cited.
+    expect(pickupHtml).toContain("收送沒有最低消費門檻");
+    expect(pickupHtml).toContain("不以單次洗滌滿額作為收送條件");
+    expect(pickupHtml).toContain("免費收送有最低消費門檻嗎？");
+    expect(pickupHtml).not.toContain("未在此承諾處理天數、最低消費金額");
+    expect(homepage).toContain("沒有最低消費門檻");
+    // Still honest about what "no threshold" does not cover.
+    expect(pickupHtml).toContain("收送免費不代表清潔免費");
 
     expect(homepage).toContain(`href="${businessBulkUrl}"`);
     expect(homepage).toContain("店家與公司大量送洗");
@@ -1152,10 +1169,10 @@ describe("generatePublicSite", () => {
         `<loc>${businessBulkUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}</loc><lastmod>2026-07-28</lastmod>`
       )
     );
-    // A post's lastmod is the later of its publication day and the post-template
-    // content date, so a template rewrite tells crawlers to come back; each
-    // intentional content page keeps its own stable date either way.
-    expect(sitemap1).not.toContain("<lastmod>2026-07-02</lastmod>");
+    // Money pages are the indexable surface; caption/post pages are out of the
+    // sitemap entirely (rescued 190d063 design). Date is ours: the static
+    // homepage sections last changed 2026-08-08.
+    expect(sitemap1).not.toContain("/posts/");
     expect(sitemap1).toContain("<lastmod>2026-08-08</lastmod>");
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
@@ -1168,12 +1185,6 @@ describe("generatePublicSite", () => {
         `<loc>${pickupUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}</loc><lastmod>2026-07-22</lastmod>`
       )
     );
-    // The post-template content date wins over the older publication day, so a
-    // template rewrite is visible to crawlers instead of silently unannounced.
-    expect(sitemap1).toMatch(
-      /posts\/2026-07-02-slot-01\.html<\/loc><lastmod>2026-08-08<\/lastmod>/
-    );
-
     // Intentionally updated service pages carry their stable content lastmod.
     const shoeBagEntry =
       sitemap1.match(

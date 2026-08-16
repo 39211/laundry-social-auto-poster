@@ -395,6 +395,11 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
           "清潔可以改善灰塵、泥痕、部分水痕與味道，但氧化、破皮、掉色、長期磨耗或已經滲入材質的痕跡，處理前需要先說清楚。私享家會把可改善和不適合硬處理的地方分開講，避免客人期待落差。"
       },
       {
+        heading: "洗鞋費用怎麼判斷？本頁不列固定價目",
+        body:
+          "本頁不提供洗鞋或洗包的固定金額、價目表、折扣碼或市場行情價。可以先確定的是：台中市內收送本身免費、且沒有最低消費門檻；清潔與洗護費用則要看過物件之後才說明。會影響費用的因素包含材質（皮革、麂皮、帆布、網布、合成皮反應不同）、髒污深度與是否已滲入、膠邊是否氧化或老化、是否需要局部處理、可拆部件多寡，以及件數。取得屬於你這雙鞋的說明只要三步：先拍鞋面、鞋邊、鞋內與整體四張照片，用 LINE 傳給門市，門市會先回覆適合清潔、局部整理還是不建議硬處理，方向確認後再談費用。若搜尋結果出現「某某元起」而不是本店官方頁面，請以 LINE 回覆為準。"
+      },
+      {
         heading: "LINE 詢問怎麼描述",
         body:
           "可以直接傳照片並補一句：下雨後、放很久、常背常穿、或剛弄髒。這些時間線會影響判斷，因為剛沾到的泥灰、已乾掉的水痕、長時間吸附的味道，處理方式會不一樣。"
@@ -438,6 +443,16 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       {
         question: "鞋子或包包送洗前需要先自己刷嗎？",
         answer: "不建議先硬刷。可以先把乾的表面灰塵輕拍掉，再拍照詢問；若材質不明，硬刷或泡水可能讓痕跡更明顯。"
+      },
+      {
+        question: "洗鞋多少錢？為什麼這裡查不到價目表？",
+        answer:
+          "本頁不列固定價目。同樣一雙鞋，材質、髒污深度、膠邊是否氧化、要不要局部處理，處理方式與費用差很多，先報數字容易造成期待落差。可以先確定的是收送本身免費、沒有最低消費門檻；拍鞋面、鞋邊、鞋內與整體四張照片傳 LINE，門市會先說明適合怎麼處理，再談費用。"
+      },
+      {
+        question: "想找便宜的洗鞋，你們適合嗎？",
+        answer:
+          "如果你要的是最低價，本店不是以價格競爭為主。我們的做法是先看材質與痕跡、把可改善與不建議硬處理的部分分開講；不確定材質就硬刷或漂白，短期便宜但可能讓鞋子更難救。先傳照片問，方向不合也可以不送洗。"
       }
     ]
   },
@@ -865,10 +880,10 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     local_query_name: "台中洗衣收送",
     title: "台中免費收送洗衣｜全市到府、LINE 預約｜私享家洗衣店",
     description:
-      "台中免費收送洗衣服務涵蓋全市，收送本身免費、洗護費另計。私享家門市在西屯青海路二段365號，先用 LINE 傳照片預約。",
+      "台中免費收送洗衣服務涵蓋全市，收送沒有最低消費門檻，不需單次洗滌滿額。門市在西屯青海路二段365號，先用 LINE 傳照片預約。",
     h1: "台中免費收送洗衣",
     summary:
-      "私享家洗衣店提供台中全市免費收送服務。門市位置仍在台中市西屯區青海路二段365號；收送範圍涵蓋台中市，不以西屯為限。預約與詢問以 LINE 為主，先傳照片說明衣物、鞋子、包包或布品狀況，再安排後續。",
+      "私享家洗衣店提供台中全市免費收送服務。收送本身免費，且不以單次洗滌滿額作為收送條件——收送沒有最低消費門檻。門市位置仍在台中市西屯區青海路二段365號；收送範圍涵蓋台中市，不以西屯為限。預約與詢問以 LINE 為主，先傳照片說明衣物、鞋子、包包或布品狀況，再安排後續。",
     keywords: ["台中洗衣收送", "台中免費收送", "台中全市收送", "洗衣店收送", "私享家洗衣店", "LINE 預約洗衣"],
     image_hint: "收送",
     image_alt: "台中全市免費洗衣收送服務說明｜私享家洗衣店",
@@ -880,7 +895,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     content_lastmod: "2026-07-22",
     area_served_name: "台中市",
     answer_summary:
-      "私享家洗衣店提供台中全市免費洗衣收送；門市在西屯區青海路二段365號，收送範圍為台中市，主要透過 LINE 預約與傳照片詢問。",
+      "私享家洗衣店提供台中全市免費洗衣收送，且收送沒有最低消費門檻——不因件數少或單次金額未達標準而不收。門市在西屯區青海路二段365號，收送範圍為台中市，主要透過 LINE 預約與傳照片詢問；清潔與洗護費用仍依物件狀態另計。",
     case_story: {
       label: "住在台中其他行政區，也能先用 LINE 問收送",
       situation:
@@ -896,8 +911,8 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
         object: "台中市內住家衣物",
         material: "依洗標與布料判斷",
         concern: "不方便到店，想先確認收送",
-        inspection: "先確認收送範圍為台中市、收送免費，再依照片看衣物狀態。",
-        boundary: "收送免費不等於清潔免費；不報未經確認的處理天數或最低消費。"
+        inspection: "先確認收送範圍為台中市、收送免費、且收送沒有最低消費門檻，再依照片看衣物狀態。",
+        boundary: "收送免費不等於清潔免費：無門檻只指收送條件，清潔與洗護費用仍依物件另計，處理天數需看實際物件。"
       },
       {
         label: "情境 02",
@@ -923,6 +938,11 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
           "可以。私享家洗衣店的收送範圍是台中市全市，收送本身免費。實體門市在台中市西屯區青海路二段365號；收送服務不限於西屯住戶。清潔、洗護或其他整理項目的費用需另依物件狀態判斷，收送免費不代表清潔免費。"
       },
       {
+        heading: "收送沒有最低消費門檻",
+        body:
+          "收送本身免費，且不以單次洗滌滿額作為收送條件。所謂「無門檻」是指：不因件數少、不因單次金額未達某個標準而拒絕收送。一件衣服、一雙鞋也可以先用 LINE 傳照片詢問。需要說清楚的邊界是：無門檻只適用於收送條件，清潔與洗護費用仍依物件材質與狀態另計，也不代表任何處理效果的保證。"
+      },
+      {
         heading: "怎麼預約？",
         body:
           "預約與詢問以 LINE 為主。請先傳照片（整體、局部、材質標籤或最在意的痕跡），並簡單說明所在區域與想整理的品項。門市會先回覆方向，再與您約定收送。LINE：https://line.me/ti/p/4m-rA6hxf6"
@@ -930,7 +950,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       {
         heading: "誠實邊界",
         body:
-          "本頁只說明已確認事實：台中全市可收送、收送免費、以 LINE 為主要預約管道、門市在西屯。未在此承諾處理天數、最低消費金額、清潔報價、固定取件時段或效果保證；這些需看實際物件與當下門市回覆。"
+          "本頁只說明已確認事實：台中全市可收送、收送免費、收送沒有最低消費門檻、以 LINE 為主要預約管道、門市在西屯。處理天數、清潔報價、固定取件時段與效果保證則需看實際物件與當下門市回覆，本頁不先行承諾。"
       },
       {
         heading: "門市與收送的關係",
@@ -948,6 +968,11 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
         item: "收送費用",
         focus: "收送本身免費",
         risk: "清潔與洗護費用另計，不以 price=0 或「全免費」誤解為清潔免錢。"
+      },
+      {
+        item: "收送門檻",
+        focus: "沒有最低消費門檻，不需單次洗滌滿額",
+        risk: "無門檻只指收送條件；清潔費用仍依物件判斷，也不是效果保證。"
       },
       {
         item: "預約管道",
@@ -972,6 +997,16 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       {
         question: "收送流程是什麼？多久會來收？",
         answer: "四步：① LINE 傳照片與大致地址 ② 門市回覆報價與可收時段（營業時間 10:00–20:00 內約定）③ 到府收件 ④ 完成後送回並付款。市區通常隔日內可安排收件，急件先說。"
+      },
+      {
+        question: "免費收送有最低消費門檻嗎？",
+        answer:
+          "收送沒有最低消費門檻。台中市內收送本身免費，不需要單次洗滌滿額才能收；清潔費用依實際物件判斷，與是否收送無關。"
+      },
+      {
+        question: "只有一件衣服或一雙鞋也可以收嗎？",
+        answer:
+          "可以，先用 LINE 傳照片詢問即可。不因件數少而不收；是否適合整理與清潔費用，會在看過物件狀態後說明。"
       },
       {
         question: "怎麼預約收送？",
@@ -1797,6 +1832,46 @@ function buildAnalyticsTag(measurementId: string, sendPageView = true): string {
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config',${JSON.stringify(measurementId)}${options});</script>`;
 }
 
+/**
+ * GitHub Pages project path that serves byte-identical copies of this same docs/ tree.
+ * Google indexed it as a separate result even though every canonical points at the root.
+ */
+const LEGACY_PROJECT_PATH_PREFIX = "/laundry-social-auto-poster/";
+/** GitHub Pages default host. Any custom domain supersedes it as the canonical origin. */
+const GITHUB_PAGES_HOST_SUFFIX = ".github.io";
+
+/**
+ * Host to write into docs/CNAME, or undefined while the site still lives on github.io.
+ * A CNAME file containing a github.io host would make GitHub reject the Pages build.
+ */
+function customDomainHost(siteBaseUrl: string | undefined): string | undefined {
+  if (!siteBaseUrl) return undefined;
+  try {
+    const { hostname } = new URL(siteBaseUrl);
+    return hostname.endsWith(GITHUB_PAGES_HOST_SUFFIX) ? undefined : hostname;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The same docs/ bytes are served from more than one address, so the duplicates cannot be
+ * told apart at build time and GitHub Pages cannot issue a real 301. This fires only when the
+ * page is actually being served from a superseded address — the github.io project path, or
+ * the whole github.io host once a custom domain is canonical — and sends the visitor to the
+ * same document on the canonical origin. `replace` keeps the duplicate out of history.
+ */
+function buildLegacyPathRedirectScript(index: PublicPostIndex): string {
+  if (!index.base_url_configured) return "";
+  const canonicalUrl = new URL(index.canonical_url);
+  const canonicalOrigin = canonicalUrl.origin;
+  // Only treat the github.io host as superseded once we have actually moved off it.
+  const supersededHost = canonicalUrl.hostname.endsWith(GITHUB_PAGES_HOST_SUFFIX)
+    ? ""
+    : `${GITHUB_PAGES_HOST_SUFFIX.slice(1)}`;
+  return `<script>(function(){var p=${JSON.stringify(LEGACY_PROJECT_PATH_PREFIX)},o=${JSON.stringify(canonicalOrigin)},h=${JSON.stringify(supersededHost)},d=location.pathname;if(d.indexOf(p)===0){d="/"+d.slice(p.length);}else if(!(h&&location.hostname.indexOf(h)!==-1)){return;}location.replace(o+d+location.search+location.hash);})();</script>`;
+}
+
 function buildLineRedirectHtml(index: PublicPostIndex, ga4MeasurementId?: string): string {
   const profile = index.business_profile;
   const analytics = buildAnalyticsTag(ga4MeasurementId ?? "", false);
@@ -2050,6 +2125,12 @@ function buildBusinessSchemaNode(index: PublicPostIndex): Record<string, unknown
   if (!business) return undefined;
   const businessNode = { ...(business as Record<string, unknown>) };
   delete businessNode["@context"];
+  // The node is inlined into every page, so carry a stable curated image set instead of
+  // every post image — the full list stays in knowledge-graph.json and ai-discovery.json.
+  const curatedImages = allServiceImages(index)
+    .map((image) => image.image_url)
+    .filter((url) => url.startsWith("https://"));
+  if (curatedImages.length > 0) businessNode.image = Array.from(new Set(curatedImages));
   return businessNode;
 }
 
@@ -2070,15 +2151,21 @@ function buildWebsiteSchemaNode(index: PublicPostIndex): object {
 /** Service node for inlining into any page's @graph that references `<service page>#service`. */
 function buildServiceSchemaNode(service: ServicePageDefinition, index: PublicPostIndex): Record<string, unknown> {
   const canonical = servicePageUrl(service, index);
+  const image = findServiceImage(service, index);
   return {
     "@type": "Service",
     "@id": `${canonical}#service`,
     url: canonical,
+    // Plain URL rather than an @id reference: guide pages embed this node without carrying
+    // the service page's #webpage node, and a bare @id would dangle there. Keeping the value
+    // identical everywhere is what stops the same @id describing two different entities.
+    mainEntityOfPage: canonical,
     name: service.name,
     description: service.summary,
     serviceType: service.name,
     provider: { "@id": `${index.canonical_url}#business` },
     areaServed: serviceAreaServedSchema(service),
+    ...(image?.image_url ? { image: image.image_url } : {}),
     keywords: service.keywords
   };
 }
@@ -2199,6 +2286,11 @@ function homeFaqs(profile: BusinessProfile): ServiceFaq[] {
     {
       question: "台中市哪些地方可以預約洗衣收送？",
       answer: "收送範圍為台中市全區，收送本身免費；清潔、洗護與其他整理費用另依實際物件狀態判斷。"
+    },
+    {
+      question: "免費收送有最低消費門檻嗎？",
+      answer:
+        "收送沒有最低消費門檻。台中市內收送本身免費，不需要單次洗滌滿額才能收送；清潔與洗護費用依實際物件狀態判斷，與是否收送無關。"
     },
     {
       question: "怎麼預約台中洗衣收送？",
@@ -2336,8 +2428,21 @@ function hasArticlePage(post: PublicPost, index: PublicPostIndex): boolean {
   return index.article_posts.some((item) => item.id === post.id);
 }
 
+/**
+ * A post whose caption duplicates an earlier one gets no article page of its own. Its reader
+ * still deserves the article rather than the raw calendar JSON, so fall back to the post that
+ * does own that caption. Only a post with no article anywhere falls through to the JSON.
+ */
+function canonicalArticleFor(post: PublicPost, index: PublicPostIndex): PublicPost | undefined {
+  const own = index.article_posts.find((item) => item.id === post.id);
+  if (own) return own;
+  const caption = normalizedCaptionForArticle(post);
+  if (!caption) return undefined;
+  return index.article_posts.find((item) => normalizedCaptionForArticle(item) === caption);
+}
+
 function postHumanUrl(post: PublicPost, index: PublicPostIndex): string {
-  return hasArticlePage(post, index) ? post.article_url : post.calendar_url;
+  return canonicalArticleFor(post, index)?.article_url ?? post.calendar_url;
 }
 
 function indexNowKeyFileName(key: string): string {
@@ -2468,6 +2573,57 @@ function webpDocsPath(imagePath: string): string | undefined {
   return /\.png$/iu.test(imagePath) ? imagePath.replace(/\.png$/iu, ".webp") : undefined;
 }
 
+/**
+ * Real duration from the mp4's mvhd atom, as an ISO 8601 string for schema.org. Read from the
+ * file because the calendar never carries it — inventing a number would be worse than leaving
+ * the field out, so an unreadable file yields undefined and the property is omitted.
+ */
+function readMp4Duration(videoPath: string): string | undefined {
+  if (!activeDocsRoot || !videoPath) return undefined;
+  const filePath = join(activeDocsRoot, videoPath);
+  if (!existsSync(filePath)) return undefined;
+
+  const fd = openSync(filePath, "r");
+  try {
+    const fileSize = statSync(filePath).size;
+    const header = Buffer.alloc(16);
+    // Walk top-level boxes by their declared size rather than scanning bytes: these files are
+    // not faststart, so moov sits after a multi-megabyte mdat at the end of the file.
+    for (let offset = 0; offset + 8 <= fileSize; ) {
+      if (readSync(fd, header, 0, 16, offset) < 8) return undefined;
+      const declared = header.readUInt32BE(0);
+      const type = header.toString("latin1", 4, 8);
+      const boxSize = declared === 1 ? Number(header.readBigUInt64BE(8)) : declared === 0 ? fileSize - offset : declared;
+      if (!Number.isFinite(boxSize) || boxSize < 8) return undefined;
+      if (type !== "moov") {
+        offset += boxSize;
+        continue;
+      }
+      const moov = Buffer.alloc(Math.min(boxSize, 1024 * 1024));
+      readSync(fd, moov, 0, moov.length, offset);
+      const mvhd = moov.indexOf("mvhd");
+      if (mvhd < 0) return undefined;
+      // mvhd payload: version(1) flags(3), then creation/modification/timescale/duration.
+      const version = moov.readUInt8(mvhd + 4);
+      const base = mvhd + 8;
+      const [timescale, duration] =
+        version === 1
+          ? [moov.readUInt32BE(base + 16), Number(moov.readBigUInt64BE(base + 20))]
+          : [moov.readUInt32BE(base + 8), moov.readUInt32BE(base + 12)];
+      if (!timescale || !duration) return undefined;
+      const seconds = Math.round(duration / timescale);
+      if (seconds <= 0) return undefined;
+      const minutes = Math.floor(seconds / 60);
+      return minutes > 0 ? `PT${minutes}M${seconds % 60}S` : `PT${seconds}S`;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  } finally {
+    closeSync(fd);
+  }
+}
+
 /** webp URL/relative src matching `src`, only when the derivative exists in docs/. */
 function webpSrcFor(imagePath: string, src: string): string | undefined {
   const webpPath = webpDocsPath(imagePath);
@@ -2546,8 +2702,17 @@ function primaryHomeImage(index: PublicPostIndex): PublicImageReference | undefi
   return index.posts[0] ? postImageReference(index.posts[0]) : undefined;
 }
 
-/** Support pages reuse the linked service's hero image, falling back to the homepage hero. */
+/**
+ * Support pages reuse the linked service's hero image. Several guides can share one service,
+ * so prefer an approved post image whose topic actually matches the guide before falling back
+ * to the service hero — otherwise every fabric-storage guide shares one preview image.
+ */
 function supportPageImage(page: SupportPageDefinition, index: PublicPostIndex): PublicImageReference | undefined {
+  const matchedPost = [...index.posts]
+    .reverse()
+    .find((post) => page.keywords.some((keyword) => post.topic.includes(keyword)));
+  if (matchedPost) return postImageReference(matchedPost);
+
   const service = linkedSupportService(page);
   return (service ? findServiceImage(service, index) : undefined) ?? primaryHomeImage(index);
 }
@@ -2591,10 +2756,7 @@ function buildServicePageSchema(service: ServicePageDefinition, index: PublicPos
           : {}),
         ...optionalSchemaDateModified(service.content_lastmod)
       },
-      {
-        ...buildServiceSchemaNode(service, index),
-        mainEntityOfPage: { "@id": `${canonical}#webpage` }
-      },
+      buildServiceSchemaNode(service, index),
       {
         "@type": "FAQPage",
         "@id": `${canonical}#faq`,
@@ -2678,7 +2840,9 @@ function buildSupportPageSchema(page: SupportPageDefinition, index: PublicPostIn
         name: page.h1,
         description: page.summary,
         inLanguage: "zh-Hant-TW",
-        totalTime: "PT5M",
+        // Roughly one minute of checking per step rather than a single hardcoded value.
+        totalTime: `PT${Math.max(3, page.steps.length * 2)}M`,
+        ...(image?.image_url ? { image: { "@type": "ImageObject", contentUrl: image.image_url } } : {}),
         supply: [
           {
             "@type": "HowToSupply",
@@ -3103,29 +3267,29 @@ function buildRobotsText(index: PublicPostIndex): string {
     `# ai-discovery.json: ${index.entrypoints.ai_discovery}`,
     ""
   ];
+  // `Allow: /` already permits every path under it, so the per-file Allow list was ~120
+  // redundant lines that read as posturing rather than configuration. The named agents stay
+  // because an explicit group is what opts them out of any future stricter default.
   for (const crawler of AI_CRAWLERS) {
-    lines.push(
-      `User-agent: ${crawler}`,
-      "Allow: /",
-      "Allow: /llms.txt",
-      "Allow: /llms-lite.txt",
-      "Allow: /llms-full.txt",
-      "Allow: /llms.jsonl",
-      "Allow: /services.json",
-      "Allow: /answers.json",
-      "Allow: /geo-targets.json",
-      "Allow: /search-visibility.json",
-      "Allow: /feed.json",
-      "Allow: /knowledge-graph.json",
-      "Allow: /guides/",
-      "Allow: /local/",
-      ""
-    );
+    lines.push(`User-agent: ${crawler}`);
   }
+  lines.push("Allow: /", "");
   if (index.base_url_configured) lines.push(`Sitemap: ${index.entrypoints.sitemap}`);
   else lines.push("# Sitemap URL will be absolute after PUBLIC_IMAGE_BASE_URL is configured.");
   return `${lines.join("\n")}\n`;
 }
+
+/**
+ * Daily social captions run ~235 unique characters against a fixed template, so the post
+ * pages are thin near-duplicates of each other. Advertising 38 of them made them ~68% of the
+ * sitemap and buried the service and guide pages that actually answer local queries.
+ * They stay published and linked for readers, but out of the indexable surface.
+ */
+const POST_PAGES_INDEXABLE = false;
+/** `follow` keeps the link equity flowing to the service pages the posts point at. */
+const POST_ROBOTS_CONTENT = POST_PAGES_INDEXABLE
+  ? "index, follow, max-image-preview:large"
+  : "noindex, follow, max-image-preview:large";
 
 function buildSitemapXml(index: PublicPostIndex): string {
   const urls = index.base_url_configured
@@ -3133,7 +3297,7 @@ function buildSitemapXml(index: PublicPostIndex): string {
         index.canonical_url,
         ...Object.values(index.entrypoints.service_pages),
         ...Object.values(index.entrypoints.support_pages),
-        ...index.article_posts.map((post) => post.article_url)
+        ...(POST_PAGES_INDEXABLE ? index.article_posts.map((post) => post.article_url) : [])
       ]
     : [];
   const uniqueUrls = Array.from(new Set(urls));
@@ -3175,7 +3339,10 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
         { loc: index.entrypoints.feed, purpose: "updates-feed" },
         { loc: index.entrypoints.social_posts, purpose: "post-records" },
         { loc: index.entrypoints.latest, purpose: "latest-package" },
-        ...index.article_posts.map((post) => ({ loc: post.article_url, purpose: `published-post-${post.slot}` })),
+        // Post pages carry noindex; advertising them in any sitemap contradicts that.
+        ...(POST_PAGES_INDEXABLE
+          ? index.article_posts.map((post) => ({ loc: post.article_url, purpose: `published-post-${post.slot}` }))
+          : []),
         ...allServiceImages(index).map((image) => ({ loc: image.image_url, purpose: `service-image-${image.source_type}` })),
         ...index.posts.map((post) => ({ loc: post.calendar_url, purpose: `calendar-slot-${post.slot}` })),
         ...index.posts.map((post) => ({ loc: post.image_url, purpose: `image-slot-${post.slot}` }))
@@ -3757,15 +3924,8 @@ function buildKnowledgeGraph(index: PublicPostIndex): object {
     "@context": "https://schema.org",
     "@graph": [
       businessNode,
-      {
-        "@type": "WebSite",
-        "@id": `${index.canonical_url}#website`,
-        name: SITE_NAME,
-        url: index.canonical_url,
-        inLanguage: "zh-Hant",
-        description: SITE_DESCRIPTION,
-        publisher: business ? { "@id": `${index.canonical_url}#business` } : undefined
-      },
+      // Same @id as the node inlined on every page — keep them byte-identical.
+      buildWebsiteSchemaNode(index),
       {
         "@type": "WebPage",
         "@id": `${index.canonical_url}#webpage`,
@@ -3830,18 +3990,9 @@ function buildKnowledgeGraph(index: PublicPostIndex): object {
                 }
               : {})
           },
-          {
-            "@type": "Service",
-            "@id": `${canonical}#service`,
-            name: service.name,
-            description: service.answer_summary,
-            serviceType: service.name,
-            mainEntityOfPage: { "@id": `${canonical}#webpage` },
-            provider: business ? { "@id": `${index.canonical_url}#business` } : undefined,
-            areaServed: serviceAreaServedSchema(service),
-            keywords: service.keywords,
-            url: canonical
-          },
+          // Same @id as the service page's node, so it must be emitted identically —
+          // differing content under one @id is a cross-document entity conflict.
+          buildServiceSchemaNode(service, index),
           {
             "@type": "FAQPage",
             "@id": `${canonical}#faq`,
@@ -4376,6 +4527,13 @@ function homepagePostGroups(posts: PublicPost[]): {
   };
 }
 
+/** Real pixel size for a post's ImageObject, so schema matches the rendered <img>. */
+function postImageSchemaSize(post: PublicPost): { width: number; height: number } | Record<string, never> {
+  if (!post.image_path) return {};
+  const { width, height } = imagePixelSize(post.image_path, POST_IMAGE_FALLBACK_SIZE);
+  return { width, height };
+}
+
 function captionPreview(caption: string): string {
   return caption
     .split(/\n\s*\n/)
@@ -4404,7 +4562,8 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       inLanguage: "zh-Hant-TW",
       author: { "@id": `${index.canonical_url}#business` },
       publisher: { "@id": `${index.canonical_url}#business` },
-      image: { "@type": "ImageObject", contentUrl: post.image_url, caption: `${post.topic} - ${profile.name}` },
+      isPartOf: { "@id": `${index.canonical_url}#website` },
+      image: { "@id": `${post.article_url}#image` },
       ...(post.video_url ? { video: { "@id": `${post.article_url}#video` } } : {}),
       about: { "@id": `${index.canonical_url}#business` },
       keywords: Array.from(
@@ -4417,6 +4576,7 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       url: post.article_url,
       name: post.topic,
       description,
+      inLanguage: "zh-Hant-TW",
       isPartOf: { "@id": `${index.canonical_url}#website` },
       about: { "@id": `${index.canonical_url}#business` },
       mainEntity: { "@id": `${post.article_url}#article` },
@@ -4427,6 +4587,7 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       "@type": "ImageObject",
       "@id": `${post.article_url}#image`,
       contentUrl: post.image_url,
+      ...postImageSchemaSize(post),
       caption: `${post.topic} - ${profile.name}`
     },
     {
@@ -4447,6 +4608,7 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       thumbnailUrl: post.image_url,
       contentUrl: post.video_url,
       uploadDate: post.date_published,
+      ...(readMp4Duration(post.video_path) ? { duration: readMp4Duration(post.video_path) } : {}),
       inLanguage: "zh-Hant-TW"
     });
   }
@@ -4688,10 +4850,11 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
 <html lang="zh-Hant-TW">
   <head>
     <meta charset="utf-8" />
+    ${buildLegacyPathRedirectScript(index)}
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="${escapeHtml(description)}" />
-    <meta name="robots" content="index, follow, max-image-preview:large" />
-    <meta name="googlebot" content="index, follow, max-image-preview:large" />
+    <meta name="robots" content="${POST_ROBOTS_CONTENT}" />
+    <meta name="googlebot" content="${POST_ROBOTS_CONTENT}" />
     <meta name="author" content="${escapeHtml(profile.name)}" />
     <meta name="theme-color" content="#f5f5f7" />
     <link rel="canonical" href="${escapeHtml(canonical)}" />
@@ -4743,7 +4906,9 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
         <figure class="service-photo">
           ${
             post.video_url
-              ? `<video src="${escapeHtml(post.video_url)}" poster="${escapeHtml(imageSrc)}" controls playsinline preload="metadata" aria-label="${escapeHtml(`${post.topic} - ${profile.name}`)}"></video>`
+              ? // The poster is what the reader stares at before pressing play, so serve the
+                // webp derivative when one exists rather than the multi-megabyte PNG.
+                `<video src="${escapeHtml(post.video_url)}" poster="${escapeHtml(webpSrcFor(post.image_path, imageSrc) ?? imageSrc)}" controls playsinline preload="metadata" aria-label="${escapeHtml(`${post.topic} - ${profile.name}`)}"></video>`
               : responsiveImageHtml({
                   imagePath: post.image_path,
                   src: imageSrc,
@@ -4787,7 +4952,14 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
 function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: BusinessProfile): string {
   const imageSrc = visibleImageSrc(post, index);
   const preview = captionPreview(post.facebook_caption);
-  const articleHref = hasArticlePage(post, index) ? post.article_url : post.calendar_path;
+  // Prefer this post's own article, then the article owning its caption; raw calendar JSON is
+  // a last resort because a reader clicking "read full post" should never land on JSON.
+  const canonicalArticle = canonicalArticleFor(post, index);
+  const articleHref = canonicalArticle
+    ? hasArticlePage(post, index)
+      ? post.article_url
+      : canonicalArticle.article_url
+    : post.calendar_path;
   return `<article class="post-tile post-card">
         <h3>${escapeHtml(post.topic)}</h3>
         <p><strong>${escapeHtml(post.date)} ${escapeHtml(post.time)}</strong>｜${escapeHtml(post.content_role)} / ${escapeHtml(post.visual_route)} / ${escapeHtml(post.traffic_route)}</p>
@@ -4923,6 +5095,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
 <html lang="zh-Hant-TW">
   <head>
     <meta charset="utf-8" />
+    ${buildLegacyPathRedirectScript(index)}
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="${escapeHtml(SITE_DESCRIPTION)}" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
@@ -5024,7 +5197,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <div class="section-header">
             <p class="eyebrow">Pickup &amp; delivery</p>
             <h2>台中全市免費洗衣收送</h2>
-            <p class="section-copy">收送範圍為台中市全市，收送本身免費；清潔與洗護費用另計。門市在西屯區青海路二段365號。預約與詢問以 <a href="${escapeHtml(lineHref)}">LINE</a> 為主，先傳照片再約定收送。</p>
+            <p class="section-copy">收送範圍為台中市全市，<strong>收送本身免費，且沒有最低消費門檻</strong>——不需要單次洗滌滿額才能收送，一件也可以先問。清潔與洗護費用則依物件狀態另計。門市在西屯區青海路二段365號。預約與詢問以 <a href="${escapeHtml(lineHref)}">LINE</a> 為主，先傳照片再約定收送。</p>
           </div>
           <div class="link-row">
             <a class="primary-link" href="${escapeHtml(citywidePickupUrl)}">閱讀收送說明頁</a>
@@ -5171,6 +5344,7 @@ function buildNotFoundHtml(index: PublicPostIndex): string {
 <html lang="zh-Hant-TW">
   <head>
     <meta charset="utf-8" />
+    ${buildLegacyPathRedirectScript(index)}
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, follow" />
     <meta http-equiv="refresh" content="0; url=${escapeHtml(homeHref)}" />
@@ -5286,6 +5460,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
 <html lang="zh-Hant-TW">
   <head>
     <meta charset="utf-8" />
+    ${buildLegacyPathRedirectScript(index)}
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="${description}" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
@@ -5473,6 +5648,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
 <html lang="zh-Hant-TW">
   <head>
     <meta charset="utf-8" />
+    ${buildLegacyPathRedirectScript(index)}
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="${description}" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
@@ -5923,6 +6099,12 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     ...Object.fromEntries(SUPPORT_PAGE_DEFINITIONS.map((page) => [`supportPage-${page.slug}`, join(docsRoot, page.path)])),
     nojekyll: join(docsRoot, ".nojekyll")
   };
+  // publishPages mirrors docs/ into the root Pages repo by clearing it first, so a CNAME that
+  // only lived in the repo settings would be wiped on the next publish. Emit it as part of the
+  // build whenever the site is served from a custom domain.
+  const cnameHost = customDomainHost(siteBaseUrl);
+  if (cnameHost) await writeFile(join(docsRoot, "CNAME"), `${cnameHost}\n`, "utf8");
+  else await unlink(join(docsRoot, "CNAME")).catch(() => undefined);
 
   await writeJsonAtomic(outputs.socialPosts, index);
   await writeJsonAtomic(outputs.businessProfile, businessProfile);

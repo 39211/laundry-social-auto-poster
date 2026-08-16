@@ -225,7 +225,10 @@ export function publishPagesAssets(date: string, root = projectRoot(), rootPages
     "docs/feed.json",
     "docs/knowledge-graph.json",
     "docs/ai-discovery.json",
-    "docs/.nojekyll"
+    "docs/.nojekyll",
+    // GitHub Pages reads the custom domain from this file. The root mirror is cleared and
+    // recopied from docs/ on every publish, so leaving it out would drop the domain each time.
+    "docs/CNAME"
   ];
   const paths = existingPublishPaths(root, [assetDir, ...publicSiteFiles, ...indexNowKeyPublishPaths(root)]);
 

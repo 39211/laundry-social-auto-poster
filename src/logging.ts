@@ -263,6 +263,26 @@ export function hasRecordedPost(
   });
 }
 
+/**
+ * Approval that publishing may act on. A forced approval is a human override
+ * recorded for audit; it is consent to exist in the log, not consent to
+ * publish. hasApprovedPost keeps answering "was anything approved" for
+ * idempotence checks; this answers the only question publishing may ask.
+ */
+export function hasPublishableApproval(
+  entries: ApprovalLogEntry[],
+  slot: number,
+  platform: Platform
+): boolean {
+  return entries.some(
+    (entry) =>
+      entry.slot === slot &&
+      entry.platform === platform &&
+      entry.status === "approved" &&
+      !entry.forced
+  );
+}
+
 export function hasApprovedPost(entries: ApprovalLogEntry[], slot: number, platform: Platform): boolean {
   return entries.some(
     (entry) => entry.slot === slot && entry.platform === platform && entry.status === "approved"

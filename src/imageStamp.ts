@@ -222,8 +222,15 @@ export async function imagesDifferFromApproval(
   assets: Array<{ local_image_path: string }>,
   snapshot: ApprovedImageDigests | undefined
 ): Promise<string[]> {
-  const approved = snapshot?.[String(slot.slot)];
-  if (!approved) return [];
+  const key = String(slot.slot);
+  if (!snapshot || !Object.hasOwn(snapshot, key)) return [];
+  const approved = snapshot[key];
+  // A slot key that exists but holds junk is not "no snapshot". Callers that
+  // guard first never reach this; callers that forget must get a finding, not
+  // a silent pass -- null under the key used to read as a pre-snapshot day.
+  if (!isApprovedSlotDigestMap(approved)) {
+    return [`slot ${slot.slot} image-digest entry is not a digest map; refusing to treat it as approval evidence`];
+  }
 
   const problems: string[] = [];
   for (const asset of assets) {
@@ -274,6 +281,48 @@ export async function imagesChangedSinceStamp(
     }
   }
   return changed;
+}
+
+
+/**
+ * The digest file, read without collapsing its three states.
+ *
+ * `loadApprovedImageDigests` returns undefined for both "no file" and "file is
+ * damaged", and publishing treated undefined as "pre-snapshot day, use the
+ * weaker check" -- which turned deleting or corrupting the sidecar into a
+ * downgrade attack. Absent is legacy; damaged is refusal.
+ */
+export type ApprovedImageDigestFile =
+  | { kind: "absent" }
+  | { kind: "unusable" }
+  | { kind: "ready"; snapshot: ApprovedImageDigests };
+
+export async function inspectApprovedImageDigestFile(
+  root: string,
+  date: string
+): Promise<ApprovedImageDigestFile> {
+  let raw: string;
+  try {
+    raw = await readFile(imageDigestsPath(root, date), "utf8");
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException | null)?.code;
+    // Only a missing file is a pre-snapshot day. A file that exists but cannot
+    // be read still claims an approval happened; it must not read as legacy.
+    return code === "ENOENT" ? { kind: "absent" } : { kind: "unusable" };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { kind: "unusable" };
+    return { kind: "ready", snapshot: parsed as ApprovedImageDigests };
+  } catch {
+    return { kind: "unusable" };
+  }
+}
+
+/** A slot entry must be a plain map of image path to sha256 string. */
+export function isApprovedSlotDigestMap(value: unknown): value is Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.values(value).every((item) => typeof item === "string");
 }
 
 export interface ImageSourceLike {

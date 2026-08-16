@@ -301,8 +301,17 @@ export async function autoApprove(
   }
 
   const approvals = await loadApprovalLog(date, root);
-  const pending = content.slots.filter((slot) =>
-    PLATFORMS.some((platform) => !hasApprovedPost(approvals, slot.slot, platform))
+  // A slot also counts as pending when it is approved but its image-digest
+  // snapshot is missing. Approval writes the log and the snapshot as two files,
+  // so a crash between them (or a deleted sidecar) used to leave a slot that
+  // publishing refuses and re-approval never revisits -- approved on paper,
+  // unpublishable in practice, forever. Re-judging it runs every gate again and
+  // rebuilds the snapshot from bytes that just passed those gates.
+  const digestsOnDisk = (await loadApprovedImageDigests(root, date)) ?? {};
+  const pending = content.slots.filter(
+    (slot) =>
+      PLATFORMS.some((platform) => !hasApprovedPost(approvals, slot.slot, platform)) ||
+      (imageAssetsForSlot(slot).length > 0 && !digestsOnDisk[String(slot.slot)])
   );
   if (pending.length === 0) {
     return {

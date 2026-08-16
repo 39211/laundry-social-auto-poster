@@ -6,11 +6,13 @@ import { getConfig } from "../src/config";
 import { buildDailyContent } from "../src/contentPlan";
 import { generateDailyContent } from "../src/generateDailyContent";
 import {
+  loadApprovalLog,
   loadDailyContent,
   loadPostLog,
   loadVideoRepairQueue,
   markVideoRepairReady,
   resolveVideoRepairQueue,
+  writeApprovalLog,
   writePostLog
 } from "../src/logging";
 import { classifyVideoFailure, postCurrentSlot } from "../src/postCurrentSlot";
@@ -33,11 +35,29 @@ async function approveSlot(root: string, date: string, slot = 1): Promise<void> 
     approvedBy: "Test",
     note: "Test approval",
     root,
-    // These fixtures exercise publishing, not image provenance, and do not
-    // build stamps. Approval refuses unproven images now, so the override is
-    // explicit here rather than the check being weakened for everyone.
+    // These fixtures exercise publishing, not image provenance. Approval
+    // refuses unproven images, so --force writes the digest snapshot; the
+    // forced flag is then stripped so the grant is a clean publishable one.
     force: true
   });
+  const entries = await loadApprovalLog(date, root);
+  await writeApprovalLog(
+    date,
+    entries.map((entry) =>
+      entry.slot === slot && entry.forced === true
+        ? {
+            date: entry.date,
+            slot: entry.slot,
+            platform: entry.platform,
+            status: entry.status,
+            approved_by: entry.approved_by,
+            note: entry.note,
+            created_at: entry.created_at
+          }
+        : entry
+    ),
+    root
+  );
 }
 
 describe("postCurrentSlot dry-run integration", () => {
@@ -445,9 +465,12 @@ describe("postCurrentSlot dry-run integration", () => {
     const root = await mkdtemp(join(tmpdir(), "laundry-social-missed-"));
     const date = "2026-05-15";
     await generateDailyContent({ date, root, force: true });
-    await approveSlot(root, date);
     await mkdir(join(root, "docs", "assets", date), { recursive: true });
     await writeFile(join(root, "docs", "assets", date, "slot-01.png"), "fake image");
+    // Images have to exist before approval writes the digest snapshot;
+    // otherwise the live publish gate sees an empty slot map and refuses
+    // the file as something added after consent.
+    await approveSlot(root, date);
     await writePostLog(
       date,
       [
@@ -487,6 +510,41 @@ describe("postCurrentSlot dry-run integration", () => {
     expect(results.map((entry) => entry.status)).toEqual(["skipped", "skipped"]);
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(await loadPostLog(date, root)).toHaveLength(2);
+  });
+
+  it("refuses a live publish when the only approval is forced", async () => {
+    vi.stubEnv("DRY_RUN", "false");
+    vi.stubEnv("META_ACCESS_TOKEN", "EAAabcdefghijklmnopqrstuvwxyz1234567890");
+    vi.stubEnv("FB_PAGE_ID", "123456789012345");
+    vi.stubEnv("IG_USER_ID", "12345678901234567");
+    vi.stubEnv("ALLOW_OFF_SCHEDULE_PUBLISH", "true");
+
+    const root = await mkdtemp(join(tmpdir(), "laundry-social-forced-live-"));
+    const date = "2026-05-15";
+    await generateDailyContent({ date, root, force: true });
+    await mkdir(join(root, "docs", "assets", date), { recursive: true });
+    await writeFile(join(root, "docs", "assets", date, "slot-01.png"), "fake image");
+    await approvePost({
+      date,
+      slot: 1,
+      platforms: ["facebook", "instagram"],
+      approvedBy: "Owner",
+      root,
+      force: true
+    });
+
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    await expect(
+      postCurrentSlot({
+        root,
+        now: "2026-05-15T11:30:00+08:00",
+        dryRun: false,
+        verifyPublicImageUrl: false,
+        fetchImpl
+      })
+    ).rejects.toThrow(/forced/);
+
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("refuses to post without approval records", async () => {

@@ -1,12 +1,14 @@
 import { createHash } from "node:crypto";
-import { access, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { autoApprove } from "../src/autoApprove";
 import {
+  imageDigestsPath,
   imagesChangedSinceStamp,
   imagesDifferFromApproval,
+  inspectApprovedImageDigestFile,
   loadApprovedImageDigests
 } from "../src/imageStamp";
 import { markImageSource } from "../src/markImageSource";
@@ -373,6 +375,26 @@ describe("what the approval gate refuses", () => {
       expect(byApproval[0]).toContain("不是被核准的那一張");
     });
 
+    function stubLiveMetaEnv(): void {
+      vi.stubEnv("DRY_RUN", "false");
+      vi.stubEnv("PUBLIC_IMAGE_BASE_URL", "https://example.com/laundry");
+      vi.stubEnv("META_ACCESS_TOKEN", "EAAabcdefghijklmnopqrstuvwxyz1234567890");
+      vi.stubEnv("FB_PAGE_ID", "123456789012345");
+      vi.stubEnv("IG_USER_ID", "12345678901234567");
+    }
+
+    function livePublishSlot1(fetchImpl: typeof fetch) {
+      return postCurrentSlot({
+        root,
+        date: DATE,
+        slot: 1,
+        now: `${DATE}T11:30:00+08:00`,
+        dryRun: false,
+        verifyPublicImageUrl: false,
+        fetchImpl
+      });
+    }
+
     it("is wired into the live publish boundary before any Meta call or post log", async () => {
       const swappedSlide = SLOTS[0]!.paths[2]!;
       const approval = await autoApprove({ date: DATE, root });
@@ -406,6 +428,137 @@ describe("what the approval gate refuses", () => {
       await expect(
         access(join(root, "data", "publish-locks", `${DATE}-slot1.lock`))
       ).rejects.toMatchObject({ code: "ENOENT" });
+    });
+
+    it("on a pre-snapshot day still blocks a swap that was not re-stamped", async () => {
+      const hero = SLOTS[0]!.paths[0]!;
+      await autoApprove({ date: DATE, root });
+      await unlink(imageDigestsPath(root, DATE));
+      await writeFile(join(root, ...hero.split("/")), png("swapped on a day with no digest file"));
+
+      stubLiveMetaEnv();
+      const fetchImpl = vi.fn() as unknown as typeof fetch;
+      await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(
+        /images changed after approval:[\s\S]*slot-01\.png/
+      );
+      expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it("on a pre-snapshot day does not refuse matching stamps just because the digest file is absent", async () => {
+      await autoApprove({ date: DATE, root });
+      await unlink(imageDigestsPath(root, DATE));
+
+      stubLiveMetaEnv();
+      const fetchImpl = vi.fn() as unknown as typeof fetch;
+      await expect(livePublishSlot1(fetchImpl)).rejects.not.toThrow(
+        /images changed after approval|image-digest|digest file|digest entry/
+      );
+      expect(fetchImpl).toHaveBeenCalled();
+    });
+
+    it("refuses a digest slot whose value is null instead of a map, and does not call Meta", async () => {
+      await autoApprove({ date: DATE, root });
+      await writeFile(imageDigestsPath(root, DATE), JSON.stringify({ "1": null }), "utf8");
+
+      stubLiveMetaEnv();
+      const fetchImpl = vi.fn() as unknown as typeof fetch;
+      await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(/Slot 1[\s\S]*not a digest map/);
+      expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it("imagesDifferFromApproval reports a present non-map slot instead of fail-opening", async () => {
+      const hero = SLOTS[0]!.paths[0]!;
+      const cases: unknown[] = [null, [], "deadbeef", 0, false];
+      for (const value of cases) {
+        const differ = await imagesDifferFromApproval(
+          root,
+          SLOTS[0]!,
+          [{ local_image_path: hero }],
+          { "1": value } as never
+        );
+        expect(differ.length, `value=${JSON.stringify(value)}`).toBeGreaterThan(0);
+        expect(differ[0], `value=${JSON.stringify(value)}`).toMatch(/not a digest map/);
+      }
+    });
+
+    it("still treats an empty slot map as a real snapshot, not as a non-map", async () => {
+      const hero = SLOTS[0]!.paths[0]!;
+      const differ = await imagesDifferFromApproval(
+        root,
+        SLOTS[0]!,
+        [{ local_image_path: hero }],
+        { "1": {} }
+      );
+      expect(differ.join("\n")).not.toMatch(/not a digest map/);
+      expect(differ[0]).toContain("不在核准當下的圖片清單裡");
+    });
+
+    it("refuses a day whose digest file exists but has no key for the slot, even after a re-stamp", async () => {
+      const hero = SLOTS[0]!.paths[0]!;
+      await autoApprove({ date: DATE, root });
+      const path = imageDigestsPath(root, DATE);
+      const snapshot = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+      delete snapshot["1"];
+      await writeFile(path, JSON.stringify(snapshot), "utf8");
+
+      await writeFile(join(root, ...hero.split("/")), png("swapped then restamped"));
+      await markImageSource({
+        root,
+        date: DATE,
+        slot: 1,
+        source: "gpt-image-2",
+        imagePath: hero
+      });
+
+      stubLiveMetaEnv();
+      const fetchImpl = vi.fn() as unknown as typeof fetch;
+      await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(/no image-digest entry/);
+      expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it("refuses a digest file that parses to null", async () => {
+      await autoApprove({ date: DATE, root });
+      await writeFile(imageDigestsPath(root, DATE), "null", "utf8");
+
+      stubLiveMetaEnv();
+      const fetchImpl = vi.fn() as unknown as typeof fetch;
+      await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(
+        /damaged or not a plain object/
+      );
+      expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it("refuses a digest file that is not JSON", async () => {
+      await autoApprove({ date: DATE, root });
+      await writeFile(imageDigestsPath(root, DATE), "{ not json", "utf8");
+
+      stubLiveMetaEnv();
+      const fetchImpl = vi.fn() as unknown as typeof fetch;
+      await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(
+        /damaged or not a plain object/
+      );
+      expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it("keeps loadApprovedImageDigests collapsing every failure so approval can still start from {}", async () => {
+      expect(await loadApprovedImageDigests(root, DATE)).toBeUndefined();
+      expect(await inspectApprovedImageDigestFile(root, DATE)).toEqual({ kind: "absent" });
+
+      await mkdir(join(root, "data", "approved-log"), { recursive: true });
+      await writeFile(imageDigestsPath(root, DATE), "null", "utf8");
+      expect(await loadApprovedImageDigests(root, DATE)).toBeUndefined();
+      expect(await inspectApprovedImageDigestFile(root, DATE)).toEqual({ kind: "unusable" });
+
+      await writeFile(imageDigestsPath(root, DATE), "{ not json", "utf8");
+      expect(await loadApprovedImageDigests(root, DATE)).toBeUndefined();
+      expect(await inspectApprovedImageDigestFile(root, DATE)).toEqual({ kind: "unusable" });
+
+      await writeFile(imageDigestsPath(root, DATE), JSON.stringify({ "2": {} }), "utf8");
+      expect(await loadApprovedImageDigests(root, DATE)).toEqual({ "2": {} });
+      expect(await inspectApprovedImageDigestFile(root, DATE)).toEqual({
+        kind: "ready",
+        snapshot: { "2": {} }
+      });
     });
 
     it("treats an image approval never saw as a change", async () => {

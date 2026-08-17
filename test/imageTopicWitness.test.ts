@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { autoApprove } from "../src/autoApprove";
+import { stampDailyContentWrite } from "../src/contentPlan";
 import {
   imageDigestsPath,
   imagesChangedSinceStamp,
@@ -72,6 +73,7 @@ function calendarSlot(spec: SlotSpec) {
     instagram_caption: "caption",
     facebook_caption: "caption",
     visual_route: "macro-detail",
+    traffic_route: "object-proof",
     media_type: "image",
     local_image_path: hero,
     public_image_url: `https://example.com/${hero}`,
@@ -92,19 +94,23 @@ function calendarSlot(spec: SlotSpec) {
   };
 }
 
+async function writeCalendar(calendar: Parameters<typeof stampDailyContentWrite>[0]): Promise<void> {
+  await writeFile(
+    join(root, "data", "content-calendar", `${DATE}.json`),
+    JSON.stringify(stampDailyContentWrite(calendar, { root }), null, 2),
+    "utf8"
+  );
+}
+
 /** A day where every gate should pass: calendar, policy, manifest, files, stamps. */
 async function seedHealthyDay(): Promise<void> {
   await mkdir(join(root, "data", "content-calendar"), { recursive: true });
-  await writeFile(
-    join(root, "data", "content-calendar", `${DATE}.json`),
-    JSON.stringify({
-      date: DATE,
-      timezone: "Asia/Taipei",
-      generated_at: new Date().toISOString(),
-      slots: SLOTS.map(calendarSlot)
-    }),
-    "utf8"
-  );
+  await writeCalendar({
+    date: DATE,
+    timezone: "Asia/Taipei",
+    generated_at: new Date().toISOString(),
+    slots: SLOTS.map(calendarSlot)
+  } as Parameters<typeof stampDailyContentWrite>[0]);
   await writeFile(
     join(root, "data", "publishing-policy.json"),
     JSON.stringify({
@@ -191,7 +197,7 @@ describe("the stamp each image file carries", () => {
     const calendarPath = join(root, "data", "content-calendar", `${DATE}.json`);
     const calendar = JSON.parse(await readFile(calendarPath, "utf8"));
     calendar.slots[0].topic = "完全不同的主題";
-    await writeFile(calendarPath, JSON.stringify(calendar), "utf8");
+    await writeCalendar(calendar);
 
     await expect(
       markImageSource({ root, date: DATE, slot: 1, source: "gpt-image-2", imagePath: hero })
@@ -210,7 +216,7 @@ describe("what the approval gate refuses", () => {
     const calendarPath = join(root, "data", "content-calendar", `${DATE}.json`);
     const calendar = JSON.parse(await readFile(calendarPath, "utf8"));
     calendar.slots[0].topic = "先看懂：白鞋鞋邊泛灰前的檢查";
-    await writeFile(calendarPath, JSON.stringify(calendar), "utf8");
+    await writeCalendar(calendar);
 
     const manifestPath = join(root, "data", "image-prompts", `${DATE}.json`);
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
@@ -236,7 +242,7 @@ describe("what the approval gate refuses", () => {
     const calendarPath = join(root, "data", "content-calendar", `${DATE}.json`);
     const calendar = JSON.parse(await readFile(calendarPath, "utf8"));
     calendar.slots[0].topic = "可收藏：白鞋鞋邊泛灰前的檢查";
-    await writeFile(calendarPath, JSON.stringify(calendar), "utf8");
+    await writeCalendar(calendar);
 
     const manifestPath = join(root, "data", "image-prompts", `${DATE}.json`);
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
@@ -739,7 +745,7 @@ describe("what the approval gate refuses", () => {
     const calendarPath = join(root, "data", "content-calendar", `${DATE}.json`);
     const calendar = JSON.parse(await readFile(calendarPath, "utf8"));
     calendar.slots[0].topic = "完全不同的主題";
-    await writeFile(calendarPath, JSON.stringify(calendar), "utf8");
+    await writeCalendar(calendar);
 
     await expect(
       markImageSource({ root, date: DATE, slot: 1, source: "gpt-image-2", imagePath: hero })

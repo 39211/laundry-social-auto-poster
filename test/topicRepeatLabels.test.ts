@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { autoApprove } from "../src/autoApprove";
+import { stampDailyContentWrite } from "../src/contentPlan";
 
 // The seven-day repeat gate compares the leading characters of slot 1's topic,
 // to catch the makeup-bag package that ran four times in five days. It kept its
@@ -21,26 +22,32 @@ let root: string;
 async function writeCalendar(date: string, slot1Topic: string): Promise<void> {
   await writeFile(
     join(root, "data", "content-calendar", `${date}.json`),
-    JSON.stringify({
-      date,
-      timezone: "Asia/Taipei",
-      generated_at: new Date().toISOString(),
-      slots: [1, 2].map((slot) => ({
-        slot,
-        time: slot === 1 ? "11:30" : "20:30",
-        category: "知識文",
-        topic: slot === 1 ? slot1Topic : "其他主題",
-        format: "image-post",
-        media_type: "image",
-        instagram_caption: "caption",
-        facebook_caption: "caption",
-        image_prompt: "prompt",
-        visual_route: "macro-detail",
-        local_image_path: `docs/assets/${date}/slot-0${slot}.png`,
-        public_image_url: `https://example.com/${date}-${slot}.png`,
-        status: "pending"
-      }))
-    }),
+    JSON.stringify(
+      stampDailyContentWrite(
+        {
+          date,
+          timezone: "Asia/Taipei",
+          generated_at: new Date().toISOString(),
+          slots: [1, 2].map((slot) => ({
+            slot,
+            time: slot === 1 ? "11:30" : "20:30",
+            category: "知識文",
+            topic: slot === 1 ? slot1Topic : "其他主題",
+            format: "image-post",
+            media_type: "image",
+            instagram_caption: "caption",
+            facebook_caption: "caption",
+            image_prompt: "prompt",
+            visual_route: "macro-detail",
+            traffic_route: "object-proof",
+            local_image_path: `docs/assets/${date}/slot-0${slot}.png`,
+            public_image_url: `https://example.com/${date}-${slot}.png`,
+            status: "pending"
+          }))
+        },
+        { root }
+      )
+    ),
     "utf8"
   );
 }

@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getConfig } from "../src/config";
-import { buildDailyContent } from "../src/contentPlan";
+import { buildDailyContent, stampDailyContentWrite } from "../src/contentPlan";
 import { generateDailyContent } from "../src/generateDailyContent";
 import {
   loadApprovalLog,
@@ -99,6 +99,35 @@ describe("postCurrentSlot dry-run integration", () => {
 
     const log = await loadPostLog("2026-05-15", root);
     expect(log).toHaveLength(2);
+  });
+
+  it("refuses to publish a tampered calendar without throwing", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-tampered-post-"));
+    const date = "2026-05-15";
+    await generateDailyContent({ date, root, force: true });
+    await approveSlot(root, date);
+    await mkdir(join(root, "docs", "assets", date), { recursive: true });
+    await writeFile(join(root, "docs", "assets", date, "slot-01.png"), "fake image");
+
+    const calendarPath = join(root, "data", "content-calendar", `${date}.json`);
+    const raw = JSON.parse(await readFile(calendarPath, "utf8")) as { generated_at: string };
+    raw.generated_at = "2099-01-01T00:00:00.000Z";
+    await writeFile(calendarPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const results = await postCurrentSlot({
+      root,
+      now: `${date}T11:30:00+08:00`,
+      dryRun: true,
+      verifyPublicImageUrl: false,
+      fetchImpl: vi.fn() as unknown as typeof fetch
+    });
+    const warned = warn.mock.calls.some((call) => String(call[0]).includes("CALENDAR_TAMPERED"));
+    warn.mockRestore();
+
+    expect(results).toEqual([]);
+    expect(await loadPostLog(date, root)).toHaveLength(0);
+    expect(warned).toBe(true);
   });
 
   it("publishes the four-image carousel and marks VIDEO_DEFERRED when a planned mixed video is missing", async () => {
@@ -226,7 +255,7 @@ describe("postCurrentSlot dry-run integration", () => {
     await mkdir(join(root, "docs", "assets", date), { recursive: true });
     await writeFile(
       join(root, "docs", "content-calendar", `${date}.json`),
-      `${JSON.stringify(content, null, 2)}\n`
+      `${JSON.stringify(stampDailyContentWrite(content, { root }), null, 2)}\n`
     );
     await approveSlot(root, date);
     await writeFile(join(root, "docs", "assets", date, "slot-01.png"), "fake image");
@@ -260,10 +289,13 @@ describe("postCurrentSlot dry-run integration", () => {
     await mkdir(join(root, "data", "content-calendar"), { recursive: true });
     await mkdir(join(root, "docs", "content-calendar"), { recursive: true });
     await mkdir(join(root, "docs", "assets", date), { recursive: true });
-    await writeFile(join(root, "data", "content-calendar", `${date}.json`), `${JSON.stringify(content, null, 2)}\n`);
+    await writeFile(
+      join(root, "data", "content-calendar", `${date}.json`),
+      `${JSON.stringify(stampDailyContentWrite(content, { root }), null, 2)}\n`
+    );
     await writeFile(
       join(root, "docs", "content-calendar", `${date}.json`),
-      `${JSON.stringify({ ...content, slots: [content.slots[0]] }, null, 2)}\n`
+      `${JSON.stringify(stampDailyContentWrite({ ...content, slots: [content.slots[0]!] }, { root }), null, 2)}\n`
     );
     await approveSlot(root, date, 2);
     await writeFile(join(root, "docs", "assets", date, "slot-02.png"), "fake image");
@@ -295,7 +327,7 @@ describe("postCurrentSlot dry-run integration", () => {
     await mkdir(join(root, "docs", "assets", date), { recursive: true });
     await writeFile(
       join(root, "docs", "content-calendar", `${date}.json`),
-      `${JSON.stringify(content, null, 2)}\n`
+      `${JSON.stringify(stampDailyContentWrite(content, { root }), null, 2)}\n`
     );
     await approveSlot(root, date);
     await writeFile(join(root, "docs", "assets", date, "slot-01.png"), "fake image");

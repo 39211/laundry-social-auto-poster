@@ -154,8 +154,13 @@ function Publish-Site {
     return $ok
 }
 
+function Invoke-DayCarouselVisualQa {
+    & (Join-Path $PSScriptRoot "generate-missing-images.ps1") -Date $date -LogFile $logFile -QaOnly
+}
+
 if ($hasCalendar -and $imagesReady) {
     Write-Log "Content calendar and images for $date are both ready; publishing the site refresh."
+    Invoke-DayCarouselVisualQa
     Lock-Day
     if (Publish-Site) { exit 0 } else { exit 1 }
 }
@@ -261,6 +266,7 @@ Pop-Location
 
 if ((Test-Path $calendar) -and $imagesReadyNow) {
     Write-Log "Generation finished; calendar and images are both ready."
+    Invoke-DayCarouselVisualQa
     # Lock slot 1 the moment its images verifiably exist. Anything that rewrites
     # the calendar after this point gets healed back before approval/publish.
     # A deliberate slot-1 redo must delete data\day-locks\<date>.json first.

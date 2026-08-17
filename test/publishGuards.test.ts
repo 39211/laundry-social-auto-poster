@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { postCurrentSlot } from "../src/postCurrentSlot";
 import { generateDailyContent } from "../src/generateDailyContent";
+import { stampDailyContentWrite } from "../src/contentPlan";
 
 // The 199 tests this suite joins say nothing about whether the publish guards
 // hold: deleting the repeat gate, the manifest gate, the fingerprint check or
@@ -35,15 +36,22 @@ async function seedDay(root: string, date: string, captions: string[]) {
   await mkdir(join(root, "data", "content-calendar"), { recursive: true });
   await writeFile(
     join(root, "data", "content-calendar", `${date}.json`),
-    JSON.stringify({
-      date,
-      // The schema requires two or three slots, so a filler keeps the day
-      // valid while each test varies only the slot it is actually about.
-      slots: [
-        ...captions.map((c, i) => slot(i + 1, c)),
-        slot(captions.length + 1, `填充檔位 ${date},與任何測試無關。`),
-      ],
-    }),
+    JSON.stringify(
+      stampDailyContentWrite(
+        {
+          date,
+          timezone: "Asia/Taipei",
+          generated_at: new Date().toISOString(),
+          // The schema requires two or three slots, so a filler keeps the day
+          // valid while each test varies only the slot it is actually about.
+          slots: [
+            ...captions.map((c, i) => slot(i + 1, c)),
+            slot(captions.length + 1, `填充檔位 ${date},與任何測試無關。`)
+          ]
+        } as Parameters<typeof stampDailyContentWrite>[0],
+        { root }
+      )
+    ),
     "utf8"
   );
 }

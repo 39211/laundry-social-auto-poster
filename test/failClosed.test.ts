@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { autoApprove } from "../src/autoApprove";
+import { stampDailyContentWrite } from "../src/contentPlan";
 import { scheduleReel } from "../src/scheduleReel";
 
 // The three properties in this file are the ones the whole publishing chain
@@ -29,26 +30,32 @@ async function writeMinimalCalendar(targetRoot: string, date: string): Promise<v
   await mkdir(join(targetRoot, "data", "content-calendar"), { recursive: true });
   await writeFile(
     join(targetRoot, "data", "content-calendar", `${date}.json`),
-    JSON.stringify({
-      date,
-      timezone: "Asia/Taipei",
-      generated_at: new Date().toISOString(),
-      slots: [1, 2].map((slotNumber) => ({
-        slot: slotNumber,
-        time: slotNumber === 1 ? "11:30" : "19:30",
-        category: slotNumber === 1 ? "知識文" : "情境文",
-        topic: "測試",
-        format: "image-post",
-        media_type: "image",
-        instagram_caption: "caption",
-        facebook_caption: "caption",
-        image_prompt: "prompt",
-        visual_route: "macro-detail",
-        local_image_path: `docs/assets/${date}/slot-0${slotNumber}.png`,
-        public_image_url: `https://example.com/assets/${date}/slot-0${slotNumber}.png`,
-        status: "pending"
-      }))
-    }),
+    JSON.stringify(
+      stampDailyContentWrite(
+        {
+          date,
+          timezone: "Asia/Taipei",
+          generated_at: new Date().toISOString(),
+          slots: [1, 2].map((slotNumber) => ({
+            slot: slotNumber,
+            time: slotNumber === 1 ? "11:30" : "19:30",
+            category: slotNumber === 1 ? "知識文" : "情境文",
+            topic: "測試",
+            format: "image-post",
+            media_type: "image",
+            instagram_caption: "caption",
+            facebook_caption: "caption",
+            image_prompt: "prompt",
+            visual_route: "macro-detail",
+            traffic_route: "object-proof",
+            local_image_path: `docs/assets/${date}/slot-0${slotNumber}.png`,
+            public_image_url: `https://example.com/assets/${date}/slot-0${slotNumber}.png`,
+            status: "pending"
+          }))
+        },
+        { root: targetRoot }
+      )
+    ),
     "utf8"
   );
 }

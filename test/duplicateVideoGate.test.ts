@@ -14,6 +14,7 @@ import {
   writeJsonAtomic,
   writePostLog
 } from "../src/logging";
+import { stampDailyContentWrite } from "../src/contentPlan";
 import { CONCEPT_COOLDOWN_DAYS } from "../src/reelConcepts";
 import { resolveSlotPublishMedia, postCurrentSlot } from "../src/postCurrentSlot";
 import type { DailySlot, PostLogEntry } from "../src/types";
@@ -83,7 +84,14 @@ async function seedCalendar(root: string, date: string, slots: DailySlot[]): Pro
   await mkdir(join(root, "data", "content-calendar"), { recursive: true });
   await writeFile(
     join(root, "data", "content-calendar", `${date}.json`),
-    `${JSON.stringify({ date, timezone: "Asia/Taipei", generated_at: `${date}T00:00:00.000Z`, slots }, null, 2)}\n`,
+    `${JSON.stringify(
+      stampDailyContentWrite(
+        { date, timezone: "Asia/Taipei", generated_at: `${date}T00:00:00.000Z`, slots },
+        { root }
+      ),
+      null,
+      2
+    )}\n`,
     "utf8"
   );
 }

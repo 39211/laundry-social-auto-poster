@@ -30,7 +30,8 @@ export type VisualQaFailClass =
   | "frames_not_read"
   | "hash_mismatch"
   | "still_missing"
-  | "rubric_incoherent";
+  | "rubric_incoherent"
+  | "missing_observation";
 export type VisualQaReviewer = "codex-visual-qa" | "human-frames-review";
 export type ReelTreatment = "A" | "B" | "C" | "untreated-15s" | "10s";
 
@@ -1241,6 +1242,39 @@ function carouselTopicMismatched(frames: CarouselFrameObservation[], topic: stri
   return [...got].some((family) => family !== expected);
 }
 
+const CAROUSEL_OBS_FIELDS = ["garment_color", "garment_type", "material", "wear", "scene"] as const;
+
+export function carouselObservationDefects(
+  observed: ParsedCarouselObserveBlock | null,
+  expectedCount: number
+): string[] {
+  if (!observed) return ["missing_observe_block"];
+  const defects: string[] = [];
+  const indices = observed.frames.map((frame) => Number(String(frame.image).replace(/\D/g, "")));
+  if (observed.frames.length !== expectedCount) defects.push("obs_count");
+  if (new Set(indices).size !== indices.length) defects.push("obs_duplicate");
+  const expected = Array.from({ length: expectedCount }, (_, index) => index + 1);
+  const sorted = [...indices].sort((a, b) => a - b);
+  if (sorted.length !== expected.length || sorted.some((value, index) => value !== expected[index])) {
+    defects.push("obs_sequence");
+  }
+  for (const frame of observed.frames) {
+    const missing = CAROUSEL_OBS_FIELDS.some((field) => !String(frame[field] ?? "").trim());
+    if (missing) {
+      defects.push("obs_fields");
+      break;
+    }
+  }
+  if (
+    observed.compare.identityChange === undefined ||
+    observed.compare.sceneChange === undefined ||
+    observed.compare.topicMismatch === undefined
+  ) {
+    defects.push("missing_compare");
+  }
+  return [...new Set(defects)];
+}
+
 export function parseCarouselObserveBlock(stdout: string): ParsedCarouselObserveBlock | null {
   const start = stdout.indexOf(VISUAL_QA_OBSERVE_BEGIN);
   const end = stdout.indexOf(VISUAL_QA_OBSERVE_END);
@@ -1402,6 +1436,16 @@ export function evaluateCarouselJudgeStdout(input: {
       ...base,
       verdict: "FAIL_CLOSED",
       fail_class: "missing_axis"
+    };
+  }
+
+  const expectedObs = Object.keys(input.expectedCanaries).length || input.slides.length;
+  const obsDefects = carouselObservationDefects(parseCarouselObserveBlock(input.stdout), expectedObs);
+  if (obsDefects.length > 0) {
+    return {
+      ...base,
+      verdict: "FAIL_CLOSED",
+      fail_class: "missing_observation"
     };
   }
 

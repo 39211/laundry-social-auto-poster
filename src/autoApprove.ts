@@ -133,6 +133,18 @@ export async function autoApprove(
       ai_provenance: { with_manifest: 0, without_manifest: 0, consistent: true }
     };
   }
+  if (content.tampered) {
+    record("calendar_integrity", false, "tampered calendar refused");
+    return {
+      date,
+      approved: false,
+      already_approved: false,
+      approved_slots: [],
+      blockers,
+      checks,
+      ai_provenance: { with_manifest: 0, without_manifest: 0, consistent: true }
+    };
+  }
   record("daily_content", true);
 
   const provenance = await inspectDailyImageProvenance(date, root);

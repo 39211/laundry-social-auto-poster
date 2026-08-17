@@ -111,3 +111,9 @@
 - 老闆抓到輪播三天病:W-CAROUSEL 已落地(7ee1624),明日 06:30 起生效;F17 記檔;已發爛組等老闆「撤/留」。
 - Pages 架構歸一:專案 repo Pages 停用,網域唯一綁鏡像站;PR#2 兩度衝突兩度解,現 MERGEABLE。
 - 網域:sixiangjialaundry.com 全鏈 200;GSC TXT 等老闆面板重登。
+
+### 13:20 吸收裁決(R-ABSORB 卷)
+- 修復佇列孤兒實錘:30 筆/0 結案/最舊 19 天;20:30 laundry-video-repair-cycle 空轉 16 晚,已一併 PAUSED(備份同目錄)。
+- **A1 生效**:總指揮輪固定動作新增——每輪讀 data/video-repair-queue/queue.json,unexpected 類 defer 升缺陷單、expected 只記帳;指揮窗禁寫行事曆/圖/送 Hermes(F14 律)。
+- 每日 GitHub 研究日誌判死(填表,主線零讀取);首幀幾何教訓(卡在軌+遮衝突+t0 無特寫手)留檔為 companion 影片未來規格。
+- 幻想路線正式廢止:「把已發四圖事後補成影片」不做;修復只針對未發布且題材相符的新包。

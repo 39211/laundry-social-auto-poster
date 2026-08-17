@@ -31,7 +31,11 @@ function Get-CarouselSlotItems($Items, [int]$Slot) {
     foreach ($item in @($Items)) {
         if ([int]$item.slot -eq $Slot) { [void]$group.Add($item) }
     }
-    return @($group)
+    # PS 5.1: @() over a generic List of PSCustomObjects throws
+    # "Argument types do not match" (ICollection copy path). ToArray plus the
+    # unary comma returns a real array without touching that path.
+    # 2026-08-18 06:30 first flight died here silently on every slot.
+    return ,($group.ToArray())
 }
 
 function Test-CarouselSlotComplete($Items, [int]$Slot, [string]$RootPath) {

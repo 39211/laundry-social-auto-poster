@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getConfig } from "../src/config";
-import { buildDailyContent, buildGbpPostCaption } from "../src/contentPlan";
+import { buildDailyContent, buildGbpPostCaption, linePostRedirectUrl } from "../src/contentPlan";
 import { buildShortMetadata, guideLinkFor } from "../src/postYouTube";
 import { utmCampaign, utmTagged } from "../src/utm";
 
@@ -10,7 +10,7 @@ const config = getConfig({
   PUBLIC_IMAGE_BASE_URL: "https://tester.github.io/laundry-social-auto-poster"
 });
 
-const LINE_POST = "https://39211.github.io/go/line.html?source=post";
+const LINE_POST = linePostRedirectUrl();
 
 function hasUtmTrio(text: string, source: string, campaign: string): boolean {
   return (
@@ -62,16 +62,17 @@ describe("utmCampaign", () => {
 });
 
 describe("composition wiring", () => {
-  it("tags FB and IG captions, including the bare IG URL", () => {
+  it("puts the LINE redirect in FB and IG captions without stacking utm", () => {
     const date = "2026-08-17";
     const content = buildDailyContent(date, config);
     expect(content.slots.length).toBeGreaterThanOrEqual(2);
     for (const slot of content.slots.filter((item) => item.slot <= 2)) {
-      const campaign = expectedCampaign(date, slot);
-      expect(hasUtmTrio(slot.facebook_caption, "facebook", campaign)).toBe(true);
-      expect(hasUtmTrio(slot.instagram_caption, "instagram", campaign)).toBe(true);
+      expect(slot.facebook_caption).toContain(LINE_POST);
+      expect(slot.instagram_caption).toContain(LINE_POST);
       expect(slot.facebook_caption).toContain("source=post");
       expect(slot.instagram_caption).toContain("source=post");
+      expect(hasUtmTrio(slot.facebook_caption, "facebook", expectedCampaign(date, slot))).toBe(false);
+      expect(hasUtmTrio(slot.instagram_caption, "instagram", expectedCampaign(date, slot))).toBe(false);
     }
   });
 
@@ -99,18 +100,17 @@ describe("composition wiring", () => {
   });
 });
 
-describe("mutation 1: strip injection and the composition contract fails", () => {
-  it("組稿輸出含 utm 三件組;拔注入 → 紅", () => {
+describe("mutation 1: strip the LINE post redirect and the composition contract fails", () => {
+  it("組稿輸出含 source=post 轉導鏈;拔掉 → 紅", () => {
     const date = "2026-08-17";
     const content = buildDailyContent(date, config);
     const slot = content.slots[0]!;
-    const campaign = expectedCampaign(date, slot);
-    expect(hasUtmTrio(slot.facebook_caption, "facebook", campaign)).toBe(true);
-    expect(hasUtmTrio(slot.instagram_caption, "instagram", campaign)).toBe(true);
+    expect(slot.facebook_caption).toContain(LINE_POST);
+    expect(slot.instagram_caption).toContain(LINE_POST);
 
-    const strippedFb = stripUtm(slot.facebook_caption);
-    expect(hasUtmTrio(strippedFb, "facebook", campaign)).toBe(false);
-    expect(strippedFb).toContain("source=post");
+    const strippedFb = slot.facebook_caption.replaceAll(LINE_POST, "");
+    expect(strippedFb).not.toContain(LINE_POST);
+    expect(strippedFb.includes("source=post")).toBe(false);
   });
 });
 
@@ -141,21 +141,21 @@ describe("mutation 3: campaign carries the live date and slot", () => {
 
     const campaignA1 = expectedCampaign(dateA, slotA1);
     const campaignB1 = expectedCampaign(dateB, slotB1);
-    expect(slotA1.facebook_caption).toContain(`utm_campaign=${campaignA1}`);
-    expect(slotB1.facebook_caption).toContain(`utm_campaign=${campaignB1}`);
+    expect(slotA1.facebook_caption).toContain(LINE_POST);
+    expect(slotB1.facebook_caption).toContain(LINE_POST);
     expect(campaignA1).not.toBe(campaignB1);
-    expect(slotA1.facebook_caption).not.toContain(`utm_campaign=${campaignB1}`);
-    expect(slotB1.facebook_caption).not.toContain(`utm_campaign=${campaignA1}`);
+    expect(slotA1.facebook_caption).not.toContain("utm_campaign=");
+    expect(slotB1.facebook_caption).not.toContain("utm_campaign=");
 
     if (slotA2 && slotA2.format !== "reel" && slotA1.format !== "reel") {
-      expect(slotA1.facebook_caption).toContain("utm_campaign=2026-08-10-slot1");
-      expect(slotA2.facebook_caption).toContain("utm_campaign=2026-08-10-slot2");
+      expect(slotA1.facebook_caption).toContain(LINE_POST);
+      expect(slotA2.facebook_caption).toContain(LINE_POST);
     }
 
     const reelDay = buildDailyContent("2026-07-16", config);
     const reel = reelDay.slots.find((item) => item.format === "reel");
     expect(reel, "2026-07-16 slot 2 is a playbook reel").toBeDefined();
-    expect(reel!.facebook_caption).toContain("utm_campaign=2026-07-16-reel");
+    expect(reel!.facebook_caption).toContain(LINE_POST);
     expect(reel!.facebook_caption).not.toContain("utm_campaign=2026-07-16-slot2");
   });
 });

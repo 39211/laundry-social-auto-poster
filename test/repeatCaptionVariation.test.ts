@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { linePostRedirectUrl } from "../src/contentPlan";
 import { captionsFor } from "../src/scheduleReel";
 import { REEL_SCHEDULE, loadExtensions, priorAirings, type ReelConcept } from "../src/reelConcepts";
 
@@ -41,7 +42,7 @@ describe("re-airing caption variation", () => {
 
   it("keeps the shared caption rules alive in both arrangements", () => {
     for (const caption of [first.instagram, rerun.instagram, first.facebook, rerun.facebook]) {
-      expect(caption).toContain("https://39211.github.io/go/line.html?source=post");
+      expect(caption).toContain(linePostRedirectUrl());
       expect(caption).toContain("0968327653");
       // The hashtag ladder upgrade appends intent and local tags beyond the
       // four generic seeds — it only happens inside withSharedCaptionRules,

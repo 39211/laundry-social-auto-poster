@@ -2,7 +2,7 @@ import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
-import { LINE_CONTACT, withSharedCaptionRules } from "./contentPlan";
+import { withSharedCaptionRules } from "./contentPlan";
 import { utmCampaign } from "./utm";
 import { generateDailyContent } from "./generateDailyContent";
 import {
@@ -136,7 +136,6 @@ export function captionsFor(
   const instagram = [
     ...opening,
     reelActionCta(concept, "instagram"),
-    LINE_CONTACT,
     `${questionFor(concept)}\n\n${shareInviteFor(concept)}`,
     FOLLOW_LINE,
     hashtags
@@ -144,7 +143,6 @@ export function captionsFor(
   const facebook = [
     ...opening,
     reelActionCta(concept, "facebook"),
-    LINE_CONTACT,
     questionFor(concept),
     FOLLOW_LINE,
     hashtags
@@ -155,9 +153,10 @@ export function captionsFor(
   // the price and intent-tag rules match on.
   const topic = `${concept.hook}${concept.narration}`;
   const campaign = utmCampaign(date, 2, "reel");
+  const siteBaseUrl = getConfig().publicSiteBaseUrl;
   return {
-    instagram: withSharedCaptionRules(instagram, topic, { source: "instagram", campaign }),
-    facebook: withSharedCaptionRules(facebook, topic, { source: "facebook", campaign })
+    instagram: withSharedCaptionRules(instagram, topic, { source: "instagram", campaign, siteBaseUrl }),
+    facebook: withSharedCaptionRules(facebook, topic, { source: "facebook", campaign, siteBaseUrl })
   };
 }
 

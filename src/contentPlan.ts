@@ -13,6 +13,7 @@ import {
   type GrowthFormat,
   type GrowthPlaybookSlot
 } from "./growthPlaybook";
+import { getConfig } from "./config";
 import { contentCalendarPath, projectRoot, relativeAssetPath, relativeCarouselAssetPath, relativeVideoAssetPath } from "./paths";
 import { DAILY_SCHEDULE, getZonedDateParts } from "./scheduler";
 import type {
@@ -502,7 +503,6 @@ function captionFromTemplate(template: SlotTemplate): string {
     template.inspection,
     template.cta,
     `${brandLine}｜台中市區免費到府收送`,
-    LINE_CONTACT,
     template.hashtags.join(" ")
   ].join("\n\n");
 }
@@ -1190,43 +1190,66 @@ function playbookSlotForPausedEvening(
   return primary;
 }
 
-const SITE_ORIGIN = "https://39211.github.io";
-const LINE_REDIRECT = `${SITE_ORIGIN}/go/line.html?source=post`;
-const GBP_LINE_REDIRECT = `${SITE_ORIGIN}/go/line.html?source=gbp`;
+const LINE_POST_PATH = "/go/line.html?source=post";
+const LINE_POST_REDIRECT_RE = /https?:\/\/[^\s)]+\/go\/line\.html\?source=post(?:&[^\s)]*)?/g;
+
+/** Caption LINE redirect. Origin comes from PUBLIC_SITE_BASE_URL; no UTM stacked. */
+export function linePostRedirectUrl(siteBaseUrl?: string): string {
+  const origin = (siteBaseUrl ?? getConfig().publicSiteBaseUrl).replace(/\/+$/, "");
+  if (!origin) {
+    throw new Error("PUBLIC_SITE_BASE_URL is required to compose LINE redirect URLs");
+  }
+  return `${origin}${LINE_POST_PATH}`;
+}
+
+function gbpLineRedirectUrl(): string {
+  // GBP helper stays on the same host gbpPost.ts already publishes.
+  // This ticket only moves the FB/IG source=post caption link.
+  return "https://39211.github.io/go/line.html?source=gbp";
+}
 
 function lineAskLine(url: string): string {
   return `直接點這裡問:${url}(或加 LINE:0968327653)`;
 }
 
-export const LINE_CONTACT = lineAskLine(LINE_REDIRECT);
+export function lineContactLine(): string {
+  return lineAskLine(linePostRedirectUrl());
+}
+
+export const LINE_CONTACT = lineContactLine();
 
 export interface CaptionTracking {
   source: UtmSource;
   campaign: string;
+  siteBaseUrl?: string;
 }
 
 function captionTracking(
   date: string,
   slot: number,
   source: UtmSource,
-  format?: string
+  format?: string,
+  config?: AppConfig
 ): CaptionTracking {
   return {
     source,
-    campaign: utmCampaign(date, slot, format === "reel" ? "reel" : "slot")
+    campaign: utmCampaign(date, slot, format === "reel" ? "reel" : "slot"),
+    siteBaseUrl: config?.publicSiteBaseUrl
   };
 }
 
-function withLineContact(caption: string, tracking?: CaptionTracking): string {
+export function withLineContact(caption: string, tracking?: CaptionTracking): string {
   // Testing for the phone number was the wrong test: a caption that merely
   // printed the digits ("加 LINE 直接問：0968327653") satisfied it and opted
   // itself out of the coded link -- which is the only thing GA4 can count.
   // Every scheduled Reel did exactly that. Test for the tappable link.
-  const redirect = tracking ? utmTagged(LINE_REDIRECT, tracking) : LINE_REDIRECT;
+  //
+  // Do not stack utm on this URL: go/line.html already records `source`.
+  // Origin is PUBLIC_SITE_BASE_URL, never a hardcoded host.
+  const redirect = linePostRedirectUrl(tracking?.siteBaseUrl);
   const contact = lineAskLine(redirect);
-  if (caption.includes(redirect)) return caption;
-  if (tracking && caption.includes(LINE_REDIRECT)) {
-    return caption.replaceAll(LINE_REDIRECT, redirect);
+  if (caption.includes(LINE_POST_PATH)) {
+    return caption.replace(LINE_POST_REDIRECT_RE, redirect);
   }
   const blocks = caption.split("\n\n");
   const hashtagIndex = blocks.findIndex((block) => block.startsWith("#"));
@@ -1238,7 +1261,7 @@ function withLineContact(caption: string, tracking?: CaptionTracking): string {
 /** Future GBP weekly post copy. CTA lands on the LINE redirect with gbp UTMs. */
 export function buildGbpPostCaption(input: { date: string; body: string; slot?: number }): string {
   const slot = input.slot ?? 1;
-  const url = utmTagged(GBP_LINE_REDIRECT, {
+  const url = utmTagged(gbpLineRedirectUrl(), {
     source: "gbp",
     campaign: utmCampaign(input.date, slot)
   });
@@ -1330,13 +1353,13 @@ export function withSharedCaptionRules(
   return withUpgradedHashtags(withPriceLine(withLineContact(caption, tracking), topic), topic);
 }
 
-function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): string {
+function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform, config?: AppConfig): string {
   const caption = baseCaptionFromPlaybook(slot, platform);
   const source: UtmSource = platform === "facebook" ? "facebook" : "instagram";
   return withSharedCaptionRules(
     withEngagementQuestion(caption, slot),
     slot.topic,
-    captionTracking(slot.date, slot.slot, source, slot.format)
+    captionTracking(slot.date, slot.slot, source, slot.format, config)
   );
 }
 
@@ -1986,8 +2009,8 @@ function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string)
 }
 
 function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): DailySlot {
-  const facebookCaption = captionFromPlaybook(slot, "facebook");
-  const instagramCaption = captionFromPlaybook(slot, "instagram");
+  const facebookCaption = captionFromPlaybook(slot, "facebook", config);
+  const instagramCaption = captionFromPlaybook(slot, "instagram", config);
   const isReel = slot.format === "reel";
   const carouselItems = carouselItemsFromPlaybook(slot, config);
   const videoPrompt = videoPromptFromPlaybook(slot);
@@ -2052,8 +2075,8 @@ function dailySlotFromTemplate(date: string, schedule: (typeof DAILY_SCHEDULE)[n
     category: schedule.category,
     topic: template.topic,
     media_type: "image",
-    instagram_caption: withLineContact(caption, captionTracking(date, schedule.slot, "instagram")),
-    facebook_caption: withLineContact(caption, captionTracking(date, schedule.slot, "facebook")),
+    instagram_caption: withLineContact(caption, captionTracking(date, schedule.slot, "instagram", undefined, config)),
+    facebook_caption: withLineContact(caption, captionTracking(date, schedule.slot, "facebook", undefined, config)),
     image_prompt: template.imagePrompt,
     visual_route: template.visualRoute,
     traffic_route: template.trafficRoute,

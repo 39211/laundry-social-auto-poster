@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getConfig } from "../src/config";
-import { buildDailyContent } from "../src/contentPlan";
+import { buildDailyContent, linePostRedirectUrl } from "../src/contentPlan";
 
 // Thirty days of generated captions, checked for the faults that thirty days of
 // real posting produced: no comments, no link taps, three saves. Every fault
@@ -69,6 +69,13 @@ describe("caption quality", () => {
     // actual ID, so the call to action pointed at nothing findable.
     for (const caption of captions) {
       expect(caption.text).toContain("0968327653");
+    }
+  });
+
+  it("carries the tappable LINE redirect with source=post", () => {
+    const lineUrl = linePostRedirectUrl();
+    for (const caption of captions) {
+      expect(caption.text).toContain(lineUrl);
     }
   });
 

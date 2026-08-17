@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getConfig } from "../src/config";
-import { buildDailyContent } from "../src/contentPlan";
+import { buildDailyContent, linePostRedirectUrl } from "../src/contentPlan";
 
 describe("DailyContent schema", () => {
   const config = getConfig({
@@ -168,13 +168,11 @@ describe("DailyContent schema", () => {
           expect(caption).not.toMatch(/畫面維持|這支內容會用|短影音題|轉詢問題|9:16|主視覺|route|SEO/);
           expect(caption).not.toMatch(/保證|百分之百|完全去除|恢復全新|一定洗白/);
         }
-        const campaign = slot.format === "reel" ? `${date}-reel` : `${date}-slot${slot.slot}`;
-        expect(slot.facebook_caption).toContain("utm_source=facebook");
-        expect(slot.facebook_caption).toContain("utm_medium=social");
-        expect(slot.facebook_caption).toContain(`utm_campaign=${campaign}`);
-        expect(slot.instagram_caption).toContain("utm_source=instagram");
-        expect(slot.instagram_caption).toContain("utm_medium=social");
-        expect(slot.instagram_caption).toContain(`utm_campaign=${campaign}`);
+        const lineUrl = linePostRedirectUrl();
+        expect(slot.facebook_caption).toContain(lineUrl);
+        expect(slot.instagram_caption).toContain(lineUrl);
+        expect(slot.facebook_caption).not.toMatch(/go\/line\.html\?source=post&utm_/);
+        expect(slot.instagram_caption).not.toMatch(/go\/line\.html\?source=post&utm_/);
       }
     }
   });

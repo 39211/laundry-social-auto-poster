@@ -13,7 +13,7 @@ import {
 } from "../src/abTestPlan";
 import { buildAbTestReport } from "../src/abTestReport";
 import { getConfig } from "../src/config";
-import { stampDailyContentWrite } from "../src/contentPlan";
+import { linePostRedirectUrl, stampDailyContentWrite } from "../src/contentPlan";
 import { loadDailyContent, writePostLog } from "../src/logging";
 import {
   assertInsidePublishWindow,
@@ -620,7 +620,7 @@ describe("A/B dual-reel pipeline", () => {
       // how every Reel shipped without anything GA4 could count: a phone number
       // is not a tap target. Reels now go through the shared caption rules, so
       // the coded redirect is what has to be here.
-      expect(caption).toContain("https://39211.github.io/go/line.html?source=post");
+      expect(caption).toContain(linePostRedirectUrl());
       // Local tags are part of the same shared ladder; the four generic Reel
       // tags carried none.
       expect(caption).toMatch(/#西屯|#台中洗衣店/);

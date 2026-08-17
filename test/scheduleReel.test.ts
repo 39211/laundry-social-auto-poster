@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { linePostRedirectUrl } from "../src/contentPlan";
 import { captionsFor } from "../src/scheduleReel";
 import type { ReelConcept } from "../src/reelConcepts";
 
@@ -20,19 +21,21 @@ function hasUtmTrio(text: string, source: string, campaign: string): boolean {
   );
 }
 
-describe("captionsFor utm wiring", () => {
-  it("輸出含 utm 三件組;拔注入 → 紅", () => {
+describe("captionsFor LINE post redirect", () => {
+  it("輸出含 source=post 轉導鏈且不疊 utm;拔掉 → 紅", () => {
     const date = "2026-08-17";
-    const campaign = `${date}-reel`;
+    const lineUrl = linePostRedirectUrl();
     const captions = captionsFor(concept, 0, date);
 
-    expect(hasUtmTrio(captions.instagram, "instagram", campaign)).toBe(true);
-    expect(hasUtmTrio(captions.facebook, "facebook", campaign)).toBe(true);
+    expect(hasUtmTrio(captions.instagram, "instagram", `${date}-reel`)).toBe(false);
+    expect(hasUtmTrio(captions.facebook, "facebook", `${date}-reel`)).toBe(false);
+    expect(captions.instagram).toContain(lineUrl);
+    expect(captions.facebook).toContain(lineUrl);
     expect(captions.instagram).toContain("source=post");
     expect(captions.facebook).toContain("source=post");
 
-    const stripped = captions.instagram.replace(/[?&]utm_[^=]+=[^&\s)]+/g, "");
-    expect(hasUtmTrio(stripped, "instagram", campaign)).toBe(false);
-    expect(stripped).toContain("source=post");
+    const stripped = captions.instagram.replaceAll(lineUrl, "");
+    expect(stripped.includes(lineUrl)).toBe(false);
+    expect(stripped.includes("source=post")).toBe(false);
   });
 });

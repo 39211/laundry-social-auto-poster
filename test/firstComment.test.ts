@@ -24,3 +24,11 @@ describe("commentTextFor utm wiring", () => {
     expect(stripped).toContain("source=ig-comment");
   });
 });
+
+describe("firstComment LINE source stays ig-comment", () => {
+  it("頭香維持 /go/line.html?source=ig-comment,不得改成 source=post", () => {
+    const text = commentTextFor("白鞋泛黃", "2026-08-18", 1);
+    expect(text).toContain("/go/line.html?source=ig-comment");
+    expect(text).not.toMatch(/\/go\/line\.html\?source=post(?:&|\)|$)/);
+  });
+});

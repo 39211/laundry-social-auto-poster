@@ -1,0 +1,89 @@
+{
+ "test_date": "2026-08-18",
+ "day": 0,
+ "engines_tested": [
+  "google-serp-ai-overview",
+  "perplexity-loggedout"
+ ],
+ "engines_pending": [
+  "chatgpt",
+  "gemini"
+ ],
+ "note": "六題代表組(21 題板的子集);面板=app 側邊瀏覽器,台灣地區參數",
+ "results": [
+  {
+   "id": "local-discovery-02",
+   "q": "西屯洗衣店",
+   "engine": "google",
+   "ai_overview": false,
+   "brand_mention": false,
+   "linked_citation": false,
+   "observed": "local pack 有但私享家不在;自然結果=麗衣/jerwoo/184/goodpartner"
+  },
+  {
+   "id": "problem-diagnosis-01",
+   "q": "白鞋泛黃怎麼辦",
+   "engine": "google",
+   "ai_overview": true,
+   "brand_mention": false,
+   "linked_citation": false
+  },
+  {
+   "id": "trust-proof-01",
+   "q": "台中洗鞋推薦",
+   "engine": "google",
+   "ai_overview": false,
+   "brand_mention": false,
+   "linked_citation": false
+  },
+  {
+   "id": "pickup-logistics-02",
+   "q": "台中免費收送洗衣",
+   "engine": "google",
+   "ai_overview": true,
+   "brand_mention": true,
+   "linked_citation": false,
+   "observed": "提及載體=IG 貼文(si_xiang_jia,3 週前)自然排名,整段收送文案進 SERP;AI 摘要未引用"
+  },
+  {
+   "id": "brand-facts-01",
+   "q": "私享家位置/營業時間",
+   "engine": "google",
+   "ai_overview": true,
+   "brand_mention": true,
+   "linked_citation": false,
+   "correctness": "地址正確;**時數錯:AI 稱週一至六 10:00-20:00,正本=週六 12:00-18:00、週日公休**"
+  },
+  {
+   "id": "aftercare-02",
+   "q": "棉被收納前要洗嗎",
+   "engine": "google",
+   "ai_overview": true,
+   "brand_mention": false,
+   "linked_citation": false
+  },
+  {
+   "id": "pickup-logistics-02",
+   "q": "台中免費收送洗衣推薦",
+   "engine": "perplexity",
+   "brand_mention": false,
+   "linked_citation": false,
+   "observed": "答案全是對手(采樂/樂享/AQUA/好伴/儷衣坊)"
+  },
+  {
+   "id": "brand-facts-01",
+   "q": "私享家在哪裡 營業時間",
+   "engine": "perplexity",
+   "brand_mention": true,
+   "linked_citation": false,
+   "correctness": "地址正確;時數答不出(『公開資料未明確列出』)",
+   "observed": "網域未被引用"
+  }
+ ],
+ "actions": [
+  "GBP 檔案的逐日營業時數要精確設定(週六 12-18/週日休)——Google AI 現在講錯週六",
+  "網站時數的可抽取性(首頁+在地頁明文逐日時數;schema 已有,散文也要有)",
+  "IG 內容是目前唯一被引擎撿走的載體→caption 內含完整事實句的做法維持",
+  "其餘=等 GSC 開通與在地頁加厚生效,Day-7 重測同板"
+ ]
+}

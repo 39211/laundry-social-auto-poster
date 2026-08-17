@@ -30,3 +30,9 @@
 - Business Information API 300/日,週貼文+回評用量 <10/日,離限很遠。
 - scope 只申請 `https://www.googleapis.com/auth/business.manage`(最小必要)。
 - client JSON 與 refresh token 都不進 git、不進 Vault、不進對話。
+
+## 2026-08-18 凌晨增補:配額申請
+- Account Management API 配額(Requests/min)預設 0;console 自助路對 GBP 家族封死。
+- 已透過 GBP API Support 表單送出 Quota Increase Request:**案件 9-9473000041988**
+  (API=Account Management;專案 263073074704;公司=私享家洗衣店;上次核准案 4-3697000041994 走了約 4 天)。
+- 核准後煙測 `scratchpad/gbp-smoke.mjs` 應回 ACCOUNTS>=1,即抓 GBP_ACCOUNT_ID 入 .env,首篇週貼文照 v5 檢查單發。

@@ -273,7 +273,10 @@ if ($failed.Count -gt 0) {
 
 # Nothing else reads the repair queue, so a deferred video would otherwise sit
 # there unseen. An "unexpected" defer means the video check itself failed and is
-# a defect to fix, not a job waiting on review.
+# a defect to fix, not a job waiting on review. A frozen_at stamp (R-FREEZE
+# ruling, docs-internal/OPTIMIZE-LOOP-20260817.md) is a fault already ruled on
+# and parked until its unfreeze condition; alarming nightly on a parked fault
+# only trains people to ignore the toast.
 $queuePath = Join-Path $root "data\video-repair-queue\queue.json"
 if (Test-Path $queuePath) {
     try {
@@ -283,7 +286,7 @@ if (Test-Path $queuePath) {
         $parsed = Get-Content $queuePath -Raw -Encoding utf8 | ConvertFrom-Json
         $queue = @($parsed)
         $open = @($queue | Where-Object { $_.status -eq "VIDEO_DEFERRED" -and -not $_.dry_run })
-        $faults = @($open | Where-Object { $_.defer_kind -eq "unexpected" })
+        $faults = @($open | Where-Object { $_.defer_kind -eq "unexpected" -and -not $_.frozen_at })
 
         if ($faults.Count -gt 0) {
             $first = $faults[0]

@@ -231,6 +231,14 @@ export interface VideoRepairQueueEntry {
   replacement_slot?: number;
   /** Present only when a legacy defer_kind verdict was corrected after the fact. */
   reclassified_at?: string;
+  /**
+   * A frozen entry is a real fault that has been ruled on and parked: it stays
+   * defer_kind "unexpected" but must not raise alarms or defect tickets until
+   * its unfreeze condition is met (see freeze_ruling in
+   * docs-internal/OPTIMIZE-LOOP-<date>.md).
+   */
+  frozen_at?: string;
+  freeze_ruling?: string;
 }
 
 export interface AppConfig {

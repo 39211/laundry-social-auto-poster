@@ -3,6 +3,7 @@ import { getConfig } from "./config";
 import { loadDailyContent, loadPostLog, readJsonFile, writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
+import { utmCampaign, utmTagged } from "./utm";
 import { join } from "node:path";
 
 const SITE = "https://39211.github.io";
@@ -22,7 +23,7 @@ interface FirstCommentLog {
   created_at: string;
 }
 
-function commentTextFor(topic: string): string {
+export function commentTextFor(topic: string, date: string, slot: number): string {
   // One practical starter per broad object family, then the contact line. The
   // comment must read like the shop talking, not a campaign.
   const tip = /鞋/.test(topic)
@@ -39,7 +40,11 @@ function commentTextFor(topic: string): string {
   // tap. Twenty-eight days of profile-link taps sat at zero because no tappable
   // path to LINE existed anywhere. The coded redirect is what feeds GA4, so the
   // ads ladder finally has a number to read.
-  return `${tip} 直接點這裡問:${SITE}/go/line.html?source=ig-comment(或加 LINE:0968327653)`;
+  const url = utmTagged(`${SITE}/go/line.html?source=ig-comment`, {
+    source: "instagram",
+    campaign: utmCampaign(date, slot)
+  });
+  return `${tip} 直接點這裡問:${url}(或加 LINE:0968327653)`;
 }
 
 export async function postFirstComment(input: {
@@ -78,7 +83,7 @@ export async function postFirstComment(input: {
     {
       method: "POST",
       body: new URLSearchParams({
-        message: commentTextFor(topic),
+        message: commentTextFor(topic, input.date, input.slot),
         access_token: config.metaAccessToken ?? ""
       })
     }

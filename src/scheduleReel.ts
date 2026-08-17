@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { LINE_CONTACT, withSharedCaptionRules } from "./contentPlan";
+import { utmCampaign } from "./utm";
 import { generateDailyContent } from "./generateDailyContent";
 import {
   invalidateSlotImagesIfTopicChanged,
@@ -113,7 +114,8 @@ const FOLLOW_LINE = "私享家洗衣店｜台中市區免費到府收送";
 
 export function captionsFor(
   concept: ReelConcept,
-  airedBefore = 0
+  airedBefore: number,
+  date: string
 ): { instagram: string; facebook: string } {
   const hashtags = ["#私享家洗衣店", "#台中西屯洗衣店", "#台中免費收送", "#洗護日常"].join(" ");
   // Block 2 is the observation (narration), never the bare shop name — Instagram
@@ -152,9 +154,10 @@ export function captionsFor(
   // with four generic tags. The topic is the concept's object, which is what
   // the price and intent-tag rules match on.
   const topic = `${concept.hook}${concept.narration}`;
+  const campaign = utmCampaign(date, 2, "reel");
   return {
-    instagram: withSharedCaptionRules(instagram, topic),
-    facebook: withSharedCaptionRules(facebook, topic)
+    instagram: withSharedCaptionRules(instagram, topic, { source: "instagram", campaign }),
+    facebook: withSharedCaptionRules(facebook, topic, { source: "facebook", campaign })
   };
 }
 
@@ -245,7 +248,7 @@ export async function scheduleReel(input: {
     await copyFile(coverSource, join(root, coverRel));
   }
 
-  const captions = captionsFor(concept, priorAirings(concept.id, input.date));
+  const captions = captionsFor(concept, priorAirings(concept.id, input.date), input.date);
   const scheduleTime = slotNumber === 3 ? "12:00" : slotNumber === 2 ? "20:30" : slot.time;
   const patched: DailySlot = {
     ...slot,

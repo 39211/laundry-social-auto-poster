@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { captionsFor } from "../src/scheduleReel";
-import { LINE_CONTACT } from "../src/contentPlan";
 import { REEL_SCHEDULE, loadExtensions, priorAirings, type ReelConcept } from "../src/reelConcepts";
 
 // The 8/16 insight rows measured what an unchanged rerun costs: 精品包 217→93
@@ -21,8 +20,8 @@ const concept: ReelConcept = {
 };
 
 describe("re-airing caption variation", () => {
-  const first = captionsFor(concept, 0);
-  const rerun = captionsFor(concept, 1);
+  const first = captionsFor(concept, 0, "2026-08-17");
+  const rerun = captionsFor(concept, 1, "2026-08-17");
 
   it("writes a different caption for the second airing", () => {
     expect(rerun.instagram).not.toBe(first.instagram);
@@ -42,7 +41,8 @@ describe("re-airing caption variation", () => {
 
   it("keeps the shared caption rules alive in both arrangements", () => {
     for (const caption of [first.instagram, rerun.instagram, first.facebook, rerun.facebook]) {
-      expect(caption).toContain(LINE_CONTACT);
+      expect(caption).toContain("https://39211.github.io/go/line.html?source=post");
+      expect(caption).toContain("0968327653");
       // The hashtag ladder upgrade appends intent and local tags beyond the
       // four generic seeds — it only happens inside withSharedCaptionRules,
       // so its output is the witness that the rules ran on this arrangement.

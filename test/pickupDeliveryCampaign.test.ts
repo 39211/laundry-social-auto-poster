@@ -256,13 +256,17 @@ describe("Taichung free pickup-delivery campaign", () => {
       const output = await writeVideoCandidateManifest(date, root);
       const manifest = JSON.parse(await readFile(output, "utf8")) as Array<Record<string, unknown>>;
       expect(manifest).toHaveLength(2);
+      // The temp root has no data/publishing-policy.json, so the manifest must
+      // fail closed: no owner-granted paid_video_budget means no generation
+      // authorization. The old hardcoded `true` is what BOARD0817-ABSORB retired.
       expect(manifest[0]).toMatchObject({
         date,
         slot: 1,
         generation_route: "grok-imagine-video-1.5",
         preferred_submission_route: "hermes-xai-oauth-subscription",
-        generation_authorized: true,
-        handoff_status: "generation_ready",
+        generation_authorized: false,
+        generation_authorization_source: "data/publishing-policy.json#paid_video_budget",
+        handoff_status: "blocked_unauthorized",
         asset_package: "four-images-plus-companion-video",
         image_count: 4,
         current_publish_media_type: "mixed-carousel",

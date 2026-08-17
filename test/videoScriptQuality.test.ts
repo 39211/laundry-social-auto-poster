@@ -28,6 +28,8 @@ describe("video script quality", () => {
         runtime_policy_gate_required: true,
         owner_generation_requested: true,
         generation_authorized: true,
+        generation_authorization_source: "data/publishing-policy.json#paid_video_budget",
+        generation_blockers: [],
         handoff_status: "generation_ready",
         asset_package: "four-images-plus-companion-video",
         image_count: 4,

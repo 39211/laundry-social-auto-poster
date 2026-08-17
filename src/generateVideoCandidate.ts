@@ -1,6 +1,10 @@
 import { getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { generateDailyContent } from "./generateDailyContent";
+import {
+  GENERATION_AUTHORIZATION_SOURCE,
+  loadGenerationAuthorization
+} from "./generationAuthorization";
 import { loadDailyContent, writeJsonAtomic } from "./logging";
 import { projectRoot, relativeVideoAssetPath, videoCandidateManifestPath } from "./paths";
 import { getZonedDateParts } from "./scheduler";
@@ -15,8 +19,13 @@ export interface VideoCandidateManifestItem extends VideoCandidatePlan {
   preferred_submission_route: "hermes-xai-oauth-subscription";
   runtime_policy_gate_required: true;
   owner_generation_requested: true;
-  generation_authorized: true;
-  handoff_status: "generation_ready";
+  // Read from data/publishing-policy.json#paid_video_budget, never asserted
+  // here: this manifest used to hardcode true while the retired preproduction
+  // contract said false, and neither was a decision (BOARD0817-ABSORB).
+  generation_authorized: boolean;
+  generation_authorization_source: typeof GENERATION_AUTHORIZATION_SOURCE;
+  generation_blockers: string[];
+  handoff_status: "generation_ready" | "blocked_unauthorized";
   asset_package: "four-images-plus-companion-video";
   image_count: 4;
   raw_generation_seconds: 6;
@@ -61,6 +70,8 @@ export async function writeVideoCandidateManifest(date: string, root = projectRo
   const content = await loadDailyContent(date, root);
   if (!content) throw new Error(`No content calendar found for ${date}`);
 
+  const authorization = await loadGenerationAuthorization(date, root);
+
   const items: VideoCandidateManifestItem[] = content.slots.flatMap((slot) => {
     if (!slot.video_candidate) return [];
     const hookSubject = slot.video_candidate.memory_hook
@@ -80,8 +91,10 @@ export async function writeVideoCandidateManifest(date: string, root = projectRo
         preferred_submission_route: "hermes-xai-oauth-subscription",
         runtime_policy_gate_required: true,
         owner_generation_requested: true,
-        generation_authorized: true,
-        handoff_status: "generation_ready",
+        generation_authorized: authorization.authorized,
+        generation_authorization_source: authorization.source,
+        generation_blockers: authorization.blockers,
+        handoff_status: authorization.authorized ? "generation_ready" : "blocked_unauthorized",
         asset_package: "four-images-plus-companion-video",
         image_count: slot.media_package?.image_count ?? 4,
         raw_generation_seconds: 6,

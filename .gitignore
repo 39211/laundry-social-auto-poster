@@ -33,3 +33,6 @@ video-production/research/
 video-production/references/
 audits/service-page-visual-qa-2026-07-03/
 research/**/*.verification-failure.png
+
+# local credential files - never commit
+secrets/

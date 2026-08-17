@@ -340,9 +340,11 @@ if idx is None:
         f"output/operations/indexing-push-{ds}.json 缺檔",
         "確認 06:30 Daily-Generate 有跑到 submit-indexnow")
 else:
-    if idx.get("indexnow_status") != 200:
+    # IndexNow 協定裡 202 = 已受理(key 驗證中),與 200 同為成功;
+    # 2026-08-17 網域剛切換當晚,把正常的 202 誤標成 HIGH。
+    if idx.get("indexnow_status") not in (200, 202):
         add("HIGH", "索引", f"IndexNow 回 {idx.get('indexnow_status')}",
-            "非 200", "查 API key 與 sitemap")
+            "非 200/202", "查 API key 與 sitemap")
     thin = idx.get("thin_pages") or []
     if thin:
         add("MED", "索引", f"{len(thin)} 頁內容過薄",

@@ -8,11 +8,14 @@ import { getConfig } from "../src/config";
 import {
   CALENDAR_WRITTEN_BY,
   buildDailyContent,
+  calendarHmacKeyPath,
+  calendarKeylessChecksum,
   calendarSlotsChecksum,
   inspectDailyContentIntegrity,
   shouldRebuildTamperedCalendar,
   stampDailyContentWrite
 } from "../src/contentPlan";
+import { autoApprove } from "../src/autoApprove";
 import { generateDailyContent } from "../src/generateDailyContent";
 import {
   calendarTamperEvidencePath,
@@ -81,13 +84,20 @@ async function writeRaw(root: string, content: DailyContent): Promise<void> {
   );
 }
 
+describe("calendar HMAC key is gitignored", () => {
+  it("data/.gitignore lists the hmac key file", async () => {
+    const ignore = await readFile(join(PROJECT, "data", ".gitignore"), "utf8");
+    expect(ignore).toMatch(/^\.calendar-hmac-key\s*$/m);
+  });
+});
+
 describe("writeDailyContent stamps the plan writer", () => {
   it("adds written_by and a slots checksum, and a normal load is not tampered", async () => {
     const root = await tempRoot();
     const config = getConfig({ ...process.env, DRY_RUN: "true" });
     const built = buildDailyContent("2026-05-15", config);
     expect(built.written_by).toBe(CALENDAR_WRITTEN_BY);
-    expect(built.content_checksum).toBe(calendarSlotsChecksum(built.slots));
+    expect(built.content_checksum).toBe(calendarSlotsChecksum(built));
     expect(built.content_checksum).toMatch(/^[0-9a-f]{16}$/);
 
     await writeDailyContent(built, root);
@@ -95,7 +105,7 @@ describe("writeDailyContent stamps the plan writer", () => {
       await readFile(join(root, "data", "content-calendar", "2026-05-15.json"), "utf8")
     ) as DailyContent & { written_by?: string; content_checksum?: string; tampered?: boolean };
     expect(raw.written_by).toBe("contentPlan.writeDailyContent");
-    expect(raw.content_checksum).toBe(calendarSlotsChecksum(raw.slots));
+    expect(raw.content_checksum).toBe(calendarSlotsChecksum(raw, { root }));
     expect(raw.tampered).toBeUndefined();
 
     const loaded = await loadDailyContent("2026-05-15", root, { today: TODAY });
@@ -123,6 +133,35 @@ describe("loadDailyContent tamper detection", () => {
     expect(inspection.reasons).toContain("missing content_checksum");
   });
 
+  it("grandfathers unstamped calendars from before the stamping regime, even for today", async () => {
+    // 2026-08-17 and 2026-08-18 existed on disk before stamping shipped. If
+    // the grace window disappears, the first 06:30 run after the feature lands
+    // force-rebuilds an approved day — this test is that morning in miniature.
+    const root = await tempRoot();
+    const grace = externalCalendar(TODAY);
+    await writeRaw(root, grace);
+
+    const loaded = await loadDailyContent(TODAY, root, { today: TODAY });
+    expect(loaded?.tampered).toBeUndefined();
+
+    const inspection = inspectDailyContentIntegrity(grace, { today: TODAY });
+    expect(inspection.legacy).toBe(true);
+    expect(inspection.tampered).toBe(false);
+    expect(inspection.shouldRebuild).toBe(false);
+    expect(shouldRebuildTamperedCalendar(grace, { today: TODAY })).toBe(false);
+  });
+
+  it("closes the grace window at the adoption date: unstamped 2026-08-19 today stays tampered", () => {
+    // Discriminates in both directions: widen the grace past adoption and this
+    // goes red; the sibling test above goes red if the grace is removed.
+    const forged = externalCalendar("2026-08-19");
+    const inspection = inspectDailyContentIntegrity(forged, { today: "2026-08-19" });
+    expect(inspection.tampered).toBe(true);
+    expect(inspection.legacy).toBe(false);
+    expect(inspection.shouldRebuild).toBe(true);
+    expect(inspection.reasons).toContain("missing written_by");
+  });
+
   it("treats a historical file without checksum as legacy, not tampered", async () => {
     const root = await tempRoot();
     const legacy = externalCalendar(PAST);
@@ -134,7 +173,8 @@ describe("loadDailyContent tamper detection", () => {
       tampered: false,
       legacy: true,
       shouldRebuild: false,
-      reasons: []
+      reasons: [],
+      weak: false
     });
     expect(shouldRebuildTamperedCalendar(legacy, { today: TODAY })).toBe(false);
   });
@@ -184,7 +224,7 @@ describe("tamper rebuild path", () => {
     const rebuilt = await loadDailyContent(FUTURE, root, { today: TODAY });
     expect(rebuilt?.tampered).toBeUndefined();
     expect(rebuilt?.written_by).toBe(CALENDAR_WRITTEN_BY);
-    expect(rebuilt?.content_checksum).toBe(calendarSlotsChecksum(rebuilt!.slots));
+    expect(rebuilt?.content_checksum).toBe(calendarSlotsChecksum(rebuilt!, { root }));
     expect(rebuilt?.generated_at.endsWith("Z")).toBe(true);
     expect(rebuilt?.slots[0]?.topic).not.toBe("external topic 1");
 
@@ -259,6 +299,13 @@ describe("daily scripts rebuild on tamper", () => {
     expect(evidence).toBeGreaterThan(-1);
     expect(toast).toBeGreaterThan(-1);
     expect(approve).toBeGreaterThan(manifest);
+    expect(script).toContain("$generateCode");
+    expect(script).toContain("$manifestCode");
+    const refuse = script.indexOf("refusing auto-approve");
+    expect(refuse).toBeGreaterThan(manifest);
+    expect(refuse).toBeGreaterThan(-1);
+    expect(approve).toBeGreaterThan(refuse);
+    expect(script).toMatch(/\$generateCode -ne 0 -or \$manifestCode -ne 0/);
   });
 
   it("daily-generate inspects the existing-calendar branch before the images-ready exit", async () => {
@@ -273,5 +320,104 @@ describe("daily scripts rebuild on tamper", () => {
     expect(manifest).toBeGreaterThan(generate);
     expect(evidence).toBeGreaterThan(-1);
     expect(earlyExit).toBeGreaterThan(inspect);
+    expect(script).toContain("Invoke-DayCarouselVisualQa");
+    expect(script.indexOf("Invoke-DayCarouselVisualQa")).toBeLessThan(earlyExit);
+    expect(script).toContain("generate-missing-images.ps1");
+    expect(script).toContain("-QaOnly");
+    const finished = script.indexOf("Generation finished; calendar and images are both ready.");
+    expect(finished).toBeGreaterThan(earlyExit);
+    expect(script.indexOf("Invoke-DayCarouselVisualQa", finished)).toBeGreaterThan(finished);
+  });
+});
+
+describe("checksum covers envelope and HMAC", () => {
+  it("marks a date, timezone, or generated_at change as tampered", async () => {
+    const root = await tempRoot();
+    const stamped = stampDailyContentWrite(externalCalendar(FUTURE), { root });
+    const dateChanged = { ...stamped, date: "2026-08-21" };
+    const tzChanged = { ...stamped, timezone: "UTC" };
+    const generatedChanged = { ...stamped, generated_at: "2099-01-01T00:00:00.000Z" };
+
+    for (const forged of [dateChanged, tzChanged, generatedChanged]) {
+      const inspection = inspectDailyContentIntegrity(forged, { today: TODAY, root });
+      expect(inspection.tampered).toBe(true);
+      expect(inspection.reasons).toContain("content_checksum mismatch");
+    }
+  });
+
+  it("rejects a forged written_by plus recomputed keyless checksum", async () => {
+    const root = await tempRoot();
+    const stamped = stampDailyContentWrite(externalCalendar(FUTURE), { root });
+    const rewritten: DailyContent = {
+      ...stamped,
+      slots: stamped.slots.map((item, index) =>
+        index === 0 ? { ...item, topic: "forged topic" } : item
+      )
+    };
+    const forged = {
+      ...rewritten,
+      written_by: CALENDAR_WRITTEN_BY,
+      content_checksum: calendarKeylessChecksum(rewritten)
+    };
+    const inspection = inspectDailyContentIntegrity(forged, { today: TODAY, root });
+    expect(inspection.tampered).toBe(true);
+    expect(inspection.reasons).toContain("content_checksum mismatch");
+    expect(inspection.weak).toBe(false);
+  });
+
+  it("mutation: keyless recompute only passes when HMAC is not applied", async () => {
+    const root = await tempRoot();
+    const stamped = stampDailyContentWrite(externalCalendar(FUTURE), { root });
+    expect(stamped.content_checksum).not.toBe(calendarKeylessChecksum(stamped));
+    const forged = {
+      ...stamped,
+      written_by: CALENDAR_WRITTEN_BY,
+      content_checksum: calendarKeylessChecksum(stamped)
+    };
+    expect(inspectDailyContentIntegrity(forged, { today: TODAY, root }).tampered).toBe(true);
+    expect(calendarHmacKeyPath(root)).toContain(".calendar-hmac-key");
+  });
+
+  it("marks integrity weak when the HMAC key is missing and the keyless digest matches", async () => {
+    const root = await tempRoot();
+    const content = externalCalendar(FUTURE);
+    const keyless = {
+      ...content,
+      written_by: CALENDAR_WRITTEN_BY,
+      content_checksum: calendarKeylessChecksum(content)
+    };
+    const inspection = inspectDailyContentIntegrity(keyless, { today: TODAY, root });
+    expect(inspection.tampered).toBe(false);
+    expect(inspection.weak).toBe(true);
+    expect(inspection.shouldRebuild).toBe(false);
+  });
+});
+
+describe("tampered consumers fail closed", () => {
+  it("autoApprove refuses a tampered calendar and writes no approval", async () => {
+    const root = await tempRoot();
+    await mkdir(join(root, "data"), { recursive: true });
+    await writeFile(
+      join(root, "data", "publishing-policy.json"),
+      JSON.stringify({
+        status: "active",
+        start_date: "2026-08-01",
+        end_date: "2026-12-31",
+        platforms: ["facebook", "instagram"],
+        slots: [{ slot: 1 }, { slot: 2 }]
+      }),
+      "utf8"
+    );
+    const stamped = stampDailyContentWrite(externalCalendar(FUTURE), { root });
+    await writeRaw(root, { ...stamped, generated_at: "2099-01-01T00:00:00.000Z" });
+
+    const result = await autoApprove({ date: FUTURE, root });
+    expect(result.approved).toBe(false);
+    expect(result.already_approved).toBe(false);
+    expect(result.approved_slots).toEqual([]);
+    expect(result.blockers.some((text) => text.includes("calendar_integrity"))).toBe(true);
+    await expect(readFile(join(root, "data", "approved-log", `${FUTURE}.json`), "utf8")).rejects.toMatchObject({
+      code: "ENOENT"
+    });
   });
 });

@@ -13,6 +13,7 @@ import {
 } from "../src/abTestPlan";
 import { buildAbTestReport } from "../src/abTestReport";
 import { getConfig } from "../src/config";
+import { stampDailyContentWrite } from "../src/contentPlan";
 import { loadDailyContent, writePostLog } from "../src/logging";
 import {
   assertInsidePublishWindow,
@@ -363,10 +364,13 @@ describe("A/B dual-reel pipeline", () => {
 
     // Strip slot 3 if the generator added it, simulating an older 2-slot calendar.
     const content = await loadDailyContent(date, root);
-    const without3 = {
-      ...content!,
-      slots: content!.slots.filter((slot) => slot.slot !== 3)
-    };
+    const without3 = stampDailyContentWrite(
+      {
+        ...content!,
+        slots: content!.slots.filter((slot) => slot.slot !== 3)
+      },
+      { root }
+    );
     await writeFile(
       join(root, "data", "content-calendar", `${date}.json`),
       `${JSON.stringify(without3, null, 2)}\n`

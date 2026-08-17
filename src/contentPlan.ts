@@ -1,5 +1,6 @@
-﻿import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+﻿import { createHash, createHmac, randomBytes } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { abTestPlanPath, planForDate, planSlot, type AbDayPlan } from "./abTestPlan";
 import {
   buildGitHubPagesCarouselImageUrl,
@@ -953,6 +954,13 @@ function withEngagementQuestion(caption: string, slot: GrowthPlaybookSlot): stri
  * colour it names is usually the whole point of the post.
  */
 const SHOE_SUBJECTS: Array<{ match: RegExp; subject: string }> = [
+  { match: /麂皮/, subject: "suede shoes" },
+  { match: /童鞋/, subject: "kids sneakers" },
+  { match: /室內鞋/, subject: "indoor slippers" },
+  { match: /登山鞋/, subject: "hiking boots" },
+  { match: /老爹鞋/, subject: "chunky mesh sneakers" },
+  { match: /精品|名牌鞋/, subject: "designer leather sneakers with no logo" },
+  { match: /鞋襪/, subject: "shoes with socks" },
   { match: /白鞋/, subject: "white leather low-top sneakers with a white rubber midsole" },
   { match: /帆布/, subject: "off-white canvas low-top sneakers" },
   { match: /皮鞋/, subject: "dark brown leather dress shoes" },
@@ -1413,12 +1421,204 @@ export interface CarouselPromptInput {
   seo_sync_page?: string;
 }
 
-interface ObjectSpec {
+export interface ObjectSpec {
   noun: string;
   lockNote: string;
   material: string;
   wear: string;
+  sceneLockOnly?: boolean;
 }
+
+export interface ObjectSpecRule {
+  id: string;
+  match: RegExp;
+  noun?: string;
+  material?: string;
+  lockNote?: string;
+  wearFallback?: string;
+  sceneLockOnly?: boolean;
+  useShoeSubject?: boolean;
+}
+
+/**
+ * Topic → object passport table. More specific rows must sit above generic
+ * shoe / laundry fallbacks. 麂皮鞋 contains 皮鞋 as a substring, so suede
+ * has to win before the dress-shoe row.
+ */
+export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
+  {
+    id: "poster-promo",
+    match: /海報|宣傳/,
+    sceneLockOnly: true,
+    lockNote: "non-physical promo topic; scene-lock only; do not invent a laundry item"
+  },
+  {
+    id: "clinic-uniform",
+    match: /診所制服|制服/,
+    noun: "clinic uniform set",
+    material: "clinic uniform fabric",
+    lockNote: "object locked as clinic uniform set",
+    wearFallback: "honest weekly wear at collar and cuff"
+  },
+  {
+    id: "gym-towels",
+    match: /毛巾/,
+    noun: "batch of gym towels",
+    material: "terry cotton gym towels",
+    lockNote: "object locked as a batch of gym towels",
+    wearFallback: "sweat residue in the folded stack"
+  },
+  {
+    id: "shoes-with-socks",
+    match: /鞋襪/,
+    noun: "shoes with socks",
+    material: "everyday shoes with socks",
+    lockNote: "object locked as shoes with socks"
+  },
+  {
+    id: "suede-shoes",
+    match: /麂皮/,
+    noun: "paired set of two suede shoes",
+    material: "suede",
+    lockNote: "object locked as suede shoes"
+  },
+  {
+    id: "kids-sneakers",
+    match: /童鞋/,
+    noun: "paired set of two kids sneakers",
+    material: "kids sneakers",
+    lockNote: "object locked as kids sneakers"
+  },
+  {
+    id: "indoor-slippers",
+    match: /室內鞋/,
+    noun: "paired set of two indoor slippers",
+    material: "indoor slippers",
+    lockNote: "object locked as indoor slippers"
+  },
+  {
+    id: "hiking-boots",
+    match: /登山鞋/,
+    noun: "paired set of two hiking boots",
+    material: "hiking boots",
+    lockNote: "object locked as hiking boots"
+  },
+  {
+    id: "chunky-mesh",
+    match: /老爹鞋/,
+    noun: "paired set of two chunky mesh sneakers",
+    material: "chunky mesh sneakers",
+    lockNote: "object locked as chunky mesh sneakers"
+  },
+  {
+    id: "designer-sneakers",
+    match: /精品|名牌鞋/,
+    noun: "paired set of two designer leather sneakers",
+    material: "designer leather sneakers",
+    lockNote: "object locked as designer leather sneakers, no logo, no brand marks"
+  },
+  {
+    id: "dark-tee",
+    match: /深色/,
+    noun: "dark cotton tee",
+    material: "charcoal cotton jersey knit",
+    lockNote: "object locked as dark cotton tee, not a shirt, not a hoodie, not a jacket",
+    wearFallback: "sun-faded grey along the shoulder line and both side seams"
+  },
+  {
+    id: "sneaker-and-bag",
+    match: /鞋.*包|包.*鞋/,
+    noun: "paired everyday sneaker and one fabric handbag as a single inspection set",
+    material: "worn fabric and leather-look surfaces",
+    lockNote: "object locked as one sneaker-and-bag inspection set",
+    wearFallback: "honest everyday wear at the named contact points"
+  },
+  {
+    id: "generic-shoe",
+    match: /童鞋|鞋|靴|勃肯|拖鞋|涼鞋/,
+    useShoeSubject: true
+  },
+  {
+    id: "bedding",
+    match: /床單|被套|棉被|床組|枕/,
+    noun: "complete folded warm-white cotton duvet cover with a thin navy piping edge",
+    material: "warm-white cotton with thin navy piping",
+    lockNote: "object locked as one folded warm-white cotton duvet cover",
+    wearFallback: "sleep odor and trapped moisture in the thickest channel"
+  },
+  {
+    id: "shirt-and-suit",
+    match: /襯衫.*西裝|西裝.*襯衫/,
+    noun: "white cotton dress shirt laid with a navy wool suit jacket",
+    material: "white cotton shirting and navy wool",
+    lockNote: "object locked as one shirt-and-suit inspection pair",
+    wearFallback: "collar ring and shoulder-line collapse"
+  },
+  {
+    id: "dress-shirt",
+    match: /襯衫/,
+    noun: "white cotton dress shirt",
+    material: "white cotton shirting",
+    lockNote: "object locked as a white cotton dress shirt",
+    wearFallback: "collar and underarm yellowing"
+  },
+  {
+    id: "denim",
+    match: /牛仔/,
+    noun: "pair of indigo denim jeans",
+    material: "indigo cotton denim",
+    lockNote: "object locked as indigo denim jeans",
+    wearFallback: "fade at the thigh and hem"
+  },
+  {
+    id: "plush",
+    match: /娃娃|玩偶/,
+    noun: "medium plush doll",
+    material: "soft pile plush with visible seams",
+    lockNote: "object locked as one plush doll",
+    wearFallback: "matted pile on the hugged side"
+  },
+  {
+    id: "handbag",
+    match: /包/,
+    noun: "structured everyday handbag",
+    material: "pebbled leather-look body with stitched handles",
+    lockNote: "object locked as one structured handbag",
+    wearFallback: "handle darkening and corner edge-paint wear"
+  },
+  {
+    id: "suitcase",
+    match: /行李箱/,
+    noun: "soft-sided fabric suitcase",
+    material: "woven suitcase fabric with wheeled base",
+    lockNote: "object locked as one fabric suitcase",
+    wearFallback: "dust at the wheel edge and handle"
+  },
+  {
+    id: "down-jacket",
+    match: /羽絨/,
+    noun: "quilted down jacket",
+    material: "nylon-shell quilted down",
+    lockNote: "object locked as one quilted down jacket",
+    wearFallback: "flattened loft in the body channels"
+  },
+  {
+    id: "suit-jacket",
+    match: /西裝/,
+    noun: "navy wool suit jacket",
+    material: "navy wool suiting",
+    lockNote: "object locked as one navy wool suit jacket",
+    wearFallback: "softened shoulder line and collar roll"
+  },
+  {
+    id: "everyday-jacket",
+    match: /外套|大衣|夾克/,
+    noun: "everyday fabric jacket",
+    material: "worn woven jacket cloth",
+    lockNote: "object locked as one everyday fabric jacket",
+    wearFallback: "collar and cuff darkening"
+  }
+];
 
 function topicBody(topic: string): string {
   return cleanTopic(topic).replace(/^(先看懂|今天情境|可收藏|細節拆解|到店前判斷|送洗前先問)[:：]/, "");
@@ -1451,129 +1651,39 @@ function namedSpotsFromTopic(topic: string): string[] {
   return spots;
 }
 
-function objectSpecFromTopic(topic: string): ObjectSpec {
+export function objectSpecFromTopic(topic: string): ObjectSpec {
   const t = topicBody(topic);
   const kind = wearKindFromTopic(t);
   const spots = namedSpotsFromTopic(t);
   const wearAt = (fallback: string) => (spots.length > 0 ? `${kind} at the ${spots.join(" and ")}` : fallback);
 
-  // 深色衣服 is the 8/17 failure case: a category word, not a garment. Lock
-  // one noun (tee, not shirt) so four slides cannot invent four silhouettes.
-  if (/深色/.test(t) && /衣/.test(t)) {
+  for (const rule of OBJECT_SPEC_RULES) {
+    if (!rule.match.test(t)) continue;
+    // 深色衣服 is the 8/17 failure case: a category word, not a garment.
+    if (rule.id === "dark-tee" && !/衣/.test(t)) continue;
+    if (rule.sceneLockOnly) {
+      return {
+        noun: "scene-lock only",
+        lockNote: rule.lockNote ?? "non-physical promo topic; scene-lock only",
+        material: "n/a",
+        wear: "n/a",
+        sceneLockOnly: true
+      };
+    }
+    if (rule.useShoeSubject) {
+      const shoe = shoeSubjectFor(t);
+      return {
+        noun: `paired set of two ${shoe}`,
+        lockNote: `object locked as ${shoe}`,
+        material: shoe,
+        wear: wearAt(`${kind} at the positions the topic names`)
+      };
+    }
     return {
-      noun: "dark cotton tee",
-      lockNote: "object locked as dark cotton tee, not a shirt, not a hoodie, not a jacket",
-      material: "charcoal cotton jersey knit",
-      wear: wearAt("sun-faded grey along the shoulder line and both side seams")
-    };
-  }
-
-  if (/鞋/.test(t) && /包/.test(t)) {
-    return {
-      noun: "paired everyday sneaker and one fabric handbag as a single inspection set",
-      lockNote: "object locked as one sneaker-and-bag inspection set",
-      material: "worn fabric and leather-look surfaces",
-      wear: wearAt("honest everyday wear at the named contact points")
-    };
-  }
-
-  if (/童鞋|鞋|靴|勃肯|拖鞋|涼鞋/.test(t)) {
-    const shoe = shoeSubjectFor(t);
-    return {
-      noun: `paired set of two ${shoe}`,
-      lockNote: `object locked as ${shoe}`,
-      material: shoe,
-      wear: wearAt(`${kind} at the positions the topic names`)
-    };
-  }
-
-  if (/床單|被套|棉被|床組|枕/.test(t)) {
-    return {
-      noun: "complete folded warm-white cotton duvet cover with a thin navy piping edge",
-      lockNote: "object locked as one folded warm-white cotton duvet cover",
-      material: "warm-white cotton with thin navy piping",
-      wear: wearAt("sleep odor and trapped moisture in the thickest channel")
-    };
-  }
-
-  if (/襯衫/.test(t) && /西裝/.test(t)) {
-    return {
-      noun: "white cotton dress shirt laid with a navy wool suit jacket",
-      lockNote: "object locked as one shirt-and-suit inspection pair",
-      material: "white cotton shirting and navy wool",
-      wear: wearAt("collar ring and shoulder-line collapse")
-    };
-  }
-
-  if (/襯衫/.test(t)) {
-    return {
-      noun: "white cotton dress shirt",
-      lockNote: "object locked as a white cotton dress shirt",
-      material: "white cotton shirting",
-      wear: wearAt("collar and underarm yellowing")
-    };
-  }
-
-  if (/牛仔/.test(t)) {
-    return {
-      noun: "pair of indigo denim jeans",
-      lockNote: "object locked as indigo denim jeans",
-      material: "indigo cotton denim",
-      wear: wearAt("fade at the thigh and hem")
-    };
-  }
-
-  if (/娃娃|玩偶/.test(t)) {
-    return {
-      noun: "medium plush doll",
-      lockNote: "object locked as one plush doll",
-      material: "soft pile plush with visible seams",
-      wear: wearAt("matted pile on the hugged side")
-    };
-  }
-
-  if (/包/.test(t)) {
-    return {
-      noun: "structured everyday handbag",
-      lockNote: "object locked as one structured handbag",
-      material: "pebbled leather-look body with stitched handles",
-      wear: wearAt("handle darkening and corner edge-paint wear")
-    };
-  }
-
-  if (/行李箱/.test(t)) {
-    return {
-      noun: "soft-sided fabric suitcase",
-      lockNote: "object locked as one fabric suitcase",
-      material: "woven suitcase fabric with wheeled base",
-      wear: wearAt("dust at the wheel edge and handle")
-    };
-  }
-
-  if (/羽絨/.test(t)) {
-    return {
-      noun: "quilted down jacket",
-      lockNote: "object locked as one quilted down jacket",
-      material: "nylon-shell quilted down",
-      wear: wearAt("flattened loft in the body channels")
-    };
-  }
-
-  if (/西裝/.test(t)) {
-    return {
-      noun: "navy wool suit jacket",
-      lockNote: "object locked as one navy wool suit jacket",
-      material: "navy wool suiting",
-      wear: wearAt("softened shoulder line and collar roll")
-    };
-  }
-
-  if (/外套|大衣|夾克/.test(t)) {
-    return {
-      noun: "everyday fabric jacket",
-      lockNote: "object locked as one everyday fabric jacket",
-      material: "worn woven jacket cloth",
-      wear: wearAt("collar and cuff darkening")
+      noun: rule.noun ?? "complete worn laundry item matching the topic",
+      lockNote: rule.lockNote ?? "object locked to the single item the topic names",
+      material: rule.material ?? "honest used fabric",
+      wear: wearAt(rule.wearFallback ?? `${kind} at the positions the topic names`)
     };
   }
 
@@ -1587,6 +1697,12 @@ function objectSpecFromTopic(topic: string): ObjectSpec {
 
 export function garmentPassportFromTopic(topic: string): string {
   const spec = objectSpecFromTopic(topic);
+  if (spec.sceneLockOnly) {
+    return (
+      `OBJECT PASSPORT: scene-lock only (non-physical promo topic; do not invent a physical object). ` +
+      `${CAROUSEL_SCENE_LOCK}`
+    );
+  }
   return (
     `OBJECT PASSPORT: exactly one ${spec.noun} (${spec.lockNote}); ` +
     `color/material: ${spec.material}; wear marks: ${spec.wear}.`
@@ -1959,7 +2075,17 @@ export interface CalendarIntegrity {
   legacy: boolean;
   shouldRebuild: boolean;
   reasons: string[];
+  weak: boolean;
 }
+
+export interface CalendarChecksumOptions {
+  today?: string;
+  root?: string;
+}
+
+export const CALENDAR_HMAC_KEY_NAME = ".calendar-hmac-key";
+
+export type CalendarChecksumEnvelope = Pick<DailyContent, "date" | "timezone" | "generated_at" | "slots">;
 
 function normalizeForChecksum(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalizeForChecksum);
@@ -1975,18 +2101,78 @@ function normalizeForChecksum(value: unknown): unknown {
   return value;
 }
 
-export function calendarSlotsChecksum(slots: DailySlot[]): string {
-  return createHash("sha256")
-    .update(JSON.stringify(normalizeForChecksum(slots)))
-    .digest("hex")
-    .slice(0, 16);
+export function calendarHmacKeyPath(root = projectRoot()): string {
+  return join(root, "data", CALENDAR_HMAC_KEY_NAME);
+}
+
+export function readCalendarHmacKey(root = projectRoot()): string | undefined {
+  try {
+    const key = readFileSync(calendarHmacKeyPath(root), "utf8").trim();
+    return key.length >= 16 ? key : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function ensureCalendarHmacKey(root = projectRoot()): string | undefined {
+  const existing = readCalendarHmacKey(root);
+  if (existing) return existing;
+  const path = calendarHmacKeyPath(root);
+  try {
+    mkdirSync(dirname(path), { recursive: true });
+    const key = randomBytes(32).toString("hex");
+    writeFileSync(path, `${key}\n`, { encoding: "utf8", flag: "wx" });
+    return key;
+  } catch {
+    return readCalendarHmacKey(root);
+  }
+}
+
+function calendarChecksumPayload(content: CalendarChecksumEnvelope): string {
+  return JSON.stringify(
+    normalizeForChecksum({
+      date: content.date,
+      timezone: content.timezone,
+      generated_at: content.generated_at,
+      slots: content.slots
+    })
+  );
+}
+
+function digestHex16(algorithm: "sha256" | "hmac", payload: string, key?: string): string {
+  if (algorithm === "hmac" && key) {
+    return createHmac("sha256", key).update(payload).digest("hex").slice(0, 16);
+  }
+  return createHash("sha256").update(payload).digest("hex").slice(0, 16);
+}
+
+/** Keyless SHA-256 of date+timezone+generated_at+slots. Used when the HMAC key is absent. */
+export function calendarKeylessChecksum(content: CalendarChecksumEnvelope): string {
+  return digestHex16("sha256", calendarChecksumPayload(content));
+}
+
+/**
+ * Integrity digest over date, timezone, generated_at and slots.
+ * HMAC-SHA256 when data/.calendar-hmac-key exists; otherwise keyless SHA-256.
+ */
+export function calendarSlotsChecksum(
+  content: CalendarChecksumEnvelope,
+  options: CalendarChecksumOptions = {}
+): string {
+  const payload = calendarChecksumPayload(content);
+  const key = readCalendarHmacKey(options.root);
+  return key ? digestHex16("hmac", payload, key) : digestHex16("sha256", payload);
 }
 
 export function taipeiCalendarDate(now = new Date()): string {
   return getZonedDateParts(now, "Asia/Taipei").date;
 }
 
-export function stampDailyContentWrite(content: DailyContent): StampedDailyContent {
+export function stampDailyContentWrite(
+  content: DailyContent,
+  options: CalendarChecksumOptions = {}
+): StampedDailyContent {
+  ensureCalendarHmacKey(options.root);
   const stamped = content as StampedDailyContent;
   const rest = {
     date: stamped.date,
@@ -1997,33 +2183,46 @@ export function stampDailyContentWrite(content: DailyContent): StampedDailyConte
   return {
     ...rest,
     written_by: CALENDAR_WRITTEN_BY,
-    content_checksum: calendarSlotsChecksum(rest.slots)
+    content_checksum: calendarSlotsChecksum(rest, options)
   };
 }
 
 /**
- * Missing stamps on dates before today are legacy (no alarm).
- * Today or a future date with a missing stamp, wrong writer, or bad checksum
- * is tampered. A past file that claims a stamp and fails it is also tampered,
- * but only today/future dates rebuild.
+ * The stamping regime began on 2026-08-19. Calendars for earlier dates were
+ * written by pre-stamp pipeline code, so a missing stamp there is history, not
+ * handwriting — without this boundary, the first morning after the feature
+ * landed would have judged the already-built 08-18 calendar tampered and
+ * force-rebuilt a day the owner had already approved (the stored-output trap).
+ */
+export const CALENDAR_STAMP_ADOPTION_DATE = "2026-08-19";
+
+/**
+ * Missing stamps on dates before today, or from before the stamping regime,
+ * are legacy (no alarm). From the adoption date on, today or a future date
+ * with a missing stamp, wrong writer, or bad checksum is tampered. A file of
+ * any date that claims a stamp and fails it is also tampered, but only
+ * today/future dates rebuild.
+ * No HMAC key: compare the keyless digest and mark weak.
  */
 export function inspectDailyContentIntegrity(
   content: DailyContent,
-  options: { today?: string } = {}
+  options: CalendarChecksumOptions = {}
 ): CalendarIntegrity {
   const today = options.today ?? taipeiCalendarDate();
   const actionable = content.date >= today;
   const stamped = content as StampedDailyContent;
   const writtenBy = typeof stamped.written_by === "string" ? stamped.written_by : "";
   const checksum = typeof stamped.content_checksum === "string" ? stamped.content_checksum : "";
-  const expected = Array.isArray(content.slots) ? calendarSlotsChecksum(content.slots) : "";
+  const expected = Array.isArray(content.slots) ? calendarSlotsChecksum(content, options) : "";
   const missingWriter = writtenBy.length === 0;
   const missingChecksum = checksum.length === 0;
   const mismatch = !missingChecksum && checksum !== expected;
   const wrongWriter = !missingWriter && writtenBy !== CALENDAR_WRITTEN_BY;
+  const weak = !readCalendarHmacKey(options.root);
+  const preAdoption = content.date < CALENDAR_STAMP_ADOPTION_DATE;
 
-  if ((missingWriter || missingChecksum) && !actionable && !mismatch && !wrongWriter) {
-    return { tampered: false, legacy: true, shouldRebuild: false, reasons: [] };
+  if ((missingWriter || missingChecksum) && (!actionable || preAdoption) && !mismatch && !wrongWriter) {
+    return { tampered: false, legacy: true, shouldRebuild: false, reasons: [], weak: false };
   }
 
   const reasons: string[] = [];
@@ -2037,13 +2236,14 @@ export function inspectDailyContentIntegrity(
     tampered,
     legacy: false,
     shouldRebuild: tampered && actionable,
-    reasons
+    reasons,
+    weak
   };
 }
 
 export function shouldRebuildTamperedCalendar(
   content: DailyContent,
-  options: { today?: string } = {}
+  options: CalendarChecksumOptions = {}
 ): boolean {
   return inspectDailyContentIntegrity(content, options).shouldRebuild;
 }

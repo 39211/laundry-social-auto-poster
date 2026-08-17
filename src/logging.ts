@@ -110,7 +110,7 @@ export async function loadDailyContent(
   if (!Array.isArray(content.slots) || content.slots.length < 2 || content.slots.length > 3) {
     throw new Error(`Invalid daily content for ${date}: expected 2 or 3 slots.`);
   }
-  const inspection = inspectDailyContentIntegrity(content, { today: options.today });
+  const inspection = inspectDailyContentIntegrity(content, { today: options.today, root });
   if (inspection.tampered) {
     return { ...content, tampered: true };
   }
@@ -118,7 +118,7 @@ export async function loadDailyContent(
 }
 
 export async function writeDailyContent(content: DailyContent, root = projectRoot()): Promise<void> {
-  await writeJsonAtomic(contentCalendarPath(content.date, root), stampDailyContentWrite(content));
+  await writeJsonAtomic(contentCalendarPath(content.date, root), stampDailyContentWrite(content, { root }));
 }
 
 export function calendarTamperEvidencePath(date: string, root = projectRoot()): string {
@@ -131,6 +131,7 @@ export interface CalendarTamperDetection {
   shouldRebuild: boolean;
   reasons: string[];
   evidencePath?: string;
+  weak?: boolean;
 }
 
 export async function detectAndRecordCalendarTamper(
@@ -143,15 +144,16 @@ export async function detectAndRecordCalendarTamper(
     undefined
   );
   if (!content) {
-    return { present: false, tampered: false, shouldRebuild: false, reasons: [] };
+    return { present: false, tampered: false, shouldRebuild: false, reasons: [], weak: false };
   }
-  const inspection = inspectDailyContentIntegrity(content, { today: options.today });
+  const inspection = inspectDailyContentIntegrity(content, { today: options.today, root });
   if (!inspection.shouldRebuild) {
     return {
       present: true,
       tampered: inspection.tampered,
       shouldRebuild: false,
-      reasons: inspection.reasons
+      reasons: inspection.reasons,
+      weak: inspection.weak
     };
   }
   const evidencePath = calendarTamperEvidencePath(date, root);
@@ -167,7 +169,8 @@ export async function detectAndRecordCalendarTamper(
     tampered: true,
     shouldRebuild: true,
     reasons: inspection.reasons,
-    evidencePath
+    evidencePath,
+    weak: inspection.weak
   };
 }
 

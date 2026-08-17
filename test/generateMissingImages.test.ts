@@ -11,4 +11,20 @@ describe("generate-missing-images inventory", () => {
     expect(source).not.toMatch(/if\s*\(\s*\$generated\s*-eq\s*0\s*\)[\s\S]{0,240}Every image/);
     expect(source).toContain("Inventory is the calendar");
   });
+
+  it("runs carousel QA for already-complete slots and on -QaOnly", async () => {
+    const source = await readFile(new URL("../scripts/generate-missing-images.ps1", import.meta.url), "utf8");
+    expect(source).toContain("[switch]$QaOnly");
+    expect(source).toContain("Ensure-CarouselVisualQa");
+    expect(source).toContain("topic tempfile write failed");
+    expect(source).toContain("visual-qa.json write failed");
+    expect(source).toContain("slot-$pad.visual-qa.json");
+    const qaOnly = source.indexOf("if ($QaOnly)");
+    const ensureDef = source.indexOf("function Ensure-CarouselVisualQa");
+    const ensureCall = source.lastIndexOf("Ensure-CarouselVisualQa $items");
+    expect(qaOnly).toBeGreaterThan(-1);
+    expect(ensureDef).toBeGreaterThan(-1);
+    expect(ensureCall).toBeGreaterThan(qaOnly);
+    expect(source).toContain("if (Test-Path -LiteralPath $qaPath) { continue }");
+  });
 });

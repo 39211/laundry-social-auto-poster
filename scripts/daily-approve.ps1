@@ -57,9 +57,18 @@ if (Test-Path -LiteralPath $calendar) {
         Write-Log "Calendar tamper detected for $date; rebuilding from plan and regenerating the image manifest."
         Show-Toast ("今天 ($date) 的行事曆被外部寫手竄改,已從 plan 強制重建。證據: output\operations\calendar-tamper-$date.json")
         Push-Location $root
-        cmd /c "npm.cmd run generate -- --date $date --force 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-        cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        $generateOut = cmd /c "npm.cmd run generate -- --date $date --force 2>&1"
+        $generateCode = $LASTEXITCODE
+        $generateOut | Out-File -FilePath $logFile -Append -Encoding utf8
+        $manifestOut = cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1"
+        $manifestCode = $LASTEXITCODE
+        $manifestOut | Out-File -FilePath $logFile -Append -Encoding utf8
         Pop-Location
+        if ($generateCode -ne 0 -or $manifestCode -ne 0) {
+            Write-Log "generate/manifest failed after tamper rebuild (generate=$generateCode manifest=$manifestCode); refusing auto-approve."
+            Show-Toast "今天 ($date) 行事曆重建或圖片清單失敗,已停止自動審核。"
+            exit 1
+        }
     }
 }
 

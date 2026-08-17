@@ -1,5 +1,7 @@
+import { spawn } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { inspectDailyContentIntegrity } from "./contentPlan";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { assertLiveMetaConfig, assertPublicImageBaseUrl, getConfig } from "./config";
 import { generateDailyContent } from "./generateDailyContent";
@@ -619,6 +621,35 @@ async function postOneSlot(
   }
 }
 
+export function refuseTamperedPublish(date: string, reasons: string[]): void {
+  const detail = reasons.length > 0 ? reasons.join("; ") : "content_checksum mismatch";
+  const text = `今天 (${date}) 行事曆完整性失敗,已退封面不發布。${detail}`;
+  console.warn(`CALENDAR_TAMPERED ${date}: ${detail}`);
+  if (process.env.VITEST === "true") return;
+  try {
+    const escaped = text.replace(/'/g, "''");
+    const script = [
+      "try {",
+      "  [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null",
+      "  $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)",
+      "  $nodes = $template.GetElementsByTagName('text')",
+      "  $nodes.Item(0).AppendChild($template.CreateTextNode('私享家發佈')) | Out-Null",
+      `  $nodes.Item(1).AppendChild($template.CreateTextNode('${escaped}')) | Out-Null`,
+      "  $toast = New-Object Windows.UI.Notifications.ToastNotification($template)",
+      "  [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('LaundryPostCurrentSlot').Show($toast)",
+      "} catch {}"
+    ].join("; ");
+    const child = spawn("powershell.exe", ["-NoProfile", "-Command", script], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true
+    });
+    child.unref();
+  } catch {
+    // Toast is best-effort; the warn line is the durable alarm.
+  }
+}
+
 export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Promise<PostLogEntry[]> {
   const root = projectRoot(options.root);
   const baseConfig = getConfig();
@@ -650,6 +681,11 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
     content = await loadDailyContent(date, root);
   }
   if (!content) throw new Error(`No content calendar found for ${date}`);
+  if (content.tampered) {
+    const reasons = inspectDailyContentIntegrity(content, { root }).reasons;
+    refuseTamperedPublish(date, reasons);
+    return [];
+  }
 
   const currentSchedule = options.slot ? findSlotByNumber(options.slot) : resolveCurrentSlot(now, config.timezone);
   const targetSchedules = options.allDue

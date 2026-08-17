@@ -23,6 +23,7 @@ import {
   isConceptRejected,
   loadRejectedConcepts,
   parseCanaryReports,
+  carouselObservationDefects,
   parseCarouselObserveBlock,
   parseCarouselSpec,
   parseObserveBlock,
@@ -846,6 +847,137 @@ describe("carousel fixture red and green", () => {
   });
 });
 
+function carouselPassStdout(observeLines: string[]): string {
+  const axes = Object.fromEntries(CAROUSEL_QA_AXES.map((axis) => [axis, "PASS"]));
+  return [
+    "IMAGE_1 canary=K7P2",
+    "IMAGE_2 canary=M3Q8",
+    "IMAGE_3 canary=N4R5",
+    "IMAGE_4 canary=P6S7",
+    ...observeLines,
+    VISUAL_QA_BEGIN,
+    JSON.stringify({
+      topic: "x",
+      verdict: "PASS",
+      axes,
+      evidence: {},
+      frames_used: []
+    }),
+    VISUAL_QA_END
+  ].join("\n");
+}
+
+const COMPLETE_OBS = [
+  VISUAL_QA_OBSERVE_BEGIN,
+  "OBS_1 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+  "OBS_2 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+  "OBS_3 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+  "OBS_4 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+  "COMPARE OBJECT_IDENTITY identity_change=NO",
+  "COMPARE SCENE scene_change=NO",
+  "COMPARE TOPIC_MATCH object_mismatch=NO",
+  VISUAL_QA_OBSERVE_END
+];
+
+describe("carousel observe block is mandatory", () => {
+  it("PASS axes with no OBS is FAIL_CLOSED missing_observation", () => {
+    const record = carouselEvaluate(carouselPassStdout([]), "球鞋");
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("missing_observation");
+  });
+
+  it("partial OBS is FAIL_CLOSED missing_observation", () => {
+    const stdout = carouselPassStdout([
+      VISUAL_QA_OBSERVE_BEGIN,
+      "OBS_1 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "COMPARE OBJECT_IDENTITY identity_change=NO",
+      "COMPARE SCENE scene_change=NO",
+      "COMPARE TOPIC_MATCH object_mismatch=NO",
+      VISUAL_QA_OBSERVE_END
+    ]);
+    const record = carouselEvaluate(stdout, "球鞋");
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("missing_observation");
+    expect(carouselObservationDefects(parseCarouselObserveBlock(stdout), 4)).toContain("obs_count");
+  });
+
+  it("duplicate OBS index is FAIL_CLOSED missing_observation", () => {
+    const stdout = carouselPassStdout([
+      VISUAL_QA_OBSERVE_BEGIN,
+      "OBS_1 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_1 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_3 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_4 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "COMPARE OBJECT_IDENTITY identity_change=NO",
+      "COMPARE SCENE scene_change=NO",
+      "COMPARE TOPIC_MATCH object_mismatch=NO",
+      VISUAL_QA_OBSERVE_END
+    ]);
+    const record = carouselEvaluate(stdout, "球鞋");
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("missing_observation");
+    expect(carouselObservationDefects(parseCarouselObserveBlock(stdout), 4)).toEqual(
+      expect.arrayContaining(["obs_duplicate", "obs_sequence"])
+    );
+  });
+
+  it("skipped OBS index is FAIL_CLOSED missing_observation", () => {
+    const stdout = carouselPassStdout([
+      VISUAL_QA_OBSERVE_BEGIN,
+      "OBS_1 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_2 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_4 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_5 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "COMPARE OBJECT_IDENTITY identity_change=NO",
+      "COMPARE SCENE scene_change=NO",
+      "COMPARE TOPIC_MATCH object_mismatch=NO",
+      VISUAL_QA_OBSERVE_END
+    ]);
+    const record = carouselEvaluate(stdout, "球鞋");
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("missing_observation");
+  });
+
+  it("missing OBS field is FAIL_CLOSED missing_observation", () => {
+    const stdout = carouselPassStdout([
+      VISUAL_QA_OBSERVE_BEGIN,
+      "OBS_1 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_2 garment_color=NAVY garment_type=SNEAKER wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_3 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_4 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "COMPARE OBJECT_IDENTITY identity_change=NO",
+      "COMPARE SCENE scene_change=NO",
+      "COMPARE TOPIC_MATCH object_mismatch=NO",
+      VISUAL_QA_OBSERVE_END
+    ]);
+    const record = carouselEvaluate(stdout, "球鞋");
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("missing_observation");
+    expect(carouselObservationDefects(parseCarouselObserveBlock(stdout), 4)).toContain("obs_fields");
+  });
+
+  it("missing COMPARE is FAIL_CLOSED missing_observation", () => {
+    const stdout = carouselPassStdout([
+      VISUAL_QA_OBSERVE_BEGIN,
+      "OBS_1 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_2 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_3 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_4 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+      VISUAL_QA_OBSERVE_END
+    ]);
+    const record = carouselEvaluate(stdout, "球鞋");
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("missing_observation");
+    expect(carouselObservationDefects(parseCarouselObserveBlock(stdout), 4)).toContain("missing_compare");
+  });
+
+  it("complete OBS plus axes PASS stays PASS", () => {
+    const record = carouselEvaluate(carouselPassStdout(COMPLETE_OBS), "球鞋");
+    expect(record.verdict).toBe("PASS");
+    expect(record.fail_class).toBeNull();
+  });
+});
+
 describe("carousel mutations", () => {
   it("mutation: removing OBJECT_IDENTITY from the verdict is FAIL_CLOSED missing_axis", () => {
     const stdout = [
@@ -928,6 +1060,10 @@ describe("carousel warn-mode wiring", () => {
     expect(generateImagesSrc).toContain("warning mode; publish is not blocked");
     expect(generateImagesSrc).toContain("warning mode continues");
     expect(generateImagesSrc).toContain("Test-CarouselSlotComplete");
+    expect(generateImagesSrc).toContain("Ensure-CarouselVisualQa");
+    expect(generateImagesSrc).toContain("[switch]$QaOnly");
+    expect(generateImagesSrc).toContain("topic tempfile write failed");
+    expect(generateImagesSrc).toContain("visual-qa.json write failed");
     expect(generateImagesSrc).not.toMatch(/if \(\$record\.verdict -ne ["']PASS["']\)/u);
     expect(generateImagesSrc).not.toMatch(/exit 2/u);
   });

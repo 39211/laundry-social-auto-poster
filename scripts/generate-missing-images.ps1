@@ -9,7 +9,8 @@
 # Generation only. Nothing here approves or publishes.
 param(
     [Parameter(Mandatory = $true)][string]$Date,
-    [string]$LogFile = ""
+    [string]$LogFile = "",
+    [switch]$QaOnly
 )
 
 $ErrorActionPreference = "Continue"
@@ -60,7 +61,12 @@ function Invoke-CarouselVisualQaWarning {
     $outPath = Join-Path $assetDir "slot-$pad.visual-qa.json"
     $topicFile = Join-Path $env:TEMP ("carousel-qa-topic-" + $Date + "-" + $pad + ".txt")
     $topic = [string]$group[0].topic
-    [IO.File]::WriteAllText($topicFile, $topic, [Text.UTF8Encoding]::new($false))
+    try {
+        [IO.File]::WriteAllText($topicFile, $topic, [Text.UTF8Encoding]::new($false))
+    } catch {
+        Write-Step "Carousel visual-qa topic tempfile write failed for slot $Slot (warning mode continues)."
+        return
+    }
     Write-Step "Carousel visual-qa (warning) for slot $Slot"
     try {
         $qaOut = & $tsx $cli --carousel --dir $assetDir --slot $Slot --topic-file $topicFile --out $outPath --date $Date 2>&1
@@ -68,6 +74,8 @@ function Invoke-CarouselVisualQaWarning {
         else { $qaOut | ForEach-Object { Write-Host $_ } }
         if ($LASTEXITCODE -ne 0) {
             Write-Step "Carousel visual-qa script error for slot $Slot (warning mode continues)."
+        } elseif (-not (Test-Path -LiteralPath $outPath)) {
+            Write-Step "Carousel visual-qa.json write failed for slot $Slot (warning mode continues)."
         } else {
             Write-Step "Carousel visual-qa wrote $outPath (warning mode; publish is not blocked)"
         }
@@ -76,7 +84,27 @@ function Invoke-CarouselVisualQaWarning {
     }
 }
 
+function Ensure-CarouselVisualQa($Items, [string]$RootPath, [string]$Date, [string]$LogFile) {
+    foreach ($slotNum in 1, 2, 3) {
+        if (-not (Test-CarouselSlotComplete $Items $slotNum $RootPath)) { continue }
+        $pad = "{0:d2}" -f $slotNum
+        $qaPath = Join-Path $RootPath "docs\assets\$Date\slot-$pad.visual-qa.json"
+        if (Test-Path -LiteralPath $qaPath) { continue }
+        Invoke-CarouselVisualQaWarning -Date $Date -Slot $slotNum -Items $Items -RootPath $RootPath -LogFile $LogFile
+    }
+}
+
 $manifestPath = Join-Path $root "data\image-prompts\$Date.json"
+if ($QaOnly) {
+    if (-not (Test-Path $manifestPath)) {
+        Write-Step "No image manifest for $Date; skip carousel visual-qa."
+        exit 0
+    }
+    $qaManifest = [IO.File]::ReadAllText($manifestPath, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
+    $qaItems = if ($qaManifest -is [array]) { $qaManifest } else { $qaManifest.items }
+    Ensure-CarouselVisualQa $qaItems $root $Date $LogFile
+    exit 0
+}
 if (-not (Test-Path $manifestPath)) {
     Write-Step "No image manifest for $Date; run generate-image-manifest first."
     exit 1
@@ -191,6 +219,8 @@ if ($generated -gt 0) {
     Write-Step "Generated $generated image(s) for $Date."
 }
 }
+
+Ensure-CarouselVisualQa $items $root $Date $LogFile
 
 Push-Location $root
 $siteOut = cmd /c "npm.cmd run generate-public-site 2>&1"

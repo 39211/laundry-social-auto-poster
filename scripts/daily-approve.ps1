@@ -35,6 +35,34 @@ function Show-Toast([string]$text) {
     }
 }
 
+# Path E: Codex automations (and any other external writer) can overwrite
+# today's calendar without going through writeDailyContent. Detect that before
+# any heal that would restamp the tampered slots and hide the evidence.
+$calendar = Join-Path $root "data\content-calendar\$date.json"
+if (Test-Path -LiteralPath $calendar) {
+    Push-Location $root
+    $tsx = Join-Path $root "node_modules\.bin\tsx.cmd"
+    $inspectOut = & $tsx src/logging.ts --inspect-calendar --date $date 2>&1
+    $inspectCode = $LASTEXITCODE
+    Pop-Location
+    $inspectOut | Out-File -FilePath $logFile -Append -Encoding utf8
+    $shouldRebuild = ($inspectCode -eq 2)
+    $inspectLine = @($inspectOut | Where-Object { "$_" -match '"shouldRebuild"' } | Select-Object -Last 1)
+    if ($inspectLine) {
+        try {
+            if (([string]$inspectLine | ConvertFrom-Json).shouldRebuild) { $shouldRebuild = $true }
+        } catch {}
+    }
+    if ($shouldRebuild) {
+        Write-Log "Calendar tamper detected for $date; rebuilding from plan and regenerating the image manifest."
+        Show-Toast ("今天 ($date) 的行事曆被外部寫手竄改,已從 plan 強制重建。證據: output\operations\calendar-tamper-$date.json")
+        Push-Location $root
+        cmd /c "npm.cmd run generate -- --date $date --force 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        Pop-Location
+    }
+}
+
 # Codex's morning flow writes calendar files directly and has reverted a
 # scheduled Reel three times. Healing before judging means approval always
 # evaluates the day as scheduled, not as clobbered.

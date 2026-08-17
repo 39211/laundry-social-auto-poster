@@ -75,6 +75,27 @@ $hasCalendar = Test-Path $calendar
 $imagesReady = $false
 if ($hasCalendar) {
     Push-Location $root
+    $tsx = Join-Path $root "node_modules\.bin\tsx.cmd"
+    $inspectOut = & $tsx src/logging.ts --inspect-calendar --date $date 2>&1
+    $inspectCode = $LASTEXITCODE
+    Pop-Location
+    $inspectOut | Out-File -FilePath $logFile -Append -Encoding utf8
+    $shouldRebuild = ($inspectCode -eq 2)
+    $inspectLine = @($inspectOut | Where-Object { "$_" -match '"shouldRebuild"' } | Select-Object -Last 1)
+    if ($inspectLine) {
+        try {
+            if (([string]$inspectLine | ConvertFrom-Json).shouldRebuild) { $shouldRebuild = $true }
+        } catch {}
+    }
+    if ($shouldRebuild) {
+        Write-Log "Calendar tamper detected for $date; rebuilding from plan before the images-ready exit."
+        Show-Toast ("今天 ($date) 的行事曆被外部寫手竄改,已從 plan 強制重建。證據: output\operations\calendar-tamper-$date.json")
+        Push-Location $root
+        cmd /c "npm.cmd run generate -- --date $date --force 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        Pop-Location
+    }
+    Push-Location $root
     cmd /c "npm.cmd run validate-publishable-images -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     $imagesReady = ($LASTEXITCODE -eq 0)
     Pop-Location

@@ -1,4 +1,5 @@
-﻿import { readFileSync } from "node:fs";
+﻿import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { abTestPlanPath, planForDate, planSlot, type AbDayPlan } from "./abTestPlan";
 import {
   buildGitHubPagesCarouselImageUrl,
@@ -12,7 +13,7 @@ import {
   type GrowthPlaybookSlot
 } from "./growthPlaybook";
 import { contentCalendarPath, projectRoot, relativeAssetPath, relativeCarouselAssetPath, relativeVideoAssetPath } from "./paths";
-import { DAILY_SCHEDULE } from "./scheduler";
+import { DAILY_SCHEDULE, getZonedDateParts } from "./scheduler";
 import type {
   AppConfig,
   CarouselItem,
@@ -1899,7 +1900,7 @@ export function buildDailyContent(
   date: string,
   config: AppConfig,
   options: BuildDailyContentOptions = {}
-): DailyContent {
+): StampedDailyContent {
   const root = projectRoot(options.root);
   const abPlan = options.abPlan ?? loadAbTestPlanSync(root);
   const dayPlan = planForDate(abPlan, date);
@@ -1925,10 +1926,113 @@ export function buildDailyContent(
     return playbookSlot ? dailySlotFromPlaybook(playbookSlot, config) : dailySlotFromTemplate(date, schedule, config);
   });
 
-  return {
+  return stampDailyContentWrite({
     date,
     timezone: config.timezone,
     generated_at: new Date().toISOString(),
     slots
+  });
+}
+
+/** Identity writeDailyContent stamps. External Codex patches do not know this string. */
+export const CALENDAR_WRITTEN_BY = "contentPlan.writeDailyContent";
+
+export type StampedDailyContent = DailyContent & {
+  written_by?: string;
+  content_checksum?: string;
+  tampered?: boolean;
+};
+
+export interface CalendarIntegrity {
+  tampered: boolean;
+  legacy: boolean;
+  shouldRebuild: boolean;
+  reasons: string[];
+}
+
+function normalizeForChecksum(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalizeForChecksum);
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const normalized: Record<string, unknown> = {};
+    for (const key of Object.keys(record).sort()) {
+      if (record[key] === undefined) continue;
+      normalized[key] = normalizeForChecksum(record[key]);
+    }
+    return normalized;
+  }
+  return value;
+}
+
+export function calendarSlotsChecksum(slots: DailySlot[]): string {
+  return createHash("sha256")
+    .update(JSON.stringify(normalizeForChecksum(slots)))
+    .digest("hex")
+    .slice(0, 16);
+}
+
+export function taipeiCalendarDate(now = new Date()): string {
+  return getZonedDateParts(now, "Asia/Taipei").date;
+}
+
+export function stampDailyContentWrite(content: DailyContent): StampedDailyContent {
+  const stamped = content as StampedDailyContent;
+  const rest = {
+    date: stamped.date,
+    timezone: stamped.timezone,
+    generated_at: stamped.generated_at,
+    slots: stamped.slots
   };
+  return {
+    ...rest,
+    written_by: CALENDAR_WRITTEN_BY,
+    content_checksum: calendarSlotsChecksum(rest.slots)
+  };
+}
+
+/**
+ * Missing stamps on dates before today are legacy (no alarm).
+ * Today or a future date with a missing stamp, wrong writer, or bad checksum
+ * is tampered. A past file that claims a stamp and fails it is also tampered,
+ * but only today/future dates rebuild.
+ */
+export function inspectDailyContentIntegrity(
+  content: DailyContent,
+  options: { today?: string } = {}
+): CalendarIntegrity {
+  const today = options.today ?? taipeiCalendarDate();
+  const actionable = content.date >= today;
+  const stamped = content as StampedDailyContent;
+  const writtenBy = typeof stamped.written_by === "string" ? stamped.written_by : "";
+  const checksum = typeof stamped.content_checksum === "string" ? stamped.content_checksum : "";
+  const expected = Array.isArray(content.slots) ? calendarSlotsChecksum(content.slots) : "";
+  const missingWriter = writtenBy.length === 0;
+  const missingChecksum = checksum.length === 0;
+  const mismatch = !missingChecksum && checksum !== expected;
+  const wrongWriter = !missingWriter && writtenBy !== CALENDAR_WRITTEN_BY;
+
+  if ((missingWriter || missingChecksum) && !actionable && !mismatch && !wrongWriter) {
+    return { tampered: false, legacy: true, shouldRebuild: false, reasons: [] };
+  }
+
+  const reasons: string[] = [];
+  if (missingWriter) reasons.push("missing written_by");
+  if (missingChecksum) reasons.push("missing content_checksum");
+  if (mismatch) reasons.push("content_checksum mismatch");
+  if (wrongWriter) reasons.push(`written_by is not ${CALENDAR_WRITTEN_BY}`);
+
+  const tampered = reasons.length > 0;
+  return {
+    tampered,
+    legacy: false,
+    shouldRebuild: tampered && actionable,
+    reasons
+  };
+}
+
+export function shouldRebuildTamperedCalendar(
+  content: DailyContent,
+  options: { today?: string } = {}
+): boolean {
+  return inspectDailyContentIntegrity(content, options).shouldRebuild;
 }

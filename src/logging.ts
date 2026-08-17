@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { getFlag, getOption, isMain } from "./cli";
+import {
+  inspectDailyContentIntegrity,
+  stampDailyContentWrite,
+  type StampedDailyContent
+} from "./contentPlan";
 import {
   approvedLogPath,
   contentCalendarPath,
@@ -86,21 +92,83 @@ async function withJsonFileLock<T>(filePath: string, operation: () => Promise<T>
   }
 }
 
-export async function loadDailyContent(date: string, root = projectRoot()): Promise<DailyContent | undefined> {
+export interface LoadDailyContentOptions {
+  today?: string;
+}
+
+export async function loadDailyContent(
+  date: string,
+  root = projectRoot(),
+  options: LoadDailyContentOptions = {}
+): Promise<StampedDailyContent | undefined> {
   const content =
-    (await readJsonFile<DailyContent | undefined>(contentCalendarPath(date, root), undefined)) ??
-    (await readJsonFile<DailyContent | undefined>(docsContentCalendarPath(date, root), undefined));
+    (await readJsonFile<StampedDailyContent | undefined>(contentCalendarPath(date, root), undefined)) ??
+    (await readJsonFile<StampedDailyContent | undefined>(docsContentCalendarPath(date, root), undefined));
   if (!content) return undefined;
   // Slot 3 is the optional noon Reel for dual-length A/B days. Existing
   // calendars stay at 2 slots; new days and healed A/B days may carry 3.
   if (!Array.isArray(content.slots) || content.slots.length < 2 || content.slots.length > 3) {
     throw new Error(`Invalid daily content for ${date}: expected 2 or 3 slots.`);
   }
+  const inspection = inspectDailyContentIntegrity(content, { today: options.today });
+  if (inspection.tampered) {
+    return { ...content, tampered: true };
+  }
   return content;
 }
 
 export async function writeDailyContent(content: DailyContent, root = projectRoot()): Promise<void> {
-  await writeJsonAtomic(contentCalendarPath(content.date, root), content);
+  await writeJsonAtomic(contentCalendarPath(content.date, root), stampDailyContentWrite(content));
+}
+
+export function calendarTamperEvidencePath(date: string, root = projectRoot()): string {
+  return join(root, "output", "operations", `calendar-tamper-${date}.json`);
+}
+
+export interface CalendarTamperDetection {
+  present: boolean;
+  tampered: boolean;
+  shouldRebuild: boolean;
+  reasons: string[];
+  evidencePath?: string;
+}
+
+export async function detectAndRecordCalendarTamper(
+  date: string,
+  root = projectRoot(),
+  options: LoadDailyContentOptions = {}
+): Promise<CalendarTamperDetection> {
+  const content = await readJsonFile<StampedDailyContent | undefined>(
+    contentCalendarPath(date, root),
+    undefined
+  );
+  if (!content) {
+    return { present: false, tampered: false, shouldRebuild: false, reasons: [] };
+  }
+  const inspection = inspectDailyContentIntegrity(content, { today: options.today });
+  if (!inspection.shouldRebuild) {
+    return {
+      present: true,
+      tampered: inspection.tampered,
+      shouldRebuild: false,
+      reasons: inspection.reasons
+    };
+  }
+  const evidencePath = calendarTamperEvidencePath(date, root);
+  await writeJsonAtomic(evidencePath, {
+    date,
+    detected_at: new Date().toISOString(),
+    reasons: inspection.reasons,
+    action: "rebuild_from_plan",
+    tampered_copy: content
+  });
+  return {
+    present: true,
+    tampered: true,
+    shouldRebuild: true,
+    reasons: inspection.reasons,
+    evidencePath
+  };
 }
 
 export async function loadPostLog(date: string, root = projectRoot()): Promise<PostLogEntry[]> {
@@ -388,4 +456,27 @@ export function hasApprovedPost(entries: ApprovalLogEntry[], slot: number, platf
   return entries.some(
     (entry) => entry.slot === slot && entry.platform === platform && entry.status === "approved"
   );
+}
+
+async function inspectCalendarCli(args: string[]): Promise<void> {
+  const date = getOption(args, "date");
+  if (!date) throw new Error("--date is required for --inspect-calendar.");
+  const result = await detectAndRecordCalendarTamper(date, getOption(args, "root"), {
+    today: getOption(args, "today")
+  });
+  process.stdout.write(`${JSON.stringify(result)}\n`);
+  if (result.shouldRebuild) process.exit(2);
+}
+
+function isLoggingCalendarCli(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  return /(?:^|[/\\])logging\.(ts|js)$/i.test(entry) || isMain(import.meta.url);
+}
+
+if (isLoggingCalendarCli() && getFlag(process.argv.slice(2), "inspect-calendar")) {
+  inspectCalendarCli(process.argv.slice(2)).catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
 }

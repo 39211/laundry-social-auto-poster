@@ -119,6 +119,33 @@ async function writeBusinessProfile(root: string): Promise<void> {
   await writeFile(join(root, "data", "business-profile.json"), profile, "utf8");
 }
 
+/** Same algorithm as src/indexingPush.ts textLength; keep in lockstep if that helper moves. */
+function pageTextLength(html: string): number {
+  const stripped = html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, "");
+  return stripped.replace(/\s+/g, "").length;
+}
+
+function jsonLdGraphs(html: string): Array<Record<string, unknown>> {
+  return [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gu)].flatMap((match) => {
+    const parsed = JSON.parse(match[1] ?? "{}") as { "@graph"?: Array<Record<string, unknown>> };
+    return parsed["@graph"] ?? [];
+  });
+}
+
+function firstAnswerParagraph(answer: string): string {
+  return (answer.split(/\n+/)[0] ?? "").trim();
+}
+
+function thematicAnchorsTo(html: string, hrefNeedle: string): string[] {
+  const withoutNav = html.replace(/<nav class="nav"[\s\S]*?<\/nav>/gi, "");
+  return [...withoutNav.matchAll(/<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
+    .filter((match) => (match[1] ?? "").includes(hrefNeedle))
+    .map((match) => (match[2] ?? "").replace(/<[^>]+>/g, "").trim());
+}
+
 describe("generatePublicSite", () => {
   it("writes AI-readable public indexes with absolute URLs when a base URL is configured", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-"));
@@ -814,6 +841,64 @@ describe("generatePublicSite", () => {
     expect(localShoePageHtml).toContain("https://example.com/laundry-social-auto-poster/#business");
   });
 
+  it("thickens the Fengjia/Xitun shoe local page and adds thematic internal links", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-local-shoe-thicken-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now: "2026-08-17T01:00:00.000Z"
+    });
+
+    const localHtml = await readFile(join(root, "docs", "local", "qinghai-road-shoe-cleaning.html"), "utf8");
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+    const shoeBagCareHtml = await readFile(join(root, "docs", "services", "shoe-bag-care.html"), "utf8");
+    const whiteShoeHtml = await readFile(join(root, "docs", "services", "white-shoe-cleaning.html"), "utf8");
+    const textLength = pageTextLength(localHtml);
+    const graph = jsonLdGraphs(localHtml);
+    const faqNode = graph.find((node) => node["@type"] === "FAQPage") as
+      | { mainEntity?: Array<{ name?: string; acceptedAnswer?: { text?: string } }> }
+      | undefined;
+    const faqs = faqNode?.mainEntity ?? [];
+
+    expect(textLength).toBeGreaterThanOrEqual(2500);
+    expect(textLength).toBeGreaterThanOrEqual(600);
+    expect(localHtml).not.toContain("十分鐘");
+    expect(localHtml).toContain("至善國中對面");
+    expect(localHtml).toContain("青海路二段365號");
+    expect(localHtml).toContain("台中市全市");
+    expect(localHtml).toContain("麂皮");
+    expect(localHtml).toContain("帆布");
+    expect(localHtml).toContain("膠氧化");
+
+    expect(graph.some((node) => node["@type"] === "HowTo")).toBe(true);
+    expect(graph.some((node) => node["@type"] === "FAQPage")).toBe(true);
+    expect(graph.some((node) => node["@type"] === "DryCleaningOrLaundry")).toBe(true);
+    expect(graph.some((node) => node["@type"] === "WebPage")).toBe(true);
+
+    expect(faqs.length).toBeGreaterThanOrEqual(3);
+    expect(faqs.length).toBeLessThanOrEqual(5);
+    for (const faq of faqs) {
+      const first = firstAnswerParagraph(faq.acceptedAnswer?.text ?? "");
+      expect(first.length).toBeGreaterThan(0);
+      expect(first.length).toBeLessThanOrEqual(50);
+    }
+
+    const homepageAnchors = thematicAnchorsTo(homepage, "qinghai-road-shoe-cleaning");
+    expect(homepageAnchors.some((text) => text.includes("逢甲洗鞋") || text.includes("西屯洗鞋"))).toBe(true);
+    expect(homepage).toContain("<strong>逢甲洗鞋・西屯洗鞋</strong>");
+
+    const serviceAnchors = thematicAnchorsTo(shoeBagCareHtml, "qinghai-road-shoe-cleaning");
+    expect(serviceAnchors.some((text) => text.includes("逢甲洗鞋") || text.includes("西屯洗鞋"))).toBe(true);
+    expect(shoeBagCareHtml).toContain("逢甲洗鞋與西屯洗鞋的門市位置、案例界線與收送方式");
+
+    expect(whiteShoeHtml).not.toContain("qinghai-road-shoe-cleaning");
+  });
+
   it("keeps every approved daily post visible in the public site and AI discovery index", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-approved-history-"));
     await writeBusinessProfile(root);
@@ -1117,7 +1202,7 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("台中洗衣與免費收送常見問題");
     expect(homepage).toContain("收送免費等於清潔免費嗎？");
     expect(homepage).toContain('<html lang="zh-Hant-TW">');
-    expect(homepage).toContain('<time datetime="2026-08-08">2026-08-08</time>');
+    expect(homepage).toContain('<time datetime="2026-08-17">2026-08-17</time>');
     expect(homepage).toContain("台中免費收送，逢甲・西屯洗鞋先看材質");
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=homepage`);
     expect(homepage).toContain('"name":"台中市"');
@@ -1171,13 +1256,13 @@ describe("generatePublicSite", () => {
     );
     // Money pages are the indexable surface; caption/post pages are out of the
     // sitemap entirely (rescued 190d063 design). Date is ours: the static
-    // homepage sections last changed 2026-08-08.
+    // homepage sections last changed 2026-08-17.
     expect(sitemap1).not.toContain("/posts/");
-    expect(sitemap1).toContain("<lastmod>2026-08-08</lastmod>");
+    expect(sitemap1).toContain("<lastmod>2026-08-17</lastmod>");
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
-        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-08-08</lastmod>`
+        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-08-17</lastmod>`
       )
     );
     expect(sitemap1).toMatch(
@@ -1193,7 +1278,7 @@ describe("generatePublicSite", () => {
           "u"
         )
       )?.[1] ?? "";
-    expect(shoeBagEntry).toContain("<lastmod>2026-07-22</lastmod>");
+    expect(shoeBagEntry).toContain("<lastmod>2026-08-17</lastmod>");
     expect(shoeBagEntry).not.toContain("<changefreq>");
     expect(sitemap1).not.toContain("<priority>");
 
@@ -1278,9 +1363,9 @@ describe("generatePublicSite", () => {
     const postHtml1 = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
     const postDateModified1 = findArticleDateModified(postHtml1);
 
-    expect(homepageDateModified1).toBe("2026-08-08");
+    expect(homepageDateModified1).toBe("2026-08-17");
     expect(pickupDateModified1).toBe("2026-07-22");
-    expect(shoeBagDateModified1).toBe("2026-07-22");
+    expect(shoeBagDateModified1).toBe("2026-08-17");
     expect(guideDateModified1).toBe("2026-07-08");
     expect(postDateModified1).toBe("2026-07-02T11:30:00+08:00");
     expect(homepage).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
@@ -1323,7 +1408,7 @@ describe("generatePublicSite", () => {
     expect(sitemap2).toBe(sitemap1);
     expect(findWebPageDateModified(homepage2)).toBe(homepageDateModified1);
     expect(findWebPageDateModified(pickupHtml2)).toBe(pickupDateModified1);
-    expect(findWebPageDateModified(shoeBagHtml2)).toBe("2026-07-22");
+    expect(findWebPageDateModified(shoeBagHtml2)).toBe("2026-08-17");
     expect(findArticleDateModified(postHtml2)).toBe(postDateModified1);
     expect(sitemap2).not.toContain("<lastmod>2026-07-18T12:00:00.000Z</lastmod>");
     expect(sitemap2).not.toContain("<lastmod>2026-07-18</lastmod>");
@@ -1339,8 +1424,8 @@ describe("generatePublicSite", () => {
       "2026-07-14",
       "2026-07-20",
       "2026-07-22",
-      "2026-07-22",
-      "2026-07-28"
+      "2026-07-28",
+      "2026-08-17"
     ]);
   });
 });

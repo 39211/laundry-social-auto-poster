@@ -174,6 +174,8 @@ interface SupportPageDefinition {
   /** Stable YYYY-MM-DD used for sitemap lastmod when content last intentionally changed. */
   content_lastmod?: string;
   steps: Array<{ name: string; text: string }>;
+  /** Optional long-form sections; omitted pages keep the existing support-page shape. */
+  sections?: Array<{ heading: string; body: string }>;
   faqs: ServiceFaq[];
 }
 
@@ -190,6 +192,7 @@ interface HomeDiscoveryItem {
   label: string;
   description: string;
   serviceSlug?: string;
+  supportSlug?: string;
   href?: string;
 }
 
@@ -281,7 +284,7 @@ const SITE_DESCRIPTION =
  * (see homepageContentLastmod). Their rename, our date: 2026-08-08 is the later
  * real content change, made after this constant's line diverged.
  */
-const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-08-08";
+const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-08-17";
 const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";
@@ -361,7 +364,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     static_image_path: "assets/services/shoe-bag-care-hero-product.png",
     static_image_topic: "鞋包清潔前的包角、鞋面與皮革檢查主圖",
     static_image_source: "ai-generated premium product hero image",
-    content_lastmod: "2026-07-22",
+    content_lastmod: "2026-08-17",
     answer_summary:
       "逢甲與西屯需要洗鞋，可先把鞋面、鞋底、鞋內與材質照片傳 LINE；私享家門市在青海路二段365號，會先說明清潔方式與可改善範圍，台中市可免費收送。",
     case_story: {
@@ -1622,41 +1625,75 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     title: "逢甲洗鞋・西屯洗鞋推薦怎麼挑｜青海路私享家洗衣店",
     description: "逢甲、西屯找洗鞋店？先看這篇怎麼挑：看案例照片、問處理界線、確認收送方式。私享家在青海路二段365號，台中市免費收送，LINE 傳照片先判斷再決定。",
     h1: "逢甲洗鞋・西屯洗鞋：怎麼挑、怎麼問、怎麼送",
-    summary: "逢甲生活圈找洗鞋，最常見的三個狀況是白鞋泛黃、雨天泥灰和鞋內悶味。私享家位於西屯青海路二段365號，走路或機車都在逢甲十分鐘圈內，台中市全區也可預約免費收送。挑洗鞋店不用先比價格，先比三件事：有沒有實際前後對比案例、敢不敢先講「哪些救不回來」、送洗流程麻不麻煩。",
+    summary:
+      "逢甲、西屯找洗鞋，最常見的是白鞋泛黃、雨天泥灰和鞋內悶味。私享家門市在西屯區青海路二段365號、至善國中對面，與逢甲、西屯同區可約收送；台中市全區也可預約免費到府收送。挑洗鞋店先比三件事：敢不敢先講哪些救不回來、收送範圍清不清楚、有沒有講處理界線。",
     keywords: ["逢甲洗鞋", "逢甲洗鞋推薦", "西屯洗鞋", "台中西屯洗鞋", "青海路洗鞋", "逢甲洗包包", "西屯洗包"],
     local_intent: "逢甲洗鞋 逢甲洗鞋推薦 西屯洗鞋 青海路洗鞋 逢甲大學 洗鞋收送",
-    content_lastmod: "2026-08-08",
+    content_lastmod: "2026-08-17",
     steps: [
-      { name: "第一步：拍四張照片", text: "鞋面、鞋邊、鞋底、鞋內各一張。逢甲學生宿舍常見的白鞋黃斑、夜市走一晚的鞋底泥灰、雨季的鞋內悶味，照片裡都看得出來，不用先跑一趟門市。" },
-      { name: "第二步：LINE 先問可不可以救", text: "傳照片後門市會先講判斷：能處理到什麼程度、哪些痕跡可能留下來。先聽界線再決定送不送，不會照片傳了就被推銷。" },
-      { name: "第三步：選到店或收送", text: "青海路二段365號離逢甲商圈約十分鐘；懶得跑的話台中市全區可約免費收送，宿舍、租屋處都能收。" },
-      { name: "第四步：對照案例照片", text: "服務頁和每日貼文有實際前後對比：白鞋黃斑、雨後皮鞋、包角磨損都有案例。挑店時建議把任何店家的案例照都看過再決定。" },
-      { name: "怎麼比較各家洗鞋店", text: "三個判斷點：一看有沒有標示地址與營業時間的實體門市；二看案例是不是自己的照片而不是圖庫；三看是否先講風險與不保證事項。價格最低不等於划算，重洗一次更貴。" }
+      {
+        name: "第一步：拍四張照片",
+        text: "鞋面、鞋邊、鞋底、鞋內各一張。白鞋泛黃、雨天泥灰、鞋內悶味，照片裡都看得出來，不用先跑一趟門市。"
+      },
+      {
+        name: "第二步：LINE 先問可不可以救",
+        text: "傳照片後門市會先講判斷：能處理到什麼程度、哪些痕跡可能留下來。先聽界線再決定送不送。"
+      },
+      {
+        name: "第三步：選到店或收送",
+        text: "門市在青海路二段365號、至善國中對面，與逢甲、西屯同區。不想跑的話，台中市全區可約免費到府收送。"
+      },
+      {
+        name: "第四步：對照處理界線",
+        text: "先分救得回與只能維持現狀：布面洗劑黃、乾燥帆布泥多半能改善；膠邊氧化、麂皮泡水變硬、已上油的雨痕，只能淡化或先停手。"
+      },
+      {
+        name: "怎麼比較各家洗鞋店",
+        text: "一看有沒有標示地址與營業時間的實體門市；二看是否先講風險與不保證事項；三看收送範圍是不是寫清楚。價格最低不等於划算。"
+      }
+    ],
+    sections: [
+      {
+        heading: "門市在哪，跟逢甲、西屯怎麼對上",
+        body:
+          "私享家洗衣店的實體門市在 407 臺中市西屯區至善里青海路二段365號，地標是至善國中對面。逢甲洗鞋、西屯洗鞋會落到這頁，是因為門市就在西屯，收送也把西屯、逢甲、至善國中一帶寫在同一組可約範圍裡。想自己到店，營業時間是週一至週五 10:00-20:00、週六 12:00-18:00、週日公休。不想跑門市，先用 LINE（0968327653）傳鞋面、鞋邊、鞋底與鞋內照片，再約台中市免費到府收送。收送範圍是台中市全市，不以西屯住戶為限；門市地址在西屯，收送涵蓋台中市，這兩件事不要混成「只有青海路附近才收」。本頁不寫沒有來源的公里數或車程分鐘，只用門市地址、地標與已公開的收送範圍說明相對位置。"
+      },
+      {
+        heading: "洗鞋案例界線：哪些救得回，哪些只能維持現狀",
+        body:
+          "白鞋泛黃，不是刷得不夠用力。黃在布面、來自洗劑殘留，多半洗得回來；黃在鞋邊膠條，是膠氧化，刷不掉，只能淡化。先看是哪一種，再決定要不要送。運動鞋水洗價 250 起。皮鞋淋雨，當天擦乾也不代表沒事；水痕常過幾天才浮出來，這時候上油等於把水痕鎖進皮裡，之後就要補色。還沒上油的現在處理較穩。皮鞋水洗價 400 起。帆布鞋沾泥，濕的時候越刷越糟：泥會被推進織紋，布面起毛、越刷越舊。等乾了整塊剝掉反而好救，沾到泥先別動。帆布鞋水洗價 250 起。麂皮鞋摸起來變硬，常是絨毛倒了發亮，那不是髒；用濕布擦只會把它壓得更平，洗完得把整片絨面重新刷順才回得來。整雙泡水也會讓麂皮變硬。麂皮鞋 400 起，不確定材質先拍照。雨後不要用高溫直吹或悶進鞋櫃，能拆的鞋墊先取出通風；白鞋不確定材質時，不要先用漂白水或硬刷，避免起毛或膠邊痕跡更明顯。灰塵、泥痕、部分水痕與味道通常有機會改善；膠邊氧化、破皮、掉色、長期磨耗，清潔前會先說清楚，不承諾回到全新。"
+      },
+      {
+        heading: "收送流程與界線",
+        body:
+          "收送流程與台中全市免費收送頁同一套事實。先加 LINE，傳整體與局部照片，並說明所在區域與品項。門市先回覆適不適合整理、費用方向與可收時段，再約定到府收件；完成後送回。收送範圍是台中市全市，西屯、逢甲、至善國中一帶當天可約。收送本身免費、不限最低件數，也沒有最低消費門檻；一雙鞋也可以先問。收送免費不代表清潔免費，清潔與洗護費用另依物件判斷。不一定要到西屯門市；方便到店再來青海路二段365號、至善國中對面。預約與詢問以 LINE 為主，未看過照片前不承諾處理方式或報價細節。處理天數、固定取件時段與效果保證，要看實際物件與當下回覆，本頁不先行承諾。市區通常隔日內可安排收件，急件先說。"
+      }
     ],
     faqs: [
       {
-        question: "逢甲附近洗鞋要多少錢？",
-        answer: "公開價目（水洗價）：一般運動鞋 $250、皮類運動鞋 $300、休閒鞋 $350、皮鞋 $400、麂皮鞋 $400、高跟鞋 $400、名牌鞋 $600、童鞋 $150。乾洗柔洗另計，發霉特污另計，以實際報價為主；LINE 傳照片可先確認。"
+        question: "逢甲、西屯可以約收送洗鞋嗎？",
+        answer:
+          "可以。台中市全區免費收送，清潔費另計。\n西屯、逢甲、至善國中一帶當天可約；宿舍與租屋處都能約。門市在青海路二段365號、至善國中對面。收送本身免費、沒有最低消費門檻，清潔與洗護費用另依物件判斷。"
       },
       {
-        question: "白鞋黃斑救得回來嗎？",
-        answer: "看黃斑成因：洗劑殘留造成的多半能明顯改善，材質氧化或染色滲透的只能淡化。門市會先講能處理到什麼程度，不保證完全洗白。"
+        question: "白鞋泛黃救得回來嗎？",
+        answer:
+          "布面洗劑殘留多半能改善，膠邊氧化只能淡化。\n先看黃在布面還是鞋邊，不要先硬刷或漂白。門市會先講能處理到什麼程度，不保證完全洗白。"
       },
       {
-        question: "逢甲學生沒有交通工具，可以收送嗎？",
-        answer: "可以，台中市全區免費收送，宿舍與租屋處都能約時間，收送本身不收費，清潔費另依物件判斷。"
+        question: "逢甲附近洗鞋大概多少錢？",
+        answer:
+          "運動鞋250起、麂皮鞋400起，以實際報價為主。\n公開水洗價還包括皮類運動鞋 300、休閒鞋 350、皮鞋 400、高跟鞋 400、名牌鞋 600、童鞋 150。乾洗柔洗另計，發霉特污另計；LINE 傳照片可先確認。"
       },
       {
-        question: "洗一雙鞋要等幾天？",
-        answer: "依鞋況與材質而定，一般清潔與需要除黃、除味的時間不同；LINE 詢問時會連同費用一起告知預估天數。"
+        question: "一定要送到青海路門市嗎？",
+        answer:
+          "不一定。台中市可約免費到府收送。\n方便到店再來西屯區青海路二段365號、至善國中對面。營業時間週一至週五 10:00-20:00、週六 12:00-18:00、週日公休。"
       },
       {
-        question: "青海路附近可以先用 LINE 問洗鞋嗎？",
-        answer: "可以，建議拍鞋面、鞋邊、鞋底和鞋內照片，讓門市先判斷狀態，LINE ID：0968327653。"
-      },
-      {
-        question: "私享家洗衣店有洗包包嗎？",
-        answer: "有提供鞋包照護相關服務，包包會先看材質、包角、提把和內裡狀態；雨季水痕與提把油痕是最常見的兩種。"
+        question: "麂皮或帆布鞋可以自己先刷嗎？",
+        answer:
+          "先別動。濕刷帆布會起毛，麂皮泡水會變硬。\n帆布泥乾了再處理較穩；麂皮用乾刷順毛，染色或深漬另評估。先拍鞋面、鞋邊、鞋底、鞋內傳 LINE。"
       }
     ]
   }
@@ -1728,6 +1765,11 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
         label: "青海路二段附近",
         description: "適合青海路、至善里與西屯生活圈客人查找衣物、鞋包與布品整理資訊。",
         serviceSlug: "taichung-xitun-laundry"
+      },
+      {
+        label: "逢甲洗鞋・西屯洗鞋",
+        description: "青海路門市與逢甲、西屯同區；先看洗鞋界線、收送範圍與 LINE 詢問方式。",
+        supportSlug: "qinghai-road-shoe-cleaning"
       }
     ]
   },
@@ -2470,6 +2512,10 @@ function homeDiscoveryItemUrl(item: HomeDiscoveryItem, index: PublicPostIndex): 
   if (item.serviceSlug) {
     const service = findServiceBySlug(item.serviceSlug);
     if (service) return servicePageUrl(service, index);
+  }
+  if (item.supportSlug) {
+    const page = SUPPORT_PAGE_DEFINITIONS.find((entry) => entry.slug === item.supportSlug);
+    if (page) return supportPageUrl(page, index);
   }
   return item.href ?? index.canonical_url;
 }
@@ -5380,6 +5426,10 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
   const serviceSchema = buildServicePageSchema(service, index);
   const image = findServiceImage(service, index);
   const imageSrc = image ? visibleImageSrc(image, index, true) : "";
+  const localShoePage =
+    service.slug === "shoe-bag-care"
+      ? SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "qinghai-road-shoe-cleaning")
+      : undefined;
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const businessProfileHref = index.base_url_configured ? index.entrypoints.business_profile : "../business-profile.json";
   const description = escapeHtml(service.description);
@@ -5522,6 +5572,13 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
           <div class="answer-box">
             <p>${escapeHtml(service.answer_summary)}</p>
           </div>
+          ${
+            localShoePage
+              ? `<p class="section-copy">逢甲或西屯生活圈找洗鞋店，可先看<a href="${escapeHtml(
+                  supportPageUrl(localShoePage, index)
+                )}">逢甲洗鞋與西屯洗鞋的門市位置、案例界線與收送方式</a>，再決定到店或約收送。</p>`
+              : ""
+          }
         </div>
         ${
           image
@@ -5642,6 +5699,14 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
             </article>`
     )
     .join("\n");
+  const extraSections = (page.sections ?? [])
+    .map(
+      (section) => `<article class="card">
+              <h3>${escapeHtml(section.heading)}</h3>
+              <p>${escapeHtml(section.body)}</p>
+            </article>`
+    )
+    .join("\n");
   const keywordChips = page.keywords.map((keyword) => `<span class="chip on-light">${escapeHtml(keyword)}</span>`).join("\n");
 
   return `<!doctype html>
@@ -5742,6 +5807,21 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
           </div>
         </div>
       </section>
+      ${
+        extraSections
+          ? `<section class="product-band">
+        <div class="section-inner">
+          <div class="section-header">
+            <p class="eyebrow">Local detail</p>
+            <h2>門市位置、案例界線與收送</h2>
+          </div>
+          <div class="grid">
+            ${extraSections}
+          </div>
+        </div>
+      </section>`
+          : ""
+      }
       <section class="product-band">
         <div class="section-inner two-col">
           <div>

@@ -2,25 +2,33 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { rm } from "node:fs/promises";
 import { validatePublishableReel } from "../src/generateVideo";
 import { visualQaAcceptedReviewer } from "../src/videoReviewGate";
 import {
+  assertCarouselJudgePromptSafe,
   assertJudgePromptSafe,
+  buildCarouselJudgePrompt,
   buildIsolationPlan,
   buildJudgePrompt,
+  CAROUSEL_QA_AXES,
+  detectCarouselRubricIncoherence,
   detectTreatment,
+  evaluateCarouselJudgeStdout,
   evaluateFromDisk,
   evaluateJudgeStdout,
   hitsStoryFailAxis,
   isConceptRejected,
   loadRejectedConcepts,
   parseCanaryReports,
+  parseCarouselObserveBlock,
+  parseCarouselSpec,
   parseObserveBlock,
   parseVisualQaBlock,
   referenceStillPaths,
+  resolveCarouselSlides,
   detectRubricIncoherence,
   VISUAL_QA_OBSERVE_BEGIN,
   VISUAL_QA_OBSERVE_END,
@@ -31,6 +39,7 @@ import {
   VISUAL_QA_BEGIN,
   VISUAL_QA_END,
   warnVisualQaForPublish,
+  type CarouselQaAxis,
   type QaFrameRecord,
   type VisualQaSidecar
 } from "../src/visualQa";
@@ -39,6 +48,7 @@ const root = join(__dirname, "..");
 const extractSrc = readFileSync(join(root, "scripts", "extract-reel-frames.ps1"), "utf8");
 const checkSrc = readFileSync(join(root, "scripts", "check-reel-story.ps1"), "utf8");
 const produceSrc = readFileSync(join(root, "scripts", "produce-next-reel.ps1"), "utf8");
+const generateImagesSrc = readFileSync(join(root, "scripts", "generate-missing-images.ps1"), "utf8");
 const generateVideoSrc = readFileSync(join(root, "src", "generateVideo.ts"), "utf8");
 const ownerReviewSrc = readFileSync(join(root, "src", "ownerVideoReview.ts"), "utf8");
 const scheduleSrc = readFileSync(join(root, "src", "scheduleReel.ts"), "utf8");
@@ -693,5 +703,276 @@ describe("validatePublishableReel stays unwired as a hard gate", () => {
     expect(fn).not.toMatch(/assertVisualQaApproved/u);
     expect(fn).not.toMatch(/if \(record\.verdict !== "PASS"\) throw/u);
     expect(typeof validatePublishableReel).toBe("function");
+  });
+});
+
+const carouselFixtureDir = join(root, "data", "visual-qa-fixtures");
+
+function carouselFourSlides() {
+  return [
+    { imageIndex: 1, name: "slide-01.png", slide: 1 },
+    { imageIndex: 2, name: "slide-02.png", slide: 2 },
+    { imageIndex: 3, name: "slide-03.png", slide: 3 },
+    { imageIndex: 4, name: "slide-04.png", slide: 4 }
+  ];
+}
+
+function carouselEvaluate(stdout: string, topic: string) {
+  return evaluateCarouselJudgeStdout({
+    stdout,
+    topic,
+    expectedCanaries: { IMAGE_1: "K7P2", IMAGE_2: "M3Q8", IMAGE_3: "N4R5", IMAGE_4: "P6S7" },
+    slideSha256s: { "slide-01.png": "aa", "slide-02.png": "bb", "slide-03.png": "cc", "slide-04.png": "dd" },
+    promptHash: "p",
+    runId: "r",
+    slides: []
+  });
+}
+
+describe("carousel judge prompt", () => {
+  it("requires carousel axes, canaries, observe-then-derive, and forbids generation", () => {
+    const prompt = buildCarouselJudgePrompt({
+      slides: carouselFourSlides(),
+      topic: "可收藏：深色衣服洗久變灰的判斷，送洗前先看三個位置"
+    });
+    expect(() => assertCarouselJudgePromptSafe(prompt)).not.toThrow();
+    for (const axis of CAROUSEL_QA_AXES) expect(prompt).toContain(axis);
+    expect(prompt).toMatch(/Do not generate or edit any image/i);
+    expect(prompt).toContain(VISUAL_QA_BEGIN);
+    expect(prompt).toContain(VISUAL_QA_OBSERVE_BEGIN);
+    expect(prompt).toMatch(/garment_color=/);
+    expect(prompt).toMatch(/garment_type=/);
+    expect(prompt).toMatch(/identity_change=/);
+    expect(prompt).toMatch(/object_mismatch=/);
+    expect(prompt).toContain("TOPIC:");
+    expect(prompt).not.toContain("ACCESSORY_COLOR");
+    expect(prompt).not.toContain("MIDDLE_NOT_WORSE");
+  });
+
+  it("mutation: dropping OBJECT_IDENTITY from the carousel prompt is rejected", () => {
+    const prompt = buildCarouselJudgePrompt({
+      slides: carouselFourSlides(),
+      topic: "今天情境：雨後通勤回家不要直接收鞋"
+    });
+    const mutated = prompt.replaceAll("OBJECT_IDENTITY", "OBJECT_SAME");
+    expect(() => assertCarouselJudgePromptSafe(mutated)).toThrow(/OBJECT_IDENTITY/);
+  });
+
+  it("does not overfit carousel fixture names or reel fixture answers", () => {
+    const prompt = buildCarouselJudgePrompt({
+      slides: carouselFourSlides(),
+      topic: "衣物送洗前先看材質"
+    });
+    expect(prompt).not.toMatch(/carousel-mixed-garments|carousel-rain-shoes/i);
+    expect(prompt).not.toMatch(/suede-shoe-nap|backpack-base/i);
+    expect(() => assertCarouselJudgePromptSafe(`${prompt}\nfixture=carousel-mixed-garments`)).toThrow(/overfit/i);
+  });
+});
+
+describe("carousel resolve and parse", () => {
+  it("parses dir+slot specs", () => {
+    expect(parseCarouselSpec("docs/assets/2026-08-17:1")).toEqual({
+      dir: "docs/assets/2026-08-17",
+      slot: 1
+    });
+    expect(parseCarouselSpec("docs/assets/2026-08-17/slot-02")).toEqual({
+      dir: "docs/assets/2026-08-17",
+      slot: 2
+    });
+  });
+
+  it("resolves the live 8/17 four-slide sets", async () => {
+    const slot1 = await resolveCarouselSlides({
+      dir: join(root, "docs", "assets", "2026-08-17"),
+      slot: 1,
+      root
+    });
+    const slot2 = await resolveCarouselSlides({
+      dir: join(root, "docs", "assets", "2026-08-17"),
+      slot: 2,
+      root
+    });
+    expect(slot1.map((path) => basename(path))).toEqual([
+      "slot-01.png",
+      "slot-01-slide-02.png",
+      "slot-01-slide-03.png",
+      "slot-01-slide-04.png"
+    ]);
+    expect(slot2.map((path) => basename(path))).toEqual([
+      "slot-02.png",
+      "slot-02-slide-02.png",
+      "slot-02-slide-03.png",
+      "slot-02-slide-04.png"
+    ]);
+  });
+
+  it("parses carousel VISUAL_QA JSON including TOPIC_MATCH", () => {
+    const raw = readFileSync(join(carouselFixtureDir, "carousel-mixed-garments", "judge-stdout.txt"), "utf8");
+    const parsed = parseVisualQaBlock(raw, CAROUSEL_QA_AXES);
+    expect(parsed?.verdict).toBe("FAIL");
+    expect(parsed?.axes.OBJECT_IDENTITY).toBe("FAIL");
+    expect(parsed?.axes.TOPIC_MATCH).toBe("PASS");
+    expect(parsed?.axes.ACCESSORY_COLOR).toBeUndefined();
+  });
+});
+
+describe("carousel fixture red and green", () => {
+  it("red mixed-garment fixture FAILs and names OBJECT_IDENTITY", () => {
+    const stdout = readFileSync(join(carouselFixtureDir, "carousel-mixed-garments", "judge-stdout.txt"), "utf8");
+    const topic = JSON.parse(
+      readFileSync(join(carouselFixtureDir, "carousel-mixed-garments", "meta.json"), "utf8")
+    ).topic as string;
+    const observed = parseCarouselObserveBlock(stdout);
+    expect(observed?.compare.identityChange).toBe(true);
+    const record = carouselEvaluate(stdout, topic);
+    expect(record.verdict).toBe("FAIL");
+    expect(record.fail_class).toBe("content");
+    expect(record.axes.OBJECT_IDENTITY).toBe("FAIL");
+    expect(record.axes.SCENE).toBe("PASS");
+    expect(record.axes.TOPIC_MATCH).toBe("PASS");
+  });
+
+  it("green rain-shoe fixture PASSes", () => {
+    const stdout = readFileSync(join(carouselFixtureDir, "carousel-rain-shoes", "judge-stdout.txt"), "utf8");
+    const topic = JSON.parse(
+      readFileSync(join(carouselFixtureDir, "carousel-rain-shoes", "meta.json"), "utf8")
+    ).topic as string;
+    const record = carouselEvaluate(stdout, topic);
+    expect(record.verdict).toBe("PASS");
+    expect(record.fail_class).toBeNull();
+    expect(record.axes.OBJECT_IDENTITY).toBe("PASS");
+    expect(record.axes.SCENE).toBe("PASS");
+    expect(record.axes.TOPIC_MATCH).toBe("PASS");
+  });
+});
+
+describe("carousel mutations", () => {
+  it("mutation: removing OBJECT_IDENTITY from the verdict is FAIL_CLOSED missing_axis", () => {
+    const stdout = [
+      "IMAGE_1 canary=K7P2",
+      "IMAGE_2 canary=M3Q8",
+      "IMAGE_3 canary=N4R5",
+      "IMAGE_4 canary=P6S7",
+      VISUAL_QA_BEGIN,
+      JSON.stringify({
+        topic: "x",
+        verdict: "PASS",
+        axes: { SCENE: "PASS", TOPIC_MATCH: "PASS" },
+        evidence: {},
+        frames_used: []
+      }),
+      VISUAL_QA_END
+    ].join("\n");
+    const record = carouselEvaluate(stdout, "衣物");
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("missing_axis");
+    expect(record.axes.OBJECT_IDENTITY).toBe("MISSING");
+  });
+
+  it("mutation: dropping canaries is judge_blind", () => {
+    const axes = Object.fromEntries(CAROUSEL_QA_AXES.map((axis) => [axis, "PASS"]));
+    const stdout = [
+      VISUAL_QA_BEGIN,
+      JSON.stringify({ topic: "x", verdict: "PASS", axes, evidence: {}, frames_used: [] }),
+      VISUAL_QA_END
+    ].join("\n");
+    const record = carouselEvaluate(stdout, "衣物");
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("judge_blind");
+  });
+
+  it("declared type mix with OBJECT_IDENTITY PASS is rubric_incoherent", () => {
+    const stdout = [
+      "IMAGE_1 canary=K7P2",
+      "IMAGE_2 canary=M3Q8",
+      "IMAGE_3 canary=N4R5",
+      "IMAGE_4 canary=P6S7",
+      VISUAL_QA_OBSERVE_BEGIN,
+      "OBS_1 garment_color=NAVY garment_type=TEE material=KNIT wear=HEAVY scene=PINK_MAT_SLAT",
+      "OBS_2 garment_color=CREAM garment_type=SHIRT material=WOVEN wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_3 garment_color=BLUE garment_type=SHIRT material=WOVEN wear=LIGHT scene=PINK_MAT_SLAT",
+      "OBS_4 garment_color=BLUE garment_type=SHIRT material=WOVEN wear=LIGHT scene=PINK_MAT_SLAT",
+      "COMPARE OBJECT_IDENTITY identity_change=YES",
+      "COMPARE SCENE scene_change=NO",
+      "COMPARE TOPIC_MATCH object_mismatch=NO",
+      VISUAL_QA_OBSERVE_END,
+      VISUAL_QA_BEGIN,
+      JSON.stringify({
+        topic: "x",
+        verdict: "PASS",
+        axes: { OBJECT_IDENTITY: "PASS", SCENE: "PASS", TOPIC_MATCH: "PASS" },
+        evidence: {},
+        frames_used: []
+      }),
+      VISUAL_QA_END
+    ].join("\n");
+    expect(
+      detectCarouselRubricIncoherence(
+        stdout,
+        Object.fromEntries(CAROUSEL_QA_AXES.map((axis) => [axis, "PASS"])) as Record<CarouselQaAxis, "PASS">,
+        "深色衣服"
+      )
+    ).toBe(true);
+    const record = carouselEvaluate(stdout, "深色衣服");
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("rubric_incoherent");
+  });
+});
+
+describe("carousel warn-mode wiring", () => {
+  it("generate-missing-images calls carousel QA after a complete slot and does not block", () => {
+    expect(generateImagesSrc).toContain("Invoke-CarouselVisualQaWarning");
+    expect(generateImagesSrc).toContain("Carousel visual-qa (warning)");
+    expect(generateImagesSrc).toContain("--carousel");
+    expect(generateImagesSrc).toContain("slot-$pad.visual-qa.json");
+    expect(generateImagesSrc).toContain("warning mode; publish is not blocked");
+    expect(generateImagesSrc).toContain("warning mode continues");
+    expect(generateImagesSrc).toContain("Test-CarouselSlotComplete");
+    expect(generateImagesSrc).not.toMatch(/if \(\$record\.verdict -ne ["']PASS["']\)/u);
+    expect(generateImagesSrc).not.toMatch(/exit 2/u);
+  });
+
+  it("live 8/17 calibration snapshots still discriminate", () => {
+    const red = JSON.parse(
+      readFileSync(join(carouselFixtureDir, "carousel-mixed-garments", "live.visual-qa.json"), "utf8")
+    ) as { verdict: string; axes: Record<string, string> };
+    const green = JSON.parse(
+      readFileSync(join(carouselFixtureDir, "carousel-rain-shoes", "live.visual-qa.json"), "utf8")
+    ) as { verdict: string; fail_class: string | null; axes: Record<string, string> };
+    expect(red.verdict).toBe("FAIL");
+    expect(red.axes.OBJECT_IDENTITY).toBe("FAIL");
+    expect(green.verdict).toBe("PASS");
+    expect(green.fail_class).toBeNull();
+    expect(green.axes.OBJECT_IDENTITY).toBe("PASS");
+  });
+});
+
+describe("carousel CLI surface", () => {
+  it("visualQaCli accepts --carousel emit-prompt for a file list", () => {
+    const cliSrc = readFileSync(join(root, "src", "visualQaCli.ts"), "utf8");
+    expect(cliSrc).toContain("handleCarousel");
+    expect(cliSrc).toContain("--carousel");
+    expect(cliSrc).toContain("buildCarouselJudgePrompt");
+    expect(cliSrc).toContain('-s", "read-only"');
+    expect(cliSrc).toContain('"-i"');
+    expect(cliSrc).not.toMatch(/Generate exactly two images/u);
+    const out = execFileSync(
+      process.execPath,
+      [
+        join(root, "node_modules", "tsx", "dist", "cli.mjs"),
+        join(root, "src", "visualQaCli.ts"),
+        "--carousel",
+        "--emit-prompt",
+        "--files",
+        "slide-01.png,slide-02.png,slide-03.png,slide-04.png",
+        "--topic",
+        "衣物送洗"
+      ],
+      { cwd: root, encoding: "utf8" }
+    );
+    expect(out).toContain("OBJECT_IDENTITY");
+    expect(out).toContain("TOPIC_MATCH");
+    expect(out).toContain("PROMPT_HASH=");
+    expect(out).toMatch(/Do not generate or edit any image/i);
   });
 });

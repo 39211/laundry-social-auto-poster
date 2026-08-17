@@ -25,6 +25,57 @@ function Write-Step([string]$m) {
     if ($LogFile) { $line | Out-File -FilePath $LogFile -Append -Encoding utf8 }
 }
 
+function Get-CarouselSlotItems($Items, [int]$Slot) {
+    $group = New-Object System.Collections.Generic.List[object]
+    foreach ($item in @($Items)) {
+        if ([int]$item.slot -eq $Slot) { [void]$group.Add($item) }
+    }
+    return @($group)
+}
+
+function Test-CarouselSlotComplete($Items, [int]$Slot, [string]$RootPath) {
+    $group = Get-CarouselSlotItems $Items $Slot
+    if ($group.Count -lt 2 -or $group.Count -gt 4) { return $false }
+    foreach ($item in $group) {
+        $target = Join-Path $RootPath (($item.target_path -replace "/", "\"))
+        if (-not (Test-Path $target)) { return $false }
+    }
+    return $true
+}
+
+function Invoke-CarouselVisualQaWarning {
+    param(
+        [string]$Date,
+        [int]$Slot,
+        $Items,
+        [string]$RootPath,
+        [string]$LogFile
+    )
+    $group = Get-CarouselSlotItems $Items $Slot
+    if ($group.Count -lt 2) { return }
+    $tsx = Join-Path $RootPath "node_modules\.bin\tsx.cmd"
+    $cli = Join-Path $RootPath "src\visualQaCli.ts"
+    $assetDir = Join-Path $RootPath "docs\assets\$Date"
+    $pad = "{0:d2}" -f $Slot
+    $outPath = Join-Path $assetDir "slot-$pad.visual-qa.json"
+    $topicFile = Join-Path $env:TEMP ("carousel-qa-topic-" + $Date + "-" + $pad + ".txt")
+    $topic = [string]$group[0].topic
+    [IO.File]::WriteAllText($topicFile, $topic, [Text.UTF8Encoding]::new($false))
+    Write-Step "Carousel visual-qa (warning) for slot $Slot"
+    try {
+        $qaOut = & $tsx $cli --carousel --dir $assetDir --slot $Slot --topic-file $topicFile --out $outPath --date $Date 2>&1
+        if ($LogFile) { $qaOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
+        else { $qaOut | ForEach-Object { Write-Host $_ } }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Step "Carousel visual-qa script error for slot $Slot (warning mode continues)."
+        } else {
+            Write-Step "Carousel visual-qa wrote $outPath (warning mode; publish is not blocked)"
+        }
+    } catch {
+        Write-Step "Carousel visual-qa script error for slot $Slot (warning mode continues)."
+    }
+}
+
 $manifestPath = Join-Path $root "data\image-prompts\$Date.json"
 if (-not (Test-Path $manifestPath)) {
     Write-Step "No image manifest for $Date; run generate-image-manifest first."
@@ -130,6 +181,10 @@ $($item.prompt)
     }
     Pop-Location
     $generated += 1
+    $slotNum = [int]$item.slot
+    if (Test-CarouselSlotComplete $items $slotNum $root) {
+        Invoke-CarouselVisualQaWarning -Date $Date -Slot $slotNum -Items $items -RootPath $root -LogFile $LogFile
+    }
 }
 
 if ($generated -gt 0) {

@@ -867,35 +867,60 @@ describe("generatePublicSite", () => {
       | { mainEntity?: Array<{ name?: string; acceptedAnswer?: { text?: string } }> }
       | undefined;
     const faqs = faqNode?.mainEntity ?? [];
+    const faqNames = faqs.map((faq) => faq.name ?? "");
 
-    expect(textLength).toBeGreaterThanOrEqual(2500);
-    expect(textLength).toBeGreaterThanOrEqual(600);
-    expect(localHtml).not.toContain("十分鐘");
+    // Mutation gates: stubbing the three local sections drops visible text
+    // to ~1518; the ticket floor is 1200, but chrome+steps+FAQ already exceed
+    // that, so 1800 is the discriminating thicken gate. Dropping the
+    // homepage / shoe-bag-care narrative anchors must also turn this red.
+    expect(textLength).toBeGreaterThanOrEqual(1200);
+    expect(textLength).toBeGreaterThanOrEqual(1800);
+    expect(localHtml).toContain("逢甲");
+    expect(localHtml).toContain("西屯");
+    expect(localHtml).toContain("至善國中");
+    expect(localHtml).toContain("從逢甲過來");
+    expect(localHtml).toContain("收送邊界");
     expect(localHtml).toContain("至善國中對面");
     expect(localHtml).toContain("青海路二段365號");
     expect(localHtml).toContain("台中市全市");
     expect(localHtml).toContain("麂皮");
     expect(localHtml).toContain("帆布");
     expect(localHtml).toContain("膠氧化");
+    expect(localHtml).toContain("不保證變全新");
+    expect(localHtml).not.toContain("十分鐘");
+    expect(localHtml).not.toMatch(/[0-9]+\s*分鐘/u);
+    expect(localHtml).not.toContain("當天可約");
+    expect(localHtml).not.toContain("隔日內");
 
     expect(graph.some((node) => node["@type"] === "HowTo")).toBe(true);
     expect(graph.some((node) => node["@type"] === "FAQPage")).toBe(true);
     expect(graph.some((node) => node["@type"] === "DryCleaningOrLaundry")).toBe(true);
     expect(graph.some((node) => node["@type"] === "WebPage")).toBe(true);
 
+    expect(localHtml).toContain('id="faq"');
     expect(faqs.length).toBeGreaterThanOrEqual(3);
     expect(faqs.length).toBeLessThanOrEqual(5);
+    expect(faqNames.some((name) => name.includes("球鞋"))).toBe(true);
+    expect(faqNames.some((name) => name.includes("白鞋"))).toBe(true);
+    expect(faqNames.some((name) => name.includes("麂皮"))).toBe(true);
+    expect(faqNames.some((name) => name.includes("多久"))).toBe(true);
+    expect(faqNames.some((name) => name.includes("多少錢"))).toBe(true);
     for (const faq of faqs) {
       const first = firstAnswerParagraph(faq.acceptedAnswer?.text ?? "");
       expect(first.length).toBeGreaterThan(0);
       expect(first.length).toBeLessThanOrEqual(50);
     }
 
+    expect(localHtml).toContain("/go/line.html?source=local-qinghai-road-shoe-cleaning-cta");
+
     const homepageAnchors = thematicAnchorsTo(homepage, "qinghai-road-shoe-cleaning");
+    expect(homepageAnchors.length).toBeGreaterThanOrEqual(1);
     expect(homepageAnchors.some((text) => text.includes("逢甲洗鞋") || text.includes("西屯洗鞋"))).toBe(true);
     expect(homepage).toContain("<strong>逢甲洗鞋・西屯洗鞋</strong>");
+    expect(homepage).toContain("從逢甲或西屯找洗鞋，可先看");
 
     const serviceAnchors = thematicAnchorsTo(shoeBagCareHtml, "qinghai-road-shoe-cleaning");
+    expect(serviceAnchors.length).toBeGreaterThanOrEqual(1);
     expect(serviceAnchors.some((text) => text.includes("逢甲洗鞋") || text.includes("西屯洗鞋"))).toBe(true);
     expect(shoeBagCareHtml).toContain("逢甲洗鞋與西屯洗鞋的門市位置、案例界線與收送方式");
 

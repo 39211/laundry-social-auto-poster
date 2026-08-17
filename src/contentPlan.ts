@@ -510,6 +510,17 @@ function playbookSlotsForDate(date: string): GrowthPlaybookSlot[] | undefined {
   return day?.slots;
 }
 
+/** Historical alias: /services/bag-care.html was never generated. */
+const SEO_SYNC_PAGE_ALIASES: Record<string, string> = {
+  "/services/bag-care.html": "/services/shoe-bag-care.html"
+};
+
+/** Map calendar seo_sync_page values onto pages that actually exist. */
+export function canonicalSeoSyncPage(page: string | undefined): string {
+  if (!page) return "";
+  return SEO_SYNC_PAGE_ALIASES[page] ?? page;
+}
+
 function cleanTopic(topic: string): string {
   return topic
     .replace(/^(先看懂|今天情境|可收藏|細節拆解|到店前判斷|送洗前先問)：/, "")
@@ -576,7 +587,7 @@ function pickByObject(
 }
 
 function careBridgeFor(slot: GrowthPlaybookSlot): string {
-  const page = slot.seo_sync_page;
+  const page = canonicalSeoSyncPage(slot.seo_sync_page);
   const variants = ((): string[] => {
     if (page.includes("shirt-suit-dry-cleaning")) {
       return [
@@ -653,7 +664,7 @@ function careBridgeFor(slot: GrowthPlaybookSlot): string {
 // each says what is actually looked at rather than listing the categories of
 // thing that could be looked at.
 function inspectionFor(slot: GrowthPlaybookSlot): string {
-  const page = slot.seo_sync_page;
+  const page = canonicalSeoSyncPage(slot.seo_sync_page);
   const variants = ((): string[] => {
     // Index 0 is the shirt and index 1 the suit here, matching the care bridge.
     if (page.includes("shirt-suit-dry-cleaning")) {
@@ -738,7 +749,7 @@ function inspectionFor(slot: GrowthPlaybookSlot): string {
 // Asking for the rest is a reply, not a requirement for writing in.
 function actionCtaFor(slot: GrowthPlaybookSlot, platform: Platform): string {
   const channel = platform === "instagram" ? "私訊" : "傳 LINE";
-  const page = slot.seo_sync_page;
+  const page = canonicalSeoSyncPage(slot.seo_sync_page);
 
   const variants = ((): string[] => {
     if (page.includes("white-shoe") || page.includes("shoe-bag")) {
@@ -814,7 +825,7 @@ function normalizeInstagramCta(caption: string): string {
 // and bait suppresses reach rather than earning it. The question has to be
 // answerable in a few words from the reader's own home.
 function engagementQuestionFor(slot: GrowthPlaybookSlot): string {
-  const page = slot.seo_sync_page;
+  const page = canonicalSeoSyncPage(slot.seo_sync_page);
   const variants = ((): string[] => {
     if (page.includes("shirt-suit-dry-cleaning")) {
       return ["你的襯衫比較常出問題的，是領口還是袖口？", "你有幾件襯衫是黃了以後就沒再穿的？"];
@@ -864,7 +875,7 @@ function engagementQuestionFor(slot: GrowthPlaybookSlot): string {
 // was just rescued from.
 function shareInviteFor(slot: GrowthPlaybookSlot): string | undefined {
   if (slot.slot !== 2) return undefined;
-  const page = slot.seo_sync_page;
+  const page = canonicalSeoSyncPage(slot.seo_sync_page);
   const variants = ((): string[] => {
     if (page.includes("bedding-duvet-cleaning")) {
       return [
@@ -1711,7 +1722,7 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
   const briefs =
     input.date === "2026-07-20" && (input.slot ?? 1) === 1
       ? WHITE_SHIRT_7_20_BRIEFS
-      : (input.seo_sync_page ?? "").includes("taichung-citywide-laundry-pickup")
+      : canonicalSeoSyncPage(input.seo_sync_page).includes("taichung-citywide-laundry-pickup")
         ? pickupCarouselBriefs(input.topic)
         : [
             `Hero still of ${topicBody(input.topic)} through the passport item as the main close-up on the locked inspection counter. Keep the entire object readable and do not imply a cleaning result.`,
@@ -1744,7 +1755,7 @@ function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
     slot: slot.slot,
     topic: slot.topic,
     caption: carouselCaptionSource(slot),
-    seo_sync_page: slot.seo_sync_page
+    seo_sync_page: canonicalSeoSyncPage(slot.seo_sync_page)
   });
 }
 
@@ -1847,7 +1858,7 @@ function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): Dai
     views_target: slot.views_target,
     follower_target: slot.follower_target,
     follow_cta: slot.follow_cta,
-    seo_sync_page: slot.seo_sync_page,
+    seo_sync_page: canonicalSeoSyncPage(slot.seo_sync_page),
     search_intent: slot.search_intent,
     target_queries: slot.target_queries,
     evidence_type: slot.evidence_type,

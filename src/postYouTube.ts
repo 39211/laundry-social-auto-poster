@@ -113,7 +113,8 @@ export function guideLinkFor(topic: string): string {
   if (/白鞋|泛黃/.test(topic)) return `${SITE}/guides/white-shoe-yellowing.html`;
   if (/雨|淋濕|進水/.test(topic)) return `${SITE}/guides/rainy-shoe-care.html`;
   if (/鞋|靴/.test(topic)) return `${SITE}/services/white-shoe-cleaning.html`;
-  if (/包|提把|包角|背包|行李/.test(topic)) return `${SITE}/guides/bag-handle-cleaning.html`;
+  if (/行李箱|行李/.test(topic)) return `${SITE}/guides/bag-handle-cleaning.html`;
+  if (/包|提把|包角|背包/.test(topic)) return `${SITE}/guides/bag-handle-cleaning.html`;
   if (/皮衣|皮革|發霉/.test(topic)) return `${SITE}/guides/leather-jacket-care.html`;
   if (/羽絨/.test(topic)) return `${SITE}/guides/down-jacket-cleaning.html`;
   if (/西裝|襯衫|肩線|領口/.test(topic)) return `${SITE}/guides/shirt-suit-dry-cleaning.html`;

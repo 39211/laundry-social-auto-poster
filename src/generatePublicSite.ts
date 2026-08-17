@@ -176,6 +176,8 @@ interface SupportPageDefinition {
   steps: Array<{ name: string; text: string }>;
   /** Optional long-form sections; omitted pages keep the existing support-page shape. */
   sections?: Array<{ heading: string; body: string }>;
+  /** Standalone AEO first paragraph, at most 50 zh characters when set. */
+  citation_answer?: string;
   faqs: ServiceFaq[];
 }
 
@@ -1023,6 +1025,16 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
   }
 ];
 
+/** Citation-ready first-paragraph answers. Same strings feed llms.txt and answers.json. */
+const AEO_PHOTO_BEFORE_LAUNDRY = "送洗前拍整體、局部、材質與最在意痕跡，照片比只問價錢更能判斷。";
+const AEO_WHITE_SHOE_GRAY_VS_YELLOW = "白鞋灰多半是髒、可清；黃在膠邊是氧化，只能淡化，不保證回白。";
+const AEO_RAINY_SHOE = "雨天鞋子進水後先通風、取出鞋墊；不要高溫烘或悶進鞋櫃。";
+const AEO_LUGGAGE_WHEELS = "行李箱收進櫃子前先看輪子；輪子與底板灰收進去，下次打開就是味道。";
+const AEO_BEDDING_STORAGE = "寢具收納前先聞潮味；摸起來乾、中間層不一定乾，帶濕氣封存會悶出味道。";
+const AEO_BEDDING_DUVET = "棉被送洗先看填充、潮氣與異味；沒乾透就收納，下一季打開就是味道。";
+const AEO_PLUSH_DOLL_BOUNDARY = "娃娃可以洗，但不能亂洗；怕的是脫水結塊與五官脫落，要先固定再手洗。";
+const AEO_LUXURY_DRY = "精品送洗先看材質與飾件，不因品牌保證全新；邊角磨損只能維持。";
+
 const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
   {
     slug: "photo-before-laundry",
@@ -1031,15 +1043,34 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     title: "送洗前怎麼拍照片詢問？｜私享家洗衣店",
     description: "送洗前先拍整體、局部、材質與最在意的痕跡，私享家洗衣店才能更準確判斷衣物、鞋子、包包或布品是否適合整理。",
     h1: "送洗前怎麼拍照片詢問？",
-    summary: "先用照片把物件狀態說清楚，比只問價錢更有用。私享家會依材質、髒污來源、濕氣與磨耗狀態先做初步判斷。",
+    summary: AEO_PHOTO_BEFORE_LAUNDRY,
+    citation_answer: AEO_PHOTO_BEFORE_LAUNDRY,
     keywords: ["送洗前拍照", "LINE 詢問洗衣店", "台中西屯洗衣店", "青海路洗衣店"],
+    service_slug: "taichung-xitun-laundry",
     local_intent: "台中西屯 送洗前 LINE 詢問",
-    content_lastmod: "2026-07-08",
+    content_lastmod: "2026-08-17",
     steps: [
       { name: "拍整體", text: "先拍完整正面或整體外觀，讓門市知道物件類型、大小與主要材質。" },
       { name: "拍局部", text: "再拍污漬、泛黃、水痕、包角、鞋邊或領口袖口等局部近照。" },
       { name: "拍使用位置", text: "鞋子拍鞋內與鞋底，包包拍提把和四角，外套寢具拍標籤和容易悶住的位置。" },
       { name: "說明期待", text: "告訴我們最在意的是味道、痕跡、泛黃、收納前整理，還是材質保護。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼用照片判斷",
+        body:
+          "私享家會依材質、髒污來源、濕氣與磨耗狀態先做初步判斷，不是先報一個固定數字。整體照說明物件類型與大小；局部照說明痕跡在哪、有沒有滲入；材質或洗標照決定能不能水洗、該不該乾洗。鞋子還要看鞋內與鞋底，包包要看提把和四角，外套與寢具要看領口袖口、邊角和容易悶住的位置。只問價錢、不附照片，門市只能回「要看物件」，因為同樣一雙運動鞋或同一件棉被，膠邊氧化、填充受潮或飾件鬆動都會讓處理方向不同。把最在意的位置單獨拍一張，整體照看不出局部問題。台中西屯洗衣店這一步就是把狀態說清楚，再決定要不要約收送。"
+      },
+      {
+        heading: "什麼救得回、什麼只能維持",
+        body:
+          "照片能先判斷方向，但實際處理方式仍要看現場材質、髒污滲入程度和物件狀態。表面灰塵、剛沾上的泥灰、還沒上油的雨痕、還沒封存的潮味，通常還有處理空間；膠邊氧化、邊油磨穿、填充結塊、五官脫落、已經自行漂白或硬刷過的痕跡，只能維持或淡化，不保證變全新。門市不會在沒看過照片前承諾洗白、去味或恢復新品。不確定就先保留原狀，不要自行強洗或用未知藥劑，處理過的痕跡會讓後續判斷變難。"
+      },
+      {
+        heading: "傳 LINE 前對應哪一頁服務",
+        body:
+          "拍完四類照片後，用 LINE（0968327653）傳給門市，並補一句最在意的是味道、痕跡、泛黃還是收納前整理。台中市全區可約免費到府收送，清潔費另依物件判斷、沒有最低消費門檻。白鞋對應白鞋清潔頁，其他鞋包對應鞋包清潔頁，寢具與厚棉布品對應布品收納頁；本頁只回答怎麼拍、拍哪裡，不另開薄頁。"
+      }
     ],
     faqs: [
       {
@@ -1059,16 +1090,34 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     title: "白鞋泛黃怎麼判斷？｜私享家洗衣店",
     description: "白鞋泛黃不一定只是髒污，可能和材質、膠邊、氧化、濕氣與清潔方式有關。整理前先判斷鞋面、鞋邊與內裡狀態。",
     h1: "白鞋泛黃怎麼判斷？",
-    summary: "白鞋清潔要先分清楚是表面髒污、膠邊氧化、內裡濕悶，還是材質本身變色，避免用錯方式讓鞋面變毛或膠痕更明顯。",
+    summary: AEO_WHITE_SHOE_GRAY_VS_YELLOW,
+    citation_answer: AEO_WHITE_SHOE_GRAY_VS_YELLOW,
     keywords: ["白鞋泛黃", "白鞋清潔", "台中西屯白鞋清潔", "鞋子保養"],
     service_slug: "white-shoe-cleaning",
     local_intent: "台中西屯 白鞋泛黃 白鞋清潔",
-    content_lastmod: "2026-07-08",
+    content_lastmod: "2026-08-17",
     steps: [
       { name: "看鞋面", text: "確認鞋面是皮革、布面、網布還是合成材質。" },
       { name: "看鞋邊", text: "檢查膠邊是否泛黃、磨耗或有清潔後留下的刷痕。" },
       { name: "看內裡", text: "檢查鞋內濕氣、鞋墊能否拆卸，以及是否有悶味。" },
       { name: "決定方式", text: "依材質選擇清潔和整理方式，不先用漂白水或硬刷處理。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼分灰和黃",
+        body:
+          "白鞋泛黃，不是刷得不夠用力。門市先看三個位置：鞋邊那圈膠條、布面靠鞋頭、鞋帶孔周圍。膠條上的灰多半是附著的髒，擦得掉；已經轉成黃，是膠本身氧化，刷不掉，只能淡化。布面兩道洗不掉的灰帶，通常是刷過頭把纖維刷起毛，越刷越舊。鞋帶孔金屬圈旁邊一圈深色是汗漬，滲進去久了會連布一起染。黃在布面、來自洗劑殘留，多半洗得回來；黃在鞋邊膠條，不是髒。縫線卡灰、鞋墊潮感和內裡悶味也要分開看，不要把所有黃痕都當成可洗掉的髒污。對應服務是白鞋清潔頁，不是把所有白鞋都當一般鞋包處理。"
+      },
+      {
+        heading: "什麼救得回、什麼只能維持",
+        body:
+          "三個位置都是灰的，多半還有清潔空間；鞋邊已經轉黃，就先講清楚只能淡化，不保證回白，也不保證變全新。膠邊氧化、材質本身變色、已經被硬刷起毛或漂白過的痕跡，整理目標是降低痕跡和保護材質。不確定材質時，不要先用漂白水或硬刷，避免褪色、起毛或膠痕更明顯。過度摩擦可能讓毛邊與色差更明顯。公開水洗價：一般運動鞋 250、皮類運動鞋 300；乾洗柔洗另計，以實際報價為主。"
+      },
+      {
+        heading: "送洗前怎麼問白鞋清潔",
+        body:
+          "拍鞋面、鞋邊、鞋內與整體四張，用 LINE（0968327653）傳給門市，說明是鞋邊灰還是布面灰。台中市全區可約免費到府收送，清潔費另計、沒有最低消費門檻。雨後濕氣另看雨天鞋子指南；本頁只回答灰與黃怎麼分。"
+      }
     ],
     faqs: [
       {
@@ -1316,16 +1365,34 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     title: "雨天鞋子進水後怎麼辦？｜私享家洗衣店",
     description: "雨天通勤後鞋內濕氣、鞋底泥灰和鞋邊水痕容易被忽略。先通風、不要悶放，再判斷是否需要專業清潔。",
     h1: "雨天鞋子進水後怎麼辦？",
-    summary: "鞋子淋雨後最怕直接收進鞋櫃。濕氣留在鞋內、鞋墊和縫線附近，會讓味道與水痕更難處理。",
+    summary: AEO_RAINY_SHOE,
+    citation_answer: AEO_RAINY_SHOE,
     keywords: ["雨天鞋子保養", "鞋子進水", "雨季保養", "台中洗鞋"],
     service_slug: "shoe-bag-care",
     local_intent: "台中西屯 雨天鞋子清潔",
-    content_lastmod: "2026-07-08",
+    content_lastmod: "2026-08-17",
     steps: [
       { name: "先通風", text: "回家後先放在通風處，不要直接塞進密閉鞋櫃。" },
       { name: "取出鞋墊", text: "能拆的鞋墊先取出，讓內部濕氣散出。" },
       { name: "拍鞋邊", text: "拍鞋底邊緣、鞋面水痕和鞋內照片給門市判斷。" },
       { name: "避免高溫", text: "不要用高溫烘或曬到變形，材質可能變硬或變色。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼看淋雨後的鞋",
+        body:
+          "鞋子淋雨後看起來只是鞋面有點灰，真正容易留下味道的地方常常是鞋舌、鞋墊下面和縫線附近。門市會先確認鞋墊能不能拆、內裡是汗味還是雨水味，再看鞋面材質和膠邊狀態，判斷要做表面清潔、內裡處理，還是分段整理。皮鞋淋雨那天擦乾了，水痕常過幾天才浮出來；這時候上油等於把水痕鎖進皮裡，之後就要補色。帆布鞋沾泥，濕的時候越刷越糟：泥會被推進織紋，布面起毛、越刷越舊。等乾了整塊剝掉反而好救，沾到泥先別動。對應服務是鞋包清潔頁。"
+      },
+      {
+        heading: "什麼救得回、什麼只能維持",
+        body:
+          "還沒上油的雨痕、剛沾上還能整塊剝掉的泥、鞋內還沒悶死的濕氣，通常還有處理空間。已經上油鎖進皮面的水痕、膠邊氧化、麂皮泡水變硬、被高溫吹到變形的膠或皮革，只能淡化或先停手，不保證變全新。不要用高溫直吹或悶進鞋櫃，也不要先硬刷；可以先把乾的表面灰塵輕拍掉再拍照。公開水洗價：一般運動鞋 250、皮鞋 400、麂皮鞋 400；乾洗柔洗另計，以實際報價為主。"
+      },
+      {
+        heading: "雨後要不要送鞋包清潔",
+        body:
+          "有濕悶味、水痕或泥灰卡在邊角，建議先通風並拍照詢問，避免直接收進櫃內讓味道變重。拍鞋面、水痕、鞋底邊與鞋內，LINE（0968327653）先看方向。台中市全區免費到府收送，清潔費另計、沒有最低消費門檻。白鞋灰與黃另看白鞋泛黃指南；皮鞋與帆布的材質風險不同，不要混成同一種刷法。"
+      }
     ],
     faqs: [
       {
@@ -1342,19 +1409,43 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "bag-handle-cleaning",
     path: "guides/bag-handle-cleaning.html",
     category: "guide",
-    title: "包包提把與包角髒了怎麼判斷？｜私享家洗衣店",
-    description: "包包提把、包角和底部常先累積手汗、水痕、摩擦和灰塵。整理前要先看材質與痕跡是否已滲入。",
-    h1: "包包提把與包角髒了怎麼判斷？",
-    summary: "包包不是只有表面擦一擦。提把、包角、底部和五金附近，常見的是手汗、摩擦、水痕與材質吸附混在一起。",
-    keywords: ["包包清潔", "包包提把清潔", "包角清潔", "台中西屯洗包"],
+    title: "包包提把、包角與行李箱輪子怎麼判斷？｜私享家洗衣店",
+    description: "包包提把、包角和行李箱輪子、底板常先累積手汗、水痕、摩擦和地面灰塵。整理前要先看材質與痕跡是否已滲入。",
+    h1: "包包提把、包角與行李箱輪子怎麼判斷？",
+    summary: AEO_LUGGAGE_WHEELS,
+    citation_answer: AEO_LUGGAGE_WHEELS,
+    keywords: ["包包清潔", "包包提把清潔", "包角清潔", "台中西屯洗包", "行李箱清潔", "行李箱輪子"],
     service_slug: "shoe-bag-care",
-    local_intent: "台中西屯 包包清潔",
-    content_lastmod: "2026-07-08",
+    local_intent: "台中西屯 包包清潔 行李箱輪子",
+    content_lastmod: "2026-08-17",
     steps: [
       { name: "看材質", text: "先分辨皮革、尼龍、帆布、麂皮或合成材質。" },
       { name: "看提把", text: "提把容易累積手汗和摩擦，拍近照才能判斷深淺。" },
       { name: "看包角", text: "包角如果已磨損或退色，處理目標會和單純表面髒污不同。" },
-      { name: "看內裡", text: "內裡味道、粉塵和水痕也會影響整理方式。" }
+      { name: "看內裡", text: "內裡味道、粉塵和水痕也會影響整理方式。" },
+      { name: "看行李箱輪子", text: "旅行回來先看輪子、底板與把手，不要帶著地面灰直接推進櫃子。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼看提把與包角",
+        body:
+          "包包最先變舊的地方，常是提把。提把發黏不是灰塵，是手汗一天天堆起來的；滲進皮層就只能淡化，還沒變色的現在處理較省。門市會先分辨提把是皮革、合成皮還是布面，再看邊油、縫線和轉角磨耗。精品包最怕的不是髒，是邊角：邊油磨掉就補不回來，只能重新上，能單純清潔的時間比想像中短。內裡粉塵、筆痕和味道也要分開看，外觀乾淨不代表內袋乾淨。對應服務是鞋包清潔頁。"
+      },
+      {
+        heading: "行李箱輪子：收進櫃子前先看這裡",
+        body:
+          "行李箱回來後，布面、把手和輪邊常常比衣服更早累積灰塵和地面髒污。輪子和底板整趟旅程都在地上磨，那些灰收進櫃子，下次打開就是那個味道。門市會先看行李箱材質、布面髒污深度、輪邊泥灰和把手接觸痕，再判斷適合局部清潔或外觀整理。不用整咖搬來，台中市可約免費到府收送。價目沒有單獨列行李箱固定金額，LINE 傳布面、把手和輪邊照片先估；不另開行李箱薄頁，本段就是這題的接頁。"
+      },
+      {
+        heading: "什麼救得回、什麼只能維持",
+        body:
+          "表面髒、浮在提把上的手汗、輪邊還沒悶進布面的灰，通常還有清潔空間。邊油磨穿、包角掉色、皮革色差、已經滲入皮層的油痕，清潔只能處理表面髒和部分水痕，磨耗本身要另評估，不保證變全新。公開水洗價：一般包 600、皮包 1000、名牌包 1500 起，發霉特污與補色另計。"
+      },
+      {
+        heading: "送洗前怎麼問鞋包清潔",
+        body:
+          "包包拍整包、提把近照、四個角與內裡；行李箱拍布面、把手和輪邊。LINE（0968327653）先看材質與範圍。台中市全區免費到府收送，清潔費另計。"
+      }
     ],
     faqs: [
       {
@@ -1364,6 +1455,10 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       {
         question: "包角磨損能洗掉嗎？",
         answer: "磨損不是髒污，清潔只能處理表面髒和部分水痕，磨耗本身需另外評估。"
+      },
+      {
+        question: "行李箱輪子髒了可以送洗嗎？",
+        answer: "可以先傳輪子、底板與把手照片詢問。門市會看材質與灰塵深度，再說明適合局部清潔還是外觀整理；沒看過物件前不報固定價。"
       }
     ]
   },
@@ -1374,16 +1469,34 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     title: "寢具外套收納前要檢查什麼？｜私享家洗衣店",
     description: "寢具、外套與厚棉布品收納前，先檢查領口袖口、腋下、棉被邊角、濕氣和悶味，避免收起來後味道變重。",
     h1: "寢具外套收納前要檢查什麼？",
-    summary: "換季收納前不是只要摺好。厚棉布品、外套和寢具如果帶著汗味、濕氣或局部髒污收進袋子，下一季拿出來會更明顯。",
+    summary: AEO_BEDDING_STORAGE,
+    citation_answer: AEO_BEDDING_STORAGE,
     keywords: ["布品收納", "寢具收納", "外套收納", "換季清潔"],
     service_slug: "fabric-storage",
     local_intent: "台中西屯 布品收納 寢具清潔",
-    content_lastmod: "2026-07-08",
+    content_lastmod: "2026-08-17",
     steps: [
       { name: "看高接觸處", text: "外套先看領口、袖口、腋下和口袋邊。" },
       { name: "看厚棉邊角", text: "棉被、毯子和厚布品先看邊角、折線和收納袋內側。" },
       { name: "聞悶味", text: "有悶味代表可能有濕氣或使用痕跡，不建議直接封存。" },
       { name: "再收納", text: "整理後再收進透氣或乾燥的收納方式，降低下一季異味。"}
+    ],
+    sections: [
+      {
+        heading: "門市怎麼判斷能不能收",
+        body:
+          "棉被要收進櫃子前，不能只看表面乾不乾。摸起來乾，中間那層不一定乾；帶著身體味和濕氣直接收納，下一季打開就是那個味道。門市會看厚度、表布材質、縫線和填充狀態，再判斷能不能水洗、需不需要分區處理，以及收納前要不要加強乾燥。外套則先看領口、袖口、腋下和口袋邊，這些位置最容易留下使用痕跡。被套內側、枕套接觸皮膚處與收納袋本身有沒有潮味，也要一起聞。對應服務是布品收納頁。"
+      },
+      {
+        heading: "什麼救得回、什麼只能維持",
+        body:
+          "還有潮氣、汗味或局部髒污時，不建議直接密封；先確認狀態再收，會比下次拿出來才處理更好。表面灰塵和還沒封死的潮味，通常還有整理空間。久放黃痕、已經悶進填充層的味道、環境異味重新附著，不以單次處理保證長期狀態，也不保證變全新。有味道或局部髒污時不直接壓縮收納。公開水洗價：棉被單人 350、雙人 500、羽絨羊毛被 800；乾洗柔洗另計，以實際報價為主。"
+      },
+      {
+        heading: "收納前怎麼問布品收納",
+        body:
+          "有汗味、濕氣、局部痕跡或長時間使用，建議先整理再收。拍整件、洗標和有味道的位置，LINE（0968327653）先看方向。台中市全區免費到府收送，清潔費另計、沒有最低消費門檻，體積大的棉被不用自己搬。整理後再收進透氣或乾燥的方式，不要用塑膠袋把潮氣封死。真正要送洗的床組與棉被，另看床組棉被清洗指南。"
+      }
     ],
     faqs: [
       {
@@ -1443,8 +1556,8 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "床組、棉被、被套與寢具送洗前，先確認填充物、尺寸、污漬與是否受潮。私享家洗衣店提供台中西屯寢具清洗與收納前檢查。",
     h1: "床組、棉被與寢具清洗",
-    summary:
-      "床組不是只看表面乾不乾淨；填充物、潮氣、異味與收納前狀態都會影響後續判斷。先傳照片與尺寸，讓門市確認送件方向。",
+    summary: AEO_BEDDING_DUVET,
+    citation_answer: AEO_BEDDING_DUVET,
     keywords: [
       "台中西屯床組清洗",
       "台中棉被清洗",
@@ -1454,12 +1567,29 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "換季寢具收納"
     ],
     local_intent: "台中西屯 床組清洗 棉被清洗 寢具送洗",
-    content_lastmod: "2026-07-14",
+    content_lastmod: "2026-08-17",
     steps: [
       { name: "拍完整尺寸", text: "先拍床組、棉被或被套的完整外觀、尺寸標示與洗標。" },
       { name: "說明受潮與異味", text: "若有受潮、異味、局部污漬或長期收納狀況，送洗前一併說明。" },
       { name: "確認填充與材質", text: "填充物、表布與車縫狀態會影響可行的處理與收納建議。" },
       { name: "收納前再檢查", text: "處理後仍應確認乾燥與保存環境，不以單次處理保證長期狀態。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼看棉被與床組",
+        body:
+          "床組不是只看表面乾不乾淨。填充物、潮氣、異味與收納前狀態都會影響後續判斷。門市會看厚度、表布、車縫與填充分布，再判斷能不能水洗、需不需要分區處理。黃斑多半是汗漬或濕氣長期作用，越早處理越容易淡化。體積大的布品要先確認車線與破口，清洗時破口會擴大。被套內側、枕套接觸皮膚處與收納袋本身有沒有潮味，也要一起說明。對應服務是布品收納頁；羽絨被的蓬度與塗層另看羽絨清洗指南。"
+      },
+      {
+        heading: "什麼救得回、什麼只能維持",
+        body:
+          "一般建議每年換季收納前清洗一次；有汗味、潮味或黃斑時就不要再等。表面髒與還沒封進填充層的潮味，通常還有清潔空間。沒乾透就壓縮收納，會悶出味道也會失去蓬鬆度；久放黃痕不以單次處理保證回到全新。公開水洗價：棉被單人 350、雙人 500、床組四件套 300、羽絨羊毛被 800；乾洗柔洗另計，以實際報價為主。"
+      },
+      {
+        heading: "體積太大怎麼送到布品收納",
+        body:
+          "台中市全區可預約免費收送，到府收件即可，不用自己搬。拍整件、洗標、尺寸與有味道或污漬的位置，LINE（0968327653）先確認。收送本身免費、沒有最低消費門檻，清潔費另計。收納前檢查另看寢具外套收納指南，兩頁分開：一頁講洗，一頁講收。"
+      }
     ],
     faqs: [
       {
@@ -1481,8 +1611,8 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "娃娃、絨毛玩偶與布偶送洗前，先確認填充物、黏貼配件、五官與局部污漬。私享家洗衣店提供台中西屯布偶清潔的送件前判斷。",
     h1: "娃娃與絨毛玩偶清潔",
-    summary:
-      "絨毛、填充物、刺繡、黏貼配件和五官材質都可能不同。先傳正反面、洗標與需要處理的位置，讓門市確認處理界線。",
+    summary: AEO_PLUSH_DOLL_BOUNDARY,
+    citation_answer: AEO_PLUSH_DOLL_BOUNDARY,
     keywords: [
       "台中西屯娃娃清洗",
       "台中布偶清潔",
@@ -1492,12 +1622,29 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "西屯洗衣店"
     ],
     local_intent: "台中西屯 娃娃清洗 絨毛玩偶清潔",
-    content_lastmod: "2026-07-14",
+    content_lastmod: "2026-08-17",
     steps: [
       { name: "拍正反面與配件", text: "正反面、五官、刺繡、吊牌、黏貼物與破損位置都先拍清楚。" },
       { name: "確認填充物狀態", text: "若有硬塊、潮味、掉毛或填充不均，先一併說明。" },
       { name: "避免自行浸泡", text: "黏貼配件與不同材質可能受水或摩擦影響，先不要自行強洗。" },
       { name: "以收件檢查為準", text: "門市會依材質、結構與既有損耗確認處理可行性，不保證完全恢復。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼判斷娃娃能不能洗",
+        body:
+          "娃娃不是不能洗，是不能亂洗。怕的不是水，是脫水那一段：填充會結塊，五官會掉，掉了買不回來。門市做法是手洗、低溫烘，五官先固定。還要先確認填充材質、有沒有電子零件或音樂盒要取出，以及縫線、眼鼻配件是否鬆動。絨毛、刺繡、黏貼配件和五官材質都可能不同，不能整顆丟進洗衣機當一般衣物。毛料清洗後需要梳理才會回復蓬鬆，不梳會結塊。對應服務是台中西屯洗衣店頁。"
+      },
+      {
+        heading: "什麼救得回、什麼只能維持",
+        body:
+          "表面灰、絨毛倒伏、還沒結死的潮味，通常還有清潔空間。填充已經結塊、五官脫落、黏貼配件受水變形、電子零件進水，只能維持或先停手，不保證完全恢復，也不保證變全新。棉花與 PP 棉的耐受度不同，處理前會說明可能的蓬鬆度變化。價目沒有按公分列出固定金額，依大小報價，LINE 傳照片先估。"
+      },
+      {
+        heading: "送洗前怎麼問台中西屯洗衣店",
+        body:
+          "拍正反面、五官、洗標與最在意的污漬或掉毛位置，並說明異味、受潮與存放情況。LINE（0968327653）先確認材質與處理方向。台中市全區可約免費到府收送，清潔費另計、沒有最低消費門檻。小孩每天抱的娃娃可以洗，而且建議定期清潔；取回前會確認完全乾燥。"
+      }
     ],
     faqs: [
       {
@@ -1519,8 +1666,8 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "精品名牌服飾、配件與精緻材質送洗前，先確認材質、洗標、五金、飾件與污漬位置。私享家洗衣店提供台中西屯精緻乾洗的送件前判斷。",
     h1: "精品名牌與精緻乾洗",
-    summary:
-      "精品或名牌物件不以品牌名稱直接判斷，而是先看材質、結構、飾件與既有使用痕跡。先傳局部細節，讓門市確認處理方向與界線。",
+    summary: AEO_LUXURY_DRY,
+    citation_answer: AEO_LUXURY_DRY,
     keywords: [
       "台中西屯精品乾洗",
       "台中名牌乾洗",
@@ -1530,12 +1677,29 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "精品清潔"
     ],
     local_intent: "台中西屯 精品乾洗 名牌衣服清潔 精緻乾洗",
-    content_lastmod: "2026-07-14",
+    content_lastmod: "2026-08-17",
     steps: [
       { name: "拍洗標與細節", text: "洗標、材質、五金、飾件、內襯與污漬位置都應清楚拍下。" },
       { name: "說明既有痕跡", text: "舊污漬、磨損、褪色、變形或曾自行處理的地方都先告知。" },
       { name: "先做材質判斷", text: "處理方向依材質與結構決定，不用品牌名稱取代實際檢查。" },
       { name: "確認可行界線", text: "不承諾洗白、去除全部污漬或恢復新品狀態，實際以收件檢查為準。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼看精品與名牌件",
+        body:
+          "精品或名牌物件不以品牌名稱直接判斷，而是先看材質、結構、飾件與既有使用痕跡。衣服看洗標、內襯與飾件；包包看提把、四個角與邊油。精品包最怕的不是髒，是邊角：邊油磨掉就補不回來，只能重新上。五金氧化與縫線鬆脫要在清潔前確認，清洗過程可能讓既有損傷擴大。真皮、合成皮與麂皮的清潔和補色方式不同。對應服務是台中西屯洗衣店頁；包包提把與包角的部位判斷另看提把指南。"
+      },
+      {
+        heading: "什麼救得回、什麼只能維持",
+        body:
+          "表面髒、浮霉、還沒磨穿的邊油，通常還有清潔或保養空間。邊角邊油磨穿、飾件脫落、已經自行用酒精或不明藥劑擦過的色差，只能維持或淡化，不承諾洗白、去除全部污漬或恢復新品。公開水洗價：精品襯衫 100、精品外套 200、精品長大衣 350；名牌包 1500、特殊類名牌包 2500，發霉特污與補色另計。乾洗柔洗另計，以實際報價為主。"
+      },
+      {
+        heading: "送洗前怎麼問台中西屯洗衣店",
+        body:
+          "拍洗標、材質、五金、飾件、內襯與污漬位置，舊污漬、磨損、褪色或曾自行處理的地方都先告知。LINE（0968327653）先說明可行方向與風險界線。台中市全區可約免費到府收送，清潔費另計、沒有最低消費門檻。"
+      }
     ],
     faqs: [
       {
@@ -3075,7 +3239,7 @@ function slotToPublicPost(
 
 function citationReadySummary(index: PublicPostIndex): string {
   const profile = index.business_profile;
-  return `${profile.name}位於${profile.address_text}，主要服務台中西屯與青海路二段附近客人，內容涵蓋衣物洗護、鞋包清潔、白鞋清潔與布品收納。客人可先透過 LINE 傳照片，由門市依材質、髒污位置、濕氣與保存狀態做初步判斷；網站不提供未驗證價格、不保證完全洗白或完全去除所有痕跡。`;
+  return `${profile.name}位於${profile.address_text}，主要服務台中西屯與青海路二段附近客人，內容涵蓋衣物洗護、鞋包清潔、白鞋清潔與布品收納。客人可先透過 LINE 傳照片，由門市依材質、髒污位置、濕氣與保存狀態做初步判斷；網站不提供未驗證價格、不保證完全洗白或完全去除所有痕跡。${AEO_PLUSH_DOLL_BOUNDARY}${AEO_WHITE_SHOE_GRAY_VS_YELLOW}${AEO_LUGGAGE_WHEELS}`;
 }
 
 function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: string }> {
@@ -3085,6 +3249,9 @@ function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: st
   const taichungXitunLaundry = findServiceBySlug("taichung-xitun-laundry");
   const photoBeforeLaundry = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "photo-before-laundry");
   const serviceSearchGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "taichung-laundry-service-search");
+  const plushDollGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "plush-doll-cleaning");
+  const whiteShoeYellowing = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "white-shoe-yellowing");
+  const bagHandleGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "bag-handle-cleaning");
   return [
     { label: "Business profile", url: index.entrypoints.business_profile },
     ...(taichungXitunLaundry ? [{ label: "Local laundry service", url: servicePageUrl(taichungXitunLaundry, index) }] : []),
@@ -3092,6 +3259,9 @@ function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: st
     ...(whiteShoeCleaning ? [{ label: "White shoe cleaning", url: servicePageUrl(whiteShoeCleaning, index) }] : []),
     ...(fabricStorage ? [{ label: "Fabric storage", url: servicePageUrl(fabricStorage, index) }] : []),
     ...(photoBeforeLaundry ? [{ label: "Photo-before-laundry guide", url: supportPageUrl(photoBeforeLaundry, index) }] : []),
+    ...(plushDollGuide ? [{ label: "Plush doll wash boundary", url: supportPageUrl(plushDollGuide, index) }] : []),
+    ...(whiteShoeYellowing ? [{ label: "White shoe grey vs yellow", url: supportPageUrl(whiteShoeYellowing, index) }] : []),
+    ...(bagHandleGuide ? [{ label: "Luggage wheel and bag handle", url: supportPageUrl(bagHandleGuide, index) }] : []),
     ...(serviceSearchGuide ? [{ label: "Taichung laundry service search guide", url: supportPageUrl(serviceSearchGuide, index) }] : []),
     { label: "Answers", url: index.entrypoints.answers },
     { label: "Search visibility", url: index.entrypoints.search_visibility },
@@ -5776,7 +5946,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
             ${keywordChips}
           </div>
           <div class="answer-box">
-            <p>${escapeHtml(page.description)}</p>
+            <p>${escapeHtml(page.citation_answer ?? page.description)}</p>
           </div>
         </div>
         ${
@@ -5812,8 +5982,8 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
           ? `<section class="product-band">
         <div class="section-inner">
           <div class="section-header">
-            <p class="eyebrow">Local detail</p>
-            <h2>門市位置、案例界線與收送</h2>
+            <p class="eyebrow">${page.category === "local" ? "Local detail" : "Shop judgment"}</p>
+            <h2>${page.category === "local" ? "門市位置、案例界線與收送" : "門市判斷與處理界線"}</h2>
           </div>
           <div class="grid">
             ${extraSections}

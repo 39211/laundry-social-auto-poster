@@ -4,6 +4,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { generatePublicSite } from "../src/generatePublicSite";
+import { canonicalSeoSyncPage, buildDailyContent } from "../src/contentPlan";
+import { getConfig } from "../src/config";
+import { guideLinkFor } from "../src/postYouTube";
 
 async function writeCalendar(root: string, date: string, options: { carouselSlot1?: boolean } = {}): Promise<void> {
   await Promise.all([
@@ -1366,7 +1369,7 @@ describe("generatePublicSite", () => {
     expect(homepageDateModified1).toBe("2026-08-17");
     expect(pickupDateModified1).toBe("2026-07-22");
     expect(shoeBagDateModified1).toBe("2026-08-17");
-    expect(guideDateModified1).toBe("2026-07-08");
+    expect(guideDateModified1).toBe("2026-08-17");
     expect(postDateModified1).toBe("2026-07-02T11:30:00+08:00");
     expect(homepage).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
     expect(pickupHtml).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
@@ -1427,5 +1430,165 @@ describe("generatePublicSite", () => {
       "2026-07-28",
       "2026-08-17"
     ]);
+  });
+
+  it("thickens the eight thin guides with AEO first answers and syncs D05/D12", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-guide-thicken-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now: "2026-08-17T01:00:00.000Z"
+    });
+
+    const thinGuideAnswers: Array<{ slug: string; answer: string; serviceNeedle: string }> = [
+      {
+        slug: "rainy-shoe-care",
+        answer: "雨天鞋子進水後先通風、取出鞋墊；不要高溫烘或悶進鞋櫃。",
+        serviceNeedle: "shoe-bag-care.html"
+      },
+      {
+        slug: "bag-handle-cleaning",
+        answer: "行李箱收進櫃子前先看輪子；輪子與底板灰收進去，下次打開就是味道。",
+        serviceNeedle: "shoe-bag-care.html"
+      },
+      {
+        slug: "bedding-storage-check",
+        answer: "寢具收納前先聞潮味；摸起來乾、中間層不一定乾，帶濕氣封存會悶出味道。",
+        serviceNeedle: "fabric-storage.html"
+      },
+      {
+        slug: "white-shoe-yellowing",
+        answer: "白鞋灰多半是髒、可清；黃在膠邊是氧化，只能淡化，不保證回白。",
+        serviceNeedle: "white-shoe-cleaning.html"
+      },
+      {
+        slug: "photo-before-laundry",
+        answer: "送洗前拍整體、局部、材質與最在意痕跡，照片比只問價錢更能判斷。",
+        serviceNeedle: "taichung-xitun-laundry.html"
+      },
+      {
+        slug: "bedding-duvet-cleaning",
+        answer: "棉被送洗先看填充、潮氣與異味；沒乾透就收納，下一季打開就是味道。",
+        serviceNeedle: "fabric-storage.html"
+      },
+      {
+        slug: "plush-doll-cleaning",
+        answer: "娃娃可以洗，但不能亂洗；怕的是脫水結塊與五官脫落，要先固定再手洗。",
+        serviceNeedle: "taichung-xitun-laundry.html"
+      },
+      {
+        slug: "luxury-dry-cleaning",
+        answer: "精品送洗先看材質與飾件，不因品牌保證全新；邊角磨損只能維持。",
+        serviceNeedle: "taichung-xitun-laundry.html"
+      }
+    ];
+
+    for (const page of thinGuideAnswers) {
+      const html = await readFile(join(root, "docs", "guides", `${page.slug}.html`), "utf8");
+      const lead = html.match(/<p class="lead">([\s\S]*?)<\/p>/u)?.[1]?.trim() ?? "";
+      const answerBox = html.match(/<div class="answer-box">\s*<p>([\s\S]*?)<\/p>/u)?.[1]?.trim() ?? "";
+      expect(pageTextLength(html), page.slug).toBeGreaterThanOrEqual(1200);
+      expect(lead, `${page.slug} lead`).toBe(page.answer);
+      expect(lead.length, `${page.slug} lead length`).toBeLessThanOrEqual(50);
+      expect(answerBox, `${page.slug} answer-box`).toBe(page.answer);
+      expect(thematicAnchorsTo(html, page.serviceNeedle).length, `${page.slug} service link`).toBeGreaterThan(0);
+    }
+
+    const bagHandleHtml = await readFile(join(root, "docs", "guides", "bag-handle-cleaning.html"), "utf8");
+    expect(bagHandleHtml).toContain("行李箱輪子");
+    expect(bagHandleHtml).toContain("輪子和底板");
+
+    const answers = JSON.parse(await readFile(join(root, "docs", "answers.json"), "utf8")) as {
+      answer_engine_optimization: {
+        citation_ready_summary: string;
+        best_source_pages: Array<{ label: string; url: string }>;
+      };
+      answers: Array<{ id: string; question: string; answer: string; source_url: string }>;
+    };
+    const llms = await readFile(join(root, "docs", "llms.txt"), "utf8");
+    const threeAnswers = [
+      "娃娃可以洗，但不能亂洗；怕的是脫水結塊與五官脫落，要先固定再手洗。",
+      "白鞋灰多半是髒、可清；黃在膠邊是氧化，只能淡化，不保證回白。",
+      "行李箱收進櫃子前先看輪子；輪子與底板灰收進去，下次打開就是味道。"
+    ];
+    for (const answer of threeAnswers) {
+      expect(answers.answer_engine_optimization.citation_ready_summary).toContain(answer);
+      expect(llms).toContain(answer);
+    }
+    expect(answers.answer_engine_optimization.best_source_pages).toContainEqual({
+      label: "Plush doll wash boundary",
+      url: `${baseUrl}/guides/plush-doll-cleaning.html`
+    });
+    expect(answers.answer_engine_optimization.best_source_pages).toContainEqual({
+      label: "White shoe grey vs yellow",
+      url: `${baseUrl}/guides/white-shoe-yellowing.html`
+    });
+    expect(answers.answer_engine_optimization.best_source_pages).toContainEqual({
+      label: "Luggage wheel and bag handle",
+      url: `${baseUrl}/guides/bag-handle-cleaning.html`
+    });
+    expect(
+      answers.answers.some(
+        (item) =>
+          item.id === "plush-doll-cleaning-summary" &&
+          item.answer === threeAnswers[0] &&
+          item.source_url.endsWith("/guides/plush-doll-cleaning.html")
+      )
+    ).toBe(true);
+    expect(
+      answers.answers.some(
+        (item) =>
+          item.id === "white-shoe-yellowing-summary" &&
+          item.answer === threeAnswers[1] &&
+          item.source_url.endsWith("/guides/white-shoe-yellowing.html")
+      )
+    ).toBe(true);
+    expect(
+      answers.answers.some(
+        (item) =>
+          item.id === "bag-handle-cleaning-summary" &&
+          item.answer === threeAnswers[2] &&
+          item.source_url.endsWith("/guides/bag-handle-cleaning.html")
+      )
+    ).toBe(true);
+
+    expect(canonicalSeoSyncPage("/services/bag-care.html")).toBe("/services/shoe-bag-care.html");
+    expect(canonicalSeoSyncPage("/services/shoe-bag-care.html")).toBe("/services/shoe-bag-care.html");
+
+    const config = getConfig({
+      ...process.env,
+      DRY_RUN: "true",
+      PUBLIC_IMAGE_BASE_URL: "https://tester.github.io/laundry-social-auto-poster"
+    });
+    const knownPages = new Set([
+      "/services/white-shoe-cleaning.html",
+      "/services/shoe-bag-care.html",
+      "/services/fabric-storage.html",
+      "/services/taichung-xitun-laundry.html",
+      "/services/taichung-citywide-laundry-pickup.html",
+      "/guides/photo-before-laundry.html",
+      "/guides/shirt-suit-dry-cleaning.html",
+      "/guides/bedding-duvet-cleaning.html",
+      "/guides/plush-doll-cleaning.html",
+      "/guides/luxury-dry-cleaning.html"
+    ]);
+    for (const date of ["2026-07-22", "2026-08-14", "2026-08-25"]) {
+      const content = buildDailyContent(date, config);
+      for (const slot of content.slots) {
+        if (!slot.seo_sync_page) continue;
+        expect(slot.seo_sync_page, `${date} slot ${slot.slot}`).not.toBe("/services/bag-care.html");
+        expect(knownPages.has(slot.seo_sync_page), `${date} ${slot.seo_sync_page}`).toBe(true);
+      }
+    }
+
+    expect(guideLinkFor("行李箱收進櫃子前，先看輪子")).toBe(
+      "https://39211.github.io/guides/bag-handle-cleaning.html"
+    );
+    expect(guideLinkFor("行李輪子灰塵")).toBe("https://39211.github.io/guides/bag-handle-cleaning.html");
   });
 });

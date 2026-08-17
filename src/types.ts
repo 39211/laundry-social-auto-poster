@@ -229,6 +229,8 @@ export interface VideoRepairQueueEntry {
   resolved_at?: string;
   replacement_date?: string;
   replacement_slot?: number;
+  /** Present only when a legacy defer_kind verdict was corrected after the fact. */
+  reclassified_at?: string;
 }
 
 export interface AppConfig {

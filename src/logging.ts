@@ -267,6 +267,31 @@ export async function upsertVideoRepairQueue(
   });
 }
 
+// After-the-fact correction of stored defer_kind verdicts that a later ruling
+// turned obsolete. Only the unexpected -> expected direction exists, because a
+// fault verdict is the one that raises alarms and is therefore the only one
+// worth withdrawing; reclassified_at keeps a corrected entry distinguishable
+// from one that was classified this way on detection.
+export async function reclassifyVideoRepairQueue(
+  shouldReclassify: (entry: VideoRepairQueueEntry) => boolean,
+  reclassifiedAt: string,
+  root = projectRoot()
+): Promise<VideoRepairQueueEntry[]> {
+  const filePath = videoRepairQueuePath(root);
+  return withJsonFileLock(filePath, async () => {
+    const entries = await readJsonFile<VideoRepairQueueEntry[]>(filePath, []);
+    const changed: VideoRepairQueueEntry[] = [];
+    for (const entry of entries) {
+      if (entry.defer_kind !== "unexpected" || !shouldReclassify(entry)) continue;
+      entry.defer_kind = "expected";
+      entry.reclassified_at = reclassifiedAt;
+      changed.push(entry);
+    }
+    if (changed.length > 0) await writeJsonAtomic(filePath, entries);
+    return changed;
+  });
+}
+
 export async function resolveVideoRepairQueue(
   sourceDate: string,
   sourceSlot: number,

@@ -11,11 +11,13 @@ import {
   loadPostLog,
   loadVideoRepairQueue,
   markVideoRepairReady,
+  reclassifyVideoRepairQueue,
   resolveVideoRepairQueue,
   writeApprovalLog,
   writePostLog
 } from "../src/logging";
-import { classifyVideoFailure, postCurrentSlot } from "../src/postCurrentSlot";
+import { videoRepairQueuePath } from "../src/paths";
+import { classifyVideoFailure, isRetiredVideoAbsenceReason, postCurrentSlot } from "../src/postCurrentSlot";
 import { approvePost } from "../src/approvePost";
 
 async function exists(filePath: string): Promise<boolean> {
@@ -208,6 +210,159 @@ describe("postCurrentSlot dry-run integration", () => {
     expect(classifyVideoFailure(new RangeError("Maximum call stack size exceeded"))).toBe("unexpected");
     expect(classifyVideoFailure(Object.assign(new Error("permission denied"), { code: "EACCES" }))).toBe("unexpected");
     expect(classifyVideoFailure("boom")).toBe("unexpected");
+  });
+
+  // The companion-video line was retired on 2026-08-17 (13:20 absorption
+  // ruling), so an absence-of-video reason is the slot's normal state and must
+  // classify as expected no matter which wrapper carried it — while a
+  // generation that really ran and failed keeps escalating as a fault.
+  it("classifies a retired companion-video absence as expected regardless of the error wrapper", () => {
+    expect(classifyVideoFailure(new Error("No accepted slot 1 replacement exists."))).toBe("expected");
+    expect(classifyVideoFailure(new TypeError("No accepted slot 2 companion video exists."))).toBe("expected");
+    expect(
+      classifyVideoFailure(
+        Object.assign(new Error("No current slot 1 video was submitted or generated."), { code: "EACCES" })
+      )
+    ).toBe("expected");
+    expect(classifyVideoFailure(new RangeError("No current slot 2 repair video was submitted or generated."))).toBe(
+      "expected"
+    );
+    expect(classifyVideoFailure("No current slot 1 video was submitted or generated.")).toBe("expected");
+
+    expect(
+      classifyVideoFailure(
+        new TypeError("Generation sixiangjia_20260817_s01_canvas_pair_v01 was submitted exactly once and failed.")
+      )
+    ).toBe("unexpected");
+  });
+
+  it("matches only retired absence reasons, never real generation failures", () => {
+    expect(isRetiredVideoAbsenceReason("No accepted slot 1 replacement exists. Repair generation x failed QC.")).toBe(
+      true
+    );
+    expect(isRetiredVideoAbsenceReason("No accepted slot 2 companion video exists.")).toBe(true);
+    expect(isRetiredVideoAbsenceReason("No current slot 1 video was submitted or generated.")).toBe(true);
+    expect(isRetiredVideoAbsenceReason("No current slot 2 repair video was submitted or generated.")).toBe(true);
+
+    expect(
+      isRetiredVideoAbsenceReason(
+        "Generation sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02 was submitted exactly once through Hermes xAI OAuth."
+      )
+    ).toBe(false);
+    expect(
+      isRetiredVideoAbsenceReason("A formal slot 3 video review now exists and its prompt hash matches the calendar.")
+    ).toBe(false);
+    expect(isRetiredVideoAbsenceReason("Video file is missing for slot 1: docs/assets/2026-08-17/slot-01.mp4.")).toBe(
+      false
+    );
+    expect(isRetiredVideoAbsenceReason("Dual video review is missing for slot 1.")).toBe(false);
+  });
+
+  it("does not enqueue any repair item when an image-only slot publishes without video", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-image-only-"));
+    await generateDailyContent({ date: "2026-05-15", root, force: true });
+    await approveSlot(root, "2026-05-15");
+    await mkdir(join(root, "docs", "assets", "2026-05-15"), { recursive: true });
+    await writeFile(join(root, "docs", "assets", "2026-05-15", "slot-01.png"), "fake image");
+
+    const results = await postCurrentSlot({
+      root,
+      now: "2026-05-15T11:30:00+08:00",
+      dryRun: true,
+      verifyPublicImageUrl: false,
+      fetchImpl: vi.fn() as unknown as typeof fetch
+    });
+
+    expect(results.every((entry) => entry.status === "success")).toBe(true);
+    expect(results.every((entry) => entry.video_status === "not_planned")).toBe(true);
+    await expect(loadVideoRepairQueue(root)).resolves.toEqual([]);
+  });
+
+  it("reclassifies only retired absence defers and stamps reclassified_at", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-reclassify-"));
+    const queuePath = videoRepairQueuePath(root);
+    await mkdir(dirname(queuePath), { recursive: true });
+    const seed = [
+      {
+        source_date: "2026-08-14",
+        source_slot: 1,
+        status: "VIDEO_DEFERRED",
+        original_media_type: "mixed-carousel",
+        fallback_media_type: "carousel",
+        defer_kind: "unexpected",
+        failure_reason: "No accepted slot 1 replacement exists. The repair cycle changed only card-and-rail geometry.",
+        detected_at: "2026-08-14T09:50:33.889Z",
+        next_attempt: "next-production-cycle",
+        last_repair_status: "first_frame_fail"
+      },
+      {
+        source_date: "2026-08-15",
+        source_slot: 2,
+        status: "VIDEO_DEFERRED",
+        original_media_type: "mixed-carousel",
+        fallback_media_type: "carousel",
+        defer_kind: "unexpected",
+        failure_reason:
+          "Generation sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02 was submitted exactly once and failed native QC.",
+        detected_at: "2026-08-15T06:58:39.670Z",
+        next_attempt: "next-production-cycle"
+      },
+      {
+        source_date: "2026-08-15",
+        source_slot: 3,
+        status: "VIDEO_DEFERRED",
+        original_media_type: "reel",
+        fallback_media_type: "image",
+        defer_kind: "unexpected",
+        failure_reason: "A formal slot 3 video review now exists but the retained MP4 is 720x1280.",
+        detected_at: "2026-08-15T05:50:13.364Z",
+        next_attempt: "next-production-cycle"
+      },
+      {
+        source_date: "2026-08-17",
+        source_slot: 1,
+        status: "VIDEO_DEFERRED",
+        original_media_type: "mixed-carousel",
+        fallback_media_type: "carousel",
+        defer_kind: "expected",
+        failure_reason: "Video file is missing for slot 1: docs/assets/2026-08-17/slot-01.mp4.",
+        detected_at: "2026-08-17T05:56:59.486Z",
+        next_attempt: "next-production-cycle"
+      }
+    ];
+    await writeFile(queuePath, JSON.stringify(seed, null, 2));
+
+    const changed = await reclassifyVideoRepairQueue(
+      (entry) => isRetiredVideoAbsenceReason(entry.failure_reason),
+      "2026-08-17T12:00:00.000Z",
+      root
+    );
+
+    expect(changed.map((entry) => [entry.source_date, entry.source_slot])).toEqual([["2026-08-14", 1]]);
+
+    const after = await loadVideoRepairQueue(root);
+    const flipped = after.find((entry) => entry.source_date === "2026-08-14");
+    // last_repair_status is a field the declared type does not know about; it
+    // must survive the rewrite untouched.
+    expect(flipped).toMatchObject({
+      defer_kind: "expected",
+      reclassified_at: "2026-08-17T12:00:00.000Z",
+      failure_reason: seed[0]!.failure_reason,
+      detected_at: seed[0]!.detected_at,
+      last_repair_status: "first_frame_fail"
+    });
+
+    const generation = after.find((entry) => entry.source_date === "2026-08-15" && entry.source_slot === 2);
+    expect(generation?.defer_kind).toBe("unexpected");
+    expect(generation).not.toHaveProperty("reclassified_at");
+
+    const reel = after.find((entry) => entry.source_slot === 3);
+    expect(reel?.defer_kind).toBe("unexpected");
+    expect(reel).not.toHaveProperty("reclassified_at");
+
+    const alreadyExpected = after.find((entry) => entry.source_date === "2026-08-17");
+    expect(alreadyExpected?.defer_kind).toBe("expected");
+    expect(alreadyExpected).not.toHaveProperty("reclassified_at");
   });
 
   it("prefers docs/content-calendar without requiring data/content-calendar", async () => {

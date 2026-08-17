@@ -1207,7 +1207,8 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain('<html lang="zh-Hant-TW">');
     expect(homepage).toContain('<time datetime="2026-08-17">2026-08-17</time>');
     expect(homepage).toContain("台中免費收送，逢甲・西屯洗鞋先看材質");
-    expect(homepage).toContain(`${baseUrl}/go/line.html?source=homepage`);
+    expect(homepage).toContain(`${baseUrl}/go/line.html?source=home-cta`);
+    expect(homepage).toContain(`${baseUrl}/go/line.html?source=footer`);
     expect(homepage).toContain('"name":"台中市"');
     expect(homepage).not.toContain('"price":0');
     expect(homepage).not.toContain('"price":"0"');

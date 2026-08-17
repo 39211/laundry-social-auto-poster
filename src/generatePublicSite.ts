@@ -2008,9 +2008,89 @@ function canonicalUrl(baseUrl: string | undefined): string {
   return baseUrl ? `${baseUrl}/` : "index.html";
 }
 
-function trackedLineUrl(index: PublicPostIndex, source: string): string {
+export type LinePageSection = "home" | "services" | "guide" | "local" | "posts";
+export type LinePlacement = "nav" | "cta" | "inline" | "pickup" | "footer";
+
+export interface LineSourceInput {
+  section: LinePageSection;
+  slug?: string;
+  date?: string;
+  slot?: number;
+  placement: LinePlacement;
+}
+
+export interface LineTouchpoint {
+  page: string;
+  placement: LinePlacement;
+  slug: string;
+}
+
+function slugToken(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Join page + placement. Homepage footer is the bare `footer` slug. */
+export function lineSourceSlug(input: LineSourceInput): string {
+  const placement = slugToken(input.placement);
+  if (input.section === "home") {
+    return input.placement === "footer" ? "footer" : ["home", placement].filter(Boolean).join("-");
+  }
+  const tokens: string[] = [input.section];
+  if (input.slug) tokens.push(slugToken(input.slug));
+  if (input.date) tokens.push(slugToken(input.date));
+  if (typeof input.slot === "number") tokens.push(`slot-${String(input.slot).padStart(2, "0")}`);
+  tokens.push(placement);
+  return tokens.filter(Boolean).join("-") || "unknown";
+}
+
+export function listLineTouchpoints(posts: Array<{ date: string; slot: number }> = []): LineTouchpoint[] {
+  const homePlacements: LinePlacement[] = ["nav", "cta", "inline", "pickup", "footer"];
+  const servicePlacements: LinePlacement[] = ["cta", "footer"];
+  const supportPlacements: LinePlacement[] = ["nav", "cta", "inline"];
+  const postPlacements: LinePlacement[] = ["nav", "cta", "footer"];
+  const rows: LineTouchpoint[] = homePlacements.map((placement) => ({
+    page: "index.html",
+    placement,
+    slug: lineSourceSlug({ section: "home", placement })
+  }));
+  for (const service of SERVICE_PAGE_DEFINITIONS) {
+    for (const placement of servicePlacements) {
+      rows.push({
+        page: `services/${service.slug}.html`,
+        placement,
+        slug: lineSourceSlug({ section: "services", slug: service.slug, placement })
+      });
+    }
+  }
+  for (const page of SUPPORT_PAGE_DEFINITIONS) {
+    const section: LinePageSection = page.category === "local" ? "local" : "guide";
+    for (const placement of supportPlacements) {
+      rows.push({
+        page: page.path,
+        placement,
+        slug: lineSourceSlug({ section, slug: page.slug, placement })
+      });
+    }
+  }
+  for (const post of posts) {
+    rows.push(
+      ...postPlacements.map((placement) => ({
+        page: `posts/${post.date}-slot-${String(post.slot).padStart(2, "0")}.html`,
+        placement,
+        slug: lineSourceSlug({ section: "posts", date: post.date, slot: post.slot, placement })
+      }))
+    );
+  }
+  return rows;
+}
+
+function trackedLineUrl(index: PublicPostIndex, input: LineSourceInput): string {
   const root = index.base_url_configured ? index.base_url : "";
-  return `${root}/go/line.html?source=${encodeURIComponent(source)}`;
+  return `${root}/go/line.html?source=${encodeURIComponent(lineSourceSlug(input))}`;
 }
 
 // Without site-wide pageviews there is no way to tell whether the SEO/AEO/GEO
@@ -2078,42 +2158,48 @@ function buildLegacyPathRedirectScript(index: PublicPostIndex): string {
   return `<script>(function(){var p=${JSON.stringify(LEGACY_PROJECT_PATH_PREFIX)},o=${JSON.stringify(canonicalOrigin)},h=${JSON.stringify(supersededHost)},d=location.pathname;if(d.indexOf(p)===0){d="/"+d.slice(p.length);}else if(!(h&&location.hostname.indexOf(h)!==-1)){return;}location.replace(o+d+location.search+location.hash);})();</script>`;
 }
 
-function buildLineRedirectHtml(index: PublicPostIndex, ga4MeasurementId?: string): string {
-  const profile = index.business_profile;
-  const analytics = buildAnalyticsTag(ga4MeasurementId ?? "", false);
+export function buildLineRedirectHtml(input: { lineUrl: string; measurementId?: string }): string {
+  const destination = input.lineUrl;
+  const analytics = buildAnalyticsTag(input.measurementId ?? "", false);
   return `<!doctype html>
 <html lang="zh-Hant-TW">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <meta http-equiv="refresh" content="3;url=${escapeHtml(profile.line_url)}" />
     <title>前往私享家 LINE</title>
     ${analytics}
   </head>
   <body>
-    <main><p>正在前往私享家 LINE；若沒有自動開啟，請<a href="${escapeHtml(profile.line_url)}">點這裡</a>。</p></main>
+    <main><p>正在前往私享家 LINE；若沒有自動開啟，請<a href="${escapeHtml(destination)}">點這裡</a>。</p></main>
+    <noscript>
+      <meta http-equiv="refresh" content="0;url=${escapeHtml(destination)}" />
+      <p><a href="${escapeHtml(destination)}">前往私享家 LINE</a></p>
+    </noscript>
     <script>
       (() => {
-        const destination = ${JSON.stringify(profile.line_url)};
+        const destination = ${JSON.stringify(destination)};
         const params = new URLSearchParams(location.search);
         const source = params.get('source') || 'unknown';
-        const content = params.get('content') || '';
-        const slot = params.get('slot') || '';
         let redirected = false;
-        const redirect = () => { if (!redirected) { redirected = true; location.replace(destination); } };
-        if (typeof window.gtag === 'function') {
-          window.gtag('event', 'line_click', {
-            source,
-            content,
-            slot,
-            transport_type: 'beacon',
-            event_callback: redirect,
-            event_timeout: 1200
-          });
-          setTimeout(redirect, 1500);
-        } else {
-          setTimeout(redirect, 250);
+        const redirect = function () {
+          if (!redirected) { redirected = true; location.replace(destination); }
+        };
+        try {
+          if (typeof window.gtag === 'function') {
+            window.gtag('event', 'line_click', {
+              link_source: source,
+              page_referrer: document.referrer || '',
+              transport_type: 'beacon',
+              event_callback: redirect,
+              event_timeout: 1200
+            });
+            setTimeout(redirect, 1500);
+          } else {
+            redirect();
+          }
+        } catch (err) {
+          redirect();
         }
       })();
     </script>
@@ -4995,7 +5081,10 @@ function careContextFor(topic: string): CareContext {
 
 function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
   const profile = index.business_profile;
-  const lineHref = trackedLineUrl(index, `post-${post.date}-slot-${post.slot}`);
+  const postSource = { section: "posts" as const, date: post.date, slot: post.slot };
+  const lineNav = trackedLineUrl(index, { ...postSource, placement: "nav" });
+  const lineCta = trackedLineUrl(index, { ...postSource, placement: "cta" });
+  const lineFooter = trackedLineUrl(index, { ...postSource, placement: "footer" });
   const canonical = post.article_url;
   const schema = buildPostPageSchema(post, index);
   const care = careContextFor(post.topic);
@@ -5100,7 +5189,7 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
         <nav class="nav" aria-label="Primary navigation">
           <a href="${escapeHtml(serviceHref)}">Service</a>
           <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
-          <a href="${escapeHtml(lineHref)}">LINE</a>
+          <a href="${escapeHtml(lineNav)}">LINE</a>
         </nav>
       </header>
       <nav class="breadcrumb" aria-label="麵包屑">
@@ -5115,7 +5204,7 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
           <h1>${escapeHtml(post.topic)}</h1>
           <p class="lead">${escapeHtml(description)}</p>
           <div class="hero-actions">
-            <a class="primary-link" href="${escapeHtml(lineHref)}">LINE</a>
+            <a class="primary-link" href="${escapeHtml(lineCta)}">LINE</a>
             <a class="secondary-link" href="${escapeHtml(serviceHref)}">Service details</a>
           </div>
         </div>
@@ -5151,7 +5240,7 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
             <p>${escapeHtml(profile.address_text)}</p>
             <p>${escapeHtml(profile.opening_hours_text)}</p>
             <div class="link-row">
-              <a href="${escapeHtml(lineHref)}">LINE</a>
+              <a href="${escapeHtml(lineFooter)}">LINE</a>
               <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
               <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
               <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
@@ -5199,7 +5288,11 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
 
 function buildIndexHtml(index: PublicPostIndex): string {
   const profile = index.business_profile;
-  const lineHref = trackedLineUrl(index, "homepage");
+  const lineNav = trackedLineUrl(index, { section: "home", placement: "nav" });
+  const lineCta = trackedLineUrl(index, { section: "home", placement: "cta" });
+  const lineInline = trackedLineUrl(index, { section: "home", placement: "inline" });
+  const linePickup = trackedLineUrl(index, { section: "home", placement: "pickup" });
+  const lineFooter = trackedLineUrl(index, { section: "home", placement: "footer" });
   const { recentPosts, archivePosts, recentDateCount, archiveDateCount } = homepagePostGroups(index.posts);
   const heroImage = primaryHomeImage(index);
   const heroImageSrc = heroImage ? visibleImageSrc(heroImage, index) : "";
@@ -5360,7 +5453,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
             (service) => `<a href="${escapeHtml(servicePageUrl(service, index))}">${escapeHtml(service.name)}</a>`
           ).join("\n")}
           <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
-          <a href="${escapeHtml(lineHref)}">LINE</a>
+          <a href="${escapeHtml(lineNav)}">LINE</a>
         </nav>
       </header>
       <section class="product-hero hero-dark">
@@ -5371,7 +5464,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <p class="last-updated">內容更新：<time datetime="${homeLastmod}">${homeLastmod}</time></p>
           <div class="hero-actions">
             <a class="primary-link" href="${escapeHtml(citywidePickupUrl)}">台中全市免費收送</a>
-            <a class="secondary-link" href="${escapeHtml(lineHref)}">LINE 預約</a>
+            <a class="secondary-link" href="${escapeHtml(lineCta)}">LINE 預約</a>
             <a class="secondary-link" href="#services">查看服務</a>
           </div>
           <div class="meta-row">
@@ -5413,11 +5506,11 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <div class="section-header">
             <p class="eyebrow">Pickup &amp; delivery</p>
             <h2>台中全市免費洗衣收送</h2>
-            <p class="section-copy">收送範圍為台中市全市，<strong>收送本身免費，且沒有最低消費門檻</strong>——不需要單次洗滌滿額才能收送，一件也可以先問。清潔與洗護費用則依物件狀態另計。門市在西屯區青海路二段365號。預約與詢問以 <a href="${escapeHtml(lineHref)}">LINE</a> 為主，先傳照片再約定收送。</p>
+            <p class="section-copy">收送範圍為台中市全市，<strong>收送本身免費，且沒有最低消費門檻</strong>——不需要單次洗滌滿額才能收送，一件也可以先問。清潔與洗護費用則依物件狀態另計。門市在西屯區青海路二段365號。預約與詢問以 <a href="${escapeHtml(lineInline)}">LINE</a> 為主，先傳照片再約定收送。</p>
           </div>
           <div class="link-row">
             <a class="primary-link" href="${escapeHtml(citywidePickupUrl)}">閱讀收送說明頁</a>
-            <a class="secondary-link" href="${escapeHtml(lineHref)}">LINE 預約收送</a>
+            <a class="secondary-link" href="${escapeHtml(linePickup)}">LINE 預約收送</a>
           </div>
         </div>
       </section>
@@ -5494,7 +5587,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
               <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
               <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
               <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
-              <a href="${escapeHtml(lineHref)}">LINE</a>
+              <a href="${escapeHtml(lineFooter)}">LINE</a>
             </div>
           </div>
           <div class="card local-search-card">
@@ -5591,7 +5684,9 @@ function buildNotFoundHtml(index: PublicPostIndex): string {
 
 function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostIndex): string {
   const profile = index.business_profile;
-  const lineHref = trackedLineUrl(index, `service-${service.slug}`);
+  const serviceSource = { section: "services" as const, slug: service.slug };
+  const lineCta = trackedLineUrl(index, { ...serviceSource, placement: "cta" });
+  const lineFooter = trackedLineUrl(index, { ...serviceSource, placement: "footer" });
   const canonical = servicePageUrl(service, index);
   const serviceSchema = buildServicePageSchema(service, index);
   const image = findServiceImage(service, index);
@@ -5736,7 +5831,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
           <h1>${escapeHtml(service.h1)}</h1>
           <p class="lead">${escapeHtml(service.summary)}</p>${lastUpdatedMarkup}
           <div class="hero-actions">
-            <a class="primary-link" href="${escapeHtml(lineHref)}">LINE 詢問</a>
+            <a class="primary-link" href="${escapeHtml(lineCta)}">LINE 詢問</a>
             <a class="secondary-link" href="#faq">常見問題</a>
           </div>
           <div class="answer-box">
@@ -5797,7 +5892,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
             <p>營業時間：${escapeHtml(profile.opening_hours_text)}</p>
             <div class="link-row">
               <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
-              <a href="${escapeHtml(lineHref)}">LINE</a>
+              <a href="${escapeHtml(lineFooter)}">LINE</a>
               <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
               <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
             </div>
@@ -5832,7 +5927,11 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
 
 function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostIndex): string {
   const profile = index.business_profile;
-  const lineHref = trackedLineUrl(index, `support-${page.slug}`);
+  const supportSection: LinePageSection = page.category === "local" ? "local" : "guide";
+  const supportSource = { section: supportSection, slug: page.slug };
+  const lineNav = trackedLineUrl(index, { ...supportSource, placement: "nav" });
+  const lineCta = trackedLineUrl(index, { ...supportSource, placement: "cta" });
+  const lineInline = trackedLineUrl(index, { ...supportSource, placement: "inline" });
   const canonical = supportPageUrl(page, index);
   const supportSchema = buildSupportPageSchema(page, index);
   const service = linkedSupportService(page);
@@ -5923,7 +6022,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
           ${SERVICE_PAGE_DEFINITIONS.map(
             (item) => `<a href="${escapeHtml(servicePageUrl(item, index))}">${escapeHtml(item.name)}</a>`
           ).join("\n")}
-          <a href="${escapeHtml(lineHref)}">LINE</a>
+          <a href="${escapeHtml(lineNav)}">LINE</a>
           <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
         </nav>
       </header>
@@ -5939,7 +6038,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
           <h1>${escapeHtml(page.h1)}</h1>
           <p class="lead">${escapeHtml(page.summary)}</p>${lastUpdatedMarkup}
           <div class="hero-actions">
-            <a class="primary-link" href="${escapeHtml(lineHref)}">LINE 詢問</a>
+            <a class="primary-link" href="${escapeHtml(lineCta)}">LINE 詢問</a>
             <a class="secondary-link" href="${escapeHtml(serviceHref)}">${escapeHtml(service?.name ?? "回到首頁")}</a>
           </div>
           <div class="meta-row local-query-row">
@@ -5999,7 +6098,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
             <p class="section-copy">${escapeHtml(page.local_intent)}</p>
             <div class="link-row">
               <a href="${escapeHtml(serviceHref)}">${escapeHtml(service?.name ?? "查看私享家服務")}</a>
-              <a href="${escapeHtml(lineHref)}">傳照片詢問</a>
+              <a href="${escapeHtml(lineInline)}">傳照片詢問</a>
             </div>
           </div>
           <aside class="card">
@@ -6393,7 +6492,14 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   }
   await writeFile(outputs.index, buildIndexHtml(index), "utf8");
   await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
-  await writeFile(outputs.lineRedirect, buildLineRedirectHtml(index, config.ga4MeasurementId), "utf8");
+  await writeFile(
+    outputs.lineRedirect,
+    buildLineRedirectHtml({
+      lineUrl: businessProfile.line_url,
+      measurementId: config.ga4MeasurementId
+    }),
+    "utf8"
+  );
   await writeFile(outputs.compatibilityDocsIndex, buildNotFoundHtml(index), "utf8");
   await Promise.all(
     SERVICE_PAGE_DEFINITIONS.map((service) =>

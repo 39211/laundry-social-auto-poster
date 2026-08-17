@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getConfig } from "../src/config";
-import { LINE_CONTACT, buildDailyContent } from "../src/contentPlan";
+import { buildDailyContent } from "../src/contentPlan";
 
 // Thirty days of generated captions, checked for the faults that thirty days of
 // real posting produced: no comments, no link taps, three saves. Every fault
@@ -90,7 +90,7 @@ describe("caption quality", () => {
         // Exempt the contact line by identity, not by its opening words. When
         // the phone number became a tappable link the prefix changed and this
         // test started counting deliberate boilerplate as accidental repetition.
-        if (block.startsWith("#") || block === LINE_CONTACT || block.length < 12) continue;
+        if (block.startsWith("#") || block.includes("go/line.html") || block.length < 12) continue;
         counts.set(block, (counts.get(block) ?? 0) + 1);
       }
     }

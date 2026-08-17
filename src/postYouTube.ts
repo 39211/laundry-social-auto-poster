@@ -7,6 +7,7 @@ import { getConfig } from "./config";
 import { loadDailyContent, loadPostLog, readJsonFile, writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
+import { utmCampaign, utmTagged } from "./utm";
 
 // Uploads the day's published Reel to YouTube as a Short. The owner asked for
 // every Reel to reach YouTube as well; FB/IG stay the primary chain and this
@@ -61,7 +62,7 @@ async function accessToken(fetchImpl: typeof fetch = fetch): Promise<string> {
 }
 
 /** Title and description come from the day's own copy, not a new voice. */
-export function buildShortMetadata(input: { topic: string; caption: string }): {
+export function buildShortMetadata(input: { topic: string; caption: string; date: string; slot?: number }): {
   title: string;
   description: string;
 } {
@@ -75,13 +76,16 @@ export function buildShortMetadata(input: { topic: string; caption: string }): {
   // stand alone as a fact rather than continue the video, and the link has to
   // land on the page that answers this topic. A generic home-page link gives a
   // reader nowhere to go and gives a crawler no topical connection.
-  const deepLink = guideLinkFor(input.topic);
+  const campaign = utmCampaign(input.date, input.slot ?? 2, "reel");
+  const tracking = { source: "youtube" as const, campaign };
+  const deepLink = utmTagged(guideLinkFor(input.topic), tracking);
+  const lineUrl = utmTagged(`${SITE}/go/line.html?source=yt`, tracking);
   const description = [
     `台中西屯的私享家洗衣店在處理${topicObject(input.topic)}時的判斷方式;台中市全區免費到府收送,清潔費另依物件判斷。`,
     input.caption.split("\n\n").slice(0, 3).join("\n\n"),
     priceLineFor(input.topic),
     "門市:台中市西屯區青海路二段365號(至善國中對面)｜LINE 傳照片先估:0968327653",
-    `一鍵加 LINE:${SITE}/go/line.html?source=yt`,
+    `一鍵加 LINE:${lineUrl}`,
     "儲值優惠:滿1000送100、儲3000送400、儲6000送1000",
     `這個主題的完整說明:${deepLink}`,
     "#Shorts #台中洗衣店 #台中洗鞋 #西屯洗鞋 #逢甲洗鞋 #洗包"
@@ -176,7 +180,9 @@ export async function uploadShort(input: {
   const video = await readFile(join(root, ...slot.local_video_path.split("/")));
   const { title, description } = buildShortMetadata({
     topic: slot.topic,
-    caption: slot.instagram_caption ?? ""
+    caption: slot.instagram_caption ?? "",
+    date: input.date,
+    slot: slotNumber
   });
 
   const metadata = {

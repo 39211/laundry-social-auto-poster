@@ -25,6 +25,7 @@ import type {
   TrafficRoute,
   VisualRoute
 } from "./types";
+import { utmCampaign, utmTagged, type UtmSource } from "./utm";
 import { withVideoItemProfilePrompt } from "./videoItemProfiles";
 
 interface SlotTemplate {
@@ -1189,20 +1190,59 @@ function playbookSlotForPausedEvening(
   return primary;
 }
 
-const LINE_REDIRECT = "https://39211.github.io/go/line.html?source=post";
-export const LINE_CONTACT = `直接點這裡問:${LINE_REDIRECT}(或加 LINE:0968327653)`;
+const SITE_ORIGIN = "https://39211.github.io";
+const LINE_REDIRECT = `${SITE_ORIGIN}/go/line.html?source=post`;
+const GBP_LINE_REDIRECT = `${SITE_ORIGIN}/go/line.html?source=gbp`;
 
-function withLineContact(caption: string): string {
+function lineAskLine(url: string): string {
+  return `直接點這裡問:${url}(或加 LINE:0968327653)`;
+}
+
+export const LINE_CONTACT = lineAskLine(LINE_REDIRECT);
+
+export interface CaptionTracking {
+  source: UtmSource;
+  campaign: string;
+}
+
+function captionTracking(
+  date: string,
+  slot: number,
+  source: UtmSource,
+  format?: string
+): CaptionTracking {
+  return {
+    source,
+    campaign: utmCampaign(date, slot, format === "reel" ? "reel" : "slot")
+  };
+}
+
+function withLineContact(caption: string, tracking?: CaptionTracking): string {
   // Testing for the phone number was the wrong test: a caption that merely
   // printed the digits ("加 LINE 直接問：0968327653") satisfied it and opted
   // itself out of the coded link -- which is the only thing GA4 can count.
   // Every scheduled Reel did exactly that. Test for the tappable link.
-  if (caption.includes(LINE_REDIRECT)) return caption;
+  const redirect = tracking ? utmTagged(LINE_REDIRECT, tracking) : LINE_REDIRECT;
+  const contact = lineAskLine(redirect);
+  if (caption.includes(redirect)) return caption;
+  if (tracking && caption.includes(LINE_REDIRECT)) {
+    return caption.replaceAll(LINE_REDIRECT, redirect);
+  }
   const blocks = caption.split("\n\n");
   const hashtagIndex = blocks.findIndex((block) => block.startsWith("#"));
-  if (hashtagIndex === -1) return `${caption}\n\n${LINE_CONTACT}`;
-  blocks.splice(hashtagIndex, 0, LINE_CONTACT);
+  if (hashtagIndex === -1) return `${caption}\n\n${contact}`;
+  blocks.splice(hashtagIndex, 0, contact);
   return blocks.join("\n\n");
+}
+
+/** Future GBP weekly post copy. CTA lands on the LINE redirect with gbp UTMs. */
+export function buildGbpPostCaption(input: { date: string; body: string; slot?: number }): string {
+  const slot = input.slot ?? 1;
+  const url = utmTagged(GBP_LINE_REDIRECT, {
+    source: "gbp",
+    campaign: utmCampaign(input.date, slot)
+  });
+  return `${input.body.trim()}\n\n${lineAskLine(url)}`;
 }
 
 // The owner made the price list public (data/prices.json, 109 items) and the
@@ -1282,13 +1322,22 @@ function withUpgradedHashtags(caption: string, topic: string): string {
  * generic tags with no local one among them. A rule that only one caption
  * builder obeys is not a rule.
  */
-export function withSharedCaptionRules(caption: string, topic: string): string {
-  return withUpgradedHashtags(withPriceLine(withLineContact(caption), topic), topic);
+export function withSharedCaptionRules(
+  caption: string,
+  topic: string,
+  tracking?: CaptionTracking
+): string {
+  return withUpgradedHashtags(withPriceLine(withLineContact(caption, tracking), topic), topic);
 }
 
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform): string {
   const caption = baseCaptionFromPlaybook(slot, platform);
-  return withSharedCaptionRules(withEngagementQuestion(caption, slot), slot.topic);
+  const source: UtmSource = platform === "facebook" ? "facebook" : "instagram";
+  return withSharedCaptionRules(
+    withEngagementQuestion(caption, slot),
+    slot.topic,
+    captionTracking(slot.date, slot.slot, source, slot.format)
+  );
 }
 
 // Pre-authored playbook captions carry the same defect the assembled ones did:
@@ -2003,8 +2052,8 @@ function dailySlotFromTemplate(date: string, schedule: (typeof DAILY_SCHEDULE)[n
     category: schedule.category,
     topic: template.topic,
     media_type: "image",
-    instagram_caption: caption,
-    facebook_caption: caption,
+    instagram_caption: withLineContact(caption, captionTracking(date, schedule.slot, "instagram")),
+    facebook_caption: withLineContact(caption, captionTracking(date, schedule.slot, "facebook")),
     image_prompt: template.imagePrompt,
     visual_route: template.visualRoute,
     traffic_route: template.trafficRoute,

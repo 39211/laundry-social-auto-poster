@@ -453,10 +453,40 @@ describe("2026-08-17 daily-approve includes heal-reel-slot in order", () => {
 
     const root = await mkdtemp(join(tmpdir(), "heal-0817-e2e-"));
     await seedReelFixtures(root, conceptId, ["15s"]);
-    const realCalendar = JSON.parse(
-      await readFile(join(PROJECT, "data", "content-calendar", `${date}.json`), "utf8")
-    ) as { slots: Array<Record<string, unknown>> };
-    expect(realCalendar.slots.find((slot) => slot.slot === 3)?.topic).toBe(concept!.hook);
+    // A synthetic calendar, never the live one: the live file's slot 3 topic
+    // changes whenever production reshuffles the day, and a test precondition
+    // on live state fails for reasons that have nothing to do with heal order
+    // (it did exactly that on 2026-08-17 when slot 3 became the work-bag topic).
+    const fillerSlot = (n: number, time: string) => ({
+      slot: n,
+      time,
+      topic: `filler slot ${n}`,
+      format: "image-post",
+      media_type: "image",
+      instagram_caption: `filler ${n}`,
+      facebook_caption: `filler ${n}`,
+      local_image_path: `docs/assets/${date}/slot-0${n}.png`,
+      public_image_url: `https://sixiangjialaundry.com/assets/${date}/slot-0${n}.png`
+    });
+    const realCalendar = {
+      slots: [
+        fillerSlot(1, "11:30"),
+        fillerSlot(2, "20:30"),
+        {
+          slot: 3,
+          time: "12:00",
+          topic: concept!.hook,
+          format: "reel",
+          media_type: "reel",
+          instagram_caption: concept!.hook,
+          facebook_caption: concept!.hook,
+          local_video_path: `docs/assets/${date}/slot-03.mp4`,
+          public_video_url: `https://sixiangjialaundry.com/assets/${date}/slot-03.mp4`,
+          local_image_path: `docs/assets/${date}/slot-03.png`,
+          public_image_url: `https://sixiangjialaundry.com/assets/${date}/slot-03.png`
+        }
+      ]
+    } as { slots: Array<Record<string, unknown>> };
 
     const clobbered = {
       ...realCalendar,

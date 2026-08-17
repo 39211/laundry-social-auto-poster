@@ -1381,51 +1381,296 @@ function imagePromptFromPlaybook(slot: GrowthPlaybookSlot): string {
   return `${formatPrefix[slot.format]} for 私享家洗衣店: ${topic}. ${slot.image_or_reel_direction} ${PHONE_REALISM}`;
 }
 
-function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
-  // One shoot = one scene: all four slides share the day's anchor, and the
-  // anchor rotates by date so consecutive days don't publish fingerprint-
-  // identical backgrounds.
-  const dayIndex = Number(slot.date.replace(/-/g, "")) % BACKGROUND_ANCHORS.length;
-  const shared =
-    "Create one portrait 4:5 photo. Keep the exact featured object consistent across all four photos. " +
-    phoneRealism(dayIndex) +
-    " No poster layout, no graphic panel, no address, no phone number.";
+// Carousel continuity (2026-08-17): four slides used to be four different
+// items because each prompt only said "the same complete 衣物 item". Reel
+// stills already lock identity with SHARED_STILL_PROMPT / middle-act edit
+// language. The passport is the carousel equivalent: slide 1 names one
+// physical object, and every later slide must repeat that text plus the
+// same-garment sentence. Scene DNA stays on one pink-mat counter.
+export const SAME_GARMENT_CONTINUITY =
+  "the SAME physical garment as slide 1, same color, same fabric, same wear marks, same counter and lighting";
 
-  if (slot.date === "2026-07-20" && slot.slot === 1) {
-    return [
-      `${shared} Photo 1 of 4. Show one complete white shirt laid naturally on a clean inspection counter, with the collar and both underarm areas visible. Preserve the whole shirt and do not imply a cleaning result.`,
-      `${shared} Photo 2 of 4. Show a close inspection of the same shirt's collar edge and one underarm area, with one complete adult hand pointing gently without covering the fabric. Preserve five fingers and the original yellowing.`,
-      `${shared} Photo 3 of 4. Show the same shirt lying flat beside one clean dry towel while one stiff brush is clearly placed aside and not touching the fabric. No warning icon and no cleaning action.`,
-      `${shared} Photo 4 of 4. Show one phone camera framing the same full shirt while the collar detail and care label remain visible on the counter. The phone screen may show the camera view but must contain no readable interface text.`
-    ];
+export const CAROUSEL_SCENE_LOCK =
+  "SCENE LOCK: the same light counter with the same pink cutting mat and the same wall family on every slide; do not change location, backdrop, or room across slides.";
+
+export interface CarouselPromptInput {
+  date: string;
+  slot?: number;
+  topic: string;
+  caption?: string;
+  seo_sync_page?: string;
+}
+
+interface ObjectSpec {
+  noun: string;
+  lockNote: string;
+  material: string;
+  wear: string;
+}
+
+function topicBody(topic: string): string {
+  return cleanTopic(topic).replace(/^(先看懂|今天情境|可收藏|細節拆解|到店前判斷|送洗前先問)[:：]/, "");
+}
+
+function wearKindFromTopic(topic: string): string {
+  if (/變灰|泛灰/.test(topic)) return "sun-faded grey";
+  if (/發黃|泛黃/.test(topic)) return "yellowing";
+  if (/濕|潮/.test(topic)) return "trapped moisture";
+  if (/汗/.test(topic)) return "sweat residue";
+  if (/油/.test(topic)) return "oil darkening";
+  if (/泥/.test(topic)) return "mud shadow in the weave";
+  return "honest everyday wear";
+}
+
+function namedSpotsFromTopic(topic: string): string[] {
+  const spots: string[] = [];
+  if (/肩線/.test(topic)) spots.push("shoulder line");
+  if (/側縫/.test(topic)) spots.push("side seams");
+  if (/領口|衣領/.test(topic)) spots.push("collar");
+  if (/袖口/.test(topic)) spots.push("cuffs");
+  if (/腋下/.test(topic)) spots.push("underarms");
+  if (/內層|內裡/.test(topic)) spots.push("inner lining");
+  if (/下擺/.test(topic)) spots.push("hem");
+  if (/鞋邊|膠條/.test(topic)) spots.push("rubber foxing strip at the midsole edge");
+  if (/鞋頭/.test(topic)) spots.push("toe box");
+  if (/鞋帶孔/.test(topic)) spots.push("eyelet area around the lace holes");
+  if (/提把/.test(topic)) spots.push("handle");
+  if (/包角/.test(topic)) spots.push("bag corners");
+  return spots;
+}
+
+function objectSpecFromTopic(topic: string): ObjectSpec {
+  const t = topicBody(topic);
+  const kind = wearKindFromTopic(t);
+  const spots = namedSpotsFromTopic(t);
+  const wearAt = (fallback: string) => (spots.length > 0 ? `${kind} at the ${spots.join(" and ")}` : fallback);
+
+  // 深色衣服 is the 8/17 failure case: a category word, not a garment. Lock
+  // one noun (tee, not shirt) so four slides cannot invent four silhouettes.
+  if (/深色/.test(t) && /衣/.test(t)) {
+    return {
+      noun: "dark cotton tee",
+      lockNote: "object locked as dark cotton tee, not a shirt, not a hoodie, not a jacket",
+      material: "charcoal cotton jersey knit",
+      wear: wearAt("sun-faded grey along the shoulder line and both side seams")
+    };
   }
 
-  const topic = cleanTopic(slot.topic);
-  const headline = /床單|被套|棉被|床組|枕/.test(topic)
+  if (/鞋/.test(t) && /包/.test(t)) {
+    return {
+      noun: "paired everyday sneaker and one fabric handbag as a single inspection set",
+      lockNote: "object locked as one sneaker-and-bag inspection set",
+      material: "worn fabric and leather-look surfaces",
+      wear: wearAt("honest everyday wear at the named contact points")
+    };
+  }
+
+  if (/童鞋|鞋|靴|勃肯|拖鞋|涼鞋/.test(t)) {
+    const shoe = shoeSubjectFor(t);
+    return {
+      noun: `paired set of two ${shoe}`,
+      lockNote: `object locked as ${shoe}`,
+      material: shoe,
+      wear: wearAt(`${kind} at the positions the topic names`)
+    };
+  }
+
+  if (/床單|被套|棉被|床組|枕/.test(t)) {
+    return {
+      noun: "complete folded warm-white cotton duvet cover with a thin navy piping edge",
+      lockNote: "object locked as one folded warm-white cotton duvet cover",
+      material: "warm-white cotton with thin navy piping",
+      wear: wearAt("sleep odor and trapped moisture in the thickest channel")
+    };
+  }
+
+  if (/襯衫/.test(t) && /西裝/.test(t)) {
+    return {
+      noun: "white cotton dress shirt laid with a navy wool suit jacket",
+      lockNote: "object locked as one shirt-and-suit inspection pair",
+      material: "white cotton shirting and navy wool",
+      wear: wearAt("collar ring and shoulder-line collapse")
+    };
+  }
+
+  if (/襯衫/.test(t)) {
+    return {
+      noun: "white cotton dress shirt",
+      lockNote: "object locked as a white cotton dress shirt",
+      material: "white cotton shirting",
+      wear: wearAt("collar and underarm yellowing")
+    };
+  }
+
+  if (/牛仔/.test(t)) {
+    return {
+      noun: "pair of indigo denim jeans",
+      lockNote: "object locked as indigo denim jeans",
+      material: "indigo cotton denim",
+      wear: wearAt("fade at the thigh and hem")
+    };
+  }
+
+  if (/娃娃|玩偶/.test(t)) {
+    return {
+      noun: "medium plush doll",
+      lockNote: "object locked as one plush doll",
+      material: "soft pile plush with visible seams",
+      wear: wearAt("matted pile on the hugged side")
+    };
+  }
+
+  if (/包/.test(t)) {
+    return {
+      noun: "structured everyday handbag",
+      lockNote: "object locked as one structured handbag",
+      material: "pebbled leather-look body with stitched handles",
+      wear: wearAt("handle darkening and corner edge-paint wear")
+    };
+  }
+
+  if (/行李箱/.test(t)) {
+    return {
+      noun: "soft-sided fabric suitcase",
+      lockNote: "object locked as one fabric suitcase",
+      material: "woven suitcase fabric with wheeled base",
+      wear: wearAt("dust at the wheel edge and handle")
+    };
+  }
+
+  if (/羽絨/.test(t)) {
+    return {
+      noun: "quilted down jacket",
+      lockNote: "object locked as one quilted down jacket",
+      material: "nylon-shell quilted down",
+      wear: wearAt("flattened loft in the body channels")
+    };
+  }
+
+  if (/西裝/.test(t)) {
+    return {
+      noun: "navy wool suit jacket",
+      lockNote: "object locked as one navy wool suit jacket",
+      material: "navy wool suiting",
+      wear: wearAt("softened shoulder line and collar roll")
+    };
+  }
+
+  if (/外套|大衣|夾克/.test(t)) {
+    return {
+      noun: "everyday fabric jacket",
+      lockNote: "object locked as one everyday fabric jacket",
+      material: "worn woven jacket cloth",
+      wear: wearAt("collar and cuff darkening")
+    };
+  }
+
+  return {
+    noun: "complete worn laundry item matching the topic",
+    lockNote: "object locked to the single item the topic names",
+    material: "honest used fabric",
+    wear: wearAt(`${kind} at the positions the topic names`)
+  };
+}
+
+export function garmentPassportFromTopic(topic: string): string {
+  const spec = objectSpecFromTopic(topic);
+  return (
+    `OBJECT PASSPORT: exactly one ${spec.noun} (${spec.lockNote}); ` +
+    `color/material: ${spec.material}; wear marks: ${spec.wear}.`
+  );
+}
+
+const SPOT_LEXICON: Array<[RegExp, string]> = [
+  [/肩線/, "shoulder line"],
+  [/側縫/, "side seams"],
+  [/領口|衣領/, "collar"],
+  [/袖口/, "cuffs"],
+  [/腋下/, "underarms"],
+  [/內層|內裡/, "inner lining"],
+  [/下擺/, "hem"],
+  [/鞋邊|膠條|中底/, "rubber foxing strip at the midsole edge"],
+  [/鞋頭/, "toe box"],
+  [/鞋帶孔/, "eyelet area around the lace holes"],
+  [/鞋墊/, "insole"],
+  [/鞋口/, "shoe opening"],
+  [/提把/, "handle"],
+  [/包角/, "bag corners"],
+  [/邊油/, "edge paint"],
+  [/五金/, "hardware"]
+];
+
+function translateSpot(zh: string): string {
+  const hits = [...new Set(SPOT_LEXICON.filter(([re]) => re.test(zh)).map(([, en]) => en))];
+  if (hits.length > 0) return hits.join(" and ");
+  return "the named inspection area";
+}
+
+function checkpointsFromCaption(text: string): string[] {
+  const numbered: string[] = [];
+  const numberedRe = /第[一二三四五六七八九十\d]+個看[：:]?\s*([^\n。；;]+)/g;
+  for (const match of text.matchAll(numberedRe)) {
+    const raw = (match[1] ?? "").trim();
+    if (raw.length > 0) numbered.push(translateSpot(raw));
+  }
+  if (numbered.length >= 2) return numbered;
+
+  if (!/[一二三四五六七八九十\d]+個位置|[一二三四五六七八九十\d]+個檢查/.test(text)) {
+    return [];
+  }
+
+  const hits: Array<{ index: number; en: string }> = [];
+  for (const [re, en] of SPOT_LEXICON) {
+    const match = re.exec(text);
+    if (match && match.index >= 0) hits.push({ index: match.index, en });
+  }
+  hits.sort((a, b) => a.index - b.index);
+  const unique = [...new Set(hits.map((hit) => hit.en))];
+  return unique.length >= 2 ? unique.slice(0, 3) : [];
+}
+
+export function carouselInspectionShots(caption: string, topic: string): string[] {
+  const points = checkpointsFromCaption(`${caption}\n${topic}`);
+  const defaults = [
+    "Overall closer look at the complete passport item so fabric grain, seams and full silhouette stay readable.",
+    "Tight close-up of the problem area named by the topic; the wear marks fill the frame.",
+    "Same-counter after-treatment or before/after comparison of the identical physical item; do not introduce a second garment."
+  ];
+  if (points.length === 0) return defaults;
+  const shots = points.slice(0, 3).map(
+    (spot, index) =>
+      `Close-up of checkpoint ${index + 1}: ${spot}. Keep the rest of the same item recognizable at the frame edge.`
+  );
+  while (shots.length < 3) {
+    const next = defaults[shots.length];
+    if (!next) break;
+    shots.push(next);
+  }
+  return shots;
+}
+
+function pickupCarouselBriefs(topic: string): string[] {
+  const cleaned = cleanTopic(topic);
+  const headline = /床單|被套|棉被|床組|枕/.test(cleaned)
     ? "床組"
-    : /童鞋/.test(topic)
+    : /童鞋/.test(cleaned)
       ? "童鞋"
-      : /鞋/.test(topic) && /包/.test(topic)
+      : /鞋/.test(cleaned) && /包/.test(cleaned)
         ? "鞋子與包包"
-        : /鞋/.test(topic)
+        : /鞋/.test(cleaned)
           ? "鞋子"
-          : /襯衫/.test(topic) && /西裝/.test(topic)
+          : /襯衫/.test(cleaned) && /西裝/.test(cleaned)
             ? "襯衫與西裝"
-            : /襯衫/.test(topic)
+            : /襯衫/.test(cleaned)
               ? "襯衫"
-              : /牛仔/.test(topic)
+              : /牛仔/.test(cleaned)
                 ? "牛仔褲"
-                : /娃娃|玩偶/.test(topic)
+                : /娃娃|玩偶/.test(cleaned)
                   ? "娃娃"
-                  : /包/.test(topic)
-                  ? "包包"
+                  : /包/.test(cleaned)
+                    ? "包包"
                     : "衣物";
-  // The subject used to be a constant per category, so every shoe topic asked
-  // for "navy-and-warm-white sneakers" -- including 白鞋泛黃 and 白鞋鞋邊泛灰,
-  // which produced navy canvas shoes for posts about white ones. A category is
-  // not a subject: the topic already says which object it means, and the colour
-  // it names is usually the whole point of the post.
-  const shoeColour = shoeSubjectFor(topic);
+  const shoeColour = shoeSubjectFor(cleaned);
   const subject =
     headline === "鞋子"
       ? `exactly one paired set of two ${shoeColour}`
@@ -1438,22 +1683,68 @@ function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
       : headline === "床組"
         ? "the same folded duvet cover"
         : `the same complete ${headline} item`;
-
-  if (slot.seo_sync_page.includes("taichung-citywide-laundry-pickup")) {
-    return [
-      `${shared} Photo 1 of 4. Present ${topic} with ${subject} on a sturdy wooden bench beside one low-profile blue woven polypropylene laundry bag. Show both complete bag handles and all four attachment points; the bag is open and not overfilled.`,
-      `${shared} Photo 2 of 4. Show ${sameSubject} and the same blue woven bag. One complete adult hand gently lifts only the duvet-cover corner to reveal the care label. Preserve five fingers, seams, piping, both bag handles and original condition.`,
-      `${shared} Photo 3 of 4. Show ${sameSubject} neatly separated beside the same open blue woven bag instead of being forced inside. The bench fully supports both objects; preserve realistic fabric volume, both complete handles and four attachment points.`,
-      `${shared} Photo 4 of 4. Show one phone photographing ${sameSubject}, the care label and the same complete blue woven bag on the bench. The phone screen may show the camera view but must contain no readable interface text.`
-    ];
-  }
-
   return [
-    `${shared} Photo 1 of 4. Present ${topic} through ${subject} as the main close-up on a clean inspection counter. Keep the entire object readable and do not imply a cleaning result.`,
-    `${shared} Photo 2 of 4. Show ${sameSubject}'s material and affected area being inspected closely by one complete adult hand. Preserve five fingers, seams, edges, object count and original condition.`,
-    `${shared} Photo 3 of 4. Show ${sameSubject} handled conservatively while one harsh brush and one chemical bottle are placed aside and not touching it. No cleaning action, warning symbol or transformation.`,
-    `${shared} Photo 4 of 4. Show one phone photographing ${sameSubject}, with one relevant close-up and the care label or lining also visible. The phone screen may show the camera view but must contain no readable interface text.`
+    `Present ${cleaned} with ${subject} on the locked inspection counter beside one low-profile blue woven polypropylene laundry bag. Show both complete bag handles and all four attachment points; the bag is open and not overfilled.`,
+    `Show ${sameSubject} and the same blue woven bag. One complete adult hand gently lifts only a corner to reveal the care label. Preserve five fingers, seams, piping, both bag handles and original condition.`,
+    `Show ${sameSubject} neatly separated beside the same open blue woven bag instead of being forced inside. The counter fully supports both objects; preserve realistic fabric volume, both complete handles and four attachment points.`,
+    `Show one phone photographing ${sameSubject}, the care label and the same complete blue woven bag on the counter. The phone screen may show the camera view but must contain no readable interface text.`
   ];
+}
+
+const WHITE_SHIRT_7_20_BRIEFS = [
+  "Show one complete white shirt laid naturally on the locked inspection counter, with the collar and both underarm areas visible. Preserve the whole shirt and do not imply a cleaning result.",
+  "Show a close inspection of the same shirt's collar edge and one underarm area, with one complete adult hand pointing gently without covering the fabric. Preserve five fingers and the original yellowing.",
+  "Show the same shirt lying flat beside one clean dry towel while one stiff brush is clearly placed aside and not touching the fabric. No warning icon and no cleaning action.",
+  "Show one phone camera framing the same full shirt while the collar detail and care label remain visible on the counter. The phone screen may show the camera view but must contain no readable interface text."
+];
+
+export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] {
+  const passport = garmentPassportFromTopic(input.topic);
+  const dayIndex = Number(input.date.replace(/-/g, "")) % BACKGROUND_ANCHORS.length;
+  const shared =
+    `${passport} ${CAROUSEL_SCENE_LOCK} Create one portrait 4:5 photo. ` +
+    "Keep the exact featured object consistent across all four photos. " +
+    phoneRealism(dayIndex) +
+    " No poster layout, no graphic panel, no address, no phone number.";
+
+  const briefs =
+    input.date === "2026-07-20" && (input.slot ?? 1) === 1
+      ? WHITE_SHIRT_7_20_BRIEFS
+      : (input.seo_sync_page ?? "").includes("taichung-citywide-laundry-pickup")
+        ? pickupCarouselBriefs(input.topic)
+        : [
+            `Hero still of ${topicBody(input.topic)} through the passport item as the main close-up on the locked inspection counter. Keep the entire object readable and do not imply a cleaning result.`,
+            ...carouselInspectionShots(input.caption ?? "", input.topic)
+          ];
+
+  return briefs.map((brief, index) => {
+    const slide = index + 1;
+    const sameGarment = slide === 1 ? "" : ` ${SAME_GARMENT_CONTINUITY}.`;
+    return `${shared} Photo ${slide} of 4.${sameGarment} ${brief}`;
+  });
+}
+
+function carouselCaptionSource(slot: GrowthPlaybookSlot): string {
+  if (slot.facebook_caption || slot.instagram_caption || slot.caption) {
+    return [slot.facebook_caption, slot.instagram_caption, slot.caption, slot.topic, slot.hook]
+      .filter((part): part is string => Boolean(part))
+      .join("\n");
+  }
+  try {
+    return `${slot.topic}\n${slot.hook}\n${captionFromPlaybook(slot, "facebook")}`;
+  } catch {
+    return `${slot.topic}\n${slot.hook}`;
+  }
+}
+
+function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
+  return buildCarouselImagePrompts({
+    date: slot.date,
+    slot: slot.slot,
+    topic: slot.topic,
+    caption: carouselCaptionSource(slot),
+    seo_sync_page: slot.seo_sync_page
+  });
 }
 
 function carouselItemsFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): CarouselItem[] | undefined {

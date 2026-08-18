@@ -12,6 +12,7 @@ import {
   calendarKeylessChecksum,
   calendarSlotsChecksum,
   inspectDailyContentIntegrity,
+  omitRuntimeCalendarFlags,
   shouldRebuildTamperedCalendar,
   stampDailyContentWrite
 } from "../src/contentPlan";
@@ -76,7 +77,7 @@ function externalCalendar(date: string, slots = [slot(date, 1), slot(date, 2)]):
   };
 }
 
-async function writeRaw(root: string, content: DailyContent): Promise<void> {
+async function writeRaw(root: string, content: DailyContent & { tampered?: boolean }): Promise<void> {
   await writeFile(
     join(root, "data", "content-calendar", `${content.date}.json`),
     `${JSON.stringify(content, null, 2)}\n`,
@@ -390,6 +391,77 @@ describe("checksum covers envelope and HMAC", () => {
     expect(inspection.tampered).toBe(false);
     expect(inspection.weak).toBe(true);
     expect(inspection.shouldRebuild).toBe(false);
+  });
+});
+
+describe("persisted tampered flag is runtime-only", () => {
+  it("strips a disk tampered flag on load when inspection is clean", async () => {
+    // 2026-08-18 outage: inspect-calendar said tampered:false (grace/legacy)
+    // while autoApprove refused because loadDailyContent returned the leaked
+    // disk field as-is. Mutation: drop omitRuntimeCalendarFlags in load and
+    // this goes red.
+    const root = await tempRoot();
+    const leaked = { ...externalCalendar(TODAY), tampered: true };
+    await writeRaw(root, leaked);
+
+    const loaded = await loadDailyContent(TODAY, root, { today: TODAY });
+    expect(loaded).toBeTruthy();
+    expect(loaded?.tampered).toBeUndefined();
+    expect(loaded && "tampered" in loaded).toBe(false);
+    expect(inspectDailyContentIntegrity(leaked, { today: TODAY }).tampered).toBe(false);
+  });
+
+  it("still marks a genuinely tampered calendar after stripping the disk flag", async () => {
+    const root = await tempRoot();
+    const forged = { ...externalCalendar(FUTURE), tampered: true };
+    await writeRaw(root, forged);
+
+    const loaded = await loadDailyContent(FUTURE, root, { today: TODAY });
+    expect(loaded?.tampered).toBe(true);
+    expect(inspectDailyContentIntegrity(omitRuntimeCalendarFlags(forged), { today: TODAY }).tampered).toBe(
+      true
+    );
+  });
+
+  it("writeDailyContent and stampDailyContentWrite never serialize tampered", async () => {
+    const root = await tempRoot();
+    const config = getConfig({ ...process.env, DRY_RUN: "true" });
+    const built = {
+      ...buildDailyContent("2026-05-15", config),
+      tampered: true
+    };
+
+    const stamped = stampDailyContentWrite(built, { root });
+    expect(stamped.tampered).toBeUndefined();
+    expect("tampered" in stamped).toBe(false);
+
+    await writeDailyContent(built, root);
+    const json = await readFile(join(root, "data", "content-calendar", "2026-05-15.json"), "utf8");
+    expect(json).not.toMatch(/"tampered"\s*:/);
+    const raw = JSON.parse(json) as { tampered?: boolean };
+    expect(raw.tampered).toBeUndefined();
+    expect("tampered" in raw).toBe(false);
+  });
+
+  it("autoApprove ignores a leaked disk flag when inspection is clean", async () => {
+    const root = await tempRoot();
+    await mkdir(join(root, "data"), { recursive: true });
+    await writeFile(
+      join(root, "data", "publishing-policy.json"),
+      JSON.stringify({
+        status: "active",
+        start_date: "2026-08-01",
+        end_date: "2026-12-31",
+        platforms: ["facebook", "instagram"],
+        slots: [{ slot: 1 }, { slot: 2 }]
+      }),
+      "utf8"
+    );
+    await writeRaw(root, { ...externalCalendar(TODAY), tampered: true });
+
+    const result = await autoApprove({ date: TODAY, root });
+    expect(result.blockers.some((text) => text.includes("calendar_integrity"))).toBe(false);
+    expect(result.checks.find((item) => item.name === "calendar_integrity")?.ok).not.toBe(false);
   });
 });
 

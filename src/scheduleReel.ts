@@ -14,9 +14,9 @@ import {
 } from "./generateImage";
 import { buildGitHubPagesImageUrl, buildGitHubPagesVideoUrl } from "./githubPages";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
-import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
+import { loadDailyContent, readJsonFile, writeDailyContent, writeJsonAtomic } from "./logging";
 import { markImageSource } from "./markImageSource";
-import { contentCalendarPath, padSlot, projectRoot } from "./paths";
+import { padSlot, projectRoot } from "./paths";
 import { isConceptRejected, loadRejectedConcepts } from "./visualQa";
 import {
   REEL_CONCEPTS,
@@ -275,9 +275,12 @@ export async function scheduleReel(input: {
   };
   const nextContent: DailyContent = {
     ...working,
+    date: input.date,
+    timezone: working.timezone || "Asia/Taipei",
+    generated_at: working.generated_at || new Date().toISOString(),
     slots: working.slots.map((item) => (item.slot === slotNumber ? patched : item))
   };
-  await writeJsonAtomic(contentCalendarPath(input.date, root), nextContent);
+  await writeDailyContent(nextContent, root);
 
   // Cover evidence. This used to write a five-field record with no topic and no
   // hashes, which was fine while approval only looked at slot 1 and never at a

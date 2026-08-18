@@ -346,6 +346,78 @@ describe("A/B dual-reel pipeline", () => {
     expect(healed?.slots.find((slot) => slot.slot === 2)?.topic).toBe(concept!.hook);
   });
 
+  it("scheduleReel does not persist a runtime tampered flag to disk", async () => {
+    // 2026-08-17 14:15 / 2026-08-18 14:09: scheduleReel loaded a calendar
+    // that inspection marked tampered, then writeJsonAtomic'd the object
+    // (including tampered:true) back onto the file. Mutation: restore
+    // writeJsonAtomic(contentCalendarPath(...), nextContent) and this goes red.
+    const conceptId = "leather-bag-corner";
+    await requireFixture(join(RUN_REELS, `${conceptId}.mp4`), `${conceptId}.mp4`);
+    const root = await mkdtemp(join(tmpdir(), "ab-flagleak-"));
+    await seedReelFixtures(root, conceptId, ["10s"]);
+
+    const date = "2026-08-22";
+    await mkdir(join(root, "data", "content-calendar"), { recursive: true });
+    await writeFile(
+      join(root, "data", "content-calendar", `${date}.json`),
+      `${JSON.stringify(
+        {
+          date,
+          timezone: "Asia/Taipei",
+          generated_at: `${date}T00:00:00.000Z`,
+          tampered: true,
+          slots: [
+            {
+              slot: 1,
+              time: "11:30",
+              category: "知識文",
+              topic: "slot 1 topic",
+              format: "image-post",
+              media_type: "image",
+              instagram_caption: "ig",
+              facebook_caption: "fb",
+              image_prompt: "prompt",
+              visual_route: "macro-detail",
+              traffic_route: "object-proof",
+              local_image_path: `docs/assets/${date}/slot-01.png`,
+              public_image_url: `https://example.com/assets/${date}/slot-01.png`,
+              status: "pending"
+            },
+            {
+              slot: 2,
+              time: "20:30",
+              category: "情境文",
+              topic: "slot 2 topic",
+              format: "image-post",
+              media_type: "image",
+              instagram_caption: "ig",
+              facebook_caption: "fb",
+              image_prompt: "prompt",
+              visual_route: "macro-detail",
+              traffic_route: "object-proof",
+              local_image_path: `docs/assets/${date}/slot-02.png`,
+              public_image_url: `https://example.com/assets/${date}/slot-02.png`,
+              status: "pending"
+            }
+          ]
+        },
+        null,
+        2
+      )}\n`,
+      "utf8"
+    );
+
+    await scheduleReel({ date, conceptId, slot: 3, variant: "10s", root });
+
+    const json = await readFile(join(root, "data", "content-calendar", `${date}.json`), "utf8");
+    expect(json).not.toMatch(/"tampered"\s*:/);
+    const raw = JSON.parse(json) as { tampered?: boolean; written_by?: string; slots: Array<{ slot: number }> };
+    expect("tampered" in raw).toBe(false);
+    expect(raw.tampered).toBeUndefined();
+    expect(raw.written_by).toBe("contentPlan.writeDailyContent");
+    expect(raw.slots.some((item) => item.slot === 3)).toBe(true);
+  });
+
   it("classifies a missing slot 3 as skip, not fail (catch-up / post path)", () => {
     // TS-layer mirror of catchup-publish.ps1: absent slot 3 must not become a
     // failed publish. Slots 1 and 2 still fail hard.

@@ -2240,17 +2240,28 @@ export function taipeiCalendarDate(now = new Date()): string {
   return getZonedDateParts(now, "Asia/Taipei").date;
 }
 
+/**
+ * `tampered` is computed at load time from stamps and checksums. A copy found
+ * on disk is not evidence and must never be read back or written back.
+ */
+export function omitRuntimeCalendarFlags<T extends { tampered?: boolean }>(
+  content: T
+): Omit<T, "tampered"> {
+  const { tampered: _ignored, ...rest } = content;
+  return rest;
+}
+
 export function stampDailyContentWrite(
   content: DailyContent,
   options: CalendarChecksumOptions = {}
 ): StampedDailyContent {
   ensureCalendarHmacKey(options.root);
-  const stamped = content as StampedDailyContent;
+  const stripped = omitRuntimeCalendarFlags(content as StampedDailyContent);
   const rest = {
-    date: stamped.date,
-    timezone: stamped.timezone,
-    generated_at: stamped.generated_at,
-    slots: stamped.slots
+    date: stripped.date,
+    timezone: stripped.timezone,
+    generated_at: stripped.generated_at,
+    slots: stripped.slots
   };
   return {
     ...rest,

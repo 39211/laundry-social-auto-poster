@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
 import {
   inspectDailyContentIntegrity,
+  omitRuntimeCalendarFlags,
   stampDailyContentWrite,
   type StampedDailyContent
 } from "./contentPlan";
@@ -101,10 +102,13 @@ export async function loadDailyContent(
   root = projectRoot(),
   options: LoadDailyContentOptions = {}
 ): Promise<StampedDailyContent | undefined> {
-  const content =
+  const raw =
     (await readJsonFile<StampedDailyContent | undefined>(contentCalendarPath(date, root), undefined)) ??
     (await readJsonFile<StampedDailyContent | undefined>(docsContentCalendarPath(date, root), undefined));
-  if (!content) return undefined;
+  if (!raw) return undefined;
+  // Runtime-only: a persisted `tampered` is never trusted. Strip first, then
+  // inspect so a leaked disk flag cannot self-perpetuate across loads.
+  const content = omitRuntimeCalendarFlags(raw);
   // Slot 3 is the optional noon Reel for dual-length A/B days. Existing
   // calendars stay at 2 slots; new days and healed A/B days may carry 3.
   if (!Array.isArray(content.slots) || content.slots.length < 2 || content.slots.length > 3) {
@@ -118,7 +122,10 @@ export async function loadDailyContent(
 }
 
 export async function writeDailyContent(content: DailyContent, root = projectRoot()): Promise<void> {
-  await writeJsonAtomic(contentCalendarPath(content.date, root), stampDailyContentWrite(content, { root }));
+  await writeJsonAtomic(
+    contentCalendarPath(content.date, root),
+    stampDailyContentWrite(omitRuntimeCalendarFlags(content as StampedDailyContent), { root })
+  );
 }
 
 export function calendarTamperEvidencePath(date: string, root = projectRoot()): string {

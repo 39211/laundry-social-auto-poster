@@ -45,28 +45,27 @@ function Show-Toast([string]$text) {
 # and treating the calendar as proof of completion silently skipped image
 # generation for every such day, leaving slot 1 unpublishable on the morning it
 # was due. Completion is decided by the assets the calendar actually references.
-# Watchdog: on 2026-08-04 something disabled Laundry-CatchUp-Publish and the
-# next day and a half published nothing on schedule. This run is the one task
-# guaranteed to fire every morning, so it re-arms any sibling that was turned
-# off. Disabling a task on purpose now requires also silencing this watchdog,
-# which is exactly the friction an accidental or unauthorized disable should hit.
-foreach ($t in Get-ScheduledTask | Where-Object { $_.TaskName -like "Laundry-*" -and $_.State -eq "Disabled" }) {
-    Enable-ScheduledTask -TaskName $t.TaskName | Out-Null
-    Write-Log "Watchdog re-enabled disabled task: $($t.TaskName)"
-    Show-Toast "$($t.TaskName) 被停用了,已自動重新啟用。若是刻意停用請告訴我。"
+# A disabled task is an operator safety signal, not permission for another task
+# to re-arm it. Fail closed before generation, locking, or public-site actions.
+$disabledTasks = @(Get-ScheduledTask -ErrorAction SilentlyContinue |
+    Where-Object { $_.TaskName -like "Laundry-*" -and $_.State -eq "Disabled" })
+if ($disabledTasks.Count -gt 0) {
+    $names = ($disabledTasks | ForEach-Object TaskName) -join ", "
+    Write-Log "BLOCKED: disabled Laundry task(s) require manual recovery: $names"
+    Show-Toast "偵測到停用的 Laundry 排程，已停止每日生成；請人工核准恢復。"
+    exit 1
 }
 
 # The pipeline runs tsx from the working tree, so uncommitted edits to src/ or
 # scripts/ are live in production the moment they land -- one such edit (an
 # unreviewed manual-QA gate) silently blocked a night's Reel. Overnight edits
-# are stashed, not deleted: the work stays recoverable under a named stash,
-# and today's schedule runs the committed, tested code.
+# are not silently stashed or executed by a scheduled task.
 Push-Location $root
 $dirty = @(cmd /c "git status --short src scripts 2>&1" | Where-Object { $_ -match "^\s*[MADR]" })
 if ($dirty.Count -gt 0) {
-    cmd /c "git stash push -m ""watchdog: uncommitted production-code edits found $date"" -- src scripts 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-    Write-Log "Watchdog stashed $($dirty.Count) uncommitted production-code change(s); schedule runs committed code."
-    Show-Toast "發現 $($dirty.Count) 個未提交的程式修改,已暫存(git stash)。排程改跑已提交版本,請告訴我要不要採用那些修改。"
+    Write-Log "BLOCKED: uncommitted production-code change(s) detected; no stash or publish action."
+    Show-Toast "發現未提交的程式修改，已停止排程；請人工檢查。"
+    exit 1
 }
 Pop-Location
 

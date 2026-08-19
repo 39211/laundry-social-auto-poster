@@ -34,8 +34,23 @@ $posted = @()
 $logPath = Join-Path $RootPath "data\posted-log\$d.json"
 if (Test-Path $logPath) {
     try {
-        $posted = (Get-Content $logPath -Raw -Encoding UTF8 | ConvertFrom-Json) |
-            Where-Object { $_.status -eq "success" } | ForEach-Object { $_.slot }
+        $rows = @((Get-Content $logPath -Raw -Encoding UTF8 | ConvertFrom-Json))
+        $valid = $rows | Where-Object {
+            $_.date -eq $d -and
+            $_.dry_run -is [bool] -and $_.dry_run -eq $false -and
+            (@("success", "posted") -contains $_.status) -and
+            (@("facebook", "instagram") -contains $_.platform) -and
+            $_.post_id -is [string] -and -not [string]::IsNullOrWhiteSpace($_.post_id) -and
+            $_.post_id -eq $_.post_id.Trim()
+        }
+        $posted = @($due | Where-Object {
+            $slot = $_
+            $pair = @($valid | Where-Object { $_.slot -eq $slot })
+            @("facebook", "instagram" | Where-Object {
+                $platform = $_
+                @($pair | Where-Object { $_.platform -eq $platform }).Count -eq 1
+            }).Count -eq 2
+        })
     } catch {
         Write-Log ("posted-log unreadable: " + $_.Exception.Message)
         Show-Toast "posted-log 讀不了,發布狀態不明,快看 log。"
@@ -45,24 +60,9 @@ if (Test-Path $logPath) {
 $missing = $due | Where-Object { $posted -notcontains $_ }
 if ($missing) {
     $list = ($missing | Sort-Object -Unique) -join ","
-    Write-Log "MISSING slots: $list - firing catchup"
-    Show-Toast "今天 slot $list 該發沒發!補發已啟動;若這則通知重複出現=補發也失敗,需要人看。"
-    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $RootPath "scripts\catchup-publish.ps1") *>> $logFile
-    # Re-check after catchup: if still missing, say so loudly - a second toast that
-    # names the failure is the difference between F21 and a caught incident.
-    $posted2 = @()
-    if (Test-Path $logPath) {
-        try { $posted2 = (Get-Content $logPath -Raw -Encoding UTF8 | ConvertFrom-Json) | Where-Object { $_.status -eq "success" } | ForEach-Object { $_.slot } } catch {}
-    }
-    $still = $due | Where-Object { $posted2 -notcontains $_ }
-    if ($still) {
-        $s = ($still | Sort-Object -Unique) -join ","
-        Write-Log "STILL MISSING after catchup: $s"
-        Show-Toast "補發後 slot $s 仍未發布——發布鏈卡死,需要人工介入。"
-    } else {
-        Write-Log "catchup recovered all due slots"
-        Show-Toast "補發成功,今天該發的都上了。"
-    }
+    Write-Log "MISSING or unverified slots: $list - no automatic catchup; manual recovery required"
+    Show-Toast "今天 slot $list 缺乏嚴格雙平台證據，未自動補發；需要人工介入。"
+    exit 1
 } else {
     Write-Log "all due slots posted"
 }

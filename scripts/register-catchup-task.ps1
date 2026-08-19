@@ -48,7 +48,9 @@ function Register-LaundryTask {
     # on the desktop got closed mid-run at 06:30 on 2026-08-03 (task result
     # 0xC000013A, console interrupt), killing the morning site push. Hidden
     # windows cannot be closed by accident.
-    $action = New-ScheduledTaskAction -Execute "powershell.exe" `
+    $powershell = Join-Path $PSHOME "powershell.exe"
+    if (-not (Test-Path -LiteralPath $powershell)) { throw "Trusted PowerShell executable not found: $powershell" }
+    $action = New-ScheduledTaskAction -Execute $powershell `
         -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$root\scripts\$Script`"" `
         -WorkingDirectory $root
     # IgnoreNew: whether overlapping triggers (retry slots, patrol starts) run

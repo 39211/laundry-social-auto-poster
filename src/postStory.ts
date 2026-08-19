@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { verifyPublicAssetUrl } from "./githubPages";
-import { loadDailyContent, loadPostLog, readJsonFile, writeJsonAtomic } from "./logging";
+import { hasPublishableApproval, loadApprovalLog, loadDailyContent, loadPostLog, readJsonFile, writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 
@@ -67,6 +67,19 @@ async function publishStory(
   if (!publish.ok || !published.id) {
     throw new Error(published.error?.message ?? `Story publish failed with ${publish.status}`);
   }
+  const readback = await fetchImpl(
+    `${base}/${encodeURIComponent(published.id)}?fields=id,media_type,permalink&access_token=${config.metaAccessToken ?? ""}`,
+    { method: "GET" }
+  );
+  const remote = (await readback.json()) as {
+    id?: string;
+    media_type?: string;
+    permalink?: string;
+    error?: { message?: string };
+  };
+  if (!readback.ok || remote.id !== published.id || !remote.media_type || !remote.permalink) {
+    throw new Error(remote.error?.message ?? "Story remote read-back did not verify the published media.");
+  }
   return published.id;
 }
 
@@ -81,6 +94,7 @@ export async function shareLivePostsToStories(options: { date?: string; root?: s
   const existing = await readJsonFile<StoryRecord[]>(recordPath, []);
   const content = await loadDailyContent(date, root);
   const posted = await loadPostLog(date, root);
+  const approvals = await loadApprovalLog(date, root);
   const results: Array<{ slot: number; story_id?: string; skipped?: string }> = [];
 
   for (const slot of content?.slots ?? []) {
@@ -95,7 +109,7 @@ export async function shareLivePostsToStories(options: { date?: string; root?: s
         !entry.dry_run &&
         (entry.status === "success" || entry.status === "posted")
     );
-    if (!live) {
+    if (!live || !hasPublishableApproval(approvals, slot.slot, "instagram")) {
       results.push({ slot: slot.slot, skipped: "not live on Instagram" });
       continue;
     }

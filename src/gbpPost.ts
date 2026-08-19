@@ -495,6 +495,30 @@ export async function createLocalPost(
 
   const record = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
   const name = typeof record.name === "string" ? record.name : undefined;
+  if (!name || name.trim() !== name) {
+    throw new Error("GBP localPosts.create returned no usable resource name; refusing to claim success.");
+  }
+
+  // A create 2xx is only an accepted request, not proof that the local post
+  // exists with the approved payload. Read it back before recording success.
+  const readback = await fetchImpl(`${LOCAL_POSTS_API}/${encodeURIComponent(name)}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  let readbackPayload: unknown = {};
+  try {
+    readbackPayload = await readback.json();
+  } catch {
+    readbackPayload = {};
+  }
+  const remote = readbackPayload && typeof readbackPayload === "object"
+    ? (readbackPayload as Record<string, unknown>)
+    : {};
+  const remoteName = typeof remote.name === "string" ? remote.name : "";
+  const remoteSummary = typeof remote.summary === "string" ? remote.summary : "";
+  if (!readback.ok || remoteName !== name || remoteSummary !== composition.summary) {
+    throw new Error("GBP localPosts read-back did not match the created name and summary; success is unverified.");
+  }
   return {
     dry_run: false,
     date: composition.date,

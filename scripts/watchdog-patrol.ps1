@@ -22,17 +22,17 @@ $logFile = Join-Path $logDir "$date.log"
 
 # Dead-trigger detection (both review families): a task can be State=Ready
 # with an empty NextRunTime -- the exact way the patrol itself died on 08-08.
-# Enable-only watchdogs never catch that; re-registering rebuilds the triggers.
+# A dead trigger is ambiguous scheduler state; do not re-register tasks from a
+# patrol run because that can overwrite deliberate task configuration.
 $deadTasks = @(Get-ScheduledTask | Where-Object { $_.TaskName -like "Laundry-*" } | Where-Object {
     $info = Get-ScheduledTaskInfo -TaskName $_.TaskName -ErrorAction SilentlyContinue
     $null -ne $info -and ($null -eq $info.NextRunTime)
 })
 if ($deadTasks.Count -gt 0) {
     $names = ($deadTasks | ForEach-Object { $_.TaskName }) -join ", "
-    "[{0:yyyy-MM-dd HH:mm:ss}] Dead trigger (empty NextRunTime) on: {1}; re-registering all tasks." -f $now, $names |
+    "[{0:yyyy-MM-dd HH:mm:ss}] BLOCKED: dead trigger (empty NextRunTime) on: {1}; manual registration required." -f $now, $names |
         Add-Content -Path $logFile -Encoding UTF8
-    $regOut = & (Join-Path $PSScriptRoot "register-catchup-task.ps1") 2>&1
-    $regOut | ForEach-Object { Add-Content -Path $logFile -Value ([string]$_) -Encoding UTF8 }
+    exit 1
 }
 
 # Nothing to do unless approvals exist (before 10:20 the day has not started).

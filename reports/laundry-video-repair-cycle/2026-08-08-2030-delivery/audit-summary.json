@@ -1,0 +1,60 @@
+{
+  "automation_id": "laundry-video-repair-cycle",
+  "run_time": "2026-08-08T20:41:06.0130598+08:00",
+  "timezone": "Asia/Taipei",
+  "verdict": "NO_GO_VIDEO_DEFERRED",
+  "queue": {
+    "total": 18,
+    "VIDEO_DEFERRED": 18,
+    "RESOLVED": 0,
+    "ready": 0,
+    "duplicate_source_keys": 0,
+    "duplicate_generation_ids": 0,
+    "submitted_once_missing_output_hash": 0,
+    "sha256_before": "84F683DDED732E594BBD39B69843B12B058493B83FBBFFE3EFFF388542BBDF26",
+    "sha256_after": "36CD08CBC36AF73C55F07E945653DC1B23C787A8BE883B65BF3795439274F45B"
+  },
+  "current_date": {
+    "slot_1": {
+      "first_frames": 2,
+      "first_frame_status": "FAIL",
+      "generation_submission_count": 0,
+      "same_day_publication": "facebook_and_instagram_carousel_attempts_1_VIDEO_DEFERRED_after_NO_GO",
+      "repair_status": "VIDEO_DEFERRED"
+    },
+    "slot_2": {
+      "first_frames": 2,
+      "first_frame_status": "FAIL",
+      "generation_submission_count": 0,
+      "same_day_publication": "facebook_and_instagram_backpack_reel_attempts_1_not_repair_candidate",
+      "repair_status": "VIDEO_DEFERRED"
+    }
+  },
+  "retained_raw_validation": {
+    "clips_checked": 12,
+    "full_decode_passed": 12,
+    "hash_matches": 12,
+    "native_dimensions": "1088x1920",
+    "frames_per_clip": 145,
+    "accepted_native_1080x1920": 0
+  },
+  "preproduction": {
+    "status": "pass",
+    "error_count": 0,
+    "knowledge_pack": "0.3.0-evidence-150-full-audit-quarantine",
+    "generation_authorized": false
+  },
+  "actions": {
+    "new_first_frame": false,
+    "hermes_inspection_run": false,
+    "video_submission": false,
+    "request_reconcile": false,
+    "tts": false,
+    "master": false,
+    "replacement_link": false,
+    "resolve_ready": false,
+    "publication": false,
+    "posted_log_write": false,
+    "queue_reason_correction": true
+  }
+}

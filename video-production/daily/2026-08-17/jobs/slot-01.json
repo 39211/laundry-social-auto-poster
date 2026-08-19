@@ -1,0 +1,66 @@
+{
+  "version": "1.0",
+  "type": "grok_video_job_record",
+  "generation_id": "sixiangjia_20260817_s01_canvas_pair_topic_lock_exit_v01",
+  "source_shot_id": "2026-08-17-slot-01-canvas-pair-topic-lock-exit-v01",
+  "idempotency_key": "grk-f2dec15cc973082993a25d0b1bf71639f6aa8a1eda0f11a67fbef4754e088022",
+  "prompt_hash": "32d974ba2590dcce42c2c84bac9c655b814d8abda895318855037fb6016048dd",
+  "prompt_character_count": 931,
+  "model": "grok-imagine-video-1.5",
+  "duration_seconds": 6.0,
+  "aspect_ratio": "9:16",
+  "resolution": "1080p",
+  "output_file": "video-production/daily/2026-08-17/raw/sixiangjia_20260817_s01_canvas_pair_topic_lock_exit_v01.mp4",
+  "mode": "image_to_video",
+  "input_image": {
+    "file": "video-production/daily/2026-08-17/first-frames/slot-01-first-frame-v02.png",
+    "sha256": "3117b251cb3d37b80dff5c7f6acbe03c5fcee05316eed7d7a0ba3cc8f6630446",
+    "mime_type": "image/png",
+    "bytes": 2544602,
+    "width": 1080,
+    "height": 1920
+  },
+  "request_id": "a564389b-f152-9fe6-894c-fe0aa8833f55",
+  "actual_model": "grok-imagine-video-1.5",
+  "status": "qc_fail",
+  "provider_status": "done",
+  "created_at_utc": "2026-08-16T23:13:04Z",
+  "submitted_at_utc": "2026-08-16T23:13:06Z",
+  "completed_at_utc": "2026-08-16T23:13:48Z",
+  "updated_at_utc": "2026-08-16T23:13:50Z",
+  "last_polled_at_utc": "2026-08-16T23:13:48Z",
+  "qc": {
+    "ok": false,
+    "width": 1088,
+    "height": 1920,
+    "duration": 6.041667,
+    "codec": "h264",
+    "has_audio": true,
+    "expected_short_side": 1080,
+    "expected_width": 1080,
+    "expected_height": 1920,
+    "severity": "fail",
+    "errors": [
+      "resolution 1088x1920 (short side 1088) does not match requested 1080p (expected short side 1080)",
+      "dimensions 1088x1920 do not match expected 1080x1920 (from 1080p 9:16) within tolerance 4px"
+    ],
+    "warnings": []
+  },
+  "video_url_present": true,
+  "video_url_redacted": "",
+  "provider_error": null,
+  "errors": [
+    "resolution 1088x1920 (short side 1088) does not match requested 1080p (expected short side 1080)",
+    "dimensions 1088x1920 do not match expected 1080x1920 (from 1080p 9:16) within tolerance 4px"
+  ],
+  "warnings": [
+    "QC failed; retained bytes at C:/Users/cyc39/Documents/New project 5/video-production/daily/2026-08-17/raw/sixiangjia_20260817_s01_canvas_pair_topic_lock_exit_v01.mp4.qc_failed"
+  ],
+  "attempts": {
+    "submit": 1,
+    "poll": 5,
+    "download": 1,
+    "qc": 1
+  },
+  "duplicate_prevention": "new_submission"
+}

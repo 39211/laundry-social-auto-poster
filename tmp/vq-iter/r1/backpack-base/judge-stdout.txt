@@ -1,0 +1,16 @@
+<<<OBSERVE_BEGIN>>>
+IMAGE_1 canary=R9VG
+IMAGE_2 canary=MWZP
+IMAGE_3 canary=YS37
+IMAGE_4 canary=6MCL
+OBS_1 role=BEFORE act=BEFORE laces_color=NONE hardware_color=NONE facing=CAMERA_ON soil=HEAVY hands=NONE scene=LAUNDRY
+OBS_2 role=BEFORE act=BEFORE laces_color=NONE hardware_color=NONE facing=CAMERA_ON soil=HEAVY hands=NONE scene=LAUNDRY
+OBS_3 role=AFTER act=AFTER laces_color=NONE hardware_color=NONE facing=CAMERA_ON soil=CLEAN hands=NONE scene=LAUNDRY
+OBS_4 role=AFTER act=AFTER laces_color=NONE hardware_color=NONE facing=CAMERA_ON soil=CLEAN hands=NONE scene=LAUNDRY
+COMPARE ACCESSORY_COLOR identity_change=NO
+COMPARE ORIENTATION identity_flip=NO
+COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"backpack-base","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"The same gray backpack bottom, seams, outline, and fittings are visible before and after.","ACCESSORY_COLOR":"No visible laces or hardware change identity; both remain NONE.","ORIENTATION":"The backpack bottom remains camera-facing in all frames.","STATE_ORDER":"The heavily soiled before frames are followed by visibly clean after frames.","MIDDLE_NOT_WORSE":"There is no MIDDLE role, so the required comparison is NO.","HANDS":"No malformed hands are visible in the before or after frames.","SCENE":"The same laundry-room counter and clothing-rack background remain visible."},"frames_used":["before-p20.png","before-p70.png","after-p20.png","after-p70.png"]}
+<<<VISUAL_QA_END>>>

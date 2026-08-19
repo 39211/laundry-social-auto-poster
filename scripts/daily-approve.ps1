@@ -1,23 +1,59 @@
 ﻿# 10:20 unattended approval. Approves only when every objective gate in
 # src/autoApprove.ts passes, and notifies either way. Approval happens ~70
 # minutes before the 11:30 slot, which is the window to intervene.
+[CmdletBinding()]
+param(
+    [string]$RootOverride,
+    [string]$NowOverride
+)
+
 $ErrorActionPreference = "Continue"
 # Task Scheduler consoles default to cp950, which mangles the UTF-8 JSON npm
 # prints and broke a scheduled parse; interactive sessions never hit this.
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
-$root = Split-Path -Parent $PSScriptRoot
+$root = if ($RootOverride) { [IO.Path]::GetFullPath($RootOverride) } else { Split-Path -Parent $PSScriptRoot }
+$executingCheckout = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot)).TrimEnd('\')
+$requestedContractRoot = [IO.Path]::GetFullPath($root).TrimEnd('\')
+if (-not $executingCheckout.Equals($requestedContractRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    $fixtureRoot = $requestedContractRoot + '\'
+    if ($env:LAUNDRY_EXECUTABLE_CONTRACT_TEST_SEAM -cne "allow-temp-production-runtime-shims-v1" -or -not $fixtureRoot.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        [Console]::Error.WriteLine("BLOCKED production contract: RootOverride does not match the executing scripts checkout.")
+        exit 1
+    }
+}
 
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
-$now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
+try {
+    $now = if ($NowOverride) {
+        [TimeZoneInfo]::ConvertTime([DateTimeOffset]::Parse($NowOverride), $tz).DateTime
+    } else {
+        [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
+    }
+} catch {
+    throw "Invalid -NowOverride: $NowOverride"
+}
 $date = $now.ToString("yyyy-MM-dd")
 
 $logDir = Join-Path $root "output\daily-approve-logs"
-New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $logFile = Join-Path $logDir "$date.log"
+. (Join-Path $PSScriptRoot "_production-contract.ps1")
+$productionContract = Test-CleanProductionContract -Root $root
+if (-not $productionContract.ok) {
+    [Console]::Error.WriteLine("BLOCKED production contract before daily approval: $($productionContract.reason). No task re-arm, calendar heal, or approval action was run.")
+    exit 1
+}
+$ProductionContractVerified = $true
+if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "daily approval log directory preparation")) { exit 1 }
+New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 . (Join-Path $PSScriptRoot "_watchdog.ps1")
 
 function Write-Log([string]$message) {
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "daily approval log write")) {
+        [Console]::Error.WriteLine("BLOCKED production contract before daily approval log write.")
+        return
+    }
     ("[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $now, $message) | Out-File -FilePath $logFile -Append -Encoding utf8
 }
 
@@ -41,10 +77,10 @@ function Show-Toast([string]$text) {
 $calendar = Join-Path $root "data\content-calendar\$date.json"
 if (Test-Path -LiteralPath $calendar) {
     Push-Location $root
-    $tsx = Join-Path $root "node_modules\.bin\tsx.cmd"
-    $inspectOut = & $tsx src/logging.ts --inspect-calendar --date $date 2>&1
+    $inspectOut = Invoke-TrustedProductionTsx -Root $root src/logging.ts --inspect-calendar --date $date 2>&1
     $inspectCode = $LASTEXITCODE
     Pop-Location
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "calendar inspection log write")) { exit 1 }
     $inspectOut | Out-File -FilePath $logFile -Append -Encoding utf8
     $shouldRebuild = ($inspectCode -eq 2)
     $inspectLine = @($inspectOut | Where-Object { "$_" -match '"shouldRebuild"' } | Select-Object -Last 1)
@@ -57,11 +93,13 @@ if (Test-Path -LiteralPath $calendar) {
         Write-Log "Calendar tamper detected for $date; rebuilding from plan and regenerating the image manifest."
         Show-Toast ("今天 ($date) 的行事曆被外部寫手竄改,已從 plan 強制重建。證據: output\operations\calendar-tamper-$date.json")
         Push-Location $root
-        $generateOut = cmd /c "npm.cmd run generate -- --date $date --force 2>&1"
+        $generateOut = Invoke-TrustedProductionNpm -Root $root run generate -- --date $date --force 2>&1
         $generateCode = $LASTEXITCODE
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "calendar rebuild log write")) { Pop-Location; exit 1 }
         $generateOut | Out-File -FilePath $logFile -Append -Encoding utf8
-        $manifestOut = cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1"
+        $manifestOut = Invoke-TrustedProductionNpm -Root $root run generate-image-manifest -- --date $date 2>&1
         $manifestCode = $LASTEXITCODE
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "image manifest log write")) { Pop-Location; exit 1 }
         $manifestOut | Out-File -FilePath $logFile -Append -Encoding utf8
         Pop-Location
         if ($generateCode -ne 0 -or $manifestCode -ne 0) {
@@ -80,14 +118,21 @@ Push-Location $root
 # Slot 1 heals from the day lock (created at 06:30 once images exist);
 # 2026-08-07 published a rewritten caption over images made for the locked
 # topic. Reel slots heal from REEL_SCHEDULE as before.
-cmd /c "npm.cmd run day-lock -- --date $date --heal 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-cmd /c "npm.cmd run heal-reel-slot -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+$dayLockOut = Invoke-TrustedProductionNpm -Root $root run day-lock -- --date $date --heal 2>&1
+$dayLockCode = $LASTEXITCODE
+if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "day-lock heal log write")) { Pop-Location; exit 1 }
+$dayLockOut | Out-File -FilePath $logFile -Append -Encoding utf8
+$healOut = Invoke-TrustedProductionNpm -Root $root run heal-reel-slot -- --date $date 2>&1
+$healCode = $LASTEXITCODE
+if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "Reel heal log write")) { Pop-Location; exit 1 }
+$healOut | Out-File -FilePath $logFile -Append -Encoding utf8
 Pop-Location
 
 Write-Log "Running auto-approve for $date."
 Push-Location $root
-$output = cmd /c "npm.cmd run auto-approve -- --date $date 2>&1"
+$output = Invoke-TrustedProductionNpm -Root $root run auto-approve -- --date $date 2>&1
 Pop-Location
+if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "auto-approve log write")) { exit 1 }
 $output | Out-File -FilePath $logFile -Append -Encoding utf8
 
 # The verdict is read from the report file autoApprove writes, never scraped

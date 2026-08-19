@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "type": "grok_video_shot_manifest",
+  "generation_id": "sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02",
+  "mode": "image_to_video",
+  "source_shot_id": "2026-08-15-repair-slot-02-makeup-pouch-seam-hold-v02",
+  "prompt": "Create one continuous 6-second 9:16 photorealistic Taiwanese laundry inspection-counter shot. The first frame already shows exactly one open faded olive-green rectangular canvas makeup pouch with exactly one zipper opening, one plain metal zipper pull, zero handles and zero straps; exactly one blank matte-grey card physically seated in exactly one shallow brushed-steel support rail grounded on the mat outside the zipper path; and one broad adult forearm entering from frame-left. The card visibly occludes the middle of the single dark-beige inner seam by line of sight without touching or entering the pouch. One dominant action only: the same relaxed hand grips only the card's outer upper-left short edge and slides the card laterally left inside the same connected rail until the entire unchanged dark-beige seam is visible, then holds for one and a half seconds. Preserve exactly one pouch, one card, one connected rail, one zipper pull, one forearm and one hand. Keep the hand a broad silhouette, not a finger close-up. The pouch and rail remain fixed, grounded and unchanged. Preserve canvas weave, zipper-edge wear, realistic weight, inertia and contact shadows. Fixed restrained camera, motivated imperfect mixed fluorescent and cool storefront light. No cleaning transformation, effect claim or powder marker. No extra hand. No duplicate object. No penetration. No floating. No morphing or geometry changes. No readable text. No logo. No watermark. No generated audio.",
+  "input_image": "video-production/repair/2026-08-15/first-frames/slot-02-first-frame-v03.png",
+  "model": "grok-imagine-video-1.5",
+  "provider": "xai-oauth",
+  "subscription_route": "SuperGrok/Hermes OAuth",
+  "duration_seconds": 6,
+  "aspect_ratio": "9:16",
+  "resolution": "1080p",
+  "required_native_dimensions": "1080x1920",
+  "concurrency": 1,
+  "submit_limit": 1,
+  "output_file": "video-production/repair/2026-08-15/raw/sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02.mp4"
+}

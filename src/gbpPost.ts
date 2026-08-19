@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { access, mkdir, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
 import { buildGbpPostCaption } from "./contentPlan";
@@ -14,6 +14,7 @@ import {
   instagramInsightsDirectory,
   projectRoot
 } from "./paths";
+import { assertCanonicalPublicPublicationApproval } from "./publicPublicationApproval";
 import { getZonedDateParts } from "./scheduler";
 import type { DailyContent, DailySlot, PostLogEntry, PostStatus } from "./types";
 
@@ -172,6 +173,178 @@ export function lastSevenDates(asOf: string): string[] {
 
 export function gbpDraftPath(date: string, root = projectRoot()): string {
   return join(root, "output", "gbp-drafts", `${date}.json`);
+}
+
+interface GbpLocalPostClaim {
+  schema_version: 1;
+  source_date: string;
+  source_slot: number;
+  publication_date: string;
+  parent: string;
+  claimed_at: string;
+}
+
+interface GbpLocalPostSuccessEvidence {
+  schema_version: 1;
+  source_date: string;
+  source_slot: number;
+  publication_date: string;
+  parent: string;
+  name: string;
+  summary: string;
+  cta_url: string;
+  image_url: string;
+  verified_at: string;
+}
+
+function gbpLocalPostClaimPath(root: string, sourceDate: string, sourceSlot: number): string {
+  return join(root, "data", "gbp-post-claims", sourceDate, `slot-${String(sourceSlot).padStart(2, "0")}.json`);
+}
+
+function gbpLocalPostSuccessPath(root: string, sourceDate: string, sourceSlot: number): string {
+  return join(root, "data", "gbp-posts", sourceDate, `slot-${String(sourceSlot).padStart(2, "0")}.json`);
+}
+
+async function hasGbpLocalPostClaim(root: string, sourceDate: string, sourceSlot: number): Promise<boolean> {
+  try {
+    await access(gbpLocalPostClaimPath(root, sourceDate, sourceSlot));
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+async function claimGbpLocalPost(input: {
+  root: string;
+  sourceDate: string;
+  sourceSlot: number;
+  publicationDate: string;
+  parent: string;
+}): Promise<"claimed" | "already_claimed"> {
+  const path = gbpLocalPostClaimPath(input.root, input.sourceDate, input.sourceSlot);
+  const claim: GbpLocalPostClaim = {
+    schema_version: 1,
+    source_date: input.sourceDate,
+    source_slot: input.sourceSlot,
+    publication_date: input.publicationDate,
+    parent: input.parent,
+    claimed_at: new Date().toISOString()
+  };
+  await mkdir(join(input.root, "data", "gbp-post-claims", input.sourceDate), { recursive: true });
+  try {
+    // localPosts.create may commit remotely before its caller observes a
+    // response. Once that request has been admitted, a later run must not turn
+    // the ambiguity into a second GBP post.
+    await writeFile(path, `${JSON.stringify(claim, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    return "claimed";
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") return "already_claimed";
+    throw error;
+  }
+}
+
+async function writeGbpLocalPostSuccessEvidence(
+  input: Omit<GbpLocalPostSuccessEvidence, "schema_version"> & { root: string }
+): Promise<void> {
+  const path = gbpLocalPostSuccessPath(input.root, input.source_date, input.source_slot);
+  const evidence: GbpLocalPostSuccessEvidence = {
+    schema_version: 1,
+    source_date: input.source_date,
+    source_slot: input.source_slot,
+    publication_date: input.publication_date,
+    parent: input.parent,
+    name: input.name,
+    summary: input.summary,
+    cta_url: input.cta_url,
+    image_url: input.image_url,
+    verified_at: input.verified_at
+  };
+  await mkdir(join(input.root, "data", "gbp-posts", input.source_date), { recursive: true });
+  await writeFile(path, `${JSON.stringify(evidence, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+}
+
+function assertExactGbpReadback(input: {
+  payload: unknown;
+  expectedName: string;
+  composition: GbpWeeklyComposition;
+}): void {
+  const record = asRecord(input.payload);
+  if (!record) throw new Error("response is not an object");
+  if (record.name !== input.expectedName) throw new Error("name does not match localPosts.create response");
+  if (record.summary !== input.composition.summary) throw new Error("summary does not match the planned composition");
+
+  const cta = asRecord(record.callToAction);
+  if (
+    cta?.actionType !== input.composition.apiPayload.callToAction.actionType ||
+    cta?.url !== input.composition.apiPayload.callToAction.url
+  ) {
+    throw new Error("call-to-action does not match the planned composition");
+  }
+
+  const expectedMedia = input.composition.apiPayload.media;
+  if (!Array.isArray(record.media) || record.media.length !== expectedMedia.length) {
+    throw new Error("media array does not match the planned composition");
+  }
+  for (let index = 0; index < expectedMedia.length; index += 1) {
+    const expected = expectedMedia[index];
+    const actual = asRecord(record.media[index]);
+    if (actual?.mediaFormat !== expected?.mediaFormat || actual?.sourceUrl !== expected?.sourceUrl) {
+      throw new Error("planned image does not match remote Local Post media");
+    }
+  }
+}
+
+function gbpUncertainRemoteError(input: {
+  name: string;
+  sourceDate: string;
+  sourceSlot: number;
+  detail: string;
+}): Error {
+  return new Error(
+    `GBP Local Post ${input.name} may be live for source ${input.sourceDate} slot ${input.sourceSlot}, ` +
+      `but remote readback could not verify the planned composition: ${input.detail}. ` +
+      "Automatic retransmission is blocked pending recovery."
+  );
+}
+
+async function verifyGbpLocalPostRemote(input: {
+  name: string;
+  composition: GbpWeeklyComposition;
+  accessToken: string;
+  fetchImpl: typeof fetch;
+  sourceDate: string;
+  sourceSlot: number;
+}): Promise<void> {
+  let response: Response;
+  try {
+    response = await input.fetchImpl(`${LOCAL_POSTS_API}/${input.name}`, {
+      headers: { Authorization: `Bearer ${input.accessToken}` }
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw gbpUncertainRemoteError({ ...input, detail });
+  }
+
+  let payload: unknown = {};
+  try {
+    payload = await response.json();
+  } catch {
+    payload = {};
+  }
+  if (!response.ok) {
+    throw gbpUncertainRemoteError({ ...input, detail: `GET returned HTTP ${response.status}` });
+  }
+  try {
+    assertExactGbpReadback({ payload, expectedName: input.name, composition: input.composition });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw gbpUncertainRemoteError({ ...input, detail });
+  }
 }
 
 export function isGbpDryRun(args: string[]): boolean {
@@ -420,7 +593,16 @@ export async function createLocalPost(
     }
   }
 
-  const composition = await composeWeeklyGbpPost(options);
+  let composition: GbpWeeklyComposition;
+  try {
+    composition = await composeWeeklyGbpPost(options);
+  } catch (error) {
+    if (!dryRun) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new Error(`GBP --publish blocked: source package is unverified: ${detail}`);
+    }
+    throw error;
+  }
   const { parent, missing } = resolveParent(env);
 
   if (dryRun) {
@@ -459,9 +641,68 @@ export async function createLocalPost(
   const accountId = requireGbpAccountId(env);
   const locationId = readGbpEnvIds(env).locationId;
 
+  // A weekly GBP post republishes a selected social package to another public
+  // surface. Its source day's complete release decision—not merely a live
+  // transport row—must still be intact before we create the no-retry claim or
+  // touch OAuth/Local Posts.
+  try {
+    await assertCanonicalPublicPublicationApproval(composition.source.date, root);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `GBP --publish blocked: canonical public approval for source ${composition.source.date} is unverified: ${detail}`
+    );
+  }
+
+  const liveParent = gbpParentPath(accountId, locationId!);
+  // A prior immutable claim is an uncertain remote state, not permission to
+  // refresh OAuth or retry localPosts.create. This read-only check preserves
+  // the no-retransmission rule while the first live attempt still proves token
+  // readiness before it creates the claim.
+  if (await hasGbpLocalPostClaim(root, composition.source.date, composition.source.slot)) {
+    throw new Error(
+      `GBP --publish blocked: immutable publish claim already exists for source ${composition.source.date} slot ${composition.source.slot}; ` +
+        "automatic retransmission is blocked pending recovery."
+    );
+  }
+
   const fetchImpl = options.fetchImpl ?? fetch;
+  // A token failure proves no Local Post request was admitted. It must not
+  // consume the one durable claim for this source tuple.
   const accessToken = await refreshGbpAccessToken({ env, root, fetchImpl });
-  const liveParent = gbpParentPath(accountId, locationId);
+
+  // OAuth is network I/O. Keep the immutable public-release decision adjacent
+  // to the irreversible claim as well, so a source changed during token
+  // readiness cannot reach localPosts.create.
+  try {
+    await assertCanonicalPublicPublicationApproval(composition.source.date, root);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `GBP --publish blocked: canonical public approval for source ${composition.source.date} is unverified: ${detail}`
+    );
+  }
+
+  let claim: "claimed" | "already_claimed";
+  try {
+    claim = await claimGbpLocalPost({
+      root,
+      sourceDate: composition.source.date,
+      sourceSlot: composition.source.slot,
+      publicationDate: composition.date,
+      parent: liveParent
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`GBP --publish blocked: immutable publish claim could not be recorded: ${detail}`);
+  }
+  if (claim === "already_claimed") {
+    throw new Error(
+      `GBP --publish blocked: immutable publish claim already exists for source ${composition.source.date} slot ${composition.source.slot}; ` +
+        "automatic retransmission is blocked pending recovery."
+    );
+  }
+
   const endpoint = `${LOCAL_POSTS_API}/${liveParent}/localPosts`;
   const response = await fetchImpl(endpoint, {
     method: "POST",
@@ -494,7 +735,47 @@ export async function createLocalPost(
   }
 
   const record = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
-  const name = typeof record.name === "string" ? record.name : undefined;
+  const name = typeof record.name === "string" && record.name.length > 0 && record.name === record.name.trim()
+    ? record.name
+    : undefined;
+  const expectedNamePrefix = `${liveParent}/localPosts/`;
+  if (!name || !name.startsWith(expectedNamePrefix)) {
+    throw new Error(
+      `GBP localPosts.create may be live for source ${composition.source.date} slot ${composition.source.slot}, ` +
+        "but its response did not return a valid Local Post name. Automatic retransmission is blocked pending recovery."
+    );
+  }
+
+  await verifyGbpLocalPostRemote({
+    name,
+    composition,
+    accessToken,
+    fetchImpl,
+    sourceDate: composition.source.date,
+    sourceSlot: composition.source.slot
+  });
+  try {
+    await writeGbpLocalPostSuccessEvidence({
+      root,
+      source_date: composition.source.date,
+      source_slot: composition.source.slot,
+      publication_date: composition.date,
+      parent: liveParent,
+      name,
+      summary: composition.summary,
+      cta_url: composition.ctaUrl,
+      image_url: composition.mediaUrl,
+      verified_at: new Date().toISOString()
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw gbpUncertainRemoteError({
+      name,
+      sourceDate: composition.source.date,
+      sourceSlot: composition.source.slot,
+      detail: `verified remote post could not be committed to the local success ledger: ${detail}`
+    });
+  }
   return {
     dry_run: false,
     date: composition.date,

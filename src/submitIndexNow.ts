@@ -2,12 +2,16 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { getFlag, getOption, isMain } from "./cli";
+import { getConfig } from "./config";
 import { projectRoot } from "./paths";
+import { assertCanonicalPublicPublicationApproval } from "./publicPublicationApproval";
+import { getZonedDateParts } from "./scheduler";
 
 const INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow";
 
 export interface SubmitIndexNowOptions {
   root?: string;
+  date?: string;
   live?: boolean;
   key?: string;
   endpoint?: string;
@@ -41,6 +45,14 @@ function configuredIndexNowKey(root: string): string | undefined {
 
 export async function submitIndexNow(options: SubmitIndexNowOptions = {}): Promise<{ dryRun: boolean; urlCount: number; host: string }> {
   const root = projectRoot(options.root);
+  const config = getConfig();
+  const date = options.date ?? getZonedDateParts(new Date(), config.timezone).date;
+
+  // A dry run reads only local files. A live run reaches the public key URL
+  // and then POSTs to IndexNow, so it must carry the identical day-specific
+  // public-release proof as Pages before either network request.
+  if (options.live) await assertCanonicalPublicPublicationApproval(date, root);
+
   const key = requireIndexNowKey(options.key ?? configuredIndexNowKey(root));
   const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
   const urlList = parseCanonicalHtmlUrls(sitemap);
@@ -85,6 +97,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const result = await submitIndexNow({
     root: getOption(args, "root"),
+    date: getOption(args, "date"),
     live: getFlag(args, "live")
   });
   console.log(`${result.dryRun ? "IndexNow dry run" : "IndexNow submitted"}: ${result.urlCount} canonical HTML URLs for ${result.host}.`);

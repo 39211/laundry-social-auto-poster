@@ -1,0 +1,16 @@
+<<<OBSERVE_BEGIN>>>
+IMAGE_1 canary=5TLD
+IMAGE_2 canary=7T67
+IMAGE_3 canary=QDVG
+IMAGE_4 canary=K5M6
+OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=GRAY facing=CAMERA_ON soil=CLEAN hands=NONE scene=STORE_RACK_TILE
+OBS_2 role=BEFORE act=before laces_color=NONE hardware_color=GRAY facing=CAMERA_ON soil=CLEAN hands=NONE scene=STORE_RACK_TILE
+OBS_3 role=AFTER act=after laces_color=NONE hardware_color=GRAY facing=CAMERA_ON soil=CLEAN hands=NONE scene=STORE_RACK_TILE
+OBS_4 role=AFTER act=after laces_color=NONE hardware_color=GRAY facing=CAMERA_ON soil=CLEAN hands=NONE scene=STORE_RACK_TILE
+COMPARE ACCESSORY_COLOR identity_change=NO
+COMPARE ORIENTATION identity_flip=NO
+COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"suit-shoulder","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"同一件灰色西裝外套，翻領、口袋、肩線與袖口輪廓在前後畫面一致。"},"frames_used":["before-p20.png","before-p70.png","after-p20.png","after-p70.png"]}
+<<<VISUAL_QA_END>>>

@@ -1,0 +1,66 @@
+{
+  "version": "1.0",
+  "type": "grok_video_job_record",
+  "generation_id": "sixiangjia_20260806_s01_travel_jacket_card_exit_v01",
+  "source_shot_id": "2026-08-06-slot-01-travel-jacket-guided-card-exit",
+  "idempotency_key": "grk-f09198d1de257cb826df2bb9cbd4151c05f36fe276386ff3bf3701ca9e5aba06",
+  "prompt_hash": "512730d24caa0ba1461d42d19375e0e5b4c5c5f9fcf328bb862db438ae9585eb",
+  "prompt_character_count": 1341,
+  "model": "grok-imagine-video-1.5",
+  "duration_seconds": 6.0,
+  "aspect_ratio": "9:16",
+  "resolution": "1080p",
+  "output_file": "video-production/runs/2026-08-06-daily-companion-v01/raw/sixiangjia_20260806_s01_travel_jacket_card_exit_v01.mp4",
+  "mode": "image_to_video",
+  "input_image": {
+    "file": "video-production/runs/2026-08-06-daily-companion-v01/first-frames/slot-01-first-frame-v02.png",
+    "sha256": "14abe9083004e8caf01b75b94ca6986aecb412295b843b72573488e0ad56a8fc",
+    "mime_type": "image/png",
+    "bytes": 2337765,
+    "width": 1080,
+    "height": 1920
+  },
+  "request_id": "151fb36b-4c88-986d-a56e-90242f31fa27",
+  "actual_model": "grok-imagine-video-1.5",
+  "status": "qc_fail",
+  "provider_status": "done",
+  "created_at_utc": "2026-08-05T22:58:36Z",
+  "submitted_at_utc": "2026-08-05T22:58:38Z",
+  "completed_at_utc": "2026-08-05T23:00:13Z",
+  "updated_at_utc": "2026-08-05T23:00:16Z",
+  "last_polled_at_utc": "2026-08-05T23:00:14Z",
+  "qc": {
+    "ok": false,
+    "width": 1088,
+    "height": 1920,
+    "duration": 6.041667,
+    "codec": "h264",
+    "has_audio": true,
+    "expected_short_side": 1080,
+    "expected_width": 1080,
+    "expected_height": 1920,
+    "severity": "fail",
+    "errors": [
+      "resolution 1088x1920 (short side 1088) does not match requested 1080p (expected short side 1080)",
+      "dimensions 1088x1920 do not match expected 1080x1920 (from 1080p 9:16) within tolerance 4px"
+    ],
+    "warnings": []
+  },
+  "video_url_present": true,
+  "video_url_redacted": "",
+  "provider_error": null,
+  "errors": [
+    "resolution 1088x1920 (short side 1088) does not match requested 1080p (expected short side 1080)",
+    "dimensions 1088x1920 do not match expected 1080x1920 (from 1080p 9:16) within tolerance 4px"
+  ],
+  "warnings": [
+    "QC failed; retained bytes at C:/Users/cyc39/Documents/New project 5/video-production/runs/2026-08-06-daily-companion-v01/raw/sixiangjia_20260806_s01_travel_jacket_card_exit_v01.mp4.qc_failed"
+  ],
+  "attempts": {
+    "submit": 1,
+    "poll": 10,
+    "download": 1,
+    "qc": 1
+  },
+  "duplicate_prevention": "new_submission"
+}

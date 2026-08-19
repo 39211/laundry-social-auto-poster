@@ -1,0 +1,73 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\output\\reels-run\\2026-07-29\\reels\\suit-shoulder.mp4",
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "PASS",
+    "STATE_ORDER": "PASS",
+    "MIDDLE_NOT_WORSE": "PASS",
+    "HANDS": "PASS",
+    "SCENE": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "同一件灰色西裝外套，翻領、口袋、肩線與袖口輪廓在前後畫面一致。"
+  },
+  "frames_used": [
+    "before-p20.png",
+    "before-p70.png",
+    "after-p20.png",
+    "after-p70.png"
+  ],
+  "frames": [
+    {
+      "name": "before-p20.png",
+      "act": "before",
+      "t": 0.92,
+      "canary": "5TLD",
+      "sha256": "ee5f4b802108379b7a9849960f33138b1d6118acc361531f0948d50657b3e08d"
+    },
+    {
+      "name": "before-p70.png",
+      "act": "before",
+      "t": 3.22,
+      "canary": "7T67",
+      "sha256": "3e2843920f0700d755e9389b1865af502de67cf6328e04df949a0a2b6eca0636"
+    },
+    {
+      "name": "after-p20.png",
+      "act": "after",
+      "t": 5.614,
+      "canary": "QDVG",
+      "sha256": "d2ba01489ff094b5e7290842db816d4ccf52782e3e8b6bd85e26fd6085c8b157"
+    },
+    {
+      "name": "after-p70.png",
+      "act": "after",
+      "t": 8.149,
+      "canary": "K5M6",
+      "sha256": "396b0137277830ac3e0af3bd3159a0604dffdd2ed95dac07b8271cd1a0b5b346"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "5TLD",
+    "IMAGE_2": "7T67",
+    "IMAGE_3": "QDVG",
+    "IMAGE_4": "K5M6"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "5TLD",
+    "IMAGE_2": "7T67",
+    "IMAGE_3": "QDVG",
+    "IMAGE_4": "K5M6"
+  },
+  "reel_sha256": "8283702ae1f5bf604218de9e85632b3d6256aad377df3b5adfabc6c548a1442c",
+  "prompt_hash": "42e9c99dcf4e94b89daaa814ffa9b9ec670d1253747e575eae6d3fd630d517e6",
+  "run_id": "iter-r1-suit-shoulder",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-16T20:11:29.532Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "PASS",
+  "fail_class": null
+}

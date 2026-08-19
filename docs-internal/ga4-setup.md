@@ -1,44 +1,50 @@
-# GA4 讀取端 — ✅ 已完成(2026-08-12)
+# GA4 讀取端 — 部分完成，待擁有者驗收（2026-08-19）
 
-> 這頁原本是待辦步驟,現在是**完成紀錄**。設定已全部做完,每天 22:50 自動跑。
-> 下面保留步驟原文,是為了萬一憑證失效時知道怎麼重做。
+> OAuth 與總 `line_click` 讀取已驗證；這不等於來源歸因或轉換漏斗已完成。
+> 2026-08-19 的唯讀 API 查詢顯示 `customEvent:link_source` 尚未在 GA4
+> property 註冊，讀取端因此只能誠實回報 total-only。下面保留可重做的設定步驟。
 
 ## 現況
 
 | 項目 | 狀態 |
 |---|---|
-| OAuth 授權(analytics.readonly,唯讀) | ✅ cyc39211@gmail.com 已同意 |
-| `GA4_REFRESH_TOKEN` | ✅ 在 `.env`(`.gitignore` 第 4 行,不會進 git) |
-| `GA4_PROPERTY_ID` | ✅ `548899490`(從 GA4 網址 `a403837581p548899490` 讀出) |
-| Cloud 專案啟用 Data API | ✅ 老闆以 a0968327653 帳號啟用(專案 719432603364) |
-| 自訂維度「渠道碼 source」 | ✅ 事件範圍,參數 `source`,2026-08-12 建立 |
-| 接進 22:50 結算 | ✅ `scripts/day-audit.ps1` |
+| OAuth + Data API 唯讀查詢 | ✅ 已能取得總 `line_click` |
+| `GA4_REFRESH_TOKEN`／`GA4_PROPERTY_ID` | ✅ 已設定；不得貼入文件或聊天 |
+| 自訂維度 | ❌ `link_source` 尚未註冊；舊 `source` 不能代表目前事件 |
+| 來源拆分 | ❌ API 會明確回報 `total_only`，不可猜測或沿用舊 ledger |
+| inquiry／booking／revenue 漏斗 | ❌ 尚無實際 conversion event 資料 |
+| 接進日結 | ⚠ 有程式路徑，但排程 exit 0 不代表量測或歸因已驗收 |
 
-## 第一份真實基準(8/05–8/12)
+## 目前可用的真實基準
 
 ```
-2026-08-05 ~ 08-10   line_clicks_total = 0
-2026-08-11           line_clicks_total = 1   (來源 (not set))
-2026-08-12           line_clicks_total = 0
+2026-08-14   total_line_clicks = 15（本次唯讀 API）
+             by_source = 無；GA4 拒絕 customEvent:link_source 維度
 ```
 
-**這是量到的 0,不是預設的 0** —— 差別就是這條線存在的理由。
+`data/leads/2026-08.json` 內同日的 14 次／`post:11`／`ig-comment:3` 是舊欄位
+快照，已與本次 API 總數不一致，不能作為目前可信的來源分拆。
 
-⚠ **8/11 那筆顯示 `(not set)`,不要當成「有人點但沒帶碼」**:
-自訂維度是 2026-08-12 才註冊的,GA4 對註冊前的資料不回填維度值。
-**8/12 以後的分渠道數字才可信。**
+## 必須由 GA4 擁有者完成的動作
 
-⚠ 另外:重導頁的程式在沒有 source 參數時會送 `unknown`(不是空值),
-所以未來若真的看到 `unknown`,那才是「有人點了沒帶碼的連結」。
+在 GA4「管理 → 自訂定義」建立事件範圍自訂維度：
+
+- 維度名稱：`link_source`
+- 事件參數：`link_source`
+- 範圍：事件
+
+等待新的事件產生後，以唯讀 `npm run ga4-report -- --date YYYY-MM-DD` 驗證總數
+與來源列均出現。只有 `source_clicks_status: "measured"` 才表示來源分拆可用；
+`recorded` 或 Task Scheduler 的 exit 0 都不是此驗收的替代品。
 
 ---
 
-<details><summary>原始設定步驟(存查,重做時看這裡)</summary>
+<details><summary>設定與重做步驟（不是目前完成狀態）</summary>
 
 
-> 程式已經寫好、測過(`src/ga4Report.ts`、5 個測試含突變實測)。
-> 缺的只有兩個值,而且**只有你能授權**——這一頁就是拿到那兩個值的步驟。
-> 做完之後,每天 22:50 會自動把「各渠道被點了幾次」寫進 leads ledger,不用再碰。
+> 程式已經寫好、測過；若 OAuth 值失效，依此步驟重做。
+> OAuth 可取得總數，但來源歸因仍必須先完成上方的 `link_source` 自訂維度驗收。
+> 日結排程只能觸發讀取，不能代替 total／來源列的實際證據。
 
 ---
 
@@ -47,8 +53,12 @@
 網站上的帶碼連結(`/go/line.html?source=…`)**一直都有在送 `line_click` 事件到 GA4**,
 這條線是通的。缺的是**反方向**:沒有任何程式去問 Google「今天各渠道被點了幾次」。
 
-所以所有報表裡的 `line_click` 都是預設值 0,而不是量到的 0。
-**在這件事修好之前,任何「沒人點」的結論都不成立。**
+來源拆分使用事件參數 `link_source`。請在 GA4 管理 → 自訂定義，建立同名的
+**事件範圍自訂維度**；未建立時，程式會保留總點擊數、把來源拆分標成
+`total_only`，不會用舊的 `source` 欄位猜測來源。
+
+若 OAuth 讀取端未設好，任何 `line_click = 0` 都可能是未量測，而不是沒人點。
+若自訂維度未設好，只有總數可用，來源分拆不可成立。
 
 ## 好消息:不用建服務帳戶
 
@@ -100,26 +110,31 @@ GA4_PROPERTY_ID=498273615
 npm run ga4-report -- --date 2026-08-11
 ```
 
-- 看到 `"status": "recorded"` → **成功**,而且會列出各渠道的點擊數。
+- 看到 `"status": "recorded"` 且 ledger 為 `source_clicks_status: "measured"`
+  → 總數與來源拆分都可用。
+- 看到 `"status": "recorded"` 但 ledger 為 `total_only` → 總數可用，
+  `link_source` 維度尚未完成或尚未有新資料；不可把空來源當成 0。
 - 看到 `"status": "unmeasured"` → 沒成功,`reason` 會說是哪一步的問題,照著修。
 
 ---
 
 ## 成功之後會發生什麼
 
-- `data/leads/2026-08.json` 每天多一筆 `source_clicks`,像這樣:
+- 只有 `source_clicks_status: "measured"` 時，`data/leads/2026-08.json`
+  才會有 `source_clicks`，像這樣：
   `{"ig-comment": 7, "poster-front": 2, "(not set)": 3}`
-- `(not set)` 是**沒帶碼的點擊**——這個數字本身很有用,它告訴我們有多少流量歸不了因。
-- 每天 22:50 自動跑,不用再手動。
+- `unknown` 是重導頁缺少 `source` query parameter 時送出的值；其他例如
+  `(not set)` 必須依 GA4 實際回傳判讀，不能預先歸因。
+- 日結可排程觸發，但仍要驗證當日 API 結果與 `source_clicks_status`，不能只看
+  Task Scheduler 的 exit code。
 - 你每日 10 秒回填的「詢問幾件」跟這個並排,就能分辨
   **「有人點但沒問」**(內容有效、LINE 那關卡住)和 **「根本沒人點」**(內容無效)——
   這兩件事的解法完全相反,現在分不出來。
 
 ## 沒做這一步會怎樣(誠實說)
 
-系統會繼續正常運作,只是 ledger 每天寫 `source_clicks_status: "unmeasured"`。
-**它不會偷偷填 0**——這是刻意設計的,而且有測試釘住
-(把它改成回 0,測試會變紅)。
+缺 OAuth／讀取權限時，ledger 會標 `source_clicks_status: "unmeasured"`；
+缺 `link_source` 維度時，則是 `total_only`。兩者都不會偷偷填 0。
 
 代價是:90 天計畫 P1 階段的三個基準數字裡,「詢問來自哪個渠道」這一個永遠建不起來,
 之後所有「哪個渠道有效」的判斷都只能靠你回填時憑印象講。

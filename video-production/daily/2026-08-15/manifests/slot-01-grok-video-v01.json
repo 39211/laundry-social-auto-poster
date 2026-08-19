@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "type": "grok_video_shot_manifest",
+  "generation_id": "sixiangjia_20260815_s01_canvas_pair_connected_rail_card_exit_v01",
+  "mode": "image_to_video",
+  "source_shot_id": "2026-08-15-slot-01-canvas-pair-connected-rail-card-exit-v01",
+  "prompt_sha256": "719D3C627B395EC82CE3ACB6BEDDBE1AC71A28A9E36100A4F0332129E8597442",
+  "prompt": "Create one continuous 6-second 9:16 photorealistic Taiwanese laundry inspection-counter shot. The first frame shows exactly two stationary unbranded off-white low-top canvas shoes on one worn grey rubber mat, one blank matte-grey card physically seated in one shallow brushed-steel support rail touching the mat, and one broad adult forearm from frame-left. The card visibly occludes the upper half of the right shoe opening while the rail remains outside both shoes. One dominant action only: the same relaxed hand grips only the outer short edge of the single card and slides it laterally left inside the connected rail until the right shoe opening is fully visible, then holds. Preserve exactly two shoes, one card, one connected rail, one forearm and one hand. Preserve six eyelets per shoe, complete laces, beige toe caps and soles, realistic canvas weave, wear, weight, inertia and contact shadows. Both shoes and rail remain fixed. All five fingers remain anatomically coherent without close-up finger detail. Fixed restrained camera, mixed fluorescent and cool storefront light. No cleaning transformation or effect claim. No extra hands. No duplicate object. No morphing or geometry changes. No penetration. No floating. No readable text. No logo. No watermark. No generated audio. End on the unobstructed opening and hold for one second.",
+  "input_image": "video-production/daily/2026-08-15/first-frames/slot-01-first-frame.png",
+  "model": "grok-imagine-video-1.5",
+  "provider": "xai-oauth",
+  "subscription_route": "SuperGrok/Hermes OAuth",
+  "duration_seconds": 6,
+  "aspect_ratio": "9:16",
+  "resolution": "1080p",
+  "required_native_dimensions": "1080x1920",
+  "concurrency": 1,
+  "submit_limit": 1,
+  "output_file": "video-production/daily/2026-08-15/raw/sixiangjia_20260815_s01_canvas_pair_connected_rail_card_exit_v01.mp4",
+  "preflight_status": "blocked_first_frame_review_failed"
+}

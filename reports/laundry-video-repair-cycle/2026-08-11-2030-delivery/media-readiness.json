@@ -1,0 +1,69 @@
+{
+  "date": "2026-08-11",
+  "timezone": "Asia/Taipei",
+  "checked_at": "2026-08-11T07:01:07.4388944+08:00",
+  "final_status": "MATERIAL_NO_GO_VIDEO_DEFERRED_BOTH_SLOTS",
+  "slots": [
+    {
+      "slot": 1,
+      "role": "reach-answer",
+      "image_manifest_count": 4,
+      "image_generator": "Codex gpt-image-2",
+      "image_generation_calls": 4,
+      "image_structural_validator": "pass",
+      "image_manual_review": "MATERIAL_NO_GO",
+      "image_blocker": "Slides 2 and 3 rotate and spread the two shoes relative to slide 1, and the intended narrow rail becomes a shallow tray.",
+      "script_review_score": 100,
+      "first_frame_dimensions": "1080x1920",
+      "first_frame_sha256": "32BAEE7BCA8380534C65C06964564F163D3C154493845267456289F34C037BE8",
+      "first_frame_review": "FAIL",
+      "first_frame_blocker": "The card and support sit beside the shoes instead of visibly occluding the right shoe opening.",
+      "video_validator": "VIDEO_DEFERRED_missing_formal_mp4",
+      "video_repair_queue": "recorded_next-production-cycle",
+      "final_slot_status": "MATERIAL_NO_GO_VIDEO_DEFERRED"
+    },
+    {
+      "slot": 2,
+      "role": "evidence-conversion",
+      "image_manifest_count": 4,
+      "image_generator": "Codex gpt-image-2",
+      "image_generation_calls": 4,
+      "image_structural_validator": "pass",
+      "image_manual_review": "MATERIAL_NO_GO",
+      "image_blocker": "Slide 2 does not occlude the beige inner seam, so the core conflict and reveal are absent.",
+      "script_review_score": 100,
+      "first_frame_dimensions": "1080x1920",
+      "first_frame_sha256": "42B2E81367B1BBEBB1A46B79D349F0EC2F7C2BD49DFB4AD6B525F939BE45D900",
+      "first_frame_review": "FAIL",
+      "first_frame_blocker": "The card and support remain outside the pouch instead of visibly occluding the beige inner seam.",
+      "video_validator": "VIDEO_DEFERRED_stale_prompt_hash",
+      "stale_review_prompt_hash": "664c8dddfdf51455b53a295b519d39b9176e33bfcb9831802e18adfdc4f85c36",
+      "current_video_prompt_hash": "47f0a2722d9582072e34bcbeb5d121fdf4fe8c97d4996adb989e7a6aaf75142f",
+      "video_repair_queue": "recorded_next-production-cycle",
+      "final_slot_status": "MATERIAL_NO_GO_VIDEO_DEFERRED"
+    }
+  ],
+  "hermes_readiness": {
+    "xai_oauth_logged_in": true,
+    "video_gen_enabled": true,
+    "dependencies_ok": true
+  },
+  "preproduction_contract": {
+    "status": "pass",
+    "generation_authorized": false
+  },
+  "generate_shot_called": false,
+  "generation_submission_count": 0,
+  "raw_clip_exists": false,
+  "tts_created": false,
+  "completed_video_run_created": false,
+  "approved_log_written": false,
+  "posted_log_written": false,
+  "publication_attempted": false,
+  "repair_resolution_called": false,
+  "protected_log_check": {
+    "approved_log_for_date_exists": false,
+    "posted_log_for_date_exists": false
+  },
+  "interpretation": "The image validators prove only date-scoped file structure and source registration. The validator fallback message does not override the later manual image review, first-frame review, stale prompt-hash exclusion, or preproduction authorization gate."
+}

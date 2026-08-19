@@ -210,7 +210,9 @@ describe("standing-policy mutation locks", () => {
 
   it("produce-next-reel still records standing-policy metadata after schedule-reel", () => {
     const src = readFileSync(join(__dirname, "../scripts/produce-next-reel.ps1"), "utf8");
-    const calls = src.match(/npm\.cmd run owner-video-review -- --date .* --slot .* --standing-policy/g);
+    const calls = src.match(
+      /Invoke-TrustedProductionNpm\s+-Root\s+\$root\s+run\s+owner-video-review\s+--\s+--date\s+\S+\s+--slot\s+\S+\s+--standing-policy\b/g
+    );
     expect(calls?.length).toBe(2);
     expect(src).toMatch(/Metadata only: schedule time \+ asset sha/u);
     expect(src).not.toMatch(/under the standing policy/u);

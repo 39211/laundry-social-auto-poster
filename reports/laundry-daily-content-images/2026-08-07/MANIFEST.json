@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "date": "2026-08-07",
+  "timezone": "Asia/Taipei",
+  "automation_id": "laundry-daily-content-images",
+  "status": "MATERIAL_NO_GO_VIDEO_DEFERRED",
+  "secret_free": true,
+  "publish_authorized": false,
+  "contents": [
+    {"path": "README-FIRST.md", "purpose": "read-first verdict, review order and governance boundary"},
+    {"path": "VALIDATION.json", "purpose": "current-run command and artifact validation evidence"},
+    {"path": "evidence/content-calendar.json", "purpose": "forced two-slot content package"},
+    {"path": "evidence/daily-context.json", "purpose": "forced daily context"},
+    {"path": "evidence/image-prompts.json", "purpose": "eight image manifest items"},
+    {"path": "evidence/image-sources.json", "purpose": "image provenance records"},
+    {"path": "evidence/video-candidates.json", "purpose": "two video candidate manifests"},
+    {"path": "evidence/video-script-reviews.json", "purpose": "three-round script review with final scores"},
+    {"path": "evidence/video-learning.json", "purpose": "incremental upstream research and hypotheses"},
+    {"path": "evidence/preproduction-contract.json", "purpose": "current preproduction contract result"},
+    {"path": "evidence/image-manual-review.json", "purpose": "date-scoped manual image QA"},
+    {"path": "evidence/hermes-readiness.json", "purpose": "current failed readiness inspection record"},
+    {"path": "evidence/media-readiness.json", "purpose": "final per-slot image and video readiness"},
+    {"path": "evidence/first-frame-review.json", "purpose": "Sol first-frame review and zero-submission decision"},
+    {"path": "evidence/video-repair-queue.json", "purpose": "repair queue including two current VIDEO_DEFERRED entries"},
+    {"path": "media/images/*.png", "purpose": "eight 1080x1350 review-only image candidates"},
+    {"path": "media/first-frames/*.png", "purpose": "four 1080x1920 review-only first-frame candidates"},
+    {"path": "SHA256SUMS.txt", "purpose": "SHA-256 integrity ledger for every other package file"}
+  ],
+  "excluded": [
+    "OAuth tokens and credentials",
+    "stale 2026-08-07 MP4 and its prior audio sidecar",
+    "raw provider jobs or authentication state",
+    "approved-log and posted-log",
+    "any Facebook or Instagram publication action"
+  ]
+}

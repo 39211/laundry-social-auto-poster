@@ -1,0 +1,15 @@
+{
+  "date": "2026-08-07",
+  "timezone": "Asia/Taipei",
+  "generated_at": "2026-08-06T22:44:19.472Z",
+  "weather": {
+    "location": "Taichung",
+    "summary": "July humidity and commute dust can make shoes, bag corners, collars, and bedding hold odor faster.",
+    "care_bridge": "Use realistic shop-counter inspection angles; weather is caption context, not the image subject."
+  },
+  "local_hooks": [
+    "No major holiday is configured for this date.",
+    "Use everyday laundry-care situations unless an item-specific care consequence is concrete."
+  ],
+  "warnings": []
+}

@@ -1,7 +1,24 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import {
+  resolveTrustedProductionRuntime,
+  type RuntimeResolverOptions
+} from "./productionRuntime";
 
 const execFileAsync = promisify(execFile);
+
+export type VideoCommandRunner = (
+  executable: string,
+  arguments_: string[],
+  options?: { maxBuffer?: number }
+) => Promise<{ stdout: string; stderr: string }>;
+
+export interface VideoRuntimeOptions extends RuntimeResolverOptions {
+  /** Project root whose immutable runtime allowlist is authoritative. */
+  root?: string;
+  /** Pure command seam for unit tests; production uses node:child_process. */
+  execFile?: VideoCommandRunner;
+}
 
 interface FfprobeStream {
   codec_type?: string;
@@ -41,8 +58,13 @@ function parseFrameRate(value: string | undefined): number {
   return numerator / denominator;
 }
 
-export async function probeVideo(filePath: string): Promise<VideoMetadata> {
-  const { stdout } = await execFileAsync("ffprobe", [
+function commandRunner(options: VideoRuntimeOptions): VideoCommandRunner {
+  return options.execFile ?? (execFileAsync as VideoCommandRunner);
+}
+
+export async function probeVideo(filePath: string, options: VideoRuntimeOptions = {}): Promise<VideoMetadata> {
+  const ffprobe = await resolveTrustedProductionRuntime("ffprobe", options.root ?? process.cwd(), options);
+  const { stdout } = await commandRunner(options)(ffprobe, [
     "-v",
     "error",
     "-show_entries",
@@ -69,9 +91,10 @@ export async function probeVideo(filePath: string): Promise<VideoMetadata> {
   };
 }
 
-export async function fullDecodeVideo(filePath: string): Promise<void> {
-  await execFileAsync(
-    "ffmpeg",
+export async function fullDecodeVideo(filePath: string, options: VideoRuntimeOptions = {}): Promise<void> {
+  const ffmpeg = await resolveTrustedProductionRuntime("ffmpeg", options.root ?? process.cwd(), options);
+  await commandRunner(options)(
+    ffmpeg,
     ["-v", "error", "-i", filePath, "-map", "0:v:0", "-f", "null", "-"],
     { maxBuffer: 4 * 1024 * 1024 }
   );
@@ -106,9 +129,14 @@ export function assertMetaReelMetadata(metadata: VideoMetadata): void {
   if (errors.length > 0) throw new Error(`Invalid Meta Reel media:\n- ${errors.join("\n- ")}`);
 }
 
-export async function normalizeMetaReel(inputPath: string, outputPath: string): Promise<void> {
-  await execFileAsync(
-    "ffmpeg",
+export async function normalizeMetaReel(
+  inputPath: string,
+  outputPath: string,
+  options: VideoRuntimeOptions = {}
+): Promise<void> {
+  const ffmpeg = await resolveTrustedProductionRuntime("ffmpeg", options.root ?? process.cwd(), options);
+  await commandRunner(options)(
+    ffmpeg,
     [
       "-v",
       "error",

@@ -1,0 +1,10 @@
+{
+  "status": "pass",
+  "error_count": 0,
+  "errors": [],
+  "knowledge_pack": "0.3.0-evidence-150-full-audit-quarantine",
+  "raci_gate_count": 18,
+  "active_screenplay": "video-production/runs/2026-07-19-multi-object-brand-film-v1/36-customer-facing-screenplay-v4.md",
+  "issued_tokens": [],
+  "generation_authorized": false
+}

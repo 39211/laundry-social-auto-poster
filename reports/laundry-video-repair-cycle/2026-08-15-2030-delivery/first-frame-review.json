@@ -1,0 +1,69 @@
+{
+  "date": "2026-08-15",
+  "reviewed_at": "2026-08-15T20:45:39.7494070+08:00",
+  "reviewer": "gpt-5.6-sol",
+  "knowledge_pack_version": "0.3.0-evidence-150-full-audit-quarantine",
+  "knowledge_pack_cutoff": "2026-07-20",
+  "knowledge_pack_accepted_count": 0,
+  "forbidden_claims_applied": [
+    "synthetic media is human-shot",
+    "advertising effectiveness without campaign evidence",
+    "online care guidance is Sixiangjia's confirmed SOP"
+  ],
+  "items": [
+    {
+      "slot": 1,
+      "generation_id": "sixiangjia_20260815_s01_canvas_pair_connected_rail_card_exit_v01",
+      "path": "video-production/repair/2026-08-15/first-frames/slot-01-first-frame-v04.png",
+      "source_path": "video-production/repair/2026-08-15/first-frames/slot-01-first-frame-v04-source.png",
+      "dimensions": "1080x1920",
+      "sha256": "4E5CF823A925A4C8D6F4A843A007A9A720102EEE0C4D7930C2F922C9A39939F0",
+      "status": "fail",
+      "changed_variable": "card_rail_and_shoe_spacing_geometry_only",
+      "checks": {
+        "exact_ratio": "pass",
+        "two_shoes": "pass",
+        "one_card": "pass",
+        "one_connected_grounded_rail": "pass",
+        "rail_outside_and_not_touching_shoes": "pass",
+        "card_physically_seated_in_rail": "pass",
+        "card_occludes_right_shoe_opening": "fail",
+        "hand_anatomy": "pass_at_visual_resolution",
+        "no_fake_text_or_logo": "pass"
+      },
+      "blocker": "The card and rail are physically coherent in the widened gap, but the card no longer overlaps the right shoe opening from the camera view. The first-second conflict and later reveal cannot be established.",
+      "generation_submission_allowed": false,
+      "generation_submission_count": 0
+    },
+    {
+      "slot": 2,
+      "generation_id": "sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02",
+      "path": "video-production/repair/2026-08-15/first-frames/slot-02-first-frame-v03.png",
+      "source_path": "video-production/repair/2026-08-15/first-frames/slot-02-first-frame-v03-source.png",
+      "dimensions": "1080x1920",
+      "sha256": "6E95C965253DDCBADD7A20A577641D727F2E65FBEBCB3158A6015AA953474E4E",
+      "status": "pass",
+      "changed_variable": "card_height_and_line_of_sight_seam_occlusion_only",
+      "checks": {
+        "exact_ratio": "pass",
+        "one_pouch": "pass",
+        "one_card": "pass",
+        "one_connected_grounded_rail": "pass",
+        "zero_handles_and_straps": "pass",
+        "rail_outside_zipper_path": "pass",
+        "card_physically_seated_in_rail": "pass",
+        "card_occludes_center_dark_beige_inner_seam": "pass",
+        "seam_visible_only_at_card_sides": "pass",
+        "hand_anatomy": "pass_at_visual_resolution",
+        "no_fake_text_or_logo": "pass",
+        "realistic_weight_and_contact_shadows": "pass"
+      },
+      "limitations": "Synthetic first-frame approval only. It is not proof of a valid raw clip, TTS, master, publication, or repair resolution.",
+      "generation_submission_allowed": true,
+      "generation_submission_count_before_run": 0
+    }
+  ],
+  "slot_1_gate": "fail",
+  "slot_2_gate": "pass",
+  "generation_submission_allowed": "slot_2_only"
+}

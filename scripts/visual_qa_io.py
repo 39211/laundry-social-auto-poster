@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import subprocess
 import sys
 
 
@@ -39,29 +38,6 @@ def sha256_file(path: str) -> None:
     _out(digest.hexdigest())
 
 
-def write_bytes(path: str) -> None:
-    data = sys.stdin.buffer.read()
-    with open(path, "wb") as handle:
-        handle.write(data)
-
-
-def write_text_no_bom(path: str, text: str) -> None:
-    with open(path, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(text)
-
-
-def run_codex(stdout_path: str, args_file: str) -> int:
-    with open(args_file, "r", encoding="utf-8-sig") as handle:
-        args = json.load(handle)
-    if not isinstance(args, list) or not args:
-        sys.stderr.write("run-codex: args file must be a JSON array\n")
-        return 2
-    prompt = sys.stdin.buffer.read()
-    with open(stdout_path, "wb") as out:
-        proc = subprocess.run(args, input=prompt, stdout=out, stderr=sys.stderr.buffer)
-    return int(proc.returncode)
-
-
 def list_rejected(path: str) -> None:
     if not os.path.isfile(path):
         return
@@ -88,17 +64,6 @@ def main(argv: list[str]) -> int:
     if cmd == "list-rejected":
         list_rejected(target)
         return 0
-    if cmd == "write-bytes":
-        write_bytes(target)
-        return 0
-    if cmd == "write-text":
-        write_text_no_bom(target, sys.stdin.read())
-        return 0
-    if cmd == "run-codex":
-        if len(argv) < 4:
-            sys.stderr.write("usage: visual_qa_io.py run-codex STDOUT_PATH ARGS_JSON\n")
-            return 2
-        return run_codex(argv[2], argv[3])
     sys.stderr.write("unknown command: %s\n" % cmd)
     return 2
 

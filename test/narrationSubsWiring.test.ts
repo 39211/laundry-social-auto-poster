@@ -50,7 +50,7 @@ describe("subtitle burn wiring", () => {
     // drive-letter trap in ffmpeg's ass filter.
     expect(burnScript).toContain("src\\reelSubtitlesCli.ts");
     expect(burnScript).toContain('ass=$baseName.ass');
-    expect(burnScript).toMatch(/-c:a copy/u);
+    expect(burnScript).toMatch(/"-c:a",\s*"copy"/u);
   });
 
   it("the CLI writes ASS through temp-plus-rename, not a raw overwrite", () => {

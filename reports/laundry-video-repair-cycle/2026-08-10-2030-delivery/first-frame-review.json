@@ -1,0 +1,26 @@
+{
+  "date": "2026-08-10",
+  "reviewer": "gpt-5.6-sol",
+  "knowledge_pack_version": "0.3.0-evidence-150-full-audit-quarantine",
+  "status": "FAIL_BOTH_SLOTS_STOP_BEFORE_PAID_VIDEO_SUBMISSION",
+  "items": [
+    {
+      "slot": 1,
+      "path": "video-production/runs/2026-08-10-daily-companion-v01/first-frames/slot-01-first-frame-v01.png",
+      "sha256": "537E4D185B2A25AFD4F84591D067C9BC2BD72456390D7A8889113015BE245D7C",
+      "dimensions": "1080x1920",
+      "status": "fail",
+      "blockers": ["card does not create the locked right-shoe-collar occlusion", "all five fingers are not individually visible", "background machine markings create pseudo-text risk"]
+    },
+    {
+      "slot": 2,
+      "path": "video-production/runs/2026-08-10-daily-companion-v01/first-frames/slot-02-first-frame-v01.png",
+      "sha256": "D19D88E50A6852BBC81E624F7922D29262926C50BEAA686E517545D24567B5C5",
+      "dimensions": "1080x1920",
+      "status": "fail",
+      "blockers": ["card does not create the locked inner-seam occlusion", "all five fingers are not individually visible", "powder-mark anchor is not unambiguous enough for frame continuity"]
+    }
+  ],
+  "generation_submission_count": 0,
+  "generate_shot_called": false
+}

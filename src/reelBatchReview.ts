@@ -1,8 +1,9 @@
 import { getNumberOption, getOption, isMain } from "./cli";
-import { getConfig } from "./config";
 import { loadDailyContent, loadPostLog } from "./logging";
 import { projectRoot } from "./paths";
+import { findStrictLiveTransportEntry, isQualifiedInstagramReel } from "./publishingReconciliation";
 import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions } from "./reelConcepts";
+import type { PostLogEntry } from "./types";
 
 // Judges a published batch of Reels against the per-Reel thresholds in
 // content-playbooks/reels-roadmap.md, so the next batch is built from what happened rather
@@ -31,7 +32,7 @@ export interface ReelOutcome {
   non_follower_share: number | null;
   accounts_engaged: number | null;
   saves_plus_shares: number | null;
-  verdict: "pass" | "fail" | "pending" | "not_published";
+  verdict: "pass" | "fail" | "pending" | "not_published" | "data_gap";
   missed: string[];
 }
 
@@ -53,6 +54,20 @@ interface InsightMetrics {
   saved?: number | null;
   shares?: number | null;
   total_interactions?: number | null;
+}
+
+function successLookingInstagramClaim(entries: readonly PostLogEntry[], slot: number): boolean {
+  return entries.some(
+    (entry) =>
+      entry.slot === slot &&
+      entry.platform === "instagram" &&
+      (entry.status === "success" || entry.status === "posted") &&
+      entry.dry_run !== true
+  );
+}
+
+function validTimestamp(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0 && !Number.isNaN(Date.parse(value));
 }
 
 async function loadReelMetrics(
@@ -84,7 +99,6 @@ async function loadReelMetrics(
 export async function reviewBatch(options: { asOf?: string; root?: string } = {}): Promise<BatchReview> {
   const root = projectRoot(options.root);
   loadExtensions(root);
-  const config = getConfig();
   const now = options.asOf ? new Date(`${options.asOf}T23:59:59+08:00`) : new Date();
   const gaps: string[] = [];
   const outcomes: ReelOutcome[] = [];
@@ -92,18 +106,9 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
   for (const entry of REEL_SCHEDULE) {
     const concept = REEL_CONCEPTS.find((item) => item.id === entry.conceptId);
     const content = await loadDailyContent(entry.date, root);
-    const slot = content?.slots.find((item) => item.slot === 2);
+    const matchingSlots = content?.slots.filter((item) => item.slot === 2) ?? [];
+    const slot = matchingSlots.length === 1 ? matchingSlots[0] : undefined;
     const posts = await loadPostLog(entry.date, root);
-    // "posted" and "success" are the same live outcome everywhere else in the
-    // codebase; matching only one of them filed a published Reel as
-    // not_published and shrank the sample this whole review judges.
-    const live = posts.find(
-      (post) =>
-        post.slot === 2 &&
-        post.platform === "instagram" &&
-        !post.dry_run &&
-        ["success", "posted"].includes(post.status)
-    );
 
     const base = {
       date: entry.date,
@@ -112,7 +117,45 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
       hook: concept?.hook ?? slot?.topic ?? ""
     };
 
+    const dataGap = (reason: string): void => {
+      gaps.push(`${entry.date}: ${reason}`);
+      outcomes.push({
+        ...base,
+        published: false,
+        hours_since_publish: null,
+        mature: false,
+        reach: null,
+        non_follower_share: null,
+        accounts_engaged: null,
+        saves_plus_shares: null,
+        verdict: "data_gap",
+        missed: []
+      });
+    };
+
+    if (!content) {
+      dataGap("content calendar missing; excluded from Reel strategy sample");
+      continue;
+    }
+    if (content.tampered) {
+      dataGap("content calendar integrity is tampered; excluded from Reel strategy sample");
+      continue;
+    }
+    if (!slot) {
+      dataGap("slot 2 is missing or ambiguous in the calendar; excluded from Reel strategy sample");
+      continue;
+    }
+    if (slot.media_type !== "reel") {
+      dataGap("calendar does not bind slot 2 to a Reel; image fallback is not a Reel strategy sample");
+      continue;
+    }
+
+    const live = findStrictLiveTransportEntry(posts, { date: entry.date, slot: 2, platform: "instagram" });
     if (!live) {
+      if (successLookingInstagramClaim(posts, 2)) {
+        dataGap("Instagram live transport evidence is missing or ambiguous; excluded from Reel strategy sample");
+        continue;
+      }
       outcomes.push({
         ...base,
         published: false,
@@ -125,6 +168,15 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
         verdict: "not_published",
         missed: []
       });
+      continue;
+    }
+
+    if (!isQualifiedInstagramReel(live)) {
+      dataGap("Instagram row lacks qualified Reel read-back evidence; fallback or VIDEO_DEFERRED is not a Reel strategy sample");
+      continue;
+    }
+    if (!validTimestamp(live.created_at) || Date.parse(live.created_at) > now.getTime()) {
+      dataGap("Instagram Reel timestamp is invalid or in the future; excluded from Reel strategy sample");
       continue;
     }
 
@@ -188,7 +240,7 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
     recommendation,
     keep: passed.map((item) => item.object_type),
     drop: matured.filter((item) => item.verdict === "fail").map((item) => item.object_type),
-    data_gaps: gaps.length ? gaps : [`timezone ${config.timezone}`].slice(0, 0)
+    data_gaps: gaps
   };
 }
 

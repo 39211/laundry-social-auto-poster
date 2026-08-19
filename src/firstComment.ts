@@ -2,9 +2,12 @@ import { getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { loadDailyContent, loadPostLog, readJsonFile, writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
+import { findStrictLiveTransportEntry } from "./publishingReconciliation";
+import { assertCanonicalPublicPublicationApproval } from "./publicPublicationApproval";
 import { getZonedDateParts } from "./scheduler";
 import { utmCampaign, utmTagged } from "./utm";
 import { join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
 
 const SITE = "https://39211.github.io";
 
@@ -21,6 +24,76 @@ interface FirstCommentLog {
   media_id: string;
   comment_id: string;
   created_at: string;
+}
+
+interface FirstCommentRemoteClaim {
+  schema_version: 1;
+  date: string;
+  slot: number;
+  platform: "instagram";
+  media_id: string;
+  claimed_at: string;
+}
+
+function isSameSlotCandidate(value: unknown, slot: number): boolean {
+  if (!value || typeof value !== "object") return false;
+  const record = value as { slot?: unknown };
+  return record.slot === slot || String(record.slot) === String(slot);
+}
+
+function hasTrimmedNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value === value.trim();
+}
+
+function isUsableLiveMetaValue(value: unknown): value is string {
+  if (!hasTrimmedNonEmptyString(value)) return false;
+  return !/^(?:\[.*\]|<.*>|your[-_].*|example.*|xxx.*|changeme|todo|set|present|redacted|true|false|\*+)$/i.test(
+    value
+  );
+}
+
+function assertLiveFirstCommentMetaConfig(config: ReturnType<typeof getConfig>): void {
+  const invalid = [
+    ["META_GRAPH_API_VERSION", config.graphApiVersion, /^v\d+(?:\.\d+)?$/],
+    ["META_ACCESS_TOKEN", config.metaAccessToken]
+  ].filter(([, value, format]) =>
+    !isUsableLiveMetaValue(value) || (format instanceof RegExp && !format.test(value))
+  );
+  if (invalid.length > 0) {
+    throw new Error(`invalid or missing live Meta config: ${invalid.map(([name]) => name).join(", ")}`);
+  }
+}
+
+function firstCommentClaimPath(root: string, date: string, slot: number): string {
+  return join(root, "data", "first-comment-claims", date, `slot-${String(slot).padStart(2, "0")}-instagram.json`);
+}
+
+async function claimFirstCommentRemotePost(input: {
+  root: string;
+  date: string;
+  slot: number;
+  mediaId: string;
+}): Promise<"claimed" | "already_claimed"> {
+  const path = firstCommentClaimPath(input.root, input.date, input.slot);
+  const claim: FirstCommentRemoteClaim = {
+    schema_version: 1,
+    date: input.date,
+    slot: input.slot,
+    platform: "instagram",
+    media_id: input.mediaId,
+    claimed_at: new Date().toISOString()
+  };
+  await mkdir(join(input.root, "data", "first-comment-claims", input.date), { recursive: true });
+  try {
+    // The claim is the authority before Graph POST.  It is intentionally never
+    // auto-cleared: a timeout or later ledger-write failure can still mean the
+    // comment exists remotely.
+    await writeFile(path, `${JSON.stringify(claim, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    return "claimed";
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") return "already_claimed";
+    throw error;
+  }
 }
 
 export function commentTextFor(topic: string, date: string, slot: number): string {
@@ -52,31 +125,95 @@ export async function postFirstComment(input: {
   slot: number;
   root?: string;
   fetchImpl?: typeof fetch;
+  writeJsonAtomicImpl?: typeof writeJsonAtomic;
 }): Promise<{ posted?: string; skipped?: string }> {
   const root = projectRoot(input.root);
   const config = getConfig();
   const fetchImpl = input.fetchImpl ?? fetch;
+  const writeLog = input.writeJsonAtomicImpl ?? writeJsonAtomic;
 
   const logPath = join(root, "data", "first-comments", `${input.date}.json`);
-  const existing = await readJsonFile<FirstCommentLog[]>(logPath, []);
-  if (existing.some((entry) => entry.slot === input.slot)) {
+  const existing = await readJsonFile<unknown>(logPath, []);
+  if (!Array.isArray(existing)) {
+    return { skipped: `first-comment log for ${input.date} is malformed; automatic comment is blocked` };
+  }
+  if (existing.some((entry) => isSameSlotCandidate(entry, input.slot))) {
     return { skipped: `already commented on ${input.date} slot ${input.slot}` };
   }
 
   const posts = await loadPostLog(input.date, root);
-  const live = posts.find(
-    (post) =>
-      post.slot === input.slot &&
-      post.platform === "instagram" &&
-      !post.dry_run &&
-      ["success", "posted"].includes(post.status) &&
-      post.post_id
-  );
-  if (!live?.post_id) return { skipped: `no live Instagram post for slot ${input.slot}` };
+  const live = findStrictLiveTransportEntry(posts, {
+    date: input.date,
+    slot: input.slot,
+    platform: "instagram"
+  });
+  if (!live) {
+    return { skipped: `no unambiguous live Instagram transport for ${input.date} slot ${input.slot}` };
+  }
   if (config.dryRun) return { skipped: "dry run" };
 
+  // A missing or placeholder credential is not a recoverable remote state.
+  // Reject it before a no-retry claim: otherwise an operator could be left
+  // with a durable claim for a request that never had permission to leave.
+  try {
+    assertLiveFirstCommentMetaConfig(config);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      skipped: `live Meta config for ${input.date} is invalid; automatic first comment is blocked: ${detail}`
+    };
+  }
+
+  // A live comment is a public effect in its own right. The transport receipt
+  // proves that Instagram accepted the feed post, but it is not permission to
+  // add new public text later. Validate the exact immutable public-release
+  // package before creating our no-retry claim or touching Graph.
+  try {
+    await assertCanonicalPublicPublicationApproval(input.date, root);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      skipped: `canonical public approval for ${input.date} is unverified; automatic first comment is blocked: ${detail}`
+    };
+  }
+
   const content = await loadDailyContent(input.date, root);
+  if (content?.tampered) {
+    return { skipped: `calendar for ${input.date} is tampered; automatic first comment is blocked` };
+  }
   const topic = content?.slots.find((item) => item.slot === input.slot)?.topic ?? "";
+
+  // The calendar may have changed while the local topic was being read. Keep
+  // the assertion adjacent to the immutable no-retry claim as well.
+  try {
+    await assertCanonicalPublicPublicationApproval(input.date, root);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      skipped: `canonical public approval for ${input.date} is unverified; automatic first comment is blocked: ${detail}`
+    };
+  }
+
+  let claim: "claimed" | "already_claimed";
+  try {
+    claim = await claimFirstCommentRemotePost({
+      root,
+      date: input.date,
+      slot: input.slot,
+      mediaId: live.post_id
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      skipped: `first-comment remote claim cannot be recorded for ${input.date} slot ${input.slot}; automatic comment is blocked: ${detail}`
+    };
+  }
+  if (claim === "already_claimed") {
+    return {
+      skipped:
+        `remote first-comment claim already exists for ${input.date} slot ${input.slot}; automatic retry is blocked pending recovery`
+    };
+  }
 
   const response = await fetchImpl(
     `https://graph.facebook.com/${config.graphApiVersion}/${live.post_id}/comments`,
@@ -89,20 +226,28 @@ export async function postFirstComment(input: {
     }
   );
   const payload = (await response.json()) as { id?: string; error?: { message?: string } };
-  if (!response.ok || !payload.id) {
+  if (!response.ok || typeof payload.id !== "string" || payload.id.length === 0 || payload.id !== payload.id.trim()) {
     throw new Error(`First comment failed: ${payload.error?.message ?? response.status}`);
   }
 
-  await writeJsonAtomic(logPath, [
-    ...existing,
-    {
-      date: input.date,
-      slot: input.slot,
-      media_id: live.post_id,
-      comment_id: payload.id,
-      created_at: new Date().toISOString()
-    }
-  ]);
+  try {
+    await writeLog(logPath, [
+      ...existing,
+      {
+        date: input.date,
+        slot: input.slot,
+        media_id: live.post_id,
+        comment_id: payload.id,
+        created_at: new Date().toISOString()
+      } satisfies FirstCommentLog
+    ]);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `First comment ${payload.id} may be live for ${input.date} slot ${input.slot}, but local log commit failed: ${detail}. ` +
+        "Automatic retry is blocked pending recovery."
+    );
+  }
   return { posted: payload.id };
 }
 
@@ -113,8 +258,15 @@ async function main(): Promise<void> {
   const slot = getNumberOption(args, "slot");
   const slots = slot ? [slot] : [1, 2, 3];
   for (const target of slots) {
-    const result = await postFirstComment({ date, slot: target, root: getOption(args, "root") });
-    console.log(JSON.stringify({ slot: target, ...result }));
+    try {
+      const result = await postFirstComment({ date, slot: target, root: getOption(args, "root") });
+      console.log(JSON.stringify({ slot: target, ...result }));
+    } catch (error) {
+      // Keep another tuple's valid comment independent of an uncertain prior
+      // tuple, but make the failed local commit visible to the scheduler.
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
   }
 }
 

@@ -3,6 +3,7 @@ import { getConfig } from "./config";
 import { loadPostLog } from "./logging";
 import { postCurrentSlot } from "./postCurrentSlot";
 import { projectRoot } from "./paths";
+import { findStrictLiveTransportEntry } from "./publishingReconciliation";
 import { DAILY_SCHEDULE, getZonedDateParts } from "./scheduler";
 import type { Platform, PostLogEntry } from "./types";
 
@@ -30,6 +31,8 @@ export interface PublishingSlaReport {
     end_date: string;
     due_slots: number;
     dual_platform_success_slots: number;
+    /** Success-looking rows that cannot prove one exact live transport tuple. */
+    unverified_platform_claims: number;
     fulfillment_rate: number | null;
     target: number;
     target_met: boolean | null;
@@ -65,13 +68,24 @@ export function slaTimesForSlot(slot: SlaSlot): { preflight: string; overdue: st
   };
 }
 
-function isLiveSuccess(entries: PostLogEntry[], slot: number, platform: Platform): boolean {
+function liveTransport(entries: readonly PostLogEntry[], date: string, slot: number, platform: Platform): boolean {
+  return Boolean(findStrictLiveTransportEntry(entries, { date, slot, platform }));
+}
+
+/** A local success row is a data gap until the shared exact-tuple check accepts it. */
+function hasUnverifiedLiveClaim(
+  entries: readonly PostLogEntry[],
+  date: string,
+  slot: number,
+  platform: Platform
+): boolean {
+  if (liveTransport(entries, date, slot, platform)) return false;
   return entries.some(
     (entry) =>
       entry.slot === slot &&
       entry.platform === platform &&
-      !entry.dry_run &&
-      ["success", "posted"].includes(entry.status)
+      (entry.status === "success" || entry.status === "posted") &&
+      entry.dry_run !== true
   );
 }
 
@@ -101,6 +115,7 @@ export async function calculateRollingPublishingSla(
   const startDate = addDays(endDate, -13);
   let dueSlots = 0;
   let dualPlatformSuccessSlots = 0;
+  let unverifiedPlatformClaims = 0;
 
   for (let offset = 0; offset < 14; offset += 1) {
     const date = addDays(startDate, offset);
@@ -108,9 +123,12 @@ export async function calculateRollingPublishingSla(
     for (const schedule of DAILY_SCHEDULE) {
       if (date > endDate || (date === endDate && schedule.time > time)) continue;
       dueSlots += 1;
-      if (PLATFORMS.every((platform) => isLiveSuccess(entries, schedule.slot, platform))) {
+      if (PLATFORMS.every((platform) => liveTransport(entries, date, schedule.slot, platform))) {
         dualPlatformSuccessSlots += 1;
       }
+      unverifiedPlatformClaims += PLATFORMS.filter((platform) =>
+        hasUnverifiedLiveClaim(entries, date, schedule.slot, platform)
+      ).length;
     }
   }
 
@@ -120,6 +138,7 @@ export async function calculateRollingPublishingSla(
     end_date: endDate,
     due_slots: dueSlots,
     dual_platform_success_slots: dualPlatformSuccessSlots,
+    unverified_platform_claims: unverifiedPlatformClaims,
     fulfillment_rate: fulfillmentRate,
     target: SLA_TARGET,
     target_met: fulfillmentRate === null ? null : fulfillmentRate >= SLA_TARGET
@@ -162,9 +181,15 @@ export async function runPublishingSlaCheck(options: {
       });
     } else {
       const entries = await loadPostLog(date, root);
-      const missing = PLATFORMS.filter((platform) => !isLiveSuccess(entries, checkpoint.slot, platform));
+      const missing = PLATFORMS.filter((platform) => !liveTransport(entries, date, checkpoint.slot, platform));
       if (missing.length > 0) {
-        throw new Error(`Slot ${checkpoint.slot} is overdue on: ${missing.join(", ")}.`);
+        const dataGaps = missing.filter((platform) =>
+          hasUnverifiedLiveClaim(entries, date, checkpoint.slot, platform)
+        );
+        const detail = dataGaps.length > 0
+          ? ` Unverified transport evidence on: ${dataGaps.join(", ")}; automatic retry is not authorized.`
+          : "";
+        throw new Error(`Slot ${checkpoint.slot} is overdue on: ${missing.join(", ")}.${detail}`);
       }
     }
 
@@ -173,7 +198,9 @@ export async function runPublishingSlaCheck(options: {
       date,
       checkpoint,
       checkpoint_status: "pass",
-      message: checkpoint.mode === "preflight" ? "Publishing preflight passed." : "Both platforms published on time.",
+      message: checkpoint.mode === "preflight"
+        ? "Publishing preflight passed."
+        : "Both platforms have one exact live transport record on time.",
       rolling_14_days: rolling
     };
   } catch (error) {

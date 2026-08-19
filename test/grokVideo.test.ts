@@ -1,9 +1,11 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildGrokVideoRequest, generateGrokVideos, resolveXaiApiKey } from "../src/generateGrokVideo";
+import { buildGrokVideoRequest, generateGrokVideos } from "../src/generateGrokVideo";
 import type { VideoPromptManifestItem } from "../src/generateVideo";
+import { synthesizeNarration } from "../src/tts";
 import { assertMetaReelMetadata } from "../src/videoMedia";
 
 const item: VideoPromptManifestItem = {
@@ -21,7 +23,10 @@ const item: VideoPromptManifestItem = {
 };
 
 describe("official Grok video workflow", () => {
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
   it("builds the official 10-second 720p vertical request", () => {
     expect(buildGrokVideoRequest(item)).toEqual({
       model: "grok-imagine-video",
@@ -32,34 +37,90 @@ describe("official Grok video workflow", () => {
     });
   });
 
-  it("requires explicit paid billing acknowledgement before any API call", async () => {
+  it("rejects every raw XAI environment flag before any API call", async () => {
     vi.stubEnv("GROK_REELS_ENABLED", "true");
+    vi.stubEnv("XAI_API_KEY", "raw-production-key");
+    vi.stubEnv("XAI_VIDEO_BILLING_ACK", "true");
+    vi.stubEnv("LAUNDRY_EXECUTABLE_CONTRACT_TEST_SEAM", "allow-temp-production-runtime-shims-v1");
     vi.stubEnv("PUBLIC_IMAGE_BASE_URL", "https://39211.github.io");
     const root = await mkdtemp(join(tmpdir(), "laundry-grok-safety-"));
     const fetchImpl = vi.fn() as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetchImpl);
 
     await expect(
       generateGrokVideos({
         date: "2026-07-16",
         slot: 2,
-        root,
-        live: true,
-        env: { XAI_API_KEY: "test-key", XAI_VIDEO_BILLING_ACK: "false" },
-        fetchImpl
+        root
       })
-    ).rejects.toThrow("XAI_VIDEO_BILLING_ACK=true");
+    ).rejects.toThrow("Direct Grok video generation is disabled by policy");
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("reuses a trusted project env without copying or exposing its xAI key", async () => {
-    const root = await mkdtemp(join(tmpdir(), "laundry-shared-xai-env-"));
-    const sharedEnv = join(root, "shared.env");
-    await writeFile(sharedEnv, "XAI_API_KEY=shared-test-key\n", "utf8");
+  it("does not expose raw direct paid aliases", async () => {
+    const packageJson = JSON.parse(await readFile(join(process.cwd(), "package.json"), "utf8")) as {
+      scripts?: Record<string, string>;
+    };
 
-    await expect(resolveXaiApiKey({ XAI_CREDENTIAL_ENV_FILE: sharedEnv })).resolves.toBe("shared-test-key");
+    expect(packageJson.scripts?.["generate-grok-videos"]).toBeUndefined();
+    expect(packageJson.scripts?.tts).toBeUndefined();
+  });
+
+  it("contains no raw xAI credential or network route", async () => {
+    const source = await readFile(join(process.cwd(), "src", "generateGrokVideo.ts"), "utf8");
+
+    expect(source).not.toContain("XAI_API_KEY");
+    expect(source).not.toContain("Authorization");
+    expect(source).not.toMatch(/\bfetch\s*\(/u);
+  });
+
+  it("rejects raw TTS flags before any fetch, and leaves no authorization or Python route", async () => {
+    vi.stubEnv("MINIMAX_API_KEY", "raw-production-key");
+    vi.stubEnv("MINIMAX_BASE_URL", "https://untrusted.invalid/v1");
+    vi.stubEnv("LAUNDRY_EXECUTABLE_CONTRACT_TEST_SEAM", "allow-temp-production-runtime-shims-v1");
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetchImpl);
+
     await expect(
-      resolveXaiApiKey({ XAI_API_KEY: "direct-test-key", XAI_CREDENTIAL_ENV_FILE: sharedEnv })
-    ).resolves.toBe("direct-test-key");
+      synthesizeNarration({
+        text: "測試旁白",
+        outPath: "docs/assets/narration.mp3",
+        date: "2026-07-16",
+        slot: 2,
+        root: process.cwd()
+      })
+    ).rejects.toThrow("Direct TTS execution is disabled by policy");
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    const source = await readFile(join(process.cwd(), "src", "tts.ts"), "utf8");
+    expect(source).not.toMatch(/\bfetch\s*\(/u);
+    expect(source).not.toMatch(/\bspawn(?:Sync)?\s*\(/u);
+    expect(source).not.toContain("Authorization");
+    expect(source).not.toContain("MINIMAX_BASE_URL");
+  });
+
+  it("makes both raw tsx entrypoints exit with a policy refusal", () => {
+    const tsxCli = join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
+    for (const [entrypoint, refusal] of [
+      ["src/generateGrokVideo.ts", "Direct Grok video generation is disabled by policy"],
+      ["src/tts.ts", "Direct TTS execution is disabled by policy"]
+    ] as const) {
+      const result = spawnSync(process.execPath, [tsxCli, entrypoint], {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        timeout: 10_000,
+        env: {
+          ...process.env,
+          XAI_API_KEY: "raw-production-key",
+          XAI_VIDEO_BILLING_ACK: "true",
+          MINIMAX_API_KEY: "raw-production-key",
+          MINIMAX_BASE_URL: "https://untrusted.invalid/v1"
+        }
+      });
+
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toContain(refusal);
+    }
   });
 
   it("accepts normalized Meta Reel metadata and rejects wrong aspect ratios", () => {

@@ -1,0 +1,197 @@
+{
+  "schema_version": "1.0",
+  "date": "2026-08-07",
+  "timezone": "Asia/Taipei",
+  "status": "research_complete_production_fail_closed",
+  "research_window": {
+    "mode": "incremental",
+    "since": "2026-08-06T06:35:34.2516336+08:00",
+    "checked_at": "2026-08-07T06:37:21.0016413+08:00"
+  },
+  "deduplication": {
+    "key": "canonical_repository+file+revision+method",
+    "duplicate_count": 0,
+    "notes": "Only upstream revisions newer than the prior last_checked_at were retained. No external script, prompt, storyboard, shot list, brand creative, or media was copied."
+  },
+  "sources": [
+    {
+      "id": "hermes-missed-steer-ledger-60e1f75",
+      "canonical_url": "https://github.com/NousResearch/hermes-agent/commit/60e1f7517c94aed3b2ee6e8cc919ca541129705d",
+      "repository": "NousResearch/hermes-agent",
+      "file": "tools/delegate_tool.py; tui_gateway/methods_session.py; tests/tools/test_subagent_steer.py",
+      "revision_or_date": "60e1f7517c94aed3b2ee6e8cc919ca541129705d / 2026-08-06T16:40:27Z",
+      "license": "MIT",
+      "evidence_tier": "T2_reproducible_upstream_commit",
+      "exact_method": "Separate queued from delivered state and retain an explicit missed or pending record when a terminal boundary arrives before delivery. For media jobs, submitted, provider-done, downloaded, decoded, reviewed, mastered, and published remain distinct states; a terminal message never suppresses an undelivered or unverified artifact gap.",
+      "limitation": "The change concerns delegated-message steering, not xAI media generation, native dimensions, physics, TTS quality, or Meta delivery.",
+      "decision": "adopt_distinct_delivery_and_terminal_evidence_states"
+    },
+    {
+      "id": "hermes-exclusive-journal-ownership-c4aea32",
+      "canonical_url": "https://github.com/NousResearch/hermes-agent/commit/c4aea323175e6dad1ed1294cb4193126405fcfe0",
+      "repository": "NousResearch/hermes-agent",
+      "file": "hermes_state.py; tests/test_sqlite_wal_reset_gate.py",
+      "revision_or_date": "c4aea323175e6dad1ed1294cb4193126405fcfe0 / 2026-08-06T14:49:42Z",
+      "license": "MIT",
+      "evidence_tier": "T2_reproducible_upstream_commit",
+      "exact_method": "Treat an unreadable or locked persistence mode as unproven exclusive ownership and leave shared state unchanged; fail immediately instead of waiting and mutating beneath a live writer. Apply the same production rule to date-scoped content, source, review, repair, approval, and publication ledgers when a scheduler or another process owns the same state.",
+      "limitation": "The upstream implementation protects SQLite journal mode. Applying its ownership rule to project JSON ledgers is a governance inference and does not replace file-hash or process-owner checks.",
+      "decision": "adopt_fail_closed_unproven_exclusive_write_ownership"
+    },
+    {
+      "id": "remotion-videoencoder-visible-rect-9f8f8c7",
+      "canonical_url": "https://github.com/remotion-dev/remotion/commit/9f8f8c70a7511b4ce8892ca9eaa21e3a5452f6a0",
+      "repository": "remotion-dev/remotion",
+      "file": "packages/docs/docs/mediabunny/webcodecs-bugs.mdx",
+      "revision_or_date": "9f8f8c70a7511b4ce8892ca9eaa21e3a5452f6a0 / 2026-08-06T15:02:54Z",
+      "license": "Remotion License / repository SPDX NOASSERTION",
+      "evidence_tier": "T2_reproducible_upstream_commit",
+      "exact_method": "Treat configured crop or visible-rectangle intent as insufficient because an encoder may crop incorrectly. Inspect the encoded stream dimensions and visible frame edges from the actual artifact; do not infer native 1080x1920 from the request, canvas, manifest, or encoder configuration.",
+      "limitation": "The documented issue is an open Chrome VideoEncoder bug. It does not prove that Hermes or xAI caused prior 1088x1920 outputs and does not authorize cropping or resizing them.",
+      "decision": "adopt_actual_artifact_visible_rect_and_edge_validation"
+    },
+    {
+      "id": "ffmpeg-dolby-partial-mantissa-73aa056",
+      "canonical_url": "https://github.com/FFmpeg/FFmpeg/commit/73aa056f4934d825af9ef86ffa4c6cca4e9ccd10",
+      "repository": "FFmpeg/FFmpeg",
+      "file": "libavcodec/dolby_e.c",
+      "revision_or_date": "73aa056f4934d825af9ef86ffa4c6cca4e9ccd10 / 2026-08-06T15:19:52Z",
+      "license": "LGPL-2.1-or-later / GPL-2.0-or-later depending build configuration; repository SPDX NOASSERTION",
+      "evidence_tier": "T2_reproducible_upstream_commit",
+      "exact_method": "Where a format-specific decoder has measured evidence, distinguish a narrowly bounded, late-segment partial decode from generic corruption with an explicit threshold and warning. Do not silently convert all decode errors into success.",
+      "limitation": "The 800-of-1024 tolerance is specific to Dolby E mantissas and certified-source observations. It is not transferable to generated MP4 video or zh-TW TTS masters, which still require complete decode with no concealed frame or audio loss.",
+      "decision": "reject_format_specific_partial_decode_tolerance_for_publishable_master"
+    }
+  ],
+  "latest_eligible_72_hour_review": {
+    "path": "output/operations/72-hour-review.json",
+    "generated_at": "2026-08-06T22:34:53.321Z",
+    "row_count": 43,
+    "newest_eligible": [
+      {
+        "date": "2026-08-03",
+        "slot": 1,
+        "media_type": "mixed-carousel",
+        "reach": 160,
+        "views": null,
+        "saved": 1,
+        "shares": 0,
+        "line_clicks": null,
+        "inquiries": null,
+        "bookings": null
+      },
+      {
+        "date": "2026-08-03",
+        "slot": 2,
+        "media_type": "reel",
+        "reach": 149,
+        "views": null,
+        "saved": 0,
+        "shares": 0,
+        "line_clicks": null,
+        "inquiries": null,
+        "bookings": null
+      }
+    ],
+    "decision": "INCONCLUSIVE",
+    "reason": "Views and every conversion field remain unavailable; one save and zero shares across the newest rows cannot attribute effectiveness to a creative variable."
+  },
+  "preproduction_contract": {
+    "path": "output/operations/2026-08-07-preproduction-contract.json",
+    "status": "pass",
+    "knowledge_pack_version": "0.3.0-evidence-150-full-audit-quarantine",
+    "accepted_evidence_count": 0,
+    "professional_claim_gate": "blocked",
+    "standing_no_effect_claim_daily_lane": "not_overridden_but_requires_current_date_candidate_first_frame_policy_and_hermes_gates"
+  },
+  "repair_queue": {
+    "read_path": "data/video-repair-queue/queue.json",
+    "video_deferred_count_at_start": 14,
+    "ready_count_at_start": 0,
+    "resolved_count_at_start": 0,
+    "selection_rule": "All entries were read in source-date and slot order. No existing generation ID may be resubmitted. A source stays VIDEO_DEFERRED until a root-cause-corrected, topic-matched later video passes every gate and actually publishes on both platforms.",
+    "repair_priority_for_today": [
+      "2026-08-03/1 and 2026-08-04/1: makeup-pouch topic; redesign the exact first frame to one pouch, one card and one hand, then require a full card exit and stable identity",
+      "2026-07-30/2 and 2026-08-06/2: shoe topic; keep exactly two aligned stationary shoes and one card-withdrawal action, while native 1080x1920 remains a hard provider capability gate",
+      "all other items: preserve in VIDEO_DEFERRED because there is no safe topic match in the two-slot package or another root-cause gate remains unmet"
+    ]
+  },
+  "experiments": [
+    {
+      "slot": 1,
+      "role": "reach-answer",
+      "topic": "化妝包拉鍊邊卡粉，先看哪裡？",
+      "main_variable": "single_card_conflict_visibility",
+      "fixed_controls": ["same makeup pouch identity", "same shop lighting", "one hand", "one lateral card exit", "direct LINE CTA"],
+      "hypothesis": "Showing exactly one inspection card partly blocking the zipper seam in the first second may make the visible conflict readable without adding a second action or changing the payoff.",
+      "expected_signal": "eligible 72-hour saves and shares without a decline in LINE clicks, inquiries or bookings",
+      "decision_rule_72h": "ADOPT only after a comparable eligible post has non-null core metrics and improves the preregistered signal; otherwise RETEST, REJECT or INCONCLUSIVE.",
+      "status": "hypothesis_ready",
+      "effectiveness_claimed": false
+    },
+    {
+      "slot": 2,
+      "role": "evidence-conversion",
+      "topic": "帆布鞋送洗前，把兩隻鞋對齊拍清楚",
+      "main_variable": "paired_shoe_count_anchor",
+      "fixed_controls": ["exactly two shoes", "stationary aligned pair", "same shop lighting", "one hand", "one card exit", "direct LINE CTA"],
+      "hypothesis": "Keeping the complete pair aligned against a visible low stop may improve item-count clarity while preserving one grounded release action.",
+      "expected_signal": "eligible 72-hour LINE clicks, inquiries and bookings with saves and shares as secondary diagnostics",
+      "decision_rule_72h": "ADOPT only after a comparable eligible post has non-null conversion metrics and improves the preregistered signal; otherwise RETEST, REJECT or INCONCLUSIVE.",
+      "status": "hypothesis_ready",
+      "effectiveness_claimed": false
+    }
+  ],
+  "claims": {
+    "effectiveness_proven": false,
+    "notes": "Every new method and both slot variables remain hypotheses until valid 72-hour evidence exists."
+  },
+  "script_and_media_results": {
+    "script_review": {
+      "path": "data/video-script-reviews/2026-08-07.json",
+      "rounds": 3,
+      "slot_1_final_score": 100,
+      "slot_2_final_score": 100,
+      "status": "PASS_BOTH_SLOTS"
+    },
+    "images": {
+      "generated_exactly_once_per_manifest_item": true,
+      "standardized_dimensions": "1080x1350",
+      "source_records_written": 8,
+      "structural_validation": "PASS_BOTH_SLOTS",
+      "manual_visual_validation": "MATERIAL_NO_GO_BOTH_SLOTS",
+      "review_path": "output/operations/2026-08-07-image-qa/manual-review.json"
+    },
+    "first_frames": {
+      "dimensions": "1080x1920",
+      "targeted_versions_per_slot": 2,
+      "status": "FAIL_BOTH_SLOTS_STOP_BEFORE_PAID_VIDEO_SUBMISSION",
+      "review_path": "video-production/runs/2026-08-07-daily-companion-v01/qa/first-frame-review.json"
+    },
+    "hermes": {
+      "inspection_status": "INSPECTION_TIMEOUT_NO_SUBMISSION",
+      "current_readiness_proven": false,
+      "generation_submission_count": 0,
+      "report_path": "output/operations/2026-08-07-hermes-readiness.json"
+    },
+    "video": {
+      "slot_1": "VIDEO_DEFERRED_CURRENT_FILE_MISSING",
+      "slot_2": "VIDEO_DEFERRED_STALE_PROMPT_HASH_MISMATCH",
+      "raw_clip_created": false,
+      "tts_created": false,
+      "master_created": false,
+      "source_or_review_written": false
+    }
+  },
+  "production_outcome": {
+    "status": "MATERIAL_NO_GO_VIDEO_DEFERRED",
+    "media_readiness_path": "output/operations/2026-08-07-media-readiness.json",
+    "video_deferred_count_after_run": 16,
+    "current_date_video_deferred_entries": 2,
+    "resolved_video_repairs_by_this_run": 0,
+    "approved_by_this_run": false,
+    "published_by_this_run": false,
+    "approved_log_written_by_this_run": false,
+    "posted_log_written_by_this_run": false
+  }
+}

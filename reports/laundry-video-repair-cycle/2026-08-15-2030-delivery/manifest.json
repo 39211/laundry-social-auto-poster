@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "automation_id": "laundry-video-repair-cycle",
+  "run_time": "2026-08-15T20:55:40.6612539+08:00",
+  "result": "VIDEO_DEFERRED_NO_READY_REPLACEMENT",
+  "payload_files": [
+    "README-FIRST.md",
+    "report.md",
+    "audit.json",
+    "hermes-inspect.json",
+    "queue.json",
+    "posted-log-2026-08-15.json",
+    "video-sources-2026-08-15.json",
+    "video-reviews-2026-08-15.json",
+    "knowledge-pack-manifest.json",
+    "first-frame-review.json",
+    "slot-02-raw-validation.json",
+    "slot-02-contact-sheet.jpg",
+    "slot-02-manifest.json",
+    "slot-02-job.json",
+    "slot-02-generation-report.json",
+    "slot-01-first-frame-v04.png",
+    "slot-02-first-frame-v03.png"
+  ],
+  "excluded": [
+    "OAuth credentials and secret values",
+    "raw MP4 bytes",
+    "145 extracted full-resolution frames",
+    "unrelated repository changes"
+  ]
+}

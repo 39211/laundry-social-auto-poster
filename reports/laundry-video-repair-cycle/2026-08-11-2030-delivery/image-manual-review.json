@@ -1,0 +1,62 @@
+{
+  "date": "2026-08-11",
+  "reviewer": "gpt-5.6-sol",
+  "reviewed_at": "2026-08-11T06:54:00+08:00",
+  "manifest_generation_calls": 8,
+  "regeneration_calls": 0,
+  "standardized_dimensions": "1080x1350",
+  "source_records_written_for_requested_slots": 8,
+  "hands_present": false,
+  "slots": [
+    {
+      "slot": 1,
+      "status": "MATERIAL_NO_GO",
+      "topic": "帆布鞋鞋口被遮住，送洗前怎麼拍？",
+      "passes": [
+        "exactly two shoes, one blank card and one metal support in every slide",
+        "no people or hands, so no anatomy or finger-count failure is present",
+        "no readable synthetic text, fake logo, watermark, poster or graphic overlay",
+        "canvas weave, rubber wear, shop light sources, contact shadows and object weight remain plausible",
+        "all four files are exact 1080x1350 RGB PNG files with gpt-image-2 path-level provenance"
+      ],
+      "blockers": [
+        "slides 2 and 3 rotate and spread the left/right shoes relative to slide 1 instead of preserving two stationary parallel shoes",
+        "the shoe-to-card and shoe-to-support geometry changes across slides beyond a camera-only perspective change",
+        "the metal prop renders as a shallow tray rather than the locked narrow rail, weakening the intended visible shoe-opening conflict"
+      ],
+      "files": [
+        {"path": "docs/assets/2026-08-11/slot-01.png", "sha256": "5A2151F096B70174A6E67F0235F977F88F6E6EC8620192D1FEDC9E7F32651968"},
+        {"path": "docs/assets/2026-08-11/slot-01-slide-02.png", "sha256": "3C2238F94078F3274C96F7F4379845C71E7ED09EB41A988912A654F81114BB86"},
+        {"path": "docs/assets/2026-08-11/slot-01-slide-03.png", "sha256": "118EED88BD7DE3287E78CF558234C60E2AAFB5181C74E78370C4AC4F8BEFC3E2"},
+        {"path": "docs/assets/2026-08-11/slot-01-slide-04.png", "sha256": "D72EA63047F8DB3925E130F2CAA9F8E49F5B73AF07E197EE5E993A09F3C90653"}
+      ],
+      "contact_sheet": "output/operations/2026-08-11-image-qa/slot-01-contact-sheet.png"
+    },
+    {
+      "slot": 2,
+      "status": "MATERIAL_NO_GO",
+      "topic": "化妝包拉鍊邊卡粉，先看哪條縫線？",
+      "passes": [
+        "exactly one pouch, one zipper, one beige seam patch, one blank card and one separate metal support in every slide",
+        "no people or hands, so no anatomy or finger-count failure is present",
+        "pouch, zipper, beige seam patch, localized residue, card and support identity are visually stable across slides",
+        "no readable synthetic text, fake logo, watermark, poster or graphic overlay",
+        "canvas texture, mild wear, lighting, contact shadows and weight remain plausible",
+        "all four files are exact 1080x1350 RGB PNG files with gpt-image-2 path-level provenance"
+      ],
+      "blockers": [
+        "slide 2 does not place the card across the viewer's line of sight to the beige seam patch; the patch remains fully visible beside the card",
+        "because the required occlusion never appears, slide 4 cannot function as the promised reveal payoff even though object identity remains stable"
+      ],
+      "files": [
+        {"path": "docs/assets/2026-08-11/slot-02.png", "sha256": "8045A287A9121F11ADF476A2F1D5359A0DBE975B73773B95DBF094E10CDF738A"},
+        {"path": "docs/assets/2026-08-11/slot-02-slide-02.png", "sha256": "376FAA7A0E24EF9A8AB8126578762238E74C174E465F61DC8254724A63FBD9CE"},
+        {"path": "docs/assets/2026-08-11/slot-02-slide-03.png", "sha256": "44BDBB3E348606AECFEC4C98E744A6C4725D63583AB4458DA4E36EE908A4BB1A"},
+        {"path": "docs/assets/2026-08-11/slot-02-slide-04.png", "sha256": "614F2F44302BA62D61BB903CC3E3293F72CC82B5B8221DA9A1B53AE8357D6038"}
+      ],
+      "contact_sheet": "output/operations/2026-08-11-image-qa/slot-02-contact-sheet.png"
+    }
+  ],
+  "final_status": "MATERIAL_NO_GO_BOTH_SLOTS",
+  "note": "Structural validators cannot override the date-scoped manual visual blockers. No image item was regenerated because the contract permits one generation call per manifest item."
+}

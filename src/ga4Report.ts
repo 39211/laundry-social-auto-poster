@@ -19,6 +19,8 @@ import { projectRoot } from "./paths";
 // of provisioning a service account and sharing a property with it.
 
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
+/** Matches the event parameter emitted by buildLineRedirectHtml. */
+export const GA4_LINE_CLICK_SOURCE_DIMENSION = "customEvent:link_source";
 
 export interface Ga4SourceRow {
   source: string;
@@ -133,10 +135,11 @@ export async function fetchLineClicks(input: {
 
   // The total is asked for with eventName, a built-in dimension, so it works
   // today and answers for days already past. The per-source breakdown needs
-  // customEvent:source, which only exists once someone registers "source" as a
-  // custom dimension in the GA4 property -- and even then only from that day
-  // forward. Splitting the two calls means a missing registration costs the
-  // breakdown, not the number.
+  // customEvent:link_source, which matches the event parameter emitted by the
+  // redirect page. It exists only once someone registers "link_source" as an
+  // event-scoped custom dimension in the GA4 property -- and even then only
+  // from that day forward. Splitting the two calls means a missing registration
+  // costs the breakdown, not the number.
   const totalPayload = await runReport("eventName");
   if (totalPayload.error) {
     throw new Error(`GA4 runReport failed: ${totalPayload.error.message}`);
@@ -149,7 +152,7 @@ export async function fetchLineClicks(input: {
   let sourcePayload: Awaited<ReturnType<typeof runReport>> | null = null;
   let breakdownUnavailable: string | undefined;
   try {
-    sourcePayload = await runReport("customEvent:source");
+    sourcePayload = await runReport(GA4_LINE_CLICK_SOURCE_DIMENSION);
     if (sourcePayload.error) {
       breakdownUnavailable = sourcePayload.error.message;
       sourcePayload = null;

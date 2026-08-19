@@ -1,0 +1,135 @@
+{
+  "run_time": "2026-08-15T20:55:40.6612539+08:00",
+  "automation_id": "laundry-video-repair-cycle",
+  "result": "VIDEO_DEFERRED_NO_READY_REPLACEMENT",
+  "knowledge_pack": {
+    "version": "0.3.0-evidence-150-full-audit-quarantine",
+    "cutoff_date": "2026-07-20",
+    "accepted_count": 0,
+    "professional_claim_gate": "blocked",
+    "daily_no_effect_lane": "used_for_one_topic_matched_synthetic_generation_after_conditional_gates_passed"
+  },
+  "queue": {
+    "path": "data/video-repair-queue/queue.json",
+    "sha256": "AA51D3145454FB214EF293CC11753DE956703FD53E7DEE038B8F9203FAFADB45",
+    "count": 27,
+    "video_deferred": 27,
+    "ready": 0,
+    "resolved": 0,
+    "duplicate_source_keys": 0,
+    "duplicate_generation_ids": 0,
+    "submitted_missing_hash_evidence": 0
+  },
+  "ordered_evidence_audit": {
+    "prior_2026_08_14_entries": 24,
+    "morning_snapshot_entries": 26,
+    "unchanged_from_morning_snapshot": 25,
+    "changed_since_morning_snapshot": [
+      "2026-08-15 slot 1 was regressed by the later publisher from the detailed manual failure to a generic missing-video reason; this run restored and advanced the precise failure evidence."
+    ],
+    "new_entries_since_morning_snapshot": [
+      "2026-08-15 slot 3"
+    ],
+    "all_failure_reasons_read_in_date_slot_order": true,
+    "original_prompt_evidence_read": true,
+    "first_frame_or_cover_evidence_read": true,
+    "raw_job_and_qa_evidence_read": true,
+    "posted_log_read": true
+  },
+  "publication_observation": {
+    "written_by_this_run": false,
+    "posted_log_path": "data/posted-log/2026-08-15.json",
+    "posted_log_sha256": "906114C333459E65191BD97E034700669621B205DAA89C8D55694245C53ACE7D",
+    "slot_1": "Facebook and Instagram carousel success, attempts=1, VIDEO_DEFERRED; created before this repair run.",
+    "slot_2": "No Facebook or Instagram success record.",
+    "slot_3": "Facebook and Instagram image success, attempts=1, VIDEO_DEFERRED; created before this repair run.",
+    "historical_posts_relabelled": false,
+    "historical_posts_republished": false
+  },
+  "current_repairs": [
+    {
+      "slot": 1,
+      "source_date": "2026-08-15",
+      "root_cause": "The first frame could not simultaneously prove a card seated in one grounded rail and visible occlusion of the right shoe opening.",
+      "first_frame_attempts": 3,
+      "changed_variable": "card_rail_and_shoe_spacing_geometry_only",
+      "final_first_frame": "video-production/repair/2026-08-15/first-frames/slot-01-first-frame-v04.png",
+      "final_first_frame_sha256": "4E5CF823A925A4C8D6F4A843A007A9A720102EEE0C4D7930C2F922C9A39939F0",
+      "first_frame_status": "fail_right_shoe_opening_not_occluded",
+      "generation_id": "sixiangjia_20260815_s01_canvas_pair_connected_rail_card_exit_v01",
+      "submitted": false,
+      "status": "VIDEO_DEFERRED"
+    },
+    {
+      "slot": 2,
+      "source_date": "2026-08-15",
+      "root_cause": "The original first frame left the target inner seam visible.",
+      "first_frame_attempts": 2,
+      "changed_variable": "card_height_and_line_of_sight_seam_occlusion_only",
+      "first_frame": "video-production/repair/2026-08-15/first-frames/slot-02-first-frame-v03.png",
+      "first_frame_sha256": "6E95C965253DDCBADD7A20A577641D727F2E65FBEBCB3158A6015AA953474E4E",
+      "first_frame_status": "pass",
+      "hermes_inspection": {
+        "path": "reports/laundry-video-repair-cycle/2026-08-15-2030-hermes-inspect.json",
+        "status": "ok",
+        "xai_oauth_logged_in": true,
+        "video_gen_enabled": true,
+        "dependencies_ok": true,
+        "xai_api_key_used": false
+      },
+      "generation_id": "sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02",
+      "submitted_once": true,
+      "provider_status": "done",
+      "attempts": {
+        "submit": 1,
+        "poll": 4,
+        "download": 1,
+        "qc": 1
+      },
+      "raw_path": "video-production/repair/2026-08-15/raw/sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02.mp4.qc_failed",
+      "raw_sha256": "BE40E106C934C39C9CC8AE89315385EB6FABA7D8CE2D6E56CE8E107E46382025",
+      "raw_dimensions": "1088x1920",
+      "full_decode": "pass_145_of_145",
+      "pts_anomalies": 0,
+      "native_resolution_status": "fail",
+      "physics_status": "fail_card_left_connected_rail",
+      "status": "VIDEO_DEFERRED"
+    },
+    {
+      "slot": 3,
+      "source_date": "2026-08-15",
+      "calendar_topic": "leather shoes after rain",
+      "prompt_hash_matches_review": true,
+      "raw_path": "docs/assets/2026-08-15/slot-03.mp4",
+      "raw_sha256": "9A97025FED2DDC0E350AA5365F981D2541BB21B49584CA469F6C55456F3ADD64",
+      "dimensions": "720x1280",
+      "full_decode": "pass_340_of_340",
+      "source_report_status": "missing",
+      "native_resolution_status": "fail",
+      "submitted_by_this_run": false,
+      "status": "VIDEO_DEFERRED"
+    }
+  ],
+  "validation": {
+    "preproduction_contract": "pass_governance_only_generation_authorized_false",
+    "npm_test": "46_files_246_tests_pass",
+    "typecheck": "pass",
+    "json_parse": "pass",
+    "git_diff_check": "pass",
+    "queue_invariants": "pass"
+  },
+  "actions_not_taken": [
+    "No FB or IG publication.",
+    "No historical repost or posted-log write.",
+    "No XAI_API_KEY and no grok.com control.",
+    "No second submission or replacement generation after the Slot 2 request completed.",
+    "No resize or acceptance of the 1088x1920 raw.",
+    "No independent zh-TW TTS, Grok final review, master, replacement linkage, or resolve-video-repair --ready.",
+    "No queue status was changed to RESOLVED."
+  ],
+  "routing": {
+    "fable": "blocked_by_interactive_only_safe_launcher",
+    "opus": "not_called_after_fable_contract_lane_was_unavailable",
+    "fallback": "Sol-only fail-closed execution"
+  }
+}

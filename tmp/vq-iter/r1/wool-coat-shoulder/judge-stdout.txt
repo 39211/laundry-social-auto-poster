@@ -1,0 +1,16 @@
+<<<OBSERVE_BEGIN>>>
+IMAGE_1 canary=Z3CQ
+IMAGE_2 canary=44PJ
+IMAGE_3 canary=TLCG
+IMAGE_4 canary=6D6Z
+OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=LIGHT hands=NONE scene=SLAT_WALL_PINK_MAT
+OBS_2 role=BEFORE act=before laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=LIGHT hands=NONE scene=SLAT_WALL_PINK_MAT
+OBS_3 role=AFTER act=after laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=CLEAN hands=NONE scene=SLAT_WALL_PINK_MAT
+OBS_4 role=AFTER act=after laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=CLEAN hands=NONE scene=SLAT_WALL_PINK_MAT
+COMPARE ACCESSORY_COLOR identity_change=NO
+COMPARE ORIENTATION identity_flip=NO
+COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"wool-coat-shoulder","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"四個畫面皆為同一件黑色外套，衣領與肩線輪廓一致。","ACCESSORY_COLOR":"未見鞋帶或硬體配件，無顏色身份變化。","ORIENTATION":"前後畫面皆維持相同的右向肩部構圖。","STATE_ORDER":"前段可見肩線灰塵堆積，後段整體呈現較乾淨狀態。","MIDDLE_NOT_WORSE":"沒有MIDDLE畫面，依規則判定為PASS。","HANDS":"前後畫面均未見變形手部。","SCENE":"均為粉紅裁切墊與層板牆背景。"},"frames_used":["before-p20.png","before-p70.png","after-p20.png","after-p70.png"]}
+<<<VISUAL_QA_END>>>

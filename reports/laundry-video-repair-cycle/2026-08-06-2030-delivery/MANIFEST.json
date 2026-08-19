@@ -1,0 +1,29 @@
+{
+  "package": "laundry-video-repair-cycle-20260806-2030-v01",
+  "created_for": "owner review",
+  "contains_raw_video": false,
+  "contains_secrets": false,
+  "primary_document": "report.md",
+  "integrity_file": "CHECKSUMS.sha256",
+  "artifacts": [
+    "READ-FIRST.md",
+    "report.md",
+    "audit-summary.json",
+    "queue-snapshot.json",
+    "2026-08-06-posted-log.json",
+    "2026-08-06-video-sources.json",
+    "2026-08-06-video-reviews.json",
+    "first-frame-sol-review.json",
+    "physical-review.json",
+    "slot-01-first-frame.png",
+    "slot-01-contact-sheet.jpg",
+    "slot-01-job.json",
+    "slot-01-manifest.json",
+    "slot-01-pts-summary.json",
+    "slot-02-first-frame.png",
+    "slot-02-contact-sheet.jpg",
+    "slot-02-job.json",
+    "slot-02-manifest.json",
+    "slot-02-pts-summary.json"
+  ]
+}

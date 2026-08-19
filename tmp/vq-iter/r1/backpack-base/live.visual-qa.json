@@ -1,0 +1,79 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\output\\reels-run\\2026-07-29\\reels\\backpack-base.mp4",
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "PASS",
+    "STATE_ORDER": "PASS",
+    "MIDDLE_NOT_WORSE": "PASS",
+    "HANDS": "PASS",
+    "SCENE": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "The same gray backpack bottom, seams, outline, and fittings are visible before and after.",
+    "ACCESSORY_COLOR": "No visible laces or hardware change identity; both remain NONE.",
+    "ORIENTATION": "The backpack bottom remains camera-facing in all frames.",
+    "STATE_ORDER": "The heavily soiled before frames are followed by visibly clean after frames.",
+    "MIDDLE_NOT_WORSE": "There is no MIDDLE role, so the required comparison is NO.",
+    "HANDS": "No malformed hands are visible in the before or after frames.",
+    "SCENE": "The same laundry-room counter and clothing-rack background remain visible."
+  },
+  "frames_used": [
+    "before-p20.png",
+    "before-p70.png",
+    "after-p20.png",
+    "after-p70.png"
+  ],
+  "frames": [
+    {
+      "name": "before-p20.png",
+      "act": "before",
+      "t": 0.92,
+      "canary": "R9VG",
+      "sha256": "cbd0490706a4fce3b5d118275e04071afce8916c90a50701eadc330f44e18403"
+    },
+    {
+      "name": "before-p70.png",
+      "act": "before",
+      "t": 3.22,
+      "canary": "MWZP",
+      "sha256": "d449c257fe63b98aa57b2b189965e376217b43b054da918ffdee026822b0b8af"
+    },
+    {
+      "name": "after-p20.png",
+      "act": "after",
+      "t": 5.614,
+      "canary": "YS37",
+      "sha256": "77015d7daa88d09ad46a07665e80a9bd4b762c96cfa840e5d9e214ea8bb0aaab"
+    },
+    {
+      "name": "after-p70.png",
+      "act": "after",
+      "t": 8.149,
+      "canary": "6MCL",
+      "sha256": "ade6cb219c9999dba19a4301eb1dd4da2430b1ef6671621999f1c973e5396d96"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "R9VG",
+    "IMAGE_2": "MWZP",
+    "IMAGE_3": "YS37",
+    "IMAGE_4": "6MCL"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "R9VG",
+    "IMAGE_2": "MWZP",
+    "IMAGE_3": "YS37",
+    "IMAGE_4": "6MCL"
+  },
+  "reel_sha256": "bf6307d3338219a12716d3ab4f6259013b057c2871514375b5e2ba281cf76337",
+  "prompt_hash": "42e9c99dcf4e94b89daaa814ffa9b9ec670d1253747e575eae6d3fd630d517e6",
+  "run_id": "iter-r1-backpack-base",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-16T20:09:43.856Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "PASS",
+  "fail_class": null
+}

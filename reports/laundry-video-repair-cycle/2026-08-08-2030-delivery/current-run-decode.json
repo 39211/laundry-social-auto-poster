@@ -1,0 +1,19 @@
+{
+  "run_time": "2026-08-08T20:41:06.0130598+08:00",
+  "method": "ffprobe -count_frames plus ffmpeg full video-stream decode",
+  "clips": [
+    {"source":"2026-07-30-S1","generation_id":"sixiangjia_20260730_s01_child_shoes_stop_release_v03","dimensions":"1088x1920","frames":145,"decode_exit":0,"hash_match":true},
+    {"source":"2026-07-30-S2","generation_id":"sixiangjia_20260730_s02_aligned_pair_release_v03","dimensions":"1088x1920","frames":145,"decode_exit":0,"hash_match":true},
+    {"source":"2026-07-31-S1","generation_id":"sixiangjia_20260731_s01_card_withdraw_v02","dimensions":"1088x1920","frames":145,"decode_exit":0,"hash_match":true},
+    {"source":"2026-07-31-S2","generation_id":"sixiangjia_20260731_s02_bedding_flush_slide_v02","dimensions":"1088x1920","frames":145,"decode_exit":0,"hash_match":true},
+    {"source":"2026-08-01-S1","generation_id":"sixiangjia_20260801_s01_rigid_dual_bay_card_withdraw_v01","dimensions":"1088x1920","frames":145,"decode_exit":0,"hash_match":true},
+    {"source":"2026-08-01-S2","generation_id":"sixiangjia_20260801_s02_single_layer_cover_release_v01","dimensions":"1088x1920","frames":145,"decode_exit":0,"hash_match":true},
+    {"source":"2026-08-02-S1","generation_id":"sixiangjia_20260802_s01_pillowcase_card_lateral_exit_v01","dimensions":"1088x1920","frames":145,"decode_exit":0,"hash_match":true},
+    {"source":"2026-08-02-S2","generation_id":"sixiangjia_20260802_s02_single_layer_separator_exit_v01","dimensions":"1088x1920","frames":145,"decode_exit":0,"hash_match":true},
+    {"source":"2026-08-04-S1","generation_id":"sixiangjia_20260804_s01_makeup_pouch_card_exit_v03","dimensions":"1088x1920","frames":145,"decode_exit":0,"hash_match":true},
+    {"source":"2026-08-04-S2","generation_id":"sixiangjia_20260804_s02_blue_bag_doorway_handoff_v02","dimensions":"1088x1920","frames":145,"decode_exit":0,"hash_match":true},
+    {"source":"2026-08-06-S1","generation_id":"sixiangjia_20260806_s01_travel_jacket_card_exit_v01","dimensions":"1088x1920","frames":145,"decode_exit":0,"hash_match":true},
+    {"source":"2026-08-06-S2","generation_id":"sixiangjia_20260806_s02_canvas_shoe_card_exit_v01","dimensions":"1088x1920","frames":145,"decode_exit":0,"hash_match":true}
+  ],
+  "summary": {"checked":12,"full_decode_passed":12,"hash_matches":12,"native_1080x1920_passed":0}
+}

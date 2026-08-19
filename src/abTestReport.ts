@@ -1,11 +1,21 @@
-import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { loadAbTestPlan, type AbDayPlan, type AbVariant } from "./abTestPlan";
 import { getOption, isMain } from "./cli";
 import { getConfig } from "./config";
-import { loadPostLog, readJsonFile } from "./logging";
+import { loadDailyContent, readJsonFile } from "./logging";
 import { projectRoot } from "./paths";
+import {
+  assertPostedLogMatchesDate,
+  assertYouTubeLogEntries,
+  isQualifiedInstagramReel,
+  verifyYouTubeCompletionEvidence,
+  type YouTubeCompletionSourceBinding,
+  type YouTubeLogEntry
+} from "./publishingReconciliation";
 import { getZonedDateParts } from "./scheduler";
+import type { PostLogEntry, RemoteReelEvidence } from "./types";
 
 interface MetricBag {
   reach?: number | null;
@@ -114,6 +124,236 @@ function metricNumber(value: number | null | undefined): number | null {
   return value;
 }
 
+const POST_LOG_PLATFORMS = new Set(["facebook", "instagram"]);
+const POST_LOG_STATUSES = new Set([
+  "pending",
+  "success",
+  "dry_run",
+  "posted",
+  "failed",
+  "skipped",
+  "missed",
+  "uncertain"
+]);
+
+/**
+ * The shared assertion rejects wrong dates and missing dry_run fields. The A/B
+ * report also has to reject arbitrary strings for platform/status: otherwise
+ * `!entry.dry_run` can turn a corrupted record into a statistical sample.
+ */
+function assertAbPostedLogEntries(date: string, entries: unknown): asserts entries is readonly PostLogEntry[] {
+  assertPostedLogMatchesDate(date, entries);
+  entries.forEach((entry, index) => {
+    if (!POST_LOG_PLATFORMS.has(entry.platform)) {
+      throw new Error(`Invalid posted-log platform at index ${index} for ${date}: ${entry.platform}.`);
+    }
+    if (!POST_LOG_STATUSES.has(entry.status)) {
+      throw new Error(`Invalid posted-log status at index ${index} for ${date}: ${entry.status}.`);
+    }
+  });
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === "string" && /^[a-fA-F0-9]{64}$/.test(value);
+}
+
+function normalizedSha256(value: unknown): string | undefined {
+  return isSha256(value) ? value.toLowerCase() : undefined;
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function isFacebookPermalink(value: unknown): value is string {
+  if (typeof value !== "string" || value.trim().length === 0) return false;
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    return (
+      url.protocol === "https:" &&
+      (hostname === "facebook.com" ||
+        hostname.endsWith(".facebook.com") ||
+        hostname === "fb.watch" ||
+        hostname.endsWith(".fb.watch"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hasVerifiedFacebookReelEvidence(
+  value: unknown,
+  postId: unknown
+): value is RemoteReelEvidence {
+  if (!value || typeof value !== "object" || typeof postId !== "string" || postId.trim().length === 0) {
+    return false;
+  }
+  const evidence = value as Partial<RemoteReelEvidence>;
+  return (
+    evidence.remote_id === postId &&
+    isFacebookPermalink(evidence.permalink) &&
+    typeof evidence.verified_at === "string" &&
+    !Number.isNaN(Date.parse(evidence.verified_at)) &&
+    evidence.remote_media_type === "REELS" &&
+    evidence.caption_exact_match === true
+  );
+}
+
+function isQualifiedFacebookReel(entry: PostLogEntry): boolean {
+  return (
+    entry.platform === "facebook" &&
+    !entry.dry_run &&
+    (entry.status === "success" || entry.status === "posted") &&
+    entry.published_media_type === "reel" &&
+    entry.video_status === "published" &&
+    isSha256(entry.video_sha256) &&
+    hasVerifiedFacebookReelEvidence(entry.remote_reel_evidence, entry.post_id)
+  );
+}
+
+interface QualifiedAbVideoDelivery {
+  facebook: PostLogEntry;
+  instagram: PostLogEntry;
+}
+
+/**
+ * A/B samples represent a complete, auditable delivery of the same Reel, not
+ * a plan row, one provider transport id, or a fallback image that happened to
+ * have an A/B label. Both remote read-backs bind to the exact submitted bytes.
+ */
+function findQualifiedAbVideoDelivery(
+  entries: readonly PostLogEntry[],
+  date: string,
+  slot: number
+): QualifiedAbVideoDelivery | undefined {
+  const sameSlot = entries.filter((entry) => entry.date === date && entry.slot === slot);
+  const facebook = sameSlot.filter(isQualifiedFacebookReel);
+  const instagram = sameSlot.filter(isQualifiedInstagramReel);
+  if (facebook.length !== 1 || instagram.length !== 1) return undefined;
+  const facebookEntry = facebook[0]!;
+  const instagramEntry = instagram[0]!;
+  return facebookEntry.video_sha256!.toLowerCase() === instagramEntry.video_sha256!.toLowerCase()
+    ? { facebook: facebookEntry, instagram: instagramEntry }
+    : undefined;
+}
+
+/**
+ * The shared completion verifier intentionally takes a concrete source
+ * binding. A/B reporting must build that binding from the already-qualified
+ * same-day delivery rather than treating its own YouTube ledger as proof.
+ */
+async function sourceBindingForQualifiedAbVideoDelivery(input: {
+  root: string;
+  date: string;
+  slot: number;
+  delivery: QualifiedAbVideoDelivery;
+}): Promise<{ source?: YouTubeCompletionSourceBinding; reason?: string }> {
+  const instagramVideoSha256 = normalizedSha256(input.delivery.instagram.video_sha256);
+  const instagramPostId = nonEmptyString(input.delivery.instagram.post_id);
+  if (!instagramVideoSha256 || !instagramPostId) {
+    return { reason: "qualified Instagram Reel has no usable source hash or post id" };
+  }
+
+  let content;
+  try {
+    content = await loadDailyContent(input.date, input.root);
+  } catch (error) {
+    return {
+      reason: `calendar cannot be read: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+  if (content?.tampered) {
+    return { reason: "calendar integrity is marked tampered; approved local MP4 binding is unavailable" };
+  }
+  const slot = content?.slots.find((candidate) => candidate.slot === input.slot);
+  if (!slot?.local_video_path) {
+    return { reason: "calendar has no local MP4 for this slot" };
+  }
+
+  try {
+    const bytes = await readFile(join(input.root, ...slot.local_video_path.split("/")));
+    const localVideoSha256 = createHash("sha256").update(bytes).digest("hex");
+    if (localVideoSha256 !== instagramVideoSha256) {
+      return { reason: "calendar local MP4 SHA-256 no longer matches the qualified Instagram Reel" };
+    }
+    return {
+      source: {
+        local_video_path: slot.local_video_path,
+        local_video_sha256: localVideoSha256,
+        instagram_video_sha256: instagramVideoSha256,
+        instagram_post_id: instagramPostId
+      }
+    };
+  } catch (error) {
+    return {
+      reason: `calendar local MP4 cannot be read: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
+
+async function isVerifiedAbYouTubeUpload(input: {
+  root: string;
+  date: string;
+  slot: number;
+  delivery: QualifiedAbVideoDelivery | undefined;
+  entries: readonly YouTubeLogEntry[];
+  ledgerValid: boolean;
+}): Promise<{ uploaded: boolean; dataGap?: string }> {
+  if (!input.delivery || !input.ledgerValid) return { uploaded: false };
+
+  const crossDateSameSlot = input.entries.filter(
+    (entry) => entry.slot === input.slot && entry.date !== input.date
+  );
+  if (crossDateSameSlot.length > 0) {
+    return {
+      uploaded: false,
+      dataGap: `${input.date} slot ${input.slot}: ${crossDateSameSlot.length} cross-date YouTube ledger record(s) for this slot make completion ambiguous; upload is unverified.`
+    };
+  }
+  const candidates = input.entries.filter((entry) => entry.date === input.date && entry.slot === input.slot);
+  if (candidates.length === 0) {
+    return {
+      uploaded: false,
+      dataGap: `${input.date} slot ${input.slot}: no same-date YouTube ledger record bound to the qualified Reel delivery.`
+    };
+  }
+  if (candidates.length !== 1) {
+    return {
+      uploaded: false,
+      dataGap: `${input.date} slot ${input.slot}: ${candidates.length} same-date YouTube ledger records make completion ambiguous; upload is unverified.`
+    };
+  }
+
+  const binding = await sourceBindingForQualifiedAbVideoDelivery({
+    root: input.root,
+    date: input.date,
+    slot: input.slot,
+    delivery: input.delivery
+  });
+  if (!binding.source) {
+    return {
+      uploaded: false,
+      dataGap: `${input.date} slot ${input.slot}: YouTube upload is unverified because the qualified Instagram source binding is unavailable (${binding.reason ?? "unknown reason"}).`
+    };
+  }
+
+  const proof = await verifyYouTubeCompletionEvidence({
+    date: input.date,
+    slot: input.slot,
+    root: input.root,
+    entry: candidates[0]!,
+    source: binding.source
+  });
+  if (!proof.verified) {
+    return {
+      uploaded: false,
+      dataGap: `${input.date} slot ${input.slot}: YouTube upload is unverified (${proof.reason ?? "immutable completion proof missing"}).`
+    };
+  }
+  return { uploaded: true };
+}
+
 export async function buildAbTestReport(options: {
   root?: string;
   asOf?: string;
@@ -142,11 +382,48 @@ export async function buildAbTestReport(options: {
 
   for (const day of plan) {
     if (day.date > asOf) continue;
-    const posts = await loadPostLog(day.date, root);
-    const ytLog = await readJsonFile<Array<{ slot: number; video_id?: string }>>(
-      join(root, "data", "youtube-log", `${day.date}.json`),
-      []
-    );
+    let posts: readonly PostLogEntry[] = [];
+    let postedLogValid = true;
+    try {
+      const rawPosts = await readJsonFile<unknown>(
+        join(root, "data", "posted-log", `${day.date}.json`),
+        []
+      );
+      assertAbPostedLogEntries(day.date, rawPosts);
+      posts = rawPosts;
+    } catch (error) {
+      postedLogValid = false;
+      dataGaps.push(
+        `${day.date}: posted-log is invalid; all delivery claims and metrics are suppressed (${error instanceof Error ? error.message : String(error)}).`
+      );
+    }
+    let ytLog: readonly YouTubeLogEntry[] = [];
+    let youtubeLedgerValid = true;
+    try {
+      const rawYouTubeLog = await readJsonFile<unknown>(
+        join(root, "data", "youtube-log", `${day.date}.json`),
+        []
+      );
+      // A file in the day directory is not evidence that an upload belongs to
+      // that day. Reuse the publishing reconciliation contract so the A/B
+      // report cannot turn a partial/stale ledger into a false success.
+      assertYouTubeLogEntries(rawYouTubeLog);
+      ytLog = rawYouTubeLog;
+      const crossDateEntries = ytLog.filter((entry) => entry.date !== day.date);
+      if (crossDateEntries.length > 0) {
+        dataGaps.push(
+          `${day.date}: youtube-log has ${crossDateEntries.length} cross-date record(s); only exact date and slot matches are counted.`
+        );
+      }
+    } catch (error) {
+      youtubeLedgerValid = false;
+      // Do not allow one malformed record to leave any row marked uploaded.
+      // The report remains usable for its other metrics but exposes the ledger
+      // failure explicitly instead of treating it as an empty successful log.
+      dataGaps.push(
+        `${day.date}: youtube-log is invalid; upload claims suppressed (${error instanceof Error ? error.message : String(error)}).`
+      );
+    }
 
     for (const half of [
       { slot: 3, plan: day.noon },
@@ -157,6 +434,7 @@ export async function buildAbTestReport(options: {
       // fill from ab-test-plan.json.
       const liveEntries = posts.filter(
         (entry) =>
+          entry.date === day.date &&
           entry.slot === half.slot &&
           !entry.dry_run &&
           ["success", "posted"].includes(entry.status)
@@ -164,33 +442,50 @@ export async function buildAbTestReport(options: {
       const livePlatforms = (["facebook", "instagram"] as const).filter((platform) =>
         liveEntries.some((entry) => entry.platform === platform)
       );
+      const delivery = findQualifiedAbVideoDelivery(posts, day.date, half.slot);
+      const deliveryEntries = delivery ? [delivery.facebook, delivery.instagram] : [];
 
       let variant: ReportVariant = "unattributed";
-      if (liveEntries.length === 0) {
+      if (!postedLogValid) {
         dataGaps.push(
-          `${day.date} slot ${half.slot}: no live posted-log entry (plan said ${half.plan.variant}).`
+          `${day.date} slot ${half.slot}: posted-log is invalid; this row is excluded from delivery and metric samples.`
         );
-      } else {
-        const attributed = liveEntries
-          .map((entry) => entry.ab_variant)
-          .filter((value): value is AbVariant => value === "10s" || value === "15s");
-        if (attributed.length === 0) {
-          variant = "unattributed";
+      } else if (!delivery) {
+        if (liveEntries.length === 0) {
           dataGaps.push(
-            `${day.date} slot ${half.slot}: posted-log missing ab_variant; counted as unattributed.`
+            `${day.date} slot ${half.slot}: no live posted-log entry (plan said ${half.plan.variant}).`
           );
         } else {
-          // Prefer the first recorded live ab_variant; mixed values are a gap.
+          dataGaps.push(
+            `${day.date} slot ${half.slot}: no qualified dual-platform Reel delivery; requires matching Facebook and Instagram live Reels, published video status, same SHA-256, and verified remote read-back.`
+          );
+        }
+      } else {
+        // Variant attribution is only from the complete delivery pair — never
+        // from an image fallback or another partial record in the same slot.
+        const attributed = deliveryEntries
+          .map((entry) => entry.ab_variant)
+          .filter((value): value is AbVariant => value === "10s" || value === "15s");
+        if (attributed.length !== deliveryEntries.length) {
+          variant = "unattributed";
+          dataGaps.push(
+            `${day.date} slot ${half.slot}: qualified delivery has a missing ab_variant or invalid ab_variant on one or more platforms; counted as unattributed.`
+          );
+        } else if (new Set(attributed).size !== 1) {
+          variant = "unattributed";
+          dataGaps.push(
+            `${day.date} slot ${half.slot}: mixed ab_variant on qualified delivery (${[...new Set(attributed)].join(",")}); counted as unattributed.`
+          );
+        } else {
           variant = attributed[0]!;
-          if (new Set(attributed).size > 1) {
-            dataGaps.push(
-              `${day.date} slot ${half.slot}: mixed ab_variant on live posts (${[...new Set(attributed)].join(",")}).`
-            );
-          }
         }
       }
 
-      variants[variant].posts += 1;
+      const hasQualifiedDelivery = delivery !== undefined;
+      // A planned half without a complete, verified dual-platform Reel is a
+      // missing observation. Keep its row below for investigation, but do not
+      // let a fallback or stale insight rows contaminate variant totals.
+      if (hasQualifiedDelivery) variants[variant].posts += 1;
 
       const ig = igRows.find((row) => row.date === day.date && row.slot === half.slot);
       const fb = fbRows.find((row) => row.date === day.date && row.slot === half.slot);
@@ -207,9 +502,10 @@ export async function buildAbTestReport(options: {
         metricNumber(fbM.total_interactions)
       ].filter((v): v is number => v !== null);
 
-      const reach = reachParts.length > 0 ? reachParts.reduce((a, b) => a + b, 0) : null;
-      const views = viewParts.length > 0 ? viewParts.reduce((a, b) => a + b, 0) : null;
-      const interactions = interactionParts.length > 0 ? interactionParts.reduce((a, b) => a + b, 0) : null;
+      const reach = postedLogValid && reachParts.length > 0 ? reachParts.reduce((a, b) => a + b, 0) : null;
+      const views = postedLogValid && viewParts.length > 0 ? viewParts.reduce((a, b) => a + b, 0) : null;
+      const interactions =
+        postedLogValid && interactionParts.length > 0 ? interactionParts.reduce((a, b) => a + b, 0) : null;
 
       if (reach === null) dataGaps.push(`${day.date} slot ${half.slot} (${variant}): reach missing in insights.`);
       if (views === null) dataGaps.push(`${day.date} slot ${half.slot} (${variant}): views missing in insights.`);
@@ -217,9 +513,21 @@ export async function buildAbTestReport(options: {
         dataGaps.push(`${day.date} slot ${half.slot} (${variant}): interactions missing in insights.`);
       }
 
-      addSample(variants[variant], "reach", reach);
-      addSample(variants[variant], "views", views);
-      addSample(variants[variant], "interactions", interactions);
+      if (hasQualifiedDelivery) {
+        addSample(variants[variant], "reach", reach);
+        addSample(variants[variant], "views", views);
+        addSample(variants[variant], "interactions", interactions);
+      }
+
+      const youtube = await isVerifiedAbYouTubeUpload({
+        root,
+        date: day.date,
+        slot: half.slot,
+        delivery,
+        entries: ytLog,
+        ledgerValid: youtubeLedgerValid
+      });
+      if (youtube.dataGap) dataGaps.push(youtube.dataGap);
 
       reportRows.push({
         date: day.date,
@@ -227,7 +535,7 @@ export async function buildAbTestReport(options: {
         variant,
         conceptId: half.plan.conceptId,
         platforms_posted: livePlatforms,
-        youtube_uploaded: ytLog.some((entry) => entry.slot === half.slot && entry.video_id),
+        youtube_uploaded: youtube.uploaded,
         reach,
         views,
         interactions

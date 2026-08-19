@@ -1,0 +1,23 @@
+{
+  "date": "2026-08-10",
+  "checked_at": "2026-08-10T11:56:01.9833538+08:00",
+  "status": "pass",
+  "error_count": 0,
+  "errors": [],
+  "knowledge_pack": "0.3.0-evidence-150-full-audit-quarantine",
+  "raci_gate_count": 18,
+  "active_screenplay": "video-production/runs/2026-07-19-multi-object-brand-film-v1/36-customer-facing-screenplay-v4.md",
+  "issued_tokens": [],
+  "generation_authorized": false,
+  "interpretation": {
+    "professional_claim_gate": "blocked",
+    "owner_authorized_no_effect_claim_daily_lane": "not_overridden",
+    "daily_lane_remaining_gates": [
+      "date_scoped_candidate_manifest",
+      "Sol_reviewed_exact_ratio_first_frame",
+      "active_owner_policy",
+      "sanitized_Hermes_OAuth_readiness",
+      "no_cleaning_result_testimonial_customer_real_store_process_or_effectiveness_claim"
+    ]
+  }
+}

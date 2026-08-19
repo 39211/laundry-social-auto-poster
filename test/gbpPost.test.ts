@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,11 +16,22 @@ import {
   isPublicHttpsUrl,
   runGbpPostCli
 } from "../src/gbpPost";
+import { loadDailyContent, writeDailyContent } from "../src/logging";
+import type { DailySlot } from "../src/types";
 import { utmCampaign, utmTagged } from "../src/utm";
 
 const AS_OF = "2026-08-16";
 const OLD_DATE = "2026-08-10";
 const NEW_DATE = "2026-08-16";
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function hasUtmTrio(text: string, source: string, campaign: string): boolean {
   return (
@@ -91,6 +103,120 @@ async function seedSlot(
       created_at: input.createdAt
     }
   ]);
+}
+
+function canonicalGbpSlot(date: string, slot: number): DailySlot {
+  return {
+    slot,
+    time: slot === 1 ? "11:30" : "20:30",
+    category: "知識文",
+    topic: `GBP canonical fixture ${slot}`,
+    media_type: "image",
+    instagram_caption: `Instagram GBP fixture ${slot}`,
+    facebook_caption: `Facebook GBP fixture ${slot}`,
+    image_prompt: `GBP image ${slot}`,
+    local_image_path: `docs/assets/${date}/slot-${String(slot).padStart(2, "0")}.png`,
+    public_image_url: `https://39211.github.io/assets/${date}/slot-${String(slot).padStart(2, "0")}.png`,
+    visual_route: "shop-inspection",
+    traffic_route: "object-proof",
+    status: "pending"
+  };
+}
+
+async function writeCanonicalGbpFingerprints(root: string, date: string, slots: DailySlot[]): Promise<void> {
+  await writeFile(
+    join(root, "data", "approved-log", `${date}.fingerprints.json`),
+    `${JSON.stringify(
+      Object.fromEntries(
+        slots.map((slot) => [String(slot.slot), createHash("sha256").update(JSON.stringify(slot)).digest("hex")])
+      )
+    )}\n`,
+    "utf8"
+  );
+}
+
+async function seedCanonicalGbpPublishFixture(root: string, date = NEW_DATE): Promise<void> {
+  const slots = [canonicalGbpSlot(date, 1), canonicalGbpSlot(date, 2)];
+  const digests: Record<string, Record<string, string>> = {};
+  for (const slot of slots) {
+    const imagePath = join(root, ...slot.local_image_path.split("/"));
+    const bytes = Buffer.from(`gbp-approved-image-${date}-${slot.slot}`, "utf8");
+    await mkdir(join(imagePath, ".."), { recursive: true });
+    await writeFile(imagePath, bytes);
+    digests[String(slot.slot)] = {
+      [slot.local_image_path]: createHash("sha256").update(bytes).digest("hex")
+    };
+  }
+  await writeDailyContent(
+    { date, timezone: "Asia/Taipei", generated_at: "2026-08-16T03:00:00.000Z", slots },
+    root
+  );
+  const approvalDir = join(root, "data", "approved-log");
+  await mkdir(approvalDir, { recursive: true });
+  await writeFile(
+    join(approvalDir, `${date}.json`),
+    `${JSON.stringify(
+      slots.flatMap((slot) =>
+        (["facebook", "instagram"] as const).map((platform) => ({
+          date,
+          slot: slot.slot,
+          platform,
+          status: "approved",
+          approved_by: "fixture-reviewer",
+          created_at: "2026-08-16T03:05:00.000Z"
+        }))
+      )
+    )}\n`,
+    "utf8"
+  );
+  await writeCanonicalGbpFingerprints(root, date, slots);
+  await writeFile(join(approvalDir, `${date}.image-digests.json`), `${JSON.stringify(digests)}\n`, "utf8");
+  await writeJson(join(root, "data", "posted-log", `${date}.json`), [
+    {
+      date,
+      slot: 1,
+      platform: "facebook",
+      status: "success",
+      dry_run: false,
+      post_id: "fb-gbp-fixture-1",
+      attempts: 1,
+      created_at: "2026-08-16T03:30:00.000Z"
+    },
+    {
+      date,
+      slot: 1,
+      platform: "instagram",
+      status: "success",
+      dry_run: false,
+      post_id: "ig-gbp-fixture-1",
+      attempts: 1,
+      created_at: "2026-08-16T03:30:00.000Z"
+    }
+  ]);
+}
+
+async function seedGbpOAuthFixture(root: string): Promise<void> {
+  await mkdir(join(root, "secrets"), { recursive: true });
+  await writeFile(
+    join(root, "secrets", "gbp-oauth-client.json"),
+    `${JSON.stringify({ installed: { client_id: "fixture-client", client_secret: "fixture-secret" } })}\n`,
+    "utf8"
+  );
+}
+
+function liveGbpEnv(): NodeJS.ProcessEnv {
+  return {
+    GBP_ACCOUNT_ID: "accounts/fixture-account",
+    GBP_LOCATION_ID: "locations/fixture-location",
+    GBP_REFRESH_TOKEN: "1//fixture-refresh-token"
+  } as NodeJS.ProcessEnv;
+}
+
+function jsonResponse(payload: unknown, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { "content-type": "application/json" }
+  });
 }
 
 async function seedInsights(
@@ -327,6 +453,227 @@ describe("mutation 3: 缺 GBP_ACCOUNT_ID 時 --publish 不得默默成功", () =
     ).rejects.toThrow(/GBP_ACCOUNT_ID/);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+});
+
+describe("GBP --publish canonical public approval gate", () => {
+  let root: string;
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "gbp-canonical-publish-"));
+    await seedCanonicalGbpPublishFixture(root);
+    await seedGbpOAuthFixture(root);
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it.each([
+    [
+      "a missing source calendar",
+      async () => {
+        await rm(join(root, "data", "content-calendar", `${NEW_DATE}.json`), { force: true });
+      },
+      /source package is unverified/
+    ],
+    [
+      "a malformed source calendar",
+      async () => {
+        await writeFile(join(root, "data", "content-calendar", `${NEW_DATE}.json`), '{"slots":"broken"}\n', "utf8");
+      },
+      /source package is unverified/
+    ],
+    [
+      "a tampered source calendar",
+      async () => {
+        const path = join(root, "data", "content-calendar", `${NEW_DATE}.json`);
+        const calendar = JSON.parse(await readFile(path, "utf8")) as { slots: Array<{ topic: string }> };
+        calendar.slots[0]!.topic = "unapproved GBP source rewrite";
+        await writeFile(path, `${JSON.stringify(calendar)}\n`, "utf8");
+      },
+      /canonical public approval.*unverified.*integrity\/tamper inspection/
+    ],
+    [
+      "a missing approval fingerprint",
+      async () => {
+        await rm(join(root, "data", "approved-log", `${NEW_DATE}.fingerprints.json`), { force: true });
+      },
+      /approval fingerprint sidecar is missing/
+    ],
+    [
+      "a missing immutable image digest",
+      async () => {
+        await rm(join(root, "data", "approved-log", `${NEW_DATE}.image-digests.json`), { force: true });
+      },
+      /image-digest sidecar is missing/
+    ],
+    [
+      "a duplicate approval tuple",
+      async () => {
+        const path = join(root, "data", "approved-log", `${NEW_DATE}.json`);
+        const approvals = JSON.parse(await readFile(path, "utf8")) as Array<Record<string, unknown>>;
+        await writeFile(path, `${JSON.stringify([...approvals, { ...approvals[0] }])}\n`, "utf8");
+      },
+      /requires exactly one approval tuple/
+    ],
+    [
+      "a cross-date approval tuple",
+      async () => {
+        const path = join(root, "data", "approved-log", `${NEW_DATE}.json`);
+        const approvals = JSON.parse(await readFile(path, "utf8")) as Array<Record<string, unknown>>;
+        await writeFile(
+          path,
+          `${JSON.stringify(approvals.map((entry, index) => (index === 0 ? { ...entry, date: OLD_DATE } : entry)))}\n`,
+          "utf8"
+        );
+      },
+      /has wrong approval date/
+    ],
+    [
+      "a declared video without a canonical source/review",
+      async () => {
+        const content = await loadDailyContent(NEW_DATE, root, { today: NEW_DATE });
+        if (!content || content.tampered) throw new Error("canonical GBP fixture calendar unavailable");
+        const slots = content.slots.map((slot) =>
+          slot.slot === 1
+            ? {
+                ...slot,
+                local_video_path: `docs/assets/${NEW_DATE}/slot-01.mp4`,
+                public_video_url: `https://39211.github.io/assets/${NEW_DATE}/slot-01.mp4`,
+                video_prompt: "canonical GBP video fixture"
+              }
+            : slot
+        );
+        await writeDailyContent(
+          { date: content.date, timezone: content.timezone, generated_at: content.generated_at, slots },
+          root
+        );
+        await writeCanonicalGbpFingerprints(root, NEW_DATE, slots);
+      },
+      /public video requires exactly one canonical source record/
+    ]
+  ])("blocks %s before GBP claim, OAuth fetch, or localPosts POST", async (_label, mutate, expectedGap) => {
+    await mutate();
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+
+    await expect(
+      runGbpPostCli(["--publish", `--date=${AS_OF}`], {
+        root,
+        env: liveGbpEnv(),
+        fetchImpl
+      })
+    ).rejects.toThrow(expectedGap);
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(await exists(join(root, "data", "gbp-post-claims", NEW_DATE, "slot-01.json"))).toBe(false);
+  });
+
+  it("allows a complete canonical source through mocked OAuth/localPosts readback once, then blocks retransmission", async () => {
+    let request = 0;
+    let localPostPayload: Record<string, unknown> | undefined;
+    const localPostName = "accounts/fixture-account/locations/fixture-location/localPosts/fixture";
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      request += 1;
+      if (request === 1) return jsonResponse({ access_token: "fixture-access-token", expires_in: 3600 });
+      if (request === 2) {
+        localPostPayload = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return jsonResponse({ name: localPostName });
+      }
+      return jsonResponse({ name: localPostName, ...localPostPayload });
+    });
+    const fetchImpl = fetchMock as unknown as typeof fetch;
+
+    const result = await runGbpPostCli(["--publish", `--date=${AS_OF}`], {
+      root,
+      env: liveGbpEnv(),
+      fetchImpl
+    });
+
+    expect(result).toMatchObject({ dry_run: false, name: expect.stringContaining("localPosts/fixture") });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const claimPath = join(root, "data", "gbp-post-claims", NEW_DATE, "slot-01.json");
+    expect(await exists(claimPath)).toBe(true);
+    const evidencePath = join(root, "data", "gbp-posts", NEW_DATE, "slot-01.json");
+    expect(JSON.parse(await readFile(evidencePath, "utf8"))).toMatchObject({
+      name: localPostName,
+      source_date: NEW_DATE,
+      source_slot: 1
+    });
+
+    await expect(
+      runGbpPostCli(["--publish", `--date=${AS_OF}`], {
+        root,
+        env: liveGbpEnv(),
+        fetchImpl
+      })
+    ).rejects.toThrow(/immutable publish claim already exists.*automatic retransmission is blocked/i);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects GBP token failure before writing the immutable publish claim", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ error: "invalid_grant" }, 401));
+    const fetchImpl = fetchMock as unknown as typeof fetch;
+
+    await expect(
+      runGbpPostCli(["--publish", `--date=${AS_OF}`], {
+        root,
+        env: liveGbpEnv(),
+        fetchImpl
+      })
+    ).rejects.toThrow(/GBP token refresh failed/i);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(await exists(join(root, "data", "gbp-post-claims", NEW_DATE, "slot-01.json"))).toBe(false);
+    expect(await exists(join(root, "data", "gbp-posts", NEW_DATE, "slot-01.json"))).toBe(false);
+  });
+
+  for (const { label, readback } of [
+    { label: "missing", readback: {} },
+    {
+      label: "mismatched",
+      readback: {
+        name: "accounts/fixture-account/locations/fixture-location/localPosts/fixture",
+        summary: "unapproved replacement summary",
+        callToAction: { actionType: "LEARN_MORE", url: "https://example.test/wrong" },
+        media: [{ mediaFormat: "PHOTO", sourceUrl: "https://example.test/wrong.png" }]
+      }
+    }
+  ]) {
+    it(`keeps a successful localPosts.create uncertain when GET readback is ${label}`, async () => {
+      let request = 0;
+      const localPostName = "accounts/fixture-account/locations/fixture-location/localPosts/fixture";
+      const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => {
+        request += 1;
+        if (request === 1) return jsonResponse({ access_token: "fixture-access-token", expires_in: 3600 });
+        if (request === 2) return jsonResponse({ name: localPostName });
+        return jsonResponse(readback);
+      });
+      const fetchImpl = fetchMock as unknown as typeof fetch;
+
+      await expect(
+        runGbpPostCli(["--publish", `--date=${AS_OF}`], {
+          root,
+          env: liveGbpEnv(),
+          fetchImpl
+        })
+      ).rejects.toThrow(/remote readback could not verify.*Automatic retransmission is blocked/i);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(await exists(join(root, "data", "gbp-post-claims", NEW_DATE, "slot-01.json"))).toBe(true);
+      expect(await exists(join(root, "data", "gbp-posts", NEW_DATE, "slot-01.json"))).toBe(false);
+
+      await expect(
+        runGbpPostCli(["--publish", `--date=${AS_OF}`], {
+          root,
+          env: liveGbpEnv(),
+          fetchImpl
+        })
+      ).rejects.toThrow(/immutable publish claim already exists.*automatic retransmission is blocked/i);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(
+        fetchMock.mock.calls.filter(([url, init]) => String(url).endsWith("/localPosts") && init?.method === "POST")
+      ).toHaveLength(1);
+    });
+  }
 });
 
 describe("gbpAuth 429/401 分類", () => {

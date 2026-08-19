@@ -1,0 +1,12 @@
+{
+  "command": "C:/Users/cyc39/AppData/Local/Python/pythoncore-3.14-64/python.exe -X utf8 .agents/skills/sixiangjia-video-evidence/scripts/validate_preproduction_contract.py --repo-root . --json",
+  "exit_code": 0,
+  "status": "pass",
+  "error_count": 0,
+  "errors": [],
+  "knowledge_pack": "0.3.0-evidence-150-full-audit-quarantine",
+  "raci_gate_count": 18,
+  "active_screenplay": "video-production/runs/2026-07-19-multi-object-brand-film-v1/36-customer-facing-screenplay-v4.md",
+  "issued_tokens": [],
+  "generation_authorized": false
+}

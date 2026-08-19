@@ -1,0 +1,31 @@
+{
+  "package": "laundry-video-repair-cycle-20260814-2030-v01",
+  "generated_for": "Laundry Video Repair Cycle",
+  "source_run": "2026-08-14T20:30:00+08:00",
+  "files": [
+    "README-FIRST.md",
+    "run-report.md",
+    "audit.json",
+    "queue-snapshot.json",
+    "hermes-inspect.json",
+    "slot-02-manifest.json",
+    "slot-02-job.json",
+    "slot-02-generation-report.json",
+    "slot-02-first-frame-v02.png",
+    "slot-02-contact-sheet.jpg",
+    "CHECKSUMS.sha256"
+  ],
+  "excluded": [
+    "raw MP4",
+    "credentials",
+    "cookies",
+    "API keys"
+  ],
+  "status": {
+    "video_deferred": 24,
+    "ready": 0,
+    "resolved": 0,
+    "facebook_or_instagram_actions": 0,
+    "resolve_video_repair_actions": 0
+  }
+}

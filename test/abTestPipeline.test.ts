@@ -580,6 +580,17 @@ describe("A/B dual-reel pipeline", () => {
           status: "success",
           dry_run: false,
           attempts: 1,
+          published_media_type: "reel",
+          video_status: "published",
+          video_sha256: "a".repeat(64),
+          post_id: "ig-unattributed",
+          remote_reel_evidence: {
+            remote_id: "ig-unattributed",
+            permalink: "https://www.instagram.com/reel/ig-unattributed/",
+            verified_at: "2026-08-07T04:00:00.000Z",
+            remote_media_type: "REELS",
+            caption_exact_match: true
+          },
           // deliberately omit ab_variant
           created_at: "2026-08-07T04:00:00.000Z"
         },
@@ -590,6 +601,17 @@ describe("A/B dual-reel pipeline", () => {
           status: "success",
           dry_run: false,
           attempts: 1,
+          published_media_type: "reel",
+          video_status: "published",
+          video_sha256: "a".repeat(64),
+          post_id: "fb-unattributed",
+          remote_reel_evidence: {
+            remote_id: "fb-unattributed",
+            permalink: "https://www.facebook.com/reel/fb-unattributed",
+            verified_at: "2026-08-07T04:00:00.000Z",
+            remote_media_type: "REELS",
+            caption_exact_match: true
+          },
           created_at: "2026-08-07T04:00:00.000Z"
         }
       ],

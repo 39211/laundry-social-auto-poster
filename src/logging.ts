@@ -56,10 +56,98 @@ export async function writeJsonAtomic(filePath: string, value: unknown): Promise
 const JSON_LOCK_TIMEOUT_MS = 10_000;
 const JSON_LOCK_STALE_MS = 30_000;
 
-async function withJsonFileLock<T>(filePath: string, operation: () => Promise<T>): Promise<T> {
+export interface JsonFileLockOptions {
+  /** Maximum time to wait for a live lock before failing. */
+  timeoutMs?: number;
+  /** Age after which a lock may be considered for owner-verified recovery. */
+  staleMs?: number;
+  /**
+   * "reclaim" permits recovery only when a stale lock records a PID that is
+   * definitely no longer alive. Unknown and live owners remain fail-closed.
+   * "fail" never deletes an old lock and instead requires human recovery.
+   * This is a short local JSON serialization primitive, not a remote commit
+   * authority. Remote duplicate safety belongs to durable domain records:
+   * Meta's per-date/slot/platform intent plus retained per-slot publish lock,
+   * and YouTube's per-date/slot upload intent.
+   */
+  stalePolicy?: "reclaim" | "fail";
+}
+
+// Published remote evidence and approval records are publishing authority.
+// Never let two stale-lock rescuers race to replace either ledger: a missing
+// append can hide a real FB/IG result or alter what publishing may act on.
+const PUBLISHING_LEDGER_LOCK_OPTIONS = { stalePolicy: "fail" } as const;
+
+function parseLockOwnerPid(lockContents: string): number | undefined {
+  const pidLine =
+    /^owner=[^\r\n]+\r?\npid=(\d+)(?:\r?\n|$)/u.exec(lockContents)?.[1] ??
+    /^owner=[^\r\n]+\r?\n(\d+)\s+\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z(?:\r?\n)?$/u.exec(
+      lockContents
+    )?.[1] ??
+    /^(\d+)\s+\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z(?:\r?\n)?$/u.exec(lockContents)?.[1];
+  if (!pidLine) return undefined;
+  const pid = Number(pidLine);
+  return Number.isSafeInteger(pid) && pid > 0 ? pid : undefined;
+}
+
+function isProcessDefinitelyDead(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    // EPERM and every unknown platform error must stay fail-closed: only
+    // ESRCH proves that the recorded process cannot still own this lock.
+    return (error as NodeJS.ErrnoException).code === "ESRCH";
+  }
+}
+
+async function hasDefinitelyDeadJsonLockOwner(lockPath: string): Promise<boolean> {
+  try {
+    const ownerPid = parseLockOwnerPid(await readFile(lockPath, "utf8"));
+    return ownerPid !== undefined && isProcessDefinitelyDead(ownerPid);
+  } catch {
+    return false;
+  }
+}
+
+async function hasExistingJsonLockFile(lockPath: string): Promise<boolean> {
+  try {
+    // Windows can surface a sharing/permission error while another worker has
+    // this exact lock pathname open. Do not treat EPERM/EACCES generally as a
+    // lock collision: only a regular file already present at the expected
+    // lock path is eligible to enter the normal wait/fail path.
+    return (await stat(lockPath)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+async function releaseOwnedJsonFileLock(lockPath: string, ownerMarker: string): Promise<void> {
+  try {
+    // Best-effort local cleanup only. Node fs has no atomic compare-and-unlink,
+    // so callers must never treat this short-lived JSON lock as the authority
+    // for an irreversible remote effect; durable domain intents own that role.
+    const currentMarker = await readFile(lockPath, "utf8");
+    if (!currentMarker.startsWith(`${ownerMarker}\n`)) return;
+    await unlink(lockPath);
+  } catch {
+    // Lock release has always been best-effort. A concurrent reclaim/release
+    // makes ENOENT expected; other cleanup failures must not mask the caller's
+    // operation result.
+  }
+}
+
+export async function withJsonFileLock<T>(
+  filePath: string,
+  operation: () => Promise<T>,
+  options: JsonFileLockOptions = {}
+): Promise<T> {
   await mkdir(dirname(filePath), { recursive: true });
   const lockPath = `${filePath}.lock`;
   const startedAt = Date.now();
+  const timeoutMs = options.timeoutMs ?? JSON_LOCK_TIMEOUT_MS;
+  const staleMs = options.staleMs ?? JSON_LOCK_STALE_MS;
+  const stalePolicy = options.stalePolicy ?? "reclaim";
 
   while (true) {
     let handle: FileHandle;
@@ -67,28 +155,51 @@ async function withJsonFileLock<T>(filePath: string, operation: () => Promise<T>
       handle = await open(lockPath, "wx");
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
-      if (code !== "EEXIST") throw error;
+      const existingLock =
+        code === "EEXIST" ||
+        ((code === "EPERM" || code === "EACCES") && (await hasExistingJsonLockFile(lockPath)));
+      if (!existingLock) throw error;
 
       const lockAgeMs = await stat(lockPath)
         .then((info) => Date.now() - info.mtimeMs)
         .catch(() => 0);
-      if (lockAgeMs > JSON_LOCK_STALE_MS) {
-        await unlink(lockPath).catch(() => undefined);
-        continue;
+      if (lockAgeMs > staleMs) {
+        if (stalePolicy === "fail") {
+          throw new Error(
+            `Refusing stale JSON log lock under fail-closed policy; manual recovery is required: ${lockPath}`
+          );
+        }
+        // Reclaiming a merely old pathname lets a still-running owner reach
+        // finally later and delete its replacement. Only a definitely dead
+        // recorded owner is safe to recover; unparseable or live owners wait
+        // until the normal timeout instead.
+        if (await hasDefinitelyDeadJsonLockOwner(lockPath)) {
+          await unlink(lockPath).catch(() => undefined);
+          continue;
+        }
       }
-      if (Date.now() - startedAt >= JSON_LOCK_TIMEOUT_MS) {
+      if (Date.now() - startedAt >= timeoutMs) {
+        if (stalePolicy === "fail") {
+          throw new Error(
+            `Timed out waiting for protected JSON log lock; automatic recovery is disabled and manual recovery is required: ${lockPath}`
+          );
+        }
         throw new Error(`Timed out waiting for JSON log lock: ${lockPath}`);
       }
       await new Promise((resolve) => setTimeout(resolve, 25));
       continue;
     }
 
+    const ownerMarker = `owner=${randomUUID()}`;
     try {
-      await handle.writeFile(`${process.pid} ${new Date().toISOString()}\n`, "utf8");
+      await handle.writeFile(
+        `${ownerMarker}\npid=${process.pid}\nacquired_at=${new Date().toISOString()}\n`,
+        "utf8"
+      );
       return await operation();
     } finally {
       await handle.close();
-      await unlink(lockPath).catch(() => undefined);
+      await releaseOwnedJsonFileLock(lockPath, ownerMarker);
     }
   }
 }
@@ -195,7 +306,7 @@ export async function appendPostLog(entry: PostLogEntry, root = projectRoot()): 
     const entries = await readJsonFile<PostLogEntry[]>(filePath, []);
     entries.push(entry);
     await writeJsonAtomic(filePath, entries);
-  });
+  }, PUBLISHING_LEDGER_LOCK_OPTIONS);
 }
 
 export async function loadApprovalLog(date: string, root = projectRoot()): Promise<ApprovalLogEntry[]> {
@@ -219,7 +330,7 @@ export async function appendApprovalLog(entry: ApprovalLogEntry, root = projectR
     entries.push(entry);
     entries.sort((a, b) => a.slot - b.slot || a.platform.localeCompare(b.platform));
     await writeJsonAtomic(filePath, entries);
-  });
+  }, PUBLISHING_LEDGER_LOCK_OPTIONS);
 }
 
 export async function loadDailyContext(date: string, root = projectRoot()): Promise<DailyContext | undefined> {
@@ -258,10 +369,18 @@ export async function loadVideoRepairQueue(root = projectRoot()): Promise<VideoR
   return readJsonFile<VideoRepairQueueEntry[]>(videoRepairQueuePath(root), []);
 }
 
+export type DeferredVideoRepairQueueEntry = Omit<VideoRepairQueueEntry, "status"> & {
+  status: "VIDEO_DEFERRED";
+};
+
+/** Queue creation records a defer only; resolution lives with the qualified Reel proof. */
 export async function upsertVideoRepairQueue(
-  entry: VideoRepairQueueEntry,
+  entry: DeferredVideoRepairQueueEntry,
   root = projectRoot()
 ): Promise<void> {
+  if (entry.status !== "VIDEO_DEFERRED") {
+    throw new Error("Video repair queue upsert may only record VIDEO_DEFERRED; resolution requires qualified Reel proof.");
+  }
   const filePath = videoRepairQueuePath(root);
   await withJsonFileLock(filePath, async () => {
     const entries = await readJsonFile<VideoRepairQueueEntry[]>(filePath, []);
@@ -302,30 +421,6 @@ export async function reclassifyVideoRepairQueue(
   });
 }
 
-export async function resolveVideoRepairQueue(
-  sourceDate: string,
-  sourceSlot: number,
-  replacementDate: string,
-  replacementSlot: number,
-  root = projectRoot()
-): Promise<void> {
-  const filePath = videoRepairQueuePath(root);
-  await withJsonFileLock(filePath, async () => {
-    const entries = await readJsonFile<VideoRepairQueueEntry[]>(filePath, []);
-    const existing = entries.find(
-      (item) => item.source_date === sourceDate && item.source_slot === sourceSlot
-    );
-    if (!existing) {
-      throw new Error(`Video repair item not found: ${sourceDate} slot ${sourceSlot}.`);
-    }
-    existing.status = "RESOLVED";
-    existing.resolved_at = new Date().toISOString();
-    existing.replacement_date = replacementDate;
-    existing.replacement_slot = replacementSlot;
-    await writeJsonAtomic(filePath, entries);
-  });
-}
-
 export async function markVideoRepairReady(
   sourceDate: string,
   sourceSlot: number,
@@ -336,11 +431,18 @@ export async function markVideoRepairReady(
   const filePath = videoRepairQueuePath(root);
   await withJsonFileLock(filePath, async () => {
     const entries = await readJsonFile<VideoRepairQueueEntry[]>(filePath, []);
-    const existing = entries.find(
+    const matches = entries.filter(
       (item) => item.source_date === sourceDate && item.source_slot === sourceSlot
     );
-    if (!existing) {
+    if (matches.length === 0) {
       throw new Error(`Video repair item not found: ${sourceDate} slot ${sourceSlot}.`);
+    }
+    if (matches.length !== 1) {
+      throw new Error(`Video repair item is ambiguous: ${sourceDate} slot ${sourceSlot} has ${matches.length} queue rows.`);
+    }
+    const existing = matches[0]!;
+    if (existing.status !== "VIDEO_DEFERRED") {
+      throw new Error(`Video repair item is not eligible to mark ready: ${sourceDate} slot ${sourceSlot} is ${existing.status}.`);
     }
     existing.status = "VIDEO_DEFERRED";
     existing.replacement_ready_at = new Date().toISOString();

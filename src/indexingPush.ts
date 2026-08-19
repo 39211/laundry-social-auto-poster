@@ -4,6 +4,7 @@ import { getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
+import { assertCanonicalPublicPublicationApproval } from "./publicPublicationApproval";
 import { getZonedDateParts } from "./scheduler";
 
 // Daily indexing push and audit. Submitting the sitemap once is not what gets a
@@ -52,8 +53,8 @@ function internalLinkCount(html: string, host: string): number {
   return matches.filter((href) => href.includes(host) || /href="(?!https?:|mailto:|tel:|#)/.test(href)).length;
 }
 
-async function sitemapUrls(base: string): Promise<string[]> {
-  const response = await fetch(`${base}/sitemap.xml`);
+async function sitemapUrls(base: string, fetchImpl: typeof fetch): Promise<string[]> {
+  const response = await fetchImpl(`${base}/sitemap.xml`);
   if (!response.ok) throw new Error(`sitemap.xml returned ${response.status}`);
   const xml = await response.text();
   return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1] ?? "").filter(Boolean);
@@ -69,21 +70,36 @@ function pickSubmissionSet(urls: string[], date: string, base: string): string[]
   return [...new Set([...entryPoints, ...changedToday, ...landing])].slice(0, 60);
 }
 
-export async function indexingPush(options: { date?: string; root?: string; skipSubmit?: boolean } = {}): Promise<IndexingPushReport> {
+export interface IndexingPushOptions {
+  date?: string;
+  root?: string;
+  /** Explicit read-only audit mode: it never POSTs to IndexNow. */
+  skipSubmit?: boolean;
+  /** Dependency seam for local tests; production uses the platform fetch. */
+  fetchImpl?: typeof fetch;
+}
+
+export async function indexingPush(options: IndexingPushOptions = {}): Promise<IndexingPushReport> {
   const root = projectRoot(options.root);
   const config = getConfig();
   const date = options.date || getZonedDateParts(new Date(), config.timezone).date;
   const base = (config.publicSiteBaseUrl || "https://39211.github.io").replace(/\/+$/, "");
   const host = new URL(base).host;
+  const fetchImpl = options.fetchImpl ?? fetch;
 
-  const urls = await sitemapUrls(base);
+  // --no-submit is an explicit read-only reachability audit. Any mode that
+  // can POST to IndexNow must prove the same canonical release as Pages
+  // before it fetches the sitemap, key, or IndexNow endpoint.
+  if (!options.skipSubmit) await assertCanonicalPublicPublicationApproval(date, root);
+
+  const urls = await sitemapUrls(base, fetchImpl);
   const submission = pickSubmissionSet(urls, date, base);
 
   let indexnowStatus: number | "skipped" = "skipped";
   if (!options.skipSubmit) {
     const key = await readIndexNowKey(root);
     if (key) {
-      const response = await fetch(INDEXNOW_ENDPOINT, {
+      const response = await fetchImpl(INDEXNOW_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -106,7 +122,7 @@ export async function indexingPush(options: { date?: string; root?: string; skip
   const audited: PageAudit[] = [];
   for (const url of auditTargets) {
     try {
-      const response = await fetch(url);
+      const response = await fetchImpl(url);
       const html = response.ok ? await response.text() : "";
       const length = textLength(html);
       audited.push({

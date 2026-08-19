@@ -1,0 +1,124 @@
+{
+  "run_time": "2026-08-14T20:52:24+08:00",
+  "result": "VIDEO_DEFERRED_NO_GO",
+  "knowledge_pack": {
+    "version": "0.3.0-evidence-150-full-audit-quarantine",
+    "cutoff_date": "2026-07-20",
+    "accepted_count": 0,
+    "source_ids": [
+      "data/video-repair-queue/queue.json",
+      "output/review-packages/2026-08-14-laundry-daily-content-images-v01/data/video-candidates-2026-08-14.json",
+      "video-production/repair/2026-08-14/manifests/slot-02-grok-video-v02.json",
+      "video-production/repair/2026-08-14/jobs/slot-02-v02-job.json",
+      "reports/laundry-video-repair-cycle/2026-08-14-2030-hermes-inspect.json"
+    ],
+    "review_role": "Synthetic first-frame, technical decode, continuity and physics triage only; not professional care, effect or release authority.",
+    "forbidden_claims": [
+      "all agents are trained",
+      "2500 evidence units have been learned",
+      "a shot list, prompt, voice-over, or ad copy is the screenplay",
+      "Hermes OAuth automation is approved by xAI",
+      "synthetic media is human-shot",
+      "advertising effectiveness without campaign evidence",
+      "online care guidance is Sixiangjia's confirmed SOP"
+    ]
+  },
+  "queue": {
+    "items": 24,
+    "video_deferred": 24,
+    "resolved": 0,
+    "replacement_ready": 0,
+    "submitted_generation_ids": 13,
+    "duplicate_source_keys": 0,
+    "duplicate_generation_ids": 0,
+    "sha256": "AFD2378B8C82C951CEB9C73F4B5C8BF504C5B37E98263C93B973D551CB6ACB0F"
+  },
+  "ordered_evidence_audit": {
+    "failure_reasons_read": 24,
+    "original_prompts_found": 24,
+    "first_frame_hash_records_found": 15,
+    "submitted_manifest_prompt_hash_matches": 13,
+    "submitted_input_hash_matches": 13,
+    "missing_first_frame_records_are_preserved_as_missing": true
+  },
+  "raw_validation": {
+    "checked": 13,
+    "full_decode_passed": 13,
+    "pts_monotonicity_passed": 13,
+    "output_hash_matches": 13,
+    "submit_download_qc_exactly_once": 13,
+    "native_1080x1920_passed": 0,
+    "dimensions": "1088x1920",
+    "frames_each": 145,
+    "generation_ids": [
+      "sixiangjia_20260730_s01_child_shoes_stop_release_v03",
+      "sixiangjia_20260730_s02_aligned_pair_release_v03",
+      "sixiangjia_20260731_s01_card_withdraw_v02",
+      "sixiangjia_20260731_s02_bedding_flush_slide_v02",
+      "sixiangjia_20260801_s01_rigid_dual_bay_card_withdraw_v01",
+      "sixiangjia_20260801_s02_single_layer_cover_release_v01",
+      "sixiangjia_20260802_s01_pillowcase_card_lateral_exit_v01",
+      "sixiangjia_20260802_s02_single_layer_separator_exit_v01",
+      "sixiangjia_20260804_s01_makeup_pouch_card_exit_v03",
+      "sixiangjia_20260804_s02_blue_bag_doorway_handoff_v02",
+      "sixiangjia_20260806_s01_travel_jacket_card_exit_v01",
+      "sixiangjia_20260806_s02_canvas_shoe_card_exit_v01",
+      "sixiangjia_20260814_s02_makeup_pouch_seam_card_exit_v02"
+    ]
+  },
+  "publication_observation": {
+    "dual_platform_image_fallback_success": 11,
+    "dual_platform_reel_without_valid_repair_linkage": 6,
+    "partial_or_no_dual_platform_success": 7,
+    "current_source_slot_1": {
+      "facebook": "carousel success attempts=1 VIDEO_DEFERRED",
+      "instagram": "carousel success attempts=1 VIDEO_DEFERRED"
+    },
+    "current_source_slot_2": {
+      "facebook": null,
+      "instagram": null
+    },
+    "posted_log_2026_08_14_sha256_unchanged": "C5A58402FC0019C7EEFDBB7620F43FB1CF53C6C117ADC0D94C61D50064ADDAEE"
+  },
+  "current_repairs": [
+    {
+      "source_date": "2026-08-14",
+      "source_slot": 1,
+      "result": "first_frame_fail_no_video_submission",
+      "latest_failed_source_sha256": "FB10CB239862A85E6EB0441028A1576AF538BDA2640AEE6335C52276408E241B",
+      "blocker": "The card is detached from its rail after earlier attempts either missed the right-shoe-opening occlusion or deleted the right shoe.",
+      "generation_submission_count": 0
+    },
+    {
+      "source_date": "2026-08-14",
+      "source_slot": 2,
+      "result": "native_resolution_qc_fail",
+      "generation_id": "sixiangjia_20260814_s02_makeup_pouch_seam_card_exit_v02",
+      "input_sha256": "0A55C1C6B3D9D08E1E80A7BF754256FA8ED8356AF1F0670CC79FB7B11D194325",
+      "prompt_hash": "DCD3FFED75DAFE89BF1AFA10B2A889D09B726291C8C3A8244BAA6BF23B1A9BF0",
+      "output_sha256": "6D75B87D24912FE98E3598FD4CAE4E6AF27AF6E1DBA5E6B903A4F10303034A81",
+      "provider_status": "done",
+      "attempts": {
+        "submit": 1,
+        "poll": 5,
+        "download": 1,
+        "qc": 1
+      },
+      "full_decode": "pass",
+      "pts_anomalies": 0,
+      "contact_sheet_triage": "The card moves left while the pouch and rail remain visually stable; this is not full-resolution full-frame acceptance.",
+      "native_dimensions": "1088x1920",
+      "required_dimensions": "1080x1920"
+    }
+  ],
+  "actions_not_taken": [
+    "No raw video resize",
+    "No replacement generation submission",
+    "No independent zh-TW TTS or subtitle mastering",
+    "No Grok final review or final master",
+    "No replacement package linkage",
+    "No resolve-video-repair --ready",
+    "No Facebook or Instagram publication",
+    "No posted-log edit"
+  ]
+}

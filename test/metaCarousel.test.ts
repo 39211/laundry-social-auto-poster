@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { postFacebookCarousel } from "../src/postFacebook";
 import { postInstagramCarousel } from "../src/postInstagram";
+import { NonRetryableError, withRetry } from "../src/retry";
 import type { AppConfig, PostInput } from "../src/types";
 
 const config: AppConfig = {
@@ -44,12 +45,34 @@ describe("Meta carousel publishers", () => {
       .mockResolvedValueOnce(jsonResponse({ id: "photo-2" }))
       .mockResolvedValueOnce(jsonResponse({ id: "photo-3" }))
       .mockResolvedValueOnce(jsonResponse({ id: "photo-4" }))
-      .mockResolvedValueOnce(jsonResponse({ id: "page_post-1" })) as unknown as typeof fetch;
+      .mockResolvedValueOnce(jsonResponse({ id: "page_post-1" }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: "page_post-1",
+          permalink_url: "https://www.facebook.com/12345/posts/page_post-1",
+          message: input.caption,
+          attachments: {
+            data: [
+              {
+                media_type: "album",
+                subattachments: {
+                  data: input.imageUrls!.map((url) => ({ media_type: "photo", media: { image: { src: url } } }))
+                }
+              }
+            ]
+          }
+        })
+      ) as unknown as typeof fetch;
 
     const result = await postFacebookCarousel(input, config, fetchImpl);
 
     expect(result.post_id).toBe("page_post-1");
-    expect(fetchImpl).toHaveBeenCalledTimes(5);
+    expect(result.remote_publication_evidence).toMatchObject({
+      remote_id: "page_post-1",
+      remote_media_type: "CAROUSEL",
+      caption_exact_match: true
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(6);
     const firstBody = ((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as RequestInit)
       .body as URLSearchParams;
     expect(firstBody.get("published")).toBe("false");
@@ -57,6 +80,45 @@ describe("Meta carousel publishers", () => {
       .body as URLSearchParams;
     expect(publishBody.get("attached_media[0]")).toBe(JSON.stringify({ media_fbid: "photo-1" }));
     expect(publishBody.get("attached_media[3]")).toBe(JSON.stringify({ media_fbid: "photo-4" }));
+  });
+
+  it("does not retry a committed Facebook carousel when its readback is missing media", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ id: "photo-1" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "photo-2" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "photo-3" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "photo-4" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "page_post-1" }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: "page_post-1",
+          permalink_url: "https://www.facebook.com/12345/posts/page_post-1",
+          message: input.caption,
+          attachments: { data: [] }
+        })
+      ) as unknown as typeof fetch;
+
+    await expect(withRetry(() => postFacebookCarousel(input, config, fetchImpl), 3, 0)).rejects.toBeInstanceOf(NonRetryableError);
+    // Four unpublished uploads, one irreversible feed commit, one readback: no second commit sequence.
+    expect(fetchImpl).toHaveBeenCalledTimes(6);
+  });
+
+  it.each([
+    ["an empty object", {}],
+    ["a null id", { id: null }]
+  ])("does not issue a Facebook carousel success receipt when the commit returns %s", async (_kind, payload) => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ id: "photo-1" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "photo-2" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "photo-3" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "photo-4" }))
+      .mockResolvedValueOnce(jsonResponse(payload)) as unknown as typeof fetch;
+
+    await expect(withRetry(() => postFacebookCarousel(input, config, fetchImpl), 3, 0)).rejects.toBeInstanceOf(NonRetryableError);
+    // Four unpublished uploads then one irreversible /feed commit; no second sequence.
+    expect(fetchImpl).toHaveBeenCalledTimes(5);
   });
 
   it("creates four Instagram children, a carousel parent, then publishes it", async () => {
@@ -68,6 +130,15 @@ describe("Meta carousel publishers", () => {
     responses.push(jsonResponse({ id: "parent-1" }));
     responses.push(jsonResponse({ id: "parent-1", status_code: "FINISHED" }));
     responses.push(jsonResponse({ id: "published-1" }));
+    responses.push(
+      jsonResponse({
+        id: "published-1",
+        media_type: "CAROUSEL_ALBUM",
+        media_product_type: "FEED",
+        permalink: "https://www.instagram.com/p/published-1/",
+        caption: input.caption
+      })
+    );
     const fetchImpl = vi.fn(async () => responses.shift()!) as unknown as typeof fetch;
 
     const result = await postInstagramCarousel(input, config, fetchImpl, {
@@ -77,7 +148,12 @@ describe("Meta carousel publishers", () => {
     });
 
     expect(result.post_id).toBe("published-1");
-    expect(fetchImpl).toHaveBeenCalledTimes(11);
+    expect(result.remote_publication_evidence).toMatchObject({
+      remote_id: "published-1",
+      remote_media_type: "CAROUSEL",
+      caption_exact_match: true
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(12);
     const firstChildBody = ((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as RequestInit)
       .body as URLSearchParams;
     expect(firstChildBody.get("is_carousel_item")).toBe("true");
@@ -99,6 +175,15 @@ describe("Meta carousel publishers", () => {
     responses.push(jsonResponse({ id: "parent-mixed" }));
     responses.push(jsonResponse({ id: "parent-mixed", status_code: "FINISHED" }));
     responses.push(jsonResponse({ id: "published-mixed" }));
+    responses.push(
+      jsonResponse({
+        id: "published-mixed",
+        media_type: "CAROUSEL_ALBUM",
+        media_product_type: "FEED",
+        permalink: "https://www.instagram.com/p/published-mixed/",
+        caption: input.caption
+      })
+    );
     const fetchImpl = vi.fn(async () => responses.shift()!) as unknown as typeof fetch;
 
     const result = await postInstagramCarousel(
@@ -138,6 +223,37 @@ describe("Meta carousel publishers", () => {
     const parentBody = bodyOf(11);
     expect(parentBody.get("media_type")).toBe("CAROUSEL");
     expect(parentBody.get("children")).toBe("image-1,image-2,image-3,image-4,video-5");
+  });
+
+  it("does not retry a committed Instagram carousel when its canonical readback is wrong", async () => {
+    const responses: Response[] = [];
+    for (let slide = 1; slide <= 4; slide += 1) {
+      responses.push(jsonResponse({ id: `child-${slide}` }));
+      responses.push(jsonResponse({ id: `child-${slide}`, status_code: "FINISHED" }));
+    }
+    responses.push(jsonResponse({ id: "parent-1" }));
+    responses.push(jsonResponse({ id: "parent-1", status_code: "FINISHED" }));
+    responses.push(jsonResponse({ id: "published-1" }));
+    responses.push(
+      jsonResponse({
+        id: "published-1",
+        media_type: "IMAGE",
+        media_product_type: "FEED",
+        permalink: "https://www.instagram.com/p/published-1/",
+        caption: input.caption
+      })
+    );
+    const fetchImpl = vi.fn(async () => responses.shift()!) as unknown as typeof fetch;
+
+    await expect(
+      withRetry(
+        () => postInstagramCarousel(input, config, fetchImpl, { maxAttempts: 1, intervalMs: 0, sleep: async () => undefined }),
+        3,
+        0
+      )
+    ).rejects.toBeInstanceOf(NonRetryableError);
+    // Four children, parent, one media_publish, and one failed readback; no duplicate publish.
+    expect(fetchImpl).toHaveBeenCalledTimes(12);
   });
 
   it("does not call Meta for carousel dry-runs", async () => {

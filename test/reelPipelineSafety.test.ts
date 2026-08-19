@@ -42,7 +42,41 @@ describe("assembly failure contract", () => {
 
   it("does not keep a pre-existing treated-assembly mp4 as the new output", () => {
     expect(produceNext).toMatch(/Remove-Item \$OutPath -Force/u);
-    expect(produceNext).toMatch(/Treated assembly[\s\S]{0,200}\$LASTEXITCODE/u);
+    expect(produceNext).toContain("$ffExit -ne 0");
+    expect(produceNext).toMatch(/Treated assembly ffmpeg failed \(exit \$ffExit\)/u);
     expect(produceNext).toMatch(/Get-Content \$ffLog -Tail 5 -Encoding utf8/u);
+  });
+});
+
+describe("Reel public-host publication gate", () => {
+  it("keeps both Pages branches behind canonical approval without coupling clip generation_id", () => {
+    const publishPagesCalls = produceNext.match(
+      /Invoke-TrustedProductionNpm\s+-Root\s+\$root\s+run\s+publish-pages\s+--\s+--date\s+\S+\s+--skip-audit/g
+    );
+    expect(publishPagesCalls).toHaveLength(2);
+
+    const expectCanonicalApprovalBeforePages = (approvalDateExpression: string, pagesDateExpression: string) => {
+      const pagesCall = `Invoke-TrustedProductionNpm -Root $root run publish-pages -- --date ${pagesDateExpression} --skip-audit`;
+      const pagesIndex = produceNext.indexOf(pagesCall);
+      expect(pagesIndex).toBeGreaterThan(-1);
+
+      const approvalGuard = `elseif (-not (Assert-PublicPublicationApproval -PublicationDate ${approvalDateExpression} -stage "before Pages publish")) {`;
+      const guardIndex = produceNext.lastIndexOf(approvalGuard, pagesIndex);
+      expect(guardIndex).toBeGreaterThan(-1);
+      expect(produceNext.slice(guardIndex, pagesIndex).trimEnd()).toMatch(/\}\s*else\s*\{\s*\$pagesOut\s*=\s*$/u);
+    };
+    expectCanonicalApprovalBeforePages("$day.date", "$($day.date)");
+    expectCanonicalApprovalBeforePages("$publishDate", "$publishDate");
+    expect(produceNext).not.toMatch(/\b(?:IndexNow|submit-indexnow|indexing-push)\b/u);
+
+    const generationIdStart = produceNext.indexOf("foreach ($attempt in 1, 2) {");
+    const generationIdEnd = produceNext.indexOf("$template.source_shot_id", generationIdStart);
+    expect(generationIdStart).toBeGreaterThan(-1);
+    expect(generationIdEnd).toBeGreaterThan(generationIdStart);
+    const generationIdBlock = produceNext.slice(generationIdStart, generationIdEnd);
+    expect(generationIdBlock).not.toContain("Assert-PublicPublicationApproval");
+    expect(generationIdBlock).toMatch(
+      /\$template\.generation_id = "sixiangjia_\$\(\$concept -replace '-','_'\)_\$\(\$state\)_v\{0:d2\}" -f \$attempt/u
+    );
   });
 });

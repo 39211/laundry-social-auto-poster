@@ -1,10 +1,12 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { postCurrentSlot } from "../src/postCurrentSlot";
 import { generateDailyContent } from "../src/generateDailyContent";
 import { stampDailyContentWrite } from "../src/contentPlan";
+import { loadDailyContent } from "../src/logging";
 
 // The 199 tests this suite joins say nothing about whether the publish guards
 // hold: deleting the repeat gate, the manifest gate, the fingerprint check or
@@ -18,17 +20,22 @@ const YESTERDAY = "2026-09-19";
 // inside the slot's publish window for these assertions to reach their target.
 const NOW = new Date("2026-09-20T12:00:00+08:00");
 
-function slot(n: number, caption: string) {
+function slot(n: number, caption: string, date = DATE) {
   return {
     slot: n,
     time: "12:00",
+    category: "知識文",
     topic: "白鞋泛黃",
-    format: "reel",
-    media_type: "reel" as const,
+    format: "image-post",
+    media_type: "image" as const,
     instagram_caption: caption,
     facebook_caption: caption,
-    local_image_path: `docs/assets/${DATE}/slot-0${n}.png`,
-    local_video_path: `docs/assets/${DATE}/slot-0${n}.mp4`,
+    image_prompt: "approved image fixture",
+    visual_route: "macro-detail",
+    traffic_route: "object-proof",
+    local_image_path: `docs/assets/${date}/slot-0${n}.png`,
+    public_image_url: `https://example.test/assets/${date}/slot-0${n}.png`,
+    status: "pending"
   };
 }
 
@@ -45,8 +52,8 @@ async function seedDay(root: string, date: string, captions: string[]) {
           // The schema requires two or three slots, so a filler keeps the day
           // valid while each test varies only the slot it is actually about.
           slots: [
-            ...captions.map((c, i) => slot(i + 1, c)),
-            slot(captions.length + 1, `填充檔位 ${date},與任何測試無關。`)
+            ...captions.map((c, i) => slot(i + 1, c, date)),
+            slot(captions.length + 1, `填充檔位 ${date},與任何測試無關。`, date)
           ]
         } as Parameters<typeof stampDailyContentWrite>[0],
         { root }
@@ -54,6 +61,52 @@ async function seedDay(root: string, date: string, captions: string[]) {
     ),
     "utf8"
   );
+}
+
+async function seedCanonicalApproval(root: string, date: string): Promise<void> {
+  const content = await loadDailyContent(date, root, { today: date });
+  if (!content || content.tampered) throw new Error(`canonical fixture calendar unavailable for ${date}`);
+  const approvalDir = join(root, "data", "approved-log");
+  const digests: Record<string, Record<string, string>> = {};
+  for (const current of content.slots) {
+    const bytes = Buffer.from(`approved image ${date} slot ${current.slot}`, "utf8");
+    const imagePath = join(root, ...current.local_image_path.split("/"));
+    await mkdir(dirname(imagePath), { recursive: true });
+    await writeFile(imagePath, bytes);
+    digests[String(current.slot)] = {
+      [current.local_image_path]: createHash("sha256").update(bytes).digest("hex")
+    };
+  }
+  await mkdir(approvalDir, { recursive: true });
+  await writeFile(
+    join(approvalDir, `${date}.json`),
+    `${JSON.stringify(
+      content.slots.flatMap((current) =>
+        (["facebook", "instagram"] as const).map((platform) => ({
+          date,
+          slot: current.slot,
+          platform,
+          status: "approved",
+          approved_by: "fixture-reviewer",
+          created_at: `${date}T00:00:00.000Z`
+        }))
+      )
+    )}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(approvalDir, `${date}.fingerprints.json`),
+    `${JSON.stringify(
+      Object.fromEntries(
+        content.slots.map((current) => [
+          String(current.slot),
+          createHash("sha256").update(JSON.stringify(current)).digest("hex")
+        ])
+      )
+    )}\n`,
+    "utf8"
+  );
+  await writeFile(join(approvalDir, `${date}.image-digests.json`), `${JSON.stringify(digests)}\n`, "utf8");
 }
 
 describe("publish guards", () => {
@@ -72,6 +125,7 @@ describe("publish guards", () => {
     const caption = "白鞋泛黃,不是刷得不夠用力。\n\n問題多半在中底和鞋邊。";
     await seedDay(root, YESTERDAY, [caption]);
     await seedDay(root, DATE, [caption]);
+    await seedCanonicalApproval(root, DATE);
     await mkdir(join(root, "data", "posted-log"), { recursive: true });
     await writeFile(
       join(root, "data", "posted-log", `${YESTERDAY}.json`),
@@ -93,6 +147,7 @@ describe("publish guards", () => {
     const caption = "白鞋泛黃,不是刷得不夠用力。\n\n問題多半在中底和鞋邊。";
     await seedDay(root, YESTERDAY, [caption]);
     await seedDay(root, DATE, [caption]);
+    await seedCanonicalApproval(root, DATE);
     await mkdir(join(root, "data", "posted-log"), { recursive: true });
     await writeFile(
       join(root, "data", "posted-log", `${YESTERDAY}.json`),
@@ -109,7 +164,7 @@ describe("publish guards", () => {
 
   it("refuses to publish when the fingerprint file exists but has no entry for the slot", async () => {
     await seedDay(root, DATE, ["一段獨一無二的文案,不與任何一天相同。"]);
-    await mkdir(join(root, "data", "approved-log"), { recursive: true });
+    await seedCanonicalApproval(root, DATE);
     await writeFile(
       join(root, "data", "approved-log", `${DATE}.fingerprints.json`),
       JSON.stringify({}),
@@ -118,7 +173,7 @@ describe("publish guards", () => {
 
     await expect(
       postCurrentSlot({ date: DATE, slot: 1, root, now: NOW })
-    ).rejects.toThrow(/no approval fingerprint/);
+    ).rejects.toThrow(/slot 1 content changed after approval \(fingerprint mismatch\)/);
   });
 
   // A fourth test for "a dry run leaves no fingerprint sidecar" was written and

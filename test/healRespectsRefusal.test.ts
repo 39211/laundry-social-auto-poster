@@ -438,9 +438,9 @@ describe("prefix-only Reel topic uses topicIdentity", () => {
 describe("2026-08-17 daily-approve includes heal-reel-slot in order", () => {
   it("runs day-lock heal, then heal-reel-slot, then auto-approve", async () => {
     const script = await readFile(join(PROJECT, "scripts", "daily-approve.ps1"), "utf8");
-    const dayLock = script.indexOf("npm.cmd run day-lock");
-    const healReel = script.indexOf("npm.cmd run heal-reel-slot");
-    const approve = script.indexOf("npm.cmd run auto-approve");
+    const dayLock = script.indexOf("Invoke-TrustedProductionNpm -Root $root run day-lock");
+    const healReel = script.indexOf("Invoke-TrustedProductionNpm -Root $root run heal-reel-slot");
+    const approve = script.indexOf("Invoke-TrustedProductionNpm -Root $root run auto-approve");
     expect(dayLock).toBeGreaterThan(-1);
     expect(healReel).toBeGreaterThan(dayLock);
     expect(approve).toBeGreaterThan(healReel);

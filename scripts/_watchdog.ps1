@@ -1,42 +1,43 @@
-﻿# Dot-sourced by every scheduled script. Tasks watch each other: on 2026-08-06
-# the publish task was killed mid-run and disabled at midday, and the once-a-day
-# 06:30 watchdog meant nothing could revive it until the next morning — the
-# evening Reel survived only because a human noticed at 22:35. With every task
-# re-arming its siblings, a disable now holds only until whichever sibling
-# fires next, at most a few hours.
-# Expects $logFile to be defined by the caller; falls back to silent enable.
+# Dot-sourced by scheduled workers to observe scheduler safety.  A disabled
+# Laundry task is an operator kill switch: this helper never enables, starts,
+# unregisters, or registers a task.  A human must inspect the state and use
+# the explicit guarded registration workflow when a change is intentional.
 #
-# Maintenance suppression (luna, high): a human who disables a task to STOP a
-# bad publish used to be overruled within 30 minutes by whichever sibling
-# fired next. An explicit, expiring token now pauses the watchdog:
-#   data\maintenance-suppress.json  ->  { "until": "2026-08-11T15:00:00+08:00", "reason": "..." }
-# Expired or malformed tokens are ignored, so the pause can never become
-# permanent by accident.
-$watchdogSuppressPath = Join-Path (Split-Path -Parent $PSScriptRoot) "data\maintenance-suppress.json"
-if (Test-Path $watchdogSuppressPath) {
-    try {
-        $watchdogSuppress = ConvertFrom-Json ([IO.File]::ReadAllText($watchdogSuppressPath, [Text.UTF8Encoding]::new($false)))
-        if ([DateTime]::Parse($watchdogSuppress.until) -gt (Get-Date)) {
-            if ($logFile) {
-                "[{0:yyyy-MM-dd HH:mm:ss}] Watchdog suppressed until {1}: {2}" -f (Get-Date), $watchdogSuppress.until, $watchdogSuppress.reason |
-                    Add-Content -Path $logFile -Encoding UTF8
-            }
-            return
-        }
-    } catch {}
+# Expects $root and optionally $logFile from the caller.  Observe-only callers
+# intentionally do not query the host scheduler, so their reports remain
+# hermetic and cannot depend on local Task Scheduler state.
+if ($WatchdogObserveOnly) { return }
+
+function Stop-WatchdogSchedulerSafety([string]$Reason) {
+    $line = "[{0:yyyy-MM-dd HH:mm:ss}] BLOCKED scheduler safety: {1}. No task was enabled, unregistered, or registered." -f (Get-Date), $Reason
+    [Console]::Error.WriteLine($line)
+    if ($logFile) {
+        try { $line | Add-Content -Path $logFile -Encoding UTF8 } catch {}
+    }
+    throw $line
 }
-foreach ($watchdogTask in Get-ScheduledTask -ErrorAction SilentlyContinue |
-    Where-Object { $_.TaskName -like "Laundry-*" -and $_.State -eq "Disabled" }) {
-    Enable-ScheduledTask -TaskName $watchdogTask.TaskName -ErrorAction SilentlyContinue | Out-Null
-    $watchdogLine = "[{0:yyyy-MM-dd HH:mm:ss}] Watchdog re-enabled disabled task: {1}" -f (Get-Date), $watchdogTask.TaskName
-    if ($logFile) { $watchdogLine | Add-Content -Path $logFile -Encoding UTF8 }
-    try {
-        [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
-        $watchdogTemplate = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
-        $watchdogNodes = $watchdogTemplate.GetElementsByTagName("text")
-        $watchdogNodes.Item(0).AppendChild($watchdogTemplate.CreateTextNode("私享家排程看門狗")) | Out-Null
-        $watchdogNodes.Item(1).AppendChild($watchdogTemplate.CreateTextNode("$($watchdogTask.TaskName) 被停用了,已自動重新啟用。")) | Out-Null
-        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("LaundryWatchdog").Show(
-            (New-Object Windows.UI.Notifications.ToastNotification($watchdogTemplate)))
-    } catch {}
+
+if ($ProductionContractVerified -ne $true) {
+    Stop-WatchdogSchedulerSafety "no verified clean production contract is available for task-state inspection"
+}
+$watchdogRoot = [string](Get-Variable -Name root -ValueOnly -ErrorAction SilentlyContinue)
+if ([string]::IsNullOrWhiteSpace($watchdogRoot) -or -not (Get-Command Assert-CleanProductionContractBeforeAction -ErrorAction SilentlyContinue)) {
+    Stop-WatchdogSchedulerSafety "no reusable production-contract boundary is available"
+}
+
+try {
+    $watchdogTasks = @(Get-ScheduledTask -ErrorAction Stop | Where-Object { $_.TaskName -like "Laundry-*" })
+} catch {
+    Stop-WatchdogSchedulerSafety ("Laundry task inventory is unverifiable: " + $_.Exception.Message)
+}
+
+$legacySentinels = @($watchdogTasks | Where-Object { $_.TaskName -ceq "Laundry-Publish-Sentinel" })
+if ($legacySentinels.Count -gt 0) {
+    Stop-WatchdogSchedulerSafety "legacy Laundry-Publish-Sentinel is present; manual review/removal is required"
+}
+
+$disabledTasks = @($watchdogTasks | Where-Object { $_.State -eq "Disabled" })
+if ($disabledTasks.Count -gt 0) {
+    $names = ($disabledTasks | ForEach-Object { $_.TaskName }) -join ", "
+    Stop-WatchdogSchedulerSafety "operator kill switch is active for disabled Laundry task(s): $names"
 }

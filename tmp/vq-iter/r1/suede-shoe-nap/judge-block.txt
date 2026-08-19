@@ -1,0 +1,20 @@
+<<<OBSERVE_BEGIN>>>
+IMAGE_1 canary=BK9C
+IMAGE_2 canary=6N5B
+IMAGE_3 canary=GTBC
+IMAGE_4 canary=B7UW
+IMAGE_5 canary=U5ER
+IMAGE_6 canary=SJ8K
+OBS_1 role=BEFORE act=before laces_color=TAN hardware_color=NONE facing=TQ_RIGHT soil=MODERATE hands=NONE scene=PINK_MAT_SLAT_WALL
+OBS_2 role=BEFORE act=before laces_color=TAN hardware_color=NONE facing=TQ_RIGHT soil=MODERATE hands=NONE scene=PINK_MAT_SLAT_WALL
+OBS_3 role=MIDDLE act=middle laces_color=TAN hardware_color=NONE facing=CAMERA_ON soil=MODERATE hands=OK scene=PINK_MAT_SLAT_WALL
+OBS_4 role=MIDDLE act=middle laces_color=TAN hardware_color=NONE facing=CAMERA_ON soil=MODERATE hands=OK scene=PINK_MAT_SLAT_WALL
+OBS_5 role=AFTER act=after laces_color=TAN hardware_color=NONE facing=TQ_RIGHT soil=LIGHT hands=OK scene=PINK_MAT_SLAT_WALL
+OBS_6 role=AFTER act=after laces_color=TAN hardware_color=NONE facing=TQ_RIGHT soil=LIGHT hands=NONE scene=PINK_MAT_SLAT_WALL
+COMPARE ACCESSORY_COLOR identity_change=NO
+COMPARE ORIENTATION identity_flip=YES
+COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"suede-shoe-nap","verdict":"FAIL","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"FAIL","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"All frames show the same single tan lace-up shoe with matching panels, sole, and heel.","ACCESSORY_COLOR":"The tan laces and visible hardware remain the same color tokens throughout.","ORIENTATION":"The BEFORE frames are TQ_RIGHT while the MIDDLE frames face CAMERA_ON.","STATE_ORDER":"The BEFORE shoe is untreated, the MIDDLE frames show brushing with hands and a tool, and the AFTER shoe appears evenly brushed.","MIDDLE_NOT_WORSE":"The MIDDLE shoe is not globally heavier or dirtier than the MODERATE BEFORE state.","HANDS":"Visible hands and fingers are plausibly scaled without fusion or extra hands.","SCENE":"The pink mat and slat-wall workshop setting remain consistent."},"frames_used":["before-p20.png","before-p70.png","middle-p20.png","middle-p70.png","after-p20.png","after-p70.png"]}
+<<<VISUAL_QA_END>>>

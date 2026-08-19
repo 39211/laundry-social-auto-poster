@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildDailyContent } from "../src/contentPlan";
+import { writeDailyContent } from "../src/logging";
 import {
   buildOperationsDashboard,
   writeOperationsDashboardArtifact
@@ -29,7 +30,7 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
 
 async function createCompletedDay(root: string, date: string): Promise<void> {
   const content = buildDailyContent(date, config);
-  await writeJson(join(root, "data", "content-calendar", `${date}.json`), content);
+  await writeDailyContent(content, root);
   await writeJson(join(root, "docs", "content-calendar", `${date}.json`), content);
 
   const approvals: ApprovalLogEntry[] = content.slots.flatMap((slot) =>
@@ -53,7 +54,24 @@ async function createCompletedDay(root: string, date: string): Promise<void> {
       dry_run: false,
       attempts: 1,
       post_id: `${platform}-${slot.slot}`,
-      created_at: `${date}T12:00:00.000Z`
+      created_at: `${date}T12:00:00.000Z`,
+      ...(slot.media_type === "reel"
+        ? {
+            published_media_type: "reel" as const,
+            video_status: "published" as const,
+            video_sha256: "a".repeat(64),
+            remote_reel_evidence: {
+              remote_id: `${platform}-${slot.slot}`,
+              permalink:
+                platform === "facebook"
+                  ? `https://www.facebook.com/reel/${platform}-${slot.slot}`
+                  : `https://www.instagram.com/reel/${platform}-${slot.slot}`,
+              verified_at: `${date}T12:01:00.000Z`,
+              remote_media_type: "REELS" as const,
+              caption_exact_match: true as const
+            }
+          }
+        : {})
     }))
   );
   await writeJson(join(root, "data", "posted-log", `${date}.json`), posts);
@@ -236,6 +254,53 @@ describe("90-day operations dashboard", () => {
       instagram_publish: "失敗",
       next_action: "執行 IG 發佈"
     });
+  });
+
+  it("does not count an ambiguous transport claim or VIDEO_DEFERRED fallback as published", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-ops-dashboard-proof-gap-"));
+    roots.push(root);
+    const date = "2026-07-11";
+    await createCompletedDay(root, date);
+
+    const logPath = join(root, "data", "posted-log", `${date}.json`);
+    const posts = JSON.parse(await readFile(logPath, "utf8")) as PostLogEntry[];
+    const facebookImage = posts.find((row) => row.slot === 1 && row.platform === "facebook");
+    if (!facebookImage) throw new Error("Expected the Facebook image fixture.");
+    posts.push({ ...facebookImage, post_id: "facebook-slot-1-duplicate" });
+    for (const row of posts) {
+      if (row.slot !== 2) continue;
+      row.published_media_type = "image";
+      row.video_status = "VIDEO_DEFERRED";
+    }
+    await writeJson(logPath, posts);
+
+    const result = await buildOperationsDashboard({
+      root,
+      startDate: date,
+      totalDays: 1,
+      asOf: new Date("2026-07-12T12:00:00+08:00")
+    });
+    const imageRow = result.slots.find((row) => row.slot === 1);
+    const reelRow = result.slots.find((row) => row.slot === 2);
+
+    expect(imageRow).toMatchObject({
+      facebook_publish: "資料缺口",
+      instagram_publish: "已發佈",
+      overall_state: "發佈證據缺口",
+      next_action: "核對 FB/IG 發佈證據；不得自動重發"
+    });
+    expect(reelRow).toMatchObject({
+      facebook_publish: "Reel 證據缺口",
+      instagram_publish: "Reel 證據缺口"
+    });
+    expect(reelRow?.overall_state).not.toBe("已發佈");
+    expect(result.summary).toMatchObject({
+      published_due_slots: 0,
+      published_platform_posts: 1
+    });
+    expect(result.artifact.snapshot.accessIssues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "publication_evidence_gaps" })])
+    );
   });
 
   it("marks Reel slots with stale prompt hash as not ready and asks to regenerate", async () => {

@@ -1,0 +1,65 @@
+{
+  "automation_id": "laundry-video-repair-cycle",
+  "run_time": "2026-08-10T20:44:12.5953642+08:00",
+  "timezone": "Asia/Taipei",
+  "verdict": "NO_GO_VIDEO_DEFERRED",
+  "queue": {
+    "total": 20,
+    "VIDEO_DEFERRED": 20,
+    "RESOLVED": 0,
+    "ready": 0,
+    "duplicate_source_keys": 0,
+    "duplicate_generation_ids": 0,
+    "submitted_once_missing_hashes": 0,
+    "invalid_ready_nulls": 0,
+    "sha256_before": "30BB97110E9D98E9DA8120933348F3E1B77C2980E18F7997158417B98A9A1A70",
+    "sha256_after": "4525C5F87EA33D314F9F89FE2CCBD8644D431A01EA8CDD46132501F4B0E5310D"
+  },
+  "current_date": {
+    "slot_1": {
+      "first_frame_status": "FAIL",
+      "generation_submission_count": 0,
+      "same_day_publication": "facebook_and_instagram_carousel_attempts_1_VIDEO_DEFERRED",
+      "repair_status": "VIDEO_DEFERRED"
+    },
+    "slot_2": {
+      "first_frame_status": "FAIL",
+      "generation_submission_count": 0,
+      "same_day_publication": "facebook_and_instagram_plush_doll_reel_attempts_1_not_repair_candidate",
+      "repair_status": "VIDEO_DEFERRED"
+    }
+  },
+  "retained_raw_validation": {
+    "clips_checked": 12,
+    "full_decode_passed": 12,
+    "hash_matches": 12,
+    "native_dimensions": "1088x1920",
+    "frames_per_clip": 145,
+    "accepted_native_1080x1920": 0
+  },
+  "preproduction": {
+    "status": "pass",
+    "error_count": 0,
+    "knowledge_pack": "0.3.0-evidence-150-full-audit-quarantine",
+    "generation_authorized": false
+  },
+  "actions": {
+    "new_first_frame": false,
+    "hermes_inspection_run": false,
+    "video_submission": false,
+    "request_reconcile": false,
+    "tts": false,
+    "master": false,
+    "replacement_link": false,
+    "resolve_ready": false,
+    "publication": false,
+    "posted_log_write": false,
+    "queue_reason_correction": true
+  },
+  "validation": {
+    "tests": "40 files / 199 tests PASS",
+    "typecheck": "PASS",
+    "git_diff_check": "PASS"
+  }
+}
+

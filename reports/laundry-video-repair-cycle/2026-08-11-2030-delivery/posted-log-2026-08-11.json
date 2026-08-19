@@ -1,0 +1,82 @@
+[
+  {
+    "date": "2026-08-11",
+    "slot": 1,
+    "platform": "facebook",
+    "status": "success",
+    "dry_run": false,
+    "attempts": 1,
+    "published_media_type": "carousel",
+    "video_status": "VIDEO_DEFERRED",
+    "video_defer_kind": "expected",
+    "video_deferred_reason": "Video file is missing for slot 1: docs/assets/2026-08-11/slot-01.mp4.",
+    "post_id": "102911372343400_1046752041441278",
+    "created_at": "2026-08-11T03:30:19.472Z"
+  },
+  {
+    "date": "2026-08-11",
+    "slot": 1,
+    "platform": "instagram",
+    "status": "success",
+    "dry_run": false,
+    "attempts": 1,
+    "published_media_type": "carousel",
+    "video_status": "VIDEO_DEFERRED",
+    "video_defer_kind": "expected",
+    "video_deferred_reason": "Video file is missing for slot 1: docs/assets/2026-08-11/slot-01.mp4.",
+    "post_id": "18212771827351093",
+    "created_at": "2026-08-11T03:31:14.643Z"
+  },
+  {
+    "date": "2026-08-11",
+    "slot": 3,
+    "platform": "facebook",
+    "status": "success",
+    "dry_run": false,
+    "attempts": 1,
+    "published_media_type": "reel",
+    "video_status": "published",
+    "ab_variant": "10s",
+    "post_id": "1319580420256285",
+    "created_at": "2026-08-11T04:00:32.175Z"
+  },
+  {
+    "date": "2026-08-11",
+    "slot": 3,
+    "platform": "instagram",
+    "status": "success",
+    "dry_run": false,
+    "attempts": 1,
+    "published_media_type": "reel",
+    "video_status": "published",
+    "ab_variant": "10s",
+    "post_id": "18145621762490085",
+    "created_at": "2026-08-11T04:01:29.071Z"
+  },
+  {
+    "date": "2026-08-11",
+    "slot": 2,
+    "platform": "facebook",
+    "status": "success",
+    "dry_run": false,
+    "attempts": 1,
+    "published_media_type": "reel",
+    "video_status": "published",
+    "ab_variant": "10s",
+    "post_id": "1702250854406986",
+    "created_at": "2026-08-11T12:30:35.613Z"
+  },
+  {
+    "date": "2026-08-11",
+    "slot": 2,
+    "platform": "instagram",
+    "status": "success",
+    "dry_run": false,
+    "attempts": 2,
+    "published_media_type": "reel",
+    "video_status": "published",
+    "ab_variant": "10s",
+    "post_id": "18089255150642843",
+    "created_at": "2026-08-11T12:31:56.602Z"
+  }
+]

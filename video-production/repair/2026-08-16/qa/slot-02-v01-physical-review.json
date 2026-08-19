@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "reviewed_at": "2026-08-16T20:50:02.6829321+08:00",
+  "reviewer": "GPT-5.6 Sol",
+  "knowledge_pack_version": "0.3.0-evidence-150-full-audit-quarantine",
+  "knowledge_pack_cutoff": "2026-07-20",
+  "source_ids": [],
+  "review_role": "synthetic_candidate_physics_review",
+  "professional_claim_approval": false,
+  "clip_path": "video-production/repair/2026-08-16/raw/sixiangjia_20260816_s02_makeup_pouch_external_mask_release_v01.mp4.qc_failed",
+  "clip_sha256": "3266ACBEB022F031A8C0A51F79BF393BDD85EEBAFA7C8280B94918D22FD18D01",
+  "technical_review": {
+    "native_dimensions": "FAIL_1088x1920_EXPECTED_1080x1920",
+    "full_decode": "PASS_145_OF_145",
+    "frame_rate": "24/1",
+    "first_pts_time": "0.000000",
+    "last_pts_time": "6.000000",
+    "pts_anomaly_count": 0
+  },
+  "creative_review": {
+    "result": "FAIL",
+    "first_frame_external_mask": "pass",
+    "card_lateral_reveal": "pass",
+    "pouch_and_rail_grounding": "pass_in_reviewed_full_resolution_frames",
+    "single_hand_object_count": "fail",
+    "issue": {
+      "id": "duplicate_second_hand",
+      "start_frame": 13,
+      "end_frame": 144,
+      "description": "A second hand appears behind the foreground hand by frame 13 and remains visible through the final frame, contradicting the manifest lock of exactly one forearm and one hand."
+    }
+  },
+  "representative_full_resolution_frames": [0, 13, 24, 48, 72, 96, 120, 144],
+  "contact_sheet_path": "video-production/repair/2026-08-16/qa/slot-02-v01-contact-sheet.jpg",
+  "contact_sheet_sha256": "90A036B156DCB21BAAD82DB12C1131342BEE849D00E76C552ACAFDD89B79932D",
+  "contact_sheet_limitation": "triage_only_not_full_frame_proof",
+  "final_decision": "REJECT_NATIVE_QC_AND_DUPLICATE_HAND",
+  "downstream_tts_grok_final_master_linkage": "blocked"
+}

@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { loadDailyContent, readJsonFile, writeJsonAtomic } from "./logging";
 import { projectRoot, videoReviewsPath } from "./paths";
+import { resolveTrustedProductionRuntime } from "./productionRuntime";
 import { getZonedDateParts } from "./scheduler";
 import { assertMetaReelMetadata, probeVideo } from "./videoMedia";
 import type { VideoReviewRecord } from "./videoReviewGate";
@@ -37,8 +38,9 @@ async function sha256File(path: string): Promise<string> {
 
 // A decode error in any frame makes ffmpeg print to stderr; an empty stderr is
 // a full clean decode. This is the machine half of "someone actually looked".
-async function assertFullDecode(filePath: string): Promise<void> {
-  const { stderr } = await execFileAsync("ffmpeg", [
+async function assertFullDecode(filePath: string, root: string): Promise<void> {
+  const ffmpeg = await resolveTrustedProductionRuntime("ffmpeg", root);
+  const { stderr } = await execFileAsync(ffmpeg, [
     "-v",
     "error",
     "-i",
@@ -251,8 +253,8 @@ export async function recordOwnerVideoReview(input: {
     return { record: metadata };
   }
 
-  await assertFullDecode(loaded.absolutePath);
-  const metadata = await probeVideo(loaded.absolutePath);
+  await assertFullDecode(loaded.absolutePath, root);
+  const metadata = await probeVideo(loaded.absolutePath, { root });
   assertMetaReelMetadata(metadata);
 
   // The gate requires generated_clip_audio_used to be false. An audio stream is

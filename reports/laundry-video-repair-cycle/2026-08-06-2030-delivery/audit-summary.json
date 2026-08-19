@@ -1,0 +1,28 @@
+{
+  "run_date": "2026-08-06",
+  "run_time_asia_taipei": "20:30",
+  "verdict": "NO_GO_VIDEO_DEFERRED",
+  "queue": {
+    "video_deferred": 14,
+    "resolved": 0,
+    "ready": 0,
+    "duplicate_keys": 0,
+    "submitted_once_violations": 0,
+    "sha256": "1265AAEC0AF1A864A98B5CC2E05C0D9B4C237C9942E5D97BE1D562CC94EF07BB"
+  },
+  "current_run_decode": {
+    "repair_raw_count": 12,
+    "repair_raw_frames_each": 145,
+    "repair_raw_pts_anomalies": 0,
+    "formal_master_count": 1,
+    "formal_master_frames": 240,
+    "formal_master_pts_anomalies": 0
+  },
+  "new_generation_submitted": 0,
+  "existing_generation_resubmitted": 0,
+  "meta_publish_attempted": false,
+  "posted_log_written": false,
+  "resolve_ready_executed": false,
+  "final_status": "VIDEO_DEFERRED"
+}
+

@@ -4,6 +4,11 @@ import { getOption, isMain } from "./cli";
 import { loadConversionEvents } from "./conversionFunnel";
 import { loadDailyContent, loadPostLog, readJsonFile, writeJsonAtomic } from "./logging";
 import { postedLogDirectory, projectRoot, review72HourPath } from "./paths";
+import {
+  findStrictLiveTransportEntry,
+  isQualifiedFacebookReel,
+  isQualifiedInstagramReel
+} from "./publishingReconciliation";
 import type { Platform, PostLogEntry } from "./types";
 
 type MetricName = "reach" | "saved" | "shares";
@@ -69,17 +74,18 @@ async function loadInsightRows(root: string, platform: Platform): Promise<Map<st
   return new Map([...map].map(([key, value]) => [key, value.row]));
 }
 
-function successfulLive(entries: PostLogEntry[], slot: number, platform: Platform): PostLogEntry | undefined {
-  return entries
-    .filter(
-      (entry) =>
-        entry.slot === slot &&
-        entry.platform === platform &&
-        !entry.dry_run &&
-        ["success", "posted"].includes(entry.status)
-    )
-    .sort((a, b) => a.created_at.localeCompare(b.created_at))
-    .at(-1);
+function successLookingClaim(entries: readonly PostLogEntry[], slot: number, platform: Platform): boolean {
+  return entries.some(
+    (entry) =>
+      entry.slot === slot &&
+      entry.platform === platform &&
+      (entry.status === "success" || entry.status === "posted") &&
+      entry.dry_run !== true
+  );
+}
+
+function validTimestamp(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0 && !Number.isNaN(Date.parse(value));
 }
 
 export async function generate72HourReview(options: { root?: string; asOf?: Date } = {}): Promise<Review72HourRow[]> {
@@ -92,14 +98,52 @@ export async function generate72HourReview(options: { root?: string; asOf?: Date
     loadConversionEvents(root)
   ]);
   const rows: Review72HourRow[] = [];
+  const publicationDataGaps: string[] = [];
 
   for (const file of files.filter((name) => /^\d{4}-\d{2}-\d{2}\.json$/.test(name)).sort()) {
     const date = file.slice(0, 10);
     const [posts, content] = await Promise.all([loadPostLog(date, root), loadDailyContent(date, root)]);
     for (const slot of [1, 2]) {
-      const fb = successfulLive(posts, slot, "facebook");
-      const ig = successfulLive(posts, slot, "instagram");
-      if (!fb || !ig) continue;
+      if (!content) {
+        publicationDataGaps.push(`${date} slot ${slot}: content calendar missing; excluded from analytics.`);
+        continue;
+      }
+      if (content.tampered) {
+        publicationDataGaps.push(`${date} slot ${slot}: content calendar integrity is tampered; excluded from analytics.`);
+        continue;
+      }
+      const matchingSlots = content.slots.filter((item) => item.slot === slot);
+      if (matchingSlots.length !== 1) {
+        publicationDataGaps.push(`${date} slot ${slot}: calendar slot is missing or ambiguous; excluded from analytics.`);
+        continue;
+      }
+      const actual = matchingSlots[0]!;
+      const fb = findStrictLiveTransportEntry(posts, { date, slot, platform: "facebook" });
+      const ig = findStrictLiveTransportEntry(posts, { date, slot, platform: "instagram" });
+      if (!fb || !ig) {
+        if (
+          successLookingClaim(posts, slot, "facebook") ||
+          successLookingClaim(posts, slot, "instagram")
+        ) {
+          publicationDataGaps.push(
+            `${date} slot ${slot}: FB/IG live transport evidence is missing or ambiguous; excluded from analytics.`
+          );
+        }
+        continue;
+      }
+      if (
+        actual.media_type === "reel" &&
+        (!isQualifiedFacebookReel(fb) || !isQualifiedInstagramReel(ig))
+      ) {
+        publicationDataGaps.push(
+          `${date} slot ${slot}: planned Reel lacks qualified dual-platform Reel evidence; image fallback or VIDEO_DEFERRED is not an analytics sample.`
+        );
+        continue;
+      }
+      if (!validTimestamp(fb.created_at) || !validTimestamp(ig.created_at)) {
+        publicationDataGaps.push(`${date} slot ${slot}: live transport timestamp is invalid; excluded from analytics.`);
+        continue;
+      }
       const publishedAt = [fb.created_at, ig.created_at].sort().at(-1)!;
       const eligibleAt = new Date(Date.parse(publishedAt) + 72 * 60 * 60 * 1000);
       if (eligibleAt > asOf) continue;
@@ -126,12 +170,11 @@ export async function generate72HourReview(options: { root?: string; asOf?: Date
       if (!attributed.some((event) => event.event_type === "line_click")) dataQuality.push("LINE clicks unavailable: GA4 export/backfill missing");
       if (!attributed.some((event) => event.event_type === "booking")) dataQuality.push("bookings unavailable: store backfill missing");
 
-      const actual = content?.slots.find((item) => item.slot === slot);
       rows.push({
         date,
         slot,
-        topic: actual?.topic ?? "",
-        media_type: actual?.media_type ?? "image",
+        topic: actual.topic,
+        media_type: actual.media_type ?? "image",
         published_at: publishedAt,
         eligible_at: eligibleAt.toISOString(),
         metrics: {
@@ -152,7 +195,9 @@ export async function generate72HourReview(options: { root?: string; asOf?: Date
 
   await writeJsonAtomic(review72HourPath(root), {
     generated_at: asOf.toISOString(),
-    rule: "Only content with successful live FB and IG posts at least 72 hours old is included.",
+    rule:
+      "Only content with one exact same-date live FB and IG transport record at least 72 hours old is included; planned Reels additionally require qualified dual-platform Reel read-back evidence.",
+    data_gaps: publicationDataGaps,
     rows
   });
   return rows;

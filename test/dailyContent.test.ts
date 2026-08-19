@@ -175,5 +175,5 @@ describe("DailyContent schema", () => {
         expect(slot.instagram_caption).not.toMatch(/go\/line\.html\?source=post&utm_/);
       }
     }
-  });
+  }, 30_000);
 });

@@ -153,7 +153,9 @@ export async function validatePublishableReel(
   });
   assertReelRunFresh(freshness);
 
-  const metadata = await probeVideo(fullPath);
+  // Native media inspection is resolved against this checkout's immutable
+  // runtime allowlist. It must never inherit an ffprobe from PATH.
+  const metadata = await probeVideo(fullPath, { root });
   assertMetaReelMetadata(metadata);
   await assertVideoReviewApproved({
     date,

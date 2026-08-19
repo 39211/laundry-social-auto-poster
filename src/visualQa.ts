@@ -8,6 +8,8 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 import { readJsonFile, writeJsonAtomic } from "./logging";
 import { padSlot, projectRoot, rejectedConceptsPath, relativeCarouselAssetPath } from "./paths";
+import { resolveTrustedProductionRuntime, type RuntimeResolverOptions } from "./productionRuntime";
+import type { VideoCommandRunner } from "./videoMedia";
 
 export const VISUAL_QA_AXES = [
   "OBJECT_IDENTITY",
@@ -1508,7 +1510,14 @@ export async function burnCarouselCanaries(input: {
   sources: string[];
   qaDir: string;
   canaries?: string[];
-}): Promise<CarouselSlideRecord[]> {
+  root?: string;
+  execFile?: VideoCommandRunner;
+} & RuntimeResolverOptions): Promise<CarouselSlideRecord[]> {
+  const root = projectRoot(input.root);
+  // Refuse before creating QA output when no immutable runtime is present.
+  // Resolve again at every native action below to close replacement races.
+  await resolveTrustedProductionRuntime("ffmpeg", root, input);
+  const run = input.execFile ?? (execFileAsync as VideoCommandRunner);
   await mkdir(input.qaDir, { recursive: true });
   const font = ffmpegFontfile();
   const slides: CarouselSlideRecord[] = [];
@@ -1517,7 +1526,8 @@ export async function burnCarouselCanaries(input: {
     const name = `slide-${String(index + 1).padStart(2, "0")}.png`;
     const dest = join(input.qaDir, name);
     const draw = `drawtext=fontfile='${font}':text='${canary}':x=16:y=h-56:fontsize=36:fontcolor=yellow:box=1:boxcolor=black@0.88:boxborderw=8`;
-    await execFileAsync("ffmpeg", ["-v", "error", "-y", "-i", source, "-vf", draw, dest]);
+    const ffmpeg = await resolveTrustedProductionRuntime("ffmpeg", root, input);
+    await run(ffmpeg, ["-v", "error", "-y", "-i", source, "-vf", draw, dest]);
     slides.push({
       name,
       slide: index + 1,

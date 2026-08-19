@@ -10,7 +10,9 @@
 param(
     [Parameter(Mandatory = $true)][string]$Date,
     [string]$LogFile = "",
-    [switch]$QaOnly
+    [switch]$QaOnly,
+    [switch]$SkipPublicSite,
+    [string]$RootOverride = ""
 )
 
 $ErrorActionPreference = "Continue"
@@ -18,12 +20,34 @@ $ErrorActionPreference = "Continue"
 # prints and broke a scheduled parse; interactive sessions never hit this.
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
-$root = Split-Path -Parent $PSScriptRoot
+$root = if ($RootOverride) { [IO.Path]::GetFullPath($RootOverride) } else { Split-Path -Parent $PSScriptRoot }
+$executingCheckout = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot)).TrimEnd('\')
+$requestedContractRoot = [IO.Path]::GetFullPath($root).TrimEnd('\')
+if (-not $executingCheckout.Equals($requestedContractRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    $fixtureRoot = $requestedContractRoot + '\'
+    if ($env:LAUNDRY_EXECUTABLE_CONTRACT_TEST_SEAM -cne "allow-temp-production-runtime-shims-v1" -or -not $fixtureRoot.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        [Console]::Error.WriteLine("BLOCKED production contract: RootOverride does not match the executing scripts checkout.")
+        exit 1
+    }
+}
+. (Join-Path $PSScriptRoot "_production-contract.ps1")
+$productionContract = Test-CleanProductionContract -Root $root
+if (-not $productionContract.ok) {
+    [Console]::Error.WriteLine("BLOCKED production contract before image generation: $($productionContract.reason). No Codex, image write, visual QA, or public-site generation was run.")
+    exit 1
+}
+$ProductionContractVerified = $true
 
 function Write-Step([string]$m) {
     $line = "[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f (Get-Date), $m
     Write-Host $line
     if ($LogFile) { $line | Out-File -FilePath $LogFile -Append -Encoding utf8 }
+}
+
+function Write-CapturedOutput([object[]]$Output, [string]$LogPath) {
+    if ($LogPath) { @($Output) | Out-File -FilePath $LogPath -Append -Encoding utf8 }
+    else { @($Output) | ForEach-Object { Write-Host $_ } }
 }
 
 function Get-CarouselSlotItems($Items, [int]$Slot) {
@@ -57,8 +81,7 @@ function Invoke-CarouselVisualQaWarning {
         [string]$LogFile
     )
     $group = Get-CarouselSlotItems $Items $Slot
-    if ($group.Count -lt 2) { return }
-    $tsx = Join-Path $RootPath "node_modules\.bin\tsx.cmd"
+    if ($group.Count -lt 2) { return $true }
     $cli = Join-Path $RootPath "src\visualQaCli.ts"
     $assetDir = Join-Path $RootPath "docs\assets\$Date"
     $pad = "{0:d2}" -f $Slot
@@ -69,22 +92,106 @@ function Invoke-CarouselVisualQaWarning {
         [IO.File]::WriteAllText($topicFile, $topic, [Text.UTF8Encoding]::new($false))
     } catch {
         Write-Step "Carousel visual-qa topic tempfile write failed for slot $Slot (warning mode continues)."
-        return
+        return $true
     }
+
+    # visualQaCli is deliberately preparation/evaluation only.  It must never
+    # select PATH python/ffmpeg or an APPDATA Codex trampoline.  Refuse before
+    # even creating QA artifacts when either immutable child runtime is absent.
+    if (-not (Resolve-TrustedProductionFfmpegExecutable -Root $RootPath)) {
+        [Console]::Error.WriteLine("BLOCKED carousel visual QA: trusted allowlisted ffmpeg runtime could not be established. No QA child or public-site action was run.")
+        return $false
+    }
+    if (-not (Resolve-TrustedProductionCodexExecutable -Root $RootPath)) {
+        [Console]::Error.WriteLine("BLOCKED carousel visual QA: trusted immutable Codex runtime could not be established. No QA child or public-site action was run.")
+        return $false
+    }
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $RootPath -Stage "carousel visual QA prepare")) { return $false }
+
     Write-Step "Carousel visual-qa (warning) for slot $Slot"
     try {
-        $qaOut = & $tsx $cli --carousel --dir $assetDir --slot $Slot --topic-file $topicFile --out $outPath --date $Date 2>&1
-        if ($LogFile) { $qaOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
-        else { $qaOut | ForEach-Object { Write-Host $_ } }
-        if ($LASTEXITCODE -ne 0) {
+        $prepareOut = @(Invoke-TrustedProductionTsx -Root $RootPath $cli --carousel --prepare --dir $assetDir --slot $Slot --topic-file $topicFile --out $outPath --date $Date 2>&1)
+        $prepareExit = $LASTEXITCODE
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $RootPath -Stage "after carousel visual QA prepare")) { return $false }
+        if ($prepareExit -ne 0) {
             Write-Step "Carousel visual-qa script error for slot $Slot (warning mode continues)."
-        } elseif (-not (Test-Path -LiteralPath $outPath)) {
-            Write-Step "Carousel visual-qa.json write failed for slot $Slot (warning mode continues)."
-        } else {
-            Write-Step "Carousel visual-qa wrote $outPath (warning mode; publish is not blocked)"
+            Write-CapturedOutput -Output $prepareOut -LogPath $LogFile
+            return $true
         }
+
+        $qaDir = Join-Path $RootPath "output\visual-qa\carousel\$Date\slot-$pad"
+        $promptPath = Join-Path $qaDir "judge-prompt.txt"
+        $stdoutPath = Join-Path $qaDir "judge-stdout.txt"
+        $sidecarPath = Join-Path $qaDir "sidecar.json"
+        $judgeImages = @(Get-ChildItem -LiteralPath $qaDir -Filter "*.png" -File -ErrorAction SilentlyContinue | Sort-Object Name)
+        if (-not (Test-Path -LiteralPath $promptPath) -or -not (Test-Path -LiteralPath $sidecarPath) -or $judgeImages.Count -ne $group.Count) {
+            Write-Step "Carousel visual-qa preparation did not produce the expected canaries for slot $Slot (warning mode continues)."
+            Write-CapturedOutput -Output $prepareOut -LogPath $LogFile
+            return $true
+        }
+
+        $prompt = [IO.File]::ReadAllText($promptPath, [Text.UTF8Encoding]::new($false))
+        if ($prompt -match "Generate exactly|Use the built-in image model") {
+            throw "QA prompt contains image-generation language; refusing to call Codex."
+        }
+        $codexArgs = @("exec", "-C", $RootPath, "-s", "read-only")
+        foreach ($judgeImage in $judgeImages) { $codexArgs += @("-i", $judgeImage.FullName) }
+        $codexArgs += "-"
+        $judgeOut = @(Invoke-TrustedProductionCodex -Root $RootPath -StandardInput $prompt @codexArgs 2>&1)
+        $judgeExit = $LASTEXITCODE
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $RootPath -Stage "after carousel visual QA judge")) { return $false }
+        if ($judgeExit -ne 0) {
+            Write-Step "Carousel visual-qa judge error for slot $Slot (warning mode continues)."
+            Write-CapturedOutput -Output $judgeOut -LogPath $LogFile
+            return $true
+        }
+        [IO.File]::WriteAllText($stdoutPath, ((@($judgeOut) | ForEach-Object { [string]$_ }) -join [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
+        if (-not (Test-Path -LiteralPath $stdoutPath) -or (Get-Item -LiteralPath $stdoutPath).Length -eq 0) {
+            Write-Step "Carousel visual-qa judge wrote no stdout for slot $Slot (warning mode continues)."
+            return $true
+        }
+
+        $promptHash = (Get-FileHash -LiteralPath $promptPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $evaluateOut = @(Invoke-TrustedProductionTsx -Root $RootPath $cli --carousel --evaluate --stdout-file $stdoutPath --sidecar $sidecarPath --qa-dir $qaDir --prompt-hash $promptHash --run-id "carousel-$Date-slot-$pad" 2>&1)
+        $evaluateExit = $LASTEXITCODE
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $RootPath -Stage "after carousel visual QA evaluation")) { return $false }
+        if ($evaluateExit -ne 0) {
+            Write-CapturedOutput -Output $evaluateOut -LogPath $LogFile
+            Write-Step "Carousel visual-qa.json write failed for slot $Slot (warning mode continues)."
+            return $true
+        }
+        $recordLines = @($evaluateOut | ForEach-Object { [string]$_ } | Where-Object { $_.TrimStart().StartsWith("{") })
+        if ($recordLines.Count -ne 1) {
+            Write-CapturedOutput -Output $evaluateOut -LogPath $LogFile
+            Write-Step "Carousel visual-qa returned no unambiguous record for slot $Slot (warning mode continues)."
+            return $true
+        }
+        try {
+            $record = $recordLines[0] | ConvertFrom-Json
+            foreach ($required in @("verdict", "fail_class", "prompt_hash", "run_id", "slides")) {
+                if ($record.PSObject.Properties.Name -notcontains $required) { throw "record is missing $required" }
+            }
+            if ($record.prompt_hash -cne $promptHash -or $record.run_id -cne "carousel-$Date-slot-$pad") {
+                throw "record binding does not match the prepared prompt/run"
+            }
+        } catch {
+            Write-CapturedOutput -Output $evaluateOut -LogPath $LogFile
+            Write-Step "Carousel visual-qa returned an invalid record for slot $Slot (warning mode continues)."
+            return $true
+        }
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $RootPath -Stage "carousel visual QA record write")) { return $false }
+        [IO.File]::WriteAllText($outPath, ($recordLines[0].Trim() + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
+        Write-CapturedOutput -Output $evaluateOut -LogPath $LogFile
+        if (-not (Test-Path -LiteralPath $outPath)) {
+            Write-Step "Carousel visual-qa.json write failed for slot $Slot (warning mode continues)."
+            return $true
+        }
+        Write-Step "Carousel visual-qa wrote $outPath (warning mode; publish is not blocked)"
+        return $true
     } catch {
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $RootPath -Stage "after carousel visual QA failure")) { return $false }
         Write-Step "Carousel visual-qa script error for slot $Slot (warning mode continues)."
+        return $true
     }
 }
 
@@ -94,8 +201,11 @@ function Ensure-CarouselVisualQa($Items, [string]$RootPath, [string]$Date, [stri
         $pad = "{0:d2}" -f $slotNum
         $qaPath = Join-Path $RootPath "docs\assets\$Date\slot-$pad.visual-qa.json"
         if (Test-Path -LiteralPath $qaPath) { continue }
-        Invoke-CarouselVisualQaWarning -Date $Date -Slot $slotNum -Items $Items -RootPath $RootPath -LogFile $LogFile
+        if (-not (Invoke-CarouselVisualQaWarning -Date $Date -Slot $slotNum -Items $Items -RootPath $RootPath -LogFile $LogFile)) {
+            return $false
+        }
     }
+    return $true
 }
 
 $manifestPath = Join-Path $root "data\image-prompts\$Date.json"
@@ -106,8 +216,8 @@ if ($QaOnly) {
     }
     $qaManifest = [IO.File]::ReadAllText($manifestPath, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
     $qaItems = if ($qaManifest -is [array]) { $qaManifest } else { $qaManifest.items }
-    Ensure-CarouselVisualQa $qaItems $root $Date $LogFile
-    exit 0
+    if (Ensure-CarouselVisualQa $qaItems $root $Date $LogFile) { exit 0 }
+    exit 1
 }
 if (-not (Test-Path $manifestPath)) {
     Write-Step "No image manifest for $Date; run generate-image-manifest first."
@@ -122,19 +232,21 @@ $items = if ($manifest -is [array]) { $manifest } else { $manifest.items }
 # Inventory is the calendar (list-missing), not "every manifest target exists".
 # A complete-looking manifest with yesterday's two-ruler day used to print
 # "already present" while slot 1 and 2 were still missing.
-Push-Location $root
-$listOut = cmd /c "npm.cmd run generate-image-manifest -- --list-missing --date $Date 2>&1"
+$listOut = @(Invoke-TrustedProductionNpm -Root $root run generate-image-manifest -- --list-missing --date $Date 2>&1)
 $listExit = $LASTEXITCODE
-Pop-Location
-if ($LogFile) { $listOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
-else { $listOut | ForEach-Object { Write-Host $_ } }
+if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "after image inventory")) { exit 1 }
+Write-CapturedOutput -Output $listOut -LogPath $LogFile
+if ($listExit -ne 0) {
+    Write-Step "list-missing failed for $Date (exit $listExit); refusing image generation and public-site work."
+    exit 1
+}
 
 $listText = (@($listOut) | ForEach-Object { "$_" }) -join [Environment]::NewLine
 $alreadyPresentLine = "Every image for $Date was already present."
 $zeroMissing = $listText.Contains($alreadyPresentLine)
 $hasMissingReport = $listText -match "calendar image\(s\) missing"
 
-$codex = Join-Path $env:APPDATA "npm\codex.cmd"
+$codex = $null
 $generated = 0
 
 if ($zeroMissing) {
@@ -175,9 +287,19 @@ $($item.prompt)
 "@
 
     $before = Get-Date
-    $codexOut = $prompt | & $codex exec -C $root -s read-only - 2>&1
-    if ($LogFile) { $codexOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
-    else { $codexOut | ForEach-Object { Write-Host $_ } }
+    if (-not $codex) { $codex = Resolve-TrustedProductionCodexExecutable -Root $root }
+    if (-not $codex) {
+        Write-Step "trusted Codex executable could not be established."
+        exit 1
+    }
+    $codexOut = @(Invoke-TrustedProductionCodex -Root $root -StandardInput $prompt exec -C $root -s read-only - 2>&1)
+    $codexExit = $LASTEXITCODE
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "after image generation")) { exit 1 }
+    Write-CapturedOutput -Output $codexOut -LogPath $LogFile
+    if ($codexExit -ne 0) {
+        Write-Step "Codex image generation failed for slot $($item.slot) (exit $codexExit)."
+        exit 1
+    }
 
     $session = Get-ChildItem "$env:USERPROFILE\.codex\generated_images" -Directory -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -196,6 +318,7 @@ $($item.prompt)
         exit 1
     }
 
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "generated image write")) { exit 1 }
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
     Copy-Item $image.FullName $target -Force
     Write-Step "Saved slot $($item.slot)."
@@ -204,18 +327,18 @@ $($item.prompt)
     # image was just written. Marking by slot alone left three of four slides
     # of every carousel without a source record, which the publish gate reads
     # as an unverified image.
-    Push-Location $root
-    $markOut = cmd /c "npm.cmd run mark-image-source -- --date $Date --slot $($item.slot) --path $($item.target_path) --source gpt-image-2 2>&1"
-    if ($LogFile) { $markOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
-    else { $markOut | ForEach-Object { Write-Host $_ } }
-    if ($LASTEXITCODE -ne 0) {
-        Write-Step "mark-image-source failed for slot $($item.slot) (exit $LASTEXITCODE)."
+    $markOut = @(Invoke-TrustedProductionNpm -Root $root run mark-image-source -- --date $Date --slot $($item.slot) --path $($item.target_path) --source gpt-image-2 2>&1)
+    $markExit = $LASTEXITCODE
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "after image source record")) { exit 1 }
+    Write-CapturedOutput -Output $markOut -LogPath $LogFile
+    if ($markExit -ne 0) {
+        Write-Step "mark-image-source failed for slot $($item.slot) (exit $markExit)."
+        exit 1
     }
-    Pop-Location
     $generated += 1
     $slotNum = [int]$item.slot
     if (Test-CarouselSlotComplete $items $slotNum $root) {
-        Invoke-CarouselVisualQaWarning -Date $Date -Slot $slotNum -Items $items -RootPath $root -LogFile $LogFile
+        if (-not (Invoke-CarouselVisualQaWarning -Date $Date -Slot $slotNum -Items $items -RootPath $root -LogFile $LogFile)) { exit 1 }
     }
 }
 
@@ -224,21 +347,37 @@ if ($generated -gt 0) {
 }
 }
 
-Ensure-CarouselVisualQa $items $root $Date $LogFile
+if (-not (Ensure-CarouselVisualQa $items $root $Date $LogFile)) { exit 1 }
 
-Push-Location $root
-$siteOut = cmd /c "npm.cmd run generate-public-site 2>&1"
-$siteExit = $LASTEXITCODE
-if ($LogFile) { $siteOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
-else { $siteOut | ForEach-Object { Write-Host $_ } }
-if ($siteExit -ne 0) { Write-Step "generate-public-site failed (exit $siteExit)." }
-$valOut = cmd /c "npm.cmd run validate-publishable-images -- --date $Date 2>&1"
-$ok = ($LASTEXITCODE -eq 0)
-if ($LogFile) { $valOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
-else { $valOut | ForEach-Object { Write-Host $_ } }
-if (-not $ok) { Write-Step "validate-publishable-images failed (exit $LASTEXITCODE)." }
-Pop-Location
+$siteDeferred = $false
+$siteExit = 0
+if ($SkipPublicSite) {
+    $siteDeferred = $true
+    Write-Step "Public-site generation deferred to the guarded publication stage."
+} else {
+    $approval = Test-PublicPublicationApproval -Root $root -Date $Date
+    if (-not $approval.ok) {
+        $siteDeferred = $true
+        Write-Step "Public-site generation blocked: $($approval.reason). $($approval.gaps -join ' | ')"
+    } else {
+        $siteOut = @(Invoke-TrustedProductionNpm -Root $root run generate-public-site 2>&1)
+        $siteExit = $LASTEXITCODE
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "after public-site generation")) { exit 1 }
+        Write-CapturedOutput -Output $siteOut -LogPath $LogFile
+        if ($siteExit -ne 0) { Write-Step "generate-public-site failed (exit $siteExit)." }
+    }
+}
+$valOut = @(Invoke-TrustedProductionNpm -Root $root run validate-publishable-images -- --date $Date 2>&1)
+$valExit = $LASTEXITCODE
+if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "after publishable-image validation")) { exit 1 }
+$ok = ($valExit -eq 0)
+Write-CapturedOutput -Output $valOut -LogPath $LogFile
+if (-not $ok) { Write-Step "validate-publishable-images failed (exit $valExit)." }
 
-if ($ok) { Write-Step "All publishable images for $Date are ready."; exit 0 }
+if ($ok -and $siteExit -eq 0) {
+    if ($siteDeferred) { Write-Step "All publishable images for $Date are ready locally; public-site generation is deferred or blocked pending approval." }
+    else { Write-Step "All publishable images for $Date are ready." }
+    exit 0
+}
 Write-Step "Images for $Date are still incomplete."
 exit 1

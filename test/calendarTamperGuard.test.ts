@@ -289,11 +289,11 @@ describe("daily scripts rebuild on tamper", () => {
   it("daily-approve inspects before auto-approve and force-rebuilds", async () => {
     const script = await readFile(join(PROJECT, "scripts", "daily-approve.ps1"), "utf8");
     const inspect = script.indexOf("inspect-calendar");
-    const generate = script.indexOf("npm.cmd run generate -- --date $date --force");
-    const manifest = script.indexOf("npm.cmd run generate-image-manifest -- --date $date");
+    const generate = script.indexOf("Invoke-TrustedProductionNpm -Root $root run generate -- --date $date --force");
+    const manifest = script.indexOf("Invoke-TrustedProductionNpm -Root $root run generate-image-manifest -- --date $date");
     const evidence = script.indexOf("calendar-tamper-");
     const toast = script.indexOf("行事曆被外部寫手竄改");
-    const approve = script.indexOf("npm.cmd run auto-approve");
+    const approve = script.indexOf("Invoke-TrustedProductionNpm -Root $root run auto-approve");
     expect(inspect).toBeGreaterThan(-1);
     expect(generate).toBeGreaterThan(inspect);
     expect(manifest).toBeGreaterThan(generate);
@@ -312,8 +312,8 @@ describe("daily scripts rebuild on tamper", () => {
   it("daily-generate inspects the existing-calendar branch before the images-ready exit", async () => {
     const script = await readFile(join(PROJECT, "scripts", "daily-generate.ps1"), "utf8");
     const inspect = script.indexOf("inspect-calendar");
-    const generate = script.indexOf("npm.cmd run generate -- --date $date --force");
-    const manifest = script.indexOf("npm.cmd run generate-image-manifest -- --date $date");
+    const generate = script.indexOf("Invoke-TrustedProductionNpm -Root $root run generate -- --date $date --force");
+    const manifest = script.indexOf("Invoke-TrustedProductionNpm -Root $root run generate-image-manifest -- --date $date");
     const evidence = script.indexOf("calendar-tamper-");
     const earlyExit = script.indexOf("$hasCalendar -and $imagesReady");
     expect(inspect).toBeGreaterThan(-1);

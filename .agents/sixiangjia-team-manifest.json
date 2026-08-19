@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "project": "sixiangjia-customer-facing-film",
+  "model_policy": "gpt-5.6-sol-only; external video model only after an explicit generation token",
+  "knowledge_pack": "0.3.0-evidence-150-full-audit-quarantine",
+  "candidate_research_pack": "csd-40-repro-audit-professional-film-sources-2026-07-20-not-qualified",
+  "qualification_status": "closed_fail_closed",
+  "professional_approval_allowed": false,
+  "roles": [
+    "sixiangjia-creative-producer",
+    "sixiangjia-screenwriter",
+    "sixiangjia-director",
+    "sixiangjia-line-producer",
+    "sixiangjia-first-ad",
+    "sixiangjia-dp-production-design",
+    "sixiangjia-continuity",
+    "sixiangjia-editor-sound",
+    "sixiangjia-material-brand-evidence",
+    "sixiangjia-generation-operator",
+    "sixiangjia-independent-qa"
+  ],
+  "single_writer_rule": "Only sixiangjia-screenwriter may directly change screenplay text.",
+  "single_gate_owner": "Only sixiangjia-creative-producer may issue script lock and generation tokens.",
+  "independence_rule": "Generation and QA must use different agents and QA may not repair the artifact it reviews.",
+  "current_screenplay": "video-production/runs/2026-07-19-multi-object-brand-film-v1/36-customer-facing-screenplay-v4.md",
+  "current_director_treatment": "video-production/runs/2026-07-19-multi-object-brand-film-v1/37-customer-facing-director-treatment-v3.md",
+  "active_artifact_contract": "video-production/runs/2026-07-19-multi-object-brand-film-v1/33-active-artifact-and-success-contract.md",
+  "research_audit": {
+    "audit_path": "research/codex-doubao-video-30/direct-case-adversarial-audit-2026-07-20.md",
+    "confirmed_direct": 30,
+    "confirmed_direct_executed": 4,
+    "confirmed_direct_runnable": 19,
+    "confirmed_direct_preproduction": 7,
+    "target_direct": 30
+  },
+  "authorization_tokens": {
+    "script_lock": null,
+    "first_frame_render": null,
+    "shot_plan_lock": null,
+    "video_generation": null
+  },
+  "current_state": "customer-facing-screenplay-and-director-draft-only; G1=blocked_not_passed; G2=blocked_not_passed; no video generation; no release"
+}

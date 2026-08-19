@@ -117,3 +117,10 @@
 - **A1 生效**:總指揮輪固定動作新增——每輪讀 data/video-repair-queue/queue.json,unexpected 類 defer 升缺陷單、expected 只記帳;指揮窗禁寫行事曆/圖/送 Hermes(F14 律)。
 - 每日 GitHub 研究日誌判死(填表,主線零讀取);首幀幾何教訓(卡在軌+遮衝突+t0 無特寫手)留檔為 companion 影片未來規格。
 - 幻想路線正式廢止:「把已發四圖事後補成影片」不做;修復只針對未發布且題材相符的新包。
+
+### 22:20 凍結裁決(R-FREEZE 卷)
+- 對象:修復佇列 6 筆 defer_kind=unexpected 的「Generation …」真生成失敗——08-01 s2、08-02 s2、08-06 s1、08-06 s2、08-14 s2、08-15 s2;同根因=provider 回 1088x1920 非原生。
+- **裁決:全數凍結**(標 `frozen_at` + `freeze_ruling: R-FREEZE-20260817`;`defer_kind` 維持 unexpected 不改判——真失敗與 pending gate 的語義區分是今日上午包的成果,不得回收)。**解凍唯一條件:native 1080x1920 provider 路徑修復並以一支實測片驗證**;屆時逐筆重啟,或依 13:20 廢止令(已發四圖不補片)直接結案。
+- **A1 修訂**:指揮輪讀 queue 時,unexpected 且**無** `frozen_at` 者才升缺陷單;frozen 者只記帳。catchup-publish 的 UNEXPECTED 告警同步排除 `frozen_at` 標記者(碼已進 main;主樹 checkout 切回 main 前,live 端仍以舊碼對 6 筆彈告警)。
+- 理由:伴生線已退役+幻想路線廢止(13:20)=六筆不會在原槽被修;繼續掛著=每輪誤升缺陷單+夜夜 toast,重演 19 天孤兒。
+- 明確不凍:08-15 s3(reel 線,720x1280+copx 來源紀錄缺)——活線真缺陷,維持 unexpected 照 A1 升單。

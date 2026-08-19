@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "date": "2026-08-07",
+  "script": "C:/Users/cyc39/Documents/Codex/2026-06-30/copx/scripts/inspect-hermes.ps1",
+  "status": "INSPECTION_TIMEOUT_NO_SUBMISSION",
+  "attempts": [
+    {
+      "mode": "direct_powershell_invocation",
+      "started": false,
+      "result": "blocked_by_windows_script_execution_policy"
+    },
+    {
+      "mode": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File",
+      "started": true,
+      "result": "timeout_in_hermes_doctor_after_more_than_150_seconds",
+      "sanitized_report_written": false,
+      "stale_report_excluded": "reports/hermes-inspect.json last written 2026-08-06T06:54:53.1692545+08:00"
+    }
+  ],
+  "xai_oauth_logged_in": null,
+  "video_gen_enabled": null,
+  "dependencies_ok": null,
+  "ready": false,
+  "cleanup": {
+    "exact_current_run_process_ids_stopped": [54716, 51256, 40496, 6720],
+    "unrelated_hermes_processes_modified": false
+  },
+  "security": {
+    "oauth_token_displayed": false,
+    "xai_api_key_used": false,
+    "grok_com_control_used": false
+  },
+  "production_effect": "Readiness is unverified and both first-frame reviews failed. No generate-shot.ps1 call is permitted."
+}

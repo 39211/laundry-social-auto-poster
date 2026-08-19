@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "type": "grok_video_shot_manifest",
+  "generation_id": "sixiangjia_20260816_s02_makeup_pouch_external_mask_release_v01",
+  "mode": "image_to_video",
+  "source_shot_id": "2026-08-16-repair-slot-02-makeup-pouch-external-mask-release-v01",
+  "prompt": "Create one continuous 6-second 9:16 photorealistic Taiwanese laundry inspection-counter shot. The first frame already shows exactly one open faded olive-green rectangular canvas makeup pouch with one zipper opening, one plain unmarked metal zipper pull, zero handles and zero straps, beige lining and one dark-beige inner seam. Exactly one tall blank matte-grey rectangular card stands visibly captive inside exactly one shallow brushed-steel rail with one continuous flat base plate and exactly two visible end stops. The complete rail and base are grounded on the rubber mat outside the pouch and zipper path, separated by a visible gap, and never enter or touch the pouch. The card is an external line-of-sight mask that fully occludes the central section of the dark-beige inner seam. No hand is visible in the first frame. One adult forearm and one anatomically coherent hand enter from frame-left after motion begins. One dominant action only: the hand touches only the card's outer short edge and slides the same card laterally left inside the same fixed rail until the entire unchanged seam is visible, then releases and holds for one and a half seconds. The pouch, zipper, base plate and rail remain fixed, grounded and unchanged. Preserve exactly one pouch, one card, one connected rail, one base plate, two end stops, one zipper pull, one forearm and one hand. Preserve card-to-rail contact, the gap between rail and pouch, pouch shape, lining, seam, scuff, canvas weave, realistic weight, inertia and contact shadows. Fixed restrained camera. Motivated mixed fluorescent and cool storefront light. No cleaning transformation. No effect claim. No generated audio. No extra hand. No duplicate object. No morphing. No geometry changes. No penetration. No floating. No readable text. No logo. No watermark.",
+  "input_image": "video-production/repair/2026-08-16/first-frames/slot-02-first-frame-v01.png",
+  "model": "grok-imagine-video-1.5",
+  "provider": "xai-oauth",
+  "subscription_route": "SuperGrok/Hermes OAuth",
+  "duration_seconds": 6,
+  "aspect_ratio": "9:16",
+  "resolution": "1080p",
+  "required_native_dimensions": "1080x1920",
+  "concurrency": 1,
+  "submit_limit": 1,
+  "output_file": "video-production/repair/2026-08-16/raw/sixiangjia_20260816_s02_makeup_pouch_external_mask_release_v01.mp4"
+}

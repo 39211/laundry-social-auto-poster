@@ -24,8 +24,66 @@
 #
 # Every task uses StartWhenAvailable so a machine that was asleep still runs the
 # stage after it wakes, which is what a fixed daily time alone does not give.
+[CmdletBinding()]
+param(
+    [string]$RootOverride = ""
+)
+
 $ErrorActionPreference = "Stop"
-$root = Split-Path -Parent $PSScriptRoot
+$root = if ($RootOverride) { [IO.Path]::GetFullPath($RootOverride) } else { Split-Path -Parent $PSScriptRoot }
+$executingCheckout = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot)).TrimEnd('\')
+$requestedContractRoot = [IO.Path]::GetFullPath($root).TrimEnd('\')
+if (-not $executingCheckout.Equals($requestedContractRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    $fixtureRoot = $requestedContractRoot + '\'
+    if ($env:LAUNDRY_EXECUTABLE_CONTRACT_TEST_SEAM -cne "allow-temp-production-runtime-shims-v1" -or -not $fixtureRoot.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        [Console]::Error.WriteLine("BLOCKED production contract: RootOverride does not match the executing scripts checkout.")
+        exit 1
+    }
+}
+
+# Re-registering replaces every Laundry task, so this is a task-state mutation
+# even when invoked manually. Do not allow an uncommitted or unverifiable
+# executable contract to alter the scheduler.
+. (Join-Path $PSScriptRoot "_production-contract.ps1")
+$productionContract = Test-CleanProductionContract -Root $root
+if (-not $productionContract.ok) {
+    [Console]::Error.WriteLine("BLOCKED production contract before task registration: $($productionContract.reason). No scheduled task was unregistered or registered.")
+    exit 1
+}
+$script:trustedWindowsPowerShell = Resolve-TrustedProductionPowerShellExecutable -Root $root
+if (-not $script:trustedWindowsPowerShell) {
+    [Console]::Error.WriteLine("BLOCKED production contract before task registration: trusted absolute Windows PowerShell could not be established (or a workspace shadow is present).")
+    exit 1
+}
+
+# Keep the mutable scheduler surface closed over an explicit name-to-script
+# mapping. A future call cannot accidentally replace an unknown Laundry task.
+$script:approvedLaundryTaskScripts = @{
+    "Laundry-Daily-Generate"   = "daily-generate.ps1"
+    "Laundry-Weekly-Review"    = "weekly-review.ps1"
+    "Laundry-Daily-Approve"    = "daily-approve.ps1"
+    "Laundry-CatchUp-Publish"  = "catchup-publish.ps1"
+    "Laundry-YouTube-Upload"   = "youtube-upload.ps1"
+    "Laundry-Watchdog-Patrol"  = "watchdog-patrol.ps1"
+    "Laundry-Reel-Production"  = "produce-next-reel.ps1"
+    "Laundry-Day-Audit"        = "day-audit.ps1"
+}
+
+# The old Sentinel has an inline action outside this reviewed task set. Do not
+# silently replace, enable, or otherwise revive it: report it and require an
+# operator to remove/review it before manually registering the approved set.
+try {
+    $existingLaundryTasks = @(Get-ScheduledTask -ErrorAction Stop | Where-Object { $_.TaskName -like "Laundry-*" })
+} catch {
+    [Console]::Error.WriteLine("BLOCKED scheduler state before task registration: Laundry task inventory is unverifiable. No scheduled task was unregistered or registered. $($_.Exception.Message)")
+    exit 1
+}
+$legacySentinels = @($existingLaundryTasks | Where-Object { $_.TaskName -ceq "Laundry-Publish-Sentinel" })
+if ($legacySentinels.Count -gt 0) {
+    [Console]::Error.WriteLine("BLOCKED scheduler state before task registration: legacy Laundry-Publish-Sentinel is present. Manual review/removal is required; no scheduled task was unregistered or registered.")
+    exit 1
+}
 
 $common = @{
     StartWhenAvailable      = $true
@@ -42,20 +100,34 @@ function Register-LaundryTask {
         [string]$Description
     )
 
+    if (-not $script:approvedLaundryTaskScripts.ContainsKey($Name) -or $script:approvedLaundryTaskScripts[$Name] -cne $Script) {
+        throw "Refusing to register unknown or mismatched Laundry task: $Name -> $Script"
+    }
+
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "scheduled task unregistration")) {
+        throw "BLOCKED production contract before task unregistration."
+    }
     try { Unregister-ScheduledTask -TaskName $Name -Confirm:$false -ErrorAction Stop } catch {}
 
     # -WindowStyle Hidden: the visible console window these tasks used to open
     # on the desktop got closed mid-run at 06:30 on 2026-08-03 (task result
     # 0xC000013A, console interrupt), killing the morning site push. Hidden
     # windows cannot be closed by accident.
-    $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$root\scripts\$Script`"" `
+    $taskScript = [IO.Path]::GetFullPath((Join-Path $root "scripts\$Script"))
+    if (-not (Test-PathContainedBy -Path $taskScript -Container $root)) {
+        throw "Task script escapes the production root: $Script"
+    }
+    $action = New-ScheduledTaskAction -Execute $script:trustedWindowsPowerShell `
+        -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$taskScript`"" `
         -WorkingDirectory $root
     # IgnoreNew: whether overlapping triggers (retry slots, patrol starts) run
     # concurrently used to depend on the host default; publishing scripts are
     # not re-entrant, so a second instance must simply not start (luna, high).
     $settings = New-ScheduledTaskSettingsSet @common -ExecutionTimeLimit $TimeLimit -MultipleInstances IgnoreNew
 
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "scheduled task registration")) {
+        throw "BLOCKED production contract before task registration."
+    }
     Register-ScheduledTask -TaskName $Name -Action $action -Trigger $Triggers `
         -Settings $settings -Description $Description | Out-Null
     Write-Host "$Name registered."
@@ -107,9 +179,9 @@ Register-LaundryTask -Name "Laundry-YouTube-Upload" -Script "youtube-upload.ps1"
     -TimeLimit (New-TimeSpan -Minutes 30) `
     -Description "私享家每日 YouTube Shorts 上傳:slot 2/3 的 Reel 在 IG 實際發布後各上傳一筆;未授權時提醒不報錯。"
 
-# Thirty-minute patrol: revives disabled siblings and starts catch-up when a
-# publish window is open with its slot unpublished. See watchdog-patrol.ps1
-# for the incident history that makes this necessary.
+# Thirty-minute patrol: reports disabled/dead/legacy scheduler state
+# fail-closed, and only starts an already-approved enabled task inside a
+# valid recovery window. It never re-enables or re-registers siblings.
 # A -Once trigger with a 24-hour repetition duration STOPS FOREVER after that
 # day: on 2026-08-08 the patrol's NextRunTime was empty from midnight onward,
 # so nothing rescued the noon Reel when its publish triggers did not fire. The
@@ -120,7 +192,7 @@ $patrolTrigger.Repetition = (New-ScheduledTaskTrigger -Once -At "00:00" `
 Register-LaundryTask -Name "Laundry-Watchdog-Patrol" -Script "watchdog-patrol.ps1" `
     -Triggers @($patrolTrigger) `
     -TimeLimit (New-TimeSpan -Minutes 10) `
-    -Description "私享家看門狗巡邏:每 30 分鐘救活被停用任務;發布窗開著卻沒發文時立刻啟動補發。"
+    -Description "私享家看門狗巡邏:每 30 分鐘檢查停用、舊 Sentinel 與失效 trigger；異常僅回報並停下，不會自動復活或重註冊任務。"
 
 Register-LaundryTask -Name "Laundry-Reel-Production" -Script "produce-next-reel.ps1" `
     -Triggers @((New-ScheduledTaskTrigger -Daily -At "14:00")) `

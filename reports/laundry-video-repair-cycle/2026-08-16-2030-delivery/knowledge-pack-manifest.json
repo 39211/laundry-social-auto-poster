@@ -1,0 +1,61 @@
+{
+  "pack_id": "sixiangjia-video-evidence",
+  "version": "0.3.0-evidence-150-full-audit-quarantine",
+  "cutoff_date": "2026-07-20",
+  "registry": "evidence.jsonl",
+  "source_index": "source-index.json",
+  "source_url_validation": "source-url-validation.json",
+  "double_review": "double-review.jsonl",
+  "accepted_count": 0,
+  "candidate_count": 150,
+  "unique_canonical_id_count": 150,
+  "unique_source_url_count": 50,
+  "source_tier_counts": {
+    "T0": 0,
+    "T1": 84,
+    "T2": 66,
+    "T3": 0,
+    "T4": 0
+  },
+  "domain_counts": {
+    "promotional-strategy-psychology": 15,
+    "screenplay-dramaturgy": 15,
+    "directing-performance": 15,
+    "camera-lighting": 15,
+    "edit-tts-subtitles-audio": 15,
+    "grok-video-workflow": 15,
+    "realism-continuity-artifacts": 15,
+    "garment-care": 15,
+    "shoe-bag-leather-care": 15,
+    "meta-ig-publishing-measurement": 15
+  },
+  "accepted_target": 2500,
+  "target_breakdown": {
+    "core_history": 1500,
+    "implementation_cases": 500,
+    "frontier_research": 500
+  },
+  "status": "cannot_ship_all_150_pending_independent_re_review",
+  "limitations": [
+    "This is the first 150-unit milestone, not the 2500-unit target.",
+    "All 150 units are candidate-only after complete two-reviewer audit; zero units are accepted.",
+    "Thirty-six units are quarantined because their source, locator, or claim direction failed review.",
+    "The remaining 114 units require exact locator, version, region, and source-claim/project-gate re-review.",
+    "No T0 Sixiangjia private evidence or confirmed store SOP is included.",
+    "No evidence may enter an agent qualification test or production decision until independent re-review passes."
+  ],
+  "forbidden_claims": [
+    "all agents are trained",
+    "2500 evidence units have been learned",
+    "a shot list, prompt, voice-over, or ad copy is the screenplay",
+    "Hermes OAuth automation is approved by xAI",
+    "synthetic media is human-shot",
+    "advertising effectiveness without campaign evidence",
+    "online care guidance is Sixiangjia's confirmed SOP"
+  ],
+  "validation_contract": {
+    "accepted_item_gate": "Every accepted evidence_id requires its own verdict=PASS review with independent=true and a non-empty reviewer identity different from the primary reviewer.",
+    "candidate_semantics": "Candidate records are never counted as accepted and are not production authority.",
+    "pending_mode": "--allow-pending-double-review is diagnostic only, prints PENDING_DIAGNOSTIC_ONLY, and exits with code 2."
+  }
+}

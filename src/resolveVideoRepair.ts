@@ -1,6 +1,7 @@
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
-import { markVideoRepairReady, resolveVideoRepairQueue } from "./logging";
+import { markVideoRepairReady } from "./logging";
 import { projectRoot } from "./paths";
+import { resolveQualifiedDualPlatformReelReplacement } from "./publishingReconciliation";
 
 export interface ResolveVideoRepairOptions {
   sourceDate: string;
@@ -22,13 +23,18 @@ export async function resolveVideoRepair(options: ResolveVideoRepairOptions): Pr
       root
     );
   } else {
-    await resolveVideoRepairQueue(
-      options.sourceDate,
-      options.sourceSlot,
-      options.replacementDate,
-      options.replacementSlot,
+    const verification = await resolveQualifiedDualPlatformReelReplacement({
+      sourceDate: options.sourceDate,
+      sourceSlot: options.sourceSlot,
+      replacementDate: options.replacementDate,
+      replacementSlot: options.replacementSlot,
       root
-    );
+    });
+    if (!verification.qualified) {
+      throw new Error(
+        `Video repair remains VIDEO_DEFERRED: ${verification.reason ?? "qualified dual-platform Reel proof is missing"}.`
+      );
+    }
   }
 }
 

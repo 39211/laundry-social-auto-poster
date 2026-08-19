@@ -1,0 +1,95 @@
+{
+  "run_time": "2026-08-16T20:50:02.6829321+08:00",
+  "automation_id": "laundry-video-repair-cycle",
+  "result": "VIDEO_DEFERRED_NO_READY_REPLACEMENT",
+  "knowledge_pack": {
+    "version": "0.3.0-evidence-150-full-audit-quarantine",
+    "cutoff_date": "2026-07-20",
+    "accepted_count": 0,
+    "professional_claim_gate": "blocked"
+  },
+  "queue": {
+    "path": "data/video-repair-queue/queue.json",
+    "sha256": "1D14285FFE76314F87ECC29E12FCEBE7E82783ACCDC6AD03FD205442D4A7BD88",
+    "count": 29,
+    "video_deferred": 29,
+    "ready": 0,
+    "resolved": 0,
+    "duplicate_source_keys": 0,
+    "duplicate_generation_ids": 0,
+    "submitted_missing_hash_evidence": 0,
+    "prior_validated_entries": 27,
+    "changed_prior_entries_after_restore": 0,
+    "new_entries": ["2026-08-16 slot 1", "2026-08-16 slot 2"]
+  },
+  "publication_observation": {
+    "written_by_this_run": false,
+    "posted_log_sha256": "9C21EBC769983E6E5933B97975512581D7A4C5F3B8EEE43E790EAECAD62AA763",
+    "slot_1": "Facebook and Instagram carousel success, attempts=1, VIDEO_DEFERRED; historical records unchanged.",
+    "slot_2": "No Facebook or Instagram non-dry-run success record.",
+    "historical_posts_relabelled": false,
+    "historical_posts_republished": false
+  },
+  "current_repairs": [
+    {
+      "slot": 1,
+      "source_date": "2026-08-16",
+      "changed_variable": "card_rail_vertical_occlusion_geometry_and_first_frame_hand_staging_only",
+      "first_frame": "video-production/repair/2026-08-16/first-frames/slot-01-first-frame-v01.png",
+      "first_frame_sha256": "F021DE54DF08B3AA2FDD4089E8FC33B3D14C1835240226B6214EA19C79E9FFAF",
+      "first_frame_dimensions": "1080x1920",
+      "spatial_status": "pass",
+      "topic_linkage_status": "fail_bedding_calendar_vs_canvas_shoe_source",
+      "generation_id": null,
+      "submitted": false,
+      "status": "VIDEO_DEFERRED"
+    },
+    {
+      "slot": 2,
+      "source_date": "2026-08-16",
+      "changed_variable": "external_mask_plane_height_and_first_frame_hand_staging_only",
+      "first_frame": "video-production/repair/2026-08-16/first-frames/slot-02-first-frame-v01.png",
+      "first_frame_sha256": "9B92ABED54892F65E8358BC5C2A33909B03C72A212A4E79FA3E6E6BC4569394D",
+      "first_frame_dimensions": "1080x1920",
+      "hermes_inspection": {
+        "path": "reports/laundry-video-repair-cycle/2026-08-16-2030-hermes-inspect.json",
+        "sha256": "C61A54F940A5FEEDEFEE3AB7E140924BC5D27EEE94FB6499E0A5EA419B4D93A8",
+        "status": "ok",
+        "xai_oauth_logged_in": true,
+        "video_gen_enabled": true,
+        "dependencies_ok": true,
+        "xai_api_key_used": false
+      },
+      "generation_id": "sixiangjia_20260816_s02_makeup_pouch_external_mask_release_v01",
+      "submitted_once": true,
+      "provider_status": "done",
+      "attempts": {"submit": 1, "poll": 5, "download": 1, "qc": 1},
+      "prompt_hash": "CD61449523A7EFC1830464EC2F04E8E354764E5D35A6426FCEC41CC641C9190D",
+      "raw_path": "video-production/repair/2026-08-16/raw/sixiangjia_20260816_s02_makeup_pouch_external_mask_release_v01.mp4.qc_failed",
+      "raw_sha256": "3266ACBEB022F031A8C0A51F79BF393BDD85EEBAFA7C8280B94918D22FD18D01",
+      "raw_dimensions": "1088x1920",
+      "full_decode": "pass_145_of_145",
+      "pts_anomalies": 0,
+      "native_resolution_status": "fail",
+      "physics_status": "fail_duplicate_second_hand_frames_13_to_144",
+      "status": "VIDEO_DEFERRED"
+    }
+  ],
+  "validation": {
+    "preproduction_contract": "pass_governance_only_generation_authorized_false",
+    "frame_ledger_tests": "pass_6_of_6",
+    "json_parse": "pass",
+    "queue_invariants": "pass",
+    "frame_ledger": "technical_pass_creative_reject",
+    "repository_wide_tests": "not_rerun_existing_same_day_missing_export_failures_recorded"
+  },
+  "actions_not_taken": [
+    "No Facebook or Instagram publication.",
+    "No historical repost or posted-log write.",
+    "No XAI_API_KEY and no grok.com control.",
+    "No second submission or replacement generation after the Slot 2 request completed.",
+    "No resize or acceptance of the 1088x1920 raw.",
+    "No independent zh-TW TTS, Grok final review, master, replacement linkage, or resolve-video-repair --ready.",
+    "No queue status was changed to RESOLVED."
+  ]
+}

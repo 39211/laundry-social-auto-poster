@@ -1,0 +1,36 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\output\\reels-run\\2026-07-29\\reels\\wool-coat-shoulder.mp4",
+  "reel_sha256": "9e4c92f2040f5ee949bcf047c35d11a595b5e8693be57117133adada1113aefa",
+  "treatment": "10s",
+  "duration": 9.67,
+  "frames": [
+    {
+      "name": "before-p20.png",
+      "act": "before",
+      "t": 0.92,
+      "canary": "Z3CQ",
+      "sha256": "63bfeed7f2e84897499eac3b28a12d350e2e344dd46a87d09e7bc40312a1c1eb"
+    },
+    {
+      "name": "before-p70.png",
+      "act": "before",
+      "t": 3.22,
+      "canary": "44PJ",
+      "sha256": "85a9c8879c4c3c299807c7836c5624baad404d7f3957ef919d686b9159d6354c"
+    },
+    {
+      "name": "after-p20.png",
+      "act": "after",
+      "t": 5.614,
+      "canary": "TLCG",
+      "sha256": "c8cfe31514613b2c75458f9cfd25e1ae96c3376ac21d0f5e5872c4a51c8d1cef"
+    },
+    {
+      "name": "after-p70.png",
+      "act": "after",
+      "t": 8.149,
+      "canary": "6D6Z",
+      "sha256": "ba6b558f5621dd56d9e81d7145d90f60b0999c8c8d3c7e0adef88ad53fa8d2f2"
+    }
+  ]
+}

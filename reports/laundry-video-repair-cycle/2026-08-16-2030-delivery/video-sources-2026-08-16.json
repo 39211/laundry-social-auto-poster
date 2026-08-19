@@ -1,0 +1,13 @@
+[
+  {
+    "date": "2026-08-16",
+    "slot": 3,
+    "source": "grok-imagine-video",
+    "model": "grok-imagine-video-1.5",
+    "video_path": "docs/assets/2026-08-16/slot-03.mp4",
+    "source_route": "hermes-xai-oauth",
+    "source_reference": "copx:output/reels-run/2026-07-29/report-white-shoe-yellowing-before.json",
+    "generation_id": "sixiangjia_white_shoe_yellowing",
+    "recorded_at": "2026-08-16T02:20:04.951Z"
+  }
+]

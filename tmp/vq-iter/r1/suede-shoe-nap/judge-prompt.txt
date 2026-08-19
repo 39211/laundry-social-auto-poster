@@ -1,0 +1,57 @@
+Do not generate or edit any image. Do not run a shell command. Only read the listed image files.
+
+You are given images in order. Each IMAGE_N is one attached file.
+Every image has a yellow 4-character canary code in a black box at the bottom-left.
+First report each canary exactly as printed, one per line: IMAGE_N canary=XXXX
+A missing or wrong canary means you did not see that file.
+
+IMAGE_1 file=before-p20.png act=before role=BEFORE
+IMAGE_2 file=before-p70.png act=before role=BEFORE
+IMAGE_3 file=middle-p20.png act=middle role=MIDDLE
+IMAGE_4 file=middle-p70.png act=middle role=MIDDLE
+IMAGE_5 file=after-p20.png act=after role=AFTER
+IMAGE_6 file=after-p70.png act=after role=AFTER
+
+Then judge ONLY story continuity across these frames.
+Roles: BEFORE = untreated start; MIDDLE = in-progress; AFTER = finished.
+Judge by role labels, not file order alone. Two frames with the same role are one act.
+
+STEP 1 is mandatory. Declare one observation line per attached image BEFORE any axis verdict.
+Use closed tokens only. Do not skip a field. Do not copy on-screen captions as proof.
+Prefix must be OBS_N (not IMAGE_N) so canary lines stay distinct.
+OBS_N role=BEFORE|MIDDLE|AFTER act=... laces_color=TOKEN hardware_color=TOKEN facing=TOKEN soil=TOKEN hands=NONE|OK|BAD scene=TOKEN
+Color tokens: NONE BLACK WHITE GRAY TAN BROWN RED BLUE GOLD SILVER OTHER
+Facing tokens: TQ_RIGHT TQ_LEFT CAMERA_ON TOP_DOWN OTHER
+Soil tokens (WHOLE object dirt/mottle/darkening, not one patch): CLEAN LIGHT MODERATE HEAVY
+Then write COMPARE lines derived ONLY from those declarations:
+COMPARE ACCESSORY_COLOR identity_change=YES|NO
+COMPARE ORIENTATION identity_flip=YES|NO
+COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=YES|NO
+
+Derivation (you must follow; do not override a YES with a story):
+- ACCESSORY_COLOR identity_change=YES if any visible laces_color or hardware_color token differs across frames (ignore NONE). Same token that looks brighter after cleaning = NO. A different token is identity-level, not cleaning.
+- ORIENTATION identity_flip=YES if BEFORE facing differs from AFTER facing, OR any MIDDLE facing family differs from BEFORE (TQ_* vs CAMERA_ON vs TOP_DOWN). Same token with a slight crop or push-in = NO.
+- MIDDLE_NOT_WORSE globally_worse_than_before=YES if any MIDDLE soil is heavier than the heaviest BEFORE soil (CLEAN<LIGHT<MODERATE<HEAVY). Compare the MIDDLE set against the BEFORE set only. AFTER is not the comparison target.
+- A local cleaned patch does not set globally_worse_than_before=NO when the rest of the object is heavier, darker, or more mottled. Narration is not evidence.
+- If a COMPARE flag is YES, that axis MUST be FAIL. PASS on that axis is invalid.
+
+STEP 2: derive each axis from STEP 1 (PASS or FAIL plus one visible-evidence sentence):
+- OBJECT_IDENTITY: same physical object across acts (material, outline, fittings, pair count). Different shoe/bag/animal = FAIL.
+- ACCESSORY_COLOR: FAIL if COMPARE identity_change=YES. Slight cleaning brightening of the same token is OK.
+- ORIENTATION: FAIL if COMPARE identity_flip=YES.
+- STATE_ORDER: BEFORE=problem untreated; MIDDLE=in progress (hands+tool+local progress); AFTER not worse than BEFORE.
+- MIDDLE_NOT_WORSE: FAIL if COMPARE globally_worse_than_before=YES. Local cleaned patches are progress; they must not cover a globally dirtier MIDDLE.
+- HANDS: if hands are present they must have five fingers, no fusion, no third hand, plausible scale. Missing hands on before/after do not fail this axis.
+- SCENE: same counter / wall family. Pink mat + slat wall vs metal bench vs washer wall = FAIL.
+Do not judge subtitle placement, hook wording, TTS, or Meta specs.
+
+Output ONLY these two blocks (no other completed/self-score text):
+<<<OBSERVE_BEGIN>>>
+OBS_N role=... act=... laces_color=... hardware_color=... facing=... soil=... hands=... scene=...
+COMPARE ACCESSORY_COLOR identity_change=YES|NO
+COMPARE ORIENTATION identity_flip=YES|NO
+COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=YES|NO
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"...","verdict":"PASS|FAIL","axes":{"OBJECT_IDENTITY":"PASS|FAIL","ACCESSORY_COLOR":"PASS|FAIL","ORIENTATION":"PASS|FAIL","STATE_ORDER":"PASS|FAIL","MIDDLE_NOT_WORSE":"PASS|FAIL","HANDS":"PASS|FAIL","SCENE":"PASS|FAIL"},"evidence":{"OBJECT_IDENTITY":"visible comparison"},"frames_used":["..."]}
+<<<VISUAL_QA_END>>>

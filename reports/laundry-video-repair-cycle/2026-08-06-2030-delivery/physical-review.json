@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0.0",
+  "date": "2026-08-06",
+  "reviewer": "GPT-5.6 Sol",
+  "review_scope": "Retained provider bytes only; not an accepted master and not a completed production run.",
+  "method": {
+    "ffprobe": true,
+    "complete_video_decode": true,
+    "frame_pts_ledger": true,
+    "source_frames_per_clip": 145,
+    "sequence_sheet_triage": true,
+    "sequence_sheet_limitation": "Sequence sheets cover every extracted frame in order but are triage evidence, not full-resolution full-frame acceptance proof."
+  },
+  "clips": [
+    {
+      "slot": 1,
+      "generation_id": "sixiangjia_20260806_s01_travel_jacket_card_exit_v01",
+      "provider_status": "done",
+      "attempts": { "submit": 1, "download": 1, "qc": 1 },
+      "ffprobe": { "width": 1088, "height": 1920, "duration_seconds": 6.041667, "frame_count": 145 },
+      "decode_exit": 0,
+      "pts_anomaly_count": 0,
+      "sequence_triage": "The single card and hand move right and exit; the jacket, tray and surroundings remain visually stable. No obvious duplication, wall penetration, floating object or missing limb was observed in the ordered sequence sheets.",
+      "formal_status": "VIDEO_DEFERRED",
+      "failure_reason": "Native provider output is 1088x1920, not exact 1080x1920. Native resizing is prohibited. The downscaled sequence-sheet review is not a substitute for full-resolution full-frame acceptance.",
+      "tts_created": false,
+      "accepted_master_created": false,
+      "next_production_cycle": "Use a topic-matched future slot and a newly rooted one-action correction; require provider-native 1080x1920 before full-resolution manual physics acceptance. Do not resubmit this generation_id."
+    },
+    {
+      "slot": 2,
+      "generation_id": "sixiangjia_20260806_s02_canvas_shoe_card_exit_v01",
+      "provider_status": "done",
+      "attempts": { "submit": 1, "download": 1, "qc": 1 },
+      "ffprobe": { "width": 1088, "height": 1920, "duration_seconds": 6.041667, "frame_count": 145 },
+      "decode_exit": 0,
+      "pts_anomaly_count": 0,
+      "sequence_triage": "The single card and hand move right and exit; exactly two shoes remain stationary with stable laces, toe caps and mud marks. No obvious duplication, penetration, floating object or missing limb was observed in the ordered sequence sheets.",
+      "formal_status": "VIDEO_DEFERRED",
+      "failure_reason": "Native provider output is 1088x1920, not exact 1080x1920. Native resizing is prohibited. The downscaled sequence-sheet review is not a substitute for full-resolution full-frame acceptance.",
+      "tts_created": false,
+      "accepted_master_created": false,
+      "next_production_cycle": "Use a topic-matched future slot and a newly rooted one-action correction; require provider-native 1080x1920 before full-resolution manual physics acceptance. Do not resubmit this generation_id."
+    }
+  ]
+}

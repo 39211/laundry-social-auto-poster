@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "date": "2026-08-07",
+  "reviewed_at": "2026-08-07T07:04:30+08:00",
+  "reviewer": "GPT-5.6 Sol",
+  "required_dimensions": "1080x1920",
+  "status": "FAIL_BOTH_SLOTS_STOP_BEFORE_PAID_VIDEO_SUBMISSION",
+  "items": [
+    {
+      "slot": 1,
+      "generation_id": "sixiangjia_20260807_s01_makeup_pouch_single_card_exit_v01",
+      "versions": [
+        {
+          "path": "video-production/runs/2026-08-07-daily-companion-v01/first-frames/slot-01.png",
+          "sha256": "AFBE7A345DE006486FC87A540D084E3490138C18F37766D8102EB2D37570749D",
+          "dimensions": "1080x1920",
+          "status": "FAIL",
+          "blockers": ["card is hand-held and not visibly captured by the required rigid horizontal tray rail", "all five fingers are not individually traceable"]
+        },
+        {
+          "path": "video-production/runs/2026-08-07-daily-companion-v01/first-frames/slot-01-v02.png",
+          "sha256": "31F073935CC70AE4F2038A142100C138225A58BA6E245D4687DB520FEFEAFC6D",
+          "dimensions": "1080x1920",
+          "status": "FAIL",
+          "blockers": ["targeted edit still leaves the card hand-held with no rigid horizontal guide rail", "all five fingers remain occluded and cannot be traced"]
+        }
+      ],
+      "passes": ["exact 9:16 dimensions", "one pouch, one card, one hand and one forearm", "plausible shop light, material texture, weight and contact shadows", "no readable text, logo or watermark"],
+      "selected_first_frame": null,
+      "decision": "Do not submit generate-shot.ps1 for this generation_id."
+    },
+    {
+      "slot": 2,
+      "generation_id": "sixiangjia_20260807_s02_canvas_pair_alignment_card_exit_v01",
+      "versions": [
+        {
+          "path": "video-production/runs/2026-08-07-daily-companion-v01/first-frames/slot-02.png",
+          "sha256": "905808E749AE56318D13A879B8E0D83675199B6EDDF8A25E7D008FBE1D4DFE6D",
+          "dimensions": "1080x1920",
+          "status": "FAIL",
+          "blockers": ["card is hand-held and not visibly captured by the required rigid horizontal tray rail", "all five fingers are not individually traceable", "the specified dried-mud marks are absent"]
+        },
+        {
+          "path": "video-production/runs/2026-08-07-daily-companion-v01/first-frames/slot-02-v02.png",
+          "sha256": "A5CA66F1BBE108467659B14B05DD9D1FE3F53065D0F05E7E3E50AACEA34E33BD",
+          "dimensions": "1080x1920",
+          "status": "FAIL",
+          "blockers": ["targeted edit adds a rail and the mud marks, but the hand grip still does not expose five traceable fingers", "the card-to-rail capture is visible, but the anatomy gate remains fail-closed"]
+        }
+      ],
+      "passes": ["exact 9:16 dimensions", "exactly two shoes and two heel stops", "plausible shop light, material texture, weight and contact shadows", "no readable text, logo or watermark"],
+      "selected_first_frame": null,
+      "decision": "Do not submit generate-shot.ps1 for this generation_id."
+    }
+  ],
+  "submission_count": 0,
+  "tts_created": false,
+  "formal_master_created": false,
+  "source_or_review_record_created": false
+}

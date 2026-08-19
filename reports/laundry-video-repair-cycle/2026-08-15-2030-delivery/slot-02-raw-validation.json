@@ -1,0 +1,58 @@
+{
+  "date": "2026-08-15",
+  "slot": 2,
+  "generation_id": "sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02",
+  "reviewed_at": "2026-08-15T20:50:00+08:00",
+  "reviewer": "gpt-5.6-sol",
+  "knowledge_pack_version": "0.3.0-evidence-150-full-audit-quarantine",
+  "knowledge_pack_cutoff": "2026-07-20",
+  "source_ids": [],
+  "forbidden_claims": [
+    "contact sheet is full-frame proof",
+    "technical validation proves creative acceptance",
+    "synthetic media is human-shot",
+    "advertising effectiveness without campaign evidence"
+  ],
+  "raw_path": "video-production/repair/2026-08-15/raw/sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02.mp4.qc_failed",
+  "raw_sha256": "BE40E106C934C39C9CC8AE89315385EB6FABA7D8CE2D6E56CE8E107E46382025",
+  "provider_status": "done",
+  "request_id_present": true,
+  "attempts": {
+    "submit": 1,
+    "poll": 4,
+    "download": 1,
+    "qc": 1
+  },
+  "technical_validation": {
+    "codec": "h264",
+    "width": 1088,
+    "height": 1920,
+    "duration_seconds": 6.041667,
+    "video_frames": 145,
+    "average_frame_rate": "24/1",
+    "full_decode": "pass_145_of_145",
+    "first_pts_time": "0.000000",
+    "last_pts_time": "6.000000",
+    "pts_anomaly_count": 0,
+    "native_1080x1920": "fail",
+    "technical_status": "reject_native_resolution"
+  },
+  "creative_review": {
+    "contact_sheet_path": "video-production/repair/2026-08-15/qa/slot-02-v02-contact-sheet.jpg",
+    "contact_sheet_role": "triage_only",
+    "full_resolution_spot_frames": [0, 48, 96, 144],
+    "normal_speed_acceptance_review": "not_performed_because_native_resolution_already_failed",
+    "observed_action": "The card moves left while the grounded rail remains centered to the right.",
+    "physics_blocker": "By the later frames the card bottom is no longer seated in the rail, so the requested slide-inside-the-connected-channel action is not preserved.",
+    "creative_status": "reject_card_rail_detachment"
+  },
+  "overall_status": "VIDEO_DEFERRED_NATIVE_QC_AND_ACTION_FAIL",
+  "resize_performed": false,
+  "resubmission_performed": false,
+  "independent_zh_tw_tts_created": false,
+  "grok_final_review_performed": false,
+  "final_master_created": false,
+  "replacement_linked": false,
+  "resolve_video_repair_ready_called": false,
+  "publication_attempted": false
+}

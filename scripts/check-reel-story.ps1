@@ -16,12 +16,25 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $cli = Join-Path $projectRoot "src\visualQaCli.ts"
 $ioPy = Join-Path $projectRoot "scripts\visual_qa_io.py"
-$codexCmd = Join-Path $env:APPDATA "npm\codex.cmd"
+. (Join-Path $PSScriptRoot "_production-contract.ps1")
+if (-not (Assert-CleanProductionContractBeforeAction -Root $projectRoot -Stage "Reel visual QA")) {
+    throw "BLOCKED production contract before Reel visual QA."
+}
+$trustedFfmpeg = Resolve-TrustedProductionFfmpegExecutable -Root $projectRoot
+$trustedPython = Resolve-TrustedProductionPythonExecutable -Root $projectRoot
+if (-not $trustedFfmpeg -or -not $trustedPython) {
+    throw "BLOCKED Reel visual QA: trusted allowlisted ffmpeg.exe or python.exe could not be established."
+}
+
+function Assert-ReelVisualQaContract([string]$Stage) {
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $projectRoot -Stage $Stage)) {
+        throw "BLOCKED production contract before $Stage."
+    }
+}
 
 function Invoke-VisualQaCli {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$CliArgs)
-    $tsx = Join-Path $projectRoot "node_modules\.bin\tsx.cmd"
-    $out = & $tsx $cli @CliArgs
+    $out = Invoke-TrustedProductionTsx -Root $projectRoot $cli @CliArgs
     if ($LASTEXITCODE -ne 0) {
         throw "visualQaCli failed ($LASTEXITCODE): $out"
     }
@@ -30,7 +43,7 @@ function Invoke-VisualQaCli {
 
 function Get-RejectedConceptIds {
     $listPath = Join-Path $projectRoot "data\rejected-concepts.json"
-    $ids = @(python $ioPy list-rejected $listPath)
+    $ids = @(Invoke-TrustedProductionPython -Root $projectRoot -CommandArguments @($ioPy, "list-rejected", $listPath))
     return @($ids | Where-Object { $_ -and $_.Trim().Length -gt 0 })
 }
 
@@ -64,6 +77,9 @@ if ($StillsOnly) {
     if (-not $qaTarget) {
         $qaTarget = Join-Path $projectRoot ("data\visual-qa-fixtures\stills-" + $ConceptId)
     }
+    # The canonical planner is an executable worker. Do not let it complete
+    # and then replace QA evidence if it dirtied the contract while running.
+    Assert-ReelVisualQaContract "reference-still QA directory replacement"
     if (Test-Path $qaTarget) { Remove-Item $qaTarget -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $qaTarget | Out-Null
 
@@ -81,7 +97,8 @@ if ($StillsOnly) {
         $code = -join (1..4 | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
         $dst = Join-Path $qaTarget ($act + ".png")
         $draw = "drawtext=fontfile='$font':text='$code':x=16:y=h-56:fontsize=36:fontcolor=yellow:box=1:boxcolor=black@0.88:boxborderw=8"
-        $burnOut = & ffmpeg -v error -y -i $src -vf $draw $dst 2>&1
+        Assert-ReelVisualQaContract "reference-still canary render"
+        $burnOut = Invoke-TrustedProductionFfmpeg -Root $projectRoot -CommandArguments @("-v", "error", "-y", "-i", $src, "-vf", $draw, $dst) 2>&1
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $dst)) {
             throw "still canary burn failed for $act (exit $LASTEXITCODE): $burnOut"
         }
@@ -91,6 +108,7 @@ if ($StillsOnly) {
         throw "No reference-photos stills under data/reference-photos/$ObjectType for $ConceptId"
     }
     $plannedPath = Join-Path $qaTarget "planned.json"
+    Assert-ReelVisualQaContract "reference-still QA plan write"
     ($planned | ConvertTo-Json -Depth 4) | Set-Content -Path $plannedPath -Encoding UTF8
     $dummyReel = $stills.before
     if (-not (Test-Path $dummyReel)) { $dummyReel = $stills.after }
@@ -105,6 +123,7 @@ if ($StillsOnly) {
     if (-not $SkipExtract) {
         $extractArgs = @{ ReelPath = $ReelPath }
         if ($QaDir) { $extractArgs.QaDir = $QaDir }
+        Assert-ReelVisualQaContract "Reel frame extraction"
         & (Join-Path $script:PSScriptRoot "extract-reel-frames.ps1") @extractArgs
         if (-not $QaDir) {
             $QaDir = [IO.Path]::ChangeExtension($ReelPath, $null).TrimEnd('.') + ".qa-frames"
@@ -149,19 +168,26 @@ if ($prompt -match "Generate exactly|EDIT it|Use the built-in image model") {
 $runId = [guid]::NewGuid().ToString("N")
 $stdoutPath = Join-Path $QaDir "judge-stdout.txt"
 if ($StdoutFile) {
+    Assert-ReelVisualQaContract "provided QA stdout copy"
     Copy-Item $StdoutFile $stdoutPath -Force
 } else {
-    if (-not (Test-Path $codexCmd)) { throw "codex.cmd not found at $codexCmd" }
-    $argsFile = Join-Path $QaDir "judge-args.json"
-    $codexArgs = @($codexCmd, "exec", "-C", $projectRoot, "-s", "read-only")
+    # Do not hand an executable path to a PATH-resolved Python trampoline.
+    # The shared invoker rechecks the production contract and resolves only the
+    # trusted immutable Codex runtime immediately before this external call.
+    $codexArgs = @("exec", "-C", $projectRoot, "-s", "read-only")
     foreach ($frame in @($sidecar.frames)) {
         $codexArgs += @("-i", (Join-Path $QaDir $frame.name))
     }
     $codexArgs += "-"
-    ($codexArgs | ConvertTo-Json -Compress) | python $ioPy write-text $argsFile
-    $prompt | python $ioPy run-codex $stdoutPath $argsFile
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $stdoutPath) -or (Get-Item $stdoutPath).Length -eq 0) {
-        throw "Codex wrote no stdout (exit $LASTEXITCODE) to $stdoutPath"
+    $codexOut = @(Invoke-TrustedProductionCodex -Root $projectRoot -StandardInput $prompt @codexArgs)
+    $codexExit = $LASTEXITCODE
+    Assert-ReelVisualQaContract "Codex QA stdout write"
+    if ($codexExit -ne 0) {
+        throw "Codex wrote no stdout (exit $codexExit) to $stdoutPath"
+    }
+    $codexOut | Set-Content -LiteralPath $stdoutPath -Encoding UTF8
+    if (-not (Test-Path $stdoutPath) -or (Get-Item $stdoutPath).Length -eq 0) {
+        throw "Codex wrote no stdout (exit $codexExit) to $stdoutPath"
     }
 }
 

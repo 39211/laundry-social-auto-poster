@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "date": "2026-08-07",
+  "overall_status": "MATERIAL_NO_GO_VIDEO_DEFERRED",
+  "commands": [
+    {"command": "preproduction contract", "exit_code": 0, "result": "PASS_WITH_PROFESSIONAL_CLAIMS_BLOCKED"},
+    {"command": "npm.cmd run review-72h -- --date 2026-08-07", "exit_code": 0, "result": "43_ROWS_NEWEST_ELIGIBLE_2026-08-03_INCONCLUSIVE"},
+    {"command": "npm.cmd run review-video-scripts -- --date 2026-08-07", "exit_code": 0, "result": "ROUND_3_PASS_SLOT_1_100_SLOT_2_100"},
+    {"command": "npm.cmd run validate-publishable-images -- --date 2026-08-07 --slot 1", "exit_code": 0, "result": "STRUCTURAL_PASS_MANUAL_MATERIAL_NO_GO"},
+    {"command": "npm.cmd run validate-publishable-images -- --date 2026-08-07 --slot 2", "exit_code": 0, "result": "STRUCTURAL_PASS_MANUAL_MATERIAL_NO_GO"},
+    {"command": "npm.cmd run validate-publishable-media -- --date 2026-08-07 --slot 1", "exit_code": 0, "result": "DATE_LEVEL_SLOT_1_MISSING_SLOT_2_STALE_PROMPT_HASH"},
+    {"command": "npm.cmd run typecheck", "exit_code": 0, "result": "PASS"},
+    {"command": "npm.cmd test", "exit_code": 0, "result": "39_FILES_186_TESTS_PASS"},
+    {"command": "git diff --check", "exit_code": 0, "result": "PASS"}
+  ],
+  "artifact_checks": {
+    "slot_count": 2,
+    "mixed_carousel_count": 2,
+    "images_generated": 8,
+    "image_dimensions": "1080x1350",
+    "first_frames_reviewed": 4,
+    "first_frame_dimensions": "1080x1920",
+    "paid_video_submissions": 0,
+    "today_video_deferred_entries": 2,
+    "total_video_deferred_entries": 16,
+    "approved_log_exists": false,
+    "posted_log_exists": false
+  }
+}

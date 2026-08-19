@@ -1,4 +1,4 @@
-# Burns full-narration subtitles onto a freshly assembled reel.
+﻿# Burns full-narration subtitles onto a freshly assembled reel.
 #
 # Called by assemble-reel.ps1 and produce-next-reel.ps1 (Invoke-TreatedAssembly)
 # right after they write a reel. This is the ONLY place subtitles are burned;
@@ -28,9 +28,24 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "_production-contract.ps1")
+if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "Reel subtitle burn")) {
+    throw "BLOCKED production contract before Reel subtitle burn."
+}
+$trustedFfmpeg = Resolve-TrustedProductionFfmpegExecutable -Root $root
+$trustedFfprobe = Resolve-TrustedProductionFfprobeExecutable -Root $root
+if (-not $trustedFfmpeg -or -not $trustedFfprobe) {
+    throw "BLOCKED Reel subtitle burn: trusted allowlisted ffmpeg.exe or ffprobe.exe could not be established."
+}
+
+function Assert-ReelSubtitleContract([string]$Stage) {
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage $Stage)) {
+        throw "BLOCKED production contract before $Stage."
+    }
+}
 
 function Get-MediaSeconds([string]$path) {
-    $probeOut = & ffprobe -v error -show_entries format=duration -of csv=p=0 $path 2>&1
+    $probeOut = Invoke-TrustedProductionFfprobe -Root $root -CommandArguments @("-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", $path) 2>&1
     $probeExit = $LASTEXITCODE
     $raw = @($probeOut | Select-Object -First 1)[0]
     $seconds = 0.0
@@ -73,6 +88,7 @@ if (Test-Path $marker) {
             }
             Write-Host "burn-narration-subs: already burned but frames missing; extracting $ReelPath"
             try {
+                Assert-ReelSubtitleContract "existing Reel frame extraction"
                 & (Join-Path $PSScriptRoot "extract-reel-frames.ps1") -ReelPath $ReelPath
             } catch {
                 Write-Warning "extract-reel-frames failed for ${ReelPath}: $($_.Exception.Message)"
@@ -96,15 +112,17 @@ try {
     $narrationTxt = Join-Path $reelDir "$baseName.narration.txt"
     $assPath = Join-Path $reelDir "$baseName.ass"
     $oldTmp = Join-Path $reelDir "$baseName.subs-tmp.mp4"
+    Assert-ReelSubtitleContract "subtitle temporary-file replacement"
     if (Test-Path $oldTmp) { Remove-Item $oldTmp -Force }
     $tmpOut = Join-Path $reelDir "$baseName.subs-tmp-$PID.mp4"
     if (Test-Path $tmpOut) { Remove-Item $tmpOut -Force }
 
+    Assert-ReelSubtitleContract "subtitle narration input write"
     [IO.File]::WriteAllText($narrationTxt, $narrationTrimmed, (New-Object Text.UTF8Encoding($false)))
 
     $audioArg = $audioSeconds.ToString([Globalization.CultureInfo]::InvariantCulture)
     $videoArg = $videoSeconds.ToString([Globalization.CultureInfo]::InvariantCulture)
-    $cliOut = & (Join-Path $root "node_modules\.bin\tsx.cmd") (Join-Path $root "src\reelSubtitlesCli.ts") `
+    $cliOut = Invoke-TrustedProductionTsx -Root $root (Join-Path $root "src\reelSubtitlesCli.ts") `
         --narration-file $narrationTxt --audio-seconds $audioArg --delay-ms $DelayMs `
         --video-seconds $videoArg --out $assPath 2>&1
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path $assPath)) {
@@ -112,11 +130,14 @@ try {
     }
 
     $tmpName = Split-Path -Leaf $tmpOut
+    Assert-ReelSubtitleContract "subtitle burn render"
     Push-Location $reelDir
     try {
-        $ffOut = & ffmpeg -v error -y -i "$baseName.mp4" -vf "ass=$baseName.ass" `
-            -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -c:a copy `
-            $tmpName 2>&1
+        $ffOut = Invoke-TrustedProductionFfmpeg -Root $root -CommandArguments @(
+            "-v", "error", "-y", "-i", "$baseName.mp4", "-vf", "ass=$baseName.ass",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "copy",
+            $tmpName
+        ) 2>&1
         $ffExit = $LASTEXITCODE
     } finally {
         Pop-Location
@@ -127,9 +148,11 @@ try {
     if (-not (Test-Path $tmpOut) -or (Get-Item $tmpOut).Length -eq 0) {
         throw "ffmpeg ass burn produced no output for $ReelPath (ffmpeg said: $ffOut)"
     }
+    Assert-ReelSubtitleContract "subtitle Reel replacement"
     Move-Item $tmpOut $ReelPath -Force
     Remove-Item $narrationTxt -Force -ErrorAction SilentlyContinue
 
+    Assert-ReelSubtitleContract "subtitle evidence marker write"
     @{
         burned           = $true
         narration_sha256 = $narrationSha
@@ -143,6 +166,7 @@ try {
     # Story frames for the eyes-on acceptance pass (see extract-reel-frames).
     # Best-effort like everything here: frames failing must not cost the reel.
     try {
+        Assert-ReelSubtitleContract "subtitle Reel frame extraction"
         & (Join-Path $PSScriptRoot "extract-reel-frames.ps1") -ReelPath $ReelPath
     } catch {
         Write-Warning "extract-reel-frames failed for ${ReelPath}: $($_.Exception.Message)"
@@ -151,6 +175,10 @@ try {
 } catch {
     $message = $_.Exception.Message
     Write-Warning "burn-narration-subs: FAILED for ${ReelPath}: $message"
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "subtitle failure marker write")) {
+        [Console]::Error.WriteLine("BLOCKED production contract before subtitle failure marker write.")
+        exit 1
+    }
     @{
         burned           = $false
         narration_sha256 = $narrationSha

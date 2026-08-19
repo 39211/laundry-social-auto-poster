@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "automation_id": "laundry-video-repair-cycle",
+  "run_time": "2026-08-16T20:50:02.6829321+08:00",
+  "result": "VIDEO_DEFERRED_NO_READY_REPLACEMENT",
+  "queue": {"deferred": 29, "ready": 0, "resolved": 0},
+  "publication": {"slot_1_dual_platform_carousel": true, "slot_2_dual_platform_success": false, "written_by_this_run": false},
+  "generation": {"slot_1_submissions": 0, "slot_2_generation_id": "sixiangjia_20260816_s02_makeup_pouch_external_mask_release_v01", "slot_2_submissions": 1, "provider_status": "done", "accepted": false},
+  "payload_file_count_before_checksums": 19,
+  "raw_media_included": false,
+  "credential_values_included": false,
+  "review_entrypoint": "README-FIRST.md"
+}

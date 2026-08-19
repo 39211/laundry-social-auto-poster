@@ -83,8 +83,10 @@ function calendarSlot(spec: SlotSpec) {
   if (rest.length === 0) return { ...base, format: "image-post" };
   return {
     ...base,
-    format: "mixed-carousel",
-    media_type: "mixed-carousel",
+    // This fixture publishes four images only. Calling it a mixed carousel
+    // was an old contract bug: that media type means a real companion video.
+    format: "carousel",
+    media_type: "carousel",
     carousel_items: spec.paths.map((path, index) => ({
       slide: index + 1,
       local_image_path: path,
@@ -492,7 +494,7 @@ describe("what the approval gate refuses", () => {
           verifyPublicImageUrl: false,
           fetchImpl
         })
-      ).rejects.toThrow(/images changed after approval:[\s\S]*slot-01-slide-03\.png/);
+      ).rejects.toThrow(/slot-01-slide-03\.png[\s\S]*核准後被換過/);
 
       expect(fetchImpl).not.toHaveBeenCalled();
       await expect(
@@ -503,7 +505,7 @@ describe("what the approval gate refuses", () => {
       ).rejects.toMatchObject({ code: "ENOENT" });
     });
 
-    it("on a pre-snapshot day still blocks a swap that was not re-stamped", async () => {
+    it("blocks a legacy day with no immutable image-digest sidecar before it can publish", async () => {
       const hero = SLOTS[0]!.paths[0]!;
       await autoApprove({ date: DATE, root });
       await unlink(imageDigestsPath(root, DATE));
@@ -512,21 +514,21 @@ describe("what the approval gate refuses", () => {
       stubLiveMetaEnv();
       const fetchImpl = vi.fn() as unknown as typeof fetch;
       await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(
-        /images changed after approval:[\s\S]*slot-01\.png/
+        /immutable approved image-digest sidecar is missing or unusable/
       );
       expect(fetchImpl).not.toHaveBeenCalled();
     });
 
-    it("on a pre-snapshot day does not refuse matching stamps just because the digest file is absent", async () => {
+    it("does not fail-open a matching legacy day when its immutable digest is absent", async () => {
       await autoApprove({ date: DATE, root });
       await unlink(imageDigestsPath(root, DATE));
 
       stubLiveMetaEnv();
       const fetchImpl = vi.fn() as unknown as typeof fetch;
-      await expect(livePublishSlot1(fetchImpl)).rejects.not.toThrow(
-        /images changed after approval|image-digest|digest file|digest entry/
+      await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(
+        /immutable approved image-digest sidecar is missing or unusable/
       );
-      expect(fetchImpl).toHaveBeenCalled();
+      expect(fetchImpl).not.toHaveBeenCalled();
     });
 
     it("refuses a digest slot whose value is null instead of a map, and does not call Meta", async () => {
@@ -535,7 +537,9 @@ describe("what the approval gate refuses", () => {
 
       stubLiveMetaEnv();
       const fetchImpl = vi.fn() as unknown as typeof fetch;
-      await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(/Slot 1[\s\S]*not a digest map/);
+      await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(
+        /slot 1 immutable approved image digest is missing or malformed/
+      );
       expect(fetchImpl).not.toHaveBeenCalled();
     });
 
@@ -585,7 +589,9 @@ describe("what the approval gate refuses", () => {
 
       stubLiveMetaEnv();
       const fetchImpl = vi.fn() as unknown as typeof fetch;
-      await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(/no image-digest entry/);
+      await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(
+        /slot 1 immutable approved image digest is missing or malformed/
+      );
       expect(fetchImpl).not.toHaveBeenCalled();
     });
 
@@ -596,7 +602,7 @@ describe("what the approval gate refuses", () => {
       stubLiveMetaEnv();
       const fetchImpl = vi.fn() as unknown as typeof fetch;
       await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(
-        /damaged or not a plain object/
+        /immutable approved image-digest sidecar is missing or unusable/
       );
       expect(fetchImpl).not.toHaveBeenCalled();
     });
@@ -608,7 +614,7 @@ describe("what the approval gate refuses", () => {
       stubLiveMetaEnv();
       const fetchImpl = vi.fn() as unknown as typeof fetch;
       await expect(livePublishSlot1(fetchImpl)).rejects.toThrow(
-        /damaged or not a plain object/
+        /immutable approved image-digest sidecar is missing or unusable/
       );
       expect(fetchImpl).not.toHaveBeenCalled();
     });

@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
@@ -60,36 +59,6 @@ function carouselQaDir(args: string[], root: string, dir: string | undefined, sl
   return join(root, "output", "visual-qa", "carousel", `run-${Date.now()}`);
 }
 
-function runCodexJudge(input: { root: string; prompt: string; images: string[]; stdoutPath: string }): void {
-  const promptLower = input.prompt.toLowerCase();
-  if (promptLower.includes("generate exactly") || promptLower.includes("use the built-in image model")) {
-    throw new Error("QA prompt contains image-generation language; refusing to call Codex.");
-  }
-  const codexCmd = join(process.env.APPDATA ?? "", "npm", "codex.cmd");
-  const codexArgs = [codexCmd, "exec", "-C", input.root, "-s", "read-only"];
-  for (const image of input.images) {
-    codexArgs.push("-i", image);
-  }
-  codexArgs.push("-");
-  const argsFile = `${input.stdoutPath}.args.json`;
-  const ioPy = join(input.root, "scripts", "visual_qa_io.py");
-  const written = spawnSync("python", [ioPy, "write-text", argsFile], {
-    input: JSON.stringify(codexArgs),
-    encoding: "utf8"
-  });
-  if (written.status !== 0) {
-    throw new Error(`failed to write judge args: ${written.stderr || written.stdout}`);
-  }
-  const judged = spawnSync("python", [ioPy, "run-codex", input.stdoutPath, argsFile], {
-    input: input.prompt,
-    encoding: "utf8",
-    cwd: input.root
-  });
-  if (judged.status !== 0) {
-    throw new Error(`Codex judge failed (exit ${judged.status}): ${judged.stderr || judged.stdout}`);
-  }
-}
-
 function carouselSpecArg(args: string[]): string | undefined {
   const inline = args.find((arg) => arg.startsWith("--carousel="));
   if (inline) return inline.slice("--carousel=".length);
@@ -141,19 +110,15 @@ async function handleCarousel(args: string[], root: string): Promise<void> {
     return;
   }
 
-  const sources = await resolveCarouselSlides({ dir, slot, files: files.length > 0 ? files : undefined, root });
-  if (getFlag(args, "resolve")) {
-    process.stdout.write(`${JSON.stringify({ topic, date, slot, slides: sources })}\n`);
-    return;
-  }
-
   if (getFlag(args, "evaluate")) {
     const stdoutFile = getOption(args, "stdout-file");
     const sidecarFile = getOption(args, "sidecar");
     const qaDir = getOption(args, "qa-dir");
-    const outPath = getOption(args, "out");
-    if (!stdoutFile || !sidecarFile || !qaDir || !outPath) {
-      throw new Error("--stdout-file, --sidecar, --qa-dir, --out required for carousel evaluate");
+    if (!stdoutFile || !sidecarFile || !qaDir) {
+      throw new Error("--stdout-file, --sidecar, and --qa-dir required for carousel evaluate");
+    }
+    if (getOption(args, "out")) {
+      throw new Error("carousel evaluate is stdout-only; the trusted wrapper owns the durable record write");
     }
     const stdout = await readFile(stdoutFile, "utf8");
     const sidecar = JSON.parse((await readFile(sidecarFile, "utf8")).replace(/^\uFEFF/u, "")) as CarouselQaSidecar;
@@ -164,8 +129,16 @@ async function handleCarousel(args: string[], root: string): Promise<void> {
       promptHash: getOption(args, "prompt-hash") ?? "",
       runId: getOption(args, "run-id") ?? `carousel-qa-${Date.now()}`
     });
-    await writeJsonAtomic(outPath, record);
-    process.stdout.write(`${JSON.stringify({ verdict: record.verdict, fail_class: record.fail_class, axes: record.axes })}\n`);
+    // Evaluation is deliberately stdout-only.  The scheduled wrapper owns the
+    // durable evidence write, after it has re-checked that this child did not
+    // alter any protected production input while it ran.
+    process.stdout.write(`${JSON.stringify(record)}\n`);
+    return;
+  }
+
+  const sources = await resolveCarouselSlides({ dir, slot, files: files.length > 0 ? files : undefined, root });
+  if (getFlag(args, "resolve")) {
+    process.stdout.write(`${JSON.stringify({ topic, date, slot, slides: sources })}\n`);
     return;
   }
 
@@ -180,30 +153,32 @@ async function handleCarousel(args: string[], root: string): Promise<void> {
     topic
   });
   const promptHash = hashText(prompt);
-  await writeFile(join(qaDir, "judge-prompt.txt"), prompt, "utf8");
+  const promptPath = join(qaDir, "judge-prompt.txt");
+  await writeFile(promptPath, prompt, "utf8");
   const stdoutPath = getOption(args, "stdout-file") ?? join(qaDir, "judge-stdout.txt");
-  if (!getOption(args, "stdout-file")) {
-    runCodexJudge({
-      root,
-      prompt,
-      images: slides.map((slide) => join(qaDir, slide.name)),
-      stdoutPath
-    });
-  }
-  const stdout = await readFile(stdoutPath, "utf8");
-  const record = await evaluateCarouselFromDisk({
-    qaDir,
-    stdout,
-    sidecar,
-    promptHash,
-    runId: getOption(args, "run-id") ?? `carousel-qa-${Date.now()}`
-  });
-  const defaultOut = dir && slot ? carouselQaRecordPath(isAbsolute(dir) ? dir : join(root, dir), slot) : join(qaDir, "carousel.visual-qa.json");
+  const defaultOut = dir && slot
+    ? carouselQaRecordPath(isAbsolute(dir) ? dir : join(root, dir), slot)
+    : join(qaDir, "carousel.visual-qa.json");
   const outPath = getOption(args, "out") ?? defaultOut;
-  await writeJsonAtomic(outPath, record);
-  process.stdout.write(
-    `${JSON.stringify({ verdict: record.verdict, fail_class: record.fail_class, axes: record.axes, out: outPath })}\n`
-  );
+
+  // This TypeScript CLI never selects an ambient executable or invokes Codex.
+  // The scheduled PowerShell wrapper owns the only judge execution boundary so
+  // it can use Invoke-TrustedProductionCodex and re-check the production
+  // contract immediately after the untrusted-length child returns.
+  if (!getFlag(args, "prepare")) {
+    throw new Error("Carousel visual QA requires --prepare; the trusted PowerShell wrapper must run the judge and then call --evaluate.");
+  }
+  process.stdout.write(`${JSON.stringify({
+    date,
+    slot,
+    qa_dir: qaDir,
+    sidecar_path: sidecarPath,
+    prompt_path: promptPath,
+    stdout_path: stdoutPath,
+    out_path: outPath,
+    prompt_hash: promptHash,
+    images: slides.map((slide) => join(qaDir, slide.name))
+  })}\n`);
 }
 
 async function main(): Promise<void> {

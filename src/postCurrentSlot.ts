@@ -1,5 +1,5 @@
-import { spawn } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { inspectDailyContentIntegrity } from "./contentPlan";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
@@ -16,33 +16,25 @@ import {
 import {
   appendPostLog,
   findDuplicateAiredReelVideo,
-  hasApprovedPost,
-  hasPublishableApproval,
   hasRecordedPost,
-  loadApprovalLog,
   loadDailyContent,
-  loadImageSources,
   loadPostLog,
   loadRecentAiredReelVideoShas,
   loadVideoRepairQueue,
   postedVideoShaFields,
-  resolveVideoRepairQueue,
   upsertVideoRepairQueue
 } from "./logging";
-import {
-  imagesChangedSinceStamp,
-  imagesDifferFromApproval,
-  inspectApprovedImageDigestFile,
-  isApprovedSlotDigestMap
-} from "./imageStamp";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
+import { isTrustedProductionRuntimeError } from "./productionRuntime";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
 import { postInstagramCarousel, postInstagramPhoto, postInstagramReel } from "./postInstagram";
 import { NonRetryableError, withRetry } from "./retry";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
+import { assertPostedLogMatchesDate, resolveQualifiedDualPlatformReelReplacement } from "./publishingReconciliation";
 import { CONCEPT_COOLDOWN_DAYS } from "./reelConcepts";
+import { assertCanonicalPublicPublicationApproval } from "./publicPublicationApproval";
 import { DAILY_SCHEDULE, findSlotByNumber, getZonedDateParts, resolveCurrentSlot } from "./scheduler";
 import type {
   AppConfig,
@@ -52,6 +44,7 @@ import type {
   PostInput,
   PostLogEntry,
   PostResult,
+  RemotePublicationEvidence,
   VideoDeferKind
 } from "./types";
 
@@ -145,12 +138,82 @@ export async function resolveSlotPublishMedia(
     }
     return { mediaType: slot.media_type, videoDeferred: false, videoSha256 };
   } catch (error) {
+    // A missing or replaced immutable media runtime is not a normal asset
+    // deferral. Falling back to the cover image would turn a PATH-shadow
+    // attempt into a live Graph post. Stop before public-asset/Graph work;
+    // ordinary missing, review, and quality failures still use VIDEO_DEFERRED.
+    if (isTrustedProductionRuntimeError(error)) throw error;
     return {
       mediaType: slot.media_type === "mixed-carousel" ? "carousel" : "image",
       videoDeferred: true,
       videoDeferKind: classifyVideoFailure(error),
       videoDeferredReason: error instanceof Error ? error.message : String(error)
     };
+  }
+}
+
+function normalizedPostId(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function hasTrimmedRemotePostId(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value === value.trim();
+}
+
+function expectedRemoteMediaType(platform: Platform, mediaType: MediaType): RemotePublicationEvidence["remote_media_type"] {
+  if (mediaType === "reel") return "REELS";
+  if (mediaType === "mixed-carousel") return platform === "facebook" ? "REELS" : "CAROUSEL";
+  return mediaType === "carousel" ? "CAROUSEL" : "IMAGE";
+}
+
+function isPlatformPermalink(value: unknown, platform: Platform): boolean {
+  if (typeof value !== "string" || value.trim().length === 0 || value !== value.trim()) return false;
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    const expectedHost = platform === "facebook"
+      ? hostname === "facebook.com" || hostname.endsWith(".facebook.com") || hostname === "fb.watch" || hostname.endsWith(".fb.watch")
+      : hostname === "instagram.com" || hostname.endsWith(".instagram.com");
+    return url.protocol === "https:" && expectedHost;
+  } catch {
+    return false;
+  }
+}
+
+function hasVerifiedRemotePublicationEvidence(
+  value: unknown,
+  postId: unknown,
+  platform: Platform,
+  mediaType: MediaType
+): value is RemotePublicationEvidence {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const evidence = value as Partial<RemotePublicationEvidence>;
+  return (
+    hasTrimmedRemotePostId(postId) &&
+    evidence.remote_id === postId &&
+    isPlatformPermalink(evidence.permalink, platform) &&
+    typeof evidence.verified_at === "string" &&
+    !Number.isNaN(Date.parse(evidence.verified_at)) &&
+    evidence.remote_media_type === expectedRemoteMediaType(platform, mediaType) &&
+    evidence.caption_exact_match === true
+  );
+}
+
+function assertRemoteSuccessHasVerifiedEvidence(result: PostResult, media: ResolvedPublishMedia): void {
+  if (
+    !result.dry_run &&
+    (result.status === "success" || result.status === "posted") &&
+    !hasVerifiedRemotePublicationEvidence(
+      result.remote_publication_evidence,
+      result.post_id,
+      result.platform,
+      media.mediaType
+    )
+  ) {
+    throw new NonRetryableError(
+      `Meta ${result.platform} returned a non-dry success without verified remote read-back evidence; ` +
+        "treating the remote outcome as uncertain and refusing a success receipt or posted-log entry."
+    );
   }
 }
 
@@ -180,7 +243,9 @@ function resultToLog(
     video_deferred_reason: media.videoDeferredReason,
     ...postedVideoShaFields(media.videoDeferred ? undefined : media.videoSha256),
     ...(abVariant ? { ab_variant: abVariant } : {}),
-    post_id: result.post_id,
+    post_id: normalizedPostId(result.post_id),
+    ...(result.remote_reel_evidence ? { remote_reel_evidence: result.remote_reel_evidence } : {}),
+    ...(result.remote_publication_evidence ? { remote_publication_evidence: result.remote_publication_evidence } : {}),
     created_at: new Date().toISOString()
   };
 }
@@ -251,6 +316,423 @@ export function classifyCalendarSlotPresence(
   return "absent_fail";
 }
 
+const POST_LOG_STATUSES = new Set([
+  "pending",
+  "success",
+  "dry_run",
+  "posted",
+  "failed",
+  "skipped",
+  "missed",
+  "uncertain"
+]);
+
+function isStrictPostLogEntry(value: unknown, date: string): value is PostLogEntry {
+  if (!value || typeof value !== "object") return false;
+  const entry = value as Partial<PostLogEntry>;
+  return (
+    entry.date === date &&
+    typeof entry.slot === "number" &&
+    Number.isInteger(entry.slot) &&
+    entry.slot > 0 &&
+    (entry.platform === "facebook" || entry.platform === "instagram") &&
+    typeof entry.status === "string" &&
+    POST_LOG_STATUSES.has(entry.status) &&
+    typeof entry.dry_run === "boolean" &&
+    // A live success without the immutable remote identity cannot prove what
+    // committed. Treat it as malformed rather than letting a later run call
+    // it a completed post (or synthesize a success receipt from it).
+    (entry.dry_run ||
+      (entry.status !== "success" && entry.status !== "posted") ||
+      hasTrimmedRemotePostId(entry.post_id))
+  );
+}
+
+async function loadVerifiedPostLog(date: string, root: string): Promise<PostLogEntry[]> {
+  let entries: PostLogEntry[];
+  try {
+    entries = await loadPostLog(date, root);
+    assertPostedLogMatchesDate(date, entries);
+    if (entries.some((entry) => !isStrictPostLogEntry(entry, date))) {
+      throw new Error(`posted-log for ${date} contains an unsupported platform or status.`);
+    }
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new NonRetryableError(
+      `posted-log for ${date} is malformed or ambiguous; treating publication state as uncertain and refusing Meta requests: ${detail}`,
+      { cause: error }
+    );
+  }
+  return entries;
+}
+
+function hasCompletedLivePost(entries: PostLogEntry[], slot: number, platform: Platform): boolean {
+  return entries.some(
+    (entry) =>
+      entry.slot === slot &&
+      entry.platform === platform &&
+      !entry.dry_run &&
+      (entry.status === "success" || entry.status === "posted") &&
+      hasTrimmedRemotePostId(entry.post_id)
+  );
+}
+
+interface LegacyMetaPublishIntent {
+  date: string;
+  slot: number;
+  platform: Platform;
+  state: "pending_remote_commit" | "remote_accepted_log_failed";
+  created_at: string;
+  remote_entry?: PostLogEntry;
+  error?: string;
+}
+
+interface MetaPostSourceBinding {
+  slot_sha256: string;
+  source_binding_sha256: string;
+  media_type: MediaType;
+  caption_sha256: string;
+  image_sha256: string[];
+  image_url: string;
+  image_urls?: string[];
+  video_url?: string;
+  video_sha256?: string;
+}
+
+interface MetaRemotePostClaim {
+  schema_version: 1;
+  claim_id: string;
+  date: string;
+  slot: number;
+  platform: Platform;
+  created_at: string;
+  source: MetaPostSourceBinding;
+}
+
+interface MetaRemotePostReceipt {
+  schema_version: 1;
+  claim_id: string;
+  date: string;
+  slot: number;
+  platform: Platform;
+  state: "remote_accepted" | "remote_outcome_unknown";
+  recorded_at: string;
+  source_binding_sha256: string;
+  remote_entry?: PostLogEntry;
+  error?: string;
+}
+
+function legacyMetaPublishIntentPath(date: string, root: string): string {
+  return join(root, "data", "meta-publish-intents", `${date}.json`);
+}
+
+function metaPostClaimPath(date: string, slot: number, platform: Platform, root: string): string {
+  return join(root, "data", "meta-publish-claims", `${date}-slot${slot}-${platform}.json`);
+}
+
+function metaPostReceiptPath(date: string, slot: number, platform: Platform, root: string): string {
+  return `${metaPostClaimPath(date, slot, platform, root)}.receipt.json`;
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === "string" && /^[a-f0-9]{64}$/i.test(value);
+}
+
+function isMediaType(value: unknown): value is MediaType {
+  return value === "image" || value === "carousel" || value === "reel" || value === "mixed-carousel";
+}
+
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isMetaPostSourceBinding(value: unknown): value is MetaPostSourceBinding {
+  if (!value || typeof value !== "object") return false;
+  const source = value as Partial<MetaPostSourceBinding>;
+  return (
+    isSha256(source.slot_sha256) &&
+    isSha256(source.source_binding_sha256) &&
+    isMediaType(source.media_type) &&
+    isSha256(source.caption_sha256) &&
+    Array.isArray(source.image_sha256) &&
+    source.image_sha256.length > 0 &&
+    source.image_sha256.every((sha) => isSha256(sha)) &&
+    isNonBlankString(source.image_url) &&
+    (source.image_urls === undefined ||
+      (Array.isArray(source.image_urls) && source.image_urls.every((url) => isNonBlankString(url)))) &&
+    (source.video_url === undefined || isNonBlankString(source.video_url)) &&
+    (source.video_sha256 === undefined || isSha256(source.video_sha256))
+  );
+}
+
+function isLegacyMetaPublishIntent(value: unknown, date: string): value is LegacyMetaPublishIntent {
+  if (!value || typeof value !== "object") return false;
+  const intent = value as Partial<LegacyMetaPublishIntent>;
+  if (
+    intent.date !== date ||
+    typeof intent.slot !== "number" ||
+    !Number.isInteger(intent.slot) ||
+    intent.slot <= 0 ||
+    (intent.platform !== "facebook" && intent.platform !== "instagram") ||
+    (intent.state !== "pending_remote_commit" && intent.state !== "remote_accepted_log_failed") ||
+    typeof intent.created_at !== "string" ||
+    intent.created_at.trim().length === 0 ||
+    (intent.error !== undefined && typeof intent.error !== "string")
+  ) {
+    return false;
+  }
+  if (intent.state === "pending_remote_commit") return intent.remote_entry === undefined;
+  return (
+    isStrictPostLogEntry(intent.remote_entry, date) &&
+    intent.remote_entry.slot === intent.slot &&
+    intent.remote_entry.platform === intent.platform &&
+    !intent.remote_entry.dry_run &&
+    (intent.remote_entry.status === "success" || intent.remote_entry.status === "posted")
+  );
+}
+
+function isMetaRemotePostClaim(value: unknown, date: string, slot: number, platform: Platform): value is MetaRemotePostClaim {
+  if (!value || typeof value !== "object") return false;
+  const claim = value as Partial<MetaRemotePostClaim>;
+  return (
+    claim.schema_version === 1 &&
+    isNonBlankString(claim.claim_id) &&
+    claim.date === date &&
+    claim.slot === slot &&
+    claim.platform === platform &&
+    isNonBlankString(claim.created_at) &&
+    isMetaPostSourceBinding(claim.source)
+  );
+}
+
+function isMetaRemotePostReceipt(value: unknown, claim: MetaRemotePostClaim): value is MetaRemotePostReceipt {
+  if (!value || typeof value !== "object") return false;
+  const receipt = value as Partial<MetaRemotePostReceipt>;
+  if (
+    receipt.schema_version !== 1 ||
+    receipt.claim_id !== claim.claim_id ||
+    receipt.date !== claim.date ||
+    receipt.slot !== claim.slot ||
+    receipt.platform !== claim.platform ||
+    !isNonBlankString(receipt.recorded_at) ||
+    receipt.source_binding_sha256 !== claim.source.source_binding_sha256 ||
+    (receipt.state !== "remote_accepted" && receipt.state !== "remote_outcome_unknown")
+  ) {
+    return false;
+  }
+  if (receipt.state === "remote_accepted") {
+    return (
+      isStrictPostLogEntry(receipt.remote_entry, claim.date) &&
+      receipt.remote_entry.slot === claim.slot &&
+      receipt.remote_entry.platform === claim.platform &&
+      !receipt.remote_entry.dry_run &&
+      (receipt.remote_entry.status === "success" || receipt.remote_entry.status === "posted") &&
+      hasVerifiedRemotePublicationEvidence(
+        receipt.remote_entry.remote_publication_evidence,
+        receipt.remote_entry.post_id,
+        receipt.remote_entry.platform,
+        claim.source.media_type
+      )
+    );
+  }
+  return isNonBlankString(receipt.error) &&
+    (receipt.remote_entry === undefined || isStrictPostLogEntry(receipt.remote_entry, claim.date));
+}
+
+async function buildMetaPostSourceBinding(
+  slot: DailySlot,
+  input: PostInput,
+  media: ResolvedPublishMedia,
+  root: string
+): Promise<MetaPostSourceBinding> {
+  const imageSha256 = await Promise.all(
+    imageAssetsForSlot(slot).map(async (asset) =>
+      createHash("sha256")
+        .update(await readFile(join(root, ...asset.local_image_path.split("/"))))
+        .digest("hex")
+    )
+  );
+  const binding = {
+    slot_sha256: createHash("sha256").update(JSON.stringify(slot)).digest("hex"),
+    media_type: input.mediaType ?? "image",
+    caption_sha256: createHash("sha256").update(input.caption).digest("hex"),
+    image_sha256: imageSha256,
+    image_url: input.imageUrl,
+    ...(input.imageUrls?.length ? { image_urls: input.imageUrls } : {}),
+    ...(input.videoUrl ? { video_url: input.videoUrl } : {}),
+    ...(media.videoSha256 ? { video_sha256: media.videoSha256 } : {})
+  };
+  return {
+    ...binding,
+    source_binding_sha256: createHash("sha256").update(JSON.stringify(binding)).digest("hex")
+  };
+}
+
+async function loadLegacyMetaPublishIntents(date: string, root: string): Promise<LegacyMetaPublishIntent[]> {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(await readFile(legacyMetaPublishIntentPath(date, root), "utf8")) as unknown;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new NonRetryableError(
+      `legacy meta-publish-intents for ${date} cannot be read; automatic publish is blocked pending recovery: ${detail}`,
+      { cause: error }
+    );
+  }
+  if (!Array.isArray(raw) || raw.some((intent) => !isLegacyMetaPublishIntent(intent, date))) {
+    throw new NonRetryableError(
+      `legacy meta-publish-intents for ${date} is malformed; automatic publish is blocked pending recovery.`
+    );
+  }
+  return raw;
+}
+
+async function assertNoLegacyPublishLock(date: string, slot: number, root: string): Promise<void> {
+  const path = join(root, "data", "publish-locks", `${date}-slot${slot}.lock`);
+  try {
+    await readFile(path, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new NonRetryableError(
+      `legacy publish lock for ${date} slot ${slot} cannot be inspected; automatic publish is blocked pending recovery: ${detail}`,
+      { cause: error }
+    );
+  }
+  throw new NonRetryableError(
+    `A legacy publish lock exists for ${date} slot ${slot}; automatic publish is blocked. ` +
+      `Manual recovery required: verify Facebook and Instagram for a prior post, then remove ${path} only after that verification. No Meta request was made.`
+  );
+}
+
+async function assertNoMatchingLegacyMetaPublishIntent(input: {
+  date: string;
+  slot: number;
+  platform: Platform;
+  root: string;
+}): Promise<void> {
+  const existing = (await loadLegacyMetaPublishIntents(input.date, input.root)).find(
+    (intent) => intent.slot === input.slot && intent.platform === input.platform
+  );
+  if (!existing) return;
+  const evidence = existing.remote_entry?.post_id ? ` (remote post ${existing.remote_entry.post_id})` : "";
+  throw new NonRetryableError(
+    `Legacy Meta publish intent for ${input.date} slot ${input.slot} ${input.platform} is ${existing.state}${evidence}; automatic retry is blocked pending recovery.`
+  );
+}
+
+async function loadMetaRemotePostClaim(input: {
+  date: string;
+  slot: number;
+  platform: Platform;
+  root: string;
+}): Promise<MetaRemotePostClaim | undefined> {
+  const path = metaPostClaimPath(input.date, input.slot, input.platform, input.root);
+  let raw: unknown;
+  try {
+    raw = JSON.parse(await readFile(path, "utf8")) as unknown;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new NonRetryableError(
+      `Meta remote POST claim for ${input.date} slot ${input.slot} ${input.platform} cannot be read; automatic publish is blocked pending recovery: ${detail}`,
+      { cause: error }
+    );
+  }
+  if (!isMetaRemotePostClaim(raw, input.date, input.slot, input.platform)) {
+    throw new NonRetryableError(
+      `Meta remote POST claim for ${input.date} slot ${input.slot} ${input.platform} is malformed or mismatched; automatic publish is blocked pending recovery.`
+    );
+  }
+  return raw;
+}
+
+async function claimMetaRemotePost(input: {
+  date: string;
+  slot: number;
+  platform: Platform;
+  root: string;
+  source: MetaPostSourceBinding;
+}): Promise<MetaRemotePostClaim> {
+  await assertNoMatchingLegacyMetaPublishIntent(input);
+  const path = metaPostClaimPath(input.date, input.slot, input.platform, input.root);
+  await mkdir(join(input.root, "data", "meta-publish-claims"), { recursive: true });
+  const claim: MetaRemotePostClaim = {
+    schema_version: 1,
+    claim_id: randomUUID(),
+    date: input.date,
+    slot: input.slot,
+    platform: input.platform,
+    created_at: new Date().toISOString(),
+    source: input.source
+  };
+  try {
+    // `wx` is the remote authority: only one process can obtain a tuple claim
+    // before it reaches a potentially irreversible Meta POST. Claims are never
+    // renamed, cleared, or reclaimed by automation.
+    await writeFile(path, `${JSON.stringify(claim, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    const existing = await loadMetaRemotePostClaim(input);
+    const detail = existing ? ` claim ${existing.claim_id} from ${existing.created_at}` : "";
+    throw new NonRetryableError(
+      `Meta remote POST claim already exists for ${input.date} slot ${input.slot} ${input.platform}${detail}; automatic retry is blocked pending recovery. No Meta request was made.`
+    );
+  }
+  return claim;
+}
+
+async function writeMetaRemotePostReceipt(input: {
+  claim: MetaRemotePostClaim;
+  root: string;
+  state: MetaRemotePostReceipt["state"];
+  remoteEntry?: PostLogEntry;
+  error?: unknown;
+}): Promise<void> {
+  const path = metaPostReceiptPath(input.claim.date, input.claim.slot, input.claim.platform, input.root);
+  const receipt: MetaRemotePostReceipt = {
+    schema_version: 1,
+    claim_id: input.claim.claim_id,
+    date: input.claim.date,
+    slot: input.claim.slot,
+    platform: input.claim.platform,
+    state: input.state,
+    recorded_at: new Date().toISOString(),
+    source_binding_sha256: input.claim.source.source_binding_sha256,
+    ...(input.remoteEntry ? { remote_entry: input.remoteEntry } : {}),
+    ...(input.error === undefined
+      ? {}
+      : { error: input.error instanceof Error ? input.error.message : String(input.error) })
+  };
+  if (!isMetaRemotePostReceipt(receipt, input.claim)) {
+    throw new NonRetryableError(
+      `Meta remote POST receipt for ${input.claim.date} slot ${input.claim.slot} ${input.claim.platform} ` +
+        "has no valid remote identity or is otherwise malformed; automatic recovery is blocked."
+    );
+  }
+  try {
+    await writeFile(path, `${JSON.stringify(receipt, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    let existing: unknown;
+    try {
+      existing = JSON.parse(await readFile(path, "utf8")) as unknown;
+    } catch (readError) {
+      const detail = readError instanceof Error ? readError.message : String(readError);
+      throw new NonRetryableError(
+        `Meta remote POST receipt for ${input.claim.date} slot ${input.claim.slot} ${input.claim.platform} cannot be read; automatic recovery is blocked: ${detail}`,
+        { cause: readError }
+      );
+    }
+    if (!isMetaRemotePostReceipt(existing, input.claim)) {
+      throw new NonRetryableError(
+        `Meta remote POST receipt for ${input.claim.date} slot ${input.claim.slot} ${input.claim.platform} is malformed or mismatched; automatic recovery is blocked.`
+      );
+    }
+  }
+}
+
 async function postOneSlot(
   slot: DailySlot,
   config: AppConfig,
@@ -270,115 +752,20 @@ async function postOneSlot(
     if (paused) throw new NonRetryableError(pauseMessage(paused));
   }
   if (!config.dryRun && !preflightOnly) assertInsidePublishWindow(slot.slot, config, now);
-  // Single-flight per date+slot: scheduler retries, the patrol and a manual
-  // run can overlap; two publishers that both read "no success yet" would
-  // both post to Meta and both succeed (luna, high). flag wx makes the
-  // check-and-claim atomic; a stale lock (>30 min) is treated as a crashed
-  // run and reclaimed.
-  let releaseLock: (() => Promise<void>) | undefined;
+  // Pre-claim `publish-locks` are historical coarse slot markers, not a safe
+  // compare-and-swap authority for an irreversible remote commit. Never ignore
+  // one: only a human who verified both platforms may clear it. New publishes
+  // use immutable per-platform claims below instead.
   if (!config.dryRun && !preflightOnly) {
-    const { mkdir, writeFile, stat: statFile, unlink } = await import("node:fs/promises");
-    const lockDir = join(root, "data", "publish-locks");
-    await mkdir(lockDir, { recursive: true });
-    const lockFile = join(lockDir, `${date}-slot${slot.slot}.lock`);
-    try {
-      await writeFile(lockFile, new Date().toISOString(), { flag: "wx" });
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "EEXIST") {
-        const age = Date.now() - (await statFile(lockFile)).mtimeMs;
-        if (age < 30 * 60 * 1000) {
-          throw new Error(`Another publisher holds the lock for ${date} slot ${slot.slot} (${Math.round(age / 1000)}s old); refusing to double-publish.`);
-        }
-        await unlink(lockFile);
-        await writeFile(lockFile, new Date().toISOString(), { flag: "wx" });
-      } else {
-        throw error;
-      }
-    }
-    releaseLock = async () => {
-      try {
-        await unlink(lockFile);
-      } catch {
-        // A missing lock file at release is harmless.
-      }
-    };
+    await assertNoLegacyPublishLock(date, slot.slot, root);
   }
-  try {
-  // The approval fingerprint pins WHAT was approved: a slot rewritten after
-  // its approval must not publish on the old grant (luna, high). Absent
-  // sidecar = legacy day, no check; present sidecar with a different hash =
-  // refuse and say so.
+  // Every live Meta request is bound to the complete canonical release
+  // decision: exact non-forced FB/IG approval tuples, immutable fingerprints
+  // and image digests, video evidence, and an untampered calendar. There is no
+  // legacy-day fallback -- absent proof is a refusal before URL or Graph fetch.
+  const existing = await loadVerifiedPostLog(date, root);
   if (!config.dryRun && !preflightOnly) {
-    const { createHash } = await import("node:crypto");
-    const fpRaw = await readFile(join(root, "data", "approved-log", `${date}.fingerprints.json`), "utf8").catch(() => null);
-    if (fpRaw) {
-      const fingerprints = JSON.parse(fpRaw) as Record<string, string>;
-      const expected = fingerprints[String(slot.slot)];
-      const actual = createHash("sha256").update(JSON.stringify(slot)).digest("hex");
-      // A sidecar that exists but has no entry for this slot used to pass: the
-      // `expected &&` short-circuit turned a missing fingerprint into consent.
-      // That is backwards -- the sidecar's presence is the claim that this day
-      // was fingerprinted, so a gap in it is the one thing that should stop a
-      // publish rather than wave it through.
-      if (!expected) {
-        throw new Error(
-          `Slot ${slot.slot} has no approval fingerprint although ${date} has a fingerprint file; re-run auto-approve before publishing.`
-        );
-      }
-      if (expected !== actual) {
-        throw new Error(
-          `Slot ${slot.slot} content changed after approval (fingerprint mismatch); re-run auto-approve before publishing.`
-        );
-      }
-    }
-
-    // The fingerprint hashes the calendar slot, which does not contain a single
-    // byte of any image, and the catch-up chain does not re-approve a day that
-    // already has an approval log. So swapping a picture after approval was
-    // invisible everywhere. This asks only whether the bytes moved since they
-    // were stamped -- proving provenance stays at approval, because re-asking it
-    // here would strand every day approved before stamps existed.
-    // Compared against what approval recorded, not against the source records.
-    // A source record is written by the marking command and can be written
-    // again, so approve -> swap -> re-stamp -> publish stayed green against it:
-    // the file always matched the most recent thing anyone had said about it.
-    // The approval snapshot is written once, by approval, and no other command
-    // touches it.
-    // Only a missing file is a pre-snapshot day. A file that is there but
-    // unreadable, or that has no key for this slot, is not "old" -- it is a
-    // snapshot we cannot use, and must not fall back to the weaker check.
-    const assets = imageAssetsForSlot(slot);
-    const digestFile = await inspectApprovedImageDigestFile(root, date);
-    let swapped: string[];
-    if (digestFile.kind === "unusable") {
-      throw new Error(
-        `Slot ${slot.slot} image-digest file for ${date} is damaged or not a plain object; refusing to treat it as a pre-snapshot day.`
-      );
-    }
-    if (digestFile.kind === "ready") {
-      const slotKey = String(slot.slot);
-      if (!Object.hasOwn(digestFile.snapshot, slotKey)) {
-        throw new Error(
-          `Slot ${slot.slot} has no image-digest entry although ${date} has a digest file; re-run auto-approve before publishing.`
-        );
-      }
-      const slotDigest: unknown = digestFile.snapshot[slotKey];
-      if (!isApprovedSlotDigestMap(slotDigest)) {
-        throw new Error(
-          `Slot ${slot.slot} image-digest entry is not a digest map; refusing to publish.`
-        );
-      }
-      swapped = await imagesDifferFromApproval(root, slot, assets, digestFile.snapshot);
-    } else {
-      swapped = await imagesChangedSinceStamp(root, slot, assets, await loadImageSources(date, root));
-    }
-    if (swapped.length > 0) {
-      throw new Error(
-        `Slot ${slot.slot} images changed after approval:\n` +
-          swapped.map((line) => `  - ${line}`).join("\n") +
-          `\nRe-run auto-approve before publishing.`
-      );
-    }
+    await assertCanonicalPublicPublicationApproval(date, root);
   }
   // Nothing checked whether this exact post had already gone out. Between
   // 08-07 and 08-11 the account published the same reel with the same caption
@@ -398,7 +785,7 @@ async function postOneSlot(
         const pastDate = past.toISOString().slice(0, 10);
         const pastContent = await loadDailyContent(pastDate, root).catch(() => null);
         if (!pastContent) continue;
-        const pastPosts = await loadPostLog(pastDate, root).catch(() => []);
+        const pastPosts = await loadVerifiedPostLog(pastDate, root);
         for (const pastSlot of pastContent.slots) {
           const pastCaption = (pastSlot.instagram_caption ?? "").trim();
           if (!pastCaption) continue;
@@ -445,8 +832,6 @@ async function postOneSlot(
     }
   }
 
-  const existing = await loadPostLog(date, root);
-  const approvals = await loadApprovalLog(date, root);
   const outputs: PostLogEntry[] = [];
   const platformInputs: Array<{ platform: Platform; input: PostInput }> = [
     {
@@ -474,24 +859,6 @@ async function postOneSlot(
       }
     }
   ];
-  const unpublishable = platformInputs
-    .filter(({ platform }) => !hasPublishableApproval(approvals, slot.slot, platform))
-    .map(({ platform }) => platform);
-
-  if (unpublishable.length > 0) {
-    const forcedOnly = unpublishable.filter((platform) =>
-      hasApprovedPost(approvals, slot.slot, platform)
-    );
-    if (forcedOnly.length > 0) {
-      throw new Error(
-        `Post ${date} slot ${slot.slot} has a forced approval for: ${forcedOnly.join(", ")}. Forced approval is not publishable consent.`
-      );
-    }
-    throw new Error(
-      `Post ${date} slot ${slot.slot} is not approved for: ${unpublishable.join(", ")}. Run approve-post before posting.`
-    );
-  }
-
   // A preflight is a check, so it reports the deferral without recording it.
   if (preflightOnly) {
     return platformInputs.map(({ platform, input }) => ({
@@ -534,10 +901,12 @@ async function postOneSlot(
   // facebook first, and rethrowing inside it meant the platform this account's
   // whole strategy lives on was never even attempted whenever Facebook had a
   // bad night. Every platform gets its attempt; the first failure is rethrown
-  // afterwards so the run still reports failure and the catch-up retries.
+  // afterwards so the run still reports failure. Its immutable tuple claim
+  // prevents any later scheduler run from retrying an uncertain remote effect.
   let firstFailure: unknown;
   for (const { platform, input } of platformInputs) {
-    if (hasRecordedPost(existing, slot.slot, platform, config.dryRun)) {
+    const alreadyRecorded = hasRecordedPost(existing, slot.slot, platform, config.dryRun);
+    if (alreadyRecorded) {
       outputs.push({
         date,
         slot: slot.slot,
@@ -551,11 +920,63 @@ async function postOneSlot(
       continue;
     }
 
+    let claim: MetaRemotePostClaim | undefined;
+    if (!config.dryRun) {
+      try {
+        // Re-read the whole immutable approval package immediately before this
+        // platform's irreversible claim. The earlier gate keeps bad evidence
+        // from reaching public-asset fetches; this one closes the time-of-check
+        // gap before each Graph POST.
+        await assertCanonicalPublicPublicationApproval(date, root);
+        claim = await loadMetaRemotePostClaim({ date, slot: slot.slot, platform, root });
+        if (claim) {
+          // Another caller may have finished the remote effect after this
+          // invocation loaded its initial ledger. Re-read only to recognize a
+          // completed matching record; any incomplete or uncertain claim stays
+          // a per-platform manual-recovery refusal.
+          const refreshed = await loadVerifiedPostLog(date, root);
+          if (hasCompletedLivePost(refreshed, slot.slot, platform)) {
+            outputs.push({
+              date,
+              slot: slot.slot,
+              platform,
+              status: "skipped",
+              dry_run: config.dryRun,
+              attempts: 0,
+              ...(abVariant ? { ab_variant: abVariant } : {}),
+              created_at: new Date().toISOString()
+            });
+            continue;
+          }
+          throw new NonRetryableError(
+            `Meta remote POST claim ${claim.claim_id} already exists for ${date} slot ${slot.slot} ${platform}; ` +
+              `automatic retry is blocked pending recovery. No Meta request was made.`
+          );
+        }
+        claim = await claimMetaRemotePost({
+          date,
+          slot: slot.slot,
+          platform,
+          root,
+          source: await buildMetaPostSourceBinding(slot, input, resolvedMedia, root)
+        });
+      } catch (error) {
+        // Claim/legacy checks happen before any remote request. Preserve the
+        // refusal for the final caller result, but do not manufacture a
+        // failed/uncertain local outcome or prevent the other platform from
+        // making its independent attempt.
+        firstFailure = firstFailure ?? error;
+        continue;
+      }
+    }
+
+    let result: PostResult;
     try {
-      const result = await postPlatform(platform, input, config, fetchImpl);
-      const entry = resultToLog(date, slot.slot, result, resolvedMedia, abVariant);
-      await appendPostLog(entry, root);
-      outputs.push(entry);
+      // The `wx` tuple claim was committed immediately before this call. A
+      // crash here must remain a manual-recovery state, because even a request
+      // that appears not to have returned can have committed remotely.
+      result = await postPlatform(platform, input, config, fetchImpl);
+      assertRemoteSuccessHasVerifiedEvidence(result, resolvedMedia);
     } catch (error) {
       // A NonRetryableError from a commit point means the post may already be
       // live. Recording it as "failed" is what let the catch-up chain publish
@@ -583,71 +1004,105 @@ async function postOneSlot(
         error: error instanceof Error ? error.message : String(error),
         created_at: new Date().toISOString()
       };
-      await appendPostLog(entry, root);
+      let receiptError: unknown;
+      if (claim) {
+        try {
+          await writeMetaRemotePostReceipt({
+            claim,
+            root,
+            state: "remote_outcome_unknown",
+            remoteEntry: entry,
+            error
+          });
+        } catch (receiptFailure) {
+          receiptError = receiptFailure;
+        }
+      }
+      try {
+        await appendPostLog(entry, root);
+      } catch (logFailure) {
+        const receiptDetail = receiptError
+          ? ` Remote receipt also failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}.`
+          : "";
+        firstFailure = firstFailure ?? new NonRetryableError(
+          `Meta outcome for ${date} slot ${slot.slot} ${platform} is uncertain and local posted-log commit failed: ` +
+            `${logFailure instanceof Error ? logFailure.message : String(logFailure)}.${receiptDetail} Automatic retry is blocked pending recovery.`,
+          { cause: logFailure }
+        );
+        continue;
+      }
       outputs.push(entry);
       firstFailure = firstFailure ?? error;
+      continue;
+    }
+
+    const entry = resultToLog(date, slot.slot, result, resolvedMedia, abVariant);
+    let receiptError: unknown;
+    if (claim) {
+      try {
+        // Store remote read-back evidence before touching the local ledger. If
+        // the ledger write fails or this process crashes immediately after it,
+        // the claim and receipt still prevent a second remote POST.
+        await writeMetaRemotePostReceipt({ claim, root, state: "remote_accepted", remoteEntry: entry });
+      } catch (receiptFailure) {
+        receiptError = receiptFailure;
+      }
+    }
+    try {
+      await appendPostLog(entry, root);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      const receiptDetail = receiptError
+        ? ` Remote receipt also failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}.`
+        : "";
+      firstFailure = firstFailure ?? new NonRetryableError(
+        `Meta accepted ${date} slot ${slot.slot} ${platform}, but local posted-log commit failed: ${detail}.${receiptDetail} Automatic retry is blocked pending recovery.`,
+        { cause: error }
+      );
+      continue;
+    }
+
+    outputs.push(entry);
+    if (receiptError) {
+      firstFailure = firstFailure ?? new NonRetryableError(
+        `Meta accepted ${date} slot ${slot.slot} ${platform}, but its immutable remote receipt could not be written: ` +
+          `${receiptError instanceof Error ? receiptError.message : String(receiptError)}. Automatic retry is blocked pending recovery.`,
+        { cause: receiptError }
+      );
     }
   }
   if (firstFailure !== undefined) throw firstFailure;
 
-  if (!config.dryRun && !resolvedMedia.videoDeferred && (isReel || isMixedCarousel)) {
-    const completed = await loadPostLog(date, root);
-    const bothPlatformsPublished = (["facebook", "instagram"] as const).every((platform) =>
-      completed.some(
-        (entry) =>
-          entry.slot === slot.slot &&
-          entry.platform === platform &&
-          !entry.dry_run &&
-          (entry.status === "success" || entry.status === "posted")
-      )
-    );
-    if (bothPlatformsPublished) {
-      const repairs = await loadVideoRepairQueue(root);
-      for (const repair of repairs) {
-        if (
-          repair.status === "VIDEO_DEFERRED" &&
-          repair.replacement_candidate_date === date &&
-          repair.replacement_candidate_slot === slot.slot
-        ) {
-          await resolveVideoRepairQueue(repair.source_date, repair.source_slot, date, slot.slot, root);
-        }
+  if (!config.dryRun && !resolvedMedia.videoDeferred && isReel) {
+    const repairs = await loadVideoRepairQueue(root);
+    for (const repair of repairs) {
+      if (
+        repair.status !== "VIDEO_DEFERRED" ||
+        repair.replacement_candidate_date !== date ||
+        repair.replacement_candidate_slot !== slot.slot
+      ) {
+        continue;
       }
+      const resolution = await resolveQualifiedDualPlatformReelReplacement({
+        sourceDate: repair.source_date,
+        sourceSlot: repair.source_slot,
+        replacementDate: date,
+        replacementSlot: slot.slot,
+        root
+      });
+      if (!resolution.qualified) continue;
     }
   }
 
   return outputs;
-  } finally {
-    if (releaseLock) await releaseLock();
-  }
 }
 
 export function refuseTamperedPublish(date: string, reasons: string[]): void {
   const detail = reasons.length > 0 ? reasons.join("; ") : "content_checksum mismatch";
-  const text = `今天 (${date}) 行事曆完整性失敗,已退封面不發布。${detail}`;
   console.warn(`CALENDAR_TAMPERED ${date}: ${detail}`);
-  if (process.env.VITEST === "true") return;
-  try {
-    const escaped = text.replace(/'/g, "''");
-    const script = [
-      "try {",
-      "  [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null",
-      "  $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)",
-      "  $nodes = $template.GetElementsByTagName('text')",
-      "  $nodes.Item(0).AppendChild($template.CreateTextNode('私享家發佈')) | Out-Null",
-      `  $nodes.Item(1).AppendChild($template.CreateTextNode('${escaped}')) | Out-Null`,
-      "  $toast = New-Object Windows.UI.Notifications.ToastNotification($template)",
-      "  [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('LaundryPostCurrentSlot').Show($toast)",
-      "} catch {}"
-    ].join("; ");
-    const child = spawn("powershell.exe", ["-NoProfile", "-Command", script], {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: true
-    });
-    child.unref();
-  } catch {
-    // Toast is best-effort; the warn line is the durable alarm.
-  }
+  // TypeScript is not a trusted launcher for a PATH-resolved PowerShell
+  // process. Scheduled PowerShell wrappers may render a notification from the
+  // durable warning, but a tamper refusal itself stays side-effect free.
 }
 
 export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Promise<PostLogEntry[]> {

@@ -17,6 +17,11 @@ import {
   projectRoot,
   videoAssetFilePath
 } from "./paths";
+import {
+  findStrictLiveTransportEntry,
+  isQualifiedFacebookReel,
+  isQualifiedInstagramReel
+} from "./publishingReconciliation";
 import type {
   ApprovalLogEntry,
   DailyContent,
@@ -47,7 +52,8 @@ type InsightFile = {
   rows?: unknown;
 };
 
-type PublishState = "已發佈" | "失敗" | "僅演練" | "待發佈" | "計畫";
+type PublishState = "已發佈" | "Reel 證據缺口" | "資料缺口" | "失敗" | "僅演練" | "待發佈" | "計畫";
+type PublishRequirement = "transport" | "reel";
 
 export interface OperationsSlotRow extends ArtifactRow {
   date: string;
@@ -210,26 +216,44 @@ function isApproved(entries: ApprovalLogEntry[], slot: number, platform: Platfor
   );
 }
 
-function successfulLivePost(entries: PostLogEntry[], slot: number, platform: Platform): boolean {
+function hasUnverifiedLiveClaim(
+  entries: readonly PostLogEntry[],
+  date: string,
+  slot: number,
+  platform: Platform
+): boolean {
+  if (findStrictLiveTransportEntry(entries, { date, slot, platform })) return false;
   return entries.some(
     (entry) =>
       entry.slot === slot &&
       entry.platform === platform &&
-      !entry.dry_run &&
-      ["success", "posted"].includes(entry.status)
+      (entry.status === "success" || entry.status === "posted") &&
+      entry.dry_run !== true
   );
+}
+
+function hasQualifiedReel(
+  platform: Platform,
+  entry: PostLogEntry
+): boolean {
+  return platform === "facebook" ? isQualifiedFacebookReel(entry) : isQualifiedInstagramReel(entry);
 }
 
 function publishState(
   entries: PostLogEntry[],
+  date: string,
   slot: number,
   platform: Platform,
-  future: boolean
+  future: boolean,
+  requirement: PublishRequirement
 ): PublishState {
-  const matching = entries.filter((entry) => entry.slot === slot && entry.platform === platform);
-  if (matching.some((entry) => !entry.dry_run && ["success", "posted"].includes(entry.status))) {
+  const strict = findStrictLiveTransportEntry(entries, { date, slot, platform });
+  if (strict) {
+    if (requirement === "reel" && !hasQualifiedReel(platform, strict)) return "Reel 證據缺口";
     return "已發佈";
   }
+  if (hasUnverifiedLiveClaim(entries, date, slot, platform)) return "資料缺口";
+  const matching = entries.filter((entry) => entry.slot === slot && entry.platform === platform);
   if (matching.some((entry) => !entry.dry_run && entry.status === "failed")) return "失敗";
   if (matching.some((entry) => entry.dry_run && ["success", "dry_run"].includes(entry.status))) {
     return "僅演練";
@@ -238,7 +262,8 @@ function publishState(
 }
 
 function actualSlot(calendar: DailyContent | undefined, slot: number): DailySlot | undefined {
-  return calendar?.slots.find((item) => item.slot === slot);
+  const matches = calendar?.slots.filter((item) => item.slot === slot) ?? [];
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 function topicMatches(plan: GrowthPlaybookSlot, actual: DailySlot | undefined): boolean {
@@ -250,8 +275,10 @@ function kpiState(
   facebookRow: InsightRow | undefined,
   instagramViews: number | undefined,
   facebookViews: number | undefined,
-  published: boolean
+  published: boolean,
+  publicationEvidenceGap = false
 ): string {
+  if (publicationEvidenceGap) return "發佈證據缺口";
   if (!published) return "待發佈後抓取";
   if (instagramViews !== undefined && facebookViews !== undefined) return "完整";
   if (instagramViews !== undefined || facebookViews !== undefined) return "部分";
@@ -392,6 +419,7 @@ export async function buildOperationsDashboard(
             const future = day.date > now.date;
             const due = day.date < now.date || (day.date === now.date && plan.time <= now.time);
             const actual = actualSlot(calendar, plan.slot);
+            const calendarTampered = calendar?.tampered === true;
             const contentReady = Boolean(actual);
             const contentMatches = topicMatches(plan, actual);
             const actualImageAssets = actual ? imageAssetsForSlot(actual) : [];
@@ -442,11 +470,19 @@ export async function buildOperationsDashboard(
             const facebookApproved = isApproved(approvals, plan.slot, "facebook");
             const instagramApproved = isApproved(approvals, plan.slot, "instagram");
             const fullyApproved = facebookApproved && instagramApproved;
-            const facebookPublished = successfulLivePost(posts, plan.slot, "facebook");
-            const instagramPublished = successfulLivePost(posts, plan.slot, "instagram");
-            const fullyPublished = facebookPublished && instagramPublished;
-            const facebookPublish = publishState(posts, plan.slot, "facebook", future);
-            const instagramPublish = publishState(posts, plan.slot, "instagram", future);
+            const publishRequirement: PublishRequirement = isReel ? "reel" : "transport";
+            const facebookPublish = publishState(posts, day.date, plan.slot, "facebook", future, publishRequirement);
+            const instagramPublish = publishState(posts, day.date, plan.slot, "instagram", future, publishRequirement);
+            const publicationEvidenceGap =
+              calendarTampered ||
+              facebookPublish === "資料缺口" ||
+              instagramPublish === "資料缺口" ||
+              facebookPublish === "Reel 證據缺口" ||
+              instagramPublish === "Reel 證據缺口";
+            const reelDeliveryGap =
+              isReel && (facebookPublish === "Reel 證據缺口" || instagramPublish === "Reel 證據缺口");
+            const fullyPublished =
+              !calendarTampered && facebookPublish === "已發佈" && instagramPublish === "已發佈";
             const publicSlot = actualSlot(publicCalendar, plan.slot);
             const seoSynced = Boolean(publicSlot);
 
@@ -464,11 +500,13 @@ export async function buildOperationsDashboard(
               facebookInsight,
               instagramViews,
               facebookViews,
-              fullyPublished
+              fullyPublished,
+              publicationEvidenceGap
             );
 
             let mediaState = "就緒";
-            if (future && !contentReady) mediaState = "計畫";
+            if (calendarTampered) mediaState = "內容完整性失敗";
+            else if (future && !contentReady) mediaState = "計畫";
             else if (!contentReady) mediaState = "未產生";
             else if (!imageReady) mediaState = actual?.media_type === "carousel" ? "缺輪播圖片" : "缺封面圖片";
             else if (!imageSourceReady) mediaState = actual?.media_type === "carousel" ? "缺輪播來源紀錄" : "缺圖片來源紀錄";
@@ -476,7 +514,15 @@ export async function buildOperationsDashboard(
             else if (!videoSourceReady) mediaState = "缺影片來源紀錄";
             else if (!reelFresh) mediaState = reelFreshnessMediaState || "Reel 創意已過期";
 
-            const contentState = future && !contentReady ? "計畫" : !contentReady ? "未產生" : contentMatches ? "吻合母表" : "需核對母表";
+            const contentState = calendarTampered
+              ? "資料完整性失敗"
+              : future && !contentReady
+                ? "計畫"
+                : !contentReady
+                  ? "未產生"
+                  : contentMatches
+                    ? "吻合母表"
+                    : "需核對母表";
             const facebookApproval = future && !contentReady ? "計畫" : facebookApproved ? "已核准" : "待審";
             const instagramApproval = future && !contentReady ? "計畫" : instagramApproved ? "已核准" : "待審";
             const approvalState =
@@ -490,16 +536,20 @@ export async function buildOperationsDashboard(
             const seoState = seoSynced ? "已同步" : future && !contentReady ? "計畫" : fullyApproved ? "核准後未同步" : "待核准";
 
             let overallState = "已發佈";
-            if (future) overallState = "計畫";
+            if (calendarTampered) overallState = "資料完整性失敗";
+            else if (future) overallState = "計畫";
             else if (fullyPublished && seoSynced) overallState = "已發佈";
             else if (!contentReady) overallState = "未產生";
             else if (!mediaReady) overallState = "素材缺件";
             else if (!fullyApproved) overallState = "待審核";
+            else if (reelDeliveryGap) overallState = "Reel 履約缺口";
+            else if (publicationEvidenceGap) overallState = "發佈證據缺口";
             else if (!seoSynced) overallState = "公開同步阻塞";
             else if (!fullyPublished) overallState = due ? "待發佈" : "已就緒";
 
             let nextAction = "完成";
-            if (future) nextAction = "依排程準備";
+            if (calendarTampered) nextAction = "由人員重建並驗證當日內容；不得沿用發佈狀態";
+            else if (future) nextAction = "依排程準備";
             else if (!contentReady) nextAction = "產生內容";
             else if (!mediaReady) {
               nextAction =
@@ -508,6 +558,8 @@ export async function buildOperationsDashboard(
                   : `補齊素材：${mediaState}`;
             }
             else if (!fullyApproved) nextAction = "完成 FB/IG 審核";
+            else if (reelDeliveryGap) nextAction = "修復 Reel 並完成 FB/IG 讀回驗證；不得把 fallback 當履約";
+            else if (publicationEvidenceGap) nextAction = "核對 FB/IG 發佈證據；不得自動重發";
             else if (!seoSynced) nextAction = "重建 SEO/AEO/GEO 公開資料";
             else if (!fullyPublished) {
               const pendingPlatforms: string[] = [];
@@ -551,25 +603,40 @@ export async function buildOperationsDashboard(
   ).flat();
 
   const dueRows = slotRows.filter((row) => row.due === true);
-  const generatedDue = dueRows.filter((row) => row.content_state !== "未產生").length;
+  const generatedDue = dueRows.filter(
+    (row) => row.content_state !== "未產生" && row.content_state !== "資料完整性失敗"
+  ).length;
   const approvedDue = dueRows.filter(
-    (row) => row.facebook_approval === "已核准" && row.instagram_approval === "已核准"
+    (row) =>
+      row.content_state !== "資料完整性失敗" &&
+      row.facebook_approval === "已核准" &&
+      row.instagram_approval === "已核准"
   ).length;
-  const seoDue = dueRows.filter((row) => row.seo_aeo_geo === "已同步").length;
-  const publishedDue = dueRows.filter(
-    (row) => row.facebook_publish === "已發佈" && row.instagram_publish === "已發佈"
+  const seoDue = dueRows.filter(
+    (row) => row.content_state !== "資料完整性失敗" && row.seo_aeo_geo === "已同步"
   ).length;
+  const publishedDue = dueRows.filter((row) => row.overall_state === "已發佈").length;
   const publishedPlatformPosts = slotRows.reduce(
     (sum, row) =>
-      sum + Number(row.facebook_publish === "已發佈") + Number(row.instagram_publish === "已發佈"),
+      sum +
+      Number(row.content_state !== "資料完整性失敗" && row.facebook_publish === "已發佈") +
+      Number(row.content_state !== "資料完整性失敗" && row.instagram_publish === "已發佈"),
     0
   );
   const platformViewRows = slotRows.reduce((sum, row) => {
     const key = `${row.date}:${row.slot}`;
     return (
       sum +
-      Number(row.facebook_publish === "已發佈" && exactViews(facebookInsights.get(key), "facebook") !== undefined) +
-      Number(row.instagram_publish === "已發佈" && exactViews(instagramInsights.get(key), "instagram") !== undefined)
+      Number(
+        row.content_state !== "資料完整性失敗" &&
+          row.facebook_publish === "已發佈" &&
+          exactViews(facebookInsights.get(key), "facebook") !== undefined
+      ) +
+      Number(
+        row.content_state !== "資料完整性失敗" &&
+          row.instagram_publish === "已發佈" &&
+          exactViews(instagramInsights.get(key), "instagram") !== undefined
+      )
     );
   }, 0);
 
@@ -600,6 +667,25 @@ export async function buildOperationsDashboard(
       sourceId: "meta_insights",
       dataset: "slot_status",
       message: `已正式發佈 ${publishedPlatformPosts} 個平台貼文，但只有 ${platformViewRows} 筆取得精確 views；空值不可解讀為 0。`
+    });
+  }
+  const publicationEvidenceGapRows = dueRows.filter(
+    (row) =>
+      row.facebook_publish === "資料缺口" ||
+      row.instagram_publish === "資料缺口" ||
+      row.facebook_publish === "Reel 證據缺口" ||
+      row.instagram_publish === "Reel 證據缺口" ||
+      row.content_state === "資料完整性失敗"
+  );
+  if (publicationEvidenceGapRows.length > 0) {
+    accessIssues.push({
+      id: "publication_evidence_gaps",
+      scope: "FB/IG 發佈履約",
+      sourceId: "posted_log",
+      dataset: "slot_status",
+      message:
+        `${publicationEvidenceGapRows.length} 個到期時段沒有可計入的完整發佈證據；` +
+        "重複、跨日、缺 post_id、Reel fallback/VIDEO_DEFERRED 或篡改行事曆都不是已發佈。"
     });
   }
   accessIssues.push({
@@ -683,7 +769,7 @@ export async function buildOperationsDashboard(
         id: "publish_rate",
         dataset: "summary",
         sourceId: "operations_summary",
-        description: "已到期時段中，Facebook 與 Instagram 都有正式成功紀錄的比例。",
+        description: "已到期時段中，Facebook 與 Instagram 各有一筆同日、唯一、具 post_id 的正式傳輸紀錄；Reel 另需完整 Reel 讀回證據。",
         metrics: [
           { label: "雙平台發佈率", field: "publish_rate", format: "percent" },
           { label: "已發佈時段", field: "published_due_slots", format: "number" },
@@ -694,7 +780,7 @@ export async function buildOperationsDashboard(
         id: "kpi_coverage",
         dataset: "summary",
         sourceId: "meta_insights",
-        description: "已正式發佈的平台貼文中，取得精確 views 的比例；未取得不等於 0。",
+        description: "已具完整發佈證據的平台貼文中，取得精確 views 的比例；未取得不等於 0。",
         metrics: [
           { label: "views 資料覆蓋", field: "kpi_coverage", format: "percent" },
           { label: "有 views 筆數", field: "platform_view_rows", format: "number" },

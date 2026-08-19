@@ -1,22 +1,44 @@
 ﻿# Catch-up publisher for the daily 私享家 FB/IG slots.
-# Safe to run repeatedly: post-current-slot enforces the approved-log gate and
-# skips slots already recorded in posted-log. Same-day catch-up is authorized
-# by data/publishing-policy.json (same_day_catch_up: true).
+# Safe to run repeatedly: post-current-slot enforces canonical public approval
+# and skips slots already recorded in posted-log. Same-day catch-up is
+# authorized by data/publishing-policy.json (same_day_catch_up: true).
+[CmdletBinding()]
+param(
+    [string]$RootOverride,
+    [string]$NowOverride
+)
+
 $ErrorActionPreference = "Continue"
 # Task Scheduler consoles default to cp950, which mangles the UTF-8 JSON npm
 # prints and broke a scheduled parse; interactive sessions never hit this.
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
-$root = Split-Path -Parent $PSScriptRoot
+$root = if ($RootOverride) { [IO.Path]::GetFullPath($RootOverride) } else { Split-Path -Parent $PSScriptRoot }
+$executingCheckout = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot)).TrimEnd('\')
+$requestedContractRoot = [IO.Path]::GetFullPath($root).TrimEnd('\')
+if (-not $executingCheckout.Equals($requestedContractRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    $fixtureRoot = $requestedContractRoot + '\'
+    if ($env:LAUNDRY_EXECUTABLE_CONTRACT_TEST_SEAM -cne "allow-temp-production-runtime-shims-v1" -or -not $fixtureRoot.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        [Console]::Error.WriteLine("BLOCKED production contract: RootOverride does not match the executing scripts checkout.")
+        exit 1
+    }
+}
 
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
-$now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
+try {
+    $now = if ($NowOverride) {
+        [TimeZoneInfo]::ConvertTime([DateTimeOffset]::Parse($NowOverride), $tz).DateTime
+    } else {
+        [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
+    }
+} catch {
+    throw "Invalid -NowOverride: $NowOverride"
+}
 $date = $now.ToString("yyyy-MM-dd")
 
 $logDir = Join-Path $root "output\catch-up-logs"
-New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $logFile = Join-Path $logDir "$date.log"
-. (Join-Path $PSScriptRoot "_watchdog.ps1")
 
 function Write-Log([string]$message) {
     $line = "[{0}] {1}" -f $now.ToString("yyyy-MM-dd HH:mm:ss"), $message
@@ -37,64 +59,201 @@ function Show-Toast([string]$text) {
     }
 }
 
+. (Join-Path $PSScriptRoot "_production-contract.ps1")
+$productionContract = Test-CleanProductionContract -Root $root
+if (-not $productionContract.ok) {
+    [Console]::Error.WriteLine("BLOCKED production contract before catch-up: $($productionContract.reason). No lock, task re-arm, network, or post action was run.")
+    exit 1
+}
+
+# The initial inspection is only an admission check.  This job can run for
+# minutes and executes checked-out code, so every state-changing or remote
+# boundary below must prove the same contract again immediately before it runs.
+function Assert-CleanProductionContractBeforeAction([string]$stage, [string]$Root = $root) {
+    $check = Test-CleanProductionContract -Root $Root
+    if ($check.ok) { return $true }
+    $message = "BLOCKED production contract before ${stage}: $($check.reason). No action at this boundary or any later boundary was run."
+    Write-Log $message
+    [Console]::Error.WriteLine($message)
+    return $false
+}
+
+$ProductionContractVerified = $true
+New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+$WatchdogObserveOnly = $false
+if (-not (Assert-CleanProductionContractBeforeAction "watchdog task re-arm")) { exit 1 }
+. (Join-Path $PSScriptRoot "_watchdog.ps1")
+. (Join-Path $PSScriptRoot "_publishing-reconciliation.ps1")
+
+# All decisions that suppress a stale-slot alert or authorize a follow-up use
+# the shared canonical transport qualification.  A success-looking row is not
+# evidence by itself: the bridge rejects cross-date rows, duplicate tuples,
+# non-boolean dry_run, and non-trimmed/missing remote IDs.
+function Get-StrictDualPlatformTransportQualification(
+    [object[]]$Entries,
+    [string]$ExpectedDate,
+    [int]$ExpectedSlot
+) {
+    $qualified = $true
+    $claimsLive = $false
+    $reasons = @()
+    foreach ($platform in @("facebook", "instagram")) {
+        $qualification = Get-StrictTransportCompletionQualification -Entries $Entries -ExpectedDate $ExpectedDate -ExpectedSlot $ExpectedSlot -ExpectedPlatform $platform
+        if ($qualification.claims_live) { $claimsLive = $true }
+        if (-not $qualification.qualified) {
+            $qualified = $false
+            foreach ($reason in @($qualification.reasons)) {
+                $reasons += ("{0}: {1}" -f $platform, $reason)
+            }
+        }
+    }
+    return [pscustomobject]@{
+        qualified   = $qualified
+        claims_live = $claimsLive
+        reasons     = @($reasons)
+    }
+}
+
+function Get-StrictDualPlatformTransportFromDisk(
+    [string]$ExpectedDate,
+    [int]$ExpectedSlot
+) {
+    $postedPath = Join-Path $root "data\posted-log\$ExpectedDate.json"
+    if (-not (Test-Path $postedPath)) {
+        return [pscustomobject]@{
+            qualified   = $false
+            claims_live = $false
+            reasons     = @("posted-log is missing")
+        }
+    }
+    try {
+        $raw = [IO.File]::ReadAllText($postedPath, [Text.UTF8Encoding]::new($false))
+        # Keep the parsed root array as an array of rows.  In Windows
+        # PowerShell, wrapping ConvertFrom-Json directly can turn an array
+        # into one Object[] candidate and falsely report every tuple missing.
+        $parsed = ConvertFrom-Json $raw
+        $entries = @($parsed)
+        return Get-StrictDualPlatformTransportQualification -Entries $entries -ExpectedDate $ExpectedDate -ExpectedSlot $ExpectedSlot
+    } catch {
+        return [pscustomobject]@{
+            qualified   = $false
+            claims_live = $false
+            reasons     = @("posted-log cannot be parsed: $($_.Exception.Message)")
+        }
+    }
+}
+
+function Get-StrictDualPlatformTransportSlots([string]$ExpectedDate) {
+    $eligible = @()
+    foreach ($candidateSlot in 1, 2, 3) {
+        $qualification = Get-StrictDualPlatformTransportFromDisk -ExpectedDate $ExpectedDate -ExpectedSlot $candidateSlot
+        if ($qualification.qualified) {
+            $eligible += $candidateSlot
+        }
+    }
+    return @($eligible)
+}
+
+# `src/dayLock.ts` emits these exact, single-line proofs only after it has
+# validated the signed lock and (for lock creation/idempotency) the current
+# canonical calendar binding. An exit code or a human-looking result such as
+# "no lock" is not authorization for Pages, IndexNow, approval, or posting.
+function Test-VerifiedDayLockProof(
+    [object[]]$Output,
+    [string]$ExpectedDate,
+    [ValidateSet("lock", "heal")][string]$Kind
+) {
+    $prefix = if ($Kind -eq "lock") { "DAY_LOCK_VERIFIED" } else { "DAY_LOCK_HEAL_VERIFIED" }
+    $actions = if ($Kind -eq "lock") { "(?:locked|already-locked)" } else { "(?:intact|restored)" }
+    $text = (@($Output | ForEach-Object { [string]$_ }) -join "`n")
+    $escapedDate = [regex]::Escape($ExpectedDate)
+    $pattern = "(?m)^$prefix date=$escapedDate action=$actions calendar_checksum=[a-f0-9]{16} lock_checksum=[a-f0-9]{64}\s*$"
+    return ([regex]::Matches($text, $pattern)).Count -eq 1
+}
+
 Write-Log "Catch-up run started (Taipei time $($now.ToString('HH:mm')))."
 
 # Restore today's scheduled Reel before publishing anything: a morning rewrite
 # of the calendar (it has happened three times) must cost nothing more than
 # this heal step. No-op when the slot is already correct.
-Push-Location $root
 # Slot 1 heals from the day lock too: on 2026-08-07 a morning rewrite swapped
 # slot 1's topic after the images were made, and the mismatch published.
 # Create-if-absent first: on 2026-08-10 the images arrived hours after 06:30,
 # no generate branch ever locked the day, and a midday rewrite went unhealed.
 # Locking at first publish attempt freezes whatever is about to be published.
-cmd /c "npm.cmd run day-lock -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+if (-not (Assert-CleanProductionContractBeforeAction "day-lock")) { exit 1 }
+$lockOut = @(Invoke-TrustedProductionNpm -Root $root run day-lock -- --date $date 2>&1)
 $lockExit = $LASTEXITCODE
-cmd /c "npm.cmd run day-lock -- --date $date --heal 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+$lockOut | Out-File -FilePath $logFile -Append -Encoding utf8
+$lockVerified = Test-VerifiedDayLockProof -Output $lockOut -ExpectedDate $date -Kind "lock"
+if (-not (Assert-CleanProductionContractBeforeAction "day-lock heal")) { exit 1 }
+$healOut = @(Invoke-TrustedProductionNpm -Root $root run day-lock -- --date $date --heal 2>&1)
 $healExit = $LASTEXITCODE
-cmd /c "npm.cmd run heal-reel-slot -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+$healOut | Out-File -FilePath $logFile -Append -Encoding utf8
+$healVerified = Test-VerifiedDayLockProof -Output $healOut -ExpectedDate $date -Kind "heal"
+if (-not (Assert-CleanProductionContractBeforeAction "Reel-slot heal")) { exit 1 }
+Invoke-TrustedProductionNpm -Root $root run heal-reel-slot -- --date $date 2>&1 | Out-File -FilePath $logFile -Append -Encoding utf8
 $reelHealExit = $LASTEXITCODE
-Pop-Location
 # A failed heal means the calendar may still be clobbered; publishing an
 # unrepaired package is worse than publishing late (luna, high).
-if ($lockExit -ne 0 -or $healExit -ne 0 -or $reelHealExit -ne 0) {
-    Write-Log "Lock/heal step failed (lock=$lockExit heal=$healExit reel=$reelHealExit); refusing to publish."
+if ($lockExit -ne 0 -or -not $lockVerified -or $healExit -ne 0 -or -not $healVerified -or $reelHealExit -ne 0) {
+    Write-Log "Lock/heal step failed or lacked verified proof (lock=$lockExit lockProof=$lockVerified heal=$healExit healProof=$healVerified reel=$reelHealExit); refusing to publish."
     Show-Toast "$date 自癒步驟失敗,補發已停止,請看 output\catch-up-logs\$date.log"
     exit 1
 }
 
-$approvedPath = Join-Path $root "data\approved-log\$date.json"
-# Late-images day: when the package became complete only after the 11:15
-# approve retry, no scheduled run ever re-judges it and the whole day used to
-# publish nothing (both review families flagged this; it happened on 08-10).
-# auto-approve is idempotent and every gate still applies -- this only moves
-# WHEN the judgment happens, never what it decides.
-# A partial approval used to be permanent. The condition below was "no approval
-# log at all", so the moment ONE slot was approved the day stopped being
-# re-judged -- and a slot blocked at 10:20 for a fixable reason stayed blocked
-# until a human deleted the log. That failure mode got much more likely once
-# approval started demanding image evidence per slot, so re-judge whenever any
-# calendar slot is still missing its approval, not only when none has one.
-$needsJudging = $true
-if (Test-Path $approvedPath) {
+function Assert-PublicPublicationApproval([string]$stage) {
+    # Do not reconstruct a weaker PowerShell approval reader here. The public
+    # publisher owns the full contract (including video source/review binding),
+    # so catch-up invokes that exact assertion through the checked immutable
+    # TSX runtime. A failed or unparsable verdict is a data gap, never a
+    # fallback to the raw approved-log.
+    $inline = @'
+const { join } = await import("node:path");
+const { pathToFileURL } = await import("node:url");
+const [date, root] = process.argv.slice(2);
+try {
+  const approval = await import(pathToFileURL(join(root, "src", "publicPublicationApproval.ts")).href);
+  await approval.assertCanonicalPublicPublicationApproval(date, root);
+  console.log(JSON.stringify({ ok: true, date, gaps: [] }));
+} catch (error) {
+  console.log(JSON.stringify({
+    ok: false,
+    date,
+    gaps: [error instanceof Error ? error.message : String(error)]
+  }));
+}
+'@
+    $payload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($inline))
+    $bootstrap = '(async()=>{await import(`data:text/javascript;base64,${process.argv[1]}`)})()'
     try {
-        $calendarPath = Join-Path $root "data\content-calendar\$date.json"
-        $calendarSlots = ([IO.File]::ReadAllText($calendarPath, [Text.UTF8Encoding]::new($false)) |
-            ConvertFrom-Json).slots | ForEach-Object { $_.slot }
-        $approvedSlots = ([IO.File]::ReadAllText($approvedPath, [Text.UTF8Encoding]::new($false)) |
-            ConvertFrom-Json) | ForEach-Object { $_.slot } | Sort-Object -Unique
-        $needsJudging = @($calendarSlots | Where-Object { $approvedSlots -notcontains $_ }).Count -gt 0
+        $output = @(Invoke-TrustedProductionTsx -Root $root --eval $bootstrap -- $payload $date $root 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw "canonical public-approval assertion runner failed (exit $LASTEXITCODE)." }
+        $lines = @($output | Where-Object { ([string]$_).TrimStart().StartsWith("{") })
+        if ($lines.Count -ne 1) { throw "canonical public-approval assertion returned an ambiguous JSON verdict." }
+        $approval = $lines[0] | ConvertFrom-Json
+        if ($null -eq $approval -or $approval.PSObject.Properties.Name -notcontains "ok" -or $approval.ok -isnot [bool]) {
+            throw "canonical public-approval assertion returned an invalid verdict."
+        }
+        if ($approval.ok) { return $true }
+        $gaps = if ($null -eq $approval.gaps) { @("canonical public approval was rejected") } else { @($approval.gaps | ForEach-Object { [string]$_ }) }
+        Write-Log "BLOCKED public publication ${stage}: canonical approval assertion rejected the package."
+        $gaps | ForEach-Object { Write-Log ("BLOCKED public-approval gap: " + $_) }
+        return $false
     } catch {
-        # Unreadable either file: re-judging is the safe direction, since
-        # auto-approve applies every gate and approves nothing it should not.
-        $needsJudging = $true
+        Write-Log "BLOCKED public publication ${stage}: canonical approval assertion could not be verified."
+        Write-Log ("BLOCKED public-approval gap: " + $_.Exception.Message)
+        return $false
     }
 }
-if ($needsJudging) {
-    Write-Log "One or more slots for $date are still unapproved; running auto-approve now (gates unchanged)."
-    Push-Location $root
-    cmd /c "npm.cmd run auto-approve -- --date $date --no-fail 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-    Pop-Location
+# The scheduled catch-up worker cannot create or infer its own release
+# authority. A canonical verdict is required before auto-approval, any public
+# site/indexing path, post-current-slot, or later remote follow-ups. In
+# particular, a present approved-log is not authority: duplicate, cross-date,
+# forced, missing-sidecar, tampered, or unbound-video evidence stops here.
+if (-not (Assert-PublicPublicationApproval "before catch-up publication, auto-approval, and public/external actions")) {
+    Show-Toast "今天 ($date) 正式核准證據不完整，補發與所有對外動作已停止。"
+    exit 1
 }
 # Indexing has no trigger of its own -- it only ever runs as a side effect of
 # the 06:30 generate. So any morning that script does not complete, IndexNow is
@@ -105,12 +264,12 @@ if ($needsJudging) {
 # This runs many times a day, so it is the natural place to notice. It only
 # resubmits and re-audits; it publishes nothing.
 $indexingRecord = Join-Path $root "output\operations\indexing-push-$date.json"
-if (-not (Test-Path $indexingRecord)) {
+if (-not (Test-Path $indexingRecord) -and (Assert-PublicPublicationApproval "before IndexNow")) {
+    if (-not (Assert-CleanProductionContractBeforeAction "IndexNow submission")) { exit 1 }
     Write-Log "No indexing record for $date; submitting IndexNow and running the indexing audit now."
-    Push-Location $root
-    cmd /c "npm.cmd run submit-indexnow -- --live 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-    cmd /c "npm.cmd run indexing-push -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-    Pop-Location
+    Invoke-TrustedProductionNpm -Root $root run submit-indexnow -- --live 2>&1 | Out-File -FilePath $logFile -Append -Encoding utf8
+    if (-not (Assert-CleanProductionContractBeforeAction "IndexNow audit")) { exit 1 }
+    Invoke-TrustedProductionNpm -Root $root run indexing-push -- --date $date 2>&1 | Out-File -FilePath $logFile -Append -Encoding utf8
 }
 
 # Local images exist but the public copies are not live. Publishing verifies the
@@ -123,7 +282,7 @@ if (-not (Test-Path $indexingRecord)) {
 # Checked against the hero image of the first approved slot: if the file is here
 # and the web says 404, the site is stale, so push it again.
 $heroLocal = Join-Path $root "docs\assets\$date\slot-01.png"
-if (Test-Path $heroLocal) {
+if ((Test-Path $heroLocal) -and (Assert-PublicPublicationApproval "before public-site regeneration")) {
     $heroUrl = "https://39211.github.io/assets/$date/slot-01.png"
     # curl.exe, not Invoke-WebRequest. Under Task Scheduler PowerShell runs
     # NonInteractive, where Invoke-WebRequest throws "Read and Prompt
@@ -131,7 +290,13 @@ if (Test-Path $heroLocal) {
     # every check would fail, every run would decide the site was stale, and it
     # would re-push six times a day forever. Verified on this box: curl returns
     # 200 on the same URL that makes Invoke-WebRequest throw.
-    $heroOutput = & curl.exe -s -S -o NUL -w "%{http_code}" --max-time 20 $heroUrl 2>&1
+    if (-not (Assert-CleanProductionContractBeforeAction "hero public URL probe")) { exit 1 }
+    $trustedCurl = Resolve-TrustedProductionCurlExecutable -Root $root
+    if (-not $trustedCurl) {
+        Write-Log "BLOCKED hero public URL probe: trusted system curl.exe could not be established."
+        exit 1
+    }
+    $heroOutput = & $trustedCurl -s -S -o NUL -w "%{http_code}" --max-time 20 $heroUrl 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Log "curl hero check failed (exit $LASTEXITCODE): $heroOutput"
         $heroLive = $true
@@ -140,18 +305,12 @@ if (Test-Path $heroLocal) {
         $heroLive = ($heroCode -eq "200")
     }
     if (-not $heroLive) {
+        if (-not (Assert-CleanProductionContractBeforeAction "public-site generation")) { exit 1 }
         Write-Log "Local images exist for $date but $heroUrl is not live; re-publishing the site."
-        Push-Location $root
-        cmd /c "npm.cmd run generate-public-site 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-        cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-        Pop-Location
+        Invoke-TrustedProductionNpm -Root $root run generate-public-site 2>&1 | Out-File -FilePath $logFile -Append -Encoding utf8
+        if (-not (Assert-CleanProductionContractBeforeAction "Pages publication")) { exit 1 }
+        Invoke-TrustedProductionNpm -Root $root run publish-pages -- --date $date --skip-audit 2>&1 | Out-File -FilePath $logFile -Append -Encoding utf8
     }
-}
-
-if (-not (Test-Path $approvedPath)) {
-    Write-Log "No approved-log for $date. Nothing can be published yet."
-    Show-Toast "今天 ($date) 還沒有審核紀錄,請執行 Codex 審核流程,否則今天不會發文。"
-    exit 0
 }
 
 # A slot recovers only within a few hours of its own time. Past that the evening
@@ -177,16 +336,13 @@ if ($staleSlots.Count -gt 0) {
 if ($dueSlots.Count -eq 0) {
     if ($staleSlots.Count -gt 0) {
         $unposted = @()
-        $postedPath = Join-Path $root "data\posted-log\$date.json"
-        $postedSlots = @()
-        if (Test-Path $postedPath) {
-            $postedParsed = Get-Content $postedPath -Raw -Encoding utf8 | ConvertFrom-Json
-            # Matches hasRecordedPost in src/logging.ts, which accepts either
-            # status string; checking only "success" here reported a "posted"
-            # slot as missed.
-            $postedSlots = @(@($postedParsed) | Where-Object { @("success", "posted") -contains $_.status -and -not $_.dry_run } | ForEach-Object { $_.slot })
+        foreach ($staleSlot in $staleSlots) {
+            $qualification = Get-StrictDualPlatformTransportFromDisk -ExpectedDate $date -ExpectedSlot $staleSlot
+            if ($qualification.qualified) { continue }
+            $unposted += $staleSlot
+            $reasonText = (@($qualification.reasons) -join "; ")
+            Write-Log ("Slot $staleSlot stale transport evidence gap; treating it as unverified/unposted: $reasonText")
         }
-        $unposted = @($staleSlots | Where-Object { $postedSlots -notcontains $_ })
         if ($unposted.Count -gt 0) {
             Show-Toast ("今天 slot {0} 已超過補發時限,不會補發以免和下一篇擠在一起。" -f ($unposted -join ", "))
         }
@@ -219,33 +375,32 @@ foreach ($slot in $dueSlots) {
         }
     }
 
-    Write-Log "Running post-current-slot --slot $slot"
     Push-Location $root
     # Explicit --date: PowerShell resolves Taipei but Node falls back to its
     # own TIMEZONE env; around midnight the two can disagree and publish
     # yesterday's slot into today's logs (luna, high).
-    $output = cmd /c "npm.cmd run post-current-slot -- --slot $slot --date $date 2>&1"
+    if (-not (Assert-PublicPublicationApproval "before post-current-slot for slot $slot")) {
+        Pop-Location
+        exit 1
+    }
+    if (-not (Assert-CleanProductionContractBeforeAction "post-current-slot for slot $slot")) {
+        Pop-Location
+        exit 1
+    }
+    Write-Log "Running post-current-slot --slot $slot"
+    $output = Invoke-TrustedProductionNpm -Root $root run post-current-slot -- --slot $slot --date $date 2>&1
     $exitCode = $LASTEXITCODE
     Pop-Location
     $output | Out-File -FilePath $logFile -Append -Encoding utf8
     if ($exitCode -ne 0) {
-        # The exit code alone is not evidence: on 2026-08-08 the process was
-        # terminated (-1) after both platforms had already recorded success,
-        # the slot was misjudged as failed, and first comments were skipped.
-        # The posted-log is the ground truth, so consult it before declaring
-        # failure.
-        $postedOk = $false
-        try {
-            $postedRaw = [IO.File]::ReadAllText((Join-Path $root "data\posted-log\$date.json"), [Text.UTF8Encoding]::new($false))
-            $entries = @(ConvertFrom-Json $postedRaw)
-            $igOk = @($entries | Where-Object { $_.slot -eq $slot -and $_.platform -eq "instagram" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status) }).Count -gt 0
-            $fbOk = @($entries | Where-Object { $_.slot -eq $slot -and $_.platform -eq "facebook" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status) }).Count -gt 0
-            $postedOk = $igOk -and $fbOk
-        } catch {}
-        if ($postedOk) {
-            Write-Log "Slot $slot exited $exitCode but the posted-log records success on both platforms; treating as published."
+        # The exit code alone is not evidence, but neither is a success-looking
+        # ledger row. A non-zero result is safe-published only when this exact
+        # tuple has one strict live transport record on both platforms.
+        $qualification = Get-StrictDualPlatformTransportFromDisk -ExpectedDate $date -ExpectedSlot $slot
+        if ($qualification.qualified) {
+            Write-Log "Slot $slot exited $exitCode but strict transport evidence confirms both platforms; treating as published."
         } else {
-            Write-Log "Slot $slot failed with exit code $exitCode."
+            Write-Log ("Slot $slot failed with exit code $exitCode or incomplete/ambiguous transport evidence: " + (@($qualification.reasons) -join "; "))
             $failed += $slot
         }
     } else {
@@ -253,18 +408,51 @@ foreach ($slot in $dueSlots) {
     }
 }
 
-# The shop opens the comment thread on its own post right after publishing:
-# a zero-comment thread rarely starts itself, and the first reply is the
-# cheapest distribution push a post gets. Idempotent per slot, and it runs
-# before the failure exit so slots that DID publish still get their comment
-# when a sibling slot failed (one slot's failure used to skip all comments).
-Push-Location $root
-cmd /c "npm.cmd run first-comment -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-# Story re-share: a second surface with its own ranking, reaching followers who
-# never see the feed post. Idempotent per slot, only for posts confirmed live,
-# and a failure here is logged rather than treated as a publishing failure.
-cmd /c "npm.cmd run share-story -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-Pop-Location
+# Follow-up side effects are per slot. Do not let a malformed tuple turn the
+# broad --date command into permission to comment or share; meanwhile a clean
+# slot remains independent of another slot's failed claim or ledger row.
+$followUpSlots = @(Get-StrictDualPlatformTransportSlots -ExpectedDate $date)
+if ($followUpSlots.Count -eq 0) {
+    Write-Log "No slot has strict dual-platform transport evidence; first comments and Stories are blocked."
+} else {
+    Push-Location $root
+    foreach ($followUpSlot in $followUpSlots) {
+        # Re-read the ledger immediately before each remote side effect. The
+        # broad selection above is only a snapshot; a concurrent write must
+        # turn into a data gap rather than permission to comment or share.
+        $beforeComment = Get-StrictDualPlatformTransportFromDisk -ExpectedDate $date -ExpectedSlot $followUpSlot
+        if (-not $beforeComment.qualified) {
+            Write-Log ("Slot $followUpSlot transport evidence changed before first-comment; blocking follow-up: " + (@($beforeComment.reasons) -join "; "))
+            continue
+        }
+        if (-not (Assert-CleanProductionContractBeforeAction "first-comment for slot $followUpSlot")) {
+            Pop-Location
+            exit 1
+        }
+        if (-not (Assert-PublicPublicationApproval "before first-comment for slot $followUpSlot")) {
+            Pop-Location
+            exit 1
+        }
+        Invoke-TrustedProductionNpm -Root $root run first-comment -- --date $date --slot $followUpSlot 2>&1 | Out-File -FilePath $logFile -Append -Encoding utf8
+        # postStory accepts --slot so an unqualified sibling can never be
+        # swept up merely because this eligible slot is being re-shared.
+        $beforeStory = Get-StrictDualPlatformTransportFromDisk -ExpectedDate $date -ExpectedSlot $followUpSlot
+        if (-not $beforeStory.qualified) {
+            Write-Log ("Slot $followUpSlot transport evidence changed before share-story; blocking follow-up: " + (@($beforeStory.reasons) -join "; "))
+            continue
+        }
+        if (-not (Assert-CleanProductionContractBeforeAction "share-story for slot $followUpSlot")) {
+            Pop-Location
+            exit 1
+        }
+        if (-not (Assert-PublicPublicationApproval "before share-story for slot $followUpSlot")) {
+            Pop-Location
+            exit 1
+        }
+        Invoke-TrustedProductionNpm -Root $root run share-story -- --date $date --slot $followUpSlot 2>&1 | Out-File -FilePath $logFile -Append -Encoding utf8
+    }
+    Pop-Location
+}
 
 if ($failed.Count -gt 0) {
     Show-Toast ("今天 slot {0} 補發失敗,請看 output\catch-up-logs\{1}.log" -f ($failed -join ", "), $date)
@@ -306,7 +494,15 @@ if (Test-Path $queuePath) {
 # is how many local strangers it reached and how many of them did anything.
 if ($now.TimeOfDay -ge [TimeSpan]"20:30") {
     Push-Location $root
-    $reachOut = cmd /c "npm.cmd run local-reach 2>&1"
+    if (-not (Assert-PublicPublicationApproval "before local-reach snapshot")) {
+        Pop-Location
+        exit 1
+    }
+    if (-not (Assert-CleanProductionContractBeforeAction "local-reach snapshot")) {
+        Pop-Location
+        exit 1
+    }
+    $reachOut = Invoke-TrustedProductionNpm -Root $root run local-reach 2>&1
     Pop-Location
     $reachOut | Out-File -FilePath $logFile -Append -Encoding utf8
 

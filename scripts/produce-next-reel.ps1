@@ -14,8 +14,11 @@
 # Every step is resumable. The script does the next unfinished thing and stops,
 # so a failed day costs that day only. It never approves and never live-publishes
 # to Meta (publish-pages only pushes the public asset host).
+ [CmdletBinding()]
 param(
-    [switch]$MidTestDryRun
+    [switch]$MidTestDryRun,
+    [string]$RootOverride,
+    [string]$NowOverride
 )
 $ErrorActionPreference = "Continue"
 # Under Task Scheduler the console codepage is cp950, which mangles the UTF-8
@@ -24,12 +27,44 @@ $ErrorActionPreference = "Continue"
 # already UTF-8.
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
-$root = Split-Path -Parent $PSScriptRoot
+$root = if ($RootOverride) { [IO.Path]::GetFullPath($RootOverride) } else { Split-Path -Parent $PSScriptRoot }
+$executingCheckout = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot)).TrimEnd('\')
+$requestedContractRoot = [IO.Path]::GetFullPath($root).TrimEnd('\')
+if (-not $executingCheckout.Equals($requestedContractRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    $fixtureRoot = $requestedContractRoot + '\'
+    if ($env:LAUNDRY_EXECUTABLE_CONTRACT_TEST_SEAM -cne "allow-temp-production-runtime-shims-v1" -or -not $fixtureRoot.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        [Console]::Error.WriteLine("BLOCKED production contract: RootOverride does not match the executing scripts checkout.")
+        exit 1
+    }
+}
+. (Join-Path $PSScriptRoot "_production-contract.ps1")
+$productionContract = Test-CleanProductionContract -Root $root
+if (-not $productionContract.ok) {
+    [Console]::Error.WriteLine("BLOCKED production contract before Reel production: $($productionContract.reason). No run lock, task re-arm, schedule, or Pages publish was run.")
+    exit 1
+}
+$ProductionContractVerified = $true
+$trustedFfmpeg = Resolve-TrustedProductionFfmpegExecutable -Root $root
+$trustedFfprobe = Resolve-TrustedProductionFfprobeExecutable -Root $root
+$trustedPython = Resolve-TrustedProductionPythonExecutable -Root $root
+if (-not $trustedFfmpeg -or -not $trustedFfprobe -or -not $trustedPython) {
+    [Console]::Error.WriteLine("BLOCKED Reel production: trusted allowlisted ffmpeg.exe, ffprobe.exe, or python.exe could not be established. No run lock, paid generation, media write, schedule, or Pages publish was run.")
+    exit 1
+}
+function Assert-PublicPublicationApproval([string]$PublicationDate, [string]$stage) {
+    $approval = Test-PublicPublicationApproval -Root $root -Date $PublicationDate
+    if ($approval.ok) { return $true }
+    Write-Log "BLOCKED public publication $stage for ${PublicationDate}: $($approval.reason)."
+    $approval.gaps | ForEach-Object { Write-Log ("BLOCKED public-approval gap: " + [string]$_) }
+    return $false
+}
 # Single-flight (luna, high): the scheduler retry, the patrol rescue and a
 # manual run can overlap; this script is not re-entrant. An exclusive-create
 # lock file makes the second instance exit instead of racing; a lock older
 # than 45 minutes is a crashed run and is reclaimed.
 $singleFlight = Join-Path $root ("data\run-locks\" + $MyInvocation.MyCommand.Name + ".lock")
+if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "Reel run-lock preparation")) { exit 1 }
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $singleFlight) | Out-Null
 try {
     $fs = [IO.File]::Open($singleFlight, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write)
@@ -46,21 +81,41 @@ try {
 
 $run = Join-Path $root "output\reels-run\2026-07-29"
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
-$now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
+try {
+    $now = if ($NowOverride) {
+        [TimeZoneInfo]::ConvertTime([DateTimeOffset]::Parse($NowOverride), $tz).DateTime
+    } else {
+        [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
+    }
+} catch {
+    throw "Invalid -NowOverride: $NowOverride"
+}
 $date = $now.ToString("yyyy-MM-dd")
 
 $logDir = Join-Path $root "output\reel-production-logs"
+if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "Reel log directory preparation")) { exit 1 }
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $logFile = Join-Path $logDir "$date.log"
 . (Join-Path $PSScriptRoot "_watchdog.ps1")
 
 function Write-Log([string]$m) {
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "Reel production log write")) {
+        [Console]::Error.WriteLine("BLOCKED production contract before Reel production log write.")
+        return
+    }
     $stamp = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
     $line = "[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $stamp, $m
     Write-Host $line
     # Tee-Object appends UTF-16 in PS 5.1, which turned the log into a mix of
     # encodings once the scheduled task wrote to it.
     Add-Content -Path $logFile -Value $line -Encoding UTF8
+}
+
+function Write-ReelCommandOutput([object[]]$Output, [string]$Stage) {
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage $Stage)) {
+        throw "BLOCKED production contract before $Stage."
+    }
+    @($Output) | Add-Content -Path $logFile -Encoding UTF8
 }
 
 function Show-Toast([string]$text) {
@@ -132,7 +187,7 @@ function Get-TreatmentSuffix([string]$treatment) {
 
 function Get-RejectedConceptIds {
     $listPath = Join-Path $root "data\rejected-concepts.json"
-    $ids = @(python (Join-Path $root "scripts\visual_qa_io.py") list-rejected $listPath)
+    $ids = @(Invoke-TrustedProductionPython -Root $root -CommandArguments @((Join-Path $root "scripts\visual_qa_io.py"), "list-rejected", $listPath))
     return @($ids | Where-Object { $_ -and $_.ToString().Trim().Length -gt 0 })
 }
 
@@ -177,6 +232,9 @@ function Write-TreatmentManifest {
         narration      = $NarrationUsed
         recorded_at    = (Get-Date).ToString("o")
     }
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treatment manifest write")) {
+        throw "BLOCKED production contract before treatment manifest write."
+    }
     $payload | ConvertTo-Json -Depth 4 | Set-Content $manifestPath -Encoding utf8
     Write-Log "Treatment manifest: manifests\$ConceptId-treatment.json (treatment=$Treatment)"
 }
@@ -200,6 +258,9 @@ function Invoke-TreatedAssembly {
     if (-not (Test-Path $BeforeClip)) { throw "Missing before clip: $BeforeClip" }
     if (-not (Test-Path $AfterClip)) { throw "Missing after clip: $AfterClip" }
     if (-not (Test-Path $MiddleClip)) { throw "Missing middle clip: $MiddleClip" }
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treated Reel work directory preparation")) {
+        throw "BLOCKED production contract before treated Reel work directory preparation."
+    }
 
     $FontFile = "C\:/Windows/Fonts/msjhbd.ttc"
     $MaxTextWidth = 648
@@ -261,15 +322,21 @@ function Invoke-TreatedAssembly {
 [0:v]trim=0:2,setpts=PTS-STARTPTS,crop=iw*0.72:ih*0.48:iw*0.14:ih*0.26,scale=720:1280:flags=lanczos,setsar=1[c2];
 [0:v]trim=0:1.5,setpts=PTS-STARTPTS,crop=iw*0.72:ih*0.42:iw*0.14:ih*0.40,scale=720:1280:flags=lanczos,setsar=1[c3];
 [c1][c2][c3]concat=n=3:v=1:a=0[vout]
-"@ -replace "`r`n", ""
+        "@ -replace "`r`n", ""
         $cuLog = Join-Path $work "ffmpeg-cu.log"
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treatment close-up replacement")) { throw "BLOCKED production contract before treatment close-up replacement." }
         if (Test-Path $cuPath) { Remove-Item $cuPath -Force }
-        $cuOut = & ffmpeg -v error -y -i $MiddleClip -filter_complex $cuFilter -map "[vout]" `
-            -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -an $cuPath 2>&1
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treatment close-up render")) { throw "BLOCKED production contract before treatment close-up render." }
+        $cuOut = Invoke-TrustedProductionFfmpeg -Root $root -CommandArguments @(
+            "-v", "error", "-y", "-i", $MiddleClip, "-filter_complex", $cuFilter, "-map", "[vout]",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-an", $cuPath
+        ) 2>&1
+        $cuExit = $LASTEXITCODE
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treatment close-up log write")) { throw "BLOCKED production contract before treatment close-up log write." }
         $cuOut | Set-Content $cuLog -Encoding utf8
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $cuPath)) {
+        if ($cuExit -ne 0 -or -not (Test-Path $cuPath)) {
             $cuTail = @($cuOut | Select-Object -Last 5) -join " | "
-            throw "Treatment C close-up concat failed for $ConceptId (exit $LASTEXITCODE): $cuTail"
+            throw "Treatment C close-up concat failed for $ConceptId (exit $cuExit): $cuTail"
         }
 
         $totalDur = 14.0
@@ -310,11 +377,16 @@ function Invoke-TreatedAssembly {
     # out-of-range colour gain died invisibly). Keep the last run's output.
     $ffLog = Join-Path $work "ffmpeg-treated.log"
     $assembledAt = Get-Date
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treated Reel output replacement")) { throw "BLOCKED production contract before treated Reel output replacement." }
     if (Test-Path $OutPath) { Remove-Item $OutPath -Force }
-    & ffmpeg @ffArgs 2>&1 | ForEach-Object { "$_" } | Set-Content $ffLog -Encoding utf8
-    if ($LASTEXITCODE -ne 0) {
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treated Reel assembly render")) { throw "BLOCKED production contract before treated Reel assembly render." }
+    $ffOutput = @(Invoke-TrustedProductionFfmpeg -Root $root -CommandArguments $ffArgs 2>&1)
+    $ffExit = $LASTEXITCODE
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treated Reel assembly log write")) { throw "BLOCKED production contract before treated Reel assembly log write." }
+    $ffOutput | ForEach-Object { "$_" } | Set-Content $ffLog -Encoding utf8
+    if ($ffExit -ne 0) {
         $ffTail = (Get-Content $ffLog -Tail 5 -Encoding utf8) -join " | "
-        throw "Treated assembly ffmpeg failed (exit $LASTEXITCODE): $OutPath (ffmpeg said: $ffTail)"
+        throw "Treated assembly ffmpeg failed (exit $ffExit): $OutPath (ffmpeg said: $ffTail)"
     }
     if (-not (Test-Path $OutPath)) {
         $ffTail = (Get-Content $ffLog -Tail 5 -Encoding utf8) -join " | "
@@ -323,6 +395,7 @@ function Invoke-TreatedAssembly {
     if ((Get-Item $OutPath).LastWriteTime -lt $assembledAt) {
         throw "Treated assembly left stale output: $OutPath"
     }
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treated Reel audio sidecar write")) { throw "BLOCKED production contract before treated Reel audio sidecar write." }
     @{ source = "post-ambient-bed"; narration = [bool]$hasNarration; generated_clip_audio_used = $false; treatment = $Treatment; narr_delay_ms = $narrDelayMs } |
         ConvertTo-Json | Set-Content "$OutPath.audio.json" -Encoding utf8
 
@@ -330,6 +403,7 @@ function Invoke-TreatedAssembly {
     # voice differently (A=4000ms, B=3000ms, C=500ms), so the delay this very
     # assembly applied is what the subtitle timing gets.
     if ($hasNarration -and $NarrationText -and $NarrationText.Trim()) {
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treated Reel subtitle burn")) { throw "BLOCKED production contract before treated Reel subtitle burn." }
         & (Join-Path $PSScriptRoot "burn-narration-subs.ps1") -ReelPath $OutPath `
             -NarrationText $NarrationText -TtsFile $NarrationFile -DelayMs $narrDelayMs
     }
@@ -339,7 +413,7 @@ function Invoke-TreatedAssembly {
 if ($MidTestDryRun) {
     Write-Log "Mid-test dry-run: writing storyboard timelines to output/mid-test/"
     Push-Location $root
-    cmd /c "npm.cmd run reel-concepts -- --mid-test 2>&1" | ForEach-Object { Write-Log $_ }
+    Invoke-TrustedProductionNpm -Root $root run reel-concepts -- --mid-test 2>&1 | ForEach-Object { Write-Log $_ }
     $midExit = $LASTEXITCODE
     Pop-Location
     if ($midExit -ne 0) {
@@ -352,7 +426,7 @@ if ($MidTestDryRun) {
 
 # --- concept status (for 10s backlog + stills metadata) ----------------------
 Push-Location $root
-$statusJson = cmd /c "npm.cmd run reel-concepts 2>&1"
+$statusJson = Invoke-TrustedProductionNpm -Root $root run reel-concepts 2>&1
 Pop-Location
 $m = [regex]::Match(($statusJson -join "`n"), '(?s)\{.*\}')
 if (-not $m.Success) { Write-Log "Could not read concept status."; exit 1 }
@@ -467,6 +541,7 @@ if ($concept -and $conceptInfo -and (Test-ConceptRejected $concept)) {
 if ($concept -and $conceptInfo) {
     $objectType = $conceptInfo.object_type
     $libDir = Join-Path $root "data\reference-photos\$objectType"
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "Reel production directory preparation")) { exit 1 }
     New-Item -ItemType Directory -Force -Path $libDir | Out-Null
     $refs = Join-Path $run "references"
     New-Item -ItemType Directory -Force -Path $refs | Out-Null
@@ -482,7 +557,7 @@ if ($concept -and $conceptInfo) {
 
     if ($needBeforeAfter) {
         Push-Location $root
-        $promptText = cmd /c "npm.cmd run reel-concepts -- --concept $concept --prompts 2>&1"
+        $promptText = Invoke-TrustedProductionNpm -Root $root run reel-concepts -- --concept $concept --prompts 2>&1
         Pop-Location
         $promptBody = ($promptText | Where-Object { $_ -notmatch "^>|^$|npm" }) -join "`n"
 
@@ -493,7 +568,7 @@ Do not read any workspace file and do not run any shell command; the local shell
 
         Write-Log "Generating before/after stills through Codex."
         $genStart = Get-Date
-        $codexBaOut = ($header + $promptBody) | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - 2>&1
+        $codexBaOut = Invoke-TrustedProductionCodex -Root $root -StandardInput ($header + $promptBody) exec -C $root -s read-only - 2>&1
         $codexBaOut | ForEach-Object { Write-Log $_ }
 
         $images = @(
@@ -510,6 +585,7 @@ Do not read any workspace file and do not run any shell command; the local shell
             exit 1
         }
 
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "generated Reel still write")) { exit 1 }
         Copy-Item $images[0].FullName $beforePng -Force
         Copy-Item $images[-1].FullName $afterPng -Force
         Write-Log "Stills saved for $concept ($($images.Count) fresh files, first and last kept)."
@@ -542,7 +618,7 @@ Read the image file at the path given below and EDIT it. Keep the same camera po
         Write-Log "Generating middle still by editing the before still."
         $genStart = Get-Date
         $middlePrompt = $middleHeader + "Image to edit: $beforePng`nObject/concept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n"
-        $codexMidOut = $middlePrompt | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - 2>&1
+        $codexMidOut = Invoke-TrustedProductionCodex -Root $root -StandardInput $middlePrompt exec -C $root -s read-only - 2>&1
         $codexMidOut | ForEach-Object { Write-Log $_ }
 
         $images = @(
@@ -564,8 +640,7 @@ Read the image file at the path given below and EDIT it. Keep the same camera po
 Use the built-in image model only. Do not read any workspace file. Generate ONE portrait 4:5 photo of the object below in a MID-CLEANING state, on the inspection counter of a Taiwanese laundry and shoe-care shop: a light counter with a pink cutting mat, white slat-wall panels behind, shelves of fabric-care bottles softly out of focus. The craftsman's hands are in frame: an adult man's working hands, dry and clean with short unpolished nails, one thin old scar across the back of the left hand, forearms lightly tanned, sleeves of a faded indigo work shirt rolled to just below the elbow, a dark canvas apron edge visible at the frame bottom. No rings, no watch, no gloves. One hand holds a shop tool working a specific worn spot with partial cleaning progress there, the other steadies the item, and the rest of the item is still soiled. Hands anatomically correct: five fingers each, no fusing, no extra hand entering frame. No face, no head, no torso above the elbow. Shot on a phone main camera about 26mm equivalent, chest height angled 20-35 degrees down, handheld with imperfect framing, item filling 45-65% of frame height and sharp, background readable. Storefront window key light from one side, weak fluorescent fill, continuous hard contact shadow under the item. Not cinematic, not studio, no film grain, no waxy surfaces, no readable text, no logo, no faces. Leave the image in your output directory and report the filename.
 
 "@
-            $codexFbOut = $fallback + "Object/concept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n" |
-                & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - 2>&1
+            $codexFbOut = Invoke-TrustedProductionCodex -Root $root -StandardInput ($fallback + "Object/concept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n") exec -C $root -s read-only - 2>&1
             $codexFbOut | ForEach-Object { Write-Log $_ }
             $images = @(
                 Get-ChildItem "$env:USERPROFILE\.codex\generated_images" -Directory -ErrorAction SilentlyContinue |
@@ -581,6 +656,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
             }
             Show-Toast "$concept 中段改用純生成，三幕連續性會變弱，請抽幀確認是不是同一個物件。"
         }
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "generated Reel middle-still write")) { exit 1 }
         Copy-Item $images[-1].FullName $middlePng -Force
         Write-Log "Middle still saved for $concept."
     }
@@ -588,6 +664,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
     # Static visual QA on data/reference-photos originals, before paid shots.
     # Warning mode: write the record, do not stop production.
     Write-Log "Static visual-qa (warning) for $concept from data/reference-photos/$objectType"
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "Reel visual QA")) { exit 1 }
     & (Join-Path $root "scripts\check-reel-story.ps1") -StillsOnly -ConceptId $concept -ObjectType $objectType
     if ($LASTEXITCODE -ne 0) {
         Write-Log "Static visual-qa script error for $concept (warning mode continues)."
@@ -605,7 +682,8 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
             exit 1
         }
         $dst = Join-Path $refs "$concept-$state.png"
-        $cropOut = & ffmpeg -v error -y -i $src -vf "crop=ih*9/16:ih,scale=720:1280:flags=lanczos" $dst 2>&1
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "reference crop render")) { exit 1 }
+        $cropOut = Invoke-TrustedProductionFfmpeg -Root $root -CommandArguments @("-v", "error", "-y", "-i", $src, "-vf", "crop=ih*9/16:ih,scale=720:1280:flags=lanczos", $dst) 2>&1
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $dst)) {
             Write-Log "Still crop failed for $concept-$state (exit $LASTEXITCODE): $cropOut"
             Show-Toast "$concept 的 $state 靜態圖裁切失敗。"
@@ -686,21 +764,29 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
                 # something the API already knows. What stays here are the
                 # failures this model actually makes on this kind of clip.
                 "Keep every object in its original position and its original condition. Do not clean, repair, alter or transform the object beyond what the supplied image already shows. Do not add or remove anything. Do not add people or faces. No morphing, warping, flicker, jump cuts, sudden motion or collapsing geometry. Stable first and final frames."
+            if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "Reel clip manifest write")) { exit 1 }
             $template | ConvertTo-Json -Depth 5 | Set-Content $manifest -Encoding utf8
 
             Write-Log "Generating clip $concept-$state (attempt $attempt)."
+            if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "Reel clip generation")) { exit 1 }
             $shotOut = @()
             try {
+                $shotArgs = @(
+                    "-Manifest", $manifest,
+                    "-Root", $run,
+                    "-ConfirmPaidRun",
+                    "-PollTimeoutSeconds", "900",
+                    "-OutputReport", (Join-Path $run "report-$concept-$state.json")
+                )
                 $shotOut = @(
-                    & (Join-Path $root "..\Codex\2026-06-30\copx\scripts\generate-shot.ps1") `
-                        -Manifest $manifest -Root $run -ConfirmPaidRun -PollTimeoutSeconds 900 `
-                        -OutputReport (Join-Path $run "report-$concept-$state.json") 2>&1
+                    Invoke-TrustedProductionGenerateShot -Root $root @shotArgs 2>&1
                 )
                 $shotOut | ForEach-Object { Write-Log $_ }
             } catch {
                 Write-Log "generate-shot threw: $($_.Exception.Message)"
                 $shotOut = @($_.Exception.Message)
             }
+            if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "after Reel clip generation")) { exit 1 }
             if (Test-Path $out) { $generated = $true; break }
             Write-Log "Attempt $attempt produced no clip for $concept-$state. generate-shot said: $($shotOut -join ' | ')"
         }
@@ -718,8 +804,9 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
     $middleGraded = Join-Path $run "raw\$concept-middle-graded.mp4"
     if ($targetVariant -eq "15s" -or $treatmentNeedsMiddle) {
         if (-not (Test-Path $middleGraded)) {
-            $midGainLine = python (Join-Path $root "scripts\measure-pair-gain.py") `
-                (Join-Path $run "raw\$concept-before.mp4") $middleRaw 2>&1 |
+            $midGainLine = Invoke-TrustedProductionPython -Root $root -CommandArguments @(
+                (Join-Path $root "scripts\measure-pair-gain.py"), (Join-Path $run "raw\$concept-before.mp4"), $middleRaw
+            ) 2>&1 |
                 Where-Object { $_ -match "^-GainR" } | Select-Object -Last 1
             $mR = 1.0; $mG = 1.0; $mB = 1.0
             if ($midGainLine -match "-GainR ([\d.]+) -GainG ([\d.]+) -GainB ([\d.]+)") {
@@ -728,9 +815,12 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
             } else {
                 Write-Log "Middle gain measurement failed; grading with identity."
             }
-            $gradeOut = & ffmpeg -v error -y -i $middleRaw `
-                -vf "colorchannelmixer=rr=$($mR.ToString([Globalization.CultureInfo]::InvariantCulture)):gg=$($mG.ToString([Globalization.CultureInfo]::InvariantCulture)):bb=$($mB.ToString([Globalization.CultureInfo]::InvariantCulture))" `
-                -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -an $middleGraded 2>&1
+            if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "middle grading render")) { exit 1 }
+            $gradeOut = Invoke-TrustedProductionFfmpeg -Root $root -CommandArguments @(
+                "-v", "error", "-y", "-i", $middleRaw,
+                "-vf", "colorchannelmixer=rr=$($mR.ToString([Globalization.CultureInfo]::InvariantCulture)):gg=$($mG.ToString([Globalization.CultureInfo]::InvariantCulture)):bb=$($mB.ToString([Globalization.CultureInfo]::InvariantCulture))",
+                "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-an", $middleGraded
+            ) 2>&1
             $gradeOut | ForEach-Object { Write-Log $_ }
             if ($LASTEXITCODE -ne 0 -or -not (Test-Path $middleGraded)) {
                 Write-Log "Failed to write middle-graded clip for $concept (exit $LASTEXITCODE): $gradeOut"
@@ -762,7 +852,8 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
     $ttsFile = Join-Path $run "tts\$concept-$voiceTag.mp3"
     if (-not (Test-Path $ttsFile)) {
         Write-Log "Generating narration."
-        $ttsOut = python -m edge_tts --voice $narrationVoice --rate=+8% --text $conceptInfo.narration --write-media $ttsFile 2>&1
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "narration TTS render")) { exit 1 }
+        $ttsOut = Invoke-TrustedProductionPython -Root $root -CommandArguments @("-m", "edge_tts", "--voice", $narrationVoice, "--rate=+8%", "--text", $conceptInfo.narration, "--write-media", $ttsFile) 2>&1
         $ttsOut | ForEach-Object { Write-Log $_ }
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $ttsFile)) {
             Write-Log "Narration failed for $concept (exit $LASTEXITCODE): $ttsOut"
@@ -777,7 +868,8 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
         $ttsTreated = Join-Path $run ("tts\$concept" + $midSuffix + "-$voiceTag.mp3")
         if (-not (Test-Path $ttsTreated)) {
             Write-Log "Generating treated narration ($midTreatment)."
-            $ttsTOut = python -m edge_tts --voice $narrationVoice --rate=+8% --text $treatedNarrationText --write-media $ttsTreated 2>&1
+            if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treated narration TTS render")) { exit 1 }
+            $ttsTOut = Invoke-TrustedProductionPython -Root $root -CommandArguments @("-m", "edge_tts", "--voice", $narrationVoice, "--rate=+8%", "--text", $treatedNarrationText, "--write-media", $ttsTreated) 2>&1
             $ttsTOut | ForEach-Object { Write-Log $_ }
             if ($LASTEXITCODE -ne 0 -or -not (Test-Path $ttsTreated)) {
                 Write-Log "Treated narration failed for $concept (exit $LASTEXITCODE); using base TTS. $ttsTOut"
@@ -786,8 +878,9 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
         }
     }
 
-    $gainLine = python (Join-Path $root "scripts\measure-pair-gain.py") `
-        (Join-Path $run "raw\$concept-before.mp4") (Join-Path $run "raw\$concept-after.mp4") 2>&1 |
+    $gainLine = Invoke-TrustedProductionPython -Root $root -CommandArguments @(
+        (Join-Path $root "scripts\measure-pair-gain.py"), (Join-Path $run "raw\$concept-before.mp4"), (Join-Path $run "raw\$concept-after.mp4")
+    ) 2>&1 |
         Where-Object { $_ -match "^-GainR" } | Select-Object -Last 1
     $gains = @{ GainR = 1.0; GainG = 1.0; GainB = 1.0 }
     if ($gainLine -match "-GainR ([\d.]+) -GainG ([\d.]+) -GainB ([\d.]+)") {
@@ -850,11 +943,14 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
         # the untreated file beside it the first time it is displaced.
         $preserved = [IO.Path]::ChangeExtension($standardOut, $null).TrimEnd('.') + "-untreated.mp4"
         if ((Test-Path $standardOut) -and -not (Test-Path $preserved)) {
+            if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "untreated Reel preservation copy")) { exit 1 }
             Copy-Item $standardOut $preserved -Force
             Write-Log "Preserved untreated cut: $(Split-Path -Leaf $preserved)"
         }
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treated Reel canonical copy")) { exit 1 }
         Copy-Item $treatedOut $standardOut -Force
         if (Test-Path "$treatedOut.audio.json") {
+            if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "treated Reel canonical audio sidecar copy")) { exit 1 }
             Copy-Item "$treatedOut.audio.json" "$standardOut.audio.json" -Force
         }
         Write-TreatmentManifest -ConceptId $concept -Treatment $midTreatment -ForDate $date `
@@ -963,8 +1059,16 @@ function Set-CanonicalForDate {
     if (-not (Test-Path $wanted)) { return }        # nothing to swap in
     if (-not (Test-Path $canonical)) { return }
     if ((Get-FileHash $wanted -Algorithm SHA256).Hash -eq (Get-FileHash $canonical -Algorithm SHA256).Hash) { return }
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "scheduled Reel canonical asset copy")) {
+        throw "BLOCKED production contract before scheduled Reel canonical asset copy."
+    }
     Copy-Item $wanted $canonical -Force
-    if (Test-Path "$wanted.audio.json") { Copy-Item "$wanted.audio.json" "$canonical.audio.json" -Force }
+    if (Test-Path "$wanted.audio.json") {
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "scheduled Reel canonical audio sidecar copy")) {
+            throw "BLOCKED production contract before scheduled Reel canonical audio sidecar copy."
+        }
+        Copy-Item "$wanted.audio.json" "$canonical.audio.json" -Force
+    }
     Write-Log "Canonical asset for $ForDate set to $(Split-Path -Leaf $wanted)."
 }
 
@@ -1006,25 +1110,40 @@ if ($windowDays.Count -gt 0) {
                 continue
             }
             Write-Log "Scheduling $($day.date) $($half.name) slot $slotN <- $cId ($var)"
-            cmd /c "npm.cmd run schedule-reel -- --date $($day.date) --concept $cId --slot $slotN --variant $var 2>&1" | Add-Content -Path $logFile -Encoding UTF8
-            if ($LASTEXITCODE -ne 0) {
+            $scheduleOut = Invoke-TrustedProductionNpm -Root $root run schedule-reel -- --date $($day.date) --concept $cId --slot $slotN --variant $var 2>&1
+            $scheduleExit = $LASTEXITCODE
+            Write-ReelCommandOutput -Output $scheduleOut -Stage "schedule-reel output log write"
+            if ($scheduleExit -ne 0) {
                 Write-Log "schedule-reel failed for $($day.date) slot $slotN."
                 $dayOk = $false
                 break
             }
             # Metadata only: schedule time + asset sha. Does not approve the Reel.
-            cmd /c "npm.cmd run owner-video-review -- --date $($day.date) --slot $slotN --standing-policy 2>&1" | Add-Content -Path $logFile -Encoding UTF8
-            if ($LASTEXITCODE -ne 0) {
+            $reviewOut = Invoke-TrustedProductionNpm -Root $root run owner-video-review -- --date $($day.date) --slot $slotN --standing-policy 2>&1
+            $reviewExit = $LASTEXITCODE
+            Write-ReelCommandOutput -Output $reviewOut -Stage "owner-video-review output log write"
+            if ($reviewExit -ne 0) {
                 Write-Log "owner-video-review metadata failed for $($day.date) slot $slotN."
                 $dayOk = $false
                 break
             }
         }
         if ($dayOk) {
-            cmd /c "npm.cmd run publish-pages -- --date $($day.date) --skip-audit 2>&1" | Add-Content -Path $logFile -Encoding UTF8
-            if ($LASTEXITCODE -ne 0) {
-                Write-Log "publish-pages failed for $($day.date)."
+            if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "Pages publish")) {
+                Write-Log "Production contract changed before Pages publish for $($day.date)."
                 $dayOk = $false
+            } elseif (-not (Assert-PublicPublicationApproval -PublicationDate $day.date -stage "before Pages publish")) {
+                # Scheduling stays local; the public asset host cannot move
+                # until the exact day has canonical two-platform approval.
+                Write-Log "Plan day $($day.date) is scheduled locally; Pages publish remains blocked pending approval."
+            } else {
+                $pagesOut = Invoke-TrustedProductionNpm -Root $root run publish-pages -- --date $($day.date) --skip-audit 2>&1
+                $pagesExit = $LASTEXITCODE
+                Write-ReelCommandOutput -Output $pagesOut -Stage "Pages publish output log write"
+                if ($pagesExit -ne 0) {
+                    Write-Log "publish-pages failed for $($day.date)."
+                    $dayOk = $false
+                }
             }
         }
         Pop-Location
@@ -1046,22 +1165,36 @@ if ($windowDays.Count -gt 0) {
         exit 1
     }
     Push-Location $root
-    cmd /c "npm.cmd run schedule-reel -- --date $publishDate --concept $concept --slot 2 --variant 10s 2>&1" | Add-Content -Path $logFile -Encoding UTF8
-    $scheduled = ($LASTEXITCODE -eq 0)
+    $scheduleOut = Invoke-TrustedProductionNpm -Root $root run schedule-reel -- --date $publishDate --concept $concept --slot 2 --variant 10s 2>&1
+    $scheduleExit = $LASTEXITCODE
+    Write-ReelCommandOutput -Output $scheduleOut -Stage "legacy schedule-reel output log write"
+    $scheduled = ($scheduleExit -eq 0)
     $metadataRecorded = $false
     $pushed = $false
+    $publicPublishBlocked = $false
     if ($scheduled) {
         # Metadata only: schedule time + asset sha. Does not approve the Reel.
-        cmd /c "npm.cmd run owner-video-review -- --date $publishDate --slot 2 --standing-policy 2>&1" | Add-Content -Path $logFile -Encoding UTF8
-        $metadataRecorded = ($LASTEXITCODE -eq 0)
+        $reviewOut = Invoke-TrustedProductionNpm -Root $root run owner-video-review -- --date $publishDate --slot 2 --standing-policy 2>&1
+        $reviewExit = $LASTEXITCODE
+        Write-ReelCommandOutput -Output $reviewOut -Stage "legacy owner-video-review output log write"
+        $metadataRecorded = ($reviewExit -eq 0)
     }
     if ($metadataRecorded) {
-        cmd /c "npm.cmd run publish-pages -- --date $publishDate --skip-audit 2>&1" | Add-Content -Path $logFile -Encoding UTF8
-        $pushed = ($LASTEXITCODE -eq 0)
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "Pages publish")) {
+            Write-Log "Production contract changed before Pages publish for ${publishDate}."
+        } elseif (-not (Assert-PublicPublicationApproval -PublicationDate $publishDate -stage "before Pages publish")) {
+            $publicPublishBlocked = $true
+            Write-Log "Reel $concept is scheduled locally; Pages publish remains blocked pending approval for $publishDate."
+        } else {
+            $pagesOut = Invoke-TrustedProductionNpm -Root $root run publish-pages -- --date $publishDate --skip-audit 2>&1
+            $pagesExit = $LASTEXITCODE
+            Write-ReelCommandOutput -Output $pagesOut -Stage "legacy Pages publish output log write"
+            $pushed = ($pagesExit -eq 0)
+        }
     }
     Pop-Location
-    if (-not $scheduled -or -not $metadataRecorded -or -not $pushed) {
-        Write-Log "Scheduling failed for $concept -> $publishDate (scheduled=$scheduled metadata=$metadataRecorded pushed=$pushed)."
+    if (-not $scheduled -or -not $metadataRecorded -or ((-not $publicPublishBlocked) -and -not $pushed)) {
+        Write-Log "Scheduling failed for $concept -> $publishDate (scheduled=$scheduled metadata=$metadataRecorded pushed=$pushed publicBlocked=$publicPublishBlocked)."
         Show-Toast "$concept 成片完成但排程或上線失敗，請看 log。"
         exit 1
     }

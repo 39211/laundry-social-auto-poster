@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "date": "2026-08-16",
+  "reviewer": "GPT-5.6 Sol",
+  "knowledge_pack_version": "0.3.0-evidence-150-full-audit-quarantine",
+  "knowledge_pack_cutoff": "2026-07-20",
+  "accepted_evidence_count": 0,
+  "professional_claim_approval": false,
+  "slots": [
+    {
+      "slot": 1,
+      "source_date": "2026-08-16",
+      "changed_variable": "card_rail_vertical_occlusion_geometry_and_first_frame_hand_staging_only",
+      "source_path": "video-production/repair/2026-08-16/first-frames/slot-01-first-frame-v01-source.png",
+      "source_sha256": "065E44D390D1A7ADD8CDA1635334D777122C597C84C45D02841E0FE418377267",
+      "normalized_path": "video-production/repair/2026-08-16/first-frames/slot-01-first-frame-v01.png",
+      "normalized_sha256": "F021DE54DF08B3AA2FDD4089E8FC33B3D14C1835240226B6214EA19C79E9FFAF",
+      "dimensions": "1080x1920",
+      "spatial_review": "pass_two_shoes_one_card_one_connected_grounded_rail_right_opening_occluded_no_hand_first_frame",
+      "topic_linkage_review": "fail_current_calendar_and_video_candidate_are_bedding_while_the_repair_frame_and_image_source_are_canvas_shoes",
+      "generation_decision": "not_submitted_topic_mismatch",
+      "generation_id": null
+    },
+    {
+      "slot": 2,
+      "source_date": "2026-08-16",
+      "changed_variable": "external_mask_plane_height_and_first_frame_hand_staging_only",
+      "source_path": "video-production/repair/2026-08-16/first-frames/slot-02-first-frame-v01-source.png",
+      "source_sha256": "4C6EEB35C6281124E7E686F23AA9342F2395DD672F65723CEA0E9F0D4BF3E351",
+      "normalized_path": "video-production/repair/2026-08-16/first-frames/slot-02-first-frame-v01.png",
+      "normalized_sha256": "9B92ABED54892F65E8358BC5C2A33909B03C72A212A4E79FA3E6E6BC4569394D",
+      "dimensions": "1080x1920",
+      "spatial_review": "pass_one_pouch_one_card_one_connected_grounded_external_rail_central_inner_seam_occluded_no_contact_no_hand_first_frame",
+      "topic_linkage_review": "pass_makeup_pouch",
+      "generation_decision": "authorized_one_submission_after_current_hermes_readiness",
+      "generation_id": "sixiangjia_20260816_s02_makeup_pouch_external_mask_release_v01"
+    }
+  ],
+  "historical_posts_relabelled": false,
+  "publication_attempted": false
+}

@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "type": "grok_video_shot_manifest",
+  "generation_id": "sixiangjia_20260817_s01_canvas_pair_topic_lock_exit_v01",
+  "mode": "image_to_video",
+  "source_shot_id": "2026-08-17-slot-01-canvas-pair-topic-lock-exit-v01",
+  "prompt_sha256": "32D974BA2590DCCE42C2C84BAC9C655B814D8ABDA895318855037FB6016048DD",
+  "prompt": "Create one continuous 6-second 9:16 photorealistic Taiwanese laundry inspection-counter shot. At frame one show exactly two stationary worn off-white canvas sneakers on one grey mat and exactly one blank matte card captive in one shallow steel rail with a continuous grounded base plate and two visible end stops; the card fully occludes the right shoe opening. Zero hands at frame one. After frame one, exactly one broad adult forearm enters from the left and performs one dominant action only: using one natural hand with five fingers, slide only the card left inside the same fixed rail until the right opening is clear, then hold. Preserve exactly two shoes, one card, one rail and realistic contact shadows. Shoes and rail never move. No extra hands, no extra limbs, no duplicate object, no morphing, no geometry changes, no penetration, no cleaning transformation, no readable text, no logo, no watermark, no generated audio.",
+  "input_image": "video-production/daily/2026-08-17/first-frames/slot-01-first-frame-v02.png",
+  "model": "grok-imagine-video-1.5",
+  "provider": "xai-oauth",
+  "subscription_route": "SuperGrok/Hermes OAuth",
+  "duration_seconds": 6,
+  "aspect_ratio": "9:16",
+  "resolution": "1080p",
+  "required_native_dimensions": "1080x1920",
+  "concurrency": 1,
+  "submit_limit": 1,
+  "output_file": "video-production/daily/2026-08-17/raw/sixiangjia_20260817_s01_canvas_pair_topic_lock_exit_v01.mp4",
+  "preflight_status": "ready_first_frame_policy_hermes_pass"
+}

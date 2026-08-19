@@ -1,0 +1,62 @@
+{
+  "version": "1.0",
+  "type": "grok_video_pipeline_report",
+  "operation": "submit-and-poll",
+  "generated_at_utc": "2026-08-15T12:48:40Z",
+  "generation_id": "sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02",
+  "status": "qc_fail",
+  "request_id_present": true,
+  "provider_status": "done",
+  "model": "grok-imagine-video-1.5",
+  "actual_model": "grok-imagine-video-1.5",
+  "submitted_at_utc": "2026-08-15T12:48:06Z",
+  "completed_at_utc": "2026-08-15T12:48:39Z",
+  "duration_seconds": 6.0,
+  "aspect_ratio": "9:16",
+  "resolution": "1080p",
+  "mode": "image_to_video",
+  "input_image": {
+    "file": "video-production/repair/2026-08-15/first-frames/slot-02-first-frame-v03.png",
+    "sha256": "6e95c965253ddcbadd7a20a577641d727f2e65fbebcb3158a6015aa953474e4e",
+    "mime_type": "image/png",
+    "bytes": 2624901,
+    "width": 1080,
+    "height": 1920
+  },
+  "duplicate_prevention": "new_submission",
+  "idempotency_key": "grk-7ffb2d560565b91050521db4e280c18de5d6ae94e517329ba702fc5154eaff4e",
+  "prompt_hash": "0cc1a3231c556ab3a42e1c16dd8a3e6c46b8b691acc36a9343c2978249bae23e",
+  "output_file": "video-production/repair/2026-08-15/raw/sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02.mp4",
+  "resolved_output_file": "C:/Users/cyc39/Documents/New project 5/video-production/repair/2026-08-15/raw/sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02.mp4",
+  "output_file_exists": false,
+  "qc": {
+    "ok": false,
+    "width": 1088,
+    "height": 1920,
+    "duration": 6.041667,
+    "codec": "h264",
+    "has_audio": true,
+    "expected_short_side": 1080,
+    "expected_width": 1080,
+    "expected_height": 1920,
+    "severity": "fail",
+    "errors": [
+      "resolution 1088x1920 (short side 1088) does not match requested 1080p (expected short side 1080)",
+      "dimensions 1088x1920 do not match expected 1080x1920 (from 1080p 9:16) within tolerance 4px"
+    ],
+    "warnings": []
+  },
+  "errors": [
+    "resolution 1088x1920 (short side 1088) does not match requested 1080p (expected short side 1080)",
+    "dimensions 1088x1920 do not match expected 1080x1920 (from 1080p 9:16) within tolerance 4px"
+  ],
+  "warnings": [
+    "QC failed; retained bytes at C:/Users/cyc39/Documents/New project 5/video-production/repair/2026-08-15/raw/sixiangjia_20260815_s02_makeup_pouch_seam_hold_v02.mp4.qc_failed"
+  ],
+  "attempts": {
+    "submit": 1,
+    "poll": 4,
+    "download": 1,
+    "qc": 1
+  }
+}

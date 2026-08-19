@@ -1,0 +1,46 @@
+{
+  "date": "2026-08-11",
+  "reviewer": "gpt-5.6-sol",
+  "reviewed_at": "2026-08-11T06:54:00+08:00",
+  "required_dimensions": "1080x1920",
+  "slots": [
+    {
+      "slot": 1,
+      "path": "video-production/runs/2026-08-11-daily-companion-v01/first-frames/slot-01-first-frame-v01.png",
+      "sha256": "32BAEE7BCA8380534C65C06964564F163D3C154493845267456289F34C037BE8",
+      "dimensions": "1080x1920",
+      "status": "FAIL",
+      "passes": [
+        "exactly two grounded shoes, one card, one metal support, one forearm and one hand",
+        "five fingers are individually traceable at a non-close-up distance",
+        "no readable text, fake logo or watermark",
+        "motivated shop light, canvas microtexture, wear, weight and contact shadows are plausible"
+      ],
+      "blockers": [
+        "the card and metal support sit to the right of both shoes instead of crossing the viewer's line of sight to the right shoe opening",
+        "the locked visible conflict is absent, so sliding the card left cannot produce the scripted shoe-opening reveal"
+      ]
+    },
+    {
+      "slot": 2,
+      "path": "video-production/runs/2026-08-11-daily-companion-v01/first-frames/slot-02-first-frame-v01.png",
+      "sha256": "42B2E81367B1BBEBB1A46B79D349F0EC2F7C2BD49DFB4AD6B525F939BE45D900",
+      "dimensions": "1080x1920",
+      "status": "FAIL",
+      "passes": [
+        "exactly one pouch, one zipper, one beige seam patch, one card, one metal support, one forearm and one hand",
+        "five fingers are individually traceable at a non-close-up distance",
+        "card and support stay outside the zipper and pouch without visible penetration",
+        "no readable text, fake logo or watermark",
+        "motivated shop light, canvas texture, wear, weight and contact shadows are plausible"
+      ],
+      "blockers": [
+        "the card and support remain fully separated to the lower-right of the pouch and do not occlude any part of the beige seam patch",
+        "the locked seam conflict is absent, so sliding the card cannot reveal information that is already fully visible"
+      ]
+    }
+  ],
+  "final_status": "FAIL_BOTH_SLOTS_STOP_BEFORE_PAID_VIDEO_SUBMISSION",
+  "generation_submission_count": 0,
+  "note": "Exact dimensions and anatomy are necessary but not sufficient; the missing first-frame conflict blocks any generate-shot.ps1 call."
+}

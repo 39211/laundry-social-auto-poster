@@ -300,9 +300,10 @@ describe("judge prompt", () => {
     expect(checkSrc).toContain("--emit-prompt");
     expect(checkSrc).not.toMatch(/always PASS/i);
     expect(visualQaSrc).toContain("Do not generate or edit any image");
-    expect(checkSrc).toContain("codex.cmd");
+    expect(checkSrc).toContain("Invoke-TrustedProductionCodex");
+    expect(checkSrc).toContain("-StandardInput $prompt");
     expect(checkSrc).toContain('-s", "read-only"');
-    expect(checkSrc).toContain("run-codex");
+    expect(checkSrc).not.toMatch(/codex\.cmd|run-codex|Get-Command\s+codex|\$env:PATH|&\s+codex\b/iu);
     expect(checkSrc).not.toMatch(/\*>\s*\$null/u);
     expect(extractSrc).not.toMatch(/\*>\s*\$null/u);
   });
@@ -626,23 +627,25 @@ describe("rejected concepts and isolation plan", () => {
 });
 
 describe("call mode freeze", () => {
-  it("check-reel-story uses read-only exec, one -i per frame, stdin prompt", () => {
+  it("check-reel-story uses trusted read-only exec, one -i per frame, stdin prompt", () => {
     expect(checkSrc).toContain('-s", "read-only"');
     expect(checkSrc).toMatch(/\$codexArgs \+= @\("-i",/u);
-    expect(checkSrc).toContain("run-codex");
+    expect(checkSrc).toContain('Invoke-TrustedProductionCodex -Root $projectRoot -StandardInput $prompt @codexArgs');
+    expect(checkSrc).toContain('$codexArgs += "-"');
+    expect(checkSrc).not.toMatch(/codex\.cmd|run-codex|Get-Command\s+codex|\$env:PATH|&\s+codex\b/iu);
     expect(checkSrc).not.toMatch(/Generate exactly two images/u);
     expect(checkSrc).toContain("exit 0");
     expect(checkSrc).toContain("warning mode; publish is not blocked");
   });
 });
 
-describe("extract-reel-frames live canary burn", () => {
+describe("extract-reel-frames immutable runtime boundary", () => {
   const dirs: string[] = [];
   afterEach(async () => {
     await Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
   });
 
-  it("extracts scene-aware QA frames with sidecar hashes", () => {
+  it("fails closed before the first frame write when no immutable media runtime is provisioned", () => {
     const dir = mkdtempSync(join(tmpdir(), "vq-extract-"));
     dirs.push(dir);
     const reel = join(dir, "sample-tA.mp4");
@@ -666,7 +669,7 @@ describe("extract-reel-frames live canary burn", () => {
       ],
       { stdio: "pipe" }
     );
-    execFileSync(
+    expect(() => execFileSync(
       "powershell.exe",
       [
         "-NoProfile",
@@ -681,18 +684,10 @@ describe("extract-reel-frames live canary burn", () => {
         "-Treatment",
         "A"
       ],
-      { cwd: root, timeout: 120000 }
-    );
-    const sidecar = JSON.parse(readFileSync(join(dir, "qa", "sidecar.json"), "utf8").replace(/^\uFEFF/u, "")) as VisualQaSidecar;
-    expect(sidecar.treatment).toBe("A");
-    expect(sidecar.frames.length).toBe(6);
-    expect(sidecar.reel_sha256).toHaveLength(64);
-    for (const frame of sidecar.frames) {
-      expect(frame.canary).toMatch(/^[A-HJ-NP-Z2-9]{4}$/);
-      expect(existsSync(join(dir, "qa", frame.name))).toBe(true);
-      expect(frame.sha256).toHaveLength(64);
-    }
-    expect(existsSync(join(dir, "sample-tA.frames", "1-hook.png"))).toBe(true);
+      { cwd: root, timeout: 120000, stdio: "pipe" }
+    )).toThrow(/BLOCKED production contract/u);
+    expect(existsSync(join(dir, "qa"))).toBe(false);
+    expect(existsSync(join(dir, "sample-tA.frames"))).toBe(false);
   }, 120000);
 });
 
@@ -1084,13 +1079,21 @@ describe("carousel warn-mode wiring", () => {
 });
 
 describe("carousel CLI surface", () => {
-  it("visualQaCli accepts --carousel emit-prompt for a file list", () => {
+  it("visualQaCli accepts --carousel emit-prompt for a file list without owning an executable boundary", () => {
     const cliSrc = readFileSync(join(root, "src", "visualQaCli.ts"), "utf8");
     expect(cliSrc).toContain("handleCarousel");
     expect(cliSrc).toContain("--carousel");
+    expect(cliSrc).toContain("--prepare");
     expect(cliSrc).toContain("buildCarouselJudgePrompt");
-    expect(cliSrc).toContain('-s", "read-only"');
-    expect(cliSrc).toContain('"-i"');
+    expect(cliSrc).not.toMatch(/spawnSync|APPDATA|codex\.cmd|run-codex|\bpython\b/iu);
+    expect(generateImagesSrc).toContain("Invoke-TrustedProductionCodex");
+    expect(generateImagesSrc).toContain("after carousel visual QA judge");
+    expect(generateImagesSrc).toContain("--carousel --prepare");
+    const carouselEvaluate = cliSrc.indexOf('if (getFlag(args, "evaluate"))');
+    const carouselSources = cliSrc.indexOf("const sources = await resolveCarouselSlides");
+    expect(carouselEvaluate).toBeLessThan(carouselSources);
+    expect(cliSrc.slice(carouselEvaluate, carouselSources)).not.toContain("writeJsonAtomic");
+    expect(generateImagesSrc).toContain("carousel visual QA record write");
     expect(cliSrc).not.toMatch(/Generate exactly two images/u);
     const out = execFileSync(
       process.execPath,
@@ -1110,5 +1113,92 @@ describe("carousel CLI surface", () => {
     expect(out).toContain("TOPIC_MATCH");
     expect(out).toContain("PROMPT_HASH=");
     expect(out).toMatch(/Do not generate or edit any image/i);
+  });
+
+  it("evaluates staged carousel evidence without resolving new slides or writing the durable record", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "carousel-evaluate-"));
+    try {
+      const qaDir = join(dir, "qa");
+      mkdirSync(qaDir, { recursive: true });
+      const slides = [
+        { name: "slide-01.png", canary: "K7P2", bytes: "one" },
+        { name: "slide-02.png", canary: "M3Q8", bytes: "two" }
+      ];
+      for (const slide of slides) writeFileSync(join(qaDir, slide.name), slide.bytes, "utf8");
+      const sidecar = {
+        topic: "球鞋",
+        date: "2026-08-19",
+        slot: 1,
+        slides: slides.map((slide, index) => ({
+          name: slide.name,
+          slide: index + 1,
+          source: `fixture/${slide.name}`,
+          canary: slide.canary,
+          sha256: createHash("sha256").update(slide.bytes).digest("hex")
+        }))
+      };
+      const sidecarPath = join(dir, "sidecar.json");
+      const stdoutPath = join(dir, "judge-stdout.txt");
+      const durableOut = join(dir, "must-not-be-written.json");
+      writeFileSync(sidecarPath, JSON.stringify(sidecar), "utf8");
+      writeFileSync(stdoutPath, [
+        "IMAGE_1 canary=K7P2",
+        "IMAGE_2 canary=M3Q8",
+        VISUAL_QA_OBSERVE_BEGIN,
+        "OBS_1 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+        "OBS_2 garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT",
+        "COMPARE OBJECT_IDENTITY identity_change=NO",
+        "COMPARE SCENE scene_change=NO",
+        "COMPARE TOPIC_MATCH object_mismatch=NO",
+        VISUAL_QA_OBSERVE_END,
+        VISUAL_QA_BEGIN,
+        JSON.stringify({
+          topic: "球鞋",
+          verdict: "PASS",
+          axes: { OBJECT_IDENTITY: "PASS", SCENE: "PASS", TOPIC_MATCH: "PASS" },
+          evidence: {},
+          frames_used: []
+        }),
+        VISUAL_QA_END
+      ].join("\n"), "utf8");
+
+      const output = execFileSync(
+        process.execPath,
+        [
+          join(root, "node_modules", "tsx", "dist", "cli.mjs"),
+          join(root, "src", "visualQaCli.ts"),
+          "--carousel",
+          "--evaluate",
+          "--stdout-file", stdoutPath,
+          "--sidecar", sidecarPath,
+          "--qa-dir", qaDir,
+          "--prompt-hash", "a".repeat(64),
+          "--run-id", "staged-evaluate"
+        ],
+        { cwd: root, encoding: "utf8" }
+      );
+      const record = JSON.parse(output) as { verdict: string; run_id: string };
+      expect(record).toMatchObject({ verdict: "PASS", run_id: "staged-evaluate" });
+      expect(existsSync(durableOut)).toBe(false);
+      expect(() => execFileSync(
+        process.execPath,
+        [
+          join(root, "node_modules", "tsx", "dist", "cli.mjs"),
+          join(root, "src", "visualQaCli.ts"),
+          "--carousel",
+          "--evaluate",
+          "--stdout-file", stdoutPath,
+          "--sidecar", sidecarPath,
+          "--qa-dir", qaDir,
+          "--out", durableOut,
+          "--prompt-hash", "a".repeat(64),
+          "--run-id", "staged-evaluate"
+        ],
+        { cwd: root, encoding: "utf8", stdio: "pipe" }
+      )).toThrow(/stdout-only/u);
+      expect(existsSync(durableOut)).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -2,7 +2,11 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fetchLineClicks, recordLineClicksToLedger } from "../src/ga4Report";
+import {
+  fetchLineClicks,
+  GA4_LINE_CLICK_SOURCE_DIMENSION,
+  recordLineClicksToLedger
+} from "../src/ga4Report";
 
 // The whole point of this module is that a number nobody fetched is not a
 // zero. These tests exist to keep that true when someone later "simplifies"
@@ -74,6 +78,23 @@ describe("ga4 line_click reader", () => {
     // Clicks with no source parameter stay visible as their own row: how much
     // traffic cannot be attributed is itself worth watching.
     expect(report.by_source.map((row) => row.source)).toContain("(not set)");
+  });
+
+  it("queries the same link_source event parameter that the redirect page emits", async () => {
+    const dimensions: string[] = [];
+    const fetchImpl = (async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes("oauth2.googleapis.com")) {
+        return new Response(JSON.stringify({ access_token: "token" }), { status: 200 });
+      }
+      const body = JSON.parse(String(init?.body)) as { dimensions: Array<{ name: string }> };
+      dimensions.push(body.dimensions[0]!.name);
+      return new Response(JSON.stringify({ rows: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await fetchLineClicks({ date: "2026-08-11", env: CONFIGURED, fetchImpl });
+
+    expect(dimensions).toEqual(["eventName", GA4_LINE_CLICK_SOURCE_DIMENSION]);
+    expect(GA4_LINE_CLICK_SOURCE_DIMENSION).toBe("customEvent:link_source");
   });
 
   it("records a measured day into the ledger and says so", async () => {

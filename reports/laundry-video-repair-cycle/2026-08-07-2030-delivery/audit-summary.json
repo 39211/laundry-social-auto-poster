@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "automation_id": "laundry-video-repair-cycle",
+  "run_date": "2026-08-07",
+  "timezone": "Asia/Taipei",
+  "verdict": "NO_GO_VIDEO_DEFERRED",
+  "queue": {
+    "count": 16,
+    "video_deferred": 16,
+    "resolved": 0,
+    "ready_links": 0,
+    "duplicate_source_keys": 0,
+    "duplicate_generation_ids": 0,
+    "submitted_once_violations": 0,
+    "sha256_before": "BAE009C0EF9FDF7E07316F1AF51D11F7179C21490FE4F5256A4740F4B2F94433",
+    "sha256_after": "06575152A568EBA6632FDACEE18877B5D7A3C34D5E72BDA13FDAA14ADC884863"
+  },
+  "current_run": {
+    "new_first_frames": 0,
+    "hermes_inspection_runs": 0,
+    "generation_submissions": 0,
+    "tts_created": false,
+    "masters_created": 0,
+    "replacement_bindings": 0,
+    "resolve_ready_runs": 0,
+    "facebook_publications": 0,
+    "instagram_publications": 0,
+    "posted_log_writes": 0
+  },
+  "technical_validation": {
+    "retained_raws_fully_decoded": 12,
+    "retained_raws_hash_matched": 12,
+    "retained_raws_native_1080x1920": 0,
+    "retained_raws_1088x1920": 12,
+    "frames_per_retained_raw": 145,
+    "formal_2026_07_29_slot_1_frames": 240,
+    "formal_2026_07_29_slot_1_decode": "pass",
+    "preproduction_contract_exit": 0,
+    "generation_authorized": false
+  },
+  "current_date_publication_observation": {
+    "slot_1": "facebook_and_instagram_carousel_success_attempts_1_VIDEO_DEFERRED",
+    "slot_2": "facebook_and_instagram_reel_success_attempts_1_but_stale_suit_topic_not_canvas_shoe_repair",
+    "posted_log_sha256": "3456BC592937667036F21BFDB7698848B626A8D9D0478117F05525404F654126"
+  },
+  "mutation": {
+    "queue_item": "2026-08-07|1",
+    "fields_changed": ["defer_kind", "failure_reason"],
+    "replacement_fields_changed": false,
+    "posted_log_changed": false
+  }
+}

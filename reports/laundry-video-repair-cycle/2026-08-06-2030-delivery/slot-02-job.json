@@ -1,0 +1,66 @@
+{
+  "version": "1.0",
+  "type": "grok_video_job_record",
+  "generation_id": "sixiangjia_20260806_s02_canvas_shoe_card_exit_v01",
+  "source_shot_id": "2026-08-06-slot-02-canvas-shoe-guided-card-exit",
+  "idempotency_key": "grk-c36a5f0c1e6b602ff6c21f58e75c577a15105823627a2e45f8bd8eac91978aa6",
+  "prompt_hash": "04e7b56d400ae91e61dbe228b2c9c4f6384c774b8828d4016472f87b3308185c",
+  "prompt_character_count": 1428,
+  "model": "grok-imagine-video-1.5",
+  "duration_seconds": 6.0,
+  "aspect_ratio": "9:16",
+  "resolution": "1080p",
+  "output_file": "video-production/runs/2026-08-06-daily-companion-v01/raw/sixiangjia_20260806_s02_canvas_shoe_card_exit_v01.mp4",
+  "mode": "image_to_video",
+  "input_image": {
+    "file": "video-production/runs/2026-08-06-daily-companion-v01/first-frames/slot-02-first-frame-v01.png",
+    "sha256": "d08ae8ea7df57f166b411d58773aeeae3b291d06b29411bd494f24be7ae6479a",
+    "mime_type": "image/png",
+    "bytes": 2727767,
+    "width": 1080,
+    "height": 1920
+  },
+  "request_id": "d744492e-e895-9489-8f52-d139e9a566ed",
+  "actual_model": "grok-imagine-video-1.5",
+  "status": "qc_fail",
+  "provider_status": "done",
+  "created_at_utc": "2026-08-05T23:00:34Z",
+  "submitted_at_utc": "2026-08-05T23:00:36Z",
+  "completed_at_utc": "2026-08-05T23:01:19Z",
+  "updated_at_utc": "2026-08-05T23:01:21Z",
+  "last_polled_at_utc": "2026-08-05T23:01:19Z",
+  "qc": {
+    "ok": false,
+    "width": 1088,
+    "height": 1920,
+    "duration": 6.041667,
+    "codec": "h264",
+    "has_audio": true,
+    "expected_short_side": 1080,
+    "expected_width": 1080,
+    "expected_height": 1920,
+    "severity": "fail",
+    "errors": [
+      "resolution 1088x1920 (short side 1088) does not match requested 1080p (expected short side 1080)",
+      "dimensions 1088x1920 do not match expected 1080x1920 (from 1080p 9:16) within tolerance 4px"
+    ],
+    "warnings": []
+  },
+  "video_url_present": true,
+  "video_url_redacted": "",
+  "provider_error": null,
+  "errors": [
+    "resolution 1088x1920 (short side 1088) does not match requested 1080p (expected short side 1080)",
+    "dimensions 1088x1920 do not match expected 1080x1920 (from 1080p 9:16) within tolerance 4px"
+  ],
+  "warnings": [
+    "QC failed; retained bytes at C:/Users/cyc39/Documents/New project 5/video-production/runs/2026-08-06-daily-companion-v01/raw/sixiangjia_20260806_s02_canvas_shoe_card_exit_v01.mp4.qc_failed"
+  ],
+  "attempts": {
+    "submit": 1,
+    "poll": 5,
+    "download": 1,
+    "qc": 1
+  },
+  "duplicate_prevention": "new_submission"
+}

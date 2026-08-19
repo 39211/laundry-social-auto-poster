@@ -1,0 +1,70 @@
+{
+  "version": "2026-07-28-v1",
+  "date": "2026-08-07",
+  "generated_at": "2026-08-06T22:44:19.465Z",
+  "pass_threshold": 90,
+  "research_basis": [
+    {
+      "source": "https://www.facebook.com/business/ads/facebook-instagram-reels-ads",
+      "applied_rule": "9:16、音訊與關鍵訊息安全區",
+      "evidence_type": "official"
+    },
+    {
+      "source": "https://ads.tiktok.com/help/article/creative-best-practices",
+      "applied_rule": "前 3 秒交代內容主張，hook、body、CTA 結構",
+      "evidence_type": "official"
+    },
+    {
+      "source": "https://x.ai/news/grok-imagine-video-1-5",
+      "applied_rule": "6 秒 Grok 原片、image-to-video、明確描述單一動作",
+      "evidence_type": "official"
+    },
+    {
+      "source": "https://x.com/generatedbyann/status/2081759693563977870",
+      "applied_rule": "一次只改 hook，避免無法歸因",
+      "evidence_type": "community-experience"
+    }
+  ],
+  "summary": {
+    "reviewed": 2,
+    "passed": 2,
+    "revise": 0,
+    "gate_passed": true
+  },
+  "items": [
+    {
+      "date": "2026-08-07",
+      "slot": 1,
+      "topic": "化妝包拉鍊邊卡粉，先看內袋縫線",
+      "score": 100,
+      "status": "pass",
+      "blockers": [],
+      "improvements": [],
+      "selected_hook": "化妝包拉鍊邊先看清楚",
+      "hook_variants": [
+        "化妝包拉鍊邊先看清楚",
+        "化妝包拉鍊邊先看清楚先別急著收",
+        "化妝包拉鍊邊先看清楚這一處最容易漏看"
+      ],
+      "iteration_contract": "同一輪保持主體、body、動作、TTS 後半與 CTA 不變，只測 hook；發布滿 72 小時後以 reach、views、saves、shares、LINE clicks、inquiries、bookings 決定保留或淘汰。"
+    },
+    {
+      "date": "2026-08-07",
+      "slot": 2,
+      "topic": "帆布鞋送洗前，把兩隻鞋對齊拍清楚",
+      "score": 100,
+      "status": "pass",
+      "blockers": [],
+      "improvements": [],
+      "selected_hook": "兩隻帆布鞋先對齊看清楚",
+      "hook_variants": [
+        "兩隻帆布鞋先對齊看清楚",
+        "兩隻帆布鞋先對齊看清楚先別急著收",
+        "兩隻帆布鞋先對齊看清楚這一處最容易漏看"
+      ],
+      "iteration_contract": "同一輪保持主體、body、動作、TTS 後半與 CTA 不變，只測 hook；發布滿 72 小時後以 reach、views、saves、shares、LINE clicks、inquiries、bookings 決定保留或淘汰。"
+    }
+  ],
+  "publish_authorized": false,
+  "included_in_kpi": false
+}

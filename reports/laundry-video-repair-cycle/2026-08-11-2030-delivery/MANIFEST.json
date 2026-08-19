@@ -1,0 +1,79 @@
+﻿{
+    "package":  "laundry-video-repair-cycle-20260811-2030-v01",
+    "created_at":  "2026-08-11T23:06:39.4465813+08:00",
+    "verdict":  "NO_GO_VIDEO_DEFERRED",
+    "contains_raw_media":  false,
+    "contains_secrets":  false,
+    "files":  [
+                  {
+                      "path":  "audit-summary.json",
+                      "bytes":  1572,
+                      "sha256":  "ABB7D5167C2AB3DDBF75173A34102B1B251465C792BF2B1CE7939F2633BCFCD3"
+                  },
+                  {
+                      "path":  "content-calendar-2026-08-11.json",
+                      "bytes":  18768,
+                      "sha256":  "B7614BF3585E45D196729C1B4ACEF70D5E8AD63CCEEDC5A5B6E8CA4274CD4AB8"
+                  },
+                  {
+                      "path":  "first-frame-review.json",
+                      "bytes":  2363,
+                      "sha256":  "ADC7CC2A65C835E52D313ABAFC2274CC9EDCA88E6BB85B27EC879859C0C811FF"
+                  },
+                  {
+                      "path":  "image-manual-review.json",
+                      "bytes":  4023,
+                      "sha256":  "8DCAAE375AF856F025CD9F015EF1614B48BF8EF31816B9436A2DE073C99BBA2F"
+                  },
+                  {
+                      "path":  "knowledge-pack-manifest.json",
+                      "bytes":  2582,
+                      "sha256":  "808F3B2E6D4A896D3BD4A3DDFE3B005EE9A98974AE8131BC33827234DF7E3CC9"
+                  },
+                  {
+                      "path":  "media-readiness.json",
+                      "bytes":  3134,
+                      "sha256":  "4CCC9F32FCE520FC5FECEB2D24FD49331D84913D4F181A6105B94F110A2DDE05"
+                  },
+                  {
+                      "path":  "posted-log-2026-08-11.json",
+                      "bytes":  2177,
+                      "sha256":  "4E1F8424BFE453291EAD31D76721DD68EFB7CE2597607C495C7A4A0A1D96CE7B"
+                  },
+                  {
+                      "path":  "preproduction-contract.json",
+                      "bytes":  327,
+                      "sha256":  "04DA1E0D3D9E65216A71B77225AB13BA13D295FF85478DA66D1E0317DD275A41"
+                  },
+                  {
+                      "path":  "queue-snapshot.json",
+                      "bytes":  36553,
+                      "sha256":  "D9AD9DB917D9CD6EF91CEF71E88524C74B25A4371561ECDA5D2B2AA7992A188D"
+                  },
+                  {
+                      "path":  "READ-FIRST.md",
+                      "bytes":  682,
+                      "sha256":  "2E2DE80F8C114E29AC6F2CBD41CB6CC5E474E1DBD2EA7543ABC3FFABF46274C0"
+                  },
+                  {
+                      "path":  "report.md",
+                      "bytes":  6628,
+                      "sha256":  "EF74264C8FEBDEDF71E4FAF939F1C0A33B8521ED72E988D0F013FD99AF1D8A92"
+                  },
+                  {
+                      "path":  "video-candidates-2026-08-11.json",
+                      "bytes":  4739,
+                      "sha256":  "8236D2DB17887A398DB3625A7640C505C49D65BB2A7911B6CCBE48C7911E480C"
+                  },
+                  {
+                      "path":  "video-reviews-2026-08-11.json",
+                      "bytes":  1267,
+                      "sha256":  "58F44698ADB31C631E7E2DF0AE821B548F8D20861BCA31C097068748AF6D18C4"
+                  },
+                  {
+                      "path":  "video-sources-2026-08-11.json",
+                      "bytes":  854,
+                      "sha256":  "CFC76DF5BB3EE9E464E2192DFF336E9D2E332657B34AD8A646C860274E7EF0A2"
+                  }
+              ]
+}

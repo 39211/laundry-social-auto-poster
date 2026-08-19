@@ -188,6 +188,31 @@ export interface ApprovalLogEntry {
   forced_reasons?: string[];
 }
 
+/**
+ * Evidence obtained by reading the remote object back after its irreversible
+ * publish commit. A local post id alone is only transport evidence: the
+ * published object still has to be publicly reachable, the expected media
+ * kind, and carry the exact approved caption before downstream automation may
+ * call it a completed publication.
+ */
+export interface RemotePublicationEvidence {
+  /** The id returned by the remote object read-back; it must equal post_id. */
+  remote_id: string;
+  /** A public https permalink returned by the remote object read-back. */
+  permalink: string;
+  /** ISO timestamp captured only after all read-back checks passed. */
+  verified_at: string;
+  /** Canonical media class after validating the platform-specific response. */
+  remote_media_type: "REELS" | "IMAGE" | "CAROUSEL";
+  /** True only when the remote caption/description byte-matches the input. */
+  caption_exact_match: true;
+}
+
+/** A RemotePublicationEvidence narrowed to the Reel proof required by YouTube. */
+export interface RemoteReelEvidence extends RemotePublicationEvidence {
+  remote_media_type: "REELS";
+}
+
 export interface PostLogEntry {
   date: string;
   slot: number;
@@ -202,6 +227,12 @@ export interface PostLogEntry {
   /** Present only on dual-Reel A/B days that have an ab-test-plan entry. */
   ab_variant?: "10s" | "15s";
   post_id?: string;
+  /** sha256 of the local, approved Reel bytes that were submitted. */
+  video_sha256?: string;
+  /** Required before a live Instagram Reel may open the YouTube Short gate. */
+  remote_reel_evidence?: RemoteReelEvidence;
+  /** Required by Meta publication receipts for every live media type. */
+  remote_publication_evidence?: RemotePublicationEvidence;
   error?: string;
   created_at: string;
 }
@@ -275,4 +306,8 @@ export interface PostResult {
   dry_run: boolean;
   attempts: number;
   post_id?: string;
+  /** Present only after a committed live Reel passed remote read-back. */
+  remote_reel_evidence?: RemoteReelEvidence;
+  /** Present only after a committed live publication passed remote read-back. */
+  remote_publication_evidence?: RemotePublicationEvidence;
 }

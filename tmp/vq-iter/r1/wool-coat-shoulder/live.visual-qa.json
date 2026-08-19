@@ -1,0 +1,79 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\output\\reels-run\\2026-07-29\\reels\\wool-coat-shoulder.mp4",
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "PASS",
+    "STATE_ORDER": "PASS",
+    "MIDDLE_NOT_WORSE": "PASS",
+    "HANDS": "PASS",
+    "SCENE": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "四個畫面皆為同一件黑色外套，衣領與肩線輪廓一致。",
+    "ACCESSORY_COLOR": "未見鞋帶或硬體配件，無顏色身份變化。",
+    "ORIENTATION": "前後畫面皆維持相同的右向肩部構圖。",
+    "STATE_ORDER": "前段可見肩線灰塵堆積，後段整體呈現較乾淨狀態。",
+    "MIDDLE_NOT_WORSE": "沒有MIDDLE畫面，依規則判定為PASS。",
+    "HANDS": "前後畫面均未見變形手部。",
+    "SCENE": "均為粉紅裁切墊與層板牆背景。"
+  },
+  "frames_used": [
+    "before-p20.png",
+    "before-p70.png",
+    "after-p20.png",
+    "after-p70.png"
+  ],
+  "frames": [
+    {
+      "name": "before-p20.png",
+      "act": "before",
+      "t": 0.92,
+      "canary": "Z3CQ",
+      "sha256": "63bfeed7f2e84897499eac3b28a12d350e2e344dd46a87d09e7bc40312a1c1eb"
+    },
+    {
+      "name": "before-p70.png",
+      "act": "before",
+      "t": 3.22,
+      "canary": "44PJ",
+      "sha256": "85a9c8879c4c3c299807c7836c5624baad404d7f3957ef919d686b9159d6354c"
+    },
+    {
+      "name": "after-p20.png",
+      "act": "after",
+      "t": 5.614,
+      "canary": "TLCG",
+      "sha256": "c8cfe31514613b2c75458f9cfd25e1ae96c3376ac21d0f5e5872c4a51c8d1cef"
+    },
+    {
+      "name": "after-p70.png",
+      "act": "after",
+      "t": 8.149,
+      "canary": "6D6Z",
+      "sha256": "ba6b558f5621dd56d9e81d7145d90f60b0999c8c8d3c7e0adef88ad53fa8d2f2"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "Z3CQ",
+    "IMAGE_2": "44PJ",
+    "IMAGE_3": "TLCG",
+    "IMAGE_4": "6D6Z"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "Z3CQ",
+    "IMAGE_2": "44PJ",
+    "IMAGE_3": "TLCG",
+    "IMAGE_4": "6D6Z"
+  },
+  "reel_sha256": "9e4c92f2040f5ee949bcf047c35d11a595b5e8693be57117133adada1113aefa",
+  "prompt_hash": "42e9c99dcf4e94b89daaa814ffa9b9ec670d1253747e575eae6d3fd630d517e6",
+  "run_id": "iter-r1-wool-coat-shoulder",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-16T20:12:55.613Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "PASS",
+  "fail_class": null
+}

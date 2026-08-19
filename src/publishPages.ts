@@ -6,10 +6,94 @@ import { auditPublicSite, formatPublicSiteAudit, publicSiteAuditFailures } from 
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { docsContentCalendarPath, projectRoot, relativeAssetPath } from "./paths";
+import { assertCanonicalPublicPublicationApproval } from "./publicPublicationApproval";
 import { getZonedDateParts } from "./scheduler";
 
+const TRUSTED_SYSTEM_GIT = "C:\\Program Files\\Git\\cmd\\git.exe";
+const UNSAFE_GIT_ENVIRONMENT_NAMES = new Set([
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_COMMON_DIR",
+  "GIT_INDEX_FILE",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+  "GIT_CONFIG_GLOBAL",
+  "GIT_CONFIG_SYSTEM",
+  "GIT_CONFIG_NOSYSTEM",
+  "GIT_CONFIG",
+  "GIT_EXEC_PATH",
+  "GIT_TEMPLATE_DIR",
+  "GIT_SSH",
+  "GIT_SSH_COMMAND",
+  "GIT_ASKPASS",
+  "GIT_PROXY_COMMAND",
+  "GIT_EXTERNAL_DIFF",
+  "GIT_CEILING_DIRECTORIES",
+  "GIT_DISCOVERY_ACROSS_FILESYSTEM"
+]);
+
+function resolveTrustedGitExecutable(): string {
+  // Publishing is a production side effect. Do not resolve `git` through
+  // PATH: on Windows a workspace-local git.cmd/git.exe can win that lookup.
+  if (!existsSync(TRUSTED_SYSTEM_GIT)) {
+    throw new Error("Trusted system Git executable is unavailable; refusing Pages publish.");
+  }
+  return TRUSTED_SYSTEM_GIT;
+}
+
+function assertNoWorkspaceGitShadow(root: string): void {
+  const shadow = ["git.exe", "git.cmd", "git.bat"].find((name) => existsSync(join(root, name)));
+  if (shadow) {
+    throw new Error(`Refusing Pages publish while workspace-local ${shadow} is present.`);
+  }
+}
+
+function inheritedUnsafeGitEnvironment(): string[] {
+  return Object.entries(process.env)
+    .filter(([name, value]) => {
+      if (!value?.trim()) return false;
+      const normalized = name.toUpperCase();
+      return (
+        UNSAFE_GIT_ENVIRONMENT_NAMES.has(normalized) ||
+        /^GIT_CONFIG_(?:COUNT|KEY_\d+|VALUE_\d+)$/.test(normalized)
+      );
+    })
+    .map(([name]) => name)
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function assertNoUnsafeGitEnvironment(): void {
+  const unsafe = inheritedUnsafeGitEnvironment();
+  if (unsafe.length > 0) {
+    throw new Error(`Refusing Pages publish with inherited Git override(s): ${unsafe.join(", ")}`);
+  }
+}
+
+function scrubbedGitEnvironment(): NodeJS.ProcessEnv {
+  // Keep normal credentials/proxy setup available for an approved push, but
+  // do not pass any Git process state to the trusted executable. Git's
+  // repository/config/runtime overrides can redirect a clone, command, or
+  // object write outside the approved worktree.
+  return Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.toUpperCase().startsWith("GIT_")));
+}
+
 function runGit(args: string[], root: string): string {
-  return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  assertNoUnsafeGitEnvironment();
+  assertNoWorkspaceGitShadow(root);
+  // The directory is created immediately before the process and removed as
+  // soon as it exits. It deliberately contains no hooks, and the command-line
+  // config takes precedence over any local/global core.hooksPath setting.
+  const emptyHooksPath = mkdtempSync(join(tmpdir(), "laundry-pages-git-hooks-"));
+  try {
+    return execFileSync(resolveTrustedGitExecutable(), ["-c", `core.hooksPath=${emptyHooksPath}`, ...args], {
+      cwd: root,
+      encoding: "utf8",
+      env: scrubbedGitEnvironment(),
+      stdio: ["ignore", "pipe", "pipe"]
+    }).trim();
+  } finally {
+    rmSync(emptyHooksPath, { recursive: true, force: true });
+  }
 }
 
 function gitConfigValue(root: string, key: string): string {
@@ -29,6 +113,11 @@ function checkoutMain(root: string): void {
 }
 
 function hasOrigin(root: string): boolean {
+  // A missing origin or unavailable system Git remains a normal no-publish
+  // outcome. A workspace shadow is different: reject it explicitly instead
+  // of allowing it to masquerade as a missing origin.
+  assertNoUnsafeGitEnvironment();
+  assertNoWorkspaceGitShadow(root);
   try {
     runGit(["remote", "get-url", "origin"], root);
     return true;
@@ -179,7 +268,7 @@ function publishRootPagesMirror(date: string, root: string, rootPagesRepo: strin
     const status = runGit(["status", "--porcelain"], mirrorRoot);
     if (!status) return `No root Pages mirror changes to publish for ${date}.`;
 
-    runGit(["commit", "-m", `Mirror public site ${date}`], mirrorRoot);
+    runGit(["commit", "--no-verify", "-m", `Mirror public site ${date}`], mirrorRoot);
     runGit(["push", "origin", "HEAD:main"], mirrorRoot);
     return `Mirrored public site to root Pages repo for ${date}.`;
   } finally {
@@ -187,10 +276,18 @@ function publishRootPagesMirror(date: string, root: string, rootPagesRepo: strin
   }
 }
 
-export function publishPagesAssets(date: string, root = projectRoot(), rootPagesRepo = ""): string {
+export async function publishPagesAssets(date: string, root = projectRoot(), rootPagesRepo = ""): Promise<string> {
+  // Fail before the initial origin check so an inherited Git override cannot
+  // be disguised as a routine "origin is not configured" skip.
+  assertNoUnsafeGitEnvironment();
   if (!hasOrigin(root)) {
     return "Git remote origin is not configured; skipped GitHub Pages commit and push.";
   }
+
+  // A direct `npm run publish-pages` must not bypass the scheduler's
+  // PowerShell bridge. Verify the same date-specific approval chain before
+  // staging, committing, cloning the mirror, or pushing any public files.
+  await assertCanonicalPublicPublicationApproval(date, root);
 
   const assetDir = relativeAssetPath(date, 1).replace(/\/slot-01\.png$/, "");
   const docsCalendar = docsContentCalendarPath(date, root);
@@ -246,7 +343,7 @@ export function publishPagesAssets(date: string, root = projectRoot(), rootPages
     return [`No GitHub Pages changes to publish for ${date}.`, mirrorOnly].filter(Boolean).join("\n");
   }
 
-  runGit(["commit", "-m", `Generate daily Pages assets ${date}`, "--", ...paths], root);
+  runGit(["commit", "--no-verify", "-m", `Generate daily Pages assets ${date}`, "--", ...paths], root);
   runGit(["push"], root);
   const mirrorResult = publishRootPagesMirror(date, root, rootPagesRepo);
   return [`Published GitHub Pages assets for ${date}: ${assetDir}, ${docsCalendar}`, mirrorResult].filter(Boolean).join("\n");
@@ -257,7 +354,7 @@ async function main(): Promise<void> {
   const config = getConfig();
   const date = getOption(args, "date") || getZonedDateParts(new Date(), config.timezone).date;
   const root = projectRoot(getOption(args, "root"));
-  console.log(publishPagesAssets(date, root, config.publicRootPagesRepo || ""));
+  console.log(await publishPagesAssets(date, root, config.publicRootPagesRepo || ""));
   if (!getFlag(args, "skip-audit")) {
     const auditMode = getOption(args, "audit-mode") === "local" ? "local" : "public";
     const audit = await auditPublicSite({

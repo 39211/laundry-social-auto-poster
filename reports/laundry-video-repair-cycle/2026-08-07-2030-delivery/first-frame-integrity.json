@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "existing_count": 15,
+  "exact_1080x1920_count": 15,
+  "hash_match_count": 15,
+  "missing": [{"date":"2026-08-03","slot":1}],
+  "current_date": [
+    {"date":"2026-08-07","slot":1,"sha256":"31F073935CC70AE4F2038A142100C138225A58BA6E245D4687DB520FEFEAFC6D","status":"fail","blockers":["card not captured by visible rigid horizontal rail","five fingers not individually traceable"]},
+    {"date":"2026-08-07","slot":2,"sha256":"A5CA66F1BBE108467659B14B05DD9D1FE3F53065D0F05E7E3E50AACEA34E33BD","status":"fail","blockers":["five-finger grip not individually traceable"]}
+  ]
+}

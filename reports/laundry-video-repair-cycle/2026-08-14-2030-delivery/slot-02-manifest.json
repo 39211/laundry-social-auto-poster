@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "type": "grok_video_shot_manifest",
+  "generation_id": "sixiangjia_20260814_s02_makeup_pouch_seam_card_exit_v02",
+  "mode": "image_to_video",
+  "source_shot_id": "2026-08-14-repair-slot-02-makeup-pouch-seam-card-exit-v02",
+  "prompt": "Create one continuous 6-second 9:16 photorealistic Taiwanese laundry inspection-counter shot. The first frame already shows exactly one open faded olive-green rectangular canvas makeup pouch with exactly one zipper opening, one metal zipper pull, zero handles and zero straps; exactly one blank matte-grey card held by exactly one separate shallow stainless-steel rail outside the zipper path; and one broad adult forearm entering from frame-left. The card visibly occludes the middle of the single dark-beige inner lining seam without entering or touching the pouch. One dominant action only: the same relaxed hand grips only the outer short edge of the single card and slides it laterally left until the entire dark-beige seam is visible, then holds. Preserve exactly one pouch, one card, one rail, one zipper pull, one forearm and one hand. Keep the hand a broad silhouette, not a finger close-up. All five fingers remain anatomically coherent. The pouch and rail remain fixed, grounded and unchanged. Preserve canvas weave, zipper-edge wear, realistic weight, inertia and contact shadows. Fixed restrained camera, motivated imperfect mixed fluorescent and storefront light. No cleaning transformation, effect claim or powder marker. No extra hands. No duplicate object. No penetration. No floating. No morphing or geometry changes. No readable text. No logo. No watermark. No generated audio. End on the unobstructed seam for one second.",
+  "input_image": "video-production/repair/2026-08-14/slot-02-first-frame-v02.png",
+  "model": "grok-imagine-video-1.5",
+  "duration_seconds": 6,
+  "aspect_ratio": "9:16",
+  "resolution": "1080p",
+  "output_file": "video-production/repair/2026-08-14/raw/sixiangjia_20260814_s02_makeup_pouch_seam_card_exit_v02.mp4"
+}

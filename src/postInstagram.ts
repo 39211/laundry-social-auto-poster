@@ -1,6 +1,6 @@
 import { assertLiveMetaConfig } from "./config";
 import { NonRetryableError } from "./retry";
-import type { AppConfig, PostInput, PostResult } from "./types";
+import type { AppConfig, PostInput, PostResult, RemotePublicationEvidence, RemoteReelEvidence } from "./types";
 
 interface InstagramResponse {
   id?: string;
@@ -8,6 +8,8 @@ interface InstagramResponse {
   status_code?: string;
   media_type?: string;
   media_product_type?: string;
+  permalink?: string;
+  caption?: string;
   error?: { message?: string };
 }
 
@@ -19,6 +21,53 @@ interface InstagramPollingOptions {
 
 const DEFAULT_POLL_ATTEMPTS = 10;
 const DEFAULT_POLL_INTERVAL_MS = 5000;
+
+function nonBlankString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function isInstagramResponse(value: unknown): value is InstagramResponse {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function instagramErrorMessage(payload: InstagramResponse, fallback: string): string {
+  const error = payload.error;
+  const message = error && typeof error === "object" ? nonBlankString((error as { message?: unknown }).message) : undefined;
+  return message ?? fallback;
+}
+
+function publicHttpsPermalink(value: unknown): string | undefined {
+  const permalink = nonBlankString(value);
+  if (!permalink) return undefined;
+  try {
+    const url = new URL(permalink);
+    const hostname = url.hostname.toLowerCase();
+    if (
+      url.protocol !== "https:" ||
+      !hostname ||
+      (hostname !== "instagram.com" && !hostname.endsWith(".instagram.com"))
+    ) {
+      return undefined;
+    }
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+function reelVerificationFailure(detail: string, cause?: unknown): NonRetryableError {
+  return new NonRetryableError(
+    `Instagram Reel may already be live, but remote verification failed: ${detail}. Not retrying.`,
+    cause === undefined ? undefined : { cause }
+  );
+}
+
+function publicationVerificationFailure(what: string, detail: string, cause?: unknown): NonRetryableError {
+  return new NonRetryableError(
+    `Instagram ${what} may already be live, but remote verification failed: ${detail}. Not retrying.`,
+    cause === undefined ? undefined : { cause }
+  );
+}
 
 async function postForm(
   endpoint: string,
@@ -50,9 +99,9 @@ async function postForm(
   // case the guard was written for. And only status >= 500 was non-retryable,
   // although Meta can return an error envelope on a 200/4xx after the publish
   // has committed.
-  let payload: InstagramResponse;
+  let rawPayload: unknown;
   try {
-    payload = (await response.json()) as InstagramResponse;
+    rawPayload = await response.json();
   } catch (error) {
     if (isCommit) {
       throw new NonRetryableError(
@@ -62,14 +111,31 @@ async function postForm(
     }
     throw error;
   }
-  if (!response.ok || payload.error || !payload.id) {
-    const message = payload.error?.message || `Instagram request failed with ${response.status}`;
-    if (isCommit) {
-      throw new NonRetryableError(`${message} (media_publish did not confirm success; the post may already be live. Not retrying.)`);
+  try {
+    if (!isInstagramResponse(rawPayload)) {
+      const message = `Instagram request returned an invalid response shape with ${response.status}`;
+      if (isCommit) {
+        throw new NonRetryableError(`${message} (media_publish did not confirm success; the post may already be live. Not retrying.)`);
+      }
+      throw new Error(message);
     }
-    throw new Error(message);
+    const payload = rawPayload;
+    if (!response.ok || payload.error || !nonBlankString(payload.id)) {
+      const message = instagramErrorMessage(payload, `Instagram request failed with ${response.status}`);
+      if (isCommit) {
+        throw new NonRetryableError(`${message} (media_publish did not confirm success; the post may already be live. Not retrying.)`);
+      }
+      throw new Error(message);
+    }
+    return payload;
+  } catch (error) {
+    if (!isCommit) throw error;
+    if (error instanceof NonRetryableError) throw error;
+    throw new NonRetryableError(
+      "Instagram media_publish response could not be validated; the post may already be live. Not retrying.",
+      { cause: error }
+    );
   }
-  return payload;
 }
 
 async function waitForPublishableContainer(
@@ -113,42 +179,136 @@ async function waitForPublishableContainer(
 
 async function waitForPublishedReel(
   mediaId: string,
+  input: PostInput,
   config: AppConfig,
   fetchImpl: typeof fetch,
   options: InstagramPollingOptions
-): Promise<void> {
+): Promise<RemoteReelEvidence> {
   const maxAttempts = options.maxAttempts ?? DEFAULT_POLL_ATTEMPTS;
   const intervalMs = options.intervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const sleep = options.sleep ?? ((delayMs: number) => new Promise((resolve) => setTimeout(resolve, delayMs)));
 
-  // media_publish has already committed by the time this runs: the Reel is
-  // live. Throwing here would feed withRetry, which reruns container creation
-  // and publish and puts a second identical Reel on the account. Verification
-  // that cannot confirm in time is reported, not raised.
+  // media_publish has already committed by the time this runs.  A read-back
+  // failure cannot be allowed to look like success, but it also must not feed
+  // withRetry: retrying the whole publisher would create a second Reel.
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const query = new URLSearchParams({
-      fields: "id,media_type,media_product_type",
+      fields: "id,media_type,media_product_type,permalink,caption",
       access_token: config.metaAccessToken ?? ""
     });
-    const response = await fetchImpl(
-      `https://graph.facebook.com/${config.graphApiVersion}/${mediaId}?${query}`,
-      { method: "GET" }
-    );
-    const payload = (await response.json()) as InstagramResponse;
-    if (!response.ok || payload.error) {
-      console.warn(
-        payload.error?.message ||
-          `Instagram published Reel verification failed with ${response.status}; the publish itself succeeded.`
+    let permalink: string | undefined;
+    let captionMatches = false;
+    try {
+      const response = await fetchImpl(
+        `https://graph.facebook.com/${config.graphApiVersion}/${mediaId}?${query}`,
+        { method: "GET" }
       );
-      return;
+      const rawPayload = await response.json();
+      if (!isInstagramResponse(rawPayload)) {
+        throw reelVerificationFailure("the remote Reel GET returned an invalid response shape");
+      }
+      const payload = rawPayload;
+      if (!response.ok || payload.error) {
+        throw reelVerificationFailure(
+          instagramErrorMessage(payload, `the remote Reel GET returned ${response.status}`)
+        );
+      }
+
+      const remoteId = nonBlankString(payload.id);
+      if (!remoteId || remoteId !== mediaId) {
+        throw reelVerificationFailure(`remote id did not match committed media id ${mediaId}`);
+      }
+      if (payload.media_type !== "VIDEO" || payload.media_product_type !== "REELS") {
+        throw reelVerificationFailure("remote media is not a REELS video");
+      }
+
+      permalink = publicHttpsPermalink(payload.permalink);
+      captionMatches = payload.caption === input.caption;
+      if (permalink && captionMatches) {
+        return {
+          remote_id: remoteId,
+          permalink,
+          verified_at: new Date().toISOString(),
+          remote_media_type: "REELS",
+          caption_exact_match: true
+        };
+      }
+    } catch (error) {
+      if (error instanceof NonRetryableError) throw error;
+      throw reelVerificationFailure("the remote Reel GET could not be completed or had an invalid response shape", error);
     }
-    if (payload.media_type === "VIDEO" && payload.media_product_type === "REELS") return;
-    if (attempt < maxAttempts) await sleep(intervalMs);
+
+    if (attempt < maxAttempts) {
+      try {
+        await sleep(intervalMs);
+      } catch (error) {
+        throw reelVerificationFailure("remote evidence polling could not continue", error);
+      }
+      continue;
+    }
+    const missing = [
+      ...(permalink ? [] : ["a public permalink"]),
+      ...(captionMatches ? [] : ["an exact caption match"])
+    ];
+    throw reelVerificationFailure(`remote Reel did not provide ${missing.join(" and ")}`);
   }
 
-  console.warn(
-    `Instagram media ${mediaId} is published but not yet verified as a Reel; not retrying a committed publish.`
-  );
+  throw reelVerificationFailure(`remote Reel ${mediaId} could not be verified`);
+}
+
+async function verifyInstagramPublication(
+  mediaId: string,
+  input: PostInput,
+  config: AppConfig,
+  fetchImpl: typeof fetch,
+  expectedMediaType: "IMAGE" | "CAROUSEL_ALBUM",
+  what: string
+): Promise<RemotePublicationEvidence> {
+  const expectedId = nonBlankString(mediaId);
+  if (!expectedId) throw publicationVerificationFailure(what, "the committed media id is missing");
+
+  const query = new URLSearchParams({
+    fields: "id,media_type,media_product_type,permalink,caption",
+    access_token: config.metaAccessToken ?? ""
+  });
+  try {
+    const response = await fetchImpl(
+      `https://graph.facebook.com/${config.graphApiVersion}/${expectedId}?${query}`,
+      { method: "GET" }
+    );
+    const rawPayload = await response.json();
+    if (!isInstagramResponse(rawPayload)) {
+      throw publicationVerificationFailure(what, "the remote GET returned an invalid response shape");
+    }
+    const payload = rawPayload;
+    if (!response.ok || payload.error) {
+      throw publicationVerificationFailure(what, instagramErrorMessage(payload, `the remote GET returned ${response.status}`));
+    }
+
+    const remoteId = nonBlankString(payload.id);
+    if (!remoteId || remoteId !== expectedId) {
+      throw publicationVerificationFailure(what, `remote id did not match committed media id ${expectedId}`);
+    }
+    if (payload.media_type !== expectedMediaType || payload.media_product_type !== "FEED") {
+      throw publicationVerificationFailure(what, `remote media is not an available ${expectedMediaType} feed post`);
+    }
+    const permalink = publicHttpsPermalink(payload.permalink);
+    if (!permalink) throw publicationVerificationFailure(what, "the remote object did not provide a public Instagram permalink");
+    if (payload.caption !== input.caption) {
+      throw publicationVerificationFailure(what, "remote caption did not exactly match the approved caption");
+    }
+
+    return {
+      remote_id: remoteId,
+      permalink,
+      verified_at: new Date().toISOString(),
+      remote_media_type: expectedMediaType === "IMAGE" ? "IMAGE" : "CAROUSEL",
+      caption_exact_match: true
+    };
+  } catch (error) {
+    if (error instanceof NonRetryableError) throw error;
+    throw publicationVerificationFailure(what, "the remote GET could not be completed or had an invalid response shape", error);
+  }
 }
 
 // A carousel carries its location on the parent container; the children are just
@@ -201,13 +361,22 @@ export async function postInstagramPhoto(
     }),
     fetchImpl
   );
+  const remotePublicationEvidence = await verifyInstagramPublication(
+    published.id ?? "",
+    input,
+    config,
+    fetchImpl,
+    "IMAGE",
+    "photo"
+  );
 
   return {
     platform: "instagram",
     status: "success",
     dry_run: false,
     attempts: 1,
-    post_id: published.id
+    post_id: remotePublicationEvidence.remote_id,
+    remote_publication_evidence: remotePublicationEvidence
   };
 }
 
@@ -294,13 +463,22 @@ export async function postInstagramCarousel(
     }),
     fetchImpl
   );
+  const remotePublicationEvidence = await verifyInstagramPublication(
+    published.id ?? "",
+    input,
+    config,
+    fetchImpl,
+    "CAROUSEL_ALBUM",
+    "carousel"
+  );
 
   return {
     platform: "instagram",
     status: "success",
     dry_run: false,
     attempts: 1,
-    post_id: published.id
+    post_id: remotePublicationEvidence.remote_id,
+    remote_publication_evidence: remotePublicationEvidence
   };
 }
 
@@ -350,13 +528,19 @@ export async function postInstagramReel(
     fetchImpl
   );
 
-  await waitForPublishedReel(published.id ?? "", config, fetchImpl, pollingOptions);
+  const publishedId = nonBlankString(published.id);
+  if (!publishedId) {
+    throw reelVerificationFailure("media_publish did not return a usable id");
+  }
+  const remoteReelEvidence = await waitForPublishedReel(publishedId, input, config, fetchImpl, pollingOptions);
 
   return {
     platform: "instagram",
     status: "success",
     dry_run: false,
     attempts: 1,
-    post_id: published.id
+    post_id: remoteReelEvidence.remote_id,
+    remote_reel_evidence: remoteReelEvidence,
+    remote_publication_evidence: remoteReelEvidence
   };
 }

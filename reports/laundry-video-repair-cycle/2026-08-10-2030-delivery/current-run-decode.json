@@ -1,0 +1,20 @@
+{
+  "run_time": "2026-08-10T20:44:12.5953642+08:00",
+  "method": "ffprobe -count_frames plus ffmpeg full video-stream decode",
+  "clips": [
+    {"source":"2026-07-30-S1","generation_id":"sixiangjia_20260730_s01_child_shoes_stop_release_v03","dimensions":"1088x1920","frames":145,"duration_seconds":6.041667,"decode_exit":0,"sha256":"E84FC8C47B0AF85E7606CEF624772A455361BC56B0D52D1DF67AA1CCDB3359A9","hash_match":true},
+    {"source":"2026-07-30-S2","generation_id":"sixiangjia_20260730_s02_aligned_pair_release_v03","dimensions":"1088x1920","frames":145,"duration_seconds":6.041667,"decode_exit":0,"sha256":"1AF9906BB60E1D1FB2772D1D706E32366647CEA6A17430FBF37EDA3995301C27","hash_match":true},
+    {"source":"2026-07-31-S1","generation_id":"sixiangjia_20260731_s01_card_withdraw_v02","dimensions":"1088x1920","frames":145,"duration_seconds":6.041667,"decode_exit":0,"sha256":"F44FB399B525AD9947935223888101600984B63DDCE00E247473549CAFC69C1D","hash_match":true},
+    {"source":"2026-07-31-S2","generation_id":"sixiangjia_20260731_s02_bedding_flush_slide_v02","dimensions":"1088x1920","frames":145,"duration_seconds":6.041667,"decode_exit":0,"sha256":"F8794BE3A46890373A39C2C3316D74AD1FCE4A8555C9DCE3B0B850E9B25383FB","hash_match":true},
+    {"source":"2026-08-01-S1","generation_id":"sixiangjia_20260801_s01_rigid_dual_bay_card_withdraw_v01","dimensions":"1088x1920","frames":145,"duration_seconds":6.041667,"decode_exit":0,"sha256":"60CBD48330549BF04B26707BC691830975BED40540D03DE40B5B9DC4F0F97ED1","hash_match":true},
+    {"source":"2026-08-01-S2","generation_id":"sixiangjia_20260801_s02_single_layer_cover_release_v01","dimensions":"1088x1920","frames":145,"duration_seconds":6.041667,"decode_exit":0,"sha256":"D357CF37FCC337B487186B958E5E4E146EF4F9C4BA10791A8BD92BA80AF2CF06","hash_match":true},
+    {"source":"2026-08-02-S1","generation_id":"sixiangjia_20260802_s01_pillowcase_card_lateral_exit_v01","dimensions":"1088x1920","frames":145,"duration_seconds":6.041667,"decode_exit":0,"sha256":"A22C7AE13222A8A37074F65B8CB2EA8D53A4AD080CA518CAE820BE1FDBB8C7CB","hash_match":true},
+    {"source":"2026-08-02-S2","generation_id":"sixiangjia_20260802_s02_single_layer_separator_exit_v01","dimensions":"1088x1920","frames":145,"duration_seconds":6.041667,"decode_exit":0,"sha256":"86D21DE0D65D9C3CF74E3F662A39434CFB1D7BAAC2828C958B5E1D277D155E8B","hash_match":true},
+    {"source":"2026-08-04-S1","generation_id":"sixiangjia_20260804_s01_makeup_pouch_card_exit_v03","dimensions":"1088x1920","frames":145,"duration_seconds":6.041667,"decode_exit":0,"sha256":"F2398C907F0818867D9B42ACD81DFB760E088D981DA96A26F529BED6CE9785AF","hash_match":true},
+    {"source":"2026-08-04-S2","generation_id":"sixiangjia_20260804_s02_blue_bag_doorway_handoff_v02","dimensions":"1088x1920","frames":145,"duration_seconds":6.041667,"decode_exit":0,"sha256":"C8839F09C3128830BBF027C3B4F4C63C0D1F9565D1E707EC040C2FA281A1D279","hash_match":true},
+    {"source":"2026-08-06-S1","generation_id":"sixiangjia_20260806_s01_travel_jacket_card_exit_v01","dimensions":"1088x1920","frames":145,"duration_seconds":6.041667,"decode_exit":0,"sha256":"4B9EB5A542EDB37C84A764137F6AE3E98B402D87C6E7EA881FB9C23C6058FFB7","hash_match":true},
+    {"source":"2026-08-06-S2","generation_id":"sixiangjia_20260806_s02_canvas_shoe_card_exit_v01","dimensions":"1088x1920","frames":145,"duration_seconds":6.041667,"decode_exit":0,"sha256":"C31DE0A9696F9653AF4B69D3AF0A47C49F554329D64B4F67BA081A1D0544A728","hash_match":true}
+  ],
+  "summary": {"checked":12,"full_decode_passed":12,"hash_matches":12,"native_1080x1920_passed":0}
+}
+

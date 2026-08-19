@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "type": "grok_video_shot_manifest",
+  "generation_id": "sixiangjia_20260806_s02_canvas_shoe_card_exit_v01",
+  "mode": "image_to_video",
+  "source_shot_id": "2026-08-06-slot-02-canvas-shoe-guided-card-exit",
+  "prompt": "Animate the supplied exact 9:16 first frame as one continuous 6-second photorealistic Taiwanese laundry inspection-counter shot. Keep the fixed restrained camera, exactly two off-white canvas shoes, both tied laces, eyelets, dried-mud patches and rubber toe caps, exactly two black heel stops, one rigid blue-gray tray, one rigid horizontal guide rail, exactly one blank matte-gray alignment card, and exactly one anatomically complete adult forearm and hand continuous. One dominant action only: the same hand uses a broad stable grip to slide only the card horizontally right along the rigid rail, fully clear of both toe caps and completely out of frame, then remains outside the frame and does not return. Both shoes, laces, toe caps, mud patches, heel stops, rail, tray and camera remain stationary, grounded, fully supported and unchanged. Preserve realistic canvas microtexture, dried mud, minor wear, weight, inertia, grip and contact shadows. No shoe translation, no shoe rotation, no card rotation, no shoe or lace movement, no stop, tray or rail movement, no extra limbs, no extra fingers, no extra hands, no duplicate object, no duplicated shoe or card, no morphing, no geometry changes, no penetration, no floating, no cleaning transformation, no readable text, no pseudo-text, no logo, no watermark and no camera move. End after the card fully exits and hold still for one second. Generated audio must not be used.",
+  "input_image": "video-production/runs/2026-08-06-daily-companion-v01/first-frames/slot-02-first-frame-v01.png",
+  "model": "grok-imagine-video-1.5",
+  "duration_seconds": 6,
+  "aspect_ratio": "9:16",
+  "resolution": "1080p",
+  "output_file": "video-production/runs/2026-08-06-daily-companion-v01/raw/sixiangjia_20260806_s02_canvas_shoe_card_exit_v01.mp4"
+}

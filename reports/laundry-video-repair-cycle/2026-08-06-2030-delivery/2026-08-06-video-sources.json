@@ -1,0 +1,13 @@
+[
+  {
+    "date": "2026-08-06",
+    "slot": 2,
+    "source": "grok-imagine-video",
+    "model": "grok-imagine-video-1.5",
+    "video_path": "docs/assets/2026-08-06/slot-02.mp4",
+    "source_route": "hermes-xai-oauth",
+    "source_reference": "copx:output/reels-run/2026-07-29/report-canvas-shoe-mud-before.json",
+    "generation_id": "sixiangjia_canvas_shoe_mud_before_v01",
+    "recorded_at": "2026-08-06T02:20:08.689Z"
+  }
+]

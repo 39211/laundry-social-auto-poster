@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "date": "2026-08-06",
+  "reviewed_at": "2026-08-06T06:55:37.9136313+08:00",
+  "reviewer": "GPT-5.6 Sol",
+  "knowledge_pack_version": "0.3.0-evidence-150-full-audit-quarantine",
+  "claim_scope": "owner-authorized synthetic daily companion video with no cleaning-result, customer, testimonial, real-process or effectiveness claim",
+  "slots": [
+    {
+      "slot": 1,
+      "generation_id": "sixiangjia_20260806_s01_travel_jacket_card_exit_v01",
+      "selected_path": "video-production/runs/2026-08-06-daily-companion-v01/first-frames/slot-01-first-frame-v02.png",
+      "sha256": "14ABE9083004E8CAF01B75B94CA6986AECB412295B843B72573488E0AD56A8FC",
+      "dimensions": "1080x1920",
+      "status": "PASS_FOR_HERMES_GENERATION_GATE_ONLY",
+      "checks": [
+        "exact 9:16 dimensions",
+        "one jacket, one card, one forearm and one hand",
+        "five-finger anatomy is plausible",
+        "visible horizontal guide constrains the card to the requested exit direction",
+        "jacket is grounded and fully supported with continuous seams and no text/logo",
+        "motivated mixed light, microtexture, wear and contact shadows are present"
+      ],
+      "watch_during_clip_review": "Reject any guide, card, hand, collar, sleeve or tray duplication; any card rotation; any jacket movement; any rail penetration; or any second action."
+    },
+    {
+      "slot": 2,
+      "generation_id": "sixiangjia_20260806_s02_canvas_shoe_card_exit_v01",
+      "selected_path": "video-production/runs/2026-08-06-daily-companion-v01/first-frames/slot-02-first-frame-v01.png",
+      "sha256": "D08AE8EA7DF57F166B411D58773AEEAE3B291D06B29411BD494F24BE7AE6479A",
+      "dimensions": "1080x1920",
+      "status": "PASS_FOR_HERMES_GENERATION_GATE_ONLY",
+      "checks": [
+        "exact 9:16 dimensions",
+        "exactly two grounded shoes, two heel stops, one card, one forearm and one hand",
+        "five-finger anatomy and card grip are plausible",
+        "both laces, eyelets, mud patches, toe caps and aligned toe line are traceable",
+        "card is visibly constrained by the horizontal rail and touches neither shoe",
+        "no generated text, logo, cleaning change or fake brand"
+      ],
+      "watch_during_clip_review": "Reject any shoe translation or rotation, lace/eyelet drift, duplicate shoe/card/hand, card contact with shoes, penetration, floating or return action."
+    }
+  ],
+  "publish_authorized": false,
+  "owner_reviewed": false
+}

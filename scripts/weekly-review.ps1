@@ -8,22 +8,58 @@
 # Both write their verdict to output\reviews and notify. Neither changes what
 # publishes: they produce the judgement a person then acts on. A stop verdict
 # from a checkpoint is surfaced loudly rather than filed in a log.
+[CmdletBinding()]
+param(
+    [string]$RootOverride,
+    [string]$NowOverride
+)
+
 $ErrorActionPreference = "Continue"
 # Task Scheduler consoles default to cp950, which mangles the UTF-8 JSON npm
 # prints and broke a scheduled parse; interactive sessions never hit this.
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
-$root = Split-Path -Parent $PSScriptRoot
+$root = if ($RootOverride) { [IO.Path]::GetFullPath($RootOverride) } else { Split-Path -Parent $PSScriptRoot }
+$executingCheckout = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot)).TrimEnd('\')
+$requestedContractRoot = [IO.Path]::GetFullPath($root).TrimEnd('\')
+if (-not $executingCheckout.Equals($requestedContractRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    $fixtureRoot = $requestedContractRoot + '\'
+    if ($env:LAUNDRY_EXECUTABLE_CONTRACT_TEST_SEAM -cne "allow-temp-production-runtime-shims-v1" -or -not $fixtureRoot.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        [Console]::Error.WriteLine("BLOCKED production contract: RootOverride does not match the executing scripts checkout.")
+        exit 1
+    }
+}
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
-$now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
+try {
+    $now = if ($NowOverride) {
+        [TimeZoneInfo]::ConvertTime([DateTimeOffset]::Parse($NowOverride), $tz).DateTime
+    } else {
+        [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
+    }
+} catch {
+    throw "Invalid -NowOverride: $NowOverride"
+}
 $date = $now.ToString("yyyy-MM-dd")
 
 $outDir = Join-Path $root "output\reviews"
-New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 $logFile = Join-Path $outDir "$date.log"
+. (Join-Path $PSScriptRoot "_production-contract.ps1")
+$productionContract = Test-CleanProductionContract -Root $root
+if (-not $productionContract.ok) {
+    [Console]::Error.WriteLine("BLOCKED production contract before weekly review: $($productionContract.reason). No task re-arm, insights sync, or indexing action was run.")
+    exit 1
+}
+$ProductionContractVerified = $true
+if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "weekly review output directory preparation")) { exit 1 }
+New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 . (Join-Path $PSScriptRoot "_watchdog.ps1")
 
 function Write-Log([string]$m) {
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "weekly review log write")) {
+        [Console]::Error.WriteLine("BLOCKED production contract before weekly review log write.")
+        return
+    }
     $stamp = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
     $line = "[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $stamp, $m
     Write-Host $line
@@ -49,18 +85,19 @@ function Show-Toast([string]$text) {
 # the review still runs -- stale data with a warning beats no verdict.
 Write-Log "Syncing Meta insights."
 Push-Location $root
-$sync = cmd /c "npm.cmd run sync-meta-insights 2>&1"
+$sync = Invoke-TrustedProductionNpm -Root $root run sync-meta-insights 2>&1
 if ($LASTEXITCODE -ne 0) { Write-Log "Insights sync failed; review will use the last synced window." }
 Pop-Location
 
 # --- Reel batch review -------------------------------------------------------
 Write-Log "Running Reel batch review."
 Push-Location $root
-$batch = cmd /c "npm.cmd run reel-batch-review 2>&1"
+$batch = Invoke-TrustedProductionNpm -Root $root run reel-batch-review 2>&1
 Pop-Location
 $batchJson = [regex]::Match(($batch -join "`n"), '(?s)\{.*\}')
 if ($batchJson.Success) {
     $reviewFile = Join-Path $outDir "batch-review-$date.json"
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "batch review report write")) { exit 1 }
     $batchJson.Value | Set-Content $reviewFile -Encoding utf8
     $parsed = $batchJson.Value | ConvertFrom-Json
     Write-Log "Batch review: $($parsed.pass_count)/$($parsed.mature_count) cleared the bar."
@@ -86,11 +123,12 @@ foreach ($checkpoint in 30, 60) {
 
     Write-Log "Running day-$checkpoint checkpoint."
     Push-Location $root
-    $result = cmd /c "npm.cmd run checkpoint -- --checkpoint $checkpoint 2>&1"
+    $result = Invoke-TrustedProductionNpm -Root $root run checkpoint -- --checkpoint $checkpoint 2>&1
     Pop-Location
     $json = [regex]::Match(($result -join "`n"), '(?s)\{.*\}')
     if (-not $json.Success) { Write-Log "Checkpoint $checkpoint produced no JSON."; continue }
 
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "checkpoint report write")) { exit 1 }
     $json.Value | Set-Content $verdictFile -Encoding utf8
     $verdict = ($json.Value | ConvertFrom-Json).verdict
     Write-Log "Day-$checkpoint verdict: $verdict"
@@ -108,10 +146,21 @@ foreach ($checkpoint in 30, 60) {
 # inside the existing 09:00 review means no new scheduled task to keep alive.
 if ($now.DayOfWeek -eq "Wednesday" -and $now -ge [DateTime]"2026-08-15") {
     Write-Log "Weekly SEO iteration: running indexing audit and writing the review queue."
-    Push-Location $root
-    cmd /c "npm.cmd run indexing-push -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-    $indexingExit = $LASTEXITCODE
-    Pop-Location
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "indexing audit")) {
+        Write-Log "Production contract changed before indexing audit."
+        exit 1
+    }
+    $indexingApproval = Test-PublicPublicationApproval -Root $root -Date $date
+    if (-not $indexingApproval.ok) {
+        Write-Log "BLOCKED public indexing audit: $($indexingApproval.reason)."
+        $indexingApproval.gaps | ForEach-Object { Write-Log ("BLOCKED public-approval gap: " + [string]$_) }
+        $indexingExit = 1
+    } else {
+        $indexingOut = Invoke-TrustedProductionNpm -Root $root run indexing-push -- --date $date 2>&1
+        $indexingExit = $LASTEXITCODE
+        if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "indexing audit output log write")) { exit 1 }
+        $indexingOut | Out-File -FilePath $logFile -Append -Encoding utf8
+    }
 
     $seoQueue = Join-Path $outDir "seo-weekly-$date.json"
     $gscReport = Join-Path $root "output\operations\gsc-performance-optimization.json"
@@ -128,6 +177,7 @@ if ($now.DayOfWeek -eq "Wednesday" -and $now -ge [DateTime]"2026-08-15") {
             "Apply at most one change per page, then hold it for 7 days"
         )
     }
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "weekly SEO queue write")) { exit 1 }
     $payload | ConvertTo-Json -Depth 4 | Out-File -FilePath $seoQueue -Encoding utf8
     if ($payload.needs_fresh_gsc_export) {
         Show-Toast "每週 SEO 迭代:需要新的 Search Console 匯出資料才能判讀。清單:output\reviews\seo-weekly-$date.json"

@@ -1,0 +1,50 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\output\\reels-run\\2026-07-29\\reels\\suede-shoe-nap-15s-tA.mp4",
+  "reel_sha256": "6486b917b0ee899fc0841867ccc50470ae404c64afc71bdc147ec2bfe9762c2f",
+  "treatment": "A",
+  "duration": 14,
+  "frames": [
+    {
+      "name": "before-p20.png",
+      "act": "before",
+      "t": 0.8,
+      "canary": "BK9C",
+      "sha256": "6412eec97aac870387171af2a94beeb872619a369ee7aec4359eb483ce4063ae"
+    },
+    {
+      "name": "before-p70.png",
+      "act": "before",
+      "t": 2.8,
+      "canary": "6N5B",
+      "sha256": "229afd6b389807c22b18d075320a1612736db37b9739b0e8c8c0d3a16f03722b"
+    },
+    {
+      "name": "middle-p20.png",
+      "act": "middle",
+      "t": 5.2,
+      "canary": "GTBC",
+      "sha256": "554631fc08e6eac0888860a38c12f25c3a01b731241adb81753c139903eef588"
+    },
+    {
+      "name": "middle-p70.png",
+      "act": "middle",
+      "t": 8.2,
+      "canary": "B7UW",
+      "sha256": "fba323a4b63f9e63f1f34d11ea56615cd8139377d2ee9f2383f4a31bbe1b6283"
+    },
+    {
+      "name": "after-p20.png",
+      "act": "after",
+      "t": 10.8,
+      "canary": "U5ER",
+      "sha256": "745cf8d1339ec109e820c8c90f7147d7ad878762f89c90529d4a1fedfd979d0e"
+    },
+    {
+      "name": "after-p70.png",
+      "act": "after",
+      "t": 12.8,
+      "canary": "SJ8K",
+      "sha256": "48f240616ec6f30950a97bc929a3de038e37a6f17afe031c3080a8e4b026f371"
+    }
+  ]
+}

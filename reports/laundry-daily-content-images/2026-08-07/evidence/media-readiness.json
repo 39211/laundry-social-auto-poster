@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "date": "2026-08-07",
+  "timezone": "Asia/Taipei",
+  "overall_status": "MATERIAL_NO_GO_VIDEO_DEFERRED",
+  "publishing_authorized": false,
+  "image_validation": {
+    "slot_1": {
+      "command": "npm.cmd run validate-publishable-images -- --date 2026-08-07 --slot 1",
+      "exit_code": 0,
+      "structural_result": "PASS",
+      "manual_visual_result": "MATERIAL_NO_GO",
+      "reason": "Pouch, zipper, lining, inner pocket, tray, card and powder-mark identity drift across the four slides; slide 4 adds a round hole."
+    },
+    "slot_2": {
+      "command": "npm.cmd run validate-publishable-images -- --date 2026-08-07 --slot 2",
+      "exit_code": 0,
+      "structural_result": "PASS",
+      "manual_visual_result": "MATERIAL_NO_GO",
+      "reason": "Card disappearance, three heel stops, fake measurement graphics, and shoe, lace, eyelet and mud identity drift across the four slides."
+    },
+    "manual_review_path": "output/operations/2026-08-07-image-qa/manual-review.json",
+    "decision_rule": "File/source validation cannot override the stricter date-scoped human visual QA."
+  },
+  "video_validation": {
+    "command": "npm.cmd run validate-publishable-media -- --date 2026-08-07 --slot 1",
+    "exit_code": 0,
+    "validator_scope": "date_level_both_slots",
+    "slot_1": {
+      "status": "VIDEO_DEFERRED",
+      "reason": "Current video file is missing after the first-frame gate stopped production before paid submission."
+    },
+    "slot_2": {
+      "status": "VIDEO_DEFERRED",
+      "reason": "The existing MP4 is stale and its recorded prompt hash does not match the current video prompt."
+    },
+    "first_frame_review_path": "video-production/runs/2026-08-07-daily-companion-v01/qa/first-frame-review.json",
+    "hermes_readiness_path": "output/operations/2026-08-07-hermes-readiness.json",
+    "paid_submission_count": 0,
+    "tts_created": false,
+    "master_created": false,
+    "video_source_or_review_written": false
+  },
+  "repair_queue": {
+    "path": "data/video-repair-queue/queue.json",
+    "video_deferred_count_after_run": 16,
+    "current_date_entries": 2,
+    "resolved_by_this_run": 0,
+    "next_production_cycle_required": true
+  },
+  "governance": {
+    "approval_written": false,
+    "approved_log_written": false,
+    "posted_log_written": false,
+    "facebook_published": false,
+    "instagram_published": false
+  }
+}

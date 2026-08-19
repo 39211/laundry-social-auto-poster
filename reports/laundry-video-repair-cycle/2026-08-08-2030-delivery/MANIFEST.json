@@ -1,0 +1,21 @@
+{
+  "package": "laundry-video-repair-cycle-20260808-2030-v01",
+  "created_at": "2026-08-08T20:41:06.0130598+08:00",
+  "verdict": "NO_GO_VIDEO_DEFERRED",
+  "files": [
+    {"entry":"READ-FIRST.md","purpose":"review entry point"},
+    {"entry":"report.md","purpose":"full cycle report"},
+    {"entry":"audit-summary.json","purpose":"machine-readable outcome and mutation boundary"},
+    {"entry":"current-run-decode.json","purpose":"current-run retained-raw decode results without raw media"},
+    {"entry":"preproduction-contract-current.json","purpose":"current governance result"},
+    {"entry":"queue-snapshot.json","purpose":"post-correction repair queue snapshot"},
+    {"entry":"2026-08-08-first-frame-review.json","purpose":"current first-frame gate evidence"},
+    {"entry":"2026-08-08-hermes-readiness.json","purpose":"sanitized existing date-scoped readiness evidence"},
+    {"entry":"2026-08-08-media-readiness.json","purpose":"date-scoped media and material gate evidence"},
+    {"entry":"2026-08-08-video-script-review.json","purpose":"current script gate evidence"},
+    {"entry":"2026-08-08-posted-log.json","purpose":"read-only same-day publication evidence"},
+    {"entry":"knowledge-pack-manifest.json","purpose":"knowledge version, cutoff and limitations"},
+    {"entry":"CHECKSUMS.sha256","purpose":"package integrity list"}
+  ],
+  "excluded": ["raw MP4", "credentials", "OAuth tokens", "API keys", "browser data", "customer media"]
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "date": "2026-08-07",
+    "slot": 3,
+    "source": "grok-imagine-video",
+    "model": "grok-imagine-video-1.5",
+    "video_path": "docs/assets/2026-08-07/slot-03.mp4",
+    "source_route": "hermes-xai-oauth",
+    "source_reference": "copx:output/reels-run/2026-07-29/report-backpack-base-before.json",
+    "generation_id": "sixiangjia_backpack_base_before_v01",
+    "recorded_at": "2026-08-07T02:20:06.984Z"
+  },
+  {
+    "date": "2026-08-07",
+    "slot": 2,
+    "source": "grok-imagine-video",
+    "model": "grok-imagine-video-1.5",
+    "video_path": "docs/assets/2026-08-07/slot-02.mp4",
+    "source_route": "hermes-xai-oauth",
+    "source_reference": "copx:output/reels-run/2026-07-29/report-suit-shoulder-before.json",
+    "generation_id": "sixiangjia_suit_shoulder_before_v01",
+    "recorded_at": "2026-08-07T02:20:07.154Z"
+  }
+]

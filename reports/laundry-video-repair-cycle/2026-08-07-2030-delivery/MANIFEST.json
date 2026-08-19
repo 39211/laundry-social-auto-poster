@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "package": "laundry-video-repair-cycle-20260807-2030-v01",
+  "verdict": "NO_GO_VIDEO_DEFERRED",
+  "contains_raw_media": false,
+  "contains_secrets": false,
+  "contains_publication_command": false,
+  "files_excluding_checksums": 16,
+  "entry_points": ["READ-FIRST.md", "report.md", "audit-summary.json"],
+  "evidence": [
+    "queue-snapshot.json",
+    "current-run-decode.json",
+    "first-frame-integrity.json",
+    "preproduction-contract-current.json",
+    "2026-08-07-first-frame-review.json",
+    "2026-08-07-hermes-readiness.json",
+    "2026-08-07-media-readiness.json",
+    "2026-08-07-image-manual-review.json",
+    "2026-08-07-video-candidates.json",
+    "2026-08-07-video-sources.json",
+    "2026-08-07-video-reviews.json",
+    "2026-08-07-posted-log.json"
+  ]
+}

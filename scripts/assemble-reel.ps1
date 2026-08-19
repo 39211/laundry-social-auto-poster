@@ -36,6 +36,22 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "_production-contract.ps1")
+if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage "Reel assembly")) {
+    throw "BLOCKED production contract before Reel assembly."
+}
+$trustedFfmpeg = Resolve-TrustedProductionFfmpegExecutable -Root $root
+$trustedFfprobe = Resolve-TrustedProductionFfprobeExecutable -Root $root
+if (-not $trustedFfmpeg -or -not $trustedFfprobe) {
+    throw "BLOCKED Reel assembly: trusted allowlisted ffmpeg.exe or ffprobe.exe could not be established."
+}
+
+function Assert-ReelAssemblyContract([string]$Stage) {
+    if (-not (Assert-CleanProductionContractBeforeAction -Root $root -Stage $Stage)) {
+        throw "BLOCKED production contract before $Stage."
+    }
+}
 
 $before = Join-Path $Run "raw\$ConceptId-before.mp4"
 $after = Join-Path $Run "raw\$ConceptId-after.mp4"
@@ -51,6 +67,7 @@ foreach ($f in @($before, $after)) {
 }
 
 $outDir = Join-Path $Run "reels"
+Assert-ReelAssemblyContract "Reel output directory preparation"
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 if ($threeAct) {
     $out = Join-Path $outDir "$ConceptId-15s.mp4"
@@ -58,6 +75,7 @@ if ($threeAct) {
     $out = Join-Path $outDir "$ConceptId.mp4"
 }
 $assembledAt = Get-Date
+Assert-ReelAssemblyContract "Reel output replacement"
 if (Test-Path $out) { Remove-Item $out -Force }
 
 # A phone-shot look has no clean font of its own, so the subtitle carries its
@@ -101,21 +119,24 @@ if ($threeAct) {
 "@ -replace "`r`n", ""
     $audioDur = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0:0.##}", $totalDur)
     $hasNarration = $NarrationFile -and (Test-Path $NarrationFile)
+    Assert-ReelAssemblyContract "three-act Reel assembly render"
     if ($hasNarration) {
         $audioGraph = "[3:a]lowpass=f=350,volume=0.55[bed];[4:a]adelay=500:all=1,volume=1.4[voice];[bed][voice]amix=inputs=2:duration=first:normalize=0[aout]"
-        & ffmpeg -v error -y -i $before -i $middle -i $after `
-            -f lavfi -t $audioDur -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
-            -i $NarrationFile `
-            -filter_complex "$filter;$audioGraph" -map "[vout]" -map "[aout]" `
-            -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p `
-            -c:a aac -ar 48000 -b:a 96k -shortest $out
+        Invoke-TrustedProductionFfmpeg -Root $root -CommandArguments @(
+            "-v", "error", "-y", "-i", $before, "-i", $middle, "-i", $after,
+            "-f", "lavfi", "-t", $audioDur, "-i", "anoisesrc=colour=brown:amplitude=0.02:seed=7",
+            "-i", $NarrationFile, "-filter_complex", "$filter;$audioGraph", "-map", "[vout]", "-map", "[aout]",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-ar", "48000", "-b:a", "96k", "-shortest", $out
+        )
     } else {
-        & ffmpeg -v error -y -i $before -i $middle -i $after `
-            -f lavfi -t $audioDur -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
-            -filter_complex $filter -map "[vout]" -map "3:a" `
-            -af "lowpass=f=350,volume=0.55" `
-            -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p `
-            -c:a aac -ar 48000 -b:a 96k -shortest $out
+        Invoke-TrustedProductionFfmpeg -Root $root -CommandArguments @(
+            "-v", "error", "-y", "-i", $before, "-i", $middle, "-i", $after,
+            "-f", "lavfi", "-t", $audioDur, "-i", "anoisesrc=colour=brown:amplitude=0.02:seed=7",
+            "-filter_complex", $filter, "-map", "[vout]", "-map", "3:a", "-af", "lowpass=f=350,volume=0.55",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-ar", "48000", "-b:a", "96k", "-shortest", $out
+        )
     }
 } else {
     $hookText = Get-DrawText -Text $Hook -From 0 -To 2.6 -Y 200
@@ -137,21 +158,24 @@ if ($threeAct) {
     # landing. A sidecar declares all audio as post-added so the review gate can
     # tell it apart from a model-generated track.
     $hasNarration = $NarrationFile -and (Test-Path $NarrationFile)
+    Assert-ReelAssemblyContract "two-act Reel assembly render"
     if ($hasNarration) {
         $audioGraph = "[2:a]lowpass=f=350,volume=0.55[bed];[3:a]adelay=500:all=1,volume=1.4[voice];[bed][voice]amix=inputs=2:duration=first:normalize=0[aout]"
-        & ffmpeg -v error -y -i $before -i $after `
-            -f lavfi -t 9.67 -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
-            -i $NarrationFile `
-            -filter_complex "$filter;$audioGraph" -map "[vout]" -map "[aout]" `
-            -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p `
-            -c:a aac -ar 48000 -b:a 96k -shortest $out
+        Invoke-TrustedProductionFfmpeg -Root $root -CommandArguments @(
+            "-v", "error", "-y", "-i", $before, "-i", $after,
+            "-f", "lavfi", "-t", "9.67", "-i", "anoisesrc=colour=brown:amplitude=0.02:seed=7",
+            "-i", $NarrationFile, "-filter_complex", "$filter;$audioGraph", "-map", "[vout]", "-map", "[aout]",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-ar", "48000", "-b:a", "96k", "-shortest", $out
+        )
     } else {
-        & ffmpeg -v error -y -i $before -i $after `
-            -f lavfi -t 9.67 -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
-            -filter_complex $filter -map "[vout]" -map "2:a" `
-            -af "lowpass=f=350,volume=0.55" `
-            -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p `
-            -c:a aac -ar 48000 -b:a 96k -shortest $out
+        Invoke-TrustedProductionFfmpeg -Root $root -CommandArguments @(
+            "-v", "error", "-y", "-i", $before, "-i", $after,
+            "-f", "lavfi", "-t", "9.67", "-i", "anoisesrc=colour=brown:amplitude=0.02:seed=7",
+            "-filter_complex", $filter, "-map", "[vout]", "-map", "2:a", "-af", "lowpass=f=350,volume=0.55",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-ar", "48000", "-b:a", "96k", "-shortest", $out
+        )
     }
 }
 
@@ -159,6 +183,7 @@ if ($LASTEXITCODE -ne 0) { throw "Assembly ffmpeg failed (exit $LASTEXITCODE) fo
 if (-not (Test-Path $out)) { throw "Assembly produced no file for $ConceptId" }
 if ((Get-Item $out).LastWriteTime -lt $assembledAt) { throw "Assembly left stale output for $ConceptId" }
 
+Assert-ReelAssemblyContract "Reel audio sidecar write"
 @{ source = "post-ambient-bed"; narration = $hasNarration; generated_clip_audio_used = $false; narr_delay_ms = 500 } |
     ConvertTo-Json | Set-Content "$out.audio.json" -Encoding utf8
 
@@ -166,8 +191,9 @@ if ((Get-Item $out).LastWriteTime -lt $assembledAt) { throw "Assembly left stale
 # assembly filter graphs above stay untouched. Runs only here, on a freshly
 # assembled file — never retroactively on an already-reviewed asset.
 if ($hasNarration -and $NarrationText.Trim()) {
+    Assert-ReelAssemblyContract "Reel subtitle burn"
     & (Join-Path $PSScriptRoot "burn-narration-subs.ps1") -ReelPath $out `
         -NarrationText $NarrationText -TtsFile $NarrationFile -DelayMs 500
 }
-$info = & ffprobe -v error -select_streams v:0 -show_entries stream=width,height -show_entries format=duration -of csv=p=0 $out
+$info = Invoke-TrustedProductionFfprobe -Root $root -CommandArguments @("-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-show_entries", "format=duration", "-of", "csv=p=0", $out)
 "{0}  ->  {1}" -f $ConceptId, ($info -join " ")

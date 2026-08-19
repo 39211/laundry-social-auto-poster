@@ -14,7 +14,7 @@ import {
   type GrowthPlaybookSlot
 } from "./growthPlaybook";
 import { getConfig } from "./config";
-import { contentCalendarPath, projectRoot, relativeAssetPath, relativeCarouselAssetPath, relativeVideoAssetPath } from "./paths";
+import { contentCalendarPath, postedLogPath, projectRoot, relativeAssetPath, relativeCarouselAssetPath, relativeVideoAssetPath } from "./paths";
 import { DAILY_SCHEDULE, getZonedDateParts } from "./scheduler";
 import type {
   AppConfig,
@@ -1151,6 +1151,79 @@ function recentCalendarTopics(date: string, days: number, root: string): string[
   return topics;
 }
 
+/** Approval's seven-day window. Slot 1 generation must use the same length. */
+export const SLOT1_AIRED_REPEAT_WINDOW_DAYS = 7;
+
+const AIRED_POST_STATUSES = new Set(["success", "posted", "uncertain"]);
+
+/**
+ * Topics that actually went out. A calendar sitting on disk is not history —
+ * 2026-08-19 slot 1 reused 白鞋 because generation compared plan-vs-plan
+ * (and the 七夕 holiday override named 白鞋) while the seven-day approval
+ * gate then blocked the morning post against 8/14's already-aired 白鞋.
+ * Dark calendars and failed dry-runs stay out.
+ */
+export function recentAiredTopics(date: string, days: number, root: string): string[] {
+  const topics: string[] = [];
+  const seen = new Set<string>();
+  for (let back = 1; back <= days; back += 1) {
+    const prevDate = addUtcDays(date, -back);
+    const airedSlots = new Set<number>();
+    try {
+      const raw = readFileSync(postedLogPath(prevDate, root), "utf8").replace(/^\uFEFF/u, "");
+      const parsed = JSON.parse(raw) as Array<{ slot?: number; status?: string; dry_run?: boolean }>;
+      if (Array.isArray(parsed)) {
+        for (const entry of parsed) {
+          if (entry.dry_run) continue;
+          if (typeof entry.slot !== "number") continue;
+          if (entry.status && AIRED_POST_STATUSES.has(entry.status)) {
+            airedSlots.add(entry.slot);
+          }
+        }
+      }
+    } catch {
+      // No posted-log: this day did not air.
+    }
+    if (airedSlots.size === 0) continue;
+    try {
+      const raw = readFileSync(contentCalendarPath(prevDate, root), "utf8").replace(/^\uFEFF/u, "");
+      const parsed = JSON.parse(raw) as { slots?: Array<{ slot?: number; topic?: string }> };
+      for (const slot of parsed.slots ?? []) {
+        if (typeof slot.slot !== "number" || !slot.topic) continue;
+        if (!airedSlots.has(slot.slot)) continue;
+        if (seen.has(slot.topic)) continue;
+        seen.add(slot.topic);
+        topics.push(slot.topic);
+      }
+    } catch {
+      // An aired slot without a calendar cannot name its topic.
+    }
+  }
+  return topics;
+}
+
+/** Swap a colliding slot-1 playbook row for the first later slot-1 that is clear. */
+export function resolveSlot1AgainstAired(
+  playbookSlot: GrowthPlaybookSlot,
+  airedTopics: string[]
+): GrowthPlaybookSlot {
+  if (!topicRepeatsInWindow(playbookSlot.topic, airedTopics)) return playbookSlot;
+  const playbook = buildGrowthPlaybook();
+  for (const day of playbook.days) {
+    const candidate = day.slots.find((item) => item.slot === 1);
+    if (!candidate || candidate.topic === playbookSlot.topic) continue;
+    const rebased: GrowthPlaybookSlot = {
+      ...candidate,
+      date: playbookSlot.date,
+      day: playbookSlot.day,
+      slot: playbookSlot.slot,
+      time: playbookSlot.time
+    };
+    if (!topicRepeatsInWindow(rebased.topic, airedTopics)) return rebased;
+  }
+  return playbookSlot;
+}
+
 /**
  * A paused evening half is not "a reel with a different concept". It is no
  * reel. Playbook Tuesdays/Thursdays/Saturdays still emit format=reel, which is
@@ -2093,6 +2166,10 @@ function dailySlotFromTemplate(date: string, schedule: (typeof DAILY_SCHEDULE)[n
 export interface BuildDailyContentOptions {
   root?: string;
   abPlan?: AbDayPlan[];
+  /** When set, skip disk and use this as-aired window (tests). */
+  airedTopics?: string[];
+  /** Load posted-log ∩ calendar topics and swap slot 1 off that window. */
+  applyAiredCooldown?: boolean;
 }
 
 export function buildDailyContent(
@@ -2107,12 +2184,20 @@ export function buildDailyContent(
   const occupiedTopics = eveningPaused
     ? recentCalendarTopics(date, TOPIC_REPEAT_WINDOW_DAYS, root)
     : [];
+  const airedTopics =
+    options.airedTopics ??
+    (options.applyAiredCooldown ? recentAiredTopics(date, SLOT1_AIRED_REPEAT_WINDOW_DAYS, root) : []);
 
   const playbookSlots = playbookSlotsForDate(date);
+  const rawSlot1 = playbookSlots?.find((slot) => slot.slot === 1);
+  const resolvedSlot1 = rawSlot1 ? resolveSlot1AgainstAired(rawSlot1, airedTopics) : undefined;
   const slots: DailySlot[] = DAILY_SCHEDULE.map((schedule) => {
-    const playbookSlot = playbookSlots?.find((slot) => slot.slot === schedule.slot);
+    const playbookSlot =
+      schedule.slot === 1 && resolvedSlot1
+        ? resolvedSlot1
+        : playbookSlots?.find((slot) => slot.slot === schedule.slot);
     if (schedule.slot === 2 && eveningPaused && playbookSlot) {
-      const slot1Topic = playbookSlots?.find((slot) => slot.slot === 1)?.topic;
+      const slot1Topic = resolvedSlot1?.topic ?? rawSlot1?.topic;
       const resolved = playbookSlotForPausedEvening(
         playbookSlot,
         slot1Topic ? [slot1Topic, ...occupiedTopics] : occupiedTopics

@@ -231,7 +231,7 @@ if ($hasCalendar) {
             $hookLine = "`nHook style reference for today (rewrite for the object, do not copy verbatim): $pick`n"
         }
     } catch {}
-    $planLine = $hookLine + "`nToday's slot 1 MUST be about this object (from the committed 90-day plan): $plannedObject. Write a fresh hook and captions for it; do not substitute another object. Slot 1 topics from the last 7 days are off-limits.`n"
+    $planLine = $hookLine + "`nToday's slot 1 MUST be about this object (from the committed 90-day plan): $plannedObject. Write a fresh hook and captions for it; do not substitute another object unless npm run generate already swapped it. Objects that actually published in the last 7 days (posted-log success/posted/uncertain — not unpublished calendars) are off-limits.`n"
         Write-Log "Slot 1 planned object for ${date}: $plannedObject"
     }
     $prompt = @"

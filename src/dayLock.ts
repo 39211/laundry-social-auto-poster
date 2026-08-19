@@ -92,6 +92,10 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const root = projectRoot(getOption(args, "root"));
   const config = getConfig();
+  // standalone fallback=today,由呼叫方負責傳日期.
+  // Production callers (daily-generate, daily-approve, catchup-publish) all
+  // pass --date. Do not change this default: a naked `npm run day-lock` is
+  // today on purpose, and unknown manual callers may rely on that.
   const date = getOption(args, "date") ?? getZonedDateParts(new Date(), config.timezone).date;
   const result = getFlag(args, "heal") ? await healDay(date, root) : await lockDay(date, root);
   console.log(`${date}: ${result}`);

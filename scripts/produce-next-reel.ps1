@@ -6,15 +6,20 @@
 # (3) schedules both plan halves for the days those assets serve.
 #
 # Mid-treatment A/B/C (2026-08-12..14): when data/mid-treatment-plan.json maps
-# today's date to A/B/C, assembly applies that mid-video treatment, writes
-# reels with -tA/-tB/-tC suffix, records treatment on the concept manifest, and
-# copies to the scheduleReel standard name. Missing plan -> current three-act
-# + warning. -MidTestDryRun writes storyboard timelines only (no paid gen).
+# the target date ($date) to A/B/C, assembly applies that mid-video treatment,
+# writes reels with -tA/-tB/-tC suffix, records treatment on the concept
+# manifest, and copies to the scheduleReel standard name. Missing plan ->
+# current three-act + warning. -MidTestDryRun writes storyboard timelines
+# only (no paid gen).
+#
+# Default target is Taipei today+3 (D+3 buffer). -Date overrides that so a
+# catch-up can produce D+1/D+2/D+3 individually.
 #
 # Every step is resumable. The script does the next unfinished thing and stops,
 # so a failed day costs that day only. It never approves and never live-publishes
 # to Meta (publish-pages only pushes the public asset host).
 param(
+    [string]$Date = "",
     [switch]$MidTestDryRun
 )
 $ErrorActionPreference = "Continue"
@@ -47,7 +52,7 @@ try {
 $run = Join-Path $root "output\reels-run\2026-07-29"
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
 $now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
-$date = $now.AddDays(3).ToString("yyyy-MM-dd")
+$date = if ($Date) { $Date } else { $now.AddDays(3).ToString("yyyy-MM-dd") }
 
 $logDir = Join-Path $root "output\reel-production-logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
@@ -430,7 +435,8 @@ $treatmentNeedsMiddle = ($midTreatment -eq "A" -or $midTreatment -eq "B" -or $mi
 # Four-day window, not three: with one asset produced per run, a day needing
 # two 15s cuts (2026-08-14) only entered view 48 hours out, leaving no room for
 # a failed generation. Four days keeps a spare day for every plan slot.
-$windowDays = Get-PlanDaysInWindow $now.Date 4
+# Window starts at $date (D+3 by default, or -Date), not wall-clock today.
+$windowDays = Get-PlanDaysInWindow $date 4
 $targetVariant = "10s"
 $concept = $null
 $conceptInfo = $null
@@ -480,7 +486,7 @@ if ($missing15s.Count -gt 0) {
         # returned "middle treatment had no effect" -- an answer produced by
         # never having treated anything. Pick the concept the plan actually
         # publishes that day so the treatment lands on the reel that airs.
-        $todayStr = $now.ToString("yyyy-MM-dd")
+        $todayStr = $date
         $todayTreatment = Get-MidTreatment $todayStr
         if ($todayTreatment -and $todayTreatment -ne "none") {
             $planRow = @(Get-AbTestPlan | Where-Object { $_.date -eq $todayStr }) | Select-Object -First 1

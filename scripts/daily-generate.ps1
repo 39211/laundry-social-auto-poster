@@ -89,7 +89,7 @@ if ($hasCalendar) {
     }
     if ($shouldRebuild) {
         Write-Log "Calendar tamper detected for $date; rebuilding from plan before the images-ready exit."
-        Show-Toast ("今天 ($date) 的行事曆被外部寫手竄改,已從 plan 強制重建。證據: output\operations\calendar-tamper-$date.json")
+        Show-Toast ("目標日 ($date) 的行事曆被外部寫手竄改,已從 plan 強制重建。證據: output\operations\calendar-tamper-$date.json")
         Push-Location $root
         cmd /c "npm.cmd run generate -- --date $date --force 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
         cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
@@ -252,7 +252,7 @@ $output | Out-File -FilePath $logFile -Append -Encoding utf8
 
 if ($exitCode -ne 0) {
     Write-Log "Codex exited with $exitCode."
-    Show-Toast "今天 ($date) 的內容生成失敗,請看 output\daily-generate-logs\$date.log"
+    Show-Toast "目標日 ($date) 的內容生成失敗,請看 output\daily-generate-logs\$date.log"
     Publish-Site | Out-Null
     exit 1
 }
@@ -275,7 +275,7 @@ if ((Test-Path $calendar) -and $imagesReadyNow) {
     Pop-Location
 } elseif (Test-Path $calendar) {
     Write-Log "Codex finished but images for $date are still missing."
-    Show-Toast "今天 ($date) 的圖片沒有生成完整,slot 1 可能發不出去,請看 log。"
+    Show-Toast "目標日 ($date) 的圖片沒有生成完整,slot 1 可能發不出去,請看 log。"
     Publish-Site | Out-Null
     exit 1
 } else {

@@ -2,9 +2,9 @@
 # Codex non-interactively rather than calling npm scripts directly.
 # Generation only: approval and publishing are separate stages with their own gates.
 #
-# -Date generates a day other than today, which is how a date whose calendar was
-# written early (by scheduling a Reel into it) gets its images before the
-# morning it is due.
+# Default target is Taipei today+3 (D+3 buffer inventory). -Date overrides that,
+# which is how a catch-up or a date whose calendar was written early gets its
+# images before the morning it is due.
 param([string]$Date = "")
 
 $ErrorActionPreference = "Continue"
@@ -16,7 +16,7 @@ $root = Split-Path -Parent $PSScriptRoot
 
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
 $now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
-$date = if ($Date) { $Date } else { $now.ToString("yyyy-MM-dd") }
+$date = if ($Date) { $Date } else { $now.AddDays(3).ToString("yyyy-MM-dd") }
 
 $logDir = Join-Path $root "output\daily-generate-logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null

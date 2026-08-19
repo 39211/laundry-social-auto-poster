@@ -47,7 +47,7 @@ try {
 $run = Join-Path $root "output\reels-run\2026-07-29"
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
 $now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
-$date = $now.ToString("yyyy-MM-dd")
+$date = $now.AddDays(3).ToString("yyyy-MM-dd")
 
 $logDir = Join-Path $root "output\reel-production-logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null

@@ -363,18 +363,29 @@
 - **我的白天失明**:又一次沒有任何看守能在 10:20/11:30 叫醒我(F21 教訓寫了沒做全)——靠哨兵 v2 的 Toast 補上人眼通道;session 層的白天看守待補(排程喚醒不可用時只剩 Toast 通道)。
 - **新系統病(明天差點三進宮)**:8/19 slot1 撞 8/14 白鞋、8/20 slot1 撞 8/15 帆布鞋——行事曆「生成時」的冷卻檢查沒有對齊「核准時」的七天實發窗(plan-vs-plan ≠ plan-vs-aired)。短修:逐日換題手術(W-SLOT1SWAP 模式);根修:生成器冷卻檢查改對 as-aired 歷史,排入優化工。
 
-## F23|2026-08-20 01:07:一過性 Codex DPAPI 沙箱失敗(不是本次改動造成)
-- **現象**:D+3 補貨對 8/21 跑 `daily-generate.ps1`,`codex exec -s workspace-write`
-  在任何指令啟動前就死於 `CryptUnprotectData failed: 2148073483`(Windows 憑證解密失敗),
-  日誌顯示連我自己派的唯讀複查都重現同一錯誤——當下判斷不是隨機抖動。
-- **排查**:①`codex login status`(前景)秒過,帳號登入正常②`daily-generate.ps1:186`
-  本身已有註解記載這個確切錯誤字串,證實是已知現象,已有「calendar 存在但缺圖」情境的
-  唯讀繞道,但「calendar 完全不存在」的全新生成路徑(workspace-write)當時沒有繞道
-  ③直接原地重現同一 `codex exec -s workspace-write` 呼叫(前景,無害 prompt)→
-  **乾淨成功回 OK,零錯誤**。結論:**一過性**,不是這台機器現在的常態,
-  重跑同一指令自己就過了。
-- **未解**:根因未定(螢幕鎖定?session token 過期重取?)——`query session` 顯示
-  session Active、`GetForegroundWindow` 非零,兩者都不是決定性證據,沒有再深查
-  (環境阻塞不可過度推論,查到「一過性」為止,不編造根因)。
-- **後續**:若未來規律性在特定時段(如深夜/長時間閒置後)重現,升級為真正需要修的模式;
-  單次事件先記錄,不動排程設定。
+## F23|2026-08-20 01:07-01:16:背景執行破壞 Codex 的 DPAPI 桌面權限(根因已鎖定,非一過性)
+- **現象**:D+3 補貨對 8/21 跑 `daily-generate.ps1`(透過總指揮工具的背景執行),
+  `codex exec -s workspace-write` 在任何指令啟動前就死於
+  `CryptUnprotectData failed: 2148073483`(Windows 憑證解密失敗)——**連續兩次**,
+  不是單次抖動(第一版判斷「一過性」是錯的,見下方對照實驗)。
+- **排查(對照實驗鎖定變因)**:
+  ①`codex login status`(前景)秒過,帳號登入正常
+  ②`daily-generate.ps1:186` 本身有註解記載這個確切錯誤字串,是已知現象,已有
+  「calendar 存在但缺圖」情境的唯讀繞道,但「calendar 完全不存在」的全新生成路徑
+  (workspace-write)沒有繞道
+  ③**前景**用 Bash 直接呼叫同一個 `codex exec -s workspace-write`(PATH 解析的
+  無副檔名啟動器)→ 乾淨成功
+  ④**前景**用 PowerShell 呼叫腳本裡寫死的**同一個 `.cmd` 路徑**
+  (`%APPDATA%\npm\codex.cmd`)→ 一樣乾淨成功
+  ⑤兩次真正失敗都發生在**背景執行**(`daily-generate.ps1` 整支透過總指揮工具的
+  background 機制跑)。
+- **結論**:變因是**背景執行本身**,不是 `.cmd` 啟動器、不是帳號、不是隨機抖動。
+  總指揮工具的背景執行機制會讓子行程(codex.cmd → node.exe)失去互動桌面
+  (window station)存取權,而 DPAPI 的 `CryptUnprotectData` 在這台機器上依賴
+  互動桌面才能解出憑證。前景執行(不管 Bash 或 PowerShell)不受影響。
+- **對 06:30 真排程的風險評估**:低。Windows 工作排程器的 `Laundry-Daily-Generate`
+  設定是 `LogonType=Interactive`,這與總指揮工具的背景執行是不同的行程建立機制,
+  一般會保留與登入使用者相同的互動桌面存取——但這是根據已知 Windows 行為推論,
+  **沒有在真實排程時窗實測過**,不是已證實無風險,只是風險評估為低。
+- **本機教訓**:呼叫任何會啟動 Codex(或其他依賴 DPAPI 的工具)的腳本,
+  一律用**前景**執行,不要用背景執行機制——已寫入長期記憶,不只是這次事故。

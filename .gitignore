@@ -36,3 +36,7 @@ research/**/*.verification-failure.png
 
 # local credential files - never commit
 secrets/
+
+# Python bytecode cache; scripts/ holds a few .py helpers and their cache kept
+# reappearing as untracked noise in every status check.
+__pycache__/

@@ -141,6 +141,58 @@ function Test-ConceptRejected([string]$ConceptId) {
     return ((Get-RejectedConceptIds) -contains $ConceptId)
 }
 
+# Per-object contact physics for the [Core physics] block. Generic "weight +
+# contact shadow" is banned: name how water, foam, bristles or dust actually
+# move on this object type.
+function Get-CorePhysics([string]$ObjectType) {
+    switch ($ObjectType) {
+        "white-shoe" { return "Brush tips bend as they press the oxidised foxing; a wet edge creeps along the amber line without lifting the canvas weave; foam gathers in the foxing stitch groove and stays there." }
+        "handbag" { return "A cloth compresses the handle leather so the honey grip-sheen dulls at the contact; residual oil beads then wipes along the rivet ring; the bag body stays planted with a hard contact shadow." }
+        "leather-shoe" { return "A damp cloth advances the rain tide-line millimetre by millimetre across the vamp grain; water darkens the crease then recedes, leaving the leather matte, not glossy." }
+        "plush-doll" { return "Brush bristles separate matted fur strand by strand; each pass lifts the grey mat and the fibres spring back slowly; filling under the fur does not clump or shift." }
+        "duvet" { return "Steam barely lifts the limp cover, then loft slowly returns inside each quilting channel; the fold-edge film shears off as a thin grey film instead of a stain vanishing." }
+        "leather-bag" { return "A small brush works the worn arris; bristles bend against the remaining edge-paint; a tiny wet patch darkens the scuff cloud then dries a shade closer to the surrounding leather." }
+        "shirt" { return "A cloth follows the inner collar band; the yellow sebum ring wets darker then lightens from the centre out; cuff-fold grit lifts as a thin line and the weave does not pill." }
+        "suit" { return "Steam relaxes the drooped pad ridge so the shoulder line rises; the lapel crease memory softens instead of popping flat; wool nap stays put, no new shine bloom." }
+        "curtain" { return "A brush rakes the hem fold and packed dust lifts as a grey ribbon from the floor edge inward; the sun-fade band does not change colour, only the loose dust leaves." }
+        "luggage" { return "A cloth pulls packed grit out of each wheel void; the lower-panel film shears off in a dirty edge that advances; wheels stay on the mat with a rolling contact shadow." }
+        "backpack" { return "A stiff brush works the base crust so grit breaks into crumbs; the strap-pad salt line wets and fades; the pack keeps its slumped weight on the counter." }
+        "canvas-shoe" { return "Dry mud lifts as flakes from the canvas weave instead of smearing; a soft brush bends into the foxing stitch; fibres do not fluff because the mud is not wet-scrubbed." }
+        "down-jacket" { return "A cloth works oil out of the ribbed cuff; the dark band wets then lightens from the wrist inward; down in the sleeve does not clump or migrate." }
+        "wool-coat" { return "A brush lifts the pale dust band from the shoulder seam; fibres spring back along the twill; the coat keeps its hanging drape, no nap crush." }
+        "suede-shoe" { return "A suede brush lifts flattened nap so the shiny vamp turns matte again; each stroke follows one nap direction; no wet smear darkens the tan." }
+        "high-heel" { return "A cloth cleans the upper around the worn heel tip; the pale exposed core stays exposed; edge paint on the tip does not magically regrow." }
+        "leather-belt" { return "Conditioner darkens the cracked crease then evens out; the white fracture line stays visible as a hairline; the belt keeps its curl from the habitual hole." }
+        "mattress-pad" { return "A wet edge advances across the yellow sweat ring from the centre out; quilting channels stay lofted; no bleach bloom appears." }
+        "blanket" { return "Pills shear off at the fibre root and the surface goes flat; neighbouring pile is not pulled into new pills; colour stays the same grey." }
+        "denim" { return "A press relaxes the stretched knee bowl; indigo stays paler at the bend; the leg does not snap back to unworn shape." }
+        "wallet" { return "A cloth settles lifted edge fibres; remaining thin edge-paint stays thin; the corner does not grow new coating." }
+        "kids-shoe" { return "A brush lifts grey scuff from the rubber toe cap; fine scratches remain in the rubber; the upper stays planted with a hard contact shadow." }
+        "hiking-boot" { return "Dried mud breaks out of each lug void as crumbs; the outsole pattern reappears groove by groove; leather uppers do not darken from over-wetting." }
+        "sweater" { return "A cloth works the underarm yellow patch; the stain wets darker then lightens; knit loops stay the same size, no stretch bloom." }
+        default { return "At the contact point the tool deforms slightly and a wet or lifted edge advances only there; the rest of the object stays exactly as the still shows." }
+    }
+}
+
+# Per-act bans only. A shared tail on every shot is banned; before does not
+# need hand rules, middle does.
+function Get-ActBans([string]$State) {
+    switch ($State) {
+        "before" {
+            return "Do not clean, repair or transform the object. Do not add people, faces, readable text, captions or logos. Do not add or remove objects."
+        }
+        "middle" {
+            return "Hands stay anatomically correct: five fingers, no fusing, no extra hand entering. Keep the tool on the worn spot already shown; do not enlarge the cleaned patch, do not add a second tool, do not add faces, readable text, captions or logos."
+        }
+        "after" {
+            return "Do not re-soil or reverse the cleaned condition. Do not add extra people, faces, readable text, captions or logos. The object stays the same physical item."
+        }
+        default {
+            return "Do not add people, readable text, captions or logos."
+        }
+    }
+}
+
 function Get-TreatedNarrationText([string]$narration, [string]$treatment) {
     if ($treatment -ne "A" -and $treatment -ne "B") { return $narration }
     $parts = [regex]::Split($narration, '(?<=[。！？])') | Where-Object { $_.Trim().Length -gt 0 }
@@ -671,21 +723,20 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
                 "after"  { "Shot summary: the same object, cleaned, settles in frame." }
                 default  { "Shot summary: the object holds in frame." }
             }
-            $template.prompt = "No music, no on-screen text, no subtitles, no captions. " +
-                "[Overall look] Handheld phone photography, real physics, ordinary shop lighting; not cinematic, not a studio, no 3D-render or game-engine look, no illustration. " +
+            $corePhysics = Get-CorePhysics $objectType
+            $actBans = Get-ActBans $state
+            # Four style blocks stay first. Duration/aspect/resolution stay on
+            # the manifest, not in this prose. Bans are per-act, not a shared tail.
+            $template.prompt = "[Overall look] Handheld phone photography, real physics, ordinary shop lighting; not cinematic, not a studio, no 3D-render or game-engine look, no illustration. " +
                 "[Material] Keep the object's exact material, colour, wear marks, fittings and laces as supplied -- leather grain, fabric weave, rubber edge and every existing mark stay identical. " +
                 "[Light] Keep the supplied image's light: window key from one side, weak fluorescent fill, uneven counter brightness, same colour temperature throughout. " +
-                "[Core physics] The object has weight and a continuous contact shadow that stays attached to it; anything touching it deforms slightly at the point of contact. " +
+                "[Core physics] $corePhysics " +
                 "Source: the supplied image is the only reference for object identity, framing and background. " +
                 "This clip is exactly ONE continuous shot -- do not add a second shot, do not cut, do not insert an establishing frame. " +
                 $actSummary + " " +
                 "Framing: preserve the supplied composition and object placement; the object stays in the same third of the frame it starts in. " +
                 $actDirection + " " + $sceneSound + " " +
-                # Duration, aspect and resolution are manifest fields, and a
-                # fixed tail repeating them in the prose spends weight on
-                # something the API already knows. What stays here are the
-                # failures this model actually makes on this kind of clip.
-                "Keep every object in its original position and its original condition. Do not clean, repair, alter or transform the object beyond what the supplied image already shows. Do not add or remove anything. Do not add people or faces. No morphing, warping, flicker, jump cuts, sudden motion or collapsing geometry. Stable first and final frames."
+                $actBans
             $template | ConvertTo-Json -Depth 5 | Set-Content $manifest -Encoding utf8
 
             Write-Log "Generating clip $concept-$state (attempt $attempt)."

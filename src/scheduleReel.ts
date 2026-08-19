@@ -41,10 +41,13 @@ import type { DailyContent, DailySlot } from "./types";
 // records it through owner-video-review, which binds the sha256; scheduling and
 // approving stay two separate acts.
 
-// The one motion prompt used for every clip in the 2026-07-29 run. run.json and
-// slot.video_prompt must carry the same text or the freshness gate rejects.
+// Calendar/freshness stamp written into slot.video_prompt and run.json.
+// Duration, aspect and resolution stay on the generation manifest, not in this
+// prose: a fixed "Duration: 5 seconds. Aspect ratio: 9:16." tail is banned.
+// Bans here are the core three only (do not clean / do not change the object /
+// do not add people or text). Per-act bans live in produce-next-reel.ps1.
 export const REEL_MOTION_PROMPT =
-  "Animate the supplied image while preserving its exact composition, object placement, materials, surface wear, lighting direction and colour temperature. One restrained continuous action only: an extremely gentle push-in with slight natural handheld shake, as if held by a person. Keep every object in its original position and its original condition. Do not clean, repair, alter or transform the object. Do not add or remove anything. No hands in close-up and no finger detail. Do not add people, readable text, captions, logos, dialogue or music. No morphing, warping, flicker, jump cuts, sudden motion or collapsing geometry. Audio near-silent with only faint room tone. Natural restrained motion, stable first and final frames. Duration: 5 seconds. Aspect ratio: 9:16. Resolution: 720p.";
+  "Animate the supplied image while preserving its exact composition, object placement, materials, lighting direction and colour temperature. One restrained continuous action only: an extremely gentle push-in with slight natural handheld shake, as if held by a person. Do not clean, repair, alter or transform the object. Do not add or remove anything. Do not add people, readable text, captions or logos. Audio near-silent with only faint room tone. Natural restrained motion, stable first and final frames.";
 
 const RUN_DIR = "output/reels-run/2026-07-29";
 

@@ -389,3 +389,57 @@
 - **教訓**:🔴 對間歇性故障,**一次成功不能當作結案證據**,只能當作「這次沒重現」。
   兩次過早結案都栽在同一個模式:拿到一個乾淨的正面結果就急著寫「根因鎖定」。
   真正的根因要嘛等它自己說清楚(更多次對照),要嘛等到能長期穩定復現的最小案例。
+- **【2026-08-20 07:1x-07:3x 定案補記】機轉釘死了,「真實流程 vs 簡單 prompt」是紅鯡魚**:
+  ①真排程實證:06:30 被 F24 守衛擋掉沒碰到 Codex;07:13 用 `Start-ScheduledTask`
+  手動觸發(Task Scheduler 自己的執行環境),Codex 每一條指令同樣死於
+  `codex_core::exec: windows sandbox: CryptUnprotectData failed: 2148073483`。
+  **排程環境也中,徹底排除「呼叫方式」假說。**
+  ②鑑別實驗(極簡 prompt+一條 `echo`):`-s workspace-write` ❌、`-s read-only` ❌、
+  `-s danger-full-access`(無沙箱)✅。**真正變因=Codex 沙箱是否執行任何 shell 指令**。
+  昨晚「簡單 prompt 全成功」是因為那些 prompt 沒跑過指令;「真實流程必死」是因為
+  第一條指令就死。工作量大小從頭到尾無關。
+  ③Codex 能思考、能回話、能用內建影像模型(不經沙箱 exec)——只有沙箱 exec 層壞。
+  ④**這是復發**:7/29 同錯發生過(`generate-missing-images.ps1` 開頭註解與
+  fabcb006 同日寫入;codex-cli 也在當天 22:05 重裝),之後三週天天正常,
+  8/19 06:44 排程還成功、8/20 01:07 起全滅。codex-cli 版本(0.144.1)三週未變,
+  壞的是機器狀態(嫌疑:Windows 更新動了 AppContainer/DPAPI;0x8009000B=
+  NTE_BAD_KEY_STATE)。
+  ⑤**生產不必等修**:7/29 留下的繞道還能用——行事曆/manifest 由總指揮直跑 npm,
+  圖片走 `generate-missing-images.ps1`(read-only 餵 prompt、不叫沙箱跑指令、
+  腳本自己搬檔蓋章)。8/21 已用此路開工。
+  ⑥交給老闆的修復選項:重開機(NTE_BAD_KEY_STATE 常見解)、重裝 codex(7/29 前例)、
+  或暫時維持無 Codex 繞道。`-s danger-full-access` 可用但等於拆沙箱,不建議常態化。
+
+## F24|2026-08-20 凌晨:深修哲學的碼二度回寫生產樹+自鎖(F22 復發變種)
+- **現象**:01:59-02:17(戰情室 01:54 收工提交**之後**)有一條線把 9 個檔案寫進
+  生產樹未提交:5 支排程腳本(watchdog 系列/daily-generate/sentinel)改成
+  fail-closed 哲學(停用任務不自動重啟、髒樹直接擋不 stash)、`gbpPost.ts`/
+  `postStory.ts` 加發布回讀驗證、新增 `schedulerSafety.test.ts`。
+  06:30 排程執行的是磁碟上這個未提交版,**它自己的新守衛看到它自己未提交,
+  把整夜生成擋掉**(「BLOCKED: uncommitted production-code change(s)」)。
+- **歸因**:寫入者不在 CCD session 紀錄裡(全文搜尋零命中),profile 完全是
+  深修線的發布真實性哲學;`stash@{0}`(8/19 06:30 舊看門狗 stash 走的 12 檔
+  +2589 行大包)是同一條線更早的一波。**「深修永遠在分支」(F22)第二次被違反。**
+- **處置**:照 F22 判例,整包保全到分支 `scheduler-safety-wip-20260820`
+  (commit 6bf50ea,已推遠端,未審未合),main 磁碟還原為已提交版,守衛視角清空。
+  改動本身品質看起來不差(fail-closed 哲學跟老闆的安全觀一致),**值得審後收編,
+  但收編是審查後的決定,不是撿到就用**。
+- **教訓**:守衛這次是功臣——它照設計把未審碼擋在排程外,代價是一夜生成。
+  真正的病是**寫入紀律**:深修線需要一個機械閘阻止它寫 main 工作樹
+  (它顯然不讀交接文)。
+
+## F25|2026-08-20 晨:slot1 計畫強制只活在 Codex prompt 層(直跑生成必自由選題)
+- **現象**:Codex 沙箱壞死後改直跑 `npm run generate -- --date 2026-08-21`,
+  slot1 自由選出「包包提把」——跟 8/20 slot2(當晚發)同物件,隔天 10:20 核准
+  必被七天防重閘擋(缺格)。追查發現 `slot1-plan.json` 的計畫強制**只存在於
+  daily-generate.ps1 注入 Codex 的 prompt 文字裡**,TypeScript 生成器
+  (`generateDailyContent`/`contentPlan`)完全不讀計畫檔。
+- **時間差漏洞**:七天防重閘在生成時讀 posted-log,**看不到當晚還沒發的貼文**
+  ——生成 8/21 時(07:44)今晚 20:30 的提把文尚未入帳,閘形同虛設;
+  到隔天核准時它才擋,但那時已缺格。
+- **處置**:8/21 已派換題手術(BOARD0821-W-SLOT1SWAP,同款手術第三刀);
+  真正的修法=把計畫讀取+「已排未發」視窗納入 buildDailyContent 本身,
+  讓任何生成路徑(Codex/直跑/未來的任何 orchestrator)都吃到同一套強制。
+- **教訓**:**閘門住在 prompt 裡=只保護走那條 prompt 的路**。防禦要住在
+  被所有路徑共用的最深層(這裡=contentPlan),跟 F21「寫入走 writeDailyContent」
+  同一個道理。

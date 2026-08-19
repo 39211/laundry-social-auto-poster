@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  BATCH_ONE,
+  BATCH_TWO,
   REEL_CONCEPTS,
   REEL_SCHEDULE,
   conceptStatuses,
@@ -128,6 +130,165 @@ describe("reel concepts", () => {
     );
     for (let index = 1; index < types.length; index += 1) {
       expect(types[index]).not.toBe(types[index - 1]);
+    }
+  });
+});
+
+// W-STORYSTRUCTURE: hook is an unexplained inspection action, narration delays
+// the reveal, close loops back. Built-ins only — extensions are a different
+// authoring path and must not inherit these tokens by accident.
+const BUILTIN_IDS = [...BATCH_ONE, ...BATCH_TWO];
+
+const STORY_STRUCTURE: Record<
+  string,
+  {
+    retiredHook: string;
+    action: RegExp;
+    loop: string;
+    delayedReveal: string;
+    price?: string;
+    cta: RegExp;
+  }
+> = {
+  "white-shoe-yellowing": {
+    retiredHook: "白鞋泛黃，不是刷得不夠用力",
+    action: /先看/,
+    loop: "膠",
+    delayedReveal: "氧化",
+    price: "運動鞋兩百五起",
+    cta: /拍|能不能救|台中收送/
+  },
+  "handbag-handle": {
+    retiredHook: "包包最先變舊的地方，是提把",
+    action: /先摸/,
+    loop: "提把",
+    delayedReveal: "手汗",
+    price: "一般包六百起",
+    cta: /私訊/
+  },
+  "leather-shoe-rain": {
+    retiredHook: "皮鞋淋雨，擦乾就沒事了嗎",
+    action: /先看/,
+    loop: "水痕",
+    delayedReveal: "浮出來",
+    price: "皮鞋四百起",
+    cta: /拍/
+  },
+  "plush-doll": {
+    retiredHook: "娃娃不是不能洗，是不能亂洗",
+    action: /先看/,
+    loop: "五官",
+    delayedReveal: "脫水",
+    cta: /私訊|拍來報價/
+  },
+  "duvet-storage": {
+    retiredHook: "棉被收進櫃子前，先聞一下",
+    action: /先聞/,
+    loop: "中間",
+    delayedReveal: "味道",
+    price: "雙人棉被五百",
+    cta: /台中收送|免費到府/
+  },
+  "leather-bag-corner": {
+    retiredHook: "精品包最怕的不是髒，是邊角",
+    action: /先看/,
+    loop: "邊油",
+    delayedReveal: "補不回來",
+    price: "名牌包一千五起",
+    cta: /拍四個角/
+  },
+  "shirt-collar": {
+    retiredHook: "襯衫領口發黃，洗衣精加倍沒有用",
+    action: /先看/,
+    loop: "領口",
+    delayedReveal: "皮脂",
+    price: "襯衫七十",
+    cta: /私訊/
+  },
+  "suit-shoulder": {
+    retiredHook: "西裝變形，通常從肩線開始",
+    action: /先看/,
+    loop: "肩",
+    delayedReveal: "回不來",
+    cta: /台中收送|拍肩線/
+  },
+  "curtain-hem": {
+    retiredHook: "窗簾最髒的地方，你可能沒看過",
+    action: /先摸/,
+    loop: "下緣",
+    delayedReveal: "灰塵",
+    cta: /不用自己拆|我們收/
+  },
+  "luggage-wheel": {
+    retiredHook: "行李箱收進櫃子前，先看輪子",
+    action: /先看/,
+    loop: "輪",
+    delayedReveal: "味道",
+    cta: /私訊|免費到府/
+  },
+  "backpack-base": {
+    retiredHook: "後背包底部，是全包最髒的一面",
+    action: /先看/,
+    loop: "底部",
+    delayedReveal: "汗鹽",
+    price: "背包五百",
+    cta: /私訊/
+  },
+  "canvas-shoe-mud": {
+    retiredHook: "帆布鞋沾泥，越用力刷越糟",
+    action: /先看/,
+    loop: "泥",
+    delayedReveal: "織紋",
+    price: "帆布鞋兩百五起",
+    cta: /拍/
+  }
+};
+
+function builtinConcepts() {
+  return REEL_CONCEPTS.filter((concept) => BUILTIN_IDS.includes(concept.id));
+}
+
+describe("reel concept story structure (loop + delayed reveal)", () => {
+  it("covers all twelve built-in concepts, not a sample rewrite", () => {
+    expect(Object.keys(STORY_STRUCTURE).sort()).toEqual([...BUILTIN_IDS].sort());
+    expect(builtinConcepts()).toHaveLength(12);
+  });
+
+  it("makes every hook an unexplained inspection action, not the retired generic line", () => {
+    for (const concept of builtinConcepts()) {
+      const spec = STORY_STRUCTURE[concept.id]!;
+      expect(concept.hook, `${concept.id} reverted to retired generic hook`).not.toBe(spec.retiredHook);
+      expect(concept.hook, `${concept.id} hook is not an inspection action`).toMatch(spec.action);
+      expect(concept.hook, `${concept.id} hook missing loop token "${spec.loop}"`).toContain(spec.loop);
+      expect(concept.hook, `${concept.id} hook still names the problem generically`).not.toMatch(
+        /最髒|不是髒|變舊/
+      );
+    }
+  });
+
+  it("closes the loop: close echoes the hook token and keeps the CTA fact", () => {
+    for (const concept of builtinConcepts()) {
+      const spec = STORY_STRUCTURE[concept.id]!;
+      expect(concept.close, `${concept.id} close missing loop token "${spec.loop}"`).toContain(spec.loop);
+      const spoken = `${concept.close}${concept.narration}`;
+      expect(spoken, `${concept.id} dropped the CTA fact`).toMatch(spec.cta);
+      if (spec.price) {
+        expect(spoken, `${concept.id} dropped price "${spec.price}"`).toContain(spec.price);
+      }
+    }
+  });
+
+  it("delays the reveal: first narration sentence withholds the diagnostic token", () => {
+    // Mutation: paste the old white-shoe or leather-bag hook/narration back and
+    // the first sentence contains 氧化 / 補不回來 again — this goes red.
+    for (const concept of builtinConcepts()) {
+      const spec = STORY_STRUCTURE[concept.id]!;
+      const end = concept.narration.indexOf("。");
+      expect(end, `${concept.id} narration is a single dump`).toBeGreaterThan(0);
+      const first = concept.narration.slice(0, end + 1);
+      const rest = concept.narration.slice(end + 1);
+      expect(first, `${concept.id} answers in the first sentence`).not.toContain(spec.delayedReveal);
+      expect(rest, `${concept.id} never reveals "${spec.delayedReveal}"`).toContain(spec.delayedReveal);
     }
   });
 });

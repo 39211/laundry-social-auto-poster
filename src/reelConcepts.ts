@@ -33,10 +33,10 @@ export const REEL_CONCEPTS: ReelConcept[] = [
   {
     id: "white-shoe-yellowing",
     object_type: "white-shoe",
-    hook: "白鞋泛黃，不是刷得不夠用力",
-    close: "台中收送，拍給我們看能不能救",
+    hook: "先看鞋邊那圈膠",
+    close: "膠邊氧化刷不掉，拍來看能不能救",
     narration:
-      "黃在鞋邊是膠氧化，刷不掉；黃在布面是洗劑殘留，那洗得回來。先看是哪一種。運動鞋兩百五起，分不出來拍一張傳給我們。",
+      "黃在兩個位置，做法差很多。膠邊是氧化刷不掉；布面洗劑殘留才洗得回來。運動鞋兩百五起，台中收送。",
     before_subject:
       "one pair of unbranded white sneakers, midsole foxing oxidised to uneven amber darkest near the ground, two grey abrasion bands across the toe-box canvas that soap will not lift, a dark sweat ring around each metal lace eyelet, laces faded from white to grey-beige with cracked plastic aglets",
     after_subject:
@@ -45,10 +45,10 @@ export const REEL_CONCEPTS: ReelConcept[] = [
   {
     id: "handbag-handle",
     object_type: "handbag",
-    hook: "包包最先變舊的地方，是提把",
-    close: "提把開始發黏就可以私訊我們",
+    hook: "先摸提把握的位置",
+    close: "提把發黏是手汗，可以私訊我們",
     narration:
-      "提把發黏不是灰塵，是手汗一天天堆起來的，滲進皮層就只能淡化。還沒變色的現在處理最省。一般包六百起，拍提把給我們看。",
+      "提把握處開始發黏了。那是手汗一天天堆起來的，滲進皮層就只能淡化。還沒變色現在最省。一般包六百起。",
     before_subject:
       "one everyday unbranded handbag, handle tops polished to a darker honey sheen where palms rest, a darker oil ring at each handle-base rivet, micro edge-paint chips along the bottom corners from floor contact",
     after_subject:
@@ -57,10 +57,10 @@ export const REEL_CONCEPTS: ReelConcept[] = [
   {
     id: "leather-shoe-rain",
     object_type: "leather-shoe",
-    hook: "皮鞋淋雨，擦乾就沒事了嗎",
-    close: "別急著上油，先拍給我們看",
+    hook: "先看鞋面那道水痕",
+    close: "水痕鎖進皮裡就要補色，先拍來看",
     narration:
-      "淋雨那天擦乾了，水痕過幾天才浮出來。這時候上油等於把它鎖進皮裡面，之後就是補色。還沒上油的現在剛好。皮鞋四百起。",
+      "淋雨那天擦乾了，看起來沒事。水痕過幾天才浮出來。這時候上油等於鎖進皮裡，之後補色。還沒上油的現在剛好。皮鞋四百起。",
     before_subject:
       "one pair of unbranded leather dress shoes, a tide-line of dried rain marks crossing both vamps darker at the crease and fading toward the toe, salt bloom in the stitch wells, heel-counter lining darkened from sock sweat",
     after_subject:
@@ -69,9 +69,9 @@ export const REEL_CONCEPTS: ReelConcept[] = [
   {
     id: "plush-doll",
     object_type: "plush-doll",
-    hook: "娃娃不是不能洗，是不能亂洗",
-    close: "家裡有不敢洗的娃娃？私訊我們",
-    narration: "怕的不是水，是脫水那一段。填充會結塊，五官會掉，掉了小孩會哭而且買不回來。我們手洗低溫烘，五官先固定。拍給你報價。",
+    hook: "先看五官是繡是黏",
+    close: "黏的五官怕脫水，私訊我們",
+    narration: "娃娃能洗，但洗法差很多。怕的不是水，是脫水。填充會結塊，五官會掉。手洗低溫烘，五官先固定，拍來報價。",
     before_subject:
       "one unbranded plush toy, fur on the hugged cheek and belly flattened into a dull grey mat, a darker soil ring around the neck seam, one glass eye with a single dusty catchlight",
     after_subject:
@@ -80,10 +80,10 @@ export const REEL_CONCEPTS: ReelConcept[] = [
   {
     id: "duvet-storage",
     object_type: "duvet",
-    hook: "棉被收進櫃子前，先聞一下",
-    close: "換季前想清一次？台中收送",
+    hook: "先聞棉被中間那層",
+    close: "中間層沒乾就有味道，台中收送",
     narration:
-      "摸起來乾，中間那層不一定乾。帶著濕氣收進櫃子，下一季打開就是那個味道。雙人棉被五百，台中全區免費到府收送。",
+      "摸起來乾，先別急著收。中間那層不一定乾。帶著濕氣收進櫃子，下一季打開就是那個味道。雙人棉被五百，免費到府收送。",
     before_subject:
       "one folded duvet with a fabric storage bag beside it, cover fabric limp with a dull grey film along the fold edges, loft compressed in the centre so the quilting channels look empty",
     after_subject:
@@ -92,9 +92,9 @@ export const REEL_CONCEPTS: ReelConcept[] = [
   {
     id: "leather-bag-corner",
     object_type: "leather-bag",
-    hook: "精品包最怕的不是髒，是邊角",
-    close: "邊角開始磨就該處理了",
-    narration: "邊角的邊油磨掉就補不回來，只能重新上。能單純清潔的時間比想像中短。名牌包一千五起，補色另計。拍四個角給我們看。",
+    hook: "先看四個角的邊油",
+    close: "邊油磨掉只能重上，拍四個角",
+    narration: "邊油還剩多少，現在就要看。磨掉就補不回來，只能重新上。能清潔的時間很短。名牌包一千五起，補色另計。",
     before_subject:
       "a close view of one unbranded leather bag corner, edge-paint worn through to pale fibre along the bottom arris, a scuff cloud on the face panel just above the corner, hardware leaving a faint rub ring on the leather",
     after_subject:
@@ -107,9 +107,9 @@ export const REEL_CONCEPTS: ReelConcept[] = [
   {
     id: "shirt-collar",
     object_type: "shirt",
-    hook: "襯衫領口發黃，洗衣精加倍沒有用",
-    close: "領口開始黃就可以私訊我們",
-    narration: "領口那圈黃是皮脂氧化，洗衣精加倍只會把布洗薄。它不是髒，是卡在纖維裡。燙下去就定型，先處理再燙。襯衫七十。",
+    hook: "先看領口內側那圈",
+    close: "領口那圈黃是皮脂，可以私訊",
+    narration: "領口內側那圈黃，不是沒洗乾淨。那是皮脂氧化，卡在纖維裡。洗衣精加倍只會把布洗薄。燙下去就定型。襯衫七十。",
     before_subject:
       "one white dress shirt laid flat, a yellow sebum ring along the inner collar band darkest at the back-neck, cuff-fold grime lines at both wrists, fabric still sound",
     after_subject:
@@ -118,9 +118,9 @@ export const REEL_CONCEPTS: ReelConcept[] = [
   {
     id: "suit-shoulder",
     object_type: "suit",
-    hook: "西裝變形，通常從肩線開始",
-    close: "收起來前想檢查？台中收送",
-    narration: "掛錯衣架、擠在衣櫃裡，肩襯塌下去就回不來，比髒更難處理。趁還有形先保養，比事後修補便宜。拍肩線給我們報價。",
+    hook: "先看肩線有沒有塌",
+    close: "肩襯塌了回不來，台中收送",
+    narration: "掛錯衣架、擠在衣櫃裡，肩線先變。肩襯塌下去就回不來。趁還有形先保養，比事後修補便宜。拍肩線給我們報價。",
     before_subject:
       "one suit jacket on a padded hanger, shoulder line collapsed so the pad ridge droops, lapel roll creased into a sharp fold, a shine patch on the outer shoulder from bag-strap rub",
     after_subject:
@@ -129,9 +129,9 @@ export const REEL_CONCEPTS: ReelConcept[] = [
   {
     id: "curtain-hem",
     object_type: "curtain",
-    hook: "窗簾最髒的地方，你可能沒看過",
-    close: "整片窗簾不用自己拆，我們收",
-    narration: "家裡有味道找不到來源，十次有八次是窗簾下緣那一折。灰塵和濕氣積在裡面，摸起來乾而已。整片不用自己拆，我們收。",
+    hook: "先摸窗簾下緣那折",
+    close: "積在下緣那折，不用自己拆我們收",
+    narration: "家裡有味道，找不到來源。十次有八次是窗簾下緣那一折。灰塵和濕氣積在裡面，摸起來乾而已。整片我們收。",
     before_subject:
       "the lower hem section of one curtain panel spread on the counter, a dust gradient packed into the hem fold darkest at the floor edge, a sun-fade band just above the fold, weave still readable",
     after_subject:
@@ -140,9 +140,9 @@ export const REEL_CONCEPTS: ReelConcept[] = [
   {
     id: "luggage-wheel",
     object_type: "luggage",
-    hook: "行李箱收進櫃子前，先看輪子",
-    close: "旅行回來想清一次？私訊我們",
-    narration: "輪子和底板整趟旅程都在地上磨，那些灰收進櫃子，下次打開就是那個味道。不用整咖搬來，台中市區免費到府收。",
+    hook: "先看輪子縫裡的灰",
+    close: "輪灰收進櫃子會有味道，私訊我們",
+    narration: "旅行回來先別推進櫃子。輪子底板都在地上磨，灰收進去下次打開就是味道。不用整咖搬來，台中市區免費到府收。",
     before_subject:
       "one fabric suitcase on a floor mat, wheel treads packed with grey road grit, a dirt film across the lower panel darkest at the corner caps, zipper tape darkened at the pull",
     after_subject:
@@ -151,9 +151,9 @@ export const REEL_CONCEPTS: ReelConcept[] = [
   {
     id: "backpack-base",
     object_type: "backpack",
-    hook: "後背包底部，是全包最髒的一面",
-    close: "背了一年沒洗過？私訊我們",
-    narration: "它天天放在地上，卻幾乎沒人洗過。背帶的汗和底部的灰是兩種髒，一起洗才有用。背包五百，開學前送洗來得及。",
+    hook: "先看後背包底部那面",
+    close: "底部地面灰、背帶汗鹽，私訊我們",
+    narration: "底部那面天天貼地，幾乎沒人洗。背帶的汗鹽和底部的地面灰是兩種，一起洗才有用。背包五百，開學前送洗來得及。",
     before_subject:
       "one fabric backpack tipped to show its base, a ground-grime crust across the bottom panel, strap-pad darkened with a salt sweat line, stitching at the base corners slightly stressed",
     after_subject:
@@ -162,9 +162,9 @@ export const REEL_CONCEPTS: ReelConcept[] = [
   {
     id: "canvas-shoe-mud",
     object_type: "canvas-shoe",
-    hook: "帆布鞋沾泥，越用力刷越糟",
-    close: "沾到泥先別刷，拍給我們看",
-    narration: "濕的時候刷，泥會被推進織紋裡，布面起毛越刷越舊。等乾了整塊剝掉反而好救。沾到泥先別動它。帆布鞋兩百五起。",
+    hook: "先看帆布鞋泥乾了沒",
+    close: "濕時刷泥會推進織紋，拍來看",
+    narration: "泥還濕的時候，先別動它。濕的時候刷，泥會被推進織紋裡，布面起毛。等乾了整塊剝掉反而好救。帆布鞋兩百五起。",
     before_subject:
       "one pair of canvas shoes, dried mud packed into the woven toe and foxing stitch line, canvas faded at the flex crease, a grey dirt ring along the rubber foxing",
     after_subject:

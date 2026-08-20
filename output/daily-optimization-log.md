@@ -60,3 +60,22 @@
 怎麼驗:每一項都有突變實測(刪掉保護必須變紅),共 11 個突變全部有鑑別力;242 條測試綠;grok 設計三個突變並先寫下預測,實測**三個全中**,其中「刪掉寫側蓋章 → 213 條全綠」證明我上一輪只測了讀的那一半
 
 沒關的:公開圖只驗 HTTP/media-type,沒比對本機 vs 公開的 SHA-256;P1 營收基準(GBP/詢問/成交)未落地
+
+## 2026-08-21
+
+**今晚沒有真的改動 production 內容——這篇記的是「查證擋下兩次動手」的過程,誠實記,不硬湊一版交差。**
+
+改了什麼:
+①核對 `output/reviews/batch-review-2026-08-20.json`(8/20 09:01 產出,12 支滿 72 小時 Reel、0 支過門檻,工具自建議「換 hook 文案」)。照建議動手前先交叉查 `data/posted-log/`,抓到 `src/reelBatchReview.ts` 判成效寫死 slot 2,但 production 從 8/15 起(`data/ab-test-plan.json` evening 半場全部標 `paused: true`)已經把 Reel 移去 slot 3;8/15(down-jacket-cuff)、8/16(heel-tip-scuff)那兩筆「成效」量到的其實是同一天 slot 2 一支無關的輪播/單圖,誤貼成 Reel 表現。存證 ERROR-BOOK F26。
+②沒被①擋下之前,已經照建議把 9 個概念的 hook 改成問句式。`npx vitest run` 在 `test/reelConcepts.test.ts` 的敘事結構測試組(`reel concept story structure (loop + delayed reveal)`)當場判紅:現行 hook 是一輪已經測試過、有突變實測背書的「未解釋動作+迴圈詞+延遲揭曉」結構,我的問句式改法在多個概念上丟了迴圈詞、甚至把該延遲的診斷詞提前寫進 hook——等於在不知情下毀掉一個已驗證的機制。9 個 hook 全數字面精確復原。存證 ERROR-BOOK F27。
+
+為什麼:今天輪到「挑到期數據、主動改一個變數」,但查證接連在動手前後抓到「數據來源程式碼今天還對不對」「這個欄位有沒有專屬的結構測試」兩個沒先確認的洞。CLAUDE.md 鐵則講得很清楚——證據要同源、既有安全網攔下來就要停下查清楚,不能為了今晚要交卷硬推一版連自己都不確定有沒有用的文案。
+
+怎麼驗:
+F26——交叉核對 `data/posted-log/2026-08-09.json`(乾淨,slot2=真 Reel)、`2026-08-14.json`(乾淨,slot2/slot3 各一支真 Reel)、`2026-08-15.json`/`2026-08-16.json`/`2026-08-18.json`(污染,slot2 當天是輪播或單圖,非 Reel),污染起點與 ab-test-plan.json 的 evening-paused 旗標(8/15 起連續為真)精準對齊。
+F27——`git diff --stat src/reelConcepts.ts` 復原後與 HEAD 零差異;`npx vitest run test/reelConcepts.test.ts` 14/14 轉綠;全套測試單獨跑 624 個中 622 綠 2 個逾時(隔離重跑兩個逾時檔各自 100% 過,確認是 vitest 併發 worker 搶資源的已知假紅類型,非真回歸);`npx tsc --noEmit` 乾淨。
+
+沒關的:
+①F26 本體(`reelBatchReview.ts` 該怎麼判定「今天 Reel 真正發在哪個格位」)還沒修,已用 `spawn_task` 開一張獨立任務單——這是餵給未來排程/內容決策的計分依據,屬於「會影響放行的東西」,該過深審不該我一個人凌晨改。
+②敘事結構限制內的新一版 hook 文案還沒有寫出來——沒有足夠證據支持特定新詞句,不勉強生一版只為了今天有改。
+③F26 的乾淨/污染判定只抽驗了 2026-08-09、08-14 兩天當對照,7/29-8/13 其餘日期沒有逐筆窮舉,抽驗通過不等於窮舉過。

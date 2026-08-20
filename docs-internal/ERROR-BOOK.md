@@ -470,6 +470,70 @@
   檢查 2 紅(`test/slot1PlanEnforcement.test.ts`);tsc+vitest 全套 616 綠;
   用主樹真資料重放 8/20→8/21 場景:視窗收到 16 題(含當晚三格未發),計畫題
   「開學前學生制服檢查」正確採用。prompt 注入層不動,留作第二層。
+
+## F26|2026-08-21 凌晨:72 小時成效表寫死 slot 2,量到的是別支貼文(發現於補優化日誌時)
+
+- **現象**:依收工交接文接手補優化日誌,查到 `output/reviews/batch-review-2026-08-20.json`
+  判「12 支滿 72 小時的 Reel,0 支通過門檻」,工具自己建議「換 hook 文案」。
+  正要照建議動手改 `src/reelConcepts.ts` 的 hook 前,交叉核對 `data/posted-log/`
+  發現數字對不上:8/15(down-jacket-cuff,批次表 reach=47)與 8/16(heel-tip-scuff,
+  reach=44)那兩天,slot 2 實際發的是**跟這兩個概念完全無關的輪播/單圖**
+  (`published_media_type: "carousel"`/`"image"`,`video_deferred_reason: "Video
+  file is missing for slot 2"`);而 8/16 當天真正的 Reel(`published_media_type:
+  "reel"`)其實發在 **slot 3**。`video-reviews/2026-08-20.json`、`2026-08-23.json`
+  也各自把 mattress-pad-sweat、wallet-edge-wear 記在 `"slot": 3`,同樣佐證。
+- **根因**:`src/reelBatchReview.ts` 判 Reel 成效寫死
+  `content?.slots.find(item => item.slot === 2)` 與 `post.slot === 2`。這在
+  8/14 以前是對的(當時 noon=slot3、evening=slot2 兩條 Reel 並行,`REEL_SCHEDULE`
+  對應的正是 evening/slot2);但 `data/ab-test-plan.json` 從 **8/15 起 evening
+  半場全部標 `paused: true`**,`scheduleReel.ts --heal` 的 `planSlot()` 正確
+  跳過被暫停的半場(不補 slot 2 的 Reel),production 因此收斂成一天一支、
+  改發在 slot 3——但 `reelBatchReview.ts` 沒人跟著改,繼續認 slot 2,於是
+  量到的是「slot 2 那天湊巧發的別支輪播/單圖」的 reach/engagement,誤貼成
+  該 REEL_SCHEDULE 概念的成效;概念真正的 slot-3 Reel 反而從沒被這支工具量過。
+- **已核實範圍**:交叉抽查 `data/posted-log/2026-08-09.json`(乾淨,slot2=真
+  Reel)、`2026-08-14.json`(乾淨,slot2/slot3 各一支真 Reel)、`2026-08-15.json`
+  `2026-08-16.json`(污染,slot2=輪播/單圖)、`2026-08-18.json`(污染,slot2=
+  單圖)。`ab-test-plan.json` 的 paused 旗標從 8/15 起連續為真,與污染起點精準
+  對齊,判定 8/14(含)以前的 10 筆 matured 數據乾淨可信,8/15 起(down-jacket-cuff、
+  heel-tip-scuff,及之後每一筆一旦成熟)全部不可信。**尚未逐筆窮舉 7/29-8/13**,
+  只抽驗 8/9 一筆;抽驗通過不等於窮舉過。
+- **處置**:今晚沒有動 `reelBatchReview.ts`(怕在凌晨無人複核下把計分邏輯改錯,
+  這支工具的輸出會餵給未來的內容/排程決策,屬於「會影響放行的東西」)。改為
+  ①拿掉靠這份污染數據推導的 hook 文案改法(見下),②寫這篇存證,③用
+  `spawn_task` 開一張獨立任務單排查+修復,依專案慣例要過深審。
+- **教訓**:凡是「日期→格位」的假設一旦跨系統(`REEL_SCHEDULE`/extension 的
+  schedule 陣列 vs `ab-test-plan.json` 的 noon/evening 半場)分別演化,兩邊
+  遲早會分岔;量測程式碼不能把「哪個格位是 Reel」寫死,要從當天實際
+  `published_media_type === "reel"` 反查,或至少讀 `ab-test-plan.json` 的
+  paused 狀態同步判斷該不該信任那個格位。**在拿「數據說話」當優化依據前,
+  先問這個數字的來源程式碼今天還對不對**——這正是本回合交接文要求的
+  「怎麼驗」,不是套公式,是真的去查。
+
+## F27|2026-08-21 凌晨:差點把已測試過的 hook 敘事結構當「泛用問句」蓋掉
+
+- **現象**:F26 發現前,已經照批次表建議改了 9 個概念的 `hook`(改成直接問句,
+  如「先看四個角的邊油」→「四個角邊油還在嗎」),`npx tsc --noEmit` 過、但
+  `npx vitest run` 在 `test/reelConcepts.test.ts` 的
+  `reel concept story structure (loop + delayed reveal)` 這組測到真紅:
+  `makes every hook an unexplained inspection action, not the retired generic
+  line`。
+- **根因**:這 12 個內建概念的 hook 早就經過一輪迭代——從更早的「泛用退休句」
+  (如 `retiredHook: "白鞋泛黃，不是刷得不夠用力"`)改成現行的「未解釋動作 +
+  迴圈詞 + 延遲揭曉」結構(hook 只給動作與物件詞、不給診斷詞,診斷詞要壓到
+  narration 第二句才出現),而且**有突變測試背書**(貼回舊 hook/narration
+  必須讓「delays the reveal」那組測試變紅)。我改的問句式 hook 在多個概念上
+  直接漏掉迴圈詞(如 luggage-wheel 漏了「輪」)、甚至把該延遲的診斷詞提前
+  寫進 hook 本身(handbag-handle 的「是手汗嗎」直接劇透 narration 才該揭曉
+  的「手汗」),等於在不知情下毀掉一個已經驗證過的敘事機制。
+- **處置**:9 個 hook 全數字面精確復原(`git diff --stat` 確認與 HEAD 零差異),
+  `test/reelConcepts.test.ts` 14/14 轉綠。今晚沒有再嘗試在敘事結構限制內
+  重寫 hook——沒有足夠證據支持特定新詞句,勉強擠一版只是為了「今天有改」,
+  不是真的有把握的實驗。
+- **教訓**:改任何一個「看起來只是文案」的欄位前,**先搜這個欄位有沒有專門
+  的敘事/結構測試**(`grep -n "hook" test/*.ts`),不要只憑 `tsc` 乾淨就當作
+  安全。F26+F27 同一晚出現不是巧合:兩者都是「先查資料/測試的真實來源,
+  再動手」這件事沒有先做完就想動刀。
 - **【殘留,已知未修】gram 比對對「物件在句尾的自由題」失明**:
   `topicObjectHead` 取前 8 字,8/20 slot2 的口語題「下班最常背的包先看提把」
   截完剩「下班最常背的包提」,「提把」被切掉,重放實測 gram=NO。生成器自產題

@@ -106,18 +106,32 @@ async function videoSourceConceptMatch(
   conceptId: string,
   root: string
 ): Promise<boolean | undefined> {
-  const sources = await loadVideoSources(date, root);
+  let sources: Awaited<ReturnType<typeof loadVideoSources>>;
+  try {
+    const loaded = await loadVideoSources(date, root);
+    // A malformed video-sources file for one date is not evidence either
+    // way, and must not crash every other date's review along with it --
+    // readJsonFile rethrows non-ENOENT errors (e.g. truncated JSON), and
+    // even valid JSON of the wrong shape (an object instead of an array)
+    // would otherwise blow up the .find() call below.
+    sources = Array.isArray(loaded) ? loaded : [];
+  } catch {
+    return undefined;
+  }
   const source = sources.find((item) => item.slot === slotNumber);
-  // Only scheduleReel.ts's own route embeds the concept id in a parseable
-  // way (`copx:<RUN_DIR>/report-<concept.id>-before.json`). generateGrokVideo.ts
-  // and importGrokVideo.ts write the same file with source_reference set to a
-  // bare xAI request id or a caller-supplied reference instead -- reading
-  // that as a concept mismatch would report a confident "wrong concept" with
-  // no real evidence behind it, for a Reel that never went through
-  // scheduleReel.ts at all.
+  // generateGrokVideo.ts always writes source_route "xai-api", but
+  // importGrokVideo.ts's --source-route flag lets a caller stamp
+  // "hermes-xai-oauth" onto a record too (see its sourceRoute option),
+  // with source_reference left as an arbitrary caller-supplied string --
+  // not scheduleReel.ts's own `copx:<RUN_DIR>/report-<concept.id>-before.json`
+  // template. Trusting the route alone would read that arbitrary string as
+  // a confident "wrong concept" for a Reel that never went through
+  // scheduleReel.ts, silently turning a real published Reel into
+  // not_published. Only a reference actually shaped like scheduleReel's
+  // template is evidence either way.
   if (source?.source_route !== "hermes-xai-oauth") return undefined;
   const reference = source.source_reference;
-  if (typeof reference !== "string") return undefined;
+  if (typeof reference !== "string" || !reference.includes("-before.json")) return undefined;
   return reference.includes(`report-${conceptId}-before.json`);
 }
 
@@ -162,27 +176,38 @@ async function findLiveReelSlot(
     return { slotNumber: post.slot, post };
   }
 
-  if (reelPosts.length === 1) {
-    // The only live Reel that day has video-sources evidence naming a
-    // *different* concept: it is not this row's Reel to measure, and
-    // crediting it here is exactly the F26 mistake one level down (right
-    // slot, wrong concept). No evidence either way (undefined) still counts
-    // as this row's Reel, matching every pre-video-sources historical date.
-    return matches[0] === false ? undefined : { slotNumber: reelPosts[0]!.slot, post: reelPosts[0]! };
+  // Any candidate that video-sources positively names as a *different*
+  // concept is ruled out -- it is not this row's Reel regardless of how
+  // many other live Reels published that day. Crediting it anyway is the F26
+  // mistake one level down (right slot, wrong concept). This must apply
+  // before the dual-Reel branch below, not just in the single-candidate
+  // case: two live Reels where video-sources confirms neither is this
+  // concept is not weaker evidence than one live Reel doing the same.
+  const candidates = reelPosts.filter((_, index) => matches[index] !== false);
+  if (candidates.length === 0) return undefined;
+  if (candidates.length === 1) {
+    // No evidence either way (undefined) still counts as this row's Reel,
+    // matching every pre-video-sources historical date.
+    return { slotNumber: candidates[0]!.slot, post: candidates[0]! };
   }
 
-  // Two or more real Reels the same day, none confirmed by video-sources
-  // (either no record at all, or every record points elsewhere) -- only
-  // happened on the old dual-Reel schedule. ab-test-plan.json still answers
-  // which half is this row's own concept, matching conceptId against the
-  // half it names rather than just checking a half is unpaused -- an
-  // unpaused half is not proof it is this concept's half, since the plan and
-  // the REEL_SCHEDULE/extension schedule are two separately-edited files.
+  // Two or more candidates remain, none confirmed and none ruled out by
+  // video-sources (either no record at all, or every record is silent) --
+  // only happens on the old dual-Reel schedule. ab-test-plan.json still
+  // answers which half is this row's own concept, matching conceptId
+  // against the half it names rather than just checking a half is
+  // unpaused -- an unpaused half is not proof it is this concept's half,
+  // since the plan and the REEL_SCHEDULE/extension schedule are two
+  // separately-edited files. If the plan doesn't name this concept in
+  // either half either, there is no real evidence left to pick one
+  // candidate over the other -- guessing (the old hardcoded ": 2" default)
+  // is how a right-slot-family, wrong-post mistake like F26 reappears one
+  // layer down, so report not_published instead.
   const abPlan = planForDate(await loadAbTestPlan(root), date);
   const preferredSlot =
-    planSlot(abPlan, 2)?.conceptId === conceptId ? 2 : planSlot(abPlan, 3)?.conceptId === conceptId ? 3 : 2;
-  const chosen = reelPosts.find((post) => post.slot === preferredSlot) ?? reelPosts[0]!;
-  return { slotNumber: chosen.slot, post: chosen };
+    planSlot(abPlan, 2)?.conceptId === conceptId ? 2 : planSlot(abPlan, 3)?.conceptId === conceptId ? 3 : undefined;
+  const chosen = candidates.find((post) => post.slot === preferredSlot);
+  return chosen ? { slotNumber: chosen.slot, post: chosen } : undefined;
 }
 
 export async function reviewBatch(options: { asOf?: string; root?: string } = {}): Promise<BatchReview> {

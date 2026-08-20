@@ -110,8 +110,8 @@ function carouselPost(slot: number, createdAt: string): PostLogEntry {
   };
 }
 
-async function writeVideoSourceRecord(root: string, slot: number, sourceConceptId: string): Promise<void> {
-  const record: VideoSourceRecord = {
+function videoSourceRecord(slot: number, sourceConceptId: string): VideoSourceRecord {
+  return {
     date: TEST_DATE,
     slot,
     source: "grok-imagine-video",
@@ -131,7 +131,10 @@ async function writeVideoSourceRecord(root: string, slot: number, sourceConceptI
     video_codec: "h264",
     marked_at: `${TEST_DATE}T05:30:00.000Z`
   };
-  await writeVideoSources(TEST_DATE, [record], root);
+}
+
+async function writeVideoSourceRecord(root: string, slot: number, sourceConceptId: string): Promise<void> {
+  await writeVideoSources(TEST_DATE, [videoSourceRecord(slot, sourceConceptId)], root);
 }
 
 async function writeInsights(
@@ -406,5 +409,143 @@ describe("reviewBatch finds the Reel wherever it actually published", () => {
     expect(outcome).toBeTruthy();
     expect(outcome!.reach).toBe(310);
     expect(outcome!.accounts_engaged).toBe(6);
+  });
+
+  it("does not treat an arbitrary-reference hermes-xai-oauth record (importGrokVideo.ts's --source-route) as a concept mismatch", async () => {
+    // importGrokVideo.ts's --source-route flag lets a caller stamp
+    // "hermes-xai-oauth" onto a record too (its sourceRoute CLI option), but
+    // the source_reference is then whatever --source-reference string the
+    // caller passed -- not scheduleReel.ts's own
+    // report-<concept.id>-before.json template. Trusting the route alone
+    // would read that arbitrary string as a confident "wrong concept" and
+    // silently turn a real published Reel into not_published.
+    await writeDailyContent(
+      calendarWith([baseSlot(2, "carousel", "unrelated carousel topic"), baseSlot(3, "reel", TEST_CONCEPT.hook)]),
+      root
+    );
+    await writePostLog(TEST_DATE, [reelPost(3, `${TEST_DATE}T05:30:00.000Z`)], root);
+    const record: VideoSourceRecord = {
+      date: TEST_DATE,
+      slot: 3,
+      source: "grok-imagine-video",
+      model: "grok-imagine-video-1.5",
+      video_path: `docs/assets/${TEST_DATE}/slot-03.mp4`,
+      request_id: "manual-import-ref-001",
+      source_route: "hermes-xai-oauth",
+      source_reference: "manual-import-ref-001",
+      duration_seconds: 6,
+      width: 1080,
+      height: 1920,
+      frame_rate: 30,
+      video_codec: "h264",
+      marked_at: `${TEST_DATE}T05:30:00.000Z`
+    };
+    await writeVideoSources(TEST_DATE, [record], root);
+    await writeInsights(root, [{ slot: 3, reach: 350, engaged: 8, saved: 4, shares: 2 }]);
+
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+
+    expect(outcome).toBeTruthy();
+    expect(outcome!.published).toBe(true);
+    expect(outcome!.reach).toBe(350);
+  });
+
+  it("does not credit either Reel when two live Reels both come back confirmed as a different concept (F26, one layer down)", async () => {
+    // Two live Reels this day, video-sources confirms *both* belong to
+    // concepts other than this row's own -- crediting either one anyway
+    // would repeat F26's "right slot family, wrong post" mistake with an
+    // extra candidate. The exclusion has to run before the dual-Reel
+    // ab-test-plan tiebreak, not just in the single-candidate branch.
+    await writeDailyContent(
+      calendarWith([
+        baseSlot(2, "reel", "a different evening concept"),
+        baseSlot(3, "reel", "a different noon concept")
+      ]),
+      root
+    );
+    await writePostLog(
+      TEST_DATE,
+      [reelPost(3, `${TEST_DATE}T05:30:00.000Z`), reelPost(2, `${TEST_DATE}T13:30:00.000Z`)],
+      root
+    );
+    await writeVideoSources(
+      TEST_DATE,
+      [videoSourceRecord(3, "a-different-noon-concept"), videoSourceRecord(2, "a-different-evening-concept")],
+      root
+    );
+    await writeInsights(root, [
+      { slot: 3, reach: 310, engaged: 6, saved: 2, shares: 1 },
+      { slot: 2, reach: 999, engaged: 50, saved: 20, shares: 5 }
+    ]);
+
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+
+    expect(outcome).toBeTruthy();
+    expect(outcome!.published).toBe(false);
+    expect(outcome!.verdict).toBe("not_published");
+  });
+
+  it("does not guess a slot when neither video-sources nor ab-test-plan can tell two live Reels apart", async () => {
+    // No video-sources evidence for either candidate, and ab-test-plan.json
+    // names a *different* concept in both halves -- there is no real
+    // evidence left to prefer one slot over the other. The old hardcoded
+    // ": 2" tiebreak default would silently credit slot 2's numbers to this
+    // concept regardless of what the plan says; report not_published
+    // instead of guessing.
+    await writeDailyContent(
+      calendarWith([
+        baseSlot(2, "reel", "a different evening concept"),
+        baseSlot(3, "reel", "a different noon concept")
+      ]),
+      root
+    );
+    await writePostLog(
+      TEST_DATE,
+      [reelPost(3, `${TEST_DATE}T05:30:00.000Z`), reelPost(2, `${TEST_DATE}T13:30:00.000Z`)],
+      root
+    );
+    await writeInsights(root, [
+      { slot: 3, reach: 310, engaged: 6, saved: 2, shares: 1 },
+      { slot: 2, reach: 999, engaged: 50, saved: 20, shares: 5 }
+    ]);
+    const plan: AbDayPlan = {
+      date: TEST_DATE,
+      noon: { conceptId: "a-different-noon-concept", variant: "15s" },
+      evening: { conceptId: "a-different-evening-concept", variant: "15s" }
+    };
+    await saveAbTestPlan([plan], root);
+
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+
+    expect(outcome).toBeTruthy();
+    expect(outcome!.published).toBe(false);
+    expect(outcome!.verdict).toBe("not_published");
+  });
+
+  it("does not crash the whole batch when one date's video-sources file is malformed", async () => {
+    // video-sources is a new dependency this fix introduced -- before F26,
+    // reviewBatch never read it at all. One bad file for one date must not
+    // take down every other date's review with it.
+    await writeDailyContent(
+      calendarWith([baseSlot(2, "carousel", "unrelated carousel topic"), baseSlot(3, "reel", TEST_CONCEPT.hook)]),
+      root
+    );
+    await writePostLog(TEST_DATE, [reelPost(3, `${TEST_DATE}T05:30:00.000Z`)], root);
+    await writeInsights(root, [{ slot: 3, reach: 350, engaged: 8, saved: 4, shares: 2 }]);
+    const { mkdir: mkdirFs, writeFile: writeFileFs } = await import("node:fs/promises");
+    const { videoSourcesPath } = await import("../src/paths");
+    const path = videoSourcesPath(TEST_DATE, root);
+    await mkdirFs(join(path, ".."), { recursive: true });
+    await writeFileFs(path, "{ this is not valid JSON", "utf8");
+
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+
+    expect(outcome).toBeTruthy();
+    expect(outcome!.published).toBe(true);
+    expect(outcome!.reach).toBe(350);
   });
 });

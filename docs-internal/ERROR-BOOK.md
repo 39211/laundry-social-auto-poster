@@ -532,6 +532,59 @@
   寫死 null、從未真的檢查 60% 門檻——這是修這支工具之前就存在的坑,不在本次
   範圍內,留待另案。
 
+- **【2026-08-21 05:56-06:2x 二輪獨立複審,對上一輪的修復本身做對抗式覆核】**:
+  接手另一個 Claude Code session 在同一分支上,不預設上一輪「三輪跨家族複審」
+  的結論成立,派一席全新 reviewer(不知道前情,明確要求對抗式驗證、e2e 對
+  production 資料實測)重新審上一輪的修復本身。**抓到兩個真缺陷、一個穩健性
+  缺口,均已獨立核對過 production 資料**:
+  ①【高】`videoSourceConceptMatch` 的 route 白名單只檢查
+  `source_route === "hermes-xai-oauth"`,註解誤稱「只有 `scheduleReel.ts`
+  走這個 route」——但 `importGrokVideo.ts`(`package.json` 現行 script
+  `import-grok-video`)的 `--source-route` 旗標可以讓呼叫端把同一個 route
+  蓋在任意 `source_reference` 字串上。已用真實正式資料核對:
+  `data/video-sources/2026-07-29.json` slot 1、`2026-08-05.json` slot 1/2
+  皆是這個形狀(`source_route: "hermes-xai-oauth"`,`source_reference` 不是
+  `report-<concept.id>-before.json` 樣板);`2026-08-05.json` slot 2 對應的
+  `data/posted-log/2026-08-05.json` slot 2 更是一支真實 `published_media_type:
+  "reel"`、`status: "success"` 的活貼文——只是今天 `REEL_SCHEDULE` 剛好沒有
+  08-05 那一列才沒咬到人,不是假設性風險。原判準會把這類真實發過的 Reel
+  誤判成 `not_published`,而且 `data_gaps` 不會留下任何痕跡,跟「那天真的
+  沒發」長得一模一樣——同源於 A6/A8 教訓:**信任證據前要先問這個證據的產生
+  條件是否真的鎖定了你以為它鎖定的東西**。
+  ②【中】雙 Reel 消歧邏輯對「video-sources 確認是別的概念」這個否定證據的
+  處理,在單一候選與兩個以上候選兩條分支不一致——單一候選時正確回
+  `not_published`,兩個以上候選時卻完全略過這個否定證據,直接掉進
+  ab-test-plan tiebreak,兩半都對不上概念時還會落回寫死的 slot 2。用
+  production 的 `ab-test-plan.json` 實測重現:把別人概念的 Reel 數字掛在
+  錯的概念頭上,正是 F26 要修的「對的槽位家族、錯的貼文」在下一層原地重演。
+  今天 5 個真實雙 Reel 日(08-07/08/10/11/14)video-sources 全部 confirm 得出來
+  所以還沒踩到,但 evening 半場一旦解除 paused、或補跑/修復日、或
+  video-sources 缺席,就會活過來。
+  ③【低,穩健性】`findLiveReelSlot` 新增的 video-sources 讀取沒有防呆:
+  `data/video-sources/<date>.json` 壞掉(截斷 JSON)或形狀不對(非陣列)會讓
+  整份 review(所有 ~40 列)直接拋錯中止,不是只影響那一天——這是本次修復
+  新增的相依,這支工具過去從不讀 video-sources。
+  **三者皆已修復**(`src/reelBatchReview.ts`):①比對前先驗
+  `source_reference` 是否真的長得像 `scheduleReel.ts` 的樣板(含
+  `-before.json`),不像樣板一律當沒有證據,不當作反向證據;②雙 Reel 分支
+  改成先用「video-sources 明確排除」篩掉候選,篩完只剩一個就直接採用,兩個
+  以上才進 ab-test-plan tiebreak,兩半都對不上概念時回 `undefined`(不猜)
+  取代寫死的 `2`;③`loadVideoSources` 讀取包 try/catch + `Array.isArray`
+  防呆,壞檔視為「這個日期沒有證據」而非讓整批全滅。新增 4 條測試
+  (`test/reelBatchReview.test.ts`,累計 12 條)逐一對應這三個缺陷,且**逐一
+  隔離突變實測**:三個修法個別還原,確認**只有**對應的新測試變紅、其餘 11
+  條不受影響,再個別復原確認全綠——不是一次性整包還原就交差。`npx tsc
+  --noEmit` 乾淨,全套 `npx vitest run` 631 過 5 敗(敗的兩檔與上一輪同一批,
+  均為這個 worktree 缺 `node_modules/tsx` 二進位檔的環境問題,`git diff
+  --stat` 核對過改動範圍未觸及那兩個檔案)。
+  **教訓**:上一輪聲稱的「三輪跨家族複審」已經把①②同類的兩個前身缺陷修過
+  (dual-Reel 只比對 unpaused、`uncertain` 狀態被漏掉),但這一輪對抗式複審
+  在**修完之後**的程式碼裡又抓到同一個問題模式的兩個新變種——白名單信錯前提、
+  雙候選分支的證據等級不一致。跟 CLAUDE.md 的鐵則對上:🔴 **「自己驗過」不等於
+  「驗完」,一輪複審過關不代表沒有下一層同型缺陷**,尤其是「哪些呼叫端會產生
+  被信任的那個證據欄位」這種需要窮舉全部寫入路徑的問題,少查一個路徑就會漏
+  一類真實資料形狀。
+
 ## F27|2026-08-21 凌晨:差點把已測試過的 hook 敘事結構當「泛用問句」蓋掉
 
 - **現象**:F26 發現前,已經照批次表建議改了 9 個概念的 `hook`(改成直接問句,

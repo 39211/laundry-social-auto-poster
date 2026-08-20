@@ -24,7 +24,7 @@ const NEXT_14_DAYS: Array<{
   { date: "2026-08-22", topic: "童鞋開學檢查", object: "kids sneakers", material: "kids sneakers" },
   { date: "2026-08-23", topic: "室內鞋汗味", object: "indoor slippers", material: "indoor slippers" },
   { date: "2026-08-24", topic: "皮鞋刮痕補色", object: "leather dress shoes", material: "leather dress shoes" },
-  { date: "2026-08-25", topic: "室內鞋", object: "indoor slippers", material: "indoor slippers" },
+  { date: "2026-08-25", topic: "球鞋中底黃斑", object: "grey-and-white running shoes", material: "grey-and-white running shoes" },
   { date: "2026-08-26", topic: "健身房毛巾批量洗", object: "batch of gym towels", material: "gym towels" },
   { date: "2026-08-27", topic: "登山鞋泥沙", object: "hiking boots", material: "hiking boots" },
   { date: "2026-08-28", topic: "老爹鞋網布", object: "chunky mesh sneakers", material: "chunky mesh sneakers" },

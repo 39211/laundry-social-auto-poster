@@ -373,6 +373,51 @@ describe("F29: a re-schedule must not clobber a recorded verdict", () => {
     });
   });
 
+  it("keeps the verdict for the asset being scheduled when duplicate verdicts disagree on fingerprints", async () => {
+    const { root, videoPath, date } = await fixture();
+    const staleVerdict = {
+      ...rejectedTwoSeatRecord({ date, videoPath, videoSha256: shaOf("superseded-earlier-cut") }),
+      reject_reason: "stale verdict for the earlier cut"
+    };
+    const liveVerdict = rejectedTwoSeatRecord({ date, videoPath });
+    // The stale-fingerprint verdict sits first, where a first-verdict pick
+    // would land and demote the live verdict into history.
+    await writeJsonAtomic(videoReviewsPath(date, root), [staleVerdict, liveVerdict]);
+
+    const now = new Date("2026-09-01T04:50:00.000Z");
+    await recordOwnerVideoReview({ date, slot: 1, watched: false, standingPolicy: true, root, now });
+
+    const records = await readRecords(date, root);
+    expect(records).toHaveLength(1);
+    const record = records[0];
+    if (!record) throw new Error("expected the preserved live rejection");
+    expect(record.status).toBe("rejected");
+    expect(record.reject_reason).toBe(liveVerdict.reject_reason);
+    expect(record.video_sha256).toBe(shaOf(VIDEO_BYTES));
+    expect(record.superseded).toEqual([
+      { ...staleVerdict, superseded: undefined }
+    ].map(({ superseded: _drop, ...rest }) => rest));
+  });
+
+  it("treats superseded null as no history, a conscious spec choice", async () => {
+    const { root, videoPath, date } = await fixture();
+    const rejected = {
+      ...rejectedTwoSeatRecord({ date, videoPath }),
+      superseded: null
+    };
+    await writeJsonAtomic(videoReviewsPath(date, root), [rejected]);
+
+    await recordOwnerVideoReview({ date, slot: 1, watched: false, standingPolicy: true, root });
+
+    const records = await readRecords(date, root);
+    const record = records[0];
+    if (!record) throw new Error("expected the preserved rejection");
+    expect(record.status).toBe("rejected");
+    expect(record.reject_reason).toBe(rejected.reject_reason);
+    // null carried no verdicts; the field folds to nothing rather than to [null].
+    expect(record.superseded).toBeUndefined();
+  });
+
   it("folds a record with an unrecognisable status into superseded instead of dropping it", async () => {
     const { root, videoPath, date } = await fixture();
     const dirty = {

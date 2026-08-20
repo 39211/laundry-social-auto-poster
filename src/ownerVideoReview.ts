@@ -180,8 +180,10 @@ function normalizeHistory(value: unknown): Array<Record<string, unknown>> {
  * F29: flatten everything a rewrite of a slot is about to displace, oldest
  * first: each record's own `superseded` history, plus every displaced record
  * that is not this writer's own pending scaffolding (status "pending").
- * `keep` marks the record that stays current and is therefore not folded.
- * No verdict — and no unrecognisable hand-written record — is ever dropped.
+ * `keep` marks the record that stays current and is therefore not folded;
+ * it is compared by identity, so pass an element of `records`, not a clone.
+ * No verdict — and no unrecognisable hand-written record — is ever dropped;
+ * a `superseded: null` carries no verdicts and folds to nothing.
  */
 export function collectDisplacedHistory(
   records: VideoReviewFileEntry[],
@@ -210,8 +212,19 @@ export function mergeStandingPolicyMetadata(
   sameSlotRecords: VideoReviewFileEntry[],
   metadata: StandingPolicyMetadataRecord
 ): { entry: VideoReviewFileEntry; outcome: StandingPolicyMergeOutcome } {
+  // Among duplicate verdicts, the one judging the asset being scheduled right
+  // now must stay current — otherwise a stale-fingerprint verdict earlier in
+  // the array would demote the live verdict into history.
+  const verdicts = sameSlotRecords.filter(
+    (record) => record.status === "approved" || record.status === "rejected"
+  );
   const primary =
-    sameSlotRecords.find((record) => record.status === "approved" || record.status === "rejected") ??
+    verdicts.find(
+      (record) =>
+        record.video_sha256 === metadata.video_sha256 &&
+        record.prompt_hash === metadata.prompt_hash
+    ) ??
+    verdicts[0] ??
     sameSlotRecords[0];
   if (!primary) return { entry: metadata, outcome: "fresh" };
 

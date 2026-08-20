@@ -13,6 +13,7 @@ import {
   buildCarouselJudgePrompt,
   buildIsolationPlan,
   buildJudgePrompt,
+  CAROUSEL_OBS_RETRY_MAX_ATTEMPTS,
   CAROUSEL_QA_AXES,
   detectCarouselRubricIncoherence,
   detectTreatment,
@@ -29,6 +30,8 @@ import {
   parseObserveBlock,
   parseVisualQaBlock,
   referenceStillPaths,
+  runCarouselJudgeWithMissingObservationRetry,
+  shouldRetryCarouselJudge,
   resolveCarouselSlides,
   detectRubricIncoherence,
   VISUAL_QA_OBSERVE_BEGIN,
@@ -746,8 +749,32 @@ describe("carousel judge prompt", () => {
     expect(prompt).toMatch(/identity_change=/);
     expect(prompt).toMatch(/object_mismatch=/);
     expect(prompt).toContain("TOPIC:");
+    expect(prompt).toMatch(/Emit exactly 4 OBS lines \(OBS_1 through OBS_4\)/);
+    expect(prompt).toMatch(/Missing or extra OBS lines make the run invalid even if every axis is PASS/);
     expect(prompt).not.toContain("ACCESSORY_COLOR");
     expect(prompt).not.toContain("MIDDLE_NOT_WORSE");
+  });
+
+  it("names the exact OBS count for a two-slide set", () => {
+    const prompt = buildCarouselJudgePrompt({
+      slides: [
+        { imageIndex: 1, name: "slide-01.png", slide: 1 },
+        { imageIndex: 2, name: "slide-02.png", slide: 2 }
+      ],
+      topic: "衣物送洗前先看材質"
+    });
+    expect(prompt).toMatch(/Emit exactly 2 OBS lines \(OBS_1 through OBS_2\)/);
+    expect(prompt).not.toMatch(/Emit exactly 4 OBS lines/);
+  });
+
+  it("mutation: dropping the exact-OBS-count demand is rejected", () => {
+    const prompt = buildCarouselJudgePrompt({
+      slides: carouselFourSlides(),
+      topic: "衣物送洗前先看材質"
+    });
+    const mutated = prompt.replace(/Emit exactly \d+ OBS lines[^\n]*/u, "");
+    expect(mutated).not.toMatch(/Emit exactly \d+ OBS lines/);
+    expect(() => assertCarouselJudgePromptSafe(mutated)).toThrow(/OBSERVE block/);
   });
 
   it("mutation: dropping OBJECT_IDENTITY from the carousel prompt is rejected", () => {
@@ -978,6 +1005,59 @@ describe("carousel observe block is mandatory", () => {
   });
 });
 
+describe("carousel OBS emitter retry", () => {
+  it("retries only missing_observation, and only before the last attempt", () => {
+    expect(CAROUSEL_OBS_RETRY_MAX_ATTEMPTS).toBe(2);
+    expect(shouldRetryCarouselJudge("missing_observation", 1)).toBe(true);
+    expect(shouldRetryCarouselJudge("missing_observation", 2)).toBe(false);
+    expect(shouldRetryCarouselJudge("content", 1)).toBe(false);
+    expect(shouldRetryCarouselJudge("unparseable", 1)).toBe(false);
+    expect(shouldRetryCarouselJudge("judge_blind", 1)).toBe(false);
+    expect(shouldRetryCarouselJudge("missing_axis", 1)).toBe(false);
+    expect(shouldRetryCarouselJudge(null, 1)).toBe(false);
+  });
+
+  it("retries once when the first carousel judge omits OBS, then keeps the second verdict", async () => {
+    const calls: number[] = [];
+    const { record, attempts } = await runCarouselJudgeWithMissingObservationRetry(async (attempt) => {
+      calls.push(attempt);
+      if (attempt === 1) return { fail_class: "missing_observation" as const };
+      return { fail_class: null };
+    });
+    expect(calls).toEqual([1, 2]);
+    expect(attempts).toBe(2);
+    expect(record.fail_class).toBeNull();
+  });
+
+  it("does not retry a content fail or a first-try PASS", async () => {
+    const contentCalls: number[] = [];
+    const content = await runCarouselJudgeWithMissingObservationRetry(async (attempt) => {
+      contentCalls.push(attempt);
+      return { fail_class: "content" as const };
+    });
+    expect(contentCalls).toEqual([1]);
+    expect(content.attempts).toBe(1);
+    expect(content.record.fail_class).toBe("content");
+
+    const passCalls: number[] = [];
+    const passed = await runCarouselJudgeWithMissingObservationRetry(async (attempt) => {
+      passCalls.push(attempt);
+      return { fail_class: null };
+    });
+    expect(passCalls).toEqual([1]);
+    expect(passed.attempts).toBe(1);
+    expect(passed.record.fail_class).toBeNull();
+  });
+
+  it("keeps FAIL_CLOSED after a second missing OBS (does not pass-open)", async () => {
+    const { record, attempts } = await runCarouselJudgeWithMissingObservationRetry(async () => ({
+      fail_class: "missing_observation" as const
+    }));
+    expect(attempts).toBe(2);
+    expect(record.fail_class).toBe("missing_observation");
+  });
+});
+
 describe("carousel mutations", () => {
   it("mutation: removing OBJECT_IDENTITY from the verdict is FAIL_CLOSED missing_axis", () => {
     const stdout = [
@@ -1089,9 +1169,18 @@ describe("carousel CLI surface", () => {
     expect(cliSrc).toContain("handleCarousel");
     expect(cliSrc).toContain("--carousel");
     expect(cliSrc).toContain("buildCarouselJudgePrompt");
+    expect(cliSrc).toContain("runCarouselJudgeWithMissingObservationRetry");
+    expect(cliSrc).toContain("injectedStdout");
     expect(cliSrc).toContain('-s", "read-only"');
     expect(cliSrc).toContain('"-i"');
     expect(cliSrc).not.toMatch(/Generate exactly two images/u);
+    const fnStart = cliSrc.indexOf("async function handleCarousel");
+    const fnEnd = cliSrc.indexOf("async function main");
+    const fn = cliSrc.slice(fnStart, fnEnd);
+    const injectedIdx = fn.indexOf("if (injectedStdout)");
+    const retryIdx = fn.indexOf("runCarouselJudgeWithMissingObservationRetry");
+    expect(injectedIdx).toBeGreaterThan(-1);
+    expect(retryIdx).toBeGreaterThan(injectedIdx);
     const out = execFileSync(
       process.execPath,
       [
@@ -1110,5 +1199,6 @@ describe("carousel CLI surface", () => {
     expect(out).toContain("TOPIC_MATCH");
     expect(out).toContain("PROMPT_HASH=");
     expect(out).toMatch(/Do not generate or edit any image/i);
+    expect(out).toMatch(/Emit exactly 4 OBS lines \(OBS_1 through OBS_4\)/);
   });
 });

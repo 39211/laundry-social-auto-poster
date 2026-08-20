@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
 import { writeJsonAtomic } from "./logging";
@@ -16,6 +16,7 @@ import {
   evaluateFromDisk,
   evaluateJudgeStdout,
   hashText,
+  runCarouselJudgeWithMissingObservationRetry,
   isConceptRejected,
   loadRejectedConcepts,
   parseCarouselSpec,
@@ -24,6 +25,7 @@ import {
   resolveCarouselSlides,
   sampleTimes,
   sha256File,
+  type CarouselQaRecord,
   type CarouselQaSidecar,
   type QaFrameRecord,
   type ReelTreatment,
@@ -181,23 +183,38 @@ async function handleCarousel(args: string[], root: string): Promise<void> {
   });
   const promptHash = hashText(prompt);
   await writeFile(join(qaDir, "judge-prompt.txt"), prompt, "utf8");
+  const injectedStdout = Boolean(getOption(args, "stdout-file"));
   const stdoutPath = getOption(args, "stdout-file") ?? join(qaDir, "judge-stdout.txt");
-  if (!getOption(args, "stdout-file")) {
-    runCodexJudge({
-      root,
-      prompt,
-      images: slides.map((slide) => join(qaDir, slide.name)),
-      stdoutPath
+  const baseRunId = getOption(args, "run-id") ?? `carousel-qa-${Date.now()}`;
+  const evaluateStdout = (stdout: string, runId: string) =>
+    evaluateCarouselFromDisk({
+      qaDir,
+      stdout,
+      sidecar,
+      promptHash,
+      runId
     });
+  let record: CarouselQaRecord;
+  if (injectedStdout) {
+    const stdout = await readFile(stdoutPath, "utf8");
+    record = await evaluateStdout(stdout, baseRunId);
+  } else {
+    const retried = await runCarouselJudgeWithMissingObservationRetry(async (attempt) => {
+      if (attempt > 1) {
+        await copyFile(stdoutPath, join(qaDir, `judge-stdout.attempt${attempt - 1}.txt`));
+      }
+      runCodexJudge({
+        root,
+        prompt,
+        images: slides.map((slide) => join(qaDir, slide.name)),
+        stdoutPath
+      });
+      const attemptStdout = await readFile(stdoutPath, "utf8");
+      const runId = attempt === 1 ? baseRunId : `${baseRunId}-obs-retry`;
+      return evaluateStdout(attemptStdout, runId);
+    });
+    record = retried.record;
   }
-  const stdout = await readFile(stdoutPath, "utf8");
-  const record = await evaluateCarouselFromDisk({
-    qaDir,
-    stdout,
-    sidecar,
-    promptHash,
-    runId: getOption(args, "run-id") ?? `carousel-qa-${Date.now()}`
-  });
   const defaultOut = dir && slot ? carouselQaRecordPath(isAbsolute(dir) ? dir : join(root, dir), slot) : join(qaDir, "carousel.visual-qa.json");
   const outPath = getOption(args, "out") ?? defaultOut;
   await writeJsonAtomic(outPath, record);

@@ -293,6 +293,9 @@ export function assertCarouselJudgePromptSafe(prompt: string): void {
       throw new Error(`QA prompt missing required axis ${axis}.`);
     }
   }
+  if (!/Emit exactly \d+ OBS lines/u.test(prompt)) {
+    throw new Error("QA prompt must require a complete OBSERVE block.");
+  }
 }
 
 export function frameRoleFromAct(act: string): "BEFORE" | "MIDDLE" | "AFTER" | "UNKNOWN" {
@@ -1058,6 +1061,9 @@ export function buildCarouselJudgePrompt(input: {
   lines.push("Then judge ONLY whether these slides show one physical object on one counter family for this topic.");
   lines.push("");
   lines.push("STEP 1 is mandatory. Declare one observation line per attached image BEFORE any axis verdict.");
+  lines.push(
+    `Emit exactly ${input.slides.length} OBS lines (OBS_1 through OBS_${input.slides.length}). Missing or extra OBS lines make the run invalid even if every axis is PASS.`
+  );
   lines.push("Use closed tokens only. Do not skip a field. Do not copy on-screen captions as proof.");
   lines.push("Prefix must be OBS_N (not IMAGE_N) so canary lines stay distinct.");
   lines.push("OBS_N garment_color=TOKEN garment_type=TOKEN material=TOKEN wear=TOKEN scene=TOKEN");
@@ -1495,6 +1501,32 @@ export async function evaluateCarouselFromDisk(input: {
     }
   }
   return record;
+}
+
+/** Live Codex carousel judge only. Replay of injected stdout must not retry. */
+export const CAROUSEL_OBS_RETRY_MAX_ATTEMPTS = 2;
+
+export function shouldRetryCarouselJudge(
+  failClass: VisualQaFailClass | null | undefined,
+  attempt: number,
+  maxAttempts = CAROUSEL_OBS_RETRY_MAX_ATTEMPTS
+): boolean {
+  return failClass === "missing_observation" && attempt >= 1 && attempt < maxAttempts;
+}
+
+export async function runCarouselJudgeWithMissingObservationRetry<
+  T extends { fail_class: VisualQaFailClass | null }
+>(
+  runOnce: (attempt: number) => Promise<T>,
+  maxAttempts = CAROUSEL_OBS_RETRY_MAX_ATTEMPTS
+): Promise<{ record: T; attempts: number }> {
+  let attempt = 1;
+  let record = await runOnce(attempt);
+  while (shouldRetryCarouselJudge(record.fail_class, attempt, maxAttempts)) {
+    attempt += 1;
+    record = await runOnce(attempt);
+  }
+  return { record, attempts: attempt };
 }
 
 function ffmpegFontfile(): string {

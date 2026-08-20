@@ -562,6 +562,15 @@
 - **處置**:一次性任務改實體路徑後立即復活(狀態讀取成功、預產圖被接受)。
   程式層修法(isMain 兩側都過 realpathSync)動的是**全部 CLI 的共同入口**,
   照控制平面規矩另單送審,不順手改。
+  **2026-08-21 治本已落地**(分支 `claude/cranky-golick-af8ebf`,待合併 main):
+  `e6d7fbb` isMain 兩側 realpathSync(失敗退回字面比對)+ win32 大小寫不敏感、
+  `99c7fd3` 測試強化。驗證:tsc 乾淨;新測試 7/7;三個突變實測全紅
+  (退回裸 resolve/拔 try-catch/fallback 塌哨兵值);junction cwd 端對端 A/B
+  =舊碼 0 行 exit 0、新碼 363 行 JSON。兩席複審(grok 紅隊 xhigh +
+  Claude 深審)皆 **PASS_WITH_FOLLOWUPS**,不擋合併。殘餘 followup:
+  case-sensitive NTFS 目錄+同名異大小寫檔可誤判 true(全 repo 0 碰撞,
+  部署不可及);realpath 單側失敗時混層比對(深審判方向安全);
+  POSIX 側大小寫不變量無斷言;SUBST 未實測(對稱性論證應安全)。
 - **教訓**:**「退出碼 0 + 無輸出」是這個 repo 特有的假成功形態**,遇到
   CLI 無聲就先問「我是不是從 junction 呼叫的」。跑 npm/tsx 一律用
   `C:\Users\cyc39\Documents\New project 5`(實體),junction 只留給

@@ -1394,7 +1394,44 @@ function seedForSlot(day: number, slot: number): TopicSeed | undefined {
   return situationSeedOrder[(day - 1) % situationSeedOrder.length];
 }
 
-function buildSlot(date: string, day: number, slot: number): GrowthPlaybookSlot {
+/**
+ * Service family for a topic that comes from outside the seed pool. The 90-day
+ * slot-1 plan names objects in its own words (制服, 麂皮鞋, 行李箱…), and the
+ * caption blocks — care bridge, inspection line, follow CTA, SEO page — are all
+ * chosen by service. Reusing the day's seed service would pair, say, a uniform
+ * topic with the white-shoe copy, which is the exact text-vs-subject mismatch
+ * the A-series incidents are about. Same shape as topicObject: specific
+ * families first, fabric-storage as the catch-all.
+ */
+export function serviceForTopic(topic: string): TopicSeed["service"] {
+  if (/收送|批量|批洗|月結/.test(topic)) return "pickup-delivery";
+  if (/精品|名牌/.test(topic)) return "luxury-dry";
+  if (/娃娃|玩偶|絨毛/.test(topic)) return "plush-doll";
+  if (/白鞋|童鞋/.test(topic)) return "white-shoe";
+  if (/制服|襯衫|西裝|領帶/.test(topic)) return "shirt-suit";
+  if (/床|被|枕|寢/.test(topic)) return "bedding-duvet";
+  if (/鞋|靴|勃肯|包|行李箱/.test(topic)) return "shoe-bag";
+  return "fabric-storage";
+}
+
+/**
+ * The committed 90-day plan (data/slot1-plan.json) decides slot 1's object.
+ * Until F25 that mandate lived only in the prompt daily-generate.ps1 hands
+ * Codex, so any path that ran the TypeScript generator directly — the Codex
+ * sandbox outage of 2026-08-20 being the live case — free-picked from the seed
+ * rotation and collided with the previous evening's post. This builds the
+ * day's slot 1 around the planned topic using the same template chain as every
+ * other slot. A hand-authored special slot outranks the plan; days outside the
+ * playbook window return undefined and leave the caller on the rotation.
+ */
+export function plannedTopicSlot1(date: string, plannedTopic: string): GrowthPlaybookSlot | undefined {
+  if (specialSlots[date]?.[1]) return undefined;
+  const day = buildGrowthPlaybook().days.find((item) => item.date === date);
+  if (!day) return undefined;
+  return buildSlot(date, day.day, 1, plannedTopic);
+}
+
+function buildSlot(date: string, day: number, slot: number, plannedTopic?: string): GrowthPlaybookSlot {
   // Read from DAILY_SCHEDULE rather than repeating the times here. This line
   // said 19:30 while every operational path -- the publish window, the catch-up
   // chain, the patrol and the registered triggers -- said 20:30, so the
@@ -1407,12 +1444,22 @@ function buildSlot(date: string, day: number, slot: number): GrowthPlaybookSlot 
   if (!seed) throw new Error(`Missing seed for day ${day} slot ${slot}`);
   const review = reviewForDay(day);
 
-  const topic = special?.topic ?? topicForPhase(seed, day, slot);
+  // Visual and traffic routes describe how to shoot and route, not what the
+  // object is, so the day's seed keeps those even under a planned topic. The
+  // seed's tags do name its object and would mislabel the planned one; the
+  // brand/local/fallback ladder plus the topic-intent upgrade downstream cover
+  // a planned slot correctly.
+  const planned = special ? undefined : plannedTopic;
+  const topic = special?.topic ?? topicForPhase(planned ? { ...seed, topic: planned } : seed, day, slot);
   const format = special?.format ?? baseFormat(date, slot, day);
   const visual = special?.visual ?? seed.visual;
   const traffic = special?.traffic ?? seed.traffic;
-  const service = special?.service ?? seed.service;
-  const tags = special ? hashtagsFor({ ...seed, tags: special.tags }) : hashtagsFor(seed);
+  const service = special?.service ?? (planned ? serviceForTopic(planned) : seed.service);
+  const tags = special
+    ? hashtagsFor({ ...seed, tags: special.tags })
+    : planned
+      ? hashtagsFor({ ...seed, tags: [] })
+      : hashtagsFor(seed);
   const followCta = special?.follow_cta ?? followCtaFor(format, service);
   const hook = special?.hook ?? hookFor(topic, format);
   const mediaPackage = companionMediaPackage(date);

@@ -10,11 +10,12 @@ import {
 import {
   buildGrowthPlaybook,
   COMPANION_MEDIA_START_DATE,
+  plannedTopicSlot1,
   type GrowthFormat,
   type GrowthPlaybookSlot
 } from "./growthPlaybook";
 import { getConfig } from "./config";
-import { contentCalendarPath, postedLogPath, projectRoot, relativeAssetPath, relativeCarouselAssetPath, relativeVideoAssetPath } from "./paths";
+import { contentCalendarPath, postedLogPath, projectRoot, relativeAssetPath, relativeCarouselAssetPath, relativeVideoAssetPath, slot1PlanPath } from "./paths";
 import { DAILY_SCHEDULE, getZonedDateParts } from "./scheduler";
 import type {
   AppConfig,
@@ -1155,6 +1156,17 @@ function loadAbTestPlanSync(root: string): AbDayPlan[] {
   }
 }
 
+/** The committed 90-day slot-1 schedule: date \u2192 topic. Missing file means no mandate. */
+function loadSlot1PlanSync(root: string): Record<string, string> {
+  try {
+    const raw = readFileSync(slot1PlanPath(root), "utf8").replace(/^\uFEFF/u, "");
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function recentCalendarTopics(date: string, days: number, root: string): string[] {
   const topics: string[] = [];
   for (let back = 1; back <= days; back += 1) {
@@ -1183,12 +1195,39 @@ const AIRED_POST_STATUSES = new Set(["success", "posted", "uncertain"]);
  * (and the 七夕 holiday override named 白鞋) while the seven-day approval
  * gate then blocked the morning post against 8/14's already-aired 白鞋.
  * Dark calendars and failed dry-runs stay out.
+ *
+ * A day that has not finished airing is the one exception (F25's time-gap
+ * hole): generating 8/21 at 07:44 on 8/20, the posted-log cannot yet contain
+ * 8/20's 20:30 post, so slot 1 picked the same object the evening slot was
+ * hours from publishing and next morning's seven-day approval gate was always
+ * going to block it. For window days on or after `today`, everything the
+ * calendar schedules counts as occupied; only finished days demand posted-log
+ * proof, which keeps genuinely dark days (8/12–13) out of the window.
  */
-export function recentAiredTopics(date: string, days: number, root: string): string[] {
+export function recentAiredTopics(
+  date: string,
+  days: number,
+  root: string,
+  today = taipeiCalendarDate()
+): string[] {
   const topics: string[] = [];
   const seen = new Set<string>();
   for (let back = 1; back <= days; back += 1) {
     const prevDate = addUtcDays(date, -back);
+    if (prevDate >= today) {
+      try {
+        const raw = readFileSync(contentCalendarPath(prevDate, root), "utf8").replace(/^\uFEFF/u, "");
+        const parsed = JSON.parse(raw) as { slots?: Array<{ topic?: string }> };
+        for (const slot of parsed.slots ?? []) {
+          if (!slot.topic || seen.has(slot.topic)) continue;
+          seen.add(slot.topic);
+          topics.push(slot.topic);
+        }
+      } catch {
+        // No calendar yet: nothing is scheduled, so nothing is occupied.
+      }
+      continue;
+    }
     const airedSlots = new Set<number>();
     try {
       const raw = readFileSync(postedLogPath(prevDate, root), "utf8").replace(/^\uFEFF/u, "");
@@ -1243,6 +1282,43 @@ export function resolveSlot1AgainstAired(
     if (!topicRepeatsInWindow(rebased.topic, airedTopics)) return rebased;
   }
   return playbookSlot;
+}
+
+export interface Slot1PlanDecision {
+  slot: GrowthPlaybookSlot;
+  source: "slot1-plan" | "growth-playbook";
+  /** Set when a planned topic existed but was not used — the reason belongs in the generation log. */
+  fallbackReason?: string;
+}
+
+/**
+ * F25: the 90-day plan's slot-1 mandate lived only in the prompt
+ * daily-generate.ps1 injects into Codex, so `npm run generate` run directly
+ * free-picked from the rotation. The plan is decided here, inside the
+ * generator every path shares. A planned topic that repeats inside the
+ * as-aired window is not aired anyway — the approval gate would block it the
+ * next morning — so it falls back to the rotation and says why. Days whose
+ * slot 1 is a hand-authored special (holiday overrides) keep the special.
+ */
+export function resolveSlot1WithPlan(
+  date: string,
+  playbookSlot: GrowthPlaybookSlot,
+  plannedTopic: string | undefined,
+  airedTopics: string[]
+): Slot1PlanDecision {
+  if (plannedTopic) {
+    const plannedSlot = plannedTopicSlot1(date, plannedTopic);
+    if (plannedSlot) {
+      const gram = topicRepeatsInWindow(plannedSlot.topic, airedTopics);
+      if (!gram) return { slot: plannedSlot, source: "slot1-plan" };
+      return {
+        slot: resolveSlot1AgainstAired(playbookSlot, airedTopics),
+        source: "growth-playbook",
+        fallbackReason: `planned topic 「${plannedTopic}」 repeats 「${gram}」 inside the as-aired window; slot 1 falls back to the playbook rotation`
+      };
+    }
+  }
+  return { slot: resolveSlot1AgainstAired(playbookSlot, airedTopics), source: "growth-playbook" };
 }
 
 /**
@@ -2199,6 +2275,10 @@ export interface BuildDailyContentOptions {
   airedTopics?: string[];
   /** Load posted-log ∩ calendar topics and swap slot 1 off that window. */
   applyAiredCooldown?: boolean;
+  /** Read data/slot1-plan.json and let it decide slot 1's topic (F25). */
+  applySlot1Plan?: boolean;
+  /** Taipei date the generator believes "now" is; tests move it (default: the real clock). */
+  today?: string;
 }
 
 export function buildDailyContent(
@@ -2215,11 +2295,20 @@ export function buildDailyContent(
     : [];
   const airedTopics =
     options.airedTopics ??
-    (options.applyAiredCooldown ? recentAiredTopics(date, SLOT1_AIRED_REPEAT_WINDOW_DAYS, root) : []);
+    (options.applyAiredCooldown
+      ? recentAiredTopics(date, SLOT1_AIRED_REPEAT_WINDOW_DAYS, root, options.today)
+      : []);
 
   const playbookSlots = playbookSlotsForDate(date);
   const rawSlot1 = playbookSlots?.find((slot) => slot.slot === 1);
-  const resolvedSlot1 = rawSlot1 ? resolveSlot1AgainstAired(rawSlot1, airedTopics) : undefined;
+  const plannedTopic = options.applySlot1Plan ? loadSlot1PlanSync(root)[date] : undefined;
+  const slot1Decision = rawSlot1
+    ? resolveSlot1WithPlan(date, rawSlot1, plannedTopic, airedTopics)
+    : undefined;
+  if (slot1Decision?.fallbackReason) {
+    console.warn(`[slot1-plan] ${date}: ${slot1Decision.fallbackReason}`);
+  }
+  const resolvedSlot1 = slot1Decision?.slot;
   const slots: DailySlot[] = DAILY_SCHEDULE.map((schedule) => {
     const playbookSlot =
       schedule.slot === 1 && resolvedSlot1

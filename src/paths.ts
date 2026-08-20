@@ -88,6 +88,10 @@ export function rejectedConceptsPath(root = projectRoot()): string {
   return join(root, "data", "rejected-concepts.json");
 }
 
+export function slot1PlanPath(root = projectRoot()): string {
+  return join(root, "data", "slot1-plan.json");
+}
+
 export function videoRepairQueuePath(root = projectRoot()): string {
   return join(root, "data", "video-repair-queue", "queue.json");
 }

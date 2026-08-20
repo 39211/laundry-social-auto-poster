@@ -455,3 +455,22 @@
   「抱枕」被 /枕/ 鎖成棉被套、「書包」落到泛用 handbag(與 8/20 提把同鎖)。
   換題手術選新物件時,**先查 OBJECT_SPEC_RULES 會把它鎖成什麼**,鎖不對就
   換物件或(經審)加具體規則,不要硬上。
+- **【8/20 根修落地】slot1 計畫強制與時間差視窗都進了 contentPlan 本體**:
+  ①`buildDailyContent` 讀 `data/slot1-plan.json`(`applySlot1Plan`,
+  generateDailyContent 無條件開啟),計畫題通過 as-aired cooldown 就優先採用,
+  slot 結構走與輪播同一條模板鏈(service 由計畫題自己推導,`serviceForTopic`,
+  否則制服題會配到白鞋文案);手排 special slot(節慶檔)優先於計畫;計畫題
+  踩 cooldown 則 fallback 回輪播並 `console.warn` 進生成 log(`resolveSlot1WithPlan`)。
+  ②`recentAiredTopics` 對「還沒播完的日子」(視窗日 ≥ 生成當日)改收行事曆
+  全部已排題,不再等 posted-log——「已排今晚未發」從此佔用視窗;已結束的日子
+  維持 aired-only,暗日(8/12-13 型)不會回來汙染。
+  ③突變實測三刀逐項紅:拿掉計畫讀取 4 紅、拿掉未發視窗 2 紅、拿掉 cooldown
+  檢查 2 紅(`test/slot1PlanEnforcement.test.ts`);tsc+vitest 全套 616 綠;
+  用主樹真資料重放 8/20→8/21 場景:視窗收到 16 題(含當晚三格未發),計畫題
+  「開學前學生制服檢查」正確採用。prompt 注入層不動,留作第二層。
+- **【殘留,已知未修】gram 比對對「物件在句尾的自由題」失明**:
+  `topicObjectHead` 取前 8 字,8/20 slot2 的口語題「下班最常背的包先看提把」
+  截完剩「下班最常背的包提」,「提把」被切掉,重放實測 gram=NO。生成器自產題
+  (計畫/輪播/模板)物件都在句首所以互擋有效;會漏的只有 Codex 自由寫的句尾
+  物件題——F25 根修後 slot1 已無自由題,slot2/3 仍有此暴露。動它=動核准閘
+  同源演算法(autoApprove 共用),按控制平面規矩另單送審,不順手改。

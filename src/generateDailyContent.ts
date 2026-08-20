@@ -36,7 +36,7 @@ export async function generateDailyContent(options: GenerateDailyContentOptions 
     return calendarPath;
   }
 
-  const content = buildDailyContent(date, config, { root, applyAiredCooldown: true });
+  const content = buildDailyContent(date, config, { root, applyAiredCooldown: true, applySlot1Plan: true });
 
   // A scheduled Reel survives regeneration, forced or not. schedule-reel
   // places a reviewed video into slot 2 days ahead of publishing, and a force

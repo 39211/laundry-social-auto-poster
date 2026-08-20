@@ -18,8 +18,9 @@ let root: string;
 let realArgv: string[];
 
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), "ismain-"));
+  // Snapshot argv before any await can throw, or afterEach restores undefined.
   realArgv = process.argv;
+  root = await mkdtemp(join(tmpdir(), "ismain-"));
 });
 
 afterEach(async () => {
@@ -73,6 +74,13 @@ describe("isMain", () => {
     const ghost = join(root, "ghost.ts");
     process.argv = [process.execPath, ghost];
     expect(isMain(pathToFileURL(ghost).href)).toBe(true);
+  });
+
+  it("keeps distinct nonexistent paths distinct in the fallback", () => {
+    // Pins that the fallback preserves the lexical path itself: collapsing
+    // realpath failures to any shared sentinel would make these equal.
+    process.argv = [process.execPath, join(root, "ghost-a.ts")];
+    expect(isMain(pathToFileURL(join(root, "ghost-b.ts")).href)).toBe(false);
   });
 
   it.runIf(process.platform === "win32")(

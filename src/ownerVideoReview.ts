@@ -168,42 +168,75 @@ export function buildStandingPolicyMetadata(input: {
 
 export type StandingPolicyMergeOutcome = "fresh" | "preserved_verdict" | "superseded_verdict";
 
+// A corrupt non-array `superseded` is still audit data; carry it as one entry
+// rather than silently dropping it.
+function normalizeHistory(value: unknown): Array<Record<string, unknown>> {
+  if (value === undefined || value === null) return [];
+  if (Array.isArray(value)) return value as Array<Record<string, unknown>>;
+  return [value as Record<string, unknown>];
+}
+
 /**
- * F29: decide what a standing-policy re-stamp may write over an existing slot
- * record. This writer authors schedule stamps (recorded_at, recorded_by,
- * video_path) and pending review scaffolding — never verdicts. An approved or
- * rejected record for the same asset (sha and prompt unchanged) keeps every
- * other field; a verdict for a different asset resets to pending with the old
- * verdict appended to `superseded`. Pending metadata is replaced, but any
- * history it carries rides forward.
+ * F29: flatten everything a rewrite of a slot is about to displace, oldest
+ * first: each record's own `superseded` history, plus every displaced record
+ * that is not this writer's own pending scaffolding (status "pending").
+ * `keep` marks the record that stays current and is therefore not folded.
+ * No verdict — and no unrecognisable hand-written record — is ever dropped.
+ */
+export function collectDisplacedHistory(
+  records: VideoReviewFileEntry[],
+  keep?: VideoReviewFileEntry
+): Array<Record<string, unknown>> {
+  const history: Array<Record<string, unknown>> = [];
+  for (const record of records) {
+    const { superseded, ...rest }: Record<string, unknown> = { ...record };
+    history.push(...normalizeHistory(superseded));
+    if (record !== keep && rest.status !== "pending") history.push(rest);
+  }
+  return history;
+}
+
+/**
+ * F29: decide what a standing-policy re-stamp may write over a slot's existing
+ * records. This writer authors schedule stamps (recorded_at, recorded_by,
+ * video_path) and pending review scaffolding — never verdicts. Among duplicate
+ * records for the slot a verdict (approved/rejected) wins over pending
+ * scaffolding. A verdict for the same asset (sha and prompt unchanged) keeps
+ * every field this writer did not author; a verdict for a different asset
+ * resets to pending with the old verdict appended to `superseded`. Anything
+ * displaced that is not clean pending scaffolding rides along in `superseded`.
  */
 export function mergeStandingPolicyMetadata(
-  existing: VideoReviewFileEntry | undefined,
+  sameSlotRecords: VideoReviewFileEntry[],
   metadata: StandingPolicyMetadataRecord
 ): { entry: VideoReviewFileEntry; outcome: StandingPolicyMergeOutcome } {
-  if (!existing) return { entry: metadata, outcome: "fresh" };
+  const primary =
+    sameSlotRecords.find((record) => record.status === "approved" || record.status === "rejected") ??
+    sameSlotRecords[0];
+  if (!primary) return { entry: metadata, outcome: "fresh" };
 
-  // Runtime records are looser than the declared types (rejected verdicts,
-  // review_note, restore annotations); a loose clone lets every field the
-  // writer did not author ride through untouched.
-  const { superseded: existingHistory, ...fields }: Record<string, unknown> = { ...existing };
-  const history = Array.isArray(existingHistory) ? existingHistory : [];
-
-  const status = existing.status;
+  const status = primary.status;
   if (status !== "approved" && status !== "rejected") {
+    const history = collectDisplacedHistory(sameSlotRecords);
     return {
       entry: history.length > 0 ? { ...metadata, superseded: history } : metadata,
       outcome: "fresh"
     };
   }
 
+  // Runtime records are looser than the declared types (rejected verdicts,
+  // review_note, restore annotations); a loose clone lets every field the
+  // writer did not author ride through untouched.
+  const { superseded: _primaryHistory, ...primaryRest }: Record<string, unknown> = { ...primary };
+  const history = collectDisplacedHistory(sameSlotRecords, primary);
+
   const sameAsset =
-    existing.video_sha256 === metadata.video_sha256 &&
-    existing.prompt_hash === metadata.prompt_hash;
+    primary.video_sha256 === metadata.video_sha256 &&
+    primary.prompt_hash === metadata.prompt_hash;
   if (sameAsset) {
     return {
       entry: {
-        ...fields,
+        ...primaryRest,
         status,
         date: metadata.date,
         slot: metadata.slot,
@@ -219,7 +252,7 @@ export function mergeStandingPolicyMetadata(
   }
 
   return {
-    entry: { ...metadata, superseded: [...history, fields] },
+    entry: { ...metadata, superseded: [...history, primaryRest] },
     outcome: "superseded_verdict"
   };
 }
@@ -281,19 +314,20 @@ async function loadSlotVideo(input: {
   };
 }
 
-async function writeReviewFileEntry(input: {
-  date: string;
+// There is no cross-process lock on the review file (hand edits and other
+// writers race any read-modify-write). Callers must read `records` as late as
+// possible — every await between read and write is a window in which another
+// writer's record would be silently clobbered.
+async function replaceSlotEntry(input: {
+  path: string;
   slot: number;
-  root: string;
+  records: VideoReviewFileEntry[];
   entry: VideoReviewFileEntry;
 }): Promise<void> {
-  const path = videoReviewsPath(input.date, input.root);
-  const records = (await readJsonFile<VideoReviewFileEntry[]>(path, [])).filter(
-    (entry) => entry.slot !== input.slot
-  );
-  records.push(input.entry);
-  records.sort((a, b) => a.slot - b.slot);
-  await writeJsonAtomic(path, records);
+  const next = input.records.filter((record) => record.slot !== input.slot);
+  next.push(input.entry);
+  next.sort((a, b) => a.slot - b.slot);
+  await writeJsonAtomic(input.path, next);
 }
 
 export async function recordOwnerVideoReview(input: {
@@ -321,10 +355,9 @@ export async function recordOwnerVideoReview(input: {
   const recordedAt = (input.now ?? new Date()).toISOString();
 
   if (input.standingPolicy && !input.watched) {
-    const path = videoReviewsPath(input.date, root);
-    const records = await readJsonFile<VideoReviewFileEntry[]>(path, []);
-    const existing = records.find((entry) => entry.slot === input.slot);
-
+    // Hash before reading the review file: a missing or unreadable video fails
+    // loudly here with nothing written, and the read-to-write window stays as
+    // small as the merge itself (see replaceSlotEntry).
     const metadata = buildStandingPolicyMetadata({
       date: input.date,
       slot: input.slot,
@@ -333,11 +366,11 @@ export async function recordOwnerVideoReview(input: {
       promptHash: hashVideoPrompt(loaded.prompt),
       recordedAt
     });
-    const { entry, outcome } = mergeStandingPolicyMetadata(existing, metadata);
-    const next = records.filter((record) => record.slot !== input.slot);
-    next.push(entry);
-    next.sort((a, b) => a.slot - b.slot);
-    await writeJsonAtomic(path, next);
+    const path = videoReviewsPath(input.date, root);
+    const records = await readJsonFile<VideoReviewFileEntry[]>(path, []);
+    const sameSlot = records.filter((entry) => entry.slot === input.slot);
+    const { entry, outcome } = mergeStandingPolicyMetadata(sameSlot, metadata);
+    await replaceSlotEntry({ path, slot: input.slot, records, entry });
     return {
       record: entry,
       preserved_existing_approval:
@@ -393,15 +426,17 @@ export async function recordOwnerVideoReview(input: {
     reviewed_by: "owner-watched"
   };
 
-  await writeReviewFileEntry({
-    date: input.date,
-    slot: input.slot,
-    root,
-    entry: record
-  });
+  // F29: the owner's watch may legitimately override an earlier verdict, but
+  // the displaced verdict (and any superseded history) stays in the trail.
+  const path = videoReviewsPath(input.date, root);
+  const records = await readJsonFile<VideoReviewFileEntry[]>(path, []);
+  const displaced = collectDisplacedHistory(records.filter((entry) => entry.slot === input.slot));
+  const entry: VideoReviewRecord =
+    displaced.length > 0 ? { ...record, superseded: displaced } : record;
+  await replaceSlotEntry({ path, slot: input.slot, records, entry });
 
   return {
-    record,
+    record: entry,
     duration_seconds: metadata.duration_seconds,
     width: metadata.width,
     height: metadata.height,

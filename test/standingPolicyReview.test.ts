@@ -1,12 +1,13 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeJsonAtomic } from "../src/logging";
 import {
   buildStandingPolicyMetadata,
+  collectDisplacedHistory,
   listFutureStandingPolicyBindings,
   recordOwnerVideoReview,
   STANDING_POLICY_METADATA_BY,
@@ -343,6 +344,152 @@ describe("F29: a re-schedule must not clobber a recorded verdict", () => {
     if (!record) throw new Error("expected a standing-policy metadata record");
     expect(record.status).toBe("pending");
     expect(record.superseded).toEqual([rejected]);
+  });
+
+  it("prefers the verdict over pending scaffolding when the slot has duplicate records", async () => {
+    const { root, videoPath, date } = await fixture();
+    const rejected = rejectedTwoSeatRecord({ date, videoPath });
+    const pendingDuplicate = buildStandingPolicyMetadata({
+      date,
+      slot: 1,
+      videoPath,
+      videoSha256: shaOf(VIDEO_BYTES),
+      promptHash: hashVideoPrompt(PROMPT),
+      recordedAt: "2026-08-31T00:00:00.000Z"
+    });
+    // Hand appends and bad git merges can leave two records for one slot; the
+    // pending one sits first, where a naive find() would land.
+    await writeJsonAtomic(videoReviewsPath(date, root), [pendingDuplicate, rejected]);
+
+    const now = new Date("2026-09-01T04:50:00.000Z");
+    await recordOwnerVideoReview({ date, slot: 1, watched: false, standingPolicy: true, root, now });
+
+    const records = await readRecords(date, root);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toEqual({
+      ...rejected,
+      recorded_at: now.toISOString(),
+      recorded_by: STANDING_POLICY_METADATA_BY
+    });
+  });
+
+  it("folds a record with an unrecognisable status into superseded instead of dropping it", async () => {
+    const { root, videoPath, date } = await fixture();
+    const dirty = {
+      ...rejectedTwoSeatRecord({ date, videoPath }),
+      status: "Rejected"
+    };
+    await writeJsonAtomic(videoReviewsPath(date, root), [dirty]);
+
+    await recordOwnerVideoReview({ date, slot: 1, watched: false, standingPolicy: true, root });
+
+    const records = await readRecords(date, root);
+    expect(records).toHaveLength(1);
+    const record = records[0];
+    if (!record) throw new Error("expected a standing-policy metadata record");
+    expect(record.status).toBe("pending");
+    expect(record.superseded).toEqual([dirty]);
+  });
+
+  it("keeps a corrupt non-array superseded value as history instead of discarding it", async () => {
+    const { root, videoPath, date } = await fixture();
+    const corruptHistory = { note: "hand-written history object, not an array" };
+    const rejected = {
+      ...rejectedTwoSeatRecord({ date, videoPath }),
+      superseded: corruptHistory
+    };
+    await writeJsonAtomic(videoReviewsPath(date, root), [rejected]);
+
+    await recordOwnerVideoReview({ date, slot: 1, watched: false, standingPolicy: true, root });
+
+    const records = await readRecords(date, root);
+    const record = records[0];
+    if (!record) throw new Error("expected the preserved rejection");
+    expect(record.status).toBe("rejected");
+    expect(record.superseded).toEqual([corruptHistory]);
+  });
+
+  it("supersedes an approved verdict when the asset changes, and the gate then refuses", async () => {
+    const { root, videoPath, date } = await fixture();
+    const approved = {
+      ...approvedStandingPolicyRecord(date, 1, videoPath),
+      video_sha256: shaOf("superseded-earlier-cut")
+    };
+    await writeJsonAtomic(videoReviewsPath(date, root), [approved]);
+
+    const result = await recordOwnerVideoReview({
+      date,
+      slot: 1,
+      watched: false,
+      standingPolicy: true,
+      root
+    });
+
+    const records = await readRecords(date, root);
+    const record = records[0];
+    if (!record) throw new Error("expected a standing-policy metadata record");
+    expect(record.status).toBe("pending");
+    expect(record.superseded).toEqual([approved]);
+    expect(result.superseded_previous_verdict).toBe(true);
+    expect(result.preserved_existing_approval).toBeUndefined();
+
+    await expect(
+      assertVideoReviewApproved({ date, slot: 1, videoPath, videoPrompt: PROMPT, root })
+    ).rejects.toThrow(/did not both pass/u);
+  });
+
+  it("fails loudly without touching the file when the scheduled video is missing", async () => {
+    const { root, videoPath, date } = await fixture();
+    const approved = approvedStandingPolicyRecord(date, 1, videoPath);
+    await writeJsonAtomic(videoReviewsPath(date, root), [approved]);
+    await rm(join(root, ...videoPath.split("/")));
+
+    await expect(
+      recordOwnerVideoReview({ date, slot: 1, watched: false, standingPolicy: true, root })
+    ).rejects.toThrow(/ENOENT/u);
+
+    const records = await readRecords(date, root);
+    expect(records).toEqual([approved]);
+  });
+});
+
+describe("F29: displaced-history folding shared by both write paths", () => {
+  it("folds displaced verdicts and their history, dropping only pending scaffolding", () => {
+    const olderVerdict = { slot: 1, status: "rejected", reject_reason: "first cut" };
+    const rejected = {
+      date: "2026-09-01",
+      slot: 1,
+      status: "rejected",
+      reject_reason: "second cut",
+      superseded: [olderVerdict]
+    } as unknown as Parameters<typeof collectDisplacedHistory>[0][number];
+    const pending = buildStandingPolicyMetadata({
+      date: "2026-09-01",
+      slot: 1,
+      videoPath: "docs/assets/2026-09-01/slot-01.mp4",
+      videoSha256: shaOf(VIDEO_BYTES),
+      promptHash: hashVideoPrompt(PROMPT),
+      recordedAt: "2026-09-01T00:00:00.000Z"
+    });
+
+    expect(collectDisplacedHistory([pending, rejected])).toEqual([
+      olderVerdict,
+      {
+        date: "2026-09-01",
+        slot: 1,
+        status: "rejected",
+        reject_reason: "second cut"
+      }
+    ]);
+    // keep marks the record staying current: its history folds, itself does not.
+    expect(collectDisplacedHistory([pending, rejected], rejected)).toEqual([olderVerdict]);
+  });
+
+  it("the owner-watched write path folds what it displaces via the same helper", () => {
+    const src = readFileSync(join(__dirname, "../src/ownerVideoReview.ts"), "utf8");
+    const watchedSection = src.slice(src.indexOf("await assertFullDecode"));
+    expect(watchedSection).toContain("collectDisplacedHistory");
+    expect(watchedSection).toContain("superseded: displaced");
   });
 });
 

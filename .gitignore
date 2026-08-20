@@ -40,3 +40,10 @@ secrets/
 # Python bytecode cache; scripts/ holds a few .py helpers and their cache kept
 # reappearing as untracked noise in every status check.
 __pycache__/
+
+# Reel QA frame dumps. extract-reel-frames.ps1 deliberately writes these
+# beside the reel (F13), and the reel lives under docs/ - but the daily
+# publish step git-adds all of docs/, so internal review frames were
+# reaching the public Pages site.
+docs/assets/**/*.frames/
+docs/assets/**/*.qa-frames/

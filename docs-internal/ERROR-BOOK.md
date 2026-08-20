@@ -540,3 +540,47 @@
   (計畫/輪播/模板)物件都在句首所以互擋有效;會漏的只有 Codex 自由寫的句尾
   物件題——F25 根修後 slot1 已無自由題,slot2/3 仍有此暴露。動它=動核准閘
   同源演算法(autoApprove 共用),按控制平面規矩另單送審,不順手改。
+
+## F28|2026-08-21 凌晨:junction 路徑跑 tsx CLI = isMain 判假 = 靜默零輸出 exit 0(假成功)
+
+- **現象**:為補產 denim Reel 跑 `produce-next-reel.ps1`,秒退
+  「Could not read concept status.」。逐層鑑別:`node -e` 正常、
+  `npx tsx --version` 正常、但 `npx tsx src/reelConcepts.ts` **零輸出且
+  exit 0**——不是掛掉,是 main() 根本沒跑。同一指令在 Git Bash 下卻正常。
+- **根因**:`src/cli.ts` 的 `isMain()` 用
+  `resolve(process.argv[1]) === fileURLToPath(metaUrl)` 判斷入口。
+  經 junction(`C:\Users\cyc39\laundry-repo` → `Documents\New project 5`)
+  呼叫時,`argv[1]` 是 junction 路徑(path.resolve 不解 junction),而
+  tsx 的 ESM loader 已把 `import.meta.url` 解成實體路徑——兩者永不相等,
+  isMain=false,**每一支 `isMain` 守門的 CLI 都靜默變 no-op、退出碼還是 0**。
+  Git Bash 倖免是因為它把 junction cd 解成實體路徑再交給子程序。
+- **波及面**:src/ 下所有 `if (isMain(import.meta.url))` 入口(autoApprove、
+  scheduleReel、reelConcepts、videoReviewGate…全家)。凡由 junction cwd
+  或 junction 絕對路徑發動的 powershell/cmd/排程任務呼叫全部中招;
+  我今晚自己註冊的一次性任務第一版就是這樣死的。正牌排程任務
+  (register-catchup-task.ps1)一直用實體路徑所以從未發病。
+- **處置**:一次性任務改實體路徑後立即復活(狀態讀取成功、預產圖被接受)。
+  程式層修法(isMain 兩側都過 realpathSync)動的是**全部 CLI 的共同入口**,
+  照控制平面規矩另單送審,不順手改。
+- **教訓**:**「退出碼 0 + 無輸出」是這個 repo 特有的假成功形態**,遇到
+  CLI 無聲就先問「我是不是從 junction 呼叫的」。跑 npm/tsx 一律用
+  `C:\Users\cyc39\Documents\New project 5`(實體),junction 只留給
+  「路徑不能有空格」的場合(如 dispatch.ps1 的 -Cwd,那是另一個 bug,
+  同晚發現:含空格 cwd 會被拆成流浪參數)。
+
+## F29|2026-08-21 凌晨:standing-policy 中繼資料寫入器盲目整筆替換,毀掉既有雙審 REJECT
+
+- **現象**:produce-next-reel 重排 8/23(wallet)時照例跑
+  `owner-video-review --standing-policy`,把 `data/video-reviews/2026-08-23.json`
+  裡我 8/20 寫的兩席 REJECT(含完整退件理由)整筆換成全 pending 的中繼資料
+  ——判決歷史直接蒸發。發布閘仍 fail-closed(pending ≠ pass 照樣擋),
+  但「這支被排上的片為什麼不能播」的記錄不見了。
+- **根因**:中繼資料寫入器的寫法是「同 slot 舊記錄全過濾掉、推入新記錄」
+  (與 videoReviewGate.recordVideoReview 同款 replace 語意),沒有
+  「既有記錄已是 rejected/approved 就保留判決欄位」的合併邏輯。
+- **處置**:REJECT 記錄以原文復原並加 RESTORED 註記。寫入器的修法屬審核
+  記錄鏈(會影響放行歷史的東西),另單送審,不順手改。
+- **教訓**:**重排=重寫中繼資料**,任何人工判決寫進 video-reviews 後,
+  只要該日再被 schedule 一次就會被清掉——在修好之前,重排過的日子要回頭
+  檢查判決還在不在(本 session 已中招一次:8/22 tC 的 REJECT 也是寫在
+  standing-policy 之後才安全的)。

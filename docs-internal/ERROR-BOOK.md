@@ -580,11 +580,18 @@
   「既有記錄已是 rejected/approved 就保留判決欄位」的合併邏輯。
 - **處置**:REJECT 記錄以原文復原並加 RESTORED 註記。寫入器的修法屬審核
   記錄鏈(會影響放行歷史的東西),另單送審,不順手改。
-  → 修法已落在 `claude/priceless-wright-e8231a` 分支:standing-policy 改為
-  merge 語意——同 slot 既有 approved/rejected 且 sha+prompt hash 未變時只刷新
-  排程戳(recorded_at/recorded_by/video_path),判決欄位原樣保留;資產真的換了
-  (sha 或 prompt 變)才重設 pending,舊判決整筆附進 `superseded` 陣列;重複
-  re-stamp 會把 `superseded` 歷史往前帶。測試含突變實測(拔掉修法 5 紅)。
+  → 修法已落在 `claude/priceless-wright-e8231a` 分支(4 commits,e30cbd5..80b3e98):
+  standing-policy 改 merge 語意——同 slot 既有 approved/rejected 且 sha+prompt hash
+  未變時只刷新排程戳,判決欄位原樣保留;資產真的換了才重設 pending,舊判決附進
+  `superseded`;`--watched` 也把被置換的判決/歷史折進 trail;同指紋多筆判決取
+  最後一筆(時序律);髒 status/非陣列歷史不再蒸發。跨家族兩席四輪審畢:
+  luna 深審 PASS_WITH_FOLLOWUPS(新缺陷 0)、grok 紅隊全鏈 CLOSED/RESIDUAL_AGREED
+  (runs F29CLOBBER-RA v2-v5、RB v1-v4)。測試 21 條含六刀突變實測,全套 638 綠。
+  殘留(兩席同意列後續單,詳 `_bridge\materials\F29CLOBBER\DISPOSITION.md`):
+  ①三寫入器無跨程序鎖②閘門 find 第一筆、不拒重複 slot、不讀 superseded
+  ③videoReviewGate.recordVideoReview 仍整筆 replace④人工手寫 SOP⑤同指紋曾
+  REJECT 換回時不自動抬回(老闆裁決題)。重複判決選現行這一類經 grok 類別終判
+  「寫入端關不完」,整包走閘門拒收重複+寫入 schema 的後續單。
 - **教訓**:**重排=重寫中繼資料**,任何人工判決寫進 video-reviews 後,
   只要該日再被 schedule 一次就會被清掉——在修好之前,重排過的日子要回頭
   檢查判決還在不在(本 session 已中招一次:8/22 tC 的 REJECT 也是寫在

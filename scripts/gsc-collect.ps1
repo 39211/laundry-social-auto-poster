@@ -33,3 +33,21 @@ if ($exit -ne 0) {
 } else {
     Write-Log "Done."
 }
+
+# 2026-08-21: URL Inspection sweep of the sitemap pages. The sitemap report
+# said "submitted 24, indexed 0" as one opaque number; this records each
+# page's coverage state daily (data\insights\gsc-index\<date>.json) so the
+# daily report can show which pages moved. Read-only; ~24 calls against a
+# 2000/day quota.
+Write-Log "Inspecting sitemap URL index coverage."
+Push-Location $root
+$out2 = cmd /c "npm.cmd run gsc-index-inspect -- --no-fail 2>&1"
+$exit2 = $LASTEXITCODE
+Pop-Location
+$out2 | ForEach-Object { Write-Log $_ }
+
+if ($exit2 -ne 0) {
+    Write-Log "gsc-index-inspect exited $exit2."
+} else {
+    Write-Log "Done."
+}

@@ -2328,6 +2328,11 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
     inLanguage: "zh-Hant",
     address: profile.address,
     telephone: profile.telephone,
+    // The floor price the site itself publishes (襯衫 70 on the service pages
+    // and daily captions). Kept to the short form Google renders in local
+    // results; per-item quotes stay on the pages, consistent with the site's
+    // no-unverified-prices rule.
+    priceRange: "NT$70 起",
     identifier: identifiers,
     contactPoint: [
       {

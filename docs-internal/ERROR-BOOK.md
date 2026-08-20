@@ -509,6 +509,28 @@
   paused 狀態同步判斷該不該信任那個格位。**在拿「數據說話」當優化依據前,
   先問這個數字的來源程式碼今天還對不對**——這正是本回合交接文要求的
   「怎麼驗」,不是套公式,是真的去查。
+- **【2026-08-21 修復落地,branch `claude/focused-tesla-c0d0d2` commit 72cad03】**:
+  `findLiveReelSlot()` 取代寫死的 slot 2:先掃當天貼文找
+  `published_media_type === "reel"`(不管格位號碼),再拿
+  `data/video-sources/<date>.json` 的 `source_reference`(`scheduleReel.ts`
+  唯一寫入路徑、內嵌 concept id 的固定樣板)反查那支 Reel 是不是這一列自己的
+  概念——只查格位還不夠:**8/16 的真實資料證明,格位對了,概念可能還是錯的**
+  (`REEL_SCHEDULE`/extension 排的是 heel-tip-scuff,但
+  `data/video-sources/2026-08-16.json` 的 `generation_id`／
+  `source_reference`,以及行事曆 slot 3 自己的 topic/caption,三方一致指向
+  當天實際播出的是 white-shoe-yellowing——`ab-test-plan.json` 的 noon 半場把它
+  拉過來重播,`REEL_SCHEDULE` 完全沒跟著改)。`ab-test-plan.json` 的 conceptId
+  比對只留給雙 Reel 且 video-sources 兩邊都對不上時的最後防線。
+  **三輪跨家族複審(Codex-luna、Grok 兩輪)各自抓到真缺陷**(雙 Reel 消歧只看
+  「有沒有暫停」不比 conceptId、`status:"uncertain"` 的 Reel 被排除、
+  video-source 比對沒排除 `generateGrokVideo.ts`/`importGrokVideo.ts` 寫的不同
+  格式紀錄),全部修完且逐項突變實測(還原修法、測試變紅,再還原修法確認轉綠,
+  逐一隔離驗證,不是一次性全還原就交差)。Codex-terra 一輪唯讀權限讀不到檔案,
+  判定為派工設定失敗,不計入複審結論。`test/reelBatchReview.test.ts` 8 案例,
+  `npx tsc --noEmit`／`npx vitest run` 全綠(627 過,5 個不相關的既有失敗已用
+  `git stash` 證實與本次修改無關)。**尚未關**:`THRESHOLDS_72H.non_follower_share`
+  寫死 null、從未真的檢查 60% 門檻——這是修這支工具之前就存在的坑,不在本次
+  範圍內,留待另案。
 
 ## F27|2026-08-21 凌晨:差點把已測試過的 hook 敘事結構當「泛用問句」蓋掉
 

@@ -139,24 +139,33 @@ describe("standing-policy is metadata, not a publish stamp", () => {
     expect(result.record).toMatchObject(record);
   });
 
-  it("does not overwrite a historical approved standing-policy stamp", async () => {
+  it("keeps an approved standing-policy stamp's verdict, refreshing only schedule stamps", async () => {
     const { root, videoPath, date } = await fixture();
     const existing = approvedStandingPolicyRecord(date, 1, videoPath);
     await writeJsonAtomic(videoReviewsPath(date, root), [existing]);
 
+    const now = new Date("2026-09-01T04:50:00.000Z");
     const result = await recordOwnerVideoReview({
       date,
       slot: 1,
       watched: false,
       standingPolicy: true,
-      root
+      root,
+      now
     });
 
     expect(result.preserved_existing_approval).toBe(true);
+    expect(result.preserved_existing_verdict).toBe(true);
     const records = JSON.parse(await readFile(videoReviewsPath(date, root), "utf8")) as Array<
       Record<string, unknown>
     >;
-    expect(records).toEqual([existing]);
+    expect(records).toEqual([
+      {
+        ...existing,
+        recorded_at: now.toISOString(),
+        recorded_by: STANDING_POLICY_METADATA_BY
+      }
+    ]);
   });
 
   it("lists future standing-policy stamps and ignores past stamps and pending metadata", async () => {
@@ -191,6 +200,149 @@ describe("standing-policy is metadata, not a publish stamp", () => {
         reviewed_at: "2026-08-01T00:00:00.000Z"
       }
     ]);
+  });
+});
+
+// F29 (2026-08-21): produce-next-reel re-schedules a day after every
+// schedule-reel call, and the metadata writer used replace semantics — a
+// recorded two-seat REJECT (with its reject_reason) was silently reset to
+// all-pending twice. The writer owns schedule stamps, never verdicts.
+describe("F29: a re-schedule must not clobber a recorded verdict", () => {
+  function rejectedTwoSeatRecord(input: {
+    date: string;
+    videoPath: string;
+    videoSha256?: string;
+    promptHash?: string;
+  }) {
+    return {
+      date: input.date,
+      slot: 1,
+      video_path: input.videoPath,
+      video_sha256: input.videoSha256 ?? shaOf(VIDEO_BYTES),
+      prompt_hash: input.promptHash ?? hashVideoPrompt(PROMPT),
+      review_round: 1,
+      full_decode: "pass",
+      all_frame_physics_review: "fail",
+      grok_review: "fail",
+      sol_review: "fail",
+      separate_zh_tw_tts_review: "pass",
+      generated_clip_audio_used: false,
+      status: "rejected",
+      reviewed_at: "2026-08-31T10:00:00.000Z",
+      reviewed_by: "human-frames-review",
+      reject_reason: "two-seat REJECT: middle act drifts the steam tool off the knee landmark",
+      review_note: "commander frames eyeball + grok blind seat, both REJECT"
+    };
+  }
+
+  async function readRecords(date: string, root: string): Promise<Array<Record<string, unknown>>> {
+    return JSON.parse(await readFile(videoReviewsPath(date, root), "utf8")) as Array<
+      Record<string, unknown>
+    >;
+  }
+
+  it("preserves a rejection and its reject_reason when the same asset is re-scheduled", async () => {
+    const { root, videoPath, date } = await fixture();
+    const rejected = rejectedTwoSeatRecord({ date, videoPath });
+    await writeJsonAtomic(videoReviewsPath(date, root), [rejected]);
+
+    const now = new Date("2026-09-01T04:50:00.000Z");
+    const result = await recordOwnerVideoReview({
+      date,
+      slot: 1,
+      watched: false,
+      standingPolicy: true,
+      root,
+      now
+    });
+
+    const records = await readRecords(date, root);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toEqual({
+      ...rejected,
+      recorded_at: now.toISOString(),
+      recorded_by: STANDING_POLICY_METADATA_BY
+    });
+    expect(result.preserved_existing_verdict).toBe(true);
+    expect(result.preserved_existing_approval).toBeUndefined();
+
+    // Fail-closed retained: the preserved rejection still blocks publishing.
+    await expect(
+      assertVideoReviewApproved({ date, slot: 1, videoPath, videoPrompt: PROMPT, root })
+    ).rejects.toThrow(/did not both pass/u);
+  });
+
+  it("resets to pending for a genuinely new asset, moving the old verdict into superseded", async () => {
+    const { root, videoPath, date } = await fixture();
+    const rejected = rejectedTwoSeatRecord({
+      date,
+      videoPath,
+      videoSha256: shaOf("superseded-earlier-cut")
+    });
+    await writeJsonAtomic(videoReviewsPath(date, root), [rejected]);
+
+    const now = new Date("2026-09-01T04:50:00.000Z");
+    const result = await recordOwnerVideoReview({
+      date,
+      slot: 1,
+      watched: false,
+      standingPolicy: true,
+      root,
+      now
+    });
+
+    const records = await readRecords(date, root);
+    expect(records).toHaveLength(1);
+    const record = records[0];
+    if (!record) throw new Error("expected a standing-policy metadata record");
+    expect(record.status).toBe("pending");
+    expect(record.grok_review).toBe("pending");
+    expect(record.sol_review).toBe("pending");
+    expect(record.video_sha256).toBe(shaOf(VIDEO_BYTES));
+    expect(record.recorded_at).toBe(now.toISOString());
+    expect(record.superseded).toEqual([rejected]);
+    expect(result.superseded_previous_verdict).toBe(true);
+    expect(result.preserved_existing_verdict).toBeUndefined();
+  });
+
+  it("supersedes on a prompt change even when the file bytes are unchanged", async () => {
+    const { root, videoPath, date } = await fixture();
+    const rejected = rejectedTwoSeatRecord({
+      date,
+      videoPath,
+      promptHash: hashVideoPrompt("an earlier prompt")
+    });
+    await writeJsonAtomic(videoReviewsPath(date, root), [rejected]);
+
+    await recordOwnerVideoReview({ date, slot: 1, watched: false, standingPolicy: true, root });
+
+    const records = await readRecords(date, root);
+    const record = records[0];
+    if (!record) throw new Error("expected a standing-policy metadata record");
+    expect(record.status).toBe("pending");
+    expect(record.prompt_hash).toBe(hashVideoPrompt(PROMPT));
+    expect(record.superseded).toEqual([rejected]);
+  });
+
+  it("carries superseded history forward when pending metadata is re-stamped", async () => {
+    const { root, videoPath, date } = await fixture();
+    const rejected = rejectedTwoSeatRecord({
+      date,
+      videoPath,
+      videoSha256: shaOf("superseded-earlier-cut")
+    });
+    await writeJsonAtomic(videoReviewsPath(date, root), [rejected]);
+
+    await recordOwnerVideoReview({ date, slot: 1, watched: false, standingPolicy: true, root });
+    // The repeat run that used to wipe history along with everything else.
+    await recordOwnerVideoReview({ date, slot: 1, watched: false, standingPolicy: true, root });
+
+    const records = await readRecords(date, root);
+    expect(records).toHaveLength(1);
+    const record = records[0];
+    if (!record) throw new Error("expected a standing-policy metadata record");
+    expect(record.status).toBe("pending");
+    expect(record.superseded).toEqual([rejected]);
   });
 });
 

@@ -580,6 +580,11 @@
   「既有記錄已是 rejected/approved 就保留判決欄位」的合併邏輯。
 - **處置**:REJECT 記錄以原文復原並加 RESTORED 註記。寫入器的修法屬審核
   記錄鏈(會影響放行歷史的東西),另單送審,不順手改。
+  → 修法已落在 `claude/priceless-wright-e8231a` 分支:standing-policy 改為
+  merge 語意——同 slot 既有 approved/rejected 且 sha+prompt hash 未變時只刷新
+  排程戳(recorded_at/recorded_by/video_path),判決欄位原樣保留;資產真的換了
+  (sha 或 prompt 變)才重設 pending,舊判決整筆附進 `superseded` 陣列;重複
+  re-stamp 會把 `superseded` 歷史往前帶。測試含突變實測(拔掉修法 5 紅)。
 - **教訓**:**重排=重寫中繼資料**,任何人工判決寫進 video-reviews 後,
   只要該日再被 schedule 一次就會被清掉——在修好之前,重排過的日子要回頭
   檢查判決還在不在(本 session 已中招一次:8/22 tC 的 REJECT 也是寫在

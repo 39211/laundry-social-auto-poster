@@ -30,6 +30,12 @@ export const STANDING_POLICY_METADATA_BY = "standing-policy-metadata";
 // --standing-policy is not a review. It records schedule time and the asset
 // sha so the production log has a binding. Review fields stay pending. The
 // publish gate still requires a real approval; unwatched video ships as cover.
+//
+// F29: produce-next-reel re-runs this writer over days that may already hold a
+// human verdict. The writer owns only its schedule stamps: an approved or
+// rejected record for the same asset keeps every field it did not author, and
+// when the asset genuinely changed (sha or prompt), review resets to pending
+// while the old verdict moves into `superseded` so the reject trail survives.
 
 async function sha256File(path: string): Promise<string> {
   return createHash("sha256").update(await readFile(path)).digest("hex");
@@ -67,9 +73,35 @@ export interface StandingPolicyMetadataRecord {
   sol_review: "pending";
   separate_zh_tw_tts_review: "pending";
   status: "pending";
+  /**
+   * Verdicts recorded against earlier assets of this slot, appended (oldest
+   * first) each time a re-schedule replaced the asset they judged. Append-only.
+   */
+  superseded?: Array<Record<string, unknown>>;
 }
 
-export type VideoReviewFileEntry = VideoReviewRecord | StandingPolicyMetadataRecord;
+/**
+ * An approved or rejected verdict re-stamped with schedule metadata at
+ * re-schedule time. Verdict fields ride through untouched via the index
+ * signature; only the schedule stamps are this writer's to refresh.
+ */
+export interface PreservedVerdictEntry {
+  [key: string]: unknown;
+  date: string;
+  slot: number;
+  video_path: string;
+  video_sha256: string;
+  prompt_hash: string;
+  status: string;
+  recorded_at: string;
+  recorded_by: typeof STANDING_POLICY_METADATA_BY;
+  superseded?: Array<Record<string, unknown>>;
+}
+
+export type VideoReviewFileEntry =
+  | VideoReviewRecord
+  | StandingPolicyMetadataRecord
+  | PreservedVerdictEntry;
 
 export interface StandingPolicyBinding {
   date: string;
@@ -87,7 +119,12 @@ export interface OwnerReviewResult {
   width?: number;
   height?: number;
   has_audio_stream?: boolean;
+  /** An existing publish-gate-satisfying approval was kept for this asset. */
   preserved_existing_approval?: boolean;
+  /** F29: an existing approved/rejected verdict for the same asset was kept. */
+  preserved_existing_verdict?: boolean;
+  /** F29: a new asset reset review to pending; the old verdict is in `superseded`. */
+  superseded_previous_verdict?: boolean;
 }
 
 export function isStandingPolicyStamp(entry: {
@@ -97,9 +134,9 @@ export function isStandingPolicyStamp(entry: {
 }
 
 export function reviewSatisfiesPublishGate(entry: {
-  status?: string;
-  grok_review?: string;
-  sol_review?: string;
+  status?: unknown;
+  grok_review?: unknown;
+  sol_review?: unknown;
 }): boolean {
   return entry.status === "approved" && entry.grok_review === "pass" && entry.sol_review === "pass";
 }
@@ -126,6 +163,64 @@ export function buildStandingPolicyMetadata(input: {
     sol_review: "pending",
     separate_zh_tw_tts_review: "pending",
     status: "pending"
+  };
+}
+
+export type StandingPolicyMergeOutcome = "fresh" | "preserved_verdict" | "superseded_verdict";
+
+/**
+ * F29: decide what a standing-policy re-stamp may write over an existing slot
+ * record. This writer authors schedule stamps (recorded_at, recorded_by,
+ * video_path) and pending review scaffolding — never verdicts. An approved or
+ * rejected record for the same asset (sha and prompt unchanged) keeps every
+ * other field; a verdict for a different asset resets to pending with the old
+ * verdict appended to `superseded`. Pending metadata is replaced, but any
+ * history it carries rides forward.
+ */
+export function mergeStandingPolicyMetadata(
+  existing: VideoReviewFileEntry | undefined,
+  metadata: StandingPolicyMetadataRecord
+): { entry: VideoReviewFileEntry; outcome: StandingPolicyMergeOutcome } {
+  if (!existing) return { entry: metadata, outcome: "fresh" };
+
+  // Runtime records are looser than the declared types (rejected verdicts,
+  // review_note, restore annotations); a loose clone lets every field the
+  // writer did not author ride through untouched.
+  const { superseded: existingHistory, ...fields }: Record<string, unknown> = { ...existing };
+  const history = Array.isArray(existingHistory) ? existingHistory : [];
+
+  const status = existing.status;
+  if (status !== "approved" && status !== "rejected") {
+    return {
+      entry: history.length > 0 ? { ...metadata, superseded: history } : metadata,
+      outcome: "fresh"
+    };
+  }
+
+  const sameAsset =
+    existing.video_sha256 === metadata.video_sha256 &&
+    existing.prompt_hash === metadata.prompt_hash;
+  if (sameAsset) {
+    return {
+      entry: {
+        ...fields,
+        status,
+        date: metadata.date,
+        slot: metadata.slot,
+        video_path: metadata.video_path,
+        video_sha256: metadata.video_sha256,
+        prompt_hash: metadata.prompt_hash,
+        recorded_at: metadata.recorded_at,
+        recorded_by: metadata.recorded_by,
+        ...(history.length > 0 ? { superseded: history } : {})
+      },
+      outcome: "preserved_verdict"
+    };
+  }
+
+  return {
+    entry: { ...metadata, superseded: [...history, fields] },
+    outcome: "superseded_verdict"
   };
 }
 
@@ -227,12 +322,8 @@ export async function recordOwnerVideoReview(input: {
 
   if (input.standingPolicy && !input.watched) {
     const path = videoReviewsPath(input.date, root);
-    const existing = (await readJsonFile<VideoReviewFileEntry[]>(path, [])).find(
-      (entry) => entry.slot === input.slot
-    );
-    if (existing && reviewSatisfiesPublishGate(existing)) {
-      return { record: existing, preserved_existing_approval: true };
-    }
+    const records = await readJsonFile<VideoReviewFileEntry[]>(path, []);
+    const existing = records.find((entry) => entry.slot === input.slot);
 
     const metadata = buildStandingPolicyMetadata({
       date: input.date,
@@ -242,13 +333,18 @@ export async function recordOwnerVideoReview(input: {
       promptHash: hashVideoPrompt(loaded.prompt),
       recordedAt
     });
-    await writeReviewFileEntry({
-      date: input.date,
-      slot: input.slot,
-      root,
-      entry: metadata
-    });
-    return { record: metadata };
+    const { entry, outcome } = mergeStandingPolicyMetadata(existing, metadata);
+    const next = records.filter((record) => record.slot !== input.slot);
+    next.push(entry);
+    next.sort((a, b) => a.slot - b.slot);
+    await writeJsonAtomic(path, next);
+    return {
+      record: entry,
+      preserved_existing_approval:
+        outcome === "preserved_verdict" && reviewSatisfiesPublishGate(entry) ? true : undefined,
+      preserved_existing_verdict: outcome === "preserved_verdict" ? true : undefined,
+      superseded_previous_verdict: outcome === "superseded_verdict" ? true : undefined
+    };
   }
 
   await assertFullDecode(loaded.absolutePath);

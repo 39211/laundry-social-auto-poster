@@ -135,5 +135,22 @@ Register-LaundryTask -Name "Laundry-Day-Audit" -Script "day-audit.ps1" `
     -TimeLimit (New-TimeSpan -Minutes 15) `
     -Description "私享家每日 22:50 結算:對帳三檔發文、頭香、Shorts 與明日備料;缺口先自救再通知。"
 
+# 2026-08-20: the leads ledger had six blank days (8/13-8/18) because nothing
+# ever called ga4-report on a schedule -- every number in it until then came
+# from someone running it by hand. After Day-Audit so the day's LINE-click
+# traffic is as complete as GA4's near-real-time processing gets.
+Register-LaundryTask -Name "Laundry-GA4-Collect" -Script "ga4-collect.ps1" `
+    -Triggers @((New-ScheduledTaskTrigger -Daily -At "23:10")) `
+    -TimeLimit (New-TimeSpan -Minutes 10) `
+    -Description "私享家每日 23:10 收集 GA4 LINE 點擊數,寫入 data\leads,讓日報永遠有前一天可比對的數字。"
+
+# 2026-08-20: GSC Search Analytics read side (docs-internal/gsc-search-
+# analytics-setup.md). Data settles over ~3 days, so the collector's own
+# default already targets 3 days back -- this just needs to fire daily.
+Register-LaundryTask -Name "Laundry-GSC-Collect" -Script "gsc-collect.ps1" `
+    -Triggers @((New-ScheduledTaskTrigger -Daily -At "23:15")) `
+    -TimeLimit (New-TimeSpan -Minutes 10) `
+    -Description "私享家每日 23:15 收集 GSC 查詢詞與頁面曝光數(抓 3 天前,等數據穩定),寫入 data\insights\gsc。"
+
 Get-ScheduledTask | Where-Object { $_.TaskName -like "Laundry-*" } |
     Select-Object TaskName, State | Format-Table -AutoSize

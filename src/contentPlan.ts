@@ -591,6 +591,12 @@ function pickByObject(
 function careBridgeFor(slot: GrowthPlaybookSlot): string {
   const page = canonicalSeoSyncPage(slot.seo_sync_page);
   const variants = ((): string[] => {
+    if (page.includes("school-uniform-care")) {
+      return [
+        "暑假穿過的制服，領口那圈黃和袖口油汗最先出來。看起來還能穿，先燙會把黃痕定死。",
+        "學生制服最怕的不是髒，是開學前才整燙。高溫會把領口舊黃定型，之後再洗也洗不掉。"
+      ];
+    }
     if (page.includes("shirt-suit-dry-cleaning")) {
       return [
         "襯衫的領口和袖口不是洗不乾淨，是皮脂氧化。加倍洗衣精只會把布洗薄。",
@@ -669,6 +675,12 @@ function inspectionFor(slot: GrowthPlaybookSlot): string {
   const page = canonicalSeoSyncPage(slot.seo_sync_page);
   const variants = ((): string[] => {
     // Index 0 is the shirt and index 1 the suit here, matching the care bridge.
+    if (page.includes("school-uniform-care")) {
+      return [
+        "我會先翻領口內側看黃是新皮脂還是已經氧化的舊痕，再看袖口和腋下。順序是先處理再整燙。",
+        "制服我會先看領口內側那一圈。淺黃還救得回來，深黃帶硬感的，多半是被燙過定型的舊痕。"
+      ];
+    }
     if (page.includes("shirt-suit-dry-cleaning")) {
       return [
         "領口這種黃，我會先確認是布本身黃了，還是只浮在表面。兩種處理方式不一樣，用力洗只會把布洗薄。",
@@ -785,6 +797,12 @@ function actionCtaFor(slot: GrowthPlaybookSlot, platform: Platform): string {
         `不用出門，台中市區我們去收。${channel}說個地址和時間就好。`
       ];
     }
+    if (page.includes("school-uniform-care")) {
+      return [
+        `開學前想先整理？拍一張${channel}，我們先幫你看領口那種黃。`,
+        `不確定領口那圈黃還救不救得回來？拍一張${channel}就可以。`
+      ];
+    }
     if (page.includes("shirt-suit-dry-cleaning")) {
       return [
         `領口開始黃了？拍一張${channel}，我們先看是哪一種。`,
@@ -829,6 +847,9 @@ function normalizeInstagramCta(caption: string): string {
 function engagementQuestionFor(slot: GrowthPlaybookSlot): string {
   const page = canonicalSeoSyncPage(slot.seo_sync_page);
   const variants = ((): string[] => {
+    if (page.includes("school-uniform-care")) {
+      return ["你家那套制服，領口有沒有開始黃？", "開學前那套制服，你打算自己燙還是先送洗？"];
+    }
     if (page.includes("shirt-suit-dry-cleaning")) {
       return ["你的襯衫比較常出問題的，是領口還是袖口？", "你有幾件襯衫是黃了以後就沒再穿的？"];
     }
@@ -1598,6 +1619,14 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
     lockNote: "non-physical promo topic; scene-lock only; do not invent a laundry item"
   },
   {
+    id: "school-uniform",
+    match: /學生制服|校服|開學.{0,6}制服/,
+    noun: "Taiwan school uniform set: one white short-sleeve sailor-collar blouse with a red neckerchief and one khaki pleated skirt",
+    material: "white poly-cotton sailor blouse and khaki pleated skirt",
+    lockNote: "object locked as one school uniform set, not a clinic uniform, not a lab coat, not a dress shirt, not a nurse uniform",
+    wearFallback: "collar-inner yellowing and cuff oil darkening from summer wear"
+  },
+  {
     id: "clinic-uniform",
     match: /診所制服|制服/,
     noun: "clinic uniform set",
@@ -2081,7 +2110,7 @@ function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string)
   }
 }
 
-function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): DailySlot {
+export function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): DailySlot {
   const facebookCaption = captionFromPlaybook(slot, "facebook", config);
   const instagramCaption = captionFromPlaybook(slot, "instagram", config);
   const isReel = slot.format === "reel";

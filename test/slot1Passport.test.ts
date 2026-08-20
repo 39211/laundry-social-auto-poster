@@ -20,7 +20,7 @@ const NEXT_14_DAYS: Array<{
   { date: "2026-08-18", topic: "海報宣傳-免費收送", object: "scene-lock only", material: "n/a", sceneLockOnly: true },
   { date: "2026-08-19", topic: "診所制服每週收送", object: "clinic uniform set", material: "clinic uniform" },
   { date: "2026-08-20", topic: "麂皮鞋雨天急救", object: "suede", material: "suede" },
-  { date: "2026-08-21", topic: "球鞋中底黃斑", object: "running shoes", material: "running shoes" },
+  { date: "2026-08-21", topic: "開學前學生制服檢查", object: "school uniform set", material: "sailor blouse" },
   { date: "2026-08-22", topic: "童鞋開學檢查", object: "kids sneakers", material: "kids sneakers" },
   { date: "2026-08-23", topic: "室內鞋汗味", object: "indoor slippers", material: "indoor slippers" },
   { date: "2026-08-24", topic: "皮鞋刮痕補色", object: "leather dress shoes", material: "leather dress shoes" },
@@ -57,6 +57,7 @@ describe("slot1-plan 14-day object passport table", () => {
     const ids = OBJECT_SPEC_RULES.map((rule) => rule.id);
     for (const required of [
       "poster-promo",
+      "school-uniform",
       "clinic-uniform",
       "gym-towels",
       "shoes-with-socks",
@@ -76,5 +77,18 @@ describe("slot1-plan 14-day object passport table", () => {
     expect(suede).toBeTruthy();
     expect(suede!.match.test("麂皮鞋雨天急救")).toBe(true);
     expect(/皮鞋/.test("麂皮鞋雨天急救")).toBe(true);
+  });
+
+  it("mutation: dropping the school-uniform row would send 學生制服 to clinic uniform", () => {
+    const school = OBJECT_SPEC_RULES.find((rule) => rule.id === "school-uniform");
+    const clinic = OBJECT_SPEC_RULES.find((rule) => rule.id === "clinic-uniform");
+    expect(school).toBeTruthy();
+    expect(clinic).toBeTruthy();
+    expect(school!.match.test("開學前學生制服檢查")).toBe(true);
+    expect(clinic!.match.test("開學前學生制服檢查")).toBe(true);
+    const schoolIndex = OBJECT_SPEC_RULES.findIndex((rule) => rule.id === "school-uniform");
+    const clinicIndex = OBJECT_SPEC_RULES.findIndex((rule) => rule.id === "clinic-uniform");
+    expect(schoolIndex).toBeGreaterThanOrEqual(0);
+    expect(clinicIndex).toBeGreaterThan(schoolIndex);
   });
 });

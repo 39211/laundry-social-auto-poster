@@ -1,8 +1,10 @@
+import { loadAbTestPlan, planForDate, planSlot } from "./abTestPlan";
 import { getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
-import { loadDailyContent, loadPostLog } from "./logging";
+import { isLiveAiredReelEntry, loadDailyContent, loadPostLog, loadVideoSources } from "./logging";
 import { projectRoot } from "./paths";
 import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions } from "./reelConcepts";
+import type { PostLogEntry } from "./types";
 
 // Judges a published batch of Reels against the per-Reel thresholds in
 // content-playbooks/reels-roadmap.md, so the next batch is built from what happened rather
@@ -81,6 +83,108 @@ async function loadReelMetrics(
   return undefined;
 }
 
+function isLiveInstagramReelPost(post: PostLogEntry): boolean {
+  // isLiveAiredReelEntry already carries the dry_run/status/video_status
+  // rules for "did this really air" (including "uncertain": a commit-point
+  // ack failure whose post may still be live -- excluding it here would
+  // silently drop a Reel that published but had a flaky success response).
+  // published_media_type narrows its reel-or-mixed-carousel match to reel
+  // only, since mixed-carousel is a different format this tool never judges.
+  return post.platform === "instagram" && post.published_media_type === "reel" && isLiveAiredReelEntry(post);
+}
+
+/**
+ * True when video-sources says this slot's clip was copied from this
+ * concept's own report (scheduleReel.ts always writes
+ * `source_reference: copx:<RUN_DIR>/report-<concept.id>-before.json`, so the
+ * concept id is embedded verbatim). Undefined -- not false -- when there is
+ * no record for that slot: a missing record is not evidence of a mismatch.
+ */
+async function videoSourceConceptMatch(
+  date: string,
+  slotNumber: number,
+  conceptId: string,
+  root: string
+): Promise<boolean | undefined> {
+  const sources = await loadVideoSources(date, root);
+  const source = sources.find((item) => item.slot === slotNumber);
+  // Only scheduleReel.ts's own route embeds the concept id in a parseable
+  // way (`copx:<RUN_DIR>/report-<concept.id>-before.json`). generateGrokVideo.ts
+  // and importGrokVideo.ts write the same file with source_reference set to a
+  // bare xAI request id or a caller-supplied reference instead -- reading
+  // that as a concept mismatch would report a confident "wrong concept" with
+  // no real evidence behind it, for a Reel that never went through
+  // scheduleReel.ts at all.
+  if (source?.source_route !== "hermes-xai-oauth") return undefined;
+  const reference = source.source_reference;
+  if (typeof reference !== "string") return undefined;
+  return reference.includes(`report-${conceptId}-before.json`);
+}
+
+/**
+ * Which slot actually carries *this concept's* published Reel. Two things
+ * drift out from under a hardcoded slot number:
+ *
+ * 1. Production ran two Reels/day (noon=slot 3, evening=slot 2) through
+ *    2026-08-14; from 2026-08-15 the evening half of ab-test-plan.json is
+ *    paused and the day's one Reel can land at either slot, so a hardcoded
+ *    slot silently starts scoring whatever unrelated post happens to sit in
+ *    the other one (ERROR-BOOK F26).
+ * 2. Even once the right *slot* is found, the clip that actually aired there
+ *    is not guaranteed to be this row's own concept: ab-test-plan.json's noon
+ *    half pulls a *different*, re-aired concept forward, and REEL_SCHEDULE /
+ *    the extension schedule is a separately-edited file that does not track
+ *    that pull. Production has already done this for real: 2026-08-16's
+ *    REEL_SCHEDULE row is heel-tip-scuff, but data/video-sources/2026-08-16.json
+ *    and the calendar's own slot-3 topic both show the clip that aired that
+ *    day was white-shoe-yellowing's, pulled forward as that day's noon half.
+ *    Reading video-sources' source_reference (see videoSourceConceptMatch)
+ *    is the most direct ground truth for "whose Reel is this," since it is
+ *    written by the one function that ever schedules a Reel and is anchored
+ *    to the concept's stable id rather than to its prose hook, which gets
+ *    rewritten over time (ERROR-BOOK F27).
+ */
+async function findLiveReelSlot(
+  date: string,
+  conceptId: string,
+  posts: PostLogEntry[],
+  root: string
+): Promise<{ slotNumber: number; post: PostLogEntry } | undefined> {
+  const reelPosts = posts.filter(isLiveInstagramReelPost);
+  if (reelPosts.length === 0) return undefined;
+
+  const matches = await Promise.all(
+    reelPosts.map((post) => videoSourceConceptMatch(date, post.slot, conceptId, root))
+  );
+  const confirmedIndex = matches.findIndex((match) => match === true);
+  if (confirmedIndex >= 0) {
+    const post = reelPosts[confirmedIndex]!;
+    return { slotNumber: post.slot, post };
+  }
+
+  if (reelPosts.length === 1) {
+    // The only live Reel that day has video-sources evidence naming a
+    // *different* concept: it is not this row's Reel to measure, and
+    // crediting it here is exactly the F26 mistake one level down (right
+    // slot, wrong concept). No evidence either way (undefined) still counts
+    // as this row's Reel, matching every pre-video-sources historical date.
+    return matches[0] === false ? undefined : { slotNumber: reelPosts[0]!.slot, post: reelPosts[0]! };
+  }
+
+  // Two or more real Reels the same day, none confirmed by video-sources
+  // (either no record at all, or every record points elsewhere) -- only
+  // happened on the old dual-Reel schedule. ab-test-plan.json still answers
+  // which half is this row's own concept, matching conceptId against the
+  // half it names rather than just checking a half is unpaused -- an
+  // unpaused half is not proof it is this concept's half, since the plan and
+  // the REEL_SCHEDULE/extension schedule are two separately-edited files.
+  const abPlan = planForDate(await loadAbTestPlan(root), date);
+  const preferredSlot =
+    planSlot(abPlan, 2)?.conceptId === conceptId ? 2 : planSlot(abPlan, 3)?.conceptId === conceptId ? 3 : 2;
+  const chosen = reelPosts.find((post) => post.slot === preferredSlot) ?? reelPosts[0]!;
+  return { slotNumber: chosen.slot, post: chosen };
+}
+
 export async function reviewBatch(options: { asOf?: string; root?: string } = {}): Promise<BatchReview> {
   const root = projectRoot(options.root);
   loadExtensions(root);
@@ -92,18 +196,12 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
   for (const entry of REEL_SCHEDULE) {
     const concept = REEL_CONCEPTS.find((item) => item.id === entry.conceptId);
     const content = await loadDailyContent(entry.date, root);
-    const slot = content?.slots.find((item) => item.slot === 2);
     const posts = await loadPostLog(entry.date, root);
-    // "posted" and "success" are the same live outcome everywhere else in the
-    // codebase; matching only one of them filed a published Reel as
-    // not_published and shrank the sample this whole review judges.
-    const live = posts.find(
-      (post) =>
-        post.slot === 2 &&
-        post.platform === "instagram" &&
-        !post.dry_run &&
-        ["success", "posted"].includes(post.status)
-    );
+    const live = await findLiveReelSlot(entry.date, entry.conceptId, posts, root);
+    // Only a real hit names a slot to look the cosmetic hook fallback up in;
+    // guessing slot 2 here when nothing published would credit `base.hook`
+    // with whatever unrelated topic happened to sit there.
+    const slot = live ? content?.slots.find((item) => item.slot === live.slotNumber) : undefined;
 
     const base = {
       date: entry.date,
@@ -128,9 +226,9 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
       continue;
     }
 
-    const hours = (now.getTime() - Date.parse(live.created_at)) / 3_600_000;
+    const hours = (now.getTime() - Date.parse(live.post.created_at)) / 3_600_000;
     const mature = hours >= 72;
-    const metrics = await loadReelMetrics(entry.date, 2, root);
+    const metrics = await loadReelMetrics(entry.date, live.slotNumber, root);
     if (!metrics && mature) gaps.push(`${entry.date}: published but no Instagram insight row yet`);
 
     const reach = typeof metrics?.reach === "number" ? metrics.reach : null;

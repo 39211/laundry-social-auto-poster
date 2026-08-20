@@ -399,6 +399,42 @@ describe("F29: a re-schedule must not clobber a recorded verdict", () => {
     ].map(({ superseded: _drop, ...rest }) => rest));
   });
 
+  it("lets the newest same-fingerprint verdict win, never silently outranked by an earlier approval", async () => {
+    const { root, videoPath, date } = await fixture();
+    const staleVerdict = {
+      ...rejectedTwoSeatRecord({ date, videoPath, videoSha256: shaOf("superseded-earlier-cut") }),
+      reject_reason: "stale verdict for the earlier cut"
+    };
+    const liveApproved = approvedStandingPolicyRecord(date, 1, videoPath);
+    const liveRejected = {
+      ...rejectedTwoSeatRecord({ date, videoPath }),
+      reject_reason: "newest judgement: two-seat REJECT overturns the approval"
+    };
+    // Worst hand-append shape: picking the FIRST same-fingerprint verdict
+    // would keep the approval current and bury this rejection where the
+    // publish gate never looks.
+    await writeJsonAtomic(videoReviewsPath(date, root), [staleVerdict, liveApproved, liveRejected]);
+
+    const now = new Date("2026-09-01T04:50:00.000Z");
+    await recordOwnerVideoReview({ date, slot: 1, watched: false, standingPolicy: true, root, now });
+
+    const records = await readRecords(date, root);
+    expect(records).toHaveLength(1);
+    const record = records[0];
+    if (!record) throw new Error("expected the preserved newest rejection");
+    expect(record.status).toBe("rejected");
+    expect(record.reject_reason).toBe(liveRejected.reject_reason);
+    const history = record.superseded as Array<Record<string, unknown>>;
+    expect(history.map((entry) => entry.reject_reason ?? entry.status)).toEqual([
+      "stale verdict for the earlier cut",
+      "approved"
+    ]);
+
+    await expect(
+      assertVideoReviewApproved({ date, slot: 1, videoPath, videoPrompt: PROMPT, root })
+    ).rejects.toThrow(/did not both pass/u);
+  });
+
   it("treats superseded null as no history, a conscious spec choice", async () => {
     const { root, videoPath, date } = await fixture();
     const rejected = {

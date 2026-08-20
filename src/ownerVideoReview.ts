@@ -214,18 +214,20 @@ export function mergeStandingPolicyMetadata(
 ): { entry: VideoReviewFileEntry; outcome: StandingPolicyMergeOutcome } {
   // Among duplicate verdicts, the one judging the asset being scheduled right
   // now must stay current — otherwise a stale-fingerprint verdict earlier in
-  // the array would demote the live verdict into history.
+  // the array would demote the live verdict into history. Among several
+  // verdicts for that same fingerprint, the LAST in array order wins: appends
+  // are chronological, and the newest judgement (a reject overturning an
+  // approval, or a legitimate re-approval after a reject) is the current one.
   const verdicts = sameSlotRecords.filter(
     (record) => record.status === "approved" || record.status === "rejected"
   );
+  const sameFingerprint = verdicts.filter(
+    (record) =>
+      record.video_sha256 === metadata.video_sha256 &&
+      record.prompt_hash === metadata.prompt_hash
+  );
   const primary =
-    verdicts.find(
-      (record) =>
-        record.video_sha256 === metadata.video_sha256 &&
-        record.prompt_hash === metadata.prompt_hash
-    ) ??
-    verdicts[0] ??
-    sameSlotRecords[0];
+    sameFingerprint[sameFingerprint.length - 1] ?? verdicts[0] ?? sameSlotRecords[0];
   if (!primary) return { entry: metadata, outcome: "fresh" };
 
   const status = primary.status;
@@ -369,8 +371,9 @@ export async function recordOwnerVideoReview(input: {
 
   if (input.standingPolicy && !input.watched) {
     // Hash before reading the review file: a missing or unreadable video fails
-    // loudly here with nothing written, and the read-to-write window stays as
-    // small as the merge itself (see replaceSlotEntry).
+    // loudly here with nothing written, and the video hash no longer sits
+    // inside the unlocked read-to-write window. The window that remains is the
+    // synchronous merge plus replaceSlotEntry's own awaits (see its comment).
     const metadata = buildStandingPolicyMetadata({
       date: input.date,
       slot: input.slot,

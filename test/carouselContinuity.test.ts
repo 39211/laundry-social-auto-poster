@@ -113,6 +113,69 @@ describe("carousel narrative shots", () => {
     );
   });
 
+  it("drops handle checkpoints on a shoe object and pads with defaults", () => {
+    const caption = [
+      "室內鞋汗味，送洗前先看三個位置。",
+      "鞋子和包包最容易被忽略的地方，通常不是正面，而是鞋邊、提把、包角、內裡。"
+    ].join("\n");
+    const shots = carouselInspectionShots(caption, "室內鞋汗味");
+    expect(shots.join("\n")).not.toMatch(/handle/i);
+    expect(shots.join("\n")).not.toMatch(/bag corners/i);
+    expect(shots.some((shot) => /after-treatment|before\/after/i.test(shot))).toBe(true);
+    const prompts = buildCarouselImagePrompts({
+      date: "2026-08-23",
+      slot: 1,
+      topic: "室內鞋汗味",
+      caption
+    });
+    expect(prompts[1]).not.toMatch(/checkpoint \d+: handle/i);
+    expect(prompts[2]).not.toMatch(/checkpoint \d+: handle/i);
+    expect(prompts[3]).not.toMatch(/checkpoint \d+: handle/i);
+  });
+
+  // Over-filter guard: widening SHOE_FOREIGN_SPOTS to also eat inner lining / insole
+  // must turn this red. Those are shoe-native spots, not bag parts.
+  it("keeps inner lining and insole checkpoints on a shoe object instead of default shots", () => {
+    const caption = [
+      "室內鞋汗味，送洗前先看三個位置。",
+      "第一個看內裡。",
+      "第二個看鞋墊。",
+      "第三個看鞋口。"
+    ].join("\n");
+    const shots = carouselInspectionShots(caption, "室內鞋汗味");
+    expect(shots[0]).toContain("checkpoint 1: inner lining");
+    expect(shots[1]).toContain("checkpoint 2: insole");
+    expect(shots[2]).toContain("checkpoint 3: shoe opening");
+    expect(shots.join("\n")).not.toMatch(/Overall closer look/i);
+    expect(shots.join("\n")).not.toMatch(/problem area/i);
+    expect(shots.join("\n")).not.toMatch(/after-treatment|before\/after/i);
+
+    const prompts = buildCarouselImagePrompts({
+      date: "2026-08-23",
+      slot: 1,
+      topic: "室內鞋汗味",
+      caption
+    });
+    expect(prompts[1]).toContain("checkpoint 1: inner lining");
+    expect(prompts[2]).toContain("checkpoint 2: insole");
+    expect(prompts[3]).toContain("checkpoint 3: shoe opening");
+    expect(prompts[1]).not.toMatch(/Overall closer look/i);
+  });
+
+  it("keeps handle checkpoints on a bag object", () => {
+    const caption = "下班最常背的包先看提把。包角和邊油是先磨掉的地方。送洗前先看三個位置。";
+    const topic = "今天情境：下班最常背的包先看提把";
+    const shots = carouselInspectionShots(caption, topic);
+    expect(shots.join("\n")).toMatch(/handle/i);
+    const prompts = buildCarouselImagePrompts({
+      date: "2026-08-20",
+      slot: 2,
+      topic,
+      caption
+    });
+    expect(prompts.some((prompt) => /checkpoint \d+: handle/i.test(prompt))).toBe(true);
+  });
+
   it("maps an enumerated 三個位置 list onto the three later slides", () => {
     const shots = carouselInspectionShots(ENUM_CAPTION, DARK_TOPIC);
     expect(shots[0]).toMatch(/collar/i);

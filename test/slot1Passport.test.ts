@@ -21,12 +21,12 @@ const NEXT_14_DAYS: Array<{
   { date: "2026-08-19", topic: "診所制服每週收送", object: "clinic uniform set", material: "clinic uniform" },
   { date: "2026-08-20", topic: "麂皮鞋雨天急救", object: "suede", material: "suede" },
   { date: "2026-08-21", topic: "開學前學生制服檢查", object: "school uniform set", material: "sailor blouse" },
-  { date: "2026-08-22", topic: "童鞋開學檢查", object: "kids sneakers", material: "kids sneakers" },
-  { date: "2026-08-23", topic: "室內鞋汗味", object: "indoor slippers", material: "indoor slippers" },
+  { date: "2026-08-22", topic: "童鞋開學檢查", object: "kids sneakers", material: "synthetic mesh kids sneakers" },
+  { date: "2026-08-23", topic: "室內鞋汗味", object: "indoor slippers", material: "knit-mesh indoor slippers" },
   { date: "2026-08-24", topic: "皮鞋刮痕補色", object: "leather dress shoes", material: "leather dress shoes" },
   { date: "2026-08-25", topic: "球鞋中底黃斑", object: "grey-and-white running shoes", material: "grey-and-white running shoes" },
   { date: "2026-08-26", topic: "健身房毛巾批量洗", object: "batch of gym towels", material: "gym towels" },
-  { date: "2026-08-27", topic: "登山鞋泥沙", object: "hiking boots", material: "hiking boots" },
+  { date: "2026-08-27", topic: "登山鞋泥沙", object: "hiking boots", material: "split-leather hiking boots" },
   { date: "2026-08-28", topic: "老爹鞋網布", object: "chunky mesh sneakers", material: "chunky mesh sneakers" },
   { date: "2026-08-29", topic: "開學鞋襪", object: "shoes with socks", material: "shoes with socks" },
   { date: "2026-08-30", topic: "白鞋鞋帶發灰", object: "white leather low-top sneakers", material: "white leather" },
@@ -77,6 +77,24 @@ describe("slot1-plan 14-day object passport table", () => {
     expect(suede).toBeTruthy();
     expect(suede!.match.test("麂皮鞋雨天急救")).toBe(true);
     expect(/皮鞋/.test("麂皮鞋雨天急救")).toBe(true);
+  });
+
+  it("indoor-slippers names a real material and locks sweat to foot-contact surfaces", () => {
+    const spec = objectSpecFromTopic("室內鞋汗味");
+    const passport = garmentPassportFromTopic("室內鞋汗味");
+    expect(spec.material.toLowerCase()).not.toBe("indoor slippers");
+    expect(spec.material).toMatch(/knit-mesh/i);
+    expect(spec.material).toMatch(/cloth lining/i);
+    expect(spec.material).toMatch(/eva foam/i);
+    expect(spec.wear).toMatch(/sweat residue/i);
+    expect(spec.wear).toMatch(/shoe opening|collar lining/i);
+    expect(spec.wear).toMatch(/insole/i);
+    expect(spec.wear).toMatch(/heel-counter lining/i);
+    expect(spec.wear).toMatch(/everyday-clean/i);
+    expect(spec.wear).toMatch(/must not read as overall soiling/);
+    expect(spec.wear).not.toMatch(/positions the topic names/);
+    expect(passport).toContain(spec.material);
+    expect(passport).toContain(spec.wear);
   });
 
   it("mutation: dropping the school-uniform row would send 學生制服 to clinic uniform", () => {

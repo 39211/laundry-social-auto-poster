@@ -1736,21 +1736,23 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
     id: "kids-sneakers",
     match: /童鞋/,
     noun: "paired set of two kids sneakers",
-    material: "kids sneakers",
+    material: "synthetic mesh kids sneakers with foam midsole and rubber outsole",
     lockNote: "object locked as kids sneakers"
   },
   {
     id: "indoor-slippers",
     match: /室內鞋/,
     noun: "paired set of two indoor slippers",
-    material: "indoor slippers",
-    lockNote: "object locked as indoor slippers"
+    material: "closed-toe knit-mesh indoor slippers with cloth lining and EVA foam footbed",
+    lockNote: "object locked as indoor slippers, not canvas street slip-ons, not sneakers",
+    wearFallback:
+      "sweat residue on the foot-contact surfaces only: collar lining at the shoe opening, insole, and heel-counter lining; the exterior upper stays ordinary everyday-clean and must not read as overall soiling"
   },
   {
     id: "hiking-boots",
     match: /登山鞋/,
     noun: "paired set of two hiking boots",
-    material: "hiking boots",
+    material: "split-leather hiking boots with padded collar and lugged rubber outsole",
     lockNote: "object locked as hiking boots"
   },
   {
@@ -2007,8 +2009,26 @@ function checkpointsFromCaption(text: string): string[] {
   return unique.length >= 2 ? unique.slice(0, 3) : [];
 }
 
-export function carouselInspectionShots(caption: string, topic: string): string[] {
+/** Bag/suitcase parts. A shoe has none of these; a caption that mentions 包包
+ * 提把 must not invent a handle on indoor slippers. */
+const SHOE_FOREIGN_SPOTS = /^(handle|bag corners|edge paint|hardware)$/i;
+
+function isPureShoeObject(topic: string): boolean {
+  const spec = objectSpecFromTopic(topic);
+  const blob = `${spec.noun} ${spec.lockNote}`.toLowerCase();
+  const hasBag = /\b(handbag|suitcase|bag)\b/.test(blob);
+  const hasShoe = /shoe|sneaker|boot|slipper|sandal/.test(blob);
+  return hasShoe && !hasBag;
+}
+
+function checkpointsForObject(caption: string, topic: string): string[] {
   const points = checkpointsFromCaption(`${caption}\n${topic}`);
+  if (!isPureShoeObject(topic)) return points;
+  return points.filter((spot) => !SHOE_FOREIGN_SPOTS.test(spot));
+}
+
+export function carouselInspectionShots(caption: string, topic: string): string[] {
+  const points = checkpointsForObject(caption, topic);
   const defaults = [
     "Overall closer look at the complete passport item so fabric grain, seams and full silhouette stay readable.",
     "Tight close-up of the problem area named by the topic; the wear marks fill the frame.",

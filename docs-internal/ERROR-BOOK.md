@@ -562,6 +562,26 @@
 - **處置**:一次性任務改實體路徑後立即復活(狀態讀取成功、預產圖被接受)。
   程式層修法(isMain 兩側都過 realpathSync)動的是**全部 CLI 的共同入口**,
   照控制平面規矩另單送審,不順手改。
+  **2026-08-21 治本已落地**(分支 `claude/cranky-golick-af8ebf`,待合併 main):
+  `e6d7fbb` isMain 兩側 realpathSync + win32 fold → `99c7fd3` 測試強化 →
+  `fa617bb` 終版=**候選拼字交集**(每側取「字面拼字 ∪ realpath 拼字」,
+  任一拼字 fold 後相等即同檔)。改版原因:R2 兩席跨家族獨立收斂
+  「同層或混層比對都會把單側瞬時 realpath 失敗放大成 F28 靜默 no-op」。
+  驗證:tsc 乾淨;isMain 測試 9 條含單側故障注入+oracle;六發突變全紅
+  (兩個前代語意各被一條故障測試單獨釘死;.native 繞道被 oracle 抓);
+  junction cwd 端對端 A/B=舊碼 0 行 exit 0、新碼 363 行 JSON;36 格矩陣
+  **dominance 36/36**(對兩前代零迴歸格,分歧全為 false→true)、
+  絕對正確 32/36。三輪複審(grok 紅隊 xhigh ×3 + Claude 深審 ×3)
+  終判皆 **PASS_WITH_FOLLOWUPS、程式面零缺陷**,不擋合併。
+  已知殘餘(皆部署不可及、不改碼,列此存查):
+  (1) 拼字法結構上限 4/36——帶 link 拼字的一側失去 realpath 時交集必空,
+  任何拼字比對法皆然,唯 dev+ino 身分比對能關但 Windows 有 (0,0) 退化陷阱;
+  (2) win32 fold 誤判 true 家族——需 case-sensitive NTFS 目錄+同名異大小寫
+  檔(grok R3 變體再加 symlink 雙胞),全 repo 192 項 0 碰撞;
+  (3) POSIX 側「不 fold」不變量無斷言(win32-only 部署);
+  (4) SUBST 未實測(兩側同函式的對稱性論證應安全)。
+  另:`data/.gitignore` 未追蹤且被 root .gitignore 擋掉,全套 633 綠在
+  乾淨 clone 不可攜——與本修無關,另案處理。
 - **教訓**:**「退出碼 0 + 無輸出」是這個 repo 特有的假成功形態**,遇到
   CLI 無聲就先問「我是不是從 junction 呼叫的」。跑 npm/tsx 一律用
   `C:\Users\cyc39\Documents\New project 5`(實體),junction 只留給

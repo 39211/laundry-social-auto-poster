@@ -2360,6 +2360,16 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
     openingHours: profile.opening_hours_schema,
     openingHoursSpecification: profile.opening_hours_specification,
     ...(specialOpeningHoursSpecification.length > 0 ? { specialOpeningHoursSpecification } : {}),
+    // Owner-verified pin, long-pressed on the shop's own Maps listing
+    // (2026-08-21). Never derive these from a Maps short-link page — the
+    // viewport centre that page serves sat 10km from the shop and would have
+    // poisoned local relevance where a missing geo merely defers to the
+    // address.
+    geo: {
+      "@type": "GeoCoordinates",
+      latitude: 24.1780524,
+      longitude: 120.6420289
+    },
     hasMap: profile.map_url,
     // Every profile the shop actually owns belongs here: sameAs is how search
     // engines and LLMs decide that the site, the Maps listing, the YouTube
@@ -3995,9 +4005,9 @@ function buildGeoTargetsJson(index: PublicPostIndex): object {
       }
     },
     coordinates: {
-      latitude: null,
-      longitude: null,
-      status: "not_verified"
+      latitude: 24.1780524,
+      longitude: 120.6420289,
+      status: "owner-verified-2026-08-21"
     },
     primary_local_queries: LOCAL_SEARCH_QUERY_TARGETS.map((query) => ({
       query,

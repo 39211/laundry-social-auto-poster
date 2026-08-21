@@ -620,3 +620,36 @@
   只要該日再被 schedule 一次就會被清掉——在修好之前,重排過的日子要回頭
   檢查判決還在不在(本 session 已中招一次:8/22 tC 的 REJECT 也是寫在
   standing-policy 之後才安全的)。
+
+## F30|2026-08-21 午:共享 generated_images 目錄+時間戳掃描=並行圖生成互吃產出(布穀鳥圖)
+
+- **現象**:8/24 slot2(LINE 傳照片衛教)輪播的 slide 3 被換成**長夾 after 圖**
+  ——13:00 我並行發動 wallet v3 after 圖生成與 8/24 補圖(12:55-13:11),
+  補圖腳本的收集邏輯是「掃 `~/.codex/generated_images` 裡 genStart 之後的
+  新 PNG」,把同窗落地的 wallet 圖掃走當成襯衫輪播的一張 slide。
+  自動輪播法官恰好 FAIL_CLOSED(missing_observation,老毛病),人眼過眼抓到。
+- **根因**:所有 Codex 圖生成共用一個輸出目錄,消費端用「時間戳新於 X」
+  認領產出——**兩個並行消費者無法區分誰的產出是誰的**。DPAPI 繞道時代
+  大量手動/腳本並行圖生成,這個坑是結構性的。
+- **處置**:刪壞 slide、序列化重生(補圖期間不開任何其他 codex 圖生成)。
+- **教訓**:**同一時間只准一條 codex 圖生成線**——發動任何
+  `generate-missing-images` / 手動 `-i` 編修前,先確認沒有另一條在跑;
+  這是我(總指揮)的排程紀律,不是腳本的錯。根修方向(排隊/會話 id 對號
+  認領)列入產線改善單,不順手改。
+
+## F31|2026-08-21 午後:after 幕「輕柔拉遠」運鏡=邀請模型發明場景(單日三例)
+
+- **現象**:三支 after 幕影片各自把場景畫成供圖裡不存在的地方——wallet v2
+  變成臨窗櫃檯外有車、kids-shoe 變成鞋盒貨架的鞋店零售牆(直接毀掉洗衣店
+  身份)、wallet 10s 的 after 也在幕內換景。物件本身都守住了,場景全跑。
+- **根因**:after 幕的運鏡指示是「extremely gentle pull-back that opens a
+  little breathing room」——**拉遠=要求模型渲染供圖邊界外的世界**,它只能
+  用編的。before 幕的推近(顯露更少)從未出這個問題;中段定機位也沒有。
+  幾何上這是必然,不是機率。
+- **處置**:produce-next-reel.ps1 的 after `$actDirection` 改為
+  HOLD/至多 2-3cm 微推+明令「不得顯露或發明供圖邊界外的任何區域、背景
+  必須就是供圖的背景」。既有壞 after 片(wallet、kids-shoe)按各自退件單
+  隔離重生。
+- **教訓**:給影像/影片模型的運鏡指令要按「這會要求它畫出它沒看過的東西嗎」
+  來審。任何 pull-back / widen / reveal 類指令對 image-to-video 都是
+  場景發明的邀請函;想要收尾的呼吸感,用 hold+讓物件微沉降,不用拉遠。

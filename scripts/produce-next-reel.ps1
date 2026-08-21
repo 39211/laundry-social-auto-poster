@@ -700,7 +700,12 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
                     "One restrained continuous action: the hand and tool already in the frame continue their working motion for the length of the shot -- the cloth keeps wiping, the brush keeps its stroke -- with believable weight and a contact shadow that moves with the touch. The camera holds nearly still with slight natural handheld shake. The focal plane stays locked on the contact point between tool and object -- no focus drift, no zoom. Fingers stay anatomically correct: five fingers, no fusing, no extra hand entering."
                 }
                 "after" {
-                    "One restrained continuous action: an extremely gentle pull-back that opens a little breathing room around the cleaned object, letting it settle in frame. Total camera travel about 10-15cm, slow and even, with slight natural handheld shake. The focal plane stays locked on the object -- no focus drift, no zoom. The final frame is stable and holds."
+                    # Pull-back asked the model to paint scenery the still never
+                    # contained, and three afters in one day (2026-08-21) obliged:
+                    # a window with a parked car, then a retail shoe wall with
+                    # stacked boxes. A hold reveals nothing, so there is nothing
+                    # to invent.
+                    "One restrained continuous action: the camera HOLDS on the cleaned object with only slight natural handheld shake, letting it settle; at most a barely perceptible push-in of 2-3cm. NEVER pull back, never widen the view: the frame must show only what the supplied image already shows, and no area beyond the supplied image's edges may be revealed or invented. The background stays exactly the supplied image's background. The focal plane stays locked on the object -- no focus drift, no zoom. The final frame is stable and holds."
                 }
                 default { "One restrained continuous action: an extremely gentle push-in with slight natural handheld shake." }
             }

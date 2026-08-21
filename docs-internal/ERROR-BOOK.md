@@ -592,6 +592,10 @@
   ③videoReviewGate.recordVideoReview 仍整筆 replace④人工手寫 SOP⑤同指紋曾
   REJECT 換回時不自動抬回(老闆裁決題)。重複判決選現行這一類經 grok 類別終判
   「寫入端關不完」,整包走閘門拒收重複+寫入 schema 的後續單。
+  → 2026-08-21 10:15 修法併入 main(merge 19e2a52、已推 origin)後,8/23 REJECT
+  依 BOARD0823-R-REELREVIEW 存證二度復原(機器欄無存證者維持 pending 不自貼),
+  並實跑同一條 standing-policy CLI 驗證:回 preserved_existing_verdict=true、
+  判決原樣、僅排程戳刷新——輾掉它兩次的指令現在保住它。
 - **教訓**:**重排=重寫中繼資料**,任何人工判決寫進 video-reviews 後,
   只要該日再被 schedule 一次就會被清掉——在修好之前,重排過的日子要回頭
   檢查判決還在不在(本 session 已中招一次:8/22 tC 的 REJECT 也是寫在

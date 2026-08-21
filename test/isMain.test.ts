@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -45,7 +45,9 @@ let realArgv: string[];
 beforeEach(async () => {
   // Snapshot argv before any await can throw, or afterEach restores undefined.
   realArgv = process.argv;
-  root = await mkdtemp(join(tmpdir(), "ismain-"));
+  // realpath the root so fixtures labelled "real" are genuinely link-free
+  // even where tmpdir itself sits behind a symlink (macOS /var).
+  root = await realpath(await mkdtemp(join(tmpdir(), "ismain-")));
 });
 
 afterEach(async () => {
@@ -109,7 +111,7 @@ describe("isMain", () => {
     expect(isMain(pathToFileURL(join(root, "ghost-b.ts")).href)).toBe(false);
   });
 
-  it("compares both sides lexically when realpath fails on only one side", async () => {
+  it("still matches when realpath fails on the link-path side", async () => {
     const realDir = join(root, "real");
     await mkdir(realDir);
     const entry = join(realDir, "entry.ts");
@@ -119,12 +121,33 @@ describe("isMain", () => {
     const linkedEntry = join(linkDir, "entry.ts");
 
     // Both operands carry the same link-path spelling; a one-shot fault makes
-    // exactly one side lose realpath. Mixing that side's lexical path with the
-    // other side's resolved path would split identical inputs into a
-    // junction-style mismatch and silently skip main().
+    // exactly one side lose realpath. The failed side's given spelling must
+    // still meet the surviving side's, whichever side resolves first.
     realpathFault.failOnce.add(linkedEntry);
     process.argv = [process.execPath, linkedEntry];
     expect(isMain(pathToFileURL(linkedEntry).href)).toBe(true);
+    // Oracle: the injected fault must actually have fired, or this test
+    // silently stops testing one-sided failure at all.
+    expect(realpathFault.failOnce.size).toBe(0);
+  });
+
+  it("still matches when realpath fails on the real-path side", async () => {
+    const realDir = join(root, "real");
+    await mkdir(realDir);
+    const entry = join(realDir, "entry.ts");
+    await writeFile(entry, "export {};\n");
+    const linkDir = join(root, "link");
+    await symlink(realDir, linkDir, "junction");
+    const linkedEntry = join(linkDir, "entry.ts");
+
+    // The F28 invocation shape under a transient failure: argv carries the
+    // junction spelling and still resolves, import.meta.url carries the real
+    // spelling and loses realpath. argv's resolved spelling must meet the
+    // module's given one; demanding a single shared layer would not.
+    realpathFault.failOnce.add(entry);
+    process.argv = [process.execPath, linkedEntry];
+    expect(isMain(pathToFileURL(entry).href)).toBe(true);
+    expect(realpathFault.failOnce.size).toBe(0);
   });
 
   it.runIf(process.platform === "win32")(

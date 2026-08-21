@@ -6,23 +6,31 @@ import { fileURLToPath } from "node:url";
 // invoking a CLI via a directory junction leaves the junction path in argv[1]
 // while the ESM loader resolves import.meta.url through the real path, so a
 // lexical comparison silently skips main() (ERROR-BOOK F28). Compare real
-// paths instead. realpath needs the file to exist — fall back to the lexical
-// path when it fails. Windows paths are case-insensitive.
-function canonicalize(path: string): string {
-  let canonical: string;
+// paths instead. realpath needs the file to exist — when it fails on either
+// side, compare both sides lexically: mixing a resolved path with an
+// unresolved one can only manufacture a junction-style mismatch. Windows
+// paths are case-insensitive.
+function tryRealpath(path: string): string | undefined {
   try {
-    canonical = realpathSync(path);
+    return realpathSync(path);
   } catch {
-    canonical = path;
+    return undefined;
   }
-  return process.platform === "win32" ? canonical.toLowerCase() : canonical;
+}
+
+function fold(path: string): string {
+  return process.platform === "win32" ? path.toLowerCase() : path;
 }
 
 export function isMain(metaUrl: string): boolean {
-  return Boolean(
-    process.argv[1] &&
-      canonicalize(resolve(process.argv[1])) === canonicalize(fileURLToPath(metaUrl)),
-  );
+  if (!process.argv[1]) return false;
+  const argvPath = resolve(process.argv[1]);
+  const modulePath = fileURLToPath(metaUrl);
+  const argvReal = tryRealpath(argvPath);
+  const moduleReal = tryRealpath(modulePath);
+  return argvReal !== undefined && moduleReal !== undefined
+    ? fold(argvReal) === fold(moduleReal)
+    : fold(argvPath) === fold(modulePath);
 }
 
 export function getFlag(args: string[], name: string): boolean {

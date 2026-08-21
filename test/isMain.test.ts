@@ -2,8 +2,33 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isMain } from "../src/cli";
+
+// Pass-through fs mock with one-shot fault injection: realpath failures that
+// hit only one isMain operand (EACCES, fd exhaustion) cannot be produced
+// deterministically with a real filesystem, so the mock throws once for a
+// registered path and delegates everything else to the real realpathSync.
+const realpathFault = vi.hoisted(() => ({ failOnce: new Set<string>() }));
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  const realpathSync = (path: unknown, options?: unknown): string => {
+    const key = String(path);
+    if (realpathFault.failOnce.delete(key)) {
+      throw Object.assign(new Error(`EACCES: injected fault, realpath '${key}'`), {
+        code: "EACCES",
+      });
+    }
+    return (actual.realpathSync as (p: unknown, o?: unknown) => string)(path, options);
+  };
+  return {
+    ...actual,
+    realpathSync: Object.assign(realpathSync, {
+      native: actual.realpathSync.native,
+    }) as unknown as typeof actual.realpathSync,
+  };
+});
 
 // isMain guards the entry point of every CLI in src/. When it wrongly returns
 // false the CLI exits 0 having printed nothing, which schedulers read as
@@ -25,6 +50,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   process.argv = realArgv;
+  realpathFault.failOnce.clear();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -81,6 +107,24 @@ describe("isMain", () => {
     // realpath failures to any shared sentinel would make these equal.
     process.argv = [process.execPath, join(root, "ghost-a.ts")];
     expect(isMain(pathToFileURL(join(root, "ghost-b.ts")).href)).toBe(false);
+  });
+
+  it("compares both sides lexically when realpath fails on only one side", async () => {
+    const realDir = join(root, "real");
+    await mkdir(realDir);
+    const entry = join(realDir, "entry.ts");
+    await writeFile(entry, "export {};\n");
+    const linkDir = join(root, "link");
+    await symlink(realDir, linkDir, "junction");
+    const linkedEntry = join(linkDir, "entry.ts");
+
+    // Both operands carry the same link-path spelling; a one-shot fault makes
+    // exactly one side lose realpath. Mixing that side's lexical path with the
+    // other side's resolved path would split identical inputs into a
+    // junction-style mismatch and silently skip main().
+    realpathFault.failOnce.add(linkedEntry);
+    process.argv = [process.execPath, linkedEntry];
+    expect(isMain(pathToFileURL(linkedEntry).href)).toBe(true);
   });
 
   it.runIf(process.platform === "win32")(

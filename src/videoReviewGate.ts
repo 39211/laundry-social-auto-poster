@@ -33,6 +33,12 @@ export interface VideoReviewRecord {
     | "owner-standing-policy-2026-07-29"
     | "codex-visual-qa"
     | "human-frames-review";
+  /**
+   * F29: verdicts this record displaced (earlier assets, overridden reviews),
+   * appended oldest first by the writers in ownerVideoReview.ts. Never read by
+   * the gate; carried so the audit trail of earlier judgements survives.
+   */
+  superseded?: Array<Record<string, unknown>>;
 }
 
 /** standing-policy proves decode/geometry only; it cannot satisfy visual-qa. */

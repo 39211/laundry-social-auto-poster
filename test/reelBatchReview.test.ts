@@ -548,4 +548,168 @@ describe("reviewBatch finds the Reel wherever it actually published", () => {
     expect(outcome!.published).toBe(true);
     expect(outcome!.reach).toBe(350);
   });
+
+  it("does not credit the day's only live Reel when ab-test-plan names a different concept for its slot, even with no video-sources evidence at all (2026-08-16 shape without a video-sources record)", async () => {
+    // This is the real 2026-08-16 shape one layer further than the existing
+    // "pulled-forward concept" test: video-sources happened to catch that
+    // one because a record existed. A day with genuinely *no* video-sources
+    // record for its one live Reel (missing sync, or a route this tool
+    // doesn't trust) still needs a second, independent check -- otherwise
+    // the exact same "right slot, wrong concept" mistake goes uncaught
+    // just because the file that would have caught it is absent.
+    await writeDailyContent(
+      calendarWith([baseSlot(2, "carousel", "unrelated carousel topic"), baseSlot(3, "reel", "a pulled-forward concept's hook")]),
+      root
+    );
+    await writePostLog(TEST_DATE, [reelPost(3, `${TEST_DATE}T05:30:00.000Z`)], root);
+    await writeInsights(root, [{ slot: 3, reach: 350, engaged: 8, saved: 4, shares: 2 }]);
+    const plan: AbDayPlan = {
+      date: TEST_DATE,
+      noon: { conceptId: "a-different-pulled-forward-concept", variant: "15s" },
+      evening: { conceptId: "some-other-evening-concept", variant: "15s" }
+    };
+    await saveAbTestPlan([plan], root);
+
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+
+    expect(outcome).toBeTruthy();
+    expect(outcome!.published).toBe(false);
+    expect(outcome!.verdict).toBe("not_published");
+  });
+
+  it("excludes a video-sources-confirmed-different candidate and credits the sole survivor even with no other corroborating evidence", async () => {
+    // Two live Reels; video-sources rules out slot 3 with a real "false"
+    // match (not just absence of a record). If that exclusion were broken
+    // (e.g. the filter predicate inverted), slot 3 would wrongly survive
+    // alongside slot 2, leaving two candidates and reporting not_published
+    // instead of crediting slot 2 -- so this fixture's outcome actually
+    // depends on the exclusion firing, not just on a coincidental "zero or
+    // many candidates all resolve to the same answer" shape.
+    await writeDailyContent(
+      calendarWith([baseSlot(2, "reel", TEST_CONCEPT.hook), baseSlot(3, "reel", "a different noon concept")]),
+      root
+    );
+    await writePostLog(
+      TEST_DATE,
+      [reelPost(3, `${TEST_DATE}T05:30:00.000Z`), reelPost(2, `${TEST_DATE}T13:30:00.000Z`)],
+      root
+    );
+    await writeVideoSourceRecord(root, 3, "a-different-noon-concept");
+    await writeInsights(root, [
+      { slot: 3, reach: 999, engaged: 50, saved: 20, shares: 5 },
+      { slot: 2, reach: 320, engaged: 6, saved: 2, shares: 1 }
+    ]);
+
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+
+    expect(outcome).toBeTruthy();
+    expect(outcome!.published).toBe(true);
+    expect(outcome!.reach).toBe(320);
+  });
+
+  it("still excludes the sole video-sources survivor when ab-test-plan separately names a different concept for its slot", async () => {
+    // Same shape as the previous test, but this time ab-test-plan also
+    // contradicts the surviving candidate. If the ab-test-plan veto were
+    // removed (trusting any video-sources survivor unconditionally), this
+    // would wrongly credit slot 2 instead of reporting not_published.
+    await writeDailyContent(
+      calendarWith([baseSlot(2, "reel", "a different evening concept"), baseSlot(3, "reel", "a different noon concept")]),
+      root
+    );
+    await writePostLog(
+      TEST_DATE,
+      [reelPost(3, `${TEST_DATE}T05:30:00.000Z`), reelPost(2, `${TEST_DATE}T13:30:00.000Z`)],
+      root
+    );
+    await writeVideoSourceRecord(root, 3, "a-different-noon-concept");
+    await writeInsights(root, [
+      { slot: 3, reach: 999, engaged: 50, saved: 20, shares: 5 },
+      { slot: 2, reach: 320, engaged: 6, saved: 2, shares: 1 }
+    ]);
+    const plan: AbDayPlan = {
+      date: TEST_DATE,
+      noon: { conceptId: "a-different-noon-concept", variant: "15s" },
+      evening: { conceptId: "a-different-evening-concept", variant: "15s" }
+    };
+    await saveAbTestPlan([plan], root);
+
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+
+    expect(outcome).toBeTruthy();
+    expect(outcome!.published).toBe(false);
+    expect(outcome!.verdict).toBe("not_published");
+  });
+
+  it("does not crash when video-sources is valid JSON but the wrong shape (not an array)", async () => {
+    // Array.isArray guards against this specifically -- unlike a JSON
+    // syntax error, JSON.parse succeeds here, so only the shape check (not
+    // the try/catch alone) stands between this and a TypeError from
+    // sources.find() propagating out of reviewBatch's per-entry loop.
+    await writeDailyContent(
+      calendarWith([baseSlot(2, "carousel", "unrelated carousel topic"), baseSlot(3, "reel", TEST_CONCEPT.hook)]),
+      root
+    );
+    await writePostLog(TEST_DATE, [reelPost(3, `${TEST_DATE}T05:30:00.000Z`)], root);
+    await writeInsights(root, [{ slot: 3, reach: 350, engaged: 8, saved: 4, shares: 2 }]);
+    const { mkdir: mkdirFs, writeFile: writeFileFs } = await import("node:fs/promises");
+    const { videoSourcesPath } = await import("../src/paths");
+    const path = videoSourcesPath(TEST_DATE, root);
+    await mkdirFs(join(path, ".."), { recursive: true });
+    await writeFileFs(path, JSON.stringify({ slot: 3 }), "utf8");
+
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+
+    expect(outcome).toBeTruthy();
+    expect(outcome!.published).toBe(true);
+    expect(outcome!.reach).toBe(350);
+  });
+
+  it("does not crash when an insights sync file is malformed, and keeps scanning the rest", async () => {
+    // loadReelMetrics scans every insights/instagram/*.json file for a
+    // matching row. A truncated file among them must not crash the whole
+    // batch (grok red-team finding, R2) -- it should be skipped like a
+    // missing row, not propagate its parse error out of reviewBatch.
+    // loadReelMetrics scans files.sort().reverse() (newest-looking name
+    // first) and returns on the first match, so the broken file's name must
+    // sort *after* "sync-fixture.json" (writeInsights' filename) for the
+    // scan to actually reach it before finding the real row -- otherwise
+    // this test would pass by luck without ever exercising the guard.
+    await writeDailyContent(
+      calendarWith([baseSlot(2, "carousel", "unrelated carousel topic"), baseSlot(3, "reel", TEST_CONCEPT.hook)]),
+      root
+    );
+    await writePostLog(TEST_DATE, [reelPost(3, `${TEST_DATE}T05:30:00.000Z`)], root);
+    const dir = instagramInsightsDirectory(root);
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "sync-zzz-broken.json"), "{ not valid JSON", "utf8");
+    await writeInsights(root, [{ slot: 3, reach: 350, engaged: 8, saved: 4, shares: 2 }]);
+
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+
+    expect(outcome).toBeTruthy();
+    expect(outcome!.published).toBe(true);
+    expect(outcome!.reach).toBe(350);
+  });
+
+  it("flags a data gap when a live Reel published but could not be confirmed as this concept, instead of looking identical to a true non-publish day", async () => {
+    await writeDailyContent(
+      calendarWith([baseSlot(2, "carousel", "unrelated carousel topic"), baseSlot(3, "reel", "a pulled-forward concept's hook")]),
+      root
+    );
+    await writePostLog(TEST_DATE, [reelPost(3, `${TEST_DATE}T05:30:00.000Z`)], root);
+    await writeVideoSourceRecord(root, 3, "a-different-pulled-forward-concept");
+    await writeInsights(root, [{ slot: 3, reach: 350, engaged: 8, saved: 4, shares: 2 }]);
+
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+
+    expect(outcome).toBeTruthy();
+    expect(outcome!.verdict).toBe("not_published");
+    expect(review.data_gaps.some((gap) => gap.includes(TEST_DATE) && gap.includes(TEST_CONCEPT.id))).toBe(true);
+  });
 });

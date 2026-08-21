@@ -1,4 +1,5 @@
 import { loadAbTestPlan, planForDate, planSlot } from "./abTestPlan";
+import type { AbDayPlan } from "./abTestPlan";
 import { getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { isLiveAiredReelEntry, loadDailyContent, loadPostLog, loadVideoSources } from "./logging";
@@ -76,7 +77,16 @@ async function loadReelMetrics(
 
   const { readJsonFile } = await import("./logging");
   for (const file of files.sort().reverse()) {
-    const payload = await readJsonFile<{ rows?: Array<Record<string, unknown>> }>(join(dir, file), {});
+    // One truncated sync file must not take every date's review down with
+    // it -- same reasoning as the video-sources guard below: skip it and
+    // keep scanning the rest, rather than let readJsonFile's rethrown
+    // non-ENOENT error propagate out of reviewBatch's per-entry loop.
+    let payload: { rows?: Array<Record<string, unknown>> };
+    try {
+      payload = await readJsonFile<{ rows?: Array<Record<string, unknown>> }>(join(dir, file), {});
+    } catch {
+      continue;
+    }
     const row = payload.rows?.find((item) => item.date === date && item.slot === slot);
     if (row && row.insights_ok === true && row.metrics) return row.metrics as InsightMetrics;
   }
@@ -118,21 +128,48 @@ async function videoSourceConceptMatch(
   } catch {
     return undefined;
   }
-  const source = sources.find((item) => item.slot === slotNumber);
+  // A malformed *element* (e.g. a stray null from a botched manual edit) is
+  // just as much "not evidence" as a malformed file -- ?. keeps one bad row
+  // from crashing the .find() the same way the try/catch above keeps one
+  // bad file from crashing the batch.
+  const source = sources.find((item) => item?.slot === slotNumber);
   // generateGrokVideo.ts always writes source_route "xai-api", but
   // importGrokVideo.ts's --source-route flag lets a caller stamp
-  // "hermes-xai-oauth" onto a record too (see its sourceRoute option),
-  // with source_reference left as an arbitrary caller-supplied string --
-  // not scheduleReel.ts's own `copx:<RUN_DIR>/report-<concept.id>-before.json`
-  // template. Trusting the route alone would read that arbitrary string as
-  // a confident "wrong concept" for a Reel that never went through
-  // scheduleReel.ts, silently turning a real published Reel into
-  // not_published. Only a reference actually shaped like scheduleReel's
-  // template is evidence either way.
+  // "hermes-xai-oauth" onto a record too (see its sourceRoute option), with
+  // source_reference left as an arbitrary caller-supplied string. Trusting
+  // the route alone would read that string as a confident "wrong concept"
+  // for a Reel that never went through scheduleReel.ts, silently turning a
+  // real published Reel into not_published -- so the reference must also be
+  // shaped like scheduleReel.ts's own template
+  // (`copx:<RUN_DIR>/report-<concept.id>-before.json`, RUN_DIR itself
+  // varying) before it counts as evidence either way. A loose
+  // .includes("-before.json") check is not enough: a caller-supplied
+  // reference can coincidentally contain a real report-like substring (e.g.
+  // a human-written note mentioning another concept's report filename)
+  // without actually being scheduleReel.ts's output, so the match has to
+  // anchor the whole reference to the template's shape and extract the
+  // concept id from it, not just search for a substring.
   if (source?.source_route !== "hermes-xai-oauth") return undefined;
   const reference = source.source_reference;
-  if (typeof reference !== "string" || !reference.includes("-before.json")) return undefined;
-  return reference.includes(`report-${conceptId}-before.json`);
+  if (typeof reference !== "string") return undefined;
+  const templateMatch = /^copx:.*\/report-([^/]+)-before\.json$/.exec(reference);
+  if (!templateMatch) return undefined;
+  return templateMatch[1] === conceptId;
+}
+
+/**
+ * True when ab-test-plan.json's half for this slot names a *different*
+ * concept than conceptId. Mirrors videoSourceConceptMatch's tri-state
+ * contract (true/false/undefined) so both sources can veto a candidate the
+ * same way: undefined when there's no plan for this date, or the half is
+ * paused (planSlot already treats a paused half as no half at all), or the
+ * date predates ab-test-plan.json entirely -- none of that is evidence
+ * either way, only an absence of it.
+ */
+function abPlanConceptMatch(abPlan: AbDayPlan | undefined, slotNumber: number, conceptId: string): boolean | undefined {
+  const half = planSlot(abPlan, slotNumber);
+  if (!half) return undefined;
+  return half.conceptId === conceptId;
 }
 
 /**
@@ -152,11 +189,24 @@ async function videoSourceConceptMatch(
  *    REEL_SCHEDULE row is heel-tip-scuff, but data/video-sources/2026-08-16.json
  *    and the calendar's own slot-3 topic both show the clip that aired that
  *    day was white-shoe-yellowing's, pulled forward as that day's noon half.
- *    Reading video-sources' source_reference (see videoSourceConceptMatch)
- *    is the most direct ground truth for "whose Reel is this," since it is
+ *    This is not only a dual-Reel-day problem: 2026-08-16 itself only
+ *    published *one* live Reel, so a single-candidate day is not
+ *    automatically safe either. video-sources' source_reference (see
+ *    videoSourceConceptMatch) is the most direct ground truth, since it is
  *    written by the one function that ever schedules a Reel and is anchored
  *    to the concept's stable id rather than to its prose hook, which gets
- *    rewritten over time (ERROR-BOOK F27).
+ *    rewritten over time (ERROR-BOOK F27) -- but a day where video-sources
+ *    is silent (missing record, or a route this tool doesn't trust) still
+ *    needs a second, independent check, which is what ab-test-plan.json's
+ *    per-slot conceptId provides.
+ *
+ * Both sources act as *vetoes*, not proof: a candidate survives only if
+ * neither source positively names it as a different concept. Exactly one
+ * survivor is credited; zero means both sources agree it isn't this
+ * concept, and two or more means neither source can tell them apart -- both
+ * report not_published rather than guessing (the old hardcoded ": 2"
+ * default), which is how a right-slot-family, wrong-post mistake like F26
+ * reappears one layer down.
  */
 async function findLiveReelSlot(
   date: string,
@@ -167,47 +217,22 @@ async function findLiveReelSlot(
   const reelPosts = posts.filter(isLiveInstagramReelPost);
   if (reelPosts.length === 0) return undefined;
 
-  const matches = await Promise.all(
+  const videoMatches = await Promise.all(
     reelPosts.map((post) => videoSourceConceptMatch(date, post.slot, conceptId, root))
   );
-  const confirmedIndex = matches.findIndex((match) => match === true);
+  const confirmedIndex = videoMatches.findIndex((match) => match === true);
   if (confirmedIndex >= 0) {
     const post = reelPosts[confirmedIndex]!;
     return { slotNumber: post.slot, post };
   }
 
-  // Any candidate that video-sources positively names as a *different*
-  // concept is ruled out -- it is not this row's Reel regardless of how
-  // many other live Reels published that day. Crediting it anyway is the F26
-  // mistake one level down (right slot, wrong concept). This must apply
-  // before the dual-Reel branch below, not just in the single-candidate
-  // case: two live Reels where video-sources confirms neither is this
-  // concept is not weaker evidence than one live Reel doing the same.
-  const candidates = reelPosts.filter((_, index) => matches[index] !== false);
-  if (candidates.length === 0) return undefined;
-  if (candidates.length === 1) {
-    // No evidence either way (undefined) still counts as this row's Reel,
-    // matching every pre-video-sources historical date.
-    return { slotNumber: candidates[0]!.slot, post: candidates[0]! };
-  }
+  const afterVideoSources = reelPosts.filter((_, index) => videoMatches[index] !== false);
+  if (afterVideoSources.length === 0) return undefined;
 
-  // Two or more candidates remain, none confirmed and none ruled out by
-  // video-sources (either no record at all, or every record is silent) --
-  // only happens on the old dual-Reel schedule. ab-test-plan.json still
-  // answers which half is this row's own concept, matching conceptId
-  // against the half it names rather than just checking a half is
-  // unpaused -- an unpaused half is not proof it is this concept's half,
-  // since the plan and the REEL_SCHEDULE/extension schedule are two
-  // separately-edited files. If the plan doesn't name this concept in
-  // either half either, there is no real evidence left to pick one
-  // candidate over the other -- guessing (the old hardcoded ": 2" default)
-  // is how a right-slot-family, wrong-post mistake like F26 reappears one
-  // layer down, so report not_published instead.
   const abPlan = planForDate(await loadAbTestPlan(root), date);
-  const preferredSlot =
-    planSlot(abPlan, 2)?.conceptId === conceptId ? 2 : planSlot(abPlan, 3)?.conceptId === conceptId ? 3 : undefined;
-  const chosen = candidates.find((post) => post.slot === preferredSlot);
-  return chosen ? { slotNumber: chosen.slot, post: chosen } : undefined;
+  const candidates = afterVideoSources.filter((post) => abPlanConceptMatch(abPlan, post.slot, conceptId) !== false);
+  if (candidates.length !== 1) return undefined;
+  return { slotNumber: candidates[0]!.slot, post: candidates[0]! };
 }
 
 export async function reviewBatch(options: { asOf?: string; root?: string } = {}): Promise<BatchReview> {
@@ -236,6 +261,14 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
     };
 
     if (!live) {
+      // A live Reel this day that findLiveReelSlot vetoed (wrong concept,
+      // or ambiguous between two candidates) looks identical to a day with
+      // no Reel at all in the outcomes list -- exactly the kind of silent
+      // drift F26 was about. Surface it as a gap so a future mismatch shows
+      // up instead of blending into "genuinely didn't publish."
+      if (posts.some(isLiveInstagramReelPost)) {
+        gaps.push(`${entry.date}: a Reel published this day but could not be confirmed as ${entry.conceptId}'s own`);
+      }
       outcomes.push({
         ...base,
         published: false,

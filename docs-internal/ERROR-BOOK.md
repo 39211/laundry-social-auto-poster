@@ -585,6 +585,64 @@
   被信任的那個證據欄位」這種需要窮舉全部寫入路徑的問題,少查一個路徑就會漏
   一類真實資料形狀。
 
+- **【2026-08-21 10:1x-10:4x 三輪:真正跑 `/dispatch` 派 grok+luna 雙線唯讀複審,
+  各自對第二輪修復又抓到真缺陷】**:使用者點名「跑 `/dispatch` 再複審一輪」,
+  這次不是 Claude 子代理,是真的派 `_bridge\dispatch.ps1` 到 xAI grok-4.6 與
+  GPT luna 兩條獨立唯讀線(`-Mode review`,SOP 標準「一席深審+一席跨家族紅隊」
+  配置),標的是 `fe67e8d` 之後的狀態。
+  **首發派工設定失敗(不計入退件)**:`-Cwd` 用了真實路徑
+  `C:\Users\cyc39\Documents\New project 5\...`,`New project 5` 中間的空格讓
+  底層 grok/codex CLI 把路徑從空格處切開,多出來的片段被當成未知引數
+  (`error: unexpected argument '5\.claude\worktrees\...' found`),兩線
+  `exit_code=2`、`gate=FAILED_EXIT`、空手——這正是這台機器已知的舊坑(見
+  [[sixiangjia-junction-ismain-trap]] 記憶:「dispatch -Cwd 才用 junction」),
+  這次沒有事先套用,白燒一輪。改用無空格的 junction 路徑
+  `C:\Users\cyc39\laundry-repo\.claude\worktrees\focused-tesla-c0d0d2` 重派後
+  兩線都真的跑起來(luna 647 秒、grok 912 秒),`gate=PASS`。
+  **兩線判定都是 `VERDICT | BLOCKED`**,不是「已經很乾淨」:
+  luna 5 個 finding(1 HIGH/3 MEDIUM/1 LOW),grok 7 個 finding(1 HIGH/4
+  MEDIUM/2 LOW)。兩線**各自獨立命中同一個 HIGH**(雙 Reel 排除後只剩一個
+  candidate 就直接採信,不再檢查 ab-test-plan——luna 用「兩個候選、一個被排除」
+  的形狀講,grok 額外指出**連整天只有一支 live Reel 這種單一候選的情形也一樣
+  危險**,並直接點名 2026-08-15/2026-08-16 是「一天一支且 plan／
+  REEL_SCHEDULE 分岔」的真實案例),也**各自獨立命中同一個 MEDIUM**(比對
+  `source_reference` 是否為 `scheduleReel.ts` 樣板時,`includes("-before.json")`
+  是寬鬆子字串比對,一個剛好含有這個子字串的人工字串就能偽造證據)——兩條完全
+  不同家族的線各自算出同一個真缺陷,是這個問題確實存在的強證據,不是巧合。
+  grok 另外抓到兩個我(與 luna)都沒注意到的:`loadReelMetrics` 掃描
+  insights JSON 時**沒有**像 video-sources 那樣包 try/catch,一份 insights
+  同步檔壞掉一樣會讓整份 review(~40 列)全滅(R2 只補了 video-sources 那一個
+  同類洞,漏了另一個一樣形狀的);以及我自己寫的「兩支都被排除」測試**沒有
+  鑑別力**——拿掉排除邏輯,那條測試照樣因為候選數變 0 或變多而巧合地回到
+  同一個 not_published 答案,沒有真的證明排除機制在起作用。
+  **全部已修**(`src/reelBatchReview.ts`):①`findLiveReelSlot` 重寫成**對稱
+  雙證人否決模型**——video-sources 與 ab-test-plan 各自是獨立否決票,任一個
+  明確指名「這不是這個概念」就排除該候選,**不分單一候選或多候選、不再用
+  候選數量當作證據強弱的替代品**;排除後剩恰好一個才採信,剩 0 個或 2 個以上
+  一律 `not_published`。這個重寫同時讓程式碼變**更短**(拿掉了原本 3 段分支
+  各自維護一套邏輯,合併成一個否決管線)。②`source_reference` 比對改用錨定
+  正則 `/^copx:.*\/report-([^/]+)-before\.json$/` 精確擷取概念 id 比對,不再
+  用子字串 `includes`。③`loadReelMetrics` 內迴圈補 try/catch,壞檔跳過繼續掃
+  下一份,不再讓例外穿出 `reviewBatch`。④順手加(兩線都獨立提過的觀察力缺口):
+  `findLiveReelSlot` 判 `not_published` 但當天其實有 live Reel 時,`data_gaps`
+  多寫一筆「有 Reel 但無法歸屬到這個概念」,不再跟「當天真的沒發」在輸出裡長得
+  一模一樣。新增 6 條測試(累計 18 條),同樣**逐一隔離突變實測**——包含我自己
+  第一版寫的「insights 壞檔不當機」測試**突變測試沒紅**,查出來是
+  `loadReelMetrics` 掃檔順序為 `files.sort().reverse()`(新檔名優先),我的
+  壞檔檔名 `sync-broken.json` 排序在正常檔案 `sync-fixture.json` 之前,
+  reverse 後反而**最後**才輪到它,迴圈找到正常資料就提早 return,壞檔根本
+  沒被讀到——**測試本身先假紅通過,改檔名讓壞檔真的排到最前面重測才抓到**。
+  `npx tsc --noEmit` 乾淨,全套 `npx vitest run` 637 過 5 敗(與前兩輪同一批
+  環境問題,不相關)。
+  **教訓**:🔴 第二輪(我自己派的 Claude 子代理)已經自認找齊了,結果**兩條
+  真正跨家族的線各自又找到同一個 HIGH 的更深形狀,外加一個我完全沒碰過的
+  函式裡的同類洞**。「複審過一輪」「複審過兩輪」都不是「複審完」的證據——
+  只有「這一輪複審員真的窮舉了哪些呼叫端會寫這個被信任的欄位」才是。另外
+  🔴 **我自己新寫的突變測試,本身也需要驗證它真的會紅**——這次連「證明修法
+  有效」這個動作的實作本身都出過一次假紅,幸好在交卷前自己抓到,但這正是
+  「自己驗過不等於驗完」在測試代碼這一層的翻版:寫測試時同樣要問「這個測試
+  失敗過一次嗎,還是我只看過它綠」。
+
 ## F27|2026-08-21 凌晨:差點把已測試過的 hook 敘事結構當「泛用問句」蓋掉
 
 - **現象**:F26 發現前,已經照批次表建議改了 9 個概念的 `hook`(改成直接問句,

@@ -1017,3 +1017,38 @@
   能治好但會復發」這個線索,只是沒人接著往下查到真正的根因。③兩層獨立
   驗證(外派 agent 一次、總指揮自己一次)都跑真實案例而非玩具指令,才敢
   把這條記成「已解決」而不是「看起來應該可以」。
+
+## F37|2026-08-22 晚:外部「雲端備份」流程把工作目錄的 checkout 切走,commit 落到陌生分支
+
+- **現象**:收工要 push 時,`git commit` 的回報訊息顯示分支是
+  `backup/cloud-sync-20260822`,不是預期的 `main`——本回合完全沒有下過
+  任何 `git checkout` 指令。往回查發現這個分支的第一筆是
+  `3d1c0e2 chore(backup): sync local workspace for cloud recovery
+  2026-08-22`(17:47:47),從 `main` 當時的 HEAD(`bac7f79`,F26/F35 合併)
+  切出。切出之後,連正常產線的兩筆「Generate daily Pages assets」自動
+  提交(20:30、22:16)都跟著落到這個分支,而不是 main——代表切branch
+  這件事發生後,**任何在這個工作目錄上運作的 git 提交(不管是我還是
+  自動化排程)都會落錯地方**,直到有人發現並手動切回來。
+- **根因(部分查明)**:查了 `Get-ScheduledTask` 找到一個正在執行中的
+  `AI-Agent-Vault-Sync`(`AI-Agent-Vault\00-System\scripts\scheduled_sync.py`),
+  一度懷疑是它——但直接 grep 該腳本內容,**完全沒有提到這個 repo、
+  沒有 git checkout/commit 相關字串**,排除。commit 訊息本身的用詞
+  「sync local workspace for cloud recovery」比較像是 Claude Code
+  平台自己的雲端工作階段復原機制(讓工作階段能在雲端環境接續),不是
+  這台機器上使用者可控的排程任務——**沒有再往下深挖到底層機制**,
+  判斷這已經是平台基礎設施層級,不是這個 repo 能修的東西。
+- **處置**:確認 `main` 是 `backup/cloud-sync-20260822` 的祖先(純線性、
+  無分歧)後,直接 `git checkout main` + `git merge --ff-only` 快進合併,
+  零風險零衝突地把所有提交(含正常產線的兩筆 daily-pages-assets)接回
+  main,推送。本地備份分支保留不刪(不確定平台端的復原機制是否還在
+  依賴這個分支名稱,刪掉的下行風險大於留著的上行,不清楚就不動)。
+- **教訓**:①**任何 git 操作前,先確認自己真的在預期的分支上**——
+  這次是靠 `git commit` 自己回報的分支名稱才發現,如果沒仔細看那行
+  輸出、直接無腦 `git push`,push 的會是一個陌生分支,`main` 完全不會
+  更新,而我極可能會誤以為「已經 push 了」就此收工,製造一次「說已完成
+  但其實沒完成」的假象。②這是本回合第三次撞到「有東西在動這個 repo 但
+  不是我」的模式(前兩次是 F32 的 `Laundry-CatchUp-Publish` 被停用、
+  8/21 11:45 的 `ab-test-plan.json` 被改),但這次終於**抓到一部分機制**
+  ——不是惡意或隨機,是有名有姓的「雲端復原快照」在背景動這個工作目錄。
+  ③收工/push 前固定加一步「`git branch --show-current` 確認在 main」,
+  比事後靠 commit 訊息回報才發現更保險。

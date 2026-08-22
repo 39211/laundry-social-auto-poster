@@ -70,6 +70,20 @@ foreach ($slot in 1, 2, 3) {
 if ($needsRescue) {
     $line = "[{0:yyyy-MM-dd HH:mm:ss}] Patrol found an open window with an unpublished slot; starting catch-up." -f $now
     $line | Add-Content -Path $logFile -Encoding UTF8
+    # 2026-08-22: found Laundry-CatchUp-Publish sitting Disabled with an open,
+    # unpublished window. Start-ScheduledTask on a disabled task fails with
+    # "The task is disabled", and -ErrorAction SilentlyContinue on the line
+    # below was swallowing that failure with no trace in this log -- the
+    # rescue believed it had acted while nothing happened. The dead-trigger
+    # check above (empty NextRunTime) does not reliably catch this: it only
+    # runs before $approvedPath exists for the day, and by the time a slot is
+    # actually due the task may have been disabled well after that check ran.
+    $ctp = Get-ScheduledTask -TaskName "Laundry-CatchUp-Publish" -ErrorAction SilentlyContinue
+    if ($null -ne $ctp -and $ctp.State -eq "Disabled") {
+        "[{0:yyyy-MM-dd HH:mm:ss}] Laundry-CatchUp-Publish is Disabled during an open window; re-enabling." -f $now |
+            Add-Content -Path $logFile -Encoding UTF8
+        Enable-ScheduledTask -TaskName "Laundry-CatchUp-Publish" -ErrorAction SilentlyContinue | Out-Null
+    }
     Start-ScheduledTask -TaskName "Laundry-CatchUp-Publish" -ErrorAction SilentlyContinue
 }
 

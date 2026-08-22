@@ -653,3 +653,32 @@
 - **教訓**:給影像/影片模型的運鏡指令要按「這會要求它畫出它沒看過的東西嗎」
   來審。任何 pull-back / widen / reveal 類指令對 image-to-video 都是
   場景發明的邀請函;想要收尾的呼吸感,用 hold+讓物件微沉降,不用拉遠。
+
+## F32|2026-08-22 上午:核心發布任務被停用,巡邏的搶救動作被靜默吞掉
+
+- **現象**:11:35 slot 1 該發沒發,直到 11:44 才發現
+  `Laundry-CatchUp-Publish`(11:35/12:05/13:30/13:50/20:35/22:15 六個觸發點
+  都在這支任務上)**狀態是 Disabled**。已手動 `Enable-ScheduledTask` +
+  `Start-ScheduledTask` 補救。
+- **根因(兩層)**:①**是誰停用的不明**——不是本回合任何操作停用的,且
+  `Get-ScheduledTask` 全清單只有這一支 Disabled,其餘(含新出現的
+  `Laundry-Daily-Progress`、`Laundry-Nightly-AI-Optimizer`、
+  `Laundry-Publish-Sentinel`——這三支不在 `register-catchup-task.ps1`
+  正本裡,來源同樣不明)全部 Ready。②**安全網本身有洞**:
+  `watchdog-patrol.ps1` 偵測到「發布窗開著、格位未發」時會呼叫
+  `Start-ScheduledTask -TaskName Laundry-CatchUp-Publish -ErrorAction
+  SilentlyContinue`——任務被停用時這一行的錯誤(`The task is disabled`)
+  被**靜默吞掉**,log 完全不會留下任何痕跡,搶救以為自己做了事,其實
+  什麼都沒發生。頂部的「dead-trigger 偵測」(空 `NextRunTime`)理論上該
+  在停用當下就抓到並靠 re-register 順便復原,但那段檢查只在
+  `data\approved-log\<date>.json` 還不存在時才有意義跑在核准之前,
+  且無法確定停用發生的時間點是否落在它有效偵測的窗口內。
+- **處置**:`watchdog-patrol.ps1` 的搶救區塊補上「呼叫 Start-ScheduledTask
+  前先查 State,是 Disabled 就先 Enable 並寫一行高辨識度 log」,消除這個
+  靜默吞錯的洞。今天實際發文結果(slot 1 補發是否成功)待驗,見交接文。
+- **未解、留給下一輪**:①誰/什麼在停用 `Laundry-CatchUp-Publish`——本回合
+  同一天已經是第二次撞到「有東西在動排程/計畫檔但不是我」(另一次是
+  8/21 11:45 的 ab-test-plan 被改成 curtain-hem);②三支陌生任務名的
+  來源;③這兩件事會不會是同一個外部行為者。這已經不是巧合等級的
+  頻率,值得專案層級追查(檢查是否有另一個 agent session、排程管理
+  工具、或本機其他自動化在動這個 repo 的排程與計畫檔)。

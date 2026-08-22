@@ -1,7 +1,7 @@
 {
   "schema_version": "2026-07-02",
   "standard_level": "standard",
-  "generated_at": "2026-08-22T14:16:39.060Z",
+  "generated_at": "2026-08-22T15:37:35.588Z",
   "website": {
     "name": "私享家洗衣店",
     "business_name": "私享家洗衣店",
@@ -191,6 +191,7 @@
       "plush-doll-cleaning": "https://sixiangjialaundry.com/guides/plush-doll-cleaning.html",
       "luxury-dry-cleaning": "https://sixiangjialaundry.com/guides/luxury-dry-cleaning.html",
       "taichung-laundry-service-search": "https://sixiangjialaundry.com/guides/taichung-laundry-service-search.html",
+      "clothing-alteration-with-laundry": "https://sixiangjialaundry.com/guides/clothing-alteration-with-laundry.html",
       "qinghai-road-shoe-cleaning": "https://sixiangjialaundry.com/local/qinghai-road-shoe-cleaning.html"
     },
     "feed": "https://sixiangjialaundry.com/feed.json",
@@ -225,6 +226,7 @@
     "https://sixiangjialaundry.com/guides/plush-doll-cleaning.html",
     "https://sixiangjialaundry.com/guides/luxury-dry-cleaning.html",
     "https://sixiangjialaundry.com/guides/taichung-laundry-service-search.html",
+    "https://sixiangjialaundry.com/guides/clothing-alteration-with-laundry.html",
     "https://sixiangjialaundry.com/local/qinghai-road-shoe-cleaning.html",
     "https://sixiangjialaundry.com/latest.json",
     "https://sixiangjialaundry.com/knowledge-graph.json",
@@ -1198,6 +1200,24 @@
       "linked_service": "台中西屯洗衣店",
       "faq_count": 4,
       "step_count": 6
+    },
+    {
+      "slug": "clothing-alteration-with-laundry",
+      "category": "guide",
+      "title": "送洗順便改衣服，可以一起處理嗎？｜私享家洗衣店",
+      "description": "送洗的衣物如果同時需要修改，私享家可以一起收送處理，但小修跟版型調整不是同一種工序，費用與時間也不同。",
+      "url": "https://sixiangjialaundry.com/guides/clothing-alteration-with-laundry.html",
+      "keywords": [
+        "洗衣改衣服",
+        "台中改衣服",
+        "西屯改衣服",
+        "送洗修改一起處理",
+        "改褲管"
+      ],
+      "local_intent": "台中西屯 送洗 改衣服 修改",
+      "linked_service": "台中西屯洗衣店",
+      "faq_count": 2,
+      "step_count": 4
     },
     {
       "slug": "qinghai-road-shoe-cleaning",

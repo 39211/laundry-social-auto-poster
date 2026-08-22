@@ -782,7 +782,7 @@ describe("generatePublicSite", () => {
       )
     ).toBe(true);
     expect(discovery.capabilities.supports_support_pages).toBe(true);
-    expect(discovery.support_pages).toHaveLength(17);
+    expect(discovery.support_pages).toHaveLength(18);
     expect(searchVisibility.query_clusters).toHaveLength(6);
     expect(discovery.support_pages[0]).toMatchObject({
       slug: "photo-before-laundry",

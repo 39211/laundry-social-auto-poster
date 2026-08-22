@@ -4,7 +4,7 @@
 
 ## Source Of Record
 - Canonical URL: https://sixiangjialaundry.com/
-- Generated at: 2026-08-22T14:16:39.060Z
+- Generated at: 2026-08-22T15:37:35.588Z
 - Timezone: Asia/Taipei
 - Base URL configured: yes
 
@@ -48,6 +48,7 @@
 - support_pages.plush-doll-cleaning: https://sixiangjialaundry.com/guides/plush-doll-cleaning.html
 - support_pages.luxury-dry-cleaning: https://sixiangjialaundry.com/guides/luxury-dry-cleaning.html
 - support_pages.taichung-laundry-service-search: https://sixiangjialaundry.com/guides/taichung-laundry-service-search.html
+- support_pages.clothing-alteration-with-laundry: https://sixiangjialaundry.com/guides/clothing-alteration-with-laundry.html
 - support_pages.qinghai-road-shoe-cleaning: https://sixiangjialaundry.com/local/qinghai-road-shoe-cleaning.html
 - feed: https://sixiangjialaundry.com/feed.json
 - knowledge_graph: https://sixiangjialaundry.com/knowledge-graph.json

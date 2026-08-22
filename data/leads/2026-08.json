@@ -42,6 +42,25 @@
       "line_clicks_total": 0,
       "source_clicks": {},
       "source_clicks_status": "measured"
+    },
+    "2026-08-19": {
+      "line_clicks_total": 0,
+      "source_clicks": {},
+      "source_clicks_status": "measured"
+    },
+    "2026-08-20": {
+      "line_clicks_total": 1,
+      "source_clicks": {
+        "(not set)": 1
+      },
+      "source_clicks_status": "measured"
+    },
+    "2026-08-21": {
+      "line_clicks_total": 1,
+      "source_clicks": {
+        "youtube": 1
+      },
+      "source_clicks_status": "measured"
     }
   },
   "note": "source_clicks 由 GA4 line_click 對照;inquiries/won 老闆每日回填"

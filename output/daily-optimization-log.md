@@ -79,3 +79,16 @@ F27——`git diff --stat src/reelConcepts.ts` 復原後與 HEAD 零差異;`npx 
 ①F26 本體(`reelBatchReview.ts` 該怎麼判定「今天 Reel 真正發在哪個格位」)還沒修,已用 `spawn_task` 開一張獨立任務單——這是餵給未來排程/內容決策的計分依據,屬於「會影響放行的東西」,該過深審不該我一個人凌晨改。
 ②敘事結構限制內的新一版 hook 文案還沒有寫出來——沒有足夠證據支持特定新詞句,不勉強生一版只為了今天有改。
 ③F26 的乾淨/污染判定只抽驗了 2026-08-09、08-14 兩天當對照,7/29-8/13 其餘日期沒有逐筆窮舉,抽驗通過不等於窮舉過。
+
+## 2026-08-21(索引衝刺,老闆點名 2 小時)
+
+改了什麼:
+①**建立每日「Google 實際收錄了哪幾頁」量測**——新 `src/gscIndexInspection.ts` 用 URL Inspection API(現有 readonly token 就夠)逐頁巡檢 sitemap 24 個頁面 URL,逐頁記錄 coverage state 到 `data/insights/gsc-index/<date>.json`,`gsc-collect.ps1` 每晚 23:15 自動跑。5 條測試含突變護欄(「Crawled - currently not indexed」含 indexed 字樣但意思相反,寬鬆比對必變紅)。
+②商家 schema 全站加 `priceRange: NT$70 起`(站上自己公開的地板價,可驗證)。
+③兩個「不做」的決定,都有依據:posts 維持 noindex(程式內註記完整:模板近重複內容曾佔 sitemap 68%、淹掉真正答題頁);geo 座標不填(repo 自己的 not_verified 紀律——Maps 短連結解出的視窗中心離店 10 公里,填了會毒害在地相關性,改為請老闆長按店釘取真座標)。
+
+為什麼(依據哪個數據):日報連日寫「GSC 曝光近乎零」。實測三個 API 才發現真相:(a) sitemap 已註冊、0 錯誤,但其 indexed 計數器停在 0=已知延遲假象;(b) URL Inspection 即時真相=24 頁中 10 頁已收錄、9 頁排隊中、5 頁未被發現(含核心在地頁 taichung-xitun-laundry.html);(c) **舊資產 39211.github.io 近 15 天還有 339 曝光+4 點擊、天天有數據**——曝光沒歸零,是遷移中途、記在舊站頭上,日報一直只讀新資產造成假陰性。
+
+怎麼驗:tsc 乾淨;全套 629/629 一次綠(新增 5 條);真實基線已跑出檔案(10/9/5 分佈);priceRange 重生後從 docs/index.html 的 JSON-LD 實際解析驗證;全部提交 5bfa066 推送。
+
+沒關的:①GSC「網址變更」只有 UI 能按,已把三步驟交給老闆(最大遷移加速槓桿);②收集器「遷移視角」(新舊資產合併數字進日報)還沒寫,排下一批;③IndexNow 重推等 14:00 mirror 更新後再發;④5 個 unknown 頁面的發現加速除了 CoA 沒有 API 路,靠內鏈與時間。

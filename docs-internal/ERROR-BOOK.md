@@ -682,3 +682,15 @@
   來源;③這兩件事會不會是同一個外部行為者。這已經不是巧合等級的
   頻率,值得專案層級追查(檢查是否有另一個 agent session、排程管理
   工具、或本機其他自動化在動這個 repo 的排程與計畫檔)。
+
+- **【當場更正】三支「陌生任務」其實都合法**:查完動作內容後確認
+  `Laundry-Daily-Progress`(跑 repo 既有的 `scripts\daily_progress.py`,
+  8/18 起每天 23:40 正常執行)、`Laundry-Nightly-AI-Optimizer`(跑
+  `AI_Agency\_bridge\run-nightly-optimizer.ps1`,屬艦隊派工基礎設施,
+  8/19 起每天 23:00 正常執行)、`Laundry-Publish-Sentinel`(跑
+  `scripts\publish-sentinel.ps1`,即前幾天回報過的「哨兵」,8/19 起
+  11:50/12:20/20:50 三次巡邏)——**三支都是既有、正常運作的自動化,只是沒
+  被收進 `register-catchup-task.ps1` 檔頭那份任務清單**,不是外來可疑物。
+  真正未解的只剩兩件:誰停用了 `Laundry-CatchUp-Publish`、誰在 8/21
+  11:45 把 `ab-test-plan.json` 8/23 改成 curtain-hem——兩者都與這三支
+  任務無關,範圍縮小但仍未解。

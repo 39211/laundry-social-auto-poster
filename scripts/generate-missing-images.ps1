@@ -175,7 +175,12 @@ $($item.prompt)
 "@
 
     $before = Get-Date
-    $codexOut = $prompt | & $codex exec -C $root -s read-only - 2>&1
+    # DPAPI root-fix (2026-08-22): codex's Windows "elevated" sandbox depends on
+    # two dedicated local accounts whose stored credentials this machine's DPAPI
+    # can no longer decrypt (CryptUnprotectData / NTE_BAD_KEY_STATE) -- switching
+    # to the "unelevated" sandbox mode uses the current login's own restricted
+    # token instead, sidestepping that broken credential store entirely.
+    $codexOut = $prompt | & $codex exec -C $root -s read-only -c 'windows.sandbox="unelevated"' - 2>&1
     if ($LogFile) { $codexOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
     else { $codexOut | ForEach-Object { Write-Host $_ } }
 

@@ -551,7 +551,11 @@ Do not read any workspace file and do not run any shell command; the local shell
 
         Write-Log "Generating before/after stills through Codex."
         $genStart = Get-Date
-        $codexBaOut = ($header + $promptBody) | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - 2>&1
+        # DPAPI root-fix (2026-08-22, ERROR-BOOK): codex's Windows "elevated" sandbox
+        # depends on two dedicated local accounts whose stored credentials this
+        # machine's DPAPI can no longer decrypt. "unelevated" uses the current
+        # login's own restricted token instead, sidestepping that credential store.
+        $codexBaOut = ($header + $promptBody) | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only -c 'windows.sandbox="unelevated"' - 2>&1
         $codexBaOut | ForEach-Object { Write-Log $_ }
 
         $images = @(
@@ -600,7 +604,8 @@ Read the image file at the path given below and EDIT it. Keep the same camera po
         Write-Log "Generating middle still by editing the before still."
         $genStart = Get-Date
         $middlePrompt = $middleHeader + "Image to edit: $beforePng`nObject/concept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n"
-        $codexMidOut = $middlePrompt | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - 2>&1
+        # DPAPI root-fix (2026-08-22) -- see the before/after stills call above.
+        $codexMidOut = $middlePrompt | & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only -c 'windows.sandbox="unelevated"' - 2>&1
         $codexMidOut | ForEach-Object { Write-Log $_ }
 
         $images = @(
@@ -622,8 +627,9 @@ Read the image file at the path given below and EDIT it. Keep the same camera po
 Use the built-in image model only. Do not read any workspace file. Generate ONE portrait 4:5 photo of the object below in a MID-CLEANING state, on the inspection counter of a Taiwanese laundry and shoe-care shop: a light counter with a pink cutting mat, white slat-wall panels behind, shelves of fabric-care bottles softly out of focus. The craftsman's hands are in frame: an adult man's working hands, dry and clean with short unpolished nails, one thin old scar across the back of the left hand, forearms lightly tanned, sleeves of a faded indigo work shirt rolled to just below the elbow, a dark canvas apron edge visible at the frame bottom. No rings, no watch, no gloves. One hand holds a shop tool working a specific worn spot with partial cleaning progress there, the other steadies the item, and the rest of the item is still soiled. Hands anatomically correct: five fingers each, no fusing, no extra hand entering frame. No face, no head, no torso above the elbow. Shot on a phone main camera about 26mm equivalent, chest height angled 20-35 degrees down, handheld with imperfect framing, item filling 45-65% of frame height and sharp, background readable. Storefront window key light from one side, weak fluorescent fill, continuous hard contact shadow under the item. Not cinematic, not studio, no film grain, no waxy surfaces, no readable text, no logo, no faces. Leave the image in your output directory and report the filename.
 
 "@
+            # DPAPI root-fix (2026-08-22) -- see the before/after stills call above.
             $codexFbOut = $fallback + "Object/concept: $concept`nObject type: $objectType`nNarration context: $($conceptInfo.narration)`n" |
-                & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only - 2>&1
+                & "$env:APPDATA\npm\codex.cmd" exec -C $root -s read-only -c 'windows.sandbox="unelevated"' - 2>&1
             $codexFbOut | ForEach-Object { Write-Log $_ }
             $images = @(
                 Get-ChildItem "$env:USERPROFILE\.codex\generated_images" -Directory -ErrorAction SilentlyContinue |

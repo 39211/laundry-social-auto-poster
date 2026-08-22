@@ -245,7 +245,11 @@ Stop and report if any required step cannot complete. Do not approve posts, do n
 
 Write-Log "Starting Codex generation for $date."
 Push-Location $root
-$output = & $codex exec -C $root -s workspace-write $prompt 2>&1
+# DPAPI root-fix (2026-08-22, ERROR-BOOK): codex's Windows "elevated" sandbox
+# depends on two dedicated local accounts whose stored credentials this
+# machine's DPAPI can no longer decrypt. "unelevated" uses the current
+# login's own restricted token instead, sidestepping that credential store.
+$output = & $codex exec -C $root -s workspace-write -c 'windows.sandbox="unelevated"' $prompt 2>&1
 $exitCode = $LASTEXITCODE
 Pop-Location
 $output | Out-File -FilePath $logFile -Append -Encoding utf8

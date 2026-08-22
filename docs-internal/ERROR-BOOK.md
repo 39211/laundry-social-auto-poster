@@ -963,3 +963,57 @@
   一句話就能結案——先查資料源頭能不能提供這個維度,查不到就查 API 官方
   文件而非猜測;查到「這個端點就是不支援」時,誠實拿掉門檻比硬掰一個量錯
   對象的比較式安全。跟 F26 同一個教訓:先查資料的真實來源,再動手。
+
+## F36|2026-08-22 晚:DPAPI 崩壞根治——codex Windows 沙箱的專用帳號密碼解不開,換沙箱模式徹底繞開
+
+- **現象**:`codex exec -s read-only`(或 `workspace-write`)只要真的去讀本機檔案
+  或跑任何 shell 指令,一律撞 `windows sandbox failed: CryptUnprotectData
+  failed: 2148073483`。`-i` 直接附圖能讓「讀那張圖」這件事單獨成功(圖片
+  bytes 隨 API request 一起送,不靠沙箱內讀檔),但同一個 session 只要還有
+  任何其他讀檔/執行需求,一樣會死。這是本回合之前「一律用 `-i`」workaround
+  的真正限制——它只解決了圖片輸入,沒解決沙箱本身。
+- **根因**:codex 在 Windows 上的 `elevated` 沙箱模式(這台機器
+  `~/.codex/config.toml` 目前設的模式)會另外建立兩個本機帳號
+  `CodexSandboxOffline`/`CodexSandboxOnline`,密碼用 DPAPI 加密存在
+  `~/.codex/.sandbox-secrets/sandbox_users.json`。每次要跑沙箱化操作前都得
+  先解密這組密碼、登入、產生限制型 token。這台機器上,那組密碼掛的 DPAPI
+  金鑰狀態已經失效——錯誤碼 `2148073483` 換算成十六進位是 `0x8009000B`
+  (`NTE_BAD_KEY_STATE`,不是原本猜的 `0x80090016`/`NTE_BAD_KEYSET`,兩者
+  相近但不同,已用 PowerShell 換算確認)。查 upstream(`openai/codex` issue
+  #35841)證實這個失效的金鑰掛在 SYSTEM 層(`S-1-5-18`)DPAPI 存放區,不是
+  使用者自己的 profile——這解釋了為什麼 `auth.json`、瀏覽器 cookie 等一般
+  DPAPI 資料完全正常,只有這組沙箱專用帳密解不開,而且跟指令內容、前景
+  背景、負載大小都無關(F23 三次獨立實驗釘死的「只跟沙箱要不要跑指令有關」
+  這個模式,這次把「為什麼」補上了)。
+- **處置**:呼叫 codex 時加一個參數,把沙箱的 Windows 實作機制從 elevated
+  切成官方文件記載的 fallback 選項 unelevated(直接用目前登入身分產生
+  限制型 token,不建額外帳號、不經那組壞掉的 DPAPI 加密):
+  `-c 'windows.sandbox="unelevated"'`。**兩層驗證**:①外派 agent 用
+  `codex sandbox -- whoami` 對照有無此參數,無參數死、有參數成功回報
+  `ai\cyc39`;再用產線實際的 `codex exec -s read-only -` 呼叫方式(不靠 `-i`)
+  成功讀取一張真實圖片並正確描述內容。②我自己獨立重測一次,叫 codex 讀
+  `data/reel-concepts-extension.json` 並數概念筆數,不加任何「不要用 shell」
+  的限制語——codex 自己跑了一段 PowerShell `Get-Content|ConvertFrom-Json`,
+  成功回報「12 個概念」(數字正確),全程無 DPAPI 錯誤。兩次獨立測試都通過。
+  已補進本 repo 全部 6 支腳本、8 處呼叫點:`scripts/generate-missing-images.ps1`、
+  `src/visualQaCli.ts`、`scripts/produce-next-reel.ps1`(3 處:before/after
+  靜態圖、middle 靜態圖、純生成 fallback)、`scripts/daily-generate.ps1`、
+  `scripts/check-reel-story.ps1`。tsc 乾淨、652+ 測試全綠(這批修改不影響
+  TypeScript 邏輯,純加一個 CLI 參數)。
+- **未做、留給老闆決定**:`~/.codex/config.toml` 的 `sandbox = "elevated"`
+  可以直接改成 `"unelevated"`,這樣機器上*所有* codex 呼叫(含這個 repo
+  以外的專案)都吃到修法,不用每個呼叫點各自補參數。這是機器層級設定,
+  不在這個 repo 的授權範圍內,沒有動手,留給老闆決定要不要全域套用。
+  另外 unelevated 模式的網路隔離比 elevated 弱(elevated 對 offline 帳號
+  有實際防火牆規則擋對外連線,unelevated 只靠環境層級設定)——這條產線
+  的圖生成/QA 判讀不需要沙箱行程主動連網,實務風險低,但如果老闆在這台
+  機器上還有其他會被拿去處理不受信任內容、需要沙箱網路隔離的 codex 用途,
+  套用全域設定前要先想過這一點。
+- **教訓**:①錯誤碼看起來眼熟不代表猜對了——`0x80090016` 跟 `0x8009000B`
+  外觀相近,語意不同(前者是「金鑰組不存在」、後者是「金鑰狀態不可用」),
+  沒有實際換算就寫進調查報告會誤導後續排查方向。②`-i` 附圖 workaround
+  用了快兩週卻沒有人往下一層問「這個沙箱本身還壞在哪裡」——workaround
+  用久了會讓人忘記它只是繞開症狀,不是治好病灶;F23 早就記錄了「重開機
+  能治好但會復發」這個線索,只是沒人接著往下查到真正的根因。③兩層獨立
+  驗證(外派 agent 一次、總指揮自己一次)都跑真實案例而非玩具指令,才敢
+  把這條記成「已解決」而不是「看起來應該可以」。

@@ -236,7 +236,7 @@
     "date": "2026-08-27",
     "noon": {
       "conceptId": "leather-bag-corner",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "shirt-collar",
@@ -248,7 +248,7 @@
     "date": "2026-08-28",
     "noon": {
       "conceptId": "handbag-handle",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "luggage-wheel",
@@ -272,7 +272,7 @@
     "date": "2026-08-30",
     "noon": {
       "conceptId": "canvas-shoe-mud",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "canvas-shoe-mud",
@@ -308,7 +308,7 @@
     "date": "2026-09-02",
     "noon": {
       "conceptId": "curtain-hem",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "curtain-hem",
@@ -332,7 +332,7 @@
     "date": "2026-09-04",
     "noon": {
       "conceptId": "leather-shoe-rain",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "leather-shoe-rain",
@@ -356,7 +356,7 @@
     "date": "2026-09-06",
     "noon": {
       "conceptId": "shirt-collar",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "shirt-collar",
@@ -380,7 +380,7 @@
     "date": "2026-09-08",
     "noon": {
       "conceptId": "down-jacket-cuff",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "down-jacket-cuff",
@@ -404,7 +404,7 @@
     "date": "2026-09-10",
     "noon": {
       "conceptId": "suede-shoe-nap",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "suede-shoe-nap",
@@ -428,7 +428,7 @@
     "date": "2026-09-12",
     "noon": {
       "conceptId": "leather-belt-crease",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "leather-belt-crease",
@@ -452,7 +452,7 @@
     "date": "2026-09-14",
     "noon": {
       "conceptId": "blanket-pilling",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "blanket-pilling",
@@ -476,7 +476,7 @@
     "date": "2026-09-16",
     "noon": {
       "conceptId": "wallet-edge-wear",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "wallet-edge-wear",
@@ -500,7 +500,7 @@
     "date": "2026-09-18",
     "noon": {
       "conceptId": "hiking-boot-mud",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "hiking-boot-mud",
@@ -524,7 +524,7 @@
     "date": "2026-09-20",
     "noon": {
       "conceptId": "leather-bag-corner",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "leather-bag-corner",
@@ -548,7 +548,7 @@
     "date": "2026-09-22",
     "noon": {
       "conceptId": "duvet-storage",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "duvet-storage",
@@ -572,7 +572,7 @@
     "date": "2026-09-24",
     "noon": {
       "conceptId": "suit-shoulder",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "suit-shoulder",
@@ -596,7 +596,7 @@
     "date": "2026-09-26",
     "noon": {
       "conceptId": "curtain-hem",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "curtain-hem",
@@ -620,7 +620,7 @@
     "date": "2026-09-28",
     "noon": {
       "conceptId": "leather-shoe-rain",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "leather-shoe-rain",
@@ -644,7 +644,7 @@
     "date": "2026-09-30",
     "noon": {
       "conceptId": "shirt-collar",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "shirt-collar",
@@ -668,7 +668,7 @@
     "date": "2026-10-02",
     "noon": {
       "conceptId": "down-jacket-cuff",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "down-jacket-cuff",
@@ -692,7 +692,7 @@
     "date": "2026-10-04",
     "noon": {
       "conceptId": "suede-shoe-nap",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "suede-shoe-nap",
@@ -716,7 +716,7 @@
     "date": "2026-10-06",
     "noon": {
       "conceptId": "leather-belt-crease",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "leather-belt-crease",
@@ -740,7 +740,7 @@
     "date": "2026-10-08",
     "noon": {
       "conceptId": "blanket-pilling",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "blanket-pilling",
@@ -764,7 +764,7 @@
     "date": "2026-10-10",
     "noon": {
       "conceptId": "wallet-edge-wear",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "wallet-edge-wear",
@@ -788,7 +788,7 @@
     "date": "2026-10-12",
     "noon": {
       "conceptId": "hiking-boot-mud",
-      "variant": "15s"
+      "variant": "10s"
     },
     "evening": {
       "conceptId": "hiking-boot-mud",

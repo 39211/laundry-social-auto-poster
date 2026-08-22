@@ -66,7 +66,11 @@ function runCodexJudge(input: { root: string; prompt: string; images: string[]; 
     throw new Error("QA prompt contains image-generation language; refusing to call Codex.");
   }
   const codexCmd = join(process.env.APPDATA ?? "", "npm", "codex.cmd");
-  const codexArgs = [codexCmd, "exec", "-C", input.root, "-s", "read-only"];
+  // DPAPI root-fix (2026-08-22): see ERROR-BOOK -- codex's Windows "elevated"
+  // sandbox depends on two dedicated local accounts whose stored credentials
+  // this machine's DPAPI can no longer decrypt. "unelevated" uses the current
+  // login's own restricted token instead, sidestepping that credential store.
+  const codexArgs = [codexCmd, "exec", "-C", input.root, "-s", "read-only", "-c", 'windows.sandbox="unelevated"'];
   for (const image of input.images) {
     codexArgs.push("-i", image);
   }

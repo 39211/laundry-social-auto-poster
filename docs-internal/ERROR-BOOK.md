@@ -919,3 +919,47 @@
   `data/video-reviews/2026-08-26.json` 確認內容,這次資料遺失會悄悄過去,
   下一個讀這份紀錄的人(不管是我自己下一輪,還是另一個 agent)會看到一份
   「乾淨到反常」的核准紀錄,完全查不到它其實闖過兩輪退件才過關。
+
+## F35|2026-08-21 凌晨:reels-roadmap 60% 非追蹤者佔比門檻查證——API 拿不到單支 Reel 層級,記錄限制而非硬接
+
+- **現象**:`src/reelBatchReview.ts` 的 `THRESHOLDS_72H.non_follower_share`
+  寫著 0.6(對應 `content-playbooks/reels-roadmap.md`「Per-Reel thresholds」
+  表的非追蹤者佔比 72 小時 ≥60% 門檻),但 `reviewBatch()` 建構 outcome 時
+  `non_follower_share` 兩處都寫死 `null`,從未拿去跟門檻比較、也從未進
+  `missed[]`——門檻名義上存在,實際上從沒被驗過。派工說明指出這是 F26
+  (72cad03,分支 `claude/focused-tesla-c0d0d2`)之前就有的既存缺口,由該次
+  修復的 dispatch 複審中 Grok 順手發現、另開單處理。
+- **查證**:沒有假設「補上比較式就好」,先查資料源頭。`src/instagramInsights.ts`
+  的 `fetchInstagramMediaInsights`(媒體層級 `GET /{media-id}/insights`)只請求
+  `views/reach/likes/comments/shares/saved/total_interactions` 與兩個
+  Reels-only 觀看時長欄位,從未帶 `breakdown` 參數;`reelBatchReview.ts` 的
+  `InsightMetrics` 型別也沒有非追蹤者相關欄位。對照 `src/localReach.ts` 對
+  帳號層級 `GET /{ig-user-id}/insights?metric=reach&breakdown=follow_type`
+  的既有用法,懷疑「非追蹤者佔比」根本不是媒體層級 API 能拆的維度。查 Meta
+  官方文件兩處獨立頁面確認:media insights 參考頁明寫媒體層級 `reach`
+  "Does not support breakdowns"(媒體層級唯二支援 breakdown 的是
+  `profile_activity`/`navigation`,都與追蹤者身份無關);user insights 參考頁
+  則確認帳號層級 `reach` 才支援 `breakdown=follow_type`
+  (FOLLOWER/NON_FOLLOWER/UNKNOWN)——與 `localReach.ts` 現有寫法一致。另
+  confirm `THRESHOLDS_72H`、`ReelOutcome`/`BatchReview` 全 repo 只有
+  `reelBatchReview.ts` 自己在用,沒有其他模組讀 `non_follower_share` 這個
+  欄位,改動範圍可控。
+- **結論**:單支 Reel 的非追蹤者觸及不是「還沒接」,是這個 API 端點拿不到。
+  帳號層級的 `breakdown=follow_type` 是時間窗口下全帳號的聚合值(含所有
+  貼文/限動/廣告),production 目前一天發一支 Reel、72 小時視窗常涵蓋不只
+  一支內容,硬接帳號層級數字也無法歸因到單一 Reel——會做出一個掛著「非
+  追蹤者佔比」名字、實際上量錯對象的假指標,比完全不量更危險。
+- **處置**:不補比較邏輯。`THRESHOLDS_72H` 拿掉 `non_follower_share` 這個
+  永遠不會被驗到的門檻(留著會讓人誤以為四項門檻都有在檢查),`ReelOutcome`
+  的 `non_follower_share` 欄位保留(維持輸出形狀,也許未來換資料源可用)但
+  加註解釋為什麼恆為 null。`reels-roadmap.md`「Per-Reel thresholds」表後
+  加一段,講清楚 `reelBatchReview.ts` 實際自動檢查哪三項,非追蹤者佔比/
+  觀看率/名片頁造訪這三項目前都不是機器自動判。順手核對發現「觀看率
+  ≥35%」同一張表裡也沒被 `reelBatchReview.ts` 驗過,但那項的原始資料
+  (`ig_reels_avg_watch_time`)其實有抓進 insight JSON,只是沒被讀進
+  `InsightMetrics`——跟非追蹤者佔比不同類,是真的沒接而非量不到,另開單
+  處理,這次不動。
+- **教訓**:一個門檻掛在 `THRESHOLDS_72H` 卻永遠比不到,不是「漏寫比較式」
+  一句話就能結案——先查資料源頭能不能提供這個維度,查不到就查 API 官方
+  文件而非猜測;查到「這個端點就是不支援」時,誠實拿掉門檻比硬掰一個量錯
+  對象的比較式安全。跟 F26 同一個教訓:先查資料的真實來源,再動手。

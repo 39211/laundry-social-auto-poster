@@ -110,6 +110,14 @@ fewer than 3 engaged accounts, pauses that content type and raises a notice.
 | Saves plus shares | ≥ 3 | ≥ 8 |
 | Profile visits or inquiries | ≥ 2 | ≥ 5 |
 
+`src/reelBatchReview.ts` machine-checks accounts reached, accounts engaged, and
+saves plus shares per Reel at 72 hours. Non-follower share is not checked per Reel:
+Instagram's media insights endpoint has no follow-type breakdown for individual
+posts, only account-level aggregate reach does (`breakdown=follow_type`, used in
+`src/localReach.ts` for the programme-wide day-30/60 checkpoints, not attributable
+to a single Reel). Watch ratio and profile visits/inquiries also are not currently
+machine-checked per Reel.
+
 ## Production constraints
 
 The video model deforms fingers during detailed hand work and cannot hold a

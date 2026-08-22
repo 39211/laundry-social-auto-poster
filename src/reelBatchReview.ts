@@ -15,9 +15,15 @@ import type { PostLogEntry } from "./types";
 // algorithm does most of its testing in. Anything younger is reported as
 // pending rather than counted as a failure.
 
+// The roadmap also sets a 60% non-follower-share bar (content-playbooks/reels-roadmap.md,
+// "Per-Reel thresholds"), but Instagram's media insights endpoint has no follow-type
+// breakdown for individual posts -- only account-level aggregate reach supports
+// breakdown=follow_type (see src/localReach.ts, confirmed against Meta's Graph API
+// reference docs). There is no per-Reel number to enforce that bar against, so it is
+// deliberately left out of THRESHOLDS_72H rather than compared against data that can't
+// exist.
 const THRESHOLDS_72H = {
   reach: 300,
-  non_follower_share: 0.6,
   accounts_engaged: 5,
   saves_plus_shares: 3
 };
@@ -31,6 +37,8 @@ export interface ReelOutcome {
   hours_since_publish: number | null;
   mature: boolean;
   reach: number | null;
+  // Always null -- see the THRESHOLDS_72H comment: the API this tool reads from has no
+  // per-Reel follow-type breakdown to populate it from.
   non_follower_share: number | null;
   accounts_engaged: number | null;
   saves_plus_shares: number | null;

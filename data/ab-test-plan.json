@@ -199,7 +199,8 @@
     "date": "2026-08-24",
     "noon": {
       "conceptId": "kids-shoe-toe",
-      "variant": "15s"
+      "variant": "15s",
+      "paused": true
     },
     "evening": {
       "conceptId": "suit-shoulder",

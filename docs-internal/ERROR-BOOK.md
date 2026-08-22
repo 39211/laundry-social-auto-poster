@@ -694,3 +694,95 @@
   真正未解的只剩兩件:誰停用了 `Laundry-CatchUp-Publish`、誰在 8/21
   11:45 把 `ab-test-plan.json` 8/23 改成 curtain-hem——兩者都與這三支
   任務無關,範圍縮小但仍未解。
+
+## F33|2026-08-22 下午:「核心物理」描述不分幕別套用,污染 after 幕的敘事狀態
+
+- **現象**:sweater-underarm 修復第二輪——middle+after 靜態圖已核准(乾淨、
+  地標正確、黃斑正確淡化),影片生成也回報成功、兩層自動 story-QA(靜態圖版
+  +成片抽幀版)皆 7 軸全 PASS,但 commander 目視 after 幕實際抽幀
+  (`after-p20.png`/`after-p70.png`,t=10.2s/12.7s)時發現:手仍在主動擦拭、
+  黃斑清楚可見,幾乎回到 before 幕的狀態——跟核准的 after 靜態圖(乾淨、
+  黃斑淡化、手是「展示成果」姿勢)完全對不上。先查參考圖 sha 排除 F30
+  式的「參考圖用錯」,證實影片生成確實吃到正確的 after 靜態圖,問題出在
+  影片生成本身。
+- **根因**:`produce-next-reel.ps1` 的 `Get-CorePhysics` 依 `$objectType`
+  回傳**一句**物理描述,在 before/middle/after **三幕的 prompt 組裝迴圈裡
+  無條件套用同一句**(見腳本第 737、744 行)。sweater 的物理描述是「A cloth
+  works the underarm yellow patch; the stain wets darker then lightens」
+  ——這是專屬「正在清潔中」的過程敘述,被原樣塞進 after 幕的 prompt,直接
+  跟同一段 prompt 稍後的「Shot summary: the same object, cleaned, settles
+  in frame」互相矛盾。模型顯然把前段具體的動作描述看得比後段簡短的禁止句
+  (「Do not re-soil or reverse the cleaned condition」)更重,結果 after 幕
+  被畫成「還在擦」而不是「已完成、定住」。**兩層自動 QA 都沒抓到**,因為
+  它們的 prompt 設計是「story continuity」(物件同一性、朝向、整體髒污
+  程度不比 before 差),沒有一條軸專門檢查「after 幕是否還在發生主動清潔
+  動作」這個敘事狀態。此外,`shirt` 的核心物理描述用了幾乎相同的句式
+  (「A cloth follows...wets darker then lightens...」),研判是**同一種
+  跨概念的架構風險**,不是 sweater 專屬的偶發失誤,但本回合只確認了
+  sweater 這一個實例。
+- **處置(本回合,範圍刻意收窄)**:**沒有改動共用腳本**——這是「修
+  sweater-underarm 一支片」的任務,`Get-CorePhysics` 影響全部 17 種物件
+  類型的每一支未來生產,不在授權範圍內單方面改動。改為對 sweater-underarm
+  這一支的 after 幕手動繞過:直接改寫該幕的 manifest(`generation_id` 升版
+  `_v02`),把 `[Core physics]` 那句換成「settled and still...no cloth
+  touches the fabric...no wiping or scrubbing motion occurs」的靜態版本,
+  並在結尾禁止句加碼「Do not introduce any cloth, hand-wiping, or
+  scrubbing motion beyond the still hold」,直接呼叫 `generate-shot.ps1`
+  重生這一支 after 片,不重跑整支腳本。
+- **教訓**:①「兩層自動 QA 全 PASS」不是「這支片沒問題」的充分證據——
+  自動判準只覆蓋它被設計要抓的軸,對「敘事狀態(還在動 vs 已完成)」這種
+  沒被明確建模的失敗模式是盲區,commander 逐幀目視仍是最後一道、不可省略
+  的關卡(這次正是四幀人審 4-close 那一格先起疑,才回頭比對 QA canary
+  幀確認)。②跨幕共用的 prompt 片段,只要其中一段描述帶有「時間/過程」
+  語意(「wets then lightens」這類),就有滲透進不該有動作的幕(尤其
+  after)的風險——這是 F31(拉遠=場景發明)的姊妹坑,同樣是「共用指令
+  片段被不分場景套用」的模式,但這次咬的是物件動作而非鏡頭運動。③發現
+  範圍超出當前任務的架構性問題時,**先用最小、局部的手動繞過解決當下的
+  任務,再誠實記錄架構層發現供後續裁決**,不要順手擴大修改範圍去動共用
+  腳本——這是本回合刻意的取捨,不是漏做。
+- **留給下一輪 / 待裁決**:是否要把 `Get-CorePhysics` 改成按幕別分流
+  (before/middle 用現有的過程描述,after 一律換成靜態/已完成描述)?
+  如果要做,建議先確認除了 sweater、shirt 之外,還有哪些物件類型的物理
+  描述也帶有這種「過程動詞」語意,一次盤點、一次修好,而不是每次踩到
+  一支才補一支。
+
+## F34|2026-08-22 下午:`record-video-review` 寫入器不留 superseded,核准當下把退件史直接清空
+
+- **現象**:sweater-underarm round 3 兩席雙審都 PASS 後,呼叫
+  `npm run record-video-review`(`recordVideoReview()`,`src/videoReviewGate.ts`)
+  正式核准。核准指令本身成功,但寫回 `data/video-reviews/2026-08-26.json`
+  後檔案**只剩這一筆核准記錄**——round 1(因果倒轉退件)與 round 2
+  (grok CAUSAL_DIRECTION 退件)先前手動補上的完整 `superseded` 歷史鏈
+  整個消失,不是被覆蓋成別的內容,是**整包不見**。
+- **根因**:`recordVideoReview()` 收尾寫檔的邏輯是
+  `records.filter(entry => entry.slot !== input.slot)` 把同一格位的舊記錄
+  直接濾掉,再 `records.push(record)` 塞入全新記錄——**沒有任何一步把被濾掉
+  的舊記錄接到新記錄的 `superseded` 欄位**。這跟 F29(`owner-video-review
+  --standing-policy` 覆蓋審核記錄)是**同一種病灶**,只是長在另一個姊妹
+  寫入器上:F29 修的是 `ownerVideoReview.ts` 裡 standing-policy 那條路徑
+  (`mergeStandingPolicyMetadata`,已補上完整合併/保留邏輯),而
+  `videoReviewGate.ts` 的 `recordVideoReview()` 是**完全獨立的另一支寫入
+  函式**,F29 的修復範圍沒有覆蓋到它,所以它從一開始就带著這個洞,只是
+  這是本回合第一次真的呼叫到它、才第一次現形。
+- **處置**:①**先搶救**——本回合手動遺失的三輪歷史(round 1 REJECT、
+  round 2 REJECT、round 3 APPROVED)都還在對話上下文裡(是我自己剛寫的,
+  不是憑記憶回想),照原結構手動補回 `data/video-reviews/2026-08-26.json`,
+  三層 `superseded` 巢狀鏈驗證通過。②**直接修程式碼**(判斷:低風險、
+  機械式鏡像修法,不是本次任務授權範圍外的架構決策,所以沒有外派,直接
+  動手):`recordVideoReview()` 收尾前先把同格位的既有記錄存成
+  `displaced`,非空就掛到 `record.superseded`(淺拷貝以滿足型別),而不是
+  直接丟棄。③**突變實測**:新增測試「round 2 呼叫後 round 1 的記錄要活在
+  `superseded[0]`」,先確認在修法**之前**的舊程式碼下這條測試真的變紅
+  (`Target cannot be null or undefined`),補上修法後重跑轉綠,證明測試
+  真的在鑑別這個修復,不是恆真斷言。④`tsc --noEmit` 與全量 652→653 個
+  測試(含新增這條)全綠。
+- **教訓**:①**同一種資料遺失病灶,可能同時長在多支姊妹寫入器上**——
+  F29 只巡查了一條路徑(standing-policy)就收工,沒有順手盤點「這個
+  repo 裡還有誰也在寫同一份 `video-reviews/<date>.json`」,結果另一支
+  `recordVideoReview()` 帶著一模一樣的洞活到現在,直到今天才被真的呼叫
+  到、現形。**修一個資料遺失的坑時,該同時搜一次『這份檔案還有哪些寫入
+  路徑』,不能只修眼前踩到的那一條。**②這也是為什麼「先實跑再宣稱完成」
+  在這個 repo 是鐵則的活教材——如果我在核准後沒有回頭重讀
+  `data/video-reviews/2026-08-26.json` 確認內容,這次資料遺失會悄悄過去,
+  下一個讀這份紀錄的人(不管是我自己下一輪,還是另一個 agent)會看到一份
+  「乾淨到反常」的核准紀錄,完全查不到它其實闖過兩輪退件才過關。

@@ -64,6 +64,31 @@ describe("video review gate", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("F34: preserves the prior record as history instead of discarding it on a new round", async () => {
+    const { root, videoPath, prompt } = await fixture();
+    const first = await recordVideoReview({
+      date: "2026-07-29",
+      slot: 1,
+      reviewRound: 1,
+      root,
+      now: new Date("2026-07-28T20:00:00.000Z")
+    });
+    await writeFile(join(root, ...videoPath.split("/")), "re-cut-video", "utf8");
+    const second = await recordVideoReview({
+      date: "2026-07-29",
+      slot: 1,
+      reviewRound: 2,
+      root,
+      now: new Date("2026-07-28T21:00:00.000Z")
+    });
+    expect(second.superseded).toHaveLength(1);
+    expect(second.superseded?.[0]).toMatchObject({
+      review_round: first.review_round,
+      video_sha256: first.video_sha256,
+      reviewed_at: first.reviewed_at
+    });
+  });
+
   it("rejects a video changed after review", async () => {
     const { root, videoPath, prompt } = await fixture();
     await recordVideoReview({ date: "2026-07-29", slot: 1, reviewRound: 1, root });

@@ -86,9 +86,18 @@ export async function recordVideoReview(input: {
   };
 
   const path = videoReviewsPath(input.date, root);
-  const records = (await readJsonFile<VideoReviewRecord[]>(path, [])).filter(
-    (entry) => entry.slot !== input.slot
-  );
+  const existing = await readJsonFile<VideoReviewRecord[]>(path, []);
+  const displaced = existing.filter((entry) => entry.slot === input.slot);
+  const records = existing.filter((entry) => entry.slot !== input.slot);
+  // F34: this writer used to filter out and discard the slot's prior entry
+  // outright, silently destroying whatever verdict history (approved or
+  // rejected) it carried the moment a new round was recorded -- the same
+  // failure shape F29 fixed in ownerVideoReview.ts's standing-policy path,
+  // just in this sibling writer instead. Carry the displaced record(s)
+  // forward as history rather than dropping them.
+  if (displaced.length > 0) {
+    record.superseded = displaced.map((entry) => ({ ...entry }));
+  }
   records.push(record);
   records.sort((a, b) => a.slot - b.slot);
   await writeJsonAtomic(path, records);

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -29,6 +29,15 @@ const PAUSED_0818: AbDayPlan = {
 function isImageFamily(mediaType: string | undefined): boolean {
   return mediaType === "image" || mediaType === "carousel" || mediaType === "mixed-carousel";
 }
+
+// output/ is gitignored (no generated media in git), so this real production
+// run only exists on machines that have generated it locally. CI and fresh
+// checkouts skip the one case that needs it rather than failing on an absent
+// fixture no commit could have provided.
+const REEL_FIXTURES_AVAILABLE = existsSync(
+  join(process.cwd(), "output", "reels-run", "2026-07-29", "reels", "leather-bag-corner.mp4")
+);
+const reelIt = REEL_FIXTURES_AVAILABLE ? it : it.skip;
 
 describe("paused evening slot uses playbook 圖文, not a legacy reel", () => {
   it("rebuilds 2026-08-18 slot 2 as 圖文 with a shop-scene prompt that misses the 15-day window", () => {
@@ -139,7 +148,7 @@ describe("reel cover manifest is a copy or a shop-scene generation", () => {
     expect(prompt.length).toBeGreaterThan(concept.before_subject.length + 80);
   });
 
-  it("writes that source onto the live manifest when the before still is present", async () => {
+  reelIt("writes that source onto the live manifest when the before still is present", async () => {
     const conceptId = "leather-bag-corner";
     const project = process.cwd();
     const reel = join(project, "output", "reels-run", "2026-07-29", "reels", `${conceptId}.mp4`);

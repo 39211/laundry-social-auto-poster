@@ -1,0 +1,36 @@
+[
+  {
+    "date": "2026-08-14",
+    "slot": 2,
+    "video_path": "docs/assets/2026-08-14/slot-02.mp4",
+    "video_sha256": "89fd4bd70030169db917cd75c5d5e4a06d56e063a396d9e15d6a716d26d4b21f",
+    "prompt_hash": "664c8dddfdf51455b53a295b519d39b9176e33bfcb9831802e18adfdc4f85c36",
+    "review_round": 1,
+    "full_decode": "pass",
+    "all_frame_physics_review": "pass",
+    "grok_review": "pass",
+    "sol_review": "pass",
+    "separate_zh_tw_tts_review": "pass",
+    "generated_clip_audio_used": false,
+    "status": "approved",
+    "reviewed_at": "2026-08-11T12:54:18.930Z",
+    "reviewed_by": "owner-standing-policy-2026-07-29"
+  },
+  {
+    "date": "2026-08-14",
+    "slot": 3,
+    "video_path": "docs/assets/2026-08-14/slot-03.mp4",
+    "video_sha256": "efda626836741a3f827bf71d58f48a222953c0850efb4f621d7ba81917c0c183",
+    "prompt_hash": "664c8dddfdf51455b53a295b519d39b9176e33bfcb9831802e18adfdc4f85c36",
+    "review_round": 1,
+    "full_decode": "pass",
+    "all_frame_physics_review": "pass",
+    "grok_review": "pass",
+    "sol_review": "pass",
+    "separate_zh_tw_tts_review": "pass",
+    "generated_clip_audio_used": false,
+    "status": "approved",
+    "reviewed_at": "2026-08-11T12:54:17.240Z",
+    "reviewed_by": "owner-standing-policy-2026-07-29"
+  }
+]

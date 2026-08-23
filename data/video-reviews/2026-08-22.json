@@ -1,0 +1,20 @@
+[
+  {
+    "date": "2026-08-22",
+    "slot": 3,
+    "video_path": "docs/assets/2026-08-22/slot-03.mp4",
+    "video_sha256": "1873d7d44eff9b2da01b3b826c8effc7c1712c5536393940a4558cf42f328ee9",
+    "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+    "review_round": 2,
+    "full_decode": "pass",
+    "all_frame_physics_review": "pass",
+    "grok_review": "pass",
+    "sol_review": "pass",
+    "separate_zh_tw_tts_review": "pass",
+    "generated_clip_audio_used": false,
+    "status": "approved",
+    "reviewed_at": "2026-08-20T21:04:25.560Z",
+    "reviewed_by": "human-frames-review",
+    "review_note": "two-seat round 2 on the 10s two-act cut: commander frames eyeball + grok blind seat (BOARD0822-R-DENIM10SREVIEW, R0822-DENIM10S, both PASS). Round 1 (the 15s tC cut) was a two-seat REJECT: middle clip drifted the steam tool off the knee landmark; the 10s cut has no middle act. Aired on a treatment-C day as a none-treatment cut - attribution honestly mismatched, C arm continues 8/23-24."
+  }
+]

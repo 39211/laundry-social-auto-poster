@@ -1,0 +1,77 @@
+{
+  "topic": "可收藏：深色衣服洗久變灰的判斷，送洗前先看三個位置",
+  "date": "2026-08-17",
+  "slot": 1,
+  "axes": {
+    "OBJECT_IDENTITY": "FAIL",
+    "SCENE": "FAIL",
+    "TOPIC_MATCH": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "可見物件從黑色T恤變為米色與藍色襯衫，衣物類型與顏色家族均改變。",
+    "SCENE": "前三張為粉紅裁切墊與格柵牆，第四張可見洗衣機牆面，場景家族改變。",
+    "TOPIC_MATCH": "所有畫面皆為衣物，符合主題的衣物對象。"
+  },
+  "frames_used": [
+    "IMAGE_1",
+    "IMAGE_2",
+    "IMAGE_3",
+    "IMAGE_4"
+  ],
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-01.png",
+      "canary": "3ASG",
+      "sha256": "019e0fd381ed91aa66b7fb3649c5fa4e4cb3f3c322e7eb2ba970c3cdab3a8b73"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-01-slide-02.png",
+      "canary": "WF9L",
+      "sha256": "a3dfd37b435a5e811dcd93f34cd8bf3bd0a49f1ba10b7b1930d81200e167bbdc"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-01-slide-03.png",
+      "canary": "2LHC",
+      "sha256": "f7a5f2765e61fa24f98a87bf55e6768235c95da465f0ae9c52c4f5b9db726f85"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-01-slide-04.png",
+      "canary": "HWZR",
+      "sha256": "3c0fb20bbeecf37365050374b766ca6968d9a39f99e5c00ecaad86368178f30a"
+    }
+  ],
+  "sources": [
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-01.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-01-slide-02.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-01-slide-03.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-01-slide-04.png"
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "3ASG",
+    "IMAGE_2": "WF9L",
+    "IMAGE_3": "2LHC",
+    "IMAGE_4": "HWZR"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "3ASG",
+    "IMAGE_2": "WF9L",
+    "IMAGE_3": "2LHC",
+    "IMAGE_4": "HWZR"
+  },
+  "prompt_hash": "8185640d01697ff5e131126cb9bae4c8af43ef2697dc529a71e36480ab0e2155",
+  "run_id": "carousel-cal-slot1-20260817",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-17T06:01:38.407Z",
+  "mode": "warn",
+  "verdict": "FAIL",
+  "fail_class": "content"
+}

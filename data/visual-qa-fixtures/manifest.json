@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "suede_red": {
+    "id": "suede-shoe-nap",
+    "reel": "output/reels-run/2026-07-29/reels/suede-shoe-nap-15s-tA.mp4",
+    "treatment": "A",
+    "expected_verdict": "FAIL",
+    "must_fail_one_of": ["MIDDLE_NOT_WORSE", "ACCESSORY_COLOR", "ORIENTATION"],
+    "human_label": "FAIL",
+    "live_verdict": "PASS",
+    "live_fail_axes": [],
+    "live_note": "2026-08-17 Codex read all 6 canaries (BK9C/6N5B/GTBC/B7UW/U5ER/SJ8K) then PASSed every axis. Calibration gate not met."
+  },
+  "green_10s": [
+    {
+      "id": "backpack-base",
+      "reel": "output/reels-run/2026-07-29/reels/backpack-base.mp4",
+      "treatment": "10s",
+      "expected_verdict": "PASS",
+      "human_label": "PASS"
+    },
+    {
+      "id": "leather-bag-corner",
+      "reel": "output/reels-run/2026-07-29/reels/leather-bag-corner.mp4",
+      "treatment": "10s",
+      "expected_verdict": "PASS",
+      "human_label": "PASS"
+    },
+    {
+      "id": "suit-shoulder",
+      "reel": "output/reels-run/2026-07-29/reels/suit-shoulder.mp4",
+      "treatment": "10s",
+      "expected_verdict": "PASS",
+      "human_label": "PASS"
+    }
+  ],
+  "green_15s": {
+    "status": "deferred-W4",
+    "note": "15s green fixture is W4 first reel (leather-bag-corner new motion). Not required for W3 warn-mode calibration."
+  }
+}

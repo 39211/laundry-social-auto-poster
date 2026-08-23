@@ -7,6 +7,11 @@ coverage/
 .netlify/
 data/*
 !data/business-profile.json
+!data/.gitignore
+!data/video-reviews/
+!data/visual-qa-fixtures/
+!data/rejected-concepts.json
+!data/reference-photos/
 data/posted-log/
 *.log
 .DS_Store

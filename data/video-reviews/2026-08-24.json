@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2026-08-24",
+    "slot": 3,
+    "video_path": "docs/assets/2026-08-24/slot-03.mp4",
+    "video_sha256": "0c4863ab97424912195bbb7cc55781503b878d72b072f989e58d6966f4ab8b3e",
+    "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+    "recorded_at": "2026-08-21T08:00:43.496Z",
+    "recorded_by": "standing-policy-metadata",
+    "full_decode": "pending",
+    "all_frame_physics_review": "pending",
+    "grok_review": "fail",
+    "sol_review": "pending",
+    "separate_zh_tw_tts_review": "pending",
+    "status": "rejected",
+    "review_round": 1,
+    "reviewed_at": "2026-08-21T07:50:00.000Z",
+    "reviewed_by": "commander-eyeball frames review, single-seat REJECT (one REJECT kills per two-seat rule; grok seat not needed)",
+    "reject_reason": "After act relocates to a different store: frame 4's background is a retail shoe-shop wall with stacked shoe boxes and a storefront window, not the laundry counter the before/middle acts (and the approved after STILL) show - the after CLIP's gentle pull-back invented new surroundings again, third case of this failure mode today (wallet v2 window-scene, kids-shoe shoe-store). Secondary: cu1 crop spends the first close-up on the craftsman's forearm with the shoe barely in frame, and frames 2-3 carry a posterized, outline-heavy render quality that reads as AI. Object identity itself holds (three straps, shell toe, perforations consistent; grey scuff landmark worked by the brush in frame 3). Fix path: regenerate ONLY the after clip after changing the after-act camera direction from pull-back to a settle/hold that forbids revealing area beyond the supplied frame; before/middle clips are keepers.",
+    "review_note": "FINAL 2026-08-22: slot 3 permanently converted to the owner-approved craftsman promo poster (image-only day); the rejected kids-shoe reel will never air on 8/24 and its mp4 was removed from the public asset tree. This record stays as the honest history of why. kids-shoe rebuild with the fixed hold-direction after act is queued for a future slot."
+  }
+]

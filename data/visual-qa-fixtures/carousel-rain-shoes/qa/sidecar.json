@@ -1,0 +1,35 @@
+{
+  "topic": "今天情境：雨後通勤回家不要直接收鞋",
+  "date": "2026-08-17",
+  "slot": 2,
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-02.png",
+      "canary": "M66M",
+      "sha256": "e111972bb59a454254579b17a8bf648c571b854c96a1a9b9f88fa7ad91fa9aca"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-02-slide-02.png",
+      "canary": "4J2R",
+      "sha256": "878a7cbad946cd244c930de999e6a35c7aec55799092d54ff856dc88a9b951d6"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-02-slide-03.png",
+      "canary": "NZLD",
+      "sha256": "1da22e252aac17155956b3ec9ba5cfc107c37c42fdcf851e48e5b4b911e96ac6"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-02-slide-04.png",
+      "canary": "VR5M",
+      "sha256": "6b86a0b9083334f15920a18c96212444b66a1f26016e6b66ff05fd60ad3d9b3b"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\wallet\\wallet-edge-wear-before.png",
+  "reel_sha256": "e7360b7e98da5943d40e04946d13584d17e7d09012ec2dfd61584606db8a4e44",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "BQQN",
+      "sha256": "e64d377a0ec2a0a69e9ac17fd26c7d29a21277069c15853e0fedcf02592707dd"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "YA5N",
+      "sha256": "3bebb3edee8df7465b6be8037bc6b96264ece8f978407c4e4aebb17f1232aad4"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "MEZJ",
+      "sha256": "cbee9c3dfd1d3051dc03580ef0764a649b55087669ab09b12e0ca0921a74c64b"
+    }
+  ]
+}

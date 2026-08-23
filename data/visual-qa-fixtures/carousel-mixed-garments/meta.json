@@ -1,0 +1,10 @@
+{
+  "id": "carousel-mixed-garments",
+  "kind": "red",
+  "source": "docs/assets/2026-08-17",
+  "slot": 1,
+  "topic": "可收藏：深色衣服洗久變灰的判斷，送洗前先看三個位置",
+  "expected_verdict": "FAIL",
+  "must_fail": ["OBJECT_IDENTITY"],
+  "note": "Live 8/17 slot1: navy tee + cream shirt + blue shirt mixed set."
+}

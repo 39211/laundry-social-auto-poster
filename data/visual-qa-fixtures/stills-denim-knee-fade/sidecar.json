@@ -1,0 +1,29 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\denim\\denim-knee-fade-before.png",
+  "reel_sha256": "3b220ac5a79803282690b70edba35da4a73bd9e3c7d973cf4c1a91e7d36dba82",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "KDUK",
+      "sha256": "b45b10c8dd1b5d6af6808242a28ed65de20fb5628b1d12d3a632b8f8fd08f0d7"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "7FL5",
+      "sha256": "21e5f4fb0d68fce719bb7e5b270460373fb83d1b8dd9ebd693fdc446c59366c9"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "49WB",
+      "sha256": "cf7a1aee5e9ddb7de7cb0348eb7162f30ed2212b978820be531f73bac50fd5c1"
+    }
+  ]
+}

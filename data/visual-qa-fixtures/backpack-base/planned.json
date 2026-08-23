@@ -1,0 +1,26 @@
+﻿[
+    {
+        "name":  "before-p20",
+        "act":  "before",
+        "t":  0.92,
+        "canary":  "R9VG"
+    },
+    {
+        "name":  "before-p70",
+        "act":  "before",
+        "t":  3.22,
+        "canary":  "MWZP"
+    },
+    {
+        "name":  "after-p20",
+        "act":  "after",
+        "t":  5.614,
+        "canary":  "YS37"
+    },
+    {
+        "name":  "after-p70",
+        "act":  "after",
+        "t":  8.149,
+        "canary":  "6MCL"
+    }
+]

@@ -1,0 +1,79 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\output\\reels-run\\2026-07-29\\reels\\leather-bag-corner.mp4",
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "PASS",
+    "STATE_ORDER": "PASS",
+    "MIDDLE_NOT_WORSE": "PASS",
+    "HANDS": "PASS",
+    "SCENE": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "Same taupe leather bag corner, outline, seams, buttons, and fittings are visible across all frames.",
+    "ACCESSORY_COLOR": "Piping and metallic hardware remain the same color; the after frames appear cleaner rather than identity-level changed.",
+    "ORIENTATION": "The same bag corner faces the camera in the same direction, with only slight framing changes.",
+    "STATE_ORDER": "The worn edge visible before is repaired and smoother after, with no apparent worsening.",
+    "MIDDLE_NOT_WORSE": "There is no middle act; the after frames are not worse than the before frames.",
+    "HANDS": "No malformed hands are visible in any frame.",
+    "SCENE": "The same light counter and surrounding wall/background family appear throughout."
+  },
+  "frames_used": [
+    "before-p20.png",
+    "before-p70.png",
+    "after-p20.png",
+    "after-p70.png"
+  ],
+  "frames": [
+    {
+      "name": "before-p20.png",
+      "act": "before",
+      "t": 0.92,
+      "canary": "J68U",
+      "sha256": "fbd63aee573a780ed252faad88f4b7780c62135b5d99cc054752a64800b324e5"
+    },
+    {
+      "name": "before-p70.png",
+      "act": "before",
+      "t": 3.22,
+      "canary": "UZMC",
+      "sha256": "f38086aa759a80c53aff3d06c3c0e229d507ecfff7be9934dd60bd3dc4986c66"
+    },
+    {
+      "name": "after-p20.png",
+      "act": "after",
+      "t": 5.614,
+      "canary": "72S5",
+      "sha256": "565f01bb613730f7709c592c3c8825dd162de58b653a9bc4e8cffa08d83b1a2d"
+    },
+    {
+      "name": "after-p70.png",
+      "act": "after",
+      "t": 8.149,
+      "canary": "DTKW",
+      "sha256": "f6bf2d95509ddf9c8fd117efa27355449d44b60239d371650472101bba859c78"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "J68U",
+    "IMAGE_2": "UZMC",
+    "IMAGE_3": "72S5",
+    "IMAGE_4": "DTKW"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "J68U",
+    "IMAGE_2": "UZMC",
+    "IMAGE_3": "72S5",
+    "IMAGE_4": "DTKW"
+  },
+  "reel_sha256": "f93242202db9bead38da031021eaf571936a979efc8ea292a303c8705049d7bd",
+  "prompt_hash": "6a86d8d91620e0cecb678d6580a1d945c2dc33c3a4a1f97e3da71426351281e4",
+  "run_id": "6f2c0ff2da6140c28e6ff66906cc04d7",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-16T19:29:22.807Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "PASS",
+  "fail_class": null
+}

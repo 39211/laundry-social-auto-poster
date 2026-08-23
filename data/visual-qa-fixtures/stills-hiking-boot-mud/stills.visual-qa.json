@@ -1,0 +1,69 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\hiking-boot\\hiking-boot-mud-before.png",
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "FAIL",
+    "STATE_ORDER": "PASS",
+    "MIDDLE_NOT_WORSE": "PASS",
+    "HANDS": "PASS",
+    "SCENE": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "同一雙棕色登山靴，鞋面輪廓、金屬鞋扣與鞋底紋路一致。",
+    "ACCESSORY_COLOR": "各階段可見鞋帶維持棕色，金屬配件維持灰色。",
+    "ORIENTATION": "MIDDLE 鞋底朝向鏡頭，與 BEFORE 的右向側面不同。",
+    "STATE_ORDER": "BEFORE 鞋底重度沾泥，MIDDLE 可見刷具清潔，AFTER 鞋底已清潔。",
+    "MIDDLE_NOT_WORSE": "MIDDLE 仍重度沾泥，但未超過 BEFORE 的重度泥污。",
+    "HANDS": "可見手部比例自然，無融合、第三隻手或明顯手指異常。",
+    "SCENE": "三張圖片均位於粉紅格紋墊、白色檯面與同一排板牆貨架前。"
+  },
+  "frames_used": [
+    "before.png",
+    "middle.png",
+    "after.png"
+  ],
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "2XGB",
+      "sha256": "fb3ca4d0980607cc0f7ad6b88a9970730eab6283e7987b6003c0599b7735a6ff"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "WXA6",
+      "sha256": "f510676c1993610dae8936c078e6951973c0f134929831d1c91342b27dfff6cb"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "2N4V",
+      "sha256": "94212fe007c5faad2295c9ee960f1e23055bdf8d0727883e3fa2171489efd204"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "2XGB",
+    "IMAGE_2": "WXA6",
+    "IMAGE_3": "2N4V"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "2XGB",
+    "IMAGE_2": "WXA6",
+    "IMAGE_3": "2N4V"
+  },
+  "reel_sha256": "553156cb47055b36f9f714b5fed34d8138dd0e58fed109ef67456b8c1c4464a5",
+  "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
+  "run_id": "159f880306194a23b7bbe05ac88cd608",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-21T06:07:55.021Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "FAIL",
+  "fail_class": "content"
+}

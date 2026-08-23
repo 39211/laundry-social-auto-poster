@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { access, copyFile, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -31,6 +32,12 @@ import { videoRunReportPath } from "../src/videoRunFreshness";
 const PROJECT = process.cwd();
 const RUN_REELS = join(PROJECT, "output", "reels-run", "2026-07-29", "reels");
 const RUN_REFS = join(PROJECT, "output", "reels-run", "2026-07-29", "references");
+// output/ is gitignored (repo policy: no generated media in git -- see root
+// .gitignore), so this real production run only exists on machines that have
+// generated it locally. CI and fresh checkouts skip these cases rather than
+// failing on an absent fixture no commit could have provided.
+const REEL_FIXTURES_AVAILABLE = existsSync(join(RUN_REELS, "leather-bag-corner.mp4"));
+const reelIt = REEL_FIXTURES_AVAILABLE ? it : it.skip;
 
 async function exists(path: string): Promise<boolean> {
   try {
@@ -127,7 +134,7 @@ describe("A/B dual-reel pipeline", () => {
     ).not.toThrow();
   });
 
-  it("heals a rewritten slot 3 from the ab-test plan", async () => {
+  reelIt("heals a rewritten slot 3 from the ab-test plan", async () => {
     const conceptId = "leather-bag-corner";
     await requireFixture(join(RUN_REELS, `${conceptId}.mp4`), `${conceptId}.mp4`);
     const root = await mkdtemp(join(tmpdir(), "ab-heal-"));
@@ -180,7 +187,7 @@ describe("A/B dual-reel pipeline", () => {
     expect(slot3?.local_video_path).toContain("slot-03.mp4");
   });
 
-  it("heals a slot when the concept is right but the variant is wrong", async () => {
+  reelIt("heals a slot when the concept is right but the variant is wrong", async () => {
     // Mutation target: if heal only checks topic and ignores ab_variant, this
     // test goes red (slot stays 10s while plan wants 15s).
     const conceptId = "leather-bag-corner";
@@ -213,7 +220,7 @@ describe("A/B dual-reel pipeline", () => {
     expect(JSON.parse(runRaw).ab_variant).toBe("15s");
   });
 
-  it("invalidates the outgoing slot's images before heal overwrites the cover", async () => {
+  reelIt("invalidates the outgoing slot's images before heal overwrites the cover", async () => {
     // Mutation target: if healOneSlot drops invalidateSlotImagesIfTopicChanged,
     // the old hero never lands in _stale and this test goes red.
     const conceptId = "leather-bag-corner";
@@ -346,7 +353,7 @@ describe("A/B dual-reel pipeline", () => {
     expect(healed?.slots.find((slot) => slot.slot === 2)?.topic).toBe(concept!.hook);
   });
 
-  it("scheduleReel does not persist a runtime tampered flag to disk", async () => {
+  reelIt("scheduleReel does not persist a runtime tampered flag to disk", async () => {
     // 2026-08-17 14:15 / 2026-08-18 14:09: scheduleReel loaded a calendar
     // that inspection marked tampered, then writeJsonAtomic'd the object
     // (including tampered:true) back onto the file. Mutation: restore
@@ -613,7 +620,7 @@ describe("A/B dual-reel pipeline", () => {
   // approved slot 1 alone, and the catch-up chain does not re-approve a day
   // that already has an approval log. A gate the production writer cannot
   // satisfy is an outage, not a gate.
-  it("stamps the reel cover with everything the approval gate demands", async () => {
+  reelIt("stamps the reel cover with everything the approval gate demands", async () => {
     const conceptId = "leather-bag-corner";
     await requireFixture(join(RUN_REELS, `${conceptId}.mp4`), `${conceptId}.mp4`);
     const root = await mkdtemp(join(tmpdir(), "ab-cover-stamp-"));
@@ -651,7 +658,7 @@ describe("A/B dual-reel pipeline", () => {
     );
   });
 
-  it("leaves a paused plan half alone instead of healing it back in", async () => {
+  reelIt("leaves a paused plan half alone instead of healing it back in", async () => {
     const conceptId = "leather-bag-corner";
     await requireFixture(join(RUN_REELS, `${conceptId}.mp4`), `${conceptId}.mp4`);
     const root = await mkdtemp(join(tmpdir(), "ab-paused-"));
@@ -676,7 +683,7 @@ describe("A/B dual-reel pipeline", () => {
     expect(planSlot(plan, 3)?.conceptId).toBe(conceptId);
   });
 
-  it("captionsFor includes LINE id and never bare-shops in block 2", async () => {
+  reelIt("captionsFor includes LINE id and never bare-shops in block 2", async () => {
     const conceptId = "leather-bag-corner";
     await requireFixture(join(RUN_REELS, `${conceptId}.mp4`), `${conceptId}.mp4`);
     const root = await mkdtemp(join(tmpdir(), "ab-caption-"));
@@ -707,7 +714,7 @@ describe("A/B dual-reel pipeline", () => {
 });
 
 describe("assemble-reel two-act invariance", () => {
-  it("documents ffprobe baseline for the existing two-act reel (mutation target)", async () => {
+  reelIt("documents ffprobe baseline for the existing two-act reel (mutation target)", async () => {
     const sample = join(PROJECT, "output", "reels-run", "2026-07-29", "reels", "leather-bag-corner.mp4");
     await requireFixture(sample, "leather-bag-corner.mp4");
     const buf = await readFile(sample);

@@ -1,0 +1,10 @@
+{
+  "id": "carousel-rain-shoes",
+  "kind": "green",
+  "source": "docs/assets/2026-08-17",
+  "slot": 2,
+  "topic": "今天情境：雨後通勤回家不要直接收鞋",
+  "expected_verdict": "PASS",
+  "must_fail": [],
+  "note": "Live 8/17 slot2: one navy-and-cream sneaker pair across four slides (rain-commute shoes)."
+}

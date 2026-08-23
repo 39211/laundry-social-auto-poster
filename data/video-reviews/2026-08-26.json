@@ -1,0 +1,62 @@
+[
+  {
+    "date": "2026-08-26",
+    "slot": 3,
+    "video_path": "docs/assets/2026-08-26/slot-03.mp4",
+    "video_sha256": "6487824d8db514403c8ff6fd479348bfbd4a080758a580b8a0c9657ae31806f7",
+    "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+    "review_round": 3,
+    "full_decode": "pass",
+    "all_frame_physics_review": "pass",
+    "grok_review": "pass",
+    "sol_review": "pass",
+    "separate_zh_tw_tts_review": "pass",
+    "generated_clip_audio_used": false,
+    "status": "approved",
+    "reviewed_at": "2026-08-22T05:58:38.058Z",
+    "reviewed_by": "commander-eyeball frames review PASS + grok blind third seat PASS (TaskKey R0826-SWEATER-V3, HIGH confidence, 0 defects, all 6 axes pass)",
+    "review_note": "RESTORED 2026-08-22: `npm run record-video-review` (recordVideoReview() in src/videoReviewGate.ts) filters out the slot's prior entry and pushes a fresh record with no superseded-history preservation -- unlike the F29-fixed mergeStandingPolicyMetadata() path, this writer has no equivalent protection and silently discarded the round-1/round-2 reject history below when this approval was recorded. Manually restored by hand from this session's own authored records (not guessed) immediately after discovering the loss. Logged as ERROR-BOOK F34; a code fix mirroring the F29 pattern is pending.",
+    "recorded_at": "2026-08-22T06:18:38.064Z",
+    "recorded_by": "standing-policy-metadata",
+    "superseded": [
+      {
+        "date": "2026-08-26",
+        "slot": 3,
+        "video_path": "docs/assets/2026-08-26/slot-03.mp4",
+        "video_sha256": "847f2e9df40782f8504336dfc91694978bd24f046382acdf766c0ddadf0c0a57",
+        "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+        "full_decode": "pass",
+        "all_frame_physics_review": "pass",
+        "grok_review": "fail",
+        "sol_review": "pending",
+        "separate_zh_tw_tts_review": "pending",
+        "status": "rejected",
+        "review_round": 2,
+        "reviewed_at": "2026-08-22T05:45:00.000Z",
+        "reviewed_by": "commander-eyeball frames review PASS + grok blind second seat REJECT (TaskKey R0826-SWEATER-V2; one REJECT kills per two-seat rule)",
+        "reject_reason": "CAUSAL_DIRECTION FAIL (grok, HIGH confidence): the middle-act frame shows the underarm patch MORE saturated and larger than the hook/before frame's patch, i.e. the stain reads as getting worse mid-clean rather than fading, before jumping to a clean close. Root cause: the middle clip's generation prompt's [Core physics] line said 'the stain wets darker then lightens' (a two-phase arc) and the sampled mid-clip frame landed on the darker phase. This round's after-act fix (F33: core-physics leaking active-wiping into the after act, ERROR-BOOK) was independently confirmed correct by both commander and grok (AFTER/CAUSAL close-state and OBJECT_IDENTITY/LANDMARK/HANDS/SCENE/EXPOSURE all PASS) - only the middle act's saturation arc is at fault this round. Commander's own first-pass eyeball had flagged the same frame as a soft concern but rationalized it as plausible mid-wipe hand-position variation; grok's independent HIGH-confidence comparative read (explicitly vs. the hook frame, not just the previous frame) is what actually caught it - two-seat review doing its job. Fix path: regenerate ONLY the middle clip with a monotonic-fade-only physics line (no 'darker then lighten' arc, explicit 'must never look darker/larger/more saturated than the first frame' constraint); before, after, and the middle still (data/reference-photos/sweater/sweater-underarm-middle.png) are keepers.",
+        "superseded": [
+          {
+            "date": "2026-08-26",
+            "slot": 3,
+            "video_path": "docs/assets/2026-08-26/slot-03.mp4",
+            "video_sha256": "5d0724a845dd70081c169c8f27fb02107b2e74d93835181f4e39b5e00fa4fbc7",
+            "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+            "recorded_at": "2026-08-21T12:31:38.596Z",
+            "recorded_by": "standing-policy-metadata",
+            "full_decode": "pending",
+            "all_frame_physics_review": "pending",
+            "grok_review": "fail",
+            "sol_review": "pending",
+            "separate_zh_tw_tts_review": "pending",
+            "status": "rejected",
+            "review_round": 1,
+            "reviewed_at": "2026-08-22T03:05:00.000Z",
+            "reviewed_by": "commander-eyeball frames review, single-seat REJECT (one REJECT kills per two-seat rule)",
+            "reject_reason": "Story causality inverted in the after act: the before act shows one soft yellow underarm patch on a cream knit, but the close frame shows a LARGER saturated yellow bloom across the mid-body plus a fully yellow band at the hem - the stain reads as spread by the cleaning, the exact opposite of the concept's 'clean and evenly cream' after_subject (mattress-pad failure class). Secondary: the middle close-up frames are blown out to near-white posterization with the knit texture unreadable and the brush contact point unverifiable against the stain landmark, and the early frame's fabric reads as fleece rather than the hook frame's chunky knit. Produced by the 15:39 auto-run under the OLD pull-back direction with a DPAPI pure-gen fallback middle (log line 1562). Fix path: regenerate middle AND after stills via codex -i edit from the before still (landmark: underarm patch fading, not spreading), rebuild clips under the F31 hold direction, reassemble, re-review. Air date 8/26 leaves four days."
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,16 @@
+<<<OBSERVE_BEGIN>>>
+IMAGE_1 canary=3ASG
+IMAGE_2 canary=WF9L
+IMAGE_3 canary=2LHC
+IMAGE_4 canary=HWZR
+OBS_1 garment_color=BLACK garment_type=TEE material=KNIT wear=MODERATE scene=PINK_MAT_SLAT
+OBS_2 garment_color=CREAM garment_type=SHIRT material=WOVEN wear=HEAVY scene=PINK_MAT_SLAT
+OBS_3 garment_color=BLUE garment_type=SHIRT material=WOVEN wear=MODERATE scene=PINK_MAT_SLAT
+OBS_4 garment_color=BLUE garment_type=SHIRT material=WOVEN wear=LIGHT scene=WASHER_WALL
+COMPARE OBJECT_IDENTITY identity_change=YES
+COMPARE SCENE scene_change=YES
+COMPARE TOPIC_MATCH object_mismatch=NO
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"topic":"可收藏：深色衣服洗久變灰的判斷，送洗前先看三個位置","verdict":"FAIL","axes":{"OBJECT_IDENTITY":"FAIL","SCENE":"FAIL","TOPIC_MATCH":"PASS"},"evidence":{"OBJECT_IDENTITY":"可見物件從黑色T恤變為米色與藍色襯衫，衣物類型與顏色家族均改變。","SCENE":"前三張為粉紅裁切墊與格柵牆，第四張可見洗衣機牆面，場景家族改變。","TOPIC_MATCH":"所有畫面皆為衣物，符合主題的衣物對象。"},"frames_used":["IMAGE_1","IMAGE_2","IMAGE_3","IMAGE_4"]}
+<<<VISUAL_QA_END>>>

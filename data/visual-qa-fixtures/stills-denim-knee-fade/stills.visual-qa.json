@@ -1,0 +1,69 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\denim\\denim-knee-fade-before.png",
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "PASS",
+    "STATE_ORDER": "PASS",
+    "MIDDLE_NOT_WORSE": "FAIL",
+    "HANDS": "PASS",
+    "SCENE": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "The same dark denim jeans, waistband, pockets, seams, and single-pair outline appear throughout.",
+    "ACCESSORY_COLOR": "No laces are visible and the gold-toned hardware remains consistent.",
+    "ORIENTATION": "The jeans remain front-facing with the waistband at the top and legs extending downward.",
+    "STATE_ORDER": "The before frame shows knee fading, the middle shows hands and a tool in contact, and the after frame is more even.",
+    "MIDDLE_NOT_WORSE": "The middle frame shows heavier whole-garment mottling and darkening across both legs than the before frame despite local tool contact.",
+    "HANDS": "Visible hands have distinct fingers, plausible scale, and no apparent fusion or extra hand.",
+    "SCENE": "All frames share the same counter, pink cutting mats, and slat-wall shelving."
+  },
+  "frames_used": [
+    "before.png",
+    "middle.png",
+    "after.png"
+  ],
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "KDUK",
+      "sha256": "b45b10c8dd1b5d6af6808242a28ed65de20fb5628b1d12d3a632b8f8fd08f0d7"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "7FL5",
+      "sha256": "21e5f4fb0d68fce719bb7e5b270460373fb83d1b8dd9ebd693fdc446c59366c9"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "49WB",
+      "sha256": "cf7a1aee5e9ddb7de7cb0348eb7162f30ed2212b978820be531f73bac50fd5c1"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "KDUK",
+    "IMAGE_2": "7FL5",
+    "IMAGE_3": "49WB"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "KDUK",
+    "IMAGE_2": "7FL5",
+    "IMAGE_3": "49WB"
+  },
+  "reel_sha256": "3b220ac5a79803282690b70edba35da4a73bd9e3c7d973cf4c1a91e7d36dba82",
+  "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
+  "run_id": "a13b2af1f189465ba7e36b0f3841564d",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-20T20:35:59.089Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "FAIL",
+  "fail_class": "content"
+}

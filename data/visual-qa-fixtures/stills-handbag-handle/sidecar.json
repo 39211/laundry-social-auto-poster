@@ -1,0 +1,29 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\handbag\\handbag-handle-before.png",
+  "reel_sha256": "04ac35a9166e942cc0500df3ccc4f622320b65e0896ae03c5a798e00a303aec9",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "X9ZG",
+      "sha256": "b2d2fa116567b67ab8ca5500cbca98bb97c1306da6c4aa86bcdfdd6bd47c9265"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "RHZA",
+      "sha256": "c6f3b7224e76375e3416a6990cd232cfaf710d6aed57edb2a3eb038291ecded8"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "ZANQ",
+      "sha256": "c902d4eae93c2e2576c89ccd9285809b8803a807f1bf22aed7e0e1f37cda3151"
+    }
+  ]
+}

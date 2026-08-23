@@ -1,0 +1,20 @@
+[
+  {
+    "date": "2026-08-21",
+    "slot": 3,
+    "video_path": "docs/assets/2026-08-21/slot-03.mp4",
+    "video_sha256": "b27e0564ff2b32b22b68f52f4e84786431a0e38691c56c3733d91363015c0e59",
+    "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+    "review_round": 1,
+    "full_decode": "pass",
+    "all_frame_physics_review": "pass",
+    "grok_review": "pass",
+    "sol_review": "pass",
+    "separate_zh_tw_tts_review": "pass",
+    "generated_clip_audio_used": false,
+    "status": "approved",
+    "reviewed_at": "2026-08-20T20:14:51.886Z",
+    "reviewed_by": "human-frames-review",
+    "review_note": "two-seat: commander frames eyeball + grok blind seat (BOARD0821-R-BELT10SREVIEW, R0821-BELT10S-2, both PASS); 10s two-act cut aired on a treatment-B day - B arm had zero aired reels, attribution honestly mismatched"
+  }
+]

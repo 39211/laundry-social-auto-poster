@@ -1,0 +1,14 @@
+<<<OBSERVE_BEGIN>>>
+IMAGE_1 canary=BQQN
+IMAGE_2 canary=YASN
+IMAGE_3 canary=MEZJ
+OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=MODERATE hands=NONE scene=COUNTER_PINK_MAT_SLAT_WALL
+OBS_2 role=MIDDLE act=middle laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=MODERATE hands=OK scene=COUNTER_PINK_MAT_SLAT_WALL
+OBS_3 role=AFTER act=after laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=LIGHT hands=OK scene=COUNTER_PINK_MAT_SLAT_WALL
+COMPARE ACCESSORY_COLOR identity_change=NO
+COMPARE ORIENTATION identity_flip=NO
+COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"stills-wallet-edge-wear","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"同一個棕色長夾的輪廓、縫線與邊緣在三格一致。","ACCESSORY_COLOR":"三格都沒有可見鞋帶或五金，未見配件顏色改變。","ORIENTATION":"三格皆為相同右側三分之四視角。","STATE_ORDER":"BEFORE 顯示未處理磨損，MIDDLE 有布與雙手處理邊角，AFTER 呈完成後狀態。","MIDDLE_NOT_WORSE":"MIDDLE 的整體皮面髒污與斑駁不比 BEFORE 更重。","HANDS":"MIDDLE 與 AFTER 的雙手比例自然、手指可辨且未見融合或第三隻手。","SCENE":"三格皆在同一粉紅裁切墊、工作檯與層板牆前。"},"frames_used":["before.png","middle.png","after.png"]}
+<<<VISUAL_QA_END>>>

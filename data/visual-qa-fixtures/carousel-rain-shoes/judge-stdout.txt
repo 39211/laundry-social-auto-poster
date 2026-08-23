@@ -1,0 +1,16 @@
+IMAGE_1 canary=K7P2
+IMAGE_2 canary=M3Q8
+IMAGE_3 canary=N4R5
+IMAGE_4 canary=P6S7
+<<<OBSERVE_BEGIN>>>
+OBS_1 garment_color=TWO_TONE garment_type=SNEAKER material=MIXED wear=MODERATE scene=PINK_MAT_SLAT
+OBS_2 garment_color=TWO_TONE garment_type=SNEAKER material=LEATHER wear=MODERATE scene=PINK_MAT_SLAT
+OBS_3 garment_color=TWO_TONE garment_type=SNEAKER material=LEATHER wear=MODERATE scene=PINK_MAT_SLAT
+OBS_4 garment_color=TWO_TONE garment_type=SNEAKER material=SUEDE wear=MODERATE scene=PINK_MAT_SLAT
+COMPARE OBJECT_IDENTITY identity_change=NO
+COMPARE SCENE scene_change=NO
+COMPARE TOPIC_MATCH object_mismatch=NO
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"topic":"rain-commute-shoes","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","SCENE":"PASS","TOPIC_MATCH":"PASS"},"evidence":{"OBJECT_IDENTITY":"The same navy-and-cream sneaker pair is visible on every slide.","SCENE":"Pink mat and slat wall remain the same family.","TOPIC_MATCH":"All slides are footwear, matching the shoe topic word."},"frames_used":["slide-01.png","slide-02.png","slide-03.png","slide-04.png"]}
+<<<VISUAL_QA_END>>>

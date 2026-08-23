@@ -1,0 +1,7 @@
+<<<VISUAL_QA_BEGIN>>>
+IMAGE_1 canary=5TLD
+IMAGE_2 canary=7T67
+IMAGE_3 canary=QDVG
+IMAGE_4 canary=K5M6
+{"reel":"suit-shoulder","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"同一件深灰色暗紋西裝外套，輪廓、翻領與口袋配置一致。","ACCESSORY_COLOR":"可見五金與縫線配件未出現身份級色彩變化。","ORIENTATION":"前後皆為同一正面朝向，僅有輕微取景差異。","STATE_ORDER":"after畫面肩部皺褶較少，未見狀態惡化。","MIDDLE_NOT_WORSE":"沒有middle畫面；before至after未變差。","HANDS":"前後畫面均無手部，未見畸形手部。","SCENE":"前後皆位於相同服裝店衣架與磁磚地板環境。"},"frames_used":["before-p20.png","before-p70.png","after-p20.png","after-p70.png"]}
+<<<VISUAL_QA_END>>>

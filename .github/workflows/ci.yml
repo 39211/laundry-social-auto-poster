@@ -1,0 +1,46 @@
+name: CI
+
+# windows-latest, not ubuntu-latest: this repo's own dev environment and its
+# test suite have never been run on Linux (Windows-only paths like fonts under
+# C:/Windows/Fonts, PowerShell orchestration, Windows Scheduled Tasks). Using
+# Ubuntu here would risk a CI that is red for portability reasons that have
+# nothing to do with whether a change is actually correct.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  typecheck-and-test:
+    runs-on: windows-latest
+    env:
+      # Placeholder only -- never real credentials. contentPlan.ts composes a
+      # LINE redirect URL from this at module-import time (LINE_CONTACT), so
+      # nearly every test file needs it just to import cleanly, even ones
+      # that never touch LINE or Meta directly. example.invalid is the
+      # RFC 2606 domain reserved to never resolve, which is why it's the
+      # placeholder rather than any other-looking URL.
+      PUBLIC_SITE_BASE_URL: "https://example.invalid"
+      # Same reasoning: config.ts has no fallback from PUBLIC_SITE_BASE_URL to
+      # this one (only the reverse), and assertPublicImageBaseUrl() -- called
+      # from postCurrentSlot -- needs it set to reach the guard several
+      # publishGuards.test.ts cases actually mean to exercise.
+      PUBLIC_IMAGE_BASE_URL: "https://example.invalid"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+
+      # visualQa.test.ts synthesizes a sample clip with a real ffmpeg call;
+      # windows-latest does not ship it. choco is preinstalled on this image.
+      - run: choco install ffmpeg -y
+
+      - run: npx tsc --noEmit
+
+      - run: npx vitest run

@@ -1,0 +1,57 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\wallet\\wallet-edge-wear-before.png",
+  "axes": {
+    "OBJECT_IDENTITY": "MISSING",
+    "ACCESSORY_COLOR": "MISSING",
+    "ORIENTATION": "MISSING",
+    "STATE_ORDER": "MISSING",
+    "MIDDLE_NOT_WORSE": "MISSING",
+    "HANDS": "MISSING",
+    "SCENE": "MISSING"
+  },
+  "evidence": {},
+  "frames_used": [],
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "BQQN",
+      "sha256": "e64d377a0ec2a0a69e9ac17fd26c7d29a21277069c15853e0fedcf02592707dd"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "YA5N",
+      "sha256": "3bebb3edee8df7465b6be8037bc6b96264ece8f978407c4e4aebb17f1232aad4"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "MEZJ",
+      "sha256": "cbee9c3dfd1d3051dc03580ef0764a649b55087669ab09b12e0ca0921a74c64b"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "BQQN",
+    "IMAGE_2": "YA5N",
+    "IMAGE_3": "MEZJ"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "BQQN",
+    "IMAGE_2": "YASN",
+    "IMAGE_3": "MEZJ"
+  },
+  "reel_sha256": "e7360b7e98da5943d40e04946d13584d17e7d09012ec2dfd61584606db8a4e44",
+  "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
+  "run_id": "de4a95c4d8894ba1a6bb8a0beff6b60e",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-21T12:01:08.744Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "FAIL_CLOSED",
+  "fail_class": "judge_blind"
+}

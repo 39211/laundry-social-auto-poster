@@ -1,0 +1,77 @@
+{
+  "topic": "今天情境：雨後通勤回家不要直接收鞋",
+  "date": "2026-08-17",
+  "slot": 2,
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "SCENE": "PASS",
+    "TOPIC_MATCH": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "四張圖皆可見同一雙深色與淺色拼接球鞋。",
+    "SCENE": "四張圖皆在粉紅墊與條紋牆面的同一櫃檯環境。",
+    "TOPIC_MATCH": "主體皆為鞋類，符合主題中的鞋。"
+  },
+  "frames_used": [
+    "IMAGE_1",
+    "IMAGE_2",
+    "IMAGE_3",
+    "IMAGE_4"
+  ],
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-02.png",
+      "canary": "M66M",
+      "sha256": "e111972bb59a454254579b17a8bf648c571b854c96a1a9b9f88fa7ad91fa9aca"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-02-slide-02.png",
+      "canary": "4J2R",
+      "sha256": "878a7cbad946cd244c930de999e6a35c7aec55799092d54ff856dc88a9b951d6"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-02-slide-03.png",
+      "canary": "NZLD",
+      "sha256": "1da22e252aac17155956b3ec9ba5cfc107c37c42fdcf851e48e5b4b911e96ac6"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-02-slide-04.png",
+      "canary": "VR5M",
+      "sha256": "6b86a0b9083334f15920a18c96212444b66a1f26016e6b66ff05fd60ad3d9b3b"
+    }
+  ],
+  "sources": [
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-02.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-02-slide-02.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-02-slide-03.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-02-slide-04.png"
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "M66M",
+    "IMAGE_2": "4J2R",
+    "IMAGE_3": "NZLD",
+    "IMAGE_4": "VR5M"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "M66M",
+    "IMAGE_2": "4J2R",
+    "IMAGE_3": "NZLD",
+    "IMAGE_4": "VR5M"
+  },
+  "prompt_hash": "d16b729f2b2ae886835c15d68f2c35f61fb3f2e5328f96c3301d656fce111760",
+  "run_id": "carousel-cal-slot2-20260817",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-17T06:02:43.159Z",
+  "mode": "warn",
+  "verdict": "PASS",
+  "fail_class": null
+}

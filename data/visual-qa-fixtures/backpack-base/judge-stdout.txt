@@ -1,0 +1,7 @@
+IMAGE_1 canary=R9VG
+IMAGE_2 canary=MWZP
+IMAGE_3 canary=YS37
+IMAGE_4 canary=6MCL
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"backpack-base","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"同一灰色背包底部，輪廓、材質與縫線一致。","ACCESSORY_COLOR":"包邊與硬體顏色在前後畫面中一致。","ORIENTATION":"前後皆為背包底部朝向鏡頭，僅有輕微推近與裁切差異。","STATE_ORDER":"before畫面有明顯污漬，after畫面污漬已清除，狀態沒有變差。","MIDDLE_NOT_WORSE":"沒有middle畫面，after相較before更乾淨。","HANDS":"前後畫面均未出現手部。","SCENE":"前後皆在相同洗衣工作台與衣物架背景中拍攝。"},"frames_used":["before-p20.png","before-p70.png","after-p20.png","after-p70.png"]}
+<<<VISUAL_QA_END>>>

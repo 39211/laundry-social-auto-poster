@@ -1,0 +1,16 @@
+<<<OBSERVE_BEGIN>>>
+IMAGE_1 canary=M66M
+IMAGE_2 canary=4J2R
+IMAGE_3 canary=NZLD
+IMAGE_4 canary=VR5M
+OBS_1 garment_color=TWO_TONE garment_type=SNEAKER material=LEATHER wear=MODERATE scene=PINK_MAT_SLAT
+OBS_2 garment_color=TWO_TONE garment_type=SNEAKER material=LEATHER wear=MODERATE scene=PINK_MAT_SLAT
+OBS_3 garment_color=TWO_TONE garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT
+OBS_4 garment_color=TWO_TONE garment_type=SNEAKER material=LEATHER wear=CLEAN scene=PINK_MAT_SLAT
+COMPARE OBJECT_IDENTITY identity_change=NO
+COMPARE SCENE scene_change=NO
+COMPARE TOPIC_MATCH object_mismatch=NO
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"topic":"今天情境：雨後通勤回家不要直接收鞋","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","SCENE":"PASS","TOPIC_MATCH":"PASS"},"evidence":{"OBJECT_IDENTITY":"四張圖皆可見同一雙深色與淺色拼接球鞋。","SCENE":"四張圖皆在粉紅墊與條紋牆面的同一櫃檯環境。","TOPIC_MATCH":"主體皆為鞋類，符合主題中的鞋。"},"frames_used":["IMAGE_1","IMAGE_2","IMAGE_3","IMAGE_4"]}
+<<<VISUAL_QA_END>>>

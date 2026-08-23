@@ -1,0 +1,16 @@
+IMAGE_1 canary=K7P2
+IMAGE_2 canary=M3Q8
+IMAGE_3 canary=N4R5
+IMAGE_4 canary=P6S7
+<<<OBSERVE_BEGIN>>>
+OBS_1 garment_color=NAVY garment_type=TEE material=KNIT wear=HEAVY scene=PINK_MAT_SLAT
+OBS_2 garment_color=CREAM garment_type=SHIRT material=WOVEN wear=MODERATE scene=PINK_MAT_SLAT
+OBS_3 garment_color=BLUE garment_type=SHIRT material=WOVEN wear=LIGHT scene=PINK_MAT_SLAT
+OBS_4 garment_color=BLUE garment_type=SHIRT material=WOVEN wear=LIGHT scene=PINK_MAT_SLAT
+COMPARE OBJECT_IDENTITY identity_change=YES
+COMPARE SCENE scene_change=NO
+COMPARE TOPIC_MATCH object_mismatch=NO
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"topic":"dark-garment-care","verdict":"FAIL","axes":{"OBJECT_IDENTITY":"FAIL","SCENE":"PASS","TOPIC_MATCH":"PASS"},"evidence":{"OBJECT_IDENTITY":"Navy tee then cream shirt then blue shirt are not one physical object.","SCENE":"Pink mat and slat wall remain the same family.","TOPIC_MATCH":"All slides are garments, matching the clothing topic word."},"frames_used":["slide-01.png","slide-02.png","slide-03.png","slide-04.png"]}
+<<<VISUAL_QA_END>>>

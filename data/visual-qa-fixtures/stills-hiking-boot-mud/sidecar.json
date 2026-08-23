@@ -1,0 +1,29 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\hiking-boot\\hiking-boot-mud-before.png",
+  "reel_sha256": "553156cb47055b36f9f714b5fed34d8138dd0e58fed109ef67456b8c1c4464a5",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "2XGB",
+      "sha256": "fb3ca4d0980607cc0f7ad6b88a9970730eab6283e7987b6003c0599b7735a6ff"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "WXA6",
+      "sha256": "f510676c1993610dae8936c078e6951973c0f134929831d1c91342b27dfff6cb"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "2N4V",
+      "sha256": "94212fe007c5faad2295c9ee960f1e23055bdf8d0727883e3fa2171489efd204"
+    }
+  ]
+}

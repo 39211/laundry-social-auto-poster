@@ -1,0 +1,29 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\mattress-pad\\mattress-pad-sweat-before.png",
+  "reel_sha256": "f6112d5c3d2d11c83e35b85a7a5d81061af9aabdbff7117982808cf56a9433b3",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "88X2",
+      "sha256": "6e685facc9d475220c378d9713483620b3e585c68791560e421c39cf7994ab38"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "R78U",
+      "sha256": "cf1761d52b50902948fc23ffd295073b39656e589d3a3526bf020bd1ab4dba8c"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "P8AL",
+      "sha256": "538ecb3b10699eccf1b1a27fb337fd5ca4877b9ba990e50f3af5899cd41a44b8"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+<<<OBSERVE_BEGIN>>>
+IMAGE_1 canary=X9ZG
+IMAGE_2 canary=RHZA
+IMAGE_3 canary=ZANQ
+OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=GRAY facing=TQ_RIGHT soil=LIGHT hands=NONE scene=METAL_COUNTER_CLOTHING_RACK
+OBS_2 role=MIDDLE act=middle laces_color=NONE hardware_color=SILVER facing=CAMERA_ON soil=HEAVY hands=OK scene=PINK_MAT_SLAT_WALL
+OBS_3 role=AFTER act=after laces_color=NONE hardware_color=GRAY facing=TQ_RIGHT soil=CLEAN hands=NONE scene=METAL_COUNTER_CLOTHING_RACK
+COMPARE ACCESSORY_COLOR identity_change=YES
+COMPARE ORIENTATION identity_flip=YES
+COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=YES
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"stills-handbag-handle","verdict":"FAIL","axes":{"OBJECT_IDENTITY":"FAIL","ACCESSORY_COLOR":"FAIL","ORIENTATION":"FAIL","STATE_ORDER":"FAIL","MIDDLE_NOT_WORSE":"FAIL","HANDS":"PASS","SCENE":"FAIL"},"evidence":{"OBJECT_IDENTITY":"BEFORE and AFTER show a long gray pebbled bag with stitched teardrop handle bases, while MIDDLE shows a smaller tan structured bag with corner panels and metal handle rings.","ACCESSORY_COLOR":"Visible hardware changes from gray in BEFORE and AFTER to silver in MIDDLE.","ORIENTATION":"BEFORE and AFTER are three-quarter-right views, while MIDDLE is camera-on.","STATE_ORDER":"MIDDLE cannot establish in-progress treatment of the starting object because it shows a visibly different, more heavily mottled bag.","MIDDLE_NOT_WORSE":"MIDDLE is heavily mottled across the whole bag, exceeding the light soil declared for BEFORE.","HANDS":"MIDDLE shows two plausibly scaled hands using one brush without visible fusion or an extra hand.","SCENE":"BEFORE and AFTER use a metal counter with a clothing rack, while MIDDLE uses a pink mat and slat-wall bottle display."},"frames_used":["before.png","middle.png","after.png"]}
+<<<VISUAL_QA_END>>>

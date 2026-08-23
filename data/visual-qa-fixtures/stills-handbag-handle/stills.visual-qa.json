@@ -1,0 +1,69 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\handbag\\handbag-handle-before.png",
+  "axes": {
+    "OBJECT_IDENTITY": "FAIL",
+    "ACCESSORY_COLOR": "FAIL",
+    "ORIENTATION": "FAIL",
+    "STATE_ORDER": "FAIL",
+    "MIDDLE_NOT_WORSE": "FAIL",
+    "HANDS": "PASS",
+    "SCENE": "FAIL"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "BEFORE and AFTER show a long gray pebbled bag with stitched teardrop handle bases, while MIDDLE shows a smaller tan structured bag with corner panels and metal handle rings.",
+    "ACCESSORY_COLOR": "Visible hardware changes from gray in BEFORE and AFTER to silver in MIDDLE.",
+    "ORIENTATION": "BEFORE and AFTER are three-quarter-right views, while MIDDLE is camera-on.",
+    "STATE_ORDER": "MIDDLE cannot establish in-progress treatment of the starting object because it shows a visibly different, more heavily mottled bag.",
+    "MIDDLE_NOT_WORSE": "MIDDLE is heavily mottled across the whole bag, exceeding the light soil declared for BEFORE.",
+    "HANDS": "MIDDLE shows two plausibly scaled hands using one brush without visible fusion or an extra hand.",
+    "SCENE": "BEFORE and AFTER use a metal counter with a clothing rack, while MIDDLE uses a pink mat and slat-wall bottle display."
+  },
+  "frames_used": [
+    "before.png",
+    "middle.png",
+    "after.png"
+  ],
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "X9ZG",
+      "sha256": "b2d2fa116567b67ab8ca5500cbca98bb97c1306da6c4aa86bcdfdd6bd47c9265"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "RHZA",
+      "sha256": "c6f3b7224e76375e3416a6990cd232cfaf710d6aed57edb2a3eb038291ecded8"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "ZANQ",
+      "sha256": "c902d4eae93c2e2576c89ccd9285809b8803a807f1bf22aed7e0e1f37cda3151"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "X9ZG",
+    "IMAGE_2": "RHZA",
+    "IMAGE_3": "ZANQ"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "X9ZG",
+    "IMAGE_2": "RHZA",
+    "IMAGE_3": "ZANQ"
+  },
+  "reel_sha256": "04ac35a9166e942cc0500df3ccc4f622320b65e0896ae03c5a798e00a303aec9",
+  "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
+  "run_id": "eeac72356be04ba8beef7c4e4838d8c5",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-22T06:07:48.005Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "FAIL",
+  "fail_class": "content"
+}

@@ -1,0 +1,29 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\leather-belt\\leather-belt-crease-before.png",
+  "reel_sha256": "c474e573c3240d320dafa93fbda9f04828dd0a1b17555aec7e101fb606040ba1",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "9RS8",
+      "sha256": "6967c7a3f9d9095656301e8d201e0f07d0937654a4e7b34b0d4c27677e9934af"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "PGDC",
+      "sha256": "6958adea52f5e2365f6eb24344db2943cce60aa1e3cd1c7c63dd47f94f15d4fb"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "2Y8M",
+      "sha256": "b47ce91466d7a35d9a7ed0f7e987bfcf0ff5c346b85ebdf6d8c8885b232282a9"
+    }
+  ]
+}

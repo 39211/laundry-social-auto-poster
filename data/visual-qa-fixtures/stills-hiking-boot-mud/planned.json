@@ -1,0 +1,20 @@
+﻿[
+    {
+        "name":  "before",
+        "act":  "before",
+        "t":  0,
+        "canary":  "2XGB"
+    },
+    {
+        "name":  "middle",
+        "act":  "middle",
+        "t":  0,
+        "canary":  "WXA6"
+    },
+    {
+        "name":  "after",
+        "act":  "after",
+        "t":  0,
+        "canary":  "2N4V"
+    }
+]

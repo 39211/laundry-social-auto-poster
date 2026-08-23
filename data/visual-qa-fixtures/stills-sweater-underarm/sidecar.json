@@ -1,0 +1,29 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\sweater\\sweater-underarm-before.png",
+  "reel_sha256": "5cec0a401912753850ccf0089ce94845f8bed39b1eaf70fe7dcee596f0938c41",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "ZPN7",
+      "sha256": "dcf33d0b227cc5bda8e7f1539cee503902c6e60f63d883553e74265746a92d6a"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "LPKA",
+      "sha256": "2364ae6484d75e48533250147b177b42cd87a70fb4e395b9e3a38e1a3408b673"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "Y9Z6",
+      "sha256": "a3a63c96117e40fadf3ec1313cf3793d2bb53b3761d84ab3a4804900e6ed3989"
+    }
+  ]
+}

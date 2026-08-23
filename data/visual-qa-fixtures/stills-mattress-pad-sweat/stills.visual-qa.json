@@ -1,0 +1,69 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\mattress-pad\\mattress-pad-sweat-before.png",
+  "axes": {
+    "OBJECT_IDENTITY": "FAIL",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "PASS",
+    "STATE_ORDER": "PASS",
+    "MIDDLE_NOT_WORSE": "FAIL",
+    "HANDS": "PASS",
+    "SCENE": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "Before and after show a white grid-quilted pad, while middle shows a beige curved-quilted pad with mesh sides.",
+    "ACCESSORY_COLOR": "No laces or hardware are visible in any frame.",
+    "ORIENTATION": "All frames use the same general orientation family.",
+    "STATE_ORDER": "Before is lightly soiled, middle shows tool-assisted cleaning, and after is clean.",
+    "MIDDLE_NOT_WORSE": "The middle object is globally heavily soiled compared with the lightly soiled before object.",
+    "HANDS": "Visible hands have plausible scale and finger separation.",
+    "SCENE": "All frames show the same pink mat and slat-wall counter setting."
+  },
+  "frames_used": [
+    "before.png",
+    "middle.png",
+    "after.png"
+  ],
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "88X2",
+      "sha256": "6e685facc9d475220c378d9713483620b3e585c68791560e421c39cf7994ab38"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "R78U",
+      "sha256": "cf1761d52b50902948fc23ffd295073b39656e589d3a3526bf020bd1ab4dba8c"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "P8AL",
+      "sha256": "538ecb3b10699eccf1b1a27fb337fd5ca4877b9ba990e50f3af5899cd41a44b8"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "88X2",
+    "IMAGE_2": "R78U",
+    "IMAGE_3": "P8AL"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "88X2",
+    "IMAGE_2": "R78U",
+    "IMAGE_3": "P8AL"
+  },
+  "reel_sha256": "f6112d5c3d2d11c83e35b85a7a5d81061af9aabdbff7117982808cf56a9433b3",
+  "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
+  "run_id": "f9909e438f6347f39e3e48355f6e54b0",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-18T06:06:44.370Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "FAIL",
+  "fail_class": "content"
+}

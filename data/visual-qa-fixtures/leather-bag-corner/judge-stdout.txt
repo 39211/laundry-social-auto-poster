@@ -1,0 +1,7 @@
+IMAGE_1 canary=J68U
+IMAGE_2 canary=UZMC
+IMAGE_3 canary=72S5
+IMAGE_4 canary=DTKW
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"leather-bag-corner","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"Same taupe leather bag corner, outline, seams, buttons, and fittings are visible across all frames.","ACCESSORY_COLOR":"Piping and metallic hardware remain the same color; the after frames appear cleaner rather than identity-level changed.","ORIENTATION":"The same bag corner faces the camera in the same direction, with only slight framing changes.","STATE_ORDER":"The worn edge visible before is repaired and smoother after, with no apparent worsening.","MIDDLE_NOT_WORSE":"There is no middle act; the after frames are not worse than the before frames.","HANDS":"No malformed hands are visible in any frame.","SCENE":"The same light counter and surrounding wall/background family appear throughout."},"frames_used":["before-p20.png","before-p70.png","after-p20.png","after-p70.png"]}
+<<<VISUAL_QA_END>>>

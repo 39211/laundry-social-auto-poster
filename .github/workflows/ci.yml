@@ -37,6 +37,10 @@ jobs:
 
       - run: npm ci
 
+      # visualQa.test.ts synthesizes a sample clip with a real ffmpeg call;
+      # windows-latest does not ship it. choco is preinstalled on this image.
+      - run: choco install ffmpeg -y
+
       - run: npx tsc --noEmit
 
       - run: npx vitest run

@@ -1,0 +1,35 @@
+{
+  "topic": "可收藏：深色衣服洗久變灰的判斷，送洗前先看三個位置",
+  "date": "2026-08-17",
+  "slot": 1,
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-01.png",
+      "canary": "3ASG",
+      "sha256": "019e0fd381ed91aa66b7fb3649c5fa4e4cb3f3c322e7eb2ba970c3cdab3a8b73"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-01-slide-02.png",
+      "canary": "WF9L",
+      "sha256": "a3dfd37b435a5e811dcd93f34cd8bf3bd0a49f1ba10b7b1930d81200e167bbdc"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-01-slide-03.png",
+      "canary": "2LHC",
+      "sha256": "f7a5f2765e61fa24f98a87bf55e6768235c95da465f0ae9c52c4f5b9db726f85"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-08-17\\slot-01-slide-04.png",
+      "canary": "HWZR",
+      "sha256": "3c0fb20bbeecf37365050374b766ca6968d9a39f99e5c00ecaad86368178f30a"
+    }
+  ]
+}

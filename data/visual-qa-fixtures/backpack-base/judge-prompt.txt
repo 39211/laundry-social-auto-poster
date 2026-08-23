@@ -1,0 +1,27 @@
+Do not generate or edit any image. Do not run a shell command. Only read the listed image files.
+
+You are given images in order. Each IMAGE_N is one attached file.
+Every image has a yellow 4-character canary code in a black box at the bottom-left.
+First report each canary exactly as printed, one per line: IMAGE_N canary=XXXX
+A missing or wrong canary means you did not see that file.
+
+IMAGE_1 file=before-p20.png act=before
+IMAGE_2 file=before-p70.png act=before
+IMAGE_3 file=after-p20.png act=after
+IMAGE_4 file=after-p70.png act=after
+
+Then judge ONLY story continuity across these frames.
+Axes (each must be PASS or FAIL, plus one visible-evidence sentence):
+- OBJECT_IDENTITY: same physical object across acts (material, outline, fittings, pair count). Different shoe/bag/animal = FAIL.
+- ACCESSORY_COLOR: laces / piping / hardware / button colour. Identity-level change (tan to gray) = FAIL. Slight cleaning brightening is OK.
+- ORIENTATION: before and after face the same way (slight push-in OK). Middle may be hand-held; a full identity flip (side vs camera-on) = FAIL.
+- STATE_ORDER: before=problem untreated; middle=in progress (hands+tool+local progress); after not worse than before.
+  There is no middle act. STATE_ORDER is before then after only. MIDDLE_NOT_WORSE must be PASS.
+- HANDS: no middle act; PASS unless a before/after frame shows malformed hands.
+- SCENE: same counter / wall family. Pink mat + slat wall vs metal bench vs washer wall = FAIL.
+Do not judge subtitle placement, hook wording, TTS, or Meta specs.
+
+Output ONLY this block (no other completed/self-score text):
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"...","verdict":"PASS|FAIL","axes":{"OBJECT_IDENTITY":"PASS|FAIL","ACCESSORY_COLOR":"PASS|FAIL","ORIENTATION":"PASS|FAIL","STATE_ORDER":"PASS|FAIL","MIDDLE_NOT_WORSE":"PASS|FAIL","HANDS":"PASS|FAIL","SCENE":"PASS|FAIL"},"evidence":{"OBJECT_IDENTITY":"visible comparison"},"frames_used":["..."]}
+<<<VISUAL_QA_END>>>

@@ -1,0 +1,14 @@
+<<<OBSERVE_BEGIN>>>
+IMAGE_1 canary=9RS8
+IMAGE_2 canary=PGDC
+IMAGE_3 canary=2Y8M
+OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=GOLD facing=TQ_RIGHT soil=LIGHT hands=NONE scene=SHOP_COUNTER
+OBS_2 role=MIDDLE act=middle laces_color=NONE hardware_color=GOLD facing=TOP_DOWN soil=HEAVY hands=OK scene=SHOP_COUNTER
+OBS_3 role=AFTER act=after laces_color=NONE hardware_color=GOLD facing=TQ_RIGHT soil=LIGHT hands=OK scene=SHOP_COUNTER
+COMPARE ACCESSORY_COLOR identity_change=NO
+COMPARE ORIENTATION identity_flip=YES
+COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=YES
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"stills-leather-belt-crease","verdict":"FAIL","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"FAIL","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"FAIL","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"同一條棕色皮帶，輪廓、扣環與孔位一致。","ACCESSORY_COLOR":"各幀均無鞋帶，金色扣件顏色一致。","ORIENTATION":"MIDDLE為俯視平放構圖，與BEFORE及AFTER的TQ_RIGHT構圖族不同。","STATE_ORDER":"BEFORE未處理，MIDDLE可見手持工具處理，AFTER整體較乾淨。","MIDDLE_NOT_WORSE":"MIDDLE整條皮帶較BEFORE呈現更廣泛且更重的深色斑駁。","HANDS":"MIDDLE與AFTER的手部比例自然，未見融合或多餘手指。","SCENE":"三幀均位於粉紅裁切墊、白色工作檯與條紋牆的同一店內場景。"},"frames_used":["before.png","middle.png","after.png"]}
+<<<VISUAL_QA_END>>>

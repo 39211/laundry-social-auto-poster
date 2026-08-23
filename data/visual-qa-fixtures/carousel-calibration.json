@@ -1,0 +1,31 @@
+{
+  "calibrated_at": "2026-08-17T06:02:00Z",
+  "prompt_source": "buildCarouselJudgePrompt",
+  "gate": "red FAIL names OBJECT_IDENTITY; green PASS",
+  "result": "DISCRIMINATES",
+  "red": {
+    "id": "carousel-mixed-garments",
+    "source": "docs/assets/2026-08-17 slot 1",
+    "run_id": "carousel-cal-slot1-20260817",
+    "verdict": "FAIL",
+    "fail_class": "content",
+    "axes": {
+      "OBJECT_IDENTITY": "FAIL",
+      "SCENE": "FAIL",
+      "TOPIC_MATCH": "PASS"
+    },
+    "prompt_hash": "8185640d01697ff5e131126cb9bae4c8af43ef2697dc529a71e36480ab0e2155"
+  },
+  "green": {
+    "id": "carousel-rain-shoes",
+    "source": "docs/assets/2026-08-17 slot 2",
+    "run_id": "carousel-cal-slot2-20260817",
+    "verdict": "PASS",
+    "fail_class": null,
+    "axes": {
+      "OBJECT_IDENTITY": "PASS",
+      "SCENE": "PASS",
+      "TOPIC_MATCH": "PASS"
+    }
+  }
+}

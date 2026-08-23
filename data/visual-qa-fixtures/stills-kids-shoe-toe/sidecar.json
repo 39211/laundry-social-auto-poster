@@ -1,0 +1,29 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\kids-shoe\\kids-shoe-toe-before.png",
+  "reel_sha256": "949e5df2b7e3c908f175fd710774e21bf32a578306e2bf47065da214e30fe343",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "M7JW",
+      "sha256": "e530f7242ab8335b1d562bb3540f362b485c27b53f2b95e5d5d93d42aa025931"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "N7TA",
+      "sha256": "735fbc2c253a6668a9041548cc54b693330ab48b2da3cd814e9d907173886de1"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "T2JB",
+      "sha256": "84a4c9608a16299d13b1e8bedeb60afbcd1b48c0f2d89595c3a21f49bd6c95d5"
+    }
+  ]
+}

@@ -1280,7 +1280,7 @@ describe("generatePublicSite", () => {
     expect(sitemap1).toContain(`<loc>${businessBulkUrl}</loc>`);
     expect(sitemap1).toMatch(
       new RegExp(
-        `<loc>${businessBulkUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}</loc><lastmod>2026-07-28</lastmod>`
+        `<loc>${businessBulkUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}</loc><lastmod>2026-08-23</lastmod>`
       )
     );
     // Money pages are the indexable surface; caption/post pages are out of the
@@ -1395,7 +1395,7 @@ describe("generatePublicSite", () => {
     expect(homepageDateModified1).toBe("2026-08-17");
     expect(pickupDateModified1).toBe("2026-07-22");
     expect(shoeBagDateModified1).toBe("2026-08-17");
-    expect(guideDateModified1).toBe("2026-08-17");
+    expect(guideDateModified1).toBe("2026-08-23");
     expect(postDateModified1).toBe("2026-07-02T11:30:00+08:00");
     expect(homepage).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
     expect(pickupHtml).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
@@ -1449,12 +1449,12 @@ describe("generatePublicSite", () => {
       ...sitemap2.matchAll(/services\/[^<]+<\/loc><lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/gu)
     ].map((match) => match[1]);
     expect(serviceLastmodsWithDate.sort()).toEqual([
-      "2026-07-14",
-      "2026-07-14",
       "2026-07-20",
       "2026-07-22",
-      "2026-07-28",
-      "2026-08-17"
+      "2026-08-17",
+      "2026-08-23",
+      "2026-08-23",
+      "2026-08-23"
     ]);
   });
 

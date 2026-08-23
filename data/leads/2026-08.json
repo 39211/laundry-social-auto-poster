@@ -63,6 +63,13 @@
       "source_clicks_status": "measured"
     },
     "2026-08-22": {
+      "line_clicks_total": 1,
+      "source_clicks": {
+        "youtube": 1
+      },
+      "source_clicks_status": "measured"
+    },
+    "2026-08-23": {
       "line_clicks_total": 0,
       "source_clicks": {},
       "source_clicks_status": "measured"

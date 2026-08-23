@@ -7,6 +7,7 @@ import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { docsContentCalendarPath, projectRoot, relativeAssetPath } from "./paths";
 import { getZonedDateParts } from "./scheduler";
+import { submitIndexNow } from "./submitIndexNow";
 
 function runGit(args: string[], root: string): string {
   return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
@@ -168,13 +169,28 @@ function publishRootPagesMirror(date: string, root: string, rootPagesRepo: strin
 
   const mirrorRoot = mkdtempSync(join(tmpdir(), "laundry-root-pages-"));
   try {
-    runGit(["clone", rootPagesRepo, mirrorRoot], root);
+    // Each run fully replaces the mirror's tree (clearMirrorWorktree keeps only .github --
+    // see its comment), so the clone never needs the remote's existing blobs, let alone its
+    // history: --filter=blob:none defers all file content, --depth 1 skips history, and
+    // sparse-checkout materializes only .github/. A full clone of the accumulated "Mirror
+    // public site" history plus the whole docs/ tree was gigabytes larger than what this
+    // step actually uses, and could exhaust local disk when free space was already tight.
+    runGit(
+      ["clone", "--depth", "1", "--filter=blob:none", "--single-branch", "--branch", "main", "--no-checkout", rootPagesRepo, mirrorRoot],
+      root
+    );
+    runGit(["sparse-checkout", "init", "--cone"], mirrorRoot);
+    runGit(["sparse-checkout", "set", ".github"], mirrorRoot);
     runGit(["config", "user.name", gitConfigValue(root, "user.name") || "Codex Automation"], mirrorRoot);
     runGit(["config", "user.email", gitConfigValue(root, "user.email") || "codex-automation@users.noreply.github.com"], mirrorRoot);
     checkoutMain(mirrorRoot);
     clearMirrorWorktree(mirrorRoot);
     copyDirectoryContents(docsRoot, mirrorRoot);
 
+    // The sparse-checkout scope above only exists to avoid materializing the remote's old
+    // docs/ tree during checkout. It must not stay in effect once that tree is replaced --
+    // `git add -A` under an active cone would silently skip everything outside .github/.
+    runGit(["sparse-checkout", "disable"], mirrorRoot);
     runGit(["add", "-A"], mirrorRoot);
     const status = runGit(["status", "--porcelain"], mirrorRoot);
     if (!status) return `No root Pages mirror changes to publish for ${date}.`;
@@ -258,6 +274,16 @@ async function main(): Promise<void> {
   const date = getOption(args, "date") || getZonedDateParts(new Date(), config.timezone).date;
   const root = projectRoot(getOption(args, "root"));
   console.log(publishPagesAssets(date, root, config.publicRootPagesRepo || ""));
+  if (!getFlag(args, "skip-indexnow")) {
+    try {
+      const result = await submitIndexNow({ root, live: true });
+      console.log(`IndexNow: notified ${result.urlCount} URLs for ${result.host}.`);
+    } catch (error) {
+      // IndexNow is a notification, not the source of truth for what's live -- a
+      // transient failure here must not fail the publish step or the audit below.
+      console.log(`IndexNow submission failed (non-fatal): ${(error as Error).message}`);
+    }
+  }
   if (!getFlag(args, "skip-audit")) {
     const auditMode = getOption(args, "audit-mode") === "local" ? "local" : "public";
     const audit = await auditPublicSite({

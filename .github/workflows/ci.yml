@@ -1,0 +1,29 @@
+name: CI
+
+# windows-latest, not ubuntu-latest: this repo's own dev environment and its
+# test suite have never been run on Linux (Windows-only paths like fonts under
+# C:/Windows/Fonts, PowerShell orchestration, Windows Scheduled Tasks). Using
+# Ubuntu here would risk a CI that is red for portability reasons that have
+# nothing to do with whether a change is actually correct.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  typecheck-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+
+      - run: npx tsc --noEmit
+
+      - run: npx vitest run

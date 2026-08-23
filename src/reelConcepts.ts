@@ -795,7 +795,10 @@ export const ARTISAN =
   "the craftsman's hands: an adult man's working hands, dry and clean with short unpolished nails, " +
   "one thin old scar across the back of the left hand, forearms lightly tanned, sleeves of a faded " +
   "indigo work shirt rolled to just below the elbow, a dark canvas apron edge visible at the frame " +
-  "bottom. No rings, no watch, no gloves. Hands anatomically correct: five fingers each, no fusing, " +
+  "bottom. No rings, no watch, no gloves. The hands and forearms enter from outside the frame and " +
+  "occupy a natural minority of it, as if reaching in toward the item on the counter -- the item, the " +
+  "counter and the background stay clearly visible around them, not a close-up filling the frame with " +
+  "skin. Hands anatomically correct: five fingers each, no fusing, " +
   "no extra hand entering frame. No face, no head, no torso above the elbow.";
 
 export const SHARED_STILL_PROMPT =

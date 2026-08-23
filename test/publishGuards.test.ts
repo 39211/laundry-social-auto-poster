@@ -62,6 +62,16 @@ describe("publish guards", () => {
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), "guards-"));
     process.env.DRY_RUN = "false";
+    // assertLiveMetaConfig runs inside postCurrentSlot before any guard this
+    // file exists to test, and rejects empty/placeholder-shaped values via
+    // hasUsableCredentialValue. These fake values only need to clear that
+    // check: every case here expects postCurrentSlot to reject on an earlier
+    // guard (repeat-caption / fingerprint) before a live Meta call happens.
+    // ||= so a developer's real .env values (if present) are left alone.
+    process.env.PUBLIC_IMAGE_BASE_URL ||= "https://example.invalid";
+    process.env.META_ACCESS_TOKEN ||= "ci-test-placeholder-token";
+    process.env.FB_PAGE_ID ||= "000000000000000";
+    process.env.IG_USER_ID ||= "000000000000000";
   });
 
   afterEach(async () => {

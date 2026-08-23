@@ -22,6 +22,11 @@ jobs:
       # RFC 2606 domain reserved to never resolve, which is why it's the
       # placeholder rather than any other-looking URL.
       PUBLIC_SITE_BASE_URL: "https://example.invalid"
+      # Same reasoning: config.ts has no fallback from PUBLIC_SITE_BASE_URL to
+      # this one (only the reverse), and assertPublicImageBaseUrl() -- called
+      # from postCurrentSlot -- needs it set to reach the guard several
+      # publishGuards.test.ts cases actually mean to exercise.
+      PUBLIC_IMAGE_BASE_URL: "https://example.invalid"
     steps:
       - uses: actions/checkout@v4
 

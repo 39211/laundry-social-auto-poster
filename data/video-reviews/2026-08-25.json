@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2026-08-25",
+    "slot": 3,
+    "video_path": "docs/assets/2026-08-25/slot-03.mp4",
+    "video_sha256": "81524589cef839067fb219b531b9d779b35aa17ace7fa856e05c855568fd1a7e",
+    "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+    "review_round": 1,
+    "full_decode": "pass",
+    "all_frame_physics_review": "pass",
+    "grok_review": "pass",
+    "sol_review": "pass",
+    "separate_zh_tw_tts_review": "pass",
+    "generated_clip_audio_used": false,
+    "status": "approved",
+    "reviewed_at": "2026-08-22T03:04:05.090Z",
+    "reviewed_by": "human-frames-review",
+    "review_note": "two-seat round 1: commander frames eyeball + grok blind seat (BOARD0825-R-HIKINGREVIEW, R0825-HIKING, both PASS; 1 medium = burned subtitle line starts with a leading comma from sentence splitting - queued against reelSubtitles, below reject threshold; 2 low). Auto-produced 2026-08-21 14:00 with the pure-gen fallback middle that nonetheless held the landmark (mud-packed lugs) - the lone survivor of the old pipeline path; after act stayed in-shop despite the old pull-back direction.",
+    "recorded_at": "2026-08-22T06:11:03.480Z",
+    "recorded_by": "standing-policy-metadata"
+  }
+]

@@ -1,0 +1,17 @@
+[
+  {
+    "date": "2026-08-27",
+    "slot": 3,
+    "video_path": "docs/assets/2026-08-27/slot-03.mp4",
+    "video_sha256": "efda626836741a3f827bf71d58f48a222953c0850efb4f621d7ba81917c0c183",
+    "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+    "recorded_at": "2026-08-22T06:26:18.983Z",
+    "recorded_by": "standing-policy-metadata",
+    "full_decode": "pending",
+    "all_frame_physics_review": "pending",
+    "grok_review": "pending",
+    "sol_review": "pending",
+    "separate_zh_tw_tts_review": "pending",
+    "status": "pending"
+  }
+]

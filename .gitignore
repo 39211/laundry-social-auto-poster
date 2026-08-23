@@ -8,6 +8,7 @@ coverage/
 data/*
 !data/business-profile.json
 !data/.gitignore
+!data/video-reviews/
 data/posted-log/
 *.log
 .DS_Store

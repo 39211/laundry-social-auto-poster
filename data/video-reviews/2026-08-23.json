@@ -1,0 +1,20 @@
+[
+  {
+    "date": "2026-08-23",
+    "slot": 3,
+    "video_path": "docs/assets/2026-08-23/slot-03.mp4",
+    "video_sha256": "aac55519fb259aa1386e4511b59dc3d28fd399cb3ce621530093b9df25203ea4",
+    "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+    "review_round": 3,
+    "full_decode": "pass",
+    "all_frame_physics_review": "pass",
+    "grok_review": "pass",
+    "sol_review": "pass",
+    "separate_zh_tw_tts_review": "pass",
+    "generated_clip_audio_used": false,
+    "status": "approved",
+    "reviewed_at": "2026-08-22T02:46:54.839Z",
+    "reviewed_by": "human-frames-review",
+    "review_note": "two-seat round 3 on the fully rebuilt tC cut: commander frames eyeball + grok blind seat (BOARD0823-R-WALLETV3REVIEW, R0823-WALLETV3, both PASS, only low-severity notes). History: round 1 REJECT (middle act worked the wrong edge), round 2 REJECT (after act flipped the wallet and hid the landmark corner). Fixes that landed: middle still regenerated via codex -i edit (round 2 certified the middle act); after still v3 orientation-locked with the treated corner unobstructed; after CLIP regenerated under the new hold-not-pull-back camera direction (F31), which also cured the scene-invention drift. First reel to air with the F31 direction."
+  }
+]

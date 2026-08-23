@@ -14,6 +14,14 @@ on:
 jobs:
   typecheck-and-test:
     runs-on: windows-latest
+    env:
+      # Placeholder only -- never real credentials. contentPlan.ts composes a
+      # LINE redirect URL from this at module-import time (LINE_CONTACT), so
+      # nearly every test file needs it just to import cleanly, even ones
+      # that never touch LINE or Meta directly. example.invalid is the
+      # RFC 2606 domain reserved to never resolve, which is why it's the
+      # placeholder rather than any other-looking URL.
+      PUBLIC_SITE_BASE_URL: "https://example.invalid"
     steps:
       - uses: actions/checkout@v4
 

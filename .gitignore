@@ -7,6 +7,7 @@ coverage/
 .netlify/
 data/*
 !data/business-profile.json
+!data/.gitignore
 data/posted-log/
 *.log
 .DS_Store

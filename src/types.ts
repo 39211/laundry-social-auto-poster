@@ -40,7 +40,9 @@ export interface VideoCandidatePlan {
   single_action: string;
   payoff: string;
   cta: string;
-  duration_seconds: 12;
+  // 10 is the current floor (owner 2026-08-24: Reels must be at least 10s);
+  // 12 remains valid for calendars written before the floor changed.
+  duration_seconds: 10 | 12;
   aspect_ratio: "9:16";
   first_frame_direction: string;
   grok_motion_prompt: string;

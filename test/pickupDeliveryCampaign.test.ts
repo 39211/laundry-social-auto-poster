@@ -238,11 +238,12 @@ describe("Taichung free pickup-delivery campaign", () => {
         });
         expect(slot.video_candidate).toMatchObject({
           status: "concept_ready",
-          duration_seconds: 12,
           aspect_ratio: "9:16",
           fallback_media_type: "image"
         });
         expect(slot.video_candidate?.memory_hook.length).toBeGreaterThanOrEqual(6);
+        // 10s floor since 2026-08-25; dated specials may carry legacy 12.
+        expect(slot.video_candidate?.duration_seconds).toBeGreaterThanOrEqual(10);
         expect(slot.video_candidate?.single_action.length).toBeGreaterThan(20);
         expect(slot.video_candidate?.grok_motion_prompt).toContain("one dominant action only");
         expect(slot.video_prompt).toBe(slot.video_candidate?.grok_motion_prompt);

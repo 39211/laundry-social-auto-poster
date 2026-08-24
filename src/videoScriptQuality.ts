@@ -80,13 +80,15 @@ export function reviewVideoScript(item: VideoCandidateManifestItem): VideoScript
     improvements.push("補齊一個衝突、一個動作、一個 payoff 與一個 LINE CTA。");
   }
 
+  // Each check accepts the legacy English phrasing OR the chuanzhang Chinese
+  // block (2026-08-25 doctrine prompts) -- same invariants, two vocabularies.
   const motionChecks = [
     prompt.includes("one dominant action only"),
-    /preserve exactly|preserve the exact/.test(prompt),
-    prompt.includes("five fingers"),
-    /no extra limbs|no extra hands/.test(prompt),
-    /no duplicate object|no duplicated/.test(prompt),
-    /no morphing|no geometry changes/.test(prompt)
+    /preserve exactly|preserve the exact|物件恆定/.test(item.grok_motion_prompt),
+    /five fingers|五指健全/.test(item.grok_motion_prompt),
+    /no extra limbs|no extra hands|無第二隻手/.test(item.grok_motion_prompt),
+    /no duplicate object|no duplicated|無重複物件|全程同一/.test(item.grok_motion_prompt),
+    /no morphing|no geometry changes|穿模或變形/.test(item.grok_motion_prompt)
   ];
   const motionScore = motionChecks.filter(Boolean).length * 5;
   score += motionScore;
@@ -106,9 +108,9 @@ export function reviewVideoScript(item: VideoCandidateManifestItem): VideoScript
   }
 
   if (
-    /no (readable )?text/.test(prompt) &&
-    prompt.includes("no logo") &&
-    prompt.includes("no watermark") &&
+    (/no (readable )?text/.test(prompt) || /不得出現任何文字|無文字/.test(item.grok_motion_prompt)) &&
+    (prompt.includes("no logo") || item.grok_motion_prompt.includes("標誌")) &&
+    (prompt.includes("no watermark") || item.grok_motion_prompt.includes("浮水印")) &&
     !/保證|完全去除|恢復全新|一定洗白|百分之百/.test(
       `${item.memory_hook}${item.payoff}${item.tts_script}`
     )

@@ -57,6 +57,22 @@ async function appendScheduledLog(entry: ScheduledLogEntry, root = projectRoot()
   await writeJsonAtomic(filePath, entries);
 }
 
+// The live path sends Facebook a REEL for a mixed-carousel slot whose video
+// is publishable (postCurrentSlot's platformInputs: isReel || isMixedCarousel
+// => "reel"). The first live schedule run queued a plain carousel for exactly
+// that shape, silently dropping the approved video from the Facebook side --
+// this mapping is the single source of truth for what gets queued, mirrored
+// by a direct unit test so the parity cannot quietly drift again. A deferred
+// mixed-carousel never reaches this mapping as "mixed-carousel": resolve
+// already downgraded it to "carousel".
+export function facebookScheduleKind(
+  resolvedMediaType: string | undefined
+): "image" | "carousel" | "reel" {
+  if (resolvedMediaType === "reel" || resolvedMediaType === "mixed-carousel") return "reel";
+  if (resolvedMediaType === "carousel") return "carousel";
+  return "image";
+}
+
 function slotPublishUnixTime(date: string, slotNumber: number, timezoneOffset = "+08:00"): number {
   const schedule = DAILY_SCHEDULE.find((item) => item.slot === slotNumber);
   if (!schedule) throw new Error(`Unknown slot: ${slotNumber}`);
@@ -189,7 +205,13 @@ export async function scheduleAheadFacebook(input: {
     // fallback the live path takes. A Reel slot with no publishable video is
     // NOT downgraded silently at schedule time: skip and leave it to the live
     // path, where heal/catch-up still have hours to repair it.
-    if (isReel && resolvedMedia.videoDeferred) {
+    //
+    // Judged on the CALENDAR's media_type, not resolvedMedia's: a deferred
+    // reel comes back from resolveSlotPublishMedia already downgraded to
+    // "image", so testing the resolved type let the first live run (8/25)
+    // queue static images into two future Reel slots -- exactly the silent
+    // downgrade this branch exists to refuse.
+    if (slot.media_type === "reel" && resolvedMedia.videoDeferred) {
       results.push({
         date: input.date,
         slot: slot.slot,
@@ -199,11 +221,7 @@ export async function scheduleAheadFacebook(input: {
       continue;
     }
 
-    const publishedMediaType: "image" | "carousel" | "reel" = isReel
-      ? "reel"
-      : isCarousel
-        ? "carousel"
-        : "image";
+    const publishedMediaType = facebookScheduleKind(resolvedMedia.mediaType);
 
     if (config.dryRun) {
       results.push({
@@ -217,11 +235,12 @@ export async function scheduleAheadFacebook(input: {
       continue;
     }
 
-    const result = isReel
-      ? await postFacebookReel(postInput, config, fetchImpl)
-      : isCarousel
-        ? await postFacebookCarousel(postInput, config, fetchImpl)
-        : await postFacebookPhoto(postInput, config, fetchImpl);
+    const result =
+      publishedMediaType === "reel"
+        ? await postFacebookReel(postInput, config, fetchImpl)
+        : publishedMediaType === "carousel"
+          ? await postFacebookCarousel(postInput, config, fetchImpl)
+          : await postFacebookPhoto(postInput, config, fetchImpl);
     if (!result.post_id) throw new Error(`Facebook scheduling for slot ${slot.slot} returned no post id.`);
 
     await appendScheduledLog(

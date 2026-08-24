@@ -237,6 +237,34 @@ describe("scheduleAheadFacebook", () => {
     expect(calls.length).toBe(callsAfterFirst);
   });
 
+  it("skips a reel slot whose video is deferred instead of downgrading it to an image post", async () => {
+    const reelSlot = {
+      ...slotFixture(3, "image", `排程Reel延期文案 ${DATE} 庚`),
+      media_type: "reel",
+      format: "reel",
+      local_video_path: `docs/assets/${DATE}/slot-03.mp4`,
+      public_video_url: `https://tester.github.io/laundry-social-auto-poster/assets/${DATE}/slot-03.mp4`
+    } as unknown as ReturnType<typeof slotFixture>;
+    await seedDay(root, [slotFixture(1, "image", `排程Reel填充 ${DATE} 庚二`), reelSlot]);
+
+    const calls: CapturedCall[] = [];
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: fakeFetch(calls),
+      now: NOW_DAY_BEFORE
+    });
+
+    const reel = results.find((row) => row.slot === 3);
+    expect(reel?.action).toBe("skipped");
+    expect(reel?.reason).toContain("reel video not publishable");
+    // The 2026-08-25 first live run scheduled static images into two future
+    // Reel slots; no Facebook object may be created for a deferred reel.
+    const log = await loadScheduledLog(DATE, root);
+    expect(log.some((row) => row.slot === 3)).toBe(false);
+  });
+
   it("refuses a slot whose publish time is too close and one with no approval", async () => {
     await seedDay(root, [
       slotFixture(1, "image", `排程界線文案 ${DATE} 丁`),

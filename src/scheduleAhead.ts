@@ -189,7 +189,13 @@ export async function scheduleAheadFacebook(input: {
     // fallback the live path takes. A Reel slot with no publishable video is
     // NOT downgraded silently at schedule time: skip and leave it to the live
     // path, where heal/catch-up still have hours to repair it.
-    if (isReel && resolvedMedia.videoDeferred) {
+    //
+    // Judged on the CALENDAR's media_type, not resolvedMedia's: a deferred
+    // reel comes back from resolveSlotPublishMedia already downgraded to
+    // "image", so testing the resolved type let the first live run (8/25)
+    // queue static images into two future Reel slots -- exactly the silent
+    // downgrade this branch exists to refuse.
+    if (slot.media_type === "reel" && resolvedMedia.videoDeferred) {
       results.push({
         date: input.date,
         slot: slot.slot,

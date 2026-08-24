@@ -6,7 +6,7 @@ import { stampDailyContentWrite } from "../src/contentPlan";
 import { getConfig } from "../src/config";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "../src/postFacebook";
 import { postCurrentSlot } from "../src/postCurrentSlot";
-import { loadScheduledLog, scheduleAheadFacebook } from "../src/scheduleAhead";
+import { facebookScheduleKind, loadScheduledLog, scheduleAheadFacebook } from "../src/scheduleAhead";
 import { loadPostLog } from "../src/logging";
 import type { AppConfig, PostInput } from "../src/types";
 
@@ -172,6 +172,18 @@ describe("postFacebook scheduling parameters", () => {
     expect(finish?.body?.get("video_state")).toBe("SCHEDULED");
     expect(finish?.body?.get("scheduled_publish_time")).toBe("1790000000");
     expect(calls.some((call) => call.url.includes("fields=status"))).toBe(false);
+  });
+});
+
+describe("facebookScheduleKind live-path parity", () => {
+  it("queues a mixed-carousel with publishable video as a REEL, matching postCurrentSlot", () => {
+    // First live run (2026-08-25 01:30) queued a plain carousel for a
+    // mixed-carousel slot, silently dropping the owner-approved video.
+    expect(facebookScheduleKind("mixed-carousel")).toBe("reel");
+    expect(facebookScheduleKind("reel")).toBe("reel");
+    expect(facebookScheduleKind("carousel")).toBe("carousel");
+    expect(facebookScheduleKind("image")).toBe("image");
+    expect(facebookScheduleKind(undefined)).toBe("image");
   });
 });
 

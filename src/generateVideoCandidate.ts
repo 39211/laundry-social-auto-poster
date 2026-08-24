@@ -28,8 +28,10 @@ export interface VideoCandidateManifestItem extends VideoCandidatePlan {
   handoff_status: "generation_ready" | "blocked_unauthorized";
   asset_package: "four-images-plus-companion-video";
   image_count: 4;
-  raw_generation_seconds: 6;
-  final_master_seconds: 12;
+  // Follows the plan's duration_seconds: raw clip IS the master length now
+  // (10s floor per owner 2026-08-24); legacy 12s plans keep their number.
+  raw_generation_seconds: number;
+  final_master_seconds: number;
   final_master_resolution: "1080x1920";
   instagram_carousel_derivative_resolution: "1080x1350";
   generated_clip_audio_used: false;
@@ -97,8 +99,8 @@ export async function writeVideoCandidateManifest(date: string, root = projectRo
         handoff_status: authorization.authorized ? "generation_ready" : "blocked_unauthorized",
         asset_package: "four-images-plus-companion-video",
         image_count: slot.media_package?.image_count ?? 4,
-        raw_generation_seconds: 6,
-        final_master_seconds: 12,
+        raw_generation_seconds: slot.video_candidate.duration_seconds,
+        final_master_seconds: slot.video_candidate.duration_seconds,
         final_master_resolution: "1080x1920",
         instagram_carousel_derivative_resolution: "1080x1350",
         generated_clip_audio_used: false,

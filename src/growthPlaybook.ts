@@ -14,6 +14,7 @@ import {
   type SearchIntentCluster,
   type SearchIntentId
 } from "./searchVisibilityStrategy";
+import { buildChuanzhangMotionPrompt, CHUANZHANG_RAW_SECONDS } from "./chuanzhangPrompt";
 import { DAILY_SCHEDULE, findSlotByNumber } from "./scheduler";
 
 export type GrowthFormat = "image-post" | "reel" | "carousel-guide" | "poster" | "real-shop-photo";
@@ -210,6 +211,7 @@ function companionVideoCandidate(
             preserveEn:
               `Preserve exactly one ${isBedding ? "duvet cover" : isDoll ? "plush doll" : "garment"}, two complete bag handles with four attachment points`
           };
+    const pickupFirstFrame = `固定直式中近景；前景是完整${object}，中景是${isBedding ? "較寬但不過高" : "較矮小型"}藍色編織袋，背景保留暖色門燈與乾淨牆面形成景深；物件數量、袋體、提把與固定點完整，無人物頭部、無雨傘、無文字。`;
     return {
       status: "concept_ready",
       memory_hook: `${object}也可以送洗`,
@@ -217,12 +219,18 @@ function companionVideoCandidate(
       single_action: pickupAction.actionZh,
       payoff: "不用自己扛去門市，先拍照、分袋，再用 LINE 預約收送。",
       cta: "台中市全區免費收送；點個人檔案連結加 LINE 預約。",
-      duration_seconds: 12,
+      duration_seconds: CHUANZHANG_RAW_SECONDS,
       aspect_ratio: "9:16",
-      first_frame_direction:
-        `固定直式中近景；前景是完整${object}，中景是${isBedding ? "較寬但不過高" : "較矮小型"}藍色編織袋，背景保留暖色門燈與乾淨牆面形成景深；物件數量、袋體、提把與固定點完整，無人物頭部、無雨傘、無文字。`,
-      grok_motion_prompt:
-        `Create one continuous 6-second 9:16 photorealistic Taiwanese apartment-entryway shot about ${object}. Fixed medium-close camera with layered depth: ${pickupAction.sceneEn}, and a softly lit doorway in the background. One adult hand performs one dominant action only: ${pickupAction.actionEn}. The blue bag remains on the bench and deforms naturally. ${pickupAction.preserveEn}, five fingers, realistic contact shadows and material weight. No person head, no umbrella, no extra limbs, no duplicate object, no morphing, no floating, no wall or bag penetration, no text, no logo, no watermark. End on the completed action and hold for one second.`,
+      first_frame_direction: pickupFirstFrame,
+      grok_motion_prompt: buildChuanzhangMotionPrompt({
+        objectZh: object,
+        family: isShoe ? "shoe" : isBedding ? "bedding" : isBag ? "bag" : isDoll ? "doll" : "garment",
+        scene: "apartment-entryway",
+        firstFrameZh: pickupFirstFrame,
+        actionZh: pickupAction.actionZh,
+        endStateZh: "藍色編織袋留在原位、受力自然形變後靜止,",
+        extraWarningsZh: ["⚠️穿模:袋口開合要符合物理,物件放入或提把拉開時不得穿透袋壁。"]
+      }),
       fallback_media_type: "image"
     };
   }
@@ -269,6 +277,7 @@ function companionVideoCandidate(
               preserveEn: "Preserve exactly one garment, its sleeves, collar, seams and natural folds"
             };
 
+  const inspectionFirstFrame = `固定直式微距中近景；完整${object}位於乾淨檢查台前景，檢查燈與收納托盤形成中後景層次；只有一隻手停在既有可動位置，物件數量、材質、縫線與接觸陰影清楚，無文字。`;
   return {
     status: "concept_ready",
     memory_hook: `${object}也可以送洗`,
@@ -276,12 +285,18 @@ function companionVideoCandidate(
     single_action: inspectionAction.actionZh,
     payoff: "先看材質、位置與原始狀態，再決定怎麼處理。",
     cta: "拍全貌、局部與洗標，點個人檔案連結加 LINE 先詢問。",
-    duration_seconds: 12,
+    duration_seconds: CHUANZHANG_RAW_SECONDS,
     aspect_ratio: "9:16",
-    first_frame_direction:
-      `固定直式微距中近景；完整${object}位於乾淨檢查台前景，檢查燈與收納托盤形成中後景層次；只有一隻手停在既有可動位置，物件數量、材質、縫線與接觸陰影清楚，無文字。`,
-    grok_motion_prompt:
-      `Create one continuous 6-second 9:16 photorealistic Taiwanese laundry inspection-counter shot about ${object}. Fixed close camera with layered depth: ${inspectionAction.sceneEn}, a clean inspection tray in the midground, and one softly glowing practical lamp in the background. One adult hand performs one dominant action only: ${inspectionAction.actionEn}. ${inspectionAction.preserveEn}, five fingers, realistic weight and contact shadows. No cleaning transformation, no extra hands, no duplicate object, no morphing, no penetration, no readable text, no logo, no watermark. End on the revealed detail and hold for one second.`,
+    first_frame_direction: inspectionFirstFrame,
+    grok_motion_prompt: buildChuanzhangMotionPrompt({
+      objectZh: object,
+      family: isShoe ? "shoe" : isBedding ? "bedding" : isBag ? "bag" : isDoll ? "doll" : "garment",
+      scene: "inspection-counter",
+      firstFrameZh: inspectionFirstFrame,
+      actionZh: inspectionAction.actionZh,
+      endStateZh: "露出的細節正對鏡頭,不呈現任何清潔結果,",
+      extraWarningsZh: ["⚠️不變身:不得出現清潔轉變,物件狀態維持原樣,只改變角度或露出位置。"]
+    }),
     fallback_media_type: "image"
   };
 }

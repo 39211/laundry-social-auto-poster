@@ -89,7 +89,9 @@ describe("growth playbook", () => {
           included_in_kpi: false
         });
         expect(slot.video_candidate?.memory_hook.length).toBeGreaterThanOrEqual(6);
-        expect(slot.video_candidate?.duration_seconds).toBe(12);
+        // 10s floor since 2026-08-25 (owner: Reels at least 10 seconds);
+        // dated specials written earlier legitimately carry 12.
+        expect(slot.video_candidate?.duration_seconds).toBeGreaterThanOrEqual(10);
       }
     }
   });

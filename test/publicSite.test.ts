@@ -1449,12 +1449,14 @@ describe("generatePublicSite", () => {
       ...sitemap2.matchAll(/services\/[^<]+<\/loc><lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/gu)
     ].map((match) => match[1]);
     expect(serviceLastmodsWithDate.sort()).toEqual([
-      "2026-07-20",
       "2026-07-22",
       "2026-08-17",
       "2026-08-23",
       "2026-08-23",
-      "2026-08-23"
+      "2026-08-23",
+      // 2026-08-25: D03 — the Xitun local page gained 逢甲/route/pickup
+      // sections, so its content_lastmod moved off 2026-07-20.
+      "2026-08-25"
     ]);
   });
 

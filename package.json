@@ -29,6 +29,7 @@
     "auto-approve": "tsx src/autoApprove.ts",
     "post": "tsx src/postCurrentSlot.ts --all-due",
     "post-current-slot": "tsx src/postCurrentSlot.ts",
+    "schedule-ahead": "tsx src/scheduleAhead.ts",
     "check-publishing-sla": "tsx src/publishingSla.ts",
     "record-conversion": "tsx src/conversionFunnel.ts",
     "review-72h": "tsx src/review72Hours.ts",

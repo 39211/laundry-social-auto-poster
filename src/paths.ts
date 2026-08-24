@@ -100,6 +100,10 @@ export function postedLogPath(date: string, root = projectRoot()): string {
   return join(root, "data", "posted-log", `${date}.json`);
 }
 
+export function scheduledLogPath(date: string, root = projectRoot()): string {
+  return join(root, "data", "scheduled-log", `${date}.json`);
+}
+
 export function postedLogDirectory(root = projectRoot()): string {
   return join(root, "data", "posted-log");
 }

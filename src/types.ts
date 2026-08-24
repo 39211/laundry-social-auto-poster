@@ -267,6 +267,11 @@ export interface PostInput {
   imageUrls?: string[];
   mediaType?: MediaType;
   videoUrl?: string;
+  // Unix seconds. When set, Facebook publishers create a scheduled post
+  // (published=false / video_state=SCHEDULED) instead of going live now.
+  // Meta accepts 10 minutes to ~29 days out; Instagram has no API scheduling
+  // and ignores this field entirely.
+  scheduledPublishTime?: number;
 }
 
 export interface PostResult {

@@ -535,6 +535,14 @@ async function postOneSlot(
   // whole strategy lives on was never even attempted whenever Facebook had a
   // bad night. Every platform gets its attempt; the first failure is rethrown
   // afterwards so the run still reports failure and the catch-up retries.
+  // Facebook slots pre-scheduled into Meta's own queue (schedule-ahead mode)
+  // must not be published a second time here. Meta publishes the queued post
+  // at slot time server-side; this run records that fact so the sentinel and
+  // day-audit see the slot covered, then continues to Instagram, which has no
+  // API scheduling and still publishes live from this machine.
+  const { loadScheduledLog } = await import("./scheduleAhead");
+  const scheduledRows = await loadScheduledLog(date, root).catch(() => []);
+
   let firstFailure: unknown;
   for (const { platform, input } of platformInputs) {
     if (hasRecordedPost(existing, slot.slot, platform, config.dryRun)) {
@@ -548,6 +556,37 @@ async function postOneSlot(
         ...(abVariant ? { ab_variant: abVariant } : {}),
         created_at: new Date().toISOString()
       });
+      continue;
+    }
+
+    const scheduledRow =
+      platform === "facebook"
+        ? scheduledRows.find((row) => row.slot === slot.slot && row.platform === "facebook")
+        : undefined;
+    if (scheduledRow && !config.dryRun) {
+      const entry: PostLogEntry = {
+        date,
+        slot: slot.slot,
+        platform,
+        status: "success",
+        dry_run: false,
+        attempts: 0,
+        published_media_type: scheduledRow.published_media_type,
+        video_status:
+          scheduledRow.published_media_type === "reel"
+            ? "published"
+            : resolvedMedia.videoDeferred
+              ? "VIDEO_DEFERRED"
+              : "not_planned",
+        video_defer_kind: resolvedMedia.videoDeferred ? resolvedMedia.videoDeferKind : undefined,
+        video_deferred_reason: resolvedMedia.videoDeferred ? resolvedMedia.videoDeferredReason : undefined,
+        ...postedVideoShaFields(scheduledRow.video_sha256),
+        ...(abVariant ? { ab_variant: abVariant } : {}),
+        post_id: scheduledRow.scheduled_post_id,
+        created_at: new Date().toISOString()
+      };
+      await appendPostLog(entry, root);
+      outputs.push(entry);
       continue;
     }
 

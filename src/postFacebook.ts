@@ -84,13 +84,16 @@ export async function postFacebookPhoto(
   const body = new URLSearchParams({
     url: input.imageUrl,
     caption: input.caption,
-    published: "true",
+    published: input.scheduledPublishTime ? "false" : "true",
     access_token: config.metaAccessToken ?? ""
   });
+  if (input.scheduledPublishTime) {
+    body.set("scheduled_publish_time", String(input.scheduledPublishTime));
+  }
 
   const payload = await commitFacebookCall(
     () => fetchImpl(endpoint, { method: "POST", body }),
-    "Facebook photo publish"
+    input.scheduledPublishTime ? "Facebook photo schedule" : "Facebook photo publish"
   );
 
   return {
@@ -147,6 +150,10 @@ export async function postFacebookCarousel(
   photoIds.forEach((id, index) => {
     body.set(`attached_media[${index}]`, JSON.stringify({ media_fbid: id }));
   });
+  if (input.scheduledPublishTime) {
+    body.set("published", "false");
+    body.set("scheduled_publish_time", String(input.scheduledPublishTime));
+  }
   // The /feed POST is the carousel's commit point; the unpublished photo
   // uploads before it are safely retryable.
   const published = await commitFacebookCall(
@@ -154,7 +161,7 @@ export async function postFacebookCarousel(
       method: "POST",
       body
     }),
-    "Facebook carousel publish"
+    input.scheduledPublishTime ? "Facebook carousel schedule" : "Facebook carousel publish"
   );
 
   return {
@@ -213,23 +220,37 @@ export async function postFacebookReel(
   );
   if (uploaded.success !== true) throw new Error("Facebook Reel upload did not return success=true.");
 
+  const finishBody = new URLSearchParams({
+    access_token: config.metaAccessToken ?? "",
+    video_id: startedVideoId,
+    upload_phase: "finish",
+    video_state: input.scheduledPublishTime ? "SCHEDULED" : "PUBLISHED",
+    description: input.caption
+  });
+  if (input.scheduledPublishTime) {
+    finishBody.set("scheduled_publish_time", String(input.scheduledPublishTime));
+  }
   const finished = await commitFacebookCall(
-    () => fetchImpl(endpoint, {
-      method: "POST",
-      body: new URLSearchParams({
-        access_token: config.metaAccessToken ?? "",
-        video_id: startedVideoId,
-        upload_phase: "finish",
-        video_state: "PUBLISHED",
-        description: input.caption
-      })
-    }),
-    "Facebook Reel publish"
+    () => fetchImpl(endpoint, { method: "POST", body: finishBody }),
+    input.scheduledPublishTime ? "Facebook Reel schedule" : "Facebook Reel publish"
   );
   if (finished.success !== true) {
     throw new NonRetryableError(
       "Facebook Reel publish did not return success=true (commit point; the Reel may already be live. Not retrying.)"
     );
+  }
+
+  // A scheduled Reel is queued server-side, not live; the transcode-status
+  // polling below observes a live publish and reports "ready", which a
+  // SCHEDULED video never reaches before its publish time.
+  if (input.scheduledPublishTime) {
+    return {
+      platform: "facebook",
+      status: "success",
+      dry_run: false,
+      attempts: 1,
+      post_id: started.video_id
+    };
   }
 
   // The finish call above is the commit point: the Reel is live on the Page

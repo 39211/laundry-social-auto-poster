@@ -1615,8 +1615,8 @@ describe("generatePublicSite", () => {
     }
 
     expect(guideLinkFor("行李箱收進櫃子前，先看輪子")).toBe(
-      "https://39211.github.io/guides/bag-handle-cleaning.html"
+      "https://sixiangjialaundry.com/guides/bag-handle-cleaning.html"
     );
-    expect(guideLinkFor("行李輪子灰塵")).toBe("https://39211.github.io/guides/bag-handle-cleaning.html");
+    expect(guideLinkFor("行李輪子灰塵")).toBe("https://sixiangjialaundry.com/guides/bag-handle-cleaning.html");
   });
 });

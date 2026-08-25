@@ -56,6 +56,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "post-youtube": "tsx src/postYouTube.ts",
+    "schedule-youtube": "tsx src/postYouTube.ts --schedule-ahead",
     "youtube-auth": "tsx src/postYouTube.ts --auth",
     "heal-reel-slot": "tsx src/scheduleReel.ts --heal",
     "ab-plan": "tsx src/abTestPlan.ts",

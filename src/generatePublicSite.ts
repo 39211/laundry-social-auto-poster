@@ -157,6 +157,8 @@ interface ServicePageDefinition {
   }>;
   sections: Array<{ heading: string; body: string }>;
   inspection_table?: Array<{ item: string; focus: string; risk: string }>;
+  /** R2: optional two-column reference-price tables rendered as real <table>s. */
+  price_tables?: Array<{ heading: string; rows: Array<{ item: string; price: string }> }>;
   faqs: ServiceFaq[];
 }
 
@@ -305,6 +307,10 @@ const AI_CRAWLERS = [
 const PLATFORM_NAMES: Platform[] = ["facebook", "instagram"];
 const ANSWER_CONFIDENCE = "business-owned-source";
 const ANSWER_CITATION_GUIDANCE = "Use the answer as short factual context and cite source_url.";
+/** R2/R6: required caveat on every price-list block. Reference prices, not fixed quotes. */
+const PRICE_LIST_DISCLAIMER =
+  "水洗價，乾洗柔洗另計；發霉、特殊污漬與特殊材質另行報價，以實際檢視為準";
+const PRICE_LIST_SLUG = "taichung-laundry-price-list";
 const AI_DO_NOT_INFER_RULES = [
   "Do not infer pricing.",
   "Do not guarantee that white shoes can be fully whitened.",
@@ -1051,6 +1057,155 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       {
         question: "一定要到西屯門市嗎？",
         answer: "不一定。台中市內可約免費收送；若方便到店，門市在西屯區青海路二段365號（至善國中對面），營業時間 10:00–20:00、週日公休。"
+      }
+    ]
+  },
+  // R1: dedicated 價目表 service page for "多少錢" queries. Prices copied from
+  // src/contentPlan.ts PRICE_LINES (1446-1456); do not invent items or change digits.
+  {
+    slug: PRICE_LIST_SLUG,
+    name: "台中洗衣價目表",
+    local_query_name: "洗衣價目表",
+    title: "台中洗衣價目表｜台中洗鞋價格・洗包包多少錢｜西屯洗衣店價格｜私享家洗衣店",
+    description:
+      "台中洗衣價目表：洗鞋、洗包、洗衣與寢具水洗參考價一次列清。門市在西屯青海路二段365號，台中市全區免費到府收送，LINE 0968327653。",
+    h1: "台中洗衣價目表",
+    summary:
+      "台中洗衣洗鞋洗包參考價約 $70 到 $2500：襯衫 $70、一般運動鞋 $250、名牌包 $1500 起；皆為水洗參考價，不是固定價。",
+    keywords: [
+      "台中洗衣價目表",
+      "台中洗鞋價格",
+      "洗包包多少錢",
+      "西屯洗衣店價格",
+      "台中洗衣多少錢",
+      "台中洗鞋多少錢"
+    ],
+    image_hint: "價目表",
+    image_alt: "台中洗衣洗鞋洗包參考價目說明",
+    image_note: "本頁以文字價目表為主，不使用與價格無關的客戶物件照片。",
+    allow_image_fallback: false,
+    content_lastmod: "2026-08-26",
+    area_served_name: "台中市",
+    answer_summary:
+      "台中洗衣洗鞋洗包參考價約 $70 到 $2500：襯衫 $70、一般運動鞋 $250、名牌包 $1500 起；皆為水洗參考價，不是固定價。",
+    case_story: {
+      label: "先對照參考價，再依實際檢視",
+      situation:
+        "客人常先問台中洗衣、洗鞋、洗包多少錢，需要一頁把參考價一次列清楚，再決定要不要傳照片詢問。",
+      inspection:
+        "門市會先對照品項參考價，再看材質、污損程度，以及是否需要乾洗或柔洗。",
+      recommendation:
+        "先看本頁參考價，再用 LINE 傳照片確認；數字是參考價，以實際檢視為準。"
+    },
+    case_studies: [
+      {
+        label: "情境 01",
+        object: "一般運動鞋",
+        material: "網布或皮革感鞋面",
+        concern: "想先知道台中洗鞋大概多少錢",
+        inspection: "先對照鞋類參考價：一般運動鞋 $250、皮類運動鞋 $300（水洗價）。",
+        boundary: PRICE_LIST_DISCLAIMER
+      },
+      {
+        label: "情境 02",
+        object: "名牌包",
+        material: "依包身與配件判斷",
+        concern: "名牌包清洗多少錢",
+        inspection: "先對照包類參考價：名牌包 $1500 起、特殊類名牌包 $2500（水洗價）。",
+        boundary: PRICE_LIST_DISCLAIMER
+      },
+      {
+        label: "情境 03",
+        object: "襯衫與寢具",
+        material: "依洗標判斷",
+        concern: "洗衣與棉被參考價",
+        inspection: "先對照衣物寢具參考價：襯衫 $70、棉被單人 $350 / 雙人 $500（水洗價）。",
+        boundary: PRICE_LIST_DISCLAIMER
+      }
+    ],
+    sections: [
+      {
+        heading: "價格怎麼決定",
+        body:
+          "本頁列出的是水洗參考價，不是固定價。乾洗、柔洗會另計，同一品項若材質不同、污損較深，或已經發霉，處理工序就不一樣。鞋面、包身、衣物填充與髒污深度都會影響報價，所以要看過物件後才能定案。水洗價，乾洗柔洗另計；發霉、特殊污漬與特殊材質另行報價，以實際檢視為準。"
+      },
+      {
+        heading: "儲值優惠",
+        body: "儲值優惠：滿 1000 送 100、儲 3000 送 400、儲 6000 送 1000。"
+      },
+      {
+        heading: "免費收送範圍與怎麼預約",
+        body:
+          "台中市全區免費到府收送。先用 LINE 0968327653 傳整體與局部照片、說明所在區域與品項，門市回覆參考價與可收時段後再約定收件。收送本身不另外收費；清潔仍依參考價與實際檢視計算。"
+      },
+      {
+        heading: "門市地址與 LINE",
+        body:
+          "門市在台中市西屯區青海路二段365號（至善國中對面）。LINE 0968327653。也可到店詢問，或先傳照片再約台中市全區免費到府收送。"
+      }
+    ],
+    // R2②: three category tables. Item names and price strings copied verbatim.
+    price_tables: [
+      {
+        heading: "鞋類",
+        rows: [
+          { item: "一般運動鞋", price: "$250(水洗價)" },
+          { item: "皮類運動鞋", price: "$300(水洗價)" },
+          { item: "休閒鞋", price: "$350(水洗價)" },
+          { item: "麂皮鞋", price: "$400(水洗價)" },
+          { item: "皮鞋", price: "$400(水洗價)" },
+          { item: "低靴", price: "$350(水洗價)" },
+          { item: "高靴", price: "$550(水洗價)" }
+        ]
+      },
+      {
+        heading: "包類",
+        rows: [
+          { item: "背包清洗", price: "$500(水洗價)" },
+          { item: "一般包", price: "$600(水洗價)" },
+          { item: "皮包", price: "$1000(水洗價)" },
+          { item: "名牌包", price: "$1500 起(水洗價)" },
+          { item: "特殊類名牌包", price: "$2500(水洗價)" }
+        ]
+      },
+      {
+        heading: "衣物寢具",
+        rows: [
+          { item: "襯衫", price: "$70(水洗價)" },
+          { item: "整燙", price: "$50" },
+          { item: "長褲", price: "$70 / 短褲 $60(水洗價)" },
+          { item: "西裝背心", price: "$80(水洗價)" },
+          { item: "長大衣", price: "$300(水洗價，乾洗另計)" },
+          { item: "羽絨外套", price: "$280(水洗價)" },
+          { item: "皮衣", price: "$1200 / 特殊皮衣 $2000(發霉另計)" },
+          { item: "棉被單人", price: "$350 / 雙人 $500(水洗價)" },
+          { item: "床組四件套", price: "$300(水洗價)" },
+          { item: "羽絨羊毛被", price: "$800(水洗價)" },
+          { item: "窗簾、地毯", price: "依尺寸報價，LINE 傳照片先估" },
+          { item: "絨毛娃娃", price: "依大小報價，LINE 傳照片先估" }
+        ]
+      }
+    ],
+    faqs: [
+      {
+        question: "台中洗鞋大概多少錢?",
+        answer:
+          "台中洗鞋參考價：一般運動鞋 $250、皮類運動鞋 $300、休閒鞋 $350、麂皮鞋與皮鞋 $400、低靴 $350、高靴 $550（水洗價）。水洗價，乾洗柔洗另計；發霉、特殊污漬與特殊材質另行報價，以實際檢視為準。"
+      },
+      {
+        question: "名牌包清洗多少錢?",
+        answer:
+          "名牌包清洗參考價 $1500 起、特殊類名牌包 $2500（水洗價）；一般包 $600、皮包 $1000、背包清洗 $500。水洗價，乾洗柔洗另計；發霉、特殊污漬與特殊材質另行報價，以實際檢視為準。"
+      },
+      {
+        question: "洗衣有到府收送嗎?要多少錢?",
+        answer:
+          "台中市全區免費到府收送。收送本身不另外收費；清潔仍依參考價與實際檢視計算。請用 LINE 0968327653 傳照片預約。"
+      },
+      {
+        question: "乾洗跟水洗價格差在哪?",
+        answer:
+          "本頁列出的是水洗參考價；乾洗、柔洗另計，不會用同一組數字。材質、污損程度與是否發霉都會影響報價，以實際檢視為準。"
       }
     ]
   }
@@ -3138,6 +3293,13 @@ function supportPageImageAlt(page: SupportPageDefinition, image: PublicImageRefe
 function buildServicePageSchema(service: ServicePageDefinition, index: PublicPostIndex): object | undefined {
   const businessNode = buildBusinessSchemaNode(index);
   if (!businessNode) return undefined;
+  // Every page embeds the same #business node. Stripping hasOfferCatalog from
+  // one page would publish two contradictory property sets under one @id, which
+  // is worse for a consumer merging the graph than the markup it removes — and
+  // a service catalogue is the one thing a price page should carry. What must
+  // never appear is Product or AggregateRating: we sell a service, and we have
+  // no ratings data of our own to state.
+  const schemaBusinessNode = { ...businessNode };
 
   const canonical = servicePageUrl(service, index);
   const image = findServiceImage(service, index);
@@ -3145,7 +3307,7 @@ function buildServicePageSchema(service: ServicePageDefinition, index: PublicPos
   return {
     "@context": "https://schema.org",
     "@graph": [
-      businessNode,
+      schemaBusinessNode,
       buildWebsiteSchemaNode(index),
       {
         "@type": "WebPage",
@@ -3451,6 +3613,7 @@ function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: st
   const whiteShoeCleaning = findServiceBySlug("white-shoe-cleaning");
   const fabricStorage = findServiceBySlug("fabric-storage");
   const taichungXitunLaundry = findServiceBySlug("taichung-xitun-laundry");
+  const priceList = findServiceBySlug(PRICE_LIST_SLUG);
   const photoBeforeLaundry = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "photo-before-laundry");
   const serviceSearchGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "taichung-laundry-service-search");
   const plushDollGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "plush-doll-cleaning");
@@ -3459,6 +3622,7 @@ function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: st
   return [
     { label: "Business profile", url: index.entrypoints.business_profile },
     ...(taichungXitunLaundry ? [{ label: "Local laundry service", url: servicePageUrl(taichungXitunLaundry, index) }] : []),
+    ...(priceList ? [{ label: "Taichung laundry price list", url: servicePageUrl(priceList, index) }] : []),
     ...(shoeBagCare ? [{ label: "Shoe and bag care", url: servicePageUrl(shoeBagCare, index) }] : []),
     ...(whiteShoeCleaning ? [{ label: "White shoe cleaning", url: servicePageUrl(whiteShoeCleaning, index) }] : []),
     ...(fabricStorage ? [{ label: "Fabric storage", url: servicePageUrl(fabricStorage, index) }] : []),
@@ -3853,6 +4017,7 @@ function serviceToPublicRecord(service: ServicePageDefinition, index: PublicPost
     case_story: service.case_story,
     case_studies: service.case_studies,
     sections: service.sections,
+    ...(service.price_tables ? { price_tables: service.price_tables } : {}),
     faqs: service.faqs,
     related_support_pages: SUPPORT_PAGE_DEFINITIONS.filter((page) => page.service_slug === service.slug).map((page) => ({
       slug: page.slug,
@@ -3901,6 +4066,9 @@ function serviceAnswerQuestion(service: ServicePageDefinition): string {
   if (service.slug === "business-bulk-laundry") {
     return "台中店家或公司有大量衣物可以預約收送嗎？";
   }
+  if (service.slug === PRICE_LIST_SLUG) {
+    return "台中洗衣洗鞋洗包多少錢？";
+  }
   return `台中西屯${serviceLocalQueryName(service)}要怎麼判斷？`;
 }
 
@@ -3910,6 +4078,9 @@ function serviceLocalIntent(service: ServicePageDefinition): string {
   }
   if (service.slug === "business-bulk-laundry") {
     return "台中市 店家 公司 大量衣物 送洗 收送";
+  }
+  if (service.slug === PRICE_LIST_SLUG) {
+    return "台中 洗衣 洗鞋 洗包 價格 多少錢";
   }
   return `台中西屯 ${serviceLocalQueryName(service)}`;
 }
@@ -5815,6 +5986,11 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
     service.slug === "shoe-bag-care"
       ? SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "qinghai-road-shoe-cleaning")
       : undefined;
+  // R4: body interlink (nav already lists every service) only on the two named pages.
+  const priceListPage = findServiceBySlug(PRICE_LIST_SLUG);
+  const showPriceListInterlink =
+    Boolean(priceListPage) &&
+    (service.slug === "shoe-bag-care" || service.slug === "taichung-xitun-laundry");
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const businessProfileHref = index.base_url_configured ? index.entrypoints.business_profile : "../business-profile.json";
   const description = escapeHtml(service.description);
@@ -5865,9 +6041,75 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
         </div>
       </section>`
       : "";
+  const priceTableIdByHeading: Record<string, string> = {
+    鞋類: "shoes",
+    包類: "bags",
+    衣物寢具: "clothing"
+  };
+  const hasPriceTables = Boolean(service.price_tables && service.price_tables.length > 0);
+  // R2②: three <table>s immediately after the opening answer; not lists.
+  const priceTablesSection =
+    hasPriceTables && service.price_tables
+      ? `<section class="product-band" id="price-list">
+        <div class="section-inner">
+          <div class="section-header">
+            <p class="eyebrow">Reference prices</p>
+            <h2>分類參考價目表</h2>
+            <p class="section-copy">${escapeHtml(PRICE_LIST_DISCLAIMER)}</p>
+          </div>
+          ${service.price_tables
+            .map((table) => {
+              const tableId = priceTableIdByHeading[table.heading] ?? table.heading;
+              return `<h3>${escapeHtml(table.heading)}</h3>
+          <p class="section-copy">${escapeHtml(PRICE_LIST_DISCLAIMER)}</p>
+          <div class="table-wrap">
+            <table class="comparison-table" id="price-table-${escapeHtml(tableId)}">
+              <caption>${escapeHtml(table.heading)}參考價</caption>
+              <thead>
+                <tr>
+                  <th>項目</th>
+                  <th>參考價</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${table.rows
+                  .map(
+                    (row) => `<tr>
+                  <td>${escapeHtml(row.item)}</td>
+                  <td>${escapeHtml(row.price)}</td>
+                </tr>`
+                  )
+                  .join("\n")}
+              </tbody>
+            </table>
+          </div>`;
+            })
+            .join("\n")}
+        </div>
+      </section>`
+      : "";
+  const caseStorySection = hasPriceTables
+    ? ""
+    : `<section class="product-band story-band">
+        <div class="section-inner">
+          <div class="section-header">
+            <p class="eyebrow">門市判斷情境</p>
+            <h2>${escapeHtml(service.case_story.label)}</h2>
+            <p>以下為常見送件情境與處理界線，用於協助送洗前判斷；不是特定客戶成果，也不代表效果保證。</p>
+          </div>
+          <p class="lead">${escapeHtml(service.case_story.situation)}</p>
+          <div class="case-grid">${caseStudies}</div>
+        </div>
+      </section>`;
   const directlyRelatedGuides = SUPPORT_PAGE_DEFINITIONS.filter((page) => page.service_slug === service.slug);
   const generalPhotoGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "photo-before-laundry");
-  const relatedGuides = directlyRelatedGuides.length > 0 ? directlyRelatedGuides : generalPhotoGuide ? [generalPhotoGuide] : [];
+  const relatedGuides = hasPriceTables
+    ? []
+    : directlyRelatedGuides.length > 0
+      ? directlyRelatedGuides
+      : generalPhotoGuide
+        ? [generalPhotoGuide]
+        : [];
   const relatedGuidesSection =
     relatedGuides.length > 0
       ? `<section class="product-band surface">
@@ -5964,6 +6206,13 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
                 )}">逢甲洗鞋與西屯洗鞋的門市位置、案例界線與收送方式</a>，再決定到店或約收送。</p>`
               : ""
           }
+          ${
+            showPriceListInterlink && priceListPage
+              ? `<p class="section-copy">查台中洗衣、洗鞋、洗包多少錢，可先看<a href="${escapeHtml(
+                  servicePageUrl(priceListPage, index)
+                )}">台中洗衣價目表</a>；頁上是參考價，實際以檢視為準。</p>`
+              : ""
+          }
         </div>
         ${
           image
@@ -5981,17 +6230,8 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
             : ""
         }
       </section>
-      <section class="product-band story-band">
-        <div class="section-inner">
-          <div class="section-header">
-            <p class="eyebrow">門市判斷情境</p>
-            <h2>${escapeHtml(service.case_story.label)}</h2>
-            <p>以下為常見送件情境與處理界線，用於協助送洗前判斷；不是特定客戶成果，也不代表效果保證。</p>
-          </div>
-          <p class="lead">${escapeHtml(service.case_story.situation)}</p>
-          <div class="case-grid">${caseStudies}</div>
-        </div>
-      </section>
+      ${priceTablesSection}
+      ${caseStorySection}
       <section class="product-band surface">
         <div class="section-inner two-col">
           <div>

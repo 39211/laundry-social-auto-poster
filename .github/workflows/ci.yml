@@ -28,7 +28,25 @@ jobs:
       # publishGuards.test.ts cases actually mean to exercise.
       PUBLIC_IMAGE_BASE_URL: "https://example.invalid"
     steps:
+      # filter + sparse-checkout: the packed repo exceeds 3 GiB and the full
+      # working tree carries ~1 GB of published media under docs/. On
+      # 2026-08-25 four consecutive windows runners sat 6-26+ minutes inside
+      # the default checkout (git fetch has no timeout, so a stalled pack
+      # stream wedges the job). The suite never reads repo-root docs/ -- every
+      # docs/assets string in tests points into its own temp root -- so CI
+      # fetches only the code and data trees. If a future test genuinely needs
+      # another top-level directory, add it to this list; the failure mode is
+      # a visible missing-file red, never a silent pass.
       - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            src
+            test
+            scripts
+            config
+            data
+            docs-internal
 
       - uses: actions/setup-node@v4
         with:

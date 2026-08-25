@@ -138,6 +138,88 @@ function jsonLdGraphs(html: string): Array<Record<string, unknown>> {
   });
 }
 
+/** Canonical copy of contentPlan.ts PRICE_LINES / the SXJ-PRICE-PAGE contract. Independent of the generator. */
+const CANONICAL_PRICE_TABLES = [
+  {
+    heading: "鞋類",
+    id: "price-table-shoes",
+    rows: [
+      ["一般運動鞋", "$250(水洗價)"],
+      ["皮類運動鞋", "$300(水洗價)"],
+      ["休閒鞋", "$350(水洗價)"],
+      ["麂皮鞋", "$400(水洗價)"],
+      ["皮鞋", "$400(水洗價)"],
+      ["低靴", "$350(水洗價)"],
+      ["高靴", "$550(水洗價)"]
+    ]
+  },
+  {
+    heading: "包類",
+    id: "price-table-bags",
+    rows: [
+      ["背包清洗", "$500(水洗價)"],
+      ["一般包", "$600(水洗價)"],
+      ["皮包", "$1000(水洗價)"],
+      ["名牌包", "$1500 起(水洗價)"],
+      ["特殊類名牌包", "$2500(水洗價)"]
+    ]
+  },
+  {
+    heading: "衣物寢具",
+    id: "price-table-clothing",
+    rows: [
+      ["襯衫", "$70(水洗價)"],
+      ["整燙", "$50"],
+      ["長褲", "$70 / 短褲 $60(水洗價)"],
+      ["西裝背心", "$80(水洗價)"],
+      ["長大衣", "$300(水洗價，乾洗另計)"],
+      ["羽絨外套", "$280(水洗價)"],
+      ["皮衣", "$1200 / 特殊皮衣 $2000(發霉另計)"],
+      ["棉被單人", "$350 / 雙人 $500(水洗價)"],
+      ["床組四件套", "$300(水洗價)"],
+      ["羽絨羊毛被", "$800(水洗價)"],
+      ["窗簾、地毯", "依尺寸報價，LINE 傳照片先估"],
+      ["絨毛娃娃", "依大小報價，LINE 傳照片先估"]
+    ]
+  }
+] as const;
+
+const PRICE_LIST_DISCLAIMER =
+  "水洗價，乾洗柔洗另計；發霉、特殊污漬與特殊材質另行報價，以實際檢視為準";
+
+function tableRows(html: string, tableId: string): Array<[string, string]> {
+  const tableMatch = html.match(new RegExp(`<table class="comparison-table" id="${tableId}">([\\s\\S]*?)</table>`, "u"));
+  if (!tableMatch) return [];
+  return [...(tableMatch[1] ?? "").matchAll(/<tr>\s*<td>([\s\S]*?)<\/td>\s*<td>([\s\S]*?)<\/td>\s*<\/tr>/gu)].map(
+    (match) => [(match[1] ?? "").replace(/<[^>]+>/g, "").trim(), (match[2] ?? "").replace(/<[^>]+>/g, "").trim()]
+  );
+}
+
+function jsonLdTypes(html: string): string[] {
+  const types: string[] = [];
+  const walk = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    const record = value as Record<string, unknown>;
+    const type = record["@type"];
+    if (typeof type === "string") types.push(type);
+    else if (Array.isArray(type)) types.push(...type.filter((item): item is string => typeof item === "string"));
+    Object.values(record).forEach(walk);
+  };
+  jsonLdGraphs(html).forEach(walk);
+  return types;
+}
+
+function visiblePageText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ");
+}
+
 function firstAnswerParagraph(answer: string): string {
   return (answer.split(/\n+/)[0] ?? "").trim();
 }
@@ -230,7 +312,9 @@ describe("generatePublicSite", () => {
       "business-bulk-laundry":
         "https://example.com/laundry-social-auto-poster/services/business-bulk-laundry.html",
       "taichung-citywide-laundry-pickup":
-        "https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html"
+        "https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html",
+      "taichung-laundry-price-list":
+        "https://example.com/laundry-social-auto-poster/services/taichung-laundry-price-list.html"
     });
     expect(index.entrypoints.knowledge_graph).toBe("https://example.com/laundry-social-auto-poster/knowledge-graph.json");
     expect(index.entrypoints.well_known_ai).toBe("https://example.com/laundry-social-auto-poster/.well-known/ai.json");
@@ -309,7 +393,7 @@ describe("generatePublicSite", () => {
       (item: { "@type"?: string }) => item["@type"] === "DryCleaningOrLaundry"
     );
     expect(knowledgeBusiness["@context"]).toBeUndefined();
-    expect(services.services).toHaveLength(6);
+    expect(services.services).toHaveLength(7);
     expect(services.services[2]).toMatchObject({
       slug: "fabric-storage",
       image_url: "https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-hero-product.png",
@@ -431,7 +515,7 @@ describe("generatePublicSite", () => {
     expect(discovery.capabilities.supports_full_context).toBe(true);
     expect(discovery.capabilities.supports_search_intent_clusters).toBe(true);
     expect(discovery.capabilities.supports_28_day_ai_visibility_review).toBe(true);
-    expect(discovery.service_pages).toHaveLength(6);
+    expect(discovery.service_pages).toHaveLength(7);
     expect(discovery.service_pages[0]).toMatchObject({
       slug: "shoe-bag-care",
       name: "鞋包清潔",
@@ -1456,7 +1540,8 @@ describe("generatePublicSite", () => {
       "2026-08-23",
       // 2026-08-25: D03 — the Xitun local page gained 逢甲/route/pickup
       // sections, so its content_lastmod moved off 2026-07-20.
-      "2026-08-25"
+      "2026-08-25",
+      "2026-08-26"
     ]);
   });
 
@@ -1618,5 +1703,156 @@ describe("generatePublicSite", () => {
       "https://sixiangjialaundry.com/guides/bag-handle-cleaning.html"
     );
     expect(guideLinkFor("行李輪子灰塵")).toBe("https://sixiangjialaundry.com/guides/bag-handle-cleaning.html");
+  });
+
+  it("publishes the Taichung laundry price list page with canonical reference prices", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-price-list-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now: "2026-08-26T01:00:00.000Z"
+    });
+
+    const pagePath = "services/taichung-laundry-price-list.html";
+    const html = await readFile(join(root, "docs", pagePath), "utf8");
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const llms = await readFile(join(root, "docs", "llms.txt"), "utf8");
+    const aiSitemap = await readFile(join(root, "docs", "ai-sitemap.xml"), "utf8");
+    const answers = JSON.parse(await readFile(join(root, "docs", "answers.json"), "utf8")) as {
+      answers: Array<{ question: string; answer: string; source_url: string }>;
+    };
+    const shoeBagCareHtml = await readFile(join(root, "docs", "services", "shoe-bag-care.html"), "utf8");
+    const xitunHtml = await readFile(join(root, "docs", "services", "taichung-xitun-laundry.html"), "utf8");
+    const whiteShoeHtml = await readFile(join(root, "docs", "services", "white-shoe-cleaning.html"), "utf8");
+
+    // R6① path + title target words
+    expect(html).toContain("<title>台中洗衣價目表｜台中洗鞋價格・洗包包多少錢｜西屯洗衣店價格｜私享家洗衣店</title>");
+    expect(html).toContain("<h1>台中洗衣價目表</h1>");
+    expect(html).toContain("台中洗鞋價格");
+    expect(html).toContain("洗包包多少錢");
+    expect(html).toContain("西屯洗衣店價格");
+
+    // R2① first 60 chars of the opening answer carry a numeric range
+    const lead = (html.match(/<p class="lead">([\s\S]*?)<\/p>/u)?.[1] ?? "").replace(/<[^>]+>/g, "").trim();
+    const answerBox = (html.match(/<div class="answer-box">\s*<p>([\s\S]*?)<\/p>/u)?.[1] ?? "")
+      .replace(/<[^>]+>/g, "")
+      .trim();
+    expect(lead.slice(0, 60)).toMatch(/\$70/);
+    expect(lead.slice(0, 60)).toMatch(/\$2500/);
+    expect(answerBox.slice(0, 60)).toMatch(/\$70/);
+    expect(answerBox.slice(0, 60)).toMatch(/\$2500/);
+    expect(lead).toContain("參考價");
+    expect(lead).toContain("不是固定價");
+
+    // R6② three real tables, every canonical row — not a sample
+    expect(html).toContain("<table");
+    expect(html).not.toMatch(/<ul[\s\S]*id="price-table-/u);
+    for (const table of CANONICAL_PRICE_TABLES) {
+      expect(html, table.id).toContain(`id="${table.id}"`);
+      expect(html, table.heading).toContain(`<h3>${table.heading}</h3>`);
+      const rows = tableRows(html, table.id);
+      expect(rows, table.id).toEqual(table.rows.map((row) => [row[0], row[1]]));
+    }
+
+    // The tables above are pinned row by row, but the prose is where a wrong
+    // price actually ships: changing 名牌包 $1500 起 to $1400 in the opening
+    // answer left every assertion green when this was first written. Every
+    // amount anywhere in the visible copy — lead, answer box, FAQ answers,
+    // storage-credit lines — must be a figure the canon actually contains.
+    const canonicalAmounts = new Set<string>([
+      ...CANONICAL_PRICE_TABLES.flatMap((table) =>
+        table.rows.flatMap((row) => row[1]!.match(/\$\d+/gu) ?? [])
+      ),
+      // Storage-credit figures are written as bare numerals, not $ amounts, so
+      // they never reach this scan; the exact strings are asserted below.
+      "$70",
+      "$2500"
+    ]);
+    const pageAmounts = new Set(visiblePageText(html).match(/\$\d+/gu) ?? []);
+    expect(pageAmounts.size).toBeGreaterThan(5);
+    for (const amount of pageAmounts) {
+      expect(canonicalAmounts, `${amount} is not a canonical price`).toContain(amount);
+    }
+
+    // R2 order of required blocks
+    const requiredOrder = [
+      "id=\"price-list\"",
+      "<h3>價格怎麼決定</h3>",
+      "<h3>儲值優惠</h3>",
+      "<h3>免費收送範圍與怎麼預約</h3>",
+      "<h3>門市地址與 LINE</h3>",
+      "<h2>常見問題</h2>"
+    ];
+    let lastIndex = -1;
+    for (const heading of requiredOrder) {
+      const index = html.indexOf(heading);
+      expect(index, heading).toBeGreaterThan(lastIndex);
+      lastIndex = index;
+    }
+    expect(html).toContain("滿 1000 送 100");
+    expect(html).toContain("儲 3000 送 400");
+    expect(html).toContain("儲 6000 送 1000");
+    expect(html).toContain("台中市全區免費到府收送");
+    expect(html).toContain("台中市西屯區青海路二段365號");
+    expect(html).toContain("至善國中對面");
+    expect(html).toContain("0968327653");
+
+    // R6⑤ disclaimer on each price block
+    expect(html.split(PRICE_LIST_DISCLAIMER).length).toBeGreaterThan(3);
+
+    // R6③ FAQPage JSON-LD matches visible FAQ text
+    const graph = jsonLdGraphs(html);
+    const faqNode = graph.find((node) => node["@type"] === "FAQPage") as
+      | { mainEntity?: Array<{ name?: string; acceptedAnswer?: { text?: string } }> }
+      | undefined;
+    const faqs = faqNode?.mainEntity ?? [];
+    expect(faqs.length).toBeGreaterThanOrEqual(4);
+    expect(graph.some((node) => node["@type"] === "BreadcrumbList")).toBe(true);
+    for (const faq of faqs) {
+      expect(html, faq.name).toContain(`<h3>${faq.name ?? ""}</h3>`);
+      expect(html, faq.acceptedAnswer?.text).toContain(`<p>${faq.acceptedAnswer?.text ?? ""}</p>`);
+    }
+    expect(faqs.map((faq) => faq.name)).toEqual(
+      expect.arrayContaining([
+        "台中洗鞋大概多少錢?",
+        "名牌包清洗多少錢?",
+        "洗衣有到府收送嗎?要多少錢?",
+        "乾洗跟水洗價格差在哪?"
+      ])
+    );
+
+    // We sell a service and have no ratings data of our own, so Product and
+    // AggregateRating must never appear. The shared #business node's service
+    // catalogue (Offer) stays: it is on every other page under the same @id,
+    // and publishing two different property sets for one entity is the worse
+    // failure. A price page is also exactly where a service catalogue belongs.
+    const types = jsonLdTypes(html);
+    expect(types).not.toContain("Product");
+    expect(types).not.toContain("AggregateRating");
+    expect(html).not.toContain('"@type":"Product"');
+    expect(html).not.toContain('"@type":"AggregateRating"');
+    expect(types).toContain("OfferCatalog");
+
+    // R7 claim gate on visible copy
+    const visible = visiblePageText(html);
+    for (const banned of ["100%", "永久", "完全去除", "恢復全新", "一定洗白", "保證"]) {
+      expect(visible, banned).not.toContain(banned);
+    }
+
+    // R6⑥ sitemap + existing AI surfaces
+    expect(sitemap).toContain(`<loc>${baseUrl}/${pagePath}</loc>`);
+    expect(aiSitemap).toContain("<!-- service-page-taichung-laundry-price-list -->");
+    expect(llms).toContain(`[台中洗衣價目表](${baseUrl}/${pagePath})`);
+    expect(answers.answers.some((item) => item.source_url.endsWith(`/${pagePath}`))).toBe(true);
+
+    // R4 body interlinks (nav is stripped)
+    expect(thematicAnchorsTo(shoeBagCareHtml, "taichung-laundry-price-list.html").length).toBeGreaterThanOrEqual(1);
+    expect(thematicAnchorsTo(xitunHtml, "taichung-laundry-price-list.html").length).toBeGreaterThanOrEqual(1);
+    expect(thematicAnchorsTo(whiteShoeHtml, "taichung-laundry-price-list.html")).toEqual([]);
   });
 });

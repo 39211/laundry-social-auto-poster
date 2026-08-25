@@ -39,6 +39,9 @@ function makeGitRepo(): { root: string; origin: string } {
 describe("publishPagesAssets", () => {
   const gitIt = gitAvailable ? it : it.skip;
 
+  // 60s budget: this drives real git including the root-Pages mirror clone,
+  // which took 24.5s against vitest's 15s default on a cold-disk CI runner
+  // (2026-08-25) while passing everywhere else.
   gitIt("does not commit .env when publishing Pages assets", () => {
     const { root } = makeGitRepo();
     const date = "2026-05-15";
@@ -76,7 +79,7 @@ describe("publishPagesAssets", () => {
     expect(tree).toContain("docs/local/qinghai-road-shoe-cleaning.html");
     expect(tree).toContain("docs/social-posts.json");
     expect(tree).not.toContain(".env");
-  }, 15000);
+  }, 60000);
 
   gitIt("mirrors docs contents to a root Pages repository", () => {
     const { root } = makeGitRepo();

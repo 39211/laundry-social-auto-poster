@@ -8,6 +8,7 @@
     "generate-context": "tsx src/generateDailyContext.ts",
     "generate": "tsx src/generateDailyContent.ts",
     "generate-image-manifest": "tsx src/generateImage.ts",
+    "slot-image-plan": "tsx src/slotImagePlan.ts",
     "generate-video-manifest": "tsx src/generateVideo.ts",
     "generate-video-candidate-manifest": "tsx src/generateVideoCandidate.ts",
     "review-video-scripts": "tsx src/videoScriptQuality.ts",

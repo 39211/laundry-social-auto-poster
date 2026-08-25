@@ -1,13 +1,22 @@
+import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
-import { loadDailyContent, loadPostLog, readJsonFile, writeJsonAtomic } from "./logging";
+import {
+  hasPublishableApproval,
+  loadApprovalLog,
+  loadDailyContent,
+  loadPostLog,
+  readJsonFile,
+  writeJsonAtomic
+} from "./logging";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 import { utmCampaign, utmTagged } from "./utm";
+import { assertVideoReviewApproved } from "./videoReviewGate";
 
 // Uploads the day's published Reel to YouTube as a Short. The owner asked for
 // every Reel to reach YouTube as well; FB/IG stay the primary chain and this
@@ -31,6 +40,10 @@ interface YouTubeLogEntry {
   uploaded_at: string;
   /** Present only on dual-Reel A/B days that have an ab-test-plan entry. */
   ab_variant?: AbVariant;
+  /** P4: RFC3339 UTC publishAt used when this Short was queued private. */
+  scheduled_publish_at?: string;
+  /** P4: "scheduled" on the ahead path so the live uploader treats it as already sent. */
+  video_status?: "scheduled";
 }
 
 function credentials(): { clientId: string; clientSecret: string; refreshToken: string } | undefined {
@@ -59,6 +72,54 @@ async function accessToken(fetchImpl: typeof fetch = fetch): Promise<string> {
     throw new Error(`YouTube token refresh failed: ${payload.error_description ?? response.status}`);
   }
   return payload.access_token;
+}
+
+async function postShortMultipart(
+  metadata: {
+    snippet: { title: string; description: string; categoryId: string; defaultLanguage: string };
+    status: Record<string, unknown>;
+  },
+  video: Buffer,
+  fetchImpl: typeof fetch
+): Promise<string> {
+  const boundary = `sixiangjia-${Date.now()}`;
+  const head = Buffer.from(
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+      `--${boundary}\r\nContent-Type: video/mp4\r\n\r\n`,
+    "utf8"
+  );
+  const tail = Buffer.from(`\r\n--${boundary}--`, "utf8");
+  const body = Buffer.concat([head, video, tail]);
+
+  const token = await accessToken(fetchImpl);
+  const response = await fetchImpl(UPLOAD_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": `multipart/related; boundary=${boundary}`,
+      "Content-Length": String(body.length)
+    },
+    body
+  });
+  const payload = (await response.json()) as { id?: string; error?: { message?: string } };
+  if (!response.ok || !payload.id) {
+    throw new Error(`YouTube upload failed: ${payload.error?.message ?? response.status}`);
+  }
+  return payload.id;
+}
+
+// R5 / scheduleAhead.ts slotPublishUnixTime: interpret wall-clock as Taipei
+// (+08:00), never the host timezone. This machine's bash TZ falls back to GMT.
+function taipeiSlotUnix(date: string, time: string, timezoneOffset = "+08:00"): number {
+  return Math.floor(new Date(`${date}T${time}:00${timezoneOffset}`).getTime() / 1000);
+}
+
+function rfc3339Utc(unixSeconds: number): string {
+  return new Date(unixSeconds * 1000).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+function skipped(reason: string): { status: "skipped"; reason: string } {
+  return { status: "skipped", reason };
 }
 
 /** Title and description come from the day's own copy, not a new voice. */
@@ -95,7 +156,9 @@ export function buildShortMetadata(input: { topic: string; caption: string; date
   return { title, description };
 }
 
-const SITE = "https://39211.github.io";
+// R8: custom domain is the canonical host; the github.io origin 301s but drops
+// a hop that some AI crawlers will not follow, including UTM query strings.
+const SITE = "https://sixiangjialaundry.com";
 
 /** Public price for the topic's object family; empty when it is ambiguous. */
 function priceLineFor(topic: string): string {
@@ -196,41 +259,153 @@ export async function uploadShort(input: {
     }
   };
 
-  const boundary = `sixiangjia-${Date.now()}`;
-  const head = Buffer.from(
-    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
-      `--${boundary}\r\nContent-Type: video/mp4\r\n\r\n`,
-    "utf8"
-  );
-  const tail = Buffer.from(`\r\n--${boundary}--`, "utf8");
-  const body = Buffer.concat([head, video, tail]);
-
-  const token = await accessToken(fetchImpl);
-  const response = await fetchImpl(UPLOAD_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": `multipart/related; boundary=${boundary}`,
-      "Content-Length": String(body.length)
-    },
-    body
-  });
-  const payload = (await response.json()) as { id?: string; error?: { message?: string } };
-  if (!response.ok || !payload.id) {
-    throw new Error(`YouTube upload failed: ${payload.error?.message ?? response.status}`);
-  }
+  const videoId = await postShortMultipart(metadata, video, fetchImpl);
 
   const abVariant = planSlot(planForDate(await loadAbTestPlan(root), input.date), slotNumber)?.variant;
   const entry: YouTubeLogEntry = {
     date: input.date,
     slot: slotNumber,
-    video_id: payload.id,
+    video_id: videoId,
     title,
     uploaded_at: new Date().toISOString(),
     ...(abVariant ? { ab_variant: abVariant } : {})
   };
   await writeJsonAtomic(logPath, [...existing, entry]);
   return entry;
+}
+
+// R1: D+3 wrapper path. Does not replace uploadShort (P1 live fallback).
+export async function scheduleYouTubeShort(input: {
+  date: string;
+  slot: number;
+  root?: string;
+  now?: Date;
+  fetchImpl?: typeof fetch;
+}): Promise<{
+  status: "scheduled" | "skipped";
+  reason?: string;
+  video_id?: string;
+  scheduled_publish_at?: string;
+}> {
+  const root = projectRoot(input.root);
+  const slotNumber = input.slot;
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const now = input.now ?? new Date();
+
+  // R4: one log covers live uploads and ahead schedules; never hit the network.
+  const logPath = join(root, "data", "youtube-log", `${input.date}.json`);
+  const existing = await readJsonFile<YouTubeLogEntry[]>(logPath, []);
+  if (existing.some((entry) => entry.slot === slotNumber)) {
+    return skipped("already uploaded or scheduled");
+  }
+
+  // R3 ① calendar has this slot as reel or mixed-carousel.
+  let content;
+  try {
+    content = await loadDailyContent(input.date, root);
+  } catch (error) {
+    return skipped(error instanceof Error ? error.message : String(error));
+  }
+  if (!content) {
+    return skipped(`no content calendar for ${input.date}`);
+  }
+  const slot = content.slots.find((item) => item.slot === slotNumber);
+  if (!slot) {
+    return skipped(`no slot ${slotNumber} in ${input.date} calendar`);
+  }
+  if (slot.media_type !== "reel" && slot.media_type !== "mixed-carousel") {
+    return skipped(
+      `slot ${slotNumber} media_type is ${slot.media_type ?? "missing"}, not reel or mixed-carousel`
+    );
+  }
+
+  // R3 ② local_video_path present and the file is on disk.
+  if (!slot.local_video_path) {
+    return skipped(`no video in ${input.date} slot ${slotNumber}`);
+  }
+  const videoPath = join(root, ...slot.local_video_path.split("/"));
+  if (!existsSync(videoPath)) {
+    return skipped(`video file missing: ${slot.local_video_path}`);
+  }
+
+  // R3 ③ P2: same publishable-approval test scheduleAhead uses, both platforms.
+  const approvals = await loadApprovalLog(input.date, root);
+  if (
+    !hasPublishableApproval(approvals, slotNumber, "facebook") ||
+    !hasPublishableApproval(approvals, slotNumber, "instagram")
+  ) {
+    return skipped("no publishable approval for both platforms");
+  }
+
+  // R5 / P3 / P5: calendar slot time as Taipei, plus 45 minutes, RFC3339 UTC.
+  const slotUnix = taipeiSlotUnix(input.date, slot.time);
+  if (!slot.time || Number.isNaN(slotUnix)) {
+    return skipped(`invalid slot time ${slot.time ?? "missing"}`);
+  }
+  const publishAtUnix = slotUnix + 45 * 60;
+  const scheduledPublishAt = rfc3339Utc(publishAtUnix);
+  const secondsOut = publishAtUnix - Math.floor(now.getTime() / 1000);
+  if (secondsOut < 15 * 60) {
+    return skipped("publishAt too close; live path owns it");
+  }
+  if (secondsOut > 30 * 24 * 3600) {
+    return skipped("beyond D+30 window");
+  }
+
+  // R3 ④ sha and prompt_hash must both match; catch so a failed gate never uploads.
+  try {
+    await assertVideoReviewApproved({
+      date: input.date,
+      slot: slotNumber,
+      videoPath: slot.local_video_path,
+      videoPrompt: slot.video_prompt ?? "",
+      root
+    });
+  } catch (error) {
+    return skipped(error instanceof Error ? error.message : String(error));
+  }
+
+  if (!credentials()) {
+    return skipped("credentials not configured; run npm run youtube-auth");
+  }
+
+  const video = await readFile(videoPath);
+  const { title, description } = buildShortMetadata({
+    topic: slot.topic,
+    caption: slot.instagram_caption ?? "",
+    date: input.date,
+    slot: slotNumber
+  });
+
+  // R2: private + publishAt; keep the synthetic-media declaration the live path sends.
+  const metadata = {
+    snippet: { title, description, categoryId: "22", defaultLanguage: "zh-Hant" },
+    status: {
+      privacyStatus: "private",
+      publishAt: scheduledPublishAt,
+      selfDeclaredMadeForKids: false,
+      containsSyntheticMedia: true
+    }
+  };
+
+  const videoId = await postShortMultipart(metadata, video, fetchImpl);
+  const abVariant = planSlot(planForDate(await loadAbTestPlan(root), input.date), slotNumber)?.variant;
+  const entry: YouTubeLogEntry = {
+    date: input.date,
+    slot: slotNumber,
+    video_id: videoId,
+    title,
+    uploaded_at: new Date().toISOString(),
+    scheduled_publish_at: scheduledPublishAt,
+    video_status: "scheduled",
+    ...(abVariant ? { ab_variant: abVariant } : {})
+  };
+  await writeJsonAtomic(logPath, [...existing, entry]);
+  return {
+    status: "scheduled",
+    video_id: videoId,
+    scheduled_publish_at: scheduledPublishAt
+  };
 }
 
 /**
@@ -316,7 +491,10 @@ async function main(): Promise<void> {
   const config = getConfig();
   const date = getOption(args, "date") ?? getZonedDateParts(new Date(), config.timezone).date;
   const slot = getNumberOption(args, "slot") ?? 2;
-  const result = await uploadShort({ date, slot, root });
+  // R6: --schedule-ahead takes the new path; omitting it leaves live uploadShort.
+  const result = getFlag(args, "schedule-ahead")
+    ? await scheduleYouTubeShort({ date, slot, root })
+    : await uploadShort({ date, slot, root });
   console.log(JSON.stringify(result, null, 2));
 }
 

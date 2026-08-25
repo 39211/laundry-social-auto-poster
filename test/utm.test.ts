@@ -90,7 +90,7 @@ describe("composition wiring", () => {
     expect(description).toContain("source=yt");
     const guide = utmTagged(guideLinkFor(topic), { source: "youtube", campaign });
     expect(description).toContain(guide);
-    expect(guideLinkFor(topic)).toBe("https://39211.github.io/guides/white-shoe-yellowing.html");
+    expect(guideLinkFor(topic)).toBe("https://sixiangjialaundry.com/guides/white-shoe-yellowing.html");
   });
 
   it("tags the GBP composition helper", () => {

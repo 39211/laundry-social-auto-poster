@@ -47,6 +47,7 @@ jobs:
             config
             data
             docs-internal
+            docs/assets/2026-08-17
 
       - uses: actions/setup-node@v4
         with:

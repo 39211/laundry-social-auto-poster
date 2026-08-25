@@ -163,15 +163,19 @@ function about(blockers: string[], path: string): string[] {
   return blockers.filter((text) => text.includes(path));
 }
 
+// 30s hook budgets: the work is small in-process I/O, but on a CI runner that
+// just materialized this repo's media-heavy tree the antivirus scan storm can
+// starve disk for longer than vitest's 10s default (2026-08-25 rerun failed
+// exactly here with every test that ran passing).
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), "topic-witness-"));
   await seedHealthyDay();
-});
+}, 30000);
 
 afterEach(async () => {
   vi.unstubAllEnvs();
   await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 25 });
-});
+}, 30000);
 
 describe("the stamp each image file carries", () => {
   it("is written by the real marking command, with topic and both hashes", async () => {

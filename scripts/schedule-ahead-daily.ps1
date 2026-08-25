@@ -57,6 +57,103 @@ foreach ($offset in 1..3) {
     # already carries locks/approvals.
     cmd /c "npm.cmd run day-lock -- --date $date --heal 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     cmd /c "npm.cmd run heal-reel-slot -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+
+    # Images must exist, be stamped, and be LIVE on Pages before auto-approve
+    # and schedule-ahead run, or the whole date silently degrades to the live
+    # path (the 08-24..28 queue only had slot 1/2 because a hand-run batch
+    # filled them; this is that batch made formal). The manifest regenerates
+    # unconditionally: it is deterministic from the calendar, and playbook
+    # calendars written days ahead never got one from the missing-calendar
+    # branch above (2026-08-29 was the first such gap).
+    cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    $planFile = Join-Path $root "output\d3-imggen\plan-$date.json"
+    $resultFile = Join-Path $root "output\d3-imggen\result-$date.json"
+    cmd /c "npm.cmd run slot-image-plan -- --date $date --out `"$planFile`" 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    $planItems = @()
+    if (Test-Path -LiteralPath $planFile) {
+        try {
+            $plan = [IO.File]::ReadAllText($planFile, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
+            $planItems = @($plan.items)
+            foreach ($blocker in @($plan.blockers)) { Write-Log "IMAGE-PLAN BLOCKER ${date}: $blocker" }
+            if (@($plan.blockers).Count -gt 0) { $problems += "$date image-plan" }
+        } catch {
+            Write-Log "IMAGE-PLAN ${date}: unreadable plan file"
+            $problems += "$date image-plan"
+        }
+    } else {
+        Write-Log "IMAGE-PLAN ${date}: plan file was not written"
+        $problems += "$date image-plan"
+    }
+    if ($planItems.Count -gt 0) {
+        Write-Log "IMAGE-GEN ${date}: generating $($planItems.Count) image(s) via hermes-Grok"
+        $hermesPython = "C:\Users\cyc39\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe"
+        & $hermesPython (Join-Path $PSScriptRoot "hermes-image-gen.py") --plan $planFile --out $resultFile --root $root 2>&1 |
+            Out-File -FilePath $logFile -Append -Encoding utf8
+        $genExit = $LASTEXITCODE
+        $generatedRows = @()
+        if (Test-Path -LiteralPath $resultFile) {
+            try {
+                $genResult = [IO.File]::ReadAllText($resultFile, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
+                $generatedRows = @($genResult.generated)
+                foreach ($fail in @($genResult.failed)) { Write-Log "IMAGE-GEN FAIL ${date} slot $($fail.slot): $($fail.reason)" }
+            } catch { Write-Log "IMAGE-GEN ${date}: unreadable result file" }
+        }
+        if ($genExit -ne 0) { $problems += "$date image-gen" }
+        foreach ($row in $generatedRows) {
+            cmd /c "npm.cmd run mark-image-source -- --date $date --slot $($row.slot) --path $($row.path) --source grok-imagine-image 2>&1" |
+                Out-File -FilePath $logFile -Append -Encoding utf8
+            if ($LASTEXITCODE -ne 0) {
+                Write-Log "IMAGE-STAMP FAIL ${date} slot $($row.slot) $($row.path)"
+                $problems += "$date image-stamp"
+            }
+        }
+        if ($generatedRows.Count -gt 0) {
+            # Meta fetches every image URL at schedule time, so the bytes must be
+            # live before schedule-ahead hands the URL over (the 08-24 Reel 422:
+            # Pages deploy still in_progress). publish-pages commits and pushes;
+            # the poll below waits out the deploy. If it never confirms, keep
+            # going -- schedule-ahead re-verifies URLs itself and refuses cleanly,
+            # and tomorrow's run retries.
+            cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+            if ($LASTEXITCODE -ne 0) {
+                Write-Log "PAGES PUBLISH FAIL ${date}"
+                $problems += "$date pages-publish"
+            }
+            $deployOk = $false
+            $firstUrl = [string]$generatedRows[0].public_image_url
+            for ($poll = 1; $poll -le 12; $poll++) {
+                try {
+                    $resp = Invoke-WebRequest -Uri $firstUrl -Method Head -UseBasicParsing -TimeoutSec 20
+                    if ($resp.StatusCode -eq 200) { $deployOk = $true; break }
+                } catch {}
+                Start-Sleep -Seconds 30
+            }
+            if ($deployOk) {
+                foreach ($row in @($generatedRows | Select-Object -Skip 1)) {
+                    $rowOk = $false
+                    foreach ($poll in 1..3) {
+                        try {
+                            $resp = Invoke-WebRequest -Uri ([string]$row.public_image_url) -Method Head -UseBasicParsing -TimeoutSec 20
+                            if ($resp.StatusCode -eq 200) { $rowOk = $true; break }
+                        } catch { Start-Sleep -Seconds 10 }
+                    }
+                    if (-not $rowOk) {
+                        $deployOk = $false
+                        Write-Log "PAGES URL still unreachable: $($row.public_image_url)"
+                    }
+                }
+            }
+            if ($deployOk) {
+                Write-Log "IMAGE-GEN ${date}: $($generatedRows.Count) image(s) live on Pages"
+            } else {
+                Write-Log "PAGES DEPLOY unconfirmed for ${date}; schedule-ahead's own URL gate stays authoritative"
+                $problems += "$date pages-deploy"
+            }
+        }
+    } elseif (Test-Path -LiteralPath $planFile) {
+        Write-Log "IMAGE-PLAN ${date}: nothing to generate"
+    }
+
     cmd /c "npm.cmd run auto-approve -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
 
     $approved = Join-Path $root "data\approved-log\$date.json"

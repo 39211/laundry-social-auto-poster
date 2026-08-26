@@ -44,7 +44,9 @@ export function commentTextFor(topic: string, date: string, slot: number): strin
     source: "instagram",
     campaign: utmCampaign(date, slot)
   });
-  return `${tip} 直接點這裡問:${url}(或加 LINE:0968327653)`;
+  // Space before the bracket for the same reason as contentPlan's version:
+  // the auto-linker must not be able to take "(或加" into ?source=.
+  return `${tip} 直接點這裡問:${url} (或加 LINE:0968327653)`;
 }
 
 export async function postFirstComment(input: {

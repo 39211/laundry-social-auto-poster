@@ -825,16 +825,16 @@ export const MATERIAL_OPTICS: Record<string, string> = {
   "white-shoe":
     "Material optics: the cotton canvas takes the window light as a flat dry field with its weave " +
     "visible and no specular highlight, while the rubber foxing beside it holds one soft satin band " +
-    "that follows the curve; the amber oxidation sits under that sheen, not painted on top of it; " +
-    "each metal eyelet catches a single small hard glint.",
+    "that follows the curve; any amber oxidation still present sits under that sheen rather than " +
+    "painted on top of it; each metal eyelet catches a single small hard glint.",
   "canvas-shoe":
     "Material optics: the cotton canvas reads as a flat dry weave that scatters light with no gloss, " +
-    "the rubber foxing beside it holds a soft satin band, and the dried mud sits on top as an opaque " +
-    "matte crust that hides the weave underneath it rather than staining through it.",
+    "the rubber foxing beside it holds a soft satin band, and any dried mud still present sits on top " +
+    "as an opaque matte crust hiding the weave underneath rather than staining through it.",
   "leather-shoe":
     "Material optics: smooth calf leather carries one long soft highlight that bends over the toe cap " +
     "and fractures into fine parallel lines at the flex creases; the welt stitching sits in its own " +
-    "shadow; the rain tide-line reads as a matte band that refuses the highlight entirely.",
+    "shadow; any remaining rain tide-line reads as a matte band that refuses the highlight entirely.",
   handbag:
     "Material optics: the grained leather returns a broad soft highlight that stretches along the body " +
     "and breaks at every crease; the handle's worn patch is glassier than the leather around it and " +
@@ -845,32 +845,32 @@ export const MATERIAL_OPTICS: Record<string, string> = {
     "worn away, exposing a duller fibrous core that takes no shine.",
   "plush-doll":
     "Material optics: the pile has no specular highlight at all -- brightness comes from fibre density, " +
-    "so matted areas go darker and flatter while lofted fur stays pale with soft edges, and only the " +
-    "fibre tips catch a trace of rim light.",
+    "so any area still matted goes darker and flatter while lofted fur stays pale with soft edges, and " +
+    "only the fibre tips catch a trace of rim light.",
   duvet:
     "Material optics: the quilted cover shows a low sheen that runs along each channel and dies in the " +
-    "seams; loft is read from the shadow depth between channels rather than from highlights; the " +
-    "fold-edge grey film sits matte against that sheen.",
+    "seams; loft is read from the shadow depth between channels rather than from highlights; any " +
+    "fold-edge grey film still present sits matte against that sheen.",
   shirt:
     "Material optics: cotton poplin returns a fine directional sheen that follows the weave and " +
-    "collapses at every fold; the collar band's yellowed ring is slightly glossier than the cloth " +
-    "around it; where light rakes across the placket the fabric goes faintly translucent.",
+    "collapses at every fold; any yellowed ring left on the collar band is slightly glossier than the " +
+    "cloth around it; where light rakes across the placket the fabric goes faintly translucent.",
   suit:
     "Material optics: wool twill carries a directional nap sheen -- one soft band of light that shifts " +
     "as the cloth turns, bright along the weave and dead against it; the shoulder ridges catch it " +
     "first; any worn shine sits flatter and greyer than the nap around it.",
   curtain:
     "Material optics: the loose weave lets a little window light through so the panel glows faintly " +
-    "where it is thin; its surface sheen is soft, matte and directional along the drape; the hem dust " +
-    "band refuses that sheen and reads as flat grey.",
+    "where it is thin; its surface sheen is soft, matte and directional along the drape; any dust left " +
+    "in the hem refuses that sheen and reads as flat grey.",
   luggage:
     "Material optics: the moulded shell returns a wide glossy reflection of the room, broken wherever a " +
     "scuff turns it matte; the wheel housings and the pull-handle tube each hold their own small hard " +
     "highlights against that broad one.",
   backpack:
     "Material optics: ripstop nylon shows a fine grid glint that shifts with angle and a low sheen " +
-    "along the seams, while the webbing straps stay matte and fibrous by contrast; the salt line on " +
-    "the strap pad sits chalky and takes no highlight."
+    "along the seams, while the webbing straps stay matte and fibrous by contrast; any salt line left " +
+    "on the strap pad sits chalky and takes no highlight."
 };
 
 export const DEFAULT_MATERIAL_OPTICS =

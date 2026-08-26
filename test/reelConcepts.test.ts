@@ -4,6 +4,7 @@ import {
   BATCH_TWO,
   REEL_CONCEPTS,
   REEL_SCHEDULE,
+  MATERIAL_OPTICS,
   conceptStatuses,
   materialOpticsFor,
   promptFor,
@@ -61,6 +62,22 @@ describe("reel concepts", () => {
     // leaving every still looking alike again.
     const blocks = REEL_CONCEPTS.map((concept) => materialOpticsFor(concept.object_type));
     expect(new Set(blocks).size).toBe(REEL_CONCEPTS.length);
+  });
+
+  it("never states soil is present, because the after still shares the same optics block", () => {
+    // One block serves both states. "the dried mud sits on top as a matte
+    // crust" is true of the before still and a contradiction in the after one,
+    // where the subject line says the mud is gone -- so soil is only ever
+    // referred to conditionally.
+    const soil = ["mud", "oxidation", "dust", "grey film", "yellowed ring", "salt line", "tide-line", "matted"];
+    for (const [type, block] of Object.entries(MATERIAL_OPTICS)) {
+      for (const term of soil) {
+        const at = block.indexOf(term);
+        if (at === -1) continue;
+        const lead = block.slice(Math.max(0, at - 70), at);
+        expect(lead, `${type} states "${term}" unconditionally`).toMatch(/\bany\b/);
+      }
+    }
   });
 
   it("leaves no placeholder token in a prompt that ships to the image model", () => {

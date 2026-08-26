@@ -5,6 +5,7 @@ import {
   REEL_CONCEPTS,
   REEL_SCHEDULE,
   conceptStatuses,
+  materialOpticsFor,
   promptFor,
   publishDateFor,
   stillPathsFor
@@ -41,6 +42,35 @@ describe("reel concepts", () => {
     );
     expect(looks).toHaveLength(REEL_CONCEPTS.length * 2);
     expect(new Set(looks).size).toBe(1);
+  });
+
+  it("tells the image model how light behaves on this concept's own material", () => {
+    // "光澤不夠真實" was the owner's rejection on 2026-08-27: the shell named
+    // the room and the wear but never the material's optics, so canvas, wool
+    // and rubber all came back with the same plastic sheen.
+    for (const concept of REEL_CONCEPTS) {
+      const optics = materialOpticsFor(concept.object_type);
+      for (const state of ["before", "after"] as const) {
+        expect(promptFor(concept, state)).toContain(optics);
+      }
+    }
+  });
+
+  it("gives different materials different optics, not one shared sentence", () => {
+    // Without this, a single generic block would satisfy the test above while
+    // leaving every still looking alike again.
+    const blocks = REEL_CONCEPTS.map((concept) => materialOpticsFor(concept.object_type));
+    expect(new Set(blocks).size).toBe(REEL_CONCEPTS.length);
+  });
+
+  it("leaves no placeholder token in a prompt that ships to the image model", () => {
+    for (const concept of REEL_CONCEPTS) {
+      for (const state of ["before", "after"] as const) {
+        const prompt = promptFor(concept, state);
+        expect(prompt).not.toContain("[SUBJECT]");
+        expect(prompt).not.toContain("[OPTICS]");
+      }
+    }
   });
 
   it("gives each concept its own still paths so one can be regenerated alone", () => {

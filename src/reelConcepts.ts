@@ -770,9 +770,15 @@ export async function productionRunway(
 // Fourteen seconds in which the object changes identity is most of what "it
 // doesn't look real" means. The scene is now stated once, in the aspect the
 // reel is actually cut to, and every act is generated from it.
-const SHOP_SCENE =
+const SHOP_SET =
   "a Taiwanese laundry and shoe-care shop: a light counter with a pink cutting mat, white slat-wall " +
-  "panels behind, shelves of fabric-care bottles softly out of focus, everyday clutter at the frame edge. " +
+  "panels behind, shelves of fabric-care bottles softly out of focus, everyday clutter at the frame edge.";
+
+// Split from the set description so the per-object material block can sit
+// between them. Everything from "Shot on a phone" onward is what one test
+// requires to be byte-identical across every still, so nothing per-concept may
+// be added below this line.
+const SHOP_CAMERA =
   "Shot on a phone main camera at about 26mm equivalent, held at chest height and angled 20-35 degrees " +
   "down at the counter, handheld with imperfect framing. The storefront window is the key light from one " +
   "side, weak fluorescent ceiling fill, uneven brightness across the counter, slightly imperfect auto " +
@@ -801,9 +807,90 @@ export const ARTISAN =
   "skin. Hands anatomically correct: five fingers each, no fusing, " +
   "no extra hand entering frame. No face, no head, no torso above the elbow.";
 
+/**
+ * How light behaves on each object type, written as visible optical events.
+ *
+ * The owner rejected a batch on 2026-08-27 with "光澤不夠真實" -- the gloss is
+ * not believable. The still prompt named the object and the room but never the
+ * material's optics, so the model chose a generic plastic sheen for canvas,
+ * wool and rubber alike. A wear list ("oxidised to uneven amber") says what is
+ * there; it does not say that canvas refuses a highlight while the rubber
+ * beside it holds one. That difference is most of what reads as real.
+ *
+ * Keyed by object_type so each Reel's material gets its own answer; the
+ * fallback stays generic on purpose, because a wrong specific is worse than an
+ * honest general.
+ */
+export const MATERIAL_OPTICS: Record<string, string> = {
+  "white-shoe":
+    "Material optics: the cotton canvas takes the window light as a flat dry field with its weave " +
+    "visible and no specular highlight, while the rubber foxing beside it holds one soft satin band " +
+    "that follows the curve; the amber oxidation sits under that sheen, not painted on top of it; " +
+    "each metal eyelet catches a single small hard glint.",
+  "canvas-shoe":
+    "Material optics: the cotton canvas reads as a flat dry weave that scatters light with no gloss, " +
+    "the rubber foxing beside it holds a soft satin band, and the dried mud sits on top as an opaque " +
+    "matte crust that hides the weave underneath it rather than staining through it.",
+  "leather-shoe":
+    "Material optics: smooth calf leather carries one long soft highlight that bends over the toe cap " +
+    "and fractures into fine parallel lines at the flex creases; the welt stitching sits in its own " +
+    "shadow; the rain tide-line reads as a matte band that refuses the highlight entirely.",
+  handbag:
+    "Material optics: the grained leather returns a broad soft highlight that stretches along the body " +
+    "and breaks at every crease; the handle's worn patch is glassier than the leather around it and " +
+    "throws a tighter, brighter reflection; each rivet and foot catches one small hard glint.",
+  "leather-bag":
+    "Material optics: the leather body holds a broad soft highlight, while the edge paint along the " +
+    "arris is glossier and reads as a thin bright line -- that line breaks exactly where the paint has " +
+    "worn away, exposing a duller fibrous core that takes no shine.",
+  "plush-doll":
+    "Material optics: the pile has no specular highlight at all -- brightness comes from fibre density, " +
+    "so matted areas go darker and flatter while lofted fur stays pale with soft edges, and only the " +
+    "fibre tips catch a trace of rim light.",
+  duvet:
+    "Material optics: the quilted cover shows a low sheen that runs along each channel and dies in the " +
+    "seams; loft is read from the shadow depth between channels rather than from highlights; the " +
+    "fold-edge grey film sits matte against that sheen.",
+  shirt:
+    "Material optics: cotton poplin returns a fine directional sheen that follows the weave and " +
+    "collapses at every fold; the collar band's yellowed ring is slightly glossier than the cloth " +
+    "around it; where light rakes across the placket the fabric goes faintly translucent.",
+  suit:
+    "Material optics: wool twill carries a directional nap sheen -- one soft band of light that shifts " +
+    "as the cloth turns, bright along the weave and dead against it; the shoulder ridges catch it " +
+    "first; any worn shine sits flatter and greyer than the nap around it.",
+  curtain:
+    "Material optics: the loose weave lets a little window light through so the panel glows faintly " +
+    "where it is thin; its surface sheen is soft, matte and directional along the drape; the hem dust " +
+    "band refuses that sheen and reads as flat grey.",
+  luggage:
+    "Material optics: the moulded shell returns a wide glossy reflection of the room, broken wherever a " +
+    "scuff turns it matte; the wheel housings and the pull-handle tube each hold their own small hard " +
+    "highlights against that broad one.",
+  backpack:
+    "Material optics: ripstop nylon shows a fine grid glint that shifts with angle and a low sheen " +
+    "along the seams, while the webbing straps stay matte and fibrous by contrast; the salt line on " +
+    "the strap pad sits chalky and takes no highlight."
+};
+
+export const DEFAULT_MATERIAL_OPTICS =
+  "Material optics: each surface in frame answers the light in its own way -- glossy areas hold a " +
+  "defined highlight, matte and fibrous areas scatter it -- and the worn areas differ optically from " +
+  "the sound ones around them.";
+
+export function materialOpticsFor(objectType: string): string {
+  return MATERIAL_OPTICS[objectType] ?? DEFAULT_MATERIAL_OPTICS;
+}
+
 export const SHARED_STILL_PROMPT =
-  `Ordinary portrait 4:5 shop photo. [SUBJECT] on the inspection counter of ${SHOP_SCENE} ` +
+  `Ordinary portrait 4:5 shop photo. [SUBJECT] on the inspection counter of ${SHOP_SET} ` +
+  `[OPTICS] ${SHOP_CAMERA} ` +
   "The item fills 45-65% of the frame height and stays sharp; the background is readable, not blurred away.";
+
+/** Fills both placeholders. Substituting only [SUBJECT] ships "[OPTICS]" to the image model. */
+export function fillStillPrompt(template: string, subject: string, objectType: string): string {
+  return template.replace("[SUBJECT]", subject).replace("[OPTICS]", materialOpticsFor(objectType));
+}
 
 /**
  * The closing act, with the craftsman's hands presenting the finished item.
@@ -862,11 +949,11 @@ export function promptFor(concept: ReelConcept, state: "before" | "after"): stri
   // script gets these prompts through `reel-concepts --prompts`, which comes
   // through here.
   if (state === "before") {
-    return SHARED_STILL_PROMPT.replace("[SUBJECT]", concept.before_subject);
+    return fillStillPrompt(SHARED_STILL_PROMPT, concept.before_subject, concept.object_type);
   }
   // Prefix + the same shared template, so the after still keeps the identical
   // look block and the same negative list as the before still.
-  return AFTER_STILL_PREFIX + SHARED_STILL_PROMPT.replace("[SUBJECT]", concept.after_subject);
+  return AFTER_STILL_PREFIX + fillStillPrompt(SHARED_STILL_PROMPT, concept.after_subject, concept.object_type);
 }
 
 export interface ConceptStatus {

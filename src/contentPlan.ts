@@ -1379,7 +1379,12 @@ function gbpLineRedirectUrl(): string {
 }
 
 function lineAskLine(url: string): string {
-  return `直接點這裡問:${url}(或加 LINE:0968327653)`;
+  // A space before the bracket: the URL ends in ?source=post, and every
+  // platform that auto-links a bare URL has to decide where it stops. Running
+  // a full-width bracket straight onto the query string invites it to swallow
+  // "(或加" into the source value, which is the one field that says where a
+  // LINE click came from.
+  return `直接點這裡問:${url} (或加 LINE:0968327653)`;
 }
 
 export function lineContactLine(): string {

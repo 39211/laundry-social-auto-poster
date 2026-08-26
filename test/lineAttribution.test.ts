@@ -92,7 +92,16 @@ function lineRedirectContractHolds(html: string): boolean {
   const hasReferrer = /page_referrer\s*:/.test(html);
   const hasNoscript = /<noscript>[\s\S]*http-equiv=["']refresh["'][\s\S]*<\/noscript>/i.test(html);
   const stillRedirects = /location\.replace\(destination\)/.test(html);
-  return sendsEvent && hasLinkSource && hasReferrer && hasNoscript && stillRedirects;
+  // GA4's registered dimension is customEvent:source, so link_source alone
+  // leaves the breakdown empty if the property is ever re-mapped; both names
+  // ship. And a source that can be empty is a click nobody can learn from:
+  // 2026-08-26 held three line_clicks with an empty source, so the value now
+  // falls back to the referrer and then to a literal, never to nothing.
+  const hasSourceAlias = /(^|[^_\w])source\s*:\s*source/m.test(html);
+  const neverEmpty = /params\.get\(['"]source['"]\)\s*\|\|[\s\S]{0,80}\|\|\s*['"]unknown['"]/u.test(html);
+  return (
+    sendsEvent && hasLinkSource && hasReferrer && hasNoscript && stillRedirects && hasSourceAlias && neverEmpty
+  );
 }
 
 async function collectCustomerHtml(docsRoot: string): Promise<Map<string, string>> {
@@ -324,5 +333,19 @@ describe("line-attribution-report.ps1", () => {
     ]);
     expect(result.status).not.toBe(0);
     expect(`${result.stdout}\n${result.stderr}`).toMatch(/misaligned|link_source/i);
+  });
+});
+
+// The caption's LINE line ends in ?source=post, and every platform that
+// auto-links a bare URL decides for itself where the URL stops. Running a
+// full-width bracket straight onto the query string invites it to take "(或加"
+// into the source value -- the one field that says where a click came from.
+describe("caption LINE call-to-action", () => {
+  it("separates the tracked URL from the bracket that follows it", async () => {
+    const { lineContactLine } = await import("../src/contentPlan");
+    const line = lineContactLine();
+    expect(line).toContain("?source=post");
+    expect(line).not.toMatch(/\?source=post\(/u);
+    expect(line).toMatch(/\?source=post\s\(/u);
   });
 });

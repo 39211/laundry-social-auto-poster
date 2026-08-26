@@ -235,7 +235,7 @@
   {
     "date": "2026-08-27",
     "noon": {
-      "conceptId": "leather-bag-corner",
+      "conceptId": "white-shoe-yellowing",
       "variant": "10s"
     },
     "evening": {
@@ -247,7 +247,7 @@
   {
     "date": "2026-08-28",
     "noon": {
-      "conceptId": "handbag-handle",
+      "conceptId": "canvas-shoe-mud",
       "variant": "10s"
     },
     "evening": {
@@ -259,7 +259,7 @@
   {
     "date": "2026-08-29",
     "noon": {
-      "conceptId": "duvet-storage",
+      "conceptId": "leather-shoe-rain",
       "variant": "10s"
     },
     "evening": {
@@ -271,7 +271,7 @@
   {
     "date": "2026-08-30",
     "noon": {
-      "conceptId": "canvas-shoe-mud",
+      "conceptId": "suede-shoe-nap",
       "variant": "10s"
     },
     "evening": {
@@ -283,7 +283,7 @@
   {
     "date": "2026-08-31",
     "noon": {
-      "conceptId": "suit-shoulder",
+      "conceptId": "kids-shoe-toe",
       "variant": "10s"
     },
     "evening": {
@@ -295,7 +295,7 @@
   {
     "date": "2026-09-01",
     "noon": {
-      "conceptId": "backpack-base",
+      "conceptId": "hiking-boot-mud",
       "variant": "10s"
     },
     "evening": {

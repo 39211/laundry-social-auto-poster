@@ -124,14 +124,31 @@ if (-not (Test-Path $indexingRecord)) {
 # and the web says 404, the site is stale, so push it again.
 $heroLocal = Join-Path $root "docs\assets\$date\slot-01.png"
 if (Test-Path $heroLocal) {
-    $heroUrl = "https://39211.github.io/assets/$date/slot-01.png"
+    # Read the host from .env rather than hardcoding it. The site moved to the
+    # custom domain and this check kept asking github.io, which now answers 301
+    # -- not 200 -- so it judged the site stale on every single run and did a
+    # full regenerate + mirror clone before every publish. On 2026-08-26 that
+    # ran long enough for the 11:30 task to hit its two-hour limit and be
+    # terminated before it ever reached Instagram: FB was covered by the Meta
+    # queue, IG lost slot 1 and slot 3 for the day.
+    $heroHost = "https://sixiangjialaundry.com"
+    $envPath = Join-Path $root ".env"
+    if (Test-Path $envPath) {
+        $envLine = Get-Content $envPath | Where-Object { $_ -match '^PUBLIC_IMAGE_BASE_URL=' } | Select-Object -First 1
+        if ($envLine) {
+            $envValue = ($envLine -split '=', 2)[1].Trim().TrimEnd('/')
+            if ($envValue) { $heroHost = $envValue }
+        }
+    }
+    $heroUrl = "$heroHost/assets/$date/slot-01.png"
     # curl.exe, not Invoke-WebRequest. Under Task Scheduler PowerShell runs
     # NonInteractive, where Invoke-WebRequest throws "Read and Prompt
     # functionality is not available" before it ever reaches the network --
     # every check would fail, every run would decide the site was stale, and it
     # would re-push six times a day forever. Verified on this box: curl returns
     # 200 on the same URL that makes Invoke-WebRequest throw.
-    $heroOutput = & curl.exe -s -S -o NUL -w "%{http_code}" --max-time 20 $heroUrl 2>&1
+    # -L so a host that answers with a redirect is judged on where it lands.
+    $heroOutput = & curl.exe -s -S -L -o NUL -w "%{http_code}" --max-time 20 $heroUrl 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Log "curl hero check failed (exit $LASTEXITCODE): $heroOutput"
         $heroLive = $true

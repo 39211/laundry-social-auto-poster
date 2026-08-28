@@ -1,0 +1,79 @@
+{
+  "reel": "docs\\assets\\2026-08-29\\slot-03.mp4",
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "PASS",
+    "STATE_ORDER": "PASS",
+    "MIDDLE_NOT_WORSE": "PASS",
+    "HANDS": "PASS",
+    "SCENE": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "All frames show the same pair of black lace-up shoes with matching outlines, seams, fittings, and pair arrangement.",
+    "ACCESSORY_COLOR": "The visible laces remain black across both acts, with no conflicting hardware color.",
+    "ORIENTATION": "The shoes retain the same three-quarter-right facing across the before and after frames.",
+    "STATE_ORDER": "The before act shows moderate whole-shoe mottling, while the after act shows visibly cleaner and more even surfaces.",
+    "MIDDLE_NOT_WORSE": "No middle act is present, so there is no middle frame showing heavier soil than before.",
+    "HANDS": "No hands appear in any before or after frame.",
+    "SCENE": "All frames retain the same metal counter and laundry-shop rack and wall background."
+  },
+  "frames_used": [
+    "before-p20.png",
+    "before-p70.png",
+    "after-p20.png",
+    "after-p70.png"
+  ],
+  "frames": [
+    {
+      "name": "before-p20.png",
+      "act": "before",
+      "t": 0.92,
+      "canary": "FQ6U",
+      "sha256": "91affbb9ec9cb423986f519281f1ca7887e19d32d256d9815ad4105e7f1b99ec"
+    },
+    {
+      "name": "before-p70.png",
+      "act": "before",
+      "t": 3.22,
+      "canary": "ZKPV",
+      "sha256": "120cda199be9a6d2b69ced4626ec964bcce8b66d5fa5009209e284647b901351"
+    },
+    {
+      "name": "after-p20.png",
+      "act": "after",
+      "t": 5.614,
+      "canary": "HT4K",
+      "sha256": "f8e0fb1798834f62e4581724aed551614af64492374d1aecc4a27b2e1569ed8d"
+    },
+    {
+      "name": "after-p70.png",
+      "act": "after",
+      "t": 8.149,
+      "canary": "NKW2",
+      "sha256": "e6556c09b911d868f0cf8f2b2bb2eb6b16884ec26e4853fafdbd7122bc8f6ada"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "FQ6U",
+    "IMAGE_2": "ZKPV",
+    "IMAGE_3": "HT4K",
+    "IMAGE_4": "NKW2"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "FQ6U",
+    "IMAGE_2": "ZKPV",
+    "IMAGE_3": "HT4K",
+    "IMAGE_4": "NKW2"
+  },
+  "reel_sha256": "a1955f39c01aafd3c5b380a2d824d0bf228f86fd36d85c68c150063782636d3d",
+  "prompt_hash": "42e9c99dcf4e94b89daaa814ffa9b9ec670d1253747e575eae6d3fd630d517e6",
+  "run_id": "85ef52198b9a4c8fae7e68fc7e7e3a7f",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-28T18:59:15.528Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "PASS",
+  "fail_class": null
+}

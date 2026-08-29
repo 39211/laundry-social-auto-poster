@@ -70,14 +70,21 @@ def main() -> int:
     with urllib.request.urlopen(req, timeout=300) as resp:
         raw_download.write_bytes(resp.read())
 
+    # Remux into a temp file and promote only on success: the caller's retry
+    # loop treats the mere existence of the destination as "generated", so a
+    # partial file left behind by a failed remux would be waved straight into
+    # gain measurement and assembly as if it were a finished clip.
+    remux_tmp = out.with_suffix(".remux.tmp.mp4")
     remux = subprocess.run(
         ["ffmpeg", "-v", "error", "-y", "-i", str(raw_download),
-         "-map", "0:v:0", "-c", "copy", str(out)],
+         "-map", "0:v:0", "-c", "copy", str(remux_tmp)],
         capture_output=True, text=True)
     raw_download.unlink(missing_ok=True)
-    if remux.returncode != 0 or not out.is_file():
+    if remux.returncode != 0 or not remux_tmp.is_file():
+        remux_tmp.unlink(missing_ok=True)
         print(f"REMUX_FAIL {manifest.get('generation_id')}: {remux.stderr.strip()}", flush=True)
         return 1
+    remux_tmp.replace(out)
 
     if args.report:
         Path(args.report).write_text(json.dumps({

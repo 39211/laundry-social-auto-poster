@@ -50,4 +50,14 @@ describe("F39 hermes clip generation wiring", () => {
     expect(py).toContain('"-map", "0:v:0"');
     expect(py).toContain("run_xai_video_generation");
   });
+
+  it("promotes the remux atomically so a failed attempt never leaves the destination behind", () => {
+    // The caller's retry loop treats Test-Path on the destination as success;
+    // a partial file from a failed remux would ride into assembly as a clip
+    // (Codex review on PR #26, P2).
+    const py = readFileSync(join(root, "scripts", "gen_clip_hermes.py"), "utf8");
+    expect(py).toContain(".remux.tmp");
+    expect(py).toContain("remux_tmp.replace(out)");
+    expect(py).toContain("remux_tmp.unlink(missing_ok=True)");
+  });
 });

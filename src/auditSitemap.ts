@@ -8,9 +8,18 @@ import { projectRoot } from "./paths";
 const REQUIRED_PATHS = [
   "/",
   "/services/taichung-citywide-laundry-pickup.html",
+  "/services/business-bulk-laundry.html",
+  "/services/taichung-laundry-price-list.html",
   "/services/shoe-bag-care.html",
+  "/guides/luggage-wheel-cleaning.html",
+  "/guides/curtain-cleaning.html",
+  "/guides/carpet-cleaning.html",
+  "/local/fengjia-laundry-pickup.html",
+  "/local/zhongke-office-laundry.html",
+  "/local/donghai-laundry-pickup.html",
   "/local/qinghai-road-shoe-cleaning.html"
 ];
+const EXPECTED_URL_COUNT = 32;
 
 export interface SitemapAuditResult {
   generated_at: string;
@@ -43,6 +52,11 @@ export async function auditSitemap(options: {
 
   add("xml-root", localXml.includes('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'), "Valid Sitemap urlset namespace.");
   add("non-empty", locs.length > 0, `${locs.length} local URLs discovered.`);
+  add(
+    "expected-url-count",
+    locs.length === EXPECTED_URL_COUNT,
+    `${locs.length}/${EXPECTED_URL_COUNT} canonical URLs discovered.`
+  );
   add("no-duplicates", new Set(locs).size === locs.length, `${locs.length - new Set(locs).size} duplicate URLs.`);
   add("same-origin", locs.every((url) => url === `${baseUrl}/` || url.startsWith(`${baseUrl}/`)), "All URLs use the configured canonical origin.");
   for (const path of REQUIRED_PATHS) {

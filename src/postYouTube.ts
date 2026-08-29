@@ -177,16 +177,20 @@ function priceLineFor(topic: string): string {
 
 /** Deep link to the page that answers this topic, not the site root. */
 export function guideLinkFor(topic: string): string {
+  // Object intent wins over a generic condition such as yellowing or rain.
+  // 行李箱泛黃 is still the luggage guide, not the white-shoe guide.
+  if (/行李箱|行李/.test(topic)) return `${SITE}/guides/luggage-wheel-cleaning.html`;
+  if (/窗簾/.test(topic)) return `${SITE}/guides/curtain-cleaning.html`;
+  if (/地毯|地墊/.test(topic)) return `${SITE}/guides/carpet-cleaning.html`;
   if (/白鞋|泛黃/.test(topic)) return `${SITE}/guides/white-shoe-yellowing.html`;
   if (/雨|淋濕|進水/.test(topic)) return `${SITE}/guides/rainy-shoe-care.html`;
   if (/鞋|靴/.test(topic)) return `${SITE}/services/white-shoe-cleaning.html`;
-  if (/行李箱|行李/.test(topic)) return `${SITE}/guides/bag-handle-cleaning.html`;
   if (/包|提把|包角|背包/.test(topic)) return `${SITE}/guides/bag-handle-cleaning.html`;
   if (/皮衣|皮革|發霉/.test(topic)) return `${SITE}/guides/leather-jacket-care.html`;
   if (/羽絨/.test(topic)) return `${SITE}/guides/down-jacket-cleaning.html`;
   if (/西裝|襯衫|肩線|領口/.test(topic)) return `${SITE}/guides/shirt-suit-dry-cleaning.html`;
   if (/棉被|寢具|床組|被單|枕/.test(topic)) return `${SITE}/guides/bedding-duvet-cleaning.html`;
-  if (/窗簾|沙發|布品|收納/.test(topic)) return `${SITE}/services/fabric-storage.html`;
+  if (/沙發|布品|收納/.test(topic)) return `${SITE}/services/fabric-storage.html`;
   if (/娃娃|絨毛|玩偶/.test(topic)) return `${SITE}/guides/plush-doll-cleaning.html`;
   if (/乾洗/.test(topic)) return `${SITE}/guides/dry-cleaning-guide.html`;
   return `${SITE}/services/taichung-xitun-laundry.html`;

@@ -4,8 +4,9 @@ import { join } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
-import { hasApprovedPost, loadApprovalLog, readJsonFile, writeJsonAtomic } from "./logging";
+import { hasPublishableApproval, loadApprovalLog, readJsonFile, writeJsonAtomic } from "./logging";
 import {
+  approvedLogPath,
   contentCalendarPath,
   docsContentCalendarPath,
   projectRoot,
@@ -14,6 +15,14 @@ import {
   publicVideoAssetPath
 } from "./paths";
 import { imageAssetsForSlot } from "./mediaAssets";
+import {
+  CALENDAR_STAMP_ADOPTION_DATE,
+  CALENDAR_WRITTEN_BY,
+  calendarSlotsChecksum,
+  readCalendarHmacKey,
+  stampDailyContentWrite,
+  type StampedDailyContent
+} from "./contentPlan";
 import {
   AI_VISIBILITY_REVIEW_28D,
   COMMUNITY_PRACTICE_SOURCES,
@@ -285,21 +294,25 @@ const SITE_DESCRIPTION =
 /**
  * Last intentional change of the homepage's static sections (YYYY-MM-DD). Not rewritten on
  * every build; the published homepage lastmod also advances with the newest approved post
- * (see homepageContentLastmod). Their rename, our date: 2026-08-08 is the later
- * real content change, made after this constant's line diverged.
+ * (see homepageContentLastmod). The 2026-08-29 change adds visible entry points
+ * for the luggage-wheel, curtain, and carpet guides.
  */
-const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-08-17";
+const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-08-29";
 const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";
 const AI_CRAWLERS = [
+  "Bingbot",
   "OAI-SearchBot",
   "GPTBot",
   "ChatGPT-User",
   "ClaudeBot",
+  "Claude-SearchBot",
+  "Claude-User",
   "Claude-Web",
   "anthropic-ai",
   "PerplexityBot",
+  "Perplexity-User",
   "Google-Extended",
   "Applebot-Extended",
   "Amazonbot"
@@ -1215,12 +1228,31 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
 const AEO_PHOTO_BEFORE_LAUNDRY = "送洗前拍整體、局部、材質與最在意痕跡，照片比只問價錢更能判斷。";
 const AEO_WHITE_SHOE_GRAY_VS_YELLOW = "白鞋灰多半是髒、可清；黃在膠邊是氧化，只能淡化，不保證回白。";
 const AEO_RAINY_SHOE = "雨天鞋子進水後先通風、取出鞋墊；不要高溫烘或悶進鞋櫃。";
-const AEO_LUGGAGE_WHEELS = "行李箱收進櫃子前先看輪子；輪子與底板灰收進去，下次打開就是味道。";
+const AEO_LUGGAGE_WHEELS = "行李箱收進櫃子前先看輪子；輪子與底板若帶灰或濕氣，密封後較容易出現異味。";
 const AEO_BEDDING_STORAGE = "寢具收納前先聞潮味；摸起來乾、中間層不一定乾，帶濕氣封存會悶出味道。";
 const AEO_BEDDING_DUVET = "棉被送洗先看填充、潮氣與異味；沒乾透就收納，下一季打開就是味道。";
 const AEO_PLUSH_DOLL_BOUNDARY = "娃娃可以洗，但不能亂洗；怕的是脫水結塊與五官脫落，要先固定再手洗。";
 const AEO_LUXURY_DRY = "精品送洗先看材質與飾件，不因品牌保證全新；邊角磨損只能維持。";
 const AEO_CLOTHING_ALTERATION = "送洗時若同時需要修改，可以一起收送，但先分清楚是小修還是版型調整。";
+const AEO_BAG_HANDLE = "提把發黏可能和手汗累積有關；若已滲入表層，通常要先評估淡化範圍與色差。";
+const AEO_CURTAIN = "窗簾先看布料與軌道；尺寸不同價不同，拍照比先問固定價準。";
+const AEO_CARPET = "地毯先看材質與潮濕；尚未乾透就捲收，密封後較容易出現異味。";
+const AEO_FENGJIA_LAUNDRY = "逢甲洗衣可先用 LINE 傳照片；宿舍與租屋都可詢問台中市免費收送。";
+const AEO_ZHONGKE_LAUNDRY = "中科園區襯衫可詢問收送；先列件數與材質，清潔另計、收送免費。";
+const AEO_DONGHAI_LAUNDRY = "東海生活圈可詢問免費收送；厚被、窗簾與日常衣物先傳照片再確認。";
+// The answer box falls back to `description` when a page sets no
+// citation_answer, and description opens with the shop name and address --
+// roughly 25 characters of branding before the answer starts. That is the
+// wrong shape for an extracted answer, so every page carries its own capsule.
+const AEO_SCHOOL_UNIFORM = "制服領口發黃要先處理舊痕再整燙；順序反了，高溫會把黃痕定死。";
+const AEO_BIRKENSTOCK = "勃肯鞋的味道來自軟木鞋床不是鞋面；整雙泡水會讓軟木鬆散、麂皮變硬。";
+const AEO_LUXURY_BAG_MOLD = "包包發霉先別用濕布擦，濕擦會把霉推進皮革毛孔；表面白霉多半可處理，滲入皮層只能淡化。";
+const AEO_DOWN_JACKET = "多數羽絨適合專業水洗加低溫慢烘，不一定要乾洗；外層有塗層或貼合工藝要另外判斷。";
+const AEO_LEATHER_JACKET = "皮衣不能走一般乾洗，溶劑會帶走皮革油脂造成變硬龜裂；要走皮革專屬清潔加補油。";
+const AEO_DRY_VS_WET = "乾洗用溶劑處理油性髒污並保護版型，水洗對汗味較有效；依材質與髒污選，不是乾洗比較高級。";
+const AEO_SHIRT_SUIT = "襯衫的領口袖口與西裝的面料、內襯不適合同一種處理；領口泛黃不要自行漂白或硬刷。";
+const AEO_SERVICE_SEARCH = "找洗衣服務先從物件和問題找，不必只搜尋店名；每個答案都回到材質、位置與處理界線。";
+const AEO_QINGHAI_ROAD = "挑洗鞋店先比三件事：敢不敢先講救不回來的部分、收送範圍寫不寫清楚、有沒有講處理界線。";
 
 const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
   {
@@ -1327,11 +1359,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理開學前制服領口發黃、袖口油污，先處理再整燙才不會把黃痕定型，台中市全區可免費收送。",
     h1: "開學前的制服整理:順序錯了會把黃痕定死",
+    citation_answer: AEO_SCHOOL_UNIFORM,
     summary: "每年開學前一週,制服是送洗量最大的一項。家長最常做錯的一件事:先燙再說。高溫會把領口的皮脂氧化痕定型,之後再洗就洗不掉了。正確順序是先處理舊痕,再整燙。",
     keywords: ["制服送洗", "制服領口發黃", "開學 制服 整理", "台中制服清洗", "學生制服 送洗", "制服整燙"],
     service_slug: "taichung-xitun-laundry",
     local_intent: "台中 制服送洗 開學 領口發黃",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先看領口內側", text: "翻開領子看內側那一圈:淺黃是新的皮脂,深黃帶硬感是已經氧化過的舊痕,兩者處理力道不同。" },
       { name: "袖口與腋下一起看", text: "袖口是手接觸最多的地方,腋下是止汗劑與汗鹽,兩處常被忽略,只洗表面等於沒洗。" },
@@ -1366,11 +1399,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理勃肯鞋：軟木鞋床吸汗會發黑發臭，麂皮面又不能泡水，先傳照片判斷軟木與麂皮各自的處理方式。",
     h1: "勃肯鞋鞋床發黑、有味道,還救得回來嗎?",
+    citation_answer: AEO_BIRKENSTOCK,
     summary: "勃肯這類軟木鞋床的鞋,問題幾乎都在同一個地方:腳掌接觸的那層軟木被汗浸久了,顏色變深、味道跑出來。麂皮鞋面怕水、軟木怕泡,所以整雙丟水裡刷是最傷的做法。分開處理才對。",
     keywords: ["勃肯鞋清潔", "勃肯鞋發黑", "軟木鞋床 清洗", "台中洗勃肯", "麂皮鞋清潔", "勃肯鞋除臭"],
     service_slug: "white-shoe-cleaning",
     local_intent: "台中 勃肯鞋清潔 軟木鞋床 除臭",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先分三層", text: "麂皮鞋面、軟木鞋床、橡膠大底,三種材質三種做法。整雙泡水會讓軟木鬆散、麂皮硬掉。" },
       { name: "看鞋床顏色", text: "腳掌位置深黑=汗垢滲入軟木層;只有表面灰=角質與塵土,後者好處理很多。" },
@@ -1405,11 +1439,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理精品包發霉：先不要用濕布擦，判斷是表面白霉還是滲入皮層，處理方式與可救程度完全不同，台中市可免費收送。",
     h1: "精品包發霉:先別擦,先看這三件事",
+    citation_answer: AEO_LUXURY_BAG_MOLD,
     summary: "台灣的梅雨與夏季濕氣,讓收在櫃子裡的包最常出事。發現白白一層時,最傷的動作是拿濕布用力擦——那會把霉推進皮革毛孔,還可能造成色斑。先判斷,再動手。",
     keywords: ["精品包發霉", "包包發霉處理", "皮包 發霉", "台中精品包清潔", "名牌包保養", "包包除霉"],
     service_slug: "shoe-bag-care",
     local_intent: "台中 精品包發霉 名牌包清潔 除霉",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先不要擦", text: "濕擦會把霉絲推入皮革毛孔並擴散。先把包移到通風處,不要密封回防塵袋。" },
       { name: "看霉的形態", text: "浮在表面像粉的白霉,多半能處理;已經有色差或斑點邊界的,是霉根進到皮層,只能淡化。" },
@@ -1444,11 +1479,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理羽絨外套與羽絨被：能不能水洗、洗完會不會不蓬，要先看洗標、塗層與走線，台中市可免費收送。",
     h1: "羽絨外套、羽絨被怎麼洗才不會毀掉？",
+    citation_answer: AEO_DOWN_JACKET,
     summary: "羽絨最怕兩件事：洗錯方式讓羽絨結塊，和沒乾透就收納悶出味道。大部分羽絨其實適合專業水洗加低溫烘乾，反而不一定適合乾洗；但外層有塗層或貼合工藝的要另外判斷。台中換季前送洗可約免費收送。",
     keywords: ["羽絨外套清洗", "羽絨被送洗", "羽絨外套可以水洗嗎", "台中洗羽絨被", "台中羽絨外套送洗", "羽絨被清洗"],
     service_slug: "fabric-storage",
     local_intent: "台中 羽絨外套清洗 羽絨被送洗 換季",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先看洗標", text: "羽絨製品的洗標決定方向：可水洗、限乾洗或手洗各有不同風險，看不懂符號就直接拍洗標照片來問。" },
       { name: "檢查走線與破口", text: "車線鬆脫或小破口在清洗時會讓羽絨跑出來，送洗前先檢查領口、袖口與絎縫線。" },
@@ -1483,11 +1519,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理皮衣清潔保養：發霉、變硬、色差要依真皮、合成皮或麂皮分別判斷，不能用一般方式洗。",
     h1: "皮衣清潔保養：發霉、變硬、色差怎麼判斷？",
+    citation_answer: AEO_LEATHER_JACKET,
     summary: "皮衣最常見的三個狀況：收納環境潮濕悶出霉點、久放缺油變硬、局部摩擦造成色差。真皮、合成皮和麂皮的處理方式完全不同，用錯方式會讓皮面褪色或硬化。送保養前先拍全身照與問題位置特寫。",
     keywords: ["皮衣保養", "皮衣清潔", "台中皮衣保養", "皮衣發霉", "皮衣可以洗嗎", "皮衣送洗"],
     service_slug: "shoe-bag-care",
     local_intent: "台中 皮衣保養 皮衣清潔 皮衣發霉",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先分材質", text: "真皮、合成皮（PU/PVC）和麂皮的清潔方式完全不同。看洗標或內裡標籤，不確定就拍照來問。" },
       { name: "看霉點範圍", text: "表面白霉多半能處理；霉根吃進皮層或內裡的，能改善的程度要先評估，處理前會先講界線。" },
@@ -1522,11 +1559,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）判斷乾洗還是水洗：西裝、大衣、絲質、羊毛先看洗標和材質，台中市乾洗送洗可免費收送。",
     h1: "乾洗還是水洗？送洗前搞懂這一篇",
+    citation_answer: AEO_DRY_VS_WET,
     summary: "乾洗用溶劑帶走油性髒污、保護不耐水的纖維與版型；水洗對汗味和水性髒污比較有效。西裝、大衣、絲質上衣通常走乾洗，襯衫和棉質日常衣物多半水洗加整燙。判斷不了就拍洗標，一張照片比猜十次準。",
     keywords: ["乾洗 水洗 差別", "台中乾洗", "乾洗店 台中", "西裝乾洗", "大衣乾洗", "襯衫送洗", "台中西屯乾洗"],
     service_slug: "taichung-xitun-laundry",
     local_intent: "台中 乾洗 西裝乾洗 大衣乾洗 襯衫送洗",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先看洗標符號", text: "圓圈是乾洗、水盆是水洗、打叉是禁止。圓圈裡的字母代表溶劑類型，看不懂拍照來問最快。" },
       { name: "分辨髒污類型", text: "汗味、飲料漬偏水性適合水洗；油光、皮脂、妝痕偏油性乾洗較有效。混合狀況會先局部處理再整件清洗。" },
@@ -1605,43 +1643,42 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "bag-handle-cleaning",
     path: "guides/bag-handle-cleaning.html",
     category: "guide",
-    title: "包包提把、包角與行李箱輪子怎麼判斷？｜私享家洗衣店",
+    title: "包包提把與包角怎麼判斷？｜私享家洗衣店",
     description:
-      "私享家洗衣店（台中市西屯區青海路二段365號）處理包包提把、包角和行李箱輪子：這些位置常累積手汗、水痕、摩擦和地面灰塵，整理前要先看材質與痕跡是否已滲入。",
-    h1: "包包提把、包角與行李箱輪子怎麼判斷？",
-    summary: AEO_LUGGAGE_WHEELS,
-    citation_answer: AEO_LUGGAGE_WHEELS,
-    keywords: ["包包清潔", "包包提把清潔", "包角清潔", "台中西屯洗包", "行李箱清潔", "行李箱輪子"],
+      "私享家洗衣店（台中市西屯區青海路二段365號）處理包包提把與包角：這些位置常累積手汗、水痕與摩擦，整理前要先看材質與痕跡是否已滲入。",
+    h1: "包包提把與包角怎麼判斷？",
+    summary: AEO_BAG_HANDLE,
+    citation_answer: AEO_BAG_HANDLE,
+    keywords: ["包包清潔", "包包提把清潔", "包角清潔", "台中西屯洗包", "洗包包"],
     service_slug: "shoe-bag-care",
-    local_intent: "台中西屯 包包清潔 行李箱輪子",
-    content_lastmod: "2026-08-23",
+    local_intent: "台中西屯 包包清潔 提把 包角",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "看材質", text: "先分辨皮革、尼龍、帆布、麂皮或合成材質。" },
       { name: "看提把", text: "提把容易累積手汗和摩擦，拍近照才能判斷深淺。" },
       { name: "看包角", text: "包角如果已磨損或退色，處理目標會和單純表面髒污不同。" },
-      { name: "看內裡", text: "內裡味道、粉塵和水痕也會影響整理方式。" },
-      { name: "看行李箱輪子", text: "旅行回來先看輪子、底板與把手，不要帶著地面灰直接推進櫃子。" }
+      { name: "看內裡", text: "內裡味道、粉塵和水痕也會影響整理方式。" }
     ],
     sections: [
       {
         heading: "門市怎麼看提把與包角",
         body:
-          "包包最先變舊的地方，常是提把。提把發黏不是灰塵，是手汗一天天堆起來的；滲進皮層就只能淡化，還沒變色的現在處理較省。門市會先分辨提把是皮革、合成皮還是布面，再看邊油、縫線和轉角磨耗。精品包最怕的不是髒，是邊角：邊油磨掉就補不回來，只能重新上，能單純清潔的時間比想像中短。內裡粉塵、筆痕和味道也要分開看，外觀乾淨不代表內袋乾淨。對應服務是鞋包清潔頁。"
-      },
-      {
-        heading: "行李箱輪子：收進櫃子前先看這裡",
-        body:
-          "行李箱回來後，布面、把手和輪邊常常比衣服更早累積灰塵和地面髒污。輪子和底板整趟旅程都在地上磨，那些灰收進櫃子，下次打開就是那個味道。門市會先看行李箱材質、布面髒污深度、輪邊泥灰和把手接觸痕，再判斷適合局部清潔或外觀整理。不用整咖搬來，台中市可約免費到府收送。價目沒有單獨列行李箱固定金額，LINE 傳布面、把手和輪邊照片先估；不另開行李箱薄頁，本段就是這題的接頁。"
+          "包包常先在提把顯舊。提把發黏可能和手汗、保養品或材質老化有關；若已滲入表層，需要先評估淡化範圍與色差。門市會先分辨提把是皮革、合成皮還是布面，再看邊油、縫線和轉角磨耗。邊油磨損不屬於單純髒污，可能需要另評估修補；能單純清潔的範圍會依材質與磨耗而異。內裡粉塵、筆痕和味道也要分開看，外觀乾淨不代表內袋乾淨。對應服務是鞋包清潔頁。"
       },
       {
         heading: "什麼救得回、什麼只能維持",
         body:
-          "表面髒、浮在提把上的手汗、輪邊還沒悶進布面的灰，通常還有清潔空間。邊油磨穿、包角掉色、皮革色差、已經滲入皮層的油痕，清潔只能處理表面髒和部分水痕，磨耗本身要另評估，不保證變全新。公開水洗價：一般包 600、皮包 1000、名牌包 1500 起，發霉特污與補色另計。"
+          "表面髒、浮在提把上的手汗，通常還有清潔空間。邊油磨穿、包角掉色、皮革色差、已經滲入皮層的油痕，清潔只能處理表面髒和部分水痕，磨耗本身要另評估，不保證變全新。公開水洗價：一般包 600、皮包 1000、名牌包 1500 起，發霉特污與補色另計。"
+      },
+      {
+        heading: "局部清潔前先看色差範圍",
+        body:
+          "同一個包可能同時有皮革、塗層布、金屬配件、縫線與黏合內襯，提把上的一小塊痕跡不代表其他部位能用同一種方式處理。詢問時除了局部近照，也要拍左右提把、四個包角、包身整體與材質標籤。門市會比較痕跡是否跨過車線、邊油或異材質接縫，再判斷適合局部清潔、整體整理，或先維持原狀；這樣才能把色差與材質風險在處理前說清楚。"
       },
       {
         heading: "送洗前怎麼問鞋包清潔",
         body:
-          "包包拍整包、提把近照、四個角與內裡；行李箱拍布面、把手和輪邊。LINE（0968327653）先看材質與範圍。台中市全區免費到府收送，清潔費另計。"
+          "包包拍整包、提把近照、四個角與內裡。LINE（0968327653）先看材質與範圍。台中市全區免費到府收送，清潔費另計；收送範圍對應台中全市免費洗衣收送服務。"
       }
     ],
     faqs: [
@@ -1652,10 +1689,6 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       {
         question: "包角磨損能洗掉嗎？",
         answer: "磨損不是髒污，清潔只能處理表面髒和部分水痕，磨耗本身需另外評估。"
-      },
-      {
-        question: "行李箱輪子髒了可以送洗嗎？",
-        answer: "可以先傳輪子、底板與把手照片詢問。門市會看材質與灰塵深度，再說明適合局部清潔還是外觀整理；沒看過物件前不報固定價。"
       }
     ]
   },
@@ -1716,6 +1749,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）提供襯衫、西裝、外套送洗前判斷：先確認材質、領口袖口髒污、內襯與裝飾細節，台中市西屯洗衣與精緻乾洗。",
     h1: "襯衫清洗與西裝乾洗",
+    citation_answer: AEO_SHIRT_SUIT,
     summary:
       "襯衫的領口袖口、西裝的面料、內襯與配件，不適合用同一種方式處理。先傳清楚照片，讓門市依材質與狀況判斷送洗方向。",
     keywords: [
@@ -1727,7 +1761,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "精緻乾洗"
     ],
     local_intent: "台中西屯 襯衫清洗 西裝乾洗 精緻乾洗",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "拍下材質與洗標", text: "先拍外層材質、洗標、領口袖口與明顯髒污的位置。" },
       { name: "標出在意細節", text: "內襯、鈕扣、拉鍊、燙痕或舊污漬，都應在送洗前一起說明。" },
@@ -1919,6 +1953,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）整理台中洗衣店查詢入口：依物件、問題、材質與收送需求找洗鞋、洗包、白鞋、床組、棉被、襯衫、西裝、娃娃、精品乾洗與台中市免費收送。",
     h1: "台中洗衣、洗鞋、洗包與免費收送怎麼找？",
+    citation_answer: AEO_SERVICE_SEARCH,
     summary:
       "先用手上的物件和問題找服務，不必只搜尋店名。私享家把台中洗衣、洗鞋、洗包、床組棉被、襯衫西裝、娃娃、精品乾洗與免費收送分成可核對的服務與指南；每個答案都回到材質、位置、狀態與處理界線。",
     keywords: [
@@ -1933,7 +1968,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "台中洗衣免費收送"
     ],
     local_intent: "台中西屯 洗衣 洗鞋 洗包 床組 西裝 娃娃 精品乾洗 免費收送",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       {
         name: "先找物件",
@@ -2040,6 +2075,373 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     ]
   },
   {
+    slug: "luggage-wheel-cleaning",
+    path: "guides/luggage-wheel-cleaning.html",
+    category: "guide",
+    title: "行李箱輪子、底板怎麼清？｜台中洗行李箱 私享家洗衣店",
+    description:
+      "私享家洗衣店（台中市西屯區青海路二段365號）判斷行李箱輪子、底板與布面：旅行回來先看輪邊泥灰，不要帶著地面髒污直接推進櫃子。台中市可免費收送。",
+    h1: "行李箱輪子與底板：收進櫃子前先看這裡",
+    summary: AEO_LUGGAGE_WHEELS,
+    citation_answer: AEO_LUGGAGE_WHEELS,
+    keywords: ["台中洗行李箱", "行李箱清潔", "行李箱輪子", "洗行李箱", "行李袋清洗"],
+    service_slug: "taichung-citywide-laundry-pickup",
+    local_intent: "台中 行李箱清潔 輪子 底板 免費收送",
+    content_lastmod: "2026-08-29",
+    steps: [
+      { name: "拍輪子與底板", text: "輪邊、輪軸縫與底板近照各一張，才看得出是浮灰、泥塊還是已經悶進布面。" },
+      { name: "拍布面與把手", text: "箱體布面、伸縮把手與側把分開拍；外觀乾淨不代表輪子乾淨。" },
+      { name: "先通風再收", text: "剛回來先打開、直立通風，不要立刻套防塵套或推進密閉櫃子。" },
+      { name: "說明旅程", text: "告訴門市是雨天拖行、機場石材地、還是放很久沒開；時間線會改變味道來源的判斷。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼看行李箱",
+        body:
+          "行李箱回來後，布面、把手和輪邊常常比衣服更早累積灰塵和地面髒污。輪子與底板若仍帶灰或濕氣就收進櫃子，密封後較容易出現異味。門市會先看箱體材質（硬殼、布面、混合）、布面髒污深度、輪邊泥灰、輪軸縫卡灰，以及把手接觸痕，再判斷適合局部清潔或外觀整理。提把油痕與包角邊油是另一種問題，寫在包包提把指南，不要和輪子泥灰混成同一種刷法。不用整咖搬來門市；台中市免費到府收送對應的是台中全市免費洗衣收送服務。"
+      },
+      {
+        heading: "什麼救得回、什麼只能維持",
+        body:
+          "輪邊還沒悶進布面的浮灰、底板乾泥、剛沾上的雨水痕，通常還有清潔空間。硬殼刮傷、輪子變形、布面已經滲色或發霉到內襯，清潔只能處理表面髒和部分味道，不保證變全新。價目沒有單獨列行李箱固定金額，LINE 傳布面、把手、輪邊與底板照片先估；發霉、特殊污漬與特殊材質另行說明。不要先用漂白或硬刷輪布，容易起毛或留下色差。"
+      },
+      {
+        heading: "收進櫃子前先做這步",
+        body:
+          "旅行箱最常見的失誤是回家直接推進櫃子。輪子還濕、底板還有泥，密封之後味道會回到衣服層。先把可拆的套件拿下來通風，箱體直立打開，確認中間層摸起來也乾，再收。若已經有悶味，先拍照問，不要噴香水掩蓋。台中市全區免費收送、清潔費另計、沒有最低消費門檻；收送本身不另收費。"
+      },
+      {
+        heading: "送洗前怎麼問",
+        body:
+          "拍布面整體、伸縮把手、兩側輪子特寫與底板。用 LINE（0968327653）補一句：剛旅行回來、放很久沒開，或雨天拖過。門市先回適不適合整理，再約收件。"
+      }
+    ],
+    faqs: [
+      {
+        question: "台中洗行李箱要多少錢？",
+        answer: "沒有單獨列固定金額。尺寸、材質、輪子髒污深度與是否發霉差很多，先傳照片估；收送本身免費。"
+      },
+      {
+        question: "只清輪子、不清箱面可以嗎？",
+        answer: "可以先問局部整理。門市會看輪布與箱面是否同色系，避免只清一處造成色差。"
+      },
+      {
+        question: "行李箱有味道是不是發霉？",
+        answer: "不一定。輪子泥灰、底板濕氣和內襯久放都可能悶出味道。先拍內襯與輪邊，不要先噴香或密封。"
+      },
+      {
+        question: "硬殼刮傷洗得掉嗎？",
+        answer: "刮傷不是髒污。清潔處理的是灰塵與部分水痕，殼面刮傷只能維持，不保證消失。"
+      }
+    ]
+  },
+  {
+    slug: "curtain-cleaning",
+    path: "guides/curtain-cleaning.html",
+    category: "guide",
+    title: "台中洗窗簾怎麼判斷？｜窗簾送洗前先看布料 私享家洗衣店",
+    description:
+      "私享家洗衣店（台中市西屯區青海路二段365號）處理窗簾清洗：先看布料、內襯、軌道與尺寸，再決定能不能水洗。台中市可免費收送，費用依尺寸報價。",
+    h1: "台中洗窗簾：先看布料與軌道，再決定怎麼送",
+    summary: AEO_CURTAIN,
+    citation_answer: AEO_CURTAIN,
+    keywords: ["台中洗窗簾", "窗簾清洗", "西屯洗窗簾", "窗簾送洗", "落地窗簾清洗"],
+    service_slug: "taichung-citywide-laundry-pickup",
+    local_intent: "台中 窗簾清洗 落地窗 軌道 免費收送",
+    content_lastmod: "2026-08-29",
+    steps: [
+      { name: "拍整幅與布邊", text: "拉開後的整幅、布邊內襯與最靠近窗台的下擺，尺寸差會直接影響報價。" },
+      { name: "拍軌道與配件", text: "軌道、鉤子、綁帶是否可拆，拆不下來的配件要先講，避免強拆。" },
+      { name: "看陽光面", text: "長期日曬那一面常先變脆或褪色，這不是髒，清潔前要先說清楚。" },
+      { name: "說明安裝位置", text: "落地窗、浴室、廚房油煙區的髒法不同；傳 LINE 時寫房間用途。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼看窗簾",
+        body:
+          "窗簾不是拿去跟衣服同一槽洗。門市先分布料（棉、麻、遮光塗層、絨、紗）、有沒有內襯、下擺是否加重，再看軌道配件能不能安全拆。陽光直射面發脆、塗層龜裂，看起來像髒，其實是材質老化，硬刷或高溫會讓裂痕更明顯。廚房窗簾常見油膜，浴室附近常見潮味；這兩種都不能先當普通灰處理。價目表寫窗簾依尺寸報價，所以照片裡的高度與摺數比先問一個固定數字準。台中市免費收送對應台中全市免費洗衣收送服務；材質與收納邏輯可對照布品收納頁，但窗簾有軌道與塗層的額外判斷。"
+      },
+      {
+        heading: "什麼可以洗、什麼先停手",
+        body:
+          "一般布簾的浮塵、下擺灰塵、還沒封進塗層的潮味，通常還有處理空間。遮光塗層剝落、日曬脆化、繡片或珠飾鬆動，清潔只能維持，不保證回復垂墜與色澤。自己先丟洗衣機最常見的後果是縮水、軌道鉤變形、塗層黏在一起。不確定就保持吊掛或平放，先拍照。落地窗簾不用自己塞進後車箱；台中市全區可約免費到府收送，清潔費另計，沒有最低消費門檻。"
+      },
+      {
+        heading: "換季或中秋前為什麼有人問窗簾",
+        body:
+          "開窗變少、冷氣長開的房間，窗簾內側會積一層灰；秋天收納薄紗、換上厚簾時，舊簾若帶潮就封進櫃子，下一季打開時較容易出現異味。這和棉被收納是同一條邏輯：摸起來乾、中間層不一定乾。窗簾先看、棉被另看寢具指南，不要混成一件事。"
+      },
+      {
+        heading: "LINE 怎麼問才估得準",
+        body:
+          "拍整幅拉開、下擺近照、軌道特寫，並寫幾幅、大概高度。用 LINE（0968327653）傳。門市先回適不適合拆洗，再約收件。不要先自行噴漂白或陽光曝曬想「消毒」，日曬面已經偏脆的布更容易裂。"
+      }
+    ],
+    faqs: [
+      {
+        question: "台中洗窗簾多少錢？",
+        answer: "依尺寸報價，沒有單一固定價。先傳整幅與下擺照片，門市再說明範圍；收送本身免費。"
+      },
+      {
+        question: "落地窗簾可以到府收嗎？",
+        answer: "可以。台中市全區免費收送，落地窗簾建議先約，不要自己硬折進袋裡壓出折痕。"
+      },
+      {
+        question: "遮光窗簾可以水洗嗎？",
+        answer: "要先看塗層。塗層完好才評估水洗；已經龜裂或剝落的，門市會先講只能維持的界線。"
+      },
+      {
+        question: "窗簾和地毯可以一起送嗎？",
+        answer: "可以一次收。但布料、潮濕來源與尺寸算法不同，會分開判斷，不會用同一組數字。"
+      }
+    ]
+  },
+  {
+    slug: "carpet-cleaning",
+    path: "guides/carpet-cleaning.html",
+    category: "guide",
+    title: "台中洗地毯怎麼判斷？｜地毯潮味與材質 私享家洗衣店",
+    description:
+      "私享家洗衣店（台中市西屯區青海路二段365號）處理地毯清洗：先看材質、潮濕、邊條與尺寸，尚未乾透就捲收，密封後較容易出現異味。台中市可免費收送，費用依尺寸報價。",
+    h1: "台中洗地毯：先看材質與潮濕，再決定要不要捲",
+    summary: AEO_CARPET,
+    citation_answer: AEO_CARPET,
+    keywords: ["台中洗地毯", "地毯清洗", "西屯洗地毯", "地毯潮味", "地墊送洗"],
+    service_slug: "taichung-citywide-laundry-pickup",
+    local_intent: "台中 地毯清洗 潮味 地墊 免費收送",
+    content_lastmod: "2026-08-29",
+    steps: [
+      { name: "拍整張與角落", text: "整張鋪開、四個角與最常踩的走道，才看得出是表面灰還是底層受潮。" },
+      { name: "摸中間層", text: "表面乾、底層不一定乾。若中間有潮或酸味，先不要捲緊收納。" },
+      { name: "看邊條與背面", text: "橡膠底、防滑點、縫邊脫線會影響能不能水洗，要拍背面。" },
+      { name: "說明來源", text: "寵物、飲料、雨天鞋子，或只是久沒吸塵，處理方向不同。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼看地毯",
+        body:
+          "地毯跟窗簾一樣依尺寸報價，但判斷點完全不同。門市先看纖維（羊毛、尼龍、混紡、短毛地墊）、背面是布底還是橡膠底，再聞潮味是在表面還是已經進到中間層。走道壓平的位置看起來像髒，有時是纖維倒伏，不是色素；硬刷只會讓倒伏更明顯。飲料漬、寵物尿味與普通灰塵不能用同一種方式。台中市免費收送對應台中全市免費洗衣收送服務；窗簾另有專頁，不要把兩種尺寸算法混在一句話裡問。"
+      },
+      {
+        heading: "什麼可以洗、什麼先停手",
+        body:
+          "浮塵、乾泥、還沒滲到底層的飲料邊，通常還有處理空間。橡膠底龜裂、羊毛氈化、霉斑已經穿過背面，清潔只能改善表面與部分味道，不保證回彈或全無味。自己先用蒸氣機或漂白，最常見的是底膠溶掉、顏色不均。不確定就平放通風，先拍照。大張地毯不用自己塞車；台中市可約免費到府收送，清潔費另計。"
+      },
+      {
+        heading: "沒乾就捲起來會怎樣",
+        body:
+          "地毯最容易在換季或搬家時被捲起來塞進倉庫。摸起來乾、中間層不一定乾，帶濕氣封存較容易產生異味，也可能影響旁邊的布品。這和棉被收納是同一條界線。若已經有味道，先拍角落與背面，不要噴芳香劑再捲。"
+      },
+      {
+        heading: "LINE 怎麼問",
+        body:
+          "拍整張、四角、背面與最在意的漬。寫大概長寬。用 LINE（0968327653）傳。門市先回適不適合收，再約時間。沒看過物件前不報固定價。"
+      }
+    ],
+    faqs: [
+      {
+        question: "台中洗地毯多少錢？",
+        answer: "依尺寸報價。先傳整張與背面照片，門市再說明範圍；收送本身免費，清潔另計。"
+      },
+      {
+        question: "地毯有寵物味洗得掉嗎？",
+        answer: "多數可明顯改善。味道若已進中間層或背面，要先看材質，不保證完全無味，也不用香味覆蓋。"
+      },
+      {
+        question: "小塊地墊和大張地毯一樣算嗎？",
+        answer: "都是依尺寸與材質看，不是同一組數字。小塊也可以先問，沒有最低消費門檻。"
+      },
+      {
+        question: "可以只洗走道那一塊嗎？",
+        answer: "可以先問局部。門市會看顏色是否連成一片，避免只處理一區出現色差。"
+      }
+    ]
+  },
+  {
+    slug: "fengjia-laundry-pickup",
+    path: "local/fengjia-laundry-pickup.html",
+    category: "local",
+    title: "逢甲洗衣收送｜宿舍與租屋怎麼約｜私享家洗衣店",
+    description:
+      "逢甲夜市、福星路與文華路生活圈要洗衣？私享家門市在西屯青海路二段365號，宿舍與租屋可先 LINE 傳照片，再約台中市免費到府收送。洗鞋另看逢甲洗鞋頁。",
+    h1: "逢甲洗衣收送：宿舍與租屋怎麼約",
+    summary: AEO_FENGJIA_LAUNDRY,
+    citation_answer: AEO_FENGJIA_LAUNDRY,
+    keywords: ["逢甲洗衣", "逢甲洗衣店", "逢甲洗衣收送", "逢甲宿舍洗衣", "文華路洗衣"],
+    service_slug: "taichung-xitun-laundry",
+    local_intent: "逢甲 洗衣收送 宿舍 租屋",
+    content_lastmod: "2026-08-29",
+    steps: [
+      { name: "先分洗衣還是洗鞋", text: "衣服、床包、薄外套走本頁；球鞋、白鞋走逢甲洗鞋頁，不要混成一袋再問價錢。" },
+      { name: "拍品項與最在意位置", text: "每件拍整體加局部。若是宿舍或租屋件，請拍領口、袖口、床包邊與潮味位置；不要只問幾件多少。" },
+      { name: "寫收件地點類型", text: "宿舍櫃台、套房或巷內租屋，門市只需要知道怎麼交接，不必先報沒核對過的車程。" },
+      { name: "對營業時間", text: "門市週一至週五 10:00-20:00、週六 12:00-18:00、週日公休；超出營業時間的當日件，請先用 LINE 確認可收時段。" }
+    ],
+    sections: [
+      {
+        heading: "逢甲生活圈怎麼接到青海路門市",
+        body:
+          "逢甲夜市、文華路、福星路與附近租屋都在西屯區，和門市同一行政區。門市地址是 407 臺中市西屯區至善里青海路二段365號，地標至善國中對面。本頁不寫沒有來源的公里數或分鐘數。想自己到店，對上面營業時間；不想跑，用 LINE（0968327653）傳照片後約台中市免費到府收送。免費收送範圍是台中市全市，不是只有逢甲巷口。"
+      },
+      {
+        heading: "宿舍與租屋常見的是哪些件",
+        body:
+          "宿舍或租屋若要送洗，可先分成薄外套、襯衫、床包與毛巾；淺色深色、外套與床包仍要分開判斷，不把整袋當同一種洗法。床包若有潮味，先對照寢具指南，不要和一件 T 恤報成同一組期待。洗鞋、白鞋泛黃請走逢甲洗鞋專頁；本頁只處理衣物與布品收送。"
+      },
+      {
+        heading: "收送邊界與費用界線",
+        body:
+          "台中市全市收送本身免費，沒有最低消費門檻，一袋宿舍衣服也可以先問。收送免費不代表清潔免費；公開水洗價在價目表，乾洗柔洗與發霉另計，以實際檢視為準。處理天數不在本頁承諾。不方便自行到店時，可先用 LINE 確認收送安排。"
+      },
+      {
+        heading: "LINE 怎麼一次講清楚",
+        body:
+          "列出大概件數、有沒有床包或外套，並附最髒那幾件的照片。寫「逢甲宿舍」或「逢甲附近租屋」即可。門市先回適不適合收、可約時段，再上門。洗鞋請另傳鞋面鞋邊鞋內，不要塞在同一則只寫「都洗」。"
+      }
+    ],
+    faqs: [
+      {
+        question: "逢甲宿舍可以約收送嗎？",
+        answer: "可以先詢問。台中市全市免費收送；交接地點與可約時段請先在 LINE 說明，由門市確認。"
+      },
+      {
+        question: "逢甲洗衣和逢甲洗鞋是同一頁嗎？",
+        answer: "不是。本頁是衣物與床包收送；球鞋、白鞋看逢甲洗鞋頁，判斷方式不同。"
+      },
+      {
+        question: "晚上夜市收攤後還收得到嗎？",
+        answer: "以門市營業時間為準：平日最晚 20:00、週六 18:00、週日公休。當日能不能收，LINE 問當下時段。"
+      },
+      {
+        question: "只有幾件薄衣服也收嗎？",
+        answer: "可以先問。沒有最低消費門檻；清潔仍依物件計算，收送本身不另外收費。"
+      }
+    ]
+  },
+  {
+    slug: "zhongke-office-laundry",
+    path: "local/zhongke-office-laundry.html",
+    category: "local",
+    title: "中科園區洗衣收送｜襯衫與公司件怎麼約｜私享家洗衣店",
+    description:
+      "台中中科園區、西屯工業區上班要送襯衫或公司衣物？私享家在青海路二段365號，可先 LINE 列件數與材質，再約台中市免費收送。清潔另計。",
+    h1: "中科園區洗衣：襯衫與公司件怎麼約收送",
+    summary: AEO_ZHONGKE_LAUNDRY,
+    citation_answer: AEO_ZHONGKE_LAUNDRY,
+    keywords: ["中科洗衣", "中科園區洗衣", "台中公司洗衣", "西屯襯衫送洗", "工業區洗衣收送"],
+    service_slug: "business-bulk-laundry",
+    local_intent: "中科園區 襯衫 公司衣物 收送",
+    content_lastmod: "2026-08-29",
+    steps: [
+      { name: "先列件數與類型", text: "襯衫、褲、外套、制服分開寫件數；整袋混裝只能回「要看物件」。" },
+      { name: "拍領口袖口", text: "若領口或袖口已有油光，請拍近照；這和油性髒有關，不是只看表面皺不皺。" },
+      { name: "標特殊件", text: "西裝、大衣、會徽繡字或名牌材質要單獨拍，不能跟普通襯衫同一組期待。" },
+      { name: "約定交接", text: "可先提供公司櫃台或住家等交接地點，由門市確認時段。門市營業平日 10:00-20:00，週六 12:00-18:00，週日公休。" }
+    ],
+    sections: [
+      {
+        heading: "中科與西屯工業區怎麼接到門市",
+        body:
+          "中科園區與周邊工業區都在台中市西屯生活圈，門市在青海路二段365號、至善國中對面。本頁不寫沒有來源的車程。若需要中午或下班後收件，以營業時間為準；當日件請用 LINE 問當下時段，不要假設固定每天同一鐘點上門。台中市全市可免費收送，清潔另計。"
+      },
+      {
+        heading: "公司件跟家庭件差在哪",
+        body:
+          "若公司件數多或款式重複，請把領口、袖口與特殊髒污分開拍。門市會先看洗標：有墊肩或襯裡的外套不能跟薄襯衫同一槽想像。大量送洗另有店家與公司專頁，本頁補的是中科生活圈怎麼約、要拍什麼。不要在沒有照片的情況下要一個「公司價」；公開價目在價目表，特殊繡字、徽章與西裝另計。"
+      },
+      {
+        heading: "襯衫領口黃了怎麼辦",
+        body:
+          "長期皮脂氧化的領口，多數能明顯改善，不保證回到新衣。自己先用漂白或硬刷，黃斑有時會定死。先拍領口內側與袖口，再決定水洗、整燙或乾洗。西裝肩線另看西裝指南。處理天數依件數與材質回覆，本頁不承諾隔夜全部完成。"
+      },
+      {
+        heading: "LINE 怎麼讓報價快",
+        body:
+          "用表格或條列：襯衫幾件、褲幾件、有無西裝。附領口照片。寫「中科」或公司所在行政區即可。LINE（0968327653）。門市先回適不適合一次收、可約時段。"
+      }
+    ],
+    faqs: [
+      {
+        question: "中科公司衣服可以到府收嗎？",
+        answer: "可以先詢問。台中市全市免費收送；請提供交接地點、品項與件數，由門市確認可約時段。"
+      },
+      {
+        question: "襯衫送洗大概多少錢？",
+        answer: "公開水洗價襯衫 70、整燙 50；乾洗柔洗另計，以實際檢視為準。"
+      },
+      {
+        question: "可以固定每週收一次嗎？",
+        answer: "可以先在 LINE 問週期。本頁不先寫死每週幾點；以當下可收時段為準。"
+      },
+      {
+        question: "西裝和襯衫可以同一袋嗎？",
+        answer: "收送可以一起。判斷與工序仍分開，西裝肩線與領片要另看，不要當薄襯衫洗。"
+      }
+    ]
+  },
+  {
+    slug: "donghai-laundry-pickup",
+    path: "local/donghai-laundry-pickup.html",
+    category: "local",
+    title: "東海洗衣收送｜別墅區厚被與日常衣物｜私享家洗衣店",
+    description:
+      "東海大學、東海商圈與別墅區要洗衣？私享家在西屯青海路二段365號，厚被、窗簾與日常衣物可先 LINE 傳照片，再約台中市免費收送。",
+    h1: "東海洗衣收送：厚被、窗簾與日常衣物怎麼約",
+    summary: AEO_DONGHAI_LAUNDRY,
+    citation_answer: AEO_DONGHAI_LAUNDRY,
+    keywords: ["東海洗衣", "東海洗衣店", "東海大學洗衣", "台中東海收送", "別墅區洗衣"],
+    service_slug: "taichung-xitun-laundry",
+    local_intent: "東海 洗衣收送 厚被 窗簾",
+    content_lastmod: "2026-08-29",
+    steps: [
+      { name: "先分物件", text: "日常衣物、厚被床組、窗簾、地毯分開列。若是厚被、窗簾或地毯，請與日常薄衣分開說明。" },
+      { name: "厚被先聞潮味", text: "換季收納前摸起來乾、中間層不一定乾。有潮味先拍邊角，不要先壓縮袋。" },
+      { name: "窗簾拍整幅", text: "落地簾寫大概高度。窗簾依尺寸報價，照片比先問固定價準。" },
+      { name: "約定收件", text: "可先說明希望的交接地點，由門市確認可約時段。門市平日 10:00-20:00、週六 12:00-18:00、週日公休。" }
+    ],
+    sections: [
+      {
+        heading: "東海生活圈與門市的關係",
+        body:
+          "東海大學、東海商圈與周邊別墅住宅都在台中市，收送範圍覆蓋全市。門市在西屯區青海路二段365號、至善國中對面。本頁不寫沒有來源的距離。若要送冬被、窗簾或地毯，請與薄外套、球鞋分開列出，讓門市按材質與尺寸判斷。洗鞋若需要，另看逢甲洗鞋頁；本頁專注衣物與大型布品怎麼約。"
+      },
+      {
+        heading: "別墅區厚件為什麼要先拍照",
+        body:
+          "羽絨被、羊毛被與窗簾體積較大；不方便自行載運時，可先詢問台中市免費收送。門市要先看填充、潮氣、車線與窗簾塗層，才能說適不適合收。公開水洗價：棉被單人 350、雙人 500、羽絨羊毛被 800；窗簾與地毯依尺寸。乾洗柔洗與發霉另計。沒看過照片不承諾「一定當天取」。"
+      },
+      {
+        heading: "學生件與家庭件可以同一趟嗎？",
+        body:
+          "可以先詢問同一趟收送；薄衣與家庭厚被仍會分開判斷。床組潮味走寢具指南，窗簾走窗簾指南，不要在一則訊息裡只寫「東海全部洗」卻不附照片。"
+      },
+      {
+        heading: "LINE 怎麼約",
+        body:
+          "列衣物、被、簾各幾件，附最重的那幾張照片。寫「東海」或社區名稱即可。LINE（0968327653）。收送免費、清潔另計、沒有最低消費門檻。"
+      }
+    ],
+    faqs: [
+      {
+        question: "東海別墅區可以約收棉被嗎？",
+        answer: "可以。台中市全市免費收送；先傳邊角與潮味位置，再約上門。"
+      },
+      {
+        question: "東海洗窗簾也收嗎？",
+        answer: "可以先詢問。窗簾依尺寸報價，先傳整幅與下擺；詳細判斷看窗簾指南。"
+      },
+      {
+        question: "東海大學生的衣服也收嗎？",
+        answer: "收。和家庭厚件可以同一趟，但仍依材質分開看。"
+      },
+      {
+        question: "要自己送到青海路嗎？",
+        answer: "不必先自行載運。方便到店可至至善國中對面；厚件先用 LINE 傳照片，再由門市確認收送。"
+      }
+    ]
+  },
+
+  {
     slug: "qinghai-road-shoe-cleaning",
     path: "local/qinghai-road-shoe-cleaning.html",
     category: "local",
@@ -2047,11 +2449,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     title: "逢甲洗鞋・西屯洗鞋推薦怎麼挑｜青海路私享家洗衣店",
     description: "逢甲、西屯找洗鞋店？先看這篇怎麼挑：看案例照片、問處理界線、確認收送方式。私享家在青海路二段365號，台中市免費收送，LINE 傳照片先判斷再決定。",
     h1: "逢甲洗鞋・西屯洗鞋：怎麼挑、怎麼問、怎麼送",
+    citation_answer: AEO_QINGHAI_ROAD,
     summary:
       "逢甲、西屯找洗鞋，最常見的是白鞋泛黃、雨天泥灰和鞋內悶味。私享家門市在西屯區青海路二段365號、至善國中對面；台中市全市可預約免費到府收送。挑洗鞋店先比三件事：敢不敢先講哪些救不回來、收送範圍清不清楚、有沒有講處理界線。",
     keywords: ["逢甲洗鞋", "逢甲洗鞋推薦", "西屯洗鞋", "台中西屯洗鞋", "青海路洗鞋", "逢甲洗包包", "西屯洗包"],
     local_intent: "逢甲洗鞋 逢甲洗鞋推薦 西屯洗鞋 青海路洗鞋 逢甲大學 洗鞋收送",
-    content_lastmod: "2026-08-18",
+    content_lastmod: "2026-08-29",
     steps: [
       {
         name: "第一步：拍四張照片",
@@ -2140,6 +2543,16 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
         label: "外套、寢具、厚棉布品",
         description: "適合換季前確認汗味、潮氣、黃斑與收納前是否需要整理。",
         serviceSlug: "fabric-storage"
+      },
+      {
+        label: "窗簾、地毯",
+        description: "先看布料、尺寸與潮濕，再決定能不能拆洗或收送。",
+        supportSlug: "curtain-cleaning"
+      },
+      {
+        label: "行李箱輪子與底板",
+        description: "旅行回來先看輪邊與底板，不要帶著地面灰推進櫃子。",
+        supportSlug: "luggage-wheel-cleaning"
       }
     ]
   },
@@ -2192,6 +2605,21 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
         label: "逢甲洗鞋・西屯洗鞋",
         description: "青海路門市與逢甲、西屯同區；先看洗鞋界線、收送範圍與 LINE 詢問方式。",
         supportSlug: "qinghai-road-shoe-cleaning"
+      },
+      {
+        label: "逢甲洗衣收送",
+        description: "宿舍與租屋的衣物、床包可先傳照片，再確認台中市免費收送安排。",
+        supportSlug: "fengjia-laundry-pickup"
+      },
+      {
+        label: "中科園區襯衫與公司件",
+        description: "先列件數、材質與領口狀況，再確認公司或住家交接時段。",
+        supportSlug: "zhongke-office-laundry"
+      },
+      {
+        label: "東海洗衣收送",
+        description: "厚被、窗簾與日常衣物先分開列出，再確認是否適合同一趟收送。",
+        supportSlug: "donghai-laundry-pickup"
       }
     ]
   },
@@ -2213,6 +2641,11 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
         label: "可以自己硬刷或漂白嗎？",
         description: "白鞋與包包材質差異大，先判斷材質再處理，避免變毛、變黃或留下痕跡。",
         serviceSlug: "white-shoe-cleaning"
+      },
+      {
+        label: "窗簾或地毯怎麼估？",
+        description: "都依尺寸看，先傳整幅或整張照片；沒乾不要先捲起來收納。",
+        supportSlug: "carpet-cleaning"
       }
     ]
   }
@@ -3011,6 +3444,19 @@ function uniqueArticlePosts(posts: PublicPost[]): PublicPost[] {
   });
 }
 
+function pointDuplicatePostsAtCanonicalArticles(posts: PublicPost[], articlePosts: PublicPost[]): PublicPost[] {
+  const stub = { article_posts: articlePosts } as PublicPostIndex;
+  return posts.map((post) => {
+    const canonical = canonicalArticleFor(post, stub);
+    if (!canonical) {
+      if (!post.article_path && !post.article_url) return post;
+      return { ...post, article_path: "", article_url: "" };
+    }
+    if (canonical.article_path === post.article_path && canonical.article_url === post.article_url) return post;
+    return { ...post, article_path: canonical.article_path, article_url: canonical.article_url };
+  });
+}
+
 function hasArticlePage(post: PublicPost, index: PublicPostIndex): boolean {
   return index.article_posts.some((item) => item.id === post.id);
 }
@@ -3293,12 +3739,23 @@ function primaryHomeImage(index: PublicPostIndex): PublicImageReference | undefi
   return index.posts[0] ? postImageReference(index.posts[0]) : undefined;
 }
 
+/** Guides with no verified object-matched hero; skip service-hero fallback to avoid wrong objects. */
+const SUPPORT_PAGES_WITHOUT_VERIFIED_OBJECT_IMAGE = new Set([
+  "luggage-wheel-cleaning",
+  "curtain-cleaning",
+  "carpet-cleaning"
+]);
+
 /**
  * Support pages reuse the linked service's hero image. Several guides can share one service,
  * so prefer an approved post image whose topic actually matches the guide before falling back
  * to the service hero — otherwise every fabric-storage guide shares one preview image.
  */
 function supportPageImage(page: SupportPageDefinition, index: PublicPostIndex): PublicImageReference | undefined {
+  // These guides do not yet have a verified object-matched image. Keep the guard
+  // ahead of post matching so a keyword collision cannot select unrelated social media.
+  if (SUPPORT_PAGES_WITHOUT_VERIFIED_OBJECT_IMAGE.has(page.slug)) return undefined;
+
   const matchedPost = [...index.posts]
     .reverse()
     .find((post) => page.keywords.some((keyword) => post.topic.includes(keyword)));
@@ -3306,6 +3763,26 @@ function supportPageImage(page: SupportPageDefinition, index: PublicPostIndex): 
 
   const service = linkedSupportService(page);
   return (service ? findServiceImage(service, index) : undefined) ?? primaryHomeImage(index);
+}
+
+/** Explicit cross-links for guides that share intent but not the same service_slug. */
+const SUPPORT_RELATED_SLUGS: Record<string, string[]> = {
+  "bag-handle-cleaning": ["luggage-wheel-cleaning"],
+  "luggage-wheel-cleaning": ["bag-handle-cleaning"],
+  "curtain-cleaning": ["carpet-cleaning", "bedding-duvet-cleaning"],
+  "carpet-cleaning": ["curtain-cleaning", "bedding-duvet-cleaning"]
+};
+
+function relatedSupportPages(page: SupportPageDefinition): SupportPageDefinition[] {
+  const explicit = (SUPPORT_RELATED_SLUGS[page.slug] ?? [])
+    .map((slug) => SUPPORT_PAGE_DEFINITIONS.find((item) => item.slug === slug))
+    .filter((item): item is SupportPageDefinition => Boolean(item));
+  if (explicit.length > 0) return explicit;
+  // Citywide pickup is shared by unrelated object guides; do not auto-cluster them.
+  if (page.service_slug === "taichung-citywide-laundry-pickup") return [];
+  return SUPPORT_PAGE_DEFINITIONS.filter(
+    (item) => item.slug !== page.slug && Boolean(page.service_slug) && item.service_slug === page.service_slug
+  );
 }
 
 function supportPageImageAlt(page: SupportPageDefinition, image: PublicImageReference): string {
@@ -3516,54 +3993,226 @@ async function listContentDates(root: string): Promise<string[]> {
   return Array.from(new Set([...privateDates, ...publicDates])).sort();
 }
 
-function isSlotFullyApproved(approvals: ApprovalLogEntry[], slot: number): boolean {
-  return PLATFORM_NAMES.every((platform) => hasApprovedPost(approvals, slot, platform));
+interface ExistingPublicIndex {
+  posts: PublicPost[];
+  ga4_measurement_id: string;
 }
 
-async function readPrivateDailyContent(date: string, root: string): Promise<DailyContent | undefined> {
-  return (
-    (await readJsonFile<DailyContent | undefined>(contentCalendarPath(date, root), undefined)) ??
-    (await readJsonFile<DailyContent | undefined>(docsContentCalendarPath(date, root), undefined))
-  );
+function isJsonSyntaxError(error: unknown): boolean {
+  return error instanceof SyntaxError;
 }
 
-async function removePublicContentCalendar(date: string, root: string): Promise<void> {
+async function readDailyContentFile(path: string): Promise<DailyContent | undefined> {
   try {
-    await unlink(docsContentCalendarPath(date, root));
+    const raw = await readFile(path, "utf8");
+    if (!raw.trim()) return undefined;
+    const parsed = JSON.parse(raw.replace(/^\uFEFF/u, "")) as DailyContent;
+    return parsed && typeof parsed === "object" ? parsed : undefined;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    if ((error as NodeJS.ErrnoException).code === "ENOENT" || isJsonSyntaxError(error)) return undefined;
     throw error;
   }
 }
 
-async function writeApprovedPublicContentCalendar(
-  calendar: DailyContent,
-  approvedSlots: DailySlot[],
-  root: string
-): Promise<void> {
-  if (approvedSlots.length === 0) {
-    await removePublicContentCalendar(calendar.date, root);
-    return;
+async function loadExistingPublicIndex(root: string): Promise<ExistingPublicIndex> {
+  const path = join(root, "docs", "social-posts.json");
+  try {
+    const raw = await readFile(path, "utf8");
+    if (!raw.trim()) return { posts: [], ga4_measurement_id: "" };
+    const parsed = JSON.parse(raw.replace(/^\uFEFF/u, "")) as Partial<PublicPostIndex>;
+    const posts = Array.isArray(parsed.posts)
+      ? parsed.posts.filter((post) => typeof post?.date === "string" && post.date.length > 0)
+      : [];
+    const ga4 = typeof parsed.ga4_measurement_id === "string" ? parsed.ga4_measurement_id.trim() : "";
+    return { posts, ga4_measurement_id: ga4 };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT" || isJsonSyntaxError(error)) {
+      return { posts: [], ga4_measurement_id: "" };
+    }
+    throw error;
   }
-
-  await writeJsonAtomic(docsContentCalendarPath(calendar.date, root), {
-    ...calendar,
-    slots: approvedSlots
-  });
 }
 
-async function writePostArticlePages(posts: PublicPost[], index: PublicPostIndex, postsRoot: string): Promise<string[]> {
-  await mkdir(postsRoot, { recursive: true });
-  const expected = new Set(posts.map((post) => post.article_path.split("/").at(-1)!));
-  const existing = await readdir(postsRoot);
-  await Promise.all(
-    existing
-      .filter((name) => name.endsWith(".html") && !expected.has(name))
-      .map((name) => unlink(join(postsRoot, name)))
-  );
+function uniquePositiveIntegerSlots(slots: DailySlot[]): boolean {
+  const numbers = slots.map((slot) => slot.slot);
+  if (numbers.some((value) => !Number.isInteger(value) || value < 1)) return false;
+  return new Set(numbers).size === numbers.length;
+}
 
-  const paths = posts.map((post) => join(postsRoot, post.article_path.split("/").at(-1)!));
-  await Promise.all(paths.map((path, indexPosition) => writeFile(path, buildPostPageHtml(posts[indexPosition]!, index), "utf8")));
+function slotCanBecomePublicPost(slot: DailySlot): boolean {
+  if (!slot || typeof slot !== "object") return false;
+  if (!Number.isInteger(slot.slot) || slot.slot < 1) return false;
+  if (typeof slot.time !== "string" || slot.time.trim() === "") return false;
+  if (typeof slot.category !== "string") return false;
+  if (typeof slot.topic !== "string" || slot.topic.trim() === "") return false;
+  if (typeof slot.facebook_caption !== "string") return false;
+  if (typeof slot.instagram_caption !== "string") return false;
+  try {
+    imageAssetsForSlot(slot);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isCompletePrivateCalendar(calendar: DailyContent | undefined, date: string): calendar is DailyContent {
+  if (!calendar || calendar.date !== date) return false;
+  if (!Array.isArray(calendar.slots) || calendar.slots.length < 1) return false;
+  if (!uniquePositiveIntegerSlots(calendar.slots)) return false;
+  return calendar.slots.every((slot) => slotCanBecomePublicPost(slot));
+}
+
+function isUsablePublicCalendar(calendar: DailyContent | undefined, date: string): calendar is DailyContent {
+  if (!calendar || calendar.date !== date) return false;
+  if (!Array.isArray(calendar.slots) || calendar.slots.length < 1) return false;
+  if (!uniquePositiveIntegerSlots(calendar.slots)) return false;
+  return calendar.slots.every((slot) => slotCanBecomePublicPost(slot));
+}
+
+function publicCalendarIsTrustedRecoverySource(
+  calendar: DailyContent | undefined,
+  date: string,
+  root: string
+): calendar is DailyContent {
+  if (!isUsablePublicCalendar(calendar, date)) return false;
+  if (date < CALENDAR_STAMP_ADOPTION_DATE) return false;
+  const stamped = calendar as StampedDailyContent;
+  if (stamped.written_by !== CALENDAR_WRITTEN_BY) return false;
+  if (!readCalendarHmacKey(root)) return false;
+  const checksum = typeof stamped.content_checksum === "string" ? stamped.content_checksum : "";
+  if (!checksum) return false;
+  return checksum === calendarSlotsChecksum(calendar, { root });
+}
+
+function publicSlotCorroboratedByExistingIndex(slot: DailySlot, date: string, existingPosts: PublicPost[]): boolean {
+  return existingPosts.some(
+    (post) =>
+      post.date === date &&
+      post.slot === slot.slot &&
+      post.topic === slot.topic &&
+      post.facebook_caption === slot.facebook_caption &&
+      post.instagram_caption === slot.instagram_caption
+  );
+}
+
+function recoverablePublicCalendarSlots(
+  calendar: DailyContent | undefined,
+  date: string,
+  root: string,
+  existingPosts: PublicPost[]
+): DailySlot[] {
+  if (!isUsablePublicCalendar(calendar, date)) return [];
+  if (date >= CALENDAR_STAMP_ADOPTION_DATE) {
+    return publicCalendarIsTrustedRecoverySource(calendar, date, root) ? calendar.slots : [];
+  }
+  return calendar.slots.filter((slot) => publicSlotCorroboratedByExistingIndex(slot, date, existingPosts));
+}
+
+function mergeBySlot<T extends { slot: number }>(existing: T[], incoming: T[]): T[] {
+  const merged = new Map<number, T>();
+  for (const item of existing) merged.set(item.slot, item);
+  for (const item of incoming) merged.set(item.slot, item);
+  return [...merged.values()].sort((a, b) => a.slot - b.slot);
+}
+
+function resolvedGa4MeasurementId(configId: string | undefined, existingId: string): string {
+  const fromConfig = configId?.trim() ?? "";
+  if (fromConfig) return fromConfig;
+  return existingId.trim();
+}
+
+function stripTrailingWhitespace(text: string): string {
+  return text.replace(/[ \t]+$/gmu, "");
+}
+
+async function writeHtmlFile(path: string, html: string): Promise<void> {
+  await writeFile(path, stripTrailingWhitespace(html), "utf8");
+}
+
+function supportPageMachineAnswer(page: SupportPageDefinition): string {
+  return page.citation_answer ?? page.summary;
+}
+
+function isSlotFullyApproved(approvals: ApprovalLogEntry[], slot: number, date: string): boolean {
+  const dated = approvals.filter((entry) => entry.date === date);
+  return PLATFORM_NAMES.every((platform) => hasPublishableApproval(dated, slot, platform));
+}
+
+function publicPostFromSlot(
+  date: string,
+  slot: DailySlot,
+  siteBaseUrl: string | undefined,
+  imageBaseUrl: string | undefined
+): PublicPost | undefined {
+  if (!slotCanBecomePublicPost(slot)) return undefined;
+  try {
+    return slotToPublicPost(date, slot, siteBaseUrl, imageBaseUrl);
+  } catch {
+    return undefined;
+  }
+}
+
+async function resolvePostsForDate(
+  date: string,
+  root: string,
+  siteBaseUrl: string | undefined,
+  imageBaseUrl: string | undefined,
+  existingPosts: PublicPost[]
+): Promise<PublicPost[]> {
+  const publicCalendar = await readDailyContentFile(docsContentCalendarPath(date, root));
+  const recoverablePublicSlots = recoverablePublicCalendarSlots(publicCalendar, date, root, existingPosts);
+  const privateCalendar = await readDailyContentFile(contentCalendarPath(date, root));
+  const usablePrivate = isCompletePrivateCalendar(privateCalendar, date);
+  const approvalFileExists = existsSync(approvedLogPath(date, root));
+  const approvals = approvalFileExists ? await loadApprovalLog(date, root) : [];
+  const publishableSlots =
+    usablePrivate && approvalFileExists
+      ? privateCalendar.slots.filter((slot) => isSlotFullyApproved(approvals, slot.slot, date))
+      : [];
+
+  const postsBySlot = new Map<number, PublicPost>();
+  for (const post of existingPosts) {
+    if (Number.isInteger(post.slot) && post.slot > 0) postsBySlot.set(post.slot, post);
+  }
+  for (const slot of recoverablePublicSlots) {
+    const post = publicPostFromSlot(date, slot, siteBaseUrl, imageBaseUrl);
+    if (post) postsBySlot.set(slot.slot, post);
+  }
+  for (const slot of publishableSlots) {
+    const post = publicPostFromSlot(date, slot, siteBaseUrl, imageBaseUrl);
+    if (post) postsBySlot.set(slot.slot, post);
+  }
+
+  if (publishableSlots.length > 0 && usablePrivate) {
+    const mergedSlots = mergeBySlot(recoverablePublicSlots, publishableSlots);
+    if (mergedSlots.length > 0) {
+      await writeJsonAtomic(
+        docsContentCalendarPath(date, root),
+        stampDailyContentWrite(
+          {
+            date: privateCalendar.date,
+            timezone: privateCalendar.timezone,
+            generated_at: privateCalendar.generated_at,
+            slots: mergedSlots
+          },
+          { root }
+        )
+      );
+    }
+  }
+
+  return [...postsBySlot.values()].sort((a, b) => a.slot - b.slot);
+}
+
+async function writePostArticlePages(
+  posts: PublicPost[],
+  index: PublicPostIndex,
+  postsRoot: string
+): Promise<string[]> {
+  await mkdir(postsRoot, { recursive: true });
+  const writable = posts.filter((post) => Boolean(post.article_path?.split("/")?.at(-1)));
+  const paths = writable.map((post) => join(postsRoot, post.article_path.split("/").at(-1)!));
+  await Promise.all(paths.map((path, indexPosition) => writeHtmlFile(path, buildPostPageHtml(writable[indexPosition]!, index))));
   return paths;
 }
 
@@ -3627,7 +4276,7 @@ function slotToPublicPost(
 
 function citationReadySummary(index: PublicPostIndex): string {
   const profile = index.business_profile;
-  return `${profile.name}位於${profile.address_text}，主要服務台中西屯與青海路二段附近客人，內容涵蓋衣物洗護、鞋包清潔、白鞋清潔與布品收納。客人可先透過 LINE 傳照片，由門市依材質、髒污位置、濕氣與保存狀態做初步判斷；網站不提供未驗證價格、不保證完全洗白或完全去除所有痕跡。${AEO_PLUSH_DOLL_BOUNDARY}${AEO_WHITE_SHOE_GRAY_VS_YELLOW}${AEO_LUGGAGE_WHEELS}`;
+  return `${profile.name}位於${profile.address_text}，主要服務台中西屯與青海路二段附近客人，內容涵蓋衣物洗護、鞋包清潔、白鞋清潔與布品收納。客人可先透過 LINE 傳照片，由門市依材質、髒污位置、濕氣與保存狀態做初步判斷；網站不提供未驗證價格、不保證完全洗白或完全去除所有痕跡。${AEO_PLUSH_DOLL_BOUNDARY}${AEO_WHITE_SHOE_GRAY_VS_YELLOW}${AEO_LUGGAGE_WHEELS}${AEO_CURTAIN}${AEO_CARPET}`;
 }
 
 function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: string }> {
@@ -3641,6 +4290,8 @@ function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: st
   const plushDollGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "plush-doll-cleaning");
   const whiteShoeYellowing = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "white-shoe-yellowing");
   const bagHandleGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "bag-handle-cleaning");
+  const luggageGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "luggage-wheel-cleaning");
+  const curtainGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "curtain-cleaning");
   return [
     { label: "Business profile", url: index.entrypoints.business_profile },
     ...(taichungXitunLaundry ? [{ label: "Local laundry service", url: servicePageUrl(taichungXitunLaundry, index) }] : []),
@@ -3651,7 +4302,9 @@ function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: st
     ...(photoBeforeLaundry ? [{ label: "Photo-before-laundry guide", url: supportPageUrl(photoBeforeLaundry, index) }] : []),
     ...(plushDollGuide ? [{ label: "Plush doll wash boundary", url: supportPageUrl(plushDollGuide, index) }] : []),
     ...(whiteShoeYellowing ? [{ label: "White shoe grey vs yellow", url: supportPageUrl(whiteShoeYellowing, index) }] : []),
-    ...(bagHandleGuide ? [{ label: "Luggage wheel and bag handle", url: supportPageUrl(bagHandleGuide, index) }] : []),
+    ...(bagHandleGuide ? [{ label: "Bag handle and corner", url: supportPageUrl(bagHandleGuide, index) }] : []),
+    ...(luggageGuide ? [{ label: "Luggage wheels", url: supportPageUrl(luggageGuide, index) }] : []),
+    ...(curtainGuide ? [{ label: "Curtain cleaning", url: supportPageUrl(curtainGuide, index) }] : []),
     ...(serviceSearchGuide ? [{ label: "Taichung laundry service search guide", url: supportPageUrl(serviceSearchGuide, index) }] : []),
     { label: "Answers", url: index.entrypoints.answers },
     { label: "Search visibility", url: index.entrypoints.search_visibility },
@@ -3966,7 +4619,7 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
       // Human sitemap URLs keep truthful lastmod; machine/AI-only assets omit lastmod unless known.
       const lastmod = sitemapLastmodForUrl(item.loc, index);
       const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
-      return `  <url><loc>${escapeXml(item.loc)}</loc>${lastmodXml}<changefreq>daily</changefreq><!-- ${escapeXml(item.purpose)} --></url>`;
+      return `  <url><loc>${escapeXml(item.loc)}</loc>${lastmodXml}<!-- ${escapeXml(item.purpose)} --></url>`;
     })
     .join("\n");
 
@@ -4045,7 +4698,8 @@ function serviceToPublicRecord(service: ServicePageDefinition, index: PublicPost
       slug: page.slug,
       title: page.title,
       url: supportPageUrl(page, index),
-      local_intent: page.local_intent
+      local_intent: page.local_intent,
+      answer_summary: supportPageMachineAnswer(page)
     })),
     local_business: {
       name: profile.name,
@@ -4183,7 +4837,7 @@ function buildAnswersJson(index: PublicPostIndex): object {
         id: `${page.slug}-summary`,
         type: `${page.category}_summary`,
         question: page.h1,
-        answer: page.summary,
+        answer: supportPageMachineAnswer(page),
         service: service?.name ?? profile.name,
         source_url: url,
         local_intent: page.local_intent,
@@ -4346,7 +5000,7 @@ function buildGeoTargetsJson(index: PublicPostIndex): object {
           service: linkedSupportService(page)?.name ?? page.h1,
           area: area.label,
           url: supportPageUrl(page, index),
-          answer_summary: page.summary,
+          answer_summary: supportPageMachineAnswer(page),
           keywords: page.keywords
         }))
       )
@@ -4484,7 +5138,7 @@ function buildLlmsJsonl(index: PublicPostIndex): string {
       category: page.category,
       title: page.title,
       h1: page.h1,
-      summary: page.summary,
+      summary: supportPageMachineAnswer(page),
       keywords: page.keywords,
       local_intent: page.local_intent,
       source_url: supportPageUrl(page, index)
@@ -5272,11 +5926,11 @@ const CARE_CONTEXTS: Array<{ match: RegExp; context: CareContext }> = [
     }
   },
   {
-    match: /包|背包|提把|包角|化妝包|行李箱/,
+    match: /包|背包|提把|包角|化妝包|行李箱|行李/,
     context: {
       family: "包款與提把",
       serviceSlug: "shoe-bag-care",
-      guideSlugs: ["bag-handle-cleaning", "leather-jacket-care"],
+      guideSlugs: ["luggage-wheel-cleaning", "bag-handle-cleaning"],
       checkpoints: [
         "提把與包角是最先磨損的兩個位置,油痕和磨白的處理方向不一樣。",
         "內裡常有粉塵、筆漬或食物殘留,外觀乾淨不代表內袋乾淨。",
@@ -5318,11 +5972,11 @@ const CARE_CONTEXTS: Array<{ match: RegExp; context: CareContext }> = [
     }
   },
   {
-    match: /羽絨|棉被|寢具|床組|被單|枕|窗簾|沙發|布品|收納/,
+    match: /羽絨|棉被|寢具|床組|被單|枕|窗簾|地毯|沙發|布品|收納/,
     context: {
       family: "寢具與布品",
       serviceSlug: "fabric-storage",
-      guideSlugs: ["bedding-duvet-cleaning", "down-jacket-cleaning"],
+      guideSlugs: ["bedding-duvet-cleaning", "curtain-cleaning", "carpet-cleaning"],
       checkpoints: [
         "收納前一定要完全乾燥,沒乾透就壓縮會悶出味道也會失去蓬鬆度。",
         "黃斑多半是汗漬或濕氣長期作用,越早處理越容易淡化。",
@@ -6125,13 +6779,20 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
       </section>`;
   const directlyRelatedGuides = SUPPORT_PAGE_DEFINITIONS.filter((page) => page.service_slug === service.slug);
   const generalPhotoGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "photo-before-laundry");
+  // Citywide pickup is the schema target for several object guides; keep the general
+  // photo-before guide visible on the pickup page so guests still see how to ask.
   const relatedGuides = hasPriceTables
     ? []
-    : directlyRelatedGuides.length > 0
-      ? directlyRelatedGuides
-      : generalPhotoGuide
-        ? [generalPhotoGuide]
-        : [];
+    : service.slug === "taichung-citywide-laundry-pickup"
+      ? [
+          ...(generalPhotoGuide ? [generalPhotoGuide] : []),
+          ...directlyRelatedGuides.filter((page) => page.slug !== generalPhotoGuide?.slug)
+        ]
+      : directlyRelatedGuides.length > 0
+        ? directlyRelatedGuides
+        : generalPhotoGuide
+          ? [generalPhotoGuide]
+          : [];
   const relatedGuidesSection =
     relatedGuides.length > 0
       ? `<section class="product-band surface">
@@ -6358,6 +7019,23 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
             </article>`
     )
     .join("\n");
+  const relatedPages = relatedSupportPages(page);
+  const relatedSection =
+    relatedPages.length > 0
+      ? `<section class="product-band surface">
+        <div class="section-inner">
+          <div class="section-header">
+            <p class="eyebrow">Related checks</p>
+            <h2>同一類的其他判斷</h2>
+          </div>
+          <div class="link-row">
+            ${relatedPages
+              .map((item) => `<a href="${escapeHtml(supportPageUrl(item, index))}">${escapeHtml(item.h1)}</a>`)
+              .join("\n")}
+          </div>
+        </div>
+      </section>`
+      : "";
   const keywordChips = page.keywords.map((keyword) => `<span class="chip on-light">${escapeHtml(keyword)}</span>`).join("\n");
 
   return `<!doctype html>
@@ -6492,6 +7170,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
           </aside>
         </div>
       </section>
+      ${relatedSection}
       <section class="product-band surface" id="faq">
         <div class="section-inner">
           <div class="section-header">
@@ -6693,36 +7372,39 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const imageBaseUrl = normalizeBaseUrl(options.imageBaseUrl ?? options.baseUrl ?? config.publicImageBaseUrl) ?? siteBaseUrl;
   const businessProfile = await loadBusinessProfile(root);
   const generatedAt = (options.now ? new Date(options.now) : new Date()).toISOString();
-  const dates = await listContentDates(root);
-  const calendars = await Promise.all(
-    dates.map(async (date) => {
-      const calendar = await readPrivateDailyContent(date, root);
-      if (!calendar) return undefined;
-
-      const approvals = await loadApprovalLog(date, root);
-      const approvedSlots = calendar.slots.filter((slot) => isSlotFullyApproved(approvals, slot.slot));
-      await writeApprovedPublicContentCalendar(calendar, approvedSlots, root);
-      return { calendar, approvedSlots };
-    })
-  );
-  const posts = calendars.flatMap((record) =>
-    record ? record.approvedSlots.map((slot) => slotToPublicPost(record.calendar.date, slot, siteBaseUrl, imageBaseUrl)) : []
-  );
+  const existingIndex = await loadExistingPublicIndex(root);
+  const existingPosts = existingIndex.posts;
+  const dates = Array.from(
+    new Set([...(await listContentDates(root)), ...existingPosts.map((post) => post.date)])
+  ).sort();
+  const posts: PublicPost[] = [];
+  for (const date of dates) {
+    posts.push(
+      ...(await resolvePostsForDate(
+        date,
+        root,
+        siteBaseUrl,
+        imageBaseUrl,
+        existingPosts.filter((post) => post.date === date)
+      ))
+    );
+  }
   posts.sort((a, b) => a.date.localeCompare(b.date) || a.slot - b.slot);
   const articlePosts = uniqueArticlePosts(posts);
+  const publicPosts = pointDuplicatePostsAtCanonicalArticles(posts, articlePosts);
 
   const index: PublicPostIndex = {
     generated_at: generatedAt,
     site_name: SITE_NAME,
     description: SITE_DESCRIPTION,
     timezone: config.timezone,
-    ga4_measurement_id: config.ga4MeasurementId ?? "",
+    ga4_measurement_id: resolvedGa4MeasurementId(config.ga4MeasurementId, existingIndex.ga4_measurement_id),
     base_url: siteBaseUrl ?? "",
     base_url_configured: Boolean(siteBaseUrl),
     image_base_url: imageBaseUrl ?? "",
     image_base_url_configured: Boolean(imageBaseUrl),
     canonical_url: canonicalUrl(siteBaseUrl),
-    latest_date: posts.at(-1)?.date ?? "",
+    latest_date: publicPosts.at(-1)?.date ?? "",
     open_graph: {
       title: "",
       description: "",
@@ -6762,7 +7444,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       ai_discovery: publicUrl("ai-discovery.json", siteBaseUrl)
     },
     business_profile: businessProfile,
-    posts,
+    posts: publicPosts,
     article_posts: articlePosts
   };
   index.open_graph = buildOpenGraph(index);
@@ -6777,7 +7459,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     base_url_configured: index.base_url_configured,
     canonical_url: index.canonical_url,
     date: latestDate ?? "",
-    posts: latestDate ? posts.filter((post) => post.date === latestDate) : []
+    posts: latestDate ? publicPosts.filter((post) => post.date === latestDate) : []
   };
 
   const docsRoot = join(root, "docs");
@@ -6872,24 +7554,23 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         })
     );
   }
-  await writeFile(outputs.index, buildIndexHtml(index), "utf8");
-  await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
-  await writeFile(
+  await writeHtmlFile(outputs.index, buildIndexHtml(index));
+  await writeHtmlFile(outputs.notFound, buildNotFoundHtml(index));
+  await writeHtmlFile(
     outputs.lineRedirect,
     buildLineRedirectHtml({
       lineUrl: businessProfile.line_url,
-      measurementId: config.ga4MeasurementId
-    }),
-    "utf8"
+      measurementId: index.ga4_measurement_id
+    })
   );
-  await writeFile(outputs.compatibilityDocsIndex, buildNotFoundHtml(index), "utf8");
+  await writeHtmlFile(outputs.compatibilityDocsIndex, buildNotFoundHtml(index));
   await Promise.all(
     SERVICE_PAGE_DEFINITIONS.map((service) =>
-      writeFile(join(servicesRoot, `${service.slug}.html`), buildServicePageHtml(service, index), "utf8")
+      writeHtmlFile(join(servicesRoot, `${service.slug}.html`), buildServicePageHtml(service, index))
     )
   );
   await Promise.all(
-    SUPPORT_PAGE_DEFINITIONS.map((page) => writeFile(join(docsRoot, page.path), buildSupportPageHtml(page, index), "utf8"))
+    SUPPORT_PAGE_DEFINITIONS.map((page) => writeHtmlFile(join(docsRoot, page.path), buildSupportPageHtml(page, index)))
   );
   const postArticleOutputs = await writePostArticlePages(articlePosts, index, postsRoot);
   await writeFile(outputs.nojekyll, "", "utf8");

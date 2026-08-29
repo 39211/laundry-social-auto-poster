@@ -1,12 +1,19 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { generatePublicSite } from "../src/generatePublicSite";
-import { canonicalSeoSyncPage, buildDailyContent } from "../src/contentPlan";
+import {
+  CALENDAR_WRITTEN_BY,
+  buildDailyContent,
+  calendarSlotsChecksum,
+  canonicalSeoSyncPage
+} from "../src/contentPlan";
 import { getConfig } from "../src/config";
 import { guideLinkFor } from "../src/postYouTube";
+import { auditSitemap } from "../src/auditSitemap";
+import type { DailyContent } from "../src/types";
 
 async function writeCalendar(root: string, date: string, options: { carouselSlot1?: boolean } = {}): Promise<void> {
   await Promise.all([
@@ -90,21 +97,121 @@ async function writeCalendar(root: string, date: string, options: { carouselSlot
   ]);
 }
 
-async function writeApprovalLog(root: string, date: string, slots = [1, 2]): Promise<void> {
+async function writeImageHeaderFixture(root: string, path: string, width: number, height: number): Promise<void> {
+  const pngPath = join(root, "docs", path);
+  const webpPath = pngPath.replace(/\.png$/u, ".webp");
+  await mkdir(join(pngPath, ".."), { recursive: true });
+  const header = Buffer.alloc(24);
+  header.writeUInt32BE(0x49484452, 12); // PNG IHDR
+  header.writeUInt32BE(width, 16);
+  header.writeUInt32BE(height, 20);
+  await writeFile(pngPath, header);
+  await writeFile(webpPath, Buffer.from("fixture-webp"));
+}
+
+async function writeApprovalLog(
+  root: string,
+  date: string,
+  slots = [1, 2],
+  options: { forced?: true; entryDate?: string; platforms?: Array<"facebook" | "instagram"> } = {}
+): Promise<void> {
   await mkdir(join(root, "data", "approved-log"), { recursive: true });
+  const platforms = options.platforms ?? (["facebook", "instagram"] as const);
   const entries = slots.flatMap((slot) =>
-    (["facebook", "instagram"] as const).map((platform) => ({
-      date,
+    platforms.map((platform) => ({
+      date: options.entryDate ?? date,
       slot,
       platform,
-      status: "approved",
+      status: "approved" as const,
       approved_by: "Test",
-      note: "Approved for public SEO sync",
-      created_at: `${date}T02:20:00.000Z`
+      note: options.forced ? "Forced approval" : "Approved for public SEO sync",
+      created_at: `${date}T02:20:00.000Z`,
+      ...(options.forced ? { forced: true as const, forced_reasons: ["test"] } : {})
     }))
   );
 
   await writeFile(join(root, "data", "approved-log", `${date}.json`), `${JSON.stringify(entries, null, 2)}\n`, "utf8");
+}
+
+function sampleCalendarSlot(date: string, slot: 1 | 2): Record<string, unknown> {
+  if (slot === 2) {
+    return {
+      slot: 2,
+      time: "19:30",
+      category: "situation",
+      topic: "Bag corner care",
+      instagram_caption: "IG caption 2 #test",
+      facebook_caption: "FB caption 2 #test",
+      image_prompt: "photo prompt 2",
+      visual_route: "macro-detail",
+      traffic_route: "value-prop-lead",
+      search_intent: "trust-proof",
+      target_queries: ["台中洗包包", "洗包包會不會掉色"],
+      evidence_type: "real-case-photo",
+      local_image_path: `docs/assets/${date}/slot-02.png`,
+      public_image_url: "",
+      status: "pending"
+    };
+  }
+  return {
+    slot: 1,
+    time: "11:30",
+    category: "knowledge",
+    topic: "Sneaker edge inspection",
+    instagram_caption: "IG caption #test",
+    facebook_caption: "FB caption #test",
+    image_prompt: "photo prompt",
+    visual_route: "shop-inspection",
+    traffic_route: "object-proof",
+    search_intent: "problem-diagnosis",
+    target_queries: ["台中洗鞋店", "白鞋泛黃怎麼辦"],
+    evidence_type: "first-party-inspection",
+    local_image_path: `docs/assets/${date}/slot-01.png`,
+    public_image_url: "",
+    status: "pending"
+  };
+}
+
+async function writePrivateCalendar(root: string, date: string, slots: unknown[]): Promise<void> {
+  await mkdir(join(root, "data", "content-calendar"), { recursive: true });
+  await writeFile(
+    join(root, "data", "content-calendar", `${date}.json`),
+    `${JSON.stringify(
+      {
+        date,
+        timezone: "Asia/Taipei",
+        generated_at: `${date}T00:00:00.000Z`,
+        slots
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+}
+
+async function writePublicCalendarFile(
+  root: string,
+  date: string,
+  slots: unknown[],
+  extra: Record<string, unknown> = {}
+): Promise<void> {
+  await mkdir(join(root, "docs", "content-calendar"), { recursive: true });
+  await writeFile(
+    join(root, "docs", "content-calendar", `${date}.json`),
+    `${JSON.stringify(
+      {
+        date,
+        timezone: "Asia/Taipei",
+        generated_at: `${date}T00:00:00.000Z`,
+        slots,
+        ...extra
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
 }
 
 async function exists(filePath: string): Promise<boolean> {
@@ -230,6 +337,29 @@ function thematicAnchorsTo(html: string, hrefNeedle: string): string[] {
     .filter((match) => (match[1] ?? "").includes(hrefNeedle))
     .map((match) => (match[2] ?? "").replace(/<[^>]+>/g, "").trim());
 }
+
+async function listHtmlFiles(dir: string): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...(await listHtmlFiles(path)));
+    else if (entry.name.endsWith(".html")) files.push(path);
+  }
+  return files;
+}
+
+const ROUND_CAPSULES = [
+  "制服領口發黃要先處理舊痕再整燙；順序反了，高溫會把黃痕定死。",
+  "勃肯鞋的味道來自軟木鞋床不是鞋面；整雙泡水會讓軟木鬆散、麂皮變硬。",
+  "包包發霉先別用濕布擦，濕擦會把霉推進皮革毛孔；表面白霉多半可處理，滲入皮層只能淡化。",
+  "多數羽絨適合專業水洗加低溫慢烘，不一定要乾洗；外層有塗層或貼合工藝要另外判斷。",
+  "皮衣不能走一般乾洗，溶劑會帶走皮革油脂造成變硬龜裂；要走皮革專屬清潔加補油。",
+  "乾洗用溶劑處理油性髒污並保護版型，水洗對汗味較有效；依材質與髒污選，不是乾洗比較高級。",
+  "襯衫的領口袖口與西裝的面料、內襯不適合同一種處理；領口泛黃不要自行漂白或硬刷。",
+  "找洗衣服務先從物件和問題找，不必只搜尋店名；每個答案都回到材質、位置與處理界線。",
+  "挑洗鞋店先比三件事：敢不敢先講救不回來的部分、收送範圍寫不寫清楚、有沒有講處理界線。"
+] as const;
 
 describe("generatePublicSite", () => {
   it("writes AI-readable public indexes with absolute URLs when a base URL is configured", async () => {
@@ -561,6 +691,10 @@ describe("generatePublicSite", () => {
     expect(robots).toContain("User-agent: OAI-SearchBot");
     expect(robots).toContain("User-agent: ChatGPT-User");
     expect(robots).toContain("User-agent: Claude-Web");
+    expect(robots).toContain("User-agent: Bingbot");
+    expect(robots).toContain("User-agent: Claude-SearchBot");
+    expect(robots).toContain("User-agent: Claude-User");
+    expect(robots).toContain("User-agent: Perplexity-User");
     // `Allow: /` covers every path; per-file Allow lines are redundant and were removed.
     expect(robots).not.toContain("Allow: /services.json");
     expect(robots).not.toContain("Allow: /llms.jsonl");
@@ -866,7 +1000,7 @@ describe("generatePublicSite", () => {
       )
     ).toBe(true);
     expect(discovery.capabilities.supports_support_pages).toBe(true);
-    expect(discovery.support_pages).toHaveLength(18);
+    expect(discovery.support_pages).toHaveLength(24);
     expect(searchVisibility.query_clusters).toHaveLength(6);
     expect(discovery.support_pages[0]).toMatchObject({
       slug: "photo-before-laundry",
@@ -926,6 +1060,54 @@ describe("generatePublicSite", () => {
     expect(serviceSearchGuideHtml).toContain("台中洗衣免費收送");
     expect(localShoePageHtml).toContain("shoe-bag-care.html");
     expect(localShoePageHtml).toContain("https://example.com/laundry-social-auto-poster/#business");
+  });
+
+  it("opens every support page's answer box with a real answer, not the branded description", async () => {
+    // The answer box renders `citation_answer ?? description`. A page that
+    // sets no citation_answer therefore silently falls back to description,
+    // which opens with the shop name and full address -- roughly 25
+    // characters of branding before the answer starts. That is the wrong
+    // shape for an answer a search or AI engine can lift, and it fails
+    // silently: the box is still present, still populated, still passes
+    // `toContain('class="answer-box"')`.
+    //
+    // Mutation: drop `citation_answer` from any support page definition and
+    // that page's box falls back to the description, so this goes red.
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-answer-capsule-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-02T01:00:00.000Z"
+    });
+
+    const pages: string[] = [];
+    for (const dir of ["guides", "local"]) {
+      const dirPath = join(root, "docs", dir);
+      for (const name of await readdir(dirPath)) {
+        if (name.endsWith(".html")) pages.push(join(dirPath, name));
+      }
+    }
+    expect(pages.length).toBeGreaterThanOrEqual(24);
+
+    for (const pagePath of pages) {
+      const html = await readFile(pagePath, "utf8");
+      const box = html.match(/<div class="answer-box">\s*<p>([\s\S]*?)<\/p>/u);
+      expect(box, `${pagePath} has no answer box`).not.toBeNull();
+      const answer = box![1]!.trim();
+
+      // The defect: the branded description leaking into the answer box.
+      expect(answer.startsWith("私享家洗衣店"), `${pagePath} answer box falls back to the branded description`).toBe(
+        false
+      );
+      // The documented cap on the capsule.
+      expect([...answer].length, `${pagePath} capsule is longer than the documented limit`).toBeLessThanOrEqual(50);
+      // A capsule has to actually say something.
+      expect([...answer].length, `${pagePath} capsule is too short to be an answer`).toBeGreaterThanOrEqual(15);
+    }
   });
 
   it("thickens the Fengjia/Xitun shoe local page and adds thematic internal links", async () => {
@@ -1107,6 +1289,8 @@ describe("generatePublicSite", () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-unapproved-"));
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
+    await unlink(join(root, "docs", "content-calendar", "2026-07-02.json"));
+    await writeApprovalLog(root, "2026-07-02", []);
 
     await generatePublicSite({
       root,
@@ -1127,6 +1311,79 @@ describe("generatePublicSite", () => {
     expect(sitemap).not.toContain("content-calendar/2026-07-02.json");
     expect(aiSitemap).not.toContain("calendar-slot-1");
     expect(await exists(join(root, "docs", "content-calendar", "2026-07-02.json"))).toBe(false);
+  });
+
+  it("does not wipe public history when private calendar and approval files are missing", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-docs-only-rerun-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now: "2026-07-02T01:00:00.000Z"
+    });
+
+    const publicCalendar = join(root, "docs", "content-calendar", "2026-07-02.json");
+    const postHtml = join(root, "docs", "posts", "2026-07-02-slot-01.html");
+    const firstIndex = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ id: string; date: string; article_path: string }>;
+    };
+    expect(firstIndex.posts).toHaveLength(2);
+    expect(await exists(publicCalendar)).toBe(true);
+    expect(await exists(postHtml)).toBe(true);
+
+    await rm(join(root, "data", "content-calendar"), { recursive: true, force: true });
+    await rm(join(root, "data", "approved-log"), { recursive: true, force: true });
+    expect(await exists(join(root, "data", "content-calendar", "2026-07-02.json"))).toBe(false);
+    expect(await exists(join(root, "data", "approved-log", "2026-07-02.json"))).toBe(false);
+
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now: "2026-07-03T01:00:00.000Z"
+    });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ id: string; date: string; article_path: string }>;
+    };
+    const latest = JSON.parse(await readFile(join(root, "docs", "latest.json"), "utf8")) as {
+      posts: Array<{ id: string }>;
+    };
+    const feed = JSON.parse(await readFile(join(root, "docs", "feed.json"), "utf8")) as {
+      items: Array<{ id: string }>;
+    };
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+
+    expect(await exists(publicCalendar)).toBe(true);
+    expect(await exists(postHtml)).toBe(true);
+    expect(index.posts.map((post) => post.id).sort()).toEqual(firstIndex.posts.map((post) => post.id).sort());
+    expect(latest.posts.map((post) => post.id).sort()).toEqual(firstIndex.posts.map((post) => post.id).sort());
+    expect(feed.items.map((item) => item.id).sort()).toEqual(firstIndex.posts.map((post) => post.id).sort());
+    expect(homepage).toContain("posts/2026-07-02-slot-01.html");
+    expect(homepage).toContain("posts/2026-07-02-slot-02.html");
+  });
+
+  it("does not publish a new private date when the approval log file is absent", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-new-date-no-approval-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await unlink(join(root, "docs", "content-calendar", "2026-07-02.json"));
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-02T01:00:00.000Z"
+    });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: unknown[];
+    };
+    expect(index.posts).toEqual([]);
+    expect(await exists(join(root, "docs", "content-calendar", "2026-07-02.json"))).toBe(false);
+    expect(await exists(join(root, "docs", "posts", "2026-07-02-slot-01.html"))).toBe(false);
   });
 
   it("falls back to relative URLs before the public base URL is configured", async () => {
@@ -1270,7 +1527,16 @@ describe("generatePublicSite", () => {
     const afterOai = robots.split("User-agent: OAI-SearchBot").at(1) ?? "";
     expect(afterOai).toMatch(/^\n(?:User-agent: [^\n]+\n)*Allow: \/\n/u);
     expect(robots).not.toContain("Disallow:");
-    for (const crawler of ["GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended"]) {
+    for (const crawler of [
+      "Bingbot",
+      "GPTBot",
+      "ClaudeBot",
+      "Claude-SearchBot",
+      "Claude-User",
+      "PerplexityBot",
+      "Perplexity-User",
+      "Google-Extended"
+    ]) {
       expect(robots).toContain(`User-agent: ${crawler}`);
     }
   });
@@ -1314,7 +1580,7 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("台中洗衣與免費收送常見問題");
     expect(homepage).toContain("收送免費等於清潔免費嗎？");
     expect(homepage).toContain('<html lang="zh-Hant-TW">');
-    expect(homepage).toContain('<time datetime="2026-08-17">2026-08-17</time>');
+    expect(homepage).toContain('<time datetime="2026-08-29">2026-08-29</time>');
     expect(homepage).toContain("台中免費收送，逢甲・西屯洗鞋先看材質");
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=home-cta`);
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=footer`);
@@ -1369,13 +1635,14 @@ describe("generatePublicSite", () => {
     );
     // Money pages are the indexable surface; caption/post pages are out of the
     // sitemap entirely (rescued 190d063 design). Date is ours: the static
-    // homepage sections last changed 2026-08-17.
+    // Homepage sections last changed 2026-08-29 when the three object guides
+    // received visible entry points. Rebuild time must not advance this date.
     expect(sitemap1).not.toContain("/posts/");
-    expect(sitemap1).toContain("<lastmod>2026-08-17</lastmod>");
+    expect(sitemap1).toContain("<lastmod>2026-08-29</lastmod>");
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
-        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-08-17</lastmod>`
+        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-08-29</lastmod>`
       )
     );
     expect(sitemap1).toMatch(
@@ -1476,7 +1743,7 @@ describe("generatePublicSite", () => {
     const postHtml1 = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
     const postDateModified1 = findArticleDateModified(postHtml1);
 
-    expect(homepageDateModified1).toBe("2026-08-17");
+    expect(homepageDateModified1).toBe("2026-08-29");
     expect(pickupDateModified1).toBe("2026-07-22");
     expect(shoeBagDateModified1).toBe("2026-08-17");
     expect(guideDateModified1).toBe("2026-08-23");
@@ -1566,7 +1833,7 @@ describe("generatePublicSite", () => {
       },
       {
         slug: "bag-handle-cleaning",
-        answer: "行李箱收進櫃子前先看輪子；輪子與底板灰收進去，下次打開就是味道。",
+        answer: "提把發黏可能和手汗累積有關；若已滲入表層，通常要先評估淡化範圍與色差。",
         serviceNeedle: "shoe-bag-care.html"
       },
       {
@@ -1598,6 +1865,21 @@ describe("generatePublicSite", () => {
         slug: "luxury-dry-cleaning",
         answer: "精品送洗先看材質與飾件，不因品牌保證全新；邊角磨損只能維持。",
         serviceNeedle: "taichung-xitun-laundry.html"
+      },
+      {
+        slug: "luggage-wheel-cleaning",
+        answer: "行李箱收進櫃子前先看輪子；輪子與底板若帶灰或濕氣，密封後較容易出現異味。",
+        serviceNeedle: "taichung-citywide-laundry-pickup.html"
+      },
+      {
+        slug: "curtain-cleaning",
+        answer: "窗簾先看布料與軌道；尺寸不同價不同，拍照比先問固定價準。",
+        serviceNeedle: "taichung-citywide-laundry-pickup.html"
+      },
+      {
+        slug: "carpet-cleaning",
+        answer: "地毯先看材質與潮濕；尚未乾透就捲收，密封後較容易出現異味。",
+        serviceNeedle: "taichung-citywide-laundry-pickup.html"
       }
     ];
 
@@ -1610,11 +1892,33 @@ describe("generatePublicSite", () => {
       expect(lead.length, `${page.slug} lead length`).toBeLessThanOrEqual(50);
       expect(answerBox, `${page.slug} answer-box`).toBe(page.answer);
       expect(thematicAnchorsTo(html, page.serviceNeedle).length, `${page.slug} service link`).toBeGreaterThan(0);
+      expect(html).toContain('content="index, follow');
+      expect(html).toContain(`<link rel="canonical" href="${baseUrl}/guides/${page.slug}.html"`);
     }
 
     const bagHandleHtml = await readFile(join(root, "docs", "guides", "bag-handle-cleaning.html"), "utf8");
     expect(bagHandleHtml).toContain("行李箱輪子");
-    expect(bagHandleHtml).toContain("輪子和底板");
+    expect(bagHandleHtml).toContain("luggage-wheel-cleaning.html");
+
+    const luggageHtml = await readFile(join(root, "docs", "guides", "luggage-wheel-cleaning.html"), "utf8");
+    const curtainHtml = await readFile(join(root, "docs", "guides", "curtain-cleaning.html"), "utf8");
+    const carpetHtml = await readFile(join(root, "docs", "guides", "carpet-cleaning.html"), "utf8");
+    for (const [slug, html] of [
+      ["luggage-wheel-cleaning", luggageHtml],
+      ["curtain-cleaning", curtainHtml],
+      ["carpet-cleaning", carpetHtml]
+    ] as const) {
+      const graph = JSON.parse(
+        html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/u)?.[1] ?? "null"
+      ) as { "@graph"?: Array<{ "@type"?: string; areaServed?: { name?: string }; url?: string }> };
+      const serviceNode = graph["@graph"]?.find((item) => item["@type"] === "Service");
+      expect(serviceNode?.areaServed?.name, `${slug} areaServed`).toBe("台中市");
+      expect(serviceNode?.url, `${slug} service url`).toContain("taichung-citywide-laundry-pickup.html");
+      // No verified object photo: render CSS/brand chrome only (business JSON-LD may
+      // still list other service heroes under #business; that is not this page's hero).
+      expect(html, `${slug} hero figure`).not.toContain('<figure class="service-photo">');
+      expect(html, `${slug} og image`).not.toMatch(/property="og:image"[^>]+(?:shoe-bag-care|fabric-storage)-hero/);
+    }
 
     const answers = JSON.parse(await readFile(join(root, "docs", "answers.json"), "utf8")) as {
       answer_engine_optimization: {
@@ -1627,12 +1931,18 @@ describe("generatePublicSite", () => {
     const threeAnswers = [
       "娃娃可以洗，但不能亂洗；怕的是脫水結塊與五官脫落，要先固定再手洗。",
       "白鞋灰多半是髒、可清；黃在膠邊是氧化，只能淡化，不保證回白。",
-      "行李箱收進櫃子前先看輪子；輪子與底板灰收進去，下次打開就是味道。"
+      "行李箱收進櫃子前先看輪子；輪子與底板若帶灰或濕氣，密封後較容易出現異味。"
     ];
     for (const answer of threeAnswers) {
       expect(answers.answer_engine_optimization.citation_ready_summary).toContain(answer);
       expect(llms).toContain(answer);
     }
+    expect(answers.answer_engine_optimization.citation_ready_summary).toContain(
+      "窗簾先看布料與軌道；尺寸不同價不同，拍照比先問固定價準。"
+    );
+    expect(answers.answer_engine_optimization.citation_ready_summary).toContain(
+      "地毯先看材質與潮濕；尚未乾透就捲收，密封後較容易出現異味。"
+    );
     expect(answers.answer_engine_optimization.best_source_pages).toContainEqual({
       label: "Plush doll wash boundary",
       url: `${baseUrl}/guides/plush-doll-cleaning.html`
@@ -1642,8 +1952,12 @@ describe("generatePublicSite", () => {
       url: `${baseUrl}/guides/white-shoe-yellowing.html`
     });
     expect(answers.answer_engine_optimization.best_source_pages).toContainEqual({
-      label: "Luggage wheel and bag handle",
+      label: "Bag handle and corner",
       url: `${baseUrl}/guides/bag-handle-cleaning.html`
+    });
+    expect(answers.answer_engine_optimization.best_source_pages).toContainEqual({
+      label: "Luggage wheels",
+      url: `${baseUrl}/guides/luggage-wheel-cleaning.html`
     });
     expect(
       answers.answers.some(
@@ -1664,8 +1978,16 @@ describe("generatePublicSite", () => {
     expect(
       answers.answers.some(
         (item) =>
-          item.id === "bag-handle-cleaning-summary" &&
+          item.id === "luggage-wheel-cleaning-summary" &&
           item.answer === threeAnswers[2] &&
+          item.source_url.endsWith("/guides/luggage-wheel-cleaning.html")
+      )
+    ).toBe(true);
+    expect(
+      answers.answers.some(
+        (item) =>
+          item.id === "bag-handle-cleaning-summary" &&
+          item.answer === "提把發黏可能和手汗累積有關；若已滲入表層，通常要先評估淡化範圍與色差。" &&
           item.source_url.endsWith("/guides/bag-handle-cleaning.html")
       )
     ).toBe(true);
@@ -1700,9 +2022,242 @@ describe("generatePublicSite", () => {
     }
 
     expect(guideLinkFor("行李箱收進櫃子前，先看輪子")).toBe(
-      "https://sixiangjialaundry.com/guides/bag-handle-cleaning.html"
+      "https://sixiangjialaundry.com/guides/luggage-wheel-cleaning.html"
     );
-    expect(guideLinkFor("行李輪子灰塵")).toBe("https://sixiangjialaundry.com/guides/bag-handle-cleaning.html");
+    expect(guideLinkFor("行李輪子灰塵")).toBe("https://sixiangjialaundry.com/guides/luggage-wheel-cleaning.html");
+    expect(guideLinkFor("行李箱淋雨後輪子卡灰")).toBe(
+      "https://sixiangjialaundry.com/guides/luggage-wheel-cleaning.html"
+    );
+    expect(guideLinkFor("落地窗簾下擺有灰")).toBe("https://sixiangjialaundry.com/guides/curtain-cleaning.html");
+    expect(guideLinkFor("地毯受潮有味道")).toBe("https://sixiangjialaundry.com/guides/carpet-cleaning.html");
+    expect(guideLinkFor("行李箱泛黃")).toBe("https://sixiangjialaundry.com/guides/luggage-wheel-cleaning.html");
+    expect(guideLinkFor("窗簾泛黃")).toBe("https://sixiangjialaundry.com/guides/curtain-cleaning.html");
+    expect(guideLinkFor("地毯泛黃")).toBe("https://sixiangjialaundry.com/guides/carpet-cleaning.html");
+    expect(guideLinkFor("白鞋泛黃")).toBe("https://sixiangjialaundry.com/guides/white-shoe-yellowing.html");
+  });
+
+  it("does not let the 2026-08-14 luggage odor/pickup sentence into generated public output", async () => {
+    const banned =
+      "輪子和底板整趟旅程都在地上磨，那些灰收進櫃子，下次打開就是那個味道。不用整咖搬來，台中市區免費到府收。";
+    const replacement = "台中市全區免費到府收送；清潔另計";
+    const sourcePath = join(process.cwd(), "data", "content-calendar", "2026-08-14.json");
+    const sourceRaw = await readFile(sourcePath, "utf8");
+    expect(sourceRaw).not.toContain(banned);
+    expect(sourceRaw).toContain(replacement);
+    const source = JSON.parse(sourceRaw) as {
+      date: string;
+      slots: Array<{ slot: number; instagram_caption: string; facebook_caption: string }>;
+    };
+    const slot2 = source.slots.find((slot) => slot.slot === 2);
+    expect(slot2, "2026-08-14 slot 2").toBeTruthy();
+    expect(slot2?.instagram_caption).not.toContain(banned);
+    expect(slot2?.facebook_caption).not.toContain(banned);
+    expect(slot2?.instagram_caption).toContain(replacement);
+    expect(slot2?.facebook_caption).toContain(replacement);
+
+    const root = mkdtempSync(join(tmpdir(), "laundry-luggage-caption-"));
+    await writeBusinessProfile(root);
+    await mkdir(join(root, "data", "content-calendar"), { recursive: true });
+    await writeFile(join(root, "data", "content-calendar", "2026-08-14.json"), sourceRaw, "utf8");
+    await writeApprovalLog(root, "2026-08-14", [2]);
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-08-29T01:00:00.000Z"
+    });
+
+    const outputs = [
+      await readFile(join(root, "docs", "index.html"), "utf8"),
+      await readFile(join(root, "docs", "social-posts.json"), "utf8"),
+      await readFile(join(root, "docs", "ai-discovery.json"), "utf8"),
+      await readFile(join(root, "docs", "knowledge-graph.json"), "utf8"),
+      await readFile(join(root, "docs", "feed.json"), "utf8"),
+      await readFile(join(root, "docs", "posts", "2026-08-14-slot-02.html"), "utf8")
+    ];
+    for (const text of outputs) {
+      expect(text).not.toContain(banned);
+    }
+    expect(outputs[1]).toContain(replacement);
+    expect(outputs[5]).toContain(replacement);
+  });
+
+  it("adds distinct object and local-intent pages to the indexable sitemap and homepage", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-index-expand-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    await writeImageHeaderFixture(root, "assets/services/fabric-storage-inspection.png", 1254, 1254);
+    await writeImageHeaderFixture(root, "assets/backgrounds/premium-laundry-depth.png", 1672, 941);
+
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now: "2026-08-29T01:00:00.000Z"
+    });
+
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const aiSitemap = await readFile(join(root, "docs", "ai-sitemap.xml"), "utf8");
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+    const answers = await readFile(join(root, "docs", "answers.json"), "utf8");
+    const llms = await readFile(join(root, "docs", "llms.txt"), "utf8");
+    const llmsJsonl = await readFile(join(root, "docs", "llms.jsonl"), "utf8");
+    const newPages = [
+      { path: "guides/luggage-wheel-cleaning.html", answer: "行李箱收進櫃子前先看輪子；輪子與底板若帶灰或濕氣，密封後較容易出現異味。" },
+      { path: "guides/curtain-cleaning.html", answer: "窗簾先看布料與軌道；尺寸不同價不同，拍照比先問固定價準。" },
+      { path: "guides/carpet-cleaning.html", answer: "地毯先看材質與潮濕；尚未乾透就捲收，密封後較容易出現異味。" },
+      { path: "local/fengjia-laundry-pickup.html", answer: "逢甲洗衣可先用 LINE 傳照片；宿舍與租屋都可詢問台中市免費收送。" },
+      { path: "local/zhongke-office-laundry.html", answer: "中科園區襯衫可詢問收送；先列件數與材質，清潔另計、收送免費。" },
+      { path: "local/donghai-laundry-pickup.html", answer: "東海生活圈可詢問免費收送；厚被、窗簾與日常衣物先傳照片再確認。" }
+    ];
+
+    for (const page of newPages) {
+      const html = await readFile(join(root, "docs", page.path), "utf8");
+      const lead = html.match(/<p class="lead">([\s\S]*?)<\/p>/u)?.[1]?.trim() ?? "";
+      expect(sitemap, page.path).toContain(`<loc>${baseUrl}/${page.path}</loc>`);
+      expect(sitemap, `${page.path} lastmod`).toMatch(
+        new RegExp(
+          `<loc>${baseUrl}/${page.path.replace(/\./g, "\\.")}</loc>\\s*<lastmod>2026-08-29</lastmod>`
+        )
+      );
+      expect(pageTextLength(html), page.path).toBeGreaterThanOrEqual(1200);
+      expect(lead, `${page.path} lead`).toBe(page.answer);
+      expect(lead.length, `${page.path} lead length`).toBeLessThanOrEqual(50);
+      expect(html).not.toContain("noindex");
+      expect(html, `${page.path} trailing whitespace`).not.toMatch(/[ \t]+$/mu);
+      expect(homepage).toContain(`${baseUrl}/${page.path}`);
+    }
+
+    const fengjiaHtml = await readFile(join(root, "docs", "local", "fengjia-laundry-pickup.html"), "utf8");
+    const zhongkeHtml = await readFile(join(root, "docs", "local", "zhongke-office-laundry.html"), "utf8");
+    const donghaiHtml = await readFile(join(root, "docs", "local", "donghai-laundry-pickup.html"), "utf8");
+    expect(fengjiaHtml).toContain("fabric-storage-inspection.webp");
+    expect(fengjiaHtml).toContain('width="1254" height="1254"');
+    expect(zhongkeHtml).toContain("premium-laundry-depth.webp");
+    expect(zhongkeHtml).toContain('width="1672" height="941"');
+    expect(donghaiHtml).toContain("fabric-storage-inspection.webp");
+    expect(donghaiHtml).toContain('width="1254" height="1254"');
+
+    const urlsChangedOnExpansionDate = [
+      ...sitemap.matchAll(/<url><loc>([^<]+)<\/loc><lastmod>2026-08-29<\/lastmod><\/url>/gu)
+    ].map((match) => match[1]);
+    const capsuleLastmodPages = [
+      "guides/school-uniform-care.html",
+      "guides/birkenstock-care.html",
+      "guides/luxury-bag-mold.html",
+      "guides/down-jacket-cleaning.html",
+      "guides/leather-jacket-care.html",
+      "guides/dry-cleaning-guide.html",
+      "guides/shirt-suit-dry-cleaning.html",
+      "guides/taichung-laundry-service-search.html",
+      "local/qinghai-road-shoe-cleaning.html"
+    ];
+    expect(urlsChangedOnExpansionDate.sort()).toEqual(
+      [
+        baseUrl + "/",
+        `${baseUrl}/guides/bag-handle-cleaning.html`,
+        ...newPages.map((page) => `${baseUrl}/${page.path}`),
+        ...capsuleLastmodPages.map((path) => `${baseUrl}/${path}`)
+      ].sort()
+    );
+
+    expect(sitemap).not.toContain("/posts/");
+    expect(sitemap).not.toContain("priority");
+    expect(sitemap).not.toContain("changefreq");
+    expect(aiSitemap).not.toContain("changefreq");
+    expect(answers).toContain("提把發黏可能和手汗累積有關");
+    expect(answers).toContain("輪子與底板若帶灰或濕氣");
+    expect(llms).toContain("輪子與底板若帶灰或濕氣");
+    expect(llms).not.toContain("提把發黏是手汗堆的");
+    expect(llmsJsonl).toContain("提把發黏可能和手汗累積有關");
+    expect(llmsJsonl).toContain("輪子與底板若帶灰或濕氣");
+
+    const passingAudit = await auditSitemap({ root, baseUrl });
+    expect(passingAudit.status).toBe("pass");
+    const sitemapWithMissingUrl = sitemap.replace(
+      /\s*<url><loc>[^<]*\/local\/fengjia-laundry-pickup\.html<\/loc><lastmod>[^<]+<\/lastmod><\/url>/u,
+      ""
+    );
+    await writeFile(join(root, "docs", "sitemap.xml"), sitemapWithMissingUrl, "utf8");
+    const failingAudit = await auditSitemap({ root, baseUrl });
+    expect(failingAudit.status).toBe("fail");
+    expect(failingAudit.checks).toContainEqual(
+      expect.objectContaining({ name: "expected-url-count", status: "fail" })
+    );
+  });
+
+  it("puts each of the nine round capsules into answers.json and llms.jsonl as exact strings", async () => {
+    expect(ROUND_CAPSULES).toHaveLength(9);
+    expect(new Set(ROUND_CAPSULES).size).toBe(9);
+
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-capsule-machine-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-08-29T01:00:00.000Z"
+    });
+
+    const answersDoc = JSON.parse(await readFile(join(root, "docs", "answers.json"), "utf8")) as {
+      answers: Array<{ answer?: string }>;
+    };
+    const servicesDoc = JSON.parse(await readFile(join(root, "docs", "services.json"), "utf8")) as {
+      services: Array<{ related_support_pages?: Array<{ answer_summary?: string }> }>;
+    };
+    const geoDoc = JSON.parse(await readFile(join(root, "docs", "geo-targets.json"), "utf8")) as {
+      local_intents: Array<{ answer_summary?: string }>;
+    };
+    const llmsJsonl = await readFile(join(root, "docs", "llms.jsonl"), "utf8");
+    const answerValues = answersDoc.answers.map((item) => item.answer);
+    const jsonlSummaries = llmsJsonl
+      .split(/\r?\n/u)
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as { type?: string; summary?: string })
+      .filter((record) => record.type === "support_page")
+      .map((record) => record.summary);
+    const serviceSupportAnswers = servicesDoc.services.flatMap((service) =>
+      (service.related_support_pages ?? []).map((page) => page.answer_summary)
+    );
+    const geoAnswers = geoDoc.local_intents.map((item) => item.answer_summary);
+
+    for (const capsule of ROUND_CAPSULES) {
+      expect(answerValues, `answers.json summary missing ${capsule}`).toContain(capsule);
+      expect(jsonlSummaries, `llms.jsonl support_page.summary missing ${capsule}`).toContain(capsule);
+    }
+    expect(serviceSupportAnswers).toEqual(expect.arrayContaining([...ROUND_CAPSULES]));
+    expect(geoAnswers).toEqual(expect.arrayContaining([...ROUND_CAPSULES]));
+  });
+
+  it("writes every generated HTML file without trailing whitespace", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-html-whitespace-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-02T01:00:00.000Z"
+    });
+
+    const htmlFiles = await listHtmlFiles(join(root, "docs"));
+    expect(htmlFiles.some((path) => path.endsWith("index.html"))).toBe(true);
+    expect(htmlFiles.some((path) => path.endsWith("404.html"))).toBe(true);
+    expect(htmlFiles.some((path) => path.endsWith(join("go", "line.html")))).toBe(true);
+    expect(htmlFiles.some((path) => path.includes(`${join("services", "")}`))).toBe(true);
+    expect(htmlFiles.some((path) => path.includes(`${join("guides", "")}`))).toBe(true);
+    expect(htmlFiles.some((path) => path.includes(`${join("posts", "")}`))).toBe(true);
+    expect(htmlFiles.some((path) => path.endsWith(join("docs", "index.html")))).toBe(true);
+    expect(htmlFiles.length).toBeGreaterThan(20);
+
+    for (const file of htmlFiles) {
+      const html = await readFile(file, "utf8");
+      expect(html, file).not.toMatch(/[ \t]+$/mu);
+    }
   });
 
   it("publishes the Taichung laundry price list page with canonical reference prices", async () => {
@@ -1854,5 +2409,436 @@ describe("generatePublicSite", () => {
     expect(thematicAnchorsTo(shoeBagCareHtml, "taichung-laundry-price-list.html").length).toBeGreaterThanOrEqual(1);
     expect(thematicAnchorsTo(xitunHtml, "taichung-laundry-price-list.html").length).toBeGreaterThanOrEqual(1);
     expect(thematicAnchorsTo(whiteShoeHtml, "taichung-laundry-price-list.html")).toEqual([]);
+  });
+
+  it("does not make a slot public from a forced approval", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-forced-approval-"));
+    await writeBusinessProfile(root);
+    await writePrivateCalendar(root, "2026-07-02", [sampleCalendarSlot("2026-07-02", 1), sampleCalendarSlot("2026-07-02", 2)]);
+    await writeApprovalLog(root, "2026-07-02", [1, 2], { forced: true });
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-02T01:00:00.000Z"
+    });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: unknown[];
+    };
+    expect(index.posts).toEqual([]);
+    expect(await exists(join(root, "docs", "content-calendar", "2026-07-02.json"))).toBe(false);
+    expect(await exists(join(root, "docs", "posts", "2026-07-02-slot-01.html"))).toBe(false);
+  });
+
+  it("does not make a slot public from a wrong-date approval", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-wrong-date-approval-"));
+    await writeBusinessProfile(root);
+    await writePrivateCalendar(root, "2026-07-02", [sampleCalendarSlot("2026-07-02", 1), sampleCalendarSlot("2026-07-02", 2)]);
+    await writeApprovalLog(root, "2026-07-02", [1, 2], { entryDate: "2026-07-01" });
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-02T01:00:00.000Z"
+    });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: unknown[];
+    };
+    expect(index.posts).toEqual([]);
+    expect(await exists(join(root, "docs", "content-calendar", "2026-07-02.json"))).toBe(false);
+  });
+
+  it("does not make a slot public from an incomplete platform approval", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-incomplete-platform-"));
+    await writeBusinessProfile(root);
+    await writePrivateCalendar(root, "2026-07-02", [sampleCalendarSlot("2026-07-02", 1), sampleCalendarSlot("2026-07-02", 2)]);
+    await writeApprovalLog(root, "2026-07-02", [1, 2], { platforms: ["facebook"] });
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-02T01:00:00.000Z"
+    });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: unknown[];
+    };
+    expect(index.posts).toEqual([]);
+    expect(await exists(join(root, "docs", "content-calendar", "2026-07-02.json"))).toBe(false);
+  });
+
+  it("preserves existing public history when the private calendar is empty, one-slot, or partial", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-preserve-incomplete-private-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+
+    await generatePublicSite({ root, baseUrl, now: "2026-07-02T01:00:00.000Z" });
+    const firstIndex = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ id: string; slot: number }>;
+    };
+    expect(firstIndex.posts).toHaveLength(2);
+    const publicCalendarPath = join(root, "docs", "content-calendar", "2026-07-02.json");
+    const postHtml = join(root, "docs", "posts", "2026-07-02-slot-01.html");
+    expect(await exists(publicCalendarPath)).toBe(true);
+    expect(await exists(postHtml)).toBe(true);
+
+    const variants: unknown[][] = [
+      [],
+      [sampleCalendarSlot("2026-07-02", 1)],
+      [sampleCalendarSlot("2026-07-02", 1), { ...sampleCalendarSlot("2026-07-02", 2), facebook_caption: undefined }]
+    ];
+
+    for (const slots of variants) {
+      await writePrivateCalendar(root, "2026-07-02", slots);
+      await generatePublicSite({ root, baseUrl, now: "2026-07-03T01:00:00.000Z" });
+
+      const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+        posts: Array<{ id: string; slot: number }>;
+      };
+      const latest = JSON.parse(await readFile(join(root, "docs", "latest.json"), "utf8")) as {
+        posts: Array<{ id: string }>;
+      };
+      const publicCalendar = JSON.parse(await readFile(publicCalendarPath, "utf8")) as {
+        slots: Array<{ slot: number }>;
+      };
+      expect(index.posts.map((post) => post.id).sort()).toEqual(firstIndex.posts.map((post) => post.id).sort());
+      expect(latest.posts.map((post) => post.id).sort()).toEqual(firstIndex.posts.map((post) => post.id).sort());
+      expect(publicCalendar.slots.map((slot) => slot.slot).sort()).toEqual([1, 2]);
+      expect(await exists(postHtml)).toBe(true);
+    }
+  });
+
+  it("preserves an existing public slot when a later run approves fewer slots", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-fewer-approvals-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+
+    await generatePublicSite({ root, baseUrl, now: "2026-07-02T01:00:00.000Z" });
+    await writeApprovalLog(root, "2026-07-02", [1]);
+    await generatePublicSite({ root, baseUrl, now: "2026-07-03T01:00:00.000Z" });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ slot: number }>;
+    };
+    const publicCalendar = JSON.parse(await readFile(join(root, "docs", "content-calendar", "2026-07-02.json"), "utf8")) as {
+      slots: Array<{ slot: number }>;
+    };
+    expect(index.posts.map((post) => post.slot).sort()).toEqual([1, 2]);
+    expect(publicCalendar.slots.map((slot) => slot.slot).sort()).toEqual([1, 2]);
+    expect(await exists(join(root, "docs", "posts", "2026-07-02-slot-02.html"))).toBe(true);
+  });
+
+  it("rebuilds social-posts.json from public calendars when the index is truncated and private sources are gone", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-recover-index-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-08-20");
+    await writeApprovalLog(root, "2026-08-20");
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+
+    await generatePublicSite({ root, baseUrl, now: "2026-08-20T01:00:00.000Z" });
+    const firstIndex = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ id: string; date: string; slot: number }>;
+    };
+    expect(firstIndex.posts).toHaveLength(2);
+
+    await rm(join(root, "data", "content-calendar"), { recursive: true, force: true });
+    await rm(join(root, "data", "approved-log"), { recursive: true, force: true });
+    await writeFile(join(root, "docs", "social-posts.json"), "{", "utf8");
+
+    await generatePublicSite({ root, baseUrl, now: "2026-08-21T01:00:00.000Z" });
+    const recovered = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ id: string; date: string; slot: number }>;
+    };
+    const latest = JSON.parse(await readFile(join(root, "docs", "latest.json"), "utf8")) as {
+      date: string;
+      posts: Array<{ id: string }>;
+    };
+    const feed = JSON.parse(await readFile(join(root, "docs", "feed.json"), "utf8")) as {
+      items: Array<{ id: string }>;
+    };
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+
+    expect(recovered.posts.map((post) => post.id).sort()).toEqual(firstIndex.posts.map((post) => post.id).sort());
+    expect(latest.date).toBe("2026-08-20");
+    expect(latest.posts.map((post) => post.id).sort()).toEqual(firstIndex.posts.map((post) => post.id).sort());
+    expect(feed.items.map((item) => item.id).sort()).toEqual(firstIndex.posts.map((post) => post.id).sort());
+    expect(homepage).toContain("posts/2026-08-20-slot-01.html");
+    expect(homepage).toContain("posts/2026-08-20-slot-02.html");
+    expect(await exists(join(root, "docs", "posts", "2026-08-20-slot-01.html"))).toBe(true);
+
+    await generatePublicSite({ root, baseUrl, now: "2026-08-22T01:00:00.000Z" });
+    const second = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ id: string }>;
+    };
+    expect(second.posts.map((post) => post.id).sort()).toEqual(recovered.posts.map((post) => post.id).sort());
+  });
+
+  it("preserves a non-empty ga4_measurement_id from social-posts.json when config is empty", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-ga4-fallback-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    const previous = process.env.PUBLIC_GA4_MEASUREMENT_ID;
+    process.env.PUBLIC_GA4_MEASUREMENT_ID = "G-TESTFALLBACK1";
+
+    try {
+      await generatePublicSite({
+        root,
+        baseUrl: "https://example.com/laundry-social-auto-poster",
+        now: "2026-07-02T01:00:00.000Z"
+      });
+      const first = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+        ga4_measurement_id: string;
+      };
+      expect(first.ga4_measurement_id).toBe("G-TESTFALLBACK1");
+
+      delete process.env.PUBLIC_GA4_MEASUREMENT_ID;
+      await generatePublicSite({
+        root,
+        baseUrl: "https://example.com/laundry-social-auto-poster",
+        now: "2026-07-03T01:00:00.000Z"
+      });
+    } finally {
+      if (previous === undefined) delete process.env.PUBLIC_GA4_MEASUREMENT_ID;
+      else process.env.PUBLIC_GA4_MEASUREMENT_ID = previous;
+    }
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      ga4_measurement_id: string;
+    };
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+    expect(index.ga4_measurement_id).toBe("G-TESTFALLBACK1");
+    expect(homepage).toContain("G-TESTFALLBACK1");
+    expect(homepage).toContain("googletagmanager.com/gtag/js?id=G-TESTFALLBACK1");
+  });
+
+  it("makes every social-posts article path and url resolve to an HTML file on disk", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-article-paths-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeCalendar(root, "2026-07-05");
+    await writeApprovalLog(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-05");
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-05T03:00:00.000Z"
+    });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ article_path: string; article_url: string }>;
+    };
+    expect(index.posts).toHaveLength(4);
+    for (const post of index.posts) {
+      expect(post.article_path).toMatch(/^posts\/.+\.html$/u);
+      expect(post.article_url).toContain(post.article_path);
+      expect(await exists(join(root, "docs", post.article_path))).toBe(true);
+    }
+    expect(new Set(index.posts.map((post) => post.article_path)).size).toBe(2);
+  });
+
+  it("does not rebuild a truncated index from a tampered signed public calendar caption", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-tampered-signed-calendar-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-08-20");
+    await writeApprovalLog(root, "2026-08-20");
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    const tamperedCaption = "TAMPERED_PUBLIC_CAPTION_SHOULD_NOT_PUBLISH";
+
+    await generatePublicSite({ root, baseUrl, now: "2026-08-20T01:00:00.000Z" });
+    const publicCalendarPath = join(root, "docs", "content-calendar", "2026-08-20.json");
+    const signed = JSON.parse(await readFile(publicCalendarPath, "utf8")) as {
+      slots: Array<{ slot: number; facebook_caption: string }>;
+      written_by?: string;
+      content_checksum?: string;
+    };
+    expect(signed.written_by).toBe(CALENDAR_WRITTEN_BY);
+    signed.slots[0]!.facebook_caption = tamperedCaption;
+    await writeFile(publicCalendarPath, `${JSON.stringify(signed, null, 2)}\n`, "utf8");
+
+    await rm(join(root, "data", "content-calendar"), { recursive: true, force: true });
+    await rm(join(root, "data", "approved-log"), { recursive: true, force: true });
+    await writeFile(join(root, "docs", "social-posts.json"), "{", "utf8");
+
+    await generatePublicSite({ root, baseUrl, now: "2026-08-21T01:00:00.000Z" });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ facebook_caption: string; date: string }>;
+    };
+    const latest = JSON.parse(await readFile(join(root, "docs", "latest.json"), "utf8")) as {
+      posts: Array<{ facebook_caption: string }>;
+    };
+    const feed = JSON.parse(await readFile(join(root, "docs", "feed.json"), "utf8")) as {
+      items: Array<{ content_text?: string }>;
+    };
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+
+    expect(index.posts).toEqual([]);
+    expect(latest.posts).toEqual([]);
+    expect(feed.items).toEqual([]);
+    expect(index.posts.some((post) => post.facebook_caption.includes(tamperedCaption))).toBe(false);
+    expect(homepage).not.toContain(tamperedCaption);
+    expect(homepage).not.toContain("posts/2026-08-20-slot-01.html");
+    expect(JSON.stringify(feed)).not.toContain(tamperedCaption);
+  });
+
+  it("does not publish a brand-new unsigned post-adoption public-only calendar", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-unsigned-public-only-"));
+    await writeBusinessProfile(root);
+    const date = "2026-08-21";
+    await writePublicCalendarFile(root, date, [sampleCalendarSlot(date, 1), sampleCalendarSlot(date, 2)]);
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+
+    await generatePublicSite({ root, baseUrl, now: `${date}T01:00:00.000Z` });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: unknown[];
+    };
+    const latest = JSON.parse(await readFile(join(root, "docs", "latest.json"), "utf8")) as {
+      posts: unknown[];
+    };
+    const feed = JSON.parse(await readFile(join(root, "docs", "feed.json"), "utf8")) as {
+      items: unknown[];
+    };
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+
+    expect(index.posts).toEqual([]);
+    expect(latest.posts).toEqual([]);
+    expect(feed.items).toEqual([]);
+    expect(homepage).not.toContain(`posts/${date}-slot-01.html`);
+    expect(sitemap).not.toContain(`content-calendar/${date}.json`);
+    expect(await exists(join(root, "docs", "posts", `${date}-slot-01.html`))).toBe(false);
+  });
+
+  it("does not publish a brand-new pre-adoption public-only legacy calendar without an index record", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-legacy-public-only-"));
+    await writeBusinessProfile(root);
+    const date = "2026-08-18";
+    await writePublicCalendarFile(root, date, [sampleCalendarSlot(date, 1), sampleCalendarSlot(date, 2)]);
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+
+    await generatePublicSite({ root, baseUrl, now: `${date}T01:00:00.000Z` });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: unknown[];
+    };
+    const latest = JSON.parse(await readFile(join(root, "docs", "latest.json"), "utf8")) as {
+      posts: unknown[];
+    };
+    const feed = JSON.parse(await readFile(join(root, "docs", "feed.json"), "utf8")) as {
+      items: unknown[];
+    };
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+
+    expect(index.posts).toEqual([]);
+    expect(latest.posts).toEqual([]);
+    expect(feed.items).toEqual([]);
+    expect(homepage).not.toContain(`posts/${date}-slot-01.html`);
+    expect(await exists(join(root, "docs", "posts", `${date}-slot-01.html`))).toBe(false);
+  });
+
+  it("stamps an approved public calendar and rebuilds a truncated index from the HMAC envelope", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-stamped-recover-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-08-20");
+    await writeApprovalLog(root, "2026-08-20");
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+
+    await generatePublicSite({ root, baseUrl, now: "2026-08-20T01:00:00.000Z" });
+    const stamped = JSON.parse(
+      await readFile(join(root, "docs", "content-calendar", "2026-08-20.json"), "utf8")
+    ) as DailyContent & { written_by?: string; content_checksum?: string };
+    expect(stamped.written_by).toBe(CALENDAR_WRITTEN_BY);
+    expect(stamped.content_checksum).toMatch(/^[0-9a-f]{16}$/);
+    expect(stamped.content_checksum).toBe(calendarSlotsChecksum(stamped, { root }));
+    expect((await readFile(join(root, "data", ".calendar-hmac-key"), "utf8")).trim().length).toBeGreaterThanOrEqual(16);
+
+    const firstIndex = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ id: string }>;
+    };
+    expect(firstIndex.posts).toHaveLength(2);
+
+    await rm(join(root, "data", "content-calendar"), { recursive: true, force: true });
+    await rm(join(root, "data", "approved-log"), { recursive: true, force: true });
+    await writeFile(join(root, "docs", "social-posts.json"), "{", "utf8");
+
+    await generatePublicSite({ root, baseUrl, now: "2026-08-21T01:00:00.000Z" });
+    const recovered = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ id: string }>;
+    };
+    expect(recovered.posts.map((post) => post.id).sort()).toEqual(firstIndex.posts.map((post) => post.id).sort());
+  });
+
+  it("preserves corroborated legacy public history and ignores uncorroborated public-only slots", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-legacy-corroborated-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+
+    await generatePublicSite({ root, baseUrl, now: "2026-07-02T01:00:00.000Z" });
+    const firstIndex = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ id: string; slot: number; facebook_caption: string; topic: string }>;
+    };
+    expect(firstIndex.posts).toHaveLength(2);
+    const originalSlot1 = firstIndex.posts.find((post) => post.slot === 1)!;
+
+    await rm(join(root, "data", "content-calendar"), { recursive: true, force: true });
+    await rm(join(root, "data", "approved-log"), { recursive: true, force: true });
+
+    const publicCalendar = JSON.parse(
+      await readFile(join(root, "docs", "content-calendar", "2026-07-02.json"), "utf8")
+    ) as {
+      date: string;
+      timezone: string;
+      generated_at: string;
+      slots: Array<Record<string, unknown>>;
+    };
+    publicCalendar.slots[0] = {
+      ...publicCalendar.slots[0]!,
+      facebook_caption: "LEGACY_TAMPERED_CAPTION_SHOULD_NOT_REPLACE_INDEX"
+    };
+    publicCalendar.slots.push({
+      ...sampleCalendarSlot("2026-07-02", 2),
+      slot: 3,
+      time: "21:30",
+      topic: "Uncorroborated public-only slot",
+      facebook_caption: "NEW_LEGACY_SLOT_SHOULD_NOT_ENTER",
+      instagram_caption: "NEW_LEGACY_SLOT_SHOULD_NOT_ENTER",
+      local_image_path: "docs/assets/2026-07-02/slot-03.png"
+    });
+    await writeFile(
+      join(root, "docs", "content-calendar", "2026-07-02.json"),
+      `${JSON.stringify(publicCalendar, null, 2)}\n`,
+      "utf8"
+    );
+
+    await generatePublicSite({ root, baseUrl, now: "2026-07-03T01:00:00.000Z" });
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ id: string; slot: number; facebook_caption: string; topic: string }>;
+    };
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+    const feed = JSON.parse(await readFile(join(root, "docs", "feed.json"), "utf8")) as {
+      items: Array<{ content_text?: string; summary?: string }>;
+    };
+
+    expect(index.posts.map((post) => post.id).sort()).toEqual(firstIndex.posts.map((post) => post.id).sort());
+    expect(index.posts.map((post) => post.slot).sort()).toEqual([1, 2]);
+    expect(index.posts.find((post) => post.slot === 1)?.facebook_caption).toBe(originalSlot1.facebook_caption);
+    expect(JSON.stringify(index)).not.toContain("LEGACY_TAMPERED_CAPTION_SHOULD_NOT_REPLACE_INDEX");
+    expect(JSON.stringify(index)).not.toContain("NEW_LEGACY_SLOT_SHOULD_NOT_ENTER");
+    expect(JSON.stringify(index)).not.toContain("Uncorroborated public-only slot");
+    expect(homepage).not.toContain("LEGACY_TAMPERED_CAPTION_SHOULD_NOT_REPLACE_INDEX");
+    expect(JSON.stringify(feed)).not.toContain("NEW_LEGACY_SLOT_SHOULD_NOT_ENTER");
+    expect(homepage).toContain("posts/2026-07-02-slot-01.html");
+    expect(homepage).toContain("posts/2026-07-02-slot-02.html");
   });
 });

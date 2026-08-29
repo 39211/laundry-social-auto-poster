@@ -291,6 +291,8 @@ const SITE_NAME = "私享家洗衣店";
 const SITE_TITLE = "私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋";
 const SITE_DESCRIPTION =
   "找台中免費收送、逢甲洗鞋或西屯洗鞋？私享家洗衣店提供台中市全區免費收送，門市在西屯青海路二段365號，可先用 LINE 傳照片預約。";
+const BING_SITE_VERIFICATION = "E5F72F13EDF0B42B75CAF728870A4F74";
+
 /**
  * Last intentional change of the homepage's static sections (YYYY-MM-DD). Not rewritten on
  * every build; the published homepage lastmod also advances with the newest approved post
@@ -6373,6 +6375,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
     <meta charset="utf-8" />
     ${buildLegacyPathRedirectScript(index)}
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="msvalidate.01" content="${BING_SITE_VERIFICATION}" />
     <meta name="description" content="${escapeHtml(SITE_DESCRIPTION)}" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="googlebot" content="index, follow, max-image-preview:large" />

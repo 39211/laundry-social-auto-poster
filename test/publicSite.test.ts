@@ -712,6 +712,7 @@ describe("generatePublicSite", () => {
     expect(sitemap).not.toContain("/posts/");
     expect(firstPostHtml).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
     expect(html).toContain('name="robots" content="index, follow, max-image-preview:large"');
+    expect(html).toContain('name="msvalidate.01" content="E5F72F13EDF0B42B75CAF728870A4F74"');
     expect(shoeBagCareHtml).toContain('name="robots" content="index, follow, max-image-preview:large"');
     expect(sitemap).not.toContain("<priority>");
     expect(sitemap).not.toContain("<changefreq>");

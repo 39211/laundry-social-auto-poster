@@ -1490,9 +1490,9 @@
     {
       "@type": "WebPage",
       "@id": "https://sixiangjialaundry.com/guides/birkenstock-care.html#webpage",
-      "name": "勃肯鞋鞋床發黑、有味道怎麼處理?台中洗鞋｜私享家洗衣店",
+      "name": "勃肯鞋會臭嗎？鞋床發黑怎麼處理｜台中洗鞋 私享家",
       "url": "https://sixiangjialaundry.com/guides/birkenstock-care.html",
-      "description": "私享家洗衣店（台中市西屯區青海路二段365號）處理勃肯鞋：軟木鞋床吸汗會發黑發臭，麂皮面又不能泡水，先傳照片判斷軟木與麂皮各自的處理方式。",
+      "description": "勃肯鞋會臭，多半是軟木鞋床吸汗，不是鞋面。私享家洗衣店（台中市西屯區青海路二段365號）先看鞋床與麂皮，再決定能不能處理；整雙泡水會更糟。",
       "inLanguage": "zh-Hant-TW",
       "isPartOf": {
         "@id": "https://sixiangjialaundry.com/#website"
@@ -1506,8 +1506,9 @@
       "hasPart": {
         "@id": "https://sixiangjialaundry.com/guides/birkenstock-care.html#faq"
       },
-      "dateModified": "2026-08-23",
+      "dateModified": "2026-08-29",
       "keywords": [
+        "勃肯鞋會臭嗎",
         "勃肯鞋清潔",
         "勃肯鞋發黑",
         "軟木鞋床 清洗",
@@ -1523,8 +1524,8 @@
       "mainEntityOfPage": {
         "@id": "https://sixiangjialaundry.com/guides/birkenstock-care.html#webpage"
       },
-      "name": "勃肯鞋鞋床發黑、有味道,還救得回來嗎?",
-      "description": "勃肯這類軟木鞋床的鞋,問題幾乎都在同一個地方:腳掌接觸的那層軟木被汗浸久了,顏色變深、味道跑出來。麂皮鞋面怕水、軟木怕泡,所以整雙丟水裡刷是最傷的做法。分開處理才對。",
+      "name": "勃肯鞋會臭嗎？先看軟木鞋床，不要整雙泡水",
+      "description": "勃肯鞋會臭，多半是軟木鞋床吸汗，不是鞋面；整雙泡水會更糟。",
       "inLanguage": "zh-Hant-TW",
       "step": [
         {
@@ -1567,6 +1568,14 @@
         "@id": "https://sixiangjialaundry.com/guides/birkenstock-care.html#webpage"
       },
       "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "勃肯鞋會臭嗎?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "會，而且味道多半來自軟木鞋床吸汗，不是鞋面。噴除臭劑蓋不住；要處理鞋床，不要整雙泡水。"
+          }
+        },
         {
           "@type": "Question",
           "name": "勃肯鞋可以整雙丟洗衣機嗎?",
@@ -2530,9 +2539,9 @@
     {
       "@type": "WebPage",
       "@id": "https://sixiangjialaundry.com/guides/plush-doll-cleaning.html#webpage",
-      "name": "台中西屯娃娃與絨毛玩偶清潔｜私享家洗衣店",
+      "name": "台中絨毛娃娃清洗店？先看填充與五官｜私享家洗衣店",
       "url": "https://sixiangjialaundry.com/guides/plush-doll-cleaning.html",
-      "description": "私享家洗衣店（台中市西屯區青海路二段365號）提供娃娃、絨毛玩偶與布偶送洗前判斷：先確認填充物、黏貼配件、五官與局部污漬，台中市西屯布偶清潔。",
+      "description": "台中找絨毛娃娃清洗店，先看填充、五官與配件能不能洗。私享家洗衣店（台中市西屯區青海路二段365號）手洗低溫烘，不保證完全恢復。",
       "inLanguage": "zh-Hant-TW",
       "isPartOf": {
         "@id": "https://sixiangjialaundry.com/#website"
@@ -2546,8 +2555,9 @@
       "hasPart": {
         "@id": "https://sixiangjialaundry.com/guides/plush-doll-cleaning.html#faq"
       },
-      "dateModified": "2026-08-23",
+      "dateModified": "2026-08-29",
       "keywords": [
+        "絨毛娃娃清洗店",
         "台中西屯娃娃清洗",
         "台中布偶清潔",
         "絨毛玩偶清洗",
@@ -2563,7 +2573,7 @@
       "mainEntityOfPage": {
         "@id": "https://sixiangjialaundry.com/guides/plush-doll-cleaning.html#webpage"
       },
-      "name": "娃娃與絨毛玩偶清潔",
+      "name": "台中哪裡洗絨毛娃娃？先看能不能洗",
       "description": "娃娃可以洗，但不能亂洗；怕的是脫水結塊與五官脫落，要先固定再手洗。",
       "inLanguage": "zh-Hant-TW",
       "step": [
@@ -2601,6 +2611,14 @@
         "@id": "https://sixiangjialaundry.com/guides/plush-doll-cleaning.html#webpage"
       },
       "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "台中哪裡有絨毛娃娃清洗店？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "西屯青海路二段365號的私享家洗衣店可判斷娃娃能不能洗；先拍正反面與五官，台中市可約免費收送。"
+          }
+        },
         {
           "@type": "Question",
           "name": "娃娃可以直接丟洗衣機嗎？",
@@ -7769,8 +7787,8 @@
     {
       "@type": "SocialMediaPosting",
       "@id": "https://sixiangjialaundry.com/content-calendar/2026-08-29.json#post-2026-08-29-slot-03",
-      "headline": "2026-08-29 12:00 先看鞋面那道水痕",
-      "text": "淋雨那天擦乾了，看起來沒事。\n\n水痕過幾天才浮出來。這時候上油等於鎖進皮裡，之後補色。還沒上油的現在剛好。皮鞋四百起。\n\n先看鞋面那道水痕。\n\n不確定該怎麼處理？拍一張傳 LINE給我們，先幫你看方向。\n\n如果只能先救一樣，你會選鞋子還是包包？\n\n私享家洗衣店｜台中市區免費到府收送\n\n參考價：皮鞋 $400、低靴 $350、高靴 $550（水洗價）\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post(或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #洗護日常 #台中洗鞋 #洗鞋推薦 #球鞋清洗 #台中洗衣店 #西屯 #逢甲 #台中",
+      "headline": "2026-08-29 12:00 馬丁靴整雙發霉了",
+      "text": "馬丁靴整雙發霉了。\n\n梅雨櫃子放一季,皮面就長出這層白灰。霉根會吃進皮革,越晚處理越難救,先拍照傳給我們看狀況。\n\n不確定該怎麼處理？拍一張傳 LINE給我們，先幫你看方向。\n\n如果只能先救一樣，你會選鞋子還是包包？\n\n私享家洗衣店｜台中市區免費到府收送\n\n參考價：皮鞋 $400、低靴 $350、高靴 $550（水洗價）\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #洗護日常 #台中洗鞋 #洗鞋推薦 #球鞋清洗 #台中洗衣店 #西屯 #逢甲 #台中",
       "datePublished": "2026-08-29T12:00:00+08:00",
       "inLanguage": "zh-Hant",
       "keywords": [
@@ -7802,7 +7820,7 @@
       "@id": "https://sixiangjialaundry.com/content-calendar/2026-08-29.json#post-2026-08-29-slot-03:image",
       "contentUrl": "https://sixiangjialaundry.com/assets/2026-08-29/slot-03.png",
       "url": "https://sixiangjialaundry.com/assets/2026-08-29/slot-03.png",
-      "caption": "先看鞋面那道水痕",
+      "caption": "馬丁靴整雙發霉了",
       "inLanguage": "zh-Hant"
     },
     {

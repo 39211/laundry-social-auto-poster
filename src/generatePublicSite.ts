@@ -1221,6 +1221,19 @@ const AEO_BEDDING_DUVET = "棉被送洗先看填充、潮氣與異味；沒乾�
 const AEO_PLUSH_DOLL_BOUNDARY = "娃娃可以洗，但不能亂洗；怕的是脫水結塊與五官脫落，要先固定再手洗。";
 const AEO_LUXURY_DRY = "精品送洗先看材質與飾件，不因品牌保證全新；邊角磨損只能維持。";
 const AEO_CLOTHING_ALTERATION = "送洗時若同時需要修改，可以一起收送，但先分清楚是小修還是版型調整。";
+// The answer box falls back to `description` when a page sets no
+// citation_answer, and description opens with the shop name and address --
+// roughly 25 characters of branding before the answer starts. That is the
+// wrong shape for an extracted answer, so every page carries its own capsule.
+const AEO_SCHOOL_UNIFORM = "制服領口發黃要先處理舊痕再整燙；順序反了，高溫會把黃痕定死。";
+const AEO_BIRKENSTOCK = "勃肯鞋的味道來自軟木鞋床不是鞋面；整雙泡水會讓軟木鬆散、麂皮變硬。";
+const AEO_LUXURY_BAG_MOLD = "包包發霉先別用濕布擦，濕擦會把霉推進皮革毛孔；表面白霉多半可處理，滲入皮層只能淡化。";
+const AEO_DOWN_JACKET = "多數羽絨適合專業水洗加低溫慢烘，不一定要乾洗；外層有塗層或貼合工藝要另外判斷。";
+const AEO_LEATHER_JACKET = "皮衣不能走一般乾洗，溶劑會帶走皮革油脂造成變硬龜裂；要走皮革專屬清潔加補油。";
+const AEO_DRY_VS_WET = "乾洗用溶劑處理油性髒污並保護版型，水洗對汗味較有效；依材質與髒污選，不是乾洗比較高級。";
+const AEO_SHIRT_SUIT = "襯衫的領口袖口與西裝的面料、內襯不適合同一種處理；領口泛黃不要自行漂白或硬刷。";
+const AEO_SERVICE_SEARCH = "找洗衣服務先從物件和問題找，不必只搜尋店名；每個答案都回到材質、位置與處理界線。";
+const AEO_QINGHAI_ROAD = "挑洗鞋店先比三件事：敢不敢先講救不回來的部分、收送範圍寫不寫清楚、有沒有講處理界線。";
 
 const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
   {
@@ -1327,11 +1340,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理開學前制服領口發黃、袖口油污，先處理再整燙才不會把黃痕定型，台中市全區可免費收送。",
     h1: "開學前的制服整理:順序錯了會把黃痕定死",
+    citation_answer: AEO_SCHOOL_UNIFORM,
     summary: "每年開學前一週,制服是送洗量最大的一項。家長最常做錯的一件事:先燙再說。高溫會把領口的皮脂氧化痕定型,之後再洗就洗不掉了。正確順序是先處理舊痕,再整燙。",
     keywords: ["制服送洗", "制服領口發黃", "開學 制服 整理", "台中制服清洗", "學生制服 送洗", "制服整燙"],
     service_slug: "taichung-xitun-laundry",
     local_intent: "台中 制服送洗 開學 領口發黃",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先看領口內側", text: "翻開領子看內側那一圈:淺黃是新的皮脂,深黃帶硬感是已經氧化過的舊痕,兩者處理力道不同。" },
       { name: "袖口與腋下一起看", text: "袖口是手接觸最多的地方,腋下是止汗劑與汗鹽,兩處常被忽略,只洗表面等於沒洗。" },
@@ -1366,11 +1380,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理勃肯鞋：軟木鞋床吸汗會發黑發臭，麂皮面又不能泡水，先傳照片判斷軟木與麂皮各自的處理方式。",
     h1: "勃肯鞋鞋床發黑、有味道,還救得回來嗎?",
+    citation_answer: AEO_BIRKENSTOCK,
     summary: "勃肯這類軟木鞋床的鞋,問題幾乎都在同一個地方:腳掌接觸的那層軟木被汗浸久了,顏色變深、味道跑出來。麂皮鞋面怕水、軟木怕泡,所以整雙丟水裡刷是最傷的做法。分開處理才對。",
     keywords: ["勃肯鞋清潔", "勃肯鞋發黑", "軟木鞋床 清洗", "台中洗勃肯", "麂皮鞋清潔", "勃肯鞋除臭"],
     service_slug: "white-shoe-cleaning",
     local_intent: "台中 勃肯鞋清潔 軟木鞋床 除臭",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先分三層", text: "麂皮鞋面、軟木鞋床、橡膠大底,三種材質三種做法。整雙泡水會讓軟木鬆散、麂皮硬掉。" },
       { name: "看鞋床顏色", text: "腳掌位置深黑=汗垢滲入軟木層;只有表面灰=角質與塵土,後者好處理很多。" },
@@ -1405,11 +1420,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理精品包發霉：先不要用濕布擦，判斷是表面白霉還是滲入皮層，處理方式與可救程度完全不同，台中市可免費收送。",
     h1: "精品包發霉:先別擦,先看這三件事",
+    citation_answer: AEO_LUXURY_BAG_MOLD,
     summary: "台灣的梅雨與夏季濕氣,讓收在櫃子裡的包最常出事。發現白白一層時,最傷的動作是拿濕布用力擦——那會把霉推進皮革毛孔,還可能造成色斑。先判斷,再動手。",
     keywords: ["精品包發霉", "包包發霉處理", "皮包 發霉", "台中精品包清潔", "名牌包保養", "包包除霉"],
     service_slug: "shoe-bag-care",
     local_intent: "台中 精品包發霉 名牌包清潔 除霉",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先不要擦", text: "濕擦會把霉絲推入皮革毛孔並擴散。先把包移到通風處,不要密封回防塵袋。" },
       { name: "看霉的形態", text: "浮在表面像粉的白霉,多半能處理;已經有色差或斑點邊界的,是霉根進到皮層,只能淡化。" },
@@ -1444,11 +1460,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理羽絨外套與羽絨被：能不能水洗、洗完會不會不蓬，要先看洗標、塗層與走線，台中市可免費收送。",
     h1: "羽絨外套、羽絨被怎麼洗才不會毀掉？",
+    citation_answer: AEO_DOWN_JACKET,
     summary: "羽絨最怕兩件事：洗錯方式讓羽絨結塊，和沒乾透就收納悶出味道。大部分羽絨其實適合專業水洗加低溫烘乾，反而不一定適合乾洗；但外層有塗層或貼合工藝的要另外判斷。台中換季前送洗可約免費收送。",
     keywords: ["羽絨外套清洗", "羽絨被送洗", "羽絨外套可以水洗嗎", "台中洗羽絨被", "台中羽絨外套送洗", "羽絨被清洗"],
     service_slug: "fabric-storage",
     local_intent: "台中 羽絨外套清洗 羽絨被送洗 換季",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先看洗標", text: "羽絨製品的洗標決定方向：可水洗、限乾洗或手洗各有不同風險，看不懂符號就直接拍洗標照片來問。" },
       { name: "檢查走線與破口", text: "車線鬆脫或小破口在清洗時會讓羽絨跑出來，送洗前先檢查領口、袖口與絎縫線。" },
@@ -1483,11 +1500,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理皮衣清潔保養：發霉、變硬、色差要依真皮、合成皮或麂皮分別判斷，不能用一般方式洗。",
     h1: "皮衣清潔保養：發霉、變硬、色差怎麼判斷？",
+    citation_answer: AEO_LEATHER_JACKET,
     summary: "皮衣最常見的三個狀況：收納環境潮濕悶出霉點、久放缺油變硬、局部摩擦造成色差。真皮、合成皮和麂皮的處理方式完全不同，用錯方式會讓皮面褪色或硬化。送保養前先拍全身照與問題位置特寫。",
     keywords: ["皮衣保養", "皮衣清潔", "台中皮衣保養", "皮衣發霉", "皮衣可以洗嗎", "皮衣送洗"],
     service_slug: "shoe-bag-care",
     local_intent: "台中 皮衣保養 皮衣清潔 皮衣發霉",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先分材質", text: "真皮、合成皮（PU/PVC）和麂皮的清潔方式完全不同。看洗標或內裡標籤，不確定就拍照來問。" },
       { name: "看霉點範圍", text: "表面白霉多半能處理；霉根吃進皮層或內裡的，能改善的程度要先評估，處理前會先講界線。" },
@@ -1522,11 +1540,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）判斷乾洗還是水洗：西裝、大衣、絲質、羊毛先看洗標和材質，台中市乾洗送洗可免費收送。",
     h1: "乾洗還是水洗？送洗前搞懂這一篇",
+    citation_answer: AEO_DRY_VS_WET,
     summary: "乾洗用溶劑帶走油性髒污、保護不耐水的纖維與版型；水洗對汗味和水性髒污比較有效。西裝、大衣、絲質上衣通常走乾洗，襯衫和棉質日常衣物多半水洗加整燙。判斷不了就拍洗標，一張照片比猜十次準。",
     keywords: ["乾洗 水洗 差別", "台中乾洗", "乾洗店 台中", "西裝乾洗", "大衣乾洗", "襯衫送洗", "台中西屯乾洗"],
     service_slug: "taichung-xitun-laundry",
     local_intent: "台中 乾洗 西裝乾洗 大衣乾洗 襯衫送洗",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先看洗標符號", text: "圓圈是乾洗、水盆是水洗、打叉是禁止。圓圈裡的字母代表溶劑類型，看不懂拍照來問最快。" },
       { name: "分辨髒污類型", text: "汗味、飲料漬偏水性適合水洗；油光、皮脂、妝痕偏油性乾洗較有效。混合狀況會先局部處理再整件清洗。" },
@@ -1716,6 +1735,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）提供襯衫、西裝、外套送洗前判斷：先確認材質、領口袖口髒污、內襯與裝飾細節，台中市西屯洗衣與精緻乾洗。",
     h1: "襯衫清洗與西裝乾洗",
+    citation_answer: AEO_SHIRT_SUIT,
     summary:
       "襯衫的領口袖口、西裝的面料、內襯與配件，不適合用同一種方式處理。先傳清楚照片，讓門市依材質與狀況判斷送洗方向。",
     keywords: [
@@ -1727,7 +1747,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "精緻乾洗"
     ],
     local_intent: "台中西屯 襯衫清洗 西裝乾洗 精緻乾洗",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "拍下材質與洗標", text: "先拍外層材質、洗標、領口袖口與明顯髒污的位置。" },
       { name: "標出在意細節", text: "內襯、鈕扣、拉鍊、燙痕或舊污漬，都應在送洗前一起說明。" },
@@ -1919,6 +1939,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）整理台中洗衣店查詢入口：依物件、問題、材質與收送需求找洗鞋、洗包、白鞋、床組、棉被、襯衫、西裝、娃娃、精品乾洗與台中市免費收送。",
     h1: "台中洗衣、洗鞋、洗包與免費收送怎麼找？",
+    citation_answer: AEO_SERVICE_SEARCH,
     summary:
       "先用手上的物件和問題找服務，不必只搜尋店名。私享家把台中洗衣、洗鞋、洗包、床組棉被、襯衫西裝、娃娃、精品乾洗與免費收送分成可核對的服務與指南；每個答案都回到材質、位置、狀態與處理界線。",
     keywords: [
@@ -1933,7 +1954,7 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "台中洗衣免費收送"
     ],
     local_intent: "台中西屯 洗衣 洗鞋 洗包 床組 西裝 娃娃 精品乾洗 免費收送",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       {
         name: "先找物件",
@@ -2047,11 +2068,12 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     title: "逢甲洗鞋・西屯洗鞋推薦怎麼挑｜青海路私享家洗衣店",
     description: "逢甲、西屯找洗鞋店？先看這篇怎麼挑：看案例照片、問處理界線、確認收送方式。私享家在青海路二段365號，台中市免費收送，LINE 傳照片先判斷再決定。",
     h1: "逢甲洗鞋・西屯洗鞋：怎麼挑、怎麼問、怎麼送",
+    citation_answer: AEO_QINGHAI_ROAD,
     summary:
       "逢甲、西屯找洗鞋，最常見的是白鞋泛黃、雨天泥灰和鞋內悶味。私享家門市在西屯區青海路二段365號、至善國中對面；台中市全市可預約免費到府收送。挑洗鞋店先比三件事：敢不敢先講哪些救不回來、收送範圍清不清楚、有沒有講處理界線。",
     keywords: ["逢甲洗鞋", "逢甲洗鞋推薦", "西屯洗鞋", "台中西屯洗鞋", "青海路洗鞋", "逢甲洗包包", "西屯洗包"],
     local_intent: "逢甲洗鞋 逢甲洗鞋推薦 西屯洗鞋 青海路洗鞋 逢甲大學 洗鞋收送",
-    content_lastmod: "2026-08-18",
+    content_lastmod: "2026-08-29",
     steps: [
       {
         name: "第一步：拍四張照片",

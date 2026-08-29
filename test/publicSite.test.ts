@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -926,6 +926,54 @@ describe("generatePublicSite", () => {
     expect(serviceSearchGuideHtml).toContain("台中洗衣免費收送");
     expect(localShoePageHtml).toContain("shoe-bag-care.html");
     expect(localShoePageHtml).toContain("https://example.com/laundry-social-auto-poster/#business");
+  });
+
+  it("opens every support page's answer box with a real answer, not the branded description", async () => {
+    // The answer box renders `citation_answer ?? description`. A page that
+    // sets no citation_answer therefore silently falls back to description,
+    // which opens with the shop name and full address -- roughly 25
+    // characters of branding before the answer starts. That is the wrong
+    // shape for an answer a search or AI engine can lift, and it fails
+    // silently: the box is still present, still populated, still passes
+    // `toContain('class="answer-box"')`.
+    //
+    // Mutation: drop `citation_answer` from any support page definition and
+    // that page's box falls back to the description, so this goes red.
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-answer-capsule-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-02T01:00:00.000Z"
+    });
+
+    const pages: string[] = [];
+    for (const dir of ["guides", "local"]) {
+      const dirPath = join(root, "docs", dir);
+      for (const name of await readdir(dirPath)) {
+        if (name.endsWith(".html")) pages.push(join(dirPath, name));
+      }
+    }
+    expect(pages.length).toBeGreaterThanOrEqual(13);
+
+    for (const pagePath of pages) {
+      const html = await readFile(pagePath, "utf8");
+      const box = html.match(/<div class="answer-box">\s*<p>([\s\S]*?)<\/p>/u);
+      expect(box, `${pagePath} has no answer box`).not.toBeNull();
+      const answer = box![1]!.trim();
+
+      // The defect: the branded description leaking into the answer box.
+      expect(answer.startsWith("私享家洗衣店"), `${pagePath} answer box falls back to the branded description`).toBe(
+        false
+      );
+      // The documented cap on the capsule.
+      expect([...answer].length, `${pagePath} capsule is longer than the documented limit`).toBeLessThanOrEqual(50);
+      // A capsule has to actually say something.
+      expect([...answer].length, `${pagePath} capsule is too short to be an answer`).toBeGreaterThanOrEqual(15);
+    }
   });
 
   it("thickens the Fengjia/Xitun shoe local page and adds thematic internal links", async () => {

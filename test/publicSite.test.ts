@@ -1,5 +1,5 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -1058,6 +1058,98 @@ describe("generatePublicSite", () => {
     expect(await exists(join(root, "docs", "posts", "2026-07-03-slot-01.html"))).toBe(false);
   });
 
+  it("publishes approved content through today in Taipei but removes future public calendars", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-future-calendar-"));
+    const today = "2026-08-30";
+    const tomorrow = "2026-08-31";
+    await writeBusinessProfile(root);
+    await writeCalendar(root, today);
+    await writeCalendar(root, tomorrow);
+    await writeApprovalLog(root, today);
+    await writeApprovalLog(root, tomorrow);
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      // Still 2026-08-29 in UTC, but already 2026-08-30 in Asia/Taipei.
+      now: "2026-08-29T16:30:00.000Z"
+    });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8"));
+    const latest = JSON.parse(await readFile(join(root, "docs", "latest.json"), "utf8"));
+    const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8"));
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+    const llms = await readFile(join(root, "docs", "llms.txt"), "utf8");
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+
+    expect(index.posts.map((post: { date: string }) => post.date)).toEqual([today, today]);
+    expect(index.latest_date).toBe(today);
+    expect(latest.date).toBe(today);
+    expect(latest.posts.map((post: { date: string }) => post.date)).toEqual([today, today]);
+    expect(homepage).toContain(`${today} 11:30`);
+    expect(homepage).not.toContain(tomorrow);
+    expect(jsonLdGraphs(homepage).find((graph) => graph["@type"] === "WebPage")?.dateModified).toBe(today);
+    expect(llms).not.toContain(tomorrow);
+    expect(sitemap).not.toContain(`content-calendar/${tomorrow}.json`);
+    expect(sitemap).not.toContain(`<lastmod>${tomorrow}</lastmod>`);
+    expect(discovery.published_posts.map((post: { date: string }) => post.date)).toEqual([today, today]);
+    expect(await exists(join(root, "docs", "content-calendar", `${today}.json`))).toBe(true);
+    expect(await exists(join(root, "docs", "content-calendar", `${tomorrow}.json`))).toBe(false);
+    expect(await exists(join(root, "data", "content-calendar", `${tomorrow}.json`))).toBe(true);
+  });
+
+  it("rejects a private calendar whose embedded date does not match its filename", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-calendar-date-mismatch-"));
+    const filenameDate = "2026-08-30";
+    const embeddedDate = "2026-08-31";
+    await writeBusinessProfile(root);
+    await writeCalendar(root, filenameDate);
+    const privatePath = join(root, "data", "content-calendar", `${filenameDate}.json`);
+    const calendar = JSON.parse(await readFile(privatePath, "utf8"));
+    calendar.date = embeddedDate;
+    await writeFile(privatePath, `${JSON.stringify(calendar, null, 2)}\n`, "utf8");
+
+    await expect(
+      generatePublicSite({
+        root,
+        baseUrl: "https://example.com/laundry-social-auto-poster",
+        now: "2026-08-29T16:30:00.000Z"
+      })
+    ).rejects.toThrow(
+      `Content calendar date mismatch: filename ${filenameDate} does not match calendar.date ${embeddedDate}.`
+    );
+
+    expect(await exists(join(root, "docs", "content-calendar", `${filenameDate}.json`))).toBe(false);
+    expect(await exists(privatePath)).toBe(true);
+    expect(JSON.parse(await readFile(privatePath, "utf8")).date).toBe(embeddedDate);
+  });
+
+  it("rejects a calendar date mismatch even when the filename is in the future", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-future-calendar-date-mismatch-"));
+    const filenameDate = "2026-08-31";
+    const embeddedDate = "2026-09-01";
+    await writeBusinessProfile(root);
+    await writeCalendar(root, filenameDate);
+    const privatePath = join(root, "data", "content-calendar", `${filenameDate}.json`);
+    const calendar = JSON.parse(await readFile(privatePath, "utf8"));
+    calendar.date = embeddedDate;
+    await writeFile(privatePath, `${JSON.stringify(calendar, null, 2)}\n`, "utf8");
+
+    await expect(
+      generatePublicSite({
+        root,
+        baseUrl: "https://example.com/laundry-social-auto-poster",
+        now: "2026-08-29T16:30:00.000Z"
+      })
+    ).rejects.toThrow(
+      `Content calendar date mismatch: filename ${filenameDate} does not match calendar.date ${embeddedDate}.`
+    );
+
+    expect(await exists(join(root, "docs", "content-calendar", `${filenameDate}.json`))).toBe(false);
+    expect(await exists(privatePath)).toBe(true);
+    expect(JSON.parse(await readFile(privatePath, "utf8")).date).toBe(embeddedDate);
+  });
+
   it("expands recent approved dates on the homepage and collapses older approved posts into an archive", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-approved-archive-"));
     await writeBusinessProfile(root);
@@ -1175,6 +1267,150 @@ describe("generatePublicSite", () => {
     expect(firstPostHtml).toContain('href="https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html"');
     expect(secondPostHtml).toContain('href="https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html"');
     expect(secondPostHtml).toContain('alt="Bag corner care - 私享家洗衣店"');
+  });
+
+  it("falls back to an image publicly when an approved reel MP4 is missing", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-missing-reel-"));
+    const date = "2026-07-02";
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await writeBusinessProfile(root);
+    await writeCalendar(root, date);
+    await writeApprovalLog(root, date);
+
+    const privateCalendarPath = join(root, "data", "content-calendar", `${date}.json`);
+    const privateCalendar = JSON.parse(await readFile(privateCalendarPath, "utf8"));
+    for (const slot of privateCalendar.slots) {
+      slot.media_type = "reel";
+      slot.format = "reel";
+      slot.local_video_path = `docs/assets/${date}/slot-${String(slot.slot).padStart(2, "0")}.mp4`;
+      slot.public_video_url = `${baseUrl}/assets/${date}/slot-${String(slot.slot).padStart(2, "0")}.mp4`;
+    }
+    await writeFile(privateCalendarPath, `${JSON.stringify(privateCalendar, null, 2)}\n`, "utf8");
+
+    await mkdir(join(root, "docs", "assets", date), { recursive: true });
+    const pngFixture = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64"
+    );
+    await Promise.all([
+      writeFile(join(root, "docs", "assets", date, "slot-01.png"), pngFixture),
+      writeFile(join(root, "docs", "assets", date, "slot-02.png"), pngFixture),
+      writeFile(join(root, "docs", "assets", date, "slot-02.mp4"), "existing reel", "utf8")
+    ]);
+
+    const outputs = await generatePublicSite({ root, baseUrl, now: "2026-07-02T01:00:00.000Z" });
+    const socialPosts = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8"));
+    const missingVideoPost = socialPosts.posts.find((post: { slot: number }) => post.slot === 1);
+    const existingVideoPost = socialPosts.posts.find((post: { slot: number }) => post.slot === 2);
+    const publicCalendar = JSON.parse(
+      await readFile(join(root, "docs", "content-calendar", `${date}.json`), "utf8")
+    );
+    const missingVideoSlot = publicCalendar.slots.find((slot: { slot: number }) => slot.slot === 1);
+    const existingVideoSlot = publicCalendar.slots.find((slot: { slot: number }) => slot.slot === 2);
+    const missingVideoHtml = await readFile(join(root, "docs", "posts", `${date}-slot-01.html`), "utf8");
+    const existingVideoHtml = await readFile(join(root, "docs", "posts", `${date}-slot-02.html`), "utf8");
+    const missingVideoPath = `assets/${date}/slot-01.mp4`;
+    const publicOutputText = (
+      await Promise.all([...outputs, join(root, "docs", "content-calendar", `${date}.json`)].map((path) => readFile(path, "utf8")))
+    ).join("\n");
+
+    expect(missingVideoPost).toMatchObject({
+      media_type: "image",
+      image_path: `assets/${date}/slot-01.png`,
+      video_path: "",
+      video_url: "",
+      facebook_caption: "FB caption #test",
+      instagram_caption: "IG caption #test"
+    });
+    expect(missingVideoSlot).toMatchObject({ media_type: "image", format: "image-post" });
+    expect(missingVideoSlot).not.toHaveProperty("local_video_path");
+    expect(missingVideoSlot).not.toHaveProperty("public_video_url");
+    expect(await exists(join(root, "docs", "assets", date, "slot-01.png"))).toBe(true);
+    expect(await exists(join(root, "docs", "assets", date, "slot-01.webp"))).toBe(true);
+    expect(missingVideoHtml).toContain("<picture");
+    expect(missingVideoHtml).toContain(`${baseUrl}/assets/${date}/slot-01.png`);
+    expect(missingVideoHtml).toContain("FB caption #test");
+    expect(missingVideoHtml).not.toContain("<video");
+    expect(missingVideoHtml).not.toContain("og:video");
+    expect(missingVideoHtml).not.toContain("VideoObject");
+    expect(publicOutputText).not.toContain(missingVideoPath);
+
+    expect(existingVideoPost).toMatchObject({
+      media_type: "reel",
+      video_path: `assets/${date}/slot-02.mp4`,
+      video_url: `${baseUrl}/assets/${date}/slot-02.mp4`
+    });
+    expect(existingVideoSlot).toMatchObject({
+      media_type: "reel",
+      format: "reel",
+      local_video_path: `docs/assets/${date}/slot-02.mp4`,
+      public_video_url: `${baseUrl}/assets/${date}/slot-02.mp4`
+    });
+    expect(existingVideoHtml).toContain(`<video src="${baseUrl}/assets/${date}/slot-02.mp4"`);
+    expect(existingVideoHtml).toContain("og:video");
+    expect(existingVideoHtml).toContain("VideoObject");
+
+    const unchangedPrivateCalendar = JSON.parse(await readFile(privateCalendarPath, "utf8"));
+    expect(unchangedPrivateCalendar.slots[0]).toMatchObject({
+      media_type: "reel",
+      local_video_path: `docs/assets/${date}/slot-01.mp4`,
+      public_video_url: `${baseUrl}/assets/${date}/slot-01.mp4`
+    });
+  });
+
+  it("fails closed when an approved reel has neither its MP4 nor fallback PNG", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-missing-reel-and-image-"));
+    const date = "2026-07-02";
+    await writeBusinessProfile(root);
+    await writeCalendar(root, date);
+    await writeApprovalLog(root, date, [1]);
+
+    const privateCalendarPath = join(root, "data", "content-calendar", `${date}.json`);
+    const privateCalendar = JSON.parse(await readFile(privateCalendarPath, "utf8"));
+    privateCalendar.slots[0].media_type = "reel";
+    privateCalendar.slots[0].format = "reel";
+    privateCalendar.slots[0].local_video_path = `docs/assets/${date}/slot-01.mp4`;
+    privateCalendar.slots[0].public_video_url = `https://example.com/assets/${date}/slot-01.mp4`;
+    await writeFile(privateCalendarPath, `${JSON.stringify(privateCalendar, null, 2)}\n`, "utf8");
+
+    await expect(
+      generatePublicSite({ root, baseUrl: "https://example.com", now: "2026-07-02T01:00:00.000Z" })
+    ).rejects.toThrow(`Cannot expose approved reel ${date} slot 1: both video and fallback image are missing.`);
+    expect(await exists(join(root, "docs", "content-calendar", `${date}.json`))).toBe(false);
+    expect(JSON.parse(await readFile(privateCalendarPath, "utf8")).slots[0].media_type).toBe("reel");
+  });
+
+  it("rethrows non-ENOENT filesystem errors instead of silently downgrading a reel", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-reel-stat-error-"));
+    const date = "2026-07-02";
+    await writeBusinessProfile(root);
+    await writeCalendar(root, date);
+    await writeApprovalLog(root, date, [1]);
+
+    const privateCalendarPath = join(root, "data", "content-calendar", `${date}.json`);
+    const privateCalendar = JSON.parse(await readFile(privateCalendarPath, "utf8"));
+    privateCalendar.slots[0].media_type = "reel";
+    privateCalendar.slots[0].format = "reel";
+    await writeFile(privateCalendarPath, `${JSON.stringify(privateCalendar, null, 2)}\n`, "utf8");
+    await mkdir(join(root, "docs", "assets", date), { recursive: true });
+    await writeFile(join(root, "docs", "assets", date, "slot-01.mp4"), "existing reel", "utf8");
+
+    await expect(
+      generatePublicSite({
+        root,
+        baseUrl: "https://example.com",
+        now: "2026-07-02T01:00:00.000Z",
+        statPublicAsset: (filePath) => {
+          if (filePath.endsWith("slot-01.mp4")) {
+            const error = new Error("permission denied while reading reel") as NodeJS.ErrnoException;
+            error.code = "EACCES";
+            throw error;
+          }
+          return statSync(filePath);
+        }
+      })
+    ).rejects.toThrow("permission denied while reading reel");
+    expect(await exists(join(root, "docs", "content-calendar", `${date}.json`))).toBe(false);
   });
 
   it("does not generate a second article page or sitemap URL when the post caption is a duplicate", async () => {

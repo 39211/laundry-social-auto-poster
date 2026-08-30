@@ -149,49 +149,110 @@ function copyDirectoryContents(source: string, target: string): void {
   }
 }
 
-function clearMirrorWorktree(root: string): void {
-  for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (entry.name === ".git") continue;
-    // .github holds the Pages deploy workflow. The mirror moved to
-    // Actions-based deployment on 2026-08-07 because legacy Jekyll builds
-    // began failing on the 646MB asset tree; wiping the workflow on every
-    // mirror push would silently remove the only thing that deploys the site.
-    if (entry.name === ".github") continue;
-    rmSync(join(root, entry.name), { recursive: true, force: true });
-  }
+const MIRROR_REPLACE_DIRS = new Set(["guides", "local", "services", "go", "posts", "content-calendar", "docs"]);
+
+type MirrorPathKind = "replace-directory" | "overlay-directory" | "file";
+
+function mirrorRelativePaths(paths: string[]): string[] {
+  return Array.from(
+    new Set(
+      paths.map((path) => {
+        const normalized = normalizeGitPath(path);
+        if (!normalized.startsWith("docs/")) {
+          throw new Error(`Refusing to mirror a path outside docs/: ${path}`);
+        }
+        const relative = normalized.slice("docs/".length);
+        const parts = relative.split("/");
+        if (!relative || parts.some((part) => !part || part === "." || part === "..")) {
+          throw new Error(`Refusing to mirror an invalid docs path: ${path}`);
+        }
+        return relative;
+      })
+    )
+  );
 }
 
-function publishRootPagesMirror(date: string, root: string, rootPagesRepo: string): string {
+function mirrorPathKind(docsRoot: string, relativePath: string, date: string): MirrorPathKind {
+  const source = join(docsRoot, ...relativePath.split("/"));
+  const info = statSync(source);
+  if (info.isDirectory()) {
+    if (MIRROR_REPLACE_DIRS.has(relativePath)) return "replace-directory";
+    if (["assets/backgrounds", "assets/services", `assets/${date}`].includes(relativePath)) {
+      return "overlay-directory";
+    }
+    throw new Error(`Refusing to mirror a non-allowlisted directory: docs/${relativePath}`);
+  }
+  if (info.isFile()) {
+    const parts = relativePath.split("/");
+    if (parts.length === 1 || (parts.length === 2 && parts[0] === ".well-known")) return "file";
+    throw new Error(`Refusing to mirror a non-allowlisted individual file: docs/${relativePath}`);
+  }
+  throw new Error(`Refusing to mirror a non-file, non-directory path: docs/${relativePath}`);
+}
+
+function mirrorSparseCones(docsRoot: string, relativePaths: string[], date: string): string[] {
+  const cones = new Set([".github"]);
+  for (const relativePath of relativePaths) {
+    const kind = mirrorPathKind(docsRoot, relativePath, date);
+    if (kind !== "file") {
+      cones.add(relativePath);
+    } else if (relativePath.startsWith(".well-known/")) {
+      cones.add(".well-known");
+    }
+  }
+  return [...cones];
+}
+
+function copyMirrorPublishTree(
+  docsRoot: string,
+  mirrorRoot: string,
+  date: string,
+  relativePaths: string[]
+): string[] {
+  const added: string[] = [];
+  mkdirSync(mirrorRoot, { recursive: true });
+  for (const relativePath of relativePaths) {
+    const source = join(docsRoot, ...relativePath.split("/"));
+    const target = join(mirrorRoot, ...relativePath.split("/"));
+    const kind = mirrorPathKind(docsRoot, relativePath, date);
+    if (kind === "file") {
+      const parentParts = relativePath.split("/").slice(0, -1);
+      if (parentParts.length > 0) mkdirSync(join(mirrorRoot, ...parentParts), { recursive: true });
+      copyFileSync(source, target);
+    } else {
+      if (kind === "replace-directory") rmSync(target, { recursive: true, force: true });
+      copyDirectoryContents(source, target);
+    }
+    added.push(relativePath);
+  }
+  return added;
+}
+
+function publishRootPagesMirror(date: string, root: string, rootPagesRepo: string, paths: string[]): string {
   if (!rootPagesRepo) return "";
 
   const docsRoot = join(root, "docs");
   if (!existsSync(docsRoot)) return "Root Pages mirror skipped because docs/ does not exist.";
+  const relativePaths = mirrorRelativePaths(paths);
+  const cones = mirrorSparseCones(docsRoot, relativePaths, date);
 
   const mirrorRoot = mkdtempSync(join(tmpdir(), "laundry-root-pages-"));
   try {
-    // Each run fully replaces the mirror's tree (clearMirrorWorktree keeps only .github --
-    // see its comment), so the clone never needs the remote's existing blobs, let alone its
-    // history: --filter=blob:none defers all file content, --depth 1 skips history, and
-    // sparse-checkout materializes only .github/. A full clone of the accumulated "Mirror
-    // public site" history plus the whole docs/ tree was gigabytes larger than what this
-    // step actually uses, and could exhaust local disk when free space was already tight.
+    // Overlay HTML/SEO files and the day's assets. Do not clear the remote tree or
+    // `git add -A` the accumulated 646MB asset history: a blob:none clone plus a
+    // full replace made `git add -A` talk to the promisor and fail with
+    // "Empty reply from server" (2026-08-29). Historical assets stay on the remote.
     runGit(
       ["clone", "--depth", "1", "--filter=blob:none", "--single-branch", "--branch", "main", "--no-checkout", rootPagesRepo, mirrorRoot],
       root
     );
     runGit(["sparse-checkout", "init", "--cone"], mirrorRoot);
-    runGit(["sparse-checkout", "set", ".github"], mirrorRoot);
+    runGit(["sparse-checkout", "set", ...cones], mirrorRoot);
     runGit(["config", "user.name", gitConfigValue(root, "user.name") || "Codex Automation"], mirrorRoot);
     runGit(["config", "user.email", gitConfigValue(root, "user.email") || "codex-automation@users.noreply.github.com"], mirrorRoot);
     checkoutMain(mirrorRoot);
-    clearMirrorWorktree(mirrorRoot);
-    copyDirectoryContents(docsRoot, mirrorRoot);
-
-    // The sparse-checkout scope above only exists to avoid materializing the remote's old
-    // docs/ tree during checkout. It must not stay in effect once that tree is replaced --
-    // `git add -A` under an active cone would silently skip everything outside .github/.
-    runGit(["sparse-checkout", "disable"], mirrorRoot);
-    runGit(["add", "-A"], mirrorRoot);
+    const added = copyMirrorPublishTree(docsRoot, mirrorRoot, date, relativePaths);
+    if (added.length > 0) runGit(["add", "--sparse", "--", ...added], mirrorRoot);
     const status = runGit(["status", "--porcelain"], mirrorRoot);
     if (!status) return `No root Pages mirror changes to publish for ${date}.`;
 
@@ -242,8 +303,8 @@ export function publishPagesAssets(date: string, root = projectRoot(), rootPages
     "docs/knowledge-graph.json",
     "docs/ai-discovery.json",
     "docs/.nojekyll",
-    // GitHub Pages reads the custom domain from this file. The root mirror is cleared and
-    // recopied from docs/ on every publish, so leaving it out would drop the domain each time.
+    // GitHub Pages reads the custom domain from this file. Keep CNAME in the
+    // scanned allowlist so selective mirror updates can refresh it safely.
     "docs/CNAME"
   ];
   const paths = existingPublishPaths(root, [assetDir, ...publicSiteFiles, ...indexNowKeyPublishPaths(root)]);
@@ -258,13 +319,13 @@ export function publishPagesAssets(date: string, root = projectRoot(), rootPages
   // early on "nothing to commit" skipped it, which left published URLs 404 with
   // everything looking done. The mirror runs either way.
   if (!hasStagedChanges(root, paths)) {
-    const mirrorOnly = publishRootPagesMirror(date, root, rootPagesRepo);
+    const mirrorOnly = publishRootPagesMirror(date, root, rootPagesRepo, paths);
     return [`No GitHub Pages changes to publish for ${date}.`, mirrorOnly].filter(Boolean).join("\n");
   }
 
   runGit(["commit", "-m", `Generate daily Pages assets ${date}`, "--", ...paths], root);
   runGit(["push"], root);
-  const mirrorResult = publishRootPagesMirror(date, root, rootPagesRepo);
+  const mirrorResult = publishRootPagesMirror(date, root, rootPagesRepo, paths);
   return [`Published GitHub Pages assets for ${date}: ${assetDir}, ${docsCalendar}`, mirrorResult].filter(Boolean).join("\n");
 }
 

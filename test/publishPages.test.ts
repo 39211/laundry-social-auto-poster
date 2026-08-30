@@ -158,6 +158,63 @@ describe("publishPagesAssets", () => {
     expect(() => publishPagesAssets(date, root)).toThrow("possible secret");
   }, 15000);
 
+  gitIt("replaces mirror text directories without deleting root files or historical assets", () => {
+    const { root } = makeGitRepo();
+    const { root: seed, origin: rootPagesOrigin } = makeGitRepo();
+    const date = "2026-05-15";
+    const futureDate = "2026-05-16";
+    mkdirSync(join(seed, "assets", "2020-01-01"), { recursive: true });
+    mkdirSync(join(seed, ".github", "workflows"), { recursive: true });
+    mkdirSync(join(seed, ".well-known"), { recursive: true });
+    mkdirSync(join(seed, "content-calendar"), { recursive: true });
+    mkdirSync(join(seed, "posts"), { recursive: true });
+    writeFileSync(join(seed, "assets", "2020-01-01", "huge.bin"), "keep-me");
+    writeFileSync(join(seed, ".github", "workflows", "pages.yml"), "name: pages\n");
+    writeFileSync(join(seed, ".well-known", "keep.json"), '{"keep":true}\n');
+    writeFileSync(join(seed, ".well-known", "ai.json"), '{"version":"old"}\n');
+    writeFileSync(join(seed, "content-calendar", `${futureDate}.json`), '{"slots":["future"]}\n');
+    writeFileSync(join(seed, "posts", `${futureDate}-slot-01.html`), "future post\n");
+    writeFileSync(join(seed, "index.html"), "old-home\n");
+    writeFileSync(join(seed, "keep-root.txt"), "keep-root\n");
+    git(seed, ["add", "-A"]);
+    git(seed, ["commit", "-m", "seed historical asset"]);
+    git(seed, ["push", "origin", "main"]);
+
+    mkdirSync(join(root, "docs", "assets", date), { recursive: true });
+    mkdirSync(join(root, "docs", ".well-known"), { recursive: true });
+    mkdirSync(join(root, "docs", "content-calendar"), { recursive: true });
+    mkdirSync(join(root, "docs", "posts"), { recursive: true });
+    writeFileSync(join(root, "docs", "index.html"), "<!doctype html><title>new</title>\n");
+    writeFileSync(join(root, "docs", ".nojekyll"), "");
+    writeFileSync(join(root, "docs", "unlisted-root.txt"), "must not mirror\n");
+    writeFileSync(join(root, "docs", ".well-known", "ai.json"), '{"version":"new"}\n');
+    writeFileSync(join(root, "docs", ".well-known", "unlisted.txt"), "must not mirror\n");
+    writeFileSync(join(root, "docs", "content-calendar", `${date}.json`), '{"slots":[]}\n');
+    writeFileSync(join(root, "docs", "posts", `${date}-slot-01.html`), "today post\n");
+    writeFileSync(join(root, "docs", "assets", date, "slot-01.png"), "fake image");
+
+    const result = publishPagesAssets(date, root, rootPagesOrigin);
+    const mirrorTree = git(rootPagesOrigin, ["ls-tree", "-r", "main", "--name-only"]);
+
+    expect(result).toContain("Mirrored public site");
+    expect(mirrorTree).toContain(`content-calendar/${date}.json`);
+    expect(mirrorTree).toContain(`posts/${date}-slot-01.html`);
+    expect(mirrorTree).not.toContain(`content-calendar/${futureDate}.json`);
+    expect(mirrorTree).not.toContain(`posts/${futureDate}-slot-01.html`);
+    expect(mirrorTree).not.toContain("unlisted-root.txt");
+    expect(mirrorTree).not.toContain(".well-known/unlisted.txt");
+    expect(mirrorTree).toContain("keep-root.txt");
+    expect(mirrorTree).toContain(".github/workflows/pages.yml");
+    expect(mirrorTree).toContain(".well-known/keep.json");
+    expect(mirrorTree).toContain(".well-known/ai.json");
+    expect(mirrorTree).toContain("assets/2020-01-01/huge.bin");
+    expect(mirrorTree).toContain(`assets/${date}/slot-01.png`);
+    expect(git(rootPagesOrigin, ["show", "main:assets/2020-01-01/huge.bin"])).toBe("keep-me");
+    expect(git(rootPagesOrigin, ["show", "main:index.html"])).toContain("new");
+    expect(git(rootPagesOrigin, ["show", "main:.well-known/keep.json"])).toContain('"keep":true');
+    expect(git(rootPagesOrigin, ["show", "main:.well-known/ai.json"])).toContain('"version":"new"');
+  }, 45000);
+
   gitIt("scans xml and jsonl publish targets too", () => {
     // sitemap.xml and llms.jsonl are in the publish list but were not in the
     // text-file extension list, so they shipped unscanned.

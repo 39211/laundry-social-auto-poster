@@ -1874,7 +1874,7 @@ describe("generatePublicSite posted-log alignment", () => {
       category: input.slot === 1 ? "知識文" : "情境文",
       topic: input.topic,
       format: "image-post",
-      media_type: input.slot === 3 ? "reel" : "carousel",
+      media_type: input.slot === 3 ? "reel" : "image",
       instagram_caption: `${input.topic}。\n\n直接點這裡問:${host}/go/line.html?source=post (或加 LINE:0968327653)\n`,
       facebook_caption: `${input.topic}。\n\n直接點這裡問:${host}/go/line.html?source=post (或加 LINE:0968327653)\n`,
       image_prompt: "prompt",

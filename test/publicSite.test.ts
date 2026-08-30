@@ -1856,3 +1856,167 @@ describe("generatePublicSite", () => {
     expect(thematicAnchorsTo(whiteShoeHtml, "taichung-laundry-price-list.html")).toEqual([]);
   });
 });
+
+describe("generatePublicSite posted-log alignment", () => {
+  const DATE = "2026-08-30";
+
+  function slotRecord(input: {
+    slot: number;
+    time: string;
+    topic: string;
+    captionHost?: string;
+  }): Record<string, unknown> {
+    const host = input.captionHost ?? "https://sixiangjialaundry.com";
+    const padded = String(input.slot).padStart(2, "0");
+    return {
+      slot: input.slot,
+      time: input.time,
+      category: input.slot === 1 ? "知識文" : "情境文",
+      topic: input.topic,
+      format: "image-post",
+      media_type: input.slot === 3 ? "reel" : "carousel",
+      instagram_caption: `${input.topic}。\n\n直接點這裡問:${host}/go/line.html?source=post (或加 LINE:0968327653)\n`,
+      facebook_caption: `${input.topic}。\n\n直接點這裡問:${host}/go/line.html?source=post (或加 LINE:0968327653)\n`,
+      image_prompt: "prompt",
+      visual_route: "shop-inspection",
+      traffic_route: "object-proof",
+      content_role: input.slot === 1 ? "reach-answer" : "evidence-conversion",
+      local_image_path: `docs/assets/${DATE}/slot-${padded}.png`,
+      public_image_url: `${host}/assets/${DATE}/slot-${padded}.png`,
+      status: "pending"
+    };
+  }
+
+  async function writeThreeSlotCalendar(
+    root: string,
+    slot3Topic: string,
+    options: { captionHost?: string; target?: "private" | "public" | "both" } = {}
+  ): Promise<void> {
+    await mkdir(join(root, "data", "content-calendar"), { recursive: true });
+    await mkdir(join(root, "docs", "content-calendar"), { recursive: true });
+    const calendar = {
+      date: DATE,
+      timezone: "Asia/Taipei",
+      generated_at: `${DATE}T00:00:00.000Z`,
+      slots: [
+        slotRecord({ slot: 1, time: "11:30", topic: "可收藏：白鞋鞋帶發灰，送洗前先看三個位置", captionHost: options.captionHost }),
+        slotRecord({ slot: 2, time: "20:30", topic: "今天情境：換季時西裝和襯衫不要一起悶收", captionHost: options.captionHost }),
+        slotRecord({ slot: 3, time: "12:00", topic: slot3Topic, captionHost: options.captionHost })
+      ]
+    };
+    const json = `${JSON.stringify(calendar, null, 2)}\n`;
+    const target = options.target ?? "both";
+    if (target === "private" || target === "both") {
+      await writeFile(join(root, "data", "content-calendar", `${DATE}.json`), json, "utf8");
+    }
+    if (target === "public" || target === "both") {
+      await writeFile(join(root, "docs", "content-calendar", `${DATE}.json`), json, "utf8");
+    }
+  }
+
+  it("prefers the posted package over a later calendar draft for the same slot", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-posted-align-"));
+    await writeBusinessProfile(root);
+    await writeThreeSlotCalendar(root, "雨天機車族外套袖口與鞋面");
+    await writeApprovalLog(root, DATE, [1, 2, 3]);
+    await mkdir(join(root, "data", "posted-log"), { recursive: true });
+    await mkdir(join(root, "data", "posted-packages"), { recursive: true });
+    await writeFile(
+      join(root, "data", "posted-log", `${DATE}.json`),
+      `${JSON.stringify(
+        [
+          {
+            date: DATE,
+            slot: 3,
+            platform: "facebook",
+            status: "success",
+            dry_run: false,
+            attempts: 1,
+            published_media_type: "reel",
+            video_sha256: "abc",
+            topic: "毛毯起球摸起來粗",
+            created_at: `${DATE}T04:05:00.000Z`
+          },
+          {
+            date: DATE,
+            slot: 3,
+            platform: "instagram",
+            status: "success",
+            dry_run: false,
+            attempts: 1,
+            published_media_type: "reel",
+            video_sha256: "abc",
+            topic: "毛毯起球摸起來粗",
+            created_at: `${DATE}T04:05:00.000Z`
+          }
+        ],
+        null,
+        2
+      )}\n`,
+      "utf8"
+    );
+    await writeFile(
+      join(root, "data", "posted-packages", `${DATE}.json`),
+      `${JSON.stringify(
+        {
+          date: DATE,
+          slots: [
+            slotRecord({ slot: 3, time: "12:00", topic: "毛毯起球摸起來粗" })
+          ]
+        },
+        null,
+        2
+      )}\n`,
+      "utf8"
+    );
+
+    await generatePublicSite({
+      root,
+      siteBaseUrl: "https://sixiangjialaundry.com",
+      imageBaseUrl: "https://sixiangjialaundry.com",
+      now: `${DATE}T08:00:00.000Z`
+    });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ slot: number; topic: string; time: string; facebook_caption: string }>;
+    };
+    const noon = index.posts.find((post) => post.slot === 3);
+    expect(noon?.topic).toBe("毛毯起球摸起來粗");
+    expect(noon?.time).toBe("12:00");
+    expect(noon?.facebook_caption).toContain("毛毯起球摸起來粗");
+    expect(index.posts.some((post) => post.topic.includes("雨天機車族"))).toBe(false);
+
+    const html = await readFile(join(root, "docs", "index.html"), "utf8");
+    expect(html).toContain("毛毯起球摸起來粗");
+    expect(html).not.toContain("雨天機車族外套袖口與鞋面");
+  });
+
+  it("rewrites leftover 39211.github.io caption URLs on newly generated public pages", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-githubio-"));
+    await writeBusinessProfile(root);
+    await writeThreeSlotCalendar(root, "毛毯起球摸起來粗", {
+      captionHost: "https://39211.github.io"
+    });
+    await writeApprovalLog(root, DATE, [1, 2, 3]);
+
+    await generatePublicSite({
+      root,
+      siteBaseUrl: "https://sixiangjialaundry.com",
+      imageBaseUrl: "https://sixiangjialaundry.com",
+      now: `${DATE}T08:00:00.000Z`
+    });
+
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
+      posts: Array<{ facebook_caption: string; instagram_caption: string }>;
+    };
+    for (const post of index.posts) {
+      expect(post.facebook_caption).toContain("https://sixiangjialaundry.com/go/line.html?source=post");
+      expect(post.instagram_caption).toContain("https://sixiangjialaundry.com/go/line.html?source=post");
+      expect(post.facebook_caption).not.toContain("39211.github.io");
+      expect(post.instagram_caption).not.toContain("39211.github.io");
+    }
+    const html = await readFile(join(root, "docs", "index.html"), "utf8");
+    expect(html).toContain("https://sixiangjialaundry.com/go/line.html?source=post");
+    expect(html).not.toContain("39211.github.io");
+  });
+});

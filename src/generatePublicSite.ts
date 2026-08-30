@@ -6,6 +6,15 @@ import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
 import { hasApprovedPost, loadApprovalLog, readJsonFile, writeJsonAtomic } from "./logging";
 import {
+  isLivePostedSlot,
+  loadPublicSlotInputs,
+  publicFacingSlot,
+  rewriteLegacyGithubIoUrls,
+  selectPublicSlots,
+  topicsAgree,
+  upsertPostedPackageSlot
+} from "./publicSitePostedPackage";
+import {
   contentCalendarPath,
   docsContentCalendarPath,
   projectRoot,
@@ -3620,8 +3629,8 @@ function slotToPublicPost(
     article_path: articlePath,
     article_url: postArticleUrl({ date, slot: slot.slot }, siteBaseUrl),
     url: id,
-    facebook_caption: slot.facebook_caption,
-    instagram_caption: slot.instagram_caption
+    facebook_caption: rewriteLegacyGithubIoUrls(slot.facebook_caption, siteBaseUrl),
+    instagram_caption: rewriteLegacyGithubIoUrls(slot.instagram_caption, siteBaseUrl)
   };
 }
 
@@ -6696,17 +6705,49 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const dates = await listContentDates(root);
   const calendars = await Promise.all(
     dates.map(async (date) => {
-      const calendar = await readPrivateDailyContent(date, root);
-      if (!calendar) return undefined;
+      const privateCalendar = await readJsonFile<DailyContent | undefined>(contentCalendarPath(date, root), undefined);
+      const existingPublic = await readJsonFile<DailyContent | undefined>(
+        docsContentCalendarPath(date, root),
+        undefined
+      );
+      const calendar = privateCalendar ?? existingPublic;
+      if (!calendar && !existingPublic) return undefined;
 
       const approvals = await loadApprovalLog(date, root);
-      const approvedSlots = calendar.slots.filter((slot) => isSlotFullyApproved(approvals, slot.slot));
-      await writeApprovedPublicContentCalendar(calendar, approvedSlots, root);
-      return { calendar, approvedSlots };
+      const { posted, imageSources, postedPackage } = await loadPublicSlotInputs(date, root);
+      const selectedSlots = selectPublicSlots({
+        date,
+        calendar: privateCalendar ?? existingPublic,
+        existingPublic,
+        postedPackage,
+        posted,
+        approvals,
+        imageSources
+      });
+      const metadata = calendar ?? {
+        date,
+        timezone: config.timezone,
+        generated_at: generatedAt,
+        slots: selectedSlots
+      };
+      await writeApprovedPublicContentCalendar(
+        metadata,
+        selectedSlots.map((slot) => publicFacingSlot(slot, siteBaseUrl)),
+        root
+      );
+      if (privateCalendar) {
+        for (const slot of selectedSlots) {
+          const source = privateCalendar.slots.find((item) => item.slot === slot.slot);
+          if (source && isLivePostedSlot(posted, slot.slot) && topicsAgree(source.topic, slot.topic)) {
+            await upsertPostedPackageSlot(date, source, root);
+          }
+        }
+      }
+      return { date, slots: selectedSlots };
     })
   );
   const posts = calendars.flatMap((record) =>
-    record ? record.approvedSlots.map((slot) => slotToPublicPost(record.calendar.date, slot, siteBaseUrl, imageBaseUrl)) : []
+    record ? record.slots.map((slot) => slotToPublicPost(record.date, slot, siteBaseUrl, imageBaseUrl)) : []
   );
   posts.sort((a, b) => a.date.localeCompare(b.date) || a.slot - b.slot);
   const articlePosts = uniqueArticlePosts(posts);

@@ -144,6 +144,13 @@ Register-LaundryTask -Name "Laundry-GA4-Collect" -Script "ga4-collect.ps1" `
     -TimeLimit (New-TimeSpan -Minutes 10) `
     -Description "私享家每日 23:10 收集 GA4 LINE 點擊數,寫入 data\leads,讓日報永遠有前一天可比對的數字。"
 
+# AI-referral read of the same property. Skip-closed when GA4 credentials are
+# missing. Never a publish or IndexNow step.
+Register-LaundryTask -Name "Laundry-GA4-AI-Traffic" -Script "ga4-ai-traffic.ps1" `
+    -Triggers @((New-ScheduledTaskTrigger -Daily -At "23:12")) `
+    -TimeLimit (New-TimeSpan -Minutes 10) `
+    -Description "私享家每日 23:12 收集 GA4 AI 來源工作階段;憑證未設定時略過且不失敗。"
+
 # 2026-08-20: GSC Search Analytics read side (docs-internal/gsc-search-
 # analytics-setup.md). Data settles over ~3 days, so the collector's own
 # default already targets 3 days back -- this just needs to fire daily.

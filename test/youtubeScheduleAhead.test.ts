@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -16,7 +17,10 @@ interface CapturedCall {
   body?: unknown;
 }
 
-function fakeFetch(calls: CapturedCall[]): typeof fetch {
+function fakeFetch(
+  calls: CapturedCall[],
+  options: { oembedTitles?: Record<string, string> } = {}
+): typeof fetch {
   return (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     calls.push({ url, body: init?.body });
@@ -27,6 +31,13 @@ function fakeFetch(calls: CapturedCall[]): typeof fetch {
     }
     if (url.includes("googleapis.com/upload/youtube")) {
       return respond({ id: "yt-vid-1" });
+    }
+    if (url.includes("youtube.com/oembed")) {
+      const watchUrl = new URL(url).searchParams.get("url") ?? "";
+      const videoId = new URL(watchUrl).searchParams.get("v") ?? "";
+      const title = options.oembedTitles?.[videoId];
+      if (!title) return new Response("Not Found", { status: 404 });
+      return respond({ title });
     }
     return new Response(JSON.stringify({ error: "unexpected url" }), { status: 500 });
   }) as typeof fetch;
@@ -323,5 +334,129 @@ describe("scheduleYouTubeShort", () => {
     expect(evening.status).toBe("scheduled");
     expect(evening.scheduled_publish_at).toBe("2026-08-29T13:15:00Z");
     expect(metadataFromUpload(eveningCalls).status.publishAt).toBe("2026-08-29T13:15:00Z");
+  });
+});
+
+describe("uploadShort live catch-up vs scheduled youtube-log", () => {
+  let root: string;
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "yt-live-catchup-"));
+    setTestCredentials();
+  });
+
+  afterEach(() => {
+    restoreCredentials();
+  });
+
+  async function seedLiveReel(options: { sha?: string } = {}): Promise<string> {
+    await seedCalendar(root, [
+      slotShape({ slot: 3, time: "12:00", mediaType: "reel", video: true }),
+      slotShape({ slot: 2, time: "20:30", mediaType: "image" })
+    ]);
+    const sha = options.sha ?? createHash("sha256").update("video-bytes-3").digest("hex");
+    await writeJsonAtomic(join(root, "data", "posted-log", `${DATE}.json`), [
+      {
+        date: DATE,
+        slot: 3,
+        platform: "instagram",
+        status: "success",
+        dry_run: false,
+        attempts: 1,
+        published_media_type: "reel",
+        video_sha256: sha,
+        topic: "白鞋鞋邊泛灰",
+        created_at: NOW_D3.toISOString()
+      }
+    ]);
+    return sha;
+  }
+
+  it("does not let a different-sha scheduled youtube-log row block the live reel", async () => {
+    const liveSha = await seedLiveReel();
+    await writeJsonAtomic(join(root, "data", "youtube-log", `${DATE}.json`), [
+      {
+        date: DATE,
+        slot: 3,
+        video_id: "scheduled-other-file",
+        title: "雨天機車族外套袖口與鞋面｜台中洗衣店 免費收送 #Shorts",
+        uploaded_at: NOW_D3.toISOString(),
+        scheduled_publish_at: "2026-08-29T04:45:00Z",
+        video_status: "scheduled",
+        video_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ]);
+    const calls: CapturedCall[] = [];
+    const result = await uploadShort({
+      date: DATE,
+      slot: 3,
+      root,
+      now: new Date("2026-08-29T13:00:00+08:00"),
+      fetchImpl: fakeFetch(calls)
+    });
+    expect("skipped" in result).toBe(false);
+    expect((result as { video_id?: string }).video_id).toBe("yt-vid-1");
+    expect((result as { video_sha256?: string }).video_sha256).toBe(liveSha);
+    expect(calls.some((call) => String(call.url).includes("/upload/youtube"))).toBe(true);
+  });
+
+  it("skips a second upload when oEmbed already shows the live title", async () => {
+    const liveSha = await seedLiveReel();
+    await writeJsonAtomic(join(root, "data", "youtube-log", `${DATE}.json`), [
+      {
+        date: DATE,
+        slot: 3,
+        video_id: "m5lcLAmCWJI",
+        title: "白鞋鞋邊泛灰｜台中洗鞋洗包 免費收送 #Shorts",
+        uploaded_at: NOW_D3.toISOString(),
+        scheduled_publish_at: "2026-08-29T04:45:00Z",
+        video_status: "scheduled",
+        video_sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ]);
+    const calls: CapturedCall[] = [];
+    const result = await uploadShort({
+      date: DATE,
+      slot: 3,
+      root,
+      now: new Date("2026-08-29T13:00:00+08:00"),
+      fetchImpl: fakeFetch(calls, {
+        oembedTitles: {
+          m5lcLAmCWJI: "白鞋鞋邊泛灰｜台中洗鞋洗包 免費收送 #Shorts"
+        }
+      })
+    });
+    expect(result).toMatchObject({ skipped: expect.stringMatching(/already (uploaded|live)/i) });
+    expect(calls.some((call) => String(call.url).includes("/upload/youtube"))).toBe(false);
+    const log = JSON.parse(await readFile(join(root, "data", "youtube-log", `${DATE}.json`), "utf8")) as Array<{
+      video_status?: string;
+      video_sha256?: string;
+    }>;
+    expect(log[0]?.video_status).toBe("public");
+    expect(log[0]?.video_sha256 === liveSha || log[0]?.video_status === "public").toBe(true);
+  });
+
+  it("skips when youtube-log sha already matches the posted-log reel", async () => {
+    const liveSha = await seedLiveReel();
+    await writeJsonAtomic(join(root, "data", "youtube-log", `${DATE}.json`), [
+      {
+        date: DATE,
+        slot: 3,
+        video_id: "same-sha-already",
+        title: "prior",
+        uploaded_at: NOW_D3.toISOString(),
+        video_status: "public",
+        video_sha256: liveSha
+      }
+    ]);
+    const calls: CapturedCall[] = [];
+    const result = await uploadShort({
+      date: DATE,
+      slot: 3,
+      root,
+      fetchImpl: fakeFetch(calls)
+    });
+    expect(result).toEqual({ skipped: `already uploaded for ${DATE} slot 3` });
+    expect(httpCount(calls)).toBe(0);
   });
 });

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -14,6 +15,7 @@ import {
   writeJsonAtomic
 } from "./logging";
 import { projectRoot } from "./paths";
+import { loadPostedPackage } from "./publicSitePostedPackage";
 import { getZonedDateParts } from "./scheduler";
 import { utmCampaign, utmTagged } from "./utm";
 import { assertVideoReviewApproved } from "./videoReviewGate";
@@ -43,7 +45,9 @@ interface YouTubeLogEntry {
   /** P4: RFC3339 UTC publishAt used when this Short was queued private. */
   scheduled_publish_at?: string;
   /** P4: "scheduled" on the ahead path so the live uploader treats it as already sent. */
-  video_status?: "scheduled";
+  video_status?: "scheduled" | "public";
+  /** sha256 of the file that was uploaded or scheduled. */
+  video_sha256?: string;
 }
 
 function credentials(): { clientId: string; clientSecret: string; refreshToken: string } | undefined {
@@ -197,26 +201,56 @@ function topicObject(topic: string): string {
   return match ? match[0] : "衣物";
 }
 
+function youtubeLogSha(entry: YouTubeLogEntry): string | undefined {
+  const sha = entry.video_sha256?.trim().toLowerCase();
+  return sha || undefined;
+}
+
+function normalizeYoutubeTitle(title: string): string {
+  return title.replace(/\s+/g, " ").trim();
+}
+
+export async function fetchYoutubeOembedTitle(
+  videoId: string,
+  fetchImpl: typeof fetch
+): Promise<string | undefined> {
+  const watch = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+  const url = `https://www.youtube.com/oembed?url=${encodeURIComponent(watch)}&format=json`;
+  try {
+    const response = await fetchImpl(url);
+    if (!response.ok) return undefined;
+    const payload = (await response.json()) as { title?: unknown };
+    return typeof payload.title === "string" && payload.title.trim() ? payload.title.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function scheduledPublishDue(entry: YouTubeLogEntry, now: Date): boolean {
+  if (!entry.scheduled_publish_at) return false;
+  const at = Date.parse(entry.scheduled_publish_at);
+  return !Number.isNaN(at) && at <= now.getTime();
+}
+
 export async function uploadShort(input: {
   date: string;
   slot?: number;
   root?: string;
+  now?: Date;
   fetchImpl?: typeof fetch;
 }): Promise<YouTubeLogEntry | { skipped: string }> {
   const root = projectRoot(input.root);
   const slotNumber = input.slot ?? 2;
   const fetchImpl = input.fetchImpl ?? fetch;
+  const now = input.now ?? new Date();
 
   const logPath = join(root, "data", "youtube-log", `${input.date}.json`);
   const existing = await readJsonFile<YouTubeLogEntry[]>(logPath, []);
-  if (existing.some((entry) => entry.slot === slotNumber)) {
-    return { skipped: `already uploaded for ${input.date} slot ${slotNumber}` };
-  }
 
   // YouTube is a secondary shelf: never upload a Short before the same date+slot
   // Reel is live on Instagram. Dry-run and non-reel Meta posts do not open the gate.
   const posted = await loadPostLog(input.date, root);
-  const igLiveReel = posted.some(
+  const igLiveReel = posted.find(
     (entry) =>
       entry.slot === slotNumber &&
       entry.platform === "instagram" &&
@@ -230,23 +264,55 @@ export async function uploadShort(input: {
     };
   }
 
-  if (!credentials()) {
-    return { skipped: "credentials not configured; run npm run youtube-auth" };
-  }
-
   const content = await loadDailyContent(input.date, root);
-  const slot = content?.slots.find((item) => item.slot === slotNumber);
+  const postedPackage = await loadPostedPackage(input.date, root);
+  const postedPkgSlot = postedPackage?.slots.find((item) => item.slot === slotNumber);
+  const slot = postedPkgSlot ?? content?.slots.find((item) => item.slot === slotNumber);
   if (!slot?.local_video_path) {
     return { skipped: `no video in ${input.date} slot ${slotNumber}` };
   }
 
-  const video = await readFile(join(root, ...slot.local_video_path.split("/")));
+  const topic = igLiveReel.topic || postedPkgSlot?.topic || slot.topic;
   const { title, description } = buildShortMetadata({
-    topic: slot.topic,
+    topic,
     caption: slot.instagram_caption ?? "",
     date: input.date,
     slot: slotNumber
   });
+
+  const video = await readFile(join(root, ...slot.local_video_path.split("/")));
+  const fileSha = createHash("sha256").update(video).digest("hex");
+  const postedSha = igLiveReel.video_sha256?.trim().toLowerCase();
+  if (postedSha && postedSha !== fileSha) {
+    return {
+      skipped: `on-disk video sha does not match posted-log reel for ${input.date} slot ${slotNumber}`
+    };
+  }
+  const liveSha = postedSha || fileSha;
+
+  const slotEntries = existing.filter((entry) => entry.slot === slotNumber);
+  const sameSha = slotEntries.find((entry) => youtubeLogSha(entry) === liveSha);
+  if (sameSha) {
+    return { skipped: `already uploaded for ${input.date} slot ${slotNumber}` };
+  }
+
+  let logChanged = false;
+  for (const entry of slotEntries) {
+    const oembedTitle = await fetchYoutubeOembedTitle(entry.video_id, fetchImpl);
+    if (scheduledPublishDue(entry, now) && oembedTitle && entry.video_status === "scheduled") {
+      entry.video_status = "public";
+      logChanged = true;
+    }
+    if (oembedTitle && normalizeYoutubeTitle(oembedTitle) === normalizeYoutubeTitle(title)) {
+      if (logChanged) await writeJsonAtomic(logPath, existing);
+      return { skipped: `already live on YouTube for ${input.date} slot ${slotNumber}` };
+    }
+  }
+  if (logChanged) await writeJsonAtomic(logPath, existing);
+
+  if (!credentials()) {
+    return { skipped: "credentials not configured; run npm run youtube-auth" };
+  }
 
   const metadata = {
     snippet: { title, description, categoryId: "22", defaultLanguage: "zh-Hant" },
@@ -268,6 +334,8 @@ export async function uploadShort(input: {
     video_id: videoId,
     title,
     uploaded_at: new Date().toISOString(),
+    video_status: "public",
+    video_sha256: liveSha,
     ...(abVariant ? { ab_variant: abVariant } : {})
   };
   await writeJsonAtomic(logPath, [...existing, entry]);
@@ -370,6 +438,7 @@ export async function scheduleYouTubeShort(input: {
   }
 
   const video = await readFile(videoPath);
+  const videoSha256 = createHash("sha256").update(video).digest("hex");
   const { title, description } = buildShortMetadata({
     topic: slot.topic,
     caption: slot.instagram_caption ?? "",
@@ -398,6 +467,7 @@ export async function scheduleYouTubeShort(input: {
     uploaded_at: new Date().toISOString(),
     scheduled_publish_at: scheduledPublishAt,
     video_status: "scheduled",
+    video_sha256: videoSha256,
     ...(abVariant ? { ab_variant: abVariant } : {})
   };
   await writeJsonAtomic(logPath, [...existing, entry]);

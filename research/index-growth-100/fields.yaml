@@ -1,0 +1,34 @@
+fields:
+  slug:
+    description: URL slug; unique across existing and accepted pages
+  path:
+    description: Public HTML path, guides/*.html for phase-1 accepted pages
+  query_intent:
+    description: The decision the page answers; not a material noun alone
+  page_type:
+    values: [service, guide, local, homepage, draft, rejected]
+  service_fit:
+    description: Parent service slug that already exists
+  unique_answer:
+    description: citation_answer; first-paragraph query answer; max 50 zh code points
+  source_evidence:
+    description: Existing page copy or business-profile fact that supports the answer
+  cannibalization_risk:
+    values: [low, medium, merge]
+    description: Overlap with an existing primary intent page
+  related_links:
+    description: Parent service plus at least two crawlable guide hrefs
+  schema:
+    description: HowTo + FAQPage on support pages; lastmod from content_lastmod
+  publish_state:
+    values: [existing, accepted, draft, rejected, merge]
+  gsc_state:
+    values: [generated, submitted, crawled, indexed, discovered_not_indexed, unknown]
+    description: >
+      Snapshot-backed states only. Sitemap inclusion is a hint, never evidence of
+      submitted/crawled/indexed. Never label a newly generated URL submitted or indexed.
+      Google indexing, ranking, and citation are not guaranteed.
+  hub_group:
+    values: [shoes, bags, textiles, decisions, local]
+  lastmod:
+    description: Stable YYYY-MM-DD; forbidden to generate from build time

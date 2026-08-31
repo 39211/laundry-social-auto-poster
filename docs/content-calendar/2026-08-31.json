@@ -179,20 +179,24 @@
       "slot": 3,
       "time": "12:00",
       "category": "情境文",
-      "topic": "餐聚後外套與包包的味道",
-      "media_type": "image",
-      "instagram_caption": "餐聚回來後，外套和包包有時候不是髒，而是油煙味、香水味和室內味道混在一起。\n\n味道如果停在布料或皮革表面還好，若悶進內裡和提把，隔天拿出來會更明顯。\n\n我們會分開看外套材質、內裡味道、包包提把和內袋狀態，再判斷需要除味、清潔或保守整理。\n\n如果餐聚後味道很重，拍外套內裡和包包提把，我們幫你判斷。\n\n私享家洗衣店｜台中市區免費到府收送\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #衣物除味 #包包保養 #生活洗護",
-      "facebook_caption": "餐聚回來後，外套和包包有時候不是髒，而是油煙味、香水味和室內味道混在一起。\n\n味道如果停在布料或皮革表面還好，若悶進內裡和提把，隔天拿出來會更明顯。\n\n我們會分開看外套材質、內裡味道、包包提把和內袋狀態，再判斷需要除味、清潔或保守整理。\n\n如果餐聚後味道很重，拍外套內裡和包包提把，我們幫你判斷。\n\n私享家洗衣店｜台中市區免費到府收送\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #衣物除味 #包包保養 #生活洗護",
-      "image_prompt": "Realistic square shop photo: jacket lining and handbag handle inspected on a clean laundry counter, staff hand gently lifting lining, warm premium shop lighting, no logo, no readable text.",
-      "visual_route": "customer-consultation",
-      "traffic_route": "value-prop-lead",
+      "topic": "童鞋鞋頭磨到發花",
+      "media_type": "reel",
+      "instagram_caption": "小孩踢地板磨出來的,只要面料還在就一定洗得回來。\n\n與其急著買新的一雙,先看那層膠有沒有裂開。\n\n童鞋鞋頭磨到發花。\n\n不確定該怎麼處理？拍一張私訊給我們，先幫你看方向。\n\n如果只能先救一樣，你會選鞋子還是包包？\n\n認識那種鞋子捨不得丟、又不知道怎麼救的人嗎？傳給他。\n\n私享家洗衣店｜台中市區免費到府收送\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #洗護日常 #台中洗鞋 #洗鞋推薦 #球鞋清洗 #台中洗衣店 #西屯 #逢甲 #台中",
+      "facebook_caption": "小孩踢地板磨出來的,只要面料還在就一定洗得回來。\n\n與其急著買新的一雙,先看那層膠有沒有裂開。\n\n童鞋鞋頭磨到發花。\n\n不確定該怎麼處理？拍一張傳 LINE給我們，先幫你看方向。\n\n如果只能先救一樣，你會選鞋子還是包包？\n\n私享家洗衣店｜台中市區免費到府收送\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #洗護日常 #台中洗鞋 #洗鞋推薦 #球鞋清洗 #台中洗衣店 #西屯 #逢甲 #台中",
+      "image_prompt": "Copied reel cover from output/reels-run/2026-07-29/references/kids-shoe-toe-before.png",
+      "visual_route": "shop-inspection",
+      "traffic_route": "share-worthy-care",
       "content_role": "evidence-conversion",
       "content_plan_source": "legacy-template",
       "local_image_path": "docs/assets/2026-08-31/slot-03.png",
       "public_image_url": "https://sixiangjialaundry.com/assets/2026-08-31/slot-03.png",
-      "status": "pending"
+      "status": "pending",
+      "format": "reel",
+      "video_prompt": "Animate the supplied image while preserving its exact composition, object placement, materials, lighting direction and colour temperature. One restrained continuous action only: an extremely gentle push-in with slight natural handheld shake, as if held by a person. Do not clean, repair, alter or transform the object. Do not add or remove anything. Do not add people, readable text, captions or logos. Audio near-silent with only faint room tone. Natural restrained motion, stable first and final frames.",
+      "local_video_path": "docs/assets/2026-08-31/slot-03.mp4",
+      "public_video_url": "https://sixiangjialaundry.com/assets/2026-08-31/slot-03.mp4"
     }
   ],
   "written_by": "contentPlan.writeDailyContent",
-  "content_checksum": "6b11e3bfcffe5b3a"
+  "content_checksum": "5e2173348a914ea4"
 }

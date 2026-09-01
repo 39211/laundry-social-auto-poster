@@ -19,6 +19,7 @@ import {
   COMMUNITY_PRACTICE_SOURCES,
   SEARCH_INTENT_CLUSTERS
 } from "./searchVisibilityStrategy";
+import { getZonedDateParts } from "./scheduler";
 import type { ApprovalLogEntry, CarouselItem, DailyContent, DailySlot, Platform } from "./types";
 
 interface GeneratePublicSiteOptions {
@@ -27,6 +28,7 @@ interface GeneratePublicSiteOptions {
   siteBaseUrl?: string;
   imageBaseUrl?: string;
   now?: string | Date;
+  statPublicAsset?: (filePath: string) => { isFile(): boolean };
 }
 
 interface PublicPost {
@@ -3536,6 +3538,43 @@ async function removePublicContentCalendar(date: string, root: string): Promise<
   }
 }
 
+function publicAssetIsFile(
+  filePath: string,
+  statPublicAsset: (filePath: string) => { isFile(): boolean }
+): boolean {
+  try {
+    const assetStat = statPublicAsset(filePath);
+    if (assetStat.isFile()) return true;
+    throw new Error(`Public asset path is not a file: ${filePath}`);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+function slotWithAvailablePublicMedia(
+  date: string,
+  slot: DailySlot,
+  root: string,
+  statPublicAsset: (filePath: string) => { isFile(): boolean }
+): DailySlot {
+  if (slot.media_type !== "reel") return slot;
+
+  const videoPath = join(root, "docs", publicVideoAssetPath(date, slot.slot));
+  if (publicAssetIsFile(videoPath, statPublicAsset)) return slot;
+
+  const imagePath = join(root, "docs", publicAssetPath(date, slot.slot));
+  if (!publicAssetIsFile(imagePath, statPublicAsset)) {
+    throw new Error(`Cannot expose approved reel ${date} slot ${slot.slot}: both video and fallback image are missing.`);
+  }
+
+  // A planned Reel is not public video content until its expected MP4 exists on disk.
+  const imageSlot: DailySlot = { ...slot, format: "image-post", media_type: "image" };
+  delete imageSlot.local_video_path;
+  delete imageSlot.public_video_url;
+  return imageSlot;
+}
+
 async function writeApprovedPublicContentCalendar(
   calendar: DailyContent,
   approvedSlots: DailySlot[],
@@ -6693,16 +6732,34 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const imageBaseUrl = normalizeBaseUrl(options.imageBaseUrl ?? options.baseUrl ?? config.publicImageBaseUrl) ?? siteBaseUrl;
   const businessProfile = await loadBusinessProfile(root);
   const generatedAt = (options.now ? new Date(options.now) : new Date()).toISOString();
+  const publishThroughDate = getZonedDateParts(new Date(generatedAt), config.timezone).date;
   const dates = await listContentDates(root);
   const calendars = await Promise.all(
     dates.map(async (date) => {
       const calendar = await readPrivateDailyContent(date, root);
       if (!calendar) return undefined;
+      if (calendar.date !== date) {
+        await removePublicContentCalendar(date, root);
+        throw new Error(`Content calendar date mismatch: filename ${date} does not match calendar.date ${calendar.date}.`);
+      }
+      if (date > publishThroughDate) {
+        await removePublicContentCalendar(date, root);
+        return undefined;
+      }
 
       const approvals = await loadApprovalLog(date, root);
       const approvedSlots = calendar.slots.filter((slot) => isSlotFullyApproved(approvals, slot.slot));
-      await writeApprovedPublicContentCalendar(calendar, approvedSlots, root);
-      return { calendar, approvedSlots };
+      let publicSlots: DailySlot[];
+      try {
+        publicSlots = approvedSlots.map((slot) =>
+          slotWithAvailablePublicMedia(date, slot, root, options.statPublicAsset ?? statSync)
+        );
+      } catch (error) {
+        await removePublicContentCalendar(date, root);
+        throw error;
+      }
+      await writeApprovedPublicContentCalendar(calendar, publicSlots, root);
+      return { calendar, approvedSlots: publicSlots };
     })
   );
   const posts = calendars.flatMap((record) =>

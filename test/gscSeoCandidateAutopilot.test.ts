@@ -106,6 +106,19 @@ describe("GSC SEO candidate autopilot", () => {
     expect(report.inputs.index_report_sha256).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  it("recognizes material and problem variants from the keyword whitelist", async () => {
+    const variants = ["鞋內悶味", "麂皮鞋清潔", "麂皮鞋變硬", "麂皮鞋發亮", "帆布鞋沾泥", "帆布鞋清潔", "皮鞋水痕", "皮鞋淋雨", "皮鞋上油"];
+    await writeInputs({
+      pairs: variants.map((query) => ({ keys: [query, SHOE_PAGE], clicks: 0, impressions: 20, ctr: 0, position: 12 }))
+    });
+
+    const { report } = await createGscSeoCandidateReport({ root, now: NOW, outputDate: "2026-09-01" });
+
+    expect(report.status).toBe("CANDIDATE");
+    expect(report.candidate?.service_cluster).toBe("shoes_bags");
+    expect(report.candidate?.evidence.map((row) => row.query)).toEqual(variants);
+  });
+
   it("does not infer page causality from separate top-query and top-page lists", async () => {
     await writeInputs();
 

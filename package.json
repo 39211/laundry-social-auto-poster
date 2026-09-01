@@ -67,6 +67,7 @@
     "indexing-push": "tsx src/indexingPush.ts",
     "share-story": "tsx src/postStory.ts",
     "ga4-report": "tsx src/ga4Report.ts",
+    "ga4-ai-traffic": "tsx src/ga4AiTraffic.ts",
     "ga4-authorize": "node scripts/ga4-authorize.mjs",
     "gsc-search-analytics": "tsx src/gscSearchAnalytics.ts",
     "pause": "tsx src/pause.ts",

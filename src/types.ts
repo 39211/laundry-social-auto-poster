@@ -203,6 +203,9 @@ export interface PostLogEntry {
   video_deferred_reason?: string;
   /** Present only on dual-Reel A/B days that have an ab-test-plan entry. */
   ab_variant?: "10s" | "15s";
+  /** Slot topic at publish time. Lets generate-public-site prefer the aired package over a later draft. */
+  topic?: string;
+  video_sha256?: string;
   post_id?: string;
   error?: string;
   created_at: string;

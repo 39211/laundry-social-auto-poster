@@ -38,6 +38,7 @@ import {
 import { imageAssetsForSlot } from "./mediaAssets";
 import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
+import { snapshotPostedCalendarSlot } from "./publicSitePostedPackage";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
 import { postInstagramCarousel, postInstagramPhoto, postInstagramReel } from "./postInstagram";
 import { NonRetryableError, withRetry } from "./retry";
@@ -159,7 +160,8 @@ function resultToLog(
   slot: number,
   result: PostResult,
   media: ResolvedPublishMedia,
-  abVariant?: AbVariant
+  abVariant?: AbVariant,
+  topic?: string
 ): PostLogEntry {
   return {
     date,
@@ -168,6 +170,7 @@ function resultToLog(
     status: result.status,
     dry_run: result.dry_run,
     attempts: result.attempts,
+    ...(topic ? { topic } : {}),
     published_media_type: result.platform === "facebook" && media.mediaType === "mixed-carousel"
       ? "reel"
       : media.mediaType,
@@ -582,6 +585,7 @@ async function postOneSlot(
         video_deferred_reason: resolvedMedia.videoDeferred ? resolvedMedia.videoDeferredReason : undefined,
         ...postedVideoShaFields(scheduledRow.video_sha256),
         ...(abVariant ? { ab_variant: abVariant } : {}),
+        ...(slot.topic ? { topic: slot.topic } : {}),
         post_id: scheduledRow.scheduled_post_id,
         created_at: new Date().toISOString()
       };
@@ -592,7 +596,7 @@ async function postOneSlot(
 
     try {
       const result = await postPlatform(platform, input, config, fetchImpl);
-      const entry = resultToLog(date, slot.slot, result, resolvedMedia, abVariant);
+      const entry = resultToLog(date, slot.slot, result, resolvedMedia, abVariant, slot.topic);
       await appendPostLog(entry, root);
       outputs.push(entry);
     } catch (error) {
@@ -627,6 +631,17 @@ async function postOneSlot(
       firstFailure = firstFailure ?? error;
     }
   }
+  if (
+    !config.dryRun &&
+    outputs.some(
+      (entry) =>
+        !entry.dry_run &&
+        (entry.status === "success" || entry.status === "posted" || entry.status === "uncertain")
+    )
+  ) {
+    await snapshotPostedCalendarSlot({ date, slot: slot.slot, root });
+  }
+
   if (firstFailure !== undefined) throw firstFailure;
 
   if (!config.dryRun && !resolvedMedia.videoDeferred && (isReel || isMixedCarousel)) {

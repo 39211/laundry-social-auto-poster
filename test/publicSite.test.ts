@@ -13,11 +13,12 @@ import { canonicalSeoSyncPage, buildDailyContent } from "../src/contentPlan";
 import { getConfig } from "../src/config";
 import { guideLinkFor } from "../src/postYouTube";
 import {
-  ACCEPTED_INDEX_GROWTH_PAGES,
+  INDEX_GROWTH_CATALOG,
   INDEX_GROWTH_REJECTED_CANDIDATES,
   PROTECTED_LIVE_COHORT_HASHES,
   PROTECTED_LIVE_COHORT_SLUGS,
-  protectedSupportContentHash
+  protectedSupportContentHash,
+  resolveAcceptedIndexGrowthPages
 } from "../src/indexGrowthPages";
 import { PRODUCTION_PUBLIC_SITE_BASE_URL } from "../src/publicSiteTypes";
 
@@ -2192,7 +2193,8 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("id=\"guide-hub-decisions\"");
     expect(existsSync(join(root, "data", ".calendar-hmac-key"))).toBe(false);
 
-    const acceptedPaths = new Set(ACCEPTED_INDEX_GROWTH_PAGES.map((page) => page.path));
+    const acceptedPages = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-08-31" });
+    const acceptedPaths = new Set(acceptedPages.map((page) => page.path));
     const publicPaths = new Set(publicSupportPages().map((page) => page.path));
     const sitemapPaths = new Set(locs.map((url) => pathFromUrl(url, baseUrl)));
     const answerPaths = new Set(
@@ -2206,7 +2208,7 @@ describe("generatePublicSite", () => {
       expect(publicPaths.has(path), path).toBe(true);
     }
 
-    for (const page of ACCEPTED_INDEX_GROWTH_PAGES) {
+    for (const page of acceptedPages) {
       const html = await readFile(join(root, "docs", page.path), "utf8");
       const parentService = page.service_slug ?? "";
       const body = articleBodyHtml(html);
@@ -2249,7 +2251,7 @@ describe("generatePublicSite", () => {
       baseUrl: "https://example.com/laundry-social-auto-poster",
       now: "2026-07-10T03:00:00.000Z"
     });
-    const sample = ACCEPTED_INDEX_GROWTH_PAGES[0];
+    const sample = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-08-31" })[0];
     if (!sample?.service_slug) throw new Error("missing accepted page");
     const html = await readFile(join(root, "docs", sample.path), "utf8");
     expect(
@@ -2269,7 +2271,7 @@ describe("generatePublicSite", () => {
       now: "2026-07-10T03:00:00.000Z"
     });
 
-    const sample = ACCEPTED_INDEX_GROWTH_PAGES[0];
+    const sample = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-08-31" })[0];
     if (!sample?.service_slug) throw new Error("missing accepted page");
     const htmlPath = join(root, "docs", sample.path);
     const original = await readFile(htmlPath, "utf8");

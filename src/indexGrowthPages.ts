@@ -63,6 +63,19 @@ export interface FrozenSourceRecord {
   kind: "service" | "guide" | "local" | "business-profile";
   origin: string;
   note: string;
+  content_hash: string;
+}
+
+export interface ClaimProvenanceBinding {
+  ref: string;
+  locator: string;
+  summary: string;
+  content_hash: string;
+}
+
+export interface ProtectedIndexGrowthLock {
+  content_revision: string;
+  body_hash: string;
 }
 
 export interface DiagnosticPage {
@@ -126,6 +139,135 @@ export const PROTECTED_LIVE_COHORT_HASHES: Record<(typeof PROTECTED_LIVE_COHORT_
   "donghai-laundry-pickup": "c8a0aab64b8a9b0ba28c60190ff12d109f884ced7e78156bbb0c7e77ca23f9d0"
 };
 
+export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLock> = {
+  "suede-shoe-cleaning": {
+    content_revision: "2026-08-30#1",
+    body_hash: "d8e6beec999909c778ed5a4ffc456b78bba9a8c49bbe906d8e150ceaa2cec1ab"
+  },
+  "canvas-shoe-mud": {
+    content_revision: "2026-08-30#1",
+    body_hash: "0dd63c4ef5df06e012f1280742d70085d7739ebb3c3140296d7f5b4f2f348343"
+  },
+  "leather-shoe-water-marks": {
+    content_revision: "2026-08-30#1",
+    body_hash: "e5000287b1449c3fc010f8fdff4dcfde87cf3718c5366a16dff24f5cd648f215"
+  },
+  "shoe-odor-source": {
+    content_revision: "2026-08-30#1",
+    body_hash: "f63621b9d70217dfa598461b28167c44cf24b9090dd00522be5dc7cc5c8cfb5d"
+  },
+  "washing-machine-shoe-risk": {
+    content_revision: "2026-08-30#1",
+    body_hash: "738debaa0bf0d7709665e8bb6bfcaecdbb9d814eb5b33db64651a137ca305674"
+  },
+  "athletic-shoe-mixed-materials": {
+    content_revision: "2026-08-30#1",
+    body_hash: "c77a44ea1fc2c27816ae1b6d0e279e573376125ed1efcba2a13a01323d50f03a"
+  },
+  "shoe-mold-surface-check": {
+    content_revision: "2026-08-30#1",
+    body_hash: "1f2b991678d80fef53e0c74e03169df974708fef8ea1d88747febdc35cc9551d"
+  },
+  "shoe-sole-separation-limit": {
+    content_revision: "2026-08-30#1",
+    body_hash: "db65b727ab12d4d07e3d8b094425f635dbefe0b9605bfc3b303373c264f19eb4"
+  },
+  "bag-color-transfer": {
+    content_revision: "2026-08-30#1",
+    body_hash: "83735a82b3eff8d6b2e5533c5f62e82f5f39011bf16d0c12aed25157ef4950ec"
+  },
+  "bag-ink-marks": {
+    content_revision: "2026-08-30#1",
+    body_hash: "de1868133776e037f171ea3ec01b9f49e386ab0d0c0b787a345c2e24b9e11db0"
+  },
+  "bag-lining-care": {
+    content_revision: "2026-08-30#1",
+    body_hash: "6dda38471538c5004ab48b8afb9fff36f018db4d75015cff162cb3b551de8130"
+  },
+  "nylon-bag-care": {
+    content_revision: "2026-08-30#1",
+    body_hash: "b16df670999449d4a6f46150a9aad55fd2b35db00c3791a346bc1cb146ae9a03"
+  },
+  "canvas-bag-care": {
+    content_revision: "2026-08-30#1",
+    body_hash: "913903d6418ead4fcabdbcf613bd982426dfdc4562dc01b0ceeff5a1627ab651"
+  },
+  "backpack-cleaning-check": {
+    content_revision: "2026-08-30#1",
+    body_hash: "0419de882651c6ede97a2027a5151298b854ab1779ef27edbbb4515b3bfc4a5d"
+  },
+  "bag-clean-vs-repair": {
+    content_revision: "2026-08-30#1",
+    body_hash: "da5d477c0d48cf888f9dd68bfbe2347c0ff9a3db4dc9ea68f2a42b4d419195f7"
+  },
+  "wool-coat-dry-clean": {
+    content_revision: "2026-08-30#1",
+    body_hash: "779195fdf4dbf040dfb2374a90338410fbe918777d3f14d1a6fb369968b746d7"
+  },
+  "wool-knit-shrink-risk": {
+    content_revision: "2026-08-30#1",
+    body_hash: "fe8e115ad0670a3261dff5ec45b8de358267716175682980c0aadca4f5d705c5"
+  },
+  "clothing-mold-airing": {
+    content_revision: "2026-08-30#1",
+    body_hash: "785cfcf9bbe59b52e48468dbf12e3325ecab8e528ab6b2a7b6cb8963ca28410e"
+  },
+  "vacuum-bag-storage-risk": {
+    content_revision: "2026-08-30#1",
+    body_hash: "f4cae2e884d3b39a6486cdab917176c400878aa49cc35e360159464943b366e0"
+  },
+  "oil-vs-water-stain-choice": {
+    content_revision: "2026-08-30#1",
+    body_hash: "4748481f4fc5f9554255afd4a3f7f0ca0c11ae4b69fc0c2effa563eb62c5adfa"
+  },
+  "blanket-damp-check": {
+    content_revision: "2026-08-30#1",
+    body_hash: "1fe873dfc9aec3fb5f0871a4b425e55f883f16f3825de4601c40bd7933355d00"
+  },
+  "post-wash-drying-before-storage": {
+    content_revision: "2026-08-30#1",
+    body_hash: "21bd717633a6aaab77d39e932e97db0fe4b41b9de2c867a71519ddc6669925dd"
+  },
+  "synthetic-vs-leather-handle": {
+    content_revision: "2026-08-30#1",
+    body_hash: "25518feb653302d92ff1d43daae9e1b03a9a693bdecf6b26499b8a035fd900b0"
+  },
+  "rainy-bag-care": {
+    content_revision: "2026-08-30#1",
+    body_hash: "c7f76465c979ae13c3c4fdaf8db847ba3b278d3311da13cd31ea1bea9bb5ed3a"
+  }
+};
+
+/** Pinned source digests. These are reviewed lock values, not startup self-hashes. */
+export const PINNED_INDEX_GROWTH_SOURCE_HASHES: Record<string, string> = {
+  "bp:business-profile": "9717cb6eb58ebc8c59995be2e1d57065afb4f0b8c7b00b21a838700474275868",
+  "svc:shoe-bag-care": "dc64765b040c987d4aab759c6cbb14d5fdd9bd9fb2ff70d05fe33afe714c3c06",
+  "svc:white-shoe-cleaning": "7df031a58780f269c7f8c8486814225692c3c3d3eaaf3ad25d2fc677da86541e",
+  "svc:fabric-storage": "417418ad5881e5d04b5d38955bdacf90fc59d10ce491965a5c4b4c9d3e5dc0d8",
+  "svc:taichung-xitun-laundry": "3afec3dc6c989e77e0a147d09fedad3ad7112a8d42ac1341180670b3ca8b6234",
+  "svc:business-bulk-laundry": "5adc52341d323b5800d7b0513bc229dfd4c024abbd0d9f110bb7321f6ed12133",
+  "svc:taichung-citywide-laundry-pickup": "94f30e12bf67393d2e67b789ac0cf0d178e6a14755caedca4edf9f1cc4f18ca3",
+  "svc:taichung-laundry-price-list": "ebf619e518226d7af93e67e5f31430227e5fd2bf99563fae4c9e64cd6eed22f8",
+  "guide:photo-before-laundry": "d4d6cacc10866d6eaf4ffc41ac9b46bcc3e9c7b79c88d519d2ddcbef142c9975",
+  "guide:white-shoe-yellowing": "64ddc71651a9ea8fdc1ef774bd1c22148bef86deb0831e0c50cbe78e016970d5",
+  "guide:rainy-shoe-care": "1ee1833cb4392f2e08589cd8bb7eb56eda846ce89d5de25b9466241ae7229c01",
+  "guide:bag-handle-cleaning": "903d3ebed5ed289dd440390a75ed04cdf251d6b1ab0eda96c0b7e61bb4f6c1f1",
+  "guide:luxury-bag-mold": "e3627181211b749522ef4c878ff4a76ef838debd1cc31c4bc74105029421e6f0",
+  "guide:birkenstock-care": "ca2fe5d9c45fbd7146101dd6f229fec52096ae974ec6fdaf689eac657fe25df5",
+  "guide:plush-doll-cleaning": "c9b098d8946b70d6a1f3186d50be0b9c43a7fad43bbf4f1e8fb63486d7429872",
+  "guide:dry-cleaning-guide": "22009a2959538f89b722f2450c7185dfc8745261a70dfe0ad6d45f54abf3cf30",
+  "guide:school-uniform-care": "e4034f6201bb378c0d079b7edced63a595818aad2ed2278fd7ac90b5170bb40d",
+  "guide:shirt-suit-dry-cleaning": "6ee23715668511641577b010ab6b3fd63c0c9dd744ed3d1c449732cbfb5b7eaa",
+  "guide:bedding-storage-check": "0ac016842327bff1f4dabe52b17bb11dfb8c582c27b92d7f8b6323ce67d79191",
+  "guide:bedding-duvet-cleaning": "0e0af56bb5fb2040507c46ce064e53d4c1665c2755a6f7f08afaebbad8b33209",
+  "guide:down-jacket-cleaning": "4257e87d3ae25e23b49af9f692b5b3ca67d1d66d008a145da58c68eeb977bb06",
+  "guide:leather-jacket-care": "95a271451f3ee434639b1dec8835a180c1895318306397d8da0fe0f577aed4ae",
+  "guide:qinghai-road-shoe-cleaning": "85858de4a226ad77912ace476047233f13a072113887aacbf9e22721297a82fb",
+  "guide:luggage-wheel-cleaning": "4e1c04fbc9509b1a7ce04b756e28312e5d8147fb1abc13a56e884ba314adb5aa",
+  "guide:curtain-cleaning": "09421c537e9df1524027817e63e6cb85d22a8750d48c85642c778b34d997087a",
+  "guide:carpet-cleaning": "8ec38df30c5840fe8338513103cd2485efd89e0e4c97c1a2f45d62606ff03561"
+};
+
 export const INDEX_GROWTH_HUB_ORDER: Array<{
   id: IndexGrowthHubGroup;
   heading: string;
@@ -185,8 +327,44 @@ export const EXISTING_SUPPORT_HUB_GROUPS: Record<string, IndexGrowthHubGroup> = 
   "donghai-laundry-pickup": "local"
 };
 
+export function frozenSourceRecordHash(record: {
+  id: string;
+  kind: FrozenSourceRecord["kind"];
+  origin: string;
+  note: string;
+}): string {
+  return createHash("sha256")
+    .update(`id=${record.id}\nkind=${record.kind}\norigin=${record.origin}\nnote=${record.note}`, "utf8")
+    .digest("hex");
+}
+
+function pinnedSourceHash(id: string): string | undefined {
+  return PINNED_INDEX_GROWTH_SOURCE_HASHES[id];
+}
+
+function sourceMatchesPinnedLock(id: string, record: FrozenSourceRecord): boolean {
+  if (id !== record.id) return false;
+  const pinned = pinnedSourceHash(id);
+  if (!pinned || !record.content_hash?.trim()) return false;
+  return record.content_hash === pinned && frozenSourceRecordHash(record) === pinned;
+}
+
+function freezeSourceRecord(id: string, record: Omit<FrozenSourceRecord, "content_hash">): FrozenSourceRecord {
+  if (id !== record.id) {
+    throw new Error(`source registry key ${id} does not match record.id ${record.id}`);
+  }
+  const pinned = pinnedSourceHash(id);
+  if (!pinned) {
+    throw new Error(`missing pinned source hash for ${id}`);
+  }
+  if (frozenSourceRecordHash(record) !== pinned) {
+    throw new Error(`source ${id} origin/note does not match the pinned content hash`);
+  }
+  return { ...record, content_hash: pinned };
+}
+
 /** Frozen first-party sources. Competitors are demand discovery only. */
-export const INDEX_GROWTH_SOURCE_REGISTRY: Record<string, FrozenSourceRecord> = {
+const RAW_INDEX_GROWTH_SOURCE_REGISTRY: Record<string, Omit<FrozenSourceRecord, "content_hash">> = {
   "bp:business-profile": {
     id: "bp:business-profile",
     kind: "business-profile",
@@ -345,6 +523,10 @@ export const INDEX_GROWTH_SOURCE_REGISTRY: Record<string, FrozenSourceRecord> = 
   }
 };
 
+export const INDEX_GROWTH_SOURCE_REGISTRY: Record<string, FrozenSourceRecord> = Object.fromEntries(
+  Object.entries(RAW_INDEX_GROWTH_SOURCE_REGISTRY).map(([id, record]) => [id, freezeSourceRecord(id, record)])
+);
+
 const PLACEHOLDER_PATTERN =
   /TODO|TBD|FIXME|\bXXX\b|lorem ipsum|placeholder|\{\{|\}\}|\[insert|待補|範例客戶|MAGIC|changeme/iu;
 const COMPETITOR_PATTERN = /ultron|凌通|rebirth407|spajack|shoescares|ultron-lingtung/iu;
@@ -487,6 +669,30 @@ function claimRefs(refs: string[] | undefined): string[] {
   return (refs ?? []).map((ref) => ref.trim()).filter(Boolean);
 }
 
+function cloneClaimRefs(refs: readonly string[]): string[] {
+  return refs.map((ref) => ref);
+}
+
+function sameRefList(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((ref, index) => ref === right[index]);
+}
+
+export function claimProvenanceBinding(
+  ref: string,
+  registry: Record<string, FrozenSourceRecord> = INDEX_GROWTH_SOURCE_REGISTRY
+): ClaimProvenanceBinding | undefined {
+  const record = registry[ref];
+  if (!record) return undefined;
+  if (!record.origin.trim() || !record.note.trim() || !record.content_hash.trim()) return undefined;
+  if (!sourceMatchesPinnedLock(ref, record)) return undefined;
+  return {
+    ref,
+    locator: record.origin,
+    summary: record.note,
+    content_hash: record.content_hash
+  };
+}
+
 function pushFailure(
   failures: IndexGrowthValidationFailure[],
   code: string,
@@ -494,6 +700,80 @@ function pushFailure(
   slugs?: string[]
 ): void {
   failures.push({ code, message, slugs });
+}
+
+function clothingMoldPageBlob(page: IndexGrowthPageDefinition): string {
+  const steps = (page.steps ?? []).map((step) => `${step.name}${step.text}`).join("");
+  const sections = (page.sections ?? []).map((section) => `${section.heading}${section.body}`).join("");
+  const faqs = (page.faqs ?? []).map((faq) => `${faq.question}${faq.answer}`).join("");
+  return `${page.citation_answer ?? ""}${page.summary}${steps}${sections}${faqs}`;
+}
+
+function textPromotesMoldDisturbance(text: string): boolean {
+  const pattern = /戶外抖|抖掉霉|刷霉屑|拍打霉/gu;
+  const localNegation = /(?:先不要|不要|停手|避免|禁止)$/u;
+  for (const match of text.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    const prefix = Array.from(text.slice(0, index)).slice(-4).join("");
+    if (!localNegation.test(prefix)) return true;
+  }
+  return false;
+}
+
+function hasBleachRatioRecipe(text: string): boolean {
+  return /漂白(?:水|液)?[^。\n]{0,24}\d+\s*[:：倍]\s*\d+|\d+\s*[:：]\s*\d+[^。\n]{0,12}漂白/.test(text);
+}
+
+function hasGuaranteedMoldRecovery(text: string): boolean {
+  const pattern = /保證(?:完全)?(?:恢復|復原|無霉|無斑)|一定(?:可以|能)?(?:恢復|復原)/gu;
+  const localNegation = /(?:不|無法|不能)$/u;
+  for (const match of text.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    const prefix = Array.from(text.slice(0, index)).slice(-2).join("");
+    if (!localNegation.test(prefix)) return true;
+  }
+  return false;
+}
+
+function requireClothingMoldSafety(
+  failures: IndexGrowthValidationFailure[],
+  page: IndexGrowthPageDefinition
+): void {
+  if (page.slug !== "clothing-mold-airing") return;
+  const blob = clothingMoldPageBlob(page);
+  if (!/避免擾動/.test(blob)) {
+    pushFailure(failures, "mold-safety", `${page.slug} must require avoiding mold disturbance`, [page.slug]);
+  }
+  if (!/口罩/.test(blob) || !/手套/.test(blob)) {
+    pushFailure(failures, "mold-safety", `${page.slug} must require appropriate PPE for close inspection`, [page.slug]);
+  }
+  if (!/看過物件|門市檢視|專業評估/.test(blob)) {
+    pushFailure(failures, "mold-safety", `${page.slug} must keep a professional assessment boundary`, [page.slug]);
+  }
+  const claimTexts = [
+    page.citation_answer ?? "",
+    page.summary,
+    ...(page.steps ?? []).map((step) => step.text),
+    ...(page.sections ?? []).map((section) => section.body),
+    ...(page.faqs ?? []).map((faq) => faq.answer)
+  ];
+  for (const text of claimTexts) {
+    if (textPromotesMoldDisturbance(text)) {
+      pushFailure(
+        failures,
+        "mold-safety",
+        `${page.slug} must not advise shaking or brushing mold debris`,
+        [page.slug]
+      );
+      break;
+    }
+  }
+  if (hasBleachRatioRecipe(blob)) {
+    pushFailure(failures, "mold-safety", `${page.slug} must not publish bleach ratios`, [page.slug]);
+  }
+  if (hasGuaranteedMoldRecovery(blob)) {
+    pushFailure(failures, "mold-safety", `${page.slug} must not claim guaranteed recovery`, [page.slug]);
+  }
 }
 
 function duplicateMap(values: Array<{ key: string; slug: string }>): Map<string, string[]> {
@@ -510,16 +790,36 @@ function requireSourceRefs(
   failures: IndexGrowthValidationFailure[],
   slug: string,
   label: string,
-  refs: string[] | undefined
+  refs: string[] | undefined,
+  registry: Record<string, FrozenSourceRecord>,
+  expectedRefs?: string[]
 ): void {
   const resolved = claimRefs(refs);
   if (resolved.length === 0) {
     pushFailure(failures, "missing-source-refs", `${slug} ${label} is missing source_refs`, [slug]);
     return;
   }
+  if (expectedRefs && !sameRefList(resolved, expectedRefs)) {
+    pushFailure(
+      failures,
+      "claim-provenance",
+      `${slug} ${label} source_refs are not bound to the frozen claim provenance`,
+      [slug]
+    );
+  }
   for (const ref of resolved) {
-    if (!INDEX_GROWTH_SOURCE_REGISTRY[ref]) {
+    if (!registry[ref]) {
       pushFailure(failures, "unknown-source-ref", `${slug} ${label} source_ref ${ref} is not in the frozen registry`, [slug]);
+      continue;
+    }
+    const binding = claimProvenanceBinding(ref, registry);
+    if (!binding) {
+      pushFailure(
+        failures,
+        "source-provenance",
+        `${slug} ${label} source_ref ${ref} is missing locator, summary, or immutable content hash`,
+        [slug]
+      );
     }
   }
 }
@@ -530,6 +830,7 @@ export function validateIndexGrowthPages(
     existingPages?: DiagnosticPage[];
     knownServiceSlugs?: readonly string[];
     today?: string;
+    sourceRegistry?: Record<string, FrozenSourceRecord>;
   } = {}
 ): IndexGrowthValidationResult {
   const failures: IndexGrowthValidationFailure[] = [];
@@ -539,7 +840,20 @@ export function validateIndexGrowthPages(
   }
   const existing = options.existingPages ?? [];
   const knownServiceSlugs = new Set(options.knownServiceSlugs ?? KNOWN_SERVICE_SLUGS);
-  const acceptedPages = pages.filter((page) => (page.publish_state ?? "accepted") === "accepted");
+  const sourceRegistry = options.sourceRegistry ?? INDEX_GROWTH_SOURCE_REGISTRY;
+  for (const [id, record] of Object.entries(sourceRegistry)) {
+    if (!record.origin?.trim() || !record.note?.trim()) {
+      pushFailure(failures, "source-provenance", `source registry ${id} is missing origin or note`);
+    }
+    if (!sourceMatchesPinnedLock(id, record)) {
+      pushFailure(
+        failures,
+        "source-provenance",
+        `source registry ${id} content hash does not match the pinned source lock`
+      );
+    }
+  }
+  const acceptedPages = pages.filter((page) => page.publish_state === "accepted");
   const knownSlugs = new Set([
     ...Object.keys(EXISTING_SUPPORT_HUB_GROUPS),
     ...existing.map((page) => page.slug),
@@ -573,11 +887,15 @@ export function validateIndexGrowthPages(
 
   for (const page of pages) {
     const slug = page.slug;
-    const publishState = page.publish_state ?? "accepted";
-    if (!["accepted", "draft", "rejected", "merge"].includes(publishState)) {
-      pushFailure(failures, "publish-state", `${slug} has unknown publish_state`, [slug]);
+    if (!page.publish_state) {
+      pushFailure(failures, "publish-state", `${slug} is missing publish_state`, [slug]);
+      continue;
     }
-    if (publishState !== "accepted") continue;
+    if (!["accepted", "draft", "rejected", "merge"].includes(page.publish_state)) {
+      pushFailure(failures, "publish-state", `${slug} has unknown publish_state`, [slug]);
+      continue;
+    }
+    if (page.publish_state !== "accepted") continue;
 
     if (!page.slug || !page.path || !page.title || !page.h1 || !page.description || !page.summary) {
       pushFailure(failures, "missing-field", `${slug || "(empty-slug)"} is missing a required identity field`, [slug]);
@@ -627,7 +945,9 @@ export function validateIndexGrowthPages(
         slug
       ]);
     }
-    requireSourceRefs(failures, slug, "citation_answer", page.citation_source_refs);
+    const intentMeta = PAGE_INTENT_META[slug];
+    const expectedClaimRefs = intentMeta ? cloneClaimRefs(intentMeta.sources) : undefined;
+    requireSourceRefs(failures, slug, "citation_answer", page.citation_source_refs, sourceRegistry, expectedClaimRefs);
     if (!page.steps || page.steps.length < INDEX_GROWTH_MIN_STEPS) {
       pushFailure(failures, "short-steps", `${slug} needs at least ${INDEX_GROWTH_MIN_STEPS} steps`, [slug]);
     } else {
@@ -635,7 +955,7 @@ export function validateIndexGrowthPages(
         if (!step.name || citationAnswerLength(step.text) < INDEX_GROWTH_MIN_STEP_CHARS) {
           pushFailure(failures, "short-steps", `${slug} step ${index + 1} is too short`, [slug]);
         }
-        requireSourceRefs(failures, slug, `step ${index + 1}`, step.source_refs);
+        requireSourceRefs(failures, slug, `step ${index + 1}`, step.source_refs, sourceRegistry, expectedClaimRefs);
       });
     }
     const sections = page.sections ?? [];
@@ -651,7 +971,7 @@ export function validateIndexGrowthPages(
         if (citationAnswerLength(section.body) < INDEX_GROWTH_MIN_SECTION_CHARS) {
           pushFailure(failures, "short-sections", `${slug} section ${index + 1} body is too short`, [slug]);
         }
-        requireSourceRefs(failures, slug, `section ${index + 1}`, section.source_refs);
+        requireSourceRefs(failures, slug, `section ${index + 1}`, section.source_refs, sourceRegistry, expectedClaimRefs);
       });
     }
     if (!page.faqs || page.faqs.length < INDEX_GROWTH_MIN_FAQS) {
@@ -661,7 +981,7 @@ export function validateIndexGrowthPages(
         if (!faq.question || citationAnswerLength(faq.answer) < INDEX_GROWTH_MIN_FAQ_CHARS) {
           pushFailure(failures, "short-faqs", `${slug} FAQ ${index + 1} is too short`, [slug]);
         }
-        requireSourceRefs(failures, slug, `FAQ ${index + 1}`, faq.source_refs);
+        requireSourceRefs(failures, slug, `FAQ ${index + 1}`, faq.source_refs, sourceRegistry, expectedClaimRefs);
       });
     }
     const related = page.related_slugs ?? [];
@@ -706,6 +1026,27 @@ export function validateIndexGrowthPages(
           [slug]
         );
       }
+      const lock = PROTECTED_INDEX_GROWTH_LOCKS[slug];
+      if (lock && page.content_revision !== lock.content_revision) {
+        pushFailure(
+          failures,
+          "revision-mismatch",
+          `${slug} content_revision ${page.content_revision} is not bound to the protected content lock`,
+          [slug]
+        );
+      }
+    }
+    const lock = PROTECTED_INDEX_GROWTH_LOCKS[slug];
+    if (PAGE_INTENT_META[slug] && !lock) {
+      pushFailure(failures, "protected-content-hash", `${slug} is missing a protected content lock`, [slug]);
+    }
+    if (lock && protectedSupportContentHash(page) !== lock.body_hash) {
+      pushFailure(
+        failures,
+        "protected-content-hash",
+        `${slug} protected body hash does not match the frozen lock for ${lock.content_revision}`,
+        [slug]
+      );
     }
     const blob = `${page.title}\n${page.description}\n${page.h1}\n${page.summary}\n${page.citation_answer ?? ""}\n${pageDiagnosticText(page)}`;
     if (PLACEHOLDER_PATTERN.test(blob)) {
@@ -724,6 +1065,7 @@ export function validateIndexGrowthPages(
     if (!/限度|不能當|只能|不是清潔|無法|另評估/.test(stopBlob)) {
       pushFailure(failures, "missing-limitation", `${slug} is missing explicit cleaning limitations`, [slug]);
     }
+    requireClothingMoldSafety(failures, page);
   }
 
   const comparisonTargets: DiagnosticPage[] = [...existing, ...acceptedPages];
@@ -822,9 +1164,10 @@ export function resolveAcceptedIndexGrowthPages(
   catalog: IndexGrowthPageDefinition[],
   options: Parameters<typeof validateIndexGrowthPages>[1] = {}
 ): SupportPageDefinition[] {
-  const accepted = catalog.filter((page) => page.publish_state === "accepted");
   assertIndexGrowthPagesValid(catalog, options);
-  return accepted.map(stripIndexGrowthProvenance);
+  return catalog
+    .filter((page) => page.publish_state === "accepted")
+    .map(stripIndexGrowthProvenance);
 }
 
 export function protectedSupportContentProjection(page: {
@@ -1034,13 +1377,21 @@ const PAGE_INTENT_META: Record<string, PageIntentMeta> = {
   }
 };
 
+for (const meta of Object.values(PAGE_INTENT_META)) {
+  Object.freeze(meta.sources);
+  Object.freeze(meta);
+}
+Object.freeze(PAGE_INTENT_META);
+
 function attachProvenance(page: IndexGrowthPageDefinition): IndexGrowthPageDefinition {
   const meta = PAGE_INTENT_META[page.slug];
   if (!meta) {
     throw new Error(`missing PAGE_INTENT_META for ${page.slug}`);
   }
-  const refs = meta.sources;
-  const lastmod = page.content_lastmod ?? "2026-08-30";
+  const lastmod = page.content_lastmod;
+  if (!lastmod) {
+    throw new Error(`missing content_lastmod for ${page.slug}`);
+  }
   return {
     ...page,
     publish_state: "accepted",
@@ -1048,10 +1399,10 @@ function attachProvenance(page: IndexGrowthPageDefinition): IndexGrowthPageDefin
     canonical_intent_slug: meta.canonical,
     content_lastmod: lastmod,
     content_revision: `${lastmod}#1`,
-    citation_source_refs: refs,
-    steps: page.steps.map((step) => ({ ...step, source_refs: refs })),
-    sections: (page.sections ?? []).map((section) => ({ ...section, source_refs: refs })),
-    faqs: page.faqs.map((faq) => ({ ...faq, source_refs: refs }))
+    citation_source_refs: cloneClaimRefs(meta.sources),
+    steps: page.steps.map((step) => ({ ...step, source_refs: cloneClaimRefs(meta.sources) })),
+    sections: (page.sections ?? []).map((section) => ({ ...section, source_refs: cloneClaimRefs(meta.sources) })),
+    faqs: page.faqs.map((faq) => ({ ...faq, source_refs: cloneClaimRefs(meta.sources) }))
   };
 }
 
@@ -1991,7 +2342,11 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
     hub_group: "textiles",
     related_slugs: ["shoe-mold-surface-check", "bedding-storage-check"],
     steps: [
-      { name: "從密閉空間拿出來", text: "衣櫃、真空袋、旅行箱取出後先掛通風，不要再套塑膠。" },
+      {
+        name: "從密閉空間拿出來",
+        text:
+          "衣櫃、真空袋、旅行箱取出後先掛通風，不要再套塑膠。避免擾動：不要戶外抖、不要刷霉屑；近看時戴口罩與手套，這是基本防護，不是除霉方法。"
+      },
       { name: "看斑點顏色", text: "表面白粉和已經留下綠黑斑，可改善程度不同。" },
       { name: "分材質", text: "棉、羊毛、皮衣內裡，耐受不同。皮衣走皮衣頁，不要當棉T洗。" },
       { name: "不要先噴香水", text: "香味蓋不住霉。未處理就噴香，判斷會更難。" }
@@ -2005,7 +2360,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "停手條件與清潔限度",
         body:
-          "停手條件：濕擦、漂白整件、未通風就真空壓縮。清潔限度：浮霉與潮味較能評估；留下的色斑、纖維脆化，只能淡化或維持，不保證無斑。發霉在公開說明屬特殊污況，要看過物件，本頁不寫加價。"
+          "停手條件：濕擦、漂白整件、未通風就真空壓縮、不要戶外抖霉、不要刷霉屑。清潔限度：浮霉與潮味較能評估；留下的色斑、纖維脆化，只能淡化或維持，不保證無斑，也不保證恢復。發霉在公開說明屬特殊污況，要看過物件並以門市檢視為準，本頁不寫加價，也不寫漂白比例。"
       },
       {
         heading: "送洗前對應布品收納",
@@ -2356,10 +2711,3 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
 
 export const INDEX_GROWTH_CATALOG: IndexGrowthPageDefinition[] =
   RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES.map(attachProvenance);
-
-export const ACCEPTED_INDEX_GROWTH_PAGE_COUNT = INDEX_GROWTH_CATALOG.filter(
-  (page) => page.publish_state === "accepted"
-).length;
-
-/** Accepted-only public projection. Callers that need existing-page comparison must use the resolver. */
-export const ACCEPTED_INDEX_GROWTH_PAGES: SupportPageDefinition[] = INDEX_GROWTH_CATALOG.map(stripIndexGrowthProvenance);

@@ -216,8 +216,16 @@ function indexedCanonicalRows(report: IndexInspectionReport, sitemapUrls: Set<st
 
 function classifyQuery(query: string): CandidateCluster | undefined {
   if (/私享家|思想家|si\s*xiang/iu.test(query)) return undefined;
-  if (/洗鞋|鞋子|球鞋|運動鞋|白鞋|鞋臭|鞋味|洗包|包包|皮包|精品包/iu.test(query)) return "shoes_bags";
-  if (/洗衣|乾洗|送洗|收送|收衣|洗被|棉被|羽絨|床被|寢具/iu.test(query)) return "clothing_bedding_pickup";
+  if (
+    /洗鞋|鞋子|鞋內|鞋臭|鞋味|除臭|球鞋|運動鞋|白鞋|麂皮|帆布|皮鞋|洗包|包包|皮包|精品包|包角|提把/iu.test(
+      query
+    )
+  ) {
+    return "shoes_bags";
+  }
+  if (/洗衣|衣物|乾洗|送洗|收送|收衣|洗被|棉被|羽絨|床被|寢具|西裝|襯衫|制服|窗簾|地毯|到府/iu.test(query)) {
+    return "clothing_bedding_pickup";
+  }
   return undefined;
 }
 

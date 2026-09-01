@@ -1,10 +1,22 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
-import { writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
+
+async function writeJsonAtomic(filePath: string, value: unknown): Promise<void> {
+  await mkdir(dirname(filePath), { recursive: true });
+  const tempPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    await rename(tempPath, filePath);
+  } finally {
+    await unlink(tempPath).catch(() => undefined);
+  }
+}
 
 const REQUIRED_PATHS = [
   "/",
@@ -27,8 +39,41 @@ function sitemapLastmodDates(xml: string): string[] {
     .filter((date): date is string => Boolean(date));
 }
 
-function futureLastmodDates(xml: string, today: string): string[] {
+export function futureLastmodDates(xml: string, today: string): string[] {
   return Array.from(new Set(sitemapLastmodDates(xml).filter((date) => date > today))).sort();
+}
+
+const PUBLISH_LASTMOD_TIMEZONE = "Asia/Taipei";
+
+/**
+ * Local, synchronous publish gate. Independent of --skip-audit, live fetches,
+ * IndexNow, sitemap-health.json, and TIMEZONE env. Missing, empty, or
+ * unreadable sitemaps fail closed so a publish cannot ship while root Pages
+ * keeps an old sitemap. Any lastmod after Asia/Taipei today also fails closed.
+ */
+export function assertLocalSitemapHasNoFutureLastmod(root: string, now: Date = new Date()): void {
+  const sitemapPath = join(projectRoot(root), "docs", "sitemap.xml");
+  if (!existsSync(sitemapPath)) {
+    throw new Error("Refusing to publish: docs/sitemap.xml is missing.");
+  }
+  let xml: string;
+  try {
+    xml = readFileSync(sitemapPath, "utf8");
+  } catch (error) {
+    throw new Error(
+      `Refusing to publish: docs/sitemap.xml cannot be verified locally: ${(error as Error).message}`
+    );
+  }
+  if (xml.trim().length === 0) {
+    throw new Error("Refusing to publish: docs/sitemap.xml is empty.");
+  }
+  const today = getZonedDateParts(now, PUBLISH_LASTMOD_TIMEZONE).date;
+  const future = futureLastmodDates(xml, today);
+  if (future.length > 0) {
+    throw new Error(
+      `Refusing to publish: docs/sitemap.xml has lastmod after ${today} (${PUBLISH_LASTMOD_TIMEZONE}): ${future.join(", ")}.`
+    );
+  }
 }
 
 export async function auditSitemap(options: {

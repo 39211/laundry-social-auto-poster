@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { auditSitemap } from "../src/auditSitemap";
+import { assertLocalSitemapHasNoFutureLastmod, auditSitemap } from "../src/auditSitemap";
 
 const BASE_URL = "https://example.com";
 const REQUIRED_PATHS = [
@@ -92,5 +92,38 @@ describe("auditSitemap", () => {
     expect(result.checks.find((item) => item.name === "live-no-future-lastmod")).toMatchObject({ status: "fail" });
     expect(result.checks.find((item) => item.name === "live-no-future-lastmod")?.detail).toContain("2026-08-31");
     expect(result.status).toBe("fail");
+  });
+
+  it("throws a sync publish gate on a future lastmod without writing sitemap-health.json", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-sitemap-assert-future-"));
+    const now = new Date("2026-08-29T16:30:00.000Z");
+    await writeAuditFixture(root, ["2026-08-31"]);
+
+    expect(() => assertLocalSitemapHasNoFutureLastmod(root, now)).toThrow(/2026-08-31/);
+    expect(existsSync(join(root, "output", "operations", "sitemap-health.json"))).toBe(false);
+  });
+
+  it("lets Taipei today through the sync lastmod gate and rejects Taipei tomorrow", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-sitemap-assert-today-"));
+    // Still 2026-08-29 in UTC, already 2026-08-30 in Asia/Taipei.
+    const now = new Date("2026-08-29T16:30:00.000Z");
+    await writeAuditFixture(root, ["2026-08-30", "2026-08-29"]);
+
+    expect(() => assertLocalSitemapHasNoFutureLastmod(root, now)).not.toThrow();
+
+    await writeAuditFixture(root, ["2026-08-31"]);
+    expect(() => assertLocalSitemapHasNoFutureLastmod(root, now)).toThrow(/after 2026-08-30/);
+  });
+
+  it("throws on a missing or empty local sitemap without writing sitemap-health.json", () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-sitemap-assert-missing-"));
+    mkdirSync(join(root, "docs"), { recursive: true });
+
+    expect(() => assertLocalSitemapHasNoFutureLastmod(root)).toThrow(/docs\/sitemap\.xml is missing/);
+    expect(existsSync(join(root, "output", "operations", "sitemap-health.json"))).toBe(false);
+
+    writeFileSync(join(root, "docs", "sitemap.xml"), "  \n");
+    expect(() => assertLocalSitemapHasNoFutureLastmod(root)).toThrow(/docs\/sitemap\.xml is empty/);
+    expect(existsSync(join(root, "output", "operations", "sitemap-health.json"))).toBe(false);
   });
 });

@@ -1,12 +1,26 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-import { mkdtempSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { generatePublicSite } from "../src/generatePublicSite";
+import {
+  generatePublicSite,
+  publicAcceptedIndexGrowthCount,
+  publicSourceBaselineUrlCount,
+  publicSupportPages
+} from "../src/generatePublicSite";
 import { canonicalSeoSyncPage, buildDailyContent } from "../src/contentPlan";
 import { getConfig } from "../src/config";
 import { guideLinkFor } from "../src/postYouTube";
+import {
+  INDEX_GROWTH_CATALOG,
+  INDEX_GROWTH_REJECTED_CANDIDATES,
+  PROTECTED_LIVE_COHORT_HASHES,
+  PROTECTED_LIVE_COHORT_SLUGS,
+  protectedSupportContentHash,
+  resolveAcceptedIndexGrowthPages
+} from "../src/indexGrowthPages";
+import { PRODUCTION_PUBLIC_SITE_BASE_URL } from "../src/publicSiteTypes";
 
 async function writeCalendar(root: string, date: string, options: { carouselSlot1?: boolean } = {}): Promise<void> {
   await Promise.all([
@@ -224,11 +238,33 @@ function firstAnswerParagraph(answer: string): string {
   return (answer.split(/\n+/)[0] ?? "").trim();
 }
 
+function articleBodyHtml(html: string): string {
+  const main = html.match(/<main\b[\s\S]*<\/main>/i)?.[0] ?? "";
+  return main
+    .replace(/<header\b[\s\S]*?<\/header>/gi, "")
+    .replace(/<nav\b[\s\S]*?<\/nav>/gi, "")
+    .replace(/<footer\b[\s\S]*?<\/footer>/gi, "");
+}
+
 function thematicAnchorsTo(html: string, hrefNeedle: string): string[] {
   const withoutNav = html.replace(/<nav class="nav"[\s\S]*?<\/nav>/gi, "");
-  return [...withoutNav.matchAll(/<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
+  return [...withoutNav.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
     .filter((match) => (match[1] ?? "").includes(hrefNeedle))
     .map((match) => (match[2] ?? "").replace(/<[^>]+>/g, "").trim());
+}
+
+function bodyAnchorsTo(html: string, hrefNeedle: string): string[] {
+  return thematicAnchorsTo(articleBodyHtml(html), hrefNeedle);
+}
+
+function sitemapLocs(sitemap: string): string[] {
+  return [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1] ?? "");
+}
+
+function pathFromUrl(url: string, baseUrl: string): string {
+  const prefix = `${baseUrl.replace(/\/+$/u, "")}/`;
+  if (url === `${baseUrl.replace(/\/+$/u, "")}/` || url === baseUrl) return "/";
+  return url.startsWith(prefix) ? url.slice(prefix.length) : url;
 }
 
 describe("generatePublicSite", () => {
@@ -836,8 +872,29 @@ describe("generatePublicSite", () => {
         .find((service: { slug: string }) => service.slug === "fabric-storage")
         .related_support_pages.map((page: { slug: string }) => page.slug)
     ).toEqual(expect.arrayContaining(["bedding-storage-check", "bedding-duvet-cleaning"]));
-    expect(services.services.find((service: { slug: string }) => service.slug === "shoe-bag-care").related_support_pages).toHaveLength(5);
-    expect(services.services.find((service: { slug: string }) => service.slug === "white-shoe-cleaning").related_support_pages).toHaveLength(2);
+    const supportPages = publicSupportPages();
+    expect(
+      services.services
+        .find((service: { slug: string }) => service.slug === "shoe-bag-care")
+        .related_support_pages.map((page: { slug: string }) => page.slug)
+        .sort()
+    ).toEqual(
+      supportPages
+        .filter((page) => page.service_slug === "shoe-bag-care")
+        .map((page) => page.slug)
+        .sort()
+    );
+    expect(
+      services.services
+        .find((service: { slug: string }) => service.slug === "white-shoe-cleaning")
+        .related_support_pages.map((page: { slug: string }) => page.slug)
+        .sort()
+    ).toEqual(
+      supportPages
+        .filter((page) => page.service_slug === "white-shoe-cleaning")
+        .map((page) => page.slug)
+        .sort()
+    );
     expect(services.services.every((service: { case_studies?: unknown[] }) => service.case_studies?.length === 3)).toBe(true);
     expect(answers.answers.some((answer: { source_url: string }) => answer.source_url.endsWith("/guides/photo-before-laundry.html"))).toBe(true);
     expect(answers.answers.some((answer: { source_url: string }) => answer.source_url.endsWith("/local/qinghai-road-shoe-cleaning.html"))).toBe(true);
@@ -866,7 +923,10 @@ describe("generatePublicSite", () => {
       )
     ).toBe(true);
     expect(discovery.capabilities.supports_support_pages).toBe(true);
-    expect(discovery.support_pages).toHaveLength(18);
+    expect(discovery.support_pages).toHaveLength(publicSupportPages().length);
+    expect(discovery.support_pages).toHaveLength(
+      publicSourceBaselineUrlCount() - 1 - 7 + publicAcceptedIndexGrowthCount()
+    );
     expect(searchVisibility.query_clusters).toHaveLength(6);
     expect(discovery.support_pages[0]).toMatchObject({
       slug: "photo-before-laundry",
@@ -2090,5 +2150,189 @@ describe("generatePublicSite", () => {
     expect(thematicAnchorsTo(shoeBagCareHtml, "taichung-laundry-price-list.html").length).toBeGreaterThanOrEqual(1);
     expect(thematicAnchorsTo(xitunHtml, "taichung-laundry-price-list.html").length).toBeGreaterThanOrEqual(1);
     expect(thematicAnchorsTo(whiteShoeHtml, "taichung-laundry-price-list.html")).toEqual([]);
+  });
+
+  it("publishes accepted index-growth guides into sitemap and AI surfaces with crawlable parent links", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-index-growth-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now: "2026-07-10T03:00:00.000Z"
+    });
+
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const aiSitemap = await readFile(join(root, "docs", "ai-sitemap.xml"), "utf8");
+    const answers = JSON.parse(await readFile(join(root, "docs", "answers.json"), "utf8")) as {
+      answers: Array<{ id: string; source_url: string }>;
+    };
+    const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8")) as {
+      support_pages: Array<{ slug: string; path?: string }>;
+    };
+    const llms = await readFile(join(root, "docs", "llms.txt"), "utf8");
+    const knowledgeGraph = JSON.parse(await readFile(join(root, "docs", "knowledge-graph.json"), "utf8")) as {
+      "@graph": Array<{ "@id"?: string }>;
+    };
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+    const locs = sitemapLocs(sitemap);
+    const acceptedCount = publicAcceptedIndexGrowthCount();
+    const baseline = publicSourceBaselineUrlCount();
+    expect(baseline).toBe(32);
+    expect(locs).toHaveLength(baseline + acceptedCount);
+    expect(locs.some((url) => url.includes("/posts/"))).toBe(false);
+    expect(locs.some((url) => url.endsWith(".json"))).toBe(false);
+    expect(locs.some((url) => url.includes("/assets/"))).toBe(false);
+    expect(homepage).toContain("id=\"guide-hub\"");
+    expect(homepage).toContain("id=\"guide-hub-shoes\"");
+    expect(homepage).toContain("id=\"guide-hub-bags\"");
+    expect(homepage).toContain("id=\"guide-hub-textiles\"");
+    expect(homepage).toContain("id=\"guide-hub-decisions\"");
+    expect(existsSync(join(root, "data", ".calendar-hmac-key"))).toBe(false);
+
+    const acceptedPages = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-08-31" });
+    const acceptedPaths = new Set(acceptedPages.map((page) => page.path));
+    const publicPaths = new Set(publicSupportPages().map((page) => page.path));
+    const sitemapPaths = new Set(locs.map((url) => pathFromUrl(url, baseUrl)));
+    const answerPaths = new Set(
+      answers.answers.map((item) => item.source_url.replace(`${baseUrl}/`, "")).filter((path) => path !== `${baseUrl}/` && !path.startsWith("services/"))
+    );
+    const discoveryPaths = new Set(
+      discovery.support_pages.map((page) => page.path ?? publicSupportPages().find((item) => item.slug === page.slug)?.path ?? "")
+    );
+    for (const path of acceptedPaths) {
+      expect(sitemapPaths.has(path), path).toBe(true);
+      expect(publicPaths.has(path), path).toBe(true);
+    }
+
+    for (const page of acceptedPages) {
+      const html = await readFile(join(root, "docs", page.path), "utf8");
+      const parentService = page.service_slug ?? "";
+      const body = articleBodyHtml(html);
+      expect(sitemap).toContain(`<loc>${baseUrl}/${page.path}</loc>`);
+      expect(sitemap).toContain(`<lastmod>${page.content_lastmod}</lastmod>`);
+      expect(html).not.toContain("2026-07-10T03:00:00.000Z");
+      expect(html).toContain(`<p>${page.citation_answer}</p>`);
+      expect(body).toContain(`data-parent-service`);
+      expect(bodyAnchorsTo(html, `${parentService}.html`), `${page.slug} parent`).toHaveLength(1);
+      expect(html).toContain("data-related-guides");
+      const related = page.related_slugs ?? [];
+      expect(related.length).toBeGreaterThanOrEqual(2);
+      const relatedHits = related.filter((slug) => body.includes(`${slug}.html`));
+      expect(relatedHits.length, `${page.slug} related guides`).toBeGreaterThanOrEqual(2);
+      expect(body).toContain("taichung-citywide-laundry-pickup.html");
+      expect(body).toContain("taichung-laundry-price-list.html");
+      expect(answers.answers.some((item) => item.id === `${page.slug}-summary`)).toBe(true);
+      expect(discovery.support_pages.some((item) => item.slug === page.slug)).toBe(true);
+      expect(aiSitemap).toContain(`<!-- guide-page-${page.slug} -->`);
+      expect(llms).toContain(`${baseUrl}/${page.path}`);
+      expect(knowledgeGraph["@graph"].some((item) => item["@id"]?.includes(page.path))).toBe(true);
+    }
+
+    for (const candidate of INDEX_GROWTH_REJECTED_CANDIDATES) {
+      expect(sitemap).not.toContain(candidate.slug);
+      expect(aiSitemap).not.toContain(candidate.slug);
+      expect(llms).not.toContain(candidate.slug);
+      expect(discovery.support_pages.some((item) => item.slug === candidate.slug)).toBe(false);
+      expect(answers.answers.some((item) => item.id.startsWith(`${candidate.slug}-`))).toBe(false);
+    }
+  });
+
+  it("accepted guide body has exactly one crawlable parent-service target", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-index-growth-parent-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-10T03:00:00.000Z"
+    });
+    const sample = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-08-31" })[0];
+    if (!sample?.service_slug) throw new Error("missing accepted page");
+    const html = await readFile(join(root, "docs", sample.path), "utf8");
+    expect(
+      bodyAnchorsTo(html, `${sample.service_slug}.html`),
+      "accepted page body parent-service target"
+    ).toHaveLength(1);
+  });
+
+  it("body parent-link assertion fails after removing the article parent while nav remains", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-index-growth-mutation-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-10T03:00:00.000Z"
+    });
+
+    const sample = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-08-31" })[0];
+    if (!sample?.service_slug) throw new Error("missing accepted page");
+    const htmlPath = join(root, "docs", sample.path);
+    const original = await readFile(htmlPath, "utf8");
+    expect(bodyAnchorsTo(original, `${sample.service_slug}.html`)).toHaveLength(1);
+    expect(original).toContain(`<nav class="nav"`);
+    expect(original).toMatch(new RegExp(`<nav class="nav"[\\s\\S]*${sample.service_slug}\\.html`));
+
+    const withoutBodyParent = original.replace(/\s*<a href="[^"]+" data-parent-service>[\s\S]*?<\/a>/u, "");
+    expect(withoutBodyParent).toContain(`<nav class="nav"`);
+    expect(withoutBodyParent).toMatch(new RegExp(`<nav class="nav"[\\s\\S]*${sample.service_slug}\\.html`));
+    expect(
+      bodyAnchorsTo(withoutBodyParent, `${sample.service_slug}.html`),
+      "accepted page body parent-service target"
+    ).toHaveLength(0);
+  });
+
+  it("fails closed when the deployment path is missing the production base URL", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-index-growth-deploy-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    await expect(
+      generatePublicSite({
+        root,
+        baseUrl: "https://example.com/laundry-social-auto-poster",
+        now: "2026-07-10T03:00:00.000Z",
+        deployment: true
+      })
+    ).rejects.toThrow(/production public site base URL must be https:\/\/sixiangjialaundry.com/);
+    await expect(
+      generatePublicSite({
+        root,
+        baseUrl: "",
+        now: "2026-07-10T03:00:00.000Z",
+        deployment: true
+      })
+    ).rejects.toThrow(/production public site base URL must be https:\/\/sixiangjialaundry.com/);
+    await generatePublicSite({
+      root,
+      baseUrl: PRODUCTION_PUBLIC_SITE_BASE_URL,
+      now: "2026-07-10T03:00:00.000Z",
+      deployment: true
+    });
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    expect(sitemap).toContain(`<loc>${PRODUCTION_PUBLIC_SITE_BASE_URL}/</loc>`);
+  });
+
+  it("protects the six live cohort source fields with frozen content hashes", async () => {
+    const pages = publicSupportPages();
+    const hashes = Object.fromEntries(
+      PROTECTED_LIVE_COHORT_SLUGS.map((slug) => {
+        const page = pages.find((item) => item.slug === slug);
+        if (!page) throw new Error(`missing protected cohort page ${slug}`);
+        return [slug, protectedSupportContentHash(page)];
+      })
+    );
+    expect(hashes).toEqual(PROTECTED_LIVE_COHORT_HASHES);
+    for (const slug of PROTECTED_LIVE_COHORT_SLUGS) {
+      const page = pages.find((item) => item.slug === slug);
+      if (!page) throw new Error(`missing ${slug}`);
+      expect(protectedSupportContentHash({ ...page, title: `${page.title}x` })).not.toBe(hashes[slug]);
+    }
   });
 });

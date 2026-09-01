@@ -67,8 +67,11 @@
     "indexing-push": "tsx src/indexingPush.ts",
     "share-story": "tsx src/postStory.ts",
     "ga4-report": "tsx src/ga4Report.ts",
+    "ga4-ai-traffic": "tsx src/ga4AiTraffic.ts",
     "ga4-authorize": "node scripts/ga4-authorize.mjs",
     "gsc-search-analytics": "tsx src/gscSearchAnalytics.ts",
+    "gsc-seo-candidates": "tsx src/gscSeoCandidateAutopilot.ts",
+    "seo-exposure-review": "tsx src/seoExposureReview.ts",
     "pause": "tsx src/pause.ts",
     "gsc-index-inspect": "tsx src/gscIndexInspection.ts"
   },

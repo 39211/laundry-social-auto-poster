@@ -25,3 +25,9 @@
 3. Cohort A 五頁尚未成為 live 200，不能列入 live sitemap 或 indexed 分母。
 
 因此 PR #31 保持 Draft；本摘要不代表已合併、部署或收錄增加。
+
+## 09:20 聚焦重跑
+
+- 未設定 `PUBLIC_SITE_BASE_URL` 的裸環境首次載入會在 `contentPlan.ts` 的 LINE URL 組合處 fail-fast；這是必要環境前置條件，不是測試通過證據。
+- 以 `PUBLIC_SITE_BASE_URL=https://sixiangjialaundry.com` 重跑 `test/gscSeoCandidateAutopilot.test.ts` 與 `test/seoExposureReview.test.ts`：2 files／19 tests PASS。
+- 這次重跑只驗證 PR 程式 gate，沒有改寫 output、sitemap、live HTML 或要求建立索引。

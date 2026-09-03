@@ -2465,7 +2465,7 @@ describe("generatePublicSite", () => {
 
   it("keeps checked-in public feeds, calendars, HTML, and image metadata consistent", async () => {
     const docsRoot = join(process.cwd(), "docs");
-    const [social, discovery, sitemap] = await Promise.all([
+    const [social, discovery, sitemap, imageMetadata] = await Promise.all([
       readFile(join(docsRoot, "social-posts.json"), "utf8").then((text) => JSON.parse(text)) as Promise<{
         posts: Array<{
           date: string;
@@ -2488,7 +2488,12 @@ describe("generatePublicSite", () => {
           image_url: string;
         }>;
       }>,
-      readFile(join(docsRoot, "sitemap.xml"), "utf8")
+      readFile(join(docsRoot, "sitemap.xml"), "utf8"),
+      readFile(join(process.cwd(), "docs-internal", "public-image-metadata.json"), "utf8")
+        .then((text) => JSON.parse(text)) as Promise<{
+          schema_version: number;
+          images: Record<string, { width: number; height: number; webp_path: string }>;
+        }>
     ]);
 
     const generatedParts = new Intl.DateTimeFormat("en-CA", {
@@ -2535,7 +2540,9 @@ describe("generatePublicSite", () => {
       }
     }
 
-    let checkedImages = 0;
+    expect(imageMetadata.schema_version).toBe(1);
+    const referencedImages = new Set<string>();
+    let binaryCheckedImages = 0;
     for (const loc of sitemapLocs(sitemap)) {
       const pathname = new URL(loc).pathname.replace(/^\//u, "");
       const htmlPath = pathname === "" ? join(docsRoot, "index.html") : pathname.endsWith("/")
@@ -2547,18 +2554,31 @@ describe("generatePublicSite", () => {
         const src = attributes.match(/\bsrc="([^"]+)"/u)?.[1];
         if (!src || !/\.png(?:$|\?)/iu.test(src)) continue;
         const assetPath = decodeURIComponent(new URL(src, "https://sixiangjialaundry.com/").pathname).replace(/^\//u, "");
+        const metadata = imageMetadata.images[assetPath];
+        expect(metadata, `${pathname} ${assetPath} metadata`).toBeDefined();
+        if (!metadata) continue;
+        referencedImages.add(assetPath);
+        expect(attributes, `${pathname} ${assetPath}`).toContain(`width="${metadata.width}"`);
+        expect(attributes, `${pathname} ${assetPath}`).toContain(`height="${metadata.height}"`);
+        expect(metadata.webp_path, `${pathname} ${assetPath} webp metadata`).toBe(
+          assetPath.replace(/\.png$/iu, ".webp")
+        );
+        expect(html, `${pathname} ${assetPath} webp source`).toContain(src.replace(/\.png(?=$|\?)/iu, ".webp"));
+
         const pngPath = join(docsRoot, assetPath);
         if (!(await exists(pngPath))) continue;
         const size = await pngPixelSize(pngPath);
-        expect(attributes, `${pathname} ${assetPath}`).toContain(`width="${size.width}"`);
-        expect(attributes, `${pathname} ${assetPath}`).toContain(`height="${size.height}"`);
+        expect(size, `${pathname} ${assetPath} binary metadata`).toEqual({
+          width: metadata.width,
+          height: metadata.height
+        });
         const webpPath = pngPath.replace(/\.png$/iu, ".webp");
-        if (await exists(webpPath)) {
-          expect(html, `${pathname} ${assetPath} webp`).toContain(src.replace(/\.png(?=$|\?)/iu, ".webp"));
-        }
-        checkedImages += 1;
+        expect(await exists(webpPath), `${pathname} ${assetPath} webp binary`).toBe(true);
+        binaryCheckedImages += 1;
       }
     }
-    expect(checkedImages).toBeGreaterThan(100);
+    expect(referencedImages.size).toBeGreaterThan(100);
+    expect(Object.keys(imageMetadata.images).sort()).toEqual([...referencedImages].sort());
+    expect(binaryCheckedImages).toBeGreaterThan(0);
   });
 });

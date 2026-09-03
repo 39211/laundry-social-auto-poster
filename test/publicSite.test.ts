@@ -693,16 +693,23 @@ describe("generatePublicSite", () => {
     expect(firstPostHtml).toContain('class="breadcrumb"');
     expect(firstPostHtml).toContain("客人常用查詢");
     expect(firstPostHtml).toContain("白鞋泛黃怎麼辦");
-    expect(html).toContain("depth-band depth-laundry");
-    expect(html).toContain("depth-band depth-shoe-bag");
-    expect(html).toContain("depth-band depth-white-shoe");
-    expect(html).toContain("depth-band depth-fabric");
-    expect(html).toContain("depth-band depth-local-store");
-    expect(html).toContain('url("assets/backgrounds/premium-laundry-depth.png")');
-    expect(html).toContain('url("assets/backgrounds/shoe-bag-care-depth.png")');
-    expect(html).toContain('url("assets/backgrounds/white-shoe-depth.png")');
-    expect(html).toContain('url("assets/backgrounds/fabric-storage-depth.png")');
-    expect(html).toContain('url("assets/backgrounds/local-store-depth.png")');
+    // iprinter-pattern shell: sticky header, hero grid, four-step flow bar, CTA band, dark footer, mobile sticky CTA.
+    expect(html).toContain('<header class="site-header">');
+    expect(html).toContain('<span class="brand-mark">私</span>');
+    expect(html).toContain('<section class="home-hero"');
+    expect(html).toContain('class="home-hero__visual"');
+    expect(html).toContain('class="home-hero__app"');
+    expect(html).toContain('<section class="home-flow"');
+    expect((html.match(/<ol class="home-flow__list">[\s\S]*?<\/ol>/u)?.[0]?.match(/<li>/g) ?? [])).toHaveLength(4);
+    expect(html).toContain('class="home-office-callout"');
+    expect(html).toContain('<section class="section" id="services">');
+    expect((html.match(/class="card product-card service-card"/g) ?? []).length).toBeGreaterThanOrEqual(7);
+    expect(html).toContain('<section class="cta-band">');
+    expect(html).toContain('<footer class="site-footer">');
+    expect(html).toContain('class="mobile-sticky-cta"');
+    expect(html.indexOf('<footer class="site-footer">')).toBeGreaterThan(html.indexOf("</main>"));
+    expect(html).not.toContain("depth-band");
+    expect(html).not.toContain('class="topbar"');
     expect(html).toContain("外套、寢具與布品收納前產品級檢查主圖 - 私享家洗衣店布品收納檢查示意圖");
     expect(html).toContain("04-2452-7411");
     expect(html).toContain("0968-327-653");
@@ -714,8 +721,8 @@ describe("generatePublicSite", () => {
     expect(html).toContain("台中西屯洗包");
     expect(html).toContain("週一至週五 10:00-20:00");
     expect(html).toContain("依需求找到服務");
-    expect(html).toContain('class="section-header section-header-bottom"');
-    expect(html.indexOf('class="discovery-grid"')).toBeLessThan(html.indexOf('class="section-header section-header-bottom"'));
+    expect(html).toContain('class="grid four discovery-grid"');
+    expect(html.indexOf("依需求找到服務")).toBeLessThan(html.indexOf('class="grid four discovery-grid"'));
     expect(html).toContain("依物件找服務");
     expect(html).toContain("依地區找服務");
     expect(html).toContain("台中西屯洗衣店");
@@ -1572,7 +1579,7 @@ describe("generatePublicSite", () => {
     expect(html).toContain("posts/2026-07-04-slot-01.html");
     // A duplicate-caption post has no article of its own, but "read full post" must still
     // reach the article that owns that caption — never the raw calendar JSON.
-    const readFullPostHrefs = [...html.matchAll(/<a href="([^"]*)">read full post<\/a>/gu)].map(
+    const readFullPostHrefs = [...html.matchAll(/<a class="card-link" href="([^"]*)">閱讀文章<\/a>/gu)].map(
       (match) => match[1]
     );
     expect(readFullPostHrefs).toHaveLength(4);

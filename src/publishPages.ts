@@ -322,7 +322,17 @@ function copyDirectoryContents(source: string, target: string): void {
   }
 }
 
-const MIRROR_REPLACE_DIRS = new Set(["guides", "local", "services", "go", "posts", "content-calendar", "docs"]);
+const MIRROR_REPLACE_DIRS = new Set([
+  "guides",
+  "knowledge",
+  "local",
+  "services",
+  "scripts",
+  "go",
+  "posts",
+  "content-calendar",
+  "docs"
+]);
 
 type MirrorPathKind = "replace-directory" | "overlay-directory" | "file";
 
@@ -501,7 +511,9 @@ export function publishPagesAssets(
     "docs/posts",
     "docs/services",
     "docs/guides",
+    "docs/knowledge",
     "docs/local",
+    "docs/scripts",
     "docs/go",
     "docs/llms-lite.txt",
     "docs/llms.txt",

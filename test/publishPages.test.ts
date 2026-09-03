@@ -167,9 +167,13 @@ describe("publishPagesAssets", () => {
 
     mkdirSync(join(root, "docs", "assets", date), { recursive: true });
     mkdirSync(join(root, "docs", "content-calendar"), { recursive: true });
+    mkdirSync(join(root, "docs", "knowledge"), { recursive: true });
+    mkdirSync(join(root, "docs", "scripts"), { recursive: true });
     writeFileSync(join(root, "docs", "index.html"), "<!doctype html><title>root</title>\n");
     writeFileSync(join(root, "docs", ".nojekyll"), "");
     writeFileSync(join(root, "docs", "content-calendar", `${date}.json`), '{"slots":[]}\n');
+    writeFileSync(join(root, "docs", "knowledge", "index.html"), "<!doctype html><title>knowledge</title>\n");
+    writeFileSync(join(root, "docs", "scripts", "search-content-analytics.js"), "window.dataLayer = [];\n");
     writeFileSync(join(root, "docs", "assets", date, "slot-01.png"), "fake image");
     writeSitemap(root, "2026-01-01");
     writeFileSync(join(root, ".env"), "META_ACCESS_TOKEN=EAA-this-should-not-commit\n");
@@ -180,6 +184,8 @@ describe("publishPagesAssets", () => {
     expect(result).toContain("Mirrored public site to root Pages repo");
     expect(mirrorTree).toContain("index.html");
     expect(mirrorTree).toContain(`content-calendar/${date}.json`);
+    expect(mirrorTree).toContain("knowledge/index.html");
+    expect(mirrorTree).toContain("scripts/search-content-analytics.js");
     expect(mirrorTree).toContain(`assets/${date}/slot-01.png`);
     expect(mirrorTree).not.toContain("docs/index.html");
     expect(mirrorTree).not.toContain(".env");

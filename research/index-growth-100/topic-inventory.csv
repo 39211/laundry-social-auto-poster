@@ -1,0 +1,123 @@
+slug,path,page_type,publish_state,gsc_state,query_intent,service_fit,unique_answer,source_evidence,cannibalization_risk,hub_group,related_links
+homepage,/,homepage,existing,indexed,店名與收送總覽,taichung-xitun-laundry,門市在西屯青海路；台中市可免費收送,business-profile.json + homepage,low,local,services
+shoe-bag-care,services/shoe-bag-care.html,service,existing,indexed,鞋包清潔,shoe-bag-care,先看材質再清潔,existing service page,low,bags,guides
+white-shoe-cleaning,services/white-shoe-cleaning.html,service,existing,indexed,白鞋清潔,white-shoe-cleaning,白鞋先分灰與黃,existing service page,low,shoes,white-shoe-yellowing
+fabric-storage,services/fabric-storage.html,service,existing,discovered_not_indexed,布品收納,fabric-storage,收納前先確認乾燥,existing service page,low,textiles,bedding-storage-check
+taichung-xitun-laundry,services/taichung-xitun-laundry.html,service,existing,unknown,西屯洗衣店,taichung-xitun-laundry,地址與服務範圍,existing service page,low,local,photo-before-laundry
+business-bulk-laundry,services/business-bulk-laundry.html,service,existing,discovered_not_indexed,大量衣物送洗,business-bulk-laundry,店家公司可先問收送,existing service page,low,decisions,taichung-citywide-laundry-pickup
+taichung-citywide-laundry-pickup,services/taichung-citywide-laundry-pickup.html,service,existing,discovered_not_indexed,全市免費收送,taichung-citywide-laundry-pickup,收送免費、清潔另計,existing service page,low,local,taichung-xitun-laundry
+taichung-laundry-price-list,services/taichung-laundry-price-list.html,service,existing,discovered_not_indexed,洗衣價目,taichung-laundry-price-list,水洗參考價不是固定價,existing price page,low,decisions,shoe-bag-care
+photo-before-laundry,guides/photo-before-laundry.html,guide,existing,indexed,送洗前拍照,taichung-xitun-laundry,先拍整體局部材質痕跡,existing guide,low,decisions,taichung-xitun-laundry
+white-shoe-yellowing,guides/white-shoe-yellowing.html,guide,existing,indexed,白鞋灰與黃,white-shoe-cleaning,灰可清黃在膠邊是氧化,existing guide,low,shoes,white-shoe-cleaning
+school-uniform-care,guides/school-uniform-care.html,guide,existing,indexed,制服領口整燙順序,taichung-xitun-laundry,先處理舊痕再整燙,existing guide,medium,textiles,shirt-suit-dry-cleaning
+birkenstock-care,guides/birkenstock-care.html,guide,existing,indexed,勃肯軟木鞋床,white-shoe-cleaning,軟木與麂皮要分開處理,existing guide,low,shoes,suede-shoe-cleaning
+luxury-bag-mold,guides/luxury-bag-mold.html,guide,existing,indexed,精品包發霉,shoe-bag-care,先別濕擦,existing guide,low,bags,shoe-mold-surface-check
+down-jacket-cleaning,guides/down-jacket-cleaning.html,guide,existing,indexed,羽絨洗烘,fabric-storage,怕結塊與沒乾透,existing guide,low,textiles,post-wash-drying-before-storage
+leather-jacket-care,guides/leather-jacket-care.html,guide,existing,indexed,皮衣保養,shoe-bag-care,真皮合成皮麂皮不同,existing guide,low,textiles,synthetic-vs-leather-handle
+dry-cleaning-guide,guides/dry-cleaning-guide.html,guide,existing,indexed,乾洗或水洗,taichung-xitun-laundry,油性偏乾洗水性偏水洗,existing guide,medium,decisions,oil-vs-water-stain-choice
+rainy-shoe-care,guides/rainy-shoe-care.html,guide,existing,indexed,雨天鞋子進水,shoe-bag-care,先通風取出鞋墊,existing guide,medium,shoes,leather-shoe-water-marks
+bag-handle-cleaning,guides/bag-handle-cleaning.html,guide,existing,indexed,提把包角行李箱輪,shoe-bag-care,輪灰收進櫃子就是味道,existing guide,medium,bags,synthetic-vs-leather-handle
+bedding-storage-check,guides/bedding-storage-check.html,guide,existing,indexed,收納前檢查,fabric-storage,表面乾中間不一定乾,existing guide,medium,textiles,vacuum-bag-storage-risk
+shirt-suit-dry-cleaning,guides/shirt-suit-dry-cleaning.html,guide,existing,indexed,襯衫西裝,taichung-xitun-laundry,材質內襯分開判斷,existing guide,medium,decisions,wool-coat-dry-clean
+bedding-duvet-cleaning,guides/bedding-duvet-cleaning.html,guide,existing,indexed,棉被床組清洗,fabric-storage,沒乾透下一季就是味道,existing guide,low,textiles,post-wash-drying-before-storage
+plush-doll-cleaning,guides/plush-doll-cleaning.html,guide,existing,indexed,娃娃絨毛,taichung-xitun-laundry,怕脫水結塊五官脫落,existing guide,low,textiles,photo-before-laundry
+luxury-dry-cleaning,guides/luxury-dry-cleaning.html,guide,existing,indexed,精品乾洗,taichung-xitun-laundry,不因品牌保證全新,existing guide,low,decisions,bag-clean-vs-repair
+taichung-laundry-service-search,guides/taichung-laundry-service-search.html,guide,existing,discovered_not_indexed,怎麼找服務,taichung-xitun-laundry,先用物件和問題找頁,existing hub,low,local,photo-before-laundry
+clothing-alteration-with-laundry,guides/clothing-alteration-with-laundry.html,guide,existing,indexed,送洗順便修改,taichung-xitun-laundry,小修與改版型不同,existing guide,low,decisions,taichung-xitun-laundry
+qinghai-road-shoe-cleaning,local/qinghai-road-shoe-cleaning.html,local,existing,indexed,逢甲西屯洗鞋怎麼挑,shoe-bag-care,先講界線再決定送,existing local,low,local,shoe-bag-care
+luggage-wheel-cleaning,guides/luggage-wheel-cleaning.html,guide,existing,indexed,行李箱輪子底板,shoe-bag-care,行李箱收進櫃子前先看輪子,existing live page,low,bags,bag-handle-cleaning
+curtain-cleaning,guides/curtain-cleaning.html,guide,existing,indexed,窗簾布料軌道,fabric-storage,窗簾先看布料與軌道,existing live page,low,textiles,carpet-cleaning
+carpet-cleaning,guides/carpet-cleaning.html,guide,existing,indexed,地毯材質潮濕,fabric-storage,地毯先看材質與潮濕,existing live page,low,textiles,curtain-cleaning
+fengjia-laundry-pickup,local/fengjia-laundry-pickup.html,local,existing,indexed,逢甲宿舍洗衣收送,taichung-xitun-laundry,逢甲洗衣可先LINE傳照片,existing live page,low,local,qinghai-road-shoe-cleaning
+zhongke-office-laundry,local/zhongke-office-laundry.html,local,existing,indexed,中科襯衫公司件,business-bulk-laundry,中科園區襯衫可約收送,existing live page,low,local,taichung-xitun-laundry
+donghai-laundry-pickup,local/donghai-laundry-pickup.html,local,existing,indexed,東海厚被窗簾收送,taichung-xitun-laundry,東海生活圈可約免費收送,existing live page,low,local,curtain-cleaning
+suede-shoe-cleaning,guides/suede-shoe-cleaning.html,guide,accepted,generated,麂皮倒伏與濕擦,shoe-bag-care,麂皮變硬多半是絨毛倒伏不要濕擦,shoe-bag + qinghai suede facts,low,shoes,canvas-shoe-mud|rainy-shoe-care
+canvas-shoe-mud,guides/canvas-shoe-mud.html,guide,accepted,generated,帆布濕泥等乾,shoe-bag-care,帆布沾泥先等乾再處理,rainy-shoe canvas mud fact,low,shoes,suede-shoe-cleaning|rainy-shoe-care
+leather-shoe-water-marks,guides/leather-shoe-water-marks.html,guide,accepted,generated,皮鞋雨痕上油時機,shoe-bag-care,皮鞋雨痕先不要上油,rainy-shoe oil-lock fact,medium,shoes,rainy-shoe-care|suede-shoe-cleaning
+shoe-odor-source,guides/shoe-odor-source.html,guide,accepted,generated,鞋臭來源,shoe-bag-care,鞋臭先分潮氣汗垢與悶放,shoe-bag inner odor facts,low,shoes,washing-machine-shoe-risk|rainy-shoe-care
+washing-machine-shoe-risk,guides/washing-machine-shoe-risk.html,guide,accepted,generated,鞋子機洗風險,shoe-bag-care,鞋子不建議丟洗衣機,birkenstock/plush dehydration risk,low,shoes,athletic-shoe-mixed-materials|photo-before-laundry
+athletic-shoe-mixed-materials,guides/athletic-shoe-mixed-materials.html,guide,accepted,generated,運動鞋分部位,shoe-bag-care,運動鞋要分網布膠邊與內裡,shoe-bag mixed materials,low,shoes,white-shoe-yellowing|washing-machine-shoe-risk
+shoe-mold-surface-check,guides/shoe-mold-surface-check.html,guide,accepted,generated,鞋子發霉,shoe-bag-care,鞋子發霉先通風不要刷,luxury-bag-mold + price mold caveat,low,shoes,luxury-bag-mold|clothing-mold-airing
+shoe-sole-separation-limit,guides/shoe-sole-separation-limit.html,guide,accepted,generated,開膠不是清潔,shoe-bag-care,鞋底開膠不是清潔能處理的,cleaning is not repair,low,shoes,athletic-shoe-mixed-materials|washing-machine-shoe-risk
+bag-color-transfer,guides/bag-color-transfer.html,guide,accepted,generated,色移與掉色,shoe-bag-care,色移先分外來染料與自身掉色,shoe-bag color-loss boundary,low,bags,bag-clean-vs-repair|bag-handle-cleaning
+bag-ink-marks,guides/bag-ink-marks.html,guide,accepted,generated,內裡筆痕,shoe-bag-care,包內筆痕先不要用酒精擦,bag-handle pen mark mention,low,bags,bag-lining-care|bag-handle-cleaning
+bag-lining-care,guides/bag-lining-care.html,guide,accepted,generated,內裡粉塵味道,shoe-bag-care,外觀乾淨不代表內袋乾淨,bag-handle lining mention,low,bags,bag-ink-marks|rainy-bag-care
+nylon-bag-care,guides/nylon-bag-care.html,guide,accepted,generated,尼龍油垢水痕,shoe-bag-care,尼龍包先看油垢與水痕,shoe-bag nylon material,low,bags,canvas-bag-care|rainy-bag-care
+canvas-bag-care,guides/canvas-bag-care.html,guide,accepted,generated,帆布包泥與包角,shoe-bag-care,帆布包泥灰等乾包角磨耗不是髒,canvas shoe + bag corner facts,low,bags,nylon-bag-care|canvas-shoe-mud
+backpack-cleaning-check,guides/backpack-cleaning-check.html,guide,accepted,generated,書包背包結構,shoe-bag-care,書包背包先看底部背帶與內袋,school-uniform bag + price backpack,low,bags,bag-lining-care|school-uniform-care
+bag-clean-vs-repair,guides/bag-clean-vs-repair.html,guide,accepted,generated,清潔與補色分界,shoe-bag-care,清潔只處理髒與部分水痕,shoe-bag repair boundary,low,bags,bag-color-transfer|luxury-bag-mold
+wool-coat-dry-clean,guides/wool-coat-dry-clean.html,guide,accepted,generated,羊毛大衣結構,taichung-xitun-laundry,羊毛大衣通常走乾洗,dry-cleaning wool coat,medium,textiles,dry-cleaning-guide|wool-knit-shrink-risk
+wool-knit-shrink-risk,guides/wool-knit-shrink-risk.html,guide,accepted,generated,針織縮絨,taichung-xitun-laundry,針織毛衣怕縮水變形,dry-cleaning wool + sweater item,low,textiles,wool-coat-dry-clean|dry-cleaning-guide
+clothing-mold-airing,guides/clothing-mold-airing.html,guide,accepted,generated,衣物發霉,fabric-storage,衣物發霉先通風不要濕擦,bag/shoe mold + fabric storage,low,textiles,shoe-mold-surface-check|bedding-storage-check
+vacuum-bag-storage-risk,guides/vacuum-bag-storage-risk.html,guide,accepted,generated,真空袋未乾,fabric-storage,還沒乾就真空壓縮味道會被悶住,fabric-storage vacuum warning,low,decisions,post-wash-drying-before-storage|bedding-storage-check
+oil-vs-water-stain-choice,guides/oil-vs-water-stain-choice.html,guide,accepted,generated,油漬或汗漬,taichung-xitun-laundry,汗漬偏水洗油光偏乾洗,dry-cleaning stain types,medium,decisions,dry-cleaning-guide|shirt-suit-dry-cleaning
+blanket-damp-check,guides/blanket-damp-check.html,guide,accepted,generated,毯子潮氣,fabric-storage,毯子收納前先聞潮味,bedding-storage blanket mention,low,textiles,bedding-storage-check|post-wash-drying-before-storage
+post-wash-drying-before-storage,guides/post-wash-drying-before-storage.html,guide,accepted,generated,洗後乾燥再收,fabric-storage,洗完沒乾透就收納等於把潮氣封回去,duvet/down drying facts,low,decisions,vacuum-bag-storage-risk|bedding-duvet-cleaning
+synthetic-vs-leather-handle,guides/synthetic-vs-leather-handle.html,guide,accepted,generated,真皮或合成皮提把,shoe-bag-care,合成皮與真皮提把清潔方式不同,leather jacket + bag handle,low,bags,bag-handle-cleaning|leather-jacket-care
+rainy-bag-care,guides/rainy-bag-care.html,guide,accepted,generated,雨後包包,shoe-bag-care,雨後包包先通風看包角與內裡,shoe-bag rain + lining,medium,bags,rainy-shoe-care|bag-lining-care
+wallet-cleaning,guides/wallet-cleaning.html,guide,rejected,unknown,皮夾清潔,shoe-bag-care,n/a,no distinct public-page evidence,merge,bags,none
+mattress-protector-sofa-cover,guides/mattress-protector-sofa-cover.html,guide,rejected,unknown,保潔墊沙發套,fabric-storage,n/a,only unpublished prices.json,low,textiles,none
+clothing-pilling-vs-stain,guides/clothing-pilling-vs-stain.html,guide,rejected,unknown,起毛球或污漬,taichung-xitun-laundry,n/a,insufficient clothing pilling facts,merge,textiles,none
+collar-yellowing-everyday,guides/collar-yellowing-everyday.html,guide,merge,unknown,日常領口黃,taichung-xitun-laundry,n/a,covered by uniform and shirt pages,merge,textiles,school-uniform-care
+xitun-vs-beitun-shoe-clone,local/beitun-shoe-cleaning.html,local,rejected,unknown,北屯洗鞋,shoe-bag-care,n/a,geography-only doorway,low,local,none
+high-boot-vs-low-boot,guides/high-boot-vs-low-boot.html,guide,rejected,unknown,高靴低靴,shoe-bag-care,n/a,price SKU split not a decision,low,shoes,none
+brand-model-sneaker-pages,guides/brand-model-sneakers.html,guide,rejected,unknown,依品牌型號,shoe-bag-care,n/a,scaled content,low,shoes,none
+silk-blouse-water-risk,guides/silk-blouse-water-risk.html,guide,draft,unknown,絲質怕水,taichung-xitun-laundry,draft,dry-cleaning silk mention needs thicker unique steps,medium,textiles,dry-cleaning-guide
+rayon-shrink-check,guides/rayon-shrink-check.html,guide,draft,unknown,嫘縈縮水,taichung-xitun-laundry,draft,mentioned in dry-clean FAQ only,medium,textiles,dry-cleaning-guide
+suit-padding-structure,guides/suit-padding-structure.html,guide,draft,unknown,西裝墊肩結構,taichung-xitun-laundry,draft,overlaps shirt-suit page,merge,decisions,shirt-suit-dry-cleaning
+curtain-size-quote,guides/curtain-size-quote.html,guide,draft,unknown,窗簾尺寸,taichung-xitun-laundry,draft,price list says quote by photo; thin if no inspection steps,low,textiles,taichung-laundry-price-list
+carpet-soil-check,guides/carpet-soil-check.html,guide,draft,unknown,地毯泥沙,taichung-xitun-laundry,draft,same quote-by-size limit,low,textiles,taichung-laundry-price-list
+down-storage-compression,guides/down-storage-compression.html,guide,draft,unknown,羽絨壓縮收納,fabric-storage,draft,overlaps down-jacket and vacuum pages,merge,textiles,down-jacket-cleaning
+white-shoe-bleach-risk,guides/white-shoe-bleach-risk.html,guide,draft,unknown,白鞋漂白,white-shoe-cleaning,draft,already in white-shoe-yellowing,merge,shoes,white-shoe-yellowing
+insole-removable-odor,guides/insole-removable-odor.html,guide,draft,unknown,鞋墊可拆,shoe-bag-care,draft,subset of odor page,merge,shoes,shoe-odor-source
+golf-shoe-spike-limit,guides/golf-shoe-spike-limit.html,guide,draft,unknown,高爾夫球鞋,shoe-bag-care,draft,prices.json only; not on public price table,low,shoes,none
+hiking-boot-mud,guides/hiking-boot-mud.html,guide,draft,unknown,登山鞋泥,shoe-bag-care,draft,risk of canvas-mud clone,medium,shoes,canvas-shoe-mud
+kids-shoe-cleaning,guides/kids-shoe-cleaning.html,guide,draft,unknown,童鞋,shoe-bag-care,draft,price mentioned on local page; need distinct child-safety intent,medium,shoes,qinghai-road-shoe-cleaning
+heel-coating-scuff,guides/heel-coating-scuff.html,guide,draft,unknown,高跟鞋擦傷,shoe-bag-care,draft,price mentioned; scuff may be repair not cleaning,medium,shoes,bag-clean-vs-repair
+name-brand-shoe-limit,guides/name-brand-shoe-limit.html,guide,draft,unknown,名牌鞋限度,shoe-bag-care,draft,overlaps luxury pages,merge,shoes,luxury-dry-cleaning
+tote-base-wear,guides/tote-base-wear.html,guide,draft,unknown,托特包底部,shoe-bag-care,draft,subset of canvas-bag / backpack,merge,bags,canvas-bag-care
+crossbody-strap-oil,guides/crossbody-strap-oil.html,guide,draft,unknown,肩帶油汗,shoe-bag-care,draft,subset of handle page,merge,bags,bag-handle-cleaning
+metal-hardware-oxidation,guides/metal-hardware-oxidation.html,guide,draft,unknown,五金氧化,shoe-bag-care,draft,mentioned in luxury bag mold; needs unique steps,medium,bags,luxury-bag-mold
+dust-bag-storage,guides/dust-bag-storage.html,guide,draft,unknown,防塵袋收納,shoe-bag-care,draft,subset of rainy-bag and lining,merge,bags,rainy-bag-care
+business-uniform-oil,guides/business-uniform-oil.html,guide,draft,unknown,工作制服油污,business-bulk-laundry,draft,could support bulk page if inspection steps exist,low,textiles,business-bulk-laundry
+towel-lot-sorting,guides/towel-lot-sorting.html,guide,draft,unknown,毛巾分批,business-bulk-laundry,draft,bulk page case only,medium,textiles,business-bulk-laundry
+bedsheet-sweat-yellow,guides/bedsheet-sweat-yellow.html,guide,draft,unknown,床單汗黃,fabric-storage,draft,overlaps duvet page,merge,textiles,bedding-duvet-cleaning
+pillowcase-skin-contact,guides/pillowcase-skin-contact.html,guide,draft,unknown,枕套接觸,fabric-storage,draft,overlaps storage check,merge,textiles,bedding-storage-check
+coat-collar-oil,guides/coat-collar-oil.html,guide,draft,unknown,大衣領油光,taichung-xitun-laundry,draft,overlaps wool coat and oil-vs-water,merge,textiles,wool-coat-dry-clean
+holiday-hours-lookup,guides/holiday-hours-lookup.html,guide,draft,unknown,節日營業,taichung-xitun-laundry,draft,business-profile has rule but no dated overrides,low,local,none
+line-photo-checklist-clothing,guides/line-photo-checklist-clothing.html,guide,draft,unknown,衣物拍照清單,taichung-xitun-laundry,draft,subset of photo-before-laundry,merge,decisions,photo-before-laundry
+pickup-single-item,guides/pickup-single-item.html,guide,draft,unknown,一件也收,taichung-citywide-laundry-pickup,draft,already on pickup page,merge,local,taichung-citywide-laundry-pickup
+price-list-how-to-read,guides/price-list-how-to-read.html,guide,draft,unknown,怎麼讀價目,taichung-laundry-price-list,draft,thin if it only restates the table,medium,decisions,taichung-laundry-price-list
+stain-time-since-incident,guides/stain-time-since-incident.html,guide,draft,unknown,污漬放置時間,taichung-xitun-laundry,draft,needs more first-party steps,medium,decisions,oil-vs-water-stain-choice
+synthetic-coat-wash,guides/synthetic-coat-wash.html,guide,draft,unknown,合成纖維外套,taichung-xitun-laundry,draft,thin without unique inspection table,medium,textiles,wool-coat-dry-clean
+denim-dye-run,guides/denim-dye-run.html,guide,draft,unknown,牛仔褲掉色,taichung-xitun-laundry,draft,overlap color-transfer,medium,textiles,bag-color-transfer
+cashmere-vs-wool-label,guides/cashmere-vs-wool-label.html,guide,draft,unknown,羊絨標示,taichung-xitun-laundry,draft,cashmere not separately evidenced beyond wool knit,medium,textiles,wool-knit-shrink-risk
+sofa-cover-fit,guides/sofa-cover-fit.html,guide,draft,unknown,沙發套,fabric-storage,draft,unsupported on public pages,low,textiles,none
+mattress-protector-waterproof,guides/mattress-protector-waterproof.html,guide,draft,unknown,保潔墊,fabric-storage,draft,unsupported on public pages,low,textiles,none
+schoolbag-ink-set,guides/schoolbag-ink-set.html,guide,draft,unknown,書包筆印定色,shoe-bag-care,draft,subset of ink + backpack,merge,bags,backpack-cleaning-check
+rain-cover-for-bags,guides/rain-cover-for-bags.html,guide,draft,unknown,包包雨套,shoe-bag-care,draft,no first-party rain-cover fact,low,bags,rainy-bag-care
+odor-from-cabinet,guides/odor-from-cabinet.html,guide,draft,unknown,櫃味回沾,fabric-storage,draft,subset of storage check,merge,textiles,bedding-storage-check
+glue-repair-referral,guides/glue-repair-referral.html,guide,draft,unknown,開膠後去哪,shoe-bag-care,draft,would invent a repair offering,low,shoes,shoe-sole-separation-limit
+local-nantun-clone,local/nantun-laundry.html,local,draft,unknown,南屯洗衣,taichung-xitun-laundry,draft,doorway unless unique pickup evidence,low,local,none
+local-beitun-clone,local/beitun-laundry.html,local,draft,unknown,北屯洗衣,taichung-xitun-laundry,draft,doorway,low,local,none
+local-taiping-clone,local/taiping-laundry.html,local,draft,unknown,太平洗衣,taichung-xitun-laundry,draft,doorway,low,local,none
+brand-lv-bag,guides/brand-lv-bag.html,guide,draft,unknown,特定品牌包,shoe-bag-care,draft,scaled brand pages forbidden,low,bags,none
+brand-nike-shoe,guides/brand-nike-shoe.html,guide,draft,unknown,特定品牌鞋,shoe-bag-care,draft,scaled brand pages forbidden,low,shoes,none
+same-answer-xitun-fengjia,guides/fengjia-suede-clone.html,guide,draft,unknown,逢甲麂皮克隆,shoe-bag-care,draft,location swap of suede page,low,shoes,suede-shoe-cleaning
+drying-rack-vs-dryer,guides/drying-rack-vs-dryer.html,guide,draft,unknown,陰乾或烘衣,fabric-storage,draft,need more than high-temp warning already used,medium,decisions,post-wash-drying-before-storage
+storage-silica-gel,guides/storage-silica-gel.html,guide,draft,unknown,乾燥劑,fabric-storage,draft,no owner-confirmed product fact,low,decisions,vacuum-bag-storage-risk
+linen-shirt-wrinkle,guides/linen-shirt-wrinkle.html,guide,draft,unknown,麻料皺,taichung-xitun-laundry,draft,not evidenced as distinct service,medium,textiles,shirt-suit-dry-cleaning
+wool-blanket-vs-cotton-blanket,guides/wool-blanket-vs-cotton-blanket.html,guide,draft,unknown,羊毛毯或棉毯,fabric-storage,draft,risk of SKU split,medium,textiles,blanket-damp-check
+bag-shoulder-drop,guides/bag-shoulder-drop.html,guide,draft,unknown,肩帶斷裂,shoe-bag-care,draft,repair not cleaning,low,bags,bag-clean-vs-repair
+shoe-crease-protection,guides/shoe-crease-protection.html,guide,draft,unknown,鞋頭摺痕,shoe-bag-care,draft,no unique first-party crease process,medium,shoes,athletic-shoe-mixed-materials
+white-bag-yellowing,guides/white-bag-yellowing.html,guide,draft,unknown,白包泛黃,shoe-bag-care,draft,clone of white-shoe yellowing,medium,bags,white-shoe-yellowing
+pet-hair-textiles,guides/pet-hair-textiles.html,guide,draft,unknown,寵物毛,fabric-storage,draft,unsupported,low,textiles,none
+smoke-odor-clothing,guides/smoke-odor-clothing.html,guide,draft,unknown,煙味衣物,taichung-xitun-laundry,draft,searchVisibility mentions smoke but no inspection SOP,medium,textiles,clothing-mold-airing
+sweat-salt-on-caps,guides/sweat-salt-on-caps.html,guide,draft,unknown,帽子汗鹽,taichung-xitun-laundry,draft,hat is in prices.json not public table,low,textiles,none
+scarf-delicate-fiber,guides/scarf-delicate-fiber.html,guide,draft,unknown,圍巾,taichung-xitun-laundry,draft,same unpublished price issue,low,textiles,none
+plush-electronic-parts,guides/plush-electronic-parts.html,guide,draft,unknown,娃娃電子零件,taichung-xitun-laundry,draft,subset of plush page,merge,textiles,plush-doll-cleaning
+luggage-interior-only,guides/luggage-interior-only.html,guide,draft,unknown,行李箱內裡,shoe-bag-care,draft,subset of bag-handle luggage section,merge,bags,bag-handle-cleaning
+citywide-pickup-photo-pack,guides/citywide-pickup-photo-pack.html,guide,draft,unknown,收送拍照包,taichung-citywide-laundry-pickup,draft,subset of photo + pickup pages,merge,local,photo-before-laundry
+bulk-laundry-sorting-colors,guides/bulk-laundry-sorting-colors.html,guide,draft,unknown,大量深淺色,business-bulk-laundry,draft,already a bulk inspection row,medium,decisions,business-bulk-laundry
+price-exception-mold,guides/price-exception-mold.html,guide,draft,unknown,發霉另計,taichung-laundry-price-list,draft,restates disclaimer,merge,decisions,taichung-laundry-price-list
+how-search-picks-sitelinks,guides/how-search-picks-sitelinks.html,guide,draft,unknown,sitelinks解釋,taichung-xitun-laundry,draft,not a customer diagnostic intent,low,decisions,none

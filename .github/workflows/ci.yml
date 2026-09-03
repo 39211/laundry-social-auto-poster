@@ -32,11 +32,11 @@ jobs:
       # working tree carries ~1 GB of published media under docs/. On
       # 2026-08-25 four consecutive windows runners sat 6-26+ minutes inside
       # the default checkout (git fetch has no timeout, so a stalled pack
-      # stream wedges the job). The suite never reads repo-root docs/ -- every
-      # docs/assets string in tests points into its own temp root -- so CI
-      # fetches only the code and data trees. If a future test genuinely needs
-      # another top-level directory, add it to this list; the failure mode is
-      # a visible missing-file red, never a silent pass.
+      # stream wedges the job). The checked-in public-artifact gate reads only
+      # the small calendar and SEO HTML trees below; published media stays out
+      # of the checkout except for the existing 2026-08-17 fixture. If a future
+      # test genuinely needs another directory, add it explicitly; the failure
+      # mode is a visible missing-file red, never a silent pass.
       - uses: actions/checkout@v4
         with:
           filter: blob:none
@@ -47,6 +47,13 @@ jobs:
             config
             data
             docs-internal
+            research
+            docs/content-calendar
+            docs/guides
+            docs/knowledge
+            docs/local
+            docs/posts
+            docs/services
             docs/assets/2026-08-17
 
       - uses: actions/setup-node@v4

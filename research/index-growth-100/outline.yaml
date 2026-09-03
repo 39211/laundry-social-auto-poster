@@ -1,0 +1,70 @@
+topic: sxj-index-growth-100-phase1
+time_range: 2026-08-30 to 2026-09-30
+goal: Increase useful search coverage with distinct diagnostic guides, without doorway pages or invented facts.
+policy_sources:
+  - https://developers.google.com/search/docs/essentials/spam-policies
+  - https://developers.google.com/search/docs/fundamentals/creating-helpful-content
+  - https://developers.google.com/search/docs/fundamentals/how-search-works
+  - https://developers.google.com/search/docs/crawling-indexing/troubleshoot-crawling-errors
+  - https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap
+  - https://developers.google.com/search/docs/fundamentals/ai-optimization-guide
+  - https://developers.google.com/search/docs/appearance/sitelinks
+business_fact_sources:
+  - existing service and support page copy in src/generatePublicSite.ts
+  - data/business-profile.json
+discovery_only_not_copy:
+  - https://www.ultron-lingtung.com/
+  - https://rebirth407.com/
+  - https://www.ultron.tw/
+  - https://www.spajack.com.tw/service/2
+  - https://shoescares.com/service/
+baseline:
+  live_gsc_snapshot: data/insights/gsc-index/2026-08-30.json (verified 2026-08-30; read-only outside this clone)
+  live_sitemap_urls: 32
+  source_baseline_urls: 32
+  source_breakdown:
+    homepage: 1
+    services: 7
+    support_legacy_including_six_live: 24
+  gsc_snapshot_status:
+    indexed: 26
+    discovered_not_indexed: 5
+    unknown: 1
+  gsc_state_contract:
+    generated: sitemap-emitted URL with no snapshot row; not submitted/indexed
+    submitted: URL Inspection submitted, not yet crawled/indexed
+    crawled: crawled, coverage not indexed
+    indexed: snapshot "Submitted and indexed"
+    discovered_not_indexed: snapshot "Discovered - currently not indexed"
+    unknown: snapshot "URL is unknown to Google" or no evidence
+  non_indexed_are_service_or_hub: true
+constraints:
+  - no district/brand/model swaps
+  - no fake stories, prices, guarantees, turnaround, or credentials
+  - no new local landings in phase 1
+  - drafts never enter sitemap, answers.json, or internal link surfaces
+  - sitemap lastmod is explicit content_lastmod, never Date.now()
+  - do not edit the 2026-08-30 indexed observation cohort bodies
+batching:
+  phase1_accepted: derived from catalog publish_state=accepted
+  phase1_sitemap_after: 32 + accepted_count
+  similarity_metric: character-3gram-jaccard
+  similarity_threshold: 0.68
+  citation_count_rule: Unicode code points after whitespace strip, max 50
+clusters:
+  shoes:
+    accepted: [suede-shoe-cleaning, canvas-shoe-mud, leather-shoe-water-marks, shoe-odor-source, washing-machine-shoe-risk, athletic-shoe-mixed-materials, shoe-mold-surface-check, shoe-sole-separation-limit]
+    dropped: [high-boot-vs-low-boot, brand-model-sneaker-pages]
+  bags:
+    accepted: [bag-color-transfer, bag-ink-marks, bag-lining-care, nylon-bag-care, canvas-bag-care, backpack-cleaning-check, bag-clean-vs-repair, synthetic-vs-leather-handle, rainy-bag-care]
+    dropped: [wallet-cleaning]
+  textiles_decisions:
+    accepted: [wool-coat-dry-clean, wool-knit-shrink-risk, clothing-mold-airing, vacuum-bag-storage-risk, oil-vs-water-stain-choice, blanket-damp-check, post-wash-drying-before-storage]
+    dropped: [mattress-protector-sofa-cover, clothing-pilling-vs-stain, collar-yellowing-everyday]
+milestones:
+  - sitemap_50_phase1
+  - sitemap_56_after_gap_fill
+  - sitemap_100
+  - sitemap_150
+  - sitemap_200
+non_guarantee: Sitemap submission is a hint. Google indexing, ranking, and citation are not guaranteed.

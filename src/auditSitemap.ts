@@ -1,9 +1,22 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
-import { writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
+import { getZonedDateParts } from "./scheduler";
+
+async function writeJsonAtomic(filePath: string, value: unknown): Promise<void> {
+  await mkdir(dirname(filePath), { recursive: true });
+  const tempPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    await rename(tempPath, filePath);
+  } finally {
+    await unlink(tempPath).catch(() => undefined);
+  }
+}
 
 const REQUIRED_PATHS = [
   "/",
@@ -20,14 +33,60 @@ export interface SitemapAuditResult {
   checks: Array<{ name: string; status: "pass" | "fail"; detail: string }>;
 }
 
+function sitemapLastmodDates(xml: string): string[] {
+  return [...xml.matchAll(/<lastmod>\s*(\d{4}-\d{2}-\d{2})[^<]*<\/lastmod>/g)]
+    .map((match) => match[1])
+    .filter((date): date is string => Boolean(date));
+}
+
+export function futureLastmodDates(xml: string, today: string): string[] {
+  return Array.from(new Set(sitemapLastmodDates(xml).filter((date) => date > today))).sort();
+}
+
+const PUBLISH_LASTMOD_TIMEZONE = "Asia/Taipei";
+
+/**
+ * Local, synchronous publish gate. Independent of --skip-audit, live fetches,
+ * IndexNow, sitemap-health.json, and TIMEZONE env. Missing, empty, or
+ * unreadable sitemaps fail closed so a publish cannot ship while root Pages
+ * keeps an old sitemap. Any lastmod after Asia/Taipei today also fails closed.
+ */
+export function assertLocalSitemapHasNoFutureLastmod(root: string, now: Date = new Date()): void {
+  const sitemapPath = join(projectRoot(root), "docs", "sitemap.xml");
+  if (!existsSync(sitemapPath)) {
+    throw new Error("Refusing to publish: docs/sitemap.xml is missing.");
+  }
+  let xml: string;
+  try {
+    xml = readFileSync(sitemapPath, "utf8");
+  } catch (error) {
+    throw new Error(
+      `Refusing to publish: docs/sitemap.xml cannot be verified locally: ${(error as Error).message}`
+    );
+  }
+  if (xml.trim().length === 0) {
+    throw new Error("Refusing to publish: docs/sitemap.xml is empty.");
+  }
+  const today = getZonedDateParts(now, PUBLISH_LASTMOD_TIMEZONE).date;
+  const future = futureLastmodDates(xml, today);
+  if (future.length > 0) {
+    throw new Error(
+      `Refusing to publish: docs/sitemap.xml has lastmod after ${today} (${PUBLISH_LASTMOD_TIMEZONE}): ${future.join(", ")}.`
+    );
+  }
+}
+
 export async function auditSitemap(options: {
   root?: string;
   baseUrl?: string;
   live?: boolean;
   fetchImpl?: typeof fetch;
+  now?: Date;
 } = {}): Promise<SitemapAuditResult> {
   const root = projectRoot(options.root);
   const config = getConfig();
+  const now = options.now ?? new Date();
+  const today = getZonedDateParts(now, config.timezone).date;
   const baseUrl = (options.baseUrl ?? config.publicSiteBaseUrl).replace(/\/+$/, "");
   if (!baseUrl.startsWith("https://")) throw new Error("A public HTTPS base URL is required for Sitemap audit.");
   const sitemapUrl = `${baseUrl}/sitemap.xml`;
@@ -36,6 +95,8 @@ export async function auditSitemap(options: {
   const locs = [...localXml.matchAll(/<loc>([^<]+)<\/loc>/g)]
     .map((match) => match[1])
     .filter((url): url is string => Boolean(url));
+  const lastmodDates = sitemapLastmodDates(localXml);
+  const futureLastmods = futureLastmodDates(localXml, today);
   const checks: SitemapAuditResult["checks"] = [];
   const add = (name: string, ok: boolean, detail: string): void => {
     checks.push({ name, status: ok ? "pass" : "fail", detail });
@@ -45,6 +106,13 @@ export async function auditSitemap(options: {
   add("non-empty", locs.length > 0, `${locs.length} local URLs discovered.`);
   add("no-duplicates", new Set(locs).size === locs.length, `${locs.length - new Set(locs).size} duplicate URLs.`);
   add("same-origin", locs.every((url) => url === `${baseUrl}/` || url.startsWith(`${baseUrl}/`)), "All URLs use the configured canonical origin.");
+  add(
+    "no-future-lastmod",
+    futureLastmods.length === 0,
+    futureLastmods.length > 0
+      ? `Future lastmod values after ${today}: ${futureLastmods.join(", ")}.`
+      : `${lastmodDates.length} lastmod values are on or before ${today}.`
+  );
   for (const path of REQUIRED_PATHS) {
     const expected = path === "/" ? `${baseUrl}/` : `${baseUrl}${path}`;
     add(`required:${path}`, locs.includes(expected), expected);
@@ -59,6 +127,14 @@ export async function auditSitemap(options: {
     add("live-sitemap-http", response.ok, `HTTP ${response.status}`);
     add("live-sitemap-content-type", /(?:application|text)\/xml/i.test(contentType), contentType || "missing content-type");
     add("live-sitemap-body", body.includes("<urlset") && body.includes(`${baseUrl}/`), `${body.length} bytes`);
+    const liveFutureLastmods = futureLastmodDates(body, today);
+    add(
+      "live-no-future-lastmod",
+      liveFutureLastmods.length === 0,
+      liveFutureLastmods.length > 0
+        ? `Live sitemap future lastmod values after ${today}: ${liveFutureLastmods.join(", ")}.`
+        : `Live sitemap has no lastmod values after ${today}.`
+    );
 
     for (const path of REQUIRED_PATHS) {
       const url = path === "/" ? `${baseUrl}/` : `${baseUrl}${path}`;
@@ -73,7 +149,7 @@ export async function auditSitemap(options: {
   }
 
   const result: SitemapAuditResult = {
-    generated_at: new Date().toISOString(),
+    generated_at: now.toISOString(),
     status: checks.every((check) => check.status === "pass") ? "pass" : "fail",
     sitemap_url: sitemapUrl,
     discovered_urls: locs.length,

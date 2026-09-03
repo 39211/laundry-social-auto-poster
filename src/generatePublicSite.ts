@@ -19,7 +19,24 @@ import {
   COMMUNITY_PRACTICE_SOURCES,
   SEARCH_INTENT_CLUSTERS
 } from "./searchVisibilityStrategy";
+import { getZonedDateParts } from "./scheduler";
 import type { ApprovalLogEntry, CarouselItem, DailyContent, DailySlot, Platform } from "./types";
+import {
+  INDEX_GROWTH_CATALOG,
+  INDEX_GROWTH_HUB_ORDER,
+  hubGroupFor,
+  resolveAcceptedIndexGrowthPages
+} from "./indexGrowthPages";
+import {
+  KNOWN_SERVICE_SLUGS,
+  assertProductionPublicSiteBaseUrl,
+  type SupportPageDefinition
+} from "./publicSiteTypes";
+import {
+  SEARCH_CONTENT_ANALYTICS_PATH,
+  assertSearchContentAnalyticsScript,
+  buildSearchContentAnalyticsScript
+} from "./searchContentAnalytics";
 
 interface GeneratePublicSiteOptions {
   root?: string;
@@ -27,6 +44,9 @@ interface GeneratePublicSiteOptions {
   siteBaseUrl?: string;
   imageBaseUrl?: string;
   now?: string | Date;
+  statPublicAsset?: (filePath: string) => { isFile(): boolean };
+  /** Fail closed unless the resolved public base URL is the production canonical host. */
+  deployment?: boolean;
 }
 
 interface PublicPost {
@@ -107,6 +127,7 @@ interface PublicPostIndex {
     service_pages: Record<string, string>;
     support_pages: Record<string, string>;
     feed: string;
+    rss: string;
     knowledge_graph: string;
     ai_discovery: string;
   };
@@ -162,26 +183,7 @@ interface ServicePageDefinition {
   faqs: ServiceFaq[];
 }
 
-interface SupportPageDefinition {
-  slug: string;
-  path: string;
-  category: "guide" | "local";
-  title: string;
-  description: string;
-  h1: string;
-  summary: string;
-  keywords: string[];
-  service_slug?: string;
-  local_intent: string;
-  /** Stable YYYY-MM-DD used for sitemap lastmod when content last intentionally changed. */
-  content_lastmod?: string;
-  steps: Array<{ name: string; text: string }>;
-  /** Optional long-form sections; omitted pages keep the existing support-page shape. */
-  sections?: Array<{ heading: string; body: string }>;
-  /** Standalone AEO first paragraph, at most 50 zh characters when set. */
-  citation_answer?: string;
-  faqs: ServiceFaq[];
-}
+export type { SupportPageDefinition } from "./publicSiteTypes";
 
 interface PublicImageReference {
   id: string;
@@ -282,13 +284,19 @@ const SITE_NAME = "私享家洗衣店";
 const SITE_TITLE = "私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋";
 const SITE_DESCRIPTION =
   "找台中免費收送、逢甲洗鞋或西屯洗鞋？私享家洗衣店提供台中市全區免費收送，門市在西屯青海路二段365號，可先用 LINE 傳照片預約。";
+const KNOWLEDGE_HUB_PATH = "knowledge/";
+const KNOWLEDGE_HUB_FILE = "knowledge/index.html";
+const KNOWLEDGE_HUB_TITLE = "洗鞋洗包與衣物收送知識庫｜私享家洗衣店";
+const KNOWLEDGE_HUB_DESCRIPTION =
+  "從鞋子異味、白鞋泛黃、包包發霉到衣物床被收送，依問題找到私享家洗衣店的直接答案、處理界線與對應服務。";
+const KNOWLEDGE_HUB_TEMPLATE_LASTMOD = "2026-09-03";
 /**
  * Last intentional change of the homepage's static sections (YYYY-MM-DD). Not rewritten on
  * every build; the published homepage lastmod also advances with the newest approved post
  * (see homepageContentLastmod). Their rename, our date: 2026-08-08 is the later
  * real content change, made after this constant's line diverged.
  */
-const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-08-17";
+const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-09-04";
 const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";
@@ -320,28 +328,6 @@ const AI_DO_NOT_INFER_RULES = [
   "Use business-profile.json and the service pages as the source of record for business facts."
 ] as const;
 const HOME_EXPANDED_RECENT_DAYS = 7;
-const HOME_DEPTH_BACKGROUNDS = [
-  {
-    className: "depth-laundry",
-    path: "assets/backgrounds/premium-laundry-depth.png"
-  },
-  {
-    className: "depth-shoe-bag",
-    path: "assets/backgrounds/shoe-bag-care-depth.png"
-  },
-  {
-    className: "depth-white-shoe",
-    path: "assets/backgrounds/white-shoe-depth.png"
-  },
-  {
-    className: "depth-fabric",
-    path: "assets/backgrounds/fabric-storage-depth.png"
-  },
-  {
-    className: "depth-local-store",
-    path: "assets/backgrounds/local-store-depth.png"
-  }
-] as const;
 const LOCAL_SEARCH_QUERY_TARGETS = [
   "洗衣店",
   "台中洗衣店",
@@ -1216,13 +1202,18 @@ const AEO_PHOTO_BEFORE_LAUNDRY = "送洗前拍整體、局部、材質與最在�
 const AEO_WHITE_SHOE_GRAY_VS_YELLOW = "白鞋灰多半是髒、可清；黃在膠邊是氧化，只能淡化，不保證回白。";
 const AEO_RAINY_SHOE = "雨天鞋子進水後先通風、取出鞋墊；不要高溫烘或悶進鞋櫃。";
 const AEO_LUGGAGE_WHEELS = "行李箱收進櫃子前先看輪子；輪子與底板灰收進去，下次打開就是味道。";
+const AEO_CURTAIN = "窗簾先看布料與軌道；尺寸不同價不同，拍照比先問固定價準。";
+const AEO_CARPET = "地毯先看材質與潮濕；沒乾就捲起來，下次打開就是味道。";
+const AEO_FENGJIA_LAUNDRY = "逢甲洗衣可先LINE傳照片；宿舍與租屋都可約台中免費收送。";
+const AEO_ZHONGKE_LAUNDRY = "中科園區襯衫可約收送；先列件數與材質，清潔另計、收送免費。";
+const AEO_DONGHAI_LAUNDRY = "東海生活圈可約免費收送；厚被、窗簾與日常衣物先傳照片再收。";
 const AEO_BEDDING_STORAGE = "寢具收納前先聞潮味；摸起來乾、中間層不一定乾，帶濕氣封存會悶出味道。";
 const AEO_BEDDING_DUVET = "棉被送洗先看填充、潮氣與異味；沒乾透就收納，下一季打開就是味道。";
 const AEO_PLUSH_DOLL_BOUNDARY = "娃娃可以洗，但不能亂洗；怕的是脫水結塊與五官脫落，要先固定再手洗。";
 const AEO_LUXURY_DRY = "精品送洗先看材質與飾件，不因品牌保證全新；邊角磨損只能維持。";
 const AEO_CLOTHING_ALTERATION = "送洗時若同時需要修改，可以一起收送，但先分清楚是小修還是版型調整。";
 
-const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
+const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
   {
     slug: "photo-before-laundry",
     path: "guides/photo-before-laundry.html",
@@ -2040,6 +2031,372 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     ]
   },
   {
+    slug: "luggage-wheel-cleaning",
+    path: "guides/luggage-wheel-cleaning.html",
+    category: "guide",
+    title: "行李箱輪子、底板怎麼清？｜台中洗行李箱 私享家洗衣店",
+    description:
+      "私享家洗衣店（台中市西屯區青海路二段365號）判斷行李箱輪子、底板與布面：旅行回來先看輪邊泥灰，不要帶著地面髒污直接推進櫃子。台中市可免費收送。",
+    h1: "行李箱輪子與底板：收進櫃子前先看這裡",
+    summary: AEO_LUGGAGE_WHEELS,
+    citation_answer: AEO_LUGGAGE_WHEELS,
+    keywords: ["台中洗行李箱", "行李箱清潔", "行李箱輪子", "洗行李箱", "行李袋清洗"],
+    service_slug: "shoe-bag-care",
+    local_intent: "台中西屯 行李箱清潔 輪子 底板",
+    content_lastmod: "2026-08-29",
+    steps: [
+      { name: "拍輪子與底板", text: "輪邊、輪軸縫與底板近照各一張，才看得出是浮灰、泥塊還是已經悶進布面。" },
+      { name: "拍布面與把手", text: "箱體布面、伸縮把手與側把分開拍；外觀乾淨不代表輪子乾淨。" },
+      { name: "先通風再收", text: "剛回來先打開、直立通風，不要立刻套防塵套或推進密閉櫃子。" },
+      { name: "說明旅程", text: "告訴門市是雨天拖行、機場石材地、還是放很久沒開；時間線會改變味道來源的判斷。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼看行李箱",
+        body:
+          "行李箱回來後，布面、把手和輪邊常常比衣服更早累積灰塵和地面髒污。輪子和底板整趟旅程都在地上磨，那些灰收進櫃子，下次打開就是那個味道。門市會先看箱體材質（硬殼、布面、混合）、布面髒污深度、輪邊泥灰、輪軸縫卡灰，以及把手接觸痕，再判斷適合局部清潔或外觀整理。提把油痕與包角邊油是另一種問題，寫在包包提把指南，不要和輪子泥灰混成同一種刷法。不用整咖搬來門市，台中市可約免費到府收送。"
+      },
+      {
+        heading: "什麼救得回、什麼只能維持",
+        body:
+          "輪邊還沒悶進布面的浮灰、底板乾泥、剛沾上的雨水痕，通常還有清潔空間。硬殼刮傷、輪子變形、布面已經滲色或發霉到內襯，清潔只能處理表面髒和部分味道，不保證變全新。價目沒有單獨列行李箱固定金額，LINE 傳布面、把手、輪邊與底板照片先估；發霉、特殊污漬與特殊材質另行說明。不要先用漂白或硬刷輪布，容易起毛或留下色差。"
+      },
+      {
+        heading: "收進櫃子前先做這步",
+        body:
+          "旅行箱最常見的失誤是回家直接推進櫃子。輪子還濕、底板還有泥，密封之後味道會回到衣服層。先把可拆的套件拿下來通風，箱體直立打開，確認中間層摸起來也乾，再收。若已經有悶味，先拍照問，不要噴香水掩蓋。對應服務是鞋包清潔；台中市全區免費收送，清潔費另計、沒有最低消費門檻。"
+      },
+      {
+        heading: "送洗前怎麼問",
+        body:
+          "拍布面整體、伸縮把手、兩側輪子特寫與底板。用 LINE（0968327653）補一句：剛旅行回來、放很久沒開，或雨天拖過。門市先回適不適合整理，再約收件。"
+      }
+    ],
+    faqs: [
+      {
+        question: "台中洗行李箱要多少錢？",
+        answer: "沒有單獨列固定金額。尺寸、材質、輪子髒污深度與是否發霉差很多，先傳照片估；收送本身免費。"
+      },
+      {
+        question: "只清輪子、不清箱面可以嗎？",
+        answer: "可以先問局部整理。門市會看輪布與箱面是否同色系，避免只清一處造成色差。"
+      },
+      {
+        question: "行李箱有味道是不是發霉？",
+        answer: "不一定。輪子泥灰、底板濕氣和內襯久放都可能悶出味道。先拍內襯與輪邊，不要先噴香或密封。"
+      },
+      {
+        question: "硬殼刮傷洗得掉嗎？",
+        answer: "刮傷不是髒污。清潔處理的是灰塵與部分水痕，殼面刮傷只能維持，不保證消失。"
+      }
+    ]
+  },
+  {
+    slug: "curtain-cleaning",
+    path: "guides/curtain-cleaning.html",
+    category: "guide",
+    title: "台中洗窗簾怎麼判斷？｜窗簾送洗前先看布料 私享家洗衣店",
+    description:
+      "私享家洗衣店（台中市西屯區青海路二段365號）處理窗簾清洗：先看布料、內襯、軌道與尺寸，再決定能不能水洗。台中市可免費收送，費用依尺寸報價。",
+    h1: "台中洗窗簾：先看布料與軌道，再決定怎麼送",
+    summary: AEO_CURTAIN,
+    citation_answer: AEO_CURTAIN,
+    keywords: ["台中洗窗簾", "窗簾清洗", "西屯洗窗簾", "窗簾送洗", "落地窗簾清洗"],
+    service_slug: "fabric-storage",
+    local_intent: "台中西屯 窗簾清洗 落地窗 軌道",
+    content_lastmod: "2026-08-29",
+    steps: [
+      { name: "拍整幅與布邊", text: "拉開後的整幅、布邊內襯與最靠近窗台的下擺，尺寸差會直接影響報價。" },
+      { name: "拍軌道與配件", text: "軌道、鉤子、綁帶是否可拆，拆不下來的配件要先講，避免強拆。" },
+      { name: "看陽光面", text: "長期日曬那一面常先變脆或褪色，這不是髒，清潔前要先說清楚。" },
+      { name: "說明安裝位置", text: "落地窗、浴室、廚房油煙區的髒法不同；傳 LINE 時寫房間用途。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼看窗簾",
+        body:
+          "窗簾不是拿去跟衣服同一槽洗。門市先分布料（棉、麻、遮光塗層、絨、紗）、有沒有內襯、下擺是否加重，再看軌道配件能不能安全拆。陽光直射面發脆、塗層龜裂，看起來像髒，其實是材質老化，硬刷或高溫會讓裂痕更明顯。廚房窗簾常見油膜，浴室附近常見潮味；這兩種都不能先當普通灰處理。價目表寫窗簾依尺寸報價，所以照片裡的高度與摺數比先問一個固定數字準。對應服務是布品收納頁。"
+      },
+      {
+        heading: "什麼可以洗、什麼先停手",
+        body:
+          "一般布簾的浮塵、下擺灰塵、還沒封進塗層的潮味，通常還有處理空間。遮光塗層剝落、日曬脆化、繡片或珠飾鬆動，清潔只能維持，不保證回復垂墜與色澤。自己先丟洗衣機最常見的後果是縮水、軌道鉤變形、塗層黏在一起。不確定就保持吊掛或平放，先拍照。台中市全區可約免費到府收送，落地窗簾不用自己塞進後車箱；清潔費另計，沒有最低消費門檻。"
+      },
+      {
+        heading: "換季或中秋前為什麼有人問窗簾",
+        body:
+          "開窗變少、冷氣長開的房間，窗簾內側會積一層灰；秋天收納薄紗、換上厚簾時，舊簾若帶潮就封進櫃子，下一季打開就是味道。這和棉被收納是同一條邏輯：摸起來乾、中間層不一定乾。窗簾先看、棉被另看寢具指南，不要混成一件事。"
+      },
+      {
+        heading: "LINE 怎麼問才估得準",
+        body:
+          "拍整幅拉開、下擺近照、軌道特寫，並寫幾幅、大概高度。用 LINE（0968327653）傳。門市先回適不適合拆洗，再約收件。不要先自行噴漂白或陽光曝曬想「消毒」，日曬面已經偏脆的布更容易裂。"
+      }
+    ],
+    faqs: [
+      {
+        question: "台中洗窗簾多少錢？",
+        answer: "依尺寸報價，沒有單一固定價。先傳整幅與下擺照片，門市再說明範圍；收送本身免費。"
+      },
+      {
+        question: "落地窗簾可以到府收嗎？",
+        answer: "可以。台中市全區免費收送，落地窗簾建議先約，不要自己硬折進袋裡壓出折痕。"
+      },
+      {
+        question: "遮光窗簾可以水洗嗎？",
+        answer: "要先看塗層。塗層完好才評估水洗；已經龜裂或剝落的，門市會先講只能維持的界線。"
+      },
+      {
+        question: "窗簾和地毯可以一起送嗎？",
+        answer: "可以一次收。但布料、潮濕來源與尺寸算法不同，會分開判斷，不會用同一組數字。"
+      }
+    ]
+  },
+  {
+    slug: "carpet-cleaning",
+    path: "guides/carpet-cleaning.html",
+    category: "guide",
+    title: "台中洗地毯怎麼判斷？｜地毯潮味與材質 私享家洗衣店",
+    description:
+      "私享家洗衣店（台中市西屯區青海路二段365號）處理地毯清洗：先看材質、潮濕、邊條與尺寸，沒乾就捲起來下次打開就是味道。台中市可免費收送，費用依尺寸報價。",
+    h1: "台中洗地毯：先看材質與潮濕，再決定要不要捲",
+    summary: AEO_CARPET,
+    citation_answer: AEO_CARPET,
+    keywords: ["台中洗地毯", "地毯清洗", "西屯洗地毯", "地毯潮味", "地墊送洗"],
+    service_slug: "fabric-storage",
+    local_intent: "台中西屯 地毯清洗 潮味 地墊",
+    content_lastmod: "2026-08-29",
+    steps: [
+      { name: "拍整張與角落", text: "整張鋪開、四個角與最常踩的走道，才看得出是表面灰還是底層受潮。" },
+      { name: "摸中間層", text: "表面乾、底層不一定乾。若中間有潮或酸味，先不要捲緊收納。" },
+      { name: "看邊條與背面", text: "橡膠底、防滑點、縫邊脫線會影響能不能水洗，要拍背面。" },
+      { name: "說明來源", text: "寵物、飲料、雨天鞋子，或只是久沒吸塵，處理方向不同。" }
+    ],
+    sections: [
+      {
+        heading: "門市怎麼看地毯",
+        body:
+          "地毯跟窗簾一樣依尺寸報價，但判斷點完全不同。門市先看纖維（羊毛、尼龍、混紡、短毛地墊）、背面是布底還是橡膠底，再聞潮味是在表面還是已經進到中間層。走道壓平的位置看起來像髒，有時是纖維倒伏，不是色素；硬刷只會讓倒伏更明顯。飲料漬、寵物尿味與普通灰塵不能用同一種方式。對應服務是布品收納；窗簾另有專頁，不要把兩種尺寸算法混在一句話裡問。"
+      },
+      {
+        heading: "什麼可以洗、什麼先停手",
+        body:
+          "浮塵、乾泥、還沒滲到底層的飲料邊，通常還有處理空間。橡膠底龜裂、羊毛氈化、霉斑已經穿過背面，清潔只能改善表面與部分味道，不保證回彈或全無味。自己先用蒸氣機或漂白，最常見的是底膠溶掉、顏色不均。不確定就平放通風，先拍照。台中市可約免費到府收送，大張地毯不用自己塞車；清潔費另計。"
+      },
+      {
+        heading: "沒乾就捲起來會怎樣",
+        body:
+          "地毯最容易在換季或搬家時被捲起來塞進倉庫。摸起來乾、中間層不一定乾，帶濕氣封存會悶出味道，下一季打開連旁邊的被子都會沾到。這和棉被收納是同一條界線。若已經有味道，先拍角落與背面，不要噴芳香劑再捲。"
+      },
+      {
+        heading: "LINE 怎麼問",
+        body:
+          "拍整張、四角、背面與最在意的漬。寫大概長寬。用 LINE（0968327653）傳。門市先回適不適合收，再約時間。沒看過物件前不報固定價。"
+      }
+    ],
+    faqs: [
+      {
+        question: "台中洗地毯多少錢？",
+        answer: "依尺寸報價。先傳整張與背面照片，門市再說明範圍；收送本身免費，清潔另計。"
+      },
+      {
+        question: "地毯有寵物味洗得掉嗎？",
+        answer: "多數可明顯改善。味道若已進中間層或背面，要先看材質，不保證完全無味，也不用香味覆蓋。"
+      },
+      {
+        question: "小塊地墊和大張地毯一樣算嗎？",
+        answer: "都是依尺寸與材質看，不是同一組數字。小塊也可以先問，沒有最低消費門檻。"
+      },
+      {
+        question: "可以只洗走道那一塊嗎？",
+        answer: "可以先問局部。門市會看顏色是否連成一片，避免只處理一區出現色差。"
+      }
+    ]
+  },
+  {
+    slug: "fengjia-laundry-pickup",
+    path: "local/fengjia-laundry-pickup.html",
+    category: "local",
+    title: "逢甲洗衣收送｜宿舍與租屋怎麼約｜私享家洗衣店",
+    description:
+      "逢甲夜市、福星路與文華路生活圈要洗衣？私享家門市在西屯青海路二段365號，宿舍與租屋可先 LINE 傳照片，再約台中市免費到府收送。洗鞋另看逢甲洗鞋頁。",
+    h1: "逢甲洗衣收送：宿舍與租屋怎麼約",
+    summary: AEO_FENGJIA_LAUNDRY,
+    citation_answer: AEO_FENGJIA_LAUNDRY,
+    keywords: ["逢甲洗衣", "逢甲洗衣店", "逢甲洗衣收送", "逢甲宿舍洗衣", "文華路洗衣"],
+    service_slug: "taichung-xitun-laundry",
+    local_intent: "逢甲 洗衣收送 宿舍 租屋",
+    content_lastmod: "2026-08-29",
+    steps: [
+      { name: "先分洗衣還是洗鞋", text: "衣服、床包、薄外套走本頁；球鞋、白鞋走逢甲洗鞋頁，不要混成一袋再問價錢。" },
+      { name: "拍品項與最在意位置", text: "每件拍整體加局部。宿舍常見的是領口、袖口、床包邊與汗味，不是只問幾件多少。" },
+      { name: "寫收件地點類型", text: "宿舍櫃台、套房或巷內租屋，門市只需要知道怎麼交接，不必先報沒核對過的車程。" },
+      { name: "對營業時間", text: "門市週一至週五 10:00-20:00、週六 12:00-18:00、週日公休；夜市收攤後不一定還收得進當日件。" }
+    ],
+    sections: [
+      {
+        heading: "逢甲生活圈怎麼接到青海路門市",
+        body:
+          "逢甲夜市、文華路、福星路與附近租屋都在西屯區，和門市同一行政區。門市地址是 407 臺中市西屯區至善里青海路二段365號，地標至善國中對面。本頁不寫沒有來源的公里數或分鐘數。想自己到店，對上面營業時間；不想跑，用 LINE（0968327653）傳照片後約台中市免費到府收送。免費收送範圍是台中市全市，不是只有逢甲巷口。"
+      },
+      {
+        heading: "宿舍與租屋常見的是哪些件",
+        body:
+          "逢甲學生與租屋族送來的，通常是薄外套、襯衫、床包、毛巾，以及週末才想起的一袋混洗。門市會先把淺色深色、外套與床包分開看，不把整袋當同一種洗法。床包若有潮味，先對照寢具指南，不要和一件 T 恤報成同一組期待。洗鞋、白鞋泛黃請走逢甲洗鞋專頁；本頁只處理衣物與布品收送。"
+      },
+      {
+        heading: "收送邊界與費用界線",
+        body:
+          "台中市全市收送本身免費，沒有最低消費門檻，一袋宿舍衣服也可以先問。收送免費不代表清潔免費；公開水洗價在價目表，乾洗柔洗與發霉另計，以實際檢視為準。處理天數不在本頁承諾。夜市週邊停車不便時，用收送通常比自己載更單純。"
+      },
+      {
+        heading: "LINE 怎麼一次講清楚",
+        body:
+          "列出大概件數、有沒有床包或外套，並附最髒那幾件的照片。寫「逢甲宿舍」或「逢甲附近租屋」即可。門市先回適不適合收、可約時段，再上門。洗鞋請另傳鞋面鞋邊鞋內，不要塞在同一則只寫「都洗」。"
+      }
+    ],
+    faqs: [
+      {
+        question: "逢甲宿舍可以約收送嗎？",
+        answer: "可以。台中市全市免費收送，宿舍櫃台或租屋交接都可以先在 LINE 講清楚。"
+      },
+      {
+        question: "逢甲洗衣和逢甲洗鞋是同一頁嗎？",
+        answer: "不是。本頁是衣物與床包收送；球鞋、白鞋看逢甲洗鞋頁，判斷方式不同。"
+      },
+      {
+        question: "晚上夜市收攤後還收得到嗎？",
+        answer: "以門市營業時間為準：平日最晚 20:00、週六 18:00、週日公休。當日能不能收，LINE 問當下時段。"
+      },
+      {
+        question: "只有幾件薄衣服也收嗎？",
+        answer: "可以先問。沒有最低消費門檻；清潔仍依物件計算，收送本身不另外收費。"
+      }
+    ]
+  },
+  {
+    slug: "zhongke-office-laundry",
+    path: "local/zhongke-office-laundry.html",
+    category: "local",
+    title: "中科園區洗衣收送｜襯衫與公司件怎麼約｜私享家洗衣店",
+    description:
+      "台中中科園區、西屯工業區上班要送襯衫或公司衣物？私享家在青海路二段365號，可先 LINE 列件數與材質，再約台中市免費收送。清潔另計。",
+    h1: "中科園區洗衣：襯衫與公司件怎麼約收送",
+    summary: AEO_ZHONGKE_LAUNDRY,
+    citation_answer: AEO_ZHONGKE_LAUNDRY,
+    keywords: ["中科洗衣", "中科園區洗衣", "台中公司洗衣", "西屯襯衫送洗", "工業區洗衣收送"],
+    service_slug: "business-bulk-laundry",
+    local_intent: "中科園區 襯衫 公司衣物 收送",
+    content_lastmod: "2026-08-29",
+    steps: [
+      { name: "先列件數與類型", text: "襯衫、褲、外套、制服分開寫件數；整袋混裝只能回「要看物件」。" },
+      { name: "拍領口袖口", text: "辦公室最常見的是領口油光與袖口，這和油性髒有關，不是只看表面皺不皺。" },
+      { name: "標特殊件", text: "西裝、大衣、會徽繡字或名牌材質要單獨拍，不能跟普通襯衫同一組期待。" },
+      { name: "約定交接", text: "公司櫃台或住家都可以約。門市營業平日 10:00-20:00，週六 12:00-18:00，週日公休。" }
+    ],
+    sections: [
+      {
+        heading: "中科與西屯工業區怎麼接到門市",
+        body:
+          "中科園區與周邊工業區都在台中市西屯生活圈，門市在青海路二段365號、至善國中對面。本頁不寫沒有來源的車程。上班族最常問的是：中午或下班後能不能收。以營業時間為準，當日件請用 LINE 問當下時段，不要假設固定每天同一鐘點上門。台中市全市可免費收送，清潔另計。"
+      },
+      {
+        heading: "公司件跟家庭件差在哪",
+        body:
+          "公司件通常件數多、款式重複，領口袖口油光比家庭件更集中。門市會先看洗標：有墊肩或襯裡的外套不能跟薄襯衫同一槽想像。大量送洗另有店家與公司專頁，本頁補的是中科生活圈怎麼約、要拍什麼。不要在沒有照片的情況下要一個「公司價」；公開價目在價目表，特殊繡字、徽章與西裝另計。"
+      },
+      {
+        heading: "襯衫領口黃了怎麼辦",
+        body:
+          "長期皮脂氧化的領口，多數能明顯改善，不保證回到新衣。自己先用漂白或硬刷，黃斑有時會定死。先拍領口內側與袖口，再決定水洗、整燙或乾洗。西裝肩線另看西裝指南。處理天數依件數與材質回覆，本頁不承諾隔夜全部完成。"
+      },
+      {
+        heading: "LINE 怎麼讓報價快",
+        body:
+          "用表格或條列：襯衫幾件、褲幾件、有無西裝。附領口照片。寫「中科」或公司所在行政區即可。LINE（0968327653）。門市先回適不適合一次收、可約時段。"
+      }
+    ],
+    faqs: [
+      {
+        question: "中科公司衣服可以到府收嗎？",
+        answer: "可以。台中市全市免費收送，公司櫃台或住家交接都可以先約。"
+      },
+      {
+        question: "襯衫送洗大概多少錢？",
+        answer: "公開水洗價襯衫 70、整燙 50；乾洗柔洗另計，以實際檢視為準。"
+      },
+      {
+        question: "可以固定每週收一次嗎？",
+        answer: "可以先在 LINE 問週期。本頁不先寫死每週幾點；以當下可收時段為準。"
+      },
+      {
+        question: "西裝和襯衫可以同一袋嗎？",
+        answer: "收送可以一起。判斷與工序仍分開，西裝肩線與領片要另看，不要當薄襯衫洗。"
+      }
+    ]
+  },
+  {
+    slug: "donghai-laundry-pickup",
+    path: "local/donghai-laundry-pickup.html",
+    category: "local",
+    title: "東海洗衣收送｜別墅區厚被與日常衣物｜私享家洗衣店",
+    description:
+      "東海大學、東海商圈與別墅區要洗衣？私享家在西屯青海路二段365號，厚被、窗簾與日常衣物可先 LINE 傳照片，再約台中市免費收送。",
+    h1: "東海洗衣收送：厚被、窗簾與日常衣物怎麼約",
+    summary: AEO_DONGHAI_LAUNDRY,
+    citation_answer: AEO_DONGHAI_LAUNDRY,
+    keywords: ["東海洗衣", "東海洗衣店", "東海大學洗衣", "台中東海收送", "別墅區洗衣"],
+    service_slug: "taichung-xitun-laundry",
+    local_intent: "東海 洗衣收送 厚被 窗簾",
+    content_lastmod: "2026-08-29",
+    steps: [
+      { name: "先分物件", text: "日常衣物、厚被床組、窗簾、地毯分開列。東海別墅區常見後三項，和逢甲宿舍薄衣不是同一袋。" },
+      { name: "厚被先聞潮味", text: "換季收納前摸起來乾、中間層不一定乾。有潮味先拍邊角，不要先壓縮袋。" },
+      { name: "窗簾拍整幅", text: "落地簾寫大概高度。窗簾依尺寸報價，照片比先問固定價準。" },
+      { name: "約定收件", text: "社區管理室或住家門口都可以先講。門市平日 10:00-20:00、週六 12:00-18:00、週日公休。" }
+    ],
+    sections: [
+      {
+        heading: "東海生活圈與門市的關係",
+        body:
+          "東海大學、東海商圈與周邊別墅住宅都在台中市，收送範圍覆蓋全市。門市在西屯區青海路二段365號、至善國中對面。本頁不寫沒有來源的距離。東海這一側比較常出現的是家庭厚件：冬被、窗簾、地毯，而不是逢甲夜市生活圈那種薄外套加球鞋。洗鞋若需要，另看逢甲洗鞋頁；本頁專注衣物與大型布品怎麼約。"
+      },
+      {
+        heading: "別墅區厚件為什麼要先拍照",
+        body:
+          "羽絨被、羊毛被與窗簾的體積大，自己載車不一定放得下，這正是免費收送的用途。門市要先看填充、潮氣、車線與窗簾塗層，才能說適不適合收。公開水洗價：棉被單人 350、雙人 500、羽絨羊毛被 800；窗簾與地毯依尺寸。乾洗柔洗與發霉另計。沒看過照片不承諾「一定當天取」。"
+      },
+      {
+        heading: "學生件與家庭件可以同一趟嗎？",
+        body:
+          "可以同一趟收。東海也有學生租屋，薄衣與家庭厚被仍會分開判斷。床組潮味走寢具指南，窗簾走窗簾指南，不要在一則訊息裡只寫「東海全部洗」卻不附照片。"
+      },
+      {
+        heading: "LINE 怎麼約",
+        body:
+          "列衣物、被、簾各幾件，附最重的那幾張照片。寫「東海」或社區名稱即可。LINE（0968327653）。收送免費、清潔另計、沒有最低消費門檻。"
+      }
+    ],
+    faqs: [
+      {
+        question: "東海別墅區可以約收棉被嗎？",
+        answer: "可以。台中市全市免費收送；先傳邊角與潮味位置，再約上門。"
+      },
+      {
+        question: "東海洗窗簾也收嗎？",
+        answer: "收。窗簾依尺寸報價，先傳整幅與下擺；詳細判斷看窗簾指南。"
+      },
+      {
+        question: "東海大學生的衣服也收嗎？",
+        answer: "收。和家庭厚件可以同一趟，但仍依材質分開看。"
+      },
+      {
+        question: "要自己送到青海路嗎？",
+        answer: "不必。方便到店再來至善國中對面；多數厚件用 LINE 約收送即可。"
+      }
+    ]
+  },
+  {
     slug: "qinghai-road-shoe-cleaning",
     path: "local/qinghai-road-shoe-cleaning.html",
     category: "local",
@@ -2121,6 +2478,52 @@ const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
   }
 ];
 
+function servicePagesAsDiagnostic() {
+  return SERVICE_PAGE_DEFINITIONS.map((service) => ({
+    slug: service.slug,
+    path: `services/${service.slug}.html`,
+    title: service.title,
+    h1: service.h1,
+    description: service.description,
+    summary: service.summary,
+    keywords: service.keywords,
+    local_intent: service.keywords.join(" "),
+    citation_answer: service.answer_summary,
+    steps: [] as Array<{ name: string; text: string }>,
+    sections: service.sections,
+    faqs: service.faqs
+  }));
+}
+
+const INDEX_GROWTH_ACCEPTED_PROJECTION = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, {
+  existingPages: [...LEGACY_SUPPORT_PAGE_DEFINITIONS, ...servicePagesAsDiagnostic()],
+  knownServiceSlugs: KNOWN_SERVICE_SLUGS,
+  today: getZonedDateParts(new Date(), "Asia/Taipei").date
+});
+
+const INDEX_GROWTH_SLUGS = new Set(INDEX_GROWTH_ACCEPTED_PROJECTION.map((page) => page.slug));
+
+const SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
+  ...LEGACY_SUPPORT_PAGE_DEFINITIONS,
+  ...INDEX_GROWTH_ACCEPTED_PROJECTION
+];
+
+if (SERVICE_PAGE_DEFINITIONS.map((service) => service.slug).join("\0") !== KNOWN_SERVICE_SLUGS.join("\0")) {
+  throw new Error("SERVICE_PAGE_DEFINITIONS slugs drifted from KNOWN_SERVICE_SLUGS");
+}
+
+export function publicSupportPages(): SupportPageDefinition[] {
+  return SUPPORT_PAGE_DEFINITIONS;
+}
+
+export function publicSourceBaselineUrlCount(): number {
+  return 1 + SERVICE_PAGE_DEFINITIONS.length + LEGACY_SUPPORT_PAGE_DEFINITIONS.length;
+}
+
+export function publicAcceptedIndexGrowthCount(): number {
+  return INDEX_GROWTH_ACCEPTED_PROJECTION.length;
+}
+
 const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
   {
     heading: "依物件找服務",
@@ -2140,6 +2543,16 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
         label: "外套、寢具、厚棉布品",
         description: "適合換季前確認汗味、潮氣、黃斑與收納前是否需要整理。",
         serviceSlug: "fabric-storage"
+      },
+      {
+        label: "窗簾、地毯",
+        description: "先看布料、尺寸與潮濕，再決定能不能拆洗或收送。",
+        supportSlug: "curtain-cleaning"
+      },
+      {
+        label: "行李箱輪子與底板",
+        description: "旅行回來先看輪邊與底板，不要帶著地面灰推進櫃子。",
+        supportSlug: "luggage-wheel-cleaning"
       }
     ]
   },
@@ -2192,6 +2605,21 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
         label: "逢甲洗鞋・西屯洗鞋",
         description: "青海路門市與逢甲、西屯同區；先看洗鞋界線、收送範圍與 LINE 詢問方式。",
         supportSlug: "qinghai-road-shoe-cleaning"
+      },
+      {
+        label: "逢甲洗衣收送",
+        description: "宿舍與租屋的衣物、床包先傳照片，再約台中市免費收送。",
+        supportSlug: "fengjia-laundry-pickup"
+      },
+      {
+        label: "中科園區襯衫與公司件",
+        description: "先列件數與領口狀況，再約公司櫃台或住家收送。",
+        supportSlug: "zhongke-office-laundry"
+      },
+      {
+        label: "東海洗衣收送",
+        description: "厚被、窗簾與日常衣物可同一趟收，仍依材質分開判斷。",
+        supportSlug: "donghai-laundry-pickup"
       }
     ]
   },
@@ -2213,6 +2641,11 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
         label: "可以自己硬刷或漂白嗎？",
         description: "白鞋與包包材質差異大，先判斷材質再處理，避免變毛、變黃或留下痕跡。",
         serviceSlug: "white-shoe-cleaning"
+      },
+      {
+        label: "窗簾或地毯怎麼估？",
+        description: "都依尺寸看，先傳整幅或整張照片；沒乾不要先捲起來收納。",
+        supportSlug: "carpet-cleaning"
       }
     ]
   }
@@ -2224,31 +2657,39 @@ const HOME_TRUST_ITEMS: HomeTrustItem[] = [
     body: "鞋面、包角、外套、寢具和白鞋膠邊的狀況不同，私享家會先看材質與痕跡位置，不用同一套方式處理所有物件。"
   },
   {
-    heading: "真實門市照片做內容基礎",
-    body: "公開站與社群內容優先使用門市洗護照片，讓客人看到實際檢查場景，也讓搜尋與 AI 有一致的圖片來源。"
+    heading: "每位客人的衣物單獨洗滌",
+    body: "你的衣物、鞋包和寢具不會和其他客人的混在一起洗；材質不同的物件也分開處理，避免染色、勾紗與味道互相沾染。"
   },
   {
-    heading: "在地資料清楚",
-    body: "地址、電話、營業時間、Google Maps、LINE、Facebook、Instagram 都從商家資料檔輸出，避免搜尋結果抓到不一致資訊。"
+    heading: "洗後先檢查，不乾淨再洗一次",
+    body: "洗好不是直接包起來。門市會先檢查痕跡、味道與乾燥狀態，還沒處理到位的地方會再洗一次，能整理到什麼程度事先講清楚。"
   },
   {
     heading: "不捏造保證與評論",
-    body: "目前沒有 owner-approved 評論資料時，不在首頁寫假評價；改用流程、物件判斷與案例情境建立信任。"
+    body: "不寫「保證洗白」「恢復全新」這種話，也不放假評價；用材質判斷、處理界線與門市實際看件的紀錄建立信任。"
   }
 ];
 
 const HOME_PROCESS_STEPS: HomeTrustItem[] = [
   {
-    heading: "1. 拍照詢問",
+    heading: "拍照詢問",
     body: "先拍整體、近照、材質位置與最在意的痕跡，尤其是鞋邊、包角、提把、領口、袖口與寢具接觸皮膚的位置。"
   },
   {
-    heading: "2. 門市判斷",
+    heading: "傳 LINE 或到店",
+    body: "把照片、件數與材質傳 LINE，或直接帶到西屯青海路二段365號門市，門市會先看可整理程度。"
+  },
+  {
+    heading: "門市判斷",
     body: "門市先看是表面灰塵、潮氣、油痕、氧化、材質磨耗或長時間收納造成的味道，再決定是否適合整理。"
   },
   {
-    heading: "3. 再決定送洗",
-    body: "能整理到什麼程度先說清楚，避免客人以為所有痕跡都能變成全新，也避免不必要的處理。"
+    heading: "約收送或交件",
+    body: "台中市全區可約免費收送，收送不收費、沒有最低消費；清潔與洗護費依物件狀態另計，能整理到什麼程度先說清楚。"
+  },
+  {
+    heading: "洗好檢查再送回",
+    body: "洗好先檢查痕跡、味道與乾燥狀態，還沒到位的再洗一次，再送回或到店取件；收納前確認乾透、沒有殘味。"
   }
 ];
 
@@ -2260,6 +2701,34 @@ function normalizeBaseUrl(value: string | undefined): string | undefined {
 function publicUrl(path: string, baseUrl: string | undefined): string {
   const cleanPath = path.replace(/^\/+/, "");
   return baseUrl ? `${baseUrl}/${cleanPath}` : cleanPath;
+}
+
+function knowledgeHubUrl(index: PublicPostIndex): string {
+  return publicUrl(KNOWLEDGE_HUB_PATH, index.base_url_configured ? index.base_url : undefined);
+}
+
+function knowledgeHubHref(index: PublicPostIndex, fromNestedPage = false): string {
+  if (index.base_url_configured) return knowledgeHubUrl(index);
+  return fromNestedPage ? `../${KNOWLEDGE_HUB_PATH}` : KNOWLEDGE_HUB_PATH;
+}
+
+function fromKnowledgeHubHref(href: string, index: PublicPostIndex): string {
+  if (index.base_url_configured || /^(?:[a-z]+:|\/|#)/iu.test(href)) return href;
+  return `../${href.replace(/^\.\//u, "")}`;
+}
+
+function buildSearchContentAnalyticsTag(index: PublicPostIndex, fromNestedPage = false): string {
+  const src = index.base_url_configured
+    ? publicUrl(SEARCH_CONTENT_ANALYTICS_PATH, index.base_url)
+    : `${fromNestedPage ? "../" : ""}${SEARCH_CONTENT_ANALYTICS_PATH}`;
+  return `<script defer src="${escapeHtml(src)}"></script>`;
+}
+
+function searchAnalyticsBodyAttributes(
+  pageType: "home" | "knowledge_hub" | "answer" | "service" | "article" | "article_hub",
+  contentId: string
+): string {
+  return `data-analytics-page-type="${escapeHtml(pageType)}" data-analytics-content-id="${escapeHtml(contentId)}"`;
 }
 
 function canonicalUrl(baseUrl: string | undefined): string {
@@ -2331,6 +2800,20 @@ export function listLineTouchpoints(posts: Array<{ date: string; slot: number }>
         page: page.path,
         placement,
         slug: lineSourceSlug({ section, slug: page.slug, placement })
+      });
+    }
+  }
+  rows.push({
+    page: KNOWLEDGE_HUB_FILE,
+    placement: "cta",
+    slug: lineSourceSlug({ section: "guide", slug: "knowledge-hub", placement: "cta" })
+  });
+  if (posts.length > 0) {
+    for (const placement of postPlacements) {
+      rows.push({
+        page: "posts/index.html",
+        placement,
+        slug: lineSourceSlug({ section: "posts", slug: "hub", placement })
       });
     }
   }
@@ -2923,6 +3406,18 @@ function supportContentLastmod(page: SupportPageDefinition): string | undefined 
   return toSitemapLastmodDate(page.content_lastmod);
 }
 
+/** The hub changes only when one of its visible accepted/support pages changes. */
+function knowledgeHubContentLastmod(): string | undefined {
+  return [
+    KNOWLEDGE_HUB_TEMPLATE_LASTMOD,
+    ...SERVICE_PAGE_DEFINITIONS.map((service) => serviceContentLastmod(service)),
+    ...SUPPORT_PAGE_DEFINITIONS.map((page) => supportContentLastmod(page))
+  ]
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1);
+}
+
 /**
  * Bump this when the post page template's visible content materially changes.
  * A post's lastmod is the later of its own date and this, because a template
@@ -2932,7 +3427,7 @@ function supportContentLastmod(page: SupportPageDefinition): string | undefined 
  * any of it. It is deliberately a hand-set constant -- claiming "everything
  * changed today" on every build is how a sitemap's lastmod stops being trusted.
  */
-const POST_TEMPLATE_CONTENT_LASTMOD = "2026-08-08";
+const POST_TEMPLATE_CONTENT_LASTMOD = "2026-09-04";
 
 function postContentLastmod(post: PublicPost): string | undefined {
   const own = toSitemapLastmodDate(post.date_published) ?? toSitemapLastmodDate(post.date);
@@ -2961,6 +3456,10 @@ function sitemapLastmodForUrl(url: string, index: PublicPostIndex): string | und
     return homepageContentLastmod(index);
   }
 
+  if (url === knowledgeHubUrl(index) || url.endsWith(`/${KNOWLEDGE_HUB_PATH}`)) {
+    return knowledgeHubContentLastmod();
+  }
+
   for (const service of SERVICE_PAGE_DEFINITIONS) {
     if (url === servicePageUrl(service, index) || url.endsWith(`/services/${service.slug}.html`)) {
       return serviceContentLastmod(service);
@@ -2977,6 +3476,10 @@ function sitemapLastmodForUrl(url: string, index: PublicPostIndex): string | und
     if (url === post.article_url || url.endsWith(`/posts/${post.date}-slot-${String(post.slot).padStart(2, "0")}.html`)) {
       return postContentLastmod(post);
     }
+  }
+
+  if (url === postsHubUrl(index) || url.endsWith(`/${POSTS_HUB_PATH}`)) {
+    return postsHubContentLastmod(index);
   }
 
   // Omit lastmod when no stable modification date is known.
@@ -3053,16 +3556,33 @@ function linkedSupportService(page: SupportPageDefinition): ServicePageDefinitio
   return page.service_slug ? findServiceBySlug(page.service_slug) : undefined;
 }
 
+function requireLinkedSupportService(page: SupportPageDefinition): ServicePageDefinition {
+  const service = linkedSupportService(page);
+  if (!service) {
+    throw new Error(
+      `support page ${page.slug} is missing a known service_slug parent; homepage fallback is not permitted`
+    );
+  }
+  return service;
+}
+
 function homeDiscoveryItemUrl(item: HomeDiscoveryItem, index: PublicPostIndex): string {
   if (item.serviceSlug) {
     const service = findServiceBySlug(item.serviceSlug);
-    if (service) return servicePageUrl(service, index);
+    if (!service) {
+      throw new Error(`home discovery serviceSlug ${item.serviceSlug} is not a known service`);
+    }
+    return servicePageUrl(service, index);
   }
   if (item.supportSlug) {
     const page = SUPPORT_PAGE_DEFINITIONS.find((entry) => entry.slug === item.supportSlug);
-    if (page) return supportPageUrl(page, index);
+    if (!page) {
+      throw new Error(`home discovery supportSlug ${item.supportSlug} is not an accepted public page`);
+    }
+    return supportPageUrl(page, index);
   }
-  return item.href ?? index.canonical_url;
+  if (item.href) return item.href;
+  throw new Error("home discovery item is missing serviceSlug, supportSlug, or href");
 }
 
 function staticServiceImageReference(service: ServicePageDefinition, index: PublicPostIndex): PublicImageReference | undefined {
@@ -3392,6 +3912,62 @@ function buildServicePageSchema(service: ServicePageDefinition, index: PublicPos
   };
 }
 
+function buildKnowledgeHubSchema(index: PublicPostIndex): object | undefined {
+  const businessNode = buildBusinessSchemaNode(index);
+  if (!businessNode) return undefined;
+  const canonical = knowledgeHubUrl(index);
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      businessNode,
+      buildWebsiteSchemaNode(index),
+      {
+        "@type": "CollectionPage",
+        "@id": `${canonical}#webpage`,
+        url: canonical,
+        name: KNOWLEDGE_HUB_TITLE,
+        description: KNOWLEDGE_HUB_DESCRIPTION,
+        inLanguage: "zh-Hant-TW",
+        isPartOf: { "@id": `${index.canonical_url}#website` },
+        about: { "@id": `${index.canonical_url}#business` },
+        mainEntity: { "@id": `${canonical}#answers` },
+        breadcrumb: { "@id": `${canonical}#breadcrumb` },
+        ...optionalSchemaDateModified(knowledgeHubContentLastmod())
+      },
+      {
+        "@type": "ItemList",
+        "@id": `${canonical}#answers`,
+        numberOfItems: SUPPORT_PAGE_DEFINITIONS.length,
+        itemListElement: SUPPORT_PAGE_DEFINITIONS.map((page, position) => ({
+          "@type": "ListItem",
+          position: position + 1,
+          name: page.h1,
+          url: supportPageUrl(page, index)
+        }))
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${canonical}#breadcrumb`,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: index.business_profile.name,
+            item: index.canonical_url
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "洗護知識庫",
+            item: canonical
+          }
+        ]
+      }
+    ]
+  };
+}
+
 function buildSupportPageSchema(page: SupportPageDefinition, index: PublicPostIndex): object | undefined {
   const businessNode = buildBusinessSchemaNode(index);
   if (!businessNode) return undefined;
@@ -3536,6 +4112,48 @@ async function removePublicContentCalendar(date: string, root: string): Promise<
   }
 }
 
+function publicAssetIsFile(
+  filePath: string,
+  statPublicAsset: (filePath: string) => { isFile(): boolean }
+): boolean {
+  try {
+    const assetStat = statPublicAsset(filePath);
+    if (assetStat.isFile()) return true;
+    throw new Error(`Public asset path is not a file: ${filePath}`);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+function slotWithAvailablePublicMedia(
+  date: string,
+  slot: DailySlot,
+  root: string,
+  statPublicAsset: (filePath: string) => { isFile(): boolean }
+): DailySlot {
+  if (slot.media_type !== "reel") {
+    const nonVideoSlot: DailySlot = { ...slot };
+    delete nonVideoSlot.local_video_path;
+    delete nonVideoSlot.public_video_url;
+    return nonVideoSlot;
+  }
+
+  const videoPath = join(root, "docs", publicVideoAssetPath(date, slot.slot));
+  if (publicAssetIsFile(videoPath, statPublicAsset)) return slot;
+
+  const imagePath = join(root, "docs", publicAssetPath(date, slot.slot));
+  if (!publicAssetIsFile(imagePath, statPublicAsset)) {
+    throw new Error(`Cannot expose approved reel ${date} slot ${slot.slot}: both video and fallback image are missing.`);
+  }
+
+  // A planned Reel is not public video content until its expected MP4 exists on disk.
+  const imageSlot: DailySlot = { ...slot, format: "image-post", media_type: "image" };
+  delete imageSlot.local_video_path;
+  delete imageSlot.public_video_url;
+  return imageSlot;
+}
+
 async function writeApprovedPublicContentCalendar(
   calendar: DailyContent,
   approvedSlots: DailySlot[],
@@ -3554,7 +4172,7 @@ async function writeApprovedPublicContentCalendar(
 
 async function writePostArticlePages(posts: PublicPost[], index: PublicPostIndex, postsRoot: string): Promise<string[]> {
   await mkdir(postsRoot, { recursive: true });
-  const expected = new Set(posts.map((post) => post.article_path.split("/").at(-1)!));
+  const expected = new Set([...posts.map((post) => post.article_path.split("/").at(-1)!), "index.html"]);
   const existing = await readdir(postsRoot);
   await Promise.all(
     existing
@@ -3564,6 +4182,11 @@ async function writePostArticlePages(posts: PublicPost[], index: PublicPostIndex
 
   const paths = posts.map((post) => join(postsRoot, post.article_path.split("/").at(-1)!));
   await Promise.all(paths.map((path, indexPosition) => writeFile(path, buildPostPageHtml(posts[indexPosition]!, index), "utf8")));
+  if (posts.length > 0) {
+    const hubPath = join(postsRoot, "index.html");
+    await writeFile(hubPath, buildPostsHubHtml(index), "utf8");
+    paths.push(hubPath);
+  }
   return paths;
 }
 
@@ -3627,7 +4250,7 @@ function slotToPublicPost(
 
 function citationReadySummary(index: PublicPostIndex): string {
   const profile = index.business_profile;
-  return `${profile.name}位於${profile.address_text}，主要服務台中西屯與青海路二段附近客人，內容涵蓋衣物洗護、鞋包清潔、白鞋清潔與布品收納。客人可先透過 LINE 傳照片，由門市依材質、髒污位置、濕氣與保存狀態做初步判斷；網站不提供未驗證價格、不保證完全洗白或完全去除所有痕跡。${AEO_PLUSH_DOLL_BOUNDARY}${AEO_WHITE_SHOE_GRAY_VS_YELLOW}${AEO_LUGGAGE_WHEELS}`;
+  return `${profile.name}位於${profile.address_text}，主要服務台中西屯與青海路二段附近客人，內容涵蓋衣物洗護、鞋包清潔、白鞋清潔與布品收納。客人可先透過 LINE 傳照片，由門市依材質、髒污位置、濕氣與保存狀態做初步判斷；網站不提供未驗證價格、不保證完全洗白或完全去除所有痕跡。${AEO_PLUSH_DOLL_BOUNDARY}${AEO_WHITE_SHOE_GRAY_VS_YELLOW}${AEO_LUGGAGE_WHEELS}${AEO_CURTAIN}${AEO_CARPET}`;
 }
 
 function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: string }> {
@@ -3641,6 +4264,8 @@ function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: st
   const plushDollGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "plush-doll-cleaning");
   const whiteShoeYellowing = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "white-shoe-yellowing");
   const bagHandleGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "bag-handle-cleaning");
+  const luggageGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "luggage-wheel-cleaning");
+  const curtainGuide = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "curtain-cleaning");
   return [
     { label: "Business profile", url: index.entrypoints.business_profile },
     ...(taichungXitunLaundry ? [{ label: "Local laundry service", url: servicePageUrl(taichungXitunLaundry, index) }] : []),
@@ -3652,6 +4277,8 @@ function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: st
     ...(plushDollGuide ? [{ label: "Plush doll wash boundary", url: supportPageUrl(plushDollGuide, index) }] : []),
     ...(whiteShoeYellowing ? [{ label: "White shoe grey vs yellow", url: supportPageUrl(whiteShoeYellowing, index) }] : []),
     ...(bagHandleGuide ? [{ label: "Luggage wheel and bag handle", url: supportPageUrl(bagHandleGuide, index) }] : []),
+    ...(luggageGuide ? [{ label: "Luggage wheels", url: supportPageUrl(luggageGuide, index) }] : []),
+    ...(curtainGuide ? [{ label: "Curtain cleaning", url: supportPageUrl(curtainGuide, index) }] : []),
     ...(serviceSearchGuide ? [{ label: "Taichung laundry service search guide", url: supportPageUrl(serviceSearchGuide, index) }] : []),
     { label: "Answers", url: index.entrypoints.answers },
     { label: "Search visibility", url: index.entrypoints.search_visibility },
@@ -3891,19 +4518,16 @@ function buildRobotsText(index: PublicPostIndex): string {
  * sitemap and buried the service and guide pages that actually answer local queries.
  * They stay published and linked for readers, but out of the indexable surface.
  */
-const POST_PAGES_INDEXABLE = false;
-/** `follow` keeps the link equity flowing to the service pages the posts point at. */
-const POST_ROBOTS_CONTENT = POST_PAGES_INDEXABLE
-  ? "index, follow, max-image-preview:large"
-  : "noindex, follow, max-image-preview:large";
-
 function buildSitemapXml(index: PublicPostIndex): string {
   const urls = index.base_url_configured
     ? [
         index.canonical_url,
+        knowledgeHubUrl(index),
         ...Object.values(index.entrypoints.service_pages),
         ...Object.values(index.entrypoints.support_pages),
-        ...(POST_PAGES_INDEXABLE ? index.article_posts.map((post) => post.article_url) : [])
+        ...(indexablePostArticles(index).length > 0
+          ? [postsHubUrl(index), ...indexablePostArticles(index).map((post) => post.article_url)]
+          : [])
       ]
     : [];
   const uniqueUrls = Array.from(new Set(urls));
@@ -3931,6 +4555,7 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
         { loc: index.entrypoints.business_profile, purpose: "business-profile" },
         { loc: index.entrypoints.services, purpose: "service-records" },
         { loc: index.entrypoints.answers, purpose: "answer-engine-records" },
+        { loc: knowledgeHubUrl(index), purpose: "knowledge-hub" },
         { loc: index.entrypoints.geo_targets, purpose: "geo-target-records" },
         { loc: index.entrypoints.search_visibility, purpose: "search-intent-and-ai-visibility-review" },
         { loc: index.entrypoints.llms_jsonl, purpose: "line-delimited-ai-records" },
@@ -3945,9 +4570,14 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
         { loc: index.entrypoints.feed, purpose: "updates-feed" },
         { loc: index.entrypoints.social_posts, purpose: "post-records" },
         { loc: index.entrypoints.latest, purpose: "latest-package" },
-        // Post pages carry noindex; advertising them in any sitemap contradicts that.
-        ...(POST_PAGES_INDEXABLE
-          ? index.article_posts.map((post) => ({ loc: post.article_url, purpose: `published-post-${post.slot}` }))
+        // Only articles that cleared the thickness gate carry index robots; the
+        // rest stay out of every sitemap so the two surfaces never contradict.
+        ...(indexablePostArticles(index).length > 0
+          ? [
+              { loc: postsHubUrl(index), purpose: "daily-article-hub" },
+              { loc: index.entrypoints.rss, purpose: "rss-feed" },
+              ...indexablePostArticles(index).map((post) => ({ loc: post.article_url, purpose: `daily-article-${post.id}` }))
+            ]
           : []),
         ...allServiceImages(index).map((image) => ({ loc: image.image_url, purpose: `service-image-${image.source_type}` })),
         ...index.posts.map((post) => ({ loc: post.calendar_url, purpose: `calendar-slot-${post.slot}` })),
@@ -4704,418 +5334,300 @@ function buildPublicSiteCss(): string {
   return `
     :root {
       color-scheme: light;
-      --bg: #f5f5f7;
-      --surface: #ffffff;
-      --surface-soft: #fbfbfd;
-      --surface-dark: #050505;
-      --surface-dark-soft: #151516;
-      --ink: #1d1d1f;
-      --muted: #6e6e73;
-      --muted-strong: #424245;
-      --line: #d2d2d7;
-      --line-soft: rgba(0, 0, 0, 0.08);
-      --accent: #0066cc;
-      --accent-soft: #e8f2ff;
-      --shadow: 0 28px 90px rgba(0, 0, 0, 0.12);
-      --max: 1180px;
+      --color-ink: #172033;
+      --color-muted: #5c6575;
+      --color-subtle: #eef2f6;
+      --color-line: #d7dee8;
+      --color-bg: #f7f8fb;
+      --color-surface: #fff;
+      --color-brand: #1f4d3a;
+      --color-brand-ink: #f4efe6;
+      --color-brand-deep: #163a2b;
+      --color-brand-soft: #e8f0eb;
+      --color-blue: #1f6feb;
+      --color-green: #1c7c54;
+      --color-red: #b42318;
+      --shadow-panel: 0 14px 38px #17203314;
+      --radius-card: 8px;
+      --radius-control: 6px;
+      --max-page: 1180px;
+      --font-body: "Microsoft JhengHei UI", "Microsoft JhengHei", "PingFang TC", Arial, sans-serif;
     }
     * { box-sizing: border-box; }
-    html { max-width: 100%; scroll-behavior: smooth; overflow-x: hidden; }
-    body {
-      width: 100%;
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
-      line-height: 1.58;
-      -webkit-font-smoothing: antialiased;
-      text-rendering: optimizeLegibility;
-      overflow-x: hidden;
-    }
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; text-underline-offset: 4px; }
-    img { display: block; max-width: 100%; height: auto; background: #e8e8ed; }
-    main { width: 100%; margin: 0; overflow: hidden; }
+    html { background: var(--color-bg); color: var(--color-ink); font-family: var(--font-body); scroll-behavior: smooth; overflow-x: clip; }
+    body { min-width: 320px; margin: 0; overflow-x: clip; }
+    body, button, input, textarea { font-family: var(--font-body); }
+    img { max-width: 100%; height: auto; display: block; }
+    a { color: inherit; }
+    main { background: var(--color-bg); }
     address { font-style: normal; }
-    .topbar {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      display: flex;
+    .page-shell { max-width: var(--max-page); margin: 0 auto; padding: 0 20px; }
+    .section { padding: 56px 0; }
+    .section.tight { padding: 34px 0; }
+    .section.surface { background: #ffffff; border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); }
+    .section-header { gap: 10px; max-width: 760px; margin-bottom: 24px; display: grid; }
+    .section-header p, .section-header .section-copy { margin: 0; }
+    .eyebrow { color: var(--color-blue); letter-spacing: 0; font-size: .85rem; font-weight: 800; margin: 0; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { letter-spacing: 0; margin-bottom: 18px; font-size: clamp(2.25rem, 6vw, 4.6rem); line-height: 1.04; }
+    h2 { letter-spacing: 0; margin-bottom: 12px; font-size: clamp(1.65rem, 3vw, 2.45rem); line-height: 1.16; }
+    h3 { letter-spacing: 0; margin-bottom: 8px; font-size: 1.15rem; line-height: 1.3; }
+    h3 a { text-decoration: none; }
+    p, li { color: var(--color-muted); line-height: 1.75; }
+    .lead { color: #344154; font-size: 1.1rem; line-height: 1.8; }
+    .last-updated { color: var(--color-muted); font-size: .88rem; margin: 6px 0 0; }
+    .button-row { flex-wrap: wrap; align-items: center; gap: 12px; display: flex; }
+    .button {
+      background: var(--color-ink);
+      border: 1px solid var(--color-ink);
+      border-radius: var(--radius-control);
+      color: #fff;
+      justify-content: center;
       align-items: center;
+      min-height: 44px;
+      padding: 10px 16px;
+      font-weight: 800;
+      text-decoration: none;
+      display: inline-flex;
+    }
+    .button.secondary { color: var(--color-ink); background: #fff; }
+    .button.brand { background: var(--color-brand); color: var(--color-brand-ink); border-color: var(--color-brand-deep); }
+    .card-reel-link { width: 100%; margin: 12px 0; display: flex; }
+    .grid { gap: 18px; display: grid; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-panel);
+      padding: 20px;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .card h2 { font-size: 1.35rem; }
+    .card p:last-child { margin-bottom: 0; }
+    .card ul { margin: 0; padding-left: 18px; }
+    .card + .card { margin-top: 14px; }
+    .muted { color: var(--color-muted); }
+    .site-header { border-bottom: 1px solid var(--color-line); z-index: 30; background: #fffffff5; position: sticky; top: 0; }
+    .site-header__inner {
+      max-width: var(--max-page);
       justify-content: space-between;
-      gap: 22px;
-      min-height: 46px;
-      padding: 0 max(22px, calc((100vw - var(--max)) / 2));
-      background: rgba(245, 245, 247, 0.82);
-      border-bottom: 1px solid var(--line-soft);
-      backdrop-filter: saturate(180%) blur(18px);
-    }
-    .brand { font-weight: 650; color: var(--ink); text-decoration: none; letter-spacing: 0; white-space: nowrap; }
-    .nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 22px; font-size: 0.82rem; }
-    .nav a {
-      display: inline-flex;
       align-items: center;
-      min-height: 34px;
-      color: var(--muted-strong);
-      text-decoration: none;
-    }
-    .nav a:hover { color: var(--ink); text-decoration: none; }
-    .breadcrumb {
-      width: min(var(--max), calc(100% - 44px));
+      gap: 18px;
+      min-height: 76px;
       margin: 0 auto;
-      padding: 18px 0 0;
-      color: var(--muted);
-      font-size: 0.88rem;
-    }
-    .breadcrumb ol { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
-    .breadcrumb li + li::before { content: "/"; margin-right: 8px; color: var(--line); }
-    .breadcrumb a { color: var(--muted-strong); }
-    .last-updated { margin: 12px 0 0; color: var(--muted); font-size: 0.88rem; }
-    .section-inner { width: min(var(--max), calc(100% - 44px)); min-width: 0; margin: 0 auto; }
-    .product-hero {
-      text-align: center;
-      padding: 78px 0 0;
-      background: var(--surface);
-    }
-    .hero-dark {
-      background: var(--surface-dark);
-      color: #f5f5f7;
-    }
-    .hero-light { background: var(--surface); color: var(--ink); }
-    .hero-copy {
-      width: min(900px, 100%);
-      min-width: 0;
-      margin: 0 auto;
-      padding: 0 0 34px;
-    }
-    .hero-actions {
+      padding: 0 20px;
       display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 12px;
-      margin-top: 24px;
     }
-    .primary-link, .secondary-link {
-      display: inline-flex;
+    .brand-link { letter-spacing: 0; align-items: center; gap: 10px; font-weight: 900; text-decoration: none; display: inline-flex; white-space: nowrap; flex: none; }
+    .brand-mark {
+      background: var(--color-brand);
+      border: 2px solid var(--color-brand-deep);
+      color: var(--color-brand-ink);
+      border-radius: 6px;
+      justify-content: center;
       align-items: center;
+      width: 36px;
+      height: 36px;
+      font-weight: 900;
+      display: inline-flex;
+    }
+    .site-header .nav { flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; display: flex; }
+    .site-header .nav a { border-radius: var(--radius-control); color: #293446; padding: 8px 10px; font-size: .9rem; font-weight: 700; text-decoration: none; }
+    .site-header .nav a:hover { background: var(--color-subtle); }
+    .home-hero { border-bottom: 1px solid var(--color-line); background: #fff; overflow: hidden; }
+    .home-hero__grid { grid-template-columns: minmax(0, .92fr) minmax(480px, 1.08fr); align-items: stretch; min-height: 540px; display: grid; }
+    .home-hero__content { align-self: center; max-width: 560px; padding: 64px 38px 64px 0; }
+    .home-hero__content h1 { color: #101a2b; margin-bottom: 16px; font-size: clamp(2.7rem, 5vw, 4.45rem); }
+    .home-hero__actions { flex-wrap: wrap; gap: 14px; margin-top: 26px; display: flex; }
+    .home-hero__actions .button { min-width: 178px; }
+    .home-hero__photo-action { color: var(--color-brand); background: #fff; border-color: var(--color-brand); }
+    .home-hero__photo-action:hover, .home-hero__photo-action:focus-visible { background: var(--color-brand-soft); }
+    .home-hero__note { border-left: 3px solid var(--color-brand); margin: 24px 0 0; padding-left: 12px; font-size: .94rem; }
+    .home-hero__note a { color: var(--color-blue); font-weight: 700; text-decoration: none; }
+    .home-hero__visual { min-height: 540px; position: relative; }
+    .home-hero__visual > picture:first-child, .home-hero__visual > picture:first-child img, .home-hero__visual > img:first-child {
+      object-fit: cover;
+      object-position: 62% center;
+      width: 100%;
+      height: 100%;
+    }
+    .home-hero__visual > picture:first-child { display: block; position: absolute; inset: 0; }
+    .home-hero__app, .home-hero__app img {
+      box-shadow: var(--shadow-panel);
+      background: #fff;
+      border: 1px solid #dce5f0;
+      max-width: 270px;
+      height: auto;
+    }
+    .home-hero__app { position: absolute; bottom: 28px; left: -54px; }
+    .home-hero__app img { box-shadow: none; border: 0; }
+    .home-flow { background: #eef5ff; border-bottom: 1px solid #d9e5f4; padding: 26px 0 18px; }
+    .home-flow__list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin: 0; padding: 0; list-style: none; display: grid; }
+    .home-flow__list li { border-right: 1px solid #cbd9ea; grid-template-columns: auto 1fr; align-items: center; gap: 2px 10px; padding-right: 18px; display: grid; }
+    .home-flow__list li:last-child { border-right: 0; }
+    .home-flow__list span {
+      background: var(--color-blue);
+      color: #fff;
+      border-radius: 50%;
+      grid-row: span 2;
       justify-content: center;
-      min-height: 42px;
-      padding: 8px 19px;
-      border-radius: 999px;
-      font-weight: 620;
+      align-items: center;
+      width: 28px;
+      height: 28px;
+      font-size: .84rem;
+      font-weight: 900;
+      display: inline-flex;
+    }
+    .home-flow__list strong { color: var(--color-ink); font-size: 1rem; }
+    .home-flow__list small { color: var(--color-muted); font-size: .84rem; }
+    .home-office-callout {
+      border-radius: var(--radius-card);
+      background: #fff;
+      border: 1px solid #d5e0ee;
+      justify-content: center;
+      align-items: center;
+      gap: 10px 16px;
+      max-width: 680px;
+      margin: 20px auto 0;
+      padding: 13px 18px;
       text-decoration: none;
+      display: flex;
     }
-    .primary-link { background: var(--accent); color: #fff; }
-    .secondary-link { color: var(--accent); background: transparent; }
-    .primary-link:hover, .secondary-link:hover { text-decoration: none; }
-    h1, h2, h3 {
-      line-height: 1.25;
-      letter-spacing: 0;
-      overflow-wrap: anywhere;
-      text-wrap: balance;
+    .home-office-callout strong { color: #174a94; }
+    .home-office-callout span { color: var(--color-muted); font-size: .9rem; }
+    .breadcrumb { color: var(--color-muted); flex-wrap: wrap; gap: 8px; padding: 18px 0 0; font-size: .92rem; display: flex; max-width: var(--max-page); margin: 0 auto; padding-left: 20px; padding-right: 20px; }
+    .breadcrumb ol { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .breadcrumb li + li::before { content: "/"; margin-right: 8px; color: var(--color-line); }
+    .breadcrumb a { color: var(--color-blue); text-decoration: none; }
+    .product-card, .solution-card, .article-card, .post-tile { gap: 12px; display: grid; align-content: start; }
+    .product-card__meta, .article-meta { color: var(--color-muted); font-size: .9rem; }
+    .card-link { color: var(--color-blue); font-weight: 800; text-decoration: none; }
+    .link-row { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+    .link-row a { color: var(--color-blue); font-weight: 800; text-decoration: none; }
+    .service-card-image, .article-card img, .post-tile picture img, .post-tile > a > img {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      border-radius: var(--radius-control);
+      border: 1px solid var(--color-line);
     }
-    h1 { margin: 0 0 16px; font-size: 5.85rem; font-weight: 720; letter-spacing: 0; }
-    h2 { margin: 0; font-size: 3.28rem; font-weight: 710; letter-spacing: 0; }
-    h3 { margin: 0 0 10px; font-size: 1.18rem; font-weight: 680; }
-    .lead { margin: 0 auto; max-width: 780px; color: var(--muted); font-size: 1.42rem; font-weight: 430; line-height: 1.45; }
-    p, li, figcaption, .lead, .answer-box, .card {
-      min-width: 0;
-      overflow-wrap: anywhere;
-      word-break: break-word;
+    .post-tile picture, .post-tile > a { display: block; }
+    .post-tile > a { text-decoration: none; }
+    .post-caption { white-space: pre-line; }
+    .caption-details summary { cursor: pointer; color: var(--color-blue); font-weight: 800; }
+    .caption-details p { margin: 10px 0 0; font-size: .94rem; }
+    .post-archive { margin-top: 24px; border-top: 1px solid var(--color-line); padding-top: 18px; }
+    .post-archive summary { cursor: pointer; font-weight: 800; color: var(--color-ink); }
+    .post-archive .grid { margin-top: 18px; }
+    .answer-block, .answer-box { border-radius: var(--radius-card); background: #f0f7ff; border: 1px solid #b9d8ff; padding: 18px; }
+    .answer-block strong, .answer-box strong, .answer-box .eyebrow { color: var(--color-blue); margin-bottom: 6px; display: block; }
+    .hero-visual > .eyebrow { margin-bottom: -8px; }
+    .hero-visual > .muted { font-size: .9rem; margin: 0; }
+    .answer-block p:last-child, .answer-box p:last-child { margin-bottom: 0; }
+    .answer-box ul { margin: 0; padding-left: 18px; }
+    .answer-box + .answer-box { margin-top: 14px; }
+    .answer-box h3 { font-size: 1.02rem; margin: 12px 0 4px; }
+    .hero-visual picture, .hero-visual img, .service-photo picture, .service-photo img, .service-photo video {
+      width: 100%;
+      border-radius: var(--radius-card);
+      border: 1px solid var(--color-line);
+      box-shadow: var(--shadow-panel);
+      object-fit: cover;
     }
-    .hero-dark .lead, .hero-dark .eyebrow, .hero-dark figcaption { color: rgba(245, 245, 247, 0.72); }
-    .meta-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 24px 0 0; }
+    .service-photo video { width: min(100%, 430px); aspect-ratio: 9 / 16; margin: 0 auto; background: #000; }
+    .service-photo figcaption, .hero-visual figcaption { color: var(--color-muted); font-size: .9rem; margin-top: 10px; }
+    figure { margin: 0; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
     .chip {
       display: inline-flex;
       align-items: center;
       min-height: 30px;
-      padding: 5px 11px;
-      border: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 4px 10px;
+      border: 1px solid var(--color-line);
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.08);
-      color: inherit;
+      background: #fff;
+      color: var(--color-muted);
+      font-size: .86rem;
+      font-weight: 700;
       text-decoration: none;
     }
-    .hero-light .chip, .chip.on-light {
-      border-color: rgba(0, 0, 0, 0.08);
-      background: rgba(255, 255, 255, 0.72);
-      color: var(--muted-strong);
+    .page-hero { background: #fff; border-bottom: 1px solid var(--color-line); }
+    .page-hero .grid.two { align-items: start; }
+    .hero-copy .button-row { margin-top: 18px; }
+    .hero-visual { display: grid; gap: 18px; align-content: start; }
+    .cta-band { background: var(--color-ink); color: #fff; padding: 38px 0; }
+    .cta-band h2 { color: #fff; }
+    .cta-band p { color: #d7dee8; }
+    .site-footer { color: #fff; background: #111827; padding: 40px 0; }
+    .site-footer h2, .site-footer h3 { color: #fff; }
+    .site-footer p, .site-footer a { color: #d1d5db; }
+    .site-footer__grid { grid-template-columns: 1.1fr .9fr; gap: 24px; display: grid; }
+    .footer-links { flex-wrap: wrap; gap: 10px 18px; display: flex; }
+    .footer-links a { text-decoration: none; }
+    .mobile-sticky-cta {
+      border-top: 1px solid var(--color-line);
+      z-index: 25;
+      background: #fff;
+      gap: 8px;
+      padding: 10px;
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
     }
-    .hero-media, .service-photo, .product-visual {
-      width: min(1120px, calc(100% - 44px));
-      margin: 0 auto;
+    .mobile-sticky-cta .button { flex: 1; min-height: 42px; }
+    .price-table-card, .table-wrap { overflow-x: auto; }
+    .price-table, .comparison-table { border-collapse: collapse; width: 100%; margin-top: 12px; background: #fff; }
+    .price-table th, .price-table td, .comparison-table th, .comparison-table td { border-bottom: 1px solid var(--color-line); text-align: left; padding: 10px 12px; vertical-align: top; }
+    .price-table thead th, .comparison-table thead th { color: var(--color-muted); letter-spacing: .02em; font-size: .85rem; }
+    .price-table tbody tr:last-child td, .comparison-table tbody tr:last-child td { border-bottom: none; }
+    .comparison-table caption { text-align: left; font-weight: 800; padding: 0 0 8px; color: var(--color-ink); }
+    .article-body { background: var(--color-surface); border-top: 1px solid var(--color-line); padding: 36px 0; }
+    .article-body .content { max-width: 780px; margin: 0 auto; padding: 0 20px; }
+    .article-body .content a { overflow-wrap: anywhere; word-break: break-word; }
+    .article-body .content h2 { border-top: 1px solid var(--color-line); margin-top: 30px; padding-top: 26px; }
+    .article-body .content blockquote { border-left: 4px solid var(--color-brand); background: var(--color-brand-soft); margin: 24px 0; padding: 18px; }
+    .article-faq { margin-top: 34px; }
+    .article-faq__list { gap: 12px; display: grid; }
+    .article-faq__item { border-top: 1px solid var(--color-line); padding-top: 14px; }
+    .article-faq__item h3 { color: var(--color-ink); margin-bottom: 6px; font-size: 1.02rem; }
+    .article-faq__item p { margin-bottom: 0; }
+    .machine-details { border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); padding: 18px 0; }
+    .machine-details summary { cursor: pointer; font-weight: 800; color: var(--color-ink); }
+    .machine-details p { margin: 12px 0; }
+    .machine-details nav { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+    .machine-details nav a { color: var(--color-blue); font-size: .9rem; text-decoration: none; }
+    @media (max-width: 1300px) and (min-width: 901px) {
+      .site-header__inner { flex-direction: column; align-items: flex-start; gap: 4px; padding-top: 10px; padding-bottom: 10px; }
+      .site-header .nav { justify-content: flex-start; width: 100%; }
+      .site-header .nav a { padding: 6px 8px; font-size: .88rem; }
     }
-    .hero-media img, .service-photo img, .service-photo video, .product-visual img {
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      object-fit: cover;
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-    }
-    .service-photo video {
-      width: min(100%, 430px);
-      aspect-ratio: 9 / 16;
-      margin: 0 auto;
-      background: #000;
-    }
-    .hero-media figcaption, .service-photo figcaption, .product-visual figcaption {
-      max-width: 760px;
-      padding: 14px 0 0;
-      margin: 0 auto;
-      line-height: 1.7;
-      overflow-wrap: anywhere;
-    }
-    .product-band { padding: 96px 0; border-top: 1px solid var(--line-soft); background: var(--bg); }
-    .product-band.surface { background: var(--surface); }
-    ${HOME_DEPTH_BACKGROUNDS.map((background) => `.${background.className} { --depth-image: url("${background.path}"); }`).join("\n    ")}
-    .depth-band {
-      position: relative;
-      isolation: isolate;
-      overflow: hidden;
-    }
-    .depth-band::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: 0;
-      background-image: var(--depth-image);
-      background-size: min(980px, 74vw) auto;
-      background-repeat: no-repeat;
-      background-position: 100% center;
-      opacity: 0.72;
-      transform: scale(1.04);
-      filter: saturate(0.98) contrast(1.08);
-      mix-blend-mode: multiply;
-      -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.2) 24%, rgba(0, 0, 0, 0.82) 58%, rgba(0, 0, 0, 1) 100%);
-      mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.2) 24%, rgba(0, 0, 0, 0.82) 58%, rgba(0, 0, 0, 1) 100%);
-      pointer-events: none;
-    }
-    .depth-band::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: 1;
-      background:
-        radial-gradient(circle at 48% 30%, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.8) 30%, rgba(255, 255, 255, 0.34) 58%, rgba(255, 255, 255, 0.06) 100%),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.78) 42%, rgba(255, 255, 255, 0.08) 100%);
-      pointer-events: none;
-    }
-    .depth-band > .section-inner { position: relative; z-index: 2; }
-    .depth-band:not(.surface)::after {
-      background:
-        radial-gradient(circle at 48% 30%, rgba(245, 245, 247, 0.96), rgba(245, 245, 247, 0.8) 30%, rgba(245, 245, 247, 0.34) 58%, rgba(245, 245, 247, 0.06) 100%),
-        linear-gradient(90deg, rgba(245, 245, 247, 0.96) 0%, rgba(245, 245, 247, 0.78) 42%, rgba(245, 245, 247, 0.08) 100%);
-    }
-    .depth-shoe-bag::before,
-    .depth-local-store::before {
-      background-position: 100% center;
-    }
-    .depth-fabric::before {
-      background-position: 100% center;
-    }
-    .section-header { max-width: 900px; min-width: 0; margin: 0 auto 46px; text-align: center; }
-    .section-header h2 { font-size: clamp(2.72rem, 5.4vw, 5.05rem); line-height: 1.04; }
-    .section-header .section-copy { margin: 18px auto 0; max-width: 760px; color: var(--muted); font-size: 1.22rem; line-height: 1.62; }
-    .section-header-bottom { margin: 64px auto 0; }
-    .section-header-bottom h2 { font-size: clamp(3rem, 5.8vw, 5.45rem); }
-    .section-header-bottom .section-copy { max-width: 820px; font-size: 1.28rem; }
-    .grid, .product-grid, .discovery-grid, .case-grid, .trust-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 18px;
-    }
-    .trust-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 0.66fr); gap: 46px; align-items: start; }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--line-soft);
-      border-radius: 8px;
-      padding: 28px;
-      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
-    }
-    .product-tile, .feature-panel, .spec-tile, .post-tile {
-      min-height: 100%;
-      background: var(--surface);
-      border-radius: 8px;
-      padding: 42px;
-      text-align: center;
-      border: 1px solid var(--line-soft);
-    }
-    .product-tile { min-height: 520px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
-    .product-tile:nth-child(2) {
-      background: var(--surface-dark);
-      color: #f5f5f7;
-      border-color: rgba(255, 255, 255, 0.12);
-    }
-    .product-tile:nth-child(2) p, .product-tile:nth-child(2) .eyebrow { color: rgba(245, 245, 247, 0.72); }
-    .product-tile h3 { font-size: clamp(2.05rem, 3.4vw, 3.5rem); line-height: 1.05; margin-bottom: 14px; }
-    .product-tile p, .feature-panel p, .spec-tile p, .post-tile p { color: var(--muted); margin: 0 auto; max-width: 560px; }
-    .product-tile .link-row, .feature-panel .link-row, .post-tile .link-row { justify-content: center; }
-    .feature-panel {
-      text-align: left;
-      padding: 38px 0;
-      background: transparent;
-      border: 0;
-      border-top: 1px solid var(--line);
-      border-radius: 0;
-      display: grid;
-      grid-template-columns: minmax(220px, 0.55fr) minmax(0, 1fr);
-      gap: 34px;
-      align-items: start;
-    }
-    .feature-panel h3 { font-size: clamp(2rem, 3.2vw, 3.42rem); line-height: 1.06; }
-    .feature-panel > p:not(.eyebrow) { margin: 0; max-width: 520px; font-size: 1.1rem; line-height: 1.72; }
-    .feature-panel ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; text-align: left; }
-    .feature-panel li { padding: 18px 0; border-top: 1px solid var(--line-soft); }
-    .feature-panel li:first-child { padding-top: 0; }
-    .feature-panel li p { max-width: none; margin-top: 4px; }
-    .spec-tile {
-      padding: 28px 0;
-      text-align: left;
-      background: transparent;
-      border: 0;
-      border-top: 1px solid var(--line);
-      border-radius: 0;
-    }
-    .spec-tile h3 { font-size: 1.45rem; }
-    .card h2 { font-size: 1.55rem; margin-bottom: 14px; }
-    .card p, .fact-list p { margin: 0; color: var(--muted); }
-    .card + .card { margin-top: 14px; }
-    .card ul { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 12px; }
-    .card li { padding-top: 12px; border-top: 1px solid var(--line-soft); }
-    .card li:first-child { padding-top: 0; border-top: 0; }
-    .card li p { margin-top: 4px; }
-    .fact-list { display: grid; gap: 12px; font-size: 1.02rem; }
-    .table-wrap { overflow-x: auto; border: 1px solid var(--line-soft); border-radius: 8px; background: var(--surface); }
-    .comparison-table { width: 100%; min-width: 720px; border-collapse: collapse; text-align: left; }
-    .comparison-table th, .comparison-table td { padding: 18px 20px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
-    .comparison-table tr:last-child td { border-bottom: 0; }
-    .comparison-table th { color: var(--ink); font-size: 0.92rem; }
-    .comparison-table td { color: var(--muted-strong); }
-    .eyebrow { color: var(--muted); font-weight: 680; font-size: 0.82rem; letter-spacing: 0; }
-    .service-card { min-height: 100%; }
-    .service-card a { font-weight: 700; }
-    .service-card h3 a { color: inherit; }
-    .service-card p:last-child { font-size: 1.02rem; }
-    .service-card-image {
-      width: 100%;
-      aspect-ratio: 16 / 10;
-      object-fit: cover;
-      border-radius: 8px;
-      margin: 24px 0;
-      border: 1px solid var(--line-soft);
-      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
-    }
-    .post-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-    .post-list article { overflow: hidden; }
-    .post-list img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; border: 1px solid var(--line-soft); margin: 16px 0 12px; }
-    .post-tile { text-align: left; background: var(--surface); padding: 30px; }
-    .post-tile h3 { font-size: clamp(1.58rem, 2.5vw, 2.35rem); line-height: 1.1; }
-    .post-tile p { margin-left: 0; margin-right: 0; }
-    .post-caption { white-space: pre-line; color: var(--ink); line-height: 1.78; }
-    .post-preview { color: var(--muted-strong); font-size: 1.08rem; }
-    .caption-details { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
-    .caption-details summary { cursor: pointer; font-weight: 700; color: var(--accent); }
-    .caption-details .post-caption { margin-top: 14px; font-size: 0.98rem; }
-    .post-archive { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 22px; }
-    .post-archive summary { cursor: pointer; font-size: .95rem; font-weight: 700; color: var(--ink); list-style-position: outside; }
-    .post-archive .section-copy { margin: 12px 0 20px; }
-    .archive-list { margin-top: 16px; }
-    figure { margin: 0; }
-    figcaption { margin-top: 8px; color: var(--muted); font-size: 0.9rem; }
-    .answer-box {
-      border: 1px solid var(--line-soft);
-      background: var(--surface-soft);
-      padding: 24px;
-      border-radius: 8px;
-    }
-    .answer-box p { margin: 0; color: var(--muted-strong); font-size: 1.05rem; }
-    .hero-copy .answer-box { margin-top: 26px; text-align: center; }
-    .story-band { background: var(--surface-dark); color: #f5f5f7; }
-    .story-band .section-copy, .story-band .eyebrow { color: rgba(245, 245, 247, 0.72); }
-    .story-band .card {
-      background: var(--surface-dark-soft);
-      border-color: rgba(255, 255, 255, 0.12);
-    }
-    .story-band .card p { color: rgba(245, 245, 247, 0.74); }
-    .utility-band { background: var(--surface); padding: 52px 0 72px; }
-    .machine-details {
-      max-width: 940px;
-      margin: 0 auto;
-      border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-      padding: 20px 0;
-    }
-    .machine-details summary {
-      cursor: pointer;
-      font-weight: 700;
-      color: var(--ink);
-      list-style-position: outside;
-    }
-    .machine-details .section-copy { margin: 12px 0 18px; max-width: 760px; color: var(--muted); }
-    .utility-band .nav { justify-content: flex-start; gap: 6px 18px; }
-    .local-query-row {
-      justify-content: flex-start;
-      margin-top: 18px;
-    }
-    .local-query-row .chip {
-      border-color: rgba(0, 0, 0, 0.08);
-      background: rgba(255, 255, 255, 0.74);
-      color: var(--muted-strong);
-    }
-    .link-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-    .link-row a {
-      display: inline-flex;
-      align-items: center;
-      min-height: 34px;
-      padding: 6px 12px;
-      border-radius: 999px;
-      background: var(--accent-soft);
-    }
-    .muted { color: var(--muted); }
-    @media (max-width: 820px) {
-      .topbar {
-        position: static;
-        align-items: flex-start;
-        padding: 10px 16px;
-        display: grid;
-        grid-template-columns: 1fr;
-      }
-      .section-inner, .hero-media, .service-photo, .product-visual {
-        width: min(var(--max), calc(100vw - 24px));
-        max-width: calc(100vw - 24px);
-      }
-      .breadcrumb { width: calc(100vw - 32px); }
-      .hero-copy, .section-header, .answer-box, .card, .lead { max-width: 100%; }
-      .product-hero { padding-top: 50px; }
-      .product-band { padding: 54px 0; }
-      .two-col { grid-template-columns: 1fr; display: grid; }
-      .grid, .product-grid, .post-list, .case-grid, .discovery-grid, .trust-grid { grid-template-columns: 1fr; }
-      .nav { width: 100%; justify-content: flex-start; gap: 4px 16px; font-size: 0.8rem; }
-      .nav a { min-height: 30px; }
-      h1 { font-size: clamp(2.72rem, 11vw, 3.15rem); }
-      h2 { font-size: clamp(1.78rem, 7.2vw, 2.15rem); }
-      h1, h2, h3, p, li, figcaption, .lead, .answer-box, .card { word-break: break-all; }
-      .lead { font-size: 1.12rem; }
-      .hero-actions { justify-content: center; }
-      .product-tile, .feature-panel, .spec-tile, .post-tile, .card { padding: 24px; }
-      .feature-panel { grid-template-columns: 1fr; padding: 26px 0; }
-      .spec-tile { padding: 22px 0; }
-      .product-tile { min-height: 260px; }
-      .product-tile h3 { font-size: 1.72rem; }
-      .depth-band::before {
-        opacity: 0.1;
-        background-size: 150% auto;
-        background-position: center bottom;
-        transform: scale(1.1);
-        -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.55) 38%, rgba(0, 0, 0, 1) 100%);
-        mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.55) 38%, rgba(0, 0, 0, 1) 100%);
-      }
-      .depth-band::after,
-      .depth-band:not(.surface)::after {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(245, 245, 247, 0.9));
-      }
+    @media (max-width: 900px) {
+      .site-header__inner { flex-direction: column; align-items: flex-start; padding: 12px 20px; }
+      .site-header .nav { justify-content: flex-start; flex-wrap: nowrap; width: 100%; max-width: 100%; padding-bottom: 2px; overflow-x: auto; }
+      .site-header .nav a { flex: none; }
+      .site-footer__grid, .home-hero__grid { grid-template-columns: 1fr; }
+      .home-hero__content { padding: 44px 0 28px; }
+      .home-hero__actions .button { width: 100%; }
+      .home-hero__visual { min-height: 280px; }
+      .home-hero__visual > picture:first-child { position: relative; }
+      .home-hero__app { max-width: 160px; bottom: 12px; left: 12px; }
+      .home-hero__app img { max-width: 100%; }
+      .home-flow__list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .home-flow__list li:nth-child(2) { border-right: 0; }
+      .home-flow__list li:nth-child(-n+2) { border-bottom: 1px solid #cbd9ea; padding-bottom: 12px; }
+      .home-office-callout { flex-direction: column; align-items: flex-start; }
+      .mobile-sticky-cta { width: 100dvw; max-width: 100dvw; display: flex; right: auto; }
+      body { padding-bottom: 64px; }
+      .grid.two, .grid.three, .grid.four, .grid.five { grid-template-columns: 1fr; }
+      .section { padding: 40px 0; }
+      h1, h2, h3, p, li { overflow-wrap: anywhere; }
     }
   `;
 }
@@ -5181,7 +5693,19 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       about: { "@id": `${index.canonical_url}#business` },
       keywords: Array.from(
         new Set([...post.target_queries, ...post.hashtags.map((tag) => tag.replace(/^#/, ""))])
-      )
+      ),
+      articleSection: careContextFor(post.topic).family,
+      wordCount: renderPostArticle(post, index).visibleChars
+    },
+    {
+      "@type": "FAQPage",
+      "@id": `${post.article_url}#faq`,
+      isPartOf: { "@id": `${post.article_url}#webpage` },
+      mainEntity: postArticleFaqs(post).map((faq) => ({
+        "@type": "Question",
+        name: faq.question,
+        acceptedAnswer: { "@type": "Answer", text: faq.answer }
+      }))
     },
     {
       "@type": "WebPage",
@@ -5208,7 +5732,8 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       "@id": `${post.article_url}#breadcrumb`,
       itemListElement: [
         { "@type": "ListItem", position: 1, name: profile.name, item: index.canonical_url },
-        { "@type": "ListItem", position: 2, name: post.topic, item: post.article_url }
+        { "@type": "ListItem", position: 2, name: "每日洗護紀錄", item: postsHubUrl(index) },
+        { "@type": "ListItem", position: 3, name: post.topic, item: post.article_url }
       ]
     }
   ];
@@ -5272,11 +5797,11 @@ const CARE_CONTEXTS: Array<{ match: RegExp; context: CareContext }> = [
     }
   },
   {
-    match: /包|背包|提把|包角|化妝包|行李箱/,
+    match: /包|背包|提把|包角|化妝包|行李箱|行李/,
     context: {
       family: "包款與提把",
       serviceSlug: "shoe-bag-care",
-      guideSlugs: ["bag-handle-cleaning", "leather-jacket-care"],
+      guideSlugs: ["luggage-wheel-cleaning", "bag-handle-cleaning"],
       checkpoints: [
         "提把與包角是最先磨損的兩個位置,油痕和磨白的處理方向不一樣。",
         "內裡常有粉塵、筆漬或食物殘留,外觀乾淨不代表內袋乾淨。",
@@ -5318,11 +5843,11 @@ const CARE_CONTEXTS: Array<{ match: RegExp; context: CareContext }> = [
     }
   },
   {
-    match: /羽絨|棉被|寢具|床組|被單|枕|窗簾|沙發|布品|收納/,
+    match: /羽絨|棉被|寢具|床組|被單|枕|窗簾|地毯|沙發|布品|收納/,
     context: {
       family: "寢具與布品",
       serviceSlug: "fabric-storage",
-      guideSlugs: ["bedding-duvet-cleaning", "down-jacket-cleaning"],
+      guideSlugs: ["bedding-duvet-cleaning", "curtain-cleaning", "carpet-cleaning"],
       checkpoints: [
         "收納前一定要完全乾燥,沒乾透就壓縮會悶出味道也會失去蓬鬆度。",
         "黃斑多半是汗漬或濕氣長期作用,越早處理越容易淡化。",
@@ -5390,77 +5915,553 @@ function careContextFor(topic: string): CareContext {
   return CARE_CONTEXTS.find((entry) => entry.match.test(topic))?.context ?? DEFAULT_CARE_CONTEXT;
 }
 
-function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
+// Post pages used to carry only the caption and were kept out of the indexable
+// surface as thin near-duplicates. The iprinter daily pages that do get indexed
+// are ~2,100 visible characters with summary, checklist, table, next step, FAQ
+// and related links. Each approved post is now rendered as that kind of article
+// and is only advertised (index robots, sitemap, RSS, hub) when it clears a
+// fail-closed thickness gate measured on the rendered HTML itself.
+const POST_ARTICLE_MIN_VISIBLE_CHARS = 1200;
+const POST_ARTICLE_MIN_CAPTION_CHARS = 80;
+const POSTS_HUB_PATH = "posts/";
+const POSTS_HUB_TEMPLATE_LASTMOD = "2026-09-04";
+const POSTS_HUB_TITLE = "每日洗護紀錄總覽｜私享家洗衣店";
+const POSTS_HUB_DESCRIPTION =
+  "私享家洗衣店每天一則門市洗護紀錄：鞋包、白鞋、衣物寢具的檢查重點、處理界線與台中免費收送下一步，依日期排列。";
+const POST_ARTICLE_PICKUP_FAQ = {
+  question: "這類物件可以約台中免費收送嗎？",
+  answer:
+    "可以。台中市全區可預約免費收送，收送本身免費、沒有最低消費；清潔與洗護費依物件狀態另計。先用 LINE 傳整體與近照，門市會先說能整理到什麼程度，再約收送或到店。"
+};
+
+interface PostArticleRender {
+  mainHtml: string;
+  visibleChars: number;
+  indexable: boolean;
+  reasons: string[];
+  faqs: Array<{ question: string; answer: string }>;
+  articleNumber: number;
+}
+
+const postArticleRenderCache = new WeakMap<PublicPostIndex, Map<string, PostArticleRender>>();
+
+function visibleTextLength(html: string): number {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/gu, "").length;
+}
+
+function postsHubUrl(index: PublicPostIndex): string {
+  return index.base_url_configured ? `${index.base_url}/${POSTS_HUB_PATH}` : `${POSTS_HUB_PATH}index.html`;
+}
+
+function postsHubHref(index: PublicPostIndex, fromNestedPage = false): string {
+  if (index.base_url_configured) return postsHubUrl(index);
+  return fromNestedPage ? `../${POSTS_HUB_PATH}index.html` : `${POSTS_HUB_PATH}index.html`;
+}
+
+function sortedArticlePosts(index: PublicPostIndex): PublicPost[] {
+  return [...index.article_posts].sort((a, b) => `${a.date}-${a.slot}`.localeCompare(`${b.date}-${b.slot}`));
+}
+
+function articleNumberFor(post: PublicPost, index: PublicPostIndex): number {
+  return sortedArticlePosts(index).findIndex((item) => item.id === post.id) + 1;
+}
+
+function postArticleFaqs(post: PublicPost): Array<{ question: string; answer: string }> {
+  const care = careContextFor(post.topic);
+  return [...care.faqs, POST_ARTICLE_PICKUP_FAQ];
+}
+
+function postRobotsContent(indexable: boolean): string {
+  return indexable ? "index, follow, max-image-preview:large" : "noindex, follow, max-image-preview:large";
+}
+
+function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticleRender {
+  let cache = postArticleRenderCache.get(index);
+  if (!cache) {
+    cache = new Map();
+    postArticleRenderCache.set(index, cache);
+  }
+  const cached = cache.get(post.id);
+  if (cached) return cached;
+
   const profile = index.business_profile;
   const postSource = { section: "posts" as const, date: post.date, slot: post.slot };
-  const lineNav = trackedLineUrl(index, { ...postSource, placement: "nav" });
   const lineCta = trackedLineUrl(index, { ...postSource, placement: "cta" });
   const lineFooter = trackedLineUrl(index, { ...postSource, placement: "footer" });
-  const canonical = post.article_url;
-  const schema = buildPostPageSchema(post, index);
   const care = careContextFor(post.topic);
   const service = findServiceBySlug(care.serviceSlug) ?? SERVICE_PAGE_DEFINITIONS[0];
   const serviceHref = service ? servicePageUrl(service, index) : index.canonical_url;
-  // Same-family neighbours give crawlers a path between post pages instead of
-  // leaving each one reachable only from the home page listing.
-  const relatedPosts = index.article_posts
+  const pickupService = findServiceBySlug("taichung-citywide-laundry-pickup");
+  const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
+  const hubHref = postsHubHref(index, true);
+  const articleNumber = articleNumberFor(post, index);
+  const orderedArticles = sortedArticlePosts(index);
+  const previousArticle = orderedArticles[articleNumber - 2];
+  const nextArticle = orderedArticles[articleNumber];
+  const faqs = postArticleFaqs(post);
+  const relatedPosts = sortedArticlePosts(index)
     .filter((item) => item.id !== post.id && careContextFor(item.topic).family === care.family)
     .sort((a, b) => (a.date < b.date ? 1 : -1))
     .slice(0, 3);
   const relatedGuides = care.guideSlugs
     .map((slug) => SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === slug))
     .filter((page): page is SupportPageDefinition => Boolean(page));
-  const careBlock = `<div class="answer-box">
-              <p class="eyebrow">${escapeHtml(care.family)}的檢查重點</p>
-              <ul>${care.checkpoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("\n")}</ul>
-            </div>
-            <div class="answer-box">
-              <p class="eyebrow">常見問題</p>
-              ${care.faqs
-                .map(
-                  (faq) =>
-                    `<h3>${escapeHtml(faq.question)}</h3><p>${escapeHtml(faq.answer)}</p>`
-                )
-                .join("\n")}
-            </div>
-            ${
-              relatedPosts.length > 0
-                ? `<div class="answer-box">
-              <p class="eyebrow">同類的其他檢查紀錄</p>
-              <ul>${relatedPosts
-                .map(
-                  (item) =>
-                    `<li><a href="${escapeHtml(item.article_url)}">${escapeHtml(item.topic)}</a>（${escapeHtml(item.date)}）</li>`
-                )
-                .join("\n")}</ul>
-            </div>`
-                : ""
-            }
-            <div class="answer-box">
-              <p class="eyebrow">延伸閱讀</p>
-              <div class="link-row">
-                <a href="${escapeHtml(serviceHref)}">${escapeHtml(service?.h1 ?? "服務說明")}</a>
-                ${relatedGuides
-                  .map(
-                    (page) =>
-                      `<a href="${escapeHtml(supportPageUrl(page, index))}">${escapeHtml(page.h1)}</a>`
-                  )
-                  .join("\n")}
-              </div>
-            </div>`;
-  const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const imageSrc = visibleImageSrc(post, index);
   const description = captionPreview(post.facebook_caption).slice(0, 180);
-  const hashtags = post.hashtags.map((tag) => `<span class="chip on-light">${escapeHtml(tag)}</span>`).join("\n");
-  const targetQueries =
-    post.target_queries.length > 0
-      ? `<div class="answer-box">
-              <p class="eyebrow">客人常用查詢</p>
-              <div class="meta-row local-query-row">${post.target_queries
-                .map((query) => `<span class="chip on-light">${escapeHtml(query)}</span>`)
-                .join("\n")}</div>
-            </div>`
-      : "";
+  const captionParagraphs = post.facebook_caption
+    .split(/\n{2,}/u)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph.length > 0 && !/^#/u.test(paragraph));
+  // GEO guidance (2026): the extractable answer block should carry roughly 40-60
+  // characters, so a one-line opener is topped up with the next paragraph.
+  let leadParagraph = captionParagraphs[0] ?? description;
+  for (const paragraph of captionParagraphs.slice(1)) {
+    if (leadParagraph.replace(/\s+/gu, "").length >= 40) break;
+    leadParagraph = `${leadParagraph} ${paragraph}`;
+  }
+  const hashtags = post.hashtags.map((tag) => `<span class="chip">${escapeHtml(tag)}</span>`).join("\n");
+  const targetQueries = post.target_queries.map((query) => `<span class="chip">${escapeHtml(query)}</span>`).join("\n");
+  const caseRows = (service?.case_studies ?? [])
+    .slice(0, 3)
+    .map(
+      (study) => `<tr>
+                <td>${escapeHtml(study.object)}</td>
+                <td>${escapeHtml(study.material)}</td>
+                <td>${escapeHtml(study.inspection)}</td>
+                <td>${escapeHtml(study.boundary)}</td>
+              </tr>`
+    )
+    .join("\n");
+  const summaryItems = [
+    `這則紀錄的物件族：${care.family}。門市先看材質與痕跡位置，再說能整理到什麼程度。`,
+    post.search_intent ? `這篇在回答的問題類型：${post.search_intent}。` : "",
+    post.target_queries.length > 0 ? `常見搜尋：${post.target_queries.join("、")}。` : "",
+    service ? `對應服務：${service.name}。${service.answer_summary}` : "",
+    "下一步：拍整體、近照與最在意的痕跡傳 LINE，或約台中市免費收送。"
+  ].filter(Boolean);
+
+  const mainHtml = `<main>
+      <nav class="breadcrumb" aria-label="麵包屑">
+        <ol>
+          <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
+          <li><a href="${escapeHtml(hubHref)}">每日洗護紀錄</a></li>
+          <li aria-current="page">${escapeHtml(post.topic)}</li>
+        </ol>
+      </nav>
+      <section class="section page-hero">
+        <div class="page-shell grid two">
+        <div class="hero-copy">
+          <span class="eyebrow">每日洗護紀錄｜Day ${articleNumber}｜${escapeHtml(post.date)} ${escapeHtml(post.time)}</span>
+          <h1>${escapeHtml(post.topic)}</h1>
+          <p class="lead">${escapeHtml(description)}</p>
+          <p class="last-updated">發布日期：<time datetime="${escapeHtml(post.date)}">${escapeHtml(post.date)}</time>｜作者：${escapeHtml(profile.name)}</p>
+          <div class="button-row">
+            <a class="button brand" href="${escapeHtml(lineCta)}">LINE 傳照片詢問</a>
+            <a class="button secondary" href="${escapeHtml(serviceHref)}">${escapeHtml(service?.name ?? "服務說明")}</a>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <span class="eyebrow">先講重點</span>
+          <div class="answer-box">
+            <p>${escapeHtml(leadParagraph)}</p>
+          </div>
+          <figure class="service-photo">
+          ${
+            post.video_url
+              ? `<video src="${escapeHtml(post.video_url)}" poster="${escapeHtml(webpSrcFor(post.image_path, imageSrc) ?? imageSrc)}" controls playsinline preload="metadata" aria-label="${escapeHtml(`${post.topic} - ${profile.name}`)}"></video>`
+              : responsiveImageHtml({
+                  imagePath: post.image_path,
+                  src: imageSrc,
+                  alt: `${post.topic} - ${profile.name}`,
+                  fallbackSize: POST_IMAGE_FALLBACK_SIZE,
+                  loading: "eager",
+                  fetchpriority: "high"
+                })
+          }
+            <figcaption>${escapeHtml(post.topic)}｜${escapeHtml(profile.name)}門市紀錄</figcaption>
+          </figure>
+        </div>
+        </div>
+      </section>
+      <section class="article-body">
+        <div class="content">
+          <h2 id="summary">重點摘要</h2>
+          <ul>
+            ${summaryItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("\n            ")}
+          </ul>
+          <h2 id="store-note">門市筆記</h2>
+          <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
+          <h2 id="checkpoints">${escapeHtml(care.family)}的檢查重點</h2>
+          <ol>
+            ${care.checkpoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("\n            ")}
+          </ol>
+          ${
+            caseRows
+              ? `<h2 id="boundaries">材質與處理界線</h2>
+          <p>以下是${escapeHtml(service?.name ?? "門市")}常見的送件情境與處理界線，用來協助送洗前判斷；不是特定客戶成果，也不代表效果保證。</p>
+          <div class="table-wrap">
+            <table class="comparison-table">
+              <thead>
+                <tr>
+                  <th>物件</th>
+                  <th>材質</th>
+                  <th>門市先看</th>
+                  <th>處理界線</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${caseRows}
+              </tbody>
+            </table>
+          </div>`
+              : ""
+          }
+          <h2 id="next-step">下一步</h2>
+          <p>拍整體、近照、材質位置與最在意的痕跡，傳 LINE 或帶到${escapeHtml(profile.address_text)}門市；台中市全區可約免費收送，收送不收費、清潔與洗護費依物件狀態另計。</p>
+          <div class="button-row">
+            <a class="button brand" href="${escapeHtml(lineCta)}">LINE 傳照片詢問</a>
+            <a class="button secondary" href="${escapeHtml(serviceHref)}">看${escapeHtml(service?.name ?? "服務")}說明</a>
+            ${
+              pickupService && pickupService.slug !== service?.slug
+                ? `<a class="button secondary" href="${escapeHtml(servicePageUrl(pickupService, index))}">${escapeHtml(pickupService.name)}</a>`
+                : ""
+            }
+          </div>
+          <section class="article-faq" aria-labelledby="faq-${escapeHtml(post.id)}">
+            <h2 id="faq-${escapeHtml(post.id)}">常見問題</h2>
+            <div class="article-faq__list">
+              ${faqs
+                .map(
+                  (faq) => `<article class="article-faq__item">
+                <h3>${escapeHtml(faq.question)}</h3>
+                <p>${escapeHtml(faq.answer)}</p>
+              </article>`
+                )
+                .join("\n              ")}
+            </div>
+          </section>
+          <section class="article-related" aria-labelledby="related-${escapeHtml(post.id)}">
+            <h2 id="related-${escapeHtml(post.id)}" class="article-related__title">延伸閱讀</h2>
+            <ul class="article-related__list">
+              ${
+                previousArticle
+                  ? `<li class="article-related__item">上一則｜<a class="article-related__link" href="${escapeHtml(previousArticle.article_url)}">Day ${articleNumber - 1}：${escapeHtml(previousArticle.topic)}</a></li>`
+                  : ""
+              }
+              ${
+                nextArticle
+                  ? `<li class="article-related__item">下一則｜<a class="article-related__link" href="${escapeHtml(nextArticle.article_url)}">Day ${articleNumber + 1}：${escapeHtml(nextArticle.topic)}</a></li>`
+                  : ""
+              }
+              ${relatedPosts
+                .map(
+                  (item) =>
+                    `<li class="article-related__item"><a class="article-related__link" href="${escapeHtml(item.article_url)}">${escapeHtml(item.topic)}</a>（${escapeHtml(item.date)}）</li>`
+                )
+                .join("\n              ")}
+              ${relatedGuides
+                .map(
+                  (page) =>
+                    `<li class="article-related__item"><a class="article-related__link" href="${escapeHtml(supportPageUrl(page, index))}">${escapeHtml(page.h1)}</a></li>`
+                )
+                .join("\n              ")}
+              <li class="article-related__item"><a class="article-related__link" href="${escapeHtml(hubHref)}">每日洗護紀錄總覽</a></li>
+            </ul>
+          </section>
+          ${targetQueries ? `<div class="chip-row local-query-row" aria-label="客人常用查詢">${targetQueries}</div>` : ""}
+          <div class="chip-row local-query-row" aria-label="主題標籤">${hashtags}</div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">下一步</span>
+            <h2>這則紀錄對應的私享家服務</h2>
+          </div>
+          <div class="grid three">
+            ${service ? renderServiceProductCard(service, index, serviceHref) : ""}
+            ${pickupService && pickupService.slug !== service?.slug ? renderServiceProductCard(pickupService, index, servicePageUrl(pickupService, index)) : ""}
+            <article class="card">
+              <h3>${escapeHtml(profile.name)}</h3>
+              <p>${escapeHtml(profile.address_text)}（${escapeHtml(profile.landmark)}）</p>
+              <p>${escapeHtml(profile.opening_hours_text)}</p>
+              <div class="link-row">
+                <a href="${escapeHtml(lineFooter)}">LINE</a>
+                <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
+                <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
+                <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="section tight">
+        <div class="page-shell">
+          <div class="card follow-cta">
+            <h2>追蹤私享家，看更多洗護紀錄</h2>
+            <p>每天一則門市紀錄，先看材質、再談清潔；Facebook 與 Instagram 同步發布。看完覺得有幫助，到 <a href="${escapeHtml(profile.map_url)}">Google Maps 留一句評論</a>，會直接幫到下一位在找洗衣店的人。</p>
+            <div class="button-row">
+              <a class="button brand" href="${escapeHtml(profile.facebook_url)}" target="_blank" rel="noopener">Facebook 私享家洗衣店</a>
+              <a class="button secondary" href="${escapeHtml(profile.instagram_url)}" target="_blank" rel="noopener">Instagram @si_xiang_jia</a>
+              ${profile.youtube_url ? `<a class="button secondary" href="${escapeHtml(profile.youtube_url)}" target="_blank" rel="noopener">YouTube</a>` : ""}
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>`;
+
+  const visibleChars = visibleTextLength(mainHtml);
+  const captionChars = post.facebook_caption.replace(/\s+/gu, "").length;
+  const reasons: string[] = [];
+  if (!index.base_url_configured) reasons.push("public base URL not configured");
+  if (captionChars < POST_ARTICLE_MIN_CAPTION_CHARS) reasons.push(`caption ${captionChars} < ${POST_ARTICLE_MIN_CAPTION_CHARS} chars`);
+  if (visibleChars < POST_ARTICLE_MIN_VISIBLE_CHARS) reasons.push(`visible ${visibleChars} < ${POST_ARTICLE_MIN_VISIBLE_CHARS} chars`);
+  if (!hasArticlePage(post, index)) reasons.push("duplicate caption without its own article");
+  const render: PostArticleRender = {
+    mainHtml,
+    visibleChars,
+    indexable: reasons.length === 0,
+    reasons,
+    faqs,
+    articleNumber
+  };
+  cache.set(post.id, render);
+  return render;
+}
+
+function indexablePostArticles(index: PublicPostIndex): PublicPost[] {
+  return sortedArticlePosts(index).filter((post) => renderPostArticle(post, index).indexable);
+}
+
+function postsHubContentLastmod(index: PublicPostIndex): string | undefined {
+  const newest = indexablePostArticles(index)
+    .map((post) => post.date)
+    .sort()
+    .at(-1);
+  return [newest, toSitemapLastmodDate(POSTS_HUB_TEMPLATE_LASTMOD)].filter(Boolean).sort().at(-1);
+}
+
+function buildPostsHubSchema(index: PublicPostIndex): object | undefined {
+  if (!index.base_url_configured) return undefined;
+  const businessNode = buildBusinessSchemaNode(index);
+  if (!businessNode) return undefined;
+  const hubUrl = postsHubUrl(index);
+  const articles = indexablePostArticles(index).sort((a, b) => (a.date < b.date ? 1 : -1));
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      businessNode,
+      buildWebsiteSchemaNode(index),
+      {
+        "@type": "CollectionPage",
+        "@id": `${hubUrl}#webpage`,
+        url: hubUrl,
+        name: POSTS_HUB_TITLE,
+        description: POSTS_HUB_DESCRIPTION,
+        inLanguage: "zh-Hant-TW",
+        isPartOf: { "@id": `${index.canonical_url}#website` },
+        about: { "@id": `${index.canonical_url}#business` },
+        breadcrumb: { "@id": `${hubUrl}#breadcrumb` },
+        mainEntity: { "@id": `${hubUrl}#list` }
+      },
+      {
+        "@type": "ItemList",
+        "@id": `${hubUrl}#list`,
+        itemListOrder: "https://schema.org/ItemListOrderDescending",
+        numberOfItems: articles.length,
+        itemListElement: articles.map((post, position) => ({
+          "@type": "ListItem",
+          position: position + 1,
+          name: post.topic,
+          url: post.article_url
+        }))
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${hubUrl}#breadcrumb`,
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: index.business_profile.name, item: index.canonical_url },
+          { "@type": "ListItem", position: 2, name: "每日洗護紀錄", item: hubUrl }
+        ]
+      }
+    ]
+  };
+}
+
+function buildPostsHubHtml(index: PublicPostIndex): string {
+  const profile = index.business_profile;
+  const canonical = postsHubUrl(index);
+  const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
+  const lineNav = trackedLineUrl(index, { section: "posts", slug: "hub", placement: "nav" });
+  const lineCta = trackedLineUrl(index, { section: "posts", slug: "hub", placement: "cta" });
+  const lineFooter = trackedLineUrl(index, { section: "posts", slug: "hub", placement: "footer" });
+  const indexable = new Set(indexablePostArticles(index).map((post) => post.id));
+  const articles = sortedArticlePosts(index).sort((a, b) => (a.date < b.date ? 1 : -1));
+  const lastmod = postsHubContentLastmod(index);
+  const schema = buildPostsHubSchema(index);
+  const chrome: SiteChromeOptions = {
+    homeHref,
+    servicesHref: `${homeHref}#services`,
+    knowledgeHref: knowledgeHubHref(index, true),
+    lineNavHref: lineNav,
+    lineFooterHref: lineFooter,
+    businessProfileHref: index.base_url_configured ? index.entrypoints.business_profile : "../business-profile.json",
+    serviceHref: (item) => servicePageUrl(item, index),
+    navLabel: "每日洗護紀錄"
+  };
+  const cards = articles
+    .map((post) => {
+      const render = renderPostArticle(post, index);
+      const imageSrc = visibleImageSrc(post, index);
+      return `<article class="card article-card">
+          ${responsiveImageHtml({
+            imagePath: post.image_path,
+            src: imageSrc,
+            alt: `${post.topic} - ${profile.name}`,
+            fallbackSize: POST_IMAGE_FALLBACK_SIZE,
+            loading: "lazy"
+          })}
+          <div class="article-meta">Day ${render.articleNumber}｜${escapeHtml(post.date)} ${escapeHtml(post.time)}｜${escapeHtml(careContextFor(post.topic).family)}</div>
+          <h3><a href="${escapeHtml(post.article_url)}">${escapeHtml(post.topic)}</a></h3>
+          <p>${escapeHtml(captionPreview(post.facebook_caption))}</p>
+          <a class="card-link" href="${escapeHtml(post.article_url)}">閱讀文章</a>
+        </article>`;
+    })
+    .join("\n");
+
+  return `<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    ${buildLegacyPathRedirectScript(index)}
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="${escapeHtml(POSTS_HUB_DESCRIPTION)}" />
+    <meta name="robots" content="${postRobotsContent(indexable.size > 0)}" />
+    <meta name="googlebot" content="${postRobotsContent(indexable.size > 0)}" />
+    <meta name="author" content="${escapeHtml(profile.name)}" />
+    <meta name="theme-color" content="#f7f8fb" />
+    <link rel="canonical" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" hreflang="zh-Hant-TW" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" hreflang="x-default" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" type="application/rss+xml" title="${escapeHtml(SITE_NAME)} 每日洗護紀錄" href="${escapeHtml(index.base_url_configured ? index.entrypoints.rss : "../rss.xml")}" />
+    <meta property="og:title" content="${escapeHtml(POSTS_HUB_TITLE)}" />
+    <meta property="og:description" content="${escapeHtml(POSTS_HUB_DESCRIPTION)}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${escapeHtml(canonical)}" />
+    <meta property="og:site_name" content="${escapeHtml(profile.name)}" />
+    ${schema ? `<script type="application/ld+json">${escapeJsonLd(schema)}</script>` : ""}
+    <style>${buildPublicSiteCss()}</style>
+    <title>${escapeHtml(POSTS_HUB_TITLE)}</title>
+    ${buildAnalyticsTag(index.ga4_measurement_id)}
+    ${buildSearchContentAnalyticsTag(index, true)}
+  </head>
+  <body ${searchAnalyticsBodyAttributes("article_hub", "posts-hub")}>
+    ${renderSiteHeader(index, chrome)}
+    <main>
+      <nav class="breadcrumb" aria-label="麵包屑">
+        <ol>
+          <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
+          <li aria-current="page">每日洗護紀錄</li>
+        </ol>
+      </nav>
+      <section class="section page-hero">
+        <div class="page-shell grid two">
+        <div class="hero-copy">
+          <span class="eyebrow">每日洗護紀錄</span>
+          <h1>私享家每日洗護紀錄</h1>
+          <p class="lead">每天一則門市紀錄：先看材質與痕跡位置，再說能整理到什麼程度。每篇都接到對應服務與 LINE 詢問，依日期由新到舊排列。</p>
+          ${lastmod ? `<p class="last-updated">內容更新：<time datetime="${lastmod}">${lastmod}</time></p>` : ""}
+          <div class="button-row">
+            <a class="button brand" href="${escapeHtml(lineCta)}">LINE 傳照片詢問</a>
+            <a class="button secondary" href="${escapeHtml(knowledgeHubHref(index, true))}">洗護知識庫</a>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <span class="eyebrow">怎麼看這些紀錄</span>
+          <div class="answer-box">
+            <p>紀錄是門市實際看件的判斷，不是效果保證。同一類物件的紀錄會互相連結，先找和你手上物件最像的那則，再傳照片問。目前共 ${articles.length} 則紀錄。</p>
+          </div>
+        </div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="page-shell">
+          <div class="grid three">
+            ${cards}
+          </div>
+        </div>
+      </section>
+    </main>
+    ${renderSiteFooter(index, chrome)}
+  </body>
+</html>
+`;
+}
+
+function rssDate(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date().toUTCString() : parsed.toUTCString();
+}
+
+function buildRssXml(index: PublicPostIndex): string {
+  const articles = indexablePostArticles(index).sort((a, b) => (a.date < b.date ? 1 : -1));
+  const items = articles
+    .map(
+      (post) => `    <item>
+      <title>${escapeXml(post.topic)}</title>
+      <link>${escapeXml(post.article_url)}</link>
+      <guid isPermaLink="true">${escapeXml(post.article_url)}</guid>
+      <pubDate>${escapeXml(rssDate(post.date_published))}</pubDate>
+      <description>${escapeXml(captionPreview(post.facebook_caption))}</description>
+      <enclosure url="${escapeXml(post.image_url)}" type="image/png" length="0" />
+    </item>`
+    )
+    .join("\n");
+  const newest = articles[0]?.date_published;
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">',
+    "  <channel>",
+    `    <title>${escapeXml(SITE_NAME)} 每日洗護紀錄</title>`,
+    `    <link>${escapeXml(index.canonical_url)}</link>`,
+    `    <description>${escapeXml(POSTS_HUB_DESCRIPTION)}</description>`,
+    "    <language>zh-Hant</language>",
+    `    <atom:link href="${escapeXml(index.entrypoints.rss)}" rel="self" type="application/rss+xml" />`,
+    ...(newest ? [`    <lastBuildDate>${escapeXml(rssDate(newest))}</lastBuildDate>`] : []),
+    items,
+    "  </channel>",
+    "</rss>",
+    ""
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
+}
+
+function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
+  const profile = index.business_profile;
+  const postSource = { section: "posts" as const, date: post.date, slot: post.slot };
+  const lineNav = trackedLineUrl(index, { ...postSource, placement: "nav" });
+  const lineFooter = trackedLineUrl(index, { ...postSource, placement: "footer" });
+  const canonical = post.article_url;
+  const render = renderPostArticle(post, index);
+  const schema = buildPostPageSchema(post, index);
+  const robots = postRobotsContent(render.indexable);
+  const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
+  const chrome: SiteChromeOptions = {
+    homeHref,
+    servicesHref: `${homeHref}#services`,
+    knowledgeHref: knowledgeHubHref(index, true),
+    lineNavHref: lineNav,
+    lineFooterHref: lineFooter,
+    businessProfileHref: index.base_url_configured ? index.entrypoints.business_profile : "../business-profile.json",
+    serviceHref: (item) => servicePageUrl(item, index),
+    navLabel: "服務與內容"
+  };
+  const description = captionPreview(post.facebook_caption).slice(0, 180);
 
   return `<!doctype html>
 <html lang="zh-Hant-TW">
@@ -5469,15 +6470,18 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
     ${buildLegacyPathRedirectScript(index)}
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="${escapeHtml(description)}" />
-    <meta name="robots" content="${POST_ROBOTS_CONTENT}" />
-    <meta name="googlebot" content="${POST_ROBOTS_CONTENT}" />
+    <meta name="robots" content="${robots}" />
+    <meta name="googlebot" content="${robots}" />
     <meta name="author" content="${escapeHtml(profile.name)}" />
-    <meta name="theme-color" content="#f5f5f7" />
+    <meta name="theme-color" content="#f7f8fb" />
     <link rel="canonical" href="${escapeHtml(canonical)}" />
     <link rel="alternate" hreflang="zh-Hant-TW" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" hreflang="x-default" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" type="application/rss+xml" title="${escapeHtml(SITE_NAME)} 每日洗護紀錄" href="${escapeHtml(index.base_url_configured ? index.entrypoints.rss : "../rss.xml")}" />
     <meta property="og:title" content="${escapeHtml(post.topic)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
     <meta property="og:type" content="article" />
+    <meta property="article:published_time" content="${escapeHtml(post.date_published)}" />
     <meta property="og:url" content="${escapeHtml(canonical)}" />
     <meta property="og:site_name" content="${escapeHtml(profile.name)}" />
     <meta property="og:locale" content="${escapeHtml(SITE_LOCALE)}" />
@@ -5492,77 +6496,135 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(`${post.topic} | ${profile.name}`)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
+    ${buildSearchContentAnalyticsTag(index, true)}
   </head>
-  <body>
-    <main>
-      <header class="topbar">
-        <a class="brand" href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a>
-        <nav class="nav" aria-label="Primary navigation">
-          <a href="${escapeHtml(serviceHref)}">Service</a>
-          <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
-          <a href="${escapeHtml(lineNav)}">LINE</a>
-        </nav>
-      </header>
-      <nav class="breadcrumb" aria-label="麵包屑">
-        <ol>
-          <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
-          <li aria-current="page">${escapeHtml(post.topic)}</li>
-        </ol>
-      </nav>
-      <section class="product-hero hero-light service-hero">
-        <div class="section-inner hero-copy">
-          <p class="eyebrow">Care journal | ${escapeHtml(post.date)} ${escapeHtml(post.time)}</p>
-          <h1>${escapeHtml(post.topic)}</h1>
-          <p class="lead">${escapeHtml(description)}</p>
-          <div class="hero-actions">
-            <a class="primary-link" href="${escapeHtml(lineCta)}">LINE</a>
-            <a class="secondary-link" href="${escapeHtml(serviceHref)}">Service details</a>
-          </div>
-        </div>
-        <figure class="service-photo">
-          ${
-            post.video_url
-              ? // The poster is what the reader stares at before pressing play, so serve the
-                // webp derivative when one exists rather than the multi-megabyte PNG.
-                `<video src="${escapeHtml(post.video_url)}" poster="${escapeHtml(webpSrcFor(post.image_path, imageSrc) ?? imageSrc)}" controls playsinline preload="metadata" aria-label="${escapeHtml(`${post.topic} - ${profile.name}`)}"></video>`
-              : responsiveImageHtml({
-                  imagePath: post.image_path,
-                  src: imageSrc,
-                  alt: `${post.topic} - ${profile.name}`,
-                  fallbackSize: POST_IMAGE_FALLBACK_SIZE,
-                  loading: "eager",
-                  fetchpriority: "high"
-                })
-          }
-          <figcaption>${escapeHtml(post.topic)}</figcaption>
-        </figure>
-      </section>
-      <section class="product-band surface">
-        <div class="section-inner two-col">
-          <article>
-            <p class="eyebrow">Store note</p>
-            <h2>先看物件狀態，再決定下一步</h2>
-            <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
-            ${careBlock}
-            <div class="meta-row local-query-row">${hashtags}</div>${targetQueries}
-          </article>
-          <aside class="card">
-            <h2>${escapeHtml(profile.name)}</h2>
-            <p>${escapeHtml(profile.address_text)}</p>
-            <p>${escapeHtml(profile.opening_hours_text)}</p>
-            <div class="link-row">
-              <a href="${escapeHtml(lineFooter)}">LINE</a>
-              <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
-              <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
-              <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
-            </div>
-          </aside>
-        </div>
-      </section>
-    </main>
+  <body ${searchAnalyticsBodyAttributes("article", post.id)}>
+    ${renderSiteHeader(index, chrome)}
+    ${render.mainHtml}
+    ${renderSiteFooter(index, chrome)}
   </body>
 </html>
 `;
+}
+
+interface SiteChromeOptions {
+  homeHref: string;
+  servicesHref: string;
+  knowledgeHref: string;
+  lineNavHref: string;
+  lineFooterHref: string;
+  businessProfileHref: string;
+  serviceHref: (service: ServicePageDefinition) => string;
+  navLabel: string;
+  postsHubHref?: string;
+}
+
+function renderSiteHeader(index: PublicPostIndex, options: SiteChromeOptions): string {
+  const profile = index.business_profile;
+  return `<header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand-link" href="${escapeHtml(options.homeHref)}" aria-label="${escapeHtml(profile.name)}首頁">
+          <span class="brand-mark">私</span>
+          <span>${escapeHtml(profile.name)}</span>
+        </a>
+        <nav class="nav" aria-label="${escapeHtml(options.navLabel)}">
+          ${SERVICE_PAGE_DEFINITIONS.map(
+            (service) => `<a href="${escapeHtml(options.serviceHref(service))}">${escapeHtml(service.name)}</a>`
+          ).join("\n          ")}
+          <a href="${escapeHtml(options.knowledgeHref)}">洗護知識庫</a>
+          <a href="${escapeHtml(options.lineNavHref)}">LINE 預約</a>
+        </nav>
+      </div>
+    </header>`;
+}
+
+function renderSiteFooter(index: PublicPostIndex, options: SiteChromeOptions): string {
+  const profile = index.business_profile;
+  const pickupService = findServiceBySlug("taichung-citywide-laundry-pickup");
+  return `<footer class="site-footer">
+      <div class="page-shell site-footer__grid">
+        <div>
+          <h2>${escapeHtml(profile.name)}</h2>
+          <p>私享家提供鞋包清潔、白鞋清潔、衣物與寢具洗護、布品收納整理與台中市免費收送，服務西屯青海路門市周邊與台中全市的客人。</p>
+          <p>${escapeHtml(profile.address_text)}（${escapeHtml(profile.landmark)}）｜電話 ${escapeHtml(profile.telephone_local)}｜LINE／手機 ${escapeHtml(profile.mobile_or_line_local)}</p>
+          <p>營業時間：${escapeHtml(profile.opening_hours_text)}。實際收件、參考價與處理界線，以門市檢視實物為準。</p>
+        </div>
+        <div>
+          <h3>網站連結</h3>
+          <div class="footer-links">
+            <a href="${escapeHtml(options.homeHref)}">首頁</a>
+            <a href="${escapeHtml(options.servicesHref)}">服務項目</a>
+            ${pickupService ? `<a href="${escapeHtml(options.serviceHref(pickupService))}">${escapeHtml(pickupService.name)}</a>` : ""}
+            <a href="${escapeHtml(options.knowledgeHref)}">洗護知識庫</a>
+            <a href="${escapeHtml(options.postsHubHref ?? postsHubHref(index, true))}">每日洗護紀錄</a>
+            <a href="${escapeHtml(options.homeHref)}#homepage-faq">常見問題</a>
+            <a href="${escapeHtml(options.businessProfileHref)}">店家資料</a>
+          </div>
+          <h3 style="margin-top: 22px;">社群</h3>
+          <div class="footer-links">
+            <a href="${escapeHtml(options.lineFooterHref)}">LINE 加好友</a>
+            <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
+            <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
+            ${profile.youtube_url ? `<a href="${escapeHtml(profile.youtube_url)}">YouTube</a>` : ""}
+            <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+    <div class="mobile-sticky-cta" aria-label="行動版固定預約">
+      <a class="button secondary" href="${escapeHtml(options.servicesHref)}">服務項目</a>
+      <a class="button brand" href="${escapeHtml(options.lineFooterHref)}">LINE 預約</a>
+    </div>`;
+}
+
+const SERVICE_AUDIENCE_BY_SLUG: Record<string, string> = {
+  "shoe-bag-care": "通勤族、學生、精品包與皮鞋主人",
+  "white-shoe-cleaning": "球鞋族、學生、上班族",
+  "fabric-storage": "家庭、換季收納、租屋族",
+  "taichung-xitun-laundry": "西屯、逢甲、青海路生活圈",
+  "business-bulk-laundry": "店家、公司、宿舍與團體",
+  "taichung-citywide-laundry-pickup": "台中市全區住家與公司",
+  "taichung-laundry-price-list": "第一次送洗、想先看價格的人"
+};
+
+function serviceAudience(service: ServicePageDefinition): string {
+  return SERVICE_AUDIENCE_BY_SLUG[service.slug] ?? "台中市客人";
+}
+
+function renderServiceProductCard(
+  service: ServicePageDefinition,
+  index: PublicPostIndex,
+  href: string,
+  options: { withImage?: boolean; servicePage?: boolean } = {}
+): string {
+  const image = options.withImage ? findServiceImage(service, index) : undefined;
+  const imageSrc = image ? visibleImageSrc(image, index, Boolean(options.servicePage)) : "";
+  const imageMarkup = image
+    ? `\n        ${responsiveImageHtml({
+        imagePath: image.image_path,
+        src: imageSrc,
+        alt: service.image_alt,
+        fallbackSize: SERVICE_IMAGE_FALLBACK_SIZE,
+        className: "service-card-image",
+        loading: "lazy"
+      })}`
+    : "";
+  return `<article class="card product-card service-card">${imageMarkup}
+        <div class="product-card__meta">${escapeHtml(serviceAudience(service))}</div>
+        <h3><a href="${escapeHtml(href)}">${escapeHtml(service.name)}</a></h3>
+        <p>${escapeHtml(service.summary)}</p>
+        <p><strong>能解決：</strong>${escapeHtml(service.answer_summary)}</p>
+        <a class="card-link" href="${escapeHtml(href)}">詳細介紹</a>
+      </article>`;
+}
+
+function renderLocalSolutionCard(page: SupportPageDefinition, href: string): string {
+  return `<article class="card solution-card">
+        <h3><a href="${escapeHtml(href)}">${escapeHtml(page.h1)}</a></h3>
+        <p>${escapeHtml(page.summary)}</p>
+        <p><strong>這個地區最需要：</strong>${escapeHtml(page.local_intent)}</p>
+        <a class="card-link" href="${escapeHtml(href)}">查看在地收送</a>
+      </article>`;
 }
 
 function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: BusinessProfile): string {
@@ -5577,8 +6639,6 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
       : canonicalArticle.article_url
     : post.calendar_path;
   return `<article class="post-tile post-card">
-        <h3>${escapeHtml(post.topic)}</h3>
-        <p><strong>${escapeHtml(post.date)} ${escapeHtml(post.time)}</strong>｜${escapeHtml(post.content_role)} / ${escapeHtml(post.visual_route)} / ${escapeHtml(post.traffic_route)}</p>
         <a href="${escapeHtml(imageSrc)}">
           ${responsiveImageHtml({
             imagePath: post.image_path,
@@ -5588,12 +6648,14 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
             loading: "lazy"
           })}
         </a>
+        <div class="article-meta">${escapeHtml(post.date)} ${escapeHtml(post.time)}｜${escapeHtml(post.content_role)} / ${escapeHtml(post.visual_route)} / ${escapeHtml(post.traffic_route)}</div>
+        <h3>${escapeHtml(post.topic)}</h3>
         <p class="post-caption post-preview">${escapeHtml(preview)}</p>
         <details class="caption-details">
           <summary>閱讀完整文案</summary>
           <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
         </details>
-        <p><a href="${escapeHtml(articleHref)}">read full post</a></p>
+        <a class="card-link" href="${escapeHtml(articleHref)}">閱讀文章</a>
       </article>`;
 }
 
@@ -5611,6 +6673,9 @@ function buildIndexHtml(index: PublicPostIndex): string {
   const heroPreload = heroImage
     ? `\n    <link rel="preload" as="image" href="${escapeHtml(heroWebpSrc ?? heroImageSrc)}"${heroWebpSrc ? ' type="image/webp"' : ""} fetchpriority="high" />`
     : "";
+  const whiteShoeService = findServiceBySlug("white-shoe-cleaning");
+  const heroInsetImage = whiteShoeService ? findServiceImage(whiteShoeService, index) : undefined;
+  const heroInsetSrc = heroInsetImage ? visibleImageSrc(heroInsetImage, index) : "";
   const homeLastmod = homepageContentLastmod(index);
   const homePageSchema = buildHomePageSchema(index);
   const citywidePickupService =
@@ -5621,8 +6686,21 @@ function buildIndexHtml(index: PublicPostIndex): string {
     throw new Error("Missing taichung-citywide-laundry-pickup service page definition");
   }
   const citywidePickupUrl = servicePageUrl(citywidePickupService, index);
+  const priceListService = findServiceBySlug(PRICE_LIST_SLUG);
+  const priceListUrl = priceListService ? servicePageUrl(priceListService, index) : citywidePickupUrl;
   const localShoePage = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "qinghai-road-shoe-cleaning");
   const localShoeUrl = localShoePage ? supportPageUrl(localShoePage, index) : "";
+  const chrome: SiteChromeOptions = {
+    homeHref: index.canonical_url,
+    servicesHref: "#services",
+    knowledgeHref: knowledgeHubHref(index),
+    lineNavHref: lineNav,
+    lineFooterHref: lineFooter,
+    businessProfileHref: "business-profile.json",
+    serviceHref: (service) => servicePageUrl(service, index),
+    navLabel: "主選單",
+    postsHubHref: postsHubHref(index)
+  };
   const rows =
     recentPosts.length > 0
       ? recentPosts.map((post) => renderHomePostTile(post, index, profile)).join("\n")
@@ -5633,56 +6711,53 @@ function buildIndexHtml(index: PublicPostIndex): string {
       ? `<details class="post-archive">
             <summary>較早內容（${archiveDateCount} 天，${archivePosts.length} 篇）</summary>
             <p class="section-copy">這些貼文仍保留在 SEO / AEO / GEO 和社群內容資料庫中，預設收合，避免首頁太長。</p>
-            <div class="post-list archive-list">
+            <div class="grid three archive-list">
         ${archiveRows}
             </div>
           </details>`
       : "";
-  const serviceCards = SERVICE_PAGE_DEFINITIONS.map((service) => {
-    const image = findServiceImage(service, index);
-    const imageSrc = image ? visibleImageSrc(image, index, true) : "";
-    const imageMarkup = image
-      ? `\n        ${responsiveImageHtml({
-          imagePath: image.image_path,
-          src: imageSrc,
-          alt: service.image_alt,
-          fallbackSize: SERVICE_IMAGE_FALLBACK_SIZE,
-          className: "service-card-image",
-          loading: "lazy"
-        })}`
-      : "";
-    return `<article class="product-tile service-card">
-        <p class="eyebrow">Service</p>
-        <h3><a href="${escapeHtml(servicePageUrl(service, index))}">${escapeHtml(service.name)}</a></h3>${imageMarkup}
-        <p>${escapeHtml(service.answer_summary)}</p>
-        <div class="link-row">
-          <a href="${escapeHtml(servicePageUrl(service, index))}">進一步了解</a>
-        </div>
-      </article>`;
-  }).join("\n");
-  const supportCards = SUPPORT_PAGE_DEFINITIONS.map((page) => {
+  const serviceCards = SERVICE_PAGE_DEFINITIONS.map((service) =>
+    renderServiceProductCard(service, index, servicePageUrl(service, index), { withImage: true, servicePage: true })
+  ).join("\n");
+  const localPages = SUPPORT_PAGE_DEFINITIONS.filter((page) => page.category === "local");
+  const localCards = localPages.map((page) => renderLocalSolutionCard(page, supportPageUrl(page, index))).join("\n");
+  const supportCardFor = (page: SupportPageDefinition): string => {
     const service = linkedSupportService(page);
-    return `<article class="product-tile service-card">
-        <p class="eyebrow">${page.category === "local" ? "Local" : "Guide"}</p>
+    return `<article class="card article-card">
+        <div class="article-meta">${page.category === "local" ? "在地答案" : "洗護答案"}</div>
         <h3><a href="${escapeHtml(supportPageUrl(page, index))}">${escapeHtml(page.h1)}</a></h3>
-        <p>${escapeHtml(page.summary)}</p>
+        <p>${escapeHtml(page.citation_answer ?? page.summary)}</p>
         <div class="link-row">
-          <a href="${escapeHtml(supportPageUrl(page, index))}">閱讀指南</a>
-          ${service ? `<a href="${escapeHtml(servicePageUrl(service, index))}">${escapeHtml(service.name)}</a>` : ""}
+          <a class="card-link" href="${escapeHtml(supportPageUrl(page, index))}">閱讀答案</a>
+          ${service ? `<a class="card-link" href="${escapeHtml(servicePageUrl(service, index))}">${escapeHtml(service.name)}</a>` : ""}
         </div>
       </article>`;
+  };
+  const supportHubSections = INDEX_GROWTH_HUB_ORDER.map((group) => {
+    const pages = SUPPORT_PAGE_DEFINITIONS.filter((page) => hubGroupFor(page) === group.id);
+    if (pages.length === 0) return "";
+    const featuredPages = pages.slice(0, group.id === "shoes" ? 4 : 2);
+    return `<div class="guide-hub-group" id="guide-hub-${escapeHtml(group.id)}">
+          <div class="section-header">
+            <span class="eyebrow">${escapeHtml(group.heading)}</span>
+            <h3>${escapeHtml(group.intro)}</h3>
+          </div>
+          <div class="grid four">
+          ${featuredPages.map((page) => supportCardFor(page)).join("\n")}
+          </div>
+          <p style="margin-top:16px;"><a class="card-link" href="${escapeHtml(`${knowledgeHubHref(index)}#knowledge-${group.id}`)}">查看${escapeHtml(group.heading)}全部答案 →</a></p>
+        </div>`;
   }).join("\n");
   const discoveryGroups = HOME_DISCOVERY_GROUPS.map(
-    (group) => `<article class="feature-panel">
-        <p class="eyebrow">Care path</p>
+    (group) => `<article class="card">
         <h3>${escapeHtml(group.heading)}</h3>
         <p>${escapeHtml(group.intro)}</p>
         <ul>
           ${group.items
             .map(
               (item) => `<li>
-            <a href="${escapeHtml(homeDiscoveryItemUrl(item, index))}"><strong>${escapeHtml(item.label)}</strong></a>
-            <p>${escapeHtml(item.description)}</p>
+            <a class="card-link" href="${escapeHtml(homeDiscoveryItemUrl(item, index))}">${escapeHtml(item.label)}</a>
+            <br /><span class="muted">${escapeHtml(item.description)}</span>
           </li>`
             )
             .join("\n")}
@@ -5690,16 +6765,17 @@ function buildIndexHtml(index: PublicPostIndex): string {
       </article>`
   ).join("\n");
   const trustCards = HOME_TRUST_ITEMS.map(
-    (item) => `<article class="spec-tile">
+    (item) => `<article class="card">
         <h3>${escapeHtml(item.heading)}</h3>
         <p>${escapeHtml(item.body)}</p>
       </article>`
   ).join("\n");
   const processCards = HOME_PROCESS_STEPS.map(
-    (item) => `<article class="spec-tile">
+    (item, position) => `<div class="card">
+        <div class="eyebrow">Step ${position + 1}</div>
         <h3>${escapeHtml(item.heading)}</h3>
         <p>${escapeHtml(item.body)}</p>
-      </article>`
+      </div>`
   ).join("\n");
   const homepageFaqItems = homeFaqs(profile)
     .map(
@@ -5710,7 +6786,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
     )
     .join("\n");
   const localSearchChips = LOCAL_SEARCH_QUERY_TARGETS.map(
-    (query) => `<span class="chip on-light">${escapeHtml(query)}</span>`
+    (query) => `<span class="chip">${escapeHtml(query)}</span>`
   ).join("\n");
 
   return `<!doctype html>
@@ -5723,7 +6799,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="googlebot" content="index, follow, max-image-preview:large" />
     <meta name="author" content="${escapeHtml(profile.name)}" />
-    <meta name="theme-color" content="#f5f5f7" />
+    <meta name="theme-color" content="#f7f8fb" />
     <link rel="canonical" href="${escapeHtml(index.canonical_url)}" />
     <link rel="alternate" hreflang="zh-Hant-TW" href="${escapeHtml(index.canonical_url)}" />
     <link rel="alternate" hreflang="x-default" href="${escapeHtml(index.canonical_url)}" />${heroPreload}
@@ -5738,6 +6814,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
     <link rel="alternate" type="application/json" href="search-visibility.json" />
     <link rel="alternate" type="application/jsonl" href="llms.jsonl" />
     <link rel="alternate" type="application/json" href="feed.json" />
+    <link rel="alternate" type="application/rss+xml" title="${escapeHtml(SITE_NAME)} 每日洗護紀錄" href="rss.xml" />
     <link rel="alternate" type="application/ld+json" href="knowledge-graph.json" />
     <meta property="og:title" content="${escapeHtml(index.open_graph.title)}" />
     <meta property="og:description" content="${escapeHtml(index.open_graph.description)}" />
@@ -5756,169 +6833,216 @@ function buildIndexHtml(index: PublicPostIndex): string {
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(SITE_TITLE)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
+    ${buildSearchContentAnalyticsTag(index)}
   </head>
-  <body>
+  <body ${searchAnalyticsBodyAttributes("home", "home")}>
+    ${renderSiteHeader(index, chrome)}
     <main>
-      <header class="topbar">
-        <a class="brand" href="${escapeHtml(index.canonical_url)}">${escapeHtml(profile.name)}</a>
-        <nav class="nav" aria-label="主要服務">
-          ${SERVICE_PAGE_DEFINITIONS.map(
-            (service) => `<a href="${escapeHtml(servicePageUrl(service, index))}">${escapeHtml(service.name)}</a>`
-          ).join("\n")}
-          <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
-          <a href="${escapeHtml(lineNav)}">LINE</a>
-        </nav>
-      </header>
-      <section class="product-hero hero-dark">
-        <div class="section-inner hero-copy">
-          <p class="eyebrow">台中西屯門市・台中全市收送</p>
-          <h1>台中免費收送，逢甲・西屯洗鞋先看材質</h1>
-          <p class="lead">台中市全區可預約免費收送，收送本身免費、洗護費另計。逢甲與西屯洗鞋可到青海路二段365號門市，或先用 LINE 傳鞋面、鞋底與鞋內照片。</p>
-          <p class="last-updated">內容更新：<time datetime="${homeLastmod}">${homeLastmod}</time></p>
-          <div class="hero-actions">
-            <a class="primary-link" href="${escapeHtml(citywidePickupUrl)}">台中全市免費收送</a>
-            <a class="secondary-link" href="${escapeHtml(lineCta)}">LINE 預約</a>
-            <a class="secondary-link" href="#services">查看服務</a>
+      <section class="home-hero" data-home-design="mobile-first">
+        <div class="page-shell home-hero__grid">
+          <div class="home-hero__content">
+            <span class="eyebrow">${escapeHtml(profile.name)}｜台中西屯門市・台中全市收送</span>
+            <h1>台中免費收送，逢甲・西屯洗鞋先看材質</h1>
+            <p class="lead">台中市全區可預約免費收送，收送本身免費、洗護費另計。逢甲與西屯洗鞋可到青海路二段365號門市，或先用 LINE 傳鞋面、鞋底與鞋內照片。</p>
+            <div class="home-hero__actions">
+              <a class="button brand" href="${escapeHtml(citywidePickupUrl)}">台中全市免費收送</a>
+              <a class="button home-hero__photo-action" href="${escapeHtml(lineCta)}">LINE 傳照片預約</a>
+            </div>
+            <p class="home-hero__note">鞋包、白鞋、衣物寢具都能先傳照片再送洗，先看材質再談清潔。</p>
+            <p class="home-hero__note">
+              <a href="${escapeHtml(priceListUrl)}">看洗衣價目表</a>
+              <span aria-hidden="true">｜</span>
+              <a href="#store">門市位置與營業時間</a>
+            </p>
+            <p class="last-updated">內容更新：<time datetime="${homeLastmod}">${homeLastmod}</time></p>
           </div>
-          <div class="meta-row">
-            <span class="chip">${escapeHtml(profile.address.addressLocality)}</span>
-            <a class="chip" href="tel:${escapeHtml(profile.telephone)}">${escapeHtml(profile.telephone_local)}</a>
-            <span class="chip">${escapeHtml(profile.opening_hours_text)}</span>
-          </div>
-        </div>
-        ${
-          heroImage
-            ? `<figure class="hero-media">
-          ${responsiveImageHtml({
-            imagePath: heroImage.image_path,
-            src: heroImageSrc,
-            alt: `${heroImage.topic} - ${profile.name}布品收納檢查示意圖`,
-            fallbackSize: SERVICE_IMAGE_FALLBACK_SIZE,
-            loading: "eager",
-            fetchpriority: "high"
-          })}
-          <figcaption>${escapeHtml(heroImage.topic)}｜布品收納檢查示意圖</figcaption>
-        </figure>`
-            : ""
-        }
-      </section>
-      <section class="product-band surface depth-band depth-laundry">
-        <div class="section-inner">
-          <div class="discovery-grid">
-          ${discoveryGroups}
-          </div>
-          <div class="section-header section-header-bottom">
-            <p class="eyebrow">Search intent</p>
-            <h2>依需求找到服務。</h2>
-            <p class="section-copy">把客人真正會問的物件、情境、收送與送洗前問題拆清楚，讓搜尋「台中西屯洗衣店」「台中洗衣收送」「青海路洗衣店」的人，也能快速理解私享家在判斷什麼。</p>
+          <div class="home-hero__visual">
+            ${
+              heroImage
+                ? responsiveImageHtml({
+                    imagePath: heroImage.image_path,
+                    src: heroImageSrc,
+                    alt: `${heroImage.topic} - ${profile.name}布品收納檢查示意圖`,
+                    fallbackSize: SERVICE_IMAGE_FALLBACK_SIZE,
+                    loading: "eager",
+                    fetchpriority: "high"
+                  })
+                : ""
+            }
+            ${
+              heroInsetImage && whiteShoeService
+                ? `<div class="home-hero__app">
+              ${responsiveImageHtml({
+                imagePath: heroInsetImage.image_path,
+                src: heroInsetSrc,
+                alt: whiteShoeService.image_alt,
+                fallbackSize: SERVICE_IMAGE_FALLBACK_SIZE,
+                loading: "lazy"
+              })}
+            </div>`
+                : ""
+            }
           </div>
         </div>
       </section>
-      <section class="product-band surface depth-band depth-local-store" id="citywide-pickup">
-        <div class="section-inner">
+      <section class="home-flow" data-home-flow aria-label="私享家送洗流程">
+        <div class="page-shell">
+          <ol class="home-flow__list">
+            <li><span>1</span><strong>拍照</strong><small>整體、近照與最在意的痕跡</small></li>
+            <li><span>2</span><strong>傳 LINE</strong><small>門市先看材質與可整理程度</small></li>
+            <li><span>3</span><strong>約收送或到店</strong><small>台中市免費收送、沒有最低消費</small></li>
+            <li><span>4</span><strong>洗好送回</strong><small>處理界線先講清楚再動手</small></li>
+          </ol>
+          <a class="home-office-callout" data-home-office-callout href="${escapeHtml(linePickup)}">
+            <strong>收送免費、沒有最低消費門檻</strong>
+            <span>一件也可以先問；清潔與洗護費依物件狀態另計，先用 LINE 傳照片再約收送。</span>
+          </a>
+        </div>
+      </section>
+      <section class="section" id="services">
+        <div class="page-shell">
           <div class="section-header">
-            <p class="eyebrow">Pickup &amp; delivery</p>
-            <h2>台中全市免費洗衣收送</h2>
-            <p class="section-copy">收送範圍為台中市全市，<strong>收送本身免費，且沒有最低消費門檻</strong>——不需要單次洗滌滿額才能收送，一件也可以先問。清潔與洗護費用則依物件狀態另計。門市在西屯區青海路二段365號。預約與詢問以 <a href="${escapeHtml(lineInline)}">LINE</a> 為主，先傳照片再約定收送。從逢甲或西屯找洗鞋，可先看<a href="${escapeHtml(localShoeUrl)}"><strong>逢甲洗鞋・西屯洗鞋</strong></a>的門市方位、案例界線與收送範圍，再決定到店或約收送。</p>
+            <span class="eyebrow">服務項目</span>
+            <h2>鞋包、白鞋、衣物寢具，都能先問再送</h2>
+            <p>選你要送的物件，材質判斷、處理界線與收送方式一次看清楚，第一次送洗也能直接上手。</p>
           </div>
-          <div class="link-row">
-            <a class="primary-link" href="${escapeHtml(citywidePickupUrl)}">閱讀收送說明頁</a>
-            <a class="secondary-link" href="${escapeHtml(linePickup)}">LINE 預約收送</a>
-          </div>
-        </div>
-      </section>
-      <section class="product-band depth-band depth-shoe-bag" id="services">
-        <div class="section-inner">
-          <div class="section-header">
-            <p class="eyebrow">Services</p>
-            <h2>主要服務入口。</h2>
-            <p class="section-copy">用服務頁承接 SEO / AEO / GEO，也讓社群貼文不只是今天看完就消失。</p>
-          </div>
-          <div class="product-grid">
+          <div class="grid four">
           ${serviceCards}
           </div>
         </div>
       </section>
-      <section class="product-band surface depth-band depth-fabric">
-        <div class="section-inner">
+      <section class="section tight surface" id="how-it-works">
+        <div class="page-shell">
           <div class="section-header">
-            <p class="eyebrow">Guides</p>
-            <h2>送洗前先看這幾件事。</h2>
-            <p class="section-copy">把客人常問的拍照、白鞋泛黃、雨季鞋子、包包提把、寢具外套收納與青海路在地搜尋拆成獨立頁面，讓人和 AI 都能直接找到答案。</p>
-          </div>
-          <div class="product-grid">
-          ${supportCards}
-          </div>
-        </div>
-      </section>
-      <section class="product-band surface depth-band depth-fabric">
-        <div class="section-inner">
-          <div class="section-header">
-            <p class="eyebrow">Care logic</p>
-            <h2>為什麼選私享家。</h2>
-          </div>
-          <div class="trust-grid">
-          ${trustCards}
-          </div>
-        </div>
-      </section>
-      <section class="product-band depth-band depth-white-shoe" id="how-it-works">
-        <div class="section-inner">
-          <div class="section-header">
-            <p class="eyebrow">How it works</p>
+            <span class="eyebrow">怎麼送洗</span>
             <h2>送洗前流程</h2>
           </div>
-          <div class="grid">
+          <div class="grid five">
           ${processCards}
           </div>
         </div>
       </section>
-      <section class="product-band surface" id="homepage-faq">
-        <div class="section-inner">
+      <section class="section" id="discovery">
+        <div class="page-shell">
           <div class="section-header">
-            <p class="eyebrow">Quick answers</p>
-            <h2>台中洗衣與免費收送常見問題</h2>
-            <p class="section-copy">先把門市位置、台中市收送範圍、LINE 預約與費用邊界說清楚。</p>
+            <span class="eyebrow">依需求找服務</span>
+            <h2>依需求找到服務</h2>
+            <p>把客人真正會問的物件、情境、收送與送洗前問題拆清楚，讓搜尋「台中西屯洗衣店」「台中洗衣收送」「青海路洗衣店」的人，也能快速理解私享家在判斷什麼。</p>
           </div>
-          <div class="grid">
+          <div class="grid four discovery-grid">
+          ${discoveryGroups}
+          </div>
+        </div>
+      </section>
+      <section class="section surface" id="citywide-pickup">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">在地收送</span>
+            <h2>把免費收送放進台中的生活圈</h2>
+            <p>收送範圍為台中市全市，<strong>收送本身免費，且沒有最低消費門檻</strong>——不需要單次洗滌滿額才能收送，一件也可以先問。清潔與洗護費用則依物件狀態另計。門市在西屯區青海路二段365號。預約與詢問以 <a class="card-link" href="${escapeHtml(lineInline)}">LINE</a> 為主，先傳照片再約定收送。從逢甲或西屯找洗鞋，可先看<a class="card-link" href="${escapeHtml(localShoeUrl)}"><strong>逢甲洗鞋・西屯洗鞋</strong></a>的門市方位、案例界線與收送範圍。</p>
+          </div>
+          <div class="grid three">
+          ${localCards}
+          </div>
+          <div class="button-row" style="margin-top:20px;">
+            <a class="button brand" href="${escapeHtml(citywidePickupUrl)}">閱讀收送說明頁</a>
+            <a class="button secondary" href="${escapeHtml(linePickup)}">LINE 預約收送</a>
+          </div>
+        </div>
+      </section>
+      <section class="section" id="guide-hub">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">洗護知識庫</span>
+            <h2>送洗前先看這幾件事</h2>
+            <p>問答頁負責回答搜尋問題，再把讀者導向對應服務與 LINE 詢問。先選鞋類、包類、布品或送洗決策，再進對應判斷頁。</p>
+            <nav class="link-row" aria-label="指南分組">
+              ${INDEX_GROWTH_HUB_ORDER.map(
+                (group) => `<a href="#guide-hub-${escapeHtml(group.id)}">${escapeHtml(group.heading)}</a>`
+              ).join("\n              ")}
+            </nav>
+          </div>
+          ${supportHubSections}
+          <p style="margin-top:20px;"><a class="card-link" href="${escapeHtml(knowledgeHubHref(index))}">查看洗護知識庫總覽 →</a></p>
+        </div>
+      </section>
+      <section class="section surface" id="daily">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">每日洗護紀錄</span>
+            <h2>已發布社群內容</h2>
+            <p>只收錄已審核、可公開的 Facebook / Instagram 貼文；最近 ${recentDateCount} 天直接顯示，較早內容收合成 archive，但仍保留給客人、搜尋引擎和 AI 讀取。</p>
+          </div>
+          <div class="grid three post-list">
+        ${rows}
+          </div>
+          ${archiveSection}
+          <p style="margin-top:20px;"><a class="card-link" href="${escapeHtml(postsHubHref(index))}">查看每日洗護紀錄總覽 →</a></p>
+        </div>
+      </section>
+      <section class="section" id="homepage-faq">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">常見問題</span>
+            <h2>台中洗衣與免費收送常見問題</h2>
+            <p>先把門市位置、台中市收送範圍、LINE 預約與費用邊界說清楚。</p>
+          </div>
+          <div class="grid three">
           ${homepageFaqItems}
           </div>
         </div>
       </section>
-      <section class="product-band surface depth-band depth-local-store">
-        <div class="section-inner two-col">
+      <section class="section surface" id="store">
+        <div class="page-shell grid two">
           <div>
-            <h2>店家資訊</h2>
-            <address class="fact-list">
+            <span class="eyebrow">品牌與信任</span>
+            <h2>${escapeHtml(profile.name)}</h2>
+            <p>私享家洗衣店在台中西屯青海路二段，以鞋包清潔、白鞋清潔、衣物寢具洗護與布品收納為核心，先判斷材質再談清潔，台中市全區可約免費收送。</p>
+            <address>
               <p><strong>${escapeHtml(profile.google_business_profile_name)}</strong></p>
               <p>${escapeHtml(profile.address_text)}（${escapeHtml(profile.landmark)}）</p>
-              <p>電話：<a href="tel:${escapeHtml(profile.telephone)}">${escapeHtml(profile.telephone_local)}</a>｜LINE／手機：${escapeHtml(profile.mobile_or_line_local)}</p>
               <p>營業時間：${escapeHtml(profile.opening_hours_text)}</p>
               <p>節日營業：${escapeHtml(profile.holiday_hours_rule.default_rule)}</p>
             </address>
-            <div class="link-row">
-              <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
-              <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
-              <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
-              <a href="${escapeHtml(lineFooter)}">LINE</a>
-            </div>
+            <p>實際收件、參考價與處理界線以門市檢視為準。</p>
           </div>
-          <div class="card local-search-card">
-            <p class="eyebrow">Local search</p>
-            <h3>搜尋洗衣店時，讓地區和服務都說清楚。</h3>
-            <p>這個公開站會固定把私享家洗衣店、台中市、西屯門市、青海路二段、免費收送、衣物洗護、洗鞋、洗包、白鞋清潔與布品收納連在一起，提供服務頁、社群圖文、LocalBusiness schema、AI 入口與在地搜尋資料。</p>
-            <div class="meta-row local-query-row">
-              ${localSearchChips}
+          <div class="card contact-methods">
+            <h2>預約與詢問入口</h2>
+            <div class="button-row">
+              <a class="button brand" href="${escapeHtml(lineCta)}">LINE 加好友</a>
+              <a class="button secondary" href="tel:${escapeHtml(profile.telephone)}">電話洽詢</a>
+              <a class="button brand" href="${escapeHtml(profile.map_url)}">Google Maps 導航</a>
             </div>
+            <p class="muted">電話：<a href="tel:${escapeHtml(profile.telephone)}">${escapeHtml(profile.telephone_local)}</a>｜LINE／手機：${escapeHtml(profile.mobile_or_line_local)}｜營業時間：${escapeHtml(profile.opening_hours_text)}</p>
+            <p class="muted">社群：<a href="${escapeHtml(profile.facebook_url)}">Facebook</a>｜<a href="${escapeHtml(profile.instagram_url)}">Instagram</a>｜<a href="${escapeHtml(profile.map_url)}">到 Google Maps 留評論</a></p>
           </div>
         </div>
       </section>
-      <section class="product-band utility-band">
-        <div class="section-inner">
+      <section class="section tight">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">為什麼選私享家</span>
+            <h2>先判斷材質，再談清潔</h2>
+          </div>
+          <div class="grid four">
+          ${trustCards}
+          </div>
+        </div>
+      </section>
+      <section class="section tight surface">
+        <div class="page-shell grid two">
+          <div class="card local-search-card">
+            <span class="eyebrow">在地搜尋</span>
+            <h3>搜尋洗衣店時，讓地區和服務都說清楚。</h3>
+            <p>這個公開站會固定把私享家洗衣店、台中市、西屯門市、青海路二段、免費收送、衣物洗護、洗鞋、洗包、白鞋清潔與布品收納連在一起，提供服務頁、社群圖文、LocalBusiness schema、AI 入口與在地搜尋資料。</p>
+            <div class="chip-row local-query-row">
+              ${localSearchChips}
+            </div>
+          </div>
           <details class="machine-details">
             <summary>AI 與搜尋引擎可讀入口</summary>
-            <p class="section-copy">這些檔案讓搜尋引擎與 AI 理解私享家洗衣店的服務、店家資料、社群內容與在地搜尋資訊。一般客人不需要閱讀它們，但它們會保留作為公開資料來源。</p>
-            <nav class="nav" aria-label="AI 與搜尋入口">
+            <p>這些檔案讓搜尋引擎與 AI 理解私享家洗衣店的服務、店家資料、社群內容與在地搜尋資訊。一般客人不需要閱讀它們，但它們會保留作為公開資料來源。</p>
+            <nav aria-label="AI 與搜尋入口">
           <a href="llms-lite.txt">llms-lite.txt</a>
           <a href="llms.txt">llms.txt</a>
           <a href="llms-full.txt">llms-full.txt</a>
@@ -5933,6 +7057,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <a href="business-profile.json">店家資料</a>
           <a href="latest.json">latest.json</a>
           <a href="feed.json">feed.json</a>
+          <a href="rss.xml">rss.xml</a>
           <a href="knowledge-graph.json">knowledge-graph.json</a>
           <a href="ai-discovery.json">ai-discovery.json</a>
           <a href="ai-sitemap.xml">ai-sitemap.xml</a>
@@ -5941,20 +7066,145 @@ function buildIndexHtml(index: PublicPostIndex): string {
           </details>
         </div>
       </section>
-      <section class="product-band">
-        <div class="section-inner">
-          <div class="section-header">
-            <p class="eyebrow">Published posts</p>
-            <h2>已發布社群內容</h2>
-            <p class="section-copy">只收錄已審核、可公開的 Facebook / Instagram 貼文；最近 ${recentDateCount} 天直接顯示，較早內容收合成 archive，但仍保留給客人、搜尋引擎和 AI 讀取。</p>
+      <section class="cta-band">
+        <div class="page-shell grid two">
+          <div>
+            <h2>想先問再送洗？</h2>
+            <p>先拍整體、近照與最在意的痕跡，傳 LINE 或帶到青海路二段365號門市，私享家會先說能整理到什麼程度，再決定要不要送洗。</p>
           </div>
-          <div class="post-list">
-        ${rows}
+          <div class="button-row">
+            <a class="button brand" href="${escapeHtml(lineCta)}">LINE 傳照片詢問</a>
+            <a class="button secondary" href="#homepage-faq">查看常見問題</a>
           </div>
-          ${archiveSection}
         </div>
       </section>
     </main>
+    ${renderSiteFooter(index, chrome)}
+  </body>
+</html>
+`;
+}
+
+function buildKnowledgeHubHtml(index: PublicPostIndex): string {
+  const profile = index.business_profile;
+  const canonical = knowledgeHubUrl(index);
+  const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
+  const lineCta = trackedLineUrl(index, { section: "guide", slug: "knowledge-hub", placement: "cta" });
+  const schema = buildKnowledgeHubSchema(index);
+  const lastmod = knowledgeHubContentLastmod();
+  const chrome: SiteChromeOptions = {
+    homeHref,
+    servicesHref: `${homeHref}#services`,
+    knowledgeHref: index.base_url_configured ? canonical : "./",
+    lineNavHref: lineCta,
+    lineFooterHref: lineCta,
+    businessProfileHref: index.base_url_configured ? index.entrypoints.business_profile : "../business-profile.json",
+    serviceHref: (service) => fromKnowledgeHubHref(servicePageUrl(service, index), index),
+    navLabel: "知識庫與服務"
+  };
+  const serviceCards = SERVICE_PAGE_DEFINITIONS.map((service) =>
+    renderServiceProductCard(service, index, fromKnowledgeHubHref(servicePageUrl(service, index), index))
+  ).join("\n");
+  const answerGroups = INDEX_GROWTH_HUB_ORDER.map((group) => {
+    const pages = SUPPORT_PAGE_DEFINITIONS.filter((page) => hubGroupFor(page) === group.id);
+    if (pages.length === 0) return "";
+    const cards = pages
+      .map((page) => {
+        const service = requireLinkedSupportService(page);
+        return `<article class="card article-card">
+              <div class="article-meta">${page.category === "local" ? "在地答案" : "洗護答案"}</div>
+              <h3><a href="${escapeHtml(fromKnowledgeHubHref(supportPageUrl(page, index), index))}">${escapeHtml(page.h1)}</a></h3>
+              <p>${escapeHtml(page.citation_answer ?? page.summary)}</p>
+              <div class="link-row">
+                <a class="card-link" href="${escapeHtml(fromKnowledgeHubHref(supportPageUrl(page, index), index))}">看完整答案</a>
+                <a href="${escapeHtml(fromKnowledgeHubHref(servicePageUrl(service, index), index))}">${escapeHtml(service.name)}</a>
+              </div>
+            </article>`;
+      })
+      .join("\n");
+    return `<section class="section ${group.id === "shoes" ? "surface" : ""}" id="knowledge-${escapeHtml(group.id)}">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">問題分組</span>
+            <h2>${escapeHtml(group.heading)}</h2>
+            <p class="section-copy">${escapeHtml(group.intro)}</p>
+          </div>
+          <div class="grid three">
+            ${cards}
+          </div>
+        </div>
+      </section>`;
+  }).join("\n");
+
+  return `<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    ${buildLegacyPathRedirectScript(index)}
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="${escapeHtml(KNOWLEDGE_HUB_DESCRIPTION)}" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="googlebot" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="${escapeHtml(profile.name)}" />
+    <link rel="canonical" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" hreflang="zh-Hant-TW" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" hreflang="x-default" href="${escapeHtml(canonical)}" />
+    <meta property="og:title" content="${escapeHtml(KNOWLEDGE_HUB_TITLE)}" />
+    <meta property="og:description" content="${escapeHtml(KNOWLEDGE_HUB_DESCRIPTION)}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${escapeHtml(canonical)}" />
+    <meta property="og:site_name" content="${escapeHtml(profile.name)}" />
+    ${schema ? `<script type="application/ld+json">${escapeJsonLd(schema)}</script>` : ""}
+    <style>${buildPublicSiteCss()}</style>
+    <title>${escapeHtml(KNOWLEDGE_HUB_TITLE)}</title>
+    ${buildAnalyticsTag(index.ga4_measurement_id)}
+    ${buildSearchContentAnalyticsTag(index, true)}
+  </head>
+  <body ${searchAnalyticsBodyAttributes("knowledge_hub", "knowledge-hub")}>
+    ${renderSiteHeader(index, chrome)}
+    <main>
+      <nav class="breadcrumb" aria-label="麵包屑">
+        <ol>
+          <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
+          <li aria-current="page">洗護知識庫</li>
+        </ol>
+      </nav>
+      <section class="section page-hero">
+        <div class="page-shell grid two">
+        <div class="hero-copy">
+          <span class="eyebrow">洗護知識庫｜問題 → 服務 → LINE</span>
+          <h1>洗鞋、洗包與衣物床被收送知識庫</h1>
+          <p class="lead">先選你手上的物件與狀況，讀直接答案與處理界線，再前往對應服務或用 LINE 傳照片。鞋子問題優先整理在最前面。</p>
+          ${lastmod ? `<p class="last-updated">內容更新：<time datetime="${lastmod}">${lastmod}</time></p>` : ""}
+          <div class="button-row">
+            <a class="button brand" href="#knowledge-shoes">先看鞋子問題</a>
+            <a class="button secondary" href="${escapeHtml(lineCta)}">LINE 傳照片</a>
+            <a class="button secondary" href="tel:${escapeHtml(profile.telephone)}">${escapeHtml(profile.telephone_local)}</a>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <span class="eyebrow">這個知識庫怎麼用</span>
+          <div class="answer-box">
+            <p>每一頁先給直接答案與處理界線，再連到對應服務；拿不準就把整體、近照與材質位置拍下來傳 LINE。</p>
+          </div>
+        </div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">服務入口</span>
+            <h2>直接找服務</h2>
+            <p class="section-copy">問題頁負責說明狀況；服務頁負責價格邊界、收件方式與下一步。</p>
+          </div>
+          <div class="grid four">
+            ${serviceCards}
+          </div>
+        </div>
+      </section>
+      ${answerGroups}
+    </main>
+    ${renderSiteFooter(index, chrome)}
   </body>
 </html>
 `;
@@ -5976,7 +7226,7 @@ function buildNotFoundHtml(index: PublicPostIndex): string {
       .not-found-hero { min-height: 100vh; display: grid; place-items: center; padding: 64px 20px; }
       .not-found-panel { max-width: 760px; margin: 0 auto; text-align: center; }
       .not-found-panel h1 { font-size: clamp(3.2rem, 8vw, 6.8rem); line-height: 0.96; margin-bottom: 20px; }
-      .not-found-panel p { color: var(--muted); font-size: 1.2rem; line-height: 1.7; margin: 0 auto 30px; max-width: 620px; }
+      .not-found-panel p { color: var(--color-muted); font-size: 1.2rem; line-height: 1.7; margin: 0 auto 30px; max-width: 620px; }
     </style>
     <title>${escapeHtml(`${SITE_NAME} | Page moved`)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
@@ -5984,10 +7234,10 @@ function buildNotFoundHtml(index: PublicPostIndex): string {
   <body>
     <main class="not-found-hero">
       <section class="not-found-panel">
-        <p class="eyebrow">Page moved</p>
+        <span class="eyebrow">Page moved</span>
         <h1>回到私享家首頁。</h1>
         <p>這個網址可能多了 docs 或少了專案路徑，系統會自動帶你回到私享家洗衣店的公開 SEO / AEO / GEO 主站。</p>
-        <a class="primary-link" href="${escapeHtml(homeHref)}">回到首頁</a>
+        <a class="button brand" href="${escapeHtml(homeHref)}">回到首頁</a>
       </section>
     </main>
   </body>
@@ -6015,6 +7265,16 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
     (service.slug === "shoe-bag-care" || service.slug === "taichung-xitun-laundry");
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const businessProfileHref = index.base_url_configured ? index.entrypoints.business_profile : "../business-profile.json";
+  const chrome: SiteChromeOptions = {
+    homeHref,
+    servicesHref: `${homeHref}#services`,
+    knowledgeHref: knowledgeHubHref(index, true),
+    lineNavHref: lineCta,
+    lineFooterHref: lineFooter,
+    businessProfileHref,
+    serviceHref: (item) => servicePageUrl(item, index),
+    navLabel: "服務與資料入口"
+  };
   const description = escapeHtml(service.description);
   const lastUpdatedMarkup = service.content_lastmod
     ? `\n          <p class="last-updated">內容更新：<time datetime="${escapeHtml(service.content_lastmod)}">${escapeHtml(service.content_lastmod)}</time></p>`
@@ -6022,7 +7282,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
   const caseStudies = service.case_studies
     .map(
       (study) => `<article class="card">
-              <p class="eyebrow">${escapeHtml(study.label)}｜${escapeHtml(study.object)}</p>
+              <span class="eyebrow">${escapeHtml(study.label)}｜${escapeHtml(study.object)}</span>
               <h3>${escapeHtml(study.concern)}</h3>
               <p><strong>材質：</strong>${escapeHtml(study.material)}</p>
               <p><strong>門市先看：</strong>${escapeHtml(study.inspection)}</p>
@@ -6032,10 +7292,10 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
     .join("\n");
   const inspectionTable =
     service.inspection_table && service.inspection_table.length > 0
-      ? `<section class="product-band">
-        <div class="section-inner">
+      ? `<section class="section">
+        <div class="page-shell">
           <div class="section-header">
-            <p class="eyebrow">Material & risk</p>
+            <span class="eyebrow">材質與風險</span>
             <h2>材質與風險判斷</h2>
           </div>
           <div class="table-wrap">
@@ -6072,10 +7332,10 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
   // R2②: three <table>s immediately after the opening answer; not lists.
   const priceTablesSection =
     hasPriceTables && service.price_tables
-      ? `<section class="product-band" id="price-list">
-        <div class="section-inner">
+      ? `<section class="section" id="price-list">
+        <div class="page-shell">
           <div class="section-header">
-            <p class="eyebrow">Reference prices</p>
+            <span class="eyebrow">參考價</span>
             <h2>分類參考價目表</h2>
             <p class="section-copy">${escapeHtml(PRICE_LIST_DISCLAIMER)}</p>
           </div>
@@ -6112,15 +7372,15 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
       : "";
   const caseStorySection = hasPriceTables
     ? ""
-    : `<section class="product-band story-band">
-        <div class="section-inner">
+    : `<section class="section surface">
+        <div class="page-shell">
           <div class="section-header">
-            <p class="eyebrow">門市判斷情境</p>
+            <span class="eyebrow">門市判斷情境</span>
             <h2>${escapeHtml(service.case_story.label)}</h2>
             <p>以下為常見送件情境與處理界線，用於協助送洗前判斷；不是特定客戶成果，也不代表效果保證。</p>
           </div>
           <p class="lead">${escapeHtml(service.case_story.situation)}</p>
-          <div class="case-grid">${caseStudies}</div>
+          <div class="grid three">${caseStudies}</div>
         </div>
       </section>`;
   const directlyRelatedGuides = SUPPORT_PAGE_DEFINITIONS.filter((page) => page.service_slug === service.slug);
@@ -6134,14 +7394,14 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
         : [];
   const relatedGuidesSection =
     relatedGuides.length > 0
-      ? `<section class="product-band surface">
-        <div class="section-inner">
+      ? `<section class="section surface">
+        <div class="page-shell">
           <div class="section-header">
-            <p class="eyebrow">Related guides</p>
+            <span class="eyebrow">相關指南</span>
             <h2>相關送洗指南</h2>
             <p class="section-copy">先看對應的判斷步驟，再用 LINE 傳照片詢問。</p>
           </div>
-          <div class="grid">
+          <div class="grid three">
             ${relatedGuides
               .map(
                 (page) => `<article class="card">
@@ -6191,35 +7451,26 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(service.title)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
+    ${buildSearchContentAnalyticsTag(index, true)}
   </head>
-  <body>
+  <body ${searchAnalyticsBodyAttributes("service", service.slug)}>
+    ${renderSiteHeader(index, chrome)}
     <main>
-      <header class="topbar">
-        <a class="brand" href="${escapeHtml(homeHref)}">私享家洗衣店</a>
-        <nav class="nav" aria-label="服務與資料入口">
-          ${SERVICE_PAGE_DEFINITIONS.map(
-            (item) => `<a href="${escapeHtml(servicePageUrl(item, index))}">${escapeHtml(item.name)}</a>`
-          ).join("\n")}
-          <a href="${escapeHtml(businessProfileHref)}">店家資料</a>
-        </nav>
-      </header>
       <nav class="breadcrumb" aria-label="麵包屑">
         <ol>
           <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
           <li aria-current="page">${escapeHtml(service.name)}</li>
         </ol>
       </nav>
-      <section class="product-hero hero-light service-hero">
-        <div class="section-inner hero-copy">
-          <p class="eyebrow">${escapeHtml(serviceAreaServedName(service))}｜${escapeHtml(service.name)}</p>
+      <section class="section page-hero">
+        <div class="page-shell grid two">
+        <div class="hero-copy">
+          <span class="eyebrow">${escapeHtml(serviceAreaServedName(service))}｜${escapeHtml(service.name)}</span>
           <h1>${escapeHtml(service.h1)}</h1>
           <p class="lead">${escapeHtml(service.summary)}</p>${lastUpdatedMarkup}
-          <div class="hero-actions">
-            <a class="primary-link" href="${escapeHtml(lineCta)}">LINE 詢問</a>
-            <a class="secondary-link" href="#faq">常見問題</a>
-          </div>
-          <div class="answer-box">
-            <p>${escapeHtml(service.answer_summary)}</p>
+          <div class="button-row">
+            <a class="button brand" href="${escapeHtml(lineCta)}">LINE 詢問</a>
+            <a class="button secondary" href="#faq">常見問題</a>
           </div>
           ${
             localShoePage
@@ -6236,6 +7487,11 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
               : ""
           }
         </div>
+        <div class="hero-visual">
+          <span class="eyebrow">先講重點</span>
+          <div class="answer-box">
+            <p>${escapeHtml(service.answer_summary)}</p>
+          </div>
         ${
           image
             ? `<figure class="service-photo">
@@ -6251,13 +7507,16 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
         </figure>`
             : ""
         }
+        </div>
+        </div>
       </section>
       ${priceTablesSection}
       ${caseStorySection}
-      <section class="product-band surface">
-        <div class="section-inner two-col">
+      <section class="section surface">
+        <div class="page-shell grid two">
           <div>
             <h2>${escapeHtml(service.name)}服務重點</h2>
+            <div class="grid two">
             ${service.sections
               .map(
                 (section) => `<article class="card">
@@ -6266,6 +7525,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
             </article>`
               )
               .join("\n")}
+            </div>
           </div>
           <aside class="card">
             <h2>店家資訊</h2>
@@ -6283,13 +7543,13 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
       </section>
       ${inspectionTable}
       ${relatedGuidesSection}
-      <section class="product-band" id="faq">
-        <div class="section-inner">
+      <section class="section" id="faq">
+        <div class="page-shell">
           <div class="section-header">
-            <p class="eyebrow">FAQ</p>
+            <span class="eyebrow">常見問題</span>
             <h2>常見問題</h2>
           </div>
-          <div class="grid">
+          <div class="grid three">
             ${service.faqs
               .map(
                 (faq) => `<article class="card">
@@ -6302,6 +7562,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
         </div>
       </section>
     </main>
+    ${renderSiteFooter(index, chrome)}
   </body>
 </html>
 `;
@@ -6316,8 +7577,9 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
   const lineInline = trackedLineUrl(index, { ...supportSource, placement: "inline" });
   const canonical = supportPageUrl(page, index);
   const supportSchema = buildSupportPageSchema(page, index);
-  const service = linkedSupportService(page);
-  const serviceHref = service ? servicePageUrl(service, index) : index.canonical_url;
+  const service = requireLinkedSupportService(page);
+  const serviceHref = servicePageUrl(service, index);
+  const acceptedGrowthPage = INDEX_GROWTH_SLUGS.has(page.slug);
   const homeHref = index.base_url_configured ? index.canonical_url : page.path.startsWith("local/") ? "../index.html" : "../index.html";
   const relativePrefix = page.path.includes("/") ? "../" : "";
   const businessProfileHref = index.base_url_configured ? index.entrypoints.business_profile : `${relativePrefix}business-profile.json`;
@@ -6326,6 +7588,16 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
   const searchVisibilityHref = index.base_url_configured
     ? index.entrypoints.search_visibility
     : `${relativePrefix}search-visibility.json`;
+  const chrome: SiteChromeOptions = {
+    homeHref,
+    servicesHref: `${homeHref}#services`,
+    knowledgeHref: knowledgeHubHref(index, true),
+    lineNavHref: lineNav,
+    lineFooterHref: lineNav,
+    businessProfileHref,
+    serviceHref: (item) => servicePageUrl(item, index),
+    navLabel: "支援內容"
+  };
   const description = escapeHtml(page.description);
   const image = supportPageImage(page, index);
   const imageSrc = image ? visibleImageSrc(image, index, Boolean(relativePrefix)) : "";
@@ -6333,10 +7605,13 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
   const lastUpdatedMarkup = page.content_lastmod
     ? `\n          <p class="last-updated">內容更新：<time datetime="${escapeHtml(page.content_lastmod)}">${escapeHtml(page.content_lastmod)}</time></p>`
     : "";
+  const serviceHeroLink = acceptedGrowthPage
+    ? ""
+    : `            <a class="button secondary" href="${escapeHtml(serviceHref)}">${escapeHtml(service.name)}</a>\n`;
   const stepItems = page.steps
     .map(
-      (step, index) => `<article class="spec-tile">
-              <p class="eyebrow">Step ${index + 1}</p>
+      (step, index) => `<article class="card">
+              <div class="eyebrow">Step ${index + 1}</div>
               <h3>${escapeHtml(step.name)}</h3>
               <p>${escapeHtml(step.text)}</p>
             </article>`
@@ -6358,7 +7633,39 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
             </article>`
     )
     .join("\n");
-  const keywordChips = page.keywords.map((keyword) => `<span class="chip on-light">${escapeHtml(keyword)}</span>`).join("\n");
+  const keywordChips = page.keywords.map((keyword) => `<span class="chip">${escapeHtml(keyword)}</span>`).join("\n");
+  const relatedGuidePages = (page.related_slugs ?? [])
+    .map((slug) => SUPPORT_PAGE_DEFINITIONS.find((entry) => entry.slug === slug))
+    .filter((entry): entry is SupportPageDefinition => Boolean(entry));
+  const pickupService = findServiceBySlug("taichung-citywide-laundry-pickup");
+  const priceListService = findServiceBySlug(PRICE_LIST_SLUG);
+  const serviceSearchGuide = SUPPORT_PAGE_DEFINITIONS.find((entry) => entry.slug === "taichung-laundry-service-search");
+  const relatedGuidesMarkup =
+    relatedGuidePages.length > 0
+      ? `<div class="link-row" data-related-guides>
+              ${relatedGuidePages
+                .map(
+                  (entry) =>
+                    `<a href="${escapeHtml(supportPageUrl(entry, index))}">${escapeHtml(entry.h1)}</a>`
+                )
+                .join("\n")}
+              ${
+                pickupService
+                  ? `<a href="${escapeHtml(servicePageUrl(pickupService, index))}">${escapeHtml(pickupService.name)}</a>`
+                  : ""
+              }
+              ${
+                priceListService
+                  ? `<a href="${escapeHtml(servicePageUrl(priceListService, index))}">${escapeHtml(priceListService.name)}</a>`
+                  : ""
+              }
+              ${
+                serviceSearchGuide && serviceSearchGuide.slug !== page.slug
+                  ? `<a href="${escapeHtml(supportPageUrl(serviceSearchGuide, index))}">${escapeHtml(serviceSearchGuide.h1)}</a>`
+                  : ""
+              }
+            </div>`
+      : "";
 
   return `<!doctype html>
 <html lang="zh-Hant-TW">
@@ -6395,41 +7702,36 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(page.title)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
+    ${buildSearchContentAnalyticsTag(index, true)}
   </head>
-  <body>
+  <body ${searchAnalyticsBodyAttributes("answer", page.slug)}>
+    ${renderSiteHeader(index, chrome)}
     <main>
-      <header class="topbar">
-        <a class="brand" href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a>
-        <nav class="nav" aria-label="支援內容">
-          ${SERVICE_PAGE_DEFINITIONS.map(
-            (item) => `<a href="${escapeHtml(servicePageUrl(item, index))}">${escapeHtml(item.name)}</a>`
-          ).join("\n")}
-          <a href="${escapeHtml(lineNav)}">LINE</a>
-          <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
-        </nav>
-      </header>
       <nav class="breadcrumb" aria-label="麵包屑">
         <ol>
           <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
           <li aria-current="page">${escapeHtml(page.h1)}</li>
         </ol>
       </nav>
-      <section class="product-hero hero-light service-hero">
-        <div class="section-inner hero-copy">
-          <p class="eyebrow">${page.category === "local" ? "Local guide" : "Care guide"}</p>
+      <section class="section page-hero">
+        <div class="page-shell grid two">
+        <div class="hero-copy">
+          <span class="eyebrow">${page.category === "local" ? "在地指南" : "洗護指南"}</span>
           <h1>${escapeHtml(page.h1)}</h1>
           <p class="lead">${escapeHtml(page.summary)}</p>${lastUpdatedMarkup}
-          <div class="hero-actions">
-            <a class="primary-link" href="${escapeHtml(lineCta)}">LINE 詢問</a>
-            <a class="secondary-link" href="${escapeHtml(serviceHref)}">${escapeHtml(service?.name ?? "回到首頁")}</a>
-          </div>
-          <div class="meta-row local-query-row">
+          <div class="button-row">
+            <a class="button brand" href="${escapeHtml(lineCta)}">LINE 詢問</a>
+${serviceHeroLink}          </div>
+          <div class="chip-row local-query-row">
             ${keywordChips}
           </div>
+        </div>
+        <div class="hero-visual">
+          <span class="eyebrow">直接答案</span>
           <div class="answer-box">
             <p>${escapeHtml(page.citation_answer ?? page.description)}</p>
           </div>
-        </div>
+          <p class="muted">這段是可直接引用的答案；下方的判斷步驤與門市說明會把處理界線講清楚，拿不準就先傳照片。</p>
         ${
           image
             ? `<figure class="service-photo">
@@ -6445,43 +7747,45 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
         </figure>`
             : ""
         }
+        </div>
+        </div>
       </section>
-      <section class="product-band surface">
-        <div class="section-inner">
+      <section class="section surface">
+        <div class="page-shell">
           <div class="section-header">
-            <p class="eyebrow">How to check</p>
+            <span class="eyebrow">怎麼判斷</span>
             <h2>先把狀態判斷清楚。</h2>
             <p class="section-copy">${escapeHtml(page.description)}</p>
           </div>
-          <div class="grid">
+          <div class="grid three">
             ${stepItems}
           </div>
         </div>
       </section>
       ${
         extraSections
-          ? `<section class="product-band">
-        <div class="section-inner">
+          ? `<section class="section">
+        <div class="page-shell">
           <div class="section-header">
-            <p class="eyebrow">${page.category === "local" ? "Local detail" : "Shop judgment"}</p>
+            <span class="eyebrow">${page.category === "local" ? "在地細節" : "門市判斷"}</span>
             <h2>${page.category === "local" ? "門市位置、案例界線與收送" : "門市判斷與處理界線"}</h2>
           </div>
-          <div class="grid">
+          <div class="grid three">
             ${extraSections}
           </div>
         </div>
       </section>`
           : ""
       }
-      <section class="product-band">
-        <div class="section-inner two-col">
+      <section class="section">
+        <div class="page-shell grid two">
           <div>
             <h2>對應服務</h2>
             <p class="section-copy">${escapeHtml(page.local_intent)}</p>
             <div class="link-row">
-              <a href="${escapeHtml(serviceHref)}">${escapeHtml(service?.name ?? "查看私享家服務")}</a>
+              <a href="${escapeHtml(serviceHref)}" data-parent-service>${escapeHtml(service.name)}</a>
               <a href="${escapeHtml(lineInline)}">傳照片詢問</a>
-            </div>
+            </div>${relatedGuidesMarkup ? `\n            ${relatedGuidesMarkup}` : ""}
           </div>
           <aside class="card">
             <h2>店家資料</h2>
@@ -6492,18 +7796,19 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
           </aside>
         </div>
       </section>
-      <section class="product-band surface" id="faq">
-        <div class="section-inner">
+      <section class="section surface" id="faq">
+        <div class="page-shell">
           <div class="section-header">
-            <p class="eyebrow">FAQ</p>
+            <span class="eyebrow">常見問題</span>
             <h2>常見問題</h2>
           </div>
-          <div class="grid">
+          <div class="grid three">
             ${faqItems}
           </div>
         </div>
       </section>
     </main>
+    ${renderSiteFooter(index, chrome)}
   </body>
 </html>
 `;
@@ -6580,6 +7885,7 @@ function buildAiDiscovery(index: PublicPostIndex): object {
     entrypoints: index.entrypoints,
     recommended_read_order: [
       index.entrypoints.llms,
+      knowledgeHubUrl(index),
       index.entrypoints.services,
       index.entrypoints.answers,
       index.entrypoints.geo_targets,
@@ -6658,6 +7964,14 @@ function buildAiDiscovery(index: PublicPostIndex): object {
         "calendar_url",
         "article_url"
       ],
+      daily_article_policy: {
+        min_visible_chars: POST_ARTICLE_MIN_VISIBLE_CHARS,
+        min_caption_chars: POST_ARTICLE_MIN_CAPTION_CHARS,
+        behavior:
+          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Only articles that clear the thickness gate carry index robots and enter sitemap.xml, rss.xml and the posts hub; the rest stay noindex, follow.",
+        indexable_article_count: indexablePostArticles(index).length,
+        article_count: index.article_posts.length
+      },
       homepage_archive_policy: {
         expanded_recent_days: HOME_EXPANDED_RECENT_DAYS,
         expanded_behavior: "Homepage renders approved posts from the newest seven content dates directly.",
@@ -6690,19 +8004,40 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const root = projectRoot(options.root);
   const config = getConfig();
   const siteBaseUrl = normalizeBaseUrl(options.siteBaseUrl ?? options.baseUrl ?? config.publicSiteBaseUrl);
+  if (options.deployment) {
+    assertProductionPublicSiteBaseUrl(siteBaseUrl);
+  }
   const imageBaseUrl = normalizeBaseUrl(options.imageBaseUrl ?? options.baseUrl ?? config.publicImageBaseUrl) ?? siteBaseUrl;
   const businessProfile = await loadBusinessProfile(root);
   const generatedAt = (options.now ? new Date(options.now) : new Date()).toISOString();
+  const publishThroughDate = getZonedDateParts(new Date(generatedAt), config.timezone).date;
   const dates = await listContentDates(root);
   const calendars = await Promise.all(
     dates.map(async (date) => {
       const calendar = await readPrivateDailyContent(date, root);
       if (!calendar) return undefined;
+      if (calendar.date !== date) {
+        await removePublicContentCalendar(date, root);
+        throw new Error(`Content calendar date mismatch: filename ${date} does not match calendar.date ${calendar.date}.`);
+      }
+      if (date > publishThroughDate) {
+        await removePublicContentCalendar(date, root);
+        return undefined;
+      }
 
       const approvals = await loadApprovalLog(date, root);
       const approvedSlots = calendar.slots.filter((slot) => isSlotFullyApproved(approvals, slot.slot));
-      await writeApprovedPublicContentCalendar(calendar, approvedSlots, root);
-      return { calendar, approvedSlots };
+      let publicSlots: DailySlot[];
+      try {
+        publicSlots = approvedSlots.map((slot) =>
+          slotWithAvailablePublicMedia(date, slot, root, options.statPublicAsset ?? statSync)
+        );
+      } catch (error) {
+        await removePublicContentCalendar(date, root);
+        throw error;
+      }
+      await writeApprovedPublicContentCalendar(calendar, publicSlots, root);
+      return { calendar, approvedSlots: publicSlots };
     })
   );
   const posts = calendars.flatMap((record) =>
@@ -6758,6 +8093,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         SUPPORT_PAGE_DEFINITIONS.map((page) => [page.slug, publicUrl(page.path, siteBaseUrl)])
       ),
       feed: publicUrl("feed.json", siteBaseUrl),
+      rss: publicUrl("rss.xml", siteBaseUrl),
       knowledge_graph: publicUrl("knowledge-graph.json", siteBaseUrl),
       ai_discovery: publicUrl("ai-discovery.json", siteBaseUrl)
     },
@@ -6785,6 +8121,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const servicesRoot = join(docsRoot, "services");
   const guidesRoot = join(docsRoot, "guides");
   const localRoot = join(docsRoot, "local");
+  const knowledgeRoot = join(docsRoot, "knowledge");
+  const scriptsRoot = join(docsRoot, "scripts");
   const postsRoot = join(docsRoot, "posts");
   const goRoot = join(docsRoot, "go");
   const compatibilityDocsRoot = join(docsRoot, "docs");
@@ -6793,6 +8131,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await mkdir(servicesRoot, { recursive: true });
   await mkdir(guidesRoot, { recursive: true });
   await mkdir(localRoot, { recursive: true });
+  await mkdir(knowledgeRoot, { recursive: true });
+  await mkdir(scriptsRoot, { recursive: true });
   await mkdir(postsRoot, { recursive: true });
   await mkdir(goRoot, { recursive: true });
   await mkdir(compatibilityDocsRoot, { recursive: true });
@@ -6810,6 +8150,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     searchVisibility: join(docsRoot, "search-visibility.json"),
     llmsJsonl: join(docsRoot, "llms.jsonl"),
     feed: join(docsRoot, "feed.json"),
+    rss: join(docsRoot, "rss.xml"),
     knowledgeGraph: join(docsRoot, "knowledge-graph.json"),
     aiDiscovery: join(docsRoot, "ai-discovery.json"),
     llms: join(docsRoot, "llms.txt"),
@@ -6821,6 +8162,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     sitemap: join(docsRoot, "sitemap.xml"),
     aiSitemap: join(docsRoot, "ai-sitemap.xml"),
     index: join(docsRoot, "index.html"),
+    knowledgeHub: join(docsRoot, KNOWLEDGE_HUB_FILE),
+    searchContentAnalytics: join(docsRoot, SEARCH_CONTENT_ANALYTICS_PATH),
     notFound: join(docsRoot, "404.html"),
     lineRedirect: join(goRoot, "line.html"),
     compatibilityDocsIndex: join(compatibilityDocsRoot, "index.html"),
@@ -6845,6 +8188,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await writeJsonAtomic(outputs.geoTargets, buildGeoTargetsJson(index));
   await writeJsonAtomic(outputs.searchVisibility, buildSearchVisibilityJson(index));
   await writeJsonAtomic(outputs.feed, buildJsonFeed(index));
+  await writeFile(outputs.rss, buildRssXml(index), "utf8");
   await writeJsonAtomic(outputs.knowledgeGraph, buildKnowledgeGraph(index));
   const aiDiscovery = buildAiDiscovery(index);
   await writeJsonAtomic(outputs.aiDiscovery, aiDiscovery);
@@ -6857,6 +8201,9 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await writeFile(outputs.robots, buildRobotsText(index), "utf8");
   await writeFile(outputs.sitemap, buildSitemapXml(index), "utf8");
   await writeFile(outputs.aiSitemap, buildAiSitemapXml(index), "utf8");
+  const searchContentAnalytics = buildSearchContentAnalyticsScript();
+  assertSearchContentAnalyticsScript(searchContentAnalytics);
+  await writeFile(outputs.searchContentAnalytics, searchContentAnalytics, "utf8");
   if (indexNowKey) {
     const keyFileName = indexNowKeyFileName(indexNowKey);
     await writeFile(join(docsRoot, keyFileName), `${indexNowKey}\n`, "utf8");
@@ -6873,6 +8220,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     );
   }
   await writeFile(outputs.index, buildIndexHtml(index), "utf8");
+  await writeFile(outputs.knowledgeHub, buildKnowledgeHubHtml(index), "utf8");
   await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
   await writeFile(
     outputs.lineRedirect,
@@ -6903,7 +8251,8 @@ async function main(): Promise<void> {
     root: getOption(args, "root"),
     baseUrl: getOption(args, "base-url"),
     siteBaseUrl: getOption(args, "site-base-url"),
-    imageBaseUrl: getOption(args, "image-base-url")
+    imageBaseUrl: getOption(args, "image-base-url"),
+    deployment: true
   });
   console.log(`Public site indexes ready:\n${outputs.map((output) => `- ${output}`).join("\n")}`);
 }

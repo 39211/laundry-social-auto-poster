@@ -6,12 +6,12 @@ import { getOption, isMain } from "./cli";
 import "./config";
 import { readJsonFile } from "./logging";
 import { projectRoot } from "./paths";
+import { REQUIRED_SEARCH_CONTENT_EVENTS } from "./searchContentAnalytics";
 
-// The read side of measurement. The write side has been live since the coded
-// redirect page went up -- gtag fires line_click with the source parameter --
-// but nothing ever asked Google for the result, so every report in this
-// project defaulted line_click to 0 and several reviews read that zero as
-// "nobody clicked". A zero that was never fetched is not evidence.
+// The read side of measurement. The redirect has long emitted line_click; the
+// generated search pages now emit the upstream view and CTA stages as well.
+// A zero that was never fetched is not evidence, so this collector records the
+// full funnel or marks the day unmeasured.
 //
 // Deliberately no SDK: the Data API is one POST, and @google-analytics/data
 // pulls in gRPC and a service-account flow. Reusing the OAuth client that
@@ -19,6 +19,8 @@ import { projectRoot } from "./paths";
 // of provisioning a service account and sharing a property with it.
 
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
+export const GA4_SEARCH_FUNNEL_EVENTS = [...REQUIRED_SEARCH_CONTENT_EVENTS, "line_click"] as const;
+export type Ga4SearchFunnelEvent = (typeof GA4_SEARCH_FUNNEL_EVENTS)[number];
 
 export interface Ga4SourceRow {
   source: string;
@@ -30,6 +32,7 @@ export interface Ga4DayReport {
   property_id: string;
   fetched_at: string;
   total_line_clicks: number;
+  event_counts: Record<Ga4SearchFunnelEvent, number>;
   by_source: Ga4SourceRow[];
   /** Set when the per-source split could not be fetched but the total could. */
   breakdown_unavailable?: string;
@@ -39,7 +42,7 @@ export class Ga4NotConfiguredError extends Error {
   constructor(missing: string[]) {
     super(
       `GA4 read side is not configured (missing ${missing.join(", ")}). ` +
-        `line_click stays unmeasured -- do not record it as 0. Setup: docs-internal/ga4-setup.md`
+        `the search funnel stays unmeasured -- do not record it as 0. Setup: docs-internal/ga4-setup.md`
     );
     this.name = "Ga4NotConfiguredError";
   }
@@ -91,8 +94,9 @@ async function accessToken(fetchImpl: typeof fetch, env: NodeJS.ProcessEnv): Pro
 }
 
 /**
- * One day of line_click, broken down by the source parameter the coded links
- * carry. Throws rather than returning zeros when the read side is not set up:
+ * One day of the search-content funnel plus line_click, with line_click also
+ * broken down by the source parameter the coded links carry. Throws rather
+ * than returning zeros when the read side is not set up:
  * an unconfigured reader returning 0 is the exact failure this file exists to
  * end.
  */
@@ -107,7 +111,7 @@ export async function fetchLineClicks(input: {
   if (missing.length > 0) throw new Ga4NotConfiguredError(missing);
 
   const token = await accessToken(fetchImpl, env);
-  const runReport = async (dimension: string) => {
+  const runReport = async (dimension: string, eventNames: readonly string[]) => {
     const response = await fetchImpl(
       `https://analyticsdata.googleapis.com/v1beta/properties/${encodeURIComponent(propertyId)}:runReport`,
       {
@@ -118,7 +122,10 @@ export async function fetchLineClicks(input: {
           dimensions: [{ name: dimension }],
           metrics: [{ name: "eventCount" }],
           dimensionFilter: {
-            filter: { fieldName: "eventName", stringFilter: { value: "line_click" } }
+            filter:
+              eventNames.length === 1
+                ? { fieldName: "eventName", stringFilter: { value: eventNames[0] } }
+                : { fieldName: "eventName", inListFilter: { values: eventNames } }
           },
           limit: 100
         })
@@ -131,25 +138,33 @@ export async function fetchLineClicks(input: {
     } & { _status: number };
   };
 
-  // The total is asked for with eventName, a built-in dimension, so it works
-  // today and answers for days already past. The per-source breakdown needs
+  // Event counts are asked for with eventName, a built-in dimension, so the
+  // entire on-site funnel is collected without any custom-dimension setup.
+  // The per-source line_click breakdown needs
   // customEvent:source, which only exists once someone registers "source" as a
   // custom dimension in the GA4 property -- and even then only from that day
   // forward. Splitting the two calls means a missing registration costs the
   // breakdown, not the number.
-  const totalPayload = await runReport("eventName");
-  if (totalPayload.error) {
-    throw new Error(`GA4 runReport failed: ${totalPayload.error.message}`);
+  const eventPayload = await runReport("eventName", GA4_SEARCH_FUNNEL_EVENTS);
+  if (eventPayload.error) {
+    throw new Error(`GA4 runReport failed: ${eventPayload.error.message}`);
   }
-  const total = (totalPayload.rows ?? []).reduce(
-    (sum, row) => sum + Number(row.metricValues?.[0]?.value ?? 0),
-    0
-  );
+  const eventCounts = Object.fromEntries(GA4_SEARCH_FUNNEL_EVENTS.map((eventName) => [eventName, 0])) as Record<
+    Ga4SearchFunnelEvent,
+    number
+  >;
+  for (const row of eventPayload.rows ?? []) {
+    const eventName = row.dimensionValues?.[0]?.value;
+    if (eventName && Object.hasOwn(eventCounts, eventName)) {
+      eventCounts[eventName as Ga4SearchFunnelEvent] += Number(row.metricValues?.[0]?.value ?? 0);
+    }
+  }
+  const total = eventCounts.line_click;
 
   let sourcePayload: Awaited<ReturnType<typeof runReport>> | null = null;
   let breakdownUnavailable: string | undefined;
   try {
-    sourcePayload = await runReport("customEvent:source");
+    sourcePayload = await runReport("customEvent:source", ["line_click"]);
     if (sourcePayload.error) {
       breakdownUnavailable = sourcePayload.error.message;
       sourcePayload = null;
@@ -174,6 +189,7 @@ export async function fetchLineClicks(input: {
     property_id: propertyId,
     fetched_at: new Date().toISOString(),
     total_line_clicks: total,
+    event_counts: eventCounts,
     by_source: bySource,
     ...(breakdownUnavailable ? { breakdown_unavailable: breakdownUnavailable } : {})
   };
@@ -184,6 +200,8 @@ interface LedgerDay {
   source_clicks?: Record<string, number>;
   source_clicks_status?: "measured" | "total_only" | "unmeasured";
   source_clicks_note?: string;
+  search_funnel_events?: Record<Ga4SearchFunnelEvent, number>;
+  search_funnel_status?: "measured" | "unmeasured";
   inquiries?: number | null;
   [key: string]: unknown;
 }
@@ -217,6 +235,8 @@ export async function recordLineClicksToLedger(input: {
   try {
     const report = await fetchLineClicks({ date: input.date, fetchImpl: input.fetchImpl, env: input.env });
     day.line_clicks_total = report.total_line_clicks;
+    day.search_funnel_events = report.event_counts;
+    day.search_funnel_status = "measured";
     if (report.breakdown_unavailable) {
       // An empty source_clicks next to a non-zero total reads as "every source
       // got nothing", which is a different claim from "we know the total but
@@ -233,6 +253,8 @@ export async function recordLineClicksToLedger(input: {
   } catch (error) {
     delete day.source_clicks;
     delete day.line_clicks_total;
+    delete day.search_funnel_events;
+    day.search_funnel_status = "unmeasured";
     day.source_clicks_status = "unmeasured";
     result = { status: "unmeasured", reason: error instanceof Error ? error.message : String(error) };
   }

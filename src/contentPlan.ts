@@ -773,7 +773,7 @@ function actionCtaFor(slot: GrowthPlaybookSlot, platform: Platform): string {
       return [
         `不確定還救不救得回來？拍一張${channel}給我們，先幫你看。`,
         `想問問看能處理到什麼程度？拍一張${channel}就可以。`,
-        `台中市區我們到府收，${channel}說一聲就好。`
+        `台中全區免費到府收，沒有低消、一件也收，${channel}說一聲就好。`
       ];
     }
     if (page.includes("luxury-dry-cleaning")) {
@@ -796,7 +796,7 @@ function actionCtaFor(slot: GrowthPlaybookSlot, platform: Platform): string {
     }
     if (page.includes("taichung-citywide-laundry-pickup") || page.includes("taichung-xitun")) {
       return [
-        `台中市區免費到府收送，${channel}跟我們說你在哪一區就可以。`,
+        `台中市區免費到府收送，沒有低消、一件也收，${channel}跟我們說你在哪一區就可以。`,
         `不用出門，台中市區我們去收。${channel}說個地址和時間就好。`
       ];
     }

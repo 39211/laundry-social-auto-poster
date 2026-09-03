@@ -2657,16 +2657,16 @@ const HOME_TRUST_ITEMS: HomeTrustItem[] = [
     body: "鞋面、包角、外套、寢具和白鞋膠邊的狀況不同，私享家會先看材質與痕跡位置，不用同一套方式處理所有物件。"
   },
   {
-    heading: "真實門市照片做內容基礎",
-    body: "公開站與社群內容優先使用門市洗護照片，讓客人看到實際檢查場景，也讓搜尋與 AI 有一致的圖片來源。"
+    heading: "每位客人的衣物單獨洗滌",
+    body: "你的衣物、鞋包和寢具不會和其他客人的混在一起洗；材質不同的物件也分開處理，避免染色、勾紗與味道互相沾染。"
   },
   {
-    heading: "在地資料清楚",
-    body: "地址、電話、營業時間、Google Maps、LINE、Facebook、Instagram 都從商家資料檔輸出，避免搜尋結果抓到不一致資訊。"
+    heading: "洗後先檢查，不乾淨再洗一次",
+    body: "洗好不是直接包起來。門市會先檢查痕跡、味道與乾燥狀態，還沒處理到位的地方會再洗一次，能整理到什麼程度事先講清楚。"
   },
   {
     heading: "不捏造保證與評論",
-    body: "目前沒有 owner-approved 評論資料時，不在首頁寫假評價；改用流程、物件判斷與案例情境建立信任。"
+    body: "不寫「保證洗白」「恢復全新」這種話，也不放假評價；用材質判斷、處理界線與門市實際看件的紀錄建立信任。"
   }
 ];
 
@@ -2688,8 +2688,8 @@ const HOME_PROCESS_STEPS: HomeTrustItem[] = [
     body: "台中市全區可約免費收送，收送不收費、沒有最低消費；清潔與洗護費依物件狀態另計，能整理到什麼程度先說清楚。"
   },
   {
-    heading: "洗好送回",
-    body: "完成後送回或到店取件；收納前先確認乾透、沒有殘味，避免帶著濕氣封存。"
+    heading: "洗好檢查再送回",
+    body: "洗好先檢查痕跡、味道與乾燥狀態，還沒到位的再洗一次，再送回或到店取件；收納前確認乾透、沒有殘味。"
   }
 ];
 
@@ -6016,7 +6016,13 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
     .split(/\n{2,}/u)
     .map((paragraph) => paragraph.trim())
     .filter((paragraph) => paragraph.length > 0 && !/^#/u.test(paragraph));
-  const leadParagraph = captionParagraphs[0] ?? description;
+  // GEO guidance (2026): the extractable answer block should carry roughly 40-60
+  // characters, so a one-line opener is topped up with the next paragraph.
+  let leadParagraph = captionParagraphs[0] ?? description;
+  for (const paragraph of captionParagraphs.slice(1)) {
+    if (leadParagraph.replace(/\s+/gu, "").length >= 40) break;
+    leadParagraph = `${leadParagraph} ${paragraph}`;
+  }
   const hashtags = post.hashtags.map((tag) => `<span class="chip">${escapeHtml(tag)}</span>`).join("\n");
   const targetQueries = post.target_queries.map((query) => `<span class="chip">${escapeHtml(query)}</span>`).join("\n");
   const caseRows = (service?.case_studies ?? [])
@@ -6197,7 +6203,7 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
         <div class="page-shell">
           <div class="card follow-cta">
             <h2>追蹤私享家，看更多洗護紀錄</h2>
-            <p>每天一則門市紀錄，先看材質、再談清潔；Facebook 與 Instagram 同步發布。</p>
+            <p>每天一則門市紀錄，先看材質、再談清潔；Facebook 與 Instagram 同步發布。看完覺得有幫助，到 <a href="${escapeHtml(profile.map_url)}">Google Maps 留一句評論</a>，會直接幫到下一位在找洗衣店的人。</p>
             <div class="button-row">
               <a class="button brand" href="${escapeHtml(profile.facebook_url)}" target="_blank" rel="noopener">Facebook 私享家洗衣店</a>
               <a class="button secondary" href="${escapeHtml(profile.instagram_url)}" target="_blank" rel="noopener">Instagram @si_xiang_jia</a>
@@ -7008,7 +7014,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
               <a class="button brand" href="${escapeHtml(profile.map_url)}">Google Maps 導航</a>
             </div>
             <p class="muted">電話：<a href="tel:${escapeHtml(profile.telephone)}">${escapeHtml(profile.telephone_local)}</a>｜LINE／手機：${escapeHtml(profile.mobile_or_line_local)}｜營業時間：${escapeHtml(profile.opening_hours_text)}</p>
-            <p class="muted">社群：<a href="${escapeHtml(profile.facebook_url)}">Facebook</a>｜<a href="${escapeHtml(profile.instagram_url)}">Instagram</a></p>
+            <p class="muted">社群：<a href="${escapeHtml(profile.facebook_url)}">Facebook</a>｜<a href="${escapeHtml(profile.instagram_url)}">Instagram</a>｜<a href="${escapeHtml(profile.map_url)}">到 Google Maps 留評論</a></p>
           </div>
         </div>
       </section>

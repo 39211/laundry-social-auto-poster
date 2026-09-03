@@ -547,8 +547,10 @@ function cleanHook(hook: string): string {
     .replace(/[，,。]+$/, "")
     .trim();
 
-  // A hook that was nothing but boilerplate is worse gone than kept.
-  return cleaned.length >= 6 ? `${cleaned}。` : hook;
+  // A hook that was nothing but boilerplate is worse gone than kept. A question
+  // headline already ends in its own mark; "？。" is not a sentence.
+  if (cleaned.length < 6) return hook;
+  return /[？?！!]$/u.test(cleaned) ? cleaned : `${cleaned}。`;
 }
 
 // With the shop name gone from block 2, this is the fold line: the last thing

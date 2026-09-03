@@ -141,8 +141,13 @@ export function buildShortMetadata(input: { topic: string; caption: string; date
   const tracking = { source: "youtube" as const, campaign };
   const deepLink = utmTagged(guideLinkFor(input.topic), tracking);
   const lineUrl = utmTagged(`${SITE}/go/line.html?source=yt`, tracking);
+  // The daily article is now an indexable page of its own, so the Short's
+  // second line points at it: the video is the article's clip, not a separate
+  // piece of content (iprinter pattern: reel <-> article share one headline).
+  const articleUrl = `${SITE}/posts/${input.date}-slot-${String(input.slot ?? 2).padStart(2, "0")}.html`;
   const description = [
     `台中西屯的私享家洗衣店在處理${topicObject(input.topic)}時的判斷方式;台中市全區免費到府收送,清潔費另依物件判斷。`,
+    `這則紀錄的完整文章:${utmTagged(articleUrl, tracking)}`,
     input.caption.split("\n\n").slice(0, 3).join("\n\n"),
     priceLineFor(input.topic),
     "門市:台中市西屯區青海路二段365號(至善國中對面)｜LINE 傳照片先估:0968327653",

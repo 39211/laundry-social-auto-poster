@@ -126,3 +126,17 @@ worktree 沒有 gitignored 的 `data/content-calendar`、`data/approved-log`、`
 
 一塊印的 93 篇是「已收錄且有曝光」的結果，不是提交當天就有。私享家這 112 個新 URL 部署後要走 Day 0／7／28 判定
 （見第一回合報告）；若 28 天仍 crawled-not-indexed，整併同族紀錄而不是再堆 URL。
+
+---
+
+## 第三回合（2026-09-04 晚）：品牌色＋一塊印發文規則套用
+
+- 品牌色改為老闆選的深墨綠 `#1f4d3a`／米白 `#f4efe6`；新增 `--color-brand-deep`、`--color-brand-soft` 供邊框與淡底，品牌方塊字色跟著換成米白。
+- 一塊印 FB／IG／Threads／daily 的發文規則研究與套用對照，正本在 `content-playbooks/2026-09-04-iprinter-posting-rules.md`。
+  重點結論：一塊印「被看到」是搜尋帶的（FB 151 追蹤、Threads 42 粉絲），社群的角色是把同一句問句放到第三個地方並導回文章；
+  93 篇裡只有後期 17 篇配 Reel；每則貼文固定「鉤子→場景→反轉句→產品一句→出處→行動→下一集」。
+- 已進 PR 的產線改動：文案出處行「出處：門市當日看件」、slot 1 下一集預告、Shorts 描述帶文章網址、hooks-bank 兩條反轉句原地取代、文章頁上一則／下一則。
+- 驗證：`test/iprinterPostingRules.test.ts` 4/4；dailyContent、linePostRedirect、repeatCaptionVariation、nightlyChecks、youtubeScheduleAhead、scheduleReel 全綠
+  （180 篇文案測試單跑 1.3 秒，並行時偶發超時，屬負載不是邏輯）。
+- 沒做的：把主題句改成問句、系列化、投票收尾——這三件是 slot1-plan 主題層的決策，程式不能替老闆選題。
+

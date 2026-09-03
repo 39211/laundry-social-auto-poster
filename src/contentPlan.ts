@@ -1520,12 +1520,51 @@ function withUpgradedHashtags(caption: string, topic: string): string {
  * generic tags with no local one among them. A rule that only one caption
  * builder obeys is not a rule.
  */
+// iprinter.com.tw's daily posts (the model the owner asked us to follow on
+// 2026-09-04) carry one provenance line on every post -- "出處：現場實務觀察" --
+// and end with a "下一集：…" teaser so the reader comes back tomorrow. The
+// provenance line sits between the price line and the LINE line: it qualifies
+// the price without displacing the single call to action. It stays under 12
+// characters on purpose: captionQuality treats longer identical blocks as
+// accidental month-wide repetition, and a long boilerplate sentence would be.
+export const PROVENANCE_LINE = "出處：門市當日看件";
+const PROVENANCE_PREFIX = "出處：";
+const NEXT_EPISODE_PREFIX = "下一集：";
+
+function insertBeforeClosingBlocks(caption: string, line: string, stopAt: (block: string) => boolean): string {
+  const blocks = caption.split("\n\n");
+  const stopIndex = blocks.findIndex(stopAt);
+  if (stopIndex === -1) return `${caption}\n\n${line}`;
+  blocks.splice(stopIndex, 0, line);
+  return blocks.join("\n\n");
+}
+
+export function withProvenanceLine(caption: string): string {
+  if (caption.includes(PROVENANCE_PREFIX)) return caption;
+  return insertBeforeClosingBlocks(
+    caption,
+    PROVENANCE_LINE,
+    (block) => block.includes(LINE_POST_PATH) || block.startsWith("#")
+  );
+}
+
+/** Slot-1 only: the committed slot1-plan knows tomorrow's topic, so the teaser is a fact, not a promise. */
+export function withNextEpisodeTeaser(caption: string, nextTopic: string | undefined): string {
+  const topic = nextTopic?.trim();
+  if (!topic || caption.includes(NEXT_EPISODE_PREFIX)) return caption;
+  return insertBeforeClosingBlocks(
+    caption,
+    `${NEXT_EPISODE_PREFIX}${topic}`,
+    (block) => block.startsWith(PROVENANCE_PREFIX) || block.includes(LINE_POST_PATH) || block.startsWith("#")
+  );
+}
+
 export function withSharedCaptionRules(
   caption: string,
   topic: string,
   tracking?: CaptionTracking
 ): string {
-  return withUpgradedHashtags(withPriceLine(withLineContact(caption, tracking), topic), topic);
+  return withUpgradedHashtags(withProvenanceLine(withPriceLine(withLineContact(caption, tracking), topic)), topic);
 }
 
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform, config?: AppConfig): string {
@@ -2326,7 +2365,9 @@ export function buildDailyContent(
 
   const playbookSlots = playbookSlotsForDate(date);
   const rawSlot1 = playbookSlots?.find((slot) => slot.slot === 1);
-  const plannedTopic = options.applySlot1Plan ? loadSlot1PlanSync(root)[date] : undefined;
+  const slot1Plan = options.applySlot1Plan ? loadSlot1PlanSync(root) : {};
+  const plannedTopic = slot1Plan[date];
+  const nextPlannedTopic = slot1Plan[addUtcDays(date, 1)];
   const slot1Decision = rawSlot1
     ? resolveSlot1WithPlan(date, rawSlot1, plannedTopic, airedTopics)
     : undefined;
@@ -2351,6 +2392,17 @@ export function buildDailyContent(
       return dailySlotFromTemplate(date, schedule, config);
     }
     return playbookSlot ? dailySlotFromPlaybook(playbookSlot, config) : dailySlotFromTemplate(date, schedule, config);
+  }).map((slot) => {
+    // The teaser only exists when tomorrow's slot-1 topic is committed in the
+    // plan and today's slot 1 actually came from that plan; a playbook fallback
+    // day must not promise a topic the plan may still move.
+    if (slot.slot !== 1 || slot1Decision?.source !== "slot1-plan" || !nextPlannedTopic) return slot;
+    if (nextPlannedTopic === slot.topic) return slot;
+    return {
+      ...slot,
+      facebook_caption: withNextEpisodeTeaser(slot.facebook_caption, nextPlannedTopic),
+      instagram_caption: withNextEpisodeTeaser(slot.instagram_caption, nextPlannedTopic)
+    };
   });
 
   return stampDailyContentWrite({

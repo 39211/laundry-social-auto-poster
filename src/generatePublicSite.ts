@@ -5340,8 +5340,10 @@ function buildPublicSiteCss(): string {
       --color-line: #d7dee8;
       --color-bg: #f7f8fb;
       --color-surface: #fff;
-      --color-brand: #f5c400;
-      --color-brand-ink: #2d2600;
+      --color-brand: #1f4d3a;
+      --color-brand-ink: #f4efe6;
+      --color-brand-deep: #163a2b;
+      --color-brand-soft: #e8f0eb;
       --color-blue: #1f6feb;
       --color-green: #1c7c54;
       --color-red: #b42318;
@@ -5389,7 +5391,7 @@ function buildPublicSiteCss(): string {
       display: inline-flex;
     }
     .button.secondary { color: var(--color-ink); background: #fff; }
-    .button.brand { background: var(--color-brand); color: var(--color-brand-ink); border-color: #d8ad00; }
+    .button.brand { background: var(--color-brand); color: var(--color-brand-ink); border-color: var(--color-brand-deep); }
     .card-reel-link { width: 100%; margin: 12px 0; display: flex; }
     .grid { gap: 18px; display: grid; }
     .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -5424,8 +5426,8 @@ function buildPublicSiteCss(): string {
     .brand-link { letter-spacing: 0; align-items: center; gap: 10px; font-weight: 900; text-decoration: none; display: inline-flex; white-space: nowrap; flex: none; }
     .brand-mark {
       background: var(--color-brand);
-      border: 2px solid var(--color-ink);
-      color: var(--color-ink);
+      border: 2px solid var(--color-brand-deep);
+      color: var(--color-brand-ink);
       border-radius: 6px;
       justify-content: center;
       align-items: center;
@@ -5443,8 +5445,8 @@ function buildPublicSiteCss(): string {
     .home-hero__content h1 { color: #101a2b; margin-bottom: 16px; font-size: clamp(2.7rem, 5vw, 4.45rem); }
     .home-hero__actions { flex-wrap: wrap; gap: 14px; margin-top: 26px; display: flex; }
     .home-hero__actions .button { min-width: 178px; }
-    .home-hero__photo-action { color: var(--color-brand-ink); background: #fff; border-color: #d8ad00; }
-    .home-hero__photo-action:hover, .home-hero__photo-action:focus-visible { background: #fff7cf; }
+    .home-hero__photo-action { color: var(--color-brand); background: #fff; border-color: var(--color-brand); }
+    .home-hero__photo-action:hover, .home-hero__photo-action:focus-visible { background: var(--color-brand-soft); }
     .home-hero__note { border-left: 3px solid var(--color-brand); margin: 24px 0 0; padding-left: 12px; font-size: .94rem; }
     .home-hero__note a { color: var(--color-blue); font-weight: 700; text-decoration: none; }
     .home-hero__visual { min-height: 540px; position: relative; }
@@ -5590,7 +5592,7 @@ function buildPublicSiteCss(): string {
     .article-body .content { max-width: 780px; margin: 0 auto; padding: 0 20px; }
     .article-body .content a { overflow-wrap: anywhere; word-break: break-word; }
     .article-body .content h2 { border-top: 1px solid var(--color-line); margin-top: 30px; padding-top: 26px; }
-    .article-body .content blockquote { border-left: 4px solid var(--color-brand); background: #fff8d8; margin: 24px 0; padding: 18px; }
+    .article-body .content blockquote { border-left: 4px solid var(--color-brand); background: var(--color-brand-soft); margin: 24px 0; padding: 18px; }
     .article-faq { margin-top: 34px; }
     .article-faq__list { gap: 12px; display: grid; }
     .article-faq__item { border-top: 1px solid var(--color-line); padding-top: 14px; }
@@ -5997,6 +5999,9 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const hubHref = postsHubHref(index, true);
   const articleNumber = articleNumberFor(post, index);
+  const orderedArticles = sortedArticlePosts(index);
+  const previousArticle = orderedArticles[articleNumber - 2];
+  const nextArticle = orderedArticles[articleNumber];
   const faqs = postArticleFaqs(post);
   const relatedPosts = sortedArticlePosts(index)
     .filter((item) => item.id !== post.id && careContextFor(item.topic).family === care.family)
@@ -6136,6 +6141,16 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
           <section class="article-related" aria-labelledby="related-${escapeHtml(post.id)}">
             <h2 id="related-${escapeHtml(post.id)}" class="article-related__title">延伸閱讀</h2>
             <ul class="article-related__list">
+              ${
+                previousArticle
+                  ? `<li class="article-related__item">上一則｜<a class="article-related__link" href="${escapeHtml(previousArticle.article_url)}">Day ${articleNumber - 1}：${escapeHtml(previousArticle.topic)}</a></li>`
+                  : ""
+              }
+              ${
+                nextArticle
+                  ? `<li class="article-related__item">下一則｜<a class="article-related__link" href="${escapeHtml(nextArticle.article_url)}">Day ${articleNumber + 1}：${escapeHtml(nextArticle.topic)}</a></li>`
+                  : ""
+              }
               ${relatedPosts
                 .map(
                   (item) =>

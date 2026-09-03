@@ -4,7 +4,7 @@
 
 ## Source Of Record
 - Canonical URL: https://sixiangjialaundry.com/
-- Generated at: 2026-09-03T15:32:25.362Z
+- Generated at: 2026-09-03T16:17:52.629Z
 - Timezone: Asia/Taipei
 - Base URL configured: yes
 
@@ -82,6 +82,7 @@
 - support_pages.synthetic-vs-leather-handle: https://sixiangjialaundry.com/guides/synthetic-vs-leather-handle.html
 - support_pages.rainy-bag-care: https://sixiangjialaundry.com/guides/rainy-bag-care.html
 - feed: https://sixiangjialaundry.com/feed.json
+- rss: https://sixiangjialaundry.com/rss.xml
 - knowledge_graph: https://sixiangjialaundry.com/knowledge-graph.json
 - ai_discovery: https://sixiangjialaundry.com/ai-discovery.json
 

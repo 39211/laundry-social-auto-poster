@@ -83,3 +83,46 @@ worktree 沒有 gitignored 的 `data/content-calendar`、`data/approved-log`、`
 - 部署後（Pages 鏡射）看 GSC 是否對版型變更有反應，這與索引無直接關係，不需重新提交。
 - 品牌色是否改成私享家自己的色，等老闆看過首頁再決定。
 - 一塊印每篇日更頁有動畫版 Reel 按鈕；私享家貼文頁目前只有圖，Reel 連結要等 YouTube 上傳鏈打通。
+
+---
+
+## 第二回合（2026-09-04）：SEO／AEO／GEO／GA4 補到一塊印同等級
+
+### 差距怎麼量出來的
+
+| 項目 | 一塊印（2026-09-04 抓取） | 私享家（改前） | 私享家（改後） |
+|---|---|---|---|
+| sitemap URL 數 | 128（其中 93 篇 daily） | 57（貼文頁全部排除） | 169（57＋111 篇文章＋總覽頁） |
+| 每篇日更／貼文頁可見字數 | 約 2,150 | 平均 870、最低 659 | 平均 2,167、最低 1,923 |
+| 貼文頁 robots | index | noindex | 過厚度閘門者 index，其餘 noindex |
+| 貼文頁 schema | BlogPosting＋FAQPage＋BreadcrumbList | BlogPosting＋Breadcrumb | BlogPosting＋FAQPage＋Breadcrumb（三層） |
+| 日更總覽頁 | `/daily/` | 無 | `/posts/`（CollectionPage＋ItemList） |
+| RSS | `rss.xml` 200 | 只有 feed.json | `rss.xml`（只收可索引文章） |
+| GA4 文章事件 | view_article、click_product_from_article… | 貼文頁沒有事件腳本 | view_article、click_service_from_article |
+| robots.txt 對 AI 爬蟲 | 允許 OAI-SearchBot／GPTBot | 已允許 | 不變 |
+| llms.txt／JSON 入口 | 有 llms.txt | 有 llms、llms-full、jsonl、ai.json 等 | 不變 |
+
+### 做法
+
+- 貼文頁改成「每日洗護紀錄」文章頁，結構照一塊印 daily：重點摘要 → 門市筆記（完整文案）→ 物件族檢查重點（ol）
+  → 材質與處理界線（表格，取對應服務頁的送件情境）→ 下一步（LINE／服務／收送）→ 常見問題（物件族 FAQ＋收送 FAQ）
+  → 延伸閱讀（同族其他紀錄＋指南＋總覽）→ 對應服務卡 → 追蹤入口。
+- **厚度閘門 fail-closed**：以渲染後 `<main>` 可見字數 ≥ 1,200、文案 ≥ 80 字、有自己的文章頁（非重複文案）、
+  有正式站網址四條件全過才給 index robots、進 sitemap／ai-sitemap／rss／總覽 schema；任一不過就維持 noindex, follow。
+  測試用短文案的貼文證明閘門會關（`sitemap` 不含、robots noindex）。
+- 總覽頁 `/posts/`：列出全部紀錄卡（Day 編號、日期、物件族），只有至少一篇過閘門才 index。
+- GA4：貼文頁掛上 search-content-analytics，body 標 `page_type=article`；新增 `view_article`、
+  `click_service_from_article` 兩個事件並納入必備事件清單與 runtime 可達性檢查。
+- `ai-discovery.json` 新增 `daily_article_policy`（門檻、行為、可索引篩數／總篇數），讓判讀時能對得上。
+
+### 驗證
+
+- 111 篇文章 111 篇過閘門；sitemap 169 URL；rss 111 items；`posts/index.html` 產生。
+- publicSite 32/32（含新增的閘門測試）；全套 742 通過、16 跳過；`publishPages.test.ts` 有 1–4 條在此機器上因
+  `%TEMP%` EPERM 隨機紅，該檔案本次未改動、同一套程式稍早全綠，判定環境因素。
+- 首頁 lastmod 因新增 RSS 與總覽連結改為 2026-09-04，對應測試同步更新；知識庫 lastmod 維持 09-03。
+
+### 這不等於已被索引
+
+一塊印的 93 篇是「已收錄且有曝光」的結果，不是提交當天就有。私享家這 112 個新 URL 部署後要走 Day 0／7／28 判定
+（見第一回合報告）；若 28 天仍 crawled-not-indexed，整併同族紀錄而不是再堆 URL。

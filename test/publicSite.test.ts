@@ -1174,7 +1174,7 @@ describe("generatePublicSite", () => {
     expect(latest.posts.map((post: { date: string }) => post.date)).toEqual([today, today]);
     expect(homepage).toContain(`${today} 11:30`);
     expect(homepage).not.toContain(tomorrow);
-    expect(jsonLdGraphs(homepage).find((graph) => graph["@type"] === "WebPage")?.dateModified).toBe("2026-09-03");
+    expect(jsonLdGraphs(homepage).find((graph) => graph["@type"] === "WebPage")?.dateModified).toBe("2026-09-04");
     expect(llms).not.toContain(tomorrow);
     expect(sitemap).not.toContain(`content-calendar/${tomorrow}.json`);
     expect(sitemap).not.toContain(`<lastmod>${tomorrow}</lastmod>`);
@@ -1680,7 +1680,7 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("台中洗衣與免費收送常見問題");
     expect(homepage).toContain("收送免費等於清潔免費嗎？");
     expect(homepage).toContain('<html lang="zh-Hant-TW">');
-    expect(homepage).toContain('<time datetime="2026-09-03">2026-09-03</time>');
+    expect(homepage).toContain('<time datetime="2026-09-04">2026-09-04</time>');
     expect(homepage).toContain("台中免費收送，逢甲・西屯洗鞋先看材質");
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=home-cta`);
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=footer`);
@@ -1741,7 +1741,7 @@ describe("generatePublicSite", () => {
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
-        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-09-03</lastmod>`
+        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-09-04</lastmod>`
       )
     );
     expect(sitemap1).toMatch(
@@ -1842,7 +1842,7 @@ describe("generatePublicSite", () => {
     const postHtml1 = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
     const postDateModified1 = findArticleDateModified(postHtml1);
 
-    expect(homepageDateModified1).toBe("2026-09-03");
+    expect(homepageDateModified1).toBe("2026-09-04");
     expect(pickupDateModified1).toBe("2026-07-22");
     expect(shoeBagDateModified1).toBe("2026-08-17");
     expect(guideDateModified1).toBe("2026-08-23");
@@ -2512,6 +2512,76 @@ describe("generatePublicSite", () => {
     expect(hub).toContain('href="../services/shoe-bag-care.html"');
     expect(hub).toContain('href="../guides/shoe-odor-source.html"');
     expect(hub).not.toMatch(/href="(?:services|guides|local)\//u);
+  });
+
+  it("publishes thick approved posts as indexable daily articles behind a fail-closed gate", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-daily-articles-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    const calendarPath = join(root, "data", "content-calendar", "2026-07-02.json");
+    const calendar = JSON.parse(await readFile(calendarPath, "utf8")) as { slots: Array<Record<string, unknown>> };
+    const thickCaption = [
+      "白鞋鞋邊一圈灰，多半是髒不是黃。",
+      "先看膠邊：灰是可以清的髒，黃是氧化，只能淡化、不保證回白。鞋內有濕悶味就先通風、取出鞋墊，不要高溫烘。",
+      "拍整體、鞋邊近照與鞋內，傳 LINE 門市先看材質，再說能整理到什麼程度。台中市全區可約免費收送。"
+    ].join("\n\n");
+    calendar.slots[0]!.facebook_caption = thickCaption;
+    calendar.slots[0]!.instagram_caption = thickCaption;
+    await writeFile(calendarPath, `${JSON.stringify(calendar, null, 2)}\n`, "utf8");
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({ root, baseUrl, now: "2026-07-03T03:00:00.000Z" });
+
+    const docsRoot = join(root, "docs");
+    const [thick, thin, hub, sitemap, aiSitemap, rss, discovery, home] = await Promise.all([
+      readFile(join(docsRoot, "posts", "2026-07-02-slot-01.html"), "utf8"),
+      readFile(join(docsRoot, "posts", "2026-07-02-slot-02.html"), "utf8"),
+      readFile(join(docsRoot, "posts", "index.html"), "utf8"),
+      readFile(join(docsRoot, "sitemap.xml"), "utf8"),
+      readFile(join(docsRoot, "ai-sitemap.xml"), "utf8"),
+      readFile(join(docsRoot, "rss.xml"), "utf8"),
+      readFile(join(docsRoot, "ai-discovery.json"), "utf8").then((text) => JSON.parse(text) as {
+        content_contract: { daily_article_policy: { indexable_article_count: number; article_count: number } };
+      }),
+      readFile(join(docsRoot, "index.html"), "utf8")
+    ]);
+    const thickUrl = `${baseUrl}/posts/2026-07-02-slot-01.html`;
+    const thinUrl = `${baseUrl}/posts/2026-07-02-slot-02.html`;
+
+    // The thick article is a real daily page: index robots, article sections, FAQ schema, funnel instrumentation.
+    expect(thick).toContain('name="robots" content="index, follow, max-image-preview:large"');
+    expect(thick).toContain('<h2 id="summary">重點摘要</h2>');
+    expect(thick).toContain('<h2 id="store-note">門市筆記</h2>');
+    expect(thick).toContain("<table");
+    expect(thick).toContain("常見問題");
+    expect(thick).toContain("延伸閱讀");
+    expect(thick).toContain('"@type":"FAQPage"');
+    expect(thick).toContain('"@type":"BlogPosting"');
+    expect(thick).toContain('data-analytics-page-type="article" data-analytics-content-id="');
+    expect(thick).toContain("scripts/search-content-analytics.js");
+    expect(thick).toContain('<link rel="alternate" type="application/rss+xml"');
+    expect(pageTextLength(articleBodyHtml(thick))).toBeGreaterThanOrEqual(1200);
+
+    // The thin caption stays out of the indexable surface even though its page exists.
+    expect(thin).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
+    expect(sitemapLocs(sitemap)).toContain(thickUrl);
+    expect(sitemapLocs(sitemap)).toContain(`${baseUrl}/posts/`);
+    expect(sitemapLocs(sitemap)).not.toContain(thinUrl);
+    expect(aiSitemap).toContain(thickUrl);
+    expect(aiSitemap).not.toContain(thinUrl);
+    expect(aiSitemap).toContain("<!-- rss-feed -->");
+    expect(rss).toContain(`<link>${thickUrl}</link>`);
+    expect(rss).not.toContain(thinUrl);
+    expect(discovery.content_contract.daily_article_policy).toMatchObject({ indexable_article_count: 1, article_count: 2 });
+
+    // Hub lists both, but is itself indexable only because one article cleared the gate.
+    expect(hub).toContain(`<link rel="canonical" href="${baseUrl}/posts/"`);
+    expect(hub).toContain('name="robots" content="index, follow, max-image-preview:large"');
+    expect(hub).toContain('"@type":"CollectionPage"');
+    expect(hub).toContain(thickUrl);
+    expect(hub).toContain(thinUrl);
+    expect(home).toContain('href="rss.xml"');
+    expect(home).toContain(`${baseUrl}/posts/`);
   });
 
   it("keeps checked-in public feeds, calendars, HTML, and image metadata consistent", async () => {

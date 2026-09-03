@@ -127,6 +127,7 @@ interface PublicPostIndex {
     service_pages: Record<string, string>;
     support_pages: Record<string, string>;
     feed: string;
+    rss: string;
     knowledge_graph: string;
     ai_discovery: string;
   };
@@ -295,7 +296,7 @@ const KNOWLEDGE_HUB_TEMPLATE_LASTMOD = "2026-09-03";
  * (see homepageContentLastmod). Their rename, our date: 2026-08-08 is the later
  * real content change, made after this constant's line diverged.
  */
-const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-09-03";
+const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-09-04";
 const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";
@@ -2724,7 +2725,7 @@ function buildSearchContentAnalyticsTag(index: PublicPostIndex, fromNestedPage =
 }
 
 function searchAnalyticsBodyAttributes(
-  pageType: "home" | "knowledge_hub" | "answer" | "service",
+  pageType: "home" | "knowledge_hub" | "answer" | "service" | "article" | "article_hub",
   contentId: string
 ): string {
   return `data-analytics-page-type="${escapeHtml(pageType)}" data-analytics-content-id="${escapeHtml(contentId)}"`;
@@ -2807,6 +2808,15 @@ export function listLineTouchpoints(posts: Array<{ date: string; slot: number }>
     placement: "cta",
     slug: lineSourceSlug({ section: "guide", slug: "knowledge-hub", placement: "cta" })
   });
+  if (posts.length > 0) {
+    for (const placement of postPlacements) {
+      rows.push({
+        page: "posts/index.html",
+        placement,
+        slug: lineSourceSlug({ section: "posts", slug: "hub", placement })
+      });
+    }
+  }
   for (const post of posts) {
     rows.push(
       ...postPlacements.map((placement) => ({
@@ -3417,7 +3427,7 @@ function knowledgeHubContentLastmod(): string | undefined {
  * any of it. It is deliberately a hand-set constant -- claiming "everything
  * changed today" on every build is how a sitemap's lastmod stops being trusted.
  */
-const POST_TEMPLATE_CONTENT_LASTMOD = "2026-08-08";
+const POST_TEMPLATE_CONTENT_LASTMOD = "2026-09-04";
 
 function postContentLastmod(post: PublicPost): string | undefined {
   const own = toSitemapLastmodDate(post.date_published) ?? toSitemapLastmodDate(post.date);
@@ -3466,6 +3476,10 @@ function sitemapLastmodForUrl(url: string, index: PublicPostIndex): string | und
     if (url === post.article_url || url.endsWith(`/posts/${post.date}-slot-${String(post.slot).padStart(2, "0")}.html`)) {
       return postContentLastmod(post);
     }
+  }
+
+  if (url === postsHubUrl(index) || url.endsWith(`/${POSTS_HUB_PATH}`)) {
+    return postsHubContentLastmod(index);
   }
 
   // Omit lastmod when no stable modification date is known.
@@ -4158,7 +4172,7 @@ async function writeApprovedPublicContentCalendar(
 
 async function writePostArticlePages(posts: PublicPost[], index: PublicPostIndex, postsRoot: string): Promise<string[]> {
   await mkdir(postsRoot, { recursive: true });
-  const expected = new Set(posts.map((post) => post.article_path.split("/").at(-1)!));
+  const expected = new Set([...posts.map((post) => post.article_path.split("/").at(-1)!), "index.html"]);
   const existing = await readdir(postsRoot);
   await Promise.all(
     existing
@@ -4168,6 +4182,11 @@ async function writePostArticlePages(posts: PublicPost[], index: PublicPostIndex
 
   const paths = posts.map((post) => join(postsRoot, post.article_path.split("/").at(-1)!));
   await Promise.all(paths.map((path, indexPosition) => writeFile(path, buildPostPageHtml(posts[indexPosition]!, index), "utf8")));
+  if (posts.length > 0) {
+    const hubPath = join(postsRoot, "index.html");
+    await writeFile(hubPath, buildPostsHubHtml(index), "utf8");
+    paths.push(hubPath);
+  }
   return paths;
 }
 
@@ -4499,12 +4518,6 @@ function buildRobotsText(index: PublicPostIndex): string {
  * sitemap and buried the service and guide pages that actually answer local queries.
  * They stay published and linked for readers, but out of the indexable surface.
  */
-const POST_PAGES_INDEXABLE = false;
-/** `follow` keeps the link equity flowing to the service pages the posts point at. */
-const POST_ROBOTS_CONTENT = POST_PAGES_INDEXABLE
-  ? "index, follow, max-image-preview:large"
-  : "noindex, follow, max-image-preview:large";
-
 function buildSitemapXml(index: PublicPostIndex): string {
   const urls = index.base_url_configured
     ? [
@@ -4512,7 +4525,9 @@ function buildSitemapXml(index: PublicPostIndex): string {
         knowledgeHubUrl(index),
         ...Object.values(index.entrypoints.service_pages),
         ...Object.values(index.entrypoints.support_pages),
-        ...(POST_PAGES_INDEXABLE ? index.article_posts.map((post) => post.article_url) : [])
+        ...(indexablePostArticles(index).length > 0
+          ? [postsHubUrl(index), ...indexablePostArticles(index).map((post) => post.article_url)]
+          : [])
       ]
     : [];
   const uniqueUrls = Array.from(new Set(urls));
@@ -4555,9 +4570,14 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
         { loc: index.entrypoints.feed, purpose: "updates-feed" },
         { loc: index.entrypoints.social_posts, purpose: "post-records" },
         { loc: index.entrypoints.latest, purpose: "latest-package" },
-        // Post pages carry noindex; advertising them in any sitemap contradicts that.
-        ...(POST_PAGES_INDEXABLE
-          ? index.article_posts.map((post) => ({ loc: post.article_url, purpose: `published-post-${post.slot}` }))
+        // Only articles that cleared the thickness gate carry index robots; the
+        // rest stay out of every sitemap so the two surfaces never contradict.
+        ...(indexablePostArticles(index).length > 0
+          ? [
+              { loc: postsHubUrl(index), purpose: "daily-article-hub" },
+              { loc: index.entrypoints.rss, purpose: "rss-feed" },
+              ...indexablePostArticles(index).map((post) => ({ loc: post.article_url, purpose: `daily-article-${post.id}` }))
+            ]
           : []),
         ...allServiceImages(index).map((image) => ({ loc: image.image_url, purpose: `service-image-${image.source_type}` })),
         ...index.posts.map((post) => ({ loc: post.calendar_url, purpose: `calendar-slot-${post.slot}` })),
@@ -5671,7 +5691,19 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       about: { "@id": `${index.canonical_url}#business` },
       keywords: Array.from(
         new Set([...post.target_queries, ...post.hashtags.map((tag) => tag.replace(/^#/, ""))])
-      )
+      ),
+      articleSection: careContextFor(post.topic).family,
+      wordCount: renderPostArticle(post, index).visibleChars
+    },
+    {
+      "@type": "FAQPage",
+      "@id": `${post.article_url}#faq`,
+      isPartOf: { "@id": `${post.article_url}#webpage` },
+      mainEntity: postArticleFaqs(post).map((faq) => ({
+        "@type": "Question",
+        name: faq.question,
+        acceptedAnswer: { "@type": "Answer", text: faq.answer }
+      }))
     },
     {
       "@type": "WebPage",
@@ -5698,7 +5730,8 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       "@id": `${post.article_url}#breadcrumb`,
       itemListElement: [
         { "@type": "ListItem", position: 1, name: profile.name, item: index.canonical_url },
-        { "@type": "ListItem", position: 2, name: post.topic, item: post.article_url }
+        { "@type": "ListItem", position: 2, name: "每日洗護紀錄", item: postsHubUrl(index) },
+        { "@type": "ListItem", position: 3, name: post.topic, item: post.article_url }
       ]
     }
   ];
@@ -5880,64 +5913,522 @@ function careContextFor(topic: string): CareContext {
   return CARE_CONTEXTS.find((entry) => entry.match.test(topic))?.context ?? DEFAULT_CARE_CONTEXT;
 }
 
-function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
+// Post pages used to carry only the caption and were kept out of the indexable
+// surface as thin near-duplicates. The iprinter daily pages that do get indexed
+// are ~2,100 visible characters with summary, checklist, table, next step, FAQ
+// and related links. Each approved post is now rendered as that kind of article
+// and is only advertised (index robots, sitemap, RSS, hub) when it clears a
+// fail-closed thickness gate measured on the rendered HTML itself.
+const POST_ARTICLE_MIN_VISIBLE_CHARS = 1200;
+const POST_ARTICLE_MIN_CAPTION_CHARS = 80;
+const POSTS_HUB_PATH = "posts/";
+const POSTS_HUB_TEMPLATE_LASTMOD = "2026-09-04";
+const POSTS_HUB_TITLE = "每日洗護紀錄總覽｜私享家洗衣店";
+const POSTS_HUB_DESCRIPTION =
+  "私享家洗衣店每天一則門市洗護紀錄：鞋包、白鞋、衣物寢具的檢查重點、處理界線與台中免費收送下一步，依日期排列。";
+const POST_ARTICLE_PICKUP_FAQ = {
+  question: "這類物件可以約台中免費收送嗎？",
+  answer:
+    "可以。台中市全區可預約免費收送，收送本身免費、沒有最低消費；清潔與洗護費依物件狀態另計。先用 LINE 傳整體與近照，門市會先說能整理到什麼程度，再約收送或到店。"
+};
+
+interface PostArticleRender {
+  mainHtml: string;
+  visibleChars: number;
+  indexable: boolean;
+  reasons: string[];
+  faqs: Array<{ question: string; answer: string }>;
+  articleNumber: number;
+}
+
+const postArticleRenderCache = new WeakMap<PublicPostIndex, Map<string, PostArticleRender>>();
+
+function visibleTextLength(html: string): number {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/gu, "").length;
+}
+
+function postsHubUrl(index: PublicPostIndex): string {
+  return index.base_url_configured ? `${index.base_url}/${POSTS_HUB_PATH}` : `${POSTS_HUB_PATH}index.html`;
+}
+
+function postsHubHref(index: PublicPostIndex, fromNestedPage = false): string {
+  if (index.base_url_configured) return postsHubUrl(index);
+  return fromNestedPage ? `../${POSTS_HUB_PATH}index.html` : `${POSTS_HUB_PATH}index.html`;
+}
+
+function sortedArticlePosts(index: PublicPostIndex): PublicPost[] {
+  return [...index.article_posts].sort((a, b) => `${a.date}-${a.slot}`.localeCompare(`${b.date}-${b.slot}`));
+}
+
+function articleNumberFor(post: PublicPost, index: PublicPostIndex): number {
+  return sortedArticlePosts(index).findIndex((item) => item.id === post.id) + 1;
+}
+
+function postArticleFaqs(post: PublicPost): Array<{ question: string; answer: string }> {
+  const care = careContextFor(post.topic);
+  return [...care.faqs, POST_ARTICLE_PICKUP_FAQ];
+}
+
+function postRobotsContent(indexable: boolean): string {
+  return indexable ? "index, follow, max-image-preview:large" : "noindex, follow, max-image-preview:large";
+}
+
+function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticleRender {
+  let cache = postArticleRenderCache.get(index);
+  if (!cache) {
+    cache = new Map();
+    postArticleRenderCache.set(index, cache);
+  }
+  const cached = cache.get(post.id);
+  if (cached) return cached;
+
   const profile = index.business_profile;
   const postSource = { section: "posts" as const, date: post.date, slot: post.slot };
-  const lineNav = trackedLineUrl(index, { ...postSource, placement: "nav" });
   const lineCta = trackedLineUrl(index, { ...postSource, placement: "cta" });
   const lineFooter = trackedLineUrl(index, { ...postSource, placement: "footer" });
-  const canonical = post.article_url;
-  const schema = buildPostPageSchema(post, index);
   const care = careContextFor(post.topic);
   const service = findServiceBySlug(care.serviceSlug) ?? SERVICE_PAGE_DEFINITIONS[0];
   const serviceHref = service ? servicePageUrl(service, index) : index.canonical_url;
-  // Same-family neighbours give crawlers a path between post pages instead of
-  // leaving each one reachable only from the home page listing.
-  const relatedPosts = index.article_posts
+  const pickupService = findServiceBySlug("taichung-citywide-laundry-pickup");
+  const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
+  const hubHref = postsHubHref(index, true);
+  const articleNumber = articleNumberFor(post, index);
+  const faqs = postArticleFaqs(post);
+  const relatedPosts = sortedArticlePosts(index)
     .filter((item) => item.id !== post.id && careContextFor(item.topic).family === care.family)
     .sort((a, b) => (a.date < b.date ? 1 : -1))
     .slice(0, 3);
   const relatedGuides = care.guideSlugs
     .map((slug) => SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === slug))
     .filter((page): page is SupportPageDefinition => Boolean(page));
-  const careBlock = `<div class="answer-box">
-              <p class="eyebrow">${escapeHtml(care.family)}的檢查重點</p>
-              <ul>${care.checkpoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("\n")}</ul>
-            </div>
-            <div class="answer-box">
-              <p class="eyebrow">常見問題</p>
-              ${care.faqs
-                .map(
-                  (faq) =>
-                    `<h3>${escapeHtml(faq.question)}</h3><p>${escapeHtml(faq.answer)}</p>`
-                )
-                .join("\n")}
-            </div>
+  const imageSrc = visibleImageSrc(post, index);
+  const description = captionPreview(post.facebook_caption).slice(0, 180);
+  const captionParagraphs = post.facebook_caption
+    .split(/\n{2,}/u)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph.length > 0 && !/^#/u.test(paragraph));
+  const leadParagraph = captionParagraphs[0] ?? description;
+  const hashtags = post.hashtags.map((tag) => `<span class="chip">${escapeHtml(tag)}</span>`).join("\n");
+  const targetQueries = post.target_queries.map((query) => `<span class="chip">${escapeHtml(query)}</span>`).join("\n");
+  const caseRows = (service?.case_studies ?? [])
+    .slice(0, 3)
+    .map(
+      (study) => `<tr>
+                <td>${escapeHtml(study.object)}</td>
+                <td>${escapeHtml(study.material)}</td>
+                <td>${escapeHtml(study.inspection)}</td>
+                <td>${escapeHtml(study.boundary)}</td>
+              </tr>`
+    )
+    .join("\n");
+  const summaryItems = [
+    `這則紀錄的物件族：${care.family}。門市先看材質與痕跡位置，再說能整理到什麼程度。`,
+    post.search_intent ? `這篇在回答的問題類型：${post.search_intent}。` : "",
+    post.target_queries.length > 0 ? `常見搜尋：${post.target_queries.join("、")}。` : "",
+    service ? `對應服務：${service.name}。${service.answer_summary}` : "",
+    "下一步：拍整體、近照與最在意的痕跡傳 LINE，或約台中市免費收送。"
+  ].filter(Boolean);
+
+  const mainHtml = `<main>
+      <nav class="breadcrumb" aria-label="麵包屑">
+        <ol>
+          <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
+          <li><a href="${escapeHtml(hubHref)}">每日洗護紀錄</a></li>
+          <li aria-current="page">${escapeHtml(post.topic)}</li>
+        </ol>
+      </nav>
+      <section class="section page-hero">
+        <div class="page-shell grid two">
+        <div class="hero-copy">
+          <span class="eyebrow">每日洗護紀錄｜Day ${articleNumber}｜${escapeHtml(post.date)} ${escapeHtml(post.time)}</span>
+          <h1>${escapeHtml(post.topic)}</h1>
+          <p class="lead">${escapeHtml(description)}</p>
+          <p class="last-updated">發布日期：<time datetime="${escapeHtml(post.date)}">${escapeHtml(post.date)}</time>｜作者：${escapeHtml(profile.name)}</p>
+          <div class="button-row">
+            <a class="button brand" href="${escapeHtml(lineCta)}">LINE 傳照片詢問</a>
+            <a class="button secondary" href="${escapeHtml(serviceHref)}">${escapeHtml(service?.name ?? "服務說明")}</a>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <span class="eyebrow">先講重點</span>
+          <div class="answer-box">
+            <p>${escapeHtml(leadParagraph)}</p>
+          </div>
+          <figure class="service-photo">
+          ${
+            post.video_url
+              ? `<video src="${escapeHtml(post.video_url)}" poster="${escapeHtml(webpSrcFor(post.image_path, imageSrc) ?? imageSrc)}" controls playsinline preload="metadata" aria-label="${escapeHtml(`${post.topic} - ${profile.name}`)}"></video>`
+              : responsiveImageHtml({
+                  imagePath: post.image_path,
+                  src: imageSrc,
+                  alt: `${post.topic} - ${profile.name}`,
+                  fallbackSize: POST_IMAGE_FALLBACK_SIZE,
+                  loading: "eager",
+                  fetchpriority: "high"
+                })
+          }
+            <figcaption>${escapeHtml(post.topic)}｜${escapeHtml(profile.name)}門市紀錄</figcaption>
+          </figure>
+        </div>
+        </div>
+      </section>
+      <section class="article-body">
+        <div class="content">
+          <h2 id="summary">重點摘要</h2>
+          <ul>
+            ${summaryItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("\n            ")}
+          </ul>
+          <h2 id="store-note">門市筆記</h2>
+          <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
+          <h2 id="checkpoints">${escapeHtml(care.family)}的檢查重點</h2>
+          <ol>
+            ${care.checkpoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("\n            ")}
+          </ol>
+          ${
+            caseRows
+              ? `<h2 id="boundaries">材質與處理界線</h2>
+          <p>以下是${escapeHtml(service?.name ?? "門市")}常見的送件情境與處理界線，用來協助送洗前判斷；不是特定客戶成果，也不代表效果保證。</p>
+          <div class="table-wrap">
+            <table class="comparison-table">
+              <thead>
+                <tr>
+                  <th>物件</th>
+                  <th>材質</th>
+                  <th>門市先看</th>
+                  <th>處理界線</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${caseRows}
+              </tbody>
+            </table>
+          </div>`
+              : ""
+          }
+          <h2 id="next-step">下一步</h2>
+          <p>拍整體、近照、材質位置與最在意的痕跡，傳 LINE 或帶到${escapeHtml(profile.address_text)}門市；台中市全區可約免費收送，收送不收費、清潔與洗護費依物件狀態另計。</p>
+          <div class="button-row">
+            <a class="button brand" href="${escapeHtml(lineCta)}">LINE 傳照片詢問</a>
+            <a class="button secondary" href="${escapeHtml(serviceHref)}">看${escapeHtml(service?.name ?? "服務")}說明</a>
             ${
-              relatedPosts.length > 0
-                ? `<div class="answer-box">
-              <p class="eyebrow">同類的其他檢查紀錄</p>
-              <ul>${relatedPosts
-                .map(
-                  (item) =>
-                    `<li><a href="${escapeHtml(item.article_url)}">${escapeHtml(item.topic)}</a>（${escapeHtml(item.date)}）</li>`
-                )
-                .join("\n")}</ul>
-            </div>`
+              pickupService && pickupService.slug !== service?.slug
+                ? `<a class="button secondary" href="${escapeHtml(servicePageUrl(pickupService, index))}">${escapeHtml(pickupService.name)}</a>`
                 : ""
             }
-            <div class="answer-box">
-              <p class="eyebrow">延伸閱讀</p>
+          </div>
+          <section class="article-faq" aria-labelledby="faq-${escapeHtml(post.id)}">
+            <h2 id="faq-${escapeHtml(post.id)}">常見問題</h2>
+            <div class="article-faq__list">
+              ${faqs
+                .map(
+                  (faq) => `<article class="article-faq__item">
+                <h3>${escapeHtml(faq.question)}</h3>
+                <p>${escapeHtml(faq.answer)}</p>
+              </article>`
+                )
+                .join("\n              ")}
+            </div>
+          </section>
+          <section class="article-related" aria-labelledby="related-${escapeHtml(post.id)}">
+            <h2 id="related-${escapeHtml(post.id)}" class="article-related__title">延伸閱讀</h2>
+            <ul class="article-related__list">
+              ${relatedPosts
+                .map(
+                  (item) =>
+                    `<li class="article-related__item"><a class="article-related__link" href="${escapeHtml(item.article_url)}">${escapeHtml(item.topic)}</a>（${escapeHtml(item.date)}）</li>`
+                )
+                .join("\n              ")}
+              ${relatedGuides
+                .map(
+                  (page) =>
+                    `<li class="article-related__item"><a class="article-related__link" href="${escapeHtml(supportPageUrl(page, index))}">${escapeHtml(page.h1)}</a></li>`
+                )
+                .join("\n              ")}
+              <li class="article-related__item"><a class="article-related__link" href="${escapeHtml(hubHref)}">每日洗護紀錄總覽</a></li>
+            </ul>
+          </section>
+          ${targetQueries ? `<div class="chip-row local-query-row" aria-label="客人常用查詢">${targetQueries}</div>` : ""}
+          <div class="chip-row local-query-row" aria-label="主題標籤">${hashtags}</div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">下一步</span>
+            <h2>這則紀錄對應的私享家服務</h2>
+          </div>
+          <div class="grid three">
+            ${service ? renderServiceProductCard(service, index, serviceHref) : ""}
+            ${pickupService && pickupService.slug !== service?.slug ? renderServiceProductCard(pickupService, index, servicePageUrl(pickupService, index)) : ""}
+            <article class="card">
+              <h3>${escapeHtml(profile.name)}</h3>
+              <p>${escapeHtml(profile.address_text)}（${escapeHtml(profile.landmark)}）</p>
+              <p>${escapeHtml(profile.opening_hours_text)}</p>
               <div class="link-row">
-                <a href="${escapeHtml(serviceHref)}">${escapeHtml(service?.h1 ?? "服務說明")}</a>
-                ${relatedGuides
-                  .map(
-                    (page) =>
-                      `<a href="${escapeHtml(supportPageUrl(page, index))}">${escapeHtml(page.h1)}</a>`
-                  )
-                  .join("\n")}
+                <a href="${escapeHtml(lineFooter)}">LINE</a>
+                <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
+                <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
+                <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
               </div>
-            </div>`;
+            </article>
+          </div>
+        </div>
+      </section>
+      <section class="section tight">
+        <div class="page-shell">
+          <div class="card follow-cta">
+            <h2>追蹤私享家，看更多洗護紀錄</h2>
+            <p>每天一則門市紀錄，先看材質、再談清潔；Facebook 與 Instagram 同步發布。</p>
+            <div class="button-row">
+              <a class="button brand" href="${escapeHtml(profile.facebook_url)}" target="_blank" rel="noopener">Facebook 私享家洗衣店</a>
+              <a class="button secondary" href="${escapeHtml(profile.instagram_url)}" target="_blank" rel="noopener">Instagram @si_xiang_jia</a>
+              ${profile.youtube_url ? `<a class="button secondary" href="${escapeHtml(profile.youtube_url)}" target="_blank" rel="noopener">YouTube</a>` : ""}
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>`;
+
+  const visibleChars = visibleTextLength(mainHtml);
+  const captionChars = post.facebook_caption.replace(/\s+/gu, "").length;
+  const reasons: string[] = [];
+  if (!index.base_url_configured) reasons.push("public base URL not configured");
+  if (captionChars < POST_ARTICLE_MIN_CAPTION_CHARS) reasons.push(`caption ${captionChars} < ${POST_ARTICLE_MIN_CAPTION_CHARS} chars`);
+  if (visibleChars < POST_ARTICLE_MIN_VISIBLE_CHARS) reasons.push(`visible ${visibleChars} < ${POST_ARTICLE_MIN_VISIBLE_CHARS} chars`);
+  if (!hasArticlePage(post, index)) reasons.push("duplicate caption without its own article");
+  const render: PostArticleRender = {
+    mainHtml,
+    visibleChars,
+    indexable: reasons.length === 0,
+    reasons,
+    faqs,
+    articleNumber
+  };
+  cache.set(post.id, render);
+  return render;
+}
+
+function indexablePostArticles(index: PublicPostIndex): PublicPost[] {
+  return sortedArticlePosts(index).filter((post) => renderPostArticle(post, index).indexable);
+}
+
+function postsHubContentLastmod(index: PublicPostIndex): string | undefined {
+  const newest = indexablePostArticles(index)
+    .map((post) => post.date)
+    .sort()
+    .at(-1);
+  return [newest, toSitemapLastmodDate(POSTS_HUB_TEMPLATE_LASTMOD)].filter(Boolean).sort().at(-1);
+}
+
+function buildPostsHubSchema(index: PublicPostIndex): object | undefined {
+  if (!index.base_url_configured) return undefined;
+  const businessNode = buildBusinessSchemaNode(index);
+  if (!businessNode) return undefined;
+  const hubUrl = postsHubUrl(index);
+  const articles = indexablePostArticles(index).sort((a, b) => (a.date < b.date ? 1 : -1));
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      businessNode,
+      buildWebsiteSchemaNode(index),
+      {
+        "@type": "CollectionPage",
+        "@id": `${hubUrl}#webpage`,
+        url: hubUrl,
+        name: POSTS_HUB_TITLE,
+        description: POSTS_HUB_DESCRIPTION,
+        inLanguage: "zh-Hant-TW",
+        isPartOf: { "@id": `${index.canonical_url}#website` },
+        about: { "@id": `${index.canonical_url}#business` },
+        breadcrumb: { "@id": `${hubUrl}#breadcrumb` },
+        mainEntity: { "@id": `${hubUrl}#list` }
+      },
+      {
+        "@type": "ItemList",
+        "@id": `${hubUrl}#list`,
+        itemListOrder: "https://schema.org/ItemListOrderDescending",
+        numberOfItems: articles.length,
+        itemListElement: articles.map((post, position) => ({
+          "@type": "ListItem",
+          position: position + 1,
+          name: post.topic,
+          url: post.article_url
+        }))
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${hubUrl}#breadcrumb`,
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: index.business_profile.name, item: index.canonical_url },
+          { "@type": "ListItem", position: 2, name: "每日洗護紀錄", item: hubUrl }
+        ]
+      }
+    ]
+  };
+}
+
+function buildPostsHubHtml(index: PublicPostIndex): string {
+  const profile = index.business_profile;
+  const canonical = postsHubUrl(index);
+  const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
+  const lineNav = trackedLineUrl(index, { section: "posts", slug: "hub", placement: "nav" });
+  const lineCta = trackedLineUrl(index, { section: "posts", slug: "hub", placement: "cta" });
+  const lineFooter = trackedLineUrl(index, { section: "posts", slug: "hub", placement: "footer" });
+  const indexable = new Set(indexablePostArticles(index).map((post) => post.id));
+  const articles = sortedArticlePosts(index).sort((a, b) => (a.date < b.date ? 1 : -1));
+  const lastmod = postsHubContentLastmod(index);
+  const schema = buildPostsHubSchema(index);
+  const chrome: SiteChromeOptions = {
+    homeHref,
+    servicesHref: `${homeHref}#services`,
+    knowledgeHref: knowledgeHubHref(index, true),
+    lineNavHref: lineNav,
+    lineFooterHref: lineFooter,
+    businessProfileHref: index.base_url_configured ? index.entrypoints.business_profile : "../business-profile.json",
+    serviceHref: (item) => servicePageUrl(item, index),
+    navLabel: "每日洗護紀錄"
+  };
+  const cards = articles
+    .map((post) => {
+      const render = renderPostArticle(post, index);
+      const imageSrc = visibleImageSrc(post, index);
+      return `<article class="card article-card">
+          ${responsiveImageHtml({
+            imagePath: post.image_path,
+            src: imageSrc,
+            alt: `${post.topic} - ${profile.name}`,
+            fallbackSize: POST_IMAGE_FALLBACK_SIZE,
+            loading: "lazy"
+          })}
+          <div class="article-meta">Day ${render.articleNumber}｜${escapeHtml(post.date)} ${escapeHtml(post.time)}｜${escapeHtml(careContextFor(post.topic).family)}</div>
+          <h3><a href="${escapeHtml(post.article_url)}">${escapeHtml(post.topic)}</a></h3>
+          <p>${escapeHtml(captionPreview(post.facebook_caption))}</p>
+          <a class="card-link" href="${escapeHtml(post.article_url)}">閱讀文章</a>
+        </article>`;
+    })
+    .join("\n");
+
+  return `<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    ${buildLegacyPathRedirectScript(index)}
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="${escapeHtml(POSTS_HUB_DESCRIPTION)}" />
+    <meta name="robots" content="${postRobotsContent(indexable.size > 0)}" />
+    <meta name="googlebot" content="${postRobotsContent(indexable.size > 0)}" />
+    <meta name="author" content="${escapeHtml(profile.name)}" />
+    <meta name="theme-color" content="#f7f8fb" />
+    <link rel="canonical" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" hreflang="zh-Hant-TW" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" hreflang="x-default" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" type="application/rss+xml" title="${escapeHtml(SITE_NAME)} 每日洗護紀錄" href="${escapeHtml(index.base_url_configured ? index.entrypoints.rss : "../rss.xml")}" />
+    <meta property="og:title" content="${escapeHtml(POSTS_HUB_TITLE)}" />
+    <meta property="og:description" content="${escapeHtml(POSTS_HUB_DESCRIPTION)}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${escapeHtml(canonical)}" />
+    <meta property="og:site_name" content="${escapeHtml(profile.name)}" />
+    ${schema ? `<script type="application/ld+json">${escapeJsonLd(schema)}</script>` : ""}
+    <style>${buildPublicSiteCss()}</style>
+    <title>${escapeHtml(POSTS_HUB_TITLE)}</title>
+    ${buildAnalyticsTag(index.ga4_measurement_id)}
+    ${buildSearchContentAnalyticsTag(index, true)}
+  </head>
+  <body ${searchAnalyticsBodyAttributes("article_hub", "posts-hub")}>
+    ${renderSiteHeader(index, chrome)}
+    <main>
+      <nav class="breadcrumb" aria-label="麵包屑">
+        <ol>
+          <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
+          <li aria-current="page">每日洗護紀錄</li>
+        </ol>
+      </nav>
+      <section class="section page-hero">
+        <div class="page-shell grid two">
+        <div class="hero-copy">
+          <span class="eyebrow">每日洗護紀錄</span>
+          <h1>私享家每日洗護紀錄</h1>
+          <p class="lead">每天一則門市紀錄：先看材質與痕跡位置，再說能整理到什麼程度。每篇都接到對應服務與 LINE 詢問，依日期由新到舊排列。</p>
+          ${lastmod ? `<p class="last-updated">內容更新：<time datetime="${lastmod}">${lastmod}</time></p>` : ""}
+          <div class="button-row">
+            <a class="button brand" href="${escapeHtml(lineCta)}">LINE 傳照片詢問</a>
+            <a class="button secondary" href="${escapeHtml(knowledgeHubHref(index, true))}">洗護知識庫</a>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <span class="eyebrow">怎麼看這些紀錄</span>
+          <div class="answer-box">
+            <p>紀錄是門市實際看件的判斷，不是效果保證。同一類物件的紀錄會互相連結，先找和你手上物件最像的那則，再傳照片問。目前共 ${articles.length} 則紀錄。</p>
+          </div>
+        </div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="page-shell">
+          <div class="grid three">
+            ${cards}
+          </div>
+        </div>
+      </section>
+    </main>
+    ${renderSiteFooter(index, chrome)}
+  </body>
+</html>
+`;
+}
+
+function rssDate(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date().toUTCString() : parsed.toUTCString();
+}
+
+function buildRssXml(index: PublicPostIndex): string {
+  const articles = indexablePostArticles(index).sort((a, b) => (a.date < b.date ? 1 : -1));
+  const items = articles
+    .map(
+      (post) => `    <item>
+      <title>${escapeXml(post.topic)}</title>
+      <link>${escapeXml(post.article_url)}</link>
+      <guid isPermaLink="true">${escapeXml(post.article_url)}</guid>
+      <pubDate>${escapeXml(rssDate(post.date_published))}</pubDate>
+      <description>${escapeXml(captionPreview(post.facebook_caption))}</description>
+      <enclosure url="${escapeXml(post.image_url)}" type="image/png" length="0" />
+    </item>`
+    )
+    .join("\n");
+  const newest = articles[0]?.date_published;
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">',
+    "  <channel>",
+    `    <title>${escapeXml(SITE_NAME)} 每日洗護紀錄</title>`,
+    `    <link>${escapeXml(index.canonical_url)}</link>`,
+    `    <description>${escapeXml(POSTS_HUB_DESCRIPTION)}</description>`,
+    "    <language>zh-Hant</language>",
+    `    <atom:link href="${escapeXml(index.entrypoints.rss)}" rel="self" type="application/rss+xml" />`,
+    ...(newest ? [`    <lastBuildDate>${escapeXml(rssDate(newest))}</lastBuildDate>`] : []),
+    items,
+    "  </channel>",
+    "</rss>",
+    ""
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
+}
+
+function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
+  const profile = index.business_profile;
+  const postSource = { section: "posts" as const, date: post.date, slot: post.slot };
+  const lineNav = trackedLineUrl(index, { ...postSource, placement: "nav" });
+  const lineFooter = trackedLineUrl(index, { ...postSource, placement: "footer" });
+  const canonical = post.article_url;
+  const render = renderPostArticle(post, index);
+  const schema = buildPostPageSchema(post, index);
+  const robots = postRobotsContent(render.indexable);
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const chrome: SiteChromeOptions = {
     homeHref,
@@ -5949,18 +6440,7 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
     serviceHref: (item) => servicePageUrl(item, index),
     navLabel: "服務與內容"
   };
-  const imageSrc = visibleImageSrc(post, index);
   const description = captionPreview(post.facebook_caption).slice(0, 180);
-  const hashtags = post.hashtags.map((tag) => `<span class="chip">${escapeHtml(tag)}</span>`).join("\n");
-  const targetQueries =
-    post.target_queries.length > 0
-      ? `<div class="answer-box">
-              <p class="eyebrow">客人常用查詢</p>
-              <div class="chip-row local-query-row">${post.target_queries
-                .map((query) => `<span class="chip">${escapeHtml(query)}</span>`)
-                .join("\n")}</div>
-            </div>`
-      : "";
 
   return `<!doctype html>
 <html lang="zh-Hant-TW">
@@ -5969,15 +6449,18 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
     ${buildLegacyPathRedirectScript(index)}
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="${escapeHtml(description)}" />
-    <meta name="robots" content="${POST_ROBOTS_CONTENT}" />
-    <meta name="googlebot" content="${POST_ROBOTS_CONTENT}" />
+    <meta name="robots" content="${robots}" />
+    <meta name="googlebot" content="${robots}" />
     <meta name="author" content="${escapeHtml(profile.name)}" />
-    <meta name="theme-color" content="#f5f5f7" />
+    <meta name="theme-color" content="#f7f8fb" />
     <link rel="canonical" href="${escapeHtml(canonical)}" />
     <link rel="alternate" hreflang="zh-Hant-TW" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" hreflang="x-default" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" type="application/rss+xml" title="${escapeHtml(SITE_NAME)} 每日洗護紀錄" href="${escapeHtml(index.base_url_configured ? index.entrypoints.rss : "../rss.xml")}" />
     <meta property="og:title" content="${escapeHtml(post.topic)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
     <meta property="og:type" content="article" />
+    <meta property="article:published_time" content="${escapeHtml(post.date_published)}" />
     <meta property="og:url" content="${escapeHtml(canonical)}" />
     <meta property="og:site_name" content="${escapeHtml(profile.name)}" />
     <meta property="og:locale" content="${escapeHtml(SITE_LOCALE)}" />
@@ -5992,71 +6475,11 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(`${post.topic} | ${profile.name}`)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
+    ${buildSearchContentAnalyticsTag(index, true)}
   </head>
-  <body>
+  <body ${searchAnalyticsBodyAttributes("article", post.id)}>
     ${renderSiteHeader(index, chrome)}
-    <main>
-      <nav class="breadcrumb" aria-label="麵包屑">
-        <ol>
-          <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
-          <li aria-current="page">${escapeHtml(post.topic)}</li>
-        </ol>
-      </nav>
-      <section class="section page-hero">
-        <div class="page-shell grid two">
-        <div class="hero-copy">
-          <span class="eyebrow">每日洗護紀錄｜${escapeHtml(post.date)} ${escapeHtml(post.time)}</span>
-          <h1>${escapeHtml(post.topic)}</h1>
-          <p class="lead">${escapeHtml(description)}</p>
-          <div class="button-row">
-            <a class="button brand" href="${escapeHtml(lineCta)}">LINE 詢問</a>
-            <a class="button secondary" href="${escapeHtml(serviceHref)}">${escapeHtml(service?.name ?? "服務說明")}</a>
-          </div>
-        </div>
-        <div class="hero-visual">
-        <figure class="service-photo">
-          ${
-            post.video_url
-              ? // The poster is what the reader stares at before pressing play, so serve the
-                // webp derivative when one exists rather than the multi-megabyte PNG.
-                `<video src="${escapeHtml(post.video_url)}" poster="${escapeHtml(webpSrcFor(post.image_path, imageSrc) ?? imageSrc)}" controls playsinline preload="metadata" aria-label="${escapeHtml(`${post.topic} - ${profile.name}`)}"></video>`
-              : responsiveImageHtml({
-                  imagePath: post.image_path,
-                  src: imageSrc,
-                  alt: `${post.topic} - ${profile.name}`,
-                  fallbackSize: POST_IMAGE_FALLBACK_SIZE,
-                  loading: "eager",
-                  fetchpriority: "high"
-                })
-          }
-          <figcaption>${escapeHtml(post.topic)}</figcaption>
-        </figure>
-        </div>
-        </div>
-      </section>
-      <section class="section surface">
-        <div class="page-shell grid two">
-          <article>
-            <span class="eyebrow">門市筆記</span>
-            <h2>先看物件狀態，再決定下一步</h2>
-            <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
-            ${careBlock}
-            <div class="chip-row local-query-row">${hashtags}</div>${targetQueries}
-          </article>
-          <aside class="card">
-            <h2>${escapeHtml(profile.name)}</h2>
-            <p>${escapeHtml(profile.address_text)}</p>
-            <p>${escapeHtml(profile.opening_hours_text)}</p>
-            <div class="link-row">
-              <a href="${escapeHtml(lineFooter)}">LINE</a>
-              <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
-              <a href="${escapeHtml(profile.facebook_url)}">Facebook</a>
-              <a href="${escapeHtml(profile.instagram_url)}">Instagram</a>
-            </div>
-          </aside>
-        </div>
-      </section>
-    </main>
+    ${render.mainHtml}
     ${renderSiteFooter(index, chrome)}
   </body>
 </html>
@@ -6072,6 +6495,7 @@ interface SiteChromeOptions {
   businessProfileHref: string;
   serviceHref: (service: ServicePageDefinition) => string;
   navLabel: string;
+  postsHubHref?: string;
 }
 
 function renderSiteHeader(index: PublicPostIndex, options: SiteChromeOptions): string {
@@ -6111,7 +6535,7 @@ function renderSiteFooter(index: PublicPostIndex, options: SiteChromeOptions): s
             <a href="${escapeHtml(options.servicesHref)}">服務項目</a>
             ${pickupService ? `<a href="${escapeHtml(options.serviceHref(pickupService))}">${escapeHtml(pickupService.name)}</a>` : ""}
             <a href="${escapeHtml(options.knowledgeHref)}">洗護知識庫</a>
-            <a href="${escapeHtml(options.homeHref)}#daily">每日洗護紀錄</a>
+            <a href="${escapeHtml(options.postsHubHref ?? postsHubHref(index, true))}">每日洗護紀錄</a>
             <a href="${escapeHtml(options.homeHref)}#homepage-faq">常見問題</a>
             <a href="${escapeHtml(options.businessProfileHref)}">店家資料</a>
           </div>
@@ -6253,7 +6677,8 @@ function buildIndexHtml(index: PublicPostIndex): string {
     lineFooterHref: lineFooter,
     businessProfileHref: "business-profile.json",
     serviceHref: (service) => servicePageUrl(service, index),
-    navLabel: "主選單"
+    navLabel: "主選單",
+    postsHubHref: postsHubHref(index)
   };
   const rows =
     recentPosts.length > 0
@@ -6368,6 +6793,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
     <link rel="alternate" type="application/json" href="search-visibility.json" />
     <link rel="alternate" type="application/jsonl" href="llms.jsonl" />
     <link rel="alternate" type="application/json" href="feed.json" />
+    <link rel="alternate" type="application/rss+xml" title="${escapeHtml(SITE_NAME)} 每日洗護紀錄" href="rss.xml" />
     <link rel="alternate" type="application/ld+json" href="knowledge-graph.json" />
     <meta property="og:title" content="${escapeHtml(index.open_graph.title)}" />
     <meta property="og:description" content="${escapeHtml(index.open_graph.description)}" />
@@ -6530,6 +6956,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
         ${rows}
           </div>
           ${archiveSection}
+          <p style="margin-top:20px;"><a class="card-link" href="${escapeHtml(postsHubHref(index))}">查看每日洗護紀錄總覽 →</a></p>
         </div>
       </section>
       <section class="section" id="homepage-faq">
@@ -6609,6 +7036,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <a href="business-profile.json">店家資料</a>
           <a href="latest.json">latest.json</a>
           <a href="feed.json">feed.json</a>
+          <a href="rss.xml">rss.xml</a>
           <a href="knowledge-graph.json">knowledge-graph.json</a>
           <a href="ai-discovery.json">ai-discovery.json</a>
           <a href="ai-sitemap.xml">ai-sitemap.xml</a>
@@ -7515,6 +7943,14 @@ function buildAiDiscovery(index: PublicPostIndex): object {
         "calendar_url",
         "article_url"
       ],
+      daily_article_policy: {
+        min_visible_chars: POST_ARTICLE_MIN_VISIBLE_CHARS,
+        min_caption_chars: POST_ARTICLE_MIN_CAPTION_CHARS,
+        behavior:
+          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Only articles that clear the thickness gate carry index robots and enter sitemap.xml, rss.xml and the posts hub; the rest stay noindex, follow.",
+        indexable_article_count: indexablePostArticles(index).length,
+        article_count: index.article_posts.length
+      },
       homepage_archive_policy: {
         expanded_recent_days: HOME_EXPANDED_RECENT_DAYS,
         expanded_behavior: "Homepage renders approved posts from the newest seven content dates directly.",
@@ -7636,6 +8072,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         SUPPORT_PAGE_DEFINITIONS.map((page) => [page.slug, publicUrl(page.path, siteBaseUrl)])
       ),
       feed: publicUrl("feed.json", siteBaseUrl),
+      rss: publicUrl("rss.xml", siteBaseUrl),
       knowledge_graph: publicUrl("knowledge-graph.json", siteBaseUrl),
       ai_discovery: publicUrl("ai-discovery.json", siteBaseUrl)
     },
@@ -7692,6 +8129,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     searchVisibility: join(docsRoot, "search-visibility.json"),
     llmsJsonl: join(docsRoot, "llms.jsonl"),
     feed: join(docsRoot, "feed.json"),
+    rss: join(docsRoot, "rss.xml"),
     knowledgeGraph: join(docsRoot, "knowledge-graph.json"),
     aiDiscovery: join(docsRoot, "ai-discovery.json"),
     llms: join(docsRoot, "llms.txt"),
@@ -7729,6 +8167,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await writeJsonAtomic(outputs.geoTargets, buildGeoTargetsJson(index));
   await writeJsonAtomic(outputs.searchVisibility, buildSearchVisibilityJson(index));
   await writeJsonAtomic(outputs.feed, buildJsonFeed(index));
+  await writeFile(outputs.rss, buildRssXml(index), "utf8");
   await writeJsonAtomic(outputs.knowledgeGraph, buildKnowledgeGraph(index));
   const aiDiscovery = buildAiDiscovery(index);
   await writeJsonAtomic(outputs.aiDiscovery, aiDiscovery);

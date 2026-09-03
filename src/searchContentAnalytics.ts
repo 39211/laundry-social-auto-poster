@@ -18,7 +18,9 @@ export const REQUIRED_SEARCH_CONTENT_EVENTS = [
   "click_service_from_hub",
   "click_service_from_answer",
   "click_phone",
-  "click_line_cta"
+  "click_line_cta",
+  "view_article",
+  "click_service_from_article"
 ] as const;
 
 export type SearchContentEventName = (typeof REQUIRED_SEARCH_CONTENT_EVENTS)[number];
@@ -48,6 +50,7 @@ export function buildSearchContentAnalyticsScript(): string {
   if (pageType === "knowledge_hub") send("view_knowledge_hub");
   if (pageType === "answer") send("view_search_answer");
   if (pageType === "service") send("view_service");
+  if (pageType === "article") send("view_article");
 
   document.addEventListener("click", (event) => {
     const target = event.target;
@@ -95,6 +98,14 @@ export function buildSearchContentAnalyticsScript(): string {
         service_id: targetUrl.pathname.split("/").pop()?.replace(/\\.html$/, "") || "unknown",
         cta_name: ctaName
       });
+      return;
+    }
+
+    if (pageType === "article" && /\\/services\\/[^/]+\\.html$/.test(targetUrl.pathname)) {
+      send("click_service_from_article", {
+        service_id: targetUrl.pathname.split("/").pop()?.replace(/\\.html$/, "") || "unknown",
+        cta_name: ctaName
+      });
     }
   });
 })();
@@ -102,7 +113,7 @@ export function buildSearchContentAnalyticsScript(): string {
 }
 
 interface RuntimeScenario {
-  pageType: "home" | "knowledge_hub" | "answer" | "service";
+  pageType: "home" | "knowledge_hub" | "answer" | "service" | "article";
   href?: string;
 }
 
@@ -130,7 +141,12 @@ function observeRuntimeEvents(script: string, scenario: RuntimeScenario): Observ
     }
   }
 
-  const pathname = scenario.pageType === "knowledge_hub" ? "/knowledge/" : "/guides/test-answer.html";
+  const pathname =
+    scenario.pageType === "knowledge_hub"
+      ? "/knowledge/"
+      : scenario.pageType === "article"
+        ? "/posts/2026-07-02-slot-01.html"
+        : "/guides/test-answer.html";
   const sandbox = {
     URL,
     Element: RuntimeElement,
@@ -183,6 +199,8 @@ export function assertSearchContentAnalyticsScript(script: string): void {
     { pageType: "knowledge_hub" as const, href: "/guides/test-answer.html" },
     { pageType: "knowledge_hub" as const, href: "/services/shoe-bag-care.html" },
     { pageType: "answer" as const, href: "/services/shoe-bag-care.html" },
+    { pageType: "article" as const },
+    { pageType: "article" as const, href: "/services/shoe-bag-care.html" },
     { pageType: "home" as const, href: "/go/line.html?source=runtime-check" },
     { pageType: "home" as const, href: "tel:+886424527411" }
   ].flatMap((scenario) => observeRuntimeEvents(script, scenario));
@@ -196,6 +214,7 @@ export function assertSearchContentAnalyticsScript(script: string): void {
     click_answer_from_hub: ["answer_id", "cta_name"],
     click_service_from_hub: ["service_id", "cta_name"],
     click_service_from_answer: ["service_id", "cta_name"],
+    click_service_from_article: ["service_id", "cta_name"],
     click_phone: ["cta_name"],
     click_line_cta: ["cta_name"]
   };

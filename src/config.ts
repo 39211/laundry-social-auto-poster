@@ -1,5 +1,14 @@
-import "dotenv/config";
+import { config as loadDotenv } from "dotenv";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AppConfig } from "./types";
+
+// "dotenv/config" resolves .env relative to process.cwd(), which is wrong
+// whenever this module loads inside a subprocess launched from some other
+// working directory (e.g. a PowerShell script's `& tsx ...` call that never
+// set -WorkingDirectory). Resolve relative to this file's own location
+// instead, so .env is found the same way no matter who spawned the process.
+loadDotenv({ path: join(dirname(fileURLToPath(import.meta.url)), "..", ".env") });
 
 function boolEnv(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined || value === "") return fallback;

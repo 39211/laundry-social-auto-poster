@@ -107,6 +107,24 @@
       "close": "毛衣 150,精品毛衣 210。",
       "before_subject": "a cream knit sweater with a yellowed patch under the arm, knit structure intact",
       "after_subject": "the same sweater clean and evenly cream, knit unchanged, no stretching"
+    },
+    {
+      "id": "boot-mould-bloom",
+      "object_type": "leather-boot",
+      "hook": "馬丁靴整雙發霉了",
+      "narration": "梅雨櫃子放一季,皮面就長出這層白灰。霉根會吃進皮革,越晚處理越難救,先拍照傳給我們看狀況。",
+      "close": "發霉別急著丟,LINE 傳照片,台中免費收送。",
+      "before_subject": "a pair of black leather lace-up boots covered in a dry white-grey bloom of mould across toe and shaft, yellow welt stitching, unbranded",
+      "after_subject": "the same boots wiped back to deep glossy black, welt stitch clean, no mould, honest creases still visible"
+    },
+    {
+      "id": "white-shoe-rescue",
+      "object_type": "white-shoe",
+      "hook": "白鞋的黃,分兩種",
+      "narration": "膠邊的黃是氧化,刷不掉;布面的黃是洗劑殘留,洗得回來。兩種黃的做法不一樣,拍照傳來就知道。",
+      "close": "運動鞋 250 起,台中免費收送。",
+      "before_subject": "one pair of unbranded white sneakers, midsole foxing oxidised to uneven amber darkest near the ground, grey abrasion bands across the toe-box canvas",
+      "after_subject": "the same sneakers with the foxing returned to even off-white, canvas clean, laces brighter but not new"
     }
   ],
   "schedule": [
@@ -216,7 +234,7 @@
     },
     {
       "date": "2026-09-10",
-      "conceptId": "suede-shoe-nap"
+      "conceptId": "white-shoe-rescue"
     },
     {
       "date": "2026-09-11",
@@ -312,7 +330,7 @@
     },
     {
       "date": "2026-10-04",
-      "conceptId": "suede-shoe-nap"
+      "conceptId": "white-shoe-rescue"
     },
     {
       "date": "2026-10-05",

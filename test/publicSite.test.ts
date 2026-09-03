@@ -616,6 +616,9 @@ describe("generatePublicSite", () => {
     expect(robots).toContain("User-agent: OAI-SearchBot");
     expect(robots).toContain("User-agent: ChatGPT-User");
     expect(robots).toContain("User-agent: Claude-Web");
+    expect(robots).toContain("User-agent: Bingbot");
+    expect(robots).toContain("User-agent: Claude-SearchBot");
+    expect(robots).toContain("User-agent: Perplexity-User");
     // `Allow: /` covers every path; per-file Allow lines are redundant and were removed.
     expect(robots).not.toContain("Allow: /services.json");
     expect(robots).not.toContain("Allow: /llms.jsonl");
@@ -921,7 +924,7 @@ describe("generatePublicSite", () => {
         .map((page) => page.slug)
         .sort()
     );
-    expect(services.services.every((service: { case_studies?: unknown[] }) => service.case_studies?.length === 3)).toBe(true);
+    expect(services.services.every((service: { case_studies?: unknown[] }) => (service.case_studies?.length ?? 0) >= 3)).toBe(true);
     expect(answers.answers.some((answer: { source_url: string }) => answer.source_url.endsWith("/guides/photo-before-laundry.html"))).toBe(true);
     expect(answers.answers.some((answer: { source_url: string }) => answer.source_url.endsWith("/local/qinghai-road-shoe-cleaning.html"))).toBe(true);
     expect(
@@ -1636,7 +1639,16 @@ describe("generatePublicSite", () => {
     const afterOai = robots.split("User-agent: OAI-SearchBot").at(1) ?? "";
     expect(afterOai).toMatch(/^\n(?:User-agent: [^\n]+\n)*Allow: \/\n/u);
     expect(robots).not.toContain("Disallow:");
-    for (const crawler of ["GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended"]) {
+    for (const crawler of [
+      "Bingbot",
+      "GPTBot",
+      "ClaudeBot",
+      "Claude-SearchBot",
+      "Claude-User",
+      "PerplexityBot",
+      "Perplexity-User",
+      "Google-Extended"
+    ]) {
       expect(robots).toContain(`User-agent: ${crawler}`);
     }
   });
@@ -1903,11 +1915,9 @@ describe("generatePublicSite", () => {
       "2026-08-17",
       "2026-08-23",
       "2026-08-23",
-      "2026-08-23",
-      // 2026-08-25: D03 — the Xitun local page gained 逢甲/route/pickup
-      // sections, so its content_lastmod moved off 2026-07-20.
-      "2026-08-25",
-      "2026-08-26"
+      "2026-08-26",
+      "2026-08-30",
+      "2026-08-30"
     ]);
   });
 
@@ -1932,7 +1942,7 @@ describe("generatePublicSite", () => {
       },
       {
         slug: "bag-handle-cleaning",
-        answer: "行李箱收進櫃子前先看輪子；輪子與底板灰收進去，下次打開就是味道。",
+        answer: "提把發黏是手汗堆的；滲進皮層只能淡化，還沒變色現在處理較省。",
         serviceNeedle: "shoe-bag-care.html"
       },
       {
@@ -1954,6 +1964,11 @@ describe("generatePublicSite", () => {
         slug: "bedding-duvet-cleaning",
         answer: "棉被送洗先看填充、潮氣與異味；沒乾透就收納，下一季打開就是味道。",
         serviceNeedle: "fabric-storage.html"
+      },
+      {
+        slug: "birkenstock-care",
+        answer: "勃肯鞋會臭，多半是軟木鞋床吸汗，不是鞋面；整雙泡水會更糟。",
+        serviceNeedle: "white-shoe-cleaning.html"
       },
       {
         slug: "plush-doll-cleaning",
@@ -1978,9 +1993,14 @@ describe("generatePublicSite", () => {
       expect(thematicAnchorsTo(html, page.serviceNeedle).length, `${page.slug} service link`).toBeGreaterThan(0);
     }
 
+    const birkenstockHtml = await readFile(join(root, "docs", "guides", "birkenstock-care.html"), "utf8");
+    expect(birkenstockHtml).toContain("勃肯鞋會臭嗎");
+    const plushDollHtml = await readFile(join(root, "docs", "guides", "plush-doll-cleaning.html"), "utf8");
+    expect(plushDollHtml).toContain("絨毛娃娃清洗店");
+
     const bagHandleHtml = await readFile(join(root, "docs", "guides", "bag-handle-cleaning.html"), "utf8");
     expect(bagHandleHtml).toContain("行李箱輪子");
-    expect(bagHandleHtml).toContain("輪子和底板");
+    expect(bagHandleHtml).toContain("luggage-wheel-cleaning.html");
 
     const answers = JSON.parse(await readFile(join(root, "docs", "answers.json"), "utf8")) as {
       answer_engine_optimization: {
@@ -2008,8 +2028,12 @@ describe("generatePublicSite", () => {
       url: `${baseUrl}/guides/white-shoe-yellowing.html`
     });
     expect(answers.answer_engine_optimization.best_source_pages).toContainEqual({
-      label: "Luggage wheel and bag handle",
+      label: "Bag handle and corner",
       url: `${baseUrl}/guides/bag-handle-cleaning.html`
+    });
+    expect(answers.answer_engine_optimization.best_source_pages).toContainEqual({
+      label: "Luggage wheels",
+      url: `${baseUrl}/guides/luggage-wheel-cleaning.html`
     });
     expect(
       answers.answers.some(
@@ -2030,8 +2054,16 @@ describe("generatePublicSite", () => {
     expect(
       answers.answers.some(
         (item) =>
-          item.id === "bag-handle-cleaning-summary" &&
+          item.id === "luggage-wheel-cleaning-summary" &&
           item.answer === threeAnswers[2] &&
+          item.source_url.endsWith("/guides/luggage-wheel-cleaning.html")
+      )
+    ).toBe(true);
+    expect(
+      answers.answers.some(
+        (item) =>
+          item.id === "bag-handle-cleaning-summary" &&
+          item.answer === "提把發黏是手汗堆的；滲進皮層只能淡化，還沒變色現在處理較省。" &&
           item.source_url.endsWith("/guides/bag-handle-cleaning.html")
       )
     ).toBe(true);
@@ -2066,9 +2098,53 @@ describe("generatePublicSite", () => {
     }
 
     expect(guideLinkFor("行李箱收進櫃子前，先看輪子")).toBe(
-      "https://sixiangjialaundry.com/guides/bag-handle-cleaning.html"
+      "https://sixiangjialaundry.com/guides/luggage-wheel-cleaning.html"
     );
-    expect(guideLinkFor("行李輪子灰塵")).toBe("https://sixiangjialaundry.com/guides/bag-handle-cleaning.html");
+    expect(guideLinkFor("行李輪子灰塵")).toBe("https://sixiangjialaundry.com/guides/luggage-wheel-cleaning.html");
+    expect(guideLinkFor("台中洗窗簾")).toBe("https://sixiangjialaundry.com/guides/curtain-cleaning.html");
+    expect(guideLinkFor("地毯潮味")).toBe("https://sixiangjialaundry.com/guides/carpet-cleaning.html");
+  });
+
+  it("adds unique local and object pages to the indexable sitemap", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-index-expand-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now: "2026-08-29T01:00:00.000Z"
+    });
+
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+    const newPages = [
+      { path: "guides/luggage-wheel-cleaning.html", answer: "行李箱收進櫃子前先看輪子；輪子與底板灰收進去，下次打開就是味道。" },
+      { path: "guides/curtain-cleaning.html", answer: "窗簾先看布料與軌道；尺寸不同價不同，拍照比先問固定價準。" },
+      { path: "guides/carpet-cleaning.html", answer: "地毯先看材質與潮濕；沒乾就捲起來，下次打開就是味道。" },
+      { path: "local/fengjia-laundry-pickup.html", answer: "逢甲洗衣可先LINE傳照片；宿舍與租屋都可約台中免費收送。" },
+      { path: "local/zhongke-office-laundry.html", answer: "中科園區襯衫可約收送；先列件數與材質，清潔另計、收送免費。" },
+      { path: "local/donghai-laundry-pickup.html", answer: "東海生活圈可約免費收送；厚被、窗簾與日常衣物先傳照片再收。" }
+    ];
+
+    for (const page of newPages) {
+      const html = await readFile(join(root, "docs", page.path), "utf8");
+      const lead = html.match(/<p class="lead">([\s\S]*?)<\/p>/u)?.[1]?.trim() ?? "";
+      expect(sitemap, page.path).toContain(`<loc>${baseUrl}/${page.path}</loc>`);
+      expect(pageTextLength(html), page.path).toBeGreaterThanOrEqual(1200);
+      expect(lead, `${page.path} lead`).toBe(page.answer);
+      expect(lead.length, `${page.path} lead length`).toBeLessThanOrEqual(50);
+      expect(html).not.toContain("noindex");
+    }
+
+    expect(homepage).toContain(`${baseUrl}/guides/luggage-wheel-cleaning.html`);
+    expect(homepage).toContain(`${baseUrl}/guides/curtain-cleaning.html`);
+    expect(homepage).toContain(`${baseUrl}/local/fengjia-laundry-pickup.html`);
+    expect(homepage).toContain(`${baseUrl}/local/zhongke-office-laundry.html`);
+    expect(homepage).toContain(`${baseUrl}/local/donghai-laundry-pickup.html`);
+    expect(sitemap).not.toContain("/posts/");
   });
 
   it("publishes the Taichung laundry price list page with canonical reference prices", async () => {

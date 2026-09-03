@@ -268,16 +268,13 @@ describe("resolveSlotPublishMedia duplicate video gate", () => {
     return { root, slot };
   }
 
-  it("defers the same mp4 when only the caption changed", async () => {
+  it("refuses image fallback when the same mp4 already aired", async () => {
     const { root, slot } = await prepare(VIDEO_BYTES, "今天換過的文案,同一支片子不該再發。");
     await writePostLog(AIRED, [liveReelEntry(AIRED, 2, { video_sha256: shaOf(VIDEO_BYTES) })], root);
 
-    const resolved = await resolveSlotPublishMedia(slot, DATE, root);
-    expect(resolved.videoDeferred).toBe(true);
-    expect(resolved.mediaType).toBe("image");
-    expect(resolved.videoDeferKind).toBe("expected");
-    expect(resolved.videoDeferredReason).toBe(`same video aired on ${AIRED} slot 2`);
-    expect(resolved.videoSha256).toBeUndefined();
+    await expect(resolveSlotPublishMedia(slot, DATE, root)).rejects.toThrow(
+      /Refusing image fallback for reel slot 1: same video aired on 2026-08-14 slot 2/
+    );
   });
 
   it("lets the same mp4 through when history has no sha field", async () => {
@@ -310,9 +307,9 @@ describe("resolveSlotPublishMedia duplicate video gate", () => {
 
     const inside = await prepare(VIDEO_BYTES, caption);
     await writePostLog(insideDate, [liveReelEntry(insideDate, 1, { video_sha256: shaOf(VIDEO_BYTES) })], inside.root);
-    const blocked = await resolveSlotPublishMedia(inside.slot, DATE, inside.root);
-    expect(blocked.videoDeferred).toBe(true);
-    expect(blocked.videoDeferredReason).toBe(`same video aired on ${insideDate} slot 1`);
+    await expect(resolveSlotPublishMedia(inside.slot, DATE, inside.root)).rejects.toThrow(
+      new RegExp(`Refusing image fallback for reel slot 1: same video aired on ${insideDate} slot 1`)
+    );
 
     const edge = await prepare(VIDEO_BYTES, caption);
     await writePostLog(edgeDate, [liveReelEntry(edgeDate, 1, { video_sha256: shaOf(VIDEO_BYTES) })], edge.root);
@@ -334,9 +331,9 @@ describe("resolveSlotPublishMedia duplicate video gate", () => {
     const { root, slot } = await prepare(VIDEO_BYTES, "中午發過的片子晚上不能再發。");
     await writePostLog(DATE, [liveReelEntry(DATE, 3, { video_sha256: shaOf(VIDEO_BYTES) })], root);
 
-    const resolved = await resolveSlotPublishMedia(slot, DATE, root);
-    expect(resolved.videoDeferred).toBe(true);
-    expect(resolved.videoDeferredReason).toBe(`same video aired on ${DATE} slot 3`);
+    await expect(resolveSlotPublishMedia(slot, DATE, root)).rejects.toThrow(
+      /Refusing image fallback for reel slot 1: same video aired on 2026-08-18 slot 3/
+    );
   });
 
   it("defers the 8/16 form: live posted-log without sha, review file supplies it", async () => {
@@ -344,10 +341,9 @@ describe("resolveSlotPublishMedia duplicate video gate", () => {
     await writePostLog(HIST_DATE, [liveReelEntry(HIST_DATE, HIST_SLOT)], root);
     await seedReviewSha(root, HIST_DATE, HIST_SLOT, shaOf(VIDEO_BYTES));
 
-    const resolved = await resolveSlotPublishMedia(slot, DATE, root);
-    expect(resolved.videoDeferred).toBe(true);
-    expect(resolved.videoDeferKind).toBe("expected");
-    expect(resolved.videoDeferredReason).toBe(`same video aired on ${HIST_DATE} slot ${HIST_SLOT}`);
+    await expect(resolveSlotPublishMedia(slot, DATE, root)).rejects.toThrow(
+      /Refusing image fallback for reel slot 1: same video aired on 2026-08-16 slot 3/
+    );
   });
 
   it("does not defer a file that was reviewed but never aired", async () => {
@@ -376,20 +372,20 @@ describe("resolveSlotPublishMedia duplicate video gate", () => {
     const sameDay = await prepare(VIDEO_BYTES, "同日不同槽,sha 在 reviews。");
     await writePostLog(DATE, [liveReelEntry(DATE, 3)], sameDay.root);
     await seedReviewSha(sameDay.root, DATE, 3, shaOf(VIDEO_BYTES));
-    const blockedSameDay = await resolveSlotPublishMedia(sameDay.slot, DATE, sameDay.root);
-    expect(blockedSameDay.videoDeferred).toBe(true);
-    expect(blockedSameDay.videoDeferredReason).toBe(`same video aired on ${DATE} slot 3`);
+    await expect(resolveSlotPublishMedia(sameDay.slot, DATE, sameDay.root)).rejects.toThrow(
+      /Refusing image fallback for reel slot 1: same video aired on 2026-08-18 slot 3/
+    );
 
     const uncertain = await prepare(VIDEO_BYTES, "uncertain 也算已播。");
     await writePostLog(AIRED, [liveReelEntry(AIRED, 2, { status: "uncertain" })], uncertain.root);
     await seedReviewSha(uncertain.root, AIRED, 2, shaOf(VIDEO_BYTES));
-    const blockedUncertain = await resolveSlotPublishMedia(uncertain.slot, DATE, uncertain.root);
-    expect(blockedUncertain.videoDeferred).toBe(true);
-    expect(blockedUncertain.videoDeferredReason).toBe(`same video aired on ${AIRED} slot 2`);
+    await expect(resolveSlotPublishMedia(uncertain.slot, DATE, uncertain.root)).rejects.toThrow(
+      /Refusing image fallback for reel slot 1: same video aired on 2026-08-14 slot 2/
+    );
   });
 });
 
-describe("postCurrentSlot never stops the slot on a duplicate video", () => {
+describe("postCurrentSlot refuses image fallback for a reel gate fail", () => {
   const roots: string[] = [];
 
   beforeEach(() => {
@@ -418,94 +414,62 @@ describe("postCurrentSlot never stops the slot on a duplicate video", () => {
     return root;
   }
 
-  it("publishes the cover and records VIDEO_DEFERRED instead of throwing", async () => {
+  it("throws and writes no posted-log when the same mp4 already aired", async () => {
     const root = await seedPublishableDay(VIDEO_BYTES, "跨日同片,文案已經改寫過了。");
     await writePostLog(AIRED, [liveReelEntry(AIRED, 2, { video_sha256: shaOf(VIDEO_BYTES) })], root);
 
-    const results = await postCurrentSlot({
-      root,
-      date: DATE,
-      slot: 1,
-      dryRun: true,
-      verifyPublicImageUrl: false,
-      fetchImpl: vi.fn() as unknown as typeof fetch
-    });
-
-    expect(results).toHaveLength(2);
-    expect(results.every((entry) => entry.status === "success")).toBe(true);
-    expect(results.every((entry) => entry.published_media_type === "image")).toBe(true);
-    expect(results.every((entry) => entry.video_status === "VIDEO_DEFERRED")).toBe(true);
-    expect(results.every((entry) => entry.video_defer_kind === "expected")).toBe(true);
-    expect(results.every((entry) => entry.video_deferred_reason === `same video aired on ${AIRED} slot 2`)).toBe(
-      true
-    );
-    expect(results.every((entry) => (entry as { video_sha256?: string }).video_sha256 === undefined)).toBe(true);
-
-    const repairs = await loadVideoRepairQueue(root);
-    expect(repairs).toEqual([
-      expect.objectContaining({
-        source_date: DATE,
-        source_slot: 1,
-        status: "VIDEO_DEFERRED",
-        original_media_type: "reel",
-        fallback_media_type: "image",
-        defer_kind: "expected",
-        failure_reason: `same video aired on ${AIRED} slot 2`
+    await expect(
+      postCurrentSlot({
+        root,
+        date: DATE,
+        slot: 1,
+        dryRun: true,
+        verifyPublicImageUrl: false,
+        fetchImpl: vi.fn() as unknown as typeof fetch
       })
-    ]);
+    ).rejects.toThrow(/Refusing image fallback for reel slot 1: same video aired on 2026-08-14 slot 2/);
+
+    expect(await loadPostLog(DATE, root)).toEqual([]);
+    expect(await loadVideoRepairQueue(root)).toEqual([]);
   });
 
-  it("publishes the cover when dual video review is missing", async () => {
+  it("throws and writes no posted-log when dual video review is missing", async () => {
     vi.mocked(validatePublishableReel).mockRejectedValueOnce(
       new Error("Dual video review is missing for slot 1.")
     );
     const root = await seedPublishableDay(OTHER_VIDEO_BYTES, "review 缺席,封面仍要發出。");
 
-    const results = await postCurrentSlot({
-      root,
-      date: DATE,
-      slot: 1,
-      dryRun: true,
-      verifyPublicImageUrl: false,
-      fetchImpl: vi.fn() as unknown as typeof fetch
-    });
+    await expect(
+      postCurrentSlot({
+        root,
+        date: DATE,
+        slot: 1,
+        dryRun: true,
+        verifyPublicImageUrl: false,
+        fetchImpl: vi.fn() as unknown as typeof fetch
+      })
+    ).rejects.toThrow(/Refusing image fallback for reel slot 1: Dual video review is missing for slot 1/);
 
-    expect(results).toHaveLength(2);
-    expect(results.every((entry) => entry.status === "success")).toBe(true);
-    expect(results.every((entry) => entry.published_media_type === "image")).toBe(true);
-    expect(results.every((entry) => entry.video_status === "VIDEO_DEFERRED")).toBe(true);
-    expect(results.every((entry) => entry.video_defer_kind === "expected")).toBe(true);
-    expect(
-      results.every((entry) => entry.video_deferred_reason === "Dual video review is missing for slot 1.")
-    ).toBe(true);
-
-    const log = await loadPostLog(DATE, root);
-    const persisted = log.filter((entry) => entry.slot === 1);
-    expect(persisted).toHaveLength(2);
-    expect(persisted.every((entry) => entry.published_media_type === "image")).toBe(true);
-    expect(persisted.every((entry) => entry.video_status === "VIDEO_DEFERRED")).toBe(true);
+    expect(await loadPostLog(DATE, root)).toEqual([]);
   });
 
-  it("publishes the cover when the 8/16 historical review sha matches", async () => {
+  it("throws and writes no posted-log when the 8/16 historical review sha matches", async () => {
     const root = await seedPublishableDay(VIDEO_BYTES, "8/16 已播,封面取代重播。");
     await writePostLog(HIST_DATE, [liveReelEntry(HIST_DATE, HIST_SLOT)], root);
     await seedReviewSha(root, HIST_DATE, HIST_SLOT, shaOf(VIDEO_BYTES));
 
-    const results = await postCurrentSlot({
-      root,
-      date: DATE,
-      slot: 1,
-      dryRun: true,
-      verifyPublicImageUrl: false,
-      fetchImpl: vi.fn() as unknown as typeof fetch
-    });
+    await expect(
+      postCurrentSlot({
+        root,
+        date: DATE,
+        slot: 1,
+        dryRun: true,
+        verifyPublicImageUrl: false,
+        fetchImpl: vi.fn() as unknown as typeof fetch
+      })
+    ).rejects.toThrow(/Refusing image fallback for reel slot 1: same video aired on 2026-08-16 slot 3/);
 
-    expect(results.every((entry) => entry.status === "success")).toBe(true);
-    expect(results.every((entry) => entry.published_media_type === "image")).toBe(true);
-    expect(results.every((entry) => entry.video_status === "VIDEO_DEFERRED")).toBe(true);
-    expect(
-      results.every((entry) => entry.video_deferred_reason === `same video aired on ${HIST_DATE} slot ${HIST_SLOT}`)
-    ).toBe(true);
+    expect(await loadPostLog(DATE, root)).toEqual([]);
   });
 
   it("writes video_sha256 when a new reel actually publishes", async () => {

@@ -17,6 +17,7 @@ import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot, scheduledLogPath } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
 import { resolveSlotPublishMedia } from "./postCurrentSlot";
+import { pauseMessage, readPause } from "./pause";
 import { DAILY_SCHEDULE } from "./scheduler";
 import type { AppConfig, DailySlot, PostInput } from "./types";
 
@@ -131,6 +132,11 @@ export async function scheduleAheadFacebook(input: {
   const config = input.config ?? getConfig();
   const fetchImpl = input.fetchImpl ?? fetch;
   const now = input.now ?? new Date();
+
+  const paused = await readPause(root);
+  if (paused) {
+    throw new Error(pauseMessage(paused));
+  }
 
   if (!config.dryRun) {
     assertLiveMetaConfig(config);

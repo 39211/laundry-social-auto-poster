@@ -1,0 +1,22 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\high-heel\\heel-tip-scuff-before.png",
+  "reel_sha256": "b43886decf4211cd97ae4dd653548b79503d615b455f13e416286f63bd0eac46",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "T32Y",
+      "sha256": "5a5f61ebf02ff9048c3e20f3ad9c91ef43cec5514787e38027facf0dd5989cd7"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "89YK",
+      "sha256": "c6650f15818e3955c45b5f224b075d4e7a7460f456b191a7417a84a4cff3bb0d"
+    }
+  ]
+}

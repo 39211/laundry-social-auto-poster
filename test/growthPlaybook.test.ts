@@ -1,7 +1,62 @@
 import { describe, expect, it } from "vitest";
+import { searchVisibilityForContent } from "../src/searchVisibilityStrategy";
 import { buildGrowthPlaybook, flattenGrowthPlaybook } from "../src/growthPlaybook";
 
 describe("growth playbook", () => {
+  it("assigns six distinct bag prompts to a bag topic before shared shoe terms", () => {
+    const assignment = searchVisibilityForContent("shoe-bag", 1, "包包提把髒了怎麼辦");
+
+    expect(assignment.target_queries).toEqual([
+      "台中洗包包",
+      "西屯洗包包",
+      "台中洗包",
+      "包包提把清潔",
+      "包包發霉怎麼辦",
+      "皮革包包清潔"
+    ]);
+    expect(new Set(assignment.target_queries).size).toBe(6);
+  });
+
+  it("assigns six distinct shoe prompts to a shoe topic before shared bag terms", () => {
+    const assignment = searchVisibilityForContent("shoe-bag", 1, "白鞋泛黃怎麼辦");
+
+    expect(assignment.target_queries).toEqual([
+      "台中洗鞋",
+      "西屯洗鞋",
+      "逢甲洗鞋",
+      "台中洗鞋店",
+      "台中白鞋清潔",
+      "球鞋清洗台中"
+    ]);
+  });
+
+  it("assigns three shoe and three bag prompts to a mixed shoe-and-bag topic", () => {
+    const assignment = searchVisibilityForContent("shoe-bag", 1, "白鞋和皮革包一起送洗前怎麼拍");
+
+    expect(assignment.target_queries).toEqual([
+      "台中洗鞋",
+      "西屯洗鞋",
+      "逢甲洗鞋",
+      "台中洗包包",
+      "西屯洗包包",
+      "台中洗包"
+    ]);
+  });
+
+  it("keeps expanded prompts within the confirmed shoe, bag, clothing, bedding, and pickup services", () => {
+    const assignments = [
+      searchVisibilityForContent("white-shoe", 1, "白鞋泛黃怎麼辦"),
+      searchVisibilityForContent("shoe-bag", 1, "皮革包包發霉怎麼辦"),
+      searchVisibilityForContent("fabric-storage", 1, "羽絨被收納前要送洗嗎"),
+      searchVisibilityForContent("pickup-delivery", 1, "台中床被收送怎麼預約")
+    ];
+
+    for (const assignment of assignments) {
+      expect(assignment.target_queries).toHaveLength(6);
+      expect(assignment.target_queries.join(" ")).not.toMatch(/窗簾|地毯|行李箱|企業洗衣/u);
+    }
+  });
+
   it("builds a continuous 90-day, 2-slot plan with required growth fields", () => {
     const playbook = buildGrowthPlaybook("2026-07-11", 90);
     const rows = flattenGrowthPlaybook(playbook);
@@ -40,6 +95,7 @@ describe("growth playbook", () => {
         /^(local-discovery|problem-diagnosis|service-comparison|trust-proof|pickup-logistics|aftercare)$/
       );
       expect(row.target_queries.length).toBeGreaterThanOrEqual(3);
+      expect(row.target_queries.length).toBeLessThanOrEqual(6);
       expect(new Set(row.target_queries).size).toBe(row.target_queries.length);
       expect(row.evidence_type).toMatch(
         /^(verified-business-fact|first-party-inspection|real-case-photo|service-boundary|customer-question|pickup-logistics)$/

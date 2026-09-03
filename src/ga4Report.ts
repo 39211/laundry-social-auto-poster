@@ -197,6 +197,8 @@ export async function fetchLineClicks(input: {
 
 interface LedgerDay {
   line_clicks_total?: number;
+  /** Timestamp of the GA4 fetch that wrote this value; without it, 0 is not fresh-cycle evidence. */
+  line_clicks_recorded_at?: string;
   source_clicks?: Record<string, number>;
   source_clicks_status?: "measured" | "total_only" | "unmeasured";
   source_clicks_note?: string;
@@ -237,6 +239,7 @@ export async function recordLineClicksToLedger(input: {
     day.line_clicks_total = report.total_line_clicks;
     day.search_funnel_events = report.event_counts;
     day.search_funnel_status = "measured";
+    day.line_clicks_recorded_at = report.fetched_at;
     if (report.breakdown_unavailable) {
       // An empty source_clicks next to a non-zero total reads as "every source
       // got nothing", which is a different claim from "we know the total but
@@ -255,6 +258,7 @@ export async function recordLineClicksToLedger(input: {
     delete day.line_clicks_total;
     delete day.search_funnel_events;
     day.search_funnel_status = "unmeasured";
+    delete day.line_clicks_recorded_at;
     day.source_clicks_status = "unmeasured";
     result = { status: "unmeasured", reason: error instanceof Error ? error.message : String(error) };
   }

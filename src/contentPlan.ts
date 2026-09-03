@@ -1909,11 +1909,21 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
     wearFallback: "softened shoulder line and collar roll"
   },
   {
+    id: "wool-overcoat",
+    match: /大衣/,
+    noun: "single-breasted beige wool overcoat with notch lapels",
+    material: "beige wool coating with notch lapels and horn-look buttons",
+    lockNote:
+      "object locked as one beige wool overcoat, not a down jacket, not a work jacket, not a dress shirt",
+    wearFallback: "collar and cuff darkening"
+  },
+  {
     id: "everyday-jacket",
-    match: /外套|大衣|夾克/,
-    noun: "everyday fabric jacket",
-    material: "worn woven jacket cloth",
-    lockNote: "object locked as one everyday fabric jacket",
+    match: /外套|夾克/,
+    noun: "beige cotton work jacket with a shirt collar and buttoned cuffs",
+    material: "beige cotton twill with a shirt collar and cuff buttons",
+    lockNote:
+      "object locked as one beige cotton work jacket, not a down jacket, not a dress shirt, not a wool overcoat",
     wearFallback: "collar and cuff darkening"
   }
 ];

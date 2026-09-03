@@ -96,19 +96,17 @@ if ($needsJudging) {
     cmd /c "npm.cmd run auto-approve -- --date $date --no-fail 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     Pop-Location
 }
-# Indexing has no trigger of its own -- it only ever runs as a side effect of
-# the 06:30 generate. So any morning that script does not complete, IndexNow is
-# silently skipped for the day and the loss shows up weeks later as pages that
-# were never recrawled. 08-12 and 08-13 have no indexing record for exactly
-# that reason: the machine was asleep and the script never ran at all.
+# The changed-URL notification must remain observable even if the morning
+# generation did not run. This scheduled script runs several times a day, but
+# it never re-sends an unchanged sitemap: indexing-push records a semantic
+# sitemap fingerprint and decides whether there is anything to notify.
 #
 # This runs many times a day, so it is the natural place to notice. It only
-# resubmits and re-audits; it publishes nothing.
+# records the decision and audits; it publishes nothing.
 $indexingRecord = Join-Path $root "output\operations\indexing-push-$date.json"
 if (-not (Test-Path $indexingRecord)) {
-    Write-Log "No indexing record for $date; submitting IndexNow and running the indexing audit now."
+    Write-Log "No indexing record for $date; recording the changed-URL IndexNow decision and audit now."
     Push-Location $root
-    cmd /c "npm.cmd run submit-indexnow -- --live 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     cmd /c "npm.cmd run indexing-push -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     Pop-Location
 }
@@ -245,6 +243,42 @@ foreach ($slot in $dueSlots) {
     $exitCode = $LASTEXITCODE
     Pop-Location
     $output | Out-File -FilePath $logFile -Append -Encoding utf8
+    # Fail-closed: a reel / noon slot 3 must never count a cover-image success
+    # as published. That is the 8/27-29 failure mode.
+    $requiresVideo = ($slot -eq 3)
+    try {
+        $calendarPath = Join-Path $root "data\content-calendar\$date.json"
+        if (Test-Path $calendarPath) {
+            $cal = ([IO.File]::ReadAllText($calendarPath, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json)
+            $calSlot = @($cal.slots) | Where-Object { $_.slot -eq $slot } | Select-Object -First 1
+            if ($null -ne $calSlot) {
+                $requiresVideo = ($calSlot.media_type -eq "reel") -or ($slot -eq 3)
+            }
+        }
+    } catch {
+        Write-Log ("Could not read calendar media_type for slot $slot : " + $_.Exception.Message)
+    }
+    $reelImageFallback = $false
+    if ($requiresVideo) {
+        try {
+            $postedPath = Join-Path $root "data\posted-log\$date.json"
+            if (Test-Path $postedPath) {
+                $postedRaw = [IO.File]::ReadAllText($postedPath, [Text.UTF8Encoding]::new($false))
+                $entries = @(ConvertFrom-Json $postedRaw)
+                $reelImageFallback = @($entries | Where-Object {
+                    $_.slot -eq $slot -and -not $_.dry_run -and (@("success", "posted") -contains $_.status) -and
+                    $_.published_media_type -eq "image"
+                }).Count -gt 0
+            }
+        } catch {
+            Write-Log ("Reel image-fallback log check failed: " + $_.Exception.Message)
+        }
+    }
+    if ($reelImageFallback) {
+        Write-Log "Slot $slot is a reel but posted-log recorded IMAGE success; refusing to treat as published."
+        $failed += $slot
+        continue
+    }
     if ($exitCode -ne 0) {
         # The exit code alone is not evidence: on 2026-08-08 the process was
         # terminated (-1) after both platforms had already recorded success,

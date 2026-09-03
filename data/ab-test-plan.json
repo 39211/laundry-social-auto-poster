@@ -259,7 +259,7 @@
   {
     "date": "2026-08-29",
     "noon": {
-      "conceptId": "leather-shoe-rain",
+      "conceptId": "boot-mould-bloom",
       "variant": "10s"
     },
     "evening": {
@@ -271,7 +271,7 @@
   {
     "date": "2026-08-30",
     "noon": {
-      "conceptId": "suede-shoe-nap",
+      "conceptId": "blanket-pilling",
       "variant": "10s"
     },
     "evening": {
@@ -319,7 +319,7 @@
   {
     "date": "2026-09-03",
     "noon": {
-      "conceptId": "curtain-hem",
+      "conceptId": "white-shoe-rescue",
       "variant": "10s"
     },
     "evening": {
@@ -407,7 +407,7 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "suede-shoe-nap",
+      "conceptId": "white-shoe-rescue",
       "variant": "10s",
       "paused": true
     }
@@ -450,14 +450,14 @@
   },
   {
     "date": "2026-09-14",
-    "noon": {
-      "conceptId": "suede-shoe-nap",
-      "variant": "10s"
-    },
     "evening": {
       "conceptId": "blanket-pilling",
       "variant": "10s",
       "paused": true
+    },
+    "noon": {
+      "conceptId": "boot-mould-bloom",
+      "variant": "10s"
     }
   },
   {
@@ -666,14 +666,14 @@
   },
   {
     "date": "2026-10-02",
-    "noon": {
-      "conceptId": "suede-shoe-nap",
-      "variant": "10s"
-    },
     "evening": {
       "conceptId": "down-jacket-cuff",
       "variant": "10s",
       "paused": true
+    },
+    "noon": {
+      "conceptId": "white-shoe-rescue",
+      "variant": "10s"
     }
   },
   {
@@ -695,7 +695,7 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "suede-shoe-nap",
+      "conceptId": "white-shoe-rescue",
       "variant": "10s",
       "paused": true
     }

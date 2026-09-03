@@ -1437,6 +1437,50 @@ describe("generatePublicSite", () => {
     });
   });
 
+  it("removes stale video fields from approved non-video slots", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-stale-video-fields-"));
+    const date = "2026-07-02";
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await writeBusinessProfile(root);
+    await writeCalendar(root, date);
+    await writeApprovalLog(root, date, [1]);
+
+    const privateCalendarPath = join(root, "data", "content-calendar", `${date}.json`);
+    const privateCalendar = JSON.parse(await readFile(privateCalendarPath, "utf8"));
+    privateCalendar.slots[0].media_type = "image";
+    privateCalendar.slots[0].format = "image-post";
+    privateCalendar.slots[0].local_video_path = `docs/assets/${date}/slot-01.mp4`;
+    privateCalendar.slots[0].public_video_url = `${baseUrl}/assets/${date}/slot-01.mp4`;
+    await writeFile(privateCalendarPath, `${JSON.stringify(privateCalendar, null, 2)}\n`, "utf8");
+
+    await mkdir(join(root, "docs", "assets", date), { recursive: true });
+    await writeFile(
+      join(root, "docs", "assets", date, "slot-01.png"),
+      Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64"
+      )
+    );
+
+    const outputs = await generatePublicSite({ root, baseUrl, now: "2026-07-02T01:00:00.000Z" });
+    const publicCalendar = JSON.parse(
+      await readFile(join(root, "docs", "content-calendar", `${date}.json`), "utf8")
+    );
+    const socialPosts = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8"));
+    const publicSlot = publicCalendar.slots.find((slot: { slot: number }) => slot.slot === 1);
+    const publicPost = socialPosts.posts.find((post: { slot: number }) => post.slot === 1);
+    const publicOutputText = (
+      await Promise.all([...outputs, join(root, "docs", "content-calendar", `${date}.json`)].map((path) => readFile(path, "utf8")))
+    ).join("\n");
+
+    expect(publicSlot).toMatchObject({ media_type: "image", format: "image-post" });
+    expect(publicSlot).not.toHaveProperty("local_video_path");
+    expect(publicSlot).not.toHaveProperty("public_video_url");
+    expect(publicPost).toMatchObject({ media_type: "image", video_path: "", video_url: "" });
+    expect(publicOutputText).not.toContain(`assets/${date}/slot-01.mp4`);
+    expect(JSON.parse(await readFile(privateCalendarPath, "utf8")).slots[0]).toHaveProperty("local_video_path");
+  });
+
   it("fails closed when an approved reel has neither its MP4 nor fallback PNG", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-missing-reel-and-image-"));
     const date = "2026-07-02";

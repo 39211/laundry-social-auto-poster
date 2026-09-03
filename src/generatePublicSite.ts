@@ -4132,7 +4132,12 @@ function slotWithAvailablePublicMedia(
   root: string,
   statPublicAsset: (filePath: string) => { isFile(): boolean }
 ): DailySlot {
-  if (slot.media_type !== "reel") return slot;
+  if (slot.media_type !== "reel") {
+    const nonVideoSlot: DailySlot = { ...slot };
+    delete nonVideoSlot.local_video_path;
+    delete nonVideoSlot.public_video_url;
+    return nonVideoSlot;
+  }
 
   const videoPath = join(root, "docs", publicVideoAssetPath(date, slot.slot));
   if (publicAssetIsFile(videoPath, statPublicAsset)) return slot;

@@ -1,7 +1,7 @@
 {
   "schema_version": "2026-07-02",
   "standard_level": "standard",
-  "generated_at": "2026-09-03T03:02:13.618Z",
+  "generated_at": "2026-09-03T18:31:30.311Z",
   "website": {
     "name": "私享家洗衣店",
     "business_name": "私享家洗衣店",
@@ -226,6 +226,7 @@
       "rainy-bag-care": "https://sixiangjialaundry.com/guides/rainy-bag-care.html"
     },
     "feed": "https://sixiangjialaundry.com/feed.json",
+    "rss": "https://sixiangjialaundry.com/rss.xml",
     "knowledge_graph": "https://sixiangjialaundry.com/knowledge-graph.json",
     "ai_discovery": "https://sixiangjialaundry.com/ai-discovery.json"
   },
@@ -1930,6 +1931,13 @@
       "calendar_url",
       "article_url"
     ],
+    "daily_article_policy": {
+      "min_visible_chars": 1200,
+      "min_caption_chars": 80,
+      "behavior": "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Only articles that clear the thickness gate carry index robots and enter sitemap.xml, rss.xml and the posts hub; the rest stay noindex, follow.",
+      "indexable_article_count": 111,
+      "article_count": 111
+    },
     "homepage_archive_policy": {
       "expanded_recent_days": 7,
       "expanded_behavior": "Homepage renders approved posts from the newest seven content dates directly.",

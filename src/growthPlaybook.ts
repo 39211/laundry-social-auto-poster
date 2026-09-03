@@ -1251,7 +1251,13 @@ function baseFormat(date: string, slot: number, day: number): GrowthFormat {
   return "image-post";
 }
 
+/** A planned topic written as a question is already the headline (iprinter rule: one question spans h1, Reel card and YT title). */
+export function isQuestionHeadline(topic: string): boolean {
+  return /[？?]/u.test(topic);
+}
+
 function topicForPhase(seed: TopicSeed, day: number, slot: number): string {
+  if (isQuestionHeadline(seed.topic)) return seed.topic;
   if (day <= 30) return slot === 1 ? `先看懂：${seed.topic}` : `今天情境：${seed.topic}`;
   if (day <= 60) {
     return slot === 1 ? `可收藏：${seed.topic}，送洗前先看三個位置` : `細節拆解：${seed.topic}，先看容易忽略的位置`;
@@ -1260,6 +1266,9 @@ function topicForPhase(seed: TopicSeed, day: number, slot: number): string {
 }
 
 function hookFor(topic: string, format: GrowthFormat): string {
+  // A question headline is its own hook; bolting the format tail on after the
+  // question mark ("…嗎？，這篇可以先收藏") reads as two sentences glued together.
+  if (isQuestionHeadline(topic)) return topic;
   if (format === "poster") return `${topic}，這篇先提醒你什麼時間點最該整理。`;
   if (format === "reel") return `${topic}，用 15 秒看懂材質與狀況判斷。`;
   if (format === "carousel-guide") return `${topic}，這篇可以先收藏，送洗前照著看。`;

@@ -693,16 +693,23 @@ describe("generatePublicSite", () => {
     expect(firstPostHtml).toContain('class="breadcrumb"');
     expect(firstPostHtml).toContain("客人常用查詢");
     expect(firstPostHtml).toContain("白鞋泛黃怎麼辦");
-    expect(html).toContain("depth-band depth-laundry");
-    expect(html).toContain("depth-band depth-shoe-bag");
-    expect(html).toContain("depth-band depth-white-shoe");
-    expect(html).toContain("depth-band depth-fabric");
-    expect(html).toContain("depth-band depth-local-store");
-    expect(html).toContain('url("assets/backgrounds/premium-laundry-depth.png")');
-    expect(html).toContain('url("assets/backgrounds/shoe-bag-care-depth.png")');
-    expect(html).toContain('url("assets/backgrounds/white-shoe-depth.png")');
-    expect(html).toContain('url("assets/backgrounds/fabric-storage-depth.png")');
-    expect(html).toContain('url("assets/backgrounds/local-store-depth.png")');
+    // iprinter-pattern shell: sticky header, hero grid, four-step flow bar, CTA band, dark footer, mobile sticky CTA.
+    expect(html).toContain('<header class="site-header">');
+    expect(html).toContain('<span class="brand-mark">私</span>');
+    expect(html).toContain('<section class="home-hero"');
+    expect(html).toContain('class="home-hero__visual"');
+    expect(html).toContain('class="home-hero__app"');
+    expect(html).toContain('<section class="home-flow"');
+    expect((html.match(/<ol class="home-flow__list">[\s\S]*?<\/ol>/u)?.[0]?.match(/<li>/g) ?? [])).toHaveLength(4);
+    expect(html).toContain('class="home-office-callout"');
+    expect(html).toContain('<section class="section" id="services">');
+    expect((html.match(/class="card product-card service-card"/g) ?? []).length).toBeGreaterThanOrEqual(7);
+    expect(html).toContain('<section class="cta-band">');
+    expect(html).toContain('<footer class="site-footer">');
+    expect(html).toContain('class="mobile-sticky-cta"');
+    expect(html.indexOf('<footer class="site-footer">')).toBeGreaterThan(html.indexOf("</main>"));
+    expect(html).not.toContain("depth-band");
+    expect(html).not.toContain('class="topbar"');
     expect(html).toContain("外套、寢具與布品收納前產品級檢查主圖 - 私享家洗衣店布品收納檢查示意圖");
     expect(html).toContain("04-2452-7411");
     expect(html).toContain("0968-327-653");
@@ -714,8 +721,8 @@ describe("generatePublicSite", () => {
     expect(html).toContain("台中西屯洗包");
     expect(html).toContain("週一至週五 10:00-20:00");
     expect(html).toContain("依需求找到服務");
-    expect(html).toContain('class="section-header section-header-bottom"');
-    expect(html.indexOf('class="discovery-grid"')).toBeLessThan(html.indexOf('class="section-header section-header-bottom"'));
+    expect(html).toContain('class="grid four discovery-grid"');
+    expect(html.indexOf("依需求找到服務")).toBeLessThan(html.indexOf('class="grid four discovery-grid"'));
     expect(html).toContain("依物件找服務");
     expect(html).toContain("依地區找服務");
     expect(html).toContain("台中西屯洗衣店");
@@ -1167,7 +1174,7 @@ describe("generatePublicSite", () => {
     expect(latest.posts.map((post: { date: string }) => post.date)).toEqual([today, today]);
     expect(homepage).toContain(`${today} 11:30`);
     expect(homepage).not.toContain(tomorrow);
-    expect(jsonLdGraphs(homepage).find((graph) => graph["@type"] === "WebPage")?.dateModified).toBe("2026-09-03");
+    expect(jsonLdGraphs(homepage).find((graph) => graph["@type"] === "WebPage")?.dateModified).toBe("2026-09-04");
     expect(llms).not.toContain(tomorrow);
     expect(sitemap).not.toContain(`content-calendar/${tomorrow}.json`);
     expect(sitemap).not.toContain(`<lastmod>${tomorrow}</lastmod>`);
@@ -1572,7 +1579,7 @@ describe("generatePublicSite", () => {
     expect(html).toContain("posts/2026-07-04-slot-01.html");
     // A duplicate-caption post has no article of its own, but "read full post" must still
     // reach the article that owns that caption — never the raw calendar JSON.
-    const readFullPostHrefs = [...html.matchAll(/<a href="([^"]*)">read full post<\/a>/gu)].map(
+    const readFullPostHrefs = [...html.matchAll(/<a class="card-link" href="([^"]*)">閱讀文章<\/a>/gu)].map(
       (match) => match[1]
     );
     expect(readFullPostHrefs).toHaveLength(4);
@@ -1673,7 +1680,7 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("台中洗衣與免費收送常見問題");
     expect(homepage).toContain("收送免費等於清潔免費嗎？");
     expect(homepage).toContain('<html lang="zh-Hant-TW">');
-    expect(homepage).toContain('<time datetime="2026-09-03">2026-09-03</time>');
+    expect(homepage).toContain('<time datetime="2026-09-04">2026-09-04</time>');
     expect(homepage).toContain("台中免費收送，逢甲・西屯洗鞋先看材質");
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=home-cta`);
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=footer`);
@@ -1734,7 +1741,7 @@ describe("generatePublicSite", () => {
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
-        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-09-03</lastmod>`
+        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-09-04</lastmod>`
       )
     );
     expect(sitemap1).toMatch(
@@ -1835,7 +1842,7 @@ describe("generatePublicSite", () => {
     const postHtml1 = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
     const postDateModified1 = findArticleDateModified(postHtml1);
 
-    expect(homepageDateModified1).toBe("2026-09-03");
+    expect(homepageDateModified1).toBe("2026-09-04");
     expect(pickupDateModified1).toBe("2026-07-22");
     expect(shoeBagDateModified1).toBe("2026-08-17");
     expect(guideDateModified1).toBe("2026-08-23");
@@ -2505,6 +2512,76 @@ describe("generatePublicSite", () => {
     expect(hub).toContain('href="../services/shoe-bag-care.html"');
     expect(hub).toContain('href="../guides/shoe-odor-source.html"');
     expect(hub).not.toMatch(/href="(?:services|guides|local)\//u);
+  });
+
+  it("publishes thick approved posts as indexable daily articles behind a fail-closed gate", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-daily-articles-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    const calendarPath = join(root, "data", "content-calendar", "2026-07-02.json");
+    const calendar = JSON.parse(await readFile(calendarPath, "utf8")) as { slots: Array<Record<string, unknown>> };
+    const thickCaption = [
+      "白鞋鞋邊一圈灰，多半是髒不是黃。",
+      "先看膠邊：灰是可以清的髒，黃是氧化，只能淡化、不保證回白。鞋內有濕悶味就先通風、取出鞋墊，不要高溫烘。",
+      "拍整體、鞋邊近照與鞋內，傳 LINE 門市先看材質，再說能整理到什麼程度。台中市全區可約免費收送。"
+    ].join("\n\n");
+    calendar.slots[0]!.facebook_caption = thickCaption;
+    calendar.slots[0]!.instagram_caption = thickCaption;
+    await writeFile(calendarPath, `${JSON.stringify(calendar, null, 2)}\n`, "utf8");
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({ root, baseUrl, now: "2026-07-03T03:00:00.000Z" });
+
+    const docsRoot = join(root, "docs");
+    const [thick, thin, hub, sitemap, aiSitemap, rss, discovery, home] = await Promise.all([
+      readFile(join(docsRoot, "posts", "2026-07-02-slot-01.html"), "utf8"),
+      readFile(join(docsRoot, "posts", "2026-07-02-slot-02.html"), "utf8"),
+      readFile(join(docsRoot, "posts", "index.html"), "utf8"),
+      readFile(join(docsRoot, "sitemap.xml"), "utf8"),
+      readFile(join(docsRoot, "ai-sitemap.xml"), "utf8"),
+      readFile(join(docsRoot, "rss.xml"), "utf8"),
+      readFile(join(docsRoot, "ai-discovery.json"), "utf8").then((text) => JSON.parse(text) as {
+        content_contract: { daily_article_policy: { indexable_article_count: number; article_count: number } };
+      }),
+      readFile(join(docsRoot, "index.html"), "utf8")
+    ]);
+    const thickUrl = `${baseUrl}/posts/2026-07-02-slot-01.html`;
+    const thinUrl = `${baseUrl}/posts/2026-07-02-slot-02.html`;
+
+    // The thick article is a real daily page: index robots, article sections, FAQ schema, funnel instrumentation.
+    expect(thick).toContain('name="robots" content="index, follow, max-image-preview:large"');
+    expect(thick).toContain('<h2 id="summary">重點摘要</h2>');
+    expect(thick).toContain('<h2 id="store-note">門市筆記</h2>');
+    expect(thick).toContain("<table");
+    expect(thick).toContain("常見問題");
+    expect(thick).toContain("延伸閱讀");
+    expect(thick).toContain('"@type":"FAQPage"');
+    expect(thick).toContain('"@type":"BlogPosting"');
+    expect(thick).toContain('data-analytics-page-type="article" data-analytics-content-id="');
+    expect(thick).toContain("scripts/search-content-analytics.js");
+    expect(thick).toContain('<link rel="alternate" type="application/rss+xml"');
+    expect(pageTextLength(articleBodyHtml(thick))).toBeGreaterThanOrEqual(1200);
+
+    // The thin caption stays out of the indexable surface even though its page exists.
+    expect(thin).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
+    expect(sitemapLocs(sitemap)).toContain(thickUrl);
+    expect(sitemapLocs(sitemap)).toContain(`${baseUrl}/posts/`);
+    expect(sitemapLocs(sitemap)).not.toContain(thinUrl);
+    expect(aiSitemap).toContain(thickUrl);
+    expect(aiSitemap).not.toContain(thinUrl);
+    expect(aiSitemap).toContain("<!-- rss-feed -->");
+    expect(rss).toContain(`<link>${thickUrl}</link>`);
+    expect(rss).not.toContain(thinUrl);
+    expect(discovery.content_contract.daily_article_policy).toMatchObject({ indexable_article_count: 1, article_count: 2 });
+
+    // Hub lists both, but is itself indexable only because one article cleared the gate.
+    expect(hub).toContain(`<link rel="canonical" href="${baseUrl}/posts/"`);
+    expect(hub).toContain('name="robots" content="index, follow, max-image-preview:large"');
+    expect(hub).toContain('"@type":"CollectionPage"');
+    expect(hub).toContain(thickUrl);
+    expect(hub).toContain(thinUrl);
+    expect(home).toContain('href="rss.xml"');
+    expect(home).toContain(`${baseUrl}/posts/`);
   });
 
   it("keeps checked-in public feeds, calendars, HTML, and image metadata consistent", async () => {

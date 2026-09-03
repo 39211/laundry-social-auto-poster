@@ -532,6 +532,7 @@ export function publishPagesAssets(
     "docs/search-visibility.json",
     "docs/llms.jsonl",
     "docs/feed.json",
+    "docs/rss.xml",
     "docs/knowledge-graph.json",
     "docs/ai-discovery.json",
     "docs/.nojekyll",

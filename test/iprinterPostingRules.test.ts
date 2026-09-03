@@ -8,7 +8,9 @@ import {
 } from "../src/contentPlan";
 import { buildShortMetadata } from "../src/postYouTube";
 
-const LINE_POST = linePostRedirectUrl();
+// Pin the origin explicitly: CI does not carry the production PUBLIC_SITE_BASE_URL,
+// and the caption under test is built with this same origin below.
+const LINE_POST = linePostRedirectUrl("https://sixiangjialaundry.com");
 
 function blockIndex(caption: string, needle: string): number {
   return caption.split("\n\n").findIndex((block) => block.includes(needle));

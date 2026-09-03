@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, open, readFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdtempSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -21,6 +21,11 @@ import {
   resolveAcceptedIndexGrowthPages
 } from "../src/indexGrowthPages";
 import { PRODUCTION_PUBLIC_SITE_BASE_URL } from "../src/publicSiteTypes";
+import {
+  REQUIRED_SEARCH_CONTENT_EVENTS,
+  assertSearchContentAnalyticsScript,
+  buildSearchContentAnalyticsScript
+} from "../src/searchContentAnalytics";
 
 async function writeCalendar(root: string, date: string, options: { carouselSlot1?: boolean } = {}): Promise<void> {
   await Promise.all([
@@ -265,6 +270,20 @@ function pathFromUrl(url: string, baseUrl: string): string {
   const prefix = `${baseUrl.replace(/\/+$/u, "")}/`;
   if (url === `${baseUrl.replace(/\/+$/u, "")}/` || url === baseUrl) return "/";
   return url.startsWith(prefix) ? url.slice(prefix.length) : url;
+}
+
+async function pngPixelSize(filePath: string): Promise<{ width: number; height: number }> {
+  const handle = await open(filePath, "r");
+  try {
+    const header = Buffer.alloc(24);
+    const { bytesRead } = await handle.read(header, 0, 24, 0);
+    if (bytesRead !== 24 || header.readUInt32BE(12) !== 0x49484452) {
+      throw new Error(`invalid PNG header: ${filePath}`);
+    }
+    return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
+  } finally {
+    await handle.close();
+  }
 }
 
 describe("generatePublicSite", () => {
@@ -1148,7 +1167,7 @@ describe("generatePublicSite", () => {
     expect(latest.posts.map((post: { date: string }) => post.date)).toEqual([today, today]);
     expect(homepage).toContain(`${today} 11:30`);
     expect(homepage).not.toContain(tomorrow);
-    expect(jsonLdGraphs(homepage).find((graph) => graph["@type"] === "WebPage")?.dateModified).toBe(today);
+    expect(jsonLdGraphs(homepage).find((graph) => graph["@type"] === "WebPage")?.dateModified).toBe("2026-09-03");
     expect(llms).not.toContain(tomorrow);
     expect(sitemap).not.toContain(`content-calendar/${tomorrow}.json`);
     expect(sitemap).not.toContain(`<lastmod>${tomorrow}</lastmod>`);
@@ -1610,7 +1629,7 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("台中洗衣與免費收送常見問題");
     expect(homepage).toContain("收送免費等於清潔免費嗎？");
     expect(homepage).toContain('<html lang="zh-Hant-TW">');
-    expect(homepage).toContain('<time datetime="2026-08-17">2026-08-17</time>');
+    expect(homepage).toContain('<time datetime="2026-09-03">2026-09-03</time>');
     expect(homepage).toContain("台中免費收送，逢甲・西屯洗鞋先看材質");
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=home-cta`);
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=footer`);
@@ -1665,13 +1684,13 @@ describe("generatePublicSite", () => {
     );
     // Money pages are the indexable surface; caption/post pages are out of the
     // sitemap entirely (rescued 190d063 design). Date is ours: the static
-    // homepage sections last changed 2026-08-17.
+    // The knowledge navigation and compact featured-answer sections changed on 2026-09-03.
     expect(sitemap1).not.toContain("/posts/");
-    expect(sitemap1).toContain("<lastmod>2026-08-17</lastmod>");
+    expect(sitemap1).toContain("<lastmod>2026-09-03</lastmod>");
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
-        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-08-17</lastmod>`
+        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-09-03</lastmod>`
       )
     );
     expect(sitemap1).toMatch(
@@ -1772,7 +1791,7 @@ describe("generatePublicSite", () => {
     const postHtml1 = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
     const postDateModified1 = findArticleDateModified(postHtml1);
 
-    expect(homepageDateModified1).toBe("2026-08-17");
+    expect(homepageDateModified1).toBe("2026-09-03");
     expect(pickupDateModified1).toBe("2026-07-22");
     expect(shoeBagDateModified1).toBe("2026-08-17");
     expect(guideDateModified1).toBe("2026-08-23");
@@ -2182,7 +2201,7 @@ describe("generatePublicSite", () => {
     const acceptedCount = publicAcceptedIndexGrowthCount();
     const baseline = publicSourceBaselineUrlCount();
     expect(baseline).toBe(32);
-    expect(locs).toHaveLength(baseline + acceptedCount);
+    expect(locs).toHaveLength(baseline + acceptedCount + 1);
     expect(locs.some((url) => url.includes("/posts/"))).toBe(false);
     expect(locs.some((url) => url.endsWith(".json"))).toBe(false);
     expect(locs.some((url) => url.includes("/assets/"))).toBe(false);
@@ -2193,7 +2212,7 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("id=\"guide-hub-decisions\"");
     expect(existsSync(join(root, "data", ".calendar-hmac-key"))).toBe(false);
 
-    const acceptedPages = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-08-31" });
+    const acceptedPages = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-09-03" });
     const acceptedPaths = new Set(acceptedPages.map((page) => page.path));
     const publicPaths = new Set(publicSupportPages().map((page) => page.path));
     const sitemapPaths = new Set(locs.map((url) => pathFromUrl(url, baseUrl)));
@@ -2212,6 +2231,10 @@ describe("generatePublicSite", () => {
       const html = await readFile(join(root, "docs", page.path), "utf8");
       const parentService = page.service_slug ?? "";
       const body = articleBodyHtml(html);
+      // This is a regression floor below the current shortest accepted body,
+      // not a ranking claim. Structural/provenance gates carry the quality
+      // decision; padding pages to a round 1,000 characters would make them worse.
+      expect(visiblePageText(body).replace(/\s+/gu, "").length, `${page.slug} body chars`).toBeGreaterThanOrEqual(950);
       expect(sitemap).toContain(`<loc>${baseUrl}/${page.path}</loc>`);
       expect(sitemap).toContain(`<lastmod>${page.content_lastmod}</lastmod>`);
       expect(html).not.toContain("2026-07-10T03:00:00.000Z");
@@ -2251,7 +2274,7 @@ describe("generatePublicSite", () => {
       baseUrl: "https://example.com/laundry-social-auto-poster",
       now: "2026-07-10T03:00:00.000Z"
     });
-    const sample = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-08-31" })[0];
+    const sample = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-09-03" })[0];
     if (!sample?.service_slug) throw new Error("missing accepted page");
     const html = await readFile(join(root, "docs", sample.path), "utf8");
     expect(
@@ -2271,7 +2294,7 @@ describe("generatePublicSite", () => {
       now: "2026-07-10T03:00:00.000Z"
     });
 
-    const sample = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-08-31" })[0];
+    const sample = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-09-03" })[0];
     if (!sample?.service_slug) throw new Error("missing accepted page");
     const htmlPath = join(root, "docs", sample.path);
     const original = await readFile(htmlPath, "utf8");
@@ -2334,5 +2357,228 @@ describe("generatePublicSite", () => {
       if (!page) throw new Error(`missing ${slug}`);
       expect(protectedSupportContentHash({ ...page, title: `${page.title}x` })).not.toBe(hashes[slug]);
     }
+  });
+
+  it("publishes one crawlable knowledge hub and a non-duplicating GA4 search funnel", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-knowledge-funnel-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({ root, baseUrl, now: "2026-07-10T03:00:00.000Z" });
+
+    const docsRoot = join(root, "docs");
+    const [sitemap, aiSitemap, home, hub, service, answer, analytics] = await Promise.all([
+      readFile(join(docsRoot, "sitemap.xml"), "utf8"),
+      readFile(join(docsRoot, "ai-sitemap.xml"), "utf8"),
+      readFile(join(docsRoot, "index.html"), "utf8"),
+      readFile(join(docsRoot, "knowledge", "index.html"), "utf8"),
+      readFile(join(docsRoot, "services", "shoe-bag-care.html"), "utf8"),
+      readFile(join(docsRoot, "guides", "shoe-odor-source.html"), "utf8"),
+      readFile(join(docsRoot, "scripts", "search-content-analytics.js"), "utf8")
+    ]);
+
+    const knowledgeUrl = `${baseUrl}/knowledge/`;
+    expect(sitemapLocs(sitemap).filter((url) => url === knowledgeUrl)).toHaveLength(1);
+    const hubLastmod = sitemap.match(
+      new RegExp(`<loc>${knowledgeUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}</loc><lastmod>([^<]+)</lastmod>`, "u")
+    )?.[1];
+    const visibleChildLastmods = [...sitemap.matchAll(
+      /<loc>[^<]+\/(?:services|guides|local)\/[^<]+<\/loc><lastmod>([^<]+)<\/lastmod>/gu
+    )].map((match) => match[1] ?? "");
+    expect(hubLastmod).toBeDefined();
+    expect(hubLastmod).toBe([...visibleChildLastmods, "2026-09-03"].sort().at(-1));
+    expect(sitemap).not.toContain("/posts/");
+    expect(aiSitemap).toContain("<!-- knowledge-hub -->");
+    expect(hub).toContain(`<link rel="canonical" href="${knowledgeUrl}"`);
+    expect(hub).toContain("<title>洗鞋洗包與衣物收送知識庫｜私享家洗衣店</title>");
+    expect(hub).toContain('name="robots" content="index, follow, max-image-preview:large"');
+    expect(hub).toContain('"@type":"CollectionPage"');
+    expect(hub).toContain('"@type":"ItemList"');
+    expect(hub).toContain('data-analytics-page-type="knowledge_hub"');
+    expect(hub).toContain("source=guide-knowledge-hub-cta");
+
+    for (const page of publicSupportPages()) {
+      expect(hub, page.path).toContain(`${baseUrl}/${page.path}`);
+    }
+    expect(home).toContain('data-analytics-page-type="home" data-analytics-content-id="home"');
+    expect(home).toContain(`${knowledgeUrl}#knowledge-shoes`);
+    expect(home).not.toContain(`${baseUrl}/guides/wool-knit-shrink-risk.html`);
+    expect(hub).toContain(`${baseUrl}/guides/wool-knit-shrink-risk.html`);
+    expect(service).toContain('data-analytics-page-type="service" data-analytics-content-id="shoe-bag-care"');
+    expect(answer).toContain('data-analytics-page-type="answer" data-analytics-content-id="shoe-odor-source"');
+    for (const html of [home, hub, service, answer]) {
+      expect(html).toContain(`${baseUrl}/scripts/search-content-analytics.js`);
+    }
+
+    expect(() => assertSearchContentAnalyticsScript(analytics)).not.toThrow();
+    for (const eventName of REQUIRED_SEARCH_CONTENT_EVENTS) {
+      expect(analytics).toContain(`send("${eventName}"`);
+    }
+    expect(analytics).not.toContain('send("line_click"');
+    expect(analytics).not.toContain('send("generate_lead"');
+  });
+
+  it("fails closed when any required search-funnel event is removed or a lead event is duplicated", () => {
+    const clean = buildSearchContentAnalyticsScript();
+    expect(() => assertSearchContentAnalyticsScript(clean)).not.toThrow();
+
+    for (const eventName of REQUIRED_SEARCH_CONTENT_EVENTS) {
+      const mutated = clean.replace(`send("${eventName}"`, `removed("${eventName}"`);
+      expect(() => assertSearchContentAnalyticsScript(mutated), eventName).toThrow(
+        `search-content analytics is missing required event: ${eventName}`
+      );
+    }
+
+    expect(() => assertSearchContentAnalyticsScript(`${clean}\nsend("line_click");`)).toThrow(/must not duplicate/);
+    expect(() => assertSearchContentAnalyticsScript(`${clean}\nsend("generate_lead");`)).toThrow(/confirmed conversion/);
+
+    const disabledSender = clean.replace(
+      'const send = (eventName, extra = {}) => {',
+      'const send = (eventName, extra = {}) => { return;'
+    );
+    expect(() => assertSearchContentAnalyticsScript(disabledSender)).toThrow(/not reachable at runtime/);
+
+    const missingPageType = clean.replace("page_type: pageType", "page_kind: pageType");
+    expect(() => assertSearchContentAnalyticsScript(missingPageType)).toThrow(/missing runtime parameter: page_type/);
+    const missingServiceId = clean.replace("service_id: targetUrl.pathname", "service_key: targetUrl.pathname");
+    expect(() => assertSearchContentAnalyticsScript(missingServiceId)).toThrow(/missing runtime parameter: service_id/);
+  });
+
+  it("keeps knowledge-hub links correct when generated without a public base URL", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-knowledge-relative-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    await generatePublicSite({
+      root,
+      siteBaseUrl: "",
+      imageBaseUrl: "",
+      now: "2026-07-10T03:00:00.000Z"
+    });
+
+    const hub = await readFile(join(root, "docs", "knowledge", "index.html"), "utf8");
+    expect(hub).toContain('href="../services/shoe-bag-care.html"');
+    expect(hub).toContain('href="../guides/shoe-odor-source.html"');
+    expect(hub).not.toMatch(/href="(?:services|guides|local)\//u);
+  });
+
+  it("keeps checked-in public feeds, calendars, HTML, and image metadata consistent", async () => {
+    const docsRoot = join(process.cwd(), "docs");
+    const [social, discovery, sitemap, imageMetadata] = await Promise.all([
+      readFile(join(docsRoot, "social-posts.json"), "utf8").then((text) => JSON.parse(text)) as Promise<{
+        posts: Array<{
+          date: string;
+          slot: number;
+          topic: string;
+          facebook_caption: string;
+          instagram_caption: string;
+          image_path: string;
+          image_url: string;
+        }>;
+      }>,
+      readFile(join(docsRoot, "ai-discovery.json"), "utf8").then((text) => JSON.parse(text)) as Promise<{
+        generated_at: string;
+        published_posts: Array<{
+          date: string;
+          slot: number;
+          topic: string;
+          facebook_caption: string;
+          instagram_caption: string;
+          image_url: string;
+        }>;
+      }>,
+      readFile(join(docsRoot, "sitemap.xml"), "utf8"),
+      readFile(join(process.cwd(), "docs-internal", "public-image-metadata.json"), "utf8")
+        .then((text) => JSON.parse(text)) as Promise<{
+          schema_version: number;
+          images: Record<string, { width: number; height: number; webp_path: string }>;
+        }>
+    ]);
+
+    const generatedParts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).formatToParts(new Date(discovery.generated_at));
+    const generatedDay = ["year", "month", "day"]
+      .map((type) => generatedParts.find((part) => part.type === type)?.value ?? "")
+      .join("-");
+    const latestContentLastmod = [...sitemap.matchAll(/<lastmod>([^<]+)<\/lastmod>/gu)]
+      .map((match) => match[1] ?? "")
+      .sort()
+      .at(-1);
+    expect(generatedDay >= (latestContentLastmod ?? ""), "generated_at must not predate public content").toBe(true);
+
+    const discoveryByKey = new Map(discovery.published_posts.map((post) => [`${post.date}-${post.slot}`, post]));
+    expect(discoveryByKey.size).toBe(social.posts.length);
+    const calendars = new Map<string, { slots: Array<Record<string, unknown>> }>();
+    for (const post of social.posts) {
+      const key = `${post.date}-${post.slot}`;
+      expect(discoveryByKey.get(key), key).toMatchObject({
+        topic: post.topic,
+        facebook_caption: post.facebook_caption,
+        instagram_caption: post.instagram_caption,
+        image_url: post.image_url
+      });
+      if (!calendars.has(post.date)) {
+        calendars.set(
+          post.date,
+          JSON.parse(await readFile(join(docsRoot, "content-calendar", `${post.date}.json`), "utf8")) as {
+            slots: Array<Record<string, unknown>>;
+          }
+        );
+      }
+      const slot = calendars.get(post.date)?.slots.find((item) => item.slot === post.slot);
+      expect(slot, key).toBeDefined();
+      expect(slot?.topic, key).toBe(post.topic);
+      expect(slot?.facebook_caption, key).toBe(post.facebook_caption);
+      expect(slot?.instagram_caption, key).toBe(post.instagram_caption);
+      if (slot?.media_type !== "mixed-carousel") {
+        expect(String(slot?.local_image_path ?? "").replace(/^docs\//u, ""), key).toBe(post.image_path);
+      }
+    }
+
+    expect(imageMetadata.schema_version).toBe(1);
+    const referencedImages = new Set<string>();
+    let binaryCheckedImages = 0;
+    for (const loc of sitemapLocs(sitemap)) {
+      const pathname = new URL(loc).pathname.replace(/^\//u, "");
+      const htmlPath = pathname === "" ? join(docsRoot, "index.html") : pathname.endsWith("/")
+        ? join(docsRoot, pathname, "index.html")
+        : join(docsRoot, pathname);
+      const html = await readFile(htmlPath, "utf8");
+      for (const match of html.matchAll(/<img\b([^>]*)>/gu)) {
+        const attributes = match[1] ?? "";
+        const src = attributes.match(/\bsrc="([^"]+)"/u)?.[1];
+        if (!src || !/\.png(?:$|\?)/iu.test(src)) continue;
+        const assetPath = decodeURIComponent(new URL(src, "https://sixiangjialaundry.com/").pathname).replace(/^\//u, "");
+        const metadata = imageMetadata.images[assetPath];
+        expect(metadata, `${pathname} ${assetPath} metadata`).toBeDefined();
+        if (!metadata) continue;
+        referencedImages.add(assetPath);
+        expect(attributes, `${pathname} ${assetPath}`).toContain(`width="${metadata.width}"`);
+        expect(attributes, `${pathname} ${assetPath}`).toContain(`height="${metadata.height}"`);
+        expect(metadata.webp_path, `${pathname} ${assetPath} webp metadata`).toBe(
+          assetPath.replace(/\.png$/iu, ".webp")
+        );
+        expect(html, `${pathname} ${assetPath} webp source`).toContain(src.replace(/\.png(?=$|\?)/iu, ".webp"));
+
+        const pngPath = join(docsRoot, assetPath);
+        if (!(await exists(pngPath))) continue;
+        const size = await pngPixelSize(pngPath);
+        expect(size, `${pathname} ${assetPath} binary metadata`).toEqual({
+          width: metadata.width,
+          height: metadata.height
+        });
+        const webpPath = pngPath.replace(/\.png$/iu, ".webp");
+        expect(await exists(webpPath), `${pathname} ${assetPath} webp binary`).toBe(true);
+        binaryCheckedImages += 1;
+      }
+    }
+    expect(referencedImages.size).toBeGreaterThan(100);
+    expect(Object.keys(imageMetadata.images).sort()).toEqual([...referencedImages].sort());
+    expect(binaryCheckedImages).toBeGreaterThan(0);
   });
 });

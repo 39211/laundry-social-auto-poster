@@ -4,7 +4,7 @@
 
 ## Source Of Record
 - Canonical URL: https://sixiangjialaundry.com/
-- Generated at: 2026-08-26T14:44:25.704Z
+- Generated at: 2026-09-02T18:45:39.341Z
 - Timezone: Asia/Taipei
 - Base URL configured: yes
 
@@ -50,7 +50,37 @@
 - support_pages.luxury-dry-cleaning: https://sixiangjialaundry.com/guides/luxury-dry-cleaning.html
 - support_pages.taichung-laundry-service-search: https://sixiangjialaundry.com/guides/taichung-laundry-service-search.html
 - support_pages.clothing-alteration-with-laundry: https://sixiangjialaundry.com/guides/clothing-alteration-with-laundry.html
+- support_pages.luggage-wheel-cleaning: https://sixiangjialaundry.com/guides/luggage-wheel-cleaning.html
+- support_pages.curtain-cleaning: https://sixiangjialaundry.com/guides/curtain-cleaning.html
+- support_pages.carpet-cleaning: https://sixiangjialaundry.com/guides/carpet-cleaning.html
+- support_pages.fengjia-laundry-pickup: https://sixiangjialaundry.com/local/fengjia-laundry-pickup.html
+- support_pages.zhongke-office-laundry: https://sixiangjialaundry.com/local/zhongke-office-laundry.html
+- support_pages.donghai-laundry-pickup: https://sixiangjialaundry.com/local/donghai-laundry-pickup.html
 - support_pages.qinghai-road-shoe-cleaning: https://sixiangjialaundry.com/local/qinghai-road-shoe-cleaning.html
+- support_pages.suede-shoe-cleaning: https://sixiangjialaundry.com/guides/suede-shoe-cleaning.html
+- support_pages.canvas-shoe-mud: https://sixiangjialaundry.com/guides/canvas-shoe-mud.html
+- support_pages.leather-shoe-water-marks: https://sixiangjialaundry.com/guides/leather-shoe-water-marks.html
+- support_pages.shoe-odor-source: https://sixiangjialaundry.com/guides/shoe-odor-source.html
+- support_pages.washing-machine-shoe-risk: https://sixiangjialaundry.com/guides/washing-machine-shoe-risk.html
+- support_pages.athletic-shoe-mixed-materials: https://sixiangjialaundry.com/guides/athletic-shoe-mixed-materials.html
+- support_pages.shoe-mold-surface-check: https://sixiangjialaundry.com/guides/shoe-mold-surface-check.html
+- support_pages.shoe-sole-separation-limit: https://sixiangjialaundry.com/guides/shoe-sole-separation-limit.html
+- support_pages.bag-color-transfer: https://sixiangjialaundry.com/guides/bag-color-transfer.html
+- support_pages.bag-ink-marks: https://sixiangjialaundry.com/guides/bag-ink-marks.html
+- support_pages.bag-lining-care: https://sixiangjialaundry.com/guides/bag-lining-care.html
+- support_pages.nylon-bag-care: https://sixiangjialaundry.com/guides/nylon-bag-care.html
+- support_pages.canvas-bag-care: https://sixiangjialaundry.com/guides/canvas-bag-care.html
+- support_pages.backpack-cleaning-check: https://sixiangjialaundry.com/guides/backpack-cleaning-check.html
+- support_pages.bag-clean-vs-repair: https://sixiangjialaundry.com/guides/bag-clean-vs-repair.html
+- support_pages.wool-coat-dry-clean: https://sixiangjialaundry.com/guides/wool-coat-dry-clean.html
+- support_pages.wool-knit-shrink-risk: https://sixiangjialaundry.com/guides/wool-knit-shrink-risk.html
+- support_pages.clothing-mold-airing: https://sixiangjialaundry.com/guides/clothing-mold-airing.html
+- support_pages.vacuum-bag-storage-risk: https://sixiangjialaundry.com/guides/vacuum-bag-storage-risk.html
+- support_pages.oil-vs-water-stain-choice: https://sixiangjialaundry.com/guides/oil-vs-water-stain-choice.html
+- support_pages.blanket-damp-check: https://sixiangjialaundry.com/guides/blanket-damp-check.html
+- support_pages.post-wash-drying-before-storage: https://sixiangjialaundry.com/guides/post-wash-drying-before-storage.html
+- support_pages.synthetic-vs-leather-handle: https://sixiangjialaundry.com/guides/synthetic-vs-leather-handle.html
+- support_pages.rainy-bag-care: https://sixiangjialaundry.com/guides/rainy-bag-care.html
 - feed: https://sixiangjialaundry.com/feed.json
 - knowledge_graph: https://sixiangjialaundry.com/knowledge-graph.json
 - ai_discovery: https://sixiangjialaundry.com/ai-discovery.json

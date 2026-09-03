@@ -32,6 +32,11 @@ import {
   assertProductionPublicSiteBaseUrl,
   type SupportPageDefinition
 } from "./publicSiteTypes";
+import {
+  SEARCH_CONTENT_ANALYTICS_PATH,
+  assertSearchContentAnalyticsScript,
+  buildSearchContentAnalyticsScript
+} from "./searchContentAnalytics";
 
 interface GeneratePublicSiteOptions {
   root?: string;
@@ -278,13 +283,19 @@ const SITE_NAME = "私享家洗衣店";
 const SITE_TITLE = "私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋";
 const SITE_DESCRIPTION =
   "找台中免費收送、逢甲洗鞋或西屯洗鞋？私享家洗衣店提供台中市全區免費收送，門市在西屯青海路二段365號，可先用 LINE 傳照片預約。";
+const KNOWLEDGE_HUB_PATH = "knowledge/";
+const KNOWLEDGE_HUB_FILE = "knowledge/index.html";
+const KNOWLEDGE_HUB_TITLE = "洗鞋洗包與衣物收送知識庫｜私享家洗衣店";
+const KNOWLEDGE_HUB_DESCRIPTION =
+  "從鞋子異味、白鞋泛黃、包包發霉到衣物床被收送，依問題找到私享家洗衣店的直接答案、處理界線與對應服務。";
+const KNOWLEDGE_HUB_TEMPLATE_LASTMOD = "2026-09-03";
 /**
  * Last intentional change of the homepage's static sections (YYYY-MM-DD). Not rewritten on
  * every build; the published homepage lastmod also advances with the newest approved post
  * (see homepageContentLastmod). Their rename, our date: 2026-08-08 is the later
  * real content change, made after this constant's line diverged.
  */
-const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-08-17";
+const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-09-03";
 const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";
@@ -2705,6 +2716,34 @@ function publicUrl(path: string, baseUrl: string | undefined): string {
   return baseUrl ? `${baseUrl}/${cleanPath}` : cleanPath;
 }
 
+function knowledgeHubUrl(index: PublicPostIndex): string {
+  return publicUrl(KNOWLEDGE_HUB_PATH, index.base_url_configured ? index.base_url : undefined);
+}
+
+function knowledgeHubHref(index: PublicPostIndex, fromNestedPage = false): string {
+  if (index.base_url_configured) return knowledgeHubUrl(index);
+  return fromNestedPage ? `../${KNOWLEDGE_HUB_PATH}` : KNOWLEDGE_HUB_PATH;
+}
+
+function fromKnowledgeHubHref(href: string, index: PublicPostIndex): string {
+  if (index.base_url_configured || /^(?:[a-z]+:|\/|#)/iu.test(href)) return href;
+  return `../${href.replace(/^\.\//u, "")}`;
+}
+
+function buildSearchContentAnalyticsTag(index: PublicPostIndex, fromNestedPage = false): string {
+  const src = index.base_url_configured
+    ? publicUrl(SEARCH_CONTENT_ANALYTICS_PATH, index.base_url)
+    : `${fromNestedPage ? "../" : ""}${SEARCH_CONTENT_ANALYTICS_PATH}`;
+  return `<script defer src="${escapeHtml(src)}"></script>`;
+}
+
+function searchAnalyticsBodyAttributes(
+  pageType: "home" | "knowledge_hub" | "answer" | "service",
+  contentId: string
+): string {
+  return `data-analytics-page-type="${escapeHtml(pageType)}" data-analytics-content-id="${escapeHtml(contentId)}"`;
+}
+
 function canonicalUrl(baseUrl: string | undefined): string {
   return baseUrl ? `${baseUrl}/` : "index.html";
 }
@@ -2777,6 +2816,11 @@ export function listLineTouchpoints(posts: Array<{ date: string; slot: number }>
       });
     }
   }
+  rows.push({
+    page: KNOWLEDGE_HUB_FILE,
+    placement: "cta",
+    slug: lineSourceSlug({ section: "guide", slug: "knowledge-hub", placement: "cta" })
+  });
   for (const post of posts) {
     rows.push(
       ...postPlacements.map((placement) => ({
@@ -3366,6 +3410,18 @@ function supportContentLastmod(page: SupportPageDefinition): string | undefined 
   return toSitemapLastmodDate(page.content_lastmod);
 }
 
+/** The hub changes only when one of its visible accepted/support pages changes. */
+function knowledgeHubContentLastmod(): string | undefined {
+  return [
+    KNOWLEDGE_HUB_TEMPLATE_LASTMOD,
+    ...SERVICE_PAGE_DEFINITIONS.map((service) => serviceContentLastmod(service)),
+    ...SUPPORT_PAGE_DEFINITIONS.map((page) => supportContentLastmod(page))
+  ]
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1);
+}
+
 /**
  * Bump this when the post page template's visible content materially changes.
  * A post's lastmod is the later of its own date and this, because a template
@@ -3402,6 +3458,10 @@ function homepageContentLastmod(index: PublicPostIndex): string {
 function sitemapLastmodForUrl(url: string, index: PublicPostIndex): string | undefined {
   if (url === index.canonical_url) {
     return homepageContentLastmod(index);
+  }
+
+  if (url === knowledgeHubUrl(index) || url.endsWith(`/${KNOWLEDGE_HUB_PATH}`)) {
+    return knowledgeHubContentLastmod();
   }
 
   for (const service of SERVICE_PAGE_DEFINITIONS) {
@@ -3844,6 +3904,62 @@ function buildServicePageSchema(service: ServicePageDefinition, index: PublicPos
             "@type": "ListItem",
             position: 2,
             name: service.name,
+            item: canonical
+          }
+        ]
+      }
+    ]
+  };
+}
+
+function buildKnowledgeHubSchema(index: PublicPostIndex): object | undefined {
+  const businessNode = buildBusinessSchemaNode(index);
+  if (!businessNode) return undefined;
+  const canonical = knowledgeHubUrl(index);
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      businessNode,
+      buildWebsiteSchemaNode(index),
+      {
+        "@type": "CollectionPage",
+        "@id": `${canonical}#webpage`,
+        url: canonical,
+        name: KNOWLEDGE_HUB_TITLE,
+        description: KNOWLEDGE_HUB_DESCRIPTION,
+        inLanguage: "zh-Hant-TW",
+        isPartOf: { "@id": `${index.canonical_url}#website` },
+        about: { "@id": `${index.canonical_url}#business` },
+        mainEntity: { "@id": `${canonical}#answers` },
+        breadcrumb: { "@id": `${canonical}#breadcrumb` },
+        ...optionalSchemaDateModified(knowledgeHubContentLastmod())
+      },
+      {
+        "@type": "ItemList",
+        "@id": `${canonical}#answers`,
+        numberOfItems: SUPPORT_PAGE_DEFINITIONS.length,
+        itemListElement: SUPPORT_PAGE_DEFINITIONS.map((page, position) => ({
+          "@type": "ListItem",
+          position: position + 1,
+          name: page.h1,
+          url: supportPageUrl(page, index)
+        }))
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${canonical}#breadcrumb`,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: index.business_profile.name,
+            item: index.canonical_url
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "洗護知識庫",
             item: canonical
           }
         ]
@@ -4402,6 +4518,7 @@ function buildSitemapXml(index: PublicPostIndex): string {
   const urls = index.base_url_configured
     ? [
         index.canonical_url,
+        knowledgeHubUrl(index),
         ...Object.values(index.entrypoints.service_pages),
         ...Object.values(index.entrypoints.support_pages),
         ...(POST_PAGES_INDEXABLE ? index.article_posts.map((post) => post.article_url) : [])
@@ -4432,6 +4549,7 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
         { loc: index.entrypoints.business_profile, purpose: "business-profile" },
         { loc: index.entrypoints.services, purpose: "service-records" },
         { loc: index.entrypoints.answers, purpose: "answer-engine-records" },
+        { loc: knowledgeHubUrl(index), purpose: "knowledge-hub" },
         { loc: index.entrypoints.geo_targets, purpose: "geo-target-records" },
         { loc: index.entrypoints.search_visibility, purpose: "search-intent-and-ai-visibility-review" },
         { loc: index.entrypoints.llms_jsonl, purpose: "line-delimited-ai-records" },
@@ -6176,6 +6294,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
   const supportHubSections = INDEX_GROWTH_HUB_ORDER.map((group) => {
     const pages = SUPPORT_PAGE_DEFINITIONS.filter((page) => hubGroupFor(page) === group.id);
     if (pages.length === 0) return "";
+    const featuredPages = pages.slice(0, group.id === "shoes" ? 4 : 2);
     return `<section class="guide-hub-group" id="guide-hub-${escapeHtml(group.id)}">
           <div class="section-header">
             <p class="eyebrow">Guide group</p>
@@ -6183,8 +6302,9 @@ function buildIndexHtml(index: PublicPostIndex): string {
             <p class="section-copy">${escapeHtml(group.intro)}</p>
           </div>
           <div class="product-grid">
-          ${pages.map((page) => supportCardFor(page)).join("\n")}
+          ${featuredPages.map((page) => supportCardFor(page)).join("\n")}
           </div>
+          <div class="link-row"><a href="${escapeHtml(`${knowledgeHubHref(index)}#knowledge-${group.id}`)}">查看${escapeHtml(group.heading)}全部答案</a></div>
         </section>`;
   }).join("\n");
   const discoveryGroups = HOME_DISCOVERY_GROUPS.map(
@@ -6271,8 +6391,9 @@ function buildIndexHtml(index: PublicPostIndex): string {
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(SITE_TITLE)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
+    ${buildSearchContentAnalyticsTag(index)}
   </head>
-  <body>
+  <body ${searchAnalyticsBodyAttributes("home", "home")}>
     <main>
       <header class="topbar">
         <a class="brand" href="${escapeHtml(index.canonical_url)}">${escapeHtml(profile.name)}</a>
@@ -6280,6 +6401,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           ${SERVICE_PAGE_DEFINITIONS.map(
             (service) => `<a href="${escapeHtml(servicePageUrl(service, index))}">${escapeHtml(service.name)}</a>`
           ).join("\n")}
+          <a href="${escapeHtml(knowledgeHubHref(index))}">洗護知識庫</a>
           <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
           <a href="${escapeHtml(lineNav)}">LINE</a>
         </nav>
@@ -6473,6 +6595,128 @@ function buildIndexHtml(index: PublicPostIndex): string {
           ${archiveSection}
         </div>
       </section>
+    </main>
+  </body>
+</html>
+`;
+}
+
+function buildKnowledgeHubHtml(index: PublicPostIndex): string {
+  const profile = index.business_profile;
+  const canonical = knowledgeHubUrl(index);
+  const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
+  const lineCta = trackedLineUrl(index, { section: "guide", slug: "knowledge-hub", placement: "cta" });
+  const schema = buildKnowledgeHubSchema(index);
+  const lastmod = knowledgeHubContentLastmod();
+  const serviceCards = SERVICE_PAGE_DEFINITIONS.map(
+    (service) => `<article class="product-tile service-card">
+            <p class="eyebrow">Service</p>
+            <h3><a href="${escapeHtml(fromKnowledgeHubHref(servicePageUrl(service, index), index))}">${escapeHtml(service.name)}</a></h3>
+            <p>${escapeHtml(service.answer_summary)}</p>
+          </article>`
+  ).join("\n");
+  const answerGroups = INDEX_GROWTH_HUB_ORDER.map((group) => {
+    const pages = SUPPORT_PAGE_DEFINITIONS.filter((page) => hubGroupFor(page) === group.id);
+    if (pages.length === 0) return "";
+    const cards = pages
+      .map((page) => {
+        const service = requireLinkedSupportService(page);
+        return `<article class="card">
+              <p class="eyebrow">${page.category === "local" ? "Local answer" : "Care answer"}</p>
+              <h3><a href="${escapeHtml(fromKnowledgeHubHref(supportPageUrl(page, index), index))}">${escapeHtml(page.h1)}</a></h3>
+              <p>${escapeHtml(page.citation_answer ?? page.summary)}</p>
+              <div class="link-row">
+                <a href="${escapeHtml(fromKnowledgeHubHref(supportPageUrl(page, index), index))}">看完整答案</a>
+                <a href="${escapeHtml(fromKnowledgeHubHref(servicePageUrl(service, index), index))}">${escapeHtml(service.name)}</a>
+              </div>
+            </article>`;
+      })
+      .join("\n");
+    return `<section class="product-band ${group.id === "shoes" ? "surface" : ""}" id="knowledge-${escapeHtml(group.id)}">
+        <div class="section-inner">
+          <div class="section-header">
+            <p class="eyebrow">Question cluster</p>
+            <h2>${escapeHtml(group.heading)}</h2>
+            <p class="section-copy">${escapeHtml(group.intro)}</p>
+          </div>
+          <div class="grid">
+            ${cards}
+          </div>
+        </div>
+      </section>`;
+  }).join("\n");
+
+  return `<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    ${buildLegacyPathRedirectScript(index)}
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="${escapeHtml(KNOWLEDGE_HUB_DESCRIPTION)}" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="googlebot" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="${escapeHtml(profile.name)}" />
+    <link rel="canonical" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" hreflang="zh-Hant-TW" href="${escapeHtml(canonical)}" />
+    <link rel="alternate" hreflang="x-default" href="${escapeHtml(canonical)}" />
+    <meta property="og:title" content="${escapeHtml(KNOWLEDGE_HUB_TITLE)}" />
+    <meta property="og:description" content="${escapeHtml(KNOWLEDGE_HUB_DESCRIPTION)}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${escapeHtml(canonical)}" />
+    <meta property="og:site_name" content="${escapeHtml(profile.name)}" />
+    ${schema ? `<script type="application/ld+json">${escapeJsonLd(schema)}</script>` : ""}
+    <style>${buildPublicSiteCss()}</style>
+    <title>${escapeHtml(KNOWLEDGE_HUB_TITLE)}</title>
+    ${buildAnalyticsTag(index.ga4_measurement_id)}
+    ${buildSearchContentAnalyticsTag(index, true)}
+  </head>
+  <body ${searchAnalyticsBodyAttributes("knowledge_hub", "knowledge-hub")}>
+    <main>
+      <header class="topbar">
+        <a class="brand" href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a>
+        <nav class="nav" aria-label="知識庫與服務">
+          <a href="${escapeHtml(homeHref)}">首頁</a>
+          ${SERVICE_PAGE_DEFINITIONS.slice(0, 3)
+            .map(
+              (service) =>
+                `<a href="${escapeHtml(fromKnowledgeHubHref(servicePageUrl(service, index), index))}">${escapeHtml(service.name)}</a>`
+            )
+            .join("\n")}
+          <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
+        </nav>
+      </header>
+      <nav class="breadcrumb" aria-label="麵包屑">
+        <ol>
+          <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
+          <li aria-current="page">洗護知識庫</li>
+        </ol>
+      </nav>
+      <section class="product-hero hero-light service-hero">
+        <div class="section-inner hero-copy">
+          <p class="eyebrow">Search answers → service → contact</p>
+          <h1>洗鞋、洗包與衣物床被收送知識庫</h1>
+          <p class="lead">先選你手上的物件與狀況，讀直接答案與處理界線，再前往對應服務或用 LINE 傳照片。鞋子問題優先整理在最前面。</p>
+          ${lastmod ? `<p class="last-updated">內容更新：<time datetime="${lastmod}">${lastmod}</time></p>` : ""}
+          <div class="hero-actions">
+            <a class="primary-link" href="#knowledge-shoes">先看鞋子問題</a>
+            <a class="secondary-link" href="${escapeHtml(lineCta)}">LINE 傳照片</a>
+            <a class="secondary-link" href="tel:${escapeHtml(profile.telephone)}">${escapeHtml(profile.telephone_local)}</a>
+          </div>
+        </div>
+      </section>
+      <section class="product-band">
+        <div class="section-inner">
+          <div class="section-header">
+            <p class="eyebrow">Service paths</p>
+            <h2>直接找服務</h2>
+            <p class="section-copy">問題頁負責說明狀況；服務頁負責價格邊界、收件方式與下一步。</p>
+          </div>
+          <div class="product-grid">
+            ${serviceCards}
+          </div>
+        </div>
+      </section>
+      ${answerGroups}
     </main>
   </body>
 </html>
@@ -6710,8 +6954,9 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(service.title)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
+    ${buildSearchContentAnalyticsTag(index, true)}
   </head>
-  <body>
+  <body ${searchAnalyticsBodyAttributes("service", service.slug)}>
     <main>
       <header class="topbar">
         <a class="brand" href="${escapeHtml(homeHref)}">私享家洗衣店</a>
@@ -6719,6 +6964,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
           ${SERVICE_PAGE_DEFINITIONS.map(
             (item) => `<a href="${escapeHtml(servicePageUrl(item, index))}">${escapeHtml(item.name)}</a>`
           ).join("\n")}
+          <a href="${escapeHtml(knowledgeHubHref(index, true))}">洗護知識庫</a>
           <a href="${escapeHtml(businessProfileHref)}">店家資料</a>
         </nav>
       </header>
@@ -6853,6 +7099,9 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
   const lastUpdatedMarkup = page.content_lastmod
     ? `\n          <p class="last-updated">內容更新：<time datetime="${escapeHtml(page.content_lastmod)}">${escapeHtml(page.content_lastmod)}</time></p>`
     : "";
+  const serviceHeroLink = acceptedGrowthPage
+    ? ""
+    : `            <a class="secondary-link" href="${escapeHtml(serviceHref)}">${escapeHtml(service.name)}</a>\n`;
   const stepItems = page.steps
     .map(
       (step, index) => `<article class="spec-tile">
@@ -6947,8 +7196,9 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
     <style>${buildPublicSiteCss()}</style>
     <title>${escapeHtml(page.title)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
+    ${buildSearchContentAnalyticsTag(index, true)}
   </head>
-  <body>
+  <body ${searchAnalyticsBodyAttributes("answer", page.slug)}>
     <main>
       <header class="topbar">
         <a class="brand" href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a>
@@ -6956,6 +7206,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
           ${SERVICE_PAGE_DEFINITIONS.map(
             (item) => `<a href="${escapeHtml(servicePageUrl(item, index))}">${escapeHtml(item.name)}</a>`
           ).join("\n")}
+          <a href="${escapeHtml(knowledgeHubHref(index, true))}">洗護知識庫</a>
           <a href="${escapeHtml(lineNav)}">LINE</a>
           <a href="${escapeHtml(profile.map_url)}">Google Maps</a>
         </nav>
@@ -6973,12 +7224,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
           <p class="lead">${escapeHtml(page.summary)}</p>${lastUpdatedMarkup}
           <div class="hero-actions">
             <a class="primary-link" href="${escapeHtml(lineCta)}">LINE 詢問</a>
-            ${
-              acceptedGrowthPage
-                ? ""
-                : `<a class="secondary-link" href="${escapeHtml(serviceHref)}">${escapeHtml(service.name)}</a>`
-            }
-          </div>
+${serviceHeroLink}          </div>
           <div class="meta-row local-query-row">
             ${keywordChips}
           </div>
@@ -7136,6 +7382,7 @@ function buildAiDiscovery(index: PublicPostIndex): object {
     entrypoints: index.entrypoints,
     recommended_read_order: [
       index.entrypoints.llms,
+      knowledgeHubUrl(index),
       index.entrypoints.services,
       index.entrypoints.answers,
       index.entrypoints.geo_targets,
@@ -7362,6 +7609,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const servicesRoot = join(docsRoot, "services");
   const guidesRoot = join(docsRoot, "guides");
   const localRoot = join(docsRoot, "local");
+  const knowledgeRoot = join(docsRoot, "knowledge");
+  const scriptsRoot = join(docsRoot, "scripts");
   const postsRoot = join(docsRoot, "posts");
   const goRoot = join(docsRoot, "go");
   const compatibilityDocsRoot = join(docsRoot, "docs");
@@ -7370,6 +7619,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await mkdir(servicesRoot, { recursive: true });
   await mkdir(guidesRoot, { recursive: true });
   await mkdir(localRoot, { recursive: true });
+  await mkdir(knowledgeRoot, { recursive: true });
+  await mkdir(scriptsRoot, { recursive: true });
   await mkdir(postsRoot, { recursive: true });
   await mkdir(goRoot, { recursive: true });
   await mkdir(compatibilityDocsRoot, { recursive: true });
@@ -7398,6 +7649,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     sitemap: join(docsRoot, "sitemap.xml"),
     aiSitemap: join(docsRoot, "ai-sitemap.xml"),
     index: join(docsRoot, "index.html"),
+    knowledgeHub: join(docsRoot, KNOWLEDGE_HUB_FILE),
+    searchContentAnalytics: join(docsRoot, SEARCH_CONTENT_ANALYTICS_PATH),
     notFound: join(docsRoot, "404.html"),
     lineRedirect: join(goRoot, "line.html"),
     compatibilityDocsIndex: join(compatibilityDocsRoot, "index.html"),
@@ -7434,6 +7687,9 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await writeFile(outputs.robots, buildRobotsText(index), "utf8");
   await writeFile(outputs.sitemap, buildSitemapXml(index), "utf8");
   await writeFile(outputs.aiSitemap, buildAiSitemapXml(index), "utf8");
+  const searchContentAnalytics = buildSearchContentAnalyticsScript();
+  assertSearchContentAnalyticsScript(searchContentAnalytics);
+  await writeFile(outputs.searchContentAnalytics, searchContentAnalytics, "utf8");
   if (indexNowKey) {
     const keyFileName = indexNowKeyFileName(indexNowKey);
     await writeFile(join(docsRoot, keyFileName), `${indexNowKey}\n`, "utf8");
@@ -7450,6 +7706,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     );
   }
   await writeFile(outputs.index, buildIndexHtml(index), "utf8");
+  await writeFile(outputs.knowledgeHub, buildKnowledgeHubHtml(index), "utf8");
   await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
   await writeFile(
     outputs.lineRedirect,

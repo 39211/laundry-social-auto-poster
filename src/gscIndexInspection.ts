@@ -70,17 +70,24 @@ function credentials(env: NodeJS.ProcessEnv): GscCredentials {
   return { clientId, clientSecret, refreshToken, siteUrl };
 }
 
-async function accessToken(creds: GscCredentials, fetcher: typeof fetch): Promise<string> {
-  const response = await fetcher("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: creds.clientId,
-      client_secret: creds.clientSecret,
-      refresh_token: creds.refreshToken,
-      grant_type: "refresh_token"
-    }).toString()
-  });
+async function accessToken(creds: GscCredentials, fetcher: typeof fetch, timeoutMs: number): Promise<string> {
+  let response: Response;
+  try {
+    response = await fetcher("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: creds.clientId,
+        client_secret: creds.clientSecret,
+        refresh_token: creds.refreshToken,
+        grant_type: "refresh_token"
+      }).toString(),
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`GSC token refresh failed or timed out after ${timeoutMs}ms: ${reason}`);
+  }
   if (!response.ok) {
     throw new Error(`GSC token refresh failed: HTTP ${response.status} ${await response.text()}`);
   }
@@ -104,25 +111,57 @@ export function sitemapPageUrls(root = projectRoot()): string[] {
   return urls.filter((url) => !/\.(png|jpg|jpeg|webp|mp4)$/i.test(url));
 }
 
+/**
+ * One URL Inspection call per sitemap page, sequentially. Every call carries a
+ * deadline: on 2026-09-04 23:15 a single call that never returned held the loop
+ * for the Scheduled Task's whole PT10M limit (zero rows written, 267014
+ * TERMINATED), and the seo-exposure-review that follows in gsc-collect.ps1 never
+ * ran, so the day's verdict was lost. A stalled call now becomes one
+ * "inspection-failed" row and the loop moves on.
+ */
+export const DEFAULT_INSPECTION_TIMEOUT_MS = 20_000;
+
 export async function inspectUrls(input: {
   urls: string[];
   root?: string;
   now?: Date;
   env?: NodeJS.ProcessEnv;
   fetchImpl?: typeof fetch;
+  /** Per-request deadline for the token refresh and each inspection call. */
+  requestTimeoutMs?: number;
 }): Promise<IndexInspectionReport> {
   const fetcher = input.fetchImpl ?? fetch;
+  const timeoutMs = input.requestTimeoutMs ?? DEFAULT_INSPECTION_TIMEOUT_MS;
   const creds = credentials(input.env ?? process.env);
-  const token = await accessToken(creds, fetcher);
+  const token = await accessToken(creds, fetcher, timeoutMs);
   const now = input.now ?? new Date();
   const rows: UrlInspectionRow[] = [];
 
   for (const url of input.urls) {
-    const response = await fetcher("https://searchconsole.googleapis.com/v1/urlInspection/index:inspect", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ inspectionUrl: url, siteUrl: creds.siteUrl })
-    });
+    let response: Response;
+    try {
+      response = await fetcher("https://searchconsole.googleapis.com/v1/urlInspection/index:inspect", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ inspectionUrl: url, siteUrl: creds.siteUrl }),
+        signal: AbortSignal.timeout(timeoutMs)
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      rows.push({
+        url,
+        verdict: "ERROR",
+        coverage_state: "inspection-failed",
+        robots_txt_state: "",
+        indexing_state: "",
+        last_crawl_time: null,
+        page_fetch_state: "",
+        google_canonical: null,
+        user_canonical: null,
+        error: `request failed or timed out after ${timeoutMs}ms: ${reason}`.slice(0, 300)
+      });
+      continue;
+    }
     if (!response.ok) {
       rows.push({
         url,

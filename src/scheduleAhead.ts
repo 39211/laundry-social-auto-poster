@@ -16,7 +16,7 @@ import {
 import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot, scheduledLogPath } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
-import { resolveSlotPublishMedia } from "./postCurrentSlot";
+import { resolveSlotPublishMedia, slotRequiresPublishedVideo } from "./postCurrentSlot";
 import { pauseMessage, readPause } from "./pause";
 import { DAILY_SCHEDULE } from "./scheduler";
 import type { AppConfig, DailySlot, PostInput } from "./types";
@@ -178,7 +178,25 @@ export async function scheduleAheadFacebook(input: {
     }
 
     await assertCaptionNotRepeated(slot, input.date, root);
-    const resolvedMedia = await resolveSlotPublishMedia(slot, input.date, root);
+    // resolveSlotPublishMedia now throws for a planned Reel whose video is not
+    // publishable (16132772: never post a still where a Reel was planned). That
+    // refusal is right for the live path; here it must not abort the other slots
+    // of the day, so it becomes the same "skipped" row the deferred branch below
+    // already produces -- the live path decides that slot later.
+    let resolvedMedia: Awaited<ReturnType<typeof resolveSlotPublishMedia>>;
+    try {
+      resolvedMedia = await resolveSlotPublishMedia(slot, input.date, root);
+    } catch (error) {
+      if (!slotRequiresPublishedVideo(slot)) throw error;
+      const reason = error instanceof Error ? error.message : String(error);
+      results.push({
+        date: input.date,
+        slot: slot.slot,
+        action: "skipped",
+        reason: `reel video not publishable yet (${reason}); live path owns it`
+      });
+      continue;
+    }
 
     const imageAssets = imageAssetsForSlot(slot);
     const imageUrls = imageAssets.map(

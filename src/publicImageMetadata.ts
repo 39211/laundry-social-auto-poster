@@ -1,6 +1,5 @@
 import * as fs from "node:fs";
 import { join } from "node:path";
-import { isMain } from "./cli";
 
 export interface PublicImageMetadataResult {
   path: string;
@@ -41,12 +40,17 @@ function pngSize(pngPath: string, relativePath: string): { width: number; height
   const fd = fs.openSync(pngPath, "r");
   try {
     const buf = Buffer.alloc(PNG_HEADER_BYTES);
-    const n = fs.readSync(fd, buf, 0, PNG_HEADER_BYTES, 0);
-    if (n === 0) throw new Error(`${relativePath}: 0 bytes`);
-    for (let i = 0; i < Math.min(n, PNG_SIGNATURE.length); i++) {
+    let offset = 0;
+    while (offset < PNG_HEADER_BYTES) {
+      const n = fs.readSync(fd, buf, offset, PNG_HEADER_BYTES - offset, offset);
+      if (n === 0) break;
+      offset += n;
+    }
+    if (offset === 0) throw new Error(`${relativePath}: 0 bytes`);
+    for (let i = 0; i < Math.min(offset, PNG_SIGNATURE.length); i++) {
       if (buf[i] !== PNG_SIGNATURE[i]) throw new Error(`${relativePath}: not png`);
     }
-    if (n < PNG_HEADER_BYTES) throw new Error(`${relativePath}: truncated`);
+    if (offset < PNG_HEADER_BYTES) throw new Error(`${relativePath}: truncated`);
     return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
   } finally {
     fs.closeSync(fd);
@@ -132,18 +136,4 @@ export function regeneratePublicImageMetadata(
 }
 
 /** Sync entry used by publishPagesAssets so a throw fails the publish on this tick. */
-export function regeneratePublicImageMetadataSync(
-  root: string,
-  options?: RegeneratePublicImageMetadataOptions
-): PublicImageMetadataResult {
-  return regeneratePublicImageMetadataAt(root, options);
-}
-
-if (isMain(import.meta.url)) {
-  try {
-    regeneratePublicImageMetadata(process.argv[2] ?? process.cwd(), { env: process.env });
-  } catch (error: unknown) {
-    console.error(error);
-    process.exitCode = 1;
-  }
-}
+export const regeneratePublicImageMetadataSync = regeneratePublicImageMetadata;

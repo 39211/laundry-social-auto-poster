@@ -569,8 +569,10 @@ export function publishPagesAssets(
 
   // Regen before the secret scan so the JSON is on disk and included in the
   // scanned set. A bad PNG fails closed here (intentional): abort this tick.
+  // Site base is PUBLIC_SITE_BASE_URL only. PUBLIC_IMAGE_BASE_URL may be a
+  // separate CDN path and must not become the HTML/sitemap base.
   regeneratePublicImageMetadataSync(root, {
-    env: options?.env ?? { PUBLIC_SITE_BASE_URL: getConfig().publicSiteBaseUrl }
+    env: options?.env ?? { PUBLIC_SITE_BASE_URL: process.env.PUBLIC_SITE_BASE_URL }
   });
   assertNoForbiddenStagedPaths(root);
   assertNoSecretsInPublishTargets(root, uniquePaths([...pathsToPublish, imageMetadataPath]));

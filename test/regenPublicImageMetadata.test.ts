@@ -1,10 +1,71 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { regeneratePublicImageMetadataSync } from "../src/publicImageMetadata";
+
+const fsProbe = vi.hoisted(() => {
+  const state = {
+    openSync: [] as Array<{ path: string; fd: number }>,
+    closeSync: [] as unknown[],
+    readSync: [] as unknown[][],
+    readFileSync: [] as unknown[][],
+    shortRead: false,
+    readCount: 0,
+    reset() {
+      state.openSync = [];
+      state.closeSync = [];
+      state.readSync = [];
+      state.readFileSync = [];
+      state.shortRead = false;
+      state.readCount = 0;
+    }
+  };
+  return state;
+});
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  const openSync = ((
+    path: Parameters<typeof actual.openSync>[0],
+    flags: Parameters<typeof actual.openSync>[1],
+    mode?: Parameters<typeof actual.openSync>[2]
+  ) => {
+    const fd = actual.openSync(path, flags, mode);
+    fsProbe.openSync.push({ path: String(path).replaceAll("\\", "/"), fd });
+    return fd;
+  }) as typeof actual.openSync;
+  const closeSync = ((fd: number) => {
+    fsProbe.closeSync.push(fd);
+    actual.closeSync(fd);
+  }) as typeof actual.closeSync;
+  const readSync = ((...args: unknown[]) => {
+    fsProbe.readSync.push(args);
+    fsProbe.readCount += 1;
+    if (fsProbe.shortRead && fsProbe.readCount === 1 && typeof args[2] === "number") {
+      const fd = args[0] as number;
+      const buffer = args[1] as NodeJS.ArrayBufferView;
+      const offset = args[2];
+      const length = args[3] as number;
+      const position = (args[4] ?? null) as number | null;
+      return actual.readSync(fd, buffer, offset, Math.min(length, 10), position);
+    }
+    return (actual.readSync as (...inner: unknown[]) => number)(...args);
+  }) as typeof actual.readSync;
+  const wrappedReadFileSync = ((...args: Parameters<typeof actual.readFileSync>) => {
+    fsProbe.readFileSync.push(args as unknown[]);
+    return (actual.readFileSync as (...inner: unknown[]) => unknown)(...args);
+  }) as typeof actual.readFileSync;
+  return {
+    ...actual,
+    openSync,
+    closeSync,
+    readSync,
+    readFileSync: wrappedReadFileSync
+  };
+});
 
 const SCRIPT = join(process.cwd(), "scripts", "regen-public-image-metadata.mjs");
 
@@ -55,6 +116,10 @@ function injected(base: string): { env: NodeJS.ProcessEnv } {
 }
 
 describe("regen-public-image-metadata", () => {
+  beforeEach(() => {
+    fsProbe.reset();
+  });
+
   it("maps sitemap URLs under a base path (GitHub project site) back onto docs/", async () => {
     const base = "https://example.com/laundry-social-auto-poster/";
     const root = await seedSite(base);
@@ -168,7 +233,20 @@ describe("regen-public-image-metadata", () => {
     const jsonPath = join(root, "docs-internal", "public-image-metadata.json");
     await mkdir(join(root, "docs-internal"), { recursive: true });
     await writeFile(jsonPath, '{"fake":true}\n');
-    run(root);
+    const pkgRoot = process.cwd();
+    const pkg = JSON.parse(readFileSync(join(pkgRoot, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    expect(pkg.scripts["regen-public-image-metadata"]).toBe(
+      "node --import tsx scripts/regen-public-image-metadata.mjs"
+    );
+    const npmArgs = ["run", "regen-public-image-metadata", "--", root];
+    const env = { ...process.env, PUBLIC_SITE_BASE_URL: "" };
+    if (process.platform === "win32") {
+      execFileSync("cmd.exe", ["/c", "npm.cmd", ...npmArgs], { encoding: "utf8", cwd: pkgRoot, env });
+    } else {
+      execFileSync("npm", npmArgs, { encoding: "utf8", cwd: pkgRoot, env });
+    }
     const after = JSON.parse(await readFile(jsonPath, "utf8")) as {
       fake?: boolean;
       schema_version: number;
@@ -177,5 +255,68 @@ describe("regen-public-image-metadata", () => {
     expect(after.fake).toBeUndefined();
     expect(after.schema_version).toBe(1);
     expect(after.images["assets/2026-07-02/slot-01.png"]).toBeTruthy();
+  });
+
+  it("reads only the 24-byte PNG header and never readFileSyncs a png", async () => {
+    const base = "https://example.com/laundry-social-auto-poster/";
+    const root = await seedSite(base);
+    regeneratePublicImageMetadataSync(root, injected(base));
+    const pngOpens = fsProbe.openSync.filter((call) => call.path.endsWith(".png"));
+    expect(pngOpens).toHaveLength(1);
+    expect(
+      fsProbe.readFileSync.filter(([path]) => String(path).replaceAll("\\", "/").endsWith(".png"))
+    ).toEqual([]);
+    expect(fsProbe.readSync.map((args) => args[3])).toEqual([24]);
+    const fd = pngOpens[0]?.fd;
+    expect(fsProbe.closeSync.filter((closed) => closed === fd)).toHaveLength(1);
+  });
+
+  it("closes the png fd once when the header is not png", async () => {
+    const base = "https://example.com/laundry-social-auto-poster/";
+    const root = await seedSite(base);
+    await writeFile(join(root, "docs", "assets", "2026-07-02", "slot-01.png"), Buffer.alloc(24, 0x41));
+    expect(() => regeneratePublicImageMetadataSync(root, injected(base))).toThrow(
+      /assets\/2026-07-02\/slot-01\.png: not png/
+    );
+    const pngOpens = fsProbe.openSync.filter((call) => call.path.endsWith(".png"));
+    expect(pngOpens).toHaveLength(1);
+    expect(
+      fsProbe.readFileSync.filter(([path]) => String(path).replaceAll("\\", "/").endsWith(".png"))
+    ).toEqual([]);
+    const fd = pngOpens[0]?.fd;
+    expect(fsProbe.closeSync.filter((closed) => closed === fd)).toHaveLength(1);
+  });
+
+  it("rejects a png whose 8-byte signature is wrong after the first 4 bytes", async () => {
+    const base = "https://example.com/laundry-social-auto-poster/";
+    const root = await seedSite(base);
+    const pngPath = join(root, "docs", "assets", "2026-07-02", "slot-01.png");
+    const fourOk = pngHeader(1254, 1254);
+    fourOk.writeUInt32BE(0xffffffff, 4);
+    await writeFile(pngPath, fourOk);
+    expect(() => regeneratePublicImageMetadataSync(root, injected(base))).toThrow(
+      /assets\/2026-07-02\/slot-01\.png: not png/
+    );
+
+    const byte7 = pngHeader(1254, 1254);
+    byte7[7] = 0x00;
+    await writeFile(pngPath, byte7);
+    expect(() => regeneratePublicImageMetadataSync(root, injected(base))).toThrow(
+      /assets\/2026-07-02\/slot-01\.png: not png/
+    );
+  });
+
+  it("assembles a 24-byte PNG header across short readSync returns", async () => {
+    const base = "https://example.com/laundry-social-auto-poster/";
+    const root = await seedSite(base);
+    fsProbe.shortRead = true;
+    const result = regeneratePublicImageMetadataSync(root, injected(base));
+    const metadata = JSON.parse(await readFile(result.path, "utf8")) as {
+      images: Record<string, { width: number; height: number }>;
+    };
+    expect(metadata.images["assets/2026-07-02/slot-01.png"]).toMatchObject({ width: 1254, height: 1254 });
+    expect(fsProbe.readCount).toBe(2);
+    expect(fsProbe.readSync[0]?.[3]).toBe(24);
+    expect(fsProbe.readSync[1]?.[3]).toBe(14);
   });
 });

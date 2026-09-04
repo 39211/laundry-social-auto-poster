@@ -1681,11 +1681,15 @@ function isSlot2ActionCtaClosingBlock(block: string): boolean {
  * Template closers say 「可以拍寢具…給我們看」 / 「先拍包底…幫你看」 and do
  * not contain 傳 LINE|私訊|拍照|拍一張|先幫你看; the 拍 + shop-directed
  * pair is the semantic feature, not the new action-sentence literal.
+ * Owner-signed pickup value lines (免費 / 低消 / 一件也收) are not generic
+ * CTAs: the 私訊／傳 LINE tail is a soft ask on a value claim, not a photo
+ * instruction. Stripping the tail would rewrite signed copy.
  */
 export function looksLikeGenericSlot2Cta(block: string): boolean {
   if (isSlot2ActionCtaClosingBlock(block)) return false;
   if (block.startsWith("追蹤")) return false;
   if (/[？?]\s*$/.test(block)) return false;
+  if (/免費|低消|一件也收/.test(block)) return false;
   if (
     /(?:這篇)?(?:傳|轉)給他/.test(block) &&
     !/傳 LINE|拍一張|私訊|拍照|先幫你看/.test(block) &&
@@ -1697,6 +1701,11 @@ export function looksLikeGenericSlot2Cta(block: string): boolean {
     /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看/.test(block) ||
     (/拍/.test(block) && /給我們|幫你|傳來/.test(block))
   );
+}
+
+/** Owner-signed pickup value claim. Soft 私訊／傳 LINE tail stays on the sentence. */
+function isSignedOffPickupValueBlock(block: string): boolean {
+  return block.includes("沒有低消、一件也收");
 }
 
 function withSlot2ActionCta(
@@ -1712,11 +1721,10 @@ function withSlot2ActionCta(
   const body = stopIndex === -1 ? [...blocks] : blocks.slice(0, stopIndex);
   const tail = stopIndex === -1 ? [] : blocks.slice(stopIndex);
   const kept = body.filter((block) => !looksLikeGenericSlot2Cta(block));
-  if (kept[kept.length - 1] === action) {
-    return [...kept, ...tail].join("\n\n");
-  }
-  kept.push(action);
-  return [...kept, ...tail].join("\n\n");
+  const valueBlocks = kept.filter(isSignedOffPickupValueBlock);
+  const rest = kept.filter((block) => !isSignedOffPickupValueBlock(block));
+  const withoutAction = rest[rest.length - 1] === action ? rest.slice(0, -1) : rest;
+  return [...withoutAction, ...valueBlocks, action, ...tail].join("\n\n");
 }
 
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform, config?: AppConfig): string {

@@ -6,6 +6,7 @@ import { getConfig } from "../src/config";
 import {
   assertPlaybookCaptionQuality,
   buildDailyContent,
+  canonicalSeoSyncPage,
   dailySlotFromPlaybook,
   looksLikeGenericSlot2Cta,
   slot2ActionCta
@@ -141,6 +142,67 @@ const SLOT2_2026_09_07_INSTAGRAM = [
   "出處：門市當日看件",
   "直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)",
   "#私享家洗衣店 #台中西屯洗衣店 #開學季 #白鞋清潔 #台中洗鞋 #洗鞋推薦 #球鞋清洗 #台中洗衣店 #西屯 #逢甲 #台中"
+].join("\n\n");
+
+const VALUE_0909_FACEBOOK = "台中全區免費到府收，沒有低消、一件也收，傳 LINE說一聲就好。";
+const VALUE_0909_INSTAGRAM = "台中全區免費到府收，沒有低消、一件也收，私訊說一聲就好。";
+const VALUE_0926_FACEBOOK = "台中市區免費到府收送，沒有低消、一件也收，傳 LINE跟我們說你在哪一區就可以。";
+const VALUE_0926_INSTAGRAM = "台中市區免費到府收送，沒有低消、一件也收，私訊跟我們說你在哪一區就可以。";
+
+const SLOT2_2026_09_09_FACEBOOK = [
+  "七夕約會後白鞋包包檢查，門市會先確認什麼。",
+  "鞋底邊那一圈最常被跳過。它決定整雙看起來新不新。",
+  "鞋子我會先看鞋墊和後跟內側。腳汗停在那裡，比外面的灰更難處理。",
+  "你多久整理一次鞋子？",
+  "家裡鞋櫃塞滿卻幾雙都沒在穿的那個人，這篇傳給他。",
+  "追蹤私享家，之後會持續整理鞋子、包包和白鞋的日常照護判斷。",
+  VALUE_0909_FACEBOOK,
+  "拍鞋底和包角兩張傳 LINE，我們先看。",
+  "出處：門市當日看件",
+  "直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)",
+  "#私享家洗衣店 #台中西屯洗衣店 #七夕 #鞋包照護 #台中洗鞋 #洗鞋推薦 #球鞋清洗 #台中洗衣店 #西屯 #逢甲 #台中"
+].join("\n\n");
+
+const SLOT2_2026_09_09_INSTAGRAM = [
+  "七夕約會後白鞋包包檢查，門市會先確認什麼。",
+  "鞋底邊那一圈最常被跳過。它決定整雙看起來新不新。",
+  "鞋子我會先看鞋墊和後跟內側。腳汗停在那裡，比外面的灰更難處理。",
+  "你多久整理一次鞋子？",
+  "家裡鞋櫃塞滿卻幾雙都沒在穿的那個人，這篇傳給他。",
+  "追蹤私享家，之後會持續整理鞋子、包包和白鞋的日常照護判斷。",
+  VALUE_0909_INSTAGRAM,
+  "拍鞋底和包角兩張傳 LINE，我們先看。",
+  "出處：門市當日看件",
+  "直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)",
+  "#私享家洗衣店 #台中西屯洗衣店 #七夕 #鞋包照護 #台中洗鞋 #洗鞋推薦 #球鞋清洗 #台中洗衣店 #西屯 #逢甲 #台中"
+].join("\n\n");
+
+const SLOT2_2026_09_26_FACEBOOK = [
+  "每十天公開一次洗護觀察，門市會先確認什麼。",
+  "下雨和通勤是兩種不同的髒。雨痕要等乾才浮出來，汗漬則是越放越難救。",
+  "西屯通勤的客人多，我最常看到的是領口和袖口先出問題。那是每天摩擦的位置，跟洗不洗得乾淨無關。",
+  "你住西屯哪一帶？我們排收送路線時會參考。",
+  "住台中、又一直抽不出時間送洗的朋友，這篇傳給他最實用。",
+  "想每週用短影音看懂衣物、鞋包和布品細節，可以先追蹤私享家。",
+  VALUE_0926_FACEBOOK,
+  "拍整體和最在意的位置兩張傳 LINE，我們先看。",
+  "出處：門市當日看件",
+  "直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)",
+  "#私享家洗衣店 #台中西屯洗衣店 #私享家觀察 #洗護日常 #台中洗衣店 #西屯 #逢甲 #台中"
+].join("\n\n");
+
+const SLOT2_2026_09_26_INSTAGRAM = [
+  "每十天公開一次洗護觀察，門市會先確認什麼。",
+  "下雨和通勤是兩種不同的髒。雨痕要等乾才浮出來，汗漬則是越放越難救。",
+  "西屯通勤的客人多，我最常看到的是領口和袖口先出問題。那是每天摩擦的位置，跟洗不洗得乾淨無關。",
+  "你住西屯哪一帶？我們排收送路線時會參考。",
+  "住台中、又一直抽不出時間送洗的朋友，這篇傳給他最實用。",
+  "想每週用短影音看懂衣物、鞋包和布品細節，可以先追蹤私享家。",
+  VALUE_0926_INSTAGRAM,
+  "拍整體和最在意的位置兩張傳 LINE，我們先看。",
+  "出處：門市當日看件",
+  "直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)",
+  "#私享家洗衣店 #台中西屯洗衣店 #私享家觀察 #洗護日常 #台中洗衣店 #西屯 #逢甲 #台中"
 ].join("\n\n");
 
 describe("slot2ActionCta", () => {
@@ -288,6 +350,75 @@ describe("slot 2 captions before 2026-09-08 stay frozen", () => {
   });
 });
 
+describe("signed-off pickup value sentence stays, action follows it", () => {
+  const cases = [
+    {
+      date: "2026-09-09",
+      facebook: SLOT2_2026_09_09_FACEBOOK,
+      instagram: SLOT2_2026_09_09_INSTAGRAM,
+      valueFacebook: VALUE_0909_FACEBOOK,
+      valueInstagram: VALUE_0909_INSTAGRAM,
+      action: "拍鞋底和包角兩張傳 LINE，我們先看。"
+    },
+    {
+      date: "2026-09-26",
+      facebook: SLOT2_2026_09_26_FACEBOOK,
+      instagram: SLOT2_2026_09_26_INSTAGRAM,
+      valueFacebook: VALUE_0926_FACEBOOK,
+      valueInstagram: VALUE_0926_INSTAGRAM,
+      action: "拍整體和最在意的位置兩張傳 LINE，我們先看。"
+    }
+  ] as const;
+
+  it("keeps the 09-09 and 09-26 value sentences and puts the action immediately after", () => {
+    for (const row of cases) {
+      const content = buildDailyContent(row.date, config);
+      const slot2 = content.slots.find((slot) => slot.slot === 2)!;
+      expect(slot2ActionCta(slot2.topic), row.date).toBe(row.action);
+      expect(slot2.facebook_caption, `${row.date} facebook`).toBe(row.facebook);
+      expect(slot2.instagram_caption, `${row.date} instagram`).toBe(row.instagram);
+      for (const [caption, value] of [
+        [slot2.facebook_caption, row.valueFacebook],
+        [slot2.instagram_caption, row.valueInstagram]
+      ] as const) {
+        const blocks = caption.split("\n\n");
+        const valueIndex = blocks.indexOf(value);
+        const actionIndex = blocks.indexOf(row.action);
+        expect(valueIndex, `${row.date} value`).toBeGreaterThan(-1);
+        expect(actionIndex, `${row.date} action after value`).toBe(valueIndex + 1);
+        expect(lastBodyParagraph(caption)).toBe(row.action);
+        expect(caption).toContain("免費");
+        expect(caption).toContain("沒有低消、一件也收");
+      }
+    }
+  });
+
+  it("does not treat the signed-off value sentence as a generic CTA", () => {
+    expect(looksLikeGenericSlot2Cta(VALUE_0909_FACEBOOK)).toBe(false);
+    expect(looksLikeGenericSlot2Cta(VALUE_0909_INSTAGRAM)).toBe(false);
+    expect(looksLikeGenericSlot2Cta(VALUE_0926_FACEBOOK)).toBe(false);
+    expect(looksLikeGenericSlot2Cta(VALUE_0926_INSTAGRAM)).toBe(false);
+  });
+
+  it("mutation: dropping the 免費/低消/一件也收 keep deletes both full-text cases", () => {
+    expect(CONTENT_PLAN_SRC).toMatch(/免費\|低消\|一件也收/);
+    expect(looksLikeGenericSlot2Cta(VALUE_0909_INSTAGRAM)).toBe(false);
+    expect(looksLikeGenericSlot2CtaR3(VALUE_0909_INSTAGRAM)).toBe(true);
+    expect(looksLikeGenericSlot2Cta(VALUE_0926_FACEBOOK)).toBe(false);
+    expect(looksLikeGenericSlot2CtaR3(VALUE_0926_FACEBOOK)).toBe(true);
+    const content = buildDailyContent("2026-09-09", config);
+    const slot2 = content.slots.find((slot) => slot.slot === 2)!;
+    expect(slot2.facebook_caption).toContain(VALUE_0909_FACEBOOK);
+    const dropped = slot2.facebook_caption
+      .split("\n\n")
+      .filter((block) => !looksLikeGenericSlot2CtaR3(block))
+      .join("\n\n");
+    expect(dropped).not.toContain("沒有低消、一件也收");
+    expect(dropped).not.toContain("免費");
+    expect(dropped).not.toContain(VALUE_0909_FACEBOOK);
+  });
+});
+
 const PHOTO_QUESTION = "你送洗前會先拍照嗎？";
 
 function looksLikeGenericSlot2CtaWithoutQuestionKeep(block: string): boolean {
@@ -315,6 +446,34 @@ function looksLikeGenericSlot2CtaR2(block: string): boolean {
     return false;
   }
   return /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看/.test(block);
+}
+
+/** r3 detector: same as production minus the 免費/低消/一件也收 keep. */
+function looksLikeGenericSlot2CtaR3(block: string): boolean {
+  if (isSlot2ClosingBlock(block)) return false;
+  if (block.startsWith("追蹤")) return false;
+  if (/[？?]\s*$/.test(block)) return false;
+  if (
+    /(?:這篇)?(?:傳|轉)給他/.test(block) &&
+    !/傳 LINE|拍一張|私訊|拍照|先幫你看/.test(block) &&
+    !(/拍/.test(block) && /給我們|幫你|傳來/.test(block))
+  ) {
+    return false;
+  }
+  return (
+    /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看/.test(block) ||
+    (/拍/.test(block) && /給我們|幫你|傳來/.test(block))
+  );
+}
+
+function originalSlot2ActionCtaHadFree(date: string, seoPage: string | undefined): boolean {
+  const page = canonicalSeoSyncPage(seoPage);
+  const index = Math.floor(Date.parse(`${date}T00:00:00.000Z`) / 86_400_000);
+  if (page.includes("white-shoe") || page.includes("shoe-bag")) return index % 3 === 2;
+  if (page.includes("taichung-citywide-laundry-pickup") || page.includes("taichung-xitun")) {
+    return index % 2 === 0;
+  }
+  return false;
 }
 
 function slot2ActionCtaWithBareBao(topic: string): string {
@@ -549,9 +708,17 @@ describe("K-F6/O-F4/K-F5 90-day slot-2 loop", () => {
         eligibleCaptions.push(caption);
         const expected = slot2ActionCta(slot2.topic);
         expect(actionSentenceCount(caption), `${date} actions`).toBe(1);
-        expect(chuanLineOutsideContact(caption), `${date} 傳 LINE`).toBe(1);
+        const valueChuan = caption
+          .split("\n\n")
+          .filter((block) => block.includes("沒有低消、一件也收") && block.includes("傳 LINE")).length;
+        expect(chuanLineOutsideContact(caption), `${date} 傳 LINE`).toBe(1 + valueChuan);
         expect(lastBodyParagraph(caption)).toBe(expected);
         expect(photoInstructionBlocksOutsideContact(caption), `${date} 拍-asks`).toEqual([expected]);
+        const beforeHadFree =
+          originalSlot2ActionCtaHadFree(date, slot2.seo_sync_page) || caption.includes("免費");
+        if (beforeHadFree) {
+          expect(caption, `${date} keeps 免費`).toContain("免費");
+        }
         for (const block of caption.split("\n\n")) {
           if (ACTION_SENTENCE_RE.test(block)) {
             actionCounts.set(block, (actionCounts.get(block) ?? 0) + 1);
@@ -567,6 +734,29 @@ describe("K-F6/O-F4/K-F5 90-day slot-2 loop", () => {
     expect(forcedSame, "all eligible captions forced onto one variant").toBeGreaterThan(
       eligibleCaptions.length / 2
     );
+  });
+
+  it("mutation: r3 detector drops 免費 from captions whose original closer was the value sentence", () => {
+    expect(CONTENT_PLAN_SRC).toMatch(/免費\|低消\|一件也收/);
+    const lost: string[] = [];
+    for (const date of utcDatesInclusive("2026-09-08", "2026-10-08")) {
+      const content = buildDailyContent(date, config);
+      const slot2 = content.slots.find((item) => item.slot === 2)!;
+      if (slot2.format === "reel") continue;
+      if (!originalSlot2ActionCtaHadFree(date, slot2.seo_sync_page)) continue;
+      for (const [platform, caption] of [
+        ["facebook", slot2.facebook_caption],
+        ["instagram", slot2.instagram_caption]
+      ] as const) {
+        expect(caption, `${date} ${platform} keeps 免費`).toContain("免費");
+        const r3Caption = caption
+          .split("\n\n")
+          .filter((block) => !looksLikeGenericSlot2CtaR3(block))
+          .join("\n\n");
+        if (!r3Caption.includes("免費")) lost.push(`${date} ${platform}`);
+      }
+    }
+    expect(lost.length, "r3 must actually drop 免費 on the value-sentence days").toBeGreaterThan(0);
   });
 });
 

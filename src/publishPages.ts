@@ -8,6 +8,7 @@ import { assertLocalSitemapHasNoFutureLastmod } from "./auditSitemap";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { docsContentCalendarPath, projectRoot, relativeAssetPath } from "./paths";
+import { regeneratePublicImageMetadataSync } from "./publicImageMetadata";
 import { getZonedDateParts } from "./scheduler";
 import { submitIndexNow } from "./submitIndexNow";
 
@@ -558,10 +559,17 @@ export function publishPagesAssets(
   const pathsToPublish = uniquePaths([...paths, ...referencedDocsPaths]);
   // Missing CNAME must still be staged on the source so a later clone cannot
   // resurrect it. Do not pass the missing path to the root mirror copy.
-  const sourcePathsToStage = uniquePaths([...pathsToPublish, ...sourceCnameTombstonePaths(root)]);
+  const sourcePathsToStage = uniquePaths([
+    ...pathsToPublish,
+    ...sourceCnameTombstonePaths(root),
+    "docs-internal/public-image-metadata.json"
+  ]);
 
   assertNoForbiddenStagedPaths(root);
   assertNoSecretsInPublishTargets(root, pathsToPublish);
+
+  mkdirSync(join(root, "docs-internal"), { recursive: true });
+  regeneratePublicImageMetadataSync(root);
 
   gitAddPaths(root, sourcePathsToStage);
   // The mirror is what actually serves the public site, and it can be behind

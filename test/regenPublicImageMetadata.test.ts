@@ -43,7 +43,7 @@ async function seedSite(base: string): Promise<string> {
 }
 
 function run(root: string, env: Record<string, string> = {}): string {
-  return execFileSync(process.execPath, [SCRIPT, root], {
+  return execFileSync(process.execPath, ["--import", "tsx", SCRIPT, root], {
     encoding: "utf8",
     env: { ...process.env, PUBLIC_SITE_BASE_URL: "", ...env }
   });

@@ -43,6 +43,18 @@ function makeGitRepo(): { root: string; origin: string } {
   return { root, origin };
 }
 
+/** Minimal PNG: signature + IHDR with the given size (header-only, matching regen tests). */
+function pngHeader(width: number, height: number): Buffer {
+  const buf = Buffer.alloc(24);
+  buf.writeUInt32BE(0x89504e47, 0);
+  buf.writeUInt32BE(0x0d0a1a0a, 4);
+  buf.writeUInt32BE(13, 8);
+  buf.write("IHDR", 12, "ascii");
+  buf.writeUInt32BE(width, 16);
+  buf.writeUInt32BE(height, 20);
+  return buf;
+}
+
 function writeSitemap(root: string, lastmod: string): void {
   mkdirSync(join(root, "docs"), { recursive: true });
   writeFileSync(
@@ -715,4 +727,42 @@ describe("publishPagesAssets", () => {
     expect(git(sourceOrigin, ["rev-parse", "refs/heads/main"])).toBe(sourceOriginHead);
     expect(git(rootPagesOrigin, ["rev-parse", "refs/heads/main"])).toBe(rootPagesHead);
   }, 30000);
+
+  gitIt("regenerates public image metadata into the source Pages commit and keeps it off the root mirror", () => {
+    const { root } = makeGitRepo();
+    const { origin: rootPagesOrigin } = makeGitRepo();
+    const date = "2026-05-15";
+
+    mkdirSync(join(root, "docs", "assets", date), { recursive: true });
+    mkdirSync(join(root, "docs", "content-calendar"), { recursive: true });
+    mkdirSync(join(root, "docs-internal"), { recursive: true });
+    writeFileSync(join(root, "docs", "assets", date, "slot-01.png"), pngHeader(1254, 1254));
+    writeFileSync(join(root, "docs", "assets", date, "slot-01.webp"), "webp");
+    writeFileSync(
+      join(root, "docs", "index.html"),
+      `<!doctype html><img src="https://example.com/assets/${date}/slot-01.png" width="1254" height="1254">\n`
+    );
+    writeFileSync(join(root, "docs", "content-calendar", `${date}.json`), '{"slots":[]}\n');
+    writeSitemap(root, "2026-01-01");
+
+    const result = publishPagesAssets(date, root, rootPagesOrigin);
+    expect(result).toContain("Published GitHub Pages assets");
+    expect(git(root, ["log", "-1", "--pretty=%s"])).toBe(`Generate daily Pages assets ${date}`);
+
+    const committed = git(root, ["log", "-1", "--name-only", "--pretty=format:"]);
+    expect(committed).toContain("docs-internal/public-image-metadata.json");
+    const metadata = JSON.parse(git(root, ["show", "HEAD:docs-internal/public-image-metadata.json"])) as {
+      images: Record<string, { width: number; height: number; webp_path: string }>;
+    };
+    expect(metadata.images[`assets/${date}/slot-01.png`]).toEqual({
+      width: 1254,
+      height: 1254,
+      webp_path: `assets/${date}/slot-01.webp`
+    });
+
+    const mirrorTree = git(rootPagesOrigin, ["ls-tree", "-r", "main", "--name-only"]);
+    expect(mirrorTree).not.toContain("docs-internal");
+    expect(mirrorTree).not.toContain("public-image-metadata.json");
+    expect(mirrorTree).toContain("index.html");
+  }, 45000);
 });

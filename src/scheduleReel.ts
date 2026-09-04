@@ -32,6 +32,7 @@ import {
   loadExtensions,
   priorAirings,
   promptFor,
+  splitNarrationSentences,
   type ReelConcept
 } from "./reelConcepts";
 import { getZonedDateParts } from "./scheduler";
@@ -136,10 +137,9 @@ export function captionsFor(
   // insight data measured -50%+ views on unchanged reruns. Same facts, other
   // arrangement — the craftsman's diagnostic sentence takes the fold and the
   // hook closes instead of opening. No new claims are invented.
-  const narrationEnd = concept.narration.indexOf("。");
-  const narrationLead =
-    narrationEnd === -1 ? concept.narration : concept.narration.slice(0, narrationEnd + 1);
-  const narrationRest = narrationEnd === -1 ? "" : concept.narration.slice(narrationEnd + 1);
+  const narrationParts = splitNarrationSentences(concept.narration);
+  const narrationLead = narrationParts[0] ?? concept.narration;
+  const narrationRest = narrationParts.slice(1).join("");
   const opening =
     airedBefore > 0
       ? [narrationLead, `${narrationRest ? narrationRest + "\n\n" : ""}${concept.hook}。`]

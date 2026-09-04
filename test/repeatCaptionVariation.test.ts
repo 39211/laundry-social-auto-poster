@@ -1,43 +1,76 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { linePostRedirectUrl } from "../src/contentPlan";
 import { captionsFor } from "../src/scheduleReel";
-import { REEL_SCHEDULE, loadExtensions, priorAirings, type ReelConcept } from "../src/reelConcepts";
+import {
+  REEL_CONCEPTS,
+  REEL_SCHEDULE,
+  loadExtensions,
+  priorAirings,
+  splitNarrationSentences,
+  type ReelConcept
+} from "../src/reelConcepts";
 
 // The 8/16 insight rows measured what an unchanged rerun costs: 精品包 217→93
 // views, 後背包 202→92. The cooldown spaces reruns 21 days apart; these tests
 // pin the other half of the fix — the second airing must not reprint the
 // first one's caption, and the shared caption rules (tappable link, price
 // line, hashtag ladder) must survive both arrangements.
-
-const concept: ReelConcept = {
-  id: "test-suede",
-  object_type: "shoes",
-  hook: "麂皮鞋摸起來變硬",
-  close: "麂皮鞋 400 起,不確定材質先拍給我。",
-  narration:
-    "絨毛倒了就會發硬發亮,那不是髒。洗完得把整片絨面重新刷順才回得來,用濕布擦只會把它壓得更平。",
-  before_subject: "a tan suede shoe",
-  after_subject: "the same shoe restored",
-};
+//
+// O-F1: captionsFor must split on the same sentence boundary as subtitles
+// (splitNarrationSentences). A hardcoded narration copy would keep passing
+// after the live first sentence became a ？.
 
 describe("re-airing caption variation", () => {
-  const first = captionsFor(concept, 0, "2026-08-17");
-  const rerun = captionsFor(concept, 1, "2026-08-17");
+  const baselineConcepts = REEL_CONCEPTS.length;
+  const baselineSchedule = REEL_SCHEDULE.length;
+  let concept: ReelConcept;
+  let firstSentence: string;
+  let first: { instagram: string; facebook: string };
+  let rerun: { instagram: string; facebook: string };
+
+  beforeAll(() => {
+    loadExtensions();
+    const live = REEL_CONCEPTS.find((entry) => entry.id === "suede-shoe-nap");
+    if (!live) {
+      throw new Error("suede-shoe-nap missing after loadExtensions");
+    }
+    concept = live;
+    firstSentence = splitNarrationSentences(concept.narration)[0] ?? "";
+    first = captionsFor(concept, 0, "2026-08-17");
+    rerun = captionsFor(concept, 1, "2026-08-17");
+  });
+
+  afterAll(() => {
+    REEL_CONCEPTS.length = baselineConcepts;
+    REEL_SCHEDULE.length = baselineSchedule;
+  });
 
   it("writes a different caption for the second airing", () => {
     expect(rerun.instagram).not.toBe(first.instagram);
     expect(rerun.facebook).not.toBe(first.facebook);
   });
 
-  it("changes the fold: first airing leads with the hook, the rerun with the diagnostic", () => {
-    expect(first.instagram.startsWith("麂皮鞋摸起來變硬。")).toBe(true);
-    expect(rerun.instagram.startsWith("絨毛倒了就會發硬發亮,那不是髒。")).toBe(true);
+  it("changes the fold: first airing leads with the hook, the rerun with the first narration sentence", () => {
+    expect(first.instagram.startsWith(`${concept.hook}。`)).toBe(true);
+    expect(firstSentence.endsWith("？"), `live opener is not a question: ${firstSentence}`).toBe(true);
+    expect(rerun.instagram.startsWith(firstSentence)).toBe(true);
+    // Mutation: captionsFor back to indexOf("。") swallows the rest of the
+    // first period-terminated span, so the rerun would start with that longer
+    // lead instead of the ？ sentence alone.
+    const periodAt = concept.narration.indexOf("。");
+    expect(periodAt).toBeGreaterThan(firstSentence.length - 1);
+    const periodLead = concept.narration.slice(0, periodAt + 1);
+    expect(periodLead.startsWith(firstSentence)).toBe(true);
+    expect(periodLead.length).toBeGreaterThan(firstSentence.length);
+    expect(rerun.instagram.startsWith(periodLead)).toBe(false);
   });
 
   it("invents nothing: the rerun still carries the same hook and full narration text", () => {
-    expect(rerun.instagram).toContain("麂皮鞋摸起來變硬。");
-    expect(rerun.instagram).toContain("那不是髒。");
-    expect(rerun.instagram).toContain("用濕布擦只會把它壓得更平。");
+    const rest = splitNarrationSentences(concept.narration).slice(1).join("");
+    expect(rerun.instagram).toContain(`${concept.hook}。`);
+    expect(rerun.instagram).toContain(firstSentence);
+    expect(rest.length).toBeGreaterThan(0);
+    expect(rerun.instagram).toContain(rest);
   });
 
   it("keeps the shared caption rules alive in both arrangements", () => {

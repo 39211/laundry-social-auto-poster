@@ -39,3 +39,17 @@ describe("captionsFor LINE post redirect", () => {
     expect(stripped.includes("source=post")).toBe(false);
   });
 });
+
+describe("captionsFor re-airing lead (O-F1)", () => {
+  it("takes the first sentence even when it ends with ？, not the first 。", () => {
+    const questioned: ReelConcept = {
+      ...concept,
+      narration: "絨毛倒了發硬發亮,那是髒嗎？那不是髒。洗完得把絨面重新刷順才回得來。"
+    };
+    const rerun = captionsFor(questioned, 1, "2026-08-17");
+    expect(rerun.instagram.startsWith("絨毛倒了發硬發亮,那是髒嗎？")).toBe(true);
+    // indexOf("。") would swallow through 那不是髒。 and this would go green
+    // for the wrong splitter.
+    expect(rerun.instagram.startsWith("絨毛倒了發硬發亮,那是髒嗎？那不是髒。")).toBe(false);
+  });
+});

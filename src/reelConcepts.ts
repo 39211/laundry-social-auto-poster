@@ -36,7 +36,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     hook: "先看鞋邊那圈膠",
     close: "膠邊氧化刷不掉，拍來看能不能救",
     narration:
-      "兩個位置做法是不是差很多？膠邊是氧化刷不掉；布面洗劑殘留才洗得回來。運動鞋兩百五起，台中收送。",
+      "黃長在兩個位置，做法一樣嗎？膠邊是氧化刷不掉；布面洗劑殘留才洗得回來。運動鞋兩百五起，台中收送。",
     before_subject:
       "one pair of unbranded white sneakers, midsole foxing oxidised to uneven amber darkest near the ground, two grey abrasion bands across the toe-box canvas that soap will not lift, a dark sweat ring around each metal lace eyelet, laces faded from white to grey-beige with cracked plastic aglets",
     after_subject:
@@ -71,7 +71,8 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "plush-doll",
     hook: "先看五官是繡是黏",
     close: "黏的五官怕脫水，私訊我們",
-    narration: "娃娃能不能洗？怕的不是水，是脫水。填充會結塊，五官會掉。手洗低溫烘，五官先固定，拍來報價。",
+    narration:
+      "娃娃是不是不能洗？不是不能洗，怕的不是水，是脫水。填充會結塊，五官會掉。手洗低溫烘，五官先固定，拍來報價。",
     before_subject:
       "one unbranded plush toy, fur on the hugged cheek and belly flattened into a dull grey mat, a darker soil ring around the neck seam, one glass eye with a single dusty catchlight",
     after_subject:
@@ -83,7 +84,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     hook: "先聞棉被中間那層",
     close: "中間層沒乾就有味道，台中收送",
     narration:
-      "摸乾了是不是別急著收？中間那層不一定乾。帶著濕氣收進櫃子，下一季打開就是那個味道。雙人棉被五百，免費到府收送。",
+      "摸乾了，就能收了嗎？中間那層不一定乾。帶著濕氣收進櫃子，下一季打開就是那個味道。雙人棉被五百，免費到府收送。",
     before_subject:
       "one folded duvet with a fabric storage bag beside it, cover fabric limp with a dull grey film along the fold edges, loft compressed in the centre so the quilting channels look empty",
     after_subject:
@@ -94,7 +95,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "leather-bag",
     hook: "先看四個角的邊油",
     close: "邊油磨掉只能重上，拍四個角",
-    narration: "邊油還剩多少是不是該看？磨掉就補不回來，只能重新上。能清潔的時間很短。名牌包一千五起，補色另計。",
+    narration: "邊油是不是快磨光了？磨掉就補不回來，只能重新上。能清潔的時間很短。名牌包一千五起，補色另計。",
     before_subject:
       "a close view of one unbranded leather bag corner, edge-paint worn through to pale fibre along the bottom arris, a scuff cloud on the face panel just above the corner, hardware leaving a faint rub ring on the leather",
     after_subject:
@@ -120,7 +121,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "suit",
     hook: "先看肩線有沒有塌",
     close: "肩襯塌了回不來，台中收送",
-    narration: "掛錯衣架肩線會不會先變？肩襯塌下去就回不來。趁還有形先保養，比事後修補便宜。拍肩線給我們報價。",
+    narration: "掛錯衣架，肩線是不是會先變？肩襯塌下去就回不來。趁還有形先保養，比事後修補便宜。拍肩線給我們報價。",
     before_subject:
       "one suit jacket on a padded hanger, shoulder line collapsed so the pad ridge droops, lapel roll creased into a sharp fold, a shine patch on the outer shoulder from bag-strap rub",
     after_subject:
@@ -131,7 +132,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "curtain",
     hook: "先摸窗簾下緣那折",
     close: "積在下緣那折，不用自己拆我們收",
-    narration: "家裡有味道從哪裡來？十次有八次是窗簾下緣那一折。灰塵和濕氣積在裡面，摸起來乾而已。整片我們收。",
+    narration: "家裡的味道是從哪裡來的？十次有八次是窗簾下緣那一折。灰塵和濕氣積在裡面，摸起來乾而已。整片我們收。",
     before_subject:
       "the lower hem section of one curtain panel spread on the counter, a dust gradient packed into the hem fold darkest at the floor edge, a sun-fade band just above the fold, weave still readable",
     after_subject:
@@ -153,7 +154,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "backpack",
     hook: "先看後背包底部那面",
     close: "底部地面灰、背帶汗鹽，私訊我們",
-    narration: "天天貼地是不是沒人洗？背帶的汗鹽和底部的地面灰是兩種，一起洗才有用。背包五百，開學前送洗來得及。",
+    narration: "天天貼地的那一面，你洗過嗎？背帶汗鹽、底部地面灰是兩種，一起洗才有用。背包五百，開學前送洗來得及。",
     before_subject:
       "one fabric backpack tipped to show its base, a ground-grime crust across the bottom panel, strap-pad darkened with a salt sweat line, stitching at the base corners slightly stressed",
     after_subject:
@@ -164,7 +165,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "canvas-shoe",
     hook: "先看帆布鞋泥乾了沒",
     close: "濕時刷泥會推進織紋，拍來看",
-    narration: "泥還濕是不是別動它？濕的時候刷，泥會被推進織紋裡，布面起毛。等乾了整塊剝掉反而好救。帆布鞋兩百五起。",
+    narration: "泥還濕的時候，可以動它嗎？濕的時候刷，泥會被推進織紋裡，布面起毛。等乾了整塊剝掉反而好救。帆布鞋兩百五起。",
     before_subject:
       "one pair of canvas shoes, dried mud packed into the woven toe and foxing stitch line, canvas faded at the flex crease, a grey dirt ring along the rubber foxing",
     after_subject:

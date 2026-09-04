@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { projectRoot } from "../src/paths";
 import {
   BATCH_ONE,
   BATCH_TWO,
@@ -13,6 +16,7 @@ import {
   splitNarrationSentences,
   stillPathsFor
 } from "../src/reelConcepts";
+import { SUB_MAX_CHARS, splitNarration } from "../src/reelSubtitles";
 
 describe("reel concepts", () => {
   it("covers six distinct object types so no two Reels look alike", () => {
@@ -345,47 +349,103 @@ describe("reel concept story structure (loop + delayed reveal)", () => {
   });
 });
 
-// Knob 2A (2026-09-05): spoken first sentence is a question. Nine extension
-// concepts cannot satisfy 6–18 chars AND the 45-char admission floor AND ±6
-// total change at once; they keep the original statement (PARTIAL).
-const NARRATION_QUESTION_PARTIAL = new Set([
-  "down-jacket-cuff",
-  "wool-coat-shoulder",
-  "heel-tip-scuff",
-  "denim-knee-fade",
-  "wallet-edge-wear",
-  "kids-shoe-toe",
-  "hiking-boot-mud",
-  "sweater-underarm",
-  "white-shoe-rescue"
-]);
+// Knob 2A r2 (2026-09-05): first spoken sentence is a question for every
+// concept. Length is 6–24 so a comma-split question can still fit the
+// 45–60 admission window; 起/保證/一定 stay banned in the opener.
+const SUB_CLAUSE_BREAK = /(?<=[。！？!?，,、；;：:…])/u;
+
+function readExtensionFile(): {
+  concepts: Array<{ id: string; narration: string }>;
+  schedule: unknown[];
+} {
+  return JSON.parse(
+    readFileSync(join(projectRoot(), "data", "reel-concepts-extension.json"), "utf8").replace(
+      /^\uFEFF/,
+      ""
+    )
+  ) as { concepts: Array<{ id: string; narration: string }>; schedule: unknown[] };
+}
+
+function assertQuestionOpener(id: string, narration: string): string {
+  const first = splitNarrationSentences(narration)[0] ?? "";
+  expect(first.endsWith("？"), `${id} first sentence is not a question: ${first}`).toBe(true);
+  expect(first.length, `${id} first length ${first.length}: ${first}`).toBeGreaterThanOrEqual(6);
+  expect(first.length, `${id} first length ${first.length}: ${first}`).toBeLessThanOrEqual(24);
+  expect(first.includes("起"), `${id} first contains 起: ${first}`).toBe(false);
+  expect(first.includes("保證"), `${id} first contains 保證: ${first}`).toBe(false);
+  expect(first.includes("一定"), `${id} first contains 一定: ${first}`).toBe(false);
+  return first;
+}
 
 describe("reel narration first sentence is a question (knob 2A)", () => {
-  it("ends with ？, stays 6-18 chars, and avoids 起/保證/一定", () => {
+  it("ends with ？, stays 6-24 chars, and avoids 起/保證/一定", () => {
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      expect(REEL_CONCEPTS.length).toBe(26);
+      for (const concept of REEL_CONCEPTS) {
+        assertQuestionOpener(concept.id, concept.narration);
+      }
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+});
+
+describe("extension file question shape and loader admission (K-F5 / O-F6)", () => {
+  it("asserts every JSON concept, not only the ones the loader already kept", () => {
+    const extFile = readExtensionFile();
+    expect(extFile.concepts.length).toBeGreaterThan(0);
+
     const baselineConcepts = REEL_CONCEPTS.length;
     const baselineSchedule = REEL_SCHEDULE.length;
     const report = loadExtensions();
     try {
-      expect(report.accepted_concepts).toEqual(
-        expect.arrayContaining([...NARRATION_QUESTION_PARTIAL])
+      const ids = extFile.concepts.map((entry) => entry.id).sort();
+      expect(report.rejected, `rejected: ${report.rejected.join(" | ")}`).toEqual([]);
+      expect([...report.accepted_concepts].sort()).toEqual(ids);
+      expect(report.accepted_dates).toHaveLength(extFile.schedule.length);
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+
+    for (const entry of extFile.concepts) {
+      assertQuestionOpener(entry.id, entry.narration);
+      expect(entry.narration.length, `${entry.id} narration ${entry.narration.length}`).toBeGreaterThanOrEqual(
+        47
       );
+      expect(entry.narration.length, `${entry.id} narration ${entry.narration.length}`).toBeLessThanOrEqual(
+        60
+      );
+    }
+  });
+});
+
+describe("narration subtitle cards (O-F2)", () => {
+  it("never starts a card with ？ and never hard-wraps a clause", () => {
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
       for (const concept of REEL_CONCEPTS) {
-        const first = splitNarrationSentences(concept.narration)[0] ?? "";
-        if (NARRATION_QUESTION_PARTIAL.has(concept.id)) {
-          continue;
+        const segments = splitNarration(concept.narration);
+        for (const segment of segments) {
+          expect(segment.startsWith("？"), `${concept.id} card starts with ？: ${segment}`).toBe(false);
         }
-        expect(first.endsWith("？"), `${concept.id} first sentence is not a question: ${first}`).toBe(
-          true
-        );
-        expect(first.length, `${concept.id} first length ${first.length}: ${first}`).toBeGreaterThanOrEqual(
-          6
-        );
-        expect(first.length, `${concept.id} first length ${first.length}: ${first}`).toBeLessThanOrEqual(
-          18
-        );
-        expect(first.includes("起"), `${concept.id} first contains 起: ${first}`).toBe(false);
-        expect(first.includes("保證"), `${concept.id} first contains 保證: ${first}`).toBe(false);
-        expect(first.includes("一定"), `${concept.id} first contains 一定: ${first}`).toBe(false);
+        const clauses = concept.narration
+          .replace(/\s+/gu, " ")
+          .trim()
+          .split(SUB_CLAUSE_BREAK)
+          .filter((clause) => clause.length > 0);
+        for (const clause of clauses) {
+          expect(
+            clause.length,
+            `${concept.id} clause hard-wraps (${clause.length}): ${clause}`
+          ).toBeLessThanOrEqual(SUB_MAX_CHARS);
+        }
       }
     } finally {
       REEL_CONCEPTS.length = baselineConcepts;

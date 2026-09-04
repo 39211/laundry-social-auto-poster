@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
 // Importing config for its side effect: it loads .env, and this module reads
@@ -49,8 +49,8 @@ export interface YouTubeAnalyticsVideoRow {
   video_id: string;
   title: string;
   published_at: string;
-  privacy_status: string;
-  upload_status: string;
+  privacy_status: string | null;
+  upload_status: string | null;
   metrics_status: YouTubeMetricsStatus;
   views: number | null;
   estimated_minutes_watched: number | null;
@@ -58,7 +58,14 @@ export interface YouTubeAnalyticsVideoRow {
   average_view_percentage: number | null;
   impressions: typeof IMPRESSIONS_NOT_AVAILABLE;
   reason?: string;
+  status_reason?: string;
 }
+
+type VideoStatusRecord = {
+  privacy_status: string | null;
+  upload_status: string | null;
+  status_reason?: string;
+};
 
 export interface YouTubeAnalyticsReport {
   date: string;
@@ -166,24 +173,54 @@ function formatCaughtError(error: unknown): string {
 
 function reasonFromError(error: unknown): string {
   const message = formatCaughtError(error);
-  if (
-    (error instanceof GoogleHttpError && error.status === 403) ||
-    /insufficient|scope/i.test(message)
-  ) {
+  const status = error instanceof GoogleHttpError ? error.status : undefined;
+  if (status === 401 || status === 403 || /insufficient|scope/i.test(message)) {
     return `${message}. Next: run npm run youtube-auth to re-consent youtube.upload youtube.readonly yt-analytics.readonly.`;
   }
   return message;
+}
+
+function isFullyMeasured(video: YouTubeAnalyticsVideoRow): boolean {
+  return video.metrics_status === "measured" && !video.status_reason;
+}
+
+function measuredVideoCount(videos: Array<{ metrics_status?: string }> | undefined): number {
+  if (!Array.isArray(videos)) return 0;
+  return videos.filter((video) => video?.metrics_status === "measured").length;
 }
 
 function deriveReportStatus(videos: YouTubeAnalyticsVideoRow[]): YouTubeReportStatus {
   if (videos.length === 0) return "measured";
   let measured = 0;
   for (const video of videos) {
-    if (video.metrics_status === "measured") measured += 1;
+    if (isFullyMeasured(video)) measured += 1;
   }
   if (measured === videos.length) return "measured";
   if (measured > 0) return "partial";
   return "unmeasured";
+}
+
+function composeReportReason(videos: YouTubeAnalyticsVideoRow[]): string | undefined {
+  const failed = videos.filter(
+    (video) => Boolean(video.status_reason) || video.metrics_status !== "measured"
+  );
+  if (failed.length === 0) return undefined;
+  const first = videos.find((video) => video.status_reason || video.reason);
+  const message = first?.status_reason ?? first?.reason;
+  if (!message) return undefined;
+  return `${message} (${failed.length} videos failed)`;
+}
+
+async function measuredCountOnDisk(path: string): Promise<number> {
+  try {
+    const raw = await readFile(path, "utf8");
+    const parsed = JSON.parse(raw.replace(/^\uFEFF/u, "")) as {
+      videos?: Array<{ metrics_status?: string }>;
+    };
+    return measuredVideoCount(parsed.videos);
+  } catch {
+    return 0;
+  }
 }
 
 function nullMetricFields(): Pick<
@@ -203,8 +240,8 @@ function placeholderRow(entry: YouTubeLogEntry, reason: string): YouTubeAnalytic
     video_id: (entry.video_id ?? "").trim(),
     title: entry.title ?? "",
     published_at: publishedAt(entry),
-    privacy_status: "not-found",
-    upload_status: "not-found",
+    privacy_status: null,
+    upload_status: null,
     metrics_status: "pending",
     ...nullMetricFields(),
     impressions: IMPRESSIONS_NOT_AVAILABLE,
@@ -397,24 +434,12 @@ async function fetchVideoStatuses(input: {
   token: string;
   fetchImpl: typeof fetch;
   timeoutMs: number;
-}): Promise<Map<string, { privacy_status: string; upload_status: string }>> {
-  const map = new Map<string, { privacy_status: string; upload_status: string }>();
+  budgetMs: number;
+  startedMs: number;
+  nowMs: () => number;
+}): Promise<Map<string, VideoStatusRecord>> {
+  const map = new Map<string, VideoStatusRecord>();
   const auth = { Authorization: `Bearer ${input.token}` };
-
-  const applyPayload = (payload: unknown): void => {
-    const items = (
-      payload as {
-        items?: Array<{ id?: string; status?: { privacyStatus?: string; uploadStatus?: string } }>;
-      }
-    ).items ?? [];
-    for (const item of items) {
-      if (!item.id) continue;
-      map.set(item.id, {
-        privacy_status: item.status?.privacyStatus || "not-found",
-        upload_status: item.status?.uploadStatus || "not-found"
-      });
-    }
-  };
 
   const request = async (idParam: string): Promise<unknown> => {
     const videosUrl = new URL(VIDEOS_URL);
@@ -423,27 +448,51 @@ async function fetchVideoStatuses(input: {
     return fetchJson(input.fetchImpl, videosUrl.toString(), { headers: auth }, input.timeoutMs);
   };
 
-  try {
-    for (let offset = 0; offset < input.ids.length; offset += VIDEO_STATUS_BATCH_SIZE) {
-      const slice = input.ids.slice(offset, offset + VIDEO_STATUS_BATCH_SIZE);
-      applyPayload(await request(slice.join(",")));
+  const applySuccessPayload = (batchIds: string[], payload: unknown): void => {
+    const items =
+      (
+        payload as {
+          items?: Array<{ id?: string; status?: { privacyStatus?: string; uploadStatus?: string } }>;
+        }
+      ).items ?? [];
+    const found = new Set<string>();
+    for (const item of items) {
+      if (!item.id) continue;
+      found.add(item.id);
+      map.set(item.id, {
+        privacy_status: item.status?.privacyStatus ?? null,
+        upload_status: item.status?.uploadStatus ?? null
+      });
     }
-  } catch {
-    map.clear();
-    for (const id of input.ids) {
-      try {
-        applyPayload(await request(id));
-      } catch {
+    for (const id of batchIds) {
+      if (!found.has(id)) {
         map.set(id, { privacy_status: "not-found", upload_status: "not-found" });
       }
     }
-  }
+  };
 
-  for (const id of input.ids) {
-    if (!map.has(id)) {
-      map.set(id, { privacy_status: "not-found", upload_status: "not-found" });
+  const markRequestFailure = (batchIds: string[], error: unknown): void => {
+    const status_reason = reasonFromError(error);
+    for (const id of batchIds) {
+      map.set(id, { privacy_status: null, upload_status: null, status_reason });
+    }
+  };
+
+  for (let offset = 0; offset < input.ids.length; offset += VIDEO_STATUS_BATCH_SIZE) {
+    const slice = input.ids.slice(offset, offset + VIDEO_STATUS_BATCH_SIZE);
+    if (input.nowMs() - input.startedMs >= input.budgetMs) {
+      for (const id of input.ids.slice(offset)) {
+        map.set(id, { privacy_status: null, upload_status: null, status_reason: "budget exhausted" });
+      }
+      break;
+    }
+    try {
+      applySuccessPayload(slice, await request(slice.join(",")));
+    } catch (error) {
+      markRequestFailure(slice, error);
     }
   }
+
   return map;
 }
 
@@ -496,6 +545,11 @@ export async function collectYouTubeAnalytics(input: {
   const startedMs = nowMs();
 
   const persist = async (report: YouTubeAnalyticsReport): Promise<YouTubeAnalyticsReport> => {
+    const existingMeasured = await measuredCountOnDisk(path);
+    const nextMeasured = measuredVideoCount(report.videos);
+    if (existingMeasured > nextMeasured) {
+      return report;
+    }
     await writeJsonAtomic(path, report);
     return report;
   };
@@ -508,9 +562,9 @@ export async function collectYouTubeAnalytics(input: {
     const report: YouTubeAnalyticsReport = { date, fetched_at, status, videos };
     if (extra?.reason) {
       report.reason = extra.reason;
-    } else if (status === "unmeasured") {
-      const videoReason = videos.find((video) => video.reason)?.reason;
-      if (videoReason) report.reason = videoReason;
+    } else if (status === "unmeasured" || status === "partial") {
+      const reason = composeReportReason(videos);
+      if (reason) report.reason = reason;
     }
     return persist(report);
   };
@@ -557,12 +611,18 @@ export async function collectYouTubeAnalytics(input: {
       ids: videos.map((video) => video.video_id),
       token,
       fetchImpl,
-      timeoutMs
+      timeoutMs,
+      budgetMs,
+      startedMs,
+      nowMs
     });
     for (const video of videos) {
       const status = statuses.get(video.video_id);
-      video.privacy_status = status?.privacy_status ?? "not-found";
-      video.upload_status = status?.upload_status ?? "not-found";
+      video.privacy_status = status?.privacy_status ?? null;
+      video.upload_status = status?.upload_status ?? null;
+      if (status?.status_reason) {
+        video.status_reason = status.status_reason;
+      }
     }
     await persistFromVideos(videos);
 

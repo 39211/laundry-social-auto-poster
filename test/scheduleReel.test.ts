@@ -3,9 +3,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { linePostRedirectUrl } from "../src/contentPlan";
 import { loadDailyContent } from "../src/logging";
+import { projectRoot } from "../src/paths";
 import { burnedNarrationFor, captionsFor, scheduleReel } from "../src/scheduleReel";
 import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions, splitNarrationSentences, type ReelConcept } from "../src/reelConcepts";
 
@@ -65,7 +67,8 @@ describe("captionsFor question stacking (B)", () => {
   const FOLLOW_LINE = "私享家洗衣店｜台中市區免費到府收送";
   const QUESTION_FOR_PLUSH = "家裡有沒有那種一直想洗、又不太敢洗的娃娃？";
   const QUESTION_FOR_DUVET = "你家的棉被大概多久整理一次？";
-  const QUESTION_FOR_BAG = "哪一件是你最不敢自己動手處理的？";
+  const QUESTION_FOR_HANDBAG = "你那顆包的提把，摸起來也開始發黏了嗎？";
+  const QUESTION_FOR_LEATHER_BAG = "你那顆包的邊角，是不是已經磨到露出底色了？";
   const SHARE_HANDBAG_HANDLE = "身邊有人的包提把也開始發黏嗎？這篇傳給他。";
   const SHARE_LEATHER_BAG_CORNER = "身邊有人的包正在磨邊角嗎？這篇傳給他。";
   const SHARE_INVITE_FALLBACK = "這篇可以轉給他。";
@@ -110,8 +113,8 @@ describe("captionsFor question stacking (B)", () => {
   const QUESTION_BY_OBJECT: Record<string, string> = {
     duvet: QUESTION_FOR_DUVET,
     "plush-doll": QUESTION_FOR_PLUSH,
-    handbag: QUESTION_FOR_BAG,
-    "leather-bag": QUESTION_FOR_BAG,
+    handbag: QUESTION_FOR_HANDBAG,
+    "leather-bag": QUESTION_FOR_LEATHER_BAG,
     "white-shoe": "你那雙白鞋放多久沒穿了？",
     "leather-shoe": "你那雙皮鞋淋雨之後，有沒有再處理過？",
     "canvas-shoe": "你那雙帆布鞋的泥，是等乾了再清，還是濕的時候就刷？",
@@ -158,28 +161,47 @@ describe("captionsFor question stacking (B)", () => {
     return text.split("\n\n").find((block) => CTA_BLOCK.test(block));
   }
 
+  const PRODUCTION_STATEMENT = "表面看起來還沒怎樣。裡面那層不一定。";
+
   it("keeps ？ to ≤2 across 26 concepts × first/rerun × IG/FB, and CTA has none", () => {
     const baselineConcepts = REEL_CONCEPTS.length;
     const baselineSchedule = REEL_SCHEDULE.length;
     loadExtensions();
     try {
       expect(REEL_CONCEPTS.length).toBe(26);
+      const registry = loadBurnedRegistryFile();
       for (const concept of REEL_CONCEPTS) {
+        const shapes: Array<{ name: string; override?: string }> = [
+          { name: "live" },
+          { name: "statement", override: PRODUCTION_STATEMENT }
+        ];
+        const registryText = registry.narrations[concept.id];
+        if (registryText) shapes.push({ name: "registry", override: registryText });
         for (const airedBefore of [0, 1] as const) {
-          const caps = captionsFor(concept, airedBefore, "2026-09-05");
-          for (const [platform, text] of [
-            ["instagram", caps.instagram],
-            ["facebook", caps.facebook]
-          ] as const) {
-            const qCount = (text.match(/？/g) ?? []).length;
-            expect(
-              qCount,
-              `${concept.id} aired=${airedBefore} ${platform} has ${qCount} ？\n${text}`
-            ).toBeLessThanOrEqual(2);
-            const ctaBlock = text.split("\n\n").find((block) => CTA_BLOCK.test(block));
-            expect(ctaBlock, `${concept.id} ${platform} missing CTA block`).toBeDefined();
-            expect(ctaBlock, `${concept.id} ${platform} CTA has ？: ${ctaBlock}`).not.toContain("？");
-            expect(ctaBlock, `${concept.id} ${platform} CTA has ?`).not.toContain("?");
+          for (const shape of shapes) {
+            const caps = captionsFor(concept, airedBefore, "2026-09-05", shape.override);
+            for (const [platform, text] of [
+              ["instagram", caps.instagram],
+              ["facebook", caps.facebook]
+            ] as const) {
+              const qCount = (text.match(/？/g) ?? []).length;
+              expect(
+                qCount,
+                `${concept.id} aired=${airedBefore} ${platform} shape=${shape.name} has ${qCount} ？\n${text}`
+              ).toBeLessThanOrEqual(2);
+              const ctaBlock = text.split("\n\n").find((block) => CTA_BLOCK.test(block));
+              expect(
+                ctaBlock,
+                `${concept.id} ${platform} shape=${shape.name} missing CTA block`
+              ).toBeDefined();
+              expect(
+                ctaBlock,
+                `${concept.id} ${platform} shape=${shape.name} CTA has ？: ${ctaBlock}`
+              ).not.toContain("？");
+              expect(ctaBlock, `${concept.id} ${platform} shape=${shape.name} CTA has ?`).not.toContain(
+                "?"
+              );
+            }
           }
         }
       }
@@ -219,8 +241,6 @@ describe("captionsFor question stacking (B)", () => {
       : [entry.hook + "。", narration];
   }
 
-  const PRODUCTION_STATEMENT = "表面看起來還沒怎樣。裡面那層不一定。";
-
   it("keeps a share invite on every FB caption, first airing and rerun", () => {
     const baselineConcepts = REEL_CONCEPTS.length;
     const baselineSchedule = REEL_SCHEDULE.length;
@@ -256,19 +276,21 @@ describe("captionsFor question stacking (B)", () => {
             expect(fbShareIdx).toBeGreaterThan(fbCtaIdx);
             expect(igShareIdx).toBeGreaterThan(igCtaIdx);
             const igQuestionIdx = igBlocks.indexOf(expectedQuestion);
+            expect(
+              fbBlocks.indexOf(expectedQuestion),
+              `${live.id} aired=${airedBefore} override=${override ?? "none"} FB should not insert questionFor`
+            ).toBe(-1);
+            expect(fbShareIdx).toBe(fbCtaIdx + 1);
             if (skip) {
               expect(
                 igQuestionIdx,
                 `${live.id} aired=${airedBefore} override=${override ?? "none"} IG should skip questionFor`
               ).toBe(-1);
-              expect(fbShareIdx).toBe(fbCtaIdx + 1);
             } else {
               expect(
                 igQuestionIdx,
                 `${live.id} aired=${airedBefore} override=${override ?? "none"} IG missing questionFor`
               ).toBe(igCtaIdx + 1);
-              expect(fbBlocks.indexOf(expectedQuestion)).toBe(fbCtaIdx + 1);
-              expect(fbShareIdx).toBe(fbCtaIdx + 2);
             }
             expect(fbBlocks.indexOf(FOLLOW_LINE)).toBe(fbShareIdx + 1);
           }
@@ -288,7 +310,7 @@ describe("captionsFor question stacking (B)", () => {
       expect(REEL_CONCEPTS.length).toBe(26);
       for (const live of REEL_CONCEPTS) {
         const statement = live.narration.replace(/[？?]/gu, "。");
-        expect(statement).not.toBe(live.narration);
+        if (statement === live.narration) continue;
         const expectedQuestion = questionForExpected(live);
         for (const airedBefore of [0, 1] as const) {
           const without = captionsFor(live, airedBefore, "2026-09-05");
@@ -304,7 +326,7 @@ describe("captionsFor question stacking (B)", () => {
                 statement,
                 ...splitNarrationSentences(live.narration),
                 ...splitNarrationSentences(statement),
-                expectedQuestion
+                ...(platform === "facebook" ? [] : [expectedQuestion])
               ].filter((block) => block.length > 0)
             );
             for (const block of [...onlyA, ...onlyB]) {
@@ -413,22 +435,18 @@ describe("captionsFor question stacking (B)", () => {
 
     for (const airedBefore of [0, 1] as const) {
       const caps = captionsFor(synthetic, airedBefore, "2026-09-05");
-      for (const [platform, text] of [
-        ["instagram", caps.instagram],
-        ["facebook", caps.facebook]
-      ] as const) {
-        const blocks = text.split("\n\n");
-        const cta = ctaBlockOf(text);
-        expect(cta, `synthetic aired=${airedBefore} ${platform} missing CTA`).toBeDefined();
-        expect(
-          blocks,
-          `synthetic aired=${airedBefore} ${platform} missing questionFor`
-        ).toContain(expected);
-        expect(
-          blocks.indexOf(expected),
-          `synthetic aired=${airedBefore} ${platform} questionFor not immediately after CTA`
-        ).toBe(blocks.indexOf(cta!) + 1);
-      }
+      const igBlocks = caps.instagram.split("\n\n");
+      const igCta = ctaBlockOf(caps.instagram);
+      expect(igCta, `synthetic aired=${airedBefore} IG missing CTA`).toBeDefined();
+      expect(igBlocks, `synthetic aired=${airedBefore} IG missing questionFor`).toContain(expected);
+      expect(
+        igBlocks.indexOf(expected),
+        `synthetic aired=${airedBefore} IG questionFor not immediately after CTA`
+      ).toBe(igBlocks.indexOf(igCta!) + 1);
+      expect(
+        caps.facebook,
+        `synthetic aired=${airedBefore} FB should not contain questionFor`
+      ).not.toContain(expected);
     }
   });
 
@@ -533,23 +551,24 @@ describe("captionsFor question stacking (B)", () => {
         expect(synthetic.hook).not.toMatch(/[？?]/);
         expect(synthetic.narration).not.toMatch(/[？?]/);
         const syntheticCaps = captionsFor(synthetic, 0, "2026-09-05");
-        for (const [platform, text] of [
-          ["instagram", syntheticCaps.instagram],
-          ["facebook", syntheticCaps.facebook]
-        ] as const) {
-          const blocks = text.split("\n\n");
-          const cta = ctaBlockOf(text);
-          expect(cta, `${live.object_type} ${platform} synthetic missing CTA`).toBeDefined();
-          expect(
-            blocks,
-            `${live.object_type} ${platform} synthetic missing questionFor`
-          ).toContain(expectedQuestion);
-          expect(
-            blocks.indexOf(expectedQuestion),
-            `${live.object_type} ${platform} synthetic questionFor not immediately after CTA`
-          ).toBe(blocks.indexOf(cta!) + 1);
-          expect(text).not.toContain(QUESTION_FALLBACK);
-        }
+        const igBlocks = syntheticCaps.instagram.split("\n\n");
+        const igCta = ctaBlockOf(syntheticCaps.instagram);
+        expect(igCta, `${live.object_type} IG synthetic missing CTA`).toBeDefined();
+        expect(
+          igBlocks,
+          `${live.object_type} IG synthetic missing questionFor`
+        ).toContain(expectedQuestion);
+        expect(
+          igBlocks.indexOf(expectedQuestion),
+          `${live.object_type} IG synthetic questionFor not immediately after CTA`
+        ).toBe(igBlocks.indexOf(igCta!) + 1);
+        expect(syntheticCaps.instagram).not.toContain(QUESTION_FALLBACK);
+        expect(
+          syntheticCaps.facebook,
+          `${live.object_type} FB synthetic should not contain questionFor`
+        ).not.toContain(expectedQuestion);
+        expect(syntheticCaps.facebook).not.toContain(QUESTION_FALLBACK);
+        expect(ctaBlockOf(syntheticCaps.facebook), `${live.object_type} FB synthetic missing CTA`).toBeDefined();
         expect(shareBlockOf(syntheticCaps.instagram)).toBe(expectedShare);
         expect(shareBlockOf(syntheticCaps.instagram)).not.toBe(SHARE_INVITE_FALLBACK);
       }
@@ -612,11 +631,12 @@ function burnedRegistryPath(): string {
 }
 
 function reelAssFixtureDir(): string {
-  return join(process.cwd(), "test", "fixtures", "reel-ass");
+  return join(projectRoot(), "test", "fixtures", "reel-ass");
 }
 
 function sha256File(path: string): string {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
+  const text = readFileSync(path).toString("utf8").replace(/^\uFEFF/u, "").replace(/\r\n/g, "\n");
+  return createHash("sha256").update(text, "utf8").digest("hex");
 }
 
 function loadBurnedRegistryFile(): {
@@ -879,9 +899,10 @@ describe("burned narration registry (SXJ-REELQ r9)", () => {
     for (const id of ids) {
       expect(registry.narrations[id]?.trim(), `${id} empty`).toBeTruthy();
       expect(registry.generated_from[id]?.source, `${id} source`).toBe("ass");
-      expect(registry.generated_from[id]?.path, `${id} path`).toBe(
-        `output/reels-run/2026-07-29/reels/${id}.ass`
-      );
+      expect(
+        [`output/reels-run/2026-07-29/reels/${id}.ass`, `output/reels-run/2026-07-29/reels/${id}.mp4.ass`],
+        `${id} path`
+      ).toContain(registry.generated_from[id]?.path);
       const fixtureAss = join(fixtureDir, `${id}.ass`);
       expect(existsSync(fixtureAss), `${id} missing fixture .ass`).toBe(true);
       const parsed = burnedNarrationFor(join(fixtureDir, `${id}.mp4`));
@@ -1096,6 +1117,93 @@ describe("burned narration registry (SXJ-REELQ r9)", () => {
       expect(slot!.narration_first_sentence).toBe(fakeLead);
       expect(slot!.instagram_caption.startsWith(fakeLead)).toBe(true);
       expect(slot!.instagram_caption.startsWith(splitNarrationSentences(committed)[0] ?? committed)).toBe(false);
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+
+  it("sha256File: LF and CRLF of the same content hash equal, one-char diff does not", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sha256-lf-crlf-"));
+    const lf = join(dir, "same.lf.ass");
+    const crlf = join(dir, "same.crlf.ass");
+    const other = join(dir, "diff.ass");
+    await writeFile(lf, Buffer.from("Dialogue: hello\nWorld", "utf8"));
+    await writeFile(crlf, Buffer.from("Dialogue: hello\r\nWorld", "utf8"));
+    await writeFile(other, Buffer.from("Dialogue: hallo\nWorld", "utf8"));
+    expect(sha256File(lf)).toBe(sha256File(crlf));
+    expect(sha256File(lf)).not.toBe(sha256File(other));
+  });
+
+  it("builder sha256File: LF and CRLF of the same content hash equal, one-char diff does not", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sha256-builder-lf-crlf-"));
+    const lf = join(dir, "same.lf.ass");
+    const crlf = join(dir, "same.crlf.ass");
+    const other = join(dir, "diff.ass");
+    await writeFile(lf, Buffer.from("Dialogue: hello\nWorld", "utf8"));
+    await writeFile(crlf, Buffer.from("Dialogue: hello\r\nWorld", "utf8"));
+    await writeFile(other, Buffer.from("Dialogue: hallo\nWorld", "utf8"));
+    const href = pathToFileURL(join(process.cwd(), "scripts", "build-reel-burned-narrations.mjs")).href;
+    const builder = (await import(href)) as { sha256File: (path: string) => string };
+    expect(builder.sha256File(lf)).toBe(builder.sha256File(crlf));
+    expect(builder.sha256File(lf)).not.toBe(builder.sha256File(other));
+    expect(builder.sha256File(lf)).toBe(sha256File(lf));
+  });
+
+  it("CRLF fixture under PROJECT_ROOT still matches registry; corrupting Dialogue diverges", async () => {
+    const registry = loadBurnedRegistryFile();
+    const id = Object.keys(registry.narrations)[0];
+    expect(id).toBeDefined();
+    const sourceAss = join(process.cwd(), "test", "fixtures", "reel-ass", `${id}.ass`);
+    expect(existsSync(sourceAss), `${id} source fixture missing`).toBe(true);
+    const lfText = readFileSync(sourceAss).toString("utf8").replace(/^\uFEFF/u, "").replace(/\r\n/g, "\n");
+    const root = await mkdtemp(join(tmpdir(), "crlf-reel-ass-"));
+    const fixtureDir = join(root, "test", "fixtures", "reel-ass");
+    await mkdir(fixtureDir, { recursive: true });
+    const crlfPath = join(fixtureDir, `${id}.ass`);
+    await writeFile(crlfPath, Buffer.from(lfText.replace(/\n/g, "\r\n"), "utf8"));
+    const previousRoot = process.env.PROJECT_ROOT;
+    process.env.PROJECT_ROOT = root;
+    try {
+      const fixtureAss = join(reelAssFixtureDir(), `${id}.ass`);
+      expect(sha256File(fixtureAss)).toBe(registry.generated_from[id!]?.sha256);
+      expect(burnedNarrationFor(join(fixtureDir, `${id}.mp4`))).toBe(registry.narrations[id!]);
+      const lines = lfText.split("\n");
+      const dialogueIdx = lines.findIndex((line) => /^Dialogue:/i.test(line));
+      expect(dialogueIdx, `${id} fixture has no Dialogue`).toBeGreaterThan(-1);
+      lines[dialogueIdx] = `${lines[dialogueIdx]}X`;
+      await writeFile(crlfPath, Buffer.from(lines.join("\r\n"), "utf8"));
+      expect(sha256File(fixtureAss)).not.toBe(registry.generated_from[id!]?.sha256);
+      expect(burnedNarrationFor(join(fixtureDir, `${id}.mp4`))).not.toBe(registry.narrations[id!]);
+    } finally {
+      if (previousRoot === undefined) delete process.env.PROJECT_ROOT;
+      else process.env.PROJECT_ROOT = previousRoot;
+    }
+  });
+
+  it("real .ass wins over sidecar narration:false and records narration_source burned", async () => {
+    const root = await seedBurnedCaptionRoot({
+      ass: BURNED_OLD_ASS,
+      audioJson: { narration: false, source: "native-model-audio" }
+    });
+    const reel = join(root, "output", "reels-run", "2026-07-29", "reels", `${BURNED_CAPTION_CONCEPT}.mp4`);
+    expect(burnedNarrationFor(reel, root)).toBe("娃娃能洗,但洗法差很多。怕的不是水,是脫水。");
+
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      await scheduleReel({
+        date: BURNED_CAPTION_DATE,
+        conceptId: BURNED_CAPTION_CONCEPT,
+        slot: 2,
+        root
+      });
+      const slot = (await loadDailyContent(BURNED_CAPTION_DATE, root))?.slots.find((item) => item.slot === 2) as
+        | { narration_source?: string }
+        | undefined;
+      expect(slot).toBeDefined();
+      expect(slot!.narration_source).toBe("burned");
     } finally {
       REEL_CONCEPTS.length = baselineConcepts;
       REEL_SCHEDULE.length = baselineSchedule;

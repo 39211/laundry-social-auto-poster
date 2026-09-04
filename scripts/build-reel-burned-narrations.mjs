@@ -3,10 +3,10 @@
 // that heuristic was falsified (SXJ-REELQ r8/r9). Concepts without `.ass`
 // are printed as `NO_ASS <id>` and omitted from the registry.
 //
-//   node scripts/build-reel-burned-narrations.mjs [--print-only] [--repo DIR] [--run-dir DIR] [--out FILE]
+//   node scripts/build-reel-burned-narrations.mjs [--print-only] [--repo DIR] [--run-dir DIR] [--ass-dir DIR] [--out FILE]
 
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -126,69 +126,98 @@ function assFileFor(reelsDir, id) {
   return undefined;
 }
 
-function sha256File(path) {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
+export function sha256File(path) {
+  const text = readFileSync(path).toString("utf8").replace(/^\uFEFF/u, "").replace(/\r\n/g, "\n");
+  return createHash("sha256").update(text, "utf8").digest("hex");
+}
+
+function fold(path) {
+  return process.platform === "win32" ? path.toLowerCase() : path;
+}
+
+function isDirectRun() {
+  if (!process.argv[1]) return false;
+  const self = fileURLToPath(import.meta.url);
+  const argv = resolve(process.argv[1]);
+  try {
+    return fold(realpathSync(self)) === fold(realpathSync(argv));
+  } catch {
+    return fold(self) === fold(argv);
+  }
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(argValue("--repo") ?? join(here, ".."));
-const runDir = findRunDir(repo);
-if (!runDir) {
-  console.error(`official run dir not found (looked under ${repo} and three parents)`);
-  process.exit(1);
-}
-const reelsDir = join(runDir, "reels");
-const printOnly = process.argv.includes("--print-only");
-const outPath = resolve(argValue("--out") ?? join(repo, "data", "reel-burned-narrations.json"));
 
-const ids = currentConceptIds(repo);
-if (ids.length !== EXPECTED_CONCEPTS) {
-  console.error(`expected ${EXPECTED_CONCEPTS} concept ids, got ${ids.length}: ${ids.join(",")}`);
-  process.exit(1);
-}
-
-const generatedFrom = {};
-const narrations = {};
-const missing = [];
-
-for (const id of ids) {
-  const assPath = assFileFor(reelsDir, id);
-  if (!assPath) {
-    missing.push(id);
-    console.error(`NO_ASS ${id}`);
-    continue;
-  }
-  const raw = readFileSync(assPath);
-  const assText = narrationFromAss(raw.toString("utf8").replace(/^\uFEFF/u, ""));
-  if (!assText) {
-    console.error(`empty .ass narration for ${id}`);
+function main() {
+  const assDirArg = argValue("--ass-dir");
+  const assDir = assDirArg ? resolve(assDirArg) : undefined;
+  if (assDir && !existsSync(assDir)) {
+    console.error(`--ass-dir not found: ${assDir}`);
     process.exit(1);
   }
-  const filename = assPath.endsWith(".mp4.ass") ? `${id}.mp4.ass` : `${id}.ass`;
-  generatedFrom[id] = {
-    source: "ass",
-    path: `${RUN_REL}/reels/${filename}`,
-    sha256: sha256File(assPath)
+  const runDir = assDir ? undefined : findRunDir(repo);
+  if (!assDir && !runDir) {
+    console.error(`official run dir not found (looked under ${repo} and three parents)`);
+    process.exit(1);
+  }
+  const reelsDir = assDir ?? join(runDir, "reels");
+  const printOnly = process.argv.includes("--print-only");
+  const outPath = resolve(argValue("--out") ?? join(repo, "data", "reel-burned-narrations.json"));
+
+  const ids = currentConceptIds(repo);
+  if (ids.length !== EXPECTED_CONCEPTS) {
+    console.error(`expected ${EXPECTED_CONCEPTS} concept ids, got ${ids.length}: ${ids.join(",")}`);
+    process.exit(1);
+  }
+
+  const generatedFrom = {};
+  const narrations = {};
+
+  for (const id of ids) {
+    const assPath = assDir
+      ? (existsSync(join(assDir, `${id}.ass`)) ? join(assDir, `${id}.ass`) : undefined)
+      : assFileFor(reelsDir, id);
+    if (!assPath) {
+      console.error(`NO_ASS ${id}`);
+      continue;
+    }
+    const raw = readFileSync(assPath);
+    const assText = narrationFromAss(raw.toString("utf8").replace(/^\uFEFF/u, ""));
+    if (!assText) {
+      console.error(`empty .ass narration for ${id}`);
+      process.exit(1);
+    }
+    const filename = assDir ? `${id}.ass` : assPath.endsWith(".mp4.ass") ? `${id}.mp4.ass` : `${id}.ass`;
+    generatedFrom[id] = {
+      source: "ass",
+      path: `${RUN_REL}/reels/${filename}`,
+      sha256: sha256File(assPath)
+    };
+    narrations[id] = assText;
+  }
+
+  const assIds = Object.keys(narrations);
+  if (assIds.length !== EXPECTED_ASS) {
+    console.error(`expected ${EXPECTED_ASS} .ass entries, got ${assIds.length}`);
+    process.exit(1);
+  }
+
+  const payload = {
+    run: RUN_REL,
+    generated_from: generatedFrom,
+    narrations
   };
-  narrations[id] = assText;
+
+  const json = `${JSON.stringify(payload, null, 2)}\n`;
+  if (printOnly) {
+    process.stdout.write(json);
+  } else {
+    writeFileSync(outPath, json, "utf8");
+    process.stdout.write(`wrote ${outPath}\n`);
+  }
 }
 
-const assIds = Object.keys(narrations);
-if (assIds.length !== EXPECTED_ASS) {
-  console.error(`expected ${EXPECTED_ASS} .ass entries, got ${assIds.length}`);
-  process.exit(1);
-}
-
-const payload = {
-  run: RUN_REL,
-  generated_from: generatedFrom,
-  narrations
-};
-
-const json = `${JSON.stringify(payload, null, 2)}\n`;
-if (printOnly) {
-  process.stdout.write(json);
-} else {
-  writeFileSync(outPath, json, "utf8");
-  console.error(`wrote ${outPath}`);
+if (isDirectRun()) {
+  main();
 }

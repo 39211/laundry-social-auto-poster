@@ -146,8 +146,9 @@ function questionFor(concept: ReelConcept): string {
     case "plush-doll":
       return "家裡有沒有那種一直想洗、又不太敢洗的娃娃？";
     case "handbag":
+      return "你那顆包的提把，摸起來也開始發黏了嗎？";
     case "leather-bag":
-      return "哪一件是你最不敢自己動手處理的？";
+      return "你那顆包的邊角，是不是已經磨到露出底色了？";
     case "white-shoe":
       return "你那雙白鞋放多久沒穿了？";
     case "leather-shoe":
@@ -402,13 +403,11 @@ export function captionsFor(
     FOLLOW_LINE,
     hashtags
   ].join("\n\n");
-  // FB always carries the share invite after CTA, independent of
-  // skipQuestionFor. IG still skips questionFor when the opening already
-  // contains ？.
+  // FB never inserts questionFor; the share invite is already a question.
+  // IG still skips questionFor when the opening already contains ？.
   const facebook = [
     ...opening,
     reelActionCta(concept, "facebook"),
-    ...(skipQuestionFor ? [] : [questionFor(concept)]),
     shareInviteFor(concept),
     FOLLOW_LINE,
     hashtags

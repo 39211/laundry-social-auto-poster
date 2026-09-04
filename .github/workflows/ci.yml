@@ -69,6 +69,9 @@ jobs:
 
       - run: npx tsc --noEmit
 
+      - run: node scripts/build-reel-burned-narrations.mjs --out data/reel-burned-narrations.json --ass-dir test/fixtures/reel-ass
+      - run: git diff --exit-code -- data/reel-burned-narrations.json
+
       - run: npx vitest run
 
       # docs-internal/public-image-metadata.json is derived from the checked-in

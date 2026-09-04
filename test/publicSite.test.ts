@@ -750,7 +750,9 @@ describe("generatePublicSite", () => {
     expect(html).toContain('class="machine-details"');
     expect(html).toContain('class="caption-details"');
     expect(shoeBagCareHtml).toContain("<title>西屯洗鞋店怎麼選？逢甲、青海路洗鞋洗包價格與免費收送｜私享家洗衣店</title>");
-    expect(shoeBagCareHtml).toContain("<h1>西屯洗鞋、逢甲洗鞋要多少錢？先看材質，參考價 $250 起</h1>");
+    expect(shoeBagCareHtml).toContain("<h1>西屯洗鞋、逢甲洗鞋要多少錢？先看材質，一般運動鞋參考價 $250</h1>");
+    // The price list states 一般運動鞋 as a single figure; the H1 must not add "起".
+    expect(shoeBagCareHtml).not.toContain("參考價 $250 起");
     // The service page now states public reference prices instead of refusing to list any.
     expect(shoeBagCareHtml).toContain("公開水洗參考價：一般運動鞋 $250");
     expect(shoeBagCareHtml).not.toContain("本頁不提供洗鞋或洗包的固定金額");

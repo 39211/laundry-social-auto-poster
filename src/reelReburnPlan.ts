@@ -5,14 +5,23 @@ import { getConfig } from "./config";
 import { projectRoot } from "./paths";
 import { REEL_CONCEPTS, loadExtensions } from "./reelConcepts";
 import { getZonedDateParts } from "./scheduler";
-import { voiceFor } from "./tts";
 
 export const UNKNOWN_CONCEPT_EXIT = 2;
 export const DEFAULT_RUN_REL = join("output", "reels-run", "2026-07-29");
 
+/** Same edge-tts voice/rate as produce-next-reel.ps1 `$narrationVoice`. */
+export const LIBRARY_NARRATION = {
+  engine: "edge-tts" as const,
+  voice: "zh-TW-YunJheNeural",
+  rate: "+8%",
+  source: "library-default" as const
+};
+
 export interface ReelReburnVoice {
-  label: string;
-  voiceId: string;
+  engine: "edge-tts";
+  voice: string;
+  rate: string;
+  source: "library-default";
 }
 
 export interface ReelReburnPlan {
@@ -90,8 +99,7 @@ export function buildReburnPlans(input: {
   const reelsDir = join(runDir, "reels");
   const available = REEL_CONCEPTS.map((concept) => concept.id);
   const unknown = input.ids.filter((id) => !REEL_CONCEPTS.some((concept) => concept.id === id));
-  const rotation = voiceFor(date, 3);
-  const voice: ReelReburnVoice = { label: rotation.label, voiceId: rotation.voiceId };
+  const voice: ReelReburnVoice = { ...LIBRARY_NARRATION };
   const plans: ReelReburnPlan[] = [];
   for (const id of input.ids) {
     const concept = REEL_CONCEPTS.find((entry) => entry.id === id);

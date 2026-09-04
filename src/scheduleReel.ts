@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { access, copyFile, mkdir, readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { withSharedCaptionRules } from "./contentPlan";
@@ -217,7 +217,9 @@ function reelActionCta(concept: ReelConcept, platform: "instagram" | "facebook")
 
 const FOLLOW_LINE = "私享家洗衣店｜台中市區免費到府收送";
 
-export type ReelNarrationSource = "burned" | "concept";
+export type ReelNarrationSource = "burned" | "registry" | "concept";
+
+const BURNED_NARRATION_REGISTRY_REL = join("data", "reel-burned-narrations.json");
 
 const ASS_OVERRIDE_BLOCK = /\{[^}]*\}/gu;
 const AUDIO_JSON_NARRATION_KEYS = ["narration", "narration_text", "NarrationText", "text"] as const;
@@ -285,21 +287,54 @@ function assCandidatesFor(reelSourcePath: string): string[] {
   return [...new Set(paths.filter((path) => path.length > 0))];
 }
 
-/**
- * Read the narration actually burned onto a reel: same-stem `.ass` Dialogue
- * text in time order, else a string narration field on `.audio.json`.
- * Missing or unusable evidence returns undefined so callers keep the concept.
- */
-export function burnedNarrationFor(reelSourcePath: string): string | undefined {
+function conceptIdFromReelPath(reelSourcePath: string): string | undefined {
+  const base = basename(reelSourcePath).replace(/\.mp4$/i, "");
+  if (!base) return undefined;
+  return base.replace(/-15s(?:-t[ABC])?$/i, "").replace(/-t[ABC]$/i, "");
+}
+
+function narrationFromRegistry(conceptId: string): string | undefined {
+  const raw = readUtf8IfPresent(join(projectRoot(), BURNED_NARRATION_REGISTRY_REL));
+  if (raw === undefined) return undefined;
+  try {
+    const parsed = JSON.parse(raw) as { narrations?: Record<string, unknown> };
+    const value = parsed.narrations?.[conceptId];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+function burnedNarrationEvidence(
+  reelSourcePath: string
+): { text: string; source: Exclude<ReelNarrationSource, "concept"> } | undefined {
   for (const assPath of assCandidatesFor(reelSourcePath)) {
     const raw = readUtf8IfPresent(assPath);
     if (raw === undefined) continue;
     const fromAss = narrationFromAss(raw);
-    if (fromAss) return fromAss;
+    if (fromAss) return { text: fromAss, source: "burned" };
   }
   const sidecar = readUtf8IfPresent(`${reelSourcePath}.audio.json`);
-  if (sidecar === undefined) return undefined;
-  return narrationFromAudioJson(sidecar);
+  if (sidecar !== undefined) {
+    const fromAudio = narrationFromAudioJson(sidecar);
+    if (fromAudio) return { text: fromAudio, source: "burned" };
+  }
+  const conceptId = conceptIdFromReelPath(reelSourcePath);
+  if (!conceptId) return undefined;
+  const fromRegistry = narrationFromRegistry(conceptId);
+  if (fromRegistry) return { text: fromRegistry, source: "registry" };
+  return undefined;
+}
+
+/**
+ * Read the narration actually burned onto a reel: same-stem `.ass` Dialogue
+ * text in time order, else a string narration field on `.audio.json`, else
+ * the production-time registry. Missing evidence returns undefined so callers
+ * keep the live concept.
+ */
+export function burnedNarrationFor(reelSourcePath: string): string | undefined {
+  return burnedNarrationEvidence(reelSourcePath)?.text;
 }
 
 export function captionsFor(
@@ -487,8 +522,9 @@ export async function scheduleReel(input: {
     await copyFile(coverSource, join(root, coverRel));
   }
 
-  const burnedNarration = burnedNarrationFor(reelSource);
-  const narrationSource: ReelNarrationSource = burnedNarration ? "burned" : "concept";
+  const evidence = burnedNarrationEvidence(reelSource);
+  const narrationSource: ReelNarrationSource = evidence?.source ?? "concept";
+  const burnedNarration = evidence?.text;
   const usedNarration = burnedNarration ?? concept.narration;
   const captions = captionsFor(
     concept,

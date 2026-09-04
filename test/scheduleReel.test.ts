@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -505,15 +505,41 @@ function officialReelsDir(): string | undefined {
   return candidates.find((dir) => existsSync(dir));
 }
 
-async function seedBurnedCaptionRoot(options: { ass?: string }): Promise<string> {
+function burnedRegistryPath(): string {
+  return join(process.cwd(), "data", "reel-burned-narrations.json");
+}
+
+function loadBurnedRegistryFile(): {
+  narrations: Record<string, string>;
+  generated_from: Record<string, { commit: string; source: string }>;
+} {
+  return JSON.parse(readFileSync(burnedRegistryPath(), "utf8").replace(/^\uFEFF/u, "")) as {
+    narrations: Record<string, string>;
+    generated_from: Record<string, { commit: string; source: string }>;
+  };
+}
+
+function registryNarration(id: string): string {
+  const text = loadBurnedRegistryFile().narrations[id];
+  if (!text) throw new Error(`registry missing ${id}`);
+  return text;
+}
+
+async function seedBurnedCaptionRoot(options: {
+  ass?: string;
+  conceptId?: string;
+  date?: string;
+}): Promise<string> {
+  const conceptId = options.conceptId ?? BURNED_CAPTION_CONCEPT;
+  const date = options.date ?? BURNED_CAPTION_DATE;
   const root = await mkdtemp(join(tmpdir(), "schedule-reel-burned-"));
   const reels = join(root, "output", "reels-run", "2026-07-29", "reels");
   const refs = join(root, "output", "reels-run", "2026-07-29", "references");
   await mkdir(reels, { recursive: true });
   await mkdir(refs, { recursive: true });
-  await writeFile(join(reels, `${BURNED_CAPTION_CONCEPT}.mp4`), Buffer.from("fake-reel-bytes"));
+  await writeFile(join(reels, `${conceptId}.mp4`), Buffer.from("fake-reel-bytes"));
   await writeFile(
-    join(reels, `${BURNED_CAPTION_CONCEPT}.mp4.audio.json`),
+    join(reels, `${conceptId}.mp4.audio.json`),
     JSON.stringify({
       narration: true,
       generated_clip_audio_used: false,
@@ -521,10 +547,10 @@ async function seedBurnedCaptionRoot(options: { ass?: string }): Promise<string>
     })
   );
   if (options.ass !== undefined) {
-    await writeFile(join(reels, `${BURNED_CAPTION_CONCEPT}.ass`), options.ass, "utf8");
+    await writeFile(join(reels, `${conceptId}.ass`), options.ass, "utf8");
   }
   await writeFile(
-    join(refs, `${BURNED_CAPTION_CONCEPT}-before.png`),
+    join(refs, `${conceptId}-before.png`),
     Buffer.concat([PNG_MAGIC, Buffer.from("cover")])
   );
 
@@ -540,25 +566,25 @@ async function seedBurnedCaptionRoot(options: { ass?: string }): Promise<string>
     image_prompt: "prompt",
     visual_route: "macro-detail",
     traffic_route: "object-proof",
-    local_image_path: `docs/assets/${BURNED_CAPTION_DATE}/slot-0${slot}.png`,
+    local_image_path: `docs/assets/${date}/slot-0${slot}.png`,
     public_image_url: "",
     status: "pending"
   }));
   await mkdir(join(root, "data", "content-calendar"), { recursive: true });
   await writeFile(
-    join(root, "data", "content-calendar", `${BURNED_CAPTION_DATE}.json`),
+    join(root, "data", "content-calendar", `${date}.json`),
     `${JSON.stringify(
       {
-        date: BURNED_CAPTION_DATE,
+        date,
         timezone: "Asia/Taipei",
-        generated_at: `${BURNED_CAPTION_DATE}T00:00:00.000Z`,
+        generated_at: `${date}T00:00:00.000Z`,
         slots
       },
       null,
       2
     )}\n`
   );
-  await mkdir(join(root, "docs", "assets", BURNED_CAPTION_DATE), { recursive: true });
+  await mkdir(join(root, "docs", "assets", date), { recursive: true });
   return root;
 }
 
@@ -599,11 +625,15 @@ describe("burned narration captions (SXJ-REELQ r7)", () => {
     expect(logs.some((line) => line.includes(`narration_first_sentence: ${BURNED_OLD_LEAD}`))).toBe(true);
   });
 
-  it("falls back to the concept narration when the reel has no .ass", async () => {
+  it("falls back to the registry narration when the reel has no .ass", async () => {
     const live = REEL_CONCEPTS.find((entry) => entry.id === BURNED_CAPTION_CONCEPT);
     expect(live).toBeDefined();
     const conceptLead = splitNarrationSentences(live!.narration)[0] ?? "";
     expect(conceptLead.endsWith("？")).toBe(true);
+    const registryText = registryNarration(BURNED_CAPTION_CONCEPT);
+    const registryLead = splitNarrationSentences(registryText)[0] ?? registryText;
+    expect(registryLead).toBe(BURNED_OLD_LEAD);
+    expect(registryLead).not.toBe(conceptLead);
 
     const root = await seedBurnedCaptionRoot({});
     await scheduleReel({
@@ -613,14 +643,17 @@ describe("burned narration captions (SXJ-REELQ r7)", () => {
       root
     });
 
+    const reel = join(root, "output", "reels-run", "2026-07-29", "reels", `${BURNED_CAPTION_CONCEPT}.mp4`);
+    expect(burnedNarrationFor(reel)).toBe(registryText);
+
     const slot = (await loadDailyContent(BURNED_CAPTION_DATE, root))?.slots.find((item) => item.slot === 2) as
       | { instagram_caption: string; narration_source?: string; narration_first_sentence?: string }
       | undefined;
     expect(slot).toBeDefined();
-    expect(slot!.instagram_caption.startsWith(conceptLead)).toBe(true);
-    expect(slot!.instagram_caption.startsWith(BURNED_OLD_LEAD)).toBe(false);
-    expect(slot!.narration_source).toBe("concept");
-    expect(slot!.narration_first_sentence).toBe(conceptLead);
+    expect(slot!.instagram_caption.startsWith(registryLead)).toBe(true);
+    expect(slot!.instagram_caption.startsWith(conceptLead)).toBe(false);
+    expect(slot!.narration_source).toBe("registry");
+    expect(slot!.narration_first_sentence).toBe(registryLead);
   });
 
   it("restores Dialogue text after stripping override tags and \\N, in time order", async () => {
@@ -689,6 +722,159 @@ describe("burned narration captions (SXJ-REELQ r7)", () => {
       // Printed so the NOTES table is the same run as this assertion, not a second parse.
       console.log(`OFFICIAL_ASS_TABLE\n${rows.join("\n")}`);
     } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+});
+
+const DOWN_JACKET_DATE = "2026-09-08";
+const DOWN_JACKET_CONCEPT = "down-jacket-cuff";
+const DOWN_JACKET_REGISTRY_LEAD = "那是手腕的油脂日積月累壓進纖維裡,不是表面的髒。";
+
+describe("burned narration registry (SXJ-REELQ r8)", () => {
+  it("registry has 26 non-empty narrations, matching official .ass when that run dir exists", () => {
+    expect(existsSync(burnedRegistryPath()), "data/reel-burned-narrations.json missing").toBe(true);
+    const registry = loadBurnedRegistryFile();
+    const ids = Object.keys(registry.narrations);
+    expect(ids).toHaveLength(26);
+    expect(Object.keys(registry.generated_from)).toHaveLength(26);
+    for (const id of ids) {
+      expect(registry.narrations[id]?.trim(), `${id} empty`).toBeTruthy();
+      expect(registry.generated_from[id]?.commit, `${id} missing commit`).toMatch(/^[0-9a-f]{40}$/);
+      expect(["ass", "git"]).toContain(registry.generated_from[id]?.source);
+    }
+
+    const officialDir = officialReelsDir();
+    if (!officialDir) {
+      console.log(
+        "SKIP Q4 registry-vs-ass: official run dir not found (cwd/output/reels-run/2026-07-29/reels or ../../../output/reels-run/2026-07-29/reels)"
+      );
+      return;
+    }
+    for (const id of ids) {
+      const reel = join(officialDir, `${id}.mp4`);
+      const hasAss = existsSync(join(officialDir, `${id}.ass`)) || existsSync(`${reel}.ass`);
+      if (!hasAss) continue;
+      expect(burnedNarrationFor(reel), `${id} .ass parse`).toBe(registry.narrations[id]);
+    }
+  });
+
+  it("burnedNarrationFor returns registry text and scheduleReel records narration_source registry", async () => {
+    const registryText = registryNarration(DOWN_JACKET_CONCEPT);
+    const registryLead = splitNarrationSentences(registryText)[0] ?? registryText;
+    expect(registryLead).toBe(DOWN_JACKET_REGISTRY_LEAD);
+
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      const live = REEL_CONCEPTS.find((entry) => entry.id === DOWN_JACKET_CONCEPT);
+      expect(live).toBeDefined();
+      const conceptLead = splitNarrationSentences(live!.narration)[0] ?? "";
+      expect(conceptLead).not.toBe(registryLead);
+
+      const root = await seedBurnedCaptionRoot({
+        conceptId: DOWN_JACKET_CONCEPT,
+        date: DOWN_JACKET_DATE
+      });
+      const reel = join(root, "output", "reels-run", "2026-07-29", "reels", `${DOWN_JACKET_CONCEPT}.mp4`);
+      expect(burnedNarrationFor(reel)).toBe(registryText);
+
+      await scheduleReel({
+        date: DOWN_JACKET_DATE,
+        conceptId: DOWN_JACKET_CONCEPT,
+        slot: 2,
+        root
+      });
+      const slot = (await loadDailyContent(DOWN_JACKET_DATE, root))?.slots.find((item) => item.slot === 2) as
+        | { instagram_caption: string; narration_source?: string; narration_first_sentence?: string }
+        | undefined;
+      expect(slot).toBeDefined();
+      expect(slot!.narration_source).toBe("registry");
+      expect(slot!.narration_first_sentence).toBe(registryLead);
+      expect(slot!.instagram_caption.startsWith(registryLead)).toBe(true);
+      expect(slot!.instagram_caption.startsWith(conceptLead)).toBe(false);
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+
+  it("09-08 down-jacket-cuff rerun caption lead is the registry old sentence", async () => {
+    const registryText = registryNarration(DOWN_JACKET_CONCEPT);
+    const registryLead = splitNarrationSentences(registryText)[0] ?? registryText;
+    expect(registryLead).toBe(DOWN_JACKET_REGISTRY_LEAD);
+
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      expect(REEL_CONCEPTS.some((entry) => entry.id === DOWN_JACKET_CONCEPT)).toBe(true);
+      const root = await seedBurnedCaptionRoot({
+        conceptId: DOWN_JACKET_CONCEPT,
+        date: DOWN_JACKET_DATE
+      });
+      await scheduleReel({
+        date: DOWN_JACKET_DATE,
+        conceptId: DOWN_JACKET_CONCEPT,
+        slot: 2,
+        root
+      });
+      const slot = (await loadDailyContent(DOWN_JACKET_DATE, root))?.slots.find((item) => item.slot === 2) as
+        | { instagram_caption: string; narration_source?: string }
+        | undefined;
+      expect(slot).toBeDefined();
+      expect(slot!.narration_source).toBe("registry");
+      expect(slot!.instagram_caption.startsWith(DOWN_JACKET_REGISTRY_LEAD)).toBe(true);
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+
+  it("mutation: hiding the registry file drops no-ass ids back to the live concept", async () => {
+    const registryText = registryNarration(DOWN_JACKET_CONCEPT);
+    const registryLead = splitNarrationSentences(registryText)[0] ?? registryText;
+    expect(registryLead).toBe(DOWN_JACKET_REGISTRY_LEAD);
+
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    const live = REEL_CONCEPTS.find((entry) => entry.id === DOWN_JACKET_CONCEPT);
+    expect(live).toBeDefined();
+    const conceptLead = splitNarrationSentences(live!.narration)[0] ?? "";
+    expect(conceptLead.endsWith("？")).toBe(true);
+    expect(conceptLead).not.toBe(registryLead);
+
+    const empty = await mkdtemp(join(tmpdir(), "no-burned-registry-"));
+    const previousRoot = process.env.PROJECT_ROOT;
+    process.env.PROJECT_ROOT = empty;
+    try {
+      const root = await seedBurnedCaptionRoot({
+        conceptId: DOWN_JACKET_CONCEPT,
+        date: DOWN_JACKET_DATE
+      });
+      const reel = join(root, "output", "reels-run", "2026-07-29", "reels", `${DOWN_JACKET_CONCEPT}.mp4`);
+      expect(burnedNarrationFor(reel)).toBeUndefined();
+
+      await scheduleReel({
+        date: DOWN_JACKET_DATE,
+        conceptId: DOWN_JACKET_CONCEPT,
+        slot: 2,
+        root
+      });
+      const slot = (await loadDailyContent(DOWN_JACKET_DATE, root))?.slots.find((item) => item.slot === 2) as
+        | { instagram_caption: string; narration_source?: string; narration_first_sentence?: string }
+        | undefined;
+      expect(slot).toBeDefined();
+      expect(slot!.narration_source).toBe("concept");
+      expect(slot!.narration_first_sentence).toBe(conceptLead);
+      expect(slot!.instagram_caption.startsWith(DOWN_JACKET_REGISTRY_LEAD)).toBe(false);
+      expect(slot!.instagram_caption.startsWith(conceptLead)).toBe(true);
+    } finally {
+      if (previousRoot === undefined) delete process.env.PROJECT_ROOT;
+      else process.env.PROJECT_ROOT = previousRoot;
       REEL_CONCEPTS.length = baselineConcepts;
       REEL_SCHEDULE.length = baselineSchedule;
     }

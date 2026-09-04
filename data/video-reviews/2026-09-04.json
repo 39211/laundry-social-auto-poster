@@ -5,13 +5,31 @@
     "video_path": "docs/assets/2026-09-04/slot-03.mp4",
     "video_sha256": "43786b8304efff438546cf406749d24ad7528e10c7393ac03be9572759cf4c3d",
     "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
-    "recorded_at": "2026-09-01T06:00:08.943Z",
-    "recorded_by": "standing-policy-metadata",
-    "full_decode": "pending",
-    "all_frame_physics_review": "pending",
-    "grok_review": "pending",
-    "sol_review": "pending",
-    "separate_zh_tw_tts_review": "pending",
-    "status": "pending"
+    "review_round": 1,
+    "full_decode": "pass",
+    "all_frame_physics_review": "pass",
+    "grok_review": "pass",
+    "sol_review": "pass",
+    "separate_zh_tw_tts_review": "pass",
+    "generated_clip_audio_used": false,
+    "status": "approved",
+    "reviewed_at": "2026-09-04T01:37:53.541Z",
+    "superseded": [
+      {
+        "date": "2026-09-04",
+        "slot": 3,
+        "video_path": "docs/assets/2026-09-04/slot-03.mp4",
+        "video_sha256": "43786b8304efff438546cf406749d24ad7528e10c7393ac03be9572759cf4c3d",
+        "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+        "recorded_at": "2026-09-01T06:00:08.943Z",
+        "recorded_by": "standing-policy-metadata",
+        "full_decode": "pending",
+        "all_frame_physics_review": "pending",
+        "grok_review": "pending",
+        "sol_review": "pending",
+        "separate_zh_tw_tts_review": "pending",
+        "status": "pending"
+      }
+    ]
   }
 ]

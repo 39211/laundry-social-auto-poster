@@ -299,12 +299,63 @@ describe("scheduleAheadFacebook", () => {
       format: "reel",
       local_video_path: `docs/assets/${DATE}/slot-03.mp4`
     } as unknown as ReturnType<typeof slotFixture>;
-    await seedDay(root, [slotFixture(1, "image", `排程Reel缺圖填充 ${DATE} 辛二`), reelSlot]);
+    // Reel first: if this is mis-classified as a deferred-video skip, slot 1
+    // would still be scheduled and the run would resolve instead of throw.
+    await seedDay(root, [reelSlot, slotFixture(1, "image", `排程Reel缺圖填充 ${DATE} 辛二`)]);
     await rm(join(root, "docs", "assets", DATE, "slot-03.png"));
 
     await expect(
       scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch([]), now: NOW_DAY_BEFORE })
     ).rejects.toThrow(/Image is missing for slot 3/u);
+    expect(await loadScheduledLog(DATE, root)).toEqual([]);
+  });
+
+  it("does not convert Image-is-missing into a deferred-reel skip when wrapped under Refusing image fallback", async () => {
+    const reelSlot = {
+      ...slotFixture(3, "image", `排程Reel缺圖包裝文案 ${DATE} 寅`),
+      media_type: "reel",
+      format: "reel",
+      local_video_path: `docs/assets/${DATE}/slot-03.mp4`
+    } as unknown as ReturnType<typeof slotFixture>;
+    await seedDay(root, [reelSlot, slotFixture(1, "image", `排程Reel缺圖包裝填充 ${DATE} 寅二`)]);
+    const missingImage = `Image is missing for slot 3: docs/assets/${DATE}/slot-03.png. Run the Codex imagegen automation first.`;
+    vi.mocked(resolveSlotPublishMedia).mockImplementation(async (slot, ...rest) => {
+      if (slot.slot === 3) {
+        throw new Error(`Refusing image fallback for reel slot 3: ${missingImage}`);
+      }
+      return actualPostCurrentSlot.resolveSlotPublishMedia(slot, ...rest);
+    });
+
+    await expect(
+      scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch([]), now: NOW_DAY_BEFORE })
+    ).rejects.toThrow(/Image is missing for slot 3/u);
+    expect(await loadScheduledLog(DATE, root)).toEqual([]);
+  });
+
+  it("aborts when the deferred-reel path reports Image is missing instead of recording a skip", async () => {
+    const reelSlot = {
+      ...slotFixture(3, "image", `排程Reel缺圖延期文案 ${DATE} 卯`),
+      media_type: "reel",
+      format: "reel",
+      local_video_path: `docs/assets/${DATE}/slot-03.mp4`
+    } as unknown as ReturnType<typeof slotFixture>;
+    await seedDay(root, [reelSlot, slotFixture(1, "image", `排程Reel缺圖延期填充 ${DATE} 卯二`)]);
+    vi.mocked(resolveSlotPublishMedia).mockImplementation(async (slot, ...rest) => {
+      if (slot.slot === 3) {
+        return {
+          mediaType: "image",
+          videoDeferred: true,
+          videoDeferKind: "expected",
+          videoDeferredReason: `Image is missing for slot 3: docs/assets/${DATE}/slot-03.png. Run the Codex imagegen automation first.`
+        };
+      }
+      return actualPostCurrentSlot.resolveSlotPublishMedia(slot, ...rest);
+    });
+
+    await expect(
+      scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch([]), now: NOW_DAY_BEFORE })
+    ).rejects.toThrow(/Image is missing for slot 3/u);
+    expect(await loadScheduledLog(DATE, root)).toEqual([]);
   });
 
   it("rethrows an unexpected resolver error on a Reel slot instead of recording a skip", async () => {

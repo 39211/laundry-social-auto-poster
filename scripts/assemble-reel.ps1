@@ -1,9 +1,23 @@
 ﻿# Joins one concept's before and after clips into a finished Reel.
 #
-# Two separate generations never agree on colour temperature or shadow
-# direction, and a hard cut between them reads as two unrelated images rather
-# than one shop. So the after clip is histogram-matched to the before clip and
-# the two are crossfaded, not butted together.
+# Acts are butted together with a HARD CUT. They used to be crossfaded, on the
+# theory that a dissolve would hide the colour/shadow drift between two separate
+# generations. It did not hide it -- it made something worse and invisible to
+# every gate we had. An xfade between two clips of the same subject in the same
+# scene renders the object semi-transparent for the length of the dissolve: at
+# 2026-08-29 review, leather-shoe-rain showed a full ghost shoe at 4.63-4.88s
+# with the shop's hanging garments visible straight through the leather, and
+# backpack-base showed the identical defect at the same offset. Every 10s reel
+# built by this script carried it.
+#
+# Why nothing caught it: ffmpeg's scene-change score peaked at 0.048 across the
+# whole clip (threshold is normally 0.3), so cut detection is blind to a
+# same-scene dissolve, and the 4-frame story QA samples straddled the seam
+# window without landing in it. Do not reintroduce a dissolve to "smooth" a
+# colour mismatch; fix the mismatch in the per-channel gains instead.
+#
+# This also matches the owner's 2026-08-27 ruling: single take, no concat
+# seams -- a seam reads as "not smooth" to the viewer.
 #
 # Subtitles are burned in because more than 40% of viewers watch muted: the hook
 # has to land in the first two seconds without sound, and the closing line has
@@ -13,7 +27,6 @@ param(
     [Parameter(Mandatory = $true)][string]$Hook,
     [Parameter(Mandatory = $true)][string]$Close,
     [string]$Run = "C:\Users\cyc39\Documents\New project 5\output\reels-run\2026-07-29",
-    [double]$Dissolve = 0.4,
     # Per-channel gains that pull the after clip's exposure onto the before
     # clip's, measured from the background regions where nothing legitimately
     # changed. Each pair drifts differently — some brighter, some darker — so a
@@ -74,6 +87,18 @@ $FontFile = "C\:/Windows/Fonts/msjhbd.ttc"
 # derived from the line instead, and capped so short hooks stay large.
 $MaxTextWidth = 648  # 90% of 720, leaving a margin either side
 
+# With a hard cut the finished length is just the sum of the acts, but the acts
+# are model output and are not exactly 5s each, so it is measured rather than
+# assumed. The old constants (9.67 / 15.0 - 2*Dissolve) only ever matched the
+# crossfade arithmetic; carrying them into a concat would truncate the video
+# against a too-short audio bed via -shortest.
+function Get-ClipDuration {
+    param([string]$Path)
+    $raw = & ffprobe -v error -show_entries format=duration -of csv=p=0 $Path
+    if ($LASTEXITCODE -ne 0 -or -not $raw) { throw "ffprobe could not read duration: $Path" }
+    return [double]::Parse(([string]$raw).Trim(), [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
 function Get-DrawText {
     param([string]$Text, [double]$From, [double]$To, [int]$Y)
     $escaped = $Text.Replace("\", "\\").Replace(":", "\:").Replace("'", "\'")
@@ -84,19 +109,16 @@ function Get-DrawText {
 # Instagram draws its own chrome over the top of a Reel, so a subtitle at y=120
 # sat under it. 200 keeps the line in the upper third and clear of the overlay.
 if ($threeAct) {
-    # 5+5+5 - 2*Dissolve ~= 14.2s; close subtitle starts 3.2s before the end.
-    $totalDur = 15.0 - (2.0 * $Dissolve)
+    # Hard cut: finished length is the three acts end to end.
+    $totalDur = (Get-ClipDuration $before) + (Get-ClipDuration $middle) + (Get-ClipDuration $after)
     $closeFrom = [Math]::Max(0.0, $totalDur - 3.2)
     $hookText = Get-DrawText -Text $Hook -From 0 -To 2.6 -Y 200
     $closeText = Get-DrawText -Text $Close -From $closeFrom -To $totalDur -Y 200
-    $off1 = 5 - $Dissolve
-    $off2 = $off1 + 5 - $Dissolve
     $filter = @"
 [0:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1[v0];
 [1:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1,colorchannelmixer=rr=$($GainR):gg=$($GainG):bb=$($GainB)[v1];
 [2:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1,colorchannelmixer=rr=$($GainR):gg=$($GainG):bb=$($GainB)[v2];
-[v0][v1]xfade=transition=fade:duration=$($Dissolve):offset=$off1[v01];
-[v01][v2]xfade=transition=fade:duration=$($Dissolve):offset=$off2[vx];
+[v0][v1][v2]concat=n=3:v=1:a=0[vx];
 [vx]$hookText,$closeText[vout]
 "@ -replace "`r`n", ""
     $audioDur = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0:0.##}", $totalDur)
@@ -118,15 +140,22 @@ if ($threeAct) {
             -c:a aac -ar 48000 -b:a 96k -shortest $out
     }
 } else {
+    # Hard cut: finished length is the two acts end to end.
+    $totalDur = (Get-ClipDuration $before) + (Get-ClipDuration $after)
+    $closeFrom = [Math]::Max(0.0, $totalDur - 3.2)
     $hookText = Get-DrawText -Text $Hook -From 0 -To 2.6 -Y 200
-    $closeText = Get-DrawText -Text $Close -From 6.4 -To 9.6 -Y 200
+    $closeText = Get-DrawText -Text $Close -From $closeFrom -To $totalDur -Y 200
 
-    # histeq on the after stream pulls its exposure and contrast toward the before
-    # stream's range; xfade then hides whatever difference survives.
+    # The per-channel gains pull the after stream's exposure onto the before
+    # stream's. That correction is now the ONLY thing reconciling the two acts;
+    # there is no dissolve behind it to blur a bad match, so a visible jump in
+    # brightness at the cut means the measured gains are wrong, not that the
+    # cut needs softening.
+    $audioDur = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0:0.##}", $totalDur)
     $filter = @"
 [0:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1[v0];
 [1:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1,colorchannelmixer=rr=$($GainR):gg=$($GainG):bb=$($GainB)[v1];
-[v0][v1]xfade=transition=fade:duration=$($Dissolve):offset=$(5 - $Dissolve)[vx];
+[v0][v1]concat=n=2:v=1:a=0[vx];
 [vx]$hookText,$closeText[vout]
 "@ -replace "`r`n", ""
 
@@ -140,14 +169,14 @@ if ($threeAct) {
     if ($hasNarration) {
         $audioGraph = "[2:a]lowpass=f=350,volume=0.55[bed];[3:a]adelay=500:all=1,volume=1.4[voice];[bed][voice]amix=inputs=2:duration=first:normalize=0[aout]"
         & ffmpeg -v error -y -i $before -i $after `
-            -f lavfi -t 9.67 -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
+            -f lavfi -t $audioDur -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
             -i $NarrationFile `
             -filter_complex "$filter;$audioGraph" -map "[vout]" -map "[aout]" `
             -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p `
             -c:a aac -ar 48000 -b:a 96k -shortest $out
     } else {
         & ffmpeg -v error -y -i $before -i $after `
-            -f lavfi -t 9.67 -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
+            -f lavfi -t $audioDur -i "anoisesrc=colour=brown:amplitude=0.02:seed=7" `
             -filter_complex $filter -map "[vout]" -map "2:a" `
             -af "lowpass=f=350,volume=0.55" `
             -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p `

@@ -1,5 +1,16 @@
-import "dotenv/config";
+import { config as loadDotenv } from "dotenv";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AppConfig } from "./types";
+
+// "dotenv/config" resolves .env relative to process.cwd(), which is wrong
+// whenever this module loads inside a subprocess launched from some other
+// working directory. The Laundry-Reel-Produce scheduled task has no working
+// directory set, so every env var came back empty and the first module-load
+// that touched config (contentPlan's LINE redirect) threw before any work
+// started -- a whole scheduled run lost, with the real cause several frames
+// up the stack. Resolve relative to this file instead.
+loadDotenv({ path: join(dirname(fileURLToPath(import.meta.url)), "..", ".env") });
 
 function boolEnv(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined || value === "") return fallback;

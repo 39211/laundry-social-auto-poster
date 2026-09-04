@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
@@ -14,7 +14,15 @@ import {
 } from "./generateImage";
 import { buildGitHubPagesImageUrl, buildGitHubPagesVideoUrl } from "./githubPages";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
-import { loadDailyContent, readJsonFile, writeDailyContent, writeJsonAtomic } from "./logging";
+import {
+  hasPublishableApproval,
+  loadApprovalLog,
+  loadDailyContent,
+  loadPostLog,
+  readJsonFile,
+  writeDailyContent,
+  writeJsonAtomic
+} from "./logging";
 import { markImageSource } from "./markImageSource";
 import { padSlot, projectRoot } from "./paths";
 import { isConceptRejected, loadRejectedConcepts } from "./visualQa";
@@ -192,6 +200,8 @@ export async function scheduleReel(input: {
   root?: string;
   slot?: number;
   variant?: AbVariant;
+  /** Replace an approved or already-published non-Reel slot anyway. */
+  force?: boolean;
 }): Promise<void> {
   const root = projectRoot(input.root);
   const config = getConfig();
@@ -241,6 +251,34 @@ export async function scheduleReel(input: {
   await mkdir(assetDir, { recursive: true });
   const videoRel = `docs/assets/${input.date}/slot-${padSlot(slotNumber)}.mp4`;
   const coverRel = `docs/assets/${input.date}/slot-${padSlot(slotNumber)}.png`;
+
+  // 2026-09-04: `schedule-reel --date ... --concept plush-doll` without --slot
+  // landed in the default slot 2 and replaced an approved evening carousel's
+  // cover and calendar entry with the noon Reel; the calendar was rebuilt by
+  // hand but the overwritten cover and the copied clip stayed, and the digest
+  // gate refused the 20:30 publish. A slot that is approved or already live as
+  // a non-Reel post is not a free target: refuse unless the caller says
+  // --force, and always keep a copy of what is about to be overwritten so
+  // `--restore` can put it back byte for byte.
+  if (slot.media_type !== "reel" && !input.force) {
+    const approvals = await loadApprovalLog(input.date, root);
+    const posted = await loadPostLog(input.date, root);
+    const approved =
+      hasPublishableApproval(approvals, slotNumber, "facebook") ||
+      hasPublishableApproval(approvals, slotNumber, "instagram");
+    const live = posted.some(
+      (entry) => entry.slot === slotNumber && !entry.dry_run && (entry.status === "success" || entry.status === "posted")
+    );
+    if (approved || live) {
+      throw new Error(
+        `Refusing to schedule ${concept.id} into ${input.date} slot ${slotNumber}: that slot is an ` +
+          `${live ? "already published" : "approved"} ${slot.media_type ?? "image"} post (${slot.topic}). ` +
+          `Pass --slot for the Reel slot you meant, or --force to replace it and then re-run auto-approve.`
+      );
+    }
+  }
+  await backupSlotBeforeReel({ root, date: input.date, slotNumber, slot, coverRel, videoRel });
+
   await copyFile(reelSource, join(root, videoRel));
   await copyFile(sidecarSource, `${join(root, videoRel)}.audio.json`);
   // The cover is the shop still the clip itself started from. Copy it; do not
@@ -373,6 +411,169 @@ export async function scheduleReel(input: {
   });
 
   console.log(`${input.date} slot ${slotNumber} (${variant}) <- ${concept.id}`);
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** output/ is gitignored, so the copies never reach the public site. */
+export function reelBackupDir(date: string, root = projectRoot()): string {
+  return join(root, "output", "reel-backups", date);
+}
+
+interface ReelSlotSnapshot {
+  date: string;
+  slot: DailySlot;
+  manifest_entries: Array<Record<string, unknown>>;
+  image_sources: Array<Record<string, unknown>>;
+  saved_at: string;
+}
+
+/**
+ * Keep the earliest original of everything scheduleReel is about to replace:
+ * the calendar slot, its manifest and image-source records, and the cover /
+ * clip / sidecar bytes. A second schedule into the same slot (heal re-runs)
+ * must not overwrite the snapshot with the Reel it is replacing.
+ */
+async function backupSlotBeforeReel(input: {
+  root: string;
+  date: string;
+  slotNumber: number;
+  slot: DailySlot;
+  coverRel: string;
+  videoRel: string;
+}): Promise<void> {
+  const dir = reelBackupDir(input.date, input.root);
+  await mkdir(dir, { recursive: true });
+  const tag = `slot-${padSlot(input.slotNumber)}`;
+  const snapshotPath = join(dir, `${tag}.slot.json`);
+  if (await fileExists(snapshotPath)) return;
+  const manifest = await readJsonFile<Array<Record<string, unknown>>>(
+    join(input.root, "data", "image-prompts", `${input.date}.json`),
+    []
+  );
+  const imageSources = await readJsonFile<Array<Record<string, unknown>>>(
+    join(input.root, "data", "image-sources", `${input.date}.json`),
+    []
+  );
+  const snapshot: ReelSlotSnapshot = {
+    date: input.date,
+    slot: input.slot,
+    manifest_entries: manifest.filter((item) => item.slot === input.slotNumber),
+    image_sources: imageSources.filter((item) => item.slot === input.slotNumber),
+    saved_at: new Date().toISOString()
+  };
+  await writeJsonAtomic(snapshotPath, snapshot);
+  for (const rel of [input.coverRel, input.videoRel, `${input.videoRel}.audio.json`]) {
+    const abs = join(input.root, ...rel.split("/"));
+    if (await fileExists(abs)) {
+      await copyFile(abs, join(dir, rel.split("/").pop()!));
+    }
+  }
+}
+
+/**
+ * Undo a scheduleReel on one slot from the snapshot it took: calendar slot,
+ * manifest and image-source records, cover / clip / sidecar bytes (restored
+ * when a backup exists, removed when the Reel brought them). Provenance the
+ * Reel wrote for the slot (video-sources row, run report) is dropped. Approval
+ * digests are the approver's business: if the day already carries an approval
+ * log, re-run auto-approve afterwards.
+ */
+export async function restoreReelSlot(input: {
+  date: string;
+  slotNumber: number;
+  root?: string;
+}): Promise<{ restored: string[] }> {
+  const root = projectRoot(input.root);
+  const dir = reelBackupDir(input.date, root);
+  const tag = `slot-${padSlot(input.slotNumber)}`;
+  const snapshotPath = join(dir, `${tag}.slot.json`);
+  const snapshot = await readJsonFile<ReelSlotSnapshot | null>(snapshotPath, null);
+  if (!snapshot?.slot) {
+    throw new Error(`No reel backup for ${input.date} slot ${input.slotNumber} at ${snapshotPath}; nothing safe to restore.`);
+  }
+  const content = await loadDailyContent(input.date, root);
+  if (!content) throw new Error(`No content calendar for ${input.date}`);
+  const restored: string[] = [];
+
+  await writeDailyContent(
+    { ...content, slots: content.slots.map((item) => (item.slot === input.slotNumber ? snapshot.slot : item)) },
+    root
+  );
+  restored.push("calendar slot");
+
+  const coverRel = `docs/assets/${input.date}/${tag}.png`;
+  const videoRel = `docs/assets/${input.date}/${tag}.mp4`;
+  for (const rel of [coverRel, videoRel, `${videoRel}.audio.json`]) {
+    const abs = join(root, ...rel.split("/"));
+    const backup = join(dir, rel.split("/").pop()!);
+    if (await fileExists(backup)) {
+      await copyFile(backup, abs);
+      restored.push(rel);
+    } else if (await fileExists(abs)) {
+      await rm(abs);
+      restored.push(`removed ${rel}`);
+    }
+  }
+
+  const manifestPath = join(root, "data", "image-prompts", `${input.date}.json`);
+  const manifest = await readJsonFile<Array<Record<string, unknown>>>(manifestPath, []);
+  await writeJsonAtomic(manifestPath, [
+    ...manifest.filter((item) => item.slot !== input.slotNumber),
+    ...snapshot.manifest_entries
+  ]);
+  const imageSourcesPath = join(root, "data", "image-sources", `${input.date}.json`);
+  const imageSources = await readJsonFile<Array<Record<string, unknown>>>(imageSourcesPath, []);
+  await writeJsonAtomic(imageSourcesPath, [
+    ...imageSources.filter((item) => item.slot !== input.slotNumber),
+    ...snapshot.image_sources
+  ]);
+  const videoSourcesPath = join(root, "data", "video-sources", `${input.date}.json`);
+  const videoSources = await readJsonFile<Array<Record<string, unknown>>>(videoSourcesPath, []);
+  await writeJsonAtomic(videoSourcesPath, videoSources.filter((item) => item.slot !== input.slotNumber));
+  const runPath = videoRunReportPath(input.date, input.slotNumber, root);
+  if (await fileExists(runPath)) {
+    await rm(runPath);
+    restored.push("video run report");
+  }
+
+  console.log(
+    `${input.date} slot ${input.slotNumber} restored: ${restored.join(", ")}. ` +
+      `If the day already has an approval log, re-run auto-approve so image digests match again.`
+  );
+  return { restored };
+}
+
+/** CLI arguments for a one-off schedule. --slot is mandatory: the old default of 2 is what overwrote 2026-09-04's evening post. */
+export function parseScheduleCliArgs(args: string[]): {
+  date: string;
+  conceptId: string;
+  slot: number;
+  variant?: AbVariant;
+  force: boolean;
+} {
+  const date = getOption(args, "date");
+  const conceptId = getOption(args, "concept");
+  if (!date || !conceptId) {
+    throw new Error("Required: --date YYYY-MM-DD --concept <id> --slot 2|3, or --restore --date --slot, --heal, or --plan.");
+  }
+  const slot = getNumberOption(args, "slot");
+  if (slot === undefined) {
+    throw new Error(
+      "Required: --slot 2|3 (noon Reel = 3, evening Reel = 2). schedule-reel no longer defaults to slot 2: " +
+        "on 2026-09-04 that default overwrote an approved evening carousel with the noon Reel."
+    );
+  }
+  const variantRaw = getOption(args, "variant");
+  const variant: AbVariant | undefined = variantRaw === "15s" || variantRaw === "10s" ? variantRaw : undefined;
+  return { date, conceptId, slot, variant, force: getFlag(args, "force") };
 }
 
 export type HealSlotAction =
@@ -547,8 +748,17 @@ async function main(): Promise<void> {
 
   if (getFlag(args, "plan")) {
     for (const entry of REEL_SCHEDULE) {
-      await scheduleReel({ date: entry.date, conceptId: entry.conceptId, root: getOption(args, "root") });
+      // The legacy plan is the single evening Reel; say so instead of relying on a default.
+      await scheduleReel({ date: entry.date, conceptId: entry.conceptId, slot: 2, root: getOption(args, "root") });
     }
+    return;
+  }
+
+  if (getFlag(args, "restore")) {
+    const date = getOption(args, "date");
+    const slot = getNumberOption(args, "slot");
+    if (!date || slot === undefined) throw new Error("Required: --restore --date YYYY-MM-DD --slot N");
+    await restoreReelSlot({ date, slotNumber: slot, root: getOption(args, "root") });
     return;
   }
 
@@ -603,14 +813,8 @@ async function main(): Promise<void> {
     return;
   }
 
-  const date = getOption(args, "date");
-  const conceptId = getOption(args, "concept");
-  if (!date || !conceptId) throw new Error("Required: --date YYYY-MM-DD --concept <id>, --heal, or --plan.");
-  const slot = getNumberOption(args, "slot") ?? 2;
-  const variantRaw = getOption(args, "variant");
-  const variant: AbVariant | undefined =
-    variantRaw === "15s" || variantRaw === "10s" ? variantRaw : undefined;
-  await scheduleReel({ date, conceptId, slot, variant, root: getOption(args, "root") });
+  const { date, conceptId, slot, variant, force } = parseScheduleCliArgs(args);
+  await scheduleReel({ date, conceptId, slot, variant, force, root: getOption(args, "root") });
 }
 
 if (isMain(import.meta.url)) {

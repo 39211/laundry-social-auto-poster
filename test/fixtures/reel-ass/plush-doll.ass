@@ -1,0 +1,18 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 720
+PlayResY: 1280
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Narration,Microsoft JhengHei,40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H73000000,-1,0,0,0,100,100,0,0,3,6,0,2,20,20,84,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.37,0:00:02.60,Narration,,0,0,0,,娃娃能洗,但洗法差很多。
+Dialogue: 0,0:00:02.60,0:00:04.46,Narration,,0,0,0,,怕的不是水,是脫水。
+Dialogue: 0,0:00:04.46,0:00:06.51,Narration,,0,0,0,,填充會結塊,五官會掉。
+Dialogue: 0,0:00:06.51,0:00:08.74,Narration,,0,0,0,,手洗低溫烘,五官先固定,
+Dialogue: 0,0:00:08.74,0:00:09.67,Narration,,0,0,0,,拍來報價。

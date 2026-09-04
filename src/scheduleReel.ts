@@ -293,11 +293,24 @@ function conceptIdFromReelPath(reelSourcePath: string): string | undefined {
   return base.replace(/-15s(?:-t[ABC])?$/i, "").replace(/-t[ABC]$/i, "");
 }
 
-function narrationFromRegistry(conceptId: string): string | undefined {
-  const raw = readUtf8IfPresent(join(projectRoot(), BURNED_NARRATION_REGISTRY_REL));
+function sidecarNarrationDisabled(contents: string): boolean {
+  try {
+    const parsed = JSON.parse(contents) as { narration?: unknown };
+    return parsed.narration === false;
+  } catch {
+    return false;
+  }
+}
+
+function narrationFromRegistry(conceptId: string, root: string): string | undefined {
+  const raw = readUtf8IfPresent(join(root, BURNED_NARRATION_REGISTRY_REL));
   if (raw === undefined) return undefined;
   try {
-    const parsed = JSON.parse(raw) as { narrations?: Record<string, unknown> };
+    const parsed = JSON.parse(raw) as {
+      narrations?: Record<string, unknown>;
+      generated_from?: Record<string, { source?: unknown }>;
+    };
+    if (parsed.generated_from?.[conceptId]?.source !== "ass") return undefined;
     const value = parsed.narrations?.[conceptId];
     if (typeof value === "string" && value.trim()) return value.trim();
   } catch {
@@ -307,7 +320,8 @@ function narrationFromRegistry(conceptId: string): string | undefined {
 }
 
 function burnedNarrationEvidence(
-  reelSourcePath: string
+  reelSourcePath: string,
+  root: string
 ): { text: string; source: Exclude<ReelNarrationSource, "concept"> } | undefined {
   for (const assPath of assCandidatesFor(reelSourcePath)) {
     const raw = readUtf8IfPresent(assPath);
@@ -317,12 +331,16 @@ function burnedNarrationEvidence(
   }
   const sidecar = readUtf8IfPresent(`${reelSourcePath}.audio.json`);
   if (sidecar !== undefined) {
+    // Sidecar `narration: false` means native-model-audio with no spoken
+    // narration. Do not consult the registry for a caption that the video
+    // never said.
+    if (sidecarNarrationDisabled(sidecar)) return undefined;
     const fromAudio = narrationFromAudioJson(sidecar);
     if (fromAudio) return { text: fromAudio, source: "burned" };
   }
   const conceptId = conceptIdFromReelPath(reelSourcePath);
   if (!conceptId) return undefined;
-  const fromRegistry = narrationFromRegistry(conceptId);
+  const fromRegistry = narrationFromRegistry(conceptId, root);
   if (fromRegistry) return { text: fromRegistry, source: "registry" };
   return undefined;
 }
@@ -330,11 +348,18 @@ function burnedNarrationEvidence(
 /**
  * Read the narration actually burned onto a reel: same-stem `.ass` Dialogue
  * text in time order, else a string narration field on `.audio.json`, else
- * the production-time registry. Missing evidence returns undefined so callers
- * keep the live concept.
+ * the production-time registry.
+ *
+ * The registry only accepts `.ass`-derived entries (`generated_from.source
+ * === "ass"`). Reels with no `.ass`, or whose sidecar sets `narration:
+ * false`, fall back to the live concept narration and record
+ * `narration_source: "concept"`. That is a known caption-vs-video gap; the
+ * fix is to re-burn (PR #51).
+ *
+ * Missing evidence returns undefined so callers keep the live concept.
  */
-export function burnedNarrationFor(reelSourcePath: string): string | undefined {
-  return burnedNarrationEvidence(reelSourcePath)?.text;
+export function burnedNarrationFor(reelSourcePath: string, root: string = projectRoot()): string | undefined {
+  return burnedNarrationEvidence(reelSourcePath, root)?.text;
 }
 
 export function captionsFor(
@@ -377,21 +402,17 @@ export function captionsFor(
     FOLLOW_LINE,
     hashtags
   ].join("\n\n");
-  const facebook = skipQuestionFor
-    ? [
-        ...opening,
-        reelActionCta(concept, "facebook"),
-        shareInviteFor(concept),
-        FOLLOW_LINE,
-        hashtags
-      ].join("\n\n")
-    : [
-        ...opening,
-        reelActionCta(concept, "facebook"),
-        questionFor(concept),
-        FOLLOW_LINE,
-        hashtags
-      ].join("\n\n");
+  // FB always carries the share invite after CTA, independent of
+  // skipQuestionFor. IG still skips questionFor when the opening already
+  // contains ？.
+  const facebook = [
+    ...opening,
+    reelActionCta(concept, "facebook"),
+    ...(skipQuestionFor ? [] : [questionFor(concept)]),
+    shareInviteFor(concept),
+    FOLLOW_LINE,
+    hashtags
+  ].join("\n\n");
   // Reels were assembled here and never passed through the shared rules, so
   // every one of them published without a tappable link, without a price and
   // with four generic tags. The topic is the concept's object, which is what
@@ -522,7 +543,7 @@ export async function scheduleReel(input: {
     await copyFile(coverSource, join(root, coverRel));
   }
 
-  const evidence = burnedNarrationEvidence(reelSource);
+  const evidence = burnedNarrationEvidence(reelSource, root);
   const narrationSource: ReelNarrationSource = evidence?.source ?? "concept";
   const burnedNarration = evidence?.text;
   const usedNarration = burnedNarration ?? concept.narration;

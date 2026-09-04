@@ -1,125 +1,74 @@
 {
   "run": "output/reels-run/2026-07-29",
   "generated_from": {
-    "white-shoe-yellowing": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "git"
-    },
-    "handbag-handle": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "git"
-    },
-    "leather-shoe-rain": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "git"
-    },
     "plush-doll": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "ass"
-    },
-    "duvet-storage": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "git"
-    },
-    "leather-bag-corner": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "git"
-    },
-    "shirt-collar": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "git"
-    },
-    "suit-shoulder": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "git"
-    },
-    "curtain-hem": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "git"
-    },
-    "luggage-wheel": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "git"
-    },
-    "backpack-base": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "git"
-    },
-    "canvas-shoe-mud": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "git"
-    },
-    "down-jacket-cuff": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "git"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/plush-doll.ass",
+      "sha256": "6eb95cd53de784e6926a7948b9404f8616e1d52092428558ce612cd9bbbbd0b4"
     },
     "wool-coat-shoulder": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "ass"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/wool-coat-shoulder.ass",
+      "sha256": "34a347d875dbd3a1fc967fd7317ff89dce101e060b731c0089f07b850b1a973c"
     },
     "suede-shoe-nap": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "ass"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/suede-shoe-nap.ass",
+      "sha256": "60a2bef4038307f025a0bf642759063b6be6825adf0f71ae3c876998ec43bc8d"
     },
     "heel-tip-scuff": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "ass"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/heel-tip-scuff.ass",
+      "sha256": "58672fc3856b7e11013c38d2ee6040fee2f52c92c0c7e1f4424c9d9f2a61bf2d"
     },
     "leather-belt-crease": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "ass"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/leather-belt-crease.ass",
+      "sha256": "70d1fe3c98851b7ce760542782ceb729b0a86887b838b8a4ce353decf16aed53"
     },
     "mattress-pad-sweat": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "ass"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/mattress-pad-sweat.ass",
+      "sha256": "97f591b4c1892fa4fc35c33058dfe5fcae6c459833471353faefe2edce3ce3b0"
     },
     "blanket-pilling": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "ass"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/blanket-pilling.ass",
+      "sha256": "e35b24a10566abce9d937f4e206422d0c589f66c7f70e5453d8fe9b39353d55f"
     },
     "denim-knee-fade": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "ass"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/denim-knee-fade.ass",
+      "sha256": "a4cf5d3cde818f0bcc8017ba3b006f18e032767a7926ddf537c72e1bb8f8c6a0"
     },
     "wallet-edge-wear": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "ass"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/wallet-edge-wear.ass",
+      "sha256": "97fc85e3e464c8c3381c2cdf2e834fc1e1afded5a760814ab86d5db27022cf64"
     },
     "kids-shoe-toe": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "ass"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/kids-shoe-toe.ass",
+      "sha256": "55d373e7a7f16401d81e155e8ecce1fb112d34fdab42060cad9f98ebe577b3e9"
     },
     "hiking-boot-mud": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "ass"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/hiking-boot-mud.ass",
+      "sha256": "3f27849e0a42c71e0866c702a539ada30ca5164f38cab02b8f46cac0d6b992b9"
     },
     "sweater-underarm": {
-      "commit": "8d114669d0ab757fe7a952819828584d6f44dce6",
-      "source": "ass"
-    },
-    "boot-mould-bloom": {
-      "commit": "16132772a8cf13c69fefa5d3568e7f2ee64fcc97",
-      "source": "git"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/sweater-underarm.ass",
+      "sha256": "9378c8773aa71c5fc96cecd27779fe453bb34cc4df97a27a25610fe939e649d3"
     },
     "white-shoe-rescue": {
-      "commit": "16132772a8cf13c69fefa5d3568e7f2ee64fcc97",
-      "source": "ass"
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/white-shoe-rescue.ass",
+      "sha256": "5004afd62a8598726c140bce808a0d178e3e87b684af8f82368dc2cd9d266861"
     }
   },
   "narrations": {
-    "white-shoe-yellowing": "黃在兩個位置，做法差很多。膠邊是氧化刷不掉；布面洗劑殘留才洗得回來。運動鞋兩百五起，台中收送。",
-    "handbag-handle": "提把握處開始發黏了。那是手汗一天天堆起來的，滲進皮層就只能淡化。還沒變色現在最省。一般包六百起。",
-    "leather-shoe-rain": "淋雨那天擦乾了，看起來沒事。水痕過幾天才浮出來。這時候上油等於鎖進皮裡，之後補色。還沒上油的現在剛好。皮鞋四百起。",
     "plush-doll": "娃娃能洗,但洗法差很多。怕的不是水,是脫水。填充會結塊,五官會掉。手洗低溫烘,五官先固定,拍來報價。",
-    "duvet-storage": "摸起來乾，先別急著收。中間那層不一定乾。帶著濕氣收進櫃子，下一季打開就是那個味道。雙人棉被五百，免費到府收送。",
-    "leather-bag-corner": "邊油還剩多少，現在就要看。磨掉就補不回來，只能重新上。能清潔的時間很短。名牌包一千五起，補色另計。",
-    "shirt-collar": "領口內側那圈黃，不是沒洗乾淨。那是皮脂氧化，卡在纖維裡。洗衣精加倍只會把布洗薄。燙下去就定型。襯衫七十。",
-    "suit-shoulder": "掛錯衣架、擠在衣櫃裡，肩線先變。肩襯塌下去就回不來。趁還有形先保養，比事後修補便宜。拍肩線給我們報價。",
-    "curtain-hem": "家裡有味道，找不到來源。十次有八次是窗簾下緣那一折。灰塵和濕氣積在裡面，摸起來乾而已。整片我們收。",
-    "luggage-wheel": "旅行回來先別推進櫃子。輪子底板都在地上磨，灰收進去下次打開就是味道。不用整咖搬來，台中市區免費到府收。",
-    "backpack-base": "底部那面天天貼地，幾乎沒人洗。背帶的汗鹽和底部的地面灰是兩種，一起洗才有用。背包五百，開學前送洗來得及。",
-    "canvas-shoe-mud": "泥還濕的時候，先別動它。濕的時候刷，泥會被推進織紋裡，布面起毛。等乾了整塊剝掉反而好救。帆布鞋兩百五起。",
-    "down-jacket-cuff": "那是手腕的油脂日積月累壓進纖維裡,不是表面的髒。整件下水才會勻,只搓袖口反而會留下一圈更深的印子。",
     "wool-coat-shoulder": "掛了一整季沒穿,灰會沿著肩膀那條線慢慢積起來。刷不掉是因為它早就卡進毛裡,要整件洗才拉得出來。",
     "suede-shoe-nap": "絨毛倒了就會發硬發亮,那不是髒。洗完得把整片絨面重新刷順才回得來,用濕布擦只會把它壓得更平。",
     "heel-tip-scuff": "包在外面的那層皮磨穿了,底下的材質才會露出來。清潔救不回這一塊,鞋面能洗,跟頭得換一片新的皮上去。",
@@ -131,7 +80,6 @@
     "kids-shoe-toe": "小孩踢地板磨出來的,只要面料還在就一定洗得回來。與其急著買新的一雙,先看那層膠有沒有裂開。",
     "hiking-boot-mud": "泥乾掉之後會把鞋底的溝整個填平,抓地力就跟著沒了。硬刷會傷到防水層,要先泡開再慢慢帶出來。",
     "sweater-underarm": "汗和止汗劑會起反應變成黃斑,放得越久就越難退。當季就洗掉最好處理,收進櫃子放一季就定型了。",
-    "boot-mould-bloom": "梅雨櫃子放一季,皮面就長出這層白灰。霉根會吃進皮革,越晚處理越難救,先拍照傳給我們看狀況。",
     "white-shoe-rescue": "膠邊的黃是氧化,刷不掉;布面的黃是洗劑殘留,洗得回來。兩種黃的做法不一樣,拍照傳來就知道。"
   }
 }

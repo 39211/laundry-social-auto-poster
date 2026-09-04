@@ -1,50 +1,26 @@
 // Restore the narration burned into each canonical reel by reading the
-// official run directory (sidecars + mp4 mtime) and the git history of
-// src/reelConcepts.ts + data/reel-concepts-extension.json.
+// official run directory's same-stem `.ass` files. No git/mtime inference:
+// that heuristic was falsified (SXJ-REELQ r8/r9). Concepts without `.ass`
+// are printed as `NO_ASS <id>` and omitted from the registry.
 //
 //   node scripts/build-reel-burned-narrations.mjs [--print-only] [--repo DIR] [--run-dir DIR] [--out FILE]
-//
-// Lookup for the stored text: same-stem .ass (exact Dialogue join) when
-// present, else git show of the commit chosen below. Commit selection:
-//   1. mp4 mtime (fallback: .audio.json mtime)
-//   2. git log --before=<mtime> -1 -- the two source files
-//   3. if that commit has no concept id, walk forward to the first later
-//      commit that does (concepts landed after the file mtime, e.g. 09-04 WIP)
-//
-// Validated: git text at that commit matches the 13 official .ass files
-// after stripping punctuation. Refuse to write if that check fails.
 
-import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const RUN_REL = join("output", "reels-run", "2026-07-29");
+const RUN_REL = "output/reels-run/2026-07-29";
 const TS_REL = join("src", "reelConcepts.ts");
 const JSON_REL = join("data", "reel-concepts-extension.json");
-const SOURCE_PATHS = [TS_REL, JSON_REL];
 const ASS_OVERRIDE_BLOCK = /\{[^}]*\}/gu;
+const EXPECTED_CONCEPTS = 26;
+const EXPECTED_ASS = 13;
 
 function argValue(flag) {
   const idx = process.argv.indexOf(flag);
   if (idx < 0 || idx + 1 >= process.argv.length) return undefined;
   return process.argv[idx + 1];
-}
-
-function git(repo, args) {
-  return execFileSync("git", args, { cwd: repo, encoding: "utf8" }).trim();
-}
-
-function gitAllowFail(repo, args) {
-  try {
-    return git(repo, args);
-  } catch {
-    return "";
-  }
-}
-
-function formatIso(date) {
-  return date.toISOString();
 }
 
 function assStartToCs(start) {
@@ -109,19 +85,6 @@ function extractFromJson(src) {
   return out;
 }
 
-function narrationsAt(repo, sha) {
-  const out = {};
-  const ts = gitAllowFail(repo, ["show", `${sha}:${TS_REL.replace(/\\/g, "/")}`]);
-  if (ts) Object.assign(out, extractFromTs(ts));
-  const js = gitAllowFail(repo, ["show", `${sha}:${JSON_REL.replace(/\\/g, "/")}`]);
-  if (js) Object.assign(out, extractFromJson(js));
-  return out;
-}
-
-function stripPunct(text) {
-  return String(text ?? "").replace(/[^\w\u4e00-\u9fff]/gu, "");
-}
-
 function currentConceptIds(repo) {
   const ids = [];
   const seen = new Set();
@@ -149,76 +112,22 @@ function findRunDir(repo) {
   const fromArg = argValue("--run-dir");
   if (fromArg) return resolve(fromArg);
   const candidates = [
-    join(repo, RUN_REL),
-    resolve(repo, "..", "..", "..", RUN_REL)
+    join(repo, "output", "reels-run", "2026-07-29"),
+    resolve(repo, "..", "..", "..", "output", "reels-run", "2026-07-29")
   ];
   return candidates.find((dir) => existsSync(join(dir, "reels")));
 }
 
-function sidecarFlags(reelsDir, id) {
-  const stemAss = existsSync(join(reelsDir, `${id}.ass`));
-  const mp4Ass = existsSync(join(reelsDir, `${id}.mp4.ass`));
-  const subsPath = join(reelsDir, `${id}.mp4.subs.json`);
-  const audioPath = join(reelsDir, `${id}.mp4.audio.json`);
-  const subs = existsSync(subsPath);
-  const audio = existsSync(audioPath);
-  let subsText = false;
-  if (subs) {
-    try {
-      const parsed = JSON.parse(readFileSync(subsPath, "utf8").replace(/^\uFEFF/u, ""));
-      if (Array.isArray(parsed)) subsText = parsed.length > 0;
-      else if (parsed && typeof parsed === "object") {
-        for (const [key, value] of Object.entries(parsed)) {
-          if (
-            typeof value === "string" &&
-            value.trim() &&
-            key !== "cli" &&
-            key !== "burned_at" &&
-            key !== "narration_sha256" &&
-            !value.startsWith("cues=")
-          ) {
-            subsText = true;
-          }
-        }
-      }
-    } catch {
-      subsText = false;
-    }
-  }
-  return { stemAss, mp4Ass, subs, subsText, audio };
-}
-
-function productionMtime(reelsDir, id) {
-  const mp4 = join(reelsDir, `${id}.mp4`);
-  if (existsSync(mp4)) return statSync(mp4).mtime;
-  const audio = join(reelsDir, `${id}.mp4.audio.json`);
-  if (existsSync(audio)) return statSync(audio).mtime;
+function assFileFor(reelsDir, id) {
+  const stem = join(reelsDir, `${id}.ass`);
+  if (existsSync(stem)) return stem;
+  const mp4Ass = join(reelsDir, `${id}.mp4.ass`);
+  if (existsSync(mp4Ass)) return mp4Ass;
   return undefined;
 }
 
-function resolveCommit(repo, commitsNewest, cache, conceptId, mtimeIso) {
-  const sha = git(repo, [
-    "log",
-    `--before=${mtimeIso}`,
-    "-1",
-    "--format=%H",
-    "--",
-    ...SOURCE_PATHS.map((p) => p.replace(/\\/g, "/"))
-  ]);
-  if (!sha) throw new Error(`no commit before ${mtimeIso} for ${conceptId}`);
-  if (!cache[sha]) cache[sha] = narrationsAt(repo, sha);
-  if (cache[sha][conceptId]) return sha;
-  const idx = commitsNewest.indexOf(sha);
-  if (idx < 0) throw new Error(`commit ${sha} not in log for ${conceptId}`);
-  const newer = commitsNewest.slice(0, idx);
-  for (const candidate of [...newer].reverse()) {
-    if (!cache[candidate]) cache[candidate] = narrationsAt(repo, candidate);
-    if (cache[candidate][conceptId]) {
-      console.log(`WALK_FORWARD ${conceptId} ${sha.slice(0, 8)} -> ${candidate.slice(0, 8)}`);
-      return candidate;
-    }
-  }
-  throw new Error(`${conceptId} missing at ${sha.slice(0, 8)} and no later commit has it`);
+function sha256File(path) {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -233,77 +142,45 @@ const printOnly = process.argv.includes("--print-only");
 const outPath = resolve(argValue("--out") ?? join(repo, "data", "reel-burned-narrations.json"));
 
 const ids = currentConceptIds(repo);
-if (ids.length !== 26) {
-  console.error(`expected 26 concept ids, got ${ids.length}: ${ids.join(",")}`);
+if (ids.length !== EXPECTED_CONCEPTS) {
+  console.error(`expected ${EXPECTED_CONCEPTS} concept ids, got ${ids.length}: ${ids.join(",")}`);
   process.exit(1);
 }
 
-console.log("Q0 sidecars");
-for (const id of ids) {
-  const flags = sidecarFlags(reelsDir, id);
-  console.log(
-    `${id}\tstem.ass=${flags.stemAss}\tmp4.ass=${flags.mp4Ass}\tsubs.json=${flags.subs}\tsubs_text=${flags.subsText}\taudio.json=${flags.audio}`
-  );
-}
-
-const commitsNewest = git(repo, [
-  "log",
-  "--format=%H",
-  "--",
-  ...SOURCE_PATHS.map((p) => p.replace(/\\/g, "/"))
-])
-  .split(/\r?\n/)
-  .filter(Boolean);
-const cache = {};
 const generatedFrom = {};
 const narrations = {};
-let assCount = 0;
-let assMatch = 0;
+const missing = [];
 
-console.log("Q1 git vs .ass");
 for (const id of ids) {
-  const mtime = productionMtime(reelsDir, id);
-  if (!mtime) throw new Error(`no mp4 or audio.json for ${id}`);
-  const mtimeIso = formatIso(mtime);
-  const sha = resolveCommit(repo, commitsNewest, cache, id, mtimeIso);
-  const gitText = cache[sha][id];
-  if (!gitText) throw new Error(`empty git narration for ${id} at ${sha}`);
-  const assPath = existsSync(join(reelsDir, `${id}.ass`))
-    ? join(reelsDir, `${id}.ass`)
-    : existsSync(join(reelsDir, `${id}.mp4.ass`))
-      ? join(reelsDir, `${id}.mp4.ass`)
-      : undefined;
-  const assText = assPath
-    ? narrationFromAss(readFileSync(assPath, "utf8").replace(/^\uFEFF/u, ""))
-    : undefined;
-  const source = assText ? "ass" : "git";
-  const stored = assText ?? gitText;
-  generatedFrom[id] = { commit: sha, source };
-  narrations[id] = stored;
-  let match = "n/a";
-  if (assText) {
-    assCount += 1;
-    const ok = stripPunct(gitText) === stripPunct(assText);
-    match = ok ? "yes" : "NO";
-    if (ok) assMatch += 1;
-    else {
-      console.error(`MISMATCH ${id}`);
-      console.error(`  GIT ${gitText}`);
-      console.error(`  ASS ${assText}`);
-    }
+  const assPath = assFileFor(reelsDir, id);
+  if (!assPath) {
+    missing.push(id);
+    console.error(`NO_ASS ${id}`);
+    continue;
   }
-  const first = stored.split(/(?<=[。！？.!?])/u).filter(Boolean)[0] ?? stored;
-  console.log(`${id}\t${source}\t${sha}\t${match}\t${first}`);
+  const raw = readFileSync(assPath);
+  const assText = narrationFromAss(raw.toString("utf8").replace(/^\uFEFF/u, ""));
+  if (!assText) {
+    console.error(`empty .ass narration for ${id}`);
+    process.exit(1);
+  }
+  const filename = assPath.endsWith(".mp4.ass") ? `${id}.mp4.ass` : `${id}.ass`;
+  generatedFrom[id] = {
+    source: "ass",
+    path: `${RUN_REL}/reels/${filename}`,
+    sha256: sha256File(assPath)
+  };
+  narrations[id] = assText;
 }
 
-console.log(`Q1 ${assMatch}/${assCount}`);
-if (assCount !== 13 || assMatch !== 13) {
-  console.error("refusing to write: git restore does not match 13/13 .ass files");
+const assIds = Object.keys(narrations);
+if (assIds.length !== EXPECTED_ASS) {
+  console.error(`expected ${EXPECTED_ASS} .ass entries, got ${assIds.length}`);
   process.exit(1);
 }
 
 const payload = {
-  run: "output/reels-run/2026-07-29",
+  run: RUN_REL,
   generated_from: generatedFrom,
   narrations
 };
@@ -313,5 +190,5 @@ if (printOnly) {
   process.stdout.write(json);
 } else {
   writeFileSync(outPath, json, "utf8");
-  console.log(`wrote ${outPath}`);
+  console.error(`wrote ${outPath}`);
 }

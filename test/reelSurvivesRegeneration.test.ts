@@ -74,6 +74,37 @@ async function scheduleNoonReelInto(date: string, withFile: boolean): Promise<vo
   }
 }
 
+function slot4Reel(date: string): DailySlot {
+  return {
+    slot: 4,
+    time: "12:00",
+    category: "情境文",
+    topic: "SLOT_4_REEL_MUST_NOT_SURVIVE",
+    format: "reel",
+    media_type: "reel",
+    instagram_caption: "slot 4 reel ig caption",
+    facebook_caption: "slot 4 reel fb caption",
+    image_prompt: "slot 4 reel cover",
+    visual_route: "shop-inspection",
+    traffic_route: "share-worthy-care",
+    local_image_path: `docs/assets/${date}/slot-04.png`,
+    public_image_url: `https://sixiangjialaundry.com/assets/${date}/slot-04.png`,
+    local_video_path: `docs/assets/${date}/slot-04.mp4`,
+    video_prompt: "motion prompt",
+    status: "pending"
+  };
+}
+
+async function scheduleSlot4ReelCalendar(date: string): Promise<void> {
+  const scheduled = await loadDailyContent(date, root);
+  const slot1 = scheduled!.slots.find((slot) => slot.slot === 1)!;
+  const slot2 = scheduled!.slots.find((slot) => slot.slot === 2)!;
+  scheduled!.slots = [slot1, slot2, slot4Reel(date)];
+  await writeDailyContent(scheduled!, root);
+  await mkdir(join(root, "docs", "assets", date), { recursive: true });
+  await writeFile(join(root, "docs", "assets", date, "slot-04.mp4"), "video bytes", "utf8");
+}
+
 describe("forced regeneration", () => {
   it("carries a scheduled reel slot through instead of reverting it", async () => {
     const date = "2026-08-20";
@@ -161,5 +192,48 @@ describe("forced regeneration", () => {
     const slot3 = regenerated!.slots.find((slot) => slot.slot === 3);
     expect(slot3?.media_type).not.toBe("reel");
     expect(slot3?.topic).not.toBe("中午排定的 Reel");
+  });
+
+  it("writes three slots when the existing calendar is [1,2,4] with a reel file", async () => {
+    const date = "2026-08-24";
+    await generateDailyContent({ date, root });
+    await scheduleSlot4ReelCalendar(date);
+    const seeded = await loadDailyContent(date, root);
+    expect(seeded!.slots.map((slot) => slot.slot)).toEqual([1, 2, 4]);
+
+    await generateDailyContent({ date, root, force: true });
+
+    const regenerated = await loadDailyContent(date, root);
+    expect(regenerated!.slots).toHaveLength(3);
+    expect(regenerated!.slots.map((slot) => slot.slot)).toEqual([1, 2, 3]);
+    expect(regenerated!.slots.find((slot) => slot.slot === 4)).toBeUndefined();
+    expect(regenerated!.slots.find((slot) => slot.slot === 3)?.topic).not.toBe(
+      "SLOT_4_REEL_MUST_NOT_SURVIVE"
+    );
+  });
+
+  it("does not pin a non-reel noon slot that only has a video file on disk", async () => {
+    const date = "2026-08-25";
+    await generateDailyContent({ date, root });
+    const seeded = await loadDailyContent(date, root);
+    const slot3 = seeded!.slots.find((slot) => slot.slot === 3)!;
+    expect(slot3.media_type).not.toBe("reel");
+    slot3.topic = "PINNED_IMAGE_MUST_NOT_SURVIVE";
+    slot3.instagram_caption = "image-with-video-path-ig";
+    slot3.facebook_caption = "image-with-video-path-fb";
+    slot3.local_video_path = `docs/assets/${date}/slot-03.mp4`;
+    await writeDailyContent(seeded!, root);
+    await mkdir(join(root, "docs", "assets", date), { recursive: true });
+    await writeFile(join(root, "docs", "assets", date, "slot-03.mp4"), "video bytes", "utf8");
+
+    await generateDailyContent({ date, root, force: true });
+
+    const regenerated = await loadDailyContent(date, root);
+    const noon = regenerated!.slots.find((slot) => slot.slot === 3)!;
+    expect(noon.media_type).not.toBe("reel");
+    expect(noon.topic).not.toBe("PINNED_IMAGE_MUST_NOT_SURVIVE");
+    expect(noon.instagram_caption).not.toBe("image-with-video-path-ig");
+    expect(noon.facebook_caption).not.toBe("image-with-video-path-fb");
+    expect(noon.local_video_path).toBeUndefined();
   });
 });

@@ -79,29 +79,21 @@ export async function generateDailyContent(options: GenerateDailyContentOptions 
       }
     }
 
-    // A scheduled Reel in a slot the new generation does not have -- the noon
-    // Reel schedule-reel writes at --slot 3 -- must survive as-is, caption
-    // included. That caption was written for this slot; it is not yesterday's
-    // slot 3 moved onto today's slot 2, so the matching loop's "replace the
-    // words" rule does not apply.
-    //
-    // buildDailyContent still emits a template image at slot 3 because
-    // DAILY_SCHEDULE lists 12:00, so the loop above would treat a noon Reel as
-    // a same-number match and swap its caption. A template at a slot the daily
-    // plan does not own is not a planned post: restore the Reel in full. A
-    // Reel whose file is gone is left to the new generation, same as above.
+    // New generation always emits a template image at slot 3 because
+    // DAILY_SCHEDULE lists 12:00. A scheduled noon Reel at that same number
+    // is restored in full, captions included; the matching loop above would
+    // otherwise swap the Reel's caption onto the template. A Reel whose file
+    // is gone is left to the new generation. Existing slots the new
+    // generation does not emit are not added back.
     for (const current of existing.slots) {
+      if (current.slot <= 2) continue;
       if (current.media_type !== "reel" || !current.local_video_path) continue;
       const videoPath = join(root, ...current.local_video_path.split("/"));
       if (!(await exists(videoPath))) continue;
       const generatedIndex = content.slots.findIndex((item) => item.slot === current.slot);
-      if (generatedIndex === -1) {
-        content.slots.push(current);
-      } else if (current.slot > 2) {
-        content.slots[generatedIndex] = current;
-      }
+      if (generatedIndex === -1) continue;
+      content.slots[generatedIndex] = current;
     }
-    content.slots.sort((a, b) => a.slot - b.slot);
   }
 
   // Force already rebuilt non-reel slots. Move their old bytes before the new

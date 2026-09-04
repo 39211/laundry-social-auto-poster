@@ -4,7 +4,7 @@
       "id": "down-jacket-cuff",
       "object_type": "down-jacket",
       "hook": "羽絨外套袖口發黑",
-      "narration": "那是表面的髒嗎？不是,是手腕油脂日積月累壓進纖維裡,整件下水才會勻,只搓袖口,反而會留下一圈更深的印子。",
+      "narration": "那是表面的髒嗎？不是表面的髒,是手腕油脂日積月累壓進纖維裡,整件下水才會勻,只搓袖口,反而會留下一圈更深的印子。",
       "close": "羽絨外套 280 起,台中免費到府收送。",
       "before_subject": "a navy down jacket sleeve cuff, the ribbed band darkened grey-black with ingrained skin oil, fabric intact",
       "after_subject": "the same cuff clean and evenly navy again, the rib texture visible, no bleaching and no new fluff"
@@ -22,7 +22,7 @@
       "id": "suede-shoe-nap",
       "object_type": "suede-shoe",
       "hook": "麂皮鞋摸起來變硬",
-      "narration": "絨毛倒了發硬發亮,那是髒嗎？那不是髒,洗完得把整片絨面重新刷順才回得來,用濕布擦只會把它壓得更平。",
+      "narration": "絨毛倒了發硬發亮,那是髒嗎？那不是髒,洗完得把整片絨面重新刷順,才回得來,用濕布擦只會把它壓得更平。",
       "close": "麂皮鞋 400 起,不確定材質先拍給我。",
       "before_subject": "a tan suede shoe whose nap has flattened and gone shiny across the vamp, no tears",
       "after_subject": "the same shoe with the nap lifted and even again, matte and soft-looking, colour unchanged"
@@ -31,7 +31,7 @@
       "id": "heel-tip-scuff",
       "object_type": "high-heel",
       "hook": "高跟鞋跟頭磨白",
-      "narration": "跟頭發白,是那層包皮磨穿了嗎？磨穿了底下材質才會露出來,清潔救不回這一塊,鞋面能洗,跟頭得換一片新的皮上去。",
+      "narration": "跟頭發白,是那層皮磨穿了嗎？磨穿了底下材質才會露出來,清潔救不回這一塊,鞋面能洗,跟頭得換一片新的皮上去。",
       "close": "高跟鞋 400 起,補跟另計,先拍給我看。",
       "before_subject": "a black leather high heel with the heel tip covering worn through to pale base material",
       "after_subject": "the same shoe cleaned, upper leather even and matt, the worn heel tip still visibly worn"

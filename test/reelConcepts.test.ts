@@ -16,7 +16,7 @@ import {
   splitNarrationSentences,
   stillPathsFor
 } from "../src/reelConcepts";
-import { ORPHAN_CHARS, SUB_MAX_CHARS, splitNarration } from "../src/reelSubtitles";
+import { SUB_MAX_CHARS, splitNarration } from "../src/reelSubtitles";
 
 describe("reel concepts", () => {
   it("covers six distinct object types so no two Reels look alike", () => {
@@ -422,20 +422,56 @@ describe("extension file question shape and loader admission (K-F5 / O-F6)", () 
   });
 });
 
+// Must match CLAUSE_BREAK in src/reelSubtitles.ts. Input-shape (each clause
+// ≤ SUB_MAX_CHARS) is not implied by output card width (≤ SUB_MAX_CHARS + 2).
+const SUB_CLAUSE_BREAK = /(?<=[。！？!?，,、；;：:…])/u;
+
 describe("narration subtitle cards (O-F2)", () => {
-  it("never starts a card with ？ and keeps live cards within the module width", () => {
+  it("never starts a card with ？, never hard-wraps a clause, and keeps live cards within SUB_MAX_CHARS + 2", () => {
     const baselineConcepts = REEL_CONCEPTS.length;
     const baselineSchedule = REEL_SCHEDULE.length;
     loadExtensions();
     try {
       for (const concept of REEL_CONCEPTS) {
+        const clauses = concept.narration
+          .replace(/\s+/gu, " ")
+          .trim()
+          .split(SUB_CLAUSE_BREAK)
+          .filter((clause) => clause.length > 0);
+        for (const clause of clauses) {
+          expect(
+            clause.length,
+            `${concept.id} clause hard-wraps (${clause.length}): ${clause}`
+          ).toBeLessThanOrEqual(SUB_MAX_CHARS);
+        }
         const segments = splitNarration(concept.narration);
         for (const segment of segments) {
           expect(segment.startsWith("？"), `${concept.id} card starts with ？: ${segment}`).toBe(false);
           expect(
             segment.length,
-            `${concept.id} card wider than SUB_MAX_CHARS+ORPHAN_CHARS (${segment.length}): ${segment}`
-          ).toBeLessThanOrEqual(SUB_MAX_CHARS + ORPHAN_CHARS);
+            `${concept.id} card wider than SUB_MAX_CHARS + 2 (${segment.length}): ${segment}`
+          ).toBeLessThanOrEqual(SUB_MAX_CHARS + 2);
+        }
+      }
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+
+  it("keeps every live card at least 4 characters", () => {
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      expect(REEL_CONCEPTS.length).toBe(26);
+      for (const concept of REEL_CONCEPTS) {
+        const segments = splitNarration(concept.narration);
+        for (const segment of segments) {
+          expect(
+            segment.length,
+            `${concept.id} card shorter than 4 (${segment.length}): ${segment}`
+          ).toBeGreaterThanOrEqual(4);
         }
       }
     } finally {

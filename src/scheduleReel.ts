@@ -109,6 +109,9 @@ function questionFor(concept: ReelConcept): string {
 // Facebook uses 傳 LINE. Multi-photo asks ("完整外觀和局部") are banned on IG.
 function reelActionCta(concept: ReelConcept, platform: "instagram" | "facebook"): string {
   const channel = platform === "instagram" ? "私訊" : "傳 LINE";
+  if (concept.id === "handbag-handle") {
+    return `拍一張${channel}給我們，先幫你看提把。`;
+  }
   switch (concept.object_type) {
     case "duvet":
       return `換季要整理寢具的話，${channel}說一下數量就可以，我們去收。`;
@@ -144,13 +147,10 @@ export function captionsFor(
     airedBefore > 0
       ? [narrationLead, `${narrationRest ? narrationRest + "\n\n" : ""}${concept.hook}。`]
       : [concept.hook + "。", concept.narration];
-  // Lead is the fold line: rerun = first narration sentence, first run = hook.
-  // Knob 2A made every narration open with ？, so first-run opening also already
-  // asked. Stacking questionFor on top repeats the same ask (and fights the
-  // share invite). Skip that block; keep the share sentence and the CTA.
-  const lead = airedBefore > 0 ? narrationLead : `${concept.hook}。`;
-  const skipQuestionFor =
-    /[？?]\s*$/u.test(lead.trim()) || /[？?]/.test(opening.join(""));
+  // Skip questionFor when any opening sentence already contains ？.
+  // Intentional: if a future concept opens with a statement and a later
+  // opening sentence asks, questionFor is still skipped.
+  const skipQuestionFor = /[？?]/.test(opening.join(""));
   const igQuestionShare = skipQuestionFor
     ? shareInviteFor(concept)
     : `${questionFor(concept)}\n\n${shareInviteFor(concept)}`;
@@ -162,7 +162,13 @@ export function captionsFor(
     hashtags
   ].join("\n\n");
   const facebook = skipQuestionFor
-    ? [...opening, reelActionCta(concept, "facebook"), FOLLOW_LINE, hashtags].join("\n\n")
+    ? [
+        ...opening,
+        reelActionCta(concept, "facebook"),
+        shareInviteFor(concept),
+        FOLLOW_LINE,
+        hashtags
+      ].join("\n\n")
     : [
         ...opening,
         reelActionCta(concept, "facebook"),

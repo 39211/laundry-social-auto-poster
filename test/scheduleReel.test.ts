@@ -89,7 +89,9 @@ describe("captionsFor question stacking (B)", () => {
     }
   });
 
-  it("skips questionFor when the lead already ends with ？", () => {
+  it("skips questionFor when any opening sentence contains ？", () => {
+    // Intentional: a future concept whose first sentence is a statement and a
+    // later opening sentence contains ？ also skips questionFor.
     const baselineConcepts = REEL_CONCEPTS.length;
     const baselineSchedule = REEL_SCHEDULE.length;
     loadExtensions();
@@ -102,6 +104,55 @@ describe("captionsFor question stacking (B)", () => {
       expect(rerun.instagram).not.toContain(QUESTION_FOR_PLUSH);
       expect(rerun.facebook).not.toContain(QUESTION_FOR_PLUSH);
       expect(rerun.instagram.startsWith(lead)).toBe(true);
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+
+  it("keeps a share invite on every FB caption, first airing and rerun", () => {
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      expect(REEL_CONCEPTS.length).toBe(26);
+      for (const live of REEL_CONCEPTS) {
+        for (const airedBefore of [0, 1] as const) {
+          const caps = captionsFor(live, airedBefore, "2026-09-05");
+          const shareBlock = caps.instagram.split("\n\n").find((block) => /傳給他|轉給他/.test(block));
+          expect(
+            shareBlock,
+            `${live.id} aired=${airedBefore} IG missing share invite`
+          ).toBeDefined();
+          expect(
+            caps.facebook,
+            `${live.id} aired=${airedBefore} FB missing share invite ${shareBlock}`
+          ).toContain(shareBlock);
+        }
+      }
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+
+  it("gives handbag-handle a handle CTA distinct from leather-bag-corner", () => {
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      const handbag = REEL_CONCEPTS.find((entry) => entry.id === "handbag-handle");
+      const leather = REEL_CONCEPTS.find((entry) => entry.id === "leather-bag-corner");
+      expect(handbag).toBeDefined();
+      expect(leather).toBeDefined();
+      const handbagCaps = captionsFor(handbag!, 0, "2026-09-05");
+      const leatherCaps = captionsFor(leather!, 0, "2026-09-05");
+      expect(handbagCaps.instagram).toContain("先幫你看提把");
+      expect(handbagCaps.facebook).toContain("先幫你看提把");
+      expect(handbagCaps.instagram).not.toContain("先看邊角");
+      expect(leatherCaps.instagram).toContain("先看邊角");
+      expect(leatherCaps.facebook).toContain("先看邊角");
+      expect(leatherCaps.instagram).not.toContain("先幫你看提把");
     } finally {
       REEL_CONCEPTS.length = baselineConcepts;
       REEL_SCHEDULE.length = baselineSchedule;

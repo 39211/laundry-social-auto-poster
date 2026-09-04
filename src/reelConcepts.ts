@@ -84,7 +84,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     hook: "先聞棉被中間那層",
     close: "中間層沒乾就有味道，台中收送",
     narration:
-      "摸著是乾的，就能收了嗎？中間那層不一定乾。帶著濕氣收進櫃子，下一季打開就是那個味道。雙人棉被五百，免費到府收送。",
+      "表面乾了，就能收了嗎？中間那層不一定乾。帶著濕氣收進櫃子，下一季打開就是那個味道。雙人棉被五百，免費到府收送。",
     before_subject:
       "one folded duvet with a fabric storage bag beside it, cover fabric limp with a dull grey film along the fold edges, loft compressed in the centre so the quilting channels look empty",
     after_subject:

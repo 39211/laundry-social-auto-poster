@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  ORPHAN_CHARS,
   SUB_MAX_CHARS,
   buildAss,
   narrationAss,
@@ -27,7 +26,7 @@ describe("splitNarration", () => {
       expect(segments.join(""), concept.id).toBe(normalized);
       expect(segments.length, concept.id).toBeGreaterThanOrEqual(2);
       for (const segment of segments) {
-        expect(segment.length, concept.id).toBeLessThanOrEqual(SUB_MAX_CHARS + ORPHAN_CHARS);
+        expect(segment.length, concept.id).toBeLessThanOrEqual(SUB_MAX_CHARS + 2);
       }
     }
   });
@@ -74,6 +73,13 @@ describe("splitNarration", () => {
         expect(segment.endsWith("？") || segment.endsWith("?"), segment).toBe(true);
       }
     }
+  });
+
+  it("does not glue a 1-2 character orphan tail back onto a ？ card", () => {
+    // Guard: after 能洗嗎？ the 2-char 好。 must not ride on the question card.
+    // Mutation: drop !/[？?]$/u.test(prev) → ["能洗嗎？好。"].
+    expect(splitNarration("能洗嗎？好。")).toEqual(["能洗嗎？", "好。"]);
+    expect(splitNarration("能洗嗎？好。再看。")).toEqual(["能洗嗎？", "好。再看。"]);
   });
 
   it("ends every live card that contains ？ with ？", () => {

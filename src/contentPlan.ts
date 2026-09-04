@@ -1680,7 +1680,7 @@ export const SLOT2_PHOTO_DIRECTED_RE = /給我們|幫你|傳來|傳給我們/;
 export const SLOT2_PICKUP_VALUE_CLAIM_RE = /免費|到府收|收送|我們去收/;
 /** Owner-signed family: keep the whole block, including a 私訊／傳 LINE tail. */
 export const SLOT2_SIGNED_OFF_VALUE_RE = /沒有低消|一件也收/;
-const SLOT2_GENERIC_CTA_RE = /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看|先拍好/;
+export const SLOT2_GENERIC_CTA_RE = /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看|先拍好/;
 const SLOT2_CHANNEL_CTA_RE = /私訊|傳 LINE|LINE 傳|用 LINE|直接私訊/;
 
 function looksLikeSlot2PhotoDirectedAsk(block: string): boolean {

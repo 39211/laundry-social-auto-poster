@@ -10,6 +10,7 @@ import {
   dailySlotFromPlaybook,
   looksLikeGenericSlot2Cta,
   rewriteSlot2PickupValueBlock,
+  SLOT2_GENERIC_CTA_RE,
   SLOT2_PHOTO_DIRECTED_RE,
   SLOT2_PHOTO_TOKEN_RE,
   SLOT2_PICKUP_VALUE_CLAIM_RE,
@@ -70,7 +71,7 @@ function isSlot2ClosingBlock(block: string): boolean {
   );
 }
 
-/** Non-question, non-closing photo-asks. Must share production's 拍|照片|相片 token. */
+/** Non-question, non-closing photo-asks. Shares production's photo token and generic CTA regex. */
 function photoInstructionBlocksOutsideContact(caption: string): string[] {
   return caption.split("\n\n").filter((block) => {
     if (isSlot2ClosingBlock(block)) return false;
@@ -78,10 +79,7 @@ function photoInstructionBlocksOutsideContact(caption: string): string[] {
     if (/[？?]\s*$/.test(block)) return false;
     if (!SLOT2_PHOTO_TOKEN_RE.test(block)) return false;
     if (ACTION_SENTENCE_RE.test(block)) return true;
-    return (
-      SLOT2_PHOTO_DIRECTED_RE.test(block) ||
-      /傳 LINE|私訊|拍一張|拍照|先幫你看|先拍好/.test(block)
-    );
+    return SLOT2_PHOTO_DIRECTED_RE.test(block) || SLOT2_GENERIC_CTA_RE.test(block);
   });
 }
 
@@ -967,5 +965,30 @@ describe("W4 bare 包 is an object by behavior", () => {
   it("maps 雨傘滴水後包底被弄濕 to bag corners, not the fallback pair", () => {
     expect(slot2ActionCta("雨傘滴水後包底被弄濕")).toBe("拍包角和內裡兩張傳 LINE，我們先看。");
     expect(slot2ActionCta("雨傘滴水後包底被弄濕")).not.toBe("拍整體和最在意的位置兩張傳 LINE，我們先看。");
+  });
+});
+
+const LINE_CHUAN_ONLY_BLOCK = "整理好之後用 LINE 傳地址就行。";
+const LINE_CHUAN_PHOTO_BLOCK = "照片用 LINE 傳地址就行。";
+const CHANNEL_RESIDUE_BLOCK = "免費先拍照。私訊好嗎？就這樣。";
+const VALUE_SENTENCE_KEPT_BLOCK = "台中市區免費到府收。私訊好嗎？就這樣。";
+
+describe("T1 shared SLOT2_GENERIC_CTA_RE includes LINE 傳", () => {
+  it("detects a LINE 傳 block through the exported regex, not a test copy", () => {
+    expect(SLOT2_GENERIC_CTA_RE.test(LINE_CHUAN_ONLY_BLOCK)).toBe(true);
+    expect(looksLikeGenericSlot2Cta(LINE_CHUAN_ONLY_BLOCK)).toBe(true);
+    expect(rewriteSlot2PickupValueBlock(LINE_CHUAN_ONLY_BLOCK)).toBeUndefined();
+    expect(SLOT2_GENERIC_CTA_RE.test(LINE_CHUAN_PHOTO_BLOCK)).toBe(true);
+    expect(photoInstructionBlocksOutsideContact(LINE_CHUAN_PHOTO_BLOCK)).toEqual([LINE_CHUAN_PHOTO_BLOCK]);
+  });
+});
+
+describe("T2 channel-residue gate after sentence salvage", () => {
+  it("deletes a block whose only value token lived in the dropped photo sentence", () => {
+    expect(rewriteSlot2PickupValueBlock(CHANNEL_RESIDUE_BLOCK)).toBeUndefined();
+  });
+
+  it("keeps a leftover that still has a pickup value sentence", () => {
+    expect(rewriteSlot2PickupValueBlock(VALUE_SENTENCE_KEPT_BLOCK)).toBe(VALUE_SENTENCE_KEPT_BLOCK);
   });
 });

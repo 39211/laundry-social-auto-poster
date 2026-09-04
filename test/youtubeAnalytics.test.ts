@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   collectYouTubeAnalytics,
   IMPRESSIONS_NOT_AVAILABLE,
+  persistYouTubeAnalyticsReport,
   runCli,
   youtubeAnalyticsPath,
   type YouTubeAnalyticsVideoRow
@@ -171,19 +172,64 @@ function logEntry(videoId: string, extra: Record<string, unknown> = {}): Record<
 async function readSavedReport(targetRoot: string): Promise<{
   date: string;
   fetched_at: string;
+  attempted_at?: string;
   status: string;
   reason?: string;
+  run_failed?: boolean;
+  run_failure_reason?: string;
   merged_existing_rows?: number;
   videos: YouTubeAnalyticsVideoRow[];
 }> {
   return JSON.parse(await readFile(youtubeAnalyticsPath(DATE, targetRoot), "utf8")) as {
     date: string;
     fetched_at: string;
+    attempted_at?: string;
     status: string;
     reason?: string;
+    run_failed?: boolean;
+    run_failure_reason?: string;
     merged_existing_rows?: number;
     videos: YouTubeAnalyticsVideoRow[];
   };
+}
+
+function measuredRow(videoId: string, views = 12): YouTubeAnalyticsVideoRow {
+  return {
+    video_id: videoId,
+    title: videoId,
+    published_at: "2026-09-01T12:00:00.000Z",
+    privacy_status: "public",
+    upload_status: "processed",
+    metrics_status: "measured",
+    views,
+    estimated_minutes_watched: 3,
+    average_view_duration_seconds: 45,
+    average_view_percentage: 67.5,
+    impressions: IMPRESSIONS_NOT_AVAILABLE
+  };
+}
+
+async function writeExistingReport(
+  targetRoot: string,
+  videos: YouTubeAnalyticsVideoRow[],
+  extra: Record<string, unknown> = {}
+): Promise<void> {
+  await mkdir(join(targetRoot, "data", "insights", "youtube"), { recursive: true });
+  await writeFile(
+    youtubeAnalyticsPath(DATE, targetRoot),
+    `${JSON.stringify(
+      {
+        date: DATE,
+        fetched_at: "2026-09-05T00:00:00.000Z",
+        status: extra.status ?? "measured",
+        videos,
+        ...extra
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
 }
 
 function list403() {
@@ -754,14 +800,20 @@ describe("YouTube Analytics collector", () => {
     expect(report.videos).toHaveLength(2);
     expect(report.videos.every((video) => video.metrics_status === "measured")).toBe(true);
     expect(report.videos.find((video) => video.video_id === "keep1")?.views).toBe(12);
-    expect(exitCode).toBe(0);
+    expect(report.run_failed).toBe(true);
+    expect(report.reason).toMatch(/token revoked|400/);
+    expect(exitCode).toBe(1);
     const printed = JSON.parse(stdoutText) as { merged_existing_rows?: number; persisted?: boolean };
     expect(printed.merged_existing_rows).toBe(2);
     expect(printed.persisted).toBeUndefined();
     expect(stderrLines).toContain("[youtube-analytics] merged 2 existing rows");
+    expect(stderrLines.some((line) => line.startsWith("[youtube-analytics] run failed:") && line.includes("kept 2 existing rows"))).toBe(
+      true
+    );
     const saved = await readSavedReport(root);
     expect(saved.status).toBe("measured");
     expect(saved.merged_existing_rows).toBe(2);
+    expect(saved.run_failed).toBe(true);
     expect(saved.videos).toHaveLength(2);
     expect(saved.videos.every((video) => video.metrics_status === "measured")).toBe(true);
   });
@@ -1110,12 +1162,12 @@ describe("YouTube Analytics collector", () => {
       })
     });
 
-    expect(second.status).toBe("partial");
+    expect(second.status).toBe("measured");
     expect(second.merged_existing_rows).toBe(1);
     expect(second.videos).toHaveLength(3);
     const saved = await readSavedReport(root);
     expect(saved.fetched_at).not.toBe(firstSaved.fetched_at);
-    expect(saved.status).toBe("partial");
+    expect(saved.status).toBe("measured");
     expect(saved.videos).toHaveLength(3);
     expect(saved.videos.find((video) => video.video_id === "v1")?.views).toBe(99);
     expect(saved.videos.find((video) => video.video_id === "v1")?.status_reason).toBeUndefined();
@@ -1123,7 +1175,8 @@ describe("YouTube Analytics collector", () => {
     const kept = saved.videos.find((video) => video.video_id === "v3");
     expect(kept?.metrics_status).toBe("measured");
     expect(kept?.views).toBe(12);
-    expect(kept?.status_reason).toMatch(/403/);
+    expect(kept?.privacy_status).toBe("public");
+    expect(kept?.status_reason).toBeUndefined();
   });
 
   it("keeps same-day rows that left the current log window", async () => {
@@ -1147,26 +1200,30 @@ describe("YouTube Analytics collector", () => {
     expect(first.videos.filter((video) => video.metrics_status === "measured")).toHaveLength(2);
 
     await writeLog(root, DATE, [logEntry("v1")]);
+    const droppedLines: string[] = [];
     const report = await collectYouTubeAnalytics({
       date: DATE,
       root,
       env: CONFIGURED,
       fetchImpl: googleFetch({
         analytics: () => jsonResponse(measuredAnalyticsRow("v1", 44))
-      })
+      }),
+      stdout: (line) => {
+        droppedLines.push(line);
+      }
     });
 
-    expect(report.videos).toHaveLength(3);
-    expect(report.merged_existing_rows).toBe(2);
-    expect(report.videos.map((video) => video.video_id)).toEqual(["v1", "v2", "v3"]);
+    expect(report.videos).toHaveLength(1);
+    expect(report.videos.map((video) => video.video_id)).toEqual(["v1"]);
     expect(report.videos[0]?.views).toBe(44);
-    expect(report.videos[1]?.metrics_status).toBe("measured");
-    expect(report.videos[1]?.views).toBe(12);
-    expect(report.videos[2]?.metrics_status).toBe("pending");
-    expect(report.status).toBe("partial");
+    expect(report.status).toBe("measured");
+    expect(droppedLines.some((line) => line.startsWith("dropped_out_of_window:") && line.includes("v2") && line.includes("v3"))).toBe(
+      true
+    );
     const saved = await readSavedReport(root);
-    expect(saved.videos).toHaveLength(3);
-    expect(saved.status).toBe("partial");
+    expect(saved.videos).toHaveLength(1);
+    expect(saved.videos[0]?.video_id).toBe("v1");
+    expect(saved.status).toBe("measured");
   });
 
   it("keeps existing rows when the current window is empty, and writes measured/0 when no file exists", async () => {
@@ -1192,18 +1249,24 @@ describe("YouTube Analytics collector", () => {
     const unused = (async () => {
       throw new Error("empty window must not call Google");
     }) as unknown as typeof fetch;
+    const droppedLines: string[] = [];
     const report = await collectYouTubeAnalytics({
       date: DATE,
       root,
       env: CONFIGURED,
-      fetchImpl: unused
+      fetchImpl: unused,
+      stdout: (line) => {
+        droppedLines.push(line);
+      }
     });
     expect(report.videos).toHaveLength(3);
     expect(report.merged_existing_rows).toBe(3);
     expect(report.status).toBe("partial");
+    expect(droppedLines.some((line) => line.startsWith("dropped_out_of_window:"))).toBe(false);
     const saved = await readSavedReport(root);
     expect(saved.videos).toHaveLength(3);
     expect(saved.status).toBe("partial");
+    expect(saved.merged_existing_rows).toBe(3);
 
     await rm(youtubeAnalyticsPath(DATE, root), { force: true });
     const empty = await collectYouTubeAnalytics({
@@ -1286,10 +1349,12 @@ describe("YouTube Analytics collector", () => {
     expect(report.videos).toHaveLength(2);
     expect(report.videos.every((video) => video.metrics_status === "measured" && !video.reason)).toBe(true);
     expect(report.status).toBe("measured");
+    expect(report.run_failed).toBe(true);
     expect(report.reason).toMatch(/JSON|Unexpected token/i);
     const saved = await readSavedReport(root);
     expect(saved.videos).toHaveLength(2);
     expect(saved.status).toBe("measured");
+    expect(saved.run_failed).toBe(true);
     expect(saved.reason).toMatch(/JSON|Unexpected token/i);
     expect(saved.videos.map((video) => video.video_id)).toEqual(["keep1", "keep2"]);
   });
@@ -1452,5 +1517,186 @@ describe("YouTube Analytics collector", () => {
     expect(report.reason).toMatch(/403/);
     expect(report.reason).toMatch(/youtube-auth|re-consent|youtube\.readonly/i);
     expect(report.reason).not.toMatch(/^HTTP 500/);
+  });
+
+  it("keeps two fully measured rows but surfaces a run-level 401 as reason and run_failed", async () => {
+    await writeExistingReport(root, [measuredRow("keep1"), measuredRow("keep2")]);
+    await writeLog(root, DATE, [logEntry("keep1"), logEntry("keep2")]);
+    const stderrLines: string[] = [];
+    const { report, exitCode } = await runCli(["--root", root, "--date", DATE], {
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        token: () => jsonResponse({ error: { code: 401, message: "Invalid Credentials" } }, 401)
+      }),
+      stdout: () => undefined,
+      stderr: (line) => {
+        stderrLines.push(line);
+      }
+    });
+
+    expect(exitCode).toBe(1);
+    expect(report.status).toBe("measured");
+    expect(report.run_failed).toBe(true);
+    expect(report.reason).toMatch(/401/);
+    expect(report.reason).toMatch(/youtube-auth|re-consent|youtube\.readonly/i);
+    expect(report.run_failure_reason).toMatch(/401/);
+    expect(stderrLines.some((line) => /\[youtube-analytics\] run failed:.*401.*kept 2 existing rows/.test(line))).toBe(
+      true
+    );
+    const saved = await readSavedReport(root);
+    expect(saved.status).toBe("measured");
+    expect(saved.run_failed).toBe(true);
+    expect(saved.reason).toMatch(/401/);
+    expect(saved.reason).toMatch(/youtube-auth|re-consent|youtube\.readonly/i);
+    expect(saved.fetched_at).toBe("2026-09-05T00:00:00.000Z");
+    expect(saved.attempted_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(saved.videos).toHaveLength(2);
+    expect(saved.videos.every((video) => video.metrics_status === "measured" && video.views === 12)).toBe(true);
+  });
+
+  it("does not let an existing pending row hide a run-level 401", async () => {
+    await writeExistingReport(root, [
+      measuredRow("keep1"),
+      {
+        ...measuredRow("wait1", 0),
+        metrics_status: "pending",
+        views: null,
+        estimated_minutes_watched: null,
+        average_view_duration_seconds: null,
+        average_view_percentage: null,
+        reason: "analytics rows not available yet"
+      }
+    ]);
+    await writeLog(root, DATE, [logEntry("keep1"), logEntry("wait1")]);
+    const { report, exitCode } = await runCli(["--root", root, "--date", DATE], {
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        token: () => jsonResponse({ error: { code: 401, message: "Invalid Credentials" } }, 401)
+      }),
+      stdout: () => undefined,
+      stderr: () => undefined
+    });
+
+    expect(exitCode).toBe(1);
+    expect(report.status).toBe("partial");
+    expect(report.run_failed).toBe(true);
+    expect(report.reason).toMatch(/401/);
+    expect(report.reason).toMatch(/youtube-auth|re-consent|youtube\.readonly/i);
+    expect(report.reason).not.toMatch(/^analytics rows not available yet/);
+    const saved = await readSavedReport(root);
+    expect(saved.run_failed).toBe(true);
+    expect(saved.reason).toMatch(/401/);
+    expect(saved.reason).toMatch(/youtube-auth|re-consent|youtube\.readonly/i);
+    expect(saved.videos).toHaveLength(2);
+    expect(saved.videos.find((video) => video.video_id === "keep1")?.metrics_status).toBe("measured");
+    expect(saved.videos.find((video) => video.video_id === "wait1")?.metrics_status).toBe("pending");
+  });
+
+  it("merges fresh analytics metrics even when videos.list 403 would lose a whole-row compare", async () => {
+    await writeExistingReport(root, [measuredRow("vid1", 10)]);
+    await writeLog(root, DATE, [logEntry("vid1")]);
+    const report = await collectYouTubeAnalytics({
+      date: DATE,
+      root,
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        videos: () => list403(),
+        analytics: () => jsonResponse(measuredAnalyticsRow("vid1", 25))
+      })
+    });
+
+    expect(report.videos).toHaveLength(1);
+    expect(report.videos[0]?.views).toBe(25);
+    expect(report.videos[0]?.privacy_status).toBe("public");
+    expect(report.videos[0]?.upload_status).toBe("processed");
+    expect(report.videos[0]?.status_reason).toMatch(/403/);
+    const saved = await readSavedReport(root);
+    expect(saved.videos[0]?.views).toBe(25);
+    expect(saved.videos[0]?.privacy_status).toBe("public");
+    expect(saved.videos[0]?.status_reason).toMatch(/403/);
+  });
+
+  it("drops leftover collection-in-progress skeletons from a finished run", async () => {
+    await writeExistingReport(root, [
+      measuredRow("vid1"),
+      {
+        ...measuredRow("ghost"),
+        metrics_status: "pending",
+        views: null,
+        estimated_minutes_watched: null,
+        average_view_duration_seconds: null,
+        average_view_percentage: null,
+        privacy_status: null,
+        upload_status: null,
+        reason: "collection in progress"
+      }
+    ]);
+    await writeLog(root, DATE, [logEntry("vid1")]);
+    const report = await collectYouTubeAnalytics({
+      date: DATE,
+      root,
+      env: CONFIGURED,
+      fetchImpl: googleFetch({})
+    });
+
+    expect(report.videos.map((video) => video.video_id)).toEqual(["vid1"]);
+    expect(report.videos.find((video) => video.video_id === "ghost")).toBeUndefined();
+    const saved = await readSavedReport(root);
+    expect(saved.videos.map((video) => video.video_id)).toEqual(["vid1"]);
+    expect(saved.status).toBe("measured");
+  });
+
+  it("does not write the report when reading the existing file returns EACCES", async () => {
+    await writeLog(root, DATE, [logEntry("vid1")]);
+    const path = youtubeAnalyticsPath(DATE, root);
+    await writeExistingReport(root, [measuredRow("vid1")]);
+    const before = await readFile(path, "utf8");
+    const stderrLines: string[] = [];
+    const eacces = Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
+    const { report, exitCode } = await runCli(["--root", root, "--date", DATE], {
+      env: CONFIGURED,
+      fetchImpl: googleFetch({}),
+      stdout: () => undefined,
+      stderr: (line) => {
+        stderrLines.push(line);
+      },
+      readFileImpl: async () => {
+        throw eacces;
+      }
+    });
+
+    expect(exitCode).toBe(1);
+    expect(report.run_failed).toBe(true);
+    expect(stderrLines.some((line) => /EACCES/i.test(line))).toBe(true);
+    expect(await readFile(path, "utf8")).toBe(before);
+  });
+
+  it("keeps rows from concurrent persists to the same report file", async () => {
+    const path = youtubeAnalyticsPath(DATE, root);
+    await mkdir(join(root, "data", "insights", "youtube"), { recursive: true });
+    const [left, right] = await Promise.all([
+      persistYouTubeAnalyticsReport({
+        path,
+        date: DATE,
+        fetchedAt: "2026-09-05T01:00:00.000Z",
+        videos: [measuredRow("left", 11)],
+        windowVideoIds: new Set(["left", "right"]),
+        dropStaleSkeletons: true
+      }),
+      persistYouTubeAnalyticsReport({
+        path,
+        date: DATE,
+        fetchedAt: "2026-09-05T01:00:01.000Z",
+        videos: [measuredRow("right", 22)],
+        windowVideoIds: new Set(["left", "right"]),
+        dropStaleSkeletons: true
+      })
+    ]);
+    expect(left.videos.length + right.videos.length).toBeGreaterThanOrEqual(2);
+    const saved = await readSavedReport(root);
+    const ids = saved.videos.map((video) => video.video_id).sort();
+    expect(ids).toEqual(["left", "right"]);
+    expect(saved.videos.find((video) => video.video_id === "left")?.views).toBe(11);
+    expect(saved.videos.find((video) => video.video_id === "right")?.views).toBe(22);
   });
 });

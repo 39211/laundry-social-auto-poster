@@ -13,7 +13,8 @@ import {
 import { buildGrowthPlaybook, flattenGrowthPlaybook } from "../src/growthPlaybook";
 
 const CONTENT_PLAN_SRC = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../src/contentPlan.ts"), "utf8");
-const SLOT2_PARTS_SRC = CONTENT_PLAN_SRC.match(/const SLOT2_ACTION_CTA_PARTS[\s\S]*?\];/)?.[0] ?? "";
+const SLOT2_PARTS_SRC =
+  CONTENT_PLAN_SRC.match(/const SLOT2_ACTION_CTA_PARTS[\s\S]*?=\s*\[[\s\S]*?\n\];/)?.[0] ?? "";
 
 const config = getConfig({
   ...process.env,
@@ -53,6 +54,39 @@ function actionSentenceCount(caption: string): number {
   return caption.split("\n\n").filter((block) => ACTION_SENTENCE_RE.test(block)).length;
 }
 
+function isSlot2ClosingBlock(block: string): boolean {
+  return (
+    block.startsWith("#") ||
+    block.startsWith("出處：") ||
+    block.startsWith("參考價") ||
+    block.includes("/go/line.html") ||
+    block.includes("0968327653")
+  );
+}
+
+/** Non-question, non-closing 拍-asks. Topic hooks that only mention 拍 are not asks. */
+function photoInstructionBlocksOutsideContact(caption: string): string[] {
+  return caption.split("\n\n").filter((block) => {
+    if (isSlot2ClosingBlock(block)) return false;
+    if (block.startsWith("追蹤")) return false;
+    if (/[？?]\s*$/.test(block)) return false;
+    if (!block.includes("拍")) return false;
+    if (ACTION_SENTENCE_RE.test(block)) return true;
+    return /給我們|幫你|傳來|傳 LINE|私訊|拍一張|拍照|先幫你看/.test(block);
+  });
+}
+
+function utcDatesInclusive(from: string, to: string): string[] {
+  const dates: string[] = [];
+  const cursor = new Date(`${from}T00:00:00.000Z`);
+  const end = new Date(`${to}T00:00:00.000Z`);
+  while (cursor.getTime() <= end.getTime()) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+}
+
 const TABLE_CASES = [
   { topic: "包包提把發黑", a: "包角", b: "內裡" },
   { topic: "白鞋泛黃", a: "鞋面", b: "鞋底" },
@@ -73,7 +107,11 @@ const TABLE_CASES = [
   { topic: "行李箱輪子卡住", a: "輪子", b: "把手" },
   { topic: "沙發毯起球", a: "起球處", b: "邊緣" },
   { topic: "梅雨季衣櫃味道先找來源", a: "櫃內最深處", b: "最常放的那一格" },
-  { topic: "鞋櫃收納前的乾燥判斷", a: "櫃內最深處", b: "最常放的那一格" }
+  { topic: "鞋櫃收納前的乾燥判斷", a: "櫃內最深處", b: "最常放的那一格" },
+  { topic: "送洗前先問：健身房衣物不要悶在包裡，門市會先確認什麼", a: "領口", b: "袖口" },
+  { topic: "餐聚後外套與包包的味道", a: "領口", b: "袖口" },
+  { topic: "送洗前先問：雨後通勤鞋不要悶在包裡，門市會先確認什麼", a: "鞋面", b: "鞋底" },
+  { topic: "皮包提把發黑", a: "包角", b: "內裡" }
 ] as const;
 
 // Captured with tsx + the same config above, before the slot-2 action CTA
@@ -159,6 +197,8 @@ describe("slot 2 playbook captions from 2026-09-08", () => {
     expect(chuanLineOutsideContact(slot2.instagram_caption)).toBe(1);
     expect(slot2.facebook_caption.includes("拍一張傳 LINE")).toBe(false);
     expect(slot2.instagram_caption.includes("拍一張私訊")).toBe(false);
+    expect(photoInstructionBlocksOutsideContact(slot2.facebook_caption)).toEqual([expected]);
+    expect(photoInstructionBlocksOutsideContact(slot2.instagram_caption)).toEqual([expected]);
   });
 
   it("does not rewrite slot 1 or the noon reel", () => {
@@ -265,6 +305,41 @@ function looksLikeGenericSlot2CtaWithoutQuestionKeep(block: string): boolean {
     return false;
   }
   return /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看/.test(block);
+}
+
+function looksLikeGenericSlot2CtaR2(block: string): boolean {
+  if (isSlot2ClosingBlock(block)) return false;
+  if (block.startsWith("追蹤")) return false;
+  if (/[？?]\s*$/.test(block)) return false;
+  if (/(?:這篇)?(?:傳|轉)給他/.test(block) && !/傳 LINE|拍一張|私訊|拍照|先幫你看/.test(block)) {
+    return false;
+  }
+  return /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看/.test(block);
+}
+
+function slot2ActionCtaWithBareBao(topic: string): string {
+  const text = topic.replace(/^(先看懂|今天情境|可收藏|細節拆解|到店前判斷|送洗前先問)：/, "");
+  if (/鞋|靴|麂皮/.test(text) && text.includes("包")) {
+    return "拍鞋底和包角兩張傳 LINE，我們先看。";
+  }
+  const rows: Array<{ keys: readonly string[]; a: string; b: string }> = [
+    { keys: ["衣櫃", "鞋櫃", "櫃"], a: "櫃內最深處", b: "最常放的那一格" },
+    { keys: ["棉被", "被子", "床單", "床包", "枕頭", "床組"], a: "被角", b: "貼身那一面" },
+    { keys: ["包包", "皮包", "背包", "名牌包", "包款", "包"], a: "包角", b: "內裡" },
+    { keys: ["鞋", "靴", "麂皮"], a: "鞋面", b: "鞋底" },
+    { keys: ["外套", "西裝", "大衣", "襯衫", "上衣", "T恤", "衣服", "衣物"], a: "領口", b: "袖口" },
+    { keys: ["窗簾"], a: "下緣", b: "掛鉤處" },
+    { keys: ["娃娃", "玩偶"], a: "五官", b: "縫線" },
+    { keys: ["地毯"], a: "邊緣", b: "最常踩的位置" },
+    { keys: ["行李箱"], a: "輪子", b: "把手" },
+    { keys: ["毯"], a: "起球處", b: "邊緣" }
+  ];
+  for (const row of rows) {
+    if (row.keys.some((key) => text.includes(key))) {
+      return `拍${row.a}和${row.b}兩張傳 LINE，我們先看。`;
+    }
+  }
+  return "拍整體和最在意的位置兩張傳 LINE，我們先看。";
 }
 
 function slot2ActionCtaWithBareYi(topic: string): string {
@@ -392,8 +467,37 @@ describe("O-F5 mixed shoe and bag", () => {
   });
 });
 
+describe("B 包 is an object, not 包裡, and mixed families take the first one", () => {
+  const gymTopic = "送洗前先問：健身房衣物不要悶在包裡，門市會先確認什麼";
+  const shoeInBagTopic = "送洗前先問：雨後通勤鞋不要悶在包裡，門市會先確認什麼";
+
+  it("maps 包裡 gym clothes to collar/cuffs and 外套與包包 to the family that appears first", () => {
+    expect(slot2ActionCta(gymTopic)).toBe("拍領口和袖口兩張傳 LINE，我們先看。");
+    expect(slot2ActionCta("餐聚後外套與包包的味道")).toBe("拍領口和袖口兩張傳 LINE，我們先看。");
+    expect(slot2ActionCta("包包與外套的味道")).toBe("拍包角和內裡兩張傳 LINE，我們先看。");
+    expect(slot2ActionCta(shoeInBagTopic)).toBe("拍鞋面和鞋底兩張傳 LINE，我們先看。");
+    expect(slot2ActionCta("皮包提把發黑")).toBe("拍包角和內裡兩張傳 LINE，我們先看。");
+  });
+
+  it("keeps 鞋+包 as 鞋底/包角 even when a third family is in the topic", () => {
+    expect(slot2ActionCta("國慶連假前：旅行鞋包與外套整理提醒")).toBe(
+      "拍鞋底和包角兩張傳 LINE，我們先看。"
+    );
+  });
+
+  it("mutation: dropping the 包 negative lookahead maps 10-03 to bag corners", () => {
+    expect(CONTENT_PLAN_SRC).toMatch(/包\(\?!\[裡著住起好在進成覆裝\]\)/);
+    expect(slot2ActionCta(gymTopic)).toBe("拍領口和袖口兩張傳 LINE，我們先看。");
+    expect(slot2ActionCtaWithBareBao(gymTopic)).toBe("拍包角和內裡兩張傳 LINE，我們先看。");
+    expect(slot2ActionCta(shoeInBagTopic)).toBe("拍鞋面和鞋底兩張傳 LINE，我們先看。");
+    expect(slot2ActionCtaWithBareBao(shoeInBagTopic)).toBe("拍鞋底和包角兩張傳 LINE，我們先看。");
+  });
+});
+
 describe("K-F4 template path after the playbook window", () => {
-  it("closes 2026-11-20 slot 2 with the same action sentence", () => {
+  const TEMPLATE_PHOTO_ASK = "搬家後要整理布品，可以拍寢具、窗簾下擺和洗標給我們看。";
+
+  it("closes 2026-11-20 slot 2 with the same action sentence and drops the template photo ask", () => {
     const content = buildDailyContent("2026-11-20", config);
     const slot2 = content.slots.find((slot) => slot.slot === 2)!;
     expect(slot2.content_plan_source).toBe("legacy-template");
@@ -403,42 +507,66 @@ describe("K-F4 template path after the playbook window", () => {
     expect(lastBodyParagraph(slot2.instagram_caption)).toBe(expected);
     expect(chuanLineOutsideContact(slot2.facebook_caption)).toBe(1);
     expect(actionSentenceCount(slot2.facebook_caption)).toBe(1);
+    expect(photoInstructionBlocksOutsideContact(slot2.facebook_caption)).toEqual([expected]);
+    expect(photoInstructionBlocksOutsideContact(slot2.instagram_caption)).toEqual([expected]);
+    expect(slot2.facebook_caption).not.toContain(TEMPLATE_PHOTO_ASK);
+    expect(looksLikeGenericSlot2Cta(TEMPLATE_PHOTO_ASK)).toBe(true);
+  });
+
+  it("mutation: r2 detector leaves the template photo ask in place", () => {
+    expect(looksLikeGenericSlot2Cta(TEMPLATE_PHOTO_ASK)).toBe(true);
+    expect(looksLikeGenericSlot2CtaR2(TEMPLATE_PHOTO_ASK)).toBe(false);
+    const content = buildDailyContent("2026-11-20", config);
+    const slot2 = content.slots.find((slot) => slot.slot === 2)!;
+    const expected = slot2ActionCta(slot2.topic);
+    const r2Blocks = slot2.facebook_caption
+      .split("\n\n")
+      .filter((block) => !looksLikeGenericSlot2CtaR2(block) || ACTION_SENTENCE_RE.test(block));
+    // The live caption already dropped the ask. Re-inserting it after an r2
+    // filter is what the template path did in r2: two 拍 instructions.
+    const r2Caption = [TEMPLATE_PHOTO_ASK, ...r2Blocks.filter((block) => block !== TEMPLATE_PHOTO_ASK)].join(
+      "\n\n"
+    );
+    expect(photoInstructionBlocksOutsideContact(slot2.facebook_caption)).toEqual([expected]);
+    expect(photoInstructionBlocksOutsideContact(r2Caption).length).toBe(2);
   });
 });
 
 describe("K-F6/O-F4/K-F5 90-day slot-2 loop", () => {
-  const playbook = buildGrowthPlaybook();
   const actionCounts = new Map<string, number>();
-  let captionCount = 0;
+  const eligibleCaptions: string[] = [];
 
-  it("asserts one action and one 傳 LINE on every gated non-reel slot 2, and caps variants at half", () => {
-    for (const day of playbook.days) {
-      const content = buildDailyContent(day.date, config);
-      for (const slot of content.slots.filter((item) => item.slot <= 2)) {
-        for (const caption of [slot.facebook_caption, slot.instagram_caption]) {
-          captionCount += 1;
-          for (const block of caption.split("\n\n")) {
-            if (ACTION_SENTENCE_RE.test(block)) {
-              actionCounts.set(block, (actionCounts.get(block) ?? 0) + 1);
-            }
+  it("asserts one action, one 傳 LINE, and one 拍-ask on every eligible caption, and caps variants at half", () => {
+    for (const date of utcDatesInclusive("2026-07-11", "2026-11-07")) {
+      const content = buildDailyContent(date, config);
+      const slot2 = content.slots.find((item) => item.slot === 2)!;
+      const eligible = date >= "2026-09-08" && slot2.format !== "reel";
+      for (const caption of [slot2.facebook_caption, slot2.instagram_caption]) {
+        if (!eligible) {
+          expect(actionSentenceCount(caption), `${date} ${slot2.format ?? "image-post"}`).toBe(0);
+          continue;
+        }
+        eligibleCaptions.push(caption);
+        const expected = slot2ActionCta(slot2.topic);
+        expect(actionSentenceCount(caption), `${date} actions`).toBe(1);
+        expect(chuanLineOutsideContact(caption), `${date} 傳 LINE`).toBe(1);
+        expect(lastBodyParagraph(caption)).toBe(expected);
+        expect(photoInstructionBlocksOutsideContact(caption), `${date} 拍-asks`).toEqual([expected]);
+        for (const block of caption.split("\n\n")) {
+          if (ACTION_SENTENCE_RE.test(block)) {
+            actionCounts.set(block, (actionCounts.get(block) ?? 0) + 1);
           }
         }
       }
-      const slot2 = content.slots.find((item) => item.slot === 2)!;
-      for (const caption of [slot2.facebook_caption, slot2.instagram_caption]) {
-        if (day.date < "2026-09-08" || slot2.format === "reel") {
-          expect(actionSentenceCount(caption), `${day.date} ${slot2.format}`).toBe(0);
-          continue;
-        }
-        expect(actionSentenceCount(caption), `${day.date} actions`).toBe(1);
-        expect(chuanLineOutsideContact(caption), `${day.date} 傳 LINE`).toBe(1);
-        expect(lastBodyParagraph(caption)).toMatch(ACTION_SENTENCE_RE);
-      }
     }
-    expect(captionCount).toBeGreaterThan(0);
+    expect(eligibleCaptions.length).toBeGreaterThan(1);
     for (const [sentence, count] of actionCounts) {
-      expect(count, sentence).toBeLessThanOrEqual(captionCount / 2);
+      expect(count, sentence).toBeLessThanOrEqual(eligibleCaptions.length / 2);
     }
+    const forcedSame = eligibleCaptions.length;
+    expect(forcedSame, "all eligible captions forced onto one variant").toBeGreaterThan(
+      eligibleCaptions.length / 2
+    );
   });
 });
 
@@ -452,16 +580,19 @@ describe("K-F8 dead branch and absorbed keys", () => {
     expect(looksLikeGenericSlot2Cta.length).toBe(1);
   });
 
-  it("drops redundant keys that the remaining short key still covers", () => {
-    expect(SLOT2_PARTS_SRC).not.toMatch(/["']包包["']/);
-    expect(SLOT2_PARTS_SRC).not.toMatch(/["']皮包["']/);
-    expect(SLOT2_PARTS_SRC).not.toMatch(/["']背包["']/);
+  it("drops redundant shoe/blanket keys but keeps explicit bag objects", () => {
+    expect(SLOT2_PARTS_SRC).toMatch(/["']包包["']/);
+    expect(SLOT2_PARTS_SRC).toMatch(/["']皮包["']/);
+    expect(SLOT2_PARTS_SRC).toMatch(/["']背包["']/);
+    expect(SLOT2_PARTS_SRC).toMatch(/["']名牌包["']/);
+    expect(SLOT2_PARTS_SRC).toMatch(/["']包款["']/);
     expect(SLOT2_PARTS_SRC).not.toMatch(/["']球鞋["']/);
     expect(SLOT2_PARTS_SRC).not.toMatch(/["']運動鞋["']/);
     expect(SLOT2_PARTS_SRC).not.toMatch(/["']白鞋["']/);
     expect(SLOT2_PARTS_SRC).not.toMatch(/["']皮鞋["']/);
     expect(SLOT2_PARTS_SRC).not.toMatch(/["']毛毯["']/);
     expect(slot2ActionCta("包包提把發黑")).toBe("拍包角和內裡兩張傳 LINE，我們先看。");
+    expect(slot2ActionCta("皮包提把發黑")).toBe("拍包角和內裡兩張傳 LINE，我們先看。");
     expect(slot2ActionCta("白鞋泛黃")).toBe("拍鞋面和鞋底兩張傳 LINE，我們先看。");
     expect(slot2ActionCta("沙發毯起球")).toBe("拍起球處和邊緣兩張傳 LINE，我們先看。");
     expect(slot2ActionCta("棉被收納前悶味")).toBe("拍被角和貼身那一面兩張傳 LINE，我們先看。");

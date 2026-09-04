@@ -1128,14 +1128,16 @@ const SLOT2_ACTION_CTA_START_DATE = "2026-09-08";
 
 /**
  * Object-part lookup for the slot-2 closer. Short keys absorb the longer
- * synonyms that used to sit on the same row (包包/皮包/背包, 球鞋/白鞋, 毛毯).
+ * synonyms that used to sit on the same row (球鞋/白鞋, 毛毯).
  * Bare 衣 and 被 are not keys: 衣 lives inside 洗衣店, 被 is the passive marker.
  * 櫃 sits above 鞋 so 鞋櫃 is a cabinet, not a shoe.
+ * Bare 包 is an object only when not followed by 裡/著/住/起/好/在/進/成/覆/裝;
+ * 包包/皮包/背包/名牌包/包款 are listed so those stay bags.
  */
 const SLOT2_ACTION_CTA_PARTS: ReadonlyArray<{ keys: readonly string[]; a: string; b: string }> = [
   { keys: ["衣櫃", "鞋櫃", "櫃"], a: "櫃內最深處", b: "最常放的那一格" },
   { keys: ["棉被", "被子", "床單", "床包", "枕頭", "床組"], a: "被角", b: "貼身那一面" },
-  { keys: ["包"], a: "包角", b: "內裡" },
+  { keys: ["包包", "皮包", "背包", "名牌包", "包款", "包"], a: "包角", b: "內裡" },
   { keys: ["鞋", "靴", "麂皮"], a: "鞋面", b: "鞋底" },
   { keys: ["外套", "西裝", "大衣", "襯衫", "上衣", "T恤", "衣服", "衣物"], a: "領口", b: "袖口" },
   { keys: ["窗簾"], a: "下緣", b: "掛鉤處" },
@@ -1145,36 +1147,72 @@ const SLOT2_ACTION_CTA_PARTS: ReadonlyArray<{ keys: readonly string[]; a: string
   { keys: ["毯"], a: "起球處", b: "邊緣" }
 ];
 
-const SLOT2_SHOE_KEYS = ["鞋", "靴", "麂皮"] as const;
-const SLOT2_BAG_KEYS = ["包"] as const;
+const SLOT2_SHOE_ROW = SLOT2_ACTION_CTA_PARTS.findIndex((row) => row.keys.includes("鞋"));
+const SLOT2_BAG_ROW = SLOT2_ACTION_CTA_PARTS.findIndex((row) => row.keys.includes("包"));
+
+/** 包 as an object, not 包裡/包著/包起來 and the rest of that series. */
+const SLOT2_BARE_BAG_OBJECT_RE = /包(?![裡著住起好在進成覆裝])/g;
 
 /** Label prefix off, then the whole remaining topic — an 8-character head cuts object words at the end. */
 function slot2ActionTopicText(topic: string): string {
   return topic.replace(TOPIC_LABEL_PREFIX_RE, "");
 }
 
-function slot2TopicHasKey(text: string, keys: readonly string[]): boolean {
-  return keys.some((key) => text.includes(key));
+function slot2KeyIndexes(text: string, key: string): number[] {
+  const indexes: number[] = [];
+  if (key === "包") {
+    for (const match of text.matchAll(SLOT2_BARE_BAG_OBJECT_RE)) {
+      if (match.index !== undefined) indexes.push(match.index);
+    }
+    return indexes;
+  }
+  let from = 0;
+  while (from < text.length) {
+    const index = text.indexOf(key, from);
+    if (index === -1) break;
+    indexes.push(index);
+    from = index + 1;
+  }
+  return indexes;
+}
+
+/** Longest key at each position wins, then left-to-right family order. */
+function slot2TakenFamilies(text: string): { rowIndex: number; index: number }[] {
+  const hits: { rowIndex: number; index: number; length: number }[] = [];
+  SLOT2_ACTION_CTA_PARTS.forEach((row, rowIndex) => {
+    for (const key of row.keys) {
+      for (const index of slot2KeyIndexes(text, key)) {
+        hits.push({ rowIndex, index, length: key.length });
+      }
+    }
+  });
+  hits.sort(
+    (left, right) => left.index - right.index || right.length - left.length || left.rowIndex - right.rowIndex
+  );
+  const taken: { rowIndex: number; index: number }[] = [];
+  const covered = new Uint8Array(text.length);
+  for (const hit of hits) {
+    if (covered[hit.index]) continue;
+    taken.push({ rowIndex: hit.rowIndex, index: hit.index });
+    covered.fill(1, hit.index, Math.min(text.length, hit.index + hit.length));
+  }
+  return taken;
 }
 
 /** Specific slot-2 closer: two named photos sent on LINE. */
 export function slot2ActionCta(topic: string): string {
   const text = slot2ActionTopicText(topic);
-  if (slot2TopicHasKey(text, SLOT2_SHOE_KEYS) && slot2TopicHasKey(text, SLOT2_BAG_KEYS)) {
+  const taken = slot2TakenFamilies(text);
+  const hasShoe = taken.some((hit) => hit.rowIndex === SLOT2_SHOE_ROW);
+  const hasBag = taken.some((hit) => hit.rowIndex === SLOT2_BAG_ROW);
+  if (hasShoe && hasBag) {
     return "拍鞋底和包角兩張傳 LINE，我們先看。";
   }
-  let a = "整體";
-  let b = "最在意的位置";
-  outer: for (const row of SLOT2_ACTION_CTA_PARTS) {
-    for (const key of row.keys) {
-      if (text.includes(key)) {
-        a = row.a;
-        b = row.b;
-        break outer;
-      }
-    }
-  }
-  return `拍${a}和${b}兩張傳 LINE，我們先看。`;
+  const first = taken[0];
+  if (!first) return "拍整體和最在意的位置兩張傳 LINE，我們先看。";
+  const row = SLOT2_ACTION_CTA_PARTS[first.rowIndex];
+  if (!row) return "拍整體和最在意的位置兩張傳 LINE，我們先看。";
+  return `拍${row.a}和${row.b}兩張傳 LINE，我們先看。`;
 }
 
 /** Shared 3-character object gram, or undefined when the two topics do not collide. */
@@ -1640,15 +1678,25 @@ function isSlot2ActionCtaClosingBlock(block: string): boolean {
  * that line look like a CTA. Share-invites and the follow line are not CTAs.
  * A last-paragraph-only /先看/ fallback never ran: the last body block is
  * the follow line (`追蹤…`) and returns above.
+ * Template closers say 「可以拍寢具…給我們看」 / 「先拍包底…幫你看」 and do
+ * not contain 傳 LINE|私訊|拍照|拍一張|先幫你看; the 拍 + shop-directed
+ * pair is the semantic feature, not the new action-sentence literal.
  */
 export function looksLikeGenericSlot2Cta(block: string): boolean {
   if (isSlot2ActionCtaClosingBlock(block)) return false;
   if (block.startsWith("追蹤")) return false;
   if (/[？?]\s*$/.test(block)) return false;
-  if (/(?:這篇)?(?:傳|轉)給他/.test(block) && !/傳 LINE|拍一張|私訊|拍照|先幫你看/.test(block)) {
+  if (
+    /(?:這篇)?(?:傳|轉)給他/.test(block) &&
+    !/傳 LINE|拍一張|私訊|拍照|先幫你看/.test(block) &&
+    !(/拍/.test(block) && /給我們|幫你|傳來/.test(block))
+  ) {
     return false;
   }
-  return /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看/.test(block);
+  return (
+    /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看/.test(block) ||
+    (/拍/.test(block) && /給我們|幫你|傳來/.test(block))
+  );
 }
 
 function withSlot2ActionCta(

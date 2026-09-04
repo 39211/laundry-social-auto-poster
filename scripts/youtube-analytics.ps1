@@ -4,8 +4,13 @@
 # per video_id with any same-day file already on disk (逐支合併; metrics and
 # status field-groups separately). Rows only on disk are kept if still in
 # today's youtube-log window. A pending skeleton is written first so a Task
-# Scheduler kill still leaves a partial file. --no-fail keeps this wrapper at
-# exit 0 even when the collector sets run_failed; stderr still records it.
+# Scheduler kill still leaves a partial file.
+# This wrapper always passes --no-fail, so the collector's exit 1 for
+# run_failed is invisible to Task Scheduler. Failure signals live only in
+# this log's stderr lines and the JSON run_failed / run_failure_reason
+# fields. Per-video analytics failures (when videos.list succeeded) leave
+# no run-level signal if the existing row wins the merge -- tracked on a
+# separate health-check ticket.
 #
 # youtubeAnalytics.ts defaults --date to Taipei via getZonedDateParts, but this
 # wrapper still computes and passes the Taipei date explicitly so the file name

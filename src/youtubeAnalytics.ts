@@ -203,16 +203,10 @@ function isSkeletonRow(video: YouTubeAnalyticsVideoRow): boolean {
 }
 
 // Same-run skeleton placeholders ("collection in progress") are not keepable
-// measurements. Rank them with unmeasured so a later persist of this run
-// (token failure, etc.) wins as the newer same-rank row instead of the
-// skeleton feeding back through disk as pending > unmeasured.
-function videoQuality(video: YouTubeAnalyticsVideoRow): number {
-  if (isFullyMeasured(video)) return 3;
-  if (video.metrics_status === "measured") return 2;
-  if (video.metrics_status === "pending" && video.reason !== "collection in progress") return 1;
-  return 0;
-}
-
+// measurements. Rank them with unmeasured via metricsQuality so a later persist
+// of this run (token failure, etc.) wins as the newer same-rank row instead of
+// the skeleton feeding back through disk as pending > unmeasured. Field-group
+// merge is mergeFieldGroups.
 function metricsQuality(video: YouTubeAnalyticsVideoRow): number {
   if (video.metrics_status === "measured") return 2;
   if (video.metrics_status === "pending" && video.reason !== "collection in progress") return 1;

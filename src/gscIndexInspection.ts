@@ -120,6 +120,8 @@ export function sitemapPageUrls(root = projectRoot()): string[] {
  * "inspection-failed" row and the loop moves on.
  */
 export const DEFAULT_INSPECTION_TIMEOUT_MS = 20_000;
+/** Parallel inspections; 4 keeps 89 URLs at ~2.5 min and stays well inside the API's per-minute quota. */
+export const DEFAULT_INSPECTION_CONCURRENCY = 4;
 
 export async function inspectUrls(input: {
   urls: string[];
@@ -129,15 +131,30 @@ export async function inspectUrls(input: {
   fetchImpl?: typeof fetch;
   /** Per-request deadline for the token refresh and each inspection call. */
   requestTimeoutMs?: number;
+  /** How many inspection calls run at once; results keep sitemap order. */
+  concurrency?: number;
 }): Promise<IndexInspectionReport> {
   const fetcher = input.fetchImpl ?? fetch;
   const timeoutMs = input.requestTimeoutMs ?? DEFAULT_INSPECTION_TIMEOUT_MS;
+  const concurrency = Math.max(1, input.concurrency ?? DEFAULT_INSPECTION_CONCURRENCY);
   const creds = credentials(input.env ?? process.env);
   const token = await accessToken(creds, fetcher, timeoutMs);
   const now = input.now ?? new Date();
-  const rows: UrlInspectionRow[] = [];
 
-  for (const url of input.urls) {
+  // Each call costs ~7 s at Google's end regardless of what we do; 89 sitemap
+  // URLs in sequence is ~10.5 min, past the Scheduled Task's PT10M. A small
+  // worker pool keeps the wall clock under the limit; rows keep sitemap order.
+  const rows: UrlInspectionRow[] = new Array(input.urls.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < input.urls.length) {
+      const index = next;
+      next += 1;
+      rows[index] = await inspectOne(input.urls[index]!);
+    }
+  };
+
+  async function inspectOne(url: string): Promise<UrlInspectionRow> {
     let response: Response;
     try {
       response = await fetcher("https://searchconsole.googleapis.com/v1/urlInspection/index:inspect", {
@@ -148,7 +165,7 @@ export async function inspectUrls(input: {
       });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      rows.push({
+      return {
         url,
         verdict: "ERROR",
         coverage_state: "inspection-failed",
@@ -159,11 +176,10 @@ export async function inspectUrls(input: {
         google_canonical: null,
         user_canonical: null,
         error: `request failed or timed out after ${timeoutMs}ms: ${reason}`.slice(0, 300)
-      });
-      continue;
+      };
     }
     if (!response.ok) {
-      rows.push({
+      return {
         url,
         verdict: "ERROR",
         coverage_state: "inspection-failed",
@@ -174,8 +190,7 @@ export async function inspectUrls(input: {
         google_canonical: null,
         user_canonical: null,
         error: `HTTP ${response.status} ${await response.text()}`.slice(0, 300)
-      });
-      continue;
+      };
     }
     const payload = (await response.json()) as {
       inspectionResult?: {
@@ -192,7 +207,7 @@ export async function inspectUrls(input: {
       };
     };
     const status = payload.inspectionResult?.indexStatusResult ?? {};
-    rows.push({
+    return {
       url,
       verdict: status.verdict ?? "VERDICT_UNSPECIFIED",
       coverage_state: status.coverageState ?? "unknown",
@@ -202,8 +217,10 @@ export async function inspectUrls(input: {
       page_fetch_state: status.pageFetchState ?? "",
       google_canonical: status.googleCanonical ?? null,
       user_canonical: status.userCanonical ?? null
-    });
+    };
   }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, input.urls.length) }, () => worker()));
 
   const states: Record<string, number> = {};
   for (const row of rows) {

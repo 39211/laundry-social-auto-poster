@@ -83,6 +83,35 @@ describe("gsc url-inspection reader", () => {
     expect(report.states).toEqual({ "inspection-failed": 1, "Submitted and indexed": 1 });
   });
 
+  it("inspects in parallel but keeps rows in sitemap order", async () => {
+    const urls = Array.from({ length: 9 }, (_, i) => `https://example.com/p${i}/`);
+    let inFlight = 0;
+    let peak = 0;
+    const slow = (async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes("oauth2.googleapis.com")) {
+        return new Response(JSON.stringify({ access_token: "token" }), { status: 200 });
+      }
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      const i = Number(String(body.inspectionUrl).match(/p(\d+)/)?.[1]);
+      // later URLs answer faster, so order would scramble without index-addressed rows
+      await new Promise((resolve) => setTimeout(resolve, 40 - i * 4));
+      inFlight -= 1;
+      return new Response(
+        JSON.stringify({ inspectionResult: { indexStatusResult: { verdict: "PASS", coverageState: `state-${i}` } } }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+
+    const report = await inspectUrls({ urls, env: CONFIGURED, fetchImpl: slow, concurrency: 3 });
+    expect(peak).toBeGreaterThanOrEqual(2);
+    expect(peak).toBeLessThanOrEqual(3);
+    expect(report.rows.map((row) => row.url)).toEqual(urls);
+    expect(report.rows.map((row) => row.coverage_state)).toEqual(urls.map((_, i) => `state-${i}`));
+    expect(report.total).toBe(9);
+  });
+
   it("fails fast with a clear message when the token refresh itself stalls", async () => {
     const hangingToken = (async (_url: string | URL, init?: RequestInit) =>
       new Promise<Response>((_, reject) => {

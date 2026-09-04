@@ -263,6 +263,15 @@ function extractLastExitGuardsWithToast(src: string): string[] {
   return guards;
 }
 
+const GUARD_TERMINATOR_RE = /(^|;)\s*(exit|return|throw)\b/m;
+const FLAG_TERMINATOR_RE = /(^|;)\s*(exit|return|throw|break|continue)\b/m;
+const EXIT_TWO_RE = /(^|;)\s*exit\s+2\b/m;
+const CATCHUP_FINISHED_MARK = "Catch-up run finished";
+const EARLY_FLAG_LOG =
+  'Write-Log "public-site repush failed earlier; posting continues, poster validates image URLs itself"';
+const END_FLAG_IF =
+  'if ($script:publicSiteRepushFailed) { Write-Log "public-site repush failed earlier; exiting 2 so Task Scheduler records it"; exit 2 }';
+
 function assertPublicSiteRepushGuards(src: string): string[] {
   const guards = extractLastExitGuardsWithToast(src);
   if (guards.length !== 2) {
@@ -271,7 +280,7 @@ function assertPublicSiteRepushGuards(src: string): string[] {
   for (const guard of guards) {
     if (!guard.includes("Show-Toast")) throw new Error("guard missing Show-Toast");
     if (!guard.includes("Pop-Location")) throw new Error("guard missing Pop-Location");
-    if (/^\s*exit\b/m.test(guard)) throw new Error("guard contains exit");
+    if (GUARD_TERMINATOR_RE.test(guard)) throw new Error("guard contains exit");
   }
   return guards;
 }
@@ -289,8 +298,11 @@ function extractBraceBlock(src: string, openBrace: number): { end: number; block
   return null;
 }
 
-function ifBlocksWhoseConditionContains(src: string, needle: string): Array<{ header: string; body: string }> {
-  const blocks: Array<{ header: string; body: string }> = [];
+function ifBlocksWhoseConditionContains(
+  src: string,
+  needle: string
+): Array<{ header: string; body: string; start: number }> {
+  const blocks: Array<{ header: string; body: string; start: number }> = [];
   const ifRe = /if\s*\(/g;
   let match: RegExpExecArray | null;
   while ((match = ifRe.exec(src))) {
@@ -326,7 +338,7 @@ function ifBlocksWhoseConditionContains(src: string, needle: string): Array<{ he
     if (brace < 0) continue;
     const extracted = extractBraceBlock(src, brace);
     if (!extracted) continue;
-    blocks.push({ header, body: extracted.block });
+    blocks.push({ header, body: extracted.block, start: match.index });
   }
   return blocks;
 }
@@ -347,23 +359,89 @@ function assertPublicSiteRepushDoesNotGatePosting(src: string): void {
       throw new Error("publicSiteRepushFailed in post-current-slot if condition");
     }
   }
+  const finishedAt = src.indexOf(CATCHUP_FINISHED_MARK);
+  if (finishedAt < 0) {
+    throw new Error("missing Catch-up run finished");
+  }
   const flagIfs = ifBlocksWhoseConditionContains(src, "publicSiteRepushFailed");
-  if (flagIfs.length === 0) {
+  const earlyFlagIfs = flagIfs.filter((block) => block.start < finishedAt);
+  if (earlyFlagIfs.length === 0) {
     throw new Error("missing publicSiteRepushFailed flag check");
   }
   for (const block of flagIfs) {
     if (block.body.includes("post-current-slot")) {
       throw new Error("post-current-slot is inside publicSiteRepushFailed if");
     }
-    if (/\bcontinue\b/.test(block.body)) {
-      throw new Error("publicSiteRepushFailed block skips with continue");
-    }
     if (!block.body.includes("Write-Log")) {
       throw new Error("publicSiteRepushFailed check missing Write-Log");
     }
   }
+  for (const block of earlyFlagIfs) {
+    if (FLAG_TERMINATOR_RE.test(block.body)) {
+      throw new Error("publicSiteRepushFailed block contains terminator");
+    }
+  }
   if (!/npm\.cmd run post-current-slot/.test(src)) {
     throw new Error("post-current-slot invocation missing");
+  }
+}
+
+function assertPublicSiteRepushEndSignal(src: string): void {
+  const finishedAt = src.indexOf(CATCHUP_FINISHED_MARK);
+  if (finishedAt < 0) {
+    throw new Error("missing Catch-up run finished");
+  }
+  const before = src.slice(0, finishedAt);
+  const after = src.slice(finishedAt);
+  if (EXIT_TWO_RE.test(before)) {
+    throw new Error("exit 2 appears before Catch-up run finished");
+  }
+  if (!EXIT_TWO_RE.test(after)) {
+    throw new Error("exit 2 missing after Catch-up run finished");
+  }
+  const flagIfs = ifBlocksWhoseConditionContains(src, "publicSiteRepushFailed");
+  const earlyFlagIfs = flagIfs.filter((block) => block.start < finishedAt);
+  const lateFlagIfs = flagIfs.filter((block) => block.start > finishedAt);
+  for (const block of earlyFlagIfs) {
+    if (FLAG_TERMINATOR_RE.test(block.body)) {
+      throw new Error("flag if before Catch-up run finished contains terminator");
+    }
+  }
+  const late = lateFlagIfs[0];
+  if (lateFlagIfs.length !== 1 || !late) {
+    throw new Error(`expected 1 trailing publicSiteRepushFailed if, got ${lateFlagIfs.length}`);
+  }
+  if (!late.body.includes("Write-Log")) {
+    throw new Error("trailing flag if missing Write-Log");
+  }
+  if (!EXIT_TWO_RE.test(late.body)) {
+    throw new Error("trailing flag if missing exit 2");
+  }
+}
+
+function runPublicSiteEndFragment(failed: boolean): { code: number; out: string } {
+  const src = readScript("catchup-publish.ps1");
+  const marker = 'Write-Log "Catch-up run finished."';
+  const idx = src.indexOf(marker);
+  if (idx < 0) throw new Error("missing finished log for fragment");
+  const snippet = src.slice(idx);
+  const script = [
+    `$script:publicSiteRepushFailed = $${failed}`,
+    "function Write-Log([string]$message) { Write-Output $message }",
+    "foreach ($slot in 1, 2, 3) { Write-Output ('POST_RAN ' + $slot) }",
+    "Write-Output 'SCRIPT_END_REACHED'",
+    snippet
+  ].join("\n");
+  try {
+    const out = execFileSync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command", script],
+      { encoding: "utf8" }
+    );
+    return { code: 0, out };
+  } catch (err) {
+    const e = err as { status?: number | null; stdout?: string };
+    return { code: typeof e.status === "number" ? e.status : -1, out: String(e.stdout ?? "") };
   }
 }
 
@@ -378,7 +456,7 @@ describe("catch-up public-site repush failure stays in-section", () => {
     expect(guards[1]).toContain("Show-Toast");
     expect(guards[1]).toContain("Pop-Location");
     for (const guard of guards) {
-      expect(guard).not.toMatch(/^\s*exit\b/m);
+      expect(guard).not.toMatch(GUARD_TERMINATOR_RE);
     }
 
     const mutated = src.replace("$script:publicSiteRepushFailed = $true", () => {
@@ -386,6 +464,14 @@ describe("catch-up public-site repush failure stays in-section", () => {
     });
     expect(mutated).not.toBe(src);
     expect(() => assertPublicSiteRepushGuards(mutated)).toThrow(/guard contains exit/);
+
+    const sameLine = src.replace(
+      "$script:publicSiteRepushFailed = $true",
+      "$script:publicSiteRepushFailed = $true; exit 1"
+    );
+    expect(sameLine).not.toBe(src);
+    expect(() => assertPublicSiteRepushGuards(sameLine)).toThrow(/guard contains exit/);
+    expect(() => assertPublicSiteRepushGuards(src)).not.toThrow();
   });
 
   it("publicSiteRepushFailed does not gate post-current-slot", () => {
@@ -405,7 +491,63 @@ describe("catch-up public-site repush failure stays in-section", () => {
     );
     expect(mutated).not.toBe(src);
     expect(() => assertPublicSiteRepushDoesNotGatePosting(mutated)).toThrow(
-      /needsLiveImageUrl gating still present|publicSiteRepushFailed block skips with continue|post-current-slot is inside/
+      /needsLiveImageUrl gating still present|publicSiteRepushFailed block contains terminator|post-current-slot is inside/
     );
+
+    const exitMutated = src.replace(EARLY_FLAG_LOG, `${EARLY_FLAG_LOG}; exit 1`);
+    expect(exitMutated).not.toBe(src);
+    expect(() => assertPublicSiteRepushDoesNotGatePosting(exitMutated)).toThrow(
+      /publicSiteRepushFailed block contains terminator/
+    );
+
+    const returnMutated = src.replace(EARLY_FLAG_LOG, `${EARLY_FLAG_LOG}; return`);
+    expect(returnMutated).not.toBe(src);
+    expect(() => assertPublicSiteRepushDoesNotGatePosting(returnMutated)).toThrow(
+      /publicSiteRepushFailed block contains terminator/
+    );
+    expect(() => assertPublicSiteRepushDoesNotGatePosting(src)).not.toThrow();
+  });
+
+  it("after Catch-up run finished, failed flag exits 2 for Task Scheduler", () => {
+    const src = readScript("catchup-publish.ps1");
+    assertPublicSiteRepushEndSignal(src);
+    expect(src).toContain(END_FLAG_IF);
+
+    const moved = src.replace(END_FLAG_IF, "").replace(
+      'Write-Log "Catch-up run finished."',
+      `${END_FLAG_IF}\nWrite-Log "Catch-up run finished."`
+    );
+    expect(moved).not.toBe(src);
+    expect(moved.indexOf("exit 2")).toBeLessThan(moved.indexOf(CATCHUP_FINISHED_MARK));
+    expect(() => assertPublicSiteRepushEndSignal(moved)).toThrow(
+      /exit 2 appears before Catch-up run finished/
+    );
+    expect(() => assertPublicSiteRepushEndSignal(src)).not.toThrow();
+  });
+
+  it("fragment: failed flag still posts then exits 2", { timeout: 20000 }, () => {
+    const result = runPublicSiteEndFragment(true);
+    expect(result.out).toMatch(/POST_RAN 1/);
+    expect(result.out).toMatch(/POST_RAN 2/);
+    expect(result.out).toMatch(/POST_RAN 3/);
+    expect(result.out).toMatch(/SCRIPT_END_REACHED/);
+    const post1 = result.out.indexOf("POST_RAN 1");
+    const post2 = result.out.indexOf("POST_RAN 2");
+    const post3 = result.out.indexOf("POST_RAN 3");
+    const reached = result.out.indexOf("SCRIPT_END_REACHED");
+    expect(post1).toBeGreaterThanOrEqual(0);
+    expect(post2).toBeGreaterThan(post1);
+    expect(post3).toBeGreaterThan(post2);
+    expect(reached).toBeGreaterThan(post3);
+    expect(result.code).toBe(2);
+  });
+
+  it("fragment: clear flag exits 0", { timeout: 20000 }, () => {
+    const result = runPublicSiteEndFragment(false);
+    expect(result.out).toMatch(/POST_RAN 1/);
+    expect(result.out).toMatch(/POST_RAN 2/);
+    expect(result.out).toMatch(/POST_RAN 3/);
+    expect(result.out).toMatch(/SCRIPT_END_REACHED/);
+    expect(result.code).toBe(0);
   });
 });

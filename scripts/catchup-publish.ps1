@@ -393,3 +393,4 @@ if ($now.TimeOfDay -ge [TimeSpan]"20:30") {
 }
 
 Write-Log "Catch-up run finished."
+if ($script:publicSiteRepushFailed) { Write-Log "public-site repush failed earlier; exiting 2 so Task Scheduler records it"; exit 2 }

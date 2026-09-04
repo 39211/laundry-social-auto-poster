@@ -337,7 +337,7 @@ describe("generatePublicSite", () => {
     expect(index.base_url_configured).toBe(true);
     expect(index.canonical_url).toBe("https://example.com/laundry-social-auto-poster/");
     expect(index.open_graph).toMatchObject({
-      title: "私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋",
+      title: "私享家洗衣店｜台中洗衣洗鞋洗包・全市免費收送・價格公開",
       type: "website",
       url: "https://example.com/laundry-social-auto-poster/",
       site_name: "私享家洗衣店",
@@ -432,7 +432,7 @@ describe("generatePublicSite", () => {
     expect(latest.date).toBe("2026-07-02");
     expect(latest.posts[0].hashtags).toEqual(["#test"]);
     expect(feed.version).toBe("https://jsonfeed.org/version/1.1");
-    expect(feed.title).toBe("私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋");
+    expect(feed.title).toBe("私享家洗衣店｜台中洗衣洗鞋洗包・全市免費收送・價格公開");
     expect(feed.items[0].tags).toEqual(["test"]);
     expect(businessProfile.line_url).toBe("https://line.me/ti/p/4m-rA6hxf6");
     expect(businessProfile.google_maps_cid).toBe("0x41f4295a6302e177");
@@ -662,11 +662,11 @@ describe("generatePublicSite", () => {
     expect(aiSitemap).toContain("<!-- service-image-generated-product-image -->");
     expect(aiSitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/knowledge-graph.json</loc>");
     expect(html).toContain('<link rel="canonical" href="https://example.com/laundry-social-auto-poster/"');
-    expect(html).toContain('<title>私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋</title>');
-    expect(html).toContain('name="description" content="找台中免費收送、逢甲洗鞋或西屯洗鞋？');
+    expect(html).toContain('<title>私享家洗衣店｜台中洗衣洗鞋洗包・全市免費收送・價格公開</title>');
+    expect(html).toContain('name="description" content="找台中洗衣、洗鞋、洗包？');
     expect(html).toContain('name="robots" content="index, follow, max-image-preview:large"');
     expect(html).toContain('hreflang="zh-Hant-TW"');
-    expect(html).toContain('property="og:title" content="私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋"');
+    expect(html).toContain('property="og:title" content="私享家洗衣店｜台中洗衣洗鞋洗包・全市免費收送・價格公開"');
     expect(html).toContain('property="og:type" content="website"');
     expect(html).toContain('property="og:url" content="https://example.com/laundry-social-auto-poster/"');
     expect(html).toContain('property="og:image" content="https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-hero-product.png"');
@@ -678,7 +678,10 @@ describe("generatePublicSite", () => {
     expect(html).toContain('"@type":"FAQPage"');
     expect(html).toContain('"hasPart":[{"@id":"https://example.com/laundry-social-auto-poster/#homepage-faq"}');
     expect(html).toContain('"@type":"DryCleaningOrLaundry"');
-    expect(html).toContain("<h1>台中免費收送，逢甲・西屯洗鞋先看材質</h1>");
+    expect(html).toContain("<h1>台中洗鞋洗包洗衣，全市免費收送、價格公開</h1>");
+    // Query consolidation: the home page no longer carries the exact 逢甲洗鞋・西屯洗鞋 phrase
+    // in <title>/<h1>; services/shoe-bag-care is the single landing page for it.
+    expect(html).not.toContain("<h1>台中免費收送，逢甲・西屯洗鞋先看材質</h1>");
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/shoe-bag-care.html"');
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/white-shoe-cleaning.html"');
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/fabric-storage.html"');
@@ -746,8 +749,13 @@ describe("generatePublicSite", () => {
     expect(html).toContain('href=".well-known/ai.json"');
     expect(html).toContain('class="machine-details"');
     expect(html).toContain('class="caption-details"');
-    expect(shoeBagCareHtml).toContain("<title>逢甲洗鞋・西屯洗鞋｜鞋包清潔先看材質｜私享家洗衣店</title>");
-    expect(shoeBagCareHtml).toContain("<h1>逢甲洗鞋・西屯洗鞋</h1>");
+    expect(shoeBagCareHtml).toContain("<title>西屯洗鞋店怎麼選？逢甲、青海路洗鞋洗包價格與免費收送｜私享家洗衣店</title>");
+    expect(shoeBagCareHtml).toContain("<h1>西屯洗鞋、逢甲洗鞋要多少錢？先看材質，一般運動鞋參考價 $250</h1>");
+    // The price list states 一般運動鞋 as a single figure; the H1 must not add "起".
+    expect(shoeBagCareHtml).not.toContain("參考價 $250 起");
+    // The service page now states public reference prices instead of refusing to list any.
+    expect(shoeBagCareHtml).toContain("公開水洗參考價：一般運動鞋 $250");
+    expect(shoeBagCareHtml).not.toContain("本頁不提供洗鞋或洗包的固定金額");
     expect(shoeBagCareHtml).toContain(">店家資料</a>");
     expect(shoeBagCareHtml).toContain("店家資訊");
     expect(shoeBagCareHtml).toContain("常見問題");
@@ -1089,7 +1097,7 @@ describe("generatePublicSite", () => {
     const homepageAnchors = thematicAnchorsTo(homepage, "qinghai-road-shoe-cleaning");
     expect(homepageAnchors.length).toBeGreaterThanOrEqual(1);
     expect(homepageAnchors.some((text) => text.includes("逢甲洗鞋") || text.includes("西屯洗鞋"))).toBe(true);
-    expect(homepage).toContain("<strong>逢甲洗鞋・西屯洗鞋</strong>");
+    expect(homepage).toContain("<strong>逢甲、西屯洗鞋店怎麼挑</strong>");
     expect(homepage).toContain("從逢甲或西屯找洗鞋，可先看");
 
     const serviceAnchors = thematicAnchorsTo(shoeBagCareHtml, "qinghai-road-shoe-cleaning");
@@ -1693,7 +1701,7 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("收送免費等於清潔免費嗎？");
     expect(homepage).toContain('<html lang="zh-Hant-TW">');
     expect(homepage).toContain('<time datetime="2026-09-04">2026-09-04</time>');
-    expect(homepage).toContain("台中免費收送，逢甲・西屯洗鞋先看材質");
+    expect(homepage).toContain("台中洗鞋洗包洗衣，全市免費收送、價格公開");
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=home-cta`);
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=footer`);
     expect(homepage).toContain('"name":"台中市"');
@@ -2292,10 +2300,11 @@ describe("generatePublicSite", () => {
     expect(llms).toContain(`[台中洗衣價目表](${baseUrl}/${pagePath})`);
     expect(answers.answers.some((item) => item.source_url.endsWith(`/${pagePath}`))).toBe(true);
 
-    // R4 body interlinks (nav is stripped)
+    // R4 body interlinks (nav is stripped) — every non-price service page now
+    // points at the price list (LaundrySEO internal-link rebalance).
     expect(thematicAnchorsTo(shoeBagCareHtml, "taichung-laundry-price-list.html").length).toBeGreaterThanOrEqual(1);
     expect(thematicAnchorsTo(xitunHtml, "taichung-laundry-price-list.html").length).toBeGreaterThanOrEqual(1);
-    expect(thematicAnchorsTo(whiteShoeHtml, "taichung-laundry-price-list.html")).toEqual([]);
+    expect(thematicAnchorsTo(whiteShoeHtml, "taichung-laundry-price-list.html").length).toBeGreaterThanOrEqual(1);
   });
 
   it("publishes accepted index-growth guides into sitemap and AI surfaces with crawlable parent links", async () => {
@@ -2777,5 +2786,83 @@ describe("generatePublicSite", () => {
     expect(referencedImages.size).toBeGreaterThan(100);
     expect(Object.keys(imageMetadata.images).sort()).toEqual([...referencedImages].sort());
     expect(binaryCheckedImages).toBeGreaterThan(0);
+  });
+
+  it("rebalances money-page internal links and keeps conversion URLs ahead of post flood in sitemap", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-money-link-rebalance-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now: "2026-07-10T03:00:00.000Z"
+    });
+
+    const fabricGuide = await readFile(join(root, "docs", "guides", "bedding-duvet-cleaning.html"), "utf8");
+    expect(fabricGuide).toContain('data-money-pages');
+    expect(fabricGuide).toContain(`${baseUrl}/services/taichung-laundry-price-list.html`);
+    expect(fabricGuide).toContain(`${baseUrl}/services/taichung-citywide-laundry-pickup.html`);
+    expect(fabricGuide).toContain(`${baseUrl}/services/taichung-xitun-laundry.html`);
+
+    const whiteShoe = await readFile(join(root, "docs", "services", "white-shoe-cleaning.html"), "utf8");
+    expect(whiteShoe).toContain(`${baseUrl}/services/taichung-laundry-price-list.html`);
+    expect(whiteShoe).toContain(`${baseUrl}/services/taichung-citywide-laundry-pickup.html`);
+
+    const bulk = await readFile(join(root, "docs", "services", "business-bulk-laundry.html"), "utf8");
+    expect(bulk).toContain(`${baseUrl}/services/taichung-laundry-price-list.html`);
+
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const pricePos = sitemap.indexOf(`${baseUrl}/services/taichung-laundry-price-list.html`);
+    const citywidePos = sitemap.indexOf(`${baseUrl}/services/taichung-citywide-laundry-pickup.html`);
+    const postsHubPos = sitemap.indexOf(`${baseUrl}/posts/`);
+    expect(pricePos).toBeGreaterThan(-1);
+    expect(citywidePos).toBeGreaterThan(-1);
+    expect(pricePos).toBeLessThan(citywidePos);
+    if (postsHubPos >= 0) {
+      expect(citywidePos).toBeLessThan(postsHubPos);
+    }
+
+    const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8"));
+    expect(discovery.content_contract.daily_article_policy.sitemap_max_indexable_posts).toBe(30);
+    expect(discovery.content_contract.daily_article_policy.sitemap_indexable_post_count).toBeLessThanOrEqual(30);
+  });
+
+  it("puts the price list first in the header nav, shows reference prices in the home hero, and keeps 西屯洗鞋 on one landing page", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-price-first-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({ root, baseUrl, now: "2026-07-10T03:00:00.000Z" });
+
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+    const priceHtml = await readFile(join(root, "docs", "services", "taichung-laundry-price-list.html"), "utf8");
+    const shoeBagCareHtml = await readFile(join(root, "docs", "services", "shoe-bag-care.html"), "utf8");
+    const localHtml = await readFile(join(root, "docs", "local", "qinghai-road-shoe-cleaning.html"), "utf8");
+
+    // Header nav: price list is the first service link (rebirth407.com pattern).
+    const nav = homepage.match(/<nav class="nav"[\s\S]*?<\/nav>/u)?.[0] ?? "";
+    const firstNavHref = nav.match(/<a href="([^"]+)"/u)?.[1];
+    expect(firstNavHref).toBe(`${baseUrl}/services/taichung-laundry-price-list.html`);
+
+    // Home hero: three reference prices, each present verbatim on the price-list page.
+    const highlights = homepage.match(/<p class="home-hero__note" data-price-highlights>([\s\S]*?)<\/p>/u)?.[1] ?? "";
+    for (const [item, price] of [["襯衫", "$70"], ["一般運動鞋", "$250"], ["名牌包", "$1500 起"]]) {
+      expect(highlights).toContain(`${item} ${price}`);
+      expect(priceHtml).toContain(item);
+      expect(priceHtml).toContain(price);
+    }
+    expect(highlights).toContain("水洗價");
+
+    // Single landing page for the head term: only shoe-bag-care carries 西屯洗鞋 in <h1>.
+    const h1 = (html: string) => html.match(/<h1>([\s\S]*?)<\/h1>/u)?.[1] ?? "";
+    expect(h1(shoeBagCareHtml)).toContain("西屯洗鞋");
+    expect(h1(homepage)).not.toContain("西屯洗鞋");
+    expect(h1(localHtml)).not.toContain("西屯洗鞋");
+    expect(localHtml).toContain("<h1>青海路洗鞋店怎麼挑：看案例、問界線、約收送</h1>");
   });
 });

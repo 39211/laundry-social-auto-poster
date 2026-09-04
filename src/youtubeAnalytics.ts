@@ -8,17 +8,32 @@ import { readJsonFile, writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 
-// Nightly YouTube Analytics collector for the 72h loop. Impressions and CTR
-// exist only in YouTube Studio; the Analytics API does not expose them, so
-// those fields are the literal "not-available-via-api" rather than 0.
-// Unmeasured days are marked unmeasured -- never zero-filled.
+// Nightly YouTube Analytics collector. Writes data/insights/youtube/<date>.json.
+// No consumer currently reads that directory; wiring it into the 72h loop is
+// later work. Impressions and CTR exist only in YouTube Studio; the Analytics
+// API does not expose them, so those fields are the literal
+// "not-available-via-api" rather than a number. Unmeasured and not-yet-ready
+// values stay null -- never zero-filled.
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const ANALYTICS_URL = "https://youtubeanalytics.googleapis.com/v2/reports";
 const VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos";
 const WINDOW_DAYS = 28;
-export const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
+const VIDEO_STATUS_BATCH_SIZE = 50;
+const ANALYTICS_START_LOOKBACK_DAYS = 2;
+export const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+export const DEFAULT_COLLECTION_BUDGET_MS = 480_000;
 export const IMPRESSIONS_NOT_AVAILABLE = "not-available-via-api" as const;
+
+const METRIC_COLUMNS = [
+  ["views", "views"],
+  ["estimatedMinutesWatched", "estimated_minutes_watched"],
+  ["averageViewDuration", "average_view_duration_seconds"],
+  ["averageViewPercentage", "average_view_percentage"]
+] as const;
+
+export type YouTubeMetricsStatus = "measured" | "pending" | "unmeasured";
+export type YouTubeReportStatus = "measured" | "partial" | "unmeasured";
 
 export interface YouTubeLogEntry {
   date?: string;
@@ -36,17 +51,19 @@ export interface YouTubeAnalyticsVideoRow {
   published_at: string;
   privacy_status: string;
   upload_status: string;
-  views: number;
-  estimated_minutes_watched: number;
-  average_view_duration_seconds: number;
-  average_view_percentage: number;
+  metrics_status: YouTubeMetricsStatus;
+  views: number | null;
+  estimated_minutes_watched: number | null;
+  average_view_duration_seconds: number | null;
+  average_view_percentage: number | null;
   impressions: typeof IMPRESSIONS_NOT_AVAILABLE;
+  reason?: string;
 }
 
 export interface YouTubeAnalyticsReport {
   date: string;
   fetched_at: string;
-  status: "measured" | "unmeasured";
+  status: YouTubeReportStatus;
   reason?: string;
   videos: YouTubeAnalyticsVideoRow[];
 }
@@ -109,6 +126,18 @@ function publishedDay(entry: YouTubeLogEntry): string {
   return getZonedDateParts(dt, "Asia/Taipei").date;
 }
 
+// Analytics reports.query cuts days in Pacific time. Using the Taipei publish
+// day as startDate permanently drops the first PT day, so each single-video
+// query starts two calendar days before the Taipei publish day (or the 28-day
+// log window start when publish time is missing).
+function analyticsQueryStartDate(entry: YouTubeLogEntry, endDate: string): string {
+  const published = publishedDay(entry);
+  const start = published
+    ? addUtcDays(published, -ANALYTICS_START_LOOKBACK_DAYS)
+    : youtubeLogWindowStart(endDate);
+  return start > endDate ? endDate : start;
+}
+
 function parseGoogleMessage(text: string): string {
   try {
     const parsed = JSON.parse(text) as { error?: { message?: string } | string };
@@ -120,8 +149,23 @@ function parseGoogleMessage(text: string): string {
   return text;
 }
 
+function isAbortOrTimeout(error: unknown): boolean {
+  const name = error instanceof Error ? error.name : "";
+  return name === "AbortError" || name === "TimeoutError";
+}
+
+function formatCaughtError(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.name && error.name !== "Error" && !error.message.includes(error.name)) {
+      return `${error.name}: ${error.message}`;
+    }
+    return error.message;
+  }
+  return String(error);
+}
+
 function reasonFromError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = formatCaughtError(error);
   if (
     (error instanceof GoogleHttpError && error.status === 403) ||
     /insufficient|scope/i.test(message)
@@ -131,14 +175,55 @@ function reasonFromError(error: unknown): string {
   return message;
 }
 
-function unmeasuredReport(date: string, fetched_at: string, reason: string): YouTubeAnalyticsReport {
-  // R1: failure is unmeasured. Do not write 0 here -- test ②/⑤ pin this.
+function deriveReportStatus(videos: YouTubeAnalyticsVideoRow[]): YouTubeReportStatus {
+  if (videos.length === 0) return "measured";
+  let measured = 0;
+  for (const video of videos) {
+    if (video.metrics_status === "measured") measured += 1;
+  }
+  if (measured === videos.length) return "measured";
+  if (measured > 0) return "partial";
+  return "unmeasured";
+}
+
+function nullMetricFields(): Pick<
+  YouTubeAnalyticsVideoRow,
+  "views" | "estimated_minutes_watched" | "average_view_duration_seconds" | "average_view_percentage"
+> {
+  return {
+    views: null,
+    estimated_minutes_watched: null,
+    average_view_duration_seconds: null,
+    average_view_percentage: null
+  };
+}
+
+function placeholderRow(entry: YouTubeLogEntry, reason: string): YouTubeAnalyticsVideoRow {
+  return {
+    video_id: (entry.video_id ?? "").trim(),
+    title: entry.title ?? "",
+    published_at: publishedAt(entry),
+    privacy_status: "not-found",
+    upload_status: "not-found",
+    metrics_status: "pending",
+    ...nullMetricFields(),
+    impressions: IMPRESSIONS_NOT_AVAILABLE,
+    reason
+  };
+}
+
+function unmeasuredReport(
+  date: string,
+  fetched_at: string,
+  reason: string,
+  videos: YouTubeAnalyticsVideoRow[] = []
+): YouTubeAnalyticsReport {
   return {
     date,
     fetched_at,
     status: "unmeasured",
     reason,
-    videos: []
+    videos
   };
 }
 
@@ -152,8 +237,11 @@ async function fetchJson(
   try {
     response = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`request timed out after ${timeoutMs}ms: ${message}`);
+    if (isAbortOrTimeout(error)) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`request timed out after ${timeoutMs}ms: ${message}`);
+    }
+    throw error;
   }
   const text = await response.text();
   if (!response.ok) {
@@ -169,7 +257,8 @@ async function fetchJson(
 
 // File-local token exchange. postYouTube.accessToken is not exported; this
 // copy is for youtubeAnalytics.ts only and must not be reused as a shared
-// OAuth helper.
+// OAuth helper. If either copy drifts, token refresh can succeed in upload
+// and fail in analytics (or the reverse) until both are updated together.
 async function accessToken(
   fetchImpl: typeof fetch,
   creds: { clientId: string; clientSecret: string; refreshToken: string },
@@ -198,16 +287,79 @@ async function accessToken(
   return payload.access_token;
 }
 
-function metricFromRow(
-  headers: Array<{ name?: string }> | undefined,
-  row: unknown[] | undefined,
-  name: string
-): number {
-  if (!headers || !row) return 0;
-  const index = headers.findIndex((header) => header.name === name);
-  if (index < 0) return 0;
-  const parsed = Number(row[index]);
-  return Number.isFinite(parsed) ? parsed : 0;
+function parseMetricValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function metricsFromAnalyticsPayload(payload: unknown): {
+  metrics_status: YouTubeMetricsStatus;
+  views: number | null;
+  estimated_minutes_watched: number | null;
+  average_view_duration_seconds: number | null;
+  average_view_percentage: number | null;
+  reason?: string;
+} {
+  const analytics = payload as {
+    columnHeaders?: Array<{ name?: string }>;
+    rows?: unknown[][];
+  };
+  const headers = analytics.columnHeaders;
+  const rows = analytics.rows;
+  if (!rows || rows.length === 0) {
+    return {
+      metrics_status: "pending",
+      ...nullMetricFields(),
+      reason: "analytics rows not available yet"
+    };
+  }
+  const row = rows[0];
+  if (!headers || !row) {
+    return {
+      metrics_status: "unmeasured",
+      ...nullMetricFields(),
+      reason: "analytics row was missing headers or values"
+    };
+  }
+
+  const parsed: Record<(typeof METRIC_COLUMNS)[number][1], number> = {
+    views: Number.NaN,
+    estimated_minutes_watched: Number.NaN,
+    average_view_duration_seconds: Number.NaN,
+    average_view_percentage: Number.NaN
+  };
+
+  for (const [column, field] of METRIC_COLUMNS) {
+    const index = headers.findIndex((header) => header.name === column);
+    if (index < 0) {
+      return {
+        metrics_status: "unmeasured",
+        ...nullMetricFields(),
+        reason: `missing metric column ${column}`
+      };
+    }
+    const value = parseMetricValue(row[index]);
+    if (value === null) {
+      return {
+        metrics_status: "unmeasured",
+        ...nullMetricFields(),
+        reason: `non-numeric ${column}`
+      };
+    }
+    parsed[field] = value;
+  }
+
+  return {
+    metrics_status: "measured",
+    views: parsed.views,
+    estimated_minutes_watched: parsed.estimated_minutes_watched,
+    average_view_duration_seconds: parsed.average_view_duration_seconds,
+    average_view_percentage: parsed.average_view_percentage
+  };
 }
 
 async function loadWindowEntries(root: string, endDate: string): Promise<YouTubeLogEntry[]> {
@@ -240,20 +392,72 @@ async function loadWindowEntries(root: string, endDate: string): Promise<YouTube
   return entries;
 }
 
-async function fetchVideoRow(input: {
+async function fetchVideoStatuses(input: {
+  ids: string[];
+  token: string;
+  fetchImpl: typeof fetch;
+  timeoutMs: number;
+}): Promise<Map<string, { privacy_status: string; upload_status: string }>> {
+  const map = new Map<string, { privacy_status: string; upload_status: string }>();
+  const auth = { Authorization: `Bearer ${input.token}` };
+
+  const applyPayload = (payload: unknown): void => {
+    const items = (
+      payload as {
+        items?: Array<{ id?: string; status?: { privacyStatus?: string; uploadStatus?: string } }>;
+      }
+    ).items ?? [];
+    for (const item of items) {
+      if (!item.id) continue;
+      map.set(item.id, {
+        privacy_status: item.status?.privacyStatus || "not-found",
+        upload_status: item.status?.uploadStatus || "not-found"
+      });
+    }
+  };
+
+  const request = async (idParam: string): Promise<unknown> => {
+    const videosUrl = new URL(VIDEOS_URL);
+    videosUrl.searchParams.set("part", "status");
+    videosUrl.searchParams.set("id", idParam);
+    return fetchJson(input.fetchImpl, videosUrl.toString(), { headers: auth }, input.timeoutMs);
+  };
+
+  try {
+    for (let offset = 0; offset < input.ids.length; offset += VIDEO_STATUS_BATCH_SIZE) {
+      const slice = input.ids.slice(offset, offset + VIDEO_STATUS_BATCH_SIZE);
+      applyPayload(await request(slice.join(",")));
+    }
+  } catch {
+    map.clear();
+    for (const id of input.ids) {
+      try {
+        applyPayload(await request(id));
+      } catch {
+        map.set(id, { privacy_status: "not-found", upload_status: "not-found" });
+      }
+    }
+  }
+
+  for (const id of input.ids) {
+    if (!map.has(id)) {
+      map.set(id, { privacy_status: "not-found", upload_status: "not-found" });
+    }
+  }
+  return map;
+}
+
+async function fetchAnalyticsMetrics(input: {
   entry: YouTubeLogEntry;
   endDate: string;
   token: string;
   fetchImpl: typeof fetch;
   timeoutMs: number;
-}): Promise<YouTubeAnalyticsVideoRow> {
-  const videoId = input.entry.video_id as string;
-  let startDate = publishedDay(input.entry) || input.endDate;
-  if (startDate > input.endDate) startDate = input.endDate;
-
+}): Promise<ReturnType<typeof metricsFromAnalyticsPayload>> {
+  const videoId = (input.entry.video_id ?? "").trim();
   const analyticsUrl = new URL(ANALYTICS_URL);
   analyticsUrl.searchParams.set("ids", "channel==MINE");
-  analyticsUrl.searchParams.set("startDate", startDate);
+  analyticsUrl.searchParams.set("startDate", analyticsQueryStartDate(input.entry, input.endDate));
   analyticsUrl.searchParams.set("endDate", input.endDate);
   analyticsUrl.searchParams.set(
     "metrics",
@@ -262,40 +466,13 @@ async function fetchVideoRow(input: {
   analyticsUrl.searchParams.set("dimensions", "video");
   analyticsUrl.searchParams.set("filters", `video==${videoId}`);
 
-  const videosUrl = new URL(VIDEOS_URL);
-  videosUrl.searchParams.set("part", "statistics,status");
-  videosUrl.searchParams.set("id", videoId);
-
-  const auth = { Authorization: `Bearer ${input.token}` };
-  const [analyticsPayload, videosPayload] = await Promise.all([
-    fetchJson(input.fetchImpl, analyticsUrl.toString(), { headers: auth }, input.timeoutMs),
-    fetchJson(input.fetchImpl, videosUrl.toString(), { headers: auth }, input.timeoutMs)
-  ]);
-
-  const analytics = analyticsPayload as {
-    columnHeaders?: Array<{ name?: string }>;
-    rows?: unknown[][];
-  };
-  const row = analytics.rows?.[0];
-  const item = (videosPayload as {
-    items?: Array<{
-      statistics?: { viewCount?: string };
-      status?: { privacyStatus?: string; uploadStatus?: string };
-    }>;
-  }).items?.[0];
-
-  return {
-    video_id: videoId,
-    title: input.entry.title ?? "",
-    published_at: publishedAt(input.entry),
-    privacy_status: item?.status?.privacyStatus ?? "",
-    upload_status: item?.status?.uploadStatus ?? "",
-    views: metricFromRow(analytics.columnHeaders, row, "views"),
-    estimated_minutes_watched: metricFromRow(analytics.columnHeaders, row, "estimatedMinutesWatched"),
-    average_view_duration_seconds: metricFromRow(analytics.columnHeaders, row, "averageViewDuration"),
-    average_view_percentage: metricFromRow(analytics.columnHeaders, row, "averageViewPercentage"),
-    impressions: IMPRESSIONS_NOT_AVAILABLE
-  };
+  const payload = await fetchJson(
+    input.fetchImpl,
+    analyticsUrl.toString(),
+    { headers: { Authorization: `Bearer ${input.token}` } },
+    input.timeoutMs
+  );
+  return metricsFromAnalyticsPayload(payload);
 }
 
 export async function collectYouTubeAnalytics(input: {
@@ -304,19 +481,41 @@ export async function collectYouTubeAnalytics(input: {
   env?: NodeJS.ProcessEnv;
   fetchImpl?: typeof fetch;
   requestTimeoutMs?: number;
+  collectionBudgetMs?: number;
+  nowMs?: () => number;
 }): Promise<YouTubeAnalyticsReport> {
   const root = projectRoot(input.root);
   const date = input.date;
   const fetched_at = new Date().toISOString();
   const timeoutMs = input.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+  const budgetMs = input.collectionBudgetMs ?? DEFAULT_COLLECTION_BUDGET_MS;
+  const nowMs = input.nowMs ?? Date.now;
   const fetchImpl = input.fetchImpl ?? fetch;
   const env = input.env ?? process.env;
   const path = youtubeAnalyticsPath(date, root);
+  const startedMs = nowMs();
 
   const persist = async (report: YouTubeAnalyticsReport): Promise<YouTubeAnalyticsReport> => {
     await writeJsonAtomic(path, report);
     return report;
   };
+
+  const persistFromVideos = async (
+    videos: YouTubeAnalyticsVideoRow[],
+    extra?: { reason?: string; status?: YouTubeReportStatus }
+  ): Promise<YouTubeAnalyticsReport> => {
+    const status = extra?.status ?? deriveReportStatus(videos);
+    const report: YouTubeAnalyticsReport = { date, fetched_at, status, videos };
+    if (extra?.reason) {
+      report.reason = extra.reason;
+    } else if (status === "unmeasured") {
+      const videoReason = videos.find((video) => video.reason)?.reason;
+      if (videoReason) report.reason = videoReason;
+    }
+    return persist(report);
+  };
+
+  let videos: YouTubeAnalyticsVideoRow[] | undefined;
 
   try {
     const entries = await loadWindowEntries(root, date);
@@ -326,44 +525,131 @@ export async function collectYouTubeAnalytics(input: {
 
     const creds = credentials(env);
     if (creds.missing.length > 0) {
-      return persist(
-        unmeasuredReport(
-          date,
-          fetched_at,
-          `YouTube Analytics is not configured (missing ${creds.missing.join(", ")}). ` +
-            `Next: run npm run youtube-auth to grant youtube.upload youtube.readonly yt-analytics.readonly.`
-        )
+      const reason =
+        `YouTube Analytics is not configured (missing ${creds.missing.join(", ")}). ` +
+        `Next: run npm run youtube-auth to grant youtube.upload youtube.readonly yt-analytics.readonly.`;
+      videos = entries.map((entry) =>
+        placeholderRow(entry, reason)
       );
+      for (const video of videos) {
+        video.metrics_status = "unmeasured";
+      }
+      return persistFromVideos(videos, { status: "unmeasured", reason });
     }
 
-    const token = await accessToken(fetchImpl, creds, timeoutMs);
-    const videos: YouTubeAnalyticsVideoRow[] = [];
-    for (const entry of entries) {
-      videos.push(
-        await fetchVideoRow({
+    videos = entries.map((entry) => placeholderRow(entry, "collection in progress"));
+    await persistFromVideos(videos);
+
+    let token: string;
+    try {
+      token = await accessToken(fetchImpl, creds, timeoutMs);
+    } catch (error) {
+      const reason = reasonFromError(error);
+      for (const video of videos) {
+        video.metrics_status = "unmeasured";
+        video.reason = reason;
+        Object.assign(video, nullMetricFields());
+      }
+      return persistFromVideos(videos, { status: "unmeasured", reason });
+    }
+
+    const statuses = await fetchVideoStatuses({
+      ids: videos.map((video) => video.video_id),
+      token,
+      fetchImpl,
+      timeoutMs
+    });
+    for (const video of videos) {
+      const status = statuses.get(video.video_id);
+      video.privacy_status = status?.privacy_status ?? "not-found";
+      video.upload_status = status?.upload_status ?? "not-found";
+    }
+    await persistFromVideos(videos);
+
+    for (let index = 0; index < videos.length; index += 1) {
+      const current = videos[index];
+      const entry = entries[index];
+      if (!current || !entry) continue;
+
+      if (nowMs() - startedMs >= budgetMs) {
+        for (let rest = index; rest < videos.length; rest += 1) {
+          const leftover = videos[rest];
+          if (!leftover) continue;
+          leftover.metrics_status = "pending";
+          leftover.reason = "budget exhausted";
+          Object.assign(leftover, nullMetricFields());
+        }
+        return persistFromVideos(videos);
+      }
+
+      try {
+        const metrics = await fetchAnalyticsMetrics({
           entry,
           endDate: date,
           token,
           fetchImpl,
           timeoutMs
-        })
-      );
+        });
+        current.metrics_status = metrics.metrics_status;
+        current.views = metrics.views;
+        current.estimated_minutes_watched = metrics.estimated_minutes_watched;
+        current.average_view_duration_seconds = metrics.average_view_duration_seconds;
+        current.average_view_percentage = metrics.average_view_percentage;
+        current.impressions = IMPRESSIONS_NOT_AVAILABLE;
+        if (metrics.reason) current.reason = metrics.reason;
+        else delete current.reason;
+      } catch (error) {
+        current.metrics_status = "unmeasured";
+        Object.assign(current, nullMetricFields());
+        current.impressions = IMPRESSIONS_NOT_AVAILABLE;
+        current.reason = reasonFromError(error);
+      }
+      await persistFromVideos(videos);
     }
-    return persist({ date, fetched_at, status: "measured", videos });
+
+    return persistFromVideos(videos);
   } catch (error) {
-    return persist(unmeasuredReport(date, fetched_at, reasonFromError(error)));
+    const reason = reasonFromError(error);
+    if (videos && videos.length > 0) {
+      for (const video of videos) {
+        if (video.metrics_status === "pending" && video.reason === "collection in progress") {
+          video.metrics_status = "unmeasured";
+          video.reason = reason;
+          Object.assign(video, nullMetricFields());
+        }
+      }
+      return persistFromVideos(videos, { reason });
+    }
+    return persist(unmeasuredReport(date, fetched_at, reason));
   }
 }
 
-async function main(): Promise<void> {
-  const args = process.argv.slice(2);
-  const date = getOption(args, "date") ?? getZonedDateParts(new Date(), "Asia/Taipei").date;
+export async function runCli(
+  args: string[],
+  deps: {
+    env?: NodeJS.ProcessEnv;
+    fetchImpl?: typeof fetch;
+    requestTimeoutMs?: number;
+    now?: Date;
+    stdout?: (line: string) => void;
+  } = {}
+): Promise<{ report: YouTubeAnalyticsReport; exitCode: number }> {
+  const date = getOption(args, "date") ?? getZonedDateParts(deps.now ?? new Date(), "Asia/Taipei").date;
   const report = await collectYouTubeAnalytics({
     date,
-    root: getOption(args, "root")
+    root: getOption(args, "root"),
+    env: deps.env,
+    fetchImpl: deps.fetchImpl,
+    requestTimeoutMs: deps.requestTimeoutMs
   });
-  console.log(JSON.stringify(report, null, 2));
-  if (report.status === "unmeasured" && !getFlag(args, "no-fail")) process.exitCode = 1;
+  (deps.stdout ?? console.log)(JSON.stringify(report, null, 2));
+  const exitCode = report.status === "unmeasured" && !getFlag(args, "no-fail") ? 1 : 0;
+  return { report, exitCode };
+}
+
+async function main(): Promise<void> {
+  const { exitCode } = await runCli(process.argv.slice(2));
+  process.exitCode = exitCode;
 }
 
 if (isMain(import.meta.url)) {

@@ -16,7 +16,7 @@ import {
 import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot, scheduledLogPath } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
-import { resolveSlotPublishMedia, slotRequiresPublishedVideo } from "./postCurrentSlot";
+import { resolveSlotPublishMedia } from "./postCurrentSlot";
 import { pauseMessage, readPause } from "./pause";
 import { DAILY_SCHEDULE } from "./scheduler";
 import type { AppConfig, DailySlot, PostInput } from "./types";
@@ -121,6 +121,13 @@ export interface ScheduleAheadResult {
   scheduled_publish_time?: number;
 }
 
+const DEFERRED_REEL_REFUSAL = /^Refusing image fallback for reel slot \d+: /u;
+
+/** True only for resolveSlotPublishMedia's planned-Reel refusal, never for other errors. */
+function isDeferredReelRefusal(error: unknown): error is Error {
+  return error instanceof Error && error.constructor === Error && DEFERRED_REEL_REFUSAL.test(error.message);
+}
+
 export async function scheduleAheadFacebook(input: {
   date: string;
   root?: string;
@@ -187,8 +194,12 @@ export async function scheduleAheadFacebook(input: {
     try {
       resolvedMedia = await resolveSlotPublishMedia(slot, input.date, root);
     } catch (error) {
-      if (!slotRequiresPublishedVideo(slot)) throw error;
-      const reason = error instanceof Error ? error.message : String(error);
+      // Only the resolver's own refusal is a "deferred Reel". Anything else --
+      // a missing cover image (assertLocalImagesExist runs before the refusal),
+      // an fs error, a programmer fault -- must still abort the run: a swallowed
+      // fault would look like one quietly unscheduled slot.
+      if (!isDeferredReelRefusal(error)) throw error;
+      const reason = error.message;
       results.push({
         date: input.date,
         slot: slot.slot,

@@ -73,8 +73,7 @@ export interface YouTubeAnalyticsReport {
   status: YouTubeReportStatus;
   reason?: string;
   videos: YouTubeAnalyticsVideoRow[];
-  persisted?: boolean;
-  kept_existing_reason?: string;
+  merged_existing_rows?: number;
 }
 
 class GoogleHttpError extends Error {
@@ -186,27 +185,15 @@ function isFullyMeasured(video: YouTubeAnalyticsVideoRow): boolean {
   return video.metrics_status === "measured" && !video.status_reason;
 }
 
-const REPORT_STATUS_RANK: Record<string, number> = {
-  measured: 3,
-  partial: 2,
-  unmeasured: 1,
-  pending: 0
-};
-
-function reportStatusRank(status: unknown): number {
-  if (typeof status !== "string") return 0;
-  return REPORT_STATUS_RANK[status] ?? 0;
-}
-
-function fullyMeasuredCount(videos: unknown): number {
-  if (!Array.isArray(videos)) return 0;
-  let count = 0;
-  for (const video of videos) {
-    if (video && typeof video === "object" && isFullyMeasured(video as YouTubeAnalyticsVideoRow)) {
-      count += 1;
-    }
-  }
-  return count;
+// Same-run skeleton placeholders ("collection in progress") are not keepable
+// measurements. Rank them with unmeasured so a later persist of this run
+// (token failure, etc.) wins as the newer same-rank row instead of the
+// skeleton feeding back through disk as pending > unmeasured.
+function videoQuality(video: YouTubeAnalyticsVideoRow): number {
+  if (isFullyMeasured(video)) return 3;
+  if (video.metrics_status === "measured") return 2;
+  if (video.metrics_status === "pending" && video.reason !== "collection in progress") return 1;
+  return 0;
 }
 
 function deriveReportStatus(videos: YouTubeAnalyticsVideoRow[]): YouTubeReportStatus {
@@ -229,6 +216,12 @@ function reasonSeverity(message: string): number {
   return 3;
 }
 
+function worseReason(left?: string, right?: string): string | undefined {
+  if (!left) return right;
+  if (!right) return left;
+  return reasonSeverity(left) >= reasonSeverity(right) ? left : right;
+}
+
 function composeReportReason(videos: YouTubeAnalyticsVideoRow[]): string | undefined {
   const failed = videos.filter(
     (video) => Boolean(video.status_reason) || video.metrics_status !== "measured"
@@ -237,7 +230,7 @@ function composeReportReason(videos: YouTubeAnalyticsVideoRow[]): string | undef
   let best: string | undefined;
   let bestSev = -1;
   for (const video of failed) {
-    const message = video.status_reason ?? video.reason;
+    const message = worseReason(video.status_reason, video.reason);
     if (!message) continue;
     const sev = reasonSeverity(message);
     if (sev > bestSev) {
@@ -249,38 +242,65 @@ function composeReportReason(videos: YouTubeAnalyticsVideoRow[]): string | undef
   return `${best} (${failed.length} videos failed)`;
 }
 
-type PersistGuard = {
-  rank: number;
-  count: number;
-  label: string;
-};
-
-function persistGuardFromReport(status: unknown, videos: unknown): PersistGuard {
-  const rank = reportStatusRank(status);
-  const label =
-    typeof status === "string" && Object.prototype.hasOwnProperty.call(REPORT_STATUS_RANK, status)
-      ? status
-      : "pending";
-  return { rank, count: fullyMeasuredCount(videos), label };
+function asVideoRow(value: unknown): YouTubeAnalyticsVideoRow | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const video = value as YouTubeAnalyticsVideoRow;
+  if (typeof video.video_id !== "string" || video.video_id.length === 0) return undefined;
+  return video;
 }
 
-async function persistGuardOnDisk(path: string): Promise<PersistGuard> {
+async function readExistingVideos(path: string): Promise<YouTubeAnalyticsVideoRow[]> {
   try {
     const raw = await readFile(path, "utf8");
-    const parsed = JSON.parse(raw.replace(/^\uFEFF/u, "")) as {
-      status?: unknown;
-      videos?: unknown;
-    };
-    return persistGuardFromReport(parsed.status, parsed.videos);
+    const parsed = JSON.parse(raw.replace(/^\uFEFF/u, "")) as { videos?: unknown };
+    if (!Array.isArray(parsed.videos)) return [];
+    const rows: YouTubeAnalyticsVideoRow[] = [];
+    for (const item of parsed.videos) {
+      const video = asVideoRow(item);
+      if (video) rows.push(video);
+    }
+    return rows;
   } catch {
-    return { rank: 0, count: 0, label: "pending" };
+    return [];
   }
 }
 
-function shouldKeepExisting(existing: PersistGuard, next: PersistGuard): boolean {
-  if (existing.rank > next.rank) return true;
-  if (existing.rank === next.rank && existing.count > next.count) return true;
-  return false;
+function mergeVideoRows(
+  existing: YouTubeAnalyticsVideoRow[],
+  current: YouTubeAnalyticsVideoRow[]
+): { videos: YouTubeAnalyticsVideoRow[]; mergedExistingRows: number } {
+  const currentById = new Map<string, YouTubeAnalyticsVideoRow>();
+  for (const video of current) {
+    if (video.video_id) currentById.set(video.video_id, video);
+  }
+  const seen = new Set<string>();
+  const videos: YouTubeAnalyticsVideoRow[] = [];
+  let mergedExistingRows = 0;
+
+  for (const old of existing) {
+    if (!old.video_id || seen.has(old.video_id)) continue;
+    seen.add(old.video_id);
+    const next = currentById.get(old.video_id);
+    if (!next) {
+      videos.push(old);
+      mergedExistingRows += 1;
+      continue;
+    }
+    if (videoQuality(old) > videoQuality(next)) {
+      videos.push(old);
+      mergedExistingRows += 1;
+    } else {
+      videos.push(next);
+    }
+  }
+
+  for (const next of current) {
+    if (!next.video_id || seen.has(next.video_id)) continue;
+    seen.add(next.video_id);
+    videos.push(next);
+  }
+
+  return { videos, mergedExistingRows };
 }
 
 function nullMetricFields(): Pick<
@@ -306,21 +326,6 @@ function placeholderRow(entry: YouTubeLogEntry, reason: string): YouTubeAnalytic
     ...nullMetricFields(),
     impressions: IMPRESSIONS_NOT_AVAILABLE,
     reason
-  };
-}
-
-function unmeasuredReport(
-  date: string,
-  fetched_at: string,
-  reason: string,
-  videos: YouTubeAnalyticsVideoRow[] = []
-): YouTubeAnalyticsReport {
-  return {
-    date,
-    fetched_at,
-    status: "unmeasured",
-    reason,
-    videos
   };
 }
 
@@ -604,33 +609,31 @@ export async function collectYouTubeAnalytics(input: {
   const path = youtubeAnalyticsPath(date, root);
   const startedMs = nowMs();
 
-  const persist = async (report: YouTubeAnalyticsReport): Promise<YouTubeAnalyticsReport> => {
-    const existing = await persistGuardOnDisk(path);
-    const next = persistGuardFromReport(report.status, report.videos);
-    if (shouldKeepExisting(existing, next)) {
-      return {
-        ...report,
-        persisted: false,
-        kept_existing_reason: `${existing.label}/${existing.count} beats ${next.label}/${next.count}`
-      };
-    }
-    await writeJsonAtomic(path, report);
-    return report;
+  const persist = async (
+    report: YouTubeAnalyticsReport,
+    failureReason?: string
+  ): Promise<YouTubeAnalyticsReport> => {
+    const existing = await readExistingVideos(path);
+    const { videos: mergedVideos, mergedExistingRows } = mergeVideoRows(existing, report.videos);
+    const status: YouTubeReportStatus =
+      mergedVideos.length === 0 && failureReason ? "unmeasured" : deriveReportStatus(mergedVideos);
+    const next: YouTubeAnalyticsReport = {
+      date,
+      fetched_at,
+      status,
+      videos: mergedVideos,
+      merged_existing_rows: mergedExistingRows
+    };
+    const reason = composeReportReason(mergedVideos) ?? failureReason;
+    if (reason) next.reason = reason;
+    await writeJsonAtomic(path, next);
+    return next;
   };
 
   const persistFromVideos = async (
-    videos: YouTubeAnalyticsVideoRow[],
-    extra?: { reason?: string; status?: YouTubeReportStatus }
+    videos: YouTubeAnalyticsVideoRow[]
   ): Promise<YouTubeAnalyticsReport> => {
-    const status = extra?.status ?? deriveReportStatus(videos);
-    const report: YouTubeAnalyticsReport = { date, fetched_at, status, videos };
-    if (extra?.reason) {
-      report.reason = extra.reason;
-    } else if (status === "unmeasured" || status === "partial") {
-      const reason = composeReportReason(videos);
-      if (reason) report.reason = reason;
-    }
-    return persist(report);
+    return persist({ date, fetched_at, status: deriveReportStatus(videos), videos });
   };
 
   let videos: YouTubeAnalyticsVideoRow[] | undefined;
@@ -638,7 +641,7 @@ export async function collectYouTubeAnalytics(input: {
   try {
     const entries = await loadWindowEntries(root, date);
     if (entries.length === 0) {
-      return persist({ date, fetched_at, status: "measured", videos: [] });
+      return persistFromVideos([]);
     }
 
     const creds = credentials(env);
@@ -652,7 +655,7 @@ export async function collectYouTubeAnalytics(input: {
       for (const video of videos) {
         video.metrics_status = "unmeasured";
       }
-      return persistFromVideos(videos, { status: "unmeasured", reason });
+      return persistFromVideos(videos);
     }
 
     videos = entries.map((entry) => placeholderRow(entry, "collection in progress"));
@@ -668,7 +671,7 @@ export async function collectYouTubeAnalytics(input: {
         video.reason = reason;
         Object.assign(video, nullMetricFields());
       }
-      return persistFromVideos(videos, { status: "unmeasured", reason });
+      return persistFromVideos(videos);
     }
 
     const statuses = await fetchVideoStatuses({
@@ -742,9 +745,9 @@ export async function collectYouTubeAnalytics(input: {
           Object.assign(video, nullMetricFields());
         }
       }
-      return persistFromVideos(videos, { reason });
+      return persistFromVideos(videos);
     }
-    return persist(unmeasuredReport(date, fetched_at, reason));
+    return persist({ date, fetched_at, status: "unmeasured", videos: [] }, reason);
   }
 }
 
@@ -768,9 +771,9 @@ export async function runCli(
     requestTimeoutMs: deps.requestTimeoutMs
   });
   (deps.stdout ?? console.log)(JSON.stringify(report, null, 2));
-  if (report.persisted === false) {
+  if ((report.merged_existing_rows ?? 0) > 0) {
     (deps.stderr ?? console.error)(
-      `[youtube-analytics] kept existing report: ${report.kept_existing_reason ?? ""}`
+      `[youtube-analytics] merged ${report.merged_existing_rows} existing rows`
     );
   }
   const exitCode = report.status === "unmeasured" && !getFlag(args, "no-fail") ? 1 : 0;

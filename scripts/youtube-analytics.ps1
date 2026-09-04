@@ -1,9 +1,9 @@
 ﻿# Daily YouTube Analytics collection: writes the 28-day Shorts window into
 # data\insights\youtube\<date>.json. Unmeasured days stay unmeasured -- never 0.
-# The TypeScript collector writes that JSON after each video. A pending
-# skeleton is written first only when no stronger same-day file already
-# exists, so a Task Scheduler kill still leaves a partial file without
-# clobbering a better report.
+# The TypeScript collector writes that JSON after each video, merging
+# per video_id with any same-day file already on disk (逐支合併). A pending
+# skeleton is written first so a Task Scheduler kill still leaves a partial
+# file.
 #
 # youtubeAnalytics.ts defaults --date to Taipei via getZonedDateParts, but this
 # wrapper still computes and passes the Taipei date explicitly so the file name

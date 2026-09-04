@@ -121,11 +121,18 @@ export interface ScheduleAheadResult {
   scheduled_publish_time?: number;
 }
 
-const DEFERRED_REEL_REFUSAL = /^Refusing image fallback for reel slot \d+: /u;
-
-/** True only for resolveSlotPublishMedia's planned-Reel refusal, never for other errors. */
+/** True only for resolveSlotPublishMedia's planned-Reel video refusal. */
 function isDeferredReelRefusal(error: unknown): error is Error {
-  return error instanceof Error && error.constructor === Error && DEFERRED_REEL_REFUSAL.test(error.message);
+  return (
+    error instanceof Error &&
+    error.constructor === Error &&
+    error.message.startsWith("Refusing image fallback") &&
+    !error.message.includes("Image is missing")
+  );
+}
+
+function isMissingImageReason(reason: string): boolean {
+  return reason.includes("Image is missing");
 }
 
 export async function scheduleAheadFacebook(input: {
@@ -194,10 +201,9 @@ export async function scheduleAheadFacebook(input: {
     try {
       resolvedMedia = await resolveSlotPublishMedia(slot, input.date, root);
     } catch (error) {
-      // Only the resolver's own refusal is a "deferred Reel". Anything else --
-      // a missing cover image (assertLocalImagesExist runs before the refusal),
-      // an fs error, a programmer fault -- must still abort the run: a swallowed
-      // fault would look like one quietly unscheduled slot.
+      // Only the resolver's own video refusal is a "deferred Reel". A missing
+      // cover image, even if someone prefixes it with "Refusing image fallback",
+      // an fs error, or a programmer fault must still abort the run.
       if (!isDeferredReelRefusal(error)) throw error;
       const reason = error.message;
       results.push({
@@ -247,11 +253,15 @@ export async function scheduleAheadFacebook(input: {
     // queue static images into two future Reel slots -- exactly the silent
     // downgrade this branch exists to refuse.
     if (slot.media_type === "reel" && resolvedMedia.videoDeferred) {
+      const deferredReason = resolvedMedia.videoDeferredReason ?? "unknown";
+      if (isMissingImageReason(deferredReason)) {
+        throw new Error(deferredReason);
+      }
       results.push({
         date: input.date,
         slot: slot.slot,
         action: "skipped",
-        reason: `reel video not publishable yet (${resolvedMedia.videoDeferredReason ?? "unknown"}); live path owns it`
+        reason: `reel video not publishable yet (${deferredReason}); live path owns it`
       });
       continue;
     }

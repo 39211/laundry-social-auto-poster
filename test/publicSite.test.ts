@@ -2292,10 +2292,11 @@ describe("generatePublicSite", () => {
     expect(llms).toContain(`[台中洗衣價目表](${baseUrl}/${pagePath})`);
     expect(answers.answers.some((item) => item.source_url.endsWith(`/${pagePath}`))).toBe(true);
 
-    // R4 body interlinks (nav is stripped)
+    // R4 body interlinks (nav is stripped) — every non-price service page now
+    // points at the price list (LaundrySEO internal-link rebalance).
     expect(thematicAnchorsTo(shoeBagCareHtml, "taichung-laundry-price-list.html").length).toBeGreaterThanOrEqual(1);
     expect(thematicAnchorsTo(xitunHtml, "taichung-laundry-price-list.html").length).toBeGreaterThanOrEqual(1);
-    expect(thematicAnchorsTo(whiteShoeHtml, "taichung-laundry-price-list.html")).toEqual([]);
+    expect(thematicAnchorsTo(whiteShoeHtml, "taichung-laundry-price-list.html").length).toBeGreaterThanOrEqual(1);
   });
 
   it("publishes accepted index-growth guides into sitemap and AI surfaces with crawlable parent links", async () => {
@@ -2777,5 +2778,47 @@ describe("generatePublicSite", () => {
     expect(referencedImages.size).toBeGreaterThan(100);
     expect(Object.keys(imageMetadata.images).sort()).toEqual([...referencedImages].sort());
     expect(binaryCheckedImages).toBeGreaterThan(0);
+  });
+
+  it("rebalances money-page internal links and keeps conversion URLs ahead of post flood in sitemap", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-money-link-rebalance-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now: "2026-07-10T03:00:00.000Z"
+    });
+
+    const fabricGuide = await readFile(join(root, "docs", "guides", "bedding-duvet-cleaning.html"), "utf8");
+    expect(fabricGuide).toContain('data-money-pages');
+    expect(fabricGuide).toContain(`${baseUrl}/services/taichung-laundry-price-list.html`);
+    expect(fabricGuide).toContain(`${baseUrl}/services/taichung-citywide-laundry-pickup.html`);
+    expect(fabricGuide).toContain(`${baseUrl}/services/taichung-xitun-laundry.html`);
+
+    const whiteShoe = await readFile(join(root, "docs", "services", "white-shoe-cleaning.html"), "utf8");
+    expect(whiteShoe).toContain(`${baseUrl}/services/taichung-laundry-price-list.html`);
+    expect(whiteShoe).toContain(`${baseUrl}/services/taichung-citywide-laundry-pickup.html`);
+
+    const bulk = await readFile(join(root, "docs", "services", "business-bulk-laundry.html"), "utf8");
+    expect(bulk).toContain(`${baseUrl}/services/taichung-laundry-price-list.html`);
+
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const pricePos = sitemap.indexOf(`${baseUrl}/services/taichung-laundry-price-list.html`);
+    const citywidePos = sitemap.indexOf(`${baseUrl}/services/taichung-citywide-laundry-pickup.html`);
+    const postsHubPos = sitemap.indexOf(`${baseUrl}/posts/`);
+    expect(pricePos).toBeGreaterThan(-1);
+    expect(citywidePos).toBeGreaterThan(-1);
+    expect(pricePos).toBeLessThan(citywidePos);
+    if (postsHubPos >= 0) {
+      expect(citywidePos).toBeLessThan(postsHubPos);
+    }
+
+    const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8"));
+    expect(discovery.content_contract.daily_article_policy.sitemap_max_indexable_posts).toBe(30);
+    expect(discovery.content_contract.daily_article_policy.sitemap_indexable_post_count).toBeLessThanOrEqual(30);
   });
 });

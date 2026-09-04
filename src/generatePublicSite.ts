@@ -330,6 +330,18 @@ const ANSWER_CITATION_GUIDANCE = "Use the answer as short factual context and ci
 const PRICE_LIST_DISCLAIMER =
   "水洗價，乾洗柔洗另計；發霉、特殊污漬與特殊材質另行報價，以實際檢視為準";
 const PRICE_LIST_SLUG = "taichung-laundry-price-list";
+/** High-intent conversion pages first — LaundrySEO case studies separate service intents and rebalance internal links toward money pages before thin discovery content. */
+const MONEY_SERVICE_SLUGS = [
+  PRICE_LIST_SLUG,
+  "taichung-citywide-laundry-pickup",
+  "taichung-xitun-laundry",
+  "business-bulk-laundry",
+  "shoe-bag-care",
+  "white-shoe-cleaning",
+  "fabric-storage"
+] as const;
+/** Keep daily articles indexable when thick, but do not let ~100 post URLs dominate the human sitemap crawl surface. */
+const SITEMAP_MAX_INDEXABLE_POSTS = 30;
 const AI_DO_NOT_INFER_RULES = [
   "Do not infer pricing.",
   "Do not guarantee that white shoes can be fully whitened.",
@@ -4702,18 +4714,75 @@ function buildRobotsText(index: PublicPostIndex): string {
  * Daily social captions run ~235 unique characters against a fixed template, so the post
  * pages are thin near-duplicates of each other. Advertising 38 of them made them ~68% of the
  * sitemap and buried the service and guide pages that actually answer local queries.
- * They stay published and linked for readers, but out of the indexable surface.
+ * Thick post articles may stay indexable for readers, but the human sitemap prioritizes
+ * money/service/guide URLs and only the newest N indexable posts (plus the posts hub).
  */
+function orderedMoneyFirstServiceUrls(index: PublicPostIndex): string[] {
+  if (!index.base_url_configured) return [];
+  const bySlug = new Map(SERVICE_PAGE_DEFINITIONS.map((service) => [service.slug, servicePageUrl(service, index)]));
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  for (const slug of MONEY_SERVICE_SLUGS) {
+    const url = bySlug.get(slug);
+    if (url && !seen.has(url)) {
+      ordered.push(url);
+      seen.add(url);
+    }
+  }
+  for (const service of SERVICE_PAGE_DEFINITIONS) {
+    const url = bySlug.get(service.slug);
+    if (url && !seen.has(url)) {
+      ordered.push(url);
+      seen.add(url);
+    }
+  }
+  return ordered;
+}
+
+function sitemapIndexablePostArticles(index: PublicPostIndex): PublicPost[] {
+  return indexablePostArticles(index)
+    .slice()
+    .sort((left, right) => `${right.date}-${String(right.slot).padStart(2, "0")}`.localeCompare(`${left.date}-${String(left.slot).padStart(2, "0")}`))
+    .slice(0, SITEMAP_MAX_INDEXABLE_POSTS);
+}
+
+function buildMoneyPageLinkRow(
+  index: PublicPostIndex,
+  options: { excludeServiceSlug?: string; excludeSupportSlug?: string } = {}
+): string {
+  const links: Array<{ href: string; label: string }> = [];
+  const pushService = (slug: string) => {
+    if (options.excludeServiceSlug === slug) return;
+    const service = findServiceBySlug(slug);
+    if (!service) return;
+    links.push({ href: servicePageUrl(service, index), label: service.name });
+  };
+  pushService(PRICE_LIST_SLUG);
+  pushService("taichung-citywide-laundry-pickup");
+  pushService("taichung-xitun-laundry");
+  pushService("business-bulk-laundry");
+  const localPages = ["fengjia-laundry-pickup", "qinghai-road-shoe-cleaning", "taichung-laundry-service-search"];
+  for (const slug of localPages) {
+    if (options.excludeSupportSlug === slug) continue;
+    const page = SUPPORT_PAGE_DEFINITIONS.find((entry) => entry.slug === slug);
+    if (!page) continue;
+    links.push({ href: supportPageUrl(page, index), label: page.h1 });
+  }
+  if (links.length === 0) return "";
+  return `<div class="link-row" data-money-pages>
+              ${links.map((link) => `<a href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`).join("\n              ")}
+            </div>`;
+}
+
 function buildSitemapXml(index: PublicPostIndex): string {
+  const sitemapPosts = sitemapIndexablePostArticles(index);
   const urls = index.base_url_configured
     ? [
         index.canonical_url,
         knowledgeHubUrl(index),
-        ...Object.values(index.entrypoints.service_pages),
+        ...orderedMoneyFirstServiceUrls(index),
         ...Object.values(index.entrypoints.support_pages),
-        ...(indexablePostArticles(index).length > 0
-          ? [postsHubUrl(index), ...indexablePostArticles(index).map((post) => post.article_url)]
-          : [])
+        ...(sitemapPosts.length > 0 ? [postsHubUrl(index), ...sitemapPosts.map((post) => post.article_url)] : [])
       ]
     : [];
   const uniqueUrls = Array.from(new Set(urls));
@@ -6182,6 +6251,7 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   const service = findServiceBySlug(care.serviceSlug) ?? SERVICE_PAGE_DEFINITIONS[0];
   const serviceHref = service ? servicePageUrl(service, index) : index.canonical_url;
   const pickupService = findServiceBySlug("taichung-citywide-laundry-pickup");
+  const priceListService = findServiceBySlug(PRICE_LIST_SLUG);
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const hubHref = postsHubHref(index, true);
   const articleNumber = articleNumberFor(post, index);
@@ -6316,6 +6386,11 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
                 ? `<a class="button secondary" href="${escapeHtml(servicePageUrl(pickupService, index))}">${escapeHtml(pickupService.name)}</a>`
                 : ""
             }
+            ${
+              priceListService && priceListService.slug !== service?.slug
+                ? `<a class="button secondary" href="${escapeHtml(servicePageUrl(priceListService, index))}">${escapeHtml(priceListService.name)}</a>`
+                : ""
+            }
           </div>
           <section class="article-faq" aria-labelledby="faq-${escapeHtml(post.id)}">
             <h2 id="faq-${escapeHtml(post.id)}">常見問題</h2>
@@ -6355,6 +6430,16 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
                     `<li class="article-related__item"><a class="article-related__link" href="${escapeHtml(supportPageUrl(page, index))}">${escapeHtml(page.h1)}</a></li>`
                 )
                 .join("\n              ")}
+              ${
+                priceListService
+                  ? `<li class="article-related__item"><a class="article-related__link" href="${escapeHtml(servicePageUrl(priceListService, index))}">${escapeHtml(priceListService.name)}</a></li>`
+                  : ""
+              }
+              ${
+                pickupService
+                  ? `<li class="article-related__item"><a class="article-related__link" href="${escapeHtml(servicePageUrl(pickupService, index))}">${escapeHtml(pickupService.name)}</a></li>`
+                  : ""
+              }
               <li class="article-related__item"><a class="article-related__link" href="${escapeHtml(hubHref)}">每日洗護紀錄總覽</a></li>
             </ul>
           </section>
@@ -7444,22 +7529,19 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
     service.slug === "shoe-bag-care"
       ? SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "qinghai-road-shoe-cleaning")
       : undefined;
-  // R4: body interlink (nav already lists every service) on the pages that
-  // already answer the matching intent in prose.
+  // R4 / LaundrySEO internal-link rebalance: every service page points at the
+  // conversion intents (price + citywide pickup) unless it *is* that page.
   const priceListPage = findServiceBySlug(PRICE_LIST_SLUG);
   const citywidePage = findServiceBySlug("taichung-citywide-laundry-pickup");
   const searchGuidePage = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "taichung-laundry-service-search");
-  const showPriceListInterlink =
-    Boolean(priceListPage) &&
-    (service.slug === "shoe-bag-care" || service.slug === "taichung-xitun-laundry");
+  const showPriceListInterlink = Boolean(priceListPage) && service.slug !== PRICE_LIST_SLUG;
   const showCitywideInterlink =
-    Boolean(citywidePage) &&
-    (service.slug === "shoe-bag-care" ||
-      service.slug === "white-shoe-cleaning" ||
-      service.slug === "taichung-xitun-laundry" ||
-      service.slug === "fabric-storage" ||
-      service.slug === "business-bulk-laundry");
-  const showSearchGuideInterlink = Boolean(searchGuidePage) && service.slug === "taichung-xitun-laundry";
+    Boolean(citywidePage) && service.slug !== "taichung-citywide-laundry-pickup";
+  const showSearchGuideInterlink =
+    Boolean(searchGuidePage) &&
+    (service.slug === "taichung-xitun-laundry" ||
+      service.slug === PRICE_LIST_SLUG ||
+      service.slug === "taichung-citywide-laundry-pickup");
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const businessProfileHref = index.base_url_configured ? index.entrypoints.business_profile : "../business-profile.json";
   const chrome: SiteChromeOptions = {
@@ -7904,9 +7986,9 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
   const relatedGuidePages = (page.related_slugs ?? [])
     .map((slug) => SUPPORT_PAGE_DEFINITIONS.find((entry) => entry.slug === slug))
     .filter((entry): entry is SupportPageDefinition => Boolean(entry));
-  const pickupService = findServiceBySlug("taichung-citywide-laundry-pickup");
-  const priceListService = findServiceBySlug(PRICE_LIST_SLUG);
-  const serviceSearchGuide = SUPPORT_PAGE_DEFINITIONS.find((entry) => entry.slug === "taichung-laundry-service-search");
+  // Always expose money-page rails (price / citywide / xitun / bulk / local).
+  // Previously these only appeared when related_slugs was non-empty, so many JTBD
+  // guides never passed crawl equity to the conversion pages GSC still marks unindexed.
   const relatedGuidesMarkup =
     relatedGuidePages.length > 0
       ? `<div class="link-row" data-related-guides>
@@ -7916,23 +7998,12 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
                     `<a href="${escapeHtml(supportPageUrl(entry, index))}">${escapeHtml(entry.h1)}</a>`
                 )
                 .join("\n")}
-              ${
-                pickupService
-                  ? `<a href="${escapeHtml(servicePageUrl(pickupService, index))}">${escapeHtml(pickupService.name)}</a>`
-                  : ""
-              }
-              ${
-                priceListService
-                  ? `<a href="${escapeHtml(servicePageUrl(priceListService, index))}">${escapeHtml(priceListService.name)}</a>`
-                  : ""
-              }
-              ${
-                serviceSearchGuide && serviceSearchGuide.slug !== page.slug
-                  ? `<a href="${escapeHtml(supportPageUrl(serviceSearchGuide, index))}">${escapeHtml(serviceSearchGuide.h1)}</a>`
-                  : ""
-              }
             </div>`
       : "";
+  const moneyPagesMarkup = buildMoneyPageLinkRow(index, {
+    excludeServiceSlug: service.slug,
+    excludeSupportSlug: page.slug
+  });
 
   return `<!doctype html>
 <html lang="zh-Hant-TW">
@@ -8084,7 +8155,9 @@ ${serviceHeroLink}          </div>
             <div class="link-row">
               <a href="${escapeHtml(serviceHref)}" data-parent-service>${escapeHtml(service.name)}</a>
               <a href="${escapeHtml(lineInline)}">傳照片詢問</a>
-            </div>${relatedGuidesMarkup ? `\n            ${relatedGuidesMarkup}` : ""}
+            </div>${relatedGuidesMarkup ? `\n            ${relatedGuidesMarkup}` : ""}${
+              moneyPagesMarkup ? `\n            ${moneyPagesMarkup}` : ""
+            }
           </div>
           <aside class="card">
             <h2>店家資料</h2>
@@ -8267,8 +8340,10 @@ function buildAiDiscovery(index: PublicPostIndex): object {
         min_visible_chars: POST_ARTICLE_MIN_VISIBLE_CHARS,
         min_caption_chars: POST_ARTICLE_MIN_CAPTION_CHARS,
         behavior:
-          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Only articles that clear the thickness gate carry index robots and enter sitemap.xml, rss.xml and the posts hub; the rest stay noindex, follow.",
+          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Only articles that clear the thickness gate carry index robots, enter rss.xml and the posts hub; the human sitemap.xml lists money/service/guide URLs first and only the newest sitemap_max_indexable_posts thick articles so conversion pages are not buried.",
         indexable_article_count: indexablePostArticles(index).length,
+        sitemap_max_indexable_posts: SITEMAP_MAX_INDEXABLE_POSTS,
+        sitemap_indexable_post_count: sitemapIndexablePostArticles(index).length,
         article_count: index.article_posts.length
       },
       homepage_archive_policy: {

@@ -53,6 +53,75 @@ describe("gsc url-inspection reader", () => {
     await rm(root, { recursive: true, force: true });
   });
 
+  it("turns a stalled inspection call into one failed row and keeps inspecting the rest", async () => {
+    const stalled = "https://example.com/hangs/";
+    const fine = "https://example.com/ok/";
+    const good = stubFetch({ [fine]: { verdict: "PASS", coverageState: "Submitted and indexed" } });
+    // A request that never completes but honours the abort signal, like a
+    // socket that stays open with no bytes: only the deadline can end it.
+    const hanging = (async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes("oauth2.googleapis.com")) return good(url, init);
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      if (body.inspectionUrl !== stalled) return good(url, init);
+      return new Promise<Response>((_, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason ?? new Error("aborted")));
+      });
+    }) as unknown as typeof fetch;
+
+    const started = Date.now();
+    const report = await inspectUrls({ urls: [stalled, fine], env: CONFIGURED, fetchImpl: hanging, requestTimeoutMs: 50 });
+    expect(Date.now() - started).toBeLessThan(5_000);
+
+    expect(report.total).toBe(2);
+    const [first, second] = report.rows;
+    expect(first?.url).toBe(stalled);
+    expect(first?.verdict).toBe("ERROR");
+    expect(first?.coverage_state).toBe("inspection-failed");
+    expect(first?.error).toMatch(/timed out after 50ms/);
+    expect(second?.coverage_state).toBe("Submitted and indexed");
+    expect(report.indexed_count).toBe(1);
+    expect(report.states).toEqual({ "inspection-failed": 1, "Submitted and indexed": 1 });
+  });
+
+  it("inspects in parallel but keeps rows in sitemap order", async () => {
+    const urls = Array.from({ length: 9 }, (_, i) => `https://example.com/p${i}/`);
+    let inFlight = 0;
+    let peak = 0;
+    const slow = (async (url: string | URL, init?: RequestInit) => {
+      if (String(url).includes("oauth2.googleapis.com")) {
+        return new Response(JSON.stringify({ access_token: "token" }), { status: 200 });
+      }
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      const i = Number(String(body.inspectionUrl).match(/p(\d+)/)?.[1]);
+      // later URLs answer faster, so order would scramble without index-addressed rows
+      await new Promise((resolve) => setTimeout(resolve, 40 - i * 4));
+      inFlight -= 1;
+      return new Response(
+        JSON.stringify({ inspectionResult: { indexStatusResult: { verdict: "PASS", coverageState: `state-${i}` } } }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+
+    const report = await inspectUrls({ urls, env: CONFIGURED, fetchImpl: slow, concurrency: 3 });
+    expect(peak).toBeGreaterThanOrEqual(2);
+    expect(peak).toBeLessThanOrEqual(3);
+    expect(report.rows.map((row) => row.url)).toEqual(urls);
+    expect(report.rows.map((row) => row.coverage_state)).toEqual(urls.map((_, i) => `state-${i}`));
+    expect(report.total).toBe(9);
+  });
+
+  it("fails fast with a clear message when the token refresh itself stalls", async () => {
+    const hangingToken = (async (_url: string | URL, init?: RequestInit) =>
+      new Promise<Response>((_, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason ?? new Error("aborted")));
+      })) as unknown as typeof fetch;
+    await expect(
+      inspectUrls({ urls: ["https://example.com/"], env: CONFIGURED, fetchImpl: hangingToken, requestTimeoutMs: 50 })
+    ).rejects.toThrow(/token refresh failed or timed out after 50ms/);
+  });
+
   it("refuses to run when the read side is not configured", async () => {
     await expect(
       inspectUrls({ urls: ["https://example.com/"], env: {} as NodeJS.ProcessEnv, fetchImpl: stubFetch({}) })

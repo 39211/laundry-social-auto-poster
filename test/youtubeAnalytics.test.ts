@@ -584,7 +584,7 @@ describe("YouTube Analytics collector", () => {
 
     expect(analyticsCalls).toBe(2);
     expect(report.status).not.toBe("measured");
-    expect(report.status).toBe("unmeasured");
+    expect(report.status).toBe("partial");
     expect(report.reason).toBeTruthy();
     expect(report.reason).toMatch(/403/);
     expect(report.reason).toMatch(/2 videos failed/);
@@ -721,26 +721,52 @@ describe("YouTube Analytics collector", () => {
     const existingText = `${JSON.stringify(existing, null, 2)}\n`;
     await writeFile(path, existingText, "utf8");
 
+    let stdoutText = "";
+    const stderrLines: string[] = [];
     const { report, exitCode } = await runCli(["--root", root, "--date", DATE, "--no-fail"], {
       env: CONFIGURED,
       fetchImpl: googleFetch({
         token: () => jsonResponse({ error: "invalid_grant", error_description: "token revoked" }, 400)
       }),
-      stdout: () => undefined
+      stdout: (line) => {
+        stdoutText += line;
+      },
+      stderr: (line) => {
+        stderrLines.push(line);
+      }
     });
 
     expect(report.status).toBe("unmeasured");
+    expect(report.persisted).toBe(false);
+    expect(report.kept_existing_reason).toBe("measured/2 beats unmeasured/0");
     expect(exitCode).toBe(0);
+    expect(JSON.parse(stdoutText).persisted).toBe(false);
+    expect(JSON.parse(stdoutText).kept_existing_reason).toBe("measured/2 beats unmeasured/0");
+    expect(stderrLines.some((line) => line.includes("[youtube-analytics] kept existing report:"))).toBe(
+      true
+    );
+    expect(stderrLines.some((line) => line.includes("measured/2 beats unmeasured/0"))).toBe(true);
     expect(await readFile(path, "utf8")).toBe(existingText);
+    const diskAfterNoFail = JSON.parse(existingText) as Record<string, unknown>;
+    expect(diskAfterNoFail.persisted).toBeUndefined();
+    expect(diskAfterNoFail.kept_existing_reason).toBeUndefined();
 
+    const stderrWithoutNoFail: string[] = [];
     const withoutNoFail = await runCli(["--root", root, "--date", DATE], {
       env: CONFIGURED,
       fetchImpl: googleFetch({
         token: () => jsonResponse({ error: "invalid_grant", error_description: "token revoked" }, 400)
       }),
-      stdout: () => undefined
+      stdout: () => undefined,
+      stderr: (line) => {
+        stderrWithoutNoFail.push(line);
+      }
     });
     expect(withoutNoFail.exitCode).toBe(1);
+    expect(withoutNoFail.report.persisted).toBe(false);
+    expect(stderrWithoutNoFail.some((line) => line.includes("[youtube-analytics] kept existing report:"))).toBe(
+      true
+    );
     expect(await readFile(path, "utf8")).toBe(existingText);
   });
 
@@ -798,6 +824,17 @@ describe("YouTube Analytics collector", () => {
     expect(report.videos[1]?.metrics_status).toBe("pending");
     expect(report.videos[1]?.reason).toBe("budget exhausted");
     assertUnmeasuredNumericFields(report.videos[1]);
+
+    const saved = JSON.parse(await readFile(youtubeAnalyticsPath(DATE, root), "utf8")) as {
+      status: string;
+      videos: Array<{ metrics_status: string; reason?: string; views: number | null }>;
+    };
+    expect(saved.status).toBe("partial");
+    expect(saved.videos[0]?.metrics_status).toBe("measured");
+    expect(saved.videos[0]?.views).toBe(12);
+    expect(saved.videos[1]?.metrics_status).toBe("pending");
+    expect(saved.videos[1]?.reason).toBe("budget exhausted");
+    expect(saved.videos[1]?.views).toBeNull();
   });
 
   it("runCli --no-fail exits 0 and still writes the file when collection is unmeasured", async () => {
@@ -833,5 +870,294 @@ describe("YouTube Analytics collector", () => {
     expect(report.status).toBe("unmeasured");
     const saved = JSON.parse(await readFile(youtubeAnalyticsPath(DATE, root), "utf8"));
     expect(saved.status).toBe("unmeasured");
+  });
+
+  it("writes a pending skeleton before the first network call when no report exists", async () => {
+    await writeLog(root, DATE, [logEntry("abc123")]);
+    let skeleton: {
+      status: string;
+      videos: Array<{ metrics_status: string; reason?: string; views: number | null }>;
+    } | undefined;
+
+    const report = await collectYouTubeAnalytics({
+      date: DATE,
+      root,
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        token: async () => {
+          skeleton = JSON.parse(await readFile(youtubeAnalyticsPath(DATE, root), "utf8")) as {
+            status: string;
+            videos: Array<{ metrics_status: string; reason?: string; views: number | null }>;
+          };
+          return jsonResponse({ access_token: "token" });
+        }
+      })
+    });
+
+    expect(skeleton).toBeDefined();
+    expect(skeleton?.status).toBe("unmeasured");
+    expect(skeleton?.videos).toHaveLength(1);
+    expect(skeleton?.videos[0]?.metrics_status).toBe("pending");
+    expect(skeleton?.videos[0]?.reason).toBe("collection in progress");
+    expect(skeleton?.videos[0]?.views).toBeNull();
+    expect(report.status).toBe("measured");
+  });
+
+  it("persists video statuses before the first analytics request", async () => {
+    await writeLog(root, DATE, [logEntry("vid1"), logEntry("vid2")]);
+    let mid:
+      | {
+          videos: Array<{
+            video_id: string;
+            privacy_status: string | null;
+            upload_status: string | null;
+            metrics_status: string;
+          }>;
+        }
+      | undefined;
+
+    const report = await collectYouTubeAnalytics({
+      date: DATE,
+      root,
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        analytics: async (url) => {
+          if (!mid) {
+            mid = JSON.parse(await readFile(youtubeAnalyticsPath(DATE, root), "utf8")) as {
+              videos: Array<{
+                video_id: string;
+                privacy_status: string | null;
+                upload_status: string | null;
+                metrics_status: string;
+              }>;
+            };
+          }
+          return jsonResponse(measuredAnalyticsRow(videoIdFromFilters(url.toString())));
+        }
+      })
+    });
+
+    expect(report.status).toBe("measured");
+    expect(mid).toBeDefined();
+    expect(mid?.videos).toHaveLength(2);
+    expect(mid?.videos[0]?.video_id).toBe("vid1");
+    expect(mid?.videos[0]?.privacy_status).toBe("public");
+    expect(mid?.videos[0]?.upload_status).toBe("processed");
+    expect(mid?.videos[0]?.metrics_status).toBe("pending");
+    expect(mid?.videos[1]?.privacy_status).toBe("public");
+    expect(mid?.videos[1]?.metrics_status).toBe("pending");
+  });
+
+  it("appends the re-consent hint when analytics returns HTTP 401", async () => {
+    await writeLog(root, DATE, [logEntry("abc123")]);
+
+    const report = await collectYouTubeAnalytics({
+      date: DATE,
+      root,
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        analytics: () => jsonResponse({ error: { code: 401, message: "Invalid Credentials" } }, 401)
+      })
+    });
+
+    expect(report.status).toBe("unmeasured");
+    expect(report.videos[0]?.metrics_status).toBe("unmeasured");
+    expect(report.videos[0]?.reason).toMatch(/401/);
+    expect(report.videos[0]?.reason).toMatch(/Invalid Credentials/);
+    expect(report.videos[0]?.reason).not.toMatch(/insufficient|scope/i);
+    expect(report.videos[0]?.reason).toMatch(/youtube-auth|re-consent|youtube\.readonly/i);
+    expect(report.reason).toMatch(/401/);
+    expect(report.reason).toMatch(/youtube-auth|re-consent|youtube\.readonly/i);
+    assertUnmeasuredNumericFields(report.videos[0]);
+  });
+
+  it("appends the re-consent hint when the error mentions insufficient scopes without HTTP 401/403", async () => {
+    await writeLog(root, DATE, [logEntry("abc123")]);
+
+    const report = await collectYouTubeAnalytics({
+      date: DATE,
+      root,
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        analytics: () => {
+          throw new Error("Request had insufficient authentication scopes.");
+        }
+      })
+    });
+
+    expect(report.status).toBe("unmeasured");
+    expect(report.videos[0]?.metrics_status).toBe("unmeasured");
+    expect(report.videos[0]?.reason).toMatch(/insufficient authentication scopes/i);
+    expect(report.videos[0]?.reason).not.toMatch(/HTTP 401|HTTP 403/);
+    expect(report.videos[0]?.reason).toMatch(/youtube-auth|re-consent|youtube\.readonly/i);
+    expect(report.reason).toMatch(/insufficient authentication scopes/i);
+    expect(report.reason).toMatch(/youtube-auth|re-consent|youtube\.readonly/i);
+    assertUnmeasuredNumericFields(report.videos[0]);
+  });
+
+  it("marks videos.list 403 with successful analytics partial, not unmeasured", async () => {
+    await writeLog(root, DATE, [logEntry("v1"), logEntry("v2"), logEntry("v3")]);
+
+    const { report, exitCode } = await runCli(["--root", root, "--date", DATE], {
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        videos: () =>
+          jsonResponse(
+            { error: { code: 403, message: "Request had insufficient authentication scopes." } },
+            403
+          )
+      }),
+      stdout: () => undefined
+    });
+
+    expect(report.status).toBe("partial");
+    expect(report.status).not.toBe("unmeasured");
+    expect(report.status).not.toBe("measured");
+    expect(exitCode).toBe(0);
+    expect(report.reason).toMatch(/403/);
+    expect(report.reason).toMatch(/3 videos failed/);
+    expect(report.reason).toMatch(/youtube-auth|re-consent|youtube\.readonly/i);
+    expect(report.videos).toHaveLength(3);
+    for (const video of report.videos) {
+      expect(video.metrics_status).toBe("measured");
+      expect(video.status_reason).toMatch(/403/);
+      expect(video.views).toBe(12);
+    }
+    const saved = JSON.parse(await readFile(youtubeAnalyticsPath(DATE, root), "utf8")) as {
+      status: string;
+    };
+    expect(saved.status).toBe("partial");
+  });
+
+  it("picks the 403 re-consent reason over analytics-rows-not-available at the top level", async () => {
+    await writeLog(root, DATE, [logEntry("a"), logEntry("b"), logEntry("c")]);
+
+    const report = await collectYouTubeAnalytics({
+      date: DATE,
+      root,
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        analytics: (url) => {
+          const videoId = videoIdFromFilters(url.toString());
+          if (videoId === "a") {
+            return jsonResponse({ columnHeaders: ANALYTICS_HEADERS });
+          }
+          if (videoId === "b") {
+            return jsonResponse(
+              { error: { code: 403, message: "Request had insufficient authentication scopes." } },
+              403
+            );
+          }
+          return jsonResponse(measuredAnalyticsRow(videoId));
+        }
+      })
+    });
+
+    expect(report.status).toBe("partial");
+    expect(report.videos[0]?.metrics_status).toBe("pending");
+    expect(report.videos[0]?.reason).toBe("analytics rows not available yet");
+    expect(report.videos[1]?.metrics_status).toBe("unmeasured");
+    expect(report.videos[1]?.reason).toMatch(/403/);
+    expect(report.videos[2]?.metrics_status).toBe("measured");
+    expect(report.reason).toMatch(/403/);
+    expect(report.reason).toMatch(/youtube-auth|re-consent|youtube\.readonly/i);
+    expect(report.reason).toMatch(/2 videos failed/);
+    expect(report.reason).not.toMatch(/^analytics rows not available yet/);
+  });
+
+  it("replaces a videos.list-403 report when a later run measures new views", async () => {
+    await writeLog(root, DATE, [logEntry("v1"), logEntry("v2"), logEntry("v3")]);
+    const path = youtubeAnalyticsPath(DATE, root);
+
+    const first = await collectYouTubeAnalytics({
+      date: DATE,
+      root,
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        videos: () =>
+          jsonResponse(
+            { error: { code: 403, message: "Request had insufficient authentication scopes." } },
+            403
+          )
+      })
+    });
+    expect(first.status).toBe("partial");
+    const firstSaved = JSON.parse(await readFile(path, "utf8")) as {
+      fetched_at: string;
+      status: string;
+      videos: Array<{ metrics_status: string; status_reason?: string; views: number | null }>;
+    };
+    expect(firstSaved.status).toBe("partial");
+    expect(firstSaved.videos).toHaveLength(3);
+    expect(firstSaved.videos.every((video) => video.metrics_status === "measured")).toBe(true);
+    expect(firstSaved.videos.every((video) => Boolean(video.status_reason))).toBe(true);
+    expect(firstSaved.videos[0]?.views).toBe(12);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const second = await collectYouTubeAnalytics({
+      date: DATE,
+      root,
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        analytics: (url) => {
+          const videoId = videoIdFromFilters(url.toString());
+          if (videoId === "v3") {
+            return jsonResponse({ columnHeaders: ANALYTICS_HEADERS });
+          }
+          return jsonResponse(measuredAnalyticsRow(videoId, 99));
+        }
+      })
+    });
+
+    expect(second.status).toBe("partial");
+    expect(second.persisted).not.toBe(false);
+    const saved = JSON.parse(await readFile(path, "utf8")) as {
+      fetched_at: string;
+      status: string;
+      persisted?: boolean;
+      videos: Array<{ video_id: string; metrics_status: string; views: number | null }>;
+    };
+    expect(saved.fetched_at).not.toBe(firstSaved.fetched_at);
+    expect(saved.status).toBe("partial");
+    expect(saved.persisted).toBeUndefined();
+    expect(saved.videos.find((video) => video.video_id === "v1")?.views).toBe(99);
+    expect(saved.videos.find((video) => video.video_id === "v2")?.views).toBe(99);
+    expect(saved.videos.find((video) => video.video_id === "v3")?.metrics_status).toBe("pending");
+    expect(saved.videos.find((video) => video.video_id === "v3")?.views).toBeNull();
+  });
+
+  it("does not overwrite a partial 403 report when the new run is unmeasured", async () => {
+    await writeLog(root, DATE, [logEntry("v1"), logEntry("v2"), logEntry("v3")]);
+    const path = youtubeAnalyticsPath(DATE, root);
+    await collectYouTubeAnalytics({
+      date: DATE,
+      root,
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        videos: () =>
+          jsonResponse(
+            { error: { code: 403, message: "Request had insufficient authentication scopes." } },
+            403
+          )
+      })
+    });
+    const existingText = await readFile(path, "utf8");
+    const existing = JSON.parse(existingText) as { status: string };
+
+    const report = await collectYouTubeAnalytics({
+      date: DATE,
+      root,
+      env: CONFIGURED,
+      fetchImpl: googleFetch({
+        token: () => jsonResponse({ error: "invalid_grant", error_description: "token revoked" }, 400)
+      })
+    });
+
+    expect(existing.status).toBe("partial");
+    expect(report.status).toBe("unmeasured");
+    expect(report.persisted).toBe(false);
+    expect(report.kept_existing_reason).toBe("partial/0 beats unmeasured/0");
+    expect(await readFile(path, "utf8")).toBe(existingText);
   });
 });

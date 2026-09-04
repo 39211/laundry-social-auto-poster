@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync
@@ -208,7 +209,65 @@ function walkSnapshot(root: string): FileSnap {
 }
 
 function normPath(p: string): string {
+  try {
+    if (existsSync(p)) {
+      return realpathSync.native(p).replace(/\\/g, "/").toLowerCase();
+    }
+  } catch {
+    // missing or unreadable: fall back to resolve
+  }
   return resolve(p).replace(/\\/g, "/").toLowerCase();
+}
+
+function queryWinShortPath(longPath: string): string | null {
+  if (process.platform !== "win32") return null;
+  const fold = (value: string) => value.replace(/\\/g, "/").toLowerCase();
+  const clean = (text: string): string | null => {
+    const short = String(text)
+      .split(/\r?\n/)
+      .map((line) => line.trim().replace(/^"+|"+$/g, ""))
+      .filter(Boolean)
+      .pop();
+    if (!short || fold(short) === fold(longPath) || !existsSync(short)) return null;
+    return short;
+  };
+  const cmd = spawnSync("cmd.exe", ["/d", "/s", "/c", `for %I in ("${longPath}") do @echo %~sI`], {
+    encoding: "utf8",
+    windowsHide: true
+  });
+  const fromCmd = clean(cmd.stdout ?? "");
+  if (fromCmd) return fromCmd;
+  const fso = spawnSync(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      "Write-Output (New-Object -ComObject Scripting.FileSystemObject).GetFolder($env:REBURN_LONG_PATH).ShortPath"
+    ],
+    {
+      encoding: "utf8",
+      windowsHide: true,
+      env: { ...process.env, REBURN_LONG_PATH: longPath }
+    }
+  );
+  return clean(fso.stdout ?? "");
+}
+
+function writeGetFileHashHider(dir: string): string {
+  const launcher = join(dir, "hide-get-filehash.ps1");
+  writeFileSync(
+    launcher,
+    [
+      "function global:Throw-NoGetFileHash {",
+      "    throw \"The term 'Get-FileHash' is not recognized as the name of a cmdlet, function, script file, or operable program.\"",
+      "}",
+      "Set-Alias -Name Get-FileHash -Value Throw-NoGetFileHash -Scope Global -Force -Option AllScope",
+      "& $env:REBURN_REAL_SCRIPT @args",
+      ""
+    ].join("\r\n")
+  );
+  return launcher;
 }
 
 function parseJsonl(text: string): Array<Record<string, unknown>> {
@@ -423,7 +482,7 @@ function makeFixture(opts: { id?: string; middle?: boolean; skipRaw?: boolean } 
 
 function runReburn(
   args: string[],
-  extra: { logPath?: string; timeout?: number; env?: NodeJS.ProcessEnv } = {}
+  extra: { logPath?: string; timeout?: number; env?: NodeJS.ProcessEnv; scriptPath?: string } = {}
 ) {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -437,7 +496,15 @@ function runReburn(
   if (extra.logPath) env.REBURN_STUB_LOG = extra.logPath;
   return spawnSync(
     "powershell.exe",
-    ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", SCRIPT_PATH, ...args],
+    [
+      "-NoProfile",
+      "-NonInteractive",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      extra.scriptPath ?? SCRIPT_PATH,
+      ...args
+    ],
     {
       cwd: ROOT,
       encoding: "utf8",
@@ -507,6 +574,9 @@ describe("reburn-reel-narration.ps1 wiring", () => {
     expect(text).not.toMatch(/function Find-GainInObject/);
     expect(text).toMatch(/Join-Path \$stagingRun "tts"/);
     expect(text).toMatch(/Ensure-OutputDirs/);
+    expect(text).not.toMatch(/Get-FileHash/);
+    expect(text).toMatch(/\[System\.Security\.Cryptography\.SHA256\]::Create\(\)/);
+    expect(text).toMatch(/\[System\.IO\.File\]::OpenRead/);
   });
 
   it("C0 stubs never invoke python or node", () => {
@@ -938,6 +1008,103 @@ describe("reburn-reel-narration.ps1 wiring", () => {
         fx.stubDir
       ],
       { logPath: fx.logPath }
+    );
+    expect(result.status, spawnDump(result)).toBe(1);
+    const assemble = parseJsonl(readFileSync(fx.logPath, "utf8")).find((row) => row.tool === "assemble") as
+      | { MiddleClip: string; BoundMiddleClip: boolean }
+      | undefined;
+    expect(assemble).toBeDefined();
+    expect(assemble!.BoundMiddleClip).toBe(true);
+    expect(normPath(assemble!.MiddleClip)).toBe(
+      normPath(join(fx.outDir, "run", "raw", "white-shoe-yellowing-middle-graded.mp4"))
+    );
+    const outMp4 = join(fx.outDir, "run", "reels", "white-shoe-yellowing-15s.mp4");
+    expect(existsSync(outMp4)).toBe(true);
+    const manifest = readManifest(fx.outDir);
+    expect(manifest.items[0]!.three_act).toBe(true);
+    expect(normPath(manifest.items[0]!.output_mp4)).toBe(normPath(outMp4));
+    expect(manifest.items[0]!.duration_sec).toBeNull();
+    expect(manifest.items[0]!.sha256).toBe(fileSha256(outMp4));
+  }, 60_000);
+
+  it("sha256 is written without Get-FileHash when PSModulePath is empty", () => {
+    const fx = makeFixture();
+    const emptyMods = join(fx.scratch, "empty-ps-modules");
+    mkdirSync(emptyMods);
+    const launcher = writeGetFileHashHider(fx.scratch);
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "white-shoe-yellowing",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        fx.outDir,
+        "-StubDir",
+        fx.stubDir
+      ],
+      {
+        logPath: fx.logPath,
+        scriptPath: launcher,
+        env: {
+          REBURN_STUB_BURNED: "1",
+          PSModulePath: emptyMods,
+          REBURN_REAL_SCRIPT: SCRIPT_PATH
+        }
+      }
+    );
+    expect(result.status, spawnDump(result)).toBe(0);
+    const outMp4 = join(fx.outDir, "run", "reels", "white-shoe-yellowing.mp4");
+    expect(existsSync(outMp4)).toBe(true);
+    const manifest = readManifest(fx.outDir);
+    expect(manifest.items[0]!.sha256).toBe(
+      createHash("sha256").update(readFileSync(outMp4)).digest("hex")
+    );
+  }, 60_000);
+
+  it("three-act MiddleClip matches when TEMP is an 8.3 short path", (ctx) => {
+    const host = mkdtempSync(join(tmpdir(), "reburn-8dot3-host-"));
+    scratches.push(host);
+    const longTemp = join(host, "ReburnEightDotThreeTempDirectory");
+    mkdirSync(longTemp);
+    const shortTemp = queryWinShortPath(longTemp);
+    if (!shortTemp) {
+      const reason = `cmd %~sI did not yield a distinct 8.3 short name for ${longTemp}`;
+      console.warn(`skip 8.3 three-act: ${reason}`);
+      ctx.skip(reason);
+      return;
+    }
+
+    const prevTemp = process.env.TEMP;
+    const prevTmp = process.env.TMP;
+    process.env.TEMP = shortTemp;
+    process.env.TMP = shortTemp;
+    let fx: ReturnType<typeof makeFixture>;
+    try {
+      fx = makeFixture({ middle: true });
+    } finally {
+      if (prevTemp === undefined) delete process.env.TEMP;
+      else process.env.TEMP = prevTemp;
+      if (prevTmp === undefined) delete process.env.TMP;
+      else process.env.TMP = prevTmp;
+    }
+
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "white-shoe-yellowing",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        fx.outDir,
+        "-StubDir",
+        fx.stubDir
+      ],
+      { logPath: fx.logPath, env: { TEMP: shortTemp, TMP: shortTemp } }
     );
     expect(result.status, spawnDump(result)).toBe(1);
     const assemble = parseJsonl(readFileSync(fx.logPath, "utf8")).find((row) => row.tool === "assemble") as

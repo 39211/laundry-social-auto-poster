@@ -133,6 +133,19 @@ function Invoke-Python([string[]]$PyArgs) {
     return Invoke-Captured (Resolve-PythonExe) $PyArgs
 }
 
+function Get-FileSha256Hex([string]$path) {
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::OpenRead($path)
+        $bytes = $sha.ComputeHash($stream)
+        return ([BitConverter]::ToString($bytes) -replace '-', '').ToLower()
+    } finally {
+        if ($null -ne $stream) { $stream.Close() }
+        if ($null -ne $sha) { $sha.Dispose() }
+    }
+}
+
 function Get-ClipSeconds([string]$path) {
     if ($StubDir) { return $null }
     $prevEa = $ErrorActionPreference
@@ -326,7 +339,7 @@ foreach ($id in $ids) {
         $audioJson = "$outMp4.audio.json"
         if (-not (Test-Path -LiteralPath $outMp4)) { throw "assemble-reel produced no $outMp4" }
         if (-not (Test-Path -LiteralPath $audioJson)) { throw "assemble-reel produced no $audioJson" }
-        $entry.sha256 = (Get-FileHash -LiteralPath $outMp4 -Algorithm SHA256).Hash.ToLower()
+        $entry.sha256 = Get-FileSha256Hex $outMp4
         $entry.duration_sec = Get-ClipSeconds $outMp4
         $subs = "$outMp4.subs.json"
         $burnError = "missing $subs"

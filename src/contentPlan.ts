@@ -1126,26 +1126,48 @@ export function topicObjectHead(topic: string): string {
 /** First date slot-2 image posts use a specific two-photo LINE action instead of a generic CTA. */
 const SLOT2_ACTION_CTA_START_DATE = "2026-09-08";
 
+/**
+ * Object-part lookup for the slot-2 closer. Short keys absorb the longer
+ * synonyms that used to sit on the same row (包包/皮包/背包, 球鞋/白鞋, 毛毯).
+ * Bare 衣 and 被 are not keys: 衣 lives inside 洗衣店, 被 is the passive marker.
+ * 櫃 sits above 鞋 so 鞋櫃 is a cabinet, not a shoe.
+ */
 const SLOT2_ACTION_CTA_PARTS: ReadonlyArray<{ keys: readonly string[]; a: string; b: string }> = [
-  { keys: ["包", "包包", "皮包", "背包"], a: "包角", b: "內裡" },
-  { keys: ["鞋", "球鞋", "運動鞋", "靴", "白鞋", "皮鞋", "麂皮"], a: "鞋面", b: "鞋底" },
-  { keys: ["外套", "西裝", "大衣", "襯衫", "衣"], a: "領口", b: "袖口" },
+  { keys: ["衣櫃", "鞋櫃", "櫃"], a: "櫃內最深處", b: "最常放的那一格" },
+  { keys: ["棉被", "被子", "床單", "床包", "枕頭", "床組"], a: "被角", b: "貼身那一面" },
+  { keys: ["包"], a: "包角", b: "內裡" },
+  { keys: ["鞋", "靴", "麂皮"], a: "鞋面", b: "鞋底" },
+  { keys: ["外套", "西裝", "大衣", "襯衫", "上衣", "T恤", "衣服", "衣物"], a: "領口", b: "袖口" },
   { keys: ["窗簾"], a: "下緣", b: "掛鉤處" },
   { keys: ["娃娃", "玩偶"], a: "五官", b: "縫線" },
-  { keys: ["床", "被", "棉被", "枕"], a: "被角", b: "貼身那一面" },
   { keys: ["地毯"], a: "邊緣", b: "最常踩的位置" },
   { keys: ["行李箱"], a: "輪子", b: "把手" },
-  { keys: ["毛毯", "毯"], a: "起球處", b: "邊緣" }
+  { keys: ["毯"], a: "起球處", b: "邊緣" }
 ];
 
-/** Specific slot-2 closer: two named photos sent on LINE. Object parts come from topicObjectHead. */
+const SLOT2_SHOE_KEYS = ["鞋", "靴", "麂皮"] as const;
+const SLOT2_BAG_KEYS = ["包"] as const;
+
+/** Label prefix off, then the whole remaining topic — an 8-character head cuts object words at the end. */
+function slot2ActionTopicText(topic: string): string {
+  return topic.replace(TOPIC_LABEL_PREFIX_RE, "");
+}
+
+function slot2TopicHasKey(text: string, keys: readonly string[]): boolean {
+  return keys.some((key) => text.includes(key));
+}
+
+/** Specific slot-2 closer: two named photos sent on LINE. */
 export function slot2ActionCta(topic: string): string {
-  const head = topicObjectHead(topic);
+  const text = slot2ActionTopicText(topic);
+  if (slot2TopicHasKey(text, SLOT2_SHOE_KEYS) && slot2TopicHasKey(text, SLOT2_BAG_KEYS)) {
+    return "拍鞋底和包角兩張傳 LINE，我們先看。";
+  }
   let a = "整體";
   let b = "最在意的位置";
   outer: for (const row of SLOT2_ACTION_CTA_PARTS) {
     for (const key of row.keys) {
-      if (head.includes(key)) {
+      if (text.includes(key)) {
         a = row.a;
         b = row.b;
         break outer;
@@ -1611,17 +1633,28 @@ function isSlot2ActionCtaClosingBlock(block: string): boolean {
   );
 }
 
-function looksLikeGenericSlot2Cta(block: string, allowXianKan: boolean): boolean {
+/**
+ * Generic slot-2 CTA detector. Questions (ending in ？) are never CTAs — the
+ * engagement line 「你送洗前會先拍照嗎？」 contains 拍照 and must stay.
+ * `拍照` on a non-question still counts, so dropping the ？-keep rule makes
+ * that line look like a CTA. Share-invites and the follow line are not CTAs.
+ * A last-paragraph-only /先看/ fallback never ran: the last body block is
+ * the follow line (`追蹤…`) and returns above.
+ */
+export function looksLikeGenericSlot2Cta(block: string): boolean {
   if (isSlot2ActionCtaClosingBlock(block)) return false;
   if (block.startsWith("追蹤")) return false;
+  if (/[？?]\s*$/.test(block)) return false;
   if (/(?:這篇)?(?:傳|轉)給他/.test(block) && !/傳 LINE|拍一張|私訊|拍照|先幫你看/.test(block)) {
     return false;
   }
-  if (/傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看/.test(block)) return true;
-  return allowXianKan && /先看/.test(block);
+  return /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看/.test(block);
 }
 
-function withSlot2ActionCta(caption: string, slot: GrowthPlaybookSlot): string {
+function withSlot2ActionCta(
+  caption: string,
+  slot: { slot: number; format?: string; date: string; topic: string }
+): string {
   if (slot.slot !== 2 || slot.format === "reel" || slot.date < SLOT2_ACTION_CTA_START_DATE) {
     return caption;
   }
@@ -1630,7 +1663,7 @@ function withSlot2ActionCta(caption: string, slot: GrowthPlaybookSlot): string {
   const stopIndex = blocks.findIndex(isSlot2ActionCtaClosingBlock);
   const body = stopIndex === -1 ? [...blocks] : blocks.slice(0, stopIndex);
   const tail = stopIndex === -1 ? [] : blocks.slice(stopIndex);
-  const kept = body.filter((block, index) => !looksLikeGenericSlot2Cta(block, index === body.length - 1));
+  const kept = body.filter((block) => !looksLikeGenericSlot2Cta(block));
   if (kept[kept.length - 1] === action) {
     return [...kept, ...tail].join("\n\n");
   }
@@ -2395,14 +2428,21 @@ export function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfi
 function dailySlotFromTemplate(date: string, schedule: (typeof DAILY_SCHEDULE)[number], config: AppConfig): DailySlot {
   const template = templateFor(date, schedule.category);
   const caption = captionFromTemplate(template);
+  const actionTarget = { slot: schedule.slot, format: "image-post", date, topic: template.topic };
   return {
     slot: schedule.slot,
     time: schedule.time,
     category: schedule.category,
     topic: template.topic,
     media_type: "image",
-    instagram_caption: withLineContact(caption, captionTracking(date, schedule.slot, "instagram", undefined, config)),
-    facebook_caption: withLineContact(caption, captionTracking(date, schedule.slot, "facebook", undefined, config)),
+    instagram_caption: withSlot2ActionCta(
+      withLineContact(caption, captionTracking(date, schedule.slot, "instagram", undefined, config)),
+      actionTarget
+    ),
+    facebook_caption: withSlot2ActionCta(
+      withLineContact(caption, captionTracking(date, schedule.slot, "facebook", undefined, config)),
+      actionTarget
+    ),
     image_prompt: template.imagePrompt,
     visual_route: template.visualRoute,
     traffic_route: template.trafficRoute,

@@ -85,6 +85,19 @@ describe("caption quality", () => {
     }
   });
 
+  it("keeps any slot-2 action sentence at or under half the sampled captions", () => {
+    const action = /^拍.+和.+兩張傳 LINE，我們先看。$/;
+    const counts = new Map<string, number>();
+    for (const caption of captions) {
+      for (const block of caption.blocks) {
+        if (action.test(block)) counts.set(block, (counts.get(block) ?? 0) + 1);
+      }
+    }
+    for (const [sentence, count] of counts) {
+      expect(count, sentence).toBeLessThanOrEqual(captions.length / 2);
+    }
+  });
+
   it("does not repeat one sentence across most of a month", () => {
     // A sentence on every post is invisible while writing one caption and
     // unmistakable to anyone who follows the account for a week. The worst

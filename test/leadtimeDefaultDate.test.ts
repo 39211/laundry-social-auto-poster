@@ -232,3 +232,180 @@ describe("W-LEADTIME D+3 generation default", { timeout: 20000 }, () => {
     expect(parsePsErrors(join(root, "scripts", "produce-next-reel.ps1"))).toEqual([]);
   });
 });
+
+function extractLastExitGuardsWithToast(src: string): string[] {
+  const needle = "if ($LASTEXITCODE -ne 0)";
+  const guards: string[] = [];
+  let from = 0;
+  while (from < src.length) {
+    const start = src.indexOf(needle, from);
+    if (start < 0) break;
+    const brace = src.indexOf("{", start);
+    if (brace < 0) break;
+    let depth = 0;
+    let end = -1;
+    for (let i = brace; i < src.length; i++) {
+      const ch = src[i];
+      if (ch === "{") depth += 1;
+      else if (ch === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    if (end < 0) break;
+    const block = src.slice(start, end + 1);
+    if (block.includes("Show-Toast")) guards.push(block);
+    from = end + 1;
+  }
+  return guards;
+}
+
+function assertPublicSiteRepushGuards(src: string): string[] {
+  const guards = extractLastExitGuardsWithToast(src);
+  if (guards.length !== 2) {
+    throw new Error(`expected 2 LASTEXITCODE toast guards, got ${guards.length}`);
+  }
+  for (const guard of guards) {
+    if (!guard.includes("Show-Toast")) throw new Error("guard missing Show-Toast");
+    if (!guard.includes("Pop-Location")) throw new Error("guard missing Pop-Location");
+    if (/^\s*exit\b/m.test(guard)) throw new Error("guard contains exit");
+  }
+  return guards;
+}
+
+function extractBraceBlock(src: string, openBrace: number): { end: number; block: string } | null {
+  let depth = 0;
+  for (let i = openBrace; i < src.length; i++) {
+    const ch = src[i];
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return { end: i, block: src.slice(openBrace, i + 1) };
+    }
+  }
+  return null;
+}
+
+function ifBlocksWhoseConditionContains(src: string, needle: string): Array<{ header: string; body: string }> {
+  const blocks: Array<{ header: string; body: string }> = [];
+  const ifRe = /if\s*\(/g;
+  let match: RegExpExecArray | null;
+  while ((match = ifRe.exec(src))) {
+    const condOpen = match.index + match[0].length - 1;
+    let depth = 0;
+    let condClose = -1;
+    for (let i = condOpen; i < src.length; i++) {
+      const ch = src[i];
+      if (ch === "(") depth += 1;
+      else if (ch === ")") {
+        depth -= 1;
+        if (depth === 0) {
+          condClose = i;
+          break;
+        }
+      }
+    }
+    if (condClose < 0) continue;
+    const header = src.slice(match.index, condClose + 1);
+    if (!header.includes(needle)) continue;
+    let brace = -1;
+    for (let i = condClose + 1; i < src.length; i++) {
+      const ch = src[i];
+      if (ch === "{") {
+        brace = i;
+        break;
+      }
+      if (ch === "\n") {
+        const rest = src.slice(condClose + 1, i);
+        if (rest.trim() !== "") break;
+      }
+    }
+    if (brace < 0) continue;
+    const extracted = extractBraceBlock(src, brace);
+    if (!extracted) continue;
+    blocks.push({ header, body: extracted.block });
+  }
+  return blocks;
+}
+
+function assertPublicSiteRepushDoesNotGatePosting(src: string): void {
+  if (src.includes("$needsLiveImageUrl")) {
+    throw new Error("needsLiveImageUrl gating still present");
+  }
+  for (const line of src.split(/\r?\n/)) {
+    if (!line.includes("publicSiteRepushFailed")) continue;
+    const assign = /\$script:publicSiteRepushFailed\s*=/.test(line);
+    const check = /if\s*\(\s*\$script:publicSiteRepushFailed\s*\)/.test(line);
+    const log = /Write-Log/.test(line);
+    if (!assign && !check && !log) {
+      throw new Error(`publicSiteRepushFailed not in assign/check/Write-Log: ${line.trim()}`);
+    }
+    if (/post-current-slot/.test(line) && /if\s*\(/.test(line)) {
+      throw new Error("publicSiteRepushFailed in post-current-slot if condition");
+    }
+  }
+  const flagIfs = ifBlocksWhoseConditionContains(src, "publicSiteRepushFailed");
+  if (flagIfs.length === 0) {
+    throw new Error("missing publicSiteRepushFailed flag check");
+  }
+  for (const block of flagIfs) {
+    if (block.body.includes("post-current-slot")) {
+      throw new Error("post-current-slot is inside publicSiteRepushFailed if");
+    }
+    if (/\bcontinue\b/.test(block.body)) {
+      throw new Error("publicSiteRepushFailed block skips with continue");
+    }
+    if (!block.body.includes("Write-Log")) {
+      throw new Error("publicSiteRepushFailed check missing Write-Log");
+    }
+  }
+  if (!/npm\.cmd run post-current-slot/.test(src)) {
+    throw new Error("post-current-slot invocation missing");
+  }
+}
+
+describe("catch-up public-site repush failure stays in-section", () => {
+  it("both LASTEXITCODE guards toast and pop without exiting the script", () => {
+    const src = readScript("catchup-publish.ps1");
+    const guards = assertPublicSiteRepushGuards(src);
+    expect(guards[0]).toContain("generate-public-site failed");
+    expect(guards[1]).toContain("publish-pages failed");
+    expect(guards[0]).toContain("Show-Toast");
+    expect(guards[0]).toContain("Pop-Location");
+    expect(guards[1]).toContain("Show-Toast");
+    expect(guards[1]).toContain("Pop-Location");
+    for (const guard of guards) {
+      expect(guard).not.toMatch(/^\s*exit\b/m);
+    }
+
+    const mutated = src.replace("$script:publicSiteRepushFailed = $true", () => {
+      return "exit 1\n            $script:publicSiteRepushFailed = $true";
+    });
+    expect(mutated).not.toBe(src);
+    expect(() => assertPublicSiteRepushGuards(mutated)).toThrow(/guard contains exit/);
+  });
+
+  it("publicSiteRepushFailed does not gate post-current-slot", () => {
+    const src = readScript("catchup-publish.ps1");
+    assertPublicSiteRepushDoesNotGatePosting(src);
+
+    const mutated = src.replace(
+      'Write-Log "Running post-current-slot --slot $slot"',
+      `if ($script:publicSiteRepushFailed) {
+        $needsLiveImageUrl = $true
+        if ($needsLiveImageUrl) {
+            Write-Log "Public-site repush failed; skipping slot $slot (needs live image URL)."
+            continue
+        }
+    }
+    Write-Log "Running post-current-slot --slot $slot"`
+    );
+    expect(mutated).not.toBe(src);
+    expect(() => assertPublicSiteRepushDoesNotGatePosting(mutated)).toThrow(
+      /needsLiveImageUrl gating still present|publicSiteRepushFailed block skips with continue|post-current-slot is inside/
+    );
+  });
+});

@@ -109,8 +109,6 @@ describe("caption quality", () => {
     for (const [sentence, count] of counts) {
       expect(count, sentence).toBeLessThanOrEqual(eligible.length / 2);
     }
-    const forcedSame = eligible.length;
-    expect(forcedSame).toBeGreaterThan(eligible.length / 2);
   });
 
   it("does not repeat one sentence across most of a month", () => {

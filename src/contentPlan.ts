@@ -1130,16 +1130,17 @@ const SLOT2_ACTION_CTA_START_DATE = "2026-09-08";
  * Object-part lookup for the slot-2 closer. Short keys absorb the longer
  * synonyms that used to sit on the same row (球鞋/白鞋, 毛毯).
  * Bare 衣 and 被 are not keys: 衣 lives inside 洗衣店, 被 is the passive marker.
- * 櫃 sits above 鞋 so 鞋櫃 is a cabinet, not a shoe.
+ * Bare 櫃 is storage (櫃內最深處). 鞋櫃 maps with shoes (鞋面/鞋底); 衣櫃
+ * maps with clothes (領口/袖口) so those topics ask for the item, not the cabinet.
  * Bare 包 is an object only when not followed by 裡/著/住/起/好/在/進/成/覆/裝;
  * 包包/皮包/背包/名牌包/包款 are listed so those stay bags.
  */
 const SLOT2_ACTION_CTA_PARTS: ReadonlyArray<{ keys: readonly string[]; a: string; b: string }> = [
-  { keys: ["衣櫃", "鞋櫃", "櫃"], a: "櫃內最深處", b: "最常放的那一格" },
+  { keys: ["櫃"], a: "櫃內最深處", b: "最常放的那一格" },
   { keys: ["棉被", "被子", "床單", "床包", "枕頭", "床組"], a: "被角", b: "貼身那一面" },
   { keys: ["包包", "皮包", "背包", "名牌包", "包款", "包"], a: "包角", b: "內裡" },
-  { keys: ["鞋", "靴", "麂皮"], a: "鞋面", b: "鞋底" },
-  { keys: ["外套", "西裝", "大衣", "襯衫", "上衣", "T恤", "衣服", "衣物"], a: "領口", b: "袖口" },
+  { keys: ["鞋櫃", "鞋", "靴", "麂皮"], a: "鞋面", b: "鞋底" },
+  { keys: ["衣櫃", "外套", "西裝", "大衣", "襯衫", "上衣", "T恤", "衣服", "衣物"], a: "領口", b: "袖口" },
   { keys: ["窗簾"], a: "下緣", b: "掛鉤處" },
   { keys: ["娃娃", "玩偶"], a: "五官", b: "縫線" },
   { keys: ["地毯"], a: "邊緣", b: "最常踩的位置" },
@@ -1671,6 +1672,21 @@ function isSlot2ActionCtaClosingBlock(block: string): boolean {
   );
 }
 
+/** Photo-ask token shared by production and tests. 拍 alone missed 「照片傳來」. */
+export const SLOT2_PHOTO_TOKEN_RE = /拍|照片|相片/;
+/** Shop-directed half of a photo ask. 傳給我們 is the same ask as 給我們. */
+export const SLOT2_PHOTO_DIRECTED_RE = /給我們|幫你|傳來|傳給我們/;
+/** Pickup value claim. 免費 alone is not a keep-whole; that is signed-off copy. */
+export const SLOT2_PICKUP_VALUE_CLAIM_RE = /免費|到府收|收送|我們去收/;
+/** Owner-signed family: keep the whole block, including a 私訊／傳 LINE tail. */
+export const SLOT2_SIGNED_OFF_VALUE_RE = /沒有低消|一件也收/;
+const SLOT2_GENERIC_CTA_RE = /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看|先拍好/;
+const SLOT2_CHANNEL_CTA_RE = /私訊|傳 LINE|LINE 傳|用 LINE|直接私訊/;
+
+function looksLikeSlot2PhotoDirectedAsk(block: string): boolean {
+  return SLOT2_PHOTO_TOKEN_RE.test(block) && SLOT2_PHOTO_DIRECTED_RE.test(block);
+}
+
 /**
  * Generic slot-2 CTA detector. Questions (ending in ？) are never CTAs — the
  * engagement line 「你送洗前會先拍照嗎？」 contains 拍照 and must stay.
@@ -1678,34 +1694,92 @@ function isSlot2ActionCtaClosingBlock(block: string): boolean {
  * that line look like a CTA. Share-invites and the follow line are not CTAs.
  * A last-paragraph-only /先看/ fallback never ran: the last body block is
  * the follow line (`追蹤…`) and returns above.
- * Template closers say 「可以拍寢具…給我們看」 / 「先拍包底…幫你看」 and do
- * not contain 傳 LINE|私訊|拍照|拍一張|先幫你看; the 拍 + shop-directed
+ * Template closers say 「可以拍寢具…給我們看」 / 「先拍包底…幫你看」 /
+ * 「可以把外套、包底和輪邊照片傳來」 and do not contain
+ * 傳 LINE|私訊|拍照|拍一張|先幫你看; the (拍|照片|相片) + shop-directed
  * pair is the semantic feature, not the new action-sentence literal.
- * Owner-signed pickup value lines (免費 / 低消 / 一件也收) are not generic
+ * Playbook 「先拍好…傳地址與照片」 has neither 拍一張 nor the directed pair
+ * until Instagram rewrite inserts 私訊; 先拍好 is the raw-string feature.
+ * Owner-signed pickup value lines (沒有低消 / 一件也收) are not generic
  * CTAs: the 私訊／傳 LINE tail is a soft ask on a value claim, not a photo
- * instruction. Stripping the tail would rewrite signed copy.
+ * instruction. Stripping the tail would rewrite signed copy. A 免費
+ * campaign block that also asks for photos is a CTA; sentence salvage lives
+ * in rewriteSlot2PickupValueBlock.
  */
 export function looksLikeGenericSlot2Cta(block: string): boolean {
   if (isSlot2ActionCtaClosingBlock(block)) return false;
   if (block.startsWith("追蹤")) return false;
   if (/[？?]\s*$/.test(block)) return false;
-  if (/免費|低消|一件也收/.test(block)) return false;
+  if (SLOT2_SIGNED_OFF_VALUE_RE.test(block)) return false;
   if (
     /(?:這篇)?(?:傳|轉)給他/.test(block) &&
-    !/傳 LINE|拍一張|私訊|拍照|先幫你看/.test(block) &&
-    !(/拍/.test(block) && /給我們|幫你|傳來/.test(block))
+    !SLOT2_GENERIC_CTA_RE.test(block) &&
+    !looksLikeSlot2PhotoDirectedAsk(block)
   ) {
     return false;
   }
-  return (
-    /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看/.test(block) ||
-    (/拍/.test(block) && /給我們|幫你|傳來/.test(block))
-  );
+  return SLOT2_GENERIC_CTA_RE.test(block) || looksLikeSlot2PhotoDirectedAsk(block);
 }
 
-/** Owner-signed pickup value claim. Soft 私訊／傳 LINE tail stays on the sentence. */
-function isSignedOffPickupValueBlock(block: string): boolean {
-  return block.includes("沒有低消、一件也收");
+function splitSlot2Sentences(block: string): string[] {
+  const sentences: string[] = [];
+  const parts = block.split(/([。！？])/);
+  for (let i = 0; i < parts.length; i += 2) {
+    const text = `${parts[i] ?? ""}${parts[i + 1] ?? ""}`;
+    if (text) sentences.push(text);
+  }
+  return sentences;
+}
+
+/**
+ * Sentence-level salvage of a pickup-value block. Signed-off copy and
+ * question-ending blocks stay whole. Mixed value + photo/channel keeps value
+ * sentences, drops photo-ask sentences (even when they also say 收送), drops
+ * channel-only sentences, and keeps the rest. Empty / channel-residue-only
+ * leftovers are dropped. Non-value CTAs return undefined (r3 delete).
+ */
+export function rewriteSlot2PickupValueBlock(block: string): string | undefined {
+  if (!block) return undefined;
+  if (isSlot2ActionCtaClosingBlock(block)) return block;
+  if (block.startsWith("追蹤")) return block;
+  if (/[？?]\s*$/.test(block)) return block;
+  if (SLOT2_SIGNED_OFF_VALUE_RE.test(block)) return block;
+
+  const hasValue = SLOT2_PICKUP_VALUE_CLAIM_RE.test(block);
+  const mixed =
+    hasValue &&
+    (looksLikeGenericSlot2Cta(block) ||
+      SLOT2_PHOTO_TOKEN_RE.test(block) ||
+      SLOT2_CHANNEL_CTA_RE.test(block));
+
+  if (mixed) {
+    const kept = splitSlot2Sentences(block).filter((sentence) => {
+      if (/[？?]\s*$/.test(sentence)) return true;
+      if (SLOT2_PHOTO_TOKEN_RE.test(sentence)) return false;
+      if (SLOT2_PICKUP_VALUE_CLAIM_RE.test(sentence)) return true;
+      if (SLOT2_CHANNEL_CTA_RE.test(sentence)) return false;
+      return true;
+    });
+    const text = kept.join("").trim();
+    if (!text) return undefined;
+    if (!SLOT2_PICKUP_VALUE_CLAIM_RE.test(text) && SLOT2_CHANNEL_CTA_RE.test(text)) {
+      return undefined;
+    }
+    return text;
+  }
+
+  if (looksLikeGenericSlot2Cta(block)) return undefined;
+  return block;
+}
+
+function isMovedPickupValueBlock(original: string, rewritten: string): boolean {
+  if (SLOT2_SIGNED_OFF_VALUE_RE.test(rewritten)) return true;
+  if (!SLOT2_PICKUP_VALUE_CLAIM_RE.test(rewritten)) return false;
+  return (
+    looksLikeGenericSlot2Cta(original) ||
+    SLOT2_PHOTO_TOKEN_RE.test(original) ||
+    SLOT2_CHANNEL_CTA_RE.test(original)
+  );
 }
 
 function withSlot2ActionCta(
@@ -1720,9 +1794,14 @@ function withSlot2ActionCta(
   const stopIndex = blocks.findIndex(isSlot2ActionCtaClosingBlock);
   const body = stopIndex === -1 ? [...blocks] : blocks.slice(0, stopIndex);
   const tail = stopIndex === -1 ? [] : blocks.slice(stopIndex);
-  const kept = body.filter((block) => !looksLikeGenericSlot2Cta(block));
-  const valueBlocks = kept.filter(isSignedOffPickupValueBlock);
-  const rest = kept.filter((block) => !isSignedOffPickupValueBlock(block));
+  const valueBlocks: string[] = [];
+  const rest: string[] = [];
+  for (const block of body) {
+    const rewritten = rewriteSlot2PickupValueBlock(block);
+    if (rewritten === undefined) continue;
+    if (isMovedPickupValueBlock(block, rewritten)) valueBlocks.push(rewritten);
+    else rest.push(rewritten);
+  }
   const withoutAction = rest[rest.length - 1] === action ? rest.slice(0, -1) : rest;
   return [...withoutAction, ...valueBlocks, action, ...tail].join("\n\n");
 }

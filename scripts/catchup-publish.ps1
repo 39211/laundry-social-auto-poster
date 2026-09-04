@@ -158,7 +158,19 @@ if (Test-Path $heroLocal) {
         Write-Log "Local images exist for $date but $heroUrl is not live; re-publishing the site."
         Push-Location $root
         cmd /c "npm.cmd run generate-public-site 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "generate-public-site failed (exit $LASTEXITCODE); refusing to continue."
+            Pop-Location
+            Show-Toast "$date 的公開站沒推上去(generate-public-site 失敗),請看 output\catch-up-logs\$date.log"
+            exit 1
+        }
         cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "publish-pages failed (exit $LASTEXITCODE); refusing to continue."
+            Pop-Location
+            Show-Toast "$date 的公開站沒推上去(publish-pages 失敗),請看 output\catch-up-logs\$date.log"
+            exit 1
+        }
         Pop-Location
     }
 }

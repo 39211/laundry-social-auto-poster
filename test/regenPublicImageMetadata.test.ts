@@ -319,4 +319,34 @@ describe("regen-public-image-metadata", () => {
     expect(fsProbe.readSync[0]?.[3]).toBe(24);
     expect(fsProbe.readSync[1]?.[3]).toBe(14);
   });
+
+  it("uses the injected PUBLIC_SITE_BASE_URL when sitemap locs are only nested under a subdirectory", async () => {
+    const root = await mkdtemp(join(tmpdir(), "regen-image-metadata-nested-"));
+    await mkdir(join(root, "docs", "services"), { recursive: true });
+    await mkdir(join(root, "docs", "assets", "2026-07-02"), { recursive: true });
+    await writeFile(
+      join(root, "docs", "sitemap.xml"),
+      `<?xml version="1.0"?><urlset><url><loc>https://example.com/sub/services/x.html</loc></url></urlset>`
+    );
+    await writeFile(
+      join(root, "docs", "services", "x.html"),
+      `<html><body><img src="../assets/2026-07-02/slot-01.png" width="1254" height="1254"></body></html>`
+    );
+    await writeFile(join(root, "docs", "assets", "2026-07-02", "slot-01.png"), pngHeader(1254, 1254));
+    await writeFile(join(root, "docs", "assets", "2026-07-02", "slot-01.webp"), "webp");
+
+    const result = regeneratePublicImageMetadataSync(root, {
+      env: { PUBLIC_SITE_BASE_URL: "https://example.com/sub/" }
+    });
+    expect(result.basePath).toBe("/sub/");
+    expect(result.imageCount).toBe(1);
+    const metadata = JSON.parse(await readFile(result.path, "utf8")) as {
+      images: Record<string, { width: number; height: number; webp_path: string }>;
+    };
+    expect(Object.keys(metadata.images)).toEqual(["assets/2026-07-02/slot-01.png"]);
+
+    // Same fixture, no injection: sitemap inference yields /sub/services/, so
+    // the page is resolved as docs/x.html (docs/services/../x.html) and missing.
+    expect(() => regeneratePublicImageMetadataSync(root)).toThrow(/docs[\\/]x\.html/u);
+  });
 });

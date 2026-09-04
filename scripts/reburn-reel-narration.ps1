@@ -13,7 +13,9 @@ param(
     [string]$Voice = "zh-TW-YunJheNeural",
     [string]$Rate = "+8%",
     [switch]$WhatIf,
-    [switch]$DryRunStubs
+    [Alias("DryRunStubs")]
+    [string]$StubDir = "",
+    [switch]$AllowIdentityGain
 )
 
 $ErrorActionPreference = "Stop"
@@ -50,22 +52,33 @@ foreach ($piece in $ConceptIds.Split(",")) {
 }
 if ($ids.Count -eq 0) { throw "-ConceptIds is empty" }
 
-function Find-PathTool([string]$fileName) {
-    foreach ($dir in @($env:PATH -split ";")) {
-        if (-not $dir) { continue }
-        $candidate = Join-Path $dir $fileName
-        if (Test-Path -LiteralPath $candidate) { return $candidate }
+if ($StubDir) {
+    $StubDir = [IO.Path]::GetFullPath($StubDir)
+    if (-not (Test-Path -LiteralPath $StubDir)) {
+        throw "StubDir not found: $StubDir"
     }
-    return $null
 }
 
 function Resolve-AssembleScript {
-    if ($DryRunStubs) {
-        $stub = Find-PathTool "assemble-reel.ps1"
-        if (-not $stub) { throw "DryRunStubs requires assemble-reel.ps1 on PATH" }
+    if ($StubDir) {
+        $stub = Join-Path $StubDir "assemble-reel.ps1"
+        if (-not (Test-Path -LiteralPath $stub)) {
+            throw "StubDir is missing assemble-reel.ps1: $stub"
+        }
         return $stub
     }
     return Join-Path $PSScriptRoot "assemble-reel.ps1"
+}
+
+function Resolve-PythonExe {
+    if ($StubDir) {
+        $ps1 = Join-Path $StubDir "python.ps1"
+        $cmd = Join-Path $StubDir "python.cmd"
+        if (Test-Path -LiteralPath $ps1) { return $ps1 }
+        if (Test-Path -LiteralPath $cmd) { return $cmd }
+        throw "StubDir is missing python.ps1 or python.cmd: $StubDir"
+    }
+    return "python"
 }
 
 function Get-JsonPayload([string]$text) {
@@ -83,8 +96,15 @@ function Invoke-Captured([string]$FilePath, [string[]]$ArgList) {
     $prevEa = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        $raw = & $FilePath @ArgList 2>&1
+        $raw = $null
+        $ext = [IO.Path]::GetExtension($FilePath)
+        if ($ext -eq ".ps1") {
+            $raw = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $FilePath @ArgList 2>&1
+        } else {
+            $raw = & $FilePath @ArgList 2>&1
+        }
         $code = $LASTEXITCODE
+        if ($null -eq $code) { $code = 0 }
         $lines = @($raw | ForEach-Object { "$_" }) | Where-Object {
             $_ -and ($_ -notmatch "^\(node:\d+\) Warning:") -and ($_ -notmatch "^Use ``node --trace-warnings")
         }
@@ -110,17 +130,11 @@ function Invoke-NpmSilent([string]$ScriptName, [string[]]$ExtraArgs) {
 }
 
 function Invoke-Python([string[]]$PyArgs) {
-    $exe = "python"
-    if ($DryRunStubs) {
-        $cmd = Find-PathTool "python.cmd"
-        if (-not $cmd) { throw "DryRunStubs requires python.cmd on PATH" }
-        $exe = $cmd
-    }
-    return Invoke-Captured $exe $PyArgs
+    return Invoke-Captured (Resolve-PythonExe) $PyArgs
 }
 
 function Get-ClipSeconds([string]$path) {
-    if ($DryRunStubs) { return $null }
+    if ($StubDir) { return $null }
     $prevEa = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
@@ -141,37 +155,6 @@ function Test-SourceClip([string]$path) {
     return (Test-Path -LiteralPath $path)
 }
 
-function Find-GainInObject($obj) {
-    if ($null -eq $obj) { return $null }
-    if ($obj -is [string]) { return $null }
-    $dict = $null
-    try { $dict = $obj.PSObject } catch { $dict = $null }
-    if ($dict -and $dict.Properties) {
-        $names = @($dict.Properties | ForEach-Object { $_.Name })
-        $rName = $names | Where-Object { $_ -eq "GainR" -or $_ -eq "gain_r" -or $_ -eq "gainR" } | Select-Object -First 1
-        $gName = $names | Where-Object { $_ -eq "GainG" -or $_ -eq "gain_g" -or $_ -eq "gainG" } | Select-Object -First 1
-        $bName = $names | Where-Object { $_ -eq "GainB" -or $_ -eq "gain_b" -or $_ -eq "gainB" } | Select-Object -First 1
-        if ($rName -and $gName -and $bName) {
-            return @{
-                GainR = [double]$obj.$rName
-                GainG = [double]$obj.$gName
-                GainB = [double]$obj.$bName
-            }
-        }
-        foreach ($prop in $dict.Properties) {
-            $hit = Find-GainInObject $prop.Value
-            if ($hit) { return $hit }
-        }
-    }
-    if ($obj -is [System.Collections.IEnumerable]) {
-        foreach ($item in @($obj)) {
-            $hit = Find-GainInObject $item
-            if ($hit) { return $hit }
-        }
-    }
-    return $null
-}
-
 function Convert-GainFromText([string]$text) {
     if ($text -match "-GainR\s+([\d.]+)\s+-GainG\s+([\d.]+)\s+-GainB\s+([\d.]+)") {
         return @{
@@ -183,46 +166,24 @@ function Convert-GainFromText([string]$text) {
     return $null
 }
 
-function Get-RecordedGain([string]$runDir, [string]$conceptId) {
-    $files = New-Object System.Collections.ArrayList
-    $manDir = Join-Path $runDir "manifests"
-    if (Test-Path -LiteralPath $manDir) {
-        Get-ChildItem -LiteralPath $manDir -Filter "*.json" -ErrorAction SilentlyContinue | ForEach-Object {
-            if ($_.BaseName -like "*$conceptId*") { [void]$files.Add($_) }
-        }
-    }
-    Get-ChildItem -LiteralPath $runDir -Filter "report*.json" -ErrorAction SilentlyContinue | ForEach-Object {
-        if ($_.Name -like "*$conceptId*" -or $_.Name -eq "report.json") { [void]$files.Add($_) }
-    }
-    foreach ($file in $files) {
-        try {
-            $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
-            $fromText = Convert-GainFromText $text
-            if ($fromText) {
-                $rel = $file.FullName.Substring($runDir.Length).TrimStart([char[]]@([char]92, [char]47))
-                return @{ GainR = $fromText.GainR; GainG = $fromText.GainG; GainB = $fromText.GainB; Source = "run-manifest:$rel" }
-            }
-            $obj = $text | ConvertFrom-Json
-            $fromObj = Find-GainInObject $obj
-            if ($fromObj) {
-                $rel = $file.FullName.Substring($runDir.Length).TrimStart([char[]]@([char]92, [char]47))
-                return @{ GainR = $fromObj.GainR; GainG = $fromObj.GainG; GainB = $fromObj.GainB; Source = "run-manifest:$rel" }
-            }
-        } catch {
-            continue
-        }
-    }
-    return $null
-}
-
 function Measure-PairGain([string]$beforePath, [string]$afterPath) {
     $py = Join-Path $root "scripts\measure-pair-gain.py"
     $call = Invoke-Python @($py, $beforePath, $afterPath)
     $parsed = Convert-GainFromText $call.Text
-    if ($call.ExitCode -ne 0 -or -not $parsed) {
-        return $null
+    $code = 0
+    if ($null -ne $call.ExitCode) { $code = [int]$call.ExitCode }
+    if ($code -ne 0 -or -not $parsed) {
+        $snippet = (([string]$call.Text) -replace "\s+", " ").Trim()
+        if (-not $snippet) { $snippet = "no output" }
+        if ($snippet.Length -gt 240) { $snippet = $snippet.Substring(0, 240) }
+        return @{ Ok = $false; Reason = ("exit {0}: {1}" -f $code, $snippet) }
     }
-    return $parsed
+    return @{
+        Ok    = $true
+        GainR = $parsed.GainR
+        GainG = $parsed.GainG
+        GainB = $parsed.GainB
+    }
 }
 
 function Clamp-Gain($gains) {
@@ -332,19 +293,16 @@ foreach ($id in $ids) {
 
         $gains = @{ GainR = 1.0; GainG = 1.0; GainB = 1.0 }
         $gainSource = "identity-fallback"
-        $recorded = Get-RecordedGain $Run $id
-        if ($recorded) {
-            $gains.GainR = $recorded.GainR
-            $gains.GainG = $recorded.GainG
-            $gains.GainB = $recorded.GainB
-            $gainSource = [string]$recorded.Source
+        $measured = Measure-PairGain (Join-Path $stagingRun "raw\$id-before.mp4") (Join-Path $stagingRun "raw\$id-after.mp4")
+        if ($measured.Ok) {
+            $gains.GainR = $measured.GainR
+            $gains.GainG = $measured.GainG
+            $gains.GainB = $measured.GainB
+            $gainSource = "measure-pair-gain.py"
         } else {
-            $measured = Measure-PairGain (Join-Path $stagingRun "raw\$id-before.mp4") (Join-Path $stagingRun "raw\$id-after.mp4")
-            if ($measured) {
-                $gains.GainR = $measured.GainR
-                $gains.GainG = $measured.GainG
-                $gains.GainB = $measured.GainB
-                $gainSource = "measure-pair-gain.py"
+            Write-Host ("WARN | {0} | gain measurement failed ({1}); assembling uncorrected" -f $id, $measured.Reason)
+            if (-not $AllowIdentityGain) {
+                $failed += 1
             }
         }
         $gains = Clamp-Gain $gains

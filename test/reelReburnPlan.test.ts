@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
@@ -25,7 +26,6 @@ const ROOT = process.cwd();
 const CONCEPTS_BASELINE = REEL_CONCEPTS.length;
 const SCHEDULE_BASELINE = REEL_SCHEDULE.length;
 const SCRIPT_PATH = join(ROOT, "scripts", "reburn-reel-narration.ps1");
-const REAL_PYTHON = "C:/Users/cyc39/AppData/Local/Python/pythoncore-3.14-64/python.exe";
 
 afterEach(() => {
   REEL_CONCEPTS.length = CONCEPTS_BASELINE;
@@ -219,6 +219,40 @@ function parseJsonl(text: string): Array<Record<string, unknown>> {
     .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
+function asArgv(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item));
+  if (value == null) return [];
+  return [String(value)];
+}
+
+function fileSha256(path: string): string {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function liveConcept(id: string) {
+  loadExtensions(ROOT);
+  const concept = REEL_CONCEPTS.find((entry) => entry.id === id);
+  if (!concept) throw new Error(`live concept missing: ${id}`);
+  return concept;
+}
+
+function withDifferentCase(path: string): string {
+  const flipped = path.replace(/[A-Za-z]/g, (ch) =>
+    ch === ch.toLowerCase() ? ch.toUpperCase() : ch.toLowerCase()
+  );
+  if (flipped === path) throw new Error(`cannot flip case of ${path}`);
+  return flipped;
+}
+
+function assertNoInterpreterLaunch(text: string, label: string): void {
+  expect(text, label).not.toMatch(/python\.exe/i);
+  expect(text, label).not.toMatch(/node\.exe/i);
+  expect(text, label).not.toMatch(/pythoncore/i);
+  expect(text, label).not.toMatch(/\bpy\.exe\b/i);
+  expect(text, label).not.toMatch(/(?:^|[\s"'=])(?:python|node|py)(?:\.exe)?\s/i);
+  expect(text, label).not.toMatch(/python-stub\.py/i);
+}
+
 const scratches: string[] = [];
 
 afterEach(() => {
@@ -230,35 +264,82 @@ afterEach(() => {
 
 function writeStubs(stubDir: string): void {
   mkdirSync(stubDir, { recursive: true });
-  const pyCmd = [
-    "@echo off",
-    `"${REAL_PYTHON.replace(/\//g, "\\")}" "%~dp0python-stub.py" %*`,
-    "exit /b %ERRORLEVEL%"
-  ].join("\r\n");
-  writeFileSync(join(stubDir, "python.cmd"), pyCmd);
   writeFileSync(
-    join(stubDir, "python-stub.py"),
+    join(stubDir, "python.cmd"),
     [
-      "import json, os, sys",
-      "log = os.environ.get('REBURN_STUB_LOG')",
-      "if log:",
-      "    with open(log, 'a', encoding='utf-8') as f:",
-      "        f.write(json.dumps({'tool': 'python', 'argv': sys.argv[1:]}, ensure_ascii=False) + '\\n')",
-      "args = sys.argv[1:]",
-      "if '-m' in args and 'edge_tts' in args:",
-      "    out = args[args.index('--write-media') + 1] if '--write-media' in args else None",
-      "    if out:",
-      "        parent = os.path.dirname(out)",
-      "        if parent: os.makedirs(parent, exist_ok=True)",
-      "        open(out, 'wb').write(b'ID3stub')",
-      "    raise SystemExit(0)",
-      "if any('measure-pair-gain.py' in a.replace(chr(92), '/') for a in args):",
-      "    print('before RGB: [10.0, 10.0, 10.0]')",
-      "    print('-GainR 1.2500 -GainG 1.1250 -GainB 1.0625')",
-      "    raise SystemExit(0)",
-      "raise SystemExit(2)",
+      "@echo off",
+      "setlocal EnableDelayedExpansion",
+      "REM C0: echo/copy only. Never launch an interpreter.",
+      "echo %*| findstr /C:\"edge_tts\" >nul",
+      "if not errorlevel 1 (",
+      "  if defined REBURN_STUB_TTS_FAIL (",
+      "    echo edge-tts stub fail",
+      "    exit /b 3",
+      "  )",
+      "  call :write_media %*",
+      "  exit /b 0",
+      ")",
+      "echo %*| findstr /C:\"measure-pair-gain\" >nul",
+      "if not errorlevel 1 (",
+      "  if defined REBURN_STUB_GAIN_FAIL (",
+      "    echo ImportError: No module named 'cv2'",
+      "    exit /b 2",
+      "  )",
+      "  if \"%REBURN_STUB_GAIN%\"==\"2.5\" (",
+      "    echo before RGB: [10.0, 10.0, 10.0]",
+      "    echo -GainR 2.5000 -GainG 2.5000 -GainB 2.5000",
+      "    exit /b 0",
+      "  )",
+      "  echo before RGB: [10.0, 10.0, 10.0]",
+      "  echo -GainR 1.2500 -GainG 1.1250 -GainB 1.0625",
+      "  exit /b 0",
+      ")",
+      "echo unhandled stub argv",
+      "exit /b 2",
+      ":write_media",
+      "if \"%~1\"==\"\" goto :eof",
+      "if \"%~1\"==\"--write-media\" (",
+      "  echo ID3stub>\"%~2\"",
+      "  goto :eof",
+      ")",
+      "shift",
+      "goto write_media",
       ""
-    ].join("\n")
+    ].join("\r\n")
+  );
+  writeFileSync(
+    join(stubDir, "python.ps1"),
+    [
+      "$ErrorActionPreference = 'Stop'",
+      "if (-not $env:REBURN_STUB_LOG) { throw 'REBURN_STUB_LOG is required' }",
+      "$utf8 = New-Object System.Text.UTF8Encoding $false",
+      "$argvList = @($args)",
+      "$record = @{ tool = 'python'; argv = $argvList }",
+      "[IO.File]::AppendAllText($env:REBURN_STUB_LOG, (($record | ConvertTo-Json -Compress -Depth 6) + [Environment]::NewLine), $utf8)",
+      "if ($argvList -contains 'edge_tts') {",
+      "    if ($env:REBURN_STUB_TTS_FAIL) { Write-Output 'edge-tts stub fail'; exit 3 }",
+      "    $idx = [array]::IndexOf($argvList, '--write-media')",
+      "    if ($idx -ge 0 -and ($idx + 1) -lt $argvList.Count) {",
+      "        $out = [string]$argvList[$idx + 1]",
+      "        [IO.File]::WriteAllBytes($out, [Text.Encoding]::ASCII.GetBytes('ID3stub'))",
+      "    }",
+      "    exit 0",
+      "}",
+      "if (@($argvList | Where-Object { $_ -like '*measure-pair-gain.py*' }).Count -gt 0) {",
+      "    if ($env:REBURN_STUB_GAIN_FAIL) { Write-Output \"ImportError: No module named 'cv2'\"; exit 2 }",
+      "    if ($env:REBURN_STUB_GAIN -eq '2.5') {",
+      "        Write-Output 'before RGB: [10.0, 10.0, 10.0]'",
+      "        Write-Output '-GainR 2.5000 -GainG 2.5000 -GainB 2.5000'",
+      "        exit 0",
+      "    }",
+      "    Write-Output 'before RGB: [10.0, 10.0, 10.0]'",
+      "    Write-Output '-GainR 1.2500 -GainG 1.1250 -GainB 1.0625'",
+      "    exit 0",
+      "}",
+      "Write-Output 'unhandled stub argv'",
+      "exit 2",
+      ""
+    ].join("\r\n")
   );
   writeFileSync(
     join(stubDir, "assemble-reel.ps1"),
@@ -279,57 +360,80 @@ function writeStubs(stubDir: string): void {
       "$record = @{",
       "    tool = 'assemble'",
       "    ConceptId = $ConceptId",
+      "    Hook = $Hook",
+      "    Close = $Close",
       "    Run = $Run",
       "    GainR = $GainR.ToString([Globalization.CultureInfo]::InvariantCulture)",
       "    GainG = $GainG.ToString([Globalization.CultureInfo]::InvariantCulture)",
       "    GainB = $GainB.ToString([Globalization.CultureInfo]::InvariantCulture)",
       "    NarrationFile = $NarrationFile",
+      "    NarrationText = $NarrationText",
       "    MiddleClip = $MiddleClip",
       "    BoundGainR = [bool]$PSBoundParameters.ContainsKey('GainR')",
       "    BoundGainG = [bool]$PSBoundParameters.ContainsKey('GainG')",
       "    BoundGainB = [bool]$PSBoundParameters.ContainsKey('GainB')",
+      "    BoundMiddleClip = [bool]$PSBoundParameters.ContainsKey('MiddleClip')",
       "}",
       "$utf8 = New-Object System.Text.UTF8Encoding $false",
       "[IO.File]::AppendAllText($env:REBURN_STUB_LOG, (($record | ConvertTo-Json -Compress) + [Environment]::NewLine), $utf8)",
+      "if ($env:REBURN_STUB_ASSEMBLE_NO_OUTPUT) { return }",
       "$reels = Join-Path $Run 'reels'",
       "New-Item -ItemType Directory -Force -Path $reels | Out-Null",
       "$name = if ($MiddleClip) { \"$ConceptId-15s.mp4\" } else { \"$ConceptId.mp4\" }",
       "$out = Join-Path $reels $name",
       "[IO.File]::WriteAllBytes($out, [Text.Encoding]::ASCII.GetBytes('stub-mp4'))",
       "@{ source = 'stub'; narration = $true } | ConvertTo-Json | Set-Content -LiteralPath \"$out.audio.json\" -Encoding utf8",
-      "@{ burned = $false; error = 'stub burn skipped' } | ConvertTo-Json | Set-Content -LiteralPath \"$out.subs.json\" -Encoding utf8",
+      "$burned = $env:REBURN_STUB_BURNED -eq '1'",
+      "$marker = @{ burned = $burned }",
+      "if (-not $burned) { $marker.error = 'stub burn skipped' }",
+      "$marker | ConvertTo-Json | Set-Content -LiteralPath \"$out.subs.json\" -Encoding utf8",
       ""
-    ].join("\r\n"),
-    { encoding: "utf8" }
+    ].join("\r\n")
   );
 }
 
-function makeFixture(): { scratch: string; run: string; outDir: string; stubDir: string; logPath: string } {
+function makeFixture(opts: { id?: string; middle?: boolean; skipRaw?: boolean } = {}): {
+  scratch: string;
+  run: string;
+  outDir: string;
+  stubDir: string;
+  logPath: string;
+  id: string;
+} {
   const scratch = mkdtempSync(join(tmpdir(), "reburn-fx-"));
   scratches.push(scratch);
+  const id = opts.id ?? "white-shoe-yellowing";
   const run = join(scratch, "run");
   const outDir = join(scratch, "out");
   const stubDir = join(scratch, "stubs");
   const logPath = join(scratch, "calls.jsonl");
   mkdirSync(join(run, "raw"), { recursive: true });
   mkdirSync(join(run, "references"), { recursive: true });
-  writeFileSync(join(run, "raw", "white-shoe-yellowing-before.mp4"), "before");
-  writeFileSync(join(run, "raw", "white-shoe-yellowing-after.mp4"), "after");
-  writeFileSync(join(run, "references", "white-shoe-yellowing-before.png"), "png");
+  if (!opts.skipRaw) {
+    writeFileSync(join(run, "raw", `${id}-before.mp4`), "before");
+    writeFileSync(join(run, "raw", `${id}-after.mp4`), "after");
+  }
+  if (opts.middle) {
+    writeFileSync(join(run, "raw", `${id}-middle-graded.mp4`), "middle");
+  }
+  writeFileSync(join(run, "references", `${id}-before.png`), "png");
   writeStubs(stubDir);
-  return { scratch, run, outDir, stubDir, logPath };
+  return { scratch, run, outDir, stubDir, logPath, id };
 }
 
-function runReburn(args: string[], extra: { stubDir?: string; logPath?: string; timeout?: number } = {}) {
+function runReburn(
+  args: string[],
+  extra: { logPath?: string; timeout?: number; env?: NodeJS.ProcessEnv } = {}
+) {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     PUBLIC_SITE_BASE_URL: process.env.PUBLIC_SITE_BASE_URL || "https://sixiangjialaundry.com",
     PUBLIC_IMAGE_BASE_URL: process.env.PUBLIC_IMAGE_BASE_URL || "https://sixiangjialaundry.com",
     META_ACCESS_TOKEN: process.env.META_ACCESS_TOKEN || "x",
     FB_PAGE_ID: process.env.FB_PAGE_ID || "x",
-    IG_USER_ID: process.env.IG_USER_ID || "x"
+    IG_USER_ID: process.env.IG_USER_ID || "x",
+    ...extra.env
   };
-  if (extra.stubDir) env.PATH = `${extra.stubDir};${process.env.PATH ?? ""}`;
   if (extra.logPath) env.REBURN_STUB_LOG = extra.logPath;
   return spawnSync(
     "powershell.exe",
@@ -341,6 +445,36 @@ function runReburn(args: string[], extra: { stubDir?: string; logPath?: string; 
       env
     }
   );
+}
+
+function combinedText(result: ReturnType<typeof spawnSync>): string {
+  return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+}
+
+type ManifestItem = {
+  id: string;
+  burned: boolean;
+  error: string | null;
+  gain_r: number;
+  gain_g: number;
+  gain_b: number;
+  gain_source: string;
+  sha256: string | null;
+  output_mp4: string;
+  three_act: boolean;
+  duration_sec: number | null;
+};
+
+function readManifest(outDir: string) {
+  const manifestPath = join(outDir, "manifest.json");
+  expect(existsSync(manifestPath)).toBe(true);
+  return JSON.parse(readFileSync(manifestPath, "utf8")) as {
+    engine: string;
+    voice: string;
+    rate: string;
+    run_dir: string;
+    items: ManifestItem[];
+  };
 }
 
 describe("reburn-reel-narration.ps1 wiring", () => {
@@ -361,11 +495,28 @@ describe("reburn-reel-narration.ps1 wiring", () => {
     expect(text).not.toMatch(/Invoke-NpmSilent "tts"/);
     expect(text).toMatch(/-m", "edge_tts"/);
     expect(text).toMatch(/zh-TW-YunJheNeural/);
-    expect(text).toMatch(/\[switch\]\$DryRunStubs/);
+    expect(text).toMatch(/Alias\("DryRunStubs"\)/);
+    expect(text).toMatch(/\$StubDir/);
+    expect(text).toMatch(/AllowIdentityGain/);
     expect(text).toMatch(/middle-graded\.mp4/);
     expect(text).not.toMatch(/raw\\\$id-middle\.mp4/);
     expect(text).not.toMatch(/docs\\content-calendar/);
     expect(text).not.toMatch(/data\\video-reviews/);
+    expect(text).not.toMatch(/function Find-PathTool/);
+    expect(text).not.toMatch(/function Get-RecordedGain/);
+    expect(text).not.toMatch(/function Find-GainInObject/);
+    expect(text).toMatch(/Join-Path \$stagingRun "tts"/);
+    expect(text).toMatch(/Ensure-OutputDirs/);
+  });
+
+  it("C0 stubs never invoke python or node", () => {
+    const fx = makeFixture();
+    assertNoInterpreterLaunch(readFileSync(join(fx.stubDir, "python.cmd"), "utf8"), "python.cmd");
+    assertNoInterpreterLaunch(readFileSync(join(fx.stubDir, "python.ps1"), "utf8"), "python.ps1");
+    assertNoInterpreterLaunch(
+      readFileSync(join(fx.stubDir, "assemble-reel.ps1"), "utf8"),
+      "assemble-reel.ps1"
+    );
   });
 
   it("WhatIf leaves OutDir absent and the run directory untouched", () => {
@@ -382,9 +533,10 @@ describe("reburn-reel-narration.ps1 wiring", () => {
         "-OutDir",
         fx.outDir,
         "-WhatIf",
-        "-DryRunStubs"
+        "-StubDir",
+        fx.stubDir
       ],
-      { stubDir: fx.stubDir, logPath: fx.logPath }
+      { logPath: fx.logPath }
     );
     expect(result.status, spawnDump(result)).toBe(0);
     expect(existsSync(fx.outDir), "WhatIf must not create OutDir").toBe(false);
@@ -395,8 +547,9 @@ describe("reburn-reel-narration.ps1 wiring", () => {
     expect(`${result.stdout ?? ""}`).toMatch(/rate=\+8%/);
   }, 60_000);
 
-  it("DryRunStubs walks TTS + assemble and fails when burned=false", () => {
+  it("StubDir walks TTS + assemble and fails when burned=false", () => {
     const fx = makeFixture();
+    const concept = liveConcept("white-shoe-yellowing");
     const result = runReburn(
       [
         "-ConceptIds",
@@ -407,30 +560,35 @@ describe("reburn-reel-narration.ps1 wiring", () => {
         fx.run,
         "-OutDir",
         fx.outDir,
-        "-DryRunStubs"
+        "-StubDir",
+        fx.stubDir
       ],
-      { stubDir: fx.stubDir, logPath: fx.logPath }
+      { logPath: fx.logPath }
     );
     expect(result.status, spawnDump(result)).toBe(1);
-    const combined = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+    const combined = combinedText(result);
     expect(combined).toMatch(/ERROR \| white-shoe-yellowing \| subtitles not burned:/);
 
     const calls = parseJsonl(readFileSync(fx.logPath, "utf8"));
     const pyCalls = calls.filter((row) => row.tool === "python");
-    const tts = pyCalls.find((row) => Array.isArray(row.argv) && (row.argv as string[]).includes("edge_tts"));
+    const tts = pyCalls.find((row) => asArgv(row.argv).includes("edge_tts"));
     expect(tts, "python stub must see edge_tts").toBeDefined();
-    const ttsArgv = tts!.argv as string[];
+    const ttsArgv = asArgv(tts!.argv);
     expect(ttsArgv).toContain("-m");
     expect(ttsArgv).toContain("edge_tts");
     expect(ttsArgv).toContain("zh-TW-YunJheNeural");
     expect(ttsArgv.some((arg) => arg === "--rate=+8%" || arg === "+8%")).toBe(true);
+    const textIdx = ttsArgv.indexOf("--text");
+    expect(textIdx).toBeGreaterThanOrEqual(0);
+    expect(ttsArgv[textIdx + 1]).toBe(concept.narration);
     const writeMedia = ttsArgv[ttsArgv.indexOf("--write-media") + 1];
     expect(writeMedia).toBeTruthy();
     expect(normPath(writeMedia!)).toContain(normPath(join(fx.outDir, "run", "tts")));
     expect(writeMedia).not.toMatch(/npm run tts/);
+    expect(existsSync(join(fx.outDir, "run", "tts"))).toBe(true);
 
-    const measure = pyCalls.find(
-      (row) => Array.isArray(row.argv) && (row.argv as string[]).some((arg) => String(arg).includes("measure-pair-gain.py"))
+    const measure = pyCalls.find((row) =>
+      asArgv(row.argv).some((arg) => String(arg).includes("measure-pair-gain.py"))
     );
     expect(measure, "python stub must see measure-pair-gain.py").toBeDefined();
 
@@ -444,6 +602,10 @@ describe("reburn-reel-narration.ps1 wiring", () => {
           BoundGainG: boolean;
           BoundGainB: boolean;
           NarrationFile: string;
+          NarrationText: string;
+          Hook: string;
+          Close: string;
+          MiddleClip: string;
         }
       | undefined;
     expect(assemble, "assemble stub must be invoked").toBeDefined();
@@ -455,24 +617,11 @@ describe("reburn-reel-narration.ps1 wiring", () => {
     expect(Number(assemble!.GainG)).toBeCloseTo(1.125, 4);
     expect(Number(assemble!.GainB)).toBeCloseTo(1.0625, 4);
     expect(normPath(assemble!.NarrationFile)).toBe(normPath(writeMedia!));
+    expect(assemble!.NarrationText).toBe(concept.narration);
+    expect(assemble!.Hook).toBe(concept.hook);
+    expect(assemble!.Close).toBe(concept.close);
 
-    const manifestPath = join(fx.outDir, "manifest.json");
-    expect(existsSync(manifestPath)).toBe(true);
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
-      engine: string;
-      voice: string;
-      rate: string;
-      run_dir: string;
-      items: Array<{
-        id: string;
-        burned: boolean;
-        error: string;
-        gain_r: number;
-        gain_g: number;
-        gain_b: number;
-        gain_source: string;
-      }>;
-    };
+    const manifest = readManifest(fx.outDir);
     expect(manifest.engine).toBe("edge-tts");
     expect(manifest.voice).toBe("zh-TW-YunJheNeural");
     expect(manifest.rate).toBe("+8%");
@@ -482,6 +631,45 @@ describe("reburn-reel-narration.ps1 wiring", () => {
     expect(manifest.items[0]!.error).toMatch(/stub burn skipped/);
     expect(manifest.items[0]!.gain_r).toBeCloseTo(1.25, 4);
     expect(manifest.items[0]!.gain_source).toBe("measure-pair-gain.py");
+    expect(manifest.items[0]!.three_act).toBe(false);
+    expect(manifest.items[0]!.duration_sec).toBeNull();
+    const outMp4 = join(fx.outDir, "run", "reels", "white-shoe-yellowing.mp4");
+    expect(normPath(manifest.items[0]!.output_mp4)).toBe(normPath(outMp4));
+    expect(existsSync(outMp4)).toBe(true);
+    expect(manifest.items[0]!.sha256).toBe(fileSha256(outMp4));
+  }, 60_000);
+
+  it("edge-tts --text for an extension id matches live REEL_CONCEPTS narration", () => {
+    const fx = makeFixture({ id: "down-jacket-cuff" });
+    const concept = liveConcept("down-jacket-cuff");
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "down-jacket-cuff",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        fx.outDir,
+        "-StubDir",
+        fx.stubDir
+      ],
+      { logPath: fx.logPath }
+    );
+    expect(result.status, spawnDump(result)).toBe(1);
+    const calls = parseJsonl(readFileSync(fx.logPath, "utf8"));
+    const tts = calls.find((row) => row.tool === "python" && asArgv(row.argv).includes("edge_tts"));
+    expect(tts).toBeDefined();
+    const ttsArgv = asArgv(tts!.argv);
+    expect(ttsArgv[ttsArgv.indexOf("--text") + 1]).toBe(concept.narration);
+    const assemble = calls.find((row) => row.tool === "assemble") as
+      | { NarrationText: string; Hook: string; Close: string }
+      | undefined;
+    expect(assemble).toBeDefined();
+    expect(assemble!.NarrationText).toBe(concept.narration);
+    expect(assemble!.Hook).toBe(concept.hook);
+    expect(assemble!.Close).toBe(concept.close);
   }, 60_000);
 
   it("rejects OutDir under Run with exit 3 and zero writes", () => {
@@ -498,13 +686,274 @@ describe("reburn-reel-narration.ps1 wiring", () => {
         fx.run,
         "-OutDir",
         nested,
-        "-DryRunStubs"
+        "-StubDir",
+        fx.stubDir
       ],
-      { stubDir: fx.stubDir, logPath: fx.logPath }
+      { logPath: fx.logPath }
     );
     expect(result.status, spawnDump(result)).toBe(3);
     expect(existsSync(nested)).toBe(false);
     expect(walkSnapshot(fx.run)).toEqual(before);
     expect(existsSync(fx.outDir)).toBe(false);
+  }, 60_000);
+
+  it("rejects OutDir under Run when casing differs (exit 3)", () => {
+    const fx = makeFixture();
+    const runFlipped = withDifferentCase(fx.run);
+    const nested = join(runFlipped, "reburn");
+    const before = walkSnapshot(fx.run);
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "white-shoe-yellowing",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        nested,
+        "-StubDir",
+        fx.stubDir
+      ],
+      { logPath: fx.logPath }
+    );
+    expect(result.status, spawnDump(result)).toBe(3);
+    expect(walkSnapshot(fx.run)).toEqual(before);
+    expect(combinedText(result)).toMatch(/OutDir is under Run/);
+  }, 60_000);
+
+  it("throws when StubDir is missing", () => {
+    const fx = makeFixture();
+    const missing = join(fx.scratch, "no-such-stubs");
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "white-shoe-yellowing",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        fx.outDir,
+        "-StubDir",
+        missing
+      ],
+      { logPath: fx.logPath }
+    );
+    expect(result.status, spawnDump(result)).not.toBe(0);
+    expect(combinedText(result)).toMatch(/StubDir not found/);
+  }, 60_000);
+
+  it("identity gain failure prints WARN and exits 1", () => {
+    const fx = makeFixture();
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "white-shoe-yellowing",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        fx.outDir,
+        "-StubDir",
+        fx.stubDir
+      ],
+      {
+        logPath: fx.logPath,
+        env: { REBURN_STUB_GAIN_FAIL: "1", REBURN_STUB_BURNED: "1" }
+      }
+    );
+    expect(result.status, spawnDump(result)).toBe(1);
+    expect(combinedText(result)).toMatch(
+      /WARN \| white-shoe-yellowing \| gain measurement failed \(.+\); assembling uncorrected/
+    );
+    const manifest = readManifest(fx.outDir);
+    expect(manifest.items[0]!.gain_source).toBe("identity-fallback");
+    expect(manifest.items[0]!.gain_r).toBe(1);
+    expect(manifest.items[0]!.gain_g).toBe(1);
+    expect(manifest.items[0]!.gain_b).toBe(1);
+    expect(manifest.items[0]!.burned).toBe(true);
+  }, 60_000);
+
+  it("AllowIdentityGain keeps identity fallback at exit 0", () => {
+    const fx = makeFixture();
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "white-shoe-yellowing",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        fx.outDir,
+        "-StubDir",
+        fx.stubDir,
+        "-AllowIdentityGain"
+      ],
+      {
+        logPath: fx.logPath,
+        env: { REBURN_STUB_GAIN_FAIL: "1", REBURN_STUB_BURNED: "1" }
+      }
+    );
+    expect(result.status, spawnDump(result)).toBe(0);
+    expect(combinedText(result)).toMatch(
+      /WARN \| white-shoe-yellowing \| gain measurement failed \(.+\); assembling uncorrected/
+    );
+    const manifest = readManifest(fx.outDir);
+    expect(manifest.items[0]!.gain_source).toBe("identity-fallback");
+    expect(manifest.items[0]!.burned).toBe(true);
+  }, 60_000);
+
+  it("unknown id exits 1 via powershell.exe -File", () => {
+    const fx = makeFixture();
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "not-a-real-concept",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        fx.outDir,
+        "-StubDir",
+        fx.stubDir
+      ],
+      { logPath: fx.logPath }
+    );
+    expect(result.status, spawnDump(result)).toBe(1);
+    expect(combinedText(result)).toMatch(/ERROR \| not-a-real-concept \|/);
+  }, 60_000);
+
+  it("missing raw clip exits 1 via powershell.exe -File", () => {
+    const fx = makeFixture({ skipRaw: true });
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "white-shoe-yellowing",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        fx.outDir,
+        "-StubDir",
+        fx.stubDir
+      ],
+      { logPath: fx.logPath }
+    );
+    expect(result.status, spawnDump(result)).toBe(1);
+    expect(combinedText(result)).toMatch(/ERROR \| white-shoe-yellowing \| missing raw clips/);
+  }, 60_000);
+
+  it("edge-tts failure exits 1 via powershell.exe -File", () => {
+    const fx = makeFixture();
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "white-shoe-yellowing",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        fx.outDir,
+        "-StubDir",
+        fx.stubDir
+      ],
+      { logPath: fx.logPath, env: { REBURN_STUB_TTS_FAIL: "1" } }
+    );
+    expect(result.status, spawnDump(result)).toBe(1);
+    expect(combinedText(result)).toMatch(/ERROR \| white-shoe-yellowing \| edge-tts failed/);
+  }, 60_000);
+
+  it("assemble with no output exits 1 via powershell.exe -File", () => {
+    const fx = makeFixture();
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "white-shoe-yellowing",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        fx.outDir,
+        "-StubDir",
+        fx.stubDir
+      ],
+      { logPath: fx.logPath, env: { REBURN_STUB_ASSEMBLE_NO_OUTPUT: "1" } }
+    );
+    expect(result.status, spawnDump(result)).toBe(1);
+    expect(combinedText(result)).toMatch(/ERROR \| white-shoe-yellowing \| assemble-reel produced no /);
+  }, 60_000);
+
+  it("clamps stub gain 2.5 to 2.0 for manifest and assemble", () => {
+    const fx = makeFixture();
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "white-shoe-yellowing",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        fx.outDir,
+        "-StubDir",
+        fx.stubDir
+      ],
+      { logPath: fx.logPath, env: { REBURN_STUB_GAIN: "2.5" } }
+    );
+    expect(result.status, spawnDump(result)).toBe(1);
+    const assemble = parseJsonl(readFileSync(fx.logPath, "utf8")).find((row) => row.tool === "assemble") as
+      | { GainR: string; GainG: string; GainB: string }
+      | undefined;
+    expect(assemble).toBeDefined();
+    expect(Number(assemble!.GainR)).toBe(2);
+    expect(Number(assemble!.GainG)).toBe(2);
+    expect(Number(assemble!.GainB)).toBe(2);
+    const manifest = readManifest(fx.outDir);
+    expect(manifest.items[0]!.gain_r).toBe(2);
+    expect(manifest.items[0]!.gain_g).toBe(2);
+    expect(manifest.items[0]!.gain_b).toBe(2);
+    expect(manifest.items[0]!.gain_source).toBe("measure-pair-gain.py");
+  }, 60_000);
+
+  it("three-act middle-graded clip is passed to assemble as -MiddleClip", () => {
+    const fx = makeFixture({ middle: true });
+    const result = runReburn(
+      [
+        "-ConceptIds",
+        "white-shoe-yellowing",
+        "-Date",
+        "2026-09-08",
+        "-Run",
+        fx.run,
+        "-OutDir",
+        fx.outDir,
+        "-StubDir",
+        fx.stubDir
+      ],
+      { logPath: fx.logPath }
+    );
+    expect(result.status, spawnDump(result)).toBe(1);
+    const assemble = parseJsonl(readFileSync(fx.logPath, "utf8")).find((row) => row.tool === "assemble") as
+      | { MiddleClip: string; BoundMiddleClip: boolean }
+      | undefined;
+    expect(assemble).toBeDefined();
+    expect(assemble!.BoundMiddleClip).toBe(true);
+    expect(normPath(assemble!.MiddleClip)).toBe(
+      normPath(join(fx.outDir, "run", "raw", "white-shoe-yellowing-middle-graded.mp4"))
+    );
+    const outMp4 = join(fx.outDir, "run", "reels", "white-shoe-yellowing-15s.mp4");
+    expect(existsSync(outMp4)).toBe(true);
+    const manifest = readManifest(fx.outDir);
+    expect(manifest.items[0]!.three_act).toBe(true);
+    expect(normPath(manifest.items[0]!.output_mp4)).toBe(normPath(outMp4));
+    expect(manifest.items[0]!.duration_sec).toBeNull();
+    expect(manifest.items[0]!.sha256).toBe(fileSha256(outMp4));
   }, 60_000);
 });

@@ -22,7 +22,7 @@
       "id": "suede-shoe-nap",
       "object_type": "suede-shoe",
       "hook": "麂皮鞋摸起來變硬",
-      "narration": "絨毛倒了就會發硬發亮,那不是髒。洗完得把整片絨面重新刷順才回得來,用濕布擦只會把它壓得更平。",
+      "narration": "絨毛倒了就會發硬發亮是不是髒？洗完得把整片絨面重新刷順才回得來,用濕布擦只會把它壓得更平。",
       "close": "麂皮鞋 400 起,不確定材質先拍給我。",
       "before_subject": "a tan suede shoe whose nap has flattened and gone shiny across the vamp, no tears",
       "after_subject": "the same shoe with the nap lifted and even again, matte and soft-looking, colour unchanged"
@@ -40,7 +40,7 @@
       "id": "leather-belt-crease",
       "object_type": "leather-belt",
       "hook": "皮帶摺痕發白裂",
-      "narration": "老是扣同一格,那一摺的塗層會最先斷開來。清完顏色會淡一點,但斷掉的那條線還是要補色才會平回去。",
+      "narration": "老是扣同一格那一摺塗層會不會先斷開？清完顏色會淡一點,但斷掉的那條線還是要補色才會平回去。",
       "close": "皮帶 400 起,補色另計。",
       "before_subject": "a brown leather belt with a pale cracked crease at the habitual buckle hole, leather whole",
       "after_subject": "the same belt cleaned and conditioned, colour even, the crease still faintly visible"
@@ -49,7 +49,7 @@
       "id": "mattress-pad-sweat",
       "object_type": "mattress-pad",
       "hook": "保潔墊出現黃圈",
-      "narration": "汗滲過去再乾掉,就會留下一圈邊。它幫你擋的是整張床墊,所以換季的時候該跟被子一起洗過一次。",
+      "narration": "汗滲過去再乾掉是不是留下一圈邊？它幫你擋的是整張床墊,所以換季的時候該跟被子一起洗過一次。",
       "close": "保潔墊 120,台中免費到府收送。",
       "before_subject": "a white quilted mattress pad with a faint yellow ring where sweat has soaked and dried",
       "after_subject": "the same pad clean and evenly white, quilting intact, no bleach patches"
@@ -58,7 +58,7 @@
       "id": "blanket-pilling",
       "object_type": "blanket",
       "hook": "毛毯起球摸起來粗",
-      "narration": "球是摩擦磨出來的,不是被你洗壞了。修掉之後手感就會回來,但下次要單獨洗,才不會再被拉鍊磨到。",
+      "narration": "球是摩擦磨出來的是不是被洗壞了？修掉之後手感就會回來,但下次要單獨洗,才不會再被拉鍊磨到。",
       "close": "毛毯雙人 400,單人 200。",
       "before_subject": "a grey fleece blanket surface covered in small pills, fabric otherwise whole",
       "after_subject": "the same blanket with pills removed, surface flat and soft, colour unchanged"
@@ -112,7 +112,7 @@
       "id": "boot-mould-bloom",
       "object_type": "leather-boot",
       "hook": "馬丁靴整雙發霉了",
-      "narration": "梅雨櫃子放一季,皮面就長出這層白灰。霉根會吃進皮革,越晚處理越難救,先拍照傳給我們看狀況。",
+      "narration": "梅雨櫃子放一季皮面是不是長這層白灰？霉根會吃進皮革,越晚處理越難救,先拍照傳給我們看狀況。",
       "close": "發霉別急著丟,LINE 傳照片,台中免費收送。",
       "before_subject": "a pair of black leather lace-up boots covered in a dry white-grey bloom of mould across toe and shaft, yellow welt stitching, unbranded",
       "after_subject": "the same boots wiped back to deep glossy black, welt stitch clean, no mould, honest creases still visible"

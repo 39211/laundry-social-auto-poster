@@ -6,9 +6,11 @@ import {
   REEL_SCHEDULE,
   MATERIAL_OPTICS,
   conceptStatuses,
+  loadExtensions,
   materialOpticsFor,
   promptFor,
   publishDateFor,
+  splitNarrationSentences,
   stillPathsFor
 } from "../src/reelConcepts";
 
@@ -328,14 +330,66 @@ describe("reel concept story structure (loop + delayed reveal)", () => {
   it("delays the reveal: first narration sentence withholds the diagnostic token", () => {
     // Mutation: paste the old white-shoe or leather-bag hook/narration back and
     // the first sentence contains 氧化 / 補不回來 again — this goes red.
+    // First sentence is splitNarrationSentences[0] (may end with 。 or ？).
+    // Using indexOf("。") would swallow the second sentence once the opener
+    // became a question, which is a delimiter bug, not a weaker assertion.
     for (const concept of builtinConcepts()) {
       const spec = STORY_STRUCTURE[concept.id]!;
-      const end = concept.narration.indexOf("。");
-      expect(end, `${concept.id} narration is a single dump`).toBeGreaterThan(0);
-      const first = concept.narration.slice(0, end + 1);
-      const rest = concept.narration.slice(end + 1);
+      const parts = splitNarrationSentences(concept.narration);
+      expect(parts.length, `${concept.id} narration is a single dump`).toBeGreaterThan(1);
+      const first = parts[0]!;
+      const rest = parts.slice(1).join("");
       expect(first, `${concept.id} answers in the first sentence`).not.toContain(spec.delayedReveal);
       expect(rest, `${concept.id} never reveals "${spec.delayedReveal}"`).toContain(spec.delayedReveal);
+    }
+  });
+});
+
+// Knob 2A (2026-09-05): spoken first sentence is a question. Nine extension
+// concepts cannot satisfy 6–18 chars AND the 45-char admission floor AND ±6
+// total change at once; they keep the original statement (PARTIAL).
+const NARRATION_QUESTION_PARTIAL = new Set([
+  "down-jacket-cuff",
+  "wool-coat-shoulder",
+  "heel-tip-scuff",
+  "denim-knee-fade",
+  "wallet-edge-wear",
+  "kids-shoe-toe",
+  "hiking-boot-mud",
+  "sweater-underarm",
+  "white-shoe-rescue"
+]);
+
+describe("reel narration first sentence is a question (knob 2A)", () => {
+  it("ends with ？, stays 6-18 chars, and avoids 起/保證/一定", () => {
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    const report = loadExtensions();
+    try {
+      expect(report.accepted_concepts).toEqual(
+        expect.arrayContaining([...NARRATION_QUESTION_PARTIAL])
+      );
+      for (const concept of REEL_CONCEPTS) {
+        const first = splitNarrationSentences(concept.narration)[0] ?? "";
+        if (NARRATION_QUESTION_PARTIAL.has(concept.id)) {
+          continue;
+        }
+        expect(first.endsWith("？"), `${concept.id} first sentence is not a question: ${first}`).toBe(
+          true
+        );
+        expect(first.length, `${concept.id} first length ${first.length}: ${first}`).toBeGreaterThanOrEqual(
+          6
+        );
+        expect(first.length, `${concept.id} first length ${first.length}: ${first}`).toBeLessThanOrEqual(
+          18
+        );
+        expect(first.includes("起"), `${concept.id} first contains 起: ${first}`).toBe(false);
+        expect(first.includes("保證"), `${concept.id} first contains 保證: ${first}`).toBe(false);
+        expect(first.includes("一定"), `${concept.id} first contains 一定: ${first}`).toBe(false);
+      }
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
     }
   });
 });

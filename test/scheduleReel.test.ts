@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it, vi } from "vitest";
 import { linePostRedirectUrl } from "../src/contentPlan";
-import { captionsFor } from "../src/scheduleReel";
+import { loadDailyContent } from "../src/logging";
+import { burnedNarrationFor, captionsFor, scheduleReel } from "../src/scheduleReel";
 import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions, splitNarrationSentences, type ReelConcept } from "../src/reelConcepts";
 
 const concept: ReelConcept = {
@@ -471,6 +476,218 @@ describe("captionsFor question stacking (B)", () => {
       }
       expect([...seenTypes].sort()).toEqual(Object.keys(SHARE_INVITE_BY_OBJECT).sort());
       expect([...seenTypes].sort()).toEqual(Object.keys(QUESTION_BY_OBJECT).sort());
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+});
+
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const BURNED_CAPTION_DATE = "2026-10-02";
+const BURNED_CAPTION_CONCEPT = "plush-doll";
+const BURNED_OLD_LEAD = "娃娃能洗,但洗法差很多。";
+const BURNED_OLD_ASS = [
+  "[Script Info]",
+  "ScriptType: v4.00+",
+  "",
+  "[Events]",
+  "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+  `Dialogue: 0,0:00:00.37,0:00:02.60,Narration,,0,0,0,,${BURNED_OLD_LEAD}`,
+  "Dialogue: 0,0:00:02.60,0:00:04.46,Narration,,0,0,0,,怕的不是水,是脫水。"
+].join("\n");
+
+function officialReelsDir(): string | undefined {
+  const candidates = [
+    join(process.cwd(), "output", "reels-run", "2026-07-29", "reels"),
+    join(process.cwd(), "..", "..", "..", "output", "reels-run", "2026-07-29", "reels")
+  ];
+  return candidates.find((dir) => existsSync(dir));
+}
+
+async function seedBurnedCaptionRoot(options: { ass?: string }): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), "schedule-reel-burned-"));
+  const reels = join(root, "output", "reels-run", "2026-07-29", "reels");
+  const refs = join(root, "output", "reels-run", "2026-07-29", "references");
+  await mkdir(reels, { recursive: true });
+  await mkdir(refs, { recursive: true });
+  await writeFile(join(reels, `${BURNED_CAPTION_CONCEPT}.mp4`), Buffer.from("fake-reel-bytes"));
+  await writeFile(
+    join(reels, `${BURNED_CAPTION_CONCEPT}.mp4.audio.json`),
+    JSON.stringify({
+      narration: true,
+      generated_clip_audio_used: false,
+      source: "post-ambient-bed"
+    })
+  );
+  if (options.ass !== undefined) {
+    await writeFile(join(reels, `${BURNED_CAPTION_CONCEPT}.ass`), options.ass, "utf8");
+  }
+  await writeFile(
+    join(refs, `${BURNED_CAPTION_CONCEPT}-before.png`),
+    Buffer.concat([PNG_MAGIC, Buffer.from("cover")])
+  );
+
+  const slots = [1, 2].map((slot) => ({
+    slot,
+    time: slot === 1 ? "11:30" : "20:30",
+    category: slot === 1 ? "知識文" : "情境文",
+    topic: slot === 1 ? "白鞋鞋帶發灰" : "帆布包提把發黑",
+    format: "image-post",
+    media_type: "image",
+    instagram_caption: "caption",
+    facebook_caption: "caption",
+    image_prompt: "prompt",
+    visual_route: "macro-detail",
+    traffic_route: "object-proof",
+    local_image_path: `docs/assets/${BURNED_CAPTION_DATE}/slot-0${slot}.png`,
+    public_image_url: "",
+    status: "pending"
+  }));
+  await mkdir(join(root, "data", "content-calendar"), { recursive: true });
+  await writeFile(
+    join(root, "data", "content-calendar", `${BURNED_CAPTION_DATE}.json`),
+    `${JSON.stringify(
+      {
+        date: BURNED_CAPTION_DATE,
+        timezone: "Asia/Taipei",
+        generated_at: `${BURNED_CAPTION_DATE}T00:00:00.000Z`,
+        slots
+      },
+      null,
+      2
+    )}\n`
+  );
+  await mkdir(join(root, "docs", "assets", BURNED_CAPTION_DATE), { recursive: true });
+  return root;
+}
+
+describe("burned narration captions (SXJ-REELQ r7)", () => {
+  it("uses burned .ass narration as caption lead and records narration_source burned", async () => {
+    const live = REEL_CONCEPTS.find((entry) => entry.id === BURNED_CAPTION_CONCEPT);
+    expect(live).toBeDefined();
+    const conceptLead = splitNarrationSentences(live!.narration)[0] ?? "";
+    expect(conceptLead.endsWith("？")).toBe(true);
+    expect(conceptLead).not.toBe(BURNED_OLD_LEAD);
+
+    const root = await seedBurnedCaptionRoot({ ass: BURNED_OLD_ASS });
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    });
+    try {
+      await scheduleReel({
+        date: BURNED_CAPTION_DATE,
+        conceptId: BURNED_CAPTION_CONCEPT,
+        slot: 2,
+        root
+      });
+    } finally {
+      spy.mockRestore();
+    }
+
+    const slot = (await loadDailyContent(BURNED_CAPTION_DATE, root))?.slots.find((item) => item.slot === 2) as
+      | { instagram_caption: string; facebook_caption: string; narration_source?: string; narration_first_sentence?: string }
+      | undefined;
+    expect(slot).toBeDefined();
+    expect(slot!.instagram_caption.startsWith(BURNED_OLD_LEAD)).toBe(true);
+    expect(slot!.facebook_caption.startsWith(BURNED_OLD_LEAD)).toBe(true);
+    expect(slot!.instagram_caption.startsWith(conceptLead)).toBe(false);
+    expect(slot!.narration_source).toBe("burned");
+    expect(slot!.narration_first_sentence).toBe(BURNED_OLD_LEAD);
+    expect(logs.some((line) => line.includes("narration_source: burned"))).toBe(true);
+    expect(logs.some((line) => line.includes(`narration_first_sentence: ${BURNED_OLD_LEAD}`))).toBe(true);
+  });
+
+  it("falls back to the concept narration when the reel has no .ass", async () => {
+    const live = REEL_CONCEPTS.find((entry) => entry.id === BURNED_CAPTION_CONCEPT);
+    expect(live).toBeDefined();
+    const conceptLead = splitNarrationSentences(live!.narration)[0] ?? "";
+    expect(conceptLead.endsWith("？")).toBe(true);
+
+    const root = await seedBurnedCaptionRoot({});
+    await scheduleReel({
+      date: BURNED_CAPTION_DATE,
+      conceptId: BURNED_CAPTION_CONCEPT,
+      slot: 2,
+      root
+    });
+
+    const slot = (await loadDailyContent(BURNED_CAPTION_DATE, root))?.slots.find((item) => item.slot === 2) as
+      | { instagram_caption: string; narration_source?: string; narration_first_sentence?: string }
+      | undefined;
+    expect(slot).toBeDefined();
+    expect(slot!.instagram_caption.startsWith(conceptLead)).toBe(true);
+    expect(slot!.instagram_caption.startsWith(BURNED_OLD_LEAD)).toBe(false);
+    expect(slot!.narration_source).toBe("concept");
+    expect(slot!.narration_first_sentence).toBe(conceptLead);
+  });
+
+  it("restores Dialogue text after stripping override tags and \\N, in time order", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "burned-ass-parse-"));
+    const reel = join(dir, "clip.mp4");
+    await writeFile(reel, Buffer.from("x"));
+    await writeFile(
+      join(dir, "clip.ass"),
+      [
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+        "Dialogue: 0,0:00:02.00,0:00:03.50,Narration,,0,0,0,,{\\i1}第二卡{\\i0}",
+        "Dialogue: 0,0:00:00.50,0:00:02.00,Narration,,0,0,0,,{\\b1}舊句{\\b0}陳述\\N旁白。"
+      ].join("\n"),
+      "utf8"
+    );
+    expect(burnedNarrationFor(reel)).toBe("舊句陳述旁白。第二卡");
+  });
+
+  it("reads a string narration field from .audio.json when no .ass exists", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "burned-audio-json-"));
+    const reel = join(dir, "clip.mp4");
+    await writeFile(reel, Buffer.from("x"));
+    await writeFile(
+      `${reel}.audio.json`,
+      JSON.stringify({ narration: "音檔旁白全文。第二句。", source: "post-ambient-bed" }),
+      "utf8"
+    );
+    expect(burnedNarrationFor(reel)).toBe("音檔旁白全文。第二句。");
+  });
+
+  it("ignores boolean narration flags on .audio.json", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "burned-audio-flag-"));
+    const reel = join(dir, "clip.mp4");
+    await writeFile(reel, Buffer.from("x"));
+    await writeFile(
+      `${reel}.audio.json`,
+      JSON.stringify({ narration: true, source: "post-ambient-bed" }),
+      "utf8"
+    );
+    expect(burnedNarrationFor(reel)).toBeUndefined();
+  });
+
+  const officialDir = officialReelsDir();
+  const officialIt = officialDir ? it : it.skip;
+
+  officialIt("reads official run .ass for all 26 concepts via burnedNarrationFor", () => {
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      expect(REEL_CONCEPTS.length).toBe(26);
+      expect(officialDir).toBeDefined();
+      const rows: string[] = [];
+      for (const concept of REEL_CONCEPTS) {
+        const reel = join(officialDir!, `${concept.id}.mp4`);
+        const burned = burnedNarrationFor(reel);
+        const burnedLead = burned ? splitNarrationSentences(burned)[0] ?? burned : "";
+        const conceptLead = splitNarrationSentences(concept.narration)[0] ?? concept.narration;
+        const match = burned ? burnedLead === conceptLead : "no-ass";
+        rows.push(`${concept.id}\t${burnedLead || "(none)"}\t${conceptLead}\t${match}`);
+        if (existsSync(join(officialDir!, `${concept.id}.ass`)) || existsSync(`${reel}.ass`)) {
+          expect(burned, `${concept.id} has .ass but burnedNarrationFor returned empty`).toBeTruthy();
+        }
+      }
+      // Printed so the NOTES table is the same run as this assertion, not a second parse.
+      console.log(`OFFICIAL_ASS_TABLE\n${rows.join("\n")}`);
     } finally {
       REEL_CONCEPTS.length = baselineConcepts;
       REEL_SCHEDULE.length = baselineSchedule;

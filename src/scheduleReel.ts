@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { access, copyFile, mkdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
@@ -216,10 +217,96 @@ function reelActionCta(concept: ReelConcept, platform: "instagram" | "facebook")
 
 const FOLLOW_LINE = "私享家洗衣店｜台中市區免費到府收送";
 
+export type ReelNarrationSource = "burned" | "concept";
+
+const ASS_OVERRIDE_BLOCK = /\{[^}]*\}/gu;
+const AUDIO_JSON_NARRATION_KEYS = ["narration", "narration_text", "NarrationText", "text"] as const;
+
+function readUtf8IfPresent(path: string): string | undefined {
+  try {
+    return readFileSync(path, "utf8").replace(/^\uFEFF/u, "");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    return undefined;
+  }
+}
+
+function assStartToCs(start: string): number {
+  const trimmed = start.trim();
+  const dot = trimmed.lastIndexOf(".");
+  const hms = dot >= 0 ? trimmed.slice(0, dot) : trimmed;
+  const csRaw = dot >= 0 ? trimmed.slice(dot + 1) : "0";
+  const parts = hms.split(":").map(Number);
+  const cs = Number(csRaw);
+  if (parts.length === 0 || parts.some((n) => Number.isNaN(n)) || Number.isNaN(cs)) return 0;
+  let seconds = 0;
+  for (const part of parts) seconds = seconds * 60 + part;
+  return seconds * 100 + cs;
+}
+
+function stripAssDialogueText(raw: string): string {
+  return raw.replace(ASS_OVERRIDE_BLOCK, "").replace(/\\N/gi, "").trim();
+}
+
+function narrationFromAss(contents: string): string | undefined {
+  const events: Array<{ start: number; index: number; text: string }> = [];
+  for (const line of contents.split(/\r?\n/)) {
+    if (!/^Dialogue:/i.test(line)) continue;
+    const payload = line.replace(/^Dialogue:\s*/i, "");
+    const parts = payload.split(",");
+    if (parts.length < 10) continue;
+    const text = stripAssDialogueText(parts.slice(9).join(","));
+    if (!text) continue;
+    events.push({ start: assStartToCs(parts[1] ?? ""), index: events.length, text });
+  }
+  events.sort((a, b) => a.start - b.start || a.index - b.index);
+  const joined = events.map((event) => event.text).join("");
+  return joined.length > 0 ? joined : undefined;
+}
+
+function narrationFromAudioJson(contents: string): string | undefined {
+  try {
+    const parsed = JSON.parse(contents) as Record<string, unknown>;
+    for (const key of AUDIO_JSON_NARRATION_KEYS) {
+      const value = parsed[key];
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+function assCandidatesFor(reelSourcePath: string): string[] {
+  // burn-narration-subs.ps1 writes <basename>.ass next to the mp4
+  // (`plush-doll.ass` beside `plush-doll.mp4`). The contract's
+  // `<reelSource>.ass` literal is `plush-doll.mp4.ass`. Try both.
+  const paths = [/\.mp4$/i.test(reelSourcePath) ? reelSourcePath.replace(/\.mp4$/i, ".ass") : "", `${reelSourcePath}.ass`];
+  return [...new Set(paths.filter((path) => path.length > 0))];
+}
+
+/**
+ * Read the narration actually burned onto a reel: same-stem `.ass` Dialogue
+ * text in time order, else a string narration field on `.audio.json`.
+ * Missing or unusable evidence returns undefined so callers keep the concept.
+ */
+export function burnedNarrationFor(reelSourcePath: string): string | undefined {
+  for (const assPath of assCandidatesFor(reelSourcePath)) {
+    const raw = readUtf8IfPresent(assPath);
+    if (raw === undefined) continue;
+    const fromAss = narrationFromAss(raw);
+    if (fromAss) return fromAss;
+  }
+  const sidecar = readUtf8IfPresent(`${reelSourcePath}.audio.json`);
+  if (sidecar === undefined) return undefined;
+  return narrationFromAudioJson(sidecar);
+}
+
 export function captionsFor(
   concept: ReelConcept,
   airedBefore: number,
-  date: string
+  date: string,
+  narrationOverride?: string
 ): { instagram: string; facebook: string } {
   const hashtags = ["#私享家洗衣店", "#台中西屯洗衣店", "#台中免費收送", "#洗護日常"].join(" ");
   // Block 2 is the observation (narration), never the bare shop name — Instagram
@@ -229,13 +316,18 @@ export function captionsFor(
   // insight data measured -50%+ views on unchanged reruns. Same facts, other
   // arrangement — the craftsman's diagnostic sentence takes the fold and the
   // hook closes instead of opening. No new claims are invented.
-  const narrationParts = splitNarrationSentences(concept.narration);
-  const narrationLead = narrationParts[0] ?? concept.narration;
+  //
+  // When a reel already has burned subtitles, the schedule path passes that
+  // text as narrationOverride so the caption follows the video, not a later
+  // rewrite of concept.narration. hook/close stay on the concept.
+  const narration = narrationOverride ?? concept.narration;
+  const narrationParts = splitNarrationSentences(narration);
+  const narrationLead = narrationParts[0] ?? narration;
   const narrationRest = narrationParts.slice(1).join("");
   const opening =
     airedBefore > 0
       ? [narrationLead, `${narrationRest ? narrationRest + "\n\n" : ""}${concept.hook}。`]
-      : [concept.hook + "。", concept.narration];
+      : [concept.hook + "。", narration];
   // Skip questionFor when any opening sentence already contains ？.
   // Intentional: if a future concept opens with a statement and a later
   // opening sentence asks, questionFor is still skipped.
@@ -269,7 +361,7 @@ export function captionsFor(
   // every one of them published without a tappable link, without a price and
   // with four generic tags. The topic is the concept's object, which is what
   // the price and intent-tag rules match on.
-  const topic = `${concept.hook}${concept.narration}`;
+  const topic = `${concept.hook}${narration}`;
   const campaign = utmCampaign(date, 2, "reel");
   const siteBaseUrl = getConfig().publicSiteBaseUrl;
   return {
@@ -395,9 +487,21 @@ export async function scheduleReel(input: {
     await copyFile(coverSource, join(root, coverRel));
   }
 
-  const captions = captionsFor(concept, priorAirings(concept.id, input.date), input.date);
+  const burnedNarration = burnedNarrationFor(reelSource);
+  const narrationSource: ReelNarrationSource = burnedNarration ? "burned" : "concept";
+  const usedNarration = burnedNarration ?? concept.narration;
+  const captions = captionsFor(
+    concept,
+    priorAirings(concept.id, input.date),
+    input.date,
+    burnedNarration
+  );
+  const narrationFirstSentence = splitNarrationSentences(usedNarration)[0] ?? usedNarration;
   const scheduleTime = slotNumber === 3 ? "12:00" : slotNumber === 2 ? "20:30" : slot.time;
-  const patched: DailySlot = {
+  const patched: DailySlot & {
+    narration_source: ReelNarrationSource;
+    narration_first_sentence: string;
+  } = {
     ...slot,
     time: scheduleTime,
     topic: concept.hook,
@@ -405,6 +509,8 @@ export async function scheduleReel(input: {
     media_type: "reel",
     instagram_caption: captions.instagram,
     facebook_caption: captions.facebook,
+    narration_source: narrationSource,
+    narration_first_sentence: narrationFirstSentence,
     image_prompt: reelCoverPrompt(concept, coverExists ? coverSourceRel : undefined),
     carousel_items: undefined,
     media_package: undefined,
@@ -518,6 +624,8 @@ export async function scheduleReel(input: {
   });
 
   console.log(`${input.date} slot ${slotNumber} (${variant}) <- ${concept.id}`);
+  console.log(`narration_source: ${narrationSource}`);
+  console.log(`narration_first_sentence: ${narrationFirstSentence}`);
 }
 
 async function fileExists(path: string): Promise<boolean> {

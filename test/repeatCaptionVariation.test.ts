@@ -73,6 +73,14 @@ describe("re-airing caption variation", () => {
     expect(rerun.instagram).toContain(rest);
   });
 
+  it("rerun lead follows a burned narration override instead of the live concept", () => {
+    const burned = "舊句陳述旁白。其餘還是影片裡的句子。";
+    const burnedRerun = captionsFor(concept, 1, "2026-08-17", burned);
+    expect(burnedRerun.instagram.startsWith("舊句陳述旁白。")).toBe(true);
+    expect(burnedRerun.instagram.startsWith(firstSentence)).toBe(false);
+    expect(burnedRerun.instagram).toContain(`${concept.hook}。`);
+  });
+
   it("keeps the shared caption rules alive in both arrangements", () => {
     for (const caption of [first.instagram, rerun.instagram, first.facebook, rerun.facebook]) {
       expect(caption).toContain(linePostRedirectUrl());

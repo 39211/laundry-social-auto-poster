@@ -78,6 +78,11 @@ export function reelCoverPrompt(concept: ReelConcept, beforeStillRelativePath?: 
 }
 
 function shareInviteFor(concept: ReelConcept): string {
+  // handbag-handle is about a sticky grip, not worn corners. Grouping it with
+  // leather-bag under object_type put the corner invite on a handle Reel.
+  if (concept.id === "handbag-handle") {
+    return "身邊有人的包提把也開始發黏嗎？這篇傳給他。";
+  }
   switch (concept.object_type) {
     case "duvet":
       return "家裡那位總說「棉被還可以再放一下」的人，這篇可以轉給他。";
@@ -86,8 +91,50 @@ function shareInviteFor(concept: ReelConcept): string {
     case "leather-bag":
     case "handbag":
       return "身邊有人的包正在磨邊角嗎？這篇傳給他。";
+    case "white-shoe":
+      return "認識那種白鞋放到發黃還沒處理的人嗎？傳給他。";
+    case "leather-shoe":
+      return "身邊有人的皮鞋淋過雨還沒處理嗎？這篇傳給他。";
+    case "canvas-shoe":
+      return "身邊有人的帆布鞋泥乾了還放著嗎？這篇傳給他。";
+    case "suede-shoe":
+      return "身邊有人的麂皮鞋摸起來變硬了嗎？這篇傳給他。";
+    case "high-heel":
+      return "身邊有人的高跟鞋跟頭磨白了嗎？這篇傳給他。";
+    case "kids-shoe":
+      return "身邊有人的童鞋鞋頭已經磨花了嗎？這篇傳給他。";
+    case "hiking-boot":
+      return "身邊有人的登山鞋底還卡著乾泥嗎？這篇傳給他。";
+    case "leather-boot":
+      return "身邊有人的靴子放一季就發霉了嗎？這篇傳給他。";
+    case "shirt":
+      return "家裡那位襯衫領口都黃了還在穿的人，這篇可以轉給他。";
+    case "suit":
+      return "身邊有人的西裝肩線已經開始塌了嗎？這篇傳給他。";
+    case "curtain":
+      return "家裡那位窗簾下緣積灰都沒拆過的人，這篇可以轉給他。";
+    case "luggage":
+      return "身邊有人的行李箱輪子還卡著灰嗎？這篇傳給他。";
+    case "backpack":
+      return "身邊有人的後背包底部從來沒洗過嗎？這篇傳給他。";
+    case "down-jacket":
+      return "身邊有人的羽絨外套袖口已經發黑了嗎？這篇傳給他。";
+    case "wool-coat":
+      return "家裡那位大衣肩線積了一層灰還繼續掛著的人，這篇可以轉給他。";
+    case "leather-belt":
+      return "身邊有人的皮帶摺痕已經發白裂了嗎？這篇傳給他。";
+    case "mattress-pad":
+      return "家裡那位保潔墊出現黃圈還繼續用的人，這篇可以轉給他。";
+    case "blanket":
+      return "身邊有人的毛毯起球摸起來變粗了嗎？這篇傳給他。";
+    case "denim":
+      return "身邊有人的牛仔褲膝蓋已經鬆掉了嗎？這篇傳給他。";
+    case "wallet":
+      return "身邊有人的長夾邊角開始起毛了嗎？這篇傳給他。";
+    case "sweater":
+      return "身邊有人的毛衣腋下出現黃斑了嗎？這篇傳給他。";
     default:
-      return "認識那種鞋子捨不得丟、又不知道怎麼救的人嗎？傳給他。";
+      return "這篇可以轉給他。";
   }
 }
 
@@ -100,8 +147,50 @@ function questionFor(concept: ReelConcept): string {
     case "handbag":
     case "leather-bag":
       return "哪一件是你最不敢自己動手處理的？";
+    case "white-shoe":
+      return "你那雙白鞋放多久沒穿了？";
+    case "leather-shoe":
+      return "你那雙皮鞋淋雨之後，有沒有再處理過？";
+    case "canvas-shoe":
+      return "你那雙帆布鞋的泥，是等乾了再清，還是濕的時候就刷？";
+    case "suede-shoe":
+      return "你那雙麂皮鞋摸起來變硬的時候，你會先怎麼處理？";
+    case "high-heel":
+      return "高跟鞋跟頭磨白之後，你是繼續穿還是先收起來？";
+    case "kids-shoe":
+      return "家裡那雙童鞋鞋頭磨花了，你會先洗還是直接換？";
+    case "hiking-boot":
+      return "登山鞋底卡了乾泥，你回來會先清嗎？";
+    case "leather-boot":
+      return "靴子在櫃子放一季，拿出來你會先看皮面嗎？";
+    case "shirt":
+      return "你的襯衫比較常出問題的，是領口還是袖口？";
+    case "suit":
+      return "你那件西裝，肩線還站得住嗎？";
+    case "curtain":
+      return "家裡窗簾下緣那一折，你上次是什麼時候清的？";
+    case "luggage":
+      return "旅行回來的行李箱，你會先清輪子再收嗎？";
+    case "backpack":
+      return "你最常用的後背包，底部有多久沒看過了？";
+    case "down-jacket":
+      return "羽絨外套袖口發黑的時候，你會整件送還是只搓袖口？";
+    case "wool-coat":
+      return "大衣收進櫃子前，你會先拍掉肩線上的灰嗎？";
+    case "leather-belt":
+      return "皮帶那一格摺痕發白了，你還會繼續扣同一格嗎？";
+    case "mattress-pad":
+      return "保潔墊出現黃圈之後，你會跟被子一起送嗎？";
+    case "blanket":
+      return "毛毯起球摸起來變粗的時候，你會先修還是繼續蓋？";
+    case "denim":
+      return "牛仔褲膝蓋鬆掉以後，你還會繼續穿嗎？";
+    case "wallet":
+      return "長夾邊角開始起毛的時候，你會先補還是再拖？";
+    case "sweater":
+      return "毛衣腋下那塊黃，你是當季就洗，還是收到換季？";
     default:
-      return "如果只能先救一樣，你會選鞋子還是包包？";
+      return "你最近最想先處理哪一件？";
   }
 }
 

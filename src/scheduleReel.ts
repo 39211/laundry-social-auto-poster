@@ -113,12 +113,12 @@ function reelActionCta(concept: ReelConcept, platform: "instagram" | "facebook")
     case "duvet":
       return `換季要整理寢具的話，${channel}說一下數量就可以，我們去收。`;
     case "plush-doll":
-      return `家裡有不敢洗的娃娃？拍一張${channel}，我們先幫你看能不能洗。`;
+      return `拍一張${channel}，我們先看洗法。`;
     case "leather-bag":
     case "handbag":
-      return `不確定這只包還救不救得回來？拍一張${channel}給我們，先幫你看。`;
+      return `拍一張${channel}給我們，我們先看邊角。`;
     default:
-      return `不確定該怎麼處理？拍一張${channel}給我們，先幫你看方向。`;
+      return `拍一張${channel}給我們，我們先看方向。`;
   }
 }
 
@@ -144,20 +144,32 @@ export function captionsFor(
     airedBefore > 0
       ? [narrationLead, `${narrationRest ? narrationRest + "\n\n" : ""}${concept.hook}。`]
       : [concept.hook + "。", concept.narration];
+  // Lead is the fold line: rerun = first narration sentence, first run = hook.
+  // Knob 2A made every narration open with ？, so first-run opening also already
+  // asked. Stacking questionFor on top repeats the same ask (and fights the
+  // share invite). Skip that block; keep the share sentence and the CTA.
+  const lead = airedBefore > 0 ? narrationLead : `${concept.hook}。`;
+  const skipQuestionFor =
+    /[？?]\s*$/u.test(lead.trim()) || /[？?]/.test(opening.join(""));
+  const igQuestionShare = skipQuestionFor
+    ? shareInviteFor(concept)
+    : `${questionFor(concept)}\n\n${shareInviteFor(concept)}`;
   const instagram = [
     ...opening,
     reelActionCta(concept, "instagram"),
-    `${questionFor(concept)}\n\n${shareInviteFor(concept)}`,
+    igQuestionShare,
     FOLLOW_LINE,
     hashtags
   ].join("\n\n");
-  const facebook = [
-    ...opening,
-    reelActionCta(concept, "facebook"),
-    questionFor(concept),
-    FOLLOW_LINE,
-    hashtags
-  ].join("\n\n");
+  const facebook = skipQuestionFor
+    ? [...opening, reelActionCta(concept, "facebook"), FOLLOW_LINE, hashtags].join("\n\n")
+    : [
+        ...opening,
+        reelActionCta(concept, "facebook"),
+        questionFor(concept),
+        FOLLOW_LINE,
+        hashtags
+      ].join("\n\n");
   // Reels were assembled here and never passed through the shared rules, so
   // every one of them published without a tappable link, without a price and
   // with four generic tags. The topic is the concept's object, which is what

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { linePostRedirectUrl } from "../src/contentPlan";
 import { captionsFor } from "../src/scheduleReel";
-import type { ReelConcept } from "../src/reelConcepts";
+import { REEL_CONCEPTS, REEL_SCHEDULE, loadExtensions, splitNarrationSentences, type ReelConcept } from "../src/reelConcepts";
 
 const concept: ReelConcept = {
   id: "test-utm-reel",
@@ -51,5 +51,60 @@ describe("captionsFor re-airing lead (O-F1)", () => {
     // indexOf("。") would swallow through 那不是髒。 and this would go green
     // for the wrong splitter.
     expect(rerun.instagram.startsWith("絨毛倒了發硬發亮,那是髒嗎？那不是髒。")).toBe(false);
+  });
+});
+
+describe("captionsFor question stacking (B)", () => {
+  const CTA_BLOCK = /拍一張(?:私訊|傳 LINE)|說一下數量/;
+  const QUESTION_FOR_PLUSH = "家裡有沒有那種一直想洗、又不太敢洗的娃娃？";
+
+  it("keeps ？ to ≤2 across 26 concepts × first/rerun × IG/FB, and CTA has none", () => {
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      expect(REEL_CONCEPTS.length).toBe(26);
+      for (const concept of REEL_CONCEPTS) {
+        for (const airedBefore of [0, 1] as const) {
+          const caps = captionsFor(concept, airedBefore, "2026-09-05");
+          for (const [platform, text] of [
+            ["instagram", caps.instagram],
+            ["facebook", caps.facebook]
+          ] as const) {
+            const qCount = (text.match(/？/g) ?? []).length;
+            expect(
+              qCount,
+              `${concept.id} aired=${airedBefore} ${platform} has ${qCount} ？\n${text}`
+            ).toBeLessThanOrEqual(2);
+            const ctaBlock = text.split("\n\n").find((block) => CTA_BLOCK.test(block));
+            expect(ctaBlock, `${concept.id} ${platform} missing CTA block`).toBeDefined();
+            expect(ctaBlock, `${concept.id} ${platform} CTA has ？: ${ctaBlock}`).not.toContain("？");
+            expect(ctaBlock, `${concept.id} ${platform} CTA has ?`).not.toContain("?");
+          }
+        }
+      }
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+
+  it("skips questionFor when the lead already ends with ？", () => {
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      const plush = REEL_CONCEPTS.find((entry) => entry.id === "plush-doll");
+      expect(plush).toBeDefined();
+      const lead = splitNarrationSentences(plush!.narration)[0] ?? "";
+      expect(lead.endsWith("？")).toBe(true);
+      const rerun = captionsFor(plush!, 1, "2026-09-05");
+      expect(rerun.instagram).not.toContain(QUESTION_FOR_PLUSH);
+      expect(rerun.facebook).not.toContain(QUESTION_FOR_PLUSH);
+      expect(rerun.instagram.startsWith(lead)).toBe(true);
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
   });
 });

@@ -16,7 +16,7 @@ import {
   splitNarrationSentences,
   stillPathsFor
 } from "../src/reelConcepts";
-import { SUB_MAX_CHARS, splitNarration } from "../src/reelSubtitles";
+import { ORPHAN_CHARS, SUB_MAX_CHARS, splitNarration } from "../src/reelSubtitles";
 
 describe("reel concepts", () => {
   it("covers six distinct object types so no two Reels look alike", () => {
@@ -352,8 +352,6 @@ describe("reel concept story structure (loop + delayed reveal)", () => {
 // Knob 2A r2 (2026-09-05): first spoken sentence is a question for every
 // concept. Length is 6–24 so a comma-split question can still fit the
 // 45–60 admission window; 起/保證/一定 stay banned in the opener.
-const SUB_CLAUSE_BREAK = /(?<=[。！？!?，,、；;：:…])/u;
-
 function readExtensionFile(): {
   concepts: Array<{ id: string; narration: string }>;
   schedule: unknown[];
@@ -425,7 +423,7 @@ describe("extension file question shape and loader admission (K-F5 / O-F6)", () 
 });
 
 describe("narration subtitle cards (O-F2)", () => {
-  it("never starts a card with ？ and never hard-wraps a clause", () => {
+  it("never starts a card with ？ and keeps live cards within the module width", () => {
     const baselineConcepts = REEL_CONCEPTS.length;
     const baselineSchedule = REEL_SCHEDULE.length;
     loadExtensions();
@@ -434,22 +432,21 @@ describe("narration subtitle cards (O-F2)", () => {
         const segments = splitNarration(concept.narration);
         for (const segment of segments) {
           expect(segment.startsWith("？"), `${concept.id} card starts with ？: ${segment}`).toBe(false);
-        }
-        const clauses = concept.narration
-          .replace(/\s+/gu, " ")
-          .trim()
-          .split(SUB_CLAUSE_BREAK)
-          .filter((clause) => clause.length > 0);
-        for (const clause of clauses) {
           expect(
-            clause.length,
-            `${concept.id} clause hard-wraps (${clause.length}): ${clause}`
-          ).toBeLessThanOrEqual(SUB_MAX_CHARS);
+            segment.length,
+            `${concept.id} card wider than SUB_MAX_CHARS+ORPHAN_CHARS (${segment.length}): ${segment}`
+          ).toBeLessThanOrEqual(SUB_MAX_CHARS + ORPHAN_CHARS);
         }
       }
     } finally {
       REEL_CONCEPTS.length = baselineConcepts;
       REEL_SCHEDULE.length = baselineSchedule;
     }
+  });
+
+  it("does not let a 3-character tail ride on the previous card", () => {
+    // Mutation: ORPHAN_CHARS 2→9 merges 丁戊己。 onto the 14-char line.
+    const segments = splitNarration("一二三四五六七八九十甲乙丙，丁戊己。");
+    expect(segments).toEqual(["一二三四五六七八九十甲乙丙，", "丁戊己。"]);
   });
 });

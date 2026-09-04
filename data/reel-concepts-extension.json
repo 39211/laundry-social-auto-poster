@@ -13,7 +13,7 @@
       "id": "wool-coat-shoulder",
       "object_type": "wool-coat",
       "hook": "大衣肩線積一條灰",
-      "narration": "掛了一整季沒穿,灰會沿那條肩線慢慢積上去嗎？刷不掉,是因為它早就卡進毛裡,要整件洗才拉得出來。",
+      "narration": "掛了一整季沒穿,灰是不是就在肩線上堆了一層？刷不掉,是因為它早就卡進毛裡,要整件洗才拉得出來。",
       "close": "長大衣 300 起,收前先拍一張給我看。",
       "before_subject": "a charcoal wool coat shoulder line with a pale dust band settled along the seam, weave intact",
       "after_subject": "the same shoulder clean and evenly charcoal, the twill weave crisp, shape unchanged"
@@ -22,7 +22,7 @@
       "id": "suede-shoe-nap",
       "object_type": "suede-shoe",
       "hook": "麂皮鞋摸起來變硬",
-      "narration": "絨毛倒了發硬發亮,那是髒嗎？那不是髒,洗完得把絨面重新刷順才回得來,用濕布擦只會把它壓得更平。",
+      "narration": "絨毛倒了發硬發亮,那是髒嗎？那不是髒,洗完得把整片絨面重新刷順才回得來,用濕布擦只會把它壓得更平。",
       "close": "麂皮鞋 400 起,不確定材質先拍給我。",
       "before_subject": "a tan suede shoe whose nap has flattened and gone shiny across the vamp, no tears",
       "after_subject": "the same shoe with the nap lifted and even again, matte and soft-looking, colour unchanged"
@@ -31,7 +31,7 @@
       "id": "heel-tip-scuff",
       "object_type": "high-heel",
       "hook": "高跟鞋跟頭磨白",
-      "narration": "包在外面那層皮磨穿了,底下材質才會露出來嗎？清潔救不回這一塊,鞋面能洗,跟頭得換一片新的皮上去。",
+      "narration": "跟頭發白,是那層包皮磨穿了嗎？磨穿了底下材質才會露出來,清潔救不回這一塊,鞋面能洗,跟頭得換一片新的皮上去。",
       "close": "高跟鞋 400 起,補跟另計,先拍給我看。",
       "before_subject": "a black leather high heel with the heel tip covering worn through to pale base material",
       "after_subject": "the same shoe cleaned, upper leather even and matt, the worn heel tip still visibly worn"
@@ -58,7 +58,7 @@
       "id": "blanket-pilling",
       "object_type": "blanket",
       "hook": "毛毯起球摸起來粗",
-      "narration": "球是摩擦磨出來的,是你洗壞的嗎？不是你洗壞的,修掉之後手感就會回來,但下次要單獨洗,才不會再被拉鍊磨到。",
+      "narration": "這些球,是你洗壞的嗎？不是,是摩擦磨出來的,修掉之後手感就會回來,但下次要單獨洗,才不會再被拉鍊磨到。",
       "close": "毛毯雙人 400,單人 200。",
       "before_subject": "a grey fleece blanket surface covered in small pills, fabric otherwise whole",
       "after_subject": "the same blanket with pills removed, surface flat and soft, colour unchanged"
@@ -76,7 +76,7 @@
       "id": "wallet-edge-wear",
       "object_type": "wallet",
       "hook": "長夾邊角開始起毛",
-      "narration": "邊油磨掉之後,裡層的纖維就會翹開嗎？那是最早的警訊,這時候補只要薄薄一層,再拖就得整條重新上。",
+      "narration": "邊油磨掉之後,裡層纖維是不是就翹了？那是最早的警訊,這時候補只要薄薄一層,再拖就得整條重新上。",
       "close": "長皮夾 600 起,補色另計。",
       "before_subject": "a brown leather long wallet with the edge coating worn thin and fibres lifting at one corner",
       "after_subject": "the same wallet cleaned, leather even, the thinned edge still visible but no loose fibres"
@@ -85,7 +85,7 @@
       "id": "kids-shoe-toe",
       "object_type": "kids-shoe",
       "hook": "童鞋鞋頭磨到發花",
-      "narration": "這是小孩踢地板磨出來的嗎？只要面料還在就一定洗得回來,與其急著買新的一雙,先看那層膠有沒有裂開。",
+      "narration": "鞋頭這片花,洗得掉嗎？小孩踢地板磨出來的,只要面料還在就一定洗得回來,與其急著買新的一雙,先看那層膠有沒有裂開。",
       "close": "童鞋 150,兩雙以上一起收。",
       "before_subject": "a small white children's sneaker with the rubber toe cap scuffed grey, upper intact",
       "after_subject": "the same shoe clean, toe cap white again with honest fine scratches remaining"
@@ -103,7 +103,7 @@
       "id": "sweater-underarm",
       "object_type": "sweater",
       "hook": "毛衣腋下出現黃斑",
-      "narration": "汗和止汗劑會變成黃斑嗎？兩者會起反應,放得越久就越難退,當季就洗掉最好處理,收進櫃子放一季就定型了。",
+      "narration": "腋下那塊黃,是汗造成的嗎？汗和止汗劑會起反應,放得越久就越難退,當季就洗掉最好處理,收進櫃子放一季就定型了。",
       "close": "毛衣 150,精品毛衣 210。",
       "before_subject": "a cream knit sweater with a yellowed patch under the arm, knit structure intact",
       "after_subject": "the same sweater clean and evenly cream, knit unchanged, no stretching"

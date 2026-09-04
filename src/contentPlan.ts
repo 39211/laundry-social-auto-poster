@@ -1123,6 +1123,38 @@ export function topicObjectHead(topic: string): string {
     .slice(0, 8);
 }
 
+/** First date slot-2 image posts use a specific two-photo LINE action instead of a generic CTA. */
+const SLOT2_ACTION_CTA_START_DATE = "2026-09-08";
+
+const SLOT2_ACTION_CTA_PARTS: ReadonlyArray<{ keys: readonly string[]; a: string; b: string }> = [
+  { keys: ["包", "包包", "皮包", "背包"], a: "包角", b: "內裡" },
+  { keys: ["鞋", "球鞋", "運動鞋", "靴", "白鞋", "皮鞋", "麂皮"], a: "鞋面", b: "鞋底" },
+  { keys: ["外套", "西裝", "大衣", "襯衫", "衣"], a: "領口", b: "袖口" },
+  { keys: ["窗簾"], a: "下緣", b: "掛鉤處" },
+  { keys: ["娃娃", "玩偶"], a: "五官", b: "縫線" },
+  { keys: ["床", "被", "棉被", "枕"], a: "被角", b: "貼身那一面" },
+  { keys: ["地毯"], a: "邊緣", b: "最常踩的位置" },
+  { keys: ["行李箱"], a: "輪子", b: "把手" },
+  { keys: ["毛毯", "毯"], a: "起球處", b: "邊緣" }
+];
+
+/** Specific slot-2 closer: two named photos sent on LINE. Object parts come from topicObjectHead. */
+export function slot2ActionCta(topic: string): string {
+  const head = topicObjectHead(topic);
+  let a = "整體";
+  let b = "最在意的位置";
+  outer: for (const row of SLOT2_ACTION_CTA_PARTS) {
+    for (const key of row.keys) {
+      if (head.includes(key)) {
+        a = row.a;
+        b = row.b;
+        break outer;
+      }
+    }
+  }
+  return `拍${a}和${b}兩張傳 LINE，我們先看。`;
+}
+
 /** Shared 3-character object gram, or undefined when the two topics do not collide. */
 export function repeatingObjectGram(left: string, right: string): string | undefined {
   const head = topicObjectHead(left);
@@ -1569,13 +1601,53 @@ export function withSharedCaptionRules(
   return withUpgradedHashtags(withProvenanceLine(withPriceLine(withLineContact(caption, tracking), topic)), topic);
 }
 
+function isSlot2ActionCtaClosingBlock(block: string): boolean {
+  return (
+    block.startsWith("#") ||
+    block.startsWith(PROVENANCE_PREFIX) ||
+    block.startsWith("參考價") ||
+    block.includes(LINE_POST_PATH) ||
+    block.includes("0968327653")
+  );
+}
+
+function looksLikeGenericSlot2Cta(block: string, allowXianKan: boolean): boolean {
+  if (isSlot2ActionCtaClosingBlock(block)) return false;
+  if (block.startsWith("追蹤")) return false;
+  if (/(?:這篇)?(?:傳|轉)給他/.test(block) && !/傳 LINE|拍一張|私訊|拍照|先幫你看/.test(block)) {
+    return false;
+  }
+  if (/傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看/.test(block)) return true;
+  return allowXianKan && /先看/.test(block);
+}
+
+function withSlot2ActionCta(caption: string, slot: GrowthPlaybookSlot): string {
+  if (slot.slot !== 2 || slot.format === "reel" || slot.date < SLOT2_ACTION_CTA_START_DATE) {
+    return caption;
+  }
+  const action = slot2ActionCta(slot.topic);
+  const blocks = caption.split("\n\n");
+  const stopIndex = blocks.findIndex(isSlot2ActionCtaClosingBlock);
+  const body = stopIndex === -1 ? [...blocks] : blocks.slice(0, stopIndex);
+  const tail = stopIndex === -1 ? [] : blocks.slice(stopIndex);
+  const kept = body.filter((block, index) => !looksLikeGenericSlot2Cta(block, index === body.length - 1));
+  if (kept[kept.length - 1] === action) {
+    return [...kept, ...tail].join("\n\n");
+  }
+  kept.push(action);
+  return [...kept, ...tail].join("\n\n");
+}
+
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform, config?: AppConfig): string {
   const caption = baseCaptionFromPlaybook(slot, platform);
   const source: UtmSource = platform === "facebook" ? "facebook" : "instagram";
-  return withSharedCaptionRules(
-    withEngagementQuestion(caption, slot),
-    slot.topic,
-    captionTracking(slot.date, slot.slot, source, slot.format, config)
+  return withSlot2ActionCta(
+    withSharedCaptionRules(
+      withEngagementQuestion(caption, slot),
+      slot.topic,
+      captionTracking(slot.date, slot.slot, source, slot.format, config)
+    ),
+    slot
   );
 }
 
@@ -2237,7 +2309,7 @@ function videoPromptFromPlaybook(slot: GrowthPlaybookSlot): string | undefined {
   );
 }
 
-function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string): void {
+export function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string): void {
   const paragraphs = caption.split("\n\n");
   const forbidden = ["畫面維持", "這支內容會用", "短影音題", "轉詢問題", "9:16", "主視覺", "route", "SEO"];
   // Block 2 is the last line most readers see before Instagram folds the

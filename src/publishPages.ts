@@ -490,7 +490,8 @@ export function publishPagesAssets(
   date: string,
   root = projectRoot(),
   rootPagesRepo = "",
-  now: Date = new Date()
+  now: Date = new Date(),
+  options?: { env?: NodeJS.ProcessEnv }
 ): string {
   // Future-lastmod is a local fail-closed publish gate. It cannot be bypassed
   // by --skip-audit (public URL audit), IndexNow, warnings, or network state.
@@ -559,17 +560,20 @@ export function publishPagesAssets(
   const pathsToPublish = uniquePaths([...paths, ...referencedDocsPaths]);
   // Missing CNAME must still be staged on the source so a later clone cannot
   // resurrect it. Do not pass the missing path to the root mirror copy.
+  const imageMetadataPath = "docs-internal/public-image-metadata.json";
   const sourcePathsToStage = uniquePaths([
     ...pathsToPublish,
     ...sourceCnameTombstonePaths(root),
-    "docs-internal/public-image-metadata.json"
+    imageMetadataPath
   ]);
 
+  // Regen before the secret scan so the JSON is on disk and included in the
+  // scanned set. A bad PNG fails closed here (intentional): abort this tick.
+  regeneratePublicImageMetadataSync(root, {
+    env: options?.env ?? { PUBLIC_SITE_BASE_URL: getConfig().publicSiteBaseUrl }
+  });
   assertNoForbiddenStagedPaths(root);
-  assertNoSecretsInPublishTargets(root, pathsToPublish);
-
-  mkdirSync(join(root, "docs-internal"), { recursive: true });
-  regeneratePublicImageMetadataSync(root);
+  assertNoSecretsInPublishTargets(root, uniquePaths([...pathsToPublish, imageMetadataPath]));
 
   gitAddPaths(root, sourcePathsToStage);
   // The mirror is what actually serves the public site, and it can be behind

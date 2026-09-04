@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import * as fs from "node:fs";
 import { join } from "node:path";
 import { isMain } from "./cli";
 
@@ -9,9 +9,12 @@ export interface PublicImageMetadataResult {
   basePath: string;
 }
 
+/** Injected env is the only base-path source besides sitemap inference. Never read process.env here. */
 export interface RegeneratePublicImageMetadataOptions {
-  basePath?: string;
+  env?: NodeJS.ProcessEnv;
 }
+
+const PNG_HEADER_BYTES = 24;
 
 function dirPrefix(pathname: string): string {
   // "/sub/a/b.html" -> "/sub/a/", "/sub/" -> "/sub/"
@@ -32,16 +35,30 @@ function commonDirPrefix(paths: string[]): string {
   return prefix;
 }
 
-function pngSize(buf: Buffer): { width: number; height: number } {
-  if (buf.readUInt32BE(0) !== 0x89504e47) throw new Error("not png");
-  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+function pngSize(pngPath: string, relativePath: string): { width: number; height: number } {
+  const fd = fs.openSync(pngPath, "r");
+  try {
+    const buf = Buffer.alloc(PNG_HEADER_BYTES);
+    const n = fs.readSync(fd, buf, 0, PNG_HEADER_BYTES, 0);
+    if (n === 0) throw new Error(`${relativePath}: 0 bytes`);
+    for (let i = 0; i < Math.min(n, PNG_SIGNATURE.length); i++) {
+      if (buf[i] !== PNG_SIGNATURE[i]) throw new Error(`${relativePath}: not png`);
+    }
+    if (n < PNG_HEADER_BYTES) throw new Error(`${relativePath}: truncated`);
+    return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  } finally {
+    fs.closeSync(fd);
+  }
 }
 
 function resolveBasePath(locs: string[], options?: RegeneratePublicImageMetadataOptions): string {
-  if (options?.basePath !== undefined) return options.basePath;
-  return process.env.PUBLIC_SITE_BASE_URL
-    ? dirPrefix(new URL(process.env.PUBLIC_SITE_BASE_URL).pathname.replace(/\/?$/u, "/"))
-    : commonDirPrefix(locs.map((loc) => new URL(loc).pathname));
+  const siteUrl = options?.env?.PUBLIC_SITE_BASE_URL;
+  if (siteUrl) {
+    return dirPrefix(new URL(siteUrl).pathname.replace(/\/?$/u, "/"));
+  }
+  return commonDirPrefix(locs.map((loc) => new URL(loc).pathname));
 }
 
 function regeneratePublicImageMetadataAt(
@@ -49,7 +66,7 @@ function regeneratePublicImageMetadataAt(
   options?: RegeneratePublicImageMetadataOptions
 ): PublicImageMetadataResult {
   const docsRoot = join(root, "docs");
-  const sitemap = readFileSync(join(docsRoot, "sitemap.xml"), "utf8");
+  const sitemap = fs.readFileSync(join(docsRoot, "sitemap.xml"), "utf8");
   const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]).filter((loc): loc is string => Boolean(loc));
   if (locs.length === 0) throw new Error("sitemap.xml has no <loc> entries");
   const firstLoc = locs[0];
@@ -73,7 +90,7 @@ function regeneratePublicImageMetadataAt(
     const rel = siteRelative(loc, origin);
     const htmlPath =
       rel === "" ? join(docsRoot, "index.html") : rel.endsWith("/") ? join(docsRoot, rel, "index.html") : join(docsRoot, rel);
-    const html = readFileSync(htmlPath, "utf8");
+    const html = fs.readFileSync(htmlPath, "utf8");
     for (const match of html.matchAll(/<img\b([^>]*)>/gu)) {
       const attrs = match[1] ?? "";
       const src = attrs.match(/\bsrc="([^"]+)"/u)?.[1];
@@ -83,8 +100,8 @@ function regeneratePublicImageMetadataAt(
       const pngPath = join(docsRoot, assetPath);
       const webpPath = assetPath.replace(/\.png$/iu, ".webp");
       let size: { width: number; height: number };
-      if (existsSync(pngPath)) {
-        size = pngSize(readFileSync(pngPath));
+      if (fs.existsSync(pngPath)) {
+        size = pngSize(pngPath, assetPath);
       } else {
         // Sparse checkouts (CI) may lack the binary; the HTML already declares the size.
         const w = attrs.match(/\bwidth="(\d+)"/u)?.[1];
@@ -92,23 +109,25 @@ function regeneratePublicImageMetadataAt(
         if (!w || !h) throw new Error(`${assetPath}: png missing and no width/height on <img> in ${rel || "index"}`);
         size = { width: Number(w), height: Number(h) };
       }
-      if (!existsSync(join(docsRoot, webpPath))) missingWebp.push(webpPath);
+      if (!fs.existsSync(join(docsRoot, webpPath))) missingWebp.push(webpPath);
       images[assetPath] = { width: size.width, height: size.height, webp_path: webpPath };
     }
   }
   const sorted = Object.fromEntries(Object.keys(images).sort().map((k) => [k, images[k]]));
   const out = { schema_version: 1, source: "sitemap HTML image references", images: sorted };
-  const path = join(root, "docs-internal", "public-image-metadata.json");
-  writeFileSync(path, JSON.stringify(out, null, 2) + "\n", "utf8");
+  const outDir = join(root, "docs-internal");
+  fs.mkdirSync(outDir, { recursive: true });
+  const path = join(outDir, "public-image-metadata.json");
+  fs.writeFileSync(path, JSON.stringify(out, null, 2) + "\n", "utf8");
   console.log(`base path: ${basePath}; images: ${Object.keys(sorted).length}; missing webp: ${missingWebp.length}`);
   for (const missing of missingWebp) console.log("  MISSING WEBP", missing);
   return { path, imageCount: Object.keys(sorted).length, missingWebp, basePath };
 }
 
-export async function regeneratePublicImageMetadata(
+export function regeneratePublicImageMetadata(
   root: string,
   options?: RegeneratePublicImageMetadataOptions
-): Promise<PublicImageMetadataResult> {
+): PublicImageMetadataResult {
   return regeneratePublicImageMetadataAt(root, options);
 }
 
@@ -121,8 +140,10 @@ export function regeneratePublicImageMetadataSync(
 }
 
 if (isMain(import.meta.url)) {
-  regeneratePublicImageMetadata(process.argv[2] ?? process.cwd()).catch((error: unknown) => {
+  try {
+    regeneratePublicImageMetadata(process.argv[2] ?? process.cwd(), { env: process.env });
+  } catch (error: unknown) {
     console.error(error);
     process.exitCode = 1;
-  });
+  }
 }

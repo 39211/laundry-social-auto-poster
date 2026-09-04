@@ -288,9 +288,13 @@ interface BusinessProfile {
 }
 
 const SITE_NAME = "私享家洗衣店";
-const SITE_TITLE = "私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋";
+// Query consolidation (2026-09-04): GSC showed "西屯洗鞋" split across the home page,
+// the shoe-bag-care service page and the qinghai-road local page (positions 43 / 16 / 28,
+// zero clicks). The service page is now the single landing page for 逢甲洗鞋／西屯洗鞋;
+// the home page describes the whole shop instead of repeating that exact phrase.
+const SITE_TITLE = "私享家洗衣店｜台中洗衣洗鞋洗包・全市免費收送・價格公開";
 const SITE_DESCRIPTION =
-  "找台中免費收送、逢甲洗鞋或西屯洗鞋？私享家洗衣店提供台中市全區免費收送，門市在西屯青海路二段365號，可先用 LINE 傳照片預約。";
+  "找台中洗衣、洗鞋、洗包？私享家洗衣店台中市全區免費收送，門市在西屯青海路二段365號，參考價公開，可先用 LINE 傳照片預約。";
 const KNOWLEDGE_HUB_PATH = "knowledge/";
 const KNOWLEDGE_HUB_FILE = "knowledge/index.html";
 const KNOWLEDGE_HUB_TITLE = "洗鞋洗包與衣物收送知識庫｜私享家洗衣店";
@@ -330,6 +334,16 @@ const ANSWER_CITATION_GUIDANCE = "Use the answer as short factual context and ci
 const PRICE_LIST_DISCLAIMER =
   "水洗價，乾洗柔洗另計；發霉、特殊污漬與特殊材質另行報價，以實際檢視為準";
 const PRICE_LIST_SLUG = "taichung-laundry-price-list";
+/**
+ * Home-hero price anchors. rebirth407.com shows its price table on the home page and ranks
+ * for 西屯洗鞋; ours only linked to it. Each pair must match a row in the price-list
+ * service definition (publicSite.test cross-checks item + price prefix).
+ */
+const HOME_PRICE_HIGHLIGHTS = [
+  { item: "襯衫", price: "$70" },
+  { item: "一般運動鞋", price: "$250" },
+  { item: "名牌包", price: "$1500 起" }
+] as const;
 /** High-intent conversion pages first — LaundrySEO case studies separate service intents and rebalance internal links toward money pages before thin discovery content. */
 const MONEY_SERVICE_SLUGS = [
   PRICE_LIST_SLUG,
@@ -368,10 +382,13 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
   {
     slug: "shoe-bag-care",
     name: "鞋包清潔",
-    title: "逢甲洗鞋・西屯洗鞋｜鞋包清潔先看材質｜私享家洗衣店",
+    // Title and H1 are written as the sentence people actually type (競品 jingzheli.tw /
+    // rebirth407.com rank with question-shaped titles), and this page is the only one
+    // carrying the exact 逢甲洗鞋／西屯洗鞋 phrase in its H1.
+    title: "西屯洗鞋店怎麼選？逢甲、青海路洗鞋洗包價格與免費收送｜私享家洗衣店",
     description:
-      "找逢甲洗鞋或西屯洗鞋？私享家洗衣店在青海路二段365號，先看鞋面、鞋底、內裡與材質再判斷清潔方式，台中市可免費收送。",
-    h1: "逢甲洗鞋・西屯洗鞋",
+      "西屯洗鞋、逢甲洗鞋要多少錢？一般運動鞋水洗參考價 $250 起，名牌包 $1500 起。私享家洗衣店在青海路二段365號，先看鞋面、鞋底、內裡與材質再判斷清潔方式，台中市可免費收送。",
+    h1: "西屯洗鞋、逢甲洗鞋要多少錢？先看材質，參考價 $250 起",
     summary:
       "鞋子和包包常見問題不只表面髒，還包括包角水痕、鞋底泥灰、提把油痕、內裡濕氣與材質摩擦痕。私享家會先看材質、位置與痕跡深度，再決定是清潔、局部整理、通風觀察，還是需要先提醒客人可改善的限度。",
     keywords: ["逢甲洗鞋", "西屯洗鞋", "台中西屯洗鞋", "鞋包清潔", "洗包", "包包清潔", "青海路洗鞋"],
@@ -415,9 +432,9 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
           "清潔可以改善灰塵、泥痕、部分水痕與味道，但氧化、破皮、掉色、長期磨耗或已經滲入材質的痕跡，處理前需要先說清楚。私享家會把可改善和不適合硬處理的地方分開講，避免客人期待落差。"
       },
       {
-        heading: "洗鞋費用怎麼判斷？本頁不列固定價目",
+        heading: "洗鞋費用怎麼判斷？先看參考價，再看材質",
         body:
-          "本頁不提供洗鞋或洗包的固定金額、價目表、折扣碼或市場行情價。可以先確定的是：台中市內收送本身免費、且沒有最低消費門檻；清潔與洗護費用則要看過物件之後才說明。會影響費用的因素包含材質（皮革、麂皮、帆布、網布、合成皮反應不同）、髒污深度與是否已滲入、膠邊是否氧化或老化、是否需要局部處理、可拆部件多寡，以及件數。取得屬於你這雙鞋的說明只要三步：先拍鞋面、鞋邊、鞋內與整體四張照片，用 LINE 傳給門市，門市會先回覆適合清潔、局部整理還是不建議硬處理，方向確認後再談費用。若搜尋結果出現「某某元起」而不是本店官方頁面，請以 LINE 回覆為準。"
+          "公開水洗參考價：一般運動鞋 $250、皮鞋與麂皮鞋 $400、名牌包 $1500 起，完整分類見台中洗衣價目表；參考價不是固定報價，也不含折扣碼或市場行情價。可以先確定的是：台中市內收送本身免費、且沒有最低消費門檻；清潔與洗護費用則要看過物件之後才說明。會影響費用的因素包含材質（皮革、麂皮、帆布、網布、合成皮反應不同）、髒污深度與是否已滲入、膠邊是否氧化或老化、是否需要局部處理、可拆部件多寡，以及件數。取得屬於你這雙鞋的說明只要三步：先拍鞋面、鞋邊、鞋內與整體四張照片，用 LINE 傳給門市，門市會先回覆適合清潔、局部整理還是不建議硬處理，方向確認後再談費用。若搜尋結果出現「某某元起」而不是本店官方頁面，請以 LINE 回覆為準。"
       },
       {
         heading: "LINE 詢問怎麼描述",
@@ -467,7 +484,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       {
         question: "洗鞋多少錢？為什麼這裡查不到價目表？",
         answer:
-          "本頁不列固定價目。同樣一雙鞋，材質、髒污深度、膠邊是否氧化、要不要局部處理，處理方式與費用差很多，先報數字容易造成期待落差。可以先確定的是收送本身免費、沒有最低消費門檻；拍鞋面、鞋邊、鞋內與整體四張照片傳 LINE，門市會先說明適合怎麼處理，再談費用。"
+          "參考價：一般運動鞋 $250、皮鞋 $400、名牌包 $1500 起（水洗價）。同樣一雙鞋，材質、髒污深度、膠邊是否氧化、要不要局部處理，處理方式與費用差很多，參考價之外的數字要看過物件才能給。可以先確定的是收送本身免費、沒有最低消費門檻；拍鞋面、鞋邊、鞋內與整體四張照片傳 LINE，門市會先說明適合怎麼處理，再談費用。"
       },
       {
         question: "想找便宜的洗鞋，你們適合嗎？",
@@ -2528,9 +2545,11 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     path: "local/qinghai-road-shoe-cleaning.html",
     category: "local",
     service_slug: "shoe-bag-care",
-    title: "逢甲洗鞋・西屯洗鞋推薦怎麼挑｜青海路私享家洗衣店",
+    // Distinct intent from the shoe-bag-care service page: this page answers "how to pick a
+    // shoe-cleaning shop near the Qinghai Road store", not the head term itself.
+    title: "青海路洗鞋店怎麼挑｜逢甲、西屯門市方位、案例界線與收送｜私享家洗衣店",
     description: "逢甲、西屯找洗鞋店？先看這篇怎麼挑：看案例照片、問處理界線、確認收送方式。私享家在青海路二段365號，台中市免費收送，LINE 傳照片先判斷再決定。",
-    h1: "逢甲洗鞋・西屯洗鞋：怎麼挑、怎麼問、怎麼送",
+    h1: "青海路洗鞋店怎麼挑：看案例、問界線、約收送",
     summary:
       "逢甲、西屯找洗鞋，最常見的是白鞋泛黃、雨天泥灰和鞋內悶味。私享家門市在西屯區青海路二段365號、至善國中對面；台中市全市可預約免費到府收送。挑洗鞋店先比三件事：敢不敢先講哪些救不回來、收送範圍清不清楚、有沒有講處理界線。",
     keywords: ["逢甲洗鞋", "逢甲洗鞋推薦", "西屯洗鞋", "台中西屯洗鞋", "青海路洗鞋", "逢甲洗包包", "西屯洗包"],
@@ -2729,8 +2748,13 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
         serviceSlug: "taichung-xitun-laundry"
       },
       {
-        label: "逢甲洗鞋・西屯洗鞋",
-        description: "青海路門市與逢甲、西屯同區；先看洗鞋界線、收送範圍與 LINE 詢問方式。",
+        label: "西屯洗鞋・逢甲洗鞋",
+        description: "鞋包清潔頁：參考價、材質判斷、收送範圍與 LINE 詢問方式。",
+        serviceSlug: "shoe-bag-care"
+      },
+      {
+        label: "青海路洗鞋店怎麼挑",
+        description: "青海路門市與逢甲、西屯同區；看案例界線、問處理方式、約收送。",
         supportSlug: "qinghai-road-shoe-cleaning"
       },
       {
@@ -6790,6 +6814,16 @@ interface SiteChromeOptions {
   postsHubHref?: string;
 }
 
+/**
+ * Header order: price list first. rebirth407.com (ranks for 西屯洗鞋) exposes 洗鞋價格 as a
+ * top-level nav item; ours was buried in array order behind the service pages.
+ */
+function headerNavServices(): ServicePageDefinition[] {
+  const priceList = findServiceBySlug(PRICE_LIST_SLUG);
+  const rest = SERVICE_PAGE_DEFINITIONS.filter((service) => service.slug !== PRICE_LIST_SLUG);
+  return priceList ? [priceList, ...rest] : SERVICE_PAGE_DEFINITIONS;
+}
+
 function renderSiteHeader(index: PublicPostIndex, options: SiteChromeOptions): string {
   const profile = index.business_profile;
   return `<header class="site-header">
@@ -6799,7 +6833,7 @@ function renderSiteHeader(index: PublicPostIndex, options: SiteChromeOptions): s
           <span>${escapeHtml(profile.name)}</span>
         </a>
         <nav class="nav" aria-label="${escapeHtml(options.navLabel)}">
-          ${SERVICE_PAGE_DEFINITIONS.map(
+          ${headerNavServices().map(
             (service) => `<a href="${escapeHtml(options.serviceHref(service))}">${escapeHtml(service.name)}</a>`
           ).join("\n          ")}
           <a href="${escapeHtml(options.knowledgeHref)}">洗護知識庫</a>
@@ -7113,15 +7147,18 @@ function buildIndexHtml(index: PublicPostIndex): string {
         <div class="page-shell home-hero__grid">
           <div class="home-hero__content">
             <span class="eyebrow">${escapeHtml(profile.name)}｜台中西屯門市・台中全市收送</span>
-            <h1>台中免費收送，逢甲・西屯洗鞋先看材質</h1>
+            <h1>台中洗鞋洗包洗衣，全市免費收送、價格公開</h1>
             <p class="lead">台中市全區可預約免費收送，收送本身免費、洗護費另計。逢甲與西屯洗鞋可到青海路二段365號門市，或先用 LINE 傳鞋面、鞋底與鞋內照片。</p>
             <div class="home-hero__actions">
               <a class="button brand" href="${escapeHtml(citywidePickupUrl)}">台中全市免費收送</a>
               <a class="button home-hero__photo-action" href="${escapeHtml(lineCta)}">LINE 傳照片預約</a>
             </div>
             <p class="home-hero__note">鞋包、白鞋、衣物寢具都能先傳照片再送洗，先看材質再談清潔。</p>
+            <p class="home-hero__note" data-price-highlights>
+              參考價：${HOME_PRICE_HIGHLIGHTS.map((entry) => `${escapeHtml(entry.item)} ${escapeHtml(entry.price)}`).join("・")}（水洗價，乾洗柔洗另計）
+            </p>
             <p class="home-hero__note">
-              <a href="${escapeHtml(priceListUrl)}">看洗衣價目表</a>
+              <a href="${escapeHtml(priceListUrl)}">看完整洗衣價目表</a>
               <span aria-hidden="true">｜</span>
               <a href="#store">門市位置與營業時間</a>
             </p>
@@ -7210,7 +7247,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <div class="section-header">
             <span class="eyebrow">在地收送</span>
             <h2>把免費收送放進台中的生活圈</h2>
-            <p>收送範圍為台中市全市，<strong>收送本身免費，且沒有最低消費門檻</strong>——不需要單次洗滌滿額才能收送，一件也可以先問。清潔與洗護費用則依物件狀態另計。門市在西屯區青海路二段365號。預約與詢問以 <a class="card-link" href="${escapeHtml(lineInline)}">LINE</a> 為主，先傳照片再約定收送。從逢甲或西屯找洗鞋，可先看<a class="card-link" href="${escapeHtml(localShoeUrl)}"><strong>逢甲洗鞋・西屯洗鞋</strong></a>的門市方位、案例界線與收送範圍。</p>
+            <p>收送範圍為台中市全市，<strong>收送本身免費，且沒有最低消費門檻</strong>——不需要單次洗滌滿額才能收送，一件也可以先問。清潔與洗護費用則依物件狀態另計。門市在西屯區青海路二段365號。預約與詢問以 <a class="card-link" href="${escapeHtml(lineInline)}">LINE</a> 為主，先傳照片再約定收送。從逢甲或西屯找洗鞋，可先看<a class="card-link" href="${escapeHtml(localShoeUrl)}"><strong>逢甲、西屯洗鞋店怎麼挑</strong></a>的門市方位、案例界線與收送範圍。</p>
           </div>
           <div class="grid three">
           ${localCards}

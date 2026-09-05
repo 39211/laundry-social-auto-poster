@@ -401,6 +401,19 @@ const INDEXED_RAIL_SUPPORT_SLUGS = [
   "donghai-laundry-pickup",
   "photo-before-laundry"
 ] as const;
+const SHOE_TYPE_ROUTES: Array<{
+  label: string;
+  description: string;
+  serviceSlug?: string;
+  supportSlug?: string;
+}> = [
+  { label: "運動鞋、通勤鞋", description: "泥灰、鞋內悶味、膠邊與混材；不是只收白鞋。", serviceSlug: "shoe-bag-care" },
+  { label: "白鞋", description: "泛黃、鞋邊灰、氧化膠邊分開看。", serviceSlug: "white-shoe-cleaning" },
+  { label: "帆布鞋", description: "沾泥先等乾，濕刷會把泥推進織紋。", supportSlug: "canvas-shoe-mud" },
+  { label: "皮鞋", description: "雨痕先不要上油；水痕浮出後上油會鎖進皮裡。", supportSlug: "leather-shoe-water-marks" },
+  { label: "麂皮鞋", description: "變硬多半是絨毛倒伏，不要濕擦。", supportSlug: "suede-shoe-cleaning" },
+  { label: "精品鞋、名牌鞋", description: "先看材質、五金飾件與膠邊，不因品牌名稱當新品。", supportSlug: "luxury-designer-shoe-care" }
+];
 const UNIQUE_VALUE_BLOCKS: Record<
   string,
   { h2: string; points: string[]; fit: string; notFit: string }
@@ -5053,6 +5066,81 @@ function buildIndexGapRail(index: PublicPostIndex, currentSlug = ""): string {
       </section>`;
 }
 
+function shoeTypeRouteHref(
+  item: { serviceSlug?: string; supportSlug?: string },
+  index: PublicPostIndex
+): string | undefined {
+  if (item.serviceSlug) {
+    const service = findServiceBySlug(item.serviceSlug);
+    return service ? servicePageUrl(service, index) : undefined;
+  }
+  if (item.supportSlug) {
+    const page = findSupportBySlug(item.supportSlug);
+    return page ? supportPageUrl(page, index) : undefined;
+  }
+  return undefined;
+}
+
+function buildShoeTypeHubSection(index: PublicPostIndex): string {
+  const cards = SHOE_TYPE_ROUTES.flatMap((item) => {
+    const href = shoeTypeRouteHref(item, index);
+    if (!href) return [];
+    return [
+      `<article class="card">
+            <h3><a href="${escapeHtml(href)}">${escapeHtml(item.label)}</a></h3>
+            <p>${escapeHtml(item.description)}</p>
+          </article>`
+    ];
+  });
+  if (cards.length === 0) return "";
+  return `<section class="section" id="shoe-types" data-shoe-type-hub>
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">鞋款</span>
+            <h2>洗鞋不是只有白鞋</h2>
+            <p>運動鞋、帆布、皮鞋、麂皮、精品鞋與白鞋材質不同，先選對頁再傳照片。</p>
+          </div>
+          <div class="grid three">
+          ${cards.join("\n          ")}
+          </div>
+        </div>
+      </section>`;
+}
+
+function buildConversionSection(index: PublicPostIndex, slug: string): string {
+  const price = findServiceBySlug(PRICE_LIST_SLUG);
+  const pickup = findServiceBySlug("taichung-citywide-laundry-pickup");
+  const line = trackedLineUrl(index, { section: "services", slug, placement: "cta" });
+  const siblings = MONEY_SERVICE_SLUGS.filter((item) => item !== slug).flatMap((item) => {
+    const service = findServiceBySlug(item);
+    if (!service) return [];
+    return [
+      `<article class="card">
+            <h3><a href="${escapeHtml(servicePageUrl(service, index))}">${escapeHtml(service.name)}</a></h3>
+            <p>${escapeHtml(service.answer_summary)}</p>
+          </article>`
+    ];
+  });
+  return `<section class="section" id="convert" data-conversion>
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">下一步</span>
+            <h2>看價目、約收送，或 LINE 傳照片</h2>
+            <p>讀完這頁後，用參考價、全市收送或照片詢問接下去；收送免費不是清潔免費。</p>
+          </div>
+          <div class="button-row">
+            <a class="button brand" href="${escapeHtml(line)}">LINE 傳照片</a>
+            ${price ? `<a class="button secondary" href="${escapeHtml(servicePageUrl(price, index))}">看價目</a>` : ""}
+            ${pickup ? `<a class="button secondary" href="${escapeHtml(servicePageUrl(pickup, index))}">免費收送</a>` : ""}
+          </div>
+          <h3 style="margin-top:22px;">繼續看其他成交頁</h3>
+          <div class="grid three">
+          ${siblings.join("\n          ")}
+          </div>
+        </div>
+      </section>`;
+}
+
 function buildSitemapXml(index: PublicPostIndex): string {
   const sitemapPosts = sitemapIndexablePostArticles(index);
   const urls = index.base_url_configured
@@ -7500,7 +7588,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           </div>
         </div>
       </section>
-      <section class="section" id="discovery">
+      <section class="section" id="object-conversion" data-conversion-hub>
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">依需求找服務</span>
@@ -7529,6 +7617,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
         </div>
       </section>
       ${buildIndexGapRail(index)}
+      ${buildShoeTypeHubSection(index)}
       <section class="section" id="guide-hub">
         <div class="page-shell">
           <div class="section-header">
@@ -8167,7 +8256,9 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
       </section>
       ${priceTablesSection}
       ${buildUniqueValueSection(service.slug)}
+      ${["shoe-bag-care", "white-shoe-cleaning"].includes(service.slug) ? buildShoeTypeHubSection(index) : ""}
       ${INDEXED_RAIL_SERVICE_SLUGS.includes(service.slug as (typeof INDEXED_RAIL_SERVICE_SLUGS)[number]) ? buildIndexGapRail(index, service.slug) : ""}
+      ${buildConversionSection(index, service.slug)}
       ${caseStorySection}
       <section class="section surface">
         <div class="page-shell grid two">
@@ -8568,19 +8659,22 @@ function buildAiDiscovery(index: PublicPostIndex): object {
     },
     entrypoints: index.entrypoints,
     recommended_read_order: [
-      index.entrypoints.llms,
-      knowledgeHubUrl(index),
-      index.entrypoints.services,
+      index.canonical_url,
+      ...MONEY_SERVICE_SLUGS.map((slug) => {
+        const service = findServiceBySlug(slug);
+        return service ? servicePageUrl(service, index) : "";
+      }).filter(Boolean),
       index.entrypoints.answers,
-      index.entrypoints.geo_targets,
-      index.entrypoints.search_visibility,
-      ...SERVICE_PAGE_DEFINITIONS.map((service) => servicePageUrl(service, index)),
+      index.entrypoints.services,
+      index.entrypoints.business_profile,
+      knowledgeHubUrl(index),
       ...SUPPORT_PAGE_DEFINITIONS.map((page) => supportPageUrl(page, index)),
       index.entrypoints.latest,
       index.entrypoints.knowledge_graph,
       index.entrypoints.feed,
       index.entrypoints.llms_jsonl,
-      index.entrypoints.llms_full
+      index.entrypoints.llms_full,
+      index.entrypoints.llms
     ],
     capabilities: {
       supports_daily_updates: true,

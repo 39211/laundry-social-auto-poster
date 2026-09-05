@@ -2883,8 +2883,16 @@ describe("generatePublicSite", () => {
     const luxuryHtml = await readFile(join(root, "docs", "guides", "luxury-designer-shoe-care.html"), "utf8");
     const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
     const analytics = await readFile(join(root, "docs", "scripts", "search-content-analytics.js"), "utf8");
+    const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8")) as {
+      recommended_read_order: string[];
+    };
 
     expect(homepage).toContain('data-index-gap-rail');
+    expect(homepage).toContain('data-conversion-hub');
+    expect(homepage).toContain('id="object-conversion"');
+    expect(homepage).toContain('data-shoe-type-hub');
+    expect(homepage).toContain("洗鞋不是只有白鞋");
+    expect(homepage).toContain("canvas-shoe-mud.html");
     expect(homepage).toContain("fengjia-laundry-pickup.html");
     expect(homepage).toContain("luxury-designer-shoe-care.html");
     expect(homepage).toContain('data-geo-entity');
@@ -2902,6 +2910,9 @@ describe("generatePublicSite", () => {
     expect(priceHtml).toContain("這頁只回答「多少錢」");
     expect(pickupHtml).toContain('data-index-gap-page="taichung-citywide-laundry-pickup"');
     expect(shoeBagHtml).toContain("這頁不是只收白鞋");
+    expect(shoeBagHtml).toContain('data-shoe-type-hub');
+    expect(shoeBagHtml).toContain('data-conversion');
+    expect(shoeBagHtml).toContain('id="convert"');
     expect(shoeBagHtml).toContain('data-index-gap-rail');
     expect(shoeBagHtml).toContain("taichung-laundry-price-list.html");
     expect(whiteShoeHtml).toContain('data-index-gap-rail');
@@ -2919,5 +2930,9 @@ describe("generatePublicSite", () => {
     expect(analytics).not.toContain('send("generate_lead"');
     expect(analytics).not.toContain('send("line_click"');
     expect(() => assertSearchContentAnalyticsScript(analytics)).not.toThrow();
+    expect(discovery.recommended_read_order[0]).toMatch(/\/$/);
+    expect(discovery.recommended_read_order[1]).toContain("taichung-laundry-price-list.html");
+    expect(discovery.recommended_read_order.at(-1)).toContain("llms.txt");
+    expect(discovery.recommended_read_order.at(-1)).not.toContain("llms-full");
   });
 });

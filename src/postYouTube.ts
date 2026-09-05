@@ -449,7 +449,7 @@ async function runAuthFlow(root: string): Promise<void> {
       consent.searchParams.set("client_id", clientId);
       consent.searchParams.set("redirect_uri", `http://127.0.0.1:${port}`);
       consent.searchParams.set("response_type", "code");
-      consent.searchParams.set("scope", "https://www.googleapis.com/auth/youtube.upload");
+      consent.searchParams.set("scope", "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly");
       consent.searchParams.set("access_type", "offline");
       consent.searchParams.set("prompt", "consent");
       console.log("\n請用瀏覽器開啟以下網址完成授權：\n");

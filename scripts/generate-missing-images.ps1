@@ -116,7 +116,13 @@ function Invoke-AgyImageFallback {
     $outFile = Join-Path $work $name
     if (Test-Path $outFile) { Remove-Item $outFile -Force }
     $promptFile = Join-Path $work ($name -replace '\.png$', '.prompt.txt')
-    $plain = " PLAIN OBJECT RULE: the featured object is completely plain: no logos, no brand marks, no logo-like stripes, curves, swooshes or patches, no readable text anywhere on it."
+    # The featured-object clause alone is not enough. 2026-09-06: a set whose
+    # subject was a plain duvet still shipped a background display case of
+    # sneakers wearing a legible swoosh, plus a stray phone screen mirroring the
+    # scene and in-focus care labels covered in garbled pseudo-text. The gate
+    # cannot see any of that, so it has to be forbidden in the prompt.
+    $plain = " PLAIN OBJECT RULE: the featured object is completely plain: no logos, no brand marks, no logo-like stripes, curves, swooshes or patches, no readable text anywhere on it." +
+        " BACKGROUND RULE: nothing else in the frame carries a logo or a logo-like curve either. Shoes on shelves, bottles and packaging are plain and unbranded; every label, tag, receipt and sheet of paperwork is out of focus and unreadable; no phone, screen, camera or mirrored copy of this scene appears anywhere in the frame."
     $refClause = ""
     $text = [string]$Item.prompt + $plain
     if ([int]$Item.slide -gt 1) {

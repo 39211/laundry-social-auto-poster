@@ -60,6 +60,7 @@
     "schedule-youtube": "tsx src/postYouTube.ts --schedule-ahead",
     "youtube-auth": "tsx src/postYouTube.ts --auth",
     "youtube-analytics": "tsx src/youtubeAnalytics.ts",
+    "youtube-analytics-health": "tsx src/youtubeAnalyticsHealth.ts",
     "heal-reel-slot": "tsx src/scheduleReel.ts --heal",
     "ab-plan": "tsx src/abTestPlan.ts",
     "ab-report": "tsx src/abTestReport.ts",

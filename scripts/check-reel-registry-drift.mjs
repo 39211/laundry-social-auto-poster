@@ -8,9 +8,15 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+function argValue(flag) {
+  const idx = process.argv.indexOf(flag);
+  if (idx < 0 || idx + 1 >= process.argv.length) return undefined;
+  return process.argv[idx + 1];
+}
+
 const here = dirname(fileURLToPath(import.meta.url));
 const scriptRepo = resolve(join(here, ".."));
-const root = resolve(process.env.PROJECT_ROOT || scriptRepo);
+const root = resolve(argValue("--root") || process.env.PROJECT_ROOT || scriptRepo);
 
 function countAssFiles(dir) {
   if (!existsSync(dir)) return 0;
@@ -36,6 +42,22 @@ function firstDiff(actual, expected) {
   }
   if (i === n && actual.length === expected.length) return null;
   return i;
+}
+
+function stripLeadingBom(buf) {
+  if (buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
+    return buf.subarray(3);
+  }
+  return buf;
+}
+
+// Runner checkouts may be CRLF (core.autocrlf=true); compare LF-normalized UTF-8 bytes.
+function crlfToLfBytes(buf) {
+  return Buffer.from(buf.toString("utf8").replace(/^\uFEFF/u, "").replace(/\r\n/g, "\n"), "utf8");
+}
+
+function normalizeUtf8ForCompare(buf) {
+  return crlfToLfBytes(stripLeadingBom(buf));
 }
 
 function main() {
@@ -84,11 +106,13 @@ function main() {
     process.exit(1);
   }
   const committed = readFileSync(registryPath);
-  const diffAt = firstDiff(stdout, committed);
+  const generated = normalizeUtf8ForCompare(stdout);
+  const committedNorm = normalizeUtf8ForCompare(committed);
+  const diffAt = firstDiff(generated, committedNorm);
   if (diffAt !== null) {
     console.error(`registry drift at byte ${diffAt}`);
-    console.error(`generated: ${preview(stdout, diffAt)}`);
-    console.error(`committed: ${preview(committed, diffAt)}`);
+    console.error(`generated: ${preview(generated, diffAt)}`);
+    console.error(`committed: ${preview(committedNorm, diffAt)}`);
     process.exit(1);
   }
 

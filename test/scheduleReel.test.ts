@@ -1283,6 +1283,64 @@ describe("reel registry drift gate (SXJ-REELQ r11)", () => {
     );
   });
 
+  it("CRLF committed registry under PROJECT_ROOT still passes; one-char narration change drifts after byte 1", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crlf-registry-gate-"));
+    await mkdir(join(root, "scripts"), { recursive: true });
+    await mkdir(join(root, "src"), { recursive: true });
+    await mkdir(join(root, "data"), { recursive: true });
+    await cp(
+      join(process.cwd(), "scripts", "build-reel-burned-narrations.mjs"),
+      join(root, "scripts", "build-reel-burned-narrations.mjs")
+    );
+    await cp(join(process.cwd(), "src", "reelConcepts.ts"), join(root, "src", "reelConcepts.ts"));
+    await cp(
+      join(process.cwd(), "data", "reel-concepts-extension.json"),
+      join(root, "data", "reel-concepts-extension.json")
+    );
+    await cp(join(process.cwd(), "test", "fixtures", "reel-ass"), join(root, "test", "fixtures", "reel-ass"), {
+      recursive: true
+    });
+
+    const lfText = readFileSync(join(process.cwd(), "data", "reel-burned-narrations.json"))
+      .toString("utf8")
+      .replace(/^\uFEFF/u, "")
+      .replace(/\r\n/g, "\n");
+    const registryPath = join(root, "data", "reel-burned-narrations.json");
+    await writeFile(registryPath, Buffer.from(lfText.replace(/\n/g, "\r\n"), "utf8"));
+
+    const script = join(process.cwd(), "scripts", "check-reel-registry-drift.mjs");
+    const ok = spawnSync(process.execPath, [script, "--root", root], {
+      encoding: "utf8",
+      cwd: process.cwd(),
+      env: { ...process.env, PROJECT_ROOT: root },
+      windowsHide: true
+    });
+    expect(ok.status, ok.stderr).toBe(0);
+    expect(ok.stdout).toContain("OK (13 entries)");
+
+    const parsed = JSON.parse(lfText) as { narrations: Record<string, string> };
+    const id = Object.keys(parsed.narrations)[0];
+    expect(id).toBeDefined();
+    const original = parsed.narrations[id!];
+    if (!original) throw new Error("first narration missing");
+    expect(original.length).toBeGreaterThan(0);
+    parsed.narrations[id!] = `${original.slice(0, 1) === "X" ? "Y" : "X"}${original.slice(1)}`;
+    const mutatedLf = `${JSON.stringify(parsed, null, 2)}\n`;
+    await writeFile(registryPath, Buffer.from(mutatedLf.replace(/\n/g, "\r\n"), "utf8"));
+
+    const bad = spawnSync(process.execPath, [script, "--root", root], {
+      encoding: "utf8",
+      cwd: process.cwd(),
+      env: { ...process.env, PROJECT_ROOT: root },
+      windowsHide: true
+    });
+    expect(bad.status).toBe(1);
+    const msg = `${bad.stdout ?? ""}\n${bad.stderr ?? ""}`;
+    const match = msg.match(/registry drift at byte (\d+)/);
+    expect(match, msg).not.toBeNull();
+    expect(Number(match![1])).toBeGreaterThan(1);
+  });
+
   it("--ass-dir records the found .mp4.ass filename without changing narration", async () => {
     const staging = await mkdtemp(join(tmpdir(), "ass-dir-mp4-ass-"));
     const assDir = join(staging, "fixtures");

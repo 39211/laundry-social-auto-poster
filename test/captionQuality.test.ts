@@ -85,6 +85,32 @@ describe("caption quality", () => {
     }
   });
 
+  it("keeps any slot-2 action sentence at or under half the eligible captions", () => {
+    // Gate starts 2026-09-08. The 08-10..09-08 window only had one gated day,
+    // so a 30-day half-cap against all slot-1+slot-2 captions was tautological.
+    const gatedDates = Array.from({ length: 31 }, (_, offset) =>
+      new Date(Date.UTC(2026, 8, 8 + offset)).toISOString().slice(0, 10)
+    );
+    const action = /^拍.+和.+兩張傳 LINE，我們先看。$/;
+    const eligible = gatedDates.flatMap((date) => {
+      const slot2 = buildDailyContent(date, config).slots.find((slot) => slot.slot === 2);
+      if (!slot2 || slot2.format === "reel" || date < "2026-09-08") return [];
+      return [slot2.facebook_caption ?? "", slot2.instagram_caption ?? ""];
+    });
+    expect(gatedDates[0]).toBe("2026-09-08");
+    expect(eligible.length).toBeGreaterThanOrEqual(60);
+    const counts = new Map<string, number>();
+    for (const text of eligible) {
+      for (const block of text.split("\n\n")) {
+        if (action.test(block)) counts.set(block, (counts.get(block) ?? 0) + 1);
+      }
+    }
+    expect(counts.size).toBeGreaterThan(0);
+    for (const [sentence, count] of counts) {
+      expect(count, sentence).toBeLessThanOrEqual(eligible.length / 2);
+    }
+  });
+
   it("does not repeat one sentence across most of a month", () => {
     // A sentence on every post is invisible while writing one caption and
     // unmistakable to anyone who follows the account for a week. The worst

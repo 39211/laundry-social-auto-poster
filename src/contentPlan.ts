@@ -1123,6 +1123,99 @@ export function topicObjectHead(topic: string): string {
     .slice(0, 8);
 }
 
+/** First date slot-2 image posts use a specific two-photo LINE action instead of a generic CTA. */
+const SLOT2_ACTION_CTA_START_DATE = "2026-09-08";
+
+/**
+ * Object-part lookup for the slot-2 closer. Short keys absorb the longer
+ * synonyms that used to sit on the same row (球鞋/白鞋, 毛毯).
+ * Bare 衣 and 被 are not keys: 衣 lives inside 洗衣店, 被 is the passive marker.
+ * Bare 櫃 is storage (櫃內最深處). 鞋櫃 maps with shoes (鞋面/鞋底); 衣櫃
+ * maps with clothes (領口/袖口) so those topics ask for the item, not the cabinet.
+ * Bare 包 is an object only when not followed by 裡/著/住/起/好/在/進/成/覆/裝;
+ * 包包/皮包/背包/名牌包/包款 are listed so those stay bags.
+ */
+const SLOT2_ACTION_CTA_PARTS: ReadonlyArray<{ keys: readonly string[]; a: string; b: string }> = [
+  { keys: ["櫃"], a: "櫃內最深處", b: "最常放的那一格" },
+  { keys: ["棉被", "被子", "床單", "床包", "枕頭", "床組"], a: "被角", b: "貼身那一面" },
+  { keys: ["包包", "皮包", "背包", "名牌包", "包款", "包"], a: "包角", b: "內裡" },
+  { keys: ["鞋櫃", "鞋", "靴", "麂皮"], a: "鞋面", b: "鞋底" },
+  { keys: ["衣櫃", "外套", "西裝", "大衣", "襯衫", "上衣", "T恤", "衣服", "衣物"], a: "領口", b: "袖口" },
+  { keys: ["窗簾"], a: "下緣", b: "掛鉤處" },
+  { keys: ["娃娃", "玩偶"], a: "五官", b: "縫線" },
+  { keys: ["地毯"], a: "邊緣", b: "最常踩的位置" },
+  { keys: ["行李箱"], a: "輪子", b: "把手" },
+  { keys: ["毯"], a: "起球處", b: "邊緣" }
+];
+
+const SLOT2_SHOE_ROW = SLOT2_ACTION_CTA_PARTS.findIndex((row) => row.keys.includes("鞋"));
+const SLOT2_BAG_ROW = SLOT2_ACTION_CTA_PARTS.findIndex((row) => row.keys.includes("包"));
+
+/** 包 as an object, not 包裡/包著/包起來 and the rest of that series. */
+const SLOT2_BARE_BAG_OBJECT_RE = /包(?![裡著住起好在進成覆裝])/g;
+
+/** Label prefix off, then the whole remaining topic — an 8-character head cuts object words at the end. */
+function slot2ActionTopicText(topic: string): string {
+  return topic.replace(TOPIC_LABEL_PREFIX_RE, "");
+}
+
+function slot2KeyIndexes(text: string, key: string): number[] {
+  const indexes: number[] = [];
+  if (key === "包") {
+    for (const match of text.matchAll(SLOT2_BARE_BAG_OBJECT_RE)) {
+      if (match.index !== undefined) indexes.push(match.index);
+    }
+    return indexes;
+  }
+  let from = 0;
+  while (from < text.length) {
+    const index = text.indexOf(key, from);
+    if (index === -1) break;
+    indexes.push(index);
+    from = index + 1;
+  }
+  return indexes;
+}
+
+/** Longest key at each position wins, then left-to-right family order. */
+function slot2TakenFamilies(text: string): { rowIndex: number; index: number }[] {
+  const hits: { rowIndex: number; index: number; length: number }[] = [];
+  SLOT2_ACTION_CTA_PARTS.forEach((row, rowIndex) => {
+    for (const key of row.keys) {
+      for (const index of slot2KeyIndexes(text, key)) {
+        hits.push({ rowIndex, index, length: key.length });
+      }
+    }
+  });
+  hits.sort(
+    (left, right) => left.index - right.index || right.length - left.length || left.rowIndex - right.rowIndex
+  );
+  const taken: { rowIndex: number; index: number }[] = [];
+  const covered = new Uint8Array(text.length);
+  for (const hit of hits) {
+    if (covered[hit.index]) continue;
+    taken.push({ rowIndex: hit.rowIndex, index: hit.index });
+    covered.fill(1, hit.index, Math.min(text.length, hit.index + hit.length));
+  }
+  return taken;
+}
+
+/** Specific slot-2 closer: two named photos sent on LINE. */
+export function slot2ActionCta(topic: string): string {
+  const text = slot2ActionTopicText(topic);
+  const taken = slot2TakenFamilies(text);
+  const hasShoe = taken.some((hit) => hit.rowIndex === SLOT2_SHOE_ROW);
+  const hasBag = taken.some((hit) => hit.rowIndex === SLOT2_BAG_ROW);
+  if (hasShoe && hasBag) {
+    return "拍鞋底和包角兩張傳 LINE，我們先看。";
+  }
+  const first = taken[0];
+  if (!first) return "拍整體和最在意的位置兩張傳 LINE，我們先看。";
+  const row = SLOT2_ACTION_CTA_PARTS[first.rowIndex];
+  if (!row) return "拍整體和最在意的位置兩張傳 LINE，我們先看。";
+  return `拍${row.a}和${row.b}兩張傳 LINE，我們先看。`;
+}
+
 /** Shared 3-character object gram, or undefined when the two topics do not collide. */
 export function repeatingObjectGram(left: string, right: string): string | undefined {
   const head = topicObjectHead(left);
@@ -1569,13 +1662,160 @@ export function withSharedCaptionRules(
   return withUpgradedHashtags(withProvenanceLine(withPriceLine(withLineContact(caption, tracking), topic)), topic);
 }
 
+function isSlot2ActionCtaClosingBlock(block: string): boolean {
+  return (
+    block.startsWith("#") ||
+    block.startsWith(PROVENANCE_PREFIX) ||
+    block.startsWith("參考價") ||
+    block.includes(LINE_POST_PATH) ||
+    block.includes("0968327653")
+  );
+}
+
+/** Photo-ask token shared by production and tests. 拍 alone missed 「照片傳來」. */
+export const SLOT2_PHOTO_TOKEN_RE = /拍|照片|相片/;
+/** Shop-directed half of a photo ask. 傳給我們 is the same ask as 給我們. */
+export const SLOT2_PHOTO_DIRECTED_RE = /給我們|幫你|傳來|傳給我們/;
+/** Pickup value claim. 免費 alone is not a keep-whole; that is signed-off copy. */
+export const SLOT2_PICKUP_VALUE_CLAIM_RE = /免費|到府收|收送|我們去收/;
+/** Owner-signed family: keep the whole block, including a 私訊／傳 LINE tail. */
+export const SLOT2_SIGNED_OFF_VALUE_RE = /沒有低消|一件也收/;
+export const SLOT2_GENERIC_CTA_RE = /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看|先拍好/;
+const SLOT2_CHANNEL_CTA_RE = /私訊|傳 LINE|LINE 傳|用 LINE|直接私訊/;
+
+function looksLikeSlot2PhotoDirectedAsk(block: string): boolean {
+  return SLOT2_PHOTO_TOKEN_RE.test(block) && SLOT2_PHOTO_DIRECTED_RE.test(block);
+}
+
+/**
+ * Generic slot-2 CTA detector. Questions (ending in ？) are never CTAs — the
+ * engagement line 「你送洗前會先拍照嗎？」 contains 拍照 and must stay.
+ * `拍照` on a non-question still counts, so dropping the ？-keep rule makes
+ * that line look like a CTA. Share-invites and the follow line are not CTAs.
+ * A last-paragraph-only /先看/ fallback never ran: the last body block is
+ * the follow line (`追蹤…`) and returns above.
+ * Template closers say 「可以拍寢具…給我們看」 / 「先拍包底…幫你看」 /
+ * 「可以把外套、包底和輪邊照片傳來」 and do not contain
+ * 傳 LINE|私訊|拍照|拍一張|先幫你看; the (拍|照片|相片) + shop-directed
+ * pair is the semantic feature, not the new action-sentence literal.
+ * Playbook 「先拍好…傳地址與照片」 has neither 拍一張 nor the directed pair
+ * until Instagram rewrite inserts 私訊; 先拍好 is the raw-string feature.
+ * Owner-signed pickup value lines (沒有低消 / 一件也收) are not generic
+ * CTAs: the 私訊／傳 LINE tail is a soft ask on a value claim, not a photo
+ * instruction. Stripping the tail would rewrite signed copy. A 免費
+ * campaign block that also asks for photos is a CTA; sentence salvage lives
+ * in rewriteSlot2PickupValueBlock.
+ */
+export function looksLikeGenericSlot2Cta(block: string): boolean {
+  if (isSlot2ActionCtaClosingBlock(block)) return false;
+  if (block.startsWith("追蹤")) return false;
+  if (/[？?]\s*$/.test(block)) return false;
+  if (SLOT2_SIGNED_OFF_VALUE_RE.test(block)) return false;
+  if (
+    /(?:這篇)?(?:傳|轉)給他/.test(block) &&
+    !SLOT2_GENERIC_CTA_RE.test(block) &&
+    !looksLikeSlot2PhotoDirectedAsk(block)
+  ) {
+    return false;
+  }
+  return SLOT2_GENERIC_CTA_RE.test(block) || looksLikeSlot2PhotoDirectedAsk(block);
+}
+
+function splitSlot2Sentences(block: string): string[] {
+  const sentences: string[] = [];
+  const parts = block.split(/([。！？])/);
+  for (let i = 0; i < parts.length; i += 2) {
+    const text = `${parts[i] ?? ""}${parts[i + 1] ?? ""}`;
+    if (text) sentences.push(text);
+  }
+  return sentences;
+}
+
+/**
+ * Sentence-level salvage of a pickup-value block. Signed-off copy and
+ * question-ending blocks stay whole. Mixed value + photo/channel keeps value
+ * sentences, drops photo-ask sentences (even when they also say 收送), drops
+ * channel-only sentences, and keeps the rest. Empty / channel-residue-only
+ * leftovers are dropped. Non-value CTAs return undefined (r3 delete).
+ */
+export function rewriteSlot2PickupValueBlock(block: string): string | undefined {
+  if (!block) return undefined;
+  if (isSlot2ActionCtaClosingBlock(block)) return block;
+  if (block.startsWith("追蹤")) return block;
+  if (/[？?]\s*$/.test(block)) return block;
+  if (SLOT2_SIGNED_OFF_VALUE_RE.test(block)) return block;
+
+  const hasValue = SLOT2_PICKUP_VALUE_CLAIM_RE.test(block);
+  const mixed =
+    hasValue &&
+    (looksLikeGenericSlot2Cta(block) ||
+      SLOT2_PHOTO_TOKEN_RE.test(block) ||
+      SLOT2_CHANNEL_CTA_RE.test(block));
+
+  if (mixed) {
+    const kept = splitSlot2Sentences(block).filter((sentence) => {
+      if (/[？?]\s*$/.test(sentence)) return true;
+      if (SLOT2_PHOTO_TOKEN_RE.test(sentence)) return false;
+      if (SLOT2_PICKUP_VALUE_CLAIM_RE.test(sentence)) return true;
+      if (SLOT2_CHANNEL_CTA_RE.test(sentence)) return false;
+      return true;
+    });
+    const text = kept.join("").trim();
+    if (!text) return undefined;
+    if (!SLOT2_PICKUP_VALUE_CLAIM_RE.test(text) && SLOT2_CHANNEL_CTA_RE.test(text)) {
+      return undefined;
+    }
+    return text;
+  }
+
+  if (looksLikeGenericSlot2Cta(block)) return undefined;
+  return block;
+}
+
+function isMovedPickupValueBlock(original: string, rewritten: string): boolean {
+  if (SLOT2_SIGNED_OFF_VALUE_RE.test(rewritten)) return true;
+  if (!SLOT2_PICKUP_VALUE_CLAIM_RE.test(rewritten)) return false;
+  return (
+    looksLikeGenericSlot2Cta(original) ||
+    SLOT2_PHOTO_TOKEN_RE.test(original) ||
+    SLOT2_CHANNEL_CTA_RE.test(original)
+  );
+}
+
+function withSlot2ActionCta(
+  caption: string,
+  slot: { slot: number; format?: string; date: string; topic: string }
+): string {
+  if (slot.slot !== 2 || slot.format === "reel" || slot.date < SLOT2_ACTION_CTA_START_DATE) {
+    return caption;
+  }
+  const action = slot2ActionCta(slot.topic);
+  const blocks = caption.split("\n\n");
+  const stopIndex = blocks.findIndex(isSlot2ActionCtaClosingBlock);
+  const body = stopIndex === -1 ? [...blocks] : blocks.slice(0, stopIndex);
+  const tail = stopIndex === -1 ? [] : blocks.slice(stopIndex);
+  const valueBlocks: string[] = [];
+  const rest: string[] = [];
+  for (const block of body) {
+    const rewritten = rewriteSlot2PickupValueBlock(block);
+    if (rewritten === undefined) continue;
+    if (isMovedPickupValueBlock(block, rewritten)) valueBlocks.push(rewritten);
+    else rest.push(rewritten);
+  }
+  const withoutAction = rest[rest.length - 1] === action ? rest.slice(0, -1) : rest;
+  return [...withoutAction, ...valueBlocks, action, ...tail].join("\n\n");
+}
+
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform, config?: AppConfig): string {
   const caption = baseCaptionFromPlaybook(slot, platform);
   const source: UtmSource = platform === "facebook" ? "facebook" : "instagram";
-  return withSharedCaptionRules(
-    withEngagementQuestion(caption, slot),
-    slot.topic,
-    captionTracking(slot.date, slot.slot, source, slot.format, config)
+  return withSlot2ActionCta(
+    withSharedCaptionRules(
+      withEngagementQuestion(caption, slot),
+      slot.topic,
+      captionTracking(slot.date, slot.slot, source, slot.format, config)
+    ),
+    slot
   );
 }
 
@@ -2237,7 +2477,7 @@ function videoPromptFromPlaybook(slot: GrowthPlaybookSlot): string | undefined {
   );
 }
 
-function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string): void {
+export function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string): void {
   const paragraphs = caption.split("\n\n");
   const forbidden = ["畫面維持", "這支內容會用", "短影音題", "轉詢問題", "9:16", "主視覺", "route", "SEO"];
   // Block 2 is the last line most readers see before Instagram folds the
@@ -2323,14 +2563,21 @@ export function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfi
 function dailySlotFromTemplate(date: string, schedule: (typeof DAILY_SCHEDULE)[number], config: AppConfig): DailySlot {
   const template = templateFor(date, schedule.category);
   const caption = captionFromTemplate(template);
+  const actionTarget = { slot: schedule.slot, format: "image-post", date, topic: template.topic };
   return {
     slot: schedule.slot,
     time: schedule.time,
     category: schedule.category,
     topic: template.topic,
     media_type: "image",
-    instagram_caption: withLineContact(caption, captionTracking(date, schedule.slot, "instagram", undefined, config)),
-    facebook_caption: withLineContact(caption, captionTracking(date, schedule.slot, "facebook", undefined, config)),
+    instagram_caption: withSlot2ActionCta(
+      withLineContact(caption, captionTracking(date, schedule.slot, "instagram", undefined, config)),
+      actionTarget
+    ),
+    facebook_caption: withSlot2ActionCta(
+      withLineContact(caption, captionTracking(date, schedule.slot, "facebook", undefined, config)),
+      actionTarget
+    ),
     image_prompt: template.imagePrompt,
     visual_route: template.visualRoute,
     traffic_route: template.trafficRoute,

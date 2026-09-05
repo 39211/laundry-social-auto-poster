@@ -69,6 +69,8 @@ jobs:
 
       - run: npx tsc --noEmit
 
+      - run: node scripts/check-reel-registry-drift.mjs
+
       - run: npx vitest run
 
       # docs-internal/public-image-metadata.json is derived from the checked-in

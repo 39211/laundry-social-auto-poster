@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { access, copyFile, mkdir, readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { withSharedCaptionRules } from "./contentPlan";
@@ -32,6 +33,7 @@ import {
   loadExtensions,
   priorAirings,
   promptFor,
+  splitNarrationSentences,
   type ReelConcept
 } from "./reelConcepts";
 import { getZonedDateParts } from "./scheduler";
@@ -77,6 +79,11 @@ export function reelCoverPrompt(concept: ReelConcept, beforeStillRelativePath?: 
 }
 
 function shareInviteFor(concept: ReelConcept): string {
+  // handbag-handle is about a sticky grip, not worn corners. Grouping it with
+  // leather-bag under object_type put the corner invite on a handle Reel.
+  if (concept.id === "handbag-handle") {
+    return "身邊有人的包提把也開始發黏嗎？這篇傳給他。";
+  }
   switch (concept.object_type) {
     case "duvet":
       return "家裡那位總說「棉被還可以再放一下」的人，這篇可以轉給他。";
@@ -85,8 +92,50 @@ function shareInviteFor(concept: ReelConcept): string {
     case "leather-bag":
     case "handbag":
       return "身邊有人的包正在磨邊角嗎？這篇傳給他。";
+    case "white-shoe":
+      return "認識那種白鞋放到發黃還沒處理的人嗎？傳給他。";
+    case "leather-shoe":
+      return "身邊有人的皮鞋淋過雨還沒處理嗎？這篇傳給他。";
+    case "canvas-shoe":
+      return "身邊有人的帆布鞋泥乾了還放著嗎？這篇傳給他。";
+    case "suede-shoe":
+      return "身邊有人的麂皮鞋摸起來變硬了嗎？這篇傳給他。";
+    case "high-heel":
+      return "身邊有人的高跟鞋跟頭磨白了嗎？這篇傳給他。";
+    case "kids-shoe":
+      return "身邊有人的童鞋鞋頭已經磨花了嗎？這篇傳給他。";
+    case "hiking-boot":
+      return "身邊有人的登山鞋底還卡著乾泥嗎？這篇傳給他。";
+    case "leather-boot":
+      return "身邊有人的靴子放一季就發霉了嗎？這篇傳給他。";
+    case "shirt":
+      return "家裡那位襯衫領口都黃了還在穿的人，這篇可以轉給他。";
+    case "suit":
+      return "身邊有人的西裝肩線已經開始塌了嗎？這篇傳給他。";
+    case "curtain":
+      return "家裡那位窗簾下緣積灰都沒拆過的人，這篇可以轉給他。";
+    case "luggage":
+      return "身邊有人的行李箱輪子還卡著灰嗎？這篇傳給他。";
+    case "backpack":
+      return "身邊有人的後背包底部從來沒洗過嗎？這篇傳給他。";
+    case "down-jacket":
+      return "身邊有人的羽絨外套袖口已經發黑了嗎？這篇傳給他。";
+    case "wool-coat":
+      return "家裡那位大衣肩線積了一層灰還繼續掛著的人，這篇可以轉給他。";
+    case "leather-belt":
+      return "身邊有人的皮帶摺痕已經發白裂了嗎？這篇傳給他。";
+    case "mattress-pad":
+      return "家裡那位保潔墊出現黃圈還繼續用的人，這篇可以轉給他。";
+    case "blanket":
+      return "身邊有人的毛毯起球摸起來變粗了嗎？這篇傳給他。";
+    case "denim":
+      return "身邊有人的牛仔褲膝蓋已經鬆掉了嗎？這篇傳給他。";
+    case "wallet":
+      return "身邊有人的長夾邊角開始起毛了嗎？這篇傳給他。";
+    case "sweater":
+      return "身邊有人的毛衣腋下出現黃斑了嗎？這篇傳給他。";
     default:
-      return "認識那種鞋子捨不得丟、又不知道怎麼救的人嗎？傳給他。";
+      return "這篇可以轉給他。";
   }
 }
 
@@ -97,10 +146,53 @@ function questionFor(concept: ReelConcept): string {
     case "plush-doll":
       return "家裡有沒有那種一直想洗、又不太敢洗的娃娃？";
     case "handbag":
+      return "你那顆包的提把，摸起來也開始發黏了嗎？";
     case "leather-bag":
-      return "哪一件是你最不敢自己動手處理的？";
+      return "你那顆包的邊角，是不是已經磨到露出底色了？";
+    case "white-shoe":
+      return "你那雙白鞋放多久沒穿了？";
+    case "leather-shoe":
+      return "你那雙皮鞋淋雨之後，有沒有再處理過？";
+    case "canvas-shoe":
+      return "你那雙帆布鞋的泥，是等乾了再清，還是濕的時候就刷？";
+    case "suede-shoe":
+      return "你那雙麂皮鞋摸起來變硬的時候，你會先怎麼處理？";
+    case "high-heel":
+      return "高跟鞋跟頭磨白之後，你是繼續穿還是先收起來？";
+    case "kids-shoe":
+      return "家裡那雙童鞋鞋頭磨花了，你會先洗還是直接換？";
+    case "hiking-boot":
+      return "登山鞋底卡了乾泥，你回來會先清嗎？";
+    case "leather-boot":
+      return "靴子在櫃子放一季，拿出來你會先看皮面嗎？";
+    case "shirt":
+      return "你的襯衫比較常出問題的，是領口還是袖口？";
+    case "suit":
+      return "你那件西裝，肩線還站得住嗎？";
+    case "curtain":
+      return "家裡窗簾下緣那一折，你上次是什麼時候清的？";
+    case "luggage":
+      return "旅行回來的行李箱，你會先清輪子再收嗎？";
+    case "backpack":
+      return "你最常用的後背包，底部有多久沒看過了？";
+    case "down-jacket":
+      return "羽絨外套袖口發黑的時候，你會整件送還是只搓袖口？";
+    case "wool-coat":
+      return "大衣收進櫃子前，你會先拍掉肩線上的灰嗎？";
+    case "leather-belt":
+      return "皮帶那一格摺痕發白了，你還會繼續扣同一格嗎？";
+    case "mattress-pad":
+      return "保潔墊出現黃圈之後，你會跟被子一起送嗎？";
+    case "blanket":
+      return "毛毯起球摸起來變粗的時候，你會先修還是繼續蓋？";
+    case "denim":
+      return "牛仔褲膝蓋鬆掉以後，你還會繼續穿嗎？";
+    case "wallet":
+      return "長夾邊角開始起毛的時候，你會先補還是再拖？";
+    case "sweater":
+      return "毛衣腋下那塊黃，你是當季就洗，還是收到換季？";
     default:
-      return "如果只能先救一樣，你會選鞋子還是包包？";
+      return "你最近最想先處理哪一件？";
   }
 }
 
@@ -108,25 +200,174 @@ function questionFor(concept: ReelConcept): string {
 // Facebook uses 傳 LINE. Multi-photo asks ("完整外觀和局部") are banned on IG.
 function reelActionCta(concept: ReelConcept, platform: "instagram" | "facebook"): string {
   const channel = platform === "instagram" ? "私訊" : "傳 LINE";
+  if (concept.id === "handbag-handle") {
+    return `拍一張${channel}給我們，先幫你看提把。`;
+  }
   switch (concept.object_type) {
     case "duvet":
       return `換季要整理寢具的話，${channel}說一下數量就可以，我們去收。`;
     case "plush-doll":
-      return `家裡有不敢洗的娃娃？拍一張${channel}，我們先幫你看能不能洗。`;
+      return `拍一張${channel}，我們先看洗法。`;
     case "leather-bag":
     case "handbag":
-      return `不確定這只包還救不救得回來？拍一張${channel}給我們，先幫你看。`;
+      return `拍一張${channel}給我們，我們先看邊角。`;
     default:
-      return `不確定該怎麼處理？拍一張${channel}給我們，先幫你看方向。`;
+      return `拍一張${channel}給我們，我們先看方向。`;
   }
 }
 
 const FOLLOW_LINE = "私享家洗衣店｜台中市區免費到府收送";
 
+export type ReelNarrationSource = "burned" | "registry" | "concept";
+
+const BURNED_NARRATION_REGISTRY_REL = join("data", "reel-burned-narrations.json");
+
+const ASS_OVERRIDE_BLOCK = /\{[^}]*\}/gu;
+const AUDIO_JSON_NARRATION_KEYS = ["narration", "narration_text", "NarrationText", "text"] as const;
+
+function readUtf8IfPresent(path: string): string | undefined {
+  try {
+    return readFileSync(path, "utf8").replace(/^\uFEFF/u, "");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    return undefined;
+  }
+}
+
+function assStartToCs(start: string): number {
+  const trimmed = start.trim();
+  const dot = trimmed.lastIndexOf(".");
+  const hms = dot >= 0 ? trimmed.slice(0, dot) : trimmed;
+  const csRaw = dot >= 0 ? trimmed.slice(dot + 1) : "0";
+  const parts = hms.split(":").map(Number);
+  const cs = Number(csRaw);
+  if (parts.length === 0 || parts.some((n) => Number.isNaN(n)) || Number.isNaN(cs)) return 0;
+  let seconds = 0;
+  for (const part of parts) seconds = seconds * 60 + part;
+  return seconds * 100 + cs;
+}
+
+function stripAssDialogueText(raw: string): string {
+  return raw.replace(ASS_OVERRIDE_BLOCK, "").replace(/\\N/gi, "").trim();
+}
+
+function narrationFromAss(contents: string): string | undefined {
+  const events: Array<{ start: number; index: number; text: string }> = [];
+  for (const line of contents.split(/\r?\n/)) {
+    if (!/^Dialogue:/i.test(line)) continue;
+    const payload = line.replace(/^Dialogue:\s*/i, "");
+    const parts = payload.split(",");
+    if (parts.length < 10) continue;
+    const text = stripAssDialogueText(parts.slice(9).join(","));
+    if (!text) continue;
+    events.push({ start: assStartToCs(parts[1] ?? ""), index: events.length, text });
+  }
+  events.sort((a, b) => a.start - b.start || a.index - b.index);
+  const joined = events.map((event) => event.text).join("");
+  return joined.length > 0 ? joined : undefined;
+}
+
+function narrationFromAudioJson(contents: string): string | undefined {
+  try {
+    const parsed = JSON.parse(contents) as Record<string, unknown>;
+    for (const key of AUDIO_JSON_NARRATION_KEYS) {
+      const value = parsed[key];
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+function assCandidatesFor(reelSourcePath: string): string[] {
+  // burn-narration-subs.ps1 writes <basename>.ass next to the mp4
+  // (`plush-doll.ass` beside `plush-doll.mp4`). The contract's
+  // `<reelSource>.ass` literal is `plush-doll.mp4.ass`. Try both.
+  const paths = [/\.mp4$/i.test(reelSourcePath) ? reelSourcePath.replace(/\.mp4$/i, ".ass") : "", `${reelSourcePath}.ass`];
+  return [...new Set(paths.filter((path) => path.length > 0))];
+}
+
+function conceptIdFromReelPath(reelSourcePath: string): string | undefined {
+  const base = basename(reelSourcePath).replace(/\.mp4$/i, "");
+  if (!base) return undefined;
+  return base.replace(/-15s(?:-t[ABC])?$/i, "").replace(/-t[ABC]$/i, "");
+}
+
+function sidecarNarrationDisabled(contents: string): boolean {
+  try {
+    const parsed = JSON.parse(contents) as { narration?: unknown };
+    return parsed.narration === false;
+  } catch {
+    return false;
+  }
+}
+
+function narrationFromRegistry(conceptId: string, root: string): string | undefined {
+  const raw = readUtf8IfPresent(join(root, BURNED_NARRATION_REGISTRY_REL));
+  if (raw === undefined) return undefined;
+  try {
+    const parsed = JSON.parse(raw) as {
+      narrations?: Record<string, unknown>;
+      generated_from?: Record<string, { source?: unknown }>;
+    };
+    if (parsed.generated_from?.[conceptId]?.source !== "ass") return undefined;
+    const value = parsed.narrations?.[conceptId];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+function burnedNarrationEvidence(
+  reelSourcePath: string,
+  root: string
+): { text: string; source: Exclude<ReelNarrationSource, "concept"> } | undefined {
+  for (const assPath of assCandidatesFor(reelSourcePath)) {
+    const raw = readUtf8IfPresent(assPath);
+    if (raw === undefined) continue;
+    const fromAss = narrationFromAss(raw);
+    if (fromAss) return { text: fromAss, source: "burned" };
+  }
+  const sidecar = readUtf8IfPresent(`${reelSourcePath}.audio.json`);
+  if (sidecar !== undefined) {
+    // Sidecar `narration: false` means native-model-audio with no spoken
+    // narration. Do not consult the registry for a caption that the video
+    // never said.
+    if (sidecarNarrationDisabled(sidecar)) return undefined;
+    const fromAudio = narrationFromAudioJson(sidecar);
+    if (fromAudio) return { text: fromAudio, source: "burned" };
+  }
+  const conceptId = conceptIdFromReelPath(reelSourcePath);
+  if (!conceptId) return undefined;
+  const fromRegistry = narrationFromRegistry(conceptId, root);
+  if (fromRegistry) return { text: fromRegistry, source: "registry" };
+  return undefined;
+}
+
+/**
+ * Read the narration actually burned onto a reel: same-stem `.ass` Dialogue
+ * text in time order, else a string narration field on `.audio.json`, else
+ * the production-time registry.
+ *
+ * The registry only accepts `.ass`-derived entries (`generated_from.source
+ * === "ass"`). Reels with no `.ass`, or whose sidecar sets `narration:
+ * false`, fall back to the live concept narration and record
+ * `narration_source: "concept"`. That is a known caption-vs-video gap; the
+ * fix is to re-burn (PR #51).
+ *
+ * Missing evidence returns undefined so callers keep the live concept.
+ */
+export function burnedNarrationFor(reelSourcePath: string, root: string = projectRoot()): string | undefined {
+  return burnedNarrationEvidence(reelSourcePath, root)?.text;
+}
+
 export function captionsFor(
   concept: ReelConcept,
   airedBefore: number,
-  date: string
+  date: string,
+  narrationOverride?: string
 ): { instagram: string; facebook: string } {
   const hashtags = ["#私享家洗衣店", "#台中西屯洗衣店", "#台中免費收送", "#洗護日常"].join(" ");
   // Block 2 is the observation (narration), never the bare shop name — Instagram
@@ -136,25 +377,38 @@ export function captionsFor(
   // insight data measured -50%+ views on unchanged reruns. Same facts, other
   // arrangement — the craftsman's diagnostic sentence takes the fold and the
   // hook closes instead of opening. No new claims are invented.
-  const narrationEnd = concept.narration.indexOf("。");
-  const narrationLead =
-    narrationEnd === -1 ? concept.narration : concept.narration.slice(0, narrationEnd + 1);
-  const narrationRest = narrationEnd === -1 ? "" : concept.narration.slice(narrationEnd + 1);
+  //
+  // When a reel already has burned subtitles, the schedule path passes that
+  // text as narrationOverride so the caption follows the video, not a later
+  // rewrite of concept.narration. hook/close stay on the concept.
+  const narration = narrationOverride ?? concept.narration;
+  const narrationParts = splitNarrationSentences(narration);
+  const narrationLead = narrationParts[0] ?? narration;
+  const narrationRest = narrationParts.slice(1).join("");
   const opening =
     airedBefore > 0
       ? [narrationLead, `${narrationRest ? narrationRest + "\n\n" : ""}${concept.hook}。`]
-      : [concept.hook + "。", concept.narration];
+      : [concept.hook + "。", narration];
+  // Skip questionFor when any opening sentence already contains ？.
+  // Intentional: if a future concept opens with a statement and a later
+  // opening sentence asks, questionFor is still skipped.
+  const skipQuestionFor = /[？?]/.test(opening.join(""));
+  const igQuestionShare = skipQuestionFor
+    ? shareInviteFor(concept)
+    : `${questionFor(concept)}\n\n${shareInviteFor(concept)}`;
   const instagram = [
     ...opening,
     reelActionCta(concept, "instagram"),
-    `${questionFor(concept)}\n\n${shareInviteFor(concept)}`,
+    igQuestionShare,
     FOLLOW_LINE,
     hashtags
   ].join("\n\n");
+  // FB never inserts questionFor; the share invite is already a question.
+  // IG still skips questionFor when the opening already contains ？.
   const facebook = [
     ...opening,
     reelActionCta(concept, "facebook"),
-    questionFor(concept),
+    shareInviteFor(concept),
     FOLLOW_LINE,
     hashtags
   ].join("\n\n");
@@ -162,7 +416,7 @@ export function captionsFor(
   // every one of them published without a tappable link, without a price and
   // with four generic tags. The topic is the concept's object, which is what
   // the price and intent-tag rules match on.
-  const topic = `${concept.hook}${concept.narration}`;
+  const topic = `${concept.hook}${narration}`;
   const campaign = utmCampaign(date, 2, "reel");
   const siteBaseUrl = getConfig().publicSiteBaseUrl;
   return {
@@ -288,9 +542,22 @@ export async function scheduleReel(input: {
     await copyFile(coverSource, join(root, coverRel));
   }
 
-  const captions = captionsFor(concept, priorAirings(concept.id, input.date), input.date);
+  const evidence = burnedNarrationEvidence(reelSource, root);
+  const narrationSource: ReelNarrationSource = evidence?.source ?? "concept";
+  const burnedNarration = evidence?.text;
+  const usedNarration = burnedNarration ?? concept.narration;
+  const captions = captionsFor(
+    concept,
+    priorAirings(concept.id, input.date),
+    input.date,
+    burnedNarration
+  );
+  const narrationFirstSentence = splitNarrationSentences(usedNarration)[0] ?? usedNarration;
   const scheduleTime = slotNumber === 3 ? "12:00" : slotNumber === 2 ? "20:30" : slot.time;
-  const patched: DailySlot = {
+  const patched: DailySlot & {
+    narration_source: ReelNarrationSource;
+    narration_first_sentence: string;
+  } = {
     ...slot,
     time: scheduleTime,
     topic: concept.hook,
@@ -298,6 +565,8 @@ export async function scheduleReel(input: {
     media_type: "reel",
     instagram_caption: captions.instagram,
     facebook_caption: captions.facebook,
+    narration_source: narrationSource,
+    narration_first_sentence: narrationFirstSentence,
     image_prompt: reelCoverPrompt(concept, coverExists ? coverSourceRel : undefined),
     carousel_items: undefined,
     media_package: undefined,
@@ -411,6 +680,8 @@ export async function scheduleReel(input: {
   });
 
   console.log(`${input.date} slot ${slotNumber} (${variant}) <- ${concept.id}`);
+  console.log(`narration_source: ${narrationSource}`);
+  console.log(`narration_first_sentence: ${narrationFirstSentence}`);
 }
 
 async function fileExists(path: string): Promise<boolean> {

@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { projectRoot } from "../src/paths";
 import {
   BATCH_ONE,
   BATCH_TWO,
@@ -6,11 +9,14 @@ import {
   REEL_SCHEDULE,
   MATERIAL_OPTICS,
   conceptStatuses,
+  loadExtensions,
   materialOpticsFor,
   promptFor,
   publishDateFor,
+  splitNarrationSentences,
   stillPathsFor
 } from "../src/reelConcepts";
+import { SUB_MAX_CHARS, splitNarration } from "../src/reelSubtitles";
 
 describe("reel concepts", () => {
   it("covers six distinct object types so no two Reels look alike", () => {
@@ -328,14 +334,155 @@ describe("reel concept story structure (loop + delayed reveal)", () => {
   it("delays the reveal: first narration sentence withholds the diagnostic token", () => {
     // Mutation: paste the old white-shoe or leather-bag hook/narration back and
     // the first sentence contains 氧化 / 補不回來 again — this goes red.
+    // First sentence is splitNarrationSentences[0] (may end with 。 or ？).
+    // Using indexOf("。") would swallow the second sentence once the opener
+    // became a question, which is a delimiter bug, not a weaker assertion.
     for (const concept of builtinConcepts()) {
       const spec = STORY_STRUCTURE[concept.id]!;
-      const end = concept.narration.indexOf("。");
-      expect(end, `${concept.id} narration is a single dump`).toBeGreaterThan(0);
-      const first = concept.narration.slice(0, end + 1);
-      const rest = concept.narration.slice(end + 1);
+      const parts = splitNarrationSentences(concept.narration);
+      expect(parts.length, `${concept.id} narration is a single dump`).toBeGreaterThan(1);
+      const first = parts[0]!;
+      const rest = parts.slice(1).join("");
       expect(first, `${concept.id} answers in the first sentence`).not.toContain(spec.delayedReveal);
       expect(rest, `${concept.id} never reveals "${spec.delayedReveal}"`).toContain(spec.delayedReveal);
     }
+  });
+});
+
+// Knob 2A r2 (2026-09-05): first spoken sentence is a question for every
+// concept. Length is 6–24 so a comma-split question can still fit the
+// 45–60 admission window; 起/保證/一定 stay banned in the opener.
+function readExtensionFile(): {
+  concepts: Array<{ id: string; narration: string }>;
+  schedule: unknown[];
+} {
+  return JSON.parse(
+    readFileSync(join(projectRoot(), "data", "reel-concepts-extension.json"), "utf8").replace(
+      /^\uFEFF/,
+      ""
+    )
+  ) as { concepts: Array<{ id: string; narration: string }>; schedule: unknown[] };
+}
+
+function assertQuestionOpener(id: string, narration: string): string {
+  const first = splitNarrationSentences(narration)[0] ?? "";
+  expect(first.endsWith("？"), `${id} first sentence is not a question: ${first}`).toBe(true);
+  expect(first.length, `${id} first length ${first.length}: ${first}`).toBeGreaterThanOrEqual(6);
+  expect(first.length, `${id} first length ${first.length}: ${first}`).toBeLessThanOrEqual(24);
+  expect(first.includes("起"), `${id} first contains 起: ${first}`).toBe(false);
+  expect(first.includes("保證"), `${id} first contains 保證: ${first}`).toBe(false);
+  expect(first.includes("一定"), `${id} first contains 一定: ${first}`).toBe(false);
+  return first;
+}
+
+describe("reel narration first sentence is a question (knob 2A)", () => {
+  it("ends with ？, stays 6-24 chars, and avoids 起/保證/一定", () => {
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      expect(REEL_CONCEPTS.length).toBe(26);
+      for (const concept of REEL_CONCEPTS) {
+        assertQuestionOpener(concept.id, concept.narration);
+      }
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+});
+
+describe("extension file question shape and loader admission (K-F5 / O-F6)", () => {
+  it("asserts every JSON concept, not only the ones the loader already kept", () => {
+    const extFile = readExtensionFile();
+    expect(extFile.concepts.length).toBeGreaterThan(0);
+
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    const report = loadExtensions();
+    try {
+      const ids = extFile.concepts.map((entry) => entry.id).sort();
+      expect(report.rejected, `rejected: ${report.rejected.join(" | ")}`).toEqual([]);
+      expect([...report.accepted_concepts].sort()).toEqual(ids);
+      expect(report.accepted_dates).toHaveLength(extFile.schedule.length);
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+
+    for (const entry of extFile.concepts) {
+      assertQuestionOpener(entry.id, entry.narration);
+      expect(entry.narration.length, `${entry.id} narration ${entry.narration.length}`).toBeGreaterThanOrEqual(
+        47
+      );
+      expect(entry.narration.length, `${entry.id} narration ${entry.narration.length}`).toBeLessThanOrEqual(
+        60
+      );
+    }
+  });
+});
+
+// Must match CLAUSE_BREAK in src/reelSubtitles.ts. Input-shape (each clause
+// ≤ SUB_MAX_CHARS) is not implied by output card width (≤ SUB_MAX_CHARS + 2).
+const SUB_CLAUSE_BREAK = /(?<=[。！？!?，,、；;：:…])/u;
+
+describe("narration subtitle cards (O-F2)", () => {
+  it("never starts a card with ？, never hard-wraps a clause, and keeps live cards within SUB_MAX_CHARS + 2", () => {
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      for (const concept of REEL_CONCEPTS) {
+        const clauses = concept.narration
+          .replace(/\s+/gu, " ")
+          .trim()
+          .split(SUB_CLAUSE_BREAK)
+          .filter((clause) => clause.length > 0);
+        for (const clause of clauses) {
+          expect(
+            clause.length,
+            `${concept.id} clause hard-wraps (${clause.length}): ${clause}`
+          ).toBeLessThanOrEqual(SUB_MAX_CHARS);
+        }
+        const segments = splitNarration(concept.narration);
+        for (const segment of segments) {
+          expect(segment.startsWith("？"), `${concept.id} card starts with ？: ${segment}`).toBe(false);
+          expect(
+            segment.length,
+            `${concept.id} card wider than SUB_MAX_CHARS + 2 (${segment.length}): ${segment}`
+          ).toBeLessThanOrEqual(SUB_MAX_CHARS + 2);
+        }
+      }
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+
+  it("keeps every live card at least 4 characters", () => {
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      expect(REEL_CONCEPTS.length).toBe(26);
+      for (const concept of REEL_CONCEPTS) {
+        const segments = splitNarration(concept.narration);
+        for (const segment of segments) {
+          expect(
+            segment.length,
+            `${concept.id} card shorter than 4 (${segment.length}): ${segment}`
+          ).toBeGreaterThanOrEqual(4);
+        }
+      }
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+
+  it("does not let a 3-character tail ride on the previous card", () => {
+    // Mutation: ORPHAN_CHARS 2→9 merges 丁戊己。 onto the 14-char line.
+    const segments = splitNarration("一二三四五六七八九十甲乙丙，丁戊己。");
+    expect(segments).toEqual(["一二三四五六七八九十甲乙丙，", "丁戊己。"]);
   });
 });

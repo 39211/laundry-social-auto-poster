@@ -521,6 +521,9 @@ describe("what the approval gate refuses", () => {
       expect(fetchImpl).not.toHaveBeenCalled();
     });
 
+    // Auto-approving the whole day and then running the live publish path makes this the
+    // slowest case in the file (~3.3s locally, 5.6s on the GitHub Windows runner). Give it
+    // its own budget rather than raising the global default and hiding real hangs elsewhere.
     it("on a pre-snapshot day does not refuse matching stamps just because the digest file is absent", async () => {
       await autoApprove({ date: DATE, root });
       await unlink(imageDigestsPath(root, DATE));
@@ -531,7 +534,7 @@ describe("what the approval gate refuses", () => {
         /images changed after approval|image-digest|digest file|digest entry/
       );
       expect(fetchImpl).toHaveBeenCalled();
-    });
+    }, 30_000);
 
     it("refuses a digest slot whose value is null instead of a map, and does not call Meta", async () => {
       await autoApprove({ date: DATE, root });

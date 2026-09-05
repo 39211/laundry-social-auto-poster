@@ -316,6 +316,7 @@ export const EXISTING_SUPPORT_HUB_GROUPS: Record<string, IndexGrowthHubGroup> = 
   "bedding-duvet-cleaning": "textiles",
   "plush-doll-cleaning": "textiles",
   "luxury-dry-cleaning": "decisions",
+  "luxury-designer-shoe-care": "shoes",
   "taichung-laundry-service-search": "local",
   "clothing-alteration-with-laundry": "decisions",
   "qinghai-road-shoe-cleaning": "local",

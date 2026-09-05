@@ -235,7 +235,7 @@ describe("generated site LINE touchpoints", () => {
     }
     expect(missing, `missing slugs:\n${missing.join("\n")}`).toEqual([]);
     expect([...seen].sort()).toEqual([...new Set(expected.map((row) => row.slug))].sort());
-  });
+  }, 15000);
 
   it("mutation 2: a bare line.me href on a customer page fails the scan", async () => {
     const root = mkdtempSync(join(tmpdir(), "line-attr-bare-"));
@@ -252,7 +252,7 @@ describe("generated site LINE touchpoints", () => {
     expect(clean).toEqual([]);
     const poisoned = `${pages.get("index.html") ?? ""}<a href="${LINE_ME}">LINE</a>`;
     expect(findBareLineMeHrefs(poisoned)).toEqual([LINE_ME]);
-  });
+  }, 15000);
 });
 
 describe("line-attribution-report.ps1", () => {

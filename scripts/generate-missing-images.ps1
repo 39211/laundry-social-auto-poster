@@ -98,6 +98,72 @@ function Ensure-CarouselVisualQa($Items, [string]$RootPath, [string]$Date, [stri
     }
 }
 
+# Second supplier (2026-09-05): the Codex image quota is shared with the review
+# fleet and ran dry for three days, which is a dark day per missing slot. The
+# Antigravity CLI (`agy`, the owner's Google AI Pro login in ~/.gemini) exposes
+# a generate_image tool that accepts reference images, so slides 2-4 are drawn
+# against the slot's hero to keep one object across the carousel. The prompt is
+# the manifest prompt verbatim plus one plain-object clause: the first Google
+# test drew a swoosh on the shoes. The record is stamped google-agy-image, which
+# the publish gate accepts (src/imageSources.ts), never relabelled as gpt-image-2.
+function Invoke-AgyImageFallback {
+    param($Item, $Items, [string]$RootPath, [string]$Date)
+    $agy = Join-Path $env:LOCALAPPDATA "agy\bin\agy.exe"
+    if (-not (Test-Path $agy)) { Write-Step "agy.exe not found at $agy; no Google fallback."; return $null }
+    $work = Join-Path $env:LOCALAPPDATA "laundry-agy\$Date"
+    New-Item -ItemType Directory -Force -Path $work | Out-Null
+    $name = Split-Path -Leaf ([string]$Item.target_path)
+    $outFile = Join-Path $work $name
+    if (Test-Path $outFile) { Remove-Item $outFile -Force }
+    $promptFile = Join-Path $work ($name -replace '\.png$', '.prompt.txt')
+    # The featured-object clause alone is not enough. 2026-09-06: a set whose
+    # subject was a plain duvet still shipped a background display case of
+    # sneakers wearing a legible swoosh, plus a stray phone screen mirroring the
+    # scene and in-focus care labels covered in garbled pseudo-text. The gate
+    # cannot see any of that, so it has to be forbidden in the prompt.
+    $plain = " PLAIN OBJECT RULE: the featured object is completely plain: no logos, no brand marks, no logo-like stripes, curves, swooshes or patches, no readable text anywhere on it." +
+        " BACKGROUND RULE: nothing else in the frame carries a logo or a logo-like curve either. Shoes on shelves, bottles and packaging are plain and unbranded; every label, tag, receipt and sheet of paperwork is out of focus and unreadable; no phone, screen, camera or mirrored copy of this scene appears anywhere in the frame."
+    $refClause = ""
+    $text = [string]$Item.prompt + $plain
+    if ([int]$Item.slide -gt 1) {
+        $hero = @($Items | Where-Object { [int]$_.slot -eq [int]$Item.slot -and [int]$_.slide -eq 1 } | Select-Object -First 1)
+        if ($hero.Count -gt 0) {
+            $heroPath = Join-Path $RootPath (([string]$hero[0].target_path) -replace "/", "\")
+            if (Test-Path $heroPath) {
+                $text = "Use the attached photo as the reference: it is the exact same object and the exact same counter scene. Keep the object identity, colours, materials, wear marks and the background identical; only change the framing and focus as described below. " + $text
+                $refClause = " Pass ImagePaths=['$heroPath'] as the reference image."
+            }
+        }
+    }
+    [IO.File]::WriteAllText($promptFile, $text, [Text.UTF8Encoding]::new($false))
+    $ask = "Read the file $promptFile. Call your generate_image tool exactly once with Prompt = that file content verbatim, AspectRatio '3:4', ImageName 'laundry_slot_photo'.$refClause Then copy the generated image file to $outFile and reply only with that absolute path and the file size in bytes. Do nothing else."
+    $t0 = Get-Date
+    $agyOut = & $agy --dangerously-skip-permissions --output-format json --add-dir $work --print=$ask 2>&1
+    if ($LogFile) { $agyOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
+    $secs = [int]((Get-Date) - $t0).TotalSeconds
+    if ((Test-Path $outFile) -and (Get-Item $outFile).Length -gt 0) {
+        # agy writes JPEG bytes under the .png name it was asked for; the approval
+        # gate checks the PNG magic ("not a real PNG"), so re-encode unless the
+        # bytes already are PNG. 2026-09-05: all eight first-run files were JPEG.
+        $head = [IO.File]::ReadAllBytes($outFile)[0..3]
+        $isPng = ($head[0] -eq 0x89 -and $head[1] -eq 0x50 -and $head[2] -eq 0x4E -and $head[3] -eq 0x47)
+        if (-not $isPng) {
+            $raw = Join-Path $work ($name -replace '\.png$', '.raw.jpg')
+            Move-Item $outFile $raw -Force
+            & ffmpeg -v error -y -i $raw -pix_fmt rgb24 $outFile 2>&1 | Out-Null
+            if (-not (Test-Path $outFile)) {
+                Write-Step "Google (agy) returned non-PNG bytes for $name and ffmpeg could not re-encode them."
+                return $null
+            }
+        }
+        Write-Step "Google (agy) produced $name in ${secs}s."
+        return Get-Item $outFile
+    }
+    $tail = @($agyOut | Select-Object -Last 5) -join " | "
+    Write-Step "Google (agy) produced nothing for $name after ${secs}s: $tail"
+    return $null
+}
+
 $manifestPath = Join-Path $root "data\image-prompts\$Date.json"
 if ($QaOnly) {
     if (-not (Test-Path $manifestPath)) {
@@ -195,22 +261,28 @@ $($item.prompt)
 
     # Without the timestamp filter a failed run would silently republish an
     # older image belonging to a different day.
+    $source = "gpt-image-2"
     if (-not $image) {
         $codexTail = @($codexOut | Select-Object -Last 20) -join " | "
-        Write-Step "Codex returned no new image for slot $($item.slot). Codex said: $codexTail"
-        exit 1
+        Write-Step "Codex returned no new image for slot $($item.slot); trying Google (agy generate_image). Codex said: $codexTail"
+        $image = Invoke-AgyImageFallback -Item $item -Items $items -RootPath $root -Date $Date
+        if (-not $image) {
+            Write-Step "Google fallback also returned no image for slot $($item.slot)."
+            exit 1
+        }
+        $source = "google-agy-image"
     }
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
     Copy-Item $image.FullName $target -Force
-    Write-Step "Saved slot $($item.slot)."
+    Write-Step "Saved slot $($item.slot) from $source."
 
     # A carousel slot has one record per slide, so the path identifies which
     # image was just written. Marking by slot alone left three of four slides
     # of every carousel without a source record, which the publish gate reads
     # as an unverified image.
     Push-Location $root
-    $markOut = cmd /c "npm.cmd run mark-image-source -- --date $Date --slot $($item.slot) --path $($item.target_path) --source gpt-image-2 2>&1"
+    $markOut = cmd /c "npm.cmd run mark-image-source -- --date $Date --slot $($item.slot) --path $($item.target_path) --source $source 2>&1"
     if ($LogFile) { $markOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
     else { $markOut | ForEach-Object { Write-Host $_ } }
     if ($LASTEXITCODE -ne 0) {

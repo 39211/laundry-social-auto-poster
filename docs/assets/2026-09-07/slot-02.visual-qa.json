@@ -1,0 +1,77 @@
+{
+  "topic": "領帶一季沒洗會怎樣？先看領結和尖端這 2 個位置",
+  "date": "2026-09-07",
+  "slot": 2,
+  "axes": {
+    "OBJECT_IDENTITY": "FAIL",
+    "SCENE": "PASS",
+    "TOPIC_MATCH": "FAIL"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "第 1 張是深色梭織領帶，第 2 至 4 張則是不同顏色的針織 T 恤，並非同一實體物件。",
+    "SCENE": "四張皆可見粉紅裁切墊與店內板牆背景，屬同一場景家族。",
+    "TOPIC_MATCH": "主題指定領帶，但第 2 至 4 張明顯展示 T 恤。"
+  },
+  "frames_used": [
+    "slide-01.png",
+    "slide-02.png",
+    "slide-03.png",
+    "slide-04.png"
+  ],
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-07\\slot-02.png",
+      "canary": "PJS4",
+      "sha256": "18693d5d337706c1ff61e68d1e191f9909ed592ea35e68f9544c1d23c87e47c2"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-07\\slot-02-slide-02.png",
+      "canary": "H5E3",
+      "sha256": "e12e2e78bec441cd01feab34d391b0a16d6fd96d49d8638827883968eb05c4aa"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-07\\slot-02-slide-03.png",
+      "canary": "XFY7",
+      "sha256": "11887365cb8404df17c57622f67a582d97913ce9f47c17c8b9ae9744665d08ea"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-07\\slot-02-slide-04.png",
+      "canary": "BWPP",
+      "sha256": "9c72bf51d58ccf29fd5efe6b0636905320d1bb553701b252db55173497f8dc3f"
+    }
+  ],
+  "sources": [
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-07\\slot-02.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-07\\slot-02-slide-02.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-07\\slot-02-slide-03.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-07\\slot-02-slide-04.png"
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "PJS4",
+    "IMAGE_2": "H5E3",
+    "IMAGE_3": "XFY7",
+    "IMAGE_4": "BWPP"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "PJS4",
+    "IMAGE_2": "H5E3",
+    "IMAGE_3": "XFY7",
+    "IMAGE_4": "BWPP"
+  },
+  "prompt_hash": "e6c33aab4d2e64c21b9ea2c7c05134b6ff7c13f8421497a61fb0cde1e5c74dbf",
+  "run_id": "carousel-qa-1788486687598",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-09-04T01:52:59.432Z",
+  "mode": "warn",
+  "verdict": "FAIL_CLOSED",
+  "fail_class": "missing_observation"
+}

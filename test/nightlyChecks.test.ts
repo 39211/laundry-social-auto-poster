@@ -174,3 +174,87 @@ describe("nightly 6a rewrite and 6b drop", () => {
     expect(source).toContain("opt_log_severity");
   });
 });
+
+describe("nightly 10: did today publish, and can the machine wake (F19/B8/B9)", () => {
+  it("is HIGH only after 21:00 when nothing aired and nobody paused", () => {
+    const got = callJson(
+      "print(json.dumps({" +
+        "'late_empty': n.unposted_day_what(False, False, 22)," +
+        "'early_empty': n.unposted_day_what(False, False, 2)," +
+        "'boundary_20': n.unposted_day_what(False, False, 20)," +
+        "'boundary_21': n.unposted_day_what(False, False, 21)," +
+        "'aired': n.unposted_day_what(True, False, 22)," +
+        "'paused': n.unposted_day_what(False, True, 22)," +
+        "'paused_and_aired': n.unposted_day_what(True, True, 22)," +
+        "}))"
+    ) as Record<string, string | null>;
+    expect(got.late_empty).toBe("今天一則都沒發出去");
+    expect(got.early_empty).toBeNull();
+    expect(got.boundary_20).toBeNull();
+    expect(got.boundary_21).toBe("今天一則都沒發出去");
+    expect(got.aired).toBeNull();
+    expect(got.paused).toBeNull();
+    expect(got.paused_and_aired).toBeNull();
+  });
+
+  it("dry_run / failed / non-dict rows do not count as aired", () => {
+    const got = callJson(
+      [
+        "print(json.dumps({",
+        "  'dry': n.has_live_posts([{'status':'success','dry_run':True,'slot':1}]),",
+        "  'fail': n.has_live_posts([{'status':'failed','slot':1}]),",
+        "  'ok': n.has_live_posts([{'status':'success','slot':1,'platform':'instagram'}]),",
+        "  'posted_alias': n.has_live_posts([{'status':'posted','slot':2}]),",
+        "  'scalar': n.has_live_posts({'status':'success','slot':1}),",
+        "  'empty': n.has_live_posts([]),",
+        "  'none': n.has_live_posts(None),",
+        "  'null_row': n.has_live_posts([None]),",
+        "}))",
+      ].join("\n")
+    ) as Record<string, boolean>;
+    expect(got.dry).toBe(false);
+    expect(got.fail).toBe(false);
+    expect(got.ok).toBe(true);
+    expect(got.posted_alias).toBe(true);
+    expect(got.scalar).toBe(true);
+    expect(got.empty).toBe(false);
+    expect(got.none).toBe(false);
+    expect(got.null_row).toBe(false);
+  });
+
+  it("WakeToRun probe: empty is a finding; False names the task; True is quiet", () => {
+    const got = callJson(
+      "print(json.dumps({" +
+        "'empty': n.wake_to_run_breaks('')," +
+        "'blank': n.wake_to_run_breaks('   \\n')," +
+        "'healthy': n.wake_to_run_breaks(" +
+        "'Laundry-Daily-Generate|True\\nLaundry-Daily-Approve|True\\nLaundry-CatchUp-Publish|True')," +
+        "'dollar_true': n.wake_to_run_breaks('Laundry-CatchUp-Publish|$True')," +
+        "'disabled': n.wake_to_run_breaks(" +
+        "'Laundry-Daily-Generate|True\\nLaundry-CatchUp-Publish|False')," +
+        "}))"
+    ) as Record<string, { empty: boolean; false_tasks: string[] }>;
+    expect(got.empty).toEqual({ empty: true, false_tasks: [] });
+    expect(got.blank).toEqual({ empty: true, false_tasks: [] });
+    expect(got.healthy).toEqual({ empty: false, false_tasks: [] });
+    expect(got.dollar_true).toEqual({ empty: false, false_tasks: [] });
+    expect(got.disabled).toEqual({
+      empty: false,
+      false_tasks: ["Laundry-CatchUp-Publish"]
+    });
+  });
+
+  it("production check 10 calls the helpers (write-side teeth, A9)", () => {
+    const source = readFileSync(script, "utf8");
+    const helpersEnd = source.indexOf("# --- end helpers ---");
+    const check10 = source.slice(helpersEnd);
+    expect(check10).toMatch(
+      /unposted_day_what\(\s*has_live_posts\(posted\),\s*pause is not None,\s*datetime\.now\(\)\.hour\s*\)/
+    );
+    expect(check10).toContain("wake_to_run_breaks(wake_probe)");
+    expect(check10).toContain('wake_breaks["empty"]');
+    expect(check10).toContain('wake_breaks["false_tasks"]');
+    expect(check10).not.toContain("too_early_to_judge");
+    expect(check10).not.toContain("seen_wake");
+  });
+});

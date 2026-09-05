@@ -69,4 +69,13 @@ jobs:
 
       - run: npx tsc --noEmit
 
+      - run: node scripts/check-reel-registry-drift.mjs
+
       - run: npx vitest run
+
+      # docs-internal/public-image-metadata.json is derived from the checked-in
+      # sitemap HTML and nothing else regenerates it; a publish that rewrites
+      # HTML without it silently breaks the consistency test. Rebuild it here
+      # and fail on drift so the committed file is always reproducible.
+      - run: npm run regen-public-image-metadata
+      - run: git diff --exit-code -- docs-internal/public-image-metadata.json

@@ -228,6 +228,32 @@ describe("carousel continuity mutation proof", () => {
   });
 });
 
+describe("F20 fish-2 generic 外套 passport is injected into carousel prompts", () => {
+  const COAT_TOPIC = "先看懂：外套領口的皮脂痕跡";
+
+  it("names the work-jacket default on every slide and forbids down jackets and shirts", () => {
+    const passport = garmentPassportFromTopic(COAT_TOPIC);
+    expect(passport).toMatch(/beige cotton work jacket/i);
+    expect(passport).toMatch(/not a down jacket/i);
+    expect(passport).toMatch(/not a dress shirt/i);
+    expect(passport).not.toMatch(/everyday fabric jacket/i);
+
+    const prompts = buildCarouselImagePrompts({
+      date: "2026-08-18",
+      slot: 1,
+      topic: COAT_TOPIC
+    });
+    expect(prompts).toHaveLength(4);
+    expect(continuityGaps(prompts, passport)).toEqual([]);
+    for (const prompt of prompts) {
+      expect(prompt).toMatch(/beige cotton work jacket/i);
+      expect(prompt).toMatch(/not a down jacket/i);
+      expect(prompt).toMatch(/not a dress shirt/i);
+      expect(prompt).not.toMatch(/everyday fabric jacket/i);
+    }
+  });
+});
+
 describe("carousel continuity wiring through the daily builder", () => {
   it("writes passport and same-garment into tomorrow's generated carousel_items", () => {
     const content = buildDailyContent("2026-08-18", getConfig());

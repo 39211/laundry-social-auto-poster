@@ -110,3 +110,66 @@ describe("slot1-plan 14-day object passport table", () => {
     expect(clinicIndex).toBeGreaterThan(schoolIndex);
   });
 });
+
+describe("F20 fish-2 generic jacket family has a concrete default style", () => {
+  it("locks a bare 外套 topic as a beige cotton work jacket, not a category word", () => {
+    const spec = objectSpecFromTopic("先看懂：外套領口的皮脂痕跡");
+    const passport = garmentPassportFromTopic("先看懂：外套領口的皮脂痕跡");
+    expect(spec.noun).toMatch(/beige cotton work jacket/i);
+    expect(spec.noun).toMatch(/shirt collar/i);
+    expect(spec.noun).toMatch(/buttoned cuffs/i);
+    expect(spec.noun).not.toMatch(/everyday fabric jacket/i);
+    expect(spec.material).toMatch(/beige cotton twill/i);
+    expect(spec.material).toMatch(/shirt collar/i);
+    expect(spec.material).toMatch(/cuff buttons/i);
+    expect(spec.lockNote).toMatch(/not a down jacket/i);
+    expect(spec.lockNote).toMatch(/not a dress shirt/i);
+    expect(spec.lockNote).toMatch(/not a wool overcoat/i);
+    expect(passport).toContain(spec.noun);
+    expect(passport).toContain(spec.lockNote);
+    expect(passport).not.toMatch(/everyday fabric jacket/i);
+  });
+
+  it("locks a bare 夾克 topic to the same work-jacket default", () => {
+    const spec = objectSpecFromTopic("夾克袖口發黑");
+    expect(spec.noun).toMatch(/beige cotton work jacket/i);
+    expect(spec.lockNote).toMatch(/not a down jacket/i);
+  });
+
+  it("locks 大衣 as a wool overcoat instead of the work-jacket fallback", () => {
+    const spec = objectSpecFromTopic("大衣預檢");
+    const passport = garmentPassportFromTopic("大衣預檢");
+    expect(spec.noun).toMatch(/beige wool overcoat/i);
+    expect(spec.noun).toMatch(/notch lapels/i);
+    expect(spec.noun).not.toMatch(/work jacket/i);
+    expect(spec.noun).not.toMatch(/everyday fabric jacket/i);
+    expect(spec.material).toMatch(/beige wool coating/i);
+    expect(spec.lockNote).toMatch(/not a down jacket/i);
+    expect(spec.lockNote).toMatch(/not a work jacket/i);
+    expect(spec.lockNote).toMatch(/not a dress shirt/i);
+    expect(passport).toContain(spec.noun);
+  });
+
+  it("keeps named jacket families on their specific rows", () => {
+    expect(objectSpecFromTopic("羽絨外套袖口發黑").noun).toMatch(/quilted down jacket/i);
+    expect(objectSpecFromTopic("西裝外套肩線垮了").noun).toMatch(/navy wool suit jacket/i);
+    expect(objectSpecFromTopic("西裝大衣預檢").noun).toMatch(/navy wool suit jacket/i);
+  });
+
+  it("mutation: down-jacket, suit-jacket, and wool-overcoat sit above the generic 外套 row", () => {
+    const ids = OBJECT_SPEC_RULES.map((rule) => rule.id);
+    const down = ids.indexOf("down-jacket");
+    const suit = ids.indexOf("suit-jacket");
+    const wool = ids.indexOf("wool-overcoat");
+    const everyday = ids.indexOf("everyday-jacket");
+    expect(down).toBeGreaterThanOrEqual(0);
+    expect(suit).toBeGreaterThanOrEqual(0);
+    expect(wool).toBeGreaterThanOrEqual(0);
+    expect(everyday).toBeGreaterThan(down);
+    expect(everyday).toBeGreaterThan(suit);
+    expect(everyday).toBeGreaterThan(wool);
+    const everydayRule = OBJECT_SPEC_RULES[everyday];
+    expect(everydayRule?.match.test("羽絨外套袖口發黑")).toBe(true);
+    expect(everydayRule?.match.test("西裝外套肩線垮了")).toBe(true);
+  });
+});

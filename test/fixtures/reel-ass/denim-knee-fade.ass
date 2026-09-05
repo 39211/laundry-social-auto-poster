@@ -1,0 +1,17 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 720
+PlayResY: 1280
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Narration,Microsoft JhengHei,40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H73000000,-1,0,0,0,100,100,0,0,3,6,0,2,20,20,84,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.50,0:00:02.85,Narration,,0,0,0,,布被撐開之後就回不去了,
+Dialogue: 0,0:00:02.85,0:00:05.39,Narration,,0,0,0,,洗過也只會縮回一部分而已。
+Dialogue: 0,0:00:05.39,0:00:06.57,Narration,,0,0,0,,想留住版型,
+Dialogue: 0,0:00:06.57,0:00:09.31,Narration,,0,0,0,,別等到整片都發白了才送過來。

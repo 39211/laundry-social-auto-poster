@@ -180,6 +180,13 @@ interface ServicePageDefinition {
   inspection_table?: Array<{ item: string; focus: string; risk: string }>;
   /** R2: optional two-column reference-price tables rendered as real <table>s. */
   price_tables?: Array<{ heading: string; rows: Array<{ item: string; price: string }> }>;
+  process_steps?: Array<{ name: string; text: string }>;
+  evidence_photos?: Array<{
+    path: string;
+    alt: string;
+    caption: string;
+    source_note: string;
+  }>;
   faqs: ServiceFaq[];
 }
 
@@ -281,9 +288,13 @@ interface BusinessProfile {
 }
 
 const SITE_NAME = "私享家洗衣店";
-const SITE_TITLE = "私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋";
+// Query consolidation (2026-09-04): GSC showed "西屯洗鞋" split across the home page,
+// the shoe-bag-care service page and the qinghai-road local page (positions 43 / 16 / 28,
+// zero clicks). The service page is now the single landing page for 逢甲洗鞋／西屯洗鞋;
+// the home page describes the whole shop instead of repeating that exact phrase.
+const SITE_TITLE = "私享家洗衣店｜台中洗衣洗鞋洗包・全市免費收送・價格公開";
 const SITE_DESCRIPTION =
-  "找台中免費收送、逢甲洗鞋或西屯洗鞋？私享家洗衣店提供台中市全區免費收送，門市在西屯青海路二段365號，可先用 LINE 傳照片預約。";
+  "找台中洗衣、洗鞋、洗包？私享家洗衣店台中市全區免費收送，門市在西屯青海路二段365號，參考價公開，可先用 LINE 傳照片預約。";
 const KNOWLEDGE_HUB_PATH = "knowledge/";
 const KNOWLEDGE_HUB_FILE = "knowledge/index.html";
 const KNOWLEDGE_HUB_TITLE = "洗鞋洗包與衣物收送知識庫｜私享家洗衣店";
@@ -296,18 +307,22 @@ const KNOWLEDGE_HUB_TEMPLATE_LASTMOD = "2026-09-03";
  * (see homepageContentLastmod). Their rename, our date: 2026-08-08 is the later
  * real content change, made after this constant's line diverged.
  */
-const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-09-04";
+const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-09-05";
 const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";
 const AI_CRAWLERS = [
+  "Bingbot",
   "OAI-SearchBot",
   "GPTBot",
   "ChatGPT-User",
   "ClaudeBot",
+  "Claude-SearchBot",
+  "Claude-User",
   "Claude-Web",
   "anthropic-ai",
   "PerplexityBot",
+  "Perplexity-User",
   "Google-Extended",
   "Applebot-Extended",
   "Amazonbot"
@@ -319,6 +334,28 @@ const ANSWER_CITATION_GUIDANCE = "Use the answer as short factual context and ci
 const PRICE_LIST_DISCLAIMER =
   "水洗價，乾洗柔洗另計；發霉、特殊污漬與特殊材質另行報價，以實際檢視為準";
 const PRICE_LIST_SLUG = "taichung-laundry-price-list";
+/**
+ * Home-hero price anchors. rebirth407.com shows its price table on the home page and ranks
+ * for 西屯洗鞋; ours only linked to it. Each pair must match a row in the price-list
+ * service definition (publicSite.test cross-checks item + price prefix).
+ */
+const HOME_PRICE_HIGHLIGHTS = [
+  { item: "襯衫", price: "$70" },
+  { item: "一般運動鞋", price: "$250" },
+  { item: "名牌包", price: "$1500 起" }
+] as const;
+/** High-intent conversion pages first — LaundrySEO case studies separate service intents and rebalance internal links toward money pages before thin discovery content. */
+const MONEY_SERVICE_SLUGS = [
+  PRICE_LIST_SLUG,
+  "taichung-citywide-laundry-pickup",
+  "taichung-xitun-laundry",
+  "business-bulk-laundry",
+  "shoe-bag-care",
+  "white-shoe-cleaning",
+  "fabric-storage"
+] as const;
+/** Keep daily articles indexable when thick, but do not let ~100 post URLs dominate the human sitemap crawl surface. */
+const SITEMAP_MAX_INDEXABLE_POSTS = 30;
 const AI_DO_NOT_INFER_RULES = [
   "Do not infer pricing.",
   "Do not guarantee that white shoes can be fully whitened.",
@@ -339,16 +376,116 @@ const LOCAL_SEARCH_QUERY_TARGETS = [
   "台中西屯洗鞋",
   "台中西屯洗包",
   "台中西屯白鞋清潔",
-  "台中西屯布品收納"
+  "台中西屯布品收納",
+  "台中洗衣價格",
+  "台中窗簾清洗",
+  "台中洗窗簾",
+  "絨毛娃娃清洗",
+  "勃肯鞋臭"
 ] as const;
+const WIKIDATA_TAICHUNG = "https://www.wikidata.org/wiki/Q245023";
+const WIKIDATA_XITUN = "https://www.wikidata.org/wiki/Q569546";
+const INDEX_GAP_MONEY_SLUGS = [
+  PRICE_LIST_SLUG,
+  "taichung-citywide-laundry-pickup",
+  "taichung-xitun-laundry",
+  "business-bulk-laundry",
+  "fabric-storage"
+] as const;
+const UNIQUE_VALUE_BLOCKS: Record<
+  string,
+  { h2: string; points: string[]; fit: string; notFit: string }
+> = {
+  "taichung-laundry-price-list": {
+    h2: "這頁只回答「多少錢」，不是折扣碼也不是報價單",
+    points: [
+      "列的是水洗參考價，不是最低價承諾或市場行情。",
+      "襯衫 $70、一般運動鞋 $250、名牌包 $1500 起，完整分類在本頁表格。",
+      "收送免費與清潔費用分開；本頁不把收送寫成免費清潔。",
+      "實際報價仍要看材質與污損，先對照本頁再傳照片。"
+    ],
+    fit: "第一次送洗、想先對參考價的人",
+    notFit: "要最低價承諾、折扣碼或固定報價單的人——本頁沒有那些數字"
+  },
+  "taichung-citywide-laundry-pickup": {
+    h2: "這頁只講收送規則：免費的是路程，不是清潔",
+    points: [
+      "台中市全市收送本身免費，沒有最低消費門檻。",
+      "清潔與洗護費用另計，不因收送免費而變成免費洗衣。",
+      "一件也能先問；預約以 LINE 傳照片為主。",
+      "門市在西屯青海路二段365號，不方便到店才走收送。"
+    ],
+    fit: "住在台中市區、不想先跑一趟門市的人",
+    notFit: "住在外縣市、或把「免費收送」理解成整單免費的人"
+  },
+  "taichung-xitun-laundry": {
+    h2: "這頁是西屯這一間門市，不是連鎖目錄",
+    points: [
+      "實體店在青海路二段365號、至善國中對面。",
+      "西屯、逢甲生活圈可到店，台中其他區走全市收送。",
+      "不是逢甲夜市攤位，也不是多店加盟列表。",
+      "價目與收送規則各有專頁，本頁不重複當目錄。"
+    ],
+    fit: "人在西屯／逢甲、想確認這間店在哪的人",
+    notFit: "在找全台連鎖據點或夜市臨時攤的人"
+  },
+  "business-bulk-laundry": {
+    h2: "這頁給店家與公司大量件，不是單件精品鞋",
+    points: [
+      "宿舍、餐廳、辦公室、店家制服與大量衣物走這頁。",
+      "仍走台中全市免費收送；清潔費依件數與材質另計。",
+      "單雙名牌鞋、精品包請走鞋包頁，不要塞進大量件。",
+      "先用 LINE 列品項與地址，再約收件時段。"
+    ],
+    fit: "店家、公司、宿舍一次多件的窗口",
+    notFit: "只有一件精品鞋或名牌包、需要逐件檢查的人"
+  },
+  "fabric-storage": {
+    h2: "這頁處理換季收納前的布品，不是倉儲出租",
+    points: [
+      "先看乾燥、悶味、黃痕，再決定洗後收納。",
+      "外套、寢具、被套、厚棉是主體，不是代客倉儲。",
+      "發霉或未乾就密封，本頁會直接說不建議。",
+      "價目與收送仍連到專頁，不在收納頁報假價。"
+    ],
+    fit: "換季、搬家、想先處理濕氣再收進櫃子的家庭",
+    notFit: "要租倉庫或長期代保管衣物的人"
+  },
+  "shoe-bag-care": {
+    h2: "這頁不是只收白鞋",
+    points: [
+      "運動鞋、皮鞋、帆布、麂皮、精品鞋與包包都先看材質。",
+      "白鞋清潔是隔壁專頁；本頁是多鞋款與洗包母頁。",
+      "一般運動鞋水洗參考價 $250，名牌包 $1500 起。",
+      "氧化膠邊、破皮、掉色不承諾變全新。"
+    ],
+    fit: "手上是鞋或包、還不確定能不能洗的人",
+    notFit: "只想看白鞋泛黃教學、或要洗回出廠白承諾的人"
+  },
+  "fengjia-laundry-pickup": {
+    h2: "逢甲收送是生活圈路徑，不是夜市攤位頁",
+    points: [
+      "逢甲附近可約全市免費收送，門市仍在青海路二段。",
+      "洗鞋洗包要看材質，不是夜市現洗攤。",
+      "價目在價目表，收送規則在全市收送頁。",
+      "人在逢甲、東西在宿舍或租屋，先傳照片再約收。"
+    ],
+    fit: "逢甲、青海路商圈、不想先找門市的人",
+    notFit: "把本頁當成逢甲夜市現場洗鞋攤介紹的人"
+  }
+};
 const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
   {
     slug: "shoe-bag-care",
     name: "鞋包清潔",
-    title: "逢甲洗鞋・西屯洗鞋｜鞋包清潔先看材質｜私享家洗衣店",
+    // Title and H1 are written as the sentence people actually type (競品 jingzheli.tw /
+    // rebirth407.com rank with question-shaped titles), and this page is the only one
+    // carrying the exact 逢甲洗鞋／西屯洗鞋 phrase in its H1.
+    title: "西屯洗鞋店怎麼選？逢甲、青海路洗鞋洗包價格與免費收送｜私享家洗衣店",
     description:
-      "找逢甲洗鞋或西屯洗鞋？私享家洗衣店在青海路二段365號，先看鞋面、鞋底、內裡與材質再判斷清潔方式，台中市可免費收送。",
-    h1: "逢甲洗鞋・西屯洗鞋",
+      "西屯洗鞋、逢甲洗鞋要多少錢？一般運動鞋水洗參考價 $250，名牌包 $1500 起。私享家洗衣店在青海路二段365號，先看鞋面、鞋底、內裡與材質再判斷清潔方式，台中市可免費收送。",
+    // "$250" not "$250 起": the price list carries 一般運動鞋 as a single water-wash figure.
+    h1: "西屯洗鞋、逢甲洗鞋要多少錢？先看材質，一般運動鞋參考價 $250",
     summary:
       "鞋子和包包常見問題不只表面髒，還包括包角水痕、鞋底泥灰、提把油痕、內裡濕氣與材質摩擦痕。私享家會先看材質、位置與痕跡深度，再決定是清潔、局部整理、通風觀察，還是需要先提醒客人可改善的限度。",
     keywords: ["逢甲洗鞋", "西屯洗鞋", "台中西屯洗鞋", "鞋包清潔", "洗包", "包包清潔", "青海路洗鞋"],
@@ -392,9 +529,9 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
           "清潔可以改善灰塵、泥痕、部分水痕與味道，但氧化、破皮、掉色、長期磨耗或已經滲入材質的痕跡，處理前需要先說清楚。私享家會把可改善和不適合硬處理的地方分開講，避免客人期待落差。"
       },
       {
-        heading: "洗鞋費用怎麼判斷？本頁不列固定價目",
+        heading: "洗鞋費用怎麼判斷？先看參考價，再看材質",
         body:
-          "本頁不提供洗鞋或洗包的固定金額、價目表、折扣碼或市場行情價。可以先確定的是：台中市內收送本身免費、且沒有最低消費門檻；清潔與洗護費用則要看過物件之後才說明。會影響費用的因素包含材質（皮革、麂皮、帆布、網布、合成皮反應不同）、髒污深度與是否已滲入、膠邊是否氧化或老化、是否需要局部處理、可拆部件多寡，以及件數。取得屬於你這雙鞋的說明只要三步：先拍鞋面、鞋邊、鞋內與整體四張照片，用 LINE 傳給門市，門市會先回覆適合清潔、局部整理還是不建議硬處理，方向確認後再談費用。若搜尋結果出現「某某元起」而不是本店官方頁面，請以 LINE 回覆為準。"
+          "公開水洗參考價：一般運動鞋 $250、皮鞋與麂皮鞋 $400、名牌包 $1500 起，完整分類見台中洗衣價目表；參考價不是固定報價，也不含折扣碼或市場行情價。可以先確定的是：台中市內收送本身免費、且沒有最低消費門檻；清潔與洗護費用則要看過物件之後才說明。會影響費用的因素包含材質（皮革、麂皮、帆布、網布、合成皮反應不同）、髒污深度與是否已滲入、膠邊是否氧化或老化、是否需要局部處理、可拆部件多寡，以及件數。取得屬於你這雙鞋的說明只要三步：先拍鞋面、鞋邊、鞋內與整體四張照片，用 LINE 傳給門市，門市會先回覆適合清潔、局部整理還是不建議硬處理，方向確認後再談費用。若搜尋結果出現「某某元起」而不是本店官方頁面，請以 LINE 回覆為準。"
       },
       {
         heading: "LINE 詢問怎麼描述",
@@ -444,7 +581,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       {
         question: "洗鞋多少錢？為什麼這裡查不到價目表？",
         answer:
-          "本頁不列固定價目。同樣一雙鞋，材質、髒污深度、膠邊是否氧化、要不要局部處理，處理方式與費用差很多，先報數字容易造成期待落差。可以先確定的是收送本身免費、沒有最低消費門檻；拍鞋面、鞋邊、鞋內與整體四張照片傳 LINE，門市會先說明適合怎麼處理，再談費用。"
+          "參考價：一般運動鞋 $250、皮鞋 $400、名牌包 $1500 起（水洗價）。同樣一雙鞋，材質、髒污深度、膠邊是否氧化、要不要局部處理，處理方式與費用差很多，參考價之外的數字要看過物件才能給。可以先確定的是收送本身免費、沒有最低消費門檻；拍鞋面、鞋邊、鞋內與整體四張照片傳 LINE，門市會先說明適合怎麼處理，再談費用。"
       },
       {
         question: "想找便宜的洗鞋，你們適合嗎？",
@@ -563,7 +700,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     image_alt: "外套、寢具與布品收納前檢查主圖",
     image_note: "AI 生成的高擬真產品風格主圖，用於呈現外套、寢具與布品收納前檢查情境；不是實際客戶物件照片。",
     static_image_path: "assets/services/fabric-storage-hero-product.png",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-30",
     static_image_topic: "外套、寢具與布品收納前產品級檢查主圖",
     static_image_source: "ai-generated premium product hero image",
     answer_summary:
@@ -579,8 +716,30 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     },
     case_studies: [
       { label: "情境 01", object: "換季外套", material: "棉質或混紡外套", concern: "領口袖口暗沉、穿過後直接收納", inspection: "先看接觸皮膚的位置、材質標籤與是否還有汗味或潮氣。", boundary: "有味道或局部髒污時不直接壓縮收納，先評估是否適合清潔。" },
-      { label: "情境 02", object: "寢具與被套", material: "棉質布品與填充寢具", concern: "表面乾淨但收納袋有悶味", inspection: "確認被套內側、枕套接觸皮膚處與收納袋本身是否有潮味。", boundary: "環境異味會重新附著，未乾燥的布品不適合密封。" },
-      { label: "情境 03", object: "厚棉布品", material: "厚棉或有填充結構布品", concern: "摺痕邊角灰塵與局部黃痕", inspection: "看折痕、邊角、填充狀態與黃痕形成時間，避免只處理表面。", boundary: "不將久放黃痕承諾為可完全消除，先說明可能的改善範圍。" }
+      { label: "情境 02", object: "雙人棉被中間層", material: "棉質表布與填充寢具", concern: "摸起來乾、收進袋子後下一季有味道", inspection: "拉開絎縫，用手壓中間層確認是不是只有表布乾；同時聞收納袋內側。", boundary: "中間層還沒乾就不密封；不以香味噴劑蓋住潮氣。" },
+      { label: "情境 03", object: "毛毯起毛球", material: "搖粒或混紡毯", concern: "表面起 pill、想先收進櫃子", inspection: "在工作台鋪開，看 pill 是浮在表層還是纖維已經起毛；再確認有沒有潮味。", boundary: "起毛球不是髒污保證能還原；先說能修到什麼程度，再決定清或收。" },
+      { label: "情境 04", object: "羽絨外套壓扁", material: "羽絨填充與塗層表布", concern: "換季想直接壓進真空袋", inspection: "先看洗標、走線破口與領口油光，再確認內部是不是全乾。", boundary: "沒乾透就壓縮會悶味也會扁掉；塗層件不保證洗完還一樣蓬。" }
+    ],
+    process_steps: [
+      { name: "先聞再摸", text: "袋口、被套內側與外套腋下先聞。有悶味就先不要封。摸表布乾，還要壓中間層。" },
+      { name: "看高接觸處", text: "外套看領口、袖口、腋下與口袋邊；枕套看接觸皮膚那一面。" },
+      { name: "看填充與走線", text: "棉被與羽絨拉開絎縫，確認填充有沒有潮、車線有沒有鬆。小破口清洗時會擴大。" },
+      { name: "看收納袋本身", text: "袋子有潮味，乾淨布品也會重新吸附。塑膠袋把濕氣封死，比不收更糟。" },
+      { name: "再決定清或收", text: "有汗味、潮氣或局部髒再送洗；表乾、中間也乾、袋子也乾，才收進透氣袋。" }
+    ],
+    evidence_photos: [
+      {
+        path: "assets/services/fabric-storage-duvet-check.png",
+        alt: "折好的棉被放在工作台，旁邊是收納袋，人員正在檢查表布",
+        caption: "棉被收納前先在工作台核對中間層與袋子，不直接壓進櫃裡。",
+        source_note: "門市內容管線使用的工作台檢查圖，用來說明收納前流程；不是特定客戶成果，也不保證下一季沒味道。"
+      },
+      {
+        path: "assets/services/fabric-storage-blanket-pilling.png",
+        alt: "深灰毛毯鋪在工作台，表面可見起毛球",
+        caption: "毛毯先看 pill 是浮在表層還是纖維起毛，再決定清、修或先不封。",
+        source_note: "門市內容管線使用的工作台檢查圖，用來說明起毛球怎麼看；不是前後對照保證。"
+      }
     ],
     sections: [
       {
@@ -602,6 +761,11 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
         heading: "節日前後也適合整理",
         body:
           "過年、中秋、端午、母親節或父親節前後，家裡常會整理衣櫃、寢具和外套。節日前可以先安排收納前檢查，連假後則適合把穿過、用過或悶放的布品重新整理。"
+      },
+      {
+        heading: "體積大的布品怎麼問收送",
+        body:
+          "棉被、窗簾與厚毯自己搬不一定放得進後車箱。台中市全區免費到府收送，清潔費另計、沒有最低消費門檻。先拍整件、邊角與袋子內側，再約收件。"
       }
     ],
     inspection_table: [
@@ -674,7 +838,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     static_image_path: "assets/services/fabric-storage-inspection.png",
     static_image_topic: "門市人員檢查外套與布品的服務情境主圖",
     static_image_source: "ai-generated in-store inspection scene",
-    content_lastmod: "2026-08-25",
+    content_lastmod: "2026-08-30",
     answer_summary:
       "私享家洗衣店位於台中市西屯區青海路二段365號（至善國中對面），提供衣物洗護、鞋包清潔、白鞋清潔與布品收納前檢查，台中市全區免費到府收送，可先用 LINE 傳照片詢問。",
     case_story: {
@@ -721,6 +885,11 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
         heading: "社群內容也會同步成搜尋資料",
         body:
           "審核通過的 Facebook 與 Instagram 貼文會同步進公開 SEO / AEO / GEO feed，讓日常門市案例、雨季提醒、節日海報和服務頁互相連回官方內容來源。"
+      },
+      {
+        heading: "跟「怎麼找洗衣店」那頁差在哪",
+        body:
+          "本頁回答門市在哪、第一次怎麼問、西屯與逢甲怎麼到店。要比物件分流、先對價目或確認全市收送，走洗衣搜尋指南，不要把兩頁當成同一篇。"
       }
     ],
     inspection_table: [
@@ -1210,8 +1379,10 @@ const AEO_DONGHAI_LAUNDRY = "東海生活圈可約免費收送；厚被、窗簾
 const AEO_BEDDING_STORAGE = "寢具收納前先聞潮味；摸起來乾、中間層不一定乾，帶濕氣封存會悶出味道。";
 const AEO_BEDDING_DUVET = "棉被送洗先看填充、潮氣與異味；沒乾透就收納，下一季打開就是味道。";
 const AEO_PLUSH_DOLL_BOUNDARY = "娃娃可以洗，但不能亂洗；怕的是脫水結塊與五官脫落，要先固定再手洗。";
+const AEO_BIRKENSTOCK = "勃肯鞋會臭，多半是軟木鞋床吸汗，不是鞋面；整雙泡水會更糟。";
 const AEO_LUXURY_DRY = "精品送洗先看材質與飾件，不因品牌保證全新；邊角磨損只能維持。";
 const AEO_CLOTHING_ALTERATION = "送洗時若同時需要修改，可以一起收送，但先分清楚是小修還是版型調整。";
+const AEO_BAG_HANDLE = "提把發黏是手汗堆的；滲進皮層只能淡化，還沒變色現在處理較省。";
 
 const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
   {
@@ -1353,15 +1524,16 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "birkenstock-care",
     path: "guides/birkenstock-care.html",
     category: "guide",
-    title: "勃肯鞋鞋床發黑、有味道怎麼處理?台中洗鞋｜私享家洗衣店",
+    title: "勃肯鞋會臭嗎？鞋床發黑怎麼處理｜台中洗鞋 私享家",
     description:
-      "私享家洗衣店（台中市西屯區青海路二段365號）處理勃肯鞋：軟木鞋床吸汗會發黑發臭，麂皮面又不能泡水，先傳照片判斷軟木與麂皮各自的處理方式。",
-    h1: "勃肯鞋鞋床發黑、有味道,還救得回來嗎?",
-    summary: "勃肯這類軟木鞋床的鞋,問題幾乎都在同一個地方:腳掌接觸的那層軟木被汗浸久了,顏色變深、味道跑出來。麂皮鞋面怕水、軟木怕泡,所以整雙丟水裡刷是最傷的做法。分開處理才對。",
-    keywords: ["勃肯鞋清潔", "勃肯鞋發黑", "軟木鞋床 清洗", "台中洗勃肯", "麂皮鞋清潔", "勃肯鞋除臭"],
+      "勃肯鞋會臭，多半是軟木鞋床吸汗，不是鞋面。私享家洗衣店（台中市西屯區青海路二段365號）先看鞋床與麂皮，再決定能不能處理；整雙泡水會更糟。",
+    h1: "勃肯鞋會臭嗎？先看軟木鞋床，不要整雙泡水",
+    summary: AEO_BIRKENSTOCK,
+    citation_answer: AEO_BIRKENSTOCK,
+    keywords: ["勃肯鞋會臭嗎", "勃肯鞋清潔", "勃肯鞋發黑", "軟木鞋床 清洗", "台中洗勃肯", "麂皮鞋清潔", "勃肯鞋除臭"],
     service_slug: "white-shoe-cleaning",
     local_intent: "台中 勃肯鞋清潔 軟木鞋床 除臭",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先分三層", text: "麂皮鞋面、軟木鞋床、橡膠大底,三種材質三種做法。整雙泡水會讓軟木鬆散、麂皮硬掉。" },
       { name: "看鞋床顏色", text: "腳掌位置深黑=汗垢滲入軟木層;只有表面灰=角質與塵土,後者好處理很多。" },
@@ -1369,7 +1541,28 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       { name: "麂皮不下水", text: "麂皮用專用刷順毛乾清,染色或深漬另外評估,不與軟木同時濕作業。" },
       { name: "乾燥要慢", text: "軟木快乾會裂。陰乾、避免日曬和烘乾機,這步急不得。" }
     ],
+    sections: [
+      {
+        heading: "勃肯鞋會臭，先分味道在哪",
+        body:
+          "客人問「勃肯鞋會臭嗎」，答案幾乎都是會，而且味道多半不在麂皮鞋面。軟木鞋床每天吸腳汗，汗乾了鹽分留在軟木孔隙裡，下一次再穿就悶出來。鞋面噴除臭劑只蓋一層香，鞋床沒處理，隔天還是同一味。門市先聞鞋床、再看腳掌位置是表面灰還是已經滲黑，這兩種處理深度不同。"
+      },
+      {
+        heading: "為什麼不能整雙泡水",
+        body:
+          "軟木泡水會鬆、麂皮一濕就硬、膠底也容易發白。家用洗衣機看起來省事，洗完鞋床變形、鞋面變硬，比送洗前更難穿。正確方向是三種材質分開：鞋床去汗味、麂皮乾清順毛、大底另外刷。能淡化多少要看出汗滲了多深，不保證回到剛買的顏色。"
+      },
+      {
+        heading: "台中怎麼送洗勃肯",
+        body:
+          "拍鞋床正面、鞋面與大底三張，LINE（0968327653）先看。參考價休閒鞋 $350、麂皮鞋 $400，水洗價、乾洗柔洗另計，以實際檢視為準。門市在西屯青海路二段365號，台中市全區可約免費收送。天天穿的建議每季處理一次，不要等味道已經滲進軟木深層。"
+      }
+    ],
     faqs: [
+      {
+        question: "勃肯鞋會臭嗎?",
+        answer: "會，而且味道多半來自軟木鞋床吸汗，不是鞋面。噴除臭劑蓋不住；要處理鞋床，不要整雙泡水。"
+      },
       {
         question: "勃肯鞋可以整雙丟洗衣機嗎?",
         answer: "不建議。軟木鞋床泡水後會鬆散變形、麂皮會硬掉,洗完可能比洗前更糟。分材質處理才是正確做法。"
@@ -1596,22 +1789,22 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "bag-handle-cleaning",
     path: "guides/bag-handle-cleaning.html",
     category: "guide",
-    title: "包包提把、包角與行李箱輪子怎麼判斷？｜私享家洗衣店",
+    title: "包包提把與包角怎麼判斷？｜私享家洗衣店",
     description:
-      "私享家洗衣店（台中市西屯區青海路二段365號）處理包包提把、包角和行李箱輪子：這些位置常累積手汗、水痕、摩擦和地面灰塵，整理前要先看材質與痕跡是否已滲入。",
-    h1: "包包提把、包角與行李箱輪子怎麼判斷？",
-    summary: AEO_LUGGAGE_WHEELS,
-    citation_answer: AEO_LUGGAGE_WHEELS,
-    keywords: ["包包清潔", "包包提把清潔", "包角清潔", "台中西屯洗包", "行李箱清潔", "行李箱輪子"],
+      "私享家洗衣店（台中市西屯區青海路二段365號）處理包包提把與包角：這些位置常累積手汗、水痕與摩擦，整理前要先看材質與痕跡是否已滲入。行李箱輪子改看專頁。",
+    h1: "包包提把與包角怎麼判斷？",
+    summary: AEO_BAG_HANDLE,
+    citation_answer: AEO_BAG_HANDLE,
+    keywords: ["包包清潔", "包包提把清潔", "包角清潔", "台中西屯洗包", "洗包包"],
     service_slug: "shoe-bag-care",
-    local_intent: "台中西屯 包包清潔 行李箱輪子",
-    content_lastmod: "2026-08-23",
+    local_intent: "台中西屯 包包清潔 提把 包角",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "看材質", text: "先分辨皮革、尼龍、帆布、麂皮或合成材質。" },
       { name: "看提把", text: "提把容易累積手汗和摩擦，拍近照才能判斷深淺。" },
       { name: "看包角", text: "包角如果已磨損或退色，處理目標會和單純表面髒污不同。" },
       { name: "看內裡", text: "內裡味道、粉塵和水痕也會影響整理方式。" },
-      { name: "看行李箱輪子", text: "旅行回來先看輪子、底板與把手，不要帶著地面灰直接推進櫃子。" }
+      { name: "行李箱另看專頁", text: "輪子、底板與旅行箱布面的判斷寫在行李箱輪子指南，不要和提把油痕混成同一種問題。" }
     ],
     sections: [
       {
@@ -1620,9 +1813,9 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
           "包包最先變舊的地方，常是提把。提把發黏不是灰塵，是手汗一天天堆起來的；滲進皮層就只能淡化，還沒變色的現在處理較省。門市會先分辨提把是皮革、合成皮還是布面，再看邊油、縫線和轉角磨耗。精品包最怕的不是髒，是邊角：邊油磨掉就補不回來，只能重新上，能單純清潔的時間比想像中短。內裡粉塵、筆痕和味道也要分開看，外觀乾淨不代表內袋乾淨。對應服務是鞋包清潔頁。"
       },
       {
-        heading: "行李箱輪子：收進櫃子前先看這裡",
+        heading: "行李箱輪子不跟提把混著看",
         body:
-          "行李箱回來後，布面、把手和輪邊常常比衣服更早累積灰塵和地面髒污。輪子和底板整趟旅程都在地上磨，那些灰收進櫃子，下次打開就是那個味道。門市會先看行李箱材質、布面髒污深度、輪邊泥灰和把手接觸痕，再判斷適合局部清潔或外觀整理。不用整咖搬來，台中市可約免費到府收送。價目沒有單獨列行李箱固定金額，LINE 傳布面、把手和輪邊照片先估；不另開行李箱薄頁，本段就是這題的接頁。"
+          "輪子和底板整趟旅程都在地上磨，那些灰收進櫃子，下次打開就是味道；這和提把手汗、包角邊油是不同位置。行李箱的材質、輪邊泥灰與把手接觸痕，改看行李箱輪子清潔指南，本頁只處理提把與包角。"
       },
       {
         heading: "什麼救得回、什麼只能維持",
@@ -1646,7 +1839,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       },
       {
         question: "行李箱輪子髒了可以送洗嗎？",
-        answer: "可以先傳輪子、底板與把手照片詢問。門市會看材質與灰塵深度，再說明適合局部清潔還是外觀整理；沒看過物件前不報固定價。"
+        answer: "可以。輪子、底板與旅行箱布面請看行李箱輪子清潔指南；本頁只判斷提把與包角。沒看過物件前不報固定價。"
       }
     ]
   },
@@ -1796,13 +1989,14 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     path: "guides/plush-doll-cleaning.html",
     category: "guide",
     service_slug: "taichung-xitun-laundry",
-    title: "台中西屯娃娃與絨毛玩偶清潔｜私享家洗衣店",
+    title: "台中絨毛娃娃清洗店？先看填充與五官｜私享家洗衣店",
     description:
-      "私享家洗衣店（台中市西屯區青海路二段365號）提供娃娃、絨毛玩偶與布偶送洗前判斷：先確認填充物、黏貼配件、五官與局部污漬，台中市西屯布偶清潔。",
-    h1: "娃娃與絨毛玩偶清潔",
+      "台中找絨毛娃娃清洗店，先看填充、五官與配件能不能洗。私享家洗衣店（台中市西屯區青海路二段365號）手洗低溫烘，不保證完全恢復。",
+    h1: "台中哪裡洗絨毛娃娃？先看能不能洗",
     summary: AEO_PLUSH_DOLL_BOUNDARY,
     citation_answer: AEO_PLUSH_DOLL_BOUNDARY,
     keywords: [
+      "絨毛娃娃清洗店",
       "台中西屯娃娃清洗",
       "台中布偶清潔",
       "絨毛玩偶清洗",
@@ -1811,7 +2005,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "西屯洗衣店"
     ],
     local_intent: "台中西屯 娃娃清洗 絨毛玩偶清潔",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "拍正反面與配件", text: "正反面、五官、刺繡、吊牌、黏貼物與破損位置都先拍清楚。" },
       { name: "確認填充物狀態", text: "若有硬塊、潮味、掉毛或填充不均，先一併說明。" },
@@ -1836,6 +2030,10 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       }
     ],
     faqs: [
+      {
+        question: "台中哪裡有絨毛娃娃清洗店？",
+        answer: "西屯青海路二段365號的私享家洗衣店可判斷娃娃能不能洗；先拍正反面與五官，台中市可約免費收送。"
+      },
       {
         question: "娃娃可以直接丟洗衣機嗎？",
         answer: "不建議在未確認填充物、五官與黏貼配件前直接機洗，先拍照詢問較安全。"
@@ -1913,9 +2111,8 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     summary:
       "先用手上的物件和問題找服務，不必只搜尋店名。私享家把台中洗衣、洗鞋、洗包、床組棉被、襯衫西裝、娃娃、精品乾洗與免費收送分成可核對的服務與指南；每個答案都回到材質、位置、狀態與處理界線。",
     keywords: [
-      "台中洗衣店",
-      "西屯洗衣店",
-      "台中洗鞋店",
+      "台中洗衣店怎麼找",
+      "台中洗鞋店怎麼選",
       "台中洗包包",
       "台中棉被清洗",
       "台中西裝乾洗",
@@ -1923,8 +2120,35 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "台中精品乾洗",
       "台中洗衣免費收送"
     ],
-    local_intent: "台中西屯 洗衣 洗鞋 洗包 床組 西裝 娃娃 精品乾洗 免費收送",
-    content_lastmod: "2026-08-23",
+    local_intent: "台中 洗衣 洗鞋 洗包 床組 西裝 怎麼找 免費收送",
+    content_lastmod: "2026-08-30",
+    hub_routes: [
+      {
+        label: "門市在哪、第一次怎麼問",
+        description: "地址、營業時間、青海路怎麼到店，以及第一次 LINE 要傳什麼。",
+        serviceSlug: "taichung-xitun-laundry"
+      },
+      {
+        label: "全市能不能免費收送",
+        description: "收送範圍、有沒有最低消費、怎麼約到府。",
+        serviceSlug: "taichung-citywide-laundry-pickup"
+      },
+      {
+        label: "店家或公司一次很多件",
+        description: "制服、毛巾、床組要先分類再約收，不要整袋只問一個價。",
+        serviceSlug: "business-bulk-laundry"
+      },
+      {
+        label: "先看參考價",
+        description: "洗鞋、洗包、洗衣與寢具的水洗參考價；不是看過物件後的固定報價。",
+        serviceSlug: "taichung-laundry-price-list"
+      },
+      {
+        label: "換季布品能不能直接收",
+        description: "外套、棉被、毛毯收納前要先看潮氣與中間層。",
+        serviceSlug: "fabric-storage"
+      }
+    ],
     steps: [
       {
         name: "先找物件",
@@ -1949,6 +2173,23 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       {
         name: "保留後續照護",
         text: "雨季、清洗後與換季收納仍要看乾燥和保存狀態；有異味、受潮或材質疑慮時先停止強洗並詢問。"
+      }
+    ],
+    sections: [
+      {
+        heading: "本頁是分流，不是西屯門市頁",
+        body:
+          "搜尋「台中洗衣店」時，先確認手上是鞋子、包包、床組還是大量制服，再進對應頁。門市地址、營業時間與第一次怎麼問，看台中西屯洗衣店頁。本頁不重複寫青海路怎麼走，也不用同一段 NAP 文案去跟門市頁搶同一意圖。"
+      },
+      {
+        heading: "價錢、收送、大量件分別走哪一頁",
+        body:
+          "要先對數字看台中洗衣價目表；要確認全市能不能收到，看台中全市免費洗衣收送；店家或公司一次很多件，看店家與公司大量衣物送洗。三頁都回答「怎麼開始」，不是再做一個西屯洗衣店複本。"
+      },
+      {
+        heading: "為什麼不把這些頁併成一頁",
+        body:
+          "門市頁回答「店在哪」；本頁回答「我該進哪一頁」。併在一起會讓到店、收送、價目與大量件互相稀釋。物件判斷仍回到各指南，不要只搜店名。"
       }
     ],
     faqs: [
@@ -2401,9 +2642,11 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     path: "local/qinghai-road-shoe-cleaning.html",
     category: "local",
     service_slug: "shoe-bag-care",
-    title: "逢甲洗鞋・西屯洗鞋推薦怎麼挑｜青海路私享家洗衣店",
+    // Distinct intent from the shoe-bag-care service page: this page answers "how to pick a
+    // shoe-cleaning shop near the Qinghai Road store", not the head term itself.
+    title: "青海路洗鞋店怎麼挑｜逢甲、西屯門市方位、案例界線與收送｜私享家洗衣店",
     description: "逢甲、西屯找洗鞋店？先看這篇怎麼挑：看案例照片、問處理界線、確認收送方式。私享家在青海路二段365號，台中市免費收送，LINE 傳照片先判斷再決定。",
-    h1: "逢甲洗鞋・西屯洗鞋：怎麼挑、怎麼問、怎麼送",
+    h1: "青海路洗鞋店怎麼挑：看案例、問界線、約收送",
     summary:
       "逢甲、西屯找洗鞋，最常見的是白鞋泛黃、雨天泥灰和鞋內悶味。私享家門市在西屯區青海路二段365號、至善國中對面；台中市全市可預約免費到府收送。挑洗鞋店先比三件事：敢不敢先講哪些救不回來、收送範圍清不清楚、有沒有講處理界線。",
     keywords: ["逢甲洗鞋", "逢甲洗鞋推薦", "西屯洗鞋", "台中西屯洗鞋", "青海路洗鞋", "逢甲洗包包", "西屯洗包"],
@@ -2602,8 +2845,13 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
         serviceSlug: "taichung-xitun-laundry"
       },
       {
-        label: "逢甲洗鞋・西屯洗鞋",
-        description: "青海路門市與逢甲、西屯同區；先看洗鞋界線、收送範圍與 LINE 詢問方式。",
+        label: "西屯洗鞋・逢甲洗鞋",
+        description: "鞋包清潔頁：參考價、材質判斷、收送範圍與 LINE 詢問方式。",
+        serviceSlug: "shoe-bag-care"
+      },
+      {
+        label: "青海路洗鞋店怎麼挑",
+        description: "青海路門市與逢甲、西屯同區；看案例界線、問處理方式、約收送。",
         supportSlug: "qinghai-road-shoe-cleaning"
       },
       {
@@ -3146,17 +3394,28 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
     areaServed: [
       {
         "@type": "AdministrativeArea",
-        name: "台中市"
+        name: "台中市",
+        sameAs: WIKIDATA_TAICHUNG
       },
       {
         "@type": "AdministrativeArea",
-        name: "台中市西屯區"
+        name: "台中市西屯區",
+        sameAs: WIKIDATA_XITUN
       },
       {
         "@type": "Place",
         name: "青海路二段"
       }
     ],
+    potentialAction: {
+      "@type": "CommunicateAction",
+      name: "用 LINE 傳照片詢問",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: profile.line_url,
+        actionPlatform: ["http://schema.org/DesktopWebPlatform", "http://schema.org/MobileWebPlatform"]
+      }
+    },
     knowsAbout: Array.from(new Set([...profile.service_topics, ...LOCAL_SEARCH_QUERY_TARGETS])),
     hasOfferCatalog: {
       "@type": "OfferCatalog",
@@ -3260,6 +3519,10 @@ function buildHomePageSchema(index: PublicPostIndex): object | undefined {
         isPartOf: { "@id": `${index.canonical_url}#website` },
         about: { "@id": `${index.canonical_url}#business` },
         mainEntity: { "@id": `${index.canonical_url}#business` },
+        speakable: {
+          "@type": "SpeakableSpecification",
+          cssSelector: [".answer-box", "[data-geo-entity]", "[data-index-gap-rail]"]
+        },
         breadcrumb: { "@id": `${index.canonical_url}#breadcrumb` },
         hasPart: [
           { "@id": `${index.canonical_url}#homepage-faq` },
@@ -3331,6 +3594,72 @@ function servicePageUrl(service: ServicePageDefinition, index: PublicPostIndex):
 
 function supportPageUrl(page: SupportPageDefinition, index: PublicPostIndex): string {
   return index.entrypoints.support_pages[page.slug] ?? page.path;
+}
+
+function pageHrefForSlug(slug: string, index: PublicPostIndex): string | undefined {
+  const service = findServiceBySlug(slug);
+  if (service) return servicePageUrl(service, index);
+  const page = SUPPORT_PAGE_DEFINITIONS.find((item) => item.slug === slug);
+  return page ? supportPageUrl(page, index) : undefined;
+}
+
+/**
+ * Turn existing destination phrases into crawlable body anchors.
+ * One link per target per paragraph; never rewrite FAQ/schema text.
+ */
+function linkifyPublicMentions(escaped: string, index: PublicPostIndex, fromSlug: string): string {
+  // Accepted index-growth answers carry exactly one crawlable parent-service link
+  // (R4 contract, test "accepted guide body has exactly one crawlable parent");
+  // contextual phrase links would add a second one, so they stay plain there.
+  if (INDEX_GROWTH_SLUGS.has(fromSlug)) return escaped;
+  const skipPrice = fromSlug === PRICE_LIST_SLUG || fromSlug === "white-shoe-cleaning";
+  const rules: Array<{ phrase: string; targetSlug: string }> = [
+    { phrase: "台中市全市可預約免費到府收送", targetSlug: "taichung-citywide-laundry-pickup" },
+    { phrase: "台中市全區免費到府收送", targetSlug: "taichung-citywide-laundry-pickup" },
+    { phrase: "台中市全市收送本身免費", targetSlug: "taichung-citywide-laundry-pickup" },
+    { phrase: "台中市全市可免費收送", targetSlug: "taichung-citywide-laundry-pickup" },
+    { phrase: "台中市全區可約免費到府收送", targetSlug: "taichung-citywide-laundry-pickup" },
+    { phrase: "台中市全市免費收送", targetSlug: "taichung-citywide-laundry-pickup" },
+    { phrase: "台中市全區免費收送", targetSlug: "taichung-citywide-laundry-pickup" },
+    { phrase: "免費收送範圍是台中市全市", targetSlug: "taichung-citywide-laundry-pickup" },
+    { phrase: "全市收送頁", targetSlug: "taichung-citywide-laundry-pickup" },
+    { phrase: "收送範圍覆蓋全市", targetSlug: "taichung-citywide-laundry-pickup" },
+    { phrase: "台中市內收送本身免費", targetSlug: "taichung-citywide-laundry-pickup" },
+    { phrase: "店家與公司大量衣物送洗", targetSlug: "business-bulk-laundry" },
+    { phrase: "店家與公司專頁", targetSlug: "business-bulk-laundry" },
+    { phrase: "公開水洗價在價目表", targetSlug: PRICE_LIST_SLUG },
+    { phrase: "公開價目在價目表", targetSlug: PRICE_LIST_SLUG },
+    { phrase: "價目表寫窗簾依尺寸報價", targetSlug: PRICE_LIST_SLUG },
+    { phrase: "台中洗衣價目表", targetSlug: PRICE_LIST_SLUG },
+    { phrase: "台中全市免費洗衣收送", targetSlug: "taichung-citywide-laundry-pickup" },
+    { phrase: "對應服務是布品收納頁", targetSlug: "fabric-storage" },
+    { phrase: "布品收納頁", targetSlug: "fabric-storage" },
+    { phrase: "台中西屯洗衣店頁", targetSlug: "taichung-xitun-laundry" },
+    { phrase: "洗衣搜尋指南", targetSlug: "taichung-laundry-service-search" },
+    { phrase: "行李箱輪子清潔指南", targetSlug: "luggage-wheel-cleaning" }
+  ];
+
+  let result = escaped;
+  const claimed = new Set<string>();
+  for (const rule of rules) {
+    if (rule.targetSlug === fromSlug || claimed.has(rule.targetSlug)) continue;
+    if (skipPrice && rule.targetSlug === PRICE_LIST_SLUG) continue;
+    const href = pageHrefForSlug(rule.targetSlug, index);
+    if (!href) continue;
+    const at = result.indexOf(rule.phrase);
+    if (at === -1) continue;
+    const before = result.slice(0, at);
+    const openAnchor = before.lastIndexOf("<a ");
+    const closeAnchor = before.lastIndexOf("</a>");
+    if (openAnchor > closeAnchor) continue;
+    result = `${result.slice(0, at)}<a href="${escapeHtml(href)}">${rule.phrase}</a>${result.slice(at + rule.phrase.length)}`;
+    claimed.add(rule.targetSlug);
+  }
+  return result;
+}
+
+function renderRichText(text: string, index: PublicPostIndex, fromSlug: string): string {
+  return linkifyPublicMentions(escapeHtml(text), index, fromSlug);
 }
 
 function serviceAreaServedName(service: ServicePageDefinition): string {
@@ -3780,6 +4109,11 @@ async function generateWebpDerivatives(index: PublicPostIndex, docsRoot: string)
   }
   for (const image of allServiceImages(index)) {
     imagePaths.add(image.image_path);
+  }
+  for (const service of SERVICE_PAGE_DEFINITIONS) {
+    for (const photo of service.evidence_photos ?? []) {
+      imagePaths.add(photo.path);
+    }
   }
   const targets = [...imagePaths].filter(
     (imagePath) => webpDocsPath(imagePath) !== undefined && existsSync(join(docsRoot, imagePath))
@@ -4276,7 +4610,7 @@ function bestSourcePages(index: PublicPostIndex): Array<{ label: string; url: st
     ...(photoBeforeLaundry ? [{ label: "Photo-before-laundry guide", url: supportPageUrl(photoBeforeLaundry, index) }] : []),
     ...(plushDollGuide ? [{ label: "Plush doll wash boundary", url: supportPageUrl(plushDollGuide, index) }] : []),
     ...(whiteShoeYellowing ? [{ label: "White shoe grey vs yellow", url: supportPageUrl(whiteShoeYellowing, index) }] : []),
-    ...(bagHandleGuide ? [{ label: "Luggage wheel and bag handle", url: supportPageUrl(bagHandleGuide, index) }] : []),
+    ...(bagHandleGuide ? [{ label: "Bag handle and corner", url: supportPageUrl(bagHandleGuide, index) }] : []),
     ...(luggageGuide ? [{ label: "Luggage wheels", url: supportPageUrl(luggageGuide, index) }] : []),
     ...(curtainGuide ? [{ label: "Curtain cleaning", url: supportPageUrl(curtainGuide, index) }] : []),
     ...(serviceSearchGuide ? [{ label: "Taichung laundry service search guide", url: supportPageUrl(serviceSearchGuide, index) }] : []),
@@ -4516,18 +4850,118 @@ function buildRobotsText(index: PublicPostIndex): string {
  * Daily social captions run ~235 unique characters against a fixed template, so the post
  * pages are thin near-duplicates of each other. Advertising 38 of them made them ~68% of the
  * sitemap and buried the service and guide pages that actually answer local queries.
- * They stay published and linked for readers, but out of the indexable surface.
+ * Thick post articles may stay indexable for readers, but the human sitemap prioritizes
+ * money/service/guide URLs and only the newest N indexable posts (plus the posts hub).
  */
+function orderedMoneyFirstServiceUrls(index: PublicPostIndex): string[] {
+  if (!index.base_url_configured) return [];
+  const bySlug = new Map(SERVICE_PAGE_DEFINITIONS.map((service) => [service.slug, servicePageUrl(service, index)]));
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  for (const slug of MONEY_SERVICE_SLUGS) {
+    const url = bySlug.get(slug);
+    if (url && !seen.has(url)) {
+      ordered.push(url);
+      seen.add(url);
+    }
+  }
+  for (const service of SERVICE_PAGE_DEFINITIONS) {
+    const url = bySlug.get(service.slug);
+    if (url && !seen.has(url)) {
+      ordered.push(url);
+      seen.add(url);
+    }
+  }
+  return ordered;
+}
+
+function sitemapIndexablePostArticles(index: PublicPostIndex): PublicPost[] {
+  return indexablePostArticles(index)
+    .slice()
+    .sort((left, right) => `${right.date}-${String(right.slot).padStart(2, "0")}`.localeCompare(`${left.date}-${String(left.slot).padStart(2, "0")}`))
+    .slice(0, SITEMAP_MAX_INDEXABLE_POSTS);
+}
+
+function buildMoneyPageLinkRow(
+  index: PublicPostIndex,
+  options: { excludeServiceSlug?: string; excludeSupportSlug?: string } = {}
+): string {
+  const links: Array<{ href: string; label: string }> = [];
+  const pushService = (slug: string) => {
+    if (options.excludeServiceSlug === slug) return;
+    const service = findServiceBySlug(slug);
+    if (!service) return;
+    links.push({ href: servicePageUrl(service, index), label: service.name });
+  };
+  pushService(PRICE_LIST_SLUG);
+  pushService("taichung-citywide-laundry-pickup");
+  pushService("taichung-xitun-laundry");
+  pushService("business-bulk-laundry");
+  const localPages = ["fengjia-laundry-pickup", "qinghai-road-shoe-cleaning", "taichung-laundry-service-search"];
+  for (const slug of localPages) {
+    if (options.excludeSupportSlug === slug) continue;
+    const page = SUPPORT_PAGE_DEFINITIONS.find((entry) => entry.slug === slug);
+    if (!page) continue;
+    links.push({ href: supportPageUrl(page, index), label: page.h1 });
+  }
+  if (links.length === 0) return "";
+  return `<div class="link-row" data-money-pages>
+              ${links.map((link) => `<a href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`).join("\n              ")}
+            </div>`;
+}
+
+function buildUniqueValueSection(slug: string): string {
+  const block = UNIQUE_VALUE_BLOCKS[slug];
+  if (!block) return "";
+  return `<section class="section" id="unique-value" data-unique-value data-index-gap-page="${escapeHtml(slug)}">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">這頁才有</span>
+            <h2>${escapeHtml(block.h2)}</h2>
+          </div>
+          <div class="answer-box">
+            <ul>
+              ${block.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("\n              ")}
+            </ul>
+            <p><strong>誰適合：</strong>${escapeHtml(block.fit)}</p>
+            <p><strong>誰不適合：</strong>${escapeHtml(block.notFit)}</p>
+          </div>
+        </div>
+      </section>`;
+}
+
+function buildIndexGapRail(index: PublicPostIndex): string {
+  const items = INDEX_GAP_MONEY_SLUGS.flatMap((slug) => {
+    const service = findServiceBySlug(slug);
+    if (!service) return [];
+    return [
+      `<li><a href="${escapeHtml(servicePageUrl(service, index))}">${escapeHtml(service.name)}</a> — ${escapeHtml(service.answer_summary)}</li>`
+    ];
+  });
+  if (items.length === 0) return "";
+  return `<section class="section" id="index-gap-rail" data-index-gap-rail>
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">成交頁</span>
+            <h2>先看價目、收送、門市，再決定送洗</h2>
+            <p>這些頁目前搜尋還在收錄中。從首頁連過去，是給要看價格、收送範圍或西屯門市的人，不是再堆一篇指南。</p>
+          </div>
+          <ul>
+            ${items.join("\n            ")}
+          </ul>
+        </div>
+      </section>`;
+}
+
 function buildSitemapXml(index: PublicPostIndex): string {
+  const sitemapPosts = sitemapIndexablePostArticles(index);
   const urls = index.base_url_configured
     ? [
         index.canonical_url,
         knowledgeHubUrl(index),
-        ...Object.values(index.entrypoints.service_pages),
+        ...orderedMoneyFirstServiceUrls(index),
         ...Object.values(index.entrypoints.support_pages),
-        ...(indexablePostArticles(index).length > 0
-          ? [postsHubUrl(index), ...indexablePostArticles(index).map((post) => post.article_url)]
-          : [])
+        ...(sitemapPosts.length > 0 ? [postsHubUrl(index), ...sitemapPosts.map((post) => post.article_url)] : [])
       ]
     : [];
   const uniqueUrls = Array.from(new Set(urls));
@@ -5996,6 +6430,7 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   const service = findServiceBySlug(care.serviceSlug) ?? SERVICE_PAGE_DEFINITIONS[0];
   const serviceHref = service ? servicePageUrl(service, index) : index.canonical_url;
   const pickupService = findServiceBySlug("taichung-citywide-laundry-pickup");
+  const priceListService = findServiceBySlug(PRICE_LIST_SLUG);
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const hubHref = postsHubHref(index, true);
   const articleNumber = articleNumberFor(post, index);
@@ -6130,6 +6565,11 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
                 ? `<a class="button secondary" href="${escapeHtml(servicePageUrl(pickupService, index))}">${escapeHtml(pickupService.name)}</a>`
                 : ""
             }
+            ${
+              priceListService && priceListService.slug !== service?.slug
+                ? `<a class="button secondary" href="${escapeHtml(servicePageUrl(priceListService, index))}">${escapeHtml(priceListService.name)}</a>`
+                : ""
+            }
           </div>
           <section class="article-faq" aria-labelledby="faq-${escapeHtml(post.id)}">
             <h2 id="faq-${escapeHtml(post.id)}">常見問題</h2>
@@ -6169,6 +6609,16 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
                     `<li class="article-related__item"><a class="article-related__link" href="${escapeHtml(supportPageUrl(page, index))}">${escapeHtml(page.h1)}</a></li>`
                 )
                 .join("\n              ")}
+              ${
+                priceListService
+                  ? `<li class="article-related__item"><a class="article-related__link" href="${escapeHtml(servicePageUrl(priceListService, index))}">${escapeHtml(priceListService.name)}</a></li>`
+                  : ""
+              }
+              ${
+                pickupService
+                  ? `<li class="article-related__item"><a class="article-related__link" href="${escapeHtml(servicePageUrl(pickupService, index))}">${escapeHtml(pickupService.name)}</a></li>`
+                  : ""
+              }
               <li class="article-related__item"><a class="article-related__link" href="${escapeHtml(hubHref)}">每日洗護紀錄總覽</a></li>
             </ul>
           </section>
@@ -6519,6 +6969,16 @@ interface SiteChromeOptions {
   postsHubHref?: string;
 }
 
+/**
+ * Header order: price list first. rebirth407.com (ranks for 西屯洗鞋) exposes 洗鞋價格 as a
+ * top-level nav item; ours was buried in array order behind the service pages.
+ */
+function headerNavServices(): ServicePageDefinition[] {
+  const priceList = findServiceBySlug(PRICE_LIST_SLUG);
+  const rest = SERVICE_PAGE_DEFINITIONS.filter((service) => service.slug !== PRICE_LIST_SLUG);
+  return priceList ? [priceList, ...rest] : SERVICE_PAGE_DEFINITIONS;
+}
+
 function renderSiteHeader(index: PublicPostIndex, options: SiteChromeOptions): string {
   const profile = index.business_profile;
   return `<header class="site-header">
@@ -6528,7 +6988,7 @@ function renderSiteHeader(index: PublicPostIndex, options: SiteChromeOptions): s
           <span>${escapeHtml(profile.name)}</span>
         </a>
         <nav class="nav" aria-label="${escapeHtml(options.navLabel)}">
-          ${SERVICE_PAGE_DEFINITIONS.map(
+          ${headerNavServices().map(
             (service) => `<a href="${escapeHtml(options.serviceHref(service))}">${escapeHtml(service.name)}</a>`
           ).join("\n          ")}
           <a href="${escapeHtml(options.knowledgeHref)}">洗護知識庫</a>
@@ -6541,6 +7001,9 @@ function renderSiteHeader(index: PublicPostIndex, options: SiteChromeOptions): s
 function renderSiteFooter(index: PublicPostIndex, options: SiteChromeOptions): string {
   const profile = index.business_profile;
   const pickupService = findServiceBySlug("taichung-citywide-laundry-pickup");
+  const priceListService = findServiceBySlug(PRICE_LIST_SLUG);
+  const priceHref = priceListService ? options.serviceHref(priceListService) : options.homeHref;
+  const pickupHref = pickupService ? options.serviceHref(pickupService) : options.homeHref;
   return `<footer class="site-footer">
       <div class="page-shell site-footer__grid">
         <div>
@@ -6560,6 +7023,17 @@ function renderSiteFooter(index: PublicPostIndex, options: SiteChromeOptions): s
             <a href="${escapeHtml(options.homeHref)}#homepage-faq">常見問題</a>
             <a href="${escapeHtml(options.businessProfileHref)}">店家資料</a>
           </div>
+          <h3 style="margin-top: 22px;">成交連結</h3>
+          <div class="link-row" data-money-pages>
+            ${[PRICE_LIST_SLUG, "taichung-citywide-laundry-pickup", "taichung-xitun-laundry", "business-bulk-laundry"]
+              .flatMap((slug) => {
+                const service = findServiceBySlug(slug);
+                return service
+                  ? [`<a href="${escapeHtml(options.serviceHref(service))}">${escapeHtml(service.name)}</a>`]
+                  : [];
+              })
+              .join("\n              ")}
+          </div>
           <h3 style="margin-top: 22px;">社群</h3>
           <div class="footer-links">
             <a href="${escapeHtml(options.lineFooterHref)}">LINE 加好友</a>
@@ -6572,8 +7046,9 @@ function renderSiteFooter(index: PublicPostIndex, options: SiteChromeOptions): s
       </div>
     </footer>
     <div class="mobile-sticky-cta" aria-label="行動版固定預約">
-      <a class="button secondary" href="${escapeHtml(options.servicesHref)}">服務項目</a>
-      <a class="button brand" href="${escapeHtml(options.lineFooterHref)}">LINE 預約</a>
+      <a class="button secondary" href="${escapeHtml(priceHref)}">價目</a>
+      <a class="button secondary" href="${escapeHtml(pickupHref)}">收送</a>
+      <a class="button brand" href="${escapeHtml(options.lineFooterHref)}">LINE</a>
     </div>`;
 }
 
@@ -6842,15 +7317,18 @@ function buildIndexHtml(index: PublicPostIndex): string {
         <div class="page-shell home-hero__grid">
           <div class="home-hero__content">
             <span class="eyebrow">${escapeHtml(profile.name)}｜台中西屯門市・台中全市收送</span>
-            <h1>台中免費收送，逢甲・西屯洗鞋先看材質</h1>
+            <h1>台中洗鞋洗包洗衣，全市免費收送、價格公開</h1>
             <p class="lead">台中市全區可預約免費收送，收送本身免費、洗護費另計。逢甲與西屯洗鞋可到青海路二段365號門市，或先用 LINE 傳鞋面、鞋底與鞋內照片。</p>
             <div class="home-hero__actions">
               <a class="button brand" href="${escapeHtml(citywidePickupUrl)}">台中全市免費收送</a>
               <a class="button home-hero__photo-action" href="${escapeHtml(lineCta)}">LINE 傳照片預約</a>
             </div>
             <p class="home-hero__note">鞋包、白鞋、衣物寢具都能先傳照片再送洗，先看材質再談清潔。</p>
+            <p class="home-hero__note" data-price-highlights>
+              參考價：${HOME_PRICE_HIGHLIGHTS.map((entry) => `${escapeHtml(entry.item)} ${escapeHtml(entry.price)}`).join("・")}（水洗價，乾洗柔洗另計）
+            </p>
             <p class="home-hero__note">
-              <a href="${escapeHtml(priceListUrl)}">看洗衣價目表</a>
+              <a href="${escapeHtml(priceListUrl)}">看完整洗衣價目表</a>
               <span aria-hidden="true">｜</span>
               <a href="#store">門市位置與營業時間</a>
             </p>
@@ -6939,7 +7417,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <div class="section-header">
             <span class="eyebrow">在地收送</span>
             <h2>把免費收送放進台中的生活圈</h2>
-            <p>收送範圍為台中市全市，<strong>收送本身免費，且沒有最低消費門檻</strong>——不需要單次洗滌滿額才能收送，一件也可以先問。清潔與洗護費用則依物件狀態另計。門市在西屯區青海路二段365號。預約與詢問以 <a class="card-link" href="${escapeHtml(lineInline)}">LINE</a> 為主，先傳照片再約定收送。從逢甲或西屯找洗鞋，可先看<a class="card-link" href="${escapeHtml(localShoeUrl)}"><strong>逢甲洗鞋・西屯洗鞋</strong></a>的門市方位、案例界線與收送範圍。</p>
+            <p>收送範圍為台中市全市，<strong>收送本身免費，且沒有最低消費門檻</strong>——不需要單次洗滌滿額才能收送，一件也可以先問。清潔與洗護費用則依物件狀態另計。門市在西屯區青海路二段365號。預約與詢問以 <a class="card-link" href="${escapeHtml(lineInline)}">LINE</a> 為主，先傳照片再約定收送。從逢甲或西屯找洗鞋，可先看<a class="card-link" href="${escapeHtml(localShoeUrl)}"><strong>逢甲、西屯洗鞋店怎麼挑</strong></a>的門市方位、案例界線與收送範圍。</p>
           </div>
           <div class="grid three">
           ${localCards}
@@ -6950,6 +7428,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           </div>
         </div>
       </section>
+      ${buildIndexGapRail(index)}
       <section class="section" id="guide-hub">
         <div class="page-shell">
           <div class="section-header">
@@ -6992,7 +7471,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           </div>
         </div>
       </section>
-      <section class="section surface" id="store">
+      <section class="section surface" id="store" data-geo-entity>
         <div class="page-shell grid two">
           <div>
             <span class="eyebrow">品牌與信任</span>
@@ -7258,11 +7737,19 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
     service.slug === "shoe-bag-care"
       ? SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "qinghai-road-shoe-cleaning")
       : undefined;
-  // R4: body interlink (nav already lists every service) only on the two named pages.
+  // R4 / LaundrySEO internal-link rebalance: every service page points at the
+  // conversion intents (price + citywide pickup) unless it *is* that page.
   const priceListPage = findServiceBySlug(PRICE_LIST_SLUG);
-  const showPriceListInterlink =
-    Boolean(priceListPage) &&
-    (service.slug === "shoe-bag-care" || service.slug === "taichung-xitun-laundry");
+  const citywidePage = findServiceBySlug("taichung-citywide-laundry-pickup");
+  const searchGuidePage = SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === "taichung-laundry-service-search");
+  const showPriceListInterlink = Boolean(priceListPage) && service.slug !== PRICE_LIST_SLUG;
+  const showCitywideInterlink =
+    Boolean(citywidePage) && service.slug !== "taichung-citywide-laundry-pickup";
+  const showSearchGuideInterlink =
+    Boolean(searchGuidePage) &&
+    (service.slug === "taichung-xitun-laundry" ||
+      service.slug === PRICE_LIST_SLUG ||
+      service.slug === "taichung-citywide-laundry-pickup");
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const businessProfileHref = index.base_url_configured ? index.entrypoints.business_profile : "../business-profile.json";
   const chrome: SiteChromeOptions = {
@@ -7414,6 +7901,60 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
         </div>
       </section>`
       : "";
+  const processStepsSection =
+    service.process_steps && service.process_steps.length > 0
+      ? `<section class="section" id="inspection-process">
+        <div class="page-shell">
+          <div class="section-header">
+            <p class="eyebrow">Inspection process</p>
+            <h2>收納前檢查流程</h2>
+            <p class="section-copy">先確認狀態再決定清或收；這是門市判斷順序，不是保證結果。</p>
+          </div>
+          <div class="grid three">
+            ${service.process_steps
+              .map(
+                (step, stepIndex) => `<article class="card">
+              <p class="eyebrow">Step ${stepIndex + 1}</p>
+              <h3>${escapeHtml(step.name)}</h3>
+              <p>${escapeHtml(step.text)}</p>
+            </article>`
+              )
+              .join("\n")}
+          </div>
+        </div>
+      </section>`
+      : "";
+  const evidencePhotosSection =
+    service.evidence_photos && service.evidence_photos.length > 0
+      ? `<section class="section surface" id="process-photos">
+        <div class="page-shell">
+          <div class="section-header">
+            <p class="eyebrow">Process photos</p>
+            <h2>工作台檢查紀錄</h2>
+            <p class="section-copy">用來說明門市怎麼看布品，不是客戶前後對照，也不保證處理效果。</p>
+          </div>
+          <div class="grid three">
+            ${service.evidence_photos
+              .map((photo) => {
+                const photoSrc = index.base_url_configured
+                  ? publicUrl(photo.path, index.image_base_url || index.base_url || undefined)
+                  : `../${photo.path}`;
+                return `<figure class="service-photo">
+              ${responsiveImageHtml({
+                imagePath: photo.path,
+                src: photoSrc,
+                alt: photo.alt,
+                fallbackSize: SERVICE_IMAGE_FALLBACK_SIZE,
+                loading: "lazy"
+              })}
+              <figcaption>${escapeHtml(photo.caption)}｜${escapeHtml(photo.source_note)}</figcaption>
+            </figure>`;
+              })
+              .join("\n")}
+          </div>
+        </div>
+      </section>`
+      : "";
 
   return `<!doctype html>
 <html lang="zh-Hant-TW">
@@ -7486,6 +8027,20 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
                 )}">台中洗衣價目表</a>；頁上是參考價，實際以檢視為準。</p>`
               : ""
           }
+          ${
+            showCitywideInterlink && citywidePage
+              ? `<p class="section-copy">不方便到店時，可先看<a href="${escapeHtml(
+                  servicePageUrl(citywidePage, index)
+                )}">台中全市免費洗衣收送</a>；收送本身免費、清潔另計，沒有最低消費門檻。</p>`
+              : ""
+          }
+          ${
+            showSearchGuideInterlink && searchGuidePage
+              ? `<p class="section-copy">要比物件分流、先對價目或確認全市收送，走<a href="${escapeHtml(
+                  supportPageUrl(searchGuidePage, index)
+                )}">台中洗衣、洗鞋、洗包與免費收送怎麼找？</a>，不要把門市頁當成目錄頁。</p>`
+              : ""
+          }
         </div>
         <div class="hero-visual">
           <span class="eyebrow">先講重點</span>
@@ -7511,6 +8066,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
         </div>
       </section>
       ${priceTablesSection}
+      ${buildUniqueValueSection(service.slug)}
       ${caseStorySection}
       <section class="section surface">
         <div class="page-shell grid two">
@@ -7521,13 +8077,13 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
               .map(
                 (section) => `<article class="card">
               <h3>${escapeHtml(section.heading)}</h3>
-              <p>${escapeHtml(section.body)}</p>
+              <p>${renderRichText(section.body, index, service.slug)}</p>
             </article>`
               )
               .join("\n")}
             </div>
           </div>
-          <aside class="card">
+          <aside class="card" id="geo-entity" data-geo-entity>
             <h2>店家資訊</h2>
             <p>${escapeHtml(profile.name)}｜${escapeHtml(profile.address_text)}（${escapeHtml(profile.landmark)}）</p>
             <p>電話：<a href="tel:${escapeHtml(profile.telephone)}">${escapeHtml(profile.telephone_local)}</a>｜LINE：${escapeHtml(profile.mobile_or_line_local)}</p>
@@ -7542,6 +8098,8 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
         </div>
       </section>
       ${inspectionTable}
+      ${processStepsSection}
+      ${evidencePhotosSection}
       ${relatedGuidesSection}
       <section class="section" id="faq">
         <div class="page-shell">
@@ -7629,7 +8187,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
     .map(
       (section) => `<article class="card">
               <h3>${escapeHtml(section.heading)}</h3>
-              <p>${escapeHtml(section.body)}</p>
+              <p>${renderRichText(section.body, index, page.slug)}</p>
             </article>`
     )
     .join("\n");
@@ -7637,9 +8195,9 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
   const relatedGuidePages = (page.related_slugs ?? [])
     .map((slug) => SUPPORT_PAGE_DEFINITIONS.find((entry) => entry.slug === slug))
     .filter((entry): entry is SupportPageDefinition => Boolean(entry));
-  const pickupService = findServiceBySlug("taichung-citywide-laundry-pickup");
-  const priceListService = findServiceBySlug(PRICE_LIST_SLUG);
-  const serviceSearchGuide = SUPPORT_PAGE_DEFINITIONS.find((entry) => entry.slug === "taichung-laundry-service-search");
+  // Always expose money-page rails (price / citywide / xitun / bulk / local).
+  // Previously these only appeared when related_slugs was non-empty, so many JTBD
+  // guides never passed crawl equity to the conversion pages GSC still marks unindexed.
   const relatedGuidesMarkup =
     relatedGuidePages.length > 0
       ? `<div class="link-row" data-related-guides>
@@ -7649,23 +8207,12 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
                     `<a href="${escapeHtml(supportPageUrl(entry, index))}">${escapeHtml(entry.h1)}</a>`
                 )
                 .join("\n")}
-              ${
-                pickupService
-                  ? `<a href="${escapeHtml(servicePageUrl(pickupService, index))}">${escapeHtml(pickupService.name)}</a>`
-                  : ""
-              }
-              ${
-                priceListService
-                  ? `<a href="${escapeHtml(servicePageUrl(priceListService, index))}">${escapeHtml(priceListService.name)}</a>`
-                  : ""
-              }
-              ${
-                serviceSearchGuide && serviceSearchGuide.slug !== page.slug
-                  ? `<a href="${escapeHtml(supportPageUrl(serviceSearchGuide, index))}">${escapeHtml(serviceSearchGuide.h1)}</a>`
-                  : ""
-              }
             </div>`
       : "";
+  const moneyPagesMarkup = buildMoneyPageLinkRow(index, {
+    excludeServiceSlug: service.slug,
+    excludeSupportSlug: page.slug
+  });
 
   return `<!doctype html>
 <html lang="zh-Hant-TW">
@@ -7750,6 +8297,7 @@ ${serviceHeroLink}          </div>
         </div>
         </div>
       </section>
+      ${buildUniqueValueSection(page.slug)}
       <section class="section surface">
         <div class="page-shell">
           <div class="section-header">
@@ -7762,6 +8310,38 @@ ${serviceHeroLink}          </div>
           </div>
         </div>
       </section>
+      ${
+        page.hub_routes && page.hub_routes.length > 0
+          ? `<section class="section" id="service-hub">
+        <div class="page-shell">
+          <div class="section-header">
+            <p class="eyebrow">Choose the next page</p>
+            <h2>先對意圖，再進對應頁</h2>
+            <p class="section-copy">本頁只做分流。門市地址與第一次詢問看西屯洗衣店頁，不要把目錄頁與門市頁寫成同一篇。</p>
+          </div>
+          <div class="grid three">
+            ${page.hub_routes
+              .map((route) => {
+                const href = route.serviceSlug
+                  ? pageHrefForSlug(route.serviceSlug, index)
+                  : route.supportSlug
+                    ? pageHrefForSlug(route.supportSlug, index)
+                    : undefined;
+                return `<article class="card">
+              <h3>${
+                href
+                  ? `<a href="${escapeHtml(href)}">${escapeHtml(route.label)}</a>`
+                  : escapeHtml(route.label)
+              }</h3>
+              <p>${escapeHtml(route.description)}</p>
+            </article>`;
+              })
+              .join("\n")}
+          </div>
+        </div>
+      </section>`
+          : ""
+      }
       ${
         extraSections
           ? `<section class="section">
@@ -7785,7 +8365,9 @@ ${serviceHeroLink}          </div>
             <div class="link-row">
               <a href="${escapeHtml(serviceHref)}" data-parent-service>${escapeHtml(service.name)}</a>
               <a href="${escapeHtml(lineInline)}">傳照片詢問</a>
-            </div>${relatedGuidesMarkup ? `\n            ${relatedGuidesMarkup}` : ""}
+            </div>${relatedGuidesMarkup ? `\n            ${relatedGuidesMarkup}` : ""}${
+              moneyPagesMarkup ? `\n            ${moneyPagesMarkup}` : ""
+            }
           </div>
           <aside class="card">
             <h2>店家資料</h2>
@@ -7968,8 +8550,10 @@ function buildAiDiscovery(index: PublicPostIndex): object {
         min_visible_chars: POST_ARTICLE_MIN_VISIBLE_CHARS,
         min_caption_chars: POST_ARTICLE_MIN_CAPTION_CHARS,
         behavior:
-          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Only articles that clear the thickness gate carry index robots and enter sitemap.xml, rss.xml and the posts hub; the rest stay noindex, follow.",
+          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Only articles that clear the thickness gate carry index robots, enter rss.xml and the posts hub; the human sitemap.xml lists money/service/guide URLs first and only the newest sitemap_max_indexable_posts thick articles so conversion pages are not buried.",
         indexable_article_count: indexablePostArticles(index).length,
+        sitemap_max_indexable_posts: SITEMAP_MAX_INDEXABLE_POSTS,
+        sitemap_indexable_post_count: sitemapIndexablePostArticles(index).length,
         article_count: index.article_posts.length
       },
       homepage_archive_policy: {

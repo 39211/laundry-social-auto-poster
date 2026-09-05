@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -115,7 +116,8 @@ describe("director doctrine phase 1: produce-next-reel act bans and physics", ()
 
   it("writes object-specific core physics instead of generic weight and shadow", () => {
     expect(produceSrc).toContain("function Get-CorePhysics");
-    expect(produceSrc).toMatch(/Get-CorePhysics \$objectType/);
+    expect(produceSrc).toMatch(/Get-CorePhysics \$objectType \$state/);
+    expect(produceSrc).not.toMatch(/\$corePhysics = Get-CorePhysics \$objectType\s*$/m);
     expect(produceSrc).not.toContain(
       "The object has weight and a continuous contact shadow that stays attached to it"
     );
@@ -150,4 +152,62 @@ describe("director doctrine phase 1: produce-next-reel act bans and physics", ()
     expect(promptBlock).toContain("[Light]");
     expect(promptBlock).toContain("[Core physics]");
   });
+});
+
+function lastJsonObject(stdout: string): Record<string, unknown> {
+  const lines = stdout
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("{") && line.endsWith("}"));
+  const line = lines.at(-1);
+  if (!line) throw new Error(`core-physics smoke printed no JSON object\n${stdout}`);
+  return JSON.parse(line) as Record<string, unknown>;
+}
+
+describe("F33 Get-CorePhysics after-act is settled, not still working", () => {
+  const smokeScript = join(__dirname, "ps-core-physics-act.smoke.ps1");
+
+  it("guards after before the object switch and still keeps sweater working physics", () => {
+    const fnStart = produceSrc.indexOf("function Get-CorePhysics");
+    const fnNext = produceSrc.indexOf("\nfunction ", fnStart + 1);
+    const fn = produceSrc.slice(fnStart, fnNext < 0 ? produceSrc.length : fnNext);
+    expect(fn).toMatch(/function Get-CorePhysics\(\[string\]\$ObjectType, \[string\]\$Act\)/);
+    expect(fn).toMatch(/if \(\$Act -eq "after"\)/);
+    expect(fn).toMatch(/settled and still/);
+    expect(fn).toMatch(/wetting-then-lightening/);
+    expect(fn).toContain("A cloth works the underarm yellow patch");
+    expect(fn).toContain("A cloth follows the inner collar band");
+    const afterGuard = fn.indexOf('if ($Act -eq "after")');
+    const sweaterCase = fn.indexOf('"sweater"');
+    expect(afterGuard).toBeGreaterThan(0);
+    expect(sweaterCase).toBeGreaterThan(afterGuard);
+  });
+
+  it.runIf(process.platform === "win32")(
+    "invokes production Get-CorePhysics: after != middle, after has no process verbs",
+    () => {
+      const result = spawnSync(
+        "powershell.exe",
+        ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", smokeScript],
+        { encoding: "utf8", cwd: join(__dirname, ".."), timeout: 30000 }
+      );
+      const out = `${result.stdout ?? ""}\n${result.stderr ?? ""}${result.error ? String(result.error) : ""}`;
+      expect(result.status, out).toBe(0);
+      expect(out).toMatch(/EXTRACT_OK name=Get-CorePhysics/u);
+      expect(out).toMatch(/PARAMS=ObjectType,Act/u);
+      expect(out).toMatch(/SMOKE_OK/u);
+      expect(out).not.toMatch(/CASE_FAIL/u);
+      const payload = lastJsonObject(out);
+      expect(payload).toEqual({
+        ok: true,
+        params: "ObjectType,Act",
+        sweater_after_len: expect.any(Number),
+        sweater_same: false,
+        all_after_settled: true,
+        before_keeps_work: true
+      });
+      expect(payload.sweater_after_len).toBeGreaterThan(80);
+    },
+    30000
+  );
 });

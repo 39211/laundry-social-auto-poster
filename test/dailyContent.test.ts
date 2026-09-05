@@ -150,7 +150,11 @@ describe("DailyContent schema", () => {
       for (const slot of content.slots.filter((s) => s.slot <= 2)) {
         // Instagram captions have no tappable link and profile-link taps measured
         // zero, so every Instagram caption must ask for a direct message instead.
-        expect(slot.instagram_caption).toContain("私訊");
+        // Slot 2 image posts from 2026-09-08 replace that generic 私訊 closer
+        // with a specific two-photo LINE action.
+        if (!(slot.slot === 2 && date >= "2026-09-08" && slot.format !== "reel")) {
+          expect(slot.instagram_caption).toContain("私訊");
+        }
         expect(slot.instagram_caption).not.toContain("點個人檔案連結");
         // A question invites a reply; an explicit "leave a comment" on every one
         // of the 180 posts is the engagement-bait pattern that costs reach.

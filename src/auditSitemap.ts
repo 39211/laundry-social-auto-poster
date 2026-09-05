@@ -102,7 +102,11 @@ export async function auditSitemap(options: {
     checks.push({ name, status: ok ? "pass" : "fail", detail });
   };
 
-  add("xml-root", localXml.includes('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'), "Valid Sitemap urlset namespace.");
+  add(
+    "xml-root",
+    localXml.includes('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'),
+    "Valid Sitemap urlset namespace."
+  );
   add("non-empty", locs.length > 0, `${locs.length} local URLs discovered.`);
   add("no-duplicates", new Set(locs).size === locs.length, `${locs.length - new Set(locs).size} duplicate URLs.`);
   add("same-origin", locs.every((url) => url === `${baseUrl}/` || url.startsWith(`${baseUrl}/`)), "All URLs use the configured canonical origin.");

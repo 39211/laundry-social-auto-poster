@@ -14,6 +14,7 @@ import {
 } from "../src/imageStamp";
 import { markImageSource } from "../src/markImageSource";
 import { postCurrentSlot } from "../src/postCurrentSlot";
+import { NonRetryableError } from "../src/retry";
 
 // The invariant: a slot must not be approved unless every image it will publish
 // is provably the file that was generated for that slot's current topic.
@@ -460,6 +461,27 @@ describe("what the approval gate refuses", () => {
       vi.stubEnv("IG_USER_ID", "12345678901234567");
     }
 
+    /**
+     * A fetch stub for the case that means to observe the guard *letting a
+     * publish through*. Reaching Meta at all is the whole observation, so this
+     * stub marks itself non-retryable and withRetry rethrows it at once,
+     * instead of grinding its 3-attempt 500ms/1000ms backoff ladder against a
+     * stub once per platform.
+     *
+     * The old stub was a bare vi.fn(). It returned undefined, which is not a
+     * Response, so each attempt died on a property access -- a plain Error,
+     * which withRetry correctly retries (an unpublished carousel upload is
+     * safe to rerun). Measured: 6 fetch calls and 3.0s of real sleep, which
+     * pushed the case to 3.3s locally and over vitest's 5s default on the
+     * GitHub Windows runner. Now 2 calls (one per platform) and 196ms. Both
+     * assertions below are unchanged -- neither ever depended on the retries.
+     */
+    function stubFetchThatMustNotBeRetried() {
+      return vi.fn(() => {
+        throw new NonRetryableError("stub fetch: reaching Meta is all this test observes");
+      }) as unknown as typeof fetch;
+    }
+
     function livePublishSlot1(fetchImpl: typeof fetch) {
       return postCurrentSlot({
         root,
@@ -521,20 +543,17 @@ describe("what the approval gate refuses", () => {
       expect(fetchImpl).not.toHaveBeenCalled();
     });
 
-    // Auto-approving the whole day and then running the live publish path makes this the
-    // slowest case in the file (~3.3s locally, 5.6s on the GitHub Windows runner). Give it
-    // its own budget rather than raising the global default and hiding real hangs elsewhere.
     it("on a pre-snapshot day does not refuse matching stamps just because the digest file is absent", async () => {
       await autoApprove({ date: DATE, root });
       await unlink(imageDigestsPath(root, DATE));
 
       stubLiveMetaEnv();
-      const fetchImpl = vi.fn() as unknown as typeof fetch;
+      const fetchImpl = stubFetchThatMustNotBeRetried();
       await expect(livePublishSlot1(fetchImpl)).rejects.not.toThrow(
         /images changed after approval|image-digest|digest file|digest entry/
       );
       expect(fetchImpl).toHaveBeenCalled();
-    }, 30_000);
+    });
 
     it("refuses a digest slot whose value is null instead of a map, and does not call Meta", async () => {
       await autoApprove({ date: DATE, root });

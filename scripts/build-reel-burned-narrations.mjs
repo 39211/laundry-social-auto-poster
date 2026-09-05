@@ -175,9 +175,7 @@ function main() {
   const narrations = {};
 
   for (const id of ids) {
-    const assPath = assDir
-      ? (existsSync(join(assDir, `${id}.ass`)) ? join(assDir, `${id}.ass`) : undefined)
-      : assFileFor(reelsDir, id);
+    const assPath = assFileFor(reelsDir, id);
     if (!assPath) {
       console.error(`NO_ASS ${id}`);
       continue;
@@ -188,7 +186,7 @@ function main() {
       console.error(`empty .ass narration for ${id}`);
       process.exit(1);
     }
-    const filename = assDir ? `${id}.ass` : assPath.endsWith(".mp4.ass") ? `${id}.mp4.ass` : `${id}.ass`;
+    const filename = assPath.endsWith(".mp4.ass") ? `${id}.mp4.ass` : `${id}.ass`;
     generatedFrom[id] = {
       source: "ass",
       path: `${RUN_REL}/reels/${filename}`,

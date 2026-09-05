@@ -1,6 +1,12 @@
+// CI 沒有 `output/`（sparse-checkout cone 不含該目錄）。
+// `reads official run .ass for all 26 concepts via burnedNarrationFor` 與
+// `fixtures match official .ass sha256 when that run dir exists` 兩條只在本機
+// 有正式 run 目錄時執行。CI 只證明「登錄檔 ⟷ fixture」自洽；fixture 是否忠於
+// 正式 `.ass` 靠本機那兩條，以及重燒／改字幕時同步更新 fixture 的紀律。
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rename, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -308,9 +314,11 @@ describe("captionsFor question stacking (B)", () => {
     loadExtensions();
     try {
       expect(REEL_CONCEPTS.length).toBe(26);
+      let exercised = 0;
       for (const live of REEL_CONCEPTS) {
         const statement = live.narration.replace(/[？?]/gu, "。");
         if (statement === live.narration) continue;
+        exercised += 1;
         const expectedQuestion = questionForExpected(live);
         for (const airedBefore of [0, 1] as const) {
           const without = captionsFor(live, airedBefore, "2026-09-05");
@@ -343,6 +351,7 @@ describe("captionsFor question stacking (B)", () => {
           }
         }
       }
+      expect(exercised).toBeGreaterThanOrEqual(20);
     } finally {
       REEL_CONCEPTS.length = baselineConcepts;
       REEL_SCHEDULE.length = baselineSchedule;
@@ -657,6 +666,7 @@ function registryNarration(id: string): string {
 
 async function seedBurnedCaptionRoot(options: {
   ass?: string;
+  assFileName?: string;
   conceptId?: string;
   date?: string;
   registry?: boolean | Record<string, unknown>;
@@ -681,7 +691,7 @@ async function seedBurnedCaptionRoot(options: {
     )
   );
   if (options.ass !== undefined) {
-    await writeFile(join(reels, `${conceptId}.ass`), options.ass, "utf8");
+    await writeFile(join(reels, options.assFileName ?? `${conceptId}.ass`), options.ass, "utf8");
   }
   await writeFile(
     join(refs, `${conceptId}-before.png`),
@@ -1208,5 +1218,93 @@ describe("burned narration registry (SXJ-REELQ r9)", () => {
       REEL_CONCEPTS.length = baselineConcepts;
       REEL_SCHEDULE.length = baselineSchedule;
     }
+  });
+
+  it("real .mp4.ass wins over sidecar narration:false and records narration_source burned", async () => {
+    const root = await seedBurnedCaptionRoot({
+      ass: BURNED_OLD_ASS,
+      assFileName: `${BURNED_CAPTION_CONCEPT}.mp4.ass`,
+      audioJson: { narration: false, source: "native-model-audio" }
+    });
+    const reel = join(root, "output", "reels-run", "2026-07-29", "reels", `${BURNED_CAPTION_CONCEPT}.mp4`);
+    expect(existsSync(join(root, "output", "reels-run", "2026-07-29", "reels", `${BURNED_CAPTION_CONCEPT}.ass`))).toBe(
+      false
+    );
+    expect(burnedNarrationFor(reel, root)).toBe("娃娃能洗,但洗法差很多。怕的不是水,是脫水。");
+
+    const baselineConcepts = REEL_CONCEPTS.length;
+    const baselineSchedule = REEL_SCHEDULE.length;
+    loadExtensions();
+    try {
+      await scheduleReel({
+        date: BURNED_CAPTION_DATE,
+        conceptId: BURNED_CAPTION_CONCEPT,
+        slot: 2,
+        root
+      });
+      const slot = (await loadDailyContent(BURNED_CAPTION_DATE, root))?.slots.find((item) => item.slot === 2) as
+        | { narration_source?: string }
+        | undefined;
+      expect(slot).toBeDefined();
+      expect(slot!.narration_source).toBe("burned");
+    } finally {
+      REEL_CONCEPTS.length = baselineConcepts;
+      REEL_SCHEDULE.length = baselineSchedule;
+    }
+  });
+});
+
+describe("reel registry drift gate (SXJ-REELQ r11)", () => {
+  it("check-reel-registry-drift.mjs exits 0 with OK (13 entries)", () => {
+    const script = join(process.cwd(), "scripts", "check-reel-registry-drift.mjs");
+    const result = spawnSync(process.execPath, [script], {
+      encoding: "utf8",
+      cwd: process.cwd(),
+      env: { ...process.env, PROJECT_ROOT: process.cwd() },
+      windowsHide: true
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("OK (13 entries)");
+  });
+
+  it("empty generator output fails the drift gate", async () => {
+    const empty = await mkdtemp(join(tmpdir(), "no-reel-ass-"));
+    const script = join(process.cwd(), "scripts", "check-reel-registry-drift.mjs");
+    const result = spawnSync(process.execPath, [script], {
+      encoding: "utf8",
+      cwd: process.cwd(),
+      env: { ...process.env, PROJECT_ROOT: empty },
+      windowsHide: true
+    });
+    expect(result.status).toBe(1);
+    const msg = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+    expect(msg.includes("generator produced no output") || /narrations count .* != fixture \.ass count/.test(msg)).toBe(
+      true
+    );
+  });
+
+  it("--ass-dir records the found .mp4.ass filename without changing narration", async () => {
+    const staging = await mkdtemp(join(tmpdir(), "ass-dir-mp4-ass-"));
+    const assDir = join(staging, "fixtures");
+    await cp(reelAssFixtureDir(), assDir, { recursive: true });
+    const id = "plush-doll";
+    await rename(join(assDir, `${id}.ass`), join(assDir, `${id}.mp4.ass`));
+    const result = spawnSync(
+      process.execPath,
+      [
+        join(process.cwd(), "scripts", "build-reel-burned-narrations.mjs"),
+        "--print-only",
+        "--ass-dir",
+        assDir
+      ],
+      { encoding: "utf8", cwd: process.cwd(), windowsHide: true }
+    );
+    expect(result.status, result.stderr).toBe(0);
+    const payload = JSON.parse(result.stdout) as {
+      generated_from: Record<string, { path?: string }>;
+      narrations: Record<string, string>;
+    };
+    expect(payload.generated_from[id]?.path).toBe(`output/reels-run/2026-07-29/reels/${id}.mp4.ass`);
+    expect(payload.narrations[id]).toBe(loadBurnedRegistryFile().narrations[id]);
   });
 });

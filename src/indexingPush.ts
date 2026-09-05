@@ -30,6 +30,8 @@ interface PageAudit {
 
 export interface IndexingPushReport {
   date: string;
+  /** The day whose lastmods were treated as changed; the real today, not `date`. */
+  notify_date: string;
   host: string;
   sitemap_urls: number;
   submitted: number;
@@ -102,6 +104,13 @@ async function sitemapEntries(
  * IndexNow is a changed-URL notification, not a daily sitemap ping. Sending
  * every landing page again when its sitemap lastmod did not change is neither
  * a new discovery signal nor evidence of Google indexing.
+ *
+ * The date compared here is the day the notification is being sent, never the
+ * content date the pipeline happens to be building. Once generation moved to a
+ * D+3 buffer, daily-generate.ps1 began passing today+3 to this command, and a
+ * sitemap lastmod is always a real past-or-present date -- so the set was empty
+ * on every run and IndexNow silently stopped firing after 2026-09-03. That is
+ * why indexingPush takes notifyDate separately from the content date.
  */
 export function pickSubmissionSet(entries: SitemapEntry[], date: string): string[] {
   return [
@@ -144,11 +153,25 @@ function isIndexingPushState(value: unknown): value is IndexingPushState {
 }
 
 export async function indexingPush(
-  options: { date?: string; root?: string; skipSubmit?: boolean; baseUrl?: string; fetchImpl?: typeof fetch } = {}
+  options: {
+    date?: string;
+    /**
+     * The day whose sitemap lastmods count as "changed". Defaults to the real
+     * zoned today and deliberately ignores `date`, which the pipeline sets to
+     * the D+3 content day.
+     */
+    notifyDate?: string;
+    root?: string;
+    skipSubmit?: boolean;
+    baseUrl?: string;
+    fetchImpl?: typeof fetch;
+  } = {}
 ): Promise<IndexingPushReport> {
   const root = projectRoot(options.root);
   const config = getConfig();
-  const date = options.date || getZonedDateParts(new Date(), config.timezone).date;
+  const today = getZonedDateParts(new Date(), config.timezone).date;
+  const date = options.date || today;
+  const notifyDate = options.notifyDate || today;
   const fetchImpl = options.fetchImpl ?? fetch;
   const base = (options.baseUrl || config.publicSiteBaseUrl || "https://39211.github.io").replace(/\/+$/, "");
   const host = new URL(base).host;
@@ -164,12 +187,16 @@ export async function indexingPush(
   const selected = isIndexingPushState(previousState)
     ? chooseIndexNowSubmission({
         entries: sitemap.entries,
-        date,
+        date: notifyDate,
         sitemapSemanticSha256: sitemap.semantic_sha256,
         priorSitemapSemanticSha256: previousState.sitemap_semantic_sha256
       })
     : previousState === undefined
-      ? chooseIndexNowSubmission({ entries: sitemap.entries, date, sitemapSemanticSha256: sitemap.semantic_sha256 })
+      ? chooseIndexNowSubmission({
+          entries: sitemap.entries,
+          date: notifyDate,
+          sitemapSemanticSha256: sitemap.semantic_sha256
+        })
       : { urls: [], reason: "submission_state_malformed" as const };
   const submission = selected.urls;
   const submissionReason = selected.reason;
@@ -227,6 +254,7 @@ export async function indexingPush(
   const unreachable = audited.filter((page) => page.status !== 200).map((page) => page.url);
   const report: IndexingPushReport = {
     date,
+    notify_date: notifyDate,
     host,
     sitemap_urls: urls.length,
     submitted: submission.length,
@@ -259,6 +287,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const report = await indexingPush({
     date: getOption(args, "date"),
+    notifyDate: getOption(args, "notify-date"),
     root: getOption(args, "root"),
     skipSubmit: args.includes("--no-submit")
   });

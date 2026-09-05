@@ -1598,6 +1598,9 @@ describe("generatePublicSite", () => {
     expect(readFullPostHrefs.some((href) => href?.includes(".json"))).toBe(false);
   });
 
+  // Regenerates the whole site on disk, so it is far heavier than the checks around it.
+  // It has crossed vitest's 5s default on the GitHub Windows runner; give this one case its
+  // own budget rather than raising the global default and hiding real hangs elsewhere.
   it("publishes the IndexNow key file as ${INDEXNOW_KEY}.txt and removes the legacy indexnow-key.txt", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-indexnow-key-"));
     await writeBusinessProfile(root);
@@ -1625,7 +1628,7 @@ describe("generatePublicSite", () => {
     expect(await exists(join(root, "docs", "stale-indexnow-key-2025.txt"))).toBe(false);
     const keyFile = await readFile(join(root, "docs", "laundry-test-key-2026.txt"), "utf8");
     expect(keyFile).toBe("laundry-test-key-2026\n");
-  });
+  }, 30_000);
 
   it("allows OAI-SearchBot to crawl the same AI entry points as other bot agents", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-oai-searchbot-"));

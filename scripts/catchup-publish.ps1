@@ -121,6 +121,7 @@ if (-not (Test-Path $indexingRecord)) {
 # Checked against the hero image of the first approved slot: if the file is here
 # and the web says 404, the site is stale, so push it again.
 $heroLocal = Join-Path $root "docs\assets\$date\slot-01.png"
+$script:publicSiteRepushFailed = $false
 if (Test-Path $heroLocal) {
     # Read the host from .env rather than hardcoding it. The site moved to the
     # custom domain and this check kept asking github.io, which now answers 301
@@ -158,9 +159,27 @@ if (Test-Path $heroLocal) {
         Write-Log "Local images exist for $date but $heroUrl is not live; re-publishing the site."
         Push-Location $root
         cmd /c "npm.cmd run generate-public-site 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-        cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-        Pop-Location
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "generate-public-site failed (exit $LASTEXITCODE); refusing to continue."
+            Pop-Location
+            Show-Toast "$date 的公開站沒推上去(generate-public-site 失敗),請看 output\catch-up-logs\$date.log"
+            $script:publicSiteRepushFailed = $true
+        } else {
+            cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+            if ($LASTEXITCODE -ne 0) {
+                Write-Log "publish-pages failed (exit $LASTEXITCODE); refusing to continue."
+                Pop-Location
+                Show-Toast "$date 的公開站沒推上去(publish-pages 失敗),請看 output\catch-up-logs\$date.log"
+                $script:publicSiteRepushFailed = $true
+            } else {
+                Pop-Location
+            }
+        }
     }
+}
+
+if ($script:publicSiteRepushFailed) {
+    Write-Log "public-site repush failed earlier; posting continues, poster validates image URLs itself"
 }
 
 if (-not (Test-Path $approvedPath)) {
@@ -374,3 +393,4 @@ if ($now.TimeOfDay -ge [TimeSpan]"20:30") {
 }
 
 Write-Log "Catch-up run finished."
+if ($script:publicSiteRepushFailed) { Write-Log "public-site repush failed earlier; exiting 2 so Task Scheduler records it"; exit 2 }

@@ -26,7 +26,7 @@
     "submit-indexnow": "tsx src/submitIndexNow.ts",
     "audit-public-site": "tsx src/auditPublicSite.ts",
     "audit-sitemap": "tsx src/auditSitemap.ts",
-    "regen-public-image-metadata": "node scripts/regen-public-image-metadata.mjs",
+    "regen-public-image-metadata": "node --import tsx scripts/regen-public-image-metadata.mjs",
     "approve-post": "tsx src/approvePost.ts",
     "auto-approve": "tsx src/autoApprove.ts",
     "post": "tsx src/postCurrentSlot.ts --all-due",

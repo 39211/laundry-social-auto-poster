@@ -307,7 +307,7 @@ const KNOWLEDGE_HUB_TEMPLATE_LASTMOD = "2026-09-03";
  * (see homepageContentLastmod). Their rename, our date: 2026-08-08 is the later
  * real content change, made after this constant's line diverged.
  */
-const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-09-04";
+const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-09-05";
 const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";
@@ -376,8 +376,104 @@ const LOCAL_SEARCH_QUERY_TARGETS = [
   "台中西屯洗鞋",
   "台中西屯洗包",
   "台中西屯白鞋清潔",
-  "台中西屯布品收納"
+  "台中西屯布品收納",
+  "台中洗衣價格",
+  "台中窗簾清洗",
+  "台中洗窗簾",
+  "絨毛娃娃清洗",
+  "勃肯鞋臭"
 ] as const;
+const WIKIDATA_TAICHUNG = "https://www.wikidata.org/wiki/Q245023";
+const WIKIDATA_XITUN = "https://www.wikidata.org/wiki/Q569546";
+const INDEX_GAP_MONEY_SLUGS = [
+  PRICE_LIST_SLUG,
+  "taichung-citywide-laundry-pickup",
+  "taichung-xitun-laundry",
+  "business-bulk-laundry",
+  "fabric-storage"
+] as const;
+const UNIQUE_VALUE_BLOCKS: Record<
+  string,
+  { h2: string; points: string[]; fit: string; notFit: string }
+> = {
+  "taichung-laundry-price-list": {
+    h2: "這頁只回答「多少錢」，不是折扣碼也不是報價單",
+    points: [
+      "列的是水洗參考價，不是最低價承諾或市場行情。",
+      "襯衫 $70、一般運動鞋 $250、名牌包 $1500 起，完整分類在本頁表格。",
+      "收送免費與清潔費用分開；本頁不把收送寫成免費清潔。",
+      "實際報價仍要看材質與污損，先對照本頁再傳照片。"
+    ],
+    fit: "第一次送洗、想先對參考價的人",
+    notFit: "要最低價承諾、折扣碼或固定報價單的人——本頁沒有那些數字"
+  },
+  "taichung-citywide-laundry-pickup": {
+    h2: "這頁只講收送規則：免費的是路程，不是清潔",
+    points: [
+      "台中市全市收送本身免費，沒有最低消費門檻。",
+      "清潔與洗護費用另計，不因收送免費而變成免費洗衣。",
+      "一件也能先問；預約以 LINE 傳照片為主。",
+      "門市在西屯青海路二段365號，不方便到店才走收送。"
+    ],
+    fit: "住在台中市區、不想先跑一趟門市的人",
+    notFit: "住在外縣市、或把「免費收送」理解成整單免費的人"
+  },
+  "taichung-xitun-laundry": {
+    h2: "這頁是西屯這一間門市，不是連鎖目錄",
+    points: [
+      "實體店在青海路二段365號、至善國中對面。",
+      "西屯、逢甲生活圈可到店，台中其他區走全市收送。",
+      "不是逢甲夜市攤位，也不是多店加盟列表。",
+      "價目與收送規則各有專頁，本頁不重複當目錄。"
+    ],
+    fit: "人在西屯／逢甲、想確認這間店在哪的人",
+    notFit: "在找全台連鎖據點或夜市臨時攤的人"
+  },
+  "business-bulk-laundry": {
+    h2: "這頁給店家與公司大量件，不是單件精品鞋",
+    points: [
+      "宿舍、餐廳、辦公室、店家制服與大量衣物走這頁。",
+      "仍走台中全市免費收送；清潔費依件數與材質另計。",
+      "單雙名牌鞋、精品包請走鞋包頁，不要塞進大量件。",
+      "先用 LINE 列品項與地址，再約收件時段。"
+    ],
+    fit: "店家、公司、宿舍一次多件的窗口",
+    notFit: "只有一件精品鞋或名牌包、需要逐件檢查的人"
+  },
+  "fabric-storage": {
+    h2: "這頁處理換季收納前的布品，不是倉儲出租",
+    points: [
+      "先看乾燥、悶味、黃痕，再決定洗後收納。",
+      "外套、寢具、被套、厚棉是主體，不是代客倉儲。",
+      "發霉或未乾就密封，本頁會直接說不建議。",
+      "價目與收送仍連到專頁，不在收納頁報假價。"
+    ],
+    fit: "換季、搬家、想先處理濕氣再收進櫃子的家庭",
+    notFit: "要租倉庫或長期代保管衣物的人"
+  },
+  "shoe-bag-care": {
+    h2: "這頁不是只收白鞋",
+    points: [
+      "運動鞋、皮鞋、帆布、麂皮、精品鞋與包包都先看材質。",
+      "白鞋清潔是隔壁專頁；本頁是多鞋款與洗包母頁。",
+      "一般運動鞋水洗參考價 $250，名牌包 $1500 起。",
+      "氧化膠邊、破皮、掉色不承諾變全新。"
+    ],
+    fit: "手上是鞋或包、還不確定能不能洗的人",
+    notFit: "只想看白鞋泛黃教學、或要洗回出廠白承諾的人"
+  },
+  "fengjia-laundry-pickup": {
+    h2: "逢甲收送是生活圈路徑，不是夜市攤位頁",
+    points: [
+      "逢甲附近可約全市免費收送，門市仍在青海路二段。",
+      "洗鞋洗包要看材質，不是夜市現洗攤。",
+      "價目在價目表，收送規則在全市收送頁。",
+      "人在逢甲、東西在宿舍或租屋，先傳照片再約收。"
+    ],
+    fit: "逢甲、青海路商圈、不想先找門市的人",
+    notFit: "把本頁當成逢甲夜市現場洗鞋攤介紹的人"
+  }
+};
 const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
   {
     slug: "shoe-bag-care",
@@ -3298,17 +3394,28 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
     areaServed: [
       {
         "@type": "AdministrativeArea",
-        name: "台中市"
+        name: "台中市",
+        sameAs: WIKIDATA_TAICHUNG
       },
       {
         "@type": "AdministrativeArea",
-        name: "台中市西屯區"
+        name: "台中市西屯區",
+        sameAs: WIKIDATA_XITUN
       },
       {
         "@type": "Place",
         name: "青海路二段"
       }
     ],
+    potentialAction: {
+      "@type": "CommunicateAction",
+      name: "用 LINE 傳照片詢問",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: profile.line_url,
+        actionPlatform: ["http://schema.org/DesktopWebPlatform", "http://schema.org/MobileWebPlatform"]
+      }
+    },
     knowsAbout: Array.from(new Set([...profile.service_topics, ...LOCAL_SEARCH_QUERY_TARGETS])),
     hasOfferCatalog: {
       "@type": "OfferCatalog",
@@ -3412,6 +3519,10 @@ function buildHomePageSchema(index: PublicPostIndex): object | undefined {
         isPartOf: { "@id": `${index.canonical_url}#website` },
         about: { "@id": `${index.canonical_url}#business` },
         mainEntity: { "@id": `${index.canonical_url}#business` },
+        speakable: {
+          "@type": "SpeakableSpecification",
+          cssSelector: [".answer-box", "[data-geo-entity]", "[data-index-gap-rail]"]
+        },
         breadcrumb: { "@id": `${index.canonical_url}#breadcrumb` },
         hasPart: [
           { "@id": `${index.canonical_url}#homepage-faq` },
@@ -4797,6 +4908,49 @@ function buildMoneyPageLinkRow(
   return `<div class="link-row" data-money-pages>
               ${links.map((link) => `<a href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`).join("\n              ")}
             </div>`;
+}
+
+function buildUniqueValueSection(slug: string): string {
+  const block = UNIQUE_VALUE_BLOCKS[slug];
+  if (!block) return "";
+  return `<section class="section" id="unique-value" data-unique-value data-index-gap-page="${escapeHtml(slug)}">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">這頁才有</span>
+            <h2>${escapeHtml(block.h2)}</h2>
+          </div>
+          <div class="answer-box">
+            <ul>
+              ${block.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("\n              ")}
+            </ul>
+            <p><strong>誰適合：</strong>${escapeHtml(block.fit)}</p>
+            <p><strong>誰不適合：</strong>${escapeHtml(block.notFit)}</p>
+          </div>
+        </div>
+      </section>`;
+}
+
+function buildIndexGapRail(index: PublicPostIndex): string {
+  const items = INDEX_GAP_MONEY_SLUGS.flatMap((slug) => {
+    const service = findServiceBySlug(slug);
+    if (!service) return [];
+    return [
+      `<li><a href="${escapeHtml(servicePageUrl(service, index))}">${escapeHtml(service.name)}</a> — ${escapeHtml(service.answer_summary)}</li>`
+    ];
+  });
+  if (items.length === 0) return "";
+  return `<section class="section" id="index-gap-rail" data-index-gap-rail>
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">成交頁</span>
+            <h2>先看價目、收送、門市，再決定送洗</h2>
+            <p>這些頁目前搜尋還在收錄中。從首頁連過去，是給要看價格、收送範圍或西屯門市的人，不是再堆一篇指南。</p>
+          </div>
+          <ul>
+            ${items.join("\n            ")}
+          </ul>
+        </div>
+      </section>`;
 }
 
 function buildSitemapXml(index: PublicPostIndex): string {
@@ -6847,6 +7001,9 @@ function renderSiteHeader(index: PublicPostIndex, options: SiteChromeOptions): s
 function renderSiteFooter(index: PublicPostIndex, options: SiteChromeOptions): string {
   const profile = index.business_profile;
   const pickupService = findServiceBySlug("taichung-citywide-laundry-pickup");
+  const priceListService = findServiceBySlug(PRICE_LIST_SLUG);
+  const priceHref = priceListService ? options.serviceHref(priceListService) : options.homeHref;
+  const pickupHref = pickupService ? options.serviceHref(pickupService) : options.homeHref;
   return `<footer class="site-footer">
       <div class="page-shell site-footer__grid">
         <div>
@@ -6866,6 +7023,17 @@ function renderSiteFooter(index: PublicPostIndex, options: SiteChromeOptions): s
             <a href="${escapeHtml(options.homeHref)}#homepage-faq">常見問題</a>
             <a href="${escapeHtml(options.businessProfileHref)}">店家資料</a>
           </div>
+          <h3 style="margin-top: 22px;">成交連結</h3>
+          <div class="link-row" data-money-pages>
+            ${[PRICE_LIST_SLUG, "taichung-citywide-laundry-pickup", "taichung-xitun-laundry", "business-bulk-laundry"]
+              .flatMap((slug) => {
+                const service = findServiceBySlug(slug);
+                return service
+                  ? [`<a href="${escapeHtml(options.serviceHref(service))}">${escapeHtml(service.name)}</a>`]
+                  : [];
+              })
+              .join("\n              ")}
+          </div>
           <h3 style="margin-top: 22px;">社群</h3>
           <div class="footer-links">
             <a href="${escapeHtml(options.lineFooterHref)}">LINE 加好友</a>
@@ -6878,8 +7046,9 @@ function renderSiteFooter(index: PublicPostIndex, options: SiteChromeOptions): s
       </div>
     </footer>
     <div class="mobile-sticky-cta" aria-label="行動版固定預約">
-      <a class="button secondary" href="${escapeHtml(options.servicesHref)}">服務項目</a>
-      <a class="button brand" href="${escapeHtml(options.lineFooterHref)}">LINE 預約</a>
+      <a class="button secondary" href="${escapeHtml(priceHref)}">價目</a>
+      <a class="button secondary" href="${escapeHtml(pickupHref)}">收送</a>
+      <a class="button brand" href="${escapeHtml(options.lineFooterHref)}">LINE</a>
     </div>`;
 }
 
@@ -7259,6 +7428,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           </div>
         </div>
       </section>
+      ${buildIndexGapRail(index)}
       <section class="section" id="guide-hub">
         <div class="page-shell">
           <div class="section-header">
@@ -7301,7 +7471,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           </div>
         </div>
       </section>
-      <section class="section surface" id="store">
+      <section class="section surface" id="store" data-geo-entity>
         <div class="page-shell grid two">
           <div>
             <span class="eyebrow">品牌與信任</span>
@@ -7896,6 +8066,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
         </div>
       </section>
       ${priceTablesSection}
+      ${buildUniqueValueSection(service.slug)}
       ${caseStorySection}
       <section class="section surface">
         <div class="page-shell grid two">
@@ -7912,7 +8083,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
               .join("\n")}
             </div>
           </div>
-          <aside class="card">
+          <aside class="card" id="geo-entity" data-geo-entity>
             <h2>店家資訊</h2>
             <p>${escapeHtml(profile.name)}｜${escapeHtml(profile.address_text)}（${escapeHtml(profile.landmark)}）</p>
             <p>電話：<a href="tel:${escapeHtml(profile.telephone)}">${escapeHtml(profile.telephone_local)}</a>｜LINE：${escapeHtml(profile.mobile_or_line_local)}</p>
@@ -8126,6 +8297,7 @@ ${serviceHeroLink}          </div>
         </div>
         </div>
       </section>
+      ${buildUniqueValueSection(page.slug)}
       <section class="section surface">
         <div class="page-shell">
           <div class="section-header">

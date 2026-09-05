@@ -1185,7 +1185,7 @@ describe("generatePublicSite", () => {
     expect(latest.posts.map((post: { date: string }) => post.date)).toEqual([today, today]);
     expect(homepage).toContain(`${today} 11:30`);
     expect(homepage).not.toContain(tomorrow);
-    expect(jsonLdGraphs(homepage).find((graph) => graph["@type"] === "WebPage")?.dateModified).toBe("2026-09-04");
+    expect(jsonLdGraphs(homepage).find((graph) => graph["@type"] === "WebPage")?.dateModified).toBe("2026-09-05");
     expect(llms).not.toContain(tomorrow);
     expect(sitemap).not.toContain(`content-calendar/${tomorrow}.json`);
     expect(sitemap).not.toContain(`<lastmod>${tomorrow}</lastmod>`);
@@ -1700,7 +1700,7 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("台中洗衣與免費收送常見問題");
     expect(homepage).toContain("收送免費等於清潔免費嗎？");
     expect(homepage).toContain('<html lang="zh-Hant-TW">');
-    expect(homepage).toContain('<time datetime="2026-09-04">2026-09-04</time>');
+    expect(homepage).toContain('<time datetime="2026-09-05">2026-09-05</time>');
     expect(homepage).toContain("台中洗鞋洗包洗衣，全市免費收送、價格公開");
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=home-cta`);
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=footer`);
@@ -1761,7 +1761,7 @@ describe("generatePublicSite", () => {
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
-        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-09-04</lastmod>`
+        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-09-05</lastmod>`
       )
     );
     expect(sitemap1).toMatch(
@@ -1862,7 +1862,7 @@ describe("generatePublicSite", () => {
     const postHtml1 = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
     const postDateModified1 = findArticleDateModified(postHtml1);
 
-    expect(homepageDateModified1).toBe("2026-09-04");
+    expect(homepageDateModified1).toBe("2026-09-05");
     expect(pickupDateModified1).toBe("2026-07-22");
     expect(shoeBagDateModified1).toBe("2026-08-17");
     expect(guideDateModified1).toBe("2026-08-23");
@@ -2864,5 +2864,47 @@ describe("generatePublicSite", () => {
     expect(h1(homepage)).not.toContain("西屯洗鞋");
     expect(h1(localHtml)).not.toContain("西屯洗鞋");
     expect(localHtml).toContain("<h1>青海路洗鞋店怎麼挑：看案例、問界線、約收送</h1>");
+  });
+
+  it("adds index-gap money rails, unique-value, Wikidata entity, image sitemap, and GA4 view_item without fake conversions", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-seo-ga4-boost-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    const baseUrl = "https://example.com/laundry-social-auto-poster";
+    await generatePublicSite({ root, baseUrl, now: "2026-07-10T03:00:00.000Z" });
+
+    const homepage = await readFile(join(root, "docs", "index.html"), "utf8");
+    const priceHtml = await readFile(join(root, "docs", "services", "taichung-laundry-price-list.html"), "utf8");
+    const pickupHtml = await readFile(join(root, "docs", "services", "taichung-citywide-laundry-pickup.html"), "utf8");
+    const shoeBagHtml = await readFile(join(root, "docs", "services", "shoe-bag-care.html"), "utf8");
+    const fengjiaHtml = await readFile(join(root, "docs", "local", "fengjia-laundry-pickup.html"), "utf8");
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const analytics = await readFile(join(root, "docs", "scripts", "search-content-analytics.js"), "utf8");
+
+    expect(homepage).toContain('data-index-gap-rail');
+    expect(homepage).toContain('data-geo-entity');
+    expect(homepage).toContain("成交連結");
+    expect(homepage).toContain('data-money-pages');
+    expect(homepage).toContain("https://www.wikidata.org/wiki/Q245023");
+    expect(homepage).toContain("https://www.wikidata.org/wiki/Q569546");
+    expect(homepage).toContain('"@type":"CommunicateAction"');
+    expect(homepage).toContain('"@type":"SpeakableSpecification"');
+    expect(homepage).toContain(">價目</a>");
+    expect(homepage).toContain(">收送</a>");
+    expect(homepage).toContain("台中窗簾清洗");
+
+    expect(priceHtml).toContain('data-unique-value');
+    expect(priceHtml).toContain("這頁只回答「多少錢」");
+    expect(pickupHtml).toContain('data-index-gap-page="taichung-citywide-laundry-pickup"');
+    expect(shoeBagHtml).toContain("這頁不是只收白鞋");
+    expect(fengjiaHtml).toContain("逢甲收送是生活圈路徑");
+    expect(shoeBagHtml).toContain('data-geo-entity');
+
+    expect(analytics).toContain('send("view_item"');
+    expect(analytics).toContain('send("scroll_depth"');
+    expect(analytics).not.toContain('send("generate_lead"');
+    expect(analytics).not.toContain('send("line_click"');
+    expect(() => assertSearchContentAnalyticsScript(analytics)).not.toThrow();
   });
 });

@@ -136,6 +136,20 @@ function Invoke-AgyImageFallback {
     if ($LogFile) { $agyOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
     $secs = [int]((Get-Date) - $t0).TotalSeconds
     if ((Test-Path $outFile) -and (Get-Item $outFile).Length -gt 0) {
+        # agy writes JPEG bytes under the .png name it was asked for; the approval
+        # gate checks the PNG magic ("not a real PNG"), so re-encode unless the
+        # bytes already are PNG. 2026-09-05: all eight first-run files were JPEG.
+        $head = [IO.File]::ReadAllBytes($outFile)[0..3]
+        $isPng = ($head[0] -eq 0x89 -and $head[1] -eq 0x50 -and $head[2] -eq 0x4E -and $head[3] -eq 0x47)
+        if (-not $isPng) {
+            $raw = Join-Path $work ($name -replace '\.png$', '.raw.jpg')
+            Move-Item $outFile $raw -Force
+            & ffmpeg -v error -y -i $raw -pix_fmt rgb24 $outFile 2>&1 | Out-Null
+            if (-not (Test-Path $outFile)) {
+                Write-Step "Google (agy) returned non-PNG bytes for $name and ffmpeg could not re-encode them."
+                return $null
+            }
+        }
         Write-Step "Google (agy) produced $name in ${secs}s."
         return Get-Item $outFile
     }

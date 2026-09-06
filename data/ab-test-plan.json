@@ -594,8 +594,9 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "sweater-underarm",
-      "variant": "10s"
+      "conceptId": "curtain-hem",
+      "variant": "10s",
+      "paused": true
     }
   },
   {
@@ -605,9 +606,8 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "plush-doll",
-      "variant": "15s",
-      "paused": true
+      "conceptId": "duvet-storage",
+      "variant": "10s"
     }
   },
   {

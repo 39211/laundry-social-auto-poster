@@ -1,6 +1,79 @@
 import { describe, expect, it } from "vitest";
 import { searchVisibilityForContent } from "../src/searchVisibilityStrategy";
-import { buildGrowthPlaybook, flattenGrowthPlaybook } from "../src/growthPlaybook";
+import {
+  FREE_HEADLINE_START_DATE,
+  OBJECT_LEAD_RE,
+  buildGrowthPlaybook,
+  flattenGrowthPlaybook,
+  seedHeadlines
+} from "../src/growthPlaybook";
+import { TOPIC_LABEL_PREFIX_RE } from "../src/contentPlan";
+
+const TEMPLATE_TAIL_RE = /送洗前先看三個位置|先看容易忽略的位置|照片要補哪些細節|門市會先確認什麼/u;
+
+describe("free headlines from 2026-09-13", () => {
+  const rows = flattenGrowthPlaybook(buildGrowthPlaybook("2026-07-11", 90));
+
+  it("keeps the phase label and tail through 2026-09-12 (images through 09-10, single-CTA window 09-10..09-12)", () => {
+    // 09-07..09-10 were generated before the cutover; their topic text is
+    // embedded in image_prompt, so a change here would mark those images stale.
+    // The date is pinned on purpose: moving the constant earlier must fail here.
+    expect(FREE_HEADLINE_START_DATE).toBe("2026-09-13");
+    const generated = rows.filter((row) => row.date >= "2026-09-07" && row.date <= "2026-09-12");
+    expect(generated).toHaveLength(12);
+    for (const row of generated) {
+      expect(row.topic, `${row.date} s${row.slot}`).toMatch(TOPIC_LABEL_PREFIX_RE);
+      expect(row.topic, `${row.date} s${row.slot}`).toMatch(TEMPLATE_TAIL_RE);
+    }
+  });
+
+  it("drops the label and the template tail from the cutover date on", () => {
+    const free = rows.filter((row) => row.date >= FREE_HEADLINE_START_DATE);
+    expect(free.length).toBeGreaterThan(0);
+    for (const row of free) {
+      expect(row.topic, `${row.date} s${row.slot}`).not.toMatch(TOPIC_LABEL_PREFIX_RE);
+      expect(row.topic, `${row.date} s${row.slot}`).not.toMatch(TEMPLATE_TAIL_RE);
+      expect(row.hook.startsWith(row.topic)).toBe(true);
+    }
+  });
+
+  it("leads every slot-2 headline with the object, never a scene or an occasion", () => {
+    // Hand-authored campaign posters (中秋前／國慶前 nodes) keep their own headline.
+    const evening = rows.filter(
+      (row) => row.date >= FREE_HEADLINE_START_DATE && row.slot === 2 && row.format !== "poster"
+    );
+    expect(evening.length).toBeGreaterThan(0);
+    for (const row of evening) {
+      expect(row.topic, `${row.date}`).toMatch(OBJECT_LEAD_RE);
+      expect(row.topic, `${row.date}`).not.toMatch(/^(先看|今天|雨後|下班|週末|暑假|梅雨|開學|颱風|中秋|國慶|夜市|逢甲|青海路|返家|久放|客人|LINE)/u);
+      expect(row.topic.length).toBeGreaterThanOrEqual(10);
+      expect(row.topic.length).toBeLessThanOrEqual(22);
+    }
+    // One headline per seed: the rotation must not fold two seeds into one sentence.
+    const headlines = evening.map((row) => row.topic);
+    expect(new Set(headlines).size).toBe(headlines.length);
+  });
+
+  it("gives every seed an object-first headline that differs from its filing topic", () => {
+    // The 90-day window only reaches part of the rotation, so the seeds are
+    // checked directly: a bad headline on an unscheduled seed would otherwise
+    // surface the first time the plan is extended.
+    const seeds = seedHeadlines();
+    expect(seeds).toHaveLength(68);
+    for (const seed of seeds) {
+      expect(seed.headline, seed.topic).not.toBe(seed.topic);
+      expect(seed.headline, seed.topic).toMatch(OBJECT_LEAD_RE);
+      expect(seed.headline, seed.topic).not.toMatch(TEMPLATE_TAIL_RE);
+      expect(seed.headline, seed.topic).not.toMatch(/^(先看|今天|雨後|下班|週末|暑假|梅雨|開學|颱風|中秋|國慶|夜市|逢甲|青海路|返家|久放|客人|LINE|夏季|旅行)/u);
+      expect(seed.headline.length, seed.topic).toBeGreaterThanOrEqual(10);
+      expect(seed.headline.length, seed.topic).toBeLessThanOrEqual(22);
+    }
+    for (const slot of [1, 2] as const) {
+      const perSlot = seeds.filter((seed) => seed.slot === slot).map((seed) => seed.headline);
+      expect(new Set(perSlot).size).toBe(perSlot.length);
+    }
+  });
+});
 
 describe("growth playbook", () => {
   it("assigns six distinct bag prompts to a bag topic before shared shoe terms", () => {

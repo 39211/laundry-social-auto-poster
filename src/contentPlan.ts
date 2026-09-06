@@ -57,6 +57,20 @@ export function singleCtaExperimentActive(date: string): boolean {
   return date >= SINGLE_CTA_EXPERIMENT_START;
 }
 
+// Caption length knife (third of three, four days apart: headlines 09-13,
+// hashtags 09-17, this 09-21). IG insights 2026-08-07..09-05: captions of 100–200
+// characters averaged 80–91 reach, the 300+ captions 56. What is left to cut
+// after the single-CTA experiment and the hashtag trim is the slot-1
+// 「下一集：…」 teaser (25–31 characters): it repeats tomorrow's headline, which
+// the reader sees tomorrow anyway, and thirty days of it produced no return
+// visits that the ledger can point to. Price, provenance and the LINE line are
+// owner-mandated facts and stay. From this date slot 1 drops the teaser.
+export const CAPTION_TRIM_START_DATE = "2026-09-21";
+
+export function captionTrimActive(date: string): boolean {
+  return date >= CAPTION_TRIM_START_DATE;
+}
+
 /** Drop the follow line block (`追蹤…`) so the action CTA is the only ask. */
 export function withoutFollowLine(caption: string, followCta: string): string {
   return caption
@@ -1614,18 +1628,40 @@ const HASHTAG_INTENT: Array<{ match: RegExp; tags: string[] }> = [
   { match: /窗簾|地毯/, tags: ["#窗簾清洗", "#居家清潔"] }
 ];
 
-function upgradeHashtags(existing: string[], topic: string): string[] {
+/**
+ * Hashtag science v2 (measured, not read): IG insights 2026-08-07..09-05
+ * put the 16 posts that still carried four tags at 97 average reach and the 38
+ * posts with the eleven-tag ladder at 55. The two changed together with the
+ * label templates and the longer captions on 8/14–8/19, so this is one of
+ * three knives tested one at a time (72h each): free headlines from 09-13,
+ * this trim from 09-17, the caption length from 09-21 (owner moved the first
+ * knife to 09-13 on 2026-09-06; the spacing follows). From the trim date the
+ * ladder keeps the seed's own tags plus one intent tag and one local tag —
+ * at most six — and drops the second/third intent tags, 西屯／逢甲 and #台中.
+ */
+export const HASHTAG_TRIM_START_DATE = "2026-09-17";
+export const HASHTAG_TRIM_MAX = 6;
+
+export function hashtagTrimActive(date: string | undefined): boolean {
+  return Boolean(date && date >= HASHTAG_TRIM_START_DATE);
+}
+
+export function upgradeHashtags(existing: string[], topic: string, date?: string): string[] {
   const intent = HASHTAG_INTENT.find((entry) => entry.match.test(topic))?.tags ?? [];
+  if (hashtagTrimActive(date)) {
+    const ladder = [...existing, ...intent.slice(0, 1), HASHTAG_LOCAL[0] ?? "#台中洗衣店"];
+    return [...new Set(ladder)].filter((tag): tag is string => Boolean(tag)).slice(0, HASHTAG_TRIM_MAX);
+  }
   const ladder = [...existing, ...intent, ...HASHTAG_LOCAL.slice(0, 3), HASHTAG_LARGE[0] ?? "#台中"];
   return [...new Set(ladder)].filter((tag): tag is string => Boolean(tag)).slice(0, 12);
 }
 
-function withUpgradedHashtags(caption: string, topic: string): string {
+function withUpgradedHashtags(caption: string, topic: string, date?: string): string {
   const blocks = caption.split("\n\n");
   const tagIndex = blocks.findIndex((block) => block.startsWith("#"));
   if (tagIndex === -1) return caption;
   const tags = (blocks[tagIndex] ?? "").split(/\s+/).filter((tag) => tag.startsWith("#"));
-  blocks[tagIndex] = upgradeHashtags(tags, topic).join(" ");
+  blocks[tagIndex] = upgradeHashtags(tags, topic, date).join(" ");
   return blocks.join("\n\n");
 }
 
@@ -1678,9 +1714,10 @@ export function withNextEpisodeTeaser(caption: string, nextTopic: string | undef
 export function withSharedCaptionRules(
   caption: string,
   topic: string,
-  tracking?: CaptionTracking
+  tracking?: CaptionTracking,
+  date?: string
 ): string {
-  return withUpgradedHashtags(withProvenanceLine(withPriceLine(withLineContact(caption, tracking), topic)), topic);
+  return withUpgradedHashtags(withProvenanceLine(withPriceLine(withLineContact(caption, tracking), topic)), topic, date);
 }
 
 function isSlot2ActionCtaClosingBlock(block: string): boolean {
@@ -1879,7 +1916,8 @@ function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform, confi
     withSharedCaptionRules(
       body,
       slot.topic,
-      captionTracking(slot.date, slot.slot, source, slot.format, config)
+      captionTracking(slot.date, slot.slot, source, slot.format, config),
+      slot.date
     ),
     slot
   );
@@ -2729,6 +2767,7 @@ export function buildDailyContent(
     // day must not promise a topic the plan may still move.
     if (slot.slot !== 1 || slot1Decision?.source !== "slot1-plan" || !nextPlannedTopic) return slot;
     if (nextPlannedTopic === slot.topic) return slot;
+    if (captionTrimActive(date)) return slot;
     return {
       ...slot,
       facebook_caption: withNextEpisodeTeaser(slot.facebook_caption, nextPlannedTopic),

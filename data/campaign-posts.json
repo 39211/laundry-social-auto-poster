@@ -1,0 +1,30 @@
+{
+  "campaign": "campaign-2026-09-posters",
+  "note": "老闆 2026-09-07 拍板:三張模板海報留著,每天上傳一篇。走 src/postCampaignPoster.ts,與每日三 slot 無關;圖片放 docs/assets/services/campaign-2026-09(publishPages 的 docs/assets/services cone 會鏡射),站還沒鏡射到時退到 raw.githubusercontent 的 live 分支。",
+  "publish_window": { "start": "17:00", "end": "21:00" },
+  "image_base": "https://sixiangjialaundry.com/assets/services/campaign-2026-09",
+  "image_base_fallback": "https://raw.githubusercontent.com/39211/laundry-social-auto-poster/still-material-optics/docs/assets/services/campaign-2026-09",
+  "posts": [
+    {
+      "id": "poster-hermes-case",
+      "date": "2026-09-09",
+      "image": "hermes-before-after-case.png",
+      "caption_ig": "皮革樂福鞋洗完不是變亮就好,是皮要先喝到油。\n\n這雙鞋面已經灰霧、鞋頭起細紋、鞋緣一圈灰。乾刷去塵之後先做皮革清潔,再上護理油讓皮回軟,金屬扣單獨擦,最後才是拋光。\n\n皮鞋 $400 起(水洗價;精品皮革依材質報價,能做到哪先說)。\n\n台中全區免費到府收送,沒有低消、一件也收,私訊跟我們說你在哪一區就可以。\n\n拍鞋面和鞋頭兩張私訊,我們先看。\n\n#私享家洗衣店 #台中西屯洗衣店 #台中洗鞋 #皮鞋保養 #精品鞋清洗",
+      "caption_fb": "皮革樂福鞋洗完不是變亮就好,是皮要先喝到油。\n\n這雙鞋面已經灰霧、鞋頭起細紋、鞋緣一圈灰。乾刷去塵之後先做皮革清潔,再上護理油讓皮回軟,金屬扣單獨擦,最後才是拋光。\n\n皮鞋 $400 起(水洗價;精品皮革依材質報價,能做到哪先說)。\n\n台中全區免費到府收送,沒有低消、一件也收。\n\n拍鞋面和鞋頭兩張傳 LINE,我們先看:https://sixiangjialaundry.com/go/line.html?source=campaign-poster-1(或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #台中洗鞋 #皮鞋保養 #精品鞋清洗"
+    },
+    {
+      "id": "poster-hermes-store",
+      "date": "2026-09-10",
+      "image": "hermes-before-after-store.png",
+      "caption_ig": "讓愛鞋重獲新生,不是口號,是四個步驟。\n\n深層清潔:先看材質再決定用什麼洗,不是全部丟下去。\n專業護理:皮面上油回軟,麂皮起絨,布面定型。\n先看再報:能做到哪、做不到哪,收件前就說清楚。\n還原質感:金屬扣、鞋底邊、鞋帶分開處理,細節才會回來。\n\n門市在西屯青海路二段365號(至善國中對面),週一到週五 10-20、週六 12-18、週日公休。\n\n台中全區免費到府收送,沒有低消、一件也收。\n\n拍一張私訊,我們先看。\n\n#私享家洗衣店 #台中西屯洗衣店 #台中洗鞋 #洗鞋推薦 #皮鞋保養",
+      "caption_fb": "讓愛鞋重獲新生,不是口號,是四個步驟。\n\n深層清潔:先看材質再決定用什麼洗,不是全部丟下去。\n專業護理:皮面上油回軟,麂皮起絨,布面定型。\n先看再報:能做到哪、做不到哪,收件前就說清楚。\n還原質感:金屬扣、鞋底邊、鞋帶分開處理,細節才會回來。\n\n門市在西屯青海路二段365號(至善國中對面),週一到週五 10-20、週六 12-18、週日公休。電話 04-2452-7411。\n\n台中全區免費到府收送,沒有低消、一件也收。\n\n拍一張傳 LINE,我們先看:https://sixiangjialaundry.com/go/line.html?source=campaign-poster-2(或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #台中洗鞋 #洗鞋推薦 #皮鞋保養"
+    },
+    {
+      "id": "poster-line-stored-value",
+      "date": "2026-09-11",
+      "image": "line-stored-value.png",
+      "caption_ig": "先加入,需要洗鞋洗包時才不會找不到我們。\n\n私享家官方 LINE:0968327653\n拍一張先傳,門市先看能做到哪,再約收送或到店。\n\n儲值優惠:\n儲 1,000 送 100\n儲 2,000 送 250\n儲 3,000 送 400\n儲 5,000 送 800\n儲 6,000 送 1,000\n現場使用、收送使用都可以。\n\n台中全區免費到府收送,沒有低消、一件也收。\n\n#私享家洗衣店 #台中西屯洗衣店 #台中洗鞋 #台中洗衣店 #儲值優惠",
+      "caption_fb": "先加入,需要洗鞋洗包時才不會找不到我們。\n\n私享家官方 LINE:https://sixiangjialaundry.com/go/line.html?source=campaign-poster-3(或加 LINE:0968327653)\n拍一張先傳,門市先看能做到哪,再約收送或到店。\n\n儲值優惠:\n儲 1,000 送 100\n儲 2,000 送 250\n儲 3,000 送 400\n儲 5,000 送 800\n儲 6,000 送 1,000\n現場使用、收送使用都可以。\n\n台中全區免費到府收送,沒有低消、一件也收。\n\n#私享家洗衣店 #台中西屯洗衣店 #台中洗鞋 #台中洗衣店 #儲值優惠"
+    }
+  ]
+}

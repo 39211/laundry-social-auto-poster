@@ -1,4 +1,5 @@
-﻿import { createHash, createHmac, randomBytes } from "node:crypto";
+﻿import { buildDoctrinePrompts, imageDoctrineActive } from "./imageDoctrine";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { abTestPlanPath, planForDate, planSlot, type AbDayPlan } from "./abTestPlan";
@@ -2229,6 +2230,14 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
     wearFallback: "handle darkening and corner edge-paint wear"
   },
   {
+    id: "curtain",
+    match: /窗簾/,
+    noun: "one floor-length light-grey polyester blackout curtain panel with a pleated header and metal hooks, draped over the counter",
+    material: "light-grey woven polyester blackout curtain fabric with a stitched pleated header",
+    lockNote: "object locked as one curtain panel, not a bedsheet, not a tablecloth, not a duvet cover",
+    wearFallback: "dust darkening along the hem edge, grey grime at the hook header, and sun-fade along the pleat lines"
+  },
+  {
     id: "suitcase",
     match: /行李箱/,
     noun: "soft-sided fabric suitcase",
@@ -2276,17 +2285,22 @@ function topicBody(topic: string): string {
   return cleanTopic(topic).replace(/^(先看懂|今天情境|可收藏|細節拆解|到店前判斷|送洗前先問)[:：]/, "");
 }
 
-function wearKindFromTopic(topic: string): string {
+export function wearKindFromTopic(topic: string): string {
   if (/變灰|泛灰/.test(topic)) return "sun-faded grey";
   if (/發黃|泛黃/.test(topic)) return "yellowing";
   if (/濕|潮/.test(topic)) return "trapped moisture";
   if (/汗/.test(topic)) return "sweat residue";
   if (/油/.test(topic)) return "oil darkening";
   if (/泥/.test(topic)) return "mud shadow in the weave";
+  if (/臭|異味|味道/.test(topic)) return "odour and sweat residue";
+  if (/發霉|霉/.test(topic)) return "mould spotting";
+  if (/開膠|脫膠/.test(topic)) return "sole separation";
+  if (/起球|起毛/.test(topic)) return "pilling";
+  if (/磨白|磨損|刮傷|刮痕/.test(topic)) return "abrasion";
   return "honest everyday wear";
 }
 
-function namedSpotsFromTopic(topic: string): string[] {
+export function namedSpotsFromTopic(topic: string): string[] {
   const spots: string[] = [];
   if (/肩線/.test(topic)) spots.push("shoulder line");
   if (/側縫/.test(topic)) spots.push("side seams");
@@ -2294,10 +2308,19 @@ function namedSpotsFromTopic(topic: string): string[] {
   if (/袖口/.test(topic)) spots.push("cuffs");
   if (/腋下/.test(topic)) spots.push("underarms");
   if (/內層|內裡/.test(topic)) spots.push("inner lining");
-  if (/下擺/.test(topic)) spots.push("hem");
+  if (/下擺|下緣/.test(topic)) spots.push("hem");
+  if (/掛勾|掛鉤/.test(topic)) spots.push("hook header");
+  if (/褶線|褶/.test(topic)) spots.push("pleat lines");
   if (/鞋邊|膠條/.test(topic)) spots.push("rubber foxing strip at the midsole edge");
   if (/鞋頭/.test(topic)) spots.push("toe box");
   if (/鞋帶孔/.test(topic)) spots.push("eyelet area around the lace holes");
+  else if (/鞋帶/.test(topic)) spots.push("laces");
+  if (/鞋墊/.test(topic)) spots.push("insole");
+  if (/鞋口/.test(topic)) spots.push("shoe opening");
+  if (/鞋舌/.test(topic)) spots.push("tongue");
+  if (/鞋底/.test(topic)) spots.push("outsole");
+  if (/鞋跟/.test(topic)) spots.push("heel");
+  if (/拉鍊/.test(topic)) spots.push("zipper");
   if (/提把/.test(topic)) spots.push("handle");
   if (/包角/.test(topic)) spots.push("bag corners");
   return spots;
@@ -2395,7 +2418,7 @@ function checkpointsFromCaption(text: string): string[] {
   }
   if (numbered.length >= 2) return numbered;
 
-  if (!/[一二三四五六七八九十\d]+個位置|[一二三四五六七八九十\d]+個檢查/.test(text)) {
+  if (!/[一二三四五六七八九十\d]+\s*個位置|[一二三四五六七八九十\d]+\s*個檢查/.test(text)) {
     return [];
   }
 
@@ -2499,6 +2522,7 @@ const WHITE_SHIRT_7_20_BRIEFS = [
 export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] {
   const passport = garmentPassportFromTopic(input.topic);
   const dayIndex = Number(input.date.replace(/-/g, "")) % BACKGROUND_ANCHORS.length;
+  const spec = objectSpecFromTopic(input.topic);
   const shared =
     `${passport} ${CAROUSEL_SCENE_LOCK} Create one portrait 4:5 photo. ` +
     "Keep the exact featured object consistent across all four photos. " +
@@ -2514,6 +2538,24 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
             `Hero still of ${topicBody(input.topic)} through the passport item as the main close-up on the locked inspection counter. Keep the entire object readable and do not imply a cleaning result.`,
             ...carouselInspectionShots(input.caption ?? "", input.topic)
           ];
+
+  // Doctrine layer (2026-09-09+): seven-segment prompt with material optics,
+  // wear mechanism, per-slide composition/lens and a short per-family
+  // negative list. Scene-lock-only promo topics keep the legacy prompt: there
+  // is no physical object to describe.
+  if (imageDoctrineActive(input.date) && !spec.sceneLockOnly) {
+    const body = topicBody(input.topic);
+    return buildDoctrinePrompts({
+      spec,
+      wearKind: wearKindFromTopic(body),
+      spots: namedSpotsFromTopic(body),
+      passport,
+      sceneLock: CAROUSEL_SCENE_LOCK,
+      anchor: BACKGROUND_ANCHORS[dayIndex] ?? BACKGROUND_ANCHORS[0]!,
+      briefs,
+      sameGarment: SAME_GARMENT_CONTINUITY
+    });
+  }
 
   return briefs.map((brief, index) => {
     const slide = index + 1;

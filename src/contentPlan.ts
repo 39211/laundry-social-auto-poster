@@ -44,6 +44,27 @@ interface SlotTemplate {
 
 const brandLine = "私享家洗衣店";
 
+// H1 single-CTA experiment (2026-09-06 owner decision). Every caption stacked
+// five or six asks -- photo DM, engagement question, share invite, follow line,
+// price, LINE link -- and 28 days of that produced zero profile taps and zero
+// inquiries. From this date each post keeps exactly one ask: the photo/LINE
+// action. The question, the share invite and the follow line are dropped.
+// Price and provenance lines stay: they are facts, not asks. The date is the
+// only switch so a later ledger comparison has a clean cut-over.
+export const SINGLE_CTA_EXPERIMENT_START = "2026-09-10";
+
+export function singleCtaExperimentActive(date: string): boolean {
+  return date >= SINGLE_CTA_EXPERIMENT_START;
+}
+
+/** Drop the follow line block (`追蹤…`) so the action CTA is the only ask. */
+export function withoutFollowLine(caption: string, followCta: string): string {
+  return caption
+    .split("\n\n")
+    .filter((block) => block !== followCta && !block.startsWith("追蹤"))
+    .join("\n\n");
+}
+
 const knowledgePlans: SlotTemplate[] = [
   {
     topic: "白鞋鞋舌與鞋墊的雨後濕氣",
@@ -1772,6 +1793,30 @@ export function rewriteSlot2PickupValueBlock(block: string): string | undefined 
   return block;
 }
 
+/**
+ * Single-CTA experiment: keep only the pickup value fact of a generic ask
+ * block. Question and photo sentences go; in a value sentence the channel
+ * clause (私訊跟我們說 / 傳 LINE 說一聲) is cut so the claim reads as a fact.
+ * 「收之前想先整理一次？私訊跟我們說，台中市區到府收。」→「台中市區到府收。」
+ */
+export function singleCtaPickupValueFact(block: string): string | undefined {
+  const kept: string[] = [];
+  for (const sentence of splitSlot2Sentences(block)) {
+    if (/[？?]\s*$/.test(sentence)) continue;
+    if (SLOT2_PHOTO_TOKEN_RE.test(sentence)) continue;
+    if (!SLOT2_PICKUP_VALUE_CLAIM_RE.test(sentence)) continue;
+    const clauses = sentence
+      .replace(/[。！]\s*$/, "")
+      .split(/[，,]/)
+      .map((clause) => clause.trim())
+      .filter((clause) => clause && !SLOT2_CHANNEL_CTA_RE.test(clause) && !/跟我們說|說一聲|說個|說一下/.test(clause));
+    const text = clauses.join("，");
+    if (text && SLOT2_PICKUP_VALUE_CLAIM_RE.test(text)) kept.push(`${text}。`);
+  }
+  const text = kept.join("").trim();
+  return text || undefined;
+}
+
 function isMovedPickupValueBlock(original: string, rewritten: string): boolean {
   if (SLOT2_SIGNED_OFF_VALUE_RE.test(rewritten)) return true;
   if (!SLOT2_PICKUP_VALUE_CLAIM_RE.test(rewritten)) return false;
@@ -1796,7 +1841,25 @@ function withSlot2ActionCta(
   const tail = stopIndex === -1 ? [] : blocks.slice(stopIndex);
   const valueBlocks: string[] = [];
   const rest: string[] = [];
+  const singleCta = singleCtaExperimentActive(slot.date);
   for (const block of body) {
+    if (singleCta && !SLOT2_SIGNED_OFF_VALUE_RE.test(block)) {
+      // Single-CTA experiment: a generic ask block (photo / channel / 私訊 tail
+      // on a value claim) is reduced to its pickup value fact, or dropped when
+      // it has none. The two-photo action below is the only ask. Owner-signed
+      // value copy still stays whole.
+      if (
+        looksLikeGenericSlot2Cta(block) ||
+        SLOT2_CHANNEL_CTA_RE.test(block) ||
+        looksLikeSlot2PhotoDirectedAsk(block)
+      ) {
+        const fact = singleCtaPickupValueFact(block);
+        if (fact) valueBlocks.push(fact);
+        continue;
+      }
+      rest.push(block);
+      continue;
+    }
     const rewritten = rewriteSlot2PickupValueBlock(block);
     if (rewritten === undefined) continue;
     if (isMovedPickupValueBlock(block, rewritten)) valueBlocks.push(rewritten);
@@ -1809,9 +1872,12 @@ function withSlot2ActionCta(
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform, config?: AppConfig): string {
   const caption = baseCaptionFromPlaybook(slot, platform);
   const source: UtmSource = platform === "facebook" ? "facebook" : "instagram";
+  const body = singleCtaExperimentActive(slot.date)
+    ? withoutFollowLine(caption, slot.follow_cta)
+    : withEngagementQuestion(caption, slot);
   return withSlot2ActionCta(
     withSharedCaptionRules(
-      withEngagementQuestion(caption, slot),
+      body,
       slot.topic,
       captionTracking(slot.date, slot.slot, source, slot.format, config)
     ),
@@ -2491,7 +2557,13 @@ export function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: 
   if (!caption.includes(brandLine)) {
     throw new Error(`Invalid playbook caption for ${slot.date} slot ${slot.slot}: missing brand name.`);
   }
-  if (!caption.includes(slot.follow_cta)) {
+  if (singleCtaExperimentActive(slot.date)) {
+    if (caption.includes(slot.follow_cta) || /(?:傳|轉)給他/.test(caption)) {
+      throw new Error(
+        `Invalid playbook caption for ${slot.date} slot ${slot.slot}: single-CTA experiment forbids follow/share lines.`
+      );
+    }
+  } else if (!caption.includes(slot.follow_cta)) {
     throw new Error(`Invalid playbook caption for ${slot.date} slot ${slot.slot}: missing follow CTA.`);
   }
   if (!slot.hashtags.every((hashtag) => caption.includes(hashtag))) {

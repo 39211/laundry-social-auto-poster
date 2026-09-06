@@ -1302,10 +1302,67 @@ export const OBJECT_LEAD_RE =
 
 /** Every seed's free headline, for the rule test; the 90-day window does not reach all 68 seeds. */
 export function seedHeadlines(): Array<{ slot: 1 | 2; topic: string; headline: string }> {
+  return listSeeds().map(({ slot, topic, headline }) => ({ slot, topic, headline }));
+}
+
+export function listSeeds(): Array<{ slot: 1 | 2; topic: string; headline: string; service: TopicSeed["service"] }> {
   return [
-    ...knowledgeSeeds.map((seed) => ({ slot: 1 as const, topic: seed.topic, headline: seed.headline ?? seed.topic })),
-    ...situationSeeds.map((seed) => ({ slot: 2 as const, topic: seed.topic, headline: seed.headline ?? seed.topic }))
+    ...knowledgeSeeds.map((seed) => ({ slot: 1 as const, topic: seed.topic, headline: seed.headline ?? seed.topic, service: seed.service })),
+    ...situationSeeds.map((seed) => ({ slot: 2 as const, topic: seed.topic, headline: seed.headline ?? seed.topic, service: seed.service }))
   ];
+}
+
+/**
+ * Slot 2 topic plan for the free-headline window: date → seed topic (either
+ * pool). 8/7–9/5 insights put household textiles, plush and luggage on top
+ * (毛毯 259, 行李箱 237, 娃娃 195) and shoes/bags in the middle, while the
+ * rotation for these dates was ten garment posts against two textiles. The
+ * plan re-weights the window to roughly six-in-ten textile/plush/luggage/boot
+ * across both slots, keeps the seed's own service/caption blocks, and is
+ * checked by test/topicQuota.test.ts (family ≠ same-day slot 1, no seed twice,
+ * no object-head repeat inside seven days). Dates not listed keep the rotation.
+ */
+export const SLOT2_TOPIC_PLAN: Record<string, string> = {
+  // 09-11/09-12 stay on the rotation: the owner gave those days to the
+  // single-CTA experiment (#60); the window opens with the free headlines on 09-13.
+  "2026-09-13": "棉被收納前的濕氣與睡眠味",
+  "2026-09-14": "抱枕飲料痕與布面味道",
+  "2026-09-15": "寵物毯毛絮與布面味道",
+  "2026-09-16": "窗簾下緣灰塵與空氣味",
+  "2026-09-17": "枕頭套油痕與睡眠味",
+  // 09-18 is the 中秋前 poster node; it keeps its hand-authored slot.
+  "2026-09-19": "白鞋鞋邊泛灰前的檢查",
+  "2026-09-20": "包包提把手汗與邊油痕",
+  "2026-09-21": "皮鞋雨痕與皺摺邊緣",
+  "2026-09-22": "絨毛娃娃填充物與黏貼配件的檢查",
+  "2026-09-23": "週末換季整理先分類布品",
+  "2026-09-24": "床組有潮味時先不要直接密封",
+  "2026-09-25": "帆布鞋泥灰卡進織紋",
+  // The ten-day shop observation is the window's one trust-reset post; it
+  // stays on its rotation date (and carries the signed-off pickup line).
+  "2026-09-26": "每十天公開一次洗護觀察",
+  "2026-09-27": "鞋櫃收納前的乾燥判斷",
+  "2026-09-28": "絨毛玩偶有汗味時先看五官和配件",
+  "2026-09-29": "雨傘旁鞋包的濕氣轉移",
+  "2026-09-30": "化妝包粉痕與拉鍊邊",
+  "2026-10-01": "旅行外套灰塵與行李味",
+  "2026-10-02": "童鞋內裡與鞋底邊緣",
+  "2026-10-03": "外套領口袖口的日常油痕",
+  "2026-10-04": "床組與棉被填充受潮的送洗前判斷",
+  "2026-10-05": "搬家後棉被窗簾先除灰",
+  "2026-10-06": "客廳沙發毯用久會有生活味",
+  // 10-07 is the 國慶連假前 poster node.
+  "2026-10-08": "安全帽內襯和外套帽沿一起看"
+};
+
+const seedByTopic = new Map<string, TopicSeed>([...knowledgeSeeds, ...situationSeeds].map((seed) => [seed.topic, seed]));
+
+function plannedSlot2Seed(date: string): TopicSeed | undefined {
+  const topic = SLOT2_TOPIC_PLAN[date];
+  if (!topic) return undefined;
+  const seed = seedByTopic.get(topic);
+  if (!seed) throw new Error(`SLOT2_TOPIC_PLAN ${date} names an unknown seed topic: ${topic}`);
+  return seed;
 }
 
 function topicForPhase(seed: TopicSeed, day: number, slot: number, date: string): string {
@@ -1517,7 +1574,7 @@ function buildSlot(date: string, day: number, slot: number, plannedTopic?: strin
   // another hour. Two clocks means somebody eventually reads the wrong one.
   const time = findSlotByNumber(slot)?.time ?? DAILY_SCHEDULE[0]!.time;
   const special = specialSlots[date]?.[slot];
-  const seed = seedForSlot(day, slot);
+  const seed = (slot === 2 && !special ? plannedSlot2Seed(date) : undefined) ?? seedForSlot(day, slot);
   if (!seed) throw new Error(`Missing seed for day ${day} slot ${slot}`);
   const review = reviewForDay(day);
 

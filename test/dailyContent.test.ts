@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getConfig } from "../src/config";
-import { buildDailyContent, linePostRedirectUrl } from "../src/contentPlan";
+import { SINGLE_CTA_EXPERIMENT_START, buildDailyContent, linePostRedirectUrl } from "../src/contentPlan";
 
 describe("DailyContent schema", () => {
   const config = getConfig({
@@ -158,12 +158,20 @@ describe("DailyContent schema", () => {
         expect(slot.instagram_caption).not.toContain("點個人檔案連結");
         // A question invites a reply; an explicit "leave a comment" on every one
         // of the 180 posts is the engagement-bait pattern that costs reach.
-        expect(slot.instagram_caption).toContain("？");
         expect(slot.instagram_caption).not.toMatch(/留言(告訴|讓我們|說說)/);
-        // Sending a post to someone is the heaviest discovery signal, but a
-        // uniform "share this" everywhere is the same bait pattern. It belongs
-        // on the evening situation post, which is the one a reader forwards.
-        expect(/(?:傳|轉)給他/.test(slot.instagram_caption)).toBe(slot.slot === 2);
+        if (date >= SINGLE_CTA_EXPERIMENT_START) {
+          // H1 single-CTA experiment: no engagement question block, no share
+          // invite, no follow line. The action line is the only ask.
+          expect(/(?:傳|轉)給他/.test(slot.instagram_caption)).toBe(false);
+          expect(slot.instagram_caption).not.toContain(slot.follow_cta);
+          expect(slot.facebook_caption).not.toContain(slot.follow_cta);
+        } else {
+          expect(slot.instagram_caption).toContain("？");
+          // Sending a post to someone is the heaviest discovery signal, but a
+          // uniform "share this" everywhere is the same bait pattern. It belongs
+          // on the evening situation post, which is the one a reader forwards.
+          expect(/(?:傳|轉)給他/.test(slot.instagram_caption)).toBe(slot.slot === 2);
+        }
         for (const caption of [slot.facebook_caption, slot.instagram_caption]) {
           const hashtags = caption.match(/#[\p{L}\p{N}_]+/gu) ?? [];
           expect(caption.split("\n\n")[1]).not.toBe("私享家洗衣店");

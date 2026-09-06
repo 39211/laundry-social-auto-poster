@@ -10,6 +10,7 @@ import {
   readJsonFile,
   writeJsonAtomic
 } from "./logging";
+import { isPublishableImageSource } from "./imageSources";
 import { imageAssetsForSlot } from "./mediaAssets";
 import {
   assetFilePath,
@@ -407,7 +408,7 @@ export async function buildOperationsDashboard(
                   imageSources.some(
                     (entry) =>
                       entry.slot === plan.slot &&
-                      entry.source === "gpt-image-2" &&
+                      isPublishableImageSource(entry.source) &&
                       entry.image_path === asset.local_image_path
                   )
                 )

@@ -431,7 +431,7 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "leather-belt-crease",
+      "conceptId": "leather-bag-corner",
       "variant": "10s",
       "paused": true
     }
@@ -467,9 +467,8 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "denim-knee-fade",
-      "variant": "15s",
-      "paused": true
+      "conceptId": "blanket-pilling",
+      "variant": "10s"
     }
   },
   {
@@ -491,9 +490,8 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "kids-shoe-toe",
-      "variant": "15s",
-      "paused": true
+      "conceptId": "mattress-pad-sweat",
+      "variant": "10s"
     }
   },
   {
@@ -527,9 +525,8 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "leather-bag-corner",
-      "variant": "10s",
-      "paused": true
+      "conceptId": "leather-belt-crease",
+      "variant": "10s"
     }
   },
   {
@@ -551,9 +548,8 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "duvet-storage",
-      "variant": "10s",
-      "paused": true
+      "conceptId": "wallet-edge-wear",
+      "variant": "10s"
     }
   },
   {
@@ -575,9 +571,8 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "suit-shoulder",
-      "variant": "10s",
-      "paused": true
+      "conceptId": "blanket-pilling",
+      "variant": "10s"
     }
   },
   {
@@ -611,9 +606,8 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "plush-doll",
-      "variant": "15s",
-      "paused": true
+      "conceptId": "duvet-storage",
+      "variant": "10s"
     }
   },
   {
@@ -635,9 +629,8 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "white-shoe-yellowing",
-      "variant": "15s",
-      "paused": true
+      "conceptId": "backpack-base",
+      "variant": "10s"
     }
   },
   {
@@ -659,9 +652,8 @@
       "variant": "10s"
     },
     "evening": {
-      "conceptId": "luggage-wheel",
-      "variant": "15s",
-      "paused": true
+      "conceptId": "plush-doll",
+      "variant": "10s"
     }
   },
   {

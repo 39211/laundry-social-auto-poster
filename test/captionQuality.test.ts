@@ -98,7 +98,9 @@ describe("caption quality", () => {
       return [slot2.facebook_caption ?? "", slot2.instagram_caption ?? ""];
     });
     expect(gatedDates[0]).toBe("2026-09-08");
-    expect(eligible.length).toBeGreaterThanOrEqual(60);
+    // 62 when every evening is an image post; the evening Reel (three a week
+    // from 2026-09-15, data/ab-test-plan.json) takes ~9 of the 31 days out.
+    expect(eligible.length).toBeGreaterThanOrEqual(40);
     const counts = new Map<string, number>();
     for (const text of eligible) {
       for (const block of text.split("\n\n")) {

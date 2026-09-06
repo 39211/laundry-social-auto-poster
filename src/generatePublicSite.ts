@@ -1226,23 +1226,27 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       "台中洗衣價目表：洗鞋、洗包、洗衣與寢具水洗參考價一次列清。門市在西屯青海路二段365號，台中市全區免費到府收送，LINE 0968327653。",
     h1: "台中洗衣價目表",
     summary:
-      "台中洗衣洗鞋洗包參考價約 $70 到 $2500：襯衫 $70、一般運動鞋 $250、名牌包 $1500 起；皆為水洗參考價，不是固定價。",
+      "台中洗衣洗鞋洗包寢具參考價約 $70 到 $2500：襯衫 $70、一般運動鞋 $250、棉被單人 $350、雙人 $500、羽絨羊毛被 $800、床組四件套 $300、名牌包 $1500 起；皆為水洗參考價，不是固定價，台中市全區免費到府收送。",
     keywords: [
       "台中洗衣價目表",
       "台中洗鞋價格",
       "洗包包多少錢",
       "西屯洗衣店價格",
       "台中洗衣多少錢",
-      "台中洗鞋多少錢"
+      "台中洗鞋多少錢",
+      "台中棉被送洗多少錢"
     ],
     image_hint: "價目表",
     image_alt: "台中洗衣洗鞋洗包參考價目說明",
     image_note: "本頁以文字價目表為主，不使用與價格無關的客戶物件照片。",
     allow_image_fallback: false,
-    content_lastmod: "2026-08-26",
+    // 2026-09-07: Google AI 摘要 answers 「台中 棉被送洗 多少錢」 with material-
+    // tiered bedding prices from competitors; our capsule only named shirt /
+    // shoe / bag, so the bedding rows on this page were never quotable.
+    content_lastmod: "2026-09-07",
     area_served_name: "台中市",
     answer_summary:
-      "台中洗衣洗鞋洗包參考價約 $70 到 $2500：襯衫 $70、一般運動鞋 $250、名牌包 $1500 起；皆為水洗參考價，不是固定價。",
+      "台中洗衣洗鞋洗包寢具參考價約 $70 到 $2500：襯衫 $70、一般運動鞋 $250、棉被單人 $350、雙人 $500、羽絨羊毛被 $800、床組四件套 $300、名牌包 $1500 起；皆為水洗參考價，不是固定價，台中市全區免費到府收送。",
     case_story: {
       label: "先對照參考價，再依實際檢視",
       situation:

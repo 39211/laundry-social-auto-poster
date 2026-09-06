@@ -1,0 +1,77 @@
+{
+  "topic": "送洗前先問：搬家後棉被窗簾先除灰，門市會先確認什麼",
+  "date": "2026-09-10",
+  "slot": 2,
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "SCENE": "PASS",
+    "TOPIC_MATCH": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "四張皆呈現乳白色織布棉被與深色細滾邊，未見物件種類、主體色系或粗略材質改變。",
+    "SCENE": "四張皆可見粉紅格線墊與橫槽板牆，屬同一櫃台場景家族。",
+    "TOPIC_MATCH": "四張主體皆為棉被，符合題目中的棉被物件。"
+  },
+  "frames_used": [
+    "slide-01.png",
+    "slide-02.png",
+    "slide-03.png",
+    "slide-04.png"
+  ],
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-02.png",
+      "canary": "MSWL",
+      "sha256": "fb095d91305087720a57d5b14414daaae19082282b38efb587bd627451fd55d1"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-02-slide-02.png",
+      "canary": "RTNU",
+      "sha256": "e6b65ba1989fb109550c382690acd3c8b98278a4df39658852ad568c8ad2dcfb"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-02-slide-03.png",
+      "canary": "LYA7",
+      "sha256": "617653522ac7f8785cea0d5cdcf44006eaf376de9a10ef81018840e68e3651db"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-02-slide-04.png",
+      "canary": "5TJC",
+      "sha256": "46b80151501f1fd9cfb28a89f88009dbc5f0477fdcbafb100a8d7ece221c97f8"
+    }
+  ],
+  "sources": [
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-02.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-02-slide-02.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-02-slide-03.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-02-slide-04.png"
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "MSWL",
+    "IMAGE_2": "RTNU",
+    "IMAGE_3": "LYA7",
+    "IMAGE_4": "5TJC"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "MSWL",
+    "IMAGE_2": "RTNU",
+    "IMAGE_3": "LYA7",
+    "IMAGE_4": "5TJC"
+  },
+  "prompt_hash": "a2746559c6525af02d0086b730638785216c96559fc6f4a33f42fc12fb3f99ea",
+  "run_id": "carousel-qa-1788720279044",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-09-06T18:45:55.511Z",
+  "mode": "warn",
+  "verdict": "FAIL_CLOSED",
+  "fail_class": "missing_observation"
+}

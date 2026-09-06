@@ -1323,8 +1323,8 @@ export function listSeeds(): Array<{ slot: 1 | 2; topic: string; headline: strin
  * no object-head repeat inside seven days). Dates not listed keep the rotation.
  */
 export const SLOT2_TOPIC_PLAN: Record<string, string> = {
-  "2026-09-11": "行李箱布面與輪子灰塵",
-  "2026-09-12": "絨毛玩偶有汗味時先看五官和配件",
+  // 09-11/09-12 stay on the rotation: the owner gave those days to the
+  // single-CTA experiment (#60); the window opens with the free headlines on 09-13.
   "2026-09-13": "棉被收納前的濕氣與睡眠味",
   "2026-09-14": "抱枕飲料痕與布面味道",
   "2026-09-15": "寵物毯毛絮與布面味道",
@@ -1342,7 +1342,7 @@ export const SLOT2_TOPIC_PLAN: Record<string, string> = {
   // stays on its rotation date (and carries the signed-off pickup line).
   "2026-09-26": "每十天公開一次洗護觀察",
   "2026-09-27": "鞋櫃收納前的乾燥判斷",
-  "2026-09-28": "深色衣服洗久變灰的判斷",
+  "2026-09-28": "絨毛玩偶有汗味時先看五官和配件",
   "2026-09-29": "雨傘旁鞋包的濕氣轉移",
   "2026-09-30": "化妝包粉痕與拉鍊邊",
   "2026-10-01": "旅行外套灰塵與行李味",

@@ -421,8 +421,8 @@ export function captionsFor(
   const campaign = utmCampaign(date, 2, "reel");
   const siteBaseUrl = getConfig().publicSiteBaseUrl;
   return {
-    instagram: withSharedCaptionRules(instagram, topic, { source: "instagram", campaign, siteBaseUrl }),
-    facebook: withSharedCaptionRules(facebook, topic, { source: "facebook", campaign, siteBaseUrl })
+    instagram: withSharedCaptionRules(instagram, topic, { source: "instagram", campaign, siteBaseUrl }, date),
+    facebook: withSharedCaptionRules(facebook, topic, { source: "facebook", campaign, siteBaseUrl }, date)
   };
 }
 

@@ -195,7 +195,8 @@ const SLOT2_2026_09_26_FACEBOOK = [
   "拍整體和最在意的位置兩張傳 LINE，我們先看。",
   "出處：門市當日看件",
   "直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)",
-  "#私享家洗衣店 #台中西屯洗衣店 #私享家觀察 #洗護日常 #台中洗衣店 #西屯 #逢甲 #台中"
+  // trimmed ladder (HASHTAG_TRIM_START_DATE 2026-09-17): seed tags + local, no intent match for this topic
+  "#私享家洗衣店 #台中西屯洗衣店 #私享家觀察 #洗護日常 #台中洗衣店"
 ].join("\n\n");
 
 const SLOT2_2026_09_26_INSTAGRAM = [
@@ -210,7 +211,8 @@ const SLOT2_2026_09_26_INSTAGRAM = [
   "拍整體和最在意的位置兩張傳 LINE，我們先看。",
   "出處：門市當日看件",
   "直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)",
-  "#私享家洗衣店 #台中西屯洗衣店 #私享家觀察 #洗護日常 #台中洗衣店 #西屯 #逢甲 #台中"
+  // trimmed ladder (HASHTAG_TRIM_START_DATE 2026-09-17): seed tags + local, no intent match for this topic
+  "#私享家洗衣店 #台中西屯洗衣店 #私享家觀察 #洗護日常 #台中洗衣店"
 ].join("\n\n");
 
 describe("slot2ActionCta", () => {

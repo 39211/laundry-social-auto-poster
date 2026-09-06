@@ -57,6 +57,20 @@ export function singleCtaExperimentActive(date: string): boolean {
   return date >= SINGLE_CTA_EXPERIMENT_START;
 }
 
+// Caption length knife (third of three, four days apart: headlines 09-13,
+// hashtags 09-17, this 09-21). IG insights 2026-08-07..09-05: captions of 100–200
+// characters averaged 80–91 reach, the 300+ captions 56. What is left to cut
+// after the single-CTA experiment and the hashtag trim is the slot-1
+// 「下一集：…」 teaser (25–31 characters): it repeats tomorrow's headline, which
+// the reader sees tomorrow anyway, and thirty days of it produced no return
+// visits that the ledger can point to. Price, provenance and the LINE line are
+// owner-mandated facts and stay. From this date slot 1 drops the teaser.
+export const CAPTION_TRIM_START_DATE = "2026-09-21";
+
+export function captionTrimActive(date: string): boolean {
+  return date >= CAPTION_TRIM_START_DATE;
+}
+
 /** Drop the follow line block (`追蹤…`) so the action CTA is the only ask. */
 export function withoutFollowLine(caption: string, followCta: string): string {
   return caption
@@ -2753,6 +2767,7 @@ export function buildDailyContent(
     // day must not promise a topic the plan may still move.
     if (slot.slot !== 1 || slot1Decision?.source !== "slot1-plan" || !nextPlannedTopic) return slot;
     if (nextPlannedTopic === slot.topic) return slot;
+    if (captionTrimActive(date)) return slot;
     return {
       ...slot,
       facebook_caption: withNextEpisodeTeaser(slot.facebook_caption, nextPlannedTopic),

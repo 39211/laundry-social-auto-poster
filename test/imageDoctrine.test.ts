@@ -89,6 +89,9 @@ describe("material optics and wear mechanism", () => {
     const curtain = buildCarouselImagePrompts({ date: "2026-09-10", slot: 1, topic: "窗簾多久沒洗了？拆下來前先看下緣、掛勾、褶線 3 個位置", caption: "" });
     expect(curtain[0]).toMatch(/curtain panel/);
     expect(curtain[0]).toMatch(/at the hem and hook header and pleat lines/);
+    expect(curtain[1]).toContain("checkpoint 1: hem edge.");
+    expect(curtain[2]).toContain("checkpoint 2: hook header.");
+    expect(curtain[3]).toContain("checkpoint 3: pleat lines.");
   });
 
   it("the 9/9 kids-shoe prompt carries mesh optics and the sweat mechanism at the named spots", () => {

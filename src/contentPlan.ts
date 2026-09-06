@@ -2171,10 +2171,13 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
   {
     id: "sneaker-and-bag",
     match: /鞋.*包|包.*鞋/,
-    noun: "paired everyday sneaker and one fabric handbag as a single inspection set",
-    material: "worn fabric and leather-look surfaces",
-    lockNote: "object locked as one sneaker-and-bag inspection set",
-    wearFallback: "honest everyday wear at the named contact points"
+    noun:
+      "inspection set of exactly two items: one pair of light-grey knit-mesh sneakers with white foam midsoles, and one light-beige suede-look hobo handbag with a single knotted top handle and a side zip",
+    material:
+      "light-grey knit mesh with white foam midsoles for the sneakers; light-beige suede-look fabric with a knotted top handle for the hobo bag",
+    lockNote:
+      "object locked as this exact sneaker-and-hobo-bag set on every slide: same grey knit sneakers, same beige knotted-handle hobo bag, no tote, no crossbody, no second bag",
+    wearFallback: "grey scuffing on the sneaker toe boxes and darkening on the bag's knotted handle and bottom corners"
   },
   {
     id: "generic-shoe",

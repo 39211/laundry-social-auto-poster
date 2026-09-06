@@ -432,7 +432,8 @@
     },
     "evening": {
       "conceptId": "leather-bag-corner",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true
     }
   },
   {

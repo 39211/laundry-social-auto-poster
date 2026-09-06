@@ -13,7 +13,9 @@ const PLAN_PATH = join(dirname(fileURLToPath(import.meta.url)), "../data/ab-test
 const REJECTED_PATH = join(dirname(fileURLToPath(import.meta.url)), "../data/rejected-concepts.json");
 
 /** Evening Reel resumed on this date; before it every evening half is paused (capacity 7->3, 2026-08-15). */
-const EVENING_RESUME_DATE = "2026-09-12";
+// 09-12 was the first pick; re-paused 2026-09-06 so the single-CTA experiment (#60)
+// keeps 09-10..09-12 as a clean window. First evening Reel is now 09-15.
+const EVENING_RESUME_DATE = "2026-09-15";
 /** A concept must not air twice (any slot) within this many days. */
 const GAP_DAYS = 8;
 

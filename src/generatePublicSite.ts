@@ -1565,7 +1565,8 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     summary: AEO_BIRKENSTOCK,
     citation_answer: AEO_BIRKENSTOCK,
     keywords: ["勃肯鞋會臭嗎", "勃肯鞋清潔", "勃肯鞋發黑", "軟木鞋床 清洗", "台中洗勃肯", "麂皮鞋清潔", "勃肯鞋除臭"],
-    service_slug: "white-shoe-cleaning",
+    service_slug: "shoe-bag-care",
+    image_service_slug: "white-shoe-cleaning",
     local_intent: "台中 勃肯鞋清潔 軟木鞋床 除臭",
     content_lastmod: "2026-08-29",
     steps: [
@@ -4256,7 +4257,7 @@ function supportPageImage(page: SupportPageDefinition, index: PublicPostIndex): 
     .find((post) => page.keywords.some((keyword) => post.topic.includes(keyword)));
   if (matchedPost) return postImageReference(matchedPost);
 
-  const service = linkedSupportService(page);
+  const service = page.image_service_slug ? findServiceBySlug(page.image_service_slug) : linkedSupportService(page);
   return (service ? findServiceImage(service, index) : undefined) ?? primaryHomeImage(index);
 }
 

@@ -184,7 +184,9 @@ const SLOT2_2026_09_09_INSTAGRAM = [
 ].join("\n\n");
 
 const SLOT2_2026_09_26_FACEBOOK = [
-  "每十天公開一次洗護觀察，門市會先確認什麼。",
+  // 2026-09-26 sits after FREE_HEADLINE_START_DATE: the topic is the seed's
+  // object-neutral headline, so the action stays the whole-item fallback.
+  "門市十天洗護觀察，這期最多的是收納前沒乾透。",
   "下雨和通勤是兩種不同的髒。雨痕要等乾才浮出來，汗漬則是越放越難救。",
   "西屯通勤的客人多，我最常看到的是領口和袖口先出問題。那是每天摩擦的位置，跟洗不洗得乾淨無關。",
   // 2026-09-26 is inside the single-CTA experiment (from 2026-09-10): no
@@ -197,7 +199,9 @@ const SLOT2_2026_09_26_FACEBOOK = [
 ].join("\n\n");
 
 const SLOT2_2026_09_26_INSTAGRAM = [
-  "每十天公開一次洗護觀察，門市會先確認什麼。",
+  // 2026-09-26 sits after FREE_HEADLINE_START_DATE: the topic is the seed's
+  // object-neutral headline, so the action stays the whole-item fallback.
+  "門市十天洗護觀察，這期最多的是收納前沒乾透。",
   "下雨和通勤是兩種不同的髒。雨痕要等乾才浮出來，汗漬則是越放越難救。",
   "西屯通勤的客人多，我最常看到的是領口和袖口先出問題。那是每天摩擦的位置，跟洗不洗得乾淨無關。",
   // 2026-09-26 is inside the single-CTA experiment (from 2026-09-10): no

@@ -88,6 +88,14 @@ interface ReviewWindow {
 
 interface TopicSeed {
   topic: string;
+  /**
+   * Object-first free sentence used as the slot topic from
+   * FREE_HEADLINE_START_DATE. The situation seeds were written as scenes
+   * ("雨後通勤回家…", "逢甲西屯人流多…"); measured 8/7–9/5 those scene/occasion
+   * headlines reached 23–40 while object-first ones reached 90+. Absent, the
+   * seed's topic is used as-is.
+   */
+  headline?: string;
   service:
     | "white-shoe"
     | "shoe-bag"
@@ -385,78 +393,84 @@ const reviewWindows: ReviewWindow[] = [
   }
 ];
 
+// Slot 1 is normally decided by data/slot1-plan.json; these seeds are the
+// fallback rotation. `headline` (used from FREE_HEADLINE_START_DATE) must differ
+// from `topic` so a seed's second pass in the 90 days does not repeat its first.
 const knowledgeSeeds: TopicSeed[] = [
-  { topic: "白鞋鞋邊泛灰前的檢查", service: "white-shoe", visual: "macro-detail", traffic: "object-proof", tags: ["#白鞋清潔", "#鞋子保養"] },
-  { topic: "包包提把手汗與邊油痕", service: "shoe-bag", visual: "customer-consultation", traffic: "object-proof", tags: ["#包包清潔", "#提把保養"] },
-  { topic: "棉被收納前的濕氣與睡眠味", service: "fabric-storage", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#棉被清洗", "#布品收納"] },
-  { topic: "深色衣服洗久變灰的判斷", service: "fabric-storage", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#衣物保養", "#深色衣物"] },
-  { topic: "外套領口袖口的日常油痕", service: "fabric-storage", visual: "shop-inspection", traffic: "object-proof", tags: ["#外套清洗", "#領口袖口"] },
-  { topic: "皮鞋雨痕與皺摺邊緣", service: "shoe-bag", visual: "customer-consultation", traffic: "trust-reset", tags: ["#皮鞋保養", "#雨天鞋子"] },
-  { topic: "帆布鞋泥灰卡進織紋", service: "shoe-bag", visual: "macro-detail", traffic: "object-proof", tags: ["#帆布鞋清潔", "#鞋子清潔"] },
-  { topic: "羽絨外套壓扁前的檢查", service: "fabric-storage", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#羽絨外套", "#換季收納"] },
-  { topic: "抱枕飲料痕與布面味道", service: "fabric-storage", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#抱枕清洗", "#居家布品"] },
-  { topic: "白襯衫領口與腋下泛黃", service: "fabric-storage", visual: "shop-inspection", traffic: "trust-reset", tags: ["#白襯衫", "#衣物清潔"] },
-  { topic: "安全帽內襯和外套帽沿一起看", service: "fabric-storage", visual: "customer-consultation", traffic: "value-prop-lead", tags: ["#通勤外套", "#內襯清潔"] },
-  { topic: "行李箱布面與輪子灰塵", service: "shoe-bag", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#旅行整理", "#行李箱清潔"] },
-  { topic: "寵物毯毛絮與布面味道", service: "fabric-storage", visual: "customer-consultation", traffic: "object-proof", tags: ["#寵物毯", "#布品清潔"] },
-  { topic: "西裝外套肩線與袖口狀態", service: "fabric-storage", visual: "customer-consultation", traffic: "trust-reset", tags: ["#西裝清洗", "#外套保養"] },
-  { topic: "鞋櫃收納前的乾燥判斷", service: "shoe-bag", visual: "shop-inspection", traffic: "object-proof", tags: ["#鞋櫃收納", "#鞋子保養"] },
-  { topic: "窗簾下緣灰塵與空氣味", service: "fabric-storage", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#窗簾清洗", "#居家布品"] },
-  { topic: "工作包內裡的粉痕與筆痕", service: "shoe-bag", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#包包保養", "#內裡清潔"] },
-  { topic: "夏季棉麻衣物的汗味殘留", service: "fabric-storage", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#夏季衣物", "#棉麻保養"] },
-  { topic: "雨傘旁鞋包的濕氣轉移", service: "shoe-bag", visual: "customer-consultation", traffic: "trust-reset", tags: ["#雨天保養", "#鞋包照護"] },
-  { topic: "童鞋內裡與鞋底邊緣", service: "white-shoe", visual: "customer-consultation", traffic: "object-proof", tags: ["#童鞋清潔", "#白鞋保養"] },
-  { topic: "牛仔褲膝蓋與口袋味道", service: "fabric-storage", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#牛仔褲保養", "#衣物清洗"] },
-  { topic: "針織外套起毛球前的狀態", service: "fabric-storage", visual: "macro-detail", traffic: "object-proof", tags: ["#針織外套", "#衣物保養"] },
-  { topic: "枕頭套油痕與睡眠味", service: "fabric-storage", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#枕頭套", "#寢具清洗"] },
-  { topic: "化妝包粉痕與拉鍊邊", service: "shoe-bag", visual: "customer-consultation", traffic: "object-proof", tags: ["#化妝包清潔", "#包包保養"] },
-  { topic: "真皮包邊角摩擦與油光", service: "shoe-bag", visual: "customer-consultation", traffic: "trust-reset", tags: ["#真皮包保養", "#包包清潔"] },
-  { topic: "運動衣汗味與彈性纖維", service: "fabric-storage", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#運動衣", "#衣物保養"] },
-  { topic: "旅行外套灰塵與行李味", service: "fabric-storage", visual: "customer-consultation", traffic: "share-worthy-care", tags: ["#旅行整理", "#外套清洗"] },
-  { topic: "開學鞋襪的泥灰與汗味", service: "white-shoe", visual: "customer-consultation", traffic: "object-proof", tags: ["#開學準備", "#童鞋清潔"] },
-  { topic: "中秋烤肉後外套的煙味", service: "fabric-storage", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#中秋節", "#外套清洗"] },
-  { topic: "國慶出遊鞋底與包角灰塵", service: "shoe-bag", visual: "customer-consultation", traffic: "value-prop-lead", tags: ["#國慶連假", "#鞋包照護"] },
-  { topic: "襯衫領口與西裝內襯的送洗前判斷", service: "shirt-suit", visual: "shop-inspection", traffic: "object-proof", tags: ["#襯衫清洗", "#西裝乾洗"] },
-  { topic: "床組與棉被填充受潮的送洗前判斷", service: "bedding-duvet", visual: "customer-consultation", traffic: "value-prop-lead", tags: ["#床組清洗", "#棉被清洗"] },
-  { topic: "絨毛娃娃填充物與黏貼配件的檢查", service: "plush-doll", visual: "customer-consultation", traffic: "object-proof", tags: ["#娃娃清洗", "#布偶清潔"] },
-  { topic: "精品衣物洗標與飾件的送洗前判斷", service: "luxury-dry", visual: "customer-consultation", traffic: "trust-reset", tags: ["#精品乾洗", "#精緻乾洗"] }
+  { topic: "白鞋鞋邊泛灰前的檢查", headline: "白鞋鞋邊開始泛灰，膠條比鞋面先變色", service: "white-shoe", visual: "macro-detail", traffic: "object-proof", tags: ["#白鞋清潔", "#鞋子保養"] },
+  { topic: "包包提把手汗與邊油痕", headline: "包包提把的手汗痕，邊油磨掉才看得到", service: "shoe-bag", visual: "customer-consultation", traffic: "object-proof", tags: ["#包包清潔", "#提把保養"] },
+  { topic: "棉被收納前的濕氣與睡眠味", headline: "棉被收進櫃子前，悶味來自沒散掉的濕氣", service: "fabric-storage", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#棉被清洗", "#布品收納"] },
+  { topic: "深色衣服洗久變灰的判斷", headline: "深色衣服洗久變灰，是褪色還是洗劑殘留", service: "fabric-storage", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#衣物保養", "#深色衣物"] },
+  { topic: "外套領口袖口的日常油痕", headline: "外套領口和袖口的油痕，穿三次就看得到", service: "fabric-storage", visual: "shop-inspection", traffic: "object-proof", tags: ["#外套清洗", "#領口袖口"] },
+  { topic: "皮鞋雨痕與皺摺邊緣", headline: "皮鞋淋雨留下的白邊，是鹽漬不是灰", service: "shoe-bag", visual: "customer-consultation", traffic: "trust-reset", tags: ["#皮鞋保養", "#雨天鞋子"] },
+  { topic: "帆布鞋泥灰卡進織紋", headline: "帆布鞋織紋卡進泥灰，越刷越灰", service: "shoe-bag", visual: "macro-detail", traffic: "object-proof", tags: ["#帆布鞋清潔", "#鞋子清潔"] },
+  { topic: "羽絨外套壓扁前的檢查", headline: "羽絨外套壓扁收納前，袖口和領口的黑要先處理", service: "fabric-storage", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#羽絨外套", "#換季收納"] },
+  { topic: "抱枕飲料痕與布面味道", headline: "抱枕上的飲料痕，乾了以後才變黃", service: "fabric-storage", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#抱枕清洗", "#居家布品"] },
+  { topic: "白襯衫領口與腋下泛黃", headline: "白襯衫領口和腋下泛黃，是汗不是髒", service: "fabric-storage", visual: "shop-inspection", traffic: "trust-reset", tags: ["#白襯衫", "#衣物清潔"] },
+  { topic: "安全帽內襯和外套帽沿一起看", headline: "安全帽內襯的汗味，會沾到外套帽沿", service: "fabric-storage", visual: "customer-consultation", traffic: "value-prop-lead", tags: ["#通勤外套", "#內襯清潔"] },
+  { topic: "行李箱布面與輪子灰塵", headline: "行李箱布面的灰，拉桿邊那條最厚", service: "shoe-bag", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#旅行整理", "#行李箱清潔"] },
+  { topic: "寵物毯毛絮與布面味道", headline: "寵物毯上的毛絮，洗前不先刷會結成球", service: "fabric-storage", visual: "customer-consultation", traffic: "object-proof", tags: ["#寵物毯", "#布品清潔"] },
+  { topic: "西裝外套肩線與袖口狀態", headline: "西裝外套肩線塌了，是襯墊受潮", service: "fabric-storage", visual: "customer-consultation", traffic: "trust-reset", tags: ["#西裝清洗", "#外套保養"] },
+  { topic: "鞋櫃收納前的乾燥判斷", headline: "鞋櫃收鞋前，鞋墊乾了沒比鞋面重要", service: "shoe-bag", visual: "shop-inspection", traffic: "object-proof", tags: ["#鞋櫃收納", "#鞋子保養"] },
+  { topic: "窗簾下緣灰塵與空氣味", headline: "窗簾下緣那條灰，是整面最髒的地方", service: "fabric-storage", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#窗簾清洗", "#居家布品"] },
+  { topic: "工作包內裡的粉痕與筆痕", headline: "工作包內裡的粉痕和筆痕，硬擦會擴散", service: "shoe-bag", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#包包保養", "#內裡清潔"] },
+  { topic: "夏季棉麻衣物的汗味殘留", headline: "棉麻衣物的汗味，晾乾以後又回來", service: "fabric-storage", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#夏季衣物", "#棉麻保養"] },
+  { topic: "雨傘旁鞋包的濕氣轉移", headline: "鞋包放在滴水的雨傘旁，包底先受潮", service: "shoe-bag", visual: "customer-consultation", traffic: "trust-reset", tags: ["#雨天保養", "#鞋包照護"] },
+  { topic: "童鞋內裡與鞋底邊緣", headline: "童鞋內裡和鞋底邊，開學一週就變黑", service: "white-shoe", visual: "customer-consultation", traffic: "object-proof", tags: ["#童鞋清潔", "#白鞋保養"] },
+  { topic: "牛仔褲膝蓋與口袋味道", headline: "牛仔褲膝蓋鬆掉發白，口袋還留著味", service: "fabric-storage", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#牛仔褲保養", "#衣物清洗"] },
+  { topic: "針織外套起毛球前的狀態", headline: "針織外套起毛球前，袖口先起一層霧", service: "fabric-storage", visual: "macro-detail", traffic: "object-proof", tags: ["#針織外套", "#衣物保養"] },
+  { topic: "枕頭套油痕與睡眠味", headline: "枕頭套上的油痕，兩週就泛黃", service: "fabric-storage", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#枕頭套", "#寢具清洗"] },
+  { topic: "化妝包粉痕與拉鍊邊", headline: "化妝包拉鍊邊卡粉，內袋縫線最難清", service: "shoe-bag", visual: "customer-consultation", traffic: "object-proof", tags: ["#化妝包清潔", "#包包保養"] },
+  { topic: "真皮包邊角摩擦與油光", headline: "真皮包邊角磨出油光，是皮面在變薄", service: "shoe-bag", visual: "customer-consultation", traffic: "trust-reset", tags: ["#真皮包保養", "#包包清潔"] },
+  { topic: "運動衣汗味與彈性纖維", headline: "運動衣的汗味洗不掉，是彈性纖維在留味", service: "fabric-storage", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#運動衣", "#衣物保養"] },
+  { topic: "旅行外套灰塵與行李味", headline: "外套在行李箱悶一週，回來一股行李味", service: "fabric-storage", visual: "customer-consultation", traffic: "share-worthy-care", tags: ["#旅行整理", "#外套清洗"] },
+  { topic: "開學鞋襪的泥灰與汗味", headline: "童鞋鞋底的泥灰和襪子的汗味，一起送最省", service: "white-shoe", visual: "customer-consultation", traffic: "object-proof", tags: ["#開學準備", "#童鞋清潔"] },
+  { topic: "中秋烤肉後外套的煙味", headline: "外套的烤肉煙味，掛一週也散不掉", service: "fabric-storage", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#中秋節", "#外套清洗"] },
+  { topic: "國慶出遊鞋底與包角灰塵", headline: "鞋底和包角的灰，出遊一趟回來厚一層", service: "shoe-bag", visual: "customer-consultation", traffic: "value-prop-lead", tags: ["#國慶連假", "#鞋包照護"] },
+  { topic: "襯衫領口與西裝內襯的送洗前判斷", headline: "襯衫領口和西裝內襯，洗標要分開看", service: "shirt-suit", visual: "shop-inspection", traffic: "object-proof", tags: ["#襯衫清洗", "#西裝乾洗"] },
+  { topic: "床組與棉被填充受潮的送洗前判斷", headline: "床組和棉被的填充受潮，摸起來才知道", service: "bedding-duvet", visual: "customer-consultation", traffic: "value-prop-lead", tags: ["#床組清洗", "#棉被清洗"] },
+  { topic: "絨毛娃娃填充物與黏貼配件的檢查", headline: "絨毛娃娃的填充物和黏貼配件，決定怎麼洗", service: "plush-doll", visual: "customer-consultation", traffic: "object-proof", tags: ["#娃娃清洗", "#布偶清潔"] },
+  { topic: "精品衣物洗標與飾件的送洗前判斷", headline: "精品衣物的洗標和飾件，送洗前先拍下來", service: "luxury-dry", visual: "customer-consultation", traffic: "trust-reset", tags: ["#精品乾洗", "#精緻乾洗"] }
 ];
 
+// `topic` is the seed identity used by the diversified rotation and by every
+// date before FREE_HEADLINE_START_DATE; `headline` is what slot 2 actually says
+// from that date on. Object first, one concrete defect, no scene or occasion.
 const situationSeeds: TopicSeed[] = [
-  { topic: "雨後通勤回家不要直接收鞋", service: "shoe-bag", visual: "customer-consultation", traffic: "value-prop-lead", tags: ["#雨天鞋子", "#通勤日常"] },
-  { topic: "下班最常背的包先看提把", service: "shoe-bag", visual: "customer-consultation", traffic: "object-proof", tags: ["#包包清潔", "#下班日常"] },
-  { topic: "週末換季整理先分類布品", service: "fabric-storage", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#換季收納", "#布品清潔"] },
-  { topic: "暑假旅行回來先處理外套", service: "fabric-storage", visual: "customer-consultation", traffic: "share-worthy-care", tags: ["#旅行整理", "#外套清洗"] },
-  { topic: "孩子上學後鞋襪變悶", service: "white-shoe", visual: "customer-consultation", traffic: "object-proof", tags: ["#開學準備", "#童鞋清潔"] },
-  { topic: "梅雨季衣櫃味道先找來源", service: "fabric-storage", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#雨季保養", "#衣櫃收納"] },
-  { topic: "騎車族雨衣外套分開看", service: "fabric-storage", visual: "customer-consultation", traffic: "trust-reset", tags: ["#機車通勤", "#外套清洗"] },
-  { topic: "健身房衣物不要悶在包裡", service: "fabric-storage", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#運動衣", "#汗味處理"] },
-  { topic: "辦公室冷氣外套領口檢查", service: "fabric-storage", visual: "shop-inspection", traffic: "object-proof", tags: ["#上班穿搭", "#外套保養"] },
-  { topic: "搬家後棉被窗簾先除灰", service: "fabric-storage", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#搬家整理", "#寢具清洗"] },
-  { topic: "聚餐後外套先聞再收", service: "fabric-storage", visual: "customer-consultation", traffic: "dwell-detail", tags: ["#聚餐後整理", "#外套清洗"] },
-  { topic: "父親節襯衫皮鞋一起整理", service: "shoe-bag", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#父親節", "#皮鞋保養"] },
-  { topic: "七夕約會後白鞋包包檢查", service: "shoe-bag", visual: "customer-consultation", traffic: "share-worthy-care", tags: ["#七夕", "#鞋包照護"] },
-  { topic: "開學前制服外套和白鞋", service: "white-shoe", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#開學季", "#白鞋清潔"] },
-  { topic: "颱風天後鞋包不要急著曬", service: "shoe-bag", visual: "customer-consultation", traffic: "trust-reset", tags: ["#颱風天", "#鞋包保養"] },
-  { topic: "中秋烤肉後外套不要直接掛回去", service: "fabric-storage", visual: "customer-consultation", traffic: "share-worthy-care", tags: ["#中秋節", "#外套清洗"] },
-  { topic: "國慶連假行李鞋包整理", service: "shoe-bag", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#國慶連假", "#旅行整理"] },
-  { topic: "客廳沙發毯用久會有生活味", service: "fabric-storage", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#沙發毯", "#居家布品"] },
-  { topic: "拜訪客戶前西裝先看袖口", service: "fabric-storage", visual: "customer-consultation", traffic: "trust-reset", tags: ["#西裝清洗", "#上班穿搭"] },
-  { topic: "婚宴禮服回家先不要塞衣櫃", service: "fabric-storage", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#禮服清潔", "#衣物保養"] },
-  { topic: "雨傘滴水旁的包角容易先受影響", service: "shoe-bag", visual: "macro-detail", traffic: "object-proof", tags: ["#雨天保養", "#包包清潔"] },
-  { topic: "夜市走一圈鞋底邊緣最誠實", service: "shoe-bag", visual: "macro-detail", traffic: "object-proof", tags: ["#鞋子清潔", "#台中生活"] },
-  { topic: "青海路通勤回來先看鞋包", service: "local", visual: "customer-consultation", traffic: "value-prop-lead", tags: ["#青海路", "#台中西屯"] },
-  { topic: "逢甲西屯人流多的鞋底灰", service: "local", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#西屯生活", "#鞋子保養"] },
-  { topic: "返家鞋櫃味道通常從一雙開始", service: "shoe-bag", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#鞋櫃收納", "#鞋子清潔"] },
-  { topic: "久放包包有霉味先不要硬擦", service: "shoe-bag", visual: "customer-consultation", traffic: "trust-reset", tags: ["#包包保養", "#霉味處理"] },
-  { topic: "送洗前照片要拍哪些位置", service: "photo-guide", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#送洗前拍照", "#LINE詢問"] },
-  { topic: "LINE傳照片時先補三個資訊", service: "photo-guide", visual: "customer-consultation", traffic: "value-prop-lead", tags: ["#LINE詢問", "#送洗前拍照"] },
-  { topic: "每十天公開一次洗護觀察", service: "local", visual: "shop-inspection", traffic: "trust-reset", tags: ["#私享家觀察", "#台中西屯洗衣店"] },
-  { topic: "客人最常忽略的是內裡和邊角", service: "shoe-bag", visual: "macro-detail", traffic: "object-proof", tags: ["#鞋包照護", "#洗護細節"] },
-  { topic: "絨毛玩偶有汗味時先看五官和配件", service: "plush-doll", visual: "customer-consultation", traffic: "object-proof", tags: ["#娃娃清洗", "#絨毛玩偶清潔"] },
-  { topic: "精品衣物有舊污漬時先拍洗標", service: "luxury-dry", visual: "customer-consultation", traffic: "trust-reset", tags: ["#精品乾洗", "#名牌衣物清潔"] },
-  { topic: "換季時西裝和襯衫不要一起悶收", service: "shirt-suit", visual: "customer-consultation", traffic: "share-worthy-care", tags: ["#西裝乾洗", "#襯衫清洗"] },
-  { topic: "床組有潮味時先不要直接密封", service: "bedding-duvet", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#床組清洗", "#寢具清洗"] }
+  { topic: "雨後通勤回家不要直接收鞋", headline: "鞋子淋濕當晚就收鞋櫃，鞋墊先悶出味", service: "shoe-bag", visual: "customer-consultation", traffic: "value-prop-lead", tags: ["#雨天鞋子", "#通勤日常"] },
+  { topic: "下班最常背的包先看提把", headline: "包包提把發黑，是手汗還是邊油在氧化", service: "shoe-bag", visual: "customer-consultation", traffic: "object-proof", tags: ["#包包清潔", "#下班日常"] },
+  { topic: "週末換季整理先分類布品", headline: "毛毯和床單換季收納前不能一起洗", service: "fabric-storage", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#換季收納", "#布品清潔"] },
+  { topic: "暑假旅行回來先處理外套", headline: "外套旅行回來，領口內側有一圈灰", service: "fabric-storage", visual: "customer-consultation", traffic: "share-worthy-care", tags: ["#旅行整理", "#外套清洗"] },
+  { topic: "孩子上學後鞋襪變悶", headline: "童鞋穿一週鞋口就臭，鞋墊比鞋面先壞", service: "white-shoe", visual: "customer-consultation", traffic: "object-proof", tags: ["#開學準備", "#童鞋清潔"] },
+  { topic: "梅雨季衣櫃味道先找來源", headline: "衣櫃有悶味，通常是一件沒乾透的外套", service: "fabric-storage", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#雨季保養", "#衣櫃收納"] },
+  { topic: "騎車族雨衣外套分開看", headline: "雨衣和外套疊著收，外套領口先長霉點", service: "fabric-storage", visual: "customer-consultation", traffic: "trust-reset", tags: ["#機車通勤", "#外套清洗"] },
+  { topic: "健身房衣物不要悶在包裡", headline: "運動衣悶在包裡一晚，汗味洗三次還在", service: "fabric-storage", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#運動衣", "#汗味處理"] },
+  { topic: "辦公室冷氣外套領口檢查", headline: "外套領口內側那圈黃，冷氣房也會累出來", service: "fabric-storage", visual: "shop-inspection", traffic: "object-proof", tags: ["#上班穿搭", "#外套保養"] },
+  { topic: "搬家後棉被窗簾先除灰", headline: "棉被和窗簾搬家後表面那層灰，拍不掉", service: "fabric-storage", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#搬家整理", "#寢具清洗"] },
+  { topic: "聚餐後外套先聞再收", headline: "外套聚餐後的油煙味，掛一晚散不掉", service: "fabric-storage", visual: "customer-consultation", traffic: "dwell-detail", tags: ["#聚餐後整理", "#外套清洗"] },
+  { topic: "父親節襯衫皮鞋一起整理", headline: "襯衫領口和皮鞋鞋頭的舊痕，一趟一起整理", service: "shoe-bag", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#父親節", "#皮鞋保養"] },
+  { topic: "七夕約會後白鞋包包檢查", headline: "白鞋鞋邊和包角，走一晚就磨出一圈灰", service: "shoe-bag", visual: "customer-consultation", traffic: "share-worthy-care", tags: ["#七夕", "#鞋包照護"] },
+  { topic: "開學前制服外套和白鞋", headline: "制服外套袖口和白鞋鞋邊，開學前一起看", service: "white-shoe", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#開學季", "#白鞋清潔"] },
+  { topic: "颱風天後鞋包不要急著曬", headline: "鞋包泡過水直接曬太陽，皮面會硬會裂", service: "shoe-bag", visual: "customer-consultation", traffic: "trust-reset", tags: ["#颱風天", "#鞋包保養"] },
+  { topic: "中秋烤肉後外套不要直接掛回去", headline: "外套沾了烤肉煙味，掛回衣櫃會傳給整排", service: "fabric-storage", visual: "customer-consultation", traffic: "share-worthy-care", tags: ["#中秋節", "#外套清洗"] },
+  { topic: "國慶連假行李鞋包整理", headline: "行李箱輪子卡灰，連假回來最先看這裡", service: "shoe-bag", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#國慶連假", "#旅行整理"] },
+  { topic: "客廳沙發毯用久會有生活味", headline: "沙發毯摸起來黏，是皮脂不是灰塵", service: "fabric-storage", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#沙發毯", "#居家布品"] },
+  { topic: "拜訪客戶前西裝先看袖口", headline: "西裝袖口內側發亮，是磨損不是髒", service: "fabric-storage", visual: "customer-consultation", traffic: "trust-reset", tags: ["#西裝清洗", "#上班穿搭"] },
+  { topic: "婚宴禮服回家先不要塞衣櫃", headline: "禮服腋下和下擺的汗漬，塞衣櫃三天就定色", service: "fabric-storage", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#禮服清潔", "#衣物保養"] },
+  { topic: "雨傘滴水旁的包角容易先受影響", headline: "包角泡到雨傘滴的水，邊油會起泡剝落", service: "shoe-bag", visual: "macro-detail", traffic: "object-proof", tags: ["#雨天保養", "#包包清潔"] },
+  { topic: "夜市走一圈鞋底邊緣最誠實", headline: "鞋底邊那圈黑，是油漬不是灰", service: "shoe-bag", visual: "macro-detail", traffic: "object-proof", tags: ["#鞋子清潔", "#台中生活"] },
+  { topic: "青海路通勤回來先看鞋包", headline: "鞋口和包底的灰，通勤一週就累出一層", service: "local", visual: "customer-consultation", traffic: "value-prop-lead", tags: ["#青海路", "#台中西屯"] },
+  { topic: "逢甲西屯人流多的鞋底灰", headline: "鞋邊膠條發黃，人多的路走一週就變色", service: "local", visual: "shop-inspection", traffic: "share-worthy-care", tags: ["#西屯生活", "#鞋子保養"] },
+  { topic: "返家鞋櫃味道通常從一雙開始", headline: "鞋櫃的味道，通常是一雙鞋墊在發酵", service: "shoe-bag", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#鞋櫃收納", "#鞋子清潔"] },
+  { topic: "久放包包有霉味先不要硬擦", headline: "包包長霉點硬擦，會留一塊白斑", service: "shoe-bag", visual: "customer-consultation", traffic: "trust-reset", tags: ["#包包保養", "#霉味處理"] },
+  { topic: "送洗前照片要拍哪些位置", headline: "洗標和髒污近照，送洗前拍這兩張最有用", service: "photo-guide", visual: "shop-inspection", traffic: "value-prop-lead", tags: ["#送洗前拍照", "#LINE詢問"] },
+  { topic: "LINE傳照片時先補三個資訊", headline: "污漬近照要拍到材質紋理，判斷才會準", service: "photo-guide", visual: "customer-consultation", traffic: "value-prop-lead", tags: ["#LINE詢問", "#送洗前拍照"] },
+  { topic: "每十天公開一次洗護觀察", headline: "門市十天洗護觀察，這期最多的是收納前沒乾透", service: "local", visual: "shop-inspection", traffic: "trust-reset", tags: ["#私享家觀察", "#台中西屯洗衣店"] },
+  { topic: "客人最常忽略的是內裡和邊角", headline: "內裡和邊角的髒，比表面早三個月出現", service: "shoe-bag", visual: "macro-detail", traffic: "object-proof", tags: ["#鞋包照護", "#洗護細節"] },
+  { topic: "絨毛玩偶有汗味時先看五官和配件", headline: "絨毛玩偶五官是繡的還是黏的，決定能不能下水", service: "plush-doll", visual: "customer-consultation", traffic: "object-proof", tags: ["#娃娃清洗", "#絨毛玩偶清潔"] },
+  { topic: "精品衣物有舊污漬時先拍洗標", headline: "精品衣物的舊污漬，洗標決定能做到哪", service: "luxury-dry", visual: "customer-consultation", traffic: "trust-reset", tags: ["#精品乾洗", "#名牌衣物清潔"] },
+  { topic: "換季時西裝和襯衫不要一起悶收", headline: "西裝和襯衫一起悶收，襯衫領口先黃", service: "shirt-suit", visual: "customer-consultation", traffic: "share-worthy-care", tags: ["#西裝乾洗", "#襯衫清洗"] },
+  { topic: "床組有潮味時先不要直接密封", headline: "床組有潮味就密封，三個月後是霉斑", service: "bedding-duvet", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#床組清洗", "#寢具清洗"] }
 ];
 
 interface ConcreteReachSpecialInput {
@@ -1256,8 +1270,44 @@ export function isQuestionHeadline(topic: string): boolean {
   return /[？?]/u.test(topic);
 }
 
-function topicForPhase(seed: TopicSeed, day: number, slot: number): string {
+/**
+ * From this date the slot topic is the seed sentence itself: no phase label in
+ * front (可收藏／細節拆解／到店前判斷…) and no fixed tail behind (…送洗前先看三個
+ * 位置). Measured on IG insights 2026-08-07..09-05 (69 posts): free sentences
+ * averaged 90 reach, the two labelled templates 41 and 34.
+ *
+ * The date is a cutover, not a flag, because the topic string is embedded
+ * verbatim in every image_prompt and topicIdentity() strips only the label, not
+ * the tail. Rewriting an already-generated day would mark its images stale and
+ * force a regeneration. 2026-09-07..09-10 were generated before this change, so
+ * the first free-headline day is the first day that has no images yet.
+ */
+export const FREE_HEADLINE_START_DATE = "2026-09-11";
+
+export function freeHeadlineActive(date: string): boolean {
+  return date >= FREE_HEADLINE_START_DATE;
+}
+
+/**
+ * A free headline leads with the object. autoApprove's repeat gate compares the
+ * first eight characters after stripping lead-ins, so a headline that opens
+ * with a scene or an occasion ("雨後通勤…", "國慶連假…") is both weaker and
+ * harder to de-duplicate. Every situation seed must satisfy this.
+ */
+export const OBJECT_LEAD_RE =
+  /^(童鞋|白鞋|皮鞋|帆布鞋|鞋|靴|包|工作包|化妝包|真皮包|行李箱|外套|羽絨外套|針織外套|西裝|襯衫|白襯衫|制服|禮服|雨衣|運動衣|棉麻衣物|深色衣服|衣物|牛仔褲|安全帽|衣櫃|棉被|床組|枕頭套|抱枕|沙發毯|寵物毯|毛毯|窗簾|絨毛玩偶|絨毛娃娃|精品衣物|洗標|污漬|內裡|鞋櫃|門市)/u;
+
+/** Every seed's free headline, for the rule test; the 90-day window does not reach all 68 seeds. */
+export function seedHeadlines(): Array<{ slot: 1 | 2; topic: string; headline: string }> {
+  return [
+    ...knowledgeSeeds.map((seed) => ({ slot: 1 as const, topic: seed.topic, headline: seed.headline ?? seed.topic })),
+    ...situationSeeds.map((seed) => ({ slot: 2 as const, topic: seed.topic, headline: seed.headline ?? seed.topic }))
+  ];
+}
+
+function topicForPhase(seed: TopicSeed, day: number, slot: number, date: string): string {
   if (isQuestionHeadline(seed.topic)) return seed.topic;
+  if (freeHeadlineActive(date)) return seed.headline ?? seed.topic;
   if (day <= 30) return slot === 1 ? `先看懂：${seed.topic}` : `今天情境：${seed.topic}`;
   if (day <= 60) {
     return slot === 1 ? `可收藏：${seed.topic}，送洗前先看三個位置` : `細節拆解：${seed.topic}，先看容易忽略的位置`;
@@ -1474,7 +1524,8 @@ function buildSlot(date: string, day: number, slot: number, plannedTopic?: strin
   // brand/local/fallback ladder plus the topic-intent upgrade downstream cover
   // a planned slot correctly.
   const planned = special ? undefined : plannedTopic;
-  const topic = special?.topic ?? topicForPhase(planned ? { ...seed, topic: planned } : seed, day, slot);
+  const topic =
+    special?.topic ?? topicForPhase(planned ? { ...seed, topic: planned, headline: undefined } : seed, day, slot, date);
   const format = special?.format ?? baseFormat(date, slot, day);
   const visual = special?.visual ?? seed.visual;
   const traffic = special?.traffic ?? seed.traffic;

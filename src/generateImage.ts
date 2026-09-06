@@ -8,6 +8,7 @@ import {
   TOPIC_LABEL_PREFIX_RE
 } from "./contentPlan";
 import { generateDailyContent } from "./generateDailyContent";
+import { PUBLISHABLE_IMAGE_SOURCES, isPublishableImageSource } from "./imageSources";
 import { loadApprovedImageDigests, sha256 } from "./imageStamp";
 import {
   loadApprovalLog,
@@ -483,7 +484,7 @@ export async function validatePublishableImages(date: string, root = projectRoot
         !sources.some(
           (source) =>
             source.slot === slot.slot &&
-            source.source === "gpt-image-2" &&
+            isPublishableImageSource(source.source) &&
             source.image_path === asset.local_image_path
         )
       )
@@ -491,7 +492,10 @@ export async function validatePublishableImages(date: string, root = projectRoot
   );
 
   if (missingSources.length > 0) {
-    throw new Error(`Missing gpt-image-2 source records:\n${missingSources.map((item) => `- ${item}`).join("\n")}`);
+    throw new Error(
+      `Missing publishable image source records (${PUBLISHABLE_IMAGE_SOURCES.join(" / ")}):\n` +
+        missingSources.map((item) => `- ${item}`).join("\n")
+    );
   }
 }
 

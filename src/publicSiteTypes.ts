@@ -45,6 +45,8 @@ export interface SupportPageDefinition {
   summary: string;
   keywords: string[];
   service_slug?: string;
+  /** Keep an existing fallback image when changing a guide's service links. */
+  image_service_slug?: KnownServiceSlug;
   local_intent: string;
   /** Stable YYYY-MM-DD used for sitemap lastmod when content last intentionally changed. */
   content_lastmod?: string;

@@ -287,6 +287,43 @@ async function pngPixelSize(filePath: string): Promise<{ width: number; height: 
 }
 
 describe("generatePublicSite", () => {
+  it("changes only Birkenstock service anchors while preserving its rendered image and content", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-birkenstock-parity-"));
+    await writeBusinessProfile(root);
+    const page = publicSupportPages().find((item) => item.slug === "birkenstock-care")!;
+    const current = { service: page.service_slug, image: page.image_service_slug };
+    const options = { root, baseUrl: "https://example.com", now: "2026-09-07T00:00:00.000Z" };
+    const path = join(root, "docs", page.path);
+    let before: string;
+    try {
+      page.service_slug = "white-shoe-cleaning";
+      delete page.image_service_slug;
+      await generatePublicSite(options);
+      before = await readFile(path, "utf8");
+    } finally {
+      page.service_slug = current.service;
+      page.image_service_slug = current.image;
+    }
+    await generatePublicSite(options);
+    const after = await readFile(path, "utf8");
+    expect(after).toMatch(/<a href="[^"]*\/services\/shoe-bag-care\.html" data-parent-service>鞋包清潔<\/a>/);
+    expect(after).toContain("white-shoe-cleaning");
+    const schema = (html: string) => JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)![1]!);
+    const afterSchema = schema(after);
+    expect(afterSchema["@graph"].find((node: { "@type": string }) => node["@type"] === "WebPage").about["@id"])
+      .toBe("https://example.com/services/shoe-bag-care.html#service");
+    const withoutServiceAnchors = (html: string) => html
+      .replace(/<a class="button secondary" href="[^"]*">[^<]*<\/a>/g, "")
+      .replace(/<a href="[^"]*" data-parent-service>[^<]*<\/a>/g, "")
+      .replace(/<script type="application\/ld\+json">(.*?)<\/script>/s, (_, json: string) => {
+        const graph = JSON.parse(json);
+        graph["@graph"] = graph["@graph"].filter((node: { "@type": string }) => node["@type"] !== "Service");
+        graph["@graph"].find((node: { "@type": string }) => node["@type"] === "WebPage").about = "linked-service";
+        return JSON.stringify(graph);
+      });
+    expect(withoutServiceAnchors(after)).toBe(withoutServiceAnchors(before!));
+  });
+
   it("writes AI-readable public indexes with absolute URLs when a base URL is configured", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-"));
     await writeBusinessProfile(root);
@@ -1976,7 +2013,7 @@ describe("generatePublicSite", () => {
       {
         slug: "birkenstock-care",
         answer: "勃肯鞋會臭，多半是軟木鞋床吸汗，不是鞋面；整雙泡水會更糟。",
-        serviceNeedle: "white-shoe-cleaning.html"
+        serviceNeedle: "shoe-bag-care.html"
       },
       {
         slug: "plush-doll-cleaning",
@@ -1999,6 +2036,9 @@ describe("generatePublicSite", () => {
       expect(lead.length, `${page.slug} lead length`).toBeLessThanOrEqual(50);
       expect(answerBox, `${page.slug} answer-box`).toBe(page.answer);
       expect(thematicAnchorsTo(html, page.serviceNeedle).length, `${page.slug} service link`).toBeGreaterThan(0);
+      if (page.slug === "birkenstock-care") {
+        expect(html).toMatch(/<a href="[^"]*\/services\/shoe-bag-care\.html" data-parent-service>鞋包清潔<\/a>/);
+      }
     }
 
     const birkenstockHtml = await readFile(join(root, "docs", "guides", "birkenstock-care.html"), "utf8");

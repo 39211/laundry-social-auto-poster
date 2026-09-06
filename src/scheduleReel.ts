@@ -3,7 +3,7 @@ import { access, copyFile, mkdir, readFile, rm } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
-import { withSharedCaptionRules } from "./contentPlan";
+import { singleCtaExperimentActive, withSharedCaptionRules } from "./contentPlan";
 import { utmCampaign } from "./utm";
 import { generateDailyContent } from "./generateDailyContent";
 import {
@@ -396,11 +396,13 @@ export function captionsFor(
   const igQuestionShare = skipQuestionFor
     ? shareInviteFor(concept)
     : `${questionFor(concept)}\n\n${shareInviteFor(concept)}`;
+  // Single-CTA experiment: the action line is the only ask; question, share
+  // invite and follow line are dropped (see SINGLE_CTA_EXPERIMENT_START).
+  const singleCta = singleCtaExperimentActive(date);
   const instagram = [
     ...opening,
     reelActionCta(concept, "instagram"),
-    igQuestionShare,
-    FOLLOW_LINE,
+    ...(singleCta ? [] : [igQuestionShare, FOLLOW_LINE]),
     hashtags
   ].join("\n\n");
   // FB never inserts questionFor; the share invite is already a question.
@@ -408,8 +410,7 @@ export function captionsFor(
   const facebook = [
     ...opening,
     reelActionCta(concept, "facebook"),
-    shareInviteFor(concept),
-    FOLLOW_LINE,
+    ...(singleCta ? [] : [shareInviteFor(concept), FOLLOW_LINE]),
     hashtags
   ].join("\n\n");
   // Reels were assembled here and never passed through the shared rules, so

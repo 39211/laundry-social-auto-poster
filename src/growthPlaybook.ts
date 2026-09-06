@@ -1282,7 +1282,10 @@ export function isQuestionHeadline(topic: string): boolean {
  * force a regeneration. 2026-09-07..09-10 were generated before this change, so
  * the first free-headline day is the first day that has no images yet.
  */
-export const FREE_HEADLINE_START_DATE = "2026-09-11";
+// Owner decision 2026-09-06: the single-CTA experiment (#60) takes 09-10..09-12
+// alone, so free headlines start 09-13. The 09-13 calendar is generated at
+// 09-10 06:30 (D+3); this must be live before then.
+export const FREE_HEADLINE_START_DATE = "2026-09-13";
 
 export function freeHeadlineActive(date: string): boolean {
   return date >= FREE_HEADLINE_START_DATE;

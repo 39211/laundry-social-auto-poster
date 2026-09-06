@@ -11,16 +11,16 @@ import { TOPIC_LABEL_PREFIX_RE } from "../src/contentPlan";
 
 const TEMPLATE_TAIL_RE = /送洗前先看三個位置|先看容易忽略的位置|照片要補哪些細節|門市會先確認什麼/u;
 
-describe("free headlines from 2026-09-11", () => {
+describe("free headlines from 2026-09-13", () => {
   const rows = flattenGrowthPlaybook(buildGrowthPlaybook("2026-07-11", 90));
 
-  it("keeps the phase label and tail on every day that already has images (through 2026-09-10)", () => {
+  it("keeps the phase label and tail through 2026-09-12 (images through 09-10, single-CTA window 09-10..09-12)", () => {
     // 09-07..09-10 were generated before the cutover; their topic text is
     // embedded in image_prompt, so a change here would mark those images stale.
     // The date is pinned on purpose: moving the constant earlier must fail here.
-    expect(FREE_HEADLINE_START_DATE).toBe("2026-09-11");
-    const generated = rows.filter((row) => row.date >= "2026-09-07" && row.date <= "2026-09-10");
-    expect(generated).toHaveLength(8);
+    expect(FREE_HEADLINE_START_DATE).toBe("2026-09-13");
+    const generated = rows.filter((row) => row.date >= "2026-09-07" && row.date <= "2026-09-12");
+    expect(generated).toHaveLength(12);
     for (const row of generated) {
       expect(row.topic, `${row.date} s${row.slot}`).toMatch(TOPIC_LABEL_PREFIX_RE);
       expect(row.topic, `${row.date} s${row.slot}`).toMatch(TEMPLATE_TAIL_RE);

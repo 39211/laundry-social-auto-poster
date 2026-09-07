@@ -1,4 +1,5 @@
 ﻿import { buildDoctrinePrompts, imageDoctrineActive } from "./imageDoctrine";
+import { everydayVariantForTopic, luxuryVariantForTopic, type ObjectVariant } from "./objectLibrary";
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -2329,11 +2330,29 @@ export function namedSpotsFromTopic(topic: string): string[] {
   return spots;
 }
 
-export function objectSpecFromTopic(topic: string): ObjectSpec {
+function specFromVariant(variant: ObjectVariant, wear: string): ObjectSpec {
+  return { noun: variant.noun, lockNote: variant.lockNote, material: variant.material, wear };
+}
+
+/**
+ * `date` switches on everyday variety (objectLibrary): a generic 球鞋/襯衫/T恤/包/外套
+ * topic rotates through concrete variants by date so the feed does not show
+ * the same grey sneaker every time. Without a date the legacy fixed passport
+ * is returned, which keeps every stamped calendar's prompt reproducible.
+ * Luxury classics (brand/model words) resolve regardless of date.
+ */
+export function objectSpecFromTopic(topic: string, date?: string): ObjectSpec {
   const t = topicBody(topic);
   const kind = wearKindFromTopic(t);
   const spots = namedSpotsFromTopic(t);
   const wearAt = (fallback: string) => (spots.length > 0 ? `${kind} at the ${spots.join(" and ")}` : fallback);
+
+  const luxury = luxuryVariantForTopic(t);
+  if (luxury) return specFromVariant(luxury, wearAt(luxury.wearFallback));
+  if (date && imageDoctrineActive(date)) {
+    const variant = everydayVariantForTopic(t, date);
+    if (variant) return specFromVariant(variant, wearAt(variant.wearFallback));
+  }
 
   for (const rule of OBJECT_SPEC_RULES) {
     if (!rule.match.test(t)) continue;
@@ -2373,8 +2392,8 @@ export function objectSpecFromTopic(topic: string): ObjectSpec {
   };
 }
 
-export function garmentPassportFromTopic(topic: string): string {
-  const spec = objectSpecFromTopic(topic);
+export function garmentPassportFromTopic(topic: string, date?: string): string {
+  const spec = objectSpecFromTopic(topic, date);
   if (spec.sceneLockOnly) {
     return (
       `OBJECT PASSPORT: scene-lock only (non-physical promo topic; do not invent a physical object). ` +
@@ -2446,22 +2465,22 @@ function checkpointsFromCaption(text: string): string[] {
  * 提把 must not invent a handle on indoor slippers. */
 const SHOE_FOREIGN_SPOTS = /^(handle|bag corners|edge paint|hardware)$/i;
 
-function isPureShoeObject(topic: string): boolean {
-  const spec = objectSpecFromTopic(topic);
+function isPureShoeObject(topic: string, date?: string): boolean {
+  const spec = objectSpecFromTopic(topic, date);
   const blob = `${spec.noun} ${spec.lockNote}`.toLowerCase();
   const hasBag = /\b(handbag|suitcase|bag)\b/.test(blob);
-  const hasShoe = /shoe|sneaker|boot|slipper|sandal/.test(blob);
+  const hasShoe = /shoe|sneaker|boot|slipper|sandal|loafer|pump|flat|trainer|clog/.test(blob);
   return hasShoe && !hasBag;
 }
 
-function checkpointsForObject(caption: string, topic: string): string[] {
+function checkpointsForObject(caption: string, topic: string, date?: string): string[] {
   const points = checkpointsFromCaption(`${caption}\n${topic}`);
-  if (!isPureShoeObject(topic)) return points;
+  if (!isPureShoeObject(topic, date)) return points;
   return points.filter((spot) => !SHOE_FOREIGN_SPOTS.test(spot));
 }
 
-export function carouselInspectionShots(caption: string, topic: string): string[] {
-  const points = checkpointsForObject(caption, topic);
+export function carouselInspectionShots(caption: string, topic: string, date?: string): string[] {
+  const points = checkpointsForObject(caption, topic, date);
   const defaults = [
     "Overall closer look at the complete passport item so fabric grain, seams and full silhouette stay readable.",
     "Tight close-up of the problem area named by the topic; the wear marks fill the frame.",
@@ -2530,9 +2549,9 @@ const WHITE_SHIRT_7_20_BRIEFS = [
 ];
 
 export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] {
-  const passport = garmentPassportFromTopic(input.topic);
+  const passport = garmentPassportFromTopic(input.topic, input.date);
   const dayIndex = Number(input.date.replace(/-/g, "")) % BACKGROUND_ANCHORS.length;
-  const spec = objectSpecFromTopic(input.topic);
+  const spec = objectSpecFromTopic(input.topic, input.date);
   const shared =
     `${passport} ${CAROUSEL_SCENE_LOCK} Create one portrait 4:5 photo. ` +
     "Keep the exact featured object consistent across all four photos. " +
@@ -2546,7 +2565,7 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
         ? pickupCarouselBriefs(input.topic)
         : [
             `Hero still of ${topicBody(input.topic)} through the passport item as the main close-up on the locked inspection counter. Keep the entire object readable and do not imply a cleaning result.`,
-            ...carouselInspectionShots(input.caption ?? "", input.topic)
+            ...carouselInspectionShots(input.caption ?? "", input.topic, input.date)
           ];
 
   // Doctrine layer (2026-09-09+): seven-segment prompt with material optics,

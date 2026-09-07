@@ -41,6 +41,72 @@ interface OpticsRule {
  */
 export const MATERIAL_OPTICS: OpticsRule[] = [
   {
+    id: "two-tone-grosgrain",
+    match: /grosgrain|goatskin/,
+    text:
+      "MATERIAL OPTICS: the goatskin body is a fine-grained matte with a soft broad highlight rolling over the toe; the black grosgrain cap shows a dry, directional ribbed texture that catches light as thin parallel lines and frays into fuzz where it is worn; the block heel has a dull leather-wrapped surface."
+  },
+  {
+    id: "quilted-lambskin",
+    match: /lambskin|diamond-quilted|cane-lattice/,
+    text:
+      "MATERIAL OPTICS: soft lambskin carries a buttery low sheen that pools in the quilted valleys and lifts to a soft highlight on each raised diamond or lattice; worn corners flatten the quilting and turn glossy and darker; the chain shows small crisp metallic points with the leather threading dull where hands touch it."
+  },
+  {
+    id: "coated-canvas",
+    match: /coated canvas|coated-canvas|vachetta/,
+    text:
+      "MATERIAL OPTICS: the coated canvas has a hard, slightly waxy sheen with a fine grain that reads as one even texture; the untreated vachetta trim is matte and honey-coloured, darker and shinier exactly where hands hold it, with water spots as sharp-edged darker rings."
+  },
+  {
+    id: "gabardine",
+    match: /gabardine|trench/,
+    text:
+      "MATERIAL OPTICS: the gabardine is a tight diagonal twill with a dry matte surface and a faint sheen only along pressed edges; oil darkening at the inside collar reads as a soft-edged darker band; grime along the belt shows as a greyer stripe with a visible edge."
+  },
+  {
+    id: "sheepskin",
+    match: /sheepskin|shearling/,
+    text:
+      "MATERIAL OPTICS: the suede sheepskin is a deep matte that darkens sharply where water soaked in, with pale salt lines along the stain edge; the wool cuff scatters light softly when fresh and mats into dull grey clumps where it is worn."
+  },
+  {
+    id: "cashmere",
+    match: /cashmere/,
+    text:
+      "MATERIAL OPTICS: cashmere has a soft halo of fine fibres catching light along every edge; pilling shows as many small fibre balls each casting a tiny shadow; a sweat-darkened underarm reads as a slightly greyer, flatter patch."
+  },
+  {
+    id: "screen-print",
+    match: /screen-print|graphic tee|plastisol/,
+    text:
+      "MATERIAL OPTICS: the cotton jersey is a dry matte knit; the screen print sits on top as a thin plastic film with a slightly glossier surface that has cracked into a fine crazed pattern where the fabric stretched; faded areas show lower contrast along the knit ridges."
+  },
+  {
+    id: "nylon-shell",
+    match: /ripstop|nylon upper|nylon trainers|windbreaker|ballistic nylon/,
+    text:
+      "MATERIAL OPTICS: the nylon has a crisp low sheen with a visible grid or weave texture; highlights are small and hard-edged; grime reads as a dull greyed area where the sheen is gone."
+  },
+  {
+    id: "leather-sneaker",
+    match: /white leather court|calf leather.*sneaker|leather low-top|cupsole|star sneakers/,
+    text:
+      "MATERIAL OPTICS: smooth white leather carries one broad soft highlight with fine creases showing as darker lines; the rubber cupsole is matte with a faint yellow cast where it aged; suede patches are a dry matte that darkens when soiled."
+  },
+  {
+    id: "foam-clog",
+    match: /foam clog|foam resin|moulded foam/,
+    text:
+      "MATERIAL OPTICS: the moulded foam is a soft matte with a faint satin highlight on curved surfaces; grime collects as dark lines inside the ventilation holes and a grey film on the footbed."
+  },
+  {
+    id: "gum-sole-trainers",
+    match: /gum rubber|gum sole/,
+    text:
+      "MATERIAL OPTICS: black suede is a deep matte that greys where the nap is worn; the smooth leather panels carry a soft window highlight; the gum rubber sole is translucent amber with a satin sheen and dirt settled along its edge."
+  },
+  {
     id: "suede",
     match: /suede/,
     text:
@@ -78,7 +144,7 @@ export const MATERIAL_OPTICS: OpticsRule[] = [
   },
   {
     id: "pebbled-bag",
-    match: /pebbled|handbag|hobo|bag corners/,
+    match: /pebbled|handbag|hobo|bag corners|saffiano|togo/,
     text:
       "MATERIAL OPTICS: the bag's surface breaks the light into a fine dotted or brushed highlight pattern; the corners show the finish worn through in a hard-edged patch exposing lighter, fuzzier material underneath; handles are darker and smoother where hands grip them, with a faint oily sheen; stitched seams sit proud with a highlight on each stitch."
   },
@@ -203,11 +269,11 @@ export type ObjectFamily = "shoe" | "bag" | "garment" | "bedding" | "plush" | "o
 
 export function objectFamily(spec: Pick<ObjectSpec, "noun" | "material">): ObjectFamily {
   const key = `${spec.noun} ${spec.material}`.toLowerCase();
-  if (/shoe|sneaker|slipper|boot|loafer|sandal/.test(key)) return "shoe";
-  if (/handbag|hobo|bag|suitcase/.test(key)) return "bag";
+  if (/shoe|sneaker|slipper|boot|loafer|sandal|pump|flat|trainer|clog/.test(key)) return "shoe";
+  if (/handbag|hobo|bag|suitcase|tote|backpack|crossbody/.test(key)) return "bag";
   if (/duvet|bedding|pillow|sheet/.test(key)) return "bedding";
   if (/plush|doll/.test(key)) return "plush";
-  if (/shirt|jacket|coat|tee|denim|jeans|uniform|suit|towel|blouse|curtain/.test(key)) return "garment";
+  if (/shirt|jacket|coat|tee|denim|jeans|uniform|suit|towel|blouse|curtain|trench|sweater|windbreaker/.test(key)) return "garment";
   return "other";
 }
 

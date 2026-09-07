@@ -2556,12 +2556,11 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
   if (imageDoctrineActive(input.date) && !spec.sceneLockOnly) {
     const body = topicBody(input.topic);
     return buildDoctrinePrompts({
+      date: input.date,
       spec,
       wearKind: wearKindFromTopic(body),
       spots: namedSpotsFromTopic(body),
       passport,
-      sceneLock: CAROUSEL_SCENE_LOCK,
-      anchor: BACKGROUND_ANCHORS[dayIndex] ?? BACKGROUND_ANCHORS[0]!,
       briefs,
       sameGarment: SAME_GARMENT_CONTINUITY
     });

@@ -1,4 +1,4 @@
-import { access, mkdir, open, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, open, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync, mkdtempSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -287,6 +287,53 @@ async function pngPixelSize(filePath: string): Promise<{ width: number; height: 
 }
 
 describe("generatePublicSite", () => {
+  it("changes only the Qinghai search meta description and preserves every other rendered byte", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-qinghai-snippet-"));
+    await writeBusinessProfile(root);
+    const page = publicSupportPages().find((item) => item.slug === "qinghai-road-shoe-cleaning")!;
+    const saved = page.search_description;
+    const expected = "逢甲、西屯洗鞋：一般運動鞋水洗參考價250元，先LINE傳照片確認鞋況與報價。私享家位於青海路二段365號，台中全市免費收送、無低消，清潔費另計。";
+    const options = { root, baseUrl: "https://example.com", now: "2026-09-07T00:00:00.000Z" };
+    const meta = /<meta name="description" content="[^"]*" \/>/g;
+    const snapshot = async () => {
+      const result: Record<string, string> = {};
+      for (const path of await readdir(join(root, "docs"), { recursive: true })) {
+        const absolute = join(root, "docs", path);
+        if (statSync(absolute).isFile()) result[path] = (await readFile(absolute)).toString("base64");
+      }
+      return result;
+    };
+    try {
+      await generatePublicSite(options);
+      const candidate = await snapshot();
+      const candidateHtml = await readFile(join(root, "docs", page.path), "utf8");
+      expect(candidateHtml.match(meta)).toEqual([`<meta name="description" content="${expected}" />`]);
+      expect(publicSupportPages().filter((item) => item.search_description?.trim()).map((item) => item.slug))
+        .toEqual(["qinghai-road-shoe-cleaning"]);
+
+      delete page.search_description;
+      await generatePublicSite(options);
+      const baseline = await snapshot();
+      const baselineHtml = await readFile(join(root, "docs", page.path), "utf8");
+      expect(baselineHtml.match(meta)).toEqual([`<meta name="description" content="${page.description}" />`]);
+      expect(candidateHtml.replace(meta, "")).toBe(baselineHtml.replace(meta, ""));
+      const changed = Object.keys(candidate).filter((path) => candidate[path] !== baseline[path]);
+      expect(Object.keys(candidate).sort()).toEqual(Object.keys(baseline).sort());
+      expect(changed.map((path) => path.replaceAll("\\", "/"))).toEqual([page.path]);
+
+      page.search_description = "  \n  ";
+      await generatePublicSite(options);
+      expect(await readFile(join(root, "docs", page.path), "utf8")).toBe(baselineHtml);
+      page.search_description = '  "鞋" & <保養>  ';
+      await generatePublicSite(options);
+      const escaped = await readFile(join(root, "docs", page.path), "utf8");
+      expect(escaped.match(meta)).toEqual(['<meta name="description" content="&quot;鞋&quot; &amp; &lt;保養&gt;" />']);
+      expect(escaped.replace(meta, "")).toBe(baselineHtml.replace(meta, ""));
+    } finally {
+      page.search_description = saved;
+    }
+  });
+
   it("changes only Birkenstock service anchors while preserving its rendered image and content", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-birkenstock-parity-"));
     await writeBusinessProfile(root);

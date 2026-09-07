@@ -59,7 +59,7 @@ describe("free headlines from 2026-09-13", () => {
     // checked directly: a bad headline on an unscheduled seed would otherwise
     // surface the first time the plan is extended.
     const seeds = seedHeadlines();
-    expect(seeds).toHaveLength(68);
+    expect(seeds).toHaveLength(78);
     for (const seed of seeds) {
       expect(seed.headline, seed.topic).not.toBe(seed.topic);
       expect(seed.headline, seed.topic).toMatch(OBJECT_LEAD_RE);

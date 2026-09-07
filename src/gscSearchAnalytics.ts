@@ -39,6 +39,12 @@ export interface GscDayReport {
   totals: { clicks: number; impressions: number; ctr: number; position: number };
   top_queries: GscQueryRow[];
   top_pages: GscQueryRow[];
+  /**
+   * GSC query/page pairs. Unlike the two independent top lists above, this is
+   * the only evidence that a specific search query actually reached a
+   * specific URL. Consumers must not infer that relationship by array order.
+   */
+  top_query_pages: GscQueryRow[];
 }
 
 export class GscNotConfiguredError extends Error {
@@ -99,7 +105,7 @@ async function queryDimension(
   token: string,
   siteUrl: string,
   date: string,
-  dimension: "query" | "page"
+  dimensions: Array<"query" | "page">
 ): Promise<GscQueryRow[]> {
   const res = await fetchImpl(
     `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
@@ -109,14 +115,14 @@ async function queryDimension(
       body: JSON.stringify({
         startDate: date,
         endDate: date,
-        dimensions: [dimension],
+        dimensions,
         rowLimit: 25
       })
     }
   );
   const body = (await res.json()) as { rows?: GscQueryRow[]; error?: { message?: string } };
   if (!res.ok) {
-    throw new Error(`GSC searchAnalytics.query (${dimension}) failed: ${body.error?.message ?? res.status}`);
+    throw new Error(`GSC searchAnalytics.query (${dimensions.join("+")}) failed: ${body.error?.message ?? res.status}`);
   }
   return body.rows ?? [];
 }
@@ -167,10 +173,11 @@ export async function fetchGscDayReport(input: {
   const fetchImpl = input.fetchImpl ?? fetch;
   const token = await accessToken(fetchImpl, env);
 
-  const [totals, queryRows, pageRows] = await Promise.all([
+  const [totals, queryRows, pageRows, queryPageRows] = await Promise.all([
     queryTotals(fetchImpl, token, siteUrl, input.date),
-    queryDimension(fetchImpl, token, siteUrl, input.date, "query"),
-    queryDimension(fetchImpl, token, siteUrl, input.date, "page")
+    queryDimension(fetchImpl, token, siteUrl, input.date, ["query"]),
+    queryDimension(fetchImpl, token, siteUrl, input.date, ["page"]),
+    queryDimension(fetchImpl, token, siteUrl, input.date, ["query", "page"])
   ]);
 
   return {
@@ -179,7 +186,8 @@ export async function fetchGscDayReport(input: {
     fetched_at: new Date().toISOString(),
     totals,
     top_queries: queryRows,
-    top_pages: pageRows
+    top_pages: pageRows,
+    top_query_pages: queryPageRows
   };
 }
 

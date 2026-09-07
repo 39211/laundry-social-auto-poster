@@ -1,0 +1,88 @@
+{
+  "package_id": "sxj-index-growth-cohort-a-2026-09-02",
+  "site": "https://sixiangjialaundry.com",
+  "status": "HOLD_UNTIL_PILOT_ADOPT",
+  "source_worktree": "C:/Users/cyc39/.codex/worktrees/sxj-index-growth-pilot-minimal-20260902",
+  "target_overlay": "root Pages repo main; HTML/SEO files only",
+  "sitemap_before_count": 33,
+  "sitemap_after_count_if_released": 38,
+  "overlay_files": [
+    "docs/guides/suede-shoe-cleaning.html",
+    "docs/guides/canvas-shoe-mud.html",
+    "docs/guides/leather-shoe-water-marks.html",
+    "docs/guides/washing-machine-shoe-risk.html",
+    "docs/guides/athletic-shoe-mixed-materials.html"
+  ],
+  "sitemap_delta": [
+    "https://sixiangjialaundry.com/guides/suede-shoe-cleaning.html",
+    "https://sixiangjialaundry.com/guides/canvas-shoe-mud.html",
+    "https://sixiangjialaundry.com/guides/leather-shoe-water-marks.html",
+    "https://sixiangjialaundry.com/guides/washing-machine-shoe-risk.html",
+    "https://sixiangjialaundry.com/guides/athletic-shoe-mixed-materials.html"
+  ],
+  "candidates": [
+    {
+      "slug": "suede-shoe-cleaning",
+      "sha256": "3fcd15593d6c5e23369c945a74e9a4123d84b35e1e53d158a2e06cfefa75ff33",
+      "bytes": 42584,
+      "body_chars": 1241,
+      "answer_surface": "麂皮變硬多半是絨毛倒伏，不要濕擦；先乾刷看方向。",
+      "intent_terms": ["麂皮鞋清潔", "麂皮鞋變硬", "麂皮鞋發亮"]
+    },
+    {
+      "slug": "canvas-shoe-mud",
+      "sha256": "0b0d6298c7d3196d12d31187eaa4e3b5d8c1011be3a8fdeab15f08ed446397bb",
+      "bytes": 42043,
+      "body_chars": 1159,
+      "answer_surface": "帆布沾泥先等乾再處理；濕刷會把泥推進織紋。",
+      "intent_terms": ["帆布鞋沾泥", "帆布鞋清潔", "帆布鞋泥巴"]
+    },
+    {
+      "slug": "leather-shoe-water-marks",
+      "sha256": "27ee1d06a84fbec30c5910ce38c8cee710aac0ffebd593ab90137a06228a0365",
+      "bytes": 42310,
+      "body_chars": 1158,
+      "answer_surface": "皮鞋雨痕先不要上油；水痕浮出後上油會鎖進皮裡。",
+      "intent_terms": ["皮鞋水痕", "皮鞋淋雨", "皮鞋上油"]
+    },
+    {
+      "slug": "washing-machine-shoe-risk",
+      "sha256": "c02f3db93235f9d09f780088889432479007d2047fd10e1382e642710df37647",
+      "bytes": 42510,
+      "body_chars": 1200,
+      "answer_surface": "鞋子不建議丟洗衣機；泡水與脫水會傷膠邊與內裡。",
+      "intent_terms": ["鞋子可以丟洗衣機嗎", "鞋子洗衣機", "鞋子脫膠"]
+    },
+    {
+      "slug": "athletic-shoe-mixed-materials",
+      "sha256": "a7311e3a2f8322f49197eafd07bb2118a2d452e6436072a817488e61305030ac",
+      "bytes": 42685,
+      "body_chars": 1190,
+      "answer_surface": "運動鞋要分網布、膠邊與內裡；不能同一種刷法。",
+      "intent_terms": ["運動鞋清潔", "運動鞋混合材質", "網布鞋清潔"]
+    }
+  ],
+  "gate_status": {
+    "structural": "PASS",
+    "claim_provenance": "PARTIAL_MATCH_ONLY",
+    "asset_provenance": "PENDING_RECHECK",
+    "independent_case_evidence": "NOT_ESTABLISHED",
+    "guide_link_closure_before_release": "5 existing live targets + 5 candidate targets currently 404",
+    "pilot_day_7": "2026-09-09",
+    "pilot_day_28": "2026-09-30"
+  },
+  "release_prerequisites": [
+    "pilot 28 日內已收錄且有非品牌 GSC impressions",
+    "同一觀測期間 GA4 organic 或 LINE click 有訊號",
+    "五頁素材與 claim provenance 重新核准",
+    "五頁同批 overlay，補 sitemap 後逐頁 HTTP 200／canonical／noindex／正文稽核",
+    "重新比對本機與 live sitemap 集合，才可送出一次變更 URL 決策"
+  ],
+  "forbidden_until_release": [
+    "no_single_candidate_publish",
+    "no_new_city_doorway_pages",
+    "no_duplicate_indexnow",
+    "no_google_indexing_api_for_articles",
+    "no_claim_that_http_200_equals_google_indexed"
+  ]
+}

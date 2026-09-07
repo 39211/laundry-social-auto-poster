@@ -174,6 +174,58 @@ def opt_log_severity(has_log, has_success_post, has_git):
     return "MED"
 
 
+def has_live_posts(posted):
+    """True only for a real aired row. dry_run / failed / non-dicts do not count.
+
+    Check 10 exists because 8/12-13 shipped nothing (ERROR-BOOK F19). A dry-run
+    success looks like a post in the log and must not silence that alarm.
+    """
+    if posted is None:
+        entries = []
+    elif isinstance(posted, list):
+        entries = posted
+    else:
+        entries = [posted]
+    return any(
+        isinstance(entry, dict)
+        and entry.get("status") in ("success", "posted")
+        and not entry.get("dry_run")
+        for entry in entries
+    )
+
+
+def unposted_day_what(has_live, paused, hour):
+    """HIGH copy only after 21:00 when nothing aired and nobody paused.
+
+    The audit is scheduled for 23:10, after every publish window has closed.
+    Run by hand at 02:00 it would flag a day that has simply not happened yet
+    -- and a check that cries wolf when you run it manually is a check you
+    learn to scroll past (ERROR-BOOK B9). A pause file is an intentional
+    brake, not a silent outage (check 10's whole point is telling those apart).
+    """
+    if has_live or paused or int(hour) < 21:
+        return None
+    return "今天一則都沒發出去"
+
+
+def wake_to_run_breaks(text):
+    """Parse check-10 WakeToRun probe lines `TaskName|True`.
+
+    Empty output is itself a finding: B8 -- a probe that returns nothing is
+    not health, and this is the last check that still runs after a crash.
+    Returns {"empty": bool, "false_tasks": [task names with WakeToRun false]}.
+    """
+    lines = [ln.strip() for ln in (text or "").splitlines() if "|" in ln]
+    if not lines:
+        return {"empty": True, "false_tasks": []}
+    false_tasks = []
+    for line in lines:
+        name, wake = line.split("|", 1)
+        if wake.strip().lower() not in ("true", "$true"):
+            false_tasks.append(name.strip())
+    return {"empty": False, "false_tasks": false_tasks}
+
+
 # --- end helpers ---
 
 TODAY = date.today()
@@ -338,7 +390,7 @@ idx = load(f"output/operations/indexing-push-{ds}.json")
 if idx is None:
     add("MED", "索引", "今天沒有索引推送記錄",
         f"output/operations/indexing-push-{ds}.json 缺檔",
-        "確認 06:30 Daily-Generate 有跑到 submit-indexnow")
+        "確認今日是否有實質 sitemap 變更；只有變更 URL 才應由 indexing-push 通知 IndexNow")
 else:
     # IndexNow 協定裡 202 = 已受理(key 驗證中),與 200 同為成功;
     # 2026-08-17 網域剛切換當晚,把正常的 202 誤標成 HIGH。
@@ -412,14 +464,10 @@ if pause is not None:
     )
 
 posted = load(f"data/posted-log/{ds}.json", [])
-posted = posted if isinstance(posted, list) else [posted]
-live = {(e.get("slot"), e.get("platform")) for e in posted
-        if e.get("status") in ("success", "posted") and not e.get("dry_run")}
 # Scheduled for 23:10, after every publish window has closed. Run by hand at
 # 02:00 it would flag a day that has simply not happened yet -- and a check that
 # cries wolf when you run it manually is a check you learn to scroll past.
-too_early_to_judge = datetime.now().hour < 21
-if not live and pause is None and not too_early_to_judge:
+if unposted_day_what(has_live_posts(posted), pause is not None, datetime.now().hour):
     add("HIGH", "今日發布", "今天一則都沒發出去",
         f"data/posted-log/{ds}.json 沒有任何 success/posted",
         "查排程 LastTaskResult;3221225786=行程被殺(多半是睡眠或關機)。"
@@ -429,19 +477,16 @@ wake_probe = run(["powershell", "-NoProfile", "-Command",
                   "Get-ScheduledTask | Where-Object {$_.TaskName -in "
                   "'Laundry-Daily-Generate','Laundry-Daily-Approve','Laundry-CatchUp-Publish'} | "
                   "ForEach-Object { '{0}|{1}' -f $_.TaskName, $_.Settings.WakeToRun }"])
-seen_wake = 0
-for line in wake_probe.strip().splitlines():
-    if "|" in line:
-        seen_wake += 1
-        name, wake = line.split("|", 1)
-        if wake.strip().lower() not in ("true", "$true"):
-            add("HIGH", "排程", f"{name.strip()} 的 WakeToRun 是 False",
-                "機器睡著時排程不會叫醒它,整天會靜默不發",
-                "Set-ScheduledTask 把 WakeToRun 設為 True")
-if seen_wake == 0:
+wake_breaks = wake_to_run_breaks(wake_probe)
+if wake_breaks["empty"]:
     add("HIGH", "排程", "查不到三個關鍵排程的 WakeToRun 設定",
         "PowerShell 探測沒有回傳任何一行",
         "這是防止整天靜默的最後一道檢查,查不到就等於沒檢查 —— 人工確認一次")
+else:
+    for name in wake_breaks["false_tasks"]:
+        add("HIGH", "排程", f"{name} 的 WakeToRun 是 False",
+            "機器睡著時排程不會叫醒它,整天會靜默不發",
+            "Set-ScheduledTask 把 WakeToRun 設為 True")
 
 
 # --- Report ------------------------------------------------------------------

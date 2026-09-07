@@ -78,6 +78,22 @@ export async function generateDailyContent(options: GenerateDailyContentOptions 
         }
       }
     }
+
+    // New generation always emits a template image at slot 3 because
+    // DAILY_SCHEDULE lists 12:00. A scheduled noon Reel at that same number
+    // is restored in full, captions included; the matching loop above would
+    // otherwise swap the Reel's caption onto the template. A Reel whose file
+    // is gone is left to the new generation. Existing slots the new
+    // generation does not emit are not added back.
+    for (const current of existing.slots) {
+      if (current.slot <= 2) continue;
+      if (current.media_type !== "reel" || !current.local_video_path) continue;
+      const videoPath = join(root, ...current.local_video_path.split("/"));
+      if (!(await exists(videoPath))) continue;
+      const generatedIndex = content.slots.findIndex((item) => item.slot === current.slot);
+      if (generatedIndex === -1) continue;
+      content.slots[generatedIndex] = current;
+    }
   }
 
   // Force already rebuilt non-reel slots. Move their old bytes before the new

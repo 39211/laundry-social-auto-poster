@@ -6,7 +6,13 @@ import type { AbDayPlan } from "../src/abTestPlan";
 import { saveAbTestPlan } from "../src/abTestPlan";
 import { writeDailyContent, writePostLog, writeVideoSources } from "../src/logging";
 import { instagramInsightsDirectory } from "../src/paths";
-import { reviewBatch } from "../src/reelBatchReview";
+import {
+  clipDurationSeconds,
+  reviewBatch,
+  THRESHOLDS_72H,
+  watchRatio,
+  watchRatioMissed
+} from "../src/reelBatchReview";
 import { REEL_CONCEPTS, REEL_SCHEDULE, type ReelConcept } from "../src/reelConcepts";
 import type { DailyContent, DailySlot, PostLogEntry, VideoSourceRecord } from "../src/types";
 
@@ -139,7 +145,14 @@ async function writeVideoSourceRecord(root: string, slot: number, sourceConceptI
 
 async function writeInsights(
   root: string,
-  rows: Array<{ slot: number; reach: number; engaged: number; saved: number; shares: number }>
+  rows: Array<{
+    slot: number;
+    reach: number;
+    engaged: number;
+    saved: number;
+    shares: number;
+    avg_watch_time?: number;
+  }>
 ): Promise<void> {
   const dir = instagramInsightsDirectory(root);
   await mkdir(dir, { recursive: true });
@@ -155,7 +168,8 @@ async function writeInsights(
             reach: row.reach,
             total_interactions: row.engaged,
             saved: row.saved,
-            shares: row.shares
+            shares: row.shares,
+            ...(row.avg_watch_time !== undefined ? { ig_reels_avg_watch_time: row.avg_watch_time } : {})
           }
         }))
       },
@@ -164,6 +178,28 @@ async function writeInsights(
     ),
     "utf8"
   );
+}
+
+async function writeWatchFixture(
+  durationSeconds: number,
+  avgWatchMs: number | undefined
+): Promise<void> {
+  await writeDailyContent(
+    calendarWith([baseSlot(2, "carousel", "unrelated carousel topic"), baseSlot(3, "reel", TEST_CONCEPT.hook)]),
+    root
+  );
+  await writePostLog(TEST_DATE, [reelPost(3, `${TEST_DATE}T05:30:00.000Z`)], root);
+  await writeVideoSources(TEST_DATE, [{ ...videoSourceRecord(3, TEST_CONCEPT.id), duration_seconds: durationSeconds }], root);
+  await writeInsights(root, [
+    {
+      slot: 3,
+      reach: 350,
+      engaged: 8,
+      saved: 4,
+      shares: 2,
+      ...(avgWatchMs !== undefined ? { avg_watch_time: avgWatchMs } : {})
+    }
+  ]);
 }
 
 let root: string;
@@ -711,5 +747,76 @@ describe("reviewBatch finds the Reel wherever it actually published", () => {
     expect(outcome).toBeTruthy();
     expect(outcome!.verdict).toBe("not_published");
     expect(review.data_gaps.some((gap) => gap.includes(TEST_DATE) && gap.includes(TEST_CONCEPT.id))).toBe(true);
+  });
+});
+
+describe("F35 watch ratio: ig_reels_avg_watch_time / clip duration", () => {
+  it("watchRatio is milliseconds over duration seconds, not seconds over seconds", () => {
+    expect(watchRatio(3500, 10)).toBe(0.35);
+    expect(watchRatio(2000, 10)).toBe(0.2);
+    expect(watchRatio(0, 10)).toBe(0);
+    expect(watchRatio(3500, 0)).toBeNull();
+    expect(watchRatio(-1, 10)).toBeNull();
+    expect(clipDurationSeconds({ duration_seconds: 10 })).toBe(10);
+    expect(clipDurationSeconds({ duration_seconds: 0 })).toBeNull();
+    expect(clipDurationSeconds(undefined)).toBeNull();
+  });
+
+  it("watchRatioMissed fires only below the 35% bar", () => {
+    expect(THRESHOLDS_72H.watch_ratio).toBe(0.35);
+    expect(watchRatioMissed(0.35)).toBeUndefined();
+    expect(watchRatioMissed(0.2)).toBe("watch ratio 20.0% < 35%");
+    expect(watchRatioMissed(0.349)).toBe("watch ratio 34.9% < 35%");
+    expect(watchRatioMissed(null)).toBeUndefined();
+  });
+
+  it("fails a mature Reel whose watch ratio is below 35% even when reach/saves clear", async () => {
+    await writeWatchFixture(10, 2000);
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+    expect(outcome).toBeTruthy();
+    expect(outcome!.published).toBe(true);
+    expect(outcome!.avg_watch_time_ms).toBe(2000);
+    expect(outcome!.watch_ratio).toBe(0.2);
+    expect(outcome!.missed).toContain("watch ratio 20.0% < 35%");
+    expect(outcome!.verdict).toBe("fail");
+  });
+
+  it("passes when watch ratio meets 35% and the other bars clear", async () => {
+    await writeWatchFixture(10, 3500);
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+    expect(outcome).toBeTruthy();
+    expect(outcome!.avg_watch_time_ms).toBe(3500);
+    expect(outcome!.watch_ratio).toBe(0.35);
+    expect(outcome!.missed).toEqual([]);
+    expect(outcome!.verdict).toBe("pass");
+  });
+
+  it("does not invent a duration: watch time without video-sources leaves ratio null and does not fail", async () => {
+    await writeDailyContent(
+      calendarWith([baseSlot(2, "carousel", "unrelated carousel topic"), baseSlot(3, "reel", TEST_CONCEPT.hook)]),
+      root
+    );
+    await writePostLog(TEST_DATE, [reelPost(3, `${TEST_DATE}T05:30:00.000Z`)], root);
+    await writeInsights(root, [{ slot: 3, reach: 350, engaged: 8, saved: 4, shares: 2, avg_watch_time: 2000 }]);
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+    expect(outcome).toBeTruthy();
+    expect(outcome!.avg_watch_time_ms).toBe(2000);
+    expect(outcome!.watch_ratio).toBeNull();
+    expect(outcome!.missed).toEqual([]);
+    expect(outcome!.verdict).toBe("pass");
+  });
+
+  it("does not fail when duration is known but watch time was never collected", async () => {
+    await writeWatchFixture(10, undefined);
+    const review = await reviewBatch({ asOf: AS_OF, root });
+    const outcome = review.outcomes.find((item) => item.date === TEST_DATE);
+    expect(outcome).toBeTruthy();
+    expect(outcome!.avg_watch_time_ms).toBeNull();
+    expect(outcome!.watch_ratio).toBeNull();
+    expect(outcome!.missed).toEqual([]);
+    expect(outcome!.verdict).toBe("pass");
   });
 });

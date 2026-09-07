@@ -14,9 +14,12 @@ import {
   buildIsolationPlan,
   buildJudgePrompt,
   CAROUSEL_QA_AXES,
+  carouselJudgeAttemptLimit,
+  collectCarouselJudgeStdout,
   detectCarouselRubricIncoherence,
   detectTreatment,
   evaluateCarouselJudgeStdout,
+  shouldRetryCarouselJudge,
   evaluateFromDisk,
   evaluateJudgeStdout,
   hitsStoryFailAxis,
@@ -975,6 +978,127 @@ describe("carousel observe block is mandatory", () => {
     const record = carouselEvaluate(carouselPassStdout(COMPLETE_OBS), "球鞋");
     expect(record.verdict).toBe("PASS");
     expect(record.fail_class).toBeNull();
+  });
+});
+
+describe("carousel judge OBS emitter retry (F20 fish-3)", () => {
+  it("retries only missing_observation", () => {
+    expect(shouldRetryCarouselJudge({ fail_class: "missing_observation" })).toBe(true);
+    expect(shouldRetryCarouselJudge({ fail_class: "content" })).toBe(false);
+    expect(shouldRetryCarouselJudge({ fail_class: "judge_blind" })).toBe(false);
+    expect(shouldRetryCarouselJudge({ fail_class: "unparseable" })).toBe(false);
+    expect(shouldRetryCarouselJudge({ fail_class: "missing_axis" })).toBe(false);
+    expect(shouldRetryCarouselJudge({ fail_class: "rubric_incoherent" })).toBe(false);
+    expect(shouldRetryCarouselJudge({ fail_class: "hash_mismatch" })).toBe(false);
+    expect(shouldRetryCarouselJudge({ fail_class: null })).toBe(false);
+    expect(shouldRetryCarouselJudge(undefined)).toBe(false);
+  });
+
+  it("replays a supplied stdout once; live path may retry once", () => {
+    expect(carouselJudgeAttemptLimit(true)).toBe(1);
+    expect(carouselJudgeAttemptLimit(false)).toBe(2);
+  });
+
+  it("retries once when first stdout is missing OBS then accepts a complete block", async () => {
+    const stdouts = [carouselPassStdout([]), carouselPassStdout(COMPLETE_OBS)];
+    let calls = 0;
+    const { record, attempts } = await collectCarouselJudgeStdout({
+      attemptLimit: 2,
+      runJudge: () => {
+        calls += 1;
+        const next = stdouts.shift();
+        if (next === undefined) throw new Error("extra judge call");
+        return next;
+      },
+      evaluate: (stdout) => carouselEvaluate(stdout, "球鞋")
+    });
+    expect(calls).toBe(2);
+    expect(attempts).toBe(2);
+    expect(record.verdict).toBe("PASS");
+    expect(record.fail_class).toBeNull();
+  });
+
+  it("stays FAIL_CLOSED missing_observation if the retry is still incomplete", async () => {
+    let calls = 0;
+    const { record, attempts } = await collectCarouselJudgeStdout({
+      attemptLimit: 2,
+      runJudge: () => {
+        calls += 1;
+        return carouselPassStdout([]);
+      },
+      evaluate: (stdout) => carouselEvaluate(stdout, "球鞋")
+    });
+    expect(calls).toBe(2);
+    expect(attempts).toBe(2);
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("missing_observation");
+  });
+
+  it("does not retry a content FAIL that already has OBS", async () => {
+    const stdout = readFileSync(join(carouselFixtureDir, "carousel-mixed-garments", "judge-stdout.txt"), "utf8");
+    const topic = JSON.parse(
+      readFileSync(join(carouselFixtureDir, "carousel-mixed-garments", "meta.json"), "utf8")
+    ).topic as string;
+    let calls = 0;
+    const { record, attempts } = await collectCarouselJudgeStdout({
+      attemptLimit: 2,
+      runJudge: () => {
+        calls += 1;
+        return stdout;
+      },
+      evaluate: (text) => carouselEvaluate(text, topic)
+    });
+    expect(calls).toBe(1);
+    expect(attempts).toBe(1);
+    expect(record.verdict).toBe("FAIL");
+    expect(record.fail_class).toBe("content");
+  });
+
+  it("does not retry when attemptLimit is 1 (supplied stdout / replay)", async () => {
+    let calls = 0;
+    const { record, attempts } = await collectCarouselJudgeStdout({
+      attemptLimit: carouselJudgeAttemptLimit(true),
+      runJudge: () => {
+        calls += 1;
+        return carouselPassStdout([]);
+      },
+      evaluate: (stdout) => carouselEvaluate(stdout, "球鞋")
+    });
+    expect(calls).toBe(1);
+    expect(attempts).toBe(1);
+    expect(record.fail_class).toBe("missing_observation");
+  });
+
+  it("keeps the first fail-closed record if the retry throws", async () => {
+    let calls = 0;
+    const { record, attempts } = await collectCarouselJudgeStdout({
+      attemptLimit: 2,
+      runJudge: () => {
+        calls += 1;
+        if (calls === 1) return carouselPassStdout([]);
+        throw new Error("codex died on retry");
+      },
+      evaluate: (stdout) => carouselEvaluate(stdout, "球鞋")
+    });
+    expect(calls).toBe(2);
+    expect(attempts).toBe(2);
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("missing_observation");
+  });
+
+  it("live CLI path is wired to the retry helper; replay evaluate is not", () => {
+    const cliSrc = readFileSync(join(root, "src", "visualQaCli.ts"), "utf8");
+    const evaluateStart = cliSrc.indexOf('if (getFlag(args, "evaluate"))');
+    const liveStart = cliSrc.indexOf("if (!topic)");
+    expect(evaluateStart).toBeGreaterThan(0);
+    expect(liveStart).toBeGreaterThan(evaluateStart);
+    const evaluateBlock = cliSrc.slice(evaluateStart, liveStart);
+    const liveBlock = cliSrc.slice(liveStart);
+    expect(evaluateBlock).toContain("evaluateCarouselFromDisk");
+    expect(evaluateBlock).not.toContain("collectCarouselJudgeStdout");
+    expect(liveBlock).toContain("collectCarouselJudgeStdout");
+    expect(liveBlock).toContain("carouselJudgeAttemptLimit(stdoutSupplied)");
+    expect(liveBlock).toContain("judge_attempts");
   });
 });
 

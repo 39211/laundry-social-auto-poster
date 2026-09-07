@@ -149,7 +149,12 @@ function Test-ConceptRejected([string]$ConceptId) {
 # Per-object contact physics for the [Core physics] block. Generic "weight +
 # contact shadow" is banned: name how water, foam, bristles or dust actually
 # move on this object type.
-function Get-CorePhysics([string]$ObjectType) {
+function Get-CorePhysics([string]$ObjectType, [string]$Act) {
+    # F33: after reused the working-physics sentence, so the model kept cleaning.
+    # before/middle keep object-specific process; after is settled/still only.
+    if ($Act -eq "after") {
+        return "The object is settled and still in the supplied after state. No cloth, brush, steam or hand touches the object. No wiping, scrubbing, wetting-then-lightening, or any other cleaning-in-progress motion occurs. Material, colour, remaining wear, fittings and contact shadow stay exactly as the still shows."
+    }
     switch ($ObjectType) {
         "white-shoe" { return "Brush tips bend as they press the oxidised foxing; a wet edge creeps along the amber line without lifting the canvas weave; foam gathers in the foxing stitch groove and stays there." }
         "handbag" { return "A cloth compresses the handle leather so the honey grip-sheen dulls at the contact; residual oil beads then wipes along the rivet ring; the bag body stays planted with a hard contact shadow." }
@@ -682,7 +687,24 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
 
         $generated = $false
         foreach ($attempt in 1, 2) {
-            $template = Get-Content (Join-Path $run "manifests\white-shoe-yellowing-before.json") -Raw -Encoding utf8 | ConvertFrom-Json
+            # The manifest used to be cloned from a July run file under
+            # output/.../manifests/, and a disk cleanup on 2026-08-26 deleted
+            # that whole directory: every run after it died right here, before
+            # scheduling or review records, and nobody was told (ERROR-BOOK
+            # 2026-08-29). Generation parameters now live in the script, and
+            # nothing in output/ is load-bearing for the next run.
+            $template = [pscustomobject]@{
+                generation_id    = ""
+                source_shot_id   = ""
+                input_image      = ""
+                output_file      = ""
+                prompt           = ""
+                duration_seconds = 5
+                aspect_ratio     = "9:16"
+                resolution       = "720p"
+                model            = "grok-imagine-video-1.5"
+                route            = "hermes-xai-oauth"
+            }
             # Middle generation_id carries _middle_ so Hermes idempotency never
             # collides with before/after of the same concept.
             if ($state -eq "middle") {
@@ -740,7 +762,7 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
                 "after"  { "Shot summary: the same object, cleaned, settles in frame." }
                 default  { "Shot summary: the object holds in frame." }
             }
-            $corePhysics = Get-CorePhysics $objectType
+            $corePhysics = Get-CorePhysics $objectType $state
             $actBans = Get-ActBans $state
             # Four style blocks stay first. Duration/aspect/resolution stay on
             # the manifest, not in this prose. Bans are per-act, not a shared tail.
@@ -756,21 +778,26 @@ Use the built-in image model only. Do not read any workspace file. Generate ONE 
                 $actBans
             $template | ConvertTo-Json -Depth 5 | Set-Content $manifest -Encoding utf8
 
-            Write-Log "Generating clip $concept-$state (attempt $attempt)."
+            Write-Log "Generating clip $concept-$state (attempt $attempt, hermes xai route)."
+            # F39: the metered generator this used to call lived outside the
+            # repository and was deleted from the machine on 2026-08-26 (no
+            # recycle bin copy). Clips ride the hermes xai subscription OAuth
+            # route instead -- same grok-imagine model family, no per-clip
+            # billing, ~30-40s per 5s clip in practice.
             $shotOut = @()
             try {
                 $shotOut = @(
-                    & (Join-Path $root "..\Codex\2026-06-30\copx\scripts\generate-shot.ps1") `
-                        -Manifest $manifest -Root $run -ConfirmPaidRun -PollTimeoutSeconds 900 `
+                    & (Join-Path $root "scripts\generate-clip-hermes.ps1") `
+                        -Manifest $manifest -Run $run `
                         -OutputReport (Join-Path $run "report-$concept-$state.json") 2>&1
                 )
                 $shotOut | ForEach-Object { Write-Log $_ }
             } catch {
-                Write-Log "generate-shot threw: $($_.Exception.Message)"
+                Write-Log "generate-clip-hermes threw: $($_.Exception.Message)"
                 $shotOut = @($_.Exception.Message)
             }
             if (Test-Path $out) { $generated = $true; break }
-            Write-Log "Attempt $attempt produced no clip for $concept-$state. generate-shot said: $($shotOut -join ' | ')"
+            Write-Log "Attempt $attempt produced no clip for $concept-$state. generate-clip-hermes said: $($shotOut -join ' | ')"
         }
 
         if (-not $generated) {

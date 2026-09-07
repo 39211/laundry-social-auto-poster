@@ -9,6 +9,78 @@
 $ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
+
+# F32: Start-ScheduledTask on a Disabled task fails with "The task is disabled".
+# SilentlyContinue on that line left no log, so rescue believed it had acted.
+# Plan is a pure function so PS-layer smoke can invoke it without touching the
+# live scheduler. Invoke uses the plan, then logs Enable/Start failures instead
+# of swallowing them.
+function Get-ScheduledTaskRescuePlan {
+    param(
+        [Parameter(Mandatory = $true)][string]$TaskName,
+        $Task
+    )
+    $enableFirst = $false
+    $reason = "ready"
+    if ($null -eq $Task) {
+        $reason = "missing"
+    } elseif ("$($Task.State)" -eq "Disabled") {
+        $enableFirst = $true
+        $reason = "disabled"
+    }
+    [pscustomobject]@{
+        TaskName    = $TaskName
+        EnableFirst = [bool]$enableFirst
+        Start       = $true
+        Reason      = $reason
+    }
+}
+
+function Invoke-ScheduledTaskRescue {
+    param(
+        [Parameter(Mandatory = $true)][string]$TaskName,
+        [Parameter(Mandatory = $true)][string]$LogFile,
+        $Now,
+        [scriptblock]$GetTask,
+        [scriptblock]$EnableTask,
+        [scriptblock]$StartTask
+    )
+    if ($null -eq $Now) { $Now = Get-Date }
+    if (-not $GetTask) {
+        $GetTask = { param($n) Get-ScheduledTask -TaskName $n -ErrorAction SilentlyContinue }
+    }
+    if (-not $EnableTask) {
+        $EnableTask = { param($n) Enable-ScheduledTask -TaskName $n -ErrorAction Stop }
+    }
+    if (-not $StartTask) {
+        $StartTask = { param($n) Start-ScheduledTask -TaskName $n -ErrorAction Stop }
+    }
+
+    $task = & $GetTask $TaskName
+    $plan = Get-ScheduledTaskRescuePlan -TaskName $TaskName -Task $task
+    $stamp = "{0:yyyy-MM-dd HH:mm:ss}" -f $Now
+
+    if ($plan.EnableFirst) {
+        ("[{0}] {1} is Disabled during an open window; re-enabling." -f $stamp, $TaskName) |
+            Add-Content -Path $LogFile -Encoding UTF8
+        try {
+            & $EnableTask $TaskName
+        } catch {
+            ("[{0}] Enable-ScheduledTask {1} failed: {2}" -f $stamp, $TaskName, $_.Exception.Message) |
+                Add-Content -Path $LogFile -Encoding UTF8
+        }
+    }
+
+    try {
+        & $StartTask $TaskName
+    } catch {
+        ("[{0}] Start-ScheduledTask {1} failed: {2}" -f $stamp, $TaskName, $_.Exception.Message) |
+            Add-Content -Path $LogFile -Encoding UTF8
+    }
+
+    return $plan
+}
+
 $root = Split-Path -Parent $PSScriptRoot
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
 $now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
@@ -78,13 +150,7 @@ if ($needsRescue) {
     # check above (empty NextRunTime) does not reliably catch this: it only
     # runs before $approvedPath exists for the day, and by the time a slot is
     # actually due the task may have been disabled well after that check ran.
-    $ctp = Get-ScheduledTask -TaskName "Laundry-CatchUp-Publish" -ErrorAction SilentlyContinue
-    if ($null -ne $ctp -and $ctp.State -eq "Disabled") {
-        "[{0:yyyy-MM-dd HH:mm:ss}] Laundry-CatchUp-Publish is Disabled during an open window; re-enabling." -f $now |
-            Add-Content -Path $logFile -Encoding UTF8
-        Enable-ScheduledTask -TaskName "Laundry-CatchUp-Publish" -ErrorAction SilentlyContinue | Out-Null
-    }
-    Start-ScheduledTask -TaskName "Laundry-CatchUp-Publish" -ErrorAction SilentlyContinue
+    Invoke-ScheduledTaskRescue -TaskName "Laundry-CatchUp-Publish" -LogFile $logFile -Now $now
 }
 
 # YouTube rescue, session-independent: after 21:05 every live IG Reel should
@@ -104,6 +170,6 @@ if ($now.TimeOfDay -ge [TimeSpan]"21:05") {
     if ($liveReels -gt $ytCount) {
         $line = "[{0:yyyy-MM-dd HH:mm:ss}] Patrol: {1} live Reel(s) but {2} Short(s); starting YouTube upload." -f $now, $liveReels, $ytCount
         $line | Add-Content -Path $logFile -Encoding UTF8
-        Start-ScheduledTask -TaskName "Laundry-YouTube-Upload" -ErrorAction SilentlyContinue
+        Invoke-ScheduledTaskRescue -TaskName "Laundry-YouTube-Upload" -LogFile $logFile -Now $now
     }
 }

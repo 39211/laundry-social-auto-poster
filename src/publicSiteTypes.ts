@@ -57,6 +57,13 @@ export interface SupportPageDefinition {
   /** Crawlable related guide slugs. Existing pages omit this and keep their HTML shape. */
   related_slugs?: string[];
   hub_group?: "shoes" | "bags" | "textiles" | "decisions" | "local";
+  /** Hub-only routing cards with real contextual anchors (live-site content, 2026-08-29). */
+  hub_routes?: Array<{
+    label: string;
+    description: string;
+    serviceSlug?: string;
+    supportSlug?: string;
+  }>;
 }
 
 export type GscEvidenceState =

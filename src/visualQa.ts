@@ -1497,6 +1497,50 @@ export async function evaluateCarouselFromDisk(input: {
   return record;
 }
 
+/** Live carousel judge may retry once; a supplied stdout file is replay-only. */
+export const CAROUSEL_JUDGE_LIVE_ATTEMPT_LIMIT = 2;
+
+/**
+ * F20 fish-3: the carousel gate fail-closes on missing OBS (correct).
+ * Retry only that shape — axes present, observation block absent/incomplete.
+ * Any other fail_class, PASS, or content FAIL stays first-shot.
+ */
+export function shouldRetryCarouselJudge(
+  record: Pick<CarouselQaRecord, "fail_class"> | null | undefined
+): boolean {
+  return record?.fail_class === "missing_observation";
+}
+
+export function carouselJudgeAttemptLimit(stdoutSupplied: boolean): number {
+  return stdoutSupplied ? 1 : CAROUSEL_JUDGE_LIVE_ATTEMPT_LIMIT;
+}
+
+export async function collectCarouselJudgeStdout(input: {
+  runJudge: () => Promise<string> | string;
+  evaluate: (stdout: string) => Promise<CarouselQaRecord> | CarouselQaRecord;
+  attemptLimit: number;
+}): Promise<{ record: CarouselQaRecord; attempts: number; stdout: string }> {
+  const limit = Math.max(1, Math.floor(input.attemptLimit));
+  let stdout = "";
+  let record: CarouselQaRecord | undefined;
+  let attempts = 0;
+  while (attempts < limit) {
+    attempts += 1;
+    try {
+      stdout = await input.runJudge();
+      record = await input.evaluate(stdout);
+    } catch (err) {
+      if (record && shouldRetryCarouselJudge(record)) break;
+      throw err;
+    }
+    if (!shouldRetryCarouselJudge(record)) break;
+  }
+  if (!record) {
+    throw new Error("carousel judge produced no record");
+  }
+  return { record, attempts, stdout };
+}
+
 function ffmpegFontfile(): string {
   const consola = "C:/Windows/Fonts/consola.ttf";
   const arial = "C:/Windows/Fonts/arial.ttf";

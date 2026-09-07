@@ -1,0 +1,55 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\high-heel\\heel-tip-scuff-before.png",
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "PASS",
+    "STATE_ORDER": "PASS",
+    "MIDDLE_NOT_WORSE": "PASS",
+    "HANDS": "PASS",
+    "SCENE": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "Both acts show the same single black pump with matching leather texture, silhouette, sole edge, heel shape, and exposed heel-tip area."
+  },
+  "frames_used": [
+    "before.png",
+    "after.png"
+  ],
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "T32Y",
+      "sha256": "5a5f61ebf02ff9048c3e20f3ad9c91ef43cec5514787e38027facf0dd5989cd7"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "89YK",
+      "sha256": "c6650f15818e3955c45b5f224b075d4e7a7460f456b191a7417a84a4cff3bb0d"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "T32Y",
+    "IMAGE_2": "89YK"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "T32Y",
+    "IMAGE_2": "89YK"
+  },
+  "reel_sha256": "b43886decf4211cd97ae4dd653548b79503d615b455f13e416286f63bd0eac46",
+  "prompt_hash": "4608fbf7f783774564d3c74752e3ec1446f7aaade136f0b6bb4a4cc166d809ec",
+  "run_id": "548f7cc940cf449b937c72a877f9cbf3",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-29T04:21:34.332Z",
+  "stills_missing": [
+    "middle"
+  ],
+  "mode": "warn",
+  "verdict": "PASS",
+  "fail_class": null
+}

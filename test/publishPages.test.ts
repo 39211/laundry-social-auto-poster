@@ -3,14 +3,27 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as publicImageMetadata from "../src/publicImageMetadata";
 import {
   assertMirroredReferencedAssets,
   collectReferencedPublicAssetPaths,
   MAX_REFERENCED_PUBLIC_ASSETS,
-  publishPagesAssets,
+  publishPagesAssets as publishPagesAssetsUnisolated,
   runPublishPagesCli
 } from "../src/publishPages";
+
+/** Publish-path tests inject a domain-root base so ambient PUBLIC_SITE_BASE_URL cannot false-red. */
+function publishPagesAssets(
+  date: string,
+  root: string,
+  rootPagesRepo = "",
+  now: Date = new Date()
+): string {
+  return publishPagesAssetsUnisolated(date, root, rootPagesRepo, now, {
+    env: { PUBLIC_SITE_BASE_URL: "https://example.com/" }
+  });
+}
 
 const gitAvailable = (() => {
   try {
@@ -41,6 +54,18 @@ function makeGitRepo(): { root: string; origin: string } {
   git(root, ["push", "-u", "origin", "main"]);
 
   return { root, origin };
+}
+
+/** Minimal PNG: signature + IHDR with the given size (header-only, matching regen tests). */
+function pngHeader(width: number, height: number): Buffer {
+  const buf = Buffer.alloc(24);
+  buf.writeUInt32BE(0x89504e47, 0);
+  buf.writeUInt32BE(0x0d0a1a0a, 4);
+  buf.writeUInt32BE(13, 8);
+  buf.write("IHDR", 12, "ascii");
+  buf.writeUInt32BE(width, 16);
+  buf.writeUInt32BE(height, 20);
+  return buf;
 }
 
 function writeSitemap(root: string, lastmod: string): void {
@@ -320,7 +345,10 @@ describe("publishPagesAssets", () => {
     writeFileSync(join(root, "docs", "index.html"), "<!doctype html><title>ok</title>\n");
     writeFileSync(join(root, "docs", "content-calendar", `${date}.json`), '{"slots":[]}\n');
     writeFileSync(join(root, "docs", "assets", date, "slot-01.png"), "fake image");
-    writeFileSync(join(root, "docs", "sitemap.xml"), `<urlset>sk-${"x".repeat(24)}</urlset>\n`);
+    writeFileSync(
+      join(root, "docs", "sitemap.xml"),
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://example.com/</loc><lastmod>2026-01-01</lastmod></url>\n</urlset>\nsk-${"x".repeat(24)}\n`
+    );
 
     expect(() => publishPagesAssets(date, root)).toThrow("possible secret");
   }, 15000);
@@ -715,4 +743,179 @@ describe("publishPagesAssets", () => {
     expect(git(sourceOrigin, ["rev-parse", "refs/heads/main"])).toBe(sourceOriginHead);
     expect(git(rootPagesOrigin, ["rev-parse", "refs/heads/main"])).toBe(rootPagesHead);
   }, 30000);
+
+  gitIt("regenerates public image metadata into the source Pages commit and keeps it off the root mirror", () => {
+    const previous = process.env.PUBLIC_SITE_BASE_URL;
+    process.env.PUBLIC_SITE_BASE_URL = "https://example.com/laundry-social-auto-poster/";
+    try {
+      const { root } = makeGitRepo();
+      const { origin: rootPagesOrigin } = makeGitRepo();
+      const date = "2026-05-15";
+
+      mkdirSync(join(root, "docs", "assets", date), { recursive: true });
+      mkdirSync(join(root, "docs", "content-calendar"), { recursive: true });
+      writeFileSync(join(root, "docs", "assets", date, "slot-01.png"), pngHeader(1254, 1254));
+      writeFileSync(join(root, "docs", "assets", date, "slot-01.webp"), "webp");
+      writeFileSync(
+        join(root, "docs", "index.html"),
+        `<!doctype html><img src="https://example.com/assets/${date}/slot-01.png" width="1254" height="1254">\n`
+      );
+      writeFileSync(join(root, "docs", "content-calendar", `${date}.json`), '{"slots":[]}\n');
+      writeSitemap(root, "2026-01-01");
+
+      const result = publishPagesAssets(date, root, rootPagesOrigin);
+      expect(result).toContain("Published GitHub Pages assets");
+      expect(git(root, ["log", "-1", "--pretty=%s"])).toBe(`Generate daily Pages assets ${date}`);
+
+      const committed = git(root, ["log", "-1", "--name-only", "--pretty=format:"]);
+      expect(committed).toContain("docs-internal/public-image-metadata.json");
+      const metadata = JSON.parse(git(root, ["show", "HEAD:docs-internal/public-image-metadata.json"])) as {
+        images: Record<string, { width: number; height: number; webp_path: string }>;
+      };
+      expect(metadata.images[`assets/${date}/slot-01.png`]).toEqual({
+        width: 1254,
+        height: 1254,
+        webp_path: `assets/${date}/slot-01.webp`
+      });
+
+      const mirrorTree = git(rootPagesOrigin, ["ls-tree", "-r", "main", "--name-only"]);
+      expect(mirrorTree).not.toContain("docs-internal");
+      expect(mirrorTree).not.toContain("public-image-metadata.json");
+      expect(mirrorTree).toContain("index.html");
+    } finally {
+      if (previous === undefined) delete process.env.PUBLIC_SITE_BASE_URL;
+      else process.env.PUBLIC_SITE_BASE_URL = previous;
+    }
+  }, 45000);
+
+  gitIt("fails closed when a sitemap-referenced png is corrupt, before any git action", () => {
+    const { root, origin: sourceOrigin } = makeGitRepo();
+    const { origin: rootPagesOrigin } = makeGitRepo();
+    const date = "2026-05-15";
+    mkdirSync(join(root, "docs", "assets", date), { recursive: true });
+    mkdirSync(join(root, "docs", "content-calendar"), { recursive: true });
+    writeFileSync(join(root, "docs", "assets", date, "slot-01.png"), Buffer.alloc(24, 0x41));
+    writeFileSync(
+      join(root, "docs", "index.html"),
+      `<!doctype html><img src="https://example.com/assets/${date}/slot-01.png" width="1254" height="1254">\n`
+    );
+    writeFileSync(join(root, "docs", "content-calendar", `${date}.json`), '{"slots":[]}\n');
+    writeSitemap(root, "2026-01-01");
+    const sourceHead = git(root, ["rev-parse", "HEAD"]);
+    const sourceOriginHead = git(sourceOrigin, ["rev-parse", "refs/heads/main"]);
+    const rootPagesHead = git(rootPagesOrigin, ["rev-parse", "refs/heads/main"]);
+
+    expect(() => publishPagesAssets(date, root, rootPagesOrigin)).toThrow(
+      /assets\/2026-05-15\/slot-01\.png: not png/
+    );
+    expectUnchangedPublishHeads(root, sourceOrigin, rootPagesOrigin, sourceHead, sourceOriginHead, rootPagesHead);
+  }, 30000);
+
+  gitIt("secret-scans regenerated public-image-metadata.json before staging", () => {
+    const { root, origin: sourceOrigin } = makeGitRepo();
+    const { origin: rootPagesOrigin } = makeGitRepo();
+    const date = "2026-05-15";
+    const secretPng = "sk-abcdefghijklmnopqrstuvwx.png";
+    mkdirSync(join(root, "docs", "assets", date), { recursive: true });
+    mkdirSync(join(root, "docs", "content-calendar"), { recursive: true });
+    writeFileSync(join(root, "docs", "assets", date, "slot-01.png"), pngHeader(1254, 1254));
+    writeFileSync(join(root, "docs", "assets", date, secretPng), pngHeader(720, 1280));
+    writeFileSync(join(root, "docs", "assets", date, "slot-01.webp"), "webp");
+    writeFileSync(join(root, "docs", "assets", date, "sk-abcdefghijklmnopqrstuvwx.webp"), "webp");
+    writeFileSync(join(root, "docs", "index.html"), "<!doctype html><title>ok</title>\n");
+    writeFileSync(
+      join(root, "docs", "orphan.html"),
+      `<!doctype html><img src="https://example.com/assets/${date}/${secretPng}" width="720" height="1280">\n`
+    );
+    writeFileSync(join(root, "docs", "content-calendar", `${date}.json`), '{"slots":[]}\n');
+    writeFileSync(
+      join(root, "docs", "sitemap.xml"),
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://example.com/</loc><lastmod>2026-01-01</lastmod></url>\n  <url><loc>https://example.com/orphan.html</loc><lastmod>2026-01-01</lastmod></url>\n</urlset>\n`
+    );
+    const sourceHead = git(root, ["rev-parse", "HEAD"]);
+    const sourceOriginHead = git(sourceOrigin, ["rev-parse", "refs/heads/main"]);
+    const rootPagesHead = git(rootPagesOrigin, ["rev-parse", "refs/heads/main"]);
+
+    expect(() => publishPagesAssets(date, root, rootPagesOrigin)).toThrow("possible secret");
+    expectUnchangedPublishHeads(root, sourceOrigin, rootPagesOrigin, sourceHead, sourceOriginHead, rootPagesHead);
+  }, 30000);
+
+  gitIt("infers the site base when PUBLIC_SITE_BASE_URL is unset even if PUBLIC_IMAGE_BASE_URL has a CDN path", () => {
+    const previousSite = process.env.PUBLIC_SITE_BASE_URL;
+    const previousImage = process.env.PUBLIC_IMAGE_BASE_URL;
+    delete process.env.PUBLIC_SITE_BASE_URL;
+    process.env.PUBLIC_IMAGE_BASE_URL = "https://cdn.example.com/img/";
+    try {
+      const { root } = makeGitRepo();
+      const date = "2026-05-15";
+      mkdirSync(join(root, "docs", "assets", date), { recursive: true });
+      mkdirSync(join(root, "docs", "content-calendar"), { recursive: true });
+      writeFileSync(join(root, "docs", "assets", date, "slot-01.png"), pngHeader(1254, 1254));
+      writeFileSync(join(root, "docs", "assets", date, "slot-01.webp"), "webp");
+      writeFileSync(
+        join(root, "docs", "index.html"),
+        `<!doctype html><img src="https://example.com/assets/${date}/slot-01.png" width="1254" height="1254">\n`
+      );
+      writeFileSync(join(root, "docs", "content-calendar", `${date}.json`), '{"slots":[]}\n');
+      writeSitemap(root, "2026-01-01");
+
+      const result = publishPagesAssetsUnisolated(date, root);
+      expect(result).toContain("Published GitHub Pages assets");
+      const metadata = JSON.parse(git(root, ["show", "HEAD:docs-internal/public-image-metadata.json"])) as {
+        images: Record<string, { width: number; height: number; webp_path: string }>;
+      };
+      expect(Object.keys(metadata.images)).toEqual([`assets/${date}/slot-01.png`]);
+      expect(metadata.images[`assets/${date}/slot-01.png`]).toEqual({
+        width: 1254,
+        height: 1254,
+        webp_path: `assets/${date}/slot-01.webp`
+      });
+    } finally {
+      if (previousSite === undefined) delete process.env.PUBLIC_SITE_BASE_URL;
+      else process.env.PUBLIC_SITE_BASE_URL = previousSite;
+      if (previousImage === undefined) delete process.env.PUBLIC_IMAGE_BASE_URL;
+      else process.env.PUBLIC_IMAGE_BASE_URL = previousImage;
+    }
+  }, 45000);
+
+  gitIt("uses process.env PUBLIC_SITE_BASE_URL when publishPagesAssets is called without injected env", () => {
+    const previousSite = process.env.PUBLIC_SITE_BASE_URL;
+    const previousImage = process.env.PUBLIC_IMAGE_BASE_URL;
+    process.env.PUBLIC_SITE_BASE_URL = "https://example.com/sub/";
+    process.env.PUBLIC_IMAGE_BASE_URL = "https://cdn.example.com/img/";
+    const regenSpy = vi.spyOn(publicImageMetadata, "regeneratePublicImageMetadataSync");
+    try {
+      const { root } = makeGitRepo();
+      const date = "2026-05-15";
+      mkdirSync(join(root, "docs", "assets", date), { recursive: true });
+      mkdirSync(join(root, "docs", "content-calendar"), { recursive: true });
+      writeFileSync(join(root, "docs", "assets", date, "slot-01.png"), pngHeader(1254, 1254));
+      writeFileSync(join(root, "docs", "assets", date, "slot-01.webp"), "webp");
+      writeFileSync(
+        join(root, "docs", "index.html"),
+        `<!doctype html><img src="https://example.com/sub/assets/${date}/slot-01.png" width="1254" height="1254">\n`
+      );
+      writeFileSync(join(root, "docs", "content-calendar", `${date}.json`), '{"slots":[]}\n');
+      writeFileSync(
+        join(root, "docs", "sitemap.xml"),
+        `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://example.com/sub/</loc><lastmod>2026-01-01</lastmod></url>\n</urlset>\n`
+      );
+
+      const result = publishPagesAssetsUnisolated(date, root);
+      expect(result).toContain("Published GitHub Pages assets");
+      expect(regenSpy).toHaveBeenCalled();
+      const regenOptions = regenSpy.mock.calls[0]?.[1] as { env?: NodeJS.ProcessEnv } | undefined;
+      expect(regenOptions?.env?.PUBLIC_SITE_BASE_URL).toBe("https://example.com/sub/");
+      const metadata = JSON.parse(git(root, ["show", "HEAD:docs-internal/public-image-metadata.json"])) as {
+        images: Record<string, { width: number; height: number; webp_path: string }>;
+      };
+      expect(Object.keys(metadata.images)).toEqual([`assets/${date}/slot-01.png`]);
+    } finally {
+      regenSpy.mockRestore();
+      if (previousSite === undefined) delete process.env.PUBLIC_SITE_BASE_URL;
+      else process.env.PUBLIC_SITE_BASE_URL = previousSite;
+      if (previousImage === undefined) delete process.env.PUBLIC_IMAGE_BASE_URL;
+      else process.env.PUBLIC_IMAGE_BASE_URL = previousImage;
+    }
+  }, 45000);
 });

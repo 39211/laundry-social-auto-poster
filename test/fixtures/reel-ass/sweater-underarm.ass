@@ -1,0 +1,17 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 720
+PlayResY: 1280
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Narration,Microsoft JhengHei,40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H73000000,-1,0,0,0,100,100,0,0,3,6,0,2,20,20,84,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.50,0:00:03.24,Narration,,0,0,0,,汗和止汗劑會起反應變成黃斑,
+Dialogue: 0,0:00:03.24,0:00:05.00,Narration,,0,0,0,,放得越久就越難退。
+Dialogue: 0,0:00:05.00,0:00:06.96,Narration,,0,0,0,,當季就洗掉最好處理,
+Dialogue: 0,0:00:06.96,0:00:09.31,Narration,,0,0,0,,收進櫃子放一季就定型了。

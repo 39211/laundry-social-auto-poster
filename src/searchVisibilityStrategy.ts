@@ -211,16 +211,99 @@ export const COMMUNITY_PRACTICE_SOURCES = [
 ] as const;
 
 const SERVICE_QUERY_MAP: Record<string, string[]> = {
-  "white-shoe": ["台中白鞋清潔", "台中洗鞋店", "白鞋泛黃怎麼辦", "西屯洗鞋"],
-  "shoe-bag": ["台中洗鞋店", "台中洗包包", "包包提把清潔", "逢甲洗鞋"],
-  "fabric-storage": ["台中棉被清洗", "台中床組清洗", "台中外套清洗", "布品收納前檢查"],
-  local: ["台中洗衣店", "西屯洗衣店", "青海路洗衣店", "逢甲洗鞋"],
-  "photo-guide": ["送洗前怎麼拍照", "洗衣店 LINE 詢問", "送洗前要拍哪裡", "台中洗衣店"],
-  "shirt-suit": ["台中西裝乾洗", "台中襯衫清洗", "西屯乾洗店", "西裝要乾洗嗎"],
-  "bedding-duvet": ["台中床組清洗", "台中棉被清洗", "西屯寢具清洗", "棉被有潮味怎麼辦"],
-  "plush-doll": ["台中娃娃清洗", "台中布偶清潔", "絨毛玩偶送洗", "娃娃可以洗嗎"],
-  "luxury-dry": ["台中精品乾洗", "台中名牌衣物清潔", "精緻乾洗", "精品衣物怎麼洗"],
-  "pickup-delivery": ["台中洗衣收送", "台中免費收送洗衣", "台中到府收送洗衣", "台中公司大量衣物送洗"]
+  "white-shoe": [
+    "台中洗鞋",
+    "西屯洗鞋",
+    "逢甲洗鞋",
+    "台中白鞋清潔",
+    "白鞋泛黃怎麼辦",
+    "白鞋變黃怎麼辦",
+    "球鞋清洗台中",
+    "運動鞋清洗台中"
+  ],
+  "shoe-bag": [
+    "台中洗鞋",
+    "西屯洗鞋",
+    "逢甲洗鞋",
+    "台中洗包包",
+    "西屯洗包包",
+    "台中洗包",
+    "包包提把清潔",
+    "包包發霉怎麼辦",
+    "皮革包包清潔",
+    "台中洗鞋店",
+    "台中白鞋清潔",
+    "球鞋清洗台中",
+    "運動鞋清洗台中"
+  ],
+  "fabric-storage": [
+    "台中棉被清洗",
+    "台中床組清洗",
+    "西屯寢具清洗",
+    "台中羽絨被送洗",
+    "台中外套清洗",
+    "棉被有潮味怎麼辦",
+    "布品收納前檢查"
+  ],
+  local: [
+    "台中西屯洗衣店",
+    "西屯洗衣店",
+    "青海路洗衣店",
+    "逢甲洗衣店",
+    "台中洗鞋",
+    "西屯洗鞋",
+    "逢甲洗鞋",
+    "台中洗包包",
+    "西屯洗包包",
+    "台中免費收送洗衣"
+  ],
+  "photo-guide": [
+    "洗衣送洗前怎麼拍",
+    "洗鞋送洗前怎麼拍",
+    "洗包包送洗前怎麼拍",
+    "LINE 傳照片報價",
+    "送洗前要拍哪裡",
+    "台中洗鞋預約",
+    "台中洗包包預約"
+  ],
+  "shirt-suit": [
+    "台中西裝乾洗",
+    "西屯西裝乾洗",
+    "台中襯衫清洗",
+    "西屯乾洗店",
+    "西裝要乾洗嗎",
+    "西裝送洗注意事項"
+  ],
+  "bedding-duvet": [
+    "台中床組清洗",
+    "台中棉被清洗",
+    "西屯寢具清洗",
+    "台中羽絨被送洗",
+    "台中床被收送",
+    "棉被有潮味怎麼辦"
+  ],
+  "plush-doll": [
+    "台中娃娃清洗",
+    "台中布偶清潔",
+    "絨毛玩偶送洗",
+    "娃娃可以洗嗎"
+  ],
+  "luxury-dry": [
+    "台中精品乾洗",
+    "台中名牌衣物清潔",
+    "西屯精品乾洗",
+    "精緻乾洗",
+    "精品衣物怎麼洗"
+  ],
+  "pickup-delivery": [
+    "台中洗衣收送",
+    "台中免費收送洗衣",
+    "台中到府收送洗衣",
+    "西屯洗衣收送",
+    "逢甲洗衣收送",
+    "台中床被收送",
+    "台中公司大量衣物送洗"
+  ]
 };
 
 function clusterById(id: SearchIntentId): SearchIntentCluster {
@@ -246,11 +329,36 @@ function evidenceFor(intent: SearchIntentId, slot: number): SearchEvidenceType {
   return "first-party-inspection";
 }
 
+function prioritizedServiceQueries(service: string, topic: string): string[] {
+  const serviceQueries = SERVICE_QUERY_MAP[service] ?? [];
+  if (service !== "shoe-bag") return serviceQueries;
+
+  const isBagTopic = /包|提把|皮革|皮件|錢包/u.test(topic);
+  const isShoeTopic = /鞋|球鞋|白鞋|勃肯/u.test(topic);
+  if (!isBagTopic && !isShoeTopic) return serviceQueries;
+
+  const shoeQueries = serviceQueries.filter((query) => /鞋/u.test(query));
+  const bagQueries = serviceQueries.filter((query) => /包|皮革/u.test(query));
+  const remaining = serviceQueries.filter((query) => !/鞋|包|皮革/u.test(query));
+
+  if (isBagTopic && isShoeTopic) {
+    return [...shoeQueries.slice(0, 3), ...bagQueries.slice(0, 3), ...remaining];
+  }
+  return isBagTopic
+    ? [...bagQueries, ...shoeQueries, ...remaining]
+    : [...shoeQueries, ...bagQueries, ...remaining];
+}
+
 export function searchVisibilityForContent(service: string, slot: number, topic: string): SearchVisibilityAssignment {
   const searchIntent = intentForContent(service, slot, topic);
   const cluster = clusterById(searchIntent);
-  const serviceQueries = SERVICE_QUERY_MAP[service] ?? [];
-  const targetQueries = Array.from(new Set([...serviceQueries.slice(0, 2), ...cluster.query_examples])).slice(0, 4);
+  const serviceQueries = prioritizedServiceQueries(service, topic);
+  // A content package needs enough query coverage to describe a real local
+  // service, but it must not turn into a public keyword wall. Keep the first
+  // six service-specific purchase/problem terms and add intent companions when
+  // needed. A shoe or bag topic prioritizes its own object words before the
+  // shared service set.
+  const targetQueries = Array.from(new Set([...serviceQueries.slice(0, 6), ...cluster.query_examples])).slice(0, 6);
 
   return {
     search_intent: searchIntent,

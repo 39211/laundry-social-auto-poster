@@ -36,7 +36,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     hook: "先看鞋邊那圈膠",
     close: "膠邊氧化刷不掉，拍來看能不能救",
     narration:
-      "黃在兩個位置，做法差很多。膠邊是氧化刷不掉；布面洗劑殘留才洗得回來。運動鞋兩百五起，台中收送。",
+      "黃長在兩個位置，做法一樣嗎？膠邊是氧化刷不掉；布面洗劑殘留才洗得回來。運動鞋兩百五起，台中收送。",
     before_subject:
       "one pair of unbranded white sneakers, midsole foxing oxidised to uneven amber darkest near the ground, two grey abrasion bands across the toe-box canvas that soap will not lift, a dark sweat ring around each metal lace eyelet, laces faded from white to grey-beige with cracked plastic aglets",
     after_subject:
@@ -48,7 +48,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     hook: "先摸提把握的位置",
     close: "提把發黏是手汗，可以私訊我們",
     narration:
-      "提把握處開始發黏了。那是手汗一天天堆起來的，滲進皮層就只能淡化。還沒變色現在最省。一般包六百起。",
+      "握處是不是開始發黏了？那是手汗一天天堆起來的，滲進皮層就只能淡化。還沒變色現在最省。一般包六百起。",
     before_subject:
       "one everyday unbranded handbag, handle tops polished to a darker honey sheen where palms rest, a darker oil ring at each handle-base rivet, micro edge-paint chips along the bottom corners from floor contact",
     after_subject:
@@ -60,7 +60,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     hook: "先看鞋面那道水痕",
     close: "水痕鎖進皮裡就要補色，先拍來看",
     narration:
-      "淋雨那天擦乾了，看起來沒事。水痕過幾天才浮出來。這時候上油等於鎖進皮裡，之後補色。還沒上油的現在剛好。皮鞋四百起。",
+      "淋雨那天擦乾是不是沒事？水痕過幾天才浮出來。這時候上油等於鎖進皮裡，之後補色。還沒上油的現在剛好。皮鞋四百起。",
     before_subject:
       "one pair of unbranded leather dress shoes, a tide-line of dried rain marks crossing both vamps darker at the crease and fading toward the toe, salt bloom in the stitch wells, heel-counter lining darkened from sock sweat",
     after_subject:
@@ -71,7 +71,8 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "plush-doll",
     hook: "先看五官是繡是黏",
     close: "黏的五官怕脫水，私訊我們",
-    narration: "娃娃能洗，但洗法差很多。怕的不是水，是脫水。填充會結塊，五官會掉。手洗低溫烘，五官先固定，拍來報價。",
+    narration:
+      "娃娃是不是不能洗？不是不能洗，怕的不是水，是脫水。填充會結塊，五官會掉。手洗低溫烘，五官先固定，拍來報價。",
     before_subject:
       "one unbranded plush toy, fur on the hugged cheek and belly flattened into a dull grey mat, a darker soil ring around the neck seam, one glass eye with a single dusty catchlight",
     after_subject:
@@ -83,7 +84,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     hook: "先聞棉被中間那層",
     close: "中間層沒乾就有味道，台中收送",
     narration:
-      "摸起來乾，先別急著收。中間那層不一定乾。帶著濕氣收進櫃子，下一季打開就是那個味道。雙人棉被五百，免費到府收送。",
+      "表面乾了，就能收了嗎？中間那層不一定乾。帶著濕氣收進櫃子，下一季打開就是那個味道。雙人棉被五百，免費到府收送。",
     before_subject:
       "one folded duvet with a fabric storage bag beside it, cover fabric limp with a dull grey film along the fold edges, loft compressed in the centre so the quilting channels look empty",
     after_subject:
@@ -94,7 +95,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "leather-bag",
     hook: "先看四個角的邊油",
     close: "邊油磨掉只能重上，拍四個角",
-    narration: "邊油還剩多少，現在就要看。磨掉就補不回來，只能重新上。能清潔的時間很短。名牌包一千五起，補色另計。",
+    narration: "邊油是不是快磨光了？磨掉就補不回來，只能重新上。能清潔的時間很短。名牌包一千五起，補色另計。",
     before_subject:
       "a close view of one unbranded leather bag corner, edge-paint worn through to pale fibre along the bottom arris, a scuff cloud on the face panel just above the corner, hardware leaving a faint rub ring on the leather",
     after_subject:
@@ -109,7 +110,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "shirt",
     hook: "先看領口內側那圈",
     close: "領口那圈黃是皮脂，可以私訊",
-    narration: "領口內側那圈黃，不是沒洗乾淨。那是皮脂氧化，卡在纖維裡。洗衣精加倍只會把布洗薄。燙下去就定型。襯衫七十。",
+    narration: "那圈黃是不是沒洗乾淨？那是皮脂氧化，卡在纖維裡。洗衣精加倍只會把布洗薄。燙下去就定型。襯衫七十。",
     before_subject:
       "one white dress shirt laid flat, a yellow sebum ring along the inner collar band darkest at the back-neck, cuff-fold grime lines at both wrists, fabric still sound",
     after_subject:
@@ -120,7 +121,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "suit",
     hook: "先看肩線有沒有塌",
     close: "肩襯塌了回不來，台中收送",
-    narration: "掛錯衣架、擠在衣櫃裡，肩線先變。肩襯塌下去就回不來。趁還有形先保養，比事後修補便宜。拍肩線給我們報價。",
+    narration: "掛錯衣架，肩線是不是會先變？肩襯塌下去就回不來。趁還有形先保養，比事後修補便宜。拍肩線給我們報價。",
     before_subject:
       "one suit jacket on a padded hanger, shoulder line collapsed so the pad ridge droops, lapel roll creased into a sharp fold, a shine patch on the outer shoulder from bag-strap rub",
     after_subject:
@@ -131,7 +132,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "curtain",
     hook: "先摸窗簾下緣那折",
     close: "積在下緣那折，不用自己拆我們收",
-    narration: "家裡有味道，找不到來源。十次有八次是窗簾下緣那一折。灰塵和濕氣積在裡面，摸起來乾而已。整片我們收。",
+    narration: "家裡的味道是從哪裡來的？十次有八次是窗簾下緣那一折。灰塵和濕氣積在裡面，摸起來乾而已。整片我們收。",
     before_subject:
       "the lower hem section of one curtain panel spread on the counter, a dust gradient packed into the hem fold darkest at the floor edge, a sun-fade band just above the fold, weave still readable",
     after_subject:
@@ -142,7 +143,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "luggage",
     hook: "先看輪子縫裡的灰",
     close: "輪灰收進櫃子會有味道，私訊我們",
-    narration: "旅行回來先別推進櫃子。輪子底板都在地上磨，灰收進去下次打開就是味道。不用整咖搬來，台中市區免費到府收。",
+    narration: "旅行回來能不能推進櫃子？輪子底板都在地上磨，灰收進去下次打開就是味道。不用整咖搬來，台中市區免費到府收。",
     before_subject:
       "one fabric suitcase on a floor mat, wheel treads packed with grey road grit, a dirt film across the lower panel darkest at the corner caps, zipper tape darkened at the pull",
     after_subject:
@@ -153,7 +154,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "backpack",
     hook: "先看後背包底部那面",
     close: "底部地面灰、背帶汗鹽，私訊我們",
-    narration: "底部那面天天貼地，幾乎沒人洗。背帶的汗鹽和底部的地面灰是兩種，一起洗才有用。背包五百，開學前送洗來得及。",
+    narration: "天天貼地的那一面，你洗過嗎？背帶汗鹽、底部地面灰是兩種，一起洗才有用。背包五百，開學前送洗來得及。",
     before_subject:
       "one fabric backpack tipped to show its base, a ground-grime crust across the bottom panel, strap-pad darkened with a salt sweat line, stitching at the base corners slightly stressed",
     after_subject:
@@ -164,7 +165,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "canvas-shoe",
     hook: "先看帆布鞋泥乾了沒",
     close: "濕時刷泥會推進織紋，拍來看",
-    narration: "泥還濕的時候，先別動它。濕的時候刷，泥會被推進織紋裡，布面起毛。等乾了整塊剝掉反而好救。帆布鞋兩百五起。",
+    narration: "泥還濕的時候，可以動它嗎？濕的時候刷，泥會被推進織紋裡，布面起毛。等乾了整塊剝掉反而好救。帆布鞋兩百五起。",
     before_subject:
       "one pair of canvas shoes, dried mud packed into the woven toe and foxing stitch line, canvas faded at the flex crease, a grey dirt ring along the rubber foxing",
     after_subject:
@@ -770,9 +771,15 @@ export async function productionRunway(
 // Fourteen seconds in which the object changes identity is most of what "it
 // doesn't look real" means. The scene is now stated once, in the aspect the
 // reel is actually cut to, and every act is generated from it.
-const SHOP_SCENE =
+const SHOP_SET =
   "a Taiwanese laundry and shoe-care shop: a light counter with a pink cutting mat, white slat-wall " +
-  "panels behind, shelves of fabric-care bottles softly out of focus, everyday clutter at the frame edge. " +
+  "panels behind, shelves of fabric-care bottles softly out of focus, everyday clutter at the frame edge.";
+
+// Split from the set description so the per-object material block can sit
+// between them. Everything from "Shot on a phone" onward is what one test
+// requires to be byte-identical across every still, so nothing per-concept may
+// be added below this line.
+const SHOP_CAMERA =
   "Shot on a phone main camera at about 26mm equivalent, held at chest height and angled 20-35 degrees " +
   "down at the counter, handheld with imperfect framing. The storefront window is the key light from one " +
   "side, weak fluorescent ceiling fill, uneven brightness across the counter, slightly imperfect auto " +
@@ -801,9 +808,90 @@ export const ARTISAN =
   "skin. Hands anatomically correct: five fingers each, no fusing, " +
   "no extra hand entering frame. No face, no head, no torso above the elbow.";
 
+/**
+ * How light behaves on each object type, written as visible optical events.
+ *
+ * The owner rejected a batch on 2026-08-27 with "光澤不夠真實" -- the gloss is
+ * not believable. The still prompt named the object and the room but never the
+ * material's optics, so the model chose a generic plastic sheen for canvas,
+ * wool and rubber alike. A wear list ("oxidised to uneven amber") says what is
+ * there; it does not say that canvas refuses a highlight while the rubber
+ * beside it holds one. That difference is most of what reads as real.
+ *
+ * Keyed by object_type so each Reel's material gets its own answer; the
+ * fallback stays generic on purpose, because a wrong specific is worse than an
+ * honest general.
+ */
+export const MATERIAL_OPTICS: Record<string, string> = {
+  "white-shoe":
+    "Material optics: the cotton canvas takes the window light as a flat dry field with its weave " +
+    "visible and no specular highlight, while the rubber foxing beside it holds one soft satin band " +
+    "that follows the curve; any amber oxidation still present sits under that sheen rather than " +
+    "painted on top of it; each metal eyelet catches a single small hard glint.",
+  "canvas-shoe":
+    "Material optics: the cotton canvas reads as a flat dry weave that scatters light with no gloss, " +
+    "the rubber foxing beside it holds a soft satin band, and any dried mud still present sits on top " +
+    "as an opaque matte crust hiding the weave underneath rather than staining through it.",
+  "leather-shoe":
+    "Material optics: smooth calf leather carries one long soft highlight that bends over the toe cap " +
+    "and fractures into fine parallel lines at the flex creases; the welt stitching sits in its own " +
+    "shadow; any remaining rain tide-line reads as a matte band that refuses the highlight entirely.",
+  handbag:
+    "Material optics: the grained leather returns a broad soft highlight that stretches along the body " +
+    "and breaks at every crease; the handle's worn patch is glassier than the leather around it and " +
+    "throws a tighter, brighter reflection; each rivet and foot catches one small hard glint.",
+  "leather-bag":
+    "Material optics: the leather body holds a broad soft highlight, while the edge paint along the " +
+    "arris is glossier and reads as a thin bright line -- that line breaks exactly where the paint has " +
+    "worn away, exposing a duller fibrous core that takes no shine.",
+  "plush-doll":
+    "Material optics: the pile has no specular highlight at all -- brightness comes from fibre density, " +
+    "so any area still matted goes darker and flatter while lofted fur stays pale with soft edges, and " +
+    "only the fibre tips catch a trace of rim light.",
+  duvet:
+    "Material optics: the quilted cover shows a low sheen that runs along each channel and dies in the " +
+    "seams; loft is read from the shadow depth between channels rather than from highlights; any " +
+    "fold-edge grey film still present sits matte against that sheen.",
+  shirt:
+    "Material optics: cotton poplin returns a fine directional sheen that follows the weave and " +
+    "collapses at every fold; any yellowed ring left on the collar band is slightly glossier than the " +
+    "cloth around it; where light rakes across the placket the fabric goes faintly translucent.",
+  suit:
+    "Material optics: wool twill carries a directional nap sheen -- one soft band of light that shifts " +
+    "as the cloth turns, bright along the weave and dead against it; the shoulder ridges catch it " +
+    "first; any worn shine sits flatter and greyer than the nap around it.",
+  curtain:
+    "Material optics: the loose weave lets a little window light through so the panel glows faintly " +
+    "where it is thin; its surface sheen is soft, matte and directional along the drape; any dust left " +
+    "in the hem refuses that sheen and reads as flat grey.",
+  luggage:
+    "Material optics: the moulded shell returns a wide glossy reflection of the room, broken wherever a " +
+    "scuff turns it matte; the wheel housings and the pull-handle tube each hold their own small hard " +
+    "highlights against that broad one.",
+  backpack:
+    "Material optics: ripstop nylon shows a fine grid glint that shifts with angle and a low sheen " +
+    "along the seams, while the webbing straps stay matte and fibrous by contrast; any salt line left " +
+    "on the strap pad sits chalky and takes no highlight."
+};
+
+export const DEFAULT_MATERIAL_OPTICS =
+  "Material optics: each surface in frame answers the light in its own way -- glossy areas hold a " +
+  "defined highlight, matte and fibrous areas scatter it -- and the worn areas differ optically from " +
+  "the sound ones around them.";
+
+export function materialOpticsFor(objectType: string): string {
+  return MATERIAL_OPTICS[objectType] ?? DEFAULT_MATERIAL_OPTICS;
+}
+
 export const SHARED_STILL_PROMPT =
-  `Ordinary portrait 4:5 shop photo. [SUBJECT] on the inspection counter of ${SHOP_SCENE} ` +
+  `Ordinary portrait 4:5 shop photo. [SUBJECT] on the inspection counter of ${SHOP_SET} ` +
+  `[OPTICS] ${SHOP_CAMERA} ` +
   "The item fills 45-65% of the frame height and stays sharp; the background is readable, not blurred away.";
+
+/** Fills both placeholders. Substituting only [SUBJECT] ships "[OPTICS]" to the image model. */
+export function fillStillPrompt(template: string, subject: string, objectType: string): string {
+  return template.replace("[SUBJECT]", subject).replace("[OPTICS]", materialOpticsFor(objectType));
+}
 
 /**
  * The closing act, with the craftsman's hands presenting the finished item.
@@ -862,11 +950,11 @@ export function promptFor(concept: ReelConcept, state: "before" | "after"): stri
   // script gets these prompts through `reel-concepts --prompts`, which comes
   // through here.
   if (state === "before") {
-    return SHARED_STILL_PROMPT.replace("[SUBJECT]", concept.before_subject);
+    return fillStillPrompt(SHARED_STILL_PROMPT, concept.before_subject, concept.object_type);
   }
   // Prefix + the same shared template, so the after still keeps the identical
   // look block and the same negative list as the before still.
-  return AFTER_STILL_PREFIX + SHARED_STILL_PROMPT.replace("[SUBJECT]", concept.after_subject);
+  return AFTER_STILL_PREFIX + fillStillPrompt(SHARED_STILL_PROMPT, concept.after_subject, concept.object_type);
 }
 
 export interface ConceptStatus {

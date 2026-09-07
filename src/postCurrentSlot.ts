@@ -99,14 +99,18 @@ export function isRetiredVideoAbsenceReason(reason: string): boolean {
   return RETIRED_VIDEO_ABSENCE_REASON.test(reason);
 }
 
-// A video that is not ready and a video check that crashed both have to fall back,
-// because neither may cancel an approved image post. They must not look the same
-// afterwards: the first is a pending gate, the second is a fault to go and fix.
+// Mixed-carousel companion video may fall back to the approved images: that is
+// the design. A planned Reel must not. Cover-image fallback is how 8/27-29
+// wrote posted-log success for stills that were supposed to be video.
 // Validation gates raise a plain Error; programmer faults arrive as an Error
 // subclass or a non-Error throw, and a filesystem error other than "not found"
 // means the file check itself failed rather than the file being absent.
 // A retired-line absence reason outranks its wrapper: recording it as a fault
 // would escalate a production line that no longer exists on every review round.
+export function slotRequiresPublishedVideo(slot: DailySlot): boolean {
+  return slot.media_type === "reel" || slot.slot === 3;
+}
+
 export function classifyVideoFailure(error: unknown): VideoDeferKind {
   const reason = error instanceof Error ? error.message : String(error);
   if (isRetiredVideoAbsenceReason(reason)) return "expected";
@@ -145,6 +149,10 @@ export async function resolveSlotPublishMedia(
     }
     return { mediaType: slot.media_type, videoDeferred: false, videoSha256 };
   } catch (error) {
+    if (slotRequiresPublishedVideo(slot)) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`Refusing image fallback for reel slot ${slot.slot}: ${reason}`);
+    }
     return {
       mediaType: slot.media_type === "mixed-carousel" ? "carousel" : "image",
       videoDeferred: true,

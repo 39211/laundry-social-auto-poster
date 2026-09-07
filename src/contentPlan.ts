@@ -1,4 +1,6 @@
-﻿import { createHash, createHmac, randomBytes } from "node:crypto";
+﻿import { buildDoctrinePrompts, imageDoctrineActive } from "./imageDoctrine";
+import { everydayVariantForTopic, luxuryVariantForTopic, type ObjectVariant } from "./objectLibrary";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { abTestPlanPath, planForDate, planSlot, type AbDayPlan } from "./abTestPlan";
@@ -43,6 +45,41 @@ interface SlotTemplate {
 }
 
 const brandLine = "私享家洗衣店";
+
+// H1 single-CTA experiment (2026-09-06 owner decision). Every caption stacked
+// five or six asks -- photo DM, engagement question, share invite, follow line,
+// price, LINE link -- and 28 days of that produced zero profile taps and zero
+// inquiries. From this date each post keeps exactly one ask: the photo/LINE
+// action. The question, the share invite and the follow line are dropped.
+// Price and provenance lines stay: they are facts, not asks. The date is the
+// only switch so a later ledger comparison has a clean cut-over.
+export const SINGLE_CTA_EXPERIMENT_START = "2026-09-10";
+
+export function singleCtaExperimentActive(date: string): boolean {
+  return date >= SINGLE_CTA_EXPERIMENT_START;
+}
+
+// Caption length knife (third of three, four days apart: headlines 09-13,
+// hashtags 09-17, this 09-21). IG insights 2026-08-07..09-05: captions of 100–200
+// characters averaged 80–91 reach, the 300+ captions 56. What is left to cut
+// after the single-CTA experiment and the hashtag trim is the slot-1
+// 「下一集：…」 teaser (25–31 characters): it repeats tomorrow's headline, which
+// the reader sees tomorrow anyway, and thirty days of it produced no return
+// visits that the ledger can point to. Price, provenance and the LINE line are
+// owner-mandated facts and stay. From this date slot 1 drops the teaser.
+export const CAPTION_TRIM_START_DATE = "2026-09-21";
+
+export function captionTrimActive(date: string): boolean {
+  return date >= CAPTION_TRIM_START_DATE;
+}
+
+/** Drop the follow line block (`追蹤…`) so the action CTA is the only ask. */
+export function withoutFollowLine(caption: string, followCta: string): string {
+  return caption
+    .split("\n\n")
+    .filter((block) => block !== followCta && !block.startsWith("追蹤"))
+    .join("\n\n");
+}
 
 const knowledgePlans: SlotTemplate[] = [
   {
@@ -621,6 +658,7 @@ function careBridgeFor(slot: GrowthPlaybookSlot): string {
     if (page.includes("luxury-dry-cleaning")) {
       return [
         "精品最先出問題的是邊角。邊油磨掉補不回來，要在磨穿前處理。",
+        "私享家做精品乾洗和特殊處理：先看材質和五金再定工法，不是整件丟下去洗，洗壞的機率比一般水洗低很多。",
         "同一個牌子會用不同的皮。看品牌決定怎麼洗，比看材質更容易出事。"
       ];
     }
@@ -1123,6 +1161,99 @@ export function topicObjectHead(topic: string): string {
     .slice(0, 8);
 }
 
+/** First date slot-2 image posts use a specific two-photo LINE action instead of a generic CTA. */
+const SLOT2_ACTION_CTA_START_DATE = "2026-09-08";
+
+/**
+ * Object-part lookup for the slot-2 closer. Short keys absorb the longer
+ * synonyms that used to sit on the same row (球鞋/白鞋, 毛毯).
+ * Bare 衣 and 被 are not keys: 衣 lives inside 洗衣店, 被 is the passive marker.
+ * Bare 櫃 is storage (櫃內最深處). 鞋櫃 maps with shoes (鞋面/鞋底); 衣櫃
+ * maps with clothes (領口/袖口) so those topics ask for the item, not the cabinet.
+ * Bare 包 is an object only when not followed by 裡/著/住/起/好/在/進/成/覆/裝;
+ * 包包/皮包/背包/名牌包/包款 are listed so those stay bags.
+ */
+const SLOT2_ACTION_CTA_PARTS: ReadonlyArray<{ keys: readonly string[]; a: string; b: string }> = [
+  { keys: ["櫃"], a: "櫃內最深處", b: "最常放的那一格" },
+  { keys: ["棉被", "被子", "床單", "床包", "枕頭", "床組"], a: "被角", b: "貼身那一面" },
+  { keys: ["包包", "皮包", "背包", "名牌包", "包款", "包"], a: "包角", b: "內裡" },
+  { keys: ["鞋櫃", "鞋", "靴", "麂皮"], a: "鞋面", b: "鞋底" },
+  { keys: ["衣櫃", "外套", "西裝", "大衣", "襯衫", "上衣", "T恤", "衣服", "衣物"], a: "領口", b: "袖口" },
+  { keys: ["窗簾"], a: "下緣", b: "掛鉤處" },
+  { keys: ["娃娃", "玩偶"], a: "五官", b: "縫線" },
+  { keys: ["地毯"], a: "邊緣", b: "最常踩的位置" },
+  { keys: ["行李箱"], a: "輪子", b: "把手" },
+  { keys: ["毯"], a: "起球處", b: "邊緣" }
+];
+
+const SLOT2_SHOE_ROW = SLOT2_ACTION_CTA_PARTS.findIndex((row) => row.keys.includes("鞋"));
+const SLOT2_BAG_ROW = SLOT2_ACTION_CTA_PARTS.findIndex((row) => row.keys.includes("包"));
+
+/** 包 as an object, not 包裡/包著/包起來 and the rest of that series. */
+const SLOT2_BARE_BAG_OBJECT_RE = /包(?![裡著住起好在進成覆裝])/g;
+
+/** Label prefix off, then the whole remaining topic — an 8-character head cuts object words at the end. */
+function slot2ActionTopicText(topic: string): string {
+  return topic.replace(TOPIC_LABEL_PREFIX_RE, "");
+}
+
+function slot2KeyIndexes(text: string, key: string): number[] {
+  const indexes: number[] = [];
+  if (key === "包") {
+    for (const match of text.matchAll(SLOT2_BARE_BAG_OBJECT_RE)) {
+      if (match.index !== undefined) indexes.push(match.index);
+    }
+    return indexes;
+  }
+  let from = 0;
+  while (from < text.length) {
+    const index = text.indexOf(key, from);
+    if (index === -1) break;
+    indexes.push(index);
+    from = index + 1;
+  }
+  return indexes;
+}
+
+/** Longest key at each position wins, then left-to-right family order. */
+function slot2TakenFamilies(text: string): { rowIndex: number; index: number }[] {
+  const hits: { rowIndex: number; index: number; length: number }[] = [];
+  SLOT2_ACTION_CTA_PARTS.forEach((row, rowIndex) => {
+    for (const key of row.keys) {
+      for (const index of slot2KeyIndexes(text, key)) {
+        hits.push({ rowIndex, index, length: key.length });
+      }
+    }
+  });
+  hits.sort(
+    (left, right) => left.index - right.index || right.length - left.length || left.rowIndex - right.rowIndex
+  );
+  const taken: { rowIndex: number; index: number }[] = [];
+  const covered = new Uint8Array(text.length);
+  for (const hit of hits) {
+    if (covered[hit.index]) continue;
+    taken.push({ rowIndex: hit.rowIndex, index: hit.index });
+    covered.fill(1, hit.index, Math.min(text.length, hit.index + hit.length));
+  }
+  return taken;
+}
+
+/** Specific slot-2 closer: two named photos sent on LINE. */
+export function slot2ActionCta(topic: string): string {
+  const text = slot2ActionTopicText(topic);
+  const taken = slot2TakenFamilies(text);
+  const hasShoe = taken.some((hit) => hit.rowIndex === SLOT2_SHOE_ROW);
+  const hasBag = taken.some((hit) => hit.rowIndex === SLOT2_BAG_ROW);
+  if (hasShoe && hasBag) {
+    return "拍鞋底和包角兩張傳 LINE，我們先看。";
+  }
+  const first = taken[0];
+  if (!first) return "拍整體和最在意的位置兩張傳 LINE，我們先看。";
+  const row = SLOT2_ACTION_CTA_PARTS[first.rowIndex];
+  if (!row) return "拍整體和最在意的位置兩張傳 LINE，我們先看。";
+  return `拍${row.a}和${row.b}兩張傳 LINE，我們先看。`;
+}
+
 /** Shared 3-character object gram, or undefined when the two topics do not collide. */
 export function repeatingObjectGram(left: string, right: string): string | undefined {
   const head = topicObjectHead(left);
@@ -1500,18 +1631,40 @@ const HASHTAG_INTENT: Array<{ match: RegExp; tags: string[] }> = [
   { match: /窗簾|地毯/, tags: ["#窗簾清洗", "#居家清潔"] }
 ];
 
-function upgradeHashtags(existing: string[], topic: string): string[] {
+/**
+ * Hashtag science v2 (measured, not read): IG insights 2026-08-07..09-05
+ * put the 16 posts that still carried four tags at 97 average reach and the 38
+ * posts with the eleven-tag ladder at 55. The two changed together with the
+ * label templates and the longer captions on 8/14–8/19, so this is one of
+ * three knives tested one at a time (72h each): free headlines from 09-13,
+ * this trim from 09-17, the caption length from 09-21 (owner moved the first
+ * knife to 09-13 on 2026-09-06; the spacing follows). From the trim date the
+ * ladder keeps the seed's own tags plus one intent tag and one local tag —
+ * at most six — and drops the second/third intent tags, 西屯／逢甲 and #台中.
+ */
+export const HASHTAG_TRIM_START_DATE = "2026-09-17";
+export const HASHTAG_TRIM_MAX = 6;
+
+export function hashtagTrimActive(date: string | undefined): boolean {
+  return Boolean(date && date >= HASHTAG_TRIM_START_DATE);
+}
+
+export function upgradeHashtags(existing: string[], topic: string, date?: string): string[] {
   const intent = HASHTAG_INTENT.find((entry) => entry.match.test(topic))?.tags ?? [];
+  if (hashtagTrimActive(date)) {
+    const ladder = [...existing, ...intent.slice(0, 1), HASHTAG_LOCAL[0] ?? "#台中洗衣店"];
+    return [...new Set(ladder)].filter((tag): tag is string => Boolean(tag)).slice(0, HASHTAG_TRIM_MAX);
+  }
   const ladder = [...existing, ...intent, ...HASHTAG_LOCAL.slice(0, 3), HASHTAG_LARGE[0] ?? "#台中"];
   return [...new Set(ladder)].filter((tag): tag is string => Boolean(tag)).slice(0, 12);
 }
 
-function withUpgradedHashtags(caption: string, topic: string): string {
+function withUpgradedHashtags(caption: string, topic: string, date?: string): string {
   const blocks = caption.split("\n\n");
   const tagIndex = blocks.findIndex((block) => block.startsWith("#"));
   if (tagIndex === -1) return caption;
   const tags = (blocks[tagIndex] ?? "").split(/\s+/).filter((tag) => tag.startsWith("#"));
-  blocks[tagIndex] = upgradeHashtags(tags, topic).join(" ");
+  blocks[tagIndex] = upgradeHashtags(tags, topic, date).join(" ");
   return blocks.join("\n\n");
 }
 
@@ -1564,18 +1717,212 @@ export function withNextEpisodeTeaser(caption: string, nextTopic: string | undef
 export function withSharedCaptionRules(
   caption: string,
   topic: string,
-  tracking?: CaptionTracking
+  tracking?: CaptionTracking,
+  date?: string
 ): string {
-  return withUpgradedHashtags(withProvenanceLine(withPriceLine(withLineContact(caption, tracking), topic)), topic);
+  return withUpgradedHashtags(withProvenanceLine(withPriceLine(withLineContact(caption, tracking), topic)), topic, date);
+}
+
+function isSlot2ActionCtaClosingBlock(block: string): boolean {
+  return (
+    block.startsWith("#") ||
+    block.startsWith(PROVENANCE_PREFIX) ||
+    block.startsWith("參考價") ||
+    block.includes(LINE_POST_PATH) ||
+    block.includes("0968327653")
+  );
+}
+
+/** Photo-ask token shared by production and tests. 拍 alone missed 「照片傳來」. */
+export const SLOT2_PHOTO_TOKEN_RE = /拍|照片|相片/;
+/** Shop-directed half of a photo ask. 傳給我們 is the same ask as 給我們. */
+export const SLOT2_PHOTO_DIRECTED_RE = /給我們|幫你|傳來|傳給我們/;
+/** Pickup value claim. 免費 alone is not a keep-whole; that is signed-off copy. */
+export const SLOT2_PICKUP_VALUE_CLAIM_RE = /免費|到府收|收送|我們去收/;
+/** Owner-signed family: keep the whole block, including a 私訊／傳 LINE tail. */
+export const SLOT2_SIGNED_OFF_VALUE_RE = /沒有低消|一件也收/;
+export const SLOT2_GENERIC_CTA_RE = /傳 LINE|LINE 傳|私訊|拍照|拍一張|先幫你看|先拍好/;
+const SLOT2_CHANNEL_CTA_RE = /私訊|傳 LINE|LINE 傳|用 LINE|直接私訊/;
+
+function looksLikeSlot2PhotoDirectedAsk(block: string): boolean {
+  return SLOT2_PHOTO_TOKEN_RE.test(block) && SLOT2_PHOTO_DIRECTED_RE.test(block);
+}
+
+/**
+ * Generic slot-2 CTA detector. Questions (ending in ？) are never CTAs — the
+ * engagement line 「你送洗前會先拍照嗎？」 contains 拍照 and must stay.
+ * `拍照` on a non-question still counts, so dropping the ？-keep rule makes
+ * that line look like a CTA. Share-invites and the follow line are not CTAs.
+ * A last-paragraph-only /先看/ fallback never ran: the last body block is
+ * the follow line (`追蹤…`) and returns above.
+ * Template closers say 「可以拍寢具…給我們看」 / 「先拍包底…幫你看」 /
+ * 「可以把外套、包底和輪邊照片傳來」 and do not contain
+ * 傳 LINE|私訊|拍照|拍一張|先幫你看; the (拍|照片|相片) + shop-directed
+ * pair is the semantic feature, not the new action-sentence literal.
+ * Playbook 「先拍好…傳地址與照片」 has neither 拍一張 nor the directed pair
+ * until Instagram rewrite inserts 私訊; 先拍好 is the raw-string feature.
+ * Owner-signed pickup value lines (沒有低消 / 一件也收) are not generic
+ * CTAs: the 私訊／傳 LINE tail is a soft ask on a value claim, not a photo
+ * instruction. Stripping the tail would rewrite signed copy. A 免費
+ * campaign block that also asks for photos is a CTA; sentence salvage lives
+ * in rewriteSlot2PickupValueBlock.
+ */
+export function looksLikeGenericSlot2Cta(block: string): boolean {
+  if (isSlot2ActionCtaClosingBlock(block)) return false;
+  if (block.startsWith("追蹤")) return false;
+  if (/[？?]\s*$/.test(block)) return false;
+  if (SLOT2_SIGNED_OFF_VALUE_RE.test(block)) return false;
+  if (
+    /(?:這篇)?(?:傳|轉)給他/.test(block) &&
+    !SLOT2_GENERIC_CTA_RE.test(block) &&
+    !looksLikeSlot2PhotoDirectedAsk(block)
+  ) {
+    return false;
+  }
+  return SLOT2_GENERIC_CTA_RE.test(block) || looksLikeSlot2PhotoDirectedAsk(block);
+}
+
+function splitSlot2Sentences(block: string): string[] {
+  const sentences: string[] = [];
+  const parts = block.split(/([。！？])/);
+  for (let i = 0; i < parts.length; i += 2) {
+    const text = `${parts[i] ?? ""}${parts[i + 1] ?? ""}`;
+    if (text) sentences.push(text);
+  }
+  return sentences;
+}
+
+/**
+ * Sentence-level salvage of a pickup-value block. Signed-off copy and
+ * question-ending blocks stay whole. Mixed value + photo/channel keeps value
+ * sentences, drops photo-ask sentences (even when they also say 收送), drops
+ * channel-only sentences, and keeps the rest. Empty / channel-residue-only
+ * leftovers are dropped. Non-value CTAs return undefined (r3 delete).
+ */
+export function rewriteSlot2PickupValueBlock(block: string): string | undefined {
+  if (!block) return undefined;
+  if (isSlot2ActionCtaClosingBlock(block)) return block;
+  if (block.startsWith("追蹤")) return block;
+  if (/[？?]\s*$/.test(block)) return block;
+  if (SLOT2_SIGNED_OFF_VALUE_RE.test(block)) return block;
+
+  const hasValue = SLOT2_PICKUP_VALUE_CLAIM_RE.test(block);
+  const mixed =
+    hasValue &&
+    (looksLikeGenericSlot2Cta(block) ||
+      SLOT2_PHOTO_TOKEN_RE.test(block) ||
+      SLOT2_CHANNEL_CTA_RE.test(block));
+
+  if (mixed) {
+    const kept = splitSlot2Sentences(block).filter((sentence) => {
+      if (/[？?]\s*$/.test(sentence)) return true;
+      if (SLOT2_PHOTO_TOKEN_RE.test(sentence)) return false;
+      if (SLOT2_PICKUP_VALUE_CLAIM_RE.test(sentence)) return true;
+      if (SLOT2_CHANNEL_CTA_RE.test(sentence)) return false;
+      return true;
+    });
+    const text = kept.join("").trim();
+    if (!text) return undefined;
+    if (!SLOT2_PICKUP_VALUE_CLAIM_RE.test(text) && SLOT2_CHANNEL_CTA_RE.test(text)) {
+      return undefined;
+    }
+    return text;
+  }
+
+  if (looksLikeGenericSlot2Cta(block)) return undefined;
+  return block;
+}
+
+/**
+ * Single-CTA experiment: keep only the pickup value fact of a generic ask
+ * block. Question and photo sentences go; in a value sentence the channel
+ * clause (私訊跟我們說 / 傳 LINE 說一聲) is cut so the claim reads as a fact.
+ * 「收之前想先整理一次？私訊跟我們說，台中市區到府收。」→「台中市區到府收。」
+ */
+export function singleCtaPickupValueFact(block: string): string | undefined {
+  const kept: string[] = [];
+  for (const sentence of splitSlot2Sentences(block)) {
+    if (/[？?]\s*$/.test(sentence)) continue;
+    if (SLOT2_PHOTO_TOKEN_RE.test(sentence)) continue;
+    if (!SLOT2_PICKUP_VALUE_CLAIM_RE.test(sentence)) continue;
+    const clauses = sentence
+      .replace(/[。！]\s*$/, "")
+      .split(/[，,]/)
+      .map((clause) => clause.trim())
+      .filter((clause) => clause && !SLOT2_CHANNEL_CTA_RE.test(clause) && !/跟我們說|說一聲|說個|說一下/.test(clause));
+    const text = clauses.join("，");
+    if (text && SLOT2_PICKUP_VALUE_CLAIM_RE.test(text)) kept.push(`${text}。`);
+  }
+  const text = kept.join("").trim();
+  return text || undefined;
+}
+
+function isMovedPickupValueBlock(original: string, rewritten: string): boolean {
+  if (SLOT2_SIGNED_OFF_VALUE_RE.test(rewritten)) return true;
+  if (!SLOT2_PICKUP_VALUE_CLAIM_RE.test(rewritten)) return false;
+  return (
+    looksLikeGenericSlot2Cta(original) ||
+    SLOT2_PHOTO_TOKEN_RE.test(original) ||
+    SLOT2_CHANNEL_CTA_RE.test(original)
+  );
+}
+
+function withSlot2ActionCta(
+  caption: string,
+  slot: { slot: number; format?: string; date: string; topic: string }
+): string {
+  if (slot.slot !== 2 || slot.format === "reel" || slot.date < SLOT2_ACTION_CTA_START_DATE) {
+    return caption;
+  }
+  const action = slot2ActionCta(slot.topic);
+  const blocks = caption.split("\n\n");
+  const stopIndex = blocks.findIndex(isSlot2ActionCtaClosingBlock);
+  const body = stopIndex === -1 ? [...blocks] : blocks.slice(0, stopIndex);
+  const tail = stopIndex === -1 ? [] : blocks.slice(stopIndex);
+  const valueBlocks: string[] = [];
+  const rest: string[] = [];
+  const singleCta = singleCtaExperimentActive(slot.date);
+  for (const block of body) {
+    if (singleCta && !SLOT2_SIGNED_OFF_VALUE_RE.test(block)) {
+      // Single-CTA experiment: a generic ask block (photo / channel / 私訊 tail
+      // on a value claim) is reduced to its pickup value fact, or dropped when
+      // it has none. The two-photo action below is the only ask. Owner-signed
+      // value copy still stays whole.
+      if (
+        looksLikeGenericSlot2Cta(block) ||
+        SLOT2_CHANNEL_CTA_RE.test(block) ||
+        looksLikeSlot2PhotoDirectedAsk(block)
+      ) {
+        const fact = singleCtaPickupValueFact(block);
+        if (fact) valueBlocks.push(fact);
+        continue;
+      }
+      rest.push(block);
+      continue;
+    }
+    const rewritten = rewriteSlot2PickupValueBlock(block);
+    if (rewritten === undefined) continue;
+    if (isMovedPickupValueBlock(block, rewritten)) valueBlocks.push(rewritten);
+    else rest.push(rewritten);
+  }
+  const withoutAction = rest[rest.length - 1] === action ? rest.slice(0, -1) : rest;
+  return [...withoutAction, ...valueBlocks, action, ...tail].join("\n\n");
 }
 
 function captionFromPlaybook(slot: GrowthPlaybookSlot, platform: Platform, config?: AppConfig): string {
   const caption = baseCaptionFromPlaybook(slot, platform);
   const source: UtmSource = platform === "facebook" ? "facebook" : "instagram";
-  return withSharedCaptionRules(
-    withEngagementQuestion(caption, slot),
-    slot.topic,
-    captionTracking(slot.date, slot.slot, source, slot.format, config)
+  const body = singleCtaExperimentActive(slot.date)
+    ? withoutFollowLine(caption, slot.follow_cta)
+    : withEngagementQuestion(caption, slot);
+  return withSlot2ActionCta(
+    withSharedCaptionRules(
+      body,
+      slot.topic,
+      captionTracking(slot.date, slot.slot, source, slot.format, config),
+      slot.date
+    ),
+    slot
   );
 }
 
@@ -1826,10 +2173,13 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
   {
     id: "sneaker-and-bag",
     match: /鞋.*包|包.*鞋/,
-    noun: "paired everyday sneaker and one fabric handbag as a single inspection set",
-    material: "worn fabric and leather-look surfaces",
-    lockNote: "object locked as one sneaker-and-bag inspection set",
-    wearFallback: "honest everyday wear at the named contact points"
+    noun:
+      "inspection set of exactly two items: one pair of light-grey knit-mesh sneakers with white foam midsoles, and one light-beige suede-look hobo handbag with a single knotted top handle and a side zip",
+    material:
+      "light-grey knit mesh with white foam midsoles for the sneakers; light-beige suede-look fabric with a knotted top handle for the hobo bag",
+    lockNote:
+      "object locked as this exact sneaker-and-hobo-bag set on every slide: same grey knit sneakers, same beige knotted-handle hobo bag, no tote, no crossbody, no second bag",
+    wearFallback: "grey scuffing on the sneaker toe boxes and darkening on the bag's knotted handle and bottom corners"
   },
   {
     id: "generic-shoe",
@@ -1885,6 +2235,14 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
     wearFallback: "handle darkening and corner edge-paint wear"
   },
   {
+    id: "curtain",
+    match: /窗簾/,
+    noun: "one floor-length light-grey polyester blackout curtain panel with a pleated header and metal hooks, draped over the counter",
+    material: "light-grey woven polyester blackout curtain fabric with a stitched pleated header",
+    lockNote: "object locked as one curtain panel, not a bedsheet, not a tablecloth, not a duvet cover",
+    wearFallback: "dust darkening along the hem edge, grey grime at the hook header, and sun-fade along the pleat lines"
+  },
+  {
     id: "suitcase",
     match: /行李箱/,
     noun: "soft-sided fabric suitcase",
@@ -1909,11 +2267,21 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
     wearFallback: "softened shoulder line and collar roll"
   },
   {
+    id: "wool-overcoat",
+    match: /大衣/,
+    noun: "single-breasted beige wool overcoat with notch lapels",
+    material: "beige wool coating with notch lapels and horn-look buttons",
+    lockNote:
+      "object locked as one beige wool overcoat, not a down jacket, not a work jacket, not a dress shirt",
+    wearFallback: "collar and cuff darkening"
+  },
+  {
     id: "everyday-jacket",
-    match: /外套|大衣|夾克/,
-    noun: "everyday fabric jacket",
-    material: "worn woven jacket cloth",
-    lockNote: "object locked as one everyday fabric jacket",
+    match: /外套|夾克/,
+    noun: "beige cotton work jacket with a shirt collar and buttoned cuffs",
+    material: "beige cotton twill with a shirt collar and cuff buttons",
+    lockNote:
+      "object locked as one beige cotton work jacket, not a down jacket, not a dress shirt, not a wool overcoat",
     wearFallback: "collar and cuff darkening"
   }
 ];
@@ -1922,17 +2290,22 @@ function topicBody(topic: string): string {
   return cleanTopic(topic).replace(/^(先看懂|今天情境|可收藏|細節拆解|到店前判斷|送洗前先問)[:：]/, "");
 }
 
-function wearKindFromTopic(topic: string): string {
+export function wearKindFromTopic(topic: string): string {
   if (/變灰|泛灰/.test(topic)) return "sun-faded grey";
   if (/發黃|泛黃/.test(topic)) return "yellowing";
   if (/濕|潮/.test(topic)) return "trapped moisture";
   if (/汗/.test(topic)) return "sweat residue";
   if (/油/.test(topic)) return "oil darkening";
   if (/泥/.test(topic)) return "mud shadow in the weave";
+  if (/臭|異味|味道/.test(topic)) return "odour and sweat residue";
+  if (/發霉|霉/.test(topic)) return "mould spotting";
+  if (/開膠|脫膠/.test(topic)) return "sole separation";
+  if (/起球|起毛/.test(topic)) return "pilling";
+  if (/磨白|磨損|刮傷|刮痕/.test(topic)) return "abrasion";
   return "honest everyday wear";
 }
 
-function namedSpotsFromTopic(topic: string): string[] {
+export function namedSpotsFromTopic(topic: string): string[] {
   const spots: string[] = [];
   if (/肩線/.test(topic)) spots.push("shoulder line");
   if (/側縫/.test(topic)) spots.push("side seams");
@@ -1940,20 +2313,47 @@ function namedSpotsFromTopic(topic: string): string[] {
   if (/袖口/.test(topic)) spots.push("cuffs");
   if (/腋下/.test(topic)) spots.push("underarms");
   if (/內層|內裡/.test(topic)) spots.push("inner lining");
-  if (/下擺/.test(topic)) spots.push("hem");
+  if (/下擺|下緣/.test(topic)) spots.push("hem");
+  if (/掛勾|掛鉤/.test(topic)) spots.push("hook header");
+  if (/褶線|褶/.test(topic)) spots.push("pleat lines");
   if (/鞋邊|膠條/.test(topic)) spots.push("rubber foxing strip at the midsole edge");
   if (/鞋頭/.test(topic)) spots.push("toe box");
   if (/鞋帶孔/.test(topic)) spots.push("eyelet area around the lace holes");
+  else if (/鞋帶/.test(topic)) spots.push("laces");
+  if (/鞋墊/.test(topic)) spots.push("insole");
+  if (/鞋口/.test(topic)) spots.push("shoe opening");
+  if (/鞋舌/.test(topic)) spots.push("tongue");
+  if (/鞋底/.test(topic)) spots.push("outsole");
+  if (/鞋跟/.test(topic)) spots.push("heel");
+  if (/拉鍊/.test(topic)) spots.push("zipper");
   if (/提把/.test(topic)) spots.push("handle");
   if (/包角/.test(topic)) spots.push("bag corners");
   return spots;
 }
 
-export function objectSpecFromTopic(topic: string): ObjectSpec {
+function specFromVariant(variant: ObjectVariant, wear: string): ObjectSpec {
+  return { noun: variant.noun, lockNote: variant.lockNote, material: variant.material, wear };
+}
+
+/**
+ * `date` switches on everyday variety (objectLibrary): a generic 球鞋/襯衫/T恤/包/外套
+ * topic rotates through concrete variants by date so the feed does not show
+ * the same grey sneaker every time. Without a date the legacy fixed passport
+ * is returned, which keeps every stamped calendar's prompt reproducible.
+ * Luxury classics (brand/model words) resolve regardless of date.
+ */
+export function objectSpecFromTopic(topic: string, date?: string): ObjectSpec {
   const t = topicBody(topic);
   const kind = wearKindFromTopic(t);
   const spots = namedSpotsFromTopic(t);
   const wearAt = (fallback: string) => (spots.length > 0 ? `${kind} at the ${spots.join(" and ")}` : fallback);
+
+  const luxury = luxuryVariantForTopic(t);
+  if (luxury) return specFromVariant(luxury, wearAt(luxury.wearFallback));
+  if (date && imageDoctrineActive(date)) {
+    const variant = everydayVariantForTopic(t, date);
+    if (variant) return specFromVariant(variant, wearAt(variant.wearFallback));
+  }
 
   for (const rule of OBJECT_SPEC_RULES) {
     if (!rule.match.test(t)) continue;
@@ -1993,8 +2393,8 @@ export function objectSpecFromTopic(topic: string): ObjectSpec {
   };
 }
 
-export function garmentPassportFromTopic(topic: string): string {
-  const spec = objectSpecFromTopic(topic);
+export function garmentPassportFromTopic(topic: string, date?: string): string {
+  const spec = objectSpecFromTopic(topic, date);
   if (spec.sceneLockOnly) {
     return (
       `OBJECT PASSPORT: scene-lock only (non-physical promo topic; do not invent a physical object). ` +
@@ -2020,6 +2420,13 @@ const SPOT_LEXICON: Array<[RegExp, string]> = [
   [/鞋帶孔/, "eyelet area around the lace holes"],
   [/鞋墊/, "insole"],
   [/鞋口/, "shoe opening"],
+  [/鞋舌/, "tongue"],
+  [/鞋底/, "outsole"],
+  [/鞋跟/, "heel"],
+  [/下緣/, "hem edge"],
+  [/掛勾|掛鉤/, "hook header"],
+  [/褶線/, "pleat lines"],
+  [/拉鍊/, "zipper"],
   [/提把/, "handle"],
   [/包角/, "bag corners"],
   [/邊油/, "edge paint"],
@@ -2041,7 +2448,7 @@ function checkpointsFromCaption(text: string): string[] {
   }
   if (numbered.length >= 2) return numbered;
 
-  if (!/[一二三四五六七八九十\d]+個位置|[一二三四五六七八九十\d]+個檢查/.test(text)) {
+  if (!/[一二三四五六七八九十\d]+\s*個位置|[一二三四五六七八九十\d]+\s*個檢查/.test(text)) {
     return [];
   }
 
@@ -2059,22 +2466,22 @@ function checkpointsFromCaption(text: string): string[] {
  * 提把 must not invent a handle on indoor slippers. */
 const SHOE_FOREIGN_SPOTS = /^(handle|bag corners|edge paint|hardware)$/i;
 
-function isPureShoeObject(topic: string): boolean {
-  const spec = objectSpecFromTopic(topic);
+function isPureShoeObject(topic: string, date?: string): boolean {
+  const spec = objectSpecFromTopic(topic, date);
   const blob = `${spec.noun} ${spec.lockNote}`.toLowerCase();
   const hasBag = /\b(handbag|suitcase|bag)\b/.test(blob);
-  const hasShoe = /shoe|sneaker|boot|slipper|sandal/.test(blob);
+  const hasShoe = /shoe|sneaker|boot|slipper|sandal|loafer|pump|flat|trainer|clog/.test(blob);
   return hasShoe && !hasBag;
 }
 
-function checkpointsForObject(caption: string, topic: string): string[] {
+function checkpointsForObject(caption: string, topic: string, date?: string): string[] {
   const points = checkpointsFromCaption(`${caption}\n${topic}`);
-  if (!isPureShoeObject(topic)) return points;
+  if (!isPureShoeObject(topic, date)) return points;
   return points.filter((spot) => !SHOE_FOREIGN_SPOTS.test(spot));
 }
 
-export function carouselInspectionShots(caption: string, topic: string): string[] {
-  const points = checkpointsForObject(caption, topic);
+export function carouselInspectionShots(caption: string, topic: string, date?: string): string[] {
+  const points = checkpointsForObject(caption, topic, date);
   const defaults = [
     "Overall closer look at the complete passport item so fabric grain, seams and full silhouette stay readable.",
     "Tight close-up of the problem area named by the topic; the wear marks fill the frame.",
@@ -2143,8 +2550,9 @@ const WHITE_SHIRT_7_20_BRIEFS = [
 ];
 
 export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] {
-  const passport = garmentPassportFromTopic(input.topic);
+  const passport = garmentPassportFromTopic(input.topic, input.date);
   const dayIndex = Number(input.date.replace(/-/g, "")) % BACKGROUND_ANCHORS.length;
+  const spec = objectSpecFromTopic(input.topic, input.date);
   const shared =
     `${passport} ${CAROUSEL_SCENE_LOCK} Create one portrait 4:5 photo. ` +
     "Keep the exact featured object consistent across all four photos. " +
@@ -2158,8 +2566,25 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
         ? pickupCarouselBriefs(input.topic)
         : [
             `Hero still of ${topicBody(input.topic)} through the passport item as the main close-up on the locked inspection counter. Keep the entire object readable and do not imply a cleaning result.`,
-            ...carouselInspectionShots(input.caption ?? "", input.topic)
+            ...carouselInspectionShots(input.caption ?? "", input.topic, input.date)
           ];
+
+  // Doctrine layer (2026-09-09+): seven-segment prompt with material optics,
+  // wear mechanism, per-slide composition/lens and a short per-family
+  // negative list. Scene-lock-only promo topics keep the legacy prompt: there
+  // is no physical object to describe.
+  if (imageDoctrineActive(input.date) && !spec.sceneLockOnly) {
+    const body = topicBody(input.topic);
+    return buildDoctrinePrompts({
+      date: input.date,
+      spec,
+      wearKind: wearKindFromTopic(body),
+      spots: namedSpotsFromTopic(body),
+      passport,
+      briefs,
+      sameGarment: SAME_GARMENT_CONTINUITY
+    });
+  }
 
   return briefs.map((brief, index) => {
     const slide = index + 1;
@@ -2227,7 +2652,7 @@ function videoPromptFromPlaybook(slot: GrowthPlaybookSlot): string | undefined {
   );
 }
 
-function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string): void {
+export function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string): void {
   const paragraphs = caption.split("\n\n");
   const forbidden = ["畫面維持", "這支內容會用", "短影音題", "轉詢問題", "9:16", "主視覺", "route", "SEO"];
   // Block 2 is the last line most readers see before Instagram folds the
@@ -2241,7 +2666,13 @@ function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: string)
   if (!caption.includes(brandLine)) {
     throw new Error(`Invalid playbook caption for ${slot.date} slot ${slot.slot}: missing brand name.`);
   }
-  if (!caption.includes(slot.follow_cta)) {
+  if (singleCtaExperimentActive(slot.date)) {
+    if (caption.includes(slot.follow_cta) || /(?:傳|轉)給他/.test(caption)) {
+      throw new Error(
+        `Invalid playbook caption for ${slot.date} slot ${slot.slot}: single-CTA experiment forbids follow/share lines.`
+      );
+    }
+  } else if (!caption.includes(slot.follow_cta)) {
     throw new Error(`Invalid playbook caption for ${slot.date} slot ${slot.slot}: missing follow CTA.`);
   }
   if (!slot.hashtags.every((hashtag) => caption.includes(hashtag))) {
@@ -2313,14 +2744,21 @@ export function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfi
 function dailySlotFromTemplate(date: string, schedule: (typeof DAILY_SCHEDULE)[number], config: AppConfig): DailySlot {
   const template = templateFor(date, schedule.category);
   const caption = captionFromTemplate(template);
+  const actionTarget = { slot: schedule.slot, format: "image-post", date, topic: template.topic };
   return {
     slot: schedule.slot,
     time: schedule.time,
     category: schedule.category,
     topic: template.topic,
     media_type: "image",
-    instagram_caption: withLineContact(caption, captionTracking(date, schedule.slot, "instagram", undefined, config)),
-    facebook_caption: withLineContact(caption, captionTracking(date, schedule.slot, "facebook", undefined, config)),
+    instagram_caption: withSlot2ActionCta(
+      withLineContact(caption, captionTracking(date, schedule.slot, "instagram", undefined, config)),
+      actionTarget
+    ),
+    facebook_caption: withSlot2ActionCta(
+      withLineContact(caption, captionTracking(date, schedule.slot, "facebook", undefined, config)),
+      actionTarget
+    ),
     image_prompt: template.imagePrompt,
     visual_route: template.visualRoute,
     traffic_route: template.trafficRoute,
@@ -2400,6 +2838,7 @@ export function buildDailyContent(
     // day must not promise a topic the plan may still move.
     if (slot.slot !== 1 || slot1Decision?.source !== "slot1-plan" || !nextPlannedTopic) return slot;
     if (nextPlannedTopic === slot.topic) return slot;
+    if (captionTrimActive(date)) return slot;
     return {
       ...slot,
       facebook_caption: withNextEpisodeTeaser(slot.facebook_caption, nextPlannedTopic),

@@ -141,8 +141,8 @@ export const PROTECTED_LIVE_COHORT_HASHES: Record<(typeof PROTECTED_LIVE_COHORT_
 
 export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLock> = {
   "suede-shoe-cleaning": {
-    content_revision: "2026-08-30#1",
-    body_hash: "d8e6beec999909c778ed5a4ffc456b78bba9a8c49bbe906d8e150ceaa2cec1ab"
+    content_revision: "2026-09-07#1",
+    body_hash: "3fb91768c79479acb1c3c446dc87838be0e3a4abb7ce5ea88f9db18a85fe9e59"
   },
   "canvas-shoe-mud": {
     content_revision: "2026-08-30#1",
@@ -153,8 +153,8 @@ export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLo
     body_hash: "e5000287b1449c3fc010f8fdff4dcfde87cf3718c5366a16dff24f5cd648f215"
   },
   "shoe-odor-source": {
-    content_revision: "2026-08-30#1",
-    body_hash: "f63621b9d70217dfa598461b28167c44cf24b9090dd00522be5dc7cc5c8cfb5d"
+    content_revision: "2026-09-07#1",
+    body_hash: "6ce6922b25e5e183fdbe1ddfcb5cbdd8ec290dcfe6b3b0670d87cd099aeac22c"
   },
   "washing-machine-shoe-risk": {
     content_revision: "2026-08-30#1",
@@ -165,8 +165,8 @@ export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLo
     body_hash: "c77a44ea1fc2c27816ae1b6d0e279e573376125ed1efcba2a13a01323d50f03a"
   },
   "shoe-mold-surface-check": {
-    content_revision: "2026-08-30#1",
-    body_hash: "1f2b991678d80fef53e0c74e03169df974708fef8ea1d88747febdc35cc9551d"
+    content_revision: "2026-09-07#1",
+    body_hash: "34fe4ec6507f6a2d72380332bed53d5c58372e8af915fcfc12eaf049be15e391"
   },
   "shoe-sole-separation-limit": {
     content_revision: "2026-08-30#1",
@@ -1259,7 +1259,7 @@ const PAGE_INTENT_META: Record<string, PageIntentMeta> = {
   "suede-shoe-cleaning": {
     cluster: "suede-nap-direction",
     canonical: "suede-shoe-cleaning",
-    sources: ["svc:shoe-bag-care", "guide:qinghai-road-shoe-cleaning", "guide:rainy-shoe-care", "bp:business-profile"]
+    sources: ["svc:shoe-bag-care", "guide:qinghai-road-shoe-cleaning", "guide:rainy-shoe-care", "bp:business-profile", "svc:taichung-laundry-price-list", "svc:taichung-citywide-laundry-pickup"]
   },
   "canvas-shoe-mud": {
     cluster: "canvas-wet-mud-wait",
@@ -1274,7 +1274,7 @@ const PAGE_INTENT_META: Record<string, PageIntentMeta> = {
   "shoe-odor-source": {
     cluster: "shoe-odor-source",
     canonical: "shoe-odor-source",
-    sources: ["svc:shoe-bag-care", "guide:rainy-shoe-care", "bp:business-profile"]
+    sources: ["svc:shoe-bag-care", "guide:rainy-shoe-care", "bp:business-profile", "svc:taichung-laundry-price-list", "svc:taichung-citywide-laundry-pickup"]
   },
   "washing-machine-shoe-risk": {
     cluster: "shoe-machine-wash-risk",
@@ -1289,7 +1289,7 @@ const PAGE_INTENT_META: Record<string, PageIntentMeta> = {
   "shoe-mold-surface-check": {
     cluster: "shoe-mold-surface",
     canonical: "shoe-mold-surface-check",
-    sources: ["guide:luxury-bag-mold", "svc:taichung-laundry-price-list", "svc:shoe-bag-care"]
+    sources: ["guide:luxury-bag-mold", "svc:taichung-laundry-price-list", "svc:shoe-bag-care", "svc:taichung-citywide-laundry-pickup"]
   },
   "shoe-sole-separation-limit": {
     cluster: "sole-separation-not-cleaning",
@@ -1421,7 +1421,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
     keywords: ["麂皮鞋清潔", "麂皮鞋變硬", "麂皮鞋發亮", "台中洗麂皮"],
     service_slug: "shoe-bag-care",
     local_intent: "台中西屯 麂皮鞋 變硬 發亮 乾刷",
-    content_lastmod: "2026-08-30",
+    content_lastmod: "2026-09-07",
     hub_group: "shoes",
     related_slugs: ["canvas-shoe-mud", "rainy-shoe-care"],
     steps: [
@@ -1442,9 +1442,9 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
           "停手條件：整雙已泡過水、絨面大面積發亮變硬、出現深色水圈或染料移動，或已經用濕布、橡皮擦、未知噴劑試過。清潔限度：表面浮灰與輕微倒伏有機會整理；染色、油點、泡水後的硬塊只能評估淡化，不保證回到原絨向，也不保證變全新。不知道材質就先保留原狀。"
       },
       {
-        heading: "送洗前對應鞋包清潔",
+        heading: "麂皮鞋送洗：先傳哪些照片、怎麼看費用",
         body:
-          "拍鞋面、發亮近照、鞋側與整體，用 LINE 傳給門市並說明是否淋雨或自行擦過。對應服務是鞋包清潔頁；台中市可約免費收送，清潔費另依物件判斷。本頁不報固定價。帆布濕泥的等乾判斷見帆布鞋指南，不要用同一套水洗想像處理麂皮。"
+          "先拍整雙、自然光鞋面、發亮或水圈近照與材質標籤，用 LINE 說明是否淋雨、濕擦或用過噴劑。先在台中洗衣價目表看麂皮鞋的參考項目，不把一般網布運動鞋的價格套到麂皮；材質、染色與水痕仍要看過物件才報價。接著看台中全市免費洗衣收送：收送無低消，清潔費另計。預約時提供所在行政區及希望收件時段，由門市確認安排；不承諾固定處理天數，也不保證恢復原絨向。下方鞋包清潔入口可繼續查看送洗範圍。"
       }
     ],
     faqs: [
@@ -1583,7 +1583,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
     keywords: ["鞋子臭", "鞋內悶味", "鞋子除臭", "台中洗鞋除臭"],
     service_slug: "shoe-bag-care",
     local_intent: "台中西屯 鞋臭 悶味 汗 收納",
-    content_lastmod: "2026-08-30",
+    content_lastmod: "2026-09-07",
     hub_group: "shoes",
     related_slugs: ["washing-machine-shoe-risk", "rainy-shoe-care"],
     steps: [
@@ -1604,9 +1604,9 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
           "停手條件：未乾就進洗衣機、噴大量香水或酒精、用塑膠袋把鞋密封隔夜。清潔限度：表層潮氣與可拆鞋墊的汗味較有處理空間；長期吸附進內裡泡棉、發霉根或材質本身老化味，只能降低、不保證無味，也不保證變全新。"
       },
       {
-        heading: "送洗前對應鞋包清潔",
+        heading: "鞋臭送洗：先說味道來源，再確認清潔費用",
         body:
-          "拍鞋內、鞋墊正反面與整體，並用一句話說明味道何時出現。對應鞋包清潔頁。台中市可約免費收送。本頁不承諾除臭天數或保證無味。若你打算整雙丟洗衣機，先看機洗風險頁。"
+          "用 LINE 傳整雙、鞋內、可拆鞋墊正反面的照片，並說明味道是在淋雨後、連續穿著後，還是收納後出現；不能拆的鞋墊不要硬扯。台中洗衣價目表列的是各鞋款參考項目，不是保證除臭的套裝價；實際費用要看材質、鞋內狀況與需要處理的部位。不承諾固定除臭天數，也不保證無味。需要收件可看台中全市免費洗衣收送：收送無低消，清潔費另計。傳照片時一併說明所在行政區及希望收件時段，由門市確認安排；下方鞋包清潔入口可查看服務範圍。"
       }
     ],
     faqs: [
@@ -1745,7 +1745,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
     keywords: ["鞋子發霉", "鞋內發霉", "鞋子長霉", "台中洗鞋發霉"],
     service_slug: "shoe-bag-care",
     local_intent: "台中西屯 鞋子發霉 表面霉 滲入",
-    content_lastmod: "2026-08-30",
+    content_lastmod: "2026-09-07",
     hub_group: "shoes",
     related_slugs: ["luxury-bag-mold", "clothing-mold-airing"],
     steps: [
@@ -1766,9 +1766,9 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
           "停手條件：濕刷、酒精、漂白、陽光暴晒想「烤乾霉」。清潔限度：浮在表面的白霉較能評估；留下色斑、滲進內裡或皮革毛孔的，以抑制擴散與淡化為目標，不保證無斑、不保證無味。結構發霉嚴重時，會先說可能不適合硬處理。"
       },
       {
-        heading: "送洗前對應鞋包清潔",
+        heading: "發霉鞋送洗：特殊污況先評估，不套一般洗鞋價",
         body:
-          "拍外觀、發霉近照、鞋內與鞋墊背面，說明放在哪裡多久。對應鞋包清潔頁。台中市可約免費收送。本頁不報發霉加價數字；特殊污況要看過物件。處理完也不要用塑膠袋立刻密封。"
+          "先用 LINE 傳整雙、發霉位置、鞋內與可拆鞋墊背面的照片，說明放在哪裡、多久，以及是否已用酒精或清潔劑處理。台中洗衣價目表可查一般鞋款參考項目，但發霉屬特殊污況，是否適合清潔、處理範圍與費用要另行評估，不能把一般洗鞋價當成除霉全包價。留下色斑或鞋內異味時，不保證無斑、無味。台中全市免費洗衣收送的收送無低消，清潔費另計；先讓門市看照片並確認收件方式與時段，再安排收送。下方鞋包清潔入口可查看可處理範圍。"
       }
     ],
     faqs: [

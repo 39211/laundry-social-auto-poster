@@ -1755,9 +1755,11 @@ describe("generatePublicSite", () => {
     );
     // Money pages are the indexable surface; caption/post pages are out of the
     // sitemap entirely (rescued 190d063 design). Date is ours: the static
-    // The knowledge navigation and compact featured-answer sections changed on 2026-09-03.
+    // The knowledge navigation and compact featured-answer sections changed on 2026-09-03;
+    // the price-list capsule gained bedding tiers on 2026-09-07 and the knowledge
+    // index lastmod follows its newest child.
     expect(sitemap1).not.toContain("/posts/");
-    expect(sitemap1).toContain("<lastmod>2026-09-03</lastmod>");
+    expect(sitemap1).toContain("<lastmod>2026-09-07</lastmod>");
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
@@ -1923,9 +1925,9 @@ describe("generatePublicSite", () => {
       "2026-08-17",
       "2026-08-23",
       "2026-08-23",
-      "2026-08-26",
       "2026-08-30",
-      "2026-08-30"
+      "2026-08-30",
+      "2026-09-07"
     ]);
   });
 

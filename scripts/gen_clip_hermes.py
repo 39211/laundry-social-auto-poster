@@ -29,6 +29,24 @@ from pathlib import Path
 HERMES_AGENT = Path(r"C:\Users\cyc39\AppData\Local\hermes\hermes-agent")
 
 
+def generate_video(video_xai, **kwargs):
+    """Drive the plugin's image-to-video flow on either plugin generation.
+
+    hermes-agent 2026-09-05 moved credential resolution out of
+    ``run_xai_video_generation`` into ``_run_xai_video(label, flow, **kw)``,
+    which resolves the xai-oauth pool entry and injects ``api_key``/``base_url``
+    into the coroutine. The public wrapper was left calling the coroutine
+    without them, so every clip died with "missing 2 required keyword-only
+    arguments" (9/10 heel-tip-scuff, two attempts). Prefer the resolving
+    runner when it exists; fall back to the old public entry point otherwise.
+    """
+    runner = getattr(video_xai, "_run_xai_video", None)
+    flow = getattr(video_xai, "_generate_xai_video_async", None)
+    if callable(runner) and callable(flow):
+        return runner("generation", flow, **kwargs)
+    return video_xai.run_xai_video_generation(**kwargs)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True)
@@ -50,7 +68,8 @@ def main() -> int:
         return 1
 
     t0 = time.time()
-    result = video_xai.run_xai_video_generation(
+    result = generate_video(
+        video_xai,
         prompt=str(manifest["prompt"]),
         model=None,
         explicit_model=False,

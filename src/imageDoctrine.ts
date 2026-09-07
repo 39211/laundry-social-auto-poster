@@ -1,20 +1,24 @@
 /**
- * Image prompt doctrine layer (owner directive 2026-09-07: "提示詞太少,要發揮
- * Codex 作圖全部的能力").
+ * Image prompt doctrine layer.
  *
- * Applies the director doctrine in docs-internal/chuanzhang (digest §2E, §3,
- * rule 40 "靜圖七段") to the carousel image prompts:
- *   [Subject+Condition] [Location] [Composition] [Lighting] [Style] [Camera/Lens] [Color]
- * with three concrete upgrades over the pre-9/9 prompt:
- *   1. material optics written as events (how light behaves on THIS surface),
- *      not adjectives ("suede", "honest used fabric");
- *   2. wear written as a physical mechanism with a boundary and a position,
- *      not "honest everyday wear at the positions the topic names";
- *   3. composition/lens per slide (hero vs. checkpoint macro) and a short
- *      per-family negative list instead of one fixed 14-item tail.
+ * v1 (2026-09-07 morning, PR #68): seven-segment prompt with material optics,
+ * wear mechanism, per-slide composition/lens, per-family negatives.
  *
- * Date-gated so calendars already stamped before the start date keep the
- * prompts their images were certified with (prompt_sha256 chain).
+ * v2 (2026-09-07, owner review of the first Codex batch — "物件太乾淨、每天同一張
+ * 桌子、擺法是商品照、光太平"; owner decisions: hands and tools may appear,
+ * rotate scene stations, wear must read at a glance, cropping allowed):
+ *   1. WEAR FIRST: the wear is the first sentence after the passport, sized
+ *      (25-40% of the named area) and placed on the camera-facing side; topics
+ *      that name an interior spot (insole, lining, opening) open it in the hero.
+ *   2. STATIONS: four shop stations rotated by date; the lock is still "same
+ *      station on all four slides", but the pink mat is no longer the only set.
+ *   3. INSPECTION STAGING: one hand (wrist only) holds the problem area, one
+ *      tool at the frame edge, item opened/turned as a shop worker would.
+ *   4. CROP + OFF-CENTRE: the hero may frame the half that carries the problem,
+ *      cut by the frame edge on one side; no catalogue symmetry.
+ *   5. LIGHTING with a visible shadow side; mat/counter must not tint whites.
+ *
+ * Date-gated so calendars stamped before the start date keep their prompts.
  */
 import type { ObjectSpec } from "./contentPlan";
 
@@ -74,9 +78,9 @@ export const MATERIAL_OPTICS: OpticsRule[] = [
   },
   {
     id: "pebbled-bag",
-    match: /pebbled|handbag|bag corners/,
+    match: /pebbled|handbag|hobo|bag corners/,
     text:
-      "MATERIAL OPTICS: pebbled leather-look grain breaks the light into a fine dotted highlight pattern; the corners show edge paint worn through in a hard-edged patch exposing lighter, fuzzier material underneath; handles are darker and smoother where hands grip them, with a faint oily sheen; stitched seams sit proud with a highlight on each stitch."
+      "MATERIAL OPTICS: the bag's surface breaks the light into a fine dotted or brushed highlight pattern; the corners show the finish worn through in a hard-edged patch exposing lighter, fuzzier material underneath; handles are darker and smoother where hands grip them, with a faint oily sheen; stitched seams sit proud with a highlight on each stitch."
   },
   {
     id: "shirting",
@@ -124,13 +128,13 @@ export const MATERIAL_OPTICS: OpticsRule[] = [
     id: "duvet-cotton",
     match: /duvet|piping|bedding|cotton with thin navy/,
     text:
-      "MATERIAL OPTICS: warm-white cotton percale is a fine matte weave with soft broad shading across the folds; the navy piping is a thin crisp line; moisture or odour areas read as a faintly greyer, slightly limp region with a blurred boundary."
+      "MATERIAL OPTICS: warm-white cotton percale is a fine matte weave with soft broad shading across the folds; the navy piping is a thin crisp line; soiled areas read as a greyer, slightly limp region whose edge is clearly visible against the clean white."
   },
   {
     id: "curtain",
     match: /curtain/,
     text:
-      "MATERIAL OPTICS: the woven polyester curtain fabric is a dense matte weave with a faint sheen only along the pleat ridges; dust at the hem reads as a greyer, duller band with a soft upper boundary; sun-fade shows as lighter stripes along the pleat folds that faced the window; the metal hooks are small dull-satin points at the header."
+      "MATERIAL OPTICS: the woven polyester curtain fabric is a dense matte weave with a faint sheen only along the pleat ridges; dust at the hem reads as a distinctly greyer, duller band with a visible upper boundary; sun-fade shows as lighter stripes along the pleat folds that faced the window; the metal hooks are small dull-satin points at the header."
   },
   {
     id: "woven-suitcase",
@@ -142,7 +146,7 @@ export const MATERIAL_OPTICS: OpticsRule[] = [
     id: "generic-fabric",
     match: /.*/,
     text:
-      "MATERIAL OPTICS: the fabric shows its real weave or knit texture at close range, matte with a faint sheen only along fold ridges; worn or soiled areas read as soft-edged darker regions that follow the contact line, never as painted patches."
+      "MATERIAL OPTICS: the fabric shows its real weave or knit texture at close range, matte with a faint sheen only along fold ridges; worn or soiled areas read as clearly darker regions that follow the contact line, with a visible edge, never as painted patches."
   }
 ];
 
@@ -154,35 +158,45 @@ export function materialOptics(spec: Pick<ObjectSpec, "noun" | "material">): str
 /** Physical mechanism per wear kind (keys are wearKindFromTopic outputs). */
 export const WEAR_MECHANISM: Record<string, string> = {
   yellowing:
-    "yellowing as a diffuse gradient that is strongest at the outer edge and fades inward, with the original colour still visible in protected spots",
+    "yellowing as a distinct warm-yellow band, strongest at the outer edge and fading inward, the original white still visible next to it for contrast",
   "sweat residue":
-    "sweat darkening as a soft-edged tide line that follows the contact shape, with faint salt-white rims at its border",
+    "sweat darkening as a clearly darker tide line that follows the contact shape, with salt-white rims at its border",
   "oil darkening":
-    "oil darkening with a slightly glossy centre and a diffuse halo that has soaked into the fibres",
+    "oil darkening with a slightly glossy centre and a diffuse halo that has soaked into the fibres, clearly darker than the surrounding fabric",
   "mud shadow in the weave":
-    "dried mud as dull brown specks and a thin crust with crisp edges, thicker along the lower edge and thinning upward",
+    "dried mud as brown specks and a thin crust with crisp edges, thicker along the lower edge and thinning upward",
   "trapped moisture":
-    "damp darkening with a blurred boundary and a slightly limp, heavier drape where it soaked in",
+    "damp darkening with a blurred boundary and a limp, heavier drape where it soaked in, clearly darker than the dry area",
   "sun-faded grey":
-    "sun-faded grey with lowered contrast along the ridges and the original colour surviving in the folds",
+    "sun-faded grey with a visible step in colour where the fold protected the original tone",
   "odour and sweat residue":
-    "sweat and odour residue as a soft-edged darker tide line on the contact surfaces with faint salt-white rims, the lining slightly greyed and matted where the foot sits, the outside still ordinary everyday-clean",
+    "sweat and odour residue as a clearly darker tide line on the contact surfaces with salt-white rims, the lining greyed and matted where the foot sits, the outside still ordinary everyday-clean so the inside reads as the problem",
   "mould spotting":
-    "mould as small grey-green speckles clustered in a patch with a faint powdery halo, following the fold or seam where moisture sat",
+    "mould as grey-green speckles clustered in a patch with a powdery halo, following the fold or seam where moisture sat",
   "sole separation":
-    "sole separation as a thin dark gap opening between upper and midsole with a crisp edge, widest at the flex point, the glue line visible as a dull yellowed strip",
+    "sole separation as a dark gap opening between upper and midsole with a crisp edge, widest at the flex point, the glue line visible as a dull yellowed strip",
   pilling:
-    "pilling as many tiny fibre balls standing on the surface where it rubbed, casting minute shadows, densest at the friction zone and thinning outward",
+    "pilling as many small fibre balls standing on the surface where it rubbed, casting tiny shadows, densest at the friction zone",
   abrasion:
-    "abrasion as a matte roughened patch with a crisp boundary where the finish was rubbed off, lighter than the surrounding surface, along the contact edge",
+    "abrasion as a matte roughened patch with a crisp boundary where the finish was rubbed off, lighter than the surrounding surface",
   "honest everyday wear":
-    "everyday wear as dust settled in texture valleys, a slightly greyed tone at contact points, and small scuffs with crisp edges"
+    "everyday wear as grey dust in the texture valleys, greyed contact points and small scuffs with crisp edges, clearly visible against the cleaner areas"
 };
+
+/** Interior or hidden spots: the hero must open the item to show them. */
+const INTERIOR_SPOT = /insole|lining|inner|shoe opening|tongue|inside|underarm/i;
 
 export function wearMechanism(kind: string, spots: string[], fallbackWear: string): string {
   const mechanism = WEAR_MECHANISM[kind] ?? WEAR_MECHANISM["honest everyday wear"]!;
   const where = spots.length > 0 ? `at the ${spots.join(" and ")}` : `at the positions named by the topic (${fallbackWear})`;
-  return `WEAR MECHANISM: ${mechanism}, ${where}; the rest of the object stays in ordinary used condition so the marked positions read as the story.`;
+  return (
+    `WEAR FIRST (this is the story of the photo): ${mechanism}, ${where}; it covers roughly 25-40% of that area and is strong enough to read at thumbnail size from arm's length, ` +
+    "on the side that faces the camera; the rest of the object is clean enough that the marked area is unmistakably the problem, but the object is a used everyday item, not new stock."
+  );
+}
+
+export function needsOpening(spots: string[], wear: string): boolean {
+  return spots.some((s) => INTERIOR_SPOT.test(s)) || INTERIOR_SPOT.test(wear);
 }
 
 export type ObjectFamily = "shoe" | "bag" | "garment" | "bedding" | "plush" | "other";
@@ -190,55 +204,117 @@ export type ObjectFamily = "shoe" | "bag" | "garment" | "bedding" | "plush" | "o
 export function objectFamily(spec: Pick<ObjectSpec, "noun" | "material">): ObjectFamily {
   const key = `${spec.noun} ${spec.material}`.toLowerCase();
   if (/shoe|sneaker|slipper|boot|loafer|sandal/.test(key)) return "shoe";
-  if (/handbag|bag|suitcase/.test(key)) return "bag";
+  if (/handbag|hobo|bag|suitcase/.test(key)) return "bag";
   if (/duvet|bedding|pillow|sheet/.test(key)) return "bedding";
   if (/plush|doll/.test(key)) return "plush";
-  if (/shirt|jacket|coat|tee|denim|jeans|uniform|suit|towel|blouse/.test(key)) return "garment";
+  if (/shirt|jacket|coat|tee|denim|jeans|uniform|suit|towel|blouse|curtain/.test(key)) return "garment";
   return "other";
 }
 
 const NEGATIVES: Record<ObjectFamily, string> = {
-  shoe: "Avoid: brand logos or logo-like marks, a second pair, readable text on the shoe, a waxy plastic-coated surface.",
-  bag: "Avoid: brand lettering on hardware, a second bag, readable tags, a waxy plastic-coated surface.",
-  garment: "Avoid: readable care-label or hang-tag text, a second garment, a mannequin, a waxy plastic-coated surface.",
-  bedding: "Avoid: readable label text, a second duvet, a bedroom set, a waxy plastic-coated surface.",
-  plush: "Avoid: character faces from known franchises, a second doll, readable tags.",
-  other: "Avoid: brand logos, readable text on the object, a second object of the same kind, a waxy plastic-coated surface."
+  shoe: "Avoid: brand logos or logo-like marks, a second pair, readable text on the shoe, a waxy plastic-coated surface, a second hand.",
+  bag: "Avoid: brand lettering on hardware, a second bag, readable tags, a waxy plastic-coated surface, a second hand.",
+  garment: "Avoid: readable care-label or hang-tag text, a second garment, a mannequin, a waxy plastic-coated surface, a second hand.",
+  bedding: "Avoid: readable label text, a second duvet, a bedroom set, a waxy plastic-coated surface, a second hand.",
+  plush: "Avoid: character faces from known franchises, a second doll, readable tags, a second hand.",
+  other: "Avoid: brand logos, readable text on the object, a second object of the same kind, a waxy plastic-coated surface, a second hand."
 };
 
 export function familyNegatives(family: ObjectFamily): string {
   return NEGATIVES[family];
 }
 
-export function locationBlock(anchor: string): string {
-  return `LOCATION: a light laminate counter with a pink self-healing cutting mat, white slat-wall panels behind, ${anchor}, everyday Taiwanese laundry-shop clutter only at the frame edges; any paperwork or labels in the background are out of focus and unreadable.`;
+/** Tool at the frame edge, chosen by family; the hand may hold it in checkpoint slides. */
+export function familyTool(family: ObjectFamily): string {
+  switch (family) {
+    case "shoe":
+      return "a worn horsehair shoe brush";
+    case "bag":
+      return "a folded white microfibre cloth";
+    case "bedding":
+      return "a handheld lint roller";
+    case "plush":
+      return "a soft-bristle garment brush";
+    default:
+      return "a white plastic spray bottle with no readable label";
+  }
 }
 
-export function compositionBlock(slide: number, spot?: string): string {
+/**
+ * Four shop stations, rotated by date. Continuity stays inside one carousel
+ * (same station on all four slides); the day-to-day feed no longer shows the
+ * same pink mat every post.
+ */
+export interface SceneStation {
+  id: string;
+  lock: string;
+  location: string;
+}
+
+export const SCENE_STATIONS: SceneStation[] = [
+  {
+    id: "counter-mat",
+    lock: "SCENE LOCK: the same light laminate reception counter with the pink cutting mat on every slide; do not change location, backdrop, or room across slides.",
+    location:
+      "LOCATION: the reception counter of a small Taiwanese laundry shop: light laminate top, a pink self-healing cutting mat covering less than a fifth of the frame in one corner, white slat-wall panels behind, a receipt pad and pen pushed to the frame edge; background shelves softly out of focus; any paperwork or labels unreadable."
+  },
+  {
+    id: "steel-table",
+    lock: "SCENE LOCK: the same brushed stainless-steel work table with the white tiled wall on every slide; do not change location, backdrop, or room across slides.",
+    location:
+      "LOCATION: the back work table of the same laundry shop: brushed stainless-steel top with fine scratches and a few water spots, white ceramic tile wall behind with grey grout, a row of unlabelled care-product bottles and a folded towel softly out of focus at the back edge; no pink mat."
+  },
+  {
+    id: "wash-station",
+    lock: "SCENE LOCK: the same shoe-washing sink station with the wet stainless drainboard on every slide; do not change location, backdrop, or room across slides.",
+    location:
+      "LOCATION: the shoe-washing station: a stainless drainboard beside a deep sink, still damp with small water beads, two brushes and a bar of saddle soap at the frame edge, a green rubber mat on the floor beyond, fluorescent tube light overhead and a small window to one side; no pink mat."
+  },
+  {
+    id: "garment-rail",
+    lock: "SCENE LOCK: the same wooden counter in front of the garment conveyor rail on every slide; do not change location, backdrop, or room across slides.",
+    location:
+      "LOCATION: a worn light-oak wooden counter in front of the garment conveyor rail, plastic-covered finished clothes hanging softly out of focus behind, a paper ticket clipped to one hanger (unreadable), a tape measure coiled at the frame edge; no pink mat."
+  }
+];
+
+export function sceneStationForDate(date: string): SceneStation {
+  const n = Number(date.replace(/-/g, ""));
+  return SCENE_STATIONS[n % SCENE_STATIONS.length] ?? SCENE_STATIONS[0]!;
+}
+
+export function compositionBlock(slide: number, spot?: string, opening = false, tool = "a tool"): string {
   if (slide === 1) {
-    return "COMPOSITION: three-quarter front view, the object centred slightly low with its centre near x=50% y=58%, filling about 55-65% of the frame height; foreground is the mat texture in front of the object, midground is the object, background is softened shop depth; the whole object stays inside the frame with breathing room at the top.";
+    const open = opening
+      ? " Because the problem is inside, the item is opened toward the camera: the insole pulled halfway out, the opening tilted to the lens, or the lining turned outward, so the marked area is fully visible."
+      : "";
+    return (
+      "COMPOSITION (hero, crop allowed): frame the half of the object that carries the problem, the object cut by the frame edge on one side and set off-centre with its mass near x=40% or x=60%, filling 60-75% of the frame height; one adult hand entering from the frame edge, wrist only, fingers holding or pressing right beside the problem area with five clearly separated fingers; " +
+      `${tool} rests at the frame edge as a foreground occlusion; the surface fills the bottom of the frame, not empty space.` +
+      open
+    );
   }
   if (spot) {
-    return `COMPOSITION: macro framing on the ${spot}, that area filling about 60-70% of the frame with the rest of the same object recognizable at the frame edge; the wear boundary sits near the centre so its edge is readable; a fingertip may rest at the edge of the frame but no full hand.`;
+    return `COMPOSITION: macro framing on the ${spot}, that area filling 60-75% of the frame; one fingertip points at or presses the exact spot from the frame edge; the wear boundary sits near the centre so its edge is readable; the rest of the same object is recognizable at the edge.`;
   }
   if (slide === 2) {
-    return "COMPOSITION: closer three-quarter view, the object filling about 65-75% of the frame height so seams, grain and full silhouette stay readable; centre slightly low.";
+    return "COMPOSITION: closer three-quarter view, the object filling 65-80% of the frame, off-centre, the hand turning or lifting it so the problem side faces the lens; seams and texture readable.";
   }
   if (slide === 3) {
-    return "COMPOSITION: tight close-up on the problem area, the wear filling most of the frame with its boundary near the centre; the rest of the same object visible at the edge.";
+    return "COMPOSITION: tight close-up on the problem area, the wear filling most of the frame with its boundary near the centre, a fingertip at the frame edge; the rest of the same object visible at the edge.";
   }
-  return "COMPOSITION: the same object on the same mat, framed the same way as photo 1, so the two states compare directly.";
+  return "COMPOSITION: the same object at the same station, framed like photo 1 with the hand withdrawn, so the two states compare directly.";
 }
 
 export const LIGHTING_BLOCK =
-  "LIGHTING: key light from the storefront window on the left, soft and directional, so highlights have a clear side and roll off gently; fluorescent ceiling fill lifts the shadows without killing them; one real contact shadow under the object with a soft edge, denser where the object touches the mat.";
+  "LIGHTING: one clear key light from a window on one side: the lit side of the object is bright and the far side falls to mid-grey with a visible shadow edge running across the object; a dense contact shadow at the base that softens outward; ceiling fluorescent fills only enough to keep shadow detail; the counter or mat must not tint the whites.";
 
 export const STYLE_BLOCK =
-  "STYLE: documentary phone photo taken by the shop staff at the inspection counter, real physics, slight handheld framing imperfection; not editorial, not cinematic, not studio.";
+  "STYLE: candid documentary phone photo taken by the shop worker mid-inspection, the action caught while it happens, slight handheld tilt and framing imperfection; not editorial, not catalogue, not studio.";
 
 export function cameraBlock(slide: number, macro: boolean): string {
   if (slide === 1) {
-    return "CAMERA: phone main camera, 26mm-equivalent, held slightly high looking down about 15 degrees, f/1.8 look with natural phone depth: the object sharp front to back, the background softened but still recognizable.";
+    return "CAMERA: phone main camera, 26mm-equivalent, held from the worker's standing eye line looking down about 25 degrees, f/1.8 look: the problem area sharp, the far side of the object slightly softer, the background clearly out of focus.";
   }
   if (macro) {
     return "CAMERA: phone close-focus at about 50mm-equivalent, f/2.8 feel with moderate shallow depth of field, focus locked on the wear boundary, optical bokeh not artificial blur.";
@@ -247,7 +323,7 @@ export function cameraBlock(slide: number, macro: boolean): string {
 }
 
 export const COLOR_BLOCK =
-  "COLOR: neutral warm indoor tone, low saturation close to documentary colour, honest whites that read slightly grey, no colour cast on the pink mat beyond what the fluorescent fill gives.";
+  "COLOR: neutral daylight indoor tone with honest contrast, low saturation close to documentary colour, whites read white where clean and grey where soiled; no pink or warm cast on the object.";
 
 export function slideSpot(brief: string): string | undefined {
   const match = brief.match(/checkpoint \d+: ([^.]+)\./);
@@ -255,21 +331,23 @@ export function slideSpot(brief: string): string | undefined {
 }
 
 export interface DoctrinePromptInput {
+  date: string;
   spec: Pick<ObjectSpec, "noun" | "material" | "wear">;
   wearKind: string;
   spots: string[];
   passport: string;
-  sceneLock: string;
-  anchor: string;
   briefs: string[];
   sameGarment: string;
 }
 
-/** Full four-slide prompt set in seven-segment doctrine order. */
+/** Full four-slide prompt set in doctrine order: passport, wear first, optics, station, framing, light, style, lens, colour, brief, negatives. */
 export function buildDoctrinePrompts(input: DoctrinePromptInput): string[] {
   const family = objectFamily(input.spec);
-  const subject = `${input.passport} ${materialOptics(input.spec)} ${wearMechanism(input.wearKind, input.spots, input.spec.wear)}`;
-  const shared = `${subject} ${input.sceneLock} Create one portrait 4:5 photo. Keep the exact featured object consistent across all four photos. ${locationBlock(input.anchor)}`;
+  const station = sceneStationForDate(input.date);
+  const tool = familyTool(family);
+  const opening = needsOpening(input.spots, input.spec.wear);
+  const subject = `${input.passport} ${wearMechanism(input.wearKind, input.spots, input.spec.wear)} ${materialOptics(input.spec)}`;
+  const shared = `${subject} ${station.lock} Create one portrait 4:5 photo. Keep the exact featured object consistent across all four photos. ${station.location}`;
   return input.briefs.map((brief, index) => {
     const slide = index + 1;
     const spot = slideSpot(brief);
@@ -277,12 +355,12 @@ export function buildDoctrinePrompts(input: DoctrinePromptInput): string[] {
     const continuity = slide === 1 ? "" : ` ${input.sameGarment}.`;
     return [
       shared,
-      compositionBlock(slide, spot),
+      compositionBlock(slide, spot, opening, tool),
       LIGHTING_BLOCK,
       STYLE_BLOCK,
       cameraBlock(slide, macro),
       COLOR_BLOCK,
-      `Photo ${slide} of 4.${continuity} ${brief}`,
+      `Photo ${slide} of 4.${continuity} ${brief.replace("Keep the entire object readable", "Keep the object recognizable even when cropped")}`,
       familyNegatives(family)
     ].join(" ");
   });

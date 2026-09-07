@@ -21,7 +21,7 @@ import {
 import type { FrozenSourceRecord, IndexGrowthPageDefinition } from "../src/indexGrowthPages";
 import { KNOWN_SERVICE_SLUGS } from "../src/publicSiteTypes";
 
-const TODAY = "2026-09-03";
+const TODAY = "2026-09-07";
 const CLONE_SLUG = "suede-shoe-cleaning-unseen-geo-clone";
 
 function catalogPage(slug: string): IndexGrowthPageDefinition {
@@ -221,8 +221,8 @@ describe("indexGrowthPages validator", () => {
       summary: "未來日期不能寫進 lastmod。",
       local_intent: "未來日期意圖",
       canonical_intent_slug: "future-lastmod",
-      content_lastmod: "2026-09-04",
-      content_revision: "2026-09-04#1"
+      content_lastmod: "2026-09-08",
+      content_revision: "2026-09-08#1"
     };
     const revisionMismatch = {
       ...base,
@@ -652,8 +652,8 @@ describe("indexGrowthPages fail-closed mutations", () => {
     if (!lock) throw new Error("missing rainy-bag lock");
     const originalRevision = lock.content_revision;
     const originalHash = lock.body_hash;
-    const nextDay = "2026-09-04";
-    const priorDay = "2026-09-03";
+    const nextDay = "2026-09-08";
+    const priorDay = "2026-09-07";
     const updatedCatalog = INDEX_GROWTH_CATALOG.map((page) =>
       page.slug === slug
         ? {

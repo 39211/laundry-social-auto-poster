@@ -1792,9 +1792,9 @@ describe("generatePublicSite", () => {
     );
     // Money pages are the indexable surface; caption/post pages are out of the
     // sitemap entirely (rescued 190d063 design). Date is ours: the static
-    // knowledge hub lastmod follows the newest child (shoe-bag/white-shoe 2026-09-05).
+    // knowledge hub lastmod follows the newest child (four intake guides 2026-09-07).
     expect(sitemap1).not.toContain("/posts/");
-    expect(sitemap1).toMatch(/knowledge\/<\/loc><lastmod>2026-09-05<\/lastmod>/);
+    expect(sitemap1).toMatch(/knowledge\/<\/loc><lastmod>2026-09-07<\/lastmod>/);
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
@@ -2388,7 +2388,7 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("id=\"guide-hub-decisions\"");
     expect(existsSync(join(root, "data", ".calendar-hmac-key"))).toBe(false);
 
-    const acceptedPages = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-09-03" });
+    const acceptedPages = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-09-07" });
     const acceptedPaths = new Set(acceptedPages.map((page) => page.path));
     const publicPaths = new Set(publicSupportPages().map((page) => page.path));
     const sitemapPaths = new Set(locs.map((url) => pathFromUrl(url, baseUrl)));
@@ -2450,7 +2450,7 @@ describe("generatePublicSite", () => {
       baseUrl: "https://example.com/laundry-social-auto-poster",
       now: "2026-07-10T03:00:00.000Z"
     });
-    const sample = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-09-03" })[0];
+    const sample = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-09-07" })[0];
     if (!sample?.service_slug) throw new Error("missing accepted page");
     const html = await readFile(join(root, "docs", sample.path), "utf8");
     expect(
@@ -2470,7 +2470,7 @@ describe("generatePublicSite", () => {
       now: "2026-07-10T03:00:00.000Z"
     });
 
-    const sample = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-09-03" })[0];
+    const sample = resolveAcceptedIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: "2026-09-07" })[0];
     if (!sample?.service_slug) throw new Error("missing accepted page");
     const htmlPath = join(root, "docs", sample.path);
     const original = await readFile(htmlPath, "utf8");

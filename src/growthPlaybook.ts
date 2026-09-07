@@ -470,7 +470,20 @@ const situationSeeds: TopicSeed[] = [
   { topic: "絨毛玩偶有汗味時先看五官和配件", headline: "絨毛玩偶五官是繡的還是黏的，決定能不能下水", service: "plush-doll", visual: "customer-consultation", traffic: "object-proof", tags: ["#娃娃清洗", "#絨毛玩偶清潔"] },
   { topic: "精品衣物有舊污漬時先拍洗標", headline: "精品衣物的舊污漬，洗標決定能做到哪", service: "luxury-dry", visual: "customer-consultation", traffic: "trust-reset", tags: ["#精品乾洗", "#名牌衣物清潔"] },
   { topic: "換季時西裝和襯衫不要一起悶收", headline: "西裝和襯衫一起悶收，襯衫領口先黃", service: "shirt-suit", visual: "customer-consultation", traffic: "share-worthy-care", tags: ["#西裝乾洗", "#襯衫清洗"] },
-  { topic: "床組有潮味時先不要直接密封", headline: "床組有潮味就密封，三個月後是霉斑", service: "bedding-duvet", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#床組清洗", "#寢具清洗"] }
+  { topic: "床組有潮味時先不要直接密封", headline: "床組有潮味就密封，三個月後是霉斑", service: "bedding-duvet", visual: "shop-inspection", traffic: "dwell-detail", tags: ["#床組清洗", "#寢具清洗"] },
+  // Luxury classics track (owner 2026-09-07): the items many people own and
+  // hesitate to clean. Object first, brand as the object word, one defect,
+  // and the caption carries the "先看材質五金、洗壞風險低" positioning.
+  { topic: "香奈兒雙色鞋包頭起毛先看羅緞", headline: "香奈兒雙色鞋黑包頭起毛，先看羅緞織紋", service: "luxury-dry", visual: "macro-detail", traffic: "trust-reset", tags: ["#精品鞋清洗", "#精品洗護"] },
+  { topic: "香奈兒菱格包鏈帶與邊角", headline: "香奈兒菱格包邊角和鏈帶穿皮最先磨掉", service: "luxury-dry", visual: "macro-detail", traffic: "object-proof", tags: ["#精品包保養", "#精品洗護"] },
+  { topic: "愛馬仕涼鞋鞋床腳印與邊油", headline: "愛馬仕涼鞋鞋床腳印和邊油，越早處理越好", service: "luxury-dry", visual: "macro-detail", traffic: "object-proof", tags: ["#精品鞋清洗", "#精品洗護"] },
+  { topic: "愛馬仕包提把手汗與底角", headline: "愛馬仕包提把手汗和底角磨白，先看再說", service: "luxury-dry", visual: "customer-consultation", traffic: "trust-reset", tags: ["#精品包保養", "#精品洗護"] },
+  { topic: "馬銜釦樂福鞋面折痕與五金", headline: "馬銜釦樂福鞋鞋面折痕和五金霧化，先護理", service: "luxury-dry", visual: "macro-detail", traffic: "object-proof", tags: ["#精品鞋清洗", "#皮鞋保養"] },
+  { topic: "風衣領口袖口油痕與腰帶", headline: "風衣領口袖口油痕和腰帶磨痕，乾洗前先看", service: "luxury-dry", visual: "shop-inspection", traffic: "trust-reset", tags: ["#風衣乾洗", "#精品洗護"] },
+  { topic: "喀什米爾毛衣起球與腋下", headline: "毛衣腋下味和起球，喀什米爾要分開處理", service: "luxury-dry", visual: "macro-detail", traffic: "object-proof", tags: ["#毛衣清洗", "#精品洗護"] },
+  { topic: "髒髒鞋真髒與做舊怎麼分", headline: "髒髒鞋真髒和原廠做舊，先看鞋帶和鞋內", service: "luxury-dry", visual: "macro-detail", traffic: "trust-reset", tags: ["#精品鞋清洗", "#球鞋清潔"] },
+  { topic: "雪靴水漬與羊毛口變灰", headline: "雪靴的水漬和羊毛口變灰，先看麂皮再處理", service: "luxury-dry", visual: "macro-detail", traffic: "object-proof", tags: ["#雪靴清洗", "#精品洗護"] },
+  { topic: "精品羽絨外套袖口油光與蓬度", headline: "羽絨外套袖口油光、蓬度塌了，先看洗標", service: "luxury-dry", visual: "shop-inspection", traffic: "trust-reset", tags: ["#羽絨外套清洗", "#精品洗護"] }
 ];
 
 interface ConcreteReachSpecialInput {
@@ -1298,7 +1311,7 @@ export function freeHeadlineActive(date: string): boolean {
  * harder to de-duplicate. Every situation seed must satisfy this.
  */
 export const OBJECT_LEAD_RE =
-  /^(童鞋|白鞋|皮鞋|帆布鞋|鞋|靴|包|工作包|化妝包|真皮包|行李箱|外套|羽絨外套|針織外套|西裝|襯衫|白襯衫|制服|禮服|雨衣|運動衣|棉麻衣物|深色衣服|衣物|牛仔褲|安全帽|衣櫃|棉被|床組|枕頭套|抱枕|沙發毯|寵物毯|毛毯|窗簾|絨毛玩偶|絨毛娃娃|精品衣物|洗標|污漬|內裡|鞋櫃|門市)/u;
+  /^(童鞋|白鞋|皮鞋|帆布鞋|鞋|靴|包|工作包|化妝包|真皮包|行李箱|外套|羽絨外套|針織外套|西裝|襯衫|白襯衫|制服|禮服|雨衣|運動衣|棉麻衣物|深色衣服|衣物|牛仔褲|安全帽|衣櫃|棉被|床組|枕頭套|抱枕|沙發毯|寵物毯|毛毯|窗簾|絨毛玩偶|絨毛娃娃|精品衣物|洗標|污漬|內裡|鞋櫃|門市|香奈兒|愛馬仕|馬銜釦樂福鞋|風衣|毛衣|髒髒鞋|雪靴|精品鞋|精品包)/u;
 
 /** Every seed's free headline, for the rule test; the 90-day window does not reach all 68 seeds. */
 export function seedHeadlines(): Array<{ slot: 1 | 2; topic: string; headline: string }> {
@@ -1331,23 +1344,25 @@ export const SLOT2_TOPIC_PLAN: Record<string, string> = {
   "2026-09-16": "窗簾下緣灰塵與空氣味",
   "2026-09-17": "枕頭套油痕與睡眠味",
   // 09-18 is the 中秋前 poster node; it keeps its hand-authored slot.
-  "2026-09-19": "白鞋鞋邊泛灰前的檢查",
-  "2026-09-20": "包包提把手汗與邊油痕",
-  "2026-09-21": "皮鞋雨痕與皺摺邊緣",
+  // Luxury classics track (owner 2026-09-07): about two slot-2 days a week
+  // go to the items many customers own and hesitate to clean.
+  "2026-09-19": "香奈兒雙色鞋包頭起毛先看羅緞",
+  "2026-09-20": "愛馬仕包提把手汗與底角",
+  "2026-09-21": "馬銜釦樂福鞋面折痕與五金",
   "2026-09-22": "絨毛娃娃填充物與黏貼配件的檢查",
   "2026-09-23": "週末換季整理先分類布品",
   "2026-09-24": "床組有潮味時先不要直接密封",
-  "2026-09-25": "帆布鞋泥灰卡進織紋",
+  "2026-09-25": "髒髒鞋真髒與做舊怎麼分",
   // The ten-day shop observation is the window's one trust-reset post; it
   // stays on its rotation date (and carries the signed-off pickup line).
   "2026-09-26": "每十天公開一次洗護觀察",
   "2026-09-27": "鞋櫃收納前的乾燥判斷",
   "2026-09-28": "絨毛玩偶有汗味時先看五官和配件",
-  "2026-09-29": "雨傘旁鞋包的濕氣轉移",
-  "2026-09-30": "化妝包粉痕與拉鍊邊",
-  "2026-10-01": "旅行外套灰塵與行李味",
+  "2026-09-29": "雪靴水漬與羊毛口變灰",
+  "2026-09-30": "香奈兒菱格包鏈帶與邊角",
+  "2026-10-01": "風衣領口袖口油痕與腰帶",
   "2026-10-02": "童鞋內裡與鞋底邊緣",
-  "2026-10-03": "外套領口袖口的日常油痕",
+  "2026-10-03": "喀什米爾毛衣起球與腋下",
   "2026-10-04": "床組與棉被填充受潮的送洗前判斷",
   "2026-10-05": "搬家後棉被窗簾先除灰",
   "2026-10-06": "客廳沙發毯用久會有生活味",
@@ -1539,7 +1554,7 @@ function seedForSlot(day: number, slot: number): TopicSeed | undefined {
  */
 export function serviceForTopic(topic: string): TopicSeed["service"] {
   if (/收送|批量|批洗|月結/.test(topic)) return "pickup-delivery";
-  if (/精品|名牌/.test(topic)) return "luxury-dry";
+  if (/精品|名牌|香奈兒|愛馬仕|馬銜釦|風衣|喀什米爾|髒髒鞋|雪靴/.test(topic)) return "luxury-dry";
   if (/娃娃|玩偶|絨毛/.test(topic)) return "plush-doll";
   if (/白鞋|童鞋/.test(topic)) return "white-shoe";
   if (/制服|襯衫|西裝|領帶/.test(topic)) return "shirt-suit";

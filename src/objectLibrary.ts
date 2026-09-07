@@ -216,6 +216,42 @@ export const LUXURY_RULES: LuxuryRule[] = [
     }
   },
   {
+    match: /(longchamp|瓏驤|摺疊包|尼龍摺疊|餃子包)/i,
+    variant: {
+      id: "nylon-fold-tote",
+      family: "bag",
+      luxury: true,
+      noun: "navy nylon foldable tote with a brown leather flap closure, rounded brown leather handles and a small snap tab",
+      material: "crisp navy nylon canvas with smooth brown cowhide trim",
+      lockNote: `object locked as one navy nylon fold-up tote with brown leather trim; the flap is plain leather with no embossed figure; ${BAG_NO_MARK}`,
+      wearFallback: "greyed nylon at the bottom corners with the coating worn through, darkened leather handles, a frayed flap edge"
+    }
+  },
+  {
+    match: /(勃肯|birkenstock|軟木涼鞋|軟木拖鞋)/i,
+    variant: {
+      id: "cork-footbed-sandals",
+      family: "shoe",
+      luxury: true,
+      noun: "pair of taupe suede two-strap sandals on a contoured cork footbed with a brown buckle on each strap and a flat tan sole",
+      material: "taupe suede straps, natural cork footbed with a suede liner, EVA sole",
+      lockNote: `object locked as taupe two-strap cork-footbed sandals; ${NO_MARK_CLAUSE}`,
+      wearFallback: "dark foot prints pressed into the suede footbed, cork edge sealant flaking and darkened, greyed strap edges"
+    }
+  },
+  {
+    match: /(加拿大鵝|canada goose|派克大衣|長版羽絨|羽絨派克)/i,
+    variant: {
+      id: "down-parka",
+      family: "garment",
+      luxury: true,
+      noun: "black matte down parka with a coyote-colour faux-fur hood trim, a blank round fabric patch on the upper left sleeve and a two-way front zip",
+      material: "matte black poly-cotton shell with wide quilting, tan fur-look hood trim",
+      lockNote: "object locked as one black matte down parka with a fur-trimmed hood; the sleeve patch is a plain blank disc with no letters or figures",
+      wearFallback: "oil sheen and grey grime on the cuffs and inside collar, flattened quilting at the elbows, matted greyed fur trim"
+    }
+  },
+  {
     match: /(喀什米爾|cashmere|羊絨).*(毛衣|針織)|(毛衣|針織).*(喀什米爾|cashmere|羊絨)/i,
     variant: {
       id: "cashmere-sweater",

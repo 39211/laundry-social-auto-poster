@@ -41,6 +41,8 @@ export interface SupportPageDefinition {
   category: SupportPageCategory;
   title: string;
   description: string;
+  /** Optional search snippet only; leaves visible copy, schema and social metadata unchanged. */
+  search_description?: string;
   h1: string;
   summary: string;
   keywords: string[];

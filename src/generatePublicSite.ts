@@ -2734,6 +2734,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     // Distinct intent from the shoe-bag-care service page: this page answers "how to pick a
     // shoe-cleaning shop near the Qinghai Road store", not the head term itself.
     title: "青海路洗鞋店怎麼挑｜逢甲、西屯門市方位、案例界線與收送｜私享家洗衣店",
+    search_description: "逢甲、西屯洗鞋：一般運動鞋水洗參考價250元，先LINE傳照片確認鞋況與報價。私享家位於青海路二段365號，台中全市免費收送、無低消，清潔費另計。",
     description: "逢甲、西屯找洗鞋店？先看這篇怎麼挑：看案例照片、問處理界線、確認收送方式。私享家在青海路二段365號，台中市免費收送，LINE 傳照片先判斷再決定。",
     h1: "青海路洗鞋店怎麼挑：看案例、問界線、約收送",
     summary:
@@ -8352,6 +8353,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
     navLabel: "支援內容"
   };
   const description = escapeHtml(page.description);
+  const searchDescription = escapeHtml(page.search_description?.trim() || page.description);
   const image = supportPageImage(page, index);
   const imageSrc = image ? visibleImageSrc(image, index, Boolean(relativePrefix)) : "";
   const imageAlt = image ? supportPageImageAlt(page, image) : "";
@@ -8415,7 +8417,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
     <meta charset="utf-8" />
     ${buildLegacyPathRedirectScript(index)}
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="${description}" />
+    <meta name="description" content="${searchDescription}" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="googlebot" content="index, follow, max-image-preview:large" />
     <meta name="author" content="${escapeHtml(profile.name)}" />

@@ -658,6 +658,7 @@ function careBridgeFor(slot: GrowthPlaybookSlot): string {
     if (page.includes("luxury-dry-cleaning")) {
       return [
         "精品最先出問題的是邊角。邊油磨掉補不回來，要在磨穿前處理。",
+        "私享家做精品乾洗和特殊處理：先看材質和五金再定工法，不是整件丟下去洗，洗壞的機率比一般水洗低很多。",
         "同一個牌子會用不同的皮。看品牌決定怎麼洗，比看材質更容易出事。"
       ];
     }

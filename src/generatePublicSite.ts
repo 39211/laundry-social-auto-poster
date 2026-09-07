@@ -1480,7 +1480,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["白鞋泛黃", "白鞋清潔", "台中西屯白鞋清潔", "鞋子保養"],
     service_slug: "white-shoe-cleaning",
     local_intent: "台中西屯 白鞋泛黃 白鞋清潔",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-09-07",
     steps: [
       { name: "看鞋面", text: "確認鞋面是皮革、布面、網布還是合成材質。" },
       { name: "看鞋邊", text: "檢查膠邊是否泛黃、磨耗或有清潔後留下的刷痕。" },
@@ -1499,9 +1499,9 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
           "三個位置都是灰的，多半還有清潔空間；鞋邊已經轉黃，就先講清楚只能淡化，不保證回白，也不保證變全新。膠邊氧化、材質本身變色、已經被硬刷起毛或漂白過的痕跡，整理目標是降低痕跡和保護材質。不確定材質時，不要先用漂白水或硬刷，避免褪色、起毛或膠痕更明顯。過度摩擦可能讓毛邊與色差更明顯。公開水洗價：一般運動鞋 250、皮類運動鞋 300；乾洗柔洗另計，以實際報價為主。"
       },
       {
-        heading: "送洗前怎麼問白鞋清潔",
+        heading: "白鞋送洗：分清清潔費與泛黃改善界線",
         body:
-          "拍鞋面、鞋邊、鞋內與整體四張，用 LINE（0968327653）傳給門市，說明是鞋邊灰還是布面灰。台中市全區可約免費到府收送，清潔費另計、沒有最低消費門檻。雨後濕氣另看雨天鞋子指南；本頁只回答灰與黃怎麼分。"
+          "拍鞋面、鞋邊、鞋內與整體四張，用 LINE 傳給門市，圈出在意的是布面黃痕、膠邊轉黃還是灰污，並說明是否刷洗或漂白過。先看台中洗衣價目表的鞋款參考項目；鞋面材質與處理方式不同，不能把一般清潔價當成保證回白的價格。膠邊氧化與材質變色不保證恢復全白，實際方式和費用由門市檢視後確認。台中全市免費洗衣收送的收送無低消，清潔費另計；傳照片時提供所在行政區與希望收件時段，由門市確認安排。下方白鞋清潔入口說明的是清潔服務，不是變全新的承諾。"
       }
     ],
     faqs: [
@@ -3703,10 +3703,11 @@ function pageHrefForSlug(slug: string, index: PublicPostIndex): string | undefin
  * One link per target per paragraph; never rewrite FAQ/schema text.
  */
 function linkifyPublicMentions(escaped: string, index: PublicPostIndex, fromSlug: string): string {
-  // Accepted index-growth answers carry exactly one crawlable parent-service link
-  // (R4 contract, test "accepted guide body has exactly one crawlable parent");
-  // contextual phrase links would add a second one, so they stay plain there.
-  if (INDEX_GROWTH_SLUGS.has(fromSlug)) return escaped;
+  // The 2026-09-07 intake cohort gets price/pickup links only. Keep every
+  // accepted guide's exactly-one parent link and all non-cohort HTML unchanged.
+  const acceptedGrowth = INDEX_GROWTH_SLUGS.has(fromSlug);
+  const intakeCohort = ["shoe-odor-source", "shoe-mold-surface-check", "suede-shoe-cleaning"].includes(fromSlug);
+  if (acceptedGrowth && !intakeCohort) return escaped;
   const skipPrice = fromSlug === PRICE_LIST_SLUG || fromSlug === "white-shoe-cleaning";
   const rules: Array<{ phrase: string; targetSlug: string }> = [
     { phrase: "台中市全市可預約免費到府收送", targetSlug: "taichung-citywide-laundry-pickup" },
@@ -3737,6 +3738,7 @@ function linkifyPublicMentions(escaped: string, index: PublicPostIndex, fromSlug
   let result = escaped;
   const claimed = new Set<string>();
   for (const rule of rules) {
+    if (acceptedGrowth && rule.targetSlug !== PRICE_LIST_SLUG && rule.targetSlug !== "taichung-citywide-laundry-pickup") continue;
     if (rule.targetSlug === fromSlug || claimed.has(rule.targetSlug)) continue;
     if (skipPrice && rule.targetSlug === PRICE_LIST_SLUG) continue;
     const href = pageHrefForSlug(rule.targetSlug, index);

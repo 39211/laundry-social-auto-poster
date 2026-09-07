@@ -65,6 +65,18 @@ export const MATERIAL_OPTICS: OpticsRule[] = [
       "MATERIAL OPTICS: the gabardine is a tight diagonal twill with a dry matte surface and a faint sheen only along pressed edges; oil darkening at the inside collar reads as a soft-edged darker band; grime along the belt shows as a greyer stripe with a visible edge."
   },
   {
+    id: "cork-footbed",
+    match: /cork footbed|cork-footbed/,
+    text:
+      "MATERIAL OPTICS: the cork footbed is a warm speckled matte whose sealant has a faint gloss where intact and a dull flaking edge where worn; the suede straps are a dry matte that greys at the edges; the buckles are small dull-satin points."
+  },
+  {
+    id: "fur-trim-parka",
+    match: /fur-look hood|faux-fur|down parka/,
+    text:
+      "MATERIAL OPTICS: the matte shell has a soft dry surface with wide quilting ridges catching a faint highlight; the fur trim scatters light into fine bright tips when fresh and clumps into dull grey strands where it is soiled; cuff grime reads as a greyer, slightly glossy band."
+  },
+  {
     id: "sheepskin",
     match: /sheepskin|shearling/,
     text:

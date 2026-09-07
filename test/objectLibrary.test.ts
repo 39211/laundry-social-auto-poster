@@ -22,6 +22,9 @@ describe("luxury classics resolve by brand or model word, described by shape not
     expect(luxuryVariantForTopic("風衣領口袖口油痕與腰帶")?.id).toBe("gabardine-trench");
     expect(luxuryVariantForTopic("髒髒鞋真髒與做舊怎麼分")?.id).toBe("distressed-star-sneakers");
     expect(luxuryVariantForTopic("喀什米爾毛衣起球與腋下")?.id).toBe("cashmere-sweater");
+    expect(luxuryVariantForTopic("尼龍摺疊包底角磨白")?.id).toBe("nylon-fold-tote");
+    expect(luxuryVariantForTopic("勃肯涼鞋鞋床腳印")?.id).toBe("cork-footbed-sandals");
+    expect(luxuryVariantForTopic("羽絨派克大衣袖口油光")?.id).toBe("down-parka");
     expect(luxuryVariantForTopic("白鞋鞋邊泛灰前的檢查")).toBeUndefined();
   });
 

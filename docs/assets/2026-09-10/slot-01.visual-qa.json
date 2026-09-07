@@ -8,9 +8,9 @@
     "TOPIC_MATCH": "PASS"
   },
   "evidence": {
-    "OBJECT_IDENTITY": "四張均呈現灰色梭織窗簾，布紋、摺邊及掛勾褶帶外觀相容，未見色系、物件類型或粗分類材質切換。",
-    "SCENE": "四張皆可見粉紅格線墊與橫槽板牆，櫃台場景屬同一家族。",
-    "TOPIC_MATCH": "物件均為窗簾，第二張呈現下緣、第三張呈現掛勾、第四張呈現褶線，符合主題。"
+    "OBJECT_IDENTITY": "四張皆呈現灰色梭織窗簾，布面紋理、褶線與可見縫邊相容，未見物件類型、色系或粗類材質改變。",
+    "SCENE": "四張皆可見不鏽鋼水槽或帶溝槽的金屬工作檯，屬同一檯面家族。",
+    "TOPIC_MATCH": "主體皆為窗簾，第二張呈現下緣、第三張呈現掛勾、第四張呈現褶線，符合題目。"
   },
   "frames_used": [
     "slide-01.png",
@@ -23,29 +23,29 @@
       "name": "slide-01.png",
       "slide": 1,
       "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-01.png",
-      "canary": "A3RU",
-      "sha256": "c3a17bf85ef7b96aeed301e4fabb9a386ddb7eddb7b06d2797ece584458be970"
+      "canary": "E4EM",
+      "sha256": "73eac0d11a6f029917a1babd4eae19c873cde839cfd3a4a1b1b857e9dcb2156e"
     },
     {
       "name": "slide-02.png",
       "slide": 2,
       "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-01-slide-02.png",
-      "canary": "6M38",
-      "sha256": "4b3a09ffe6afc333e03d0703b26dd5015f0b4e883c5fc37e503faff85dc7cebb"
+      "canary": "88AQ",
+      "sha256": "47d9d1ead0aaf702dc428784a219fd95af28de999ac3b136afac7912fb702317"
     },
     {
       "name": "slide-03.png",
       "slide": 3,
       "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-01-slide-03.png",
-      "canary": "M29E",
-      "sha256": "80dcab1b77b5605b29a76fc7135abd7b96ff048af8214c7256aa9288bd7da257"
+      "canary": "92LP",
+      "sha256": "13e10e273b18d7d32d56b1c6a66eaa462a073a240e62d0cce6d16bbb0fdad113"
     },
     {
       "name": "slide-04.png",
       "slide": 4,
       "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-01-slide-04.png",
-      "canary": "7NT9",
-      "sha256": "d51a2b5ec035a1f57abe285cb025cba8c3e53362ec6f5b261256ab524655de2c"
+      "canary": "MGZJ",
+      "sha256": "ed0cd1e1101d2f77d7788b0a7bf697e172dc05c77f9fba2f8731a175f90b7136"
     }
   ],
   "sources": [
@@ -55,22 +55,22 @@
     "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-10\\slot-01-slide-04.png"
   ],
   "canaries_expected": {
-    "IMAGE_1": "A3RU",
-    "IMAGE_2": "6M38",
-    "IMAGE_3": "M29E",
-    "IMAGE_4": "7NT9"
+    "IMAGE_1": "E4EM",
+    "IMAGE_2": "88AQ",
+    "IMAGE_3": "92LP",
+    "IMAGE_4": "MGZJ"
   },
   "canaries_reported": {
-    "IMAGE_1": "A3RU",
-    "IMAGE_2": "6M38",
-    "IMAGE_3": "M29E",
-    "IMAGE_4": "7NT9"
+    "IMAGE_1": "E4EM",
+    "IMAGE_2": "88AQ",
+    "IMAGE_3": "92LP",
+    "IMAGE_4": "MGZJ"
   },
   "prompt_hash": "f294807a37c647c62c77da7e3084d25c10a1d765e48fb8b406c401b8b3d55c44",
-  "run_id": "carousel-qa-1788719951066",
+  "run_id": "carousel-qa-1788748859142",
   "model": "codex-exec-read-only",
   "reviewed_by": "codex-visual-qa",
-  "reviewed_at": "2026-09-06T18:40:27.587Z",
+  "reviewed_at": "2026-09-07T02:42:15.504Z",
   "mode": "warn",
   "verdict": "FAIL_CLOSED",
   "fail_class": "missing_observation"

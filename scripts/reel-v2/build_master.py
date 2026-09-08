@@ -123,7 +123,14 @@ def main() -> int:
     n = len(segs)
     f.append(f"[{n + 1}:v:0]format=yuv420p,setsar=1,setpts=PTS-STARTPTS[tail];")
     f.append("".join(f"[v{i}]" for i in range(n)) + f"[tail]concat=n={n + 1}:v=1:a=0,ass=filename=overlays.ass[vout];")
-    f.append(f"[{n}:a:0]asetpts=PTS-STARTPTS,loudnorm=I=-16:TP=-1.5:LRA=11,apad,atrim=duration={planned:.6f}[aout]")
+    # Post-production audio only: the generated clips' own tracks are never
+    # mapped. A quiet pink-noise room tone (lowpassed) is laid under the
+    # narration so the file honestly carries the same "post-ambient-bed"
+    # declaration the v1 assembler writes for the publish gate.
+    f.append(f"[{n}:a:0]asetpts=PTS-STARTPTS,apad[nar];")
+    f.append(f"[{n + 2}:a:0]lowpass=f=350,volume=0.6[bed];")
+    f.append(f"[nar][bed]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,"
+             f"loudnorm=I=-16:TP=-1.5:LRA=11,atrim=duration={planned:.6f}[aout]")
     (build / "filters.txt").write_text("\n".join(f) + "\n", encoding="utf-8")
 
     out = job / "master-candidate.mp4"
@@ -133,10 +140,18 @@ def main() -> int:
     for seg in segs:
         args += ["-i", str(seg["src"])]
     args += ["-i", str(narration), "-f", "lavfi", "-i", f"color=c={BG}:s={W}x{H}:r={FPS}:d={tail_seconds}",
+             "-f", "lavfi", "-i", f"anoisesrc=color=pink:amplitude=0.015:r=48000:d={planned + 1:.3f}",
              "-filter_complex_script", "filters.txt", "-map", "[vout]", "-map", "[aout]",
              "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p", "-r", str(FPS),
              "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", "-t", f"{planned:.6f}", str(out)]
     subprocess.run(args, cwd=build, check=True, capture_output=True, text=True)
+
+    # Audio declaration sidecar (same contract as scripts/assemble-reel.ps1):
+    # the publish gate refuses an embedded track without it.
+    (job / "master-candidate.mp4.audio.json").write_text(json.dumps({
+        "source": "post-ambient-bed", "narration": True, "generated_clip_audio_used": False,
+        "narr_delay_ms": 0, "pipeline": "reel-v2", "bed": "pink noise lowpass 350 Hz under narration",
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     # QA receipt: full decode, probe, loudness, thumbnails grid, hashes.
     qa = job / "qa"

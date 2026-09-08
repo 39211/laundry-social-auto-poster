@@ -9,16 +9,70 @@ Usage: python make_narration.py <job-dir>   (reads job.json: narration, voice)
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 HERMES_AGENT = Path(r"C:\Users\cyc39\AppData\Local\hermes\hermes-agent")
 sys.path.insert(0, str(HERMES_AGENT))
 
-DEFAULT_MINIMAX_VOICE = "m5-warm-bestie"
+# This account's key authenticates against the MiniMax CN endpoint only
+# (api.minimax.io returns 2049 invalid api key, api.minimaxi.com accepts it),
+# so the region is pinned here rather than inferred from which env var is set.
+# The voice the Codex comparison build called "m5-warm-bestie" is listed on
+# this account as "Chinese (Mandarin)_Warm_Bestie" (温暖闺蜜); the old id
+# returns 2054 voice id not exist.
+DEFAULT_MINIMAX_VOICE = "Chinese (Mandarin)_Warm_Bestie"
+MINIMAX_ENDPOINT = "https://api.minimaxi.com/v1/t2a_v2"
 EDGE_VOICE = "zh-TW-HsiaoChenNeural"
+
+
+def minimax_key() -> str:
+    """Key from ~/.hermes/.env (written without BOM) or the environment."""
+    env_file = Path.home() / ".hermes" / ".env"
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8-sig").splitlines():
+            if line.startswith("MINIMAX_API_KEY="):
+                value = line.split("=", 1)[1].strip()
+                if value:
+                    return value
+    return os.environ.get("MINIMAX_API_KEY", "").strip()
+
+
+def minimax_tts(text: str, out: Path, voice: str, model: str) -> None:
+    """Direct t2a_v2 call.
+
+    hermes' own provider picks the region from which env var is set and did not
+    honour an explicit region in the config, so it always hit api.minimax.io,
+    where this account's key returns 2049. The endpoint and voice are pinned
+    here instead; edge-tts stays as the fallback.
+    """
+    key = minimax_key()
+    if not key:
+        raise RuntimeError("MINIMAX_API_KEY not found in ~/.hermes/.env or the environment")
+    payload = {
+        "model": model,
+        "text": text,
+        "stream": False,
+        "voice_setting": {"voice_id": voice, "speed": 1.0, "vol": 1.0, "pitch": 0},
+        "audio_setting": {"sample_rate": 32000, "bitrate": 128000, "format": "mp3", "channel": 1},
+    }
+    req = urllib.request.Request(
+        MINIMAX_ENDPOINT, data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=120) as response:
+        body = json.loads(response.read().decode("utf-8"))
+    status = body.get("base_resp", {})
+    if status.get("status_code") not in (0, None):
+        raise RuntimeError(f"MiniMax TTS API error (code {status.get('status_code')}): {status.get('status_msg')}")
+    audio_hex = (body.get("data") or {}).get("audio")
+    if not audio_hex:
+        raise RuntimeError("MiniMax TTS returned no audio")
+    out.write_bytes(bytes.fromhex(audio_hex))
 
 
 def probe_duration(path: Path) -> float:
@@ -40,11 +94,8 @@ def main() -> int:
     voice = cfg.get("voice") or DEFAULT_MINIMAX_VOICE
     receipt = {"text": text, "speed": 1, "generated_at": datetime.now(timezone.utc).isoformat()}
     try:
-        from tools.tts_tool_providers import _generate_minimax_tts  # type: ignore
-
-        tts_config = {"minimax": {"voice_id": voice, "model": cfg.get("tts_model", "speech-02-hd"), "speed": 1.0, "vol": 1.0}}
-        _generate_minimax_tts(text, str(out), tts_config)
-        receipt.update(engine="minimax", voice=voice)
+        minimax_tts(text, out, voice, cfg.get("tts_model", "speech-02-hd"))
+        receipt.update(engine="minimax", voice=voice, endpoint=MINIMAX_ENDPOINT)
     except Exception as exc:  # noqa: BLE001
         receipt.update(minimax_error=f"{type(exc).__name__}: {str(exc)[:200]}")
         subprocess.run(

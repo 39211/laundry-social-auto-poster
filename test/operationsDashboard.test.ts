@@ -179,6 +179,9 @@ describe("90-day operations dashboard", () => {
     });
   });
 
+  // Builds and writes the full 90-day artifact to disk; it took 12s on the GitHub Windows
+  // runner against vitest's 5s default. Give this one case its own budget rather than
+  // raising the global default and hiding real hangs elsewhere.
   it("writes the canonical artifact as a reproducible private output", async () => {
     const root = await mkdtemp(join(tmpdir(), "laundry-ops-dashboard-write-"));
     roots.push(root);
@@ -208,7 +211,7 @@ describe("90-day operations dashboard", () => {
       "content"
     );
     expect(payload.snapshot.datasets.slot_status).toHaveLength(2);
-  });
+  }, 30_000);
 
   it("names only the platform that still needs publishing", async () => {
     const root = await mkdtemp(join(tmpdir(), "laundry-ops-dashboard-partial-publish-"));

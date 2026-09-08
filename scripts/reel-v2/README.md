@@ -37,6 +37,14 @@ job/
 6. `python build_master.py <job>` → 看 `qa/grid.png`、`qa/receipt.json`
 7. 老闆看片 → `owner-video-review --watched` → 進 docs/assets/<date>/slot-03.mp4
 
+## v3:加人物(2026-09-08 老闆給的 56 鏡短劇拆解)
+
+- 角色母版寫在 job.json `characters`(客人/老師傅各一段固定外觀),每鏡首幀 prompt 都貼同一段。
+- **人物一致性靠參考圖,不靠文字**:第一張定妝照用 Codex 生,之後同角色的每一張用 Google agy `generate_image` 帶 `ImagePaths=[定妝照]`(`C:\Users\cyc39\AI-Lanes\reelv3\agy-ref-image.ps1`),再 lanczos 放大到 1088×1920 當 I2V 首幀。實測 9/12 老師傅鏡 3→鏡 4 同臉同眼鏡同毛衣;純文字錨定會換臉、換毛衣織法。
+- 結構 45 秒七段:鉤子(客人拿起物件,首尾同一格)→ 痛點特寫 → 師傅登場看件 → 乾貨鏡最長(9 s,師傅對鏡頭講、手點物件)→ 手部細節 → 客人拍照傳 LINE → 回到鉤子那一格 3 s + 尾卡。
+- 人物動作只做「看、轉頭、抬手、拿手機、手指劃過」,不演清洗工序;手機背面朝鏡頭、直握、無鏡頭模組(iPhone 三鏡頭是品牌特徵,退件)。
+- 每鏡照舊逐格審:假洗標、黃斑變淡、換臉、換織法一律退件出 vN+1,保留 rejection.json。
+
 ## 提示詞骨架(每鏡)
 
 `One continuous seven-second photorealistic native1080p portrait9:16 shot. Begin exactly from the reference frame. Preserve exactly this ONE <物件護照>. <唯一運鏡,含公分/角度/比例>. <物件絕對靜止、光線不變>. No hand, person, new object, cleaning transformation, whitening, texture drift, text, logo, cut, music or dialogue. Quiet indoor room tone.`

@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 import {
   OBJECT_SPEC_RULES,
   garmentPassportFromTopic,
-  objectSpecFromTopic
+  objectSpecFromTopic,
+  wearKindFromTopic
 } from "../src/contentPlan";
 
 const PLAN_PATH = join(__dirname, "..", "data", "slot1-plan.json");
@@ -171,5 +172,183 @@ describe("F20 fish-2 generic jacket family has a concrete default style", () => 
     const everydayRule = OBJECT_SPEC_RULES[everyday];
     expect(everydayRule?.match.test("羽絨外套袖口發黑")).toBe(true);
     expect(everydayRule?.match.test("西裝外套肩線垮了")).toBe(true);
+  });
+});
+
+const TIE_TOPIC = "領帶一季沒洗會怎樣？先看領結和尖端這 2 個位置";
+
+describe("F20 fish-2 remaining generic clothing families have concrete default styles", () => {
+  it("locks a 領帶 topic as a navy silk necktie, not the generic laundry-item fallback", () => {
+    const spec = objectSpecFromTopic(TIE_TOPIC);
+    const passport = garmentPassportFromTopic(TIE_TOPIC);
+    expect(spec.noun).toMatch(/navy silk twill necktie/i);
+    expect(spec.noun).toMatch(/pointed blade/i);
+    expect(spec.noun).toMatch(/keeper loop/i);
+    expect(spec.material).toMatch(/navy silk twill/i);
+    expect(spec.lockNote).toMatch(/not a dress shirt/i);
+    expect(spec.lockNote).toMatch(/not a suit jacket/i);
+    expect(spec.wear).toMatch(/knot/i);
+    expect(spec.wear).toMatch(/blade tip/i);
+    expect(spec.noun).not.toMatch(/complete worn laundry item/i);
+    expect(passport).toContain(spec.noun);
+    expect(passport).not.toMatch(/complete worn laundry item/i);
+  });
+
+  it("locks 運動衣, T恤, 棉麻衣物, and a bare 衣物 topic to a specific garment, not a category word", () => {
+    const athletic = objectSpecFromTopic("運動衣汗味與彈性纖維");
+    expect(athletic.noun).toMatch(/navy polyester athletic tee/i);
+    expect(athletic.noun).toMatch(/mesh underarm/i);
+    expect(athletic.lockNote).toMatch(/not a cotton dress shirt/i);
+    expect(athletic.noun).not.toMatch(/complete worn laundry item/i);
+
+    const tee = objectSpecFromTopic("T恤領口油汗");
+    expect(tee.noun).toMatch(/navy cotton crew-neck tee/i);
+    expect(tee.lockNote).toMatch(/not a dress shirt/i);
+    expect(tee.noun).not.toMatch(/complete worn laundry item/i);
+
+    const linen = objectSpecFromTopic("夏季棉麻衣物的汗味殘留");
+    expect(linen.noun).toMatch(/linen short-sleeve shirt/i);
+    expect(linen.noun).toMatch(/camp collar/i);
+    expect(linen.lockNote).toMatch(/not a dress shirt/i);
+    expect(linen.noun).not.toMatch(/complete worn laundry item/i);
+
+    const clothing = objectSpecFromTopic("衣物領口袖口的汗味");
+    expect(clothing.noun).toMatch(/navy cotton crew-neck tee/i);
+    expect(clothing.lockNote).toMatch(/not a mixed pile of garments/i);
+    expect(clothing.noun).not.toMatch(/complete worn laundry item/i);
+
+    const luxuryGarment = objectSpecFromTopic("精品衣物洗標與飾件的送洗前判斷");
+    expect(luxuryGarment.noun).toMatch(/navy cotton crew-neck tee/i);
+    expect(luxuryGarment.noun).not.toMatch(/designer leather sneakers/i);
+    expect(luxuryGarment.noun).not.toMatch(/complete worn laundry item/i);
+  });
+
+  it("does not steal more specific garment rows", () => {
+    expect(objectSpecFromTopic("深色衣服洗久變灰的判斷").noun).toMatch(/dark cotton tee/i);
+    expect(objectSpecFromTopic("白襯衫領口與腋下泛黃").noun).toMatch(/white cotton dress shirt/i);
+    expect(objectSpecFromTopic("先看懂：外套領口的皮脂痕跡").noun).toMatch(/beige cotton work jacket/i);
+    expect(objectSpecFromTopic("精品名牌鞋護理").noun).toMatch(/designer leather sneakers/i);
+  });
+
+  it("mutation: dropping the necktie row would send 領帶 to the generic laundry-item fallback", () => {
+    const necktie = OBJECT_SPEC_RULES.find((rule) => rule.id === "necktie");
+    expect(necktie).toBeTruthy();
+    expect(necktie!.match.test(TIE_TOPIC)).toBe(true);
+    const idx = OBJECT_SPEC_RULES.findIndex((rule) => rule.id === "necktie");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    for (const rule of OBJECT_SPEC_RULES.slice(0, idx)) {
+      expect(rule.match.test(TIE_TOPIC), rule.id).toBe(false);
+    }
+    const clothing = OBJECT_SPEC_RULES.find((rule) => rule.id === "generic-clothing");
+    expect(clothing).toBeTruthy();
+    expect(clothing!.match.test(TIE_TOPIC)).toBe(false);
+  });
+
+  it("mutation: linen and athletic rows sit above generic 衣物 so 棉麻衣物 and 運動衣 do not become the tee default", () => {
+    const ids = OBJECT_SPEC_RULES.map((rule) => rule.id);
+    const linen = ids.indexOf("linen-shirt");
+    const athletic = ids.indexOf("athletic-tee");
+    const clothing = ids.indexOf("generic-clothing");
+    expect(linen).toBeGreaterThanOrEqual(0);
+    expect(athletic).toBeGreaterThanOrEqual(0);
+    expect(clothing).toBeGreaterThan(linen);
+    expect(clothing).toBeGreaterThan(athletic);
+    const clothingRule = OBJECT_SPEC_RULES[clothing];
+    expect(clothingRule?.match.test("夏季棉麻衣物的汗味殘留")).toBe(true);
+    expect(clothingRule?.match.test("健身房衣物不要悶在包裡")).toBe(true);
+    expect(clothingRule?.match.test("運動衣汗味與彈性纖維")).toBe(false);
+  });
+});
+
+// 2026-09-10: four of the five days in the D+1..D+4 window failed the carousel
+// judge on OBJECT_IDENTITY or TOPIC_MATCH. Two of those were this table:
+// 抱枕 and 枕頭 fell into the bedding row because its match carried a bare 枕,
+// and 沙發 matched nothing at all so the generator drew a different garment on
+// every slide.
+describe("soft furnishings resolve to themselves, not to the duvet", () => {
+  const idOf = (topic: string) => OBJECT_SPEC_RULES.find((rule) => rule.match.test(topic))?.id;
+
+  it("抱枕 is a throw cushion and never the folded duvet", () => {
+    const spec = objectSpecFromTopic("抱枕上的飲料痕，乾了以後才變黃", "2026-09-14");
+    expect(spec.noun).toContain("throw cushion");
+    expect(spec.noun).not.toContain("duvet");
+    expect(spec.lockNote).toContain("not a duvet");
+  });
+
+  it("枕頭 is a bed pillow and never the folded duvet", () => {
+    const spec = objectSpecFromTopic("枕頭那片黃是汗還是霉？聞、摸、翻 3 個動作先分清", "2026-09-12");
+    expect(spec.noun).toContain("bed pillow");
+    expect(spec.noun).not.toContain("duvet");
+  });
+
+  it("沙發 resolves to a seat-cushion cover instead of the untyped fallback", () => {
+    const spec = objectSpecFromTopic("沙發布面坐出油光還能洗嗎？先看是可拆套還是固定布", "2026-09-11");
+    expect(spec.noun).toContain("sofa seat-cushion cover");
+    expect(spec.noun).not.toContain("complete worn laundry item");
+    // The 2026-09-11 failure was slides 2-4 drawing shirts and tees.
+    expect(spec.lockNote).toContain("not a shirt");
+  });
+
+  it("棉被 still resolves to the duvet", () => {
+    expect(objectSpecFromTopic("棉被收進櫃子前，悶味來自沒散掉的濕氣", "2026-09-13").noun).toContain(
+      "duvet cover"
+    );
+  });
+
+  it("mutation: the bedding row must not match 抱枕 or 枕頭 on its own", () => {
+    const bedding = OBJECT_SPEC_RULES.find((rule) => rule.id === "bedding");
+    expect(bedding).toBeTruthy();
+    expect(bedding!.match.test("抱枕上的飲料痕")).toBe(false);
+    expect(bedding!.match.test("枕頭那片黃是汗還是霉")).toBe(false);
+    expect(bedding!.match.test("棉被收進櫃子前")).toBe(true);
+  });
+
+  it("mutation: cushion and pillow rows sit above bedding, so ordering alone cannot regress this", () => {
+    const ids = OBJECT_SPEC_RULES.map((rule) => rule.id);
+    const bedding = ids.indexOf("bedding");
+    expect(ids.indexOf("cushion")).toBeGreaterThanOrEqual(0);
+    expect(ids.indexOf("cushion")).toBeLessThan(bedding);
+    expect(ids.indexOf("pillow")).toBeLessThan(bedding);
+    expect(idOf("抱枕上的飲料痕")).toBe("cushion");
+    expect(idOf("枕頭那片黃")).toBe("pillow");
+  });
+});
+
+// The picture has to show the damage the headline promised. Before this, a
+// topic that named the damage but no place on the object lost to the object
+// row's own wearFallback: 「抱枕上的飲料痕」 was drawn as "sleep odor and
+// trapped moisture in the thickest channel".
+describe("wear named by the topic outranks the object row's fallback", () => {
+  it("飲料痕 becomes a drink stain, not the object's stock wear", () => {
+    const bedding = OBJECT_SPEC_RULES.find((rule) => rule.id === "bedding")!;
+    const wear = objectSpecFromTopic("抱枕上的飲料痕，乾了以後才變黃", "2026-09-14").wear;
+    expect(wear).toContain("drink stain");
+    expect(wear).not.toBe(bedding.wearFallback);
+  });
+
+  it("變黃 counts as yellowing (發黃/泛黃 alone matched none of the captions)", () => {
+    expect(wearKindFromTopic("乾了以後才變黃")).toBe("yellowing");
+  });
+
+  it("a row whose fallback already names that damage keeps its location detail", () => {
+    // The first version of this rule replaced the fallback whenever the topic
+    // named any damage, which shrank 深色衣服洗久變灰 from "sun-faded grey along
+    // the shoulder line and both side seams" down to "sun-faded grey" and took
+    // the only place-on-the-object information out of the prompt.
+    const spec = objectSpecFromTopic("可收藏:深色衣服洗久變灰的判斷,送洗前先看三個位置", "2026-09-14");
+    expect(spec.wear).toContain("sun-faded grey");
+    expect(spec.wear).toContain("shoulder line");
+  });
+
+  it("a topic that names no damage still falls back to the object's own wear", () => {
+    const spec = objectSpecFromTopic("民宿床組一週要換幾輪？批量送洗前先數這 3 件事", "2026-09-09");
+    const bedding = OBJECT_SPEC_RULES.find((rule) => rule.id === "bedding")!;
+    expect(spec.wear).toBe(bedding.wearFallback);
+  });
+
+  it("a topic that names a place still pins the damage to that place", () => {
+    expect(objectSpecFromTopic("大衣入秋前要不要先送洗？先翻領口、袖口、腋下 3 個位置", "2026-09-13").wear).toBe(
+      "honest everyday wear at the collar and cuffs and underarms"
+    );
   });
 });

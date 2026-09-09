@@ -31,6 +31,16 @@ interface ImagePromptManifestItem {
   visual_route: VisualRoute;
   target_path: string;
   public_image_url: string;
+  /**
+   * Repo-relative images the generator should be shown as an identity
+   * reference. Every slide of a carousel is a separate stateless call that has
+   * never seen the other slides, which is why the judge keeps reporting a bear
+   * on slide 2 of a rabbit carousel (2026-09-14 slot 1) and dress shirts on
+   * slides 2-4 of a sofa carousel (2026-09-11 slot 1). No wording fixes a
+   * cross-call constraint; showing slide 1 to slides 2-4 does. Verified on
+   * 2026-09-10 against codex-cli 0.153.4 `exec -i`.
+   */
+  reference_images: string[];
 }
 
 // The boutique look was retired from the prompt code, but calendars written
@@ -446,17 +456,24 @@ export async function writeImagePromptManifest(date: string, root = projectRoot(
   const content = await loadDailyContent(date, root);
   if (!content) throw new Error(`No content calendar found for ${date}`);
 
-  const manifest: ImagePromptManifestItem[] = content.slots.flatMap((slot) =>
-    imageAssetsForSlot(slot).map((asset) => ({
+  const manifest: ImagePromptManifestItem[] = content.slots.flatMap((slot) => {
+    const assets = imageAssetsForSlot(slot);
+    const hero = assets.find((asset) => asset.slide === 1)?.local_image_path;
+    return assets.map((asset) => ({
       slot: slot.slot,
       slide: asset.slide,
       topic: slot.topic,
       prompt: sanitizeImagePrompt(asset.image_prompt),
       visual_route: slot.visual_route,
       target_path: asset.local_image_path,
-      public_image_url: asset.public_image_url
-    }))
-  );
+      public_image_url: asset.public_image_url,
+      // Slide 1 is the object's first appearance, so it has nothing to match;
+      // every later slide is matched against it. The runner drops any
+      // attachment whose file is not on disk and generates without it, so a
+      // missing hero costs continuity on one slide rather than the whole slot.
+      reference_images: asset.slide > 1 && hero ? [hero] : []
+    }));
+  });
 
   const output = imagePromptManifestPath(date, root);
   await writeJsonAtomic(output, manifest);

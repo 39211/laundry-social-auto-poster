@@ -2186,9 +2186,41 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
     match: /童鞋|鞋|靴|勃肯|拖鞋|涼鞋/,
     useShoeSubject: true
   },
+  // 抱枕/枕頭/沙發 used to fall through to the bedding rule (its match carried a
+  // bare 枕) or to the "worn laundry item matching the topic" fallback, and the
+  // generator answered both with a folded duvet or a different garment on every
+  // slide. 2026-09-11 slot 1 promised a sofa and shipped two dress shirts;
+  // 2026-09-14 slot 2 promised a cushion and shipped a duvet. These three sit
+  // above bedding because 抱枕 and 枕頭 contain the character bedding matched on.
+  {
+    id: "cushion",
+    match: /抱枕|靠枕|坐墊|椅墊/,
+    noun: "single square throw cushion in a plain oatmeal woven cover with a piped edge and a hidden back zip",
+    material: "oatmeal cotton-linen weave over a soft filled pad, a plain piped seam running the whole way round",
+    lockNote:
+      "object locked as one square throw cushion, not a bed pillow, not a duvet, not a folded quilt, not a cushion cover lying flat",
+    wearFallback: "greyed hand-contact darkening along one edge and a flattened, matted patch in the middle of the face"
+  },
+  {
+    id: "pillow",
+    match: /枕頭|枕心|枕套/,
+    noun: "single rectangular bed pillow in a plain white cotton pillowcase",
+    material: "plain white cotton pillowcase over a soft filled pillow, one open envelope end",
+    lockNote: "object locked as one rectangular bed pillow, not a square throw cushion, not a duvet, not a folded quilt",
+    wearFallback: "sweat residue yellowed into a halo spreading from the centre of the face, its edge darker than its middle"
+  },
+  {
+    id: "sofa-cover",
+    match: /沙發/,
+    noun: "single removable sofa seat-cushion cover in mid-grey woven upholstery fabric, slipped off its foam and laid on the counter",
+    material: "mid-grey woven upholstery fabric with a piped edge and a long zip along one side",
+    lockNote:
+      "object locked as one sofa seat-cushion cover, not a garment, not a shirt, not a tee, not a towel, not a duvet",
+    wearFallback: "oil darkening as a sat-on sheen across the middle of the seat face, greyed along the front edge where legs rest"
+  },
   {
     id: "bedding",
-    match: /床單|被套|棉被|床組|枕/,
+    match: /床單|被套|棉被|床組|寢具/,
     noun: "complete folded warm-white cotton duvet cover with a thin navy piping edge",
     material: "warm-white cotton with thin navy piping",
     lockNote: "object locked as one folded warm-white cotton duvet cover",
@@ -2290,9 +2322,21 @@ function topicBody(topic: string): string {
   return cleanTopic(topic).replace(/^(先看懂|今天情境|可收藏|細節拆解|到店前判斷|送洗前先問)[:：]/, "");
 }
 
+/** The value wearKindFromTopic returns when the topic named no damage at all. */
+export const HONEST_EVERYDAY_WEAR = "honest everyday wear";
+
 export function wearKindFromTopic(topic: string): string {
+  // A spilt drink outranks the plain yellowing rule under it: it has a shape --
+  // a darker tide ring around a lighter centre -- that plain yellowing does not.
+  // 2026-09-14 promised 飲料痕 in the headline and the picture showed generic
+  // damp bedding, because this word matched nothing here and the object rule's
+  // wear fallback won instead.
+  if (/飲料|咖啡|茶漬|果汁|奶漬/.test(topic)) {
+    return "a dried drink stain, yellowed at the centre with a darker tide ring around its edge";
+  }
   if (/變灰|泛灰/.test(topic)) return "sun-faded grey";
-  if (/發黃|泛黃/.test(topic)) return "yellowing";
+  // 變黃 is how the captions actually phrase it; 發黃/泛黃 alone matched none.
+  if (/發黃|泛黃|變黃/.test(topic)) return "yellowing";
   if (/濕|潮/.test(topic)) return "trapped moisture";
   if (/汗/.test(topic)) return "sweat residue";
   if (/油/.test(topic)) return "oil darkening";
@@ -2302,7 +2346,7 @@ export function wearKindFromTopic(topic: string): string {
   if (/開膠|脫膠/.test(topic)) return "sole separation";
   if (/起球|起毛/.test(topic)) return "pilling";
   if (/磨白|磨損|刮傷|刮痕/.test(topic)) return "abrasion";
-  return "honest everyday wear";
+  return HONEST_EVERYDAY_WEAR;
 }
 
 export function namedSpotsFromTopic(topic: string): string[] {
@@ -2346,7 +2390,23 @@ export function objectSpecFromTopic(topic: string, date?: string): ObjectSpec {
   const t = topicBody(topic);
   const kind = wearKindFromTopic(t);
   const spots = namedSpotsFromTopic(t);
-  const wearAt = (fallback: string) => (spots.length > 0 ? `${kind} at the ${spots.join(" and ")}` : fallback);
+  // A topic that names the damage but not a place on the object used to lose to
+  // the object's own wear fallback outright -- that is how 「抱枕上的飲料痕」 was
+  // drawn as "sleep odor and trapped moisture".
+  //
+  // But the fallback only loses when it is describing DIFFERENT damage. A row
+  // whose fallback already names this damage also says where on that object it
+  // shows, and that is worth more than the bare kind: 深色衣服洗久變灰 must stay
+  // "sun-faded grey along the shoulder line and both side seams", not shrink to
+  // "sun-faded grey". So the row keeps its wear whenever the wear it describes
+  // opens with the damage the topic named.
+  const kindHead = kind.split(/,| at | along | in | from /)[0]!.trim();
+  const wearAt = (fallback: string) =>
+    spots.length > 0
+      ? `${kind} at the ${spots.join(" and ")}`
+      : kind === HONEST_EVERYDAY_WEAR || fallback.includes(kindHead)
+        ? fallback
+        : kind;
 
   const luxury = luxuryVariantForTopic(t);
   if (luxury) return specFromVariant(luxury, wearAt(luxury.wearFallback));

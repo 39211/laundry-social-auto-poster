@@ -2157,7 +2157,9 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
   },
   {
     id: "designer-sneakers",
-    match: /精品|名牌鞋/,
+    // 精品衣物 is a garment family, not a shoe. Negative lookahead keeps
+    // 精品名牌鞋 / 精品鞋 on this row and lets generic-clothing take 精品衣物.
+    match: /精品(?!衣物)|名牌鞋/,
     noun: "paired set of two designer leather sneakers",
     material: "designer leather sneakers",
     lockNote: "object locked as designer leather sneakers, no logo, no brand marks"
@@ -2315,6 +2317,43 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
     lockNote:
       "object locked as one beige cotton work jacket, not a down jacket, not a dress shirt, not a wool overcoat",
     wearFallback: "collar and cuff darkening"
+  },
+  {
+    id: "necktie",
+    match: /領帶/,
+    noun: "navy silk twill necktie with a pointed blade and a keeper loop",
+    material: "navy silk twill with a pointed blade and keeper loop",
+    lockNote:
+      "object locked as one navy silk twill necktie, not a dress shirt, not a suit jacket, not a mixed pile of garments",
+    wearFallback: "knot darkening and blade-tip soil from collar contact"
+  },
+  {
+    id: "athletic-tee",
+    match: /運動衣/,
+    noun: "navy polyester athletic tee with mesh underarm panels",
+    material: "navy polyester athletic jersey with mesh underarm panels",
+    lockNote:
+      "object locked as one navy polyester athletic tee, not a cotton dress shirt, not a mixed pile of garments",
+    wearFallback: "sweat residue at the underarms and inner collar"
+  },
+  {
+    id: "linen-shirt",
+    match: /棉麻/,
+    noun: "beige linen short-sleeve shirt with a camp collar",
+    material: "beige linen with a camp collar",
+    lockNote:
+      "object locked as one linen short-sleeve shirt, not a dress shirt, not a mixed pile of garments",
+    wearFallback: "sweat residue at the underarms and side seams"
+  },
+  {
+    id: "generic-clothing",
+    // 運動衣 has 衣 but not 衣物, so this row must not steal athletic-tee.
+    match: /衣物|T恤|T 恤/,
+    noun: "navy cotton crew-neck tee",
+    material: "navy cotton jersey knit",
+    lockNote:
+      "object locked as one navy cotton crew-neck tee, not a dress shirt, not a mixed pile of garments",
+    wearFallback: "collar and underarm darkening"
   }
 ];
 
@@ -2353,6 +2392,8 @@ export function namedSpotsFromTopic(topic: string): string[] {
   const spots: string[] = [];
   if (/肩線/.test(topic)) spots.push("shoulder line");
   if (/側縫/.test(topic)) spots.push("side seams");
+  if (/領結/.test(topic)) spots.push("knot");
+  if (/尖端/.test(topic)) spots.push("blade tip");
   if (/領口|衣領/.test(topic)) spots.push("collar");
   if (/袖口/.test(topic)) spots.push("cuffs");
   if (/腋下/.test(topic)) spots.push("underarms");
@@ -2408,11 +2449,19 @@ export function objectSpecFromTopic(topic: string, date?: string): ObjectSpec {
         ? fallback
         : kind;
 
+  // objectLibrary variants are hand-authored for one concrete object -- "frayed
+  // grosgrain at the toe-cap edge, greyed beige along the topline, a slack back
+  // strap" -- so they are always richer than the bare kind the topic names, and
+  // they keep their wear whenever the topic does not name a place. Only the
+  // category rows below, whose fallbacks are generic, lose to a named damage.
+  const variantWearAt = (fallback: string) =>
+    spots.length > 0 ? `${kind} at the ${spots.join(" and ")}` : fallback;
+
   const luxury = luxuryVariantForTopic(t);
-  if (luxury) return specFromVariant(luxury, wearAt(luxury.wearFallback));
+  if (luxury) return specFromVariant(luxury, variantWearAt(luxury.wearFallback));
   if (date && imageDoctrineActive(date)) {
     const variant = everydayVariantForTopic(t, date);
-    if (variant) return specFromVariant(variant, wearAt(variant.wearFallback));
+    if (variant) return specFromVariant(variant, variantWearAt(variant.wearFallback));
   }
 
   for (const rule of OBJECT_SPEC_RULES) {
@@ -2470,6 +2519,8 @@ export function garmentPassportFromTopic(topic: string, date?: string): string {
 const SPOT_LEXICON: Array<[RegExp, string]> = [
   [/肩線/, "shoulder line"],
   [/側縫/, "side seams"],
+  [/領結/, "knot"],
+  [/尖端/, "blade tip"],
   [/領口|衣領/, "collar"],
   [/袖口/, "cuffs"],
   [/腋下/, "underarms"],

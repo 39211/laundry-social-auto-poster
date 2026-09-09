@@ -161,5 +161,7 @@ describe("per-slide composition and lens", () => {
     expect(objectFamily(objectSpecFromTopic("襯衫領口發黃"))).toBe("garment");
     expect(objectFamily(objectSpecFromTopic("包角磨白"))).toBe("bag");
     expect(objectFamily(objectSpecFromTopic("棉被有汗味"))).toBe("bedding");
+    expect(objectFamily(objectSpecFromTopic("領帶一季沒洗會怎樣？先看領結和尖端這 2 個位置"))).toBe("garment");
+    expect(materialOptics(objectSpecFromTopic("領帶一季沒洗會怎樣？先看領結和尖端這 2 個位置"))).toMatch(/silk twill/);
   });
 });

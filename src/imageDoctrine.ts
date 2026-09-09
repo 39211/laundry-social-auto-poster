@@ -131,6 +131,12 @@ export const MATERIAL_OPTICS: OpticsRule[] = [
       "MATERIAL OPTICS: the knit-mesh upper scatters light into a soft matte sheen with tiny specular points on the knit ridges; the cloth lining at the opening is matte and shows fibre fuzz; the EVA footbed is chalky matte with a faint compressed shine at the heel print."
   },
   {
+    id: "athletic-polyester",
+    match: /athletic tee|polyester athletic/,
+    text:
+      "MATERIAL OPTICS: the polyester athletic jersey is a dry technical knit with a faint grid sheen; mesh underarm panels scatter light into tiny holes; sweat residue reads as a darker, slightly stiffer patch along the underarm and collar."
+  },
+  {
     id: "mesh-sneaker",
     match: /mesh|sneaker|running|kids|chunky|rubber outsole|foam midsole/,
     text:
@@ -159,6 +165,12 @@ export const MATERIAL_OPTICS: OpticsRule[] = [
     match: /pebbled|handbag|hobo|bag corners|saffiano|togo/,
     text:
       "MATERIAL OPTICS: the bag's surface breaks the light into a fine dotted or brushed highlight pattern; the corners show the finish worn through in a hard-edged patch exposing lighter, fuzzier material underneath; handles are darker and smoother where hands grip them, with a faint oily sheen; stitched seams sit proud with a highlight on each stitch."
+  },
+  {
+    id: "silk-twill",
+    match: /silk twill|necktie/,
+    text:
+      "MATERIAL OPTICS: silk twill is a tight diagonal weave with a liquid sheen that rolls along the blade; the knot is a denser, slightly crushed patch; the tip lining is a duller matte against the face of the silk."
   },
   {
     id: "shirting",
@@ -285,7 +297,7 @@ export function objectFamily(spec: Pick<ObjectSpec, "noun" | "material">): Objec
   if (/handbag|hobo|bag|suitcase|tote|backpack|crossbody/.test(key)) return "bag";
   if (/duvet|bedding|pillow|sheet/.test(key)) return "bedding";
   if (/plush|doll/.test(key)) return "plush";
-  if (/shirt|jacket|coat|tee|denim|jeans|uniform|suit|towel|blouse|curtain|trench|sweater|windbreaker/.test(key)) return "garment";
+  if (/shirt|jacket|coat|tee|denim|jeans|uniform|suit|towel|blouse|curtain|trench|sweater|windbreaker|necktie/.test(key)) return "garment";
   return "other";
 }
 

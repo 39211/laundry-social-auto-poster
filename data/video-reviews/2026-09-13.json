@@ -1,9 +1,9 @@
 [
   {
-    "date": "2026-09-08",
+    "date": "2026-09-13",
     "slot": 3,
-    "video_path": "docs/assets/2026-09-08/slot-03.mp4",
-    "video_sha256": "4761eec412c1f07a097220e73eac2e4b8eae1fdc9f7613f59c96a03cbdd93d88",
+    "video_path": "docs/assets/2026-09-13/slot-03.mp4",
+    "video_sha256": "47943ea3ad677b727bdf3b9be54b1bb27a2d5d657f488c28a380f8a64ca7075d",
     "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
     "review_round": 1,
     "full_decode": "pass",
@@ -13,7 +13,9 @@
     "separate_zh_tw_tts_review": "pass",
     "generated_clip_audio_used": false,
     "status": "approved",
-    "reviewed_at": "2026-09-05T14:29:55.086Z",
-    "reviewed_by": "owner-watched"
+    "reviewed_at": "2026-09-08T05:06:27.969Z",
+    "reviewed_by": "owner-watched",
+    "recorded_at": "2026-09-09T06:05:28.693Z",
+    "recorded_by": "standing-policy-metadata"
   }
 ]

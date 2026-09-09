@@ -1,0 +1,55 @@
+[
+  {
+    "date": "2026-09-12",
+    "slot": 3,
+    "video_path": "docs/assets/2026-09-12/slot-03.mp4",
+    "video_sha256": "27b2eaf75e9df602db368be998bc502efa4cbcc963e37cbab7e166c01db2e650",
+    "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+    "recorded_at": "2026-09-09T06:00:13.394Z",
+    "recorded_by": "standing-policy-metadata",
+    "full_decode": "pending",
+    "all_frame_physics_review": "pending",
+    "grok_review": "pending",
+    "sol_review": "pending",
+    "separate_zh_tw_tts_review": "pending",
+    "status": "pending",
+    "superseded": [
+      {
+        "date": "2026-09-12",
+        "slot": 3,
+        "video_path": "docs/assets/2026-09-12/slot-03.mp4",
+        "video_sha256": "27b2eaf75e9df602db368be998bc502efa4cbcc963e37cbab7e166c01db2e650",
+        "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+        "review_round": 1,
+        "full_decode": "pass",
+        "all_frame_physics_review": "pass",
+        "grok_review": "pass",
+        "sol_review": "pass",
+        "separate_zh_tw_tts_review": "pass",
+        "generated_clip_audio_used": false,
+        "status": "approved",
+        "reviewed_at": "2026-09-08T05:06:23.990Z",
+        "reviewed_by": "owner-watched",
+        "recorded_at": "2026-09-08T06:04:26.236Z",
+        "recorded_by": "standing-policy-metadata"
+      },
+      {
+        "date": "2026-09-12",
+        "slot": 3,
+        "video_path": "docs/assets/2026-09-12/slot-03.mp4",
+        "video_sha256": "ca4d8439b67b80bfb91abeab3fdeaa188a1b63fface72ea85e095f29d1471a03",
+        "prompt_hash": "3ab6ae365bb8947187a76ba4be8b198d83886986ff58c33b7baf4969d17dc87e",
+        "review_round": 1,
+        "full_decode": "pass",
+        "all_frame_physics_review": "pass",
+        "grok_review": "pass",
+        "sol_review": "pass",
+        "separate_zh_tw_tts_review": "pass",
+        "generated_clip_audio_used": false,
+        "status": "approved",
+        "reviewed_at": "2026-09-08T18:28:15.354Z",
+        "reviewed_by": "owner-watched"
+      }
+    ]
+  }
+]

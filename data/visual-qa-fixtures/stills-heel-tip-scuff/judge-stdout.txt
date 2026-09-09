@@ -1,12 +1,14 @@
 <<<OBSERVE_BEGIN>>>
-IMAGE_1 canary=T32Y
-IMAGE_2 canary=89YK
-OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=LIGHT hands=NONE scene=OTHER
-OBS_2 role=AFTER act=after laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=CLEAN hands=OK scene=OTHER
+IMAGE_1 canary=97VJ
+IMAGE_2 canary=XWXF
+IMAGE_3 canary=XSPQ
+OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=NONE facing=TQ_LEFT soil=LIGHT hands=NONE scene=PINK_MAT_SLAT_WALL
+OBS_2 role=MIDDLE act=middle laces_color=NONE hardware_color=NONE facing=TQ_LEFT soil=LIGHT hands=OK scene=PINK_MAT_SLAT_WALL
+OBS_3 role=AFTER act=after laces_color=NONE hardware_color=NONE facing=TQ_LEFT soil=LIGHT hands=OK scene=PINK_MAT_SLAT_WALL
 COMPARE ACCESSORY_COLOR identity_change=NO
 COMPARE ORIENTATION identity_flip=NO
 COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO
 <<<OBSERVE_END>>>
 <<<VISUAL_QA_BEGIN>>>
-{"reel":"stills-heel-tip-scuff","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"Both acts show the same single black pump with matching leather texture, silhouette, sole edge, heel shape, and exposed heel-tip area."},"frames_used":["before.png","after.png"]}
+{"reel":"stills-heel-tip-scuff","verdict":"FAIL","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"FAIL","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"三幕皆為單隻黑色高跟鞋，鞋口、米色內裡、鞋跟輪廓及底緣磨損位置一致。","ACCESSORY_COLOR":"三幕均無可見鞋帶或金屬配件，沒有配件變色。","ORIENTATION":"三幕鞋尖皆朝左，維持同側斜視角度。","STATE_ORDER":"中段有手與刷具，但鞋跟底緣未見明確局部改善，末幕仍保留明顯米色磨損，未呈現修復完成。","MIDDLE_NOT_WORSE":"中段整體髒污與斑駁程度和前幕相近，未見全鞋加重。","HANDS":"可見手部比例與姿勢合理，部分手指受遮擋，未見融合、額外手指或第三隻手。","SCENE":"三幕皆為粉紅格線墊、白色槽板牆與瓶罐架背景。"},"frames_used":["before.png","middle.png","after.png"]}
 <<<VISUAL_QA_END>>>

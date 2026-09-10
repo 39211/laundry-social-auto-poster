@@ -31,9 +31,16 @@ import { config } from "dotenv";
 
 config();
 
-const CLIENT_ID = process.env.YT_CLIENT_ID;
-const CLIENT_SECRET = process.env.YT_CLIENT_SECRET;
-const PORT = 8732;
+// --legacy uses the ORIGINAL GSC client from Cloud project 263073074704. That
+// project's consent screen is still "Testing", so its refresh tokens die after
+// seven days -- but its Search Console API IS enabled, which the published
+// project's is not. So --legacy is the recover-the-data-tonight path and the
+// default is the permanent one. Neither is a substitute for the other until
+// somebody enables searchconsole.googleapis.com on 719432603364.
+const legacy = process.argv.includes("--legacy");
+const CLIENT_ID = legacy ? process.env.GSC_CLIENT_ID : process.env.YT_CLIENT_ID;
+const CLIENT_SECRET = legacy ? process.env.GSC_CLIENT_SECRET : process.env.YT_CLIENT_SECRET;
+const PORT = legacy ? 8733 : 8732;
 const REDIRECT = `http://localhost:${PORT}/oauth2callback`;
 // searchAnalytics/query and urlInspection/index:inspect are both reads.
 // Deliberately not requesting the read-write `webmasters` scope: nothing in this
@@ -42,9 +49,18 @@ const REDIRECT = `http://localhost:${PORT}/oauth2callback`;
 const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
-  console.error("YT_CLIENT_ID / YT_CLIENT_SECRET 不在 .env 裡,先確認 YouTube 那組憑證還在。");
+  console.error(
+    legacy
+      ? "GSC_CLIENT_ID / GSC_CLIENT_SECRET 不在 .env 裡。"
+      : "YT_CLIENT_ID / YT_CLIENT_SECRET 不在 .env 裡,先確認 YouTube 那組憑證還在。"
+  );
   process.exit(1);
 }
+console.log(
+  legacy
+    ? "\n模式:--legacy(舊 client / 專案 263073074704)。API 有開,但 token 約七天後會再過期。\n"
+    : "\n模式:預設(已發布的 client / 專案 719432603364)。token 不會過期,但要先啟用該專案的 Search Console API。\n"
+);
 
 const authUrl =
   "https://accounts.google.com/o/oauth2/v2/auth?" +

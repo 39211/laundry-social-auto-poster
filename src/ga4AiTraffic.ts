@@ -3,11 +3,12 @@ import { getFlag, getOption, isMain } from "./cli";
 import "./config";
 import { writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
+import { fetchGa4ReportRows, resolveGa4ReportDate } from "./ga4ReportRows";
 
 // GA4 cannot tell you if a page is indexed. It can tell you whether a
 // session arrived from an AI product, which landing page it hit, and whether
-// anyone stayed. Those three numbers are the only GEO "it worked" evidence
-// this property can collect without a paid citation tool.
+// anyone stayed. Referral visits are not AI citations or search impressions;
+// use search-engine reporting separately for those outcomes.
 //
 // Channel groups in the GA4 UI are a display convenience. This module reads
 // sessionSource directly so a missing UI group cannot hide AI traffic, and so
@@ -87,7 +88,7 @@ export function classifyTrafficSource(source: string, medium = ""): TrafficClass
   if ((AI_REFERRAL_HOSTS as readonly string[]).includes(host)) return "ai";
   const organic = medium.toLowerCase() === "organic" || medium.toLowerCase() === "organic-search";
   if (host === "google" || host === "google.com" || host === "www.google.com") {
-    return organic || medium === "" ? "google_organic" : "other";
+    return organic ? "google_organic" : "other";
   }
   if (organic && (host === "bing" || host === "bing.com")) return "other";
   return "other";
@@ -119,40 +120,16 @@ async function accessToken(fetchImpl: typeof fetch, env: NodeJS.ProcessEnv): Pro
       grant_type: "refresh_token"
     })
   });
-  const payload = (await response.json()) as { access_token?: string; error?: string; error_description?: string };
-  if (!payload.access_token) {
-    throw new Error(`GA4 token refresh failed: ${payload.error_description ?? payload.error ?? response.status}`);
+  if (!response.ok) throw new Error(`GA4 token refresh failed (HTTP ${response.status}).`);
+  let payload: { access_token?: string } | null;
+  try { payload = await response.json() as { access_token?: string } | null; }
+  catch { throw new Error("GA4 token refresh returned invalid JSON."); }
+  if (!payload || typeof payload.access_token !== "string" || !payload.access_token.trim()) {
+    throw new Error("GA4 token refresh returned no access token.");
   }
   return payload.access_token;
 }
 
-async function runReport(
-  token: string,
-  propertyId: string,
-  date: string,
-  dimensions: string[],
-  fetchImpl: typeof fetch
-): Promise<{ dimensionValues?: { value?: string }[]; metricValues?: { value?: string }[] }[]> {
-  const response = await fetchImpl(
-    `https://analyticsdata.googleapis.com/v1beta/properties/${encodeURIComponent(propertyId)}:runReport`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dateRanges: [{ startDate: date, endDate: date }],
-        dimensions: dimensions.map((name) => ({ name })),
-        metrics: [{ name: "sessions" }, { name: "engagedSessions" }],
-        limit: 200
-      })
-    }
-  );
-  const payload = (await response.json()) as {
-    rows?: { dimensionValues?: { value?: string }[]; metricValues?: { value?: string }[] }[];
-    error?: { message?: string };
-  };
-  if (payload.error) throw new Error(`GA4 runReport failed: ${payload.error.message}`);
-  return payload.rows ?? [];
-}
 
 export async function fetchGa4AiTraffic(input: {
   date: string;
@@ -165,12 +142,13 @@ export async function fetchGa4AiTraffic(input: {
   if (missing.length > 0) {
     throw new Error(`GA4 AI traffic is not configured (missing ${missing.join(", ")}).`);
   }
+  const date = resolveGa4ReportDate(input.date, new Date(), env.TIMEZONE || "Asia/Taipei");
   const token = await accessToken(fetchImpl, env);
-  const sourceRows = await runReport(token, propertyId, input.date, ["sessionSource", "sessionMedium"], fetchImpl);
-  const landingRows = await runReport(
+  const sourceRows = await fetchGa4ReportRows(token, propertyId, date, ["sessionSource", "sessionMedium"], fetchImpl);
+  const landingRows = await fetchGa4ReportRows(
     token,
     propertyId,
-    input.date,
+    date,
     ["landingPagePlusQueryString", "sessionSource"],
     fetchImpl
   );
@@ -211,7 +189,7 @@ export async function fetchGa4AiTraffic(input: {
   const ai_landing_pages: Ga4LandingRow[] = all_landing_pages.filter((row) => row.traffic_class === "ai");
 
   return {
-    date: input.date,
+    date,
     property_id: propertyId,
     fetched_at: new Date().toISOString(),
     totals: summarizeTraffic(by_source),
@@ -240,7 +218,7 @@ export async function recordGa4AiTraffic(input: {
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  const date = getOption(args, "date") ?? new Date().toISOString().slice(0, 10);
+  const date = getOption(args, "date") ?? "yesterday";
   try {
     const { report, path } = await recordGa4AiTraffic({ date, root: getOption(args, "root") });
     console.log(

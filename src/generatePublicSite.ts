@@ -5971,6 +5971,12 @@ function buildPublicSiteCss(): string {
       --color-brand-deep: #163a2b;
       --color-brand-soft: #e8f0eb;
       --color-blue: #1f6feb;
+      /* --color-blue is 4.63:1 on white but only 4.36:1 on the #f7f8fb section
+         tint, which is under WCAG AA's 4.5 and is the single audit keeping the
+         accessibility score off 100 (measured 2026-09-11 on the live homepage).
+         This darker step is 5.43:1 on that tint and 5.77:1 on white, and is used
+         only for the small bold labels that sit on tinted panels. */
+      --color-blue-strong: #1a5fd0;
       --color-green: #1c7c54;
       --color-red: #b42318;
       --shadow-panel: 0 14px 38px #17203314;
@@ -5993,7 +5999,7 @@ function buildPublicSiteCss(): string {
     .section.surface { background: #ffffff; border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); }
     .section-header { gap: 10px; max-width: 760px; margin-bottom: 24px; display: grid; }
     .section-header p, .section-header .section-copy { margin: 0; }
-    .eyebrow { color: var(--color-blue); letter-spacing: 0; font-size: .85rem; font-weight: 800; margin: 0; }
+    .eyebrow { color: var(--color-blue-strong); letter-spacing: 0; font-size: .85rem; font-weight: 800; margin: 0; }
     h1, h2, h3, p { margin-top: 0; }
     h1 { letter-spacing: 0; margin-bottom: 18px; font-size: clamp(2.25rem, 6vw, 4.6rem); line-height: 1.04; }
     h2 { letter-spacing: 0; margin-bottom: 12px; font-size: clamp(1.65rem, 3vw, 2.45rem); line-height: 1.16; }
@@ -6151,7 +6157,7 @@ function buildPublicSiteCss(): string {
     .post-archive summary { cursor: pointer; font-weight: 800; color: var(--color-ink); }
     .post-archive .grid { margin-top: 18px; }
     .answer-block, .answer-box { border-radius: var(--radius-card); background: #f0f7ff; border: 1px solid #b9d8ff; padding: 18px; }
-    .answer-block strong, .answer-box strong, .answer-box .eyebrow { color: var(--color-blue); margin-bottom: 6px; display: block; }
+    .answer-block strong, .answer-box strong, .answer-box .eyebrow { color: var(--color-blue-strong); margin-bottom: 6px; display: block; }
     .hero-visual > .eyebrow { margin-bottom: -8px; }
     .hero-visual > .muted { font-size: .9rem; margin: 0; }
     .answer-block p:last-child, .answer-box p:last-child { margin-bottom: 0; }
@@ -6970,7 +6976,7 @@ function buildPostsHubHtml(index: PublicPostIndex): string {
           <div class="article-meta">Day ${render.articleNumber}｜${escapeHtml(post.date)} ${escapeHtml(post.time)}｜${escapeHtml(careContextFor(post.topic).family)}</div>
           <h3><a href="${escapeHtml(post.article_url)}">${escapeHtml(post.topic)}</a></h3>
           <p>${escapeHtml(captionPreview(post.facebook_caption))}</p>
-          <a class="card-link" href="${escapeHtml(post.article_url)}">閱讀文章</a>
+          <a class="card-link" href="${escapeHtml(post.article_url)}" aria-label="閱讀文章：${escapeHtml(post.topic)}">閱讀文章</a>
         </article>`;
     })
     .join("\n");
@@ -7281,7 +7287,7 @@ function renderServiceProductCard(
         <h3><a href="${escapeHtml(href)}">${escapeHtml(service.name)}</a></h3>
         <p>${escapeHtml(service.summary)}</p>
         <p><strong>能解決：</strong>${escapeHtml(service.answer_summary)}</p>
-        <a class="card-link" href="${escapeHtml(href)}">詳細介紹</a>
+        <a class="card-link" href="${escapeHtml(href)}" aria-label="詳細介紹：${escapeHtml(service.name)}">詳細介紹</a>
       </article>`;
 }
 
@@ -7322,7 +7328,7 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
           <summary>閱讀完整文案</summary>
           <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
         </details>
-        <a class="card-link" href="${escapeHtml(articleHref)}">閱讀文章</a>
+        <a class="card-link" href="${escapeHtml(articleHref)}" aria-label="閱讀文章：${escapeHtml(post.topic)}">閱讀文章</a>
       </article>`;
 }
 

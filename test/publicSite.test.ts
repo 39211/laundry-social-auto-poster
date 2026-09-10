@@ -1674,7 +1674,12 @@ describe("generatePublicSite", () => {
     expect(html).toContain("posts/2026-07-04-slot-01.html");
     // A duplicate-caption post has no article of its own, but "read full post" must still
     // reach the article that owns that caption — never the raw calendar JSON.
-    const readFullPostHrefs = [...html.matchAll(/<a class="card-link" href="([^"]*)">閱讀文章<\/a>/gu)].map(
+    // [^>]* because each card-link now also carries an aria-label naming the
+    // article: 143 links reading "閱讀文章" were one accessible name repeated 143
+    // times, which is the audit that kept the accessibility score at 95. The
+    // assertion below is unchanged -- this only stops the regex depending on
+    // attribute order.
+    const readFullPostHrefs = [...html.matchAll(/<a class="card-link" href="([^"]*)"[^>]*>閱讀文章<\/a>/gu)].map(
       (match) => match[1]
     );
     expect(readFullPostHrefs).toHaveLength(4);

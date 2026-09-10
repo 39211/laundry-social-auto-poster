@@ -877,7 +877,23 @@ describe("generatePublicSite", () => {
     expect(taichungXitunLaundryHtml).toContain("<title>台中西屯洗衣店在哪？青海路門市、逢甲怎麼到｜私享家洗衣店</title>");
     expect(taichungXitunLaundryHtml).toContain("<h1>台中西屯洗衣店在哪？</h1>");
     expect(taichungXitunLaundryHtml).toContain("台中市西屯區青海路二段365號");
-    expect(taichungXitunLaundryHtml).toContain("可先用 LINE 傳照片詢問");
+    // The old string was part of an answer_summary that opened with the shop
+    // name and street address, which is what an answer engine reads first and
+    // cannot quote. Rewritten 2026-09-11 to lead with the address as the ANSWER
+    // to "西屯洗衣店在哪". Pinned on 至善國中對面 because that phrase only appears in
+    // THIS page's own capsule -- the first replacement I tried passed by matching
+    // a sentence that the money-page link row had borrowed from another page.
+    // Asserted on THIS page's own answer box, not on the whole document. Two
+    // earlier attempts passed for the wrong reason: one matched a sentence the
+    // money-page link row had borrowed from another page, and one matched the
+    // street address, which the footer repeats on all 205 pages. A capsule
+    // assertion has to read the capsule.
+    const xitunCapsule = /class="answer-box"[^>]*>([\s\S]*?)<\/div>/u
+      .exec(taichungXitunLaundryHtml)?.[1]
+      ?.replace(/<[^>]+>/gu, "")
+      .trim() ?? "";
+    expect(xitunCapsule).toContain("先看材質、痕跡位置與使用情境");
+    expect(xitunCapsule.startsWith("私享家洗衣店")).toBe(false);
     expect(taichungXitunLaundryHtml).toContain('"@type":"FAQPage"');
     expect(taichungXitunLaundryHtml).toContain('class="service-photo"');
     expect(taichungXitunLaundryHtml).toContain(
@@ -3026,5 +3042,52 @@ describe("generatePublicSite", () => {
     expect(discovery.recommended_read_order[1]).toContain("taichung-laundry-price-list.html");
     expect(discovery.recommended_read_order.at(-1)).toContain("llms.txt");
     expect(discovery.recommended_read_order.at(-1)).not.toContain("llms-full");
+  });
+});
+
+// 2026-09-11: nine live pages were serving an answer capsule whose first 25
+// characters were the shop name and street address, because the renderer falls
+// back to `citation_answer ?? description` and none of them had a
+// citation_answer. An answer engine cannot quote a business card. The rule
+// already existed for the index-growth pages; it did not cover these, and the
+// regression shipped on two of the money pages that are not indexed.
+//
+// This asserts on the RENDERED html, not on the definition objects, because the
+// definitions are two different shapes -- support pages carry citation_answer,
+// service pages carry answer_summary and are mapped into it downstream -- and
+// only the rendered output tells you what Google and Perplexity actually get.
+describe("answer capsules are answers, not business cards", () => {
+  const BRAND_OPENINGS = ["私享家洗衣店（", "私享家洗衣店位於", "私享家洗衣店提供", "私享家洗衣店在"];
+
+  it("no guide, service or local page opens its answer capsule with the shop name", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-capsule-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-04");
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-05T03:00:00.000Z"
+    });
+
+    const offenders: string[] = [];
+    for (const dir of ["guides", "services", "local"]) {
+      let names: string[] = [];
+      try {
+        names = await readdir(join(root, "docs", dir));
+      } catch {
+        continue;
+      }
+      for (const name of names.filter((file) => file.endsWith(".html"))) {
+        const html = await readFile(join(root, "docs", dir, name), "utf8");
+        const box = /class="answer-box"[^>]*>([\s\S]*?)<\/div>/u.exec(html);
+        if (!box) continue;
+        const text = (box[1] ?? "").replace(/<[^>]+>/gu, "").trim();
+        if (BRAND_OPENINGS.some((opening) => text.startsWith(opening))) {
+          offenders.push(`${dir}/${name}: ${text.slice(0, 40)}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

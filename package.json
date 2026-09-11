@@ -76,7 +76,9 @@
     "gsc-seo-candidates": "tsx src/gscSeoCandidateAutopilot.ts",
     "seo-exposure-review": "tsx src/seoExposureReview.ts",
     "pause": "tsx src/pause.ts",
-    "gsc-index-inspect": "tsx src/gscIndexInspection.ts"
+    "gsc-index-inspect": "tsx src/gscIndexInspection.ts",
+    "postgenerate-public-site": "node scripts/service-intake-guides.mjs",
+    "prepublish-pages": "node scripts/service-intake-guides.mjs --check"
   },
   "dependencies": {
     "dotenv": "^16.4.7"

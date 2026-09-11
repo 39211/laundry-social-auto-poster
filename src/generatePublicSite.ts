@@ -1792,9 +1792,12 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "rainy-shoe-care",
     path: "guides/rainy-shoe-care.html",
     category: "guide",
-    title: "雨天鞋子進水後怎麼辦？｜私享家洗衣店",
+    // 排名 8.3、31 次曝光、0 點擊(2026-08-16..09-09)。舊標題只有問句沒有答案。
+    // 同站 plush-doll-cleaning 排 11.8 卻有 9.3% CTR,它的標題是「問句＋先看什麼」;
+    // 這裡把答案(濕氣留在鞋內、不要悶著)放進標題。
+    title: "雨天鞋子進水？先通風不要悶著，濕氣留在鞋內｜私享家洗衣店",
     description:
-      "私享家洗衣店（台中市西屯區青海路二段365號）處理雨天鞋子：通勤後鞋內濕氣、鞋底泥灰和鞋邊水痕容易被忽略，先通風、不要悶放，再判斷是否需要專業清潔。",
+      "雨天鞋子進水後最傷的動作是直接塞進鞋櫃：濕氣出不來，味道和霉都是從那一步開始的。先撐開通風，鞋底泥灰和鞋邊水痕等乾了再看。私享家洗衣店（台中西屯青海路二段365號）先看鞋況再決定做法，台中全市免費收送。",
     h1: "雨天鞋子進水後怎麼辦？",
     summary: AEO_RAINY_SHOE,
     citation_answer: AEO_RAINY_SHOE,
@@ -2755,7 +2758,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     service_slug: "shoe-bag-care",
     // Distinct intent from the shoe-bag-care service page: this page answers "how to pick a
     // shoe-cleaning shop near the Qinghai Road store", not the head term itself.
-    title: "青海路洗鞋店怎麼挑｜逢甲、西屯門市方位、案例界線與收送｜私享家洗衣店",
+    title: "逢甲、西屯洗鞋｜運動鞋水洗 $250，台中全市免費收送｜私享家",
     search_description: "逢甲、西屯洗鞋：一般運動鞋水洗參考價250元，先LINE傳照片確認鞋況與報價。私享家位於青海路二段365號，台中全市免費收送、無低消，清潔費另計。",
     description: "逢甲、西屯找洗鞋店？先看這篇怎麼挑：看案例照片、問處理界線、確認收送方式。私享家在青海路二段365號，台中市免費收送，LINE 傳照片先判斷再決定。",
     h1: "青海路洗鞋店怎麼挑：看案例、問界線、約收送",

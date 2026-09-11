@@ -138,7 +138,8 @@ export function enhanceGuide(html, slug) {
   const relatedMatches = [...region.matchAll(/<div class="link-row" data-related-guides>[\s\S]*?<\/div>/g)];
   if (relatedMatches.length > 1) throw new Error('Ambiguous related guides');
   const related = relatedMatches[0]?.[0] || '';
-  const expected = renderRegion(slug, base, aside, related);
+  const eol = region.includes('\r\n') ? '\r\n' : '\n';
+  const expected = renderRegion(slug, base, aside, related).replace(/\r\n/g, '\n').replace(/\n/g, eol);
   if (region.includes('data-service-intake=')) {
     if (region !== expected) throw new Error('Intake region changed; review instead of overwriting');
   } else if (hash(region) !== BASE_REGION_HASHES[slug]) {
@@ -205,8 +206,8 @@ export async function buildPlan(root) {
   const file = await safeFile(root, path, true);
   let before = null;
   try { before = await readFile(file, 'utf8'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
-  if (before !== null && before !== CLIENT_SCRIPT) throw new Error('Existing intake script differs; review required');
-  plan.push({ path, file, before, after: CLIENT_SCRIPT });
+  if (before !== null && before.replace(/\r\n/g, '\n') !== CLIENT_SCRIPT) throw new Error('Existing intake script differs; review required');
+  plan.push({ path, file, before, after: before ?? CLIENT_SCRIPT });
   return plan;
 }
 

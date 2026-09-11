@@ -49,7 +49,19 @@ function Show-Toast([string]$text) {
         Write-Step ("Toast failed: " + $_.Exception.Message)
     }
 }
-$CarouselAspect = 4.0 / 5.0
+# Ratio math lives here so PS-layer smoke can invoke it without ffprobe.
+# 4:5 ±0.01 is the carousel gate; 3:4 (1080x1440) must stay outside that band
+# (2026-09-10: same prompt returned 4:5 fifteen times and 3:4 twice).
+function Get-PortraitFourFiveVerdict([double]$Width, [double]$Height) {
+    if ($Width -le 0 -or $Height -le 0) { return $null }
+    $aspect = 4.0 / 5.0
+    return [pscustomobject]@{
+        Width = [int]$Width
+        Height = [int]$Height
+        Ok = ([math]::Abs(($Width / $Height) - $aspect) -le 0.01)
+    }
+}
+
 function Test-PortraitFourFive([string]$Path) {
     try {
         $probe = & ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 $Path 2>$null
@@ -57,12 +69,7 @@ function Test-PortraitFourFive([string]$Path) {
         if ($parts.Count -lt 2) { return $null }
         $w = [double]$parts[0]
         $h = [double]$parts[1]
-        if ($w -le 0 -or $h -le 0) { return $null }
-        return [pscustomobject]@{
-            Width = [int]$w
-            Height = [int]$h
-            Ok = ([math]::Abs(($w / $h) - $CarouselAspect) -le 0.01)
-        }
+        return Get-PortraitFourFiveVerdict $w $h
     } catch { return $null }
 }
 
@@ -146,6 +153,12 @@ function Ensure-CarouselVisualQa($Items, [string]$RootPath, [string]$Date, [stri
 # the manifest prompt verbatim plus one plain-object clause: the first Google
 # test drew a swoosh on the shoes. The record is stamped google-agy-image, which
 # the publish gate accepts (src/imageSources.ts), never relabelled as gpt-image-2.
+# 2026-09-12: this asked agy for 3:4 while every carousel the shop has ever
+# published is 4:5 (1122x1402). It only surfaced today, because the fallback had
+# never had to carry a whole slot before -- the Codex image quota ran out until
+# 09-15 and all four of today's slot-1 images came back 896x1200, which is 0.75
+# and outside Instagram's 0.8 portrait limit. The aspect gate added on 09-11
+# caught and reported it; this is the cause it was pointing at.
 function Invoke-AgyImageFallback {
     param($Item, $Items, [string]$RootPath, [string]$Date)
     $agy = Join-Path $env:LOCALAPPDATA "agy\bin\agy.exe"
@@ -176,7 +189,7 @@ function Invoke-AgyImageFallback {
         }
     }
     [IO.File]::WriteAllText($promptFile, $text, [Text.UTF8Encoding]::new($false))
-    $ask = "Read the file $promptFile. Call your generate_image tool exactly once with Prompt = that file content verbatim, AspectRatio '3:4', ImageName 'laundry_slot_photo'.$refClause Then copy the generated image file to $outFile and reply only with that absolute path and the file size in bytes. Do nothing else."
+    $ask = "Read the file $promptFile. Call your generate_image tool exactly once with Prompt = that file content verbatim, AspectRatio '4:5', ImageName 'laundry_slot_photo'.$refClause Then copy the generated image file to $outFile and reply only with that absolute path and the file size in bytes. Do nothing else."
     $t0 = Get-Date
     $agyOut = & $agy --dangerously-skip-permissions --output-format json --add-dir $work --print=$ask 2>&1
     if ($LogFile) { $agyOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }

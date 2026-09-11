@@ -30,6 +30,13 @@ for (const s of SLUGS) {
     const first=enhanceGuide(fixture(s),s).html;
     assert.equal(enhanceGuide(first,s).html,first);
   });
+  test(`${s}: CRLF source and re-checked-out enhancement remain idempotent`, () => {
+    const source=fixture(s).replace(/\n/g,'\r\n');
+    const first=enhanceGuide(source,s).html;
+    assert.equal(enhanceGuide(first,s).html,first);
+    const checkedOut=first.replace(/\r\n/g,'\n').replace(/\n/g,'\r\n');
+    assert.equal(enhanceGuide(checkedOut,s).html,checkedOut);
+  });
   test(`${s}: business facts and parent service preserved`, () => {
     const html=enhanceGuide(fixture(s),s).html;
     assert.ok(html.includes(ASIDE)); assert.equal((html.match(/data-parent-service/g)||[]).length,1);
@@ -103,6 +110,14 @@ test('normal generation then read-only prepublish check succeeds',async()=>{
   const dir=await sandbox();try{
     const first=await run(dir);assert.equal(first.changed.length,5);
     assert.equal((await run(dir,true)).status,'verified');assert.deepEqual((await run(dir)).changed,[]);
+  } finally {await rm(dir,{recursive:true,force:true});}
+});
+test('CRLF clipboard artifact is accepted without rewriting it',async()=>{
+  const dir=await sandbox();try{
+    await run(dir);
+    await writeFile(join(dir,'docs/scripts/service-intake.js'),CLIENT_SCRIPT.replace(/\n/g,'\r\n'));
+    assert.equal((await run(dir,true)).status,'verified');
+    assert.deepEqual((await run(dir)).changed,[]);
   } finally {await rm(dir,{recursive:true,force:true});}
 });
 test('all files validate before any writes',async()=>{

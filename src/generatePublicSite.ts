@@ -917,7 +917,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       {
         heading: "社群內容也會同步成搜尋資料",
         body:
-          "審核通過的 Facebook 與 Instagram 貼文會同步進公開 SEO / AEO / GEO feed，讓日常門市案例、雨季提醒、節日海報和服務頁互相連回官方內容來源。"
+          "門市每天的實際案例、雨季提醒和服務說明都會整理到這個網站上，你在 Facebook 或 Instagram 看到的那一則，這裡找得到完整版本。"
       },
       {
         heading: "跟「怎麼找洗衣店」那頁差在哪",
@@ -962,7 +962,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       },
       {
         question: "社群貼文內容會和服務頁連在一起嗎？",
-        answer: "會。排程產生且審核通過的 FB / IG 貼文會同步成公開 SEO / AEO / GEO 資料，讓服務頁和日常案例互相補強。"
+        answer: "會。門市在 Facebook 和 Instagram 發的當日案例，這個網站上都有完整版本，方便你回頭找同樣狀況怎麼處理。"
       },
       {
         question: "逢甲附近有推薦的洗鞋店嗎？",
@@ -2944,7 +2944,7 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
   },
   {
     heading: "依地區找服務",
-    intro: "把店家位置、台中全市收送和生活圈寫成可讀內容，讓搜尋引擎與 AI 清楚知道門市在西屯，收送涵蓋台中市。",
+    intro: "門市在西屯，收送涵蓋台中市全區。按你所在的生活圈找，看那一區怎麼安排取件。",
     items: [
       {
         label: "台中全市免費收送",
@@ -7405,7 +7405,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
     archivePosts.length > 0
       ? `<details class="post-archive">
             <summary>較早內容（${archiveDateCount} 天，${archivePosts.length} 篇）</summary>
-            <p class="section-copy">這些貼文仍保留在 SEO / AEO / GEO 和社群內容資料庫中，預設收合，避免首頁太長。</p>
+            <p class="section-copy">較早的門市紀錄都還在，預設收起來，免得首頁太長。</p>
             <div class="grid three archive-list">
         ${archiveRows}
             </div>
@@ -7734,14 +7734,14 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <div class="card local-search-card">
             <span class="eyebrow">在地搜尋</span>
             <h3>搜尋洗衣店時，讓地區和服務都說清楚。</h3>
-            <p>這個公開站會固定把私享家洗衣店、台中市、西屯門市、青海路二段、免費收送、衣物洗護、洗鞋、洗包、白鞋清潔與布品收納連在一起，提供服務頁、社群圖文、LocalBusiness schema、AI 入口與在地搜尋資料。</p>
+            <p>門市在台中市西屯區青海路二段，洗衣、洗鞋、洗包、白鞋清潔與布品收納都在同一個地方處理，台中市全區免費收送。下面的關鍵字是客人實際會搜尋的說法，點進去看那一類怎麼判斷。</p>
             <div class="chip-row local-query-row">
               ${localSearchChips}
             </div>
           </div>
           <details class="machine-details">
             <summary>AI 與搜尋引擎可讀入口</summary>
-            <p>這些檔案讓搜尋引擎與 AI 理解私享家洗衣店的服務、店家資料、社群內容與在地搜尋資訊。一般客人不需要閱讀它們，但它們會保留作為公開資料來源。</p>
+            <p>這些是本站的公開資料檔，給需要用程式讀取的人。要找洗衣資訊，看上面的服務與指南就夠了。</p>
             <nav aria-label="AI 與搜尋入口">
           <a href="llms-lite.txt">llms-lite.txt</a>
           <a href="llms.txt">llms.txt</a>
@@ -7936,7 +7936,7 @@ function buildNotFoundHtml(index: PublicPostIndex): string {
       <section class="not-found-panel">
         <span class="eyebrow">Page moved</span>
         <h1>回到私享家首頁。</h1>
-        <p>這個網址可能多了 docs 或少了專案路徑，系統會自動帶你回到私享家洗衣店的公開 SEO / AEO / GEO 主站。</p>
+        <p>這個網址可能打錯了，我們會自動帶你回到私享家洗衣店的官方網站。</p>
         <a class="button brand" href="${escapeHtml(homeHref)}">回到首頁</a>
       </section>
     </main>
@@ -8532,7 +8532,7 @@ ${serviceHeroLink}          </div>
           <div class="answer-box">
             <p>${escapeHtml(page.citation_answer ?? page.description)}</p>
           </div>
-          <p class="muted">這段是可直接引用的答案；下方的判斷步驤與門市說明會把處理界線講清楚，拿不準就先傳照片。</p>
+          <p class="muted">拿不準就先拍照片傳 LINE，門市看過再告訴你能做到哪裡、哪些不能保證。</p>
         ${
           image
             ? `<figure class="service-photo">

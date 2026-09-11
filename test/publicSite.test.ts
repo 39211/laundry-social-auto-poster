@@ -3091,3 +3091,72 @@ describe("answer capsules are answers, not business cards", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// 2026-09-11: the live site was showing customers copy written for the
+// pipeline -- "這段是可直接引用的答案" on 49 guide pages (with a 步驤/步驟 typo),
+// "這些貼文仍保留在 SEO / AEO / GEO 和社群內容資料庫中" on the homepage, and
+// "回到私享家洗衣店的公開 SEO / AEO / GEO 主站" on the 404. A visitor reading a
+// laundry shop's site should not be told how its search optimisation works, and
+// that space is the most valuable copy real estate the shop has.
+//
+// Scoped to VISIBLE text: script and style contents are stripped first, so
+// JSON-LD and analytics config are untouched.
+describe("visible copy speaks to customers, not to search engines", () => {
+  const PIPELINE_PHRASES = [
+    "可直接引用",
+    "讓搜尋引擎",
+    "讓 AI 理解",
+    "SEO / AEO / GEO",
+    "結構化資料",
+    "內容資料庫",
+    "LocalBusiness"
+  ];
+
+  it("no rendered page shows text addressed to a crawler", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-voice-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-04");
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-05T03:00:00.000Z"
+    });
+
+    const offenders: string[] = [];
+    const walk = async (dir: string): Promise<string[]> => {
+      const found: string[] = [];
+      for (const entry of await readdir(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) found.push(...(await walk(full)));
+        else if (entry.name.endsWith(".html")) found.push(full);
+      }
+      return found;
+    };
+    for (const file of await walk(join(root, "docs"))) {
+      const html = await readFile(file, "utf8");
+      const visible = html
+        .replace(/<script[\s\S]*?<\/script>/gu, "")
+        .replace(/<style[\s\S]*?<\/style>/gu, "")
+        .replace(/<[^>]+>/gu, " ");
+      for (const phrase of PIPELINE_PHRASES) {
+        if (visible.includes(phrase)) offenders.push(`${file.slice(root.length)}: ${phrase}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("the answer-capsule caption is free of the 步驤 typo that shipped on 49 pages", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-typo-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-04");
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-05T03:00:00.000Z"
+    });
+    const html = await readFile(join(root, "docs", "guides", "plush-doll-cleaning.html"), "utf8");
+    expect(html).not.toContain("步驤");
+  });
+});

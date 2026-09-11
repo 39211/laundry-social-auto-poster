@@ -15,6 +15,7 @@ function py(body: string): string {
   }
   const code = [
     "import json, re",
+    "from datetime import date, datetime, timedelta, timezone",
     "class n:",
     "    pass",
     src.slice(start, end),
@@ -249,12 +250,111 @@ describe("nightly 10: did today publish, and can the machine wake (F19/B8/B9)", 
     const helpersEnd = source.indexOf("# --- end helpers ---");
     const check10 = source.slice(helpersEnd);
     expect(check10).toMatch(
-      /unposted_day_what\(\s*has_live_posts\(posted\),\s*pause is not None,\s*datetime\.now\(\)\.hour\s*\)/
+      /unposted_day_what\(\s*has_live_posts\(posted\),\s*pause is not None,\s*audit_clock_hour\(TODAY,\s*_now\.date\(\),\s*_now\.hour\)\s*\)/
     );
     expect(check10).toContain("wake_to_run_breaks(wake_probe)");
     expect(check10).toContain('wake_breaks["empty"]');
     expect(check10).toContain('wake_breaks["false_tasks"]');
     expect(check10).not.toContain("too_early_to_judge");
     expect(check10).not.toContain("seen_wake");
+    expect(check10).not.toMatch(/unposted_day_what\([^)]*datetime\.now\(\)\.hour/);
+  });
+});
+
+describe("nightly --date backfill (HANDOFF-2026-09-04)", () => {
+  it("parses --date and --date=; default is the injected Taipei today", () => {
+    const got = callJson(
+      [
+        "today = date(2026, 9, 4)",
+        "print(json.dumps({",
+        "  'flag': n.parse_audit_date(['--date', '2026-09-03'], today=today).isoformat(),",
+        "  'equals': n.parse_audit_date(['--date=2026-09-03'], today=today).isoformat(),",
+        "  'default': n.parse_audit_date([], today=today).isoformat(),",
+        "  'noise': n.parse_audit_date(['--verbose'], today=today).isoformat(),",
+        "}))",
+      ].join("\n")
+    ) as Record<string, string>;
+    expect(got.flag).toBe("2026-09-03");
+    expect(got.equals).toBe("2026-09-03");
+    expect(got.default).toBe("2026-09-04");
+    expect(got.noise).toBe("2026-09-04");
+  });
+
+  it("rejects a missing or malformed --date", () => {
+    const got = callJson(
+      [
+        "today = date(2026, 9, 4)",
+        "def boom(argv):",
+        "    try:",
+        "        n.parse_audit_date(argv, today=today)",
+        "        return 'no-raise'",
+        "    except ValueError as exc:",
+        "        return str(exc)",
+        "print(json.dumps({",
+        "  'missing': boom(['--date']),",
+        "  'empty_eq': boom(['--date=']),",
+        "  'bad': boom(['--date', '09/03']),",
+        "  'dash': boom(['--date', '--help']),",
+        "}))",
+      ].join("\n")
+    ) as Record<string, string>;
+    expect(got.missing).toContain("YYYY-MM-DD");
+    expect(got.empty_eq).toContain("YYYY-MM-DD");
+    expect(got.bad).toContain("YYYY-MM-DD");
+    expect(got.dash).toContain("YYYY-MM-DD");
+    expect(got.missing).not.toBe("no-raise");
+    expect(got.bad).not.toBe("no-raise");
+  });
+
+  it("Taipei today crosses midnight at 16:00 UTC, not at UTC midnight (F16)", () => {
+    const got = callJson(
+      [
+        "print(json.dumps({",
+        "  'after': n.taipei_today(datetime(2026, 9, 3, 16, 0, tzinfo=timezone.utc)).isoformat(),",
+        "  'before': n.taipei_today(datetime(2026, 9, 3, 15, 59, tzinfo=timezone.utc)).isoformat(),",
+        "}))",
+      ].join("\n")
+    ) as Record<string, string>;
+    expect(got.after).toBe("2026-09-04");
+    expect(got.before).toBe("2026-09-03");
+  });
+
+  it("past --date is a closed day so check 10 can still fire on morning backfill", () => {
+    const got = callJson(
+      [
+        "audit = n.parse_audit_date(['--date', '2026-09-03'], today=date(2026, 9, 4))",
+        "hour = n.audit_clock_hour(audit, date(2026, 9, 4), 10)",
+        "print(json.dumps({",
+        "  'audit': audit.isoformat(),",
+        "  'hour': hour,",
+        "  'past': n.audit_clock_hour(date(2026, 9, 3), date(2026, 9, 4), 10),",
+        "  'today_morning': n.audit_clock_hour(date(2026, 9, 4), date(2026, 9, 4), 10),",
+        "  'today_night': n.audit_clock_hour(date(2026, 9, 4), date(2026, 9, 4), 23),",
+        "  'future': n.audit_clock_hour(date(2026, 9, 5), date(2026, 9, 4), 23),",
+        "  'backfill_what': n.unposted_day_what(False, False, hour),",
+        "  'morning_wall_what': n.unposted_day_what(False, False, 10),",
+        "}))",
+      ].join("\n")
+    ) as Record<string, string | number | null>;
+    expect(got.audit).toBe("2026-09-03");
+    expect(got.hour).toBe(23);
+    expect(got.past).toBe(23);
+    expect(got.today_morning).toBe(10);
+    expect(got.today_night).toBe(23);
+    expect(got.future).toBe(0);
+    expect(got.backfill_what).toBe("今天一則都沒發出去");
+    expect(got.morning_wall_what).toBeNull();
+  });
+
+  it("production wiring reads argv through parse_audit_date, not date.today() (A9)", () => {
+    const source = readFileSync(script, "utf8");
+    const helpersEnd = source.indexOf("# --- end helpers ---");
+    const body = source.slice(helpersEnd);
+    expect(body).toMatch(/TODAY\s*=\s*parse_audit_date\(\s*sys\.argv\[1:\],\s*today=_now\.date\(\)\s*\)/);
+    expect(body).toContain("audit_clock_hour(TODAY, _now.date(), _now.hour)");
+    expect(body).not.toMatch(/TODAY\s*=\s*date\.today\(\)/);
+    expect(source).toContain("def parse_audit_date(");
+    expect(source).toContain("def audit_clock_hour(");
+    expect(source).toContain("def taipei_today(");
   });
 });

@@ -137,6 +137,31 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - Holiday hours are managed as owner-approved overrides; no specific holiday date is emitted until it is explicitly verified.
 
 ## Published Posts
+- [2026-09-13 12:00 先聞棉被中間那層](https://sixiangjialaundry.com/posts/2026-09-13-slot-03.html)
+  platform targets: facebook, instagram
+  routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=(legacy-unassigned)
+  target_queries: (legacy-unassigned)
+  evidence_type: (legacy-unassigned)
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #洗護日常 #棉被送洗 #寢具清潔 #換季收納 #台中洗衣店 #西屯 #逢甲 #台中
+  image: https://sixiangjialaundry.com/assets/2026-09-13/slot-03.png
+  video: https://sixiangjialaundry.com/assets/2026-09-13/slot-03.mp4
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-13.json
+- [2026-09-13 20:30 棉被收進櫃子前，悶味來自沒散掉的濕氣](https://sixiangjialaundry.com/posts/2026-09-13-slot-02.html)
+  platform targets: facebook, instagram
+  routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=value-prop-lead; search_intent=aftercare
+  target_queries: 台中棉被清洗 | 台中床組清洗 | 西屯寢具清洗 | 台中羽絨被送洗 | 台中外套清洗 | 棉被有潮味怎麼辦
+  evidence_type: customer-question
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #棉被清洗 #布品收納 #棉被送洗 #寢具清潔 #換季收納 #台中洗衣店 #西屯 #逢甲 #台中
+  image: https://sixiangjialaundry.com/assets/2026-09-13/slot-02.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-13.json
+- [2026-09-13 11:30 大衣入秋前要不要先送洗？先翻領口、袖口、腋下 3 個位置](https://sixiangjialaundry.com/posts/2026-09-13-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=object-proof; search_intent=aftercare
+  target_queries: 台中棉被清洗 | 台中床組清洗 | 西屯寢具清洗 | 台中羽絨被送洗 | 台中外套清洗 | 棉被有潮味怎麼辦
+  evidence_type: customer-question
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #衣物送洗 #乾洗 #台中乾洗 #台中洗衣店 #西屯 #逢甲 #台中
+  image: https://sixiangjialaundry.com/assets/2026-09-13/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-13.json
 - [2026-09-12 12:00 毛衣腋下出現黃斑](https://sixiangjialaundry.com/posts/2026-09-12-slot-03.html)
   platform targets: facebook, instagram
   routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=(legacy-unassigned)

@@ -47,9 +47,24 @@ Pop-Location
 $out | ForEach-Object { Write-Log $_ }
 
 $master = "$jobDir\master-candidate.mp4"
+# A file existing is not a file being valid. On 2026-09-12 this job left a
+# 6 MB master-candidate.mp4 behind that ffprobe rejected with "moov atom not
+# found", and the old gate here -- Test-Path alone -- would have called that
+# done, toasted the owner to come and watch it, and deleted its own retry task.
+# Probe it. Anything that will not decode is not finished.
+$masterOk = $false
 if (Test-Path $master) {
+    $probe = & ffprobe -v error -show_entries format=duration -of csv=p=0 $master 2>&1
+    $seconds = 0.0
+    $masterOk = ($LASTEXITCODE -eq 0) -and [double]::TryParse(($probe | Select-Object -First 1), [ref]$seconds) -and ($seconds -gt 10)
+    if (-not $masterOk) {
+        Write-Log "MASTER PRESENT BUT UNUSABLE: $probe"
+        Rename-Item $master ("master-candidate.unusable-{0:yyyyMMdd-HHmmss}.mp4" -f (Get-Date)) -ErrorAction SilentlyContinue
+    }
+}
+if ($masterOk) {
     $size = [int]((Get-Item $master).Length / 1MB)
-    Write-Log "MASTER READY: $master (${size} MB)"
+    Write-Log ("MASTER READY: {0} ({1} MB, {2:N1}s)" -f $master, $size, $seconds)
     Show-Toast "9/15 長片做好了,等你看片驗收。"
     # Job done: remove the task so it stops firing.
     Unregister-ScheduledTask -TaskName "Laundry-ReelV3-0915-Resume" -Confirm:$false -ErrorAction SilentlyContinue

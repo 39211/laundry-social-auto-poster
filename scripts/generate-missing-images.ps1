@@ -159,6 +159,16 @@ function Ensure-CarouselVisualQa($Items, [string]$RootPath, [string]$Date, [stri
 # 09-15 and all four of today's slot-1 images came back 896x1200, which is 0.75
 # and outside Instagram's 0.8 portrait limit. The aspect gate added on 09-11
 # caught and reported it; this is the cause it was pointing at.
+# The ask string is a separate function so PS-layer smoke can invoke it without
+# agy.exe. Get-PortraitFourFiveVerdict is the discard gate; this is the request.
+function Get-AgyGenerateImageAsk {
+    param(
+        [string]$PromptFile,
+        [string]$OutFile,
+        [string]$RefClause
+    )
+    return "Read the file $PromptFile. Call your generate_image tool exactly once with Prompt = that file content verbatim, AspectRatio '4:5', ImageName 'laundry_slot_photo'.$RefClause Then copy the generated image file to $OutFile and reply only with that absolute path and the file size in bytes. Do nothing else."
+}
 function Invoke-AgyImageFallback {
     param($Item, $Items, [string]$RootPath, [string]$Date)
     $agy = Join-Path $env:LOCALAPPDATA "agy\bin\agy.exe"
@@ -189,7 +199,7 @@ function Invoke-AgyImageFallback {
         }
     }
     [IO.File]::WriteAllText($promptFile, $text, [Text.UTF8Encoding]::new($false))
-    $ask = "Read the file $promptFile. Call your generate_image tool exactly once with Prompt = that file content verbatim, AspectRatio '4:5', ImageName 'laundry_slot_photo'.$refClause Then copy the generated image file to $outFile and reply only with that absolute path and the file size in bytes. Do nothing else."
+    $ask = Get-AgyGenerateImageAsk -PromptFile $promptFile -OutFile $outFile -RefClause $refClause
     $t0 = Get-Date
     $agyOut = & $agy --dangerously-skip-permissions --output-format json --add-dir $work --print=$ask 2>&1
     if ($LogFile) { $agyOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }

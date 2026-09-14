@@ -38,13 +38,19 @@ describe("GA4 evidence integrity", () => {
     assert.equal(result.totals.sessions, 201);
     assert.equal(result.totals.ai_sessions, 1);
     assert.deepEqual(f.calls.map((call) => call.offset), ["0", "200", "0"]);
-    assert.deepEqual(f.calls[0].orderBys.map((item: any) => item.dimension.dimensionName), ["sessionSource", "sessionMedium"]);
+    const firstCall = f.calls[0];
+    assert.ok(firstCall, "source query must execute");
+    assert.deepEqual(firstCall.orderBys.map((item: any) => item.dimension.dimensionName), ["sessionSource", "sessionMedium"]);
     assert.ok(f.calls.every((call) => !("pageToken" in call)));
   });
   it("paginates the landing report independently", async () => {
-    const landings = Array.from({ length: 200 }, (_, i) => row(`/guides/${i}`, "chatgpt.com"));
+    const landing = (page: string) => ({
+      dimensionValues: [{ value: page }, { value: "chatgpt.com" }, { value: "referral" }],
+      metricValues: [{ value: "1" }, { value: "0" }]
+    });
+    const landings = Array.from({ length: 200 }, (_, i) => landing(`/guides/${i}`));
     const f = fixture([{ rows: [row("chatgpt.com", "referral", "201")] },
-      { rowCount: 201, rows: landings }, { rowCount: 201, rows: [row("/services/price", "chatgpt.com")] }]);
+      { rowCount: 201, rows: landings }, { rowCount: 201, rows: [landing("/services/price")] }]);
     const result = await fetchGa4AiTraffic({ date: "2026-09-06", env: ENV, fetchImpl: f.fetchImpl });
     assert.equal(result.ai_landing_pages.length, 201);
     assert.ok(result.ai_landing_pages.some((entry) => entry.page === "/services/price"));
@@ -52,6 +58,32 @@ describe("GA4 evidence integrity", () => {
   });
   it("continues after a short page when rowCount says there are more", async () => {
     assert.equal((await report([{ rowCount: 3, rows: [row("a"), row("b")] }, { rowCount: 3, rows: [row("c")] }])).length, 3);
+  });
+  it("preserves every landing medium without counting paid or missing-medium Google as organic", async () => {
+    const landing = (medium: string) => ({
+      dimensionValues: [{ value: "/services/shoe-bag-care.html" }, { value: "google" }, { value: medium }],
+      metricValues: [{ value: "1" }, { value: "0" }]
+    });
+    const f = fixture([{ rows: [row("google", "organic"), row("google", "cpc"), row("google", "")] },
+      { rows: [landing("organic"), landing("cpc"), landing("")] }]);
+    const result = await fetchGa4AiTraffic({ date: "2026-09-06", env: ENV, fetchImpl: f.fetchImpl });
+    assert.equal(result.totals.google_organic_sessions, 1);
+    assert.equal(result.all_landing_pages?.length, 3, "must preserve non-AI landing rows");
+    assert.equal(result.ai_landing_pages.length, 0);
+    assert.equal(result.all_landing_pages?.find(entry => entry.medium === "organic")?.traffic_class, "google_organic");
+    assert.equal(result.all_landing_pages?.find(entry => entry.medium === "cpc")?.traffic_class, "other");
+    assert.equal(result.all_landing_pages?.find(entry => entry.medium === "")?.traffic_class, "other");
+    assert.deepEqual(f.calls[1]?.dimensions.map((d: any) => d.name),
+      ["landingPagePlusQueryString", "sessionSource", "sessionMedium"]);
+  });
+  it("rejects wrong or reversed headers instead of mislabelling metrics or inventing zero", async () => {
+    const good = { dimensionHeaders: [{ name: "sessionSource" }, { name: "sessionMedium" }],
+      metricHeaders: [{ name: "sessions" }, { name: "engagedSessions" }] };
+    for (const bad of [
+      { ...good, dimensionHeaders: [{ name: "unrelated" }, { name: "sessionMedium" }] },
+      { ...good, metricHeaders: [...good.metricHeaders].reverse(), rows: [row("google", "organic")] },
+      { ...good, dimensionHeaders: [null, null] }
+    ]) await assert.rejects(report([bad]), /headers/);
   });
   it("continues a full page when rowCount is omitted", async () => {
     assert.equal((await report([{ rows: full() }, { rows: [row("perplexity.ai")] }])).length, 201);

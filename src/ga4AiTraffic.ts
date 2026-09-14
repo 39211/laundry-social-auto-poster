@@ -7,8 +7,8 @@ import { fetchGa4ReportRows, resolveGa4ReportDate } from "./ga4ReportRows";
 
 // GA4 cannot tell you if a page is indexed. It can tell you whether a
 // session arrived from an AI product, which landing page it hit, and whether
-// anyone stayed. Referral visits are not AI citations or search impressions;
-// use search-engine reporting separately for those outcomes.
+// anyone stayed. Referral visits do not prove AI citations or search impressions.
+// Measure those outcomes separately using search-engine evidence.
 //
 // Channel groups in the GA4 UI are a display convenience. This module reads
 // sessionSource directly so a missing UI group cannot hide AI traffic, and so
@@ -41,6 +41,8 @@ export interface Ga4SourceSessionRow {
 export interface Ga4LandingRow {
   page: string;
   source: string;
+  /** Absent in legacy reports; never infer organic from its absence. */
+  medium?: string;
   sessions: number;
   engaged_sessions: number;
   traffic_class: TrafficClass;
@@ -130,7 +132,6 @@ async function accessToken(fetchImpl: typeof fetch, env: NodeJS.ProcessEnv): Pro
   return payload.access_token;
 }
 
-
 export async function fetchGa4AiTraffic(input: {
   date: string;
   env?: NodeJS.ProcessEnv;
@@ -149,7 +150,7 @@ export async function fetchGa4AiTraffic(input: {
     token,
     propertyId,
     date,
-    ["landingPagePlusQueryString", "sessionSource"],
+    ["landingPagePlusQueryString", "sessionSource", "sessionMedium"],
     fetchImpl
   );
 
@@ -171,17 +172,19 @@ export async function fetchGa4AiTraffic(input: {
   // for the whole property, and until 2026-09-10 threw away every row that was
   // not AI -- so the one question the shop actually asks ("which page did people
   // land on?") was fetched daily and binned. Keep the full list; ai_landing_pages
-  // stays exactly as it was so nothing downstream changes shape.
+  // retains its existing fields; medium is additive for accurate attribution.
   const all_landing_pages: Ga4LandingRow[] = landingRows
     .map((row) => {
       const page = row.dimensionValues?.[0]?.value || "/";
-      const source = row.dimensionValues?.[1]?.value || "(direct)";
+      const source = row.dimensionValues[1]!.value;
+      const medium = row.dimensionValues[2]!.value;
       return {
         page,
         source,
+        medium,
         sessions: Number(row.metricValues?.[0]?.value ?? 0),
         engaged_sessions: Number(row.metricValues?.[1]?.value ?? 0),
-        traffic_class: classifyTrafficSource(source)
+        traffic_class: classifyTrafficSource(source, medium)
       };
     })
     .sort((left, right) => right.sessions - left.sessions || left.page.localeCompare(right.page));

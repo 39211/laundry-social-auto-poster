@@ -7,6 +7,11 @@ export interface Ga4ApiRow {
   metricValues: { value: string }[];
 }
 
+function headersMatch(value: unknown, names: string[]): boolean {
+  return Array.isArray(value) && value.length === names.length &&
+    value.every((header, index) => header && typeof header === "object" && header.name === names[index]);
+}
+
 interface ReportPayload {
   rows?: unknown;
   rowCount?: unknown;
@@ -86,6 +91,11 @@ export async function fetchGa4ReportRows(
     }
     const payload = decoded as ReportPayload;
     if (payload.error !== undefined) throw new Error("GA4 runReport returned an API error; no report written.");
+    const metricNames = ["sessions", "engagedSessions"];
+    if ((payload.dimensionHeaders !== undefined && !headersMatch(payload.dimensionHeaders, dimensions)) ||
+        (payload.metricHeaders !== undefined && !headersMatch(payload.metricHeaders, metricNames))) {
+      throw new Error("GA4 report headers do not match the requested dimensions or metrics.");
+    }
     const meta = payload.metadata;
     if (meta?.subjectToThresholding || meta?.dataLossFromOtherRow) {
       throw new Error("GA4 report incomplete: thresholding or (other) row data loss.");
@@ -107,9 +117,8 @@ export async function fetchGa4ReportRows(
     }
     // Protobuf JSON may omit rows / rowCount for zero. Require either an
     // explicit zero or the actual report headers, not an arbitrary {} body.
-    const emptyWithHeaders = Array.isArray(payload.dimensionHeaders) &&
-      payload.dimensionHeaders.length === dimensions.length &&
-      Array.isArray(payload.metricHeaders) && payload.metricHeaders.length === 2;
+    const emptyWithHeaders = headersMatch(payload.dimensionHeaders, dimensions) &&
+      headersMatch(payload.metricHeaders, metricNames);
     const values = payload.rows === undefined && (expected === 0 || emptyWithHeaders) ? [] : payload.rows;
     const batch = validateRows(values, dimensions.length);
     if (batch.length > limit) throw new Error("GA4 returned more rows than the requested page limit.");

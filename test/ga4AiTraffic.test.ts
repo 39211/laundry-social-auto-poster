@@ -81,11 +81,11 @@ describe("GA4 AI traffic classification", () => {
         {
           rows: [
             {
-              dimensionValues: [{ value: "/guides/white-shoe-yellowing.html" }, { value: "chatgpt.com" }],
+              dimensionValues: [{ value: "/guides/white-shoe-yellowing.html" }, { value: "chatgpt.com" }, { value: "referral" }],
               metricValues: [{ value: "2" }, { value: "1" }]
             },
             {
-              dimensionValues: [{ value: "/" }, { value: "google" }],
+              dimensionValues: [{ value: "/" }, { value: "google" }, { value: "organic" }],
               metricValues: [{ value: "5" }, { value: "4" }]
             }
           ]
@@ -98,6 +98,7 @@ describe("GA4 AI traffic classification", () => {
       {
         page: "/guides/white-shoe-yellowing.html",
         source: "chatgpt.com",
+        medium: "referral",
         sessions: 2,
         engaged_sessions: 1,
         traffic_class: "ai"

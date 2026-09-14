@@ -1,4 +1,4 @@
-import { access, mkdir, open, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, open, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync, mkdtempSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -287,6 +287,53 @@ async function pngPixelSize(filePath: string): Promise<{ width: number; height: 
 }
 
 describe("generatePublicSite", () => {
+  it("changes only the Qinghai search meta description and preserves every other rendered byte", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-qinghai-snippet-"));
+    await writeBusinessProfile(root);
+    const page = publicSupportPages().find((item) => item.slug === "qinghai-road-shoe-cleaning")!;
+    const saved = page.search_description;
+    const expected = "逢甲、西屯洗鞋：一般運動鞋水洗參考價250元，先LINE傳照片確認鞋況與報價。私享家位於青海路二段365號，台中全市免費收送、無低消，清潔費另計。";
+    const options = { root, baseUrl: "https://example.com", now: "2026-09-07T00:00:00.000Z" };
+    const meta = /<meta name="description" content="[^"]*" \/>/g;
+    const snapshot = async () => {
+      const result: Record<string, string> = {};
+      for (const path of await readdir(join(root, "docs"), { recursive: true })) {
+        const absolute = join(root, "docs", path);
+        if (statSync(absolute).isFile()) result[path] = (await readFile(absolute)).toString("base64");
+      }
+      return result;
+    };
+    try {
+      await generatePublicSite(options);
+      const candidate = await snapshot();
+      const candidateHtml = await readFile(join(root, "docs", page.path), "utf8");
+      expect(candidateHtml.match(meta)).toEqual([`<meta name="description" content="${expected}" />`]);
+      expect(publicSupportPages().filter((item) => item.search_description?.trim()).map((item) => item.slug))
+        .toEqual(["qinghai-road-shoe-cleaning"]);
+
+      delete page.search_description;
+      await generatePublicSite(options);
+      const baseline = await snapshot();
+      const baselineHtml = await readFile(join(root, "docs", page.path), "utf8");
+      expect(baselineHtml.match(meta)).toEqual([`<meta name="description" content="${page.description}" />`]);
+      expect(candidateHtml.replace(meta, "")).toBe(baselineHtml.replace(meta, ""));
+      const changed = Object.keys(candidate).filter((path) => candidate[path] !== baseline[path]);
+      expect(Object.keys(candidate).sort()).toEqual(Object.keys(baseline).sort());
+      expect(changed.map((path) => path.replaceAll("\\", "/"))).toEqual([page.path]);
+
+      page.search_description = "  \n  ";
+      await generatePublicSite(options);
+      expect(await readFile(join(root, "docs", page.path), "utf8")).toBe(baselineHtml);
+      page.search_description = '  "鞋" & <保養>  ';
+      await generatePublicSite(options);
+      const escaped = await readFile(join(root, "docs", page.path), "utf8");
+      expect(escaped.match(meta)).toEqual(['<meta name="description" content="&quot;鞋&quot; &amp; &lt;保養&gt;" />']);
+      expect(escaped.replace(meta, "")).toBe(baselineHtml.replace(meta, ""));
+    } finally {
+      page.search_description = saved;
+    }
+  });
+
   it("changes only Birkenstock service anchors while preserving its rendered image and content", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-birkenstock-parity-"));
     await writeBusinessProfile(root);
@@ -830,7 +877,23 @@ describe("generatePublicSite", () => {
     expect(taichungXitunLaundryHtml).toContain("<title>台中西屯洗衣店在哪？青海路門市、逢甲怎麼到｜私享家洗衣店</title>");
     expect(taichungXitunLaundryHtml).toContain("<h1>台中西屯洗衣店在哪？</h1>");
     expect(taichungXitunLaundryHtml).toContain("台中市西屯區青海路二段365號");
-    expect(taichungXitunLaundryHtml).toContain("可先用 LINE 傳照片詢問");
+    // The old string was part of an answer_summary that opened with the shop
+    // name and street address, which is what an answer engine reads first and
+    // cannot quote. Rewritten 2026-09-11 to lead with the address as the ANSWER
+    // to "西屯洗衣店在哪". Pinned on 至善國中對面 because that phrase only appears in
+    // THIS page's own capsule -- the first replacement I tried passed by matching
+    // a sentence that the money-page link row had borrowed from another page.
+    // Asserted on THIS page's own answer box, not on the whole document. Two
+    // earlier attempts passed for the wrong reason: one matched a sentence the
+    // money-page link row had borrowed from another page, and one matched the
+    // street address, which the footer repeats on all 205 pages. A capsule
+    // assertion has to read the capsule.
+    const xitunCapsule = /class="answer-box"[^>]*>([\s\S]*?)<\/div>/u
+      .exec(taichungXitunLaundryHtml)?.[1]
+      ?.replace(/<[^>]+>/gu, "")
+      .trim() ?? "";
+    expect(xitunCapsule).toContain("先看材質、痕跡位置與使用情境");
+    expect(xitunCapsule.startsWith("私享家洗衣店")).toBe(false);
     expect(taichungXitunLaundryHtml).toContain('"@type":"FAQPage"');
     expect(taichungXitunLaundryHtml).toContain('class="service-photo"');
     expect(taichungXitunLaundryHtml).toContain(
@@ -1627,7 +1690,12 @@ describe("generatePublicSite", () => {
     expect(html).toContain("posts/2026-07-04-slot-01.html");
     // A duplicate-caption post has no article of its own, but "read full post" must still
     // reach the article that owns that caption — never the raw calendar JSON.
-    const readFullPostHrefs = [...html.matchAll(/<a class="card-link" href="([^"]*)">閱讀文章<\/a>/gu)].map(
+    // [^>]* because each card-link now also carries an aria-label naming the
+    // article: 143 links reading "閱讀文章" were one accessible name repeated 143
+    // times, which is the audit that kept the accessibility score at 95. The
+    // assertion below is unchanged -- this only stops the regex depending on
+    // attribute order.
+    const readFullPostHrefs = [...html.matchAll(/<a class="card-link" href="([^"]*)"[^>]*>閱讀文章<\/a>/gu)].map(
       (match) => match[1]
     );
     expect(readFullPostHrefs).toHaveLength(4);
@@ -1792,9 +1860,9 @@ describe("generatePublicSite", () => {
     );
     // Money pages are the indexable surface; caption/post pages are out of the
     // sitemap entirely (rescued 190d063 design). Date is ours: the static
-    // knowledge hub lastmod follows the newest child (four intake guides 2026-09-07).
+    // knowledge hub lastmod follows the newest child (owner shoe case 2026-09-14).
     expect(sitemap1).not.toContain("/posts/");
-    expect(sitemap1).toMatch(/knowledge\/<\/loc><lastmod>2026-09-07<\/lastmod>/);
+    expect(sitemap1).toMatch(/knowledge\/<\/loc><lastmod>2026-09-14<\/lastmod>/);
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
@@ -2974,5 +3042,121 @@ describe("generatePublicSite", () => {
     expect(discovery.recommended_read_order[1]).toContain("taichung-laundry-price-list.html");
     expect(discovery.recommended_read_order.at(-1)).toContain("llms.txt");
     expect(discovery.recommended_read_order.at(-1)).not.toContain("llms-full");
+  });
+});
+
+// 2026-09-11: nine live pages were serving an answer capsule whose first 25
+// characters were the shop name and street address, because the renderer falls
+// back to `citation_answer ?? description` and none of them had a
+// citation_answer. An answer engine cannot quote a business card. The rule
+// already existed for the index-growth pages; it did not cover these, and the
+// regression shipped on two of the money pages that are not indexed.
+//
+// This asserts on the RENDERED html, not on the definition objects, because the
+// definitions are two different shapes -- support pages carry citation_answer,
+// service pages carry answer_summary and are mapped into it downstream -- and
+// only the rendered output tells you what Google and Perplexity actually get.
+describe("answer capsules are answers, not business cards", () => {
+  const BRAND_OPENINGS = ["私享家洗衣店（", "私享家洗衣店位於", "私享家洗衣店提供", "私享家洗衣店在"];
+
+  it("no guide, service or local page opens its answer capsule with the shop name", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-capsule-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-04");
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-05T03:00:00.000Z"
+    });
+
+    const offenders: string[] = [];
+    for (const dir of ["guides", "services", "local"]) {
+      let names: string[] = [];
+      try {
+        names = await readdir(join(root, "docs", dir));
+      } catch {
+        continue;
+      }
+      for (const name of names.filter((file) => file.endsWith(".html"))) {
+        const html = await readFile(join(root, "docs", dir, name), "utf8");
+        const box = /class="answer-box"[^>]*>([\s\S]*?)<\/div>/u.exec(html);
+        if (!box) continue;
+        const text = (box[1] ?? "").replace(/<[^>]+>/gu, "").trim();
+        if (BRAND_OPENINGS.some((opening) => text.startsWith(opening))) {
+          offenders.push(`${dir}/${name}: ${text.slice(0, 40)}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
+// 2026-09-11: the live site was showing customers copy written for the
+// pipeline -- "這段是可直接引用的答案" on 49 guide pages (with a 步驤/步驟 typo),
+// "這些貼文仍保留在 SEO / AEO / GEO 和社群內容資料庫中" on the homepage, and
+// "回到私享家洗衣店的公開 SEO / AEO / GEO 主站" on the 404. A visitor reading a
+// laundry shop's site should not be told how its search optimisation works, and
+// that space is the most valuable copy real estate the shop has.
+//
+// Scoped to VISIBLE text: script and style contents are stripped first, so
+// JSON-LD and analytics config are untouched.
+describe("visible copy speaks to customers, not to search engines", () => {
+  const PIPELINE_PHRASES = [
+    "可直接引用",
+    "讓搜尋引擎",
+    "讓 AI 理解",
+    "SEO / AEO / GEO",
+    "結構化資料",
+    "內容資料庫",
+    "LocalBusiness"
+  ];
+
+  it("no rendered page shows text addressed to a crawler", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-voice-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-04");
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-05T03:00:00.000Z"
+    });
+
+    const offenders: string[] = [];
+    const walk = async (dir: string): Promise<string[]> => {
+      const found: string[] = [];
+      for (const entry of await readdir(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) found.push(...(await walk(full)));
+        else if (entry.name.endsWith(".html")) found.push(full);
+      }
+      return found;
+    };
+    for (const file of await walk(join(root, "docs"))) {
+      const html = await readFile(file, "utf8");
+      const visible = html
+        .replace(/<script[\s\S]*?<\/script>/gu, "")
+        .replace(/<style[\s\S]*?<\/style>/gu, "")
+        .replace(/<[^>]+>/gu, " ");
+      for (const phrase of PIPELINE_PHRASES) {
+        if (visible.includes(phrase)) offenders.push(`${file.slice(root.length)}: ${phrase}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("the answer-capsule caption is free of the 步驤 typo that shipped on 49 pages", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-typo-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-04");
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-05T03:00:00.000Z"
+    });
+    const html = await readFile(join(root, "docs", "guides", "plush-doll-cleaning.html"), "utf8");
+    expect(html).not.toContain("步驤");
   });
 });

@@ -254,6 +254,30 @@ describe("F20 fish-2 generic 外套 passport is injected into carousel prompts",
   });
 });
 
+describe("F20 fish-2 remaining 領帶 passport is injected into carousel prompts", () => {
+  const TIE_TOPIC = "領帶一季沒洗會怎樣？先看領結和尖端這 2 個位置";
+
+  it("names the necktie default on every slide and forbids the generic laundry-item fallback", () => {
+    const passport = garmentPassportFromTopic(TIE_TOPIC);
+    expect(passport).toMatch(/navy silk twill necktie/i);
+    expect(passport).toMatch(/not a dress shirt/i);
+    expect(passport).not.toMatch(/complete worn laundry item/i);
+
+    const prompts = buildCarouselImagePrompts({
+      date: "2026-08-18",
+      slot: 2,
+      topic: TIE_TOPIC
+    });
+    expect(prompts).toHaveLength(4);
+    expect(continuityGaps(prompts, passport)).toEqual([]);
+    for (const prompt of prompts) {
+      expect(prompt).toMatch(/navy silk twill necktie/i);
+      expect(prompt).toMatch(/not a dress shirt/i);
+      expect(prompt).not.toMatch(/complete worn laundry item/i);
+    }
+  });
+});
+
 describe("carousel continuity wiring through the daily builder", () => {
   it("writes passport and same-garment into tomorrow's generated carousel_items", () => {
     const content = buildDailyContent("2026-08-18", getConfig());

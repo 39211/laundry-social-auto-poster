@@ -116,7 +116,13 @@ async function queryDimension(
         startDate: date,
         endDate: date,
         dimensions,
-        rowLimit: 25
+        // 25 was one row from silently truncating. 2026-08-31 already returned
+        // 24 top_pages against a 33-URL sitemap; the sitemap is now 89 URLs, so
+        // the next healthy collection would have cut the page list short with no
+        // error and no way to tell from the file. GSC caps a single request at
+        // 25000 rows; 500 is far above anything this shop will produce and still
+        // one request.
+        rowLimit: 500
       })
     }
   );

@@ -59,6 +59,8 @@ export interface Ga4AiTrafficReport {
   };
   by_source: Ga4SourceSessionRow[];
   ai_landing_pages: Ga4LandingRow[];
+  /** Every landing page the day's report returned, not just the AI-referred ones. */
+  all_landing_pages?: Ga4LandingRow[];
 }
 
 function credentials(env: NodeJS.ProcessEnv) {
@@ -165,7 +167,12 @@ export async function fetchGa4AiTraffic(input: {
     })
     .sort((left, right) => right.sessions - left.sessions || left.source.localeCompare(right.source));
 
-  const ai_landing_pages: Ga4LandingRow[] = landingRows
+  // Every run already spends a second runReport on landingPagePlusQueryString
+  // for the whole property, and until 2026-09-10 threw away every row that was
+  // not AI -- so the one question the shop actually asks ("which page did people
+  // land on?") was fetched daily and binned. Keep the full list; ai_landing_pages
+  // stays exactly as it was so nothing downstream changes shape.
+  const all_landing_pages: Ga4LandingRow[] = landingRows
     .map((row) => {
       const page = row.dimensionValues?.[0]?.value || "/";
       const source = row.dimensionValues?.[1]?.value || "(direct)";
@@ -177,8 +184,9 @@ export async function fetchGa4AiTraffic(input: {
         traffic_class: classifyTrafficSource(source)
       };
     })
-    .filter((row) => row.traffic_class === "ai")
     .sort((left, right) => right.sessions - left.sessions || left.page.localeCompare(right.page));
+
+  const ai_landing_pages: Ga4LandingRow[] = all_landing_pages.filter((row) => row.traffic_class === "ai");
 
   return {
     date,
@@ -186,7 +194,8 @@ export async function fetchGa4AiTraffic(input: {
     fetched_at: new Date().toISOString(),
     totals: summarizeTraffic(by_source),
     by_source,
-    ai_landing_pages
+    ai_landing_pages,
+    all_landing_pages
   };
 }
 
@@ -218,6 +227,7 @@ async function main(): Promise<void> {
           date: report.date,
           totals: report.totals,
           ai_landing_pages: report.ai_landing_pages.length,
+          all_landing_pages: report.all_landing_pages?.length ?? 0,
           path: path.replace(/\\/g, "/")
         },
         null,

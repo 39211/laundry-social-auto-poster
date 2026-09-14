@@ -112,6 +112,15 @@ describe("director doctrine phase 1: produce-next-reel act bans and physics", ()
     const middleBody = middleCase.slice(0, middleCase.indexOf('"after"'));
     expect(middleBody).toMatch(/Hands stay anatomically correct/i);
     expect(middleBody).toMatch(/tool/i);
+    expect(middleBody).not.toMatch(/hand-wiping|No cleaning-in-progress/i);
+
+    const afterCase = produceSrc.slice(produceSrc.indexOf('"after" {', produceSrc.indexOf("function Get-ActBans")));
+    const afterBody = afterCase.slice(0, afterCase.indexOf("default"));
+    expect(afterBody).toMatch(/Do not re-soil/i);
+    expect(afterBody).toMatch(/Do not introduce any cloth, hand-wiping, or scrubbing motion/i);
+    expect(afterBody).toMatch(/No cleaning-in-progress/i);
+    expect(afterBody).not.toMatch(/Hands stay anatomically correct/i);
+    expect(afterBody).not.toMatch(/Do not clean, repair or transform/i);
   });
 
   it("writes object-specific core physics instead of generic weight and shadow", () => {
@@ -207,6 +216,54 @@ describe("F33 Get-CorePhysics after-act is settled, not still working", () => {
         before_keeps_work: true
       });
       expect(payload.sweater_after_len).toBeGreaterThan(80);
+    },
+    30000
+  );
+});
+
+describe("F33 leftover Get-ActBans after bans cloth/wiping (PS-layer smoke)", () => {
+  const smokeScript = join(__dirname, "ps-act-bans.smoke.ps1");
+
+  it("pins the after case to wiping bans inside Get-ActBans, not only CorePhysics", () => {
+    const fnStart = produceSrc.indexOf("function Get-ActBans");
+    const fnNext = produceSrc.indexOf("\nfunction ", fnStart + 1);
+    const fn = produceSrc.slice(fnStart, fnNext < 0 ? produceSrc.length : fnNext);
+    expect(fn).toMatch(/function Get-ActBans\(\[string\]\$State\)/);
+    expect(fn).toMatch(/Do not introduce any cloth, hand-wiping, or scrubbing motion/);
+    expect(fn).toMatch(/No cleaning-in-progress/);
+    expect(fn).toMatch(/Do not re-soil or reverse the cleaned condition/);
+    const afterCase = fn.indexOf('"after"');
+    const wipeBan = fn.indexOf("hand-wiping");
+    const middleCase = fn.indexOf('"middle"');
+    expect(afterCase).toBeGreaterThan(middleCase);
+    expect(wipeBan).toBeGreaterThan(afterCase);
+    expect(fn.slice(middleCase, afterCase)).not.toMatch(/hand-wiping/);
+  });
+
+  it.runIf(process.platform === "win32")(
+    "invokes production Get-ActBans: after bans wiping, middle still works",
+    () => {
+      const result = spawnSync(
+        "powershell.exe",
+        ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", smokeScript],
+        { encoding: "utf8", cwd: join(__dirname, ".."), timeout: 30000 }
+      );
+      const out = `${result.stdout ?? ""}\n${result.stderr ?? ""}${result.error ? String(result.error) : ""}`;
+      expect(result.status, out).toBe(0);
+      expect(out).toMatch(/EXTRACT_OK name=Get-ActBans/u);
+      expect(out).toMatch(/PARAMS=State/u);
+      expect(out).toMatch(/SMOKE_OK/u);
+      expect(out).not.toMatch(/CASE_FAIL/u);
+      const payload = lastJsonObject(out);
+      expect(payload).toEqual({
+        ok: true,
+        params: "State",
+        after_len: expect.any(Number),
+        after_bans_wipe: true,
+        middle_allows_work: true,
+        before_forbids_clean: true
+      });
+      expect(payload.after_len).toBeGreaterThan(80);
     },
     30000
   );

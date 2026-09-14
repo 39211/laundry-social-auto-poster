@@ -185,7 +185,8 @@ function Get-CorePhysics([string]$ObjectType, [string]$Act) {
 }
 
 # Per-act bans only. A shared tail on every shot is banned; before does not
-# need hand rules, middle does.
+# need hand rules, middle does. F33 leftover: after must ban cloth/wiping
+# at the prompt tail. CorePhysics settled-still alone did not stop cleaning.
 function Get-ActBans([string]$State) {
     switch ($State) {
         "before" {
@@ -195,7 +196,7 @@ function Get-ActBans([string]$State) {
             return "Hands stay anatomically correct: five fingers, no fusing, no extra hand entering. Keep the tool on the worn spot already shown; do not enlarge the cleaned patch, do not add a second tool, do not add faces, readable text, captions or logos."
         }
         "after" {
-            return "Do not re-soil or reverse the cleaned condition. Do not add extra people, faces, readable text, captions or logos. The object stays the same physical item."
+            return "Do not re-soil or reverse the cleaned condition. Do not introduce any cloth, hand-wiping, or scrubbing motion. No cleaning-in-progress. Do not add extra people, faces, readable text, captions or logos. The object stays the same physical item."
         }
         default {
             return "Do not add people, readable text, captions or logos."

@@ -1,4 +1,6 @@
-﻿import { createHash, createHmac, randomBytes } from "node:crypto";
+﻿import { buildDoctrinePrompts, imageDoctrineActive } from "./imageDoctrine";
+import { everydayVariantForTopic, luxuryVariantForTopic, type ObjectVariant } from "./objectLibrary";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { abTestPlanPath, planForDate, planSlot, type AbDayPlan } from "./abTestPlan";
@@ -656,6 +658,7 @@ function careBridgeFor(slot: GrowthPlaybookSlot): string {
     if (page.includes("luxury-dry-cleaning")) {
       return [
         "精品最先出問題的是邊角。邊油磨掉補不回來，要在磨穿前處理。",
+        "私享家做精品乾洗和特殊處理：先看材質和五金再定工法，不是整件丟下去洗，洗壞的機率比一般水洗低很多。",
         "同一個牌子會用不同的皮。看品牌決定怎麼洗，比看材質更容易出事。"
       ];
     }
@@ -2154,7 +2157,9 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
   },
   {
     id: "designer-sneakers",
-    match: /精品|名牌鞋/,
+    // 精品衣物 is a garment family, not a shoe. Negative lookahead keeps
+    // 精品名牌鞋 / 精品鞋 on this row and lets generic-clothing take 精品衣物.
+    match: /精品(?!衣物)|名牌鞋/,
     noun: "paired set of two designer leather sneakers",
     material: "designer leather sneakers",
     lockNote: "object locked as designer leather sneakers, no logo, no brand marks"
@@ -2170,19 +2175,54 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
   {
     id: "sneaker-and-bag",
     match: /鞋.*包|包.*鞋/,
-    noun: "paired everyday sneaker and one fabric handbag as a single inspection set",
-    material: "worn fabric and leather-look surfaces",
-    lockNote: "object locked as one sneaker-and-bag inspection set",
-    wearFallback: "honest everyday wear at the named contact points"
+    noun:
+      "inspection set of exactly two items: one pair of light-grey knit-mesh sneakers with white foam midsoles, and one light-beige suede-look hobo handbag with a single knotted top handle and a side zip",
+    material:
+      "light-grey knit mesh with white foam midsoles for the sneakers; light-beige suede-look fabric with a knotted top handle for the hobo bag",
+    lockNote:
+      "object locked as this exact sneaker-and-hobo-bag set on every slide: same grey knit sneakers, same beige knotted-handle hobo bag, no tote, no crossbody, no second bag",
+    wearFallback: "grey scuffing on the sneaker toe boxes and darkening on the bag's knotted handle and bottom corners"
   },
   {
     id: "generic-shoe",
     match: /童鞋|鞋|靴|勃肯|拖鞋|涼鞋/,
     useShoeSubject: true
   },
+  // 抱枕/枕頭/沙發 used to fall through to the bedding rule (its match carried a
+  // bare 枕) or to the "worn laundry item matching the topic" fallback, and the
+  // generator answered both with a folded duvet or a different garment on every
+  // slide. 2026-09-11 slot 1 promised a sofa and shipped two dress shirts;
+  // 2026-09-14 slot 2 promised a cushion and shipped a duvet. These three sit
+  // above bedding because 抱枕 and 枕頭 contain the character bedding matched on.
+  {
+    id: "cushion",
+    match: /抱枕|靠枕|坐墊|椅墊/,
+    noun: "single square throw cushion in a plain oatmeal woven cover with a piped edge and a hidden back zip",
+    material: "oatmeal cotton-linen weave over a soft filled pad, a plain piped seam running the whole way round",
+    lockNote:
+      "object locked as one square throw cushion, not a bed pillow, not a duvet, not a folded quilt, not a cushion cover lying flat",
+    wearFallback: "greyed hand-contact darkening along one edge and a flattened, matted patch in the middle of the face"
+  },
+  {
+    id: "pillow",
+    match: /枕頭|枕心|枕套/,
+    noun: "single rectangular bed pillow in a plain white cotton pillowcase",
+    material: "plain white cotton pillowcase over a soft filled pillow, one open envelope end",
+    lockNote: "object locked as one rectangular bed pillow, not a square throw cushion, not a duvet, not a folded quilt",
+    wearFallback: "sweat residue yellowed into a halo spreading from the centre of the face, its edge darker than its middle"
+  },
+  {
+    id: "sofa-cover",
+    match: /沙發/,
+    noun: "single removable sofa seat-cushion cover in mid-grey woven upholstery fabric, slipped off its foam and laid on the counter",
+    material: "mid-grey woven upholstery fabric with a piped edge and a long zip along one side",
+    lockNote:
+      "object locked as one sofa seat-cushion cover, not a garment, not a shirt, not a tee, not a towel, not a duvet",
+    wearFallback: "oil darkening as a sat-on sheen across the middle of the seat face, greyed along the front edge where legs rest"
+  },
   {
     id: "bedding",
-    match: /床單|被套|棉被|床組|枕/,
+    match: /床單|被套|棉被|床組|寢具/,
     noun: "complete folded warm-white cotton duvet cover with a thin navy piping edge",
     material: "warm-white cotton with thin navy piping",
     lockNote: "object locked as one folded warm-white cotton duvet cover",
@@ -2229,6 +2269,14 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
     wearFallback: "handle darkening and corner edge-paint wear"
   },
   {
+    id: "curtain",
+    match: /窗簾/,
+    noun: "one floor-length light-grey polyester blackout curtain panel with a pleated header and metal hooks, draped over the counter",
+    material: "light-grey woven polyester blackout curtain fabric with a stitched pleated header",
+    lockNote: "object locked as one curtain panel, not a bedsheet, not a tablecloth, not a duvet cover",
+    wearFallback: "dust darkening along the hem edge, grey grime at the hook header, and sun-fade along the pleat lines"
+  },
+  {
     id: "suitcase",
     match: /行李箱/,
     noun: "soft-sided fabric suitcase",
@@ -2269,6 +2317,43 @@ export const OBJECT_SPEC_RULES: ObjectSpecRule[] = [
     lockNote:
       "object locked as one beige cotton work jacket, not a down jacket, not a dress shirt, not a wool overcoat",
     wearFallback: "collar and cuff darkening"
+  },
+  {
+    id: "necktie",
+    match: /領帶/,
+    noun: "navy silk twill necktie with a pointed blade and a keeper loop",
+    material: "navy silk twill with a pointed blade and keeper loop",
+    lockNote:
+      "object locked as one navy silk twill necktie, not a dress shirt, not a suit jacket, not a mixed pile of garments",
+    wearFallback: "knot darkening and blade-tip soil from collar contact"
+  },
+  {
+    id: "athletic-tee",
+    match: /運動衣/,
+    noun: "navy polyester athletic tee with mesh underarm panels",
+    material: "navy polyester athletic jersey with mesh underarm panels",
+    lockNote:
+      "object locked as one navy polyester athletic tee, not a cotton dress shirt, not a mixed pile of garments",
+    wearFallback: "sweat residue at the underarms and inner collar"
+  },
+  {
+    id: "linen-shirt",
+    match: /棉麻/,
+    noun: "beige linen short-sleeve shirt with a camp collar",
+    material: "beige linen with a camp collar",
+    lockNote:
+      "object locked as one linen short-sleeve shirt, not a dress shirt, not a mixed pile of garments",
+    wearFallback: "sweat residue at the underarms and side seams"
+  },
+  {
+    id: "generic-clothing",
+    // 運動衣 has 衣 but not 衣物, so this row must not steal athletic-tee.
+    match: /衣物|T恤|T 恤/,
+    noun: "navy cotton crew-neck tee",
+    material: "navy cotton jersey knit",
+    lockNote:
+      "object locked as one navy cotton crew-neck tee, not a dress shirt, not a mixed pile of garments",
+    wearFallback: "collar and underarm darkening"
   }
 ];
 
@@ -2276,38 +2361,108 @@ function topicBody(topic: string): string {
   return cleanTopic(topic).replace(/^(先看懂|今天情境|可收藏|細節拆解|到店前判斷|送洗前先問)[:：]/, "");
 }
 
-function wearKindFromTopic(topic: string): string {
+/** The value wearKindFromTopic returns when the topic named no damage at all. */
+export const HONEST_EVERYDAY_WEAR = "honest everyday wear";
+
+export function wearKindFromTopic(topic: string): string {
+  // A spilt drink outranks the plain yellowing rule under it: it has a shape --
+  // a darker tide ring around a lighter centre -- that plain yellowing does not.
+  // 2026-09-14 promised 飲料痕 in the headline and the picture showed generic
+  // damp bedding, because this word matched nothing here and the object rule's
+  // wear fallback won instead.
+  if (/飲料|咖啡|茶漬|果汁|奶漬/.test(topic)) {
+    return "a dried drink stain, yellowed at the centre with a darker tide ring around its edge";
+  }
   if (/變灰|泛灰/.test(topic)) return "sun-faded grey";
-  if (/發黃|泛黃/.test(topic)) return "yellowing";
+  // 變黃 is how the captions actually phrase it; 發黃/泛黃 alone matched none.
+  if (/發黃|泛黃|變黃/.test(topic)) return "yellowing";
   if (/濕|潮/.test(topic)) return "trapped moisture";
   if (/汗/.test(topic)) return "sweat residue";
   if (/油/.test(topic)) return "oil darkening";
   if (/泥/.test(topic)) return "mud shadow in the weave";
-  return "honest everyday wear";
+  if (/臭|異味|味道/.test(topic)) return "odour and sweat residue";
+  if (/發霉|霉/.test(topic)) return "mould spotting";
+  if (/開膠|脫膠/.test(topic)) return "sole separation";
+  if (/起球|起毛/.test(topic)) return "pilling";
+  if (/磨白|磨損|刮傷|刮痕/.test(topic)) return "abrasion";
+  return HONEST_EVERYDAY_WEAR;
 }
 
-function namedSpotsFromTopic(topic: string): string[] {
+export function namedSpotsFromTopic(topic: string): string[] {
   const spots: string[] = [];
   if (/肩線/.test(topic)) spots.push("shoulder line");
   if (/側縫/.test(topic)) spots.push("side seams");
+  if (/領結/.test(topic)) spots.push("knot");
+  if (/尖端/.test(topic)) spots.push("blade tip");
   if (/領口|衣領/.test(topic)) spots.push("collar");
   if (/袖口/.test(topic)) spots.push("cuffs");
   if (/腋下/.test(topic)) spots.push("underarms");
   if (/內層|內裡/.test(topic)) spots.push("inner lining");
-  if (/下擺/.test(topic)) spots.push("hem");
+  if (/下擺|下緣/.test(topic)) spots.push("hem");
+  if (/掛勾|掛鉤/.test(topic)) spots.push("hook header");
+  if (/褶線|褶/.test(topic)) spots.push("pleat lines");
   if (/鞋邊|膠條/.test(topic)) spots.push("rubber foxing strip at the midsole edge");
   if (/鞋頭/.test(topic)) spots.push("toe box");
   if (/鞋帶孔/.test(topic)) spots.push("eyelet area around the lace holes");
+  else if (/鞋帶/.test(topic)) spots.push("laces");
+  if (/鞋墊/.test(topic)) spots.push("insole");
+  if (/鞋口/.test(topic)) spots.push("shoe opening");
+  if (/鞋舌/.test(topic)) spots.push("tongue");
+  if (/鞋底/.test(topic)) spots.push("outsole");
+  if (/鞋跟/.test(topic)) spots.push("heel");
+  if (/拉鍊/.test(topic)) spots.push("zipper");
   if (/提把/.test(topic)) spots.push("handle");
   if (/包角/.test(topic)) spots.push("bag corners");
   return spots;
 }
 
-export function objectSpecFromTopic(topic: string): ObjectSpec {
+function specFromVariant(variant: ObjectVariant, wear: string): ObjectSpec {
+  return { noun: variant.noun, lockNote: variant.lockNote, material: variant.material, wear };
+}
+
+/**
+ * `date` switches on everyday variety (objectLibrary): a generic 球鞋/襯衫/T恤/包/外套
+ * topic rotates through concrete variants by date so the feed does not show
+ * the same grey sneaker every time. Without a date the legacy fixed passport
+ * is returned, which keeps every stamped calendar's prompt reproducible.
+ * Luxury classics (brand/model words) resolve regardless of date.
+ */
+export function objectSpecFromTopic(topic: string, date?: string): ObjectSpec {
   const t = topicBody(topic);
   const kind = wearKindFromTopic(t);
   const spots = namedSpotsFromTopic(t);
-  const wearAt = (fallback: string) => (spots.length > 0 ? `${kind} at the ${spots.join(" and ")}` : fallback);
+  // A topic that names the damage but not a place on the object used to lose to
+  // the object's own wear fallback outright -- that is how 「抱枕上的飲料痕」 was
+  // drawn as "sleep odor and trapped moisture".
+  //
+  // But the fallback only loses when it is describing DIFFERENT damage. A row
+  // whose fallback already names this damage also says where on that object it
+  // shows, and that is worth more than the bare kind: 深色衣服洗久變灰 must stay
+  // "sun-faded grey along the shoulder line and both side seams", not shrink to
+  // "sun-faded grey". So the row keeps its wear whenever the wear it describes
+  // opens with the damage the topic named.
+  const kindHead = kind.split(/,| at | along | in | from /)[0]!.trim();
+  const wearAt = (fallback: string) =>
+    spots.length > 0
+      ? `${kind} at the ${spots.join(" and ")}`
+      : kind === HONEST_EVERYDAY_WEAR || fallback.includes(kindHead)
+        ? fallback
+        : kind;
+
+  // objectLibrary variants are hand-authored for one concrete object -- "frayed
+  // grosgrain at the toe-cap edge, greyed beige along the topline, a slack back
+  // strap" -- so they are always richer than the bare kind the topic names, and
+  // they keep their wear whenever the topic does not name a place. Only the
+  // category rows below, whose fallbacks are generic, lose to a named damage.
+  const variantWearAt = (fallback: string) =>
+    spots.length > 0 ? `${kind} at the ${spots.join(" and ")}` : fallback;
+
+  const luxury = luxuryVariantForTopic(t);
+  if (luxury) return specFromVariant(luxury, variantWearAt(luxury.wearFallback));
+  if (date && imageDoctrineActive(date)) {
+    const variant = everydayVariantForTopic(t, date);
+    if (variant) return specFromVariant(variant, variantWearAt(variant.wearFallback));
+  }
 
   for (const rule of OBJECT_SPEC_RULES) {
     if (!rule.match.test(t)) continue;
@@ -2347,8 +2502,8 @@ export function objectSpecFromTopic(topic: string): ObjectSpec {
   };
 }
 
-export function garmentPassportFromTopic(topic: string): string {
-  const spec = objectSpecFromTopic(topic);
+export function garmentPassportFromTopic(topic: string, date?: string): string {
+  const spec = objectSpecFromTopic(topic, date);
   if (spec.sceneLockOnly) {
     return (
       `OBJECT PASSPORT: scene-lock only (non-physical promo topic; do not invent a physical object). ` +
@@ -2364,6 +2519,8 @@ export function garmentPassportFromTopic(topic: string): string {
 const SPOT_LEXICON: Array<[RegExp, string]> = [
   [/肩線/, "shoulder line"],
   [/側縫/, "side seams"],
+  [/領結/, "knot"],
+  [/尖端/, "blade tip"],
   [/領口|衣領/, "collar"],
   [/袖口/, "cuffs"],
   [/腋下/, "underarms"],
@@ -2374,6 +2531,13 @@ const SPOT_LEXICON: Array<[RegExp, string]> = [
   [/鞋帶孔/, "eyelet area around the lace holes"],
   [/鞋墊/, "insole"],
   [/鞋口/, "shoe opening"],
+  [/鞋舌/, "tongue"],
+  [/鞋底/, "outsole"],
+  [/鞋跟/, "heel"],
+  [/下緣/, "hem edge"],
+  [/掛勾|掛鉤/, "hook header"],
+  [/褶線/, "pleat lines"],
+  [/拉鍊/, "zipper"],
   [/提把/, "handle"],
   [/包角/, "bag corners"],
   [/邊油/, "edge paint"],
@@ -2395,7 +2559,7 @@ function checkpointsFromCaption(text: string): string[] {
   }
   if (numbered.length >= 2) return numbered;
 
-  if (!/[一二三四五六七八九十\d]+個位置|[一二三四五六七八九十\d]+個檢查/.test(text)) {
+  if (!/[一二三四五六七八九十\d]+\s*個位置|[一二三四五六七八九十\d]+\s*個檢查/.test(text)) {
     return [];
   }
 
@@ -2413,22 +2577,22 @@ function checkpointsFromCaption(text: string): string[] {
  * 提把 must not invent a handle on indoor slippers. */
 const SHOE_FOREIGN_SPOTS = /^(handle|bag corners|edge paint|hardware)$/i;
 
-function isPureShoeObject(topic: string): boolean {
-  const spec = objectSpecFromTopic(topic);
+function isPureShoeObject(topic: string, date?: string): boolean {
+  const spec = objectSpecFromTopic(topic, date);
   const blob = `${spec.noun} ${spec.lockNote}`.toLowerCase();
   const hasBag = /\b(handbag|suitcase|bag)\b/.test(blob);
-  const hasShoe = /shoe|sneaker|boot|slipper|sandal/.test(blob);
+  const hasShoe = /shoe|sneaker|boot|slipper|sandal|loafer|pump|flat|trainer|clog/.test(blob);
   return hasShoe && !hasBag;
 }
 
-function checkpointsForObject(caption: string, topic: string): string[] {
+function checkpointsForObject(caption: string, topic: string, date?: string): string[] {
   const points = checkpointsFromCaption(`${caption}\n${topic}`);
-  if (!isPureShoeObject(topic)) return points;
+  if (!isPureShoeObject(topic, date)) return points;
   return points.filter((spot) => !SHOE_FOREIGN_SPOTS.test(spot));
 }
 
-export function carouselInspectionShots(caption: string, topic: string): string[] {
-  const points = checkpointsForObject(caption, topic);
+export function carouselInspectionShots(caption: string, topic: string, date?: string): string[] {
+  const points = checkpointsForObject(caption, topic, date);
   const defaults = [
     "Overall closer look at the complete passport item so fabric grain, seams and full silhouette stay readable.",
     "Tight close-up of the problem area named by the topic; the wear marks fill the frame.",
@@ -2497,8 +2661,9 @@ const WHITE_SHIRT_7_20_BRIEFS = [
 ];
 
 export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] {
-  const passport = garmentPassportFromTopic(input.topic);
+  const passport = garmentPassportFromTopic(input.topic, input.date);
   const dayIndex = Number(input.date.replace(/-/g, "")) % BACKGROUND_ANCHORS.length;
+  const spec = objectSpecFromTopic(input.topic, input.date);
   const shared =
     `${passport} ${CAROUSEL_SCENE_LOCK} Create one portrait 4:5 photo. ` +
     "Keep the exact featured object consistent across all four photos. " +
@@ -2512,8 +2677,25 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
         ? pickupCarouselBriefs(input.topic)
         : [
             `Hero still of ${topicBody(input.topic)} through the passport item as the main close-up on the locked inspection counter. Keep the entire object readable and do not imply a cleaning result.`,
-            ...carouselInspectionShots(input.caption ?? "", input.topic)
+            ...carouselInspectionShots(input.caption ?? "", input.topic, input.date)
           ];
+
+  // Doctrine layer (2026-09-09+): seven-segment prompt with material optics,
+  // wear mechanism, per-slide composition/lens and a short per-family
+  // negative list. Scene-lock-only promo topics keep the legacy prompt: there
+  // is no physical object to describe.
+  if (imageDoctrineActive(input.date) && !spec.sceneLockOnly) {
+    const body = topicBody(input.topic);
+    return buildDoctrinePrompts({
+      date: input.date,
+      spec,
+      wearKind: wearKindFromTopic(body),
+      spots: namedSpotsFromTopic(body),
+      passport,
+      briefs,
+      sameGarment: SAME_GARMENT_CONTINUITY
+    });
+  }
 
   return briefs.map((brief, index) => {
     const slide = index + 1;

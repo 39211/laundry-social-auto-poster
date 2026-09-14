@@ -873,7 +873,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     static_image_source: "ai-generated in-store inspection scene",
     content_lastmod: "2026-09-05",
     answer_summary:
-      "私享家洗衣店位於台中市西屯區青海路二段365號（至善國中對面），提供衣物洗護、鞋包清潔、白鞋清潔與布品收納前檢查，台中市全區免費到府收送，可先用 LINE 傳照片詢問。",
+      "台中西屯的門市在青海路二段365號，至善國中對面，週一至週五 10-20、週六 12-18、週日公休。衣物、鞋子、包包、白鞋與布品收納分開判斷：先看材質、痕跡位置與使用情境，再決定適合的做法。台中全市免費收送，不限西屯。",
     case_story: {
       label: "第一次詢問私享家時怎麼開始",
       situation:
@@ -917,7 +917,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       {
         heading: "社群內容也會同步成搜尋資料",
         body:
-          "審核通過的 Facebook 與 Instagram 貼文會同步進公開 SEO / AEO / GEO feed，讓日常門市案例、雨季提醒、節日海報和服務頁互相連回官方內容來源。"
+          "門市每天的實際案例、雨季提醒和服務說明都會整理到這個網站上，你在 Facebook 或 Instagram 看到的那一則，這裡找得到完整版本。"
       },
       {
         heading: "跟「怎麼找洗衣店」那頁差在哪",
@@ -962,7 +962,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       },
       {
         question: "社群貼文內容會和服務頁連在一起嗎？",
-        answer: "會。排程產生且審核通過的 FB / IG 貼文會同步成公開 SEO / AEO / GEO 資料，讓服務頁和日常案例互相補強。"
+        answer: "會。門市在 Facebook 和 Instagram 發的當日案例，這個網站上都有完整版本，方便你回頭找同樣狀況怎麼處理。"
       },
       {
         question: "逢甲附近有推薦的洗鞋店嗎？",
@@ -1125,7 +1125,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     content_lastmod: "2026-09-05",
     area_served_name: "台中市",
     answer_summary:
-      "私享家洗衣店提供台中全市免費洗衣收送，且收送沒有最低消費門檻——不因件數少或單次金額未達標準而不收。門市在西屯區青海路二段365號，收送範圍為台中市，主要透過 LINE 預約與傳照片詢問；清潔與洗護費用仍依物件狀態另計。",
+      "台中全市免費到府收送：收送本身免費，沒有最低消費門檻，不因件數少或金額未達標準而不收，也不限西屯一區。洗護費另計，依物件與實際狀況報價。門市在西屯區青海路二段365號；預約以 LINE 為主，先傳照片說明狀況再安排時間。",
     case_story: {
       label: "住在台中其他行政區，也能先用 LINE 問收送",
       situation:
@@ -1523,6 +1523,8 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理開學前制服領口發黃、袖口油污，先處理再整燙才不會把黃痕定型，台中市全區可免費收送。",
     h1: "開學前的制服整理:順序錯了會把黃痕定死",
+    citation_answer:
+      "制服整理的順序是先處理舊痕、再整燙，不能反過來。高溫會把領口的皮脂氧化痕定型，燙過之後再怎麼洗都洗不掉。開學前一週是送洗尖峰，想在開學前拿到就要提早送。",
     summary: "每年開學前一週,制服是送洗量最大的一項。家長最常做錯的一件事:先燙再說。高溫會把領口的皮脂氧化痕定型,之後再洗就洗不掉了。正確順序是先處理舊痕,再整燙。",
     keywords: ["制服送洗", "制服領口發黃", "開學 制服 整理", "台中制服清洗", "學生制服 送洗", "制服整燙"],
     service_slug: "taichung-xitun-laundry",
@@ -1558,9 +1560,13 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "birkenstock-care",
     path: "guides/birkenstock-care.html",
     category: "guide",
-    title: "勃肯鞋會臭嗎？鞋床發黑怎麼處理｜台中洗鞋 私享家",
+    // 排名 7.7、136 次曝光、0.7% CTR(2026-06-10..09-07 頁面維度)。同期
+    // plush-doll-cleaning 排 11.8 卻有 10.4%,所以問題不在排名。這個查詢是
+    // 資訊型的(「會臭嗎」),舊標題卻在問句後直接轉成服務名,對想知道答案的人
+    // 沒有吸引力。改成把答案本身放進標題。
+    title: "勃肯鞋會臭嗎？是軟木鞋床吸汗，不是鞋面｜私享家洗衣店",
     description:
-      "勃肯鞋會臭，多半是軟木鞋床吸汗，不是鞋面。私享家洗衣店（台中市西屯區青海路二段365號）先看鞋床與麂皮，再決定能不能處理；整雙泡水會更糟。",
+      "勃肯鞋的臭味幾乎都來自軟木鞋床吸汗，不是鞋面，所以一直刷鞋面沒有用。整雙泡水會讓鞋床變形、黏合處脫開，是最常見的補救失敗。私享家洗衣店（台中西屯青海路二段365號）先看鞋床與麂皮再決定做法，台中全市免費收送。",
     h1: "勃肯鞋會臭嗎？先看軟木鞋床，不要整雙泡水",
     summary: AEO_BIRKENSTOCK,
     citation_answer: AEO_BIRKENSTOCK,
@@ -1624,6 +1630,8 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理精品包發霉：先不要用濕布擦，判斷是表面白霉還是滲入皮層，處理方式與可救程度完全不同，台中市可免費收送。",
     h1: "精品包發霉:先別擦,先看這三件事",
+    citation_answer:
+      "精品包發霉時最傷的動作是拿濕布用力擦——那會把霉推進皮革毛孔，並可能留下色斑。先判斷霉是浮在表面還是已經吃進皮裡，再決定做法。收納環境長期悶熱潮濕是主因，台灣梅雨與夏季濕氣期間最常出事。",
     summary: "台灣的梅雨與夏季濕氣,讓收在櫃子裡的包最常出事。發現白白一層時,最傷的動作是拿濕布用力擦——那會把霉推進皮革毛孔,還可能造成色斑。先判斷,再動手。",
     keywords: ["精品包發霉", "包包發霉處理", "皮包 發霉", "台中精品包清潔", "名牌包保養", "包包除霉"],
     service_slug: "shoe-bag-care",
@@ -1663,6 +1671,8 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）處理羽絨外套與羽絨被：能不能水洗、洗完會不會不蓬，要先看洗標、塗層與走線，台中市可免費收送。",
     h1: "羽絨外套、羽絨被怎麼洗才不會毀掉？",
+    citation_answer:
+      "羽絨外套多數適合專業水洗加低溫烘乾，不是乾洗——溶劑會帶走羽絨自身的油脂，讓蓬鬆度和保暖度下降。例外是外層有防水塗層或貼合工藝的款式，要另外判斷。洗完沒有烘到完全乾透就收納，結塊和悶味都是從那一步開始的。",
     summary: "羽絨最怕兩件事：洗錯方式讓羽絨結塊，和沒乾透就收納悶出味道。大部分羽絨其實適合專業水洗加低溫烘乾，反而不一定適合乾洗；但外層有塗層或貼合工藝的要另外判斷。台中換季前送洗可約免費收送。",
     keywords: ["羽絨外套清洗", "羽絨被送洗", "羽絨外套可以水洗嗎", "台中洗羽絨被", "台中羽絨外套送洗", "羽絨被清洗"],
     service_slug: "fabric-storage",
@@ -1698,10 +1708,14 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "leather-jacket-care",
     path: "guides/leather-jacket-care.html",
     category: "guide",
-    title: "皮衣可以洗嗎？發霉、變硬怎麼救｜台中皮衣保養 私享家洗衣店",
+    // 排名 8.8、32 次曝光、點擊 0。舊標題 29 個全形字會在搜尋結果被截斷,而
+    // 真正有曝光的查詢是「皮衣發霉洗衣店」,標題卻用「皮衣可以洗嗎」開頭。
+    title: "皮衣發霉還能救嗎？先分真皮、合成皮、麂皮｜私享家洗衣店",
     description:
-      "私享家洗衣店（台中市西屯區青海路二段365號）處理皮衣清潔保養：發霉、變硬、色差要依真皮、合成皮或麂皮分別判斷，不能用一般方式洗。",
+      "皮衣發霉能不能救，取決於霉是浮在表面還是已經吃進毛孔。真皮、合成皮、麂皮三種的處理方式完全不同，用酒精或濕布用力擦會破壞油脂層、乾了反而更硬。私享家洗衣店（台中西屯青海路二段365號）先看再報價，台中全市免費收送。",
     h1: "皮衣清潔保養：發霉、變硬、色差怎麼判斷？",
+    citation_answer:
+      "皮衣發霉能不能救，取決於霉是浮在表面還是已經吃進毛孔。真皮、合成皮、麂皮三種的處理方式完全不同。最傷的動作是拿濕布或酒精用力擦：那會把霉推進毛孔，還會破壞油脂層，乾了之後皮面更硬也更花。",
     summary: "皮衣最常見的三個狀況：收納環境潮濕悶出霉點、久放缺油變硬、局部摩擦造成色差。真皮、合成皮和麂皮的處理方式完全不同，用錯方式會讓皮面褪色或硬化。送保養前先拍全身照與問題位置特寫。",
     keywords: ["皮衣保養", "皮衣清潔", "台中皮衣保養", "皮衣發霉", "皮衣可以洗嗎", "皮衣送洗"],
     service_slug: "shoe-bag-care",
@@ -1741,6 +1755,8 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）判斷乾洗還是水洗：西裝、大衣、絲質、羊毛先看洗標和材質，台中市乾洗送洗可免費收送。",
     h1: "乾洗還是水洗？送洗前搞懂這一篇",
+    citation_answer:
+      "乾洗用溶劑帶走油性髒污並保護版型，水洗對汗味與水性髒污更有效。西裝、大衣、絲質上衣通常走乾洗；襯衫與棉質日常衣物多半是水洗加整燙。判斷不了就拍洗標——一張洗標照片比猜十次準。",
     summary: "乾洗用溶劑帶走油性髒污、保護不耐水的纖維與版型；水洗對汗味和水性髒污比較有效。西裝、大衣、絲質上衣通常走乾洗，襯衫和棉質日常衣物多半水洗加整燙。判斷不了就拍洗標，一張照片比猜十次準。",
     keywords: ["乾洗 水洗 差別", "台中乾洗", "乾洗店 台中", "西裝乾洗", "大衣乾洗", "襯衫送洗", "台中西屯乾洗"],
     service_slug: "taichung-xitun-laundry",
@@ -1776,9 +1792,12 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "rainy-shoe-care",
     path: "guides/rainy-shoe-care.html",
     category: "guide",
-    title: "雨天鞋子進水後怎麼辦？｜私享家洗衣店",
+    // 排名 8.3、31 次曝光、0 點擊(2026-08-16..09-09)。舊標題只有問句沒有答案。
+    // 同站 plush-doll-cleaning 排 11.8 卻有 9.3% CTR,它的標題是「問句＋先看什麼」;
+    // 這裡把答案(濕氣留在鞋內、不要悶著)放進標題。
+    title: "雨天鞋子進水？先通風不要悶著，濕氣留在鞋內｜私享家洗衣店",
     description:
-      "私享家洗衣店（台中市西屯區青海路二段365號）處理雨天鞋子：通勤後鞋內濕氣、鞋底泥灰和鞋邊水痕容易被忽略，先通風、不要悶放，再判斷是否需要專業清潔。",
+      "雨天鞋子進水後最傷的動作是直接塞進鞋櫃：濕氣出不來，味道和霉都是從那一步開始的。先撐開通風，鞋底泥灰和鞋邊水痕等乾了再看。私享家洗衣店（台中西屯青海路二段365號）先看鞋況再決定做法，台中全市免費收送。",
     h1: "雨天鞋子進水後怎麼辦？",
     summary: AEO_RAINY_SHOE,
     citation_answer: AEO_RAINY_SHOE,
@@ -1935,6 +1954,8 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）提供襯衫、西裝、外套送洗前判斷：先確認材質、領口袖口髒污、內襯與裝飾細節，台中市西屯洗衣與精緻乾洗。",
     h1: "襯衫清洗與西裝乾洗",
+    citation_answer:
+      "襯衫的領口袖口、西裝的面料內襯與配件，不適合用同一種方式處理。襯衫多半走水洗加整燙；西裝走乾洗，肩線與內襯要單獨看。送洗前拍領口、袖口與整件三張照片，門市依材質與狀況判斷方向。",
     summary:
       "襯衫的領口袖口、西裝的面料、內襯與配件，不適合用同一種方式處理。先傳清楚照片，讓門市依材質與狀況判斷送洗方向。",
     keywords: [
@@ -1969,10 +1990,12 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     path: "guides/bedding-duvet-cleaning.html",
     category: "guide",
     service_slug: "fabric-storage",
-    title: "台中西屯床組與棉被清洗｜私享家洗衣店",
+    // 排名 11.4、33 次曝光、點擊 0。舊標題 18 個字是純分類描述,沒有問句、
+    // 沒有「先看什麼」的承諾,也沒有免費收送——贏的那一頁三樣都有。
+    title: "台中棉被清洗？潮味來自沒乾透的中間那層｜私享家洗衣店",
     description:
-      "私享家洗衣店（台中市西屯區青海路二段365號）提供床組、棉被、被套與寢具送洗前判斷：先確認填充物、尺寸、污漬與是否受潮，台中市西屯寢具清洗與收納前檢查。",
-    h1: "床組、棉被與寢具清洗",
+      "棉被的潮味幾乎都來自中間那層沒乾透：表面摸起來乾，芯還帶著濕氣，收進櫃子就是下一季拿出來的味道。私享家洗衣店（台中西屯青海路二段365號）先確認填充物、尺寸與受潮程度再決定烘法，台中全市免費收送。",
+    h1: "台中棉被清洗：潮味來自沒乾透的中間那層",
     summary: AEO_BEDDING_DUVET,
     citation_answer: AEO_BEDDING_DUVET,
     keywords: [
@@ -2148,7 +2171,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     citation_answer: AEO_LUXURY_SHOE,
     keywords: ["精品鞋清潔", "名牌鞋清潔", "台中洗精品鞋", "名牌球鞋清潔", "西屯洗鞋"],
     local_intent: "台中西屯 精品鞋 名牌鞋 清潔判斷 膠邊飾件",
-    content_lastmod: "2026-09-05",
+    content_lastmod: "2026-09-14",
     related_slugs: ["luxury-dry-cleaning", "rainy-shoe-care"],
     steps: [
       { name: "拍鞋面與飾件", text: "鞋面、鞋頭、後跟、五金與貼飾各一張，讓門市先分材質，不要只拍品牌標。" },
@@ -2157,6 +2180,10 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       { name: "先聽界線再決定", text: "不因品牌名稱保證變全新；能淡化與只能維持，會在收件前講清楚。" }
     ],
     sections: [
+      {
+        heading: "精品鞋泡沫清洗案例：本案實收600元、清洗約一週",
+        body: "這一案採精品名牌鞋乾洗服務，使用泡沫清洗，本案實收600元，清洗時間約一週。以上工序、費用與時間由私享家門市提供；600元僅是本案實收，不是所有精品鞋的統一價格，約一週也不是固定交件承諾。其他鞋款須先看材質、飾件、膠邊與鞋況，再確認處理方式、報價與取件時間。想送洗類似鞋款，可用本頁LINE詢問入口傳鞋面、鞋底與在意位置的照片。台中全市免費收送、無低消，清潔費另計；收送時段由門市確認。"
+      },
       {
         heading: "精品鞋跟一般洗鞋差在哪",
         body:
@@ -2197,6 +2224,8 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     description:
       "私享家洗衣店（台中市西屯區青海路二段365號）整理台中洗衣店查詢入口：依物件、問題、材質與收送需求找洗鞋、洗包、白鞋、床組、棉被、襯衫、西裝、娃娃、精品乾洗與台中市免費收送。",
     h1: "台中洗衣、洗鞋、洗包與免費收送怎麼找？",
+    citation_answer:
+      "找台中洗衣服務時，用手上的物件和問題找，比搜店名準。私享家把洗衣、洗鞋、洗包、床組棉被、襯衫西裝、娃娃與精品乾洗分成可以逐項核對的服務，每個答案都回到材質、痕跡位置、狀態與處理界線。台中全市免費收送。",
     summary:
       "先用手上的物件和問題找服務，不必只搜尋店名。私享家把台中洗衣、洗鞋、洗包、床組棉被、襯衫西裝、娃娃、精品乾洗與免費收送分成可核對的服務與指南；每個答案都回到材質、位置、狀態與處理界線。",
     keywords: [
@@ -2669,10 +2698,25 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "donghai-laundry-pickup",
     path: "local/donghai-laundry-pickup.html",
     category: "local",
-    title: "東海洗衣收送｜別墅區厚被與日常衣物｜私享家洗衣店",
+    // 全站 CTR 缺口最大的一頁,老闆 2026-09-12 同意解凍改寫。
+    //
+    // 2026-08-16..09-09:曝光 84、點擊 0、平均排名 7.6。唯一看得見的查詢是
+    // 「東海洗衣店」,排名 4.3、曝光 6、點擊 0——排進前五卻一個人都沒點。
+    //
+    // 舊標題有兩個問題。「別墅區」擺在最前面,讓一般住戶覺得不是給自己的;而且
+    // 整行沒有回答搜尋者真正在問的事——你到底在不在東海。私享家在東海沒有門市,
+    // 門市在西屯青海路二段365號,東海一帶是靠台中市全區免費到府收送服務的。
+    //
+    // 位置必須寫進標題本身:SERP 上多數人只掃標題,把「門市在西屯」藏在摘要或
+    // 內文,等於讓人點進來才發現撲空,而撲空比不點糟得多。但誠實的要求是「有寫」
+    // 不是「寫最前面」,所以免費收送這個全站最強的差異點排在位置之前。
+    //
+    // 已知代價:把位置寫進標題,等於在點擊前就篩掉「只想找最近一家」的人,CTR 很
+    // 可能還是 0——只是換成一個誠實的 0。這是刻意付的代價。
+    title: "東海洗衣店？免費到府收送，門市在西屯｜私享家洗衣店",
     description:
-      "東海大學、東海商圈與別墅區要洗衣？私享家在西屯青海路二段365號，厚被、窗簾與日常衣物可先 LINE 傳照片，再約台中市免費收送。",
-    h1: "東海洗衣收送：厚被、窗簾與日常衣物怎麼約",
+      "東海一帶沒有我們的門市，改用台中市全區免費到府收送：一件也收、沒有最低消費，不用出門。厚被、窗簾與日常衣物先用 LINE 傳照片報價，門市在西屯青海路二段365號。",
+    h1: "東海洗衣店？門市在西屯，一件也收、免費到府收送",
     summary: AEO_DONGHAI_LAUNDRY,
     citation_answer: AEO_DONGHAI_LAUNDRY,
     keywords: ["東海洗衣", "東海洗衣店", "東海大學洗衣", "台中東海收送", "別墅區洗衣"],
@@ -2733,7 +2777,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     service_slug: "shoe-bag-care",
     // Distinct intent from the shoe-bag-care service page: this page answers "how to pick a
     // shoe-cleaning shop near the Qinghai Road store", not the head term itself.
-    title: "青海路洗鞋店怎麼挑｜逢甲、西屯門市方位、案例界線與收送｜私享家洗衣店",
+    title: "逢甲、西屯洗鞋｜運動鞋水洗 $250，台中全市免費收送｜私享家",
     search_description: "逢甲、西屯洗鞋：一般運動鞋水洗參考價250元，先LINE傳照片確認鞋況與報價。私享家位於青海路二段365號，台中全市免費收送、無低消，清潔費另計。",
     description: "逢甲、西屯找洗鞋店？先看這篇怎麼挑：看案例照片、問處理界線、確認收送方式。私享家在青海路二段365號，台中市免費收送，LINE 傳照片先判斷再決定。",
     h1: "青海路洗鞋店怎麼挑：看案例、問界線、約收送",
@@ -2922,7 +2966,7 @@ const HOME_DISCOVERY_GROUPS: HomeDiscoveryGroup[] = [
   },
   {
     heading: "依地區找服務",
-    intro: "把店家位置、台中全市收送和生活圈寫成可讀內容，讓搜尋引擎與 AI 清楚知道門市在西屯，收送涵蓋台中市。",
+    intro: "門市在西屯，收送涵蓋台中市全區。按你所在的生活圈找，看那一區怎麼安排取件。",
     items: [
       {
         label: "台中全市免費收送",
@@ -5971,6 +6015,12 @@ function buildPublicSiteCss(): string {
       --color-brand-deep: #163a2b;
       --color-brand-soft: #e8f0eb;
       --color-blue: #1f6feb;
+      /* --color-blue is 4.63:1 on white but only 4.36:1 on the #f7f8fb section
+         tint, which is under WCAG AA's 4.5 and is the single audit keeping the
+         accessibility score off 100 (measured 2026-09-11 on the live homepage).
+         This darker step is 5.43:1 on that tint and 5.77:1 on white, and is used
+         only for the small bold labels that sit on tinted panels. */
+      --color-blue-strong: #1a5fd0;
       --color-green: #1c7c54;
       --color-red: #b42318;
       --shadow-panel: 0 14px 38px #17203314;
@@ -5993,7 +6043,7 @@ function buildPublicSiteCss(): string {
     .section.surface { background: #ffffff; border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); }
     .section-header { gap: 10px; max-width: 760px; margin-bottom: 24px; display: grid; }
     .section-header p, .section-header .section-copy { margin: 0; }
-    .eyebrow { color: var(--color-blue); letter-spacing: 0; font-size: .85rem; font-weight: 800; margin: 0; }
+    .eyebrow { color: var(--color-blue-strong); letter-spacing: 0; font-size: .85rem; font-weight: 800; margin: 0; }
     h1, h2, h3, p { margin-top: 0; }
     h1 { letter-spacing: 0; margin-bottom: 18px; font-size: clamp(2.25rem, 6vw, 4.6rem); line-height: 1.04; }
     h2 { letter-spacing: 0; margin-bottom: 12px; font-size: clamp(1.65rem, 3vw, 2.45rem); line-height: 1.16; }
@@ -6151,7 +6201,7 @@ function buildPublicSiteCss(): string {
     .post-archive summary { cursor: pointer; font-weight: 800; color: var(--color-ink); }
     .post-archive .grid { margin-top: 18px; }
     .answer-block, .answer-box { border-radius: var(--radius-card); background: #f0f7ff; border: 1px solid #b9d8ff; padding: 18px; }
-    .answer-block strong, .answer-box strong, .answer-box .eyebrow { color: var(--color-blue); margin-bottom: 6px; display: block; }
+    .answer-block strong, .answer-box strong, .answer-box .eyebrow { color: var(--color-blue-strong); margin-bottom: 6px; display: block; }
     .hero-visual > .eyebrow { margin-bottom: -8px; }
     .hero-visual > .muted { font-size: .9rem; margin: 0; }
     .answer-block p:last-child, .answer-box p:last-child { margin-bottom: 0; }
@@ -6970,7 +7020,7 @@ function buildPostsHubHtml(index: PublicPostIndex): string {
           <div class="article-meta">Day ${render.articleNumber}｜${escapeHtml(post.date)} ${escapeHtml(post.time)}｜${escapeHtml(careContextFor(post.topic).family)}</div>
           <h3><a href="${escapeHtml(post.article_url)}">${escapeHtml(post.topic)}</a></h3>
           <p>${escapeHtml(captionPreview(post.facebook_caption))}</p>
-          <a class="card-link" href="${escapeHtml(post.article_url)}">閱讀文章</a>
+          <a class="card-link" href="${escapeHtml(post.article_url)}" aria-label="閱讀文章：${escapeHtml(post.topic)}">閱讀文章</a>
         </article>`;
     })
     .join("\n");
@@ -7281,7 +7331,7 @@ function renderServiceProductCard(
         <h3><a href="${escapeHtml(href)}">${escapeHtml(service.name)}</a></h3>
         <p>${escapeHtml(service.summary)}</p>
         <p><strong>能解決：</strong>${escapeHtml(service.answer_summary)}</p>
-        <a class="card-link" href="${escapeHtml(href)}">詳細介紹</a>
+        <a class="card-link" href="${escapeHtml(href)}" aria-label="詳細介紹：${escapeHtml(service.name)}">詳細介紹</a>
       </article>`;
 }
 
@@ -7322,7 +7372,7 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
           <summary>閱讀完整文案</summary>
           <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
         </details>
-        <a class="card-link" href="${escapeHtml(articleHref)}">閱讀文章</a>
+        <a class="card-link" href="${escapeHtml(articleHref)}" aria-label="閱讀文章：${escapeHtml(post.topic)}">閱讀文章</a>
       </article>`;
 }
 
@@ -7377,7 +7427,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
     archivePosts.length > 0
       ? `<details class="post-archive">
             <summary>較早內容（${archiveDateCount} 天，${archivePosts.length} 篇）</summary>
-            <p class="section-copy">這些貼文仍保留在 SEO / AEO / GEO 和社群內容資料庫中，預設收合，避免首頁太長。</p>
+            <p class="section-copy">較早的門市紀錄都還在，預設收起來，免得首頁太長。</p>
             <div class="grid three archive-list">
         ${archiveRows}
             </div>
@@ -7706,14 +7756,14 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <div class="card local-search-card">
             <span class="eyebrow">在地搜尋</span>
             <h3>搜尋洗衣店時，讓地區和服務都說清楚。</h3>
-            <p>這個公開站會固定把私享家洗衣店、台中市、西屯門市、青海路二段、免費收送、衣物洗護、洗鞋、洗包、白鞋清潔與布品收納連在一起，提供服務頁、社群圖文、LocalBusiness schema、AI 入口與在地搜尋資料。</p>
+            <p>門市在台中市西屯區青海路二段，洗衣、洗鞋、洗包、白鞋清潔與布品收納都在同一個地方處理，台中市全區免費收送。下面的關鍵字是客人實際會搜尋的說法，點進去看那一類怎麼判斷。</p>
             <div class="chip-row local-query-row">
               ${localSearchChips}
             </div>
           </div>
           <details class="machine-details">
             <summary>AI 與搜尋引擎可讀入口</summary>
-            <p>這些檔案讓搜尋引擎與 AI 理解私享家洗衣店的服務、店家資料、社群內容與在地搜尋資訊。一般客人不需要閱讀它們，但它們會保留作為公開資料來源。</p>
+            <p>這些是本站的公開資料檔，給需要用程式讀取的人。要找洗衣資訊，看上面的服務與指南就夠了。</p>
             <nav aria-label="AI 與搜尋入口">
           <a href="llms-lite.txt">llms-lite.txt</a>
           <a href="llms.txt">llms.txt</a>
@@ -7908,7 +7958,7 @@ function buildNotFoundHtml(index: PublicPostIndex): string {
       <section class="not-found-panel">
         <span class="eyebrow">Page moved</span>
         <h1>回到私享家首頁。</h1>
-        <p>這個網址可能多了 docs 或少了專案路徑，系統會自動帶你回到私享家洗衣店的公開 SEO / AEO / GEO 主站。</p>
+        <p>這個網址可能打錯了，我們會自動帶你回到私享家洗衣店的官方網站。</p>
         <a class="button brand" href="${escapeHtml(homeHref)}">回到首頁</a>
       </section>
     </main>
@@ -8322,6 +8372,35 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
 `;
 }
 
+/**
+ * Related guides, derived rather than hand-listed.
+ *
+ * 2026-09-11: 44 of the 45 guide pages carried exactly ONE in-body link to
+ * another guide, because `related_slugs` was optional and only one page ever
+ * filled it in. That matters more than it looks. The guides are the only layer
+ * Google actually indexes here -- 44 of 45 are in the index, while 29 of the 31
+ * daily post pages are not -- and the posts were carrying most of the internal
+ * links. A link from a page Google refuses to crawl passes nothing, which is
+ * why URL Inspection reports no referring pages for money pages that already
+ * have 202 nav links pointing at them.
+ *
+ * Scoring is deliberately boring so the output is stable across builds: sharing
+ * the service page outranks any single shared keyword, keyword overlap breaks
+ * those ties, and the slug breaks what is left, so two builds of the same input
+ * can never disagree. An explicit related_slugs still wins.
+ */
+function deriveRelatedSlugs(page: SupportPageDefinition, limit = 3): string[] {
+  const own = new Set(page.keywords);
+  return SUPPORT_PAGE_DEFINITIONS.filter((entry) => entry.slug !== page.slug)
+    .map((entry) => ({
+      slug: entry.slug,
+      score: entry.keywords.filter((keyword) => own.has(keyword)).length
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score || left.slug.localeCompare(right.slug))
+    .slice(0, limit)
+    .map((entry) => entry.slug);
+}
 function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostIndex): string {
   const profile = index.business_profile;
   const supportSection: LinePageSection = page.category === "local" ? "local" : "guide";
@@ -8389,7 +8468,7 @@ function buildSupportPageHtml(page: SupportPageDefinition, index: PublicPostInde
     )
     .join("\n");
   const keywordChips = page.keywords.map((keyword) => `<span class="chip">${escapeHtml(keyword)}</span>`).join("\n");
-  const relatedGuidePages = (page.related_slugs ?? [])
+  const relatedGuidePages = (page.related_slugs ?? deriveRelatedSlugs(page))
     .map((slug) => SUPPORT_PAGE_DEFINITIONS.find((entry) => entry.slug === slug))
     .filter((entry): entry is SupportPageDefinition => Boolean(entry));
   // Always expose money-page rails (price / citywide / xitun / bulk / local).
@@ -8475,7 +8554,7 @@ ${serviceHeroLink}          </div>
           <div class="answer-box">
             <p>${escapeHtml(page.citation_answer ?? page.description)}</p>
           </div>
-          <p class="muted">這段是可直接引用的答案；下方的判斷步驤與門市說明會把處理界線講清楚，拿不準就先傳照片。</p>
+          <p class="muted">拿不準就先拍照片傳 LINE，門市看過再告訴你能做到哪裡、哪些不能保證。</p>
         ${
           image
             ? `<figure class="service-photo">

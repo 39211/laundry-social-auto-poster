@@ -136,7 +136,18 @@ export const PROTECTED_LIVE_COHORT_HASHES: Record<(typeof PROTECTED_LIVE_COHORT_
   "carpet-cleaning": "44b570616fee285c8fad2401153e94ad5bd2c7f7679477623659f808c7507863",
   "fengjia-laundry-pickup": "7c5e06aa9869c82bc30e220f03e0a20d349ee0114e72b40a213738f413027fb7",
   "zhongke-office-laundry": "dc0511c1cacb7897aa11546b1be12a5bf90a9609e52c8f239c7052728175009b",
-  "donghai-laundry-pickup": "c8a0aab64b8a9b0ba28c60190ff12d109f884ced7e78156bbb0c7e77ca23f9d0"
+  // Re-frozen 2026-09-12 on the owner's explicit instruction to unfreeze this one
+  // page and rewrite its title. The guard is updated, not removed: it still fails
+  // on an accidental edit, and this line records that one change was intended.
+  //
+  // Why the change was worth a freeze: over 2026-08-16..09-09 this page took 84
+  // impressions and zero clicks at average position 7.6, the widest CTR gap on the
+  // site. Its one visible query, 東海洗衣店, sat at position 4.3 with six
+  // impressions and no clicks -- top five, never chosen. The old title led with
+  // 別墅區 and never answered the only thing that query is asking, which is whether
+  // there is a shop in Donghai. There is not; the shop is in Xitun and Donghai is
+  // served by free citywide pickup, and the new title says so.
+  "donghai-laundry-pickup": "327a10293cac705b209e0286ceca991dce4d6a8f0577fae9e7cd60e9e154cddc"
 };
 
 export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLock> = {

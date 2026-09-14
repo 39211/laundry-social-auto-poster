@@ -20,7 +20,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 sys.stdout.reconfigure(encoding="utf-8")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -226,9 +226,78 @@ def wake_to_run_breaks(text):
     return {"empty": False, "false_tasks": false_tasks}
 
 
+def taipei_today(now_utc=None):
+    """Calendar day in Taipei (UTC+8, no DST).
+
+    F16 / ga4-collect: UTC `date.today()` is the wrong day between Taipei
+    00:00 and 08:00. Nightly runs at 23:10 so a Taipei-zoned default is the
+    same as a Taipei machine's local today, and stays right if the process
+    timezone is UTC.
+    """
+    now = now_utc if now_utc is not None else datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return now.astimezone(timezone(timedelta(hours=8))).date()
+
+
+def parse_audit_date(argv, today=None):
+    """Audit day: `--date YYYY-MM-DD`, else Taipei today.
+
+    HANDOFF-2026-09-04: the 9/3 nightly report could not be rebuilt because
+    this script had no date argument. Backfill is why the flag exists;
+    check 10 still has to treat a past date as a closed publish day.
+    """
+    if today is None:
+        today = taipei_today()
+    args = [str(item) for item in (argv or [])]
+    found = None
+    i = 0
+    while i < len(args):
+        item = args[i]
+        if item == "--date":
+            if i + 1 >= len(args) or str(args[i + 1]).startswith("-"):
+                raise ValueError("nightly_optimize --date needs YYYY-MM-DD")
+            found = args[i + 1]
+            break
+        if item.startswith("--date="):
+            found = item.split("=", 1)[1]
+            break
+        i += 1
+    if found is None:
+        return today
+    found = found.strip()
+    if not found:
+        raise ValueError("nightly_optimize --date needs YYYY-MM-DD")
+    try:
+        return date.fromisoformat(found)
+    except ValueError:
+        raise ValueError(
+            "nightly_optimize --date must be YYYY-MM-DD, got %r" % (found,)
+        )
+
+
+def audit_clock_hour(audit_day, now_day, now_hour):
+    """Hour fed to unposted_day_what for this audit day.
+
+    A past `--date` (the 9/3 backfill) must still see a closed window, or
+    check 10 stays quiet until 21:00 on the operator's clock. A future
+    `--date` stays quiet (B9: do not cry wolf). Today uses the wall hour.
+    """
+    if audit_day < now_day:
+        return 23
+    if audit_day > now_day:
+        return 0
+    return int(now_hour)
+
+
 # --- end helpers ---
 
-TODAY = date.today()
+_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
+try:
+    TODAY = parse_audit_date(sys.argv[1:], today=_now.date())
+except ValueError as exc:
+    sys.stderr.write("%s\n" % exc)
+    sys.exit(2)
 TOMORROW = TODAY + timedelta(days=1)
 ds = TODAY.isoformat()
 ts = TOMORROW.isoformat()
@@ -467,7 +536,7 @@ posted = load(f"data/posted-log/{ds}.json", [])
 # Scheduled for 23:10, after every publish window has closed. Run by hand at
 # 02:00 it would flag a day that has simply not happened yet -- and a check that
 # cries wolf when you run it manually is a check you learn to scroll past.
-if unposted_day_what(has_live_posts(posted), pause is not None, datetime.now().hour):
+if unposted_day_what(has_live_posts(posted), pause is not None, audit_clock_hour(TODAY, _now.date(), _now.hour)):
     add("HIGH", "今日發布", "今天一則都沒發出去",
         f"data/posted-log/{ds}.json 沒有任何 success/posted",
         "查排程 LastTaskResult;3221225786=行程被殺(多半是睡眠或關機)。"

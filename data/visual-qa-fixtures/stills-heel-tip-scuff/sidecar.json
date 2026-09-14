@@ -1,5 +1,5 @@
 {
-  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\high-heel\\heel-tip-scuff-before.png",
+  "reel": "C:\\Users\\cyc39\\laundry-repo\\data\\reference-photos\\high-heel\\heel-tip-scuff-before.png",
   "reel_sha256": "b43886decf4211cd97ae4dd653548b79503d615b455f13e416286f63bd0eac46",
   "treatment": "10s",
   "duration": 0,
@@ -8,15 +8,22 @@
       "name": "before.png",
       "act": "before",
       "t": 0,
-      "canary": "T32Y",
-      "sha256": "5a5f61ebf02ff9048c3e20f3ad9c91ef43cec5514787e38027facf0dd5989cd7"
+      "canary": "97VJ",
+      "sha256": "c32e0f01242b191058e4e5f03de0356ce9a0f688ab0ea19bb8d1f1d43fce3ec6"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "XWXF",
+      "sha256": "120dbf29dd9ef5b323679c19c7569a0d7797b572d499bcdcafd953bbeb40baf6"
     },
     {
       "name": "after.png",
       "act": "after",
       "t": 0,
-      "canary": "89YK",
-      "sha256": "c6650f15818e3955c45b5f224b075d4e7a7460f456b191a7417a84a4cff3bb0d"
+      "canary": "XSPQ",
+      "sha256": "f062b7cf82bf43cbbf2f5b344a7a3c4b4b0e86eebb6bcc16c3086b87eddb15f8"
     }
   ]
 }

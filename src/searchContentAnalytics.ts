@@ -52,9 +52,11 @@ export function buildSearchContentAnalyticsScript(): string {
   if (pageType === "service") {
     send("view_service");
     send("view_item", {
-      item_id: contentId,
-      item_name: contentId,
-      item_category: "laundry_service"
+      items: [{
+        item_id: contentId,
+        item_name: contentId,
+        item_category: "laundry_service"
+      }]
     });
   }
   if (pageType === "article") send("view_article");
@@ -99,6 +101,9 @@ export function buildSearchContentAnalyticsScript(): string {
     } catch {
       return;
     }
+
+    // Internal funnel steps must not classify another site's matching path.
+    if (targetUrl.origin !== new URL(window.location.href).origin) return;
 
     if (targetUrl.pathname.endsWith("/go/line.html")) {
       send("click_line_cta", { cta_name: ctaName });
@@ -258,6 +263,27 @@ export function assertSearchContentAnalyticsScript(script: string): void {
       if (!(parameter in event.params) || event.params[parameter] === "") {
         throw new Error(`search-content analytics event ${event.name} is missing runtime parameter: ${parameter}`);
       }
+    }
+  }
+  const viewItem = observed.find((event) => event.name === "view_item");
+  const items = viewItem?.params.items;
+  if (!Array.isArray(items) || items.length !== 1 ||
+      !items[0] || items[0].item_id !== "runtime-check" ||
+      items[0].item_name !== "runtime-check" || items[0].item_category !== "laundry_service") {
+    throw new Error("search-content analytics view_item requires a valid GA4 items array");
+  }
+  const externalScenarios: RuntimeScenario[] = [
+    { pageType: "knowledge_hub", href: "https://external.example/guides/test.html" },
+    { pageType: "knowledge_hub", href: "https://external.example/local/test.html" },
+    { pageType: "knowledge_hub", href: "https://external.example/services/test.html" },
+    { pageType: "answer", href: "https://external.example/services/test.html" },
+    { pageType: "article", href: "https://external.example/services/test.html" },
+    { pageType: "home", href: "https://external.example/go/line.html" }
+  ];
+  for (const scenario of externalScenarios) {
+    const externalEvents = observeRuntimeEvents(script, scenario);
+    if (externalEvents.some((event) => event.name.startsWith("click_"))) {
+      throw new Error("search-content analytics must not classify external links as internal funnel steps");
     }
   }
   for (const forbidden of ["line_click", "generate_lead"]) {

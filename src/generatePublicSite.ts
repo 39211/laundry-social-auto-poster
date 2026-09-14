@@ -2171,7 +2171,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     citation_answer: AEO_LUXURY_SHOE,
     keywords: ["精品鞋清潔", "名牌鞋清潔", "台中洗精品鞋", "名牌球鞋清潔", "西屯洗鞋"],
     local_intent: "台中西屯 精品鞋 名牌鞋 清潔判斷 膠邊飾件",
-    content_lastmod: "2026-09-05",
+    content_lastmod: "2026-09-14",
     related_slugs: ["luxury-dry-cleaning", "rainy-shoe-care"],
     steps: [
       { name: "拍鞋面與飾件", text: "鞋面、鞋頭、後跟、五金與貼飾各一張，讓門市先分材質，不要只拍品牌標。" },
@@ -2180,6 +2180,10 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       { name: "先聽界線再決定", text: "不因品牌名稱保證變全新；能淡化與只能維持，會在收件前講清楚。" }
     ],
     sections: [
+      {
+        heading: "精品鞋泡沫清洗案例：本案實收600元、清洗約一週",
+        body: "這一案採精品名牌鞋乾洗服務，使用泡沫清洗，本案實收600元，清洗時間約一週。以上工序、費用與時間由私享家門市提供；600元僅是本案實收，不是所有精品鞋的統一價格，約一週也不是固定交件承諾。其他鞋款須先看材質、飾件、膠邊與鞋況，再確認處理方式、報價與取件時間。想送洗類似鞋款，可用本頁LINE詢問入口傳鞋面、鞋底與在意位置的照片。台中全市免費收送、無低消，清潔費另計；收送時段由門市確認。"
+      },
       {
         heading: "精品鞋跟一般洗鞋差在哪",
         body:

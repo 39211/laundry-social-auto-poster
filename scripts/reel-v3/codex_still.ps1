@@ -38,8 +38,14 @@ $shot = $shots | Where-Object { $_.id -eq $Id }
 if (-not $shot) { Write-Host "NO SUCH SHOT: $Id"; exit 1 }
 
 $map = Get-Content (Join-Path $JobDir "prompts\reference-map.json") -Raw -Encoding UTF8 | ConvertFrom-Json
-$keys = $map.shots.$Id
-if (-not $keys) { Write-Host "NO REFERENCE ENTRY FOR $Id"; exit 1 }
+# An EMPTY list is a deliberate "this shot has no anchor": the first shot of a
+# film defines the object and has nothing to be conditioned on. A MISSING key is
+# still an error. PowerShell treats @() as falsy, so the two can only be told
+# apart by asking whether the property exists, not whether it is truthy.
+if ($map.shots.PSObject.Properties.Name -notcontains $Id) {
+    Write-Host "NO REFERENCE ENTRY FOR $Id"; exit 1
+}
+$keys = @($map.shots.$Id)
 
 $imgArgs = @()
 foreach ($k in $keys) {
@@ -55,6 +61,12 @@ $refIntro = "IDENTITY REFERENCE: the attached photographs show the exact same pe
 "If the written description below and an attached photograph disagree about what something looks like, the photograph wins. " +
 "DO NOT COPY FROM THEM: the camera position, the lens distance, the crop, how large anything sits in the frame, which way anything faces, or where the hands are. " +
 "This is a different photograph of the same people and objects taken at a different moment, not a re-render of an attached one. Follow the CAMERA and framing lines below exactly and let them override the attached framing.`n`n"
+
+# With no attachments this preamble is a lie, and Codex correctly refuses: asked
+# for the first shot of a film with zero references, it answered "there is no
+# image attachment, please re-attach the reference photo" and produced nothing.
+# A shot that defines the object has no anchor, so it gets no preamble either.
+if ($imgArgs.Count -eq 0) { $refIntro = "" }
 
 $body = $shot.still_prompt
 

@@ -127,6 +127,13 @@ def check_negation_distance(still: str) -> list[str]:
     for w in SUBJECT_WORDS:
         pattern = r"\b" + NEG + r"\s+(?:\w+\s+){0,2}" + re.escape(w) + r"\b"
         for m in re.finditer(pattern, low):
+            phrase = low[m.start():m.end()]
+            # "nothing but the foam" admits the foam, it does not forbid it.
+            if re.match(r"nothing but\b", phrase):
+                continue
+            # "not blocking the cut-outs" negates the blocking, not the cut-outs.
+            if re.match(r"not \w+ing\b", phrase):
+                continue
             seg = body[max(0, m.start() - 30):m.end() + 30].replace("\n", " ")
             bad.append(f"negated subject word {w!r} outside FORBID: ...{seg.strip()}...")
     return bad
@@ -168,6 +175,18 @@ def check_passport(still: str) -> list[str]:
     return bad
 
 
+def body_only(still: str) -> str:
+    """The prompt with its FORBID block removed.
+
+    Prohibitions are SUPPOSED to live in FORBID. Scanning that block for banned
+    words or camera moves reports every correct prompt: "no pan, no tilt, no
+    zoom", "gloves of any colour", "leather, suede, patent" are all the prompt
+    doing its job. Only the body is evidence of a fault.
+    """
+    fb = forbid_block(still)
+    return still[: len(still) - len(fb)] if fb else still
+
+
 def check_shot(shot: dict) -> list[str]:
     still = shot.get("still_prompt", "")
     mp = shot.get("motion_prompt", "")
@@ -179,9 +198,9 @@ def check_shot(shot: dict) -> list[str]:
     else:
         bad += check_motion(mp)
         bad += check_camera(mp, "motion")
-    bad += check_camera(still, "still")
+    bad += check_camera(body_only(still), "still")
     bad += check_forbid(still)
-    bad += check_banned(still)
+    bad += check_banned(body_only(still))
     bad += check_passport(still)
     bad += check_negation_distance(still)
     return bad
@@ -255,6 +274,14 @@ CLEAN_CASES = [
      lambda s: {**s, "still_prompt": s["still_prompt"].replace("any watermark", "no foam on the laces, no steam anywhere, any watermark")}),
     ("steam described as drifting (the subject may move, the camera may not)",
      lambda s: {**s, "motion_prompt": s["motion_prompt"].replace("then stops", "letting vapour drift upward, then stops")}),
+    ("a camera move forbidden inside the FORBID block",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("any watermark", "any pan, tilt, zoom, orbit or handheld move; any watermark")}),
+    ("gloves and leather listed inside the FORBID block",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("any watermark", "gloves of any colour; leather, suede or patent; any watermark")}),
+    ("the idiom 'nothing but' does not forbid what follows it",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("rests flat", "rests flat, with nothing but the foam touching the tray")}),
+    ("'not blocking the cut-outs' negates the blocking, not the cut-outs",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("steadies the heel", "steadies the heel, not blocking the cut-outs")}),
     ("the word 'expand' contains 'pan'",
      lambda s: {**s, "still_prompt": s["still_prompt"].replace("rests flat", "rests flat, the foam free to expand")}),
 ]

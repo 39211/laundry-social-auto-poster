@@ -187,6 +187,60 @@ def body_only(still: str) -> str:
     return still[: len(still) - len(fb)] if fb else still
 
 
+# --- the verified action spec, encoded so it cannot quietly come back ---------
+#
+# Reconciled 2026-09-15 from three sources (a five-frames-per-shot re-watch, a
+# model reading the source video natively, and pixel arithmetic). Each of these
+# was a real error that shipped in a previous cut, so each is a hard check now.
+
+# There is exactly ONE dispenser in the reference and it is used once, at s07.
+# A previous version invented a squeeze bottle and built two shots on it, after
+# mistaking a foam-loaded brush head for a rope of extruded foam.
+DISPENSER_OK_IN = "s07"
+DISPENSER_WORDS = r"\b(squeeze bottle|dispenser|nozzle tip|extrud\w+|piped|pipe a bead|bead of foam|rope of foam)\b"
+
+# The steam nozzle is ROUND and TAPERS TO A POINT, pressed against the surface
+# with no gap. It was written wide, flat and held off at a distance.
+STEAM_WRONG = [
+    (r"\bwide (and )?flat\b[^.]{0,40}(head|nozzle|steam)", "steam head described as wide/flat; it is round and tapered"),
+    (r"(head|nozzle)[^.]{0,40}\bwide (and )?flat\b", "steam head described as wide/flat; it is round and tapered"),
+    (r"garment[- ]steamer", "garment-steamer head; the reference nozzle is a narrow cone"),
+    (r"\b(jet|blast\w*)\b[^.]{0,30}steam|steam[^.]{0,30}\b(jet|blast\w*)\b", "steam described as a jet or blast; it is in contact and stroked"),
+    (r"steam[^.]{0,60}(fills the (whole )?frame|whiteout|white-out|obscur\w+ the shoe)", "a steam whiteout; measured, no such frame exists in the reference"),
+]
+
+# A locked camera means the SUBJECT must travel, or the shot is inert. The
+# motion prompt has to name a distance.
+TRAVEL_UNITS = r"\b\d+(\.\d+)?\s*(cm|centimetre|centimeter|mm|millimetre)|\bhalf\b|\bone third\b|\btwo thirds\b|\bquarter\b|\bshoe[- ]length|\bhand'?s width\b|\bthumb'?s width\b|\bfinger'?s width\b"
+
+
+def check_action(shot: dict) -> list[str]:
+    """The four errors that shipped in earlier cuts."""
+    sid = shot.get("id", "")
+    still = shot.get("still_prompt", "")
+    mp = shot.get("motion_prompt", "")
+    body = body_only(still)
+    bad = []
+
+    if DISPENSER_OK_IN not in sid:
+        for m in re.finditer(DISPENSER_WORDS, body, re.I):
+            if forbidding(body[max(0, m.start() - 60):m.start()].lower()):
+                continue
+            seg = body[max(0, m.start() - 35):m.end() + 35].replace("\n", " ")
+            bad.append(f"dispenser/extrusion language outside {DISPENSER_OK_IN}: ...{seg.strip()}...")
+            break
+
+    if "steam" in (sid + body).lower():
+        for pattern, label in STEAM_WRONG:
+            if re.search(pattern, body, re.I | re.S):
+                bad.append(f"steam: {label}")
+
+    if mp and not re.search(TRAVEL_UNITS, mp, re.I):
+        bad.append("motion prompt states no concrete travel (no distance, no unit) -- "
+                   "a locked camera with a still subject is what made the last cut inert")
+    return bad
+
+
 def check_shot(shot: dict) -> list[str]:
     still = shot.get("still_prompt", "")
     mp = shot.get("motion_prompt", "")
@@ -198,6 +252,7 @@ def check_shot(shot: dict) -> list[str]:
     else:
         bad += check_motion(mp)
         bad += check_camera(mp, "motion")
+    bad += check_action(shot)
     bad += check_camera(body_only(still), "still")
     bad += check_forbid(still)
     bad += check_banned(body_only(still))
@@ -221,10 +276,13 @@ GOOD = {
         "on the shoes or anywhere else; any watermark, timestamp or burned-in caption; any second "
         "person or face."
     ),
+    # Rewritten 2026-09-15 when the travel rule was added. The old fixture had the
+    # owner squeezing a bottle and stated no distance -- both of which are now
+    # exactly what the gate exists to catch, so it could not stay the known-good.
     "motion_prompt": (
-        "Squeezing the bottle once, the owner lays a second thick foam bead along the midsole "
-        "until it meets the first, then stops and lifts the nozzle clear while the shoe stays "
-        "flat on the tray. Camera not moving. Sound: thick foam meeting wet foam. "
+        "Stroking the foam-loaded brush along the midsole, the owner draws it two thirds of a "
+        "shoe-length toward the toe and stops, leaving one unbroken band of foam while the shoe "
+        "stays flat on the tray. Camera not moving. Sound: bristles on wet foam. "
         "No music, no voices, no dialogue."
     ),
 }
@@ -258,6 +316,27 @@ MUTATIONS = [
      lambda s: {**s, "still_prompt": s["still_prompt"].replace("with a row of large rounded-rectangular cut-outs punched through its side, ", "")}),
     ("a negation of the subject sits beside the subject",
      lambda s: {**s, "still_prompt": s["still_prompt"].replace("A thick white foam bead lies", "There is no foam anywhere yet. A thick white foam bead lies")}),
+    # The four action errors that shipped in earlier cuts.
+    ("a squeeze bottle outside s07",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("The owner's bare hand", "A squeeze bottle is held above the shoe. The owner's bare hand")}),
+    ("foam described as an extruded bead",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("A thick white foam bead lies", "A rope of foam is extruded and lies")}),
+    # These inject into STAGING, not after FORBID: body_only() strips everything from
+    # the FORBID heading onward, so text appended at the very end is invisible to the
+    # body checks by design. The first version of these two mutations appended, and
+    # the self-test correctly reported them as missed.
+    ("the steam head described as wide and flat",
+     lambda s: {**s, "id": "s14-steam",
+                "still_prompt": s["still_prompt"].replace(
+                    "STAGING.", "STAGING. The steam nozzle is a wide and flat head laid on the midsole.")}),
+    ("a steam whiteout",
+     lambda s: {**s, "id": "s15-steam",
+                "still_prompt": s["still_prompt"].replace(
+                    "STAGING.", "STAGING. Steam fills the whole frame so the shoe is not visible.")}),
+    ("a motion prompt with no concrete travel",
+     lambda s: {**s, "motion_prompt": "Scrubbing steadily, the owner works the midsole area and then stops while "
+                                      "the shoe stays flat on the tray. Camera not moving. Sound: bristles on wet "
+                                      "foam. No music, no voices, no dialogue."}),
 ]
 
 # The half that was missing. Correct wording must NOT be reported.
@@ -284,6 +363,19 @@ CLEAN_CASES = [
      lambda s: {**s, "still_prompt": s["still_prompt"].replace("steadies the heel", "steadies the heel, not blocking the cut-outs")}),
     ("the word 'expand' contains 'pan'",
      lambda s: {**s, "still_prompt": s["still_prompt"].replace("rests flat", "rests flat, the foam free to expand")}),
+    # The dispenser IS allowed in s07, and steam wording must not fire on a correct description.
+    ("the one legitimate dispenser, in s07",
+     lambda s: {**s, "id": "s07-feed-foam-collar",
+                "still_prompt": s["still_prompt"].replace("A thick white foam bead lies",
+                    "A hose-fed dispenser nozzle feeds foam into the collar, and a thick white foam bead lies")}),
+    ("a correctly described steam nozzle",
+     lambda s: {**s, "id": "s14-steam",
+                "still_prompt": s["still_prompt"] + "\n\nThe black steam nozzle is round and tapers to a point, "
+                                                    "pressed against the midsole with no gap and stroked along it."}),
+    ("a motion prompt whose travel is given in shoe-lengths",
+     lambda s: {**s, "motion_prompt": "Sliding the shoe along the shaft, the owner draws it one shoe-length to the "
+                                      "right under the turning drum, then stops. Camera not moving. Sound: bristles "
+                                      "on wet rubber. No music, no voices, no dialogue."}),
 ]
 
 

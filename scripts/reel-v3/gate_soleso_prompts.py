@@ -67,7 +67,9 @@ REQUIRED_FORBID = [
 # one positively is the fault; forbidding it is the prompt doing its job.
 BANNED_ANYWHERE = [
     (r"\bglove[sd]?\b", "gloves appear; the owner works bare-handed"),
-    (r"\bpink\b", "pink appears; that is the reference shop's signature colour"),
+    # Only pink WORN or HELD matters -- the reference shop's pink gloves are their
+    # signature. Pink skin from hot water is just a hand.
+    (r"\bpink\b(?!\s+(from|with|where|because))(?![^.]{0,30}\bskin\b)", "pink appears; that is the reference shop's signature colour"),
     (r"\bleather\b", "the upper reads as leather"),
 ]
 
@@ -197,7 +199,12 @@ def body_only(still: str) -> str:
 # A previous version invented a squeeze bottle and built two shots on it, after
 # mistaking a foam-loaded brush head for a rope of extruded foam.
 DISPENSER_OK_IN = "s07"
-DISPENSER_WORDS = r"\b(squeeze bottle|dispenser|nozzle tip|extrud\w+|piped|pipe a bead|bead of foam|rope of foam)\b"
+# "nozzle tip" was in this list and fired on every steam shot, because a steam wand
+# legitimately has a nozzle. What marks a dispenser is a CONTAINER or a HOSE behind
+# it, or foam being emitted, so match those instead of the word nozzle.
+DISPENSER_WORDS = (r"\b(squeeze bottle|squeeze[- ]bottle|dispenser|dispensing|"
+                   r"extrud\w+|piped|pipe a bead|bead of foam|rope of foam|"
+                   r"foam (flow\w+|pour\w+|emerg\w+) (out )?(of|from) (the )?(nozzle|tube|spout))\b")
 
 # The steam nozzle is ROUND and TAPERS TO A POINT, pressed against the surface
 # with no gap. It was written wide, flat and held off at a distance.
@@ -211,7 +218,18 @@ STEAM_WRONG = [
 
 # A locked camera means the SUBJECT must travel, or the shot is inert. The
 # motion prompt has to name a distance.
-TRAVEL_UNITS = r"\b\d+(\.\d+)?\s*(cm|centimetre|centimeter|mm|millimetre)|\bhalf\b|\bone third\b|\btwo thirds\b|\bquarter\b|\bshoe[- ]length|\bhand'?s width\b|\bthumb'?s width\b|\bfinger'?s width\b"
+# Distances get written in words as often as in digits ("eighteen centimetres",
+# "six-centimetre strokes"), and the digits-only version of this rule reported
+# three prompts that had stated their travel perfectly well.
+_NUMWORD = (r"one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+            r"fifteen|eighteen|twenty|thirty")
+TRAVEL_UNITS = (
+    r"\b\d+(\.\d+)?\s*[- ]?(cm|centimetre|centimeter|mm|millimetre)"
+    rf"|\b({_NUMWORD})[- ](cm|centimetre|centimeter|mm|millimetre)"
+    rf"|\b({_NUMWORD})\s+(cm|centimetres?|centimeters?|mm|millimetres?)"
+    r"|\bhalf\b|\bone third\b|\btwo thirds\b|\bquarter\b|\bshoe[- ]length"
+    r"|\bhand'?s width\b|\bthumb'?s width\b|\bfinger'?s width\b"
+)
 
 
 def check_action(shot: dict) -> list[str]:
@@ -376,6 +394,22 @@ CLEAN_CASES = [
      lambda s: {**s, "motion_prompt": "Sliding the shoe along the shaft, the owner draws it one shoe-length to the "
                                       "right under the turning drum, then stops. Camera not moving. Sound: bristles "
                                       "on wet rubber. No music, no voices, no dialogue."}),
+    # Three false alarms the gate produced on real prompts, each now pinned.
+    ("a travel written in words rather than digits",
+     lambda s: {**s, "motion_prompt": "Dragging the flat bare hand along the midsole, heel toward toe, eighteen "
+                                      "centimetres, stopping short of the toe bumper. Camera not moving. "
+                                      "Sound: wet skin on foam. No music, no voices, no dialogue."}),
+    ("a hyphenated travel",
+     lambda s: {**s, "motion_prompt": "Scrubbing the knit fast, the palm blurring in six-centimetre strokes, then "
+                                      "stopping with the hand flat. Camera not moving. Sound: palm on wet knit. "
+                                      "No music, no voices, no dialogue."}),
+    ("a steam wand's own nozzle tip",
+     lambda s: {**s, "id": "s20-steam",
+                "still_prompt": s["still_prompt"].replace(
+                    "STAGING.", "STAGING. The round tapered nozzle tip beds into the knit with no gap.")}),
+    ("skin reddened by hot water",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace(
+         "bare hand", "bare hand, the skin faintly damp and slightly pink from hot water,")}),
 ]
 
 

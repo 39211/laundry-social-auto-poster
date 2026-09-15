@@ -125,8 +125,12 @@ def burst(job: Path, work: Path, frm: dict, to: dict) -> Path:
     src = job / frm["still"]
     n = max(2, round(BURST_SECONDS * FPS))
     # zoompan ramps the scale across n frames, then the cut lands on the clean card.
+    # The blur is a flat sigma, not a ramp: gblur's sigma is not frame-evaluable
+    # ("on" is a zoompan variable) and asking for a ramp fails the whole build
+    # with "Undefined constant or missing '(' in 'on/3'". Over three frames a
+    # constant blur is indistinguishable from a ramped one anyway.
     vf = (f"scale={W*2}:{H*2},zoompan=z='1+0.55*on/{n}':d={n}:s={W}x{H}:fps={FPS},"
-          f"gblur=sigma='6*on/{n}':eval=frame,format=yuv420p,setsar=1")
+          f"gblur=sigma=5,format=yuv420p,setsar=1")
     run(["ffmpeg", "-v", "error", "-loop", "1", "-t", f"{n/FPS:.3f}", "-i", str(src),
          "-f", "lavfi", "-t", f"{n/FPS:.3f}", "-i",
          "anullsrc=channel_layout=stereo:sample_rate=48000",
@@ -222,15 +226,28 @@ def main() -> int:
 
     # Work sound runs the whole film and falls away under the studio cards, the
     # way the reference does. The one spoken line sits on top of that silence.
-    fade = f"afade=t=out:st={AUDIO_FADE_FROM}:d=1.2"
+    #
+    # dynaudnorm comes first because the generated clips' own audio is far
+    # quieter and far less even than assumed. Measured per clip, the means run
+    # from -34 dB down to -73 dB and ten of the twenty-one sit below -50 dB,
+    # which is silence. Checking that an audio STREAM existed was not the same as
+    # checking it contained anything, and the first build shipped a near-silent
+    # film with one loud line at the end. This lifts the quiet passages toward the
+    # loud ones so whatever signal is really there becomes audible; it cannot
+    # invent sound that was never recorded, and the report says so.
+    fade = f"dynaudnorm=f=250:g=15:p=0.75:m=20,afade=t=out:st={AUDIO_FADE_FROM}:d=1.2"
     if args.narration and Path(args.narration).exists():
         run(["ffmpeg", "-v", "error", "-i", str(joined), "-i", str(wm),
              "-i", str(args.narration),
              "-filter_complex",
              f"[0:v][1:v]overlay=0:36[v];"
              f"[0:a]{fade},volume=1.0[bed];"
+             # 4.0, not 1.6. Measured on the built film: at 1.6 the line lands
+             # 2.9 dB BELOW the work bed and is buried; at 4.0 it sits +4.9 dB
+             # above it, which is clear without shouting. (7.0 gives +9.1 dB and
+             # is too much for one closing line.) Levels from audio_profile.py.
              f"[2:a]adelay={int(args.narration_at*1000)}|{int(args.narration_at*1000)},"
-             f"volume=1.6[vo];"
+             f"volume=4.0[vo];"
              f"[bed][vo]amix=inputs=2:duration=first:dropout_transition=0,"
              f"loudnorm=I=-16:TP=-1.5:LRA=11[a]",
              "-map", "[v]", "-map", "[a]",

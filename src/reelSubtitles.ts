@@ -35,7 +35,28 @@ export interface SubtitleCue {
   end: number;
 }
 
-const CLAUSE_BREAK = /(?<=[。！？!?，,、；;：:…])/u;
+// Punctuation that can end a clause. Shared by CLAUSE_BREAK and
+// LEADING_PUNCTUATION below so the two sets can never drift apart.
+const CLAUSE_PUNCTUATION = "。！？!?，,、；;：:…";
+const CLAUSE_BREAK = new RegExp(`(?<=[${CLAUSE_PUNCTUATION}])`, "u");
+const LEADING_PUNCTUATION = new RegExp(`^[${CLAUSE_PUNCTUATION}]+`, "u");
+
+/**
+ * Push `finished` onto segments and return what should continue as the next
+ * line. CJK line-breaking forbids punctuation from opening a line (行首禁則):
+ * a hard-wrap can otherwise slice a clause right before its trailing comma,
+ * leaving that comma to lead the next cue. When `rest` starts with
+ * punctuation, pull it back onto the end of `finished` instead.
+ */
+function flushSegment(segments: string[], finished: string, rest: string): string {
+  const leading = finished ? rest.match(LEADING_PUNCTUATION) : null;
+  if (leading) {
+    segments.push(finished + leading[0]);
+    return rest.slice(leading[0].length);
+  }
+  if (finished) segments.push(finished);
+  return rest;
+}
 
 /**
  * Split a narration into subtitle lines of at most maxChars characters,
@@ -55,13 +76,11 @@ export function splitNarration(text: string, maxChars = SUB_MAX_CHARS): string[]
       current += clause;
       continue;
     }
-    if (current) segments.push(current);
-    current = clause;
+    current = flushSegment(segments, current, clause);
     // A single clause longer than a line hard-wraps; the tail stays current so
     // a following short clause can still pack onto it.
     while (current.length > maxChars) {
-      segments.push(current.slice(0, maxChars));
-      current = current.slice(maxChars);
+      current = flushSegment(segments, current.slice(0, maxChars), current.slice(maxChars));
     }
   }
   if (current) {

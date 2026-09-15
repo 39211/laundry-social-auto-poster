@@ -1,0 +1,339 @@
+#!/usr/bin/env python3
+"""Deterministic gate for the SOLESO-rhythm shoe film's shot prompts.
+
+Written 2026-09-15. This checks only what a program can decide without an
+opinion. Everything a model thinks about a prompt is evidence, not a verdict;
+the rules below are the verdict.
+
+Why each rule is here, so nobody softens one later without knowing the cost:
+
+  camera        Every time a camera move survived into a prompt, the video model
+                started inventing objects that were not in the first frame. The
+                camera is bolted down in this film. A SUBJECT may drift -- steam
+                drifts -- so only camera-directed movement is searched for.
+  format        The video model treats a long motion prompt as a scene
+                description and drops the motion. 25-55 words, verb first,
+                exactly one camera clause, a Sound line, and the no-music tail.
+  negation      On 2026-09-15 a prompt said EMPTY five times beside the one
+                eyelet that had to be threaded, and the model rendered it empty
+                with the lace lying detached beside it. A negation of the shot's
+                own subject must live in the FORBID block, not next to the
+                subject. This gate measures the distance between them.
+  passport      The shoe is knit and foam with a row of cut-outs through the
+                midsole. Three films running, the upper came out as crazed
+                leather because the wording let it.
+  brand         This is an advert. No lettering, no wordmark, anywhere.
+  people        Bare hands, light grey short-sleeve polo, no face in macro.
+
+THE SELF-TEST HAS TWO HALVES, and the first version of this file only had one.
+Mutating a good prompt proves a rule CAN fire. It does not prove the rule stays
+quiet on correct wording. Run against real prompts, the one-sided version
+reported 136 problems, most of them its own false alarms: "pan" was matching
+inside "panel", and every prompt that properly forbade gloves or leather was
+reported for containing the word. So CLEAN_CASES now runs alongside MUTATIONS
+and a false alarm fails the self-test exactly like a missed mutation does.
+
+Usage:
+  gate_soleso_prompts.py <dir-of-shot-json>
+  gate_soleso_prompts.py --self-test
+"""
+from __future__ import annotations
+
+import argparse
+import io
+import json
+import re
+from pathlib import Path
+
+# Movement words that mean THE CAMERA moved.
+CAMERA_MOVES = [
+    "pan", "pans", "panning", "tilt", "tilts", "tilting", "push in", "pushes in",
+    "pushing in", "pull back", "pulls back", "pulling back", "zoom", "zooms",
+    "zooming", "orbit", "orbits", "orbiting", "dolly", "dollies", "tracking shot",
+    "handheld", "widen", "widens", "widening", "crane", "steadicam", "slow push",
+    "camera drifts", "camera drift", "camera moves", "camera creeps", "camera sweeps",
+]
+# A negation of a word that is also the shot's subject is only safe inside FORBID.
+SUBJECT_WORDS = ["foam", "steam", "cut-out", "cut-outs", "lace", "laces", "knit",
+                 "midsole", "brush", "bristle", "bristles", "water"]
+NEG = r"(?:no|not|never|without|nothing)"
+
+REQUIRED_FORBID = [
+    (r"letter|lettering|wordmark|text", "no lettering anywhere in frame"),
+    (r"logo|emblem|swoosh|badge|monogram", "no logo/emblem/swoosh/badge on the shoes"),
+    (r"watermark|timestamp|caption|subtitle", "no burned-in caption/timestamp/watermark"),
+]
+# These may appear ONLY inside a negation ("no gloves", "never leather"). Naming
+# one positively is the fault; forbidding it is the prompt doing its job.
+BANNED_ANYWHERE = [
+    (r"\bglove[sd]?\b", "gloves appear; the owner works bare-handed"),
+    (r"\bpink\b", "pink appears; that is the reference shop's signature colour"),
+    (r"\bleather\b", "the upper reads as leather"),
+]
+
+
+def check_motion(mp: str) -> list[str]:
+    bad = []
+    n = len(mp.split())
+    if not 25 <= n <= 55:
+        bad.append(f"motion prompt is {n} words, outside 25-55")
+    first = re.sub(r"[^A-Za-z]", "", mp.split()[0]) if mp.split() else ""
+    if not first.lower().endswith("ing"):
+        bad.append(f"motion prompt opens with {first!r}, not an -ing verb")
+    c = mp.count("Camera not moving.")
+    if c != 1:
+        bad.append(f"'Camera not moving.' appears {c} times, must be exactly once")
+    if "Sound:" not in mp:
+        bad.append("motion prompt has no 'Sound:' line")
+    if "No music, no voices, no dialogue." not in mp:
+        bad.append("motion prompt is missing the no-music tail")
+    return bad
+
+
+def forbidding(window: str) -> bool:
+    """Does the text immediately before an offset put it inside a prohibition?"""
+    if re.search(NEG + r"\b[^.;]*$", window):
+        return True
+    return bool(re.search(r"(does not|do not|cannot|is not|are not|rather than|instead of)\b[^.;]*$", window))
+
+
+def check_camera(text: str, where: str) -> list[str]:
+    low = text.lower()
+    hits = []
+    for phrase in CAMERA_MOVES:
+        # Word boundaries on BOTH ends. Without them "pan" fires inside "panel"
+        # and "expand", which was most of this gate's first real-run output.
+        for m in re.finditer(r"\b" + re.escape(phrase) + r"\b", low):
+            if forbidding(low[max(0, m.start() - 70):m.start()]):
+                continue
+            hits.append(f"{where}: camera movement {phrase!r}")
+    return hits
+
+
+def forbid_block(still: str) -> str:
+    """Everything from the last FORBID heading onward."""
+    last = None
+    for last in re.finditer(r"\bFORBID\b", still):
+        pass
+    return still[last.start():] if last else ""
+
+
+def check_negation_distance(still: str) -> list[str]:
+    """A negated subject word outside the FORBID block is how a subject gets erased."""
+    fb = forbid_block(still)
+    body = still[: len(still) - len(fb)] if fb else still
+    low = body.lower()
+    bad = []
+    for w in SUBJECT_WORDS:
+        pattern = r"\b" + NEG + r"\s+(?:\w+\s+){0,2}" + re.escape(w) + r"\b"
+        for m in re.finditer(pattern, low):
+            seg = body[max(0, m.start() - 30):m.end() + 30].replace("\n", " ")
+            bad.append(f"negated subject word {w!r} outside FORBID: ...{seg.strip()}...")
+    return bad
+
+
+def check_forbid(still: str) -> list[str]:
+    fb = forbid_block(still)
+    if not fb:
+        return ["no FORBID block at all"]
+    return [f"FORBID block does not cover: {label}"
+            for pattern, label in REQUIRED_FORBID
+            if not re.search(pattern, fb, re.I)]
+
+
+def check_banned(still: str) -> list[str]:
+    bad = []
+    for pattern, label in BANNED_ANYWHERE:
+        for m in re.finditer(pattern, still, re.I):
+            if forbidding(still[max(0, m.start() - 60):m.start()].lower()):
+                continue
+            seg = still[max(0, m.start() - 40):m.end() + 40].replace("\n", " ")
+            bad.append(f"{label}: ...{seg.strip()}...")
+            break
+    return bad
+
+
+def check_passport(still: str) -> list[str]:
+    """Only for shots that show the shoe."""
+    low = still.lower()
+    if not re.search(r"\bshoe|\bshoes|\bpair\b", low):
+        return []
+    bad = []
+    if "knit" not in low:
+        bad.append("passport: the knit upper is not stated")
+    if "foam" not in low:
+        bad.append("passport: the foam midsole is not stated")
+    if not re.search(r"cut-?outs?", low):
+        bad.append("passport: the row of midsole cut-outs is not stated")
+    return bad
+
+
+def check_shot(shot: dict) -> list[str]:
+    still = shot.get("still_prompt", "")
+    mp = shot.get("motion_prompt", "")
+    if not still:
+        return ["no still_prompt"]
+    bad: list[str] = []
+    if not mp:
+        bad.append("no motion_prompt")
+    else:
+        bad += check_motion(mp)
+        bad += check_camera(mp, "motion")
+    bad += check_camera(still, "still")
+    bad += check_forbid(still)
+    bad += check_banned(still)
+    bad += check_passport(still)
+    bad += check_negation_distance(still)
+    return bad
+
+
+GOOD = {
+    "id": "self-test",
+    "still_prompt": (
+        "CAMERA. One locked frame, vertical 9:16, 50mm-equivalent macro. The camera does not "
+        "move.\n\n"
+        "OBJECT PASSPORT. One chunky white running shoe: fine white engineered knit upper, thick "
+        "white foam midsole with a row of large rounded-rectangular cut-outs punched through its "
+        "side, a blank dark grey rubber toe bumper.\n\n"
+        "STAGING. The shoe rests flat on the perforated steel tray. A thick white foam bead lies "
+        "along the midsole. The owner's bare hand steadies the heel; his light grey short-sleeve "
+        "polo cuff clips the frame edge.\n\n"
+        "FORBID anywhere in frame: any lettering, wordmark, logo, emblem, swoosh, stripe or badge, "
+        "on the shoes or anywhere else; any watermark, timestamp or burned-in caption; any second "
+        "person or face."
+    ),
+    "motion_prompt": (
+        "Squeezing the bottle once, the owner lays a second thick foam bead along the midsole "
+        "until it meets the first, then stops and lifts the nozzle clear while the shoe stays "
+        "flat on the tray. Camera not moving. Sound: thick foam meeting wet foam. "
+        "No music, no voices, no dialogue."
+    ),
+}
+
+MUTATIONS = [
+    ("camera move in the motion prompt",
+     lambda s: {**s, "motion_prompt": s["motion_prompt"].replace("Camera not moving.", "Camera slowly pushes in. Camera not moving.")}),
+    ("motion prompt too long",
+     lambda s: {**s, "motion_prompt": s["motion_prompt"] + " " + ("extra " * 30)}),
+    ("motion prompt does not open with an -ing verb",
+     lambda s: {**s, "motion_prompt": "The owner squeezes " + s["motion_prompt"].split(" ", 2)[2]}),
+    ("camera clause missing",
+     lambda s: {**s, "motion_prompt": s["motion_prompt"].replace("Camera not moving. ", "")}),
+    ("no-music tail missing",
+     lambda s: {**s, "motion_prompt": s["motion_prompt"].replace(" No music, no voices, no dialogue.", "")}),
+    ("camera move in the still prompt",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("STAGING.", "STAGING. The camera drifts left across the bench.")}),
+    ("FORBID block dropped",
+     lambda s: {**s, "still_prompt": s["still_prompt"][: s["still_prompt"].rindex("FORBID")]}),
+    ("FORBID no longer covers logos",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("wordmark, logo, emblem, swoosh, stripe or badge", "stripe")}),
+    ("gloves appear",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("bare hand", "gloved hand")}),
+    ("the reference shop's signature colour appears",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("light grey short-sleeve", "pink short-sleeve")}),
+    ("the upper is described as leather",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("engineered knit upper", "engineered leather upper")}),
+    ("the knit upper is dropped from the passport",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("fine white engineered knit upper, ", "")}),
+    ("the midsole cut-outs are dropped from the passport",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("with a row of large rounded-rectangular cut-outs punched through its side, ", "")}),
+    ("a negation of the subject sits beside the subject",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("A thick white foam bead lies", "There is no foam anywhere yet. A thick white foam bead lies")}),
+]
+
+# The half that was missing. Correct wording must NOT be reported.
+CLEAN_CASES = [
+    ("the word 'panel' contains 'pan'",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("midsole with", "side panel and midsole with")}),
+    ("gloves named inside a prohibition",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("bare hand", "bare hand, never a glove")}),
+    ("leather named inside a prohibition",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("knit upper", "knit upper, never leather")}),
+    ("the camera forbidding its own movement",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("does not move.", "does not move, does not zoom and does not orbit.")}),
+    ("a negated subject word sitting inside the FORBID block",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("any watermark", "no foam on the laces, no steam anywhere, any watermark")}),
+    ("steam described as drifting (the subject may move, the camera may not)",
+     lambda s: {**s, "motion_prompt": s["motion_prompt"].replace("then stops", "letting vapour drift upward, then stops")}),
+    ("the word 'expand' contains 'pan'",
+     lambda s: {**s, "still_prompt": s["still_prompt"].replace("rests flat", "rests flat, the foam free to expand")}),
+]
+
+
+def self_test() -> int:
+    print("SELF-TEST: a good prompt must pass, every mutation must be caught,")
+    print("           and correct wording must not raise a false alarm.")
+    print()
+    base = check_shot(GOOD)
+    if base:
+        print("FAILED: the known-good prompt did not pass:")
+        for b in base:
+            print("   ", b)
+        return 1
+    print("  known-good prompt passes cleanly")
+    print()
+
+    missed = 0
+    for name, mutate in MUTATIONS:
+        new = [f for f in check_shot(mutate(GOOD)) if f not in base]
+        if new:
+            print(f"  caught       {name}")
+            print(f"                 -> {new[0][:104]}")
+        else:
+            missed += 1
+            print(f"  MISSED       {name}")
+
+    print()
+    false_alarms = 0
+    for name, tweak in CLEAN_CASES:
+        new = [f for f in check_shot(tweak(GOOD)) if f not in base]
+        if new:
+            false_alarms += 1
+            print(f"  FALSE ALARM  {name}")
+            print(f"                 -> {new[0][:104]}")
+        else:
+            print(f"  quiet        {name}")
+
+    print()
+    if missed or false_alarms:
+        print(f"SELF-TEST FAILED: {missed} mutation(s) missed, {false_alarms} false alarm(s).")
+        return 1
+    print(f"SELF-TEST PASSED: {len(MUTATIONS)} mutations caught, "
+          f"{len(CLEAN_CASES)} clean cases stayed quiet.")
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("directory", nargs="?")
+    ap.add_argument("--self-test", action="store_true")
+    args = ap.parse_args()
+
+    if args.self_test:
+        return self_test()
+    if not args.directory:
+        print("give a directory of shot json, or --self-test")
+        return 2
+
+    files = sorted(Path(args.directory).glob("*.json"))
+    if not files:
+        print(f"no shot json in {args.directory}")
+        return 2
+
+    total = 0
+    for f in files:
+        shot = json.loads(io.open(f, encoding="utf-8").read())
+        bad = check_shot(shot)
+        total += len(bad)
+        print(f"{'ok  ' if not bad else 'FAIL'} {shot.get('id', f.stem):22} {len(bad)} problem(s)")
+        for b in bad:
+            print(f"       - {b}")
+    print()
+    print(f"{len(files)} shots checked, {total} problem(s)")
+    print("NOTE: a clean gate means the TEXT is well formed. It says nothing about whether the")
+    print("      generated picture is correct. Only frames can say that.")
+    return 1 if total else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

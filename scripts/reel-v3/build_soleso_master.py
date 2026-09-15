@@ -103,6 +103,17 @@ def segment(job: Path, shot: dict, work: Path) -> Path:
              "-af", f"atrim=0:{seconds:.3f},asetpts=PTS-STARTPTS",
              str(out), "-y"])
     else:
+        # A shot that is SUPPOSED to move and has no clip must stop the build, not
+        # quietly become a freeze-frame. On 2026-09-15 nine of twenty-one clips were
+        # refused by the generator (a generation_id collision after the stills were
+        # replaced) and this function silently held their stills instead, so a master
+        # was produced in which a third of the film was static and nothing said so.
+        if not shot.get("static") and not clip.exists():
+            raise SystemExit(
+                f"{sid}: this shot is not static and its clip {clip.name} does not exist.\n"
+                f"  Refusing to substitute a frozen still -- that is how a third of the last\n"
+                f"  build became static without anyone noticing. Generate the clip, or mark\n"
+                f"  the shot static in cut-list.json if it is genuinely meant to be a hold.")
         if not still.exists():
             raise SystemExit(f"{sid}: neither {clip.name} nor {still.name} exists")
         # Silent hold. anullsrc keeps every segment two-stream so concat is clean.

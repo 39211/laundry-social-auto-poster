@@ -12,7 +12,14 @@ no hands in them and nothing in those frames has any reason to move; handing the
 to a video model is exactly how the last film grew a lace that lifted off one
 shoe and swung to the other across three seconds.
 
-Usage: write_soleso_manifests.py <job-dir>
+The generation_id carries a VERSION. generate_shot.py pins each id against its
+input and refuses to re-run when the input changed -- which is right, it stops a
+silent reuse of a stale generation. But after the stills are regenerated the same
+shot legitimately needs a new clip, and on 2026-09-15 nine of twenty-one were
+refused for exactly that reason. Bump the version on any re-run that follows new
+stills.
+
+Usage: write_soleso_manifests.py <job-dir> [--version V2]
 """
 from __future__ import annotations
 
@@ -31,6 +38,9 @@ def generated_length(cut: float) -> int:
 
 def main() -> int:
     job = Path(sys.argv[1]).resolve()
+    version = "V1"
+    if "--version" in sys.argv:
+        version = sys.argv[sys.argv.index("--version") + 1].upper()
     cut = json.loads(io.open(job / "cut-list.json", encoding="utf-8").read())
     prompts = {s["id"]: s for s in
                json.loads(io.open(job / "prompts" / "shots-revised.json",
@@ -63,7 +73,7 @@ def main() -> int:
 
         seconds = generated_length(float(shot["seconds"]))
         manifest = {
-            "generation_id": f"SXJ-SOLESO-20260916-{sid.upper().replace('-', '')}-V1",
+            "generation_id": f"SXJ-SOLESO-20260916-{sid.upper().replace('-', '')}-{version}",
             "input_image": shot["still"],
             "output_file": shot["clip"],
             "duration_seconds": seconds,

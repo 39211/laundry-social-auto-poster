@@ -259,6 +259,8 @@
         "https://sixiangjialaundry.com/assets/2026-09-14/slot-02.png",
         "https://sixiangjialaundry.com/assets/2026-09-14/slot-03.png",
         "https://sixiangjialaundry.com/assets/2026-09-15/slot-01.png",
+        "https://sixiangjialaundry.com/assets/2026-09-16/slot-01.png",
+        "https://sixiangjialaundry.com/assets/2026-09-16/slot-02.png",
         "https://sixiangjialaundry.com/assets/services/shoe-bag-care-hero-product.png",
         "https://sixiangjialaundry.com/assets/services/white-shoe-cleaning-hero-product.png",
         "https://sixiangjialaundry.com/assets/services/fabric-storage-hero-product.png",
@@ -452,7 +454,7 @@
       "hasPart": {
         "@id": "https://sixiangjialaundry.com/#homepage-faq"
       },
-      "dateModified": "2026-09-15"
+      "dateModified": "2026-09-16"
     },
     {
       "@type": "FAQPage",
@@ -513,7 +515,7 @@
       "name": "私享家洗衣店 social post dataset",
       "description": "找台中洗衣、洗鞋、洗包？私享家洗衣店台中市全區免費收送，門市在西屯青海路二段365號，參考價公開，可先用 LINE 傳照片預約。",
       "url": "https://sixiangjialaundry.com/social-posts.json",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-09-16",
       "inLanguage": "zh-Hant",
       "isPartOf": {
         "@id": "https://sixiangjialaundry.com/#website"
@@ -12029,6 +12031,82 @@
       "contentUrl": "https://sixiangjialaundry.com/assets/2026-09-15/slot-01.png",
       "url": "https://sixiangjialaundry.com/assets/2026-09-15/slot-01.png",
       "caption": "包包內裡黏黏的是怎麼了？先看內裡材質再決定能不能洗",
+      "inLanguage": "zh-Hant"
+    },
+    {
+      "@type": "SocialMediaPosting",
+      "@id": "https://sixiangjialaundry.com/content-calendar/2026-09-16.json#post-2026-09-16-slot-01",
+      "headline": "2026-09-16 11:30 靴子收了一個夏天拿出來長霉點？先看是皮面還是絨面再處理",
+      "text": "靴子收了一個夏天拿出來長霉點？先看是皮面還是絨面再處理。\n\n包包最先變舊的是提把。那不是灰塵，是手汗堆的。\n\n包我會先看提把和包角。那兩個地方天天被摸、被撞，比整體髒不髒更說明狀況。\n\n不確定還救不救得回來？拍一張傳 LINE給我們，先幫你看。\n\n參考價：皮鞋 $400、低靴 $350、高靴 $550（水洗價）\n\n下一集：領帶沾到油漬怎麼辦？先別自己搓，看這 2 件事\n\n出處：門市當日看件\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #台中洗鞋 #洗鞋推薦 #球鞋清洗 #台中洗衣店 #西屯 #逢甲 #台中",
+      "datePublished": "2026-09-16T11:30:00+08:00",
+      "inLanguage": "zh-Hant",
+      "keywords": [
+        "#私享家洗衣店",
+        "#台中西屯洗衣店",
+        "#洗護日常",
+        "#送洗前檢查",
+        "#台中洗鞋",
+        "#洗鞋推薦",
+        "#球鞋清洗",
+        "#台中洗衣店",
+        "#西屯",
+        "#逢甲",
+        "#台中"
+      ],
+      "image": {
+        "@id": "https://sixiangjialaundry.com/content-calendar/2026-09-16.json#post-2026-09-16-slot-01:image"
+      },
+      "isPartOf": {
+        "@id": "https://sixiangjialaundry.com/#social-post-dataset"
+      },
+      "about": {
+        "@id": "https://sixiangjialaundry.com/#business"
+      },
+      "url": "https://sixiangjialaundry.com/content-calendar/2026-09-16.json#post-2026-09-16-slot-01"
+    },
+    {
+      "@type": "ImageObject",
+      "@id": "https://sixiangjialaundry.com/content-calendar/2026-09-16.json#post-2026-09-16-slot-01:image",
+      "contentUrl": "https://sixiangjialaundry.com/assets/2026-09-16/slot-01.png",
+      "url": "https://sixiangjialaundry.com/assets/2026-09-16/slot-01.png",
+      "caption": "靴子收了一個夏天拿出來長霉點？先看是皮面還是絨面再處理",
+      "inLanguage": "zh-Hant"
+    },
+    {
+      "@type": "SocialMediaPosting",
+      "@id": "https://sixiangjialaundry.com/content-calendar/2026-09-16.json#post-2026-09-16-slot-02",
+      "headline": "2026-09-16 20:30 窗簾下緣那條灰，是整面最髒的地方",
+      "text": "窗簾下緣那條灰，是整面最髒的地方。\n\n衣服收起來之前那一下沒檢查，下次拿出來通常就是味道的來源。\n\n我會先看髒污停在哪一層。浮在表面的和吃進纖維的，處理方式差很多。\n\n拍下緣和掛鉤處兩張傳 LINE，我們先看。\n\n參考價：窗簾地毯依尺寸報價，LINE 傳照片先估\n\n出處：門市當日看件\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #窗簾清洗 #居家布品 #居家清潔 #台中洗衣店 #西屯 #逢甲 #台中",
+      "datePublished": "2026-09-16T20:30:00+08:00",
+      "inLanguage": "zh-Hant",
+      "keywords": [
+        "#私享家洗衣店",
+        "#台中西屯洗衣店",
+        "#窗簾清洗",
+        "#居家布品",
+        "#居家清潔",
+        "#台中洗衣店",
+        "#西屯",
+        "#逢甲",
+        "#台中"
+      ],
+      "image": {
+        "@id": "https://sixiangjialaundry.com/content-calendar/2026-09-16.json#post-2026-09-16-slot-02:image"
+      },
+      "isPartOf": {
+        "@id": "https://sixiangjialaundry.com/#social-post-dataset"
+      },
+      "about": {
+        "@id": "https://sixiangjialaundry.com/#business"
+      },
+      "url": "https://sixiangjialaundry.com/content-calendar/2026-09-16.json#post-2026-09-16-slot-02"
+    },
+    {
+      "@type": "ImageObject",
+      "@id": "https://sixiangjialaundry.com/content-calendar/2026-09-16.json#post-2026-09-16-slot-02:image",
+      "contentUrl": "https://sixiangjialaundry.com/assets/2026-09-16/slot-02.png",
+      "url": "https://sixiangjialaundry.com/assets/2026-09-16/slot-02.png",
+      "caption": "窗簾下緣那條灰，是整面最髒的地方",
       "inLanguage": "zh-Hant"
     }
   ]

@@ -445,7 +445,7 @@ describe("S3-3 publish and schedule paths", () => {
     expect(heldCalls).toEqual([]);
   });
 
-  it("YouTube schedule-ahead and uploadShort do not call the network for a held slot", async () => {
+  it("YouTube schedule-ahead skips a held slot; uploadShort still refuses", async () => {
     const root = await tempRoot();
     await seedHealthyImageDay(root, [imageSlot(1, "白鞋鞋邊泛灰前的檢查"), imageSlot(2, "精品包邊角磨損的三個階段")]);
     await enableSlotHolds(root, [sampleHold({ date: DATE, slot: 2 })]);
@@ -455,9 +455,18 @@ describe("S3-3 publish and schedule paths", () => {
     ]);
     const { fetchImpl, calls } = countingFetch();
     await expect(uploadShort({ date: DATE, slot: 2, root, fetchImpl })).rejects.toThrow(/SLOT HELD/);
-    await expect(
-      scheduleYouTubeShort({ date: DATE, slot: 2, root, now: new Date("2026-09-28T21:00:00+08:00"), fetchImpl })
-    ).rejects.toThrow(/SLOT HELD/);
+    const printed = await captureErr(async () => {
+      const skipped = await scheduleYouTubeShort({
+        date: DATE,
+        slot: 2,
+        root,
+        now: new Date("2026-09-28T21:00:00+08:00"),
+        fetchImpl
+      });
+      expect(skipped.status).toBe("skipped");
+      expect(skipped.reason).toMatch(/^SLOT HELD/);
+    });
+    expect(printed).toContain("SLOT HELD 2026-10-01 slot 2:");
     expect(calls).toEqual([]);
   });
 
@@ -505,10 +514,75 @@ describe("S3-3 publish and schedule paths", () => {
     const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
       posts: Array<{ slot: number; date: string }>;
     };
-    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const sitemap = await readFile(join(root, "docs", "ai-sitemap.xml"), "utf8");
     expect(index.posts.some((post) => post.date === DATE && post.slot === 1)).toBe(false);
     expect(index.posts.some((post) => post.date === DATE && post.slot === 2)).toBe(true);
     expect(sitemap).not.toContain(`${DATE}-slot-01`);
+    expect(sitemap).not.toContain(`assets/${DATE}/slot-01`);
+    expect(sitemap).toContain(`assets/${DATE}/slot-02`);
+  });
+});
+
+describe("schedule-ahead held vs invalid exit codes", () => {
+  async function runScript(
+    script: string,
+    args: string[]
+  ): Promise<{ status: number; stdout: string; stderr: string }> {
+    return execFileAsync(process.execPath, ["--import", "tsx", script, ...args], {
+      encoding: "utf8",
+      cwd: process.cwd()
+    }).then(
+      (ok) => ({ status: 0, stdout: ok.stdout, stderr: ok.stderr }),
+      (error: { code?: number; stdout?: string; stderr?: string }) => ({
+        status: error.code ?? 1,
+        stdout: error.stdout ?? "",
+        stderr: error.stderr ?? ""
+      })
+    );
+  }
+
+  it("schedule-youtube --schedule-ahead and schedule-ahead skip a held slot with exit 0", async () => {
+    const root = await tempRoot();
+    await seedHealthyImageDay(root, [imageSlot(1, "白鞋鞋邊泛灰前的檢查"), imageSlot(2, "精品包邊角磨損的三個階段")]);
+    await seedApprovals(root, [1, 2]);
+    await enableSlotHolds(root, [
+      sampleHold({ date: DATE, slot: 1 }),
+      sampleHold({ date: DATE, slot: 2, reason: "evening hold" })
+    ]);
+    const yt = await runScript("src/postYouTube.ts", [
+      "--schedule-ahead",
+      "--date",
+      DATE,
+      "--slot",
+      "2",
+      "--root",
+      root
+    ]);
+    expect(yt.status).toBe(0);
+    expect(`${yt.stdout}\n${yt.stderr}`).toMatch(/SLOT HELD/);
+    const fb = await runScript("src/scheduleAhead.ts", ["--date", DATE, "--root", root]);
+    expect(fb.status).toBe(0);
+    expect(`${fb.stdout}\n${fb.stderr}`).toMatch(/SLOT HELD/);
+  });
+
+  it("schedule-youtube --schedule-ahead and schedule-ahead still exit nonzero on invalid holds", async () => {
+    const root = await tempRoot();
+    await seedHealthyImageDay(root, [imageSlot(1, "白鞋鞋邊泛灰前的檢查"), imageSlot(2, "精品包邊角磨損的三個階段")]);
+    await writeSlotHoldsRequired(root);
+    const yt = await runScript("src/postYouTube.ts", [
+      "--schedule-ahead",
+      "--date",
+      DATE,
+      "--slot",
+      "2",
+      "--root",
+      root
+    ]);
+    expect(yt.status).not.toBe(0);
+    expect(`${yt.stdout}\n${yt.stderr}`).toContain("SLOT-HOLDS INVALID:");
+    const fb = await runScript("src/scheduleAhead.ts", ["--date", DATE, "--root", root]);
+    expect(fb.status).not.toBe(0);
+    expect(`${fb.stdout}\n${fb.stderr}`).toContain("SLOT-HOLDS INVALID:");
   });
 });
 
@@ -568,6 +642,9 @@ describe("S5-1 fault injection matrix", () => {
     const root = await tempRoot();
     await seedHealthyImageDay(root, [imageSlot(1, "白鞋鞋邊泛灰前的檢查"), imageSlot(2, "精品包邊角磨損的三個階段")]);
     await seedApprovals(root, [1, 2]);
+    const profile = await readFile(join(process.cwd(), "data", "business-profile.json"), "utf8");
+    await mkdir(join(root, "data"), { recursive: true });
+    await writeFile(join(root, "data", "business-profile.json"), profile, "utf8");
     await applyFault(root);
     await mkdir(join(root, "docs", "keep"), { recursive: true });
     await writeFile(join(root, "docs", "keep", "marker.txt"), "do-not-touch", "utf8");
@@ -609,6 +686,8 @@ describe("S5-1 fault injection matrix", () => {
     await expect(shareLivePostsToStories({ date: DATE, root, fetchImpl })).rejects.toThrow(/SLOT-HOLDS INVALID/);
     expect(calls).toEqual([]);
 
+    vi.stubEnv("PUBLIC_GA4_MEASUREMENT_ID", "G-TEST123456");
+    vi.stubEnv("DRY_RUN", "true");
     await expect(
       generatePublicSite({ root, baseUrl: "https://sixiangjialaundry.com", now: `${DATE}T01:00:00.000Z` })
     ).rejects.toThrow(/SLOT-HOLDS INVALID/);

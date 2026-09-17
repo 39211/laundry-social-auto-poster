@@ -8,6 +8,7 @@ import {
   holdReasons,
   isSlotHeld,
   loadSlotHolds,
+  serializeSlotHoldsFile,
   slotHoldsIo,
   slotHoldsRequiredPath
 } from "../src/slotHolds";
@@ -32,12 +33,13 @@ function invalidError(result: Awaited<ReturnType<typeof loadSlotHolds>>): string
 }
 
 describe("config/slot-holds.required marker", () => {
-  it("is present in this repo so production pull enables holds", async () => {
+  it("is absent in this repo; enablement belongs to the C-ticket", async () => {
+    // Merging this PR must not enable holds. The C-ticket adds the marker
+    // plus startup checks on every production entry script, after review and
+    // owner sign-off. Tests that need an enabled tree write the marker into a
+    // temp root via enableSlotHolds / writeSlotHoldsRequired.
     const path = join(process.cwd(), SLOT_HOLDS_REQUIRED_REL);
-    await expect(access(path)).resolves.toBeUndefined();
-    const info = await stat(path);
-    expect(info.isFile()).toBe(true);
-    expect(info.size).toBeGreaterThan(0);
+    await expect(access(path)).rejects.toMatchObject({ code: "ENOENT" });
   });
 });
 
@@ -58,6 +60,17 @@ describe("loadSlotHolds S5-1 cases", () => {
     await writeFile(join(root, "data", "slot-holds.json"), "", "utf8");
     const result = await loadSlotHolds(root);
     expect(invalidError(result)).toMatch(/empty/i);
+  });
+
+  it("enabled + legal file with a leading UTF-8 BOM is ok", async () => {
+    const root = await tempRoot();
+    await writeSlotHoldsRequired(root);
+    await mkdir(join(root, "data"), { recursive: true });
+    const body = serializeSlotHoldsFile({ version: 1, holds: [sampleHold()] });
+    await writeFile(join(root, "data", "slot-holds.json"), `\uFEFF${body}`, "utf8");
+    const result = await loadSlotHolds(root);
+    expect(result.status).toBe("ok");
+    expect(result.holds).toEqual([sampleHold()]);
   });
 
   it("enabled + bad JSON is invalid", async () => {

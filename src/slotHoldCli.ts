@@ -104,7 +104,7 @@ async function mutateSlotHoldsFile(
       throw new Error(formatSlotHoldsInvalid(revalidated.error));
     }
 
-    await writeFile(tmpPath, serialized, "utf8");
+    await writeFile(tmpPath, Buffer.from(serialized, "utf8"));
     const secondRaw = await readCurrentRaw(filePath);
     if (firstRaw !== secondRaw) {
       await unlink(tmpPath).catch(() => undefined);
@@ -147,8 +147,9 @@ function currentFileOrEmpty(raw: string | undefined): { file: SlotHoldsFile; raw
 }
 
 export async function runSlotHoldCli(argv: string[]): Promise<void> {
-  const command = argv.find((arg) => !arg.startsWith("-"));
-  const args = argv.filter((arg) => arg !== command);
+  const commandIndex = argv.findIndex((arg) => !arg.startsWith("-"));
+  const command = commandIndex >= 0 ? argv[commandIndex] : undefined;
+  const args = commandIndex >= 0 ? argv.filter((_, index) => index !== commandIndex) : argv;
   const root = projectRoot(getOption(args, "root"));
   const filePath = slotHoldsFilePath(root);
 

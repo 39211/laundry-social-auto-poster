@@ -114,7 +114,7 @@ function isSlotNumber(value: unknown): value is 1 | 2 | 3 {
 export function validateSlotHoldsDocument(raw: string): SlotHoldsResult {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(raw.replace(/^\uFEFF/u, ""));
   } catch (error) {
     return { status: "invalid", holds: [], error: `JSON parse failed: ${errorText(error)}` };
   }

@@ -297,9 +297,9 @@ describe("S5-2 full pipeline replay", () => {
     const afterSlot3 = calls.length;
     expect(afterSlot3).toBeGreaterThan(afterSlot2);
 
-    await expect(
-      scheduleYouTubeShort({ date: DATE, slot: 1, root, now: nowAhead, fetchImpl })
-    ).rejects.toThrow(/SLOT HELD/);
+    const ytHeld = await scheduleYouTubeShort({ date: DATE, slot: 1, root, now: nowAhead, fetchImpl });
+    expect(ytHeld.status).toBe("skipped");
+    expect(ytHeld.reason).toMatch(/SLOT HELD/);
     expect(calls.length).toBe(afterSlot3);
     const ytAhead = await scheduleYouTubeShort({ date: DATE, slot: 3, root, now: nowAhead, fetchImpl });
     expect(ytAhead.status).toBe("scheduled");
@@ -322,11 +322,13 @@ describe("S5-2 full pipeline replay", () => {
     const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8")) as {
       posts: Array<{ slot: number; date: string }>;
     };
-    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const sitemap = await readFile(join(root, "docs", "ai-sitemap.xml"), "utf8");
     expect(index.posts.some((post) => post.date === DATE && post.slot === 1)).toBe(false);
     expect(index.posts.some((post) => post.date === DATE && post.slot === 2)).toBe(true);
     expect(index.posts.some((post) => post.date === DATE && post.slot === 3)).toBe(true);
     expect(sitemap).not.toContain(`${DATE}-slot-01`);
+    expect(sitemap).not.toContain(`assets/${DATE}/slot-01`);
+    expect(sitemap).toContain(`assets/${DATE}/slot-02`);
 
     process.exitCode = 0;
     await runSlotHoldCli(["remove", "--root", root, "--date", DATE, "--slot", "1", "--reason", "replay hold"]);

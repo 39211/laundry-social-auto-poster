@@ -50,6 +50,68 @@ describe("slot-hold CLI", () => {
     await expect(runSlotHoldCli(["init", "--root", root])).rejects.toThrow(/already exists/);
   });
 
+  it("add --reason add --by owner keeps the subcommand-shaped reason and can remove it", async () => {
+    const root = await tempRoot();
+    await enableSlotHolds(root);
+    await runSlotHoldCli([
+      "add",
+      "--root",
+      root,
+      "--date",
+      "2026-10-01",
+      "--slot",
+      "1",
+      "--reason",
+      "add",
+      "--by",
+      "owner"
+    ]);
+    const loaded = await loadSlotHolds(root);
+    expect(loaded.status).toBe("ok");
+    expect(loaded.holds).toHaveLength(1);
+    expect(loaded.holds[0]?.reason).toBe("add");
+    expect(loaded.holds[0]?.set_by).toBe("owner");
+    await runSlotHoldCli([
+      "remove",
+      "--root",
+      root,
+      "--date",
+      "2026-10-01",
+      "--slot",
+      "1",
+      "--reason",
+      "add"
+    ]);
+    const after = await loadSlotHolds(root);
+    expect(after.status).toBe("ok");
+    expect(after.holds).toEqual([]);
+  });
+
+  it("init/add writes UTF-8 without a BOM", async () => {
+    const root = await tempRoot();
+    await writeSlotHoldsRequired(root);
+    await runSlotHoldCli(["init", "--root", root]);
+    const initBytes = await readFile(slotHoldsFilePath(root));
+    expect(initBytes.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf]))).toBe(false);
+    expect(initBytes.toString("utf8").startsWith("{")).toBe(true);
+    await runSlotHoldCli([
+      "add",
+      "--root",
+      root,
+      "--date",
+      "2026-10-01",
+      "--slot",
+      "1",
+      "--reason",
+      "visual route",
+      "--by",
+      "owner"
+    ]);
+    const addBytes = await readFile(slotHoldsFilePath(root));
+    expect(addBytes.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf]))).toBe(false);
+    expect(addBytes.toString("utf8").startsWith("{")).toBe(true);
+  });
+
   it("add / list / remove round-trip with --root", async () => {
     const root = await tempRoot();
     await enableSlotHolds(root);

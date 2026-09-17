@@ -21,6 +21,7 @@ import {
 import { imageAssetsForSlot } from "./mediaAssets";
 import { imagePromptManifestPath, padSlot, projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
+import { formatSlotHoldsInvalid, isSlotHeld, loadSlotHolds } from "./slotHolds";
 import type { DailySlot, ImageSourceRecord, VisualRoute } from "./types";
 
 interface ImagePromptManifestItem {
@@ -529,7 +530,15 @@ async function main(): Promise<void> {
   }
 
   if (getFlag(args, "list-missing")) {
-    const missing = await listMissingCalendarImages(date, root);
+    const holds = await loadSlotHolds(root);
+    if (holds.status === "invalid") {
+      console.error(formatSlotHoldsInvalid(holds.error));
+      process.exitCode = 1;
+      return;
+    }
+    const missing = (await listMissingCalendarImages(date, root)).filter(
+      (item) => !isSlotHeld(holds, date, item.slot)
+    );
     console.log(summarizeMissingImages(date, missing));
     for (const item of missing) {
       console.log(`- ${item.path} (${item.reason})`);

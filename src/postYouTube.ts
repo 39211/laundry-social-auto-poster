@@ -16,6 +16,7 @@ import {
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 import { utmCampaign, utmTagged } from "./utm";
+import { refuseHeldSlot } from "./slotHolds";
 import { assertVideoReviewApproved } from "./videoReviewGate";
 
 // Uploads the day's published Reel to YouTube as a Short. The owner asked for
@@ -214,6 +215,8 @@ export async function uploadShort(input: {
   const slotNumber = input.slot ?? 2;
   const fetchImpl = input.fetchImpl ?? fetch;
 
+  await refuseHeldSlot(root, input.date, slotNumber);
+
   const logPath = join(root, "data", "youtube-log", `${input.date}.json`);
   const existing = await readJsonFile<YouTubeLogEntry[]>(logPath, []);
   if (existing.some((entry) => entry.slot === slotNumber)) {
@@ -298,6 +301,8 @@ export async function scheduleYouTubeShort(input: {
   const slotNumber = input.slot;
   const fetchImpl = input.fetchImpl ?? fetch;
   const now = input.now ?? new Date();
+
+  await refuseHeldSlot(root, input.date, slotNumber);
 
   // R4: one log covers live uploads and ahead schedules; never hit the network.
   const logPath = join(root, "data", "youtube-log", `${input.date}.json`);

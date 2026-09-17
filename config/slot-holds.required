@@ -1,0 +1,1 @@
+Slot-level publish holds are required in this tree. data/slot-holds.json must exist and parse as version 1; a missing or invalid file fails closed. Initialize with: npm run slot-hold -- init

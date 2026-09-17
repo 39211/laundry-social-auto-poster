@@ -38,6 +38,7 @@ import {
 import { imageAssetsForSlot } from "./mediaAssets";
 import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
+import { refuseHeldSlot } from "./slotHolds";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
 import { postInstagramCarousel, postInstagramPhoto, postInstagramReel } from "./postInstagram";
 import { NonRetryableError, withRetry } from "./retry";
@@ -276,6 +277,13 @@ async function postOneSlot(
   if (!config.dryRun && !preflightOnly) {
     const paused = await readPause(root);
     if (paused) throw new NonRetryableError(pauseMessage(paused));
+  }
+  try {
+    await refuseHeldSlot(root, date, slot.slot);
+  } catch (error) {
+    throw error instanceof NonRetryableError
+      ? error
+      : new NonRetryableError(error instanceof Error ? error.message : String(error));
   }
   if (!config.dryRun && !preflightOnly) assertInsidePublishWindow(slot.slot, config, now);
   // Single-flight per date+slot: scheduler retries, the patrol and a manual

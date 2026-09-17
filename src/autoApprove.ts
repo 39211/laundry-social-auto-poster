@@ -18,6 +18,13 @@ import { pauseMessage, readPause } from "./pause";
 import { validatePublishableReel } from "./generateVideo";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
+import {
+  announceHeldSlot,
+  formatSlotHoldsInvalid,
+  holdReasons,
+  isSlotHeld,
+  loadSlotHolds
+} from "./slotHolds";
 import type { Platform } from "./types";
 
 // Unattended approval for the daily package. Every gate below is objective, and
@@ -81,6 +88,21 @@ export async function autoApprove(
       approved_slots: [],
       blockers: [pauseMessage(paused)],
       checks: [{ name: "not_paused", ok: false, detail: pauseMessage(paused) }],
+      ai_provenance: { with_manifest: 0, without_manifest: 0, consistent: true }
+    };
+  }
+
+  const slotHolds = await loadSlotHolds(root);
+  if (slotHolds.status === "invalid") {
+    const detail = formatSlotHoldsInvalid(slotHolds.error);
+    console.error(detail);
+    return {
+      date,
+      approved: false,
+      already_approved: false,
+      approved_slots: [],
+      blockers: ["SLOT-HOLDS INVALID", detail],
+      checks: [{ name: "slot_holds", ok: false, detail }],
       ai_provenance: { with_manifest: 0, without_manifest: 0, consistent: true }
     };
   }
@@ -178,6 +200,16 @@ export async function autoApprove(
     // this rewrite removes.
     checks.push({ name: `slot_${slot}`, ok: false, detail: reason });
   };
+
+  // Hold checks run before already-approved / pending filtering so a previously
+  // granted slot still shows up in blockers while it remains on the list.
+  for (const slot of content.slots) {
+    if (!isSlotHeld(slotHolds, date, slot.slot)) continue;
+    const reasons = holdReasons(slotHolds, date, slot.slot);
+    const line = `SLOT HELD ${date} slot ${slot.slot}: ${reasons.join("; ")}`;
+    await announceHeldSlot(slotHolds, root, date, slot.slot);
+    blockSlot(slot.slot, line);
+  }
 
   // The makeup-bag topic ran four times in five days (08-03, 08-04, 08-05,
   // 08-07) because the morning flow recycles its own earlier slot-1 packages;
@@ -443,6 +475,9 @@ async function main(): Promise<void> {
   });
 
   console.log(JSON.stringify(dryRun ? { ...result, dry_run: true } : result, null, 2));
+  if (result.blockers.some((line) => line.includes("SLOT-HOLDS INVALID"))) {
+    process.exitCode = 1;
+  }
   if (dryRun) return;
   // The scheduled wrapper reads this file instead of scraping stdout: any npm
   // warning containing a brace shifted the substring parse, and a "successful"

@@ -61,11 +61,15 @@ foreach ($offset in 1..3) {
     # The manifest regenerates unconditionally: it is deterministic from the
     # calendar, and playbook calendars written days ahead never got one from
     # the missing-calendar branch above (2026-08-29 was the first such gap).
-    # 21:40 no longer fills missing images: the previous fill route stamped a
-    # source that cannot publish, and occupied the slot so Codex/agy thought
-    # the file existed.
-    # Missing files are logged ASSET_PENDING; files that exist with an
-    # unpublishable source stamp are caught by validate-publishable-images.
+    # 21:40 no longer fills missing images. The old fill produced shop-owner-
+    # forbidden Grok stills (57 of 62 grok-stamped rows in data/image-sources
+    # actually published or queued to FB between 2026-08-25 and 2026-09-01)
+    # and occupied the files so Codex/agy treated the slots as filled. The
+    # source whitelist currently runs only at 06:30 D+3 (daily-generate.ps1)
+    # and in generate-missing-images.ps1; auto-approve, schedule-ahead, and
+    # postCurrentSlot do not check source. Missing files are logged
+    # ASSET_PENDING; this script's validate-publishable-images step logs
+    # ASSET_UNPUBLISHABLE (approval still does not enforce the whitelist).
     cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     $planFile = Join-Path $root "output\d3-imggen\plan-$date.json"
     Remove-Item -LiteralPath $planFile -ErrorAction SilentlyContinue

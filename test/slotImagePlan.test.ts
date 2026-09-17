@@ -6,10 +6,12 @@ import { stampDailyContentWrite } from "../src/contentPlan";
 import { buildSlotImagePlan, IMAGE_GUARD_SUFFIX, withGuardSuffix } from "../src/slotImagePlan";
 import type { DailyContent } from "../src/types";
 
-// The D+3 image line: the 21:40 wrapper generates whatever a future calendar
-// still lacks via the hermes-Grok route. These tests pin the plan's contract --
-// what gets generated, from which certified prompt, anchored to which identity
-// image -- because the Python driver executes it without judgment.
+// The D+3 image line: 21:40 no longer fills missing images via the hermes-Grok
+// route. That fill produced shop-owner-forbidden Grok stills that still reached
+// FB because auto-approve / schedule-ahead do not check source. These tests
+// pin the plan's contract -- what gets generated, from which certified prompt,
+// anchored to which identity image -- because the Python driver executes it
+// without judgment.
 
 const DATE = "2026-09-23";
 

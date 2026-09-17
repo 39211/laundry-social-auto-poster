@@ -6,10 +6,12 @@ import { stampDailyContentWrite } from "../src/contentPlan";
 import { buildSlotImagePlan, IMAGE_GUARD_SUFFIX, withGuardSuffix } from "../src/slotImagePlan";
 import type { DailyContent } from "../src/types";
 
-// The D+3 image line: the 21:40 wrapper generates whatever a future calendar
-// still lacks via the hermes-Grok route. These tests pin the plan's contract --
-// what gets generated, from which certified prompt, anchored to which identity
-// image -- because the Python driver executes it without judgment.
+// The D+3 image line: 21:40 no longer fills missing images via the hermes-Grok
+// route. That fill produced shop-owner-forbidden Grok stills that still reached
+// FB because auto-approve / schedule-ahead do not check source. These tests
+// pin the plan's contract -- what gets generated, from which certified prompt,
+// anchored to which identity image -- because the Python driver executes it
+// without judgment.
 
 const DATE = "2026-09-23";
 
@@ -227,36 +229,279 @@ describe("buildSlotImagePlan", () => {
   });
 });
 
-// The wrapper and the Python driver cannot run under vitest, so their critical
-// wiring is pinned the same way generate-missing-images.ps1 pins its inventory:
-// as source assertions that go red when someone reorders or drops a step.
+// Pin the 21:40 wrapper the same way generate-missing-images.ps1 pins its
+// inventory: source assertions that go red when a step is reordered, dropped,
+// commented out, or wrapped in an always-false if.
+//
+// SCHEDULE_AHEAD_SCRIPT_PATH: optional absolute path of which
+// schedule-ahead-daily.ps1 file to read. Mutation self-proof points this at a
+// byte-copy; it must not change any assertion.
+
+function scheduleAheadScriptRef(): string | URL {
+  const override = process.env.SCHEDULE_AHEAD_SCRIPT_PATH;
+  if (override && override.length > 0) return override;
+  return new URL("../scripts/schedule-ahead-daily.ps1", import.meta.url);
+}
+
+function skipPsString(source: string, i: number): number {
+  const quote = source[i];
+  i += 1;
+  if (quote === "'") {
+    while (i < source.length) {
+      if (source[i] === "'" && source[i + 1] === "'") {
+        i += 2;
+        continue;
+      }
+      if (source[i] === "'") return i + 1;
+      i += 1;
+    }
+    return source.length;
+  }
+  while (i < source.length) {
+    if (source[i] === "`") {
+      i += 2;
+      continue;
+    }
+    if (source[i] === '"') return i + 1;
+    i += 1;
+  }
+  return source.length;
+}
+
+function skipHereString(source: string, atIndex: number): number {
+  const quote = source[atIndex + 1];
+  let i = atIndex + 2;
+  while (i < source.length && source[i] !== "\n") i += 1;
+  if (i < source.length) i += 1;
+  const closer = `${quote}@`;
+  while (i < source.length) {
+    if (source.startsWith(closer, i)) {
+      const lineStart = i === 0 ? 0 : source.lastIndexOf("\n", i - 1) + 1;
+      if (lineStart === i) return i + 2;
+    }
+    i += 1;
+  }
+  return source.length;
+}
+
+function skipPsLiteral(source: string, i: number): number {
+  if (source[i] === "@" && (source[i + 1] === '"' || source[i + 1] === "'")) {
+    return skipHereString(source, i);
+  }
+  if (source[i] === '"' || source[i] === "'") return skipPsString(source, i);
+  return i;
+}
+
+// Drop # line comments and <# #> block comments. Hashes inside strings stay.
+// Comment text is removed (not blanked char-by-char) so a commented-out
+// command cannot satisfy an indexOf on the live remainder.
+function stripPowerShellComments(source: string): string {
+  let i = 0;
+  let out = "";
+  while (i < source.length) {
+    const skipped = skipPsLiteral(source, i);
+    if (skipped !== i) {
+      out += source.slice(i, skipped);
+      i = skipped;
+      continue;
+    }
+    if (source[i] === "<" && source[i + 1] === "#") {
+      const start = i;
+      i += 2;
+      while (i < source.length && !(source[i] === "#" && source[i + 1] === ">")) i += 1;
+      if (i < source.length) i += 2;
+      const keptNewlines = source.slice(start, i).replace(/[^\r\n]+/g, " ");
+      out += keptNewlines;
+      continue;
+    }
+    if (source[i] === "#") {
+      while (i < source.length && source[i] !== "\n" && source[i] !== "\r") i += 1;
+      out += " ";
+      continue;
+    }
+    out += source[i];
+    i += 1;
+  }
+  return out;
+}
+
+function matchingCloser(source: string, openIndex: number, openCh: string, closeCh: string): number {
+  let depth = 0;
+  let i = openIndex;
+  while (i < source.length) {
+    const skipped = skipPsLiteral(source, i);
+    if (skipped !== i) {
+      i = skipped;
+      continue;
+    }
+    if (source[i] === openCh) depth += 1;
+    else if (source[i] === closeCh) {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+    i += 1;
+  }
+  return -1;
+}
+
+function blockAfterHeader(source: string, headerIndex: number): { start: number; end: number } | null {
+  let i = headerIndex;
+  while (i < source.length) {
+    const skipped = skipPsLiteral(source, i);
+    if (skipped !== i) {
+      i = skipped;
+      continue;
+    }
+    if (source[i] === "{") {
+      const end = matchingCloser(source, i, "{", "}");
+      if (end < 0) return null;
+      return { start: i, end };
+    }
+    i += 1;
+  }
+  return null;
+}
+
+function isAlwaysFalseCondition(cond: string): boolean {
+  const token = cond.replace(/\s+/g, "");
+  return token === "$false" || token === "0" || token === "$null";
+}
+
+function alwaysFalseBodyRanges(source: string): Array<{ start: number; end: number }> {
+  const ranges: Array<{ start: number; end: number }> = [];
+  let i = 0;
+  while (i < source.length) {
+    const skipped = skipPsLiteral(source, i);
+    if (skipped !== i) {
+      i = skipped;
+      continue;
+    }
+    const atIf =
+      source.startsWith("if", i) && (i === 0 || !/[A-Za-z0-9_]/i.test(source[i - 1] ?? ""));
+    if (atIf) {
+      let j = i + 2;
+      while (j < source.length && /\s/.test(source[j] ?? "")) j += 1;
+      if (source[j] === "(") {
+        const closeParen = matchingCloser(source, j, "(", ")");
+        if (closeParen >= 0 && isAlwaysFalseCondition(source.slice(j + 1, closeParen))) {
+          const body = blockAfterHeader(source, closeParen);
+          if (body) {
+            ranges.push(body);
+            i = body.end + 1;
+            continue;
+          }
+        }
+      }
+    }
+    i += 1;
+  }
+  return ranges;
+}
+
+function nextStatementExitBlock(source: string, commandNeedle: string): string | null {
+  const idx = source.indexOf(commandNeedle);
+  if (idx < 0) return null;
+  const newline = source.indexOf("\n", idx);
+  const from = newline === -1 ? source.length : newline + 1;
+  const rest = source.slice(from).replace(/^\s+/, "");
+  const header = rest.match(/^if\s*\(\s*\$LASTEXITCODE\s+-ne\s+0\s*\)/i);
+  if (!header) return null;
+  const braceAt = rest.indexOf("{", header[0].length);
+  if (braceAt < 0) return null;
+  const close = matchingCloser(rest, braceAt, "{", "}");
+  if (close < 0) return null;
+  return rest.slice(braceAt, close + 1);
+}
+
 describe("schedule-ahead-daily wiring", () => {
-  it("generates, stamps and publishes images between heal and auto-approve, in order", async () => {
-    const source = await readFile(new URL("../scripts/schedule-ahead-daily.ps1", import.meta.url), "utf8");
-    const heal = source.indexOf("heal-reel-slot");
+  it("holds missing assets and validates publishable sources between heal and auto-approve, in order", async () => {
+    expect(stripPowerShellComments('# cmd /c "validate-publishable-images -- --date $date"\n')).not.toContain(
+      "validate-publishable-images"
+    );
+    expect(stripPowerShellComments('<# $problems += "$date asset-pending" #>\n')).not.toContain("asset-pending");
+    expect(stripPowerShellComments('Write-Log "hash # stays"\n# gone\ncmd\n')).toContain('Write-Log "hash # stays"');
+
+    const source = (await readFile(scheduleAheadScriptRef(), "utf8")).replace(/^\uFEFF/, "");
+    const live = stripPowerShellComments(source);
+    const heal = live.indexOf("heal-reel-slot");
     // The missing-calendar branch has its own earlier generate-image-manifest
     // call; the unconditional one this suite pins is the last occurrence.
-    const manifest = source.lastIndexOf("generate-image-manifest -- --date $date");
-    const planStep = source.indexOf("slot-image-plan -- --date $date");
-    const driver = source.indexOf("hermes-image-gen.py");
-    const stamp = source.indexOf("mark-image-source -- --date $date");
-    const pages = source.indexOf("publish-pages -- --date $date");
-    const approve = source.indexOf("auto-approve -- --date $date");
-    const schedule = source.indexOf("schedule-ahead -- --date $date --live");
-    for (const [name, index] of Object.entries({ heal, manifest, planStep, driver, stamp, pages, approve, schedule })) {
+    const manifest = live.lastIndexOf("generate-image-manifest -- --date $date");
+    const removePlan = live.indexOf("Remove-Item -LiteralPath $planFile -ErrorAction SilentlyContinue");
+    const planStep = live.indexOf("slot-image-plan -- --date $date");
+    const validate = live.indexOf("validate-publishable-images -- --date $date");
+    const pendingLog = live.indexOf(
+      'Write-Log "ASSET_PENDING ${date} slot $($row.slot) $($row.target_path)"'
+    );
+    const pendingProblem = live.indexOf('$problems += "$date asset-pending"');
+    const unpublishableProblem = live.indexOf('$problems += "$date asset-unpublishable"');
+    const approve = live.indexOf("auto-approve -- --date $date");
+    const schedule = live.indexOf("schedule-ahead -- --date $date --live");
+    for (const [name, index] of Object.entries({
+      heal,
+      manifest,
+      removePlan,
+      planStep,
+      validate,
+      pendingLog,
+      pendingProblem,
+      unpublishableProblem,
+      approve,
+      schedule
+    })) {
       expect(index, `${name} step missing`).toBeGreaterThan(-1);
     }
-    // Manifest before plan (a plan without certified prompts refuses the day),
-    // generation chain complete before approval, approval before scheduling.
     expect(heal).toBeLessThan(manifest);
-    expect(manifest).toBeLessThan(planStep);
-    expect(planStep).toBeLessThan(driver);
-    expect(driver).toBeLessThan(stamp);
-    expect(stamp).toBeLessThan(pages);
-    expect(pages).toBeLessThan(approve);
+    expect(manifest).toBeLessThan(removePlan);
+    expect(removePlan).toBeLessThan(planStep);
+    expect(planStep).toBeLessThan(validate);
+    expect(validate).toBeLessThan(approve);
     expect(approve).toBeLessThan(schedule);
-    expect(source).toContain("--source grok-imagine-image");
-    expect(source).toContain("hermes-agent\\venv\\Scripts\\python.exe");
+    expect(planStep).toBeLessThan(pendingLog);
+    expect(pendingLog).toBeLessThan(approve);
+    expect(planStep).toBeLessThan(pendingProblem);
+    expect(pendingProblem).toBeLessThan(approve);
+    expect(planStep).toBeLessThan(unpublishableProblem);
+    expect(unpublishableProblem).toBeLessThan(approve);
+
+    const foreachMatch = live.match(/foreach\s*\(\s*\$row\s+in\s+\$planItems\s*\)/);
+    expect(foreachMatch?.index, "foreach ($row in $planItems) missing").toBeGreaterThan(-1);
+    const foreachBlock = blockAfterHeader(live, foreachMatch!.index!);
+    expect(foreachBlock, "foreach ($row in $planItems) body missing").not.toBeNull();
+    expect(pendingLog).toBeGreaterThan(foreachBlock!.start);
+    expect(pendingLog).toBeLessThan(foreachBlock!.end);
+
+    const countMatch = live.match(/if\s*\(\s*\$planItems\.Count\s+-gt\s+0\s*\)/);
+    expect(countMatch?.index, "if ($planItems.Count -gt 0) missing").toBeGreaterThan(-1);
+    const countBlock = blockAfterHeader(live, countMatch!.index!);
+    expect(countBlock, "if ($planItems.Count -gt 0) body missing").not.toBeNull();
+    expect(pendingProblem).toBeGreaterThan(countBlock!.start);
+    expect(pendingProblem).toBeLessThan(countBlock!.end);
+    for (const range of alwaysFalseBodyRanges(live)) {
+      expect(
+        pendingProblem < range.start || pendingProblem > range.end,
+        '$problems += "$date asset-pending" must not sit inside if ($false)/if (0)/if ($null)'
+      ).toBe(true);
+    }
+
+    const planExit = nextStatementExitBlock(live, "slot-image-plan -- --date $date");
+    expect(planExit, "slot-image-plan must be followed immediately by if ($LASTEXITCODE -ne 0)").not.toBeNull();
+    expect(planExit!).toContain("IMAGE-PLAN");
+    expect(planExit!).toContain('$problems += "$date image-plan"');
+
+    const validateExit = nextStatementExitBlock(live, "validate-publishable-images -- --date $date");
+    expect(
+      validateExit,
+      "validate-publishable-images must be followed immediately by if ($LASTEXITCODE -ne 0)"
+    ).not.toBeNull();
+    expect(validateExit!).toContain("ASSET_UNPUBLISHABLE");
+    expect(validateExit!).toContain('$problems += "$date asset-unpublishable"');
+
+    expect(source).not.toContain("hermes-image-gen");
+    expect(source).not.toContain("grok-imagine-image");
+    expect(source).not.toContain("hermes-agent\\venv");
+    expect(live).not.toContain("hermes-image-gen");
+    expect(live).not.toContain("hermes-agent\\venv");
   });
 
   it("driver executes the plan without adding prompt text, edits at 3:4, and stages per slot", async () => {

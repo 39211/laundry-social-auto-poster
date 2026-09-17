@@ -231,32 +231,62 @@ describe("buildSlotImagePlan", () => {
 // wiring is pinned the same way generate-missing-images.ps1 pins its inventory:
 // as source assertions that go red when someone reorders or drops a step.
 describe("schedule-ahead-daily wiring", () => {
-  it("generates, stamps and publishes images between heal and auto-approve, in order", async () => {
+  function liveStatementIndex(source: string, statement: string): number {
+    let from = 0;
+    while (from < source.length) {
+      const index = source.indexOf(statement, from);
+      if (index === -1) return -1;
+      const lineStart = index === 0 ? 0 : source.lastIndexOf("\n", index - 1) + 1;
+      const lineEnd = source.indexOf("\n", index);
+      const line = source.slice(lineStart, lineEnd === -1 ? source.length : lineEnd);
+      if (!line.trimStart().startsWith("#")) return index;
+      from = index + Math.max(statement.length, 1);
+    }
+    return -1;
+  }
+
+  it("holds missing assets and validates publishable sources between heal and auto-approve, in order", async () => {
     const source = await readFile(new URL("../scripts/schedule-ahead-daily.ps1", import.meta.url), "utf8");
     const heal = source.indexOf("heal-reel-slot");
     // The missing-calendar branch has its own earlier generate-image-manifest
     // call; the unconditional one this suite pins is the last occurrence.
     const manifest = source.lastIndexOf("generate-image-manifest -- --date $date");
+    const removePlan = liveStatementIndex(
+      source,
+      "Remove-Item -LiteralPath $planFile -ErrorAction SilentlyContinue"
+    );
     const planStep = source.indexOf("slot-image-plan -- --date $date");
-    const driver = source.indexOf("hermes-image-gen.py");
-    const stamp = source.indexOf("mark-image-source -- --date $date");
-    const pages = source.indexOf("publish-pages -- --date $date");
+    const validate = source.indexOf("validate-publishable-images -- --date $date");
+    const pendingProblem = liveStatementIndex(source, '$problems += "$date asset-pending"');
+    const unpublishableProblem = liveStatementIndex(source, '$problems += "$date asset-unpublishable"');
     const approve = source.indexOf("auto-approve -- --date $date");
     const schedule = source.indexOf("schedule-ahead -- --date $date --live");
-    for (const [name, index] of Object.entries({ heal, manifest, planStep, driver, stamp, pages, approve, schedule })) {
+    for (const [name, index] of Object.entries({
+      heal,
+      manifest,
+      removePlan,
+      planStep,
+      validate,
+      pendingProblem,
+      unpublishableProblem,
+      approve,
+      schedule
+    })) {
       expect(index, `${name} step missing`).toBeGreaterThan(-1);
     }
-    // Manifest before plan (a plan without certified prompts refuses the day),
-    // generation chain complete before approval, approval before scheduling.
     expect(heal).toBeLessThan(manifest);
-    expect(manifest).toBeLessThan(planStep);
-    expect(planStep).toBeLessThan(driver);
-    expect(driver).toBeLessThan(stamp);
-    expect(stamp).toBeLessThan(pages);
-    expect(pages).toBeLessThan(approve);
+    expect(manifest).toBeLessThan(removePlan);
+    expect(removePlan).toBeLessThan(planStep);
+    expect(planStep).toBeLessThan(validate);
+    expect(validate).toBeLessThan(approve);
     expect(approve).toBeLessThan(schedule);
-    expect(source).toContain("--source grok-imagine-image");
-    expect(source).toContain("hermes-agent\\venv\\Scripts\\python.exe");
+    expect(planStep).toBeLessThan(pendingProblem);
+    expect(pendingProblem).toBeLessThan(approve);
+    expect(planStep).toBeLessThan(unpublishableProblem);
+    expect(unpublishableProblem).toBeLessThan(approve);
+    expect(source).not.toContain("hermes-image-gen");
+    expect(source).not.toContain("grok-imagine-image");
+    expect(source).not.toContain("hermes-agent\\venv");
   });
 
   it("driver executes the plan without adding prompt text, edits at 3:4, and stages per slot", async () => {

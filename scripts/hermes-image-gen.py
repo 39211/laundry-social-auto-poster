@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """Execute a slot-image-plan through the hermes xAI (Grok Imagine) plugin.
 
+Removed from the 21:40 schedule-ahead-daily.ps1 path. Kept only for manual
+experiments. Outputs are not publishable.
+
 This is the formal version of the hand-run 2026-08-24 D+3 batch: the subscription
 OAuth route (hermes plugin resolves xai-oauth pool -> auth.json -> XAI_API_KEY),
 hero-then-edits identity locking, and a 4:5 center-crop to 1080x1350 PNG.

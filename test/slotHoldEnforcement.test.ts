@@ -270,12 +270,13 @@ describe("S3-1 autoApprove", () => {
     const root = await tempRoot();
     await seedHealthyImageDay(root, [imageSlot(1, "白鞋鞋邊泛灰前的檢查"), imageSlot(2, "精品包邊角磨損的三個階段")]);
     await enableSlotHolds(root, [sampleHold({ date: DATE, slot: 1, reason: "luxury visual undecided" })]);
+    let result: Awaited<ReturnType<typeof autoApprove>> | undefined;
     const printed = await captureErr(async () => {
-      const result = await autoApprove({ date: DATE, root });
-      expect(result.approved_slots).toEqual([2]);
-      expect(result.blockers.join("\n")).toContain("SLOT HELD 2026-10-01 slot 1");
-      expect(result.approved_slots).not.toContain(1);
+      result = await autoApprove({ date: DATE, root });
     });
+    expect(result?.approved_slots).toEqual([2]);
+    expect(result?.blockers.join("\n")).toContain("SLOT HELD 2026-10-01 slot 1");
+    expect(result?.approved_slots).not.toContain(1);
     expect(printed).toContain("SLOT HELD 2026-10-01 slot 1:");
   });
 
@@ -455,17 +456,18 @@ describe("S3-3 publish and schedule paths", () => {
     ]);
     const { fetchImpl, calls } = countingFetch();
     await expect(uploadShort({ date: DATE, slot: 2, root, fetchImpl })).rejects.toThrow(/SLOT HELD/);
+    let skipped: Awaited<ReturnType<typeof scheduleYouTubeShort>> | undefined;
     const printed = await captureErr(async () => {
-      const skipped = await scheduleYouTubeShort({
+      skipped = await scheduleYouTubeShort({
         date: DATE,
         slot: 2,
         root,
         now: new Date("2026-09-28T21:00:00+08:00"),
         fetchImpl
       });
-      expect(skipped.status).toBe("skipped");
-      expect(skipped.reason).toMatch(/^SLOT HELD/);
     });
+    expect(skipped?.status).toBe("skipped");
+    expect(skipped?.reason).toMatch(/^SLOT HELD/);
     expect(printed).toContain("SLOT HELD 2026-10-01 slot 2:");
     expect(calls).toEqual([]);
   });

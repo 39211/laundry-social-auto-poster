@@ -19,6 +19,13 @@ import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./pos
 import { resolveSlotPublishMedia } from "./postCurrentSlot";
 import { pauseMessage, readPause } from "./pause";
 import { DAILY_SCHEDULE } from "./scheduler";
+import {
+  announceHeldSlot,
+  formatSlotHoldsInvalid,
+  holdReasons,
+  isSlotHeld,
+  loadSlotHolds
+} from "./slotHolds";
 import type { AppConfig, DailySlot, PostInput } from "./types";
 
 // Pre-schedules a future day's Facebook posts into Meta's own queue
@@ -145,6 +152,13 @@ export async function scheduleAheadFacebook(input: {
     throw new Error(pauseMessage(paused));
   }
 
+  const slotHolds = await loadSlotHolds(root);
+  if (slotHolds.status === "invalid") {
+    const line = formatSlotHoldsInvalid(slotHolds.error);
+    console.error(line);
+    throw new Error(line);
+  }
+
   if (!config.dryRun) {
     assertLiveMetaConfig(config);
     assertPublicImageBaseUrl(config);
@@ -162,6 +176,16 @@ export async function scheduleAheadFacebook(input: {
     const publishAt = slotPublishUnixTime(input.date, slot.slot);
     const secondsOut = publishAt - Math.floor(now.getTime() / 1000);
 
+    if (isSlotHeld(slotHolds, input.date, slot.slot)) {
+      await announceHeldSlot(slotHolds, root, input.date, slot.slot);
+      results.push({
+        date: input.date,
+        slot: slot.slot,
+        action: "skipped",
+        reason: `SLOT HELD ${input.date} slot ${slot.slot}: ${holdReasons(slotHolds, input.date, slot.slot).join("; ")}`
+      });
+      continue;
+    }
     if (alreadyScheduled.some((entry) => entry.slot === slot.slot)) {
       results.push({ date: input.date, slot: slot.slot, action: "skipped", reason: "already scheduled" });
       continue;

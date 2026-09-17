@@ -6,6 +6,12 @@ import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
 import { hasApprovedPost, loadApprovalLog, readJsonFile, writeJsonAtomic } from "./logging";
 import {
+  announceHeldSlot,
+  formatSlotHoldsInvalid,
+  isSlotHeld,
+  loadSlotHolds
+} from "./slotHolds";
+import {
   contentCalendarPath,
   docsContentCalendarPath,
   projectRoot,
@@ -8866,6 +8872,12 @@ function buildAiDiscovery(index: PublicPostIndex): object {
 
 export async function generatePublicSite(options: GeneratePublicSiteOptions = {}): Promise<string[]> {
   const root = projectRoot(options.root);
+  const slotHolds = await loadSlotHolds(root);
+  if (slotHolds.status === "invalid") {
+    const line = formatSlotHoldsInvalid(slotHolds.error);
+    console.error(line);
+    throw new Error(line);
+  }
   const config = getConfig();
   const siteBaseUrl = normalizeBaseUrl(options.siteBaseUrl ?? options.baseUrl ?? config.publicSiteBaseUrl);
   if (options.deployment) {
@@ -8891,9 +8903,17 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
 
       const approvals = await loadApprovalLog(date, root);
       const approvedSlots = calendar.slots.filter((slot) => isSlotFullyApproved(approvals, slot.slot));
+      const publicApprovedSlots: DailySlot[] = [];
+      for (const slot of approvedSlots) {
+        if (isSlotHeld(slotHolds, date, slot.slot)) {
+          await announceHeldSlot(slotHolds, root, date, slot.slot);
+          continue;
+        }
+        publicApprovedSlots.push(slot);
+      }
       let publicSlots: DailySlot[];
       try {
-        publicSlots = approvedSlots.map((slot) =>
+        publicSlots = publicApprovedSlots.map((slot) =>
           slotWithAvailablePublicMedia(date, slot, root, options.statPublicAsset ?? statSync)
         );
       } catch (error) {

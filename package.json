@@ -76,6 +76,7 @@
     "gsc-seo-candidates": "tsx src/gscSeoCandidateAutopilot.ts",
     "seo-exposure-review": "tsx src/seoExposureReview.ts",
     "pause": "tsx src/pause.ts",
+    "slot-hold": "tsx src/slotHoldCli.ts",
     "gsc-index-inspect": "tsx src/gscIndexInspection.ts"
   },
   "dependencies": {

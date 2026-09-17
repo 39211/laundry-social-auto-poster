@@ -7,6 +7,11 @@ import { loadDailyContent } from "./logging";
 import { imageAssetsForSlot, type SlotImageAsset } from "./mediaAssets";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
+import {
+  formatSlotHoldsInvalid,
+  isSlotHeld,
+  loadSlotHolds
+} from "./slotHolds";
 
 // What one day's calendar still needs generated, in a form the hermes-Grok
 // driver (scripts/hermes-image-gen.py) can execute without re-deriving any
@@ -87,6 +92,13 @@ export async function buildSlotImagePlan(date: string, root = projectRoot()): Pr
 
   const blockers: string[] = [];
   const items: SlotImagePlanItem[] = [];
+  const slotHolds = await loadSlotHolds(root);
+  if (slotHolds.status === "invalid") {
+    const line = formatSlotHoldsInvalid(slotHolds.error);
+    console.error(line);
+    blockers.push(line);
+    return { date, generated_at: new Date().toISOString(), items, blockers };
+  }
 
   const manifest = await loadImagePromptManifest(root, date);
   if (!manifest) {
@@ -97,6 +109,7 @@ export async function buildSlotImagePlan(date: string, root = projectRoot()): Pr
   }
 
   for (const slot of content.slots) {
+    if (isSlotHeld(slotHolds, date, slot.slot)) continue;
     let assets: SlotImageAsset[];
     try {
       assets = imageAssetsForSlot(slot);

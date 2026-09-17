@@ -5,6 +5,12 @@ import { verifyPublicAssetUrl } from "./githubPages";
 import { loadDailyContent, loadPostLog, readJsonFile, writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
+import {
+  announceHeldSlot,
+  formatSlotHoldsInvalid,
+  isSlotHeld,
+  loadSlotHolds
+} from "./slotHolds";
 
 // Re-shares the day's live posts to Instagram Stories.
 //
@@ -70,12 +76,20 @@ async function publishStory(
   return published.id;
 }
 
-export async function shareLivePostsToStories(options: { date?: string; root?: string } = {}): Promise<
-  Array<{ slot: number; story_id?: string; skipped?: string }>
-> {
+export async function shareLivePostsToStories(
+  options: { date?: string; root?: string; fetchImpl?: typeof fetch } = {}
+): Promise<Array<{ slot: number; story_id?: string; skipped?: string }>> {
   const root = projectRoot(options.root);
   const config = getConfig();
   const date = options.date || getZonedDateParts(new Date(), config.timezone).date;
+  const fetchImpl = options.fetchImpl ?? fetch;
+
+  const slotHolds = await loadSlotHolds(root);
+  if (slotHolds.status === "invalid") {
+    const line = formatSlotHoldsInvalid(slotHolds.error);
+    console.error(line);
+    throw new Error(line);
+  }
 
   const recordPath = join(root, "data", "stories", `${date}.json`);
   const existing = await readJsonFile<StoryRecord[]>(recordPath, []);
@@ -84,6 +98,14 @@ export async function shareLivePostsToStories(options: { date?: string; root?: s
   const results: Array<{ slot: number; story_id?: string; skipped?: string }> = [];
 
   for (const slot of content?.slots ?? []) {
+    if (isSlotHeld(slotHolds, date, slot.slot)) {
+      await announceHeldSlot(slotHolds, root, date, slot.slot);
+      results.push({
+        slot: slot.slot,
+        skipped: `SLOT HELD ${date} slot ${slot.slot}`
+      });
+      continue;
+    }
     if (existing.some((entry) => entry.slot === slot.slot)) {
       results.push({ slot: slot.slot, skipped: "already shared" });
       continue;
@@ -111,7 +133,7 @@ export async function shareLivePostsToStories(options: { date?: string; root?: s
     let videoUrl = slot.public_video_url;
     if (videoUrl) {
       try {
-        await verifyPublicAssetUrl(videoUrl);
+        await verifyPublicAssetUrl(videoUrl, fetchImpl);
       } catch {
         videoUrl = undefined;
       }
@@ -123,7 +145,7 @@ export async function shareLivePostsToStories(options: { date?: string; root?: s
       continue;
     }
     try {
-      const storyId = await publishStory(mediaUrl, Boolean(videoUrl), config, fetch);
+      const storyId = await publishStory(mediaUrl, Boolean(videoUrl), config, fetchImpl);
       existing.push({ date, slot: slot.slot, story_id: storyId, created_at: new Date().toISOString() });
       await writeJsonAtomic(recordPath, existing);
       results.push({ slot: slot.slot, story_id: storyId });

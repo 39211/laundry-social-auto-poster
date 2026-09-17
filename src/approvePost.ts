@@ -9,6 +9,7 @@ import { appendApprovalLog, loadDailyContent, loadImageSources } from "./logging
 import { imageAssetsForSlot } from "./mediaAssets";
 import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
+import { refuseHeldSlot } from "./slotHolds";
 import type { ApprovalLogEntry, Platform } from "./types";
 
 export interface ApprovePostOptions {
@@ -45,6 +46,9 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
   if (paused) {
     throw new Error(pauseMessage(paused));
   }
+
+  // --force still overrides unproven images; it does not override a slot hold.
+  await refuseHeldSlot(root, options.date, options.slot);
 
   const content = await loadDailyContent(options.date, root);
   if (!content) throw new Error(`No content calendar found for ${options.date}`);

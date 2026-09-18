@@ -229,14 +229,22 @@ def gen_still(job_dir: Path, name: str, prompt_file: Path, refs: list[Path]) -> 
     # -File: -File hands every argument over as a plain string, so a comma-joined
     # list arrives as one unfindable "a,b" path and separate argv entries are
     # refused outright ("a positional parameter cannot be found"). -Command lets
-    # PowerShell parse a real @(...) array literal. Single quotes keep a path with
-    # a space in it intact, and '' escapes a quote inside one.
-    quoted = ",".join("'" + str(r).replace("'", "''") + "'" for r in refs)
-    ref_arg = f"-RefPath @({quoted}) " if refs else ""
+    # PowerShell parse a real @(...) array literal.
+    #
+    # -Command means building a command line, so EVERY interpolated path needs
+    # quoting, not just the ones that happen to be in a list. Escaping the refs
+    # and leaving AGY, the prompt file and the output path bare is worse than
+    # escaping none of them: it reads as handled. A single quote anywhere in a
+    # path (C:\Users\O'Brien\...) would end the string early and the whole run
+    # would die on a syntax error, which -File's argv passing could not do.
+    def ps_quote(value: object) -> str:
+        return "'" + str(value).replace("'", "''") + "'"
+
+    ref_arg = f"-RefPath @({','.join(ps_quote(r) for r in refs)}) " if refs else ""
     proc = run([
         "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
-        f"& '{AGY}' -PromptFile '{prompt_file}' {ref_arg}"
-        f"-OutFile '{out}' -Aspect '9:16'",
+        f"& {ps_quote(AGY)} -PromptFile {ps_quote(prompt_file)} {ref_arg}"
+        f"-OutFile {ps_quote(out)} -Aspect '9:16'",
     ])
     whole = (proc.stdout or "") + (proc.stderr or "")
     tail = whole[-400:]
@@ -274,6 +282,18 @@ def main() -> int:
 
     if not skip_stills:
         print("== stills (Google agy, reference-conditioned) ==")
+        # Where the object canon sits in the running order. Shots generated before
+        # it cannot carry it -- it does not exist yet -- so the guard below only
+        # applies from the shot after it onwards. The canon is usually the opening
+        # shot, but a job is free to introduce the object later.
+        plan_names = list(job["anchor_plan"])
+        canon_name = job.get("object_canon")
+        canon_stem = canon_name[:-4] if canon_name and canon_name.endswith(".png") else canon_name
+        canon_at = plan_names.index(canon_stem) if canon_stem in plan_names else -1
+        if canon_name and canon_at < 0:
+            print(f"  FAIL: object_canon {canon_name} names no entry in anchor_plan "
+                  f"({plan_names}); nothing would enforce it.")
+            return 1
         for name, plan in job["anchor_plan"].items():
             prompt_file = job_dir / f"{name}.txt"
             if not prompt_file.exists():
@@ -287,7 +307,16 @@ def main() -> int:
                 print(f"  wrote {prompt_file.name} from persona.framings[{framing}]")
             # `refs` (a list) is the current spelling; `ref` (a single spec) is
             # the old one and still works, so 2026-09-15..17 jobs re-run unchanged.
-            specs = plan.get("refs") or [plan["ref"]]
+            # Keyed on presence, not truthiness: `refs: []` is a job saying "this
+            # shot takes no reference at all", and `or` would read that empty list
+            # as "unset" and go looking for a `ref` key that a new-format job has
+            # no reason to carry.
+            if "refs" in plan:
+                specs = plan["refs"]
+            elif "ref" in plan:
+                specs = [plan["ref"]]
+            else:
+                specs = []
 
             # "none" means no reference at all, not "use the persona sheet". The
             # object-canon shot has nothing to be consistent with yet, and standing
@@ -300,10 +329,14 @@ def main() -> int:
             # The object-continuity rule used to live only in prose, in
             # object_continuity_note, where nothing executed it: a shot could name
             # the persona sheet as its only reference and still look compliant.
-            # If the job says which anchor is the object canon, every later shot
-            # that shows a person has to carry it too.
-            canon = job.get("object_canon")
-            if canon and name != canon.replace(".png", "") and plan["who"] != "object":
+            # Once the job names an object canon, EVERY shot generated after it
+            # carries it -- an object close-up included. Exempting object shots
+            # was the first spelling of this and it left the 2026-09-17 failure a
+            # clear path: that reel's third fabric was in the close-up, which is
+            # exactly a `who: "object"` shot regenerating from passport prose.
+            # The only shot exempt is the canon itself.
+            canon = canon_name
+            if canon and name != canon_stem and plan_names.index(name) > canon_at:
                 if not any(r.name == canon for r in refs):
                     print(f"  FAIL {name}: object canon {canon} is not among its references "
                           f"({[r.name for r in refs]}). One reference pins one thing; a character "

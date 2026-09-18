@@ -603,9 +603,239 @@
       "webp_path": "assets/2026-08-29/slot-02.webp"
     },
     "assets/2026-08-29/slot-03.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-08-29/slot-03.webp"
+    },
+    "assets/2026-08-30/slot-01.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/2026-08-30/slot-01.webp"
+    },
+    "assets/2026-08-30/slot-02.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/2026-08-30/slot-02.webp"
+    },
+    "assets/2026-08-30/slot-03.png": {
       "width": 720,
       "height": 1280,
-      "webp_path": "assets/2026-08-29/slot-03.webp"
+      "webp_path": "assets/2026-08-30/slot-03.webp"
+    },
+    "assets/2026-08-31/slot-01.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/2026-08-31/slot-01.webp"
+    },
+    "assets/2026-08-31/slot-02.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/2026-08-31/slot-02.webp"
+    },
+    "assets/2026-08-31/slot-03.png": {
+      "width": 720,
+      "height": 1280,
+      "webp_path": "assets/2026-08-31/slot-03.webp"
+    },
+    "assets/2026-09-01/slot-01.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/2026-09-01/slot-01.webp"
+    },
+    "assets/2026-09-01/slot-02.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/2026-09-01/slot-02.webp"
+    },
+    "assets/2026-09-01/slot-03.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/2026-09-01/slot-03.webp"
+    },
+    "assets/2026-09-02/slot-01.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-02/slot-01.webp"
+    },
+    "assets/2026-09-02/slot-02.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-02/slot-02.webp"
+    },
+    "assets/2026-09-04/slot-01.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-04/slot-01.webp"
+    },
+    "assets/2026-09-04/slot-02.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-04/slot-02.webp"
+    },
+    "assets/2026-09-04/slot-03.png": {
+      "width": 720,
+      "height": 1280,
+      "webp_path": "assets/2026-09-04/slot-03.webp"
+    },
+    "assets/2026-09-05/slot-01.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-05/slot-01.webp"
+    },
+    "assets/2026-09-05/slot-02.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-05/slot-02.webp"
+    },
+    "assets/2026-09-05/slot-03.png": {
+      "width": 720,
+      "height": 1280,
+      "webp_path": "assets/2026-09-05/slot-03.webp"
+    },
+    "assets/2026-09-06/slot-01.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-06/slot-01.webp"
+    },
+    "assets/2026-09-06/slot-02.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-06/slot-02.webp"
+    },
+    "assets/2026-09-06/slot-03.png": {
+      "width": 720,
+      "height": 1280,
+      "webp_path": "assets/2026-09-06/slot-03.webp"
+    },
+    "assets/2026-09-07/slot-01.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-07/slot-01.webp"
+    },
+    "assets/2026-09-07/slot-02.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-07/slot-02.webp"
+    },
+    "assets/2026-09-07/slot-03.png": {
+      "width": 720,
+      "height": 1280,
+      "webp_path": "assets/2026-09-07/slot-03.webp"
+    },
+    "assets/2026-09-08/slot-01.png": {
+      "width": 896,
+      "height": 1200,
+      "webp_path": "assets/2026-09-08/slot-01.webp"
+    },
+    "assets/2026-09-08/slot-02.png": {
+      "width": 896,
+      "height": 1200,
+      "webp_path": "assets/2026-09-08/slot-02.webp"
+    },
+    "assets/2026-09-08/slot-03.png": {
+      "width": 720,
+      "height": 1280,
+      "webp_path": "assets/2026-09-08/slot-03.webp"
+    },
+    "assets/2026-09-09/slot-01.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-09/slot-01.webp"
+    },
+    "assets/2026-09-09/slot-02.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-09/slot-02.webp"
+    },
+    "assets/2026-09-09/slot-03.png": {
+      "width": 720,
+      "height": 1280,
+      "webp_path": "assets/2026-09-09/slot-03.webp"
+    },
+    "assets/2026-09-10/slot-01.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-10/slot-01.webp"
+    },
+    "assets/2026-09-10/slot-02.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-10/slot-02.webp"
+    },
+    "assets/2026-09-10/slot-03.png": {
+      "width": 720,
+      "height": 1280,
+      "webp_path": "assets/2026-09-10/slot-03.webp"
+    },
+    "assets/2026-09-11/slot-02.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-11/slot-02.webp"
+    },
+    "assets/2026-09-11/slot-03.png": {
+      "width": 720,
+      "height": 1280,
+      "webp_path": "assets/2026-09-11/slot-03.webp"
+    },
+    "assets/2026-09-12/slot-01.png": {
+      "width": 928,
+      "height": 1152,
+      "webp_path": "assets/2026-09-12/slot-01.webp"
+    },
+    "assets/2026-09-12/slot-02.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-12/slot-02.webp"
+    },
+    "assets/2026-09-12/slot-03.png": {
+      "width": 720,
+      "height": 1280,
+      "webp_path": "assets/2026-09-12/slot-03.webp"
+    },
+    "assets/2026-09-13/slot-01.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-13/slot-01.webp"
+    },
+    "assets/2026-09-13/slot-02.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-13/slot-02.webp"
+    },
+    "assets/2026-09-13/slot-03.png": {
+      "width": 789,
+      "height": 1402,
+      "webp_path": "assets/2026-09-13/slot-03.webp"
+    },
+    "assets/2026-09-14/slot-01.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-14/slot-01.webp"
+    },
+    "assets/2026-09-14/slot-02.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-14/slot-02.webp"
+    },
+    "assets/2026-09-14/slot-03.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-14/slot-03.webp"
+    },
+    "assets/2026-09-15/slot-01.png": {
+      "width": 928,
+      "height": 1152,
+      "webp_path": "assets/2026-09-15/slot-01.webp"
+    },
+    "assets/2026-09-16/slot-01.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-16/slot-01.webp"
+    },
+    "assets/2026-09-16/slot-02.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/2026-09-16/slot-02.webp"
     },
     "assets/backgrounds/local-store-depth.png": {
       "width": 1672,
@@ -616,6 +846,16 @@
       "width": 1672,
       "height": 941,
       "webp_path": "assets/backgrounds/premium-laundry-depth.webp"
+    },
+    "assets/services/fabric-storage-blanket-pilling.png": {
+      "width": 1123,
+      "height": 1401,
+      "webp_path": "assets/services/fabric-storage-blanket-pilling.webp"
+    },
+    "assets/services/fabric-storage-duvet-check.png": {
+      "width": 1122,
+      "height": 1402,
+      "webp_path": "assets/services/fabric-storage-duvet-check.webp"
     },
     "assets/services/fabric-storage-hero-product.png": {
       "width": 1672,

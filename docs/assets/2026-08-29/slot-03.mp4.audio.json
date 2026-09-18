@@ -1,5 +1,5 @@
 ﻿{
-    "narration":  true,
-    "generated_clip_audio_used":  false,
-    "source":  "post-ambient-bed"
+    "narration": false,
+    "generated_clip_audio_used": true,
+    "source": "native-model-audio"
 }

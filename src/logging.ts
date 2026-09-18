@@ -42,12 +42,63 @@ export async function readJsonFile<T>(filePath: string, fallback: T): Promise<T>
   }
 }
 
+// Windows hands out a sharing violation when something else has the file open
+// for a moment -- a virus scanner, a file indexer, a folder sync, the editor that
+// is showing it. Node surfaces those as EBUSY or the catch-all UNKNOWN with
+// errno -4094, and they clear on their own in well under a second.
+//
+// On 2026-09-18 one of them landed on docs/rss.xml at 06:30:03. The site
+// generator threw, the daily task refused to publish stale output, and the site
+// stayed on 2026-09-16 content for two days -- every post page for 09-17 and
+// 09-18 returning 404, so neither day's article could be indexed at all. The
+// same file locked the same job on 2026-09-08. A momentary lock should cost a
+// retry, not a day of a site being wrong.
+//
+// Only those two codes. EPERM and EACCES come from permanent causes -- wrong
+// permissions, or a rename whose target is a directory -- and retrying one of
+// those is not patience, it is fifteen seconds spent in front of an answer that
+// will never change. This list included them at first, and publishPages' mirror
+// -replacement test went from green to a 65-second failure; that is how it got
+// narrowed.
+const TRANSIENT_LOCK_CODES = new Set(["EBUSY", "UNKNOWN"]);
+// Roughly fifteen seconds in total. The ladder was half a second shorter at
+// first, which a probe holding a real FILE_SHARE_NONE handle showed was not
+// enough: the plain write died on EBUSY in 2ms and the retrying one still gave
+// up after 1.6s. Nothing here is time-critical -- the daily site refresh has
+// hours of slack -- so waiting out a scanner beats leaving the site a day stale.
+const LOCK_RETRY_DELAYS_MS = [25, 50, 100, 200, 400, 800, 1600, 3200, 4000, 4000];
+
+export async function retryOnTransientLock<T>(operation: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code ?? "";
+      if (attempt >= LOCK_RETRY_DELAYS_MS.length || !TRANSIENT_LOCK_CODES.has(code)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+}
+
+/** writeFile that rides out a momentary Windows sharing violation. */
+export async function writeFileResilient(
+  filePath: string,
+  data: string | Uint8Array,
+  encoding?: BufferEncoding
+): Promise<void> {
+  await retryOnTransientLock(() =>
+    typeof data === "string" ? writeFile(filePath, data, encoding ?? "utf8") : writeFile(filePath, data)
+  );
+}
+
 export async function writeJsonAtomic(filePath: string, value: unknown): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true });
   const tempPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
   try {
     await writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-    await rename(tempPath, filePath);
+    // The temp file is ours alone, but the destination is the one someone else
+    // may have open, so the rename is where a sharing violation lands.
+    await retryOnTransientLock(() => rename(tempPath, filePath));
   } finally {
     await unlink(tempPath).catch(() => undefined);
   }

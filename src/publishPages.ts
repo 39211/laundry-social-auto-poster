@@ -8,6 +8,7 @@ import { assertLocalSitemapHasNoFutureLastmod } from "./auditSitemap";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { docsContentCalendarPath, projectRoot, relativeAssetPath } from "./paths";
+import { regeneratePublicImageMetadataSync } from "./publicImageMetadata";
 import { getZonedDateParts } from "./scheduler";
 import { submitIndexNow } from "./submitIndexNow";
 
@@ -489,7 +490,8 @@ export function publishPagesAssets(
   date: string,
   root = projectRoot(),
   rootPagesRepo = "",
-  now: Date = new Date()
+  now: Date = new Date(),
+  options?: { env?: NodeJS.ProcessEnv }
 ): string {
   // Future-lastmod is a local fail-closed publish gate. It cannot be bypassed
   // by --skip-audit (public URL audit), IndexNow, warnings, or network state.
@@ -558,10 +560,22 @@ export function publishPagesAssets(
   const pathsToPublish = uniquePaths([...paths, ...referencedDocsPaths]);
   // Missing CNAME must still be staged on the source so a later clone cannot
   // resurrect it. Do not pass the missing path to the root mirror copy.
-  const sourcePathsToStage = uniquePaths([...pathsToPublish, ...sourceCnameTombstonePaths(root)]);
+  const imageMetadataPath = "docs-internal/public-image-metadata.json";
+  const sourcePathsToStage = uniquePaths([
+    ...pathsToPublish,
+    ...sourceCnameTombstonePaths(root),
+    imageMetadataPath
+  ]);
 
+  // Regen before the secret scan so the JSON is on disk and included in the
+  // scanned set. A bad PNG fails closed here (intentional): abort this tick.
+  // Site base is PUBLIC_SITE_BASE_URL only. PUBLIC_IMAGE_BASE_URL may be a
+  // separate CDN path and must not become the HTML/sitemap base.
+  regeneratePublicImageMetadataSync(root, {
+    env: options?.env ?? { PUBLIC_SITE_BASE_URL: process.env.PUBLIC_SITE_BASE_URL }
+  });
   assertNoForbiddenStagedPaths(root);
-  assertNoSecretsInPublishTargets(root, pathsToPublish);
+  assertNoSecretsInPublishTargets(root, uniquePaths([...pathsToPublish, imageMetadataPath]));
 
   gitAddPaths(root, sourcePathsToStage);
   // The mirror is what actually serves the public site, and it can be behind

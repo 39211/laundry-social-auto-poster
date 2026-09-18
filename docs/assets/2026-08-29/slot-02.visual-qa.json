@@ -1,0 +1,77 @@
+{
+  "topic": "細節拆解：返家鞋櫃味道通常從一雙開始，先看容易忽略的位置",
+  "date": "2026-08-29",
+  "slot": 2,
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "SCENE": "PASS",
+    "TOPIC_MATCH": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "四張皆可見同一雙深藍與淺色鞋底的帆布球鞋，鞋帶、接縫與鞋面磨損位置一致。",
+    "SCENE": "四張皆在粉紅工作墊與橫條板牆的同一櫃台場景拍攝。",
+    "TOPIC_MATCH": "四張主體都是一雙球鞋，符合主題中的鞋類物件。"
+  },
+  "frames_used": [
+    "slide-01.png",
+    "slide-02.png",
+    "slide-03.png",
+    "slide-04.png"
+  ],
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-02.png",
+      "canary": "ALMU",
+      "sha256": "94e479c676b39a3d64fc0e62f0db25d15fb2bb6cfaceacb20124991249a38369"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-02-slide-02.png",
+      "canary": "EN7G",
+      "sha256": "6fedc3001ef2433c9d244351246b2aad36111a78a7ff311a6bd74b3a13efd85c"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-02-slide-03.png",
+      "canary": "PHBX",
+      "sha256": "5ed87320051494cf9be8a6d95774834d04cb40fff771177b883f0f6762bfe427"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-02-slide-04.png",
+      "canary": "TZWR",
+      "sha256": "d949420b6a02f1c96445c2becc947bf80ba4040bcf9787ad9f1fc3f3a67a9ead"
+    }
+  ],
+  "sources": [
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-02.png",
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-02-slide-02.png",
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-02-slide-03.png",
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-02-slide-04.png"
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "ALMU",
+    "IMAGE_2": "EN7G",
+    "IMAGE_3": "PHBX",
+    "IMAGE_4": "TZWR"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "ALMU",
+    "IMAGE_2": "EN7G",
+    "IMAGE_3": "PHBX",
+    "IMAGE_4": "TZWR"
+  },
+  "prompt_hash": "60bdb16c2e7d48b98621d14e67ec4fd05b594d7e66186452e4f70b16cd66e5f5",
+  "run_id": "carousel-qa-1787947011083",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-28T19:57:54.192Z",
+  "mode": "warn",
+  "verdict": "FAIL_CLOSED",
+  "fail_class": "missing_observation"
+}

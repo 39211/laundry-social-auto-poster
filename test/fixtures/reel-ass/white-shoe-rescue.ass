@@ -1,0 +1,17 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 720
+PlayResY: 1280
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Narration,Microsoft JhengHei,40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H73000000,-1,0,0,0,100,100,0,0,3,6,0,2,20,20,84,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.49,0:00:02.94,Narration,,0,0,0,,膠邊的黃是氧化,刷不掉;
+Dialogue: 0,0:00:02.94,0:00:06.00,Narration,,0,0,0,,布面的黃是洗劑殘留,洗得回來。
+Dialogue: 0,0:00:06.00,0:00:08.04,Narration,,0,0,0,,兩種黃的做法不一樣,
+Dialogue: 0,0:00:08.04,0:00:09.67,Narration,,0,0,0,,拍照傳來就知道。

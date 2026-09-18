@@ -215,22 +215,28 @@ def gen_still(job_dir: Path, name: str, prompt_file: Path, refs: list[Path]) -> 
     if out.exists() and out.stat().st_size > 0:
         print(f"  skip {name}.png (exists)")
         return True
-    if not refs:
-        print(f"  FAIL {name}: no reference images")
-        return False
+    # An empty list is legitimate: the object-canon shot is generated from its
+    # written description alone, because nothing exists yet for it to match.
     for ref in refs:
         if not ref.exists():
             print(f"  FAIL {name}: reference {ref} missing")
             return False
+    # One reference pins one thing. A shot with the master in it needs the persona
+    # sheet AND the object canon, or whichever one is missing falls back to its text
+    # description -- which is how 2026-09-17 shipped a reel with three blankets in it.
+    #
+    # Getting more than one path into a [string[]] parameter needs -Command, not
+    # -File: -File hands every argument over as a plain string, so a comma-joined
+    # list arrives as one unfindable "a,b" path and separate argv entries are
+    # refused outright ("a positional parameter cannot be found"). -Command lets
+    # PowerShell parse a real @(...) array literal. Single quotes keep a path with
+    # a space in it intact, and '' escapes a quote inside one.
+    quoted = ",".join("'" + str(r).replace("'", "''") + "'" for r in refs)
+    ref_arg = f"-RefPath @({quoted}) " if refs else ""
     proc = run([
-        "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(AGY),
-        "-PromptFile", str(prompt_file),
-        # One reference pins one thing. A shot with the master in it needs the
-        # persona sheet AND the object canon, or whichever one is missing falls
-        # back to its text description -- which is how 2026-09-17 shipped a reel
-        # with three different blankets in it.
-        "-RefPath", ",".join(str(r) for r in refs),
-        "-OutFile", str(out), "-Aspect", "9:16",
+        "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+        f"& '{AGY}' -PromptFile '{prompt_file}' {ref_arg}"
+        f"-OutFile '{out}' -Aspect '9:16'",
     ])
     whole = (proc.stdout or "") + (proc.stderr or "")
     tail = whole[-400:]
@@ -283,12 +289,13 @@ def main() -> int:
             # the old one and still works, so 2026-09-15..17 jobs re-run unchanged.
             specs = plan.get("refs") or [plan["ref"]]
 
-            def resolve(spec: str) -> Path:
-                if spec in ("master-sheet", "none"):
-                    return master_sheet
-                return job_dir / spec
-
-            refs = [resolve(s) for s in specs]
+            # "none" means no reference at all, not "use the persona sheet". The
+            # object-canon shot has nothing to be consistent with yet, and standing
+            # the owner's sheet in for it puts his face on a shot written for a
+            # customer -- which is what the wallet reel's opening shot came back as
+            # on 2026-09-18.
+            refs = [master_sheet if s == "master-sheet" else job_dir / s
+                    for s in specs if s != "none"]
 
             # The object-continuity rule used to live only in prose, in
             # object_continuity_note, where nothing executed it: a shot could name
@@ -351,6 +358,14 @@ def main() -> int:
         raw = job_dir / shot["file"]
         if raw.exists() and raw.stat().st_size > 0:
             print(f"  skip {shot['file']} (exists)")
+            continue
+        # A shot with no anchor is a re-use, not a shot to generate: the closing
+        # beat is the opening one again (the film ends where it started), and the
+        # EDL trims shot-01-raw.mp4 to length rather than paying for a near-copy.
+        # Without this the run died on `KeyError: 'shot-07-anchor'` after every
+        # real clip had already been generated and paid for.
+        if f"shot-{index:02d}-anchor" not in job["anchor_plan"]:
+            print(f"  reuse {shot['file']} (no anchor; the master builder trims an earlier clip)")
             continue
         if not manifest.exists():
             built = compose_motion_manifest(persona, job, index, shot)

@@ -38,7 +38,13 @@ def main() -> int:
 
     sys.stdout.reconfigure(encoding="utf-8")
     sys.path.insert(0, str(HERMES_AGENT))
-    from plugins.video_gen import xai as video_xai  # noqa: E402
+    # The provider class, not the module-level run_xai_video_generation(): since the
+    # plugin was rewritten on 2026-09-05 that wrapper calls _generate_xai_video_async()
+    # without api_key or base_url and dies with a TypeError before any request is made.
+    # XAIVideoGenProvider.generate() routes through _run_xai_video(), which resolves the
+    # OAuth credentials first. The edit and extend wrappers were rewritten and still work;
+    # only the generation wrapper was left behind, and this is its only caller.
+    from plugins.video_gen.xai import XAIVideoGenProvider  # noqa: E402
 
     run = Path(args.run)
     manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8-sig"))
@@ -50,12 +56,9 @@ def main() -> int:
         return 1
 
     t0 = time.time()
-    result = video_xai.run_xai_video_generation(
-        prompt=str(manifest["prompt"]),
-        model=None,
-        explicit_model=False,
+    result = XAIVideoGenProvider().generate(
+        str(manifest["prompt"]),
         image_url=str(still),
-        reference_image_urls=None,
         duration=int(manifest.get("duration_seconds", 5) or 5),
         aspect_ratio=str(manifest.get("aspect_ratio", "9:16") or "9:16"),
         resolution=str(manifest.get("resolution", "720p") or "720p"),

@@ -210,17 +210,27 @@ def compose_motion_manifest(persona: dict, job: dict, index: int, shot: dict) ->
     }
 
 
-def gen_still(job_dir: Path, name: str, prompt_file: Path, ref: Path | None) -> bool:
+def gen_still(job_dir: Path, name: str, prompt_file: Path, refs: list[Path]) -> bool:
     out = job_dir / f"{name}.png"
     if out.exists() and out.stat().st_size > 0:
         print(f"  skip {name}.png (exists)")
         return True
-    if ref is None or not ref.exists():
-        print(f"  FAIL {name}: reference {ref} missing")
+    if not refs:
+        print(f"  FAIL {name}: no reference images")
         return False
+    for ref in refs:
+        if not ref.exists():
+            print(f"  FAIL {name}: reference {ref} missing")
+            return False
     proc = run([
         "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(AGY),
-        "-PromptFile", str(prompt_file), "-RefPath", str(ref), "-OutFile", str(out), "-Aspect", "9:16",
+        "-PromptFile", str(prompt_file),
+        # One reference pins one thing. A shot with the master in it needs the
+        # persona sheet AND the object canon, or whichever one is missing falls
+        # back to its text description -- which is how 2026-09-17 shipped a reel
+        # with three different blankets in it.
+        "-RefPath", ",".join(str(r) for r in refs),
+        "-OutFile", str(out), "-Aspect", "9:16",
     ])
     whole = (proc.stdout or "") + (proc.stderr or "")
     tail = whole[-400:]
@@ -269,11 +279,31 @@ def main() -> int:
                     return 1
                 prompt_file.write_text(compose_master_prompt(persona, job, framing), encoding="utf-8")
                 print(f"  wrote {prompt_file.name} from persona.framings[{framing}]")
-            ref_spec = plan["ref"]
-            ref = master_sheet if ref_spec == "master-sheet" else (
-                master_sheet if ref_spec == "none" else job_dir / ref_spec
-            )
-            if not gen_still(job_dir, name, prompt_file, ref):
+            # `refs` (a list) is the current spelling; `ref` (a single spec) is
+            # the old one and still works, so 2026-09-15..17 jobs re-run unchanged.
+            specs = plan.get("refs") or [plan["ref"]]
+
+            def resolve(spec: str) -> Path:
+                if spec in ("master-sheet", "none"):
+                    return master_sheet
+                return job_dir / spec
+
+            refs = [resolve(s) for s in specs]
+
+            # The object-continuity rule used to live only in prose, in
+            # object_continuity_note, where nothing executed it: a shot could name
+            # the persona sheet as its only reference and still look compliant.
+            # If the job says which anchor is the object canon, every later shot
+            # that shows a person has to carry it too.
+            canon = job.get("object_canon")
+            if canon and name != canon.replace(".png", "") and plan["who"] != "object":
+                if not any(r.name == canon for r in refs):
+                    print(f"  FAIL {name}: object canon {canon} is not among its references "
+                          f"({[r.name for r in refs]}). One reference pins one thing; a character "
+                          f"shot needs the persona sheet AND the object canon.")
+                    return 1
+
+            if not gen_still(job_dir, name, prompt_file, refs):
                 print("\nSTOPPED at stills. Re-run this same command to resume.")
                 return 2
 

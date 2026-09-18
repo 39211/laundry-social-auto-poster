@@ -1,10 +1,20 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
-import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
-import { hasApprovedPost, loadApprovalLog, readJsonFile, writeJsonAtomic } from "./logging";
+// Everything here writes into docs/, which is where a scanner, an indexer or a
+// sync client is most likely to be holding a file open for a moment. The
+// resilient writer rides that out instead of failing the run; see the note on
+// retryOnTransientLock in logging.ts for what it cost on 2026-09-18.
+import {
+  hasApprovedPost,
+  loadApprovalLog,
+  readJsonFile,
+  writeFileResilient as writeFile,
+  writeJsonAtomic
+} from "./logging";
 import {
   contentCalendarPath,
   docsContentCalendarPath,

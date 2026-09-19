@@ -20,6 +20,12 @@ GitHub 主任務：https://github.com/39211/laundry-social-auto-poster/issues/90
 
 TPLFIT 最新裁決：PASS_WITH_FOLLOWUPS。既有證據為 168 測試、405 回歸、80 突變；兩個獨立家族各抽查 60+18。這不是本次重新執行，也不代表 405 項全量人工審查或實片品質通過。comforter-wool/2、infant-quilt/7 來源限制仍保留。
 
+固定狀態：TPLFIT `PASS_WITH_FOLLOWUPS`；G0V5 `IN_PROGRESS`（僅準備，未通過驗收）；DATA1B-3 正式收尾、T2、T3 均為 `NOT_STARTED`。其他可用狀態為 `BLOCKED / REVIEW / PASS`，切換須附證據。
+
+本文件分支基線為 `0c299253ffea2fcc864c2612b2a891051e5fbb75`，不是產品實作的驗收版本。TPLFIT 規格 SHA-256 為 `7a4de12acdb10dcc467f01cc58fe3453f6e14774b0da9852ff15bac492e160e1`，產出契約 SHA-256 為 `47f307c188c1c6e4147597499cd1e8926e0054867c83de598baaeaa5805cceea`。其他任務的實作基線待現場證據包核定，不借用文件 commit 冒充。
+
+PR 對照：#87 為 T2 參考圖路徑，#89 為 T31 設備錨點並支援 T2，#88 為 W13 網站更新可靠性；三者目前未合併，不表示本批驗收完成。
+
 ## 既有任務完整 ID 索引
 
 下列是本專案總帳既有項目的摘要映射，不新增工作範圍、不覆蓋歷史決策。部分原項目已有局部成果或已結子項；此表不替它們重新判定完成。涉及衝突規格，以最新核准契約為準。T2/T3 見上表，其餘如下。

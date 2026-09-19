@@ -5076,9 +5076,9 @@ function buildUniqueValueSection(slug: string): string {
       </section>`;
 }
 
-function buildIndexGapRail(index: PublicPostIndex, currentSlug = ""): string {
+function buildIndexGapRail(index: PublicPostIndex, currentSlug = "", excludeServiceSlug = ""): string {
   const serviceItems = INDEX_GAP_MONEY_SLUGS.flatMap((slug) => {
-    if (slug === currentSlug) return [];
+    if (slug === currentSlug || slug === excludeServiceSlug) return [];
     const service = findServiceBySlug(slug);
     if (!service) return [];
     return [
@@ -5103,9 +5103,9 @@ function buildIndexGapRail(index: PublicPostIndex, currentSlug = ""): string {
   return `<section class="section" id="index-gap-rail" data-index-gap-rail>
         <div class="page-shell">
           <div class="section-header">
-            <span class="eyebrow">成交頁</span>
+            <span class="eyebrow">成交專頁</span>
             <h2>先看價目、收送、門市，再決定送洗</h2>
-            <p>這些頁目前搜尋還在收錄中。從已收錄頁連過去，是給要看價格、收送範圍、西屯門市或精品鞋判斷的人，不是再堆一篇指南。</p>
+            <p>送洗前先看清楚清潔費用與收送方式。私享家提供公開透明水洗參考價，台中市全區免費到府收送，西屯門市亦歡迎親送現場檢查材質。</p>
           </div>
           <ul>
             ${items.join("\n            ")}
@@ -8574,7 +8574,7 @@ ${serviceHeroLink}          </div>
         </div>
       </section>
       ${buildUniqueValueSection(page.slug)}
-      ${INDEXED_RAIL_SUPPORT_SLUGS.includes(page.slug as (typeof INDEXED_RAIL_SUPPORT_SLUGS)[number]) ? buildIndexGapRail(index, page.slug) : ""}
+      ${buildIndexGapRail(index, page.slug, page.service_slug)}
       <section class="section surface">
         <div class="page-shell">
           <div class="section-header">

@@ -167,8 +167,8 @@ function assertNoSecretsInPublishTargets(root: string, paths: string[]): void {
     /META_ACCESS_TOKEN\s*["']?\s*[:=]/i,
     /CLOUDINARY_URL\s*["']?\s*[:=]/i,
     /SUPABASE_SERVICE_ROLE_KEY\s*["']?\s*[:=]/i,
-    /sk-[A-Za-z0-9_-]{20,}/,
-    /EAA[A-Za-z0-9]{20,}/
+    /\bsk-[A-Za-z0-9_-]{20,}/,
+    /\bEAA[A-Za-z0-9]{20,}/
   ];
 
   const files = paths.flatMap((path) => collectFiles(root, path)).filter(isTextPublishFile);

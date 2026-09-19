@@ -131,7 +131,10 @@ export const PROTECTED_LIVE_COHORT_SLUGS = [
 ] as const;
 
 export const PROTECTED_LIVE_COHORT_HASHES: Record<(typeof PROTECTED_LIVE_COHORT_SLUGS)[number], string> = {
-  "luggage-wheel-cleaning": "d0c13debf21d1087db91ea7b12d1e7ff336f4d302e7925c27ceffd6d5d1c0905",
+  // Re-frozen 2026-09-20 on owner's instruction to unfreeze and update title & description
+  // for high-ranking zero-click luggage query (pos 9.4, 12 impressions, 0 clicks)
+  // adding '傳照片先估價・免運收送・一件也收' hooks to capture clicks.
+  "luggage-wheel-cleaning": "a2cf879ea2c113192564fa9a2d3a466330e8e29ea1fb86a59c6386c1c316aa5b",
   "curtain-cleaning": "20fff04cbca946d659f10ff633360cde67abe56392bcd143641db9b86d1d405b",
   "carpet-cleaning": "44b570616fee285c8fad2401153e94ad5bd2c7f7679477623659f808c7507863",
   "fengjia-laundry-pickup": "7c5e06aa9869c82bc30e220f03e0a20d349ee0114e72b40a213738f413027fb7",

@@ -1419,7 +1419,7 @@ const AEO_CLOTHING_ALTERATION = "送洗時若同時需要修改，可以一起�
 const AEO_BAG_HANDLE = "提把發黏是手汗堆的；滲進皮層只能淡化，還沒變色現在處理較省。";
 const AEO_NANTUN_LAUNDRY = "南屯生活圈可約免費收送；大樓管理室代收代送，厚被與換季衣物先傳照片。";
 const AEO_NORTH_DISTRICT_LAUNDRY = "台中北區可約免費收送；中國醫與科博館生活圈，工作服與厚被先傳照片。";
-const AEO_LAUNDRY_PARTNER_SHOWCASE = "洗衣店引流先做給你看；門市與全區收送真實數據，同業交流回傳同行。";
+const AEO_LAUNDRY_PARTNER_SHOWCASE = "我自己就是洗衣店老闆，我先把自己的店做給你看；門市與全區收送真實數據，同業交流回傳同行。";
 
 const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
   {
@@ -1713,9 +1713,9 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     category: "guide",
     // 排名 8.8、32 次曝光、點擊 0。舊標題 29 個全形字會在搜尋結果被截斷,而
     // 真正有曝光的查詢是「皮衣發霉洗衣店」,標題卻用「皮衣可以洗嗎」開頭。
-    title: "皮衣發霉還能救嗎？先分真皮、合成皮、麂皮｜私享家洗衣店",
+    title: "皮衣發霉怎麼辦？台中皮衣清洗保養・傳照片先估價・一件也收｜私享家",
     description:
-      "皮衣發霉能不能救，取決於霉是浮在表面還是已經吃進毛孔。真皮、合成皮、麂皮三種的處理方式完全不同，用酒精或濕布用力擦會破壞油脂層、乾了反而更硬。私享家洗衣店（台中西屯青海路二段365號）先看再報價，台中全市免費收送。",
+      "皮衣發霉千萬別用酒精或濕布硬擦！私享家依真皮、合成皮、麂皮專業除霉補油。加 LINE 傳照片先估價與說明界線，台中市全區免費到府收送、一件也收，門市在西屯青海路。",
     h1: "皮衣清潔保養：發霉、變硬、色差怎麼判斷？",
     citation_answer:
       "皮衣發霉能不能救，取決於霉是浮在表面還是已經吃進毛孔。真皮、合成皮、麂皮三種的處理方式完全不同。最傷的動作是拿濕布或酒精用力擦：那會把霉推進毛孔，還會破壞油脂層，乾了之後皮面更硬也更花。",
@@ -1723,7 +1723,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["皮衣保養", "皮衣清潔", "台中皮衣保養", "皮衣發霉", "皮衣可以洗嗎", "皮衣送洗"],
     service_slug: "shoe-bag-care",
     local_intent: "台中 皮衣保養 皮衣清潔 皮衣發霉",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-09-20",
     steps: [
       { name: "先分材質", text: "真皮、合成皮（PU/PVC）和麂皮的清潔方式完全不同。看洗標或內裡標籤，不確定就拍照來問。" },
       { name: "看霉點範圍", text: "表面白霉多半能處理；霉根吃進皮層或內裡的，能改善的程度要先評估，處理前會先講界線。" },
@@ -2050,9 +2050,9 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     path: "guides/plush-doll-cleaning.html",
     category: "guide",
     service_slug: "taichung-xitun-laundry",
-    title: "台中絨毛娃娃清洗店？先看填充與五官｜私享家洗衣店",
+    title: "台中絨毛娃娃清洗店：玩偶手洗低溫烘・傳照片先估價・一隻也收｜私享家",
     description:
-      "台中找絨毛娃娃清洗店，先看填充、五官與配件能不能洗。私享家洗衣店（台中市西屯區青海路二段365號）手洗低溫烘，不保證完全恢復。",
+      "大隻娃娃髒了不敢丟洗衣機？私享家專業手洗、保護五官配件與填充棉低溫慢烘。加 LINE 傳娃娃照片先估價；門市在西屯青海路，台中市全區免費到府收送、一隻也收。",
     h1: "台中哪裡洗絨毛娃娃？先看能不能洗",
     summary: AEO_PLUSH_DOLL_BOUNDARY,
     citation_answer: AEO_PLUSH_DOLL_BOUNDARY,
@@ -2066,7 +2066,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "西屯洗衣店"
     ],
     local_intent: "台中西屯 娃娃清洗 絨毛玩偶清潔",
-    content_lastmod: "2026-08-29",
+    content_lastmod: "2026-09-20",
     steps: [
       { name: "拍正反面與配件", text: "正反面、五官、刺繡、吊牌、黏貼物與破損位置都先拍清楚。" },
       { name: "確認填充物狀態", text: "若有硬塊、潮味、掉毛或填充不均，先一併說明。" },
@@ -2110,9 +2110,9 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     path: "guides/luxury-dry-cleaning.html",
     category: "guide",
     service_slug: "taichung-xitun-laundry",
-    title: "台中西屯精品名牌與精緻乾洗｜私享家洗衣店",
+    title: "精品衣服送洗？名牌服飾精緻乾洗・傳照片先估價・一件也收｜私享家",
     description:
-      "私享家洗衣店（台中市西屯區青海路二段365號）提供精品名牌服飾、配件與精緻材質送洗前判斷：先確認材質、洗標、五金、飾件與污漬位置，台中市西屯精緻乾洗。",
+      "名牌精品衣服送洗最怕洗壞五金與面料縮水。私享家依洗標與面料精緻乾洗，不盲目機洗。加 LINE 傳照片先估價與確認界線；門市在西屯青海路，台中市全區免費到府收送、一件也收。",
     h1: "精品名牌與精緻乾洗",
     summary: AEO_LUXURY_DRY,
     citation_answer: AEO_LUXURY_DRY,
@@ -2125,7 +2125,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "精品清潔"
     ],
     local_intent: "台中西屯 精品乾洗 名牌衣服清潔 精緻乾洗",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-09-20",
     steps: [
       { name: "拍洗標與細節", text: "洗標、材質、五金、飾件、內襯與污漬位置都應清楚拍下。" },
       { name: "說明既有痕跡", text: "舊污漬、磨損、褪色、變形或曾自行處理的地方都先告知。" },
@@ -2396,16 +2396,16 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "luggage-wheel-cleaning",
     path: "guides/luggage-wheel-cleaning.html",
     category: "guide",
-    title: "行李箱輪子、底板怎麼清？｜台中洗行李箱 私享家洗衣店",
+    title: "台中洗行李箱：輪子底板深層清潔除味・傳照片先估價・免運收送｜私享家",
     description:
-      "私享家洗衣店（台中市西屯區青海路二段365號）判斷行李箱輪子、底板與布面：旅行回來先看輪邊泥灰，不要帶著地面髒污直接推進櫃子。台中市可免費收送。",
+      "出國回台行李箱輪子底板卡滿泥灰、箱內有悶味？不用自己扛出門！私享家提供行李箱深層清潔除味，加 LINE 傳照片先估價；門市在西屯青海路，台中市全區免費到府收送、一件也收。",
     h1: "行李箱輪子與底板：收進櫃子前先看這裡",
     summary: AEO_LUGGAGE_WHEELS,
     citation_answer: AEO_LUGGAGE_WHEELS,
     keywords: ["台中洗行李箱", "行李箱清潔", "行李箱輪子", "洗行李箱", "行李袋清洗"],
     service_slug: "shoe-bag-care",
     local_intent: "台中西屯 行李箱清潔 輪子 底板",
-    content_lastmod: "2026-08-29",
+    content_lastmod: "2026-09-20",
     steps: [
       { name: "拍輪子與底板", text: "輪邊、輪軸縫與底板近照各一張，才看得出是浮灰、泥塊還是已經悶進布面。" },
       { name: "拍布面與把手", text: "箱體布面、伸縮把手與側把分開拍；外觀乾淨不代表輪子乾淨。" },
@@ -2862,13 +2862,13 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     category: "local",
     title: "南屯洗衣店？免費到府收送，門市在西屯｜私享家洗衣店",
     description:
-      "南屯一帶沒有門市，改用台中市全區免費到府收送：一件也收、沒有最低消費。文心森林公園、捷運綠線沿線與八期大樓，厚被床組、換季衣物先用 LINE 傳照片報價，門市在西屯青海路二段365號。",
+      "南屯一帶沒有門市，改用台中市全區免費到府收送：一件也收、沒有最低消費。文心森林公園、捷運沿線、八期大樓與七期南側，厚被床組、換季衣物先用 LINE 傳照片報價，門市在西屯青海路二段365號。",
     h1: "南屯洗衣店？門市在西屯，一件也收、免費到府收送",
     summary: AEO_NANTUN_LAUNDRY,
     citation_answer: AEO_NANTUN_LAUNDRY,
-    keywords: ["南屯洗衣", "南屯洗衣店", "南屯洗衣收送", "文心森林公園洗衣", "八期洗衣"],
+    keywords: ["南屯洗衣", "南屯洗衣店", "南屯洗衣收送", "文心森林公園洗衣", "八期洗衣", "七期南側洗衣"],
     service_slug: "taichung-citywide-laundry-pickup",
-    local_intent: "南屯 洗衣收送 文心森林公園 八期 大樓管理室",
+    local_intent: "南屯 洗衣收送 文心森林公園 八期 七期南側 大樓管理室",
     content_lastmod: "2026-09-20",
     steps: [
       { name: "先分品項類別", text: "日常換季衣物、厚棉被羽絨被、落地窗簾或地毯分開整理。南屯大樓住宅多為厚件寢具，先清點件數。" },
@@ -2880,7 +2880,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       {
         heading: "南屯生活圈與西屯門市的收送連結",
         body:
-          "文心森林公園、捷運水安宮站、南屯站、八期重劃區與好市多周邊住宅都在台中市，屬於我們全區免費到府收送的正式範圍。私享家的實體門市在西屯區青海路二段365號（至善國中對面）。南屯居民不需要自行載著大包棉被跨區跑門市，直接利用到府收送最省力。南屯大樓住戶最常送洗的是家庭大件：雙人厚被、床包被套、落地窗簾與羊毛大衣，而不是學區的小件薄衣。洗鞋若需要可同時預約；本頁專注說明南屯住宅區布品與衣物如何預約。"
+          "文心森林公園、捷運水安宮站、南屯站、八期重劃區、七期南側住宅群與好市多周邊住宅都在台中市，屬於我們全區免費到府收送的正式範圍。私享家的實體門市在西屯區青海路二段365號（至善國中對面）。南屯居民不需要自行載著大包棉被跨區跑門市，直接利用到府收送最省力。南屯大樓住戶最常送洗的是家庭大件：雙人厚被、床包被套、落地窗簾與羊毛大衣，而不是學區的小件薄衣。洗鞋若需要可同時預約；本頁專注說明南屯住宅區布品與衣物如何預約。"
       },
       {
         heading: "大樓管理室代收代送怎麼配合",
@@ -2982,10 +2982,10 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "laundry-partner-showcase",
     path: "guides/laundry-partner-showcase.html",
     category: "guide",
-    title: "洗衣店如何做好線上引流？私享家示範店營運與獲客公開｜私享家洗衣店",
+    title: "我自己就是洗衣店老闆，我先把自己的店做給你看｜私享家示範店引流公開",
     description:
       "我自己就是洗衣店老闆。我先把自己的店做給你看，再跟你談這些方法能不能用在你的店。公開私享家在台中門市與全區免費收送的真實引流、SEO 與接待數據，歡迎同業交流。",
-    h1: "洗衣店老闆親自示範：從門市到全區收送的真實引流與營運系統",
+    h1: "我自己就是洗衣店老闆，我先把自己的店做給你看",
     summary: AEO_LAUNDRY_PARTNER_SHOWCASE,
     citation_answer: AEO_LAUNDRY_PARTNER_SHOWCASE,
     keywords: ["洗衣店引流", "洗衣店行銷", "洗衣店線上接單", "洗衣店加盟轉型", "洗衣同業合作"],

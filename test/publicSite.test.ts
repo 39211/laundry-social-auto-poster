@@ -1870,9 +1870,9 @@ describe("generatePublicSite", () => {
     );
     // Money pages are the indexable surface; caption/post pages are out of the
     // sitemap entirely (rescued 190d063 design). Date is ours: the static
-    // knowledge hub lastmod follows the newest child (owner shoe case 2026-09-14).
+    // knowledge hub lastmod follows the newest child (Phase 3 pages 2026-09-20).
     expect(sitemap1).not.toContain("/posts/");
-    expect(sitemap1).toMatch(/knowledge\/<\/loc><lastmod>2026-09-14<\/lastmod>/);
+    expect(sitemap1).toMatch(/knowledge\/<\/loc><lastmod>2026-09-20<\/lastmod>/);
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
@@ -2270,6 +2270,9 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain(`${baseUrl}/local/fengjia-laundry-pickup.html`);
     expect(homepage).toContain(`${baseUrl}/local/zhongke-office-laundry.html`);
     expect(homepage).toContain(`${baseUrl}/local/donghai-laundry-pickup.html`);
+    expect(homepage).toContain(`${baseUrl}/local/nantun-laundry-pickup.html`);
+    expect(homepage).toContain(`${baseUrl}/local/north-district-laundry-pickup.html`);
+    expect(homepage).toContain(`${baseUrl}/guides/laundry-partner-showcase.html`);
     expect(sitemap).not.toContain("/posts/");
   });
 
@@ -2457,7 +2460,7 @@ describe("generatePublicSite", () => {
     const locs = sitemapLocs(sitemap);
     const acceptedCount = publicAcceptedIndexGrowthCount();
     const baseline = publicSourceBaselineUrlCount();
-    expect(baseline).toBe(33);
+    expect(baseline).toBe(36);
     expect(locs).toHaveLength(baseline + acceptedCount + 1);
     expect(locs.some((url) => url.includes("/posts/"))).toBe(false);
     expect(locs.some((url) => url.endsWith(".json"))).toBe(false);

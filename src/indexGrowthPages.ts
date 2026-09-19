@@ -336,7 +336,10 @@ export const EXISTING_SUPPORT_HUB_GROUPS: Record<string, IndexGrowthHubGroup> = 
   "carpet-cleaning": "textiles",
   "fengjia-laundry-pickup": "local",
   "zhongke-office-laundry": "local",
-  "donghai-laundry-pickup": "local"
+  "donghai-laundry-pickup": "local",
+  "nantun-laundry-pickup": "local",
+  "north-district-laundry-pickup": "local",
+  "laundry-partner-showcase": "decisions"
 };
 
 export function frozenSourceRecordHash(record: {

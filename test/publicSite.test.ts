@@ -874,7 +874,10 @@ describe("generatePublicSite", () => {
     expect(fabricStorageHtml).toContain("https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-hero-product.png");
     expect(fabricStorageHtml).toContain("外套、寢具與布品收納前檢查主圖");
     expect(fabricStorageHtml).toContain("AI 生成的高擬真產品風格主圖");
-    expect(taichungXitunLaundryHtml).toContain("<title>台中西屯洗衣店在哪？青海路門市、逢甲怎麼到｜私享家洗衣店</title>");
+    expect(taichungXitunLaundryHtml).toContain("<title>台中西屯洗鞋洗衣店在哪？逢甲青海路門市、至善國中對面，提供衣物鞋包精緻洗護｜私享家</title>");
+    expect(taichungXitunLaundryHtml).toContain(
+      'name="description" content="尋找台中西屯或逢甲洗衣洗鞋店？私享家門市位於青海路二段365號（至善國中對面）。專業判斷鞋包材質、白鞋泛黃與衣物乾水洗，全台中市亦提供免費到府收件。"'
+    );
     expect(taichungXitunLaundryHtml).toContain("<h1>台中西屯洗衣店在哪？</h1>");
     expect(taichungXitunLaundryHtml).toContain("台中市西屯區青海路二段365號");
     // The old string was part of an answer_summary that opened with the shop
@@ -899,7 +902,10 @@ describe("generatePublicSite", () => {
     expect(taichungXitunLaundryHtml).toContain(
       "https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-inspection.png"
     );
-    expect(taichungCitywidePickupHtml).toContain("<title>台中洗衣收送怎麼約？全市免費、沒有最低消費｜私享家洗衣店</title>");
+    expect(taichungCitywidePickupHtml).toContain("<title>台中洗衣收送怎麼約？一件也收、全市免運費！預約流程與收送範圍說明｜私享家</title>");
+    expect(taichungCitywidePickupHtml).toContain(
+      'name="description" content="不用出門！私享家提供台中市全區免費到府收送洗衣、洗鞋、洗包，一件即可預約，無最低消費金額限制。先用LINE傳照片確認材質狀態，專人到府收件免運費。"'
+    );
     expect(taichungCitywidePickupHtml).toContain("<h1>台中洗衣收送怎麼約？</h1>");
     expect(taichungCitywidePickupHtml).toContain("台中市");
     expect(taichungCitywidePickupHtml).toContain("收送本身免費");
@@ -1842,6 +1848,10 @@ describe("generatePublicSite", () => {
 
     expect(homepage).toContain(`href="${businessBulkUrl}"`);
     expect(homepage).toContain("店家與公司大量送洗");
+    expect(businessBulkHtml).toContain("<title>台中公司團體衣物送洗怎麼算？制服・工作服・床組批量清潔，台中全區收送｜私享家</title>");
+    expect(businessBulkHtml).toContain(
+      'name="description" content="台中店家、公司、工作室大量制服、毛巾、床組送洗。私享家提供台中市全區免費收送，依品項與件數彈性報價，LINE傳清單與照片即可快速安排。"'
+    );
     expect(businessBulkHtml).toContain("<h1>台中店家・公司大量衣物送洗</h1>");
     expect(businessBulkHtml).toContain("台中市全區免費收送");
     expect(businessBulkHtml).toContain("清潔與洗護費用另依實際物件判斷");
@@ -2289,7 +2299,10 @@ describe("generatePublicSite", () => {
     const whiteShoeHtml = await readFile(join(root, "docs", "services", "white-shoe-cleaning.html"), "utf8");
 
     // R6① path + title target words
-    expect(html).toContain("<title>台中洗衣價目表｜洗鞋洗包多少錢？襯衫 $70・運動鞋 $250｜私享家洗衣店</title>");
+    expect(html).toContain("<title>台中洗衣洗鞋多少錢？2026價目表公開：襯衫$70起、白鞋$250、名牌包$1500起｜私享家</title>");
+    expect(html).toContain(
+      'name="description" content="洗衣服、洗鞋、洗包多少錢？私享家公開台中洗衣價格：一般運動鞋$250、襯衫水洗$70。台中全市免費到府收送、不設低消門檻，LINE傳照片立即線上預估清潔費用。"'
+    );
     expect(html).toContain("<h1>台中洗衣價目表</h1>");
     expect(html).toContain("台中洗鞋價格");
     expect(html).toContain("洗包包多少錢");

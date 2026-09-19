@@ -39,3 +39,23 @@ if ($exit -ne 0) {
 } else {
     Write-Log "Done."
 }
+
+# LINE-click collection alone cannot verify whether Google organic or an AI
+# referral produced a session. Record that separate read-only GA4 view in the
+# same scheduled window; a missing OAuth scope is written as unmeasured, never
+# as a false zero, and does not alter the LINE ledger.
+Write-Log "Collecting GA4 organic and AI referral traffic for $date."
+Push-Location $root
+$outAi = cmd /c "npm.cmd run ga4-ai-traffic -- --date $date --no-fail 2>&1"
+$exitAi = $LASTEXITCODE
+Pop-Location
+$outAi | ForEach-Object { Write-Log $_ }
+$aiText = $outAi -join [Environment]::NewLine
+
+if ($exitAi -ne 0) {
+    Write-Log "ga4-ai-traffic exited $exitAi; organic and AI traffic remain unmeasured."
+} elseif ($aiText -match '"skipped"\s*:\s*true') {
+    Write-Log "ga4-ai-traffic reported unmeasured; no zero was recorded."
+} else {
+    Write-Log "Done."
+}

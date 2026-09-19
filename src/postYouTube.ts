@@ -185,8 +185,10 @@ export function guideLinkFor(topic: string): string {
   if (/白鞋|泛黃/.test(topic)) return `${SITE}/guides/white-shoe-yellowing.html`;
   if (/雨|淋濕|進水/.test(topic)) return `${SITE}/guides/rainy-shoe-care.html`;
   if (/鞋|靴/.test(topic)) return `${SITE}/services/white-shoe-cleaning.html`;
-  if (/行李箱|行李/.test(topic)) return `${SITE}/guides/bag-handle-cleaning.html`;
+  if (/行李箱|行李/.test(topic)) return `${SITE}/guides/luggage-wheel-cleaning.html`;
   if (/包|提把|包角|背包/.test(topic)) return `${SITE}/guides/bag-handle-cleaning.html`;
+  if (/窗簾/.test(topic)) return `${SITE}/guides/curtain-cleaning.html`;
+  if (/地毯/.test(topic)) return `${SITE}/guides/carpet-cleaning.html`;
   if (/皮衣|皮革|發霉/.test(topic)) return `${SITE}/guides/leather-jacket-care.html`;
   if (/羽絨/.test(topic)) return `${SITE}/guides/down-jacket-cleaning.html`;
   if (/西裝|襯衫|肩線|領口/.test(topic)) return `${SITE}/guides/shirt-suit-dry-cleaning.html`;
@@ -447,7 +449,7 @@ async function runAuthFlow(root: string): Promise<void> {
       consent.searchParams.set("client_id", clientId);
       consent.searchParams.set("redirect_uri", `http://127.0.0.1:${port}`);
       consent.searchParams.set("response_type", "code");
-      consent.searchParams.set("scope", "https://www.googleapis.com/auth/youtube.upload");
+      consent.searchParams.set("scope", "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly");
       consent.searchParams.set("access_type", "offline");
       consent.searchParams.set("prompt", "consent");
       console.log("\n請用瀏覽器開啟以下網址完成授權：\n");

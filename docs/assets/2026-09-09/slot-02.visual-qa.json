@@ -1,0 +1,77 @@
+{
+  "topic": "送洗前先問：七夕約會後白鞋包包檢查，門市會先確認什麼",
+  "date": "2026-09-09",
+  "slot": 2,
+  "axes": {
+    "OBJECT_IDENTITY": "FAIL",
+    "SCENE": "PASS",
+    "TOPIC_MATCH": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "依各張主要物件宣告，第1張為灰色針織球鞋，第2至4張為米色或灰色麂皮包，類別、色系與粗材質不一致。",
+    "SCENE": "四張均呈現金屬工作檯與白色磁磚牆，屬同一場景家族。",
+    "TOPIC_MATCH": "宣告的物件集合包含球鞋與包，對應題目的鞋與包包。"
+  },
+  "frames_used": [
+    "slide-01.png",
+    "slide-02.png",
+    "slide-03.png",
+    "slide-04.png"
+  ],
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-02.png",
+      "canary": "N5V9",
+      "sha256": "41963a23a961ed3cb8b4d28fe27b5cb34db8fe36726d60aee6877d081dcae7f3"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-02-slide-02.png",
+      "canary": "PJGM",
+      "sha256": "368fba7b82ab1d738657c4b5a897b260762e976f49b06e821efe2c9d7b7db0e6"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-02-slide-03.png",
+      "canary": "M2VF",
+      "sha256": "766c55c4ed1613135ce58db6df3b17c76fb82c16f756129fb5c954b93e8301e1"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-02-slide-04.png",
+      "canary": "9HZX",
+      "sha256": "e7e91ed776ea64a8b0db2b9523c60354a11228604fd1f77eeb8a89733ac34ec1"
+    }
+  ],
+  "sources": [
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-02.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-02-slide-02.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-02-slide-03.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-02-slide-04.png"
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "N5V9",
+    "IMAGE_2": "PJGM",
+    "IMAGE_3": "M2VF",
+    "IMAGE_4": "9HZX"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "N5V9",
+    "IMAGE_2": "PJGM",
+    "IMAGE_3": "M2VF",
+    "IMAGE_4": "9HZX"
+  },
+  "prompt_hash": "da3015dc7e0421ba9f074f00932d3efbb7372de64cf61988353aa055f04c7c2d",
+  "run_id": "carousel-qa-1788748424337",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-09-07T02:36:14.149Z",
+  "mode": "warn",
+  "verdict": "FAIL_CLOSED",
+  "fail_class": "missing_observation"
+}

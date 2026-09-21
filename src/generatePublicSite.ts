@@ -1,6 +1,7 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { assertSeo90Destinations, existingSeo90Paths, loadPublicSeo90 } from "./seo90/publicBundle";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
@@ -85,6 +86,7 @@ interface PublicPost {
 }
 
 interface PublicPostIndex {
+  seo90?: {dailyIndexPath: string; sitemapEntries: string[]; relatedByService: Record<string,{title:string;path:string}[]>};
   generated_at: string;
   site_name: string;
   description: string;
@@ -5402,7 +5404,7 @@ function buildSitemapXml(index: PublicPostIndex): string {
       ]
     : [];
   const uniqueUrls = Array.from(new Set(urls));
-  const items = uniqueUrls.map((url) => sitemapUrlEntry(url, index)).join("\n");
+  const items = [...uniqueUrls.map((url) => sitemapUrlEntry(url, index)), ...(index.seo90?.sitemapEntries ?? [])].join("\n");
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -7434,7 +7436,7 @@ function renderSiteHeader(index: PublicPostIndex, options: SiteChromeOptions): s
           ${headerNavServices().map(
             (service) => `<a href="${escapeHtml(options.serviceHref(service))}">${escapeHtml(service.name)}</a>`
           ).join("\n          ")}
-          <a href="${escapeHtml(options.knowledgeHref)}">洗護知識庫</a>
+          <a href="${escapeHtml(options.knowledgeHref)}">洗護知識庫</a>${index.seo90?.dailyIndexPath ? `\n          <a href="${escapeHtml(index.seo90.dailyIndexPath)}">送洗前筆記</a>` : ""}
           <a href="${escapeHtml(options.lineNavHref)}">LINE 預約</a>
         </nav>
       </div>
@@ -8444,7 +8446,7 @@ function buildServicePageHtml(service: ServicePageDefinition, index: PublicPostI
   </head>
   <body ${searchAnalyticsBodyAttributes("service", service.slug)}>
     ${renderSiteHeader(index, chrome)}
-    <main>
+    <main>${(index.seo90?.relatedByService["/" + servicePagePath(service)] ?? []).length ? `<section class="section"><h2>送洗前實用筆記</h2><ul>${index.seo90!.relatedByService["/" + servicePagePath(service)]!.map(link => `<li><a href="${escapeHtml(link.path)}">${escapeHtml(link.title)}</a></li>`).join("")}</ul></section>` : ""}
       <nav class="breadcrumb" aria-label="麵包屑">
         <ol>
           <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
@@ -9170,6 +9172,17 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     posts,
     article_posts: articlePosts
   };
+  const seo90ReservedPaths = await existingSeo90Paths(join(root, "docs"));
+  for (const post of articlePosts) seo90ReservedPaths.add(new URL(post.article_url, siteBaseUrl || "https://invalid.local").pathname);
+  const seo90 = await loadPublicSeo90(root, {
+    now: new Date(Date.parse(generatedAt) + 8 * 3600000).toISOString().replace(/\.\d{3}Z$/, "+08:00"),
+    baseUrl: siteBaseUrl ?? "",
+    existingPaths: seo90ReservedPaths,
+    existingIds: new Set(posts.map(post => post.id))
+  });
+  if (!seo90.pages.length && seo90ReservedPaths.has('/daily/index.html')) throw Error('SEO90_RELEASE_RECONCILIATION_REQUIRED');
+  await assertSeo90Destinations(root, seo90.pages);
+  if (seo90.dailyIndexPath) index.seo90 = {dailyIndexPath:seo90.dailyIndexPath, sitemapEntries:seo90.sitemapEntries, relatedByService:seo90.relatedByService};
   index.open_graph = buildOpenGraph(index);
 
   const latestDate = index.latest_date;
@@ -9309,9 +9322,17 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     SUPPORT_PAGE_DEFINITIONS.map((page) => writeFile(join(docsRoot, page.path), buildSupportPageHtml(page, index), "utf8"))
   );
   const postArticleOutputs = await writePostArticlePages(articlePosts, index, postsRoot);
+  // The formal generator is the sole writer; internal hold diagnostics never enter docs.
+  const seo90Outputs: string[] = [];
+  for (const page of seo90.pages) {
+    const target = join(docsRoot, page.path.slice(1));
+    await mkdir(dirname(target), {recursive:true});
+    await writeFile(target, page.bytes);
+    seo90Outputs.push(target);
+  }
   await writeFile(outputs.nojekyll, "", "utf8");
 
-  return [...Object.values(outputs), ...postArticleOutputs];
+  return [...Object.values(outputs), ...postArticleOutputs, ...seo90Outputs];
 }
 
 async function main(): Promise<void> {

@@ -1,0 +1,10 @@
+import {readFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {buildSeo90} from '../src/seo90/buildSeo90';
+import type {Bundle} from '../src/seo90/types';
+const [source,assets,out]=process.argv.slice(2);
+if(!source||!assets||!out)throw Error('Usage: tsx scripts/seo90-preview.ts PRIVATE_BUNDLE ASSET_ROOT EMPTY_OUTPUT_ROOT');
+const bundle:Bundle=JSON.parse(await readFile(resolve(source),'utf8'));
+const result=await buildSeo90(bundle,{mode:'preview',assetRoot:resolve(assets),outputRoot:resolve(out),now:new Date().toISOString()});
+console.log(JSON.stringify({previewPages:result.pages.length,held:result.held}));
+if(result.held.length)process.exitCode=2;

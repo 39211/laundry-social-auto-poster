@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "productBaseline": "460cfec4aac65d2cc77fcff1abbbfd429bb059e4",
+  "gateVerdict": "GO_CONTRACT_ONLY",
+  "productVerdict": "NO_GO_RELEASE_RECONCILIATION",
+  "productPassed": 2,
+  "productTotal": 6,
+  "notSignature": true,
+  "files": {
+    ".gitattributes": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
+    "baseline-20260922.json": "237071f2f9410556a15776e3c7056453c81bf132cc229527242d1508d08c32f7",
+    "evidence/release-contract-baseline-r1.log": "1223990026cb02b5755d9a4766173ba89a8876d2ffd16192f7276c4847d6244b",
+    "evidence/release-contract-baseline-r6.json": "237071f2f9410556a15776e3c7056453c81bf132cc229527242d1508d08c32f7",
+    "evidence/release-contract-baseline-r6.log": "c7fb726b56b8ea8255cc76727fe1623010ef5a0ccd720803e2655c30e43b1ce8",
+    "evidence/release-contract-first-run-note.md": "ae9d0d8e72ec063a011f56376437bd60e5ecae62aeead9fbd99b11e3f276de87",
+    "evidence/release-contract-independent-20260922.zip": "52e94f39ca478a864b67748bc6e9e024132b328c42db8a8ebefbf10e281fe68e",
+    "evidence/release-contract-independent-review.md": "d43c56512f6e441a5866a867e2d78111bb31866ceb333223449e9b939a00e09c",
+    "evidence/release-contract-typecheck-r5.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "evidence/W6-GATE-BASELINE.md": "f2325672aade7b26869cef8ac9836d8c80ca99f3592a0d75935064b131cc99f9",
+    "NEXT-WRITER-CONTRACT.md": "324035bbf8bbdabcae042b59b70abb8077108593e3e38d6528ca412d5169bd7e",
+    "README.md": "41cb91cdeafd7c1878b59b21a0dc5a15e460cfb80e93fcf45a706206d9c9fe53",
+    "seo90ReleaseGate.ts": "aa244fed66158d17543b748b08513f3d101fdab85bac671b1e1b31e3424cae3c",
+    "tsconfig.json": "11f27e3d39190501f4912ae759a44a43b4a732207e204c7d90f57c3ef8d0b94f"
+  }
+}

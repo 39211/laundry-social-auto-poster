@@ -1,0 +1,13 @@
+C:\Users\cyc39\Documents\AI_Agency\products\_coordination\sxj-seo90-20260922\site\src\contentPlan.ts:1503
+    throw new Error("PUBLIC_SITE_BASE_URL is required to compose LINE redirect URLs");
+          ^
+
+Error: PUBLIC_SITE_BASE_URL is required to compose LINE redirect URLs
+    at linePostRedirectUrl (C:\Users\cyc39\Documents\AI_Agency\products\_coordination\sxj-seo90-20260922\site\src\contentPlan.ts:1503:11)
+    at lineContactLine (C:\Users\cyc39\Documents\AI_Agency\products\_coordination\sxj-seo90-20260922\site\src\contentPlan.ts:1524:22)
+    at <anonymous> (C:\Users\cyc39\Documents\AI_Agency\products\_coordination\sxj-seo90-20260922\site\src\contentPlan.ts:1527:29)
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.18.0

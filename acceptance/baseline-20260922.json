@@ -1,0 +1,173 @@
+{
+  "schemaVersion": "sxj.seo90.release-contract.v1",
+  "generatedAt": "2026-09-21T21:06:23.945Z",
+  "evaluationNow": "2026-09-26T09:00:00+08:00",
+  "syntheticOnly": true,
+  "sourceFiles": [
+    {
+      "path": "src/generatePublicSite.ts",
+      "sha256": "ae598410f1e3612ce1216a8057debb5a4b1ccbc09039af9f6380990f1b9df2c2"
+    },
+    {
+      "path": "src/seo90/publicBundle.ts",
+      "sha256": "46e24cffb814d737b03dcc6cdabee53e8d2f94b467d19ee04510a0eacc009ae7"
+    },
+    {
+      "path": "src/seo90/buildSeo90.ts",
+      "sha256": "384200fc25448155d1dff021eb6a1623ba7b98601102c73658f26a3c0247db30"
+    },
+    {
+      "path": "test/seo90Fixture.ts",
+      "sha256": "27373483c35ab2503e55321590c9beb02e371c93e0fb384a37e0cf332bd72896"
+    }
+  ],
+  "verdict": "NO_GO_RELEASE_RECONCILIATION",
+  "passed": 2,
+  "total": 6,
+  "rows": [
+    {
+      "id": "R0_APPROVED_INITIAL_RELEASE",
+      "passed": true,
+      "observed": {
+        "article": true,
+        "daily": true,
+        "sitemap": true,
+        "assets": 4,
+        "unrelatedPreserved": true
+      }
+    },
+    {
+      "id": "R1_REPEAT_IS_NOOP",
+      "passed": false,
+      "observed": {
+        "error": "SEO90_EXISTING_ARTICLE_COLLISION",
+        "changed": []
+      }
+    },
+    {
+      "id": "R2_APPROVED_UPDATE",
+      "passed": false,
+      "observed": {
+        "error": "SEO90_EXISTING_ARTICLE_COLLISION",
+        "articleUpdated": false,
+        "dailyUpdated": false,
+        "unrelatedPreserved": true,
+        "datePublishedPreserved": true,
+        "dateModifiedUpdated": false,
+        "sitemapUpdated": false,
+        "serviceUpdated": false
+      }
+    },
+    {
+      "id": "R3_WITHDRAW_OWN_RELEASE",
+      "passed": false,
+      "observed": {
+        "error": "SEO90_EXISTING_ARTICLE_COLLISION",
+        "articleRemoved": false,
+        "dailyUnlinked": false,
+        "sitemapUnlinked": false,
+        "serviceUnlinked": false,
+        "remainingAssets": 4,
+        "unrelatedPreserved": true,
+        "protectedArticleAssetsPreserved": true,
+        "dailyProtectedEntry": true,
+        "serviceProtectedEntry": true,
+        "sitemapOthersPreserved": false,
+        "serviceCorePreserved": true
+      }
+    },
+    {
+      "id": "R4_STALE_APPROVAL_PRESERVES_PUBLIC_TREE",
+      "passed": true,
+      "observed": {
+        "error": "SEO90_RELEASE_RECONCILIATION_REQUIRED",
+        "changed": []
+      }
+    },
+    {
+      "id": "R5_LAST_WITHDRAWAL",
+      "passed": false,
+      "observed": {
+        "error": "SEO90_RELEASE_RECONCILIATION_REQUIRED",
+        "articleRemoved": false,
+        "dailyRemoved": false,
+        "remainingAssets": 4,
+        "sitemapOthersPreserved": false,
+        "serviceCorePreserved": true,
+        "serviceUnlinked": false,
+        "danglingDailyLinks": [
+          "guides/athletic-shoe-mixed-materials.html",
+          "guides/backpack-cleaning-check.html",
+          "guides/bag-clean-vs-repair.html",
+          "guides/bag-color-transfer.html",
+          "guides/bag-handle-cleaning.html",
+          "guides/bag-ink-marks.html",
+          "guides/bag-lining-care.html",
+          "guides/bedding-duvet-cleaning.html",
+          "guides/bedding-storage-check.html",
+          "guides/birkenstock-care.html",
+          "guides/blanket-damp-check.html",
+          "guides/canvas-bag-care.html",
+          "guides/canvas-shoe-mud.html",
+          "guides/carpet-cleaning.html",
+          "guides/clothing-alteration-with-laundry.html",
+          "guides/clothing-mold-airing.html",
+          "guides/curtain-cleaning.html",
+          "guides/down-jacket-cleaning.html",
+          "guides/dry-cleaning-guide.html",
+          "guides/laundry-partner-showcase.html",
+          "guides/leather-jacket-care.html",
+          "guides/leather-shoe-water-marks.html",
+          "guides/luggage-wheel-cleaning.html",
+          "guides/luxury-bag-mold.html",
+          "guides/luxury-designer-shoe-care.html",
+          "guides/luxury-dry-cleaning.html",
+          "guides/nylon-bag-care.html",
+          "guides/oil-vs-water-stain-choice.html",
+          "guides/photo-before-laundry.html",
+          "guides/plush-doll-cleaning.html",
+          "guides/post-wash-drying-before-storage.html",
+          "guides/rainy-bag-care.html",
+          "guides/rainy-shoe-care.html",
+          "guides/school-uniform-care.html",
+          "guides/shirt-suit-dry-cleaning.html",
+          "guides/shoe-mold-surface-check.html",
+          "guides/shoe-odor-source.html",
+          "guides/shoe-sole-separation-limit.html",
+          "guides/suede-shoe-cleaning.html",
+          "guides/synthetic-vs-leather-handle.html",
+          "guides/taichung-laundry-service-search.html",
+          "guides/vacuum-bag-storage-risk.html",
+          "guides/washing-machine-shoe-risk.html",
+          "guides/white-shoe-yellowing.html",
+          "guides/wool-coat-dry-clean.html",
+          "guides/wool-knit-shrink-risk.html",
+          "index.html",
+          "knowledge/index.html",
+          "local/donghai-laundry-pickup.html",
+          "local/fengjia-laundry-pickup.html",
+          "local/nantun-laundry-pickup.html",
+          "local/north-district-laundry-pickup.html",
+          "local/qinghai-road-shoe-cleaning.html",
+          "local/zhongke-office-laundry.html",
+          "services/business-bulk-laundry.html",
+          "services/fabric-storage.html",
+          "services/shoe-bag-care.html",
+          "services/taichung-citywide-laundry-pickup.html",
+          "services/taichung-laundry-price-list.html",
+          "services/taichung-xitun-laundry.html",
+          "services/white-shoe-cleaning.html"
+        ],
+        "unrelatedPreserved": true
+      }
+    }
+  ],
+  "remainingTempRoots": 0,
+  "notCovered": [
+    "crash recovery",
+    "concurrent release writers",
+    "shared assets across multiple articles",
+    "deployment",
+    "real owner approval"
+  ]
+}

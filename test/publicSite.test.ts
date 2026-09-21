@@ -3033,7 +3033,17 @@ describe("generatePublicSite", () => {
     expect(priceHtml).toContain('data-unique-value');
     expect(priceHtml).toContain("這頁只回答「多少錢」");
     expect(pickupHtml).toContain('data-index-gap-page="taichung-citywide-laundry-pickup"');
-    expect(shoeBagHtml).toContain("這頁不是只收白鞋");
+    const shoeCommercialBlock = shoeBagHtml.match(
+      /<section class="section" id="unique-value" data-unique-value data-index-gap-page="shoe-bag-care">[\s\S]*?<\/section>/u
+    )?.[0] ?? "";
+    expect(shoeCommercialBlock).toContain("一般運動鞋");
+    expect(shoeCommercialBlock).toContain("NT$250");
+    expect(shoeCommercialBlock).toContain("台中全市免費收送、無低消，洗費另計");
+    expect(shoeCommercialBlock).toContain("西屯區青海路二段365號");
+    expect(shoeCommercialBlock).toContain("用本頁 LINE 傳鞋面、鞋邊、鞋內與整體照片");
+    expect(shoeCommercialBlock).toContain("氧化膠邊、破皮與掉色不保證恢復全新");
+    expect(shoeCommercialBlock).not.toContain("免費清洗");
+    expect(shoeCommercialBlock).not.toContain("600");
     expect(shoeBagHtml).toContain('data-shoe-type-hub');
     expect(shoeBagHtml).toContain('data-conversion');
     expect(shoeBagHtml).toContain('id="convert"');

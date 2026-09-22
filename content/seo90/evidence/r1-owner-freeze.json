@@ -1,0 +1,37 @@
+{
+  "at": "2026-09-22T00:38:14.557521+00:00",
+  "head": "8d9fde2c6565d1a3d6ed62f282b84e3a65b44124",
+  "files": {
+    "src/seo90/publicBundle.ts": "f921809bb9c6be7041e344c26e9178e8697d2f812eab863551b480cc0e6a844c",
+    "src/generatePublicSite.ts": "55a3db1c6ddc00bd9f5fd93a693a20b406fea5be1ecc34fec7c3da6e244e0b01",
+    "test/seo90Integration.test.ts": "bca4794cbf6412451309701cfdd357b80a48a489dfb46eba4ab0199e1a3f9241",
+    "test/seo90ReleaseLifecycle.test.ts": "2df8afff8c657f030b93d9810d2b268a5c26d68671ddd0f922a85faea5fc153b"
+  },
+  "diff_sha256": "e4580ed22a755974fa467e640290634cacbf55b9797ce31c5b96e6c2f85e2175",
+  "gate_sha256": "aa244fed66158d17543b748b08513f3d101fdab85bac671b1e1b31e3424cae3c",
+  "run": {
+    "agent": "grok",
+    "model": "grok-4.7-build-fast",
+    "gate": "PASS",
+    "review_verdict": "DONE",
+    "exit_code": 0
+  },
+  "independent_gate": {
+    "passed": 6,
+    "total": 6
+  },
+  "independent_tests": {
+    "passed": 109,
+    "total": 109
+  },
+  "typechecks_exit": 0,
+  "integration_verdict": "BLOCKED_BY_INDEPENDENT_LATE_WRITE_FAILURE",
+  "verified_runtime_models": [
+    "grok-4.7-build-fast"
+  ],
+  "independent_blockers": [
+    "late write failure leaves mixed versions",
+    "output ancestor junction escapes docs root"
+  ],
+  "gate_fixed_payloads_verified": 14
+}

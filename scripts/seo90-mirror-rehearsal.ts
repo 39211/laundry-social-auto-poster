@@ -57,14 +57,17 @@ async function main(): Promise<void> {
     const report = join(root, 'evidence', 'mirror-release.json');
     await mkdir(inputs, {recursive: true});
 
-    // All remotes are local paths.  The source clone starts at the released
-    // feature commit but is pushed only to this temporary bare repository.
-    git(coordination, ['init', '--bare', sourceRemote]);
+    // All remotes are local paths.  A shared bare clone avoids repacking the
+    // large source history while keeping the temporary source ref private.
+    const sourceHead = git(siteRepo, ['rev-parse', 'HEAD']);
+    git(coordination, ['clone', '--shared', '--bare', siteRepo, sourceRemote]);
+    gitBare(sourceRemote, ['update-ref', 'refs/heads/main', sourceHead]);
+    gitBare(sourceRemote, ['symbolic-ref', 'HEAD', 'refs/heads/main']);
     // Shared objects keep this long-lived repository clone fast while the
     // temporary worktree/index remain private and are destroyed afterwards.
     git(coordination, ['clone', '--shared', '--no-checkout', siteRepo, sourceClone]);
     git(sourceClone, ['remote', 'set-url', 'origin', sourceRemote]);
-    git(sourceClone, ['push', 'origin', 'HEAD:refs/heads/main']);
+    git(sourceClone, ['fetch', 'origin', 'main']);
     git(sourceClone, ['checkout', '-B', 'main', 'origin/main']);
     // A local clone may inherit the source worktree's sparse/worktree flags;
     // force a clean, complete detached test checkout before the runner sees it.

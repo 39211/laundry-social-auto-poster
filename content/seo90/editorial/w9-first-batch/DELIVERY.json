@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "sxj.seo90.editorial-delivery.v1",
+  "createdAt": "2026-09-22T02:21:40.059502+00:00",
+  "source": "../private/first-six.json",
+  "sourceSha256": "0f93aa394561d2c57561b76aaf959652f3fe32a9894ed0270aab810d3ba21474",
+  "bundleSha256": "c03924bb355cb993c6550e61aaed5fb57b26c9885636ee16b07aa672a6afbbb0",
+  "counts": {
+    "written": 6,
+    "internalEditorialPassed": 5,
+    "held": 1,
+    "ownerApproved": 0,
+    "released": 0,
+    "deployed": 0,
+    "images": 24,
+    "imagesInPassedArticles": 20
+  },
+  "author": "Codex content editing; existing release engine implemented by Grok4.7; no new Grok lane dispatched in W9",
+  "review": "independent GPT seat; not cross-family",
+  "imageRepair": {
+    "assetId": "sxj90-003-yellow-shirt-image-3",
+    "provider": "imagegen",
+    "sha256": "25de45be0ae3fff4f96577406883ed9aa3ed20734c0256ef0a7cfe7af70c8d2e"
+  },
+  "originalImagesUntouched": true,
+  "held": {
+    "contentId": "sxj90-005-helmet-lining-inquiry",
+    "reasons": [
+      "service unconfirmed",
+      "all four images mix helmet and coat imagery; third is explicitly a coat hood"
+    ]
+  },
+  "notVerified": [
+    "owner approval",
+    "deployment",
+    "indexing",
+    "real service outcome",
+    "two-store seven-day package"
+  ],
+  "publicReadySourceUnchanged": "793a270cde8563359f171ae5b9f33e6d7b0183e6cdba4837bf24978517598b1b",
+  "preview": "preview-r2/daily/index.html",
+  "items": [
+    {
+      "contentId": "sxj90-001-barbecue-coat",
+      "status": "internal_editorial_passed",
+      "articleSha256": "eb7b622359f4016a8a3b432b35942b9004b09c864f3a879dbaf38fb85bc08d98"
+    },
+    {
+      "contentId": "sxj90-002-bag-lining",
+      "status": "internal_editorial_passed",
+      "articleSha256": "9b3193057d42b7c96b47f31aae331cb784257d2214d85a0d8794da604fff90a1"
+    },
+    {
+      "contentId": "sxj90-003-yellow-shirt",
+      "status": "internal_editorial_passed",
+      "articleSha256": "9a0eafd4fe4dc6138fcf32f55859eee9728481236eba5849cb0fe3a32b4397bc"
+    },
+    {
+      "contentId": "sxj90-004-coat-material",
+      "status": "internal_editorial_passed",
+      "articleSha256": "105026679359b839d84b029cbf233ca7bf0c83b6f343143fb4a5063a8699d0d2"
+    },
+    {
+      "contentId": "sxj90-005-helmet-lining-inquiry",
+      "status": "held",
+      "articleSha256": "58088584d22011d545c356a68dff5b91427f397e0fade80810a5869b1af2d244"
+    },
+    {
+      "contentId": "sxj90-006-line-photo-details",
+      "status": "internal_editorial_passed",
+      "articleSha256": "dd79e12ae14210173b0bba52fe1ace39c7e2e4a3f83fe80dab130001bb22419f"
+    }
+  ]
+}

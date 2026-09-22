@@ -1,0 +1,146 @@
+[
+  {
+    "assetId": "sxj90-001-barbecue-coat-image-1",
+    "sha256": "9467ae526dc3352ade046225d5bd8dbda0ea067ec409381f5bf2934a40d032cf",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-001-barbecue-coat-image-2",
+    "sha256": "a29c0184bbcfa9393b3955b40a22c8bd76e270922d9cd94a0bf890222cb22a3f",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-001-barbecue-coat-image-3",
+    "sha256": "9bc511c3c84452b7ca02821e35fb16ae611717b794079c35996fe2ae9988a569",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-001-barbecue-coat-image-4",
+    "sha256": "0ce617aa7bcdd719195d20717deadd6750b5e62e3f3f4c8489f4aafebbc5c008",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-002-bag-lining-image-1",
+    "sha256": "63b827ea9e8bf6943323330a0825d2273bdee8519a98fb151e02fe546ceb4ce9",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-002-bag-lining-image-2",
+    "sha256": "248cb9690270948f00a9f8148e64c9ac1e75e44c61eece337669b9f6d0097ce0",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-002-bag-lining-image-3",
+    "sha256": "697ddfaea588c9c5319662ce18812b0325cc0e10e9909e5ee61604cac54edc9a",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-002-bag-lining-image-4",
+    "sha256": "cacf8f15f07d4e519124a97c22ace4d46b1ed166099d067266a0899340a97941",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-003-yellow-shirt-image-1",
+    "sha256": "65605fafee59e640c1eae471bdb562aad6353534dfef48604efaa8f5df740a4a",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-003-yellow-shirt-image-2",
+    "sha256": "d932d64310a830c02a6ba45f09460e3122ca01345d6d0b248e1dab85c5306aaf",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-003-yellow-shirt-image-3",
+    "sha256": "25de45be0ae3fff4f96577406883ed9aa3ed20734c0256ef0a7cfe7af70c8d2e",
+    "verdict": "repaired_independent_visual_passed",
+    "note": "imagegen重製為展袖腋下接縫，另一GPT席已真圖複核；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-003-yellow-shirt-image-4",
+    "sha256": "2e5489d34e509f1d52646f563069b202fef528b976f026f3d817c6404472793a",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-004-coat-material-image-1",
+    "sha256": "dd320dca76aa7093b9a51dbf2e148b57f00c0f04a1978163c45d57511ef17e56",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-004-coat-material-image-2",
+    "sha256": "6f43de26dc837f86ec84e9a11f348ab3a796089e31df81247ba32585b335c3bb",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-004-coat-material-image-3",
+    "sha256": "979a2cc570ae0f0357f533076c064c82213c4d8dc58b0ea549d468b88bc0819a",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-004-coat-material-image-4",
+    "sha256": "fb96650f0d716471fce08a09410251659cfb61ae0c215c1fe31239f274c6b0c7",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-005-helmet-lining-inquiry-image-1",
+    "sha256": "e033cf0ccac8c45c688e2109b348ebd28bb8c99f0afa4485bd7ad02179e73ebe",
+    "verdict": "held_service_scope",
+    "note": "安全帽服務未確認，整組不放行。"
+  },
+  {
+    "assetId": "sxj90-005-helmet-lining-inquiry-image-2",
+    "sha256": "019e1ed9b30a5c8abfd5bf71602998ed736bb3628627788951949420388de2c8",
+    "verdict": "held_service_scope",
+    "note": "安全帽服務未確認，整組不放行。"
+  },
+  {
+    "assetId": "sxj90-005-helmet-lining-inquiry-image-3",
+    "sha256": "183a27c4ca6b1fae12f00d0c54a43b84b1e50fa5668128dcdd74fd1ef3aca92a",
+    "verdict": "held_topic_mismatch",
+    "note": "圖片主題是外套帽沿，不是安全帽內襯；未重用為安全帽教學，已撤出私有預覽展示。"
+  },
+  {
+    "assetId": "sxj90-005-helmet-lining-inquiry-image-4",
+    "sha256": "fd8aa9349729e7cefd1cc9a861868b2d0a772ac933395ea3d34eb3b3eecbbe7a",
+    "verdict": "held_service_scope",
+    "note": "安全帽服務未確認，整組不放行。"
+  },
+  {
+    "assetId": "sxj90-006-line-photo-details-image-1",
+    "sha256": "9bd004e9ada0204b15c5ebc90c75b2c7743ad97d415391c03fc8a0f0cf8bbf8a",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-006-line-photo-details-image-2",
+    "sha256": "01e5449778efc8e317dd31ff3c12af56f696e99bfbbc941b39c997fdb47e21dd",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-006-line-photo-details-image-3",
+    "sha256": "3eabaa6e77c1575c3a18b332be5efba64461832a621667cac76a46bd8fcbe235",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  },
+  {
+    "assetId": "sxj90-006-line-photo-details-image-4",
+    "sha256": "833c01cb03278474254cd09aadaa2f7332dc7e3148249e03577cc961e4bd0bde",
+    "verdict": "internal_visual_checked",
+    "note": "已逐組看真圖：文字可辨識、版面與主題相符、AI示意標示存在；不等於店主核准。"
+  }
+]

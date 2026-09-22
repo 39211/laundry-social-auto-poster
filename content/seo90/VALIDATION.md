@@ -42,3 +42,12 @@ Pro R2 複審後才接正式 source→generator→網站導覽／文章／sitema
 - 增加既有 posts／sitemap／service bytes 不變、固定 public-ready 來源、私稿不外洩、合成核准正路、path/id collision、Windows junction、重跑與移除來源的保護性拒绝。
 - 未實作正式 release writer。重跑既有 SEO90 文章會 collision，移除來源會要求 reconciliation；已有頁面保持原樣。這是保護性限制，不是自動更新／撤稿已完成。
 - W5 獨立複審：49/49 獨立重跑＋字數／私稿／跨日期同 slug 等探針；最終97項JSON由審查員核對，沒有宣稱97項全由審查員重跑。裁定 Can ship GO_PREVIEW_ONLY＋W5零公開整合，HOLD_PUBLIC。證據 evidence/independent-w5-review.md；同為 GPT 家族。
+
+## W9：首批完整母文與逐圖品管（2026-09-22）
+
+本節取代先前「0完整母文／6短稿」的當前量。現在為5篇完整母文通過獨立內部核稿、1篇安全帽held、84篇brief。5篇合計20張圖；第6篇的4張候選圖不計完成配額。
+原24張PNG未覆蓋；白襯衫第三張另以imagegen產生修正版並通過獨立真圖複核。LINE文章的三項清單／小標錯位已修；安全帽文字改正，但服務與整組素材仍待確認。
+真候選驗證：6頁noindex、24資產SHA/歸屬、public模式0頁/0 sitemap/6件held。69件payload含圖ZIP已新目錄開箱逐件SHA核對；桌面與390px代表頁可讀，私有手機預覽圖卡單欄。
+公開GitHub僅記錄狀態、來源SHA、驗證與缺陷；未核准全文、圖片、含圖ZIP留本機與Obsidian，不放公開repo或sitemap。0店主核准、0正式release、0部署／社群發文。
+本輪文字編輯與核稿接線由Codex完成，另一GPT席複審，非跨家族；沿用Grok4.7實作的release引擎，沒有宣稱新增Grok派工。
+下一節點：補足實際七天內容並做兩店隔離重建；安全帽若未確認，須用已確認服務的內容補位，不能拿held湊數。

@@ -1,0 +1,81 @@
+{
+  "scope": "W9 actual candidate, not synthetic approval",
+  "bundleSha256": "c03924bb355cb993c6550e61aaed5fb57b26c9885636ee16b07aa672a6afbbb0",
+  "articles": 6,
+  "assetHashes": 24,
+  "previewNoindex": 6,
+  "publicPages": 0,
+  "sitemapEntries": 0,
+  "publicHeld": [
+    {
+      "contentId": "sxj90-001-barbecue-coat",
+      "reasons": [
+        "NOT_APPROVED_STATE",
+        "PROFILE_UNAPPROVED",
+        "FUTURE",
+        "WEBSITE_APPROVAL",
+        "ASSET_APPROVAL",
+        "RELEASE_JOURNAL"
+      ]
+    },
+    {
+      "contentId": "sxj90-002-bag-lining",
+      "reasons": [
+        "NOT_APPROVED_STATE",
+        "PROFILE_UNAPPROVED",
+        "FUTURE",
+        "WEBSITE_APPROVAL",
+        "ASSET_APPROVAL",
+        "RELEASE_JOURNAL"
+      ]
+    },
+    {
+      "contentId": "sxj90-003-yellow-shirt",
+      "reasons": [
+        "NOT_APPROVED_STATE",
+        "PROFILE_UNAPPROVED",
+        "FUTURE",
+        "WEBSITE_APPROVAL",
+        "ASSET_APPROVAL",
+        "RELEASE_JOURNAL"
+      ]
+    },
+    {
+      "contentId": "sxj90-004-coat-material",
+      "reasons": [
+        "NOT_APPROVED_STATE",
+        "PROFILE_UNAPPROVED",
+        "FUTURE",
+        "WEBSITE_APPROVAL",
+        "ASSET_APPROVAL",
+        "RELEASE_JOURNAL"
+      ]
+    },
+    {
+      "contentId": "sxj90-005-helmet-lining-inquiry",
+      "reasons": [
+        "NOT_APPROVED_STATE",
+        "PROFILE_UNAPPROVED",
+        "FUTURE",
+        "WEBSITE_APPROVAL",
+        "ASSET_APPROVAL",
+        "SERVICE_UNCONFIRMED",
+        "RELEASE_JOURNAL"
+      ]
+    },
+    {
+      "contentId": "sxj90-006-line-photo-details",
+      "reasons": [
+        "NOT_APPROVED_STATE",
+        "PROFILE_UNAPPROVED",
+        "FUTURE",
+        "WEBSITE_APPROVAL",
+        "ASSET_APPROVAL",
+        "RELEASE_JOURNAL"
+      ]
+    }
+  ],
+  "publicOutput": "C:\\Users\\cyc39\\Documents\\AI_Agency\\products\\_coordination\\sxj-seo90-20260922\\w9-first-batch\\public-negative-zQg5bU",
+  "ownerApprovals": 0,
+  "releases": 0
+}

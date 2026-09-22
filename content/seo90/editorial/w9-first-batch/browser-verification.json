@@ -1,0 +1,28 @@
+{
+  "url": "http://127.0.0.1:65116/daily/",
+  "viewed": [
+    "index",
+    "white-shirt article",
+    "white-shirt gallery"
+  ],
+  "desktopScreenshot": "W9-DESKTOP.png",
+  "mobileViewportRequested": {
+    "width": 390,
+    "height": 844
+  },
+  "mobileContentWidthObserved": 375,
+  "horizontalOverflow": false,
+  "galleryFinalColumns": "343px",
+  "images": {
+    "fourLoadedBeforeCssAdjustment": true,
+    "threeGalleryImagesLoadedAfterCssAdjustment": true,
+    "offscreenLazyImageNotTreatedAsBroken": true
+  },
+  "mobileScreenshots": [
+    "W9-MOBILE-390.png",
+    "W9-MOBILE-GALLERY.png"
+  ],
+  "viewportReset": true,
+  "tabMarkedDeliverable": true,
+  "scope": "representative visual checks, not all six pages visually traversed"
+}

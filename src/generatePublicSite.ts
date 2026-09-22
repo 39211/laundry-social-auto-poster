@@ -7412,7 +7412,7 @@ function renderSiteHeader(index: PublicPostIndex, options: SiteChromeOptions): s
           ${headerNavServices().map(
             (service) => `<a href="${escapeHtml(options.serviceHref(service))}">${escapeHtml(service.name)}</a>`
           ).join("\n          ")}
-          <a href="${escapeHtml(options.knowledgeHref)}">洗護知識庫</a>${index.seo90?.dailyIndexPath ? `\n          <a href="${escapeHtml(index.seo90.dailyIndexPath)}">送洗前筆記</a>` : ""}
+          <a href="${escapeHtml(options.knowledgeHref)}">洗護知識庫</a>${index.seo90?.dailyIndexPath ? `\n          <a href="${escapeHtml(index.seo90.dailyIndexPath)}">洗衣筆記</a>` : ""}
           <a href="${escapeHtml(options.lineNavHref)}">LINE 預約</a>
         </nav>
       </div>

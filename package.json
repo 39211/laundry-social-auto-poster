@@ -52,6 +52,7 @@
     "generate-growth-playbook": "tsx src/generateGrowthPlaybook.ts",
     "generate-operations-dashboard": "tsx src/generateOperationsDashboard.ts",
     "publish-pages": "tsx src/publishPages.ts",
+    "seo90-release": "tsx scripts/seo90-release.ts",
     "daily": "npm run generate && npm run generate-image-manifest && npm run generate-video-candidate-manifest && npm run generate-public-site",
     "schedule": "tsx src/scheduler.ts",
     "typecheck": "tsc --noEmit",

@@ -493,7 +493,7 @@ export function publishPagesAssets(
   root = projectRoot(),
   rootPagesRepo = "",
   now: Date = new Date(),
-  options?: { env?: NodeJS.ProcessEnv }
+  options?: { env?: NodeJS.ProcessEnv; afterSourceCommit?: (commit: string) => void }
 ): string {
   // Future-lastmod is a local fail-closed publish gate. It cannot be bypassed
   // by --skip-audit (public URL audit), IndexNow, warnings, or network state.
@@ -596,6 +596,7 @@ export function publishPagesAssets(
   withPathspecFile(sourcePathsToStage, (pathspecFile) => {
     runGit(["commit", "-m", `Generate daily Pages assets ${date}`, `--pathspec-from-file=${pathspecFile}`], root);
   });
+  options?.afterSourceCommit?.(runGit(["rev-parse", "HEAD"], root));
   runGit(["push"], root);
   const mirrorResult = publishRootPagesMirror(date, root, rootPagesRepo, pathsToPublish);
   return [`Published GitHub Pages assets for ${date}: ${assetDir}, ${docsCalendar}`, mirrorResult].filter(Boolean).join("\n");

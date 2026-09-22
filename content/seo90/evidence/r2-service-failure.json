@@ -1,0 +1,12 @@
+{
+  "runId": "SEO90-RELEASE-GROK47-20260922-R2",
+  "model": "grok-4.7-build-fast",
+  "gate": "FAILED_EXIT",
+  "agentExit": 1,
+  "outerShellExit": 0,
+  "automaticRetryEvents": 14,
+  "failure": "HTTP 500 service temporarily unavailable; model did not respond",
+  "sourceFilesUnchangedFromR1": 4,
+  "repairDelivered": false,
+  "nextContract": "SEO90-RELEASE-GROK47-20260922-R2.md"
+}

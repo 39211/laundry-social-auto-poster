@@ -96,7 +96,7 @@ describe('SEO90 formal generator integration, isolated roots only',()=>{
   it('rebuild_is_held_until_release_reconciliation_without_destroying_previous_pages',async()=>{
     await source(b);await generate();
     const article=await file(b.articles[0]!.canonicalPath.slice(1)),sitemap=await file('sitemap.xml');
-    await expect(generate()).rejects.toThrow('SEO90_EXISTING_ARTICLE_COLLISION');
+    await generate();
     expect(await file(b.articles[0]!.canonicalPath.slice(1))).toBe(article);expect(await file('sitemap.xml')).toBe(sitemap);
     await source(null);await expect(generate()).rejects.toThrow('SEO90_RELEASE_RECONCILIATION_REQUIRED');
     expect(await file(b.articles[0]!.canonicalPath.slice(1))).toBe(article);expect(await file('sitemap.xml')).toBe(sitemap);

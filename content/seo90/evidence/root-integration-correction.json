@@ -1,0 +1,7 @@
+{
+  "before_sha256": "711a3e4575885bd1cffc08ac04322e28cd7816b9eef37681c716dbb02c95af30",
+  "after_sha256": "ce2ea61c27f6afd8ed9b19e69071d731b93a4c7ac7d1ba9232cef833a3a089df",
+  "author": "Codex root integration correction",
+  "scope": "WebP render context includes bytes from same planned transaction; no early filesystem writes",
+  "baseline_test": "owner-r3-image-fallback-only.json failed before patch"
+}

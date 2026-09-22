@@ -1,11 +1,11 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
-import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { assertSeo90Destinations, existingSeo90Paths, loadPublicSeo90 } from "./seo90/publicBundle";
+import { assertPublicWriteBoundary, assertSeo90Destinations, commitPublicTree, existingSeo90Paths, loadPublicSeo90, planOwnedReleaseWrites, SEO90_OWNED_MANIFEST_PATH, type PublicTreeChange } from "./seo90/publicBundle";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
-import { hasApprovedPost, loadApprovalLog, readJsonFile, writeJsonAtomic } from "./logging";
+import { hasApprovedPost, loadApprovalLog, readJsonFile } from "./logging";
 import {
   contentCalendarPath,
   docsContentCalendarPath,
@@ -48,6 +48,8 @@ interface GeneratePublicSiteOptions {
   statPublicAsset?: (filePath: string) => { isFile(): boolean };
   /** Fail closed unless the resolved public base URL is the production canonical host. */
   deployment?: boolean;
+  /** Test-only fault injection for the public-tree transaction. Production callers leave this unset. */
+  releaseFault?: {failRestore?: boolean; stall?: {suffix: string; ms: number}};
 }
 
 interface PublicPost {
@@ -4328,10 +4330,15 @@ const WEBP_MAX_WIDTH = 1200;
 /** docs/ root of the current generation run; set once per generatePublicSite call. */
 let activeDocsRoot = "";
 const pngSizeCache = new Map<string, ImagePixelSize | undefined>();
+const plannedWebpPaths = new Set<string>();
 
-function setActiveDocsRoot(docsRoot: string): void {
+function setActiveDocsRoot(docsRoot: string, webpChanges: readonly PublicTreeChange[] = []): void {
   activeDocsRoot = docsRoot;
   pngSizeCache.clear();
+  plannedWebpPaths.clear();
+  for (const change of webpChanges) {
+    if (change.bytes !== null) plannedWebpPaths.add(change.absolute);
+  }
 }
 
 /** Read the intrinsic pixel size from a PNG IHDR chunk without decoding the image. */
@@ -4413,10 +4420,12 @@ function readMp4Duration(videoPath: string): string | undefined {
   }
 }
 
-/** webp URL/relative src matching `src`, only when the derivative exists in docs/. */
+/** Match an existing derivative or bytes generated for this same site transaction. */
 function webpSrcFor(imagePath: string, src: string): string | undefined {
   const webpPath = webpDocsPath(imagePath);
-  if (!webpPath || !activeDocsRoot || !existsSync(join(activeDocsRoot, webpPath))) return undefined;
+  if (!webpPath || !activeDocsRoot) return undefined;
+  const absolute = join(activeDocsRoot, webpPath);
+  if (!plannedWebpPaths.has(absolute) && !existsSync(absolute)) return undefined;
   return src.replace(/\.png$/iu, ".webp");
 }
 
@@ -4451,7 +4460,7 @@ function responsiveImageHtml(options: {
  * Generate .webp derivatives (≤${WEBP_MAX_WIDTH}px wide) next to every PNG the HTML pages
  * reference. PNGs stay as the src/og:image fallback; webp is offered via <picture>.
  */
-async function generateWebpDerivatives(index: PublicPostIndex, docsRoot: string): Promise<void> {
+async function planWebpDerivatives(index: PublicPostIndex, docsRoot: string): Promise<PublicTreeChange[]> {
   const imagePaths = new Set<string>();
   for (const post of index.posts) {
     if (post.image_path) imagePaths.add(post.image_path);
@@ -4467,24 +4476,27 @@ async function generateWebpDerivatives(index: PublicPostIndex, docsRoot: string)
   const targets = [...imagePaths].filter(
     (imagePath) => webpDocsPath(imagePath) !== undefined && existsSync(join(docsRoot, imagePath))
   );
-  if (targets.length === 0) return;
+  if (targets.length === 0) return [];
 
   let sharp: (typeof import("sharp"))["default"];
   try {
     sharp = (await import("sharp")).default;
   } catch (error) {
     console.warn(`webp derivatives skipped (sharp unavailable): ${error instanceof Error ? error.message : error}`);
-    return;
+    return [];
   }
+  const planned: PublicTreeChange[] = [];
   for (const imagePath of targets) {
     const source = join(docsRoot, imagePath);
     const target = join(docsRoot, webpDocsPath(imagePath)!);
     if (existsSync(target) && statSync(target).mtimeMs >= statSync(source).mtimeMs) continue;
-    await sharp(source)
+    const bytes = await sharp(source)
       .resize({ width: WEBP_MAX_WIDTH, withoutEnlargement: true })
       .webp({ quality: 82 })
-      .toFile(target);
+      .toBuffer();
+    planned.push({absolute: target, bytes});
   }
+  return planned;
 }
 
 function primaryHomeImage(index: PublicPostIndex): PublicImageReference | undefined {
@@ -4835,42 +4847,6 @@ function slotWithAvailablePublicMedia(
   delete imageSlot.local_video_path;
   delete imageSlot.public_video_url;
   return imageSlot;
-}
-
-async function writeApprovedPublicContentCalendar(
-  calendar: DailyContent,
-  approvedSlots: DailySlot[],
-  root: string
-): Promise<void> {
-  if (approvedSlots.length === 0) {
-    await removePublicContentCalendar(calendar.date, root);
-    return;
-  }
-
-  await writeJsonAtomic(docsContentCalendarPath(calendar.date, root), {
-    ...calendar,
-    slots: approvedSlots
-  });
-}
-
-async function writePostArticlePages(posts: PublicPost[], index: PublicPostIndex, postsRoot: string): Promise<string[]> {
-  await mkdir(postsRoot, { recursive: true });
-  const expected = new Set([...posts.map((post) => post.article_path.split("/").at(-1)!), "index.html"]);
-  const existing = await readdir(postsRoot);
-  await Promise.all(
-    existing
-      .filter((name) => name.endsWith(".html") && !expected.has(name))
-      .map((name) => unlink(join(postsRoot, name)))
-  );
-
-  const paths = posts.map((post) => join(postsRoot, post.article_path.split("/").at(-1)!));
-  await Promise.all(paths.map((path, indexPosition) => writeFile(path, buildPostPageHtml(posts[indexPosition]!, index), "utf8")));
-  if (posts.length > 0) {
-    const hubPath = join(postsRoot, "index.html");
-    await writeFile(hubPath, buildPostsHubHtml(index), "utf8");
-    paths.push(hubPath);
-  }
-  return paths;
 }
 
 function slotToPublicPost(
@@ -9071,6 +9047,22 @@ function buildAiDiscovery(index: PublicPostIndex): object {
   };
 }
 
+function staticReleaseRelativePaths(): string[] {
+  return [
+    "index.html", "social-posts.json", "sitemap.xml", "services.json", "business-profile.json",
+    "latest.json", "answers.json", "geo-targets.json", "search-visibility.json", "llms.jsonl",
+    "feed.json", "rss.xml", "knowledge-graph.json", "ai-discovery.json", "llms.txt", "llms-lite.txt",
+    "llms-full.txt", "robots.txt", "ai-sitemap.xml", ".nojekyll", "CNAME", "404.html",
+    KNOWLEDGE_HUB_FILE, SEARCH_CONTENT_ANALYTICS_PATH,
+    ".well-known/llms.txt", ".well-known/ai.json", "go/line.html", "docs/index.html",
+    "seo90-assets/.boundary", "posts/.boundary", "daily/.boundary", "content-calendar/.boundary",
+    "assets/.boundary", "guides/.boundary", "services/.boundary", "local/.boundary",
+    "knowledge/.boundary", "scripts/.boundary",
+    ...SERVICE_PAGE_DEFINITIONS.map((service) => servicePagePath(service)),
+    ...SUPPORT_PAGE_DEFINITIONS.map((page) => page.path)
+  ];
+}
+
 export async function generatePublicSite(options: GeneratePublicSiteOptions = {}): Promise<string[]> {
   const root = projectRoot(options.root);
   const config = getConfig();
@@ -9080,9 +9072,11 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   }
   const imageBaseUrl = normalizeBaseUrl(options.imageBaseUrl ?? options.baseUrl ?? config.publicImageBaseUrl) ?? siteBaseUrl;
   const businessProfile = await loadBusinessProfile(root);
+  await assertPublicWriteBoundary(join(root, "docs"), staticReleaseRelativePaths());
   const generatedAt = (options.now ? new Date(options.now) : new Date()).toISOString();
   const publishThroughDate = getZonedDateParts(new Date(generatedAt), config.timezone).date;
   const dates = await listContentDates(root);
+  const deferredCalendarWrites: Array<{absolute: string; value: unknown | null}> = [];
   const calendars = await Promise.all(
     dates.map(async (date) => {
       const calendar = await readPrivateDailyContent(date, root);
@@ -9107,7 +9101,10 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         await removePublicContentCalendar(date, root);
         throw error;
       }
-      await writeApprovedPublicContentCalendar(calendar, publicSlots, root);
+      deferredCalendarWrites.push({
+        absolute: docsContentCalendarPath(calendar.date, root),
+        value: publicSlots.length === 0 ? null : {...calendar, slots: publicSlots}
+      });
       return { calendar, approvedSlots: publicSlots };
     })
   );
@@ -9180,8 +9177,12 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     existingPaths: seo90ReservedPaths,
     existingIds: new Set(posts.map(post => post.id))
   });
-  if (!seo90.pages.length && seo90ReservedPaths.has('/daily/index.html')) throw Error('SEO90_RELEASE_RECONCILIATION_REQUIRED');
-  await assertSeo90Destinations(root, seo90.pages);
+  if (!seo90.pages.length && !seo90.reconciled && seo90ReservedPaths.has('/daily/index.html')) throw Error('SEO90_RELEASE_RECONCILIATION_REQUIRED');
+  await assertSeo90Destinations(root, [
+    ...seo90.pages,
+    ...(seo90.manifest ? [{path: SEO90_OWNED_MANIFEST_PATH, bytes: seo90.manifest}] : []),
+    ...seo90.removals.map((path) => ({path, bytes: Buffer.alloc(0)}))
+  ]);
   if (seo90.dailyIndexPath) index.seo90 = {dailyIndexPath:seo90.dailyIndexPath, sitemapEntries:seo90.sitemapEntries, relatedByService:seo90.relatedByService};
   index.open_graph = buildOpenGraph(index);
 
@@ -9199,140 +9200,127 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   };
 
   const docsRoot = join(root, "docs");
-  const wellKnownRoot = join(docsRoot, ".well-known");
-  const servicesRoot = join(docsRoot, "services");
-  const guidesRoot = join(docsRoot, "guides");
-  const localRoot = join(docsRoot, "local");
-  const knowledgeRoot = join(docsRoot, "knowledge");
-  const scriptsRoot = join(docsRoot, "scripts");
   const postsRoot = join(docsRoot, "posts");
-  const goRoot = join(docsRoot, "go");
-  const compatibilityDocsRoot = join(docsRoot, "docs");
-  await mkdir(docsRoot, { recursive: true });
-  await mkdir(wellKnownRoot, { recursive: true });
-  await mkdir(servicesRoot, { recursive: true });
-  await mkdir(guidesRoot, { recursive: true });
-  await mkdir(localRoot, { recursive: true });
-  await mkdir(knowledgeRoot, { recursive: true });
-  await mkdir(scriptsRoot, { recursive: true });
-  await mkdir(postsRoot, { recursive: true });
-  await mkdir(goRoot, { recursive: true });
-  await mkdir(compatibilityDocsRoot, { recursive: true });
-  setActiveDocsRoot(docsRoot);
-  await generateWebpDerivatives(index, docsRoot);
-  const indexNowKey = configuredIndexNowKey(root);
-
-  const outputs = {
-    socialPosts: join(docsRoot, "social-posts.json"),
-    businessProfile: join(docsRoot, "business-profile.json"),
-    latest: join(docsRoot, "latest.json"),
-    services: join(docsRoot, "services.json"),
-    answers: join(docsRoot, "answers.json"),
-    geoTargets: join(docsRoot, "geo-targets.json"),
-    searchVisibility: join(docsRoot, "search-visibility.json"),
-    llmsJsonl: join(docsRoot, "llms.jsonl"),
-    feed: join(docsRoot, "feed.json"),
-    rss: join(docsRoot, "rss.xml"),
-    knowledgeGraph: join(docsRoot, "knowledge-graph.json"),
-    aiDiscovery: join(docsRoot, "ai-discovery.json"),
-    llms: join(docsRoot, "llms.txt"),
-    llmsLite: join(docsRoot, "llms-lite.txt"),
-    llmsFull: join(docsRoot, "llms-full.txt"),
-    wellKnownLlms: join(wellKnownRoot, "llms.txt"),
-    wellKnownAi: join(wellKnownRoot, "ai.json"),
-    robots: join(docsRoot, "robots.txt"),
-    sitemap: join(docsRoot, "sitemap.xml"),
-    aiSitemap: join(docsRoot, "ai-sitemap.xml"),
-    index: join(docsRoot, "index.html"),
-    knowledgeHub: join(docsRoot, KNOWLEDGE_HUB_FILE),
-    searchContentAnalytics: join(docsRoot, SEARCH_CONTENT_ANALYTICS_PATH),
-    notFound: join(docsRoot, "404.html"),
-    lineRedirect: join(goRoot, "line.html"),
-    compatibilityDocsIndex: join(compatibilityDocsRoot, "index.html"),
-    ...Object.fromEntries(
-      SERVICE_PAGE_DEFINITIONS.map((service) => [`servicePage-${service.slug}`, join(servicesRoot, `${service.slug}.html`)])
-    ),
-    ...Object.fromEntries(SUPPORT_PAGE_DEFINITIONS.map((page) => [`supportPage-${page.slug}`, join(docsRoot, page.path)])),
-    nojekyll: join(docsRoot, ".nojekyll")
+  const seo90Changes = await planOwnedReleaseWrites(docsRoot, seo90);
+  const webpChanges = await planWebpDerivatives(index, docsRoot);
+  setActiveDocsRoot(docsRoot, webpChanges);
+  const changes: PublicTreeChange[] = [...seo90Changes];
+  const returned: string[] = [];
+  const addText = (path: string, text: string, includeInReturn = true) => {
+    changes.push({absolute: path, bytes: Buffer.from(text, "utf8")});
+    if (includeInReturn) returned.push(path);
   };
+  const addJson = (path: string, value: unknown) => {
+    changes.push({absolute: path, bytes: Buffer.from(`${JSON.stringify(value, null, 2)}\n`, "utf8")});
+    returned.push(path);
+  };
+  addJson(join(docsRoot, "social-posts.json"), index);
+  addJson(join(docsRoot, "business-profile.json"), businessProfile);
+  addJson(join(docsRoot, "latest.json"), latest);
+  addJson(join(docsRoot, "services.json"), buildServicesJson(index));
+  addJson(join(docsRoot, "answers.json"), buildAnswersJson(index));
+  addJson(join(docsRoot, "geo-targets.json"), buildGeoTargetsJson(index));
+  addJson(join(docsRoot, "search-visibility.json"), buildSearchVisibilityJson(index));
+  addJson(join(docsRoot, "feed.json"), buildJsonFeed(index));
+  addText(join(docsRoot, "rss.xml"), buildRssXml(index));
+  addJson(join(docsRoot, "knowledge-graph.json"), buildKnowledgeGraph(index));
+  const aiDiscovery = buildAiDiscovery(index);
+  addJson(join(docsRoot, "ai-discovery.json"), aiDiscovery);
+  addJson(join(docsRoot, ".well-known", "ai.json"), aiDiscovery);
+  addText(join(docsRoot, "llms.txt"), buildLlmsText(index));
+  addText(join(docsRoot, "llms-lite.txt"), buildLlmsLiteText(index));
+  addText(join(docsRoot, "llms-full.txt"), buildLlmsFullText(index));
+  addText(join(docsRoot, "llms.jsonl"), buildLlmsJsonl(index));
+  addText(join(docsRoot, ".well-known", "llms.txt"), buildLlmsText(index));
+  addText(join(docsRoot, "robots.txt"), buildRobotsText(index));
+  addText(join(docsRoot, "sitemap.xml"), buildSitemapXml(index));
+  addText(join(docsRoot, "ai-sitemap.xml"), buildAiSitemapXml(index));
+  const searchContentAnalytics = buildSearchContentAnalyticsScript();
+  assertSearchContentAnalyticsScript(searchContentAnalytics);
+  addText(join(docsRoot, SEARCH_CONTENT_ANALYTICS_PATH), searchContentAnalytics);
+  const indexNowKey = configuredIndexNowKey(root);
+  if (indexNowKey) {
+    const keyFileName = indexNowKeyFileName(indexNowKey);
+    if (keyFileName !== "indexnow-key.txt") addText(join(docsRoot, keyFileName), `${indexNowKey}\n`, false);
+    changes.push({absolute: join(docsRoot, "indexnow-key.txt"), bytes: null});
+    let docsEntries: string[] = [];
+    try { docsEntries = await readdir(docsRoot); }
+    catch (error: any) { if (error.code !== "ENOENT") throw error; }
+    for (const name of docsEntries) {
+      if (name === keyFileName || !/^[A-Za-z0-9-]{8,128}\.txt$/.test(name)) continue;
+      const path = join(docsRoot, name);
+      const status = await lstat(path);
+      if (status.isSymbolicLink() || !status.isFile()) {
+        changes.push({absolute: path, bytes: null});
+        continue;
+      }
+      const content = await readFile(path, "utf8");
+      if (content.trim() === name.replace(/\.txt$/u, "")) changes.push({absolute: path, bytes: null});
+    }
+  }
+  addText(join(docsRoot, "index.html"), buildIndexHtml(index));
+  addText(join(docsRoot, KNOWLEDGE_HUB_FILE), buildKnowledgeHubHtml(index));
+  addText(join(docsRoot, "404.html"), buildNotFoundHtml(index));
+  addText(join(docsRoot, "go", "line.html"), buildLineRedirectHtml({
+    lineUrl: businessProfile.line_url,
+    measurementId: config.ga4MeasurementId
+  }));
+  addText(join(docsRoot, "docs", "index.html"), buildNotFoundHtml(index));
+  for (const service of SERVICE_PAGE_DEFINITIONS) {
+    addText(join(docsRoot, "services", `${service.slug}.html`), buildServicePageHtml(service, index));
+  }
+  for (const page of SUPPORT_PAGE_DEFINITIONS) {
+    addText(join(docsRoot, page.path), buildSupportPageHtml(page, index));
+  }
+  const preservedSeo90Posts = new Set(seo90.pages.filter((page) => page.path.startsWith("/posts/") && page.path.endsWith(".html")).map((page) => page.path.split("/").pop()!));
+  const postArticleOutputs: string[] = [];
+  const expectedPostNames = new Set([...articlePosts.map((post) => post.article_path.split("/").at(-1)!), "index.html", ...preservedSeo90Posts]);
+  let postNames: string[] = [];
+  try { postNames = await readdir(postsRoot); }
+  catch (error: any) { if (error.code !== "ENOENT") throw error; }
+  for (const name of postNames) {
+    if (!name.endsWith(".html") || expectedPostNames.has(name)) continue;
+    const path = join(postsRoot, name);
+    const status = await lstat(path);
+    if (status.isSymbolicLink() || !status.isFile()) {
+      changes.push({absolute: path, bytes: null});
+      continue;
+    }
+    changes.push({absolute: path, bytes: null});
+  }
+  for (const post of articlePosts) {
+    const path = join(postsRoot, post.article_path.split("/").at(-1)!);
+    addText(path, buildPostPageHtml(post, index));
+    postArticleOutputs.push(path);
+  }
+  if (articlePosts.length > 0) {
+    const hubPath = join(postsRoot, "index.html");
+    addText(hubPath, buildPostsHubHtml(index));
+    postArticleOutputs.push(hubPath);
+  }
+  changes.push(...webpChanges);
+  for (const item of deferredCalendarWrites) {
+    changes.push({
+      absolute: item.absolute,
+      bytes: item.value === null ? null : Buffer.from(`${JSON.stringify(item.value, null, 2)}\n`, "utf8")
+    });
+  }
   // publishPages mirrors docs/ into the root Pages repo by clearing it first, so a CNAME that
   // only lived in the repo settings would be wiped on the next publish. Emit it as part of the
   // build whenever the site is served from a custom domain.
   const cnameHost = customDomainHost(siteBaseUrl);
-  if (cnameHost) await writeFile(join(docsRoot, "CNAME"), `${cnameHost}\n`, "utf8");
-  else await unlink(join(docsRoot, "CNAME")).catch(() => undefined);
-
-  await writeJsonAtomic(outputs.socialPosts, index);
-  await writeJsonAtomic(outputs.businessProfile, businessProfile);
-  await writeJsonAtomic(outputs.latest, latest);
-  await writeJsonAtomic(outputs.services, buildServicesJson(index));
-  await writeJsonAtomic(outputs.answers, buildAnswersJson(index));
-  await writeJsonAtomic(outputs.geoTargets, buildGeoTargetsJson(index));
-  await writeJsonAtomic(outputs.searchVisibility, buildSearchVisibilityJson(index));
-  await writeJsonAtomic(outputs.feed, buildJsonFeed(index));
-  await writeFile(outputs.rss, buildRssXml(index), "utf8");
-  await writeJsonAtomic(outputs.knowledgeGraph, buildKnowledgeGraph(index));
-  const aiDiscovery = buildAiDiscovery(index);
-  await writeJsonAtomic(outputs.aiDiscovery, aiDiscovery);
-  await writeJsonAtomic(outputs.wellKnownAi, aiDiscovery);
-  await writeFile(outputs.llms, buildLlmsText(index), "utf8");
-  await writeFile(outputs.llmsLite, buildLlmsLiteText(index), "utf8");
-  await writeFile(outputs.llmsFull, buildLlmsFullText(index), "utf8");
-  await writeFile(outputs.llmsJsonl, buildLlmsJsonl(index), "utf8");
-  await writeFile(outputs.wellKnownLlms, buildLlmsText(index), "utf8");
-  await writeFile(outputs.robots, buildRobotsText(index), "utf8");
-  await writeFile(outputs.sitemap, buildSitemapXml(index), "utf8");
-  await writeFile(outputs.aiSitemap, buildAiSitemapXml(index), "utf8");
-  const searchContentAnalytics = buildSearchContentAnalyticsScript();
-  assertSearchContentAnalyticsScript(searchContentAnalytics);
-  await writeFile(outputs.searchContentAnalytics, searchContentAnalytics, "utf8");
-  if (indexNowKey) {
-    const keyFileName = indexNowKeyFileName(indexNowKey);
-    await writeFile(join(docsRoot, keyFileName), `${indexNowKey}\n`, "utf8");
-    await unlink(join(docsRoot, "indexnow-key.txt")).catch(() => undefined);
-    const docsEntries = await readdir(docsRoot);
-    await Promise.all(
-      docsEntries
-        .filter((name) => name !== keyFileName && /^[A-Za-z0-9-]{8,128}\.txt$/.test(name))
-        .map(async (name) => {
-          const path = join(docsRoot, name);
-          const content = await readFile(path, "utf8").catch(() => "");
-          if (content.trim() === name.replace(/\.txt$/u, "")) await unlink(path);
-        })
-    );
-  }
-  await writeFile(outputs.index, buildIndexHtml(index), "utf8");
-  await writeFile(outputs.knowledgeHub, buildKnowledgeHubHtml(index), "utf8");
-  await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
-  await writeFile(
-    outputs.lineRedirect,
-    buildLineRedirectHtml({
-      lineUrl: businessProfile.line_url,
-      measurementId: config.ga4MeasurementId
-    }),
-    "utf8"
-  );
-  await writeFile(outputs.compatibilityDocsIndex, buildNotFoundHtml(index), "utf8");
-  await Promise.all(
-    SERVICE_PAGE_DEFINITIONS.map((service) =>
-      writeFile(join(servicesRoot, `${service.slug}.html`), buildServicePageHtml(service, index), "utf8")
-    )
-  );
-  await Promise.all(
-    SUPPORT_PAGE_DEFINITIONS.map((page) => writeFile(join(docsRoot, page.path), buildSupportPageHtml(page, index), "utf8"))
-  );
-  const postArticleOutputs = await writePostArticlePages(articlePosts, index, postsRoot);
-  // The formal generator is the sole writer; internal hold diagnostics never enter docs.
-  const seo90Outputs: string[] = [];
-  for (const page of seo90.pages) {
-    const target = join(docsRoot, page.path.slice(1));
-    await mkdir(dirname(target), {recursive:true});
-    await writeFile(target, page.bytes);
-    seo90Outputs.push(target);
-  }
-  await writeFile(outputs.nojekyll, "", "utf8");
-
-  return [...Object.values(outputs), ...postArticleOutputs, ...seo90Outputs];
+  if (cnameHost) addText(join(docsRoot, "CNAME"), `${cnameHost}\n`, false);
+  else changes.push({absolute: join(docsRoot, "CNAME"), bytes: null});
+  addText(join(docsRoot, ".nojekyll"), "");
+  await commitPublicTree(docsRoot, changes, {
+    failRestore: options.releaseFault?.failRestore,
+    stall: options.releaseFault?.stall
+  });
+  const seo90Outputs = [
+    ...seo90.pages.map((page) => join(docsRoot, ...page.path.slice(1).split("/"))),
+    ...(seo90.manifest ? [join(docsRoot, "seo90-release-manifest.json")] : [])
+  ];
+  return [...returned, ...postArticleOutputs, ...seo90Outputs];
 }
 
 async function main(): Promise<void> {

@@ -1,0 +1,45 @@
+{
+  "at": "2026-09-22T01:40:59.796779+00:00",
+  "source_base": "8d9fde2c6565d1a3d6ed62f282b84e3a65b44124",
+  "files": {
+    "src/seo90/publicBundle.ts": "c982f9513e444081981fd4f0dd29cb0ee9576187d5d2fc16f12338e82ea4842d",
+    "src/generatePublicSite.ts": "ce2ea61c27f6afd8ed9b19e69071d731b93a4c7ac7d1ba9232cef833a3a089df",
+    "test/seo90Integration.test.ts": "bca4794cbf6412451309701cfdd357b80a48a489dfb46eba4ab0199e1a3f9241",
+    "test/seo90ReleaseLifecycle.test.ts": "0789ce82f98bc8cadb45a55b6a6992a95fcad44bbe5a3d5ce5dba2d8928317a3"
+  },
+  "gate_sha": "aa244fed66158d17543b748b08513f3d101fdab85bac671b1e1b31e3424cae3c",
+  "fixed_payloads_verified": 14,
+  "gate": {
+    "passed": 6,
+    "total": 6,
+    "new_temp_roots_remaining": 0
+  },
+  "tests": {
+    "passed": 115,
+    "failed": 0,
+    "skipped": 0
+  },
+  "typechecks": "project and acceptance exit0",
+  "original_probes": "late write and junction exit0; original scripts preserved",
+  "maker": "Grok4.7 R1/R3 plus Codex narrow WebP integration correction",
+  "independent_review": "narrow source review: no new blocker; see INDEPENDENT-INTEGRATION-REVIEW.md",
+  "retained_failures": [
+    "R1 two independent blockers",
+    "R2 service500 FAILED_EXIT despite outer exit0",
+    "R3 WebP regression 114/115 and isolated failure",
+    "final parallel TEMP cleanup EBUSY; sequential replay0"
+  ],
+  "not_verified": [
+    "power loss",
+    "forced termination",
+    "concurrent writers",
+    "unwritable restore-failure marker",
+    "real deployment",
+    "approval",
+    "content quality completion",
+    "indexing",
+    "commercial acceptance"
+  ],
+  "integrated_source_bytes": "all4match tested candidate; fixed14payload also verified",
+  "scope": "isolated release lifecycle only; public HOLD"
+}

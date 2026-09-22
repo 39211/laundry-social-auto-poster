@@ -190,6 +190,12 @@ describe("publishPagesAssets", () => {
     const { origin: rootPagesOrigin } = makeGitRepo();
     const date = "2026-05-15";
 
+    mkdirSync(join(root, "docs", "daily"), { recursive: true });
+    mkdirSync(join(root, "docs", "seo90-assets"), { recursive: true });
+    writeFileSync(join(root, "docs", "daily", "index.html"), '<!doctype html><title>notes</title><img src="../seo90-assets/sample.png">');
+    writeFileSync(join(root, "docs", "seo90-assets", "sample.png"), "fixture image");
+    writeFileSync(join(root, "docs", "seo90-release-manifest.json"), '{"fixture":true}');
+
     mkdirSync(join(root, "docs", "assets", date), { recursive: true });
     mkdirSync(join(root, "docs", "content-calendar"), { recursive: true });
     mkdirSync(join(root, "docs", "knowledge"), { recursive: true });
@@ -207,6 +213,10 @@ describe("publishPagesAssets", () => {
     const mirrorTree = git(rootPagesOrigin, ["ls-tree", "-r", "main", "--name-only"]);
 
     expect(result).toContain("Mirrored public site to root Pages repo");
+    expect(mirrorTree).toContain("daily/index.html");
+    expect(mirrorTree).toContain("seo90-assets/sample.png");
+    expect(mirrorTree).toContain("seo90-release-manifest.json");
+    expect(git(rootPagesOrigin, ["show", "main:seo90-assets/sample.png"])).toBe("fixture image");
     expect(mirrorTree).toContain("index.html");
     expect(mirrorTree).toContain(`content-calendar/${date}.json`);
     expect(mirrorTree).toContain("knowledge/index.html");

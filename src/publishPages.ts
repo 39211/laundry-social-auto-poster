@@ -17,7 +17,7 @@ export const MAX_REFERENCED_PUBLIC_ASSETS = 2000;
 const ALLOWED_ASSET_EXTENSIONS = new Set(["png", "webp", "jpeg", "jpg", "gif", "mp4", "avif"]);
 // Capture every assets/ path in public text. Allowlist decides keep vs fail-closed;
 // a narrow regex must not silently drop nested, encoded, or unknown references.
-const REFERENCED_ASSET_PATTERN = /(?:docs\/)?(assets\/[^\s"'<>)\]?#&,]*)/gi;
+const REFERENCED_ASSET_PATTERN = /(?<![a-z0-9_-])(?:docs\/)?(assets\/[^\s"'<>)\]?#&,]*)/gi;
 const ASSET_PATH_TERMINATOR = /[\s"'<>]/;
 // Escaped or encoded separators that never match the literal assets/ collector.
 // Reject them as written; never decode into a safe assets/date/file path.
@@ -324,6 +324,8 @@ function copyDirectoryContents(source: string, target: string): void {
 }
 
 const MIRROR_REPLACE_DIRS = new Set([
+  "daily",
+  "seo90-assets",
   "guides",
   "knowledge",
   "local",
@@ -511,6 +513,9 @@ export function publishPagesAssets(
     "docs/assets/services",
     "docs/content-calendar",
     "docs/posts",
+    "docs/daily",
+    "docs/seo90-assets",
+    "docs/seo90-release-manifest.json",
     "docs/services",
     "docs/guides",
     "docs/knowledge",

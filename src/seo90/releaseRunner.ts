@@ -260,14 +260,18 @@ async function updateJournal(path: string, journal: ReleaseJournal, intent: Rele
   return next;
 }
 
-export async function runRelease(input: {root: string; pinPath: string; journalPath: string; now?: Date; rehearsal?: boolean; readbackRetries?: number; readbackDelayMs?: number}): Promise<ReleaseRunResult> {
+export async function runRelease(input: {root: string; pinPath: string; journalPath: string; now?: Date; rehearsal?: boolean; intentId?: string; readbackRetries?: number; readbackDelayMs?: number}): Promise<ReleaseRunResult> {
   const root = resolve(input.root);
   const pin = await loadReleasePin(input.pinPath);
   const now = input.rehearsal ? (input.now ?? new Date()) : new Date();
   if (!input.rehearsal && input.now) throw Error('SEO90_PRODUCTION_CLOCK_OVERRIDE');
   return withReleaseLock(`${input.journalPath}.lock`, async () => {
     let journal = await readReleaseJournal(input.journalPath);
-    const pending = pendingIntent(journal);
+    const pending = input.intentId ? journal.intents.find((item) => item.intentId === input.intentId) : pendingIntent(journal);
+    if (input.intentId && !pending) throw Error('SEO90_RELEASE_INTENT_NOT_FOUND');
+    if (input.intentId && pending && ['COMPLETE', 'HOLD'].includes(pending.state)) {
+      return {state: pending.state, intentId: pending.intentId, selected: pending.contentIds, candidateCommit: pending.candidateCommit, message: `RESUME_NOOP: intent is already ${pending.state}; no rebuild, push or journal write.`};
+    }
     if (pending) return reconcileRelease(input, pin, journal, pending);
     const bundle = await loadBundle(pin);
     const projection = await projectDueBundle(pin, bundle, now);

@@ -7,6 +7,7 @@ import {execFileSync} from 'node:child_process';
 import {bytesDigest, digest} from '../src/seo90/buildSeo90';
 import {fetchReadback, projectDueBundle, runRelease, type ReleasePin} from '../src/seo90/releaseRunner';
 import type {Bundle} from '../src/seo90/types';
+import {main as releaseCli} from '../scripts/seo90-release';
 
 const baseUrl = 'https://sixiangjialaundry.com';
 const times = ['2026-09-25T09:00:00+08:00','2026-09-26T09:00:00+08:00','2026-09-27T09:00:00+08:00','2026-09-28T09:00:00+08:00','2026-09-29T09:00:00+08:00','2026-09-30T09:00:00+08:00','2026-10-01T09:00:00+08:00'];
@@ -94,6 +95,57 @@ describe('SEO90 release runner contract', () => {
       const result = await runRelease({root, pinPath, journalPath: journal});
       expect(result.state).toBe('WAIT_DUE');
       await expect(stat(journal)).rejects.toMatchObject({code: 'ENOENT'});
+    } finally { await rm(root, {recursive: true, force: true}); await rm(privateDir, {recursive: true, force: true}); }
+  });
+
+  it('supports --policy as the explicit run alias without writing before due', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'seo90-cli-root-'));
+    const privateDir = await mkdtemp(join(tmpdir(), 'seo90-cli-private-'));
+    try {
+      execFileSync('git', ['init', '-q'], {cwd: root});
+      execFileSync('git', ['config', 'user.email', 'fixture@example.test'], {cwd: root});
+      execFileSync('git', ['config', 'user.name', 'fixture'], {cwd: root});
+      await writeFile(join(root, 'README.md'), 'fixture\n');
+      execFileSync('git', ['add', 'README.md'], {cwd: root}); execFileSync('git', ['commit', '-qm', 'fixture'], {cwd: root});
+      const bundle = fakeBundle();
+      const bundlePath = join(privateDir, 'bundle.json'); await writeFile(bundlePath, `${JSON.stringify(bundle)}\n`);
+      const pin = pinFor(bundle); pin.sourceBundlePath = bundlePath; pin.sourceBundleSha256 = bytesDigest(await readFile(bundlePath)); pin.assetRoot = privateDir; pin.destination.repoRoot = root;
+      const pinPath = join(privateDir, 'pin.json'); await writeFile(pinPath, `${JSON.stringify(pin)}\n`);
+      const journal = join(privateDir, 'journal-policy.json');
+      let output = ''; const originalLog = console.log; console.log = (...args: unknown[]) => { output += args.join(' '); };
+      try { await releaseCli(['run', '--policy', pinPath, '--root', root, '--journal', journal]); }
+      finally { console.log = originalLog; }
+      expect(output).toContain('WAIT_DUE');
+      await expect(stat(journal)).rejects.toMatchObject({code: 'ENOENT'});
+    } finally { await rm(root, {recursive: true, force: true}); await rm(privateDir, {recursive: true, force: true}); }
+  });
+
+  it('status is read-only and resume of a terminal intent does not rebuild or push', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'seo90-cli-status-root-'));
+    const privateDir = await mkdtemp(join(tmpdir(), 'seo90-cli-status-private-'));
+    try {
+      execFileSync('git', ['init', '-q'], {cwd: root});
+      execFileSync('git', ['config', 'user.email', 'fixture@example.test'], {cwd: root});
+      execFileSync('git', ['config', 'user.name', 'fixture'], {cwd: root});
+      await writeFile(join(root, 'README.md'), 'fixture\n');
+      execFileSync('git', ['add', 'README.md'], {cwd: root}); execFileSync('git', ['commit', '-qm', 'fixture'], {cwd: root});
+      const bundle = fakeBundle();
+      const bundlePath = join(privateDir, 'bundle.json'); await writeFile(bundlePath, `${JSON.stringify(bundle)}\n`);
+      const pin = pinFor(bundle); pin.sourceBundlePath = bundlePath; pin.sourceBundleSha256 = bytesDigest(await readFile(bundlePath)); pin.assetRoot = privateDir; pin.destination.repoRoot = root;
+      const pinPath = join(privateDir, 'pin.json'); await writeFile(pinPath, `${JSON.stringify(pin)}\n`);
+      const intent = {schemaVersion: 'sxj.seo90.release-intent.v1' as const, intentId: 'terminal-intent', storeId: 'sxj', baseUrl, expectedBefore: 'before', candidateCommit: 'after', contentIds: ['article-1'], inputSha256: 'input', plannedAt: '2026-09-22T00:00:00.000Z', windowEndsAt: pin.windowEndsAt, state: 'COMPLETE' as const, createdAt: '2026-09-22T00:00:00.000Z', updatedAt: '2026-09-22T00:00:00.000Z', selectedPaths: ['/posts/a.html']};
+      const journal = join(privateDir, 'journal.json'); await writeFile(journal, `${JSON.stringify({schemaVersion: 'sxj.seo90.release-journal.v1', intents: [intent]}, null, 2)}\n`);
+      const before = await readFile(journal, 'utf8');
+      let statusOutput = ''; const originalLog = console.log; console.log = (...args: unknown[]) => { statusOutput += args.join(' '); };
+      try { await releaseCli(['status', '--journal', journal, '--intent', 'terminal-intent']); }
+      finally { console.log = originalLog; }
+      expect(statusOutput).toContain('terminal-intent');
+      expect(await readFile(journal, 'utf8')).toBe(before);
+      let resumeOutput = ''; console.log = (...args: unknown[]) => { resumeOutput += args.join(' '); };
+      try { await releaseCli(['resume', '--intent', 'terminal-intent', '--policy', pinPath, '--root', root, '--journal', journal]); }
+      finally { console.log = originalLog; }
+      expect(resumeOutput).toContain('RESUME_NOOP');
+      expect(await readFile(journal, 'utf8')).toBe(before);
     } finally { await rm(root, {recursive: true, force: true}); await rm(privateDir, {recursive: true, force: true}); }
   });
 });

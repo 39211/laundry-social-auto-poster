@@ -7,7 +7,8 @@ import {cp, mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
-import {dirname, fileURLToPath, join, resolve} from 'node:path';
+import {dirname, join, resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const siteRepo = resolve(scriptDir, '..');

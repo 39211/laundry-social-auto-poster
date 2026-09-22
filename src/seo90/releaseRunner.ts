@@ -6,7 +6,7 @@ import {mkdir, readFile, readdir, rm, writeFile} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 import {mkdtemp} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {dirname, join, resolve} from 'node:path';
+import {dirname, isAbsolute, join, resolve} from 'node:path';
 import {createServer} from 'node:http';
 
 export interface ReleasePin {
@@ -37,6 +37,16 @@ export interface ReleaseRunResult {
     expectedAssetRefs: string[];
     emittedAssetRefs: string[];
   };
+}
+
+/**
+ * A transport rehearsal that is allowed to commit and push only inside a
+ * caller-provided local Pages mirror.  It is deliberately separate from the
+ * normal rehearsal (which is loopback-only) so a test clock can never reach a
+ * production remote by accident.
+ */
+export interface MirrorRehearsalOptions {
+  rootPagesRepo: string;
 }
 
 const PIN_SCHEMA = 'sxj.seo90.release-pin.v1';
@@ -260,9 +270,10 @@ async function updateJournal(path: string, journal: ReleaseJournal, intent: Rele
   return next;
 }
 
-export async function runRelease(input: {root: string; pinPath: string; journalPath: string; now?: Date; rehearsal?: boolean; intentId?: string; readbackRetries?: number; readbackDelayMs?: number}): Promise<ReleaseRunResult> {
+export async function runRelease(input: {root: string; pinPath: string; journalPath: string; now?: Date; rehearsal?: boolean; mirrorRehearsal?: MirrorRehearsalOptions; intentId?: string; readbackRetries?: number; readbackDelayMs?: number}): Promise<ReleaseRunResult> {
   const root = resolve(input.root);
   const pin = await loadReleasePin(input.pinPath);
+  if (input.mirrorRehearsal && !input.rehearsal) throw Error('SEO90_MIRROR_REHEARSAL_REQUIRES_REHEARSAL');
   const now = input.rehearsal ? (input.now ?? new Date()) : new Date();
   if (!input.rehearsal && input.now) throw Error('SEO90_PRODUCTION_CLOCK_OVERRIDE');
   return withReleaseLock(`${input.journalPath}.lock`, async () => {
@@ -283,11 +294,42 @@ export async function runRelease(input: {root: string; pinPath: string; journalP
     const intent = intentFor(pin, projection.selected, projection.bundle, projection.inputSha256, expectedBefore, now.toISOString());
     const evidence = dueEvidence(pin, bundle, now, projection.selected, projection.bundle);
     if (evidence.expectedDueContentIds.join('|') !== evidence.emittedContentIds.join('|') || evidence.expectedArticlePaths.join('|') !== evidence.emittedArticlePaths.join('|') || evidence.expectedAssetRefs.join('|') !== evidence.emittedAssetRefs.join('|')) throw Error('SEO90_RELEASE_DUE_SET_MISMATCH');
+    const selectedIds = projection.selected.map((article) => article.contentId).sort();
+    const completed = journal.intents.find((item) => item.state === 'COMPLETE' && item.inputSha256 === projection.inputSha256 && item.windowEndsAt === pin.windowEndsAt && item.contentIds.slice().sort().join('|') === selectedIds.join('|'));
+    if (completed) {
+      return {state: 'COMPLETE', intentId: completed.intentId, selected: selectedIds, candidateCommit: completed.candidateCommit, message: 'NOOP: the exact due projection is already COMPLETE; no new intent, commit or push.', evidence};
+    }
     journal = await updateJournal(input.journalPath, journal, intent);
     intent.state = 'PREPARED'; intent.updatedAt = new Date().toISOString(); journal = await updateJournal(input.journalPath, journal, intent);
     let candidate: {path: string; changed: string[]} | undefined;
     try {
       candidate = await createCandidate(root, pin, projection.bundle, now, expectedBefore);
+      if (input.rehearsal && input.mirrorRehearsal) {
+        await applyCandidate(root, candidate.path, candidate.changed, expectedBefore);
+        const date = projection.selected.at(-1)!.plannedPublishAt.slice(0, 10);
+        process.env.PUBLIC_SITE_BASE_URL = process.env.PUBLIC_SITE_BASE_URL || pin.baseUrl;
+        const {publishPagesAssets} = await import('../publishPages');
+        publishPagesAssets(date, root, input.mirrorRehearsal.rootPagesRepo, now, {
+          afterSourceCommit: (commit) => {
+            intent.candidateCommit = commit;
+            intent.state = 'GIT_CONFIRMED';
+            intent.updatedAt = new Date().toISOString();
+            writeReleaseJournalSync(input.journalPath, upsertIntent(journal, intent));
+          }
+        });
+        const candidateCommit = git(root, ['rev-parse', 'HEAD']);
+        intent.candidateCommit = candidateCommit;
+        intent.state = 'GIT_CONFIRMED';
+        intent.updatedAt = new Date().toISOString();
+        journal = await updateJournal(input.journalPath, journal, intent);
+        const readback = await readbackCandidate(root, releasePaths(projection.selected, projection.bundle), pin.baseUrl);
+        intent.readback = readback;
+        intent.state = readback.failures.length ? 'UNKNOWN' : 'COMPLETE';
+        intent.updatedAt = new Date().toISOString();
+        await updateJournal(input.journalPath, journal, intent);
+        if (readback.failures.length) throw Error(`SEO90_MIRROR_REHEARSAL_READBACK_FAILED:${readback.failures.join(',')}`);
+        return {state: 'COMPLETE', intentId: intent.intentId, selected: selectedIds, candidateCommit, message: `MIRROR_REHEARSAL_READY: ${candidate.changed.length} public files changed; local source and Pages mirror pushed; loopback readback passed.`, readback, evidence};
+      }
       if (input.rehearsal) {
         const readback = await readbackCandidate(candidate.path, releasePaths(projection.selected, projection.bundle), pin.baseUrl);
         intent.readback = readback;
@@ -338,5 +380,20 @@ export async function runRehearsal(input: {root: string; pinPath: string; journa
   const result = await runRelease({...input, now: input.at, rehearsal: true, readbackRetries: 0, readbackDelayMs: 0});
   await mkdir(dirname(input.reportPath), {recursive: true});
   await writeFile(input.reportPath, `${JSON.stringify({schemaVersion: 'sxj.seo90.rehearsal.v1', at: input.at.toISOString(), result}, null, 2)}\n`, 'utf8');
+  return result;
+}
+
+export async function runMirrorRehearsal(input: {root: string; pinPath: string; journalPath: string; at: Date; rootPagesRepo: string; reportPath: string}): Promise<ReleaseRunResult> {
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(input.rootPagesRepo) || !isAbsolute(resolve(input.rootPagesRepo))) throw Error('SEO90_MIRROR_REHEARSAL_REQUIRES_LOCAL_REPO');
+  const result = await runRelease({
+    ...input,
+    now: input.at,
+    rehearsal: true,
+    mirrorRehearsal: {rootPagesRepo: resolve(input.rootPagesRepo)},
+    readbackRetries: 0,
+    readbackDelayMs: 0
+  });
+  await mkdir(dirname(input.reportPath), {recursive: true});
+  await writeFile(input.reportPath, `${JSON.stringify({schemaVersion: 'sxj.seo90.mirror-rehearsal.v1', at: input.at.toISOString(), result}, null, 2)}\n`, 'utf8');
   return result;
 }

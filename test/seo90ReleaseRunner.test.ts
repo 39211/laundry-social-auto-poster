@@ -148,4 +148,29 @@ describe('SEO90 release runner contract', () => {
       expect(await readFile(journal, 'utf8')).toBe(before);
     } finally { await rm(root, {recursive: true, force: true}); await rm(privateDir, {recursive: true, force: true}); }
   });
+
+  it('does not create a second intent for an already complete due projection', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'seo90-noop-root-'));
+    const privateDir = await mkdtemp(join(tmpdir(), 'seo90-noop-private-'));
+    try {
+      execFileSync('git', ['init', '-q'], {cwd: root});
+      execFileSync('git', ['config', 'user.email', 'fixture@example.test'], {cwd: root});
+      execFileSync('git', ['config', 'user.name', 'fixture'], {cwd: root});
+      await writeFile(join(root, 'README.md'), 'fixture\n');
+      execFileSync('git', ['add', 'README.md'], {cwd: root}); execFileSync('git', ['commit', '-qm', 'fixture'], {cwd: root});
+      const bundle = fakeBundle();
+      const bundlePath = join(privateDir, 'bundle.json'); await writeFile(bundlePath, `${JSON.stringify(bundle)}\n`);
+      const pin = pinFor(bundle); pin.sourceBundlePath = bundlePath; pin.sourceBundleSha256 = bytesDigest(await readFile(bundlePath)); pin.assetRoot = privateDir; pin.destination.repoRoot = root;
+      const pinPath = join(privateDir, 'pin.json'); await writeFile(pinPath, `${JSON.stringify(pin)}\n`);
+      const now = new Date('2026-09-25T09:00:00+08:00');
+      const projection = await projectDueBundle(pin, bundle, now);
+      const intent = {schemaVersion: 'sxj.seo90.release-intent.v1' as const, intentId: 'complete-projection', storeId: pin.storeId, baseUrl: pin.baseUrl, expectedBefore: 'before', candidateCommit: 'after', contentIds: projection.selected.map((article) => article.contentId), inputSha256: projection.inputSha256, plannedAt: now.toISOString(), windowEndsAt: pin.windowEndsAt, state: 'COMPLETE' as const, createdAt: now.toISOString(), updatedAt: now.toISOString(), selectedPaths: projection.selected.map((article) => article.canonicalPath)};
+      const journal = join(privateDir, 'journal.json'); await writeFile(journal, `${JSON.stringify({schemaVersion: 'sxj.seo90.release-journal.v1', intents: [intent]}, null, 2)}\n`);
+      const before = await readFile(journal, 'utf8');
+      const result = await runRelease({root, pinPath, journalPath: journal, now, rehearsal: true});
+      expect(result.message).toContain('NOOP');
+      expect(result.intentId).toBe('complete-projection');
+      expect(await readFile(journal, 'utf8')).toBe(before);
+    } finally { await rm(root, {recursive: true, force: true}); await rm(privateDir, {recursive: true, force: true}); }
+  });
 });

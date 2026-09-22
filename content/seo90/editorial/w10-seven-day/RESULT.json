@@ -1,0 +1,84 @@
+{
+  "milestone": "W10",
+  "content": {
+    "completeMotherArticles": 7,
+    "realCreativeImages": 28,
+    "newImagegenImages": 7,
+    "reusedOwnerReference": 1,
+    "retainedW9Images": 20,
+    "remainingRoadmapBriefs": 83,
+    "heldHelmetExcluded": true
+  },
+  "validation": {
+    "seo90Suites": 4,
+    "passed": 83,
+    "failed": 0,
+    "storeReviewCases": 15,
+    "mutations": [
+      {
+        "name": "image",
+        "exit": 1,
+        "failed": 1,
+        "killed": true,
+        "test": "rejects rebound foreign image bytes"
+      },
+      {
+        "name": "cta",
+        "exit": 1,
+        "failed": 1,
+        "killed": true,
+        "test": "rejects foreign CTA path"
+      }
+    ],
+    "twoStoreRelocationIdentical": true,
+    "zipManifestPayloads": 156,
+    "unpackedExit": 0,
+    "unpackedComparisons": [
+      {
+        "storeId": "sixiangjia",
+        "comparedPayloads": 37,
+        "identical": true
+      },
+      {
+        "storeId": "test-store-b",
+        "comparedPayloads": 37,
+        "identical": true
+      }
+    ],
+    "mobileArticlesChecked": 7,
+    "mobileOverflow": 0
+  },
+  "actualSxjPublicGate": {
+    "pages": 0,
+    "sitemapEntries": 0,
+    "held": 7
+  },
+  "package": {
+    "filename": "SXJ-W10-SEVEN-DAYS-TWO-STORE-REVIEW-R3.zip",
+    "sha256": "014811a19d6fd9063a808912cbcd7fee5eb0543aabf2112ca2c4cfd96622d427",
+    "bytes": 120887972
+  },
+  "sourceSha256": {
+    "src/seo90/storeReview.ts": "ccae841c0c14d449977227fd49210ad474e99886ee59b22d12e3387f60d4679a",
+    "scripts/seo90-store-review.ts": "ea713560c8ad9b9cdee6c5ac42f0cef2c031cea8846ddfce4646131a3d82c682",
+    "test/seo90StoreReview.test.ts": "7a2f4eb3d8493c058dd9724723c53ed4e59875576da8cf3ce229d143d811f379",
+    "content/seo90/STORE-REVIEW.md": "d52cf9dca489e8aa90a8cdc39b07a2b224ddf9ff58869506c186a786e6a55a4d"
+  },
+  "limits": {
+    "secondStore": "synthetic_only",
+    "realSecondStoreAcceptance": false,
+    "ownerApprovals": 0,
+    "releases": 0,
+    "deployments": 0,
+    "newSocialPosts": 0,
+    "crossFamilyReview": false,
+    "freshGrokDispatch": false,
+    "reviewPolicyIsSignature": false
+  },
+  "defectsFixed": [
+    "Preview lacked independently pinned store ownership; dedicated review entry now pins store, registry, assets and whole bundle.",
+    "Unmeasured public eligibility constant replaced with publicEligibilityChecked false and actual public test run separately.",
+    "Offline back navigation now explicitly targets daily/index.html."
+  ],
+  "initialFailure": "First broad test run missed PUBLIC_SITE_BASE_URL: 52 tests passed but 2 suites failed to collect. Final run supplied the public site URL in process only: 83 passed. Old log retained."
+}

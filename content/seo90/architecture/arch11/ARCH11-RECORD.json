@@ -1,0 +1,20 @@
+{
+  "status": "GO_ARCHITECTURE_ONLY",
+  "review": "Two complete Pro rounds; Round 2 conditional approval; exactly two required wording replacements independently checked; no third review claimed.",
+  "logical_rounds": 2,
+  "submission_attempts": 3,
+  "implementation_authorized": false,
+  "files_sha256": {
+    "P2-P4-PUBLISH-HUB-ARCHITECTURE-R11.md": "a940937a1f9eaef4dacbe95e6d2bca265c121bf96abe92355925df627f2e73bb",
+    "W10-使用與複用.md": "b98b88ee6d075901159bd34f3724d5bbbf532f313f957f3b1085d6dfc92b10a4"
+  },
+  "w10_test_rerun_this_turn": false,
+  "product_code_changed": false,
+  "sender_authority": "UNKNOWN; inventory not performed",
+  "research_source_package_download": "not_observed",
+  "sha256_scope": "files_sha256 hashes local reviewed bytes; git_blob_sha256 hashes Git-normalized UTF-8 bytes (line endings may differ).",
+  "git_blob_sha256": {
+    "P2-P4-PUBLISH-HUB-ARCHITECTURE-R11.md": "a940937a1f9eaef4dacbe95e6d2bca265c121bf96abe92355925df627f2e73bb",
+    "W10-使用與複用.md": "b98b88ee6d075901159bd34f3724d5bbbf532f313f957f3b1085d6dfc92b10a4"
+  }
+}

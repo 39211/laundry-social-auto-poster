@@ -8,7 +8,8 @@ import {existsSync} from 'node:fs';
 import {readFile, writeFile, mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
-import {dirname, fileURLToPath, join, resolve} from 'node:path';
+import {dirname, join, resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 const siteRepo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const coordination = resolve(siteRepo, '..');

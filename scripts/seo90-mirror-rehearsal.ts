@@ -74,7 +74,7 @@ async function main(): Promise<void> {
     git(sourceClone, ['reset', '--hard', 'origin/main']);
     git(sourceClone, ['clean', '-fdx']);
     const sourceBefore = git(sourceClone, ['rev-parse', 'HEAD']);
-    if (!sourceBefore.startsWith('54633cb014a4')) throw Error(`UNEXPECTED_SOURCE_HEAD:${sourceBefore}`);
+    if (sourceBefore !== sourceHead) throw Error(`UNEXPECTED_SOURCE_HEAD:${sourceBefore}`);
 
     git(coordination, ['init', '--bare', pagesRemote]);
     git(coordination, ['init', pagesSeed]);

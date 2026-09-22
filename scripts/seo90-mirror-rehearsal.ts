@@ -60,7 +60,9 @@ async function main(): Promise<void> {
     // All remotes are local paths.  The source clone starts at the released
     // feature commit but is pushed only to this temporary bare repository.
     git(coordination, ['init', '--bare', sourceRemote]);
-    git(coordination, ['clone', '--no-hardlinks', siteRepo, sourceClone]);
+    // Shared objects keep this long-lived repository clone fast while the
+    // temporary worktree/index remain private and are destroyed afterwards.
+    git(coordination, ['clone', '--shared', '--no-checkout', siteRepo, sourceClone]);
     git(sourceClone, ['remote', 'set-url', 'origin', sourceRemote]);
     git(sourceClone, ['push', 'origin', 'HEAD:refs/heads/main']);
     git(sourceClone, ['checkout', '-B', 'main', 'origin/main']);

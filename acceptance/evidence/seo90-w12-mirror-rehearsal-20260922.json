@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "sxj.seo90.mirror-rehearsal-report.v1",
+  "at": "2026-09-25T09:00:00+08:00",
+  "sourceHead": {
+    "before": "5750984268f137faa53901b7fc223554763609db",
+    "after": "eaab68156ec56ece57552689285eb964c93ce201",
+    "parent": "5750984268f137faa53901b7fc223554763609db",
+    "remote": "eaab68156ec56ece57552689285eb964c93ce201"
+  },
+  "pagesMirror": {
+    "before": "16c42a75079e52a69bd8dac4cf38fee48e34cad4",
+    "after": "ca5dcd88d54ec099b73ae2dbbb4c1186e67a8d4a",
+    "parent": "16c42a75079e52a69bd8dac4cf38fee48e34cad4",
+    "treeFiles": 451
+  },
+  "dueEvidence": {
+    "expectedDueContentIds": [
+      "sxj90-001-barbecue-coat"
+    ],
+    "emittedContentIds": [
+      "sxj90-001-barbecue-coat"
+    ],
+    "expectedArticlePaths": [
+      "/posts/2026-09-25-barbecue-coat.html"
+    ],
+    "emittedArticlePaths": [
+      "/posts/2026-09-25-barbecue-coat.html"
+    ],
+    "expectedAssetRefs": [
+      "sxj90-001-barbecue-coat-image-1",
+      "sxj90-001-barbecue-coat-image-2",
+      "sxj90-001-barbecue-coat-image-3",
+      "sxj90-001-barbecue-coat-image-4"
+    ],
+    "emittedAssetRefs": [
+      "sxj90-001-barbecue-coat-image-1",
+      "sxj90-001-barbecue-coat-image-2",
+      "sxj90-001-barbecue-coat-image-3",
+      "sxj90-001-barbecue-coat-image-4"
+    ]
+  },
+  "first": {
+    "state": "COMPLETE",
+    "intentId": "864a09cea36294b7ea1cfe6f67697712",
+    "message": "MIRROR_REHEARSAL_READY: 331 public files changed; local source and Pages mirror pushed; loopback readback passed.",
+    "readbackFailures": []
+  },
+  "second": {
+    "state": "COMPLETE",
+    "message": "NOOP: the exact due projection is already COMPLETE; no new intent, commit or push.",
+    "noOp": true
+  },
+  "status": {
+    "exit": 0,
+    "bytesUnchanged": true,
+    "output": "{\n  \"schemaVersion\": \"sxj.seo90.release-journal.v1\",\n  \"pending\": [],\n  \"intents\": [\n    {\n      \"schemaVersion\": \"sxj.seo90.release-intent.v1\",\n      \"intentId\": \"864a09cea36294b7ea1cfe6f67697712\",\n      \"storeId\": \"sixiangjia\",\n      \"baseUrl\": \"https://sixiangjialaundry.com\",\n      \"expectedBefore\": \"5750984268f137faa53901b7fc223554763609db\",\n      \"contentIds\": [\n        \"sxj90-001-barbecue-coat\"\n      ],\n      \"inputSha256\": \"e79235420474c8da3cb88759fc58c5a10196ca44e0cd19ad8e11278dd6abb91e\",\n      \"plannedAt\": \"2026-09-25T01:00:00.000Z\",\n      \"windowEndsAt\": \"2026-10-02T00:00:00+08:00\",\n      \"state\": \"COMPLETE\",\n      \"createdAt\": \"2026-09-25T01:00:00.000Z\",\n      \"updatedAt\": \"2026-09-22T09:07:39.863Z\",\n      \"selectedPaths\": [\n        \"/daily/index.html\",\n        \"/posts/2026-09-25-barbecue-coat.html\",\n        \"/seo90-assets/9467ae526dc3352ade046225d5bd8dbda0ea067ec409381f5bf2934a40d032cf.png\",\n        \"/seo90-assets/a29c0184bbcfa9393b3955b40a22c8bd76e270922d9cd94a0bf890222cb22a3f.png\",\n        \"/seo90-assets/9bc511c3c84452b7ca02821e35fb16ae611717b794079c35996fe2ae9988a569.png\",\n        \"/seo90-assets/0ce617aa7bcdd719195d20717deadd6750b5e62e3f3f4c8489f4aafebbc5c008.png\"\n      ],\n      \"candidateCommit\": \"eaab68156ec56ece57552689285eb964c93ce201\",\n      \"readback\": {\n        \"checkedAt\": \"2026-09-22T09:07:39.862Z\",\n        \"urls\": [\n          \"http://127.0.0.1:61883/daily/\",\n          \"http://127.0.0.1:61883/posts/2026-09-25-barbecue-coat.html\",\n          \"http://127.0.0.1:61883/seo90-assets/9467ae526dc3352ade046225d5bd8dbda0ea067ec409381f5bf2934a40d032cf.png\",\n          \"http://127.0.0.1:61883/seo90-assets/a29c0184bbcfa9393b3955b40a22c8bd76e270922d9cd94a0bf890222cb22a3f.png\",\n          \"http://127.0.0.1:61883/seo90-assets/9bc511c3c84452b7ca02821e35fb16ae611717b794079c35996fe2ae9988a569.png\",\n          \"http://127.0.0.1:61883/seo90-assets/0ce617aa7bcdd719195d20717deadd6750b5e62e3f3f4c8489f4aafebbc5c008.png\"\n        ],\n        \"failures\": []\n      }\n    }\n  ]\n}\n"
+  },
+  "resume": {
+    "exit": 0,
+    "bytesUnchanged": true,
+    "output": "{\n  \"state\": \"COMPLETE\",\n  \"intentId\": \"864a09cea36294b7ea1cfe6f67697712\",\n  \"selected\": [\n    \"sxj90-001-barbecue-coat\"\n  ],\n  \"candidateCommit\": \"eaab68156ec56ece57552689285eb964c93ce201\",\n  \"message\": \"RESUME_NOOP: intent is already COMPLETE; no rebuild, push or journal write.\"\n}\n"
+  },
+  "seoReadback": {
+    "jsonLd": true,
+    "sitemapDuePresent": true,
+    "futurePathsAbsent": true,
+    "loopbackFailures": []
+  },
+  "fixedInputHashes": {
+    "bundleSha256": "a49f2a517bdbe06b58534188da5d8ae5b2bcf14cd18de49e2a861a13ff00d999",
+    "originalPinSha256": "ae3aa1a641f9d8a609ad3d1e9058a50e7c44223d66e12f61b9383ff2c8cf0edf",
+    "isolatedPolicySha256": "1bc3f2c2220664948c849abd59671dfff10f43c2fc5ac0b86f9b2cc672b5a590"
+  },
+  "formalProductionTouched": false,
+  "pass": true
+}

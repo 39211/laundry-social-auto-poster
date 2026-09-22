@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "sxj.seo90.production-preflight.v1",
+  "checkedAt": "2026-09-22T09:13:42.481Z",
+  "source": {
+    "repo": "C:\\Users\\cyc39\\Documents\\AI_Agency\\products\\_coordination\\sxj-seo90-20260922\\site",
+    "ref": "refs/heads/codex/seo-daily-90d-20260922",
+    "localHead": "3d78a950d6b37e827f84dde617338fc04c17b657",
+    "remoteHead": "3d78a950d6b37e827f84dde617338fc04c17b657",
+    "statusBefore": "",
+    "statusAfter": ""
+  },
+  "pagesMirror": {
+    "remote": "https://github.com/39211/39211.github.io.git",
+    "before": "51dd78946b2ea419e04134dc68800783dc7de589",
+    "after": "51dd78946b2ea419e04134dc68800783dc7de589"
+  },
+  "pin": {
+    "path": "C:\\Users\\cyc39\\Documents\\AI_Agency\\products\\_coordination\\sxj-seo90-20260922\\notebook-seo-integration\\RELEASE-PIN.json",
+    "sha256": "ae3aa1a641f9d8a609ad3d1e9058a50e7c44223d66e12f61b9383ff2c8cf0edf",
+    "bundleSha256": "a49f2a517bdbe06b58534188da5d8ae5b2bcf14cd18de49e2a861a13ff00d999"
+  },
+  "journal": {
+    "path": "C:\\Users\\cyc39\\Documents\\AI_Agency\\products\\_coordination\\sxj-seo90-20260922\\notebook-seo-integration\\seo90-release-journal.json",
+    "existedBefore": false,
+    "byteStable": true
+  },
+  "runResult": {
+    "state": "WAIT_DUE",
+    "selected": [],
+    "message": "WAIT_DUE: no approved article is due; zero public writes, commits and pushes.",
+    "evidence": {
+      "expectedDueContentIds": [],
+      "emittedContentIds": [],
+      "expectedArticlePaths": [],
+      "emittedArticlePaths": [],
+      "expectedAssetRefs": [],
+      "emittedAssetRefs": []
+    }
+  },
+  "publicFiles": {
+    "before": {
+      "docs/CNAME": "7aeadd817b4f0a4fd827ee387e489c7a89dc370c557e0e1be16bc55e26653000",
+      "docs/sitemap.xml": "d813c63a037bcdc562541db8acd7dbe4c5867a0e6d9def71b0fe3dd7e803c9b4",
+      "docs/daily/index.html": null,
+      "docs/seo90-release-manifest.json": null
+    },
+    "after": {
+      "docs/CNAME": "7aeadd817b4f0a4fd827ee387e489c7a89dc370c557e0e1be16bc55e26653000",
+      "docs/sitemap.xml": "d813c63a037bcdc562541db8acd7dbe4c5867a0e6d9def71b0fe3dd7e803c9b4",
+      "docs/daily/index.html": null,
+      "docs/seo90-release-manifest.json": null
+    }
+  },
+  "checks": {
+    "stateWaitDue": true,
+    "dueSetEmpty": true,
+    "sourceClean": true,
+    "sourceHeadStable": true,
+    "sourceRemoteStable": true,
+    "pagesRemoteStable": true,
+    "journalByteStable": true,
+    "pinByteStable": true,
+    "bundleByteStable": true,
+    "publicFilesByteStable": true,
+    "noPendingIntent": true
+  },
+  "formalProductionTouched": false,
+  "pass": true
+}

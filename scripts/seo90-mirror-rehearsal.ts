@@ -36,7 +36,9 @@ function runCli(args: string[]): any {
     env: {...process.env, PUBLIC_SITE_BASE_URL: 'https://sixiangjialaundry.com'},
     stdio: ['ignore', 'pipe', 'pipe']
   });
-  return JSON.parse(output);
+  const jsonStart = output.indexOf('{');
+  if (jsonStart < 0) throw Error(`MIRROR_CLI_NO_JSON:${output.slice(0, 500)}`);
+  return JSON.parse(output.slice(jsonStart));
 }
 
 async function main(): Promise<void> {

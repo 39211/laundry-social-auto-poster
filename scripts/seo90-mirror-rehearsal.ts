@@ -29,7 +29,8 @@ function sha256(bytes: Buffer): string {
 }
 function runCli(args: string[]): any {
   const cli = join(siteRepo, 'scripts', 'seo90-release.ts');
-  const output = execFileSync('npx.cmd', ['tsx', cli, ...args], {
+  const tsxCli = join(siteRepo, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+  const output = execFileSync(process.execPath, [tsxCli, cli, ...args], {
     cwd: siteRepo,
     encoding: 'utf8',
     env: {...process.env, PUBLIC_SITE_BASE_URL: 'https://sixiangjialaundry.com'},
@@ -143,9 +144,11 @@ async function main(): Promise<void> {
     if (!String(second.message).includes('NOOP') || git(sourceClone, ['rev-parse', 'HEAD']) !== sourceBeforeSecond || gitBare(pagesRemote, ['rev-parse', 'refs/heads/main']) !== pagesBeforeSecond || journalAfterSecond !== journalBeforeSecond) throw Error('MIRROR_SECOND_RUN_NOT_NOOP');
 
     const statusBefore = await readFile(journal, 'utf8');
-    const statusOutput = execFileSync('npx.cmd', ['tsx', join(siteRepo, 'scripts', 'seo90-release.ts'), 'status', '--root', sourceClone, '--journal', journal, '--intent', intent.intentId], {cwd: siteRepo, encoding: 'utf8'});
+    const tsxCli = join(siteRepo, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+    const cli = join(siteRepo, 'scripts', 'seo90-release.ts');
+    const statusOutput = execFileSync(process.execPath, [tsxCli, cli, 'status', '--root', sourceClone, '--journal', journal, '--intent', intent.intentId], {cwd: siteRepo, encoding: 'utf8'});
     const statusAfter = await readFile(journal, 'utf8');
-    const resumeOutput = execFileSync('npx.cmd', ['tsx', join(siteRepo, 'scripts', 'seo90-release.ts'), 'resume', '--intent', intent.intentId, '--policy', policyCopy, '--root', sourceClone, '--journal', journal], {cwd: siteRepo, encoding: 'utf8'});
+    const resumeOutput = execFileSync(process.execPath, [tsxCli, cli, 'resume', '--intent', intent.intentId, '--policy', policyCopy, '--root', sourceClone, '--journal', journal], {cwd: siteRepo, encoding: 'utf8'});
     const resumeAfter = await readFile(journal, 'utf8');
     if (statusAfter.toString() !== statusBefore.toString() || resumeAfter.toString() !== statusBefore.toString()) throw Error('MIRROR_STATUS_RESUME_WROTE');
 

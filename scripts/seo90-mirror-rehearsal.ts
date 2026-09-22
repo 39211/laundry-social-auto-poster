@@ -64,6 +64,10 @@ async function main(): Promise<void> {
     git(sourceClone, ['remote', 'set-url', 'origin', sourceRemote]);
     git(sourceClone, ['push', 'origin', 'HEAD:refs/heads/main']);
     git(sourceClone, ['checkout', '-B', 'main', 'origin/main']);
+    // A local clone may inherit the source worktree's sparse/worktree flags;
+    // force a clean, complete detached test checkout before the runner sees it.
+    git(sourceClone, ['reset', '--hard', 'origin/main']);
+    git(sourceClone, ['clean', '-fdx']);
     const sourceBefore = git(sourceClone, ['rev-parse', 'HEAD']);
     if (!sourceBefore.startsWith('54633cb014a4')) throw Error(`UNEXPECTED_SOURCE_HEAD:${sourceBefore}`);
 

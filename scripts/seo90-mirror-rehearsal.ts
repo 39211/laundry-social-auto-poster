@@ -74,6 +74,8 @@ async function main(): Promise<void> {
     // force a clean, complete detached test checkout before the runner sees it.
     git(sourceClone, ['reset', '--hard', 'origin/main']);
     git(sourceClone, ['clean', '-fdx']);
+    git(sourceClone, ['config', 'user.email', 'w12-mirror@example.test']);
+    git(sourceClone, ['config', 'user.name', 'W12 mirror rehearsal']);
     const sourceBefore = git(sourceClone, ['rev-parse', 'HEAD']);
     if (sourceBefore !== sourceHead) throw Error(`UNEXPECTED_SOURCE_HEAD:${sourceBefore}`);
 

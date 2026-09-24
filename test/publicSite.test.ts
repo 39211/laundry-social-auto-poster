@@ -505,8 +505,9 @@ describe("generatePublicSite", () => {
       telephone: "+886-4-2452-7411",
       hasMap: "https://maps.app.goo.gl/kUREPkWDXYNTkpct7",
       // Entity consolidation: every owned profile, so the site, Maps listing,
-      // YouTube channel and socials read as one business.
+      // YouTube channel, LINE and socials read as one business. LINE added 2026-09-24.
       sameAs: [
+        "https://line.me/ti/p/4m-rA6hxf6",
         "https://www.facebook.com/100083194756904/",
         "https://www.instagram.com/si_xiang_jia/",
         "https://www.youtube.com/channel/UCcVDFN7Ve-cD9duxRdM5VXQ",
@@ -2514,7 +2515,7 @@ describe("generatePublicSite", () => {
     expect(hub).not.toMatch(/href="(?:services|guides|local)\//u);
   });
 
-  it("publishes thick approved posts as indexable daily articles behind a fail-closed gate", async () => {
+  it("publishes approved posts as noindex daily articles per 2026-09-24 policy", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-daily-articles-"));
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
@@ -2548,8 +2549,9 @@ describe("generatePublicSite", () => {
     const thickUrl = `${baseUrl}/posts/2026-07-02-slot-01.html`;
     const thinUrl = `${baseUrl}/posts/2026-07-02-slot-02.html`;
 
-    // The thick article is a real daily page: index robots, article sections, FAQ schema, funnel instrumentation.
-    expect(thick).toContain('name="robots" content="index, follow, max-image-preview:large"');
+    // Per 2026-09-24 policy: all slot posts are noindex,follow to focus SEO on curated service/guide pages.
+    // The thick article still renders with full structure: article sections, FAQ schema, funnel instrumentation.
+    expect(thick).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
     expect(thick).toContain('<h2 id="summary">重點摘要</h2>');
     expect(thick).toContain('<h2 id="store-note">門市筆記</h2>');
     expect(thick).toContain("<table");
@@ -2562,24 +2564,33 @@ describe("generatePublicSite", () => {
     expect(thick).toContain('<link rel="alternate" type="application/rss+xml"');
     expect(pageTextLength(articleBodyHtml(thick))).toBeGreaterThanOrEqual(1200);
 
-    // The thin caption stays out of the indexable surface even though its page exists.
+    // The thin caption also renders as noindex (same policy applies to all slots).
     expect(thin).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
-    expect(sitemapLocs(sitemap)).toContain(thickUrl);
-    expect(sitemapLocs(sitemap)).toContain(`${baseUrl}/posts/`);
+    
+    // All slot posts are excluded from sitemap.xml and posts/ hub is also excluded when no posts are indexable.
+    expect(sitemapLocs(sitemap)).not.toContain(thickUrl);
     expect(sitemapLocs(sitemap)).not.toContain(thinUrl);
-    expect(aiSitemap).toContain(thickUrl);
+    expect(sitemapLocs(sitemap)).not.toContain(`${baseUrl}/posts/`);
+    
+    // AI sitemap excludes post articles but may still include other post-related resources (calendars, images).
+    expect(aiSitemap).not.toContain(thickUrl);
     expect(aiSitemap).not.toContain(thinUrl);
-    expect(aiSitemap).toContain("<!-- rss-feed -->");
+    
+    // RSS feed still includes posts for social/subscriber distribution.
     expect(rss).toContain(`<link>${thickUrl}</link>`);
     expect(rss).not.toContain(thinUrl);
-    expect(discovery.content_contract.daily_article_policy).toMatchObject({ indexable_article_count: 1, article_count: 2 });
+    
+    // Discovery contract reflects that no posts are indexable under the new policy.
+    expect(discovery.content_contract.daily_article_policy).toMatchObject({ indexable_article_count: 0, article_count: 2 });
 
-    // Hub lists both, but is itself indexable only because one article cleared the gate.
+    // Hub lists both posts but is itself noindex (no indexable posts means hub is not indexed).
     expect(hub).toContain(`<link rel="canonical" href="${baseUrl}/posts/"`);
-    expect(hub).toContain('name="robots" content="index, follow, max-image-preview:large"');
+    expect(hub).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
     expect(hub).toContain('"@type":"CollectionPage"');
     expect(hub).toContain(thickUrl);
     expect(hub).toContain(thinUrl);
+    
+    // Homepage RSS link and posts link remain (posts are still published, just not indexed).
     expect(home).toContain('href="rss.xml"');
     expect(home).toContain(`${baseUrl}/posts/`);
   });

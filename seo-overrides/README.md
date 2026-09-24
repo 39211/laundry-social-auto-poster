@@ -9,6 +9,7 @@
 ## 內容
 
 - **guides/** - 指南頁面（~46 個）
+- **hubs/** - 主題樞紐頁面（2 個）
 - **local/** - 本地/地區頁面（~5 個）
 - **services/** - 服務頁面（~7 個）
 - **knowledge/index.html** - 知識中心首頁
@@ -16,6 +17,10 @@
 - **llms.txt** - AI discovery 文件
 - **.well-known/llms.txt** - AI discovery well-known 文件
 - **price-list.html** - 價目表 stub（noindex）
+- **sitemap.xml** - 網站地圖
+- **business-profile.json** - 商家資料
+- **answers.json** - 問答資料
+- **ai-discovery.json** - AI 發現資料
 
 ## 編輯政策
 
@@ -25,7 +30,7 @@
 
 ## 來源
 
-這些文件提取自 39211/39211.github.io 在 commit `0fa105a6`（2026-09-24），包含了所有 PR #7、#8、#9 的 SEO 改進。
+這些文件提取自 39211/39211.github.io 在 commit `fe15ba99`（2026-09-24），包含了所有 PR #7、#8、#9、#11 的 SEO 改進。
 
 ## 驗證
 

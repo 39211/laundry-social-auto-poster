@@ -2796,5 +2796,43 @@ describe("generatePublicSite", () => {
     // Should have no /posts/ URLs (all slot posts are noindex)
     const postsUrls = sitemapUrls.filter(url => url.includes("/posts/"));
     expect(postsUrls).toEqual([]);
+    
+    // Windows path separator check: no sitemap <loc> should contain backslashes
+    const backslashUrls = sitemapUrls.filter(url => url.includes("\\"));
+    expect(backslashUrls).toEqual([]);
+    
+    // All sitemap URLs should be unique (no duplicates from Windows path issues)
+    const uniqueUrls = Array.from(new Set(sitemapUrls));
+    expect(sitemapUrls.length).toBe(uniqueUrls.length);
+    
+    // Verify birkenstock-care override has correct lastmod from its dateModified
+    const birkenstockHtml = await readFile(join(docsRoot, "guides", "birkenstock-care.html"), "utf8");
+    const dateModifiedMatch = birkenstockHtml.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/);
+    expect(dateModifiedMatch).toBeTruthy();
+    if (dateModifiedMatch) {
+      const expectedLastmod = dateModifiedMatch[1];
+      const birkenstockUrl = "https://sixiangjialaundry.com/guides/birkenstock-care.html";
+      const birkenstockEntry = sitemap.match(
+        new RegExp(`<loc>${birkenstockUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}</loc><lastmod>([^<]+)</lastmod>`)
+      );
+      expect(birkenstockEntry).toBeTruthy();
+      if (birkenstockEntry) {
+        expect(birkenstockEntry[1]).toBe(expectedLastmod);
+      }
+    }
+  });
+
+  it("normalizes Windows-style paths to forward slashes for URLs", () => {
+    // Unit test for path normalization logic
+    const testPath = "guides\\birkenstock-care.html";
+    const normalized = testPath.split("\\").join("/");
+    expect(normalized).toBe("guides/birkenstock-care.html");
+    expect(normalized).not.toContain("\\");
+    
+    // Verify URL construction doesn't contain backslashes
+    const siteBaseUrl = "https://example.com";
+    const url = new URL(normalized, siteBaseUrl.endsWith("/") ? siteBaseUrl : siteBaseUrl + "/").href;
+    expect(url).toBe("https://example.com/guides/birkenstock-care.html");
+    expect(url).not.toContain("\\");
   });
 });

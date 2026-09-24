@@ -1,6 +1,6 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, posix, sep } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
@@ -8250,21 +8250,24 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   // These pages contain the full content from PR #7, #8, #9 (answer boxes, FAQs, internal links)
   // without requiring manual porting of 200+ FAQ items into TypeScript.
   const overrideRoot = join(root, "seo-overrides");
-  const overrideHtmlFiles: string[] = [];
+  const overrideHtmlFiles: Array<{ posixPath: string; fsPath: string }> = [];
   try {
-    const walkOverrides = async (dir: string, relPath: string = ""): Promise<void> => {
+    const walkOverrides = async (dir: string, relPosixPath: string = ""): Promise<void> => {
       const entries = await readdir(dir, { withFileTypes: true });
       for (const entry of entries) {
         const fullPath = join(dir, entry.name);
-        const rel = relPath ? join(relPath, entry.name) : entry.name;
+        // Build relPosixPath using posix.join to ensure forward slashes on all platforms
+        const rel = relPosixPath ? posix.join(relPosixPath, entry.name) : entry.name;
         if (entry.isDirectory()) {
           await walkOverrides(fullPath, rel);
         } else if (entry.isFile() && entry.name !== "README.md") {
-          const targetPath = join(docsRoot, rel);
+          // Convert posix path to native filesystem path for Windows compatibility
+          const fsPath = rel.split("/").join(sep);
+          const targetPath = join(docsRoot, fsPath);
           await mkdir(dirname(targetPath), { recursive: true });
           await copyFile(fullPath, targetPath);
           if (rel.endsWith(".html")) {
-            overrideHtmlFiles.push(rel);
+            overrideHtmlFiles.push({ posixPath: rel, fsPath });
           }
         }
       }
@@ -8273,12 +8276,28 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     if (overrideHtmlFiles.length > 0) {
       console.log(`Applied ${overrideHtmlFiles.length} SEO override HTML files`);
       
+      // Extract lastmod from override HTML files' JSON-LD dateModified
+      const overrideLastmods = new Map<string, string>();
+      for (const { posixPath, fsPath } of overrideHtmlFiles) {
+        try {
+          const html = await readFile(join(docsRoot, fsPath), "utf8");
+          const dateModifiedMatch = html.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/);
+          if (dateModifiedMatch && dateModifiedMatch[1]) {
+            overrideLastmods.set(posixPath, dateModifiedMatch[1]);
+          }
+        } catch {
+          // If we can't read or parse, fall back to sitemapLastmodForUrl
+        }
+      }
+      
       // Regenerate sitemap to include override pages (except noindex price-list stub)
       const overrideUrls = overrideHtmlFiles
-        .filter(file => file !== "price-list.html") // Exclude noindex stub
-        .map(file => {
-          const path = file === "index.html" ? "" : file.replace(/\.html$/, ".html");
-          return `${siteBaseUrl}/${path}`.replace(/\/+/g, "/").replace(/:\/([^/])/, "://$1");
+        .filter(({ posixPath }) => posixPath !== "price-list.html") // Exclude noindex stub
+        .map(({ posixPath }) => {
+          // Build URL using URL constructor for proper path joining
+          const urlPath = posixPath === "index.html" ? "" : posixPath;
+          const baseUrl = siteBaseUrl || "";
+          return new URL(urlPath, baseUrl.endsWith("/") ? baseUrl : baseUrl + "/").href;
         });
       
       // Add override URLs to sitemap (deduplicate with existing)
@@ -8289,10 +8308,16 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
           .filter((url): url is string => typeof url === "string");
         const allUrls = Array.from(new Set([...existingUrls, ...overrideUrls]));
         
-        // Rebuild sitemap with all URLs
+        // Rebuild sitemap with all URLs, using override lastmods when available
         const items = allUrls
           .map(url => {
-            const lastmod = sitemapLastmodForUrl(url, index);
+            // Try to find corresponding override file for this URL
+            const urlObj = new URL(url);
+            const pathname = urlObj.pathname.replace(/^\/+/, "");
+            const posixPath = pathname || "index.html";
+            
+            // Use override's dateModified if available, otherwise fall back to sitemapLastmodForUrl
+            const lastmod = overrideLastmods.get(posixPath) || sitemapLastmodForUrl(url, index);
             const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
             return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
           })

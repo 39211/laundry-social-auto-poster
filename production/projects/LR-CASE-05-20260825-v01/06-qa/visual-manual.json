@@ -1,0 +1,69 @@
+{
+ "project_id": "LR-CASE-05-20260825-v01",
+ "status": "MANUAL_QA_PASS_DRAFT",
+ "draft": "05-edit/LR-CASE-05-draft-v02.mp4",
+ "clips": {
+  "05A-edge-v02": {
+   "verdict": "pass",
+   "note": "applicator rides the dark edge band only; ivory face clean; v01 rejected for paint blob on leather face"
+  },
+  "05B-metal-v02": {
+   "verdict": "pass",
+   "note": "felt wheel on CLOSED ring with pendant intact; v01 rejected for ring morphing into open hook; init frame chained from 05A-v02 last frame"
+  },
+  "05C-junction-v01": {
+   "verdict": "pass",
+   "note": "swab compresses at ring/leather junction; init from shared first frame - B->C boundary continuity is the weakest link, acceptable for calibration draft"
+  }
+ },
+ "pending_for_master": [
+  "hook clip (0-3s damage push-in)",
+  "zh-TW VO per manual case-05 script",
+  "ASMR sync points",
+  "captions",
+  "AI 情境演示 label burn-in (red line #4 before ANY publish)",
+  "STORE confirmation: 邊油/五金拋光 service reality"
+ ],
+ "generation_route": "hermes plugins/video_gen/xai (subscription OAuth) + local ffmpeg; Kling/Runway from the manual NOT used - no such accounts, Grok 6-15s caps fit the manual's 5-8s raw specs",
+ "v03": {
+  "status": "SENT_FOR_OWNER_CALIBRATION",
+  "owner_rejection_of_v02": "不連貫/AI感重/邊油到五金不合理/破損沒處理完/沒有傳達 - 根因:只做了過程片段,無 hook 無結果幕,跳過手冊 B/C/E 節",
+  "v03_structure": "六拍:hook問題特寫→遮蔽前置→邊油→五金→交界→成果弧移;前後幀對(後幀=前幀編輯);逐拍鏈式(上一拍末幀=下一拍首幀);大字標工法;32s",
+  "v03_verified": "第3拍保留第2拍的遮蔽膠帶(鏈式生效);成果拍霧環→亮環、缺角→連續線",
+  "v03_known_flaws": [
+   "成果拍皮圈上兩道筆痕狀紋(來自後幀)",
+   "邊油接觸點液滴稍亮"
+  ],
+  "next_if_approved": [
+   "口播 TTS(手冊D節文稿)",
+   "ASMR 同步點",
+   "AI 情境演示標(發布前必燒)",
+   "narration 版重新配時"
+  ]
+ },
+ "v04": {
+  "status": "BLOCKED_DO_NOT_PUBLISH",
+  "owner_rejection_of_v03": "還不行;要求很高;所有影片的要求都要最高來做(未列具體缺陷,依自錄缺陷單全數修正)",
+  "fixes": {
+   "after_keyframe": "v04 深槍色漂移退件、v05 鎖銀色+零筆痕通過(共兩輪 fail-closed)",
+   "junction": "改鏈自 metal 末幀(v03 的 B->C 縫已修)",
+   "result": "自 after-v05 重生,10 度弧移,銀環+連續邊油+皮面全淨",
+   "narration": "手冊 C 節口播 23.64s(zh-TW-YunJheNeural +8%),0.3s 起,尾留 2.7s",
+   "titles": "黑底框 68px 字卡,每拍 0.25s 緩入",
+   "audio": "brown 噪音床 0.35 音量墊底+口播全量 amix"
+  },
+  "still_missing": [
+   "授權 ASMR 音效素材(不偽造,需採購或實錄)",
+   "AI 情境演示標(發布前必燒)",
+   "STORE 確認:邊油/五金拋光服務事實"
+  ],
+  "owner_ruling_2026_08_27": "五金拋光:不做(店内無此服務)。v04 演了五金霧化->拋亮並以亮環收尾,等於廣告不存在的服務,不得發布。含已燒標的 LR-CASE-05-v05-labeled.mp4 一併封存。",
+  "v05_rebuild_plan": [
+   "敘事改為單一工法:邊油缺角(hook 字卡改「邊油缺角」)",
+   "junction 拍不能再鏈自 metal 末幀(那個亮環就是拋光暗示);改鏈自 edge 末幀",
+   "result 拍重生:鏡頭中心=修復後的連續邊油線,金屬環保持 before 的霧化原狀入鏡即可",
+   "旁白重錄:手冊 C 節稿刪去五金句,重新配時",
+   "其餘紅線不變:授權 ASMR 不偽造、AI 情境演示標(老闆已豁免每日線,本線維持)"
+  ]
+ }
+}

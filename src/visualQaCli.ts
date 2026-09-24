@@ -11,6 +11,8 @@ import {
   burnCarouselCanaries,
   carouselQaRecordPath,
   detectTreatment,
+  carouselJudgeAttemptLimit,
+  collectCarouselJudgeStdout,
   evaluateCarouselFromDisk,
   evaluateCarouselJudgeStdout,
   evaluateFromDisk,
@@ -186,27 +188,35 @@ async function handleCarousel(args: string[], root: string): Promise<void> {
   const promptHash = hashText(prompt);
   await writeFile(join(qaDir, "judge-prompt.txt"), prompt, "utf8");
   const stdoutPath = getOption(args, "stdout-file") ?? join(qaDir, "judge-stdout.txt");
-  if (!getOption(args, "stdout-file")) {
-    runCodexJudge({
-      root,
-      prompt,
-      images: slides.map((slide) => join(qaDir, slide.name)),
-      stdoutPath
-    });
-  }
-  const stdout = await readFile(stdoutPath, "utf8");
-  const record = await evaluateCarouselFromDisk({
-    qaDir,
-    stdout,
-    sidecar,
-    promptHash,
-    runId: getOption(args, "run-id") ?? `carousel-qa-${Date.now()}`
+  const stdoutSupplied = Boolean(getOption(args, "stdout-file"));
+  const runId = getOption(args, "run-id") ?? `carousel-qa-${Date.now()}`;
+  const { record, attempts } = await collectCarouselJudgeStdout({
+    attemptLimit: carouselJudgeAttemptLimit(stdoutSupplied),
+    runJudge: async () => {
+      if (!stdoutSupplied) {
+        runCodexJudge({
+          root,
+          prompt,
+          images: slides.map((slide) => join(qaDir, slide.name)),
+          stdoutPath
+        });
+      }
+      return readFile(stdoutPath, "utf8");
+    },
+    evaluate: (stdout) =>
+      evaluateCarouselFromDisk({
+        qaDir,
+        stdout,
+        sidecar,
+        promptHash,
+        runId
+      })
   });
   const defaultOut = dir && slot ? carouselQaRecordPath(isAbsolute(dir) ? dir : join(root, dir), slot) : join(qaDir, "carousel.visual-qa.json");
   const outPath = getOption(args, "out") ?? defaultOut;
   await writeJsonAtomic(outPath, record);
   process.stdout.write(
-    `${JSON.stringify({ verdict: record.verdict, fail_class: record.fail_class, axes: record.axes, out: outPath })}\n`
+    `${JSON.stringify({ verdict: record.verdict, fail_class: record.fail_class, axes: record.axes, out: outPath, judge_attempts: attempts })}\n`
   );
 }
 

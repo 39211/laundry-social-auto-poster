@@ -1,0 +1,29 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\wool-coat\\wool-coat-shoulder-before.png",
+  "reel_sha256": "818ab37a0b815315fb8d1269ce6f537e7a6cde4d26e0a58d4e9cede9bfda0d61",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "NLJU",
+      "sha256": "60f04413486d38109beae97af67b4273eaba3c2f0236507dafe25fd07b16284c"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "HWQK",
+      "sha256": "82e5c4ffe39ef658d498902a0074232dee072712edc44debb826d5d39c2ef84d"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "UJ7A",
+      "sha256": "644533a891ca061101c5a25324042918cc7258e4dc23a8574d9e6cc88f8b4bcf"
+    }
+  ]
+}

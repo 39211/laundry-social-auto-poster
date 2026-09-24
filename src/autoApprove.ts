@@ -15,6 +15,7 @@ import {
 import { TOPIC_LABEL_PREFIX_RE } from "./contentPlan";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { pauseMessage, readPause } from "./pause";
+import { validatePublishableReel } from "./generateVideo";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 import type { Platform } from "./types";
@@ -290,6 +291,20 @@ export async function autoApprove(
       }
     }
     if (!slotBlockers.has(slot.slot)) record(`slot_${slot.slot}`, true);
+  }
+
+  // A planned Reel cannot be auto-approved on image evidence alone. Catch-up
+  // used to grant consent, then postCurrentSlot fell back to the cover and
+  // wrote posted-log success (8/27-29). Mixed-carousel may still approve
+  // without a companion video: that fallback is the design.
+  for (const slot of content.slots) {
+    if (slot.media_type !== "reel" && slot.slot !== 3) continue;
+    try {
+      await validatePublishableReel(slot, date, root);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      blockSlot(slot.slot, `reel video gate: ${reason}`);
+    }
   }
 
   // Conversion-field soft gate (luna fatal 1層/01): every caption should carry

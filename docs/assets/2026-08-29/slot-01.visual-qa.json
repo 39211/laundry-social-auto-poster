@@ -1,0 +1,77 @@
+{
+  "topic": "可收藏：窗簾下緣灰塵與空氣味，送洗前先看三個位置",
+  "date": "2026-08-29",
+  "slot": 1,
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "SCENE": "PASS",
+    "TOPIC_MATCH": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "四張均顯示同一件奶油色梭織窗簾，可見一致的破損位置、髒污與縫線。",
+    "SCENE": "四張均位於粉紅墊面與橫槽牆組成的同一櫃檯場景。",
+    "TOPIC_MATCH": "四張均顯示窗簾本體、下緣髒污及破損細節，符合窗簾送洗前檢查主題。"
+  },
+  "frames_used": [
+    "slide-01.png",
+    "slide-02.png",
+    "slide-03.png",
+    "slide-04.png"
+  ],
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-01.png",
+      "canary": "L8Q9",
+      "sha256": "23cbe8d49f114ea03347fc11e9a19726a1b41aeba4fadbac817fc8e8e4794a47"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-01-slide-02.png",
+      "canary": "9JNZ",
+      "sha256": "21f442eb07233c8e303d6858c65282ad93ee4da30fda688a6a4e3a564160838c"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-01-slide-03.png",
+      "canary": "YVL8",
+      "sha256": "1afa63e491f4a4419b0b925ffea3375ac8776867ffd091deabe10ab5849c1246"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-01-slide-04.png",
+      "canary": "AY6U",
+      "sha256": "d1c719a50d9e4fd5b3cc3da30fe09938ff72ddf8966aa7fdfc8dc5f670462d5e"
+    }
+  ],
+  "sources": [
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-01.png",
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-01-slide-02.png",
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-01-slide-03.png",
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-08-29\\slot-01-slide-04.png"
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "L8Q9",
+    "IMAGE_2": "9JNZ",
+    "IMAGE_3": "YVL8",
+    "IMAGE_4": "AY6U"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "L8Q9",
+    "IMAGE_2": "9JNZ",
+    "IMAGE_3": "YVL8",
+    "IMAGE_4": "AY6U"
+  },
+  "prompt_hash": "e87713a0e3691b7fe4a2c54461189397a8a3ae687594085da767b3db9ccd831b",
+  "run_id": "carousel-qa-1787946943709",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-28T19:56:50.069Z",
+  "mode": "warn",
+  "verdict": "FAIL_CLOSED",
+  "fail_class": "missing_observation"
+}

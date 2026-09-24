@@ -11,6 +11,7 @@ data/*
 !data/video-reviews/
 !data/visual-qa-fixtures/
 !data/rejected-concepts.json
+!data/campaign-posts.json
 !data/reference-photos/
 data/posted-log/
 *.log

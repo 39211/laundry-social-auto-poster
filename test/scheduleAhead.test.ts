@@ -1,11 +1,26 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stampDailyContentWrite } from "../src/contentPlan";
 import { getConfig } from "../src/config";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "../src/postFacebook";
-import { postCurrentSlot } from "../src/postCurrentSlot";
+import { postCurrentSlot, resolveSlotPublishMedia } from "../src/postCurrentSlot";
+
+// Partial mock: the resolver delegates to the real one unless a test overrides it.
+vi.mock("../src/postCurrentSlot", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("../src/postCurrentSlot")>();
+  return {
+    ...mod,
+    resolveSlotPublishMedia: vi.fn((...args: Parameters<typeof mod.resolveSlotPublishMedia>) => mod.resolveSlotPublishMedia(...args))
+  };
+});
+const actualPostCurrentSlot = await vi.importActual<typeof import("../src/postCurrentSlot")>("../src/postCurrentSlot");
+// A queued mockRejectedValueOnce must never leak into the next test.
+afterEach(() => {
+  vi.mocked(resolveSlotPublishMedia).mockReset();
+  vi.mocked(resolveSlotPublishMedia).mockImplementation(actualPostCurrentSlot.resolveSlotPublishMedia);
+});
 import { facebookScheduleKind, loadScheduledLog, scheduleAheadFacebook } from "../src/scheduleAhead";
 import { loadPostLog } from "../src/logging";
 import type { AppConfig, PostInput } from "../src/types";
@@ -275,6 +290,69 @@ describe("scheduleAheadFacebook", () => {
     // Reel slots; no Facebook object may be created for a deferred reel.
     const log = await loadScheduledLog(DATE, root);
     expect(log.some((row) => row.slot === 3)).toBe(false);
+  });
+
+  it("still aborts the whole run when a Reel slot is missing its cover image", async () => {
+    const reelSlot = {
+      ...slotFixture(3, "image", `排程Reel缺圖文案 ${DATE} 辛`),
+      media_type: "reel",
+      format: "reel",
+      local_video_path: `docs/assets/${DATE}/slot-03.mp4`
+    } as unknown as ReturnType<typeof slotFixture>;
+    await seedDay(root, [slotFixture(1, "image", `排程Reel缺圖填充 ${DATE} 辛二`), reelSlot]);
+    await rm(join(root, "docs", "assets", DATE, "slot-03.png"));
+
+    await expect(
+      scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch([]), now: NOW_DAY_BEFORE })
+    ).rejects.toThrow(/Image is missing for slot 3/u);
+  });
+
+  it("rethrows an unexpected resolver error on a Reel slot instead of recording a skip", async () => {
+    const reelSlot = {
+      ...slotFixture(3, "image", `排程Reel故障文案 ${DATE} 壬`),
+      media_type: "reel",
+      format: "reel",
+      local_video_path: `docs/assets/${DATE}/slot-03.mp4`
+    } as unknown as ReturnType<typeof slotFixture>;
+    await seedDay(root, [slotFixture(1, "image", `排程Reel故障填充 ${DATE} 壬二`), reelSlot]);
+    vi.mocked(resolveSlotPublishMedia).mockImplementation(async (slot, ...rest) => {
+      if (slot.slot === 3) throw new TypeError("resolver exploded");
+      return actualPostCurrentSlot.resolveSlotPublishMedia(slot, ...rest);
+    });
+
+    await expect(
+      scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch([]), now: NOW_DAY_BEFORE })
+    ).rejects.toThrow("resolver exploded");
+    const log = await loadScheduledLog(DATE, root);
+    expect(log.some((row) => row.slot === 3)).toBe(false);
+  });
+
+  it("rethrows a refusal-shaped message that is not the resolver's own plain Error", async () => {
+    const reelSlot = {
+      ...slotFixture(3, "image", `排程Reel偽裝文案 ${DATE} 癸`),
+      media_type: "reel",
+      format: "reel",
+      local_video_path: `docs/assets/${DATE}/slot-03.mp4`
+    } as unknown as ReturnType<typeof slotFixture>;
+    await seedDay(root, [slotFixture(1, "image", `排程Reel偽裝填充 ${DATE} 癸二`), reelSlot]);
+    vi.mocked(resolveSlotPublishMedia).mockImplementation(async (slot, ...rest) => {
+      if (slot.slot === 3) throw new RangeError("Refusing image fallback for reel slot 3: not really the resolver");
+      return actualPostCurrentSlot.resolveSlotPublishMedia(slot, ...rest);
+    });
+
+    await expect(
+      scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch([]), now: NOW_DAY_BEFORE })
+    ).rejects.toThrow("not really the resolver");
+  });
+
+  it("aborts when a non-video slot is missing its image", async () => {
+    await seedDay(root, [slotFixture(1, "image", `排程圖缺文案 ${DATE} 子`), slotFixture(2, "image", `排程圖缺填充 ${DATE} 子二`)]);
+    await rm(join(root, "docs", "assets", DATE, "slot-01.png"));
+
+    await expect(
+      scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch([]), now: NOW_DAY_BEFORE })
+    ).rejects.toThrow(/Image is missing for slot 1/u);
+    expect(await loadScheduledLog(DATE, root)).toEqual([]);
   });
 
   it("refuses a slot whose publish time is too close and one with no approval", async () => {

@@ -22,10 +22,17 @@ import type { PostLogEntry } from "./types";
 // reference docs). There is no per-Reel number to enforce that bar against, so it is
 // deliberately left out of THRESHOLDS_72H rather than compared against data that can't
 // exist.
-const THRESHOLDS_72H = {
+//
+// Watch ratio ≥ 35% at 72h *is* measurable: instagramInsights.ts already stores
+// ig_reels_avg_watch_time (ms) on Reel rows. Ratio = that number / (clip
+// duration_seconds * 1000). Duration is the video-sources value for the scored
+// slot — the file that aired, not a planned length. Missing either input leaves
+// watch_ratio null and does not fail the Reel (ERROR-BOOK F35).
+export const THRESHOLDS_72H = {
   reach: 300,
   accounts_engaged: 5,
-  saves_plus_shares: 3
+  saves_plus_shares: 3,
+  watch_ratio: 0.35
 };
 
 export interface ReelOutcome {
@@ -42,6 +49,8 @@ export interface ReelOutcome {
   non_follower_share: number | null;
   accounts_engaged: number | null;
   saves_plus_shares: number | null;
+  avg_watch_time_ms: number | null;
+  watch_ratio: number | null;
   verdict: "pass" | "fail" | "pending" | "not_published";
   missed: string[];
 }
@@ -64,6 +73,25 @@ interface InsightMetrics {
   saved?: number | null;
   shares?: number | null;
   total_interactions?: number | null;
+  ig_reels_avg_watch_time?: number | null;
+}
+
+/** avg_watch_time is milliseconds; duration is seconds. */
+export function watchRatio(avgWatchMs: number, durationSeconds: number): number | null {
+  if (!Number.isFinite(avgWatchMs) || avgWatchMs < 0) return null;
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return null;
+  return avgWatchMs / (durationSeconds * 1000);
+}
+
+export function clipDurationSeconds(source: { duration_seconds?: number } | null | undefined): number | null {
+  const n = source?.duration_seconds;
+  if (typeof n !== "number" || !Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+export function watchRatioMissed(ratio: number | null): string | undefined {
+  if (ratio === null || ratio >= THRESHOLDS_72H.watch_ratio) return undefined;
+  return `watch ratio ${(ratio * 100).toFixed(1)}% < ${(THRESHOLDS_72H.watch_ratio * 100).toFixed(0)}%`;
 }
 
 async function loadReelMetrics(
@@ -163,6 +191,22 @@ async function videoSourceConceptMatch(
   const templateMatch = /^copx:.*\/report-([^/]+)-before\.json$/.exec(reference);
   if (!templateMatch) return undefined;
   return templateMatch[1] === conceptId;
+}
+
+async function loadClipDurationSeconds(
+  date: string,
+  slotNumber: number,
+  root: string
+): Promise<number | null> {
+  let sources: Awaited<ReturnType<typeof loadVideoSources>>;
+  try {
+    const loaded = await loadVideoSources(date, root);
+    sources = Array.isArray(loaded) ? loaded : [];
+  } catch {
+    return null;
+  }
+  const source = sources.find((item) => item?.slot === slotNumber);
+  return clipDurationSeconds(source);
 }
 
 /**
@@ -286,6 +330,8 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
         non_follower_share: null,
         accounts_engaged: null,
         saves_plus_shares: null,
+        avg_watch_time_ms: null,
+        watch_ratio: null,
         verdict: "not_published",
         missed: []
       });
@@ -303,6 +349,12 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
       typeof metrics?.saved === "number" || typeof metrics?.shares === "number"
         ? (metrics?.saved ?? 0) + (metrics?.shares ?? 0)
         : null;
+    const avgWatch =
+      typeof metrics?.ig_reels_avg_watch_time === "number" && Number.isFinite(metrics.ig_reels_avg_watch_time)
+        ? metrics.ig_reels_avg_watch_time
+        : null;
+    const duration = await loadClipDurationSeconds(entry.date, live.slotNumber, root);
+    const ratio = avgWatch !== null && duration !== null ? watchRatio(avgWatch, duration) : null;
 
     const missed: string[] = [];
     if (reach !== null && reach < THRESHOLDS_72H.reach) missed.push(`reach ${reach} < ${THRESHOLDS_72H.reach}`);
@@ -312,6 +364,8 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
     if (saves !== null && saves < THRESHOLDS_72H.saves_plus_shares) {
       missed.push(`saves+shares ${saves} < ${THRESHOLDS_72H.saves_plus_shares}`);
     }
+    const watchMiss = watchRatioMissed(ratio);
+    if (watchMiss) missed.push(watchMiss);
 
     // A metric that was never collected is not a pass. Only a Reel old enough
     // to judge, with numbers to judge it by, gets a verdict.
@@ -325,6 +379,8 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
       non_follower_share: null,
       accounts_engaged: engaged,
       saves_plus_shares: saves,
+      avg_watch_time_ms: avgWatch,
+      watch_ratio: ratio,
       verdict: !mature || !measurable ? "pending" : missed.length === 0 ? "pass" : "fail",
       missed
     });

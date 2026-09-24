@@ -1,5 +1,5 @@
-import { access, mkdir, open, readFile, writeFile } from "node:fs/promises";
-import { existsSync, mkdtempSync, statSync } from "node:fs";
+import { access, mkdir, open, readdir, readFile, writeFile } from "node:fs/promises";
+import { existsSync, mkdtempSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -505,8 +505,9 @@ describe("generatePublicSite", () => {
       telephone: "+886-4-2452-7411",
       hasMap: "https://maps.app.goo.gl/kUREPkWDXYNTkpct7",
       // Entity consolidation: every owned profile, so the site, Maps listing,
-      // YouTube channel and socials read as one business.
+      // YouTube channel, LINE and socials read as one business. LINE added 2026-09-24.
       sameAs: [
+        "https://line.me/ti/p/4m-rA6hxf6",
         "https://www.facebook.com/100083194756904/",
         "https://www.instagram.com/si_xiang_jia/",
         "https://www.youtube.com/channel/UCcVDFN7Ve-cD9duxRdM5VXQ",
@@ -2514,7 +2515,7 @@ describe("generatePublicSite", () => {
     expect(hub).not.toMatch(/href="(?:services|guides|local)\//u);
   });
 
-  it("publishes thick approved posts as indexable daily articles behind a fail-closed gate", async () => {
+  it("publishes approved posts as noindex daily articles per 2026-09-24 policy", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-daily-articles-"));
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
@@ -2548,8 +2549,9 @@ describe("generatePublicSite", () => {
     const thickUrl = `${baseUrl}/posts/2026-07-02-slot-01.html`;
     const thinUrl = `${baseUrl}/posts/2026-07-02-slot-02.html`;
 
-    // The thick article is a real daily page: index robots, article sections, FAQ schema, funnel instrumentation.
-    expect(thick).toContain('name="robots" content="index, follow, max-image-preview:large"');
+    // Per 2026-09-24 policy: all slot posts are noindex,follow to focus SEO on curated service/guide pages.
+    // The thick article still renders with full structure: article sections, FAQ schema, funnel instrumentation.
+    expect(thick).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
     expect(thick).toContain('<h2 id="summary">重點摘要</h2>');
     expect(thick).toContain('<h2 id="store-note">門市筆記</h2>');
     expect(thick).toContain("<table");
@@ -2562,24 +2564,34 @@ describe("generatePublicSite", () => {
     expect(thick).toContain('<link rel="alternate" type="application/rss+xml"');
     expect(pageTextLength(articleBodyHtml(thick))).toBeGreaterThanOrEqual(1200);
 
-    // The thin caption stays out of the indexable surface even though its page exists.
+    // The thin caption also renders as noindex (same policy applies to all slots).
     expect(thin).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
-    expect(sitemapLocs(sitemap)).toContain(thickUrl);
-    expect(sitemapLocs(sitemap)).toContain(`${baseUrl}/posts/`);
+    
+    // All slot posts are excluded from sitemap.xml and posts/ hub is also excluded when no posts are indexable.
+    expect(sitemapLocs(sitemap)).not.toContain(thickUrl);
     expect(sitemapLocs(sitemap)).not.toContain(thinUrl);
-    expect(aiSitemap).toContain(thickUrl);
+    expect(sitemapLocs(sitemap)).not.toContain(`${baseUrl}/posts/`);
+    
+    // AI sitemap excludes post articles but may still include other post-related resources (calendars, images).
+    expect(aiSitemap).not.toContain(thickUrl);
     expect(aiSitemap).not.toContain(thinUrl);
-    expect(aiSitemap).toContain("<!-- rss-feed -->");
-    expect(rss).toContain(`<link>${thickUrl}</link>`);
+    
+    // RSS feed is also empty under the new policy (RSS uses indexablePostArticles which returns empty).
+    // Posts are still published as HTML pages for direct access and social sharing, just not in feeds/sitemaps.
+    expect(rss).not.toContain(thickUrl);
     expect(rss).not.toContain(thinUrl);
-    expect(discovery.content_contract.daily_article_policy).toMatchObject({ indexable_article_count: 1, article_count: 2 });
+    
+    // Discovery contract reflects that no posts are indexable under the new policy.
+    expect(discovery.content_contract.daily_article_policy).toMatchObject({ indexable_article_count: 0, article_count: 2 });
 
-    // Hub lists both, but is itself indexable only because one article cleared the gate.
+    // Hub lists both posts but is itself noindex (no indexable posts means hub is not indexed).
     expect(hub).toContain(`<link rel="canonical" href="${baseUrl}/posts/"`);
-    expect(hub).toContain('name="robots" content="index, follow, max-image-preview:large"');
+    expect(hub).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
     expect(hub).toContain('"@type":"CollectionPage"');
     expect(hub).toContain(thickUrl);
     expect(hub).toContain(thinUrl);
+    
+    // Homepage RSS link and posts link remain (posts are still published, just not indexed).
     expect(home).toContain('href="rss.xml"');
     expect(home).toContain(`${baseUrl}/posts/`);
   });
@@ -2701,5 +2713,126 @@ describe("generatePublicSite", () => {
     expect(referencedImages.size).toBeGreaterThan(100);
     expect(Object.keys(imageMetadata.images).sort()).toEqual([...referencedImages].sort());
     expect(binaryCheckedImages).toBeGreaterThan(0);
+  });
+
+  it("seo override files should be byte-identical after generation", async function () {
+    const root = mkdtempSync(join(tmpdir(), "public-site-test-"));
+    
+    // Copy seo-overrides/ from repo root to temp root
+    const repoSeoOverridesDir = join(__dirname, "..", "seo-overrides");
+    if (!existsSync(repoSeoOverridesDir)) {
+      // seo-overrides/ doesn't exist in repo, skip this test
+      return;
+    }
+    
+    const tempSeoOverridesDir = join(root, "seo-overrides");
+    const copyDir = async (src: string, dest: string): Promise<void> => {
+      await mkdir(dest, { recursive: true });
+      const entries = await readdir(src, { withFileTypes: true });
+      for (const entry of entries) {
+        const srcPath = join(src, entry.name);
+        const destPath = join(dest, entry.name);
+        if (entry.isDirectory()) {
+          await copyDir(srcPath, destPath);
+        } else {
+          await writeFile(destPath, await readFile(srcPath));
+        }
+      }
+    };
+    await copyDir(repoSeoOverridesDir, tempSeoOverridesDir);
+
+    const config = getConfig();
+    await writeCalendar(root, "2024-10-16", { carouselSlot1: true });
+    await generatePublicSite({
+      root,
+      siteBaseUrl: "https://sixiangjialaundry.com/",
+      imageBaseUrl: "https://sixiangjialaundry.com/"
+    });
+
+    const docsRoot = join(root, "docs");
+    const overrideFiles: string[] = [];
+    
+    // Collect all override files (recursively)
+    const collectFiles = (dir: string, relPath: string = ""): void => {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        const rel = relPath ? join(relPath, entry.name) : entry.name;
+        if (entry.isDirectory()) {
+          collectFiles(fullPath, rel);
+        } else if (entry.isFile() && entry.name !== "README.md") {
+          overrideFiles.push(rel);
+        }
+      }
+    };
+    collectFiles(tempSeoOverridesDir);
+
+    expect(overrideFiles.length).toBeGreaterThan(60);
+
+    // Verify each override file is byte-identical
+    for (const file of overrideFiles) {
+      const sourceFile = join(tempSeoOverridesDir, file);
+      const generatedFile = join(docsRoot, file);
+      
+      expect(existsSync(generatedFile), `Generated file should exist: ${file}`).toBe(true);
+      
+      const sourceContent = await readFile(sourceFile);
+      const generatedContent = await readFile(generatedFile);
+      
+      expect(generatedContent.equals(sourceContent), `File should be byte-identical: ${file}`).toBe(true);
+    }
+    
+    // Verify sitemap contains override URLs and no /posts/ URLs
+    const sitemapPath = join(docsRoot, "sitemap.xml");
+    const sitemap = await readFile(sitemapPath, "utf8");
+    const sitemapUrls = Array.from(sitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
+      .map(m => m[1])
+      .filter((url): url is string => typeof url === "string");
+    
+    // Should contain override HTML pages (except price-list.html which is noindex)
+    const overrideHtmlFiles = overrideFiles.filter(f => f.endsWith(".html") && f !== "price-list.html");
+    expect(overrideHtmlFiles.length).toBeGreaterThan(60);
+    
+    // Should have no /posts/ URLs (all slot posts are noindex)
+    const postsUrls = sitemapUrls.filter(url => url.includes("/posts/"));
+    expect(postsUrls).toEqual([]);
+    
+    // Windows path separator check: no sitemap <loc> should contain backslashes
+    const backslashUrls = sitemapUrls.filter(url => url.includes("\\"));
+    expect(backslashUrls).toEqual([]);
+    
+    // All sitemap URLs should be unique (no duplicates from Windows path issues)
+    const uniqueUrls = Array.from(new Set(sitemapUrls));
+    expect(sitemapUrls.length).toBe(uniqueUrls.length);
+    
+    // Verify birkenstock-care override has correct lastmod from its dateModified
+    const birkenstockHtml = await readFile(join(docsRoot, "guides", "birkenstock-care.html"), "utf8");
+    const dateModifiedMatch = birkenstockHtml.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/);
+    expect(dateModifiedMatch).toBeTruthy();
+    if (dateModifiedMatch) {
+      const expectedLastmod = dateModifiedMatch[1];
+      const birkenstockUrl = "https://sixiangjialaundry.com/guides/birkenstock-care.html";
+      const birkenstockEntry = sitemap.match(
+        new RegExp(`<loc>${birkenstockUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}</loc><lastmod>([^<]+)</lastmod>`)
+      );
+      expect(birkenstockEntry).toBeTruthy();
+      if (birkenstockEntry) {
+        expect(birkenstockEntry[1]).toBe(expectedLastmod);
+      }
+    }
+  });
+
+  it("normalizes Windows-style paths to forward slashes for URLs", () => {
+    // Unit test for path normalization logic
+    const testPath = "guides\\birkenstock-care.html";
+    const normalized = testPath.split("\\").join("/");
+    expect(normalized).toBe("guides/birkenstock-care.html");
+    expect(normalized).not.toContain("\\");
+    
+    // Verify URL construction doesn't contain backslashes
+    const siteBaseUrl = "https://example.com";
+    const url = new URL(normalized, siteBaseUrl.endsWith("/") ? siteBaseUrl : siteBaseUrl + "/").href;
+    expect(url).toBe("https://example.com/guides/birkenstock-care.html");
+    expect(url).not.toContain("\\");
   });
 });

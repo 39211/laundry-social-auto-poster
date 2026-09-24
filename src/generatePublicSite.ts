@@ -1,6 +1,6 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
-import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { copyFile, mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
+import { dirname, join, posix, sep } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
@@ -1358,9 +1358,9 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "私享家洗衣店（台中市西屯區青海路二段365號）處理勃肯鞋：軟木鞋床吸汗會發黑發臭，麂皮面又不能泡水，先傳照片判斷軟木與麂皮各自的處理方式。",
     h1: "勃肯鞋鞋床發黑、有味道,還救得回來嗎?",
     summary: "勃肯這類軟木鞋床的鞋,問題幾乎都在同一個地方:腳掌接觸的那層軟木被汗浸久了,顏色變深、味道跑出來。麂皮鞋面怕水、軟木怕泡,所以整雙丟水裡刷是最傷的做法。分開處理才對。",
-    keywords: ["勃肯鞋清潔", "勃肯鞋發黑", "軟木鞋床 清洗", "台中洗勃肯", "麂皮鞋清潔", "勃肯鞋除臭"],
+    keywords: ["勃肯鞋清潔", "勃肯鞋發黑", "軟木鞋床 清洗", "台中洗勃肯", "麂皮鞋清潔"],
     service_slug: "white-shoe-cleaning",
-    local_intent: "台中 勃肯鞋清潔 軟木鞋床 除臭",
+    local_intent: "台中 勃肯鞋清潔 軟木鞋床",
     content_lastmod: "2026-08-23",
     steps: [
       { name: "先分三層", text: "麂皮鞋面、軟木鞋床、橡膠大底,三種材質三種做法。整雙泡水會讓軟木鬆散、麂皮硬掉。" },
@@ -3138,8 +3138,9 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
     // engines and LLMs decide that the site, the Maps listing, the YouTube
     // channel and the social accounts are one entity rather than four unrelated
     // results. It listed only Facebook and Instagram while the shop had been
-    // publishing to YouTube daily and had a live Maps listing.
-    sameAs: [profile.facebook_url, profile.instagram_url, profile.youtube_url, profile.map_url].filter(
+    // publishing to YouTube daily and had a live Maps listing. LINE was added
+    // 2026-09-24 (PR #8) as another owned profile the business uses for customer contact.
+    sameAs: [profile.line_url, profile.facebook_url, profile.instagram_url, profile.youtube_url, profile.map_url].filter(
       (url): url is string => Boolean(url)
     ),
     image: images,
@@ -6224,7 +6225,10 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   const render: PostArticleRender = {
     mainHtml,
     visibleChars,
-    indexable: reasons.length === 0,
+    // Hardcoded false per 2026-09-24 policy: all daily slot posts are noindex,follow
+    // to focus SEO on the curated service/guide pages. This keeps slot posts out of
+    // sitemap.xml and prevents the posts/ hub from appearing when no slots are indexable.
+    indexable: false,
     reasons,
     faqs,
     articleNumber
@@ -8241,6 +8245,102 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   );
   const postArticleOutputs = await writePostArticlePages(articlePosts, index, postsRoot);
   await writeFile(outputs.nojekyll, "", "utf8");
+
+  // Apply SEO overrides: copy hand-maintained pages from seo-overrides/ to docs/
+  // These pages contain the full content from PR #7, #8, #9 (answer boxes, FAQs, internal links)
+  // without requiring manual porting of 200+ FAQ items into TypeScript.
+  const overrideRoot = join(root, "seo-overrides");
+  const overrideHtmlFiles: Array<{ posixPath: string; fsPath: string }> = [];
+  try {
+    const walkOverrides = async (dir: string, relPosixPath: string = ""): Promise<void> => {
+      const entries = await readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        // Build relPosixPath using posix.join to ensure forward slashes on all platforms
+        const rel = relPosixPath ? posix.join(relPosixPath, entry.name) : entry.name;
+        if (entry.isDirectory()) {
+          await walkOverrides(fullPath, rel);
+        } else if (entry.isFile() && entry.name !== "README.md") {
+          // Convert posix path to native filesystem path for Windows compatibility
+          const fsPath = rel.split("/").join(sep);
+          const targetPath = join(docsRoot, fsPath);
+          await mkdir(dirname(targetPath), { recursive: true });
+          await copyFile(fullPath, targetPath);
+          if (rel.endsWith(".html")) {
+            overrideHtmlFiles.push({ posixPath: rel, fsPath });
+          }
+        }
+      }
+    };
+    await walkOverrides(overrideRoot);
+    if (overrideHtmlFiles.length > 0) {
+      console.log(`Applied ${overrideHtmlFiles.length} SEO override HTML files`);
+      
+      // Extract lastmod from override HTML files' JSON-LD dateModified
+      const overrideLastmods = new Map<string, string>();
+      for (const { posixPath, fsPath } of overrideHtmlFiles) {
+        try {
+          const html = await readFile(join(docsRoot, fsPath), "utf8");
+          const dateModifiedMatch = html.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/);
+          if (dateModifiedMatch && dateModifiedMatch[1]) {
+            overrideLastmods.set(posixPath, dateModifiedMatch[1]);
+          }
+        } catch {
+          // If we can't read or parse, fall back to sitemapLastmodForUrl
+        }
+      }
+      
+      // Regenerate sitemap to include override pages (except noindex price-list stub)
+      const overrideUrls = overrideHtmlFiles
+        .filter(({ posixPath }) => posixPath !== "price-list.html") // Exclude noindex stub
+        .map(({ posixPath }) => {
+          // Build URL using URL constructor for proper path joining
+          const urlPath = posixPath === "index.html" ? "" : posixPath;
+          const baseUrl = siteBaseUrl || "";
+          return new URL(urlPath, baseUrl.endsWith("/") ? baseUrl : baseUrl + "/").href;
+        });
+      
+      // Add override URLs to sitemap (deduplicate with existing)
+      if (index.base_url_configured && overrideUrls.length > 0) {
+        const existingSitemap = await readFile(outputs.sitemap, "utf8");
+        const existingUrls = Array.from(existingSitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
+          .map(m => m[1])
+          .filter((url): url is string => typeof url === "string");
+        const allUrls = Array.from(new Set([...existingUrls, ...overrideUrls]));
+        
+        // Rebuild sitemap with all URLs, using override lastmods when available
+        const items = allUrls
+          .map(url => {
+            // Try to find corresponding override file for this URL
+            const urlObj = new URL(url);
+            const pathname = urlObj.pathname.replace(/^\/+/, "");
+            const posixPath = pathname || "index.html";
+            
+            // Use override's dateModified if available, otherwise fall back to sitemapLastmodForUrl
+            const lastmod = overrideLastmods.get(posixPath) || sitemapLastmodForUrl(url, index);
+            const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
+            return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
+          })
+          .join("\n");
+        
+        const newSitemap = [
+          '<?xml version="1.0" encoding="UTF-8"?>',
+          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+          items,
+          "</urlset>",
+          ""
+        ].join("\n");
+        
+        await writeFile(outputs.sitemap, newSitemap, "utf8");
+        console.log(`Updated sitemap with ${allUrls.length} total URLs (including ${overrideUrls.length} from overrides)`);
+      }
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+    // seo-overrides/ directory doesn't exist, skip
+  }
 
   return [...Object.values(outputs), ...postArticleOutputs];
 }

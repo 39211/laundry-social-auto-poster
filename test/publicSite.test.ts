@@ -2702,4 +2702,56 @@ describe("generatePublicSite", () => {
     expect(Object.keys(imageMetadata.images).sort()).toEqual([...referencedImages].sort());
     expect(binaryCheckedImages).toBeGreaterThan(0);
   });
+
+  it("seo override files should be byte-identical after generation", async function () {
+    const root = mkdtempSync(join(tmpdir(), "public-site-test-"));
+    const seoOverridesDir = join(root, "..", "..", "seo-overrides");
+    
+    if (!existsSync(seoOverridesDir)) {
+      // seo-overrides/ doesn't exist, skip this test
+      return;
+    }
+
+    const config = getConfig();
+    await writeCalendar(root, "2024-10-16", { carouselSlot1: true });
+    await generatePublicSite({
+      root,
+      siteBaseUrl: "https://sixiangjialaundry.com/",
+      imageBaseUrl: "https://sixiangjialaundry.com/"
+    });
+
+    const docsRoot = join(root, "docs");
+    const overrideFiles: string[] = [];
+    
+    // Collect all override files (recursively)
+    const collectFiles = (dir: string, relPath: string = ""): void => {
+      const fs = require("node:fs");
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        const rel = relPath ? join(relPath, entry.name) : entry.name;
+        if (entry.isDirectory()) {
+          collectFiles(fullPath, rel);
+        } else if (entry.isFile() && entry.name !== "README.md") {
+          overrideFiles.push(rel);
+        }
+      }
+    };
+    collectFiles(seoOverridesDir);
+
+    expect(overrideFiles.length).toBeGreaterThan(60);
+
+    // Verify each override file is byte-identical
+    for (const file of overrideFiles) {
+      const sourceFile = join(seoOverridesDir, file);
+      const generatedFile = join(docsRoot, file);
+      
+      expect(existsSync(generatedFile), `Generated file should exist: ${file}`).toBe(true);
+      
+      const sourceContent = await readFile(sourceFile);
+      const generatedContent = await readFile(generatedFile);
+      
+      expect(generatedContent.equals(sourceContent), `File should be byte-identical: ${file}`).toBe(true);
+    }
+  });
 });

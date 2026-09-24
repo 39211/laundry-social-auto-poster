@@ -2576,8 +2576,9 @@ describe("generatePublicSite", () => {
     expect(aiSitemap).not.toContain(thickUrl);
     expect(aiSitemap).not.toContain(thinUrl);
     
-    // RSS feed still includes posts for social/subscriber distribution.
-    expect(rss).toContain(`<link>${thickUrl}</link>`);
+    // RSS feed is also empty under the new policy (RSS uses indexablePostArticles which returns empty).
+    // Posts are still published as HTML pages for direct access and social sharing, just not in feeds/sitemaps.
+    expect(rss).not.toContain(thickUrl);
     expect(rss).not.toContain(thinUrl);
     
     // Discovery contract reflects that no posts are indexable under the new policy.

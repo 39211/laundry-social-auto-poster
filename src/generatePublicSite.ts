@@ -1,6 +1,6 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
-import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { copyFile, mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
@@ -8269,6 +8269,75 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   );
   const postArticleOutputs = await writePostArticlePages(articlePosts, index, postsRoot);
   await writeFile(outputs.nojekyll, "", "utf8");
+
+  // Apply SEO overrides: copy hand-maintained pages from seo-overrides/ to docs/
+  // These pages contain the full content from PR #7, #8, #9 (answer boxes, FAQs, internal links)
+  // without requiring manual porting of 200+ FAQ items into TypeScript.
+  const overrideRoot = join(root, "seo-overrides");
+  const overrideHtmlFiles: string[] = [];
+  try {
+    const walkOverrides = async (dir: string, relPath: string = ""): Promise<void> => {
+      const entries = await readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        const rel = relPath ? join(relPath, entry.name) : entry.name;
+        if (entry.isDirectory()) {
+          await walkOverrides(fullPath, rel);
+        } else if (entry.isFile() && entry.name !== "README.md") {
+          const targetPath = join(docsRoot, rel);
+          await mkdir(dirname(targetPath), { recursive: true });
+          await copyFile(fullPath, targetPath);
+          if (rel.endsWith(".html")) {
+            overrideHtmlFiles.push(rel);
+          }
+        }
+      }
+    };
+    await walkOverrides(overrideRoot);
+    if (overrideHtmlFiles.length > 0) {
+      console.log(`Applied ${overrideHtmlFiles.length} SEO override HTML files`);
+      
+      // Regenerate sitemap to include override pages (except noindex price-list stub)
+      const overrideUrls = overrideHtmlFiles
+        .filter(file => file !== "price-list.html") // Exclude noindex stub
+        .map(file => {
+          const path = file === "index.html" ? "" : file.replace(/\.html$/, ".html");
+          return `${siteBaseUrl}/${path}`.replace(/\/+/g, "/").replace(/:\/([^/])/, "://$1");
+        });
+      
+      // Add override URLs to sitemap (deduplicate with existing)
+      if (index.base_url_configured && overrideUrls.length > 0) {
+        const existingSitemap = await readFile(outputs.sitemap, "utf8");
+        const existingUrls = Array.from(existingSitemap.matchAll(/<loc>([^<]+)<\/loc>/g)).map(m => m[1]);
+        const allUrls = Array.from(new Set([...existingUrls, ...overrideUrls]));
+        
+        // Rebuild sitemap with all URLs
+        const items = allUrls
+          .map(url => {
+            const lastmod = sitemapLastmodForUrl(url, index);
+            const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
+            return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
+          })
+          .join("\n");
+        
+        const newSitemap = [
+          '<?xml version="1.0" encoding="UTF-8"?>',
+          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+          items,
+          "</urlset>",
+          ""
+        ].join("\n");
+        
+        await writeFile(outputs.sitemap, newSitemap, "utf8");
+        console.log(`Updated sitemap with ${allUrls.length} total URLs (including ${overrideUrls.length} from overrides)`);
+      }
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+    // seo-overrides/ directory doesn't exist, skip
+  }
 
   return [...Object.values(outputs), ...postArticleOutputs];
 }

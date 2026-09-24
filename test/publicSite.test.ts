@@ -1,5 +1,5 @@
-import { access, mkdir, open, readFile, writeFile } from "node:fs/promises";
-import { existsSync, mkdtempSync, statSync } from "node:fs";
+import { access, mkdir, open, readdir, readFile, writeFile } from "node:fs/promises";
+import { existsSync, mkdtempSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -2705,12 +2705,29 @@ describe("generatePublicSite", () => {
 
   it("seo override files should be byte-identical after generation", async function () {
     const root = mkdtempSync(join(tmpdir(), "public-site-test-"));
-    const seoOverridesDir = join(root, "..", "..", "seo-overrides");
     
-    if (!existsSync(seoOverridesDir)) {
-      // seo-overrides/ doesn't exist, skip this test
+    // Copy seo-overrides/ from repo root to temp root
+    const repoSeoOverridesDir = join(__dirname, "..", "seo-overrides");
+    if (!existsSync(repoSeoOverridesDir)) {
+      // seo-overrides/ doesn't exist in repo, skip this test
       return;
     }
+    
+    const tempSeoOverridesDir = join(root, "seo-overrides");
+    const copyDir = async (src: string, dest: string): Promise<void> => {
+      await mkdir(dest, { recursive: true });
+      const entries = await readdir(src, { withFileTypes: true });
+      for (const entry of entries) {
+        const srcPath = join(src, entry.name);
+        const destPath = join(dest, entry.name);
+        if (entry.isDirectory()) {
+          await copyDir(srcPath, destPath);
+        } else {
+          await writeFile(destPath, await readFile(srcPath));
+        }
+      }
+    };
+    await copyDir(repoSeoOverridesDir, tempSeoOverridesDir);
 
     const config = getConfig();
     await writeCalendar(root, "2024-10-16", { carouselSlot1: true });
@@ -2725,8 +2742,7 @@ describe("generatePublicSite", () => {
     
     // Collect all override files (recursively)
     const collectFiles = (dir: string, relPath: string = ""): void => {
-      const fs = require("node:fs");
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      const entries = readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
         const fullPath = join(dir, entry.name);
         const rel = relPath ? join(relPath, entry.name) : entry.name;
@@ -2737,13 +2753,13 @@ describe("generatePublicSite", () => {
         }
       }
     };
-    collectFiles(seoOverridesDir);
+    collectFiles(tempSeoOverridesDir);
 
     expect(overrideFiles.length).toBeGreaterThan(60);
 
     // Verify each override file is byte-identical
     for (const file of overrideFiles) {
-      const sourceFile = join(seoOverridesDir, file);
+      const sourceFile = join(tempSeoOverridesDir, file);
       const generatedFile = join(docsRoot, file);
       
       expect(existsSync(generatedFile), `Generated file should exist: ${file}`).toBe(true);
@@ -2753,5 +2769,20 @@ describe("generatePublicSite", () => {
       
       expect(generatedContent.equals(sourceContent), `File should be byte-identical: ${file}`).toBe(true);
     }
+    
+    // Verify sitemap contains override URLs and no /posts/ URLs
+    const sitemapPath = join(docsRoot, "sitemap.xml");
+    const sitemap = await readFile(sitemapPath, "utf8");
+    const sitemapUrls = Array.from(sitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
+      .map(m => m[1])
+      .filter((url): url is string => typeof url === "string");
+    
+    // Should contain override HTML pages (except price-list.html which is noindex)
+    const overrideHtmlFiles = overrideFiles.filter(f => f.endsWith(".html") && f !== "price-list.html");
+    expect(overrideHtmlFiles.length).toBeGreaterThan(60);
+    
+    // Should have no /posts/ URLs (all slot posts are noindex)
+    const postsUrls = sitemapUrls.filter(url => url.includes("/posts/"));
+    expect(postsUrls).toEqual([]);
   });
 });

@@ -141,7 +141,7 @@ export const PROTECTED_LIVE_COHORT_HASHES: Record<(typeof PROTECTED_LIVE_COHORT_
 
 export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLock> = {
   "suede-shoe-cleaning": {
-    content_revision: "2026-09-24#1",
+    content_revision: "2026-08-30#1",
     body_hash: "d8e6beec999909c778ed5a4ffc456b78bba9a8c49bbe906d8e150ceaa2cec1ab"
   },
   "canvas-shoe-mud": {
@@ -157,7 +157,7 @@ export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLo
     body_hash: "f63621b9d70217dfa598461b28167c44cf24b9090dd00522be5dc7cc5c8cfb5d"
   },
   "washing-machine-shoe-risk": {
-    content_revision: "2026-09-24#1",
+    content_revision: "2026-08-30#1",
     body_hash: "738debaa0bf0d7709665e8bb6bfcaecdbb9d814eb5b33db64651a137ca305674"
   },
   "athletic-shoe-mixed-materials": {
@@ -1420,7 +1420,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
     keywords: ["麂皮鞋清潔", "麂皮鞋變硬", "麂皮鞋發亮", "台中洗麂皮"],
     service_slug: "shoe-bag-care",
     local_intent: "台中西屯 麂皮鞋 變硬 發亮 乾刷",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-30",
     hub_group: "shoes",
     related_slugs: ["canvas-shoe-mud", "rainy-shoe-care"],
     steps: [
@@ -1636,7 +1636,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
     keywords: ["鞋子洗衣機", "鞋子可以水洗嗎", "運動鞋機洗", "台中洗鞋"],
     service_slug: "shoe-bag-care",
     local_intent: "台中西屯 鞋子 洗衣機 風險 膠邊",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-30",
     hub_group: "shoes",
     related_slugs: ["athletic-shoe-mixed-materials", "photo-before-laundry"],
     steps: [

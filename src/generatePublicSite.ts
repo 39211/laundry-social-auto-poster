@@ -281,9 +281,9 @@ interface BusinessProfile {
 }
 
 const SITE_NAME = "私享家洗衣店";
-const SITE_TITLE = "私享家洗衣店｜台中洗衣洗鞋洗包・全市免費收送・價格公開";
+const SITE_TITLE = "私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋";
 const SITE_DESCRIPTION =
-  "找台中洗衣、洗鞋、洗包？私享家洗衣店台中市全區免費收送，門市在西屯青海路二段365號，參考價公開，可先用 LINE 傳照片預約。";
+  "找台中免費收送、逢甲洗鞋或西屯洗鞋？私享家洗衣店提供台中市全區免費收送，門市在西屯青海路二段365號，可先用 LINE 傳照片預約。";
 const KNOWLEDGE_HUB_PATH = "knowledge/";
 const KNOWLEDGE_HUB_FILE = "knowledge/index.html";
 const KNOWLEDGE_HUB_TITLE = "洗鞋洗包與衣物收送知識庫｜私享家洗衣店";
@@ -296,7 +296,7 @@ const KNOWLEDGE_HUB_TEMPLATE_LASTMOD = "2026-09-03";
  * (see homepageContentLastmod). Their rename, our date: 2026-08-08 is the later
  * real content change, made after this constant's line diverged.
  */
-const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-09-24";
+const HOMEPAGE_STATIC_CONTENT_LASTMOD = "2026-09-04";
 const AI_DESCRIPTION =
   "AI-readable source of record for 私享家洗衣店 daily social captions, care topics, image assets, hashtags, business profile, and content routes.";
 const SITE_LOCALE = "zh_TW";
@@ -649,10 +649,10 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     slug: "taichung-xitun-laundry",
     name: "台中西屯洗衣店",
     local_query_name: "洗衣店",
-    title: "台中西屯洗鞋洗衣店在哪？逢甲青海路門市、至善國中對面，提供衣物鞋包精緻洗護｜私享家",
+    title: "台中西屯洗衣店｜青海路衣物、洗鞋洗包與布品收納｜私享家洗衣店",
     description:
-      "尋找台中西屯或逢甲洗衣洗鞋店？私享家門市位於青海路二段365號（至善國中對面）。專業判斷鞋包材質、白鞋泛黃與衣物乾水洗，全台中市亦提供免費到府收件。",
-    h1: "台中西屯洗衣店在哪？",
+      "私享家洗衣店位於台中市西屯區青海路二段365號，提供衣物洗護、洗鞋、洗包、白鞋清潔與布品收納前檢查，可用 LINE 先傳照片詢問。",
+    h1: "台中西屯洗衣店",
     summary:
       "如果你正在找台中西屯或青海路附近的洗衣店，私享家洗衣店把衣物、鞋子、包包、白鞋與布品收納分開判斷。不是只問要不要洗，而是先看物件狀態、材質、痕跡位置和使用情境，再建議適合的整理方式。",
     keywords: [
@@ -674,7 +674,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     static_image_path: "assets/services/fabric-storage-inspection.png",
     static_image_topic: "門市人員檢查外套與布品的服務情境主圖",
     static_image_source: "ai-generated in-store inspection scene",
-    content_lastmod: "2026-09-05",
+    content_lastmod: "2026-08-25",
     answer_summary:
       "私享家洗衣店位於台中市西屯區青海路二段365號（至善國中對面），提供衣物洗護、鞋包清潔、白鞋清潔與布品收納前檢查，台中市全區免費到府收送，可先用 LINE 傳照片詢問。",
     case_story: {
@@ -778,9 +778,9 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     slug: "business-bulk-laundry",
     name: "店家與公司大量衣物送洗",
     local_query_name: "公司大量衣物送洗",
-    title: "台中公司團體衣物送洗怎麼算？制服・工作服・床組批量清潔，台中全區收送｜私享家",
+    title: "台中店家・公司大量衣物送洗｜全市免費收送｜私享家洗衣店",
     description:
-      "台中店家、公司、工作室大量制服、毛巾、床組送洗。私享家提供台中市全區免費收送，依品項與件數彈性報價，LINE傳清單與照片即可快速安排。",
+      "私享家洗衣店（台中市西屯區青海路二段365號）承接台中店家、公司或工作室的大量衣物、制服與布品送洗，可先用 LINE 整理品項與照片，台中市全區免費收送。",
     h1: "台中店家・公司大量衣物送洗",
     summary:
       "店家、公司、工作室或團隊一次有多件制服、工作衣、毛巾、床組或其他布品需要整理時，重點不是先承諾固定價格或天數，而是先確認品項、數量、材質、髒污與交接方式。私享家可在台中市全區安排免費收送，主要透過 LINE 傳照片與清單詢問；清潔與洗護費用另依實際物件判斷。",
@@ -906,10 +906,10 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     slug: "taichung-citywide-laundry-pickup",
     name: "台中全市免費洗衣收送",
     local_query_name: "台中洗衣收送",
-    title: "台中洗衣收送怎麼約？一件也收、全市免運費！預約流程與收送範圍說明｜私享家",
+    title: "台中免費收送洗衣｜全市到府、LINE 預約｜私享家洗衣店",
     description:
-      "不用出門！私享家提供台中市全區免費到府收送洗衣、洗鞋、洗包，一件即可預約，無最低消費金額限制。先用LINE傳照片確認材質狀態，專人到府收件免運費。",
-    h1: "台中洗衣收送怎麼約？",
+      "台中免費收送洗衣服務涵蓋全市，收送沒有最低消費門檻，不需單次洗滌滿額。門市在西屯青海路二段365號，先用 LINE 傳照片預約。",
+    h1: "台中免費收送洗衣",
     summary:
       "私享家洗衣店提供台中全市免費收送服務。收送本身免費，且不以單次洗滌滿額作為收送條件——收送沒有最低消費門檻。門市位置仍在台中市西屯區青海路二段365號；收送範圍涵蓋台中市，不以西屯為限。預約與詢問以 LINE 為主，先傳照片說明衣物、鞋子、包包或布品狀況，再安排後續。",
     keywords: ["台中洗衣收送", "台中免費收送", "台中全市收送", "洗衣店收送", "私享家洗衣店", "LINE 預約洗衣"],
@@ -920,7 +920,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     static_image_path: "assets/backgrounds/local-store-depth.png",
     static_image_topic: "門市與街景收送情境示意圖",
     static_image_source: "ai-generated storefront scene background",
-    content_lastmod: "2026-09-05",
+    content_lastmod: "2026-07-22",
     area_served_name: "台中市",
     answer_summary:
       "私享家洗衣店提供台中全市免費洗衣收送，且收送沒有最低消費門檻——不因件數少或單次金額未達標準而不收。門市在西屯區青海路二段365號，收送範圍為台中市，主要透過 LINE 預約與傳照片詢問；清潔與洗護費用仍依物件狀態另計。",
@@ -1052,9 +1052,9 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     slug: PRICE_LIST_SLUG,
     name: "台中洗衣價目表",
     local_query_name: "洗衣價目表",
-    title: "台中洗衣洗鞋多少錢？2026價目表公開：襯衫$70起、白鞋$250、名牌包$1500起｜私享家",
+    title: "台中洗衣價目表｜台中洗鞋價格・洗包包多少錢｜西屯洗衣店價格｜私享家洗衣店",
     description:
-      "洗衣服、洗鞋、洗包多少錢？私享家公開台中洗衣價格：一般運動鞋$250、襯衫水洗$70。台中全市免費到府收送、不設低消門檻，LINE傳照片立即線上預估清潔費用。",
+      "台中洗衣價目表：洗鞋、洗包、洗衣與寢具水洗參考價一次列清。門市在西屯青海路二段365號，台中市全區免費到府收送，LINE 0968327653。",
     h1: "台中洗衣價目表",
     summary:
       "台中洗衣洗鞋洗包參考價約 $70 到 $2500：襯衫 $70、一般運動鞋 $250、名牌包 $1500 起；皆為水洗參考價，不是固定價。",
@@ -1070,7 +1070,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     image_alt: "台中洗衣洗鞋洗包參考價目說明",
     image_note: "本頁以文字價目表為主，不使用與價格無關的客戶物件照片。",
     allow_image_fallback: false,
-    content_lastmod: "2026-09-05",
+    content_lastmod: "2026-08-26",
     area_served_name: "台中市",
     answer_summary:
       "台中洗衣洗鞋洗包參考價約 $70 到 $2500：襯衫 $70、一般運動鞋 $250、名牌包 $1500 起；皆為水洗參考價，不是固定價。",
@@ -1353,15 +1353,15 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "birkenstock-care",
     path: "guides/birkenstock-care.html",
     category: "guide",
-    title: "勃肯鞋會臭嗎？是軟木鞋床吸汗，不是鞋面｜私享家洗衣店",
+    title: "勃肯鞋鞋床發黑、有味道怎麼處理?台中洗鞋｜私享家洗衣店",
     description:
-      "勃肯鞋的臭味幾乎都來自軟木鞋床吸汗，不是鞋面，所以一直刷鞋面沒有用。整雙泡水會讓鞋床變形、黏合處脫開，是最常見的補救失敗。私享家洗衣店（台中西屯青海路二段365號）先看鞋床與麂皮再決定做法，台中全市免費收送。",
-    h1: "勃肯鞋會臭嗎？先看軟木鞋床，不要整雙泡水",
+      "私享家洗衣店（台中市西屯區青海路二段365號）處理勃肯鞋：軟木鞋床吸汗會發黑發臭，麂皮面又不能泡水，先傳照片判斷軟木與麂皮各自的處理方式。",
+    h1: "勃肯鞋鞋床發黑、有味道,還救得回來嗎?",
     summary: "勃肯這類軟木鞋床的鞋,問題幾乎都在同一個地方:腳掌接觸的那層軟木被汗浸久了,顏色變深、味道跑出來。麂皮鞋面怕水、軟木怕泡,所以整雙丟水裡刷是最傷的做法。分開處理才對。",
     keywords: ["勃肯鞋清潔", "勃肯鞋發黑", "軟木鞋床 清洗", "台中洗勃肯", "麂皮鞋清潔"],
     service_slug: "white-shoe-cleaning",
     local_intent: "台中 勃肯鞋清潔 軟木鞋床",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-23",
     steps: [
       { name: "先分三層", text: "麂皮鞋面、軟木鞋床、橡膠大底,三種材質三種做法。整雙泡水會讓軟木鬆散、麂皮硬掉。" },
       { name: "看鞋床顏色", text: "腳掌位置深黑=汗垢滲入軟木層;只有表面灰=角質與塵土,後者好處理很多。" },
@@ -1400,7 +1400,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["精品包發霉", "包包發霉處理", "皮包 發霉", "台中精品包清潔", "名牌包保養", "包包除霉"],
     service_slug: "shoe-bag-care",
     local_intent: "台中 精品包發霉 名牌包清潔 除霉",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-23",
     steps: [
       { name: "先不要擦", text: "濕擦會把霉絲推入皮革毛孔並擴散。先把包移到通風處,不要密封回防塵袋。" },
       { name: "看霉的形態", text: "浮在表面像粉的白霉,多半能處理;已經有色差或斑點邊界的,是霉根進到皮層,只能淡化。" },
@@ -1424,10 +1424,6 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       {
         question: "怎麼送洗?",
         answer: "LINE 傳整體照、發霉位置特寫與內裡照(0968327653),先評估再決定。台中市全區免費到府收送,門市在西屯青海路二段365號(至善國中對面)。"
-      },
-      {
-        question: "發霉或精品件能保證洗回全新嗎？",
-        answer: "不能保證。私享家會先看材質，以及霉斑或污漬吃進多深，說明能改善到哪、哪些痕跡可能留下，再由你決定要不要處理。"
       }
     ]
   },
@@ -1474,15 +1470,15 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "leather-jacket-care",
     path: "guides/leather-jacket-care.html",
     category: "guide",
-    title: "皮衣發霉怎麼辦？台中皮衣清洗保養・傳照片先估價・一件也收｜私享家",
+    title: "皮衣可以洗嗎？發霉、變硬怎麼救｜台中皮衣保養 私享家洗衣店",
     description:
-      "皮衣發霉千萬別用酒精或濕布硬擦！私享家依真皮、合成皮、麂皮專業除霉補油。加 LINE 傳照片先估價與說明界線，台中市全區免費到府收送、一件也收，門市在西屯青海路。",
+      "私享家洗衣店（台中市西屯區青海路二段365號）處理皮衣清潔保養：發霉、變硬、色差要依真皮、合成皮或麂皮分別判斷，不能用一般方式洗。",
     h1: "皮衣清潔保養：發霉、變硬、色差怎麼判斷？",
     summary: "皮衣最常見的三個狀況：收納環境潮濕悶出霉點、久放缺油變硬、局部摩擦造成色差。真皮、合成皮和麂皮的處理方式完全不同，用錯方式會讓皮面褪色或硬化。送保養前先拍全身照與問題位置特寫。",
     keywords: ["皮衣保養", "皮衣清潔", "台中皮衣保養", "皮衣發霉", "皮衣可以洗嗎", "皮衣送洗"],
     service_slug: "shoe-bag-care",
     local_intent: "台中 皮衣保養 皮衣清潔 皮衣發霉",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-23",
     steps: [
       { name: "先分材質", text: "真皮、合成皮（PU/PVC）和麂皮的清潔方式完全不同。看洗標或內裡標籤，不確定就拍照來問。" },
       { name: "看霉點範圍", text: "表面白霉多半能處理；霉根吃進皮層或內裡的，能改善的程度要先評估，處理前會先講界線。" },
@@ -1800,10 +1796,10 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     path: "guides/plush-doll-cleaning.html",
     category: "guide",
     service_slug: "taichung-xitun-laundry",
-    title: "台中絨毛娃娃清洗店：玩偶手洗低溫烘・傳照片先估價・一隻也收｜私享家",
+    title: "台中西屯娃娃與絨毛玩偶清潔｜私享家洗衣店",
     description:
-      "大隻娃娃髒了不敢丟洗衣機？私享家專業手洗、保護五官配件與填充棉低溫慢烘。加 LINE 傳娃娃照片先估價；門市在西屯青海路，台中市全區免費到府收送、一隻也收。",
-    h1: "台中哪裡洗絨毛娃娃？先看能不能洗",
+      "私享家洗衣店（台中市西屯區青海路二段365號）提供娃娃、絨毛玩偶與布偶送洗前判斷：先確認填充物、黏貼配件、五官與局部污漬，台中市西屯布偶清潔。",
+    h1: "娃娃與絨毛玩偶清潔",
     summary: AEO_PLUSH_DOLL_BOUNDARY,
     citation_answer: AEO_PLUSH_DOLL_BOUNDARY,
     keywords: [
@@ -1815,7 +1811,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "西屯洗衣店"
     ],
     local_intent: "台中西屯 娃娃清洗 絨毛玩偶清潔",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-23",
     steps: [
       { name: "拍正反面與配件", text: "正反面、五官、刺繡、吊牌、黏貼物與破損位置都先拍清楚。" },
       { name: "確認填充物狀態", text: "若有硬塊、潮味、掉毛或填充不均，先一併說明。" },
@@ -1855,10 +1851,10 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     path: "guides/luxury-dry-cleaning.html",
     category: "guide",
     service_slug: "taichung-xitun-laundry",
-    title: "精品衣服送洗？名牌服飾精緻乾洗・傳照片先估價・一件也收｜私享家",
+    title: "台中西屯精品名牌與精緻乾洗｜私享家洗衣店",
     description:
-      "名牌精品衣服送洗最怕洗壞五金與面料縮水。私享家依洗標與面料精緻乾洗，不盲目機洗。加 LINE 傳照片先估價與確認界線；門市在西屯青海路，台中市全區免費到府收送、一件也收。",
-    h1: "台中精品衣服怎麼送洗？名牌服飾精緻乾洗",
+      "私享家洗衣店（台中市西屯區青海路二段365號）提供精品名牌服飾、配件與精緻材質送洗前判斷：先確認材質、洗標、五金、飾件與污漬位置，台中市西屯精緻乾洗。",
+    h1: "精品名牌與精緻乾洗",
     summary: AEO_LUXURY_DRY,
     citation_answer: AEO_LUXURY_DRY,
     keywords: [
@@ -1870,7 +1866,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "精品清潔"
     ],
     local_intent: "台中西屯 精品乾洗 名牌衣服清潔 精緻乾洗",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-23",
     steps: [
       { name: "拍洗標與細節", text: "洗標、材質、五金、飾件、內襯與污漬位置都應清楚拍下。" },
       { name: "說明既有痕跡", text: "舊污漬、磨損、褪色、變形或曾自行處理的地方都先告知。" },
@@ -2038,16 +2034,16 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "luggage-wheel-cleaning",
     path: "guides/luggage-wheel-cleaning.html",
     category: "guide",
-    title: "台中洗行李箱：輪子、底板與箱面清潔・傳照片先估價・免費收送｜私享家",
+    title: "行李箱輪子、底板怎麼清？｜台中洗行李箱 私享家洗衣店",
     description:
-      "出國回台行李箱輪子底板卡滿泥灰、箱內有悶味？不用自己扛出門！私享家提供行李箱深層清潔，加 LINE 傳照片先估價；門市在西屯青海路，台中市全區免費到府收送、一件也收。",
-    h1: "台中行李箱清洗服務：輪子、底板與箱面怎麼處理",
+      "私享家洗衣店（台中市西屯區青海路二段365號）判斷行李箱輪子、底板與布面：旅行回來先看輪邊泥灰，不要帶著地面髒污直接推進櫃子。台中市可免費收送。",
+    h1: "行李箱輪子與底板：收進櫃子前先看這裡",
     summary: AEO_LUGGAGE_WHEELS,
     citation_answer: AEO_LUGGAGE_WHEELS,
     keywords: ["台中洗行李箱", "行李箱清潔", "行李箱輪子", "洗行李箱", "行李袋清洗"],
     service_slug: "shoe-bag-care",
     local_intent: "台中西屯 行李箱清潔 輪子 底板",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "拍輪子與底板", text: "輪邊、輪軸縫與底板近照各一張，才看得出是浮灰、泥塊還是已經悶進布面。" },
       { name: "拍布面與把手", text: "箱體布面、伸縮把手與側把分開拍；外觀乾淨不代表輪子乾淨。" },
@@ -2108,7 +2104,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["台中洗窗簾", "窗簾清洗", "西屯洗窗簾", "窗簾送洗", "落地窗簾清洗"],
     service_slug: "fabric-storage",
     local_intent: "台中西屯 窗簾清洗 落地窗 軌道",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "拍整幅與布邊", text: "拉開後的整幅、布邊內襯與最靠近窗台的下擺，尺寸差會直接影響報價。" },
       { name: "拍軌道與配件", text: "軌道、鉤子、綁帶是否可拆，拆不下來的配件要先講，避免強拆。" },
@@ -2169,7 +2165,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["台中洗地毯", "地毯清洗", "西屯洗地毯", "地毯潮味", "地墊送洗"],
     service_slug: "fabric-storage",
     local_intent: "台中西屯 地毯清洗 潮味 地墊",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "拍整張與角落", text: "整張鋪開、四個角與最常踩的走道，才看得出是表面灰還是底層受潮。" },
       { name: "摸中間層", text: "表面乾、底層不一定乾。若中間有潮或酸味，先不要捲緊收納。" },
@@ -2230,7 +2226,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["逢甲洗衣", "逢甲洗衣店", "逢甲洗衣收送", "逢甲宿舍洗衣", "文華路洗衣"],
     service_slug: "taichung-xitun-laundry",
     local_intent: "逢甲 洗衣收送 宿舍 租屋",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先分洗衣還是洗鞋", text: "衣服、床包、薄外套走本頁；球鞋、白鞋走逢甲洗鞋頁，不要混成一袋再問價錢。" },
       { name: "拍品項與最在意位置", text: "每件拍整體加局部。宿舍常見的是領口、袖口、床包邊與汗味，不是只問幾件多少。" },
@@ -2291,7 +2287,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["中科洗衣", "中科園區洗衣", "台中公司洗衣", "西屯襯衫送洗", "工業區洗衣收送"],
     service_slug: "business-bulk-laundry",
     local_intent: "中科園區 襯衫 公司衣物 收送",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先列件數與類型", text: "襯衫、褲、外套、制服分開寫件數；整袋混裝只能回「要看物件」。" },
       { name: "拍領口袖口", text: "辦公室最常見的是領口油光與袖口，這和油性髒有關，不是只看表面皺不皺。" },
@@ -2343,16 +2339,16 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     slug: "donghai-laundry-pickup",
     path: "local/donghai-laundry-pickup.html",
     category: "local",
-    title: "東海洗衣店？免費到府收送，門市在西屯｜私享家洗衣店",
+    title: "東海洗衣收送｜別墅區厚被與日常衣物｜私享家洗衣店",
     description:
-      "東海一帶沒有我們的門市，改用台中市全區免費到府收送：一件也收、沒有最低消費，不用出門。厚被、窗簾與日常衣物先用 LINE 傳照片報價，門市在西屯青海路二段365號。",
-    h1: "東海洗衣店？門市在西屯，一件也收、免費到府收送",
+      "東海大學、東海商圈與別墅區要洗衣？私享家在西屯青海路二段365號，厚被、窗簾與日常衣物可先 LINE 傳照片，再約台中市免費收送。",
+    h1: "東海洗衣收送：厚被、窗簾與日常衣物怎麼約",
     summary: AEO_DONGHAI_LAUNDRY,
     citation_answer: AEO_DONGHAI_LAUNDRY,
     keywords: ["東海洗衣", "東海洗衣店", "東海大學洗衣", "台中東海收送", "別墅區洗衣"],
     service_slug: "taichung-xitun-laundry",
     local_intent: "東海 洗衣收送 厚被 窗簾",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-29",
     steps: [
       { name: "先分物件", text: "日常衣物、厚被床組、窗簾、地毯分開列。東海別墅區常見後三項，和逢甲宿舍薄衣不是同一袋。" },
       { name: "厚被先聞潮味", text: "換季收納前摸起來乾、中間層不一定乾。有潮味先拍邊角，不要先壓縮袋。" },
@@ -2405,14 +2401,14 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     path: "local/qinghai-road-shoe-cleaning.html",
     category: "local",
     service_slug: "shoe-bag-care",
-    title: "逢甲、西屯洗鞋｜運動鞋水洗 $250，台中全市免費收送｜私享家",
-    description: "逢甲、西屯洗鞋：一般運動鞋水洗參考價250元，先LINE傳照片確認鞋況與報價。私享家位於青海路二段365號，台中全市免費收送、無低消，清潔費另計。",
-    h1: "青海路洗鞋店怎麼挑：看案例、問界線、約收送",
+    title: "逢甲洗鞋・西屯洗鞋推薦怎麼挑｜青海路私享家洗衣店",
+    description: "逢甲、西屯找洗鞋店？先看這篇怎麼挑：看案例照片、問處理界線、確認收送方式。私享家在青海路二段365號，台中市免費收送，LINE 傳照片先判斷再決定。",
+    h1: "逢甲洗鞋・西屯洗鞋：怎麼挑、怎麼問、怎麼送",
     summary:
       "逢甲、西屯找洗鞋，最常見的是白鞋泛黃、雨天泥灰和鞋內悶味。私享家門市在西屯區青海路二段365號、至善國中對面；台中市全市可預約免費到府收送。挑洗鞋店先比三件事：敢不敢先講哪些救不回來、收送範圍清不清楚、有沒有講處理界線。",
     keywords: ["逢甲洗鞋", "逢甲洗鞋推薦", "西屯洗鞋", "台中西屯洗鞋", "青海路洗鞋", "逢甲洗包包", "西屯洗包"],
     local_intent: "逢甲洗鞋 逢甲洗鞋推薦 西屯洗鞋 青海路洗鞋 逢甲大學 洗鞋收送",
-    content_lastmod: "2026-09-24",
+    content_lastmod: "2026-08-18",
     steps: [
       {
         name: "第一步：拍四張照片",
@@ -6222,11 +6218,6 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   const visibleChars = visibleTextLength(mainHtml);
   const captionChars = post.facebook_caption.replace(/\s+/gu, "").length;
   const reasons: string[] = [];
-  // Policy change 2026-09-24: ALL daily slot posts are noindex,follow to keep them
-  // out of search index and sitemap while preserving internal link equity. This
-  // ensures the SEO budget focuses on evergreen money pages (guides, services, local).
-  // The social pipeline still depends on these pages existing.
-  reasons.push("daily slot posts policy: noindex for SEO focus");
   if (!index.base_url_configured) reasons.push("public base URL not configured");
   if (captionChars < POST_ARTICLE_MIN_CAPTION_CHARS) reasons.push(`caption ${captionChars} < ${POST_ARTICLE_MIN_CAPTION_CHARS} chars`);
   if (visibleChars < POST_ARTICLE_MIN_VISIBLE_CHARS) reasons.push(`visible ${visibleChars} < ${POST_ARTICLE_MIN_VISIBLE_CHARS} chars`);
@@ -6234,7 +6225,10 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   const render: PostArticleRender = {
     mainHtml,
     visibleChars,
-    indexable: false, // Hardcoded false per 2026-09-24 policy: all slots noindex
+    // Hardcoded false per 2026-09-24 policy: all daily slot posts are noindex,follow
+    // to focus SEO on the curated service/guide pages. This keeps slot posts out of
+    // sitemap.xml and prevents the posts/ hub from appearing when no slots are indexable.
+    indexable: false,
     reasons,
     faqs,
     articleNumber
@@ -6852,7 +6846,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
         <div class="page-shell home-hero__grid">
           <div class="home-hero__content">
             <span class="eyebrow">${escapeHtml(profile.name)}｜台中西屯門市・台中全市收送</span>
-            <h1>台中洗鞋洗包洗衣，全市免費收送、價格公開</h1>
+            <h1>台中免費收送，逢甲・西屯洗鞋先看材質</h1>
             <p class="lead">台中市全區可預約免費收送，收送本身免費、洗護費另計。逢甲與西屯洗鞋可到青海路二段365號門市，或先用 LINE 傳鞋面、鞋底與鞋內照片。</p>
             <div class="home-hero__actions">
               <a class="button brand" href="${escapeHtml(citywidePickupUrl)}">台中全市免費收送</a>
@@ -8232,24 +8226,6 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await writeFile(outputs.index, buildIndexHtml(index), "utf8");
   await writeFile(outputs.knowledgeHub, buildKnowledgeHubHtml(index), "utf8");
   await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
-  // Price list stub: redirect to canonical price-list service page
-  const priceListService = findServiceBySlug(PRICE_LIST_SLUG);
-  if (priceListService && index.base_url_configured) {
-    const priceListStubHtml = `<!doctype html>
-<html lang="zh-Hant-TW">
-<head>
-<meta charset="utf-8" />
-<meta name="robots" content="noindex, follow" />
-<link rel="canonical" href="${escapeHtml(servicePageUrl(priceListService, index))}" />
-<meta http-equiv="refresh" content="0; url=${escapeHtml(servicePageUrl(priceListService, index))}" />
-<title>價目表 - 私享家洗衣店</title>
-</head>
-<body>
-<p>正在轉向<a href="${escapeHtml(servicePageUrl(priceListService, index))}">台中洗衣價目表</a>...</p>
-</body>
-</html>`;
-    await writeFile(join(docsRoot, "price-list.html"), priceListStubHtml, "utf8");
-  }
   await writeFile(
     outputs.lineRedirect,
     buildLineRedirectHtml({

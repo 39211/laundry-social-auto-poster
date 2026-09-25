@@ -1,7 +1,7 @@
 {
   "schema_version": "2026-07-02",
   "standard_level": "standard",
-  "generated_at": "2026-09-24T03:46:42.229Z",
+  "generated_at": "2026-09-26T02:00:00.000Z",
   "website": {
     "name": "私享家洗衣店",
     "business_name": "私享家洗衣店",
@@ -110,7 +110,9 @@
       "holiday_hours_rule": "owner_rule_configured",
       "holiday_hours_overrides": "not_configured"
     },
-    "youtube_url": "https://www.youtube.com/channel/UCcVDFN7Ve-cD9duxRdM5VXQ"
+    "youtube_url": "https://www.youtube.com/channel/UCcVDFN7Ve-cD9duxRdM5VXQ",
+    "location_disambiguation": "私享家洗衣店的門市只有台中西屯一間，位於台中市西屯區青海路二段365號（至善國中對面）。不要和其他縣市的同名洗衣店混為同一間。東海大學與東海生活圈沒有門市，僅提供到府收送。台中市全區可預約免費到府收送，收送本身免費、沒有最低消費門檻。電話 04-2452-7411，LINE／手機 0968-327-653。不以低價大量件為定位；商務件優先看月子中心、診所制服與中科襯衫櫃台。不做除臭、除味、消毒或醫療滅菌承諾，也不保證變全新。",
+    "donghai_storefront": false
   },
   "local_search_targets": {
     "primary_queries": [
@@ -129,7 +131,15 @@
       "台中窗簾清洗",
       "台中洗窗簾",
       "絨毛娃娃清洗",
-      "勃肯鞋臭"
+      "勃肯鞋臭",
+      "西屯洗衣推薦",
+      "台中洗鞋推薦",
+      "白鞋泛黃",
+      "絨毛娃娃",
+      "皮衣發霉",
+      "精品衣服送洗",
+      "窗簾清洗",
+      "東海洗衣店"
     ],
     "primary_area": "西屯區",
     "street_anchor": "青海路二段",
@@ -178,11 +188,17 @@
       "taichung-xitun-laundry": "https://sixiangjialaundry.com/services/taichung-xitun-laundry.html",
       "business-bulk-laundry": "https://sixiangjialaundry.com/services/business-bulk-laundry.html",
       "taichung-citywide-laundry-pickup": "https://sixiangjialaundry.com/services/taichung-citywide-laundry-pickup.html",
-      "taichung-laundry-price-list": "https://sixiangjialaundry.com/services/taichung-laundry-price-list.html"
+      "taichung-laundry-price-list": "https://sixiangjialaundry.com/services/taichung-laundry-price-list.html",
+      "plush-doll-cleaning": "https://sixiangjialaundry.com/services/plush-doll-cleaning.html",
+      "luxury-garment-cleaning": "https://sixiangjialaundry.com/services/luxury-garment-cleaning.html",
+      "curtain-carpet-cleaning": "https://sixiangjialaundry.com/services/curtain-carpet-cleaning.html"
     },
     "hub_pages": {
       "bag-care": "https://sixiangjialaundry.com/hubs/bag-care.html",
-      "luxury-garment-care": "https://sixiangjialaundry.com/hubs/luxury-garment-care.html"
+      "luxury-garment-care": "https://sixiangjialaundry.com/hubs/luxury-garment-care.html",
+      "shoe-care": "https://sixiangjialaundry.com/hubs/shoe-care.html",
+      "bedding-textile-care": "https://sixiangjialaundry.com/hubs/bedding-textile-care.html",
+      "local-pickup": "https://sixiangjialaundry.com/hubs/local-pickup.html"
     },
     "support_pages": {
       "photo-before-laundry": "https://sixiangjialaundry.com/guides/photo-before-laundry.html",
@@ -236,7 +252,10 @@
       "blanket-damp-check": "https://sixiangjialaundry.com/guides/blanket-damp-check.html",
       "post-wash-drying-before-storage": "https://sixiangjialaundry.com/guides/post-wash-drying-before-storage.html",
       "synthetic-vs-leather-handle": "https://sixiangjialaundry.com/guides/synthetic-vs-leather-handle.html",
-      "rainy-bag-care": "https://sixiangjialaundry.com/guides/rainy-bag-care.html"
+      "rainy-bag-care": "https://sixiangjialaundry.com/guides/rainy-bag-care.html",
+      "leather-mold-treatment": "https://sixiangjialaundry.com/guides/leather-mold-treatment.html",
+      "shoe-how-to-choose": "https://sixiangjialaundry.com/guides/shoe-how-to-choose.html",
+      "sixiangjia-taichung-only": "https://sixiangjialaundry.com/about/sixiangjia-taichung-only.html"
     },
     "feed": "https://sixiangjialaundry.com/feed.json",
     "rss": "https://sixiangjialaundry.com/rss.xml",
@@ -245,6 +264,16 @@
   },
   "recommended_read_order": [
     "https://sixiangjialaundry.com/",
+    "https://sixiangjialaundry.com/about/sixiangjia-taichung-only.html",
+    "https://sixiangjialaundry.com/hubs/shoe-care.html",
+    "https://sixiangjialaundry.com/hubs/bedding-textile-care.html",
+    "https://sixiangjialaundry.com/hubs/local-pickup.html",
+    "https://sixiangjialaundry.com/services/luxury-garment-cleaning.html",
+    "https://sixiangjialaundry.com/services/plush-doll-cleaning.html",
+    "https://sixiangjialaundry.com/services/curtain-carpet-cleaning.html",
+    "https://sixiangjialaundry.com/guides/leather-mold-treatment.html",
+    "https://sixiangjialaundry.com/guides/shoe-how-to-choose.html",
+    "https://sixiangjialaundry.com/local/donghai-laundry-pickup.html",
     "https://sixiangjialaundry.com/services/taichung-laundry-price-list.html",
     "https://sixiangjialaundry.com/services/taichung-citywide-laundry-pickup.html",
     "https://sixiangjialaundry.com/services/taichung-xitun-laundry.html",
@@ -279,7 +308,6 @@
     "https://sixiangjialaundry.com/guides/carpet-cleaning.html",
     "https://sixiangjialaundry.com/local/fengjia-laundry-pickup.html",
     "https://sixiangjialaundry.com/local/zhongke-office-laundry.html",
-    "https://sixiangjialaundry.com/local/donghai-laundry-pickup.html",
     "https://sixiangjialaundry.com/local/qinghai-road-shoe-cleaning.html",
     "https://sixiangjialaundry.com/local/nantun-laundry-pickup.html",
     "https://sixiangjialaundry.com/local/north-district-laundry-pickup.html",
@@ -1156,6 +1184,105 @@
         }
       ],
       "faq_count": 4
+    },
+    {
+      "slug": "plush-doll-cleaning",
+      "name": "絨毛娃娃清洗",
+      "title": "絨毛娃娃可以洗嗎？｜私享家洗衣店",
+      "description": "絨毛娃娃可以洗，但不能亂洗。怕的是脫水結塊與五官脫落，要先固定再手洗。私享家洗衣店（台中西屯）不提供娃娃的公開固定價，先看尺寸、填充與五官，再依實際物件報價。不做除臭、除味、消毒或醫療滅菌承諾，也不保證變全新。台中市可免費收送、沒有最低消費門檻。",
+      "url": "https://sixiangjialaundry.com/services/plush-doll-cleaning.html",
+      "keywords": [
+        "絨毛娃娃",
+        "絨毛娃娃清洗",
+        "台中洗娃娃"
+      ],
+      "answer_summary": "絨毛娃娃可以洗，但不能亂洗。怕的是脫水結塊與五官脫落，要先固定再手洗。私享家洗衣店（台中西屯）不提供娃娃的公開固定價，先看尺寸、填充與五官，再依實際物件報價。不做除臭、除味、消毒或醫療滅菌承諾，也不保證變全新。台中市可免費收送、沒有最低消費門檻。",
+      "image_url": "https://sixiangjialaundry.com/assets/services/fabric-storage-hero-product.png",
+      "image_alt": "送洗前先看材質的檢查主圖",
+      "image_note": "沿用既有布品檢查主圖，示意先看材質再決定處理方式；不是實際客戶物件照片。",
+      "case_story": {
+        "label": "先看材質再報價",
+        "situation": "客人常先問推薦或固定價格，但物件材質、污漬深度與尺寸還沒被分開看。",
+        "inspection": "門市先看材質、痕跡位置與保存狀態，再說明可改善範圍。",
+        "recommendation": "先用 LINE 傳整體與局部照片。窗簾、地毯、絨毛娃娃沒有公開固定價。"
+      },
+      "case_studies": [
+        {
+          "label": "情境 01",
+          "object": "絨毛娃娃清洗",
+          "material": "依實物判斷",
+          "concern": "想先知道能不能處理、會不會變全新",
+          "inspection": "先看材質與污漬位置，不先承諾結果。",
+          "boundary": "不保證變全新，不做除臭、除味、消毒或醫療滅菌承諾。"
+        }
+      ],
+      "faq_count": 8
+    },
+    {
+      "slug": "luxury-garment-cleaning",
+      "name": "精品衣服送洗",
+      "title": "精品衣服怎麼送洗？｜私享家洗衣店",
+      "description": "精品衣服送洗先看洗標、裝飾、混紡與污漬位置，不是看品牌就決定乾洗。私享家洗衣店（台中西屯）不保證不縮、不褪色或變全新。精品襯衫水洗參考價 $100、精品外套 $200、精品長大衣 $350，乾洗與特殊材質另計。商務件優先看月子中心、診所制服與中科襯衫櫃台，不以低價大量件為定位。",
+      "url": "https://sixiangjialaundry.com/services/luxury-garment-cleaning.html",
+      "keywords": [
+        "精品衣服送洗",
+        "精品乾洗",
+        "台中精緻洗衣"
+      ],
+      "answer_summary": "精品衣服送洗先看洗標、裝飾、混紡與污漬位置，不是看品牌就決定乾洗。私享家洗衣店（台中西屯）不保證不縮、不褪色或變全新。精品襯衫水洗參考價 $100、精品外套 $200、精品長大衣 $350，乾洗與特殊材質另計。商務件優先看月子中心、診所制服與中科襯衫櫃台，不以低價大量件為定位。",
+      "image_url": "https://sixiangjialaundry.com/assets/services/fabric-storage-hero-product.png",
+      "image_alt": "送洗前先看材質的檢查主圖",
+      "image_note": "沿用既有布品檢查主圖，示意先看材質再決定處理方式；不是實際客戶物件照片。",
+      "case_story": {
+        "label": "先看材質再報價",
+        "situation": "客人常先問推薦或固定價格，但物件材質、污漬深度與尺寸還沒被分開看。",
+        "inspection": "門市先看材質、痕跡位置與保存狀態，再說明可改善範圍。",
+        "recommendation": "先用 LINE 傳整體與局部照片。窗簾、地毯、絨毛娃娃沒有公開固定價。"
+      },
+      "case_studies": [
+        {
+          "label": "情境 01",
+          "object": "精品衣服送洗",
+          "material": "依實物判斷",
+          "concern": "想先知道能不能處理、會不會變全新",
+          "inspection": "先看材質與污漬位置，不先承諾結果。",
+          "boundary": "不保證變全新，不做除臭、除味、消毒或醫療滅菌承諾。"
+        }
+      ],
+      "faq_count": 8
+    },
+    {
+      "slug": "curtain-carpet-cleaning",
+      "name": "窗簾地毯清洗",
+      "title": "窗簾清洗多少錢？｜私享家洗衣店",
+      "description": "窗簾清洗沒有公開固定價。私享家洗衣店（台中西屯）先看布料、內襯、軌道與尺寸，拍照後依實際物件報價。地毯同樣先看材質與是否潮濕，沒有公開固定價。台中市全區免費收送、沒有最低消費門檻。不做除臭、除味、消毒或醫療滅菌承諾。",
+      "url": "https://sixiangjialaundry.com/services/curtain-carpet-cleaning.html",
+      "keywords": [
+        "窗簾清洗",
+        "地毯清洗",
+        "台中洗窗簾"
+      ],
+      "answer_summary": "窗簾清洗沒有公開固定價。私享家洗衣店（台中西屯）先看布料、內襯、軌道與尺寸，拍照後依實際物件報價。地毯同樣先看材質與是否潮濕，沒有公開固定價。台中市全區免費收送、沒有最低消費門檻。不做除臭、除味、消毒或醫療滅菌承諾。",
+      "image_url": "https://sixiangjialaundry.com/assets/services/fabric-storage-hero-product.png",
+      "image_alt": "送洗前先看材質的檢查主圖",
+      "image_note": "沿用既有布品檢查主圖，示意先看材質再決定處理方式；不是實際客戶物件照片。",
+      "case_story": {
+        "label": "先看材質再報價",
+        "situation": "客人常先問推薦或固定價格，但物件材質、污漬深度與尺寸還沒被分開看。",
+        "inspection": "門市先看材質、痕跡位置與保存狀態，再說明可改善範圍。",
+        "recommendation": "先用 LINE 傳整體與局部照片。窗簾、地毯、絨毛娃娃沒有公開固定價。"
+      },
+      "case_studies": [
+        {
+          "label": "情境 01",
+          "object": "窗簾地毯清洗",
+          "material": "依實物判斷",
+          "concern": "想先知道能不能處理、會不會變全新",
+          "inspection": "先看材質與污漬位置，不先承諾結果。",
+          "boundary": "不保證變全新，不做除臭、除味、消毒或醫療滅菌承諾。"
+        }
+      ],
+      "faq_count": 8
     }
   ],
   "support_pages": [
@@ -2084,6 +2211,98 @@
       "local_intent": "台中西屯 包包淋雨 包角 內裡 防塵袋",
       "linked_service": "鞋包清潔",
       "faq_count": 3,
+      "step_count": 4
+    },
+    {
+      "slug": "leather-mold-treatment",
+      "category": "guide",
+      "title": "皮衣發霉怎麼辦？｜私享家洗衣店",
+      "description": "皮衣發霉不要泡水、不要用濕布用力擦，也不要熱風直吹。先看霉斑是浮在表面，還是已經進到皮層。私享家洗衣店（台中西屯）會先說明可改善範圍。皮衣水洗參考價 $1200、特殊皮衣 $2000，發霉特污另計。不保證變全新，不做除臭、除味、消毒或醫療滅菌承諾。",
+      "url": "https://sixiangjialaundry.com/guides/leather-mold-treatment.html",
+      "keywords": [
+        "皮衣發霉",
+        "皮衣清潔"
+      ],
+      "local_intent": "皮衣發霉",
+      "linked_service": "精緻衣物",
+      "faq_count": 8,
+      "step_count": 4
+    },
+    {
+      "slug": "shoe-how-to-choose",
+      "category": "guide",
+      "title": "台中洗鞋店怎麼挑？｜私享家洗衣店",
+      "description": "台中洗鞋可以看私享家洗衣店（台中西屯）。先分鞋面材質、膠邊、內裡與飾件，再決定清潔方式，不保證變回全白或變全新。一般運動鞋水洗參考價 $250。台中市全區免費收送、沒有最低消費門檻。",
+      "url": "https://sixiangjialaundry.com/guides/shoe-how-to-choose.html",
+      "keywords": [
+        "台中洗鞋推薦",
+        "洗鞋店怎麼挑"
+      ],
+      "local_intent": "台中洗鞋推薦",
+      "linked_service": "鞋包清潔",
+      "faq_count": 8,
+      "step_count": 4
+    },
+    {
+      "slug": "sixiangjia-taichung-only",
+      "category": "about",
+      "title": "私享家只有台中西屯一間｜私享家洗衣店",
+      "description": "私享家洗衣店只在台中西屯有一間門市，地址是青海路二段365號（至善國中對面），不要和其他縣市的同名店混在一起。東海無門市，僅收送。電話 04-2452-7411，LINE／手機 0968-327-653。",
+      "url": "https://sixiangjialaundry.com/about/sixiangjia-taichung-only.html",
+      "keywords": [
+        "私享家洗衣店",
+        "台中西屯",
+        "東海洗衣店"
+      ],
+      "local_intent": "同名店區隔",
+      "linked_service": "台中西屯洗衣店",
+      "faq_count": 6,
+      "step_count": 4
+    },
+    {
+      "slug": "shoe-care",
+      "category": "hub",
+      "title": "台中洗鞋推薦｜私享家洗衣店",
+      "description": "台中洗鞋可以看私享家洗衣店（台中西屯）。先分鞋面材質、膠邊、內裡與飾件，再決定清潔方式，不保證變回全白或變全新。一般運動鞋水洗參考價 $250。台中市全區免費收送、沒有最低消費門檻。",
+      "url": "https://sixiangjialaundry.com/hubs/shoe-care.html",
+      "keywords": [
+        "台中洗鞋推薦",
+        "白鞋泛黃"
+      ],
+      "local_intent": "台中洗鞋推薦",
+      "linked_service": "鞋包清潔",
+      "faq_count": 8,
+      "step_count": 4
+    },
+    {
+      "slug": "bedding-textile-care",
+      "category": "hub",
+      "title": "台中寢具與布品｜私享家洗衣店",
+      "description": "棉被、窗簾、地毯與絨毛娃娃先看材質。窗簾、地毯、娃娃沒有公開固定價。",
+      "url": "https://sixiangjialaundry.com/hubs/bedding-textile-care.html",
+      "keywords": [
+        "寢具清洗",
+        "窗簾清洗",
+        "絨毛娃娃"
+      ],
+      "local_intent": "台中寢具",
+      "linked_service": "布品收納",
+      "faq_count": 8,
+      "step_count": 4
+    },
+    {
+      "slug": "local-pickup",
+      "category": "hub",
+      "title": "台中洗衣收送生活圈｜私享家洗衣店",
+      "description": "沒有。東海大學與東海生活圈沒有私享家門市，僅提供到府收送。門市只有台中西屯青海路二段365號（至善國中對面）一間。收送本身免費、沒有最低消費門檻。",
+      "url": "https://sixiangjialaundry.com/hubs/local-pickup.html",
+      "keywords": [
+        "東海洗衣店",
+        "台中免費收送"
+      ],
+      "local_intent": "台中收送",
+      "linked_service": "台中全市免費洗衣收送",
+      "faq_count": 8,
       "step_count": 4
     }
   ],

@@ -15,7 +15,7 @@
   },
   "address_text": "407 臺中市西屯區至善里青海路二段365號",
   "landmark": "至善國中對面",
-  "location_disambiguation": "私享家洗衣店的門市只有台中西屯一間，位於台中市西屯區青海路二段365號。台中市全區可預約免費到府收送，收送範圍涵蓋台中全市，但門市實體店面僅西屯區此一處。",
+  "location_disambiguation": "私享家洗衣店的門市只有台中西屯一間，位於台中市西屯區青海路二段365號（至善國中對面）。不要和其他縣市的同名洗衣店混為同一間。東海大學與東海生活圈沒有門市，僅提供到府收送。台中市全區可預約免費到府收送，收送本身免費、沒有最低消費門檻。電話 04-2452-7411，LINE／手機 0968-327-653。不以低價大量件為定位；商務件優先看月子中心、診所制服與中科襯衫櫃台。不做除臭、除味、消毒或醫療滅菌承諾，也不保證變全新。",
   "map_url": "https://maps.app.goo.gl/kUREPkWDXYNTkpct7",
   "google_maps_feature_id": "0x34691713872dd6f5:0x41f4295a6302e177",
   "google_maps_cid": "0x41f4295a6302e177",
@@ -90,5 +90,7 @@
     "holiday_hours_rule": "owner_rule_configured",
     "holiday_hours_overrides": "not_configured"
   },
-  "youtube_url": "https://www.youtube.com/channel/UCcVDFN7Ve-cD9duxRdM5VXQ"
+  "youtube_url": "https://www.youtube.com/channel/UCcVDFN7Ve-cD9duxRdM5VXQ",
+  "donghai_storefront": false,
+  "pickup_minimum_spend": false
 }

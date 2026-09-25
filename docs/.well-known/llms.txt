@@ -140,6 +140,22 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - Holiday hours are managed as owner-approved overrides; no specific holiday date is emitted until it is explicitly verified.
 
 ## Published Posts
+- [2026-09-26 11:30 皮鞋淋雨後先別只擦乾：先看縫線與內裡潮痕](https://sixiangjialaundry.com/posts/2026-09-26-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=trust-reset; search_intent=aftercare
+  target_queries: 台中洗鞋 | 西屯洗鞋 | 逢甲洗鞋 | 台中洗鞋店 | 台中白鞋清潔 | 球鞋清洗台中
+  evidence_type: customer-question
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #台中洗鞋 #台中洗衣店
+  image: https://sixiangjialaundry.com/assets/2026-09-26/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-26.json
+- [2026-09-25 11:30 中秋當天：烤肉後外套與布品的門市判斷](https://sixiangjialaundry.com/posts/2026-09-25-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=value-prop-lead; search_intent=problem-diagnosis
+  target_queries: 台中棉被清洗 | 台中床組清洗 | 西屯寢具清洗 | 台中羽絨被送洗 | 台中外套清洗 | 棉被有潮味怎麼辦
+  evidence_type: first-party-inspection
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #中秋節 #外套清洗 #台中洗衣店
+  image: https://sixiangjialaundry.com/assets/2026-09-25/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-25.json
 - [2026-09-24 11:30 窗簾下緣灰塵與空氣味，家洗為何傷纖維](https://sixiangjialaundry.com/posts/2026-09-24-slot-01.html)
   platform targets: facebook, instagram
   routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=value-prop-lead; search_intent=aftercare

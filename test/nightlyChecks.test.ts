@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -356,5 +356,34 @@ describe("nightly --date backfill (HANDOFF-2026-09-04)", () => {
     expect(source).toContain("def parse_audit_date(");
     expect(source).toContain("def audit_clock_hour(");
     expect(source).toContain("def taipei_today(");
+  });
+});
+
+describe("nightly pythonw head", () => {
+  it("pythonw: script head continues when stdout is None", () => {
+    const src = readFileSync(script, "utf8");
+    const marker = src.indexOf("# --- nightly-check helpers ---");
+    if (marker < 0) {
+      throw new Error("nightly-check helper markers missing");
+    }
+    const code = [
+      "import sys",
+      "sys.stdout = None",
+      `__file__ = ${JSON.stringify(script)}`,
+      src.slice(0, marker),
+      'sys.stderr.write("HEAD_OK")'
+    ].join("\n");
+    const result = spawnSync("python", ["-"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      input: code,
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: "utf-8",
+        PYTHONUTF8: "1"
+      }
+    });
+    expect(result.status).toBe(0);
+    expect(String(result.stderr ?? "")).toContain("HEAD_OK");
   });
 });

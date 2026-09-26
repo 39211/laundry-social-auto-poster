@@ -22,7 +22,7 @@ import subprocess
 import sys
 from datetime import date, datetime, timedelta, timezone
 
-sys.stdout.reconfigure(encoding="utf-8")
+if sys.stdout is not None: sys.stdout.reconfigure(encoding="utf-8")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 

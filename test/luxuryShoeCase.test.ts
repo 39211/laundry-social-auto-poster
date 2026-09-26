@@ -69,8 +69,10 @@ describe("owner-confirmed luxury shoe case", () => {
       const rel = relative(before!, file).replaceAll("\\", "/");
       if (!Buffer.from(await readFile(file)).equals(await readFile(join(after, rel)))) changed.push(rel);
     }
+    // No docs/knowledge/index.html: the hub's lastmod is the newest page date site-wide,
+    // which later pages (2026-09-20) already set, so this page's date no longer moves it.
     expect(changed.sort()).toEqual([
-      "docs/ai-sitemap.xml", "docs/guides/luxury-designer-shoe-care.html", "docs/knowledge-graph.json", "docs/knowledge/index.html", "docs/sitemap.xml"
+      "docs/ai-sitemap.xml", "docs/guides/luxury-designer-shoe-care.html", "docs/knowledge-graph.json", "docs/sitemap.xml"
     ]);
     const beforePage = await readFile(join(before!, `docs/guides/${slug}.html`), "utf8");
     const afterPage = await readFile(join(after, `docs/guides/${slug}.html`), "utf8");

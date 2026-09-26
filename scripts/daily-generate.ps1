@@ -162,6 +162,12 @@ if ($hasCalendar -and $imagesReady) {
     if (Publish-Site) { exit 0 } else { exit 1 }
 }
 
+function Get-LaundryCodexModel {
+    $model = ([string]$env:LAUNDRY_CODEX_MODEL).Trim()
+    if ($model) { return $model }
+    return "gpt-5.6-luna"
+}
+
 $codex = Join-Path $env:APPDATA "npm\codex.cmd"
 if (-not (Test-Path $codex)) {
     Write-Log "codex.cmd not found at $codex."
@@ -246,7 +252,7 @@ Push-Location $root
 # depends on two dedicated local accounts whose stored credentials this
 # machine's DPAPI can no longer decrypt. "unelevated" uses the current
 # login's own restricted token instead, sidestepping that credential store.
-$output = & $codex exec -C $root -s workspace-write -c 'windows.sandbox="unelevated"' $prompt 2>&1
+$output = & $codex exec -m (Get-LaundryCodexModel) -C $root -s workspace-write -c 'windows.sandbox="unelevated"' $prompt 2>&1
 $exitCode = $LASTEXITCODE
 Pop-Location
 $output | Out-File -FilePath $logFile -Append -Encoding utf8

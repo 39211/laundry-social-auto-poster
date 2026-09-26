@@ -145,88 +145,6 @@ function Ensure-CarouselVisualQa($Items, [string]$RootPath, [string]$Date, [stri
     }
 }
 
-# Second supplier (2026-09-05): the Codex image quota is shared with the review
-# fleet and ran dry for three days, which is a dark day per missing slot. The
-# Antigravity CLI (`agy`, the owner's Google AI Pro login in ~/.gemini) exposes
-# a generate_image tool that accepts reference images, so slides 2-4 are drawn
-# against the slot's hero to keep one object across the carousel. The prompt is
-# the manifest prompt verbatim plus one plain-object clause: the first Google
-# test drew a swoosh on the shoes. The record is stamped google-agy-image, which
-# the publish gate accepts (src/imageSources.ts), never relabelled as gpt-image-2.
-# 2026-09-12: this asked agy for 3:4 while every carousel the shop has ever
-# published is 4:5 (1122x1402). It only surfaced today, because the fallback had
-# never had to carry a whole slot before -- the Codex image quota ran out until
-# 09-15 and all four of today's slot-1 images came back 896x1200, which is 0.75
-# and outside Instagram's 0.8 portrait limit. The aspect gate added on 09-11
-# caught and reported it; this is the cause it was pointing at.
-# The ask string is a separate function so PS-layer smoke can invoke it without
-# agy.exe. Get-PortraitFourFiveVerdict is the discard gate; this is the request.
-function Get-AgyGenerateImageAsk {
-    param(
-        [string]$PromptFile,
-        [string]$OutFile,
-        [string]$RefClause
-    )
-    return "Read the file $PromptFile. Call your generate_image tool exactly once with Prompt = that file content verbatim, AspectRatio '4:5', ImageName 'laundry_slot_photo'.$RefClause Then copy the generated image file to $OutFile and reply only with that absolute path and the file size in bytes. Do nothing else."
-}
-function Invoke-AgyImageFallback {
-    param($Item, $Items, [string]$RootPath, [string]$Date)
-    $agy = Join-Path $env:LOCALAPPDATA "agy\bin\agy.exe"
-    if (-not (Test-Path $agy)) { Write-Step "agy.exe not found at $agy; no Google fallback."; return $null }
-    $work = Join-Path $env:LOCALAPPDATA "laundry-agy\$Date"
-    New-Item -ItemType Directory -Force -Path $work | Out-Null
-    $name = Split-Path -Leaf ([string]$Item.target_path)
-    $outFile = Join-Path $work $name
-    if (Test-Path $outFile) { Remove-Item $outFile -Force }
-    $promptFile = Join-Path $work ($name -replace '\.png$', '.prompt.txt')
-    # The featured-object clause alone is not enough. 2026-09-06: a set whose
-    # subject was a plain duvet still shipped a background display case of
-    # sneakers wearing a legible swoosh, plus a stray phone screen mirroring the
-    # scene and in-focus care labels covered in garbled pseudo-text. The gate
-    # cannot see any of that, so it has to be forbidden in the prompt.
-    $plain = " PLAIN OBJECT RULE: the featured object is completely plain: no logos, no brand marks, no logo-like stripes, curves, swooshes or patches, no readable text anywhere on it." +
-        " BACKGROUND RULE: nothing else in the frame carries a logo or a logo-like curve either. Shoes on shelves, bottles and packaging are plain and unbranded; every label, tag, receipt and sheet of paperwork is out of focus and unreadable; no phone, screen, camera or mirrored copy of this scene appears anywhere in the frame."
-    $refClause = ""
-    $text = [string]$Item.prompt + $plain
-    if ([int]$Item.slide -gt 1) {
-        $hero = @($Items | Where-Object { [int]$_.slot -eq [int]$Item.slot -and [int]$_.slide -eq 1 } | Select-Object -First 1)
-        if ($hero.Count -gt 0) {
-            $heroPath = Join-Path $RootPath (([string]$hero[0].target_path) -replace "/", "\")
-            if (Test-Path $heroPath) {
-                $text = "Use the attached photo as the reference: it is the exact same object and the exact same counter scene. Keep the object identity, colours, materials, wear marks and the background identical; only change the framing and focus as described below. " + $text
-                $refClause = " Pass ImagePaths=['$heroPath'] as the reference image."
-            }
-        }
-    }
-    [IO.File]::WriteAllText($promptFile, $text, [Text.UTF8Encoding]::new($false))
-    $ask = Get-AgyGenerateImageAsk -PromptFile $promptFile -OutFile $outFile -RefClause $refClause
-    $t0 = Get-Date
-    $agyOut = & $agy --dangerously-skip-permissions --output-format json --add-dir $work --print=$ask 2>&1
-    if ($LogFile) { $agyOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
-    $secs = [int]((Get-Date) - $t0).TotalSeconds
-    if ((Test-Path $outFile) -and (Get-Item $outFile).Length -gt 0) {
-        # agy writes JPEG bytes under the .png name it was asked for; the approval
-        # gate checks the PNG magic ("not a real PNG"), so re-encode unless the
-        # bytes already are PNG. 2026-09-05: all eight first-run files were JPEG.
-        $head = [IO.File]::ReadAllBytes($outFile)[0..3]
-        $isPng = ($head[0] -eq 0x89 -and $head[1] -eq 0x50 -and $head[2] -eq 0x4E -and $head[3] -eq 0x47)
-        if (-not $isPng) {
-            $raw = Join-Path $work ($name -replace '\.png$', '.raw.jpg')
-            Move-Item $outFile $raw -Force
-            & ffmpeg -v error -y -i $raw -pix_fmt rgb24 $outFile 2>&1 | Out-Null
-            if (-not (Test-Path $outFile)) {
-                Write-Step "Google (agy) returned non-PNG bytes for $name and ffmpeg could not re-encode them."
-                return $null
-            }
-        }
-        Write-Step "Google (agy) produced $name in ${secs}s."
-        return Get-Item $outFile
-    }
-    $tail = @($agyOut | Select-Object -Last 5) -join " | "
-    Write-Step "Google (agy) produced nothing for $name after ${secs}s: $tail"
-    return $null
-}
-
 $manifestPath = Join-Path $root "data\image-prompts\$Date.json"
 if ($QaOnly) {
     if (-not (Test-Path $manifestPath)) {
@@ -262,6 +180,12 @@ $listText = (@($listOut) | ForEach-Object { "$_" }) -join [Environment]::NewLine
 $alreadyPresentLine = "Every image for $Date was already present."
 $zeroMissing = $listText.Contains($alreadyPresentLine)
 $hasMissingReport = $listText -match "calendar image\(s\) missing"
+
+function Get-LaundryCodexModel {
+    $model = ([string]$env:LAUNDRY_CODEX_MODEL).Trim()
+    if ($model) { return $model }
+    return "gpt-5.6-luna"
+}
 
 $codex = Join-Path $env:APPDATA "npm\codex.cmd"
 $generated = 0
@@ -303,8 +227,8 @@ foreach ($item in $items) {
     # consistent across all four photos" was an instruction no single call could
     # obey: the carousel judge found a teddy bear on slide 2 of a rabbit
     # carousel (09-14 slot 1) and dress shirts on slides 2-4 of a sofa carousel
-    # (09-11 slot 1). codex-cli 0.153.4 takes `-i`, which the agy fallback below
-    # has always used as ImagePaths. Verified 2026-09-10 on 09-14 slot 1 slide 2:
+    # (09-11 slot 1). codex-cli 0.153.4 takes `-i`, which passes the attached photograph
+    # as the reference image. Verified 2026-09-10 on 09-14 slot 1 slide 2:
     # attaching the hero reproduced the same lop-eared rabbit, same wear, same
     # counter, at a genuinely different angle.
     #
@@ -347,7 +271,7 @@ $refIntro$($item.prompt)
     # times and 3:4 twice on 2026-09-10. Asking again is the whole fix.
     for ($attempt = 1; $attempt -le 2; $attempt++) {
         $attemptStart = Get-Date
-        $codexOut = $prompt | & $codex exec -C $root -s read-only -c 'windows.sandbox="unelevated"' @imgArgs - 2>&1
+        $codexOut = $prompt | & $codex exec -m (Get-LaundryCodexModel) -C $root -s read-only -c 'windows.sandbox="unelevated"' @imgArgs - 2>&1
         if ($LogFile) { $codexOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
         else { $codexOut | ForEach-Object { Write-Host $_ } }
 
@@ -376,13 +300,9 @@ $refIntro$($item.prompt)
     $source = "gpt-image-2"
     if (-not $image) {
         $codexTail = @($codexOut | Select-Object -Last 20) -join " | "
-        Write-Step "Codex returned no new image for slot $($item.slot); trying Google (agy generate_image). Codex said: $codexTail"
-        $image = Invoke-AgyImageFallback -Item $item -Items $items -RootPath $root -Date $Date
-        if (-not $image) {
-            Write-Step "Google fallback also returned no image for slot $($item.slot)."
-            exit 1
-        }
-        $source = "google-agy-image"
+        Write-Step "Codex returned no image for slot $($item.slot) ($($item.target_path)); no Google/Grok fallback by owner rule 2026-09-26 -- generate it in ChatGPT web and stamp it gpt-image-2. Codex said: $codexTail"
+        Show-Toast "$Date slot $($item.slot) 缺圖:Codex 沒生出來,請用 ChatGPT 網頁補圖(不用 Google/Grok)。"
+        exit 1
     }
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null

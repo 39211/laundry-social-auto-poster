@@ -140,6 +140,14 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - Holiday hours are managed as owner-approved overrides; no specific holiday date is emitted until it is explicitly verified.
 
 ## Published Posts
+- [2026-09-27 11:30 精品包最怕邊角：先看護角磨損再決定](https://sixiangjialaundry.com/posts/2026-09-27-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中精品乾洗 | 台中名牌衣物清潔 | 西屯精品乾洗 | 精緻乾洗 | 精品衣物怎麼洗 | 白鞋泛黃怎麼辦
+  evidence_type: first-party-inspection
+  hashtags: #私享家洗衣精洗 #台中免費收送 #材質判斷 #台中洗衣
+  image: https://sixiangjialaundry.com/assets/2026-09-27/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-27.json
 - [2026-09-26 11:30 皮鞋淋雨後先別只擦乾：先看縫線與內裡潮痕](https://sixiangjialaundry.com/posts/2026-09-26-slot-01.html)
   platform targets: facebook, instagram
   routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=trust-reset; search_intent=aftercare

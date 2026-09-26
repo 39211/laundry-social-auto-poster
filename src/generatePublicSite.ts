@@ -1,5 +1,6 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
-import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, unlink } from "node:fs/promises";
+import { writeFileWithRetry as writeFile } from "./fsRetry";
 import { join } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";

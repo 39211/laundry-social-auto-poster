@@ -15,6 +15,7 @@ import {
   buildJudgePrompt,
   CAROUSEL_QA_AXES,
   carouselJudgeAttemptLimit,
+  carouselJudgePromptForAttempt,
   collectCarouselJudgeStdout,
   detectCarouselRubricIncoherence,
   detectTreatment,
@@ -999,20 +1000,49 @@ describe("carousel judge OBS emitter retry (F20 fish-3)", () => {
     expect(carouselJudgeAttemptLimit(false)).toBe(2);
   });
 
+  it("attempt 1 prompt is identity; attempt 2 forces OBS_1..N without changing PASS rules", () => {
+    const base = buildCarouselJudgePrompt({
+      slides: carouselFourSlides(),
+      topic: "衣物送洗前先看材質"
+    });
+    const first = carouselJudgePromptForAttempt({ basePrompt: base, attempt: 1, slideCount: 4 });
+    const retry = carouselJudgePromptForAttempt({ basePrompt: base, attempt: 2, slideCount: 4 });
+    expect(first).toBe(base);
+    expect(retry).not.toBe(base);
+    expect(retry.startsWith("RETRY because the previous reply had axis JSON")).toBe(true);
+    expect(retry).toContain(base);
+    expect(retry).toContain("Emit exactly 4 observation lines (OBS_1, OBS_2, OBS_3, OBS_4)");
+    expect(retry).toContain(VISUAL_QA_OBSERVE_BEGIN);
+    expect(retry).toContain("This retry does not change the PASS/FAIL rules.");
+    expect(retry).not.toMatch(/always\s+PASS|mark every axis PASS|verdict is PASS/iu);
+    expect(() => assertCarouselJudgePromptSafe(retry)).not.toThrow();
+  });
+
+  it("retry prompt names OBS_1..OBS_N for the actual slide count, not a fixed 4", () => {
+    const base = buildCarouselJudgePrompt({
+      slides: carouselFourSlides().slice(0, 2),
+      topic: "窗簾下緣灰塵"
+    });
+    const retry = carouselJudgePromptForAttempt({ basePrompt: base, attempt: 2, slideCount: 2 });
+    expect(retry).toContain("Emit exactly 2 observation lines (OBS_1, OBS_2)");
+    expect(retry).not.toContain("OBS_3");
+    expect(retry).not.toContain("OBS_4");
+  });
+
   it("retries once when first stdout is missing OBS then accepts a complete block", async () => {
     const stdouts = [carouselPassStdout([]), carouselPassStdout(COMPLETE_OBS)];
-    let calls = 0;
+    const seenAttempts: number[] = [];
     const { record, attempts } = await collectCarouselJudgeStdout({
       attemptLimit: 2,
-      runJudge: () => {
-        calls += 1;
+      runJudge: (attempt) => {
+        seenAttempts.push(attempt);
         const next = stdouts.shift();
         if (next === undefined) throw new Error("extra judge call");
         return next;
       },
       evaluate: (stdout) => carouselEvaluate(stdout, "球鞋")
     });
-    expect(calls).toBe(2);
+    expect(seenAttempts).toEqual([1, 2]);
     expect(attempts).toBe(2);
     expect(record.verdict).toBe("PASS");
     expect(record.fail_class).toBeNull();
@@ -1096,9 +1126,14 @@ describe("carousel judge OBS emitter retry (F20 fish-3)", () => {
     const liveBlock = cliSrc.slice(liveStart);
     expect(evaluateBlock).toContain("evaluateCarouselFromDisk");
     expect(evaluateBlock).not.toContain("collectCarouselJudgeStdout");
+    expect(evaluateBlock).not.toContain("carouselJudgePromptForAttempt");
     expect(liveBlock).toContain("collectCarouselJudgeStdout");
     expect(liveBlock).toContain("carouselJudgeAttemptLimit(stdoutSupplied)");
+    expect(liveBlock).toContain("carouselJudgePromptForAttempt");
+    expect(liveBlock).toContain("prompt: judgePrompt");
+    expect(liveBlock).toContain("judge-prompt-retry.txt");
     expect(liveBlock).toContain("judge_attempts");
+    expect(liveBlock).not.toMatch(/runCodexJudge\(\{[\s\S]*?\bprompt\s*,/u);
   });
 });
 

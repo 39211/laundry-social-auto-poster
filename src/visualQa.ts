@@ -1515,8 +1515,35 @@ export function carouselJudgeAttemptLimit(stdoutSupplied: boolean): number {
   return stdoutSupplied ? 1 : CAROUSEL_JUDGE_LIVE_ATTEMPT_LIMIT;
 }
 
+/**
+ * F20 fish-3 remaining: retrying with the same prompt still omitted OBS
+ * (2026-09-14 / 2026-09-16 live sidecars). Attempt 1 is identity. Attempt 2+
+ * prepends an OBS-forcing reminder; PASS/FAIL rules and fail-closed missing
+ * OBS stay unchanged.
+ */
+export function carouselJudgePromptForAttempt(input: {
+  basePrompt: string;
+  attempt: number;
+  slideCount: number;
+}): string {
+  if (input.attempt <= 1) return input.basePrompt;
+  const n = Math.max(1, Math.floor(input.slideCount));
+  const obsList = Array.from({ length: n }, (_, i) => `OBS_${i + 1}`).join(", ");
+  const reminder = [
+    `RETRY because the previous reply had axis JSON but no complete ${VISUAL_QA_OBSERVE_BEGIN} block.`,
+    "Do not generate or edit any image. Do not run a shell command.",
+    `Emit exactly ${n} observation lines (${obsList}) plus the three COMPARE lines inside the OBSERVE markers, then the VISUAL_QA JSON.`,
+    "Do not skip a field. Do not skip the OBSERVE markers. Canary lines still come first.",
+    "This retry does not change the PASS/FAIL rules.",
+    "",
+    input.basePrompt
+  ].join("\n");
+  assertCarouselJudgePromptSafe(reminder);
+  return reminder;
+}
+
 export async function collectCarouselJudgeStdout(input: {
-  runJudge: () => Promise<string> | string;
+  runJudge: (attempt: number) => Promise<string> | string;
   evaluate: (stdout: string) => Promise<CarouselQaRecord> | CarouselQaRecord;
   attemptLimit: number;
 }): Promise<{ record: CarouselQaRecord; attempts: number; stdout: string }> {
@@ -1527,7 +1554,7 @@ export async function collectCarouselJudgeStdout(input: {
   while (attempts < limit) {
     attempts += 1;
     try {
-      stdout = await input.runJudge();
+      stdout = await input.runJudge(attempts);
       record = await input.evaluate(stdout);
     } catch (err) {
       if (record && shouldRetryCarouselJudge(record)) break;

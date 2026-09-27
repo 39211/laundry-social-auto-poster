@@ -12,6 +12,7 @@ import {
   carouselQaRecordPath,
   detectTreatment,
   carouselJudgeAttemptLimit,
+  carouselJudgePromptForAttempt,
   collectCarouselJudgeStdout,
   evaluateCarouselFromDisk,
   evaluateCarouselJudgeStdout,
@@ -192,11 +193,19 @@ async function handleCarousel(args: string[], root: string): Promise<void> {
   const runId = getOption(args, "run-id") ?? `carousel-qa-${Date.now()}`;
   const { record, attempts } = await collectCarouselJudgeStdout({
     attemptLimit: carouselJudgeAttemptLimit(stdoutSupplied),
-    runJudge: async () => {
+    runJudge: async (attempt) => {
       if (!stdoutSupplied) {
+        const judgePrompt = carouselJudgePromptForAttempt({
+          basePrompt: prompt,
+          attempt,
+          slideCount: slides.length
+        });
+        if (attempt > 1) {
+          await writeFile(join(qaDir, "judge-prompt-retry.txt"), judgePrompt, "utf8");
+        }
         runCodexJudge({
           root,
-          prompt,
+          prompt: judgePrompt,
           images: slides.map((slide) => join(qaDir, slide.name)),
           stdoutPath
         });

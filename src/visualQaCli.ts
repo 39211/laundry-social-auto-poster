@@ -131,6 +131,7 @@ export async function runCarouselLiveCli(input: {
     runId: input.runId,
     promptHash,
     stdoutFile: input.stdoutFile,
+    evaluateFromDisk: evaluateCarouselFromDisk,
     runJudge: (req) =>
       input.runCodex({
         root: input.root,
@@ -141,7 +142,11 @@ export async function runCarouselLiveCli(input: {
   });
 }
 
-async function handleCarousel(args: string[], root: string): Promise<void> {
+export async function handleCarousel(
+  args: string[],
+  root: string,
+  burnSlides: typeof burnCarouselCanaries = burnCarouselCanaries
+): Promise<void> {
   const spec = parseCarouselSpec(carouselSpecArg(args));
   const dir = getOption(args, "dir") ?? spec.dir;
   const slotRaw = getOption(args, "slot") ?? (spec.slot !== undefined ? String(spec.slot) : undefined);
@@ -212,7 +217,7 @@ async function handleCarousel(args: string[], root: string): Promise<void> {
 
   if (!topic) throw new Error("--topic or --topic-file is required for carousel visual QA.");
   const qaDir = carouselQaDir(args, root, dir, slot);
-  const slides = await burnCarouselCanaries({ sources, qaDir });
+  const slides = await burnSlides({ sources, qaDir });
   const sidecar: CarouselQaSidecar = { topic, date, slot, slides };
   const sidecarPath = join(qaDir, "sidecar.json");
   await writeJsonAtomic(sidecarPath, sidecar);
@@ -241,7 +246,7 @@ async function main(): Promise<void> {
   const root = projectRoot(getOption(args, "root"));
 
   if (getFlag(args, "carousel") || args.some((arg) => arg.startsWith("--carousel="))) {
-    await handleCarousel(args, root);
+    await handleCarousel(args, root, burnCarouselCanaries);
     return;
   }
 

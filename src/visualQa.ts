@@ -1390,9 +1390,34 @@ function carouselBlockHasDuplicateVerdictOrAxis(raw: string): boolean {
   return false;
 }
 
-/** Multiple VISUAL_QA blocks, or invalid JSON that repeats a verdict or carousel axis key. */
+function carouselObserveCompareAxisCounts(
+  stdout: string
+): Record<"OBJECT_IDENTITY" | "SCENE" | "TOPIC_MATCH", number> | null {
+  const start = stdout.indexOf(VISUAL_QA_OBSERVE_BEGIN);
+  const end = stdout.indexOf(VISUAL_QA_OBSERVE_END);
+  if (start < 0 || end < 0 || end <= start) return null;
+  const raw = stdout.slice(start + VISUAL_QA_OBSERVE_BEGIN.length, end);
+  const counts = { OBJECT_IDENTITY: 0, SCENE: 0, TOPIC_MATCH: 0 };
+  for (const line of raw.split(/\r?\n/u)) {
+    const compareMatch = line.trim().match(/^COMPARE\s+(OBJECT_IDENTITY|SCENE|TOPIC_MATCH)\b/iu);
+    if (!compareMatch?.[1]) continue;
+    const axis = compareMatch[1].toUpperCase() as "OBJECT_IDENTITY" | "SCENE" | "TOPIC_MATCH";
+    counts[axis] += 1;
+  }
+  return counts;
+}
+
+/** Multiple VISUAL_QA blocks, a repeated COMPARE axis, or invalid JSON that repeats a verdict or carousel axis key. */
 function carouselJudgeStdoutAmbiguous(stdout: string): boolean {
   if (countMarker(stdout, VISUAL_QA_BEGIN) > 1) return true;
+  const compareCounts = carouselObserveCompareAxisCounts(stdout);
+  if (
+    compareCounts &&
+    parseCarouselObserveBlock(stdout) &&
+    (compareCounts.OBJECT_IDENTITY > 1 || compareCounts.SCENE > 1 || compareCounts.TOPIC_MATCH > 1)
+  ) {
+    return true;
+  }
   const raw = firstVisualQaBlockRaw(stdout);
   if (raw === null) return false;
   try {
@@ -1686,9 +1711,11 @@ export async function runCarouselJudgeLive(input: {
     images: string[];
     stdoutPath: string;
   }) => Promise<void> | void;
+  evaluateFromDisk?: typeof evaluateCarouselFromDisk;
 }): Promise<{ record: CarouselQaRecord; attempts: number; stdout: string }> {
   const suppliedStdout = input.stdoutFile;
   const replay = Boolean(suppliedStdout);
+  const evaluateFromDisk = input.evaluateFromDisk ?? evaluateCarouselFromDisk;
   const limit = carouselJudgeAttemptLimit(replay);
   const images = input.slides.map((slide) => join(input.qaDir, slide.name));
   const log: CarouselJudgeAttemptLogEntry[] = [];
@@ -1751,7 +1778,7 @@ export async function runCarouselJudgeLive(input: {
     },
     evaluate: async (stdout) => {
       try {
-        const record = await evaluateCarouselFromDisk({
+        const record = await evaluateFromDisk({
           qaDir: input.qaDir,
           stdout,
           sidecar: input.sidecar,

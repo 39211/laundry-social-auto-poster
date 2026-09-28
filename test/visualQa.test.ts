@@ -1656,6 +1656,21 @@ describe("carousel live judge retry behavior", () => {
     expect(record.fail_class).toBe("unparseable");
   });
 
+  it("T27 COMPARE TOPIC_MATCH duplicated YES then NO is unparseable and not retried", async () => {
+    const { calls, record } = await runOnce(
+      "t27",
+      compareOnlyStdout([
+        "COMPARE OBJECT_IDENTITY identity_change=NO",
+        "COMPARE SCENE scene_change=NO",
+        "COMPARE TOPIC_MATCH object_mismatch=YES",
+        "COMPARE TOPIC_MATCH object_mismatch=NO"
+      ])
+    );
+    expect(calls).toHaveLength(1);
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("unparseable");
+  });
+
   it("T17 one COMPARE line per axis is not treated as ambiguous", async () => {
     const { calls, record } = await runOnce("t17", liveCarouselStdout({ observe: "complete" }));
     expect(calls).toHaveLength(1);
@@ -2147,5 +2162,33 @@ describe("carousel handleCarousel wiring", () => {
     );
     const record = JSON.parse(readFileSync(fixture.outPath, "utf8")) as { run_id: string };
     expect(record.run_id).toBe("carousel-run-t26");
+  });
+
+  it("T28 handleCarousel succeeds with a generated runId when --run-id is omitted", async () => {
+    const fixture = prepareCli();
+    const stdoutFile = join(fixture.dir, "supplied-stdout.txt");
+    writeFileSync(stdoutFile, liveCarouselStdout({ observe: "complete" }), "utf8");
+    await handleCarousel(
+      [
+        "--files",
+        fixture.sources.join(","),
+        "--topic",
+        "球鞋 generate exactly",
+        "--qa-dir",
+        fixture.qaDir,
+        "--stdout-file",
+        stdoutFile,
+        "--out",
+        fixture.outPath
+      ],
+      fixture.dir,
+      fakeBurn
+    );
+    const record = JSON.parse(readFileSync(fixture.outPath, "utf8")) as {
+      run_id: string;
+      verdict: string;
+    };
+    expect(record.verdict).toBe("PASS");
+    expect(record.run_id).toMatch(/^carousel-qa-\d+$/);
   });
 });

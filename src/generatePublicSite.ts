@@ -3130,8 +3130,8 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
     // address.
     geo: {
       "@type": "GeoCoordinates",
-      latitude: 24.1780524,
-      longitude: 120.6420289
+      latitude: 24.174057,
+      longitude: 120.639961
     },
     hasMap: profile.map_url,
     // Every profile the shop actually owns belongs here: sameAs is how search
@@ -4932,8 +4932,8 @@ function buildGeoTargetsJson(index: PublicPostIndex): object {
       }
     },
     coordinates: {
-      latitude: 24.1780524,
-      longitude: 120.6420289,
+      latitude: 24.174057,
+      longitude: 120.639961,
       status: "owner-verified-2026-08-21"
     },
     primary_local_queries: LOCAL_SEARCH_QUERY_TARGETS.map((query) => ({

@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import {
   hashImageFile,
@@ -5,7 +8,7 @@ import {
   loadApprovedImageDigests,
   writeApprovedImageDigests
 } from "./imageStamp";
-import { appendApprovalLog, loadDailyContent, loadImageSources } from "./logging";
+import { appendApprovalLog, loadApprovalLog, loadDailyContent, loadImageSources } from "./logging";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
@@ -76,6 +79,36 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
     ? `FORCED over ${failures.length} unproven image(s): ${failures.join(" | ")}`
     : undefined;
 
+  const fingerprintPath = join(root, "data", "approved-log", `${options.date}.fingerprints.json`);
+  let fingerprints: Record<string, unknown> = {};
+  let fingerprintExists = false;
+  try {
+    const raw = await readFile(fingerprintPath, "utf8");
+    fingerprintExists = true;
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("expected a JSON object");
+    }
+    fingerprints = parsed as Record<string, unknown>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw new Error(`Invalid approval fingerprint file ${fingerprintPath}: ${String(error)}`);
+    }
+  }
+
+  let writeFingerprint = true;
+  if (!fingerprintExists) {
+    const legacySlots = [...new Set((await loadApprovalLog(options.date, root))
+      .filter((entry) => entry.status === "approved" && entry.slot !== options.slot)
+      .map((entry) => entry.slot))].sort((a, b) => a - b);
+    if (legacySlots.length > 0) {
+      writeFingerprint = false;
+      console.error(
+        `approve-post: ${options.date} has approvals without a fingerprint file (slots ${legacySlots.join(",")}); leaving it as a legacy day so those slots stay publishable.`
+      );
+    }
+  }
+
   // Snapshot first. Publishing treats a missing slot key as a pre-snapshot
   // day and falls back to the weaker check, so an approval log without a
   // snapshot is a silent downgrade. If this write fails the function throws
@@ -88,6 +121,11 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
   }
   approvedDigests[String(options.slot)] = digests;
   await writeApprovedImageDigests(root, options.date, approvedDigests);
+
+  if (writeFingerprint) {
+    fingerprints[String(options.slot)] = createHash("sha256").update(JSON.stringify(slot)).digest("hex");
+    await writeFile(fingerprintPath, JSON.stringify(fingerprints, null, 2), "utf8");
+  }
 
   const entries: ApprovalLogEntry[] = [];
   for (const platform of options.platforms) {

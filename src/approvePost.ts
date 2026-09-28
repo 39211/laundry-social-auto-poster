@@ -158,8 +158,13 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
     entries.push(entry);
   }
 
-  // Consent must be durable before its fingerprint. If this write fails, a
-  // missing slot key blocks publication and a repeat approval can repair it.
+  // Consent must be durable before its fingerprint. If an existing fingerprint
+  // file cannot be updated, this slot has no key and publishing stops with
+  // "no approval fingerprint"; re-approve every platform to repair it, since
+  // this slot's new consent rows make a single-platform retry fail B1a.
+  // If a new day's fingerprint file cannot be created, publishing skips the
+  // fingerprint comparison as for a legacy day with manual consent; it is not
+  // fail-closed.
   if (writeFingerprint) {
     fingerprints[String(options.slot)] = nextFingerprint;
     await writeJsonAtomic(fingerprintPath, fingerprints);

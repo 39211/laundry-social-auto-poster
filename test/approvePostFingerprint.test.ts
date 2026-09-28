@@ -16,14 +16,19 @@ import type { ApprovalLogEntry, DailySlot } from "../src/types";
 const DATE = "2026-10-09";
 const NOW = new Date("2026-10-09T11:30:00+08:00");
 const noNetwork = (() => { throw new Error("NETWORK_SENTINEL"); }) as typeof fetch;
-const appendFailure = vi.hoisted(() => ({ enabled: false }));
+const appendFailure = vi.hoisted(() => ({ enabled: false, failOnCall: 0, calls: 0, atomicPaths: [] as string[] }));
 vi.mock("../src/logging", async (importOriginal) => {
   const original = await importOriginal<typeof import("../src/logging")>();
   return {
     ...original,
     appendApprovalLog: async (...args: Parameters<typeof original.appendApprovalLog>) => {
-      if (appendFailure.enabled) throw new Error("APPEND_SENTINEL");
+      appendFailure.calls += 1;
+      if (appendFailure.enabled || appendFailure.calls === appendFailure.failOnCall) throw new Error("APPEND_SENTINEL");
       return original.appendApprovalLog(...args);
+    },
+    writeJsonAtomic: async (...args: Parameters<typeof original.writeJsonAtomic>) => {
+      appendFailure.atomicPaths.push(String(args[0]));
+      return original.writeJsonAtomic(...args);
     }
   };
 });
@@ -94,6 +99,16 @@ async function changedApprovedFixture() {
   return { root, changed };
 }
 
+async function swapImages(root: string): Promise<void> {
+  const content = await loadDailyContent(DATE, root);
+  const slot = content!.slots.find((item) => item.slot === 1)!;
+  for (const asset of imageAssetsForSlot(slot)) {
+    const image = join(root, ...asset.local_image_path.split("/"));
+    await writeFile(image, Buffer.from([0x89, 0x50, 0x4e, 0x47, slot.slot, asset.slide, 0xaa, 0x55]));
+    await markImageSource({ root, date: DATE, slot: 1, source: "gpt-image-2", imagePath: asset.local_image_path });
+  }
+}
+
 async function approvalFiles(root: string): Promise<Buffer[]> {
   return Promise.all([fpPath(root), logPath(root), digestPath(root)].map((path) => readFile(path)));
 }
@@ -115,6 +130,9 @@ async function approve(root: string, slot: number, platforms: Array<"facebook" |
 
 afterEach(() => {
   appendFailure.enabled = false;
+  appendFailure.failOnCall = 0;
+  appendFailure.calls = 0;
+  appendFailure.atomicPaths = [];
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -306,5 +324,76 @@ describe("approvePost fingerprints", () => {
     appendFailure.enabled = true;
     await expect(approve(root, 1)).rejects.toThrow(/APPEND_SENTINEL/);
     expect(await readFile(fpPath(root), "utf8")).toBe(original);
+  });
+
+  it("T12 second consent append failure preserves the old fingerprint and blocks publish", async () => {
+    // Expected: both appends finish before the fingerprint changes; O3 writes B after Facebook and lets old Instagram consent pass.
+    const { root } = await healthyFixture();
+    await approvePost({ date: DATE, slot: 1, platforms: ["facebook", "instagram"], approvedBy: "Owner", root });
+    const before = await readFile(fpPath(root));
+    await rewriteCaption(root);
+    appendFailure.calls = 0;
+    appendFailure.failOnCall = 2;
+    await expect(approvePost({ date: DATE, slot: 1, platforms: ["facebook", "instagram"], approvedBy: "Owner", root }))
+      .rejects.toThrow(/APPEND_SENTINEL/);
+    appendFailure.failOnCall = 0;
+    expect(await readFile(fpPath(root))).toEqual(before);
+    vi.stubEnv("META_ACCESS_TOKEN", "ci-test-placeholder-token");
+    vi.stubEnv("FB_PAGE_ID", "000000000000000");
+    vi.stubEnv("IG_USER_ID", "000000000000000");
+    vi.stubGlobal("fetch", noNetwork);
+    await expect(postCurrentSlot({
+      date: DATE, slot: 1, root, now: NOW, dryRun: false,
+      verifyPublicImageUrl: false, fetchImpl: noNetwork
+    })).rejects.toThrow(/fingerprint mismatch/);
+  });
+
+  it("T13 same-slot prior consent does not make a new day legacy", async () => {
+    // Expected: repair creates this slot's key; O4 treats its own old rows as another slot and leaves the file absent.
+    const { root, slots } = await fixture();
+    const slot = slots.find((item) => item.slot === 1)!;
+    await seedImageEvidence(root, slot);
+    await writeApprovalLog(DATE, [approval(1, "facebook"), approval(1, "instagram")], root);
+    vi.stubGlobal("fetch", noNetwork);
+    const entries = await approvePost({ date: DATE, slot: 1, platforms: ["facebook", "instagram"], approvedBy: "Owner", root });
+    expect(entries).toHaveLength(2);
+    expect(await exists(fpPath(root))).toBe(true);
+    expect(JSON.parse(await readFile(fpPath(root), "utf8"))).toEqual({ "1": fingerprint(slot) });
+  });
+
+  it("T14 partial re-approval refuses before replacing changed image digests", async () => {
+    // Expected: B1a leaves all approval files untouched; O5 moves B1a after the digest write and changes its bytes.
+    const { root } = await changedApprovedFixture();
+    await swapImages(root);
+    const before = await approvalFiles(root);
+    vi.stubGlobal("fetch", noNetwork);
+    await expect(approvePost({ date: DATE, slot: 1, platforms: ["facebook"], approvedBy: "Owner", root }))
+      .rejects.toThrow(/re-approve every platform/);
+    expect(await approvalFiles(root)).toEqual(before);
+  });
+
+  it("T15 writes this slot fingerprint exactly once through writeJsonAtomic", async () => {
+    // Expected: atomic writer is used once for this path; O6 writes via writeFile and the spy sees zero calls.
+    const { root, slot, slots } = await healthyFixture();
+    appendFailure.atomicPaths = [];
+    vi.stubGlobal("fetch", noNetwork);
+    const entries = await approvePost({ date: DATE, slot: 1, platforms: ["facebook", "instagram"], approvedBy: "Owner", root });
+    expect(entries).toHaveLength(2);
+    expect(appendFailure.atomicPaths.filter((path) => path === fpPath(root))).toHaveLength(1);
+    expect(JSON.parse(await readFile(fpPath(root), "utf8"))).toEqual({
+      "1": fingerprint(slot), "2": fingerprint(slots.find((item) => item.slot === 2)!)
+    });
+  });
+
+  it("T16 legacy day permits a Facebook approval after same-slot Instagram consent", async () => {
+    // Expected: without a fingerprint file B1a does not apply; X7 removes that condition and rejects the partial approval.
+    const { root, slots } = await fixture();
+    await seedImageEvidence(root, slots.find((item) => item.slot === 1)!);
+    await writeApprovalLog(DATE, [approval(1, "instagram")], root);
+    vi.stubGlobal("fetch", noNetwork);
+    const entries = await approvePost({ date: DATE, slot: 1, platforms: ["facebook"], approvedBy: "Owner", root });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.platform).toBe("facebook");
+    expect(entries[0]!.forced).toBeUndefined();
   });
 });

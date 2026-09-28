@@ -140,6 +140,23 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - Holiday hours are managed as owner-approved overrides; no specific holiday date is emitted until it is explicitly verified.
 
 ## Published Posts
+- [2026-09-29 20:30 名牌包發霉,先別自己硬擦](https://sixiangjialaundry.com/posts/2026-09-29-slot-02.html)
+  platform targets: facebook, instagram
+  routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=trust-proof
+  target_queries: 台中精品乾洗 | 台中名牌衣物清潔 | 西屯精品乾洗 | 精緻乾洗 | 精品衣物怎麼洗 | 台中洗鞋推薦
+  evidence_type: real-case-photo
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #名牌包清潔 #皮件發霉 #台中洗衣店
+  image: https://sixiangjialaundry.com/assets/2026-09-29/slot-02.png
+  video: https://sixiangjialaundry.com/assets/2026-09-29/slot-02.mp4
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-29.json
+- [2026-09-29 11:30 久放皮件霉味：先聞夾層，再決定能不能自行處理](https://sixiangjialaundry.com/posts/2026-09-29-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=aftercare
+  target_queries: 台中棉被清洗 | 台中床組清洗 | 西屯寢具清洗 | 台中羽絨被送洗 | 台中外套清洗 | 棉被有潮味怎麼辦
+  evidence_type: customer-question
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #名牌包清潔 #皮件發霉 #台中洗衣店
+  image: https://sixiangjialaundry.com/assets/2026-09-29/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-29.json
 - [2026-09-28 11:30 勃肯鞋墊發白與軟木粉化，先看這兩處](https://sixiangjialaundry.com/posts/2026-09-28-slot-01.html)
   platform targets: facebook, instagram
   routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis

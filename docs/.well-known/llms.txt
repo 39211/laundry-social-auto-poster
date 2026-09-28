@@ -140,6 +140,14 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - Holiday hours are managed as owner-approved overrides; no specific holiday date is emitted until it is explicitly verified.
 
 ## Published Posts
+- [2026-09-28 11:30 勃肯鞋墊發白與軟木粉化，先看這兩處](https://sixiangjialaundry.com/posts/2026-09-28-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中洗鞋 | 西屯洗鞋 | 逢甲洗鞋 | 台中洗鞋店 | 台中白鞋清潔 | 球鞋清洗台中
+  evidence_type: first-party-inspection
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #勃肯鞋清潔 #送洗前檢查 #台中洗鞋
+  image: https://sixiangjialaundry.com/assets/2026-09-28/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-28.json
 - [2026-09-27 11:30 精品包最怕邊角：先看護角磨損再決定](https://sixiangjialaundry.com/posts/2026-09-27-slot-01.html)
   platform targets: facebook, instagram
   routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis

@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { access, mkdir, readFile, readdir } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 
@@ -120,12 +120,22 @@ export interface CarouselQaSidecar {
   slides: CarouselSlideRecord[];
 }
 
+export interface CarouselJudgeAttemptLogEntry {
+  attempt: number;
+  prompt_sha256: string;
+  stdout_sha256: string;
+  stdout_file: string;
+  verdict: VisualQaVerdict;
+  fail_class: VisualQaFailClass | null;
+}
+
 export interface CarouselQaRecord {
   topic: string;
   date?: string;
   slot?: number;
   verdict: VisualQaVerdict;
   fail_class: VisualQaFailClass | null;
+  judge_verdict: "PASS" | "FAIL" | null;
   axes: Record<CarouselQaAxis, AxisVerdict | "MISSING">;
   evidence: Partial<Record<CarouselQaAxis, string>>;
   frames_used: string[];
@@ -139,6 +149,8 @@ export interface CarouselQaRecord {
   reviewed_by: VisualQaReviewer;
   reviewed_at: string;
   mode: "warn" | "enforce";
+  judge_attempt?: number;
+  judge_attempt_log?: CarouselJudgeAttemptLogEntry[];
 }
 
 export interface RejectedConceptEntry {
@@ -1376,7 +1388,8 @@ export function evaluateCarouselJudgeStdout(input: {
     model: "codex-exec-read-only",
     reviewed_by: "codex-visual-qa" as const,
     reviewed_at: input.reviewedAt ?? new Date().toISOString(),
-    mode: "warn" as const
+    mode: "warn" as const,
+    judge_verdict: null as "PASS" | "FAIL" | null
   };
 
   if (Object.keys(input.slideSha256s).length === 0) {
@@ -1414,6 +1427,8 @@ export function evaluateCarouselJudgeStdout(input: {
       fail_class: "unparseable"
     };
   }
+
+  base.judge_verdict = block.verdict === "PASS" || block.verdict === "FAIL" ? block.verdict : null;
 
   let missingAxis = false;
   let contentFail = false;
@@ -1501,14 +1516,23 @@ export async function evaluateCarouselFromDisk(input: {
 export const CAROUSEL_JUDGE_LIVE_ATTEMPT_LIMIT = 2;
 
 /**
- * F20 fish-3: the carousel gate fail-closes on missing OBS (correct).
- * Retry only that shape — axes present, observation block absent/incomplete.
- * Any other fail_class, PASS, or content FAIL stays first-shot.
+ * 只有三個條件同時成立才重試:
+ * ① fail_class 是 missing_observation。
+ * ② OBJECT_IDENTITY、SCENE、TOPIC_MATCH 三軸都是 PASS。
+ * ③ 評審在 VISUAL_QA JSON 自填的頂層 verdict 不是 FAIL。
+ * 軸向已判 FAIL、或評審頂層已寫 FAIL 的回覆不得重試。
+ * 重試會採用下一次的 record,把先前的 FAIL 洗成 PASS。
  */
 export function shouldRetryCarouselJudge(
-  record: Pick<CarouselQaRecord, "fail_class"> | null | undefined
+  record: Pick<CarouselQaRecord, "fail_class" | "axes" | "judge_verdict"> | null | undefined
 ): boolean {
-  return record?.fail_class === "missing_observation";
+  if (record?.fail_class !== "missing_observation") return false;
+  if (record.judge_verdict === "FAIL") return false;
+  return (
+    record.axes?.OBJECT_IDENTITY === "PASS" &&
+    record.axes?.SCENE === "PASS" &&
+    record.axes?.TOPIC_MATCH === "PASS"
+  );
 }
 
 export function carouselJudgeAttemptLimit(stdoutSupplied: boolean): number {
@@ -1566,6 +1590,88 @@ export async function collectCarouselJudgeStdout(input: {
     throw new Error("carousel judge produced no record");
   }
   return { record, attempts, stdout };
+}
+
+export async function runCarouselJudgeLive(input: {
+  basePrompt: string;
+  slides: CarouselSlideRecord[];
+  qaDir: string;
+  sidecar: CarouselQaSidecar;
+  runId: string;
+  promptHash: string;
+  stdoutFile?: string;
+  runJudge: (req: {
+    attempt: number;
+    prompt: string;
+    images: string[];
+    stdoutPath: string;
+  }) => Promise<void> | void;
+}): Promise<{ record: CarouselQaRecord; attempts: number; stdout: string }> {
+  const suppliedStdout = input.stdoutFile;
+  const replay = Boolean(suppliedStdout);
+  const limit = carouselJudgeAttemptLimit(replay);
+  const images = input.slides.map((slide) => join(input.qaDir, slide.name));
+  const log: CarouselJudgeAttemptLogEntry[] = [];
+  let stdout = "";
+  let record: CarouselQaRecord | undefined;
+  let attempts = 0;
+  let sourceAttempt = 0;
+
+  while (attempts < limit) {
+    attempts += 1;
+    const prompt = carouselJudgePromptForAttempt({
+      basePrompt: input.basePrompt,
+      attempt: attempts,
+      slideCount: input.slides.length
+    });
+    const stdoutPath = suppliedStdout
+      ? suppliedStdout
+      : attempts === 1
+        ? join(input.qaDir, "judge-stdout.txt")
+        : join(input.qaDir, `judge-stdout.attempt-${attempts}.txt`);
+    try {
+      if (!replay) {
+        if (attempts > 1) {
+          await writeFile(join(input.qaDir, "judge-prompt-retry.txt"), prompt, "utf8");
+        }
+        await input.runJudge({ attempt: attempts, prompt, images, stdoutPath });
+      }
+      stdout = await readFile(stdoutPath, "utf8");
+      record = await evaluateCarouselFromDisk({
+        qaDir: input.qaDir,
+        stdout,
+        sidecar: input.sidecar,
+        promptHash: input.promptHash,
+        runId: input.runId
+      });
+      sourceAttempt = attempts;
+      log.push({
+        attempt: attempts,
+        prompt_sha256: hashText(prompt),
+        stdout_sha256: hashText(stdout),
+        stdout_file: basename(stdoutPath),
+        verdict: record.verdict,
+        fail_class: record.fail_class
+      });
+    } catch (err) {
+      if (record && shouldRetryCarouselJudge(record)) break;
+      throw err;
+    }
+    if (!shouldRetryCarouselJudge(record)) break;
+  }
+
+  if (!record) {
+    throw new Error("carousel judge produced no record");
+  }
+  return {
+    record: {
+      ...record,
+      judge_attempt: sourceAttempt,
+      judge_attempt_log: log
+    },
+    attempts,
+    stdout
+  };
 }
 
 function ffmpegFontfile(): string {

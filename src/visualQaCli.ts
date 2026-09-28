@@ -11,9 +11,6 @@ import {
   burnCarouselCanaries,
   carouselQaRecordPath,
   detectTreatment,
-  carouselJudgeAttemptLimit,
-  carouselJudgePromptForAttempt,
-  collectCarouselJudgeStdout,
   evaluateCarouselFromDisk,
   evaluateCarouselJudgeStdout,
   evaluateFromDisk,
@@ -24,6 +21,7 @@ import {
   parseCarouselSpec,
   randomCanary,
   referenceStillPaths,
+  runCarouselJudgeLive,
   resolveCarouselSlides,
   sampleTimes,
   sha256File,
@@ -188,38 +186,24 @@ async function handleCarousel(args: string[], root: string): Promise<void> {
   });
   const promptHash = hashText(prompt);
   await writeFile(join(qaDir, "judge-prompt.txt"), prompt, "utf8");
-  const stdoutPath = getOption(args, "stdout-file") ?? join(qaDir, "judge-stdout.txt");
-  const stdoutSupplied = Boolean(getOption(args, "stdout-file"));
+  const stdoutFile = getOption(args, "stdout-file");
   const runId = getOption(args, "run-id") ?? `carousel-qa-${Date.now()}`;
-  const { record, attempts } = await collectCarouselJudgeStdout({
-    attemptLimit: carouselJudgeAttemptLimit(stdoutSupplied),
-    runJudge: async (attempt) => {
-      if (!stdoutSupplied) {
-        const judgePrompt = carouselJudgePromptForAttempt({
-          basePrompt: prompt,
-          attempt,
-          slideCount: slides.length
-        });
-        if (attempt > 1) {
-          await writeFile(join(qaDir, "judge-prompt-retry.txt"), judgePrompt, "utf8");
-        }
-        runCodexJudge({
-          root,
-          prompt: judgePrompt,
-          images: slides.map((slide) => join(qaDir, slide.name)),
-          stdoutPath
-        });
-      }
-      return readFile(stdoutPath, "utf8");
-    },
-    evaluate: (stdout) =>
-      evaluateCarouselFromDisk({
-        qaDir,
-        stdout,
-        sidecar,
-        promptHash,
-        runId
-      })
+  const { record, attempts } = await runCarouselJudgeLive({
+    basePrompt: prompt,
+    slides,
+    qaDir,
+    sidecar,
+    runId,
+    promptHash,
+    stdoutFile,
+    runJudge: (req) => {
+      runCodexJudge({
+        root,
+        prompt: req.prompt,
+        images: req.images,
+        stdoutPath: req.stdoutPath
+      });
+    }
   });
   const defaultOut = dir && slot ? carouselQaRecordPath(isAbsolute(dir) ? dir : join(root, dir), slot) : join(qaDir, "carousel.visual-qa.json");
   const outPath = getOption(args, "out") ?? defaultOut;

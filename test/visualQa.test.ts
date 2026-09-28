@@ -20,6 +20,8 @@ import {
   detectCarouselRubricIncoherence,
   detectTreatment,
   evaluateCarouselJudgeStdout,
+  hashText,
+  runCarouselJudgeLive,
   shouldRetryCarouselJudge,
   evaluateFromDisk,
   evaluateJudgeStdout,
@@ -45,6 +47,7 @@ import {
   VISUAL_QA_END,
   warnVisualQaForPublish,
   type CarouselQaAxis,
+  type CarouselQaRecord,
   type QaFrameRecord,
   type VisualQaSidecar
 } from "../src/visualQa";
@@ -984,14 +987,36 @@ describe("carousel observe block is mandatory", () => {
 
 describe("carousel judge OBS emitter retry (F20 fish-3)", () => {
   it("retries only missing_observation", () => {
-    expect(shouldRetryCarouselJudge({ fail_class: "missing_observation" })).toBe(true);
-    expect(shouldRetryCarouselJudge({ fail_class: "content" })).toBe(false);
-    expect(shouldRetryCarouselJudge({ fail_class: "judge_blind" })).toBe(false);
-    expect(shouldRetryCarouselJudge({ fail_class: "unparseable" })).toBe(false);
-    expect(shouldRetryCarouselJudge({ fail_class: "missing_axis" })).toBe(false);
-    expect(shouldRetryCarouselJudge({ fail_class: "rubric_incoherent" })).toBe(false);
-    expect(shouldRetryCarouselJudge({ fail_class: "hash_mismatch" })).toBe(false);
-    expect(shouldRetryCarouselJudge({ fail_class: null })).toBe(false);
+    const axesPass = {
+      OBJECT_IDENTITY: "PASS" as const,
+      SCENE: "PASS" as const,
+      TOPIC_MATCH: "PASS" as const
+    };
+    const shape = (
+      failClass: CarouselQaRecord["fail_class"],
+      overrides: Partial<Pick<CarouselQaRecord, "axes" | "judge_verdict">> = {}
+    ) => ({
+      fail_class: failClass,
+      axes: overrides.axes ?? axesPass,
+      judge_verdict: overrides.judge_verdict === undefined ? ("PASS" as const) : overrides.judge_verdict
+    });
+    expect(shouldRetryCarouselJudge(shape("missing_observation"))).toBe(true);
+    expect(shouldRetryCarouselJudge(shape("missing_observation", { judge_verdict: null }))).toBe(true);
+    expect(
+      shouldRetryCarouselJudge(
+        shape("missing_observation", {
+          axes: { OBJECT_IDENTITY: "FAIL", SCENE: "PASS", TOPIC_MATCH: "PASS" }
+        })
+      )
+    ).toBe(false);
+    expect(shouldRetryCarouselJudge(shape("missing_observation", { judge_verdict: "FAIL" }))).toBe(false);
+    expect(shouldRetryCarouselJudge(shape("content"))).toBe(false);
+    expect(shouldRetryCarouselJudge(shape("judge_blind"))).toBe(false);
+    expect(shouldRetryCarouselJudge(shape("unparseable"))).toBe(false);
+    expect(shouldRetryCarouselJudge(shape("missing_axis"))).toBe(false);
+    expect(shouldRetryCarouselJudge(shape("rubric_incoherent"))).toBe(false);
+    expect(shouldRetryCarouselJudge(shape("hash_mismatch"))).toBe(false);
+    expect(shouldRetryCarouselJudge(shape(null))).toBe(false);
     expect(shouldRetryCarouselJudge(undefined)).toBe(false);
   });
 
@@ -1115,25 +1140,231 @@ describe("carousel judge OBS emitter retry (F20 fish-3)", () => {
     expect(record.verdict).toBe("FAIL_CLOSED");
     expect(record.fail_class).toBe("missing_observation");
   });
+});
 
-  it("live CLI path is wired to the retry helper; replay evaluate is not", () => {
-    const cliSrc = readFileSync(join(root, "src", "visualQaCli.ts"), "utf8");
-    const evaluateStart = cliSrc.indexOf('if (getFlag(args, "evaluate"))');
-    const liveStart = cliSrc.indexOf("if (!topic)");
-    expect(evaluateStart).toBeGreaterThan(0);
-    expect(liveStart).toBeGreaterThan(evaluateStart);
-    const evaluateBlock = cliSrc.slice(evaluateStart, liveStart);
-    const liveBlock = cliSrc.slice(liveStart);
-    expect(evaluateBlock).toContain("evaluateCarouselFromDisk");
-    expect(evaluateBlock).not.toContain("collectCarouselJudgeStdout");
-    expect(evaluateBlock).not.toContain("carouselJudgePromptForAttempt");
-    expect(liveBlock).toContain("collectCarouselJudgeStdout");
-    expect(liveBlock).toContain("carouselJudgeAttemptLimit(stdoutSupplied)");
-    expect(liveBlock).toContain("carouselJudgePromptForAttempt");
-    expect(liveBlock).toContain("prompt: judgePrompt");
-    expect(liveBlock).toContain("judge-prompt-retry.txt");
-    expect(liveBlock).toContain("judge_attempts");
-    expect(liveBlock).not.toMatch(/runCodexJudge\(\{[\s\S]*?\bprompt\s*,/u);
+const LIVE_SLIDE_COUNT = 3;
+const LIVE_CANARIES = ["K7P2", "M3Q8", "N4R5"] as const;
+const TINY_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64"
+);
+
+function liveObsLine(index: number): string {
+  return `OBS_${index} garment_color=NAVY garment_type=SNEAKER material=LEATHER wear=LIGHT scene=PINK_MAT_SLAT`;
+}
+
+function liveCarouselStdout(options: {
+  axes?: Partial<Record<CarouselQaAxis, "PASS" | "FAIL">>;
+  verdict?: "PASS" | "FAIL";
+  observe: "none" | "complete";
+}): string {
+  const axes = {
+    OBJECT_IDENTITY: "PASS" as const,
+    SCENE: "PASS" as const,
+    TOPIC_MATCH: "PASS" as const,
+    ...options.axes
+  };
+  const lines = LIVE_CANARIES.map((canary, index) => `IMAGE_${index + 1} canary=${canary}`);
+  if (options.observe === "complete") {
+    lines.push(
+      VISUAL_QA_OBSERVE_BEGIN,
+      ...Array.from({ length: LIVE_SLIDE_COUNT }, (_, index) => liveObsLine(index + 1)),
+      "COMPARE OBJECT_IDENTITY identity_change=NO",
+      "COMPARE SCENE scene_change=NO",
+      "COMPARE TOPIC_MATCH object_mismatch=NO",
+      VISUAL_QA_OBSERVE_END
+    );
+  }
+  lines.push(
+    VISUAL_QA_BEGIN,
+    JSON.stringify({
+      topic: "x",
+      verdict: options.verdict ?? "PASS",
+      axes,
+      evidence: {},
+      frames_used: []
+    }),
+    VISUAL_QA_END
+  );
+  return lines.join("\n");
+}
+
+describe("carousel live judge retry behavior", () => {
+  const dirs: string[] = [];
+  afterEach(async () => {
+    await Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  });
+
+  function prepareLive() {
+    const qaDir = mkdtempSync(join(tmpdir(), "vq-carousel-live-"));
+    dirs.push(qaDir);
+    const sha256 = createHash("sha256").update(TINY_PNG).digest("hex");
+    const slides = LIVE_CANARIES.map((canary, index) => {
+      const name = `slide-${String(index + 1).padStart(2, "0")}.png`;
+      writeFileSync(join(qaDir, name), TINY_PNG);
+      return {
+        name,
+        slide: index + 1,
+        source: `source-${index + 1}.png`,
+        canary,
+        sha256
+      };
+    });
+    const sidecar = { topic: "球鞋", date: "2026-09-28", slot: 1, slides };
+    const basePrompt = buildCarouselJudgePrompt({
+      slides: slides.map((slide) => ({ imageIndex: slide.slide, name: slide.name, slide: slide.slide })),
+      topic: sidecar.topic
+    });
+    return { qaDir, slides, sidecar, basePrompt, promptHash: hashText(basePrompt) };
+  }
+
+  function fakeJudge(stdouts: string[]) {
+    const calls: Array<{ attempt: number; prompt: string; images: string[]; stdoutPath: string }> = [];
+    const runJudge = (req: { attempt: number; prompt: string; images: string[]; stdoutPath: string }) => {
+      calls.push({ ...req, images: [...req.images] });
+      const next = stdouts[calls.length - 1];
+      if (next === undefined) throw new Error(`unexpected judge call ${calls.length}`);
+      writeFileSync(req.stdoutPath, next, "utf8");
+    };
+    return { calls, runJudge };
+  }
+
+  it("T1 axis FAIL with incomplete OBS is not retried", async () => {
+    const fixture = prepareLive();
+    const first = liveCarouselStdout({
+      observe: "none",
+      axes: { OBJECT_IDENTITY: "FAIL" },
+      verdict: "PASS"
+    });
+    const second = liveCarouselStdout({ observe: "complete" });
+    const { calls, runJudge } = fakeJudge([first, second]);
+    const { record, attempts } = await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t1",
+      promptHash: fixture.promptHash,
+      runJudge
+    });
+    expect(calls).toHaveLength(1);
+    expect(attempts).toBe(1);
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("missing_observation");
+    expect(record.axes.OBJECT_IDENTITY).toBe("FAIL");
+    expect(record.judge_verdict).toBe("PASS");
+    expect(record.judge_attempt).toBe(1);
+  });
+
+  it("T2 top-level FAIL with incomplete OBS is not retried", async () => {
+    const fixture = prepareLive();
+    const first = liveCarouselStdout({ observe: "none", verdict: "FAIL" });
+    const second = liveCarouselStdout({ observe: "complete" });
+    const { calls, runJudge } = fakeJudge([first, second]);
+    const { record } = await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t2",
+      promptHash: fixture.promptHash,
+      runJudge
+    });
+    expect(calls).toHaveLength(1);
+    expect(record.judge_verdict).toBe("FAIL");
+    expect(record.verdict).not.toBe("PASS");
+    expect(record.judge_attempt).toBe(1);
+  });
+
+  it("T3 allowed retry records provenance and keeps the first stdout", async () => {
+    const fixture = prepareLive();
+    const first = liveCarouselStdout({ observe: "none" });
+    const second = liveCarouselStdout({ observe: "complete" });
+    const { calls, runJudge } = fakeJudge([first, second]);
+    const { record, attempts } = await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t3",
+      promptHash: fixture.promptHash,
+      runJudge
+    });
+    const retryPrompt = carouselJudgePromptForAttempt({
+      basePrompt: fixture.basePrompt,
+      attempt: 2,
+      slideCount: LIVE_SLIDE_COUNT
+    });
+    expect(calls).toHaveLength(2);
+    expect(attempts).toBe(2);
+    expect(record.verdict).toBe("PASS");
+    expect(record.judge_attempt).toBe(2);
+    expect(calls[0]?.prompt).toBe(fixture.basePrompt);
+    expect(calls[1]?.prompt).toBe(retryPrompt);
+    expect(calls[1]?.prompt).toContain(`OBS_${LIVE_SLIDE_COUNT}`);
+    expect(calls[1]?.prompt).not.toContain(`OBS_${LIVE_SLIDE_COUNT + 1}`);
+    expect(calls[0]?.stdoutPath).not.toBe(calls[1]?.stdoutPath);
+    expect(readFileSync(calls[0]!.stdoutPath, "utf8")).toBe(first);
+    const log = record.judge_attempt_log ?? [];
+    expect(log).toHaveLength(2);
+    expect(log[0]?.prompt_sha256).toBe(hashText(calls[0]!.prompt));
+    expect(log[1]?.prompt_sha256).toBe(hashText(calls[1]!.prompt));
+    expect(log[0]?.stdout_sha256).toBe(hashText(first));
+    expect(log[1]?.stdout_sha256).toBe(hashText(second));
+    expect(log[0]?.stdout_file).not.toBe(log[1]?.stdout_file);
+    expect(log[0]?.stdout_file).toBe(basename(calls[0]!.stdoutPath));
+    expect(log[1]?.stdout_file).toBe(basename(calls[1]!.stdoutPath));
+    expect(record.prompt_hash).toBe(fixture.promptHash);
+    expect(readFileSync(join(fixture.qaDir, "judge-prompt-retry.txt"), "utf8")).toBe(retryPrompt);
+  });
+
+  it("T4 content FAIL on the retry stays FAIL", async () => {
+    const fixture = prepareLive();
+    const first = liveCarouselStdout({ observe: "none" });
+    const second = liveCarouselStdout({
+      observe: "complete",
+      axes: { OBJECT_IDENTITY: "FAIL" },
+      verdict: "FAIL"
+    });
+    const { calls, runJudge } = fakeJudge([first, second]);
+    const { record, attempts } = await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t4",
+      promptHash: fixture.promptHash,
+      runJudge
+    });
+    expect(calls).toHaveLength(2);
+    expect(attempts).toBe(2);
+    expect(record.verdict).toBe("FAIL");
+    expect(record.fail_class).toBe("content");
+    expect(record.judge_attempt).toBe(2);
+  });
+
+  it("T5 supplied stdoutFile does not call runJudge", async () => {
+    const fixture = prepareLive();
+    const stdout = liveCarouselStdout({ observe: "complete" });
+    const stdoutFile = join(fixture.qaDir, "supplied-judge-stdout.txt");
+    writeFileSync(stdoutFile, stdout, "utf8");
+    const { calls, runJudge } = fakeJudge([stdout]);
+    const { record, attempts } = await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t5",
+      promptHash: fixture.promptHash,
+      stdoutFile,
+      runJudge
+    });
+    expect(calls).toHaveLength(0);
+    expect(attempts).toBe(1);
+    expect(record.judge_attempt).toBe(1);
+    expect(record.judge_attempt_log?.[0]?.stdout_file).toBe("supplied-judge-stdout.txt");
+    expect(record.judge_attempt_log?.[0]?.prompt_sha256).toBe(hashText(fixture.basePrompt));
+    expect(record.judge_attempt_log?.[0]?.stdout_sha256).toBe(hashText(stdout));
   });
 });
 

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import {
@@ -8,7 +8,7 @@ import {
   loadApprovedImageDigests,
   writeApprovedImageDigests
 } from "./imageStamp";
-import { appendApprovalLog, loadApprovalLog, loadDailyContent, loadImageSources } from "./logging";
+import { appendApprovalLog, loadApprovalLog, loadDailyContent, loadImageSources, writeJsonAtomic } from "./logging";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
@@ -96,10 +96,29 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
     }
   }
 
+  const nextFingerprint = createHash("sha256").update(JSON.stringify(slot)).digest("hex");
+  const approvals = await loadApprovalLog(options.date, root);
+  const otherPlatforms = approvals.filter((entry) =>
+    entry.slot === options.slot &&
+    entry.status === "approved" &&
+    !entry.forced &&
+    !options.platforms.includes(entry.platform)
+  );
+  if (
+    fingerprintExists &&
+    otherPlatforms.length > 0 &&
+    (!Object.hasOwn(fingerprints, String(options.slot)) || fingerprints[String(options.slot)] !== nextFingerprint)
+  ) {
+    const platforms = [...new Set(otherPlatforms.map((entry) => entry.platform))].join(",");
+    throw new Error(
+      `Slot ${options.slot} has an older approval for ${platforms}; pass --platform facebook,instagram to re-approve every platform.`
+    );
+  }
+
   let writeFingerprint = true;
   if (!fingerprintExists) {
-    const legacySlots = [...new Set((await loadApprovalLog(options.date, root))
-      .filter((entry) => entry.status === "approved" && entry.slot !== options.slot)
+    const legacySlots = [...new Set(approvals
+      .filter((entry) => entry.status === "approved" && !entry.forced && entry.slot !== options.slot)
       .map((entry) => entry.slot))].sort((a, b) => a - b);
     if (legacySlots.length > 0) {
       writeFingerprint = false;
@@ -122,11 +141,6 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
   approvedDigests[String(options.slot)] = digests;
   await writeApprovedImageDigests(root, options.date, approvedDigests);
 
-  if (writeFingerprint) {
-    fingerprints[String(options.slot)] = createHash("sha256").update(JSON.stringify(slot)).digest("hex");
-    await writeFile(fingerprintPath, JSON.stringify(fingerprints, null, 2), "utf8");
-  }
-
   const entries: ApprovalLogEntry[] = [];
   for (const platform of options.platforms) {
     const entry: ApprovalLogEntry = {
@@ -142,6 +156,13 @@ export async function approvePost(options: ApprovePostOptions): Promise<Approval
     };
     await appendApprovalLog(entry, root);
     entries.push(entry);
+  }
+
+  // Consent must be durable before its fingerprint. If this write fails, a
+  // missing slot key blocks publication and a repeat approval can repair it.
+  if (writeFingerprint) {
+    fingerprints[String(options.slot)] = nextFingerprint;
+    await writeJsonAtomic(fingerprintPath, fingerprints);
   }
 
   return entries;

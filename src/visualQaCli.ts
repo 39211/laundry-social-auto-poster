@@ -25,7 +25,9 @@ import {
   resolveCarouselSlides,
   sampleTimes,
   sha256File,
+  type CarouselQaRecord,
   type CarouselQaSidecar,
+  type CarouselSlideRecord,
   type QaFrameRecord,
   type ReelTreatment,
   type VisualQaSidecar,
@@ -105,6 +107,40 @@ function carouselSpecArg(args: string[]): string | undefined {
   return undefined;
 }
 
+export async function runCarouselLiveCli(input: {
+  root: string;
+  qaDir: string;
+  sidecar: CarouselQaSidecar;
+  slides: CarouselSlideRecord[];
+  topic: string;
+  stdoutFile?: string;
+  runId: string;
+  runCodex: (args: { root: string; prompt: string; images: string[]; stdoutPath: string }) => Promise<void> | void;
+}): Promise<{ record: CarouselQaRecord; attempts: number; stdout: string }> {
+  const prompt = buildCarouselJudgePrompt({
+    slides: input.slides.map((slide) => ({ imageIndex: slide.slide, name: slide.name, slide: slide.slide })),
+    topic: input.topic
+  });
+  const promptHash = hashText(prompt);
+  await writeFile(join(input.qaDir, "judge-prompt.txt"), prompt, "utf8");
+  return runCarouselJudgeLive({
+    basePrompt: prompt,
+    slides: input.slides,
+    qaDir: input.qaDir,
+    sidecar: input.sidecar,
+    runId: input.runId,
+    promptHash,
+    stdoutFile: input.stdoutFile,
+    runJudge: (req) =>
+      input.runCodex({
+        root: input.root,
+        prompt: req.prompt,
+        images: req.images,
+        stdoutPath: req.stdoutPath
+      })
+  });
+}
+
 async function handleCarousel(args: string[], root: string): Promise<void> {
   const spec = parseCarouselSpec(carouselSpecArg(args));
   const dir = getOption(args, "dir") ?? spec.dir;
@@ -180,30 +216,17 @@ async function handleCarousel(args: string[], root: string): Promise<void> {
   const sidecar: CarouselQaSidecar = { topic, date, slot, slides };
   const sidecarPath = join(qaDir, "sidecar.json");
   await writeJsonAtomic(sidecarPath, sidecar);
-  const prompt = buildCarouselJudgePrompt({
-    slides: slides.map((slide) => ({ imageIndex: slide.slide, name: slide.name, slide: slide.slide })),
-    topic
-  });
-  const promptHash = hashText(prompt);
-  await writeFile(join(qaDir, "judge-prompt.txt"), prompt, "utf8");
   const stdoutFile = getOption(args, "stdout-file");
   const runId = getOption(args, "run-id") ?? `carousel-qa-${Date.now()}`;
-  const { record, attempts } = await runCarouselJudgeLive({
-    basePrompt: prompt,
-    slides,
+  const { record, attempts } = await runCarouselLiveCli({
+    root,
     qaDir,
     sidecar,
-    runId,
-    promptHash,
+    slides,
+    topic,
     stdoutFile,
-    runJudge: (req) => {
-      runCodexJudge({
-        root,
-        prompt: req.prompt,
-        images: req.images,
-        stdoutPath: req.stdoutPath
-      });
-    }
+    runId,
+    runCodex: runCodexJudge
   });
   const defaultOut = dir && slot ? carouselQaRecordPath(isAbsolute(dir) ? dir : join(root, dir), slot) : join(qaDir, "carousel.visual-qa.json");
   const outPath = getOption(args, "out") ?? defaultOut;

@@ -123,10 +123,11 @@ export interface CarouselQaSidecar {
 export interface CarouselJudgeAttemptLogEntry {
   attempt: number;
   prompt_sha256: string;
-  stdout_sha256: string;
+  stdout_sha256: string | null;
   stdout_file: string;
-  verdict: VisualQaVerdict;
+  verdict: VisualQaVerdict | null;
   fail_class: VisualQaFailClass | null;
+  error?: "judge_failed" | "stdout_unreadable" | "evaluate_failed";
 }
 
 export interface CarouselQaRecord {
@@ -149,6 +150,7 @@ export interface CarouselQaRecord {
   reviewed_by: VisualQaReviewer;
   reviewed_at: string;
   mode: "warn" | "enforce";
+  judge_declared_change: boolean;
   judge_attempt?: number;
   judge_attempt_log?: CarouselJudgeAttemptLogEntry[];
 }
@@ -1359,6 +1361,48 @@ function emptyCarouselAxes(): Record<CarouselQaAxis, AxisVerdict | "MISSING"> {
   };
 }
 
+function countMarker(haystack: string, marker: string): number {
+  let count = 0;
+  let from = 0;
+  while (from < haystack.length) {
+    const idx = haystack.indexOf(marker, from);
+    if (idx < 0) break;
+    count += 1;
+    from = idx + marker.length;
+  }
+  return count;
+}
+
+function firstVisualQaBlockRaw(stdout: string): string | null {
+  const start = stdout.indexOf(VISUAL_QA_BEGIN);
+  const end = stdout.indexOf(VISUAL_QA_END);
+  if (start < 0 || end < 0 || end <= start) return null;
+  return stdout.slice(start + VISUAL_QA_BEGIN.length, end).trim().replace(/^\uFEFF/u, "");
+}
+
+function carouselBlockHasDuplicateVerdictOrAxis(raw: string): boolean {
+  const verdictHits = raw.match(/"verdict"\s*:\s*"(PASS|FAIL)"/gu);
+  if ((verdictHits?.length ?? 0) > 1) return true;
+  for (const axis of CAROUSEL_QA_AXES) {
+    const axisHits = raw.match(new RegExp(`"${axis}"\\s*:\\s*"(PASS|FAIL)"`, "gu"));
+    if ((axisHits?.length ?? 0) > 1) return true;
+  }
+  return false;
+}
+
+/** Multiple VISUAL_QA blocks, or invalid JSON that repeats a verdict or carousel axis key. */
+function carouselJudgeStdoutAmbiguous(stdout: string): boolean {
+  if (countMarker(stdout, VISUAL_QA_BEGIN) > 1) return true;
+  const raw = firstVisualQaBlockRaw(stdout);
+  if (raw === null) return false;
+  try {
+    JSON.parse(raw);
+    return false;
+  } catch {
+    return carouselBlockHasDuplicateVerdictOrAxis(raw);
+  }
+}
+
 export function evaluateCarouselJudgeStdout(input: {
   stdout: string;
   topic: string;
@@ -1389,7 +1433,8 @@ export function evaluateCarouselJudgeStdout(input: {
     reviewed_by: "codex-visual-qa" as const,
     reviewed_at: input.reviewedAt ?? new Date().toISOString(),
     mode: "warn" as const,
-    judge_verdict: null as "PASS" | "FAIL" | null
+    judge_verdict: null as "PASS" | "FAIL" | null,
+    judge_declared_change: false
   };
 
   if (Object.keys(input.slideSha256s).length === 0) {
@@ -1416,6 +1461,14 @@ export function evaluateCarouselJudgeStdout(input: {
       ...base,
       verdict: "FAIL_CLOSED",
       fail_class: "judge_blind"
+    };
+  }
+
+  if (carouselJudgeStdoutAmbiguous(input.stdout)) {
+    return {
+      ...base,
+      verdict: "FAIL_CLOSED",
+      fail_class: "unparseable"
     };
   }
 
@@ -1454,11 +1507,18 @@ export function evaluateCarouselJudgeStdout(input: {
     };
   }
 
+  const observedCompare = parseCarouselObserveBlock(input.stdout)?.compare;
+  const judgeDeclaredChange =
+    observedCompare?.identityChange === true ||
+    observedCompare?.sceneChange === true ||
+    observedCompare?.topicMismatch === true;
+
   const expectedObs = Object.keys(input.expectedCanaries).length || input.slides.length;
   const obsDefects = carouselObservationDefects(parseCarouselObserveBlock(input.stdout), expectedObs);
   if (obsDefects.length > 0) {
     return {
       ...base,
+      judge_declared_change: judgeDeclaredChange,
       verdict: "FAIL_CLOSED",
       fail_class: "missing_observation"
     };
@@ -1467,6 +1527,7 @@ export function evaluateCarouselJudgeStdout(input: {
   if (detectCarouselRubricIncoherence(input.stdout, base.axes, input.topic)) {
     return {
       ...base,
+      judge_declared_change: judgeDeclaredChange,
       verdict: "FAIL_CLOSED",
       fail_class: "rubric_incoherent"
     };
@@ -1475,6 +1536,7 @@ export function evaluateCarouselJudgeStdout(input: {
   const verdict: VisualQaVerdict = contentFail || block.verdict === "FAIL" ? "FAIL" : "PASS";
   return {
     ...base,
+    judge_declared_change: judgeDeclaredChange,
     verdict,
     fail_class: contentFail ? "content" : null
   };
@@ -1516,18 +1578,28 @@ export async function evaluateCarouselFromDisk(input: {
 export const CAROUSEL_JUDGE_LIVE_ATTEMPT_LIMIT = 2;
 
 /**
- * 只有三個條件同時成立才重試:
- * ① fail_class 是 missing_observation。
- * ② OBJECT_IDENTITY、SCENE、TOPIC_MATCH 三軸都是 PASS。
- * ③ 評審在 VISUAL_QA JSON 自填的頂層 verdict 不是 FAIL。
- * 軸向已判 FAIL、或評審頂層已寫 FAIL 的回覆不得重試。
- * 重試會採用下一次的 record,把先前的 FAIL 洗成 PASS。
+ * Retry only when all four conditions hold:
+ * 1. fail_class is missing_observation.
+ * 2. OBJECT_IDENTITY, SCENE, and TOPIC_MATCH are all PASS.
+ * 3. The judge's own top-level VISUAL_QA verdict is not FAIL.
+ * 4. judge_declared_change is not true. That flag is taken only from COMPARE
+ *    lines the judge wrote (identityChange, sceneChange, topicMismatch), not
+ *    from OBS-token inference.
+ * An axis FAIL, a top-level FAIL, or a declared COMPARE change must not be
+ * retried. A retry adopts the next record and can wash an earlier failure
+ * into PASS.
  */
 export function shouldRetryCarouselJudge(
-  record: Pick<CarouselQaRecord, "fail_class" | "axes" | "judge_verdict"> | null | undefined
+  record:
+    | (Pick<CarouselQaRecord, "fail_class" | "axes" | "judge_verdict"> & {
+        judge_declared_change?: boolean;
+      })
+    | null
+    | undefined
 ): boolean {
   if (record?.fail_class !== "missing_observation") return false;
   if (record.judge_verdict === "FAIL") return false;
+  if (record.judge_declared_change === true) return false;
   return (
     record.axes?.OBJECT_IDENTITY === "PASS" &&
     record.axes?.SCENE === "PASS" &&
@@ -1592,6 +1664,14 @@ export async function collectCarouselJudgeStdout(input: {
   return { record, attempts, stdout };
 }
 
+async function readableStdoutSha256(stdoutPath: string): Promise<string | null> {
+  try {
+    return hashText(await readFile(stdoutPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 export async function runCarouselJudgeLive(input: {
   basePrompt: string;
   slides: CarouselSlideRecord[];
@@ -1612,65 +1692,97 @@ export async function runCarouselJudgeLive(input: {
   const limit = carouselJudgeAttemptLimit(replay);
   const images = input.slides.map((slide) => join(input.qaDir, slide.name));
   const log: CarouselJudgeAttemptLogEntry[] = [];
-  let stdout = "";
-  let record: CarouselQaRecord | undefined;
-  let attempts = 0;
   let sourceAttempt = 0;
+  let currentAttempt = 0;
+  let activePrompt = "";
+  let activeStdoutPath = "";
 
-  while (attempts < limit) {
-    attempts += 1;
-    const prompt = carouselJudgePromptForAttempt({
-      basePrompt: input.basePrompt,
-      attempt: attempts,
-      slideCount: input.slides.length
+  const rememberFailedAttempt = (
+    error: "judge_failed" | "stdout_unreadable" | "evaluate_failed",
+    stdoutSha: string | null
+  ): void => {
+    log.push({
+      attempt: currentAttempt,
+      prompt_sha256: hashText(activePrompt),
+      stdout_sha256: stdoutSha,
+      stdout_file: basename(activeStdoutPath),
+      verdict: null,
+      fail_class: null,
+      error
     });
-    const stdoutPath = suppliedStdout
-      ? suppliedStdout
-      : attempts === 1
-        ? join(input.qaDir, "judge-stdout.txt")
-        : join(input.qaDir, `judge-stdout.attempt-${attempts}.txt`);
-    try {
-      if (!replay) {
-        if (attempts > 1) {
-          await writeFile(join(input.qaDir, "judge-prompt-retry.txt"), prompt, "utf8");
-        }
-        await input.runJudge({ attempt: attempts, prompt, images, stdoutPath });
-      }
-      stdout = await readFile(stdoutPath, "utf8");
-      record = await evaluateCarouselFromDisk({
-        qaDir: input.qaDir,
-        stdout,
-        sidecar: input.sidecar,
-        promptHash: input.promptHash,
-        runId: input.runId
-      });
-      sourceAttempt = attempts;
-      log.push({
-        attempt: attempts,
-        prompt_sha256: hashText(prompt),
-        stdout_sha256: hashText(stdout),
-        stdout_file: basename(stdoutPath),
-        verdict: record.verdict,
-        fail_class: record.fail_class
-      });
-    } catch (err) {
-      if (record && shouldRetryCarouselJudge(record)) break;
-      throw err;
-    }
-    if (!shouldRetryCarouselJudge(record)) break;
-  }
+  };
 
-  if (!record) {
-    throw new Error("carousel judge produced no record");
-  }
+  const collected = await collectCarouselJudgeStdout({
+    attemptLimit: limit,
+    runJudge: async (attempt) => {
+      currentAttempt = attempt;
+      activePrompt = carouselJudgePromptForAttempt({
+        basePrompt: input.basePrompt,
+        attempt,
+        slideCount: input.slides.length
+      });
+      activeStdoutPath = suppliedStdout
+        ? suppliedStdout
+        : attempt === 1
+          ? join(input.qaDir, "judge-stdout.txt")
+          : join(input.qaDir, `judge-stdout.attempt-${attempt}.txt`);
+      if (!replay) {
+        if (attempt > 1) {
+          await writeFile(join(input.qaDir, "judge-prompt-retry.txt"), activePrompt, "utf8");
+        }
+        try {
+          await input.runJudge({
+            attempt,
+            prompt: activePrompt,
+            images,
+            stdoutPath: activeStdoutPath
+          });
+        } catch (err) {
+          rememberFailedAttempt("judge_failed", await readableStdoutSha256(activeStdoutPath));
+          throw err;
+        }
+      }
+      try {
+        return await readFile(activeStdoutPath, "utf8");
+      } catch (err) {
+        rememberFailedAttempt("stdout_unreadable", null);
+        throw err;
+      }
+    },
+    evaluate: async (stdout) => {
+      try {
+        const record = await evaluateCarouselFromDisk({
+          qaDir: input.qaDir,
+          stdout,
+          sidecar: input.sidecar,
+          promptHash: input.promptHash,
+          runId: input.runId
+        });
+        sourceAttempt = currentAttempt;
+        log.push({
+          attempt: currentAttempt,
+          prompt_sha256: hashText(activePrompt),
+          stdout_sha256: hashText(stdout),
+          stdout_file: basename(activeStdoutPath),
+          verdict: record.verdict,
+          fail_class: record.fail_class
+        });
+        return record;
+      } catch (err) {
+        rememberFailedAttempt("evaluate_failed", hashText(stdout));
+        throw err;
+      }
+    }
+  });
+
   return {
     record: {
-      ...record,
+      ...collected.record,
       judge_attempt: sourceAttempt,
       judge_attempt_log: log
     },
-    attempts,
-    stdout
+    attempts: collected.attempts,
+    stdout: collected.stdout
   };
 }
 

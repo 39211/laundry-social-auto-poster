@@ -6,6 +6,7 @@ import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { rm } from "node:fs/promises";
 import { validatePublishableReel } from "../src/generateVideo";
+import { runCarouselLiveCli } from "../src/visualQaCli";
 import { visualQaAcceptedReviewer } from "../src/videoReviewGate";
 import {
   assertCarouselJudgePromptSafe,
@@ -1365,6 +1366,343 @@ describe("carousel live judge retry behavior", () => {
     expect(record.judge_attempt_log?.[0]?.stdout_file).toBe("supplied-judge-stdout.txt");
     expect(record.judge_attempt_log?.[0]?.prompt_sha256).toBe(hashText(fixture.basePrompt));
     expect(record.judge_attempt_log?.[0]?.stdout_sha256).toBe(hashText(stdout));
+  });
+
+  it("T6 second runJudge writes stdout then throws keeps the first record", async () => {
+    const fixture = prepareLive();
+    const first = liveCarouselStdout({ observe: "none" });
+    const second = "IMAGE_1 canary=K7P2\npartial crash stdout\n";
+    const calls: Array<{ attempt: number; prompt: string; images: string[]; stdoutPath: string }> = [];
+    const runJudge = (req: { attempt: number; prompt: string; images: string[]; stdoutPath: string }) => {
+      calls.push({ ...req, images: [...req.images] });
+      if (calls.length === 1) {
+        writeFileSync(req.stdoutPath, first, "utf8");
+        return;
+      }
+      writeFileSync(req.stdoutPath, second, "utf8");
+      throw new Error("judge crashed after writing stdout");
+    };
+    const { record } = await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t6",
+      promptHash: fixture.promptHash,
+      runJudge
+    });
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.judge_attempt).toBe(1);
+    const log = record.judge_attempt_log ?? [];
+    expect(log).toHaveLength(2);
+    expect(log[1]?.error).toBe("judge_failed");
+    expect(log[1]?.verdict).toBeNull();
+    expect(log[1]?.fail_class).toBeNull();
+    expect(log[1]?.stdout_sha256).toBe(hashText(second));
+    expect(log[1]?.prompt_sha256).toBe(hashText(calls[1]!.prompt));
+    expect(log[1]?.stdout_file).toBe(basename(calls[1]!.stdoutPath));
+  });
+
+  it("T7 first runJudge throw propagates and returns no record", async () => {
+    const fixture = prepareLive();
+    const boom = new Error("judge boom");
+    await expect(
+      runCarouselJudgeLive({
+        basePrompt: fixture.basePrompt,
+        slides: fixture.slides,
+        qaDir: fixture.qaDir,
+        sidecar: fixture.sidecar,
+        runId: "t7",
+        promptHash: fixture.promptHash,
+        runJudge: () => {
+          throw boom;
+        }
+      })
+    ).rejects.toBe(boom);
+  });
+
+  it("T8 replay of incomplete OBS does not call runJudge and attempts once", async () => {
+    const fixture = prepareLive();
+    const stdout = liveCarouselStdout({ observe: "none" });
+    const stdoutFile = join(fixture.qaDir, "supplied-judge-stdout.txt");
+    writeFileSync(stdoutFile, stdout, "utf8");
+    const { calls, runJudge } = fakeJudge([stdout]);
+    const { attempts } = await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t8",
+      promptHash: fixture.promptHash,
+      stdoutFile,
+      runJudge
+    });
+    expect(calls).toHaveLength(0);
+    expect(attempts).toBe(1);
+  });
+
+  it("T9 runJudge images are the canary copies in qaDir", async () => {
+    const fixture = prepareLive();
+    const stdout = liveCarouselStdout({ observe: "complete" });
+    const { calls, runJudge } = fakeJudge([stdout]);
+    await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t9",
+      promptHash: fixture.promptHash,
+      runJudge
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.images).toEqual(fixture.slides.map((slide) => join(fixture.qaDir, slide.name)));
+  });
+
+  it("T10 SCENE FAIL with incomplete OBS is not retried", async () => {
+    const fixture = prepareLive();
+    const first = liveCarouselStdout({
+      observe: "none",
+      axes: { SCENE: "FAIL" },
+      verdict: "PASS"
+    });
+    const second = liveCarouselStdout({ observe: "complete" });
+    const { calls, runJudge } = fakeJudge([first, second]);
+    const { record } = await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t10",
+      promptHash: fixture.promptHash,
+      runJudge
+    });
+    expect(calls).toHaveLength(1);
+    expect(record.verdict).not.toBe("PASS");
+  });
+
+  it("T11 TOPIC_MATCH FAIL with incomplete OBS is not retried", async () => {
+    const fixture = prepareLive();
+    const first = liveCarouselStdout({
+      observe: "none",
+      axes: { TOPIC_MATCH: "FAIL" },
+      verdict: "PASS"
+    });
+    const second = liveCarouselStdout({ observe: "complete" });
+    const { calls, runJudge } = fakeJudge([first, second]);
+    const { record } = await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t11",
+      promptHash: fixture.promptHash,
+      runJudge
+    });
+    expect(calls).toHaveLength(1);
+    expect(record.verdict).not.toBe("PASS");
+  });
+
+  it("T12 COMPARE identity_change YES without OBS lines is not retried", async () => {
+    const fixture = prepareLive();
+    const axes = {
+      OBJECT_IDENTITY: "PASS" as const,
+      SCENE: "PASS" as const,
+      TOPIC_MATCH: "PASS" as const
+    };
+    const first = [
+      ...LIVE_CANARIES.map((canary, index) => `IMAGE_${index + 1} canary=${canary}`),
+      VISUAL_QA_OBSERVE_BEGIN,
+      "COMPARE OBJECT_IDENTITY identity_change=YES",
+      "COMPARE SCENE scene_change=NO",
+      "COMPARE TOPIC_MATCH object_mismatch=NO",
+      VISUAL_QA_OBSERVE_END,
+      VISUAL_QA_BEGIN,
+      JSON.stringify({ topic: "x", verdict: "PASS", axes, evidence: {}, frames_used: [] }),
+      VISUAL_QA_END
+    ].join("\n");
+    const second = liveCarouselStdout({ observe: "complete" });
+    const { calls, runJudge } = fakeJudge([first, second]);
+    const { record } = await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t12",
+      promptHash: fixture.promptHash,
+      runJudge
+    });
+    expect(calls).toHaveLength(1);
+    expect(record.judge_declared_change).toBe(true);
+    expect(record.verdict).not.toBe("PASS");
+    expect(record.fail_class).toBe("missing_observation");
+  });
+
+  it("T13 malformed JSON with nested verdict before top-level FAIL is unparseable", async () => {
+    const fixture = prepareLive();
+    const first = [
+      ...LIVE_CANARIES.map((canary, index) => `IMAGE_${index + 1} canary=${canary}`),
+      VISUAL_QA_BEGIN,
+      '{"evidence":{"OBJECT_IDENTITY":"nested","verdict":"PASS"},"verdict":"FAIL","axes":{"OBJECT_IDENTITY":"PASS","SCENE":"PASS","TOPIC_MATCH":"PASS"},"frames_used":[],}',
+      VISUAL_QA_END
+    ].join("\n");
+    const second = liveCarouselStdout({ observe: "complete" });
+    const { calls, runJudge } = fakeJudge([first, second]);
+    const { record } = await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t13",
+      promptHash: fixture.promptHash,
+      runJudge
+    });
+    expect(calls).toHaveLength(1);
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("unparseable");
+  });
+
+  it("T14 two VISUAL_QA blocks are unparseable", async () => {
+    const fixture = prepareLive();
+    const extraAxes = {
+      OBJECT_IDENTITY: "PASS" as const,
+      SCENE: "PASS" as const,
+      TOPIC_MATCH: "PASS" as const
+    };
+    const stdout = [
+      liveCarouselStdout({ observe: "complete" }),
+      VISUAL_QA_BEGIN,
+      JSON.stringify({ topic: "y", verdict: "FAIL", axes: extraAxes, evidence: {}, frames_used: [] }),
+      VISUAL_QA_END
+    ].join("\n");
+    const { calls, runJudge } = fakeJudge([stdout, liveCarouselStdout({ observe: "complete" })]);
+    const { record } = await runCarouselJudgeLive({
+      basePrompt: fixture.basePrompt,
+      slides: fixture.slides,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      runId: "t14",
+      promptHash: fixture.promptHash,
+      runJudge
+    });
+    expect(calls).toHaveLength(1);
+    expect(record.verdict).toBe("FAIL_CLOSED");
+    expect(record.fail_class).toBe("unparseable");
+  });
+
+  function fakeCodex(stdouts: string[]) {
+    const calls: Array<{ root: string; prompt: string; images: string[]; stdoutPath: string }> = [];
+    const runCodex = (args: { root: string; prompt: string; images: string[]; stdoutPath: string }) => {
+      calls.push({
+        root: args.root,
+        prompt: args.prompt,
+        images: [...args.images],
+        stdoutPath: args.stdoutPath
+      });
+      const next = stdouts[calls.length - 1];
+      if (next === undefined) throw new Error(`unexpected codex call ${calls.length}`);
+      writeFileSync(args.stdoutPath, next, "utf8");
+    };
+    return { calls, runCodex };
+  }
+
+  it("C1 retry hands attempt-2 prompt and the given root to runCodex", async () => {
+    const fixture = prepareLive();
+    const cliRoot = join(fixture.qaDir, "cli-root");
+    const { calls, runCodex } = fakeCodex([
+      liveCarouselStdout({ observe: "none" }),
+      liveCarouselStdout({ observe: "complete" })
+    ]);
+    await runCarouselLiveCli({
+      root: cliRoot,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      slides: fixture.slides,
+      topic: fixture.sidecar.topic,
+      runId: "c1",
+      runCodex
+    });
+    expect(calls).toHaveLength(2);
+    expect(calls[1]?.prompt).toBe(
+      carouselJudgePromptForAttempt({
+        basePrompt: fixture.basePrompt,
+        attempt: 2,
+        slideCount: fixture.slides.length
+      })
+    );
+    expect(calls[1]?.root).toBe(cliRoot);
+  });
+
+  it("C2 runCodex writes args.stdoutPath and the retry PASS sticks", async () => {
+    const fixture = prepareLive();
+    const { runCodex } = fakeCodex([
+      liveCarouselStdout({ observe: "none" }),
+      liveCarouselStdout({ observe: "complete" })
+    ]);
+    const { record } = await runCarouselLiveCli({
+      root: fixture.qaDir,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      slides: fixture.slides,
+      topic: fixture.sidecar.topic,
+      runId: "c2",
+      runCodex
+    });
+    expect(record.verdict).toBe("PASS");
+    expect(record.judge_attempt).toBe(2);
+  });
+
+  it("C3 runCodex images are the canary copies in qaDir", async () => {
+    const fixture = prepareLive();
+    const { calls, runCodex } = fakeCodex([liveCarouselStdout({ observe: "complete" })]);
+    await runCarouselLiveCli({
+      root: fixture.qaDir,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      slides: fixture.slides,
+      topic: fixture.sidecar.topic,
+      runId: "c3",
+      runCodex
+    });
+    expect(calls[0]?.images).toEqual(fixture.slides.map((slide) => join(fixture.qaDir, slide.name)));
+  });
+
+  it("C4 stdoutFile replay does not call runCodex", async () => {
+    const fixture = prepareLive();
+    const stdout = liveCarouselStdout({ observe: "complete" });
+    const stdoutFile = join(fixture.qaDir, "supplied-judge-stdout.txt");
+    writeFileSync(stdoutFile, stdout, "utf8");
+    let calls = 0;
+    const { record } = await runCarouselLiveCli({
+      root: fixture.qaDir,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      slides: fixture.slides,
+      topic: fixture.sidecar.topic,
+      runId: "c4",
+      stdoutFile,
+      runCodex: () => {
+        calls += 1;
+      }
+    });
+    expect(calls).toBe(0);
+    expect(record.judge_attempt).toBe(1);
+  });
+
+  it("C5 judge-prompt.txt is the base prompt and prompt_hash matches that file", async () => {
+    const fixture = prepareLive();
+    const { runCodex } = fakeCodex([liveCarouselStdout({ observe: "complete" })]);
+    const { record } = await runCarouselLiveCli({
+      root: fixture.qaDir,
+      qaDir: fixture.qaDir,
+      sidecar: fixture.sidecar,
+      slides: fixture.slides,
+      topic: fixture.sidecar.topic,
+      runId: "c5",
+      runCodex
+    });
+    const written = readFileSync(join(fixture.qaDir, "judge-prompt.txt"), "utf8");
+    expect(written).toBe(fixture.basePrompt);
+    expect(record.prompt_hash).toBe(hashText(written));
   });
 });
 

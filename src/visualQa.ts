@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 import { readJsonFile, writeJsonAtomic } from "./logging";
-import { padSlot, projectRoot, rejectedConceptsPath, relativeCarouselAssetPath } from "./paths";
+import { padSlot, projectRoot, rejectedConceptsPath, relativeCarouselAssetPath, toRepoRelativePath } from "./paths";
 
 export const VISUAL_QA_AXES = [
   "OBJECT_IDENTITY",
@@ -768,12 +768,16 @@ export async function evaluateFromDisk(input: {
   promptHash: string;
   runId: string;
   stillsMissing?: string[];
+  root?: string;
 }): Promise<VisualQaRecord> {
   const onDisk = await hashPngsInDir(input.qaDir);
   const expectedCanaries: Record<string, string> = {};
   input.sidecar.frames.forEach((frame, index) => {
     expectedCanaries[`IMAGE_${index + 1}`] = frame.canary;
   });
+  // sha256File needs the real (often absolute) path; the record field is
+  // repo-relative -- these records are tracked (docs/assets or
+  // data/visual-qa-fixtures) in a public repo.
   const reelSha256 = await sha256File(input.reelPath);
   const record = evaluateJudgeStdout({
     stdout: input.stdout,
@@ -782,7 +786,7 @@ export async function evaluateFromDisk(input: {
     reelSha256,
     promptHash: input.promptHash,
     runId: input.runId,
-    reel: input.reelPath,
+    reel: toRepoRelativePath(input.root ?? projectRoot(), input.reelPath),
     frames: input.sidecar.frames,
     stillsMissing: input.stillsMissing
   });
@@ -1552,20 +1556,26 @@ export async function burnCarouselCanaries(input: {
   sources: string[];
   qaDir: string;
   canaries?: string[];
+  root?: string;
 }): Promise<CarouselSlideRecord[]> {
   await mkdir(input.qaDir, { recursive: true });
   const font = ffmpegFontfile();
+  const root = input.root ?? projectRoot();
   const slides: CarouselSlideRecord[] = [];
   for (const [index, source] of input.sources.entries()) {
     const canary = input.canaries?.[index] ?? randomCanary();
     const name = `slide-${String(index + 1).padStart(2, "0")}.png`;
     const dest = join(input.qaDir, name);
     const draw = `drawtext=fontfile='${font}':text='${canary}':x=16:y=h-56:fontsize=36:fontcolor=yellow:box=1:boxcolor=black@0.88:boxborderw=8`;
+    // `source` stays the real (often absolute) path for ffmpeg -i to open.
+    // What gets stored on the record is repo-relative: these records are
+    // written into docs/assets/**/*.visual-qa.json, which GitHub Pages
+    // publishes, and this repo is public.
     await execFileAsync("ffmpeg", ["-v", "error", "-y", "-i", source, "-vf", draw, dest]);
     slides.push({
       name,
       slide: index + 1,
-      source,
+      source: toRepoRelativePath(root, source),
       canary,
       sha256: await sha256File(dest)
     });

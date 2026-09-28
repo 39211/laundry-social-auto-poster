@@ -452,6 +452,10 @@ foreach ($day in $windowDays) {
     foreach ($halfName in @("noon", "evening")) {
         $half = $day.$halfName
         if ($null -eq $half) { continue }
+        # A paused half is not scheduled (see the "paused by plan" guard in
+        # the scheduling loop below), so treating its missing 15s as a gap
+        # burns a production run on an asset nothing will ever publish.
+        if ($half.paused -eq $true) { continue }
         if ($half.variant -ne "15s") { continue }
         $asset = Get-ReelAssetPath $half.conceptId "15s"
         if (Test-ConceptRejected $half.conceptId) {

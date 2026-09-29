@@ -140,6 +140,23 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - Holiday hours are managed as owner-approved overrides; no specific holiday date is emitted until it is explicitly verified.
 
 ## Published Posts
+- [2026-09-30 20:30 白鞋交界黃了，先分是哪一種黃](https://sixiangjialaundry.com/posts/2026-09-30-slot-02.html)
+  platform targets: facebook, instagram
+  routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=trust-proof
+  target_queries: 台中洗包包 | 西屯洗包包 | 台中洗包 | 包包提把清潔 | 包包發霉怎麼辦 | 皮革包包清潔
+  evidence_type: real-case-photo
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #白鞋清潔 #台中洗鞋 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-09-30/slot-02.png
+  video: https://sixiangjialaundry.com/assets/2026-09-30/slot-02.mp4
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-30.json
+- [2026-09-30 11:30 西屯／東海洗鞋：網布發黃先看中底交界](https://sixiangjialaundry.com/posts/2026-09-30-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中洗鞋 | 西屯洗鞋 | 逢甲洗鞋 | 台中洗鞋店 | 台中白鞋清潔 | 球鞋清洗台中
+  evidence_type: first-party-inspection
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #白鞋清潔 #台中洗鞋 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-09-30/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-30.json
 - [2026-09-29 20:30 名牌包發霉,先別自己硬擦](https://sixiangjialaundry.com/posts/2026-09-29-slot-02.html)
   platform targets: facebook, instagram
   routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=trust-proof

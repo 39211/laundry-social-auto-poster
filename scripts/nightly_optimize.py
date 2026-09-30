@@ -365,15 +365,10 @@ for path, label, need in (
             f"續寫到至少 {(TODAY + timedelta(days=need)).isoformat()};排到期末生產線會安靜空轉(ERROR-BOOK F3)")
 
 
-# --- 3. The shop's main line must actually appear ----------------------------
+# --- 3. (retired 2026-10-01) the "every day needs a shoe topic" coverage check ----
+# The owner dropped that rule on 2026-10-01 ("那時候主打鞋子,現在不用了"). The check read the old
+# data/slot1-plan.json table and reported HIGH every night. `plan` is still needed by check 4.
 plan = load("data/slot1-plan.json", {})
-window = [(TODAY + timedelta(days=i)).isoformat() for i in range(1, 8)]
-shoe = re.compile(r"鞋|靴|勃肯|拖鞋")
-hit = [d for d in window if d in plan and shoe.search(plan[d])]
-if len(hit) < 4:
-    add("HIGH", "主力覆蓋", f"未來 7 天只有 {len(hit)} 天有鞋主題",
-        f"命中 {hit}",
-        "老闆明講小月鞋量掉、要每天有鞋。改 data/slot1-plan.json 補足")
 
 
 # --- 4. Repetition is invisible until the audience feels it ------------------
@@ -574,7 +569,7 @@ with open(f"output/nightly-optimize/{ds}.json", "w", encoding="utf-8") as fh:
 
 lines = [f"# 每晚自檢 {ds}", "", f"發現 {len(findings)} 項(HIGH {report['high']})", ""]
 if not findings:
-    lines.append("八項檢查全過。明日備妥、計畫殘量、主力覆蓋、重複、轉單要素、自我迭代、排程、索引。")
+    lines.append("七項檢查全過。明日備妥、計畫殘量、重複、轉單要素、自我迭代、排程、索引。")
 for f in findings:
     lines += [
         f"## [{f['severity']}] {f['area']}:{f['what']}",

@@ -97,6 +97,10 @@ function Get-CloudOwnedIgPairs($Pairs, [string]$Date, [string]$RootPath) {
     })
 }
 
+function Test-IgCloudSyncAvailable([string]$Root) {
+    return (Test-Path -LiteralPath (Join-Path $Root "src\igCloud.ts"))
+}
+
 # R4: Owner-facing notices name both the slot and the platform.
 function Format-PublishPairs($Pairs) {
     $labels = @(foreach ($pair in @($Pairs)) {
@@ -140,14 +144,18 @@ $missing = @(Get-MissingDuePairs $due $posted | Where-Object { $uncertain -notco
 # R4: Sync once for any cloud-owned IG gap, then read back before deciding.
 $cloudMissing = @(Get-CloudOwnedIgPairs $missing $d $RootPath)
 if ($cloudMissing.Count -gt 0) {
-    Write-Log ("IG cloud sync before gap decision: " + ($cloudMissing -join ","))
-    try {
-        & npx.cmd tsx src/igCloud.ts --sync --date $d *>> $logFile
-        if ($LASTEXITCODE -ne 0) {
-            Write-Log ("IG cloud sync failed (exit {0})" -f $LASTEXITCODE)
+    if (Test-IgCloudSyncAvailable $RootPath) {
+        Write-Log ("IG cloud sync before gap decision: " + ($cloudMissing -join ","))
+        try {
+            & npx.cmd tsx src/igCloud.ts --sync --date $d *>> $logFile
+            if ($LASTEXITCODE -ne 0) {
+                Write-Log ("IG cloud sync failed (exit {0})" -f $LASTEXITCODE)
+            }
+        } catch {
+            Write-Log ("IG cloud sync failed: " + $_.Exception.Message)
         }
-    } catch {
-        Write-Log ("IG cloud sync failed: " + $_.Exception.Message)
+    } else {
+        Write-Log "IG cloud sync skipped: src\igCloud.ts not present (ig-cloud not installed on this branch)"
     }
     if (Test-Path -LiteralPath $logPath) {
         try {

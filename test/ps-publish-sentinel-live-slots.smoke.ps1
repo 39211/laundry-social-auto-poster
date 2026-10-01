@@ -38,7 +38,7 @@ function Get-ProdFunction([string]$Name) {
     return $null
 }
 
-$names = @("Get-DueSlots", "Test-LivePostedEntry", "Get-LivePostedSlots", "Get-MissingDueSlots", "Get-LivePostedPairs", "Get-MissingDuePairs", "Get-UncertainPairs", "Format-PublishPairs")
+$names = @("Get-DueSlots", "Test-LivePostedEntry", "Get-LivePostedSlots", "Get-MissingDueSlots", "Get-LivePostedPairs", "Get-MissingDuePairs", "Get-UncertainPairs", "Format-PublishPairs", "Test-IgCloudSyncAvailable")
 foreach ($name in $names) {
     $fn = Get-ProdFunction $name
     if (-not $fn) {
@@ -205,6 +205,25 @@ Assert-Pairs -Name "uncertain-empty" -Got $noUncertainPairs -Expect ""
 $pairNotice = Format-PublishPairs @("1:instagram", "3:facebook")
 Assert-Pairs -Name "notice-platform-labels" -Got $pairNotice -Expect "slot 1 的 IG、slot 3 的 FB"
 
+# SENTINEL-R2: A branch without ig-cloud must skip sync; installing it enables sync.
+$syncRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("publish-sentinel-ig-cloud-" + [guid]::NewGuid().ToString("N"))
+$syncSourceDir = Join-Path $syncRoot "src"
+$syncScript = Join-Path $syncSourceDir "igCloud.ts"
+try {
+    [void][System.IO.Directory]::CreateDirectory($syncRoot)
+    $syncWithoutFile = Test-IgCloudSyncAvailable $syncRoot
+    Assert-Bool -Name "ig-cloud-sync-missing-script" -Got $syncWithoutFile -Expect $false
+
+    [void][System.IO.Directory]::CreateDirectory($syncSourceDir)
+    [System.IO.File]::WriteAllText($syncScript, "// smoke fixture")
+    $syncWithFile = Test-IgCloudSyncAvailable $syncRoot
+    Assert-Bool -Name "ig-cloud-sync-present-script" -Got $syncWithFile -Expect $true
+} finally {
+    foreach ($path in @($syncScript, $syncSourceDir, $syncRoot)) {
+        if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
+    }
+}
+
 if ($failed) {
     Write-Output "SMOKE_FAIL"
     Write-Output '{"ok":false}'
@@ -232,5 +251,7 @@ Write-Output "SMOKE_OK"
     uncertain_normalized_pairs = ($uncertainNormalizedPairs -join ",")
     no_uncertain_pairs = ($noUncertainPairs -join ",")
     pair_notice = $pairNotice
+    ig_cloud_sync_missing = $syncWithoutFile
+    ig_cloud_sync_present = $syncWithFile
 } | ConvertTo-Json -Compress
 exit 0

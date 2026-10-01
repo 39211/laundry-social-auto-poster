@@ -112,6 +112,19 @@ describe("publish-sentinel F19 live-post predicate", () => {
     expect(main.match(/IG 由雲端發,還沒有結果。/gu)).toHaveLength(2);
   });
 
+  // SENTINEL-R2: The availability guard must precede the sync command in the main flow.
+  it("checks that ig-cloud is installed before attempting cloud sync", async () => {
+    const source = await readFile(PROD_SCRIPT, "utf8");
+    const main = source.slice(source.indexOf("\nSet-Location "));
+    const guard = main.indexOf("if (Test-IgCloudSyncAvailable $RootPath)");
+    const sync = main.indexOf("& npx.cmd tsx src/igCloud.ts --sync --date $d *>> $logFile");
+    expect(guard).toBeGreaterThanOrEqual(0);
+    expect(sync).toBeGreaterThan(guard);
+    expect(main).toContain(
+      'Write-Log "IG cloud sync skipped: src\\igCloud.ts not present (ig-cloud not installed on this branch)"'
+    );
+  });
+
   // R6: PowerShell 5.1 must decode both scripts as UTF-8.
   it("keeps UTF-8 BOM on the production and smoke scripts", async () => {
     for (const script of [PROD_SCRIPT, SMOKE_SCRIPT]) {
@@ -162,7 +175,9 @@ describe("publish-sentinel F19 live-post predicate", () => {
         uncertain_pairs: "1:instagram",
         uncertain_normalized_pairs: "1:facebook,3:instagram",
         no_uncertain_pairs: "",
-        pair_notice: "slot 1 的 IG、slot 3 的 FB"
+        pair_notice: "slot 1 的 IG、slot 3 的 FB",
+        ig_cloud_sync_missing: false,
+        ig_cloud_sync_present: true
       });
     },
     30000

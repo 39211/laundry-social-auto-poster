@@ -305,6 +305,14 @@ $refIntro$($item.prompt)
         exit 1
     }
 
+    $guardOut = cmd /c "npm.cmd run media-guard -- --date $Date --slot $($item.slot) --operation ""copy generated image"" 2>&1"
+    $guardExit = $LASTEXITCODE
+    foreach ($guardLine in $guardOut) { Write-Step "$guardLine" }
+    if ($guardExit -ne 0) {
+        Write-Step "MEDIA_GUARD| skipped slot $($item.slot) slide $($item.slide); image was not copied."
+        continue
+    }
+
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
     Copy-Item $image.FullName $target -Force
     $saved = Test-PortraitFourFive $target

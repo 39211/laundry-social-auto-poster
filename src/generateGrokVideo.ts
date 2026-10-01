@@ -5,6 +5,7 @@ import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { writeVideoPromptManifest, type VideoPromptManifestItem } from "./generateVideo";
 import { loadVideoSources, readJsonFile, writeJsonAtomic, writeVideoSources } from "./logging";
+import { assertSlotMediaMutable, type SlotMediaOverride } from "./mediaMutationGuard";
 import { projectRoot, videoPromptManifestPath } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 import type { VideoSourceRecord } from "./types";
@@ -137,6 +138,7 @@ async function generateOne(
   root: string,
   apiKey: string,
   force: boolean,
+  mediaGuardOverride: SlotMediaOverride | undefined,
   fetchImpl: typeof fetch,
   sleep: (delayMs: number) => Promise<void>
 ): Promise<VideoSourceRecord> {
@@ -151,6 +153,14 @@ async function generateOne(
 
   await mkdir(dirname(finalPath), { recursive: true });
   if ((await exists(finalPath)) && force) {
+    // R2: --force may back up an existing Reel only after the shared slot guard.
+    await assertSlotMediaMutable({
+      root,
+      date: item.date,
+      slot: item.slot,
+      operation: "replace reel video (generate-grok-videos --force)",
+      override: mediaGuardOverride
+    });
     await rename(finalPath, finalPath.replace(/\.mp4$/, `.backup-${Date.now()}.mp4`));
   }
 
@@ -234,6 +244,7 @@ export async function generateGrokVideos(options: {
   root?: string;
   live?: boolean;
   force?: boolean;
+  mediaGuardOverride?: SlotMediaOverride;
   env?: NodeJS.ProcessEnv;
   fetchImpl?: typeof fetch;
   sleep?: (delayMs: number) => Promise<void>;
@@ -266,6 +277,7 @@ export async function generateGrokVideos(options: {
         root,
         apiKey,
         options.force ?? false,
+        options.mediaGuardOverride,
         options.fetchImpl ?? fetch,
         options.sleep ?? ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)))
       )
@@ -279,6 +291,7 @@ async function main(): Promise<void> {
   const config = getConfig();
   const date = getOption(args, "date") || getZonedDateParts(new Date(), config.timezone).date;
   const root = projectRoot(getOption(args, "root"));
+  const mediaGuardOverride = parseMediaGuardOverride(args);
   const manifestPath = await writeVideoPromptManifest(date, root);
 
   if (!getFlag(args, "live")) {
@@ -293,9 +306,19 @@ async function main(): Promise<void> {
     slot: getNumberOption(args, "slot"),
     root,
     live: true,
-    force: getFlag(args, "force")
+    force: getFlag(args, "force"),
+    mediaGuardOverride
   });
   console.log(JSON.stringify(records, null, 2));
+}
+
+function parseMediaGuardOverride(args: string[]): SlotMediaOverride | undefined {
+  const reason = getFlag(args, "force-regen-scheduled")
+    ? getOption(args, "reason")?.trim()
+    : process.env.MEDIA_GUARD_OVERRIDE_REASON?.trim();
+  if (!reason) return undefined;
+  const actor = process.env.USERNAME?.trim() || "unknown";
+  return { reason, actor };
 }
 
 if (isMain(import.meta.url)) {

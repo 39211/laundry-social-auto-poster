@@ -10,6 +10,7 @@ import {
 import { generateDailyContent } from "./generateDailyContent";
 import { PUBLISHABLE_IMAGE_SOURCES, isPublishableImageSource } from "./imageSources";
 import { loadApprovedImageDigests, sha256 } from "./imageStamp";
+import { assertSlotMediaMutable, findSlotLocks, type SlotMediaOverride } from "./mediaMutationGuard";
 import {
   loadApprovalLog,
   loadDailyContent,
@@ -138,6 +139,7 @@ export interface InvalidateSlotOptions {
   root: string;
   previous: DailySlot;
   next: DailySlot;
+  mediaGuardOverride?: SlotMediaOverride;
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -208,7 +210,12 @@ async function loadDayLockSlot1Topic(date: string, root: string): Promise<string
   return typeof lock?.slot1?.topic === "string" ? lock.slot1.topic : undefined;
 }
 
-async function slotMoveBlockReason(date: string, root: string, slot: DailySlot): Promise<string | undefined> {
+export async function slotMoveBlockReason(
+  date: string,
+  root: string,
+  slot: DailySlot,
+  mediaGuardOverride?: SlotMediaOverride
+): Promise<string | undefined> {
   const posts = await loadPostLog(date, root);
   if (posts.some((entry) => entry.slot === slot.slot && (entry.status === "posted" || entry.status === "success" || entry.status === "uncertain"))) {
     return "posted-log";
@@ -226,6 +233,21 @@ async function slotMoveBlockReason(date: string, root: string, slot: DailySlot):
     if (lockedTopic !== undefined && !topicsShareIdentity(lockedTopic, slot.topic)) {
       return "A3: day-lock topicIdentity differs from calendar";
     }
+  }
+
+  // R2: scheduled FB ownership and an IG cloud queue marker also protect the slot.
+  const locks = await findSlotLocks(root, date, slot.slot);
+  const slotLock = locks.find((lock) => lock.source === "scheduled-log" || lock.source === "ig-cloud-queue");
+  if (slotLock) {
+    const hasValidOverride = Boolean(mediaGuardOverride?.reason.trim() && mediaGuardOverride.actor.trim());
+    if (!hasValidOverride) return slotLock.source;
+    await assertSlotMediaMutable({
+      root,
+      date,
+      slot: slot.slot,
+      operation: "move stale slot image",
+      override: mediaGuardOverride
+    });
   }
   return undefined;
 }
@@ -342,7 +364,7 @@ export async function invalidateSlotImagesIfTopicChanged(
   const sources = await loadImageSources(date, root);
   refuseIfUnsafeToRegenerate(previous.topic, next, sources);
 
-  const block = await slotMoveBlockReason(date, root, next);
+  const block = await slotMoveBlockReason(date, root, next, options.mediaGuardOverride);
   if (block) {
     report.skipped.push({ slot: next.slot, reason: block });
     console.log(`A7 invalidate: slot ${next.slot} skipped (${block})`);
@@ -366,7 +388,8 @@ export async function invalidateSlotImagesIfTopicChanged(
  */
 export async function invalidateStaleImagesForDate(
   date: string,
-  root = projectRoot()
+  root = projectRoot(),
+  mediaGuardOverride?: SlotMediaOverride
 ): Promise<InvalidateReport> {
   const content = await loadDailyContent(date, root);
   if (!content) throw new Error(`No content calendar found for ${date}`);
@@ -381,7 +404,7 @@ export async function invalidateStaleImagesForDate(
 
     refuseIfUnsafeToRegenerate(stampedTopic, slot, sources);
 
-    const block = await slotMoveBlockReason(date, root, slot);
+    const block = await slotMoveBlockReason(date, root, slot, mediaGuardOverride);
     if (block) {
       report.skipped.push({ slot: slot.slot, reason: block });
       console.log(`A7 invalidate: slot ${slot.slot} skipped (${block})`);
@@ -448,11 +471,15 @@ export function summarizeMissingImages(date: string, missing: MissingCalendarIma
   return `${missing.length} calendar image(s) missing for ${date}.`;
 }
 
-export async function writeImagePromptManifest(date: string, root = projectRoot()): Promise<string> {
+export async function writeImagePromptManifest(
+  date: string,
+  root = projectRoot(),
+  mediaGuardOverride?: SlotMediaOverride
+): Promise<string> {
   await generateDailyContent({ date, root });
   // Inserted between calendar-ensure and the rebuild so 06:30's
   // generate-image-manifest + generate-missing-images pair actually sees holes.
-  await invalidateStaleImagesForDate(date, root);
+  await invalidateStaleImagesForDate(date, root, mediaGuardOverride);
   const content = await loadDailyContent(date, root);
   if (!content) throw new Error(`No content calendar found for ${date}`);
 
@@ -521,9 +548,10 @@ async function main(): Promise<void> {
   const config = getConfig();
   const date = getOption(args, "date") || getZonedDateParts(new Date(), config.timezone).date;
   const root = projectRoot(getOption(args, "root"));
+  const mediaGuardOverride = parseMediaGuardOverride(args);
 
   if (getFlag(args, "invalidate")) {
-    const report = await invalidateStaleImagesForDate(date, root);
+    const report = await invalidateStaleImagesForDate(date, root, mediaGuardOverride);
     console.log(JSON.stringify(report, null, 2));
     return;
   }
@@ -550,8 +578,17 @@ async function main(): Promise<void> {
     return;
   }
 
-  const output = await writeImagePromptManifest(date, root);
+  const output = await writeImagePromptManifest(date, root, mediaGuardOverride);
   console.log(`Image prompt manifest ready: ${output}`);
+}
+
+function parseMediaGuardOverride(args: string[]): SlotMediaOverride | undefined {
+  const reason = getFlag(args, "force-regen-scheduled")
+    ? getOption(args, "reason")?.trim()
+    : process.env.MEDIA_GUARD_OVERRIDE_REASON?.trim();
+  if (!reason) return undefined;
+  const actor = process.env.USERNAME?.trim() || "unknown";
+  return { reason, actor };
 }
 
 if (isMain(import.meta.url)) {

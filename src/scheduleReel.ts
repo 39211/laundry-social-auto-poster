@@ -15,6 +15,7 @@ import {
 } from "./generateImage";
 import { buildGitHubPagesImageUrl, buildGitHubPagesVideoUrl } from "./githubPages";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
+import { assertSlotMediaMutable, findSlotLocks, type SlotMediaOverride } from "./mediaMutationGuard";
 import {
   hasPublishableApproval,
   loadApprovalLog,
@@ -457,6 +458,7 @@ export async function scheduleReel(input: {
   variant?: AbVariant;
   /** Replace an approved or already-published non-Reel slot anyway. */
   force?: boolean;
+  mediaGuardOverride?: SlotMediaOverride;
 }): Promise<void> {
   const root = projectRoot(input.root);
   const config = getConfig();
@@ -468,6 +470,14 @@ export async function scheduleReel(input: {
   if (!concept) throw new Error(`Unknown concept: ${input.conceptId}`);
 
   const slotNumber = input.slot ?? 2;
+  // R2: schedule-reel's existing --force cannot bypass the media lock.
+  await assertSlotMediaMutable({
+    root,
+    date: input.date,
+    slot: slotNumber,
+    operation: "schedule reel",
+    override: input.mediaGuardOverride
+  });
   const variant: AbVariant = input.variant ?? "10s";
   const reelSource = join(root, RUN_DIR, "reels", reelAssetName(concept.id, variant));
   const sidecarSource = `${reelSource}.audio.json`;
@@ -931,6 +941,7 @@ export async function healOneSlot(input: {
   conceptId: string;
   variant: AbVariant;
   root: string;
+  mediaGuardOverride?: SlotMediaOverride;
 }): Promise<HealSlotResult> {
   const rejected = await loadRejectedConcepts(input.root);
   if (isConceptRejected(rejected, input.conceptId)) {
@@ -978,12 +989,19 @@ export async function healOneSlot(input: {
       carousel_items: undefined
     };
     try {
-      invalidate = await invalidateSlotImagesIfTopicChanged({
-        date: input.date,
-        root: input.root,
-        previous: outgoing,
-        next
-      });
+      const locks = await findSlotLocks(input.root, input.date, input.slotNumber);
+      const hasValidOverride = Boolean(
+        input.mediaGuardOverride?.reason.trim() && input.mediaGuardOverride.actor.trim()
+      );
+      // A locked override is audited once by scheduleReel immediately before its media write.
+      if (locks.length === 0 || !hasValidOverride) {
+        invalidate = await invalidateSlotImagesIfTopicChanged({
+          date: input.date,
+          root: input.root,
+          previous: outgoing,
+          next
+        });
+      }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       const isA1 =
@@ -996,9 +1014,11 @@ export async function healOneSlot(input: {
         refused: [{ slot: input.slotNumber, reason: stopReason }]
       });
     }
-    const stopReason = healStopReasonFromReport(invalidate, input.slotNumber);
-    if (stopReason) {
-      return healStopped(input, stopReason, invalidate);
+    if (invalidate) {
+      const stopReason = healStopReasonFromReport(invalidate, input.slotNumber);
+      if (stopReason) {
+        return healStopped(input, stopReason, invalidate);
+      }
     }
   }
   await scheduleReel({
@@ -1006,7 +1026,8 @@ export async function healOneSlot(input: {
     conceptId: input.conceptId,
     slot: input.slotNumber,
     variant: input.variant,
-    root: input.root
+    root: input.root,
+    mediaGuardOverride: input.mediaGuardOverride
   });
   console.log(`${input.date}: healed slot ${input.slotNumber} back to ${input.conceptId} (${input.variant}).`);
   return { date: input.date, slotNumber: input.slotNumber, action: "healed", invalidate };
@@ -1014,6 +1035,7 @@ export async function healOneSlot(input: {
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  const mediaGuardOverride = parseMediaGuardOverride(args);
   // Data-authored extension concepts join the schedule before any decision
   // reads it, so healing and scheduling see the same world as production.
   loadExtensions(projectRoot(getOption(args, "root")));
@@ -1021,7 +1043,13 @@ async function main(): Promise<void> {
   if (getFlag(args, "plan")) {
     for (const entry of REEL_SCHEDULE) {
       // The legacy plan is the single evening Reel; say so instead of relying on a default.
-      await scheduleReel({ date: entry.date, conceptId: entry.conceptId, slot: 2, root: getOption(args, "root") });
+      await scheduleReel({
+        date: entry.date,
+        conceptId: entry.conceptId,
+        slot: 2,
+        root: getOption(args, "root"),
+        mediaGuardOverride
+      });
     }
     return;
   }
@@ -1064,7 +1092,8 @@ async function main(): Promise<void> {
           slotNumber,
           conceptId: half.conceptId,
           variant: half.variant,
-          root
+          root,
+          mediaGuardOverride
         });
       }
       return;
@@ -1080,13 +1109,23 @@ async function main(): Promise<void> {
       slotNumber: 2,
       conceptId: entry.conceptId,
       variant: "10s",
-      root
+      root,
+      mediaGuardOverride
     });
     return;
   }
 
   const { date, conceptId, slot, variant, force } = parseScheduleCliArgs(args);
-  await scheduleReel({ date, conceptId, slot, variant, force, root: getOption(args, "root") });
+  await scheduleReel({ date, conceptId, slot, variant, force, root: getOption(args, "root"), mediaGuardOverride });
+}
+
+function parseMediaGuardOverride(args: string[]): SlotMediaOverride | undefined {
+  const reason = getFlag(args, "force-regen-scheduled")
+    ? getOption(args, "reason")?.trim()
+    : process.env.MEDIA_GUARD_OVERRIDE_REASON?.trim();
+  if (!reason) return undefined;
+  const actor = process.env.USERNAME?.trim() || "unknown";
+  return { reason, actor };
 }
 
 if (isMain(import.meta.url)) {

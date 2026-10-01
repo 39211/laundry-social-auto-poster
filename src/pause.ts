@@ -112,6 +112,19 @@ async function main(): Promise<void> {
   };
   await writeFile(pausePath(root), JSON.stringify(state, null, 2), "utf8");
   console.log(`Paused. Nothing will be approved or published until you run: npm run pause -- --clear`);
+
+  // Instagram may be published from the cloud (src/igCloud.ts), which never
+  // sees this file. The brake has to reach it too: switch the cloud off and
+  // hand every future slot back to this PC. The local pause above already
+  // holds whatever happens here.
+  try {
+    const { stopIgCloudForPause } = await import("./igCloud");
+    console.log(await stopIgCloudForPause(root));
+  } catch (error) {
+    console.warn(
+      `⚠ 雲端 IG 沒能自動關閉:${error instanceof Error ? error.message : String(error)}。請到 GitHub 把 CLOUD_MODE 改成 off。`
+    );
+  }
 }
 
 if (isMain(import.meta.url)) {

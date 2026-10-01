@@ -205,6 +205,8 @@ export interface PostLogEntry {
   ab_variant?: "10s" | "15s";
   post_id?: string;
   error?: string;
+  /** Informational, for run output only (e.g. why Instagram was left to the cloud). */
+  note?: string;
   created_at: string;
 }
 

@@ -23,6 +23,25 @@ function Write-Log([string]$message) {
         Out-File -FilePath $logFile -Append -Encoding utf8
 }
 
+# R2: Pure row classification; uncertain rows never count as confirmed.
+function Get-ScheduledRowSummary($Rows) {
+    $confirmed = 0
+    $uncertainRows = @()
+    foreach ($row in @($Rows)) {
+        if ($null -eq $row) { continue }
+        if ($row.status -eq "uncertain") {
+            $uncertainRows += $row
+        } elseif (-not [string]::IsNullOrWhiteSpace([string]$row.scheduled_post_id)) {
+            $confirmed++
+        }
+    }
+    return [pscustomobject]@{
+        Confirmed = $confirmed
+        Uncertain = $uncertainRows.Count
+        UncertainRows = @($uncertainRows)
+    }
+}
+
 function Show-Toast([string]$text) {
     try {
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
@@ -101,13 +120,31 @@ foreach ($offset in 1..3) {
         continue
     }
 
+    # R1: Save the native exit code immediately, before logging or other dates.
     $out = cmd /c "npm.cmd run schedule-ahead -- --date $date --live 2>&1"
+    $scheduleExitCode = $LASTEXITCODE
     $out | Out-File -FilePath $logFile -Append -Encoding utf8
+    if ($scheduleExitCode -ne 0) {
+        Write-Log "SCHEDULE-AHEAD EXIT $scheduleExitCode ${date}"
+        $problems += "$date schedule-ahead-exit-$scheduleExitCode"
+        @($out) | Select-Object -Last 5 | ForEach-Object { Write-Log ([string]$_) }
+    }
     $scheduledLog = Join-Path $root "data\scheduled-log\$date.json"
     if (Test-Path -LiteralPath $scheduledLog) {
         try {
             $rows = [IO.File]::ReadAllText($scheduledLog, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
-            $queued += "{0}x{1}" -f $date, @($rows).Count
+            # R3: Count only confirmed rows and keep operator action visible.
+            $summary = Get-ScheduledRowSummary $rows
+            $queued += "{0}x{1}" -f $date, $summary.Confirmed
+            if ($summary.Uncertain -gt 0) {
+                $problems += "$date uncertain-$($summary.Uncertain)"
+                foreach ($row in @($summary.UncertainRows)) {
+                    Write-Log "UNCERTAIN ${date} slot $($row.slot) $($row.platform): $($row.error) -- check the Page; if the post is NOT queued there, delete this row from data\scheduled-log\$date.json and rerun"
+                }
+            }
+            if ($summary.Confirmed -eq 0) {
+                Write-Log "NOTE ${date}: scheduled-log exists but nothing confirmed"
+            }
         } catch {
             $queued += "$date(?)"
         }

@@ -1177,7 +1177,7 @@ describe("schedule-ahead hands Instagram to a live cloud", () => {
       headers: { "content-type": "application/json" }
     })) as typeof fetch;
 
-  async function snapshotWithUnconfirmedSchedule(status?: "uncertain") {
+  async function snapshotWithUnconfirmedSchedule(status?: "uncertain", scheduledPostId = "") {
     const root = await mkdtemp(join(tmpdir(), "ig-cloud-unconfirmed-"));
     await writeTwoSlotDay(root);
     await installCloud(root);
@@ -1189,7 +1189,7 @@ describe("schedule-ahead hands Instagram to a live cloud", () => {
           date: DATE,
           slot: 1,
           platform: "facebook",
-          scheduled_post_id: "",
+          scheduled_post_id: scheduledPostId,
           scheduled_publish_time: Math.floor(Date.parse("2026-09-21T11:30:00+08:00") / 1000),
           published_media_type: "image",
           created_at: "2026-09-20T00:00:00.000Z",
@@ -1208,7 +1208,7 @@ describe("schedule-ahead hands Instagram to a live cloud", () => {
       igCloud: { gh, fetchImpl: media },
       now: new Date("2026-09-20T09:00:00+08:00")
     });
-    return { lines, state, calls };
+    return { root, lines, state, calls };
   }
 
   it("queues Facebook, then pushes the same version for Instagram", async () => {
@@ -1258,6 +1258,20 @@ describe("schedule-ahead hands Instagram to a live cloud", () => {
     expect(result.lines).toEqual([expect.stringContaining("unconfirmed")]);
     expect(result.calls).toHaveLength(0);
     expect(result.state.files.size).toBe(0);
+  });
+
+  it("keeps an uncertain Facebook row with a scheduled id local, while an unmarked id is handed to the cloud", async () => {
+    const uncertain = await snapshotWithUnconfirmedSchedule("uncertain", "fb-9");
+    expect(uncertain.lines).toEqual([expect.stringContaining("Facebook schedule unconfirmed")]);
+    expect(uncertain.calls).toHaveLength(0);
+    expect(uncertain.state.files.size).toBe(0);
+    expect(await readIgCloudMarker(uncertain.root, DATE, 1)).toBeUndefined();
+
+    const confirmed = await snapshotWithUnconfirmedSchedule(undefined, "fb-9");
+    expect(confirmed.lines).toEqual([expect.stringContaining("cloud owns Instagram")]);
+    expect(confirmed.calls.some((args) => args.includes("-X") && args[args.indexOf("-X") + 1] === "PUT")).toBe(true);
+    expect(confirmed.state.files.has(`queue/${DATE}-slot1.json`)).toBe(true);
+    expect(await readIgCloudMarker(confirmed.root, DATE, 1)).toBeDefined();
   });
 
   it("backfills a slot Facebook already published, at the given time and never before its own day", async () => {

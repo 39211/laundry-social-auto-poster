@@ -2904,6 +2904,7 @@ export function buildDailyContent(
   const root = projectRoot(options.root);
   const abPlan = options.abPlan ?? loadAbTestPlanSync(root);
   const dayPlan = planForDate(abPlan, date);
+  const noonSlotUnavailable = planSlot(dayPlan, 3) === undefined;
   const eveningPaused = Boolean(dayPlan?.evening?.paused) && planSlot(dayPlan, 2) === undefined;
   const occupiedTopics = eveningPaused
     ? recentCalendarTopics(date, TOPIC_REPEAT_WINDOW_DAYS, root)
@@ -2926,7 +2927,9 @@ export function buildDailyContent(
     console.warn(`[slot1-plan] ${date}: ${slot1Decision.fallbackReason}`);
   }
   const resolvedSlot1 = slot1Decision?.slot;
-  const slots: DailySlot[] = DAILY_SCHEDULE.map((schedule) => {
+  const slots: DailySlot[] = DAILY_SCHEDULE.filter(
+    (schedule) => !(schedule.slot === 3 && noonSlotUnavailable)
+  ).map((schedule) => {
     const playbookSlot =
       schedule.slot === 1 && resolvedSlot1
         ? resolvedSlot1

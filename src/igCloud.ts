@@ -26,7 +26,8 @@ import type { AppConfig, DailySlot, MediaType, PostLogEntry } from "./types";
 // while it is "live"; otherwise Instagram stays on this PC exactly as before.
 // Pausing the line (npm run pause) also writes PAUSED into the cloud repo, which
 // the cloud job checks at start and again right before media_publish; no slot
-// changes owner, and both sides wait until the owner clears the pause.
+// changes owner, and both sides wait until the owner clears the pause, which
+// runs the cloud job once so slots the pause held back still go out.
 
 export const IG_CLOUD_SCHEMA = "sixiangjia-ig-cloud-snapshot/1";
 
@@ -191,9 +192,10 @@ async function ghPutFile(repo: string, path: string, text: string, message: stri
   if (result.code !== 0) throw new Error(`gh api PUT ${path} failed: ${result.stderr.trim().slice(0, 200)}`);
 }
 
-async function ghDeleteFile(repo: string, path: string, message: string, gh: GhRunner): Promise<void> {
+/** Deletes a file from the repo; resolves false when it was not there. */
+async function ghDeleteFile(repo: string, path: string, message: string, gh: GhRunner): Promise<boolean> {
   const existing = await ghGetFile(repo, path, gh);
-  if (!existing) return;
+  if (!existing) return false;
   const result = await gh([
     "api",
     "-X",
@@ -207,6 +209,7 @@ async function ghDeleteFile(repo: string, path: string, message: string, gh: GhR
   if (result.code !== 0 && !isNotFound(result)) {
     throw new Error(`gh api DELETE ${path} failed: ${result.stderr.trim().slice(0, 200)}`);
   }
+  return true;
 }
 
 export async function readCloudMode(repo: string, gh: GhRunner): Promise<string | undefined> {
@@ -217,6 +220,16 @@ export async function readCloudMode(repo: string, gh: GhRunner): Promise<string 
 export interface PushOutcome {
   pushed: boolean;
   reason: string;
+}
+
+// The Taipei slot times the cloud job runs for: the cron list in the cloud
+// repo's .github/workflows/ig-publish.yml (11:27/11:50, 11:57/12:20,
+// 20:27/20:50). A snapshot at any other time is never selected there, so it
+// must stay on this PC. Change both together.
+export const IG_CLOUD_RUN_TIMES = ["11:30", "12:00", "20:30"];
+
+function taipeiClock(unixSeconds: number): string {
+  return new Date((unixSeconds + 8 * 3600) * 1000).toISOString().slice(11, 16);
 }
 
 /**
@@ -231,6 +244,13 @@ export async function pushIgCloudSnapshot(
 ): Promise<PushOutcome> {
   const settings = await loadIgCloudSettings(root);
   if (!settings) return { pushed: false, reason: "ig-cloud not installed (no data/ig-cloud.json); Instagram stays on this PC" };
+  const clock = taipeiClock(snapshot.publish_unix);
+  if (!IG_CLOUD_RUN_TIMES.includes(clock)) {
+    return {
+      pushed: false,
+      reason: `slot time ${clock} Taipei has no cloud run (${IG_CLOUD_RUN_TIMES.join(", ")}); Instagram stays on this PC`
+    };
+  }
   const gh = options.gh ?? igCloudDeps.gh;
   const mode = await readCloudMode(settings.repo, gh);
   if (mode !== "live") {
@@ -383,22 +403,65 @@ export async function pauseIgCloud(
     return `雲端 IG 也已暫停(${settings.repo} 的 PAUSED)。解除:npm run pause -- --clear`;
   } catch (error) {
     const off = await gh(["variable", "set", "CLOUD_MODE", "--body", "off", "--repo", settings.repo]);
-    return off.code === 0
-      ? `⚠ 雲端 PAUSED 推不上去(${error instanceof Error ? error.message : String(error)}),已改把 CLOUD_MODE 設成 off。解除暫停後要手動把 CLOUD_MODE 設回 live。`
-      : `⚠ 雲端 IG 沒能暫停,請到 GitHub ${settings.repo} 的 Settings > Variables 把 CLOUD_MODE 改成 off。`;
+    if (off.code !== 0) {
+      return `⚠ 雲端 IG 沒能暫停,請到 GitHub ${settings.repo} 的 Settings > Variables 把 CLOUD_MODE 改成 off。`;
+    }
+    // So that clearing the pause switches the cloud back on -- and only an off
+    // this brake set, never one the owner chose on GitHub.
+    await writeJsonAtomic(igCloudModeNotePath(root), { set_at: new Date().toISOString(), reason: state.reason });
+    return `⚠ 雲端 PAUSED 推不上去(${error instanceof Error ? error.message : String(error)}),已改把 CLOUD_MODE 設成 off;解除暫停時會自動設回 live。`;
   }
 }
 
-/** Clears the cloud side of the pause brake. */
+/** Marks that the pause brake, not the owner, switched CLOUD_MODE off. */
+export function igCloudModeNotePath(root: string): string {
+  return join(root, "data", "ig-cloud", "mode-off-by-pause.json");
+}
+
+/**
+ * Clears the cloud side of the pause brake. The cloud only runs at its cron
+ * times, so a pause that covered a slot's last run would leave that slot to
+ * nobody: when a brake was actually lifted, run the cloud job once now, and it
+ * publishes whatever is still inside its four-hour window (the same window the
+ * PC's own catch-up has).
+ */
 export async function resumeIgCloud(root: string, options: IgCloudOptions = {}): Promise<string> {
   const settings = await loadIgCloudSettings(root);
   if (!settings) return "ig-cloud not installed; nothing to resume in the cloud.";
+  const gh = options.gh ?? igCloudDeps.gh;
+  const lines: string[] = [];
+  let lifted = false;
   try {
-    await ghDeleteFile(settings.repo, "PAUSED", "resume", options.gh ?? igCloudDeps.gh);
-    return "雲端 IG 已解除暫停。";
+    lifted = await ghDeleteFile(settings.repo, "PAUSED", "resume", gh);
+    lines.push(lifted ? "雲端 IG 已解除暫停。" : "雲端沒有 PAUSED。");
   } catch (error) {
     return `⚠ 雲端的 PAUSED 沒刪掉(${error instanceof Error ? error.message : String(error)}),請到 GitHub ${settings.repo} 刪掉 PAUSED 檔。`;
   }
+  const note = igCloudModeNotePath(root);
+  if (await readJsonFile<unknown>(note, null)) {
+    const on = await gh(["variable", "set", "CLOUD_MODE", "--body", "live", "--repo", settings.repo]);
+    if (on.code === 0) {
+      await unlink(note).catch(() => undefined);
+      lines.push("暫停時關掉的 CLOUD_MODE 已設回 live。");
+      lifted = true;
+    }
+  }
+  const mode = await readCloudMode(settings.repo, gh);
+  if (mode !== "live") {
+    lines.push(
+      `⚠ 雲端 CLOUD_MODE 現在是 ${mode ?? "讀不到"},不是 live;雲端接手的格不會發。要恢復請執行:gh variable set CLOUD_MODE --body live --repo ${settings.repo}`
+    );
+    return lines.join("\n");
+  }
+  if (lifted) {
+    const run = await gh(["workflow", "run", "ig-publish", "--repo", settings.repo]);
+    lines.push(
+      run.code === 0
+        ? "已觸發一次雲端發布:暫停期間到時間、還在四小時內的格,現在會發。超過四小時的不補,和電腦原本的補發一樣。"
+        : `⚠ 沒能觸發雲端發布,請到 GitHub ${settings.repo} 的 Actions > ig-publish > Run workflow 按一次。`
+    );
+  }
+  return lines.join("\n");
 }
 
 function sha256(text: string): string {

@@ -46,6 +46,7 @@ function fakeGh(state: { mode?: string; files: Map<string, string>; failPut?: bo
       state.mode = args[args.indexOf("--body") + 1];
       return ok();
     }
+    if (args[0] === "workflow" && args[1] === "run") return ok();
     if (args[0] !== "api") return { code: 1, stdout: "", stderr: "unexpected gh call" };
     const method = args.includes("-X") ? args[args.indexOf("-X") + 1] : "GET";
     const target = args.find((arg) => arg.startsWith(`repos/${REPO}/contents/`)) ?? "";
@@ -192,6 +193,17 @@ describe("pushIgCloudSnapshot", () => {
     expect(await readIgCloudMarker(root, "2026-10-02", 2)).toEqual(snapshot);
   });
 
+  it("keeps a slot on this PC when the cloud has no run at its time", async () => {
+    await installCloud(root);
+    const state = { mode: "live", files: new Map<string, string>() };
+    const { gh, calls } = fakeGh(state);
+    const at1900 = Math.floor(Date.parse("2026-10-02T19:00:00+08:00") / 1000);
+    const outcome = await pushIgCloudSnapshot(sampleSnapshot({ publish_unix: at1900 }), root, { gh });
+    expect(outcome).toMatchObject({ pushed: false, reason: expect.stringContaining("19:00 Taipei has no cloud run") });
+    expect(calls).toEqual([]);
+    expect(await readIgCloudMarker(root, "2026-10-02", 2)).toBeUndefined();
+  });
+
   it("gives the slot back to this PC when the push provably did not land", async () => {
     await installCloud(root);
     const state = { mode: "live", files: new Map<string, string>(), failPut: true };
@@ -314,18 +326,52 @@ describe("the pause brake reaches the cloud", () => {
     expect(repo.files.has("queue/2026-10-02-slot2.json")).toBe(true);
     expect(await readIgCloudMarker(root, "2026-10-02", 2)).toBeDefined();
 
-    await resumeIgCloud(root, { gh: pauseGh });
+    const { gh: resumeGh, calls } = fakeGh(repo);
+    await resumeIgCloud(root, { gh: resumeGh });
     expect(repo.files.has("PAUSED")).toBe(false);
     expect(repo.mode).toBe("live");
+    // The pause may have covered a slot's last scheduled run: run once now.
+    expect(calls).toContainEqual(["workflow", "run", "ig-publish", "--repo", REPO]);
   });
 
-  it("falls back to switching the cloud off when PAUSED cannot be written", async () => {
+  it("clearing when nothing was paused does not start a cloud run", async () => {
+    await installCloud(root);
+    const { gh, calls } = fakeGh({ mode: "live", files: new Map() });
+    const message = await resumeIgCloud(root, { gh });
+    expect(message).toContain("沒有 PAUSED");
+    expect(calls.some((args) => args[0] === "workflow")).toBe(false);
+  });
+
+  it("falls back to switching the cloud off, and clearing the pause switches it back on", async () => {
     await installCloud(root);
     const repo = { mode: "live", files: new Map<string, string>(), failPut: true };
     const { gh } = fakeGh(repo);
     const message = await pauseIgCloud(root, state, { gh });
     expect(repo.mode).toBe("off");
     expect(message).toContain("CLOUD_MODE");
+
+    repo.failPut = false;
+    const { gh: resumeGh, calls } = fakeGh(repo);
+    await resumeIgCloud(root, { gh: resumeGh });
+    expect(repo.mode).toBe("live");
+    expect(calls).toContainEqual(["workflow", "run", "ig-publish", "--repo", REPO]);
+    // Done once: a second clear has nothing of the pause's left to undo.
+    repo.mode = "off";
+    const { gh: againGh, calls: againCalls } = fakeGh(repo);
+    await resumeIgCloud(root, { gh: againGh });
+    expect(repo.mode).toBe("off");
+    expect(againCalls.some((args) => args[0] === "workflow")).toBe(false);
+  });
+
+  it("never switches on a cloud the owner turned off", async () => {
+    await installCloud(root);
+    const repo = { mode: "off", files: new Map<string, string>([["PAUSED", "{}"]]) };
+    const { gh, calls } = fakeGh(repo);
+    const message = await resumeIgCloud(root, { gh });
+    expect(repo.files.has("PAUSED")).toBe(false);
+    expect(repo.mode).toBe("off");
+    expect(message).toContain(`gh variable set CLOUD_MODE --body live --repo ${REPO}`);
+    expect(calls.some((args) => args[0] === "workflow")).toBe(false);
   });
 
   it("calls nothing when the integration is not installed", async () => {
@@ -536,7 +582,12 @@ describe("schedule-ahead hands Instagram to a live cloud", () => {
     expect(
       await snapshotScheduledDay({ ...day, now: new Date("2026-09-20T09:00:00+08:00"), publishAt: new Date("2026-09-20T12:00:00+08:00") })
     ).toEqual([expect.stringContaining("before the slot's own date")]);
+    // Nor at a time no cloud run would ever pick up.
+    expect(await snapshotScheduledDay({ ...day, now: after, publishAt: new Date("2026-09-23T15:00:00+08:00") })).toEqual([
+      expect.stringContaining("15:00 Taipei has no cloud run")
+    ]);
     expect(repo.files.size).toBe(0);
+    expect(await readIgCloudMarker(root, DATE, 1)).toBeUndefined();
 
     const publishAt = new Date("2026-09-23T12:00:00+08:00");
     expect(await snapshotScheduledDay({ ...day, now: after, publishAt })).toEqual([expect.stringContaining("cloud owns Instagram")]);

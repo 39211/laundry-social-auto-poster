@@ -15,7 +15,7 @@ import {
 } from "./generateImage";
 import { buildGitHubPagesImageUrl, buildGitHubPagesVideoUrl } from "./githubPages";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
-import { assertSlotMediaMutable, findSlotLocks, type SlotMediaOverride } from "./mediaMutationGuard";
+import { assertSlotMediaMutable, parseMediaGuardOverride, SlotLockedError, type SlotMediaOverride } from "./mediaMutationGuard";
 import {
   hasPublishableApproval,
   loadApprovalLog,
@@ -772,6 +772,7 @@ export async function restoreReelSlot(input: {
   date: string;
   slotNumber: number;
   root?: string;
+  mediaGuardOverride?: SlotMediaOverride;
 }): Promise<{ restored: string[] }> {
   const root = projectRoot(input.root);
   const dir = reelBackupDir(input.date, root);
@@ -783,6 +784,13 @@ export async function restoreReelSlot(input: {
   }
   const content = await loadDailyContent(input.date, root);
   if (!content) throw new Error(`No content calendar for ${input.date}`);
+  await assertSlotMediaMutable({
+    root,
+    date: input.date,
+    slot: input.slotNumber,
+    operation: "restore reel slot",
+    override: input.mediaGuardOverride
+  });
   const restored: string[] = [];
 
   await writeDailyContent(
@@ -989,19 +997,15 @@ export async function healOneSlot(input: {
       carousel_items: undefined
     };
     try {
-      const locks = await findSlotLocks(input.root, input.date, input.slotNumber);
-      const hasValidOverride = Boolean(
-        input.mediaGuardOverride?.reason.trim() && input.mediaGuardOverride.actor.trim()
-      );
-      // A locked override is audited once by scheduleReel immediately before its media write.
-      if (locks.length === 0 || !hasValidOverride) {
-        invalidate = await invalidateSlotImagesIfTopicChanged({
-          date: input.date,
-          root: input.root,
-          previous: outgoing,
-          next
-        });
-      }
+      // Invalidation and scheduling audit separate operations, so one heal
+      // may write two media-mutation-log entries for the same override.
+      invalidate = await invalidateSlotImagesIfTopicChanged({
+        date: input.date,
+        root: input.root,
+        previous: outgoing,
+        next,
+        mediaGuardOverride: input.mediaGuardOverride
+      });
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       const isA1 =
@@ -1021,14 +1025,19 @@ export async function healOneSlot(input: {
       }
     }
   }
-  await scheduleReel({
-    date: input.date,
-    conceptId: input.conceptId,
-    slot: input.slotNumber,
-    variant: input.variant,
-    root: input.root,
-    mediaGuardOverride: input.mediaGuardOverride
-  });
+  try {
+    await scheduleReel({
+      date: input.date,
+      conceptId: input.conceptId,
+      slot: input.slotNumber,
+      variant: input.variant,
+      root: input.root,
+      mediaGuardOverride: input.mediaGuardOverride
+    });
+  } catch (error) {
+    if (error instanceof SlotLockedError) return healStopped(input, "media-locked", invalidate);
+    throw error;
+  }
   console.log(`${input.date}: healed slot ${input.slotNumber} back to ${input.conceptId} (${input.variant}).`);
   return { date: input.date, slotNumber: input.slotNumber, action: "healed", invalidate };
 }
@@ -1047,8 +1056,7 @@ async function main(): Promise<void> {
         date: entry.date,
         conceptId: entry.conceptId,
         slot: 2,
-        root: getOption(args, "root"),
-        mediaGuardOverride
+        root: getOption(args, "root")
       });
     }
     return;
@@ -1058,7 +1066,7 @@ async function main(): Promise<void> {
     const date = getOption(args, "date");
     const slot = getNumberOption(args, "slot");
     if (!date || slot === undefined) throw new Error("Required: --restore --date YYYY-MM-DD --slot N");
-    await restoreReelSlot({ date, slotNumber: slot, root: getOption(args, "root") });
+    await restoreReelSlot({ date, slotNumber: slot, root: getOption(args, "root"), mediaGuardOverride });
     return;
   }
 
@@ -1117,15 +1125,6 @@ async function main(): Promise<void> {
 
   const { date, conceptId, slot, variant, force } = parseScheduleCliArgs(args);
   await scheduleReel({ date, conceptId, slot, variant, force, root: getOption(args, "root"), mediaGuardOverride });
-}
-
-function parseMediaGuardOverride(args: string[]): SlotMediaOverride | undefined {
-  const reason = getFlag(args, "force-regen-scheduled")
-    ? getOption(args, "reason")?.trim()
-    : process.env.MEDIA_GUARD_OVERRIDE_REASON?.trim();
-  if (!reason) return undefined;
-  const actor = process.env.USERNAME?.trim() || "unknown";
-  return { reason, actor };
 }
 
 if (isMain(import.meta.url)) {

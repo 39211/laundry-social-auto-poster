@@ -5,7 +5,7 @@ import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { writeVideoPromptManifest, type VideoPromptManifestItem } from "./generateVideo";
 import { loadVideoSources, readJsonFile, writeJsonAtomic, writeVideoSources } from "./logging";
-import { assertSlotMediaMutable, type SlotMediaOverride } from "./mediaMutationGuard";
+import { assertSlotMediaMutable, parseMediaGuardOverride, type SlotMediaOverride } from "./mediaMutationGuard";
 import { projectRoot, videoPromptManifestPath } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 import type { VideoSourceRecord } from "./types";
@@ -151,16 +151,17 @@ async function generateOne(
     throw new Error(`${item.target_path} already exists without a matching video source record.`);
   }
 
+  // Guard every mutation, including a missing target, before mkdir, backup, or network.
+  await assertSlotMediaMutable({
+    root,
+    date: item.date,
+    slot: item.slot,
+    operation: "generate reel video",
+    override: mediaGuardOverride
+  });
+
   await mkdir(dirname(finalPath), { recursive: true });
   if ((await exists(finalPath)) && force) {
-    // R2: --force may back up an existing Reel only after the shared slot guard.
-    await assertSlotMediaMutable({
-      root,
-      date: item.date,
-      slot: item.slot,
-      operation: "replace reel video (generate-grok-videos --force)",
-      override: mediaGuardOverride
-    });
     await rename(finalPath, finalPath.replace(/\.mp4$/, `.backup-${Date.now()}.mp4`));
   }
 
@@ -310,15 +311,6 @@ async function main(): Promise<void> {
     mediaGuardOverride
   });
   console.log(JSON.stringify(records, null, 2));
-}
-
-function parseMediaGuardOverride(args: string[]): SlotMediaOverride | undefined {
-  const reason = getFlag(args, "force-regen-scheduled")
-    ? getOption(args, "reason")?.trim()
-    : process.env.MEDIA_GUARD_OVERRIDE_REASON?.trim();
-  if (!reason) return undefined;
-  const actor = process.env.USERNAME?.trim() || "unknown";
-  return { reason, actor };
 }
 
 if (isMain(import.meta.url)) {

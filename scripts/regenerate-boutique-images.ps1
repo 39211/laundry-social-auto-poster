@@ -14,7 +14,7 @@ Set-Location $root
 
 foreach ($date in "2026-07-31", "2026-08-01", "2026-08-02", "2026-08-03", "2026-08-04", "2026-08-05", "2026-08-07", "2026-08-09") {
     Write-Host "=== $date ==="
-    $guardOut = cmd /c "npm.cmd run media-guard -- --date $date --slot 1 --operation ""regenerate boutique image"" 2>&1"
+    $guardOut = cmd /c "npm.cmd run media-guard -- --root ""$root"" --date $date --slot 1 --operation ""regenerate boutique image"" 2>&1"
     $guardExit = $LASTEXITCODE
     $guardOut | ForEach-Object { Write-Host $_ }
     if ($guardExit -ne 0) {

@@ -7,7 +7,7 @@ import {
 } from "./generateVideoCandidate";
 import { writeVideoPromptManifest, type VideoPromptManifestItem } from "./generateVideo";
 import { loadVideoSources, readJsonFile, writeJsonAtomic, writeVideoSources } from "./logging";
-import { assertSlotMediaMutable, type SlotMediaOverride } from "./mediaMutationGuard";
+import { assertSlotMediaMutable, parseMediaGuardOverride, type SlotMediaOverride } from "./mediaMutationGuard";
 import { projectRoot, videoCandidateManifestPath, videoPromptManifestPath } from "./paths";
 import type { VideoSourceRecord } from "./types";
 import { assertMetaReelMetadata, normalizeMetaReel, probeVideo, type VideoMetadata } from "./videoMedia";
@@ -167,15 +167,6 @@ async function main(): Promise<void> {
     mediaGuardOverride: parseMediaGuardOverride(args)
   });
   console.log(JSON.stringify(record, null, 2));
-}
-
-function parseMediaGuardOverride(args: string[]): SlotMediaOverride | undefined {
-  const reason = getFlag(args, "force-regen-scheduled")
-    ? getOption(args, "reason")?.trim()
-    : process.env.MEDIA_GUARD_OVERRIDE_REASON?.trim();
-  if (!reason) return undefined;
-  const actor = process.env.USERNAME?.trim() || "unknown";
-  return { reason, actor };
 }
 
 if (isMain(import.meta.url)) {

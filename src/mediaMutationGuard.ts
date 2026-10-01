@@ -1,5 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
+import { getFlag, getOption } from "./cli";
 import { writeJsonAtomic } from "./logging";
 
 // R1: a protected media slot is identified by the platform records that own or
@@ -10,6 +11,17 @@ export type SlotLock = {
 };
 
 export type SlotMediaOverride = { reason: string; actor: string };
+
+export function parseMediaGuardOverride(
+  args: string[],
+  env: NodeJS.ProcessEnv = process.env
+): SlotMediaOverride | undefined {
+  const reason = getFlag(args, "force-regen-scheduled")
+    ? getOption(args, "reason")?.trim()
+    : env.MEDIA_GUARD_OVERRIDE_REASON?.trim();
+  if (!reason) return undefined;
+  return { reason, actor: env.USERNAME?.trim() || "unknown" };
+}
 
 type LogRows = { rows: unknown[]; unreadable: boolean };
 

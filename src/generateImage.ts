@@ -10,7 +10,7 @@ import {
 import { generateDailyContent } from "./generateDailyContent";
 import { PUBLISHABLE_IMAGE_SOURCES, isPublishableImageSource } from "./imageSources";
 import { loadApprovedImageDigests, sha256 } from "./imageStamp";
-import { assertSlotMediaMutable, findSlotLocks, type SlotMediaOverride } from "./mediaMutationGuard";
+import { assertSlotMediaMutable, findSlotLocks, parseMediaGuardOverride, type SlotMediaOverride } from "./mediaMutationGuard";
 import {
   loadApprovalLog,
   loadDailyContent,
@@ -580,15 +580,6 @@ async function main(): Promise<void> {
 
   const output = await writeImagePromptManifest(date, root, mediaGuardOverride);
   console.log(`Image prompt manifest ready: ${output}`);
-}
-
-function parseMediaGuardOverride(args: string[]): SlotMediaOverride | undefined {
-  const reason = getFlag(args, "force-regen-scheduled")
-    ? getOption(args, "reason")?.trim()
-    : process.env.MEDIA_GUARD_OVERRIDE_REASON?.trim();
-  if (!reason) return undefined;
-  const actor = process.env.USERNAME?.trim() || "unknown";
-  return { reason, actor };
 }
 
 if (isMain(import.meta.url)) {

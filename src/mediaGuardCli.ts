@@ -1,5 +1,5 @@
-import { getFlag, getNumberOption, getOption, isMain } from "./cli";
-import { assertSlotMediaMutable, SlotLockedError } from "./mediaMutationGuard";
+import { getNumberOption, getOption, isMain } from "./cli";
+import { assertSlotMediaMutable, parseMediaGuardOverride, SlotLockedError } from "./mediaMutationGuard";
 import { projectRoot } from "./paths";
 
 async function main(): Promise<void> {
@@ -12,14 +12,7 @@ async function main(): Promise<void> {
   }
 
   const root = projectRoot(getOption(args, "root"));
-  let override: { reason: string; actor: string } | undefined;
-  if (getFlag(args, "force-regen-scheduled")) {
-    const reason = getOption(args, "reason")?.trim();
-    if (reason) override = { reason, actor: process.env.USERNAME ?? "unknown" };
-  } else {
-    const reason = process.env.MEDIA_GUARD_OVERRIDE_REASON?.trim();
-    if (reason) override = { reason, actor: process.env.USERNAME ?? "unknown" };
-  }
+  const override = parseMediaGuardOverride(args);
 
   try {
     await assertSlotMediaMutable({ root, date, slot, operation, override });

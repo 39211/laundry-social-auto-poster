@@ -1,3 +1,7 @@
 {
-  "repo": "39211/laundry-ig-cloud"
+  "repo": "39211/laundry-ig-cloud",
+  "pin_sources": [
+    { "repo": "39211/39211.github.io", "ref": "main", "prefix": "" },
+    { "repo": "39211/laundry-social-auto-poster", "ref": "fix/reel-v3-two-reference-images", "prefix": "docs/" }
+  ]
 }

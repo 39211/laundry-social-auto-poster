@@ -6,7 +6,7 @@ import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { commentTextFor } from "./firstComment";
 import { appendPostLog, hasRecordedPost, loadPostLog, readJsonFile, writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
-import type { AppConfig, DailySlot, MediaType, PostLogEntry } from "./types";
+import type { AppConfig, DailySlot, MediaType, PostInput, PostLogEntry } from "./types";
 
 // Instagram has no API scheduling, so it used to publish live from this PC at
 // slot time. On 2026-09-29 the PC restarted at 20:24, nobody logged back in,
@@ -24,15 +24,26 @@ import type { AppConfig, DailySlot, MediaType, PostLogEntry } from "./types";
 //
 // The cloud repo's CLOUD_MODE variable is the switch. Snapshots are pushed only
 // while it is "live"; otherwise Instagram stays on this PC exactly as before.
-// Pausing the line (npm run pause) also writes PAUSED into the cloud repo, which
+// Switching it off does not strand the slots the cloud already owns: the live
+// publisher takes each one back at its slot run (reclaimIfCloudSwitchedOff)
+// and posts the snapshot itself. Pausing the line (npm run pause) also writes PAUSED into the cloud repo, which
 // the cloud job checks at start and again right before media_publish; no slot
 // changes owner, and both sides wait until the owner clears the pause, which
 // runs the cloud job once so slots the pause held back still go out.
 
-export const IG_CLOUD_SCHEMA = "sixiangjia-ig-cloud-snapshot/1";
+export const IG_CLOUD_SCHEMA = "sixiangjia-ig-cloud-snapshot/2";
+
+/** A public repo holding the site's files, used to pin an image to the exact bytes Facebook got. */
+export interface IgCloudPinSource {
+  repo: string;
+  ref: string;
+  /** Path of the site root inside the repo, "" or ending in "/". */
+  prefix: string;
+}
 
 export interface IgCloudSettings {
   repo: string;
+  pinSources: IgCloudPinSource[];
 }
 
 export interface IgCloudSnapshot {
@@ -43,6 +54,10 @@ export interface IgCloudSnapshot {
   ig_media_type: MediaType;
   caption: string;
   image_urls: string[];
+  /** sha256 of each image as the site served it when Facebook took it; aligned with image_urls. */
+  image_sha256s: string[];
+  /** The same bytes at a fixed commit (raw.githubusercontent.com), or null; aligned with image_urls. */
+  image_urls_pinned: Array<string | null>;
   video_url: string | null;
   video_bytes: number | null;
   video_sha256: string | null;
@@ -90,17 +105,36 @@ export const ghRunner: GhRunner = (args) =>
 
 export interface IgCloudOptions {
   gh?: GhRunner;
+  /** Reads the media's public bytes for the fingerprint. */
+  fetchImpl?: typeof fetch;
 }
 
 // Indirection so tests can stand in for the gh CLI on code paths that do not
 // take options (the live publisher's sync); production never reassigns it.
-export const igCloudDeps: { gh: GhRunner } = { gh: ghRunner };
+export const igCloudDeps: { gh: GhRunner; sleep: (milliseconds: number) => Promise<void> } = {
+  gh: ghRunner,
+  sleep: (milliseconds) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds))
+};
+
+const REPO_NAME = /^[\w.-]+\/[\w.-]+$/;
+
+function parsePinSources(value: unknown): IgCloudPinSource[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const source = item as Partial<IgCloudPinSource> | null;
+    const repo = typeof source?.repo === "string" ? source.repo.trim() : "";
+    const ref = typeof source?.ref === "string" ? source.ref.trim() : "";
+    const prefix = typeof source?.prefix === "string" ? source.prefix.trim() : "";
+    const ok = REPO_NAME.test(repo) && /^[\w./-]+$/.test(ref) && (prefix === "" || /^[\w./-]+\/$/.test(prefix));
+    return ok ? [{ repo, ref, prefix }] : [];
+  });
+}
 
 /** data/ig-cloud.json present = the cloud integration is installed; absent = off, no network calls. */
 export async function loadIgCloudSettings(root: string): Promise<IgCloudSettings | undefined> {
-  const raw = await readJsonFile<Partial<IgCloudSettings> | null>(join(root, "data", "ig-cloud.json"), null);
+  const raw = await readJsonFile<{ repo?: unknown; pin_sources?: unknown } | null>(join(root, "data", "ig-cloud.json"), null);
   const repo = typeof raw?.repo === "string" ? raw.repo.trim() : "";
-  return /^[\w.-]+\/[\w.-]+$/.test(repo) ? { repo } : undefined;
+  return REPO_NAME.test(repo) ? { repo, pinSources: parsePinSources(raw?.pin_sources) } : undefined;
 }
 
 export function igCloudMarkerPath(root: string, date: string, slot: number): string {
@@ -143,6 +177,10 @@ export function buildIgCloudSnapshot(input: {
     // Owner, 2026-10-01: 文案、貼文、影片發佈全部都要按照 FB 的來.
     caption: input.slot.facebook_caption,
     image_urls: input.igMediaType === "reel" ? [] : input.imageUrls,
+    // Filled from the public bytes by fingerprintIgCloudMedia when the slot is
+    // handed over; a snapshot without them is never pushed.
+    image_sha256s: [],
+    image_urls_pinned: [],
     video_url: hasVideo ? (input.videoUrl ?? null) : null,
     video_bytes: hasVideo ? (input.videoBytes ?? null) : null,
     video_sha256: hasVideo ? (input.videoSha256 ?? null) : null,
@@ -155,6 +193,64 @@ export function buildIgCloudSnapshot(input: {
     created_at: (input.now ?? new Date()).toISOString(),
     ...(input.backfill ? { backfill: true as const } : {})
   };
+}
+
+async function sha256OfUrl(url: string, fetchImpl: typeof fetch): Promise<string> {
+  const response = await fetchImpl(url, { redirect: "follow" });
+  if (!response.ok) throw new Error(`${url} returned ${response.status}`);
+  return createHash("sha256").update(Buffer.from(await response.arrayBuffer())).digest("hex");
+}
+
+/**
+ * Records which bytes Facebook got, so the cloud posts those or nothing.
+ * Facebook copies an image from its public URL when the slot is scheduled;
+ * the file at that URL can be replaced before slot time (2026-09-19 slot 2 was,
+ * two days after scheduling), and Instagram would then get a different picture.
+ * Each image is hashed as the site serves it now, seconds after Facebook took
+ * it, and pinned to a fixed commit of a public repo holding the same bytes, so
+ * the cloud can still post Facebook's version after a swap. Raw GitHub serves
+ * video as octet-stream, so a video is only checked: the site's copy must be
+ * the file Facebook was scheduled with, or the slot stays on this PC.
+ */
+export async function fingerprintIgCloudMedia(
+  snapshot: IgCloudSnapshot,
+  settings: IgCloudSettings,
+  gh: GhRunner,
+  fetchImpl: typeof fetch
+): Promise<IgCloudSnapshot> {
+  const commits: Array<{ source: IgCloudPinSource; sha: string }> = [];
+  for (const source of settings.pinSources) {
+    const result = await gh(["api", `repos/${source.repo}/commits/${source.ref}`, "--jq", ".sha"]);
+    const sha = result.stdout.trim();
+    if (result.code === 0 && /^[0-9a-f]{40}$/.test(sha)) commits.push({ source, sha });
+  }
+  const base = snapshot.public_image_base_url.replace(/\/+$/, "");
+  const imageSha256s: string[] = [];
+  const pinned: Array<string | null> = [];
+  for (const url of snapshot.image_urls) {
+    const sha = await sha256OfUrl(url, fetchImpl);
+    let pin: string | null = null;
+    if (url.startsWith(`${base}/`)) {
+      const path = url.slice(base.length + 1);
+      for (const { source, sha: commit } of commits) {
+        const raw = `https://raw.githubusercontent.com/${source.repo}/${commit}/${source.prefix}${path}`;
+        const rawSha = await sha256OfUrl(raw, fetchImpl).catch(() => undefined);
+        if (rawSha === sha) {
+          pin = raw;
+          break;
+        }
+      }
+    }
+    imageSha256s.push(sha);
+    pinned.push(pin);
+  }
+  if (snapshot.video_url) {
+    const siteSha = await sha256OfUrl(snapshot.video_url, fetchImpl);
+    if (siteSha !== snapshot.video_sha256) {
+      throw new Error(`the site's video differs from the file Facebook was scheduled with (${siteSha.slice(0, 12)} vs ${String(snapshot.video_sha256).slice(0, 12)})`);
+    }
+  }
+  return { ...snapshot, image_sha256s: imageSha256s, image_urls_pinned: pinned };
 }
 
 function isNotFound(result: GhResult): boolean {
@@ -214,12 +310,17 @@ async function ghDeleteFile(repo: string, path: string, message: string, gh: GhR
 
 export async function readCloudMode(repo: string, gh: GhRunner): Promise<string | undefined> {
   const result = await gh(["variable", "get", "CLOUD_MODE", "--repo", repo]);
-  return result.code === 0 ? result.stdout.trim() : undefined;
+  if (result.code === 0) return result.stdout.trim();
+  // A deleted variable is a readable answer: the cloud job runs an unset
+  // CLOUD_MODE as off (publisher/due.mjs). Any other failure stays unknown.
+  return /variable CLOUD_MODE was not found/i.test(result.stderr) ? "off" : undefined;
 }
 
 export interface PushOutcome {
   pushed: boolean;
   reason: string;
+  /** What the cloud received, fingerprints included, when pushed. */
+  snapshot?: IgCloudSnapshot;
 }
 
 // The Taipei slot times the cloud job runs for: the cron list in the cloud
@@ -235,13 +336,16 @@ function taipeiClock(unixSeconds: number): string {
 /**
  * Hands one slot's Instagram post to the cloud. Ownership is claimed locally
  * first and given back only when the push provably did not land: a lost marker
- * can at worst cost a post (the sentinel then alerts), never publish it twice.
+ * can at worst cost a post, never publish it twice. Nothing alerts on that
+ * loss today: publish-sentinel.ps1 counts a slot as posted once any platform
+ * has posted it, so an Instagram-only gap stays silent.
  */
 export async function pushIgCloudSnapshot(
-  snapshot: IgCloudSnapshot,
+  unfingerprinted: IgCloudSnapshot,
   root: string,
   options: IgCloudOptions = {}
 ): Promise<PushOutcome> {
+  let snapshot = unfingerprinted;
   const settings = await loadIgCloudSettings(root);
   if (!settings) return { pushed: false, reason: "ig-cloud not installed (no data/ig-cloud.json); Instagram stays on this PC" };
   const clock = taipeiClock(snapshot.publish_unix);
@@ -255,6 +359,14 @@ export async function pushIgCloudSnapshot(
   const mode = await readCloudMode(settings.repo, gh);
   if (mode !== "live") {
     return { pushed: false, reason: `cloud mode is ${mode ?? "unreadable"}; Instagram stays on this PC` };
+  }
+  try {
+    snapshot = await fingerprintIgCloudMedia(unfingerprinted, settings, gh, options.fetchImpl ?? fetch);
+  } catch (error) {
+    return {
+      pushed: false,
+      reason: `could not pin down the media Facebook got (${error instanceof Error ? error.message : String(error)}); Instagram stays on this PC`
+    };
   }
   const marker = igCloudMarkerPath(root, snapshot.date, snapshot.slot);
   const remotePath = `queue/${snapshot.date}-slot${snapshot.slot}.json`;
@@ -278,7 +390,7 @@ export async function pushIgCloudSnapshot(
       );
     }
   }
-  return { pushed: true, reason: "cloud owns Instagram for this slot" };
+  return { pushed: true, reason: "cloud owns Instagram for this slot", snapshot };
 }
 
 function cloudEntry(snapshot: IgCloudSnapshot, result: IgCloudResult): PostLogEntry | undefined {
@@ -381,6 +493,157 @@ export async function releaseIgCloudSnapshots(
     }
   }
   return { released, failed };
+}
+
+/** A slot this PC took back from a switched-off cloud; it posts the snapshot, i.e. what Facebook got. */
+export function igCloudTakenBackPath(root: string, date: string, slot: number): string {
+  return join(root, "data", "ig-cloud", "taken-back", `${date}-slot${slot}.json`);
+}
+
+export async function readIgCloudTakenBack(root: string, date: string, slot: number): Promise<IgCloudSnapshot | undefined> {
+  return readJsonFile<IgCloudSnapshot | undefined>(igCloudTakenBackPath(root, date, slot), undefined);
+}
+
+/** Cloud runs not finished yet (queued, waiting or in progress); undefined when the list cannot be read. */
+async function activeCloudRuns(repo: string, gh: GhRunner): Promise<number | undefined> {
+  const result = await gh(["run", "list", "--repo", repo, "--workflow", "ig-publish", "--json", "status", "--limit", "20"]);
+  if (result.code !== 0) return undefined;
+  try {
+    const runs = JSON.parse(result.stdout) as unknown;
+    if (!Array.isArray(runs)) return undefined;
+    return runs.filter((run) => (run as { status?: unknown } | null)?.status !== "completed").length;
+  } catch {
+    return undefined;
+  }
+}
+
+export interface TakeBackOptions extends IgCloudOptions {
+  sleep?: (milliseconds: number) => Promise<void>;
+  /** How long to wait for cloud runs already in flight (default 15 minutes). */
+  waitMs?: number;
+  pollMs?: number;
+  /** Pause before looking at the run list a second time, for a run GitHub has not listed yet. */
+  settleMs?: number;
+}
+
+export type TakeBackOutcome =
+  | { status: "taken_back"; reason: string; snapshot: IgCloudSnapshot }
+  | { status: "cloud_posted" | "kept"; reason: string };
+
+/**
+ * Moves one cloud-owned slot back to this PC without racing a cloud run that
+ * may be in flight. The snapshot is withdrawn from the cloud queue and checked
+ * gone: a run that has not yet reached its pre-publish check aborts on that,
+ * and a run that starts later never sees the slot. Then wait until no cloud run
+ * is active, and read the cloud's result once more: a run that got past its
+ * check before the withdrawal has published and recorded by then. Only a slot
+ * still without a result moves, and it moves with its snapshot, so this PC
+ * posts what Facebook got. Every doubt keeps the marker; a later run retries.
+ */
+export async function takeBackIgCloudSlot(
+  root: string,
+  date: string,
+  slot: number,
+  options: TakeBackOptions = {}
+): Promise<TakeBackOutcome> {
+  const settings = await loadIgCloudSettings(root);
+  const snapshot = await readIgCloudMarker(root, date, slot);
+  if (!settings || !snapshot) return { status: "kept", reason: "no cloud marker for this slot" };
+  const gh = options.gh ?? igCloudDeps.gh;
+  const sleep = options.sleep ?? igCloudDeps.sleep;
+  const remotePath = `queue/${date}-slot${slot}.json`;
+  try {
+    await ghDeleteFile(settings.repo, remotePath, `take back ${date} slot ${slot}`, gh);
+    if (await ghGetFile(settings.repo, remotePath, gh)) {
+      return { status: "kept", reason: `${remotePath} is still in the cloud queue` };
+    }
+  } catch (error) {
+    return { status: "kept", reason: `could not withdraw ${remotePath} (${error instanceof Error ? error.message : String(error)})` };
+  }
+
+  const pollMs = options.pollMs ?? 20_000;
+  const polls = Math.max(1, Math.ceil((options.waitMs ?? 15 * 60_000) / pollMs));
+  let quiet = false;
+  for (let poll = 1; poll <= polls && !quiet; poll += 1) {
+    if ((await activeCloudRuns(settings.repo, gh)) === 0) {
+      await sleep(options.settleMs ?? 30_000);
+      quiet = (await activeCloudRuns(settings.repo, gh)) === 0;
+    }
+    if (!quiet && poll < polls) await sleep(pollMs);
+  }
+  if (!quiet) return { status: "kept", reason: "a cloud run was still active, or the run list could not be read" };
+
+  try {
+    await syncIgCloudResult(root, date, slot, { gh });
+  } catch (error) {
+    return { status: "kept", reason: `could not read the cloud's result (${error instanceof Error ? error.message : String(error)})` };
+  }
+  if (hasRecordedPost(await loadPostLog(date, root), slot, "instagram", false)) {
+    return { status: "cloud_posted", reason: "the cloud posted it before it was withdrawn" };
+  }
+  try {
+    await writeJsonAtomic(igCloudTakenBackPath(root, date, slot), snapshot);
+    await unlink(igCloudMarkerPath(root, date, slot));
+  } catch (error) {
+    return { status: "kept", reason: `could not move the marker (${error instanceof Error ? error.message : String(error)})` };
+  }
+  return { status: "taken_back", reason: "withdrawn from the cloud; this PC posts what Facebook got", snapshot };
+}
+
+/**
+ * A cloud switched off (CLOUD_MODE anything but live) posts nothing, so the
+ * slots it already owns would be posted by nobody. The live publisher calls
+ * this for each cloud-owned slot it reaches -- at slot time and at the
+ * catch-up retry, both after the cloud's own runs -- and takes the slot back
+ * when the switch reads off. An unreadable switch changes nothing: the cloud
+ * may well be live, and posting from here as well would post twice.
+ */
+export async function reclaimIfCloudSwitchedOff(
+  root: string,
+  date: string,
+  slot: number,
+  options: TakeBackOptions = {}
+): Promise<TakeBackOutcome | undefined> {
+  const settings = await loadIgCloudSettings(root);
+  if (!settings || !(await readIgCloudMarker(root, date, slot))) return undefined;
+  if (hasRecordedPost(await loadPostLog(date, root), slot, "instagram", false)) return undefined;
+  const mode = await readCloudMode(settings.repo, options.gh ?? igCloudDeps.gh);
+  if (mode === undefined || mode === "live") return undefined;
+  return takeBackIgCloudSlot(root, date, slot, options);
+}
+
+/**
+ * The Instagram input for a slot taken back from the cloud: Facebook's caption
+ * and the bytes Facebook got, checked the way the cloud checks them. An image
+ * replaced on the site since is taken from its pinned copy; anything that no
+ * longer matches stops the post rather than send Instagram another version.
+ */
+export async function igInputFromSnapshot(snapshot: IgCloudSnapshot, fetchImpl: typeof fetch): Promise<PostInput> {
+  const imageUrls: string[] = [];
+  for (const [index, url] of snapshot.image_urls.entries()) {
+    const want = snapshot.image_sha256s[index];
+    const pinned = snapshot.image_urls_pinned[index];
+    if (want && (await sha256OfUrl(url, fetchImpl).catch(() => undefined)) === want) {
+      imageUrls.push(url);
+    } else if (want && pinned && (await sha256OfUrl(pinned, fetchImpl).catch(() => undefined)) === want) {
+      imageUrls.push(pinned);
+    } else {
+      throw new Error(`image ${index + 1} is no longer the one Facebook got; not posting a version Facebook did not get`);
+    }
+  }
+  if (snapshot.video_url && (await sha256OfUrl(snapshot.video_url, fetchImpl).catch(() => undefined)) !== snapshot.video_sha256) {
+    throw new Error("the video is no longer the one Facebook got; not posting a version Facebook did not get");
+  }
+  const isCarousel = snapshot.ig_media_type === "carousel" || snapshot.ig_media_type === "mixed-carousel";
+  return {
+    date: snapshot.date,
+    slot: snapshot.slot,
+    caption: snapshot.caption,
+    imageUrl: imageUrls[0] ?? "",
+    imageUrls: isCarousel ? imageUrls : undefined,
+    mediaType: snapshot.ig_media_type,
+    videoUrl: snapshot.video_url ?? undefined
+  };
 }
 
 /**

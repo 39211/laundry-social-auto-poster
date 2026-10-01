@@ -35,7 +35,13 @@ import {
   inspectApprovedImageDigestFile,
   isApprovedSlotDigestMap
 } from "./imageStamp";
-import { readIgCloudMarker, syncIgCloudResult } from "./igCloud";
+import {
+  igInputFromSnapshot,
+  readIgCloudMarker,
+  readIgCloudTakenBack,
+  reclaimIfCloudSwitchedOff,
+  syncIgCloudResult
+} from "./igCloud";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
@@ -360,7 +366,7 @@ async function postOneSlot(
   // Instagram from here: the cloud posts the version Facebook got, and this
   // machine only records its result. Synced before every other check so the
   // record lands even when this run later refuses the slot for another reason.
-  const cloudOwnsInstagram =
+  let cloudOwnsInstagram =
     !config.dryRun && !preflightOnly && Boolean(await readIgCloudMarker(root, date, slot.slot));
   if (cloudOwnsInstagram) {
     await syncIgCloudResult(root, date, slot.slot).catch((error) => {
@@ -404,6 +410,21 @@ async function postOneSlot(
     };
   }
   try {
+  // A switched-off cloud posts nothing, so a slot it owns comes back here and
+  // this run posts it (src/igCloud.ts reclaimIfCloudSwitchedOff). Inside the
+  // lock, so two overlapping runs cannot both take it back and both post.
+  if (cloudOwnsInstagram) {
+    const reclaim = await reclaimIfCloudSwitchedOff(root, date, slot.slot).catch((error) => {
+      console.warn(
+        `ig-cloud take-back for ${date} slot ${slot.slot} failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return undefined;
+    });
+    if (reclaim) console.warn(`ig-cloud ${date} slot ${slot.slot}: ${reclaim.status} (${reclaim.reason})`);
+    cloudOwnsInstagram = Boolean(await readIgCloudMarker(root, date, slot.slot));
+  }
+  const takenBack =
+    !config.dryRun && !preflightOnly ? await readIgCloudTakenBack(root, date, slot.slot) : undefined;
   // The approval fingerprint pins WHAT was approved: a slot rewritten after
   // its approval must not publish on the old grant (luna, high). Absent
   // sidecar = legacy day, no check; present sidecar with a different hash =
@@ -637,7 +658,11 @@ async function postOneSlot(
     }
 
     try {
-      const result = await postPlatform(platform, input, config, fetchImpl);
+      // Taken back from the cloud: Instagram gets what Facebook got, not the
+      // calendar's current caption and files.
+      const publishInput =
+        platform === "instagram" && takenBack ? await igInputFromSnapshot(takenBack, fetchImpl) : input;
+      const result = await postPlatform(platform, publishInput, config, fetchImpl);
       const entry = resultToLog(date, slot.slot, result, resolvedMedia, abVariant);
       await appendPostLog(entry, root);
       outputs.push(entry);

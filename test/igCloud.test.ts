@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,12 +12,16 @@ import {
   buildIgCloudSnapshot,
   igCloudDeps,
   igCloudMarkerPath,
+  igInputFromSnapshot,
   pauseIgCloud,
   pushIgCloudSnapshot,
   readIgCloudMarker,
+  readIgCloudTakenBack,
+  reclaimIfCloudSwitchedOff,
   releaseIgCloudSnapshots,
   resumeIgCloud,
   syncIgCloudResult,
+  takeBackIgCloudSlot,
   type GhResult,
   type GhRunner,
   type IgCloudSnapshot
@@ -37,17 +42,44 @@ function notFound(): GhResult {
 }
 
 /** A fake gh CLI over an in-memory repo; records every call. */
-function fakeGh(state: { mode?: string; files: Map<string, string>; failPut?: boolean; landOnFailedPut?: boolean }) {
+function fakeGh(state: {
+  mode?: string;
+  /** The CLOUD_MODE variable was deleted (gh's own wording). */
+  modeDeleted?: boolean;
+  files: Map<string, string>;
+  failPut?: boolean;
+  landOnFailedPut?: boolean;
+  /** DELETE fails without a 404. */
+  failDelete?: boolean;
+  /** DELETE answers success but the file stays. */
+  deleteIgnored?: boolean;
+  /** Statuses `gh run list` reports; absent = no runs. */
+  runs?: string[];
+  failRunList?: boolean;
+  commits?: Record<string, string>;
+}) {
   const calls: string[][] = [];
   const gh: GhRunner = async (args) => {
     calls.push(args);
-    if (args[0] === "variable" && args[1] === "get") return state.mode === undefined ? notFound() : ok(`${state.mode}\n`);
+    if (args[0] === "variable" && args[1] === "get") {
+      if (state.modeDeleted) return { code: 1, stdout: "", stderr: "variable CLOUD_MODE was not found\n" };
+      return state.mode === undefined ? notFound() : ok(`${state.mode}\n`);
+    }
+    if (args[0] === "run" && args[1] === "list") {
+      if (state.failRunList) return { code: 1, stdout: "", stderr: "gh: connection reset" };
+      return ok(JSON.stringify((state.runs ?? []).map((status) => ({ status }))));
+    }
     if (args[0] === "variable" && args[1] === "set") {
       state.mode = args[args.indexOf("--body") + 1];
       return ok();
     }
     if (args[0] === "workflow" && args[1] === "run") return ok();
     if (args[0] !== "api") return { code: 1, stdout: "", stderr: "unexpected gh call" };
+    const commit = /^repos\/([^/]+\/[^/]+)\/commits\/(.+)$/.exec(args[1] ?? "");
+    if (commit) {
+      const sha = state.commits?.[`${commit[1]}@${commit[2]}`];
+      return sha ? ok(`${sha}\n`) : notFound();
+    }
     const method = args.includes("-X") ? args[args.indexOf("-X") + 1] : "GET";
     const target = args.find((arg) => arg.startsWith(`repos/${REPO}/contents/`)) ?? "";
     const path = target.slice(`repos/${REPO}/contents/`.length);
@@ -66,12 +98,37 @@ function fakeGh(state: { mode?: string; files: Map<string, string>; failPut?: bo
       return ok("{}");
     }
     if (method === "DELETE") {
-      state.files.delete(path);
+      if (state.failDelete) return { code: 1, stdout: "", stderr: "gh: connection reset" };
+      if (!state.deleteIgnored) state.files.delete(path);
       return ok("{}");
     }
     return { code: 1, stdout: "", stderr: "unexpected method" };
   };
   return { gh, calls };
+}
+
+function shaOf(text: string): string {
+  return createHash("sha256").update(text).digest("hex");
+}
+
+/** The public site and raw GitHub: each URL serves "media:<url>" unless a body is given; listed URLs 404. */
+function fakeMedia(bodies: Record<string, string> = {}, missing: string[] = []): typeof fetch {
+  return (async (input: string | URL) => {
+    const url = String(input);
+    if (missing.includes(url)) return new Response("not found", { status: 404 });
+    return new Response(bodies[url] ?? `media:${url}`, { status: 200 });
+  }) as typeof fetch;
+}
+
+const media = fakeMedia();
+
+/** What the cloud should receive for a snapshot whose media all serve their default body. */
+function fingerprinted(snapshot: IgCloudSnapshot): IgCloudSnapshot {
+  return {
+    ...snapshot,
+    image_sha256s: snapshot.image_urls.map((url) => shaOf(`media:${url}`)),
+    image_urls_pinned: snapshot.image_urls.map(() => null)
+  };
 }
 
 function liveConfig(): AppConfig {
@@ -164,7 +221,7 @@ describe("pushIgCloudSnapshot", () => {
 
   it("does nothing and calls nothing when the integration is not installed", async () => {
     const { gh, calls } = fakeGh({ mode: "live", files: new Map() });
-    const outcome = await pushIgCloudSnapshot(sampleSnapshot(), root, { gh });
+    const outcome = await pushIgCloudSnapshot(sampleSnapshot(), root, { gh, fetchImpl: media });
     expect(outcome.pushed).toBe(false);
     expect(calls).toEqual([]);
     expect(await readIgCloudMarker(root, "2026-10-02", 2)).toBeUndefined();
@@ -175,7 +232,7 @@ describe("pushIgCloudSnapshot", () => {
     for (const mode of ["shadow", "off", undefined]) {
       const state = { mode, files: new Map<string, string>() };
       const { gh } = fakeGh(state);
-      const outcome = await pushIgCloudSnapshot(sampleSnapshot(), root, { gh });
+      const outcome = await pushIgCloudSnapshot(sampleSnapshot(), root, { gh, fetchImpl: media });
       expect(outcome.pushed).toBe(false);
       expect(state.files.size).toBe(0);
       expect(await readIgCloudMarker(root, "2026-10-02", 2)).toBeUndefined();
@@ -187,10 +244,11 @@ describe("pushIgCloudSnapshot", () => {
     const state = { mode: "live", files: new Map<string, string>() };
     const { gh } = fakeGh(state);
     const snapshot = sampleSnapshot();
-    const outcome = await pushIgCloudSnapshot(snapshot, root, { gh });
+    const outcome = await pushIgCloudSnapshot(snapshot, root, { gh, fetchImpl: media });
     expect(outcome.pushed).toBe(true);
-    expect(JSON.parse(state.files.get("queue/2026-10-02-slot2.json") ?? "{}")).toEqual(snapshot);
-    expect(await readIgCloudMarker(root, "2026-10-02", 2)).toEqual(snapshot);
+    // The cloud gets the fingerprint of every image as the site served it.
+    expect(JSON.parse(state.files.get("queue/2026-10-02-slot2.json") ?? "{}")).toEqual(fingerprinted(snapshot));
+    expect(await readIgCloudMarker(root, "2026-10-02", 2)).toEqual(fingerprinted(snapshot));
   });
 
   it("keeps a slot on this PC when the cloud has no run at its time", async () => {
@@ -208,7 +266,7 @@ describe("pushIgCloudSnapshot", () => {
     await installCloud(root);
     const state = { mode: "live", files: new Map<string, string>(), failPut: true };
     const { gh } = fakeGh(state);
-    await expect(pushIgCloudSnapshot(sampleSnapshot(), root, { gh })).rejects.toThrow(/PUT/);
+    await expect(pushIgCloudSnapshot(sampleSnapshot(), root, { gh, fetchImpl: media })).rejects.toThrow(/PUT/);
     expect(await readIgCloudMarker(root, "2026-10-02", 2)).toBeUndefined();
   });
 
@@ -216,7 +274,7 @@ describe("pushIgCloudSnapshot", () => {
     await installCloud(root);
     const state = { mode: "live", files: new Map<string, string>(), failPut: true, landOnFailedPut: true };
     const { gh } = fakeGh(state);
-    const outcome = await pushIgCloudSnapshot(sampleSnapshot(), root, { gh });
+    const outcome = await pushIgCloudSnapshot(sampleSnapshot(), root, { gh, fetchImpl: media });
     expect(outcome.pushed).toBe(true);
     expect(await readIgCloudMarker(root, "2026-10-02", 2)).toBeDefined();
   });
@@ -228,7 +286,7 @@ describe("syncIgCloudResult and release", () => {
     root = await mkdtemp(join(tmpdir(), "ig-cloud-sync-"));
     await installCloud(root);
     const { gh } = fakeGh({ mode: "live", files: new Map() });
-    await pushIgCloudSnapshot(sampleSnapshot(), root, { gh });
+    await pushIgCloudSnapshot(sampleSnapshot(), root, { gh, fetchImpl: media });
   });
 
   it("records a published cloud result once, with its first comment", async () => {
@@ -307,6 +365,163 @@ describe("syncIgCloudResult and release", () => {
   });
 });
 
+describe("a switched-off cloud gives its slots back", () => {
+  const DATE = "2026-10-02";
+  const QUEUED = `queue/${DATE}-slot2.json`;
+  const RESULT = `results/${DATE}-slot2.json`;
+  const noWait = { sleep: async () => undefined, waitMs: 3, pollMs: 1, settleMs: 0 };
+  let root: string;
+  let snapshot: IgCloudSnapshot;
+
+  function cloud(state: Omit<Parameters<typeof fakeGh>[0], "files">) {
+    const full = { ...state, files: new Map([[QUEUED, JSON.stringify(snapshot)]]) };
+    return { state: full, ...fakeGh(full) };
+  }
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "ig-cloud-takeback-"));
+    await installCloud(root);
+    const pushed = await pushIgCloudSnapshot(sampleSnapshot(), root, { gh: fakeGh({ mode: "live", files: new Map() }).gh, fetchImpl: media });
+    snapshot = pushed.snapshot as IgCloudSnapshot;
+  });
+
+  for (const [name, setup] of [
+    ["off", { mode: "off" }],
+    ["shadow", { mode: "shadow" }],
+    ["a deleted CLOUD_MODE variable", { modeDeleted: true }]
+  ] as const) {
+    it(`takes the slot back from a cloud switched to ${name}, with what Facebook got`, async () => {
+      const { state, gh } = cloud(setup);
+      const outcome = await reclaimIfCloudSwitchedOff(root, DATE, 2, { gh, ...noWait });
+      expect(outcome?.status).toBe("taken_back");
+      expect(state.files.has(QUEUED)).toBe(false);
+      expect(await readIgCloudMarker(root, DATE, 2)).toBeUndefined();
+      expect(await readIgCloudTakenBack(root, DATE, 2)).toEqual(snapshot);
+    });
+  }
+
+  it("leaves the slot with a live cloud, and with a switch it cannot read", async () => {
+    for (const setup of [{ mode: "live" }, {}]) {
+      const { state, gh, calls } = cloud(setup);
+      expect(await reclaimIfCloudSwitchedOff(root, DATE, 2, { gh, ...noWait })).toBeUndefined();
+      expect(calls.some((args) => args.includes("DELETE"))).toBe(false);
+      expect(state.files.has(QUEUED)).toBe(true);
+      expect(await readIgCloudMarker(root, DATE, 2)).toBeDefined();
+    }
+  });
+
+  it("does not withdraw a slot the cloud already posted", async () => {
+    const posted = JSON.stringify({ date: DATE, slot: 2, mode: "live", status: "published", post_id: "ig-1" });
+    await syncIgCloudResult(root, DATE, 2, { gh: fakeGh({ mode: "live", files: new Map([[RESULT, posted]]) }).gh });
+    const { calls, gh } = cloud({ mode: "off" });
+    expect(await reclaimIfCloudSwitchedOff(root, DATE, 2, { gh, ...noWait })).toBeUndefined();
+    expect(calls.some((args) => args.includes("DELETE"))).toBe(false);
+  });
+
+  it("waits out a cloud run in flight and records its post instead of posting again", async () => {
+    const { state, gh } = cloud({ mode: "off", runs: ["in_progress"] });
+    const outcome = await takeBackIgCloudSlot(root, DATE, 2, {
+      gh,
+      ...noWait,
+      waitMs: 10,
+      sleep: async () => {
+        // The run got past its check before the withdrawal: it posts, records, ends.
+        state.files.set(RESULT, JSON.stringify({ date: DATE, slot: 2, mode: "live", status: "published", post_id: "ig-cloud-9" }));
+        state.runs = ["completed"];
+      }
+    });
+    expect(outcome.status).toBe("cloud_posted");
+    expect(await readIgCloudMarker(root, DATE, 2)).toBeDefined();
+    expect(await readIgCloudTakenBack(root, DATE, 2)).toBeUndefined();
+    const log = await loadPostLog(DATE, root);
+    expect(log.find((row) => row.platform === "instagram")).toMatchObject({ status: "success", post_id: "ig-cloud-9" });
+  });
+
+  it("looks at the run list a second time, for a run GitHub had not listed yet", async () => {
+    const { state, gh } = cloud({ mode: "off" });
+    let lists = 0;
+    const counting: GhRunner = async (args) => {
+      if (args[0] === "run") {
+        lists += 1;
+        // Listed only from the second look on, then it finishes with a post.
+        state.runs = lists === 2 ? ["queued"] : [];
+      }
+      return gh(args);
+    };
+    const outcome = await takeBackIgCloudSlot(root, DATE, 2, {
+      gh: counting,
+      ...noWait,
+      waitMs: 10,
+      sleep: async (milliseconds) => {
+        if (milliseconds === noWait.pollMs) {
+          state.files.set(RESULT, JSON.stringify({ date: DATE, slot: 2, mode: "live", status: "published", post_id: "ig-late" }));
+        }
+      }
+    });
+    expect(outcome.status).toBe("cloud_posted");
+    expect(await readIgCloudTakenBack(root, DATE, 2)).toBeUndefined();
+  });
+
+  it("keeps the slot when the withdrawal fails or cannot be confirmed", async () => {
+    for (const setup of [{ mode: "off", failDelete: true }, { mode: "off", deleteIgnored: true }]) {
+      const { gh } = cloud(setup);
+      const outcome = await takeBackIgCloudSlot(root, DATE, 2, { gh, ...noWait });
+      expect(outcome.status).toBe("kept");
+      expect(await readIgCloudMarker(root, DATE, 2)).toBeDefined();
+      expect(await readIgCloudTakenBack(root, DATE, 2)).toBeUndefined();
+    }
+  });
+
+  it("keeps the slot while a cloud run stays active or the run list cannot be read", async () => {
+    for (const setup of [{ mode: "off", runs: ["in_progress"] }, { mode: "off", failRunList: true }]) {
+      const { gh } = cloud(setup);
+      const outcome = await takeBackIgCloudSlot(root, DATE, 2, { gh, ...noWait });
+      expect(outcome.status).toBe("kept");
+      expect(await readIgCloudMarker(root, DATE, 2)).toBeDefined();
+      expect(await readIgCloudTakenBack(root, DATE, 2)).toBeUndefined();
+    }
+  });
+});
+
+describe("a taken-back slot posts the bytes Facebook got", () => {
+  const site = ["https://tester.github.io/a/slot-02.png", "https://tester.github.io/a/slot-02-slide-02.png"];
+  const pin = (url: string) => url.replace("https://tester.github.io/a/", "https://raw.githubusercontent.com/tester/site/abc/");
+  const snapshot = (): IgCloudSnapshot => ({
+    ...sampleSnapshot(),
+    image_sha256s: [shaOf("A1"), shaOf("A2")],
+    image_urls_pinned: [pin(site[0] ?? ""), null]
+  });
+
+  it("uses Facebook's caption and the site's images when they still match", async () => {
+    const input = await igInputFromSnapshot(snapshot(), fakeMedia({ [site[0] ?? ""]: "A1", [site[1] ?? ""]: "A2" }));
+    expect(input).toMatchObject({ caption: "FB 版文案,傳 LINE 給我們", mediaType: "carousel", imageUrls: site });
+  });
+
+  it("takes a replaced image from its pinned copy", async () => {
+    const input = await igInputFromSnapshot(
+      snapshot(),
+      fakeMedia({ [site[0] ?? ""]: "B1", [pin(site[0] ?? "")]: "A1", [site[1] ?? ""]: "A2" })
+    );
+    expect(input.imageUrls).toEqual([pin(site[0] ?? ""), site[1]]);
+  });
+
+  it("posts nothing when neither the site nor a pinned copy has Facebook's bytes", async () => {
+    await expect(
+      igInputFromSnapshot(snapshot(), fakeMedia({ [site[0] ?? ""]: "B1", [pin(site[0] ?? "")]: "B1", [site[1] ?? ""]: "A2" }))
+    ).rejects.toThrow("not posting a version Facebook did not get");
+    await expect(
+      igInputFromSnapshot(snapshot(), fakeMedia({ [site[0] ?? ""]: "A1", [site[1] ?? ""]: "B2" }))
+    ).rejects.toThrow("not posting a version Facebook did not get");
+  });
+
+  it("posts nothing when the video is not the one Facebook got", async () => {
+    const video = "https://tester.github.io/a/slot-02.mp4";
+    const reel = { ...snapshot(), ig_media_type: "reel" as const, image_urls: [], image_sha256s: [], image_urls_pinned: [], video_url: video, video_sha256: shaOf("V1") };
+    await expect(igInputFromSnapshot(reel, fakeMedia({ [video]: "V2" }))).rejects.toThrow("not posting a version Facebook did not get");
+    await expect(igInputFromSnapshot(reel, fakeMedia({ [video]: "V1" }))).resolves.toMatchObject({ mediaType: "reel", videoUrl: video });
+  });
+});
+
 describe("the pause brake reaches the cloud", () => {
   const state = { reason: "老闆看片中", since: "2026-10-01T12:00:00.000Z", paused_by: "owner" };
   let root: string;
@@ -317,7 +532,7 @@ describe("the pause brake reaches the cloud", () => {
   it("writes PAUSED to the cloud repo and moves no slot", async () => {
     await installCloud(root);
     const { gh } = fakeGh({ mode: "live", files: new Map() });
-    await pushIgCloudSnapshot(sampleSnapshot(), root, { gh });
+    await pushIgCloudSnapshot(sampleSnapshot(), root, { gh, fetchImpl: media });
     const repo = { mode: "live", files: new Map<string, string>([["queue/2026-10-02-slot2.json", "{}"]]) };
     const { gh: pauseGh } = fakeGh(repo);
     await pauseIgCloud(root, state, { gh: pauseGh });
@@ -379,6 +594,96 @@ describe("the pause brake reaches the cloud", () => {
     await pauseIgCloud(root, state, { gh });
     await resumeIgCloud(root, { gh });
     expect(calls).toEqual([]);
+  });
+});
+
+describe("the cloud gets the exact bytes Facebook got", () => {
+  const base = liveConfig().publicImageBaseUrl.replace(/\/+$/, "");
+  const one = `${base}/assets/2026-10-02/slot-02.png`;
+  const two = `${base}/assets/2026-10-02/slot-02-slide-02.png`;
+  const siteCommit = "a".repeat(40);
+  const sourceCommit = "b".repeat(40);
+  const rawSite = (path: string) => `https://raw.githubusercontent.com/tester/site/${siteCommit}/${path}`;
+  const rawSource = (path: string) => `https://raw.githubusercontent.com/tester/source/${sourceCommit}/docs/${path}`;
+  let root: string;
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "ig-cloud-pin-"));
+    await mkdir(join(root, "data"), { recursive: true });
+    await writeFile(
+      join(root, "data", "ig-cloud.json"),
+      JSON.stringify({
+        repo: REPO,
+        pin_sources: [
+          { repo: "tester/site", ref: "main", prefix: "" },
+          { repo: "tester/source", ref: "live", prefix: "docs/" }
+        ]
+      }),
+      "utf8"
+    );
+  });
+  const commits = { "tester/site@main": siteCommit, "tester/source@live": sourceCommit };
+
+  it("pins each image to the first commit that holds the same bytes", async () => {
+    const state = { mode: "live", files: new Map<string, string>(), commits };
+    const { gh } = fakeGh(state);
+    // Slide 2 at the mirror commit is a different file; the source repo has the right one.
+    const fetchImpl = fakeMedia({
+      [one]: "bytes-1",
+      [two]: "bytes-2",
+      [rawSite("assets/2026-10-02/slot-02.png")]: "bytes-1",
+      [rawSite("assets/2026-10-02/slot-02-slide-02.png")]: "swapped",
+      [rawSource("assets/2026-10-02/slot-02-slide-02.png")]: "bytes-2"
+    });
+    const outcome = await pushIgCloudSnapshot(sampleSnapshot({ image_urls: [one, two] }), root, { gh, fetchImpl });
+    expect(outcome.pushed).toBe(true);
+    const pushed = JSON.parse(state.files.get("queue/2026-10-02-slot2.json") ?? "{}") as IgCloudSnapshot;
+    expect(pushed.image_sha256s).toEqual([shaOf("bytes-1"), shaOf("bytes-2")]);
+    expect(pushed.image_urls_pinned).toEqual([
+      rawSite("assets/2026-10-02/slot-02.png"),
+      rawSource("assets/2026-10-02/slot-02-slide-02.png")
+    ]);
+  });
+
+  it("leaves an image unpinned when no commit holds its bytes", async () => {
+    const state = { mode: "live", files: new Map<string, string>(), commits };
+    const { gh } = fakeGh(state);
+    const fetchImpl = fakeMedia({ [one]: "bytes-1", [two]: "bytes-2" });
+    await pushIgCloudSnapshot(sampleSnapshot({ image_urls: [one, two] }), root, { gh, fetchImpl });
+    const pushed = JSON.parse(state.files.get("queue/2026-10-02-slot2.json") ?? "{}") as IgCloudSnapshot;
+    expect(pushed.image_urls_pinned).toEqual([null, null]);
+  });
+
+  it("keeps the slot on this PC when an image cannot be read", async () => {
+    const state = { mode: "live", files: new Map<string, string>(), commits };
+    const { gh } = fakeGh(state);
+    const outcome = await pushIgCloudSnapshot(sampleSnapshot({ image_urls: [one, two] }), root, {
+      gh,
+      fetchImpl: fakeMedia({}, [two])
+    });
+    expect(outcome).toMatchObject({ pushed: false, reason: expect.stringContaining("could not pin down") });
+    expect(state.files.size).toBe(0);
+    expect(await readIgCloudMarker(root, "2026-10-02", 2)).toBeUndefined();
+  });
+
+  it("keeps a Reel on this PC when the site's video is not the file Facebook was scheduled with", async () => {
+    const video = `${base}/assets/2026-10-02/slot-02.mp4`;
+    const reel = sampleSnapshot({
+      ig_media_type: "reel",
+      image_urls: [],
+      video_url: video,
+      video_bytes: 13,
+      video_sha256: shaOf("scheduled-mp4")
+    });
+    const swapped = { mode: "live", files: new Map<string, string>(), commits };
+    const refused = await pushIgCloudSnapshot(reel, root, { gh: fakeGh(swapped).gh, fetchImpl: fakeMedia({ [video]: "regenerated-mp4" }) });
+    expect(refused).toMatchObject({ pushed: false, reason: expect.stringContaining("video differs") });
+    expect(swapped.files.size).toBe(0);
+    expect(await readIgCloudMarker(root, "2026-10-02", 2)).toBeUndefined();
+
+    const same = { mode: "live", files: new Map<string, string>(), commits };
+    const accepted = await pushIgCloudSnapshot(reel, root, { gh: fakeGh(same).gh, fetchImpl: fakeMedia({ [video]: "scheduled-mp4" }) });
+    expect(accepted.pushed).toBe(true);
+    expect(same.files.has("queue/2026-10-02-slot2.json")).toBe(true);
   });
 });
 
@@ -459,6 +764,36 @@ describe("live publisher with a cloud-owned slot", () => {
     const log = await loadPostLog(date, root);
     expect(log.find((row) => row.platform === "instagram")).toMatchObject({ status: "success", post_id: "ig-cloud-1" });
   });
+
+  it("posts Instagram itself, with what Facebook got, once the cloud is switched off", async () => {
+    const owned = fingerprinted(sampleSnapshot({ date, slot: 1, ig_media_type: "carousel" }));
+    await writeFile(igCloudMarkerPath(root, date, 1), JSON.stringify(owned), "utf8");
+    const state = { mode: "off", files: new Map([[`queue/${date}-slot1.json`, JSON.stringify(owned)]]) };
+    igCloudDeps.gh = fakeGh(state).gh;
+    const realSleep = igCloudDeps.sleep;
+    igCloudDeps.sleep = async () => undefined;
+    const bodies: URLSearchParams[] = [];
+    const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    const fetchImpl = (async (input: string | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (!url.startsWith("https://graph.facebook.com/")) return new Response(`media:${url}`, { status: 200 });
+      if (init?.body instanceof URLSearchParams) bodies.push(init.body);
+      if (url.includes("fields=status_code")) return json({ status_code: "FINISHED" });
+      if (url.endsWith("/media_publish")) return json({ id: "ig-pc-1" });
+      return json({ id: `container-${bodies.length}` });
+    }) as typeof fetch;
+    try {
+      await postCurrentSlot({ root, date, slot: 1, now: `${date}T13:30:00+08:00`, dryRun: false, verifyPublicImageUrl: false, fetchImpl });
+    } finally {
+      igCloudDeps.sleep = realSleep;
+    }
+    const log = await loadPostLog(date, root);
+    expect(log.find((row) => row.platform === "instagram")).toMatchObject({ status: "success", post_id: "ig-pc-1" });
+    expect(bodies.map((body) => body.get("image_url")).filter(Boolean)).toEqual(owned.image_urls);
+    expect(bodies.map((body) => body.get("caption")).filter(Boolean)).toEqual([owned.caption]);
+    expect(state.files.has(`queue/${date}-slot1.json`)).toBe(false);
+    expect(await readIgCloudMarker(root, date, 1)).toBeUndefined();
+  });
 });
 
 describe("schedule-ahead hands Instagram to a live cloud", () => {
@@ -534,7 +869,7 @@ describe("schedule-ahead hands Instagram to a live cloud", () => {
       config: liveConfig(),
       fetchImpl,
       now: new Date("2026-09-20T21:00:00+08:00"),
-      igCloud: { gh }
+      igCloud: { gh, fetchImpl: media }
     });
     expect(results).toEqual([
       expect.objectContaining({ slot: 1, action: "scheduled" }),
@@ -552,6 +887,7 @@ describe("schedule-ahead hands Instagram to a live cloud", () => {
       fb_scheduled_post_id: scheduled?.scheduled_post_id,
       image_urls: [slot.public_image_url]
     });
+    expect(pushed.image_sha256s).toEqual([shaOf(`media:${slot.public_image_url}`)]);
     expect(pushed.backfill).toBeUndefined();
     expect(await readIgCloudMarker(root, DATE, 1)).toEqual(pushed);
   });
@@ -568,14 +904,14 @@ describe("schedule-ahead hands Instagram to a live cloud", () => {
       config: liveConfig(),
       fetchImpl,
       now: new Date("2026-09-20T21:00:00+08:00"),
-      igCloud: { gh: fakeGh(off).gh }
+      igCloud: { gh: fakeGh(off).gh, fetchImpl: media }
     });
     expect(off.files.size).toBe(0);
 
     const repo = { mode: "live", files: new Map<string, string>() };
     const { gh } = fakeGh(repo);
     const after = new Date("2026-09-22T09:00:00+08:00");
-    const day = { date: DATE, root, slot: 1, config: liveConfig(), igCloud: { gh } };
+    const day = { date: DATE, root, slot: 1, config: liveConfig(), igCloud: { gh, fetchImpl: media } };
     // Slot time has passed: without a backfill time the slot stays here.
     expect(await snapshotScheduledDay({ ...day, now: after })).toEqual([expect.stringContaining("stays on this PC")]);
     // A backfill may not go out before the content's own day.

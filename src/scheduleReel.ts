@@ -1024,6 +1024,14 @@ export async function healOneSlot(input: {
         return healStopped(input, stopReason, invalidate);
       }
     }
+    // Invalidation returns early for the same topic, so it never reaches
+    // slotMoveBlockReason's approved-log check on a variant-only repair.
+    if (topicIdentity(previous.topic) === topicIdentity(concept.hook)) {
+      const approvals = await loadApprovalLog(input.date, input.root);
+      if (approvals.some((entry) => entry.slot === input.slotNumber)) {
+        return healStopped(input, "approved-log", invalidate);
+      }
+    }
   }
   try {
     await scheduleReel({
@@ -1081,6 +1089,13 @@ async function main(): Promise<void> {
   // is a no-op. Without an A/B plan, behaviour matches the original single
   // evening Reel heal (slot 2 only).
   if (getFlag(args, "heal")) {
+    const healSlot = getNumberOption(args, "slot");
+    if ((getFlag(args, "force-regen-scheduled") || mediaGuardOverride) && healSlot === undefined) {
+      throw new Error("--force-regen-scheduled requires --slot N when healing");
+    }
+    if (healSlot !== undefined && healSlot !== 2 && healSlot !== 3) {
+      throw new Error("--heal --slot must be 2 or 3");
+    }
     const config = getConfig();
     const date = getOption(args, "date") ?? getZonedDateParts(new Date(), config.timezone).date;
     const root = projectRoot(getOption(args, "root"));
@@ -1089,7 +1104,7 @@ async function main(): Promise<void> {
     if (abPlan) {
       // Read the halves through planSlot rather than off the day object, so a
       // paused half is absent here the same way it is absent everywhere else.
-      for (const slotNumber of [3, 2]) {
+      for (const slotNumber of healSlot === undefined ? [3, 2] : [healSlot]) {
         const half = planSlot(abPlan, slotNumber);
         if (!half) {
           console.log(`${date}: slot ${slotNumber} is paused in the plan, leaving it alone.`);
@@ -1110,6 +1125,10 @@ async function main(): Promise<void> {
     const entry = REEL_SCHEDULE.find((item) => item.date === date);
     if (!entry) {
       console.log(`${date}: no reel scheduled, nothing to heal.`);
+      return;
+    }
+    if (healSlot === 3) {
+      console.log(`${date}: no reel scheduled for slot 3, nothing to heal.`);
       return;
     }
     await healOneSlot({

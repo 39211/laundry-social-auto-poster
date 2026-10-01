@@ -98,11 +98,14 @@ export async function findSlotLocks(root: string, date: string, slot: number): P
   return locks;
 }
 
-// R1: the error includes each lock and names the separate override required.
+// R1: posted media cannot be replaced; only scheduled/queued media has an override.
 export class SlotLockedError extends Error {
   constructor(date: string, slot: number, locks: SlotLock[], operation: string) {
     const detail = locks.map((lock) => `${lock.source}: ${lock.detail}`).join(", ");
-    super(`${date} slot ${slot} media is locked (${detail}); refusing to ${operation}. Override only with --force-regen-scheduled and a reason.`);
+    const guidance = locks.some((lock) => lock.source === "posted-log")
+      ? "已發布的媒體不能用 --force-regen-scheduled 覆寫。"
+      : "Override only with --force-regen-scheduled and a reason.";
+    super(`${date} slot ${slot} media is locked (${detail}); refusing to ${operation}. ${guidance}`);
     this.name = "SlotLockedError";
   }
 }
@@ -116,6 +119,11 @@ export async function assertSlotMediaMutable(input: {
 }): Promise<void> {
   const locks = await findSlotLocks(input.root, input.date, input.slot);
   if (locks.length === 0) return;
+
+  // A posted-log lock wins even when another lock is eligible for override.
+  if (locks.some((lock) => lock.source === "posted-log")) {
+    throw new SlotLockedError(input.date, input.slot, locks, input.operation);
+  }
 
   const reason = input.override?.reason.trim() ?? "";
   const actor = input.override?.actor.trim() ?? "";

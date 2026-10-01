@@ -1177,6 +1177,40 @@ describe("schedule-ahead hands Instagram to a live cloud", () => {
       headers: { "content-type": "application/json" }
     })) as typeof fetch;
 
+  async function snapshotWithUnconfirmedSchedule(status?: "uncertain") {
+    const root = await mkdtemp(join(tmpdir(), "ig-cloud-unconfirmed-"));
+    await writeTwoSlotDay(root);
+    await installCloud(root);
+    await mkdir(join(root, "data", "scheduled-log"), { recursive: true });
+    await writeFile(
+      join(root, "data", "scheduled-log", `${DATE}.json`),
+      JSON.stringify([
+        {
+          date: DATE,
+          slot: 1,
+          platform: "facebook",
+          scheduled_post_id: "",
+          scheduled_publish_time: Math.floor(Date.parse("2026-09-21T11:30:00+08:00") / 1000),
+          published_media_type: "image",
+          created_at: "2026-09-20T00:00:00.000Z",
+          ...(status === undefined ? {} : { status })
+        }
+      ]),
+      "utf8"
+    );
+    const state = { mode: "live", files: new Map<string, string>() };
+    const { gh, calls } = fakeGh(state);
+    const lines = await snapshotScheduledDay({
+      date: DATE,
+      root,
+      slot: 1,
+      config: liveConfig(),
+      igCloud: { gh, fetchImpl: media },
+      now: new Date("2026-09-20T09:00:00+08:00")
+    });
+    return { lines, state, calls };
+  }
+
   it("queues Facebook, then pushes the same version for Instagram", async () => {
     const root = await mkdtemp(join(tmpdir(), "ig-cloud-sched-"));
     const slot = await writeTwoSlotDay(root);
@@ -1210,6 +1244,20 @@ describe("schedule-ahead hands Instagram to a live cloud", () => {
     expect(pushed.image_sha256s).toEqual([shaOf(`media:${slot.public_image_url}`)]);
     expect(pushed.backfill).toBeUndefined();
     expect(await readIgCloudMarker(root, DATE, 1)).toEqual(pushed);
+  });
+
+  it("does not hand an uncertain Facebook row without a scheduled id to the cloud", async () => {
+    const result = await snapshotWithUnconfirmedSchedule("uncertain");
+    expect(result.lines).toEqual([expect.stringContaining("unconfirmed")]);
+    expect(result.calls).toHaveLength(0);
+    expect(result.state.files.size).toBe(0);
+  });
+
+  it("does not hand a row without a scheduled id to the cloud when status is absent", async () => {
+    const result = await snapshotWithUnconfirmedSchedule();
+    expect(result.lines).toEqual([expect.stringContaining("unconfirmed")]);
+    expect(result.calls).toHaveLength(0);
+    expect(result.state.files.size).toBe(0);
   });
 
   it("backfills a slot Facebook already published, at the given time and never before its own day", async () => {

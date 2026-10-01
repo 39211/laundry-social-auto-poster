@@ -56,6 +56,12 @@ export async function snapshotScheduledDay(input: {
     const label = `${date} slot ${row.slot}`;
     const keep = (why: string) => lines.push(`${label}: stays on this PC (${why})`);
 
+    // PR 134's merged rows add status outside ScheduledLogEntry, so read it locally.
+    if (!row.scheduled_post_id?.trim() || (row as { status?: string }).status === "uncertain") {
+      keep("Facebook schedule unconfirmed; nothing handed to the cloud");
+      continue;
+    }
+
     const backfillUnix = input.publishAt ? Math.floor(input.publishAt.getTime() / 1000) : undefined;
     if (backfillUnix === undefined) {
       if (row.scheduled_publish_time - nowUnix < 15 * 60) {

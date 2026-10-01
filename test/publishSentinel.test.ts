@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 const ROOT = process.cwd();
 const PROD_SCRIPT = join(ROOT, "scripts", "publish-sentinel.ps1");
 const SMOKE_SCRIPT = join(ROOT, "test", "ps-publish-sentinel-live-slots.smoke.ps1");
+// Upper bound for the full smoke under load, including every main-flow case.
+const SMOKE_TIMEOUT_MS = 300000;
 
 function functionSlice(source: string, name: string): string {
   const start = source.search(new RegExp(`function ${name}\\b`, "u"));
@@ -77,7 +79,7 @@ describe("publish-sentinel F19 live-post predicate", () => {
     expect(main).toContain('} elseif ($uncertain.Count -gt 0) {');
     expect(notice).toContain('Write-Log ("UNCERTAIN: "');
     expect(notice).toContain('Show-Toast "發布結果不明:');
-    expect(notice).toContain("去粉專/IG 看貼文有沒有上;有就不用管,沒有就把");
+    expect(notice).toContain("先去粉專/IG 看貼文有沒有上;有就不用管。沒有的話，請依來源處理：");
     expect(notice).toContain("data\\posted-log\\$Date.json 裡那一列刪掉再跑補發");
   });
 
@@ -139,10 +141,13 @@ describe("publish-sentinel F19 live-post predicate", () => {
       const result = spawnSync(
         "powershell.exe",
         ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", SMOKE_SCRIPT],
-        { encoding: "utf8", cwd: ROOT, timeout: 30000 }
+        { encoding: "utf8", cwd: ROOT, timeout: SMOKE_TIMEOUT_MS }
       );
       const out = `${result.stdout ?? ""}\n${result.stderr ?? ""}${result.error ? String(result.error) : ""}`;
+      const elapsed = out.match(/^SMOKE_ELAPSED_MS=(\d+)\r?$/mu);
+      console.log(elapsed ? `SMOKE_ELAPSED_MS=${elapsed[1]}` : "SMOKE_ELAPSED_MS=unavailable (smoke did not finish)");
       expect(result.status, out).toBe(0);
+      expect(elapsed, out).not.toBeNull();
       expect(out).toMatch(/EXTRACT_OK name=Get-DueSlots/u);
       expect(out).toMatch(/EXTRACT_OK name=Test-LivePostedEntry/u);
       expect(out).toMatch(/EXTRACT_OK name=Get-LivePostedSlots/u);
@@ -155,6 +160,23 @@ describe("publish-sentinel F19 live-post predicate", () => {
       expect(out).toMatch(/CASE_OK name=uncertain-live-only/u);
       expect(out).toMatch(/CASE_OK name=live-dry-run-success/u);
       expect(out).toMatch(/CASE_OK name=missing-dry-run-silences-not/u);
+      expect(out).toMatch(/CASE_OK name=main-uncertain-toast/u);
+      expect(out).toMatch(/CASE_OK name=main-ig-still-missing-no-success/u);
+      expect(out).toMatch(/CASE_OK name=main-ig-still-missing-log/u);
+      expect(out).toMatch(/CASE_OK name=main-fb-missing-catchup-called got=catchup_calls=1;npx_calls=1/u);
+      expect(out).toMatch(/CASE_OK name=main-scheduled-uncertain-advice/u);
+      expect(out).toMatch(/CASE_OK name=main-scheduled-empty-id-advice/u);
+      expect(out).toMatch(/CASE_OK name=main-scheduled-missing-fallback/u);
+      expect(out).toMatch(/CASE_OK name=main-scheduled-unreadable-fallback/u);
+      expect(out).toMatch(/CASE_OK name=main-scheduled-other-pairs-fallback/u);
+      expect(out).toMatch(/CASE_OK name=main-scheduled-confirmed-fallback/u);
+      expect(out).toMatch(/CASE_OK name=main-cloud-marker-advice/u);
+      expect(out).toMatch(/CASE_OK name=main-cloud-error-advice/u);
+      expect(out).toMatch(/CASE_OK name=main-cloud-error-scoped-to-pair/u);
+      expect(out).toMatch(/CASE_OK name=main-scheduled-after-catchup-advice/u);
+      expect(out).toMatch(/CASE_OK name=main-cloud-after-catchup-advice/u);
+      expect(out).toMatch(/CASE_OK name=main-cloud-after-sync-advice/u);
+      expect(out).toMatch(/CASE_OK name=main-scheduled-log-read-only/u);
       expect(out).toMatch(/SMOKE_OK/u);
       expect(out).not.toMatch(/CASE_FAIL/u);
       expect(lastJsonObject(out)).toEqual({
@@ -180,6 +202,6 @@ describe("publish-sentinel F19 live-post predicate", () => {
         ig_cloud_sync_present: true
       });
     },
-    30000
+    SMOKE_TIMEOUT_MS
   );
 });

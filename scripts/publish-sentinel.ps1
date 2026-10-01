@@ -13,6 +13,10 @@ function Write-Log([string]$line) {
     "[{0}] {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm"), $line | Out-File $logFile -Append -Encoding utf8
 }
 function Show-Toast([string]$text) {
+    if ($env:PUBLISH_SENTINEL_TOAST_FILE) {
+        ("TOAST|" + $text) | Out-File -LiteralPath $env:PUBLISH_SENTINEL_TOAST_FILE -Append -Encoding utf8
+        return
+    }
     try {
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
         $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
@@ -116,12 +120,58 @@ function Write-UncertainNotice($Pairs, [string]$Date) {
     if (@($Pairs).Count -eq 0) { return }
     Write-Log ("UNCERTAIN: " + (@($Pairs) -join ","))
     $list = Format-PublishPairs $Pairs
-    Show-Toast "發布結果不明:$list。去粉專/IG 看貼文有沒有上;有就不用管,沒有就把 data\posted-log\$Date.json 裡那一列刪掉再跑補發。"
+    $guidance = @(foreach ($pair in @($Pairs)) {
+        $parts = $pair -split ":", 2
+        $slot = $parts[0]
+        $label = Format-PublishPairs @($pair)
+        $scheduledUncertain = $false
+        $cloudOwned = $false
+        if ($parts[1] -eq "facebook") {
+            # Read only for recovery advice; scheduled rows never count as live posts.
+            try {
+                $scheduledPath = Join-Path $RootPath "data\scheduled-log\$Date.json"
+                $scheduledRows = Get-Content -LiteralPath $scheduledPath -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+                $scheduledUncertain = @(@($scheduledRows) | Where-Object {
+                    $null -ne $_ -and [string]$_.slot -eq $slot -and $_.platform -eq "facebook" -and
+                    ($_.status -eq "uncertain" -or [string]::IsNullOrWhiteSpace([string]$_.scheduled_post_id))
+                }).Count -gt 0
+            } catch {
+                # Missing/unreadable schedule data falls back to local commit-point advice.
+                $scheduledUncertain = $false
+            }
+        } elseif ($parts[1] -eq "instagram") {
+            $queuePath = Join-Path $RootPath ("data\ig-cloud\queue\{0}-slot{1}.json" -f $Date, $slot)
+            $cloudOwned = Test-Path -LiteralPath $queuePath
+            if (-not $cloudOwned) {
+                try {
+                    # Read fresh data for notices after either sync or catchup, too.
+                    $postedPath = Join-Path $RootPath "data\posted-log\$Date.json"
+                    $noticeRows = Get-Content -LiteralPath $postedPath -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+                    $cloudOwned = @(@($noticeRows) | Where-Object {
+                        $null -ne $_ -and -not $_.dry_run -and $_.status -eq "uncertain" -and
+                        [string]$_.slot -eq $slot -and $_.platform -eq "instagram" -and
+                        ([string]$_.error).StartsWith("cloud:", [StringComparison]::Ordinal)
+                    }).Count -gt 0
+                } catch {
+                    $cloudOwned = $false
+                }
+            }
+        }
+        if ($scheduledUncertain) {
+            "$label 是 FB 排程結果不明：把 data\scheduled-log\$Date.json 裡這格 facebook 那一列，以及 data\posted-log\$Date.json 裡這格 facebook 那一列都刪掉，再跑補發。"
+        } elseif ($cloudOwned) {
+            $resultPath = "results/{0}-slot{1}.json" -f $Date, $slot
+            "$label 是雲端 IG：不要刪本機 data\posted-log\$Date.json 那一列；去雲端 repo 的 $resultPath 看結果，確認雲端沒發，就照 PR 132 README 把開關切 off 讓電腦收回，或等下一輪自動收回。"
+        } else {
+            "$label 是本機送出後未確認：把 data\posted-log\$Date.json 裡那一列刪掉再跑補發。"
+        }
+    })
+    Show-Toast "發布結果不明:$list。先去粉專/IG 看貼文有沒有上;有就不用管。沒有的話，請依來源處理：$($guidance -join ' ')"
 }
 
 Set-Location $RootPath
-$d = (Get-Date).ToString("yyyy-MM-dd")
-$t = (Get-Date).ToString("HH:mm")
+$d = if ($env:PUBLISH_SENTINEL_DATE) { $env:PUBLISH_SENTINEL_DATE } else { (Get-Date).ToString("yyyy-MM-dd") }
+$t = if ($env:PUBLISH_SENTINEL_TIME) { $env:PUBLISH_SENTINEL_TIME } else { (Get-Date).ToString("HH:mm") }
 $due = @(Get-DueSlots $t)
 
 # R1-R3: Every read separates live pairs from uncertain submissions.

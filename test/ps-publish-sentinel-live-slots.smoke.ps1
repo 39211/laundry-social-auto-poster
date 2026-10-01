@@ -1,6 +1,6 @@
 ﻿# PS-layer smoke for live-post helpers in scripts/publish-sentinel.ps1.
-# Extracts production functions via AST (does not run the script body, so it
-# never fires catchup or toasts).
+# Helper cases use AST extraction. Main-flow cases execute the real body in
+# isolated Temp roots with stub catchup/npx, fixed time and file-backed toasts.
 #
 # Teeth (F19 / F21 / F22):
 #   1. Due windows stay 11:45 -> slot1, 12:15 -> +slot3, 20:45 -> +slot2
@@ -10,11 +10,24 @@
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
+$smokeStopwatch = [Diagnostics.Stopwatch]::StartNew()
+
+function Write-SmokeElapsed {
+    $smokeStopwatch.Stop()
+    Write-Output ("SMOKE_ELAPSED_MS=" + $smokeStopwatch.ElapsedMilliseconds)
+}
+
+# Preserve the failure while reporting timing for unexpected terminating errors.
+trap {
+    Write-SmokeElapsed
+    break
+}
 
 $root = Split-Path -Parent $PSScriptRoot
 $prod = Join-Path $root "scripts\publish-sentinel.ps1"
 if (-not (Test-Path -LiteralPath $prod)) {
     Write-Output "MISSING_PROD=$prod"
+    Write-SmokeElapsed
     exit 2
 }
 
@@ -24,6 +37,7 @@ $ast = [System.Management.Automation.Language.Parser]::ParseFile($prod, [ref]$to
 if ($errs -and $errs.Count -gt 0) {
     $head = @($errs | ForEach-Object { $_.ToString() } | Select-Object -First 3) -join "; "
     Write-Output "PARSE_FAIL=$head"
+    Write-SmokeElapsed
     exit 2
 }
 
@@ -43,6 +57,7 @@ foreach ($name in $names) {
     $fn = Get-ProdFunction $name
     if (-not $fn) {
         Write-Output "EXTRACT_FAIL=$name not found"
+        Write-SmokeElapsed
         exit 2
     }
     Write-Output ("EXTRACT_OK name=" + $fn.Name)
@@ -224,14 +239,169 @@ try {
     }
 }
 
+# SENTINEL-R3: Run the production body without replacing its call lines.
+$mainRoot = Join-Path ([IO.Path]::GetTempPath()) ("publish-sentinel-main-" + [guid]::NewGuid().ToString("N"))
+$probeDate = "2026-10-05"
+$utf8Bom = [Text.UTF8Encoding]::new($true)
+$utf8NoBom = [Text.UTF8Encoding]::new($false)
+$savedEnv = @{}
+foreach ($key in @("PATH", "npm_config_offline", "PUBLISH_SENTINEL_DATE", "PUBLISH_SENTINEL_TIME", "PUBLISH_SENTINEL_TOAST_FILE")) {
+    $savedEnv[$key] = [Environment]::GetEnvironmentVariable($key, "Process")
+}
+
+function Write-ProbeFile([string]$Path, [string]$Text, [bool]$Bom = $false) {
+    [void][IO.Directory]::CreateDirectory((Split-Path -Parent $Path))
+    $encoding = if ($Bom) { $utf8Bom } else { $utf8NoBom }
+    [IO.File]::WriteAllText($Path, $Text, $encoding)
+}
+
+function Read-ProbeFile([string]$Path) {
+    if (-not (Test-Path -LiteralPath $Path)) { return "" }
+    # PS 5.1's *>> can mix UTF-16LE with Write-Log's UTF-8. Preserve log text.
+    return ([Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($Path)) -replace "`0", "" -replace ([string][char]0xFEFF), "")
+}
+
+$catchupStub = @'
+$ErrorActionPreference = "Stop"
+$fixtureRoot = Split-Path -Parent $PSScriptRoot
+& npx.cmd tsx src/postCurrentSlot.ts --all-due --date $env:PUBLISH_SENTINEL_DATE
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$after = Join-Path $fixtureRoot "probe\catchup-posted.json"
+if (Test-Path -LiteralPath $after) {
+    Copy-Item -LiteralPath $after -Destination (Join-Path $fixtureRoot "data\posted-log\$env:PUBLISH_SENTINEL_DATE.json") -Force
+}
+exit 0
+'@
+$npxStub = @'
+@echo off
+echo NPX_CALLED %*>> "%~dp0..\probe\npx-called.txt"
+if "%~2"=="src/postCurrentSlot.ts" echo CATCHUP_CALLED>> "%~dp0..\probe\catchup-called.txt"
+if "%~2"=="src/igCloud.ts" if exist "%~dp0..\probe\sync-posted.json" copy /Y "%~dp0..\probe\sync-posted.json" "%~dp0..\data\posted-log\%PUBLISH_SENTINEL_DATE%.json" >nul
+exit /b 0
+'@
+
+function Invoke-MainCase {
+    param(
+        [string]$Name, [string]$Posted, [string]$Scheduled = "",
+        [bool]$CloudMarker = $false, [string]$AfterCatchup = "", [string]$AfterSync = ""
+    )
+    $caseRoot = Join-Path $mainRoot $Name
+    [void][IO.Directory]::CreateDirectory((Join-Path $caseRoot "output"))
+    [void][IO.Directory]::CreateDirectory((Join-Path $caseRoot "probe"))
+    Write-ProbeFile (Join-Path $caseRoot "data\posted-log\$probeDate.json") $Posted
+    Write-ProbeFile (Join-Path $caseRoot "scripts\catchup-publish.ps1") $catchupStub $true
+    Write-ProbeFile (Join-Path $caseRoot "bin\npx.cmd") $npxStub
+    $scheduledPath = Join-Path $caseRoot "data\scheduled-log\$probeDate.json"
+    if ($Scheduled) { Write-ProbeFile $scheduledPath $Scheduled }
+    if ($CloudMarker) {
+        Write-ProbeFile (Join-Path $caseRoot "data\ig-cloud\queue\$probeDate-slot1.json") '{}'
+    }
+    if ($AfterCatchup) { Write-ProbeFile (Join-Path $caseRoot "probe\catchup-posted.json") $AfterCatchup }
+    if ($AfterSync) {
+        Write-ProbeFile (Join-Path $caseRoot "src\igCloud.ts") '// fixture; npx is stubbed'
+        Write-ProbeFile (Join-Path $caseRoot "probe\sync-posted.json") $AfterSync
+    }
+    $toastPath = Join-Path $caseRoot "output\toasts.log"
+    $env:PUBLISH_SENTINEL_DATE = $probeDate
+    $env:PUBLISH_SENTINEL_TIME = "11:50"
+    $env:PUBLISH_SENTINEL_TOAST_FILE = $toastPath
+    $env:npm_config_offline = "true"
+    $env:PATH = (Join-Path $caseRoot "bin") + ";" + $savedEnv["PATH"]
+    $resolvedNpx = (Get-Command npx.cmd -ErrorAction Stop).Source
+    if ($resolvedNpx -ne (Join-Path $caseRoot "bin\npx.cmd")) { throw "npx.cmd resolved to '$resolvedNpx', expected '$caseRoot\bin\npx.cmd'" }
+
+    $output = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $prod -RootPath $caseRoot 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Main-flow case $Name failed: $output" }
+    $npxCalls = Read-ProbeFile (Join-Path $caseRoot "probe\npx-called.txt")
+    $catchupCalls = Read-ProbeFile (Join-Path $caseRoot "probe\catchup-called.txt")
+    $scheduledUnchanged = if ($Scheduled) {
+        (Test-Path -LiteralPath $scheduledPath) -and (Read-ProbeFile $scheduledPath) -ceq $Scheduled
+    } else {
+        -not (Test-Path -LiteralPath $scheduledPath)
+    }
+    return [pscustomobject]@{
+        Toasts = Read-ProbeFile $toastPath
+        Log = Read-ProbeFile (Join-Path $caseRoot "output\publish-sentinel.log")
+        CatchupCalls = [regex]::Matches($catchupCalls, "CATCHUP_CALLED").Count
+        NpxCalls = [regex]::Matches($npxCalls, "NPX_CALLED").Count
+        ScheduledUnchanged = $scheduledUnchanged
+    }
+}
+
+$fbLive = '{"slot":1,"platform":"facebook","status":"success","dry_run":false}'
+$igLive = '{"slot":1,"platform":"instagram","status":"success","dry_run":false}'
+$fbUnknown = '{"slot":1,"platform":"facebook","status":"uncertain","dry_run":false}'
+$igUnknown = '{"slot":1,"platform":"instagram","status":"uncertain","dry_run":false,"error":"commit point: response lost"}'
+$igCloudUnknown = '{"slot":1,"platform":"instagram","status":"uncertain","dry_run":false,"error":"cloud: publish outcome uncertain"}'
+$scheduledUnknown = '[{"slot":1,"platform":"facebook","status":"uncertain","scheduled_post_id":"schedule-id"}]'
+$scheduledEmptyId = '[{"slot":1,"platform":"facebook","scheduled_post_id":""}]'
+$localAdvice = "data\posted-log\$probeDate.json 裡那一列刪掉再跑補發"
+$scheduleAdvice = "data\scheduled-log\$probeDate.json 裡這格 facebook 那一列，以及 data\posted-log\$probeDate.json 裡這格 facebook 那一列都刪掉，再跑補發"
+$cloudAdvice = "不要刪本機 data\posted-log\$probeDate.json 那一列；去雲端 repo 的 results/$probeDate-slot1.json 看結果，確認雲端沒發，就照 PR 132 README 把開關切 off 讓電腦收回，或等下一輪自動收回"
+try {
+    $localIg = Invoke-MainCase -Name "local-ig" -Posted "[$fbLive,$igUnknown]"
+    Assert-Bool -Name "main-uncertain-toast" -Got ($localIg.Toasts.Contains("發布結果不明:slot 1 的 IG")) -Expect $true
+    Assert-Bool -Name "main-local-commit-point-advice" -Got ($localIg.Toasts.Contains($localAdvice) -and -not $localIg.Toasts.Contains("雲端 repo")) -Expect $true
+    Assert-Pairs -Name "main-uncertain-no-catchup" -Got $localIg.CatchupCalls -Expect "0"
+
+    $stillMissing = Invoke-MainCase -Name "ig-still-missing" -Posted "[$fbLive]"
+    Assert-Bool -Name "main-ig-still-missing-no-success" -Got ($stillMissing.Toasts.Contains("補發成功")) -Expect $false
+    Assert-Bool -Name "main-ig-still-missing-log" -Got ($stillMissing.Log.Contains("STILL MISSING after catchup: 1:instagram") -and $stillMissing.Toasts.Contains("slot 1 的 IG 仍未發布")) -Expect $true
+
+    $fbRecovered = Invoke-MainCase -Name "fb-missing" -Posted "[$igLive]" -AfterCatchup "[$fbLive,$igLive]"
+    Assert-Pairs -Name "main-fb-missing-catchup-called" -Got "catchup_calls=$($fbRecovered.CatchupCalls);npx_calls=$($fbRecovered.NpxCalls)" -Expect "catchup_calls=1;npx_calls=1"
+    Assert-Bool -Name "main-fb-recovered-readback" -Got ($fbRecovered.Toasts.Contains("補發成功") -and -not $fbRecovered.Log.Contains("STILL MISSING")) -Expect $true
+
+    $scheduled = Invoke-MainCase -Name "scheduled-uncertain" -Posted "[$fbUnknown,$igLive]" -Scheduled $scheduledUnknown
+    Assert-Bool -Name "main-scheduled-uncertain-advice" -Got ($scheduled.Toasts.Contains($scheduleAdvice) -and -not $scheduled.Toasts.Contains($localAdvice)) -Expect $true
+    $emptyId = Invoke-MainCase -Name "scheduled-empty-id" -Posted "[$fbUnknown,$igLive]" -Scheduled $scheduledEmptyId
+    Assert-Bool -Name "main-scheduled-empty-id-advice" -Got ($emptyId.Toasts.Contains($scheduleAdvice)) -Expect $true
+
+    $noSchedule = Invoke-MainCase -Name "scheduled-missing" -Posted "[$fbUnknown,$igLive]"
+    Assert-Bool -Name "main-scheduled-missing-fallback" -Got ($noSchedule.Toasts.Contains($localAdvice) -and -not $noSchedule.Toasts.Contains($scheduleAdvice)) -Expect $true
+    $badSchedule = Invoke-MainCase -Name "scheduled-unreadable" -Posted "[$fbUnknown,$igLive]" -Scheduled '{bad json'
+    Assert-Bool -Name "main-scheduled-unreadable-fallback" -Got ($badSchedule.Toasts.Contains($localAdvice) -and -not $badSchedule.Toasts.Contains($scheduleAdvice)) -Expect $true
+    $unrelatedSchedule = Invoke-MainCase -Name "scheduled-other-pairs" -Posted "[$fbUnknown,$igLive]" -Scheduled '[{"slot":3,"platform":"facebook","status":"uncertain","scheduled_post_id":""},{"slot":1,"platform":"instagram","status":"uncertain","scheduled_post_id":""}]'
+    Assert-Bool -Name "main-scheduled-other-pairs-fallback" -Got ($unrelatedSchedule.Toasts.Contains($localAdvice) -and -not $unrelatedSchedule.Toasts.Contains($scheduleAdvice)) -Expect $true
+    $confirmedSchedule = Invoke-MainCase -Name "scheduled-confirmed" -Posted "[$fbUnknown,$igLive]" -Scheduled '[{"slot":1,"platform":"facebook","scheduled_post_id":"confirmed-id"}]'
+    Assert-Bool -Name "main-scheduled-confirmed-fallback" -Got ($confirmedSchedule.Toasts.Contains($localAdvice) -and -not $confirmedSchedule.Toasts.Contains($scheduleAdvice)) -Expect $true
+
+    $cloudMarker = Invoke-MainCase -Name "cloud-marker" -Posted "[$fbLive,$igUnknown]" -CloudMarker $true
+    Assert-Bool -Name "main-cloud-marker-advice" -Got ($cloudMarker.Toasts.Contains($cloudAdvice) -and -not $cloudMarker.Toasts.Contains($localAdvice)) -Expect $true
+    Assert-Pairs -Name "main-cloud-uncertain-no-catchup" -Got $cloudMarker.CatchupCalls -Expect "0"
+    $cloudError = Invoke-MainCase -Name "cloud-error" -Posted "[$fbLive,$igCloudUnknown]"
+    Assert-Bool -Name "main-cloud-error-advice" -Got ($cloudError.Toasts.Contains($cloudAdvice) -and -not $cloudError.Toasts.Contains($localAdvice)) -Expect $true
+    $otherCloudError = Invoke-MainCase -Name "cloud-other-pair" -Posted "[$fbLive,$igUnknown,{`"slot`":3,`"platform`":`"instagram`",`"status`":`"uncertain`",`"error`":`"cloud: other slot`"}]"
+    Assert-Bool -Name "main-cloud-error-scoped-to-pair" -Got ($otherCloudError.Toasts.Contains("slot 1 的 IG 是本機送出後未確認：把 $localAdvice") -and $otherCloudError.Toasts.Contains("results/$probeDate-slot3.json")) -Expect $true
+
+    # S07 regression: the catchup stub reintroduces an uncertain FB row.
+    $scheduledAfter = Invoke-MainCase -Name "scheduled-after-catchup" -Posted "[$igLive]" -Scheduled $scheduledUnknown -AfterCatchup "[$fbUnknown,$igLive]"
+    Assert-Bool -Name "main-scheduled-after-catchup-advice" -Got ($scheduledAfter.Toasts.Contains($scheduleAdvice) -and -not $scheduledAfter.Toasts.Contains("補發成功") -and $scheduledAfter.CatchupCalls -eq 1) -Expect $true
+    $cloudAfter = Invoke-MainCase -Name "cloud-after-catchup" -Posted "[$fbLive]" -AfterCatchup "[$fbLive,$igCloudUnknown]"
+    Assert-Bool -Name "main-cloud-after-catchup-advice" -Got ($cloudAfter.Toasts.Contains($cloudAdvice) -and -not $cloudAfter.Toasts.Contains("補發成功")) -Expect $true
+    $cloudSync = Invoke-MainCase -Name "cloud-after-sync" -Posted "[$fbLive]" -CloudMarker $true -AfterSync "[$fbLive,$igCloudUnknown]"
+    Assert-Bool -Name "main-cloud-after-sync-advice" -Got ($cloudSync.Toasts.Contains($cloudAdvice) -and $cloudSync.NpxCalls -eq 1 -and $cloudSync.CatchupCalls -eq 0) -Expect $true
+
+    $scheduleResults = @($localIg, $stillMissing, $fbRecovered, $scheduled, $emptyId, $noSchedule, $badSchedule, $unrelatedSchedule, $confirmedSchedule, $cloudMarker, $cloudError, $otherCloudError, $scheduledAfter, $cloudAfter, $cloudSync)
+    Assert-Bool -Name "main-scheduled-log-read-only" -Got (@($scheduleResults | Where-Object { -not $_.ScheduledUnchanged }).Count -eq 0) -Expect $true
+} finally {
+    foreach ($key in $savedEnv.Keys) { [Environment]::SetEnvironmentVariable($key, $savedEnv[$key], "Process") }
+    # Remove only this run's resolved Temp directory.
+    $tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    $resolvedMainRoot = [IO.Path]::GetFullPath($mainRoot)
+    if (-not $resolvedMainRoot.StartsWith($tempPrefix, [StringComparison]::OrdinalIgnoreCase)) { throw "Unexpected Temp fixture path" }
+    if (Test-Path -LiteralPath $resolvedMainRoot) { Remove-Item -LiteralPath $resolvedMainRoot -Recurse -Force }
+}
+
 if ($failed) {
     Write-Output "SMOKE_FAIL"
     Write-Output '{"ok":false}'
+    Write-SmokeElapsed
     exit 1
 }
 
 Write-Output "SMOKE_OK"
-# R5: 最後一行 JSON 保留 F19 欄位，並回報新案例的實際結果。
+# R5: JSON 保留 F19 欄位，並回報新案例的實際結果。
 [ordered]@{
     ok = $true
     dry_run_counts = $false
@@ -254,4 +424,5 @@ Write-Output "SMOKE_OK"
     ig_cloud_sync_missing = $syncWithoutFile
     ig_cloud_sync_present = $syncWithFile
 } | ConvertTo-Json -Compress
+Write-SmokeElapsed
 exit 0

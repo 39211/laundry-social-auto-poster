@@ -24,9 +24,9 @@ import type { AppConfig, DailySlot, MediaType, PostInput, PostLogEntry } from ".
 //
 // The cloud repo's CLOUD_MODE variable is the switch. Snapshots are pushed only
 // while it is "live"; otherwise Instagram stays on this PC exactly as before.
-// Switching it off does not strand the slots the cloud already owns: the live
-// publisher takes each one back at its slot run (reclaimIfCloudSwitchedOff)
-// and posts the snapshot itself. Pausing the line (npm run pause) also writes PAUSED into the cloud repo, which
+// Switching it off, or finding that a live queue has lost its snapshot, does
+// not strand a slot: the live publisher takes it back at its slot run
+// (reclaimIfCloudCannotPost) and posts the snapshot itself. Pausing the line (npm run pause) also writes PAUSED into the cloud repo, which
 // the cloud job checks at start and again right before media_publish; no slot
 // changes owner, and both sides wait until the owner clears the pause, which
 // runs the cloud job once so slots the pause held back still go out.
@@ -501,6 +501,39 @@ export async function findLiveInstagramPost(
   return payload.data.find((item) => normalizeCaption(item.caption) === want && Date.parse(item.timestamp ?? "") >= cutoff)?.id;
 }
 
+/** R3: Check whether the cloud already left the taken-back slot's first comment. */
+export async function findFirstCommentOnPost(
+  postId: string,
+  text: string,
+  config: AppConfig,
+  fetchImpl: typeof fetch
+): Promise<string | undefined> {
+  const query = new URLSearchParams({ fields: "id,text", limit: "50", access_token: config.metaAccessToken ?? "" });
+  const response = await fetchImpl(`https://graph.facebook.com/${config.graphApiVersion}/${postId}/comments?${query}`);
+  let payload: { data?: unknown; error?: unknown } | null;
+  try {
+    payload = (await response.json()) as { data?: unknown; error?: unknown } | null;
+  } catch {
+    throw new Error(`Instagram comments could not be read (${response.status})`);
+  }
+  const errorMessage =
+    payload && typeof payload === "object" && payload.error && typeof payload.error === "object" &&
+    "message" in payload.error && typeof payload.error.message === "string"
+      ? payload.error.message
+      : undefined;
+  if (!response.ok || !payload || typeof payload !== "object" || payload.error || !Array.isArray(payload.data)) {
+    throw new Error(`Instagram comments could not be read (${errorMessage ?? response.status})`);
+  }
+  const wanted = normalizeCaption(text);
+  const match = payload.data.find((item) => {
+    if (!item || typeof item !== "object") return false;
+    return normalizeCaption((item as { text?: unknown }).text) === wanted;
+  });
+  return match && typeof match === "object" && typeof (match as { id?: unknown }).id === "string"
+    ? (match as { id: string }).id
+    : undefined;
+}
+
 /**
  * Gives every not-yet-due cloud slot back to this PC: deletes the snapshot
  * from the cloud queue first, then the local marker. Manual only (npm run
@@ -608,7 +641,7 @@ export async function takeBackIgCloudSlot(
       await ghPutFile(settings.repo, remotePath, `${JSON.stringify(snapshot, null, 2)}\n`, `restore ${date} slot ${slot}`, gh);
       return "snapshot restored to the cloud queue";
     } catch (error) {
-      return `snapshot NOT restored to the cloud queue (${error instanceof Error ? error.message : String(error)}); push it again with --snapshot, or release the slot`;
+      return `snapshot NOT restored to the cloud queue (${error instanceof Error ? error.message : String(error)}); the cloud has nothing to post for this slot, so this PC takes it back at its next run (slot time or catch-up)`;
     }
   };
   const kept = async (reason: string): Promise<TakeBackOutcome> => ({ status: "kept", reason: `${reason}; ${await restored()}` });
@@ -651,14 +684,13 @@ export async function takeBackIgCloudSlot(
 }
 
 /**
- * A cloud switched off (CLOUD_MODE anything but live) posts nothing, so the
- * slots it already owns would be posted by nobody. The live publisher calls
- * this for each cloud-owned slot it reaches -- at slot time and at the
- * catch-up retry, both after the cloud's own runs -- and takes the slot back
- * when the switch reads off. An unreadable switch changes nothing: the cloud
- * may well be live, and posting from here as well would post twice.
+ * R1: A cloud-owned slot cannot be posted when CLOUD_MODE is not live or when
+ * the live queue has no snapshot for it. At slot time and catch-up, the live
+ * publisher checks the switch and queue after the cloud's own runs. An
+ * unreadable switch or queue leaves ownership alone, since the cloud may still
+ * be able to post and taking it back as well could publish twice.
  */
-export async function reclaimIfCloudSwitchedOff(
+export async function reclaimIfCloudCannotPost(
   root: string,
   date: string,
   slot: number,
@@ -667,8 +699,18 @@ export async function reclaimIfCloudSwitchedOff(
   const settings = await loadIgCloudSettings(root);
   if (!settings || !(await readIgCloudMarker(root, date, slot))) return undefined;
   if (hasRecordedPost(await loadPostLog(date, root), slot, "instagram", false)) return undefined;
-  const mode = await readCloudMode(settings.repo, options.gh ?? igCloudDeps.gh);
-  if (mode === undefined || mode === "live") return undefined;
+  const gh = options.gh ?? igCloudDeps.gh;
+  const mode = await readCloudMode(settings.repo, gh);
+  if (mode === undefined) return undefined;
+  if (mode === "live") {
+    try {
+      if (await ghGetFile(settings.repo, `queue/${date}-slot${slot}.json`, gh)) return undefined;
+    } catch {
+      return undefined;
+    }
+  } else {
+    return takeBackIgCloudSlot(root, date, slot, options);
+  }
   return takeBackIgCloudSlot(root, date, slot, options);
 }
 

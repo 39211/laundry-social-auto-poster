@@ -37,11 +37,12 @@ import {
 } from "./imageStamp";
 import {
   claimFirstCommentForCloud,
+  findFirstCommentOnPost,
   findLiveInstagramPost,
   igInputFromSnapshot,
   readIgCloudMarker,
   readIgCloudTakenBack,
-  reclaimIfCloudSwitchedOff,
+  reclaimIfCloudCannotPost,
   syncIgCloudResult
 } from "./igCloud";
 import { imageAssetsForSlot } from "./mediaAssets";
@@ -412,11 +413,11 @@ async function postOneSlot(
     };
   }
   try {
-  // A switched-off cloud posts nothing, so a slot it owns comes back here and
-  // this run posts it (src/igCloud.ts reclaimIfCloudSwitchedOff). Inside the
-  // lock, so two overlapping runs cannot both take it back and both post.
+  // A cloud-owned slot comes back here if the cloud is switched off or its
+  // live queue has no snapshot (src/igCloud.ts reclaimIfCloudCannotPost). Inside
+  // the lock, so overlapping runs cannot both take it back and post.
   if (cloudOwnsInstagram) {
-    const reclaim = await reclaimIfCloudSwitchedOff(root, date, slot.slot).catch((error) => {
+    const reclaim = await reclaimIfCloudCannotPost(root, date, slot.slot).catch((error) => {
       console.warn(
         `ig-cloud take-back for ${date} slot ${slot.slot} failed: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -456,11 +457,13 @@ async function postOneSlot(
         if (!pastContent) continue;
         const pastPosts = await loadPostLog(pastDate, root).catch(() => []);
         for (const pastSlot of pastContent.slots) {
-          const pastCaption = (pastSlot.instagram_caption ?? "").trim();
-          if (!pastCaption) continue;
-          const sameCaption =
-            createHash("sha256").update(pastCaption).digest("hex") === captionHash;
-          if (!sameCaption) continue;
+          const pastCaptions = [...new Set([pastSlot.instagram_caption, pastSlot.facebook_caption]
+            .map((pastCaption) => (pastCaption ?? "").trim())
+            .filter(Boolean))];
+          const matchingCaption = pastCaptions.find(
+            (pastCaption) => createHash("sha256").update(pastCaption).digest("hex") === captionHash
+          );
+          if (!matchingCaption) continue;
           const wentLive = pastPosts.some(
             (post) =>
               post.slot === pastSlot.slot &&
@@ -677,7 +680,18 @@ async function postOneSlot(
             abVariant
           );
           await appendPostLog(entry, root);
-          await claimFirstCommentForCloud(root, date, slot.slot, live);
+          const firstComment = takenBack.first_comment.trim();
+          if (firstComment) {
+            try {
+              const commentId = await findFirstCommentOnPost(live, firstComment, config, fetchImpl);
+              if (commentId) await claimFirstCommentForCloud(root, date, slot.slot, live, commentId);
+            } catch (error) {
+              console.warn(
+                `Instagram comments for ${live} could not be read (${error instanceof Error ? error.message : String(error)}); recording the first comment as cloud-owned to avoid a duplicate.`
+              );
+              await claimFirstCommentForCloud(root, date, slot.slot, live);
+            }
+          }
           outputs.push(entry);
           continue;
         }

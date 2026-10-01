@@ -36,6 +36,8 @@ import {
   isApprovedSlotDigestMap
 } from "./imageStamp";
 import {
+  claimFirstCommentForCloud,
+  findLiveInstagramPost,
   igInputFromSnapshot,
   readIgCloudMarker,
   readIgCloudTakenBack,
@@ -440,7 +442,9 @@ async function postOneSlot(
   // fixed at generation now; this is the backstop that refuses to put an
   // identical post out twice regardless of how it got here.
   if (!config.dryRun && !preflightOnly) {
-    const caption = (slot.instagram_caption ?? "").trim();
+    // A slot taken back from the cloud posts the snapshot's caption (what
+    // Facebook got), so that is the caption to check.
+    const caption = (takenBack?.caption ?? slot.instagram_caption ?? "").trim();
     if (caption) {
       const { createHash } = await import("node:crypto");
       const captionHash = createHash("sha256").update(caption).digest("hex");
@@ -659,7 +663,25 @@ async function postOneSlot(
 
     try {
       // Taken back from the cloud: Instagram gets what Facebook got, not the
-      // calendar's current caption and files.
+      // calendar's current caption and files -- unless the cloud did post it
+      // and only its result commit was lost, in which case the post is on the
+      // account already and is recorded, not posted again.
+      if (platform === "instagram" && takenBack) {
+        const live = await findLiveInstagramPost(takenBack.caption, config, fetchImpl);
+        if (live) {
+          const entry = resultToLog(
+            date,
+            slot.slot,
+            { platform, status: "success", dry_run: false, attempts: 0, post_id: live },
+            resolvedMedia,
+            abVariant
+          );
+          await appendPostLog(entry, root);
+          await claimFirstCommentForCloud(root, date, slot.slot, live);
+          outputs.push(entry);
+          continue;
+        }
+      }
       const publishInput =
         platform === "instagram" && takenBack ? await igInputFromSnapshot(takenBack, fetchImpl) : input;
       const result = await postPlatform(platform, publishInput, config, fetchImpl);

@@ -446,16 +446,59 @@ export async function syncIgCloudResult(
   // the comment seconds later): otherwise the local first-comment step, which
   // runs right after this, would add a second comment to the same post.
   if (result.post_id && entry.status === "success") {
-    const logPath = join(root, "data", "first-comments", `${date}.json`);
-    const comments = await readJsonFile<Array<{ slot: number }>>(logPath, []);
-    if (!comments.some((item) => item.slot === slot)) {
-      await writeJsonAtomic(logPath, [
-        ...comments,
-        { date, slot, media_id: result.post_id, comment_id: result.comment_id ?? "cloud", created_at: new Date().toISOString() }
-      ]);
-    }
+    await claimFirstCommentForCloud(root, date, slot, result.post_id, result.comment_id);
   }
   return entry;
+}
+
+/** Marks a post's first comment as the cloud's, so the local first-comment step adds none. */
+export async function claimFirstCommentForCloud(
+  root: string,
+  date: string,
+  slot: number,
+  postId: string,
+  commentId?: string
+): Promise<void> {
+  const logPath = join(root, "data", "first-comments", `${date}.json`);
+  const comments = await readJsonFile<Array<{ slot: number }>>(logPath, []);
+  if (comments.some((item) => item.slot === slot)) return;
+  await writeJsonAtomic(logPath, [
+    ...comments,
+    { date, slot, media_id: postId, comment_id: commentId ?? "cloud", created_at: new Date().toISOString() }
+  ]);
+}
+
+function normalizeCaption(text: unknown): string {
+  return String(text ?? "").replace(/\r\n/g, "\n").trim();
+}
+
+/**
+ * The rule the cloud applies before it publishes (publisher/run.ts
+ * findLivePost), applied here before this PC posts a slot it took back: a post
+ * with this caption on the account in the last 12 hours is this slot, already
+ * live -- the cloud published it and lost its result commit (its job fails,
+ * and nothing on main says so). Throws when the list cannot be read: then
+ * nothing is posted from here either.
+ */
+export async function findLiveInstagramPost(
+  caption: string,
+  config: AppConfig,
+  fetchImpl: typeof fetch,
+  now: Date = new Date()
+): Promise<string | undefined> {
+  const query = new URLSearchParams({ fields: "id,caption,timestamp", limit: "15", access_token: config.metaAccessToken ?? "" });
+  const response = await fetchImpl(`https://graph.facebook.com/${config.graphApiVersion}/${config.instagramUserId}/media?${query}`);
+  const payload = (await response.json()) as
+    | { data?: Array<{ id: string; caption?: string; timestamp?: string }>; error?: { message?: string } }
+    | null;
+  if (!response.ok || !payload || typeof payload !== "object" || payload.error || !Array.isArray(payload.data)) {
+    throw new Error(
+      `Instagram media list could not be read (${payload?.error?.message ?? response.status}); not posting a taken-back slot blind`
+    );
+  }
+  const want = normalizeCaption(caption);
+  const cutoff = now.getTime() - 12 * 60 * 60 * 1000;
+  return payload.data.find((item) => normalizeCaption(item.caption) === want && Date.parse(item.timestamp ?? "") >= cutoff)?.id;
 }
 
 /**
@@ -536,9 +579,13 @@ export type TakeBackOutcome =
  * gone: a run that has not yet reached its pre-publish check aborts on that,
  * and a run that starts later never sees the slot. Then wait until no cloud run
  * is active, and read the cloud's result once more: a run that got past its
- * check before the withdrawal has published and recorded by then. Only a slot
- * still without a result moves, and it moves with its snapshot, so this PC
- * posts what Facebook got. Every doubt keeps the marker; a later run retries.
+ * check before the withdrawal has usually published and recorded by then. A
+ * run that published and then failed to push its result leaves no trace on
+ * main, so the publisher looks at the Instagram account itself before posting
+ * a taken-back slot (findLiveInstagramPost). Only a slot still without a
+ * result moves, and it moves with its snapshot, so this PC posts what Facebook
+ * got. Every doubt keeps the marker and puts the snapshot back; a later run
+ * retries.
  */
 export async function takeBackIgCloudSlot(
   root: string,
@@ -552,13 +599,26 @@ export async function takeBackIgCloudSlot(
   const gh = options.gh ?? igCloudDeps.gh;
   const sleep = options.sleep ?? igCloudDeps.sleep;
   const remotePath = `queue/${date}-slot${slot}.json`;
+  // Withdrawn and then kept, for whatever reason: the snapshot goes back into
+  // the cloud queue. Otherwise the marker says the cloud owns the slot while
+  // the cloud has nothing to post, and once the switch is live again nobody
+  // posts it.
+  const restored = async (): Promise<string> => {
+    try {
+      await ghPutFile(settings.repo, remotePath, `${JSON.stringify(snapshot, null, 2)}\n`, `restore ${date} slot ${slot}`, gh);
+      return "snapshot restored to the cloud queue";
+    } catch (error) {
+      return `snapshot NOT restored to the cloud queue (${error instanceof Error ? error.message : String(error)}); push it again with --snapshot, or release the slot`;
+    }
+  };
+  const kept = async (reason: string): Promise<TakeBackOutcome> => ({ status: "kept", reason: `${reason}; ${await restored()}` });
   try {
     await ghDeleteFile(settings.repo, remotePath, `take back ${date} slot ${slot}`, gh);
     if (await ghGetFile(settings.repo, remotePath, gh)) {
       return { status: "kept", reason: `${remotePath} is still in the cloud queue` };
     }
   } catch (error) {
-    return { status: "kept", reason: `could not withdraw ${remotePath} (${error instanceof Error ? error.message : String(error)})` };
+    return kept(`could not withdraw ${remotePath} (${error instanceof Error ? error.message : String(error)})`);
   }
 
   const pollMs = options.pollMs ?? 20_000;
@@ -571,12 +631,12 @@ export async function takeBackIgCloudSlot(
     }
     if (!quiet && poll < polls) await sleep(pollMs);
   }
-  if (!quiet) return { status: "kept", reason: "a cloud run was still active, or the run list could not be read" };
+  if (!quiet) return kept("a cloud run was still active, or the run list could not be read");
 
   try {
     await syncIgCloudResult(root, date, slot, { gh });
   } catch (error) {
-    return { status: "kept", reason: `could not read the cloud's result (${error instanceof Error ? error.message : String(error)})` };
+    return kept(`could not read the cloud's result (${error instanceof Error ? error.message : String(error)})`);
   }
   if (hasRecordedPost(await loadPostLog(date, root), slot, "instagram", false)) {
     return { status: "cloud_posted", reason: "the cloud posted it before it was withdrawn" };
@@ -585,7 +645,7 @@ export async function takeBackIgCloudSlot(
     await writeJsonAtomic(igCloudTakenBackPath(root, date, slot), snapshot);
     await unlink(igCloudMarkerPath(root, date, slot));
   } catch (error) {
-    return { status: "kept", reason: `could not move the marker (${error instanceof Error ? error.message : String(error)})` };
+    return kept(`could not move the marker (${error instanceof Error ? error.message : String(error)})`);
   }
   return { status: "taken_back", reason: "withdrawn from the cloud; this PC posts what Facebook got", snapshot };
 }

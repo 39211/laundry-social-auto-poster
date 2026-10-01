@@ -27,7 +27,7 @@ import {
   type IgCloudSnapshot
 } from "../src/igCloud";
 import { snapshotScheduledDay } from "../src/igCloudBackfill";
-import { loadApprovalLog, loadPostLog, writeApprovalLog } from "../src/logging";
+import { loadApprovalLog, loadDailyContent, loadPostLog, writeApprovalLog } from "../src/logging";
 import { postCurrentSlot } from "../src/postCurrentSlot";
 import { loadScheduledLog, scheduleAheadFacebook } from "../src/scheduleAhead";
 import type { AppConfig, DailySlot } from "../src/types";
@@ -53,6 +53,8 @@ function fakeGh(state: {
   failDelete?: boolean;
   /** DELETE answers success but the file stays. */
   deleteIgnored?: boolean;
+  /** GET fails without a 404 for these paths. */
+  failGetPaths?: string[];
   /** Statuses `gh run list` reports; absent = no runs. */
   runs?: string[];
   failRunList?: boolean;
@@ -85,6 +87,7 @@ function fakeGh(state: {
     const path = target.slice(`repos/${REPO}/contents/`.length);
     const field = (name: string) => args.find((arg) => arg.startsWith(`${name}=`))?.slice(name.length + 1);
     if (method === "GET") {
+      if (state.failGetPaths?.includes(path)) return { code: 1, stdout: "", stderr: "gh: connection reset" };
       const text = state.files.get(path);
       if (text === undefined) return notFound();
       return ok(JSON.stringify({ sha: `sha-${path}`, content: Buffer.from(text, "utf8").toString("base64") }));
@@ -472,14 +475,37 @@ describe("a switched-off cloud gives its slots back", () => {
     }
   });
 
-  it("keeps the slot while a cloud run stays active or the run list cannot be read", async () => {
+  it("keeps the slot, with its snapshot back in the cloud queue, while a cloud run stays active or the run list cannot be read", async () => {
     for (const setup of [{ mode: "off", runs: ["in_progress"] }, { mode: "off", failRunList: true }]) {
-      const { gh } = cloud(setup);
+      const { state, gh } = cloud(setup);
       const outcome = await takeBackIgCloudSlot(root, DATE, 2, { gh, ...noWait });
       expect(outcome.status).toBe("kept");
+      expect(outcome.reason).toContain("snapshot restored");
+      // The withdrawal did happen; what the cloud holds now is the same snapshot again.
+      expect(JSON.parse(state.files.get(QUEUED) ?? "null")).toEqual(snapshot);
       expect(await readIgCloudMarker(root, DATE, 2)).toBeDefined();
       expect(await readIgCloudTakenBack(root, DATE, 2)).toBeUndefined();
     }
+  });
+
+  it("puts the snapshot back when the cloud's result cannot be read", async () => {
+    const { state, gh } = cloud({ mode: "off", failGetPaths: [RESULT] });
+    const outcome = await takeBackIgCloudSlot(root, DATE, 2, { gh, ...noWait });
+    expect(outcome.status).toBe("kept");
+    expect(outcome.reason).toContain("snapshot restored");
+    expect(state.files.has(QUEUED)).toBe(true);
+    expect(await readIgCloudMarker(root, DATE, 2)).toBeDefined();
+    expect(await readIgCloudTakenBack(root, DATE, 2)).toBeUndefined();
+  });
+
+  it("says so when the snapshot could not be put back, and still keeps the marker", async () => {
+    const { state, gh } = cloud({ mode: "off", failRunList: true, failPut: true });
+    const outcome = await takeBackIgCloudSlot(root, DATE, 2, { gh, ...noWait });
+    expect(outcome.status).toBe("kept");
+    expect(outcome.reason).toContain("NOT restored");
+    expect(state.files.has(QUEUED)).toBe(false);
+    expect(await readIgCloudMarker(root, DATE, 2)).toBeDefined();
+    expect(await readIgCloudTakenBack(root, DATE, 2)).toBeUndefined();
   });
 });
 
@@ -777,6 +803,7 @@ describe("live publisher with a cloud-owned slot", () => {
     const fetchImpl = (async (input: string | URL, init?: RequestInit) => {
       const url = String(input);
       if (!url.startsWith("https://graph.facebook.com/")) return new Response(`media:${url}`, { status: 200 });
+      if (url.includes("/media?fields=id%2Ccaption")) return json({ data: [] });
       if (init?.body instanceof URLSearchParams) bodies.push(init.body);
       if (url.includes("fields=status_code")) return json({ status_code: "FINISHED" });
       if (url.endsWith("/media_publish")) return json({ id: "ig-pc-1" });
@@ -793,6 +820,98 @@ describe("live publisher with a cloud-owned slot", () => {
     expect(bodies.map((body) => body.get("caption")).filter(Boolean)).toEqual([owned.caption]);
     expect(state.files.has(`queue/${date}-slot1.json`)).toBe(false);
     expect(await readIgCloudMarker(root, date, 1)).toBeUndefined();
+  });
+
+  /** The cloud switched off while it owns slot 1; `list` answers the Instagram media list. */
+  async function switchedOff(list: () => Response): Promise<{ owned: IgCloudSnapshot; fetchImpl: typeof fetch; publishes: () => number }> {
+    const owned = fingerprinted(sampleSnapshot({ date, slot: 1, ig_media_type: "carousel" }));
+    await writeFile(igCloudMarkerPath(root, date, 1), JSON.stringify(owned), "utf8");
+    igCloudDeps.gh = fakeGh({ mode: "off", files: new Map([[`queue/${date}-slot1.json`, JSON.stringify(owned)]]) }).gh;
+    igCloudDeps.sleep = async () => undefined;
+    let publishes = 0;
+    const reply = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+    const fetchImpl = (async (input: string | URL) => {
+      const url = String(input);
+      if (!url.startsWith("https://graph.facebook.com/")) return new Response(`media:${url}`, { status: 200 });
+      if (url.includes("/media?fields=id%2Ccaption")) return list();
+      if (url.includes("fields=status_code")) return reply({ status_code: "FINISHED" });
+      if (url.endsWith("/media_publish")) {
+        publishes += 1;
+        return reply({ id: "ig-pc-1" });
+      }
+      return reply({ id: "container" });
+    }) as typeof fetch;
+    return { owned, fetchImpl, publishes: () => publishes };
+  }
+  const reply = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+  it("records the cloud's post found on Instagram instead of posting a taken-back slot again", async () => {
+    // The cloud published and then failed to push its result: nothing on main
+    // says so, but the post is on the account with the snapshot's caption.
+    let caption = "";
+    const { owned, fetchImpl, publishes } = await switchedOff(() =>
+      reply({ data: [{ id: "ig-cloud-lost", caption, timestamp: new Date(Date.now() - 60_000).toISOString() }] })
+    );
+    caption = owned.caption;
+    const realSleep = igCloudDeps.sleep;
+    try {
+      await postCurrentSlot({ root, date, slot: 1, now: `${date}T13:30:00+08:00`, dryRun: false, verifyPublicImageUrl: false, fetchImpl });
+    } finally {
+      igCloudDeps.sleep = realSleep;
+    }
+    expect(publishes()).toBe(0);
+    const log = await loadPostLog(date, root);
+    expect(log.find((row) => row.platform === "instagram")).toMatchObject({ status: "success", post_id: "ig-cloud-lost", attempts: 0 });
+    const comments = JSON.parse(await readFile(join(root, "data", "first-comments", `${date}.json`), "utf8"));
+    expect(comments).toEqual([expect.objectContaining({ slot: 1, media_id: "ig-cloud-lost", comment_id: "cloud" })]);
+  });
+
+  it("posts nothing from a taken-back slot when the Instagram list cannot be read", async () => {
+    const { fetchImpl, publishes } = await switchedOff(() => reply({ error: { message: "rate limited" } }, 500));
+    await postCurrentSlot({ root, date, slot: 1, now: `${date}T13:30:00+08:00`, dryRun: false, verifyPublicImageUrl: false, fetchImpl }).catch(
+      () => undefined
+    );
+    expect(publishes()).toBe(0);
+    const log = await loadPostLog(date, root);
+    expect(log.find((row) => row.platform === "instagram")).toMatchObject({ status: "failed" });
+  });
+
+  it("checks the seven-day caption rule against the snapshot's caption for a taken-back slot", async () => {
+    // Yesterday went live with exactly today's calendar caption for slot 1, which
+    // the repeat rule refuses; the taken-back slot posts the snapshot's Facebook
+    // caption, which is new, so it must go out.
+    const today = await loadDailyContent(date, root);
+    expect(today?.slots.find((item) => item.slot === 1)?.instagram_caption).toBeTruthy();
+    // Yesterday is a copy of today (a calendar needs its 2 or 3 slots to load).
+    const yesterday = "2026-05-14";
+    await writeFile(
+      join(root, "data", "content-calendar", `${yesterday}.json`),
+      JSON.stringify(
+        stampDailyContentWrite(
+          { ...today, date: yesterday, generated_at: new Date().toISOString(), slots: today?.slots.map((item) => ({ ...item })) } as Parameters<
+            typeof stampDailyContentWrite
+          >[0],
+          { root }
+        ),
+        null,
+        2
+      ),
+      "utf8"
+    );
+    await mkdir(join(root, "data", "posted-log"), { recursive: true });
+    await writeFile(
+      join(root, "data", "posted-log", `${yesterday}.json`),
+      JSON.stringify([
+        { date: yesterday, slot: 1, platform: "instagram", status: "success", dry_run: false, attempts: 1, post_id: "ig-yesterday", created_at: new Date().toISOString() }
+      ]),
+      "utf8"
+    );
+    const { fetchImpl, publishes } = await switchedOff(() => reply({ data: [] }));
+    await postCurrentSlot({ root, date, slot: 1, now: `${date}T13:30:00+08:00`, dryRun: false, verifyPublicImageUrl: false, fetchImpl });
+    expect(publishes()).toBe(1);
+    expect((await loadPostLog(date, root)).find((row) => row.platform === "instagram")).toMatchObject({ status: "success", post_id: "ig-pc-1" });
   });
 });
 

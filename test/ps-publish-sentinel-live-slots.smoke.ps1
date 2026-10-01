@@ -38,7 +38,7 @@ function Get-ProdFunction([string]$Name) {
     return $null
 }
 
-$names = @("Get-DueSlots", "Test-LivePostedEntry", "Get-LivePostedSlots", "Get-MissingDueSlots")
+$names = @("Get-DueSlots", "Test-LivePostedEntry", "Get-LivePostedSlots", "Get-MissingDueSlots", "Get-LivePostedPairs", "Get-MissingDuePairs", "Get-UncertainPairs", "Format-PublishPairs")
 foreach ($name in $names) {
     $fn = Get-ProdFunction $name
     if (-not $fn) {
@@ -75,6 +75,18 @@ function Assert-Slots {
     param([string]$Name, $Got, [string]$Expect)
     $gotKey = Slot-Key $Got
     if ($gotKey -ne $Expect) {
+        Write-Output ("CASE_FAIL name=" + $Name + " got=" + $gotKey + " expect=" + $Expect)
+        $script:failed = $true
+    } else {
+        Write-Output ("CASE_OK name=" + $Name + " got=" + $gotKey)
+    }
+}
+
+# R5: 逐平台字串必須完整比對，不能只比 slot。
+function Assert-Pairs {
+    param([string]$Name, $Got, [string]$Expect)
+    $gotKey = @($Got) -join ","
+    if ($gotKey -cne $Expect) {
         Write-Output ("CASE_FAIL name=" + $Name + " got=" + $gotKey + " expect=" + $Expect)
         $script:failed = $true
     } else {
@@ -137,6 +149,62 @@ Assert-Slots -Name "missing-none-when-live" -Got $missingLive -Expect ""
 $missingPartial = Get-MissingDueSlots $dueNoon @(1)
 Assert-Slots -Name "missing-slot3" -Got $missingPartial -Expect "3"
 
+# R5 / R1: FB 成功不能代表 IG 已發布；dry_run 不算 live（保留 F19）。
+$platformEntries = @(
+    [pscustomobject]@{ slot = 1; platform = "facebook"; status = "success"; dry_run = $false },
+    [pscustomobject]@{ slot = 1; platform = "instagram"; status = "failed"; dry_run = $false },
+    [pscustomobject]@{ slot = 3; platform = "instagram"; status = "success"; dry_run = $true }
+)
+$livePairs = @(Get-LivePostedPairs $platformEntries)
+Assert-Pairs -Name "pairs-platform-isolation" -Got $livePairs -Expect "1:facebook"
+
+$normalizedEntries = @(
+    [pscustomobject]@{ slot = 3; platform = "FACEBOOK"; status = "posted" },
+    [pscustomobject]@{ slot = 1; platform = "INSTAGRAM"; status = "success" },
+    [pscustomobject]@{ slot = 1; platform = "instagram"; status = "success" },
+    [pscustomobject]@{ slot = 2; status = "success" },
+    [pscustomobject]@{ slot = 2; platform = " "; status = "success" }
+)
+$normalizedPairs = @(Get-LivePostedPairs $normalizedEntries)
+Assert-Pairs -Name "pairs-normalized-dedup" -Got $normalizedPairs -Expect "1:instagram,3:facebook"
+$dryPairs = @(Get-LivePostedPairs $dryOnly)
+Assert-Pairs -Name "pairs-dry-only" -Got $dryPairs -Expect ""
+$emptyPairs = @(Get-LivePostedPairs @())
+Assert-Pairs -Name "pairs-empty" -Got $emptyPairs -Expect ""
+
+# R5 / R2: 必須按平台列出缺口，且空 live 配對不能截斷後續陣列。
+$missingPairs = @(Get-MissingDuePairs @(1, 3) @("1:facebook"))
+Assert-Pairs -Name "missing-per-platform" -Got $missingPairs -Expect "1:instagram,3:facebook,3:instagram"
+$missingDryPairs = @(Get-MissingDuePairs $dueNoon $dryPairs)
+Assert-Pairs -Name "missing-pairs-dry-run-silences-not" -Got $missingDryPairs -Expect "1:facebook,1:instagram,3:facebook,3:instagram"
+$noMissingPairs = @(Get-MissingDuePairs @(1) @("1:facebook", "1:instagram"))
+Assert-Pairs -Name "missing-pairs-none-when-live" -Got $noMissingPairs -Expect ""
+
+# R5 / R3: uncertain 要提示人工確認，但 dry_run uncertain 不算。
+$uncertainEntries = @(
+    [pscustomobject]@{ slot = 1; platform = "instagram"; status = "uncertain"; dry_run = $false },
+    [pscustomobject]@{ slot = 3; platform = "instagram"; status = "uncertain"; dry_run = $true },
+    [pscustomobject]@{ slot = 2; platform = "facebook"; status = "failed" },
+    [pscustomobject]@{ slot = 2; platform = "instagram"; status = "success" }
+)
+$uncertainPairs = @(Get-UncertainPairs $uncertainEntries)
+Assert-Pairs -Name "uncertain-live-only" -Got $uncertainPairs -Expect "1:instagram"
+$uncertainNormalizedEntries = @(
+    [pscustomobject]@{ slot = 3; platform = "INSTAGRAM"; status = "uncertain" },
+    [pscustomobject]@{ slot = 1; platform = "FACEBOOK"; status = "uncertain" },
+    [pscustomobject]@{ slot = 1; platform = "facebook"; status = "uncertain" },
+    [pscustomobject]@{ slot = 2; status = "uncertain" },
+    [pscustomobject]@{ slot = 2; platform = " "; status = "uncertain" }
+)
+$uncertainNormalizedPairs = @(Get-UncertainPairs $uncertainNormalizedEntries)
+Assert-Pairs -Name "uncertain-normalized-dedup" -Got $uncertainNormalizedPairs -Expect "1:facebook,3:instagram"
+$noUncertainPairs = @(Get-UncertainPairs @())
+Assert-Pairs -Name "uncertain-empty" -Got $noUncertainPairs -Expect ""
+
+# R5 / R4: 通知必須讓店主看得出是哪個平台。
+$pairNotice = Format-PublishPairs @("1:instagram", "3:facebook")
+Assert-Pairs -Name "notice-platform-labels" -Got $pairNotice -Expect "slot 1 的 IG、slot 3 的 FB"
+
 if ($failed) {
     Write-Output "SMOKE_FAIL"
     Write-Output '{"ok":false}'
@@ -144,5 +212,25 @@ if ($failed) {
 }
 
 Write-Output "SMOKE_OK"
-Write-Output '{"ok":true,"dry_run_counts":false,"posted_alias":true,"due_1145":"1","due_1215":"1,3","due_2045":"1,3,2","missing_dry_noon":"1,3"}'
+# R5: 最後一行 JSON 保留 F19 欄位，並回報新案例的實際結果。
+[ordered]@{
+    ok = $true
+    dry_run_counts = $false
+    posted_alias = $true
+    due_1145 = "1"
+    due_1215 = "1,3"
+    due_2045 = "1,3,2"
+    missing_dry_noon = "1,3"
+    live_pairs = ($livePairs -join ",")
+    normalized_pairs = ($normalizedPairs -join ",")
+    dry_pairs = ($dryPairs -join ",")
+    empty_pairs = ($emptyPairs -join ",")
+    missing_pairs = ($missingPairs -join ",")
+    missing_dry_pairs = ($missingDryPairs -join ",")
+    no_missing_pairs = ($noMissingPairs -join ",")
+    uncertain_pairs = ($uncertainPairs -join ",")
+    uncertain_normalized_pairs = ($uncertainNormalizedPairs -join ",")
+    no_uncertain_pairs = ($noUncertainPairs -join ",")
+    pair_notice = $pairNotice
+} | ConvertTo-Json -Compress
 exit 0

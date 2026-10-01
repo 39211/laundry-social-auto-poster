@@ -572,11 +572,17 @@ async function postOneSlot(
         ? scheduledRows.find((row) => row.slot === slot.slot && row.platform === "facebook")
         : undefined;
     if (scheduledRow && !config.dryRun) {
+      // An unconfirmed schedule may or may not be in Meta's queue: record it
+      // as uncertain (never published again from here), not as a success.
+      const unconfirmed = scheduledRow.status === "uncertain";
       const entry: PostLogEntry = {
         date,
         slot: slot.slot,
         platform,
-        status: "success",
+        status: unconfirmed ? "uncertain" : "success",
+        ...(unconfirmed
+          ? { error: `Facebook schedule unconfirmed (${scheduledRow.error ?? "no id"}); check the Page's scheduled posts` }
+          : {}),
         dry_run: false,
         attempts: 0,
         published_media_type: scheduledRow.published_media_type,
@@ -590,7 +596,7 @@ async function postOneSlot(
         video_deferred_reason: resolvedMedia.videoDeferred ? resolvedMedia.videoDeferredReason : undefined,
         ...postedVideoShaFields(scheduledRow.video_sha256),
         ...(abVariant ? { ab_variant: abVariant } : {}),
-        post_id: scheduledRow.scheduled_post_id,
+        post_id: scheduledRow.scheduled_post_id || undefined,
         created_at: new Date().toISOString()
       };
       await appendPostLog(entry, root);

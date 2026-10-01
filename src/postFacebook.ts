@@ -95,17 +95,21 @@ export async function postFacebookPhoto(
     body.set("scheduled_publish_time", String(input.scheduledPublishTime));
   }
 
-  const payload = await commitFacebookCall(
-    () => fetchImpl(endpoint, { method: "POST", body }),
-    input.scheduledPublishTime ? "Facebook photo schedule" : "Facebook photo publish"
-  );
+  const what = input.scheduledPublishTime ? "Facebook photo schedule" : "Facebook photo publish";
+  const payload = await commitFacebookCall(() => fetchImpl(endpoint, { method: "POST", body }), what);
+  // A 200 without an id is not a confirmed success either: the post may exist
+  // without a handle to it. Uncertain, not success (and never retried).
+  const postId = payload.post_id || payload.id;
+  if (!postId) {
+    throw new NonRetryableError(`${what} returned no id (commit point; the post may already be live. Not retrying.)`);
+  }
 
   return {
     platform: "facebook",
     status: "success",
     dry_run: false,
     attempts: 1,
-    post_id: payload.post_id || payload.id
+    post_id: postId
   };
 }
 
@@ -160,13 +164,17 @@ export async function postFacebookCarousel(
   }
   // The /feed POST is the carousel's commit point; the unpublished photo
   // uploads before it are safely retryable.
+  const what = input.scheduledPublishTime ? "Facebook carousel schedule" : "Facebook carousel publish";
   const published = await commitFacebookCall(
     () => fetchImpl(`https://graph.facebook.com/${config.graphApiVersion}/${config.facebookPageId}/feed`, {
       method: "POST",
       body
     }),
-    input.scheduledPublishTime ? "Facebook carousel schedule" : "Facebook carousel publish"
+    what
   );
+  if (!published.id) {
+    throw new NonRetryableError(`${what} returned no id (commit point; the post may already be live. Not retrying.)`);
+  }
 
   return {
     platform: "facebook",

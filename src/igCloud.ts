@@ -441,11 +441,10 @@ export async function syncIgCloudResult(
   if (!entry) return undefined;
   await appendPostLog(entry, root);
 
-  // The cloud owns the first comment on its posts. Record the slot as handled
-  // even before the cloud reports a comment id (it commits the post first and
-  // the comment seconds later): otherwise the local first-comment step, which
-  // runs right after this, would add a second comment to the same post.
-  if (result.post_id && entry.status === "success") {
+  // The cloud comments only after a newly published post. Its already_live
+  // recovery path records a post after the earlier publish succeeded and does
+  // not comment, so leave that slot for the local first-comment step.
+  if (result.post_id && result.status === "published") {
     await claimFirstCommentForCloud(root, date, slot, result.post_id, result.comment_id);
   }
   return entry;
@@ -595,6 +594,8 @@ async function activeCloudRuns(repo: string, gh: GhRunner): Promise<number | und
 
 export interface TakeBackOptions extends IgCloudOptions {
   sleep?: (milliseconds: number) => Promise<void>;
+  /** Restore after a keep outcome only when the queue held the snapshot before withdrawal (default true). */
+  restoreOnKeep?: boolean;
   /** How long to wait for cloud runs already in flight (default 15 minutes). */
   waitMs?: number;
   pollMs?: number;
@@ -617,8 +618,8 @@ export type TakeBackOutcome =
  * main, so the publisher looks at the Instagram account itself before posting
  * a taken-back slot (findLiveInstagramPost). Only a slot still without a
  * result moves, and it moves with its snapshot, so this PC posts what Facebook
- * got. Every doubt keeps the marker and puts the snapshot back; a later run
- * retries.
+ * got. Every doubt keeps the marker and later retries; snapshots are restored
+ * after a keep unless the live queue was already confirmed absent.
  */
 export async function takeBackIgCloudSlot(
   root: string,
@@ -632,11 +633,14 @@ export async function takeBackIgCloudSlot(
   const gh = options.gh ?? igCloudDeps.gh;
   const sleep = options.sleep ?? igCloudDeps.sleep;
   const remotePath = `queue/${date}-slot${slot}.json`;
-  // Withdrawn and then kept, for whatever reason: the snapshot goes back into
-  // the cloud queue. Otherwise the marker says the cloud owns the slot while
-  // the cloud has nothing to post, and once the switch is live again nobody
-  // posts it.
+  // After an attempted withdrawal, kept outcomes restore the snapshot by
+  // default. A live queue already confirmed absent by reclaimIfCloudCannotPost
+  // has nothing to restore, so that caller opts out and leaves the marker for
+  // this PC to retry at the next slot run or catch-up.
   const restored = async (): Promise<string> => {
+    if (options.restoreOnKeep === false) {
+      return "snapshot was already absent from the cloud queue; nothing was available to restore, and this PC will retry taking it back at its next run (slot time or catch-up)";
+    }
     try {
       await ghPutFile(settings.repo, remotePath, `${JSON.stringify(snapshot, null, 2)}\n`, `restore ${date} slot ${slot}`, gh);
       return "snapshot restored to the cloud queue";
@@ -711,7 +715,7 @@ export async function reclaimIfCloudCannotPost(
   } else {
     return takeBackIgCloudSlot(root, date, slot, options);
   }
-  return takeBackIgCloudSlot(root, date, slot, options);
+  return takeBackIgCloudSlot(root, date, slot, { ...options, restoreOnKeep: false });
 }
 
 /**

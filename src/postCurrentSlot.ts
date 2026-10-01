@@ -687,9 +687,8 @@ async function postOneSlot(
               if (commentId) await claimFirstCommentForCloud(root, date, slot.slot, live, commentId);
             } catch (error) {
               console.warn(
-                `Instagram comments for ${live} could not be read (${error instanceof Error ? error.message : String(error)}); recording the first comment as cloud-owned to avoid a duplicate.`
+                `Instagram comments for ${live} could not be read (${error instanceof Error ? error.message : String(error)}); the local first-comment step will add it if needed.`
               );
-              await claimFirstCommentForCloud(root, date, slot.slot, live);
             }
           }
           outputs.push(entry);

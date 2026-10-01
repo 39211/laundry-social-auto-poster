@@ -316,6 +316,20 @@ describe("syncIgCloudResult and release", () => {
     expect(comments).toEqual([expect.objectContaining({ slot: 2, media_id: "ig-77", comment_id: "c-9" })]);
   });
 
+  it("records already_live in the posted log without claiming its first comment", async () => {
+    const files = new Map<string, string>([
+      [
+        "results/2026-10-02-slot2.json",
+        JSON.stringify({ date: "2026-10-02", slot: 2, mode: "live", status: "already_live", post_id: "ig-79" })
+      ]
+    ]);
+    const { gh } = fakeGh({ mode: "live", files });
+    const entry = await syncIgCloudResult(root, "2026-10-02", 2, { gh });
+    expect(entry).toMatchObject({ platform: "instagram", status: "success", post_id: "ig-79" });
+    expect(await loadPostLog("2026-10-02", root)).toContainEqual(expect.objectContaining({ post_id: "ig-79", status: "success" }));
+    expect(await readFile(join(root, "data", "first-comments", "2026-10-02.json"), "utf8").catch(() => undefined)).toBeUndefined();
+  });
+
   it("ignores shadow results and missing results", async () => {
     const { gh: missing } = fakeGh({ mode: "live", files: new Map() });
     expect(await syncIgCloudResult(root, "2026-10-02", 2, { gh: missing })).toBeUndefined();
@@ -427,6 +441,29 @@ describe("a switched-off cloud gives its slots back", () => {
     expect(await readIgCloudMarker(root, DATE, 2)).toBeUndefined();
     expect(await readIgCloudTakenBack(root, DATE, 2)).toEqual(snapshot);
     expect(state.files.has(QUEUED)).toBe(false);
+  });
+
+  it("keeps an already-missing live snapshot local on a read failure and takes it back on retry", async () => {
+    const { state, gh, calls } = cloud({ mode: "live", failRunList: true }, false);
+    const kept = await reclaimIfCloudCannotPost(root, DATE, 2, { gh, ...noWait });
+    expect(kept?.status).toBe("kept");
+    expect(calls.filter((args) => args.includes("-X") && args[args.indexOf("-X") + 1] === "PUT")).toHaveLength(0);
+    expect(state.files.has(QUEUED)).toBe(false);
+    expect(await readIgCloudMarker(root, DATE, 2)).toEqual(snapshot);
+
+    state.failRunList = false;
+    const takenBack = await reclaimIfCloudCannotPost(root, DATE, 2, { gh, ...noWait });
+    expect(takenBack?.status).toBe("taken_back");
+    expect(calls.filter((args) => args.includes("-X") && args[args.indexOf("-X") + 1] === "PUT")).toHaveLength(0);
+    expect(await readIgCloudMarker(root, DATE, 2)).toBeUndefined();
+    expect(await readIgCloudTakenBack(root, DATE, 2)).toEqual(snapshot);
+  });
+
+  it("still restores a kept snapshot when the cloud switch is off", async () => {
+    const { calls, gh } = cloud({ mode: "off", failRunList: true });
+    const outcome = await reclaimIfCloudCannotPost(root, DATE, 2, { gh, ...noWait });
+    expect(outcome?.status).toBe("kept");
+    expect(calls.filter((args) => args.includes("-X") && args[args.indexOf("-X") + 1] === "PUT")).toHaveLength(1);
   });
 
   it("keeps a live slot when its queue snapshot cannot be read", async () => {
@@ -939,7 +976,19 @@ describe("live publisher with a cloud-owned slot", () => {
     expect(comments).toEqual([expect.objectContaining({ slot: 1, media_id: "ig-cloud-commented", comment_id: "c-9" })]);
   });
 
-  it("claims the first comment as cloud-owned if the comment list cannot be read", async () => {
+  it("does not claim a cloud first comment when the comment list cannot be read", async () => {
+    let caption = "";
+    const { owned, fetchImpl } = await switchedOff(
+      () => reply({ data: [{ id: "ig-cloud-comment-error-unclaimed", caption, timestamp: new Date(Date.now() - 60_000).toISOString() }] }),
+      { comments: () => reply({ error: { message: "rate limited" } }, 500) }
+    );
+    caption = owned.caption;
+    await postCurrentSlot({ root, date, slot: 1, now: `${date}T13:30:00+08:00`, dryRun: false, verifyPublicImageUrl: false, fetchImpl });
+    const comments = JSON.parse(await readFile(join(root, "data", "first-comments", `${date}.json`), "utf8").catch(() => "[]"));
+    expect(comments.some((item: { slot: number }) => item.slot === 1)).toBe(false);
+  });
+
+  it("does not claim a first comment when the comment list cannot be read", async () => {
     let caption = "";
     const { owned, fetchImpl } = await switchedOff(
       () => reply({ data: [{ id: "ig-cloud-comment-error", caption, timestamp: new Date(Date.now() - 60_000).toISOString() }] }),
@@ -947,8 +996,8 @@ describe("live publisher with a cloud-owned slot", () => {
     );
     caption = owned.caption;
     await postCurrentSlot({ root, date, slot: 1, now: `${date}T13:30:00+08:00`, dryRun: false, verifyPublicImageUrl: false, fetchImpl });
-    const comments = JSON.parse(await readFile(join(root, "data", "first-comments", `${date}.json`), "utf8"));
-    expect(comments).toEqual([expect.objectContaining({ slot: 1, media_id: "ig-cloud-comment-error", comment_id: "cloud" })]);
+    const comments = JSON.parse(await readFile(join(root, "data", "first-comments", `${date}.json`), "utf8").catch(() => "[]"));
+    expect(comments.some((item: { slot: number }) => item.slot === 1)).toBe(false);
   });
 
   it("publishes when a recent Instagram post has a different caption", async () => {
@@ -1030,7 +1079,7 @@ describe("live publisher with a cloud-owned slot", () => {
     expect((await loadPostLog(date, root)).find((row) => row.platform === "instagram")).toMatchObject({ status: "success", post_id: "ig-pc-1" });
   });
 
-  it("refuses a taken-back caption that matches yesterday's live Facebook caption", async () => {
+  it("refuses a taken-back caption matching a live Instagram post's Facebook caption", async () => {
     const today = await loadDailyContent(date, root);
     expect(today).toBeTruthy();
     const yesterday = "2026-05-14";

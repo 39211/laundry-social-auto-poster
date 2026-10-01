@@ -3,8 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { approvePost } from "../src/approvePost";
+import { buildDailyContent } from "../src/contentPlan";
+import { getConfig } from "../src/config";
+import * as logging from "../src/logging";
 import { loadDailyContent, writeDailyContent } from "../src/logging";
-import { postedLogPath } from "../src/paths";
+import { contentCalendarPath, postedLogPath } from "../src/paths";
 import { retirePausedNoonSlot } from "../src/retirePausedNoonSlot";
 import type { AbDayPlan } from "../src/abTestPlan";
 import type { DailyContent, DailySlot } from "../src/types";
@@ -252,5 +255,161 @@ describe("retirePausedNoonSlot", () => {
 
     expect(result.status).toBe("skipped");
     expect(result.reasons?.join(" ")).toContain("ig-cloud");
+  });
+
+  it.each([true, false])(
+    "does not retire a video slot 3 when its local file exists=%s, in dry-run or apply mode",
+    async (videoFileExists) => {
+      const root = await tempRoot({ includePlan: false });
+      const videoPath = `docs/assets/${DATE}/slot-03.mp4`;
+      const content = await loadDailyContent(DATE, root);
+      expect(content).toBeDefined();
+      await writeDailyContent(
+        {
+          ...content!,
+          slots: content!.slots.map((slot) =>
+            slot.slot === 3 ? { ...slot, local_video_path: videoPath } : slot
+          )
+        },
+        root
+      );
+      if (videoFileExists) {
+        const absoluteVideoPath = join(root, videoPath);
+        await mkdir(join(root, "docs", "assets", DATE), { recursive: true });
+        await writeFile(absoluteVideoPath, Buffer.from("test video bytes"));
+        expect(await readFile(absoluteVideoPath)).toEqual(Buffer.from("test video bytes"));
+      } else {
+        await expect(readFile(join(root, videoPath))).rejects.toMatchObject({ code: "ENOENT" });
+      }
+
+      const before = await snapshotFiles(root);
+      const result = await retirePausedNoonSlot({ date: DATE, root });
+      const applied = await retirePausedNoonSlot({ date: DATE, root, apply: true });
+
+      expect(result.status).toBe("skipped");
+      expect(applied.status).toBe("skipped");
+      expect(result.reasons?.join(" ")).toContain("local_video_path");
+      expect(await snapshotFiles(root)).toEqual(before);
+    }
+  );
+
+  it("skips a tampered calendar without writing any files", async () => {
+    const root = await tempRoot();
+    await addSlot3Images(root);
+    const calendarPath = contentCalendarPath(DATE, root);
+    const calendar = JSON.parse(await readFile(calendarPath, "utf8")) as DailyContent;
+    calendar.slots[0]!.topic = "tampered without a new checksum";
+    await writeFile(calendarPath, JSON.stringify(calendar), "utf8");
+    const before = await snapshotFiles(root);
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const result = await retirePausedNoonSlot({ date: DATE, root, apply: true });
+
+    expect(result.status).toBe("skipped");
+    expect(result.reasons?.join(" ")).toContain("calendar integrity check failed");
+    expect(log.mock.calls.flat().join(" ")).toContain("calendar integrity check failed");
+    expect(await snapshotFiles(root)).toEqual(before);
+  });
+
+  it("preserves an existing _stale slot-03.png and moves the new file to a free name", async () => {
+    const root = await tempRoot({ includePlan: false });
+    await addSlot3Images(root);
+    const staleDirectory = join(root, "docs", "assets", DATE, "_stale");
+    await mkdir(staleDirectory, { recursive: true });
+    const originalStale = Buffer.from("pre-existing stale image");
+    await writeFile(join(staleDirectory, "slot-03.png"), originalStale);
+
+    const result = await retirePausedNoonSlot({ date: DATE, root, apply: true });
+
+    expect(result.status).toBe("applied");
+    expect(await readFile(join(staleDirectory, "slot-03.png"))).toEqual(originalStale);
+    expect(await readFile(join(staleDirectory, "slot-03-1.png"))).toEqual(Buffer.from("test image bytes"));
+    expect(await readdir(staleDirectory)).toEqual([
+      "slot-03-1.png",
+      "slot-03-slide-02.png",
+      "slot-03.png"
+    ]);
+  });
+
+  it("rolls moved images back when the calendar writer fails", async () => {
+    const root = await tempRoot({ includePlan: false });
+    await addSlot3Images(root);
+    const calendarPath = contentCalendarPath(DATE, root);
+    const calendarBefore = await readFile(calendarPath);
+    const firstImage = join(root, "docs", "assets", DATE, "slot-03.png");
+    const firstImageBefore = await readFile(firstImage);
+    vi.spyOn(logging, "writeDailyContent").mockRejectedValueOnce(new Error("simulated calendar write failure"));
+
+    await expect(retirePausedNoonSlot({ date: DATE, root, apply: true })).rejects.toThrow(
+      "simulated calendar write failure"
+    );
+
+    expect(await readFile(calendarPath)).toEqual(calendarBefore);
+    expect(await readFile(firstImage)).toEqual(firstImageBefore);
+    expect(await readFile(join(root, "docs", "assets", DATE, "slot-03-slide-02.png"))).toEqual(
+      Buffer.from("test slide bytes")
+    );
+    await expect(readdir(join(root, "docs", "assets", DATE, "_stale"))).rejects.toMatchObject({
+      code: "ENOENT"
+    });
+  });
+
+  it("reads a BOM-prefixed plan like buildDailyContent and skips an active noon half", async () => {
+    const root = await tempRoot({ paused: false });
+    const planPath = join(root, "data", "ab-test-plan.json");
+    const plan = await readFile(planPath, "utf8");
+    await writeFile(planPath, `\uFEFF${plan}`, "utf8");
+    expect(buildDailyContent(DATE, getConfig(), { root }).slots.map((slot) => slot.slot)).toContain(3);
+    const before = await snapshotFiles(root);
+
+    const result = await retirePausedNoonSlot({ date: DATE, root, apply: true });
+
+    expect(result.status).toBe("skipped");
+    expect(result.reasons?.join(" ")).toContain("A/B noon has an active planSlot");
+    expect(await snapshotFiles(root)).toEqual(before);
+  });
+
+  it("skips a malformed plan file, reports the parse failure, and writes nothing", async () => {
+    const root = await tempRoot({ includePlan: false });
+    const planPath = join(root, "data", "ab-test-plan.json");
+    await writeFile(planPath, "{not valid JSON", "utf8");
+    await addSlot3Images(root);
+    const before = await snapshotFiles(root);
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const result = await retirePausedNoonSlot({ date: DATE, root, apply: true });
+
+    expect(result.status).toBe("skipped");
+    expect(result.reasons?.join(" ")).toContain("could not parse data/ab-test-plan.json");
+    expect(log.mock.calls.flat().join(" ")).toContain("could not parse data/ab-test-plan.json");
+    expect(await snapshotFiles(root)).toEqual(before);
+  });
+
+  it("skips an unreadable plan path and reports the read failure", async () => {
+    const root = await tempRoot({ includePlan: false });
+    const planPath = join(root, "data", "ab-test-plan.json");
+    await rm(planPath);
+    await mkdir(planPath);
+    await addSlot3Images(root);
+    const before = await snapshotFiles(root);
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const result = await retirePausedNoonSlot({ date: DATE, root, apply: true });
+
+    expect(result.status).toBe("skipped");
+    expect(result.reasons?.join(" ")).toContain("could not read data/ab-test-plan.json");
+    expect(log.mock.calls.flat().join(" ")).toContain("could not read data/ab-test-plan.json");
+    expect(await snapshotFiles(root)).toEqual(before);
+  });
+
+  it("treats a missing plan file as no plan", async () => {
+    const root = await tempRoot({ includePlan: false });
+    await rm(join(root, "data", "ab-test-plan.json"));
+    await addSlot3Images(root);
+
+    const result = await retirePausedNoonSlot({ date: DATE, root, apply: true });
+
+    expect(result.status).toBe("applied");
+    expect((await loadDailyContent(DATE, root))?.slots.map((slot) => slot.slot)).toEqual([1, 2]);
   });
 });

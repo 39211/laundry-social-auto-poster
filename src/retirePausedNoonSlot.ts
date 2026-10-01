@@ -1,6 +1,6 @@
-import { access, mkdir, readdir, rename, rmdir } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, rename, rmdir } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
-import { loadAbTestPlan, planForDate, planSlot } from "./abTestPlan";
+import { abTestPlanPath, planForDate, planSlot, type AbDayPlan } from "./abTestPlan";
 import { getFlag, getOption, isMain } from "./cli";
 import { loadApprovalLog, loadDailyContent, loadPostLog, writeDailyContent } from "./logging";
 import { loadScheduledLog } from "./scheduleAhead";
@@ -23,6 +23,24 @@ export interface RetirePausedNoonSlotResult {
 interface AssetMove {
   source: string;
   destination: string;
+}
+
+async function loadRetirementAbTestPlan(root: string): Promise<AbDayPlan[]> {
+  let raw: string;
+  try {
+    raw = await readFile(abTestPlanPath(root), "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw new Error(`could not read data/ab-test-plan.json: ${String(error)}`);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw.replace(/^\uFEFF/u, ""));
+  } catch (error) {
+    throw new Error(`could not parse data/ab-test-plan.json: ${String(error)}`);
+  }
+  return Array.isArray(parsed) ? (parsed as AbDayPlan[]) : [];
 }
 
 function isDate(value: string): boolean {
@@ -119,7 +137,7 @@ export async function retirePausedNoonSlot(
   try {
     const [abPlan, loadedContent, loadedApprovals, loadedPosts, loadedScheduled, loadedMarkers, loadedImages] =
       await Promise.all([
-        loadAbTestPlan(root),
+        loadRetirementAbTestPlan(root),
         loadDailyContent(date, root),
         loadApprovalLog(date, root),
         loadPostLog(date, root),

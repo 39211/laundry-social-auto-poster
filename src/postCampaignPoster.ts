@@ -205,6 +205,25 @@ export async function runCampaignPost(options: RunOptions, deps: RunDeps): Promi
   return { date, post: post.id, results };
 }
 
+// R2: An unconfirmed commit needs operator attention just like a failure.
+export function campaignExitCode(results: Array<{ status: string }>): number {
+  return results.some((result) => result.status === "failed" || result.status === "uncertain") ? 1 : 0;
+}
+
+// R2: Identify the exact campaign row without changing runCampaignPost's output.
+export function campaignUncertainNotes(
+  results: Array<{ platform: string; status: string; id?: string; post_id?: string; error?: string }>,
+  logPath: string
+): string[] {
+  return results
+    .filter((result) => result.status === "uncertain")
+    .map((result) =>
+      `${result.platform} campaign row id=${result.id ?? "unknown"}, post_id=${result.post_id ?? "unknown"}: ` +
+      `${result.error ?? "error unavailable (see campaign log)"}. ` +
+      `Check the Page; if the post is NOT there, remove that row from ${logPath} so the retry trigger posts it.`
+    );
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const live = getFlag(args, "live");
@@ -218,7 +237,12 @@ async function main(): Promise<void> {
     { config }
   );
   console.log(JSON.stringify({ dry_run: config.dryRun, ...outcome }, null, 2));
-  if (outcome.results.some((r) => r.status === "failed")) process.exitCode = 1;
+  // R2: Use the same path as appendCampaignLog and the plan id stored in its row.
+  const logPath = campaignLogPath(process.cwd(), outcome.date);
+  for (const note of campaignUncertainNotes(outcome.results.map((result) => ({ ...result, id: outcome.post })), logPath)) {
+    console.error(note);
+  }
+  process.exitCode = campaignExitCode(outcome.results);
 }
 
 if (isMain(import.meta.url)) {

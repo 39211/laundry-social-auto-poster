@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   CAMPAIGN_SLOT,
+  campaignExitCode,
+  campaignUncertainNotes,
   insideWindow,
   resolveImageUrl,
   runCampaignPost,
@@ -190,5 +192,69 @@ describe("runCampaignPost", () => {
     );
     expect(verify).not.toHaveBeenCalled();
     expect(log).not.toHaveBeenCalled();
+  });
+});
+
+// R3: Pin the CLI helpers for failed and uncertain outcomes without a live run.
+describe("campaignExitCode", () => {
+  it("returns 0 when every result is success", () => {
+    expect(campaignExitCode([{ status: "success" }, { status: "success" }])).toBe(0);
+  });
+
+  it("returns 1 when any result is failed", () => {
+    expect(campaignExitCode([{ status: "success" }, { status: "failed" }])).toBe(1);
+  });
+
+  it("returns 1 when any result is uncertain", () => {
+    expect(campaignExitCode([{ status: "success" }, { status: "uncertain" }])).toBe(1);
+  });
+
+  it("returns 0 when there are no results", () => {
+    expect(campaignExitCode([])).toBe(0);
+  });
+});
+
+describe("campaignUncertainNotes", () => {
+  const logPath = "C:/campaign/data/campaign-posted-log/2026-09-09.json";
+
+  it("returns an actionable line with platform, ids, error and log path for an uncertain result", () => {
+    const notes = campaignUncertainNotes([
+      { platform: "facebook", status: "uncertain", id: "p1", post_id: "fb-unconfirmed", error: "publish response lost" }
+    ], logPath);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toContain("facebook");
+    expect(notes[0]).toContain("id=p1");
+    expect(notes[0]).toContain("post_id=fb-unconfirmed");
+    expect(notes[0]).toContain("publish response lost");
+    expect(notes[0]).toContain(`Check the Page; if the post is NOT there, remove that row from ${logPath} so the retry trigger posts it.`);
+  });
+
+  it("returns no notes when every result is success", () => {
+    expect(campaignUncertainNotes([
+      { platform: "facebook", status: "success" },
+      { platform: "instagram", status: "success" }
+    ], logPath)).toEqual([]);
+  });
+
+  it("returns one line per uncertain result and omits successes and failures", () => {
+    const notes = campaignUncertainNotes([
+      { platform: "facebook", status: "uncertain", id: "p1", error: "facebook response lost" },
+      { platform: "facebook", status: "success" },
+      { platform: "instagram", status: "failed", error: "ordinary failure" },
+      { platform: "instagram", status: "uncertain", id: "p1", error: "instagram response lost" }
+    ], logPath);
+    expect(notes).toHaveLength(2);
+    expect(notes[0]).toContain("facebook response lost");
+    expect(notes[1]).toContain("instagram response lost");
+    expect(notes.every((note) => note.includes(logPath) && note.includes("id=p1"))).toBe(true);
+    expect(notes.join("\n")).not.toContain("ordinary failure");
+  });
+
+  it("marks unavailable remote ids and errors explicitly while identifying the campaign row", () => {
+    const notes = campaignUncertainNotes([{ platform: "facebook", status: "uncertain", id: "p1" }], logPath);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toContain("id=p1");
+    expect(notes[0]).toContain("post_id=unknown");
+    expect(notes[0]).toContain("error unavailable (see campaign log)");
   });
 });

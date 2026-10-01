@@ -16,6 +16,26 @@ export class NonRetryableError extends Error {
 // TypeError("fetch failed") with the code on `cause`.
 const NEVER_SENT = new Set(["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ENETUNREACH", "EHOSTUNREACH", "UND_ERR_CONNECT_TIMEOUT"]);
 
+// R1: TLS completes its handshake before any HTTP bytes are sent. A handshake
+// or certificate-verification failure proves the request never reached Meta.
+// Deliberately exclude ECONNRESET, EPROTO, UND_ERR_SOCKET, ETIMEDOUT and EPIPE:
+// they can occur after sending a request, so possibly sent is the safe verdict.
+const NEVER_SENT_TLS = new Set([
+  "ERR_TLS_CERT_ALTNAME_INVALID",
+  "ERR_TLS_HANDSHAKE_TIMEOUT",
+  "DEPTH_ZERO_SELF_SIGNED_CERT",
+  "SELF_SIGNED_CERT_IN_CHAIN",
+  "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+  "UNABLE_TO_GET_ISSUER_CERT",
+  "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+  "CERT_HAS_EXPIRED",
+  "CERT_NOT_YET_VALID",
+  "CERT_REVOKED",
+  "CERT_UNTRUSTED",
+  "CERT_REJECTED",
+  "HOSTNAME_MISMATCH"
+]);
+
 /**
  * True when a fetch rejection means the request was never sent, so nothing
  * can have been committed on the other side. Such a failure is an ordinary,
@@ -28,7 +48,8 @@ export function requestNeverSent(error: unknown): boolean {
   let current: unknown = error;
   for (let depth = 0; depth < 5 && current && typeof current === "object"; depth += 1) {
     const code = (current as { code?: unknown }).code;
-    if (typeof code === "string" && NEVER_SENT.has(code)) return true;
+    // R1: Keep the same five-object cause walk for transport and TLS failures.
+    if (typeof code === "string" && (NEVER_SENT.has(code) || NEVER_SENT_TLS.has(code) || code.startsWith("ERR_SSL_"))) return true;
     current = (current as { cause?: unknown }).cause;
   }
   return false;

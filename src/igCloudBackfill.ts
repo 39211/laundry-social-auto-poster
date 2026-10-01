@@ -15,12 +15,21 @@ import { assertSlotUnchangedSinceApproval, resolveSlotPublishMedia } from "./pos
 import { facebookScheduleKind, loadScheduledLog } from "./scheduleAhead";
 import type { AppConfig } from "./types";
 
+function taipeiDateOf(unixSeconds: number): string {
+  return new Date((unixSeconds + 8 * 3600) * 1000).toISOString().slice(0, 10);
+}
+
 /**
  * Hands Instagram to the cloud for a day whose Facebook posts were queued
  * before the cloud existed. A snapshot must be the version Facebook got, so a
  * slot is handed over only when it still passes everything the live publisher
  * checks and its media still matches what the Facebook queue recorded;
  * anything else stays on this PC.
+ *
+ * With publishAt it is a backfill: a slot Facebook already published but
+ * Instagram never got, sent at publishAt instead of its own slot time. Every
+ * gate still applies; only the "slot time is still ahead" check is replaced by
+ * "publishAt is ahead and not before the slot's own date".
  */
 export async function snapshotScheduledDay(input: {
   date: string;
@@ -29,6 +38,7 @@ export async function snapshotScheduledDay(input: {
   config?: AppConfig;
   igCloud?: IgCloudOptions;
   now?: Date;
+  publishAt?: Date;
 }): Promise<string[]> {
   const { date, root } = input;
   const config = input.config ?? getConfig();
@@ -46,9 +56,21 @@ export async function snapshotScheduledDay(input: {
     const label = `${date} slot ${row.slot}`;
     const keep = (why: string) => lines.push(`${label}: stays on this PC (${why})`);
 
-    if (row.scheduled_publish_time - nowUnix < 15 * 60) {
-      keep("less than 15 minutes to slot time");
-      continue;
+    const backfillUnix = input.publishAt ? Math.floor(input.publishAt.getTime() / 1000) : undefined;
+    if (backfillUnix === undefined) {
+      if (row.scheduled_publish_time - nowUnix < 15 * 60) {
+        keep("less than 15 minutes to slot time");
+        continue;
+      }
+    } else {
+      if (backfillUnix - nowUnix < 15 * 60) {
+        keep("backfill time is less than 15 minutes away");
+        continue;
+      }
+      if (taipeiDateOf(backfillUnix) < date) {
+        keep(`backfill time ${taipeiDateOf(backfillUnix)} is before the slot's own date`);
+        continue;
+      }
     }
     if (await readIgCloudMarker(root, date, row.slot)) {
       lines.push(`${label}: already owned by the cloud`);
@@ -106,14 +128,15 @@ export async function snapshotScheduledDay(input: {
     const snapshot = buildIgCloudSnapshot({
       date,
       slot,
-      publishUnix: row.scheduled_publish_time,
+      publishUnix: backfillUnix ?? row.scheduled_publish_time,
       igMediaType: igMediaTypeFor(resolved.mediaType),
       imageUrls: isCarousel ? imageUrls : [imageUrl],
       videoUrl,
       videoBytes: localVideo ? (await stat(localVideo)).size : undefined,
       videoSha256: resolved.videoSha256,
       config,
-      fbScheduledPostId: row.scheduled_post_id
+      fbScheduledPostId: row.scheduled_post_id,
+      backfill: backfillUnix !== undefined
     });
     try {
       const outcome = await pushIgCloudSnapshot(snapshot, root, input.igCloud);

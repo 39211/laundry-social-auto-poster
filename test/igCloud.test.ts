@@ -11,14 +11,17 @@ import {
   buildIgCloudSnapshot,
   igCloudDeps,
   igCloudMarkerPath,
+  pauseIgCloud,
   pushIgCloudSnapshot,
   readIgCloudMarker,
   releaseIgCloudSnapshots,
+  resumeIgCloud,
   syncIgCloudResult,
   type GhResult,
   type GhRunner,
   type IgCloudSnapshot
 } from "../src/igCloud";
+import { snapshotScheduledDay } from "../src/igCloudBackfill";
 import { loadApprovalLog, loadPostLog, writeApprovalLog } from "../src/logging";
 import { postCurrentSlot } from "../src/postCurrentSlot";
 import { loadScheduledLog, scheduleAheadFacebook } from "../src/scheduleAhead";
@@ -253,6 +256,18 @@ describe("syncIgCloudResult and release", () => {
     expect(await loadPostLog("2026-10-02", root)).toEqual([]);
   });
 
+  it("marks the first comment as the cloud's even before the cloud reports one", async () => {
+    // The cloud commits the post first and the comment seconds later. A sync in
+    // between must still stop the local first-comment step from adding a second.
+    const files = new Map([
+      ["results/2026-10-02-slot2.json", JSON.stringify({ date: "2026-10-02", slot: 2, mode: "live", status: "published", post_id: "ig-78" })]
+    ]);
+    const { gh } = fakeGh({ mode: "live", files });
+    await syncIgCloudResult(root, "2026-10-02", 2, { gh });
+    const comments = JSON.parse(await readFile(join(root, "data", "first-comments", "2026-10-02.json"), "utf8"));
+    expect(comments).toEqual([expect.objectContaining({ slot: 2, media_id: "ig-78", comment_id: "cloud" })]);
+  });
+
   it("records an uncertain cloud publish so nothing here posts it again", async () => {
     const files = new Map([
       ["results/2026-10-02-slot2.json", JSON.stringify({ date: "2026-10-02", slot: 2, mode: "live", status: "uncertain", error: "lost" })]
@@ -277,6 +292,47 @@ describe("syncIgCloudResult and release", () => {
     const { released } = await releaseIgCloudSnapshots(root, { gh, now: new Date("2026-10-03T00:00:00Z") });
     expect(released).toEqual([]);
     expect(await readIgCloudMarker(root, "2026-10-02", 2)).toBeDefined();
+  });
+});
+
+describe("the pause brake reaches the cloud", () => {
+  const state = { reason: "老闆看片中", since: "2026-10-01T12:00:00.000Z", paused_by: "owner" };
+  let root: string;
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "ig-cloud-pause-"));
+  });
+
+  it("writes PAUSED to the cloud repo and moves no slot", async () => {
+    await installCloud(root);
+    const { gh } = fakeGh({ mode: "live", files: new Map() });
+    await pushIgCloudSnapshot(sampleSnapshot(), root, { gh });
+    const repo = { mode: "live", files: new Map<string, string>([["queue/2026-10-02-slot2.json", "{}"]]) };
+    const { gh: pauseGh } = fakeGh(repo);
+    await pauseIgCloud(root, state, { gh: pauseGh });
+    expect(JSON.parse(repo.files.get("PAUSED") ?? "null")).toEqual(state);
+    expect(repo.mode).toBe("live");
+    expect(repo.files.has("queue/2026-10-02-slot2.json")).toBe(true);
+    expect(await readIgCloudMarker(root, "2026-10-02", 2)).toBeDefined();
+
+    await resumeIgCloud(root, { gh: pauseGh });
+    expect(repo.files.has("PAUSED")).toBe(false);
+    expect(repo.mode).toBe("live");
+  });
+
+  it("falls back to switching the cloud off when PAUSED cannot be written", async () => {
+    await installCloud(root);
+    const repo = { mode: "live", files: new Map<string, string>(), failPut: true };
+    const { gh } = fakeGh(repo);
+    const message = await pauseIgCloud(root, state, { gh });
+    expect(repo.mode).toBe("off");
+    expect(message).toContain("CLOUD_MODE");
+  });
+
+  it("calls nothing when the integration is not installed", async () => {
+    const { gh, calls } = fakeGh({ mode: "live", files: new Map() });
+    await pauseIgCloud(root, state, { gh });
+    await resumeIgCloud(root, { gh });
+    expect(calls).toEqual([]);
   });
 });
 
@@ -361,8 +417,8 @@ describe("live publisher with a cloud-owned slot", () => {
 
 describe("schedule-ahead hands Instagram to a live cloud", () => {
   const DATE = "2026-09-21";
-  it("queues Facebook, then pushes the same version for Instagram", async () => {
-    const root = await mkdtemp(join(tmpdir(), "ig-cloud-sched-"));
+  // One day, two image slots, both approved: what schedule-ahead needs.
+  async function writeTwoSlotDay(root: string) {
     await mkdir(join(root, "data", "content-calendar"), { recursive: true });
     await mkdir(join(root, "data", "approved-log"), { recursive: true });
     await mkdir(join(root, "docs", "assets", DATE), { recursive: true });
@@ -412,15 +468,20 @@ describe("schedule-ahead hands Instagram to a live cloud", () => {
       ),
       "utf8"
     );
+    return slot;
+  }
+  const fetchImpl = (async () =>
+    new Response(JSON.stringify({ id: "fb-obj-1", post_id: "fb-post-1" }), {
+      status: 200,
+      headers: { "content-type": "application/json" }
+    })) as typeof fetch;
+
+  it("queues Facebook, then pushes the same version for Instagram", async () => {
+    const root = await mkdtemp(join(tmpdir(), "ig-cloud-sched-"));
+    const slot = await writeTwoSlotDay(root);
     await installCloud(root);
     const state = { mode: "live", files: new Map<string, string>() };
     const { gh } = fakeGh(state);
-    const fetchImpl = (async () =>
-      new Response(JSON.stringify({ id: "fb-obj-1", post_id: "fb-post-1" }), {
-        status: 200,
-        headers: { "content-type": "application/json" }
-      })) as typeof fetch;
-
     const results = await scheduleAheadFacebook({
       date: DATE,
       root,
@@ -445,6 +506,42 @@ describe("schedule-ahead hands Instagram to a live cloud", () => {
       fb_scheduled_post_id: scheduled?.scheduled_post_id,
       image_urls: [slot.public_image_url]
     });
+    expect(pushed.backfill).toBeUndefined();
+    expect(await readIgCloudMarker(root, DATE, 1)).toEqual(pushed);
+  });
+
+  it("backfills a slot Facebook already published, at the given time and never before its own day", async () => {
+    const root = await mkdtemp(join(tmpdir(), "ig-cloud-backfill-"));
+    await writeTwoSlotDay(root);
+    await installCloud(root);
+    // The day went into the Facebook queue before the cloud was live.
+    const off = { mode: "off", files: new Map<string, string>() };
+    await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl,
+      now: new Date("2026-09-20T21:00:00+08:00"),
+      igCloud: { gh: fakeGh(off).gh }
+    });
+    expect(off.files.size).toBe(0);
+
+    const repo = { mode: "live", files: new Map<string, string>() };
+    const { gh } = fakeGh(repo);
+    const after = new Date("2026-09-22T09:00:00+08:00");
+    const day = { date: DATE, root, slot: 1, config: liveConfig(), igCloud: { gh } };
+    // Slot time has passed: without a backfill time the slot stays here.
+    expect(await snapshotScheduledDay({ ...day, now: after })).toEqual([expect.stringContaining("stays on this PC")]);
+    // A backfill may not go out before the content's own day.
+    expect(
+      await snapshotScheduledDay({ ...day, now: new Date("2026-09-20T09:00:00+08:00"), publishAt: new Date("2026-09-20T12:00:00+08:00") })
+    ).toEqual([expect.stringContaining("before the slot's own date")]);
+    expect(repo.files.size).toBe(0);
+
+    const publishAt = new Date("2026-09-23T12:00:00+08:00");
+    expect(await snapshotScheduledDay({ ...day, now: after, publishAt })).toEqual([expect.stringContaining("cloud owns Instagram")]);
+    const pushed = JSON.parse(repo.files.get(`queue/${DATE}-slot1.json`) ?? "{}") as IgCloudSnapshot;
+    expect(pushed).toMatchObject({ date: DATE, slot: 1, backfill: true, publish_unix: publishAt.getTime() / 1000, caption: "FB caption" });
     expect(await readIgCloudMarker(root, DATE, 1)).toEqual(pushed);
   });
 });

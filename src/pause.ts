@@ -90,6 +90,13 @@ async function main(): Promise<void> {
     } catch {
       console.log("No pause was set.");
     }
+    // The cloud side of the brake (src/igCloud.ts) is cleared the same way.
+    try {
+      const { resumeIgCloud } = await import("./igCloud");
+      console.log(await resumeIgCloud(root));
+    } catch (error) {
+      console.warn(`⚠ 雲端 IG 解除暫停失敗:${error instanceof Error ? error.message : String(error)}`);
+    }
     return;
   }
 
@@ -114,15 +121,15 @@ async function main(): Promise<void> {
   console.log(`Paused. Nothing will be approved or published until you run: npm run pause -- --clear`);
 
   // Instagram may be published from the cloud (src/igCloud.ts), which never
-  // sees this file. The brake has to reach it too: switch the cloud off and
-  // hand every future slot back to this PC. The local pause above already
-  // holds whatever happens here.
+  // sees this file. The brake has to reach it too: it is mirrored as PAUSED in
+  // the cloud repo, which the cloud job checks right before publishing. No
+  // slot changes owner. The local pause above already holds whatever happens here.
   try {
-    const { stopIgCloudForPause } = await import("./igCloud");
-    console.log(await stopIgCloudForPause(root));
+    const { pauseIgCloud } = await import("./igCloud");
+    console.log(await pauseIgCloud(root, state));
   } catch (error) {
     console.warn(
-      `⚠ 雲端 IG 沒能自動關閉:${error instanceof Error ? error.message : String(error)}。請到 GitHub 把 CLOUD_MODE 改成 off。`
+      `⚠ 雲端 IG 沒能自動暫停:${error instanceof Error ? error.message : String(error)}。請到 GitHub 把 CLOUD_MODE 改成 off。`
     );
   }
 }

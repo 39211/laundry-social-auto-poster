@@ -24,8 +24,9 @@ import type { AppConfig, DailySlot, MediaType, PostLogEntry } from "./types";
 //
 // The cloud repo's CLOUD_MODE variable is the switch. Snapshots are pushed only
 // while it is "live"; otherwise Instagram stays on this PC exactly as before.
-// Pausing the line (npm run pause) turns the cloud off and hands every future
-// slot back to this PC.
+// Pausing the line (npm run pause) also writes PAUSED into the cloud repo, which
+// the cloud job checks at start and again right before media_publish; no slot
+// changes owner, and both sides wait until the owner clears the pause.
 
 export const IG_CLOUD_SCHEMA = "sixiangjia-ig-cloud-snapshot/1";
 
@@ -51,6 +52,8 @@ export interface IgCloudSnapshot {
   public_image_base_url: string;
   fb_scheduled_post_id: string;
   created_at: string;
+  /** A slot Facebook already published, sent to Instagram later at publish_unix (on or after its date). */
+  backfill?: true;
 }
 
 export interface IgCloudResult {
@@ -127,6 +130,7 @@ export function buildIgCloudSnapshot(input: {
   config: AppConfig;
   fbScheduledPostId: string;
   now?: Date;
+  backfill?: boolean;
 }): IgCloudSnapshot {
   const hasVideo = input.igMediaType === "reel" || input.igMediaType === "mixed-carousel";
   return {
@@ -147,7 +151,8 @@ export function buildIgCloudSnapshot(input: {
     instagram_location_id: input.config.instagramLocationId ?? null,
     public_image_base_url: input.config.publicImageBaseUrl,
     fb_scheduled_post_id: input.fbScheduledPostId,
-    created_at: (input.now ?? new Date()).toISOString()
+    created_at: (input.now ?? new Date()).toISOString(),
+    ...(input.backfill ? { backfill: true as const } : {})
   };
 }
 
@@ -304,15 +309,17 @@ export async function syncIgCloudResult(
   if (!entry) return undefined;
   await appendPostLog(entry, root);
 
-  // The cloud already posted the first comment; without this the local
-  // first-comment step would add a second one.
-  if (result.comment_id && result.post_id) {
+  // The cloud owns the first comment on its posts. Record the slot as handled
+  // even before the cloud reports a comment id (it commits the post first and
+  // the comment seconds later): otherwise the local first-comment step, which
+  // runs right after this, would add a second comment to the same post.
+  if (result.post_id && entry.status === "success") {
     const logPath = join(root, "data", "first-comments", `${date}.json`);
     const comments = await readJsonFile<Array<{ slot: number }>>(logPath, []);
     if (!comments.some((item) => item.slot === slot)) {
       await writeJsonAtomic(logPath, [
         ...comments,
-        { date, slot, media_id: result.post_id, comment_id: result.comment_id, created_at: new Date().toISOString() }
+        { date, slot, media_id: result.post_id, comment_id: result.comment_id ?? "cloud", created_at: new Date().toISOString() }
       ]);
     }
   }
@@ -321,7 +328,10 @@ export async function syncIgCloudResult(
 
 /**
  * Gives every not-yet-due cloud slot back to this PC: deletes the snapshot
- * from the cloud queue first, then the local marker. Used by the pause brake.
+ * from the cloud queue first, then the local marker. Manual only (npm run
+ * ig-cloud -- --release), for a Facebook post someone cancelled by hand. The
+ * pause brake does NOT use this: moving ownership while a cloud run may be in
+ * flight is how a slot gets published twice.
  */
 export async function releaseIgCloudSnapshots(
   root: string,
@@ -353,20 +363,42 @@ export async function releaseIgCloudSnapshots(
   return { released, failed };
 }
 
-/** Called by the pause brake: stop the cloud and hand future slots back to this PC. */
-export async function stopIgCloudForPause(root: string, options: IgCloudOptions = {}): Promise<string> {
+/**
+ * The pause brake, mirrored to the cloud. data/PAUSED.json lives on this PC and
+ * the cloud never sees it, so the same brake is written as PAUSED in the cloud
+ * repo; the cloud job checks it at start and again right before media_publish.
+ * Ownership does not move: every slot stays where it was, and both sides stay
+ * stopped until the owner clears the pause.
+ */
+export async function pauseIgCloud(
+  root: string,
+  state: { reason: string; since: string; paused_by: string },
+  options: IgCloudOptions = {}
+): Promise<string> {
   const settings = await loadIgCloudSettings(root);
-  if (!settings) return "ig-cloud not installed; nothing to stop.";
+  if (!settings) return "ig-cloud not installed; nothing to pause in the cloud.";
   const gh = options.gh ?? igCloudDeps.gh;
-  const off = await gh(["variable", "set", "CLOUD_MODE", "--body", "off", "--repo", settings.repo]);
-  const { released, failed } = await releaseIgCloudSnapshots(root, { gh });
-  const lines = [
-    off.code === 0
-      ? `雲端 IG 已關閉(${settings.repo} CLOUD_MODE=off)。`
-      : `⚠ 雲端 IG 沒關成功,請到 GitHub ${settings.repo} 的 Settings > Variables 把 CLOUD_MODE 改成 off。`,
-    `交還給電腦的時段:${released.length} 個${failed.length ? `;交還失敗:${failed.join(", ")}` : ""}`
-  ];
-  return lines.join("\n");
+  try {
+    await ghPutFile(settings.repo, "PAUSED", `${JSON.stringify(state, null, 2)}\n`, `pause: ${state.reason}`, gh);
+    return `雲端 IG 也已暫停(${settings.repo} 的 PAUSED)。解除:npm run pause -- --clear`;
+  } catch (error) {
+    const off = await gh(["variable", "set", "CLOUD_MODE", "--body", "off", "--repo", settings.repo]);
+    return off.code === 0
+      ? `⚠ 雲端 PAUSED 推不上去(${error instanceof Error ? error.message : String(error)}),已改把 CLOUD_MODE 設成 off。解除暫停後要手動把 CLOUD_MODE 設回 live。`
+      : `⚠ 雲端 IG 沒能暫停,請到 GitHub ${settings.repo} 的 Settings > Variables 把 CLOUD_MODE 改成 off。`;
+  }
+}
+
+/** Clears the cloud side of the pause brake. */
+export async function resumeIgCloud(root: string, options: IgCloudOptions = {}): Promise<string> {
+  const settings = await loadIgCloudSettings(root);
+  if (!settings) return "ig-cloud not installed; nothing to resume in the cloud.";
+  try {
+    await ghDeleteFile(settings.repo, "PAUSED", "resume", options.gh ?? igCloudDeps.gh);
+    return "雲端 IG 已解除暫停。";
+  } catch (error) {
+    return `⚠ 雲端的 PAUSED 沒刪掉(${error instanceof Error ? error.message : String(error)}),請到 GitHub ${settings.repo} 刪掉 PAUSED 檔。`;
+  }
 }
 
 function sha256(text: string): string {
@@ -414,12 +446,17 @@ async function main(): Promise<void> {
     const date = getOption(args, "date");
     if (!date) throw new Error("--snapshot needs --date YYYY-MM-DD");
     const { snapshotScheduledDay } = await import("./igCloudBackfill");
-    const lines = await snapshotScheduledDay({ date, root, slot: getNumberOption(args, "slot") });
+    const publishAtRaw = getOption(args, "publish-at");
+    const publishAt = publishAtRaw ? new Date(publishAtRaw) : undefined;
+    if (publishAt && Number.isNaN(publishAt.getTime())) throw new Error(`--publish-at is not a date: ${publishAtRaw}`);
+    const lines = await snapshotScheduledDay({ date, root, slot: getNumberOption(args, "slot"), publishAt });
     for (const line of lines) console.log(line);
     return;
   }
 
-  throw new Error("Use --status, --sync --date D, --snapshot --date D [--slot N], or --release.");
+  throw new Error(
+    "Use --status, --sync --date D, --snapshot --date D [--slot N] [--publish-at ISO], or --release."
+  );
 }
 
 // Exported for tests that pin the snapshot bytes the cloud receives.

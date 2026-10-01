@@ -140,6 +140,23 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - Holiday hours are managed as owner-approved overrides; no specific holiday date is emitted until it is explicitly verified.
 
 ## Published Posts
+- [2026-10-02 20:30 羽絨被發黃怎麼洗：先看洗標，烘透再收](https://sixiangjialaundry.com/posts/2026-10-02-slot-02.html)
+  platform targets: facebook, instagram
+  routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中羽絨被清洗 | 羽絨被發黃怎麼辦 | 台中棉被清洗 | 西屯寢具清洗 | 台中羽絨被送洗 | 棉被有潮味怎麼辦
+  evidence_type: real-case-photo
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #羽絨被清洗 #台中洗衣店 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-10-02/slot-02.png
+  video: https://sixiangjialaundry.com/assets/2026-10-02/slot-02.mp4
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-10-02.json
+- [2026-10-02 11:30 羽絨被頭肩那片黃：不一定只是汗](https://sixiangjialaundry.com/posts/2026-10-02-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中羽絨被清洗 | 羽絨被發黃怎麼辦 | 台中棉被清洗 | 西屯寢具清洗 | 台中羽絨被送洗 | 棉被有潮味怎麼辦
+  evidence_type: first-party-inspection
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #羽絨被清洗 #台中洗衣店 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-10-02/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-10-02.json
 - [2026-10-01 20:30 羽絨外套可以水洗，重點是烘透](https://sixiangjialaundry.com/posts/2026-10-01-slot-02.html)
   platform targets: facebook, instagram
   routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis

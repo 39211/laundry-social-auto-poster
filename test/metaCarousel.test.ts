@@ -195,3 +195,34 @@ describe("a Facebook commit without an id is never retried", () => {
     await expect(postFacebookPhoto(input, config, photo)).resolves.toMatchObject({ post_id: "page_post-9" });
   });
 });
+
+// A rejection at the commit point used to be "response lost" whatever its
+// cause, so an offline minute (no DNS) marked the slot as possibly live and
+// nothing ever sent it. A request that never left this machine committed
+// nothing: it is retried; a connection lost mid-request still is not.
+describe("a request that never left this machine is retried, even at a commit point", () => {
+  const rejection = (code: string) =>
+    Promise.reject(Object.assign(new TypeError("fetch failed"), { cause: Object.assign(new Error(code), { code }) }));
+
+  it("Facebook photo publish with no DNS is an ordinary failure, tried three times", async () => {
+    let attempts = 0;
+    const fetchImpl = vi.fn(async () => {
+      attempts += 1;
+      return rejection("ENOTFOUND");
+    }) as unknown as typeof fetch;
+    const error = await withRetry(() => postFacebookPhoto(input, config, fetchImpl), 3, 0).catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(TypeError);
+    expect(error).not.toBeInstanceOf(NonRetryableError);
+    expect(attempts).toBe(3);
+  });
+
+  it("Facebook photo publish reset mid-request is still not retried", async () => {
+    let attempts = 0;
+    const fetchImpl = vi.fn(async () => {
+      attempts += 1;
+      return rejection("ECONNRESET");
+    }) as unknown as typeof fetch;
+    await expect(withRetry(() => postFacebookPhoto(input, config, fetchImpl), 3, 0)).rejects.toBeInstanceOf(NonRetryableError);
+    expect(attempts).toBe(1);
+  });
+});

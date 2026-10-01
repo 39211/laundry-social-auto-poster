@@ -21,6 +21,7 @@ import { getConfig } from "./config";
 import { verifyPublicImageUrl } from "./githubPages";
 import { postFacebookPhoto } from "./postFacebook";
 import { postInstagramPhoto } from "./postInstagram";
+import { NonRetryableError } from "./retry";
 import type { AppConfig, PostInput, PostResult } from "./types";
 
 export interface CampaignPost {
@@ -42,7 +43,8 @@ export interface CampaignPlan {
 export interface CampaignLogEntry {
   id: string;
   platform: "facebook" | "instagram";
-  status: "success" | "failed";
+  /** uncertain: the commit did not confirm and the post may be live; the retry trigger skips it like a success. */
+  status: "success" | "failed" | "uncertain";
   post_id?: string;
   image_url?: string;
   error?: string;
@@ -170,9 +172,11 @@ export async function runCampaignPost(options: RunOptions, deps: RunDeps): Promi
   const results: RunOutcome["results"] = [];
 
   for (const platform of options.platforms ?? ["facebook", "instagram"]) {
-    const done = existing.find((e) => e.id === post.id && e.platform === platform && e.status === "success");
+    const done = existing.find(
+      (e) => e.id === post.id && e.platform === platform && (e.status === "success" || e.status === "uncertain")
+    );
     if (done) {
-      results.push({ platform, status: "success", post_id: done.post_id, already: true });
+      results.push({ platform, status: done.status, post_id: done.post_id, already: true });
       continue;
     }
     const input: PostInput = {
@@ -189,9 +193,12 @@ export async function runCampaignPost(options: RunOptions, deps: RunDeps): Promi
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      results.push({ platform, status: "failed", error: message });
+      // A commit that did not confirm (NonRetryableError) may be live on the
+      // platform; logged as "failed", the 18:40 retry would post it again.
+      const status = error instanceof NonRetryableError ? "uncertain" : "failed";
+      results.push({ platform, status, error: message });
       if (!config.dryRun) {
-        log({ id: post.id, platform, status: "failed", image_url: imageUrl, error: message, at: new Date().toISOString() });
+        log({ id: post.id, platform, status, image_url: imageUrl, error: message, at: new Date().toISOString() });
       }
     }
   }

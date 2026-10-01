@@ -352,13 +352,16 @@ async function main(): Promise<void> {
   }
   const results = await scheduleAheadFacebook({ date, root: getOption(args, "root") });
   console.log(JSON.stringify(results, null, 2));
-  // Still a failed run for the daily wrapper and its log, as an abort was: a
-  // person has to look at the Page's scheduled posts for these slots.
+  // Exit 1 so the run reads as failed wherever the exit code is looked at
+  // (scripts/schedule-ahead-daily.ps1 only counts rows today; the publish-day
+  // sentinel and day-audit still raise the slot as not posted). A person has
+  // to look at the Page's scheduled posts for these slots.
   const unconfirmed = results.filter((row) => row.action === "uncertain");
   if (unconfirmed.length > 0) {
     console.error(
       `${date}: Facebook scheduling unconfirmed for slot ${unconfirmed.map((row) => row.slot).join(", ")}; ` +
-        "recorded as uncertain so nothing sends it again. Check the Page's scheduled posts."
+        "recorded as uncertain so nothing sends it again. Check the Page's scheduled posts; " +
+        `if the post is not there, remove the uncertain row from data/scheduled-log/${date}.json and the slot schedules again.`
     );
     process.exitCode = 1;
   }

@@ -425,6 +425,22 @@ describe("an unconfirmed Facebook schedule is recorded, never sent again", () =>
     expect(commits()).toBe(1);
   });
 
+  it("an offline run (no DNS) aborts without a row, and the next run schedules the slot", async () => {
+    // The request never left this machine, so nothing is in Meta's queue:
+    // an uncertain row here would block the slot for good.
+    const calls: CapturedCall[] = [];
+    const { fetchImpl, commits } = commitFails(calls, () =>
+      Promise.reject(Object.assign(new TypeError("fetch failed"), { cause: { code: "ENOTFOUND" } }))
+    );
+    await expect(scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE })).rejects.toThrow(
+      "fetch failed"
+    );
+    expect(commits()).toBe(1);
+    expect(await loadScheduledLog(DATE, root)).toEqual([]);
+    const second = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch(calls), now: NOW_DAY_BEFORE });
+    expect(second.map((row) => row.action)).toEqual(["scheduled", "scheduled"]);
+  });
+
   it("records a schedule answered without an id as uncertain", async () => {
     const calls: CapturedCall[] = [];
     const { fetchImpl } = commitFails(calls, async () => new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));

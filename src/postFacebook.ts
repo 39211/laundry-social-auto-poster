@@ -1,5 +1,5 @@
 import { assertLiveMetaConfig } from "./config";
-import { NonRetryableError } from "./retry";
+import { NonRetryableError, requestNeverSent } from "./retry";
 import type { AppConfig, PostInput, PostResult } from "./types";
 
 interface FacebookResponse {
@@ -43,6 +43,9 @@ async function commitFacebookCall(
   try {
     response = await call();
   } catch (error) {
+    // A request that never left this machine (no DNS, no route, refused)
+    // committed nothing; it is retried like any failure before the commit.
+    if (requestNeverSent(error)) throw error;
     throw new NonRetryableError(
       `${what} response was lost; the post may already be live. Not retrying.`,
       { cause: error }

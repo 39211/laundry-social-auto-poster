@@ -1,5 +1,5 @@
 import { assertLiveMetaConfig } from "./config";
-import { NonRetryableError } from "./retry";
+import { NonRetryableError, requestNeverSent } from "./retry";
 import type { AppConfig, PostInput, PostResult } from "./types";
 
 interface InstagramResponse {
@@ -34,7 +34,10 @@ async function postForm(
   try {
     response = await fetchImpl(endpoint, { method: "POST", body });
   } catch (error) {
-    if (isCommit) {
+    // A request that never left this machine committed nothing: retryable
+    // even at media_publish (an offline minute used to mark the slot
+    // uncertain and lose it for the day).
+    if (isCommit && !requestNeverSent(error)) {
       throw new NonRetryableError(
         `Instagram media_publish response was lost; the post may already be live. Not retrying.`,
         { cause: error }

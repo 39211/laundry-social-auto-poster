@@ -9,6 +9,7 @@ import {
   type CampaignLogEntry,
   type CampaignPlan
 } from "../src/postCampaignPoster";
+import { NonRetryableError } from "../src/retry";
 import type { AppConfig, PostInput } from "../src/types";
 
 const plan: CampaignPlan = {
@@ -131,6 +132,33 @@ describe("runCampaignPost", () => {
     expect(postFacebook).not.toHaveBeenCalled();
     expect(out.results[0]).toEqual({ platform: "facebook", status: "success", post_id: "fb-old", already: true });
     expect(out.results[1]).toMatchObject({ platform: "instagram", post_id: "ig2" });
+  });
+
+  it("a commit that did not confirm is logged uncertain, and the retry trigger does not post it again", async () => {
+    // The publisher raises NonRetryableError past its commit point (reply lost,
+    // or 200 without an id): the post may be live. "failed" would make the
+    // 18:40 retry post it a second time.
+    const postFacebook = vi.fn(async () => {
+      throw new NonRetryableError("Facebook photo publish returned no id (commit point)");
+    });
+    const postInstagram = vi.fn(async () => ({ platform: "instagram", status: "success", dry_run: false, attempts: 1, post_id: "ig4" }) as const);
+    const log: CampaignLogEntry[] = [];
+    const first = await runCampaignPost(
+      { root: "/nowhere", now: inWindow },
+      { config: liveConfig, plan, verify: async () => undefined, postFacebook, postInstagram, existing: [], log: (e) => log.push(e) }
+    );
+    expect(first.results[0]).toMatchObject({ platform: "facebook", status: "uncertain" });
+    expect(log.map((e) => [e.platform, e.status])).toEqual([
+      ["facebook", "uncertain"],
+      ["instagram", "success"]
+    ]);
+
+    const retry = await runCampaignPost(
+      { root: "/nowhere", now: inWindow },
+      { config: liveConfig, plan, verify: async () => undefined, postFacebook, postInstagram, existing: log, log: () => undefined }
+    );
+    expect(postFacebook).toHaveBeenCalledTimes(1);
+    expect(retry.results[0]).toEqual({ platform: "facebook", status: "uncertain", post_id: undefined, already: true });
   });
 
   it("a failed platform is logged as failed, the other platform still runs, and a prior failure is retried", async () => {

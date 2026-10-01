@@ -66,6 +66,37 @@ function Assert-Guard {
     }
 }
 
+function Assert-Run {
+    param([string]$Name, [bool]$Condition, [string]$Details)
+    if ($Condition) {
+        Write-Output ("CASE_OK name=" + $Name)
+    } else {
+        Write-Output ("CASE_FAIL name=" + $Name + " details=" + $Details)
+        $script:failed = $true
+    }
+}
+
+function Invoke-IsolatedWrapper {
+    param([string]$ScriptPath, [string]$FakeBin, [string]$TracePath, [string]$FailDate)
+    $previousPath = $env:PATH
+    $previousTrace = [Environment]::GetEnvironmentVariable("SCHEDWRAP_TRACE")
+    $previousFailDate = [Environment]::GetEnvironmentVariable("SCHEDWRAP_FAIL_DATE")
+    try {
+        if (Test-Path -LiteralPath $TracePath) { Remove-Item -LiteralPath $TracePath -Force }
+        $env:PATH = $FakeBin + ";" + $previousPath
+        $env:SCHEDWRAP_TRACE = $TracePath
+        $env:SCHEDWRAP_FAIL_DATE = $FailDate
+        $output = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $ScriptPath 2>&1
+        $code = $LASTEXITCODE
+        $calls = if (Test-Path -LiteralPath $TracePath) { @(Get-Content -LiteralPath $TracePath -Encoding ASCII) } else { @() }
+        return [pscustomobject]@{ ExitCode = $code; Calls = @($calls); Output = (@($output) -join " | ") }
+    } finally {
+        $env:PATH = $previousPath
+        [Environment]::SetEnvironmentVariable("SCHEDWRAP_TRACE", $previousTrace)
+        [Environment]::SetEnvironmentVariable("SCHEDWRAP_FAIL_DATE", $previousFailDate)
+    }
+}
+
 try {
     # R4-1: Two confirmed rows plus one uncertain row, preserving action details.
     $mixedRows = @(
@@ -137,6 +168,66 @@ try {
         $final.Contains('Write-Log $summary') -and
         $final.Contains('if ($problems.Count) { Show-Toast $summary }')
     )
+
+    # Run the complete wrapper under a temp root. Only this temp root has an
+    # npm.cmd on PATH; no real schedule-ahead command or network is reached.
+    $tempParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    $caseRoot = Join-Path $tempParent ("schedwrap-smoke-" + [guid]::NewGuid().ToString("N"))
+    $resolvedCaseRoot = [IO.Path]::GetFullPath($caseRoot)
+    if (-not $resolvedCaseRoot.StartsWith($tempParent, [StringComparison]::OrdinalIgnoreCase) -or
+        -not ([IO.Path]::GetFileName($resolvedCaseRoot) -like "schedwrap-smoke-*")) {
+        throw "Unsafe smoke temp root"
+    }
+    try {
+        $isolatedScripts = Join-Path $caseRoot "scripts"
+        $fakeBin = Join-Path $caseRoot "fake-bin"
+        foreach ($dir in @($isolatedScripts, $fakeBin, (Join-Path $caseRoot "data\content-calendar"),
+                (Join-Path $caseRoot "data\approved-log"), (Join-Path $caseRoot "data\scheduled-log"),
+                (Join-Path $caseRoot "output\d3-imggen"))) {
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+        }
+        $isolatedProd = Join-Path $isolatedScripts "schedule-ahead-daily.ps1"
+        [IO.File]::Copy($prod, $isolatedProd)
+        [IO.File]::WriteAllText((Join-Path $isolatedScripts "_watchdog.ps1"), "", [Text.UTF8Encoding]::new($true))
+        $fakeNpm = Join-Path $fakeBin "npm.cmd"
+        [IO.File]::WriteAllLines($fakeNpm, @(
+            '@echo off',
+            '>>"%SCHEDWRAP_TRACE%" echo %*',
+            'if "%2"=="schedule-ahead" if "%5"=="%SCHEDWRAP_FAIL_DATE%" exit /b 1',
+            'exit /b 0'
+        ), [Text.Encoding]::ASCII)
+        $taipeiNow = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time"))
+        $dates = @(1..3 | ForEach-Object { $taipeiNow.AddDays($_).ToString("yyyy-MM-dd") })
+        foreach ($date in $dates) {
+            [IO.File]::WriteAllText((Join-Path $caseRoot "data\content-calendar\$date.json"), '{}', [Text.Encoding]::UTF8)
+            [IO.File]::WriteAllText((Join-Path $caseRoot "data\approved-log\$date.json"), '{}', [Text.Encoding]::UTF8)
+            [IO.File]::WriteAllText((Join-Path $caseRoot "data\scheduled-log\$date.json"), '{"slot":1,"platform":"facebook","scheduled_post_id":"fb-queued"}', [Text.Encoding]::UTF8)
+            [IO.File]::WriteAllText((Join-Path $caseRoot "output\d3-imggen\plan-$date.json"), '{"items":[],"blockers":[]}', [Text.Encoding]::UTF8)
+        }
+        $tracePath = Join-Path $caseRoot "npm-calls.txt"
+        $problemRun = Invoke-IsolatedWrapper -ScriptPath $isolatedProd -FakeBin $fakeBin -TracePath $tracePath -FailDate $dates[0]
+        Assert-Run -Name "problem-exit-1" -Condition ($problemRun.ExitCode -eq 1) -Details ("exit=" + $problemRun.ExitCode + " output=" + $problemRun.Output)
+        $expectedAfterProblem = @(
+            "run schedule-youtube -- --date $($dates[0]) --slot 2",
+            "run schedule-youtube -- --date $($dates[0]) --slot 3",
+            "run schedule-ahead -- --date $($dates[1]) --live",
+            "run schedule-youtube -- --date $($dates[1]) --slot 2",
+            "run schedule-youtube -- --date $($dates[1]) --slot 3",
+            "run schedule-ahead -- --date $($dates[2]) --live",
+            "run schedule-youtube -- --date $($dates[2]) --slot 2",
+            "run schedule-youtube -- --date $($dates[2]) --slot 3"
+        )
+        $missingCalls = @($expectedAfterProblem | Where-Object { $problemRun.Calls -notcontains $_ })
+        Assert-Run -Name "later-dates-youtube" -Condition ($missingCalls.Count -eq 0) -Details ("missing=" + ($missingCalls -join ", ") + " observed=" + ($problemRun.Calls -join ", "))
+
+        $cleanRun = Invoke-IsolatedWrapper -ScriptPath $isolatedProd -FakeBin $fakeBin -TracePath $tracePath -FailDate ""
+        Assert-Run -Name "clean-exit-0" -Condition ($cleanRun.ExitCode -eq 0 -and
+            @($cleanRun.Calls | Where-Object { $_ -like "run schedule-ahead*" }).Count -eq 3) -Details (
+            "exit=" + $cleanRun.ExitCode + " calls=" + $cleanRun.Calls.Count + " output=" + $cleanRun.Output
+        )
+    } finally {
+        if (Test-Path -LiteralPath $resolvedCaseRoot) { Remove-Item -LiteralPath $resolvedCaseRoot -Recurse -Force }
+    }
 } catch {
     Write-Output ("CASE_FAIL name=exception reason=" + $_.Exception.Message)
     $failed = $true

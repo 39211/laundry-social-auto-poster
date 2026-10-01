@@ -80,6 +80,14 @@ describe("schedule-ahead-daily wrapper R1-R4", () => {
     expect(final).toContain("if ($problems.Count) { Show-Toast $summary }");
   });
 
+  it("R2 exits nonzero only after the final summary and toast", async () => {
+    const source = await readFile(PROD_SCRIPT, "utf8");
+    expect(source).toContain("if ($problems.Count) { exit 1 }");
+    expect(source).toMatch(
+      /Pop-Location[\s\S]*Write-Log \$summary\s+if \(\$problems\.Count\) \{ Show-Toast \$summary \}\s+if \(\$problems\.Count\) \{ exit 1 \}\s+exit 0\s*$/u
+    );
+  });
+
   // R5: Windows PowerShell 5.1 needs a BOM for the Chinese script text.
   it("R5 preserves UTF-8 BOM in both PowerShell scripts", async () => {
     for (const file of [PROD_SCRIPT, SMOKE_SCRIPT]) {
@@ -104,6 +112,9 @@ describe("schedule-ahead-daily wrapper R1-R4", () => {
         expect(out).toContain("CASE_OK name=" + name + " ");
       }
       for (const name of ["exit-code-immediate", "exit-report-tail", "queued-confirmed", "uncertain-actions", "zero-confirmed-note", "problems-notification"]) {
+        expect(out).toContain("CASE_OK name=" + name);
+      }
+      for (const name of ["problem-exit-1", "later-dates-youtube", "clean-exit-0"]) {
         expect(out).toContain("CASE_OK name=" + name);
       }
       expect(out).not.toContain("CASE_FAIL");

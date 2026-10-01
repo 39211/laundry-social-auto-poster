@@ -171,3 +171,5 @@ $summary = "queued: " + ($(if ($queued.Count) { $queued -join ", " } else { "non
 if ($problems.Count) { $summary += " / problems: " + ($problems -join ", ") }
 Write-Log $summary
 if ($problems.Count) { Show-Toast $summary }
+if ($problems.Count) { exit 1 }
+exit 0

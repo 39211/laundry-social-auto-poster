@@ -22,7 +22,24 @@ describe("requestNeverSent", () => {
     "CERT_REVOKED",
     "CERT_UNTRUSTED",
     "CERT_REJECTED",
-    "HOSTNAME_MISMATCH"
+    "HOSTNAME_MISMATCH",
+    "UNABLE_TO_GET_CRL",
+    "UNABLE_TO_DECRYPT_CERT_SIGNATURE",
+    "UNABLE_TO_DECRYPT_CRL_SIGNATURE",
+    "UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY",
+    "CERT_SIGNATURE_FAILURE",
+    "CRL_SIGNATURE_FAILURE",
+    "CRL_NOT_YET_VALID",
+    "CRL_HAS_EXPIRED",
+    "ERROR_IN_CERT_NOT_BEFORE_FIELD",
+    "ERROR_IN_CERT_NOT_AFTER_FIELD",
+    "ERROR_IN_CRL_LAST_UPDATE_FIELD",
+    "ERROR_IN_CRL_NEXT_UPDATE_FIELD",
+    "OUT_OF_MEM",
+    "CERT_CHAIN_TOO_LONG",
+    "INVALID_CA",
+    "PATH_LENGTH_EXCEEDED",
+    "INVALID_PURPOSE"
   ])("recognizes %s as never sent", (code) => {
     expect(requestNeverSent(Object.assign(new TypeError("fetch failed"), { cause: { code } }))).toBe(true);
   });

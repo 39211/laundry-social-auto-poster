@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   CAMPAIGN_SLOT,
+  campaignCliOutcome,
   campaignExitCode,
+  campaignLogPath,
   campaignUncertainNotes,
   insideWindow,
   resolveImageUrl,
@@ -9,7 +11,8 @@ import {
   selectPost,
   taipeiNow,
   type CampaignLogEntry,
-  type CampaignPlan
+  type CampaignPlan,
+  type RunOutcome
 } from "../src/postCampaignPoster";
 import { NonRetryableError } from "../src/retry";
 import type { AppConfig, PostInput } from "../src/types";
@@ -226,7 +229,7 @@ describe("campaignUncertainNotes", () => {
     expect(notes[0]).toContain("id=p1");
     expect(notes[0]).toContain("post_id=fb-unconfirmed");
     expect(notes[0]).toContain("publish response lost");
-    expect(notes[0]).toContain(`Check the Page; if the post is NOT there, remove that row from ${logPath} so the retry trigger posts it.`);
+    expect(notes[0]).toContain(`Check the Page; if the post is NOT there, remove that row from ${logPath} and run npx tsx src/postCampaignPoster.ts --live yourself (the 18:40 retry is the last automatic trigger of the day).`);
   });
 
   it("returns no notes when every result is success", () => {
@@ -256,5 +259,32 @@ describe("campaignUncertainNotes", () => {
     expect(notes[0]).toContain("id=p1");
     expect(notes[0]).toContain("post_id=unknown");
     expect(notes[0]).toContain("error unavailable (see campaign log)");
+  });
+});
+
+describe("campaignCliOutcome", () => {
+  const cwd = "C:/campaign-cli-fixture/nested-root";
+  const outcome: RunOutcome = {
+    date: "2026-09-10",
+    post: "campaign-42",
+    results: [
+      { platform: "facebook", status: "uncertain", post_id: "fb-unconfirmed", error: "publish response lost" },
+      { platform: "instagram", status: "success", post_id: "ig-confirmed" }
+    ]
+  };
+
+  it("uses outcome.post as the campaign row id in notes", () => {
+    const { notes } = campaignCliOutcome(outcome, cwd);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toContain(`campaign row id=${outcome.post}, post_id=fb-unconfirmed:`);
+  });
+
+  it("returns exit code 1 for uncertain without any failed result", () => {
+    expect(campaignCliOutcome(outcome, cwd).exitCode).toBe(1);
+  });
+
+  it("uses campaignLogPath with the supplied cwd and outcome.date in notes", () => {
+    const { notes } = campaignCliOutcome(outcome, cwd);
+    expect(notes[0]).toContain(`remove that row from ${campaignLogPath(cwd, outcome.date)} and run `);
   });
 });

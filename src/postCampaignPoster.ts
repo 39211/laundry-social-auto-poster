@@ -220,8 +220,19 @@ export function campaignUncertainNotes(
     .map((result) =>
       `${result.platform} campaign row id=${result.id ?? "unknown"}, post_id=${result.post_id ?? "unknown"}: ` +
       `${result.error ?? "error unavailable (see campaign log)"}. ` +
-      `Check the Page; if the post is NOT there, remove that row from ${logPath} so the retry trigger posts it.`
+      `Check the Page; if the post is NOT there, remove that row from ${logPath} and run npx tsx src/postCampaignPoster.ts --live yourself (the 18:40 retry is the last automatic trigger of the day).`
     );
+}
+
+export function campaignCliOutcome(outcome: RunOutcome, cwd: string): { exitCode: number; notes: string[] } {
+  return {
+    exitCode: campaignExitCode(outcome.results),
+    // Use the same log path and campaign row id as runCampaignPost.
+    notes: campaignUncertainNotes(
+      outcome.results.map((result) => ({ ...result, id: outcome.post })),
+      campaignLogPath(cwd, outcome.date)
+    )
+  };
 }
 
 async function main(): Promise<void> {
@@ -237,12 +248,11 @@ async function main(): Promise<void> {
     { config }
   );
   console.log(JSON.stringify({ dry_run: config.dryRun, ...outcome }, null, 2));
-  // R2: Use the same path as appendCampaignLog and the plan id stored in its row.
-  const logPath = campaignLogPath(process.cwd(), outcome.date);
-  for (const note of campaignUncertainNotes(outcome.results.map((result) => ({ ...result, id: outcome.post })), logPath)) {
+  const { exitCode, notes } = campaignCliOutcome(outcome, process.cwd());
+  for (const note of notes) {
     console.error(note);
   }
-  process.exitCode = campaignExitCode(outcome.results);
+  process.exitCode = exitCode;
 }
 
 if (isMain(import.meta.url)) {

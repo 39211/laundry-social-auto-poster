@@ -267,10 +267,22 @@ export async function postFacebookReel(
     const statusUrl = new URL(`https://graph.facebook.com/${config.graphApiVersion}/${started.video_id}`);
     statusUrl.searchParams.set("fields", "status");
     statusUrl.searchParams.set("access_token", config.metaAccessToken ?? "");
-    const statusPayload = await readFacebookResponse(
-      await fetchImpl(statusUrl, { method: "GET" }),
-      "Facebook Reel status check failed"
-    );
+    // A status check that cannot be made at all (dropped connection, an error
+    // reply, a page that is not JSON) is observation failing, not the publish:
+    // raising it would rerun the upload and publish the Reel a second time.
+    let statusPayload: FacebookResponse;
+    try {
+      statusPayload = await readFacebookResponse(
+        await fetchImpl(statusUrl, { method: "GET" }),
+        "Facebook Reel status check failed"
+      );
+    } catch (error) {
+      console.warn(
+        `Facebook Reel ${started.video_id} is published but its status could not be read ` +
+          `(${error instanceof Error ? error.message : String(error)}); not retrying a committed publish.`
+      );
+      break;
+    }
     videoStatus = statusPayload.status?.video_status?.toLowerCase() ?? "unknown";
     if (videoStatus === "ready") break;
     if (["error", "expired"].includes(videoStatus)) {

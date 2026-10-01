@@ -124,17 +124,28 @@ async function waitForPublishedReel(
   // media_publish has already committed by the time this runs: the Reel is
   // live. Throwing here would feed withRetry, which reruns container creation
   // and publish and puts a second identical Reel on the account. Verification
-  // that cannot confirm in time is reported, not raised.
+  // that cannot confirm in time is reported, not raised -- and that includes a
+  // check that cannot be made at all: a dropped connection or a 502 page that
+  // is not JSON used to escape as a plain error and republish the Reel.
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const query = new URLSearchParams({
       fields: "id,media_type,media_product_type",
       access_token: config.metaAccessToken ?? ""
     });
-    const response = await fetchImpl(
-      `https://graph.facebook.com/${config.graphApiVersion}/${mediaId}?${query}`,
-      { method: "GET" }
-    );
-    const payload = (await response.json()) as InstagramResponse;
+    let response: Response;
+    let payload: InstagramResponse;
+    try {
+      response = await fetchImpl(
+        `https://graph.facebook.com/${config.graphApiVersion}/${mediaId}?${query}`,
+        { method: "GET" }
+      );
+      payload = (await response.json()) as InstagramResponse;
+    } catch (error) {
+      console.warn(
+        `Instagram published Reel verification could not be read (${error instanceof Error ? error.message : String(error)}); the publish itself succeeded, not retrying.`
+      );
+      return;
+    }
     if (!response.ok || payload.error) {
       console.warn(
         payload.error?.message ||

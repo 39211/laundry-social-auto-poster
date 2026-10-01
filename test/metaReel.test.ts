@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { postFacebookReel } from "../src/postFacebook";
 import { postInstagramReel } from "../src/postInstagram";
+import { withRetry } from "../src/retry";
 import type { AppConfig, PostInput } from "../src/types";
 
 const config: AppConfig = {
@@ -146,4 +147,62 @@ describe("Meta Reel publishers", () => {
     // One container, one status wait, one publish, one verification — no rerun.
     expect(fetchImpl).toHaveBeenCalledTimes(4);
   });
+});
+
+// The production caller wraps every publisher in withRetry (postCurrentSlot), so
+// these go through it too: a check that fails after the Reel is live must not
+// make withRetry run the publish again. Counted at the commit call itself.
+describe("a check that fails after a Reel is live never publishes it again", () => {
+  const noWait = { maxAttempts: 2, intervalMs: 0, sleep: async () => undefined };
+  const faults = {
+    "a dropped connection": () => Promise.reject(new TypeError("fetch failed")),
+    "a 502 page that is not JSON": () => Promise.resolve(new Response("<html>502 Bad Gateway</html>", { status: 502 }))
+  };
+
+  for (const [name, fault] of Object.entries(faults)) {
+    it(`Instagram: ${name} on the verification`, async () => {
+      let publishes = 0;
+      let checks = 0;
+      const fetchImpl = vi.fn(async (url: string | URL) => {
+        const target = String(url);
+        if (target.endsWith("/media_publish")) {
+          publishes += 1;
+          return jsonResponse({ id: `published-${publishes}` });
+        }
+        if (target.includes("fields=status_code")) return jsonResponse({ id: "container-1", status_code: "FINISHED" });
+        if (target.includes("fields=id%2Cmedia_type")) {
+          checks += 1;
+          if (checks === 1) return fault();
+          return jsonResponse({ id: `published-${publishes}`, media_type: "VIDEO", media_product_type: "REELS" });
+        }
+        return jsonResponse({ id: "container-1" });
+      }) as unknown as typeof fetch;
+
+      const { value, attempts } = await withRetry(() => postInstagramReel(input, config, fetchImpl, noWait), 3);
+      expect(publishes).toBe(1);
+      expect(attempts).toBe(1);
+      expect(value).toMatchObject({ status: "success", post_id: "published-1" });
+    });
+
+    it(`Facebook: ${name} on the status check after publishing`, async () => {
+      let finishes = 0;
+      const fetchImpl = vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const target = String(url);
+        if (target.startsWith("https://rupload.test/")) return jsonResponse({ success: true });
+        const phase = init?.body instanceof URLSearchParams ? init.body.get("upload_phase") : null;
+        if (phase === "start") return jsonResponse({ video_id: "video-1", upload_url: "https://rupload.test/video-1" });
+        if (phase === "finish") {
+          finishes += 1;
+          return jsonResponse({ success: true });
+        }
+        if (target.includes("fields=status")) return fault();
+        return jsonResponse({ error: { message: `unexpected ${target}` } }, 404);
+      }) as unknown as typeof fetch;
+
+      const { value, attempts } = await withRetry(() => postFacebookReel(input, config, fetchImpl, noWait), 3);
+      expect(finishes).toBe(1);
+      expect(attempts).toBe(1);
+      expect(value).toMatchObject({ status: "success", post_id: "video-1" });
+    });
+  }
 });

@@ -16,6 +16,7 @@
     "resolve-video-repair": "tsx src/resolveVideoRepair.ts",
     "reclassify-video-defers": "tsx src/reclassifyVideoRepairQueue.ts",
     "generate-grok-videos": "tsx src/generateGrokVideo.ts",
+    "media-guard": "tsx src/mediaGuardCli.ts",
     "import-grok-video": "tsx src/importGrokVideo.ts",
     "validate-grok-handoff": "tsx src/validateGrokHandoff.ts",
     "validate-images": "tsx src/generateImage.ts --validate",

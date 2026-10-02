@@ -194,7 +194,33 @@ describe("forced regeneration", () => {
     expect(slot3?.topic).not.toBe("中午排定的 Reel");
   });
 
-  it("writes three slots when the existing calendar is [1,2,4] with a reel file", async () => {
+  it("preserves a scheduled noon reel while an active A/B plan emits slot 3", async () => {
+    const date = "2026-08-26";
+    await generateDailyContent({ date, root });
+    await scheduleNoonReelInto(date, true);
+    const beforeForce = await loadDailyContent(date, root);
+    const slot3Before = structuredClone(beforeForce!.slots.find((slot) => slot.slot === 3)!);
+
+    await mkdir(join(root, "data"), { recursive: true });
+    await writeFile(
+      join(root, "data", "ab-test-plan.json"),
+      JSON.stringify([
+        {
+          date,
+          noon: { conceptId: "noon-in-progress", variant: "10s" },
+          evening: { conceptId: "evening-in-progress", variant: "15s" }
+        }
+      ]),
+      "utf8"
+    );
+    await generateDailyContent({ date, root, force: true });
+
+    const regenerated = await loadDailyContent(date, root);
+    expect(regenerated!.slots.map((slot) => slot.slot)).toEqual([1, 2, 3]);
+    expect(regenerated!.slots.find((slot) => slot.slot === 3)).toEqual(slot3Before);
+  });
+
+  it("writes two slots when the existing calendar is [1,2,4] with a reel file", async () => {
     const date = "2026-08-24";
     await generateDailyContent({ date, root });
     await scheduleSlot4ReelCalendar(date);
@@ -204,24 +230,33 @@ describe("forced regeneration", () => {
     await generateDailyContent({ date, root, force: true });
 
     const regenerated = await loadDailyContent(date, root);
-    expect(regenerated!.slots).toHaveLength(3);
-    expect(regenerated!.slots.map((slot) => slot.slot)).toEqual([1, 2, 3]);
+    expect(regenerated!.slots).toHaveLength(2);
+    expect(regenerated!.slots.map((slot) => slot.slot)).toEqual([1, 2]);
     expect(regenerated!.slots.find((slot) => slot.slot === 4)).toBeUndefined();
-    expect(regenerated!.slots.find((slot) => slot.slot === 3)?.topic).not.toBe(
-      "SLOT_4_REEL_MUST_NOT_SURVIVE"
-    );
+    expect(regenerated!.slots.find((slot) => slot.slot === 3)).toBeUndefined();
+    expect(regenerated!.slots.some((slot) => slot.topic === "SLOT_4_REEL_MUST_NOT_SURVIVE")).toBe(false);
   });
 
   it("does not pin a non-reel noon slot that only has a video file on disk", async () => {
     const date = "2026-08-25";
     await generateDailyContent({ date, root });
     const seeded = await loadDailyContent(date, root);
-    const slot3 = seeded!.slots.find((slot) => slot.slot === 3)!;
+    const slot2 = seeded!.slots.find((slot) => slot.slot === 2)!;
+    const slot3: DailySlot = {
+      ...slot2,
+      slot: 3,
+      time: "12:00",
+      format: "image",
+      media_type: "image",
+      topic: "PINNED_IMAGE_MUST_NOT_SURVIVE",
+      instagram_caption: "image-with-video-path-ig",
+      facebook_caption: "image-with-video-path-fb",
+      local_image_path: `docs/assets/${date}/slot-03.png`,
+      public_image_url: `https://sixiangjialaundry.com/assets/${date}/slot-03.png`,
+      local_video_path: `docs/assets/${date}/slot-03.mp4`
+    };
     expect(slot3.media_type).not.toBe("reel");
-    slot3.topic = "PINNED_IMAGE_MUST_NOT_SURVIVE";
-    slot3.instagram_caption = "image-with-video-path-ig";
-    slot3.facebook_caption = "image-with-video-path-fb";
-    slot3.local_video_path = `docs/assets/${date}/slot-03.mp4`;
+    seeded!.slots = [...seeded!.slots, slot3].sort((a, b) => a.slot - b.slot);
     await writeDailyContent(seeded!, root);
     await mkdir(join(root, "docs", "assets", date), { recursive: true });
     await writeFile(join(root, "docs", "assets", date, "slot-03.mp4"), "video bytes", "utf8");
@@ -229,11 +264,14 @@ describe("forced regeneration", () => {
     await generateDailyContent({ date, root, force: true });
 
     const regenerated = await loadDailyContent(date, root);
-    const noon = regenerated!.slots.find((slot) => slot.slot === 3)!;
-    expect(noon.media_type).not.toBe("reel");
-    expect(noon.topic).not.toBe("PINNED_IMAGE_MUST_NOT_SURVIVE");
-    expect(noon.instagram_caption).not.toBe("image-with-video-path-ig");
-    expect(noon.facebook_caption).not.toBe("image-with-video-path-fb");
-    expect(noon.local_video_path).toBeUndefined();
+    expect(regenerated!.slots.find((slot) => slot.slot === 3)).toBeUndefined();
+    expect(
+      regenerated!.slots.some(
+        (slot) =>
+          slot.topic === "PINNED_IMAGE_MUST_NOT_SURVIVE" ||
+          slot.instagram_caption === "image-with-video-path-ig" ||
+          slot.facebook_caption === "image-with-video-path-fb"
+      )
+    ).toBe(false);
   });
 });

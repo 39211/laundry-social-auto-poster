@@ -100,6 +100,21 @@ try {
     try { $plan = $after.Output | ConvertFrom-Json -ErrorAction Stop } catch {}
     Assert-Case "assigned-1412-due" ($after.ExitCode -eq 0 -and $null -ne $plan -and (@($plan.due_slots) -join ",") -eq "1") $after.Output.Trim()
 
+    $earlyEveningTimes = '{"date":"2026-10-06","slots":[{"slot":2,"time":"19:07","arm":"early-evening"}]}'
+    $eveningDue = Invoke-CatchupCase -Name "early-evening-1907-due-at-1910" -Date $date -Time "19:10" -Calendar $calendar12 -Approved $approved12 -PublishTimes $earlyEveningTimes -PlanOnly $true
+    $eveningPlan = @()
+    try { $eveningPlan = @($eveningDue.Output | ConvertFrom-Json -ErrorAction Stop) } catch {}
+    $eveningDueSlots = @($eveningPlan[0].due_slots)
+    $eveningStaleSlots = @($eveningPlan[0].stale_slots)
+    Assert-Case "slot2-early-evening-due-slot1-stale" ($eveningDue.ExitCode -eq 0 -and $eveningDueSlots -join "," -eq "2" -and $eveningStaleSlots -join "," -eq "1") $eveningDue.Output.Trim()
+
+    $beforeEvening = Invoke-CatchupCase -Name "early-evening-1907-not-due-at-1900" -Date $date -Time "19:00" -Calendar $calendar12 -Approved $approved12 -PublishTimes $earlyEveningTimes -PlanOnly $true
+    $beforeEveningPlan = @()
+    try { $beforeEveningPlan = @($beforeEvening.Output | ConvertFrom-Json -ErrorAction Stop) } catch {}
+    $beforeEveningDueSlots = @($beforeEveningPlan[0].due_slots)
+    $beforeEveningStaleSlots = @($beforeEveningPlan[0].stale_slots)
+    Assert-Case "slot2-not-due-or-stale-before-1907" ($beforeEvening.ExitCode -eq 0 -and $beforeEveningDueSlots.Count -eq 0 -and $beforeEveningStaleSlots -join "," -eq "1") $beforeEvening.Output.Trim()
+
     $badTimes = '{"date":"2026-10-06","experiment":"afternoon-vs-usual-2026-10","assigned_at":"bad","slots":[{"slot":1,"time":"99:99"}]}'
     $invalidTime = Invoke-CatchupCase -Name "invalid-daily-times-fallback" -Date $date -Time "11:30" -Calendar '{"date":"2026-10-06","slots":[{"slot":1}]}' -Approved '[{"slot":1}]' -PublishTimes $badTimes -PlanOnly $true
     $invalidPlan = $null

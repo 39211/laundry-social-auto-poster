@@ -11,16 +11,24 @@ $common = @{
     DontStopIfGoingOnBatteries  = $true
     WakeToRun                  = $true
 }
+
+function Format-IsoDurationFromMinutes([int]$Minutes) {
+    $hours = [int][Math]::Floor($Minutes / 60)
+    $remainingMinutes = $Minutes % 60
+    if ($hours -gt 0 -and $remainingMinutes -gt 0) { return ("PT{0}H{1}M" -f $hours, $remainingMinutes) }
+    if ($hours -gt 0) { return ("PT{0}H" -f $hours) }
+    return ("PT{0}M" -f $remainingMinutes)
+}
+
 $plan = @(
-    [pscustomobject]@{ Name = "Laundry-Publish-Time-Gate"; Start = "14:00"; RepetitionInterval = 5; RepetitionMinutes = 150; Script = $gatePath; ActionArguments = ""; Repetition = "" },
+    [pscustomobject]@{ Name = "Laundry-Publish-Time-Gate"; Start = "14:00"; RepetitionInterval = 5; RepetitionMinutes = 360; Script = $gatePath; ActionArguments = ""; Repetition = "" },
     [pscustomobject]@{ Name = "Laundry-Publish-Sentinel-Afternoon"; Start = "16:40"; RepetitionInterval = 0; RepetitionMinutes = 0; Script = $sentinelPath; ActionArguments = ""; Repetition = "" }
 )
 
 foreach ($task in $plan) {
     $task.ActionArguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"{0}`" -RootPath `"{1}`"" -f $task.Script, $root
     $task.Repetition = if ($task.RepetitionInterval -gt 0) {
-        if ($task.RepetitionMinutes -eq 150) { "PT{0}M for PT2H30M" -f $task.RepetitionInterval }
-        else { "PT{0}M for PT{1}M" -f $task.RepetitionInterval, $task.RepetitionMinutes }
+        "{0} for {1}" -f (Format-IsoDurationFromMinutes $task.RepetitionInterval), (Format-IsoDurationFromMinutes $task.RepetitionMinutes)
     } else {
         "none"
     }

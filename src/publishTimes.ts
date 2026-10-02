@@ -7,7 +7,7 @@ import { DAILY_SCHEDULE } from "./scheduler";
 export interface PublishTimeSlot {
   slot: number;
   time: string;
-  arm?: "afternoon" | "usual";
+  arm?: string;
 }
 
 export interface DailyPublishTimes {
@@ -18,13 +18,20 @@ export interface DailyPublishTimes {
   [key: string]: unknown;
 }
 
+interface ExperimentWindow {
+  start: string;
+  end: string;
+  arm?: string;
+}
+
 interface ExperimentConfig {
   name: string;
   start_date: string;
   end_date: string;
   slots: number[];
   probability_afternoon: number;
-  afternoon_window: { start: string; end: string };
+  afternoon_window?: { start: string; end: string };
+  windows?: Record<string, ExperimentWindow>;
   min_gap_minutes: number;
 }
 
@@ -99,9 +106,10 @@ export function getSlotPublishTime(date: string, slot: number, root: string): st
 }
 
 function parseExperiment(value: unknown): ExperimentConfig | null {
-  if (!isRecord(value) || !Array.isArray(value.slots) || !isRecord(value.afternoon_window)) return null;
-  const start = value.afternoon_window.start;
-  const end = value.afternoon_window.end;
+  if (!isRecord(value) || !Array.isArray(value.slots)) return null;
+  if (value.windows !== undefined && !isRecord(value.windows)) return null;
+  const windows = value.windows as Record<string, unknown> | undefined;
+  if (windows && Object.keys(windows).some((key) => !/^(?:0|-?[1-9]\d*)$/u.test(key))) return null;
   if (
     typeof value.name !== "string" ||
     typeof value.start_date !== "string" ||
@@ -111,12 +119,25 @@ function parseExperiment(value: unknown): ExperimentConfig | null {
     !value.slots.every(Number.isInteger) ||
     typeof value.probability_afternoon !== "number" ||
     value.probability_afternoon < 0 || value.probability_afternoon > 1 ||
-    typeof start !== "string" || !TIME_PATTERN.test(start) ||
-    typeof end !== "string" || !TIME_PATTERN.test(end) ||
     typeof value.min_gap_minutes !== "number" ||
     !Number.isInteger(value.min_gap_minutes) ||
     value.min_gap_minutes < 0
   ) return null;
+
+  for (const slot of value.slots as number[]) {
+    const slotKey = String(slot);
+    const hasSlotWindow = windows !== undefined && Object.prototype.hasOwnProperty.call(windows, slotKey);
+    const windowValue = hasSlotWindow ? windows[slotKey] : value.afternoon_window;
+    if (!isRecord(windowValue)) return null;
+    const start = windowValue.start;
+    const end = windowValue.end;
+    if (
+      typeof start !== "string" || !TIME_PATTERN.test(start) ||
+      typeof end !== "string" || !TIME_PATTERN.test(end) ||
+      start > end ||
+      (hasSlotWindow && windowValue.arm !== undefined && (typeof windowValue.arm !== "string" || windowValue.arm.length === 0))
+    ) return null;
+  }
   return value as unknown as ExperimentConfig;
 }
 
@@ -169,29 +190,45 @@ function createAssignment(
   now: Date
 ): DailyPublishTimes {
   const sortedSlots = [...config.slots].sort((a, b) => a - b);
-  const arms = new Map<number, "afternoon" | "usual">();
+  const isTestArm = new Map<number, boolean>();
+  const arms = new Map<number, string>();
+  const windows = new Map<number, ExperimentWindow>();
   for (const slot of sortedSlots) {
-    arms.set(slot, randomInt(0, 1_000_000) < config.probability_afternoon * 1_000_000 ? "afternoon" : "usual");
+    const isTest = randomInt(0, 1_000_000) < config.probability_afternoon * 1_000_000;
+    isTestArm.set(slot, isTest);
+    const slotWindow = config.windows?.[String(slot)];
+    const window = slotWindow ?? config.afternoon_window!;
+    windows.set(slot, {
+      start: window.start,
+      end: window.end,
+      arm: slotWindow?.arm ?? "afternoon"
+    });
+    arms.set(slot, isTest ? (slotWindow?.arm ?? "afternoon") : "usual");
   }
 
-  const windowStart = minutesOfDay(config.afternoon_window.start);
-  const windowEnd = minutesOfDay(config.afternoon_window.end);
   const slot1 = sortedSlots.includes(1) ? 1 : undefined;
   const slot2 = sortedSlots.includes(2) ? 2 : undefined;
-  const bothAfternoon = slot1 !== undefined && slot2 !== undefined && arms.get(slot1) === "afternoon" && arms.get(slot2) === "afternoon";
+  const bothTestArms = slot1 !== undefined && slot2 !== undefined && isTestArm.get(slot1) === true && isTestArm.get(slot2) === true;
   const times = new Map<number, string>();
   for (const slot of sortedSlots) {
-    if (arms.get(slot) !== "afternoon") {
+    if (!isTestArm.get(slot)) {
       times.set(slot, defaultSlotTime(slot));
       continue;
     }
-    if (bothAfternoon && slot === slot1) {
-      const latestFirst = windowEnd - config.min_gap_minutes;
-      if (latestFirst < windowStart) throw new Error("Afternoon window is too short for min_gap_minutes");
+    const window = windows.get(slot)!;
+    const windowStart = minutesOfDay(window.start);
+    const windowEnd = minutesOfDay(window.end);
+    if (bothTestArms && slot === slot1) {
+      const orderingGap = Math.max(config.min_gap_minutes, 1);
+      const latestFirst = Math.min(windowEnd, minutesOfDay(windows.get(slot2!)!.end) - orderingGap);
+      if (latestFirst < windowStart) throw new Error("Per-slot test windows cannot satisfy min_gap_minutes and slot ordering");
       times.set(slot, timeOfDay(randomInteger(randomInt, windowStart, latestFirst)));
-    } else if (bothAfternoon && slot === slot2) {
+    } else if (bothTestArms && slot === slot2) {
       const firstTime = minutesOfDay(times.get(slot1!)!);
-      times.set(slot, timeOfDay(randomInteger(randomInt, firstTime + config.min_gap_minutes, windowEnd)));
+      const orderingGap = Math.max(config.min_gap_minutes, 1);
+      const earliestSecond = Math.max(windowStart, firstTime + orderingGap);
+      if (earliestSecond > windowEnd) throw new Error("Per-slot test windows cannot satisfy min_gap_minutes and slot ordering");
+      times.set(slot, timeOfDay(randomInteger(randomInt, earliestSecond, windowEnd)));
     } else {
       times.set(slot, timeOfDay(randomInteger(randomInt, windowStart, windowEnd)));
     }

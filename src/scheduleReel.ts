@@ -1091,7 +1091,9 @@ async function main(): Promise<void> {
   if (getFlag(args, "heal")) {
     const healSlot = getNumberOption(args, "slot");
     if ((getFlag(args, "force-regen-scheduled") || mediaGuardOverride) && healSlot === undefined) {
-      throw new Error("--force-regen-scheduled requires --slot N when healing");
+      throw new Error(getFlag(args, "force-regen-scheduled")
+        ? "--force-regen-scheduled requires --slot N when healing"
+        : "MEDIA_GUARD_OVERRIDE_REASON is set; healing with an override requires --slot N (unset the variable to heal both halves)");
     }
     if (healSlot !== undefined && healSlot !== 2 && healSlot !== 3) {
       throw new Error("--heal --slot must be 2 or 3");

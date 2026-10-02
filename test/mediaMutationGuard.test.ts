@@ -672,6 +672,24 @@ describe("REGENGUARD-R2 restore and heal", () => {
     await expect(readFile(join(root, `data/media-mutation-log/${DATE}.json`))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("R4 M6 same-topic slot 3 variant heal without override stops on approved-log", async () => {
+    const root = await tempRoot();
+    const before = await seedTwoSlotHeal(root);
+    await rm(join(root, `data/scheduled-log/${DATE}.json`));
+    await writeJson(root, `data/approved-log/${DATE}.json`, [
+      { date: DATE, slot: 3, platform: "facebook", status: "approved", approved_by: "test-owner" }
+    ]);
+    expect(await findSlotLocks(root, DATE, 3)).toEqual([]);
+    const calendarPath = join(root, `data/content-calendar/${DATE}.json`);
+    const calendarBefore = await readFile(calendarPath);
+
+    const result = await healOneSlot({ date: DATE, slotNumber: 3, conceptId: CONCEPT_ID, variant: "15s", root });
+
+    expect(result).toMatchObject({ action: "stopped", stopReason: "approved-log" });
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-03.mp4`))).resolves.toEqual(before.lockedVideo);
+    await expect(readFile(calendarPath)).resolves.toEqual(calendarBefore);
+  });
+
   it("R3 same-topic variant repair heals a scheduled-only slot with override", async () => {
     const root = await tempRoot();
     await seedOutgoingReel(root);
@@ -787,12 +805,55 @@ describe("REGENGUARD-R2 restore and heal", () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("requires --slot");
+    expect(result.stderr.trim()).toBe("--force-regen-scheduled requires --slot N when healing");
     expect(result.stdout).not.toContain("heal stopped");
     await expect(readFile(join(root, `docs/assets/${DATE}/slot-03.mp4`))).resolves.toEqual(before.lockedVideo);
     await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.png`))).resolves.toEqual(eveningCoverBefore);
     await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.mp4`))).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(calendarPath)).resolves.toEqual(calendarBefore);
     await expect(readFile(join(root, `data/media-mutation-log/${DATE}.json`))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("R4 M7 environment override requires --slot before either plan half changes", async () => {
+    const root = await tempRoot();
+    const before = await seedTwoSlotHeal(root);
+    const slot2Video = Buffer.from("original slot 2 video bytes");
+    await writeBytes(root, `docs/assets/${DATE}/slot-02.mp4`, slot2Video);
+    const calendarPath = join(root, `data/content-calendar/${DATE}.json`);
+    const calendarBefore = await readFile(calendarPath);
+
+    const result = runSchedule(root, ["--heal", "--date", DATE], {
+      MEDIA_GUARD_OVERRIDE_REASON: "repair one slot only",
+      USERNAME: "test-owner"
+    });
+
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("MEDIA_GUARD_OVERRIDE_REASON is set; healing with an override requires --slot N (unset the variable to heal both halves)");
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-03.mp4`))).resolves.toEqual(before.lockedVideo);
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.mp4`))).resolves.toEqual(slot2Video);
+    await expect(readFile(calendarPath)).resolves.toEqual(calendarBefore);
+  });
+
+  it("R4 M8 legacy slot 3 heal is a no-op for a scheduled Reel date without an A/B plan", async () => {
+    const entry = REEL_SCHEDULE[0];
+    if (!entry) throw new Error("REEL_SCHEDULE has no entry for the legacy heal fixture");
+    const root = await tempRoot();
+    await seedSourceReel(root, entry.conceptId);
+    await writeCalendar(root, [1, 2].map((slot) => ({
+      ...dailySlot(slot),
+      local_image_path: `docs/assets/${entry.date}/slot-0${slot}.png`
+    })), entry.date);
+    const slot2Video = Buffer.from("original legacy slot 2 video bytes");
+    await writeBytes(root, `docs/assets/${entry.date}/slot-02.mp4`, slot2Video);
+    const calendarPath = join(root, `data/content-calendar/${entry.date}.json`);
+    const calendarBefore = await readFile(calendarPath);
+
+    const result = runSchedule(root, ["--heal", "--date", entry.date, "--slot", "3"]);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("no reel scheduled for slot 3");
+    await expect(readFile(join(root, `docs/assets/${entry.date}/slot-02.mp4`))).resolves.toEqual(slot2Video);
+    await expect(readFile(calendarPath)).resolves.toEqual(calendarBefore);
   });
 
   it("R3 --heal override with --slot 2 leaves slot 3 bytes, calendar row and audit untouched", async () => {

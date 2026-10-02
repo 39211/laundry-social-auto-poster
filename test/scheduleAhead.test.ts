@@ -383,6 +383,94 @@ describe("scheduleAheadFacebook", () => {
   });
 });
 
+describe("an unconfirmed Facebook schedule is recorded, never sent again", () => {
+  let root: string;
+  const slot1At = String(Math.floor(new Date(`${DATE}T11:30:00+08:00`).getTime() / 1000));
+
+  /** fakeFetch, except slot 1's schedule commit (the /photos POST carrying its time) answers with `onCommit`. */
+  function commitFails(calls: CapturedCall[], onCommit: () => Promise<Response>): { fetchImpl: typeof fetch; commits: () => number } {
+    let commits = 0;
+    const normal = fakeFetch(calls);
+    const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+      const body = init?.body instanceof URLSearchParams ? init.body : undefined;
+      if (String(input).includes("/photos") && body?.get("scheduled_publish_time") === slot1At) {
+        commits += 1;
+        calls.push({ url: String(input), body });
+        return onCommit();
+      }
+      return normal(input, init);
+    }) as typeof fetch;
+    return { fetchImpl, commits: () => commits };
+  }
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "sched-uncertain-"));
+    await seedDay(root, [
+      slotFixture(1, "image", `排程未確認文案 ${DATE} 壬`),
+      slotFixture(2, "image", `排程未確認填充 ${DATE} 壬二`)
+    ]);
+  });
+
+  it("records a schedule whose reply was lost as uncertain and never queues it again", async () => {
+    const calls: CapturedCall[] = [];
+    const { fetchImpl, commits } = commitFails(calls, () => Promise.reject(new TypeError("fetch failed")));
+    const first = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE });
+    expect(first.find((row) => row.slot === 1)).toMatchObject({ action: "uncertain" });
+    expect(first.find((row) => row.slot === 2)?.action).toBe("scheduled");
+    const log = await loadScheduledLog(DATE, root);
+    expect(log.find((row) => row.slot === 1)).toMatchObject({ status: "uncertain", scheduled_post_id: "" });
+
+    const second = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE });
+    expect(second.find((row) => row.slot === 1)).toMatchObject({ action: "skipped", reason: "already scheduled" });
+    expect(commits()).toBe(1);
+  });
+
+  it("an offline run (no DNS) aborts without a row, and the next run schedules the slot", async () => {
+    // The request never left this machine, so nothing is in Meta's queue:
+    // an uncertain row here would block the slot for good.
+    const calls: CapturedCall[] = [];
+    const { fetchImpl, commits } = commitFails(calls, () =>
+      Promise.reject(Object.assign(new TypeError("fetch failed"), { cause: { code: "ENOTFOUND" } }))
+    );
+    await expect(scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE })).rejects.toThrow(
+      "fetch failed"
+    );
+    expect(commits()).toBe(1);
+    expect(await loadScheduledLog(DATE, root)).toEqual([]);
+    const second = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch(calls), now: NOW_DAY_BEFORE });
+    expect(second.map((row) => row.action)).toEqual(["scheduled", "scheduled"]);
+  });
+
+  it("records a schedule answered without an id as uncertain", async () => {
+    const calls: CapturedCall[] = [];
+    const { fetchImpl } = commitFails(calls, async () => new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));
+    const results = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE });
+    expect(results.find((row) => row.slot === 1)).toMatchObject({ action: "uncertain" });
+    expect((await loadScheduledLog(DATE, root)).find((row) => row.slot === 1)?.status).toBe("uncertain");
+  });
+
+  it("still stops without a row when the failure comes before the commit point", async () => {
+    await seedDay(root, [
+      slotFixture(1, "carousel", `排程提交前失敗文案 ${DATE} 癸`),
+      slotFixture(2, "image", `排程提交前失敗填充 ${DATE} 癸二`)
+    ]);
+    const calls: CapturedCall[] = [];
+    const normal = fakeFetch(calls);
+    // The carousel's unpublished photo uploads come before its /feed commit.
+    const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+      const body = init?.body instanceof URLSearchParams ? init.body : undefined;
+      if (String(input).includes("/photos") && !body?.get("scheduled_publish_time")) {
+        return new Response(JSON.stringify({ error: { message: "upload failed" } }), { status: 500 });
+      }
+      return normal(input, init);
+    }) as typeof fetch;
+    await expect(
+      scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE })
+    ).rejects.toThrow("upload failed");
+    expect((await loadScheduledLog(DATE, root)).some((row) => row.slot === 1)).toBe(false);
+  });
+});
+
 describe("postCurrentSlot interlock with schedule-ahead", () => {
   let root: string;
 
@@ -435,6 +523,41 @@ describe("postCurrentSlot interlock with schedule-ahead", () => {
     expect(fb?.attempts).toBe(0);
     const ig = log.find((row) => row.platform === "instagram");
     expect(ig?.status).toBe("success");
+  });
+
+  it("records an unconfirmed schedule as uncertain and does not publish Facebook again", async () => {
+    await seedDay(root, [
+      slotFixture(1, "image", `互鎖未確認文案 ${DATE} 庚`),
+      slotFixture(2, "image", `互鎖未確認填充 ${DATE} 庚二`)
+    ]);
+    await mkdir(join(root, "data", "scheduled-log"), { recursive: true });
+    await writeFile(
+      join(root, "data", "scheduled-log", `${DATE}.json`),
+      JSON.stringify([
+        {
+          date: DATE,
+          slot: 1,
+          platform: "facebook",
+          scheduled_post_id: "",
+          scheduled_publish_time: Math.floor(new Date(`${DATE}T11:30:00+08:00`).getTime() / 1000),
+          published_media_type: "image",
+          status: "uncertain",
+          error: "Facebook photo schedule response was lost",
+          created_at: new Date().toISOString()
+        }
+      ]),
+      "utf8"
+    );
+
+    const calls: CapturedCall[] = [];
+    await postCurrentSlot({ date: DATE, slot: 1, root, now: IN_WINDOW, fetchImpl: fakeFetch(calls) });
+
+    expect(calls.some((call) => call.url.includes("/111000111/"))).toBe(false);
+    const log = await loadPostLog(DATE, root);
+    const fb = log.find((row) => row.platform === "facebook");
+    expect(fb).toMatchObject({ status: "uncertain", attempts: 0 });
+    expect(fb?.post_id).toBeUndefined();
+    expect(log.find((row) => row.platform === "instagram")?.status).toBe("success");
   });
 
   it("still publishes Facebook live when no scheduled record exists (mutation guard)", async () => {

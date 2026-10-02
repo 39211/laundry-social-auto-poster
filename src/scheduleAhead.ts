@@ -18,8 +18,9 @@ import { projectRoot, scheduledLogPath } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
 import { resolveSlotPublishMedia } from "./postCurrentSlot";
 import { pauseMessage, readPause } from "./pause";
+import { NonRetryableError } from "./retry";
 import { DAILY_SCHEDULE } from "./scheduler";
-import type { AppConfig, DailySlot, PostInput } from "./types";
+import type { AppConfig, DailySlot, PostInput, PostResult } from "./types";
 
 // Pre-schedules a future day's Facebook posts into Meta's own queue
 // (published=false / video_state=SCHEDULED), so the machine can be dead at
@@ -41,6 +42,13 @@ export interface ScheduledLogEntry {
   scheduled_publish_time: number;
   published_media_type: "image" | "carousel" | "reel";
   video_sha256?: string;
+  /**
+   * The schedule call did not confirm (response lost, no id): the post may or
+   * may not be in Meta's queue. Recorded so that neither the next rolling run
+   * nor the live path at slot time sends it again; scheduled_post_id is "".
+   */
+  status?: "uncertain";
+  error?: string;
   created_at: string;
 }
 
@@ -115,7 +123,7 @@ async function assertCaptionNotRepeated(slot: DailySlot, date: string, root: str
 export interface ScheduleAheadResult {
   date: string;
   slot: number;
-  action: "scheduled" | "skipped";
+  action: "scheduled" | "skipped" | "uncertain";
   reason?: string;
   scheduled_post_id?: string;
   scheduled_publish_time?: number;
@@ -270,13 +278,45 @@ export async function scheduleAheadFacebook(input: {
       continue;
     }
 
-    const result =
-      publishedMediaType === "reel"
-        ? await postFacebookReel(postInput, config, fetchImpl)
-        : publishedMediaType === "carousel"
-          ? await postFacebookCarousel(postInput, config, fetchImpl)
-          : await postFacebookPhoto(postInput, config, fetchImpl);
-    if (!result.post_id) throw new Error(`Facebook scheduling for slot ${slot.slot} returned no post id.`);
+    // A schedule call that did not confirm may still have queued the post in
+    // Meta. Aborting without a row (the old behaviour) let the next rolling
+    // run queue the slot a second time, and the live path publish it a third
+    // time at slot time. Record it as uncertain instead: both treat any row as
+    // "already scheduled". A failure before the commit point still throws.
+    let result: PostResult | undefined;
+    let unconfirmed: string | undefined;
+    try {
+      result =
+        publishedMediaType === "reel"
+          ? await postFacebookReel(postInput, config, fetchImpl)
+          : publishedMediaType === "carousel"
+            ? await postFacebookCarousel(postInput, config, fetchImpl)
+            : await postFacebookPhoto(postInput, config, fetchImpl);
+      if (!result.post_id) unconfirmed = `Facebook scheduling for slot ${slot.slot} returned no post id.`;
+    } catch (error) {
+      if (!(error instanceof NonRetryableError)) throw error;
+      unconfirmed = error.message;
+    }
+    if (unconfirmed !== undefined || !result?.post_id) {
+      const error = unconfirmed ?? `Facebook scheduling for slot ${slot.slot} returned no post id.`;
+      await appendScheduledLog(
+        {
+          date: input.date,
+          slot: slot.slot,
+          platform: "facebook",
+          scheduled_post_id: "",
+          scheduled_publish_time: publishAt,
+          published_media_type: publishedMediaType,
+          video_sha256: resolvedMedia.videoSha256,
+          status: "uncertain",
+          error,
+          created_at: new Date().toISOString()
+        },
+        root
+      );
+      results.push({ date: input.date, slot: slot.slot, action: "uncertain", reason: error, scheduled_publish_time: publishAt });
+      continue;
+    }
 
     await appendScheduledLog(
       {
@@ -312,6 +352,19 @@ async function main(): Promise<void> {
   }
   const results = await scheduleAheadFacebook({ date, root: getOption(args, "root") });
   console.log(JSON.stringify(results, null, 2));
+  // Exit 1 so the run reads as failed wherever the exit code is looked at
+  // (scripts/schedule-ahead-daily.ps1 only counts rows today; the publish-day
+  // sentinel and day-audit still raise the slot as not posted). A person has
+  // to look at the Page's scheduled posts for these slots.
+  const unconfirmed = results.filter((row) => row.action === "uncertain");
+  if (unconfirmed.length > 0) {
+    console.error(
+      `${date}: Facebook scheduling unconfirmed for slot ${unconfirmed.map((row) => row.slot).join(", ")}; ` +
+        "recorded as uncertain so nothing sends it again. Check the Page's scheduled posts; " +
+        `if the post is not there, remove the uncertain row from data/scheduled-log/${date}.json and the slot schedules again.`
+    );
+    process.exitCode = 1;
+  }
 }
 
 if (isMain(import.meta.url)) {

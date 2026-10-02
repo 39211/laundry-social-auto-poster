@@ -13,6 +13,7 @@ data/*
 !data/rejected-concepts.json
 !data/campaign-posts.json
 !data/reference-photos/
+!data/ig-cloud.json
 data/posted-log/
 *.log
 .DS_Store

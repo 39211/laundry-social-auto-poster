@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { postCurrentSlot } from "../src/postCurrentSlot";
 import { generateDailyContent } from "../src/generateDailyContent";
 import { stampDailyContentWrite } from "../src/contentPlan";
+import { writeApprovalLog } from "../src/logging";
 
 // The 199 tests this suite joins say nothing about whether the publish guards
 // hold: deleting the repeat gate, the manifest gate, the fingerprint check or
@@ -18,21 +19,27 @@ const YESTERDAY = "2026-09-19";
 // inside the slot's publish window for these assertions to reach their target.
 const NOW = new Date("2026-09-20T12:00:00+08:00");
 
-function slot(n: number, caption: string) {
+function slot(n: number, caption: string, facebookCaption = caption, mediaType: "reel" | "image" = "reel") {
   return {
     slot: n,
     time: "12:00",
     topic: "白鞋泛黃",
-    format: "reel",
-    media_type: "reel" as const,
+    format: mediaType === "reel" ? "reel" : "image-post",
+    media_type: mediaType,
     instagram_caption: caption,
-    facebook_caption: caption,
+    facebook_caption: facebookCaption,
     local_image_path: `docs/assets/${DATE}/slot-0${n}.png`,
     local_video_path: `docs/assets/${DATE}/slot-0${n}.mp4`,
   };
 }
 
-async function seedDay(root: string, date: string, captions: string[]) {
+async function seedDay(
+  root: string,
+  date: string,
+  captions: string[],
+  facebookCaptions: string[] = [],
+  mediaType: "reel" | "image" = "reel"
+) {
   await mkdir(join(root, "data", "content-calendar"), { recursive: true });
   await writeFile(
     join(root, "data", "content-calendar", `${date}.json`),
@@ -45,8 +52,8 @@ async function seedDay(root: string, date: string, captions: string[]) {
           // The schema requires two or three slots, so a filler keeps the day
           // valid while each test varies only the slot it is actually about.
           slots: [
-            ...captions.map((c, i) => slot(i + 1, c)),
-            slot(captions.length + 1, `填充檔位 ${date},與任何測試無關。`)
+            ...captions.map((c, i) => slot(i + 1, c, facebookCaptions[i] ?? c, mediaType)),
+            slot(captions.length + 1, `填充檔位 ${date},與任何測試無關。`, undefined, mediaType)
           ]
         } as Parameters<typeof stampDailyContentWrite>[0],
         { root }
@@ -93,6 +100,47 @@ describe("publish guards", () => {
 
     await expect(
       postCurrentSlot({ date: DATE, slot: 1, root, now: NOW })
+    ).rejects.toThrow(/byte-identical/);
+  });
+
+  it("checks a live Instagram caption independently from yesterday's different Facebook caption", async () => {
+    const instagramCaption = "昨天的 IG 文案，今天也不能重複。";
+    const facebookCaption = "昨天不同的 FB 文案。";
+    await seedDay(root, YESTERDAY, [instagramCaption], [facebookCaption]);
+    await seedDay(root, DATE, [instagramCaption], [], "image");
+    await mkdir(join(root, "docs", "assets", DATE), { recursive: true });
+    await writeFile(join(root, "docs", "assets", DATE, "slot-01.png"), "test image", "utf8");
+    await mkdir(join(root, "data", "posted-log"), { recursive: true });
+    await writeFile(
+      join(root, "data", "posted-log", `${YESTERDAY}.json`),
+      JSON.stringify([
+        { date: YESTERDAY, slot: 1, platform: "instagram", status: "success", post_id: "ig-1", dry_run: false },
+      ]),
+      "utf8"
+    );
+    const approvedAt = new Date().toISOString();
+    await writeApprovalLog(
+      DATE,
+      (["facebook", "instagram"] as const).map((platform) => ({
+        date: DATE,
+        slot: 1,
+        platform,
+        status: "approved" as const,
+        approved_by: "Test",
+        created_at: approvedAt
+      })),
+      root
+    );
+    const fetchImpl = (async (input: string | URL) => {
+      const url = String(input);
+      const payload = new URL(url).searchParams.get("fields") === "status_code,status"
+        ? { status_code: "FINISHED" }
+        : { id: "test-post", post_id: "test-post" };
+      return new Response(JSON.stringify(payload), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await expect(
+      postCurrentSlot({ date: DATE, slot: 1, root, now: NOW, verifyPublicImageUrl: false, fetchImpl })
     ).rejects.toThrow(/byte-identical/);
   });
 

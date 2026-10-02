@@ -1,3 +1,5 @@
+import { stat } from "node:fs/promises";
+import { join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
 import { assertLiveMetaConfig, assertPublicImageBaseUrl, getConfig } from "./config";
 import {
@@ -13,6 +15,7 @@ import {
   readJsonFile,
   writeJsonAtomic
 } from "./logging";
+import { buildIgCloudSnapshot, igMediaTypeFor, pushIgCloudSnapshot, type IgCloudOptions } from "./igCloud";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { projectRoot, scheduledLogPath } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
@@ -142,6 +145,7 @@ export async function scheduleAheadFacebook(input: {
   config?: AppConfig;
   fetchImpl?: typeof fetch;
   now?: Date;
+  igCloud?: IgCloudOptions;
 }): Promise<ScheduleAheadResult[]> {
   const root = projectRoot(input.root);
   const config = input.config ?? getConfig();
@@ -331,6 +335,31 @@ export async function scheduleAheadFacebook(input: {
       },
       root
     );
+
+    // Hand Instagram the exact version Facebook just received (src/igCloud.ts).
+    // Never fatal: Facebook is already queued, and without a snapshot this
+    // slot's Instagram simply stays on the local at-slot-time publisher.
+    try {
+      const localVideo = videoUrl && slot.local_video_path ? join(root, ...slot.local_video_path.split("/")) : undefined;
+      const snapshot = buildIgCloudSnapshot({
+        date: input.date,
+        slot,
+        publishUnix: publishAt,
+        igMediaType: igMediaTypeFor(resolvedMedia.mediaType),
+        imageUrls: isCarousel ? imageUrls : [imageUrl],
+        videoUrl,
+        videoBytes: localVideo ? (await stat(localVideo)).size : undefined,
+        videoSha256: resolvedMedia.videoSha256,
+        config,
+        fbScheduledPostId: result.post_id
+      });
+      const outcome = await pushIgCloudSnapshot(snapshot, root, input.igCloud);
+      console.log(`ig-cloud ${input.date} slot ${slot.slot}: ${outcome.reason}`);
+    } catch (error) {
+      console.warn(
+        `ig-cloud ${input.date} slot ${slot.slot}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
     results.push({
       date: input.date,
       slot: slot.slot,

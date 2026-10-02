@@ -66,6 +66,7 @@
     "ab-report": "tsx src/abTestReport.ts",
     "tts": "tsx src/tts.ts",
     "first-comment": "tsx src/firstComment.ts",
+    "ig-cloud": "tsx src/igCloud.ts",
     "day-lock": "tsx src/dayLock.ts",
     "indexing-push": "tsx src/indexingPush.ts",
     "share-story": "tsx src/postStory.ts",

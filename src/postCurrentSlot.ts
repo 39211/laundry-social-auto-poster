@@ -35,6 +35,16 @@ import {
   inspectApprovedImageDigestFile,
   isApprovedSlotDigestMap
 } from "./imageStamp";
+import {
+  claimFirstCommentForCloud,
+  findFirstCommentOnPost,
+  findLiveInstagramPost,
+  igInputFromSnapshot,
+  readIgCloudMarker,
+  readIgCloudTakenBack,
+  reclaimIfCloudCannotPost,
+  syncIgCloudResult
+} from "./igCloud";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
@@ -259,6 +269,84 @@ export function classifyCalendarSlotPresence(
   return "absent_fail";
 }
 
+/**
+ * Refuses a slot whose calendar entry or images moved after approval. Shared
+ * by the live publisher and the ig-cloud snapshot backfill, which must prove
+ * the same thing before handing an already-scheduled slot to the cloud.
+ */
+export async function assertSlotUnchangedSinceApproval(slot: DailySlot, date: string, root: string): Promise<void> {
+  const { createHash } = await import("node:crypto");
+  const fpRaw = await readFile(join(root, "data", "approved-log", `${date}.fingerprints.json`), "utf8").catch(() => null);
+  if (fpRaw) {
+    const fingerprints = JSON.parse(fpRaw) as Record<string, string>;
+    const expected = fingerprints[String(slot.slot)];
+    const actual = createHash("sha256").update(JSON.stringify(slot)).digest("hex");
+    // A sidecar that exists but has no entry for this slot used to pass: the
+    // `expected &&` short-circuit turned a missing fingerprint into consent.
+    // That is backwards -- the sidecar's presence is the claim that this day
+    // was fingerprinted, so a gap in it is the one thing that should stop a
+    // publish rather than wave it through.
+    if (!expected) {
+      throw new Error(
+        `Slot ${slot.slot} has no approval fingerprint although ${date} has a fingerprint file; re-run auto-approve before publishing.`
+      );
+    }
+    if (expected !== actual) {
+      throw new Error(
+        `Slot ${slot.slot} content changed after approval (fingerprint mismatch); re-run auto-approve before publishing.`
+      );
+    }
+  }
+
+  // The fingerprint hashes the calendar slot, which does not contain a single
+  // byte of any image, and the catch-up chain does not re-approve a day that
+  // already has an approval log. So swapping a picture after approval was
+  // invisible everywhere. This asks only whether the bytes moved since they
+  // were stamped -- proving provenance stays at approval, because re-asking it
+  // here would strand every day approved before stamps existed.
+  // Compared against what approval recorded, not against the source records.
+  // A source record is written by the marking command and can be written
+  // again, so approve -> swap -> re-stamp -> publish stayed green against it:
+  // the file always matched the most recent thing anyone had said about it.
+  // The approval snapshot is written once, by approval, and no other command
+  // touches it.
+  // Only a missing file is a pre-snapshot day. A file that is there but
+  // unreadable, or that has no key for this slot, is not "old" -- it is a
+  // snapshot we cannot use, and must not fall back to the weaker check.
+  const assets = imageAssetsForSlot(slot);
+  const digestFile = await inspectApprovedImageDigestFile(root, date);
+  let swapped: string[];
+  if (digestFile.kind === "unusable") {
+    throw new Error(
+      `Slot ${slot.slot} image-digest file for ${date} is damaged or not a plain object; refusing to treat it as a pre-snapshot day.`
+    );
+  }
+  if (digestFile.kind === "ready") {
+    const slotKey = String(slot.slot);
+    if (!Object.hasOwn(digestFile.snapshot, slotKey)) {
+      throw new Error(
+        `Slot ${slot.slot} has no image-digest entry although ${date} has a digest file; re-run auto-approve before publishing.`
+      );
+    }
+    const slotDigest: unknown = digestFile.snapshot[slotKey];
+    if (!isApprovedSlotDigestMap(slotDigest)) {
+      throw new Error(
+        `Slot ${slot.slot} image-digest entry is not a digest map; refusing to publish.`
+      );
+    }
+    swapped = await imagesDifferFromApproval(root, slot, assets, digestFile.snapshot);
+  } else {
+    swapped = await imagesChangedSinceStamp(root, slot, assets, await loadImageSources(date, root));
+  }
+  if (swapped.length > 0) {
+    throw new Error(
+      `Slot ${slot.slot} images changed after approval:\n` +
+        swapped.map((line) => `  - ${line}`).join("\n") +
+        `\nRe-run auto-approve before publishing.`
+    );
+  }
+}
+
 async function postOneSlot(
   slot: DailySlot,
   config: AppConfig,
@@ -276,6 +364,19 @@ async function postOneSlot(
   if (!config.dryRun && !preflightOnly) {
     const paused = await readPause(root);
     if (paused) throw new NonRetryableError(pauseMessage(paused));
+  }
+  // A slot handed to the cloud publisher (src/igCloud.ts) is never posted to
+  // Instagram from here: the cloud posts the version Facebook got, and this
+  // machine only records its result. Synced before every other check so the
+  // record lands even when this run later refuses the slot for another reason.
+  let cloudOwnsInstagram =
+    !config.dryRun && !preflightOnly && Boolean(await readIgCloudMarker(root, date, slot.slot));
+  if (cloudOwnsInstagram) {
+    await syncIgCloudResult(root, date, slot.slot).catch((error) => {
+      console.warn(
+        `ig-cloud result sync for ${date} slot ${slot.slot} failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    });
   }
   if (!config.dryRun && !preflightOnly) assertInsidePublishWindow(slot.slot, config, now);
   // Single-flight per date+slot: scheduler retries, the patrol and a manual
@@ -312,81 +413,27 @@ async function postOneSlot(
     };
   }
   try {
+  // A cloud-owned slot comes back here if the cloud is switched off or its
+  // live queue has no snapshot (src/igCloud.ts reclaimIfCloudCannotPost). Inside
+  // the lock, so overlapping runs cannot both take it back and post.
+  if (cloudOwnsInstagram) {
+    const reclaim = await reclaimIfCloudCannotPost(root, date, slot.slot).catch((error) => {
+      console.warn(
+        `ig-cloud take-back for ${date} slot ${slot.slot} failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return undefined;
+    });
+    if (reclaim) console.warn(`ig-cloud ${date} slot ${slot.slot}: ${reclaim.status} (${reclaim.reason})`);
+    cloudOwnsInstagram = Boolean(await readIgCloudMarker(root, date, slot.slot));
+  }
+  const takenBack =
+    !config.dryRun && !preflightOnly ? await readIgCloudTakenBack(root, date, slot.slot) : undefined;
   // The approval fingerprint pins WHAT was approved: a slot rewritten after
   // its approval must not publish on the old grant (luna, high). Absent
   // sidecar = legacy day, no check; present sidecar with a different hash =
   // refuse and say so.
   if (!config.dryRun && !preflightOnly) {
-    const { createHash } = await import("node:crypto");
-    const fpRaw = await readFile(join(root, "data", "approved-log", `${date}.fingerprints.json`), "utf8").catch(() => null);
-    if (fpRaw) {
-      const fingerprints = JSON.parse(fpRaw) as Record<string, string>;
-      const expected = fingerprints[String(slot.slot)];
-      const actual = createHash("sha256").update(JSON.stringify(slot)).digest("hex");
-      // A sidecar that exists but has no entry for this slot used to pass: the
-      // `expected &&` short-circuit turned a missing fingerprint into consent.
-      // That is backwards -- the sidecar's presence is the claim that this day
-      // was fingerprinted, so a gap in it is the one thing that should stop a
-      // publish rather than wave it through.
-      if (!expected) {
-        throw new Error(
-          `Slot ${slot.slot} has no approval fingerprint although ${date} has a fingerprint file; re-run auto-approve before publishing.`
-        );
-      }
-      if (expected !== actual) {
-        throw new Error(
-          `Slot ${slot.slot} content changed after approval (fingerprint mismatch); re-run auto-approve before publishing.`
-        );
-      }
-    }
-
-    // The fingerprint hashes the calendar slot, which does not contain a single
-    // byte of any image, and the catch-up chain does not re-approve a day that
-    // already has an approval log. So swapping a picture after approval was
-    // invisible everywhere. This asks only whether the bytes moved since they
-    // were stamped -- proving provenance stays at approval, because re-asking it
-    // here would strand every day approved before stamps existed.
-    // Compared against what approval recorded, not against the source records.
-    // A source record is written by the marking command and can be written
-    // again, so approve -> swap -> re-stamp -> publish stayed green against it:
-    // the file always matched the most recent thing anyone had said about it.
-    // The approval snapshot is written once, by approval, and no other command
-    // touches it.
-    // Only a missing file is a pre-snapshot day. A file that is there but
-    // unreadable, or that has no key for this slot, is not "old" -- it is a
-    // snapshot we cannot use, and must not fall back to the weaker check.
-    const assets = imageAssetsForSlot(slot);
-    const digestFile = await inspectApprovedImageDigestFile(root, date);
-    let swapped: string[];
-    if (digestFile.kind === "unusable") {
-      throw new Error(
-        `Slot ${slot.slot} image-digest file for ${date} is damaged or not a plain object; refusing to treat it as a pre-snapshot day.`
-      );
-    }
-    if (digestFile.kind === "ready") {
-      const slotKey = String(slot.slot);
-      if (!Object.hasOwn(digestFile.snapshot, slotKey)) {
-        throw new Error(
-          `Slot ${slot.slot} has no image-digest entry although ${date} has a digest file; re-run auto-approve before publishing.`
-        );
-      }
-      const slotDigest: unknown = digestFile.snapshot[slotKey];
-      if (!isApprovedSlotDigestMap(slotDigest)) {
-        throw new Error(
-          `Slot ${slot.slot} image-digest entry is not a digest map; refusing to publish.`
-        );
-      }
-      swapped = await imagesDifferFromApproval(root, slot, assets, digestFile.snapshot);
-    } else {
-      swapped = await imagesChangedSinceStamp(root, slot, assets, await loadImageSources(date, root));
-    }
-    if (swapped.length > 0) {
-      throw new Error(
-        `Slot ${slot.slot} images changed after approval:\n` +
-          swapped.map((line) => `  - ${line}`).join("\n") +
-          `\nRe-run auto-approve before publishing.`
-      );
-    }
+    await assertSlotUnchangedSinceApproval(slot, date, root);
   }
   // Nothing checked whether this exact post had already gone out. Between
   // 08-07 and 08-11 the account published the same reel with the same caption
@@ -396,7 +443,9 @@ async function postOneSlot(
   // fixed at generation now; this is the backstop that refuses to put an
   // identical post out twice regardless of how it got here.
   if (!config.dryRun && !preflightOnly) {
-    const caption = (slot.instagram_caption ?? "").trim();
+    // A slot taken back from the cloud posts the snapshot's caption (what
+    // Facebook got), so that is the caption to check.
+    const caption = (takenBack?.caption ?? slot.instagram_caption ?? "").trim();
     if (caption) {
       const { createHash } = await import("node:crypto");
       const captionHash = createHash("sha256").update(caption).digest("hex");
@@ -408,11 +457,13 @@ async function postOneSlot(
         if (!pastContent) continue;
         const pastPosts = await loadPostLog(pastDate, root).catch(() => []);
         for (const pastSlot of pastContent.slots) {
-          const pastCaption = (pastSlot.instagram_caption ?? "").trim();
-          if (!pastCaption) continue;
-          const sameCaption =
-            createHash("sha256").update(pastCaption).digest("hex") === captionHash;
-          if (!sameCaption) continue;
+          const pastCaptions = [...new Set([pastSlot.instagram_caption, pastSlot.facebook_caption]
+            .map((pastCaption) => (pastCaption ?? "").trim())
+            .filter(Boolean))];
+          const matchingCaption = pastCaptions.find(
+            (pastCaption) => createHash("sha256").update(pastCaption).digest("hex") === captionHash
+          );
+          if (!matchingCaption) continue;
           const wentLive = pastPosts.some(
             (post) =>
               post.slot === pastSlot.slot &&
@@ -567,6 +618,21 @@ async function postOneSlot(
       continue;
     }
 
+    if (platform === "instagram" && cloudOwnsInstagram) {
+      outputs.push({
+        date,
+        slot: slot.slot,
+        platform,
+        status: "skipped",
+        dry_run: false,
+        attempts: 0,
+        note: "cloud owns Instagram for this slot; its result is not in yet",
+        ...(abVariant ? { ab_variant: abVariant } : {}),
+        created_at: new Date().toISOString()
+      });
+      continue;
+    }
+
     const scheduledRow =
       platform === "facebook"
         ? scheduledRows.find((row) => row.slot === slot.slot && row.platform === "facebook")
@@ -605,7 +671,39 @@ async function postOneSlot(
     }
 
     try {
-      const result = await postPlatform(platform, input, config, fetchImpl);
+      // Taken back from the cloud: Instagram gets what Facebook got, not the
+      // calendar's current caption and files -- unless the cloud did post it
+      // and only its result commit was lost, in which case the post is on the
+      // account already and is recorded, not posted again.
+      if (platform === "instagram" && takenBack) {
+        const live = await findLiveInstagramPost(takenBack.caption, config, fetchImpl);
+        if (live) {
+          const entry = resultToLog(
+            date,
+            slot.slot,
+            { platform, status: "success", dry_run: false, attempts: 0, post_id: live },
+            resolvedMedia,
+            abVariant
+          );
+          await appendPostLog(entry, root);
+          const firstComment = takenBack.first_comment.trim();
+          if (firstComment) {
+            try {
+              const commentId = await findFirstCommentOnPost(live, firstComment, config, fetchImpl);
+              if (commentId) await claimFirstCommentForCloud(root, date, slot.slot, live, commentId);
+            } catch (error) {
+              console.warn(
+                `Instagram comments for ${live} could not be read (${error instanceof Error ? error.message : String(error)}); the local first-comment step will add it if needed.`
+              );
+            }
+          }
+          outputs.push(entry);
+          continue;
+        }
+      }
+      const publishInput =
+        platform === "instagram" && takenBack ? await igInputFromSnapshot(takenBack, fetchImpl) : input;
+      const result = await postPlatform(platform, publishInput, config, fetchImpl);
       const entry = resultToLog(date, slot.slot, result, resolvedMedia, abVariant);
       await appendPostLog(entry, root);
       outputs.push(entry);

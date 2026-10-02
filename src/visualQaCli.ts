@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
 import { writeJsonAtomic } from "./logging";
-import { projectRoot } from "./paths";
+import { projectRoot, toRepoRelativePath } from "./paths";
 import {
   buildCarouselJudgePrompt,
   buildIsolationPlan,
@@ -217,7 +217,7 @@ export async function handleCarousel(
 
   if (!topic) throw new Error("--topic or --topic-file is required for carousel visual QA.");
   const qaDir = carouselQaDir(args, root, dir, slot);
-  const slides = await burnSlides({ sources, qaDir });
+  const slides = await burnSlides({ sources, qaDir, root });
   const sidecar: CarouselQaSidecar = { topic, date, slot, slides };
   const sidecarPath = join(qaDir, "sidecar.json");
   await writeJsonAtomic(sidecarPath, sidecar);
@@ -320,7 +320,10 @@ async function main(): Promise<void> {
       });
     }
     const sidecar: VisualQaSidecar = {
-      reel,
+      // sha256File and parseTreatment above got the real (often absolute)
+      // path; sidecar.json is tracked under data/visual-qa-fixtures in a
+      // public repo, so what gets stored is repo-relative.
+      reel: toRepoRelativePath(root, reel),
       reel_sha256: await sha256File(reel),
       treatment,
       duration,
@@ -352,7 +355,8 @@ async function main(): Promise<void> {
       sidecar,
       promptHash,
       runId,
-      stillsMissing
+      stillsMissing,
+      root
     });
     await writeJsonAtomic(outPath, record);
     process.stdout.write(`${JSON.stringify({ verdict: record.verdict, fail_class: record.fail_class, axes: record.axes })}\n`);

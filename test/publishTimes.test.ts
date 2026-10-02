@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,6 +14,19 @@ const CONFIG = {
   afternoon_window: { start: "14:00", end: "15:30" },
   min_gap_minutes: 60,
   preregistered: { primary_metric: "reach", secondary_metric: "distribution", decision_rule: "compare" }
+};
+const WINDOWS_CONFIG = {
+  name: "slot-windows-vs-usual-2026-10",
+  start_date: "2026-10-06",
+  end_date: "2026-10-19",
+  slots: [1, 2],
+  probability_afternoon: 0.5,
+  windows: {
+    "1": { start: "14:00", end: "15:30", arm: "afternoon" },
+    "2": { start: "19:00", end: "19:30", arm: "early-evening" }
+  },
+  min_gap_minutes: 60,
+  preregistered: { primary_metric: "reach", secondary_metric: "views", decision_rule: "per-slot" }
 };
 const DATE = "2026-10-06";
 let root: string;
@@ -178,6 +191,155 @@ describe("ensurePublishTimes", () => {
     const result = await ensurePublishTimes(DATE, root, { randomInt: syncRandom });
     expect(result?.experiment).toBe("winner");
     expect(JSON.parse(await readFile(path, "utf8"))).toEqual(winner);
+  });
+
+  it("rejects the whole experiment when a configured slot has no window or fallback", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    await writeJson(join(root, "data", "publish-time-experiment.json"), {
+      ...WINDOWS_CONFIG,
+      windows: { "1": WINDOWS_CONFIG.windows["1"] }
+    });
+    const path = join(root, "data", "publish-times", `${DATE}.json`);
+
+    expect(await ensurePublishTimes(DATE, root)).toBeNull();
+    expect(existsSync(path)).toBe(false);
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["start after end", { "1": { start: "15:00", end: "14:00", arm: "afternoon" }, "2": WINDOWS_CONFIG.windows["2"] }],
+    ["malformed time", { "1": { start: "9:00", end: "15:00", arm: "afternoon" }, "2": WINDOWS_CONFIG.windows["2"] }],
+    ["empty arm", { "1": { start: "14:00", end: "15:00", arm: "" }, "2": WINDOWS_CONFIG.windows["2"] }]
+  ])("does not write when a per-slot window has %s", async (_label, windows) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    await writeJson(join(root, "data", "publish-time-experiment.json"), { ...WINDOWS_CONFIG, windows });
+    const path = join(root, "data", "publish-times", `${DATE}.json`);
+
+    expect(await ensurePublishTimes(DATE, root)).toBeNull();
+    expect(existsSync(path)).toBe(false);
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it("uses a legacy fallback for missing window keys and ignores integer keys for other slots", async () => {
+    await writeJson(join(root, "data", "publish-time-experiment.json"), {
+      ...WINDOWS_CONFIG,
+      afternoon_window: { start: "16:00", end: "16:00" },
+      windows: {
+        "1": { start: "14:00", end: "14:00" },
+        "3": null
+      },
+      probability_afternoon: 1,
+      min_gap_minutes: 0
+    });
+    const result = await ensurePublishTimes(DATE, root, { randomInt: (min) => min });
+
+    expect(result?.slots).toEqual([
+      { slot: 1, time: "14:00", arm: "afternoon" },
+      { slot: 2, time: "16:00", arm: "afternoon" }
+    ]);
+  });
+
+  it("rejects a non-integer windows key even when it is outside the configured slots", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    await writeJson(join(root, "data", "publish-time-experiment.json"), {
+      ...WINDOWS_CONFIG,
+      windows: { ...WINDOWS_CONFIG.windows, extra: { start: "14:00", end: "15:00" } }
+    });
+    const path = join(root, "data", "publish-times", `${DATE}.json`);
+
+    expect(await ensurePublishTimes(DATE, root)).toBeNull();
+    expect(existsSync(path)).toBe(false);
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it("assigns each slot from its own window, keeps usual times, and visits all four arm combinations over 2,000 days", async () => {
+    const extended = { ...WINDOWS_CONFIG, start_date: "2020-01-01", end_date: "2025-12-31" };
+    await writeJson(join(root, "data", "publish-time-experiment.json"), extended);
+    let state = 0x12345678;
+    const randomInt = (min: number, max: number) => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return min + (state % (max - min));
+    };
+    const seenCombinations = new Set<string>();
+    for (let index = 0; index < 2_000; index += 1) {
+      const day = new Date(Date.UTC(2020, 0, 1 + index)).toISOString().slice(0, 10);
+      const result = await ensurePublishTimes(day, root, { randomInt, now: new Date("2026-10-03T13:40:12.345Z") });
+      expect(result).not.toBeNull();
+      const one = result!.slots.find((slot) => slot.slot === 1)!;
+      const two = result!.slots.find((slot) => slot.slot === 2)!;
+      const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+      if (one.arm === "afternoon") {
+        expect(minutes(one.time)).toBeGreaterThanOrEqual(14 * 60);
+        expect(minutes(one.time)).toBeLessThanOrEqual(15 * 60 + 30);
+      } else {
+        expect(one).toMatchObject({ time: "11:30", arm: "usual" });
+      }
+      if (two.arm === "early-evening") {
+        expect(minutes(two.time)).toBeGreaterThanOrEqual(19 * 60);
+        expect(minutes(two.time)).toBeLessThanOrEqual(19 * 60 + 30);
+      } else {
+        expect(two).toMatchObject({ time: "20:30", arm: "usual" });
+      }
+      expect(minutes(one.time)).toBeLessThan(minutes(two.time));
+      seenCombinations.add(`${one.arm}:${two.arm}`);
+    }
+    expect(seenCombinations).toEqual(new Set([
+      "afternoon:early-evening",
+      "afternoon:usual",
+      "usual:early-evening",
+      "usual:usual"
+    ]));
+  }, 120_000);
+
+  it("enforces the minimum gap when both per-slot test windows overlap", async () => {
+    const overlapping = {
+      ...WINDOWS_CONFIG,
+      start_date: "2020-01-01",
+      end_date: "2020-04-10",
+      probability_afternoon: 1,
+      windows: {
+        "1": { start: "14:00", end: "15:30", arm: "afternoon" },
+        "2": { start: "14:00", end: "15:30", arm: "early-evening" }
+      }
+    };
+    await writeJson(join(root, "data", "publish-time-experiment.json"), overlapping);
+    let state = 0x7a5b3c1d;
+    const randomInt = (min: number, max: number) => {
+      state = (Math.imul(state, 1103515245) + 12345) >>> 0;
+      return min + (state % (max - min));
+    };
+    for (let index = 0; index < 100; index += 1) {
+      const day = new Date(Date.UTC(2020, 0, 1 + index)).toISOString().slice(0, 10);
+      const result = await ensurePublishTimes(day, root, { randomInt });
+      const one = result!.slots.find((slot) => slot.slot === 1)!;
+      const two = result!.slots.find((slot) => slot.slot === 2)!;
+      const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+      expect(two.arm).toBe("early-evening");
+      expect(minutes(two.time) - minutes(one.time)).toBeGreaterThanOrEqual(60);
+    }
+  });
+
+  it("preserves the legacy random-call order and exact two-slot assignment", async () => {
+    const calls: Array<[number, number]> = [];
+    const randomInt = (min: number, max: number) => {
+      calls.push([min, max]);
+      return min;
+    };
+    const result = await ensurePublishTimes(DATE, root, {
+      randomInt,
+      now: new Date("2026-10-03T13:40:12.345Z")
+    });
+
+    expect(calls).toEqual([
+      [0, 1_000_000],
+      [0, 1_000_000],
+      [14 * 60, 14 * 60 + 31],
+      [15 * 60, 15 * 60 + 31]
+    ]);
+    expect(result?.slots).toEqual([
+      { slot: 1, time: "14:00", arm: "afternoon" },
+      { slot: 2, time: "15:00", arm: "afternoon" }
+    ]);
   });
 
   it("assigns 2,000 days within the afternoon, ordering, and gap limits", async () => {

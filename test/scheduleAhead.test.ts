@@ -307,6 +307,53 @@ describe("scheduleAheadFacebook", () => {
     expect(calls.find((call) => call.url.includes("/photos"))?.body?.get("scheduled_publish_time")).toBe(String(expected));
   });
 
+  it("creates a per-slot early-evening assignment and schedules slot 2 at its exact Taiwan time", async () => {
+    await seedDay(root, [
+      slotFixture(1, "image", `各格視窗排程文案 ${DATE} 甲`),
+      slotFixture(2, "image", `各格晚間排程文案 ${DATE} 乙`)
+    ]);
+    await mkdir(join(root, "data"), { recursive: true });
+    await writeFile(join(root, "data", "publish-time-experiment.json"), JSON.stringify({
+      name: "slot-windows-vs-usual-2026-10",
+      start_date: DATE,
+      end_date: DATE,
+      slots: [1, 2],
+      probability_afternoon: 1,
+      windows: {
+        "1": { start: "14:12", end: "14:12", arm: "afternoon" },
+        "2": { start: "19:07", end: "19:07", arm: "early-evening" }
+      },
+      min_gap_minutes: 60,
+      preregistered: {
+        primary_metric: "Instagram reach",
+        secondary_metric: "Instagram views",
+        analysis_unit: "per slot",
+        decision_rule: "compare each slot"
+      }
+    }), "utf8");
+
+    const calls: CapturedCall[] = [];
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: fakeFetch(calls),
+      now: NOW_DAY_BEFORE
+    });
+    const publishTimesPath = join(root, "data", "publish-times", `${DATE}.json`);
+    const publishTimes = JSON.parse(await readFile(publishTimesPath, "utf8")) as {
+      slots: Array<{ slot: number; time: string; arm?: string }>;
+    };
+    const slot2 = publishTimes.slots.find((slot) => slot.slot === 2);
+    const slot2CallTime = Math.floor(new Date(`${DATE}T${slot2?.time}:00+08:00`).getTime() / 1000);
+    const expected = Math.floor(new Date(`${DATE}T19:07:00+08:00`).getTime() / 1000);
+
+    expect(slot2).toMatchObject({ time: "19:07", arm: "early-evening" });
+    expect(slot2CallTime).toBe(expected);
+    expect(results.find((row) => row.slot === 2)?.scheduled_publish_time).toBe(expected);
+    expect(calls.find((call) => call.url.includes("/photos") && call.body?.get("scheduled_publish_time") === String(expected))?.body?.get("scheduled_publish_time")).toBe(String(expected));
+  });
+
   it("does not create an experiment assignment after a slot is already scheduled", async () => {
     await seedDay(root, [
       slotFixture(1, "image", `已排程不抽籤文案 ${DATE}`),

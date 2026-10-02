@@ -78,6 +78,14 @@ try {
     $dryOnly = Invoke-GateCase -Name "instagram-dry-run-only" -Time "11:45" -Posted $dryIg
     Assert-GateCase "instagram-dry-run-still-needs-publish" ($dryOnly.ExitCode -eq 0 -and ([regex]::Matches($dryOnly.Calls, "CATCHUP")).Count -eq 1) $dryOnly.TextLog.Trim()
 
+    $earlyEveningTimes = '{"date":"2026-10-06","slots":[{"slot":2,"time":"19:07","arm":"early-evening"}]}'
+    $eveningDue = Invoke-GateCase -Name "early-evening-due-unposted" -Time "19:10" -PublishTimes $earlyEveningTimes
+    Assert-GateCase "early-evening-due-unposted-calls-once" ($eveningDue.ExitCode -eq 0 -and ([regex]::Matches($eveningDue.Calls, "CATCHUP")).Count -eq 1) $eveningDue.TextLog.Trim()
+
+    $postedEveningIg = '[{"slot":2,"platform":"instagram","status":"success","dry_run":false}]'
+    $eveningPosted = Invoke-GateCase -Name "early-evening-instagram-already-posted" -Time "19:10" -Posted $postedEveningIg -PublishTimes $earlyEveningTimes
+    Assert-GateCase "early-evening-posted-no-call" ($eveningPosted.ExitCode -eq 0 -and -not $eveningPosted.Calls.Contains("CATCHUP")) $eveningPosted.TextLog.Trim()
+
     $repeatName = "retry-window-and-limit"
     $first = Invoke-GateCase -Name $repeatName -Time "11:45"
     $early = Invoke-GateCase -Name $repeatName -Time "12:14"
@@ -110,7 +118,7 @@ try {
     $whatIfExit = $LASTEXITCODE
     $registerSource = [IO.File]::ReadAllText($register, [Text.UTF8Encoding]::new($false))
     $hasHiddenAction = $whatIfOutput.Contains("-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File")
-    $hasTriggers = $whatIfOutput.Contains("trigger=daily at 14:00") -and $whatIfOutput.Contains("repetition=PT5M for PT2H30M") -and $whatIfOutput.Contains("trigger=daily at 16:40") -and $whatIfOutput.Contains("repetition=none")
+    $hasTriggers = $whatIfOutput.Contains("trigger=daily at 14:00") -and $whatIfOutput.Contains("repetition=PT5M for PT6H") -and $whatIfOutput.Contains("trigger=daily at 16:40") -and $whatIfOutput.Contains("repetition=none")
     $hasCommonSettings = $whatIfOutput.Contains("AllowStartIfOnBatteries:True") -and $whatIfOutput.Contains("DontStopIfGoingOnBatteries:True") -and $whatIfOutput.Contains("WakeToRun:True") -and $whatIfOutput.Contains("MultipleInstances:IgnoreNew") -and $whatIfOutput.Contains("ExecutionTimeLimit:PT2H")
     Assert-GateCase "register-whatif-only-two-names" ($whatIfExit -eq 0 -and $whatIfOutput.Contains("Laundry-Publish-Time-Gate") -and $whatIfOutput.Contains("Laundry-Publish-Sentinel-Afternoon") -and $hasHiddenAction -and $hasTriggers -and $hasCommonSettings -and ([regex]::Matches($registerSource, "Register-ScheduledTask")).Count -eq 1 -and $registerSource.IndexOf("if (`$WhatIfPreference)") -lt $registerSource.IndexOf("Register-ScheduledTask")) $whatIfOutput.Trim()
 } finally {

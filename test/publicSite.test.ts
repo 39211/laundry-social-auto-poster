@@ -1,8 +1,8 @@
 import { access, mkdir, open, readFile, readdir, writeFile } from "node:fs/promises";
-import { existsSync, mkdtempSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   generatePublicSite,
   publicAcceptedIndexGrowthCount,
@@ -286,9 +286,19 @@ async function pngPixelSize(filePath: string): Promise<{ width: number; height: 
   }
 }
 
+const tempRoots: string[] = [];
+function tempRoot(prefix: string): string {
+  const root = mkdtempSync(join(tmpdir(), prefix));
+  tempRoots.push(root);
+  return root;
+}
+afterEach(() => {
+  for (const root of tempRoots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
+
 describe("generatePublicSite", () => {
   it("changes only the Qinghai search meta description and preserves every other rendered byte", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-qinghai-snippet-"));
+    const root = tempRoot("laundry-qinghai-snippet-");
     await writeBusinessProfile(root);
     const page = publicSupportPages().find((item) => item.slug === "qinghai-road-shoe-cleaning")!;
     const saved = page.search_description;
@@ -335,7 +345,7 @@ describe("generatePublicSite", () => {
   });
 
   it("changes only Birkenstock service anchors while preserving its rendered image and content", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-birkenstock-parity-"));
+    const root = tempRoot("laundry-birkenstock-parity-");
     await writeBusinessProfile(root);
     const page = publicSupportPages().find((item) => item.slug === "birkenstock-care")!;
     const current = { service: page.service_slug, image: page.image_service_slug };
@@ -372,7 +382,7 @@ describe("generatePublicSite", () => {
   });
 
   it("writes AI-readable public indexes with absolute URLs when a base URL is configured", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-"));
+    const root = tempRoot("laundry-public-site-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02", { carouselSlot1: true });
     await writeApprovalLog(root, "2026-07-02");
@@ -919,7 +929,7 @@ describe("generatePublicSite", () => {
   });
 
   it("can use GitHub Pages as the public site while images stay on a separate asset host", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-split-base-"));
+    const root = tempRoot("laundry-public-site-split-base-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02", [1]);
@@ -962,7 +972,7 @@ describe("generatePublicSite", () => {
   });
 
   it("writes guide and local support pages into SEO and AI indexes", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-support-pages-"));
+    const root = tempRoot("laundry-public-site-support-pages-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -1132,7 +1142,7 @@ describe("generatePublicSite", () => {
   });
 
   it("thickens the Fengjia/Xitun shoe local page and adds thematic internal links", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-local-shoe-thicken-"));
+    const root = tempRoot("laundry-public-site-local-shoe-thicken-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -1215,7 +1225,7 @@ describe("generatePublicSite", () => {
   });
 
   it("keeps every approved daily post visible in the public site and AI discovery index", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-approved-history-"));
+    const root = tempRoot("laundry-public-site-approved-history-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeCalendar(root, "2026-07-03");
@@ -1262,7 +1272,7 @@ describe("generatePublicSite", () => {
   });
 
   it("publishes approved content through today in Taipei but removes future public calendars", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-future-calendar-"));
+    const root = tempRoot("laundry-public-site-future-calendar-");
     const today = "2026-08-30";
     const tomorrow = "2026-08-31";
     await writeBusinessProfile(root);
@@ -1302,7 +1312,7 @@ describe("generatePublicSite", () => {
   });
 
   it("rejects a private calendar whose embedded date does not match its filename", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-calendar-date-mismatch-"));
+    const root = tempRoot("laundry-public-site-calendar-date-mismatch-");
     const filenameDate = "2026-08-30";
     const embeddedDate = "2026-08-31";
     await writeBusinessProfile(root);
@@ -1328,7 +1338,7 @@ describe("generatePublicSite", () => {
   });
 
   it("rejects a calendar date mismatch even when the filename is in the future", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-future-calendar-date-mismatch-"));
+    const root = tempRoot("laundry-public-site-future-calendar-date-mismatch-");
     const filenameDate = "2026-08-31";
     const embeddedDate = "2026-09-01";
     await writeBusinessProfile(root);
@@ -1354,7 +1364,7 @@ describe("generatePublicSite", () => {
   });
 
   it("expands recent approved dates on the homepage and collapses older approved posts into an archive", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-approved-archive-"));
+    const root = tempRoot("laundry-public-site-approved-archive-");
     await writeBusinessProfile(root);
     const dates = [
       "2026-06-26",
@@ -1399,7 +1409,7 @@ describe("generatePublicSite", () => {
   });
 
   it("keeps unapproved scheduled slots out of public SEO and AI feeds", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-unapproved-"));
+    const root = tempRoot("laundry-public-site-unapproved-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
 
@@ -1425,7 +1435,7 @@ describe("generatePublicSite", () => {
   });
 
   it("falls back to relative URLs before the public base URL is configured", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-relative-"));
+    const root = tempRoot("laundry-public-site-relative-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -1442,7 +1452,7 @@ describe("generatePublicSite", () => {
   });
 
   it("writes canonical article pages with BlogPosting, breadcrumb, image alt, caption, and a real service link", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-article-metadata-"));
+    const root = tempRoot("laundry-public-site-article-metadata-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -1473,7 +1483,7 @@ describe("generatePublicSite", () => {
   });
 
   it("falls back to an image publicly when an approved reel MP4 is missing", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-missing-reel-"));
+    const root = tempRoot("laundry-public-site-missing-reel-");
     const date = "2026-07-02";
     const baseUrl = "https://example.com/laundry-social-auto-poster";
     await writeBusinessProfile(root);
@@ -1562,7 +1572,7 @@ describe("generatePublicSite", () => {
   });
 
   it("removes stale video fields from approved non-video slots", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-stale-video-fields-"));
+    const root = tempRoot("laundry-public-site-stale-video-fields-");
     const date = "2026-07-02";
     const baseUrl = "https://example.com/laundry-social-auto-poster";
     await writeBusinessProfile(root);
@@ -1606,7 +1616,7 @@ describe("generatePublicSite", () => {
   });
 
   it("fails closed when an approved reel has neither its MP4 nor fallback PNG", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-missing-reel-and-image-"));
+    const root = tempRoot("laundry-public-site-missing-reel-and-image-");
     const date = "2026-07-02";
     await writeBusinessProfile(root);
     await writeCalendar(root, date);
@@ -1628,7 +1638,7 @@ describe("generatePublicSite", () => {
   });
 
   it("rethrows non-ENOENT filesystem errors instead of silently downgrading a reel", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-reel-stat-error-"));
+    const root = tempRoot("laundry-public-site-reel-stat-error-");
     const date = "2026-07-02";
     await writeBusinessProfile(root);
     await writeCalendar(root, date);
@@ -1661,7 +1671,7 @@ describe("generatePublicSite", () => {
   });
 
   it("does not generate a second article page or sitemap URL when the post caption is a duplicate", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-dedup-"));
+    const root = tempRoot("laundry-public-site-dedup-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-04");
     await writeCalendar(root, "2026-07-05");
@@ -1710,7 +1720,7 @@ describe("generatePublicSite", () => {
   });
 
   it("publishes the IndexNow key file as ${INDEXNOW_KEY}.txt and removes the legacy indexnow-key.txt", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-indexnow-key-"));
+    const root = tempRoot("laundry-public-site-indexnow-key-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -1739,7 +1749,7 @@ describe("generatePublicSite", () => {
   });
 
   it("allows OAI-SearchBot to crawl the same AI entry points as other bot agents", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-oai-searchbot-"));
+    const root = tempRoot("laundry-public-site-oai-searchbot-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -1773,7 +1783,7 @@ describe("generatePublicSite", () => {
   });
 
   it("publishes citywide free pickup page with internal links, schema, sitemap, and stable lastmod", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-citywide-pickup-"));
+    const root = tempRoot("laundry-public-site-citywide-pickup-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2045,7 +2055,7 @@ describe("generatePublicSite", () => {
   });
 
   it("thickens the eight thin guides with AEO first answers and syncs D05/D12", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-guide-thicken-"));
+    const root = tempRoot("laundry-public-site-guide-thicken-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2232,7 +2242,7 @@ describe("generatePublicSite", () => {
   });
 
   it("adds unique local and object pages to the indexable sitemap", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-index-expand-"));
+    const root = tempRoot("laundry-index-expand-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2277,7 +2287,7 @@ describe("generatePublicSite", () => {
   });
 
   it("publishes the Taichung laundry price list page with canonical reference prices", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-price-list-"));
+    const root = tempRoot("laundry-price-list-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2432,7 +2442,7 @@ describe("generatePublicSite", () => {
   });
 
   it("publishes accepted index-growth guides into sitemap and AI surfaces with crawlable parent links", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-index-growth-"));
+    const root = tempRoot("laundry-index-growth-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2525,7 +2535,7 @@ describe("generatePublicSite", () => {
   });
 
   it("accepted guide body has exactly one crawlable parent-service target", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-index-growth-parent-"));
+    const root = tempRoot("laundry-index-growth-parent-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2544,7 +2554,7 @@ describe("generatePublicSite", () => {
   });
 
   it("body parent-link assertion fails after removing the article parent while nav remains", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-index-growth-mutation-"));
+    const root = tempRoot("laundry-index-growth-mutation-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2572,7 +2582,7 @@ describe("generatePublicSite", () => {
   });
 
   it("fails closed when the deployment path is missing the production base URL", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-index-growth-deploy-"));
+    const root = tempRoot("laundry-index-growth-deploy-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2620,7 +2630,7 @@ describe("generatePublicSite", () => {
   });
 
   it("publishes one crawlable knowledge hub and a non-duplicating GA4 search funnel", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-knowledge-funnel-"));
+    const root = tempRoot("laundry-knowledge-funnel-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2706,7 +2716,7 @@ describe("generatePublicSite", () => {
   });
 
   it("keeps knowledge-hub links correct when generated without a public base URL", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-knowledge-relative-"));
+    const root = tempRoot("laundry-knowledge-relative-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2724,7 +2734,7 @@ describe("generatePublicSite", () => {
   }, 15000);
 
   it("publishes thick approved posts as indexable daily articles behind a fail-closed gate", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-daily-articles-"));
+    const root = tempRoot("laundry-daily-articles-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2913,7 +2923,7 @@ describe("generatePublicSite", () => {
   });
 
   it("rebalances money-page internal links and keeps conversion URLs ahead of post flood in sitemap", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-money-link-rebalance-"));
+    const root = tempRoot("laundry-money-link-rebalance-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2955,7 +2965,7 @@ describe("generatePublicSite", () => {
   });
 
   it("puts the price list first in the header nav, shows reference prices in the home hero, and keeps 西屯洗鞋 on one landing page", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-price-first-"));
+    const root = tempRoot("laundry-price-first-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -2991,7 +3001,7 @@ describe("generatePublicSite", () => {
   });
 
   it("adds index-gap money rails, unique-value, Wikidata entity, image sitemap, and GA4 view_item without fake conversions", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-seo-ga4-boost-"));
+    const root = tempRoot("laundry-seo-ga4-boost-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
@@ -3076,7 +3086,7 @@ describe("answer capsules are answers, not business cards", () => {
   const BRAND_OPENINGS = ["私享家洗衣店（", "私享家洗衣店位於", "私享家洗衣店提供", "私享家洗衣店在"];
 
   it("no guide, service or local page opens its answer capsule with the shop name", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-capsule-"));
+    const root = tempRoot("laundry-public-site-capsule-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-04");
     await writeApprovalLog(root, "2026-07-04");
@@ -3129,7 +3139,7 @@ describe("visible copy speaks to customers, not to search engines", () => {
   ];
 
   it("no rendered page shows text addressed to a crawler", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-voice-"));
+    const root = tempRoot("laundry-public-site-voice-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-04");
     await writeApprovalLog(root, "2026-07-04");
@@ -3163,7 +3173,7 @@ describe("visible copy speaks to customers, not to search engines", () => {
   });
 
   it("the answer-capsule caption is free of the 步驤 typo that shipped on 49 pages", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-typo-"));
+    const root = tempRoot("laundry-public-site-typo-");
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-04");
     await writeApprovalLog(root, "2026-07-04");

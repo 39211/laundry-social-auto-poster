@@ -1,7 +1,7 @@
-import { copyFile, mkdir, mkdtemp, readFile, readdir } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { tmpdir } from "node:os";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { generatePublicSite, publicSupportPages } from "../src/generatePublicSite";
 
 const slug = "luxury-designer-shoe-care";
@@ -9,8 +9,14 @@ const heading = "精品鞋泡沫清洗案例：本案實收600元、清洗約一
 const baseUrl = "https://sixiangjialaundry.com";
 const now = "2026-09-14T06:00:00.000Z";
 
+const roots: string[] = [];
+afterEach(async () => {
+  await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })));
+});
+
 async function render(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "sxj-luxury-case-"));
+  roots.push(root);
   await mkdir(join(root, "data"));
   await copyFile(join(process.cwd(), "data/business-profile.json"), join(root, "data/business-profile.json"));
   await generatePublicSite({ root, baseUrl, now });

@@ -81,6 +81,25 @@ function Invoke-ScheduledTaskRescue {
     return $plan
 }
 
+function Get-WatchdogPostedSlots {
+    [CmdletBinding()]
+    param([Parameter(Mandatory = $true)][string]$Root, [Parameter(Mandatory = $true)][string]$Date)
+    $postedPath = Join-Path $Root "data\posted-log\$Date.json"
+    if (-not (Test-Path -LiteralPath $postedPath)) { return @() }
+    try {
+        $parsed = ConvertFrom-Json -InputObject (Get-Content -LiteralPath $postedPath -Raw -Encoding utf8)
+        $igSlots = @(@($parsed) | Where-Object {
+            $_.platform -eq "instagram" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status)
+        } | ForEach-Object { [int]$_.slot })
+        $fbSlots = @(@($parsed) | Where-Object {
+            $_.platform -eq "facebook" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status)
+        } | ForEach-Object { [int]$_.slot })
+        return @($igSlots | Where-Object { $fbSlots -contains $_ } | Sort-Object -Unique)
+    } catch {
+        return @()
+    }
+}
+
 $root = Split-Path -Parent $PSScriptRoot
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
 $now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
@@ -90,7 +109,26 @@ $logDir = Join-Path $root "output\watchdog-logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $logFile = Join-Path $logDir "$date.log"
 
+function Show-PatrolToast([string]$text) {
+    if ($env:WATCHDOG_PATROL_TOAST_FILE) {
+        ("TOAST|" + $text) | Out-File -LiteralPath $env:WATCHDOG_PATROL_TOAST_FILE -Append -Encoding utf8
+        return
+    }
+    try {
+        [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+        $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
+        $nodes = $template.GetElementsByTagName("text")
+        $nodes.Item(0).AppendChild($template.CreateTextNode("私享家發布看門狗")) | Out-Null
+        $nodes.Item(1).AppendChild($template.CreateTextNode($text)) | Out-Null
+        $toast = New-Object Windows.UI.Notifications.ToastNotification($template)
+        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("LaundryWatchdog").Show($toast)
+    } catch {
+        "[{0:yyyy-MM-dd HH:mm:ss}] Toast failed: {1}" -f $now, $_.Exception.Message | Add-Content -Path $logFile -Encoding UTF8
+    }
+}
+
 . (Join-Path $PSScriptRoot "_watchdog.ps1")
+. (Join-Path $PSScriptRoot "publish-slot-times.ps1")
 
 # Dead-trigger detection (both review families): a task can be State=Ready
 # with an empty NextRunTime -- the exact way the patrol itself died on 08-08.
@@ -111,33 +149,26 @@ if ($deadTasks.Count -gt 0) {
 $approvedPath = Join-Path $root "data\approved-log\$date.json"
 if (-not (Test-Path $approvedPath)) { exit 0 }
 
-$slotTimes = @{ 1 = [TimeSpan]"11:30"; 2 = [TimeSpan]"20:30"; 3 = [TimeSpan]"12:00" }
 $recovery = [TimeSpan]::FromHours(4)
 
-$postedSlots = @()
-$postedPath = Join-Path $root "data\posted-log\$date.json"
-if (Test-Path $postedPath) {
-    try {
-        $parsed = Get-Content $postedPath -Raw -Encoding utf8 | ConvertFrom-Json
-        # Both platforms must have succeeded before a slot counts as done:
-        # IG-only success used to mark the slot complete and FB stayed
-        # permanently unpublished if the retry trigger died (luna, high).
-        $igSlots = @(@($parsed) | Where-Object {
-            $_.platform -eq "instagram" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status)
-        } | ForEach-Object { $_.slot })
-        $fbSlots = @(@($parsed) | Where-Object {
-            $_.platform -eq "facebook" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status)
-        } | ForEach-Object { $_.slot })
-        $postedSlots = @($igSlots | Where-Object { $fbSlots -contains $_ })
-    } catch {}
-}
+$postedSlots = @(Get-WatchdogPostedSlots -Root $root -Date $date)
 
-$needsRescue = $false
-foreach ($slot in 1, 2, 3) {
-    $t = $slotTimes[$slot]
-    $inWindow = ($now.TimeOfDay -ge $t) -and (($now.TimeOfDay - $t) -le $recovery)
-    if ($inWindow -and ($postedSlots -notcontains $slot)) { $needsRescue = $true }
+$calendarSlots = Get-CalendarSlots -Root $root -Date $date
+if ($null -eq $calendarSlots) {
+    "[{0:yyyy-MM-dd HH:mm:ss}] Calendar unreadable; falling back to slots 1, 2, 3." -f $now | Add-Content -Path $logFile -Encoding UTF8
+    $calendarSlots = [int[]]@(1, 2, 3)
 }
+$missingRequiredCalendarSlots = @(Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots)
+if ($missingRequiredCalendarSlots.Count -gt 0) {
+    $line = "[{0:yyyy-MM-dd HH:mm:ss}] Calendar missing required slot(s): {1}; refusing patrol rescue." -f $now, ($missingRequiredCalendarSlots -join ",")
+    $line | Add-Content -Path $logFile -Encoding UTF8
+    Show-PatrolToast ("今天行事曆缺少必備 slot {0},看門狗停止救援,請先修復行事曆。" -f ($missingRequiredCalendarSlots -join ","))
+    exit 1
+}
+$slotTimeWarning = $null
+$slotTimes = Get-SlotTimes -Root $root -Date $date -WarningMessage ([ref]$slotTimeWarning)
+if ($slotTimeWarning) { "[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $now, [string]$slotTimeWarning | Add-Content -Path $logFile -Encoding UTF8 }
+$needsRescue = Test-NeedsPublishRescue -NowTime $now.TimeOfDay -SlotTimes $slotTimes -CalendarSlots $calendarSlots -PostedSlots $postedSlots -RecoveryWindow $recovery
 
 if ($needsRescue) {
     $line = "[{0:yyyy-MM-dd HH:mm:ss}] Patrol found an open window with an unpublished slot; starting catch-up." -f $now

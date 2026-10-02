@@ -1,0 +1,14 @@
+{
+  "name": "afternoon-vs-usual-2026-10",
+  "start_date": "2026-10-06",
+  "end_date": "2026-10-19",
+  "slots": [1, 2],
+  "probability_afternoon": 0.5,
+  "afternoon_window": { "start": "14:00", "end": "15:30" },
+  "min_gap_minutes": 60,
+  "preregistered": {
+    "primary_metric": "Instagram reach at the snapshot closest to 72h after posting (48h to 96h), divided by the median 72h reach of same-format posts published in the 28 days before start_date",
+    "secondary_metric": "Facebook distribution score read from Meta Business Suite once a week",
+    "decision_rule": "Move both slots to the afternoon window if the afternoon arm's median ratio is at least 0.30 higher than the usual arm's and a two-sided permutation test gives p < 0.10; keep the usual times if it is at least 0.30 lower; otherwise extend by 14 days"
+  }
+}

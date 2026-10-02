@@ -25,6 +25,7 @@ trap {
 
 $root = Split-Path -Parent $PSScriptRoot
 $prod = Join-Path $root "scripts\publish-sentinel.ps1"
+. (Join-Path $root "scripts\publish-slot-times.ps1")
 if (-not (Test-Path -LiteralPath $prod)) {
     Write-Output "MISSING_PROD=$prod"
     Write-SmokeElapsed
@@ -127,6 +128,16 @@ Assert-Slots -Name "due-1215" -Got (Get-DueSlots "12:15") -Expect "1,3"
 Assert-Slots -Name "due-2044" -Got (Get-DueSlots "20:44") -Expect "1,3"
 Assert-Slots -Name "due-2045" -Got (Get-DueSlots "20:45") -Expect "1,3,2"
 Assert-Slots -Name "due-2300" -Got (Get-DueSlots "23:00") -Expect "1,3,2"
+$defaultTimes = @{ 1 = [TimeSpan]"11:30"; 2 = [TimeSpan]"20:30"; 3 = [TimeSpan]"12:00" }
+$afternoonTimes = @{ 1 = [TimeSpan]"14:12"; 2 = [TimeSpan]"20:30"; 3 = [TimeSpan]"12:00" }
+Assert-Slots -Name "due-calendar-only-1-2" -Got (Get-DueSlots "12:20" $defaultTimes ([int[]]@(1, 2))) -Expect "1"
+Assert-Slots -Name "due-calendar-slot3" -Got (Get-DueSlots "12:20" $defaultTimes ([int[]]@(3))) -Expect "3"
+$missingSlot1Calendar = @(Get-EffectivePublishSlots -CalendarSlots ([int[]]@(2)))
+Assert-Slots -Name "due-missing-slot1-still-included" -Got (Get-DueSlots -Time "12:20" -SlotTimes $defaultTimes -CalendarSlots $missingSlot1Calendar) -Expect "1"
+Assert-Slots -Name "missing-required-slot1-detected" -Got (Get-MissingRequiredCalendarSlots -CalendarSlots ([int[]]@(2))) -Expect "1"
+Assert-Slots -Name "due-empty-calendar" -Got (Get-DueSlots "12:20" $defaultTimes ([int[]]@())) -Expect ""
+Assert-Slots -Name "afternoon-not-yet-due" -Got (Get-DueSlots "11:50" $afternoonTimes ([int[]]@(1))) -Expect ""
+Assert-Slots -Name "afternoon-due" -Got (Get-DueSlots "14:30" $afternoonTimes ([int[]]@(1))) -Expect "1"
 
 Assert-Bool -Name "live-success" -Got (Test-LivePostedEntry ([pscustomobject]@{ status = "success"; slot = 1; dry_run = $false })) -Expect $true
 Assert-Bool -Name "live-posted-alias" -Got (Test-LivePostedEntry ([pscustomobject]@{ status = "posted"; slot = 2 })) -Expect $true
@@ -283,12 +294,15 @@ exit /b 0
 function Invoke-MainCase {
     param(
         [string]$Name, [string]$Posted, [string]$Scheduled = "",
-        [bool]$CloudMarker = $false, [string]$AfterCatchup = "", [string]$AfterSync = ""
+        [bool]$CloudMarker = $false, [string]$AfterCatchup = "", [string]$AfterSync = "",
+        [string]$Calendar = "", [string]$PublishTimes = "", [string]$Time = "11:50"
     )
     $caseRoot = Join-Path $mainRoot $Name
     [void][IO.Directory]::CreateDirectory((Join-Path $caseRoot "output"))
     [void][IO.Directory]::CreateDirectory((Join-Path $caseRoot "probe"))
     Write-ProbeFile (Join-Path $caseRoot "data\posted-log\$probeDate.json") $Posted
+    if ($Calendar) { Write-ProbeFile (Join-Path $caseRoot "data\content-calendar\$probeDate.json") $Calendar }
+    if ($PublishTimes) { Write-ProbeFile (Join-Path $caseRoot "data\publish-times\$probeDate.json") $PublishTimes }
     Write-ProbeFile (Join-Path $caseRoot "scripts\catchup-publish.ps1") $catchupStub $true
     Write-ProbeFile (Join-Path $caseRoot "bin\npx.cmd") $npxStub
     $scheduledPath = Join-Path $caseRoot "data\scheduled-log\$probeDate.json"
@@ -303,7 +317,7 @@ function Invoke-MainCase {
     }
     $toastPath = Join-Path $caseRoot "output\toasts.log"
     $env:PUBLISH_SENTINEL_DATE = $probeDate
-    $env:PUBLISH_SENTINEL_TIME = "11:50"
+    $env:PUBLISH_SENTINEL_TIME = $Time
     $env:PUBLISH_SENTINEL_TOAST_FILE = $toastPath
     $env:npm_config_offline = "true"
     $env:PATH = (Join-Path $caseRoot "bin") + ";" + $savedEnv["PATH"]
@@ -311,7 +325,7 @@ function Invoke-MainCase {
     if ($resolvedNpx -ne (Join-Path $caseRoot "bin\npx.cmd")) { throw "npx.cmd resolved to '$resolvedNpx', expected '$caseRoot\bin\npx.cmd'" }
 
     $output = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $prod -RootPath $caseRoot 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) { throw "Main-flow case $Name failed: $output" }
+    $exitCode = $LASTEXITCODE
     $npxCalls = Read-ProbeFile (Join-Path $caseRoot "probe\npx-called.txt")
     $catchupCalls = Read-ProbeFile (Join-Path $caseRoot "probe\catchup-called.txt")
     $scheduledUnchanged = if ($Scheduled) {
@@ -320,6 +334,7 @@ function Invoke-MainCase {
         -not (Test-Path -LiteralPath $scheduledPath)
     }
     return [pscustomobject]@{
+        ExitCode = $exitCode
         Toasts = Read-ProbeFile $toastPath
         Log = Read-ProbeFile (Join-Path $caseRoot "output\publish-sentinel.log")
         CatchupCalls = [regex]::Matches($catchupCalls, "CATCHUP_CALLED").Count
@@ -382,7 +397,21 @@ try {
     $cloudSync = Invoke-MainCase -Name "cloud-after-sync" -Posted "[$fbLive]" -CloudMarker $true -AfterSync "[$fbLive,$igCloudUnknown]"
     Assert-Bool -Name "main-cloud-after-sync-advice" -Got ($cloudSync.Toasts.Contains($cloudAdvice) -and $cloudSync.NpxCalls -eq 1 -and $cloudSync.CatchupCalls -eq 0) -Expect $true
 
-    $scheduleResults = @($localIg, $stillMissing, $fbRecovered, $scheduled, $emptyId, $noSchedule, $badSchedule, $unrelatedSchedule, $confirmedSchedule, $cloudMarker, $cloudError, $otherCloudError, $scheduledAfter, $cloudAfter, $cloudSync)
+    $twoSlotCalendar = Invoke-MainCase -Name "calendar-slots-1-2" -Posted "[$fbLive,$igLive]" -Calendar '{"date":"2026-10-06","slots":[{"slot":1},{"slot":2}]}' -Time "12:20"
+    Assert-Bool -Name "main-calendar-1-2-no-slot3-gap" -Got ($twoSlotCalendar.CatchupCalls -eq 0 -and -not $twoSlotCalendar.Log.Contains("MISSING") -and [string]::IsNullOrWhiteSpace($twoSlotCalendar.Toasts)) -Expect $true
+    $slot3Calendar = Invoke-MainCase -Name "calendar-slot3" -Posted "[]" -Calendar '{"date":"2026-10-06","slots":[{"slot":3}]}' -Time "12:20"
+    Assert-Bool -Name "main-calendar-slot3-still-due" -Got ($slot3Calendar.Log.Contains("MISSING pairs: 3:facebook,3:instagram")) -Expect $true
+    $missingSlot1Main = Invoke-MainCase -Name "calendar-missing-slot1" -Posted "[]" -Calendar '{"date":"2026-10-06","slots":[{"slot":2}]}' -Time "12:20"
+    Assert-Bool -Name "main-missing-slot1-still-due-and-hard-fails" -Got ($missingSlot1Main.ExitCode -eq 1 -and $missingSlot1Main.Log.Contains("MISSING pairs: 1:facebook,1:instagram") -and $missingSlot1Main.Toasts.Contains("缺少必備 slot 1") -and $missingSlot1Main.CatchupCalls -eq 0) -Expect $true
+    $badCalendar = Invoke-MainCase -Name "calendar-unreadable" -Posted "[$fbLive,$igLive]" -Calendar '{bad json'
+    Assert-Bool -Name "main-calendar-unreadable-fallback" -Got ($badCalendar.Log.Contains("行事曆讀不到、用預設到期格") -and $badCalendar.CatchupCalls -eq 0) -Expect $true
+    $assignedTime = [ordered]@{ date = $probeDate; experiment = "afternoon-vs-usual-2026-10"; assigned_at = "2026-10-03T13:40:12.345Z"; slots = @([ordered]@{ slot = 1; time = "14:12"; arm = "afternoon" }) } | ConvertTo-Json -Depth 5 -Compress
+    $notDueAfternoon = Invoke-MainCase -Name "assigned-1412-before" -Posted "[]" -Calendar '{"date":"2026-10-06","slots":[{"slot":1},{"slot":2}]}' -PublishTimes $assignedTime -Time "11:50"
+    Assert-Bool -Name "main-assigned-1412-not-due-at-1150" -Got ($notDueAfternoon.CatchupCalls -eq 0 -and -not $notDueAfternoon.Log.Contains("MISSING")) -Expect $true
+    $dueAfternoon = Invoke-MainCase -Name "assigned-1412-after" -Posted "[]" -Calendar '{"date":"2026-10-06","slots":[{"slot":1},{"slot":2}]}' -PublishTimes $assignedTime -Time "14:30"
+    Assert-Bool -Name "main-assigned-1412-due-at-1430" -Got ($dueAfternoon.CatchupCalls -eq 1 -and $dueAfternoon.Log.Contains("MISSING pairs: 1:facebook,1:instagram")) -Expect $true
+
+    $scheduleResults = @($localIg, $stillMissing, $fbRecovered, $scheduled, $emptyId, $noSchedule, $badSchedule, $unrelatedSchedule, $confirmedSchedule, $cloudMarker, $cloudError, $otherCloudError, $scheduledAfter, $cloudAfter, $cloudSync, $twoSlotCalendar, $slot3Calendar, $missingSlot1Main, $badCalendar, $notDueAfternoon, $dueAfternoon)
     Assert-Bool -Name "main-scheduled-log-read-only" -Got (@($scheduleResults | Where-Object { -not $_.ScheduledUnchanged }).Count -eq 0) -Expect $true
 } finally {
     foreach ($key in $savedEnv.Keys) { [Environment]::SetEnvironmentVariable($key, $savedEnv[$key], "Process") }

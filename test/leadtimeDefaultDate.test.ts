@@ -209,7 +209,17 @@ describe("W-LEADTIME D+3 generation default", { timeout: 20000 }, () => {
     const sentinel = readScript("publish-sentinel.ps1");
     expect(dateAssignmentLine(approve)).toBe('$date = $now.ToString("yyyy-MM-dd")');
     expect(dateAssignmentLine(catchup)).toBe('$date = $now.ToString("yyyy-MM-dd")');
-    expect(sentinel).toMatch(/\$d = \(Get-Date\)\.ToString\("yyyy-MM-dd"\)/);
+    const sentinelDateLine = sentinel.split(/\r?\n/).find((entry) => /^\s*\$d\s*=/.test(entry));
+    if (!sentinelDateLine) throw new Error("no sentinel $d assignment found");
+    const sentinelAssignment = sentinelDateLine.trim()
+      .replace("$d", "$date")
+      .replace(/\$env:PUBLISH_SENTINEL_DATE/g, "$Date")
+      .replace("$taipeiNow", "$now");
+    const sentinelDates = evalDateCases(sentinelAssignment, [
+      { name: "TODAY", now: "2026-08-20" },
+      { name: "OVERRIDE", now: "2026-08-20", Date: "2026-08-21" }
+    ]);
+    expect(sentinelDates).toEqual({ TODAY: "2026-08-20", OVERRIDE: "2026-08-21" });
     expect(approve).not.toContain("AddDays(3)");
     expect(catchup).not.toContain("AddDays(3)");
     expect(sentinel).not.toContain("AddDays(3)");

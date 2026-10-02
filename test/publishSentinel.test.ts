@@ -52,6 +52,9 @@ describe("publish-sentinel F19 live-post predicate", () => {
     expect(main).toContain("$posted2 = @(Get-LivePostedPairs $parsed2)");
     expect(main.match(/\$missing = @\(Get-MissingDuePairs \$due \$posted\b/gu)).toHaveLength(2);
     expect(main).toContain("$still = @(Get-MissingDuePairs $due $posted2");
+    expect(main).toContain("$dueCalendarSlots = @(Get-EffectivePublishSlots -CalendarSlots $calendarSlots)");
+    expect(main).toContain("Get-DueSlots -Time $t -SlotTimes $slotTimes -CalendarSlots $dueCalendarSlots");
+    expect(main).toContain("Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots");
     expect(main).not.toMatch(/Get-(?:LivePostedSlots|MissingDueSlots)\b/u);
     expect(source).not.toMatch(/\$_\.status\s*-eq\s*["']success["']/iu);
   });
@@ -159,6 +162,7 @@ describe("publish-sentinel F19 live-post predicate", () => {
       expect(out).toMatch(/CASE_OK name=missing-per-platform/u);
       expect(out).toMatch(/CASE_OK name=uncertain-live-only/u);
       expect(out).toMatch(/CASE_OK name=live-dry-run-success/u);
+      expect(out).toMatch(/CASE_OK name=due-missing-slot1-still-included/u);
       expect(out).toMatch(/CASE_OK name=missing-dry-run-silences-not/u);
       expect(out).toMatch(/CASE_OK name=main-uncertain-toast/u);
       expect(out).toMatch(/CASE_OK name=main-ig-still-missing-no-success/u);
@@ -176,6 +180,12 @@ describe("publish-sentinel F19 live-post predicate", () => {
       expect(out).toMatch(/CASE_OK name=main-scheduled-after-catchup-advice/u);
       expect(out).toMatch(/CASE_OK name=main-cloud-after-catchup-advice/u);
       expect(out).toMatch(/CASE_OK name=main-cloud-after-sync-advice/u);
+    expect(out).toMatch(/CASE_OK name=main-calendar-1-2-no-slot3-gap/u);
+    expect(out).toMatch(/CASE_OK name=main-calendar-slot3-still-due/u);
+    expect(out).toMatch(/CASE_OK name=main-missing-slot1-still-due-and-hard-fails/u);
+    expect(out).toMatch(/CASE_OK name=main-calendar-unreadable-fallback/u);
+      expect(out).toMatch(/CASE_OK name=main-assigned-1412-not-due-at-1150/u);
+      expect(out).toMatch(/CASE_OK name=main-assigned-1412-due-at-1430/u);
       expect(out).toMatch(/CASE_OK name=main-scheduled-log-read-only/u);
       expect(out).toMatch(/SMOKE_OK/u);
       expect(out).not.toMatch(/CASE_FAIL/u);

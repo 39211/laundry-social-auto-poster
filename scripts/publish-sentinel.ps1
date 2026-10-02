@@ -31,11 +31,32 @@ function Show-Toast([string]$text) {
 }
 
 # Pure helpers so PS-layer smoke can invoke them without firing catchup or toasts.
-function Get-DueSlots([string]$Time) {
+function Get-DueSlots {
+    param(
+        [Parameter(Mandatory = $true)][string]$Time,
+        [hashtable]$SlotTimes = $null,
+        [AllowNull()][AllowEmptyCollection()][object]$CalendarSlots = $null
+    )
+    $hasCalendar = $PSBoundParameters.ContainsKey("CalendarSlots")
+    # Legacy smoke thresholds were `$Time -ge "11:45"`, `$Time -ge "12:15"`, and `$Time -ge "20:45"`.
+    if ($null -eq $SlotTimes) {
+        $SlotTimes = Get-DefaultSlotTimes
+    }
+    $nowTime = [TimeSpan]::ParseExact($Time, 'hh\:mm', [Globalization.CultureInfo]::InvariantCulture)
     $due = @()
-    if ($Time -ge "11:45") { $due += 1 }
-    if ($Time -ge "12:15") { $due += 3 }
-    if ($Time -ge "20:45") { $due += 2 }
+    foreach ($slot in 1, 3, 2) {
+        if (-not $SlotTimes.ContainsKey($slot)) { continue }
+        if ($nowTime -ge (([TimeSpan]$SlotTimes[$slot]) + [TimeSpan]::FromMinutes(15))) { $due += $slot }
+    }
+    if ($hasCalendar) {
+        if ($null -eq $CalendarSlots) {
+            $message = "行事曆讀不到、用預設到期格"
+            if (Get-Command Write-Log -ErrorAction SilentlyContinue) { Write-Log $message }
+            else { Write-Warning $message }
+        } else {
+            $due = @($due | Where-Object { @($CalendarSlots) -contains $_ })
+        }
+    }
     return @($due)
 }
 
@@ -170,9 +191,19 @@ function Write-UncertainNotice($Pairs, [string]$Date) {
 }
 
 Set-Location $RootPath
-$d = if ($env:PUBLISH_SENTINEL_DATE) { $env:PUBLISH_SENTINEL_DATE } else { (Get-Date).ToString("yyyy-MM-dd") }
-$t = if ($env:PUBLISH_SENTINEL_TIME) { $env:PUBLISH_SENTINEL_TIME } else { (Get-Date).ToString("HH:mm") }
-$due = @(Get-DueSlots $t)
+$slotTimesLibrary = Join-Path $PSScriptRoot "publish-slot-times.ps1"
+. $slotTimesLibrary
+$taipei = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
+$taipeiNow = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $taipei)
+$d = if ($env:PUBLISH_SENTINEL_DATE) { $env:PUBLISH_SENTINEL_DATE } else { $taipeiNow.ToString("yyyy-MM-dd") }
+$t = if ($env:PUBLISH_SENTINEL_TIME) { $env:PUBLISH_SENTINEL_TIME } else { $taipeiNow.ToString("HH:mm") }
+$calendarSlots = Get-CalendarSlots -Root $RootPath -Date $d
+if ($null -eq $calendarSlots) { Write-Log "行事曆讀不到、用預設到期格" }
+$slotTimeWarning = $null
+$slotTimes = Get-SlotTimes -Root $RootPath -Date $d -WarningMessage ([ref]$slotTimeWarning)
+if ($slotTimeWarning) { Write-Log ([string]$slotTimeWarning) }
+$dueCalendarSlots = @(Get-EffectivePublishSlots -CalendarSlots $calendarSlots)
+$due = @(Get-DueSlots -Time $t -SlotTimes $slotTimes -CalendarSlots $dueCalendarSlots)
 
 # R1-R3: Every read separates live pairs from uncertain submissions.
 $posted = @()
@@ -190,6 +221,20 @@ if (Test-Path -LiteralPath $logPath) {
 }
 
 $missing = @(Get-MissingDuePairs $due $posted | Where-Object { $uncertain -notcontains $_ })
+$missingRequiredCalendarSlots = @(Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots)
+if ($missingRequiredCalendarSlots.Count -gt 0) {
+    Write-Log ("Calendar missing required slot(s): {0}; refusing automatic recovery." -f ($missingRequiredCalendarSlots -join ","))
+    if ($missing.Count -gt 0) {
+        Write-Log ("MISSING pairs: " + ($missing -join ","))
+        $missingSlotNumbers = @($missing | ForEach-Object { ($_ -split ":", 2)[0] } | Sort-Object -Unique)
+        foreach ($missingSlotNumber in $missingSlotNumbers) {
+            $slotPairs = @($missing | Where-Object { $_.StartsWith("${missingSlotNumber}:", [StringComparison]::Ordinal) })
+            Write-Log ("MISSING pairs: " + ($slotPairs -join ","))
+        }
+    }
+    Show-Toast ("今天行事曆缺少必備 slot {0},自動補發已停止,請先修復行事曆。" -f ($missingRequiredCalendarSlots -join ","))
+    exit 1
+}
 
 # R4: Sync once for any cloud-owned IG gap, then read back before deciding.
 $cloudMissing = @(Get-CloudOwnedIgPairs $missing $d $RootPath)

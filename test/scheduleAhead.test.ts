@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -23,6 +23,7 @@ afterEach(() => {
 });
 import { facebookScheduleKind, loadScheduledLog, scheduleAheadFacebook } from "../src/scheduleAhead";
 import { loadPostLog } from "../src/logging";
+import { readPublishTimes } from "../src/publishTimes";
 import type { AppConfig, PostInput } from "../src/types";
 
 const DATE = "2026-09-21";
@@ -234,6 +235,113 @@ describe("scheduleAheadFacebook", () => {
     const log = await loadScheduledLog(DATE, root);
     expect(log.map((row) => row.slot).sort()).toEqual([1, 2]);
     expect(log.every((row) => row.scheduled_post_id)).toBe(true);
+  });
+
+  it("uses the assigned daily publish time for Meta scheduled_publish_time", async () => {
+    await seedDay(root, [
+      slotFixture(1, "image", `指定時間排程文案 ${DATE}`),
+      slotFixture(2, "image", `晚間指定時間填充 ${DATE}`)
+    ]);
+    await mkdir(join(root, "data", "publish-times"), { recursive: true });
+    await writeFile(
+      join(root, "data", "publish-times", `${DATE}.json`),
+      JSON.stringify({
+        date: DATE,
+        experiment: "afternoon-vs-usual-2026-10",
+        assigned_at: "2026-10-03T13:40:12.345Z",
+        slots: [{ slot: 1, time: "14:12", arm: "afternoon" }]
+      }),
+      "utf8"
+    );
+    const calls: CapturedCall[] = [];
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: fakeFetch(calls),
+      now: NOW_DAY_BEFORE
+    });
+    const expected = Math.floor(new Date(`${DATE}T14:12:00+08:00`).getTime() / 1000);
+    expect(results.find((row) => row.slot === 1)?.scheduled_publish_time).toBe(expected);
+    expect(calls.find((call) => call.url.includes("/photos"))?.body?.get("scheduled_publish_time")).toBe(String(expected));
+  });
+
+  it("creates the experiment assignment before scheduling and sends its exact time to Meta", async () => {
+    await seedDay(root, [
+      slotFixture(1, "image", `整合抽籤排程文案 ${DATE}`),
+      slotFixture(2, "image", `整合抽籤填充文案 ${DATE}`)
+    ]);
+    await mkdir(join(root, "data"), { recursive: true });
+    await writeFile(join(root, "data", "publish-time-experiment.json"), JSON.stringify({
+      name: "afternoon-vs-usual-2026-10",
+      start_date: DATE,
+      end_date: DATE,
+      slots: [1],
+      probability_afternoon: 1,
+      afternoon_window: { start: "14:12", end: "14:12" },
+      min_gap_minutes: 0,
+      preregistered: {
+        primary_metric: "Instagram reach",
+        secondary_metric: "Facebook distribution",
+        decision_rule: "compare arms"
+      }
+    }), "utf8");
+
+    const calls: CapturedCall[] = [];
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: fakeFetch(calls),
+      now: NOW_DAY_BEFORE
+    });
+    const publishTimesPath = join(root, "data", "publish-times", `${DATE}.json`);
+    const publishTimes = JSON.parse(await readFile(publishTimesPath, "utf8")) as {
+      slots: Array<{ slot: number; time: string }>;
+    };
+    const slot1Time = publishTimes.slots.find((slot) => slot.slot === 1)?.time;
+    const expected = Math.floor(new Date(`${DATE}T${slot1Time}:00+08:00`).getTime() / 1000);
+
+    expect(slot1Time).toBe("14:12");
+    expect(results.find((row) => row.slot === 1)?.scheduled_publish_time).toBe(expected);
+    expect(calls.find((call) => call.url.includes("/photos"))?.body?.get("scheduled_publish_time")).toBe(String(expected));
+  });
+
+  it("does not create an experiment assignment after a slot is already scheduled", async () => {
+    await seedDay(root, [
+      slotFixture(1, "image", `已排程不抽籤文案 ${DATE}`),
+      slotFixture(2, "image", `已排程不抽籤填充 ${DATE}`)
+    ]);
+    await mkdir(join(root, "data"), { recursive: true });
+    await writeFile(join(root, "data", "publish-time-experiment.json"), JSON.stringify({
+      name: "afternoon-vs-usual-2026-10",
+      start_date: DATE,
+      end_date: DATE,
+      slots: [1],
+      probability_afternoon: 1,
+      afternoon_window: { start: "14:12", end: "14:12" },
+      min_gap_minutes: 0,
+      preregistered: {
+        primary_metric: "Instagram reach",
+        secondary_metric: "Facebook distribution",
+        decision_rule: "compare arms"
+      }
+    }), "utf8");
+    await mkdir(join(root, "data", "scheduled-log"), { recursive: true });
+    await writeFile(join(root, "data", "scheduled-log", `${DATE}.json`), JSON.stringify([
+      { date: DATE, slot: 1, platform: "facebook", scheduled_post_id: "existing-fb-1" }
+    ]), "utf8");
+
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: fakeFetch([]),
+      now: NOW_DAY_BEFORE
+    });
+
+    expect(results.find((row) => row.slot === 1)).toMatchObject({ action: "skipped", reason: "already scheduled" });
+    expect(await readPublishTimes(DATE, root)).toBeNull();
   });
 
   it("skips slots already scheduled instead of double-scheduling", async () => {

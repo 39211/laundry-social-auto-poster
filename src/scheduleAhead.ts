@@ -19,7 +19,7 @@ import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./pos
 import { resolveSlotPublishMedia } from "./postCurrentSlot";
 import { pauseMessage, readPause } from "./pause";
 import { NonRetryableError } from "./retry";
-import { DAILY_SCHEDULE } from "./scheduler";
+import { ensurePublishTimes, getSlotPublishTime } from "./publishTimes";
 import type { AppConfig, DailySlot, PostInput, PostResult } from "./types";
 
 // Pre-schedules a future day's Facebook posts into Meta's own queue
@@ -82,10 +82,9 @@ export function facebookScheduleKind(
   return "image";
 }
 
-function slotPublishUnixTime(date: string, slotNumber: number, timezoneOffset = "+08:00"): number {
-  const schedule = DAILY_SCHEDULE.find((item) => item.slot === slotNumber);
-  if (!schedule) throw new Error(`Unknown slot: ${slotNumber}`);
-  return Math.floor(new Date(`${date}T${schedule.time}:00${timezoneOffset}`).getTime() / 1000);
+function slotPublishUnixTime(date: string, slotNumber: number, root: string, timezoneOffset = "+08:00"): number {
+  const time = getSlotPublishTime(date, slotNumber, root);
+  return Math.floor(new Date(`${date}T${time}:00${timezoneOffset}`).getTime() / 1000);
 }
 
 // Same backstop postCurrentSlot runs: refuse a caption byte-identical to one
@@ -161,13 +160,14 @@ export async function scheduleAheadFacebook(input: {
   const content = await loadDailyContent(input.date, root);
   if (!content) throw new Error(`No content calendar for ${input.date}; generate the day first.`);
 
+  await ensurePublishTimes(input.date, root);
   const approvals = await loadApprovalLog(input.date, root);
   const alreadyScheduled = await loadScheduledLog(input.date, root);
   const alreadyPosted = await loadPostLog(input.date, root);
   const results: ScheduleAheadResult[] = [];
 
   for (const slot of content.slots) {
-    const publishAt = slotPublishUnixTime(input.date, slot.slot);
+    const publishAt = slotPublishUnixTime(input.date, slot.slot, root);
     const secondsOut = publishAt - Math.floor(now.getTime() / 1000);
 
     if (alreadyScheduled.some((entry) => entry.slot === slot.slot)) {

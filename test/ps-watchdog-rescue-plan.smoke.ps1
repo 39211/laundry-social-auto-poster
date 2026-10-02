@@ -40,6 +40,7 @@ function Get-ProdFunction([string]$Name) {
 
 $planFn = Get-ProdFunction "Get-ScheduledTaskRescuePlan"
 $invokeFn = Get-ProdFunction "Invoke-ScheduledTaskRescue"
+$postedFn = Get-ProdFunction "Get-WatchdogPostedSlots"
 if (-not $planFn) {
     Write-Output "EXTRACT_FAIL=Get-ScheduledTaskRescuePlan not found"
     exit 2
@@ -48,12 +49,18 @@ if (-not $invokeFn) {
     Write-Output "EXTRACT_FAIL=Invoke-ScheduledTaskRescue not found"
     exit 2
 }
+if (-not $postedFn) {
+    Write-Output "EXTRACT_FAIL=Get-WatchdogPostedSlots not found"
+    exit 2
+}
 
 Write-Output ("EXTRACT_OK name=" + $planFn.Name)
 Write-Output ("EXTRACT_OK name=" + $invokeFn.Name)
+Write-Output ("EXTRACT_OK name=" + $postedFn.Name)
 
 . ([scriptblock]::Create($planFn.Extent.Text))
 . ([scriptblock]::Create($invokeFn.Extent.Text))
+. ([scriptblock]::Create($postedFn.Extent.Text))
 
 $failed = $false
 $now = [datetime]"2026-08-22T11:44:00"
@@ -200,6 +207,41 @@ if ($failRun.Log -notmatch "Start-ScheduledTask Laundry-CatchUp-Publish failed")
 } else {
     Write-Output "INVOKE_OK name=start-fail logged"
 }
+
+. (Join-Path $root "scripts\publish-slot-times.ps1")
+$fixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ("watchdog-slot-time-smoke-" + [guid]::NewGuid().ToString("n"))
+$fixtureDate = "2026-10-06"
+[void][IO.Directory]::CreateDirectory((Join-Path $fixtureRoot "data\content-calendar"))
+[void][IO.Directory]::CreateDirectory((Join-Path $fixtureRoot "data\publish-times"))
+[void][IO.Directory]::CreateDirectory((Join-Path $fixtureRoot "data\posted-log"))
+[IO.File]::WriteAllText((Join-Path $fixtureRoot "data\content-calendar\$fixtureDate.json"), '{"date":"2026-10-06","slots":[{"slot":1},{"slot":2}]}', [Text.UTF8Encoding]::new($false))
+$postedLog = '[{"slot":1,"platform":"instagram","status":"success","dry_run":false},{"slot":1,"platform":"facebook","status":"success","dry_run":false}]'
+[IO.File]::WriteAllText((Join-Path $fixtureRoot "data\posted-log\$fixtureDate.json"), $postedLog, [Text.UTF8Encoding]::new($false))
+$twoSlotCalendar = Get-CalendarSlots -Root $fixtureRoot -Date $fixtureDate
+$defaultTimes = Get-SlotTimes -Root $fixtureRoot -Date $fixtureDate
+$postedSlotsFromLog = @(Get-WatchdogPostedSlots -Root $fixtureRoot -Date $fixtureDate)
+$noFalseRescue = Test-NeedsPublishRescue -NowTime ([TimeSpan]"12:30") -SlotTimes $defaultTimes -CalendarSlots $twoSlotCalendar -PostedSlots $postedSlotsFromLog
+if ($noFalseRescue -or (@($postedSlotsFromLog) -join ",") -ne "1") { Write-Output "CASE_FAIL name=calendar-without-slot3-and-posted-slot1 rescued=$noFalseRescue posted=$($postedSlotsFromLog -join ',')"; $failed = $true }
+else { Write-Output "CASE_OK name=calendar-without-slot3-and-posted-slot1 rescued=False posted=1" }
+
+[IO.File]::WriteAllText((Join-Path $fixtureRoot "data\content-calendar\$fixtureDate.json"), '{"date":"2026-10-06","slots":[{"slot":1}]}', [Text.UTF8Encoding]::new($false))
+[IO.File]::WriteAllText((Join-Path $fixtureRoot "data\publish-times\$fixtureDate.json"), '{"date":"2026-10-06","experiment":"afternoon-vs-usual-2026-10","assigned_at":"2026-10-03T13:40:12.345Z","slots":[{"slot":1,"time":"14:12","arm":"afternoon"}]}', [Text.UTF8Encoding]::new($false))
+$afternoonCalendar = Get-CalendarSlots -Root $fixtureRoot -Date $fixtureDate
+$afternoonTimes = Get-SlotTimes -Root $fixtureRoot -Date $fixtureDate
+$noEarlyRescue = Test-NeedsPublishRescue -NowTime ([TimeSpan]"12:00") -SlotTimes $afternoonTimes -CalendarSlots $afternoonCalendar -PostedSlots ([int[]]@())
+if ($noEarlyRescue) { Write-Output "CASE_FAIL name=assigned-1412-not-rescued-at-noon rescued=True"; $failed = $true }
+else { Write-Output "CASE_OK name=assigned-1412-not-rescued-at-noon rescued=False" }
+
+$missingSlot1Rescue = Test-NeedsPublishRescue -NowTime ([TimeSpan]"12:30") -SlotTimes $defaultTimes -CalendarSlots ([int[]]@(2)) -PostedSlots ([int[]]@())
+$missingRequiredCalendarSlots = @(Get-MissingRequiredCalendarSlots -CalendarSlots ([int[]]@(2)))
+if (-not $missingSlot1Rescue -or (@($missingRequiredCalendarSlots) -join ",") -ne "1") {
+    Write-Output ("CASE_FAIL name=calendar-missing-slot1-still-due rescued={0} missing={1}" -f $missingSlot1Rescue, (@($missingRequiredCalendarSlots) -join ","))
+    $failed = $true
+} else {
+    Write-Output "CASE_OK name=calendar-missing-slot1-still-due rescued=True missing=1"
+}
+
+if (Test-Path -LiteralPath $fixtureRoot) { Remove-Item -LiteralPath $fixtureRoot -Recurse -Force }
 
 if ($failed) {
     Write-Output "SMOKE_FAIL"

@@ -13,6 +13,7 @@ import { join, sep } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { toRepoRelativePath } from "../src/paths";
 import { burnCarouselCanaries, evaluateFromDisk } from "../src/visualQa";
+import { handleCarousel } from "../src/visualQaCli";
 
 const dirs: string[] = [];
 function tmp(prefix: string): string {
@@ -105,5 +106,39 @@ describe("evaluateFromDisk stores record.reel as repo-relative, still hashes the
     // qaDir has no reel.mp4 file -> sha256File throws; the point of this test
     // is only that omitting `root` does not throw a *different*, unrelated error.
     expect(record).toBeInstanceOf(Error);
+  });
+});
+
+describe("handleCarousel hands its root to the burner, so the stored sources stay repo-relative", () => {
+  // Pins the line where PR #124 (injectable burner) and PR #119 (root for repo-relative paths)
+  // meet: dropping `root` from the burnSlides call falls back to projectRoot() and rewrites
+  // paths against the wrong root whenever the CLI runs with another root.
+  const TINY = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64"
+  );
+
+  it("forwards the root it was given into the burn call", async () => {
+    const root = tmp("vq-root-forward-");
+    const assetDir = join(root, "docs", "assets", "2026-09-30");
+    await mkdir(assetDir, { recursive: true });
+    const sources = [1, 2].map((index) => {
+      const file = join(assetDir, `slot-01-slide-0${index}.png`);
+      writeFileSync(file, TINY);
+      return file;
+    });
+    let seenRoot: string | undefined;
+    const burn = async (input: { sources: string[]; qaDir: string; root?: string }) => {
+      seenRoot = input.root;
+      throw new Error("stop-after-burn");
+    };
+    await expect(
+      handleCarousel(
+        ["--files", sources.join(","), "--topic", "root forwarding", "--qa-dir", join(root, "qa"), "--out", join(root, "out.json")],
+        root,
+        burn as never
+      )
+    ).rejects.toThrow("stop-after-burn");
+    expect(seenRoot).toBe(root);
   });
 });

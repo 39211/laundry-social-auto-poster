@@ -106,7 +106,12 @@ export function buildSearchContentAnalyticsScript(): string {
     if (targetUrl.origin !== new URL(window.location.href).origin) return;
 
     if (targetUrl.pathname.endsWith("/go/line.html")) {
-      send("click_line_cta", { cta_name: ctaName });
+      // Entry slugs are not acquisition sources. Never forward arbitrary URL data.
+      const sources = targetUrl.searchParams.getAll("source");
+      const source = sources.length === 1 ? sources[0] : "";
+      const linkSource = source === source.trim() && /^[a-z][a-z0-9_-]{0,99}$/.test(source)
+        ? source : "unknown";
+      send("click_line_cta", { cta_name: ctaName, link_source: linkSource });
       return;
     }
 
@@ -249,7 +254,7 @@ export function assertSearchContentAnalyticsScript(script: string): void {
     click_service_from_answer: ["service_id", "cta_name"],
     click_service_from_article: ["service_id", "cta_name"],
     click_phone: ["cta_name"],
-    click_line_cta: ["cta_name"]
+    click_line_cta: ["cta_name", "link_source"]
   };
   for (const event of observed) {
     const requiredParameters = [
@@ -290,5 +295,29 @@ export function assertSearchContentAnalyticsScript(script: string): void {
     if (observedNames.has(forbidden)) {
       throw new Error(`search-content analytics emitted forbidden event at runtime: ${forbidden}`);
     }
+  }
+
+  for (const [href, expectedSource] of [
+    ["/go/line.html?source=runtime-check", "runtime-check"],
+    ["/go/line.html?source=footer", "footer"],
+    ["/go/line.html", "unknown"],
+    ["/go/line.html?source=home&source=footer", "unknown"],
+    ["/go/line.html?source=person%40example.test", "unknown"]
+  ]) {
+    const clicks = observeRuntimeEvents(script, { pageType: "home", href })
+      .filter((event) => event.name === "click_line_cta");
+    const click = clicks[0];
+    if (clicks.length !== 1 || !click || click.params.link_source !== expectedSource) {
+      throw new Error("search-content analytics link_source must preserve one valid entry slug or be unknown");
+    }
+    for (const parameter of ["source", "medium", "campaign", "utm_source", "utm_medium"]) {
+      if (parameter in click.params) {
+        throw new Error("search-content analytics link_source must not override acquisition parameters");
+      }
+    }
+  }
+  if (observeRuntimeEvents(script, { pageType: "home", href: "https://external.example/go/line.html?source=footer" })
+    .some((event) => event.name === "click_line_cta")) {
+    throw new Error("search-content analytics must not classify external links as internal funnel steps");
   }
 }

@@ -50,9 +50,9 @@ async function postForm(
   // case the guard was written for. And only status >= 500 was non-retryable,
   // although Meta can return an error envelope on a 200/4xx after the publish
   // has committed.
-  let payload: InstagramResponse;
+  let payload: InstagramResponse | null;
   try {
-    payload = (await response.json()) as InstagramResponse;
+    payload = (await response.json()) as InstagramResponse | null;
   } catch (error) {
     if (isCommit) {
       throw new NonRetryableError(
@@ -62,8 +62,10 @@ async function postForm(
     }
     throw error;
   }
-  if (!response.ok || payload.error || !payload.id) {
-    const message = payload.error?.message || `Instagram request failed with ${response.status}`;
+  // Plain JSON null parses fine and then crashed the field reads with a
+  // TypeError -- retryable, so a committed publish went out again.
+  if (!response.ok || !payload || typeof payload !== "object" || payload.error || !payload.id) {
+    const message = payload?.error?.message || `Instagram request failed with ${response.status}`;
     if (isCommit) {
       throw new NonRetryableError(`${message} (media_publish did not confirm success; the post may already be live. Not retrying.)`);
     }
@@ -124,20 +126,33 @@ async function waitForPublishedReel(
   // media_publish has already committed by the time this runs: the Reel is
   // live. Throwing here would feed withRetry, which reruns container creation
   // and publish and puts a second identical Reel on the account. Verification
-  // that cannot confirm in time is reported, not raised.
+  // that cannot confirm in time is reported, not raised -- and that includes a
+  // check that cannot be made at all: a dropped connection or a 502 page that
+  // is not JSON used to escape as a plain error and republish the Reel.
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const query = new URLSearchParams({
       fields: "id,media_type,media_product_type",
       access_token: config.metaAccessToken ?? ""
     });
-    const response = await fetchImpl(
-      `https://graph.facebook.com/${config.graphApiVersion}/${mediaId}?${query}`,
-      { method: "GET" }
-    );
-    const payload = (await response.json()) as InstagramResponse;
-    if (!response.ok || payload.error) {
+    let response: Response;
+    let payload: InstagramResponse | null;
+    try {
+      response = await fetchImpl(
+        `https://graph.facebook.com/${config.graphApiVersion}/${mediaId}?${query}`,
+        { method: "GET" }
+      );
+      payload = (await response.json()) as InstagramResponse | null;
+    } catch (error) {
       console.warn(
-        payload.error?.message ||
+        `Instagram published Reel verification could not be read (${error instanceof Error ? error.message : String(error)}); the publish itself succeeded, not retrying.`
+      );
+      return;
+    }
+    // A body of plain JSON null parses fine; reading fields off it threw a
+    // TypeError outside the try above, which withRetry reran.
+    if (!response.ok || !payload || typeof payload !== "object" || payload.error) {
+      console.warn(
+        payload?.error?.message ||
           `Instagram published Reel verification failed with ${response.status}; the publish itself succeeded.`
       );
       return;

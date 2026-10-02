@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { postFacebookCarousel } from "../src/postFacebook";
+import { postFacebookCarousel, postFacebookPhoto } from "../src/postFacebook";
 import { postInstagramCarousel } from "../src/postInstagram";
+import { NonRetryableError, withRetry } from "../src/retry";
 import type { AppConfig, PostInput } from "../src/types";
 
 const config: AppConfig = {
@@ -147,5 +148,81 @@ describe("Meta carousel publishers", () => {
     await expect(postFacebookCarousel(input, dryConfig, fetchImpl)).resolves.toMatchObject({ dry_run: true });
     await expect(postInstagramCarousel(input, dryConfig, fetchImpl)).resolves.toMatchObject({ dry_run: true });
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+// A Facebook commit that answers 200 without an id is not a confirmed success:
+// it used to be recorded as one with no post id, and scheduleAhead then threw a
+// plain error after the commit and queued the slot again on its next run. It is
+// a NonRetryableError now, so every caller treats the post as possibly live.
+// Through withRetry, as the live path calls it, counting commits.
+describe("a Facebook commit without an id is never retried", () => {
+  const replies: Array<[string, unknown]> = [
+    ["an empty object", {}],
+    ["an empty array", []],
+    ["an empty id", { id: "" }],
+    ["a bare string", "ok"],
+    ["a bare number", 5]
+  ];
+
+  for (const [name, reply] of replies) {
+    it(`photo publish answered with ${name}`, async () => {
+      let commits = 0;
+      const fetchImpl = vi.fn(async () => {
+        commits += 1;
+        return jsonResponse(reply);
+      }) as unknown as typeof fetch;
+      await expect(withRetry(() => postFacebookPhoto(input, config, fetchImpl), 3)).rejects.toBeInstanceOf(NonRetryableError);
+      expect(commits).toBe(1);
+    });
+
+    it(`carousel publish answered with ${name}`, async () => {
+      let commits = 0;
+      const fetchImpl = vi.fn(async (url: string | URL) => {
+        if (String(url).endsWith("/feed")) {
+          commits += 1;
+          return jsonResponse(reply);
+        }
+        return jsonResponse({ id: "photo-x" });
+      }) as unknown as typeof fetch;
+      await expect(withRetry(() => postFacebookCarousel(input, config, fetchImpl), 3)).rejects.toBeInstanceOf(NonRetryableError);
+      expect(commits).toBe(1);
+    });
+  }
+
+  it("still succeeds with an id", async () => {
+    const photo = vi.fn(async () => jsonResponse({ id: "photo-9", post_id: "page_post-9" })) as unknown as typeof fetch;
+    await expect(postFacebookPhoto(input, config, photo)).resolves.toMatchObject({ post_id: "page_post-9" });
+  });
+});
+
+// A rejection at the commit point used to be "response lost" whatever its
+// cause, so an offline minute (no DNS) marked the slot as possibly live and
+// nothing ever sent it. A request that never left this machine committed
+// nothing: it is retried; a connection lost mid-request still is not.
+describe("a request that never left this machine is retried, even at a commit point", () => {
+  const rejection = (code: string) =>
+    Promise.reject(Object.assign(new TypeError("fetch failed"), { cause: Object.assign(new Error(code), { code }) }));
+
+  it("Facebook photo publish with no DNS is an ordinary failure, tried three times", async () => {
+    let attempts = 0;
+    const fetchImpl = vi.fn(async () => {
+      attempts += 1;
+      return rejection("ENOTFOUND");
+    }) as unknown as typeof fetch;
+    const error = await withRetry(() => postFacebookPhoto(input, config, fetchImpl), 3, 0).catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(TypeError);
+    expect(error).not.toBeInstanceOf(NonRetryableError);
+    expect(attempts).toBe(3);
+  });
+
+  it("Facebook photo publish reset mid-request is still not retried", async () => {
+    let attempts = 0;
+    const fetchImpl = vi.fn(async () => {
+      attempts += 1;
+      return rejection("ECONNRESET");
+    }) as unknown as typeof fetch;
+    await expect(withRetry(() => postFacebookPhoto(input, config, fetchImpl), 3, 0)).rejects.toBeInstanceOf(NonRetryableError);
+    expect(attempts).toBe(1);
   });
 });

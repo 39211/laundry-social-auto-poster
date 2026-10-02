@@ -269,6 +269,40 @@ describe("a check that fails after a Reel is live never publishes it again", () 
     expect(value).toMatchObject({ status: "success", post_id: "video-1" });
   });
 
+  it("Instagram: no DNS at media_publish is an ordinary failure, retried, never uncertain", async () => {
+    let publishes = 0;
+    const fetchImpl = vi.fn(async (url: string | URL) => {
+      const target = String(url);
+      if (target.endsWith("/media_publish")) {
+        publishes += 1;
+        if (publishes === 1) throw Object.assign(new TypeError("fetch failed"), { cause: { code: "ENOTFOUND" } });
+        return jsonResponse({ id: "published-2" });
+      }
+      if (target.includes("fields=status_code")) return jsonResponse({ id: "container-1", status_code: "FINISHED" });
+      if (target.includes("fields=id%2Cmedia_type")) return jsonResponse({ id: "published-2", media_type: "VIDEO", media_product_type: "REELS" });
+      return jsonResponse({ id: "container-1" });
+    }) as unknown as typeof fetch;
+    const { value, attempts } = await withRetry(() => postInstagramReel(input, config, fetchImpl, noWait), 3, 0);
+    expect(attempts).toBe(2);
+    expect(publishes).toBe(2);
+    expect(value.post_id).toBe("published-2");
+  });
+
+  it("Instagram: a reset at media_publish is still not retried", async () => {
+    let publishes = 0;
+    const fetchImpl = vi.fn(async (url: string | URL) => {
+      const target = String(url);
+      if (target.endsWith("/media_publish")) {
+        publishes += 1;
+        throw Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNRESET" } });
+      }
+      if (target.includes("fields=status_code")) return jsonResponse({ id: "container-1", status_code: "FINISHED" });
+      return jsonResponse({ id: "container-1" });
+    }) as unknown as typeof fetch;
+    await expect(withRetry(() => postInstagramReel(input, config, fetchImpl, noWait), 3, 0)).rejects.toBeInstanceOf(NonRetryableError);
+    expect(publishes).toBe(1);
+  });
+
   it("Facebook: an unreadable status is reported once, as unreadable", async () => {
     const { fetchImpl } = facebookReelFetch(
       () => Promise.resolve(jsonResponse({ success: true })),

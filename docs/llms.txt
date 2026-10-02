@@ -140,6 +140,74 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - Holiday hours are managed as owner-approved overrides; no specific holiday date is emitted until it is explicitly verified.
 
 ## Published Posts
+- [2026-10-02 20:30 羽絨被發黃怎麼洗：先看洗標，烘透再收](https://sixiangjialaundry.com/posts/2026-10-02-slot-02.html)
+  platform targets: facebook, instagram
+  routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中羽絨被清洗 | 羽絨被發黃怎麼辦 | 台中棉被清洗 | 西屯寢具清洗 | 台中羽絨被送洗 | 棉被有潮味怎麼辦
+  evidence_type: real-case-photo
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #羽絨被清洗 #台中洗衣店 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-10-02/slot-02.png
+  video: https://sixiangjialaundry.com/assets/2026-10-02/slot-02.mp4
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-10-02.json
+- [2026-10-02 11:30 羽絨被頭肩那片黃：不一定只是汗](https://sixiangjialaundry.com/posts/2026-10-02-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中羽絨被清洗 | 羽絨被發黃怎麼辦 | 台中棉被清洗 | 西屯寢具清洗 | 台中羽絨被送洗 | 棉被有潮味怎麼辦
+  evidence_type: first-party-inspection
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #羽絨被清洗 #台中洗衣店 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-10-02/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-10-02.json
+- [2026-10-01 20:30 羽絨外套可以水洗，重點是烘透](https://sixiangjialaundry.com/posts/2026-10-01-slot-02.html)
+  platform targets: facebook, instagram
+  routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中羽絨外套清洗 | 羽絨外套可以水洗嗎 | 羽絨衣洗完扁掉 | 西屯洗衣店 | 台中洗衣店推薦 | 羽絨外套送洗
+  evidence_type: service-boundary
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #羽絨外套清潔 #台中洗衣店 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-10-01/slot-02.png
+  video: https://sixiangjialaundry.com/assets/2026-10-01/slot-02.mp4
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-10-01.json
+- [2026-10-01 11:30 羽絨外套能水洗嗎：袖口油膜跟扁塌是兩件事](https://sixiangjialaundry.com/posts/2026-10-01-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中羽絨外套清洗 | 羽絨外套可以水洗嗎 | 羽絨衣洗完扁掉 | 西屯洗衣店 | 台中洗衣店推薦 | 羽絨外套送洗
+  evidence_type: customer-question
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #羽絨外套清潔 #台中洗衣店 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-10-01/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-10-01.json
+- [2026-09-30 20:30 白鞋交界黃了，先分是哪一種黃](https://sixiangjialaundry.com/posts/2026-09-30-slot-02.html)
+  platform targets: facebook, instagram
+  routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=trust-proof
+  target_queries: 台中洗包包 | 西屯洗包包 | 台中洗包 | 包包提把清潔 | 包包發霉怎麼辦 | 皮革包包清潔
+  evidence_type: real-case-photo
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #白鞋清潔 #台中洗鞋 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-09-30/slot-02.png
+  video: https://sixiangjialaundry.com/assets/2026-09-30/slot-02.mp4
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-30.json
+- [2026-09-30 11:30 西屯／東海洗鞋：網布發黃先看中底交界](https://sixiangjialaundry.com/posts/2026-09-30-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中洗鞋 | 西屯洗鞋 | 逢甲洗鞋 | 台中洗鞋店 | 台中白鞋清潔 | 球鞋清洗台中
+  evidence_type: first-party-inspection
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #白鞋清潔 #台中洗鞋 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-09-30/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-30.json
+- [2026-09-29 20:30 名牌包發霉,先別自己硬擦](https://sixiangjialaundry.com/posts/2026-09-29-slot-02.html)
+  platform targets: facebook, instagram
+  routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=trust-proof
+  target_queries: 台中精品乾洗 | 台中名牌衣物清潔 | 西屯精品乾洗 | 精緻乾洗 | 精品衣物怎麼洗 | 台中洗鞋推薦
+  evidence_type: real-case-photo
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #名牌包清潔 #皮件發霉 #台中洗衣店
+  image: https://sixiangjialaundry.com/assets/2026-09-29/slot-02.png
+  video: https://sixiangjialaundry.com/assets/2026-09-29/slot-02.mp4
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-29.json
+- [2026-09-29 11:30 久放皮件霉味：先聞夾層，再決定能不能自行處理](https://sixiangjialaundry.com/posts/2026-09-29-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=aftercare
+  target_queries: 台中棉被清洗 | 台中床組清洗 | 西屯寢具清洗 | 台中羽絨被送洗 | 台中外套清洗 | 棉被有潮味怎麼辦
+  evidence_type: customer-question
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #名牌包清潔 #皮件發霉 #台中洗衣店
+  image: https://sixiangjialaundry.com/assets/2026-09-29/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-09-29.json
 - [2026-09-28 11:30 勃肯鞋墊發白與軟木粉化，先看這兩處](https://sixiangjialaundry.com/posts/2026-09-28-slot-01.html)
   platform targets: facebook, instagram
   routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis

@@ -48,52 +48,40 @@ export async function generateDailyContent(options: GenerateDailyContentOptions 
   // media.
   const existing = await loadDailyContent(date, root);
   if (existing) {
-    for (const [index, slot] of content.slots.entries()) {
-      const current = existing.slots.find((item) => item.slot === slot.slot);
-      if (current?.media_type === "reel" && current.local_video_path) {
-        // Only a reel whose file is actually on disk is worth preserving; a
-        // dangling path would pin a slot to a video that cannot publish and
-        // make the slot immune to the regeneration that could fix it.
-        const videoPath = join(root, ...current.local_video_path.split("/"));
-        const videoExists = await exists(videoPath);
-        if (videoExists) {
-          // Replace the words, keep everything else. Keeping the whole slot
-          // meant a video scheduled from yesterday's slot 3 into today's slot 2
-          // brought its caption along, so five days of August published four
-          // pairs of byte-identical posts one day apart -- and the plan for
-          // 08-13/08-14 had already queued a fifth.
-          //
-          // Listing the media fields to carry over is the wrong way round: the
-          // first attempt at this carried media_type and local_video_path and
-          // dropped public_video_url and video_prompt, both of which
-          // validatePublishableReel requires. A reviewed Reel would have failed
-          // validation and published its cover image instead, silently. The
-          // scheduled slot stays intact and only the captions -- the fields
-          // that caused the duplication -- come from the new generation.
-          content.slots[index] = {
-            ...current,
-            instagram_caption: slot.instagram_caption,
-            facebook_caption: slot.facebook_caption,
-          };
-        }
-      }
-    }
-
-    // New generation always emits a template image at slot 3 because
-    // DAILY_SCHEDULE lists 12:00. A scheduled noon Reel at that same number
-    // is restored in full, captions included; the matching loop above would
-    // otherwise swap the Reel's caption onto the template. A Reel whose file
-    // is gone is left to the new generation. Existing slots the new
-    // generation does not emit are not added back.
     for (const current of existing.slots) {
-      if (current.slot <= 2) continue;
       if (current.media_type !== "reel" || !current.local_video_path) continue;
+
+      // Only a Reel whose file is actually on disk is worth preserving; a
+      // dangling path would pin a slot to a video that cannot publish and
+      // make the slot immune to the regeneration that could fix it.
       const videoPath = join(root, ...current.local_video_path.split("/"));
       if (!(await exists(videoPath))) continue;
+
       const generatedIndex = content.slots.findIndex((item) => item.slot === current.slot);
-      if (generatedIndex === -1) continue;
-      content.slots[generatedIndex] = current;
+      if (generatedIndex === -1) {
+        // A scheduled noon Reel can outlive the A/B plan that emitted it.
+        // Slot 3 is the only omitted slot that regeneration may add back;
+        // slot 4 and other unplanned slots stay retired.
+        if (current.slot === 3) content.slots.push(current);
+        continue;
+      }
+
+      if (current.slot <= 2) {
+        const generated = content.slots[generatedIndex]!;
+        // Keep the reviewed media and replace only the captions. Carrying the
+        // old captions caused identical posts to repeat on adjacent days.
+        content.slots[generatedIndex] = {
+          ...current,
+          instagram_caption: generated.instagram_caption,
+          facebook_caption: generated.facebook_caption,
+        };
+      } else {
+        // A generated noon template must not overwrite a scheduled Reel;
+        // preserve its complete reviewed slot, including both captions.
+        content.slots[generatedIndex] = current;
+      }
     }
+    content.slots.sort((a, b) => a.slot - b.slot);
   }
 
   // Force already rebuilt non-reel slots. Move their old bytes before the new

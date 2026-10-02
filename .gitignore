@@ -12,6 +12,7 @@ data/*
 !data/visual-qa-fixtures/
 !data/rejected-concepts.json
 !data/campaign-posts.json
+!data/publish-time-experiment.json
 !data/reference-photos/
 data/posted-log/
 *.log

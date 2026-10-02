@@ -2,6 +2,7 @@ import { getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { loadPostLog } from "./logging";
 import { postCurrentSlot } from "./postCurrentSlot";
+import { getSlotPublishTime } from "./publishTimes";
 import { projectRoot } from "./paths";
 import { DAILY_SCHEDULE, getZonedDateParts } from "./scheduler";
 import type { Platform, PostLogEntry } from "./types";
@@ -55,10 +56,10 @@ function formatTime(totalMinutes: number): string {
 }
 
 /** Preflight 45 minutes before the slot; overdue 15 minutes after. */
-export function slaTimesForSlot(slot: SlaSlot): { preflight: string; overdue: string } {
+export function slaTimesForSlot(slot: SlaSlot, date?: string, root = projectRoot()): { preflight: string; overdue: string } {
   const schedule = DAILY_SCHEDULE.find((item) => item.slot === slot);
   if (!schedule) throw new Error(`Unknown SLA slot: ${slot}`);
-  const scheduled = minutesOfDay(schedule.time);
+  const scheduled = minutesOfDay(date ? getSlotPublishTime(date, slot, root) : schedule.time);
   return {
     preflight: formatTime(scheduled - 45),
     overdue: formatTime(scheduled + 15)
@@ -75,10 +76,10 @@ function isLiveSuccess(entries: PostLogEntry[], slot: number, platform: Platform
   );
 }
 
-export function resolveSlaCheckpoint(now: Date, timezone = "Asia/Taipei"): SlaCheckpoint {
-  const { time } = getZonedDateParts(now, timezone);
+export function resolveSlaCheckpoint(now: Date, timezone = "Asia/Taipei", root = projectRoot()): SlaCheckpoint {
+  const { date, time } = getZonedDateParts(now, timezone);
   const checkpoints: SlaCheckpoint[] = ([1, 2, 3] as const).flatMap((slot) => {
-    const times = slaTimesForSlot(slot);
+    const times = slaTimesForSlot(slot, date, root);
     return [
       { slot, mode: "preflight" as const, expected_time: times.preflight },
       { slot, mode: "overdue" as const, expected_time: times.overdue }
@@ -106,7 +107,7 @@ export async function calculateRollingPublishingSla(
     const date = addDays(startDate, offset);
     const entries = await loadPostLog(date, root);
     for (const schedule of DAILY_SCHEDULE) {
-      if (date > endDate || (date === endDate && schedule.time > time)) continue;
+      if (date > endDate || (date === endDate && getSlotPublishTime(date, schedule.slot, root) > time)) continue;
       dueSlots += 1;
       if (PLATFORMS.every((platform) => isLiveSuccess(entries, schedule.slot, platform))) {
         dualPlatformSuccessSlots += 1;
@@ -136,16 +137,16 @@ export async function runPublishingSlaCheck(options: {
   const root = projectRoot(options.root);
   const config = getConfig();
   const now = options.now ?? new Date();
+  const { date } = getZonedDateParts(now, config.timezone);
   const checkpoint = options.slot && options.mode
     ? {
         slot: options.slot,
         mode: options.mode,
         expected_time: options.mode === "preflight"
-          ? slaTimesForSlot(options.slot).preflight
-          : slaTimesForSlot(options.slot).overdue
+          ? slaTimesForSlot(options.slot, date, root).preflight
+          : slaTimesForSlot(options.slot, date, root).overdue
       }
-    : resolveSlaCheckpoint(now, config.timezone);
-  const { date } = getZonedDateParts(now, config.timezone);
+    : resolveSlaCheckpoint(now, config.timezone, root);
   const rolling = await calculateRollingPublishingSla(root, now, config.timezone);
 
   try {

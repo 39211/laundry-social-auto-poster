@@ -1,14 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   CAMPAIGN_SLOT,
+  campaignCliOutcome,
+  campaignExitCode,
+  campaignLogPath,
+  campaignUncertainNotes,
   insideWindow,
   resolveImageUrl,
   runCampaignPost,
   selectPost,
   taipeiNow,
   type CampaignLogEntry,
-  type CampaignPlan
+  type CampaignPlan,
+  type RunOutcome
 } from "../src/postCampaignPoster";
+import { NonRetryableError } from "../src/retry";
 import type { AppConfig, PostInput } from "../src/types";
 
 const plan: CampaignPlan = {
@@ -133,6 +139,33 @@ describe("runCampaignPost", () => {
     expect(out.results[1]).toMatchObject({ platform: "instagram", post_id: "ig2" });
   });
 
+  it("a commit that did not confirm is logged uncertain, and the retry trigger does not post it again", async () => {
+    // The publisher raises NonRetryableError past its commit point (reply lost,
+    // or 200 without an id): the post may be live. "failed" would make the
+    // 18:40 retry post it a second time.
+    const postFacebook = vi.fn(async () => {
+      throw new NonRetryableError("Facebook photo publish returned no id (commit point)");
+    });
+    const postInstagram = vi.fn(async () => ({ platform: "instagram", status: "success", dry_run: false, attempts: 1, post_id: "ig4" }) as const);
+    const log: CampaignLogEntry[] = [];
+    const first = await runCampaignPost(
+      { root: "/nowhere", now: inWindow },
+      { config: liveConfig, plan, verify: async () => undefined, postFacebook, postInstagram, existing: [], log: (e) => log.push(e) }
+    );
+    expect(first.results[0]).toMatchObject({ platform: "facebook", status: "uncertain" });
+    expect(log.map((e) => [e.platform, e.status])).toEqual([
+      ["facebook", "uncertain"],
+      ["instagram", "success"]
+    ]);
+
+    const retry = await runCampaignPost(
+      { root: "/nowhere", now: inWindow },
+      { config: liveConfig, plan, verify: async () => undefined, postFacebook, postInstagram, existing: log, log: () => undefined }
+    );
+    expect(postFacebook).toHaveBeenCalledTimes(1);
+    expect(retry.results[0]).toEqual({ platform: "facebook", status: "uncertain", post_id: undefined, already: true });
+  });
+
   it("a failed platform is logged as failed, the other platform still runs, and a prior failure is retried", async () => {
     const postFacebook = vi.fn(async () => {
       throw new Error("boom");
@@ -162,5 +195,96 @@ describe("runCampaignPost", () => {
     );
     expect(verify).not.toHaveBeenCalled();
     expect(log).not.toHaveBeenCalled();
+  });
+});
+
+// R3: Pin the CLI helpers for failed and uncertain outcomes without a live run.
+describe("campaignExitCode", () => {
+  it("returns 0 when every result is success", () => {
+    expect(campaignExitCode([{ status: "success" }, { status: "success" }])).toBe(0);
+  });
+
+  it("returns 1 when any result is failed", () => {
+    expect(campaignExitCode([{ status: "success" }, { status: "failed" }])).toBe(1);
+  });
+
+  it("returns 1 when any result is uncertain", () => {
+    expect(campaignExitCode([{ status: "success" }, { status: "uncertain" }])).toBe(1);
+  });
+
+  it("returns 0 when there are no results", () => {
+    expect(campaignExitCode([])).toBe(0);
+  });
+});
+
+describe("campaignUncertainNotes", () => {
+  const logPath = "C:/campaign/data/campaign-posted-log/2026-09-09.json";
+
+  it("returns an actionable line with platform, ids, error and log path for an uncertain result", () => {
+    const notes = campaignUncertainNotes([
+      { platform: "facebook", status: "uncertain", id: "p1", post_id: "fb-unconfirmed", error: "publish response lost" }
+    ], logPath);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toContain("facebook");
+    expect(notes[0]).toContain("id=p1");
+    expect(notes[0]).toContain("post_id=fb-unconfirmed");
+    expect(notes[0]).toContain("publish response lost");
+    expect(notes[0]).toContain(`Check the Page; if the post is NOT there, remove that row from ${logPath} and run npx tsx src/postCampaignPoster.ts --live yourself (the 18:40 retry is the last automatic trigger of the day).`);
+  });
+
+  it("returns no notes when every result is success", () => {
+    expect(campaignUncertainNotes([
+      { platform: "facebook", status: "success" },
+      { platform: "instagram", status: "success" }
+    ], logPath)).toEqual([]);
+  });
+
+  it("returns one line per uncertain result and omits successes and failures", () => {
+    const notes = campaignUncertainNotes([
+      { platform: "facebook", status: "uncertain", id: "p1", error: "facebook response lost" },
+      { platform: "facebook", status: "success" },
+      { platform: "instagram", status: "failed", error: "ordinary failure" },
+      { platform: "instagram", status: "uncertain", id: "p1", error: "instagram response lost" }
+    ], logPath);
+    expect(notes).toHaveLength(2);
+    expect(notes[0]).toContain("facebook response lost");
+    expect(notes[1]).toContain("instagram response lost");
+    expect(notes.every((note) => note.includes(logPath) && note.includes("id=p1"))).toBe(true);
+    expect(notes.join("\n")).not.toContain("ordinary failure");
+  });
+
+  it("marks unavailable remote ids and errors explicitly while identifying the campaign row", () => {
+    const notes = campaignUncertainNotes([{ platform: "facebook", status: "uncertain", id: "p1" }], logPath);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toContain("id=p1");
+    expect(notes[0]).toContain("post_id=unknown");
+    expect(notes[0]).toContain("error unavailable (see campaign log)");
+  });
+});
+
+describe("campaignCliOutcome", () => {
+  const cwd = "C:/campaign-cli-fixture/nested-root";
+  const outcome: RunOutcome = {
+    date: "2026-09-10",
+    post: "campaign-42",
+    results: [
+      { platform: "facebook", status: "uncertain", post_id: "fb-unconfirmed", error: "publish response lost" },
+      { platform: "instagram", status: "success", post_id: "ig-confirmed" }
+    ]
+  };
+
+  it("uses outcome.post as the campaign row id in notes", () => {
+    const { notes } = campaignCliOutcome(outcome, cwd);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toContain(`campaign row id=${outcome.post}, post_id=fb-unconfirmed:`);
+  });
+
+  it("returns exit code 1 for uncertain without any failed result", () => {
+    expect(campaignCliOutcome(outcome, cwd).exitCode).toBe(1);
+  });
+
+  it("uses campaignLogPath with the supplied cwd and outcome.date in notes", () => {
+    const { notes } = campaignCliOutcome(outcome, cwd);
+    expect(notes[0]).toContain(`remove that row from ${campaignLogPath(cwd, outcome.date)} and run `);
   });
 });

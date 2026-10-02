@@ -1,5 +1,5 @@
 import { assertLiveMetaConfig } from "./config";
-import { NonRetryableError } from "./retry";
+import { NonRetryableError, requestNeverSent } from "./retry";
 import type { AppConfig, PostInput, PostResult } from "./types";
 
 interface FacebookResponse {
@@ -19,9 +19,11 @@ interface ReelPollingOptions {
 }
 
 async function readFacebookResponse(response: Response, fallback: string): Promise<FacebookResponse> {
-  const payload = (await response.json()) as FacebookResponse;
-  if (!response.ok || payload.error) {
-    throw new Error(payload.error?.message || `${fallback} with ${response.status}`);
+  const payload = (await response.json()) as FacebookResponse | null;
+  // A body of plain JSON null used to crash the field reads below with a
+  // TypeError; it is a failed response like any other.
+  if (!response.ok || !payload || typeof payload !== "object" || payload.error) {
+    throw new Error(payload?.error?.message || `${fallback} with ${response.status}`);
   }
   return payload;
 }
@@ -41,23 +43,28 @@ async function commitFacebookCall(
   try {
     response = await call();
   } catch (error) {
+    // A request that never left this machine (no DNS, no route, refused)
+    // committed nothing; it is retried like any failure before the commit.
+    if (requestNeverSent(error)) throw error;
     throw new NonRetryableError(
       `${what} response was lost; the post may already be live. Not retrying.`,
       { cause: error }
     );
   }
-  let payload: FacebookResponse;
+  let payload: FacebookResponse | null;
   try {
-    payload = (await response.json()) as FacebookResponse;
+    payload = (await response.json()) as FacebookResponse | null;
   } catch (error) {
     throw new NonRetryableError(
       `${what} response could not be read; the post may already be live. Not retrying.`,
       { cause: error }
     );
   }
-  if (!response.ok || payload.error) {
+  // Plain JSON null is a reply nobody can read either; reading .error off it
+  // threw a TypeError, which is retryable, and republished.
+  if (!response.ok || !payload || typeof payload !== "object" || payload.error) {
     throw new NonRetryableError(
-      `${payload.error?.message || `${what} failed with ${response.status}`} (commit point; the post may already be live. Not retrying.)`
+      `${payload?.error?.message || `${what} failed with ${response.status}`} (commit point; the post may already be live. Not retrying.)`
     );
   }
   return payload;
@@ -91,17 +98,21 @@ export async function postFacebookPhoto(
     body.set("scheduled_publish_time", String(input.scheduledPublishTime));
   }
 
-  const payload = await commitFacebookCall(
-    () => fetchImpl(endpoint, { method: "POST", body }),
-    input.scheduledPublishTime ? "Facebook photo schedule" : "Facebook photo publish"
-  );
+  const what = input.scheduledPublishTime ? "Facebook photo schedule" : "Facebook photo publish";
+  const payload = await commitFacebookCall(() => fetchImpl(endpoint, { method: "POST", body }), what);
+  // A 200 without an id is not a confirmed success either: the post may exist
+  // without a handle to it. Uncertain, not success (and never retried).
+  const postId = payload.post_id || payload.id;
+  if (!postId) {
+    throw new NonRetryableError(`${what} returned no id (commit point; the post may already be live. Not retrying.)`);
+  }
 
   return {
     platform: "facebook",
     status: "success",
     dry_run: false,
     attempts: 1,
-    post_id: payload.post_id || payload.id
+    post_id: postId
   };
 }
 
@@ -156,13 +167,17 @@ export async function postFacebookCarousel(
   }
   // The /feed POST is the carousel's commit point; the unpublished photo
   // uploads before it are safely retryable.
+  const what = input.scheduledPublishTime ? "Facebook carousel schedule" : "Facebook carousel publish";
   const published = await commitFacebookCall(
     () => fetchImpl(`https://graph.facebook.com/${config.graphApiVersion}/${config.facebookPageId}/feed`, {
       method: "POST",
       body
     }),
-    input.scheduledPublishTime ? "Facebook carousel schedule" : "Facebook carousel publish"
+    what
   );
+  if (!published.id) {
+    throw new NonRetryableError(`${what} returned no id (commit point; the post may already be live. Not retrying.)`);
+  }
 
   return {
     platform: "facebook",
@@ -263,22 +278,39 @@ export async function postFacebookReel(
   const intervalMs = polling.intervalMs ?? 5_000;
   const sleep = polling.sleep ?? ((milliseconds: number) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
   let videoStatus = "unknown";
+  let unreadable = false;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const statusUrl = new URL(`https://graph.facebook.com/${config.graphApiVersion}/${started.video_id}`);
     statusUrl.searchParams.set("fields", "status");
     statusUrl.searchParams.set("access_token", config.metaAccessToken ?? "");
-    const statusPayload = await readFacebookResponse(
-      await fetchImpl(statusUrl, { method: "GET" }),
-      "Facebook Reel status check failed"
-    );
-    videoStatus = statusPayload.status?.video_status?.toLowerCase() ?? "unknown";
+    // A status check that cannot be made at all (dropped connection, an error
+    // reply, a page that is not JSON) is observation failing, not the publish:
+    // raising it would rerun the upload and publish the Reel a second time.
+    let statusPayload: FacebookResponse;
+    try {
+      statusPayload = await readFacebookResponse(
+        await fetchImpl(statusUrl, { method: "GET" }),
+        "Facebook Reel status check failed"
+      );
+    } catch (error) {
+      console.warn(
+        `Facebook Reel ${started.video_id} is published but its status could not be read ` +
+          `(${error instanceof Error ? error.message : String(error)}); not retrying a committed publish.`
+      );
+      unreadable = true;
+      break;
+    }
+    // String() so an odd value (a number, an object) cannot throw from here.
+    videoStatus = String(statusPayload.status?.video_status ?? "unknown").toLowerCase();
     if (videoStatus === "ready") break;
     if (["error", "expired"].includes(videoStatus)) {
       throw new Error(`Facebook Reel entered terminal status ${videoStatus}.`);
     }
     if (attempt < maxAttempts) await sleep(intervalMs);
   }
-  if (videoStatus !== "ready") {
+  // An unreadable check already said so above; "still transcoding" would be a
+  // second, wrong account of the same event.
+  if (videoStatus !== "ready" && !unreadable) {
     console.warn(
       `Facebook Reel ${started.video_id} is published but still transcoding after ` +
         `${maxAttempts} checks (last status: ${videoStatus}); not retrying a committed publish.`

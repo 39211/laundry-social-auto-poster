@@ -922,6 +922,46 @@
       "height": 1350,
       "webp_path": "assets/2026-09-28/slot-01.webp"
     },
+    "assets/2026-09-29/slot-01.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/2026-09-29/slot-01.webp"
+    },
+    "assets/2026-09-29/slot-02.png": {
+      "width": 941,
+      "height": 1672,
+      "webp_path": "assets/2026-09-29/slot-02.webp"
+    },
+    "assets/2026-09-30/slot-01.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/2026-09-30/slot-01.webp"
+    },
+    "assets/2026-09-30/slot-02.png": {
+      "width": 941,
+      "height": 1672,
+      "webp_path": "assets/2026-09-30/slot-02.webp"
+    },
+    "assets/2026-10-01/slot-01.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/2026-10-01/slot-01.webp"
+    },
+    "assets/2026-10-01/slot-02.png": {
+      "width": 941,
+      "height": 1672,
+      "webp_path": "assets/2026-10-01/slot-02.webp"
+    },
+    "assets/2026-10-02/slot-01.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/2026-10-02/slot-01.webp"
+    },
+    "assets/2026-10-02/slot-02.png": {
+      "width": 941,
+      "height": 1672,
+      "webp_path": "assets/2026-10-02/slot-02.webp"
+    },
     "assets/backgrounds/local-store-depth.png": {
       "width": 1672,
       "height": 941,

@@ -1,0 +1,19 @@
+{
+  "name": "slot-windows-vs-usual-2026-10",
+  "start_date": "2026-10-06",
+  "end_date": "2026-10-19",
+  "slots": [1, 2],
+  "probability_afternoon": 0.5,
+  "windows": {
+    "1": { "start": "14:00", "end": "15:30", "arm": "afternoon" },
+    "2": { "start": "19:00", "end": "19:30", "arm": "early-evening" }
+  },
+  "min_gap_minutes": 60,
+  "preregistered": {
+    "primary_metric": "Instagram reach at the snapshot closest to 72h after posting (48h to 96h), divided by the median 72h reach of same-format posts published in the 28 days before start_date",
+    "secondary_metric": "Instagram views at the same snapshot, reported only and not used for the decision; Facebook is not used because the page reaches 1 to 2 accounts per post",
+    "analysis_unit": "Each slot is analysed separately: the slot 1 afternoon arm against the slot 1 usual arm, and the slot 2 early-evening arm against the slot 2 usual arm. Slots are never pooled because they test different windows and carry different content types.",
+    "decision_rule": "Per slot: move that slot to its test window if the test arm's median ratio is at least 0.30 higher than that slot's usual arm and a two-sided permutation test gives p < 0.10; keep the usual time if it is at least 0.30 lower; otherwise extend by 14 days.",
+    "notes": "probability_afternoon is the probability of the test arm for every slot and keeps its original name for compatibility."
+  }
+}

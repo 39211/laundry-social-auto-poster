@@ -1,0 +1,22 @@
+{
+  "page": "https://www.facebook.com/100083194756904/",
+  "page_name": "私享家 旗艦店",
+  "known_previews": [
+    "領口內側那圈黃，不是沒洗乾淨。",
+    "麂皮鞋淋雨後絨毛倒了發亮，還救得回來嗎？先做這 3 步。",
+    "國慶連假行李鞋包整理，先看容易忽略的位置。",
+    "夜市走一圈鞋底邊緣最誠實，先看容易忽略的位置。"
+  ],
+  "known_fps": [
+    "4450f76ab176d1cc",
+    "9d3df33440bd7977",
+    "d4b07415f48b59d7",
+    "1c168e70474f0e73"
+  ],
+  "textLens": { "1": 313, "2": 351, "3": 339 },
+  "updated_at": "2026-09-05T13:31:26",
+  "alert_on_new_only": true,
+  "last_detected": "夜市走一圈鞋底邊緣最誠實，先看容易忽略的位置。",
+  "quality": "single-card-full-media-no-boost",
+  "note": "first line starts with 夜市 metaphor but topic is shoe sole/insole/heel care — do not label as 夜市文"
+}

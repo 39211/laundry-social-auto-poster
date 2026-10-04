@@ -140,6 +140,23 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - Holiday hours are managed as owner-approved overrides; no specific holiday date is emitted until it is explicitly verified.
 
 ## Published Posts
+- [2026-10-05 20:30 白襯衫領口黃，先處理再洗](https://sixiangjialaundry.com/posts/2026-10-05-slot-02.html)
+  platform targets: facebook, instagram
+  routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中襯衫清洗 | 白襯衫領口黃 | 襯衫領口發黃怎麼洗 | 西屯洗衣店 | 台中洗衣店推薦 | 襯衫整燙
+  evidence_type: customer-question
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #襯衫清洗 #台中洗衣店 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-10-05/slot-02.png
+  video: https://sixiangjialaundry.com/assets/2026-10-05/slot-02.mp4
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-10-05.json
+- [2026-10-05 11:30 白襯衫領口黃了洗得回來嗎：先處理，再談漂](https://sixiangjialaundry.com/posts/2026-10-05-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中襯衫清洗 | 白襯衫領口黃 | 襯衫領口發黃怎麼洗 | 西屯洗衣店 | 台中洗衣店推薦 | 襯衫整燙
+  evidence_type: pickup-logistics
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #襯衫清洗 #台中洗衣店 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-10-05/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-10-05.json
 - [2026-10-04 20:30 Gucci 托特提把變深，先排除掉色再清](https://sixiangjialaundry.com/posts/2026-10-04-slot-02.html)
   platform targets: facebook, instagram
   routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis

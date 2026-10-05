@@ -2825,6 +2825,7 @@ describe("generatePublicSite", () => {
     await copyDir(repoSeoOverridesDir, tempSeoOverridesDir);
 
     const config = getConfig();
+    await writeBusinessProfile(root);
     await writeCalendar(root, "2024-10-16", { carouselSlot1: true });
     await generatePublicSite({
       root,
@@ -2843,7 +2844,8 @@ describe("generatePublicSite", () => {
         const rel = relPath ? join(relPath, entry.name) : entry.name;
         if (entry.isDirectory()) {
           collectFiles(fullPath, rel);
-        } else if (entry.isFile() && entry.name !== "README.md") {
+        } else if (entry.isFile() && entry.name !== "README.md" && rel.replaceAll("\\", "/") !== "sitemap.xml") {
+          // generatePublicSite 覆寫後會依 HTML dateModified 重建 sitemap，手寫 sitemap 不會原樣留在 docs/。
           overrideFiles.push(rel);
         }
       }

@@ -4612,6 +4612,48 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
     .join("\n");
 }
 
+/** `/posts/` hub 與 slot 文章。0 篇可索引時這兩份 sitemap 都不得收錄。 */
+function isPostsSurfaceUrl(url: string): boolean {
+  try {
+    const pathname = new URL(url, "https://sixiangjialaundry.com").pathname;
+    return pathname === "/posts" || pathname === "/posts/" || pathname.startsWith("/posts/");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * buildSitemapXml / buildAiSitemapXml 在 indexable_article_count === 0 時已略過 /posts/。
+ * 之後 seo-overrides 會整檔蓋掉 sitemap（ai-sitemap 若存在也會），重建 union 會把 hub 帶回來。
+ * 覆寫結束後再剝一次，重跑產生器也不會回彈。其他 URL 與 lastmod 保持原行。
+ */
+async function stripUnindexablePostsFromSitemaps(
+  index: PublicPostIndex,
+  sitemapPath: string,
+  aiSitemapPath: string
+): Promise<void> {
+  if (indexablePostArticles(index).length > 0) return;
+  await Promise.all([sitemapPath, aiSitemapPath].map(stripPostsSurfaceUrlLines));
+}
+
+async function stripPostsSurfaceUrlLines(filePath: string): Promise<void> {
+  let xml = "";
+  try {
+    xml = await readFile(filePath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  const next = xml
+    .split("\n")
+    .filter((line) => {
+      const loc = line.match(/<loc>([^<]*)<\/loc>/u)?.[1];
+      return !loc || !isPostsSurfaceUrl(loc);
+    })
+    .join("\n");
+  if (next !== xml) await writeFile(filePath, next, "utf8");
+}
+
 function buildJsonFeed(index: PublicPostIndex): object {
   return {
     version: "https://jsonfeed.org/version/1.1",
@@ -8347,6 +8389,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     }
     // seo-overrides/ directory doesn't exist, skip
   }
+
+  await stripUnindexablePostsFromSitemaps(index, outputs.sitemap, outputs.aiSitemap);
 
   return [...Object.values(outputs), ...postArticleOutputs];
 }

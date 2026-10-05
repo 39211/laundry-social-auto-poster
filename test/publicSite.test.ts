@@ -2601,6 +2601,84 @@ describe("generatePublicSite", () => {
     expect(home).toContain(`${baseUrl}/posts/`);
   });
 
+  it("drops /posts/ from both sitemaps when overrides reintroduce the hub and a rerun does not bring it back", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-posts-hub-noindex-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    const baseUrl = "https://sixiangjialaundry.com";
+    const postsHub = `${baseUrl}/posts/`;
+    const postsSlot = `${baseUrl}/posts/2026-07-02-slot-01.html`;
+    const keptGuide = `${baseUrl}/guides/posts-hub-policy-marker.html`;
+    await mkdir(join(root, "seo-overrides", "guides"), { recursive: true });
+    await writeFile(
+      join(root, "seo-overrides", "sitemap.xml"),
+      [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        `  <url><loc>${keptGuide}</loc><lastmod>2026-09-29</lastmod></url>`,
+        `  <url><loc>${postsHub}</loc><lastmod>2026-09-24</lastmod></url>`,
+        `  <url><loc>${postsSlot}</loc><lastmod>2026-09-24</lastmod></url>`,
+        "</urlset>",
+        ""
+      ].join("\n"),
+      "utf8"
+    );
+    await writeFile(
+      join(root, "seo-overrides", "ai-sitemap.xml"),
+      [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        `  <url><loc>${keptGuide}</loc><lastmod>2026-09-29</lastmod><changefreq>daily</changefreq><!-- kept-guide --></url>`,
+        `  <url><loc>${postsHub}</loc><lastmod>2026-10-05</lastmod><changefreq>daily</changefreq><!-- daily-article-hub --></url>`,
+        `  <url><loc>${postsSlot}</loc><lastmod>2026-10-05</lastmod><changefreq>daily</changefreq><!-- daily-article-slot --></url>`,
+        "</urlset>",
+        ""
+      ].join("\n"),
+      "utf8"
+    );
+    await writeFile(
+      join(root, "seo-overrides", "guides", "posts-hub-policy-marker.html"),
+      '<!doctype html><html><head><meta name="robots" content="index, follow" /></head><body><p>marker</p></body></html>\n',
+      "utf8"
+    );
+
+    const generate = () =>
+      generatePublicSite({
+        root,
+        siteBaseUrl: `${baseUrl}/`,
+        imageBaseUrl: `${baseUrl}/`,
+        now: "2026-07-03T03:00:00.000Z"
+      });
+    await generate();
+    await generate();
+
+    const docsRoot = join(root, "docs");
+    const [hub, slot, sitemap, aiSitemap, rss] = await Promise.all([
+      readFile(join(docsRoot, "posts", "index.html"), "utf8"),
+      readFile(join(docsRoot, "posts", "2026-07-02-slot-01.html"), "utf8"),
+      readFile(join(docsRoot, "sitemap.xml"), "utf8"),
+      readFile(join(docsRoot, "ai-sitemap.xml"), "utf8"),
+      readFile(join(docsRoot, "rss.xml"), "utf8")
+    ]);
+
+    expect(hub).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
+    expect(hub).toContain('name="googlebot" content="noindex, follow, max-image-preview:large"');
+    expect(hub).not.toContain('content="index, follow');
+    expect(slot).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
+    expect(sitemapLocs(sitemap)).not.toContain(postsHub);
+    expect(sitemapLocs(sitemap)).not.toContain(postsSlot);
+    expect(sitemap).not.toContain("/posts/");
+    expect(sitemapLocs(aiSitemap)).not.toContain(postsHub);
+    expect(sitemapLocs(aiSitemap)).not.toContain(postsSlot);
+    expect(aiSitemap).not.toContain("/posts/");
+    expect(sitemapLocs(sitemap)).toContain(keptGuide);
+    expect(sitemapLocs(aiSitemap)).toContain(keptGuide);
+    expect(rss).not.toContain("<item>");
+    expect(rss).not.toContain(postsHub);
+    expect(rss).not.toContain(postsSlot);
+  });
+
   it("keeps checked-in public feeds, calendars, HTML, and image metadata consistent", async () => {
     const docsRoot = join(process.cwd(), "docs");
     const [social, discovery, sitemap, imageMetadata] = await Promise.all([

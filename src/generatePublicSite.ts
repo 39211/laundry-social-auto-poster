@@ -4850,7 +4850,10 @@ function buildAnswersJson(index: PublicPostIndex): object {
       citation_ready_summary: citationReadySummary(index),
       best_source_pages: bestSourcePages(index),
       do_not_infer_rules: [...AI_DO_NOT_INFER_RULES],
-      omitted_until_verified: ["google_place_id", "holiday_hours_overrides"]
+      omitted_until_verified: [
+        ...(profile.google_place_id ? [] : ["google_place_id"]),
+        "holiday_hours_overrides"
+      ]
     },
     answers: [...coreHomeAnswers, ...homeAnswers, ...serviceAnswers, ...supportAnswers].map((answer) =>
       addAnswerSafety(answer, profile)
@@ -7981,7 +7984,10 @@ function buildAiDiscovery(index: PublicPostIndex): object {
         expanded_behavior: "Homepage renders approved posts from the newest seven content dates directly.",
         archive_behavior: "Older approved posts stay in SEO/AEO/GEO data and render inside a collapsed homepage archive."
       },
-      omitted_until_verified: ["google_place_id", "holiday_hours_overrides"]
+      omitted_until_verified: [
+        ...(index.business_profile.google_place_id ? [] : ["google_place_id"]),
+        "holiday_hours_overrides"
+      ]
     },
     data_quality: {
       public_base_url_configured: index.base_url_configured,

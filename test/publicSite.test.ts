@@ -528,6 +528,11 @@ describe("generatePublicSite", () => {
         "@type": "PropertyValue",
         propertyID: "Google Maps CID",
         value: "0x41f4295a6302e177"
+      },
+      {
+        "@type": "PropertyValue",
+        propertyID: "Google Place ID",
+        value: "ChIJ9dYthxMXaTQRd-ECY1op9EE"
       }
     ]);
     expect(discovery.structured_data.specialOpeningHoursSpecification).toBeUndefined();
@@ -542,7 +547,7 @@ describe("generatePublicSite", () => {
     expect(discovery.website.map_url).toBe("https://maps.app.goo.gl/kUREPkWDXYNTkpct7");
     expect(discovery.website.google_maps_feature_id).toBe("0x34691713872dd6f5:0x41f4295a6302e177");
     expect(discovery.website.google_maps_cid).toBe("0x41f4295a6302e177");
-    expect(discovery.website.google_place_id).toBeNull();
+    expect(discovery.website.google_place_id).toBe("ChIJ9dYthxMXaTQRd-ECY1op9EE");
     expect(discovery.website.facebook_url).toBe("https://www.facebook.com/100083194756904/");
     expect(discovery.website.facebook_share_url).toBe("https://www.facebook.com/share/1BZF4VnihJ/");
     expect(discovery.website.instagram_url).toBe("https://www.instagram.com/si_xiang_jia/");
@@ -551,7 +556,7 @@ describe("generatePublicSite", () => {
       google_business_profile_name: "私享家 旗艦總店",
       address_text: "407 臺中市西屯區至善里青海路二段365號",
       google_maps_cid: "0x41f4295a6302e177",
-      google_place_id: null,
+      google_place_id: "ChIJ9dYthxMXaTQRd-ECY1op9EE",
       line_url: "https://line.me/ti/p/4m-rA6hxf6",
       line_id: "0968327653",
       telephone_local: "04-2452-7411",
@@ -562,12 +567,12 @@ describe("generatePublicSite", () => {
         overrides: []
       },
       verification_status: {
-        google_place_id: "not_verified_public_maps_url_exposes_feature_id_only",
+        google_place_id: "from_gbp_writereview_link_proof-rank-0929_SUBMISSIONS",
         official_line_url: "public_facebook_instagram_search_result_cross_check",
         holiday_hours_overrides: "not_configured"
       }
     });
-    expect(discovery.content_contract.omitted_until_verified).toEqual(["google_place_id", "holiday_hours_overrides"]);
+    expect(discovery.content_contract.omitted_until_verified).toEqual(["holiday_hours_overrides"]);
     expect(discovery.capabilities.supports_full_context).toBe(true);
     expect(discovery.capabilities.supports_search_intent_clusters).toBe(true);
     expect(discovery.capabilities.supports_28_day_ai_visibility_review).toBe(true);
@@ -605,7 +610,7 @@ describe("generatePublicSite", () => {
     expect(llms).toContain("LINE / mobile estimates: 0968-327-653");
     expect(llms).toContain("LINE: https://line.me/ti/p/4m-rA6hxf6");
     expect(llms).toContain("Google Maps CID: 0x41f4295a6302e177");
-    expect(llms).toContain("Google Place ID: (not verified)");
+    expect(llms).toContain("Google Place ID: ChIJ9dYthxMXaTQRd-ECY1op9EE");
     expect(llms).toContain("Holiday hours rule:");
     expect(llms).toContain("Opening hours: 週一至週五 10:00-20:00；週六 12:00-18:00；週日公休");
     expect(llms).toContain("hashtags: #test");

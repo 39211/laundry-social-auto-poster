@@ -140,6 +140,14 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - Holiday hours are managed as owner-approved overrides; no specific holiday date is emitted until it is explicitly verified.
 
 ## Published Posts
+- [2026-10-06 11:30 毛毯起球又黏滿寵物毛：下水前先除毛](https://sixiangjialaundry.com/posts/2026-10-06-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中毛毯清洗 | 毛毯起毛球怎麼辦 | 毛毯寵物毛怎麼清 | 西屯寢具清洗 | 台中洗衣店推薦 | 毛毯送洗
+  evidence_type: first-party-inspection
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #毛毯清洗 #台中洗衣店 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-10-06/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-10-06.json
 - [2026-10-05 20:30 白襯衫領口黃，先處理再洗](https://sixiangjialaundry.com/posts/2026-10-05-slot-02.html)
   platform targets: facebook, instagram
   routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis

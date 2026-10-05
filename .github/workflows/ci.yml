@@ -55,6 +55,7 @@ jobs:
             docs/posts
             docs/services
             docs/assets/2026-08-17
+            seo-overrides
 
       - uses: actions/setup-node@v4
         with:

@@ -3,9 +3,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-export const EXPECTED_LOC_COUNT = 139;
+export const EXPECTED_LOC_COUNT = 149;
 
-/** B2 23 條＋B3 20 條＋B4-a 17 條＋B4-b 3 條。sitemap 應為 76＋23＋20＋17＋3＝139 條。 */
+/** B2 23 條＋B3 20 條＋B4-a 17 條＋B4-b 3 條＋B5 第 1 波 10 條。sitemap 應為 139＋10＝149 條。 */
 export const NEW_PAGE_PATHS = [
   "/local/dali-laundry-pickup.html",
   "/local/taiping-laundry-pickup.html",
@@ -69,7 +69,17 @@ export const NEW_PAGE_PATHS = [
   "/services/evening-gown-cleaning.html",
   "/services/secondhand-luxury-shop-cleaning.html",
   "/services/sequin-rhinestone-clothing-cleaning.html",
-  "/services/ironing-pressing.html"
+  "/services/ironing-pressing.html",
+  "/guides/spot-test-before-cleaning.html",
+  "/guides/down-vest-cleaning.html",
+  "/guides/scarf-cleaning.html",
+  "/guides/cardigan-cleaning.html",
+  "/guides/kids-shoe-cleaning.html",
+  "/guides/sandal-cleaning.html",
+  "/guides/high-heel-structure.html",
+  "/guides/denim-jeans-cleaning.html",
+  "/guides/day-dress-cleaning.html",
+  "/guides/pu-leather-peeling.html"
 ] as const;
 
 export const NEW_PAGE_LASTMOD = "2026-10-06";

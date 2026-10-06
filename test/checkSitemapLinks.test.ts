@@ -6,8 +6,8 @@ import {
   sitemapLinkReportFailed
 } from "../scripts/check-sitemap-links";
 
-describe("seo-overrides B4 sitemap 與 hub 入鏈", () => {
-  it("每個 sitemap URL 都有檔，B2＋B3＋B4-a＋B4-b 共 63 個新頁各有至少一條 hub 入鏈", () => {
+describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
+  it("每個 sitemap URL 都有檔，B2＋B3＋B4-a＋B4-b＋B5 第 1 波共 73 個新頁各有至少一條 hub 入鏈", () => {
     const report = checkSitemapLinks();
 
     expect(report.parseOk).toBe(true);
@@ -19,7 +19,7 @@ describe("seo-overrides B4 sitemap 與 hub 入鏈", () => {
     expect(report.wrongLastmod).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(sitemapLinkReportFailed(report)).toBe(false);
-    expect(NEW_PAGE_PATHS).toHaveLength(63);
+    expect(NEW_PAGE_PATHS).toHaveLength(73);
     for (const path of NEW_PAGE_PATHS) {
       expect(report.inbound[path]?.count).toBeGreaterThanOrEqual(1);
     }
@@ -37,5 +37,17 @@ describe("seo-overrides B4 sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/services/secondhand-luxury-shop-cleaning.html"]?.hubs).toContain("hubs/bag-care.html");
     expect(report.inbound["/services/sequin-rhinestone-clothing-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/services/ironing-pressing.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/spot-test-before-cleaning.html"]?.hubs).toEqual(
+      expect.arrayContaining(["hubs/luxury-garment-care.html", "hubs/shoe-care.html"])
+    );
+    expect(report.inbound["/guides/kids-shoe-cleaning.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/sandal-cleaning.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/high-heel-structure.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/down-vest-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/scarf-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/cardigan-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/denim-jeans-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/day-dress-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/pu-leather-peeling.html"]?.hubs).toContain("hubs/bag-care.html");
   });
 });

@@ -3273,6 +3273,38 @@ describe("visible copy speaks to customers, not to search engines", () => {
 });
 
 describe("seo overrides and URL path normalization", () => {
+  it("lists self-canonical overrides but only copies overrides canonicalized elsewhere", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-override-canonical-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-04");
+    const baseUrl = "https://example.com";
+    await mkdir(join(root, "seo-overrides", "guides"), { recursive: true });
+    await writeFile(
+      join(root, "seo-overrides", "guides", "self-canonical.html"),
+      '<link rel="canonical" href="/guides/self-canonical.html">',
+      "utf8"
+    );
+    const canonicalElsewhereHtml = "<link href='../services/shoe-bag-care.html' rel='canonical'>";
+    await writeFile(
+      join(root, "seo-overrides", "guides", "canonical-elsewhere.html"),
+      canonicalElsewhereHtml,
+      "utf8"
+    );
+    await generatePublicSite({
+      root,
+      baseUrl,
+      siteBaseUrl: `${baseUrl}/`,
+      now: "2026-07-05T03:00:00.000Z"
+    });
+
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    expect(sitemap).toContain(`<loc>${baseUrl}/guides/self-canonical.html</loc>`);
+    expect(sitemap).not.toContain(`<loc>${baseUrl}/guides/canonical-elsewhere.html</loc>`);
+    expect(await readFile(join(root, "docs", "guides", "canonical-elsewhere.html"), "utf8"))
+      .toBe(canonicalElsewhereHtml);
+  });
+
   it("seo override files should be byte-identical after generation", async function () {
     const root = mkdtempSync(join(tmpdir(), "public-site-test-"));
     

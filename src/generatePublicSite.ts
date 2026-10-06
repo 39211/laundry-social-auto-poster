@@ -9396,9 +9396,15 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       
       // Extract lastmod from override HTML files' JSON-LD dateModified
       const overrideLastmods = new Map<string, string>();
+      const overrideCanonicals = new Map<string, string>();
       for (const { posixPath, fsPath } of overrideHtmlFiles) {
         try {
           const html = await readFile(join(docsRoot, fsPath), "utf8");
+          for (const link of html.matchAll(/<link\b[^>]*>/gi)) {
+            if (!/\brel\s*=\s*(["'])canonical\1/i.test(link[0])) continue;
+            const href = link[0].match(/\bhref\s*=\s*(["'])(.*?)\1/i);
+            if (href?.[2]) overrideCanonicals.set(posixPath, href[2]);
+          }
           const dateModifiedMatch = html.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/);
           if (dateModifiedMatch && dateModifiedMatch[1]) {
             overrideLastmods.set(posixPath, dateModifiedMatch[1]);
@@ -9411,11 +9417,15 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       // Regenerate sitemap to include override pages (except noindex price-list stub)
       const overrideUrls = overrideHtmlFiles
         .filter(({ posixPath }) => posixPath !== "price-list.html") // Exclude noindex stub
-        .map(({ posixPath }) => {
+        .flatMap(({ posixPath }) => {
           // Build URL using URL constructor for proper path joining
           const urlPath = posixPath === "index.html" ? "" : posixPath;
           const baseUrl = siteBaseUrl || "";
-          return new URL(urlPath, baseUrl.endsWith("/") ? baseUrl : baseUrl + "/").href;
+          const url = new URL(urlPath, baseUrl.endsWith("/") ? baseUrl : baseUrl + "/").href;
+          const canonical = overrideCanonicals.get(posixPath);
+          // Pages canonicalized elsewhere must not be listed in sitemap.xml.
+          if (canonical && new URL(canonical, url).href !== url) return [];
+          return [url];
         });
       
       // Add override URLs to sitemap (deduplicate with existing)

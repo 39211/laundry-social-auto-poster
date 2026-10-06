@@ -15,6 +15,17 @@ import { REEL_CONCEPTS, loadExtensions } from "../src/reelConcepts";
 const DOWN_JACKET_NARRATION =
   "那是手腕的油脂日積月累壓進纖維裡，不是表面的髒。整件下水才會勻，只搓袖口反而會留下一圈更深的印子。";
 
+// The hiking-boot reel blind review (grok verdict D1, run
+// _bridge/runs/R0825-HIKING/RESULT.md, 2026-08-25) caught a burned subtitle
+// line reading "，抓地力就跟著沒了。": the hard-wrap sliced the previous clause
+// right before its trailing comma, leaving that comma to lead the next cue.
+const HIKING_BOOT_NARRATION = "泥乾掉之後會把鞋底的溝整個填平,抓地力就跟著沒了。";
+
+// CJK line-breaking forbids these from opening a line (行首禁則). Authored
+// independently of splitNarration's own punctuation set so this check does
+// not just re-assert whatever the implementation happens to use.
+const LEADING_PUNCTUATION = /^[，,。、！!？?；;：:…]/u;
+
 describe("splitNarration", () => {
   it("is lossless on every real concept narration", () => {
     loadExtensions();
@@ -43,6 +54,20 @@ describe("splitNarration", () => {
     // The scratch version emitted the same clause twice; a healthy split of
     // this text has no repeats.
     expect(new Set(segments).size).toBe(segments.length);
+  });
+
+  it("keeps a hard-wrapped clause's trailing comma off the front of the next line", () => {
+    // Mutation: reverting flushSegment's pull-back to the bare
+    // `current = current.slice(maxChars)` it replaced reproduces the report
+    // exactly — segments[1] becomes ",抓地力就跟著沒了。" — and this goes red.
+    const segments = splitNarration(HIKING_BOOT_NARRATION);
+    expect(segments).toEqual([
+      "泥乾掉之後會把鞋底的溝整個填平,",
+      "抓地力就跟著沒了。",
+    ]);
+    for (const segment of segments) {
+      expect(segment).not.toMatch(LEADING_PUNCTUATION);
+    }
   });
 
   it("merges a 1-2 character tail into the previous line instead of flashing it", () => {

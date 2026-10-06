@@ -3,9 +3,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-export const EXPECTED_LOC_COUNT = 99;
+export const EXPECTED_LOC_COUNT = 119;
 
-/** 波 B 11 條＋波 A 12 條。sitemap 最終應為 76＋這 23 條。 */
+/** B2 波 B 11 條＋波 A 12 條，加上 B3 20 條。sitemap 應為 76＋23＋20＝119 條。 */
 export const NEW_PAGE_PATHS = [
   "/local/dali-laundry-pickup.html",
   "/local/taiping-laundry-pickup.html",
@@ -29,7 +29,27 @@ export const NEW_PAGE_PATHS = [
   "/guides/silk-garment-cleaning.html",
   "/guides/cashmere-knit-care.html",
   "/guides/collar-sweat-yellow.html",
-  "/guides/down-clump-after-wash.html"
+  "/guides/down-clump-after-wash.html",
+  "/guides/knit-shoe-cleaning.html",
+  "/guides/patent-leather-shoe-care.html",
+  "/guides/nubuck-shoe-cleaning.html",
+  "/guides/clear-sole-yellowing.html",
+  "/guides/hiking-shoe-cleaning.html",
+  "/guides/sheepskin-boot-cleaning.html",
+  "/guides/coated-canvas-bag-care.html",
+  "/guides/vachetta-leather-darkening.html",
+  "/guides/lambskin-bag-care.html",
+  "/guides/bag-edge-paint-cracking.html",
+  "/guides/sticky-bag-lining.html",
+  "/guides/luxury-bag-storage.html",
+  "/guides/straw-bag-care.html",
+  "/local/south-district-laundry-pickup.html",
+  "/local/west-district-laundry-pickup.html",
+  "/local/east-district-laundry-pickup.html",
+  "/local/central-district-laundry-pickup.html",
+  "/local/fengyuan-laundry-pickup.html",
+  "/local/wufeng-laundry-pickup.html",
+  "/local/qingshui-laundry-pickup.html"
 ] as const;
 
 export const NEW_PAGE_LASTMOD = "2026-10-06";

@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -909,6 +910,8 @@ describe("REGENGUARD-R2 PowerShell root and missing videos", () => {
     }
   );
 
+  const canonicalPath = (p: string) => realpathSync.native(p);
+
   it.each([
     { script: "generate-missing-images.ps1", expectedExit: 1 },
     { script: "regenerate-boutique-images.ps1", expectedExit: 0 }
@@ -993,7 +996,7 @@ describe("REGENGUARD-R2 PowerShell root and missing videos", () => {
       expect(calls.slice(guardIndex + 1).filter((call) => call.startsWith("run mark-image-source ") && call.includes(`--date ${DATE}`))).toEqual([]);
       await expect(readFile(join(root, `docs/assets/${DATE}/slot-01.png`))).rejects.toMatchObject({ code: "ENOENT" });
       const rootsPassed = (await readFile(rootLog, "utf8")).trim().split(/\r?\n/u);
-      expect(rootsPassed).toEqual([root]);
+      expect(rootsPassed.map(canonicalPath)).toEqual([canonicalPath(root)]);
     } else {
       await copyFile(join(REPO_ROOT, "scripts", "generate-missing-images.ps1"), join(root, "scripts", "generate-missing-images.ps1"));
       await writeJson(root, `data/image-prompts/${unlockedDate}.json`, []);
@@ -1012,7 +1015,7 @@ describe("REGENGUARD-R2 PowerShell root and missing videos", () => {
       expect(result.error, `${result.stdout}\n${result.stderr}`).toBeUndefined();
       expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(expectedExit);
       const rootsPassed = (await readFile(rootLog, "utf8")).trim().split(/\r?\n/u);
-      expect(rootsPassed).toEqual(dates.map(() => root));
+      expect(rootsPassed.map(canonicalPath)).toEqual(dates.map(() => canonicalPath(root)));
       expect(await readFile(npmLog, "utf8")).toContain("run media-guard");
       const calls = (await readFile(npmLog, "utf8")).trim().split(/\r?\n/u);
       for (const lockedDate of dates.filter((date) => date !== unlockedDate)) {

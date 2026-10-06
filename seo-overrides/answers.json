@@ -8008,7 +8008,7 @@
       "id": "wallet-cleaning-check-page-summary",
       "type": "guide_summary",
       "question": "皮夾怎麼判斷？",
-      "answer": "皮夾、短夾、長夾不是縮小的包包。面積小，邊油、卡層、證件膠套和五金卻很密。",
+      "answer": "先看邊油、卡層、證件膠套和五金，不要把它當成縮小的包包。皮面還連續、邊角只是髒、五金沒鬆，才談表面清潔；邊油剝成粉、卡層鼓起或膠套霧掉，清潔不會把結構長回去。",
       "source_url": "https://sixiangjialaundry.com/guides/wallet-cleaning-check.html",
       "local_intent": "皮夾 清潔",
       "keywords": [
@@ -8068,7 +8068,7 @@
       "id": "postpartum-center-laundry-page-summary",
       "type": "service_summary",
       "question": "月子中心洗衣收哪些布品？",
-      "answer": "月子中心要約的是固定窗口：床組、包巾、產婦用的袍、職員自己的便服。這裡也不做醫療滅菌，不做除臭保證，不開消毒證明。",
+      "answer": "月子中心洗衣收床組、包巾、產婦用的袍和職員自己的便服，要有對接人和房號或樓層標記。可以討論固定的收送節奏，實際交件日由門市確認。這裡不做醫療滅菌，不做除臭保證，不開消毒證明。",
       "source_url": "https://sixiangjialaundry.com/services/postpartum-center-laundry.html",
       "local_intent": "月子中心 洗衣",
       "keywords": [
@@ -8128,7 +8128,7 @@
       "id": "clinic-uniform-laundry-page-summary",
       "type": "service_summary",
       "question": "診所制服送洗第一次要確認什麼？",
-      "answer": "診所、醫美、牙科的制服送洗，有固定的人、固定的替換衣，想建立一個收送窗口。第一次要談的不是總價，是誰對接、衣服怎麼標記，以及收送節奏。",
+      "answer": "診所、醫美、牙科有固定替換衣的單位，制服送洗第一次先確認誰對接、衣服怎麼標記；可以討論固定的收送節奏，實際交件日由門市確認。",
       "source_url": "https://sixiangjialaundry.com/services/clinic-uniform-laundry.html",
       "local_intent": "診所制服 送洗",
       "keywords": [
@@ -8148,7 +8148,7 @@
       "id": "mesh-shoe-cleaning-page-summary",
       "type": "guide_summary",
       "question": "網布鞋怎麼洗？",
-      "answer": "網布鞋怎麼洗，先不要整雙泡進水裡。網布是透氣層，底下常常還有一層熱熔膠或薄泡棉。",
+      "answer": "先不要整雙泡進水裡。先看細沙是卡在網目表面，還是網布邊緣已經能掀起來；掀起來是脫開，不是髒。",
       "source_url": "https://sixiangjialaundry.com/guides/mesh-shoe-cleaning.html",
       "local_intent": "網布鞋 清洗",
       "keywords": [
@@ -8188,7 +8188,7 @@
       "id": "leather-bag-care-page-summary",
       "type": "guide_summary",
       "question": "皮包怎麼清？",
-      "answer": "皮包怎麼清，先別拿濕布把整包擦一遍。真皮會把水喝進去，乾了留下一圈深淺差。",
+      "answer": "先別拿濕布把整包擦一遍。真皮吸水乾了會留一圈深淺差；合成皮的膜老化以後會剝、會黏手，那不是污漬。",
       "source_url": "https://sixiangjialaundry.com/guides/leather-bag-care.html",
       "local_intent": "皮包 清潔",
       "keywords": [
@@ -8268,7 +8268,7 @@
       "id": "down-clump-after-wash-page-summary",
       "type": "guide_summary",
       "question": "羽絨結塊還能救嗎？",
-      "answer": "洗後或受潮後填充黏成一塊，先判斷能不能救，以及什麼情況不要自己烘。",
+      "answer": "乾的小塊、拍了會慢慢回彈，比較像存放時壓扁。潮的、車縫冒出很多羽絲，或整件幾乎沒有回彈，不要自己用高溫烘，拍也不會把流失的填充變回來。",
       "source_url": "https://sixiangjialaundry.com/guides/down-clump-after-wash.html",
       "local_intent": "羽絨 結塊",
       "keywords": [
@@ -8288,7 +8288,7 @@
       "id": "knit-shoe-cleaning-page-summary",
       "type": "guide_summary",
       "question": "針織鞋怎麼洗？",
-      "answer": "針織鞋怎麼洗，先不要把它當成一般網布鞋。一體針織的鞋面是用紗線織成一整片，像襪子一樣有彈性。",
+      "answer": "針織鞋不要當成一般網布鞋，濕的時候不要拉，也不要用硬刷來回刷。先看鞋口還彈不彈、哪裡已經起毛。",
       "source_url": "https://sixiangjialaundry.com/guides/knit-shoe-cleaning.html",
       "local_intent": "針織鞋 清洗",
       "keywords": [
@@ -8308,7 +8308,7 @@
       "id": "patent-leather-shoe-care-page-summary",
       "type": "guide_summary",
       "question": "漆皮鞋怎麼清？",
-      "answer": "漆皮鞋怎麼清，先記住一件事：亮的不是皮，是皮上面那層塗層。表面的灰、指紋、雨點，在塗層上面，通常好處理。",
+      "answer": "表面的灰、指紋和雨點在塗層上，通常好處理。藍染進塗層、鞋頭刮痕和亮面變霧，多擦不會亮回來，也不要用酒精或去光水。",
       "source_url": "https://sixiangjialaundry.com/guides/patent-leather-shoe-care.html",
       "local_intent": "漆皮鞋 清潔",
       "keywords": [
@@ -8328,7 +8328,7 @@
       "id": "nubuck-shoe-cleaning-page-summary",
       "type": "guide_summary",
       "question": "牛巴戈怎麼清？",
-      "answer": "牛巴戈怎麼清，先別把它當成麂皮。牛巴戈（也叫磨砂皮）是把皮的正面磨出很短、很細的絨，摸起來像桃子皮；麂皮多半是皮的反面，絨毛比較長。",
+      "answer": "牛巴戈先別當成麂皮，先分浮灰、水痕、油斑。手汗和食物油吃進短絨會留下深色，乾了也不會退。",
       "source_url": "https://sixiangjialaundry.com/guides/nubuck-shoe-cleaning.html",
       "local_intent": "牛巴戈 清潔",
       "keywords": [
@@ -8348,7 +8348,7 @@
       "id": "clear-sole-yellowing-page-summary",
       "type": "guide_summary",
       "question": "冰底鞋發黃能洗白嗎？",
-      "answer": "一種是灰塵、泥水卡在鞋底紋路和邊緣，看起來黃黃髒髒，這種可以清。另一種是透明或半透明大底整塊變成茶色，從側面看是材料本身變色，通常跟時間、光線、濕熱有關。",
+      "answer": "紋路和邊緣的灰塵、泥水可以清；透明或半透明大底整塊變成茶色，是材料本身變色。黃在材料裡面時，清潔只能把表面弄乾淨，不會讓它變回透明。",
       "source_url": "https://sixiangjialaundry.com/guides/clear-sole-yellowing.html",
       "local_intent": "冰底鞋 發黃",
       "keywords": [
@@ -8408,7 +8408,7 @@
       "id": "coated-canvas-bag-care-page-summary",
       "type": "guide_summary",
       "question": "老花包怎麼清？",
-      "answer": "老花包怎麼清，先知道它多半不是布。常見的老花包身是塗層帆布：布的外面覆了一層防水的膜，印花在膜上。",
+      "answer": "老花包身多半是塗層帆布，髒大多停在膜的表面。轉角和折口的膜裂了就不是髒，皮邊和提把也不能跟包身用同一種方式。",
       "source_url": "https://sixiangjialaundry.com/guides/coated-canvas-bag-care.html",
       "local_intent": "老花包 清潔",
       "keywords": [
@@ -8448,7 +8448,7 @@
       "id": "lambskin-bag-care-page-summary",
       "type": "guide_summary",
       "question": "小羊皮包怎麼清？",
-      "answer": "小羊皮包怎麼清，先記得它比一般牛皮薄、軟、表面細。好摸的代價是：指甲輕輕一劃就是一道痕，包包壓在別的東西下面會留下凹痕，淺色的包靠著牛仔褲會被染藍。",
+      "answer": "小羊皮比一般牛皮薄、軟，刮痕、壓痕和牛仔褲沾色都不是灰塵。這三種要分開看，不能當成同一種污漬來擦。",
       "source_url": "https://sixiangjialaundry.com/guides/lambskin-bag-care.html",
       "local_intent": "小羊皮 清潔",
       "keywords": [
@@ -8468,7 +8468,7 @@
       "id": "bag-edge-paint-cracking-page-summary",
       "type": "guide_summary",
       "question": "包包封邊裂開是髒嗎？",
-      "answer": "皮件裁切後的邊緣，常會塗上一層邊油把切口封起來。這層邊油用久了會變硬、龜裂，天熱變黏，最後一段一段掉，露出裡面的皮層。",
+      "answer": "不是，封邊裂開是邊油老化：用久了會變硬、龜裂、變黏，最後露出皮層。清潔可以帶走表面的灰，裂開和脫落不會因為洗而變好。",
       "source_url": "https://sixiangjialaundry.com/guides/bag-edge-paint-cracking.html",
       "local_intent": "包包 封邊",
       "keywords": [
@@ -8528,7 +8528,7 @@
       "id": "straw-bag-care-page-summary",
       "type": "guide_summary",
       "question": "草編包發霉、變形怎麼辦？",
-      "answer": "先看它是用什麼編的。同樣叫草編包，可能是紙纖維、拉菲草、藺草、藤、塑膠繩，碰水的反應差很多：紙纖維吸水會軟、會塌，藤和草乾得慢、容易長霉，染色的草遇水可能掉色。",
+      "answer": "先看是紙纖維、拉菲草、藺草、藤還是塑膠繩，碰水的反應不一樣。先不要整只泡水刷，要分清楚材料、內襯和霉長在哪一層。",
       "source_url": "https://sixiangjialaundry.com/guides/straw-bag-care.html",
       "local_intent": "草編包 發霉",
       "keywords": [
@@ -8608,7 +8608,7 @@
       "id": "velvet-shoe-cleaning-page-summary",
       "type": "guide_summary",
       "question": "絨布鞋怎麼清？",
-      "answer": "絨布鞋怎麼清，第一步是確認「絨布」指什麼。俗稱絨布的鞋可能是天鵝絨等織物絨面，也可能其實是麂皮或牛巴戈皮革。",
+      "answer": "先確認是織物絨面，還是麂皮或牛巴戈。織物絨面壓倒的絨毛會像一塊髒污，先拍材質和不同角度，不要急著沾水刷，也不要把皮革刷法套過來。",
       "source_url": "https://sixiangjialaundry.com/guides/velvet-shoe-cleaning.html",
       "local_intent": "絨布鞋 清潔",
       "keywords": [

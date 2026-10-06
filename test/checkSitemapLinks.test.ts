@@ -1,10 +1,45 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   EXPECTED_LOC_COUNT,
   NEW_PAGE_PATHS,
   checkSitemapLinks,
+  repoRootFromHere,
   sitemapLinkReportFailed
 } from "../scripts/check-sitemap-links";
+
+// 我們賣的是服務，也沒有自己的評分資料：seo-overrides 的 JSON-LD 不可出現這些型別。
+// 2026-10 GSC 產品摘要錯誤（itemOffered 被標成 Product）就是這樣漏過的；產生器測試只管產生的頁。
+const BANNED_JSONLD_TYPES = ["Product", "AggregateRating", "Review"];
+
+function overrideHtmlFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) return overrideHtmlFiles(full);
+    return entry.name.endsWith(".html") ? [full] : [];
+  });
+}
+
+function bannedJsonLdTypes(html: string): string[] {
+  const found: string[] = [];
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+      return;
+    }
+    if (!node || typeof node !== "object") return;
+    const type = (node as Record<string, unknown>)["@type"];
+    for (const t of Array.isArray(type) ? type : [type]) {
+      if (typeof t === "string" && BANNED_JSONLD_TYPES.includes(t)) found.push(t);
+    }
+    Object.values(node).forEach(visit);
+  };
+  for (const match of html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    visit(JSON.parse(match[1] ?? ""));
+  }
+  return found;
+}
 
 describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
   it("每個 sitemap URL 都有檔，B2＋B3＋B4-a＋B4-b＋B5 第 1 波共 73 個新頁各有至少一條 hub 入鏈", () => {
@@ -49,5 +84,16 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/guides/denim-jeans-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/day-dress-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/pu-leather-peeling.html"]?.hubs).toContain("hubs/bag-care.html");
+  });
+
+  it("seo-overrides 每個 HTML 的 JSON-LD 都沒有 Product、AggregateRating、Review", () => {
+    const root = repoRootFromHere();
+    const files = overrideHtmlFiles(join(root, "seo-overrides"));
+    expect(files.length).toBeGreaterThanOrEqual(110);
+    const offenders = files
+      .map((file) => ({ file: relative(root, file).split("\\").join("/"), types: bannedJsonLdTypes(readFileSync(file, "utf8")) }))
+      .filter((entry) => entry.types.length > 0)
+      .map((entry) => `${entry.file}: ${[...new Set(entry.types)].join(",")} ×${entry.types.length}`);
+    expect(offenders).toEqual([]);
   });
 });

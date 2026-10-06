@@ -3,9 +3,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-export const EXPECTED_LOC_COUNT = 119;
+export const EXPECTED_LOC_COUNT = 136;
 
-/** B2 波 B 11 條＋波 A 12 條，加上 B3 20 條。sitemap 應為 76＋23＋20＝119 條。 */
+/** B2 23 條＋B3 20 條＋B4-a 17 條。sitemap 應為 76＋23＋20＋17＝136 條。 */
 export const NEW_PAGE_PATHS = [
   "/local/dali-laundry-pickup.html",
   "/local/taiping-laundry-pickup.html",
@@ -49,7 +49,24 @@ export const NEW_PAGE_PATHS = [
   "/local/central-district-laundry-pickup.html",
   "/local/fengyuan-laundry-pickup.html",
   "/local/wufeng-laundry-pickup.html",
-  "/local/qingshui-laundry-pickup.html"
+  "/local/qingshui-laundry-pickup.html",
+  "/guides/shoe-drying-heat-risk.html",
+  "/guides/dry-cleaning-explained.html",
+  "/guides/clothing-dye-transfer.html",
+  "/guides/velvet-shoe-cleaning.html",
+  "/local/wuqi-laundry-pickup.html",
+  "/local/dadu-laundry-pickup.html",
+  "/local/shengang-laundry-pickup.html",
+  "/local/houli-laundry-pickup.html",
+  "/guides/satin-shoe-cleaning.html",
+  "/guides/dress-shoe-polish-buildup.html",
+  "/guides/suede-bag-care.html",
+  "/guides/bag-hardware-tarnish.html",
+  "/guides/light-leather-bag-yellowing.html",
+  "/guides/gore-tex-jacket-cleaning.html",
+  "/guides/sleeping-bag-cleaning.html",
+  "/guides/linen-garment-care.html",
+  "/services/evening-gown-cleaning.html"
 ] as const;
 
 export const NEW_PAGE_LASTMOD = "2026-10-06";

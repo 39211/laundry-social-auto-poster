@@ -6,8 +6,8 @@ import {
   sitemapLinkReportFailed
 } from "../scripts/check-sitemap-links";
 
-describe("seo-overrides sitemap 與 hub 入鏈", () => {
-  it("每個 sitemap URL 都有檔，B2＋B3 共 43 個新頁各有至少一條 hub 入鏈", () => {
+describe("seo-overrides B4-a sitemap 與 hub 入鏈", () => {
+  it("每個 sitemap URL 都有檔，B2＋B3＋B4-a 共 60 個新頁各有至少一條 hub 入鏈", () => {
     const report = checkSitemapLinks();
 
     expect(report.parseOk).toBe(true);
@@ -19,7 +19,7 @@ describe("seo-overrides sitemap 與 hub 入鏈", () => {
     expect(report.wrongLastmod).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(sitemapLinkReportFailed(report)).toBe(false);
-    expect(NEW_PAGE_PATHS).toHaveLength(43);
+    expect(NEW_PAGE_PATHS).toHaveLength(60);
     for (const path of NEW_PAGE_PATHS) {
       expect(report.inbound[path]?.count).toBeGreaterThanOrEqual(1);
     }
@@ -28,5 +28,11 @@ describe("seo-overrides sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/guides/knit-shoe-cleaning.html"]?.hubs).toContain("hubs/shoe-care.html");
     expect(report.inbound["/guides/luxury-bag-storage.html"]?.hubs).toContain("hubs/bag-care.html");
     expect(report.inbound["/local/qingshui-laundry-pickup.html"]?.hubs).toContain("hubs/local-pickup.html");
+    expect(report.inbound["/guides/velvet-shoe-cleaning.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/suede-bag-care.html"]?.hubs).toContain("hubs/bag-care.html");
+    expect(report.inbound["/guides/dry-cleaning-explained.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/sleeping-bag-cleaning.html"]?.hubs).toContain("hubs/bedding-textile-care.html");
+    expect(report.inbound["/services/evening-gown-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/local/houli-laundry-pickup.html"]?.hubs).toContain("hubs/local-pickup.html");
   });
 });

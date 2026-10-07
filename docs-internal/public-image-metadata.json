@@ -1007,6 +1007,16 @@
       "height": 1920,
       "webp_path": "assets/2026-10-07/slot-02.webp"
     },
+    "assets/2026-10-08/slot-01.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/2026-10-08/slot-01.webp"
+    },
+    "assets/2026-10-08/slot-02.png": {
+      "width": 1080,
+      "height": 1920,
+      "webp_path": "assets/2026-10-08/slot-02.webp"
+    },
     "assets/backgrounds/local-store-depth.png": {
       "width": 1672,
       "height": 941,

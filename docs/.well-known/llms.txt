@@ -140,6 +140,23 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - Holiday hours are managed as owner-approved overrides; no specific holiday date is emitted until it is explicitly verified.
 
 ## Published Posts
+- [2026-10-08 20:30 麂皮外套髒了、絨面塌了：店裡怎麼處理](https://sixiangjialaundry.com/posts/2026-10-08-slot-02.html)
+  platform targets: facebook, instagram
+  routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis
+  target_queries: 台中麂皮清潔 | 麂皮外套清洗 | 麂皮發花 | 西屯洗衣店 | 台中皮衣清潔 | 麂皮外套送洗
+  evidence_type: customer-question
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #麂皮外套 #皮衣清潔 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-10-08/slot-02.png
+  video: https://sixiangjialaundry.com/assets/2026-10-08/slot-02.mp4
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-10-08.json
+- [2026-10-08 11:30 麂皮外套發花、絨面塌了：送洗前先看這三件事](https://sixiangjialaundry.com/posts/2026-10-08-slot-01.html)
+  platform targets: facebook, instagram
+  routes: content_role=reach-answer; visual_route=shop-inspection; traffic_route=value-prop-lead; search_intent=problem-diagnosis
+  target_queries: 台中麂皮清潔 | 麂皮外套清洗 | 麂皮發花 | 西屯洗衣店 | 台中皮衣清潔 | 麂皮外套送洗
+  evidence_type: verified-business-fact
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #麂皮外套 #皮衣清潔 #送洗前檢查
+  image: https://sixiangjialaundry.com/assets/2026-10-08/slot-01.png
+  calendar: https://sixiangjialaundry.com/content-calendar/2026-10-08.json
 - [2026-10-07 20:30 AF1 鞋頭摺痕，洗得掉的是溝裡的灰](https://sixiangjialaundry.com/posts/2026-10-07-slot-02.html)
   platform targets: facebook, instagram
   routes: content_role=evidence-conversion; visual_route=shop-inspection; traffic_route=share-worthy-care; search_intent=problem-diagnosis

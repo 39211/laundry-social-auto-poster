@@ -1,0 +1,18 @@
+{
+  "surface_preferred": "https://www.facebook.com/messages/",
+  "surface_fallback_note": "business.facebook.com/latest/inbox may return unavailable-content; use Messages while acting as the Page",
+  "visible_threads": [
+    { "title": "[customer-1]", "preview": "[redacted]" },
+    { "title": "[customer-2]", "preview": "[redacted]" }
+  ],
+  "known_thread_fps": [
+    "0994ad6e4c8a1835",
+    "b3feb777a4370174",
+    "5356303c4c8c3800",
+    "8601c93c128e6573",
+    "ac92f791a94daa56"
+  ],
+  "updated_at": "2026-09-05T13:38:31",
+  "note": "page inbox baseline established; first watch compares against this",
+  "last_poll_status": "UNCHANGED"
+}

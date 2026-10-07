@@ -31,7 +31,7 @@
 - collar ring inside the collar, cuff-fold grime line
 - lapel roll natural, shoulder line soft not squared
 
-## 寢具/羽絨(棉被 $350–500、羽絨羊毛被 $800)
+## 寢具/羽絨(棉被 $350–500、羽絨被 $600、羊毛被 $800)
 - quilting channels with loft variation, down shifted where topic says
 - fabric slub and slight pilling on the used side
 - care label visible at a corner seam

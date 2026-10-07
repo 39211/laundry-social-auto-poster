@@ -176,7 +176,7 @@ function priceLineFor(topic: string): string {
   if (/皮衣/.test(topic)) return "參考價:皮衣 $1200、特殊皮衣 $2000";
   if (/襯衫|制服/.test(topic)) return "參考價:襯衫 $70、整燙 $50(水洗價)";
   if (/西裝|大衣|外套/.test(topic)) return "參考價:長大衣 $300、羽絨外套 $280(水洗價,乾洗另計)";
-  if (/被|床|寢|毯|枕/.test(topic)) return "參考價:棉被單人 $350、雙人 $500、羽絨羊毛被 $800(水洗價)";
+  if (/被|床|寢|毯|枕/.test(topic)) return "參考價:棉被單人 $350、雙人 $500、羽絨被 $600、羊毛被 $800(水洗價)";
   return "";
 }
 

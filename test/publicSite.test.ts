@@ -196,7 +196,8 @@ const CANONICAL_PRICE_TABLES = [
       ["皮衣", "$1200 / 特殊皮衣 $2000(發霉另計)"],
       ["棉被單人", "$350 / 雙人 $500(水洗價)"],
       ["床組四件套", "$300(水洗價)"],
-      ["羽絨羊毛被", "$800(水洗價)"],
+      ["羽絨被", "$600(水洗價)"],
+      ["羊毛被", "$800(水洗價)"],
       ["窗簾、地毯", "依尺寸報價，LINE 傳照片先估"],
       ["絨毛娃娃", "依大小報價，LINE 傳照片先估"]
     ]
@@ -1740,10 +1741,16 @@ describe("generatePublicSite", () => {
       )
     );
     // Money pages are the indexable surface; caption/post pages are out of the
-    // sitemap entirely (rescued 190d063 design). Date is ours: the static
-    // The knowledge navigation and compact featured-answer sections changed on 2026-09-03.
+    // sitemap entirely (rescued 190d063 design). The knowledge hub lastmod is
+    // the later of the 2026-09-03 template date and any support/service
+    // content_lastmod. Bedding and Donghai reference prices changed on
+    // 2026-10-07, so the hub lastmod moves with them.
     expect(sitemap1).not.toContain("/posts/");
-    expect(sitemap1).toContain("<lastmod>2026-09-03</lastmod>");
+    expect(sitemap1).toMatch(
+      new RegExp(
+        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/knowledge/</loc><lastmod>2026-10-07</lastmod>`
+      )
+    );
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
@@ -1913,7 +1920,7 @@ describe("generatePublicSite", () => {
       // 2026-08-25: D03 — the Xitun local page gained 逢甲/route/pickup
       // sections, so its content_lastmod moved off 2026-07-20.
       "2026-08-25",
-      "2026-08-26"
+      "2026-10-07"
     ]);
   });
 

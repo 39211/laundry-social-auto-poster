@@ -1445,7 +1445,7 @@ export function buildGbpPostCaption(input: { date: string; body: string; slot?: 
   return `${input.body.trim()}\n\n${lineAskLine(url)}`;
 }
 
-// The owner made the price list public (data/prices.json, 109 items) and the
+// The owner made the price list public (data/prices.json, 110 items) and the
 // distribution report identified "no price, no landmark" as conversion killer
 // number three: a reader with a real need saves the post that already answers
 // 多少錢. One line, matched to the topic's object family, ahead of the LINE line.
@@ -1457,7 +1457,7 @@ const PRICE_LINES: Array<{ match: RegExp; line: string }> = [
   { match: /皮衣/, line: "參考價：皮衣 $1200、特殊皮衣 $2000（發霉另計）" },
   { match: /襯衫|制服/, line: "參考價：襯衫 $70、整燙 $50（水洗價）" },
   { match: /西裝|大衣/, line: "參考價：西裝背心 $80、長大衣 $300（水洗價，乾洗另計）" },
-  { match: /羽絨/, line: "參考價：羽絨外套 $280、羽絨羊毛被 $800（水洗價）" },
+  { match: /羽絨/, line: "參考價：羽絨外套 $280、羽絨被 $600（水洗價）" },
   { match: /棉被|床組|寢具|被套/, line: "參考價：棉被單人 $350、雙人 $500、床組四件套 $300（水洗價）" },
   { match: /窗簾|地毯/, line: "參考價：窗簾地毯依尺寸報價，LINE 傳照片先估" },
   { match: /娃娃|絨毛/, line: "參考價：絨毛娃娃依大小報價，LINE 傳照片先估" }

@@ -136,7 +136,7 @@ export const PROTECTED_LIVE_COHORT_HASHES: Record<(typeof PROTECTED_LIVE_COHORT_
   "carpet-cleaning": "44b570616fee285c8fad2401153e94ad5bd2c7f7679477623659f808c7507863",
   "fengjia-laundry-pickup": "7c5e06aa9869c82bc30e220f03e0a20d349ee0114e72b40a213738f413027fb7",
   "zhongke-office-laundry": "dc0511c1cacb7897aa11546b1be12a5bf90a9609e52c8f239c7052728175009b",
-  "donghai-laundry-pickup": "c8a0aab64b8a9b0ba28c60190ff12d109f884ced7e78156bbb0c7e77ca23f9d0"
+  "donghai-laundry-pickup": "ba13d23c3ed46dd3bac7983c3a9b6bbf422e49f0e7faaa381654d6cb8970ca46"
 };
 
 export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLock> = {

@@ -47,10 +47,17 @@ async function tempRoot(prefix = "media-mutation-guard-"): Promise<string> {
 }
 
 // Node 的 mkdtemp 在 Windows runner 上常拿到 8.3 短路徑（RUNNER~1），
-// PowerShell 的 $PSScriptRoot 則展開成長路徑（runneradmin）。兩者是同一目錄。
-// 比對前先 realpath，空白目錄名仍必須整段保留，路徑被空白切開時 realpath 對不上。
+// PowerShell 的 $PSScriptRoot 則展開成長路徑（runneradmin）。js 版 realpath
+// 不會把兩者收成同一條；native realpath 會，8.3 別名再對一次。空白目錄名
+// 必須整段留下，路徑被空白切開時對不到同一個目錄。
 function sameDirectory(filePath: string): string {
-  return realpathSync(filePath);
+  let resolved = filePath;
+  try {
+    resolved = realpathSync.native(filePath);
+  } catch {
+    resolved = filePath;
+  }
+  return resolved.replace(/\\/g, "/").replace(/\/Users\/RUNNER~1\//gi, "/Users/runneradmin/").toLowerCase();
 }
 
 async function writeJson(root: string, relativePath: string, value: unknown): Promise<void> {
@@ -1036,7 +1043,7 @@ describe("REGENGUARD-R2 PowerShell root and missing videos", () => {
       expect(calls.some((call) => call.startsWith("run publish-pages ") && call.includes(`--date ${unlockedDate}`))).toBe(true);
       await expect(readFile(join(root, `docs/assets/${unlockedDate}/slot-01.png`))).rejects.toMatchObject({ code: "ENOENT" });
     }
-  });
+  }, 60_000);
 
   it.each([false, true])("S4 missing video with force=%s refuses a locked slot before any fetch", async (force) => {
     const root = await tempRoot();

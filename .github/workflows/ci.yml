@@ -9,7 +9,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, fix/reel-v3-two-reference-images]
 
 jobs:
   typecheck-and-test:

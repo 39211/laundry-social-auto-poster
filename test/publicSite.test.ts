@@ -21,6 +21,7 @@ import {
   resolveAcceptedIndexGrowthPages
 } from "../src/indexGrowthPages";
 import { PRODUCTION_PUBLIC_SITE_BASE_URL } from "../src/publicSiteTypes";
+import { NOINDEX_FOLLOW_LOCAL_PATHS } from "../scripts/check-sitemap-links";
 import {
   REQUIRED_SEARCH_CONTENT_EVENTS,
   assertSearchContentAnalyticsScript,
@@ -2884,6 +2885,13 @@ describe("generatePublicSite", () => {
     // Should contain override HTML pages (except price-list.html which is noindex)
     const overrideHtmlFiles = overrideFiles.filter(f => f.endsWith(".html") && f !== "price-list.html");
     expect(overrideHtmlFiles.length).toBeGreaterThan(60);
+    for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
+      expect(sitemap, path).not.toContain(`https://sixiangjialaundry.com${path}`);
+      const pageHtml = await readFile(join(docsRoot, path.slice(1)), "utf8");
+      expect(pageHtml, path).toContain('name="robots" content="noindex, follow"');
+    }
+    expect(sitemap).toContain("https://sixiangjialaundry.com/local/west-district-laundry-pickup.html");
+    expect(sitemap).toContain("https://sixiangjialaundry.com/local/fengjia-laundry-pickup.html");
     
     // Should have no /posts/ URLs (all slot posts are noindex)
     const postsUrls = sitemapUrls.filter(url => url.includes("/posts/"));

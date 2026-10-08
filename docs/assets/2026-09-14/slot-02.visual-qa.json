@@ -1,0 +1,77 @@
+{
+  "topic": "抱枕上的飲料痕，乾了以後才變黃",
+  "date": "2026-09-14",
+  "slot": 2,
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "SCENE": "PASS",
+    "TOPIC_MATCH": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "四張皆為米 beige 色系的方形織布抱枕，可見同色滾邊與黃褐色污痕，物件類型、色系及粗分類材質一致。",
+    "SCENE": "四張皆可見不鏽鋼工作檯或水槽，場景同屬金屬工作檯家族。",
+    "TOPIC_MATCH": "四張主體皆為帶黃褐色痕跡的抱枕，符合題目的物件。"
+  },
+  "frames_used": [
+    "slide-01.png",
+    "slide-02.png",
+    "slide-03.png",
+    "slide-04.png"
+  ],
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-14\\slot-02.png",
+      "canary": "UGM2",
+      "sha256": "20f627edf486dd55299ed293e8afa1f1aeb272552e78ec208e7499c0829332f0"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-14\\slot-02-slide-02.png",
+      "canary": "PMJB",
+      "sha256": "d680c945fa11cef697ac0709b927b9295c615aea5d2183f21db906752a34543d"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-14\\slot-02-slide-03.png",
+      "canary": "NCHS",
+      "sha256": "31d41547ede35f7834edd6df86fb0573f8062f4623546ee9fd989bf8d716b798"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-14\\slot-02-slide-04.png",
+      "canary": "J373",
+      "sha256": "030182f32b7f48694d4a7d184676562c54ef1c251c635992e574df6d00ad05f1"
+    }
+  ],
+  "sources": [
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-14\\slot-02.png",
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-14\\slot-02-slide-02.png",
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-14\\slot-02-slide-03.png",
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-14\\slot-02-slide-04.png"
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "UGM2",
+    "IMAGE_2": "PMJB",
+    "IMAGE_3": "NCHS",
+    "IMAGE_4": "J373"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "UGM2",
+    "IMAGE_2": "PMJB",
+    "IMAGE_3": "NCHS",
+    "IMAGE_4": "J373"
+  },
+  "prompt_hash": "cd5fd5ea2c5347a02b4a02e1a0e6797ccf6f4654d20f92481a53af26b5f397c8",
+  "run_id": "carousel-qa-1788975084735",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-09-09T17:33:44.784Z",
+  "mode": "warn",
+  "verdict": "FAIL_CLOSED",
+  "fail_class": "missing_observation"
+}

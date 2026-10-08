@@ -5,6 +5,7 @@ import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { writeVideoPromptManifest, type VideoPromptManifestItem } from "./generateVideo";
 import { loadVideoSources, readJsonFile, writeJsonAtomic, writeVideoSources } from "./logging";
+import { assertSlotMediaMutable, parseMediaGuardOverride, type SlotMediaOverride } from "./mediaMutationGuard";
 import { projectRoot, videoPromptManifestPath } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 import type { VideoSourceRecord } from "./types";
@@ -137,6 +138,7 @@ async function generateOne(
   root: string,
   apiKey: string,
   force: boolean,
+  mediaGuardOverride: SlotMediaOverride | undefined,
   fetchImpl: typeof fetch,
   sleep: (delayMs: number) => Promise<void>
 ): Promise<VideoSourceRecord> {
@@ -148,6 +150,15 @@ async function generateOne(
     if (existing) return existing;
     throw new Error(`${item.target_path} already exists without a matching video source record.`);
   }
+
+  // Guard every mutation, including a missing target, before mkdir, backup, or network.
+  await assertSlotMediaMutable({
+    root,
+    date: item.date,
+    slot: item.slot,
+    operation: "generate reel video",
+    override: mediaGuardOverride
+  });
 
   await mkdir(dirname(finalPath), { recursive: true });
   if ((await exists(finalPath)) && force) {
@@ -234,6 +245,7 @@ export async function generateGrokVideos(options: {
   root?: string;
   live?: boolean;
   force?: boolean;
+  mediaGuardOverride?: SlotMediaOverride;
   env?: NodeJS.ProcessEnv;
   fetchImpl?: typeof fetch;
   sleep?: (delayMs: number) => Promise<void>;
@@ -266,6 +278,7 @@ export async function generateGrokVideos(options: {
         root,
         apiKey,
         options.force ?? false,
+        options.mediaGuardOverride,
         options.fetchImpl ?? fetch,
         options.sleep ?? ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)))
       )
@@ -279,6 +292,7 @@ async function main(): Promise<void> {
   const config = getConfig();
   const date = getOption(args, "date") || getZonedDateParts(new Date(), config.timezone).date;
   const root = projectRoot(getOption(args, "root"));
+  const mediaGuardOverride = parseMediaGuardOverride(args);
   const manifestPath = await writeVideoPromptManifest(date, root);
 
   if (!getFlag(args, "live")) {
@@ -293,7 +307,8 @@ async function main(): Promise<void> {
     slot: getNumberOption(args, "slot"),
     root,
     live: true,
-    force: getFlag(args, "force")
+    force: getFlag(args, "force"),
+    mediaGuardOverride
   });
   console.log(JSON.stringify(records, null, 2));
 }

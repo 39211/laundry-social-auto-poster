@@ -231,32 +231,32 @@ describe("buildSlotImagePlan", () => {
 // wiring is pinned the same way generate-missing-images.ps1 pins its inventory:
 // as source assertions that go red when someone reorders or drops a step.
 describe("schedule-ahead-daily wiring", () => {
-  it("generates, stamps and publishes images between heal and auto-approve, in order", async () => {
+  it("logs missing images between heal and auto-approve and never generates, stamps or publishes", async () => {
     const source = await readFile(new URL("../scripts/schedule-ahead-daily.ps1", import.meta.url), "utf8");
     const heal = source.indexOf("heal-reel-slot");
     // The missing-calendar branch has its own earlier generate-image-manifest
     // call; the unconditional one this suite pins is the last occurrence.
     const manifest = source.lastIndexOf("generate-image-manifest -- --date $date");
     const planStep = source.indexOf("slot-image-plan -- --date $date");
-    const driver = source.indexOf("hermes-image-gen.py");
-    const stamp = source.indexOf("mark-image-source -- --date $date");
-    const pages = source.indexOf("publish-pages -- --date $date");
+    const missing = source.indexOf("IMAGE-MISSING");
     const approve = source.indexOf("auto-approve -- --date $date");
     const schedule = source.indexOf("schedule-ahead -- --date $date --live");
-    for (const [name, index] of Object.entries({ heal, manifest, planStep, driver, stamp, pages, approve, schedule })) {
+    for (const [name, index] of Object.entries({ heal, manifest, planStep, missing, approve, schedule })) {
       expect(index, `${name} step missing`).toBeGreaterThan(-1);
     }
-    // Manifest before plan (a plan without certified prompts refuses the day),
-    // generation chain complete before approval, approval before scheduling.
+    // Manifest before plan, the missing-image log between plan and approval,
+    // approval before scheduling. This job does not generate, stamp, or publish.
     expect(heal).toBeLessThan(manifest);
     expect(manifest).toBeLessThan(planStep);
-    expect(planStep).toBeLessThan(driver);
-    expect(driver).toBeLessThan(stamp);
-    expect(stamp).toBeLessThan(pages);
-    expect(pages).toBeLessThan(approve);
+    expect(planStep).toBeLessThan(missing);
+    expect(missing).toBeLessThan(approve);
     expect(approve).toBeLessThan(schedule);
-    expect(source).toContain("--source grok-imagine-image");
-    expect(source).toContain("hermes-agent\\venv\\Scripts\\python.exe");
+    expect(source).toContain("$problems += \"$date image-missing\"");
+    expect(source).not.toContain("hermes-image-gen.py");
+    expect(source).not.toContain("grok-imagine-image");
+    expect(source).not.toContain("mark-image-source");
+    expect(source).not.toContain("publish-pages");
+    expect(source).not.toContain("hermes-agent\\venv\\Scripts\\python.exe");
   });
 
   it("driver executes the plan without adding prompt text, edits at 3:4, and stages per slot", async () => {

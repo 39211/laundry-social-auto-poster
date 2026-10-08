@@ -1,9 +1,29 @@
 import { mkdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { posix } from "node:path";
 
 export function projectRoot(root = process.env.PROJECT_ROOT || process.cwd()): string {
   return resolve(root);
+}
+
+/**
+ * Turns an absolute filesystem path into a repo-relative path with forward
+ * slashes, for anything that gets written into a tracked or published record
+ * (e.g. docs/assets/*.visual-qa.json). Never call this on the path used for
+ * actual file I/O -- callers keep a separate absolute variable for that; this
+ * is for what gets stored, not what gets opened.
+ *
+ * A path already relative is only forward-slashed, not re-resolved (it may
+ * be relative to a different cwd than `root`). A path outside `root`
+ * (or on another drive on Windows) is returned forward-slashed but otherwise
+ * unchanged -- there is no repo-relative form for it, and silently rebasing
+ * it onto `root` would make it point at the wrong file.
+ */
+export function toRepoRelativePath(root: string, path: string): string {
+  if (!isAbsolute(path)) return path.split("\\").join("/");
+  const rel = relative(root, path);
+  if (rel.startsWith("..") || isAbsolute(rel)) return path.split("\\").join("/");
+  return rel.split("\\").join("/");
 }
 
 export function padSlot(slot: number): string {

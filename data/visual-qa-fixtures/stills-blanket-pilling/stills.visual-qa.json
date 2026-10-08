@@ -1,0 +1,61 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\blanket\\blanket-pilling-before.png",
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "PASS",
+    "STATE_ORDER": "PASS",
+    "MIDDLE_NOT_WORSE": "PASS",
+    "HANDS": "PASS",
+    "SCENE": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "Both acts show the same folded gray blanket with matching outline, material, and layer count.",
+    "ACCESSORY_COLOR": "No laces or hardware are visible in either act.",
+    "ORIENTATION": "The blanket retains the same three-quarter-right presentation in both acts.",
+    "STATE_ORDER": "The before act shows a rougher raised surface, while the after act shows a flatter, more uniform finish.",
+    "MIDDLE_NOT_WORSE": "No middle act is attached, so the comparison is before then after only.",
+    "HANDS": "The visible hands in the after act have normal anatomy and grip.",
+    "SCENE": "Both acts use the same white counter, pink mat, and slat-wall shop setting."
+  },
+  "frames_used": [
+    "before.png",
+    "after.png"
+  ],
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "VR7R",
+      "sha256": "2ef3c1c128733ef17b5a1c7830c1af3599a56075ce2500e85301e5275325402d"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "R3VL",
+      "sha256": "72d3a1512e88dad955186e8fb0b5c511efaf8cd8652f2e866c3c4c73e12b4c6f"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "VR7R",
+    "IMAGE_2": "R3VL"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "VR7R",
+    "IMAGE_2": "R3VL"
+  },
+  "reel_sha256": "216ec8acd36ca191457878f2a8bb2d667c4c370e5509d40609561c90c986a34a",
+  "prompt_hash": "4608fbf7f783774564d3c74752e3ec1446f7aaade136f0b6bb4a4cc166d809ec",
+  "run_id": "f809b54cda8c4a02a352484c4de2e4f9",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-08-29T04:37:40.060Z",
+  "stills_missing": [
+    "middle"
+  ],
+  "mode": "warn",
+  "verdict": "PASS",
+  "fail_class": null
+}

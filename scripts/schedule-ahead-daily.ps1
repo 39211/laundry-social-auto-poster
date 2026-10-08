@@ -23,6 +23,25 @@ function Write-Log([string]$message) {
         Out-File -FilePath $logFile -Append -Encoding utf8
 }
 
+# R2: Pure row classification; uncertain rows never count as confirmed.
+function Get-ScheduledRowSummary($Rows) {
+    $confirmed = 0
+    $uncertainRows = @()
+    foreach ($row in @($Rows)) {
+        if ($null -eq $row) { continue }
+        if ($row.status -eq "uncertain") {
+            $uncertainRows += $row
+        } elseif (-not [string]::IsNullOrWhiteSpace([string]$row.scheduled_post_id)) {
+            $confirmed++
+        }
+    }
+    return [pscustomobject]@{
+        Confirmed = $confirmed
+        Uncertain = $uncertainRows.Count
+        UncertainRows = @($uncertainRows)
+    }
+}
+
 function Show-Toast([string]$text) {
     try {
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
@@ -58,16 +77,15 @@ foreach ($offset in 1..3) {
     cmd /c "npm.cmd run day-lock -- --date $date --heal 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     cmd /c "npm.cmd run heal-reel-slot -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
 
-    # Images must exist, be stamped, and be LIVE on Pages before auto-approve
-    # and schedule-ahead run, or the whole date silently degrades to the live
-    # path (the 08-24..28 queue only had slot 1/2 because a hand-run batch
-    # filled them; this is that batch made formal). The manifest regenerates
+    # slot-image-plan still runs so missing images are logged. Owner rule
+    # 2026-09-26: this job does not generate, stamp, or publish those images.
+    # GPT Codex is the only image route; the morning scripts own generation.
+    # The manifest regenerates
     # unconditionally: it is deterministic from the calendar, and playbook
     # calendars written days ahead never got one from the missing-calendar
     # branch above (2026-08-29 was the first such gap).
     cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     $planFile = Join-Path $root "output\d3-imggen\plan-$date.json"
-    $resultFile = Join-Path $root "output\d3-imggen\result-$date.json"
     cmd /c "npm.cmd run slot-image-plan -- --date $date --out `"$planFile`" 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     $planItems = @()
     if (Test-Path -LiteralPath $planFile) {
@@ -85,71 +103,10 @@ foreach ($offset in 1..3) {
         $problems += "$date image-plan"
     }
     if ($planItems.Count -gt 0) {
-        Write-Log "IMAGE-GEN ${date}: generating $($planItems.Count) image(s) via hermes-Grok"
-        $hermesPython = "C:\Users\cyc39\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe"
-        & $hermesPython (Join-Path $PSScriptRoot "hermes-image-gen.py") --plan $planFile --out $resultFile --root $root 2>&1 |
-            Out-File -FilePath $logFile -Append -Encoding utf8
-        $genExit = $LASTEXITCODE
-        $generatedRows = @()
-        if (Test-Path -LiteralPath $resultFile) {
-            try {
-                $genResult = [IO.File]::ReadAllText($resultFile, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
-                $generatedRows = @($genResult.generated)
-                foreach ($fail in @($genResult.failed)) { Write-Log "IMAGE-GEN FAIL ${date} slot $($fail.slot): $($fail.reason)" }
-            } catch { Write-Log "IMAGE-GEN ${date}: unreadable result file" }
+        foreach ($item in @($planItems)) {
+            Write-Log "IMAGE-MISSING ${date} slot $($item.slot) $($item.target_path): not generated here (owner rule 2026-09-26: GPT only, no Grok/Google fallback)"
         }
-        if ($genExit -ne 0) { $problems += "$date image-gen" }
-        foreach ($row in $generatedRows) {
-            cmd /c "npm.cmd run mark-image-source -- --date $date --slot $($row.slot) --path $($row.path) --source grok-imagine-image 2>&1" |
-                Out-File -FilePath $logFile -Append -Encoding utf8
-            if ($LASTEXITCODE -ne 0) {
-                Write-Log "IMAGE-STAMP FAIL ${date} slot $($row.slot) $($row.path)"
-                $problems += "$date image-stamp"
-            }
-        }
-        if ($generatedRows.Count -gt 0) {
-            # Meta fetches every image URL at schedule time, so the bytes must be
-            # live before schedule-ahead hands the URL over (the 08-24 Reel 422:
-            # Pages deploy still in_progress). publish-pages commits and pushes;
-            # the poll below waits out the deploy. If it never confirms, keep
-            # going -- schedule-ahead re-verifies URLs itself and refuses cleanly,
-            # and tomorrow's run retries.
-            cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-            if ($LASTEXITCODE -ne 0) {
-                Write-Log "PAGES PUBLISH FAIL ${date}"
-                $problems += "$date pages-publish"
-            }
-            $deployOk = $false
-            $firstUrl = [string]$generatedRows[0].public_image_url
-            for ($poll = 1; $poll -le 12; $poll++) {
-                try {
-                    $resp = Invoke-WebRequest -Uri $firstUrl -Method Head -UseBasicParsing -TimeoutSec 20
-                    if ($resp.StatusCode -eq 200) { $deployOk = $true; break }
-                } catch {}
-                Start-Sleep -Seconds 30
-            }
-            if ($deployOk) {
-                foreach ($row in @($generatedRows | Select-Object -Skip 1)) {
-                    $rowOk = $false
-                    foreach ($poll in 1..3) {
-                        try {
-                            $resp = Invoke-WebRequest -Uri ([string]$row.public_image_url) -Method Head -UseBasicParsing -TimeoutSec 20
-                            if ($resp.StatusCode -eq 200) { $rowOk = $true; break }
-                        } catch { Start-Sleep -Seconds 10 }
-                    }
-                    if (-not $rowOk) {
-                        $deployOk = $false
-                        Write-Log "PAGES URL still unreachable: $($row.public_image_url)"
-                    }
-                }
-            }
-            if ($deployOk) {
-                Write-Log "IMAGE-GEN ${date}: $($generatedRows.Count) image(s) live on Pages"
-            } else {
-                Write-Log "PAGES DEPLOY unconfirmed for ${date}; schedule-ahead's own URL gate stays authoritative"
-                $problems += "$date pages-deploy"
-            }
-        }
+        $problems += "$date image-missing"
     } elseif (Test-Path -LiteralPath $planFile) {
         Write-Log "IMAGE-PLAN ${date}: nothing to generate"
     }
@@ -163,13 +120,31 @@ foreach ($offset in 1..3) {
         continue
     }
 
+    # R1: Save the native exit code immediately, before logging or other dates.
     $out = cmd /c "npm.cmd run schedule-ahead -- --date $date --live 2>&1"
+    $scheduleExitCode = $LASTEXITCODE
     $out | Out-File -FilePath $logFile -Append -Encoding utf8
+    if ($scheduleExitCode -ne 0) {
+        Write-Log "SCHEDULE-AHEAD EXIT $scheduleExitCode ${date}"
+        $problems += "$date schedule-ahead-exit-$scheduleExitCode"
+        @($out) | Select-Object -Last 5 | ForEach-Object { Write-Log ([string]$_) }
+    }
     $scheduledLog = Join-Path $root "data\scheduled-log\$date.json"
     if (Test-Path -LiteralPath $scheduledLog) {
         try {
             $rows = [IO.File]::ReadAllText($scheduledLog, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
-            $queued += "{0}x{1}" -f $date, @($rows).Count
+            # R3: Count only confirmed rows and keep operator action visible.
+            $summary = Get-ScheduledRowSummary $rows
+            $queued += "{0}x{1}" -f $date, $summary.Confirmed
+            if ($summary.Uncertain -gt 0) {
+                $problems += "$date uncertain-$($summary.Uncertain)"
+                foreach ($row in @($summary.UncertainRows)) {
+                    Write-Log "UNCERTAIN ${date} slot $($row.slot) $($row.platform): $($row.error) -- check the Page; if the post is NOT queued there, delete this row from data\scheduled-log\$date.json and rerun"
+                }
+            }
+            if ($summary.Confirmed -eq 0) {
+                Write-Log "NOTE ${date}: scheduled-log exists but nothing confirmed"
+            }
         } catch {
             $queued += "$date(?)"
         }
@@ -196,3 +171,5 @@ $summary = "queued: " + ($(if ($queued.Count) { $queued -join ", " } else { "non
 if ($problems.Count) { $summary += " / problems: " + ($problems -join ", ") }
 Write-Log $summary
 if ($problems.Count) { Show-Toast $summary }
+if ($problems.Count) { exit 1 }
+exit 0

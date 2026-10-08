@@ -9,6 +9,97 @@
 $ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
+
+# F32: Start-ScheduledTask on a Disabled task fails with "The task is disabled".
+# SilentlyContinue on that line left no log, so rescue believed it had acted.
+# Plan is a pure function so PS-layer smoke can invoke it without touching the
+# live scheduler. Invoke uses the plan, then logs Enable/Start failures instead
+# of swallowing them.
+function Get-ScheduledTaskRescuePlan {
+    param(
+        [Parameter(Mandatory = $true)][string]$TaskName,
+        $Task
+    )
+    $enableFirst = $false
+    $reason = "ready"
+    if ($null -eq $Task) {
+        $reason = "missing"
+    } elseif ("$($Task.State)" -eq "Disabled") {
+        $enableFirst = $true
+        $reason = "disabled"
+    }
+    [pscustomobject]@{
+        TaskName    = $TaskName
+        EnableFirst = [bool]$enableFirst
+        Start       = $true
+        Reason      = $reason
+    }
+}
+
+function Invoke-ScheduledTaskRescue {
+    param(
+        [Parameter(Mandatory = $true)][string]$TaskName,
+        [Parameter(Mandatory = $true)][string]$LogFile,
+        $Now,
+        [scriptblock]$GetTask,
+        [scriptblock]$EnableTask,
+        [scriptblock]$StartTask
+    )
+    if ($null -eq $Now) { $Now = Get-Date }
+    if (-not $GetTask) {
+        $GetTask = { param($n) Get-ScheduledTask -TaskName $n -ErrorAction SilentlyContinue }
+    }
+    if (-not $EnableTask) {
+        $EnableTask = { param($n) Enable-ScheduledTask -TaskName $n -ErrorAction Stop }
+    }
+    if (-not $StartTask) {
+        $StartTask = { param($n) Start-ScheduledTask -TaskName $n -ErrorAction Stop }
+    }
+
+    $task = & $GetTask $TaskName
+    $plan = Get-ScheduledTaskRescuePlan -TaskName $TaskName -Task $task
+    $stamp = "{0:yyyy-MM-dd HH:mm:ss}" -f $Now
+
+    if ($plan.EnableFirst) {
+        ("[{0}] {1} is Disabled during an open window; re-enabling." -f $stamp, $TaskName) |
+            Add-Content -Path $LogFile -Encoding UTF8
+        try {
+            & $EnableTask $TaskName
+        } catch {
+            ("[{0}] Enable-ScheduledTask {1} failed: {2}" -f $stamp, $TaskName, $_.Exception.Message) |
+                Add-Content -Path $LogFile -Encoding UTF8
+        }
+    }
+
+    try {
+        & $StartTask $TaskName
+    } catch {
+        ("[{0}] Start-ScheduledTask {1} failed: {2}" -f $stamp, $TaskName, $_.Exception.Message) |
+            Add-Content -Path $LogFile -Encoding UTF8
+    }
+
+    return $plan
+}
+
+function Get-WatchdogPostedSlots {
+    [CmdletBinding()]
+    param([Parameter(Mandatory = $true)][string]$Root, [Parameter(Mandatory = $true)][string]$Date)
+    $postedPath = Join-Path $Root "data\posted-log\$Date.json"
+    if (-not (Test-Path -LiteralPath $postedPath)) { return @() }
+    try {
+        $parsed = ConvertFrom-Json -InputObject (Get-Content -LiteralPath $postedPath -Raw -Encoding utf8)
+        $igSlots = @(@($parsed) | Where-Object {
+            $_.platform -eq "instagram" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status)
+        } | ForEach-Object { [int]$_.slot })
+        $fbSlots = @(@($parsed) | Where-Object {
+            $_.platform -eq "facebook" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status)
+        } | ForEach-Object { [int]$_.slot })
+        return @($igSlots | Where-Object { $fbSlots -contains $_ } | Sort-Object -Unique)
+    } catch {
+        return @()
+    }
+}
+
 $root = Split-Path -Parent $PSScriptRoot
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
 $now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
@@ -18,7 +109,26 @@ $logDir = Join-Path $root "output\watchdog-logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $logFile = Join-Path $logDir "$date.log"
 
+function Show-PatrolToast([string]$text) {
+    if ($env:WATCHDOG_PATROL_TOAST_FILE) {
+        ("TOAST|" + $text) | Out-File -LiteralPath $env:WATCHDOG_PATROL_TOAST_FILE -Append -Encoding utf8
+        return
+    }
+    try {
+        [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+        $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
+        $nodes = $template.GetElementsByTagName("text")
+        $nodes.Item(0).AppendChild($template.CreateTextNode("私享家發布看門狗")) | Out-Null
+        $nodes.Item(1).AppendChild($template.CreateTextNode($text)) | Out-Null
+        $toast = New-Object Windows.UI.Notifications.ToastNotification($template)
+        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("LaundryWatchdog").Show($toast)
+    } catch {
+        "[{0:yyyy-MM-dd HH:mm:ss}] Toast failed: {1}" -f $now, $_.Exception.Message | Add-Content -Path $logFile -Encoding UTF8
+    }
+}
+
 . (Join-Path $PSScriptRoot "_watchdog.ps1")
+. (Join-Path $PSScriptRoot "publish-slot-times.ps1")
 
 # Dead-trigger detection (both review families): a task can be State=Ready
 # with an empty NextRunTime -- the exact way the patrol itself died on 08-08.
@@ -39,33 +149,26 @@ if ($deadTasks.Count -gt 0) {
 $approvedPath = Join-Path $root "data\approved-log\$date.json"
 if (-not (Test-Path $approvedPath)) { exit 0 }
 
-$slotTimes = @{ 1 = [TimeSpan]"11:30"; 2 = [TimeSpan]"20:30"; 3 = [TimeSpan]"12:00" }
 $recovery = [TimeSpan]::FromHours(4)
 
-$postedSlots = @()
-$postedPath = Join-Path $root "data\posted-log\$date.json"
-if (Test-Path $postedPath) {
-    try {
-        $parsed = Get-Content $postedPath -Raw -Encoding utf8 | ConvertFrom-Json
-        # Both platforms must have succeeded before a slot counts as done:
-        # IG-only success used to mark the slot complete and FB stayed
-        # permanently unpublished if the retry trigger died (luna, high).
-        $igSlots = @(@($parsed) | Where-Object {
-            $_.platform -eq "instagram" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status)
-        } | ForEach-Object { $_.slot })
-        $fbSlots = @(@($parsed) | Where-Object {
-            $_.platform -eq "facebook" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status)
-        } | ForEach-Object { $_.slot })
-        $postedSlots = @($igSlots | Where-Object { $fbSlots -contains $_ })
-    } catch {}
-}
+$postedSlots = @(Get-WatchdogPostedSlots -Root $root -Date $date)
 
-$needsRescue = $false
-foreach ($slot in 1, 2, 3) {
-    $t = $slotTimes[$slot]
-    $inWindow = ($now.TimeOfDay -ge $t) -and (($now.TimeOfDay - $t) -le $recovery)
-    if ($inWindow -and ($postedSlots -notcontains $slot)) { $needsRescue = $true }
+$calendarSlots = Get-CalendarSlots -Root $root -Date $date
+if ($null -eq $calendarSlots) {
+    "[{0:yyyy-MM-dd HH:mm:ss}] Calendar unreadable; falling back to slots 1, 2, 3." -f $now | Add-Content -Path $logFile -Encoding UTF8
+    $calendarSlots = [int[]]@(1, 2, 3)
 }
+$missingRequiredCalendarSlots = @(Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots)
+if ($missingRequiredCalendarSlots.Count -gt 0) {
+    $line = "[{0:yyyy-MM-dd HH:mm:ss}] Calendar missing required slot(s): {1}; refusing patrol rescue." -f $now, ($missingRequiredCalendarSlots -join ",")
+    $line | Add-Content -Path $logFile -Encoding UTF8
+    Show-PatrolToast ("今天行事曆缺少必備 slot {0},看門狗停止救援,請先修復行事曆。" -f ($missingRequiredCalendarSlots -join ","))
+    exit 1
+}
+$slotTimeWarning = $null
+$slotTimes = Get-SlotTimes -Root $root -Date $date -WarningMessage ([ref]$slotTimeWarning)
+if ($slotTimeWarning) { "[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $now, [string]$slotTimeWarning | Add-Content -Path $logFile -Encoding UTF8 }
+$needsRescue = Test-NeedsPublishRescue -NowTime $now.TimeOfDay -SlotTimes $slotTimes -CalendarSlots $calendarSlots -PostedSlots $postedSlots -RecoveryWindow $recovery
 
 if ($needsRescue) {
     $line = "[{0:yyyy-MM-dd HH:mm:ss}] Patrol found an open window with an unpublished slot; starting catch-up." -f $now
@@ -78,13 +181,7 @@ if ($needsRescue) {
     # check above (empty NextRunTime) does not reliably catch this: it only
     # runs before $approvedPath exists for the day, and by the time a slot is
     # actually due the task may have been disabled well after that check ran.
-    $ctp = Get-ScheduledTask -TaskName "Laundry-CatchUp-Publish" -ErrorAction SilentlyContinue
-    if ($null -ne $ctp -and $ctp.State -eq "Disabled") {
-        "[{0:yyyy-MM-dd HH:mm:ss}] Laundry-CatchUp-Publish is Disabled during an open window; re-enabling." -f $now |
-            Add-Content -Path $logFile -Encoding UTF8
-        Enable-ScheduledTask -TaskName "Laundry-CatchUp-Publish" -ErrorAction SilentlyContinue | Out-Null
-    }
-    Start-ScheduledTask -TaskName "Laundry-CatchUp-Publish" -ErrorAction SilentlyContinue
+    Invoke-ScheduledTaskRescue -TaskName "Laundry-CatchUp-Publish" -LogFile $logFile -Now $now
 }
 
 # YouTube rescue, session-independent: after 21:05 every live IG Reel should
@@ -104,6 +201,6 @@ if ($now.TimeOfDay -ge [TimeSpan]"21:05") {
     if ($liveReels -gt $ytCount) {
         $line = "[{0:yyyy-MM-dd HH:mm:ss}] Patrol: {1} live Reel(s) but {2} Short(s); starting YouTube upload." -f $now, $liveReels, $ytCount
         $line | Add-Content -Path $logFile -Encoding UTF8
-        Start-ScheduledTask -TaskName "Laundry-YouTube-Upload" -ErrorAction SilentlyContinue
+        Invoke-ScheduledTaskRescue -TaskName "Laundry-YouTube-Upload" -LogFile $logFile -Now $now
     }
 }

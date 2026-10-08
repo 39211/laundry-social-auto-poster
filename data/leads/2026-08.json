@@ -73,6 +73,57 @@
       "line_clicks_total": 0,
       "source_clicks": {},
       "source_clicks_status": "measured"
+    },
+    "2026-08-24": {
+      "line_clicks_total": 0,
+      "source_clicks": {},
+      "source_clicks_status": "measured"
+    },
+    "2026-08-25": {
+      "line_clicks_total": 0,
+      "source_clicks": {},
+      "source_clicks_status": "measured"
+    },
+    "2026-08-26": {
+      "line_clicks_total": 3,
+      "source_clicks": {
+        "(not set)": 3
+      },
+      "source_clicks_status": "measured"
+    },
+    "2026-08-27": {
+      "line_clicks_total": 0,
+      "source_clicks": {},
+      "source_clicks_status": "measured"
+    },
+    "2026-08-28": {
+      "line_clicks_total": 3,
+      "source_clicks": {
+        "post": 3
+      },
+      "source_clicks_status": "measured"
+    },
+    "2026-08-29": {
+      "line_clicks_total": 3,
+      "source_clicks": {
+        "ig-comment": 3
+      },
+      "source_clicks_status": "measured"
+    },
+    "2026-08-30": {
+      "line_clicks_total": 1,
+      "source_clicks": {
+        "yt": 1
+      },
+      "source_clicks_status": "measured"
+    },
+    "2026-08-31": {
+      "line_clicks_total": 3,
+      "source_clicks": {
+        "yt": 2,
+        "post": 1
+      },
+      "source_clicks_status": "measured"
     }
   },
   "note": "source_clicks 由 GA4 line_click 對照;inquiries/won 老闆每日回填"

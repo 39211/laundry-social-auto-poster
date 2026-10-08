@@ -1,0 +1,1261 @@
+{
+  "project": "New project 5",
+  "site": "https://sixiangjialaundry.com",
+  "as_of": "2026-08-31T19:57:30+08:00",
+  "milestone": {
+    "name": "first-100-page",
+    "status": "not_achieved",
+    "live_sitemap_urls": 32,
+    "last_known_gsc_indexed": 26,
+    "last_known_gsc_discovered_not_indexed": 6,
+    "candidate_urls_remote": 24,
+    "candidate_urls_live_404": 24,
+    "conservative_deployable_ceiling": 23,
+    "live_url_gap_if_safety_draft_remains": 45,
+    "milestones_150_200": "deferred_until_100_verified"
+  },
+  "live_rechecks": {
+    "sitemap_http_status": 200,
+    "sitemap_last_modified": "2026-08-31T06:04:33Z",
+    "html_http_200": "32/32",
+    "canonical_self": "32/32",
+    "noindex": "0/32",
+    "jsonld_parseable_graph_aware": "32/32",
+    "date_modified_in_jsonld_graph": "32/32",
+    "future_lastmod": 0,
+    "title_unique": "32/32",
+    "meta_description_unique": "32/32",
+    "h1_unique": "32/32",
+    "text_chars_min": 1046,
+    "text_chars_max": 55917,
+    "sitemap_jsonld_lastmod_match": "32/32",
+    "sitemap_missing_jsonld_date_modified": "0/32",
+    "future_sitemap_lastmod": 0
+  },
+  "live_content_hash_anchor": {
+    "checked_at": "2026-08-31T19:20:32+08:00",
+    "sitemap": {
+      "url": "https://sixiangjialaundry.com/sitemap.xml",
+      "http_status": 200,
+      "last_modified": "Mon, 31 Aug 2026 06:04:33 GMT",
+      "utf8_bytes": 3820,
+      "sha256": "743b8c3dd729c8aae580ecfc207e4df3fdffcb63e04fe45d949a13c671d83dc7"
+    },
+    "robots": {
+      "url": "https://sixiangjialaundry.com/robots.txt",
+      "http_status": 200,
+      "last_modified": "Mon, 31 Aug 2026 06:04:33 GMT",
+      "utf8_bytes": 641,
+      "sha256": "f1b9146aa008b31b565ac07792cd052ecdbe9f040582c6b167d48d141bd19d0a"
+    },
+    "status": "content_hash_bound;change_detector_only_not_indexing_proof"
+  },
+  "live_content_thickness_audit": {
+    "checked_at": "2026-08-31T19:22:20+08:00",
+    "source": "live sitemap 32 URLs; main visible text after script/style removal",
+    "http_200": "32/32",
+    "h1_exactly_one": "32/32",
+    "main_text_chars_min": 1025,
+    "main_text_chars_max": 55889,
+    "discovered_not_indexed_pages": {
+      "business_bulk_laundry": 2116,
+      "taichung_laundry_price_list": 1820,
+      "taichung_laundry_service_search": 2088,
+      "taichung_citywide_laundry_pickup": 2609,
+      "fabric_storage": 2823,
+      "taichung_xitun_laundry": 3267
+    },
+    "short_tail_le_1400_chars": "8/32",
+    "status": "content_thickness_measured;not_indexing_proof"
+  },
+  "first_party_demand_evidence_triage": {
+    "checked_at": "2026-08-31T19:28:18+08:00",
+    "hat_cleaning_check": {
+      "price_entries_found": ["帽子=80", "皮帽子=300", "精品帽子=130"],
+      "content_plan_inspection_flow": true,
+      "live_hat_related_term_pages": "0/32",
+      "live_price_page_hat_terms": "0/6",
+      "status": "evidence_internal_only;public_scope_and_asset_provenance_required",
+      "live_scope_report": "reports/live-hat-scope-audit-2026-08-31.md"
+    },
+    "luggage_interior_cleaning": {
+      "existing_luggage_guide_covers_related_scope": true,
+      "distinct_interior_service_fact_found": false,
+      "status": "do_not_split;enhance_existing_luggage_guide"
+    },
+    "business_bulk_and_fabric_guides": "enhance_existing;legal_scope_or_case_provenance_required",
+    "report": "reports/first-party-demand-evidence-triage-2026-08-31.md"
+  },
+  "completion_matrix_refresh": {
+    "checked_at": "2026-08-31T19:34:40+08:00",
+    "live_sitemap_and_thickness": "32/32_http_200;main_chars_1025_to_55889",
+    "first_party_query_evidence": "11_files;10_rows;4_unique;non_brand_4_impressions_0_clicks",
+    "pr_lineage": "pr30_contains_pr29;ahead=2;behind=0;both_review_decision_empty",
+    "milestone_100": "not_achieved",
+    "milestones_150_200": "deferred_until_100_verified",
+    "status": "current_state_consolidated"
+  },
+  "existing_page_snippet_experiment": {
+    "checked_at": "2026-08-31T19:40:39+08:00",
+    "treatment": "services/white-shoe-cleaning.html;meta_answer_first_only",
+    "controls": ["guides/birkenstock-care.html", "guides/plush-doll-cleaning.html"],
+    "baseline_signals": {
+      "white_shoe": "3 impressions;1 click",
+      "birkenstock": "12 page impressions;query 2 impressions",
+      "plush_doll": "4 page impressions;queries 1+1 impressions"
+    },
+    "answer_box_live": "3/3 present",
+    "status": "ready_for_authorized_source_patch;not_deployed",
+    "report": "docs-internal/index-growth-100-existing-page-snippet-experiment-2026-08-31.md"
+  },
+  "existing_page_snippet_dry_run": {
+    "checked_at": "2026-08-31T19:42:11+08:00",
+    "target": "services/white-shoe-cleaning.html",
+    "candidate_meta_chars": 60,
+    "candidate_meta_utf8_bytes": 180,
+    "answer_first": true,
+    "brand_leading": false,
+    "has_material_and_limit": true,
+    "has_existing_service_fact": true,
+    "unsafe_promise_patterns": false,
+    "status": "surface_gate_pass;dry_run_only;not_deployed"
+  },
+  "cohort1_demand_pilot": {
+    "checked_at": "2026-08-31T19:44:35+08:00",
+    "candidate": "shoe-odor-source",
+    "first_party_query": "勃肯鞋會臭嗎",
+    "first_party_signal": "2 impressions;0 clicks;average position 21",
+    "isolated_html": "1198 main chars;answer_box_present;self_canonical;jsonld_parseable",
+    "snippet_status": "meta_og_twitter_brand_leading",
+    "link_closure_status": "washing-machine-shoe-risk_live_404",
+    "status": "demand_priority_only;release_gate_still_blocked"
+  },
+  "cohort1_pilot_gate": {
+    "checked_at": "2026-08-31T19:54:51+08:00",
+    "candidate": "shoe-odor-source",
+    "priority_gate": "pass_for_priority",
+    "html_gate": "pass",
+    "snippet_gate": "fail;meta_og_twitter_brand_leading",
+    "snippet_dry_run": "pass;56_chars_168_utf8_bytes;answer_first;unsafe_promises_0;not_applied",
+    "image_provenance_gate": "fail;shared_hero_without_real_case_ledger_entry",
+    "asset_ledger_matching_entries": 0,
+    "neutral_image_label_dry_run": "pass;5_of_5_surfaces_neutral;legacy_case_terms_0;not_applied",
+    "quality_test_revalidation": "50/50_focused_pass;tsc_noEmit_pass;does_not_override_release_gates",
+    "link_closure_gate": "fail;washing-machine-shoe-risk_live_404",
+    "live_gate": "fail;candidate_not_deployed",
+    "pr30_core_gate": "fail;five_fail_open_mutations_and_exact_host_unproven",
+    "status": "pilot_not_ready",
+    "report": "docs-internal/index-growth-100-shoe-odor-pilot-gate-2026-08-31.md"
+  },
+  "seo_actions_reconciliation": {
+    "checked_at": "2026-08-31T19:48:58+08:00",
+    "file": "data/insights/seo-actions/2026-08-31.json",
+    "corrected_live_sitemap_urls": 32,
+    "isolated_candidate_guides_not_live": 24,
+    "historical_56_url_output_preserved_as": "historical_isolated_indexnow",
+    "status": "stale_action_log_reconciled_to_live_evidence"
+  },
+  "live_claim_staleness_scan": {
+    "checked_at": "2026-08-31T20:02:24+08:00",
+    "report": "reports/live-claim-staleness-scan-2026-08-31.md",
+    "lexical_matches": 37,
+    "context_marked_matches": 27,
+    "manually_classified_residual_matches": 10,
+    "live_sitemap_json_loc_match": true,
+    "live_sitemap_urls": 32,
+    "isolated_candidates_not_live": 24,
+    "historical_56_counts_as_current_live": false,
+    "status": "pass_document_claims_separated_from_live_evidence"
+  },
+  "evening_data_contract": {
+    "checked_at": "2026-08-31T19:53:14+08:00",
+    "ga4_latest_file": "data/insights/ga4-traffic/2026-08-30.json",
+    "ga4_root_engaged_sessions": false,
+    "ga4_line_click_field": false,
+    "ga4_engaged_sessions_source": "by_source.engaged_sessions;derive only when rows are present",
+    "line_click_policy": "null_unmeasured_when_field_absent",
+    "gsc_latest_file": "data/insights/gsc/2026-08-27.json",
+    "gsc_totals_schema": "clicks_impressions_ctr_position_present",
+    "today_files_before_schedule": "ga4_missing;gsc_missing",
+    "status": "wait_for_schedule;no_manual_run"
+  },
+  "live_response_header_indexability": {
+    "pages": 32,
+    "http_200": "32/32",
+    "non_html_content_type": "0/32",
+    "x_robots_tag_nonempty": "0/32",
+    "location_redirect": "0/32",
+    "status": "response_layer_clear_not_indexing_proof"
+  },
+  "live_host_link_audit": {
+    "pages": 32,
+    "pages_with_external_hosts": "32/32_expected_mix",
+    "pages_with_github_io_mirror": "1/32",
+    "mirror_occurrences": 13,
+    "mirror_unique_variants": 2,
+    "mirror_head_status": 200,
+    "mirror_destination_robots": "noindex,nofollow",
+    "status": "conversion_and_host_hygiene_review"
+  },
+  "submission": {
+    "indexnow_report": "output/operations/indexing-push-2026-08-31.json",
+    "sitemap_urls": 32,
+    "submitted": 33,
+    "status": 200,
+    "counts_as_google_indexed": false
+  },
+  "gsc_freshness": {
+    "snapshot": "data/insights/gsc-index/2026-08-31.json",
+    "generated_at": "2026-08-30T17:41:02.332Z",
+    "status": "stale_against_live_sitemap",
+    "missing_daily_performance_files": [
+      "data/insights/gsc/2026-08-24.json",
+      "data/insights/gsc/2026-08-25.json",
+      "data/insights/gsc/2026-08-26.json"
+    ]
+  },
+  "demand_evidence": {
+    "source_pattern": "data/insights/gsc/*.json",
+    "available_file_count": 11,
+    "date_range": "2026-08-14..2026-08-27",
+    "sum_impressions": 63,
+    "sum_clicks": 1,
+    "query_recheck_at": "2026-08-31T19:33:02+08:00",
+    "top_query_rows": 10,
+    "unique_queries": 4,
+    "brand_query": "私享家=20 impressions across 7 files",
+    "non_brand_impressions": 4,
+    "non_brand_clicks": 0,
+    "missing_daily_files": [
+      "2026-08-24",
+      "2026-08-25",
+      "2026-08-26"
+    ],
+    "non_brand_queries": [
+      "勃肯鞋會臭嗎",
+      "娃娃送洗台中",
+      "絨毛娃娃清洗店"
+    ],
+    "status": "small_first_party_sample_not_market_volume"
+  },
+  "gsc_discovered_six_live_audit": {
+    "pages": 6,
+    "http_200": "6/6",
+    "self_canonical": "6/6",
+    "jsonld_parseable": "6/6",
+    "noindex": "0/6",
+    "meta_description_brand_leading": "4/6",
+    "answer_box_brand_leading": "3/6",
+    "primary_experiment": "answer_first_snippet_plus_one_contextual_internal_link",
+    "status": "ready_for_authorized_pr_patch_only"
+  },
+  "gsc_discovered_six_internal_link_audit": {
+    "suggested_target_count": 14,
+    "href_present": "11/14",
+    "present_target_live_200": "11/11",
+    "missing_targets": [
+      "services/taichung-citywide-laundry-pickup.html -> guides/taichung-laundry-service-search.html",
+      "services/taichung-laundry-price-list.html -> guides/white-shoe-yellowing.html",
+      "services/taichung-laundry-price-list.html -> guides/luxury-dry-cleaning.html"
+    ],
+    "status": "ready_for_authorized_pr_patch_only"
+  },
+  "ai_entrypoints_live_audit": {
+    "endpoints": 4,
+    "http_200": "4/4",
+    "sitemap_url_coverage": "32/32",
+    "json_parseable": "2/2",
+    "ai_discovery_service_pages": 7,
+    "ai_discovery_support_pages": 24,
+    "answers_count": 155,
+    "generated_at": "2026-08-30T17:11:35.767Z",
+    "server_last_modified": "2026-08-31T06:04:34Z",
+    "freshness_discrepancy": "12h53m01s; needs pipeline verification",
+    "status": "crawlable_coverage_verified_citation_unmeasured",
+    "legacy_mirror_occurrences": {
+      "llms_full": 23,
+      "ai_discovery": 23,
+      "homepage_html": 13,
+      "llms": 0,
+      "answers": 0
+    },
+    "affected_published_post_records": 13,
+    "affected_post_date_range": "2026-08-14..2026-08-19",
+    "legacy_mirror_status": "present_in_two_ai_feeds_requires_canonicalization;destination_noindex_nofollow"
+  },
+  "ai_entrypoints_advertised_audit": {
+    "checked_at": "2026-08-31T18:13:47+08:00",
+    "endpoints_checked": 15,
+    "http_200": "15/15",
+    "json_parseable": "9/9",
+    "jsonl_lines": 274,
+    "jsonl_parseable_lines": "274/274",
+    "ai_sitemap_loc": 231,
+    "ai_sitemap_unique_loc": 231,
+    "ai_sitemap_site_host_loc": "231/231",
+    "sitemap_loc": 32,
+    "status": "all_advertised_entries_crawlable;indexing_and_external_citation_unmeasured"
+  },
+  "ai_tools_official_weekly_check": {
+    "checked_at": "2026-08-31T18:16:35+08:00",
+    "searchable": "candidate_not_enabled;authorization_required",
+    "perplexity": "crawler_policy_verified;live_robots_and_http_allow",
+    "julius": "anonymized_aggregate_only;no_upload_or_oauth",
+    "clay": "out_of_scope_until_legal_business_list_use_case_and_authorization",
+    "external_actions": "none"
+  },
+  "ai_tools_official_recheck": {
+    "checked_at": "2026-08-31T20:05:00+08:00",
+    "report": "reports/ai-tools-official-weekly-check-2026-08-31.md",
+    "official_sources": [
+      "https://www.searchable.com/solutions/brands",
+      "https://www.searchable.com/features/aeo-insights/mentions-citations",
+      "https://docs.perplexity.ai/docs/resources/perplexity-crawlers",
+      "https://julius.ai/docs/get-started/privacy-and-data-security",
+      "https://julius.ai/privacy-policy",
+      "https://university.clay.com/docs/ai-in-clay"
+    ],
+    "searchable": "candidate_not_enabled;product_claims_only;authorization_required",
+    "perplexity": "crawler_policy_rechecked;live_robots_and_http_allow;citation_unmeasured",
+    "julius": "aggregate_deidentified_only;no_upload_or_oauth",
+    "clay": "out_of_scope_until_legal_business_list_use_case_and_authorization",
+    "external_actions": "none",
+    "status": "pass_capability_boundary_reconfirmed"
+  },
+  "remote_pr_schedule_recheck": {
+    "checked_at": "2026-08-31T20:06:42+08:00",
+    "pr29": "open;mergeable_clean;ci_success;approval_missing",
+    "pr30": "open;mergeable_clean;ci_success;reviews_zero;rewrite_required",
+    "live_sitemap_http": 200,
+    "live_sitemap_urls": 32,
+    "today_ga4": "missing;next_scheduled_23:10",
+    "today_gsc": "missing;next_scheduled_23:15",
+    "indexnow": "already_successful;not_repeated",
+    "status": "no_release_change;wait_for_scheduled_data"
+  },
+  "six_page_content_enrichment_brief": {
+    "checked_at": "2026-08-31T20:08:30+08:00",
+    "report": "docs-internal/index-growth-100-six-page-content-enrichment-brief-2026-08-31.md",
+    "scope": "six_existing_gsc_discovered_not_indexed_urls",
+    "live_source_fetch": "6/6_http_200_at_checked_at",
+    "new_urls": 0,
+    "draft_sections": 6,
+    "first_party_case_required_for_fabric_storage": true,
+    "source_modified": false,
+    "deployment": "not_authorized;not_attempted",
+    "measurement": "day0_then_7d_28d_gsc_ga4_with_null_preservation",
+    "status": "implementation_brief_ready;release_gates_still_unmet"
+  },
+  "quality_gate_test_revalidation": {
+    "checked_at": "2026-08-31T20:11:43+08:00",
+    "page_and_publish_tests": "31/31_pass",
+    "sitemap_indexnow_gsc_tests": "19/19_pass",
+    "total_tests": "50/50_pass",
+    "typecheck": "tsc_noEmit_pass",
+    "initial_cli_mistake": "vitest_rejected_unsupported_runInBand;rerun_with_native_syntax",
+    "source_modified": false,
+    "status": "focused_quality_and_data_boundary_tests_pass"
+  },
+  "completion_audit": {
+    "checked_at": "2026-08-31T20:18:03+08:00",
+    "matrix": "docs-internal/index-growth-100-completion-matrix-2026-08-31.md",
+    "official_requirements": "pass_research",
+    "demand": "partial_signal_only",
+    "quality_gated_expansion": "partial_rewrite_required",
+    "initial_batch": "not_deployed;24_candidates_http404",
+    "live_indexability": "32_sitemap;26_indexed_6_discovered",
+    "first_100": "not_achieved",
+    "150_200": "deferred_until_100_verified",
+    "status": "requirement_by_requirement_audit_complete_no_false_completion_claims"
+  },
+  "gsc_six_snippet_recheck": {
+    "checked_at": "2026-08-31T20:21:32+08:00",
+    "report": "reports/gsc-discovered-six-snippet-audit-2026-08-31.md",
+    "http_200": "6/6",
+    "self_canonical": "6/6",
+    "jsonld_parseable": "6/6",
+    "answer_brand_leading": "3/6",
+    "meta_brand_leading": "4/6",
+    "noindex": "0/6",
+    "source_modified": false,
+    "count_correction_verified": true,
+    "status": "snippet_surface_mixed;answer_first_experiment_pending"
+  },
+  "gsc_six_answer_first_snippet_dry_run": {
+    "checked_at": "2026-08-31T20:22:26+08:00",
+    "report": "reports/gsc-six-answer-first-snippet-dry-run-2026-08-31.md",
+    "pages": 6,
+    "candidate_surfaces": "meta_og_twitter",
+    "chars_min_max": "49-61",
+    "utf8_bytes_min_max": "134-171",
+    "brand_leading": "0/6",
+    "unsafe_promises": "0/6",
+    "applied_to_source": false,
+    "status": "pass_for_dry_run;release_not_ready"
+  },
+  "six_page_measurement_contract": {
+    "checked_at": "2026-08-31T20:24:25+08:00",
+    "report": "docs-internal/index-growth-100-six-page-measurement-contract-2026-08-31.md",
+    "treatment_pages": 1,
+    "control_pages": 5,
+    "second_variable": "defer_contextual_link_changes",
+    "gsc_page_level_baseline": "null_for_six_pages_in_latest_available_top_pages",
+    "ga4_page_dimension": "unavailable;no_inference",
+    "line_click": "null_when_field_absent",
+    "day7_day28": "pending_until_fresh_data",
+    "status": "measurement_contract_ready;source_patch_authorization_required"
+  },
+  "non_indexing_schedule_regression": {
+    "checked_at": "2026-08-31T20:27:10+08:00",
+    "report": "reports/non-indexing-schedule-regression-2026-08-31.md",
+    "full_suite": "88/89_files;753/754_tests",
+    "reproduction": "same_scheduleAhead_test_failed_twice",
+    "root_cause": "reel_slot_missing_mp4_throws_before_skipped_result",
+    "seo_focused_tests": "50/50_pass",
+    "typecheck": "pass",
+    "source_modified": false,
+    "status": "unresolved_non_indexing_regression;do_not_claim_full_suite_green"
+  },
+  "predeploy_blocker_snapshot": {
+    "checked_at": "2026-08-31T20:28:13+08:00",
+    "packet": "docs-internal/pr30-repair-packet-2026-08-31.md",
+    "six_page_measurement_contract": "ready_for_authorized_source_patch",
+    "accepted24_live_closure": "0/24_http200;24/24_http404;0/24_sitemap",
+    "focused_quality": "50/50_pass;typecheck_pass",
+    "full_suite": "88/89_files;753/754_tests;unrelated_scheduleAhead_regression",
+    "release": "not_ready;no_source_or_deploy_authorized",
+    "status": "blockers_explicit_and_ordered"
+  },
+  "google_official_requirements_mapping": {
+    "checked_at": "2026-08-31T18:20:00+08:00",
+    "sitemap_is_discovery_signal_not_index_guarantee": true,
+    "recrawl_request_not_guaranteed": true,
+    "people_first_and_originality_required": true,
+    "doorway_scaled_content_risk": true,
+    "current_release_implication": "quality_and_live_evidence_before_url_count"
+  },
+  "demand_batch_priority": {
+    "checked_at": "2026-08-31T18:22:58+08:00",
+    "accepted_candidates": 24,
+    "cohorts": 4,
+    "pages_per_cohort": 6,
+    "direct_non_brand_gsc_signal": ["勃肯鞋會臭嗎", "娃娃送洗台中", "絨毛娃娃清洗店"],
+    "existing_page_protection": "plush-doll queries map to existing indexed page; no duplicate thin page",
+    "status": "priority_only;release_gates_unmet"
+  },
+  "demand_batch_consistency": {
+    "checked_at": "2026-08-31T18:27:34+08:00",
+    "accepted_inventory": 24,
+    "priority_doc_slug_mentions": "24/24",
+    "isolated_html_exists": "24/24",
+    "cohort_shape": "4x6",
+    "status": "inventory_and_priority_doc_aligned"
+  },
+  "accepted24_inventory_integrity": {
+    "checked_at": "2026-08-31T18:29:00+08:00",
+    "accepted_rows": 24,
+    "missing_related_links": "0/24",
+    "unknown_related_slugs": 0,
+    "accepted_candidate_link_edges": 26,
+    "existing_or_nonaccepted_link_edges": 22,
+    "source_evidence_nonempty": "24/24",
+    "unique_answer_nonempty": "24/24",
+    "medium_cannibalization_risk": "4/24",
+    "hub_distribution": {"bags": 9, "shoes": 8, "textiles": 4, "decisions": 3},
+    "status": "inventory_intact_release_not_ready"
+  },
+  "public_serp_demand_recheck": {
+    "checked_at": "2026-08-31T20:14:40+08:00",
+    "queries": ["台中 洗衣 到府收送", "西屯洗鞋", "白鞋變黃怎麼辦", "包包發霉怎麼辦", "台中 洗包包", "台中 棉被 清洗 收送"],
+    "signal_types": ["local_service_competition", "material_trust", "howto_density", "mold_safety_and_repair", "bag_cleaning_or_repair", "bedding_pickup_workflow"],
+    "volume_or_rank_measured": false,
+    "source_policy": "public_serp_shape_only;no_competitor_copy_or_claims",
+    "status": "demand_signal_only;first_party_gsc_cross_check_pending",
+    "six_page_intent_recheck": {
+      "queries": ["台中 全區 免費 收送 洗衣", "台中 公司 制服 大量 送洗", "台中 洗衣 價目表 洗鞋 洗包", "台中 西屯 洗衣店 青海路", "台中洗衣店怎麼找", "換季衣物收納前清洗霉味"],
+      "result_shape_only": true,
+      "volume_or_rank_measured": false,
+      "new_urls_created": 0,
+      "candidate_action": "strengthen_existing_six_pages_before_new_url",
+      "status": "supports_existing_page_enrichment;7d_28d_pending"
+    }
+  },
+  "next_demand_queue": {
+    "checked_at": "2026-08-31T19:01:00+08:00",
+    "queue_rows": 8,
+    "new_url_candidates": 2,
+    "existing_page_enhancements": 6,
+    "first_party_evidence_required_before_new_url": true,
+    "doorway_or_mass_thin_page_creation": false,
+    "status": "research_queue_only;release_blocked_by_pr30"
+  },
+  "ga4_baseline": {
+    "checked_at": "2026-08-31T19:03:00+08:00",
+    "source_dates": ["2026-08-26", "2026-08-27", "2026-08-28", "2026-08-29", "2026-08-30"],
+    "sessions_sum": 42,
+    "engaged_sessions_sum": 9,
+    "ai_sessions_sum": 0,
+    "google_organic_sessions_sum": 1,
+    "ai_engaged_sessions_sum": 0,
+    "ai_landing_pages": 0,
+    "line_click": null,
+    "today_2026_08_31": "unmeasured_before_scheduled_run",
+    "status": "baseline_only;no_inference"
+  },
+  "gsc_six_inlink_graph": {
+    "checked_at": "2026-08-31T19:06:00+08:00",
+    "live_source_pages_scanned": 32,
+    "targets": 6,
+    "zero_inlink_targets": 0,
+    "unique_source_pages": {
+      "fabric_storage": 32,
+      "taichung_xitun_laundry": 32,
+      "business_bulk_laundry": 32,
+      "citywide_pickup": 32,
+      "price_list": 32,
+      "service_search_guide": 11
+    },
+    "status": "discovery_links_present;quality_and_crawl_signals_remain_pending"
+  },
+  "gsc_six_contextual_inlink_audit": {
+    "checked_at": "2026-08-31T19:08:00+08:00",
+    "live_source_pages_scanned": 32,
+    "zero_contextual_inlink_targets": 0,
+    "contextual_inlinks": {
+      "business_bulk_laundry": {"href_count": 9, "unique_sources": 3},
+      "price_list": {"href_count": 9, "unique_sources": 7},
+      "service_search_guide": {"href_count": 14, "unique_sources": 11},
+      "fabric_storage": {"href_count": 25, "unique_sources": 8},
+      "citywide_pickup": {"href_count": 32, "unique_sources": 22},
+      "taichung_xitun_laundry": {"href_count": 38, "unique_sources": 11}
+    },
+    "recommended_change": "repair_three_confirmed_body_link_gaps;keep_low_inlink_as_priority_only",
+    "brief_synced_at": "2026-08-31T19:11:00+08:00",
+    "status": "two_low_contextual_inlink_targets;source_change_not_authorized"
+  },
+  "google_requirements_refresh": {
+    "checked_at": "2026-08-31T19:12:00+08:00",
+    "official_pages": ["helpful_content", "build_submit_sitemap", "crawlable_links", "spam_policies"],
+    "mapped_controls": ["canonical_absolute_sitemap_urls", "submission_not_indexing_guarantee", "natural_anchor_text", "people_first_original_value", "doorway_and_scaled_content_exclusion"],
+    "candidate_batch_effect": "24_candidates_remain_release_blocked_until_provenance_and_gate_rewrite",
+    "status": "official_requirements_reconfirmed"
+  },
+  "pr30_fail_open_fix_blueprint": {
+    "checked_at": "2026-08-31T19:16:00+08:00",
+    "gap_classes": ["publish_state_resolver", "claim_provenance", "content_revision_hash", "mold_safety_semantics", "publish_entrypoint_host"],
+    "required_mutation_cases": 6,
+    "baseline_head": "ba6ab5a85524c3a5e4fa4c0848c89be7b944881d",
+    "status": "implementation_contract_ready;release_blocked"
+  },
+  "accepted24_link_integrity": {
+    "checked_at": "2026-08-31T18:35:00+08:00",
+    "unique_site_absolute_hrefs": 120,
+    "existing_live_sitemap_targets": 20,
+    "candidate_targets": 24,
+    "candidate_http_200": "0/24",
+    "cta_variants": 72,
+    "cta_http_200": "72/72",
+    "cta_noindex_meta": "72/72",
+    "cta_line_destination": "72/72",
+    "json_entrypoints_http_200": "4/4",
+    "expected_related_links_present": "48/48",
+    "status": "closure_pending_until_candidate_overlay"
+  },
+  "live_boilerplate_overlap_audit": {
+    "pages": 32,
+    "repeated_blocks_ge_60_chars": 27,
+    "highest_repeated_ratio_samples": {
+      "guides/shirt-suit-dry-cleaning.html": 1.0,
+      "guides/leather-jacket-care.html": 1.0,
+      "guides/school-uniform-care.html": 1.0,
+      "guides/down-jacket-cleaning.html": 0.79,
+      "guides/luxury-bag-mold.html": 0.61
+    },
+    "status": "review_signal_not_spam_verdict"
+  },
+  "gsc_discovered_six_ai_answer_coverage": {
+    "pages": 6,
+    "answers_source_url_matched": "6/6",
+    "answer_entries_total": 35,
+    "ai_discovery_indexed": "6/6",
+    "status": "first_party_aeo_coverage_present_external_citation_unmeasured"
+  },
+  "pr30": {
+    "url": "https://github.com/39211/laundry-social-auto-poster/pull/30",
+    "head": "ba6ab5a85524c3a5e4fa4c0848c89be7b944881d",
+    "state": "open",
+    "ci": "typecheck-and-test:success",
+    "independent_focused": "3 files / 41 tests passed",
+    "independent_full": "87 files / 710 passed / 16 skipped",
+    "independent_tsc": "exit 0",
+    "mutation_probe": "six gate gaps still pass validator",
+    "generator_invalid_host": "rejected_before_write",
+    "publish_entrypoint_exact_host_gate": "not_present_in_pr_head",
+    "independent_review": "rewrite_required; Codex review quota notice is not approval",
+    "release_decision": "rewrite_required",
+    "test_revalidation": {
+      "typecheck": "pass",
+      "initial_test": "blocked_by_missing_process_env_PUBLIC_SITE_BASE_URL",
+      "corrected_test": "87_files_passed;710_tests_passed;16_skipped;726_total",
+      "checked_at": "2026-08-31T18:38:04+08:00",
+      "does_not_clear_release_gates": true
+    }
+  },
+  "pr29_merge_readiness": {
+    "checked_at": "2026-08-31T19:30:03+08:00",
+    "state": "open",
+    "head": "c7a46da0a6c5764e25d44c756fea8ca8fab4ba4e",
+    "mergeable": true,
+    "merge_state": "clean",
+    "ci": "typecheck-and-test:pass",
+    "review_decision": "empty",
+    "existing_review": "Codex bot COMMENTED; not approval",
+    "pr30_head": "ba6ab5a85524c3a5e4fa4c0848c89be7b944881d",
+    "pr30_compare": "ahead=2;behind=0;pr29_head_is_ancestor",
+    "status": "not_ready_to_merge;do_not_merge_as_separate_batch"
+  },
+  "evening_schedule_guard": {
+    "checked_at": "2026-08-31T18:55:00+08:00",
+    "ga4_task": {
+      "state": "ready",
+      "last_run": "2026-08-30T23:10:01+08:00",
+      "last_result": 0,
+      "next_run": "2026-08-31T23:10:00+08:00"
+    },
+    "gsc_task": {
+      "state": "ready",
+      "last_run": "2026-08-30T23:15:01+08:00",
+      "last_result": 0,
+      "next_run": "2026-08-31T23:15:00+08:00"
+    },
+    "today_ga4_file": "missing_before_scheduled_run",
+    "today_gsc_file": "missing_before_scheduled_run",
+    "manual_run": "not_due;not_run",
+    "status": "guarded_wait"
+  },
+  "pr30_mutation_gate_revalidation": {
+    "checked_at": "2026-08-31T18:40:10+08:00",
+    "baseline": "ok=true;failures=0",
+    "fail_open_mutations": [
+      "source_ref_repoint",
+      "arbitrary_content_revision",
+      "body_change_without_hash",
+      "unsafe_clothing_mold_answer",
+      "blank_registry_provenance"
+    ],
+    "missing_publish_state_resolver_count": 23,
+    "status": "rewrite_required_fail_open_gate"
+  },
+  "pr30_restore_and_host_probe": {
+    "checked_at": "2026-08-31T18:47:00+08:00",
+    "citation_remove_mutation": "fail_then_restore_pass",
+    "source_revision_body_mold_registry_state_mutations": "pass_when_should_fail;restore_pass",
+    "resolver_count": "23_mutated_to_24_restored",
+    "generator_invalid_host": "rejected_before_data_read",
+    "generator_valid_host": "proceeded_until_isolated_missing_business_profile",
+    "publish_entrypoint_gate_coverage": "not_proven",
+    "status": "rewrite_required"
+  },
+  "pr30_mutation_repair_acceptance": {
+    "checked_at": "2026-08-31T18:43:00+08:00",
+    "required_cases": 6,
+    "required_behavior": "mutation_fail_then_same_restore_pass",
+    "scope": "whole_catalog_registry_resolver_projection",
+    "status": "spec_ready;implementation_pending"
+  },
+  "accepted24_safety_language_scan": {
+    "checked_at": "2026-08-31T18:47:00+08:00",
+    "stop_condition_text": "24/24",
+    "limitation_text": "24/24",
+    "known_unsafe_instruction_patterns": "0/24",
+    "before_after_case_or_recovery_hints": "17/24",
+    "semantic_safety_gate": "not_proven_by_lexical_scan",
+    "status": "rewrite_required"
+  },
+  "cohort1_audit": {
+    "candidate_pages": 11,
+    "isolated_html_text_chars": {
+      "min": 1183,
+      "max": 1330
+    },
+    "answer_box_brand_leading": "0/11",
+    "self_canonical": "11/11",
+    "jsonld_parseable": "11/11",
+    "unique_hero_images": 1,
+    "internal_link_targets_unique": 62,
+    "internal_link_targets_live_200": 50,
+    "internal_link_targets_live_404": 12,
+    "out_of_cohort_404_targets": [
+      "guides/rainy-bag-care.html"
+    ],
+    "verified_real_case_assets": "0/11",
+    "visible_unverified_before_labels": "11/11",
+    "release_decision": "not_ready"
+  },
+  "visual_label_gate": {
+    "pr30_source_has_real_case_guard": false,
+    "pr30_source_has_neutral_demo_label": false,
+    "support_alt_uses_image_topic": true,
+    "guide_figcaption_uses_image_topic": true,
+    "test_asserts_neutral_unverified_label": false,
+    "status": "missing_in_pr_head"
+  },
+  "cohort1_snippet_audit": {
+    "meta_description_brand_leading": "11/11",
+    "open_graph_description_brand_leading": "11/11",
+    "twitter_description_brand_leading": "11/11",
+    "status": "answer_not_first_in_snippet_surfaces"
+  },
+  "accepted24_isolated_audit": {
+    "candidate_pages": 24,
+    "html_exists": "24/24",
+    "isolated_text_chars": {
+      "min": 1160,
+      "max": 1330
+    },
+    "answer_box_brand_leading": "0/24",
+    "meta_description_brand_leading": "24/24",
+    "open_graph_description_brand_leading": "24/24",
+    "twitter_description_brand_leading": "24/24",
+    "self_canonical": "24/24",
+    "jsonld_parseable": "24/24",
+    "unique_answers": "24/24",
+    "unique_hero_images": 3,
+    "visible_unverified_before_labels": "17/24",
+    "verified_real_case_assets": "0/24",
+    "live_http_200": "0/24",
+    "internal_link_targets_unique": 48,
+    "internal_link_targets_live_200": 24,
+    "internal_link_targets_live_404": 24,
+    "live_candidate_closure_recheck": {
+      "checked_at": "2026-08-31T20:16:50+08:00",
+      "candidate_http_200": "0/24",
+      "candidate_http_404": "24/24",
+      "candidate_sitemap_members": "0/24",
+      "candidate_sitemap_absent": "24/24",
+      "status": "not_deployed;release_not_ready"
+    },
+    "intent_collision_audit": {
+      "checked_at": "2026-08-31T20:30:18+08:00",
+      "accepted_rows": 24,
+      "html_exists": "24/24",
+      "unique_h1": "24/24",
+      "unique_answer": "24/24",
+      "answer_token_jaccard_ge_055_pairs": 0,
+      "status": "lexical_distinctness_signal;not_doorway_clearance"
+    },
+    "release_decision": "not_ready"
+  },
+  "scheduler_live_recheck": {
+    "checked_at": "2026-08-31T20:33:52+08:00",
+    "sitemap_http_status": 200,
+    "live_sitemap_urls": 32,
+    "ga4_today_file": false,
+    "gsc_today_file": false,
+    "ga4_schedule": {
+      "next_run": "2026-08-31T23:10:00+08:00",
+      "last_run": "2026-08-30T23:10:01+08:00",
+      "last_result": 0,
+      "status": "Ready"
+    },
+    "gsc_schedule": {
+      "next_run": "2026-08-31T23:15:00+08:00",
+      "last_run": "2026-08-30T23:15:01+08:00",
+      "last_result": 0,
+      "status": "Ready"
+    },
+    "indexnow_ok": true,
+    "indexnow_submitted": 33,
+    "action": "no_early_ga4_gsc_run;no_duplicate_indexnow"
+  },
+  "pr30_live_confirmation": {
+    "checked_at": "2026-08-31T20:35:18+08:00",
+    "pr": 30,
+    "state": "OPEN",
+    "head": "ba6ab5a85524c3a5e4fa4c0848c89be7b944881d",
+    "mergeable": "MERGEABLE",
+    "ci": "typecheck-and-test=SUCCESS",
+    "review_decision": "",
+    "reviews": 0,
+    "release_decision": "not_ready_without_independent_approval",
+    "live_sitemap_urls": 32,
+    "indexnow_submitted": 33,
+    "accepted24_live_http_200": "0/24",
+    "accepted24_sitemap_members": "0/24"
+  },
+  "pr30_review_capacity_check": {
+    "checked_at": "2026-08-31T20:37:03+08:00",
+    "reviews": 0,
+    "independent_approval": false,
+    "comment_signal": "Codex code-review usage limit reached",
+    "release_decision": "not_ready;comment_is_not_review_evidence"
+  },
+  "google_official_requirements_recheck": {
+    "checked_at": "2026-08-31T20:38:00+08:00",
+    "sources": [
+      "https://developers.google.com/search/docs/fundamentals/ai-optimization-guide",
+      "https://developers.google.com/search/docs/crawling-indexing/links-crawlable",
+      "https://developers.google.com/search/docs/appearance/structured-data/sd-policies"
+    ],
+    "findings": [
+      "avoid_query_variant_scaled_pages",
+      "require_standard_anchor_href_links",
+      "structured_data_is_not_indexing_or_rich_result_guarantee"
+    ],
+    "impact": "keep_quality_gates_and_404_closure_before_first_100_batch"
+  },
+  "gsc_recent_demand_recheck": {
+    "checked_at": "2026-08-31T20:40:00+08:00",
+    "latest_available_file": "data/insights/gsc/2026-08-27.json",
+    "latest_snapshot": {
+      "impressions": 15,
+      "clicks": 0,
+      "average_position": 17.133333333333333,
+      "queries": [
+        {"query": "娃娃送洗台中", "impressions": 1, "clicks": 0, "position": 24},
+        {"query": "私享家", "impressions": 4, "clicks": 0, "position": 2.5}
+      ]
+    },
+    "comparison_2026_08_23": {
+      "impressions": 13,
+      "clicks": 1,
+      "interpretation": "small_sample_pending"
+    },
+    "experiment": "strengthen_existing_plush_doll_page_answer_and_context_link",
+    "decision": "PENDING_until_7_or_28_day_rule"
+  },
+  "gsc_available_snapshot_aggregate": {
+    "checked_at": "2026-08-31T20:42:00+08:00",
+    "snapshot_files": 11,
+    "query_aggregate": [
+      {"query": "私享家", "days": 7, "impressions": 20, "clicks": 0},
+      {"query": "勃肯鞋會臭嗎", "days": 1, "impressions": 2, "clicks": 0},
+      {"query": "娃娃送洗台中", "days": 1, "impressions": 1, "clicks": 0},
+      {"query": "絨毛娃娃清洗店", "days": 1, "impressions": 1, "clicks": 0}
+    ],
+    "page_aggregate_highlights": [
+      {"path": "/", "impressions": 33, "clicks": 0},
+      {"path": "/guides/birkenstock-care.html", "impressions": 12, "clicks": 0},
+      {"path": "/services/white-shoe-cleaning.html", "impressions": 3, "clicks": 1}
+    ],
+    "interpretation": "small_sample_for_existing_page_priority;not_market_volume",
+    "decision": "PENDING"
+  },
+  "live_sitemap_audit_recheck": {
+    "checked_at": "2026-08-31T20:43:18+08:00",
+    "command": "npm.cmd run audit-sitemap",
+    "status": "pass",
+    "discovered_urls": 32,
+    "duplicate_urls": 0,
+    "same_origin": true,
+    "no_future_lastmod": true,
+    "robots_reference": true,
+    "interpretation": "live_sitemap_structure_only;not_indexing_proof"
+  },
+  "local_live_inventory_reconciliation": {
+    "checked_at": "2026-08-31T20:45:00+08:00",
+    "local_docs_html": 154,
+    "live_sitemap_urls": 32,
+    "live_urls_with_local_html": "32/32",
+    "local_html_not_in_sitemap": 122,
+    "not_in_sitemap_buckets": {"posts": 117, "other": 5},
+    "interpretation": "local_artifacts_are_not_live_or_indexed;do_not_add_posts_to_sitemap_for_count"
+  },
+  "public_site_audit_recheck": {
+    "checked_at": "2026-08-31T20:47:00+08:00",
+    "command": "npm.cmd run audit-public-site",
+    "scope": "local_public_site_artifacts",
+    "html_files": 154,
+    "json_files": 143,
+    "broken_urls": 0,
+    "missing_alt": 0,
+    "non_image_content_types": 0,
+    "nap_profile_match": true,
+    "interpretation": "local_quality_signal_not_live_or_indexing_evidence"
+  },
+  "live_page_recheck": {
+    "checked_at": "2026-08-31T20:46:51+08:00",
+    "urls": 32,
+    "http_200": "32/32",
+    "self_canonical": "32/32",
+    "noindex": "0/32",
+    "jsonld": "32/32",
+    "dateModified": "32/32",
+    "interpretation": "live_technical_baseline_unchanged;not_indexing_proof"
+  },
+  "six_page_demand_binding": {
+    "checked_at": "2026-08-31T20:49:00+08:00",
+    "pages": 6,
+    "direct_query_evidence": "0/6",
+    "treatment": "existing_page_answer_and_process_enrichment_only",
+    "controls": [
+      "no_city_variant_pages",
+      "no_unverified_b2b_numbers",
+      "no_fixed_price_or_sla_claims",
+      "no_unverified_case_results"
+    ],
+    "decision": "PENDING_until_fresh_GSC_and_7_or_28_day_rule"
+  },
+  "sitemap_indexnow_freshness_crosscheck": {
+    "checked_at": "2026-08-31T20:50:00+08:00",
+    "live_sitemap_urls": 32,
+    "live_lastmod_min": "2026-07-22",
+    "live_lastmod_max": "2026-08-31",
+    "indexnow_report_date": "2026-08-31",
+    "indexnow_report_sitemap_urls": 32,
+    "indexnow_status": 200,
+    "indexnow_submitted": 33,
+    "thin_pages": 0,
+    "unreachable": 0,
+    "action": "no_duplicate_indexnow;no_proven_newer_sitemap"
+  },
+  "worktree_protection_check": {
+    "checked_at": "2026-08-31T20:50:22+08:00",
+    "git_status_lines": 174,
+    "protected_or_other_lines": 155,
+    "scope": "docs_reports_manifest_only",
+    "protected_paths_untouched": ["src/", "scripts/", "Windows scheduler", "approved-log", "posted-log"],
+    "action": "preserve_existing_dirty_work"
+  },
+  "index_quality_focused_tests_recheck": {
+    "checked_at": "2026-08-31T20:51:26+08:00",
+    "command": "npm.cmd test -- test/auditPublicSite.test.ts test/auditSitemap.test.ts test/publishPages.test.ts test/indexNow.test.ts",
+    "test_files": "4/4",
+    "tests": "17/17",
+    "status": "pass",
+    "interpretation": "focused_quality_signal;does_not_clear_release_gates"
+  },
+  "live_audited_url_set_reconciliation": {
+    "checked_at": "2026-08-31T20:52:30+08:00",
+    "live_sitemap_urls": 32,
+    "indexnow_audited_urls": 32,
+    "live_missing_from_audit": 0,
+    "audit_not_live": 0,
+    "thin_pages": 0,
+    "unreachable": 0,
+    "interpretation": "submission_audit_matches_live_set;not_google_indexing_proof"
+  },
+  "gsc_index_state_freshness_read": {
+    "checked_at": "2026-08-31T20:54:00+08:00",
+    "file": "data/insights/gsc-index/2026-08-31.json",
+    "generated_at": "2026-08-30T17:41:02.332Z",
+    "states": {"Submitted and indexed": 26, "Discovered - currently not indexed": 6},
+    "discovered_rows_without_crawl_or_google_canonical": "6/6",
+    "decision": "PENDING_until_scheduled_fresh_data",
+    "interpretation": "gsc_inspection_evidence_missing_for_discovered_rows;do_not_infer_indexing"
+  },
+  "public_serp_visibility_recheck": {
+    "checked_at": "2026-08-31T20:53:00+08:00",
+    "queries": ["台中 洗衣 到府收送", "西屯 洗鞋", "娃娃送洗 台中", "台中 洗衣 價目表 洗鞋 洗包"],
+    "private_site_in_result_set": true,
+    "observed": "sixiangjialaundry_homepage_returned_for_xitun_shoe_query",
+    "interpretation": "result_set_visibility_only;not_rank_volume_click_or_index_proof",
+    "action": "prioritize_existing_pages;no_query_variant_pages"
+  },
+  "completion_matrix_refresh": {
+    "checked_at": "2026-08-31T20:55:00+08:00",
+    "live_sitemap_urls": 32,
+    "live_page_http_200": "32/32",
+    "live_audited_set_missing": 0,
+    "gsc_indexed": 26,
+    "gsc_discovered": 6,
+    "pr30_reviews": 0,
+    "accepted24_live_http_200": "0/24",
+    "milestone_100": "NOT_ACHIEVED",
+    "milestones_150_200": "DEFERRED"
+  },
+  "scheduled_writer_guard": {
+    "checked_at": "2026-08-31T20:56:44+08:00",
+    "ga4_schedule_status": "Ready",
+    "gsc_schedule_status": "Ready",
+    "ga4_today_file": false,
+    "gsc_today_file": false,
+    "matching_writer_processes": 0,
+    "matching_patterns": ["ga4AiTraffic", "gscSearchAnalytics", "gscIndexInspection", "indexingPush"],
+    "action": "no_early_run;safe_for_post_schedule_freshness_check"
+  },
+  "robots_crawler_recheck": {
+    "checked_at": "2026-08-31T21:01:03+08:00",
+    "http_status": 200,
+    "bytes": 641,
+    "wildcard_allow": true,
+    "named_agents_expected": 14,
+    "named_agents_found": 14,
+    "named_group_allow": true,
+    "sitemap_reference": true,
+    "interpretation": "crawler_access_only;not_index_or_ai_citation_proof"
+  },
+  "accepted24_live_closure_recheck": {
+    "checked_at": "2026-08-31T21:02:47+08:00",
+    "accepted_inventory_source": "PR30 head ba6ab5a85524c3a5e4fa4c0848c89be7b944881d",
+    "accepted_rows": 24,
+    "http_200": "0/24",
+    "http_404": "24/24",
+    "other_status": "0/24",
+    "sitemap_members": "0/24",
+    "release_decision": "not_deployed;not_ready"
+  },
+  "seo_action_log_reconciliation": {
+    "checked_at": "2026-08-31T21:05:00+08:00",
+    "file": "data/insights/seo-actions/2026-08-31.json",
+    "live_sitemap_urls": 32,
+    "new_guides_live_today": 0,
+    "isolated_candidate_guides_not_live": 24,
+    "historical_isolated_sitemap_urls": 56,
+    "historical_isolated_submitted": 57,
+    "historical_counts_as_current_live": false,
+    "new_url_batch_inspection": false,
+    "request_indexing_ui_used": false,
+    "interpretation": "action_log_reconciled;submission_not_indexing"
+  },
+  "today_file_path_sweep": {
+    "checked_at": "2026-08-31T21:06:16+08:00",
+    "data_insights_today_files": [
+      "data/insights/gsc-index/2026-08-31.json",
+      "data/insights/seo-actions/2026-08-31.json"
+    ],
+    "ga4_traffic_today": false,
+    "gsc_search_analytics_today": false,
+    "action": "no_alternate_path_guessing;no_early_fallback"
+  },
+  "live_sitemap_indexnow_freshness_recheck": {
+    "checked_at": "2026-08-31T21:14:30+08:00",
+    "live_sitemap_http": 200,
+    "live_sitemap_urls": 32,
+    "live_latest_lastmod": "2026-08-31",
+    "indexnow_report": "output/operations/indexing-push-2026-08-31.json",
+    "report_ok": true,
+    "report_indexnow_status": 200,
+    "report_submitted": 33,
+    "audited_urls": 32,
+    "live_not_audited": 0,
+    "audited_not_live": 0,
+    "action": "no_duplicate_indexnow_submission"
+  },
+  "pr_role_release_boundary_recheck": {
+    "checked_at": "2026-08-31T21:16:00+08:00",
+    "pr29": {
+      "head": "c7a46da0a6c5764e25d44c756fea8ca8fab4ba4e",
+      "scope": "publication-gate hardening",
+      "state": "OPEN",
+      "merge_state": "CLEAN",
+      "ci": "SUCCESS",
+      "independent_reviews": 0
+    },
+    "pr30": {
+      "head": "ba6ab5a85524c3a5e4fa4c0848c89be7b944881d",
+      "scope": "24 diagnostic guides plus index-growth generator",
+      "state": "OPEN",
+      "merge_state": "CLEAN",
+      "ci": "SUCCESS",
+      "independent_reviews": 0
+    },
+    "release_decision": "blocked_pending_independent_review_and_release_gate",
+    "interpretation": "green_ci_and_404_candidates_are_not_live_deployment_or_indexing_evidence"
+  },
+  "scheduled_collector_readiness_recheck": {
+    "checked_at": "2026-08-31T21:18:00+08:00",
+    "ga4_task": {
+      "status": "Ready",
+      "wrapper": "scripts/ga4-collect.ps1",
+      "log_dir": "output/ga4-collect-logs",
+      "latest_log": "2026-08-30.log"
+    },
+    "gsc_task": {
+      "status": "Ready",
+      "wrapper": "scripts/gsc-collect.ps1",
+      "log_dir": "output/gsc-collect-logs",
+      "latest_log": "2026-08-30.log"
+    },
+    "today_files": {
+      "ga4_traffic": false,
+      "gsc_search_analytics": false,
+      "gsc_index": true
+    },
+    "action": "no_early_start;post_window_log_data_freshness_check"
+  },
+  "repository_protection_recheck": {
+    "checked_at": "2026-08-31T21:20:00+08:00",
+    "branch": "main",
+    "github_branch_protection": "not_configured_http_404",
+    "internal_release_gate_required": true,
+    "required_evidence": [
+      "independent_review",
+      "provenance",
+      "mutation",
+      "safety",
+      "live_link_closure",
+      "deployment_and_indexing_evidence"
+    ],
+    "decision": "do_not_merge_on_platform_permissiveness"
+  },
+  "google_official_requirements_refresh": {
+    "checked_at": "2026-08-31T21:21:00+08:00",
+    "sources": [
+      "https://developers.google.com/search/docs/fundamentals/creating-helpful-content",
+      "https://developers.google.com/search/docs/fundamentals/ai-optimization-guide",
+      "https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap",
+      "https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data",
+      "https://developers.google.com/search/docs/appearance/structured-data/sd-policies"
+    ],
+    "requirements": [
+      "people_first_original_first_hand_expertise",
+      "avoid_query_variant_mass_pages_and_scaled_content_abuse",
+      "sitemap_is_hint_not_indexing_guarantee",
+      "canonical_absolute_urls",
+      "structured_data_complete_accurate_visible_content_aligned_and_rich_result_not_guaranteed"
+    ],
+    "gate_implications": [
+      "retain_non_doorway_gate",
+      "require_first_party_evidence_and_author_context",
+      "do_not_count_submission_as_indexing",
+      "do_not_create_mass_query_variant_pages"
+    ],
+    "interpretation": "current_google_guidance_supports_existing_quality_controls;no_safe_basis_for_mass_page_expansion"
+  },
+  "pr30_topic_inventory_quality_recheck": {
+    "checked_at": "2026-08-31T21:33:00+08:00",
+    "source": "PR30 ba6ab5a85524c3a5e4fa4c0848c89be7b944881d:research/index-growth-100/topic-inventory.csv",
+    "total_rows": 122,
+    "publish_state_counts": {
+      "existing": 32,
+      "accepted": 24,
+      "draft": 59,
+      "rejected": 6,
+      "merge": 1
+    },
+    "accepted_required_fields": [
+      "query_intent",
+      "source_evidence",
+      "unique_answer",
+      "related_links"
+    ],
+    "accepted_blank_required_fields": 0,
+    "accepted_live_http_200": "0/24",
+    "accepted_live_http_404": "24/24",
+    "accepted_sitemap_members": "0/24",
+    "decision": "specification_complete_but_not_live_or_indexed"
+  },
+  "schedule_window_precheck_2145": {
+    "checked_at": "2026-08-31T21:45:34+08:00",
+    "ga4_report_present": false,
+    "gsc_report_present": false,
+    "ga4_schedule": {
+      "task": "Laundry-GA4-Collect",
+      "last_run": "2026-08-30T23:10:01+08:00",
+      "last_result": 0,
+      "next_run": "2026-08-31T23:10:00+08:00"
+    },
+    "gsc_schedule": {
+      "task": "Laundry-GSC-Collect",
+      "last_run": "2026-08-30T23:15:01+08:00",
+      "last_result": 0,
+      "next_run": "2026-08-31T23:15:00+08:00"
+    },
+    "pr29_independent_reviews": 0,
+    "pr30_independent_reviews": 0,
+    "decision": "pre_window_verified;defer_collectors_until_scheduled_window"
+  },
+  "local_public_quality_recheck_2150": {
+    "checked_at": "2026-08-31T21:50:15+08:00",
+    "audit_sitemap": {
+      "status": "pass",
+      "discovered_urls": 32,
+      "duplicates": 0,
+      "same_origin": true,
+      "future_lastmod": 0,
+      "robots_reference": true
+    },
+    "audit_public_site": {
+      "html_files": 154,
+      "json_files": 143,
+      "image_references": 1120,
+      "missing_alt": 0,
+      "broken_urls": 0,
+      "non_image_content_types": 0,
+      "nap_matches_source": true
+    },
+    "scope_note": "local_public_artifact_quality_only;not_live_or_google_indexing_evidence",
+    "decision": "local_quality_pass;live_sitemap_remains_32"
+  },
+  "live_response_header_recheck_2152": {
+    "checked_at": "2026-08-31T21:52:02+08:00",
+    "urls": {
+      "robots": {"status": 200, "content_type": "text/plain; charset=utf-8", "x_robots_tag": null, "cache_control": "max-age=600"},
+      "sitemap": {"status": 200, "content_type": "application/xml", "x_robots_tag": null, "cache_control": "max-age=600"},
+      "homepage": {"status": 200, "content_type": "text/html; charset=utf-8", "x_robots_tag": null, "cache_control": "max-age=600"}
+    },
+    "decision": "header_access_pass;not_indexing_proof"
+  },
+  "pr30_release_gate_recheck_2153": {
+    "checked_at": "2026-08-31T21:53:05+08:00",
+    "source_reports": [
+      "reports/index-growth-pr30-mutation-gate-revalidation-2026-08-31.md",
+      "docs-internal/pr30-repair-packet-2026-08-31.md"
+    ],
+    "fail_open_mutations": [
+      "citation_provenance_rebind",
+      "content_revision_change",
+      "body_hash_change",
+      "safety_semantics_change",
+      "registry_provenance_clear",
+      "publish_state_removal_resolver"
+    ],
+    "pr30_release_decision": "REWRITE_REQUIRED",
+    "candidate24_sitemap_members": "0/24",
+    "candidate24_live_http_200": "0/24",
+    "decision": "do_not_deploy_or_resubmit_until_mutations_fail_closed"
+  },
+  "better_method_v2_2212": {
+    "checked_at": "2026-08-31T22:12:23+08:00",
+    "report": "reports/index-growth-better-method-2026-08-31.md",
+    "official_sources": [
+      "https://developers.google.com/search/help/crawling-index-faq",
+      "https://developers.google.com/search/docs/crawling-indexing/ask-google-to-recrawl",
+      "https://developers.google.com/search/docs/crawling-indexing/links-crawlable",
+      "https://developers.google.com/search/docs/fundamentals/how-search-works",
+      "https://developers.google.com/search/docs/essentials/spam-policies",
+      "https://developers.google.com/search/docs/fundamentals/ai-optimization-guide"
+    ],
+    "freshness": {
+      "gsc_snapshot_generated_utc": "2026-08-30T17:41:02.332Z",
+      "current_live_last_modified_utc": "2026-08-31T06:04:33Z",
+      "gsc_precedes_live_seconds": 44611,
+      "decision": "stale_for_current_live_revision"
+    },
+    "content_length_median": {
+      "indexed": 1431.5,
+      "discovered_not_indexed": 2244.5,
+      "decision": "do_not_bulk_expand_word_count"
+    },
+    "body_inbound_from_indexed": {
+      "indexed_page_median": 7,
+      "discovered_page_median": 8.5,
+      "business_bulk": 2,
+      "price_list": 5,
+      "fabric_storage": 7,
+      "xitun_laundry": 10,
+      "search_guide": 10,
+      "citywide_pickup": 17,
+      "decision": "target_business_and_price_only;not_general_link_deficit"
+    },
+    "first_new_page_pilot": "guides/shoe-odor-source.html",
+    "pilot_demand_evidence": "GSC query 勃肯鞋會臭嗎:2 impressions",
+    "capacity_inference": {
+      "current_index_rate": 0.8125,
+      "live_urls_for_100_if_rate_holds": 124,
+      "planning_range_live_urls": "130-140",
+      "note": "inference_not_guarantee"
+    },
+    "decision": "event_triggered_recovery_then_single_page_pilot_then_measured_cohorts"
+  },
+  "constraints_respected": [
+    "no_src_changes",
+    "no_scripts_changes",
+    "no_scheduler_changes",
+    "no_approved_or_posted_log_changes",
+    "no_social_publish",
+    "no_mass_thin_pages",
+    "no_repeated_successful_indexnow"
+  ]
+}

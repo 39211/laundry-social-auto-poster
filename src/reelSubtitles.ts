@@ -26,7 +26,7 @@ export const SUB_MAX_CHARS = 15;
 // Orphan tolerance: a trailing clause of 1-2 characters may ride along past
 // SUB_MAX_CHARS instead of becoming its own blink-length cue. 17 chars at
 // fontsize 40 is 680px, inside the 720px frame with the style margins.
-const ORPHAN_CHARS = 2;
+export const ORPHAN_CHARS = 2;
 
 export interface SubtitleCue {
   text: string;
@@ -51,7 +51,8 @@ export function splitNarration(text: string, maxChars = SUB_MAX_CHARS): string[]
   const segments: string[] = [];
   let current = "";
   for (const clause of clauses) {
-    if (current && current.length + clause.length <= maxChars) {
+    const currentIsQuestion = /[？?]$/u.test(current);
+    if (current && current.length + clause.length <= maxChars && !currentIsQuestion) {
       current += clause;
       continue;
     }
@@ -66,11 +67,14 @@ export function splitNarration(text: string, maxChars = SUB_MAX_CHARS): string[]
   }
   if (current) {
     // A 1-2 character tail on its own would flash for a fraction of a second;
-    // let it ride on the previous line when the tolerance allows.
+    // let it ride on the previous line when the tolerance allows. Do not glue
+    // that tail onto a card that already ended with ？ — muted viewers would
+    // then see the answer on the question card.
     const prev = segments[segments.length - 1];
     if (
       current.length <= ORPHAN_CHARS &&
       prev !== undefined &&
+      !/[？?]$/u.test(prev) &&
       prev.length + current.length <= maxChars + ORPHAN_CHARS
     ) {
       segments[segments.length - 1] = prev + current;

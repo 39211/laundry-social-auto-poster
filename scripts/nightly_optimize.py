@@ -20,9 +20,9 @@ import os
 import re
 import subprocess
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
-sys.stdout.reconfigure(encoding="utf-8")
+if sys.stdout is not None: sys.stdout.reconfigure(encoding="utf-8")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 
@@ -174,9 +174,130 @@ def opt_log_severity(has_log, has_success_post, has_git):
     return "MED"
 
 
+def has_live_posts(posted):
+    """True only for a real aired row. dry_run / failed / non-dicts do not count.
+
+    Check 10 exists because 8/12-13 shipped nothing (ERROR-BOOK F19). A dry-run
+    success looks like a post in the log and must not silence that alarm.
+    """
+    if posted is None:
+        entries = []
+    elif isinstance(posted, list):
+        entries = posted
+    else:
+        entries = [posted]
+    return any(
+        isinstance(entry, dict)
+        and entry.get("status") in ("success", "posted")
+        and not entry.get("dry_run")
+        for entry in entries
+    )
+
+
+def unposted_day_what(has_live, paused, hour):
+    """HIGH copy only after 21:00 when nothing aired and nobody paused.
+
+    The audit is scheduled for 23:10, after every publish window has closed.
+    Run by hand at 02:00 it would flag a day that has simply not happened yet
+    -- and a check that cries wolf when you run it manually is a check you
+    learn to scroll past (ERROR-BOOK B9). A pause file is an intentional
+    brake, not a silent outage (check 10's whole point is telling those apart).
+    """
+    if has_live or paused or int(hour) < 21:
+        return None
+    return "今天一則都沒發出去"
+
+
+def wake_to_run_breaks(text):
+    """Parse check-10 WakeToRun probe lines `TaskName|True`.
+
+    Empty output is itself a finding: B8 -- a probe that returns nothing is
+    not health, and this is the last check that still runs after a crash.
+    Returns {"empty": bool, "false_tasks": [task names with WakeToRun false]}.
+    """
+    lines = [ln.strip() for ln in (text or "").splitlines() if "|" in ln]
+    if not lines:
+        return {"empty": True, "false_tasks": []}
+    false_tasks = []
+    for line in lines:
+        name, wake = line.split("|", 1)
+        if wake.strip().lower() not in ("true", "$true"):
+            false_tasks.append(name.strip())
+    return {"empty": False, "false_tasks": false_tasks}
+
+
+def taipei_today(now_utc=None):
+    """Calendar day in Taipei (UTC+8, no DST).
+
+    F16 / ga4-collect: UTC `date.today()` is the wrong day between Taipei
+    00:00 and 08:00. Nightly runs at 23:10 so a Taipei-zoned default is the
+    same as a Taipei machine's local today, and stays right if the process
+    timezone is UTC.
+    """
+    now = now_utc if now_utc is not None else datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return now.astimezone(timezone(timedelta(hours=8))).date()
+
+
+def parse_audit_date(argv, today=None):
+    """Audit day: `--date YYYY-MM-DD`, else Taipei today.
+
+    HANDOFF-2026-09-04: the 9/3 nightly report could not be rebuilt because
+    this script had no date argument. Backfill is why the flag exists;
+    check 10 still has to treat a past date as a closed publish day.
+    """
+    if today is None:
+        today = taipei_today()
+    args = [str(item) for item in (argv or [])]
+    found = None
+    i = 0
+    while i < len(args):
+        item = args[i]
+        if item == "--date":
+            if i + 1 >= len(args) or str(args[i + 1]).startswith("-"):
+                raise ValueError("nightly_optimize --date needs YYYY-MM-DD")
+            found = args[i + 1]
+            break
+        if item.startswith("--date="):
+            found = item.split("=", 1)[1]
+            break
+        i += 1
+    if found is None:
+        return today
+    found = found.strip()
+    if not found:
+        raise ValueError("nightly_optimize --date needs YYYY-MM-DD")
+    try:
+        return date.fromisoformat(found)
+    except ValueError:
+        raise ValueError(
+            "nightly_optimize --date must be YYYY-MM-DD, got %r" % (found,)
+        )
+
+
+def audit_clock_hour(audit_day, now_day, now_hour):
+    """Hour fed to unposted_day_what for this audit day.
+
+    A past `--date` (the 9/3 backfill) must still see a closed window, or
+    check 10 stays quiet until 21:00 on the operator's clock. A future
+    `--date` stays quiet (B9: do not cry wolf). Today uses the wall hour.
+    """
+    if audit_day < now_day:
+        return 23
+    if audit_day > now_day:
+        return 0
+    return int(now_hour)
+
+
 # --- end helpers ---
 
-TODAY = date.today()
+_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
+try:
+    TODAY = parse_audit_date(sys.argv[1:], today=_now.date())
+except ValueError as exc:
+    sys.stderr.write("%s\n" % exc)
+    sys.exit(2)
 TOMORROW = TODAY + timedelta(days=1)
 ds = TODAY.isoformat()
 ts = TOMORROW.isoformat()
@@ -244,15 +365,10 @@ for path, label, need in (
             f"續寫到至少 {(TODAY + timedelta(days=need)).isoformat()};排到期末生產線會安靜空轉(ERROR-BOOK F3)")
 
 
-# --- 3. The shop's main line must actually appear ----------------------------
+# --- 3. (retired 2026-10-01) the "every day needs a shoe topic" coverage check ----
+# The owner dropped that rule on 2026-10-01 ("那時候主打鞋子,現在不用了"). The check read the old
+# data/slot1-plan.json table and reported HIGH every night. `plan` is still needed by check 4.
 plan = load("data/slot1-plan.json", {})
-window = [(TODAY + timedelta(days=i)).isoformat() for i in range(1, 8)]
-shoe = re.compile(r"鞋|靴|勃肯|拖鞋")
-hit = [d for d in window if d in plan and shoe.search(plan[d])]
-if len(hit) < 4:
-    add("HIGH", "主力覆蓋", f"未來 7 天只有 {len(hit)} 天有鞋主題",
-        f"命中 {hit}",
-        "老闆明講小月鞋量掉、要每天有鞋。改 data/slot1-plan.json 補足")
 
 
 # --- 4. Repetition is invisible until the audience feels it ------------------
@@ -338,7 +454,7 @@ idx = load(f"output/operations/indexing-push-{ds}.json")
 if idx is None:
     add("MED", "索引", "今天沒有索引推送記錄",
         f"output/operations/indexing-push-{ds}.json 缺檔",
-        "確認 06:30 Daily-Generate 有跑到 submit-indexnow")
+        "確認今日是否有實質 sitemap 變更；只有變更 URL 才應由 indexing-push 通知 IndexNow")
 else:
     # IndexNow 協定裡 202 = 已受理(key 驗證中),與 200 同為成功;
     # 2026-08-17 網域剛切換當晚,把正常的 202 誤標成 HIGH。
@@ -412,14 +528,10 @@ if pause is not None:
     )
 
 posted = load(f"data/posted-log/{ds}.json", [])
-posted = posted if isinstance(posted, list) else [posted]
-live = {(e.get("slot"), e.get("platform")) for e in posted
-        if e.get("status") in ("success", "posted") and not e.get("dry_run")}
 # Scheduled for 23:10, after every publish window has closed. Run by hand at
 # 02:00 it would flag a day that has simply not happened yet -- and a check that
 # cries wolf when you run it manually is a check you learn to scroll past.
-too_early_to_judge = datetime.now().hour < 21
-if not live and pause is None and not too_early_to_judge:
+if unposted_day_what(has_live_posts(posted), pause is not None, audit_clock_hour(TODAY, _now.date(), _now.hour)):
     add("HIGH", "今日發布", "今天一則都沒發出去",
         f"data/posted-log/{ds}.json 沒有任何 success/posted",
         "查排程 LastTaskResult;3221225786=行程被殺(多半是睡眠或關機)。"
@@ -429,19 +541,16 @@ wake_probe = run(["powershell", "-NoProfile", "-Command",
                   "Get-ScheduledTask | Where-Object {$_.TaskName -in "
                   "'Laundry-Daily-Generate','Laundry-Daily-Approve','Laundry-CatchUp-Publish'} | "
                   "ForEach-Object { '{0}|{1}' -f $_.TaskName, $_.Settings.WakeToRun }"])
-seen_wake = 0
-for line in wake_probe.strip().splitlines():
-    if "|" in line:
-        seen_wake += 1
-        name, wake = line.split("|", 1)
-        if wake.strip().lower() not in ("true", "$true"):
-            add("HIGH", "排程", f"{name.strip()} 的 WakeToRun 是 False",
-                "機器睡著時排程不會叫醒它,整天會靜默不發",
-                "Set-ScheduledTask 把 WakeToRun 設為 True")
-if seen_wake == 0:
+wake_breaks = wake_to_run_breaks(wake_probe)
+if wake_breaks["empty"]:
     add("HIGH", "排程", "查不到三個關鍵排程的 WakeToRun 設定",
         "PowerShell 探測沒有回傳任何一行",
         "這是防止整天靜默的最後一道檢查,查不到就等於沒檢查 —— 人工確認一次")
+else:
+    for name in wake_breaks["false_tasks"]:
+        add("HIGH", "排程", f"{name} 的 WakeToRun 是 False",
+            "機器睡著時排程不會叫醒它,整天會靜默不發",
+            "Set-ScheduledTask 把 WakeToRun 設為 True")
 
 
 # --- Report ------------------------------------------------------------------
@@ -460,7 +569,7 @@ with open(f"output/nightly-optimize/{ds}.json", "w", encoding="utf-8") as fh:
 
 lines = [f"# 每晚自檢 {ds}", "", f"發現 {len(findings)} 項(HIGH {report['high']})", ""]
 if not findings:
-    lines.append("八項檢查全過。明日備妥、計畫殘量、主力覆蓋、重複、轉單要素、自我迭代、排程、索引。")
+    lines.append("七項檢查全過。明日備妥、計畫殘量、重複、轉單要素、自我迭代、排程、索引。")
 for f in findings:
     lines += [
         f"## [{f['severity']}] {f['area']}:{f['what']}",

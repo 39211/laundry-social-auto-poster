@@ -7,6 +7,7 @@ import {
 } from "./generateVideoCandidate";
 import { writeVideoPromptManifest, type VideoPromptManifestItem } from "./generateVideo";
 import { loadVideoSources, readJsonFile, writeJsonAtomic, writeVideoSources } from "./logging";
+import { assertSlotMediaMutable, parseMediaGuardOverride, type SlotMediaOverride } from "./mediaMutationGuard";
 import { projectRoot, videoCandidateManifestPath, videoPromptManifestPath } from "./paths";
 import type { VideoSourceRecord } from "./types";
 import { assertMetaReelMetadata, normalizeMetaReel, probeVideo, type VideoMetadata } from "./videoMedia";
@@ -20,6 +21,7 @@ export interface ImportGrokVideoOptions {
   model?: string;
   sourceRoute?: "grok-web-manual" | "hermes-xai-oauth";
   root?: string;
+  mediaGuardOverride?: SlotMediaOverride;
   normalize?: typeof normalizeMetaReel;
   probe?: typeof probeVideo;
   now?: Date;
@@ -64,6 +66,15 @@ export async function importGrokVideo(options: ImportGrokVideoOptions): Promise<
   await access(inputPath);
   if ((await stat(inputPath)).size === 0) throw new Error(`Manual Grok source is empty: ${inputPath}`);
   if (!options.sourceReference.trim()) throw new Error("A Grok project/post reference is required for provenance.");
+
+  // R2: refuse locked slots before target discovery, normalization, or formal writes.
+  await assertSlotMediaMutable({
+    root,
+    date: options.date,
+    slot: options.slot,
+    operation: "import reel video",
+    override: options.mediaGuardOverride
+  });
 
   const item = await resolveImportTarget(options.date, options.slot, root);
 
@@ -152,7 +163,8 @@ async function main(): Promise<void> {
       getOption(args, "source-route") === "hermes-xai-oauth"
         ? "hermes-xai-oauth"
         : "grok-web-manual",
-    root: getOption(args, "root")
+    root: getOption(args, "root"),
+    mediaGuardOverride: parseMediaGuardOverride(args)
   });
   console.log(JSON.stringify(record, null, 2));
 }

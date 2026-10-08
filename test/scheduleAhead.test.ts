@@ -1,13 +1,29 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stampDailyContentWrite } from "../src/contentPlan";
 import { getConfig } from "../src/config";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "../src/postFacebook";
-import { postCurrentSlot } from "../src/postCurrentSlot";
+import { postCurrentSlot, resolveSlotPublishMedia } from "../src/postCurrentSlot";
+
+// Partial mock: the resolver delegates to the real one unless a test overrides it.
+vi.mock("../src/postCurrentSlot", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("../src/postCurrentSlot")>();
+  return {
+    ...mod,
+    resolveSlotPublishMedia: vi.fn((...args: Parameters<typeof mod.resolveSlotPublishMedia>) => mod.resolveSlotPublishMedia(...args))
+  };
+});
+const actualPostCurrentSlot = await vi.importActual<typeof import("../src/postCurrentSlot")>("../src/postCurrentSlot");
+// A queued mockRejectedValueOnce must never leak into the next test.
+afterEach(() => {
+  vi.mocked(resolveSlotPublishMedia).mockReset();
+  vi.mocked(resolveSlotPublishMedia).mockImplementation(actualPostCurrentSlot.resolveSlotPublishMedia);
+});
 import { facebookScheduleKind, loadScheduledLog, scheduleAheadFacebook } from "../src/scheduleAhead";
 import { loadPostLog } from "../src/logging";
+import { readPublishTimes } from "../src/publishTimes";
 import type { AppConfig, PostInput } from "../src/types";
 
 const DATE = "2026-09-21";
@@ -221,6 +237,160 @@ describe("scheduleAheadFacebook", () => {
     expect(log.every((row) => row.scheduled_post_id)).toBe(true);
   });
 
+  it("uses the assigned daily publish time for Meta scheduled_publish_time", async () => {
+    await seedDay(root, [
+      slotFixture(1, "image", `指定時間排程文案 ${DATE}`),
+      slotFixture(2, "image", `晚間指定時間填充 ${DATE}`)
+    ]);
+    await mkdir(join(root, "data", "publish-times"), { recursive: true });
+    await writeFile(
+      join(root, "data", "publish-times", `${DATE}.json`),
+      JSON.stringify({
+        date: DATE,
+        experiment: "afternoon-vs-usual-2026-10",
+        assigned_at: "2026-10-03T13:40:12.345Z",
+        slots: [{ slot: 1, time: "14:12", arm: "afternoon" }]
+      }),
+      "utf8"
+    );
+    const calls: CapturedCall[] = [];
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: fakeFetch(calls),
+      now: NOW_DAY_BEFORE
+    });
+    const expected = Math.floor(new Date(`${DATE}T14:12:00+08:00`).getTime() / 1000);
+    expect(results.find((row) => row.slot === 1)?.scheduled_publish_time).toBe(expected);
+    expect(calls.find((call) => call.url.includes("/photos"))?.body?.get("scheduled_publish_time")).toBe(String(expected));
+  });
+
+  it("creates the experiment assignment before scheduling and sends its exact time to Meta", async () => {
+    await seedDay(root, [
+      slotFixture(1, "image", `整合抽籤排程文案 ${DATE}`),
+      slotFixture(2, "image", `整合抽籤填充文案 ${DATE}`)
+    ]);
+    await mkdir(join(root, "data"), { recursive: true });
+    await writeFile(join(root, "data", "publish-time-experiment.json"), JSON.stringify({
+      name: "afternoon-vs-usual-2026-10",
+      start_date: DATE,
+      end_date: DATE,
+      slots: [1],
+      probability_afternoon: 1,
+      afternoon_window: { start: "14:12", end: "14:12" },
+      min_gap_minutes: 0,
+      preregistered: {
+        primary_metric: "Instagram reach",
+        secondary_metric: "Facebook distribution",
+        decision_rule: "compare arms"
+      }
+    }), "utf8");
+
+    const calls: CapturedCall[] = [];
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: fakeFetch(calls),
+      now: NOW_DAY_BEFORE
+    });
+    const publishTimesPath = join(root, "data", "publish-times", `${DATE}.json`);
+    const publishTimes = JSON.parse(await readFile(publishTimesPath, "utf8")) as {
+      slots: Array<{ slot: number; time: string }>;
+    };
+    const slot1Time = publishTimes.slots.find((slot) => slot.slot === 1)?.time;
+    const expected = Math.floor(new Date(`${DATE}T${slot1Time}:00+08:00`).getTime() / 1000);
+
+    expect(slot1Time).toBe("14:12");
+    expect(results.find((row) => row.slot === 1)?.scheduled_publish_time).toBe(expected);
+    expect(calls.find((call) => call.url.includes("/photos"))?.body?.get("scheduled_publish_time")).toBe(String(expected));
+  });
+
+  it("creates a per-slot early-evening assignment and schedules slot 2 at its exact Taiwan time", async () => {
+    await seedDay(root, [
+      slotFixture(1, "image", `各格視窗排程文案 ${DATE} 甲`),
+      slotFixture(2, "image", `各格晚間排程文案 ${DATE} 乙`)
+    ]);
+    await mkdir(join(root, "data"), { recursive: true });
+    await writeFile(join(root, "data", "publish-time-experiment.json"), JSON.stringify({
+      name: "slot-windows-vs-usual-2026-10",
+      start_date: DATE,
+      end_date: DATE,
+      slots: [1, 2],
+      probability_afternoon: 1,
+      windows: {
+        "1": { start: "14:12", end: "14:12", arm: "afternoon" },
+        "2": { start: "19:07", end: "19:07", arm: "early-evening" }
+      },
+      min_gap_minutes: 60,
+      preregistered: {
+        primary_metric: "Instagram reach",
+        secondary_metric: "Instagram views",
+        analysis_unit: "per slot",
+        decision_rule: "compare each slot"
+      }
+    }), "utf8");
+
+    const calls: CapturedCall[] = [];
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: fakeFetch(calls),
+      now: NOW_DAY_BEFORE
+    });
+    const publishTimesPath = join(root, "data", "publish-times", `${DATE}.json`);
+    const publishTimes = JSON.parse(await readFile(publishTimesPath, "utf8")) as {
+      slots: Array<{ slot: number; time: string; arm?: string }>;
+    };
+    const slot2 = publishTimes.slots.find((slot) => slot.slot === 2);
+    const slot2CallTime = Math.floor(new Date(`${DATE}T${slot2?.time}:00+08:00`).getTime() / 1000);
+    const expected = Math.floor(new Date(`${DATE}T19:07:00+08:00`).getTime() / 1000);
+
+    expect(slot2).toMatchObject({ time: "19:07", arm: "early-evening" });
+    expect(slot2CallTime).toBe(expected);
+    expect(results.find((row) => row.slot === 2)?.scheduled_publish_time).toBe(expected);
+    expect(calls.find((call) => call.url.includes("/photos") && call.body?.get("scheduled_publish_time") === String(expected))?.body?.get("scheduled_publish_time")).toBe(String(expected));
+  });
+
+  it("does not create an experiment assignment after a slot is already scheduled", async () => {
+    await seedDay(root, [
+      slotFixture(1, "image", `已排程不抽籤文案 ${DATE}`),
+      slotFixture(2, "image", `已排程不抽籤填充 ${DATE}`)
+    ]);
+    await mkdir(join(root, "data"), { recursive: true });
+    await writeFile(join(root, "data", "publish-time-experiment.json"), JSON.stringify({
+      name: "afternoon-vs-usual-2026-10",
+      start_date: DATE,
+      end_date: DATE,
+      slots: [1],
+      probability_afternoon: 1,
+      afternoon_window: { start: "14:12", end: "14:12" },
+      min_gap_minutes: 0,
+      preregistered: {
+        primary_metric: "Instagram reach",
+        secondary_metric: "Facebook distribution",
+        decision_rule: "compare arms"
+      }
+    }), "utf8");
+    await mkdir(join(root, "data", "scheduled-log"), { recursive: true });
+    await writeFile(join(root, "data", "scheduled-log", `${DATE}.json`), JSON.stringify([
+      { date: DATE, slot: 1, platform: "facebook", scheduled_post_id: "existing-fb-1" }
+    ]), "utf8");
+
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: fakeFetch([]),
+      now: NOW_DAY_BEFORE
+    });
+
+    expect(results.find((row) => row.slot === 1)).toMatchObject({ action: "skipped", reason: "already scheduled" });
+    expect(await readPublishTimes(DATE, root)).toBeNull();
+  });
+
   it("skips slots already scheduled instead of double-scheduling", async () => {
     await seedDay(root, [
       slotFixture(1, "image", `排程冪等文案 ${DATE} 丙`),
@@ -277,6 +447,69 @@ describe("scheduleAheadFacebook", () => {
     expect(log.some((row) => row.slot === 3)).toBe(false);
   });
 
+  it("still aborts the whole run when a Reel slot is missing its cover image", async () => {
+    const reelSlot = {
+      ...slotFixture(3, "image", `排程Reel缺圖文案 ${DATE} 辛`),
+      media_type: "reel",
+      format: "reel",
+      local_video_path: `docs/assets/${DATE}/slot-03.mp4`
+    } as unknown as ReturnType<typeof slotFixture>;
+    await seedDay(root, [slotFixture(1, "image", `排程Reel缺圖填充 ${DATE} 辛二`), reelSlot]);
+    await rm(join(root, "docs", "assets", DATE, "slot-03.png"));
+
+    await expect(
+      scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch([]), now: NOW_DAY_BEFORE })
+    ).rejects.toThrow(/Image is missing for slot 3/u);
+  });
+
+  it("rethrows an unexpected resolver error on a Reel slot instead of recording a skip", async () => {
+    const reelSlot = {
+      ...slotFixture(3, "image", `排程Reel故障文案 ${DATE} 壬`),
+      media_type: "reel",
+      format: "reel",
+      local_video_path: `docs/assets/${DATE}/slot-03.mp4`
+    } as unknown as ReturnType<typeof slotFixture>;
+    await seedDay(root, [slotFixture(1, "image", `排程Reel故障填充 ${DATE} 壬二`), reelSlot]);
+    vi.mocked(resolveSlotPublishMedia).mockImplementation(async (slot, ...rest) => {
+      if (slot.slot === 3) throw new TypeError("resolver exploded");
+      return actualPostCurrentSlot.resolveSlotPublishMedia(slot, ...rest);
+    });
+
+    await expect(
+      scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch([]), now: NOW_DAY_BEFORE })
+    ).rejects.toThrow("resolver exploded");
+    const log = await loadScheduledLog(DATE, root);
+    expect(log.some((row) => row.slot === 3)).toBe(false);
+  });
+
+  it("rethrows a refusal-shaped message that is not the resolver's own plain Error", async () => {
+    const reelSlot = {
+      ...slotFixture(3, "image", `排程Reel偽裝文案 ${DATE} 癸`),
+      media_type: "reel",
+      format: "reel",
+      local_video_path: `docs/assets/${DATE}/slot-03.mp4`
+    } as unknown as ReturnType<typeof slotFixture>;
+    await seedDay(root, [slotFixture(1, "image", `排程Reel偽裝填充 ${DATE} 癸二`), reelSlot]);
+    vi.mocked(resolveSlotPublishMedia).mockImplementation(async (slot, ...rest) => {
+      if (slot.slot === 3) throw new RangeError("Refusing image fallback for reel slot 3: not really the resolver");
+      return actualPostCurrentSlot.resolveSlotPublishMedia(slot, ...rest);
+    });
+
+    await expect(
+      scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch([]), now: NOW_DAY_BEFORE })
+    ).rejects.toThrow("not really the resolver");
+  });
+
+  it("aborts when a non-video slot is missing its image", async () => {
+    await seedDay(root, [slotFixture(1, "image", `排程圖缺文案 ${DATE} 子`), slotFixture(2, "image", `排程圖缺填充 ${DATE} 子二`)]);
+    await rm(join(root, "docs", "assets", DATE, "slot-01.png"));
+
+    await expect(
+      scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch([]), now: NOW_DAY_BEFORE })
+    ).rejects.toThrow(/Image is missing for slot 1/u);
+    expect(await loadScheduledLog(DATE, root)).toEqual([]);
+  });
+
   it("refuses a slot whose publish time is too close and one with no approval", async () => {
     await seedDay(root, [
       slotFixture(1, "image", `排程界線文案 ${DATE} 丁`),
@@ -302,6 +535,94 @@ describe("scheduleAheadFacebook", () => {
     });
     expect(noApproval[0]?.action).toBe("skipped");
     expect(noApproval[0]?.reason).toContain("approval");
+  });
+});
+
+describe("an unconfirmed Facebook schedule is recorded, never sent again", () => {
+  let root: string;
+  const slot1At = String(Math.floor(new Date(`${DATE}T11:30:00+08:00`).getTime() / 1000));
+
+  /** fakeFetch, except slot 1's schedule commit (the /photos POST carrying its time) answers with `onCommit`. */
+  function commitFails(calls: CapturedCall[], onCommit: () => Promise<Response>): { fetchImpl: typeof fetch; commits: () => number } {
+    let commits = 0;
+    const normal = fakeFetch(calls);
+    const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+      const body = init?.body instanceof URLSearchParams ? init.body : undefined;
+      if (String(input).includes("/photos") && body?.get("scheduled_publish_time") === slot1At) {
+        commits += 1;
+        calls.push({ url: String(input), body });
+        return onCommit();
+      }
+      return normal(input, init);
+    }) as typeof fetch;
+    return { fetchImpl, commits: () => commits };
+  }
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "sched-uncertain-"));
+    await seedDay(root, [
+      slotFixture(1, "image", `排程未確認文案 ${DATE} 壬`),
+      slotFixture(2, "image", `排程未確認填充 ${DATE} 壬二`)
+    ]);
+  });
+
+  it("records a schedule whose reply was lost as uncertain and never queues it again", async () => {
+    const calls: CapturedCall[] = [];
+    const { fetchImpl, commits } = commitFails(calls, () => Promise.reject(new TypeError("fetch failed")));
+    const first = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE });
+    expect(first.find((row) => row.slot === 1)).toMatchObject({ action: "uncertain" });
+    expect(first.find((row) => row.slot === 2)?.action).toBe("scheduled");
+    const log = await loadScheduledLog(DATE, root);
+    expect(log.find((row) => row.slot === 1)).toMatchObject({ status: "uncertain", scheduled_post_id: "" });
+
+    const second = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE });
+    expect(second.find((row) => row.slot === 1)).toMatchObject({ action: "skipped", reason: "already scheduled" });
+    expect(commits()).toBe(1);
+  });
+
+  it("an offline run (no DNS) aborts without a row, and the next run schedules the slot", async () => {
+    // The request never left this machine, so nothing is in Meta's queue:
+    // an uncertain row here would block the slot for good.
+    const calls: CapturedCall[] = [];
+    const { fetchImpl, commits } = commitFails(calls, () =>
+      Promise.reject(Object.assign(new TypeError("fetch failed"), { cause: { code: "ENOTFOUND" } }))
+    );
+    await expect(scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE })).rejects.toThrow(
+      "fetch failed"
+    );
+    expect(commits()).toBe(1);
+    expect(await loadScheduledLog(DATE, root)).toEqual([]);
+    const second = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: fakeFetch(calls), now: NOW_DAY_BEFORE });
+    expect(second.map((row) => row.action)).toEqual(["scheduled", "scheduled"]);
+  });
+
+  it("records a schedule answered without an id as uncertain", async () => {
+    const calls: CapturedCall[] = [];
+    const { fetchImpl } = commitFails(calls, async () => new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));
+    const results = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE });
+    expect(results.find((row) => row.slot === 1)).toMatchObject({ action: "uncertain" });
+    expect((await loadScheduledLog(DATE, root)).find((row) => row.slot === 1)?.status).toBe("uncertain");
+  });
+
+  it("still stops without a row when the failure comes before the commit point", async () => {
+    await seedDay(root, [
+      slotFixture(1, "carousel", `排程提交前失敗文案 ${DATE} 癸`),
+      slotFixture(2, "image", `排程提交前失敗填充 ${DATE} 癸二`)
+    ]);
+    const calls: CapturedCall[] = [];
+    const normal = fakeFetch(calls);
+    // The carousel's unpublished photo uploads come before its /feed commit.
+    const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+      const body = init?.body instanceof URLSearchParams ? init.body : undefined;
+      if (String(input).includes("/photos") && !body?.get("scheduled_publish_time")) {
+        return new Response(JSON.stringify({ error: { message: "upload failed" } }), { status: 500 });
+      }
+      return normal(input, init);
+    }) as typeof fetch;
+    await expect(
+      scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE })
+    ).rejects.toThrow("upload failed");
+    expect((await loadScheduledLog(DATE, root)).some((row) => row.slot === 1)).toBe(false);
   });
 });
 
@@ -357,6 +678,41 @@ describe("postCurrentSlot interlock with schedule-ahead", () => {
     expect(fb?.attempts).toBe(0);
     const ig = log.find((row) => row.platform === "instagram");
     expect(ig?.status).toBe("success");
+  });
+
+  it("records an unconfirmed schedule as uncertain and does not publish Facebook again", async () => {
+    await seedDay(root, [
+      slotFixture(1, "image", `互鎖未確認文案 ${DATE} 庚`),
+      slotFixture(2, "image", `互鎖未確認填充 ${DATE} 庚二`)
+    ]);
+    await mkdir(join(root, "data", "scheduled-log"), { recursive: true });
+    await writeFile(
+      join(root, "data", "scheduled-log", `${DATE}.json`),
+      JSON.stringify([
+        {
+          date: DATE,
+          slot: 1,
+          platform: "facebook",
+          scheduled_post_id: "",
+          scheduled_publish_time: Math.floor(new Date(`${DATE}T11:30:00+08:00`).getTime() / 1000),
+          published_media_type: "image",
+          status: "uncertain",
+          error: "Facebook photo schedule response was lost",
+          created_at: new Date().toISOString()
+        }
+      ]),
+      "utf8"
+    );
+
+    const calls: CapturedCall[] = [];
+    await postCurrentSlot({ date: DATE, slot: 1, root, now: IN_WINDOW, fetchImpl: fakeFetch(calls) });
+
+    expect(calls.some((call) => call.url.includes("/111000111/"))).toBe(false);
+    const log = await loadPostLog(DATE, root);
+    const fb = log.find((row) => row.platform === "facebook");
+    expect(fb).toMatchObject({ status: "uncertain", attempts: 0 });
+    expect(fb?.post_id).toBeUndefined();
+    expect(log.find((row) => row.platform === "instagram")?.status).toBe("success");
   });
 
   it("still publishes Facebook live when no scheduled record exists (mutation guard)", async () => {

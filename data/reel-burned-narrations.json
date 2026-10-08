@@ -1,0 +1,85 @@
+{
+  "run": "output/reels-run/2026-07-29",
+  "generated_from": {
+    "plush-doll": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/plush-doll.ass",
+      "sha256": "6eb95cd53de784e6926a7948b9404f8616e1d52092428558ce612cd9bbbbd0b4"
+    },
+    "wool-coat-shoulder": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/wool-coat-shoulder.ass",
+      "sha256": "34a347d875dbd3a1fc967fd7317ff89dce101e060b731c0089f07b850b1a973c"
+    },
+    "suede-shoe-nap": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/suede-shoe-nap.ass",
+      "sha256": "60a2bef4038307f025a0bf642759063b6be6825adf0f71ae3c876998ec43bc8d"
+    },
+    "heel-tip-scuff": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/heel-tip-scuff.ass",
+      "sha256": "58672fc3856b7e11013c38d2ee6040fee2f52c92c0c7e1f4424c9d9f2a61bf2d"
+    },
+    "leather-belt-crease": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/leather-belt-crease.ass",
+      "sha256": "70d1fe3c98851b7ce760542782ceb729b0a86887b838b8a4ce353decf16aed53"
+    },
+    "mattress-pad-sweat": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/mattress-pad-sweat.ass",
+      "sha256": "97f591b4c1892fa4fc35c33058dfe5fcae6c459833471353faefe2edce3ce3b0"
+    },
+    "blanket-pilling": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/blanket-pilling.ass",
+      "sha256": "e35b24a10566abce9d937f4e206422d0c589f66c7f70e5453d8fe9b39353d55f"
+    },
+    "denim-knee-fade": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/denim-knee-fade.ass",
+      "sha256": "a4cf5d3cde818f0bcc8017ba3b006f18e032767a7926ddf537c72e1bb8f8c6a0"
+    },
+    "wallet-edge-wear": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/wallet-edge-wear.ass",
+      "sha256": "97fc85e3e464c8c3381c2cdf2e834fc1e1afded5a760814ab86d5db27022cf64"
+    },
+    "kids-shoe-toe": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/kids-shoe-toe.ass",
+      "sha256": "55d373e7a7f16401d81e155e8ecce1fb112d34fdab42060cad9f98ebe577b3e9"
+    },
+    "hiking-boot-mud": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/hiking-boot-mud.ass",
+      "sha256": "3f27849e0a42c71e0866c702a539ada30ca5164f38cab02b8f46cac0d6b992b9"
+    },
+    "sweater-underarm": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/sweater-underarm.ass",
+      "sha256": "9378c8773aa71c5fc96cecd27779fe453bb34cc4df97a27a25610fe939e649d3"
+    },
+    "white-shoe-rescue": {
+      "source": "ass",
+      "path": "output/reels-run/2026-07-29/reels/white-shoe-rescue.ass",
+      "sha256": "5004afd62a8598726c140bce808a0d178e3e87b684af8f82368dc2cd9d266861"
+    }
+  },
+  "narrations": {
+    "plush-doll": "娃娃能洗,但洗法差很多。怕的不是水,是脫水。填充會結塊,五官會掉。手洗低溫烘,五官先固定,拍來報價。",
+    "wool-coat-shoulder": "掛了一整季沒穿,灰會沿著肩膀那條線慢慢積起來。刷不掉是因為它早就卡進毛裡,要整件洗才拉得出來。",
+    "suede-shoe-nap": "絨毛倒了就會發硬發亮,那不是髒。洗完得把整片絨面重新刷順才回得來,用濕布擦只會把它壓得更平。",
+    "heel-tip-scuff": "包在外面的那層皮磨穿了,底下的材質才會露出來。清潔救不回這一塊,鞋面能洗,跟頭得換一片新的皮上去。",
+    "leather-belt-crease": "老是扣同一格,那一摺的塗層會最先斷開來。清完顏色會淡一點,但斷掉的那條線還是要補色才會平回去。",
+    "mattress-pad-sweat": "汗滲過去再乾掉,就會留下一圈邊。它幫你擋的是整張床墊,所以換季的時候該跟被子一起洗過一次。",
+    "blanket-pilling": "球是摩擦磨出來的,不是被你洗壞了。修掉之後手感就會回來,但下次要單獨洗,才不會再被拉鍊磨到。",
+    "denim-knee-fade": "布被撐開之後就回不去了,洗過也只會縮回一部分而已。想留住版型,別等到整片都發白了才送過來。",
+    "wallet-edge-wear": "邊油磨掉之後,裡層纖維才會翹起來,那是最早的警訊。這時候補只要薄薄一層,再拖就得整條重上。",
+    "kids-shoe-toe": "小孩踢地板磨出來的,只要面料還在就一定洗得回來。與其急著買新的一雙,先看那層膠有沒有裂開。",
+    "hiking-boot-mud": "泥乾掉之後會把鞋底的溝整個填平,抓地力就跟著沒了。硬刷會傷到防水層,要先泡開再慢慢帶出來。",
+    "sweater-underarm": "汗和止汗劑會起反應變成黃斑,放得越久就越難退。當季就洗掉最好處理,收進櫃子放一季就定型了。",
+    "white-shoe-rescue": "膠邊的黃是氧化,刷不掉;布面的黃是洗劑殘留,洗得回來。兩種黃的做法不一樣,拍照傳來就知道。"
+  }
+}

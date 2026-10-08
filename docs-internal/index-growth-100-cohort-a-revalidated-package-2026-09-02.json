@@ -1,0 +1,86 @@
+{
+  "package_id": "sxj-index-growth-cohort-a-revalidated-2026-09-02",
+  "site": "https://sixiangjialaundry.com",
+  "status": "HOLD_UNTIL_PILOT_ADOPT_AND_GENERATOR_FIX",
+  "source_worktree": "C:/Users/cyc39/.codex/worktrees/sxj-index-growth-pilot-minimal-20260902",
+  "purpose": "保留 Cohort A 隔離頁的可重現標籤修正與發布前驗證；不是 live 發布授權。",
+  "live_baseline": {
+    "sitemap_url_count": 33,
+    "pilot_url": "https://sixiangjialaundry.com/guides/shoe-odor-source.html",
+    "pilot_http_status": 200,
+    "candidate_live_status": 404,
+    "latest_gsc_indexed_snapshot": "25/32 on 2026-09-01"
+  },
+  "visible_label_treatment": {
+    "old_label": "鞋包清潔前的包角、鞋面與皮革檢查主圖",
+    "neutral_label": "鞋包材質與痕跡檢查示意圖",
+    "surfaces": ["og:image:alt", "twitter:image:alt", "figcaption"],
+    "result": "5/5 candidates neutralized"
+  },
+  "candidates": [
+    {
+      "slug": "suede-shoe-cleaning",
+      "path": "docs/guides/suede-shoe-cleaning.html",
+      "sha256": "4f6fd9d7a0bf75b4eeefc4c77d5304d5d9e9002e94de9025dcfc0034969b1029",
+      "bytes": 42530,
+      "body_chars": 1303,
+      "jsonld_parse": true,
+      "legacy_jsonld_caption": true
+    },
+    {
+      "slug": "canvas-shoe-mud",
+      "path": "docs/guides/canvas-shoe-mud.html",
+      "sha256": "5bf7f65e1106a981922a923b92eae5fc756f1bb013ab96261dc640fe6d8cedf0",
+      "bytes": 41989,
+      "body_chars": 1217,
+      "jsonld_parse": true,
+      "legacy_jsonld_caption": true
+    },
+    {
+      "slug": "leather-shoe-water-marks",
+      "path": "docs/guides/leather-shoe-water-marks.html",
+      "sha256": "200f786b8402a4cf51eb43d9cb7f022108f9054bce916207b2495a91e1a2400f",
+      "bytes": 42256,
+      "body_chars": 1215,
+      "jsonld_parse": true,
+      "legacy_jsonld_caption": true
+    },
+    {
+      "slug": "washing-machine-shoe-risk",
+      "path": "docs/guides/washing-machine-shoe-risk.html",
+      "sha256": "246289dfc9498fd72f865796749967d4137bfde66786d2ea9ae4fba092bf1f5a",
+      "bytes": 42456,
+      "body_chars": 1263,
+      "jsonld_parse": true,
+      "legacy_jsonld_caption": true
+    },
+    {
+      "slug": "athletic-shoe-mixed-materials",
+      "path": "docs/guides/athletic-shoe-mixed-materials.html",
+      "sha256": "27e51b954cb73c2065d8b97e0452917d3180cfaedfe015908211b9eecd82b1f2",
+      "bytes": 42631,
+      "body_chars": 1241,
+      "jsonld_parse": true,
+      "legacy_jsonld_caption": true
+    }
+  ],
+  "validation": {
+    "visible_neutral": "5/5",
+    "jsonld_parse_and_faq_howto": "5/5",
+    "body_over_500": "5/5",
+    "candidate_live_http_404": "5/5",
+    "git_diff_check": "PASS_WITH_CRLF_WARNINGS"
+  },
+  "release_blockers": [
+    "pilot 7/28 day gate not yet met",
+    "generator JSON-LD still emits legacy caption in all 5 candidates",
+    "candidate URLs are not live and are not in sitemap",
+    "image/claim first-party provenance remains unestablished"
+  ],
+  "forbidden_until_release": [
+    "no_live_deploy",
+    "no_sitemap_addition",
+    "no_duplicate_indexnow",
+    "no_google_indexing_api_for_articles"
+  ]
+}

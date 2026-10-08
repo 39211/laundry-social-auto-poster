@@ -124,4 +124,29 @@ npm run ga4-report -- --date 2026-08-11
 代價是:90 天計畫 P1 階段的三個基準數字裡,「詢問來自哪個渠道」這一個永遠建不起來,
 之後所有「哪個渠道有效」的判斷都只能靠你回填時憑印象講。
 
+---
+
+## AI 流量（和 line_click 是兩件事）
+
+GA4 **看不到索引、排名、AI 概覽有沒有講你**。那些看 Search Console。
+GA4 能看的是：有沒有人從 ChatGPT / Perplexity / Claude / Gemini / Copilot / Grok **點回來**。
+
+讀取端（不依賴你有沒有在 GA4 介面建管道群組）：
+
+```bash
+npm run ga4-ai-traffic -- --date 2026-08-26
+```
+
+寫入 `data/insights/ga4-traffic/<date>.json`。`google` / `google.com` **不會**被算成 AI。
+
+顯示端（GA4 介面，老闆做一次即可）：
+
+1. 管理 → 資料顯示 → 管道群組 → 建立新管道群組（可複製預設再改）
+2. 新增管道，名稱「AI 流量」
+3. 條件：來源 符合規則運算式  
+   `^(chatgpt\.com|chat\.openai\.com|perplexity\.ai|www\.perplexity\.ai|claude\.ai|gemini\.google\.com|copilot\.microsoft\.com|grok\.com|x\.ai)$`
+4. 把「AI 流量」拖到 Referral **上面**。GA4 由上往下配對。
+
+不要把 `google.com` 或 `openai.com` 整站加進去。
+
 </details>

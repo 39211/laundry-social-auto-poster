@@ -134,18 +134,15 @@ function Publish-Site {
     cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     $ok = ($LASTEXITCODE -eq 0)
     if ($ok) {
-        cmd /c "npm.cmd run submit-indexnow -- --live 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-        # Daily indexing push and audit: resubmits today's changed URLs plus the
-        # landing pages, then verifies each is reachable and above the thin-page
-        # floor. Thin pages are what Google reports as "crawled, currently not
-        # indexed", so they get flagged the day they appear instead of silently
-        # sitting in the sitemap. Never blocks the publish result.
+        # One changed-URL IndexNow path only. indexing-push records the semantic
+        # sitemap fingerprint, so an unchanged sitemap is audited but never sent
+        # a second time. A notification is not evidence of Google indexing.
         cmd /c "npm.cmd run indexing-push -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
         if ($LASTEXITCODE -ne 0) {
             Write-Log "Indexing audit flagged thin or unreachable pages; see output\operations\indexing-push-$date.json"
             Show-Toast "$date 索引稽核有頁面過薄或連不到,請看 output\operations\indexing-push-$date.json"
         }
-        Write-Log "Public site pushed, IndexNow submitted, indexing audit run."
+        Write-Log "Public site pushed; changed-URL IndexNow decision and indexing audit recorded."
     } else {
         Write-Log "publish-pages failed; assets exist locally but are not online."
         Show-Toast "$date 的公開站沒推上去,發文會被公開資產檢查擋下,請看 log。"
@@ -163,6 +160,12 @@ if ($hasCalendar -and $imagesReady) {
     Invoke-DayCarouselVisualQa
     Lock-Day
     if (Publish-Site) { exit 0 } else { exit 1 }
+}
+
+function Get-LaundryCodexModel {
+    $model = ([string]$env:LAUNDRY_CODEX_MODEL).Trim()
+    if ($model) { return $model }
+    return "gpt-5.6-luna"
 }
 
 $codex = Join-Path $env:APPDATA "npm\codex.cmd"
@@ -249,7 +252,7 @@ Push-Location $root
 # depends on two dedicated local accounts whose stored credentials this
 # machine's DPAPI can no longer decrypt. "unelevated" uses the current
 # login's own restricted token instead, sidestepping that credential store.
-$output = & $codex exec -C $root -s workspace-write -c 'windows.sandbox="unelevated"' $prompt 2>&1
+$output = & $codex exec -m (Get-LaundryCodexModel) -C $root -s workspace-write -c 'windows.sandbox="unelevated"' $prompt 2>&1
 $exitCode = $LASTEXITCODE
 Pop-Location
 $output | Out-File -FilePath $logFile -Append -Encoding utf8

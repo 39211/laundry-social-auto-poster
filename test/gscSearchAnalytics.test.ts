@@ -15,7 +15,7 @@ const CONFIGURED = {
   GSC_SITE_URL: "sc-domain:example.com"
 } as NodeJS.ProcessEnv;
 
-function stubFetch(handlers: { totals?: unknown; query?: unknown; page?: unknown }) {
+function stubFetch(handlers: { totals?: unknown; query?: unknown; page?: unknown; queryPage?: unknown }) {
   return (async (url: string | URL, init?: RequestInit) => {
     const target = String(url);
     if (target.includes("oauth2.googleapis.com")) {
@@ -24,6 +24,9 @@ function stubFetch(handlers: { totals?: unknown; query?: unknown; page?: unknown
     const body = JSON.parse(String(init?.body ?? "{}"));
     const dims: string[] = body.dimensions ?? [];
     if (dims.length === 0) return new Response(JSON.stringify(handlers.totals ?? { rows: [] }), { status: 200 });
+    if (dims.length === 2 && dims[0] === "query" && dims[1] === "page") {
+      return new Response(JSON.stringify(handlers.queryPage ?? { rows: [] }), { status: 200 });
+    }
     if (dims[0] === "query") return new Response(JSON.stringify(handlers.query ?? { rows: [] }), { status: 200 });
     return new Response(JSON.stringify(handlers.page ?? { rows: [] }), { status: 200 });
   }) as unknown as typeof fetch;
@@ -71,11 +74,15 @@ describe("gsc search-analytics reader", () => {
       fetchImpl: stubFetch({
         totals: { rows: [{ keys: [], clicks: 9, impressions: 40, ctr: 0.225, position: 6.5 }] },
         query: { rows: [{ keys: ["洗鞋"], clicks: 1, impressions: 5, ctr: 0.2, position: 8 }] },
-        page: { rows: [{ keys: ["https://example.com/"], clicks: 1, impressions: 5, ctr: 0.2, position: 8 }] }
+        page: { rows: [{ keys: ["https://example.com/"], clicks: 1, impressions: 5, ctr: 0.2, position: 8 }] },
+        queryPage: { rows: [{ keys: ["洗鞋", "https://example.com/"], clicks: 1, impressions: 5, ctr: 0.2, position: 8 }] }
       })
     });
     expect(report.totals).toEqual({ clicks: 9, impressions: 40, ctr: 0.225, position: 6.5 });
     expect(report.top_queries).toHaveLength(1);
+    expect(report.top_query_pages).toEqual([
+      { keys: ["洗鞋", "https://example.com/"], clicks: 1, impressions: 5, ctr: 0.2, position: 8 }
+    ]);
   });
 
   it("records a measured day keyed by the query date, not the collection date", async () => {

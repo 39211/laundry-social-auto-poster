@@ -1,0 +1,3 @@
+file '../03-raw-video/05A-edge.mp4'
+file '../03-raw-video/05B-metal.mp4'
+file '../03-raw-video/05C-junction.mp4'

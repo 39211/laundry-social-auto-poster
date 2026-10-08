@@ -1,0 +1,77 @@
+{
+  "topic": "送洗前先問：孩子上學後鞋襪變悶，門市會先確認什麼",
+  "date": "2026-09-12",
+  "slot": 2,
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "SCENE": "PASS",
+    "TOPIC_MATCH": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "四張均為白色鞋身配深藍鞋口的拼接球鞋，後跟拼片、裂紋與鞋底磨痕相符。",
+    "SCENE": "四張皆有淺色檯面、右側粉紅墊及後方橫條櫃面，屬同一櫃檯場景。",
+    "TOPIC_MATCH": "四張均呈現球鞋及鞋口內的灰色襪子，符合主題中的鞋襪。"
+  },
+  "frames_used": [
+    "slide-01.png",
+    "slide-02.png",
+    "slide-03.png",
+    "slide-04.png"
+  ],
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-12\\slot-02.png",
+      "canary": "AE6J",
+      "sha256": "534325f5080fb080eda3e8ba4221b2370cec970654733d6c21eec06d3f4f6f7d"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-12\\slot-02-slide-02.png",
+      "canary": "UCUX",
+      "sha256": "304581d47b4472b631e88dc3ee9aa0b1732b26294fed9bb4ef6a12a8ba0d4049"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-12\\slot-02-slide-03.png",
+      "canary": "TX7H",
+      "sha256": "26d82755a666832b16117c394d7ed2252ad319d255d51b096262900ec2b2de9d"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-12\\slot-02-slide-04.png",
+      "canary": "DERC",
+      "sha256": "37918a9d06a4b0fdfeec919bd7371a9b3114736f0ca380666b6e798d6ec47734"
+    }
+  ],
+  "sources": [
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-12\\slot-02.png",
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-12\\slot-02-slide-02.png",
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-12\\slot-02-slide-03.png",
+    "C:\\Users\\cyc39\\laundry-repo\\docs\\assets\\2026-09-12\\slot-02-slide-04.png"
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "AE6J",
+    "IMAGE_2": "UCUX",
+    "IMAGE_3": "TX7H",
+    "IMAGE_4": "DERC"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "AE6J",
+    "IMAGE_2": "UCUX",
+    "IMAGE_3": "TX7H",
+    "IMAGE_4": "DERC"
+  },
+  "prompt_hash": "b07e093cb40fae082f1a90d2f414e3d01da9fc8870a15b9469d74dd7ae0ef851",
+  "run_id": "carousel-qa-1788974433985",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-09-09T17:21:47.003Z",
+  "mode": "warn",
+  "verdict": "FAIL_CLOSED",
+  "fail_class": "missing_observation"
+}

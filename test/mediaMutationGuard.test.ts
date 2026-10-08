@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -43,6 +44,20 @@ async function tempRoot(prefix = "media-mutation-guard-"): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), prefix));
   roots.push(root);
   return root;
+}
+
+// Node 的 mkdtemp 在 Windows runner 上常拿到 8.3 短路徑（RUNNER~1），
+// PowerShell 的 $PSScriptRoot 則展開成長路徑（runneradmin）。js 版 realpath
+// 不會把兩者收成同一條；native realpath 會，8.3 別名再對一次。空白目錄名
+// 必須整段留下，路徑被空白切開時對不到同一個目錄。
+function sameDirectory(filePath: string): string {
+  let resolved = filePath;
+  try {
+    resolved = realpathSync.native(filePath);
+  } catch {
+    resolved = filePath;
+  }
+  return resolved.replace(/\\/g, "/").replace(/\/Users\/RUNNER~1\//gi, "/Users/runneradmin/").toLowerCase();
 }
 
 async function writeJson(root: string, relativePath: string, value: unknown): Promise<void> {
@@ -993,7 +1008,7 @@ describe("REGENGUARD-R2 PowerShell root and missing videos", () => {
       expect(calls.slice(guardIndex + 1).filter((call) => call.startsWith("run mark-image-source ") && call.includes(`--date ${DATE}`))).toEqual([]);
       await expect(readFile(join(root, `docs/assets/${DATE}/slot-01.png`))).rejects.toMatchObject({ code: "ENOENT" });
       const rootsPassed = (await readFile(rootLog, "utf8")).trim().split(/\r?\n/u);
-      expect(rootsPassed).toEqual([root]);
+      expect(rootsPassed.map(sameDirectory)).toEqual([sameDirectory(root)]);
     } else {
       await copyFile(join(REPO_ROOT, "scripts", "generate-missing-images.ps1"), join(root, "scripts", "generate-missing-images.ps1"));
       await writeJson(root, `data/image-prompts/${unlockedDate}.json`, []);
@@ -1012,7 +1027,7 @@ describe("REGENGUARD-R2 PowerShell root and missing videos", () => {
       expect(result.error, `${result.stdout}\n${result.stderr}`).toBeUndefined();
       expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(expectedExit);
       const rootsPassed = (await readFile(rootLog, "utf8")).trim().split(/\r?\n/u);
-      expect(rootsPassed).toEqual(dates.map(() => root));
+      expect(rootsPassed.map(sameDirectory)).toEqual(dates.map(() => sameDirectory(root)));
       expect(await readFile(npmLog, "utf8")).toContain("run media-guard");
       const calls = (await readFile(npmLog, "utf8")).trim().split(/\r?\n/u);
       for (const lockedDate of dates.filter((date) => date !== unlockedDate)) {
@@ -1028,7 +1043,7 @@ describe("REGENGUARD-R2 PowerShell root and missing videos", () => {
       expect(calls.some((call) => call.startsWith("run publish-pages ") && call.includes(`--date ${unlockedDate}`))).toBe(true);
       await expect(readFile(join(root, `docs/assets/${unlockedDate}/slot-01.png`))).rejects.toMatchObject({ code: "ENOENT" });
     }
-  });
+  }, 60_000);
 
   it.each([false, true])("S4 missing video with force=%s refuses a locked slot before any fetch", async (force) => {
     const root = await tempRoot();

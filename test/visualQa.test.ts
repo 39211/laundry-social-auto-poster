@@ -645,13 +645,23 @@ describe("call mode freeze", () => {
   });
 });
 
+function isExtractReelFramesAvailable(): boolean {
+  try {
+    execFileSync("ffmpeg", ["-version"], { stdio: "ignore" });
+    execFileSync("powershell.exe", ["-Version"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 describe("extract-reel-frames live canary burn", () => {
   const dirs: string[] = [];
   afterEach(async () => {
     await Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
   });
 
-  it("extracts scene-aware QA frames with sidecar hashes", () => {
+  it.skipIf(!isExtractReelFramesAvailable())("extracts scene-aware QA frames with sidecar hashes", () => {
     const dir = mkdtempSync(join(tmpdir(), "vq-extract-"));
     dirs.push(dir);
     const reel = join(dir, "sample-tA.mp4");

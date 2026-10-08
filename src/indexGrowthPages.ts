@@ -150,7 +150,9 @@ export const PROTECTED_LIVE_COHORT_HASHES: Record<(typeof PROTECTED_LIVE_COHORT_
   // 別墅區 and never answered the only thing that query is asking, which is whether
   // there is a shop in Donghai. There is not; the shop is in Xitun and Donghai is
   // served by free citywide pickup, and the new title says so.
-  "donghai-laundry-pickup": "327a10293cac705b209e0286ceca991dce4d6a8f0577fae9e7cd60e9e154cddc"
+  // 2026-10-07: the 別墅區厚件 section now quotes 羽絨被 600 and 羊毛被 800.
+  // Hash is this branch's page after that sentence, not main's hash.
+  "donghai-laundry-pickup": "38458cdf00f27ffb21d3ebf9d34afabce077b7587c39f50d71fdc9c23ce9a060"
 };
 
 export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLock> = {

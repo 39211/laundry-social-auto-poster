@@ -1,7 +1,7 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
-import { mkdir, readFile, readdir, unlink } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, unlink } from "node:fs/promises";
 import { writeFileWithRetry as writeFile } from "./fsRetry";
-import { join } from "node:path";
+import { dirname, join, posix, sep } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
@@ -1273,7 +1273,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     image_alt: "台中洗衣洗鞋洗包參考價目說明",
     image_note: "本頁以文字價目表為主，不使用與價格無關的客戶物件照片。",
     allow_image_fallback: false,
-    content_lastmod: "2026-09-05",
+    content_lastmod: "2026-10-07",
     area_served_name: "台中市",
     answer_summary:
       "台中洗衣洗鞋洗包參考價約 $70 到 $2500：襯衫 $70、一般運動鞋 $250、名牌包 $1500 起；皆為水洗參考價，不是固定價。",
@@ -1369,7 +1369,8 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
           { item: "皮衣", price: "$1200 / 特殊皮衣 $2000(發霉另計)" },
           { item: "棉被單人", price: "$350 / 雙人 $500(水洗價)" },
           { item: "床組四件套", price: "$300(水洗價)" },
-          { item: "羽絨羊毛被", price: "$800(水洗價)" },
+          { item: "羽絨被", price: "$600(水洗價)" },
+          { item: "羊毛被", price: "$800(水洗價)" },
           { item: "窗簾、地毯", price: "依尺寸報價，LINE 傳照片先估" },
           { item: "絨毛娃娃", price: "依大小報價，LINE 傳照片先估" }
         ]
@@ -1914,7 +1915,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["布品收納", "寢具收納", "外套收納", "換季清潔"],
     service_slug: "fabric-storage",
     local_intent: "台中西屯 布品收納 寢具清潔",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-10-07",
     steps: [
       { name: "看高接觸處", text: "外套先看領口、袖口、腋下和口袋邊。" },
       { name: "看厚棉邊角", text: "棉被、毯子和厚布品先看邊角、折線和收納袋內側。" },
@@ -1930,7 +1931,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       {
         heading: "什麼救得回、什麼只能維持",
         body:
-          "還有潮氣、汗味或局部髒污時，不建議直接密封；先確認狀態再收，會比下次拿出來才處理更好。表面灰塵和還沒封死的潮味，通常還有整理空間。久放黃痕、已經悶進填充層的味道、環境異味重新附著，不以單次處理保證長期狀態，也不保證變全新。有味道或局部髒污時不直接壓縮收納。公開水洗價：棉被單人 350、雙人 500、羽絨羊毛被 800；乾洗柔洗另計，以實際報價為主。"
+          "還有潮氣、汗味或局部髒污時，不建議直接密封；先確認狀態再收，會比下次拿出來才處理更好。表面灰塵和還沒封死的潮味，通常還有整理空間。久放黃痕、已經悶進填充層的味道、環境異味重新附著，不以單次處理保證長期狀態，也不保證變全新。有味道或局部髒污時不直接壓縮收納。公開水洗價：棉被單人 350、雙人 500、羽絨被 600、羊毛被 800；乾洗柔洗另計，以實際報價為主。"
       },
       {
         heading: "收納前怎麼問布品收納",
@@ -2011,7 +2012,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       "換季寢具收納"
     ],
     local_intent: "台中西屯 床組清洗 棉被清洗 寢具送洗",
-    content_lastmod: "2026-08-23",
+    content_lastmod: "2026-10-07",
     steps: [
       { name: "拍完整尺寸", text: "先拍床組、棉被或被套的完整外觀、尺寸標示與洗標。" },
       { name: "說明受潮與異味", text: "若有受潮、異味、局部污漬或長期收納狀況，送洗前一併說明。" },
@@ -2027,7 +2028,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       {
         heading: "什麼救得回、什麼只能維持",
         body:
-          "一般建議每年換季收納前清洗一次；有汗味、潮味或黃斑時就不要再等。表面髒與還沒封進填充層的潮味，通常還有清潔空間。沒乾透就壓縮收納，會悶出味道也會失去蓬鬆度；久放黃痕不以單次處理保證回到全新。公開水洗價：棉被單人 350、雙人 500、床組四件套 300、羽絨羊毛被 800；乾洗柔洗另計，以實際報價為主。"
+          "一般建議每年換季收納前清洗一次；有汗味、潮味或黃斑時就不要再等。表面髒與還沒封進填充層的潮味，通常還有清潔空間。沒乾透就壓縮收納，會悶出味道也會失去蓬鬆度；久放黃痕不以單次處理保證回到全新。公開水洗價：棉被單人 350、雙人 500、床組四件套 300、羽絨被 600、羊毛被 800；乾洗柔洗另計，以實際報價為主。"
       },
       {
         heading: "體積太大怎麼送到布品收納",
@@ -2726,7 +2727,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["東海洗衣", "東海洗衣店", "東海大學洗衣", "台中東海收送", "別墅區洗衣"],
     service_slug: "taichung-xitun-laundry",
     local_intent: "東海 洗衣收送 厚被 窗簾",
-    content_lastmod: "2026-08-29",
+    content_lastmod: "2026-10-07",
     steps: [
       { name: "先分物件", text: "日常衣物、厚被床組、窗簾、地毯分開列。東海別墅區常見後三項，和逢甲宿舍薄衣不是同一袋。" },
       { name: "厚被先聞潮味", text: "換季收納前摸起來乾、中間層不一定乾。有潮味先拍邊角，不要先壓縮袋。" },
@@ -2742,7 +2743,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       {
         heading: "別墅區厚件為什麼要先拍照",
         body:
-          "羽絨被、羊毛被與窗簾的體積大，自己載車不一定放得下，這正是免費收送的用途。門市要先看填充、潮氣、車線與窗簾塗層，才能說適不適合收。公開水洗價：棉被單人 350、雙人 500、羽絨羊毛被 800；窗簾與地毯依尺寸。乾洗柔洗與發霉另計。沒看過照片不承諾「一定當天取」。"
+          "羽絨被、羊毛被與窗簾的體積大，自己載車不一定放得下，這正是免費收送的用途。門市要先看填充、潮氣、車線與窗簾塗層，才能說適不適合收。公開水洗價：棉被單人 350、雙人 500、羽絨被 600、羊毛被 800；窗簾與地毯依尺寸。乾洗柔洗與發霉另計。沒看過照片不承諾「一定當天取」。"
       },
       {
         heading: "學生件與家庭件可以同一趟嗎？",
@@ -2870,7 +2871,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["南屯洗衣", "南屯洗衣店", "南屯洗衣收送", "文心森林公園洗衣", "八期洗衣", "七期南側洗衣"],
     service_slug: "taichung-citywide-laundry-pickup",
     local_intent: "南屯 洗衣收送 文心森林公園 八期 七期南側 大樓管理室",
-    content_lastmod: "2026-09-20",
+    content_lastmod: "2026-10-07",
     steps: [
       { name: "先分品項類別", text: "日常換季衣物、厚棉被羽絨被、落地窗簾或地毯分開整理。南屯大樓住宅多為厚件寢具，先清點件數。" },
       { name: "厚被先看潮氣標籤", text: "羽絨被、羊毛被與蠶絲被洗標不同。換季前若摸到潮濕或有悶味，先拍水洗標與四個邊角，不要先抽真空壓縮。" },
@@ -2891,7 +2892,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       {
         heading: "厚重棉被與冬裝為什麼要先拍照估價",
         body:
-          "羽絨被、羊毛被與雙人冬被體積龐大，自己洗往往曬不乾甚至內層發霉結塊。私享家公開水洗價：單人棉被 350、雙人棉被 500、羽絨羊毛被 800；長大衣 300、羽絨外套 280。乾洗、柔洗與特殊發霉另計。先傳照片讓我們確認填充材質與污漬程度，師傅能先給予準確報價與處理建議，避免物件收回門市後產生期待落差。"
+          "羽絨被、羊毛被與雙人冬被體積龐大，自己洗往往曬不乾甚至內層發霉結塊。私享家公開水洗價：單人棉被 350、雙人棉被 500、羽絨被 600、羊毛被 800；長大衣 300、羽絨外套 280。乾洗、柔洗與特殊發霉另計。先傳照片讓我們確認填充材質與污漬程度，師傅能先給予準確報價與處理建議，避免物件收回門市後產生期待落差。"
       },
       {
         heading: "南屯住戶 LINE 預約方式",
@@ -2931,7 +2932,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     keywords: ["台中北區洗衣", "北區洗衣店", "中國醫洗衣", "一中洗衣", "科博館洗衣"],
     service_slug: "taichung-citywide-laundry-pickup",
     local_intent: "台中北區 洗衣收送 中國醫大 一中商圈 科博館",
-    content_lastmod: "2026-09-20",
+    content_lastmod: "2026-10-07",
     steps: [
       { name: "先分工作服與日常件", text: "醫護白袍、襯衫制服與一般日常衣物分開袋裝。若有特殊藥水漬或汗斑，請先標記。" },
       { name: "拍洗標與最在意痕跡", text: "西裝領口、白袍袖口或被套邊緣，各拍一張近照。照片能讓門市快速確認水洗或乾洗工序。" },
@@ -2952,7 +2953,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
       {
         heading: "家庭厚被與換季防潮收納",
         body:
-          "北區漢口路與科博館周邊住宅，換季時常有大批厚冬被、大衣與窗簾送洗需求。棉被單人 350、雙人 500、羽絨羊毛被 800；長大衣 300、皮衣 1200。沒乾透的厚被若直接收進衣櫃，梅雨季節極易滋生霉菌異味。我們先透過專業低溫烘乾與透氣整理，確認乾燥透徹再交還給您，省去自行搬運厚重布品的體力負擔。"
+          "北區漢口路與科博館周邊住宅，換季時常有大批厚冬被、大衣與窗簾送洗需求。棉被單人 350、雙人 500、羽絨被 600、羊毛被 800；長大衣 300、皮衣 1200。沒乾透的厚被若直接收進衣櫃，梅雨季節極易滋生霉菌異味。我們先透過專業低溫烘乾與透氣整理，確認乾燥透徹再交還給您，省去自行搬運厚重布品的體力負擔。"
       },
       {
         heading: "北區客戶 LINE 線上預約管道",
@@ -3720,16 +3721,17 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
     // address.
     geo: {
       "@type": "GeoCoordinates",
-      latitude: 24.1780524,
-      longitude: 120.6420289
+      latitude: 24.174057,
+      longitude: 120.639961
     },
     hasMap: profile.map_url,
     // Every profile the shop actually owns belongs here: sameAs is how search
     // engines and LLMs decide that the site, the Maps listing, the YouTube
     // channel and the social accounts are one entity rather than four unrelated
     // results. It listed only Facebook and Instagram while the shop had been
-    // publishing to YouTube daily and had a live Maps listing.
-    sameAs: [profile.facebook_url, profile.instagram_url, profile.youtube_url, profile.map_url].filter(
+    // publishing to YouTube daily and had a live Maps listing. LINE was added
+    // 2026-09-24 (PR #8) as another owned profile the business uses for customer contact.
+    sameAs: [profile.line_url, profile.facebook_url, profile.instagram_url, profile.youtube_url, profile.map_url].filter(
       (url): url is string => Boolean(url)
     ),
     image: images,
@@ -5483,6 +5485,48 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
     .join("\n");
 }
 
+/** `/posts/` hub 與 slot 文章。0 篇可索引時這兩份 sitemap 都不得收錄。 */
+function isPostsSurfaceUrl(url: string): boolean {
+  try {
+    const pathname = new URL(url, "https://sixiangjialaundry.com").pathname;
+    return pathname === "/posts" || pathname === "/posts/" || pathname.startsWith("/posts/");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * buildSitemapXml / buildAiSitemapXml 在 indexable_article_count === 0 時已略過 /posts/。
+ * 之後 seo-overrides 會整檔蓋掉 sitemap（ai-sitemap 若存在也會），重建 union 會把 hub 帶回來。
+ * 覆寫結束後再剝一次，重跑產生器也不會回彈。其他 URL 與 lastmod 保持原行。
+ */
+async function stripUnindexablePostsFromSitemaps(
+  index: PublicPostIndex,
+  sitemapPath: string,
+  aiSitemapPath: string
+): Promise<void> {
+  if (indexablePostArticles(index).length > 0) return;
+  await Promise.all([sitemapPath, aiSitemapPath].map(stripPostsSurfaceUrlLines));
+}
+
+async function stripPostsSurfaceUrlLines(filePath: string): Promise<void> {
+  let xml = "";
+  try {
+    xml = await readFile(filePath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  const next = xml
+    .split("\n")
+    .filter((line) => {
+      const loc = line.match(/<loc>([^<]*)<\/loc>/u)?.[1];
+      return !loc || !isPostsSurfaceUrl(loc);
+    })
+    .join("\n");
+  if (next !== xml) await writeFile(filePath, next, "utf8");
+}
+
 function buildJsonFeed(index: PublicPostIndex): object {
   return {
     version: "https://jsonfeed.org/version/1.1",
@@ -5721,7 +5765,10 @@ function buildAnswersJson(index: PublicPostIndex): object {
       citation_ready_summary: citationReadySummary(index),
       best_source_pages: bestSourcePages(index),
       do_not_infer_rules: [...AI_DO_NOT_INFER_RULES],
-      omitted_until_verified: ["google_place_id", "holiday_hours_overrides"]
+      omitted_until_verified: [
+        ...(profile.google_place_id ? [] : ["google_place_id"]),
+        "holiday_hours_overrides"
+      ]
     },
     answers: [...coreHomeAnswers, ...homeAnswers, ...serviceAnswers, ...supportAnswers].map((answer) =>
       addAnswerSafety(answer, profile)
@@ -5803,8 +5850,8 @@ function buildGeoTargetsJson(index: PublicPostIndex): object {
       }
     },
     coordinates: {
-      latitude: 24.1780524,
-      longitude: 120.6420289,
+      latitude: 24.174057,
+      longitude: 120.639961,
       status: "owner-verified-2026-08-21"
     },
     primary_local_queries: LOCAL_SEARCH_QUERY_TARGETS.map((query) => ({
@@ -7118,7 +7165,10 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   const render: PostArticleRender = {
     mainHtml,
     visibleChars,
-    indexable: reasons.length === 0,
+    // Hardcoded false per 2026-09-24 policy: all daily slot posts are noindex,follow
+    // to focus SEO on the curated service/guide pages. This keeps slot posts out of
+    // sitemap.xml and prevents the posts/ hub from appearing when no slots are indexable.
+    indexable: false,
     reasons,
     faqs,
     articleNumber
@@ -9047,7 +9097,10 @@ function buildAiDiscovery(index: PublicPostIndex): object {
         expanded_behavior: "Homepage renders approved posts from the newest seven content dates directly.",
         archive_behavior: "Older approved posts stay in SEO/AEO/GEO data and render inside a collapsed homepage archive."
       },
-      omitted_until_verified: ["google_place_id", "holiday_hours_overrides"]
+      omitted_until_verified: [
+        ...(index.business_profile.google_place_id ? [] : ["google_place_id"]),
+        "holiday_hours_overrides"
+      ]
     },
     data_quality: {
       public_base_url_configured: index.base_url_configured,
@@ -9311,6 +9364,114 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   );
   const postArticleOutputs = await writePostArticlePages(articlePosts, index, postsRoot);
   await writeFile(outputs.nojekyll, "", "utf8");
+
+  // Apply SEO overrides: copy hand-maintained pages from seo-overrides/ to docs/
+  // These pages contain the full content from PR #7, #8, #9 (answer boxes, FAQs, internal links)
+  // without requiring manual porting of 200+ FAQ items into TypeScript.
+  const overrideRoot = join(root, "seo-overrides");
+  const overrideHtmlFiles: Array<{ posixPath: string; fsPath: string }> = [];
+  try {
+    const walkOverrides = async (dir: string, relPosixPath: string = ""): Promise<void> => {
+      const entries = await readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        // Build relPosixPath using posix.join to ensure forward slashes on all platforms
+        const rel = relPosixPath ? posix.join(relPosixPath, entry.name) : entry.name;
+        if (entry.isDirectory()) {
+          await walkOverrides(fullPath, rel);
+        } else if (entry.isFile() && entry.name !== "README.md") {
+          // Convert posix path to native filesystem path for Windows compatibility
+          const fsPath = rel.split("/").join(sep);
+          const targetPath = join(docsRoot, fsPath);
+          await mkdir(dirname(targetPath), { recursive: true });
+          await copyFile(fullPath, targetPath);
+          if (rel.endsWith(".html")) {
+            overrideHtmlFiles.push({ posixPath: rel, fsPath });
+          }
+        }
+      }
+    };
+    await walkOverrides(overrideRoot);
+    if (overrideHtmlFiles.length > 0) {
+      console.log(`Applied ${overrideHtmlFiles.length} SEO override HTML files`);
+      
+      // Extract lastmod from override HTML files' JSON-LD dateModified
+      const overrideLastmods = new Map<string, string>();
+      const overrideCanonicals = new Map<string, string>();
+      for (const { posixPath, fsPath } of overrideHtmlFiles) {
+        try {
+          const html = await readFile(join(docsRoot, fsPath), "utf8");
+          for (const link of html.matchAll(/<link\b[^>]*>/gi)) {
+            if (!/\brel\s*=\s*(["'])canonical\1/i.test(link[0])) continue;
+            const href = link[0].match(/\bhref\s*=\s*(["'])(.*?)\1/i);
+            if (href?.[2]) overrideCanonicals.set(posixPath, href[2]);
+          }
+          const dateModifiedMatch = html.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/);
+          if (dateModifiedMatch && dateModifiedMatch[1]) {
+            overrideLastmods.set(posixPath, dateModifiedMatch[1]);
+          }
+        } catch {
+          // If we can't read or parse, fall back to sitemapLastmodForUrl
+        }
+      }
+      
+      // Regenerate sitemap to include override pages (except noindex price-list stub)
+      const overrideUrls = overrideHtmlFiles
+        .filter(({ posixPath }) => posixPath !== "price-list.html") // Exclude noindex stub
+        .flatMap(({ posixPath }) => {
+          // Build URL using URL constructor for proper path joining
+          const urlPath = posixPath === "index.html" ? "" : posixPath;
+          const baseUrl = siteBaseUrl || "";
+          const url = new URL(urlPath, baseUrl.endsWith("/") ? baseUrl : baseUrl + "/").href;
+          const canonical = overrideCanonicals.get(posixPath);
+          // Pages canonicalized elsewhere must not be listed in sitemap.xml.
+          if (canonical && new URL(canonical, url).href !== url) return [];
+          return [url];
+        });
+      
+      // Add override URLs to sitemap (deduplicate with existing)
+      if (index.base_url_configured && overrideUrls.length > 0) {
+        const existingSitemap = await readFile(outputs.sitemap, "utf8");
+        const existingUrls = Array.from(existingSitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
+          .map(m => m[1])
+          .filter((url): url is string => typeof url === "string");
+        const allUrls = Array.from(new Set([...existingUrls, ...overrideUrls]));
+        
+        // Rebuild sitemap with all URLs, using override lastmods when available
+        const items = allUrls
+          .map(url => {
+            // Try to find corresponding override file for this URL
+            const urlObj = new URL(url);
+            const pathname = urlObj.pathname.replace(/^\/+/, "");
+            const posixPath = pathname || "index.html";
+            
+            // Use override's dateModified if available, otherwise fall back to sitemapLastmodForUrl
+            const lastmod = overrideLastmods.get(posixPath) || sitemapLastmodForUrl(url, index);
+            const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
+            return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
+          })
+          .join("\n");
+        
+        const newSitemap = [
+          '<?xml version="1.0" encoding="UTF-8"?>',
+          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+          items,
+          "</urlset>",
+          ""
+        ].join("\n");
+        
+        await writeFile(outputs.sitemap, newSitemap, "utf8");
+        console.log(`Updated sitemap with ${allUrls.length} total URLs (including ${overrideUrls.length} from overrides)`);
+      }
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+    // seo-overrides/ directory doesn't exist, skip
+  }
+
+  await stripUnindexablePostsFromSitemaps(index, outputs.sitemap, outputs.aiSitemap);
 
   return [...Object.values(outputs), ...postArticleOutputs];
 }

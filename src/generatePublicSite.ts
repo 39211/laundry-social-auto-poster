@@ -4613,6 +4613,11 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
     .join("\n");
 }
 
+function metaRobotsIsNoindex(html: string): boolean {
+  const tag = html.match(/<meta\s+[^>]*\bname=["']robots["'][^>]*>/i)?.[0] ?? "";
+  return /\bnoindex\b/i.test(tag);
+}
+
 /** `/posts/` hub 與 slot 文章。0 篇可索引時這兩份 sitemap 都不得收錄。 */
 function isPostsSurfaceUrl(url: string): boolean {
   try {
@@ -8325,11 +8330,14 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     if (overrideHtmlFiles.length > 0) {
       console.log(`Applied ${overrideHtmlFiles.length} SEO override HTML files`);
       
-      // Extract lastmod from override HTML files' JSON-LD dateModified
+      // Extract lastmod from override HTML files' JSON-LD dateModified.
+      // robots noindex pages stay on disk and can still be linked, but they are not sitemap URLs.
       const overrideLastmods = new Map<string, string>();
+      const noindexOverrides = new Set<string>();
       for (const { posixPath, fsPath } of overrideHtmlFiles) {
         try {
           const html = await readFile(join(docsRoot, fsPath), "utf8");
+          if (metaRobotsIsNoindex(html)) noindexOverrides.add(posixPath);
           const dateModifiedMatch = html.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/);
           if (dateModifiedMatch && dateModifiedMatch[1]) {
             overrideLastmods.set(posixPath, dateModifiedMatch[1]);
@@ -8339,9 +8347,10 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         }
       }
       
-      // Regenerate sitemap to include override pages (except noindex price-list stub)
+      // Regenerate sitemap to include override pages, skipping robots noindex
+      // (price-list stub and the 16 far-district doorway pickups).
       const overrideUrls = overrideHtmlFiles
-        .filter(({ posixPath }) => posixPath !== "price-list.html") // Exclude noindex stub
+        .filter(({ posixPath }) => posixPath !== "price-list.html" && !noindexOverrides.has(posixPath))
         .map(({ posixPath }) => {
           // Build URL using URL constructor for proper path joining
           const urlPath = posixPath === "index.html" ? "" : posixPath;
@@ -8355,7 +8364,15 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         const existingUrls = Array.from(existingSitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
           .map(m => m[1])
           .filter((url): url is string => typeof url === "string");
-        const allUrls = Array.from(new Set([...existingUrls, ...overrideUrls]));
+        const allUrls = Array.from(new Set([...existingUrls, ...overrideUrls])).filter((url) => {
+          try {
+            const pathname = new URL(url).pathname.replace(/^\/+/, "");
+            const posixPath = pathname === "" ? "index.html" : pathname;
+            return posixPath !== "price-list.html" && !noindexOverrides.has(posixPath);
+          } catch {
+            return true;
+          }
+        });
         
         // Rebuild sitemap with all URLs, using override lastmods when available
         const items = allUrls

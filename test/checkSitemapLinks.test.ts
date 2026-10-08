@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   EXPECTED_LOC_COUNT,
   NEW_PAGE_PATHS,
+  NOINDEX_FOLLOW_LOCAL_PATHS,
   checkSitemapLinks,
   repoRootFromHere,
   sitemapLinkReportFailed
@@ -51,10 +52,20 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.missing).toEqual([]);
     expect(report.duplicateLocs).toEqual([]);
     expect(report.missingFromSitemap).toEqual([]);
+    expect(report.unexpectedInSitemap).toEqual([]);
     expect(report.wrongLastmod).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(sitemapLinkReportFailed(report)).toBe(false);
     expect(NEW_PAGE_PATHS).toHaveLength(73);
+    expect(NOINDEX_FOLLOW_LOCAL_PATHS).toHaveLength(16);
+    const root = repoRootFromHere();
+    for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      expect(html, path).toContain('<meta name="robots" content="noindex, follow" />');
+      expect(html, path).toContain('<meta name="googlebot" content="noindex, follow" />');
+      expect(html, path).toContain(`<link rel="canonical" href="https://sixiangjialaundry.com${path}" />`);
+      expect(html, path).not.toContain('content="index, follow');
+    }
     for (const path of NEW_PAGE_PATHS) {
       expect(report.inbound[path]?.count).toBeGreaterThanOrEqual(1);
     }

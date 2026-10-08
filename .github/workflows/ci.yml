@@ -64,9 +64,105 @@ jobs:
 
       - run: npm ci
 
-      # visualQa.test.ts synthesizes a sample clip with a real ffmpeg call;
-      # windows-latest does not ship it. choco is preinstalled on this image.
-      - run: choco install ffmpeg -y
+      # visualQa.test.ts 會真的呼叫 ffmpeg 合成樣本；windows-latest 沒有內建，
+      # 映像上已有 choco。2026-10-07 run 37636132974 attempt 1 碰到
+      # Chocolatey feed 504，log 印出 Unable to find package 'ffmpeg' 與
+      # installed 0/0，這一步仍是 success。pwsh 以 `. '{0}'` 跑腳本時
+      # 不會把 native exit code 變成 step 失敗；choco 2.7 對
+      # NuGetResolverInputException 也可能在找不到套件時留下 exit 0。
+      # 下游 vitest 才 spawn ffmpeg ENOENT。這裡最多試 3 次，失敗要寫出
+      # 次數與 exit code，並在下一步用 ffmpeg -version 擋下。
+      - name: Install ffmpeg
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          $PSNativeCommandUseErrorActionPreference = $false
+
+          $package = "ffmpeg"
+          $maxAttempts = 3
+          $retryWaits = @(15, 30)
+          $chocoExe = Join-Path $env:ProgramData "chocolatey\bin\choco.exe"
+          $ffmpegShim = Join-Path $env:ProgramData "chocolatey\bin\ffmpeg.exe"
+
+          if (-not (Test-Path -LiteralPath $chocoExe)) {
+            Write-Host "::error::choco.exe not found at $chocoExe"
+            exit 1
+          }
+
+          $succeeded = $false
+          $code = -1
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            if ($attempt -gt 1) {
+              $wait = $retryWaits[$attempt - 2]
+              Write-Host "Waiting ${wait}s before choco attempt $attempt/$maxAttempts"
+              Start-Sleep -Seconds $wait
+            }
+
+            Write-Host "choco install $package attempt $attempt/$maxAttempts"
+            try {
+              & $chocoExe install $package -y --no-progress
+              $code = $LASTEXITCODE
+            } catch {
+              if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+                $code = $LASTEXITCODE
+              } else {
+                $code = 1
+              }
+              Write-Host "choco install $package attempt $attempt/$maxAttempts error: $($_.Exception.Message)"
+            }
+            if ($null -eq $code) { $code = -1 }
+
+            $shimReady = Test-Path -LiteralPath $ffmpegShim
+            # 0 是成功。3010 / 1641 是 choco 的「成功但需要重開機」，
+            # 只有 shim 真的在才算數，避免 exit 0 但 0/0 packages 的假綠。
+            $exitOk = ($code -eq 0) -or (($code -eq 3010 -or $code -eq 1641) -and $shimReady)
+            if ($exitOk -and $shimReady) {
+              Write-Host "choco install $package attempt $attempt/$maxAttempts succeeded with exit code $code"
+              $succeeded = $true
+              break
+            }
+
+            Write-Host "choco install $package attempt $attempt/$maxAttempts failed with exit code $code"
+          }
+
+          if (-not $succeeded) {
+            Write-Host "::error::ffmpeg not installed after 3 choco attempts"
+            exit 1
+          }
+
+      - name: Verify ffmpeg
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          $PSNativeCommandUseErrorActionPreference = $false
+
+          $chocoBin = Join-Path $env:ProgramData "chocolatey\bin"
+          $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
+          $user = [Environment]::GetEnvironmentVariable("Path", "User")
+          $env:Path = (@($chocoBin, $machine, $user) | Where-Object { $_ }) -join ";"
+
+          $ffmpegShim = Join-Path $chocoBin "ffmpeg.exe"
+          $ffmpeg = $null
+          $cmd = Get-Command ffmpeg -ErrorAction SilentlyContinue
+          if ($cmd -and $cmd.Source) {
+            $ffmpeg = $cmd.Source
+          } elseif (Test-Path -LiteralPath $ffmpegShim) {
+            $ffmpeg = $ffmpegShim
+          }
+
+          if (-not $ffmpeg) {
+            Write-Host "::error::ffmpeg not installed after 3 choco attempts"
+            exit 1
+          }
+
+          Write-Host "Running ffmpeg -version ($ffmpeg)"
+          & $ffmpeg -version
+          $code = $LASTEXITCODE
+          if ($null -eq $code) { $code = -1 }
+          if ($code -ne 0) {
+            Write-Host "::error::ffmpeg -version failed with exit code $code"
+            exit 1
+          }
 
       - run: npx tsc --noEmit
 

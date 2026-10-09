@@ -104,6 +104,24 @@ export async function recordVideoReview(input: {
   return record;
 }
 
+/**
+ * F29 residual: the publish gate used to `.find()` the first top-level row
+ * for a slot. Duplicate top-level rows (approved + pending twin, two writers)
+ * must fail closed ? picking the first is how a stale pending silently wins.
+ * Nested `superseded` is history, not a duplicate; this selector never walks it.
+ */
+export function selectVideoReviewForSlot<T extends { slot: number }>(
+  records: readonly T[],
+  slot: number
+): T | undefined {
+  const matches = records.filter((entry) => entry.slot === slot);
+  if (matches.length === 0) return undefined;
+  if (matches.length > 1) {
+    throw new Error(`${matches.length} records for slot ${slot}; refusing to pick the first`);
+  }
+  return matches[0];
+}
+
 export async function assertVideoReviewApproved(input: {
   date: string;
   slot: number;
@@ -113,7 +131,7 @@ export async function assertVideoReviewApproved(input: {
 }): Promise<void> {
   const root = projectRoot(input.root);
   const records = await readJsonFile<VideoReviewRecord[]>(videoReviewsPath(input.date, root), []);
-  const record = records.find((entry) => entry.slot === input.slot);
+  const record = selectVideoReviewForSlot(records, input.slot);
   if (!record) throw new Error(`Dual video review is missing for slot ${input.slot}.`);
   if (record.status !== "approved" || record.grok_review !== "pass" || record.sol_review !== "pass") {
     throw new Error(`Grok and Sol video review did not both pass for slot ${input.slot}.`);

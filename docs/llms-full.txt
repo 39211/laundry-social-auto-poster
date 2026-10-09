@@ -4,7 +4,7 @@
 
 ## Source Of Record
 - Canonical URL: https://sixiangjialaundry.com/
-- Generated at: 2026-10-08T22:30:57.847Z
+- Generated at: 2026-10-09T22:30:47.576Z
 - Timezone: Asia/Taipei
 - Base URL configured: yes
 
@@ -397,6 +397,8 @@
     "https://sixiangjialaundry.com/assets/2026-10-08/slot-02.png",
     "https://sixiangjialaundry.com/assets/2026-10-09/slot-01.png",
     "https://sixiangjialaundry.com/assets/2026-10-09/slot-02.png",
+    "https://sixiangjialaundry.com/assets/2026-10-10/slot-01.png",
+    "https://sixiangjialaundry.com/assets/2026-10-10/slot-02.png",
     "https://sixiangjialaundry.com/assets/services/shoe-bag-care-hero-product.png",
     "https://sixiangjialaundry.com/assets/services/white-shoe-cleaning-hero-product.png",
     "https://sixiangjialaundry.com/assets/services/fabric-storage-hero-product.png",
@@ -10866,4 +10868,98 @@ Instagram caption:
 台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）
 
 #私享家洗衣店 #台中西屯洗衣店 #編織皮外套 #皮衣整新 #送洗前檢查
+
+### 2026-10-10 11:30 馬皮短靴穿久沒新感：店裡怎麼處理
+
+- id: https://sixiangjialaundry.com/content-calendar/2026-10-10.json#post-2026-10-10-slot-01
+- published local time: 2026-10-10T11:30:00+08:00
+- category: 知識文
+- platforms: facebook, instagram
+- visual_route: shop-inspection
+- traffic_route: value-prop-lead
+- search_intent: problem-diagnosis
+- target_queries: 台中皮靴清潔 | 馬皮靴保養 | 皮靴摺痕 | 精品鞋清潔 | 西屯洗鞋 | 台中洗鞋推薦
+- evidence_type: (legacy-unassigned)
+- hashtags: #私享家洗衣店 #台中西屯洗衣店 #馬皮靴 #皮靴保養 #送洗前檢查
+- image: https://sixiangjialaundry.com/assets/2026-10-10/slot-01.png
+- calendar: https://sixiangjialaundry.com/content-calendar/2026-10-10.json
+
+Facebook caption:
+
+馬皮短靴穿久沒新感：店裡怎麼處理。
+
+馬皮短靴穿久了，先看鞋頭的摺痕，再看亮面是不是一塊一塊不平均。摺痕能改善多少、適合怎麼處理，要依皮況評估；亮面不均是否還有表面髒污或舊油蠟，要看實物確認。確認皮況後，再評估是否適合清潔與整燙，以及處理方式。
+
+送洗前先別做：拿鞋油厚厚塗一層、用吹風機貼近猛吹、拿濕布用力來回擦。
+
+在店裡，我們這樣做：先確認材質、結構與皮況；扶穩靴身，用海綿帶泡沫清洗；清潔段完成後，依皮況隔著白紙稍微整燙。拉鍊和鞋邊已貼好膠帶，靴口也已塞紙。吹風機控制風溫、移動著收乾；最後用白布薄擦，保留皮面質感。
+
+老實說：摺痕不保證全消，我們會保持原有的皮革風貌。鞋子交期約 7 天，依皮況與排程確認。
+
+拍整雙靴子的正面和鞋頭摺痕傳 LINE，先幫你看（照片先初評，必要時看實物）。
+
+台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）
+
+#私享家洗衣店 #台中西屯洗衣店 #馬皮靴 #皮靴保養 #送洗前檢查
+
+Instagram caption:
+
+馬皮短靴穿久沒新感：店裡怎麼處理。
+
+馬皮短靴穿久了，先看鞋頭的摺痕，再看亮面是不是一塊一塊不平均。摺痕能改善多少、適合怎麼處理，要依皮況評估；亮面不均是否還有表面髒污或舊油蠟，要看實物確認。確認皮況後，再評估是否適合清潔與整燙，以及處理方式。
+
+送洗前先別做：拿鞋油厚厚塗一層、用吹風機貼近猛吹、拿濕布用力來回擦。
+
+在店裡，我們這樣做：先確認材質、結構與皮況；扶穩靴身，用海綿帶泡沫清洗；清潔段完成後，依皮況隔著白紙稍微整燙。拉鍊和鞋邊已貼好膠帶，靴口也已塞紙。吹風機控制風溫、移動著收乾；最後用白布薄擦，保留皮面質感。
+
+老實說：摺痕不保證全消，我們會保持原有的皮革風貌。鞋子交期約 7 天，依皮況與排程確認。
+
+拍整雙靴子的正面和鞋頭摺痕傳 LINE，先幫你看（照片先初評，必要時看實物）。
+
+台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）
+
+#私享家洗衣店 #台中西屯洗衣店 #馬皮靴 #皮靴保養 #送洗前檢查
+
+### 2026-10-10 20:30 馬皮短靴穿久，摺痕變深
+
+- id: https://sixiangjialaundry.com/content-calendar/2026-10-10.json#post-2026-10-10-slot-02
+- published local time: 2026-10-10T20:30:00+08:00
+- category: 情境文
+- platforms: facebook, instagram
+- visual_route: shop-inspection
+- traffic_route: value-prop-lead
+- search_intent: problem-diagnosis
+- target_queries: 台中皮靴清潔 | 馬皮靴保養 | 皮靴摺痕 | 精品鞋清潔 | 西屯洗鞋 | 台中洗鞋推薦
+- evidence_type: (legacy-unassigned)
+- hashtags: #私享家洗衣店 #台中西屯洗衣店 #馬皮靴 #皮靴保養 #送洗前檢查
+- image: https://sixiangjialaundry.com/assets/2026-10-10/slot-02.png
+- calendar: https://sixiangjialaundry.com/content-calendar/2026-10-10.json
+
+Facebook caption:
+
+馬皮短靴穿久，摺痕變深。
+
+這次示範的這雙馬皮短靴，片中呈現：先看摺痕，也看皮況。扶穩靴身，海綿帶泡沫洗。隔著白紙，稍微整燙。拉鍊和鞋邊，膠帶已貼好。吹風機收乾，再看皮面。白布薄擦，保留皮面質感。保持原有皮革風貌。
+
+老實說：摺痕不保證全消，整燙與收乾都依皮況調整。鞋子交期約 7 天，依皮況與排程確認。
+
+拍照傳LINE，先評估。
+
+台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）
+
+#私享家洗衣店 #台中西屯洗衣店 #馬皮靴 #皮靴保養 #送洗前檢查
+
+Instagram caption:
+
+馬皮短靴穿久，摺痕變深。
+
+這次示範的這雙馬皮短靴，片中呈現：先看摺痕，也看皮況。扶穩靴身，海綿帶泡沫洗。隔著白紙，稍微整燙。拉鍊和鞋邊，膠帶已貼好。吹風機收乾，再看皮面。白布薄擦，保留皮面質感。保持原有皮革風貌。
+
+老實說：摺痕不保證全消，整燙與收乾都依皮況調整。鞋子交期約 7 天，依皮況與排程確認。
+
+拍照傳LINE，先評估。
+
+台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）
+
+#私享家洗衣店 #台中西屯洗衣店 #馬皮靴 #皮靴保養 #送洗前檢查
 

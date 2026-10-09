@@ -14,13 +14,51 @@ export interface SubmitIndexNowOptions {
   fetchImpl?: typeof fetch;
 }
 
-function parseCanonicalHtmlUrls(sitemap: string): string[] {
+function localHtmlPath(docsDir: string, url: URL): string {
+  const segments = decodeURIComponent(url.pathname)
+    .split("/")
+    .filter((segment) => segment && segment !== "." && segment !== "..");
+  if (url.pathname.endsWith("/") || segments.length === 0) return join(docsDir, ...segments, "index.html");
+  return join(docsDir, ...segments);
+}
+
+function metaAttribute(tag: string, name: string): string | undefined {
+  const match = tag.match(new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, "i"));
+  return match?.[2] ?? match?.[3];
+}
+
+function metaRobotsContainsNoindex(html: string): boolean {
+  for (const match of html.matchAll(/<meta\b[^>]*>/gi)) {
+    const name = metaAttribute(match[0], "name");
+    if (!name || !/^(robots|googlebot)$/i.test(name)) continue;
+    const content = metaAttribute(match[0], "content") ?? "";
+    if (content.toLowerCase().includes("noindex")) return true;
+  }
+  return false;
+}
+
+async function htmlDeclaresNoindex(docsDir: string, url: URL): Promise<boolean> {
+  let html: string;
+  try {
+    html = await readFile(localHtmlPath(docsDir, url), "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+  return metaRobotsContainsNoindex(html);
+}
+
+async function parseCanonicalHtmlUrls(sitemap: string, docsDir: string): Promise<string[]> {
   const urls = Array.from(sitemap.matchAll(/<loc>([^<]+)<\/loc>/g), ([, value]) => value?.trim() ?? "").filter(Boolean);
   const unique = new Set<string>();
 
   for (const value of urls) {
     const url = new URL(value);
-    if (url.pathname.endsWith("/") || url.pathname.endsWith(".html")) unique.add(url.toString());
+    if (!(url.pathname.endsWith("/") || url.pathname.endsWith(".html"))) continue;
+    // 路徑含 /posts/，或本機 HTML 的 robots／googlebot 宣告 noindex，都不送 IndexNow。
+    if (url.pathname.includes("/posts/")) continue;
+    if (await htmlDeclaresNoindex(docsDir, url)) continue;
+    unique.add(url.toString());
   }
 
   return [...unique];
@@ -42,8 +80,9 @@ function configuredIndexNowKey(root: string): string | undefined {
 export async function submitIndexNow(options: SubmitIndexNowOptions = {}): Promise<{ dryRun: boolean; urlCount: number; host: string }> {
   const root = projectRoot(options.root);
   const key = requireIndexNowKey(options.key ?? configuredIndexNowKey(root));
-  const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
-  const urlList = parseCanonicalHtmlUrls(sitemap);
+  const docsDir = join(root, "docs");
+  const sitemap = await readFile(join(docsDir, "sitemap.xml"), "utf8");
+  const urlList = await parseCanonicalHtmlUrls(sitemap, docsDir);
   if (urlList.length === 0) throw new Error("The canonical sitemap has no human-facing HTML URLs to submit.");
 
   const firstUrl = new URL(urlList[0]!);

@@ -5,6 +5,7 @@ import {
   EXPECTED_LOC_COUNT,
   NEW_PAGE_PATHS,
   NOINDEX_FOLLOW_LOCAL_PATHS,
+  WAVE2_PAGE_PATHS,
   checkSitemapLinks,
   repoRootFromHere,
   sitemapLinkReportFailed
@@ -57,6 +58,7 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.missingInbound).toEqual([]);
     expect(sitemapLinkReportFailed(report)).toBe(false);
     expect(NEW_PAGE_PATHS).toHaveLength(73);
+    expect(WAVE2_PAGE_PATHS).toHaveLength(8);
     expect(NOINDEX_FOLLOW_LOCAL_PATHS).toHaveLength(16);
     const root = repoRootFromHere();
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
@@ -95,6 +97,14 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/guides/denim-jeans-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/day-dress-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/pu-leather-peeling.html"]?.hubs).toContain("hubs/bag-care.html");
+    expect(report.inbound["/guides/golf-shoe-cleaning.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/shoe-insole-check.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/leather-pants-skirt.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/pleated-skirt-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/iron-scorch-mark.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/local/dongshi-laundry-pickup.html"]?.hubs).toContain("hubs/local-pickup.html");
+    expect(report.inbound["/local/dajia-laundry-pickup.html"]?.hubs).toContain("hubs/local-pickup.html");
+    expect(report.inbound["/local/longjing-laundry-pickup.html"]?.hubs).toContain("hubs/local-pickup.html");
   });
 
   it("seo-overrides 每個 HTML 的 JSON-LD 都沒有 Product、AggregateRating、Review", () => {

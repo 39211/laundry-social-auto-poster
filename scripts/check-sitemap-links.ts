@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 8 頁。 */
-export const EXPECTED_LOC_COUNT = 141;
+/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁。東勢、大甲、龍井不進這支。 */
+export const EXPECTED_LOC_COUNT = 138;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -108,7 +108,7 @@ export const NEW_PAGE_PATHS = [
 
 export const NEW_PAGE_LASTMOD = "2026-10-06";
 
-/** B5 第 2 波 8 頁。lastmod 用上線日，不回寫第 1 波的 2026-10-06。 */
+/** B5 第 2 波 5 頁。lastmod 用上線日，不回寫第 1 波的 2026-10-06。 */
 export const WAVE2_PAGE_LASTMOD = "2026-10-12";
 
 export const WAVE2_PAGE_PATHS = [
@@ -116,11 +116,15 @@ export const WAVE2_PAGE_PATHS = [
   "/guides/leather-pants-skirt.html",
   "/guides/pleated-skirt-care.html",
   "/guides/iron-scorch-mark.html",
-  "/guides/shoe-insole-check.html",
-  "/local/dongshi-laundry-pickup.html",
-  "/local/dajia-laundry-pickup.html",
-  "/local/longjing-laundry-pickup.html"
+  "/guides/shoe-insole-check.html"
 ] as const;
+
+/** 客人看得到的寫手用語。第 2 波新頁與新問答不得出現。 */
+export const WRITER_VOICE_MARKERS = ["不寫", "這裡", "重寫", "改看", "仍看", "留在", "換頁"] as const;
+
+export function writerVoiceHits(text: string): string[] {
+  return WRITER_VOICE_MARKERS.filter((marker) => text.includes(marker));
+}
 
 export type SitemapLinkReport = {
   parseOk: boolean;

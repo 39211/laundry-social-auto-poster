@@ -6,9 +6,11 @@ import {
   NEW_PAGE_PATHS,
   NOINDEX_FOLLOW_LOCAL_PATHS,
   WAVE2_PAGE_PATHS,
+  WRITER_VOICE_MARKERS,
   checkSitemapLinks,
   repoRootFromHere,
-  sitemapLinkReportFailed
+  sitemapLinkReportFailed,
+  writerVoiceHits
 } from "../scripts/check-sitemap-links";
 
 // 我們賣的是服務，也沒有自己的評分資料：seo-overrides 的 JSON-LD 不可出現這些型別。
@@ -58,7 +60,7 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.missingInbound).toEqual([]);
     expect(sitemapLinkReportFailed(report)).toBe(false);
     expect(NEW_PAGE_PATHS).toHaveLength(73);
-    expect(WAVE2_PAGE_PATHS).toHaveLength(8);
+    expect(WAVE2_PAGE_PATHS).toHaveLength(5);
     expect(NOINDEX_FOLLOW_LOCAL_PATHS).toHaveLength(16);
     const root = repoRootFromHere();
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
@@ -102,9 +104,27 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/guides/leather-pants-skirt.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/pleated-skirt-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/iron-scorch-mark.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
-    expect(report.inbound["/local/dongshi-laundry-pickup.html"]?.hubs).toContain("hubs/local-pickup.html");
-    expect(report.inbound["/local/dajia-laundry-pickup.html"]?.hubs).toContain("hubs/local-pickup.html");
-    expect(report.inbound["/local/longjing-laundry-pickup.html"]?.hubs).toContain("hubs/local-pickup.html");
+  });
+
+  it("第 2 波新頁與問答沒有寫手用語：不寫、這裡、重寫、改看、仍看、留在、換頁", () => {
+    expect(WRITER_VOICE_MARKERS).toEqual(["不寫", "這裡", "重寫", "改看", "仍看", "留在", "換頁"]);
+    const root = repoRootFromHere();
+    const hits: string[] = [];
+    for (const path of WAVE2_PAGE_PATHS) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      const found = writerVoiceHits(html);
+      if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
+    }
+    const answers = JSON.parse(readFileSync(join(root, "seo-overrides", "answers.json"), "utf8")) as {
+      answers: Array<{ id: string; question: string; answer: string; source_url: string }>;
+    };
+    const wave2Urls = new Set(WAVE2_PAGE_PATHS.map((path) => `https://sixiangjialaundry.com${path}`));
+    for (const entry of answers.answers) {
+      if (!wave2Urls.has(entry.source_url)) continue;
+      const found = writerVoiceHits(`${entry.question}\n${entry.answer}`);
+      if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
+    }
+    expect(hits).toEqual([]);
   });
 
   it("seo-overrides 每個 HTML 的 JSON-LD 都沒有 Product、AggregateRating、Review", () => {

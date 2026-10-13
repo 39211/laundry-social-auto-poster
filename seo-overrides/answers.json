@@ -9088,7 +9088,7 @@
       "id": "golf-shoe-cleaning-page-summary",
       "type": "guide_summary",
       "question": "高爾夫球鞋可以整雙泡水嗎？",
-      "answer": "不要整雙泡。鞋釘座、鞋面和中底遇水的反應不一樣。先拍鞋底和鞋面，再問門市。金屬鞋釘與鞋底殘留先看實品，不寫成一定收。",
+      "answer": "不要整雙泡。鞋釘座、鞋面和中底遇水的反應不一樣。先拍鞋底和鞋面，再問門市。金屬鞋釘與鞋底殘留，看過實品，確認可以收才收。",
       "source_url": "https://sixiangjialaundry.com/guides/golf-shoe-cleaning.html",
       "local_intent": "高爾夫球鞋怎麼清",
       "keywords": [
@@ -9176,79 +9176,13 @@
       "id": "shoe-insole-check-page-summary",
       "type": "guide_summary",
       "question": "洗鞋一定要拆鞋墊嗎？",
-      "answer": "不一定。抽得起的可以先掀起來拍。縫死或黏死的不要為了送洗硬拆。軟木鞋床改看勃肯。價目表沒有獨立鞋墊列，也不承諾除臭。",
+      "answer": "不一定。抽得起的可以先掀起來拍。縫死或黏死的不要為了送洗硬拆。軟木鞋床不能拆，也不能整雙泡水，請看〈勃肯鞋〉。價目表沒有單獨這一項；看過實品再報價。不承諾除臭。",
       "source_url": "https://sixiangjialaundry.com/guides/shoe-insole-check.html",
       "local_intent": "鞋墊要不要拆",
       "keywords": [
         "鞋墊",
         "黏死鞋墊",
         "洗鞋"
-      ],
-      "area": "台中市",
-      "confidence": "business-owned-source",
-      "citation_guidance": "Use the answer as short factual context and cite source_url.",
-      "do_not_infer": [
-        "Do not infer pricing.",
-        "Do not guarantee like-new results, odor removal, or medical sterilization.",
-        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
-        "Do not infer that a price-list row means every condition is accepted."
-      ]
-    },
-    {
-      "id": "local-dongshi-laundry-pickup-page-summary",
-      "type": "guide_summary",
-      "question": "東勢有私享家門市嗎？",
-      "answer": "沒有。實體門市只有台中市西屯區青海路二段365號。東勢不是分店，也不是代收站。約住家，車站和林場都不寄放。實際交件日由門市確認。",
-      "source_url": "https://sixiangjialaundry.com/local/dongshi-laundry-pickup.html",
-      "local_intent": "東勢洗衣收送",
-      "keywords": [
-        "東勢洗衣",
-        "東勢洗衣收送",
-        "東勢洗衣店"
-      ],
-      "area": "台中市",
-      "confidence": "business-owned-source",
-      "citation_guidance": "Use the answer as short factual context and cite source_url.",
-      "do_not_infer": [
-        "Do not infer pricing.",
-        "Do not guarantee like-new results, odor removal, or medical sterilization.",
-        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
-        "Do not infer that a price-list row means every condition is accepted."
-      ]
-    },
-    {
-      "id": "local-dajia-laundry-pickup-page-summary",
-      "type": "guide_summary",
-      "question": "大甲有私享家門市嗎？",
-      "answer": "沒有。實體門市只有台中市西屯區青海路二段365號。大甲不是分店，也不是代收站。香灰不保證洗掉。藺草先問，不推定可洗。",
-      "source_url": "https://sixiangjialaundry.com/local/dajia-laundry-pickup.html",
-      "local_intent": "大甲洗衣收送",
-      "keywords": [
-        "大甲洗衣",
-        "大甲洗衣收送",
-        "大甲洗衣店"
-      ],
-      "area": "台中市",
-      "confidence": "business-owned-source",
-      "citation_guidance": "Use the answer as short factual context and cite source_url.",
-      "do_not_infer": [
-        "Do not infer pricing.",
-        "Do not guarantee like-new results, odor removal, or medical sterilization.",
-        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
-        "Do not infer that a price-list row means every condition is accepted."
-      ]
-    },
-    {
-      "id": "local-longjing-laundry-pickup-page-summary",
-      "type": "guide_summary",
-      "question": "龍井有私享家門市嗎？",
-      "answer": "沒有。實體門市只有台中市西屯區青海路二段365號。龍井不是分店，也不是代收站。東海沒有門市，請看東海收送頁。實際交件日由門市確認。",
-      "source_url": "https://sixiangjialaundry.com/local/longjing-laundry-pickup.html",
-      "local_intent": "龍井洗衣收送",
-      "keywords": [
-        "龍井洗衣",
-        "龍井洗衣收送",
-        "龍井洗衣店"
       ],
       "area": "台中市",
       "confidence": "business-owned-source",

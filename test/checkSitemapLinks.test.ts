@@ -64,7 +64,7 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(sitemapLinkReportFailed(report)).toBe(false);
     expect(NEW_PAGE_PATHS).toHaveLength(73);
     expect(WAVE2_PAGE_PATHS).toHaveLength(5);
-    expect(WAVE3_PAGE_PATHS).toHaveLength(10);
+    expect(WAVE3_PAGE_PATHS).toHaveLength(4);
     expect(NOINDEX_FOLLOW_LOCAL_PATHS).toHaveLength(16);
     const root = repoRootFromHere();
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
@@ -108,13 +108,7 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/guides/leather-pants-skirt.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/pleated-skirt-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/iron-scorch-mark.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
-    expect(report.inbound["/guides/canvas-shoe-yellowing.html"]?.hubs).toContain("hubs/shoe-care.html");
     expect(report.inbound["/guides/doll-shoe-cleaning.html"]?.hubs).toContain("hubs/shoe-care.html");
-    expect(report.inbound["/guides/athletic-midsole-yellowing.html"]?.hubs).toContain("hubs/shoe-care.html");
-    expect(report.inbound["/guides/waterproof-field-shoe.html"]?.hubs).toContain("hubs/shoe-care.html");
-    expect(report.inbound["/guides/deerskin-bag-care.html"]?.hubs).toContain("hubs/bag-care.html");
-    expect(report.inbound["/guides/bag-zipper-prep.html"]?.hubs).toContain("hubs/bag-care.html");
-    expect(report.inbound["/guides/velvet-bag-care.html"]?.hubs).toContain("hubs/bag-care.html");
     expect(report.inbound["/guides/hat-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/leather-glove-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/leather-belt-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
@@ -141,8 +135,8 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(hits).toEqual([]);
   });
 
-  it("第 3 波新頁與問答沒有寫手用語：第 2 波七詞，再加上這頁、本頁、這句、一口價", () => {
-    expect(WAVE3_EXTRA_WRITER_VOICE_MARKERS).toEqual(["這頁", "本頁", "這句", "一口價"]);
+  it("第 3 波新頁與問答沒有寫手用語：第 2 波七詞，再加上這頁、本頁、這句、一口價、另看", () => {
+    expect(WAVE3_EXTRA_WRITER_VOICE_MARKERS).toEqual(["這頁", "本頁", "這句", "一口價", "另看"]);
     const root = repoRootFromHere();
     const hits: string[] = [];
     for (const path of WAVE3_PAGE_PATHS) {

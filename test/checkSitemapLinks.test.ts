@@ -7,7 +7,9 @@ import {
   NOINDEX_FOLLOW_LOCAL_PATHS,
   WAVE2_PAGE_PATHS,
   WAVE3_EXTRA_WRITER_VOICE_MARKERS,
+  WAVE3_MERGED_PAGE_PATHS,
   WAVE3_PAGE_PATHS,
+  WAVE3_VOICE_PAGE_PATHS,
   WRITER_VOICE_MARKERS,
   checkSitemapLinks,
   repoRootFromHere,
@@ -65,6 +67,8 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(NEW_PAGE_PATHS).toHaveLength(73);
     expect(WAVE2_PAGE_PATHS).toHaveLength(5);
     expect(WAVE3_PAGE_PATHS).toHaveLength(4);
+    expect(WAVE3_MERGED_PAGE_PATHS).toHaveLength(3);
+    expect(WAVE3_VOICE_PAGE_PATHS).toHaveLength(7);
     expect(NOINDEX_FOLLOW_LOCAL_PATHS).toHaveLength(16);
     const root = repoRootFromHere();
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
@@ -139,7 +143,7 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(WAVE3_EXTRA_WRITER_VOICE_MARKERS).toEqual(["這頁", "本頁", "這句", "一口價", "另看"]);
     const root = repoRootFromHere();
     const hits: string[] = [];
-    for (const path of WAVE3_PAGE_PATHS) {
+    for (const path of WAVE3_VOICE_PAGE_PATHS) {
       const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
       const found = wave3WriterVoiceHits(html);
       if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
@@ -147,9 +151,10 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     const answers = JSON.parse(readFileSync(join(root, "seo-overrides", "answers.json"), "utf8")) as {
       answers: Array<{ id: string; question: string; answer: string; source_url: string }>;
     };
-    const wave3Urls = new Set(WAVE3_PAGE_PATHS.map((path) => `https://sixiangjialaundry.com${path}`));
+    const wave3Urls = WAVE3_VOICE_PAGE_PATHS.map((path) => `https://sixiangjialaundry.com${path}`);
     for (const entry of answers.answers) {
-      if (!wave3Urls.has(entry.source_url)) continue;
+      const onVoicePage = wave3Urls.some((url) => entry.source_url === url || entry.source_url.startsWith(`${url}#`));
+      if (!onVoicePage) continue;
       const found = wave3WriterVoiceHits(`${entry.question}\n${entry.answer}`);
       if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
     }

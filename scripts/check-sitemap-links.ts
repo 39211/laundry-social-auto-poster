@@ -129,6 +129,15 @@ export const WAVE3_PAGE_PATHS = [
   "/guides/leather-belt-care.html"
 ] as const;
 
+/** 第 3 波併進去的既有頁。禁詞掃描要涵蓋整頁，不另計 sitemap。 */
+export const WAVE3_MERGED_PAGE_PATHS = [
+  "/guides/white-shoe-yellowing.html",
+  "/guides/suede-bag-care.html",
+  "/guides/hiking-shoe-cleaning.html"
+] as const;
+
+export const WAVE3_VOICE_PAGE_PATHS = [...WAVE3_PAGE_PATHS, ...WAVE3_MERGED_PAGE_PATHS] as const;
+
 /**
  * 第 3 波把判斷併進既有頁。這兩頁原屬第 1 波，sitemap lastmod 跟著 dateModified 改為 2026-10-14。
  * 白鞋泛黃不在 NEW_PAGE_PATHS，sitemap 直接改 lastmod。

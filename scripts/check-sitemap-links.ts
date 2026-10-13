@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁。東勢、大甲、龍井不進這支。 */
-export const EXPECTED_LOC_COUNT = 138;
+/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁。東勢、大甲、龍井不進這支。 */
+export const EXPECTED_LOC_COUNT = 142;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -119,11 +119,46 @@ export const WAVE2_PAGE_PATHS = [
   "/guides/shoe-insole-check.html"
 ] as const;
 
+/** B5 第 3 波留下的 4 頁。lastmod 用這次上線日，不回寫前兩波。 */
+export const WAVE3_PAGE_LASTMOD = "2026-10-14";
+
+export const WAVE3_PAGE_PATHS = [
+  "/guides/doll-shoe-cleaning.html",
+  "/guides/hat-cleaning.html",
+  "/guides/leather-glove-care.html",
+  "/guides/leather-belt-care.html"
+] as const;
+
+/** 第 3 波併進去的既有頁。禁詞掃描要涵蓋整頁，不另計 sitemap。 */
+export const WAVE3_MERGED_PAGE_PATHS = [
+  "/guides/white-shoe-yellowing.html",
+  "/guides/suede-bag-care.html",
+  "/guides/hiking-shoe-cleaning.html"
+] as const;
+
+export const WAVE3_VOICE_PAGE_PATHS = [...WAVE3_PAGE_PATHS, ...WAVE3_MERGED_PAGE_PATHS] as const;
+
+/**
+ * 第 3 波把判斷併進既有頁。這兩頁原屬第 1 波，sitemap lastmod 跟著 dateModified 改為 2026-10-14。
+ * 白鞋泛黃不在 NEW_PAGE_PATHS，sitemap 直接改 lastmod。
+ */
+export const MERGED_PAGE_LASTMOD_OVERRIDES: Readonly<Record<string, string>> = {
+  "/guides/hiking-shoe-cleaning.html": "2026-10-14",
+  "/guides/suede-bag-care.html": "2026-10-14"
+};
+
 /** 客人看得到的寫手用語。第 2 波新頁與新問答不得出現。 */
 export const WRITER_VOICE_MARKERS = ["不寫", "這裡", "重寫", "改看", "仍看", "留在", "換頁"] as const;
 
+/** 第 3 波再加自指用語與「另看」。第 2 波頁面不回溯這些字。 */
+export const WAVE3_EXTRA_WRITER_VOICE_MARKERS = ["這頁", "本頁", "這句", "一口價", "另看"] as const;
+
 export function writerVoiceHits(text: string): string[] {
   return WRITER_VOICE_MARKERS.filter((marker) => text.includes(marker));
+}
+
+export function wave3WriterVoiceHits(text: string): string[] {
+  return [...WRITER_VOICE_MARKERS, ...WAVE3_EXTRA_WRITER_VOICE_MARKERS].filter((marker) => text.includes(marker));
 }
 
 export type SitemapLinkReport = {
@@ -221,8 +256,9 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
   const noindexFollow = new Set<string>(NOINDEX_FOLLOW_LOCAL_PATHS);
   const lastmodByPath = new Map(entries.map((entry) => [pathnameOf(entry.loc), entry.lastmod]));
   const tracked = [
-    ...NEW_PAGE_PATHS.map((path) => ({ path, lastmod: NEW_PAGE_LASTMOD })),
-    ...WAVE2_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE2_PAGE_LASTMOD }))
+    ...NEW_PAGE_PATHS.map((path) => ({ path, lastmod: MERGED_PAGE_LASTMOD_OVERRIDES[path] ?? NEW_PAGE_LASTMOD })),
+    ...WAVE2_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE2_PAGE_LASTMOD })),
+    ...WAVE3_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE3_PAGE_LASTMOD }))
   ];
   for (const { path, lastmod } of tracked) {
     const hubs = hrefs.get(path) ?? [];
@@ -261,7 +297,7 @@ export function formatSitemapLinkReport(report: SitemapLinkReport): string {
     `wrong_lastmod ${JSON.stringify(report.wrongLastmod)}`,
     "inbound:"
   ];
-  for (const path of [...NEW_PAGE_PATHS, ...WAVE2_PAGE_PATHS]) {
+  for (const path of [...NEW_PAGE_PATHS, ...WAVE2_PAGE_PATHS, ...WAVE3_PAGE_PATHS]) {
     const hit = report.inbound[path];
     lines.push(`${path}\t${hit?.count ?? 0}\t${(hit?.hubs ?? []).join(",")}`);
   }

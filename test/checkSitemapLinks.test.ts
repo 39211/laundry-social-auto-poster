@@ -6,10 +6,15 @@ import {
   NEW_PAGE_PATHS,
   NOINDEX_FOLLOW_LOCAL_PATHS,
   WAVE2_PAGE_PATHS,
+  WAVE3_EXTRA_WRITER_VOICE_MARKERS,
+  WAVE3_MERGED_PAGE_PATHS,
+  WAVE3_PAGE_PATHS,
+  WAVE3_VOICE_PAGE_PATHS,
   WRITER_VOICE_MARKERS,
   checkSitemapLinks,
   repoRootFromHere,
   sitemapLinkReportFailed,
+  wave3WriterVoiceHits,
   writerVoiceHits
 } from "../scripts/check-sitemap-links";
 
@@ -61,6 +66,9 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(sitemapLinkReportFailed(report)).toBe(false);
     expect(NEW_PAGE_PATHS).toHaveLength(73);
     expect(WAVE2_PAGE_PATHS).toHaveLength(5);
+    expect(WAVE3_PAGE_PATHS).toHaveLength(4);
+    expect(WAVE3_MERGED_PAGE_PATHS).toHaveLength(3);
+    expect(WAVE3_VOICE_PAGE_PATHS).toHaveLength(7);
     expect(NOINDEX_FOLLOW_LOCAL_PATHS).toHaveLength(16);
     const root = repoRootFromHere();
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
@@ -104,6 +112,10 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/guides/leather-pants-skirt.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/pleated-skirt-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/iron-scorch-mark.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/doll-shoe-cleaning.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/hat-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/leather-glove-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/leather-belt-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
   });
 
   it("第 2 波新頁與問答沒有寫手用語：不寫、這裡、重寫、改看、仍看、留在、換頁", () => {
@@ -122,6 +134,28 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     for (const entry of answers.answers) {
       if (!wave2Urls.has(entry.source_url)) continue;
       const found = writerVoiceHits(`${entry.question}\n${entry.answer}`);
+      if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
+    }
+    expect(hits).toEqual([]);
+  });
+
+  it("第 3 波新頁與問答沒有寫手用語：第 2 波七詞，再加上這頁、本頁、這句、一口價、另看", () => {
+    expect(WAVE3_EXTRA_WRITER_VOICE_MARKERS).toEqual(["這頁", "本頁", "這句", "一口價", "另看"]);
+    const root = repoRootFromHere();
+    const hits: string[] = [];
+    for (const path of WAVE3_VOICE_PAGE_PATHS) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      const found = wave3WriterVoiceHits(html);
+      if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
+    }
+    const answers = JSON.parse(readFileSync(join(root, "seo-overrides", "answers.json"), "utf8")) as {
+      answers: Array<{ id: string; question: string; answer: string; source_url: string }>;
+    };
+    const wave3Urls = WAVE3_VOICE_PAGE_PATHS.map((path) => `https://sixiangjialaundry.com${path}`);
+    for (const entry of answers.answers) {
+      const onVoicePage = wave3Urls.some((url) => entry.source_url === url || entry.source_url.startsWith(`${url}#`));
+      if (!onVoicePage) continue;
+      const found = wave3WriterVoiceHits(`${entry.question}\n${entry.answer}`);
       if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
     }
     expect(hits).toEqual([]);

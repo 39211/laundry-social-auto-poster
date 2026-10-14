@@ -6,12 +6,15 @@ import {
   NEW_PAGE_PATHS,
   NOINDEX_FOLLOW_LOCAL_PATHS,
   WAVE2_PAGE_PATHS,
+  LAYER1_BANNED_PHRASES,
+  LAYER1_PHRASE_PAGE_PATHS,
   WAVE3_EXTRA_WRITER_VOICE_MARKERS,
   WAVE3_MERGED_PAGE_PATHS,
   WAVE3_PAGE_PATHS,
   WAVE3_VOICE_PAGE_PATHS,
   WRITER_VOICE_MARKERS,
   checkSitemapLinks,
+  layer1BannedPhraseHits,
   repoRootFromHere,
   sitemapLinkReportFailed,
   wave3WriterVoiceHits,
@@ -116,6 +119,28 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/guides/hat-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/leather-glove-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/leather-belt-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    const xml = readFileSync(join(root, "seo-overrides", "sitemap.xml"), "utf8");
+    for (const path of LAYER1_PHRASE_PAGE_PATHS) {
+      expect(xml, path).toContain(`<loc>https://sixiangjialaundry.com${path}</loc><lastmod>2026-10-14</lastmod>`);
+    }
+  });
+
+  it("層 1 四頁沒有禁詞：錢頁、這裡", () => {
+    expect(LAYER1_BANNED_PHRASES).toEqual(["錢頁", "這裡"]);
+    expect(LAYER1_PHRASE_PAGE_PATHS).toEqual([
+      "/local/nantun-laundry-pickup.html",
+      "/local/donghai-laundry-pickup.html",
+      "/guides/trench-coat-cleaning.html",
+      "/guides/leather-mold-treatment.html"
+    ]);
+    const root = repoRootFromHere();
+    const hits: string[] = [];
+    for (const path of LAYER1_PHRASE_PAGE_PATHS) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      const found = layer1BannedPhraseHits(html);
+      if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
+    }
+    expect(hits).toEqual([]);
   });
 
   it("第 2 波新頁與問答沒有寫手用語：不寫、這裡、重寫、改看、仍看、留在、換頁", () => {

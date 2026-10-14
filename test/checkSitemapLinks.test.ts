@@ -125,8 +125,8 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     }
   });
 
-  it("層 1 四頁沒有禁詞：錢頁、這裡", () => {
-    expect(LAYER1_BANNED_PHRASES).toEqual(["錢頁", "這裡"]);
+  it("層 1 四頁沒有禁詞：錢頁、這裡、編價格", () => {
+    expect(LAYER1_BANNED_PHRASES).toEqual(["錢頁", "這裡", "編價格"]);
     expect(LAYER1_PHRASE_PAGE_PATHS).toEqual([
       "/local/nantun-laundry-pickup.html",
       "/local/donghai-laundry-pickup.html",

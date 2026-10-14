@@ -163,7 +163,7 @@ export const WRITER_VOICE_MARKERS = ["不寫", "這裡", "重寫", "改看", "�
 export const WAVE3_EXTRA_WRITER_VOICE_MARKERS = ["這頁", "本頁", "這句", "一口價", "另看"] as const;
 
 /**
- * 層 1 四頁禁詞。全站「這裡」仍大量出現（另有「錢頁」），零命中只鎖這四頁，不回溯其他頁。
+ * 層 1 四頁禁詞。全站「這裡」「編價格」仍大量出現（另有「錢頁」），零命中只鎖這四頁，不回溯其他頁。
  */
 export const LAYER1_PHRASE_PAGE_PATHS = [
   "/local/nantun-laundry-pickup.html",
@@ -172,7 +172,7 @@ export const LAYER1_PHRASE_PAGE_PATHS = [
   "/guides/leather-mold-treatment.html"
 ] as const;
 
-export const LAYER1_BANNED_PHRASES = ["錢頁", "這裡"] as const;
+export const LAYER1_BANNED_PHRASES = ["錢頁", "這裡", "編價格"] as const;
 
 export function writerVoiceHits(text: string): string[] {
   return WRITER_VOICE_MARKERS.filter((marker) => text.includes(marker));

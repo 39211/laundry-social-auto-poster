@@ -13,6 +13,8 @@ data/*
 !data/rejected-concepts.json
 !data/campaign-posts.json
 !data/publish-time-experiment.json
+!data/slot1-plan-ext.json
+!data/slot1-format-experiment.json
 !data/reference-photos/
 data/posted-log/
 *.log

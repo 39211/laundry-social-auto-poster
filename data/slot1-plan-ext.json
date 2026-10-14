@@ -1,0 +1,88 @@
+{
+  "2026-10-23": {
+    "topic": "連日濕冷，衣服晾幾天仍不乾？先摸衣身和接縫這 2 處",
+    "format": "carousel",
+    "family": "season-weather",
+    "object": "一件室內晾了三天仍帶潮感的深藍色棉質長袖上衣"
+  },
+  "2026-10-24": {
+    "topic": "收納後的毛毯有悶味？袋口和摺線要怎麼看",
+    "format": "single",
+    "family": "home-textile",
+    "object": "一條剛從收納袋取出的米白色珊瑚絨毯"
+  },
+  "2026-10-25": {
+    "topic": "冬衣收送分袋標籤要寫哪 2 項？店家可免費到府收取與送回",
+    "format": "carousel",
+    "family": "pickup-delivery",
+    "object": "一袋待收送冬衣，內有一件羽絨外套與一件羊毛大衣"
+  },
+  "2026-10-26": {
+    "topic": "絨毛玩偶要交洗？先看縫線和填充口這 2 處",
+    "format": "single",
+    "family": "home-textile",
+    "object": "一隻米白色長毛絨毛娃娃，左耳與手掌縫線清楚可見"
+  },
+  "2026-10-27": {
+    "topic": "短靴入冬前檢查，鞋底和內裡要先看哪 2 處？",
+    "format": "carousel",
+    "family": "shoes",
+    "object": "一雙深棕色皮短靴，鞋底前掌與鞋口內裡"
+  },
+  "2026-10-28": {
+    "topic": "冬被準備交洗，先翻哪 2 個角落？",
+    "format": "single",
+    "family": "home-textile",
+    "object": "一床收在布袋裡的深藍色冬被，對折處與四角"
+  },
+  "2026-10-29": {
+    "topic": "Chanel Classic Flap 名牌小羊皮包有淺摺痕？先檢查這 2 處",
+    "format": "carousel",
+    "family": "luxury-leather",
+    "object": "一只 Chanel Classic Flap 中型黑色菱格小羊皮翻蓋包",
+    "needs_review": true
+  },
+  "2026-10-30": {
+    "topic": "寒流前大衣要先穿或送洗？比較兩種衣況再決定",
+    "format": "single",
+    "family": "season-weather",
+    "object": "一件深灰色羊毛大衣，領口與袖口狀態清楚"
+  },
+  "2026-10-31": {
+    "topic": "冬季厚床包拆封前有摺痕？洗標和接縫怎麼確認",
+    "format": "carousel",
+    "family": "home-textile",
+    "object": "一組剛拆封的深綠色冬季厚床包與枕套"
+  },
+  "2026-11-01": {
+    "topic": "冬衣預約收送服務要備什麼？列可收時段和件數，店家服務免費",
+    "format": "single",
+    "family": "pickup-delivery",
+    "object": "一張寫著方便時段與衣物件數的收送便條"
+  },
+  "2026-11-02": {
+    "topic": "東北季風連日潮濕，外套悶味先查哪 2 處？",
+    "format": "carousel",
+    "family": "season-weather",
+    "object": "一件深灰色防風外套，領口與內裡帶有潮濕後的狀態"
+  },
+  "2026-11-03": {
+    "topic": "牛津皮鞋做防水除味前，鞋面接縫和鞋口先看什麼？",
+    "format": "single",
+    "family": "shoes",
+    "object": "一雙深棕色牛津皮鞋，鞋面接縫與鞋口內裡"
+  },
+  "2026-11-04": {
+    "topic": "地毯換季清洗前，搬動時要先量哪 2 條邊？",
+    "format": "carousel",
+    "family": "home-textile",
+    "object": "一張淺灰色短毛地毯，長邊與短邊的尺寸"
+  },
+  "2026-11-05": {
+    "topic": "Gucci Jackie 1961 精品肩背包五金邊有磨痕？先查扣件和包角",
+    "format": "single",
+    "family": "luxury-leather",
+    "object": "一只 Gucci Jackie 1961 小型深棕色皮革肩背包，含活塞扣五金",
+    "needs_review": true
+  }
+}

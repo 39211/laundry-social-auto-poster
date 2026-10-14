@@ -107,7 +107,7 @@ export interface DailySlot {
   target_queries?: string[];
   evidence_type?: SearchEvidenceType;
   ten_day_review_metric?: string;
-  content_plan_source?: "growth-playbook" | "legacy-template";
+  content_plan_source?: "growth-playbook" | "legacy-template" | "slot1-plan-ext";
   local_image_path: string;
   public_image_url: string;
   local_video_path?: string;

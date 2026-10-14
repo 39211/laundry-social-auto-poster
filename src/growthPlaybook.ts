@@ -1580,6 +1580,37 @@ export function plannedTopicSlot1(date: string, plannedTopic: string): GrowthPla
   return buildSlot(date, day.day, 1, plannedTopic);
 }
 
+/** Build a row for slot1-plan-ext after the caller gates it outside the old window. */
+export function extendedTopicSlot1(
+  date: string,
+  plannedTopic: string,
+  format: "carousel" | "single"
+): GrowthPlaybookSlot | undefined {
+  if (specialSlots[date]?.[1]) return undefined;
+  const dateTime = Date.parse(`${date}T00:00:00.000Z`);
+  const startTime = Date.parse("2026-07-11T00:00:00.000Z");
+  if (!Number.isFinite(dateTime) || !Number.isFinite(startTime)) return undefined;
+  const offset = Math.floor((dateTime - startTime) / 86_400_000);
+  const day = ((offset % 90) + 90) % 90 + 1;
+  const slot = buildSlot(date, day, 1, plannedTopic);
+  return {
+    ...slot,
+    format: format === "carousel" ? "carousel-guide" : "image-post",
+    media_package: format === "single" ? undefined : slot.media_package
+  };
+}
+
+/** The natural rotation row used if an extended topic collides with as-aired history. */
+export function extendedRotationSlot1(date: string): GrowthPlaybookSlot | undefined {
+  if (specialSlots[date]?.[1]) return undefined;
+  const dateTime = Date.parse(`${date}T00:00:00.000Z`);
+  const startTime = Date.parse("2026-07-11T00:00:00.000Z");
+  if (!Number.isFinite(dateTime) || !Number.isFinite(startTime)) return undefined;
+  const offset = Math.floor((dateTime - startTime) / 86_400_000);
+  const day = ((offset % 90) + 90) % 90 + 1;
+  return buildSlot(date, day, 1);
+}
+
 function buildSlot(date: string, day: number, slot: number, plannedTopic?: string): GrowthPlaybookSlot {
   // Read from DAILY_SCHEDULE rather than repeating the times here. This line
   // said 19:30 while every operational path -- the publish window, the catch-up

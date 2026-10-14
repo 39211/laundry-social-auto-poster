@@ -8,6 +8,7 @@ import { imageAssetsForSlot } from "../src/mediaAssets";
 import {
   buildDailyContent,
   topicRepeatsInWindow,
+  TOPIC_REPEAT_WINDOW_DAYS,
   type Slot1PlanExtEntry
 } from "../src/contentPlan";
 import { isQuestionHeadline, serviceForTopic } from "../src/growthPlaybook";
@@ -27,12 +28,16 @@ const expectedDates = Array.from({ length: 14 }, (_, index) => {
 });
 const oldPlan = JSON.parse(readFileSync("data/slot1-plan.json", "utf8")) as Record<string, string>;
 const lockDirectory = "data/day-locks";
-const dayLocks = readdirSync(lockDirectory)
-  .filter((name) => name.endsWith(".json"))
-  .map((name) => JSON.parse(readFileSync(join(lockDirectory, name), "utf8")) as { slot1?: { topic?: string } });
-const existingTopics = [
-  ...Object.values(oldPlan),
-  ...dayLocks.map((lock) => lock.slot1?.topic).filter((topic): topic is string => Boolean(topic))
+const existingTopics: Array<{ date: string; topic: string }> = [
+  ...Object.entries(oldPlan).map(([date, topic]) => ({ date, topic })),
+  ...readdirSync(lockDirectory)
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => {
+      const lock = JSON.parse(readFileSync(join(lockDirectory, name), "utf8")) as { slot1?: { topic?: string } };
+      const topic = lock.slot1?.topic;
+      return topic ? { date: name.replace(/\.json$/u, ""), topic } : undefined;
+    })
+    .filter((entry): entry is { date: string; topic: string } => entry !== undefined)
 ];
 const familyOrder = ["home-textile", "season-weather", "pickup-delivery", "shoes", "luxury-leather"] as const;
 const legalFamilies = new Set<string>(familyOrder);
@@ -104,19 +109,35 @@ describe("slot1 extension plan data", () => {
     expect(Object.values(plan).some((entry) =>
       entry.family === "home-textile" && /絨毛|娃娃|玩偶/u.test(entry.topic)
     )).toBe(true);
+    const plushTopic = plan["2026-10-26"]!.topic;
+    expect(plushTopic).toContain("絨毛娃娃");
+    expect(plushTopic).toContain("送洗");
+    expect(serviceForTopic(plushTopic)).toBe("plush-doll");
     for (const [date, entry] of Object.entries(plan)) {
       expect(isQuestionHeadline(entry.topic), date).toBe(true);
       expect(entry.topic, date).not.toMatch(/價格|價錢|\d+\s*(?:元|塊)|距離|公里|公尺|里程/u);
     }
   });
 
-  it("avoids repeated four-character Chinese phrases across existing and extension topics", () => {
-    const topics = Object.values(plan).map((entry) => entry.topic);
+  it("avoids repeated four-character Chinese phrases across the production window and all extension topics", () => {
+    // 正式系統只比對 D-15 到 D-1 的既有題目；14 個延伸題目彼此仍全量互相比對。
+    const topics = Object.entries(plan).sort(([left], [right]) => left.localeCompare(right));
     for (let index = 0; index < topics.length; index += 1) {
-      const topic = topics[index]!;
-      expect(topicRepeatsInWindow(topic, [...existingTopics, ...topics.slice(0, index)])).toBeUndefined();
+      const [date, entry] = topics[index]!;
+      const topic = entry.topic;
+      const recentExistingTopics = existingTopics
+        .filter((other) => {
+          const daysBefore =
+            (Date.parse(date + "T00:00:00Z") - Date.parse(other.date + "T00:00:00Z")) / 86_400_000;
+          return daysBefore >= 1 && daysBefore <= TOPIC_REPEAT_WINDOW_DAYS;
+        })
+        .map((other) => other.topic);
+      const priorExtensionTopics = topics.slice(0, index).map(([, previous]) => previous.topic);
+      const comparisonTopics = [...recentExistingTopics, ...priorExtensionTopics];
+
+      expect(topicRepeatsInWindow(topic, comparisonTopics)).toBeUndefined();
       const grams = cjkFourGrams(topic);
-      for (const other of [...existingTopics, ...topics.slice(0, index)]) {
+      for (const other of comparisonTopics) {
         const otherGrams = cjkFourGrams(other);
         expect([...grams].filter((gram) => otherGrams.has(gram)), topic + " repeats against " + other).toEqual([]);
       }

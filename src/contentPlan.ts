@@ -12,12 +12,23 @@ import {
 import {
   buildGrowthPlaybook,
   COMPANION_MEDIA_START_DATE,
+  extendedRotationSlot1,
+  extendedTopicSlot1,
   plannedTopicSlot1,
   type GrowthFormat,
   type GrowthPlaybookSlot
 } from "./growthPlaybook";
 import { getConfig } from "./config";
-import { contentCalendarPath, postedLogPath, projectRoot, relativeAssetPath, relativeCarouselAssetPath, relativeVideoAssetPath, slot1PlanPath } from "./paths";
+import {
+  contentCalendarPath,
+  postedLogPath,
+  projectRoot,
+  relativeAssetPath,
+  relativeCarouselAssetPath,
+  relativeVideoAssetPath,
+  slot1PlanExtPath,
+  slot1PlanPath
+} from "./paths";
 import { DAILY_SCHEDULE, getZonedDateParts } from "./scheduler";
 import type {
   AppConfig,
@@ -1300,6 +1311,57 @@ function loadSlot1PlanSync(root: string): Record<string, string> {
   }
 }
 
+export type Slot1PlanExtFormat = "carousel" | "single";
+export type Slot1PlanExtFamily =
+  | "home-textile"
+  | "season-weather"
+  | "pickup-delivery"
+  | "shoes"
+  | "luxury-leather";
+
+export interface Slot1PlanExtEntry {
+  topic: string;
+  format: Slot1PlanExtFormat;
+  family: Slot1PlanExtFamily;
+  object: string;
+  note?: string;
+  needs_review?: boolean;
+}
+
+const SLOT1_EXT_FORMATS = new Set<Slot1PlanExtFormat>(["carousel", "single"]);
+const SLOT1_EXT_FAMILIES = new Set<Slot1PlanExtFamily>([
+  "home-textile",
+  "season-weather",
+  "pickup-delivery",
+  "shoes",
+  "luxury-leather"
+]);
+
+function loadSlot1PlanExtSync(root: string): Record<string, Slot1PlanExtEntry> {
+  try {
+    const raw = readFileSync(slot1PlanExtPath(root), "utf8").replace(/^\uFEFF/u, "");
+    const parsed = JSON.parse(raw) as Record<string, Partial<Slot1PlanExtEntry>>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, entry]) =>
+        Boolean(
+          entry &&
+            typeof entry.topic === "string" &&
+            entry.topic.trim() &&
+            typeof entry.object === "string" &&
+            entry.object.trim() &&
+            SLOT1_EXT_FORMATS.has(entry.format as Slot1PlanExtFormat) &&
+            SLOT1_EXT_FAMILIES.has(entry.family as Slot1PlanExtFamily) &&
+            (entry.note === undefined || typeof entry.note === "string") &&
+            (entry.needs_review === undefined || typeof entry.needs_review === "boolean")
+        )
+      ) as Array<[string, Slot1PlanExtEntry]>
+    );
+  } catch {
+    return {};
+  }
+}
+
 function recentCalendarTopics(date: string, days: number, root: string): string[] {
   const topics: string[] = [];
   for (let back = 1; back <= days; back += 1) {
@@ -1418,8 +1480,8 @@ export function resolveSlot1AgainstAired(
 }
 
 export interface Slot1PlanDecision {
-  slot: GrowthPlaybookSlot;
-  source: "slot1-plan" | "growth-playbook";
+  slot?: GrowthPlaybookSlot;
+  source: "slot1-plan" | "slot1-plan-ext" | "growth-playbook" | "legacy-template";
   /** Set when a planned topic existed but was not used — the reason belongs in the generation log. */
   fallbackReason?: string;
 }
@@ -1437,9 +1499,31 @@ export function resolveSlot1WithPlan(
   date: string,
   playbookSlot: GrowthPlaybookSlot,
   plannedTopic: string | undefined,
-  airedTopics: string[]
+  airedTopics: string[],
+  extendedPlan?: Slot1PlanExtEntry
+): Slot1PlanDecision & { slot: GrowthPlaybookSlot };
+export function resolveSlot1WithPlan(
+  date: string,
+  playbookSlot: undefined,
+  plannedTopic: string | undefined,
+  airedTopics: string[],
+  extendedPlan?: Slot1PlanExtEntry
+): Slot1PlanDecision;
+export function resolveSlot1WithPlan(
+  date: string,
+  playbookSlot: GrowthPlaybookSlot | undefined,
+  plannedTopic: string | undefined,
+  airedTopics: string[],
+  extendedPlan?: Slot1PlanExtEntry
+): Slot1PlanDecision;
+export function resolveSlot1WithPlan(
+  date: string,
+  playbookSlot: GrowthPlaybookSlot | undefined,
+  plannedTopic: string | undefined,
+  airedTopics: string[],
+  extendedPlan?: Slot1PlanExtEntry
 ): Slot1PlanDecision {
-  if (plannedTopic) {
+  if (plannedTopic && playbookSlot) {
     const plannedSlot = plannedTopicSlot1(date, plannedTopic);
     if (plannedSlot) {
       const gram = topicRepeatsInWindow(plannedSlot.topic, airedTopics);
@@ -1451,7 +1535,22 @@ export function resolveSlot1WithPlan(
       };
     }
   }
-  return { slot: resolveSlot1AgainstAired(playbookSlot, airedTopics), source: "growth-playbook" };
+  if (!playbookSlot && extendedPlan) {
+    const extendedSlot = extendedTopicSlot1(date, extendedPlan.topic, extendedPlan.format);
+    if (extendedSlot) {
+      const gram = topicRepeatsInWindow(extendedSlot.topic, airedTopics);
+      if (!gram) return { slot: extendedSlot, source: "slot1-plan-ext" };
+      const rotation = extendedRotationSlot1(date);
+      return {
+        slot: rotation ? resolveSlot1AgainstAired(rotation, airedTopics) : undefined,
+        source: rotation ? "growth-playbook" : "legacy-template",
+        fallbackReason: `extended planned topic 「${extendedPlan.topic}」 repeats 「${gram}」 inside the as-aired window; slot 1 falls back to the rotation`
+      };
+    }
+  }
+  return playbookSlot
+    ? { slot: resolveSlot1AgainstAired(playbookSlot, airedTopics), source: "growth-playbook" }
+    : { slot: undefined, source: "legacy-template" };
 }
 
 /**
@@ -2794,22 +2893,30 @@ export function assertPlaybookCaptionQuality(slot: GrowthPlaybookSlot, caption: 
   }
 }
 
-export function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfig): DailySlot {
+export function dailySlotFromPlaybook(
+  slot: GrowthPlaybookSlot,
+  config: AppConfig,
+  source: "growth-playbook" | "slot1-plan-ext" = "growth-playbook",
+  singleImage = false
+): DailySlot {
   const facebookCaption = captionFromPlaybook(slot, "facebook", config);
   const instagramCaption = captionFromPlaybook(slot, "instagram", config);
   const isReel = slot.format === "reel";
-  const carouselItems = carouselItemsFromPlaybook(slot, config);
+  const generatedCarouselItems = carouselItemsFromPlaybook(slot, config);
+  const carouselItems = singleImage ? generatedCarouselItems?.slice(0, 1) : generatedCarouselItems;
   const videoPrompt = videoPromptFromPlaybook(slot);
   const videoCandidate = slot.video_candidate
     ? { ...slot.video_candidate, grok_motion_prompt: videoPrompt ?? slot.video_candidate.grok_motion_prompt }
     : undefined;
-  const mediaType = slot.media_package
-    ? "mixed-carousel"
-    : carouselItems
-      ? "carousel"
-      : isReel
-        ? "reel"
-        : "image";
+  const mediaType = singleImage
+    ? "image"
+    : slot.media_package
+      ? "mixed-carousel"
+      : carouselItems
+        ? "carousel"
+        : isReel
+          ? "reel"
+          : "image";
   assertPlaybookCaptionQuality(slot, facebookCaption);
   assertPlaybookCaptionQuality(slot, instagramCaption);
   return {
@@ -2825,7 +2932,7 @@ export function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfi
     carousel_items: carouselItems,
     video_prompt: videoPrompt,
     video_candidate: videoCandidate,
-    media_package: slot.media_package,
+    media_package: singleImage ? undefined : slot.media_package,
     visual_route: slot.visual_route,
     traffic_route: slot.traffic_route,
     content_role: slot.content_role,
@@ -2837,7 +2944,7 @@ export function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfi
     target_queries: slot.target_queries,
     evidence_type: slot.evidence_type,
     ten_day_review_metric: slot.ten_day_review_metric,
-    content_plan_source: "growth-playbook",
+    content_plan_source: source,
     local_image_path: carouselItems?.[0]?.local_image_path ?? relativeAssetPath(slot.date, slot.slot),
     public_image_url:
       carouselItems?.[0]?.public_image_url ??
@@ -2890,7 +2997,7 @@ export interface BuildDailyContentOptions {
   airedTopics?: string[];
   /** Load posted-log ∩ calendar topics and swap slot 1 off that window. */
   applyAiredCooldown?: boolean;
-  /** Read data/slot1-plan.json and let it decide slot 1's topic (F25). */
+  /** Read the existing and extension slot-1 plans and let them decide topic/format. */
   applySlot1Plan?: boolean;
   /** Taipei date the generator believes "now" is; tests move it (default: the real clock). */
   today?: string;
@@ -2918,10 +3025,12 @@ export function buildDailyContent(
   const playbookSlots = playbookSlotsForDate(date);
   const rawSlot1 = playbookSlots?.find((slot) => slot.slot === 1);
   const slot1Plan = options.applySlot1Plan ? loadSlot1PlanSync(root) : {};
+  const slot1PlanExt = options.applySlot1Plan ? loadSlot1PlanExtSync(root) : {};
   const plannedTopic = slot1Plan[date];
+  const extendedPlan = slot1PlanExt[date];
   const nextPlannedTopic = slot1Plan[addUtcDays(date, 1)];
-  const slot1Decision = rawSlot1
-    ? resolveSlot1WithPlan(date, rawSlot1, plannedTopic, airedTopics)
+  const slot1Decision = rawSlot1 || plannedTopic || extendedPlan
+    ? resolveSlot1WithPlan(date, rawSlot1, plannedTopic, airedTopics, extendedPlan)
     : undefined;
   if (slot1Decision?.fallbackReason) {
     console.warn(`[slot1-plan] ${date}: ${slot1Decision.fallbackReason}`);
@@ -2945,7 +3054,14 @@ export function buildDailyContent(
     if (schedule.slot === 2 && eveningPaused && !playbookSlot) {
       return dailySlotFromTemplate(date, schedule, config);
     }
-    return playbookSlot ? dailySlotFromPlaybook(playbookSlot, config) : dailySlotFromTemplate(date, schedule, config);
+    if (!playbookSlot) return dailySlotFromTemplate(date, schedule, config);
+    const isExtendedSlot1 = schedule.slot === 1 && slot1Decision?.source === "slot1-plan-ext";
+    return dailySlotFromPlaybook(
+      playbookSlot,
+      config,
+      isExtendedSlot1 ? "slot1-plan-ext" : "growth-playbook",
+      isExtendedSlot1 && extendedPlan?.format === "single"
+    );
   }).map((slot) => {
     // The teaser only exists when tomorrow's slot-1 topic is committed in the
     // plan and today's slot 1 actually came from that plan; a playbook fallback

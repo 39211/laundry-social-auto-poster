@@ -6,6 +6,7 @@ import {
   NEW_PAGE_PATHS,
   NOINDEX_FOLLOW_LOCAL_PATHS,
   WAVE2_PAGE_PATHS,
+  FAQ_JSONLD_PAGE_REFERENCE_MARKERS,
   LAYER1_BANNED_PHRASES,
   LAYER1_PHRASE_PAGE_PATHS,
   WAVE3_EXTRA_WRITER_VOICE_MARKERS,
@@ -14,6 +15,7 @@ import {
   WAVE3_VOICE_PAGE_PATHS,
   WRITER_VOICE_MARKERS,
   checkSitemapLinks,
+  faqJsonLdPageReferenceOffenders,
   layer1BannedPhraseHits,
   repoRootFromHere,
   sitemapLinkReportFailed,
@@ -184,6 +186,11 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
       if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
     }
     expect(hits).toEqual([]);
+  });
+
+  it("FAQ JSON-LD 的問題與答案不含本頁或這頁", () => {
+    expect(FAQ_JSONLD_PAGE_REFERENCE_MARKERS).toEqual(["本頁", "這頁"]);
+    expect(faqJsonLdPageReferenceOffenders()).toEqual([]);
   });
 
   it("seo-overrides 每個 HTML 的 JSON-LD 都沒有 Product、AggregateRating、Review", () => {

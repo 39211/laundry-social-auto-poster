@@ -535,3 +535,24 @@ if (isDirectRun()) {
     process.exitCode = 1;
   }
 }
+
+/** 全站禁詞：seo-overrides 每個檔都掃，不剔除任何句子。2026-10-15 行銷審 #186 加「只補」。 */
+export const SITEWIDE_BANNED_MARKERS = ["只補"] as const;
+
+export function sitewideBannedOffenders(root = repoRootFromHere()): string[] {
+  const offenders: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      const text = readFileSync(full, "utf8");
+      const found = SITEWIDE_BANNED_MARKERS.filter((marker) => text.includes(marker));
+      if (found.length > 0) offenders.push(`${full.slice(root.length).split("\\").join("/")}: ${found.join("、")}`);
+    }
+  };
+  walk(join(root, "seo-overrides"));
+  return offenders;
+}

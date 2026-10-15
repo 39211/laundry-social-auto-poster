@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁。東勢、大甲、龍井不進這支。 */
-export const EXPECTED_LOC_COUNT = 142;
+/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 10 頁。東勢、大甲、龍井不進這支。 */
+export const EXPECTED_LOC_COUNT = 152;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -137,6 +137,49 @@ export const WAVE3_MERGED_PAGE_PATHS = [
 ] as const;
 
 export const WAVE3_VOICE_PAGE_PATHS = [...WAVE3_PAGE_PATHS, ...WAVE3_MERGED_PAGE_PATHS] as const;
+
+/** B5 第 4 波 10 頁。lastmod 用這次上線日，不回寫前三波。 */
+export const WAVE4_PAGE_LASTMOD = "2026-10-15";
+
+export const WAVE4_PAGE_PATHS = [
+  "/guides/bedsheet-set-cleaning.html",
+  "/guides/curtain-lining-blackout.html",
+  "/guides/carpet-fiber-types.html",
+  "/guides/plush-filling-clump.html",
+  "/guides/casual-shoe-cleaning.html",
+  "/guides/suit-pants-crease.html",
+  "/guides/down-duvet-vs-jacket.html",
+  "/guides/pillow-cleaning-check.html",
+  "/guides/crossbody-bag-strap.html",
+  "/guides/dry-clean-vs-wet-clean.html"
+] as const;
+
+/** 修繕界線全站原句。掃描禁詞時先拿掉，句中的「這頁不承諾」才不會被算進去。 */
+export const REPAIR_BOUNDARY_SENTENCE =
+  "屬修繕，不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明，這頁不承諾。";
+
+/** 第 4 波新頁與新問答不得出現。修繕原句先剔除。 */
+export const WAVE4_BANNED_MARKERS = [
+  "本頁",
+  "這頁",
+  "另看",
+  "最常",
+  "最常見",
+  "每天",
+  "一口價",
+  "編價格",
+  "錢頁",
+  "重寫",
+  "同一頁",
+  "這裡只",
+  "不寫",
+  "這裡",
+  "改看",
+  "仍看",
+  "留在",
+  "換頁",
+  "這句"
+] as const;
 
 /**
  * 第 3 波把判斷併進既有頁。這兩頁原屬第 1 波，sitemap lastmod 跟著 dateModified 改為 2026-10-14。
@@ -296,6 +339,11 @@ export function wave3WriterVoiceHits(text: string): string[] {
   return [...WRITER_VOICE_MARKERS, ...WAVE3_EXTRA_WRITER_VOICE_MARKERS].filter((marker) => text.includes(marker));
 }
 
+export function wave4BannedHits(text: string): string[] {
+  const stripped = text.split(REPAIR_BOUNDARY_SENTENCE).join("");
+  return WAVE4_BANNED_MARKERS.filter((marker) => stripped.includes(marker));
+}
+
 export type SitemapLinkReport = {
   parseOk: boolean;
   locCount: number;
@@ -399,7 +447,8 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
         : LAYER1_LASTMOD_OVERRIDES[path] ?? MERGED_PAGE_LASTMOD_OVERRIDES[path] ?? NEW_PAGE_LASTMOD
     })),
     ...WAVE2_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE2_PAGE_LASTMOD })),
-    ...WAVE3_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE3_PAGE_LASTMOD }))
+    ...WAVE3_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE3_PAGE_LASTMOD })),
+    ...WAVE4_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE4_PAGE_LASTMOD }))
   ];
   for (const { path, lastmod } of tracked) {
     const hubs = hrefs.get(path) ?? [];
@@ -438,7 +487,7 @@ export function formatSitemapLinkReport(report: SitemapLinkReport): string {
     `wrong_lastmod ${JSON.stringify(report.wrongLastmod)}`,
     "inbound:"
   ];
-  for (const path of [...NEW_PAGE_PATHS, ...WAVE2_PAGE_PATHS, ...WAVE3_PAGE_PATHS]) {
+  for (const path of [...NEW_PAGE_PATHS, ...WAVE2_PAGE_PATHS, ...WAVE3_PAGE_PATHS, ...WAVE4_PAGE_PATHS]) {
     const hit = report.inbound[path];
     lines.push(`${path}\t${hit?.count ?? 0}\t${(hit?.hubs ?? []).join(",")}`);
   }

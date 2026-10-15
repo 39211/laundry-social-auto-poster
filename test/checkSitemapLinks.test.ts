@@ -13,6 +13,8 @@ import {
   WAVE3_MERGED_PAGE_PATHS,
   WAVE3_PAGE_PATHS,
   WAVE3_VOICE_PAGE_PATHS,
+  WAVE4_BANNED_MARKERS,
+  WAVE4_PAGE_PATHS,
   WRITER_VOICE_MARKERS,
   checkSitemapLinks,
   faqJsonLdPageReferenceOffenders,
@@ -20,6 +22,7 @@ import {
   repoRootFromHere,
   sitemapLinkReportFailed,
   wave3WriterVoiceHits,
+  wave4BannedHits,
   writerVoiceHits
 } from "../scripts/check-sitemap-links";
 
@@ -74,6 +77,7 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(WAVE3_PAGE_PATHS).toHaveLength(4);
     expect(WAVE3_MERGED_PAGE_PATHS).toHaveLength(3);
     expect(WAVE3_VOICE_PAGE_PATHS).toHaveLength(7);
+    expect(WAVE4_PAGE_PATHS).toHaveLength(10);
     expect(NOINDEX_FOLLOW_LOCAL_PATHS).toHaveLength(16);
     const root = repoRootFromHere();
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
@@ -121,6 +125,16 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/guides/hat-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/leather-glove-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/leather-belt-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/bedsheet-set-cleaning.html"]?.hubs).toContain("hubs/bedding-textile-care.html");
+    expect(report.inbound["/guides/curtain-lining-blackout.html"]?.hubs).toContain("hubs/bedding-textile-care.html");
+    expect(report.inbound["/guides/carpet-fiber-types.html"]?.hubs).toContain("hubs/bedding-textile-care.html");
+    expect(report.inbound["/guides/plush-filling-clump.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/casual-shoe-cleaning.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/suit-pants-crease.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/down-duvet-vs-jacket.html"]?.hubs).toContain("hubs/bedding-textile-care.html");
+    expect(report.inbound["/guides/pillow-cleaning-check.html"]?.hubs).toContain("hubs/bedding-textile-care.html");
+    expect(report.inbound["/guides/crossbody-bag-strap.html"]?.hubs).toContain("hubs/bag-care.html");
+    expect(report.inbound["/guides/dry-clean-vs-wet-clean.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     const xml = readFileSync(join(root, "seo-overrides", "sitemap.xml"), "utf8");
     for (const path of LAYER1_PHRASE_PAGE_PATHS) {
       expect(xml, path).toContain(`<loc>https://sixiangjialaundry.com${path}</loc><lastmod>2026-10-14</lastmod>`);
@@ -183,6 +197,47 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
       const onVoicePage = wave3Urls.some((url) => entry.source_url === url || entry.source_url.startsWith(`${url}#`));
       if (!onVoicePage) continue;
       const found = wave3WriterVoiceHits(`${entry.question}\n${entry.answer}`);
+      if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
+    }
+    expect(hits).toEqual([]);
+  });
+
+  it("第 4 波新頁與問答沒有禁詞，修繕原句除外", () => {
+    expect(WAVE4_BANNED_MARKERS).toEqual([
+      "本頁",
+      "這頁",
+      "另看",
+      "最常",
+      "最常見",
+      "每天",
+      "一口價",
+      "編價格",
+      "錢頁",
+      "重寫",
+      "同一頁",
+      "這裡只",
+      "不寫",
+      "這裡",
+      "改看",
+      "仍看",
+      "留在",
+      "換頁",
+      "這句"
+    ]);
+    const root = repoRootFromHere();
+    const hits: string[] = [];
+    for (const path of WAVE4_PAGE_PATHS) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      const found = wave4BannedHits(html);
+      if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
+    }
+    const answers = JSON.parse(readFileSync(join(root, "seo-overrides", "answers.json"), "utf8")) as {
+      answers: Array<{ id: string; question: string; answer: string; source_url: string }>;
+    };
+    const wave4Urls = new Set(WAVE4_PAGE_PATHS.map((path) => `https://sixiangjialaundry.com${path}`));
+    for (const entry of answers.answers) {
+      if (!wave4Urls.has(entry.source_url)) continue;
+      const found = wave4BannedHits(`${entry.question}\n${entry.answer}`);
       if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
     }
     expect(hits).toEqual([]);

@@ -19,6 +19,8 @@ import {
   WRITER_VOICE_MARKERS,
   checkSitemapLinks,
   faqJsonLdPageReferenceOffenders,
+  SITEWIDE_BANNED_MARKERS,
+  sitewideBannedOffenders,
   layer1BannedPhraseHits,
   repoRootFromHere,
   sitemapLinkReportFailed,
@@ -264,5 +266,14 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
       .filter((entry) => entry.types.length > 0)
       .map((entry) => `${entry.file}: ${[...new Set(entry.types)].join(",")} ×${entry.types.length}`);
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("全站禁詞「只補」", () => {
+  it("清單鎖定", () => {
+    expect(SITEWIDE_BANNED_MARKERS).toEqual(["只補"]);
+  });
+  it("seo-overrides 每個檔都沒有，不剔除任何句子", () => {
+    expect(sitewideBannedOffenders()).toEqual([]);
   });
 });

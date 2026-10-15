@@ -7933,6 +7933,82 @@
         ],
         "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-15.json"
       }
+    },
+    {
+      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-16.json#post-2026-10-16-slot-01",
+      "url": "https://sixiangjialaundry.com/posts/2026-10-16-slot-01.html",
+      "title": "2026-10-16 11:30 皮裙掉色：噴槍補色前先看皮面",
+      "date_published": "2026-10-16T11:30:00+08:00",
+      "content_text": "皮裙掉色：噴槍補色前先看皮面。\n\n皮裙局部顏色變淺，正面和背面也可能深淺不一。補色前先看皮面與深淺差異的位置，再依實物評估處理方式。\n\n送洗前先別做：自己拿補色膏或皮革油塗、拿濕布用力來回擦、掛在太陽下曬。\n\n在店裡，我們這樣做：先看皮面，正面和背面一起檢查；皮裙掛起固定，膠帶已貼好；前處理與用劑依皮況調整；用噴槍分區噴，這次示範依序噴淺色、棕色、深棕；噴完近看皮面，再看整體深淺。\n\n老實說：補色效果要看皮況，不保證回到原色，皮面仍可能有深淺差異。交期依皮況與排程確認。\n\n拍皮裙正面、背面掉色最明顯的地方傳 LINE，先幫你看（照片先初評，必要時看實物）。\n\n台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）\n\n#私享家洗衣店 #台中西屯洗衣店 #皮裙 #皮件保養 #送洗前檢查",
+      "summary": "皮裙掉色：噴槍補色前先看皮面",
+      "image": "https://sixiangjialaundry.com/assets/2026-10-16/slot-01.png",
+      "tags": [
+        "私享家洗衣店",
+        "台中西屯洗衣店",
+        "皮裙",
+        "皮件保養",
+        "送洗前檢查"
+      ],
+      "_sixiangjia": {
+        "slot": 1,
+        "category": "知識文",
+        "visual_route": "customer-consultation",
+        "traffic_route": "trust-reset",
+        "content_role": "reach-answer",
+        "search_intent": "problem-diagnosis",
+        "target_queries": [
+          "台中皮裙清洗",
+          "皮裙掉色",
+          "皮件補色",
+          "皮衣補色",
+          "台中皮件保養",
+          "西屯洗衣店"
+        ],
+        "evidence_type": "",
+        "platforms": [
+          "facebook",
+          "instagram"
+        ],
+        "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-16.json"
+      }
+    },
+    {
+      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-16.json#post-2026-10-16-slot-02",
+      "url": "https://sixiangjialaundry.com/posts/2026-10-16-slot-02.html",
+      "title": "2026-10-16 20:30 皮裙掉色，補色前先看皮面",
+      "date_published": "2026-10-16T20:30:00+08:00",
+      "content_text": "皮裙掉色，補色前先看皮面。\n\n這次示範的這件皮裙，片中呈現：正反面都看，再評估處理。掛起固定，膠帶已貼好。先噴淺色，分區噴。再噴棕色，換一區。最後噴深棕，同樣分區。噴完近看，皮面紋路仍在。深淺拉近，仍可能有色差。\n\n老實說：補色效果要看皮況，不保證回到原色，皮面仍可能有深淺差異。交期依皮況與排程確認。\n\n拍照傳LINE，先評估。\n\n台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）\n\n#私享家洗衣店 #台中西屯洗衣店 #皮裙 #皮件保養 #送洗前檢查",
+      "summary": "皮裙掉色，補色前先看皮面",
+      "image": "https://sixiangjialaundry.com/assets/2026-10-16/slot-02.png",
+      "tags": [
+        "私享家洗衣店",
+        "台中西屯洗衣店",
+        "皮裙",
+        "皮件保養",
+        "送洗前檢查"
+      ],
+      "_sixiangjia": {
+        "slot": 2,
+        "category": "情境文",
+        "visual_route": "shop-inspection",
+        "traffic_route": "trust-reset",
+        "content_role": "evidence-conversion",
+        "search_intent": "problem-diagnosis",
+        "target_queries": [
+          "台中皮裙清洗",
+          "皮裙掉色",
+          "皮件補色",
+          "皮衣補色",
+          "台中皮件保養",
+          "西屯洗衣店"
+        ],
+        "evidence_type": "",
+        "platforms": [
+          "facebook",
+          "instagram"
+        ],
+        "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-16.json"
+      }
     }
   ]
 }

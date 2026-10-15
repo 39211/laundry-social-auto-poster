@@ -163,7 +163,8 @@ export const WRITER_VOICE_MARKERS = ["不寫", "這裡", "重寫", "改看", "�
 export const WAVE3_EXTRA_WRITER_VOICE_MARKERS = ["這頁", "本頁", "這句", "一口價", "另看"] as const;
 
 /**
- * 層 1 四頁禁詞。全站「這裡」「編價格」仍大量出現（另有「錢頁」），零命中只鎖這四頁，不回溯其他頁。
+ * 層 1 四頁禁詞。全站內文仍有「這裡」；「錢頁」「編價格」已在 2026-10-15 清掉。
+ * 整頁零命中只鎖這四頁，不回溯其他頁的「這裡」。
  */
 export const LAYER1_PHRASE_PAGE_PATHS = [
   "/local/nantun-laundry-pickup.html",
@@ -174,12 +175,121 @@ export const LAYER1_PHRASE_PAGE_PATHS = [
 
 export const LAYER1_BANNED_PHRASES = ["錢頁", "這裡", "編價格"] as const;
 
+/**
+ * 2026-10-15：FAQ 問答改成單則可引用。這些追蹤頁的 sitemap lastmod
+ * 跟著 dateModified 改，不回寫 NEW_PAGE_LASTMOD。
+ */
+export const FAQ_SELF_CONTAINED_LASTMOD = "2026-10-15";
+
+export const FAQ_SELF_CONTAINED_PAGE_PATHS = [
+  "/guides/boot-shaft-cleaning.html",
+  "/guides/wallet-cleaning-check.html",
+  "/guides/coin-laundry-vs-pickup.html",
+  "/services/postpartum-center-laundry.html",
+  "/services/uniform-laundry.html",
+  "/services/wool-coat-cleaning.html",
+  "/services/clinic-uniform-laundry.html",
+  "/local/beitun-shoe-cleaning.html",
+  "/local/nantun-shoe-cleaning.html",
+  "/guides/mesh-shoe-cleaning.html",
+  "/guides/leather-sneaker-care.html",
+  "/guides/leather-bag-care.html",
+  "/guides/silk-garment-cleaning.html",
+  "/guides/cashmere-knit-care.html",
+  "/guides/collar-sweat-yellow.html",
+  "/guides/down-clump-after-wash.html",
+  "/guides/clear-sole-yellowing.html",
+  "/guides/bag-edge-paint-cracking.html",
+  "/guides/sticky-bag-lining.html",
+  "/local/west-district-laundry-pickup.html",
+  "/guides/dress-shoe-polish-buildup.html",
+  "/guides/bag-hardware-tarnish.html",
+  "/guides/light-leather-bag-yellowing.html",
+  "/guides/gore-tex-jacket-cleaning.html",
+  "/services/evening-gown-cleaning.html",
+  "/services/secondhand-luxury-shop-cleaning.html",
+  "/services/sequin-rhinestone-clothing-cleaning.html",
+  "/guides/scarf-cleaning.html",
+  "/guides/cardigan-cleaning.html",
+  "/guides/kids-shoe-cleaning.html",
+  "/guides/high-heel-structure.html",
+  "/guides/denim-jeans-cleaning.html",
+  "/guides/day-dress-cleaning.html",
+  "/guides/pu-leather-peeling.html"
+] as const;
+
+/** FAQ JSON-LD 的問題與答案被單獨引用時，不能靠「本頁／這頁」才讀得懂。 */
+export const FAQ_JSONLD_PAGE_REFERENCE_MARKERS = ["本頁", "這頁"] as const;
+
 export function writerVoiceHits(text: string): string[] {
   return WRITER_VOICE_MARKERS.filter((marker) => text.includes(marker));
 }
 
 export function layer1BannedPhraseHits(text: string): string[] {
   return LAYER1_BANNED_PHRASES.filter((phrase) => text.includes(phrase));
+}
+
+export function faqJsonLdPageReferenceHits(text: string): string[] {
+  return FAQ_JSONLD_PAGE_REFERENCE_MARKERS.filter((marker) => text.includes(marker));
+}
+
+function collectFaqQuestions(node: unknown, out: Array<{ name: string; text: string }>): void {
+  if (Array.isArray(node)) {
+    node.forEach((item) => collectFaqQuestions(item, out));
+    return;
+  }
+  if (!node || typeof node !== "object") return;
+  const record = node as Record<string, unknown>;
+  const type = record["@type"];
+  const types = Array.isArray(type) ? type : [type];
+  if (types.includes("FAQPage") && Array.isArray(record.mainEntity)) {
+    for (const entity of record.mainEntity) {
+      if (!entity || typeof entity !== "object") continue;
+      const question = entity as Record<string, unknown>;
+      const answer = question.acceptedAnswer;
+      const text =
+        answer && typeof answer === "object" && typeof (answer as { text?: unknown }).text === "string"
+          ? (answer as { text: string }).text
+          : "";
+      out.push({ name: typeof question.name === "string" ? question.name : "", text });
+    }
+  }
+  for (const value of Object.values(record)) collectFaqQuestions(value, out);
+}
+
+export function faqJsonLdPageReferenceOffenders(root = repoRootFromHere()): string[] {
+  const offenders: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!entry.name.endsWith(".html")) continue;
+      const html = readFileSync(full, "utf8");
+      for (const match of html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(match[1] ?? "");
+        } catch {
+          offenders.push(`${full}: JSON-LD 無法解析`);
+          continue;
+        }
+        const questions: Array<{ name: string; text: string }> = [];
+        collectFaqQuestions(parsed, questions);
+        for (const question of questions) {
+          const found = faqJsonLdPageReferenceHits(`${question.name}\n${question.text}`);
+          if (found.length > 0) {
+            const rel = full.slice(root.length).split("\\").join("/");
+            offenders.push(`${rel}: ${found.join("、")}｜${question.name}`);
+          }
+        }
+      }
+    }
+  };
+  walk(join(root, "seo-overrides"));
+  return offenders;
 }
 
 export function wave3WriterVoiceHits(text: string): string[] {
@@ -280,10 +390,13 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
   const unexpectedInSitemap: string[] = [];
   const noindexFollow = new Set<string>(NOINDEX_FOLLOW_LOCAL_PATHS);
   const lastmodByPath = new Map(entries.map((entry) => [pathnameOf(entry.loc), entry.lastmod]));
+  const faqSelfContainedLastmod = new Set<string>(FAQ_SELF_CONTAINED_PAGE_PATHS);
   const tracked = [
     ...NEW_PAGE_PATHS.map((path) => ({
       path,
-      lastmod: LAYER1_LASTMOD_OVERRIDES[path] ?? MERGED_PAGE_LASTMOD_OVERRIDES[path] ?? NEW_PAGE_LASTMOD
+      lastmod: faqSelfContainedLastmod.has(path)
+        ? FAQ_SELF_CONTAINED_LASTMOD
+        : LAYER1_LASTMOD_OVERRIDES[path] ?? MERGED_PAGE_LASTMOD_OVERRIDES[path] ?? NEW_PAGE_LASTMOD
     })),
     ...WAVE2_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE2_PAGE_LASTMOD })),
     ...WAVE3_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE3_PAGE_LASTMOD }))

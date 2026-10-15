@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 10 頁。東勢、大甲、龍井不進這支。 */
-export const EXPECTED_LOC_COUNT = 152;
+/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁。東勢、大甲、龍井不進這支。 */
+export const EXPECTED_LOC_COUNT = 145;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -138,27 +138,30 @@ export const WAVE3_MERGED_PAGE_PATHS = [
 
 export const WAVE3_VOICE_PAGE_PATHS = [...WAVE3_PAGE_PATHS, ...WAVE3_MERGED_PAGE_PATHS] as const;
 
-/** B5 第 4 波 10 頁。lastmod 用這次上線日，不回寫前三波。 */
+/** B5 第 4 波留下的 3 頁。lastmod 用這次上線日，不回寫前三波。 */
 export const WAVE4_PAGE_LASTMOD = "2026-10-15";
 
 export const WAVE4_PAGE_PATHS = [
-  "/guides/bedsheet-set-cleaning.html",
-  "/guides/curtain-lining-blackout.html",
-  "/guides/carpet-fiber-types.html",
-  "/guides/plush-filling-clump.html",
   "/guides/casual-shoe-cleaning.html",
   "/guides/suit-pants-crease.html",
-  "/guides/down-duvet-vs-jacket.html",
-  "/guides/pillow-cleaning-check.html",
-  "/guides/crossbody-bag-strap.html",
-  "/guides/dry-clean-vs-wet-clean.html"
+  "/guides/crossbody-bag-strap.html"
 ] as const;
 
-/** 修繕界線全站原句。掃描禁詞時先拿掉，句中的「這頁不承諾」才不會被算進去。 */
-export const REPAIR_BOUNDARY_SENTENCE =
-  "屬修繕，不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明，這頁不承諾。";
+/** 第 4 波併進既有頁。不另計 sitemap 條數；lastmod 與頁面 dateModified 改為 2026-10-15。 */
+export const WAVE4_MERGED_PAGE_PATHS = [
+  "/guides/dry-cleaning-explained.html",
+  "/guides/carpet-cleaning.html",
+  "/guides/plush-doll-cleaning.html",
+  "/guides/curtain-cleaning.html",
+  "/guides/bedding-duvet-cleaning.html",
+  "/guides/down-jacket-cleaning.html"
+] as const;
 
-/** 第 4 波新頁與新問答不得出現。修繕原句先剔除。 */
+/** 修繕界線。禁詞掃描不剔除任何句子。 */
+export const REPAIR_BOUNDARY_SENTENCE =
+  "屬修繕，不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。";
+
+/** 第 4 波新頁、併入段落與對應問答不得出現。掃描時不先拿掉任何句子。 */
 export const WAVE4_BANNED_MARKERS = [
   "本頁",
   "這頁",
@@ -171,9 +174,8 @@ export const WAVE4_BANNED_MARKERS = [
   "錢頁",
   "重寫",
   "同一頁",
-  "這裡只",
-  "不寫",
   "這裡",
+  "不寫",
   "改看",
   "仍看",
   "留在",
@@ -340,8 +342,7 @@ export function wave3WriterVoiceHits(text: string): string[] {
 }
 
 export function wave4BannedHits(text: string): string[] {
-  const stripped = text.split(REPAIR_BOUNDARY_SENTENCE).join("");
-  return WAVE4_BANNED_MARKERS.filter((marker) => stripped.includes(marker));
+  return WAVE4_BANNED_MARKERS.filter((marker) => text.includes(marker));
 }
 
 export type SitemapLinkReport = {
@@ -439,12 +440,15 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
   const noindexFollow = new Set<string>(NOINDEX_FOLLOW_LOCAL_PATHS);
   const lastmodByPath = new Map(entries.map((entry) => [pathnameOf(entry.loc), entry.lastmod]));
   const faqSelfContainedLastmod = new Set<string>(FAQ_SELF_CONTAINED_PAGE_PATHS);
+  const wave4MergedLastmod = new Set<string>(WAVE4_MERGED_PAGE_PATHS);
   const tracked = [
     ...NEW_PAGE_PATHS.map((path) => ({
       path,
-      lastmod: faqSelfContainedLastmod.has(path)
-        ? FAQ_SELF_CONTAINED_LASTMOD
-        : LAYER1_LASTMOD_OVERRIDES[path] ?? MERGED_PAGE_LASTMOD_OVERRIDES[path] ?? NEW_PAGE_LASTMOD
+      lastmod: wave4MergedLastmod.has(path)
+        ? WAVE4_PAGE_LASTMOD
+        : faqSelfContainedLastmod.has(path)
+          ? FAQ_SELF_CONTAINED_LASTMOD
+          : LAYER1_LASTMOD_OVERRIDES[path] ?? MERGED_PAGE_LASTMOD_OVERRIDES[path] ?? NEW_PAGE_LASTMOD
     })),
     ...WAVE2_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE2_PAGE_LASTMOD })),
     ...WAVE3_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE3_PAGE_LASTMOD })),
@@ -460,6 +464,12 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
     }
     if (!lastmodByPath.has(path)) missingFromSitemap.push(path);
     else if (lastmodByPath.get(path) !== lastmod) wrongLastmod.push(path);
+  }
+  const trackedPathSet = new Set<string>(tracked.map((item) => item.path));
+  for (const path of WAVE4_MERGED_PAGE_PATHS) {
+    if (trackedPathSet.has(path)) continue;
+    if (!lastmodByPath.has(path)) missingFromSitemap.push(path);
+    else if (lastmodByPath.get(path) !== WAVE4_PAGE_LASTMOD) wrongLastmod.push(path);
   }
   return {
     parseOk: true,

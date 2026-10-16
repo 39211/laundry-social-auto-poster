@@ -661,6 +661,7 @@ describe("generatePublicSite", () => {
     expect(discovery.content_contract.omitted_until_verified).toEqual(["holiday_hours_overrides"]);
     expect(discovery.business_profile.source_notes.join("\n")).not.toMatch(/place_id|not_verified/iu);
     expect(httpUrlsContainingPosts(discovery)).toEqual([]);
+    expectDiscoveryOmitsPostArticles(discovery);
     expect(discovery.capabilities.supports_full_context).toBe(true);
     expect(discovery.capabilities.supports_search_intent_clusters).toBe(true);
     expect(discovery.capabilities.supports_28_day_ai_visibility_review).toBe(true);
@@ -3313,6 +3314,26 @@ function httpUrlsContainingPosts(value: unknown, found: string[] = []): string[]
   return found;
 }
 
+function emptyArticleUrlPaths(value: unknown, path = "", found: string[] = []): string[] {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => emptyArticleUrlPaths(item, `${path}[${index}]`, found));
+    return found;
+  }
+  if (!value || typeof value !== "object") return found;
+  for (const [key, child] of Object.entries(value)) {
+    const next = path ? `${path}.${key}` : key;
+    if (key === "article_url" && child === "") found.push(next);
+    else emptyArticleUrlPaths(child, next, found);
+  }
+  return found;
+}
+
+function expectDiscoveryOmitsPostArticles(discovery: unknown): void {
+  expect(JSON.stringify(discovery)).not.toContain("/posts/");
+  expect(emptyArticleUrlPaths(discovery)).toEqual([]);
+  expect(httpUrlsContainingPosts(discovery)).toEqual([]);
+}
+
 const AI_DISCOVERY_COUNT_KEYS = new Set([
   "indexable_article_count",
   "sitemap_max_indexable_posts",
@@ -3604,6 +3625,7 @@ describe("seo overrides and URL path normalization", () => {
     expect(discovery.content_contract.omitted_until_verified).toEqual(["holiday_hours_overrides"]);
     expect(JSON.stringify(discovery)).not.toContain("not_verified");
     expect(httpUrlsContainingPosts(discovery)).toEqual([]);
+    expectDiscoveryOmitsPostArticles(discovery);
   });
 
   it("checked-in ai-discovery differs from seo-overrides only by generated_at, counts, and lists", async () => {
@@ -3647,6 +3669,26 @@ describe("seo overrides and URL path normalization", () => {
     });
     expect(JSON.stringify(docs)).not.toContain("not_verified");
     expect(httpUrlsContainingPosts(docs)).toEqual([]);
+    expectDiscoveryOmitsPostArticles(docs);
+  });
+
+  it("published ai-discovery omits article_url when the only target would be a post article", async () => {
+    const docs = JSON.parse(await readFile(join(__dirname, "..", "docs", "ai-discovery.json"), "utf8"));
+    expectDiscoveryOmitsPostArticles(docs);
+    const emptyUrlKeys = new Set<string>();
+    const walk = (value: unknown): void => {
+      if (Array.isArray(value)) {
+        value.forEach(walk);
+        return;
+      }
+      if (!value || typeof value !== "object") return;
+      for (const [key, child] of Object.entries(value)) {
+        if (key.endsWith("_url") && child === "") emptyUrlKeys.add(key);
+        else walk(child);
+      }
+    };
+    walk(docs);
+    expect(emptyUrlKeys.has("article_url")).toBe(false);
   });
 
   it("seo override files should be byte-identical after generation", async function () {

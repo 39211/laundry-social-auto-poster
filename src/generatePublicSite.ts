@@ -8936,7 +8936,7 @@ function postToDiscoveryRecord(post: PublicPost, index: PublicPostIndex): object
     media_type: post.media_type,
     video_url: post.video_url,
     calendar_url: post.calendar_url,
-    article_url: hasArticlePage(post, index) ? post.article_url : "",
+    ...discoveryArticleUrlField(post, index),
     facebook_caption: post.facebook_caption,
     instagram_caption: post.instagram_caption
   };
@@ -9027,14 +9027,21 @@ function isPostsHttpUrl(value: string): boolean {
   return /^https?:\/\//iu.test(value) && value.includes("/posts/");
 }
 
-function stripPostsHttpUrls(value: unknown): void {
+function discoveryArticleUrlField(post: PublicPost, index: PublicPostIndex): { article_url: string } | Record<string, never> {
+  if (!hasArticlePage(post, index)) return {};
+  const articleUrl = post.article_url;
+  if (!articleUrl || articleUrl.includes("/posts/")) return {};
+  return { article_url: articleUrl };
+}
+
+function omitUnlistedPostUrls(value: unknown): void {
   if (Array.isArray(value)) {
-    for (let index = 0; index < value.length; index += 1) {
+    for (let index = value.length - 1; index >= 0; index -= 1) {
       const item = value[index];
       if (typeof item === "string") {
-        if (isPostsHttpUrl(item)) value[index] = "";
+        if (isPostsHttpUrl(item)) value.splice(index, 1);
       } else {
-        stripPostsHttpUrls(item);
+        omitUnlistedPostUrls(item);
       }
     }
     return;
@@ -9042,18 +9049,22 @@ function stripPostsHttpUrls(value: unknown): void {
   if (!isJsonRecord(value)) return;
   for (const key of Object.keys(value)) {
     const child = value[key];
-    if (typeof child === "string") {
-      if (isPostsHttpUrl(child)) value[key] = "";
-    } else {
-      stripPostsHttpUrls(child);
+    if (key === "article_url" && (child === "" || (typeof child === "string" && child.includes("/posts/")))) {
+      delete value[key];
+      continue;
     }
+    if (typeof child === "string" && isPostsHttpUrl(child)) {
+      delete value[key];
+      continue;
+    }
+    omitUnlistedPostUrls(child);
   }
 }
 
 /**
  * 發現檔的 Place ID 以商家檔為準，不採用覆寫檔裡的空值。
  * 對外拿掉 not_verified、place_id 說明，以及 omitted_until_verified 的 google_place_id。
- * sitemap 不列 /posts/，發現檔的 http 網址也不列。
+ * sitemap 不收貼文網址。article_url 若是 /posts/ 或空字串，刪除該欄位。
  */
 function applyPublicAiDiscoveryPolicy(published: Record<string, unknown>, live: Record<string, unknown>): void {
   const placeId = discoveryPlaceId(live);
@@ -9101,7 +9112,7 @@ function applyPublicAiDiscoveryPolicy(published: Record<string, unknown>, live: 
       contract.omitted_until_verified = contract.omitted_until_verified.filter((item) => item !== "google_place_id");
     }
   }
-  stripPostsHttpUrls(published);
+  omitUnlistedPostUrls(published);
 }
 
 /**
@@ -9307,7 +9318,7 @@ function buildAiDiscovery(index: PublicPostIndex): Record<string, unknown> {
         min_visible_chars: POST_ARTICLE_MIN_VISIBLE_CHARS,
         min_caption_chars: POST_ARTICLE_MIN_CAPTION_CHARS,
         behavior:
-          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Slot articles stay reader-facing. sitemap.xml and ai-sitemap.xml omit every /posts/ URL and any HTML whose robots directive is noindex.",
+          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Slot articles stay reader-facing. sitemap.xml and ai-sitemap.xml omit post article URLs and any HTML whose robots directive is noindex.",
         indexable_article_count: indexablePostArticles(index).length,
         sitemap_max_indexable_posts: SITEMAP_MAX_INDEXABLE_POSTS,
         sitemap_indexable_post_count: sitemapIndexablePostArticles(index).length,

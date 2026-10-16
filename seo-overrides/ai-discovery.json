@@ -2143,7 +2143,7 @@
     "daily_article_policy": {
       "min_visible_chars": 1200,
       "min_caption_chars": 80,
-      "behavior": "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Slot articles stay reader-facing. sitemap.xml and ai-sitemap.xml omit every /posts/ URL and any HTML whose robots directive is noindex.",
+      "behavior": "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Slot articles stay reader-facing. sitemap.xml and ai-sitemap.xml omit post article URLs and any HTML whose robots directive is noindex.",
       "indexable_article_count": 170,
       "sitemap_max_indexable_posts": 30,
       "sitemap_indexable_post_count": 30,

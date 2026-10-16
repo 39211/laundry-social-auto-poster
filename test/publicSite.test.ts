@@ -21,6 +21,7 @@ import {
   resolveAcceptedIndexGrowthPages
 } from "../src/indexGrowthPages";
 import { PRODUCTION_PUBLIC_SITE_BASE_URL } from "../src/publicSiteTypes";
+import { NOINDEX_FOLLOW_LOCAL_PATHS } from "../scripts/check-sitemap-links";
 import {
   REQUIRED_SEARCH_CONTENT_EVENTS,
   assertSearchContentAnalyticsScript,
@@ -3395,6 +3396,30 @@ describe("seo overrides and URL path normalization", () => {
     // Should have no /posts/ URLs (all slot posts are noindex)
     const postsUrls = sitemapUrls.filter(url => url.includes("/posts/"));
     expect(postsUrls).toEqual([]);
+
+    const aiSitemap = await readFile(join(docsRoot, "ai-sitemap.xml"), "utf8");
+    const aiSitemapUrls = sitemapLocs(aiSitemap);
+    expect(aiSitemapUrls.filter((url) => url.includes("/posts/"))).toEqual([]);
+    expect(aiSitemap).not.toContain("/posts/");
+
+    const liveResponse = await fetch("https://sixiangjialaundry.com/sitemap.xml");
+    expect(liveResponse.ok, `live sitemap HTTP ${liveResponse.status}`).toBe(true);
+    const liveUrls = sitemapLocs(await liveResponse.text()).sort();
+    const generatedUrls = [...sitemapUrls].sort();
+    expect(generatedUrls).toEqual(liveUrls);
+    expect(generatedUrls).toHaveLength(145);
+    expect(generatedUrls.filter((url) => url.includes("/posts/"))).toEqual([]);
+    for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
+      const absolute = `https://sixiangjialaundry.com${path}`;
+      expect(generatedUrls, path).not.toContain(absolute);
+      expect(aiSitemapUrls, path).not.toContain(absolute);
+      const pageHtml = await readFile(join(docsRoot, path.slice(1)), "utf8");
+      expect(pageHtml, path).toContain('name="robots" content="noindex, follow"');
+      expect(pageHtml, path).toContain('name="googlebot" content="noindex, follow"');
+      expect(pageHtml, path).not.toContain('content="index, follow');
+    }
+    expect(sitemap).toContain("https://sixiangjialaundry.com/local/west-district-laundry-pickup.html");
+    expect(sitemap).toContain("https://sixiangjialaundry.com/local/fengjia-laundry-pickup.html");
     
     // Windows path separator check: no sitemap <loc> should contain backslashes
     const backslashUrls = sitemapUrls.filter(url => url.includes("\\"));

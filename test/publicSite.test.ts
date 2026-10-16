@@ -2,7 +2,7 @@ import { access, mkdir, open, readdir, readFile, writeFile } from "node:fs/promi
 import { existsSync, mkdtempSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   generatePublicSite,
   publicAcceptedIndexGrowthCount,
@@ -2424,13 +2424,37 @@ describe("generatePublicSite", () => {
     }
   });
 
-  it("publishes one crawlable knowledge hub and a non-duplicating GA4 search funnel", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-knowledge-funnel-"));
-    await writeBusinessProfile(root);
-    await writeCalendar(root, "2026-07-02");
-    await writeApprovalLog(root, "2026-07-02");
+  describe("knowledge hub crawl fixture", () => {
     const baseUrl = "https://example.com/laundry-social-auto-poster";
-    await generatePublicSite({ root, baseUrl, now: "2026-07-10T03:00:00.000Z" });
+    const now = "2026-07-10T03:00:00.000Z";
+    const crawlDocsPaths = [
+      "sitemap.xml",
+      "ai-sitemap.xml",
+      "index.html",
+      "knowledge/index.html",
+      "services/shoe-bag-care.html",
+      "guides/shoe-odor-source.html",
+      "scripts/search-content-analytics.js"
+    ] as const;
+    let crawlRoot = "";
+
+    beforeAll(async () => {
+      crawlRoot = mkdtempSync(join(tmpdir(), "laundry-knowledge-funnel-"));
+      await writeBusinessProfile(crawlRoot);
+      await writeCalendar(crawlRoot, "2026-07-02");
+      await writeApprovalLog(crawlRoot, "2026-07-02");
+      await generatePublicSite({
+        root: crawlRoot,
+        baseUrl,
+        now,
+        // 斷言只讀這幾個檔。整站仍會組出相同內容，但不把其餘約 80 個檔寫進暫存，
+        // 避免 Windows CI 在大量小檔上把單一測試拖過 5 秒。
+        onlyDocsPaths: crawlDocsPaths
+      });
+    });
+
+    it("publishes one crawlable knowledge hub and a non-duplicating GA4 search funnel", async () => {
+    const root = crawlRoot;
 
     const docsRoot = join(root, "docs");
     const [sitemap, aiSitemap, home, hub, service, answer, analytics] = await Promise.all([
@@ -2482,6 +2506,7 @@ describe("generatePublicSite", () => {
     }
     expect(analytics).not.toContain('send("line_click"');
     expect(analytics).not.toContain('send("generate_lead"');
+    });
   });
 
   it("fails closed when any required search-funnel event is removed or a lead event is duplicated", () => {
@@ -2510,22 +2535,29 @@ describe("generatePublicSite", () => {
     expect(() => assertSearchContentAnalyticsScript(missingServiceId)).toThrow(/missing runtime parameter: service_id/);
   });
 
-  it("keeps knowledge-hub links correct when generated without a public base URL", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-knowledge-relative-"));
-    await writeBusinessProfile(root);
-    await writeCalendar(root, "2026-07-02");
-    await writeApprovalLog(root, "2026-07-02");
-    await generatePublicSite({
-      root,
-      siteBaseUrl: "",
-      imageBaseUrl: "",
-      now: "2026-07-10T03:00:00.000Z"
+  describe("knowledge hub relative links", () => {
+    let relativeRoot = "";
+
+    beforeAll(async () => {
+      relativeRoot = mkdtempSync(join(tmpdir(), "laundry-knowledge-relative-"));
+      await writeBusinessProfile(relativeRoot);
+      await writeCalendar(relativeRoot, "2026-07-02");
+      await writeApprovalLog(relativeRoot, "2026-07-02");
+      await generatePublicSite({
+        root: relativeRoot,
+        siteBaseUrl: "",
+        imageBaseUrl: "",
+        now: "2026-07-10T03:00:00.000Z",
+        onlyDocsPaths: ["knowledge/index.html"]
+      });
     });
 
-    const hub = await readFile(join(root, "docs", "knowledge", "index.html"), "utf8");
-    expect(hub).toContain('href="../services/shoe-bag-care.html"');
-    expect(hub).toContain('href="../guides/shoe-odor-source.html"');
-    expect(hub).not.toMatch(/href="(?:services|guides|local)\//u);
+    it("keeps knowledge-hub links correct when generated without a public base URL", async () => {
+      const hub = await readFile(join(relativeRoot, "docs", "knowledge", "index.html"), "utf8");
+      expect(hub).toContain('href="../services/shoe-bag-care.html"');
+      expect(hub).toContain('href="../guides/shoe-odor-source.html"');
+      expect(hub).not.toMatch(/href="(?:services|guides|local)\//u);
+    });
   });
 
   it("publishes approved posts as noindex daily articles per 2026-09-24 policy", async () => {

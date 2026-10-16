@@ -47,6 +47,11 @@ interface GeneratePublicSiteOptions {
   statPublicAsset?: (filePath: string) => { isFile(): boolean };
   /** Fail closed unless the resolved public base URL is the production canonical host. */
   deployment?: boolean;
+  /**
+   * 只寫這些 docs/ 相對路徑（posix）。未設定時寫出整站。
+   * 有寫出的檔案內容與整站產線相同，只略過呼叫端不會讀的檔。
+   */
+  onlyDocsPaths?: readonly string[];
 }
 
 interface PublicPost {
@@ -8238,30 +8243,39 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   if (cnameHost) await writeFile(join(docsRoot, "CNAME"), `${cnameHost}\n`, "utf8");
   else await unlink(join(docsRoot, "CNAME")).catch(() => undefined);
 
-  await writeJsonAtomic(outputs.socialPosts, index);
-  await writeJsonAtomic(outputs.businessProfile, businessProfile);
-  await writeJsonAtomic(outputs.latest, latest);
-  await writeJsonAtomic(outputs.services, buildServicesJson(index));
-  await writeJsonAtomic(outputs.answers, buildAnswersJson(index));
-  await writeJsonAtomic(outputs.geoTargets, buildGeoTargetsJson(index));
-  await writeJsonAtomic(outputs.searchVisibility, buildSearchVisibilityJson(index));
-  await writeJsonAtomic(outputs.feed, buildJsonFeed(index));
-  await writeFile(outputs.rss, buildRssXml(index), "utf8");
-  await writeJsonAtomic(outputs.knowledgeGraph, buildKnowledgeGraph(index));
-  const aiDiscovery = buildAiDiscovery(index);
-  await writeJsonAtomic(outputs.aiDiscovery, aiDiscovery);
-  await writeJsonAtomic(outputs.wellKnownAi, aiDiscovery);
-  await writeFile(outputs.llms, buildLlmsText(index), "utf8");
-  await writeFile(outputs.llmsLite, buildLlmsLiteText(index), "utf8");
-  await writeFile(outputs.llmsFull, buildLlmsFullText(index), "utf8");
-  await writeFile(outputs.llmsJsonl, buildLlmsJsonl(index), "utf8");
-  await writeFile(outputs.wellKnownLlms, buildLlmsText(index), "utf8");
-  await writeFile(outputs.robots, buildRobotsText(index), "utf8");
-  await writeFile(outputs.sitemap, buildSitemapXml(index), "utf8");
-  await writeFile(outputs.aiSitemap, buildAiSitemapXml(index), "utf8");
-  const searchContentAnalytics = buildSearchContentAnalyticsScript();
-  assertSearchContentAnalyticsScript(searchContentAnalytics);
-  await writeFile(outputs.searchContentAnalytics, searchContentAnalytics, "utf8");
+  // 未設定 onlyDocsPaths 時每個路徑都會寫，順序與內容維持整站產線。
+  const onlyDocsPaths = options.onlyDocsPaths === undefined ? undefined : new Set(options.onlyDocsPaths);
+  const shouldWriteDocsPath = (relativePath: string): boolean =>
+    onlyDocsPaths === undefined || onlyDocsPaths.has(relativePath);
+
+  if (shouldWriteDocsPath("social-posts.json")) await writeJsonAtomic(outputs.socialPosts, index);
+  if (shouldWriteDocsPath("business-profile.json")) await writeJsonAtomic(outputs.businessProfile, businessProfile);
+  if (shouldWriteDocsPath("latest.json")) await writeJsonAtomic(outputs.latest, latest);
+  if (shouldWriteDocsPath("services.json")) await writeJsonAtomic(outputs.services, buildServicesJson(index));
+  if (shouldWriteDocsPath("answers.json")) await writeJsonAtomic(outputs.answers, buildAnswersJson(index));
+  if (shouldWriteDocsPath("geo-targets.json")) await writeJsonAtomic(outputs.geoTargets, buildGeoTargetsJson(index));
+  if (shouldWriteDocsPath("search-visibility.json")) await writeJsonAtomic(outputs.searchVisibility, buildSearchVisibilityJson(index));
+  if (shouldWriteDocsPath("feed.json")) await writeJsonAtomic(outputs.feed, buildJsonFeed(index));
+  if (shouldWriteDocsPath("rss.xml")) await writeFile(outputs.rss, buildRssXml(index), "utf8");
+  if (shouldWriteDocsPath("knowledge-graph.json")) await writeJsonAtomic(outputs.knowledgeGraph, buildKnowledgeGraph(index));
+  if (shouldWriteDocsPath("ai-discovery.json") || shouldWriteDocsPath(".well-known/ai.json")) {
+    const aiDiscovery = buildAiDiscovery(index);
+    if (shouldWriteDocsPath("ai-discovery.json")) await writeJsonAtomic(outputs.aiDiscovery, aiDiscovery);
+    if (shouldWriteDocsPath(".well-known/ai.json")) await writeJsonAtomic(outputs.wellKnownAi, aiDiscovery);
+  }
+  if (shouldWriteDocsPath("llms.txt")) await writeFile(outputs.llms, buildLlmsText(index), "utf8");
+  if (shouldWriteDocsPath("llms-lite.txt")) await writeFile(outputs.llmsLite, buildLlmsLiteText(index), "utf8");
+  if (shouldWriteDocsPath("llms-full.txt")) await writeFile(outputs.llmsFull, buildLlmsFullText(index), "utf8");
+  if (shouldWriteDocsPath("llms.jsonl")) await writeFile(outputs.llmsJsonl, buildLlmsJsonl(index), "utf8");
+  if (shouldWriteDocsPath(".well-known/llms.txt")) await writeFile(outputs.wellKnownLlms, buildLlmsText(index), "utf8");
+  if (shouldWriteDocsPath("robots.txt")) await writeFile(outputs.robots, buildRobotsText(index), "utf8");
+  if (shouldWriteDocsPath("sitemap.xml")) await writeFile(outputs.sitemap, buildSitemapXml(index), "utf8");
+  if (shouldWriteDocsPath("ai-sitemap.xml")) await writeFile(outputs.aiSitemap, buildAiSitemapXml(index), "utf8");
+  if (shouldWriteDocsPath(SEARCH_CONTENT_ANALYTICS_PATH)) {
+    const searchContentAnalytics = buildSearchContentAnalyticsScript();
+    assertSearchContentAnalyticsScript(searchContentAnalytics);
+    await writeFile(outputs.searchContentAnalytics, searchContentAnalytics, "utf8");
+  }
   if (indexNowKey) {
     const keyFileName = indexNowKeyFileName(indexNowKey);
     await writeFile(join(docsRoot, keyFileName), `${indexNowKey}\n`, "utf8");
@@ -8277,28 +8291,41 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         })
     );
   }
-  await writeFile(outputs.index, buildIndexHtml(index), "utf8");
-  await writeFile(outputs.knowledgeHub, buildKnowledgeHubHtml(index), "utf8");
-  await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
-  await writeFile(
-    outputs.lineRedirect,
-    buildLineRedirectHtml({
-      lineUrl: businessProfile.line_url,
-      measurementId: config.ga4MeasurementId
-    }),
-    "utf8"
-  );
-  await writeFile(outputs.compatibilityDocsIndex, buildNotFoundHtml(index), "utf8");
+  if (shouldWriteDocsPath("index.html")) await writeFile(outputs.index, buildIndexHtml(index), "utf8");
+  if (shouldWriteDocsPath(KNOWLEDGE_HUB_FILE)) await writeFile(outputs.knowledgeHub, buildKnowledgeHubHtml(index), "utf8");
+  if (shouldWriteDocsPath("404.html")) await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
+  if (shouldWriteDocsPath("go/line.html")) {
+    await writeFile(
+      outputs.lineRedirect,
+      buildLineRedirectHtml({
+        lineUrl: businessProfile.line_url,
+        measurementId: config.ga4MeasurementId
+      }),
+      "utf8"
+    );
+  }
+  if (shouldWriteDocsPath("docs/index.html")) await writeFile(outputs.compatibilityDocsIndex, buildNotFoundHtml(index), "utf8");
+  const servicePagesToWrite =
+    onlyDocsPaths === undefined
+      ? SERVICE_PAGE_DEFINITIONS
+      : SERVICE_PAGE_DEFINITIONS.filter((service) => shouldWriteDocsPath(servicePagePath(service)));
   await Promise.all(
-    SERVICE_PAGE_DEFINITIONS.map((service) =>
+    servicePagesToWrite.map((service) =>
       writeFile(join(servicesRoot, `${service.slug}.html`), buildServicePageHtml(service, index), "utf8")
     )
   );
+  const supportPagesToWrite =
+    onlyDocsPaths === undefined
+      ? SUPPORT_PAGE_DEFINITIONS
+      : SUPPORT_PAGE_DEFINITIONS.filter((page) => shouldWriteDocsPath(page.path));
   await Promise.all(
-    SUPPORT_PAGE_DEFINITIONS.map((page) => writeFile(join(docsRoot, page.path), buildSupportPageHtml(page, index), "utf8"))
+    supportPagesToWrite.map((page) => writeFile(join(docsRoot, page.path), buildSupportPageHtml(page, index), "utf8"))
   );
-  const postArticleOutputs = await writePostArticlePages(articlePosts, index, postsRoot);
-  await writeFile(outputs.nojekyll, "", "utf8");
+  const postArticleOutputs =
+    onlyDocsPaths !== undefined && [...onlyDocsPaths].every((relativePath) => !relativePath.startsWith("posts/"))
+      ? []
+      : await writePostArticlePages(articlePosts, index, postsRoot);
+  if (shouldWriteDocsPath(".nojekyll")) await writeFile(outputs.nojekyll, "", "utf8");
 
   // Apply SEO overrides: copy hand-maintained pages from seo-overrides/ to docs/
   // These pages contain the full content from PR #7, #8, #9 (answer boxes, FAQs, internal links)
@@ -8314,7 +8341,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         const rel = relPosixPath ? posix.join(relPosixPath, entry.name) : entry.name;
         if (entry.isDirectory()) {
           await walkOverrides(fullPath, rel);
-        } else if (entry.isFile() && entry.name !== "README.md") {
+        } else if (entry.isFile() && entry.name !== "README.md" && shouldWriteDocsPath(rel)) {
           // Convert posix path to native filesystem path for Windows compatibility
           const fsPath = rel.split("/").join(sep);
           const targetPath = join(docsRoot, fsPath);
@@ -8359,7 +8386,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         });
       
       // Add override URLs to sitemap (deduplicate with existing)
-      if (index.base_url_configured && overrideUrls.length > 0) {
+      if (index.base_url_configured && overrideUrls.length > 0 && shouldWriteDocsPath("sitemap.xml")) {
         const existingSitemap = await readFile(outputs.sitemap, "utf8");
         const existingUrls = Array.from(existingSitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
           .map(m => m[1])

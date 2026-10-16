@@ -3280,6 +3280,47 @@ describe("visible copy speaks to customers, not to search engines", () => {
   });
 });
 
+const AI_DISCOVERY_DERIVED_FIELDS = [
+  "generated_at",
+  "latest_date",
+  "latest_posts",
+  "recent_posts",
+  "published_posts",
+  "data_quality"
+] as const;
+
+const AI_DISCOVERY_ARTICLE_COUNT_FIELDS = [
+  "indexable_article_count",
+  "sitemap_max_indexable_posts",
+  "sitemap_indexable_post_count",
+  "article_count"
+] as const;
+
+function discoveryHandMaintainedFields(value: Record<string, unknown>): Record<string, unknown> {
+  const clone = structuredClone(value);
+  for (const field of AI_DISCOVERY_DERIVED_FIELDS) delete clone[field];
+  const contract = clone.content_contract;
+  if (contract && typeof contract === "object" && !Array.isArray(contract)) {
+    const policy = (contract as Record<string, unknown>).daily_article_policy;
+    if (policy && typeof policy === "object" && !Array.isArray(policy)) {
+      for (const field of AI_DISCOVERY_ARTICLE_COUNT_FIELDS) {
+        delete (policy as Record<string, unknown>)[field];
+      }
+    }
+  }
+  return clone;
+}
+
+function taipeiCalendarDayOf(value: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date(value));
+  return ["year", "month", "day"].map((type) => parts.find((part) => part.type === type)?.value ?? "").join("-");
+}
+
 describe("seo overrides and URL path normalization", () => {
   it("lists self-canonical overrides but only copies overrides canonicalized elsewhere", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-override-canonical-"));
@@ -3311,6 +3352,96 @@ describe("seo overrides and URL path normalization", () => {
     expect(sitemap).not.toContain(`<loc>${baseUrl}/guides/canonical-elsewhere.html</loc>`);
     expect(await readFile(join(root, "docs", "guides", "canonical-elsewhere.html"), "utf8"))
       .toBe(canonicalElsewhereHtml);
+  });
+
+  it("advances overridden ai-discovery generated_at to the latest sitemap content day", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-ai-discovery-generated-at-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-04");
+    await mkdir(join(root, "seo-overrides", "guides"), { recursive: true });
+    const handCopy = "手寫發現文案必須留下";
+    const override = {
+      schema_version: "2026-07-02",
+      standard_level: "standard",
+      generated_at: "2026-09-25T08:00:00.000Z",
+      website: { description: handCopy },
+      latest_date: "2026-09-24",
+      latest_posts: [],
+      recent_posts: [],
+      published_posts: [
+        {
+          date: "2026-09-24",
+          slot: 1,
+          topic: "old-frozen-topic",
+          facebook_caption: "old",
+          instagram_caption: "old",
+          image_url: "https://example.com/old.png"
+        }
+      ],
+      data_quality: { post_count: 1, latest_date: "2026-09-24" },
+      content_contract: {
+        cadence: "keep this sentence",
+        daily_article_policy: {
+          behavior: "keep the hand-written behavior",
+          indexable_article_count: 170,
+          sitemap_max_indexable_posts: 30,
+          sitemap_indexable_post_count: 30,
+          article_count: 170
+        }
+      }
+    };
+    await writeFile(
+      join(root, "seo-overrides", "ai-discovery.json"),
+      `${JSON.stringify(override, null, 2)}\n`,
+      "utf8"
+    );
+    await writeFile(
+      join(root, "seo-overrides", "guides", "fresh-content.html"),
+      [
+        "<!doctype html><html><head>",
+        '<link rel="canonical" href="https://example.com/guides/fresh-content.html">',
+        '<script type="application/ld+json">{"dateModified":"2026-10-07"}</script>',
+        "</head><body><p>新鮮內容</p></body></html>",
+        ""
+      ].join(""),
+      "utf8"
+    );
+
+    await generatePublicSite({
+      root,
+      siteBaseUrl: "https://example.com/",
+      imageBaseUrl: "https://example.com/",
+      now: "2026-09-25T08:00:00.000Z"
+    });
+
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const latestContentLastmod = [...sitemap.matchAll(/<lastmod>([^<]+)<\/lastmod>/gu)]
+      .map((match) => match[1] ?? "")
+      .sort()
+      .at(-1) ?? "";
+    const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8")) as {
+      generated_at: string;
+      website: { description: string };
+      published_posts: Array<{ date: string; topic: string }>;
+      content_contract: { cadence: string; daily_article_policy: { behavior: string; article_count: number } };
+    };
+    const overrideAfter = await readFile(join(root, "seo-overrides", "ai-discovery.json"), "utf8");
+
+    expect(overrideAfter).toBe(`${JSON.stringify(override, null, 2)}\n`);
+    expect(discovery.website.description).toBe(handCopy);
+    expect(discovery.content_contract.cadence).toBe("keep this sentence");
+    expect(discovery.content_contract.daily_article_policy.behavior).toBe("keep the hand-written behavior");
+    expect(discovery.published_posts.some((post) => post.topic === "old-frozen-topic")).toBe(false);
+    expect(
+      discovery.published_posts.some((post) => post.date === "2026-07-04" && post.topic === "Sneaker edge inspection")
+    ).toBe(true);
+    expect(latestContentLastmod >= "2026-10-07").toBe(true);
+    expect(
+      taipeiCalendarDayOf(discovery.generated_at) >= latestContentLastmod,
+      "generated_at must not predate public content"
+    ).toBe(true);
+    expect(discovery.generated_at).toBe(new Date(`${latestContentLastmod}T16:00:00+08:00`).toISOString());
   });
 
   it("seo override files should be byte-identical after generation", async function () {
@@ -3378,13 +3509,30 @@ describe("seo overrides and URL path normalization", () => {
       
       const sourceContent = await readFile(sourceFile);
       const generatedContent = await readFile(generatedFile);
-      
+      if (file.replaceAll("\\", "/") === "ai-discovery.json") {
+        // 覆寫檔整份蓋掉發現文件後，產生器只重寫貼文、文章計數與 generated_at。
+        // 頁面文案仍須與覆寫檔一致；generated_at 不得早於這次 sitemap 的最新 lastmod。
+        const sourceJson = JSON.parse(sourceContent.toString("utf8")) as Record<string, unknown>;
+        const generatedJson = JSON.parse(generatedContent.toString("utf8")) as Record<string, unknown>;
+        expect(discoveryHandMaintainedFields(generatedJson), file).toEqual(discoveryHandMaintainedFields(sourceJson));
+        continue;
+      }
+
       expect(generatedContent.equals(sourceContent), `File should be byte-identical: ${file}`).toBe(true);
     }
     
     // Verify sitemap contains override URLs and no /posts/ URLs
     const sitemapPath = join(docsRoot, "sitemap.xml");
     const sitemap = await readFile(sitemapPath, "utf8");
+    const discovery = JSON.parse(await readFile(join(docsRoot, "ai-discovery.json"), "utf8")) as { generated_at: string };
+    const latestContentLastmod = [...sitemap.matchAll(/<lastmod>([^<]+)<\/lastmod>/gu)]
+      .map((match) => match[1] ?? "")
+      .sort()
+      .at(-1) ?? "";
+    expect(
+      taipeiCalendarDayOf(discovery.generated_at) >= latestContentLastmod,
+      "generated_at must not predate public content"
+    ).toBe(true);
     const sitemapUrls = Array.from(sitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
       .map(m => m[1])
       .filter((url): url is string => typeof url === "string");

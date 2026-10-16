@@ -9727,6 +9727,10 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     // Extract override metadata only from copied HTML pages.
     const overrideLastmods = new Map<string, string>();
     const overrideCanonicals = new Map<string, string>();
+    const overrideCanonicalKeyForUrl = (url: string): string => {
+      const pathname = new URL(url).pathname.replace(/^\/+/, "");
+      return !pathname ? "index.html" : pathname.endsWith("/") ? pathname + "index.html" : pathname;
+    };
     if (overrideHtmlFiles.length > 0) {
       console.log(`Applied ${overrideHtmlFiles.length} SEO override HTML files`);
       // robots noindex pages stay on disk and can still be linked, but they are not sitemap URLs.
@@ -9756,7 +9760,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         const urlPath = posixPath === "index.html" ? "" : posixPath;
         const baseUrl = siteBaseUrl || "";
         const url = new URL(urlPath, baseUrl.endsWith("/") ? baseUrl : baseUrl + "/").href;
-        const canonical = overrideCanonicals.get(posixPath);
+        const canonical = overrideCanonicals.get(overrideCanonicalKeyForUrl(url));
         // Pages canonicalized elsewhere must not be listed in sitemap.xml.
         if (canonical && new URL(canonical, url).href !== url) return [];
         return [url];
@@ -9770,9 +9774,11 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       const generatedUrls = Array.from(generatedSitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g))
         .map((match) => match[1])
         .filter((url): url is string => typeof url === "string");
-      const allUrls = Array.from(new Set([...generatedUrls, ...existingUrls, ...overrideUrls])).filter(
-        (url) => !sitemapShouldOmitUrlForPublicSite(url, index, noindexOverridePaths)
-      );
+      const allUrls = Array.from(new Set([...generatedUrls, ...existingUrls, ...overrideUrls])).filter((url) => {
+        if (sitemapShouldOmitUrlForPublicSite(url, index, noindexOverridePaths)) return false;
+        const canonical = overrideCanonicals.get(overrideCanonicalKeyForUrl(url));
+        return !canonical || new URL(canonical, url).href === url;
+      });
 
       // Use override lastmods when available, otherwise keep the generated URL rule.
       const items = allUrls

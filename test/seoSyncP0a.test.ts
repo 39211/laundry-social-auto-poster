@@ -316,6 +316,39 @@ describe("SEO-SYNC-P0A", () => {
     expect(sitemapLocs(sitemap)).not.toContain(canonicalizedUrl);
   });
 
+  it("drops generated URLs whose override HTML canonicalizes elsewhere", async () => {
+    const root = newRoot();
+    await seedOneDay(root);
+    await generate(root);
+
+    const initialSitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const generatedUrl = sitemapLocs(initialSitemap).find((url) => /^\/services\/[^/]+\.html$/u.test(new URL(url).pathname));
+    expect(generatedUrl).toBeDefined();
+    if (!generatedUrl) throw new Error("fixture generated sitemap has no /services/*.html URL");
+
+    const overrideRoot = join(root, "seo-overrides");
+    const overridePath = new URL(generatedUrl).pathname.replace(/^\/+/, "");
+    const overrideUrl = BASE_URL + "/guides/hand-maintained.html";
+    await mkdir(join(overrideRoot, "services"), { recursive: true });
+    await writeFile(
+      join(overrideRoot, "sitemap.xml"),
+      '<?xml version="1.0" encoding="UTF-8"?>\n<urlset><url><loc>' + overrideUrl + "</loc></url></urlset>\n",
+      "utf8"
+    );
+    await writeFile(
+      join(overrideRoot, overridePath),
+      '<link rel="canonical" href="' + overrideUrl + '">',
+      "utf8"
+    );
+    await generate(root);
+
+    const finalSitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const finalUrls = sitemapLocs(finalSitemap);
+    expect(finalUrls).toContain(overrideUrl);
+    expect(finalUrls).toContain(BASE_URL + "/posts/2026-07-02-slot-01.html");
+    expect(finalUrls).not.toContain(generatedUrl);
+  });
+
   it("injects the latest post into a marked override and preserves all bytes outside the markers", async () => {
     const root = newRoot();
     await seedOneDay(root, {

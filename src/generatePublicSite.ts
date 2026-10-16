@@ -8936,7 +8936,7 @@ function postToDiscoveryRecord(post: PublicPost, index: PublicPostIndex): object
     media_type: post.media_type,
     video_url: post.video_url,
     calendar_url: post.calendar_url,
-    article_url: hasArticlePage(post, index) ? post.article_url : "",
+    ...discoveryArticleUrlField(post, index),
     facebook_caption: post.facebook_caption,
     instagram_caption: post.instagram_caption
   };
@@ -9013,6 +9013,108 @@ function overlayLiveArticleCounts(target: Record<string, unknown>, live: Record<
   target.content_contract = { ...baseContract, daily_article_policy: policy };
 }
 
+const INTERNAL_PLACE_NOTE = /place_id|not_verified|not verified/iu;
+
+function discoveryPlaceId(discovery: Record<string, unknown>): string {
+  const website = discovery.website;
+  const profile = discovery.business_profile;
+  const fromWebsite = isJsonRecord(website) && typeof website.google_place_id === "string" ? website.google_place_id : "";
+  const fromProfile = isJsonRecord(profile) && typeof profile.google_place_id === "string" ? profile.google_place_id : "";
+  return fromWebsite || fromProfile;
+}
+
+function isPostsHttpUrl(value: string): boolean {
+  return /^https?:\/\//iu.test(value) && value.includes("/posts/");
+}
+
+function discoveryArticleUrlField(post: PublicPost, index: PublicPostIndex): { article_url: string } | Record<string, never> {
+  if (!hasArticlePage(post, index)) return {};
+  const articleUrl = post.article_url;
+  if (!articleUrl || articleUrl.includes("/posts/")) return {};
+  return { article_url: articleUrl };
+}
+
+function omitUnlistedPostUrls(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (let index = value.length - 1; index >= 0; index -= 1) {
+      const item = value[index];
+      if (typeof item === "string") {
+        if (isPostsHttpUrl(item)) value.splice(index, 1);
+      } else {
+        omitUnlistedPostUrls(item);
+      }
+    }
+    return;
+  }
+  if (!isJsonRecord(value)) return;
+  for (const key of Object.keys(value)) {
+    const child = value[key];
+    if (key === "article_url" && (child === "" || (typeof child === "string" && child.includes("/posts/")))) {
+      delete value[key];
+      continue;
+    }
+    if (typeof child === "string" && isPostsHttpUrl(child)) {
+      delete value[key];
+      continue;
+    }
+    omitUnlistedPostUrls(child);
+  }
+}
+
+/**
+ * 發現檔的 Place ID 以商家檔為準，不採用覆寫檔裡的空值。
+ * 對外拿掉 not_verified、place_id 說明，以及 omitted_until_verified 的 google_place_id。
+ * sitemap 不收貼文網址。article_url 若是 /posts/ 或空字串，刪除該欄位。
+ */
+function applyPublicAiDiscoveryPolicy(published: Record<string, unknown>, live: Record<string, unknown>): void {
+  const placeId = discoveryPlaceId(live);
+  if (placeId) {
+    const website = published.website;
+    if (isJsonRecord(website)) website.google_place_id = placeId;
+
+    const profile = published.business_profile;
+    if (isJsonRecord(profile)) {
+      profile.google_place_id = placeId;
+      if (Array.isArray(profile.source_notes)) {
+        profile.source_notes = profile.source_notes.filter(
+          (note) => typeof note !== "string" || !INTERNAL_PLACE_NOTE.test(note)
+        );
+      }
+      const status = profile.verification_status;
+      if (
+        isJsonRecord(status) &&
+        typeof status.google_place_id === "string" &&
+        status.google_place_id.includes("not_verified")
+      ) {
+        status.google_place_id = placeId;
+      }
+    }
+
+    const structured = published.structured_data;
+    if (isJsonRecord(structured)) {
+      const identifiers = Array.isArray(structured.identifier) ? [...structured.identifier] : [];
+      const existing = identifiers.find(
+        (item) => isJsonRecord(item) && item.propertyID === "Google Place ID"
+      );
+      if (isJsonRecord(existing)) existing.value = placeId;
+      else {
+        identifiers.push({
+          "@type": "PropertyValue",
+          propertyID: "Google Place ID",
+          value: placeId
+        });
+      }
+      structured.identifier = identifiers;
+    }
+
+    const contract = published.content_contract;
+    if (isJsonRecord(contract) && Array.isArray(contract.omitted_until_verified)) {
+      contract.omitted_until_verified = contract.omitted_until_verified.filter((item) => item !== "google_place_id");
+    }
+  }
+  omitUnlistedPostUrls(published);
+}
+
 /**
  * seo-overrides/ai-discovery.json 在 sitemap 依內容日期重建之後整檔蓋掉產生結果，
  * generated_at 與貼文清單會停在覆寫檔寫入的那天。頁面文案留在覆寫檔；
@@ -9056,6 +9158,7 @@ async function syncPublishedAiDiscovery(options: {
     latestContentDay,
     options.buildGeneratedAt
   );
+  applyPublicAiDiscoveryPolicy(published, options.live);
 
   await writeJsonAtomic(docsPath, published);
   if (!hasOverride) {
@@ -9083,10 +9186,10 @@ async function syncPublishedAiDiscovery(options: {
   await writeFile(wellKnownPath, stamped, "utf8");
 }
 
-function buildAiDiscovery(index: PublicPostIndex): object {
+function buildAiDiscovery(index: PublicPostIndex): Record<string, unknown> {
   const profile = index.business_profile;
   const publishedPosts = [...index.posts].reverse();
-  return {
+  const discovery: Record<string, unknown> = {
     schema_version: "2026-07-02",
     standard_level: "standard",
     generated_at: index.generated_at,
@@ -9107,7 +9210,11 @@ function buildAiDiscovery(index: PublicPostIndex): object {
       instagram_url: profile.instagram_url,
       line_url: profile.line_url
     },
-    business_profile: profile,
+    business_profile: {
+      ...profile,
+      source_notes: [...profile.source_notes],
+      verification_status: { ...profile.verification_status }
+    },
     local_search_targets: {
       primary_queries: LOCAL_SEARCH_QUERY_TARGETS,
       primary_area: profile.address.addressLocality,
@@ -9211,7 +9318,7 @@ function buildAiDiscovery(index: PublicPostIndex): object {
         min_visible_chars: POST_ARTICLE_MIN_VISIBLE_CHARS,
         min_caption_chars: POST_ARTICLE_MIN_CAPTION_CHARS,
         behavior:
-          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Slot articles stay reader-facing. sitemap.xml and ai-sitemap.xml omit every /posts/ URL and any HTML whose robots directive is noindex.",
+          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Slot articles stay reader-facing. sitemap.xml and ai-sitemap.xml omit post article URLs and any HTML whose robots directive is noindex.",
         indexable_article_count: indexablePostArticles(index).length,
         sitemap_max_indexable_posts: SITEMAP_MAX_INDEXABLE_POSTS,
         sitemap_indexable_post_count: sitemapIndexablePostArticles(index).length,
@@ -9246,6 +9353,8 @@ function buildAiDiscovery(index: PublicPostIndex): object {
     recent_posts: publishedPosts.slice(0, 30).map((post) => postToDiscoveryRecord(post, index)),
     published_posts: index.posts.map((post) => postToDiscoveryRecord(post, index))
   };
+  applyPublicAiDiscoveryPolicy(discovery, discovery);
+  return discovery;
 }
 
 export async function generatePublicSite(options: GeneratePublicSiteOptions = {}): Promise<string[]> {

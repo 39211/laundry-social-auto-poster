@@ -4,7 +4,7 @@
   "end_date": "2026-11-05",
   "slots": [
     { "date": "2026-10-23", "format": "carousel", "family": "season-weather" },
-    { "date": "2026-10-24", "format": "single", "family": "home-textile" },
+    { "date": "2026-10-24", "format": "single", "family": "season-weather" },
     { "date": "2026-10-25", "format": "carousel", "family": "pickup-delivery" },
     { "date": "2026-10-26", "format": "single", "family": "home-textile" },
     { "date": "2026-10-27", "format": "carousel", "family": "shoes" },

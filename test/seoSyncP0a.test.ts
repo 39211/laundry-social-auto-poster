@@ -225,6 +225,72 @@ describe("SEO-SYNC-P0A", () => {
     expect(sitemapLocs(sitemap)).toContain(BASE_URL + "/posts/2026-07-02-slot-01.html");
   });
 
+  it("keeps generated indexable article URLs when a sitemap and indexable HTML override are present", async () => {
+    const root = newRoot();
+    await seedOneDay(root);
+    const overrideRoot = join(root, "seo-overrides");
+    await mkdir(join(overrideRoot, "guides"), { recursive: true });
+    const overrideUrl = BASE_URL + "/guides/hand-maintained.html";
+    await writeFile(
+      join(overrideRoot, "sitemap.xml"),
+      '<?xml version="1.0" encoding="UTF-8"?>\n<urlset><url><loc>' + overrideUrl +
+        "</loc><lastmod>2026-06-30</lastmod></url></urlset>\n",
+      "utf8"
+    );
+    await writeFile(join(overrideRoot, "guides", "hand-maintained.html"), "<html>guide</html>", "utf8");
+    await generate(root);
+
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    expect(sitemapLocs(sitemap)).toContain(overrideUrl);
+    expect(sitemapLocs(sitemap)).toContain(BASE_URL + "/posts/2026-07-02-slot-01.html");
+  });
+
+  it("keeps generated indexable article URLs when sitemap HTML overrides have no listable URL", async () => {
+    const root = newRoot();
+    await seedOneDay(root);
+    const overrideRoot = join(root, "seo-overrides");
+    await mkdir(overrideRoot, { recursive: true });
+    const overrideUrl = BASE_URL + "/guides/hand-maintained.html";
+    await writeFile(
+      join(overrideRoot, "sitemap.xml"),
+      '<?xml version="1.0" encoding="UTF-8"?>\n<urlset><url><loc>' + overrideUrl +
+        "</loc><lastmod>2026-06-30</lastmod></url></urlset>\n",
+      "utf8"
+    );
+    await writeFile(join(overrideRoot, "price-list.html"), "<html>excluded noindex stub</html>", "utf8");
+    await generate(root);
+
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    expect(sitemapLocs(sitemap)).toContain(overrideUrl);
+    expect(sitemapLocs(sitemap)).toContain(BASE_URL + "/posts/2026-07-02-slot-01.html");
+  });
+
+  it("keeps generated indexable article URLs when sitemap HTML overrides canonicalize elsewhere", async () => {
+    const root = newRoot();
+    await seedOneDay(root);
+    const overrideRoot = join(root, "seo-overrides");
+    await mkdir(join(overrideRoot, "guides"), { recursive: true });
+    const overrideUrl = BASE_URL + "/guides/hand-maintained.html";
+    const canonicalizedUrl = BASE_URL + "/guides/canonical-elsewhere.html";
+    await writeFile(
+      join(overrideRoot, "sitemap.xml"),
+      '<?xml version="1.0" encoding="UTF-8"?>\n<urlset><url><loc>' + overrideUrl +
+        "</loc><lastmod>2026-06-30</lastmod></url></urlset>\n",
+      "utf8"
+    );
+    await writeFile(
+      join(overrideRoot, "guides", "canonical-elsewhere.html"),
+      '<link rel="canonical" href="' + BASE_URL + '/services/shoe-bag-care.html">',
+      "utf8"
+    );
+    await generate(root);
+
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    expect(sitemapLocs(sitemap)).toContain(overrideUrl);
+    expect(sitemapLocs(sitemap)).toContain(BASE_URL + "/posts/2026-07-02-slot-01.html");
+    expect(sitemapLocs(sitemap)).not.toContain(canonicalizedUrl);
+  });
+
   it("injects the latest post into a marked override and preserves all bytes outside the markers", async () => {
     const root = newRoot();
     await seedOneDay(root, {

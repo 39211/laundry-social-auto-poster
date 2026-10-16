@@ -56,4 +56,4 @@
 - 本目錄的 `sitemap.xml` 不要放 `/posts/` 網址（部署會擋）；部署逐位元組保留這份 sitemap，僅在結尾追加產線可索引且目標存在的 `/posts/` 網址。
 - 不要在本目錄放 `rss.xml`、`feed.json`、`ai-sitemap.xml` 或 `posts/`（部署會略過並警告）；這些檔案與貼文 robots 由產線決定。
 
-`guides/luxury-bag-mold.html`、`guides/bedding-duvet-cleaning.html`、`services/taichung-citywide-laundry-pickup.html` 這三頁含 `sxj-card-*` 圖卡 figure,SEO desk 同步時保留。
+`guides/luxury-bag-mold.html`、`guides/bedding-duvet-cleaning.html`、`services/taichung-citywide-laundry-pickup.html` 這三頁在 PR #195 合併後會含 `sxj-card-*` 圖卡 figure;之後 SEO desk 同步這三頁時要保留圖卡(目前 main 上還沒有)。

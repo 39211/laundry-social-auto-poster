@@ -121,6 +121,35 @@ export const INDEX_GROWTH_MIN_SECTION_CHARS = 70;
 export const INDEX_GROWTH_MIN_FAQ_CHARS = 20;
 export const INDEX_GROWTH_MIN_STEP_CHARS = 16;
 
+/** Slot articles stay on disk for readers. Neither sitemap advertises them. */
+export function isPostsSurfacePath(pathname: string): boolean {
+  const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  return path === "/posts" || path === "/posts/" || path.startsWith("/posts/");
+}
+
+/** True when a robots meta tag, or a bare directive string, contains noindex. */
+export function robotsMetaIsNoindex(htmlOrDirective: string): boolean {
+  const tag = htmlOrDirective.match(/<meta\b[^>]*\bname=["']robots["'][^>]*>/i)?.[0] ?? htmlOrDirective;
+  return /\bnoindex\b/i.test(tag);
+}
+
+/**
+ * sitemap.xml and ai-sitemap.xml omit /posts/ and any HTML path whose robots
+ * directive is noindex. Far-district pickup pages are covered by that directive.
+ */
+export function sitemapShouldOmitUrl(url: string, noindexPosixPaths: ReadonlySet<string>): boolean {
+  let pathname = "";
+  try {
+    pathname = new URL(url, "https://sixiangjialaundry.com").pathname;
+  } catch {
+    return false;
+  }
+  if (isPostsSurfacePath(pathname)) return true;
+  const posixPath = pathname.replace(/^\/+/, "");
+  const key = posixPath === "" ? "index.html" : posixPath;
+  return noindexPosixPaths.has(key);
+}
+
 export const PROTECTED_LIVE_COHORT_SLUGS = [
   "luggage-wheel-cleaning",
   "curtain-cleaning",

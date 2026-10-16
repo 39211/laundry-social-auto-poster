@@ -3,9 +3,33 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-export const EXPECTED_LOC_COUNT = 149;
+/** 149 減掉 16 個遠區收送套版（noindex,follow，移出 sitemap）。 */
+export const EXPECTED_LOC_COUNT = 133;
 
-/** B2 23 條＋B3 20 條＋B4-a 17 條＋B4-b 3 條＋B5 第 1 波 10 條。sitemap 應為 139＋10＝149 條。 */
+/**
+ * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
+ * 檔案不刪、hub 入鏈保留；canonical 維持各頁 self。
+ */
+export const NOINDEX_FOLLOW_LOCAL_PATHS = [
+  "/local/central-district-laundry-pickup.html",
+  "/local/east-district-laundry-pickup.html",
+  "/local/south-district-laundry-pickup.html",
+  "/local/dadu-laundry-pickup.html",
+  "/local/dali-laundry-pickup.html",
+  "/local/daya-laundry-pickup.html",
+  "/local/fengyuan-laundry-pickup.html",
+  "/local/houli-laundry-pickup.html",
+  "/local/qingshui-laundry-pickup.html",
+  "/local/shalu-laundry-pickup.html",
+  "/local/shengang-laundry-pickup.html",
+  "/local/taiping-laundry-pickup.html",
+  "/local/tanzi-laundry-pickup.html",
+  "/local/wufeng-laundry-pickup.html",
+  "/local/wuqi-laundry-pickup.html",
+  "/local/wuri-laundry-pickup.html"
+] as const;
+
+/** B2 23 條＋B3 20 條＋B4-a 17 條＋B4-b 3 條＋B5 第 1 波 10 條。其中 16 條遠區收送不進 sitemap，其餘仍須在列且 lastmod 不變。 */
 export const NEW_PAGE_PATHS = [
   "/local/dali-laundry-pickup.html",
   "/local/taiping-laundry-pickup.html",
@@ -94,6 +118,7 @@ export type SitemapLinkReport = {
   missingInbound: string[];
   wrongLastmod: string[];
   missingFromSitemap: string[];
+  unexpectedInSitemap: string[];
 };
 
 export function repoRootFromHere(): string {
@@ -174,11 +199,17 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
   const missingInbound: string[] = [];
   const wrongLastmod: string[] = [];
   const missingFromSitemap: string[] = [];
+  const unexpectedInSitemap: string[] = [];
+  const noindexFollow = new Set<string>(NOINDEX_FOLLOW_LOCAL_PATHS);
   const lastmodByPath = new Map(entries.map((entry) => [pathnameOf(entry.loc), entry.lastmod]));
   for (const path of NEW_PAGE_PATHS) {
     const hubs = hrefs.get(path) ?? [];
     inbound[path] = { count: hubs.length, hubs };
     if (hubs.length < 1) missingInbound.push(path);
+    if (noindexFollow.has(path)) {
+      if (lastmodByPath.has(path)) unexpectedInSitemap.push(path);
+      continue;
+    }
     if (!lastmodByPath.has(path)) missingFromSitemap.push(path);
     else if (lastmodByPath.get(path) !== NEW_PAGE_LASTMOD) wrongLastmod.push(path);
   }
@@ -191,7 +222,8 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
     inbound,
     missingInbound,
     wrongLastmod,
-    missingFromSitemap
+    missingFromSitemap,
+    unexpectedInSitemap
   };
 }
 
@@ -203,6 +235,7 @@ export function formatSitemapLinkReport(report: SitemapLinkReport): string {
     `missing ${JSON.stringify(report.missing)}`,
     `duplicate_locs ${JSON.stringify(report.duplicateLocs)}`,
     `missing_from_sitemap ${JSON.stringify(report.missingFromSitemap)}`,
+    `unexpected_in_sitemap ${JSON.stringify(report.unexpectedInSitemap)}`,
     `wrong_lastmod ${JSON.stringify(report.wrongLastmod)}`,
     "inbound:"
   ];
@@ -223,7 +256,8 @@ export function sitemapLinkReportFailed(report: SitemapLinkReport): boolean {
     report.duplicateLocs.length > 0 ||
     report.missingInbound.length > 0 ||
     report.wrongLastmod.length > 0 ||
-    report.missingFromSitemap.length > 0
+    report.missingFromSitemap.length > 0 ||
+    report.unexpectedInSitemap.length > 0
   );
 }
 

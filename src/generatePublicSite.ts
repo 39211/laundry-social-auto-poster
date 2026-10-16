@@ -26,7 +26,9 @@ import {
   INDEX_GROWTH_CATALOG,
   INDEX_GROWTH_HUB_ORDER,
   hubGroupFor,
-  resolveAcceptedIndexGrowthPages
+  resolveAcceptedIndexGrowthPages,
+  robotsMetaIsNoindex,
+  sitemapShouldOmitUrl
 } from "./indexGrowthPages";
 import {
   KNOWN_SERVICE_SLUGS,
@@ -5198,10 +5200,8 @@ function buildRobotsText(index: PublicPostIndex): string {
 
 /**
  * Daily social captions run ~235 unique characters against a fixed template, so the post
- * pages are thin near-duplicates of each other. Advertising 38 of them made them ~68% of the
- * sitemap and buried the service and guide pages that actually answer local queries.
- * Thick post articles may stay indexable for readers, but the human sitemap prioritizes
- * money/service/guide URLs and only the newest N indexable posts (plus the posts hub).
+ * pages are thin near-duplicates of each other. Both sitemaps omit every /posts/ URL.
+ * Money, service, and guide URLs stay; HTML whose robots directive is noindex stays out too.
  */
 function orderedMoneyFirstServiceUrls(index: PublicPostIndex): string[] {
   if (!index.base_url_configured) return [];
@@ -5394,17 +5394,15 @@ function buildConversionSection(index: PublicPostIndex, slug: string): string {
 }
 
 function buildSitemapXml(index: PublicPostIndex): string {
-  const sitemapPosts = sitemapIndexablePostArticles(index);
   const urls = index.base_url_configured
     ? [
         index.canonical_url,
         knowledgeHubUrl(index),
         ...orderedMoneyFirstServiceUrls(index),
-        ...Object.values(index.entrypoints.support_pages),
-        ...(sitemapPosts.length > 0 ? [postsHubUrl(index), ...sitemapPosts.map((post) => post.article_url)] : [])
+        ...Object.values(index.entrypoints.support_pages)
       ]
     : [];
-  const uniqueUrls = Array.from(new Set(urls));
+  const uniqueUrls = Array.from(new Set(urls)).filter((url) => !sitemapShouldOmitUrl(url, new Set()));
   const items = uniqueUrls.map((url) => sitemapUrlEntry(url, index)).join("\n");
 
   return [
@@ -5444,15 +5442,9 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
         { loc: index.entrypoints.feed, purpose: "updates-feed" },
         { loc: index.entrypoints.social_posts, purpose: "post-records" },
         { loc: index.entrypoints.latest, purpose: "latest-package" },
-        // Only articles that cleared the thickness gate carry index robots; the
-        // rest stay out of every sitemap so the two surfaces never contradict.
-        ...(indexablePostArticles(index).length > 0
-          ? [
-              { loc: postsHubUrl(index), purpose: "daily-article-hub" },
-              { loc: index.entrypoints.rss, purpose: "rss-feed" },
-              ...indexablePostArticles(index).map((post) => ({ loc: post.article_url, purpose: `daily-article-${post.id}` }))
-            ]
-          : []),
+        // /posts/ hub and slot articles never enter ai-sitemap. RSS stays only while
+        // some article is indexable; today that count is fixed at zero.
+        ...(indexablePostArticles(index).length > 0 ? [{ loc: index.entrypoints.rss, purpose: "rss-feed" }] : []),
         ...allServiceImages(index).map((image) => ({ loc: image.image_url, purpose: `service-image-${image.source_type}` })),
         ...index.posts.map((post) => ({ loc: post.calendar_url, purpose: `calendar-slot-${post.slot}` })),
         ...index.posts.map((post) => ({ loc: post.image_url, purpose: `image-slot-${post.slot}` }))
@@ -5462,6 +5454,7 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
   const seen = new Set<string>();
   const items = urls
     .filter((item) => {
+      if (sitemapShouldOmitUrl(item.loc, new Set())) return false;
       if (seen.has(item.loc)) return false;
       seen.add(item.loc);
       return true;
@@ -5485,31 +5478,22 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
     .join("\n");
 }
 
-/** `/posts/` hub 與 slot 文章。0 篇可索引時這兩份 sitemap 都不得收錄。 */
-function isPostsSurfaceUrl(url: string): boolean {
-  try {
-    const pathname = new URL(url, "https://sixiangjialaundry.com").pathname;
-    return pathname === "/posts" || pathname === "/posts/" || pathname.startsWith("/posts/");
-  } catch {
-    return false;
-  }
-}
-
 /**
- * buildSitemapXml / buildAiSitemapXml 在 indexable_article_count === 0 時已略過 /posts/。
- * 之後 seo-overrides 會整檔蓋掉 sitemap（ai-sitemap 若存在也會），重建 union 會把 hub 帶回來。
- * 覆寫結束後再剝一次，重跑產生器也不會回彈。其他 URL 與 lastmod 保持原行。
+ * Builders already skip /posts/. seo-overrides then copies a hand sitemap (and ai-sitemap
+ * when that file exists) and the union can put those URLs back. Strip them again, and
+ * also drop any loc whose override HTML robots directive is noindex. Other lines stay.
  */
-async function stripUnindexablePostsFromSitemaps(
-  index: PublicPostIndex,
+async function stripExcludedPublicSitemaps(
   sitemapPath: string,
-  aiSitemapPath: string
+  aiSitemapPath: string,
+  noindexPosixPaths: ReadonlySet<string>
 ): Promise<void> {
-  if (indexablePostArticles(index).length > 0) return;
-  await Promise.all([sitemapPath, aiSitemapPath].map(stripPostsSurfaceUrlLines));
+  await Promise.all(
+    [sitemapPath, aiSitemapPath].map((filePath) => stripExcludedSitemapLines(filePath, noindexPosixPaths))
+  );
 }
 
-async function stripPostsSurfaceUrlLines(filePath: string): Promise<void> {
+async function stripExcludedSitemapLines(filePath: string, noindexPosixPaths: ReadonlySet<string>): Promise<void> {
   let xml = "";
   try {
     xml = await readFile(filePath, "utf8");
@@ -5521,7 +5505,7 @@ async function stripPostsSurfaceUrlLines(filePath: string): Promise<void> {
     .split("\n")
     .filter((line) => {
       const loc = line.match(/<loc>([^<]*)<\/loc>/u)?.[1];
-      return !loc || !isPostsSurfaceUrl(loc);
+      return !loc || !sitemapShouldOmitUrl(loc, noindexPosixPaths);
     })
     .join("\n");
   if (next !== xml) await writeFile(filePath, next, "utf8");
@@ -9086,7 +9070,7 @@ function buildAiDiscovery(index: PublicPostIndex): object {
         min_visible_chars: POST_ARTICLE_MIN_VISIBLE_CHARS,
         min_caption_chars: POST_ARTICLE_MIN_CAPTION_CHARS,
         behavior:
-          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Only articles that clear the thickness gate carry index robots, enter rss.xml and the posts hub; the human sitemap.xml lists money/service/guide URLs first and only the newest sitemap_max_indexable_posts thick articles so conversion pages are not buried.",
+          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Slot articles stay reader-facing. sitemap.xml and ai-sitemap.xml omit every /posts/ URL and any HTML whose robots directive is noindex.",
         indexable_article_count: indexablePostArticles(index).length,
         sitemap_max_indexable_posts: SITEMAP_MAX_INDEXABLE_POSTS,
         sitemap_indexable_post_count: sitemapIndexablePostArticles(index).length,
@@ -9370,6 +9354,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   // without requiring manual porting of 200+ FAQ items into TypeScript.
   const overrideRoot = join(root, "seo-overrides");
   const overrideHtmlFiles: Array<{ posixPath: string; fsPath: string }> = [];
+  const noindexOverridePaths = new Set<string>();
   try {
     const walkOverrides = async (dir: string, relPosixPath: string = ""): Promise<void> => {
       const entries = await readdir(dir, { withFileTypes: true });
@@ -9395,12 +9380,14 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     if (overrideHtmlFiles.length > 0) {
       console.log(`Applied ${overrideHtmlFiles.length} SEO override HTML files`);
       
-      // Extract lastmod from override HTML files' JSON-LD dateModified
+      // Extract lastmod from override HTML files' JSON-LD dateModified.
+      // robots noindex pages stay on disk and can still be linked, but they are not sitemap URLs.
       const overrideLastmods = new Map<string, string>();
       const overrideCanonicals = new Map<string, string>();
       for (const { posixPath, fsPath } of overrideHtmlFiles) {
         try {
           const html = await readFile(join(docsRoot, fsPath), "utf8");
+          if (robotsMetaIsNoindex(html)) noindexOverridePaths.add(posixPath);
           for (const link of html.matchAll(/<link\b[^>]*>/gi)) {
             if (!/\brel\s*=\s*(["'])canonical\1/i.test(link[0])) continue;
             const href = link[0].match(/\bhref\s*=\s*(["'])(.*?)\1/i);
@@ -9415,9 +9402,10 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         }
       }
       
-      // Regenerate sitemap to include override pages (except noindex price-list stub)
+      // Regenerate sitemap to include override pages, skipping robots noindex
+      // (price-list stub and the 16 far-district doorway pickups).
       const overrideUrls = overrideHtmlFiles
-        .filter(({ posixPath }) => posixPath !== "price-list.html") // Exclude noindex stub
+        .filter(({ posixPath }) => !noindexOverridePaths.has(posixPath))
         .flatMap(({ posixPath }) => {
           // Build URL using URL constructor for proper path joining
           const urlPath = posixPath === "index.html" ? "" : posixPath;
@@ -9435,7 +9423,9 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         const existingUrls = Array.from(existingSitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
           .map(m => m[1])
           .filter((url): url is string => typeof url === "string");
-        const allUrls = Array.from(new Set([...existingUrls, ...overrideUrls]));
+        const allUrls = Array.from(new Set([...existingUrls, ...overrideUrls])).filter(
+          (url) => !sitemapShouldOmitUrl(url, noindexOverridePaths)
+        );
         
         // Rebuild sitemap with all URLs, using override lastmods when available
         const items = allUrls
@@ -9471,7 +9461,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     // seo-overrides/ directory doesn't exist, skip
   }
 
-  await stripUnindexablePostsFromSitemaps(index, outputs.sitemap, outputs.aiSitemap);
+  await stripExcludedPublicSitemaps(outputs.sitemap, outputs.aiSitemap, noindexOverridePaths);
 
   return [...Object.values(outputs), ...postArticleOutputs];
 }

@@ -11,11 +11,14 @@ import {
   citationAnswerLength,
   claimProvenanceBinding,
   frozenSourceRecordHash,
+  isPostsSurfacePath,
   ngramJaccard,
   normalizeDiagnosticText,
   pageDiagnosticText,
   protectedSupportContentHash,
   resolveAcceptedIndexGrowthPages,
+  robotsMetaIsNoindex,
+  sitemapShouldOmitUrl,
   validateIndexGrowthPages
 } from "../src/indexGrowthPages";
 import type { FrozenSourceRecord, IndexGrowthPageDefinition } from "../src/indexGrowthPages";
@@ -712,5 +715,33 @@ describe("indexGrowthPages fail-closed mutations", () => {
       true
     );
     expect(validateIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: TODAY }).ok).toBe(true);
+  });
+});
+
+describe("sitemap omission", () => {
+  const noindexPaths = new Set(["local/dadu-laundry-pickup.html", "price-list.html"]);
+
+  it("omits /posts/ and robots noindex paths from both sitemaps", () => {
+    expect(isPostsSurfacePath("/posts/")).toBe(true);
+    expect(isPostsSurfacePath("/posts/2026-10-16-slot-01.html")).toBe(true);
+    expect(isPostsSurfacePath("/guides/hat-cleaning.html")).toBe(false);
+    expect(robotsMetaIsNoindex('<meta name="robots" content="noindex, follow" />')).toBe(true);
+    expect(robotsMetaIsNoindex('<meta name="robots" content="index, follow, max-image-preview:large" />')).toBe(
+      false
+    );
+    expect(sitemapShouldOmitUrl("https://sixiangjialaundry.com/posts/", noindexPaths)).toBe(true);
+    expect(
+      sitemapShouldOmitUrl("https://sixiangjialaundry.com/posts/2026-10-16-slot-01.html", noindexPaths)
+    ).toBe(true);
+    expect(sitemapShouldOmitUrl("https://sixiangjialaundry.com/local/dadu-laundry-pickup.html", noindexPaths)).toBe(
+      true
+    );
+    expect(sitemapShouldOmitUrl("https://sixiangjialaundry.com/price-list.html", noindexPaths)).toBe(true);
+    expect(
+      sitemapShouldOmitUrl("https://sixiangjialaundry.com/local/west-district-laundry-pickup.html", noindexPaths)
+    ).toBe(false);
+    expect(sitemapShouldOmitUrl("https://sixiangjialaundry.com/guides/casual-shoe-cleaning.html", noindexPaths)).toBe(
+      false
+    );
   });
 });

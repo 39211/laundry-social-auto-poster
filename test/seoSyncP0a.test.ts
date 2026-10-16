@@ -1,10 +1,10 @@
 import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { generatePublicSite } from "../src/generatePublicSite";
 
-const TEMP_ROOT = "D:\\AI-Lanes-work\\_tmp\\seosync";
 const BASE_URL = "https://example.com";
 const OPEN_MARKER = "<!-- SXJ:RECENT_POSTS -->";
 const CLOSE_MARKER = "<!-- /SXJ:RECENT_POSTS -->";
@@ -23,7 +23,7 @@ type SlotOverride = {
 const roots: string[] = [];
 
 function newRoot(): string {
-  const root = mkdtempSync(join(TEMP_ROOT, "seo-sync-p0a-"));
+  const root = mkdtempSync(join(tmpdir(), "seo-sync-p0a-"));
   roots.push(root);
   return root;
 }
@@ -223,6 +223,31 @@ describe("SEO-SYNC-P0A", () => {
     const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
     expect(sitemapLocs(sitemap)).toContain(overrideUrl);
     expect(sitemapLocs(sitemap)).toContain(BASE_URL + "/posts/2026-07-02-slot-01.html");
+  });
+
+  it("drops below-gate post URLs that an override sitemap lists", async () => {
+    const root = newRoot();
+    await seedOneDay(root, {
+      1: { facebook_caption: THICK_CAPTION, instagram_caption: THICK_CAPTION },
+      2: { facebook_caption: "短文", instagram_caption: "短文" }
+    });
+    const overrideRoot = join(root, "seo-overrides");
+    await mkdir(overrideRoot, { recursive: true });
+    const overrideUrl = BASE_URL + "/guides/hand-maintained.html";
+    const thinPostUrl = BASE_URL + "/posts/2026-07-02-slot-02.html";
+    await writeFile(
+      join(overrideRoot, "sitemap.xml"),
+      '<?xml version="1.0" encoding="UTF-8"?>\n<urlset><url><loc>' + overrideUrl +
+        "</loc></url><url><loc>" + thinPostUrl + "</loc></url></urlset>\n",
+      "utf8"
+    );
+    await generate(root);
+
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const sitemapUrls = sitemapLocs(sitemap);
+    expect(sitemapUrls).toContain(overrideUrl);
+    expect(sitemapUrls).toContain(BASE_URL + "/posts/2026-07-02-slot-01.html");
+    expect(sitemapUrls).not.toContain(thinPostUrl);
   });
 
   it("keeps generated indexable article URLs when a sitemap and indexable HTML override are present", async () => {

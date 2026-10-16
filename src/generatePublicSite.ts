@@ -5394,15 +5394,17 @@ function buildConversionSection(index: PublicPostIndex, slug: string): string {
 }
 
 function buildSitemapXml(index: PublicPostIndex): string {
+  const sitemapPosts = sitemapIndexablePostArticles(index);
   const urls = index.base_url_configured
     ? [
         index.canonical_url,
         knowledgeHubUrl(index),
         ...orderedMoneyFirstServiceUrls(index),
-        ...Object.values(index.entrypoints.support_pages)
+        ...Object.values(index.entrypoints.support_pages),
+        ...(sitemapPosts.length > 0 ? [postsHubUrl(index), ...sitemapPosts.map((post) => post.article_url)] : [])
       ]
     : [];
-  const uniqueUrls = Array.from(new Set(urls)).filter((url) => !sitemapShouldOmitUrl(url, new Set()));
+  const uniqueUrls = Array.from(new Set(urls)).filter((url) => !sitemapShouldOmitUrlForPublicSite(url, index, new Set()));
   const items = uniqueUrls.map((url) => sitemapUrlEntry(url, index)).join("\n");
 
   return [
@@ -5442,9 +5444,14 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
         { loc: index.entrypoints.feed, purpose: "updates-feed" },
         { loc: index.entrypoints.social_posts, purpose: "post-records" },
         { loc: index.entrypoints.latest, purpose: "latest-package" },
-        // /posts/ hub and slot articles never enter ai-sitemap. RSS stays only while
-        // some article is indexable; today that count is fixed at zero.
-        ...(indexablePostArticles(index).length > 0 ? [{ loc: index.entrypoints.rss, purpose: "rss-feed" }] : []),
+        // Indexable daily articles enter both sitemaps only after the thickness gate.
+        ...(indexablePostArticles(index).length > 0
+          ? [
+              { loc: postsHubUrl(index), purpose: "daily-article-hub" },
+              { loc: index.entrypoints.rss, purpose: "rss-feed" },
+              ...indexablePostArticles(index).map((post) => ({ loc: post.article_url, purpose: "daily-article-" + post.id }))
+            ]
+          : []),
         ...allServiceImages(index).map((image) => ({ loc: image.image_url, purpose: `service-image-${image.source_type}` })),
         ...index.posts.map((post) => ({ loc: post.calendar_url, purpose: `calendar-slot-${post.slot}` })),
         ...index.posts.map((post) => ({ loc: post.image_url, purpose: `image-slot-${post.slot}` }))
@@ -5454,7 +5461,7 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
   const seen = new Set<string>();
   const items = urls
     .filter((item) => {
-      if (sitemapShouldOmitUrl(item.loc, new Set())) return false;
+      if (sitemapShouldOmitUrlForPublicSite(item.loc, index, new Set())) return false;
       if (seen.has(item.loc)) return false;
       seen.add(item.loc);
       return true;
@@ -5478,22 +5485,53 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
     .join("\n");
 }
 
-/**
- * Builders already skip /posts/. seo-overrides then copies a hand sitemap (and ai-sitemap
- * when that file exists) and the union can put those URLs back. Strip them again, and
- * also drop any loc whose override HTML robots directive is noindex. Other lines stay.
- */
-async function stripExcludedPublicSitemaps(
-  sitemapPath: string,
-  aiSitemapPath: string,
-  noindexPosixPaths: ReadonlySet<string>
-): Promise<void> {
-  await Promise.all(
-    [sitemapPath, aiSitemapPath].map((filePath) => stripExcludedSitemapLines(filePath, noindexPosixPaths))
-  );
+/** Keep #194's robots-noindex exclusions while allowing only gate-indexable post URLs. */
+function isPostsSurfaceUrl(url: string): boolean {
+  try {
+    const pathname = new URL(url, "https://sixiangjialaundry.com").pathname;
+    return pathname === "/posts" || pathname === "/posts/" || pathname.startsWith("/posts/");
+  } catch {
+    return false;
+  }
 }
 
-async function stripExcludedSitemapLines(filePath: string, noindexPosixPaths: ReadonlySet<string>): Promise<void> {
+function sitemapShouldOmitUrlForPublicSite(
+  url: string,
+  index: PublicPostIndex,
+  noindexPosixPaths: ReadonlySet<string>
+): boolean {
+  if (!sitemapShouldOmitUrl(url, noindexPosixPaths)) return false;
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url, index.canonical_url || "https://sixiangjialaundry.com");
+  } catch {
+    return false;
+  }
+  const posixPath = parsedUrl.pathname.replace(/^\/+/, "");
+  const key = posixPath === "" ? "index.html" : posixPath;
+  const indexHtmlKey = parsedUrl.pathname.endsWith("/") ? posixPath + "index.html" : "";
+  if (noindexPosixPaths.has(key) || (indexHtmlKey && noindexPosixPaths.has(indexHtmlKey))) return true;
+  if (!isPostsSurfaceUrl(parsedUrl.href)) return true;
+
+  const indexablePosts = indexablePostArticles(index);
+  if (indexablePosts.length === 0) return true;
+  const baseUrl = index.canonical_url || "https://sixiangjialaundry.com";
+  const allowedPostUrls = new Set(indexablePosts.map((post) => new URL(post.article_url, baseUrl).href));
+  allowedPostUrls.add(new URL(postsHubUrl(index), baseUrl).href);
+  return !allowedPostUrls.has(parsedUrl.href);
+}
+
+/** Posts hub and slot article URLs are stripped when no post clears the SEO gate. */
+async function stripUnindexablePostsFromSitemaps(
+  index: PublicPostIndex,
+  sitemapPath: string,
+  aiSitemapPath: string
+): Promise<void> {
+  if (indexablePostArticles(index).length > 0) return;
+  await Promise.all([sitemapPath, aiSitemapPath].map(stripPostsSurfaceUrlLines));
+}
+
+async function stripPostsSurfaceUrlLines(filePath: string): Promise<void> {
   let xml = "";
   try {
     xml = await readFile(filePath, "utf8");
@@ -5505,7 +5543,40 @@ async function stripExcludedSitemapLines(filePath: string, noindexPosixPaths: Re
     .split("\n")
     .filter((line) => {
       const loc = line.match(/<loc>([^<]*)<\/loc>/u)?.[1];
-      return !loc || !sitemapShouldOmitUrl(loc, noindexPosixPaths);
+      return !loc || !isPostsSurfaceUrl(loc);
+    })
+    .join("\n");
+  if (next !== xml) await writeFile(filePath, next, "utf8");
+}
+
+async function stripExcludedPublicSitemaps(
+  index: PublicPostIndex,
+  sitemapPath: string,
+  aiSitemapPath: string,
+  noindexPosixPaths: ReadonlySet<string>
+): Promise<void> {
+  await Promise.all(
+    [sitemapPath, aiSitemapPath].map((filePath) => stripExcludedSitemapLines(filePath, index, noindexPosixPaths))
+  );
+}
+
+async function stripExcludedSitemapLines(
+  filePath: string,
+  index: PublicPostIndex,
+  noindexPosixPaths: ReadonlySet<string>
+): Promise<void> {
+  let xml = "";
+  try {
+    xml = await readFile(filePath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  const next = xml
+    .split("\n")
+    .filter((line) => {
+      const loc = line.match(/<loc>([^<]*)<\/loc>/u)?.[1];
+      return !loc || !sitemapShouldOmitUrlForPublicSite(loc, index, noindexPosixPaths);
     })
     .join("\n");
   if (next !== xml) await writeFile(filePath, next, "utf8");
@@ -7149,10 +7220,7 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   const render: PostArticleRender = {
     mainHtml,
     visibleChars,
-    // Hardcoded false per 2026-09-24 policy: all daily slot posts are noindex,follow
-    // to focus SEO on the curated service/guide pages. This keeps slot posts out of
-    // sitemap.xml and prevents the posts/ hub from appearing when no slots are indexable.
-    indexable: false,
+    indexable: reasons.length === 0,
     reasons,
     faqs,
     articleNumber
@@ -7612,6 +7680,61 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
       </article>`;
 }
 
+function buildHomepageRecentPostsSection(index: PublicPostIndex): string {
+  const { recentPosts, archivePosts, recentDateCount, archiveDateCount } = homepagePostGroups(index.posts);
+  const profile = index.business_profile;
+  const rows =
+    recentPosts.length > 0
+      ? recentPosts.map((post) => renderHomePostTile(post, index, profile)).join("\n")
+      : `<p class="section-copy">尚未有審核通過的公開貼文。</p>`;
+  const archiveRows = archivePosts.map((post) => renderHomePostTile(post, index, profile)).join("\n");
+  const archiveSection =
+    archivePosts.length > 0
+      ? `<details class="post-archive">
+            <summary>較早內容（${archiveDateCount} 天，${archivePosts.length} 篇）</summary>
+            <p class="section-copy">較早的門市紀錄都還在，預設收起來，免得首頁太長。</p>
+            <div class="grid three archive-list">
+        ${archiveRows}
+            </div>
+          </details>`
+      : "";
+
+  return `<section class="section surface" id="daily">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">每日洗護紀錄</span>
+            <h2>已發布社群內容</h2>
+            <p>只收錄已審核、可公開的 Facebook / Instagram 貼文；最近 ${recentDateCount} 天直接顯示，較早內容收合成 archive，但仍保留給客人、搜尋引擎和 AI 讀取。</p>
+          </div>
+          <div class="grid three post-list">
+        ${rows}
+          </div>
+          ${archiveSection}
+          <p style="margin-top:20px;"><a class="card-link" href="${escapeHtml(postsHubHref(index))}">查看每日洗護紀錄總覽 →</a></p>
+        </div>
+      </section>`;
+}
+
+const RECENT_POSTS_OPEN_MARKER = "<!-- SXJ:RECENT_POSTS -->";
+const RECENT_POSTS_CLOSE_MARKER = "<!-- /SXJ:RECENT_POSTS -->";
+
+async function injectHomepageRecentPosts(index: PublicPostIndex, indexPath: string): Promise<void> {
+  const html = await readFile(indexPath, "utf8");
+  const openCount = html.split(RECENT_POSTS_OPEN_MARKER).length - 1;
+  const closeCount = html.split(RECENT_POSTS_CLOSE_MARKER).length - 1;
+  const openAt = html.indexOf(RECENT_POSTS_OPEN_MARKER);
+  const contentStart = openAt + RECENT_POSTS_OPEN_MARKER.length;
+  const closeAt = html.indexOf(RECENT_POSTS_CLOSE_MARKER, contentStart);
+
+  if (openCount !== 1 || closeCount !== 1 || openAt < 0 || closeAt < contentStart) {
+    console.warn("SEO override docs/index.html has missing or malformed SXJ:RECENT_POSTS markers; recent posts were not injected.");
+    return;
+  }
+
+  const next = html.slice(0, contentStart) + buildHomepageRecentPostsSection(index) + html.slice(closeAt);
+  if (next !== html) await writeFile(indexPath, next, "utf8");
+}
+
 function buildIndexHtml(index: PublicPostIndex): string {
   const profile = index.business_profile;
   const lineNav = trackedLineUrl(index, { section: "home", placement: "nav" });
@@ -7619,7 +7742,6 @@ function buildIndexHtml(index: PublicPostIndex): string {
   const lineInline = trackedLineUrl(index, { section: "home", placement: "inline" });
   const linePickup = trackedLineUrl(index, { section: "home", placement: "pickup" });
   const lineFooter = trackedLineUrl(index, { section: "home", placement: "footer" });
-  const { recentPosts, archivePosts, recentDateCount, archiveDateCount } = homepagePostGroups(index.posts);
   const heroImage = primaryHomeImage(index);
   const heroImageSrc = heroImage ? visibleImageSrc(heroImage, index) : "";
   const heroWebpSrc = heroImage ? webpSrcFor(heroImage.image_path, heroImageSrc) : undefined;
@@ -7654,21 +7776,6 @@ function buildIndexHtml(index: PublicPostIndex): string {
     navLabel: "主選單",
     postsHubHref: postsHubHref(index)
   };
-  const rows =
-    recentPosts.length > 0
-      ? recentPosts.map((post) => renderHomePostTile(post, index, profile)).join("\n")
-      : `<p class="section-copy">尚未有審核通過的公開貼文。</p>`;
-  const archiveRows = archivePosts.map((post) => renderHomePostTile(post, index, profile)).join("\n");
-  const archiveSection =
-    archivePosts.length > 0
-      ? `<details class="post-archive">
-            <summary>較早內容（${archiveDateCount} 天，${archivePosts.length} 篇）</summary>
-            <p class="section-copy">較早的門市紀錄都還在，預設收起來，免得首頁太長。</p>
-            <div class="grid three archive-list">
-        ${archiveRows}
-            </div>
-          </details>`
-      : "";
   const serviceCards = SERVICE_PAGE_DEFINITIONS.map((service) =>
     renderServiceProductCard(service, index, servicePageUrl(service, index), { withImage: true, servicePage: true })
   ).join("\n");
@@ -7924,20 +8031,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <p style="margin-top:20px;"><a class="card-link" href="${escapeHtml(knowledgeHubHref(index))}">查看洗護知識庫總覽 →</a></p>
         </div>
       </section>
-      <section class="section surface" id="daily">
-        <div class="page-shell">
-          <div class="section-header">
-            <span class="eyebrow">每日洗護紀錄</span>
-            <h2>已發布社群內容</h2>
-            <p>只收錄已審核、可公開的 Facebook / Instagram 貼文；最近 ${recentDateCount} 天直接顯示，較早內容收合成 archive，但仍保留給客人、搜尋引擎和 AI 讀取。</p>
-          </div>
-          <div class="grid three post-list">
-        ${rows}
-          </div>
-          ${archiveSection}
-          <p style="margin-top:20px;"><a class="card-link" href="${escapeHtml(postsHubHref(index))}">查看每日洗護紀錄總覽 →</a></p>
-        </div>
-      </section>
+      ${buildHomepageRecentPostsSection(index)}
       <section class="section" id="homepage-faq">
         <div class="page-shell">
           <div class="section-header">
@@ -9318,7 +9412,7 @@ function buildAiDiscovery(index: PublicPostIndex): Record<string, unknown> {
         min_visible_chars: POST_ARTICLE_MIN_VISIBLE_CHARS,
         min_caption_chars: POST_ARTICLE_MIN_CAPTION_CHARS,
         behavior:
-          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Slot articles stay reader-facing. sitemap.xml and ai-sitemap.xml omit post article URLs and any HTML whose robots directive is noindex.",
+          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Only articles that clear the thickness gate carry index robots; eligible articles enter rss.xml and the posts hub. sitemap.xml includes the newest sitemap_max_indexable_posts eligible articles, ai-sitemap.xml includes eligible article URLs, and both sitemaps omit below-gate posts and override HTML with robots noindex.",
         indexable_article_count: indexablePostArticles(index).length,
         sitemap_max_indexable_posts: SITEMAP_MAX_INDEXABLE_POSTS,
         sitemap_indexable_post_count: sitemapIndexablePostArticles(index).length,
@@ -9598,6 +9692,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   );
   const postArticleOutputs = await writePostArticlePages(articlePosts, index, postsRoot);
   await writeFile(outputs.nojekyll, "", "utf8");
+  const generatedSitemapXml = await readFile(outputs.sitemap, "utf8");
 
   // Apply SEO overrides: copy hand-maintained pages from seo-overrides/ to docs/
   // These pages contain the full content from PR #7, #8, #9 (answer boxes, FAQs, internal links)
@@ -9605,6 +9700,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const overrideRoot = join(root, "seo-overrides");
   const overrideHtmlFiles: Array<{ posixPath: string; fsPath: string }> = [];
   const noindexOverridePaths = new Set<string>();
+  let overrideSitemapCopied = false;
   try {
     const walkOverrides = async (dir: string, relPosixPath: string = ""): Promise<void> => {
       const entries = await readdir(dir, { withFileTypes: true });
@@ -9620,6 +9716,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
           const targetPath = join(docsRoot, fsPath);
           await mkdir(dirname(targetPath), { recursive: true });
           await copyFile(fullPath, targetPath);
+          if (rel === "sitemap.xml") overrideSitemapCopied = true;
           if (rel.endsWith(".html")) {
             overrideHtmlFiles.push({ posixPath: rel, fsPath });
           }
@@ -9627,13 +9724,16 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       }
     };
     await walkOverrides(overrideRoot);
+    // Extract override metadata only from copied HTML pages.
+    const overrideLastmods = new Map<string, string>();
+    const overrideCanonicals = new Map<string, string>();
+    const overrideCanonicalKeyForUrl = (url: string): string => {
+      const pathname = new URL(url).pathname.replace(/^\/+/, "");
+      return !pathname ? "index.html" : pathname.endsWith("/") ? pathname + "index.html" : pathname;
+    };
     if (overrideHtmlFiles.length > 0) {
       console.log(`Applied ${overrideHtmlFiles.length} SEO override HTML files`);
-      
-      // Extract lastmod from override HTML files' JSON-LD dateModified.
       // robots noindex pages stay on disk and can still be linked, but they are not sitemap URLs.
-      const overrideLastmods = new Map<string, string>();
-      const overrideCanonicals = new Map<string, string>();
       for (const { posixPath, fsPath } of overrideHtmlFiles) {
         try {
           const html = await readFile(join(docsRoot, fsPath), "utf8");
@@ -9651,57 +9751,60 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
           // If we can't read or parse, fall back to sitemapLastmodForUrl
         }
       }
-      
-      // Regenerate sitemap to include override pages, skipping robots noindex
-      // (price-list stub and the 16 far-district doorway pickups).
-      const overrideUrls = overrideHtmlFiles
-        .filter(({ posixPath }) => !noindexOverridePaths.has(posixPath))
-        .flatMap(({ posixPath }) => {
-          // Build URL using URL constructor for proper path joining
-          const urlPath = posixPath === "index.html" ? "" : posixPath;
-          const baseUrl = siteBaseUrl || "";
-          const url = new URL(urlPath, baseUrl.endsWith("/") ? baseUrl : baseUrl + "/").href;
-          const canonical = overrideCanonicals.get(posixPath);
-          // Pages canonicalized elsewhere must not be listed in sitemap.xml.
-          if (canonical && new URL(canonical, url).href !== url) return [];
-          return [url];
-        });
-      
-      // Add override URLs to sitemap (deduplicate with existing)
-      if (index.base_url_configured && overrideUrls.length > 0) {
-        const existingSitemap = await readFile(outputs.sitemap, "utf8");
-        const existingUrls = Array.from(existingSitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
-          .map(m => m[1])
-          .filter((url): url is string => typeof url === "string");
-        const allUrls = Array.from(new Set([...existingUrls, ...overrideUrls])).filter(
-          (url) => !sitemapShouldOmitUrl(url, noindexOverridePaths)
-        );
-        
-        // Rebuild sitemap with all URLs, using override lastmods when available
-        const items = allUrls
-          .map(url => {
-            // Try to find corresponding override file for this URL
-            const urlObj = new URL(url);
-            const pathname = urlObj.pathname.replace(/^\/+/, "");
-            const posixPath = pathname || "index.html";
-            
-            // Use override's dateModified if available, otherwise fall back to sitemapLastmodForUrl
-            const lastmod = overrideLastmods.get(posixPath) || sitemapLastmodForUrl(url, index);
-            const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
-            return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
-          })
-          .join("\n");
-        
-        const newSitemap = [
-          '<?xml version="1.0" encoding="UTF-8"?>',
-          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-          items,
-          "</urlset>",
-          ""
-        ].join("\n");
-        
-        await writeFile(outputs.sitemap, newSitemap, "utf8");
+    }
+
+    // Regenerate when either an override sitemap or a listable override HTML URL is present.
+    const overrideUrls = overrideHtmlFiles
+      .filter(({ posixPath }) => !noindexOverridePaths.has(posixPath) && posixPath !== "price-list.html")
+      .flatMap(({ posixPath }) => {
+        const urlPath = posixPath === "index.html" ? "" : posixPath;
+        const baseUrl = siteBaseUrl || "";
+        const url = new URL(urlPath, baseUrl.endsWith("/") ? baseUrl : baseUrl + "/").href;
+        const canonical = overrideCanonicals.get(overrideCanonicalKeyForUrl(url));
+        // Pages canonicalized elsewhere must not be listed in sitemap.xml.
+        if (canonical && new URL(canonical, url).href !== url) return [];
+        return [url];
+      });
+
+    if (index.base_url_configured && (overrideSitemapCopied || overrideUrls.length > 0)) {
+      const existingSitemap = await readFile(outputs.sitemap, "utf8");
+      const existingUrls = Array.from(existingSitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
+        .map((match) => match[1])
+        .filter((url): url is string => typeof url === "string");
+      const generatedUrls = Array.from(generatedSitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g))
+        .map((match) => match[1])
+        .filter((url): url is string => typeof url === "string");
+      const allUrls = Array.from(new Set([...generatedUrls, ...existingUrls, ...overrideUrls])).filter((url) => {
+        if (sitemapShouldOmitUrlForPublicSite(url, index, noindexOverridePaths)) return false;
+        const canonical = overrideCanonicals.get(overrideCanonicalKeyForUrl(url));
+        return !canonical || new URL(canonical, url).href === url;
+      });
+
+      // Use override lastmods when available, otherwise keep the generated URL rule.
+      const items = allUrls
+        .map((url) => {
+          const urlObj = new URL(url);
+          const pathname = urlObj.pathname.replace(/^\/+/, "");
+          const posixPath = pathname || "index.html";
+          const lastmod = overrideLastmods.get(posixPath) || sitemapLastmodForUrl(url, index);
+          const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
+          return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
+        })
+        .join("\n");
+
+      const newSitemap = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        items,
+        "</urlset>",
+        ""
+      ].join("\n");
+
+      await writeFile(outputs.sitemap, newSitemap, "utf8");
+      if (overrideUrls.length > 0) {
         console.log(`Updated sitemap with ${allUrls.length} total URLs (including ${overrideUrls.length} from overrides)`);
+      } else {
+        console.log("Updated sitemap with " + allUrls.length + " total URLs (including sitemap override)");
       }
     }
   } catch (error) {
@@ -9711,7 +9814,12 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     // seo-overrides/ directory doesn't exist, skip
   }
 
-  await stripExcludedPublicSitemaps(outputs.sitemap, outputs.aiSitemap, noindexOverridePaths);
+  if (overrideHtmlFiles.some(({ posixPath }) => posixPath === "index.html")) {
+    await injectHomepageRecentPosts(index, outputs.index);
+  }
+
+  await stripUnindexablePostsFromSitemaps(index, outputs.sitemap, outputs.aiSitemap);
+  await stripExcludedPublicSitemaps(index, outputs.sitemap, outputs.aiSitemap, noindexOverridePaths);
   await syncPublishedAiDiscovery({
     docsRoot,
     overrideRoot,

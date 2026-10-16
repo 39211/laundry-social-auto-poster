@@ -48,8 +48,10 @@ jobs:
             data
             docs-internal
             research
+            docs/about
             docs/content-calendar
             docs/guides
+            docs/hubs
             docs/knowledge
             docs/local
             docs/posts

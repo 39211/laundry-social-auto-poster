@@ -8942,6 +8942,147 @@ function postToDiscoveryRecord(post: PublicPost, index: PublicPostIndex): object
   };
 }
 
+const AI_DISCOVERY_LIVE_FIELDS = [
+  "latest_date",
+  "latest_posts",
+  "recent_posts",
+  "published_posts",
+  "data_quality"
+] as const;
+
+const AI_DISCOVERY_ARTICLE_COUNT_FIELDS = [
+  "indexable_article_count",
+  "sitemap_max_indexable_posts",
+  "sitemap_indexable_post_count",
+  "article_count"
+] as const;
+
+function isJsonRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function taipeiCalendarDay(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/u.test(trimmed)) return trimmed;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return getZonedDateParts(parsed, "Asia/Taipei").date;
+}
+
+function latestSitemapContentDay(sitemapXml: string): string | undefined {
+  const latest = [...sitemapXml.matchAll(/<lastmod>([^<]+)<\/lastmod>/gu)]
+    .map((match) => (match[1] ?? "").trim())
+    .filter((value) => value.length > 0)
+    .sort()
+    .at(-1);
+  return latest ? toSitemapLastmodDate(latest) : undefined;
+}
+
+/** 16:00 Asia/Taipei。台灣沒有日光節約時間，等於 08:00Z，日曆日與 sitemap lastmod 對齊。 */
+function generatedAtForContentDay(day: string): string {
+  return new Date(`${day}T16:00:00+08:00`).toISOString();
+}
+
+/**
+ * 早於公開內容日時，改成該內容日的穩定時間戳。
+ * 已不早於內容日的值保持原樣，避免每次建置都把 build clock 寫進發現檔。
+ */
+function discoveryGeneratedAtForContent(
+  current: unknown,
+  latestContentDay: string | undefined,
+  buildGeneratedAt: string
+): string {
+  const currentText = typeof current === "string" && current.trim() ? current : buildGeneratedAt;
+  if (!latestContentDay) return currentText;
+  const currentDay = taipeiCalendarDay(currentText);
+  if (currentDay && currentDay >= latestContentDay) return currentText;
+  return generatedAtForContentDay(latestContentDay);
+}
+
+function overlayLiveArticleCounts(target: Record<string, unknown>, live: Record<string, unknown>): void {
+  const baseContract = target.content_contract;
+  const liveContract = live.content_contract;
+  if (!isJsonRecord(baseContract) || !isJsonRecord(liveContract)) return;
+  const basePolicy = baseContract.daily_article_policy;
+  const livePolicy = liveContract.daily_article_policy;
+  if (!isJsonRecord(basePolicy) || !isJsonRecord(livePolicy)) return;
+  const policy: Record<string, unknown> = { ...basePolicy };
+  for (const field of AI_DISCOVERY_ARTICLE_COUNT_FIELDS) {
+    if (field in livePolicy) policy[field] = livePolicy[field];
+  }
+  target.content_contract = { ...baseContract, daily_article_policy: policy };
+}
+
+/**
+ * seo-overrides/ai-discovery.json 在 sitemap 依內容日期重建之後整檔蓋掉產生結果，
+ * generated_at 與貼文清單會停在覆寫檔寫入的那天。頁面文案留在覆寫檔；
+ * 貼文、文章計數與 generated_at 改跟這次產生的內容，以及 sitemap 最新 lastmod。
+ */
+async function syncPublishedAiDiscovery(options: {
+  docsRoot: string;
+  overrideRoot: string;
+  sitemapPath: string;
+  live: Record<string, unknown>;
+  buildGeneratedAt: string;
+}): Promise<void> {
+  let sitemapXml = "";
+  try {
+    sitemapXml = await readFile(options.sitemapPath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  const latestContentDay = latestSitemapContentDay(sitemapXml);
+  const docsPath = join(options.docsRoot, "ai-discovery.json");
+  const wellKnownPath = join(options.docsRoot, ".well-known", "ai.json");
+  const overridePath = join(options.overrideRoot, "ai-discovery.json");
+  const hasOverride = existsSync(overridePath);
+
+  let base = options.live;
+  if (hasOverride) {
+    const override = JSON.parse(await readFile(docsPath, "utf8")) as unknown;
+    if (!isJsonRecord(override)) {
+      throw new Error(`ai-discovery.json 必須是 JSON 物件：${docsPath}`);
+    }
+    base = override;
+  }
+
+  const published: Record<string, unknown> = { ...base };
+  for (const field of AI_DISCOVERY_LIVE_FIELDS) {
+    if (field in options.live) published[field] = options.live[field];
+  }
+  if (hasOverride) overlayLiveArticleCounts(published, options.live);
+  published.generated_at = discoveryGeneratedAtForContent(
+    published.generated_at,
+    latestContentDay,
+    options.buildGeneratedAt
+  );
+
+  await writeJsonAtomic(docsPath, published);
+  if (!hasOverride) {
+    await writeJsonAtomic(wellKnownPath, published);
+    return;
+  }
+
+  let wellKnownText = "";
+  try {
+    wellKnownText = await readFile(wellKnownPath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  const wellKnown = JSON.parse(wellKnownText) as unknown;
+  if (!isJsonRecord(wellKnown)) return;
+  const nextGeneratedAt = discoveryGeneratedAtForContent(
+    wellKnown.generated_at,
+    latestContentDay,
+    options.buildGeneratedAt
+  );
+  if (nextGeneratedAt === wellKnown.generated_at) return;
+  const stamped = wellKnownText.replace(/("generated_at"\s*:\s*")[^"]*(")/u, `$1${nextGeneratedAt}$2`);
+  if (stamped === wellKnownText) return;
+  await writeFile(wellKnownPath, stamped, "utf8");
+}
+
 function buildAiDiscovery(index: PublicPostIndex): object {
   const profile = index.business_profile;
   const publishedPosts = [...index.posts].reverse();
@@ -9462,6 +9603,13 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   }
 
   await stripExcludedPublicSitemaps(outputs.sitemap, outputs.aiSitemap, noindexOverridePaths);
+  await syncPublishedAiDiscovery({
+    docsRoot,
+    overrideRoot,
+    sitemapPath: outputs.sitemap,
+    live: aiDiscovery as Record<string, unknown>,
+    buildGeneratedAt: generatedAt
+  });
 
   return [...Object.values(outputs), ...postArticleOutputs];
 }

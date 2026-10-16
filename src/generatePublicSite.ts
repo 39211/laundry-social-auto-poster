@@ -8333,6 +8333,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const overrideRoot = join(root, "seo-overrides");
   const overrideHtmlFiles: Array<{ posixPath: string; fsPath: string }> = [];
   try {
+    const copyJobs: Array<{ fullPath: string; targetPath: string; posixPath: string; fsPath: string }> = [];
     const walkOverrides = async (dir: string, relPosixPath: string = ""): Promise<void> => {
       const entries = await readdir(dir, { withFileTypes: true });
       for (const entry of entries) {
@@ -8344,16 +8345,17 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         } else if (entry.isFile() && entry.name !== "README.md" && shouldWriteDocsPath(rel)) {
           // Convert posix path to native filesystem path for Windows compatibility
           const fsPath = rel.split("/").join(sep);
-          const targetPath = join(docsRoot, fsPath);
-          await mkdir(dirname(targetPath), { recursive: true });
-          await copyFile(fullPath, targetPath);
-          if (rel.endsWith(".html")) {
-            overrideHtmlFiles.push({ posixPath: rel, fsPath });
-          }
+          copyJobs.push({ fullPath, targetPath: join(docsRoot, fsPath), posixPath: rel, fsPath });
         }
       }
     };
     await walkOverrides(overrideRoot);
+    // 目錄走訪順序維持原本的深度優先，複製本身平行做，避免一百多個小檔的往返超時。
+    await Promise.all([...new Set(copyJobs.map((job) => dirname(job.targetPath)))].map((dir) => mkdir(dir, { recursive: true })));
+    await Promise.all(copyJobs.map((job) => copyFile(job.fullPath, job.targetPath)));
+    for (const job of copyJobs) {
+      if (job.posixPath.endsWith(".html")) overrideHtmlFiles.push({ posixPath: job.posixPath, fsPath: job.fsPath });
+    }
     if (overrideHtmlFiles.length > 0) {
       console.log(`Applied ${overrideHtmlFiles.length} SEO override HTML files`);
       
@@ -8361,17 +8363,24 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       // robots noindex pages stay on disk and can still be linked, but they are not sitemap URLs.
       const overrideLastmods = new Map<string, string>();
       const noindexOverrides = new Set<string>();
-      for (const { posixPath, fsPath } of overrideHtmlFiles) {
-        try {
-          const html = await readFile(join(docsRoot, fsPath), "utf8");
-          if (metaRobotsIsNoindex(html)) noindexOverrides.add(posixPath);
-          const dateModifiedMatch = html.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/);
-          if (dateModifiedMatch && dateModifiedMatch[1]) {
-            overrideLastmods.set(posixPath, dateModifiedMatch[1]);
+      const overrideMeta = await Promise.all(
+        overrideHtmlFiles.map(async ({ posixPath, fsPath }) => {
+          try {
+            const html = await readFile(join(docsRoot, fsPath), "utf8");
+            return {
+              posixPath,
+              noindex: metaRobotsIsNoindex(html),
+              dateModified: html.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/)?.[1]
+            };
+          } catch {
+            // If we can't read or parse, fall back to sitemapLastmodForUrl
+            return { posixPath, noindex: false, dateModified: undefined };
           }
-        } catch {
-          // If we can't read or parse, fall back to sitemapLastmodForUrl
-        }
+        })
+      );
+      for (const item of overrideMeta) {
+        if (item.noindex) noindexOverrides.add(item.posixPath);
+        if (item.dateModified) overrideLastmods.set(item.posixPath, item.dateModified);
       }
       
       // Regenerate sitemap to include override pages, skipping robots noindex

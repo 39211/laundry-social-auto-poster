@@ -1,4 +1,4 @@
-import { access, mkdir, open, readdir, readFile, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, open, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdtempSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -2849,20 +2849,7 @@ describe("generatePublicSite", () => {
     }
     
     const tempSeoOverridesDir = join(root, "seo-overrides");
-    const copyDir = async (src: string, dest: string): Promise<void> => {
-      await mkdir(dest, { recursive: true });
-      const entries = await readdir(src, { withFileTypes: true });
-      for (const entry of entries) {
-        const srcPath = join(src, entry.name);
-        const destPath = join(dest, entry.name);
-        if (entry.isDirectory()) {
-          await copyDir(srcPath, destPath);
-        } else {
-          await writeFile(destPath, await readFile(srcPath));
-        }
-      }
-    };
-    await copyDir(repoSeoOverridesDir, tempSeoOverridesDir);
+    await cp(repoSeoOverridesDir, tempSeoOverridesDir, { recursive: true });
 
     const config = getConfig();
     await writeBusinessProfile(root);
@@ -2894,17 +2881,22 @@ describe("generatePublicSite", () => {
 
     expect(overrideFiles.length).toBeGreaterThan(60);
 
-    // Verify each override file is byte-identical
-    for (const file of overrideFiles) {
-      const sourceFile = join(tempSeoOverridesDir, file);
-      const generatedFile = join(docsRoot, file);
-      
-      expect(existsSync(generatedFile), `Generated file should exist: ${file}`).toBe(true);
-      
-      const sourceContent = await readFile(sourceFile);
-      const generatedContent = await readFile(generatedFile);
-      
-      expect(generatedContent.equals(sourceContent), `File should be byte-identical: ${file}`).toBe(true);
+    // 先平行讀完再斷言，避免 Windows 上一百多個小檔的往返把這一則拖過 5 秒。
+    const compared = await Promise.all(
+      overrideFiles.map(async (file) => {
+        const sourceFile = join(tempSeoOverridesDir, file);
+        const generatedFile = join(docsRoot, file);
+        const generatedExists = existsSync(generatedFile);
+        const [sourceContent, generatedContent] = await Promise.all([
+          readFile(sourceFile),
+          generatedExists ? readFile(generatedFile) : Promise.resolve(Buffer.alloc(0))
+        ]);
+        return { file, generatedExists, sourceContent, generatedContent };
+      })
+    );
+    for (const item of compared) {
+      expect(item.generatedExists, `Generated file should exist: ${item.file}`).toBe(true);
+      expect(item.generatedContent.equals(item.sourceContent), `File should be byte-identical: ${item.file}`).toBe(true);
     }
     
     // Verify sitemap contains override URLs and no /posts/ URLs
@@ -2917,10 +2909,15 @@ describe("generatePublicSite", () => {
     // Should contain override HTML pages (except price-list.html which is noindex)
     const overrideHtmlFiles = overrideFiles.filter(f => f.endsWith(".html") && f !== "price-list.html");
     expect(overrideHtmlFiles.length).toBeGreaterThan(60);
-    for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
+    const noindexPages = await Promise.all(
+      NOINDEX_FOLLOW_LOCAL_PATHS.map(async (path) => ({
+        path,
+        html: await readFile(join(docsRoot, path.slice(1)), "utf8")
+      }))
+    );
+    for (const { path, html } of noindexPages) {
       expect(sitemap, path).not.toContain(`https://sixiangjialaundry.com${path}`);
-      const pageHtml = await readFile(join(docsRoot, path.slice(1)), "utf8");
-      expect(pageHtml, path).toContain('name="robots" content="noindex, follow"');
+      expect(html, path).toContain('name="robots" content="noindex, follow"');
     }
     expect(sitemap).toContain("https://sixiangjialaundry.com/local/west-district-laundry-pickup.html");
     expect(sitemap).toContain("https://sixiangjialaundry.com/local/fengjia-laundry-pickup.html");

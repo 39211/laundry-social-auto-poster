@@ -9013,6 +9013,97 @@ function overlayLiveArticleCounts(target: Record<string, unknown>, live: Record<
   target.content_contract = { ...baseContract, daily_article_policy: policy };
 }
 
+const INTERNAL_PLACE_NOTE = /place_id|not_verified|not verified/iu;
+
+function discoveryPlaceId(discovery: Record<string, unknown>): string {
+  const website = discovery.website;
+  const profile = discovery.business_profile;
+  const fromWebsite = isJsonRecord(website) && typeof website.google_place_id === "string" ? website.google_place_id : "";
+  const fromProfile = isJsonRecord(profile) && typeof profile.google_place_id === "string" ? profile.google_place_id : "";
+  return fromWebsite || fromProfile;
+}
+
+function isPostsHttpUrl(value: string): boolean {
+  return /^https?:\/\//iu.test(value) && value.includes("/posts/");
+}
+
+function stripPostsHttpUrls(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const item = value[index];
+      if (typeof item === "string") {
+        if (isPostsHttpUrl(item)) value[index] = "";
+      } else {
+        stripPostsHttpUrls(item);
+      }
+    }
+    return;
+  }
+  if (!isJsonRecord(value)) return;
+  for (const key of Object.keys(value)) {
+    const child = value[key];
+    if (typeof child === "string") {
+      if (isPostsHttpUrl(child)) value[key] = "";
+    } else {
+      stripPostsHttpUrls(child);
+    }
+  }
+}
+
+/**
+ * 發現檔的 Place ID 以商家檔為準，不採用覆寫檔裡的空值。
+ * 對外拿掉 not_verified、place_id 說明，以及 omitted_until_verified 的 google_place_id。
+ * sitemap 不列 /posts/，發現檔的 http 網址也不列。
+ */
+function applyPublicAiDiscoveryPolicy(published: Record<string, unknown>, live: Record<string, unknown>): void {
+  const placeId = discoveryPlaceId(live);
+  if (placeId) {
+    const website = published.website;
+    if (isJsonRecord(website)) website.google_place_id = placeId;
+
+    const profile = published.business_profile;
+    if (isJsonRecord(profile)) {
+      profile.google_place_id = placeId;
+      if (Array.isArray(profile.source_notes)) {
+        profile.source_notes = profile.source_notes.filter(
+          (note) => typeof note !== "string" || !INTERNAL_PLACE_NOTE.test(note)
+        );
+      }
+      const status = profile.verification_status;
+      if (
+        isJsonRecord(status) &&
+        typeof status.google_place_id === "string" &&
+        status.google_place_id.includes("not_verified")
+      ) {
+        status.google_place_id = placeId;
+      }
+    }
+
+    const structured = published.structured_data;
+    if (isJsonRecord(structured)) {
+      const identifiers = Array.isArray(structured.identifier) ? [...structured.identifier] : [];
+      const existing = identifiers.find(
+        (item) => isJsonRecord(item) && item.propertyID === "Google Place ID"
+      );
+      if (isJsonRecord(existing)) existing.value = placeId;
+      else {
+        identifiers.push({
+          "@type": "PropertyValue",
+          propertyID: "Google Place ID",
+          value: placeId
+        });
+      }
+      structured.identifier = identifiers;
+    }
+
+    const contract = published.content_contract;
+    if (isJsonRecord(contract) && Array.isArray(contract.omitted_until_verified)) {
+      contract.omitted_until_verified = contract.omitted_until_verified.filter((item) => item !== "google_place_id");
+    }
+  }
+  stripPostsHttpUrls(published);
+}
+
 /**
  * seo-overrides/ai-discovery.json 在 sitemap 依內容日期重建之後整檔蓋掉產生結果，
  * generated_at 與貼文清單會停在覆寫檔寫入的那天。頁面文案留在覆寫檔；
@@ -9056,6 +9147,7 @@ async function syncPublishedAiDiscovery(options: {
     latestContentDay,
     options.buildGeneratedAt
   );
+  applyPublicAiDiscoveryPolicy(published, options.live);
 
   await writeJsonAtomic(docsPath, published);
   if (!hasOverride) {
@@ -9083,10 +9175,10 @@ async function syncPublishedAiDiscovery(options: {
   await writeFile(wellKnownPath, stamped, "utf8");
 }
 
-function buildAiDiscovery(index: PublicPostIndex): object {
+function buildAiDiscovery(index: PublicPostIndex): Record<string, unknown> {
   const profile = index.business_profile;
   const publishedPosts = [...index.posts].reverse();
-  return {
+  const discovery: Record<string, unknown> = {
     schema_version: "2026-07-02",
     standard_level: "standard",
     generated_at: index.generated_at,
@@ -9107,7 +9199,11 @@ function buildAiDiscovery(index: PublicPostIndex): object {
       instagram_url: profile.instagram_url,
       line_url: profile.line_url
     },
-    business_profile: profile,
+    business_profile: {
+      ...profile,
+      source_notes: [...profile.source_notes],
+      verification_status: { ...profile.verification_status }
+    },
     local_search_targets: {
       primary_queries: LOCAL_SEARCH_QUERY_TARGETS,
       primary_area: profile.address.addressLocality,
@@ -9246,6 +9342,8 @@ function buildAiDiscovery(index: PublicPostIndex): object {
     recent_posts: publishedPosts.slice(0, 30).map((post) => postToDiscoveryRecord(post, index)),
     published_posts: index.posts.map((post) => postToDiscoveryRecord(post, index))
   };
+  applyPublicAiDiscoveryPolicy(discovery, discovery);
+  return discovery;
 }
 
 export async function generatePublicSite(options: GeneratePublicSiteOptions = {}): Promise<string[]> {

@@ -659,6 +659,8 @@ describe("generatePublicSite", () => {
       }
     });
     expect(discovery.content_contract.omitted_until_verified).toEqual(["holiday_hours_overrides"]);
+    expect(discovery.business_profile.source_notes.join("\n")).not.toMatch(/place_id|not_verified/iu);
+    expect(httpUrlsContainingPosts(discovery)).toEqual([]);
     expect(discovery.capabilities.supports_full_context).toBe(true);
     expect(discovery.capabilities.supports_search_intent_clusters).toBe(true);
     expect(discovery.capabilities.supports_28_day_ai_visibility_review).toBe(true);
@@ -3296,6 +3298,67 @@ const AI_DISCOVERY_ARTICLE_COUNT_FIELDS = [
   "article_count"
 ] as const;
 
+function httpUrlsContainingPosts(value: unknown, found: string[] = []): string[] {
+  if (typeof value === "string") {
+    if (/^https?:\/\//iu.test(value) && value.includes("/posts/")) found.push(value);
+    return found;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) httpUrlsContainingPosts(item, found);
+    return found;
+  }
+  if (value && typeof value === "object") {
+    for (const item of Object.values(value)) httpUrlsContainingPosts(item, found);
+  }
+  return found;
+}
+
+const AI_DISCOVERY_COUNT_KEYS = new Set([
+  "indexable_article_count",
+  "sitemap_max_indexable_posts",
+  "sitemap_indexable_post_count",
+  "article_count"
+]);
+
+function aiDiscoveryDifferenceAllowed(path: string): boolean {
+  const key = path.split(".").pop() ?? path;
+  return (
+    path === "generated_at" ||
+    path === "latest_date" ||
+    path === "data_quality" ||
+    path.startsWith("data_quality.") ||
+    path === "latest_posts" ||
+    path.startsWith("latest_posts.") ||
+    path === "recent_posts" ||
+    path.startsWith("recent_posts.") ||
+    path === "published_posts" ||
+    path.startsWith("published_posts.") ||
+    AI_DISCOVERY_COUNT_KEYS.has(key)
+  );
+}
+
+function aiDiscoveryDifferencePaths(generated: unknown, override: unknown, path = ""): string[] {
+  if (JSON.stringify(generated) === JSON.stringify(override)) return [];
+  if (aiDiscoveryDifferenceAllowed(path)) return [path];
+  if (
+    generated &&
+    override &&
+    typeof generated === "object" &&
+    typeof override === "object" &&
+    !Array.isArray(generated) &&
+    !Array.isArray(override)
+  ) {
+    const paths: string[] = [];
+    const left = generated as Record<string, unknown>;
+    const right = override as Record<string, unknown>;
+    for (const child of new Set([...Object.keys(left), ...Object.keys(right)])) {
+      paths.push(...aiDiscoveryDifferencePaths(left[child], right[child], path ? `${path}.${child}` : child));
+    }
+    return paths;
+  }
+  return [path];
+}
+
 function discoveryHandMaintainedFields(value: Record<string, unknown>): Record<string, unknown> {
   const clone = structuredClone(value);
   for (const field of AI_DISCOVERY_DERIVED_FIELDS) delete clone[field];
@@ -3442,6 +3505,148 @@ describe("seo overrides and URL path normalization", () => {
       "generated_at must not predate public content"
     ).toBe(true);
     expect(discovery.generated_at).toBe(new Date(`${latestContentLastmod}T16:00:00+08:00`).toISOString());
+  });
+
+  it("fills Google Place ID and drops internal notes even when the override still says they are unverified", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-ai-discovery-place-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-04");
+    const handCopy = "手寫發現文案必須留下";
+    const override = {
+      schema_version: "2026-07-02",
+      generated_at: "2026-09-25T08:00:00.000Z",
+      website: {
+        description: handCopy,
+        google_place_id: null
+      },
+      business_profile: {
+        google_place_id: null,
+        source_notes: [
+          "Google Maps short link provided by owner; resolved name/address and Maps feature id were used for business identity.",
+          "Public Google Maps page exposed Maps feature id/CID, but did not expose a Google Places API place_id; CID is stored separately and not treated as place_id."
+        ],
+        verification_status: {
+          google_place_id: "not_verified_public_maps_url_exposes_feature_id_only"
+        }
+      },
+      structured_data: {
+        identifier: [
+          {
+            "@type": "PropertyValue",
+            propertyID: "Google Maps CID",
+            value: "0x41f4295a6302e177"
+          }
+        ]
+      },
+      content_contract: {
+        cadence: "keep this sentence",
+        daily_article_policy: {
+          behavior: "keep the hand-written behavior"
+        },
+        omitted_until_verified: ["google_place_id", "holiday_hours_overrides"]
+      },
+      published_posts: [
+        {
+          article_url: "https://example.com/posts/2026-09-24-slot-01.html",
+          topic: "old-frozen-topic"
+        }
+      ]
+    };
+    const overridePath = join(root, "seo-overrides", "ai-discovery.json");
+    await mkdir(join(root, "seo-overrides"), { recursive: true });
+    await writeFile(overridePath, `${JSON.stringify(override, null, 2)}\n`, "utf8");
+
+    await generatePublicSite({
+      root,
+      siteBaseUrl: "https://example.com/",
+      imageBaseUrl: "https://example.com/",
+      now: "2026-09-25T08:00:00.000Z"
+    });
+
+    const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8")) as {
+      website: { description: string; google_place_id: string };
+      business_profile: {
+        google_place_id: string;
+        source_notes: string[];
+        verification_status: { google_place_id: string };
+      };
+      structured_data: { identifier: Array<{ propertyID: string; value: string }> };
+      content_contract: {
+        cadence: string;
+        daily_article_policy: { behavior: string };
+        omitted_until_verified: string[];
+      };
+    };
+
+    expect(await readFile(overridePath, "utf8")).toBe(`${JSON.stringify(override, null, 2)}\n`);
+    expect(discovery.website.description).toBe(handCopy);
+    expect(discovery.content_contract.cadence).toBe("keep this sentence");
+    expect(discovery.content_contract.daily_article_policy.behavior).toBe("keep the hand-written behavior");
+    expect(discovery.website.google_place_id).toBe("ChIJ9dYthxMXaTQRd-ECY1op9EE");
+    expect(discovery.business_profile.google_place_id).toBe("ChIJ9dYthxMXaTQRd-ECY1op9EE");
+    expect(discovery.business_profile.verification_status.google_place_id).toBe("ChIJ9dYthxMXaTQRd-ECY1op9EE");
+    expect(discovery.business_profile.source_notes).toEqual([
+      "Google Maps short link provided by owner; resolved name/address and Maps feature id were used for business identity."
+    ]);
+    expect(discovery.structured_data.identifier).toEqual([
+      {
+        "@type": "PropertyValue",
+        propertyID: "Google Maps CID",
+        value: "0x41f4295a6302e177"
+      },
+      {
+        "@type": "PropertyValue",
+        propertyID: "Google Place ID",
+        value: "ChIJ9dYthxMXaTQRd-ECY1op9EE"
+      }
+    ]);
+    expect(discovery.content_contract.omitted_until_verified).toEqual(["holiday_hours_overrides"]);
+    expect(JSON.stringify(discovery)).not.toContain("not_verified");
+    expect(httpUrlsContainingPosts(discovery)).toEqual([]);
+  });
+
+  it("checked-in ai-discovery differs from seo-overrides only by generated_at, counts, and lists", async () => {
+    const docs = JSON.parse(await readFile(join(__dirname, "..", "docs", "ai-discovery.json"), "utf8")) as {
+      website: { google_place_id: string };
+      business_profile: { google_place_id: string; source_notes: string[]; verification_status: { google_place_id: string } };
+      structured_data: { identifier: Array<{ propertyID: string; value: string }> };
+      content_contract: { omitted_until_verified: string[] };
+    };
+    const override = JSON.parse(
+      await readFile(join(__dirname, "..", "seo-overrides", "ai-discovery.json"), "utf8")
+    ) as Record<string, unknown>;
+    const paths = aiDiscoveryDifferencePaths(docs, override);
+    expect(paths.filter((path) => !aiDiscoveryDifferenceAllowed(path))).toEqual([]);
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        "generated_at",
+        "data_quality",
+        "latest_date",
+        "latest_posts",
+        "recent_posts",
+        "published_posts",
+        "content_contract.daily_article_policy.indexable_article_count",
+        "content_contract.daily_article_policy.sitemap_indexable_post_count",
+        "content_contract.daily_article_policy.article_count"
+      ])
+    );
+    expect(docs.website.google_place_id).toBe("ChIJ9dYthxMXaTQRd-ECY1op9EE");
+    expect(docs.business_profile.google_place_id).toBe("ChIJ9dYthxMXaTQRd-ECY1op9EE");
+    expect(docs.business_profile.verification_status.google_place_id).toBe("ChIJ9dYthxMXaTQRd-ECY1op9EE");
+    expect(override).toMatchObject({
+      website: { google_place_id: "ChIJ9dYthxMXaTQRd-ECY1op9EE" },
+      business_profile: { google_place_id: "ChIJ9dYthxMXaTQRd-ECY1op9EE" }
+    });
+    expect(docs.business_profile.source_notes.join("\n")).not.toMatch(/place_id|not_verified/iu);
+    expect(docs.content_contract.omitted_until_verified).toEqual(["holiday_hours_overrides"]);
+    expect(docs.structured_data.identifier).toContainEqual({
+      "@type": "PropertyValue",
+      propertyID: "Google Place ID",
+      value: "ChIJ9dYthxMXaTQRd-ECY1op9EE"
+    });
+    expect(JSON.stringify(docs)).not.toContain("not_verified");
+    expect(httpUrlsContainingPosts(docs)).toEqual([]);
   });
 
   it("seo override files should be byte-identical after generation", async function () {

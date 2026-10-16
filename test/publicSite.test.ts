@@ -2740,20 +2740,16 @@ describe("generatePublicSite", () => {
     expect(hub).not.toMatch(/href="(?:services|guides|local)\//u);
   }, 15000);
 
-  it("publishes approved posts as noindex daily articles per 2026-09-24 policy", async () => {
+  it("keeps below-gate approved posts noindex as daily articles", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-daily-articles-"));
     await writeBusinessProfile(root);
     await writeCalendar(root, "2026-07-02");
     await writeApprovalLog(root, "2026-07-02");
     const calendarPath = join(root, "data", "content-calendar", "2026-07-02.json");
     const calendar = JSON.parse(await readFile(calendarPath, "utf8")) as { slots: Array<Record<string, unknown>> };
-    const thickCaption = [
-      "白鞋鞋邊一圈灰，多半是髒不是黃。",
-      "先看膠邊：灰是可以清的髒，黃是氧化，只能淡化、不保證回白。鞋內有濕悶味就先通風、取出鞋墊，不要高溫烘。",
-      "拍整體、鞋邊近照與鞋內，傳 LINE 門市先看材質，再說能整理到什麼程度。台中市全區可約免費收送。"
-    ].join("\n\n");
-    calendar.slots[0]!.facebook_caption = thickCaption;
-    calendar.slots[0]!.instagram_caption = thickCaption;
+    const belowGateCaption = "白鞋鞋邊有灰，先看材質與痕跡，再決定怎麼整理。";
+    calendar.slots[0]!.facebook_caption = belowGateCaption;
+    calendar.slots[0]!.instagram_caption = belowGateCaption;
     await writeFile(calendarPath, `${JSON.stringify(calendar, null, 2)}\n`, "utf8");
     const baseUrl = "https://example.com/laundry-social-auto-poster";
     await generatePublicSite({ root, baseUrl, now: "2026-07-03T03:00:00.000Z" });
@@ -2774,8 +2770,7 @@ describe("generatePublicSite", () => {
     const thickUrl = `${baseUrl}/posts/2026-07-02-slot-01.html`;
     const thinUrl = `${baseUrl}/posts/2026-07-02-slot-02.html`;
 
-    // Per 2026-09-24 policy: all slot posts are noindex,follow to focus SEO on curated service/guide pages.
-    // The thick article still renders with full structure: article sections, FAQ schema, funnel instrumentation.
+    // The below-gate caption keeps this otherwise complete article out of indexable surfaces.
     expect(thick).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
     expect(thick).toContain('<h2 id="summary">重點摘要</h2>');
     expect(thick).toContain('<h2 id="store-note">門市筆記</h2>');
@@ -3716,6 +3711,13 @@ describe("seo overrides and URL path normalization", () => {
       }
     };
     await copyDir(repoSeoOverridesDir, tempSeoOverridesDir);
+    const tempIndexOverride = join(tempSeoOverridesDir, "index.html");
+    const tempIndexHtml = await readFile(tempIndexOverride, "utf8");
+    await writeFile(
+      tempIndexOverride,
+      tempIndexHtml.replace("<!-- SXJ:RECENT_POSTS -->", "").replace("<!-- /SXJ:RECENT_POSTS -->", ""),
+      "utf8"
+    );
 
     const config = getConfig();
     await writeBusinessProfile(root);

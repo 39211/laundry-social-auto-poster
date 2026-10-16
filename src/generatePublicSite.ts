@@ -7149,10 +7149,7 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   const render: PostArticleRender = {
     mainHtml,
     visibleChars,
-    // Hardcoded false per 2026-09-24 policy: all daily slot posts are noindex,follow
-    // to focus SEO on the curated service/guide pages. This keeps slot posts out of
-    // sitemap.xml and prevents the posts/ hub from appearing when no slots are indexable.
-    indexable: false,
+    indexable: reasons.length === 0,
     reasons,
     faqs,
     articleNumber
@@ -7612,6 +7609,61 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
       </article>`;
 }
 
+function buildHomepageRecentPostsSection(index: PublicPostIndex): string {
+  const { recentPosts, archivePosts, recentDateCount, archiveDateCount } = homepagePostGroups(index.posts);
+  const profile = index.business_profile;
+  const rows =
+    recentPosts.length > 0
+      ? recentPosts.map((post) => renderHomePostTile(post, index, profile)).join("\n")
+      : `<p class="section-copy">尚未有審核通過的公開貼文。</p>`;
+  const archiveRows = archivePosts.map((post) => renderHomePostTile(post, index, profile)).join("\n");
+  const archiveSection =
+    archivePosts.length > 0
+      ? `<details class="post-archive">
+            <summary>較早內容（${archiveDateCount} 天，${archivePosts.length} 篇）</summary>
+            <p class="section-copy">較早的門市紀錄都還在，預設收起來，免得首頁太長。</p>
+            <div class="grid three archive-list">
+        ${archiveRows}
+            </div>
+          </details>`
+      : "";
+
+  return `<section class="section surface" id="daily">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">每日洗護紀錄</span>
+            <h2>已發布社群內容</h2>
+            <p>只收錄已審核、可公開的 Facebook / Instagram 貼文；最近 ${recentDateCount} 天直接顯示，較早內容收合成 archive，但仍保留給客人、搜尋引擎和 AI 讀取。</p>
+          </div>
+          <div class="grid three post-list">
+        ${rows}
+          </div>
+          ${archiveSection}
+          <p style="margin-top:20px;"><a class="card-link" href="${escapeHtml(postsHubHref(index))}">查看每日洗護紀錄總覽 →</a></p>
+        </div>
+      </section>`;
+}
+
+const RECENT_POSTS_OPEN_MARKER = "<!-- SXJ:RECENT_POSTS -->";
+const RECENT_POSTS_CLOSE_MARKER = "<!-- /SXJ:RECENT_POSTS -->";
+
+async function injectHomepageRecentPosts(index: PublicPostIndex, indexPath: string): Promise<void> {
+  const html = await readFile(indexPath, "utf8");
+  const openCount = html.split(RECENT_POSTS_OPEN_MARKER).length - 1;
+  const closeCount = html.split(RECENT_POSTS_CLOSE_MARKER).length - 1;
+  const openAt = html.indexOf(RECENT_POSTS_OPEN_MARKER);
+  const contentStart = openAt + RECENT_POSTS_OPEN_MARKER.length;
+  const closeAt = html.indexOf(RECENT_POSTS_CLOSE_MARKER, contentStart);
+
+  if (openCount !== 1 || closeCount !== 1 || openAt < 0 || closeAt < contentStart) {
+    console.warn("SEO override docs/index.html has missing or malformed SXJ:RECENT_POSTS markers; recent posts were not injected.");
+    return;
+  }
+
+  const next = html.slice(0, contentStart) + buildHomepageRecentPostsSection(index) + html.slice(closeAt);
+  if (next !== html) await writeFile(indexPath, next, "utf8");
+}
+
 function buildIndexHtml(index: PublicPostIndex): string {
   const profile = index.business_profile;
   const lineNav = trackedLineUrl(index, { section: "home", placement: "nav" });
@@ -7619,7 +7671,6 @@ function buildIndexHtml(index: PublicPostIndex): string {
   const lineInline = trackedLineUrl(index, { section: "home", placement: "inline" });
   const linePickup = trackedLineUrl(index, { section: "home", placement: "pickup" });
   const lineFooter = trackedLineUrl(index, { section: "home", placement: "footer" });
-  const { recentPosts, archivePosts, recentDateCount, archiveDateCount } = homepagePostGroups(index.posts);
   const heroImage = primaryHomeImage(index);
   const heroImageSrc = heroImage ? visibleImageSrc(heroImage, index) : "";
   const heroWebpSrc = heroImage ? webpSrcFor(heroImage.image_path, heroImageSrc) : undefined;
@@ -7654,21 +7705,6 @@ function buildIndexHtml(index: PublicPostIndex): string {
     navLabel: "主選單",
     postsHubHref: postsHubHref(index)
   };
-  const rows =
-    recentPosts.length > 0
-      ? recentPosts.map((post) => renderHomePostTile(post, index, profile)).join("\n")
-      : `<p class="section-copy">尚未有審核通過的公開貼文。</p>`;
-  const archiveRows = archivePosts.map((post) => renderHomePostTile(post, index, profile)).join("\n");
-  const archiveSection =
-    archivePosts.length > 0
-      ? `<details class="post-archive">
-            <summary>較早內容（${archiveDateCount} 天，${archivePosts.length} 篇）</summary>
-            <p class="section-copy">較早的門市紀錄都還在，預設收起來，免得首頁太長。</p>
-            <div class="grid three archive-list">
-        ${archiveRows}
-            </div>
-          </details>`
-      : "";
   const serviceCards = SERVICE_PAGE_DEFINITIONS.map((service) =>
     renderServiceProductCard(service, index, servicePageUrl(service, index), { withImage: true, servicePage: true })
   ).join("\n");
@@ -7924,20 +7960,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
           <p style="margin-top:20px;"><a class="card-link" href="${escapeHtml(knowledgeHubHref(index))}">查看洗護知識庫總覽 →</a></p>
         </div>
       </section>
-      <section class="section surface" id="daily">
-        <div class="page-shell">
-          <div class="section-header">
-            <span class="eyebrow">每日洗護紀錄</span>
-            <h2>已發布社群內容</h2>
-            <p>只收錄已審核、可公開的 Facebook / Instagram 貼文；最近 ${recentDateCount} 天直接顯示，較早內容收合成 archive，但仍保留給客人、搜尋引擎和 AI 讀取。</p>
-          </div>
-          <div class="grid three post-list">
-        ${rows}
-          </div>
-          ${archiveSection}
-          <p style="margin-top:20px;"><a class="card-link" href="${escapeHtml(postsHubHref(index))}">查看每日洗護紀錄總覽 →</a></p>
-        </div>
-      </section>
+      ${buildHomepageRecentPostsSection(index)}
       <section class="section" id="homepage-faq">
         <div class="page-shell">
           <div class="section-header">
@@ -9598,6 +9621,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   );
   const postArticleOutputs = await writePostArticlePages(articlePosts, index, postsRoot);
   await writeFile(outputs.nojekyll, "", "utf8");
+  const generatedSitemapXml = await readFile(outputs.sitemap, "utf8");
 
   // Apply SEO overrides: copy hand-maintained pages from seo-overrides/ to docs/
   // These pages contain the full content from PR #7, #8, #9 (answer boxes, FAQs, internal links)
@@ -9605,6 +9629,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const overrideRoot = join(root, "seo-overrides");
   const overrideHtmlFiles: Array<{ posixPath: string; fsPath: string }> = [];
   const noindexOverridePaths = new Set<string>();
+  let overrideSitemapCopied = false;
   try {
     const walkOverrides = async (dir: string, relPosixPath: string = ""): Promise<void> => {
       const entries = await readdir(dir, { withFileTypes: true });
@@ -9620,6 +9645,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
           const targetPath = join(docsRoot, fsPath);
           await mkdir(dirname(targetPath), { recursive: true });
           await copyFile(fullPath, targetPath);
+          if (rel === "sitemap.xml") overrideSitemapCopied = true;
           if (rel.endsWith(".html")) {
             overrideHtmlFiles.push({ posixPath: rel, fsPath });
           }
@@ -9673,7 +9699,10 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         const existingUrls = Array.from(existingSitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
           .map(m => m[1])
           .filter((url): url is string => typeof url === "string");
-        const allUrls = Array.from(new Set([...existingUrls, ...overrideUrls])).filter(
+        const generatedUrls = Array.from(generatedSitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g))
+          .map(m => m[1])
+          .filter((url): url is string => typeof url === "string");
+        const allUrls = Array.from(new Set([...generatedUrls, ...existingUrls, ...overrideUrls])).filter(
           (url) => !sitemapShouldOmitUrl(url, noindexOverridePaths)
         );
         
@@ -9703,6 +9732,31 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         await writeFile(outputs.sitemap, newSitemap, "utf8");
         console.log(`Updated sitemap with ${allUrls.length} total URLs (including ${overrideUrls.length} from overrides)`);
       }
+    } else if (index.base_url_configured && overrideSitemapCopied) {
+      const overrideSitemap = await readFile(outputs.sitemap, "utf8");
+      const overrideUrls = Array.from(overrideSitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
+        .map((match) => match[1])
+        .filter((url): url is string => typeof url === "string");
+      const generatedUrls = Array.from(generatedSitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g))
+        .map((match) => match[1])
+        .filter((url): url is string => typeof url === "string");
+      const allUrls = Array.from(new Set([...generatedUrls, ...overrideUrls]));
+      const items = allUrls
+        .map((url) => {
+          const lastmod = sitemapLastmodForUrl(url, index);
+          const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
+          return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
+        })
+        .join("\n");
+      const newSitemap = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        items,
+        "</urlset>",
+        ""
+      ].join("\n");
+      await writeFile(outputs.sitemap, newSitemap, "utf8");
+      console.log("Updated sitemap with " + allUrls.length + " total URLs (including sitemap override)");
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
@@ -9711,6 +9765,11 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     // seo-overrides/ directory doesn't exist, skip
   }
 
+  if (overrideHtmlFiles.some(({ posixPath }) => posixPath === "index.html")) {
+    await injectHomepageRecentPosts(index, outputs.index);
+  }
+
+  await stripUnindexablePostsFromSitemaps(index, outputs.sitemap, outputs.aiSitemap);
   await stripExcludedPublicSitemaps(outputs.sitemap, outputs.aiSitemap, noindexOverridePaths);
   await syncPublishedAiDiscovery({
     docsRoot,

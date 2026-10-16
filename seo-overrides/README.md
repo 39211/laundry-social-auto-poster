@@ -35,7 +35,7 @@
 
 ## 驗證
 
-`npm test` 包含一個測試，確保每個 override 文件在生成後與源文件逐字節相同。
+`npm test` 包含一個測試，確保每個 override 文件在生成後與源文件逐字節相同；首頁兩個標記之間的區塊例外（由產線注入）。
 
 ## 2026-09-25 第一批意圖頁
 
@@ -44,3 +44,16 @@
 ## 2026-09-26 NAP
 
 公開名稱：私享家洗衣店（西屯門市）。地址：台中市西屯區青海路二段365號（至善國中對面）。網站：https://sixiangjialaundry.com/ 。門市市話 04-2452-7411（+886-4-2452-7411）。LINE／手機 0968-327-653（+886-968-327-653；`line_id` 仍為 0968327653）。服務範圍：台中全市免費收送；實體門市僅西屯此一處。不要寫東海有門市，不要寫 10 公里服務圈。
+
+## 部署時的所有權(2026-10-17 起)
+
+| 擁有者 | 範圍與部署行為 |
+| --- | --- |
+| SEO desk | 本目錄所有檔，部署時覆蓋正式站；以下產線擁有範圍依合併與排除規則保留。首頁標記之外與 sitemap 原始內容由 SEO desk 擁有。 |
+| 產線 | 首頁 `<!-- SXJ:RECENT_POSTS -->` 與 `<!-- /SXJ:RECENT_POSTS -->` 兩個標記之間的區塊；`posts/` 底下全部；`rss.xml`、`feed.json`、`ai-sitemap.xml`；正式 sitemap 裡的 `/posts/` 網址。 |
+
+- 編輯首頁時保留那對標記（恰一對、先開後關），各自獨占一行。部署使用 main 的首頁，只將標記之間換成產線內容；標記異常時警告並保留 main 首頁原樣。
+- 本目錄的 `sitemap.xml` 不要放 `/posts/` 網址（部署會擋）；部署逐位元組保留這份 sitemap，僅在結尾追加產線可索引且目標存在的 `/posts/` 網址。
+- 不要在本目錄放 `rss.xml`、`feed.json`、`ai-sitemap.xml` 或 `posts/`（部署會略過並警告）；這些檔案與貼文 robots 由產線決定。
+
+`guides/luxury-bag-mold.html`、`guides/bedding-duvet-cleaning.html`、`services/taichung-citywide-laundry-pickup.html` 這三頁在 PR #195 合併後會含 `sxj-card-*` 圖卡 figure;之後 SEO desk 同步這三頁時要保留圖卡(目前 main 上還沒有)。

@@ -8009,6 +8009,82 @@
         ],
         "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-16.json"
       }
+    },
+    {
+      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-17.json#post-2026-10-17-slot-01",
+      "url": "https://sixiangjialaundry.com/posts/2026-10-17-slot-01.html",
+      "title": "2026-10-17 11:30 只有一雙鞋？也能約免費收送",
+      "date_published": "2026-10-17T11:30:00+08:00",
+      "content_text": "只有一雙鞋？也能約免費收送。\n\n只有一雙鞋，也能約收送，不用湊件數。\n\n可以，一雙也收。約妥後到府收件，洗好送回；收與送都免費，無低消。\n\n老實說：時段由門市回覆確認；洗護費另計，依物件確認。\n\nLINE 點「到府收送」選收件時段，留下地址、電話，再選擇物件類型並按「確認送出」；時段由門市回覆確認。\n\n免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）\n\n#私享家洗衣店 #台中西屯洗衣店 #鞋子送洗 #一雙也收 #洗衣收送",
+      "summary": "只有一雙鞋？也能約免費收送",
+      "image": "https://sixiangjialaundry.com/assets/2026-10-17/slot-01.png",
+      "tags": [
+        "私享家洗衣店",
+        "台中西屯洗衣店",
+        "鞋子送洗",
+        "一雙也收",
+        "洗衣收送"
+      ],
+      "_sixiangjia": {
+        "slot": 1,
+        "category": "知識文",
+        "visual_route": "shop-inspection",
+        "traffic_route": "value-prop-lead",
+        "content_role": "reach-answer",
+        "search_intent": "problem-diagnosis",
+        "target_queries": [
+          "一雙鞋也收送嗎",
+          "鞋子收送洗衣",
+          "一雙鞋送洗預約",
+          "LINE 鞋子收送預約",
+          "鞋子收送無低消",
+          "私享家鞋子收送"
+        ],
+        "evidence_type": "",
+        "platforms": [
+          "facebook",
+          "instagram"
+        ],
+        "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-17.json"
+      }
+    },
+    {
+      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-17.json#post-2026-10-17-slot-02",
+      "url": "https://sixiangjialaundry.com/posts/2026-10-17-slot-02.html",
+      "title": "2026-10-17 20:30 一雙也歡迎：收一次，送一次，都免費。",
+      "date_published": "2026-10-17T20:30:00+08:00",
+      "content_text": "就一雙鞋髒了，好意思叫人跑一趟嗎？\n\nLINE 約好時間，師傅到了會打電話給你。\n\n問了一句，師傅真的來了。\n\n鞋子大約七天。\n\n一般運動鞋水洗怎麼算？\n\n參考價兩百五十元，實際以報價為主。\n\n洗好先傳明細，送回時間你來選。\n\n原來，一雙也不用不好意思。\n\n台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）\n\n#私享家洗衣店 #台中西屯洗衣店 #鞋子送洗 #一雙也收 #洗衣收送",
+      "summary": "一雙也歡迎：收一次，送一次，都免費。",
+      "image": "https://sixiangjialaundry.com/assets/2026-10-17/slot-02.png",
+      "tags": [
+        "私享家洗衣店",
+        "台中西屯洗衣店",
+        "鞋子送洗",
+        "一雙也收",
+        "洗衣收送"
+      ],
+      "_sixiangjia": {
+        "slot": 2,
+        "category": "情境文",
+        "visual_route": "shop-inspection",
+        "traffic_route": "object-proof",
+        "content_role": "evidence-conversion",
+        "search_intent": "problem-diagnosis",
+        "target_queries": [
+          "一雙鞋也收送嗎",
+          "鞋子收送洗衣",
+          "一雙鞋送洗預約",
+          "LINE 鞋子收送預約",
+          "鞋子收送無低消",
+          "私享家鞋子收送"
+        ],
+        "evidence_type": "",
+        "platforms": [
+          "facebook",
+          "instagram"
+        ],
+        "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-17.json"
+      }
     }
   ]
 }

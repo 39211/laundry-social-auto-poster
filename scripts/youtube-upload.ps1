@@ -135,18 +135,23 @@ foreach ($slotNumber in @(2, 3)) {
     }
 }
 
-Publish-Site
-
 if ($needAuth) {
     Show-Toast "Reel 已發布，但 YouTube 還沒授權。跑一次 npm run youtube-auth 完成設定。"
-    exit 0
 }
-if ($failed) {
+if ($failed -and -not $needAuth) {
     Show-Toast "今天的 Reel 上傳 YouTube 失敗，請看 output\youtube-logs\$date.log"
-    exit 1
 }
 if (-not $anyUpload -and -not $anySkip) {
     Write-Log "No live Reel on slot 2 or 3 today; nothing to upload."
+}
+
+Publish-Site
+
+if ($needAuth) {
+    exit 0
+}
+if ($failed) {
+    exit 1
 }
 } finally {
     Remove-Item $singleFlight -Force -ErrorAction SilentlyContinue

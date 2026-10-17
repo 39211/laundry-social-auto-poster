@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -73,13 +73,74 @@ async function seedCalendar(root: string): Promise<void> {
   await writeJson(join(root, "data", "approved-log", `${DATE}.json`), approvals);
 }
 
-async function generate(root: string, now = GENERATED_AT): Promise<void> {
+async function generate(
+  root: string,
+  now = GENERATED_AT,
+  statPublicAsset?: (filePath: string) => { isFile(): boolean }
+): Promise<void> {
   await generatePublicSite({
     root,
     siteBaseUrl: `${BASE_URL}/`,
     imageBaseUrl: `${BASE_URL}/`,
-    now
+    now,
+    ...(statPublicAsset ? { statPublicAsset } : {})
   });
+}
+
+async function seedOrderingDailySequence(root: string): Promise<void> {
+  await mkdir(join(root, "data", "content-calendar"), { recursive: true });
+  await mkdir(join(root, "data", "approved-log"), { recursive: true });
+  await mkdir(join(root, "docs", "content-calendar"), { recursive: true });
+  const profile = await readFile(join(process.cwd(), "data", "business-profile.json"), "utf8");
+  await writeFile(join(root, "data", "business-profile.json"), profile, "utf8");
+
+  for (const [date, slotNumbers] of [
+    ["2026-07-02", [1, 2]],
+    ["2026-07-04", [1]],
+    ["2026-07-06", [1]]
+  ] as const) {
+    const slots = slotNumbers.map((slotNumber) => {
+      const caption = `${date} 第${slotNumber}件門市紀錄。\n\n${THICK_CAPTION}`;
+      return {
+        slot: slotNumber,
+        time: slotNumber === 1 ? "11:30" : "19:30",
+        category: slotNumber === 1 ? "knowledge" : "situation",
+        topic: `日更 ${date} ${slotNumber}`,
+        instagram_caption: caption,
+        facebook_caption: caption,
+        image_prompt: "fixture image prompt",
+        visual_route: "shop-inspection",
+        traffic_route: "object-proof",
+        search_intent: "problem-diagnosis",
+        target_queries: ["台中洗鞋店", "白鞋清潔"],
+        evidence_type: "first-party-inspection",
+        local_image_path: "fixture-image.png",
+        public_image_url: "",
+        status: "pending",
+        date
+      };
+    });
+    const calendar = { date, timezone: "Asia/Taipei", generated_at: `${date}T00:00:00.000Z`, slots };
+    const serialized = JSON.stringify(calendar, null, 2) + "\n";
+    await Promise.all([
+      writeFile(join(root, "data", "content-calendar", `${date}.json`), serialized, "utf8"),
+      writeFile(join(root, "docs", "content-calendar", `${date}.json`), serialized, "utf8")
+    ]);
+    await writeJson(
+      join(root, "data", "approved-log", `${date}.json`),
+      slots.flatMap((slot) =>
+        (["facebook", "instagram"] as const).map((platform) => ({
+          date,
+          slot: slot.slot,
+          platform,
+          status: "approved",
+          approved_by: "SEO Sync R2 test",
+          note: "Fixture approval",
+          created_at: `${date}T02:20:00.000Z`
+        }))
+      )
+    );
+  }
 }
 
 async function postHtml(root: string, filename = `${DATE}-slot-01.html`): Promise<string> {
@@ -91,10 +152,14 @@ async function writePublicationLog(root: string, directory: string, filename: st
 }
 
 function videoObjectFrom(html: string): Record<string, unknown> | undefined {
+  return schemaGraphFrom(html).find((entry) => entry["@type"] === "VideoObject");
+}
+
+function schemaGraphFrom(html: string): Array<Record<string, unknown>> {
   const jsonLd = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/u)?.[1];
-  if (!jsonLd) return undefined;
+  if (!jsonLd) return [];
   const parsed = JSON.parse(jsonLd) as { "@graph"?: Array<Record<string, unknown>> };
-  return parsed["@graph"]?.find((entry) => entry["@type"] === "VideoObject");
+  return parsed["@graph"] ?? [];
 }
 
 afterEach(async () => {
@@ -112,6 +177,8 @@ describe("SEO-SYNC-P1 public publication sync", () => {
 
     const html = await postHtml(root);
     expect(html).toContain('src="https://www.youtube-nocookie.com/embed/AbCdEfGh123"');
+    expect(html).toMatch(/<iframe[^>]*width="360"[^>]*height="640"/u);
+    expect(html).toMatch(/\.article-social-video iframe\s*\{[^}]*aspect-ratio:\s*9 \/ 16/iu);
     expect(html).toContain('loading="lazy"');
     expect(html).toContain(`href="https://www.youtube.com/shorts/AbCdEfGh123"`);
     expect(html).toContain("在 YouTube 觀看");
@@ -214,12 +281,13 @@ describe("SEO-SYNC-P1 public publication sync", () => {
 
     const filename = `${DATE}-feature-white-shoe-story.html`;
     const url = `${BASE_URL}/posts/${filename}`;
-    const [feature, hub, feedText, sitemap, aiSitemap] = await Promise.all([
+    const [feature, hub, feedText, sitemap, aiSitemap, rss] = await Promise.all([
       postHtml(root, filename),
       readFile(join(root, "docs", "posts", "index.html"), "utf8"),
       readFile(join(root, "docs", "feed.json"), "utf8"),
       readFile(join(root, "docs", "sitemap.xml"), "utf8"),
-      readFile(join(root, "docs", "ai-sitemap.xml"), "utf8")
+      readFile(join(root, "docs", "ai-sitemap.xml"), "utf8"),
+      readFile(join(root, "docs", "rss.xml"), "utf8")
     ]);
     const feed = JSON.parse(feedText) as { items: Array<{ url: string; title: string }> };
     expect(feature).toContain("白鞋鞋邊清潔紀錄");
@@ -229,6 +297,13 @@ describe("SEO-SYNC-P1 public publication sync", () => {
     expect(feed.items).toContainEqual(expect.objectContaining({ url, title: "白鞋鞋邊清潔紀錄" }));
     expect(sitemap).toContain(url);
     expect(aiSitemap).toContain(url);
+    expect(rss).toContain('<enclosure url="https://i.ytimg.com/vi/FeatureVid12/hqdefault.jpg" type="image/jpeg"');
+    const sitemapLocs = Array.from(aiSitemap.matchAll(/<loc>([^<]+)<\/loc>/gu), (match) => match[1]!);
+    expect(sitemapLocs.every((loc) => new URL(loc).host === new URL(BASE_URL).host)).toBe(true);
+    const youtubeVideo = schemaGraphFrom(feature).find((entry) => entry["@id"] === `${url}#youtube-video`);
+    expect(youtubeVideo).toBeDefined();
+    expect(youtubeVideo).not.toHaveProperty("width");
+    expect(youtubeVideo).not.toHaveProperty("height");
   });
 
   it("does not generate a future-dated feature reel even if its log says success", async () => {
@@ -258,6 +333,146 @@ describe("SEO-SYNC-P1 public publication sync", () => {
     expect(feedText).not.toContain("未來日期影片");
     expect(sitemap).not.toContain("2026-07-04-feature-future-feature.html");
     expect(aiSitemap).not.toContain("2026-07-04-feature-future-feature.html");
+  });
+
+  it("keeps a same-day feature scheduled after build time out of all public surfaces", async () => {
+    const root = newRoot();
+    await seedCalendar(root);
+    await writeJson(join(root, "data", "feature-reels", `${DATE}.json`), {
+      date: DATE,
+      slug: "later-today-feature",
+      video_url: "https://cdn.example.com/later-today.mp4",
+      local_video_path: "",
+      facebook_caption: THICK_CAPTION,
+      instagram_caption: THICK_CAPTION,
+      youtube_title: "今天稍後排程的影片"
+    });
+    await writePublicationLog(root, "feature-posted-log", `${DATE}.json`, [
+      {
+        platform: "youtube",
+        slug: "later-today-feature",
+        status: "scheduled",
+        post_id: "LaterToday123",
+        scheduled_publish_at: "2026-07-02T15:00:00.000Z",
+        at: "2026-07-02T10:00:00.000Z"
+      }
+    ]);
+    await generate(root, "2026-07-02T12:00:00.000Z");
+
+    const filename = `${DATE}-feature-later-today-feature.html`;
+    const [hub, feed, sitemap, aiSitemap] = await Promise.all([
+      readFile(join(root, "docs", "posts", "index.html"), "utf8"),
+      readFile(join(root, "docs", "feed.json"), "utf8"),
+      readFile(join(root, "docs", "sitemap.xml"), "utf8"),
+      readFile(join(root, "docs", "ai-sitemap.xml"), "utf8")
+    ]);
+    expect(existsSync(join(root, "docs", "posts", filename))).toBe(false);
+    expect(hub).not.toContain(filename);
+    expect(feed).not.toContain("今天稍後排程的影片");
+    expect(sitemap).not.toContain(filename);
+    expect(aiSitemap).not.toContain(filename);
+  });
+
+  it("omits a missing local feature video while keeping its public YouTube embed", async () => {
+    const root = newRoot();
+    const videoUrl = `${BASE_URL}/videos/missing-feature.mp4`;
+    await seedCalendar(root);
+    await writeJson(join(root, "data", "feature-reels", `${DATE}.json`), {
+      date: DATE,
+      slug: "missing-local-video",
+      video_url: videoUrl,
+      local_video_path: "",
+      facebook_caption: THICK_CAPTION,
+      instagram_caption: THICK_CAPTION,
+      youtube_title: "本地影片缺檔仍保留 YouTube"
+    });
+    await writePublicationLog(root, "feature-posted-log", `${DATE}.json`, [
+      {
+        platform: "youtube",
+        slug: "missing-local-video",
+        status: "scheduled",
+        post_id: "FeatureStillLive123",
+        scheduled_publish_at: "2026-07-02T05:00:00.000Z",
+        at: "2026-07-02T04:30:00.000Z"
+      }
+    ]);
+    const statCalls: string[] = [];
+    await generate(root, GENERATED_AT, (filePath) => {
+      statCalls.push(filePath);
+      throw Object.assign(new Error("Missing fixture media"), { code: "ENOENT" });
+    });
+
+    const filename = `${DATE}-feature-missing-local-video.html`;
+    const html = await postHtml(root, filename);
+    expect(statCalls).toContain(join(root, "docs", "videos", "missing-feature.mp4"));
+    expect(html).not.toMatch(/<video\b/iu);
+    expect(html).not.toContain(videoUrl);
+    expect(html).toContain("youtube-nocookie.com/embed/FeatureStillLive123");
+    const graph = schemaGraphFrom(html);
+    expect(graph.some((entry) => entry["@id"] === `${BASE_URL}/posts/${filename}#video`)).toBe(false);
+    expect(graph.some((entry) => entry["@id"] === `${BASE_URL}/posts/${filename}#youtube-video`)).toBe(true);
+
+    const publicText = await Promise.all(
+      [
+        "feed.json",
+        "rss.xml",
+        "latest.json",
+        "social-posts.json",
+        "ai-discovery.json",
+        "knowledge-graph.json",
+        "llms.txt",
+        "llms-lite.txt",
+        "llms-full.txt",
+        "llms.jsonl"
+      ].map((file) => readFile(join(root, "docs", file), "utf8"))
+    );
+    expect(publicText.every((text) => !text.includes(videoUrl))).toBe(true);
+  });
+
+  it("keeps daily Day numbers and previous/next links stable when a feature sits between them", async () => {
+    const withFeature = newRoot();
+    const withoutFeature = newRoot();
+    for (const root of [withFeature, withoutFeature]) await seedOrderingDailySequence(root);
+    await writeJson(join(withFeature, "data", "feature-reels", "2026-07-03.json"), {
+      date: "2026-07-03",
+      slug: "between-daily-posts",
+      video_url: "",
+      local_video_path: "",
+      facebook_caption:
+        "特色影片紀錄門市的洗護流程。\n\n先確認物件材質與髒污位置，再依狀況選擇整理方式。不同表面、使用時間與磨損程度都會影響處理結果，會先說明可處理的範圍。\n\n送件前拍整體與細節傳 LINE，門市先看材質和痕跡，再說明下一步。台中市全區可約免費收送，清潔費依物件狀態另計。",
+      instagram_caption: "特色影片短版",
+      youtube_title: "日更之間的特色影片"
+    });
+    await writePublicationLog(withFeature, "feature-posted-log", "2026-07-03.json", [
+      { platform: "facebook", slug: "between-daily-posts", status: "success", post_id: "123456789_777888999", at: "2026-07-03T04:35:00Z" }
+    ]);
+    const generatedAt = "2026-07-07T03:00:00.000Z";
+    await Promise.all([generate(withFeature, generatedAt), generate(withoutFeature, generatedAt)]);
+
+    const laterDailyFilename = "2026-07-04-slot-01.html";
+    const [withDaily, withoutDaily, featureHtml, hub] = await Promise.all([
+      postHtml(withFeature, laterDailyFilename),
+      postHtml(withoutFeature, laterDailyFilename),
+      postHtml(withFeature, "2026-07-03-feature-between-daily-posts.html"),
+      readFile(join(withFeature, "docs", "posts", "index.html"), "utf8")
+    ]);
+    const ordering = (html: string) => ({
+      day: html.match(/每日洗護紀錄｜Day \d+/u)?.[0],
+      previous: html.match(/上一則｜<a[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/u)?.slice(1),
+      next: html.match(/下一則｜<a[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/u)?.slice(1)
+    });
+    expect(ordering(withDaily)).toEqual(ordering(withoutDaily));
+    expect(ordering(withDaily).day).toBe("每日洗護紀錄｜Day 3");
+    expect(ordering(withDaily).previous?.[1]).toContain("Day 2");
+    expect(ordering(withDaily).next?.[1]).toContain("Day 4");
+    expect(featureHtml).toContain("特色影片");
+    expect(featureHtml).not.toMatch(/Day \d+/u);
+    expect(featureHtml).not.toContain("上一則｜");
+    expect(featureHtml).not.toContain("下一則｜");
+    expect(featureHtml).not.toContain('property="og:image"');
+    expect(featureHtml).not.toContain('name="twitter:image"');
+    expect(schemaGraphFrom(featureHtml).some((entry) => entry["@type"] === "ImageObject")).toBe(false);
+    expect(hub).toContain("特色影片｜2026-07-03");
   });
 
   it("leaves a post with no publication records byte-identical to the pre-sync renderer", async () => {

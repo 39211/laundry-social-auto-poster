@@ -87,6 +87,10 @@ export interface DailySlot {
   time: string;
   category: Category;
   topic: string;
+  /** Exact extension-plan item shared by the day's images. */
+  planned_object?: string;
+  /** Persisted declaration used when rebuilding stored image prompts. */
+  planned_category?: string;
   format?: string;
   media_type?: MediaType;
   instagram_caption: string;

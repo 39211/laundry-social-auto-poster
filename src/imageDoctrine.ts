@@ -310,6 +310,44 @@ const NEGATIVES: Record<ObjectFamily, string> = {
   other: "Avoid: brand logos, readable text on the object, a second object of the same kind, a waxy plastic-coated surface, a second hand."
 };
 
+/** Fixed plan declarations; never classify an object's or a topic's free text. */
+export const PLANNED_OBJECT_CATEGORIES = {
+  coat: { family: "garment", label: "coat", negatives: NEGATIVES.garment },
+  jacket: { family: "garment", label: "jacket", negatives: NEGATIVES.garment },
+  sweater: { family: "garment", label: "sweater", negatives: NEGATIVES.garment },
+  shirt: { family: "garment", label: "shirt", negatives: NEGATIVES.garment },
+  jeans: { family: "garment", label: "jeans", negatives: NEGATIVES.garment },
+  trousers: { family: "garment", label: "trousers", negatives: NEGATIVES.garment },
+  dress: { family: "garment", label: "dress", negatives: NEGATIVES.garment },
+  suit: { family: "garment", label: "suit", negatives: NEGATIVES.garment },
+  uniform: { family: "garment", label: "uniform", negatives: NEGATIVES.garment },
+  bedding: { family: "bedding", label: "bedding", negatives: NEGATIVES.bedding },
+  handbag: { family: "bag", label: "handbag", negatives: NEGATIVES.bag },
+  shoes: { family: "shoe", label: "shoes", negatives: NEGATIVES.shoe },
+  boots: { family: "shoe", label: "boots", negatives: NEGATIVES.shoe },
+  plush: { family: "plush", label: "plush", negatives: NEGATIVES.plush },
+  rug: { family: "other", label: "rug", negatives: NEGATIVES.other },
+  note: { family: "other", label: "note", negatives: NEGATIVES.other },
+  "garments-in-bag": {
+    family: "garment", label: "jackets and coats in one pickup bag",
+    negatives: "Avoid: readable care-label or hang-tag text, a mannequin, a waxy plastic-coated surface, a second hand."
+  }
+} satisfies Record<string, { family: ObjectFamily; label: string; negatives: string }>;
+
+export type PlannedObjectCategory = keyof typeof PLANNED_OBJECT_CATEGORIES;
+export const NEUTRAL_PLANNED_OBJECT = {
+  family: "other", label: undefined,
+  negatives: "Avoid: brand logos, readable text on the object, a waxy plastic-coated surface, a second hand."
+} as const;
+
+export function isPlannedObjectCategory(category: unknown): category is PlannedObjectCategory {
+  return typeof category === "string" && Object.hasOwn(PLANNED_OBJECT_CATEGORIES, category);
+}
+
+export function plannedObjectRule(category: unknown): { family: ObjectFamily; label?: string; negatives: string } {
+  return isPlannedObjectCategory(category) ? PLANNED_OBJECT_CATEGORIES[category] : NEUTRAL_PLANNED_OBJECT;
+}
+
 export function familyNegatives(family: ObjectFamily): string {
   return NEGATIVES[family];
 }
@@ -373,10 +411,12 @@ export function sceneStationForDate(date: string): SceneStation {
   return SCENE_STATIONS[n % SCENE_STATIONS.length] ?? SCENE_STATIONS[0]!;
 }
 
-export function compositionBlock(slide: number, spot?: string, opening = false, tool = "a tool"): string {
+export function compositionBlock(slide: number, spot?: string, opening = false, tool = "a tool", plannedObject = false): string {
   if (slide === 1) {
     const open = opening
-      ? " Because the problem is inside, the item is opened toward the camera: the insole pulled halfway out, the opening tilted to the lens, or the lining turned outward, so the marked area is fully visible."
+      ? plannedObject
+        ? " Because the problem is inside, open only the interior area named in OBJECT PASSPORT toward the camera so it is fully visible."
+        : " Because the problem is inside, the item is opened toward the camera: the insole pulled halfway out, the opening tilted to the lens, or the lining turned outward, so the marked area is fully visible."
       : "";
     return (
       "COMPOSITION (hero, crop allowed): frame the half of the object that carries the problem, the object cut by the frame edge on one side and set off-centre with its mass near x=40% or x=60%, filling 60-75% of the frame height; one adult hand entering from the frame edge, wrist only, fingers holding or pressing right beside the problem area with five clearly separated fingers; " +
@@ -426,17 +466,25 @@ export interface DoctrinePromptInput {
   wearKind: string;
   spots: string[];
   passport: string;
+  planned_object?: string;
+  planned_category?: string;
   briefs: string[];
   sameGarment: string;
 }
 
 /** Full four-slide prompt set in doctrine order: passport, wear first, optics, station, framing, light, style, lens, colour, brief, negatives. */
 export function buildDoctrinePrompts(input: DoctrinePromptInput): string[] {
-  const family = objectFamily(input.spec);
+  const identity = input.planned_object ? plannedObjectRule(input.planned_category) : undefined;
+  const family = identity?.family ?? objectFamily(input.spec);
   const station = sceneStationForDate(input.date);
   const tool = familyTool(family);
-  const opening = needsOpening(input.spots, input.spec.wear);
-  const subject = `${input.passport} ${wearMechanism(input.wearKind, input.spots, input.spec.wear)} ${materialOptics(input.spec)}`;
+  const opening = needsOpening(input.spots, input.planned_object ? "" : input.spec.wear);
+  // A committed item owns its identity AND condition. Topic defaults can add
+  // another fabric, trim, stain or damage size even after the passport is fixed.
+  const surface = input.planned_object
+    ? "WEAR FIRST: reproduce only the condition, marks, sizes and positions specified in OBJECT PASSPORT; preserve clean areas and do not invent or enlarge damage. MATERIAL OPTICS: show the actual surface texture and light response of only the material specified in OBJECT PASSPORT, with natural folds and contact shadows; do not add a different fabric, coating or trim."
+    : `${wearMechanism(input.wearKind, input.spots, input.spec.wear)} ${materialOptics(input.spec)}`;
+  const subject = `${input.passport}${identity?.label ? ` SUBJECT CATEGORY: ${identity.label}.` : ""} ${surface}`;
   const shared = `${subject} ${station.lock} Create one portrait 4:5 photo. Keep the exact featured object consistent across all four photos. ${station.location}`;
   return input.briefs.map((brief, index) => {
     const slide = index + 1;
@@ -445,13 +493,13 @@ export function buildDoctrinePrompts(input: DoctrinePromptInput): string[] {
     const continuity = slide === 1 ? "" : ` ${input.sameGarment}.`;
     return [
       shared,
-      compositionBlock(slide, spot, opening, tool),
+      compositionBlock(slide, spot, opening, tool, Boolean(input.planned_object)),
       LIGHTING_BLOCK,
       STYLE_BLOCK,
       cameraBlock(slide, macro),
       COLOR_BLOCK,
       `Photo ${slide} of 4.${continuity} ${brief.replace("Keep the entire object readable", "Keep the object recognizable even when cropped")}`,
-      familyNegatives(family)
+      identity?.negatives ?? familyNegatives(family)
     ].join(" ");
   });
 }

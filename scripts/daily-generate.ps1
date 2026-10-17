@@ -26,6 +26,23 @@ function Write-Log([string]$message) {
     ("[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $now, $message) | Out-File -FilePath $logFile -Append -Encoding utf8
 }
 
+function Get-PlannedObject([string]$Root, [string]$Date) {
+    $plannedObject = ""
+    try {
+        $planRaw = [IO.File]::ReadAllText((Join-Path $Root "data\slot1-plan.json"), [Text.UTF8Encoding]::new($false))
+        $plan = ConvertFrom-Json $planRaw
+        $plannedObject = $plan.$Date
+    } catch {}
+    if (-not $plannedObject) {
+        try {
+            $extendedPlanRaw = [IO.File]::ReadAllText((Join-Path $Root "data\slot1-plan-ext.json"), [Text.UTF8Encoding]::new($false))
+            $extendedPlan = ConvertFrom-Json $extendedPlanRaw
+            $plannedObject = $extendedPlan.$Date.object
+        } catch {}
+    }
+    return [string]$plannedObject
+}
+
 function Show-Toast([string]$text) {
     try {
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
@@ -217,12 +234,7 @@ if ($hasCalendar) {
     # four times in five days and then looped 帆布鞋/襯衫領 reruns on 08-10.
     # The repeat/mismatch gates still verify afterwards; this just makes the
     # first attempt the right one.
-    $plannedObject = ""
-    try {
-        $planRaw = [IO.File]::ReadAllText((Join-Path $root "data\slot1-plan.json"), [Text.UTF8Encoding]::new($false))
-        $plan = ConvertFrom-Json $planRaw
-        $plannedObject = $plan.$date
-    } catch {}
+    $plannedObject = Get-PlannedObject -Root $root -Date $date
     $planLine = ""
     if ($plannedObject) {
             $hookLine = ""

@@ -1,7 +1,7 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, unlink } from "node:fs/promises";
 import { writeFileWithRetry as writeFile } from "./fsRetry";
-import { dirname, join, posix, sep } from "node:path";
+import { dirname, join, posix, resolve, sep } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
@@ -85,6 +85,17 @@ interface PublicPost {
   url: string;
   facebook_caption: string;
   instagram_caption: string;
+  youtube_video?: PublicYouTubeVideo;
+  facebook_post_url?: string;
+  feature_reel?: boolean;
+}
+
+interface PublicYouTubeVideo {
+  video_id: string;
+  embed_url: string;
+  watch_url: string;
+  thumbnail_url: string;
+  upload_date: string;
 }
 
 interface PublicPostIndex {
@@ -4173,8 +4184,8 @@ function postArticlePath(date: string, slot: number): string {
   return `posts/${date}-slot-${String(slot).padStart(2, "0")}.html`;
 }
 
-function postArticleUrl(post: Pick<PublicPost, "date" | "slot">, siteBaseUrl: string | undefined): string {
-  return publicUrl(postArticlePath(post.date, post.slot), siteBaseUrl);
+function postArticleUrl(post: Pick<PublicPost, "date" | "slot" | "article_path">, siteBaseUrl: string | undefined): string {
+  return publicUrl(post.article_path || postArticlePath(post.date, post.slot), siteBaseUrl);
 }
 
 function normalizedCaptionForArticle(post: PublicPost): string {
@@ -4293,7 +4304,7 @@ function findServiceImage(service: ServicePageDefinition, index: PublicPostIndex
   if (staticImage) return staticImage;
   if (service.allow_image_fallback === false) return undefined;
 
-  const candidates = [...index.posts].reverse();
+  const candidates = [...index.posts].reverse().filter((post) => !post.feature_reel || Boolean(post.image_url));
   const matchedPost = candidates.find((post) => {
     const text = `${post.topic}\n${post.facebook_caption}\n${post.instagram_caption}`;
     return [service.image_hint, ...service.keywords].some((keyword) => text.includes(keyword));
@@ -4496,7 +4507,8 @@ function primaryHomeImage(index: PublicPostIndex): PublicImageReference | undefi
     const fabricImage = findServiceImage(fabricService, index);
     if (fabricImage) return fabricImage;
   }
-  return index.posts[0] ? postImageReference(index.posts[0]) : undefined;
+  const firstPostWithImage = index.posts.find((post) => !post.feature_reel || Boolean(post.image_url));
+  return firstPostWithImage ? postImageReference(firstPostWithImage) : undefined;
 }
 
 /**
@@ -4507,7 +4519,7 @@ function primaryHomeImage(index: PublicPostIndex): PublicImageReference | undefi
 function supportPageImage(page: SupportPageDefinition, index: PublicPostIndex): PublicImageReference | undefined {
   const matchedPost = [...index.posts]
     .reverse()
-    .find((post) => page.keywords.some((keyword) => post.topic.includes(keyword)));
+    .find((post) => (!post.feature_reel || Boolean(post.image_url)) && page.keywords.some((keyword) => post.topic.includes(keyword)));
   if (matchedPost) return postImageReference(matchedPost);
 
   const service = page.image_service_slug ? findServiceBySlug(page.image_service_slug) : linkedSupportService(page);
@@ -4927,11 +4939,257 @@ function slotToPublicPost(
     calendar_path: calendarPath,
     calendar_url: publicUrl(calendarPath, siteBaseUrl),
     article_path: articlePath,
-    article_url: postArticleUrl({ date, slot: slot.slot }, siteBaseUrl),
+    article_url: postArticleUrl({ date, slot: slot.slot, article_path: articlePath }, siteBaseUrl),
     url: id,
     facebook_caption: slot.facebook_caption,
     instagram_caption: slot.instagram_caption
   };
+}
+
+interface DailyPostedLogRow {
+  slot?: number;
+  platform?: string;
+  status?: string;
+  dry_run?: boolean;
+  post_id?: string;
+}
+
+interface DailyYouTubeLogRow {
+  slot?: number;
+  video_id?: string;
+  uploaded_at?: string;
+  scheduled_publish_at?: string;
+}
+
+interface FeatureReelRecord {
+  date?: string;
+  slug?: string;
+  video_url?: string;
+  local_video_path?: string;
+  facebook_caption?: string;
+  instagram_caption?: string;
+  youtube_title?: string;
+  youtube_description?: string;
+}
+
+interface FeaturePostedLogRow {
+  platform?: string;
+  slug?: string;
+  status?: string;
+  post_id?: string;
+  scheduled_publish_at?: string;
+  at?: string;
+}
+
+async function readPublicationRows<T>(path: string): Promise<T[]> {
+  try {
+    const value = await readJsonFile<unknown>(path, []);
+    return Array.isArray(value) ? (value as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizedIsoDate(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? new Date(time).toISOString() : undefined;
+}
+
+function facebookPostUrl(postIdValue: string | undefined): string | undefined {
+  const match = postIdValue?.match(/^(\d+)_(\d+)$/u);
+  return match ? `https://www.facebook.com/${match[1]}/posts/${match[2]}` : undefined;
+}
+
+function makePublicYouTubeVideo(videoIdValue: string | undefined, uploadDate: string | undefined): PublicYouTubeVideo | undefined {
+  const videoId = videoIdValue?.trim();
+  const normalizedUploadDate = normalizedIsoDate(uploadDate);
+  if (!videoId || !normalizedUploadDate) return undefined;
+  const safeId = encodeURIComponent(videoId);
+  return {
+    video_id: videoId,
+    embed_url: `https://www.youtube-nocookie.com/embed/${safeId}`,
+    watch_url: `https://www.youtube.com/shorts/${safeId}`,
+    thumbnail_url: `https://i.ytimg.com/vi/${safeId}/hqdefault.jpg`,
+    upload_date: normalizedUploadDate
+  };
+}
+
+function dailyYouTubeVideo(row: DailyYouTubeLogRow, post: PublicPost, generatedAt: string): PublicYouTubeVideo | undefined {
+  const buildTime = Date.parse(generatedAt);
+  if (row.scheduled_publish_at) {
+    const scheduledTime = Date.parse(row.scheduled_publish_at);
+    if (!Number.isFinite(scheduledTime) || scheduledTime > buildTime) return undefined;
+    return makePublicYouTubeVideo(row.video_id, new Date(scheduledTime).toISOString());
+  }
+  return makePublicYouTubeVideo(row.video_id, normalizedIsoDate(row.uploaded_at) ?? post.date_published);
+}
+
+async function addDailyPublicationDetails(posts: PublicPost[], root: string, generatedAt: string): Promise<PublicPost[]> {
+  const perDate = new Map<string, Promise<{ posted: DailyPostedLogRow[]; youtube: DailyYouTubeLogRow[] }>>();
+  const logsForDate = (date: string) => {
+    let promise = perDate.get(date);
+    if (!promise) {
+      promise = Promise.all([
+        readPublicationRows<DailyPostedLogRow>(join(root, "data", "posted-log", `${date}.json`)),
+        readPublicationRows<DailyYouTubeLogRow>(join(root, "data", "youtube-log", `${date}.json`))
+      ]).then(([posted, youtube]) => ({ posted, youtube }));
+      perDate.set(date, promise);
+    }
+    return promise;
+  };
+
+  return Promise.all(
+    posts.map(async (post) => {
+      const rows = await logsForDate(post.date);
+      const youtubeRow = [...rows.youtube].reverse().find((row) => row.slot === post.slot && row.video_id);
+      const youtubeVideo = youtubeRow ? dailyYouTubeVideo(youtubeRow, post, generatedAt) : undefined;
+      const facebookRow = [...rows.posted].reverse().find(
+        (row) => row.slot === post.slot && row.platform === "facebook" && row.status === "success" && !row.dry_run
+      );
+      const facebookUrl = facebookPostUrl(facebookRow?.post_id);
+      return {
+        ...post,
+        ...(youtubeVideo ? { youtube_video: youtubeVideo } : {}),
+        ...(facebookUrl ? { facebook_post_url: facebookUrl } : {})
+      };
+    })
+  );
+}
+
+function isPublicFeatureLogRow(row: FeaturePostedLogRow, generatedAt: string): boolean {
+  if (row.status !== "success" && row.status !== "scheduled") return false;
+  if (!row.scheduled_publish_at) return row.status === "success";
+  const scheduledTime = Date.parse(row.scheduled_publish_at);
+  return Number.isFinite(scheduledTime) && scheduledTime <= Date.parse(generatedAt);
+}
+
+function featureLogPublishedAt(row: FeaturePostedLogRow, fallback: string): string {
+  return normalizedIsoDate(row.scheduled_publish_at) ?? normalizedIsoDate(row.at) ?? fallback;
+}
+
+function featureArticlePath(date: string, slug: string): string {
+  return `posts/${date}-feature-${slug}.html`;
+}
+
+function featureVideoFilePath(reel: FeatureReelRecord, root: string, siteBaseUrl: string | undefined): string | undefined {
+  const localVideoPath = reel.local_video_path?.trim();
+  if (localVideoPath) return resolve(root, localVideoPath);
+
+  const videoUrl = reel.video_url?.trim();
+  if (!videoUrl) return undefined;
+  const hasScheme = /^[a-z][a-z\d+.-]*:/iu.test(videoUrl);
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(videoUrl, siteBaseUrl ?? "http://localhost/");
+  } catch {
+    return undefined;
+  }
+  if (hasScheme && (!siteBaseUrl || parsedUrl.host !== new URL(siteBaseUrl).host)) return undefined;
+
+  let docsRelativePath: string;
+  try {
+    docsRelativePath = decodeURIComponent(parsedUrl.pathname).replace(/^\/+/, "").replace(/^docs\//iu, "");
+  } catch {
+    return undefined;
+  }
+  return docsRelativePath ? join(root, "docs", docsRelativePath) : undefined;
+}
+
+function availableFeatureVideoUrl(
+  reel: FeatureReelRecord,
+  root: string,
+  siteBaseUrl: string | undefined,
+  statPublicAsset: (filePath: string) => { isFile(): boolean }
+): string {
+  const videoUrl = reel.video_url?.trim() ?? "";
+  if (!videoUrl) return "";
+  const filePath = featureVideoFilePath(reel, root, siteBaseUrl);
+  return filePath && !publicAssetIsFile(filePath, statPublicAsset) ? "" : videoUrl;
+}
+
+async function loadPublicFeaturePosts(
+  root: string,
+  siteBaseUrl: string | undefined,
+  generatedAt: string,
+  publishThroughDate: string,
+  statPublicAsset: (filePath: string) => { isFile(): boolean }
+): Promise<PublicPost[]> {
+  const dates = (await listCalendarDates(root, "data/feature-reels")).filter((date) => date <= publishThroughDate);
+  const result: PublicPost[] = [];
+  for (const date of dates) {
+    const reel = await readJsonFile<FeatureReelRecord | undefined>(join(root, "data", "feature-reels", `${date}.json`), undefined).catch(
+      () => undefined
+    );
+    if (!reel || reel.date !== date || !reel.slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/iu.test(reel.slug)) continue;
+    const postedRows = await readPublicationRows<FeaturePostedLogRow>(join(root, "data", "feature-posted-log", `${date}.json`));
+    const publishedRows = postedRows.filter((row) => row.slug === reel.slug && isPublicFeatureLogRow(row, generatedAt));
+    if (publishedRows.length === 0) continue;
+
+    const fallbackPublishedAt = slotDateTime(date, "00:00");
+    const publishedAt = publishedRows
+      .map((row) => featureLogPublishedAt(row, fallbackPublishedAt))
+      .sort((left, right) => Date.parse(left) - Date.parse(right))[0]!;
+    const description = reel.facebook_caption ?? "";
+    const youtubeRow = [...publishedRows].reverse().find((row) => row.platform === "youtube" && row.post_id);
+    const youtubeVideo = youtubeRow
+      ? makePublicYouTubeVideo(youtubeRow.post_id, featureLogPublishedAt(youtubeRow, fallbackPublishedAt))
+      : undefined;
+    const facebookRow = [...publishedRows].reverse().find((row) => row.platform === "facebook" && row.post_id);
+    const facebookUrl = facebookPostUrl(facebookRow?.post_id);
+    const slug = reel.slug.toLowerCase();
+    const articlePath = featureArticlePath(date, slug);
+    const imagePath = "";
+    const imageUrl = youtubeVideo?.thumbnail_url ?? "";
+    const videoUrl = availableFeatureVideoUrl(reel, root, siteBaseUrl, statPublicAsset);
+    const articleUrl = publicUrl(articlePath, siteBaseUrl);
+    const title = reel.youtube_title?.trim() || captionPreview(description) || `${date} 特色影片`;
+    const publicPlatforms = Array.from(new Set(publishedRows.map((row) => row.platform).filter((platform): platform is string => Boolean(platform))));
+    const id = `urn:sixiangjia:feature:${date}:${slug}`;
+    result.push({
+      id,
+      date,
+      date_published: publishedAt,
+      slot: 0,
+      time: new Date(publishedAt).toLocaleTimeString("en-GB", {
+        timeZone: "Asia/Taipei",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23"
+      }),
+      category: "feature-reel",
+      title,
+      topic: title,
+      visual_route: "feature-reel",
+      traffic_route: "feature-reel",
+      content_role: "reach-answer",
+      search_intent: "social-video",
+      target_queries: [],
+      evidence_type: "published-feature-reel",
+      hashtags: extractHashtags(description, reel.instagram_caption ?? ""),
+      platforms: publicPlatforms,
+      in_language: "zh-Hant",
+      image_path: imagePath,
+      image_url: imageUrl,
+      image_paths: [],
+      image_urls: [],
+      carousel_items: [],
+      media_type: "reel",
+      video_path: "",
+      video_url: videoUrl,
+      calendar_path: `feature-reels/${date}.json`,
+      calendar_url: "",
+      article_path: articlePath,
+      article_url: articleUrl,
+      url: id,
+      facebook_caption: description,
+      instagram_caption: reel.instagram_caption ?? "",
+      ...(youtubeVideo ? { youtube_video: youtubeVideo } : {}),
+      ...(facebookUrl ? { facebook_post_url: facebookUrl } : {}),
+      feature_reel: true
+    });
+  }
+  return result;
 }
 
 function citationReadySummary(index: PublicPostIndex): string {
@@ -5449,18 +5707,28 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
           ? [
               { loc: postsHubUrl(index), purpose: "daily-article-hub" },
               { loc: index.entrypoints.rss, purpose: "rss-feed" },
-              ...indexablePostArticles(index).map((post) => ({ loc: post.article_url, purpose: "daily-article-" + post.id }))
+              ...indexablePostArticles(index).map((post) => ({
+                loc: post.article_url,
+                purpose: `${post.feature_reel ? "feature-reel" : "daily-article"}-${post.id}`
+              }))
             ]
           : []),
         ...allServiceImages(index).map((image) => ({ loc: image.image_url, purpose: `service-image-${image.source_type}` })),
-        ...index.posts.map((post) => ({ loc: post.calendar_url, purpose: `calendar-slot-${post.slot}` })),
-        ...index.posts.map((post) => ({ loc: post.image_url, purpose: `image-slot-${post.slot}` }))
+        ...index.posts.filter((post) => post.calendar_url).map((post) => ({ loc: post.calendar_url, purpose: `calendar-slot-${post.slot}` })),
+        ...index.posts.filter((post) => post.image_url).map((post) => ({ loc: post.image_url, purpose: `image-slot-${post.slot}` }))
       ]
     : [];
 
   const seen = new Set<string>();
   const items = urls
     .filter((item) => {
+      let itemHost: string;
+      try {
+        itemHost = new URL(item.loc).host;
+      } catch {
+        return false;
+      }
+      if (itemHost !== new URL(index.base_url).host) return false;
       if (sitemapShouldOmitUrlForPublicSite(item.loc, index, new Set())) return false;
       if (seen.has(item.loc)) return false;
       seen.add(item.loc);
@@ -5598,7 +5866,7 @@ function buildJsonFeed(index: PublicPostIndex): object {
       date_published: post.date_published,
       content_text: post.facebook_caption,
       summary: post.topic,
-      image: post.image_url,
+      ...(post.image_url ? { image: post.image_url } : {}),
       tags: post.hashtags.map((tag) => tag.replace(/^#/, "")),
       _sixiangjia: {
         slot: post.slot,
@@ -5610,7 +5878,7 @@ function buildJsonFeed(index: PublicPostIndex): object {
         target_queries: post.target_queries,
         evidence_type: post.evidence_type,
         platforms: post.platforms,
-        calendar_url: post.calendar_url
+        ...(post.calendar_url ? { calendar_url: post.calendar_url } : {})
       }
     }))
   };
@@ -6119,12 +6387,12 @@ function buildLlmsJsonl(index: PublicPostIndex): string {
       target_queries: post.target_queries,
       evidence_type: post.evidence_type,
       hashtags: post.hashtags,
-      image_url: post.image_url,
+      ...(post.feature_reel && !post.image_url ? {} : { image_url: post.image_url }),
       image_urls: post.image_urls,
       carousel_items: post.carousel_items,
       media_type: post.media_type,
-      video_url: post.video_url,
-      calendar_url: post.calendar_url
+      ...(post.feature_reel && !post.video_url ? {} : { video_url: post.video_url }),
+      ...(post.calendar_url ? { calendar_url: post.calendar_url } : {})
     }))
   ];
 
@@ -6286,25 +6554,29 @@ function buildKnowledgeGraph(index: PublicPostIndex): object {
           datePublished: post.date_published,
           inLanguage: post.in_language,
           keywords: post.hashtags,
-          image: { "@id": `${post.id}:image` },
+          ...(post.image_url ? { image: { "@id": `${post.id}:image` } } : {}),
           isPartOf: { "@id": `${index.canonical_url}#social-post-dataset` },
           about: business ? { "@id": `${index.canonical_url}#business` } : undefined,
           url: post.url
         },
-        {
-          "@type": "ImageObject",
-          "@id": `${post.id}:image`,
-          contentUrl: post.image_url,
-          url: post.image_url,
-          caption: post.topic,
-          inLanguage: post.in_language
-        }
+        ...(post.image_url
+          ? [
+              {
+                "@type": "ImageObject",
+                "@id": `${post.id}:image`,
+                contentUrl: post.image_url,
+                url: post.image_url,
+                caption: post.topic,
+                inLanguage: post.in_language
+              }
+            ]
+          : [])
       ])
     ].filter(Boolean)
   };
 }
 
-function buildPublicSiteCss(): string {
+function buildPublicSiteCss(includeFeatureMediaCss = false): string {
   return `
     :root {
       color-scheme: light;
@@ -6520,7 +6792,9 @@ function buildPublicSiteCss(): string {
       object-fit: cover;
     }
     .service-photo video { width: min(100%, 430px); aspect-ratio: 9 / 16; margin: 0 auto; background: #000; }
-    .service-photo figcaption, .hero-visual figcaption { color: var(--color-muted); font-size: .9rem; margin-top: 10px; }
+${includeFeatureMediaCss ? `    .article-social-video iframe { display: block; width: min(100%, 360px); height: auto; aspect-ratio: 9 / 16; margin: 0 auto; border: 0; background: #000; }
+    .feature-video-placeholder { width: min(100%, 430px); min-height: 220px; aspect-ratio: 9 / 16; display: grid; place-items: center; margin: 0 auto; border-radius: var(--radius-card); background: #172033; color: #fff; font-weight: 800; }
+` : ""}    .service-photo figcaption, .hero-visual figcaption { color: var(--color-muted); font-size: .9rem; margin-top: 10px; }
     figure { margin: 0; }
     .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
     .chip {
@@ -6652,6 +6926,10 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
   if (!businessNode) return undefined;
   const profile = index.business_profile;
   const description = captionPreview(post.facebook_caption).slice(0, 180);
+  const videoReferences = [
+    ...(post.video_url ? [{ "@id": `${post.article_url}#video` }] : []),
+    ...(post.youtube_video ? [{ "@id": `${post.article_url}#youtube-video` }] : [])
+  ];
   const graph: object[] = [
     businessNode,
     buildWebsiteSchemaNode(index),
@@ -6668,8 +6946,10 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       author: { "@id": `${index.canonical_url}#business` },
       publisher: { "@id": `${index.canonical_url}#business` },
       isPartOf: { "@id": `${index.canonical_url}#website` },
-      image: { "@id": `${post.article_url}#image` },
-      ...(post.video_url ? { video: { "@id": `${post.article_url}#video` } } : {}),
+      ...(post.image_url ? { image: { "@id": `${post.article_url}#image` } } : {}),
+      ...(videoReferences.length > 0
+        ? { video: videoReferences.length === 1 ? videoReferences[0] : videoReferences }
+        : {}),
       about: { "@id": `${index.canonical_url}#business` },
       keywords: Array.from(
         new Set([...post.target_queries, ...post.hashtags.map((tag) => tag.replace(/^#/, ""))])
@@ -6698,15 +6978,19 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       about: { "@id": `${index.canonical_url}#business` },
       mainEntity: { "@id": `${post.article_url}#article` },
       breadcrumb: { "@id": `${post.article_url}#breadcrumb` },
-      primaryImageOfPage: { "@id": `${post.article_url}#image` }
+      ...(post.image_url ? { primaryImageOfPage: { "@id": `${post.article_url}#image` } } : {})
     },
-    {
-      "@type": "ImageObject",
-      "@id": `${post.article_url}#image`,
-      contentUrl: post.image_url,
-      ...postImageSchemaSize(post),
-      caption: `${post.topic} - ${profile.name}`
-    },
+    ...(post.image_url
+      ? [
+          {
+            "@type": "ImageObject",
+            "@id": `${post.article_url}#image`,
+            contentUrl: post.image_url,
+            ...postImageSchemaSize(post),
+            caption: `${post.topic} - ${profile.name}`
+          }
+        ]
+      : []),
     {
       "@type": "BreadcrumbList",
       "@id": `${post.article_url}#breadcrumb`,
@@ -6723,10 +7007,22 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       "@id": `${post.article_url}#video`,
       name: post.topic,
       description,
-      thumbnailUrl: post.image_url,
+      ...(post.image_url ? { thumbnailUrl: post.image_url } : {}),
       contentUrl: post.video_url,
       uploadDate: post.date_published,
       ...(readMp4Duration(post.video_path) ? { duration: readMp4Duration(post.video_path) } : {}),
+      inLanguage: "zh-Hant-TW"
+    });
+  }
+  if (post.youtube_video) {
+    graph.push({
+      "@type": "VideoObject",
+      "@id": `${post.article_url}#youtube-video`,
+      name: post.title,
+      description,
+      thumbnailUrl: post.youtube_video.thumbnail_url,
+      uploadDate: post.youtube_video.upload_date,
+      embedUrl: post.youtube_video.embed_url,
       inLanguage: "zh-Hant-TW"
     });
   }
@@ -6946,8 +7242,12 @@ function sortedArticlePosts(index: PublicPostIndex): PublicPost[] {
   return [...index.article_posts].sort((a, b) => `${a.date}-${a.slot}`.localeCompare(`${b.date}-${b.slot}`));
 }
 
+function sortedDailyArticlePosts(index: PublicPostIndex): PublicPost[] {
+  return sortedArticlePosts(index).filter((post) => !post.feature_reel);
+}
+
 function articleNumberFor(post: PublicPost, index: PublicPostIndex): number {
-  return sortedArticlePosts(index).findIndex((item) => item.id === post.id) + 1;
+  return sortedDailyArticlePosts(index).findIndex((item) => item.id === post.id) + 1;
 }
 
 function postArticleFaqs(post: PublicPost): Array<{ question: string; answer: string }> {
@@ -6979,10 +7279,11 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   const priceListService = findServiceBySlug(PRICE_LIST_SLUG);
   const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
   const hubHref = postsHubHref(index, true);
+  const dailyArticles = sortedDailyArticlePosts(index);
   const articleNumber = articleNumberFor(post, index);
-  const orderedArticles = sortedArticlePosts(index);
-  const previousArticle = orderedArticles[articleNumber - 2];
-  const nextArticle = orderedArticles[articleNumber];
+  const dailyArticleIndex = post.feature_reel ? -1 : dailyArticles.findIndex((item) => item.id === post.id);
+  const previousArticle = dailyArticleIndex > 0 ? dailyArticles[dailyArticleIndex - 1] : undefined;
+  const nextArticle = dailyArticleIndex >= 0 ? dailyArticles[dailyArticleIndex + 1] : undefined;
   const faqs = postArticleFaqs(post);
   const relatedPosts = sortedArticlePosts(index)
     .filter((item) => item.id !== post.id && careContextFor(item.topic).family === care.family)
@@ -7006,6 +7307,19 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   }
   const hashtags = post.hashtags.map((tag) => `<span class="chip">${escapeHtml(tag)}</span>`).join("\n");
   const targetQueries = post.target_queries.map((query) => `<span class="chip">${escapeHtml(query)}</span>`).join("\n");
+  const youtubeVideoHtml = post.youtube_video
+    ? `<section class="article-social-video" aria-label="YouTube 影片">
+        <div class="page-shell">
+          <h2>${escapeHtml(post.title)}</h2>
+          <iframe src="${escapeHtml(post.youtube_video.embed_url)}" width="360" height="640" loading="lazy" title="${escapeHtml(post.title)}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+          <p><a href="${escapeHtml(post.youtube_video.watch_url)}" target="_blank" rel="noopener noreferrer">在 YouTube 觀看</a></p>
+        </div>
+      </section>`
+    : "";
+  const facebookPostHtml = post.facebook_post_url
+    ? `<p class="post-source"><a href="${escapeHtml(post.facebook_post_url)}" target="_blank" rel="noopener noreferrer">在 Facebook 看原文</a></p>`
+    : "";
+  const externalPublicationHtml = youtubeVideoHtml || facebookPostHtml ? `${youtubeVideoHtml}${facebookPostHtml}` : "";
   const caseRows = (service?.case_studies ?? [])
     .slice(0, 3)
     .map(
@@ -7036,7 +7350,7 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
       <section class="section page-hero">
         <div class="page-shell grid two">
         <div class="hero-copy">
-          <span class="eyebrow">每日洗護紀錄｜Day ${articleNumber}｜${escapeHtml(post.date)} ${escapeHtml(post.time)}</span>
+          <span class="eyebrow">${post.feature_reel ? "特色影片" : `每日洗護紀錄｜Day ${articleNumber}`}｜${escapeHtml(post.date)} ${escapeHtml(post.time)}</span>
           <h1>${escapeHtml(post.topic)}</h1>
           <p class="lead">${escapeHtml(description)}</p>
           <p class="last-updated">發布日期：<time datetime="${escapeHtml(post.date)}">${escapeHtml(post.date)}</time>｜作者：${escapeHtml(profile.name)}</p>
@@ -7052,7 +7366,9 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
           </div>
           <figure class="service-photo">
           ${
-            post.video_url
+            post.feature_reel && !post.video_url && !imageSrc
+              ? `<div class="feature-video-placeholder" aria-label="${escapeHtml(post.topic)} 影片">特色影片</div>`
+              : post.video_url
               ? `<video src="${escapeHtml(post.video_url)}" poster="${escapeHtml(webpSrcFor(post.image_path, imageSrc) ?? imageSrc)}" controls playsinline preload="metadata" aria-label="${escapeHtml(`${post.topic} - ${profile.name}`)}"></video>`
               : responsiveImageHtml({
                   imagePath: post.image_path,
@@ -7067,7 +7383,7 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
           </figure>
         </div>
         </div>
-      </section>
+      </section>${externalPublicationHtml}
       <section class="article-body">
         <div class="content">
           <h2 id="summary">重點摘要</h2>
@@ -7217,6 +7533,14 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   if (captionChars < POST_ARTICLE_MIN_CAPTION_CHARS) reasons.push(`caption ${captionChars} < ${POST_ARTICLE_MIN_CAPTION_CHARS} chars`);
   if (visibleChars < POST_ARTICLE_MIN_VISIBLE_CHARS) reasons.push(`visible ${visibleChars} < ${POST_ARTICLE_MIN_VISIBLE_CHARS} chars`);
   if (!hasArticlePage(post, index)) reasons.push("duplicate caption without its own article");
+  if (
+    post.feature_reel &&
+    index.posts.some(
+      (item) => item.id !== post.id && normalizedCaptionForArticle(item) === normalizedCaptionForArticle(post)
+    )
+  ) {
+    reasons.push("duplicate caption without its own article");
+  }
   const render: PostArticleRender = {
     mainHtml,
     visibleChars,
@@ -7314,14 +7638,18 @@ function buildPostsHubHtml(index: PublicPostIndex): string {
       const render = renderPostArticle(post, index);
       const imageSrc = visibleImageSrc(post, index);
       return `<article class="card article-card">
-          ${responsiveImageHtml({
-            imagePath: post.image_path,
-            src: imageSrc,
-            alt: `${post.topic} - ${profile.name}`,
-            fallbackSize: POST_IMAGE_FALLBACK_SIZE,
-            loading: "lazy"
-          })}
-          <div class="article-meta">Day ${render.articleNumber}｜${escapeHtml(post.date)} ${escapeHtml(post.time)}｜${escapeHtml(careContextFor(post.topic).family)}</div>
+          ${
+            post.feature_reel && !imageSrc
+              ? `<div class="feature-video-placeholder" aria-label="${escapeHtml(post.topic)} 影片">特色影片</div>`
+              : responsiveImageHtml({
+                  imagePath: post.image_path,
+                  src: imageSrc,
+                  alt: `${post.topic} - ${profile.name}`,
+                  fallbackSize: POST_IMAGE_FALLBACK_SIZE,
+                  loading: "lazy"
+                })
+          }
+          <div class="article-meta">${post.feature_reel ? "特色影片" : `Day ${render.articleNumber}`}｜${escapeHtml(post.date)} ${escapeHtml(post.time)}｜${escapeHtml(careContextFor(post.topic).family)}</div>
           <h3><a href="${escapeHtml(post.article_url)}">${escapeHtml(post.topic)}</a></h3>
           <p>${escapeHtml(captionPreview(post.facebook_caption))}</p>
           <a class="card-link" href="${escapeHtml(post.article_url)}" aria-label="閱讀文章：${escapeHtml(post.topic)}">閱讀文章</a>
@@ -7350,7 +7678,7 @@ function buildPostsHubHtml(index: PublicPostIndex): string {
     <meta property="og:url" content="${escapeHtml(canonical)}" />
     <meta property="og:site_name" content="${escapeHtml(profile.name)}" />
     ${schema ? `<script type="application/ld+json">${escapeJsonLd(schema)}</script>` : ""}
-    <style>${buildPublicSiteCss()}</style>
+    <style>${buildPublicSiteCss(articles.some((post) => post.feature_reel))}</style>
     <title>${escapeHtml(POSTS_HUB_TITLE)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
     ${buildSearchContentAnalyticsTag(index, true)}
@@ -7403,6 +7731,26 @@ function rssDate(value: string): string {
   return Number.isNaN(parsed.getTime()) ? new Date().toUTCString() : parsed.toUTCString();
 }
 
+function rssEnclosureMimeType(imageUrl: string): string {
+  let pathname = imageUrl;
+  try {
+    pathname = new URL(imageUrl).pathname;
+  } catch {
+    pathname = imageUrl.split(/[?#]/u, 1)[0] ?? imageUrl;
+  }
+  switch (posix.extname(pathname).toLowerCase()) {
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".webp":
+      return "image/webp";
+    default:
+      return "image/png";
+  }
+}
+
 function buildRssXml(index: PublicPostIndex): string {
   const articles = indexablePostArticles(index).sort((a, b) => (a.date < b.date ? 1 : -1));
   const items = articles
@@ -7413,7 +7761,7 @@ function buildRssXml(index: PublicPostIndex): string {
       <guid isPermaLink="true">${escapeXml(post.article_url)}</guid>
       <pubDate>${escapeXml(rssDate(post.date_published))}</pubDate>
       <description>${escapeXml(captionPreview(post.facebook_caption))}</description>
-      <enclosure url="${escapeXml(post.image_url)}" type="image/png" length="0" />
+      ${post.image_url ? `<enclosure url="${escapeXml(post.image_url)}" type="${rssEnclosureMimeType(post.image_url)}" length="0" />` : ""}
     </item>`
     )
     .join("\n");
@@ -7481,15 +7829,15 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
     <meta property="og:url" content="${escapeHtml(canonical)}" />
     <meta property="og:site_name" content="${escapeHtml(profile.name)}" />
     <meta property="og:locale" content="${escapeHtml(SITE_LOCALE)}" />
-    <meta property="og:image" content="${escapeHtml(post.image_url)}" />
-    <meta property="og:image:alt" content="${escapeHtml(`${post.topic} - ${profile.name}`)}" />
+${post.image_url ? `    <meta property="og:image" content="${escapeHtml(post.image_url)}" />
+    <meta property="og:image:alt" content="${escapeHtml(`${post.topic} - ${profile.name}`)}" />` : ""}
 ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.video_url)}" /><meta property="og:video:type" content="video/mp4" />
-` : ""}    <meta name="twitter:card" content="summary_large_image" />
+` : ""}    <meta name="twitter:card" content="${post.image_url ? "summary_large_image" : "summary"}" />
     <meta name="twitter:title" content="${escapeHtml(post.topic)}" />
     <meta name="twitter:description" content="${escapeHtml(description)}" />
-    <meta name="twitter:image" content="${escapeHtml(post.image_url)}" />
+    ${post.image_url ? `<meta name="twitter:image" content="${escapeHtml(post.image_url)}" />` : ""}
     ${schema ? `<script type="application/ld+json">${escapeJsonLd(schema)}</script>` : ""}
-    <style>${buildPublicSiteCss()}</style>
+    <style>${buildPublicSiteCss(Boolean(post.feature_reel || post.youtube_video))}</style>
     <title>${escapeHtml(`${post.topic} | ${profile.name}`)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
     ${buildSearchContentAnalyticsTag(index, true)}
@@ -7659,8 +8007,10 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
       ? post.article_url
       : canonicalArticle.article_url
     : post.calendar_path;
-  return `<article class="post-tile post-card">
-        <a href="${escapeHtml(imageSrc)}">
+  const imageMarkup =
+    post.feature_reel && !imageSrc
+      ? `<div class="feature-video-placeholder" aria-label="${escapeHtml(post.topic)} 影片">特色影片</div>`
+      : `<a href="${escapeHtml(imageSrc)}">
           ${responsiveImageHtml({
             imagePath: post.image_path,
             src: imageSrc,
@@ -7668,7 +8018,9 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
             fallbackSize: POST_IMAGE_FALLBACK_SIZE,
             loading: "lazy"
           })}
-        </a>
+        </a>`;
+  return `<article class="post-tile post-card">
+        ${imageMarkup}
         <div class="article-meta">${escapeHtml(post.date)} ${escapeHtml(post.time)}｜${escapeHtml(post.content_role)} / ${escapeHtml(post.visual_route)} / ${escapeHtml(post.traffic_route)}</div>
         <h3>${escapeHtml(post.topic)}</h3>
         <p class="post-caption post-preview">${escapeHtml(preview)}</p>
@@ -7890,7 +8242,7 @@ function buildIndexHtml(index: PublicPostIndex): string {
     ${index.open_graph.image ? `<meta name="twitter:image" content="${escapeHtml(index.open_graph.image)}" />` : ""}
     ${index.open_graph.image ? `<meta name="twitter:image:alt" content="${escapeHtml(index.open_graph.image_alt)}" />` : ""}
     ${homePageSchema ? `<script type="application/ld+json">${escapeJsonLd(homePageSchema)}</script>` : ""}
-    <style>${buildPublicSiteCss()}</style>
+    <style>${buildPublicSiteCss(index.posts.some((post) => post.feature_reel))}</style>
     <title>${escapeHtml(SITE_TITLE)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
     ${buildSearchContentAnalyticsTag(index)}
@@ -9024,12 +9376,12 @@ function postToDiscoveryRecord(post: PublicPost, index: PublicPostIndex): object
     evidence_type: post.evidence_type,
     hashtags: post.hashtags,
     platforms: post.platforms,
-    image_url: post.image_url,
+    ...(post.image_url ? { image_url: post.image_url } : {}),
     image_urls: post.image_urls,
     carousel_items: post.carousel_items,
     media_type: post.media_type,
-    video_url: post.video_url,
-    calendar_url: post.calendar_url,
+    ...(post.feature_reel && !post.video_url ? {} : { video_url: post.video_url }),
+    ...(post.calendar_url ? { calendar_url: post.calendar_url } : {}),
     ...discoveryArticleUrlField(post, index),
     facebook_caption: post.facebook_caption,
     instagram_caption: post.instagram_caption
@@ -9491,11 +9843,20 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       return { calendar, approvedSlots: publicSlots };
     })
   );
-  const posts = calendars.flatMap((record) =>
+  const dailyPosts = calendars.flatMap((record) =>
     record ? record.approvedSlots.map((slot) => slotToPublicPost(record.calendar.date, slot, siteBaseUrl, imageBaseUrl)) : []
   );
+  const postsWithPublicationDetails = await addDailyPublicationDetails(dailyPosts, root, generatedAt);
+  const featurePosts = await loadPublicFeaturePosts(
+    root,
+    siteBaseUrl,
+    generatedAt,
+    publishThroughDate,
+    options.statPublicAsset ?? statSync
+  );
+  const posts = [...postsWithPublicationDetails, ...featurePosts];
   posts.sort((a, b) => a.date.localeCompare(b.date) || a.slot - b.slot);
-  const articlePosts = uniqueArticlePosts(posts);
+  const articlePosts = [...uniqueArticlePosts(postsWithPublicationDetails), ...featurePosts];
 
   const index: PublicPostIndex = {
     generated_at: generatedAt,

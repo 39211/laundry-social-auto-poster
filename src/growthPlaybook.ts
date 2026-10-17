@@ -28,6 +28,8 @@ export interface GrowthPlaybookSlot {
   topic: string;
   /** Exact physical item from an accepted extension plan; absent on rotation rows. */
   planned_object?: string;
+  /** Explicit category from the same accepted plan row; never inferred from text. */
+  planned_category?: string;
   format: GrowthFormat;
   visual_route: VisualRoute;
   traffic_route: TrafficRoute;

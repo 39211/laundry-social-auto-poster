@@ -1,41 +1,48 @@
 {
   "2026-10-23": {
+    "category": "coat",
     "topic": "換季羽絨大衣拿出來？先看袖口和前襟這 2 處",
     "format": "carousel",
     "family": "season-weather",
     "object": "一件收了一季的淺燕麥色長版連帽羽絨大衣，成人女款，連身帽無毛領，雙頭拉鍊加擋風片暗扣，橫向絎縫，前下兩個有蓋口袋，無 logo；前襟擋風片胸口、口袋蓋口附近與前下襬有幾點 3–8 毫米半透明深燕麥褐色油漬帶一點油光，兩邊袖口最後約 3 公分一圈灰黑泛油光、內側羅紋發黃，領口內側淡黃皮脂油光；背面下襬乾淨，沒有泥點；不是黑色短款"
   },
   "2026-10-24": {
+    "category": "sweater",
     "topic": "毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處",
     "format": "single",
     "family": "season-weather",
     "object": "一件掛在衣櫃裡收了一季的燕麥色圓領羊毛混紡毛衣，羅紋領口、袖口、下擺，素面無標；兩邊肩膀各有一個被細鐵絲衣架頂出來的凸角、袖口羅紋鬆垂、前襟一條收納摺痕"
   },
   "2026-10-25": {
+    "category": "garments-in-bag",
     "topic": "冬衣收送分袋標籤要寫哪 2 項？店家可免費到府收取與送回",
     "format": "carousel",
     "family": "pickup-delivery",
     "object": "一袋待收送冬衣，內有一件羽絨外套與一件羊毛大衣"
   },
   "2026-10-26": {
+    "category": "plush",
     "topic": "絨毛娃娃要送洗？先看縫線和填充口這 2 處",
     "format": "single",
     "family": "home-textile",
     "object": "一隻米白色長毛絨毛娃娃，左耳與手掌縫線清楚可見"
   },
   "2026-10-27": {
+    "category": "boots",
     "topic": "短靴入冬前檢查，鞋底和內裡要先看哪 2 處？",
     "format": "carousel",
     "family": "shoes",
     "object": "一雙深棕色皮短靴，鞋底前掌與鞋口內裡"
   },
   "2026-10-28": {
+    "category": "bedding",
     "topic": "冬被準備交洗，先翻哪 2 個角落？",
     "format": "single",
     "family": "home-textile",
     "object": "一床收在布袋裡的深藍色冬被，對折處與四角"
   },
   "2026-10-29": {
+    "category": "handbag",
     "topic": "Chanel Classic Flap 名牌小羊皮包有淺摺痕？先檢查這 2 處",
     "format": "carousel",
     "family": "luxury-leather",
@@ -43,42 +50,49 @@
     "needs_review": true
   },
   "2026-10-30": {
+    "category": "shirt",
     "topic": "連日濕冷，衣服晾幾天仍不乾？先摸衣身和接縫這 2 處",
     "format": "single",
     "family": "season-weather",
     "object": "一件室內晾了三天仍帶潮感的深藍色棉質長袖上衣"
   },
   "2026-10-31": {
+    "category": "bedding",
     "topic": "冬季厚床包拆封前有摺痕？洗標和接縫怎麼確認",
     "format": "carousel",
     "family": "home-textile",
     "object": "一組剛拆封的深綠色冬季厚床包與枕套"
   },
   "2026-11-01": {
+    "category": "note",
     "topic": "冬衣預約收送服務要備什麼？列可收時段和件數，店家服務免費",
     "format": "single",
     "family": "pickup-delivery",
     "object": "一張寫著方便時段與衣物件數的收送便條"
   },
   "2026-11-02": {
+    "category": "jacket",
     "topic": "東北季風連日潮濕，外套悶味先查哪 2 處？",
     "format": "carousel",
     "family": "season-weather",
     "object": "一件深灰色防風外套，領口與內裡帶有潮濕後的狀態"
   },
   "2026-11-03": {
+    "category": "shoes",
     "topic": "牛津皮鞋做防水除味前，鞋面接縫和鞋口先看什麼？",
     "format": "single",
     "family": "shoes",
     "object": "一雙深棕色牛津皮鞋，鞋面接縫與鞋口內裡"
   },
   "2026-11-04": {
+    "category": "rug",
     "topic": "地毯換季清洗前，搬動時要先量哪 2 條邊？",
     "format": "carousel",
     "family": "home-textile",
     "object": "一張淺灰色短毛地毯，長邊與短邊的尺寸"
   },
   "2026-11-05": {
+    "category": "handbag",
     "topic": "Gucci Jackie 1961 精品肩背包五金邊有磨痕？先查扣件和包角",
     "format": "single",
     "family": "luxury-leather",

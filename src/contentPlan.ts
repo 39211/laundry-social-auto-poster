@@ -1,5 +1,6 @@
-﻿import { buildDoctrinePrompts, imageDoctrineActive } from "./imageDoctrine";
+﻿import { buildDoctrinePrompts, familyTool, imageDoctrineActive, isPlannedObjectCategory, plannedObjectRule } from "./imageDoctrine";
 import { everydayVariantForTopic, luxuryVariantForTopic, type ObjectVariant } from "./objectLibrary";
+import type { ObjectFamily } from "./imageDoctrine";
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -1324,6 +1325,8 @@ export interface Slot1PlanExtEntry {
   format: Slot1PlanExtFormat;
   family: Slot1PlanExtFamily;
   object: string;
+  /** Missing/unknown declarations retain the plan, with neutral image handling. */
+  category?: string;
   note?: string;
   needs_review?: boolean;
 }
@@ -1355,7 +1358,12 @@ function loadSlot1PlanExtSync(root: string): Record<string, Slot1PlanExtEntry> {
             (entry.note === undefined || typeof entry.note === "string") &&
             (entry.needs_review === undefined || typeof entry.needs_review === "boolean")
         )
-      ) as Array<[string, Slot1PlanExtEntry]>
+      ).map(([date, entry]) => {
+        if (!isPlannedObjectCategory(entry.category)) {
+          console.warn(`[slot1-plan-ext] ${date}: missing or unknown category; using neutral planned-object handling`);
+        }
+        return [date, entry];
+      }) as Array<[string, Slot1PlanExtEntry]>
     );
   } catch {
     return {};
@@ -1539,7 +1547,7 @@ export function resolveSlot1WithPlan(
     const extendedSlot = extendedTopicSlot1(date, extendedPlan.topic, extendedPlan.format);
     if (extendedSlot) {
       const gram = topicRepeatsInWindow(extendedSlot.topic, airedTopics);
-      if (!gram) return { slot: { ...extendedSlot, planned_object: extendedPlan.object }, source: "slot1-plan-ext" };
+      if (!gram) return { slot: { ...extendedSlot, planned_object: extendedPlan.object, planned_category: extendedPlan.category }, source: "slot1-plan-ext" };
       const rotation = extendedRotationSlot1(date);
       return {
         slot: rotation ? resolveSlot1AgainstAired(rotation, airedTopics) : undefined,
@@ -2123,6 +2131,13 @@ function phoneRealism(anchorIndex = 0): string {
 const PHONE_REALISM = phoneRealism(0);
 
 function imagePromptFromPlaybook(slot: GrowthPlaybookSlot): string {
+  if (slot.planned_object) {
+    return buildCarouselImagePrompts({
+      date: slot.date, slot: slot.slot, topic: slot.topic,
+      planned_object: slot.planned_object, planned_category: slot.planned_category,
+      caption: carouselCaptionSource(slot), seo_sync_page: canonicalSeoSyncPage(slot.seo_sync_page)
+    })[0]!;
+  }
   const topic = cleanTopic(slot.topic);
   const formatPrefix: Record<GrowthFormat, string> = {
     "image-post": "Ordinary square shop photo",
@@ -2156,6 +2171,7 @@ export interface CarouselPromptInput {
   slot?: number;
   topic: string;
   planned_object?: string;
+  planned_category?: string;
   caption?: string;
   seo_sync_page?: string;
 }
@@ -2698,8 +2714,11 @@ function checkpointsForObject(caption: string, topic: string, date?: string): st
   return points.filter((spot) => !SHOE_FOREIGN_SPOTS.test(spot));
 }
 
-export function carouselInspectionShots(caption: string, topic: string, date?: string): string[] {
-  const points = checkpointsForObject(caption, topic, date);
+export function carouselInspectionShots(caption: string, topic: string, date?: string, plannedFamily?: ObjectFamily): string[] {
+  const declaredPoints = plannedFamily === undefined ? undefined : checkpointsFromCaption(`${caption}\n${topic}`);
+  const points = declaredPoints
+    ? plannedFamily === "shoe" ? declaredPoints.filter((spot) => !SHOE_FOREIGN_SPOTS.test(spot)) : declaredPoints
+    : checkpointsForObject(caption, topic, date);
   const defaults = [
     "Overall closer look at the complete passport item so fabric grain, seams and full silhouette stay readable.",
     "Tight close-up of the problem area named by the topic; the wear marks fill the frame.",
@@ -2718,7 +2737,22 @@ export function carouselInspectionShots(caption: string, topic: string, date?: s
   return shots;
 }
 
-function pickupCarouselBriefs(topic: string, plannedObject?: string): string[] {
+function pickupCarouselBriefs(topic: string, plannedObject?: string, plannedCategory?: string): string[] {
+  if (plannedObject) {
+    const rule = plannedObjectRule(plannedCategory);
+    const subject = plannedCategory === "garments-in-bag"
+      ? "the full clothing contents and pickup bag specified in OBJECT PASSPORT"
+      : rule.label ? `the ${rule.label} specified in OBJECT PASSPORT` : "the full subject specified in OBJECT PASSPORT";
+    const detail = rule.family === "garment" || rule.family === "bedding"
+      ? "the care-label area and seams, with no readable label text"
+      : "the details specified in OBJECT PASSPORT, with no readable text";
+    return [
+      `Present ${subject} on the locked inspection counter, preserving its specified arrangement and condition for pickup.`,
+      `Show the same subject from OBJECT PASSPORT. One complete adult hand gently reveals ${detail}. Preserve five fingers and the original condition.`,
+      `Show the same subject from OBJECT PASSPORT naturally arranged for pickup; the counter supports the entire subject. Preserve its specified contents, realistic volume and condition.`,
+      `Show one phone photographing the same subject from OBJECT PASSPORT and ${detail}. The phone screen may show the camera view but must contain no readable interface text.`
+    ];
+  }
   const cleaned = cleanTopic(topic);
   const headline = /床單|被套|棉被|床組|枕/.test(cleaned)
     ? "床組"
@@ -2741,17 +2775,13 @@ function pickupCarouselBriefs(topic: string, plannedObject?: string): string[] {
                     : "衣物";
   const shoeColour = shoeSubjectFor(cleaned);
   const subject =
-    plannedObject
-      ? "exactly this one item from OBJECT PASSPORT"
-      : headline === "鞋子"
+    headline === "鞋子"
       ? `exactly one paired set of two ${shoeColour}`
       : headline === "床組"
         ? "exactly one complete folded warm-white cotton duvet cover with a thin navy piping edge"
         : `exactly one complete ${headline} item`;
   const sameSubject =
-    plannedObject
-      ? "the same item from OBJECT PASSPORT"
-      : headline === "鞋子"
+    headline === "鞋子"
       ? `the same paired set of two ${shoeColour}`
       : headline === "床組"
         ? "the same folded duvet cover"
@@ -2774,22 +2804,29 @@ const WHITE_SHIRT_7_20_BRIEFS = [
 export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] {
   const passport = garmentPassportFromTopic(input.topic, input.date, input.planned_object);
   const dayIndex = Number(input.date.replace(/-/g, "")) % BACKGROUND_ANCHORS.length;
-  const spec = objectSpecFromTopic(input.topic, input.date);
+  const spec: ObjectSpec = input.planned_object
+    ? { noun: "object", material: "", wear: "", lockNote: "" }
+    : objectSpecFromTopic(input.topic, input.date);
+  const plannedRule = input.planned_object ? plannedObjectRule(input.planned_category) : undefined;
   const shared =
-    `${passport} ${CAROUSEL_SCENE_LOCK} Create one portrait 4:5 photo. ` +
+    `${passport}${plannedRule?.label ? ` SUBJECT CATEGORY: ${plannedRule.label}.` : ""} ${CAROUSEL_SCENE_LOCK} Create one portrait 4:5 photo. ` +
     "Keep the exact featured object consistent across all four photos. " +
     phoneRealism(dayIndex) +
     " No poster layout, no graphic panel, no address, no phone number.";
 
   const briefs =
-    input.date === "2026-07-20" && (input.slot ?? 1) === 1
+    !input.planned_object && input.date === "2026-07-20" && (input.slot ?? 1) === 1
       ? WHITE_SHIRT_7_20_BRIEFS
       : canonicalSeoSyncPage(input.seo_sync_page).includes("taichung-citywide-laundry-pickup")
-        ? pickupCarouselBriefs(input.topic, input.planned_object)
+        ? pickupCarouselBriefs(input.topic, input.planned_object, input.planned_category)
         : [
             `Hero still of ${topicBody(input.topic)} through the passport item as the main close-up on the locked inspection counter. Keep the entire object readable and do not imply a cleaning result.`,
-            ...carouselInspectionShots(input.caption ?? "", input.topic, input.date).map((brief) =>
-              input.planned_object ? brief.replace("a second garment", "a second object") : brief
+            ...carouselInspectionShots(input.caption ?? "", input.topic, input.date, plannedRule?.family).map((brief) =>
+              input.planned_object
+                ? input.planned_category === "garments-in-bag" || !plannedRule?.label
+                  ? brief.replace("; do not introduce a second garment.", ".")
+                  : brief.replace("a second garment", "a second object")
+                : brief
             )
           ];
 
@@ -2806,6 +2843,7 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
       spots: namedSpotsFromTopic(body),
       passport,
       planned_object: input.planned_object,
+      planned_category: input.planned_category,
       briefs,
       sameGarment: input.planned_object ? SAME_OBJECT_CONTINUITY : SAME_GARMENT_CONTINUITY
     });
@@ -2814,7 +2852,8 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
   return briefs.map((brief, index) => {
     const slide = index + 1;
     const sameGarment = slide === 1 ? "" : ` ${input.planned_object ? SAME_OBJECT_CONTINUITY : SAME_GARMENT_CONTINUITY}.`;
-    return `${shared} Photo ${slide} of 4.${sameGarment} ${brief}`;
+    const plannedDetails = plannedRule ? ` ${familyTool(plannedRule.family)} rests at the frame edge. ${plannedRule.negatives}` : "";
+    return `${shared} Photo ${slide} of 4.${sameGarment} ${brief}${plannedDetails}`;
   });
 }
 
@@ -2837,6 +2876,7 @@ function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
     slot: slot.slot,
     topic: slot.topic,
     planned_object: slot.planned_object,
+    planned_category: slot.planned_category,
     caption: carouselCaptionSource(slot),
     seo_sync_page: canonicalSeoSyncPage(slot.seo_sync_page)
   });
@@ -2942,6 +2982,7 @@ export function dailySlotFromPlaybook(
     topic: slot.topic,
     format: slot.format,
     ...(slot.planned_object ? { planned_object: slot.planned_object } : {}),
+    ...(slot.planned_object && slot.planned_category !== undefined ? { planned_category: slot.planned_category } : {}),
     media_type: mediaType,
     instagram_caption: instagramCaption,
     facebook_caption: facebookCaption,

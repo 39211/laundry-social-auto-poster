@@ -41,6 +41,7 @@ for (const date of storedDates) {
     }
     const rebuilt = buildCarouselImagePrompts({
       date, slot: slot.slot, topic: slot.topic, planned_object: slot.planned_object,
+      planned_category: slot.planned_category,
       caption: [slot.facebook_caption, slot.instagram_caption, slot.topic].filter(Boolean).join("\n"),
       seo_sync_page: slot.seo_sync_page
     });

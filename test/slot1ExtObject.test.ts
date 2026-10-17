@@ -14,6 +14,7 @@ import {
 } from "../src/contentPlan";
 import { extendedTopicSlot1 } from "../src/growthPlaybook";
 import { generateDailyContent } from "../src/generateDailyContent";
+import { plannedObjectRule, familyTool } from "../src/imageDoctrine";
 import type { DailyContent } from "../src/types";
 
 const roots: string[] = [];
@@ -86,22 +87,30 @@ describe("slot1 extension object", () => {
 
   it("uses the planned object on the single-image fallback without a carousel", () => {
     const entry = plan["2026-10-24"]!;
-    const slot = { ...extendedTopicSlot1("2026-07-12", entry.topic, "single")!, planned_object: entry.object };
+    const slot = { ...extendedTopicSlot1("2026-07-12", entry.topic, "single")!, planned_object: entry.object, planned_category: entry.category };
     const daily = dailySlotFromPlaybook(slot, config, "slot1-plan-ext", true);
     expect(daily.carousel_items).toBeUndefined();
     expect(daily.image_prompt).toContain(`OBJECT PASSPORT: exactly this one item: ${entry.object}`);
+    const rule = plannedObjectRule(entry.category);
+    expect(daily.image_prompt).toContain(`SUBJECT CATEGORY: ${rule.label}.`);
+    expect(daily.image_prompt).toContain(familyTool(rule.family));
+    expect(daily.image_prompt.slice(daily.image_prompt.lastIndexOf("Avoid:"))).toBe(rule.negatives);
     expect(daily.image_prompt).not.toMatch(conflictingIdentity);
   });
 
   it("uses the planned passport on the legacy carousel path and preserves continuity", () => {
     const entry = plan["2026-10-23"]!;
     const prompts = buildCarouselImagePrompts({
-      date: "2026-09-08", topic: entry.topic, planned_object: entry.object
+      date: "2026-09-08", topic: entry.topic, planned_object: entry.object, planned_category: entry.category
     });
     expect(prompts).toHaveLength(4);
     for (const prompt of prompts) {
       expect(prompt).toContain(`OBJECT PASSPORT: exactly this one item: ${entry.object}`);
       expect(prompt).not.toMatch(conflictingIdentity);
+      const rule = plannedObjectRule(entry.category);
+      expect(prompt).toContain(`SUBJECT CATEGORY: ${rule.label}.`);
+      expect(prompt).toContain(familyTool(rule.family));
+      expect(prompt.slice(prompt.lastIndexOf("Avoid:"))).toBe(rule.negatives);
     }
     for (const prompt of prompts.slice(1)) expect(prompt).toContain(SAME_OBJECT_CONTINUITY);
   });
@@ -121,7 +130,7 @@ describe("slot1 extension object", () => {
     }
   });
 
-  it.each(["2026-10-28", "2026-10-31"])("planned bedding owns tools and negatives on %s", async (date) => {
+  it.each(Object.entries(plan).filter(([, entry]) => entry.category === "bedding").map(([date]) => date))("planned bedding owns tools and negatives on %s", async (date) => {
     const root = await fixtureRoot();
     const slot = buildDailyContent(date, config, { root, applySlot1Plan: true }).slots.find((item) => item.slot === 1)!;
     expect(slot.image_prompt).toContain("a handheld lint roller rests at the frame edge");
@@ -131,7 +140,7 @@ describe("slot1 extension object", () => {
     }
   });
 
-  it.each(["2026-10-25", "2026-11-01"])("production pickup briefs use the passport subject on %s", async (date) => {
+  it.each(Object.entries(plan).filter(([, entry]) => entry.family === "pickup-delivery").map(([date]) => date))("production pickup briefs use the passport subject on %s", async (date) => {
     const root = await fixtureRoot();
     const path = await generateDailyContent({ date, root, force: true });
     const calendar = JSON.parse(await readFile(path, "utf8")) as DailyContent;
@@ -139,9 +148,10 @@ describe("slot1 extension object", () => {
     expect(slot.planned_object).toBe(plan[date]!.object);
     expect(slot.seo_sync_page).toContain("taichung-citywide-laundry-pickup");
     expect(slot.carousel_items).toHaveLength(plan[date]!.format === "carousel" ? 4 : 1);
-    expect(slot.image_prompt).toContain("with exactly this one item from OBJECT PASSPORT on the locked inspection counter");
+    expect(slot.planned_category).toBe(plan[date]!.category);
+    expect(slot.image_prompt).toContain("specified in OBJECT PASSPORT on the locked inspection counter");
     for (const slide of slot.carousel_items!.slice(1)) {
-      expect(slide.image_prompt).toContain("the same item from OBJECT PASSPORT");
+      expect(slide.image_prompt).toContain("the same subject from OBJECT PASSPORT");
     }
     for (const prompt of [slot.image_prompt, ...slot.carousel_items!.map((item) => item.image_prompt)]) {
       expect(prompt).toContain(plan[date]!.object);

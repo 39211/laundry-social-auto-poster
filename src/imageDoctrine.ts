@@ -301,26 +301,6 @@ export function objectFamily(spec: Pick<ObjectSpec, "noun" | "material">): Objec
   return "other";
 }
 
-/** Only the approved object's text may supply identity on the planned path. */
-function plannedObjectIdentity(object: string): { family: ObjectFamily; label: string } {
-  // Containers and incidental words must not outrank their contents: a duvet
-  // in a cloth bag is bedding; a pickup note mentioning clothing is still paper.
-  const categories: Array<{ match: RegExp; family: ObjectFamily; label: string }> = [
-    { match: /便條|紙條|單據|\b(?:note|memo|paper slip)\b/i, family: "other", label: "note" },
-    { match: /床包|冬被|棉被|羽絨被|被套|涼被|枕|床單|床組|寢具|毛毯|\b(?:duvet|bedding|pillow|sheet|blanket|quilt)s?\b/i, family: "bedding", label: "bedding" },
-    { match: /鞋|靴|\b(?:shoe|sneaker|boot|slipper|sandal|loafer|footwear)s?\b/i, family: "shoe", label: "footwear" },
-    { match: /娃娃|玩偶|\b(?:plush|doll|stuffed animal)s?\b/i, family: "plush", label: "plush" },
-    { match: /毛衣|針織衫|\bsweaters?\b/i, family: "garment", label: "sweater" },
-    { match: /大衣|\bcoats?\b/i, family: "garment", label: "coat" },
-    { match: /外套|夾克|\b(?:jacket|windbreaker)s?\b/i, family: "garment", label: "jacket" },
-    { match: /上衣|襯衫|\b(?:shirt|tee|blouse)s?\b/i, family: "garment", label: "shirt" },
-    { match: /衣物|冬衣|褲|裙|制服|\b(?:garment|trousers|jeans|dress|suit|uniform)s?\b/i, family: "garment", label: "garment" },
-    { match: /包|袋|\b(?:handbag|bag|tote|backpack|suitcase|crossbody)s?\b/i, family: "bag", label: "handbag" },
-    { match: /地毯|\b(?:rug|carpet)s?\b/i, family: "other", label: "rug" }
-  ];
-  return categories.find((category) => category.match.test(object)) ?? { family: "other", label: "object" };
-}
-
 const NEGATIVES: Record<ObjectFamily, string> = {
   shoe: "Avoid: brand logos or logo-like marks, a second pair, readable text on the shoe, a waxy plastic-coated surface, a second hand.",
   bag: "Avoid: brand lettering on hardware, a second bag, readable tags, a waxy plastic-coated surface, a second hand.",
@@ -329,6 +309,44 @@ const NEGATIVES: Record<ObjectFamily, string> = {
   plush: "Avoid: character faces from known franchises, a second doll, readable tags, a second hand.",
   other: "Avoid: brand logos, readable text on the object, a second object of the same kind, a waxy plastic-coated surface, a second hand."
 };
+
+/** Fixed plan declarations; never classify an object's or a topic's free text. */
+export const PLANNED_OBJECT_CATEGORIES = {
+  coat: { family: "garment", label: "coat", negatives: NEGATIVES.garment },
+  jacket: { family: "garment", label: "jacket", negatives: NEGATIVES.garment },
+  sweater: { family: "garment", label: "sweater", negatives: NEGATIVES.garment },
+  shirt: { family: "garment", label: "shirt", negatives: NEGATIVES.garment },
+  jeans: { family: "garment", label: "jeans", negatives: NEGATIVES.garment },
+  trousers: { family: "garment", label: "trousers", negatives: NEGATIVES.garment },
+  dress: { family: "garment", label: "dress", negatives: NEGATIVES.garment },
+  suit: { family: "garment", label: "suit", negatives: NEGATIVES.garment },
+  uniform: { family: "garment", label: "uniform", negatives: NEGATIVES.garment },
+  bedding: { family: "bedding", label: "bedding", negatives: NEGATIVES.bedding },
+  handbag: { family: "bag", label: "handbag", negatives: NEGATIVES.bag },
+  shoes: { family: "shoe", label: "shoes", negatives: NEGATIVES.shoe },
+  boots: { family: "shoe", label: "boots", negatives: NEGATIVES.shoe },
+  plush: { family: "plush", label: "plush", negatives: NEGATIVES.plush },
+  rug: { family: "other", label: "rug", negatives: NEGATIVES.other },
+  note: { family: "other", label: "note", negatives: NEGATIVES.other },
+  "garments-in-bag": {
+    family: "garment", label: "jackets and coats in one pickup bag",
+    negatives: "Avoid: readable care-label or hang-tag text, a mannequin, a waxy plastic-coated surface, a second hand."
+  }
+} satisfies Record<string, { family: ObjectFamily; label: string; negatives: string }>;
+
+export type PlannedObjectCategory = keyof typeof PLANNED_OBJECT_CATEGORIES;
+export const NEUTRAL_PLANNED_OBJECT = {
+  family: "other", label: undefined,
+  negatives: "Avoid: brand logos, readable text on the object, a waxy plastic-coated surface, a second hand."
+} as const;
+
+export function isPlannedObjectCategory(category: unknown): category is PlannedObjectCategory {
+  return typeof category === "string" && Object.hasOwn(PLANNED_OBJECT_CATEGORIES, category);
+}
+
+export function plannedObjectRule(category: unknown): { family: ObjectFamily; label?: string; negatives: string } {
+  return isPlannedObjectCategory(category) ? PLANNED_OBJECT_CATEGORIES[category] : NEUTRAL_PLANNED_OBJECT;
+}
 
 export function familyNegatives(family: ObjectFamily): string {
   return NEGATIVES[family];
@@ -449,13 +467,14 @@ export interface DoctrinePromptInput {
   spots: string[];
   passport: string;
   planned_object?: string;
+  planned_category?: string;
   briefs: string[];
   sameGarment: string;
 }
 
 /** Full four-slide prompt set in doctrine order: passport, wear first, optics, station, framing, light, style, lens, colour, brief, negatives. */
 export function buildDoctrinePrompts(input: DoctrinePromptInput): string[] {
-  const identity = input.planned_object ? plannedObjectIdentity(input.planned_object) : undefined;
+  const identity = input.planned_object ? plannedObjectRule(input.planned_category) : undefined;
   const family = identity?.family ?? objectFamily(input.spec);
   const station = sceneStationForDate(input.date);
   const tool = familyTool(family);
@@ -465,7 +484,7 @@ export function buildDoctrinePrompts(input: DoctrinePromptInput): string[] {
   const surface = input.planned_object
     ? "WEAR FIRST: reproduce only the condition, marks, sizes and positions specified in OBJECT PASSPORT; preserve clean areas and do not invent or enlarge damage. MATERIAL OPTICS: show the actual surface texture and light response of only the material specified in OBJECT PASSPORT, with natural folds and contact shadows; do not add a different fabric, coating or trim."
     : `${wearMechanism(input.wearKind, input.spots, input.spec.wear)} ${materialOptics(input.spec)}`;
-  const subject = `${input.passport}${identity ? ` SUBJECT CATEGORY: ${identity.label}.` : ""} ${surface}`;
+  const subject = `${input.passport}${identity?.label ? ` SUBJECT CATEGORY: ${identity.label}.` : ""} ${surface}`;
   const shared = `${subject} ${station.lock} Create one portrait 4:5 photo. Keep the exact featured object consistent across all four photos. ${station.location}`;
   return input.briefs.map((brief, index) => {
     const slide = index + 1;
@@ -480,7 +499,7 @@ export function buildDoctrinePrompts(input: DoctrinePromptInput): string[] {
       cameraBlock(slide, macro),
       COLOR_BLOCK,
       `Photo ${slide} of 4.${continuity} ${brief.replace("Keep the entire object readable", "Keep the object recognizable even when cropped")}`,
-      familyNegatives(family)
+      identity?.negatives ?? familyNegatives(family)
     ].join(" ");
   });
 }

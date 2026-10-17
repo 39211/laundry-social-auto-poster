@@ -426,6 +426,7 @@ export interface DoctrinePromptInput {
   wearKind: string;
   spots: string[];
   passport: string;
+  planned_object?: string;
   briefs: string[];
   sameGarment: string;
 }
@@ -435,8 +436,13 @@ export function buildDoctrinePrompts(input: DoctrinePromptInput): string[] {
   const family = objectFamily(input.spec);
   const station = sceneStationForDate(input.date);
   const tool = familyTool(family);
-  const opening = needsOpening(input.spots, input.spec.wear);
-  const subject = `${input.passport} ${wearMechanism(input.wearKind, input.spots, input.spec.wear)} ${materialOptics(input.spec)}`;
+  const opening = needsOpening(input.spots, input.planned_object ? "" : input.spec.wear);
+  // A committed item owns its identity AND condition. Topic defaults can add
+  // another fabric, trim, stain or damage size even after the passport is fixed.
+  const surface = input.planned_object
+    ? "WEAR FIRST: reproduce only the condition, marks, sizes and positions specified in OBJECT PASSPORT; preserve clean areas and do not invent or enlarge damage. MATERIAL OPTICS: show the actual surface texture and light response of only the material specified in OBJECT PASSPORT, with natural folds and contact shadows; do not add a different fabric, coating or trim."
+    : `${wearMechanism(input.wearKind, input.spots, input.spec.wear)} ${materialOptics(input.spec)}`;
+  const subject = `${input.passport} ${surface}`;
   const shared = `${subject} ${station.lock} Create one portrait 4:5 photo. Keep the exact featured object consistent across all four photos. ${station.location}`;
   return input.briefs.map((brief, index) => {
     const slide = index + 1;

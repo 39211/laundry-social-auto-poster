@@ -26,6 +26,8 @@ export interface GrowthPlaybookSlot {
   time: string;
   phase: string;
   topic: string;
+  /** Exact physical item from an accepted extension plan; absent on rotation rows. */
+  planned_object?: string;
   format: GrowthFormat;
   visual_route: VisualRoute;
   traffic_route: TrafficRoute;

@@ -1539,7 +1539,7 @@ export function resolveSlot1WithPlan(
     const extendedSlot = extendedTopicSlot1(date, extendedPlan.topic, extendedPlan.format);
     if (extendedSlot) {
       const gram = topicRepeatsInWindow(extendedSlot.topic, airedTopics);
-      if (!gram) return { slot: extendedSlot, source: "slot1-plan-ext" };
+      if (!gram) return { slot: { ...extendedSlot, planned_object: extendedPlan.object }, source: "slot1-plan-ext" };
       const rotation = extendedRotationSlot1(date);
       return {
         slot: rotation ? resolveSlot1AgainstAired(rotation, airedTopics) : undefined,
@@ -2132,7 +2132,8 @@ function imagePromptFromPlaybook(slot: GrowthPlaybookSlot): string {
     poster: "Ordinary square campaign photo"
   };
 
-  return `${formatPrefix[slot.format]} for 私享家洗衣店: ${topic}. ${slot.image_or_reel_direction} ${PHONE_REALISM}`;
+  const passport = slot.planned_object ? `${garmentPassportFromTopic(slot.topic, slot.date, slot.planned_object)} ` : "";
+  return `${formatPrefix[slot.format]} for 私享家洗衣店: ${topic}. ${passport}${slot.image_or_reel_direction} ${PHONE_REALISM}`;
 }
 
 // Carousel continuity (2026-08-17): four slides used to be four different
@@ -2151,6 +2152,7 @@ export interface CarouselPromptInput {
   date: string;
   slot?: number;
   topic: string;
+  planned_object?: string;
   caption?: string;
   seo_sync_page?: string;
 }
@@ -2601,7 +2603,10 @@ export function objectSpecFromTopic(topic: string, date?: string): ObjectSpec {
   };
 }
 
-export function garmentPassportFromTopic(topic: string, date?: string): string {
+export function garmentPassportFromTopic(topic: string, date?: string, plannedObject?: string): string {
+  if (plannedObject) {
+    return `OBJECT PASSPORT: exactly this one item: ${plannedObject}. Preserve its specified color, material, style and condition; do not substitute a topic-derived variant.`;
+  }
   const spec = objectSpecFromTopic(topic, date);
   if (spec.sceneLockOnly) {
     return (
@@ -2710,7 +2715,7 @@ export function carouselInspectionShots(caption: string, topic: string, date?: s
   return shots;
 }
 
-function pickupCarouselBriefs(topic: string): string[] {
+function pickupCarouselBriefs(topic: string, plannedObject?: string): string[] {
   const cleaned = cleanTopic(topic);
   const headline = /床單|被套|棉被|床組|枕/.test(cleaned)
     ? "床組"
@@ -2733,13 +2738,17 @@ function pickupCarouselBriefs(topic: string): string[] {
                     : "衣物";
   const shoeColour = shoeSubjectFor(cleaned);
   const subject =
-    headline === "鞋子"
+    plannedObject
+      ? "exactly this one item from OBJECT PASSPORT"
+      : headline === "鞋子"
       ? `exactly one paired set of two ${shoeColour}`
       : headline === "床組"
         ? "exactly one complete folded warm-white cotton duvet cover with a thin navy piping edge"
         : `exactly one complete ${headline} item`;
   const sameSubject =
-    headline === "鞋子"
+    plannedObject
+      ? "the same item from OBJECT PASSPORT"
+      : headline === "鞋子"
       ? `the same paired set of two ${shoeColour}`
       : headline === "床組"
         ? "the same folded duvet cover"
@@ -2760,7 +2769,7 @@ const WHITE_SHIRT_7_20_BRIEFS = [
 ];
 
 export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] {
-  const passport = garmentPassportFromTopic(input.topic, input.date);
+  const passport = garmentPassportFromTopic(input.topic, input.date, input.planned_object);
   const dayIndex = Number(input.date.replace(/-/g, "")) % BACKGROUND_ANCHORS.length;
   const spec = objectSpecFromTopic(input.topic, input.date);
   const shared =
@@ -2773,7 +2782,7 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
     input.date === "2026-07-20" && (input.slot ?? 1) === 1
       ? WHITE_SHIRT_7_20_BRIEFS
       : canonicalSeoSyncPage(input.seo_sync_page).includes("taichung-citywide-laundry-pickup")
-        ? pickupCarouselBriefs(input.topic)
+        ? pickupCarouselBriefs(input.topic, input.planned_object)
         : [
             `Hero still of ${topicBody(input.topic)} through the passport item as the main close-up on the locked inspection counter. Keep the entire object readable and do not imply a cleaning result.`,
             ...carouselInspectionShots(input.caption ?? "", input.topic, input.date)
@@ -2783,7 +2792,7 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
   // wear mechanism, per-slide composition/lens and a short per-family
   // negative list. Scene-lock-only promo topics keep the legacy prompt: there
   // is no physical object to describe.
-  if (imageDoctrineActive(input.date) && !spec.sceneLockOnly) {
+  if (imageDoctrineActive(input.date) && (input.planned_object || !spec.sceneLockOnly)) {
     const body = topicBody(input.topic);
     return buildDoctrinePrompts({
       date: input.date,
@@ -2791,6 +2800,7 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
       wearKind: wearKindFromTopic(body),
       spots: namedSpotsFromTopic(body),
       passport,
+      planned_object: input.planned_object,
       briefs,
       sameGarment: SAME_GARMENT_CONTINUITY
     });
@@ -2821,6 +2831,7 @@ function carouselPromptsFromPlaybook(slot: GrowthPlaybookSlot): string[] {
     date: slot.date,
     slot: slot.slot,
     topic: slot.topic,
+    planned_object: slot.planned_object,
     caption: carouselCaptionSource(slot),
     seo_sync_page: canonicalSeoSyncPage(slot.seo_sync_page)
   });
@@ -2925,6 +2936,7 @@ export function dailySlotFromPlaybook(
     category: slot.slot === 1 ? "知識文" : "情境文",
     topic: slot.topic,
     format: slot.format,
+    ...(slot.planned_object ? { planned_object: slot.planned_object } : {}),
     media_type: mediaType,
     instagram_caption: instagramCaption,
     facebook_caption: facebookCaption,

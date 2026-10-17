@@ -3810,6 +3810,9 @@ describe("seo overrides and URL path normalization", () => {
     expect(livePostUrls.every((url) => url.startsWith("https://sixiangjialaundry.com/posts/"))).toBe(true);
     // 30 indexable articles from src/generatePublicSite.ts (SITEMAP_MAX_INDEXABLE_POSTS) plus the posts home page.
     expect(livePostUrls.length).toBeLessThanOrEqual(31);
+    // A deploy that drops the posts hub or every article must fail here, not pass on an empty list.
+    expect(livePostUrls).toContain("https://sixiangjialaundry.com/posts/");
+    expect(livePostUrls.filter((url) => url !== "https://sixiangjialaundry.com/posts/").length).toBeGreaterThan(0);
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
       const absolute = `https://sixiangjialaundry.com${path}`;
       expect(generatedUrls, path).not.toContain(absolute);

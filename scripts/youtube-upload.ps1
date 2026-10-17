@@ -43,6 +43,32 @@ function Write-Log([string]$m) {
     "[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $stamp, $m | Add-Content -Path $logFile -Encoding UTF8
 }
 
+function Publish-Site {
+    Push-Location $root
+    try {
+        $generateOutput = cmd /c "npm.cmd run generate-public-site 2>&1"
+        $generateCode = $LASTEXITCODE
+        $generateOutput | Add-Content -Path $logFile -Encoding UTF8
+        if ($generateCode -ne 0) {
+            Write-Log "Nightly generate-public-site failed (exit $generateCode); upload result is unchanged."
+            return
+        }
+
+        $publishOutput = cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1"
+        $publishCode = $LASTEXITCODE
+        $publishOutput | Add-Content -Path $logFile -Encoding UTF8
+        if ($publishCode -ne 0) {
+            Write-Log "Nightly publish-pages failed (exit $publishCode); upload result is unchanged."
+        } else {
+            Write-Log "Public site regenerated and pushed after the YouTube upload run."
+        }
+    } catch {
+        Write-Log ("Nightly public-site refresh failed: " + $_.Exception.Message + "; upload result is unchanged.")
+    } finally {
+        Pop-Location
+    }
+}
+
 function Show-Toast([string]$text) {
     try {
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
@@ -108,6 +134,8 @@ foreach ($slotNumber in @(2, 3)) {
         $anySkip = $true
     }
 }
+
+Publish-Site
 
 if ($needAuth) {
     Show-Toast "Reel 已發布，但 YouTube 還沒授權。跑一次 npm run youtube-auth 完成設定。"

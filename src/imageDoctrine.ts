@@ -301,6 +301,26 @@ export function objectFamily(spec: Pick<ObjectSpec, "noun" | "material">): Objec
   return "other";
 }
 
+/** Only the approved object's text may supply identity on the planned path. */
+function plannedObjectIdentity(object: string): { family: ObjectFamily; label: string } {
+  // Containers and incidental words must not outrank their contents: a duvet
+  // in a cloth bag is bedding; a pickup note mentioning clothing is still paper.
+  const categories: Array<{ match: RegExp; family: ObjectFamily; label: string }> = [
+    { match: /便條|紙條|單據|\b(?:note|memo|paper slip)\b/i, family: "other", label: "note" },
+    { match: /床包|冬被|棉被|羽絨被|被套|涼被|枕|床單|床組|寢具|毛毯|\b(?:duvet|bedding|pillow|sheet|blanket|quilt)s?\b/i, family: "bedding", label: "bedding" },
+    { match: /鞋|靴|\b(?:shoe|sneaker|boot|slipper|sandal|loafer|footwear)s?\b/i, family: "shoe", label: "footwear" },
+    { match: /娃娃|玩偶|\b(?:plush|doll|stuffed animal)s?\b/i, family: "plush", label: "plush" },
+    { match: /毛衣|針織衫|\bsweaters?\b/i, family: "garment", label: "sweater" },
+    { match: /大衣|\bcoats?\b/i, family: "garment", label: "coat" },
+    { match: /外套|夾克|\b(?:jacket|windbreaker)s?\b/i, family: "garment", label: "jacket" },
+    { match: /上衣|襯衫|\b(?:shirt|tee|blouse)s?\b/i, family: "garment", label: "shirt" },
+    { match: /衣物|冬衣|褲|裙|制服|\b(?:garment|trousers|jeans|dress|suit|uniform)s?\b/i, family: "garment", label: "garment" },
+    { match: /包|袋|\b(?:handbag|bag|tote|backpack|suitcase|crossbody)s?\b/i, family: "bag", label: "handbag" },
+    { match: /地毯|\b(?:rug|carpet)s?\b/i, family: "other", label: "rug" }
+  ];
+  return categories.find((category) => category.match.test(object)) ?? { family: "other", label: "object" };
+}
+
 const NEGATIVES: Record<ObjectFamily, string> = {
   shoe: "Avoid: brand logos or logo-like marks, a second pair, readable text on the shoe, a waxy plastic-coated surface, a second hand.",
   bag: "Avoid: brand lettering on hardware, a second bag, readable tags, a waxy plastic-coated surface, a second hand.",
@@ -373,10 +393,12 @@ export function sceneStationForDate(date: string): SceneStation {
   return SCENE_STATIONS[n % SCENE_STATIONS.length] ?? SCENE_STATIONS[0]!;
 }
 
-export function compositionBlock(slide: number, spot?: string, opening = false, tool = "a tool"): string {
+export function compositionBlock(slide: number, spot?: string, opening = false, tool = "a tool", plannedObject = false): string {
   if (slide === 1) {
     const open = opening
-      ? " Because the problem is inside, the item is opened toward the camera: the insole pulled halfway out, the opening tilted to the lens, or the lining turned outward, so the marked area is fully visible."
+      ? plannedObject
+        ? " Because the problem is inside, open only the interior area named in OBJECT PASSPORT toward the camera so it is fully visible."
+        : " Because the problem is inside, the item is opened toward the camera: the insole pulled halfway out, the opening tilted to the lens, or the lining turned outward, so the marked area is fully visible."
       : "";
     return (
       "COMPOSITION (hero, crop allowed): frame the half of the object that carries the problem, the object cut by the frame edge on one side and set off-centre with its mass near x=40% or x=60%, filling 60-75% of the frame height; one adult hand entering from the frame edge, wrist only, fingers holding or pressing right beside the problem area with five clearly separated fingers; " +
@@ -433,7 +455,8 @@ export interface DoctrinePromptInput {
 
 /** Full four-slide prompt set in doctrine order: passport, wear first, optics, station, framing, light, style, lens, colour, brief, negatives. */
 export function buildDoctrinePrompts(input: DoctrinePromptInput): string[] {
-  const family = objectFamily(input.spec);
+  const identity = input.planned_object ? plannedObjectIdentity(input.planned_object) : undefined;
+  const family = identity?.family ?? objectFamily(input.spec);
   const station = sceneStationForDate(input.date);
   const tool = familyTool(family);
   const opening = needsOpening(input.spots, input.planned_object ? "" : input.spec.wear);
@@ -442,7 +465,7 @@ export function buildDoctrinePrompts(input: DoctrinePromptInput): string[] {
   const surface = input.planned_object
     ? "WEAR FIRST: reproduce only the condition, marks, sizes and positions specified in OBJECT PASSPORT; preserve clean areas and do not invent or enlarge damage. MATERIAL OPTICS: show the actual surface texture and light response of only the material specified in OBJECT PASSPORT, with natural folds and contact shadows; do not add a different fabric, coating or trim."
     : `${wearMechanism(input.wearKind, input.spots, input.spec.wear)} ${materialOptics(input.spec)}`;
-  const subject = `${input.passport} ${surface}`;
+  const subject = `${input.passport}${identity ? ` SUBJECT CATEGORY: ${identity.label}.` : ""} ${surface}`;
   const shared = `${subject} ${station.lock} Create one portrait 4:5 photo. Keep the exact featured object consistent across all four photos. ${station.location}`;
   return input.briefs.map((brief, index) => {
     const slide = index + 1;
@@ -451,7 +474,7 @@ export function buildDoctrinePrompts(input: DoctrinePromptInput): string[] {
     const continuity = slide === 1 ? "" : ` ${input.sameGarment}.`;
     return [
       shared,
-      compositionBlock(slide, spot, opening, tool),
+      compositionBlock(slide, spot, opening, tool, Boolean(input.planned_object)),
       LIGHTING_BLOCK,
       STYLE_BLOCK,
       cameraBlock(slide, macro),

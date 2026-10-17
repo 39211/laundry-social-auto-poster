@@ -2145,6 +2145,9 @@ function imagePromptFromPlaybook(slot: GrowthPlaybookSlot): string {
 export const SAME_GARMENT_CONTINUITY =
   "the SAME physical garment as slide 1, same color, same fabric, same wear marks, same counter and lighting";
 
+export const SAME_OBJECT_CONTINUITY =
+  "the SAME physical object as slide 1, same color, same fabric, same wear marks, same counter and lighting";
+
 export const CAROUSEL_SCENE_LOCK =
   "SCENE LOCK: the same light counter with the same pink cutting mat and the same wall family on every slide; do not change location, backdrop, or room across slides.";
 
@@ -2785,7 +2788,9 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
         ? pickupCarouselBriefs(input.topic, input.planned_object)
         : [
             `Hero still of ${topicBody(input.topic)} through the passport item as the main close-up on the locked inspection counter. Keep the entire object readable and do not imply a cleaning result.`,
-            ...carouselInspectionShots(input.caption ?? "", input.topic, input.date)
+            ...carouselInspectionShots(input.caption ?? "", input.topic, input.date).map((brief) =>
+              input.planned_object ? brief.replace("a second garment", "a second object") : brief
+            )
           ];
 
   // Doctrine layer (2026-09-09+): seven-segment prompt with material optics,
@@ -2802,13 +2807,13 @@ export function buildCarouselImagePrompts(input: CarouselPromptInput): string[] 
       passport,
       planned_object: input.planned_object,
       briefs,
-      sameGarment: SAME_GARMENT_CONTINUITY
+      sameGarment: input.planned_object ? SAME_OBJECT_CONTINUITY : SAME_GARMENT_CONTINUITY
     });
   }
 
   return briefs.map((brief, index) => {
     const slide = index + 1;
-    const sameGarment = slide === 1 ? "" : ` ${SAME_GARMENT_CONTINUITY}.`;
+    const sameGarment = slide === 1 ? "" : ` ${input.planned_object ? SAME_OBJECT_CONTINUITY : SAME_GARMENT_CONTINUITY}.`;
     return `${shared} Photo ${slide} of 4.${sameGarment} ${brief}`;
   });
 }

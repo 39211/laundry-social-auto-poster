@@ -78,6 +78,7 @@ for (const [date, slots] of byDate) {
       date,
       slot: slot.slot,
       topic: slot.topic,
+      planned_object: slot.planned_object,
       caption,
       seo_sync_page: canonicalSeoSyncPage(slot.seo_sync_page)
     });

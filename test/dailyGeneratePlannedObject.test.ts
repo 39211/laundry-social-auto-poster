@@ -7,6 +7,9 @@ import { afterEach, describe, expect, it } from "vitest";
 const roots: string[] = [];
 const oldPlan = JSON.parse(readFileSync("data/slot1-plan.json", "utf8")) as Record<string, string>;
 const extension = JSON.parse(readFileSync("data/slot1-plan-ext.json", "utf8")) as Record<string, { object: string }>;
+const afterExtensionDate = new Date(
+  Date.parse(`${Object.keys(extension).sort().at(-1)!}T00:00:00Z`) + 86_400_000
+).toISOString().slice(0, 10);
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
@@ -52,7 +55,7 @@ describe("daily generation planned object", () => {
   it.each([
     ["2026-10-08", oldPlan["2026-10-08"]!],
     ["2026-10-23", extension["2026-10-23"]!.object],
-    ["2026-11-06", ""]
+    [afterExtensionDate, ""]
   ])("PowerShell 5.1 resolves the production lookup for %s", (date, object) => {
     const actual = runProductionLookup(fixtureRoot(), date);
     expect(actual.version).toBe(5);

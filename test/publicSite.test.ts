@@ -3644,7 +3644,6 @@ describe("seo overrides and URL path normalization", () => {
         "recent_posts",
         "published_posts",
         "content_contract.daily_article_policy.indexable_article_count",
-        "content_contract.daily_article_policy.sitemap_indexable_post_count",
         "content_contract.daily_article_policy.article_count"
       ])
     );
@@ -3790,7 +3789,7 @@ describe("seo overrides and URL path normalization", () => {
     const overrideHtmlFiles = overrideFiles.filter(f => f.endsWith(".html") && f !== "price-list.html");
     expect(overrideHtmlFiles.length).toBeGreaterThan(60);
     
-    // Should have no /posts/ URLs (all slot posts are noindex)
+    // This fixture has no approved posts, so its generated sitemap has no /posts/ URLs.
     const postsUrls = sitemapUrls.filter(url => url.includes("/posts/"));
     expect(postsUrls).toEqual([]);
 
@@ -3802,10 +3801,15 @@ describe("seo overrides and URL path normalization", () => {
     const liveResponse = await fetch("https://sixiangjialaundry.com/sitemap.xml");
     expect(liveResponse.ok, `live sitemap HTTP ${liveResponse.status}`).toBe(true);
     const liveUrls = sitemapLocs(await liveResponse.text()).sort();
+    const liveNonPostUrls = liveUrls.filter((url) => !url.includes("/posts/"));
+    const livePostUrls = liveUrls.filter((url) => url.includes("/posts/"));
     const generatedUrls = [...sitemapUrls].sort();
-    expect(generatedUrls).toEqual(liveUrls);
+    expect(generatedUrls).toEqual(liveNonPostUrls);
     expect(generatedUrls).toHaveLength(145);
     expect(generatedUrls.filter((url) => url.includes("/posts/"))).toEqual([]);
+    expect(livePostUrls.every((url) => url.startsWith("https://sixiangjialaundry.com/posts/"))).toBe(true);
+    // 30 indexable articles from src/generatePublicSite.ts (SITEMAP_MAX_INDEXABLE_POSTS) plus the posts home page.
+    expect(livePostUrls.length).toBeLessThanOrEqual(31);
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
       const absolute = `https://sixiangjialaundry.com${path}`;
       expect(generatedUrls, path).not.toContain(absolute);

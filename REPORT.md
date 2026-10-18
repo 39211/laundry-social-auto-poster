@@ -15,12 +15,59 @@ BASE| 766ada1c
 
 - 按契約跑 `npx vitest run test/publicSite.test.ts -t "keeps checked-in public feeds"`。第一次沒設必要的 `PUBLIC_SITE_BASE_URL`，在模組載入期中止、沒有測試結果；設定 `PUBLIC_SITE_BASE_URL` 與 `PUBLIC_IMAGE_BASE_URL` 為 `https://sixiangjialaundry.com` 後重跑，結果 1 failed / 48 skipped。唯一失敗為既有 `2026-09-15-0: expected undefined to be defined`（`test/publicSite.test.ts:2965`，calendar/feed slot 不一致）。這是唯一准許保留的全套基線紅。
 
+## Item 1 — 基底 page-marker fixture
+
+- `test/fixtures/aeo325/base-page-markers.json` 是直接從每一個 `git show 766ada1c:seo-overrides/<path>` 內容抽取，沒有手填 marker。
+- 六個集合欄位為 `meta_names`、`meta_properties`、`link_rels`、`jsonld_types`、`section_aside_ids`、`script_srcs`。抽取時去重並排序。六頁各集合數依序是：白鞋服務 `11/8/2/21/5/2`、白鞋指南 `11/8/2/24/3/2`、精品包服務 `11/8/2/24/2/2`、精品包指南 `11/8/2/24/2/2`、羽絨服務 `11/8/2/21/2/2`、羽絨指南 `11/8/2/24/3/2`。
+- 重現指令（PowerShell，輸出至同一 fixture）：
+
+```powershell
+@'
+const { execFileSync } = require('node:child_process');
+const { mkdirSync, writeFileSync } = require('node:fs');
+const { dirname, join } = require('node:path');
+const pages = ['services/white-shoe-cleaning.html','guides/white-shoe-yellowing.html','services/luxury-bag-cleaning.html','guides/luxury-bag-mold.html','services/down-jacket-cleaning.html','guides/down-jacket-cleaning.html'];
+function attr(tag, name) {
+  const m = tag.match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'));
+  return m ? (m[1] ?? m[2] ?? m[3] ?? '').trim() : undefined;
+}
+function tags(html, name) { return [...html.matchAll(new RegExp(`<${name}\\b[^>]*>`, 'gi'))].map(m => m[0]); }
+function collectTypes(value, out) {
+  if (Array.isArray(value)) for (const item of value) collectTypes(item, out);
+  else if (value && typeof value === 'object') {
+    const t = value['@type'];
+    if (typeof t === 'string') out.add(t);
+    else if (Array.isArray(t)) for (const x of t) if (typeof x === 'string') out.add(x);
+    for (const child of Object.values(value)) collectTypes(child, out);
+  }
+}
+const pagesOut = Object.fromEntries(pages.map(page => {
+  const html = execFileSync('git', ['show', `766ada1c:seo-overrides/${page}`], { encoding: 'utf8' });
+  const metas = tags(html, 'meta'), links = tags(html, 'link'), scripts = tags(html, 'script'), types = new Set();
+  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))
+    if (attr(`<script ${m[1] ?? ''}>`, 'type')?.toLowerCase() === 'application/ld+json') collectTypes(JSON.parse(m[2] ?? '{}'), types);
+  const unique = values => [...new Set(values.filter(Boolean))].sort();
+  return [page, {
+    meta_names: unique(metas.map(t => attr(t, 'name'))),
+    meta_properties: unique(metas.map(t => attr(t, 'property'))),
+    link_rels: unique(links.map(t => attr(t, 'rel'))),
+    jsonld_types: unique([...types]),
+    section_aside_ids: unique(['section','aside'].flatMap(n => tags(html, n).map(t => attr(t, 'id')))),
+    script_srcs: unique(scripts.map(t => attr(t, 'src')))
+  }];
+}));
+const file = join(process.cwd(), 'test/fixtures/aeo325/base-page-markers.json');
+mkdirSync(dirname(file), { recursive: true });
+writeFileSync(file, JSON.stringify({ source_commit: '766ada1c', pages: pagesOut }, null, 2) + '\n', 'utf8');
+'@ | node -
+```
+- 已從 REPORT 內複製指令重跑；檢查確認 fixture 是 6 頁、每頁 6 個陣列集合，SHA-256 開頭 `F4A7AD3088CD5856`。
+
 ## 待完成
 
-- Item 1：由六頁基底 `seo-overrides/` 程式抽取 `base-page-markers.json`。
 - Item 2：`aeo325PageCopy.test.ts` 先紅後綠，並覆蓋 FAQ、內容、marker、禁詞、日期、bytes 和 sitemap。
 - Item 3–4：六頁原位改稿與兩 sitemap lastmod。
 - Item 5：全套測試及完整範圍核對；唯一准許的已知失敗如上。
 - Item 6–7：push、更新 Draft PR #206、補齊 REPORT/PAYLOAD。
 
-NOT_DONE| Items 1–7 | 尚未執行；本輪狀態 PARTIAL。
+NOT_DONE| Items 2–7 | 尚未執行；本輪狀態 PARTIAL。

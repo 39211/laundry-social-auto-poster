@@ -23,11 +23,14 @@ STATUS| PARTIAL
 - 2026-10-18：Item 0 實作完成：將基底八份 docs/sitemap 檔還原；拆除 generator 的 `AEO325_PAGE_COPIES`、page builder、root 開關及所有 `includeAeo325Lastmod` 分支；保留 guardrail 載入、輸出檢查、sitemap 過濾掛鉤與 `SOURCE_PROJECT_ROOT`。
 - 2026-10-18：`config/aeo325/public-url-baseline.json` 將 path/count 記錄改為僅含 `down-vest-cleaning`、`gore-tex-jacket-cleaning` 的 slug 級豁免與理由；URL 集合基線 count/hash 欄位未變，approval 仍全部未核准。
 - 2026-10-18：Item 0 `npm run typecheck` PASS；`npx vitest run test/aeo325Guardrail.test.ts` 17/17 PASS；unstaged source diff 的 whitespace check 無錯。`git diff --cached --check` 會指出從 base 原樣還原的 HTML 既有尾端空白；未為消除提示而改寫基底頁。
+- 2026-10-18：Item 0 已提交 `66e7f4f9`（`Remove AEO325 managed page overlay`）。
+- 2026-10-18：Item 1 使用 Node 從 `git show 766ada1c:seo-overrides/<path>` 抽取六頁 marker 集合並產生 `test/fixtures/aeo325/base-page-markers.json`；每頁包含 meta name、meta property、link rel、JSON-LD @type、section/aside id、script src 六個去重排序集合。六頁集合數依序為 11/8/2/21/5/2、11/8/2/24/3/2、11/8/2/24/2/2、11/8/2/24/2/2、11/8/2/21/2/2、11/8/2/24/3/2。
+- 2026-10-18：重跑 REPORT 所附抽取程式後，fixture 結構驗證為 6 頁 × 6 個陣列；SHA-256 開頭 `F4A7AD3088CD5856`。
 
 ## 待完成
 
 - Item 0：實作、紅綠驗證、恢復基底頁已完成，將隨本次提交落檔。
-- Item 1：從 `git show 766ada1c:seo-overrides/<path>` 程式抽取六頁標記集合 fixture。
+- Item 1：fixture 已抽取並驗證，將隨本次提交落檔。
 - Item 2：先紅後綠建立 `test/aeo325PageCopy.test.ts`。
 - Item 3：六份 `seo-overrides/` 原位改稿，每頁一個 commit，完成後逐頁 cp 至 `docs/`。
 - Item 4：五個可索引網址的 sitemap/AI sitemap `lastmod` 手改至 2026-10-18。

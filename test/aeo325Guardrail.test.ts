@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -232,16 +231,50 @@ describe("AEO325 publication guardrail", () => {
     expect(result).toEqual([{ ID: "sxj_002", question: "approved question", answer: "approved answer" }]);
   });
 
-  it("keeps the established sitemap, AI sitemap, and RSS URL sets unchanged", async () => {
-    const baseline = JSON.parse(await readFile(join(root, "config/aeo325/public-url-baseline.json"), "utf8")) as {
-      files: Record<string, { count: number; sha256: string }>;
-    };
+  it("keeps public sitemap and feed URLs free of new AEO325 slugs and preserves target URL expectations", async () => {
+    const api = await guardrail();
+    const config = await api.loadAeo325Guardrail(root);
+    const approvedIds = new Set(config.approvals.filter((row) => row.approved).map((row) => row.ID));
+    const unapprovedSlugs = config.items
+      .filter((item) => !approvedIds.has(item.id) && !config.preExistingSlugs.includes(item.slug))
+      .map((item) => item.slug.toLowerCase());
 
+    const urlSets = new Map<string, string[]>();
     for (const file of ["sitemap.xml", "ai-sitemap.xml", "rss.xml"]) {
       const urls = urlSet(await readFile(join(root, "docs", file), "utf8"), file);
-      const digest = createHash("sha256").update(`${urls.join("\n")}\n`).digest("hex");
-      expect(urls).toHaveLength(baseline.files[file]?.count ?? -1);
-      expect(digest).toBe(baseline.files[file]?.sha256);
+      urlSets.set(file, urls);
+      for (const slug of unapprovedSlugs) {
+        expect(urls.some((url) => url.toLowerCase().includes(slug)), `${file} excludes ${slug}`).toBe(false);
+      }
+    }
+
+    const targetPaths = new Set([
+      "/services/white-shoe-cleaning.html",
+      "/guides/white-shoe-yellowing.html",
+      "/services/luxury-bag-cleaning.html",
+      "/guides/luxury-bag-mold.html",
+      "/services/down-jacket-cleaning.html",
+      "/guides/down-jacket-cleaning.html"
+    ]);
+    const expectedTargetPaths: Record<string, string[]> = {
+      "sitemap.xml": [
+        "/services/white-shoe-cleaning.html",
+        "/guides/white-shoe-yellowing.html",
+        "/services/luxury-bag-cleaning.html",
+        "/guides/luxury-bag-mold.html",
+        "/guides/down-jacket-cleaning.html"
+      ],
+      "ai-sitemap.xml": [
+        "/services/white-shoe-cleaning.html",
+        "/guides/white-shoe-yellowing.html",
+        "/guides/luxury-bag-mold.html",
+        "/guides/down-jacket-cleaning.html"
+      ]
+    };
+    for (const [file, expectedPaths] of Object.entries(expectedTargetPaths)) {
+      const urls = urlSets.get(file) ?? [];
+      const actualTargets = urls.map((url) => new URL(url).pathname).filter((path) => targetPaths.has(path));
+      expect(actualTargets.sort(), `${file} target URL presence`).toEqual([...expectedPaths].sort());
     }
   });
 

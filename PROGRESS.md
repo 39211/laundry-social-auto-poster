@@ -20,6 +20,7 @@ PARENT_HEAD| 37f617f6
 - Item 1 DONE：`src/aeo325Guardrail.ts` 改為只略過契約的二進位副檔名；結構化文字維持裸 slug，其他文字只檢查兩種 URL 形狀；走訪以 `stat` 跟進 junction/symlink，`realpath` 集合防循環。
 - Item 2 DONE：新增 10 個走訪層案例（六種檔案、PNG 黑名單、CSS class、豁免 JS、Windows junction/循環）；先紅後綠。首次有效紅測為 21 passed / 6 failed，紅在 JS/CSS/SVG/HTM/無副檔名與 junction 漏掃；兩個 junction 建立成功、未 skip。
 - Item 2 mutation 自證 DONE：僅讀 `.html` 突變 `27 tests: 7 failed`；走訪暫時 `return []` 突變 `27 tests: 7 failed`；兩次都還原後 `27/27 passed`。
+- Item 3 DONE：移除 `public-url-baseline.json` 的 sitemap/AI sitemap/RSS URL count/hash；保留 `source_commit` 與兩個豁免 slug。guardrail 改驗三個 URL 集合無非豁免 AEO325 slug，並核對六個受管頁面在 sitemap/AI sitemap 的預期存在/缺席；PageCopy 保留 lastmod、移除 URL 集合比較。指定兩檔合計 70/70 PASS。
 
 ---
 

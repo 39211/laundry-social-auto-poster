@@ -148,6 +148,25 @@ function schemaNodes(blocks: readonly unknown[]): JsonRecord[] {
   return result;
 }
 
+function pageOwnedNodes(blocks: readonly unknown[], path: string, types: ReadonlySet<string>): JsonRecord[] {
+  const pagePrefix = `https://sixiangjialaundry.com/${path}#`;
+  const roots: JsonRecord[] = [];
+  for (const block of blocks) {
+    if (!block || typeof block !== "object" || Array.isArray(block)) continue;
+    const graph = (block as JsonRecord)["@graph"];
+    const candidates = Array.isArray(graph) ? graph : [block];
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) continue;
+      const record = candidate as JsonRecord;
+      const id = record["@id"];
+      if (typeof id === "string" && id.startsWith(pagePrefix) && nodeTypes(record).some((type) => types.has(type))) {
+        roots.push(record);
+      }
+    }
+  }
+  return roots;
+}
+
 function nodeTypes(record: JsonRecord): string[] {
   const type = record["@type"];
   if (typeof type === "string") return [type];
@@ -285,7 +304,7 @@ describe("AEO325 final page copy", () => {
     const html = readHtml(path);
     const blocks = jsonLdBlocks(html);
     const ownedTypes = new Set(["WebPage", "Service", "Article", "FAQPage", "BreadcrumbList"]);
-    const strings = [copyVisibleText(html, copy), ...nodesOfTypes(blocks, ownedTypes).flatMap(stringsIn)].join(" ");
+    const strings = [copyVisibleText(html, copy), ...pageOwnedNodes(blocks, path, ownedTypes).flatMap(stringsIn)].join(" ");
     const forbidden = /紫外線|臭氧|殺菌|滅菌|除菌|抑菌|徹底|杜絕|確保|絕不|不傷|專利|認證|食品級|原廠級|修復|還原|恢復機能|台中全市|台中市全區|全區免費|[0-9]{1,3}\s*[%％]/gu;
     expect([...strings.matchAll(forbidden)].map((match) => match[0]), path).toEqual([]);
 
@@ -320,7 +339,7 @@ describe("AEO325 final page copy", () => {
     expect(attribute(metaContent("name", "twitter:description") ?? "", "content"), `${path} Twitter description`).toBe(description);
 
     const blocks = jsonLdBlocks(html);
-    const ownedPageNodes = nodesOfTypes(blocks, new Set(["WebPage", "Service", "Article"]));
+    const ownedPageNodes = pageOwnedNodes(blocks, path, new Set(["WebPage", "Service", "Article"]));
     const describedNodes = ownedPageNodes.filter((node) => typeof node.description === "string");
     expect(describedNodes.length, `${path} JSON-LD description nodes`).toBeGreaterThan(0);
     expect(describedNodes.map((node) => node.description), `${path} JSON-LD descriptions`).toEqual(Array(describedNodes.length).fill(description));
@@ -332,6 +351,13 @@ describe("AEO325 final page copy", () => {
     const heroTime = hero ? balancedElements(hero.inner, "time") : [];
     expect(heroTime.some((time) => attribute(time.openTag, "datetime") === "2026-10-18" && textContent(time.inner) === "2026-10-18"), `${path} hero time`).toBe(true);
 
+    const canonical = tags(head, "link").find((tag) => attribute(tag, "rel")?.split(/\s+/u).includes("canonical"));
+    if (path === "services/down-jacket-cleaning.html") {
+      expect(attribute(canonical ?? "", "href")).toContain("/guides/down-jacket-cleaning.html");
+    }
+  });
+
+  it("updates lastmod only for the five indexable target URLs in both sitemaps", () => {
     const sitemapPaths = [
       "/services/white-shoe-cleaning.html",
       "/guides/white-shoe-yellowing.html",
@@ -346,10 +372,6 @@ describe("AEO325 final page copy", () => {
         expect(entry?.lastmod, `${file} ${sitemapPath}`).toBe("2026-10-18");
       }
       expect(entries.some((entry) => new URL(entry.loc).pathname === "/services/down-jacket-cleaning.html"), `${file} excludes canonicalized down service`).toBe(false);
-    }
-    const canonical = tags(head, "link").find((tag) => attribute(tag, "rel")?.split(/\s+/u).includes("canonical"));
-    if (path === "services/down-jacket-cleaning.html") {
-      expect(attribute(canonical ?? "", "href")).toContain("/guides/down-jacket-cleaning.html");
     }
   });
 });

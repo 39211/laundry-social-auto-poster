@@ -1,4 +1,4 @@
-﻿# AEO325-B-r3 Progress
+# AEO325-B-r3 Progress
 
 STATUS| DONE
 BASE| 766ada1c
@@ -69,3 +69,8 @@ PARENT_HEAD| 37f617f6
 - Item 4 DONE: luxury-bag store/pickup card now contains the specified factual copy only; seo-overrides and docs copies have identical SHA-256 4F43E92F396C603BB409B9345A1C49B9A5522227DF37B6264F83BB6C8DF621BF. PageCopy regression was RED before copy change (1 failed / 44 filtered out) and GREEN after (1 passed / 44 filtered out).
 - Item 5 DONE: three temporary production mutations in src/aeo325Guardrail.ts each produced one targeted failing test (path token scan removed: punctuation-delimited path test; %2f normalization removed: encoded JS URL case; negative boundary reverted: newline boundary case). Each mutant was restored byte-for-byte in finally; then all three targeted cases passed together (3 passed / 0 failed / 37 filtered out), and git diff confirmed src has no mutation residue. Added one focused path-token test because the required examples are also caught by the broadened URL regex and would not independently prove the path-token scan mutation.
 - Item 6 DONE: npm run typecheck passed; specified Guardrail + PageCopy files passed 85/85; luxury-bag docs/override SHA-256 matched. Default full npx vitest run produced 1721 passed / 2 failed / 19 skipped: the existing 2026-09-15-0 calendar-slot failure plus the Qinghai test timing out at 5s under full-suite load. Qinghai passed alone (1/1). Full rerun with the repository's established stable profile npx vitest run --maxWorkers=4 --testTimeout=15000 produced 1722 passed / 1 failed / 19 skipped; the sole failure was the same existing calendar-slot assertion.
+## AEO325-B-r4 final checkpoint
+
+- Status is PARTIAL only because the task required all cases 01–09 to fail before the fix. Case 09 already rejected on the baseline: the full source is lowercased before the URL patterns, so the task's uppercase-regex diagnosis did not reproduce. The rejection test is retained and passes after the fix; no production behavior was weakened to force a red test.
+- Items 2–7 are DONE: scanner correction; exact URL segment matching; factual luxury-bag card and docs sync; all three production mutations red then restored green; scoped/typecheck/full validation; branch push and Draft PR #206 body update/readback.
+- Report and payload identify the last code/test commit as the validated implementation head. A final readback after the delivery-record commit verifies that the pushed PR head matches the branch.

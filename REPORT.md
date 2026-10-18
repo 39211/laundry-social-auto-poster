@@ -279,3 +279,26 @@ After restoration, the three same targeted tests passed together: 3 passed / 0 f
 - Docs and override luxury-bag pages have matching SHA-256: 4F43E92F396C603BB409B9345A1C49B9A5522227DF37B6264F83BB6C8DF621BF.
 - Full default npx vitest run with CI placeholder base URLs: 1721 passed / 2 failed / 19 skipped. The known failure is test/publicSite.test.ts:2965, missing slot 2026-09-15-0. The other failure was the Qinghai snippet test timing out at its default 5 seconds during full-suite load; its isolated run passed (1 passed / 48 filtered out).
 - Full rerun with the previously established resource profile, npx vitest run --maxWorkers=4 --testTimeout=15000, yielded 1722 passed / 1 failed / 19 skipped. The only failure was the same existing missing calendar slot; 141 test files passed.
+## AEO325-B-r4 final status
+
+STATUS| PARTIAL
+BASE| 766ada1c
+IMPLEMENTATION_HEAD| 0309421
+BRANCH| feat/aeo325-guardrail
+PR| https://github.com/39211/laundry-social-auto-poster/pull/206
+
+| Item | Status | Result |
+|---|---|---|
+| 1 | PARTIAL | Added all 11 requested temporary-tree cases. ①–⑧ were red initially; ⑨ was already blocked by baseline lowercasing; ⑩–⑪ were green. |
+| 2 | DONE | Strict path token scan, normalized content scan, .html/.htm URL forms, negative path boundary. |
+| 3 | DONE | URL set assertion compares full pathname segments, with dated feature-post collision coverage. |
+| 4 | DONE | Luxury-bag store/pickup card updated and docs copy byte-identical. |
+| 5 | DONE | Each of the three requested production mutations produced a failing test; restored source passed all three target cases. |
+| 6 | DONE | typecheck PASS; scoped files 85 passed; full stable-profile suite 1722 passed / 1 failed / 19 skipped. |
+| 7 | DONE | Branch pushed; r4 summary appended to PR #206, read back as OPEN / Draft. |
+
+TESTS| passed=1722 failed=1 skipped=19
+NOT_DONE| Item 1 | The required initial-red condition for case 09 did not hold because the baseline lowercases the source before regex matching; the behavior is already correct, so no artificial mutation was introduced.
+UNSURE| none
+
+The only full-suite failure is the existing missing public calendar slot 2026-09-15-0 at test/publicSite.test.ts:2965. The default full run also timed out the Qinghai test at 5 seconds under load; it passed alone, and the full rerun using 4 workers and a 15-second timeout had only the known calendar failure.

@@ -20,11 +20,11 @@ BRANCH| feat/aeo325-guardrail
 - Item 3 DONE，六頁各一個 commit：`311e9473` 白鞋服務、`b3d5c4ed` 白鞋指南、`de64ec0d` 精品包服務、`8b17fb2a` 精品包指南、`6f3e4c04` 羽絨服務、`c9fa40a9` 羽絨指南。六組 docs/override bytes 一致；四頁移除舊 HowTo。
 - Item 4 PARTIAL：主 sitemap 五個目標 lastmod 都是 `2026-10-18`；AI sitemap 更新四個原有目標。精品包服務 URL 基線未收錄於 AI sitemap；未新增 URL 以保持集合 hash。
 - Item 5 DONE：typecheck PASS；guardrail 17/17、page-copy 43/43 PASS；全套 1697 passed / 1 failed / 19 skipped。唯一失敗與開工基線相同。docs 無新 325 slug；三 sitemap/feed URL hashes 不變。
-- Item 6 DONE：`8196fb1f` 已 push；Draft PR #206 內文已更新，readback 為 OPEN/Draft、base `fix/reel-v3-two-reference-images`、branch `feat/aeo325-guardrail`。最終報告提交 push 後再核對 head。
-- Item 7 DONE：`REPORT.md` 已完成逐檔說明、驗證數字與 PARTIAL 原因；`PAYLOAD.md` 依最終 head 讀回後產生。
+- Item 6 DONE：`8196fb1f` 已 push；Draft PR #206 內文已更新。最終報告 checkpoint 也已 push，遠端 Git ref 與 PR API readback 的 head 相同；PR 為 OPEN/Draft、base `fix/reel-v3-two-reference-images`、branch `feat/aeo325-guardrail`。
+- Item 7 DONE：`REPORT.md` 完成逐檔說明、驗證數字與 PARTIAL 原因；`PAYLOAD.md` 使用最終 remote head，並附於最終回覆。
 
 ## 限制與下一步
 
 - 沒有在工作區根目錄跑 `npm run generate-public-site`；不合併、不部署、不呼叫 IndexNow/GSC。
 - 總狀態維持 PARTIAL，因 AI sitemap 基線不含 `/services/luxury-bag-cleaning.html`，新增會違反 URL 集合 hash 不變。
-- 最後收尾：push 最終報告提交、確認 PR head 等於本地 head；寫出含實際 head 的 `PAYLOAD.md`，再記 Vault task summary。
+- 收尾證據：最終 remote head 已寫入 `PAYLOAD.md`；Vault task summary 記錄最終 head、測試、PR readback 與 AI sitemap partial 原因。

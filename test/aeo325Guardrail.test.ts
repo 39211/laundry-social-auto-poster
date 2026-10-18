@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 type GuardrailModule = typeof import("../src/aeo325Guardrail");
@@ -72,6 +73,31 @@ function faqFromJsonLd(html: string): Array<{ question: string; answer: string }
     const entry = value as { name: string; acceptedAnswer: { text: string } };
     return { question: entry.name, answer: entry.acceptedAnswer.text };
   });
+}
+
+async function withTemporaryDocs(callback: (root: string, docsRoot: string) => Promise<void>): Promise<void> {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "aeo325-guardrail-"));
+  const docsRoot = join(temporaryRoot, "docs");
+  await mkdir(docsRoot, { recursive: true });
+  try {
+    await callback(temporaryRoot, docsRoot);
+  } finally {
+    await rm(temporaryRoot, { recursive: true, force: true });
+  }
+}
+
+async function writeOutput(docsRoot: string, path: string, contents: string | Buffer): Promise<void> {
+  const outputPath = join(docsRoot, path);
+  await mkdir(dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, contents);
+}
+
+async function nonExemptUnapprovedSlug(api: GuardrailModule): Promise<string> {
+  const config = await api.loadAeo325Guardrail(root);
+  const approvedIds = new Set(config.approvals.filter((row) => row.approved).map((row) => row.ID));
+  const item = config.items.find((candidate) => !approvedIds.has(candidate.id) && !config.preExistingSlugs.includes(candidate.slug));
+  if (!item) throw new Error("Expected a non-exempt unapproved AEO325 slug");
+  return item.slug;
 }
 
 function faqFromVisibleHtml(html: string): Array<{ question: string; answer: string }> {
@@ -216,6 +242,86 @@ describe("AEO325 publication guardrail", () => {
       const digest = createHash("sha256").update(`${urls.join("\n")}\n`).digest("hex");
       expect(urls).toHaveLength(baseline.files[file]?.count ?? -1);
       expect(digest).toBe(baseline.files[file]?.sha256);
+    }
+  });
+
+  it.each([
+    { path: "scripts/x.js", contents: (slug: string) => `fetch("/${slug}")` },
+    { path: "styles/x.css", contents: (slug: string) => `background-image: url('/${slug}')` },
+    { path: "img/x.svg", contents: (slug: string) => `<use href="/${slug}.html" />` },
+    { path: "a/b/c.htm", contents: (slug: string) => `<a href="/${slug}?source=guardrail">` },
+    { path: "no-extension", contents: (slug: string) => `https://example.com/${slug}.html` },
+    { path: "site.webmanifest", contents: (slug: string) => `{"start_url":"/${slug}"}` }
+  ])("scans public output path $path for unapproved URL shapes", async ({ path, contents }) => {
+    const api = await guardrail();
+    const slug = await nonExemptUnapprovedSlug(api);
+    await withTemporaryDocs(async (temporaryRoot, docsRoot) => {
+      await writeOutput(docsRoot, path, contents(slug));
+      await expect(api.assertAeo325PublicOutputSafety(temporaryRoot, root)).rejects.toThrow(
+        `unapproved AEO325 slug ${slug} appears in public output docs/${path}`
+      );
+    });
+  });
+
+  it("does not read binary blacklisted outputs when they contain slug bytes", async () => {
+    const api = await guardrail();
+    const slug = await nonExemptUnapprovedSlug(api);
+    await withTemporaryDocs(async (temporaryRoot, docsRoot) => {
+      await writeOutput(docsRoot, "assets/slug.png", Buffer.from(`\u0000${slug}\u0000`, "utf8"));
+      await expect(api.assertAeo325PublicOutputSafety(temporaryRoot, root)).resolves.toBeUndefined();
+    });
+  });
+
+  it("does not reject a bare slug used as a CSS class name", async () => {
+    const api = await guardrail();
+    const slug = await nonExemptUnapprovedSlug(api);
+    await withTemporaryDocs(async (temporaryRoot, docsRoot) => {
+      await writeOutput(docsRoot, "styles/classes.css", `.${slug} { color: red; }`);
+      await expect(api.assertAeo325PublicOutputSafety(temporaryRoot, root)).resolves.toBeUndefined();
+    });
+  });
+
+  it("allows the established exempt slug in a JavaScript URL shape", async () => {
+    const api = await guardrail();
+    await withTemporaryDocs(async (temporaryRoot, docsRoot) => {
+      await writeOutput(docsRoot, "scripts/legacy.js", 'fetch("/down-vest-cleaning.html")');
+      await expect(api.assertAeo325PublicOutputSafety(temporaryRoot, root)).resolves.toBeUndefined();
+    });
+  });
+
+  it("follows Windows directory junctions and stops when a junction loops to an already visited directory", async ({ skip }) => {
+    if (process.platform !== "win32") {
+      skip();
+      return;
+    }
+
+    const temporaryRoot = await mkdtemp(join(tmpdir(), "aeo325-guardrail-junction-"));
+    const docsRoot = join(temporaryRoot, "docs");
+    const externalDirectory = join(temporaryRoot, "linked-output");
+    const outputJunction = join(docsRoot, "linked");
+    const loopJunction = join(externalDirectory, "back-to-docs");
+    const createdJunctions: string[] = [];
+    try {
+      const api = await guardrail();
+      const slug = await nonExemptUnapprovedSlug(api);
+      await mkdir(docsRoot, { recursive: true });
+      await mkdir(externalDirectory, { recursive: true });
+      await writeOutput(externalDirectory, "leak.js", `fetch("/${slug}")`);
+      try {
+        await symlink(externalDirectory, outputJunction, "junction");
+        createdJunctions.push(outputJunction);
+        await symlink(docsRoot, loopJunction, "junction");
+        createdJunctions.push(loopJunction);
+      } catch (error) {
+        skip(`Windows junction creation unavailable: ${String(error)}`);
+        return;
+      }
+      await expect(api.assertAeo325PublicOutputSafety(temporaryRoot, root)).rejects.toThrow(
+        `unapproved AEO325 slug ${slug} appears in public output docs/linked/leak.js`
+      );
+    } finally {
+      for (const junction of createdJunctions) await unlink(junction);
+      await rm(temporaryRoot, { recursive: true, force: true });
     }
   });
 

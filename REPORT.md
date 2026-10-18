@@ -226,3 +226,26 @@ $src | node -
 - Item 7：本報告逐檔列出 `git diff --stat 766ada1c..HEAD` 涵蓋的 31 個檔案並解釋用途；`PAYLOAD.md` 使用最終 remote head，且隨最後回覆附上。
 
 NOT_DONE| Item 4 | AI sitemap 基線缺 luxury bag service URL；未新增以遵守 URL set hash 限制。
+
+# AEO325-B-r4 — Item 1 initial regression-test evidence
+
+STATUS| PARTIAL
+BRANCH| feat/aeo325-guardrail
+START_HEAD| d396643b
+PR| https://github.com/39211/laundry-social-auto-poster/pull/206
+
+The 11 isolated mkdtemp docs-tree cases were added before production changes. Initial targeted run: npx vitest run test/aeo325Guardrail.test.ts -t "r4 scanner case" --reporter=verbose → 8 failed / 3 passed / 27 filtered out. Cases 01–08 failed against the existing scanner; cases 10–11 passed. Case 09 (/Services/<Slug>.HTML) already failed closed because assertNoUnapprovedAeo325Slugs lowercases the entire path/content source before running the lowercase URL patterns. The test remains as a required behavior check, but its baseline was already green, contrary to the task's expected-red statement.
+
+| Case | Initial result | Evidence |
+|---|---|---|
+| 01 binary filename path token | RED | .png is skipped for contents; filename token not scanned |
+| 02 .js filename path token | RED | URL regex does not treat . as a path boundary |
+| 03 .htm filename path token | RED | extension and path boundary not recognized |
+| 04 JS fetch JSON path | RED | URL regex misses slug before .json |
+| 05 CSS image URL | RED | URL regex misses slug before .webp |
+| 06 URL ending before newline | RED | old lookahead omits newline/whitespace boundary |
+| 07 encoded URL in HTML | RED | %2F is not normalized |
+| 08 encoded URL in JS | RED | %2F is not normalized |
+| 09 uppercase URL | GREEN | existing source lowercasing already catches it |
+| 10 bare CSS class | GREEN | non-URL bare content remains allowed |
+| 11 exempt slug path | GREEN | down-vest-cleaning remains exempt |

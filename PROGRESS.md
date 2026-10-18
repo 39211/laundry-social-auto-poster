@@ -57,3 +57,9 @@ PARENT_HEAD| 37f617f6
 
 - Item 7 DONE：已推送 feat/aeo325-guardrail 並更新/讀回 Draft PR #206 的 r3 摘要；交付記錄 push 後再核對 remote branch 與 PR head 一致、狀態仍 OPEN / Draft。
 - r3 總狀態 DONE；PAYLOAD.md 的 HEAD 欄位記錄最後一個程式與測試驗證 commit dd52973，交付記錄 commit 的實際最終 SHA 以最終 GitHub/remote readback 為準。
+# AEO325-B-r4 checkpoint — Item 1 initial red tests
+
+- Branch feat/aeo325-guardrail; starting HEAD d396643b (PR #206 is OPEN / Draft). Initial worktree was clean.
+- Added 11 independent temporary-docs-tree cases in test/aeo325Guardrail.test.ts.
+- Initial targeted run: npx vitest run test/aeo325Guardrail.test.ts -t "r4 scanner case" --reporter=verbose → 8 failed / 3 passed / 27 skipped (filtered out). Cases 01–08 failed as expected; cases 10–11 passed as expected. Case 09 (uppercase URL) already rejects on the unmodified implementation because the complete source is lowercased before both URL regexes; this differs from the task contract's predicted initial failure and is retained as a regression test.
+- Item 1 red evidence is PARTIAL against the literal ①–⑨ must fail condition; the observed result is documented rather than manufacturing a failure.

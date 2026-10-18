@@ -279,6 +279,88 @@ describe("AEO325 publication guardrail", () => {
   });
 
   it.each([
+    {
+      id: "01 binary path token",
+      path: (slug: string) => `assets/${slug}.png`,
+      contents: () => Buffer.from("binary payload", "utf8"),
+      shouldReject: true
+    },
+    {
+      id: "02 JavaScript path token",
+      path: (slug: string) => `${slug}.js`,
+      contents: () => "// no slug in content",
+      shouldReject: true
+    },
+    {
+      id: "03 HTM path token",
+      path: (slug: string) => `services/${slug}.htm`,
+      contents: () => "<!-- no slug in content -->",
+      shouldReject: true
+    },
+    {
+      id: "04 fetch JSON URL",
+      path: () => "scripts/fetch.js",
+      contents: (slug: string) => `fetch("/answers/${slug}.json")`,
+      shouldReject: true
+    },
+    {
+      id: "05 CSS image URL",
+      path: () => "styles/images.css",
+      contents: (slug: string) => `background-image: url('/img/${slug}.webp')`,
+      shouldReject: true
+    },
+    {
+      id: "06 newline URL boundary",
+      path: () => "no-extension",
+      contents: (slug: string) => `see /services/${slug}\n`,
+      shouldReject: true
+    },
+    {
+      id: "07 encoded URL in HTML",
+      path: () => "pages/share.html",
+      contents: (slug: string) => `?url=https%3A%2F%2Fsixiangjialaundry.com%2Fservices%2F${slug}.html`,
+      shouldReject: true
+    },
+    {
+      id: "08 encoded URL in JavaScript",
+      path: () => "scripts/share.js",
+      contents: (slug: string) => `const url = "https%3A%2F%2Fsixiangjialaundry.com%2Fservices%2F${slug}.html";`,
+      shouldReject: true
+    },
+    {
+      id: "09 uppercase URL",
+      path: () => "scripts/uppercase.js",
+      contents: (slug: string) => `fetch("/Services/${slug[0]?.toUpperCase()}${slug.slice(1)}.HTML")`,
+      shouldReject: true
+    },
+    {
+      id: "10 bare CSS class token",
+      path: () => "styles/classes.css",
+      contents: (slug: string) => `.${slug}-card{}`,
+      shouldReject: false
+    },
+    {
+      id: "11 exempt slug path",
+      path: () => "guides/down-vest-cleaning.html",
+      contents: () => "",
+      shouldReject: false
+    }
+  ])("r4 scanner case $id", async ({ id, path, contents, shouldReject }) => {
+    const api = await guardrail();
+    const slug = await nonExemptUnapprovedSlug(api);
+    const outputPath = path(slug);
+    await withTemporaryDocs(async (temporaryRoot, docsRoot) => {
+      await writeOutput(docsRoot, outputPath, contents(slug));
+      const check = api.assertAeo325PublicOutputSafety(temporaryRoot, root);
+      if (shouldReject) {
+        await expect(check, id).rejects.toThrow(`unapproved AEO325 slug ${slug} appears in public output docs/${outputPath}`);
+      } else {
+        await expect(check, id).resolves.toBeUndefined();
+      }
+    });
+  });
+
+  it.each([
     { path: "scripts/x.js", contents: (slug: string) => `fetch("/${slug}")` },
     { path: "styles/x.css", contents: (slug: string) => `background-image: url('/${slug}')` },
     { path: "img/x.svg", contents: (slug: string) => `<use href="/${slug}.html" />` },

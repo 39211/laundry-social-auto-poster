@@ -24,6 +24,7 @@ PARENT_HEAD| 37f617f6
 - Item 4 DONE：白鞋 `#geo-entity` 已回到 `section.section.surface` 內的雙欄，詢問內容在另一欄；精品包逐字補回基底「門市與收送」article/card，置於三段新文案後、對應服務前；泛黃指南 Service description 與白鞋服務頁 `#service` 節點相同。三頁 docs/override 位元同步；六頁 JSON-LD 及 PageCopy 45/45 PASS。
 - Item 4 mutation 自證 DONE：暫時移除精品包門市卡時 PageCopy 目標測試 `1 failed`；還原後 PageCopy `45/45 passed`。
 - Item 5 DONE：基底 marker fixture 以 `D:\AI-Lanes-work\_tmp\aeob\extract_aeo325_base_markers.py` 從 commit `766ada1c` 程式重抽，為六頁新增 `link_rel_alternate_count`（6/7）與 `inline_gtag_config_count`（各 1）；PageCopy marker test 改比數量並明確要求 inline gtag config > 0，45/45 PASS。重抽命令：`python "D:/AI-Lanes-work/_tmp/aeob/extract_aeo325_base_markers.py"`。
+- Item 6 DONE：`npm run typecheck` PASS；指定兩檔 72/72 PASS；以 CI placeholder env `PUBLIC_SITE_BASE_URL=https://example.invalid`、`PUBLIC_IMAGE_BASE_URL=https://example.invalid` 執行 `npx vitest run --maxWorkers=4`，1709 passed / 1 failed / 19 skipped，唯一失敗是既有 `publicSite.test.ts:2965` 的 `2026-09-15-0` calendar slot fixture 缺項。default worker 全套有一個 5 秒負載逾時；該測試獨跑 PASS，4-worker 全套亦只剩上述既有失敗。
 
 ---
 

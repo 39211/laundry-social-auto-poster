@@ -272,3 +272,10 @@ All three temporary mutations were applied to src/aeo325Guardrail.ts itself, run
 | Revert negative path boundary to the previous lookahead | case 06 newline URL boundary: 1 failed / 39 filtered out |
 
 After restoration, the three same targeted tests passed together: 3 passed / 0 failed / 37 filtered out. git diff --exit-code -- src/aeo325Guardrail.ts confirmed no mutation residue. A separate punctuation-delimited path case was added because the required slash-prefixed filenames are also caught by the broadened URL pattern; without a case isolating the token scan, removing that scan alone would not make those examples red.
+## AEO325-B-r4 — Item 6 verification
+
+- npm run typecheck: PASS.
+- npx vitest run test/aeo325Guardrail.test.ts test/aeo325PageCopy.test.ts --reporter=dot: 85 passed / 0 failed / 0 skipped.
+- Docs and override luxury-bag pages have matching SHA-256: 4F43E92F396C603BB409B9345A1C49B9A5522227DF37B6264F83BB6C8DF621BF.
+- Full default npx vitest run with CI placeholder base URLs: 1721 passed / 2 failed / 19 skipped. The known failure is test/publicSite.test.ts:2965, missing slot 2026-09-15-0. The other failure was the Qinghai snippet test timing out at its default 5 seconds during full-suite load; its isolated run passed (1 passed / 48 filtered out).
+- Full rerun with the previously established resource profile, npx vitest run --maxWorkers=4 --testTimeout=15000, yielded 1722 passed / 1 failed / 19 skipped. The only failure was the same existing missing calendar slot; 141 test files passed.

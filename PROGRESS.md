@@ -29,3 +29,5 @@ STATUS| PARTIAL
 - 更新最終 `PAYLOAD.md`，提交本輪程式與頁面變更，推送 `feat/aeo325-guardrail`，用指定 base 建 Draft PR；不合併、不部署。
 - STATUS 維持 PARTIAL：全套有一個未修既有資料錯誤；答案庫兩個舊 slug 仍在既有公開頁。完整生成器本身的 sitemap URL count 也與既有 docs 基線不同，需在 PR 明示。
 - 2026-10-18：第一批三項內容已套入六個既有 HTML，並將五個 sitemap、四個 AI sitemap 頁面 lastmod 設為 2026-10-18；RSS 不變。`git diff --check` PASS，URL 集合基線測試 PASS。
+
+- 2026-10-18：Draft PR #206 已建立並確認 isDraft=true、base ix/reel-v3-two-reference-images、head eat/aeo325-guardrail；PR URL：https://github.com/39211/laundry-social-auto-poster/pull/206。

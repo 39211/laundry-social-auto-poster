@@ -39,6 +39,6 @@ BASE| 766ada1c
 1. 基底已有答案庫 slug `down-vest-cleaning` 與 `gore-tex-jacket-cleaning`，共 12 個 slug/path 基底位置，仍在答案資料、sitemap 與舊指南/服務輸出。為遵守不刪既有頁與 URL 集合限制，guardrail 僅允許各檔案不超過基底 occurrence 數；新位置或超額即 fail。店主尚未回覆移除/保留選擇題，故「全 docs 無任何未核准 slug」不成立。
 2. 全套 Vitest 有一個與本次檔案無關的現有 feed/calendar 對應失敗；不能標成全套綠。
 3. 全站產生器現有輸出 sitemap count 145 與目前 docs 基底 176 不同；全站 generator 會刪改日更 docs。本輪保留基底 URL 集合與日更輸出，不擴大修改 generator 的其他內容流。
-4. Draft PR 尚待建立；本報告在提交前更新。
+4. Draft PR #206 已建立並確認為 Draft：https://github.com/39211/laundry-social-auto-poster/pull/206。
 
 UNSURE| none beyond the unresolved legacy slug choice and baseline feed/calendar inconsistency above.

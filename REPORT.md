@@ -63,11 +63,19 @@ writeFileSync(file, JSON.stringify({ source_commit: '766ada1c', pages: pagesOut 
 ```
 - 已從 REPORT 內複製指令重跑；檢查確認 fixture 是 6 頁、每頁 6 個陣列集合，SHA-256 開頭 `F4A7AD3088CD5856`。
 
+## Item 2 — Page-copy test first red (scope decision pending)
+
+- 新測試檔：`test/aeo325PageCopy.test.ts`；包含 JSON-LD parse、final 文案與 heading 順序、FAQ 三方相同、marker superset、禁詞/消毒/交期、docs/override bytes、description/dateModified/hero time/sitemap 的檢查。
+- 紅測：`npx vitest run test/aeo325PageCopy.test.ts --reporter=dot`，基底輸出 `Test Files 1 failed (1); Tests 28 failed | 14 passed (42)`。例如白鞋服務 lead 目前仍是舊句，期望值是 final r3 導言；舊 FAQ、四頁 HowTo、日期與 description 也各自報紅。基底 6 頁 JSON-LD 可解析，且 docs/override 原始 bytes 相同。
+- `npm run typecheck`: PASS。
+- 測試目前把禁詞範圍解作本輪替換 lead/文案區塊、FAQ 與自有 JSON-LD；但契約指定保留的羽絨服務 `#consolidated-notice` (`seo-overrides/services/down-jacket-cleaning.html:302`) 與指南 `#down-price-split` (`seo-overrides/guides/down-jacket-cleaning.html:504`) 可見文字都含「消毒／醫療滅菌」。已送店主選擇題裁定禁詞掃描口徑；未收到答覆前不改任何目標頁，也不把這個測試標完成。
+
 ## 待完成
 
-- Item 2：`aeo325PageCopy.test.ts` 先紅後綠，並覆蓋 FAQ、內容、marker、禁詞、日期、bytes 和 sitemap。
+- Item 2：禁詞範圍裁定後完成測試並 commit。
 - Item 3–4：六頁原位改稿與兩 sitemap lastmod。
 - Item 5：全套測試及完整範圍核對；唯一准許的已知失敗如上。
 - Item 6–7：push、更新 Draft PR #206、補齊 REPORT/PAYLOAD。
 
-NOT_DONE| Items 2–7 | 尚未執行；本輪狀態 PARTIAL。
+NOT_DONE| Item 2 | 禁詞掃描範圍與保留羽絨區塊有衝突，等待店主從選擇題裁定。
+NOT_DONE| Items 3–7 | 尚未執行；本輪狀態 PARTIAL。

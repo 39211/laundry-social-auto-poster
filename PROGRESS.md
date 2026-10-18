@@ -26,12 +26,14 @@ STATUS| PARTIAL
 - 2026-10-18：Item 0 已提交 `66e7f4f9`（`Remove AEO325 managed page overlay`）。
 - 2026-10-18：Item 1 使用 Node 從 `git show 766ada1c:seo-overrides/<path>` 抽取六頁 marker 集合並產生 `test/fixtures/aeo325/base-page-markers.json`；每頁包含 meta name、meta property、link rel、JSON-LD @type、section/aside id、script src 六個去重排序集合。六頁集合數依序為 11/8/2/21/5/2、11/8/2/24/3/2、11/8/2/24/2/2、11/8/2/24/2/2、11/8/2/21/2/2、11/8/2/24/3/2。
 - 2026-10-18：重跑 REPORT 所附抽取程式後，fixture 結構驗證為 6 頁 × 6 個陣列；SHA-256 開頭 `F4A7AD3088CD5856`。
+- 2026-10-18：Item 2 新測試草稿 `test/aeo325PageCopy.test.ts` 已先跑紅：42 項中 28 failed / 14 passed；紅項集中於 r3 文案、FAQ、四頁 HowTo 清除與 descriptions/dates。`npm run typecheck` PASS。初版採「只驗本輪替換文案＋FAQ＋自有 JSON-LD」掃禁詞的解讀；羽絨兩個明確保留區塊含禁詞，已用選擇題請店主裁定，尚未改任何頁面。
+- 2026-10-18：Item 2 測試檔與紅測證據以 PARTIAL checkpoint 提交；禁詞驗收範圍仍等待裁定，不把 Item 2 標 DONE。
 
 ## 待完成
 
 - Item 0：實作、紅綠驗證、恢復基底頁已完成，將隨本次提交落檔。
 - Item 1：fixture 已抽取並驗證，將隨本次提交落檔。
-- Item 2：先紅後綠建立 `test/aeo325PageCopy.test.ts`。
+- Item 2：測試先紅已證明並已 checkpoint；禁詞驗收範圍待店主選擇後，完成測試並補綠。
 - Item 3：六份 `seo-overrides/` 原位改稿，每頁一個 commit，完成後逐頁 cp 至 `docs/`。
 - Item 4：五個可索引網址的 sitemap/AI sitemap `lastmod` 手改至 2026-10-18。
 - Item 5–7：全套驗證、production mutation、自證、差異報告、push 並更新 Draft PR #206。

@@ -376,6 +376,18 @@ describe("AEO325 publication guardrail", () => {
     });
   });
 
+  it("scans punctuation-delimited output path tokens independent of URL-shape matches", async () => {
+    const api = await guardrail();
+    const slug = await nonExemptUnapprovedSlug(api);
+    const outputPath = `assets/.${slug}.png`;
+    await withTemporaryDocs(async (temporaryRoot, docsRoot) => {
+      await writeOutput(docsRoot, outputPath, "");
+      await expect(api.assertAeo325PublicOutputSafety(temporaryRoot, root)).rejects.toThrow(
+        `unapproved AEO325 slug ${slug} appears in public output docs/${outputPath}`
+      );
+    });
+  });
+
   it.each([
     { path: "scripts/x.js", contents: (slug: string) => `fetch("/${slug}")` },
     { path: "styles/x.css", contents: (slug: string) => `background-image: url('/${slug}')` },

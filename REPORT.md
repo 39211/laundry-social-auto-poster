@@ -261,3 +261,14 @@ The sitemap/RSS guard assertion now compares each URL pathname's slash-delimited
 ## AEO325-B-r4 — Item 4 luxury-bag store/pickup card
 
 Updated only the existing card body in seo-overrides/services/luxury-bag-cleaning.html and copied it byte-for-byte to docs/services/luxury-bag-cleaning.html. The new PageCopy assertion checks the exact requested card text and rejects 台中全市, 保證, 承諾, and 滅菌. RED on old copy: 1 failed / 44 filtered out; GREEN after update: npx vitest run test/aeo325PageCopy.test.ts -t "luxury-bag store and pickup card" --reporter=verbose → 1 passed / 0 failed / 44 filtered out. SHA-256 of both page copies: 4F43E92F396C603BB409B9345A1C49B9A5522227DF37B6264F83BB6C8DF621BF.
+## AEO325-B-r4 — Item 5 production mutation evidence
+
+All three temporary mutations were applied to src/aeo325Guardrail.ts itself, run against the walk-through tests, and restored from their original bytes in a finally block:
+
+| Mutation | Targeted red evidence |
+|---|---|
+| Remove normalized-path slug-token scan | punctuation-delimited output path test: 1 failed / 39 filtered out |
+| Remove %2f normalization | case 08 encoded URL in JavaScript: 1 failed / 39 filtered out |
+| Revert negative path boundary to the previous lookahead | case 06 newline URL boundary: 1 failed / 39 filtered out |
+
+After restoration, the three same targeted tests passed together: 3 passed / 0 failed / 37 filtered out. git diff --exit-code -- src/aeo325Guardrail.ts confirmed no mutation residue. A separate punctuation-delimited path case was added because the required slash-prefixed filenames are also caught by the broadened URL pattern; without a case isolating the token scan, removing that scan alone would not make those examples red.

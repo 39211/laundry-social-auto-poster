@@ -16,7 +16,10 @@ type Faq = { question: string; answer: string };
 type FinalCopy = { headings: string[]; paragraphs: string[][]; faqs: Faq[] };
 type JsonRecord = Record<string, unknown>;
 type ElementBlock = { openTag: string; inner: string; start: number; end: number };
-type MarkerSets = Record<"meta_names" | "meta_properties" | "link_rels" | "jsonld_types" | "section_aside_ids" | "script_srcs", string[]>;
+type MarkerSets = Record<"meta_names" | "meta_properties" | "link_rels" | "jsonld_types" | "section_aside_ids" | "script_srcs", string[]> & {
+  link_rel_alternate_count: number;
+  inline_gtag_config_count: number;
+};
 
 const markerFixture = JSON.parse(readFileSync(join(ROOT, "test/fixtures/aeo325/base-page-markers.json"), "utf8")) as {
   source_commit: string;
@@ -191,13 +194,18 @@ function markerSets(html: string, blocks: readonly unknown[]): MarkerSets {
   const types = new Set<string>();
   for (const block of blocks) visitObjects(block, (record) => nodeTypes(record).forEach((type) => types.add(type)));
   const unique = (values: Array<string | undefined>) => [...new Set(values.filter((value): value is string => Boolean(value)))].sort();
+  const inlineGtagConfigCount = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/giu)]
+    .filter((match) => !attribute(`<script ${match[1] ?? ""}>`, "src"))
+    .reduce((count, match) => count + [...(match[2] ?? "").matchAll(/gtag\(\s*['"]config['"]/giu)].length, 0);
   return {
     meta_names: unique(metas.map((tag) => attribute(tag, "name"))),
     meta_properties: unique(metas.map((tag) => attribute(tag, "property"))),
     link_rels: unique(links.map((tag) => attribute(tag, "rel"))),
     jsonld_types: [...types].sort(),
     section_aside_ids: unique(["section", "aside"].flatMap((name) => tags(html, name).map((tag) => attribute(tag, "id")))),
-    script_srcs: unique(scripts.map((tag) => attribute(tag, "src")))
+    script_srcs: unique(scripts.map((tag) => attribute(tag, "src"))),
+    link_rel_alternate_count: links.filter((tag) => attribute(tag, "rel")?.split(/\s+/u).includes("alternate")).length,
+    inline_gtag_config_count: inlineGtagConfigCount
   };
 }
 
@@ -312,12 +320,16 @@ describe("AEO325 final page copy", () => {
     expect(expected, `${path} base markers`).toBeDefined();
     const blocks = jsonLdBlocks(readHtml(path));
     const actual = markerSets(readHtml(path), blocks);
-    for (const key of Object.keys(expected ?? {}) as Array<keyof MarkerSets>) {
+    const arrayKeys = ["meta_names", "meta_properties", "link_rels", "jsonld_types", "section_aside_ids", "script_srcs"] as const;
+    for (const key of arrayKeys) {
       const expectedValues = key === "jsonld_types"
         ? (expected?.[key] ?? []).filter((type) => !["HowTo", "HowToStep", "HowToSupply"].includes(type))
         : expected?.[key] ?? [];
       expect(actual[key], `${path} marker set ${key}`).toEqual(expect.arrayContaining(expectedValues));
     }
+    expect(actual.link_rel_alternate_count, `${path} link rel=alternate count`).toBe(expected?.link_rel_alternate_count);
+    expect(actual.inline_gtag_config_count, `${path} inline gtag config count`).toBe(expected?.inline_gtag_config_count);
+    expect(actual.inline_gtag_config_count, `${path} includes inline gtag config`).toBeGreaterThan(0);
     expect(actual.jsonld_types.filter((type) => ["HowTo", "HowToStep", "HowToSupply"].includes(type)), path).toEqual([]);
   });
 

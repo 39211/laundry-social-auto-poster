@@ -23,6 +23,7 @@ PARENT_HEAD| 37f617f6
 - Item 3 DONE：移除 `public-url-baseline.json` 的 sitemap/AI sitemap/RSS URL count/hash；保留 `source_commit` 與兩個豁免 slug。guardrail 改驗三個 URL 集合無非豁免 AEO325 slug，並核對六個受管頁面在 sitemap/AI sitemap 的預期存在/缺席；PageCopy 保留 lastmod、移除 URL 集合比較。指定兩檔合計 70/70 PASS。
 - Item 4 DONE：白鞋 `#geo-entity` 已回到 `section.section.surface` 內的雙欄，詢問內容在另一欄；精品包逐字補回基底「門市與收送」article/card，置於三段新文案後、對應服務前；泛黃指南 Service description 與白鞋服務頁 `#service` 節點相同。三頁 docs/override 位元同步；六頁 JSON-LD 及 PageCopy 45/45 PASS。
 - Item 4 mutation 自證 DONE：暫時移除精品包門市卡時 PageCopy 目標測試 `1 failed`；還原後 PageCopy `45/45 passed`。
+- Item 5 DONE：基底 marker fixture 以 `D:\AI-Lanes-work\_tmp\aeob\extract_aeo325_base_markers.py` 從 commit `766ada1c` 程式重抽，為六頁新增 `link_rel_alternate_count`（6/7）與 `inline_gtag_config_count`（各 1）；PageCopy marker test 改比數量並明確要求 inline gtag config > 0，45/45 PASS。重抽命令：`python "D:/AI-Lanes-work/_tmp/aeob/extract_aeo325_base_markers.py"`。
 
 ---
 

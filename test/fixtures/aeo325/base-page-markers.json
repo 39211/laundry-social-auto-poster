@@ -62,7 +62,9 @@
       "script_srcs": [
         "https://sixiangjialaundry.com/scripts/search-content-analytics.js",
         "https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"
-      ]
+      ],
+      "link_rel_alternate_count": 7,
+      "inline_gtag_config_count": 1
     },
     "guides/white-shoe-yellowing.html": {
       "meta_names": [
@@ -126,7 +128,9 @@
       "script_srcs": [
         "https://sixiangjialaundry.com/scripts/search-content-analytics.js",
         "https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"
-      ]
+      ],
+      "link_rel_alternate_count": 6,
+      "inline_gtag_config_count": 1
     },
     "services/luxury-bag-cleaning.html": {
       "meta_names": [
@@ -189,7 +193,9 @@
       "script_srcs": [
         "https://sixiangjialaundry.com/scripts/search-content-analytics.js",
         "https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"
-      ]
+      ],
+      "link_rel_alternate_count": 6,
+      "inline_gtag_config_count": 1
     },
     "guides/luxury-bag-mold.html": {
       "meta_names": [
@@ -252,7 +258,9 @@
       "script_srcs": [
         "https://sixiangjialaundry.com/scripts/search-content-analytics.js",
         "https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"
-      ]
+      ],
+      "link_rel_alternate_count": 6,
+      "inline_gtag_config_count": 1
     },
     "services/down-jacket-cleaning.html": {
       "meta_names": [
@@ -312,7 +320,9 @@
       "script_srcs": [
         "https://sixiangjialaundry.com/scripts/search-content-analytics.js",
         "https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"
-      ]
+      ],
+      "link_rel_alternate_count": 6,
+      "inline_gtag_config_count": 1
     },
     "guides/down-jacket-cleaning.html": {
       "meta_names": [
@@ -376,7 +386,9 @@
       "script_srcs": [
         "https://sixiangjialaundry.com/scripts/search-content-analytics.js",
         "https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"
-      ]
+      ],
+      "link_rel_alternate_count": 6,
+      "inline_gtag_config_count": 1
     }
   }
 }

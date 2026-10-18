@@ -362,7 +362,7 @@ describe("AEO325 final page copy", () => {
     }
   });
 
-  it("updates lastmod only for the five indexable target URLs in both sitemaps", () => {
+  it("updates lastmod for existing target URLs without changing the URL sets", () => {
     const sitemapPaths = [
       "/services/white-shoe-cleaning.html",
       "/guides/white-shoe-yellowing.html",
@@ -370,9 +370,21 @@ describe("AEO325 final page copy", () => {
       "/guides/luxury-bag-mold.html",
       "/guides/down-jacket-cleaning.html"
     ];
+    const expectedBySitemap: Record<string, string[]> = {
+      "sitemap.xml": sitemapPaths,
+      "ai-sitemap.xml": [
+        "/services/white-shoe-cleaning.html",
+        "/guides/white-shoe-yellowing.html",
+        "/guides/luxury-bag-mold.html",
+        "/guides/down-jacket-cleaning.html"
+      ]
+    };
     for (const file of ["sitemap.xml", "ai-sitemap.xml"]) {
       const entries = sitemapEntries(readFileSync(join(ROOT, "docs", file), "utf8"));
-      for (const sitemapPath of sitemapPaths) {
+      const expectedPaths = expectedBySitemap[file] ?? [];
+      const existingTargets = entries.map((entry) => new URL(entry.loc).pathname).filter((pathname) => sitemapPaths.includes(pathname));
+      expect(existingTargets.sort(), `${file} target URL set`).toEqual([...expectedPaths].sort());
+      for (const sitemapPath of expectedPaths) {
         const entry = entries.find((candidate) => new URL(candidate.loc).pathname === sitemapPath);
         expect(entry?.lastmod, `${file} ${sitemapPath}`).toBe("2026-10-18");
       }

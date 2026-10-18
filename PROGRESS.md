@@ -17,3 +17,5 @@ STATUS| PARTIAL
 - 2026-10-18：發現基底 `docs/` 已含 `down-vest-cleaning` 與 `gore-tex-jacket-cleaning` 兩個答案庫 slug（含既有 URL）；清除會和 sitemap URL 集合不變、不動其他頁的限制衝突。已向店主列選擇題，未取得答覆前不移除既有輸出。
 - 2026-10-18：讀取 A 單交接、店主事實及三份首批文案；已按 TDD 開始先寫測試，尚未新增 production code。
 - 2026-10-18：新增 16 個 guardrail 測試與 sitemap/AI sitemap/RSS URL hash 基線；首次紅測 `npx vitest run test/aeo325Guardrail.test.ts`：14 failed、2 passed、0 skipped，預期失敗訊息為 guardrail module 不存在。紅測摘錄見 `REPORT.md`。
+- 2026-10-18：加入 `src/aeo325Guardrail.ts` 與 325 筆預設全未核准的 `approvals.json`，將審核格式、正文輸出篩選、sitemap 條件、全 `docs/` slug 掃描接入建置。新測試 17/17 綠、typecheck 通過。初次全文件掃描逾 Vitest 5 秒 timeout；將掃描改為單次 token pass 後重新測試通過。
+- 2026-10-18：在 `generatePublicSite.ts` 加入六個既有目標 HTML 的持續重繪資料；羽絨服務 URL canonical 仍指指南。尚未執行完整 site regeneration；待查 URL 集合、頁面文字與輸出 diff。

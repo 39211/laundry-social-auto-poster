@@ -66,7 +66,9 @@ function faqFromJsonLd(html: string): Array<{ question: string; answer: string }
     .map((match) => JSON.parse(match[1] ?? "{}") as { "@graph"?: Array<Record<string, unknown>>; "@type"?: string; mainEntity?: unknown[] })
     .flatMap((value) => value["@graph"] ?? [value])
     .find((value) => value["@type"] === "FAQPage");
-  return (faqPage?.mainEntity ?? []).map((value) => {
+  const mainEntity = faqPage?.mainEntity;
+  if (!Array.isArray(mainEntity)) return [];
+  return mainEntity.map((value) => {
     const entry = value as { name: string; acceptedAnswer: { text: string } };
     return { question: entry.name, answer: entry.acceptedAnswer.text };
   });
@@ -212,9 +214,21 @@ describe("AEO325 publication guardrail", () => {
     for (const file of ["sitemap.xml", "ai-sitemap.xml", "rss.xml"]) {
       const urls = urlSet(await readFile(join(root, "docs", file), "utf8"), file);
       const digest = createHash("sha256").update(`${urls.join("\n")}\n`).digest("hex");
-      expect(urls).toHaveLength(baseline.files[file]?.count);
+      expect(urls).toHaveLength(baseline.files[file]?.count ?? -1);
       expect(digest).toBe(baseline.files[file]?.sha256);
     }
+  });
+
+  it("allows only the recorded base collisions and rejects any new occurrence", async () => {
+    const api = await guardrail();
+    const config = await api.loadAeo325Guardrail(root);
+
+    await expect(api.assertAeo325PublicOutputSafety(root)).resolves.toBeUndefined();
+    expect(() =>
+      api.assertNoUnapprovedAeo325Slugs(config.items, config.approvals, [
+        { path: "docs/new-page.html", contents: "down-vest-cleaning" }
+      ], config.legacySlugLocations)
+    ).toThrow("down-vest-cleaning");
   });
 
   it("keeps visible FAQs and FAQ JSON-LD text identical on all managed page copies", async () => {

@@ -231,7 +231,12 @@ function copyVisibleText(html: string, copy: FinalCopy): string {
   const changedSections = balancedElements(main, "section").filter((section) =>
     copyHeadings.has(sectionHeading(section)) || attribute(section.openTag, "id") === "aeo-u06"
   );
-  return [lead ? textContent(lead.inner) : "", ...changedSections.map((section) => textContent(section.inner)), faq ? textContent(faq.inner) : ""]
+  const changedSectionText = changedSections.map((section) => {
+    if (attribute(section.openTag, "id") !== "aeo-u06") return textContent(section.inner);
+    const answerBox = balancedElements(section.inner, "div").find((block) => attribute(block.openTag, "class")?.split(/\s+/u).includes("answer-box"));
+    return answerBox ? textContent(answerBox.inner) : "";
+  });
+  return [lead ? textContent(lead.inner) : "", ...changedSectionText, faq ? textContent(faq.inner) : ""]
     .filter(Boolean)
     .join(" ");
 }

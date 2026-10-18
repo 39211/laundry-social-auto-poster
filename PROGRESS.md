@@ -44,3 +44,4 @@ STATUS| PARTIAL
 - 不 merge、不 deploy、不呼叫 IndexNow/GSC。
 - 2026-10-18：Item 2 測試修整：schema 斷言只選對應頁 URL 的 JSON-LD 頂層自有節點，避免誤掃站共用／巢狀 Offer 服務節點；將全站 sitemap lastmod 驗證拆成獨立測試。測試共 43 項。測試程式修整後、白鞋服務頁完成時，全檔仍以 25 failed / 18 passed 保持紅，失敗皆來自尚未改的其餘五頁或待辦 sitemap lastmod。
 - 2026-10-18：Item 3 第 1 頁完成：`services/white-shoe-cleaning.html` 依 r3 更新 lead、三個文案 section、FAQ/FAQPage、meta 與 page-owned schema description/dateModified；保留原 title、H1、hero eyebrow、共享 JSON-LD 與保護區塊。原 `#geo-entity` aside 嵌在被移除的舊文案 section 內，已完整保留並置於新文案後的 `page-shell`。`docs/` 與 `seo-overrides/` bytes 相同；該頁 page-copy 測試 7 passed / 36 skipped，`npm run typecheck` PASS。全域 sitemap 測試仍待 Item 4。
+- 2026-10-18：Item 2 禁詞範圍修整：白鞋指南的 `#aeo-u06` 同時含替換的回答與保留的服務交叉連結；測試改成只掃被替換的 `answer-box`，不把保留的 `section-copy` 算進本輪文案。調整前白鞋指南測試誤報保留連結中的「台中全市」；調整後該頁 7/7 測試 PASS。

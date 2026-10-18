@@ -60,6 +60,11 @@ function urlSet(source: string, file: string): string[] {
   return [...new Set(values.map((value) => decode(value.trim())).filter((value) => value.startsWith("http")))].sort();
 }
 
+function hasSlugPathSegment(pathname: string, slug: string): boolean {
+  const expectedSegments = new Set([slug, `${slug}.html`, `${slug}.htm`]);
+  return pathname.toLowerCase().split("/").some((segment) => expectedSegments.has(segment));
+}
+
 function faqFromJsonLd(html: string): Array<{ question: string; answer: string }> {
   const scripts = [...html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
   const faqPage = scripts
@@ -243,8 +248,9 @@ describe("AEO325 publication guardrail", () => {
     for (const file of ["sitemap.xml", "ai-sitemap.xml", "rss.xml"]) {
       const urls = urlSet(await readFile(join(root, "docs", file), "utf8"), file);
       urlSets.set(file, urls);
+      const paths = urls.map((url) => new URL(url).pathname.toLowerCase());
       for (const slug of unapprovedSlugs) {
-        expect(urls.some((url) => url.toLowerCase().includes(slug)), `${file} excludes ${slug}`).toBe(false);
+        expect(paths.some((pathname) => hasSlugPathSegment(pathname, slug)), `${file} excludes ${slug}`).toBe(false);
       }
     }
 
@@ -276,6 +282,16 @@ describe("AEO325 publication guardrail", () => {
       const actualTargets = urls.map((url) => new URL(url).pathname).filter((path) => targetPaths.has(path));
       expect(actualTargets.sort(), `${file} target URL presence`).toEqual([...expectedPaths].sort());
     }
+  });
+
+  it("does not match a slug substring inside a dated feature-post path", () => {
+    const slug = "unapproved-special-cleaning";
+    const featurePostPath = `/posts/2026-10-19-feature-${slug}.html`;
+
+    expect(hasSlugPathSegment(featurePostPath, slug)).toBe(false);
+    expect(hasSlugPathSegment(`/services/${slug}`, slug)).toBe(true);
+    expect(hasSlugPathSegment(`/services/${slug}.html`, slug)).toBe(true);
+    expect(hasSlugPathSegment(`/services/${slug}.htm`, slug)).toBe(true);
   });
 
   it.each([

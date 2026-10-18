@@ -254,3 +254,7 @@ The 11 isolated mkdtemp docs-tree cases were added before production changes. In
 src/aeo325Guardrail.ts now token-scans every normalized output path (including binary allowlisted extensions), token-scans normalized contents for structured text, and runs the existing URL-shape checks against a lowercase normalized copy for other files. Content normalization converts %2f to /, %3a to :, escaped slash to /, and escaped backslash to /. URL shapes recognize .html and .htm; path suffixes use (?![a-z0-9_-]). The bare CSS class control and exempt down-vest-cleaning path remain allowed.
 
 Validation: npx vitest run test/aeo325Guardrail.test.ts --reporter=verbose → 38 passed / 0 failed / 0 skipped. All 11 r4 cases pass after the fix.
+
+## AEO325-B-r4 — Item 3 exact URL path-segment matching
+
+The sitemap/RSS guard assertion now compares each URL pathname's slash-delimited segments to the exact slug, slug.html, or slug.htm. It no longer reports a slug that only appears as a substring in a dated feature-post segment. Regression evidence: before the path-segment implementation, the new feature-post case failed (1 failed / 38 filtered out); after the change, `npx vitest run test/aeo325Guardrail.test.ts -t "dated feature-post path|public sitemap" --reporter=verbose` passed both the collision case and the real sitemap/feed assertion (2 passed / 0 failed / 37 filtered out).

@@ -16,17 +16,65 @@
     }
   },
   "pre_existing_slug_locations": [
-    { "slug": "down-vest-cleaning", "path": "docs/answers.json" },
-    { "slug": "down-vest-cleaning", "path": "docs/guides/down-clump-after-wash.html" },
-    { "slug": "down-vest-cleaning", "path": "docs/guides/down-jacket-cleaning.html" },
-    { "slug": "down-vest-cleaning", "path": "docs/guides/down-vest-cleaning.html" },
-    { "slug": "down-vest-cleaning", "path": "docs/hubs/luxury-garment-care.html" },
-    { "slug": "down-vest-cleaning", "path": "docs/sitemap.xml" },
-    { "slug": "gore-tex-jacket-cleaning", "path": "docs/answers.json" },
-    { "slug": "gore-tex-jacket-cleaning", "path": "docs/guides/gore-tex-jacket-cleaning.html" },
-    { "slug": "gore-tex-jacket-cleaning", "path": "docs/guides/trench-coat-cleaning.html" },
-    { "slug": "gore-tex-jacket-cleaning", "path": "docs/hubs/luxury-garment-care.html" },
-    { "slug": "gore-tex-jacket-cleaning", "path": "docs/services/luxury-garment-cleaning.html" },
-    { "slug": "gore-tex-jacket-cleaning", "path": "docs/sitemap.xml" }
+    {
+      "slug": "down-vest-cleaning",
+      "path": "docs/answers.json",
+      "occurrences": 1
+    },
+    {
+      "slug": "down-vest-cleaning",
+      "path": "docs/guides/down-clump-after-wash.html",
+      "occurrences": 1
+    },
+    {
+      "slug": "down-vest-cleaning",
+      "path": "docs/guides/down-jacket-cleaning.html",
+      "occurrences": 1
+    },
+    {
+      "slug": "down-vest-cleaning",
+      "path": "docs/guides/down-vest-cleaning.html",
+      "occurrences": 18
+    },
+    {
+      "slug": "down-vest-cleaning",
+      "path": "docs/hubs/luxury-garment-care.html",
+      "occurrences": 1
+    },
+    {
+      "slug": "down-vest-cleaning",
+      "path": "docs/sitemap.xml",
+      "occurrences": 1
+    },
+    {
+      "slug": "gore-tex-jacket-cleaning",
+      "path": "docs/answers.json",
+      "occurrences": 1
+    },
+    {
+      "slug": "gore-tex-jacket-cleaning",
+      "path": "docs/guides/gore-tex-jacket-cleaning.html",
+      "occurrences": 18
+    },
+    {
+      "slug": "gore-tex-jacket-cleaning",
+      "path": "docs/guides/trench-coat-cleaning.html",
+      "occurrences": 1
+    },
+    {
+      "slug": "gore-tex-jacket-cleaning",
+      "path": "docs/hubs/luxury-garment-care.html",
+      "occurrences": 1
+    },
+    {
+      "slug": "gore-tex-jacket-cleaning",
+      "path": "docs/services/luxury-garment-cleaning.html",
+      "occurrences": 1
+    },
+    {
+      "slug": "gore-tex-jacket-cleaning",
+      "path": "docs/sitemap.xml",
+      "occurrences": 1
+    }
   ]
 }

@@ -229,7 +229,15 @@ describe("AEO325 publication guardrail", () => {
         { path: "docs/new-page.html", contents: "down-vest-cleaning" }
       ], config.legacySlugLocations)
     ).toThrow("down-vest-cleaning");
-  });
+    const limitedLegacy = [{
+      slug: "down-vest-cleaning",
+      path: "docs/guides/down-jacket-cleaning.html",
+      occurrences: 1
+    }];
+    expect(() => api.assertNoUnapprovedAeo325Slugs(config.items, config.approvals, [
+      { path: "docs/guides/down-jacket-cleaning.html", contents: "down-vest-cleaning down-vest-cleaning" }
+    ], limitedLegacy)).toThrow("down-vest-cleaning");
+  }, 30000);
 
   it("keeps visible FAQs and FAQ JSON-LD text identical on all managed page copies", async () => {
     const pages = [

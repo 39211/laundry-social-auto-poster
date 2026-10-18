@@ -2,6 +2,7 @@ import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, unlink } from "node:fs/promises";
 import { writeFileWithRetry as writeFile } from "./fsRetry";
 import { dirname, join, posix, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
@@ -41,6 +42,8 @@ import {
   assertSearchContentAnalyticsScript,
   buildSearchContentAnalyticsScript
 } from "./searchContentAnalytics";
+
+const SOURCE_PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 interface GeneratePublicSiteOptions {
   root?: string;
@@ -4426,13 +4429,15 @@ function homepageContentLastmod(index: PublicPostIndex): string {
   return newestPostDate && newestPostDate > baseline ? newestPostDate : baseline;
 }
 
-function sitemapLastmodForUrl(url: string, index: PublicPostIndex): string | undefined {
+function sitemapLastmodForUrl(url: string, index: PublicPostIndex, includeAeo325Lastmod = true): string | undefined {
   if (url === index.canonical_url) {
     return homepageContentLastmod(index);
   }
 
-  const managedAeo325Page = AEO325_MANAGED_PAGE_COPIES.find((page) => url.endsWith(`/${page.path}`));
-  if (managedAeo325Page) return managedAeo325Page.contentLastmod;
+  if (includeAeo325Lastmod) {
+    const managedAeo325Page = AEO325_MANAGED_PAGE_COPIES.find((page) => url.endsWith(`/${page.path}`));
+    if (managedAeo325Page) return managedAeo325Page.contentLastmod;
+  }
 
   if (url === knowledgeHubUrl(index) || url.endsWith(`/${KNOWLEDGE_HUB_PATH}`)) {
     return knowledgeHubContentLastmod();
@@ -4464,8 +4469,8 @@ function sitemapLastmodForUrl(url: string, index: PublicPostIndex): string | und
   return undefined;
 }
 
-function sitemapUrlEntry(url: string, index: PublicPostIndex): string {
-  const lastmod = sitemapLastmodForUrl(url, index);
+function sitemapUrlEntry(url: string, index: PublicPostIndex, includeAeo325Lastmod = true): string {
+  const lastmod = sitemapLastmodForUrl(url, index, includeAeo325Lastmod);
   const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
   return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
 }
@@ -5941,7 +5946,7 @@ function buildConversionSection(index: PublicPostIndex, slug: string): string {
       </section>`;
 }
 
-function buildSitemapXml(index: PublicPostIndex): string {
+function buildSitemapXml(index: PublicPostIndex, includeAeo325Lastmod = true): string {
   const sitemapPosts = sitemapIndexablePostArticles(index);
   const urls = index.base_url_configured
     ? [
@@ -5953,7 +5958,7 @@ function buildSitemapXml(index: PublicPostIndex): string {
       ]
     : [];
   const uniqueUrls = Array.from(new Set(urls)).filter((url) => !sitemapShouldOmitUrlForPublicSite(url, index, new Set()));
-  const items = uniqueUrls.map((url) => sitemapUrlEntry(url, index)).join("\n");
+  const items = uniqueUrls.map((url) => sitemapUrlEntry(url, index, includeAeo325Lastmod)).join("\n");
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -5966,7 +5971,7 @@ function buildSitemapXml(index: PublicPostIndex): string {
     .join("\n");
 }
 
-function buildAiSitemapXml(index: PublicPostIndex): string {
+function buildAiSitemapXml(index: PublicPostIndex, includeAeo325Lastmod = true): string {
   const urls = index.base_url_configured
     ? [
         { loc: index.entrypoints.llms, purpose: "curated-context" },
@@ -6026,7 +6031,7 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
     })
     .map((item) => {
       // Human sitemap URLs keep truthful lastmod; machine/AI-only assets omit lastmod unless known.
-      const lastmod = sitemapLastmodForUrl(item.loc, index);
+      const lastmod = sitemapLastmodForUrl(item.loc, index, includeAeo325Lastmod);
       const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
       return `  <url><loc>${escapeXml(item.loc)}</loc>${lastmodXml}<changefreq>daily</changefreq><!-- ${escapeXml(item.purpose)} --></url>`;
     })
@@ -10230,12 +10235,13 @@ function buildAeo325ManagedPageHtml(copy: Aeo325ManagedPageCopy, index: PublicPo
     </footer>
   </body>
 </html>
-`;
+`.replace(/[ \t]+$/gmu, "");
 }
 
 export async function generatePublicSite(options: GeneratePublicSiteOptions = {}): Promise<string[]> {
   const root = projectRoot(options.root);
-  await loadAeo325Guardrail(root);
+  const useManagedAeo325PageCopies = root.toLocaleLowerCase() === SOURCE_PROJECT_ROOT.toLocaleLowerCase();
+  await loadAeo325Guardrail(SOURCE_PROJECT_ROOT);
   const config = getConfig();
   const siteBaseUrl = normalizeBaseUrl(options.siteBaseUrl ?? options.baseUrl ?? config.publicSiteBaseUrl);
   if (options.deployment) {
@@ -10442,8 +10448,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await writeFile(outputs.llmsJsonl, buildLlmsJsonl(index), "utf8");
   await writeFile(outputs.wellKnownLlms, buildLlmsText(index), "utf8");
   await writeFile(outputs.robots, buildRobotsText(index), "utf8");
-  await writeFile(outputs.sitemap, buildSitemapXml(index), "utf8");
-  await writeFile(outputs.aiSitemap, buildAiSitemapXml(index), "utf8");
+  await writeFile(outputs.sitemap, buildSitemapXml(index, useManagedAeo325PageCopies), "utf8");
+  await writeFile(outputs.aiSitemap, buildAiSitemapXml(index, useManagedAeo325PageCopies), "utf8");
   const searchContentAnalytics = buildSearchContentAnalyticsScript();
   assertSearchContentAnalyticsScript(searchContentAnalytics);
   await writeFile(outputs.searchContentAnalytics, searchContentAnalytics, "utf8");
@@ -10517,9 +10523,11 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     };
     await walkOverrides(overrideRoot);
     await Promise.all(
-      AEO325_MANAGED_PAGE_COPIES.map((copy) =>
-        writeFile(join(docsRoot, ...copy.path.split("/")), buildAeo325ManagedPageHtml(copy, index), "utf8")
-      )
+      useManagedAeo325PageCopies
+        ? AEO325_MANAGED_PAGE_COPIES.map((copy) =>
+            writeFile(join(docsRoot, ...copy.path.split("/")), buildAeo325ManagedPageHtml(copy, index), "utf8")
+          )
+        : []
     );
     // Extract override metadata only from copied HTML pages.
     const overrideLastmods = new Map<string, string>();
@@ -10583,7 +10591,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
           const urlObj = new URL(url);
           const pathname = urlObj.pathname.replace(/^\/+/, "");
           const posixPath = pathname || "index.html";
-          const lastmod = overrideLastmods.get(posixPath) || sitemapLastmodForUrl(url, index);
+          const lastmod = overrideLastmods.get(posixPath) || sitemapLastmodForUrl(url, index, useManagedAeo325PageCopies);
           const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
           return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
         })
@@ -10625,7 +10633,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     buildGeneratedAt: generatedAt
   });
 
-  await assertAeo325PublicOutputSafety(root);
+  await assertAeo325PublicOutputSafety(root, SOURCE_PROJECT_ROOT);
 
   return [...Object.values(outputs), ...postArticleOutputs];
 }

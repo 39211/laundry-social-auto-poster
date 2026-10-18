@@ -204,13 +204,21 @@ export function assertNoUnapprovedAeo325Slugs(
   const slugAlternation = [...unapprovedBySlug.keys()]
     .map((slug) => slug.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
     .join("|");
-  const htmlSlugUrl = slugAlternation ? new RegExp(`(?:^|[^a-z0-9-])(${slugAlternation})\\.html`, "gu") : undefined;
-  const pathSlugUrl = slugAlternation ? new RegExp(`/(${slugAlternation})(?=[/\"'?#]|$)`, "gu") : undefined;
+  const htmlSlugUrl = slugAlternation ? new RegExp(`(?:^|[^a-z0-9-])(${slugAlternation})\\.html?`, "gu") : undefined;
+  const pathSlugUrl = slugAlternation ? new RegExp(`/(${slugAlternation})(?![a-z0-9_-])`, "gu") : undefined;
   const slugTokens = /[a-z0-9_-]+/giu;
+  const normalizeForMatching = (value: string): string => value
+    .toLowerCase()
+    .replaceAll("%2f", "/")
+    .replaceAll("%3a", ":")
+    .replaceAll("\\/", "/")
+    .replaceAll("\\\\", "/");
 
   for (const output of outputs) {
     const normalizedPath = output.path.replace(/\\/gu, "/");
-    const source = `${normalizedPath}\n${output.contents}`.toLowerCase();
+    const matchingPath = normalizeForMatching(normalizedPath);
+    const normalizedContents = normalizeForMatching(output.contents);
+    const source = `${matchingPath}\n${normalizedContents}`;
     const basename = normalizedPath.slice(normalizedPath.lastIndexOf("/") + 1);
     const extension = basename.includes(".") ? basename.slice(basename.lastIndexOf(".")).toLowerCase() : "";
     const structuredText = STRUCTURED_TEXT_EXTENSIONS.has(extension);
@@ -219,8 +227,9 @@ export function assertNoUnapprovedAeo325Slugs(
       if (!slug || preExistingSlugSet.has(slug.toLowerCase())) return;
       throw new Error(`unapproved AEO325 slug ${slug} appears in public output ${normalizedPath}`);
     };
+    for (const match of matchingPath.matchAll(slugTokens)) rejectIfUnapproved(match[0]);
     if (structuredText) {
-      for (const match of source.matchAll(slugTokens)) rejectIfUnapproved(match[0]);
+      for (const match of normalizedContents.matchAll(slugTokens)) rejectIfUnapproved(match[0]);
       continue;
     }
     for (const pattern of [htmlSlugUrl, pathSlugUrl]) {

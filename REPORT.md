@@ -249,3 +249,8 @@ The 11 isolated mkdtemp docs-tree cases were added before production changes. In
 | 09 uppercase URL | GREEN | existing source lowercasing already catches it |
 | 10 bare CSS class | GREEN | non-URL bare content remains allowed |
 | 11 exempt slug path | GREEN | down-vest-cleaning remains exempt |
+## AEO325-B-r4 — Item 2 scanner correction
+
+src/aeo325Guardrail.ts now token-scans every normalized output path (including binary allowlisted extensions), token-scans normalized contents for structured text, and runs the existing URL-shape checks against a lowercase normalized copy for other files. Content normalization converts %2f to /, %3a to :, escaped slash to /, and escaped backslash to /. URL shapes recognize .html and .htm; path suffixes use (?![a-z0-9_-]). The bare CSS class control and exempt down-vest-cleaning path remain allowed.
+
+Validation: npx vitest run test/aeo325Guardrail.test.ts --reporter=verbose → 38 passed / 0 failed / 0 skipped. All 11 r4 cases pass after the fix.

@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 
 export interface Aeo325Item {
@@ -40,7 +40,11 @@ export type Aeo325OutputChannel = "html" | "service-jsonld" | "faq-jsonld" | "ai
 
 const EXPECTED_ITEM_COUNT = 325;
 const APPROVAL_FIELDS = ["ID", "approved", "approved_by", "approved_at", "page_mapping", "index_eligible"] as const;
-const TEXT_OUTPUT_EXTENSIONS = new Set([".html", ".json", ".jsonl", ".xml", ".txt", ".webmanifest", ".md"]);
+const STRUCTURED_TEXT_EXTENSIONS = new Set([".html", ".json", ".jsonl", ".xml", ".txt", ".webmanifest", ".md"]);
+const BINARY_OUTPUT_EXTENSIONS = new Set([
+  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".ico", ".mp4", ".mov", ".webm", ".mp3", ".wav", ".m4a",
+  ".woff", ".woff2", ".ttf", ".otf", ".eot", ".pdf", ".zip", ".gz", ".br", ".wasm"
+]);
 const ALLOWED_PRE_EXISTING_SLUGS = ["down-vest-cleaning", "gore-tex-jacket-cleaning"] as const;
 
 function itemId(item: Aeo325Item): string {
@@ -197,33 +201,56 @@ export function assertNoUnapprovedAeo325Slugs(
   const unapprovedBySlug = new Map(
     items.filter((item) => !approvedIds.has(item.id)).map((item) => [item.slug.toLowerCase(), item.slug])
   );
+  const slugAlternation = [...unapprovedBySlug.keys()]
+    .map((slug) => slug.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
+    .join("|");
+  const htmlSlugUrl = slugAlternation ? new RegExp(`(?:^|[^a-z0-9-])(${slugAlternation})\\.html`, "gu") : undefined;
+  const pathSlugUrl = slugAlternation ? new RegExp(`/(${slugAlternation})(?=[/\"'?#]|$)`, "gu") : undefined;
   const slugTokens = /[a-z0-9_-]+/giu;
 
   for (const output of outputs) {
     const normalizedPath = output.path.replace(/\\/gu, "/");
     const source = `${normalizedPath}\n${output.contents}`.toLowerCase();
-    for (const match of source.matchAll(slugTokens)) {
-      const slug = unapprovedBySlug.get(match[0]);
-      if (!slug || preExistingSlugSet.has(slug.toLowerCase())) continue;
+    const basename = normalizedPath.slice(normalizedPath.lastIndexOf("/") + 1);
+    const extension = basename.includes(".") ? basename.slice(basename.lastIndexOf(".")).toLowerCase() : "";
+    const structuredText = STRUCTURED_TEXT_EXTENSIONS.has(extension);
+    const rejectIfUnapproved = (matchedSlug: string): void => {
+      const slug = unapprovedBySlug.get(matchedSlug.toLowerCase());
+      if (!slug || preExistingSlugSet.has(slug.toLowerCase())) return;
       throw new Error(`unapproved AEO325 slug ${slug} appears in public output ${normalizedPath}`);
+    };
+    if (structuredText) {
+      for (const match of source.matchAll(slugTokens)) rejectIfUnapproved(match[0]);
+      continue;
+    }
+    for (const pattern of [htmlSlugUrl, pathSlugUrl]) {
+      if (!pattern) continue;
+      for (const match of source.matchAll(pattern)) rejectIfUnapproved(match[1] ?? "");
     }
   }
 }
 
 async function listPublicOutputs(docsRoot: string): Promise<Aeo325PublicOutput[]> {
   const output: Aeo325PublicOutput[] = [];
+  const visitedDirectories = new Set<string>();
   async function walk(directory: string): Promise<void> {
+    const canonicalDirectory = await realpath(directory);
+    if (visitedDirectories.has(canonicalDirectory)) return;
+    visitedDirectories.add(canonicalDirectory);
+
     const entries = await readdir(directory, { withFileTypes: true });
     entries.sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of entries) {
       const absolutePath = join(directory, entry.name);
-      if (entry.isDirectory()) {
+      const entryStat = await stat(absolutePath);
+      if (entryStat.isDirectory()) {
         await walk(absolutePath);
         continue;
       }
       const path = relative(docsRoot, absolutePath).split(sep).join("/");
-      const extension = path.slice(path.lastIndexOf(".")).toLowerCase();
-      const contents = TEXT_OUTPUT_EXTENSIONS.has(extension) ? await readFile(absolutePath, "utf8") : "";
+      const basename = path.slice(path.lastIndexOf("/") + 1);
+      const extension = basename.includes(".") ? basename.slice(basename.lastIndexOf(".")).toLowerCase() : "";
+      const contents = BINARY_OUTPUT_EXTENSIONS.has(extension) ? "" : await readFile(absolutePath, "utf8");
       output.push({ path: `docs/${path}`, contents });
     }
   }

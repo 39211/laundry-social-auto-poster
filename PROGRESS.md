@@ -15,9 +15,11 @@ PARENT_HEAD| 37f617f6
 
 ## r3 項目狀態
 
-- 尚未開始實作；工作區起始乾淨，branch `feat/aeo325-guardrail`、HEAD/PR/remote branch 均為 `37f617f6a0e47d2ef666bb050dc850ef03285b09`，PR #206 為 OPEN/Draft。
+- 起始工作區乾淨；branch `feat/aeo325-guardrail`、HEAD/PR/remote branch 均為 `37f617f6a0e47d2ef666bb050dc850ef03285b09`，PR #206 為 OPEN/Draft。
 - 已確認 `D:\C-moved` 與 `D:\AI-Lanes-work` 存在，C: 可用空間約 18.8 GiB；本輪不產生大型素材。
-- Item 2 測試先行：新增 10 個走訪層案例（六種檔案、PNG 黑名單、CSS class、豁免 JS、Windows junction/循環）；首次有效紅測 `npx vitest run test/aeo325Guardrail.test.ts` 為 21 passed / 6 failed，紅在 JS/CSS/SVG/HTM/無副檔名與 junction 漏掃，webmanifest／PNG／裸 class／豁免案例通過。Windows 成功建立兩個 junction，未 skip。
+- Item 1 DONE：`src/aeo325Guardrail.ts` 改為只略過契約的二進位副檔名；結構化文字維持裸 slug，其他文字只檢查兩種 URL 形狀；走訪以 `stat` 跟進 junction/symlink，`realpath` 集合防循環。
+- Item 2 DONE：新增 10 個走訪層案例（六種檔案、PNG 黑名單、CSS class、豁免 JS、Windows junction/循環）；先紅後綠。首次有效紅測為 21 passed / 6 failed，紅在 JS/CSS/SVG/HTM/無副檔名與 junction 漏掃；兩個 junction 建立成功、未 skip。
+- Item 2 mutation 自證 DONE：僅讀 `.html` 突變 `27 tests: 7 failed`；走訪暫時 `return []` 突變 `27 tests: 7 failed`；兩次都還原後 `27/27 passed`。
 
 ---
 

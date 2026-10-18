@@ -136,9 +136,7 @@ $src | node -
 
 ## Item 6–7
 
-- Item 6 尚待最後提交 push、更新 Draft PR #206 內文與 readback。
-- Item 7 本報告已寫；`PAYLOAD.md` 待最後 remote head 確認。
+- Item 6：commit `8196fb1f` 已 push。`gh pr edit 206 --body-file ...` 更新了 Draft PR 內文，readback 確認 PR #206 為 OPEN/Draft、base `fix/reel-v3-two-reference-images`、branch `feat/aeo325-guardrail`、head `8196fb1f32547b634c20717efbf57f74b179f999`。最終報告提交 push 後會再核對 remote head。
+- Item 7：本報告已寫，逐檔列出 `git diff --stat 766ada1c..HEAD` 涵蓋的 31 個檔案並解釋用途；`PAYLOAD.md` 於最終 head readback 後產生，並隨最後回覆附上。
 
 NOT_DONE| Item 4 | AI sitemap 基線缺 luxury bag service URL；未新增以遵守 URL set hash 限制。
-NOT_DONE| Item 6 | 尚待 push 及 PR body/head readback。
-NOT_DONE| Item 7 | PAYLOAD 尚待最後 remote head 確認。

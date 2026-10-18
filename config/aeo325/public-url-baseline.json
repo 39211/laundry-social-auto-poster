@@ -1,0 +1,18 @@
+{
+  "source_commit": "0648e83ce3945040022badcb9b22087ff735a806",
+  "extraction": "sorted unique absolute HTTP(S) URLs: <loc> elements for both sitemaps; <link> text and atom:link href plus item links for RSS",
+  "files": {
+    "sitemap.xml": {
+      "count": 176,
+      "sha256": "f0bf667b6f420a6256933e8aa77afe4a5233df10499c420f13f80cecf48eb623"
+    },
+    "ai-sitemap.xml": {
+      "count": 619,
+      "sha256": "63bc7ae57a8977f486c5a36d95ca2e38c36804fb863ee7670e1910934c5fdffd"
+    },
+    "rss.xml": {
+      "count": 216,
+      "sha256": "5dd2215c158fa582fe25586f2744110868f72d8840db44035f7e6c1fcdf3d2bd"
+    }
+  }
+}

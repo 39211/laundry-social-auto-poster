@@ -258,6 +258,23 @@ describe("AEO325 final page copy", () => {
     for (const json of raw) expect(() => JSON.parse(json), path).not.toThrow();
   });
 
+  it("keeps the white-shoe geo entity card inside a surface section", () => {
+    const html = readHtml("services/white-shoe-cleaning.html");
+    const geoIndex = html.indexOf('id="geo-entity"');
+    const sectionAncestors = balancedElements(html, "section").filter((section) => section.start < geoIndex && section.end > geoIndex);
+    expect(geoIndex, "white-shoe geo entity exists").toBeGreaterThanOrEqual(0);
+    expect(sectionAncestors.some((section) => {
+      const classes = attribute(section.openTag, "class")?.split(/\s+/u) ?? [];
+      return classes.includes("section") && classes.includes("surface");
+    })).toBe(true);
+  });
+
+  it("restores the luxury-bag store and pickup card text", () => {
+    const visibleText = textContent(mainHtml(readHtml("services/luxury-bag-cleaning.html")));
+    expect(visibleText).toContain("門市與收送");
+    expect(visibleText).toContain("04-2452-7411");
+  });
+
   it.each(TARGETS)("renders final H3-2 to H3-5 and every copy paragraph on $path", ({ path, finalFile, finalHeading }) => {
     const copy = readFinalCopy(finalFile, finalHeading);
     const html = readHtml(path);

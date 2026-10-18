@@ -47,3 +47,4 @@ STATUS| PARTIAL
 - 2026-10-18：Item 2 禁詞範圍修整：白鞋指南的 `#aeo-u06` 同時含替換的回答與保留的服務交叉連結；測試改成只掃被替換的 `answer-box`，不把保留的 `section-copy` 算進本輪文案。調整前白鞋指南測試誤報保留連結中的「台中全市」；調整後該頁 7/7 測試 PASS。
 - 2026-10-18：Item 3 第 2 頁完成：`guides/white-shoe-yellowing.html` 更新 lead 與 `#aeo-u06` answer-box 內文，原 h2、section-copy 交叉連結保留；新增三個文案 section、同步三組 FAQ/FAQPage，並移除舊 HowTo 節點及 WebPage 對該節點的 mainEntity 引用。`docs/` 與 `seo-overrides/` bytes 相同；該頁 7/7 page-copy 測試 PASS，差異 whitespace check PASS。
 - 2026-10-18：Item 3 第 3 頁完成：`services/luxury-bag-cleaning.html` 換成 r3 lead、三個文案 section、FAQ/FAQPage 與 metadata；保留對應服務、店家資料與頁面標題欄位，刪除舊 HowTo 節點與其 WebPage 引用。該頁 7/7 page-copy 測試 PASS；`docs/`/`seo-overrides/` bytes 相同，whitespace check PASS。
+- 2026-10-18：Item 3 第 4 頁完成：`guides/luxury-bag-mold.html` 依 r3 更新 lead、風險／門市／詢問 section、FAQ/FAQPage 與 page-owned description/dateModified；移除 HowTo 及 WebPage 指向 HowTo 的引用。該頁 7/7 page-copy 測試 PASS；`docs/`/`seo-overrides/` bytes 相同，whitespace check PASS。

@@ -21,7 +21,8 @@ PARENT_HEAD| 37f617f6
 - Item 2 DONE：新增 10 個走訪層案例（六種檔案、PNG 黑名單、CSS class、豁免 JS、Windows junction/循環）；先紅後綠。首次有效紅測為 21 passed / 6 failed，紅在 JS/CSS/SVG/HTM/無副檔名與 junction 漏掃；兩個 junction 建立成功、未 skip。
 - Item 2 mutation 自證 DONE：僅讀 `.html` 突變 `27 tests: 7 failed`；走訪暫時 `return []` 突變 `27 tests: 7 failed`；兩次都還原後 `27/27 passed`。
 - Item 3 DONE：移除 `public-url-baseline.json` 的 sitemap/AI sitemap/RSS URL count/hash；保留 `source_commit` 與兩個豁免 slug。guardrail 改驗三個 URL 集合無非豁免 AEO325 slug，並核對六個受管頁面在 sitemap/AI sitemap 的預期存在/缺席；PageCopy 保留 lastmod、移除 URL 集合比較。指定兩檔合計 70/70 PASS。
-- Item 4 test-first checkpoint：新增白鞋 `#geo-entity` section.surface 祖先檢查、精品包可見「門市與收送」及電話檢查；頁面修改前兩項均按預期失敗。
+- Item 4 DONE：白鞋 `#geo-entity` 已回到 `section.section.surface` 內的雙欄，詢問內容在另一欄；精品包逐字補回基底「門市與收送」article/card，置於三段新文案後、對應服務前；泛黃指南 Service description 與白鞋服務頁 `#service` 節點相同。三頁 docs/override 位元同步；六頁 JSON-LD 及 PageCopy 45/45 PASS。
+- Item 4 mutation 自證 DONE：暫時移除精品包門市卡時 PageCopy 目標測試 `1 failed`；還原後 PageCopy `45/45 passed`。
 
 ---
 

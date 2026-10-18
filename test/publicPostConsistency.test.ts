@@ -28,7 +28,7 @@ describe("public post source consistency", () => {
     await json(join(root, "data", "approved-log", `${date}.json`), ["facebook", "instagram"].map((platform) => ({ date, slot: 1, platform, status: "approved", approved_by: "Test", created_at: `${date}T00:00:00Z` })));
     // A feature-only day deliberately has no daily content-calendar file.
     await json(join(root, "data", "feature-reels", "2026-09-15.json"), {
-      date: "2026-09-15", slug: "shoe-story", youtube_title: "鞋子 & 包包 <檢查>", facebook_caption: "特色 FB & <洗護>", instagram_caption: "特色 IG"
+      date: "2026-09-15", slug: "shoe-story", youtube_title: "鞋子 & 包包 <檢查>", facebook_caption: "特色 FB & <洗護>\n\n第二段洗護說明", instagram_caption: "特色 IG"
     });
     await json(join(root, "data", "feature-posted-log", "2026-09-15.json"), [{ slug: "shoe-story", platform: "facebook", status: "success", post_id: "123_456", at: "2026-09-15T06:00:00Z" }]);
     await json(join(root, "data", "feature-reels", "2026-09-16.json"), {
@@ -83,6 +83,20 @@ describe("public post source consistency", () => {
     const mutated = posts.map((post) => post.feature_reel && post.image_url ? { ...post, ...change } : post);
     const mirrored = discovery.map((post) => post.slot === 0 && post.image_url ? { ...post, ...change } : post);
     await expect(assertPublicPostsMatchSources(docsRoot, mutated, mirrored, baseUrl)).rejects.toThrow();
+  });
+
+  it("accepts CRLF HTML checkout with LF JSON captions without ignoring text drift", async () => {
+    const feature = posts.find((post) => post.feature_reel)!;
+    const path = join(docsRoot, feature.article_path!);
+    const saved = await readFile(path, "utf8");
+    try {
+      await writeFile(path, saved.replace(/\r?\n/gu, "\r\n"));
+      await assertPublicPostsMatchSources(docsRoot, posts, discovery, baseUrl);
+      await writeFile(path, saved.replaceAll("第二段洗護說明", "錯誤的第二段").replace(/\r?\n/gu, "\r\n"));
+      await expect(assertPublicPostsMatchSources(docsRoot, posts, discovery, baseUrl)).rejects.toThrow();
+    } finally {
+      await writeFile(path, saved);
+    }
   });
 
   it.each(["page", "feed"] as const)("rejects a missing feature %s artifact", async (artifact) => {

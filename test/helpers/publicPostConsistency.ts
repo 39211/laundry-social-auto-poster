@@ -64,7 +64,11 @@ export async function assertPublicPostsMatchSources(
       const escape = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
       expect(html, key).toContain(`<link rel="canonical" href="${escape(post.article_url!)}"`);
       expect(html, key).toContain(`<h1>${escape(post.topic)}</h1>`);
-      expect(html, key).toContain(`<p class="post-caption">${escape(post.facebook_caption)}</p>`);
+      // Git's Windows checkout converts HTML to CRLF; JSON string values retain LF.
+      // Normalize only line endings and keep every caption character significant.
+      expect(html.replace(/\r\n/gu, "\n"), key).toContain(
+        `<p class="post-caption">${escape(post.facebook_caption).replace(/\r\n/gu, "\n")}</p>`
+      );
       const htmlImage = html.match(/<meta property="og:image" content="([^"]*)"/u)?.[1] ?? "";
       expect(htmlImage, key).toBe(escape(post.image_url));
       const feed = JSON.parse(await readFile(join(docsRoot, "feed.json"), "utf8")) as { items: Array<{ id: string; image?: string }> };

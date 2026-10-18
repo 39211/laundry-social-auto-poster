@@ -30,16 +30,10 @@ export interface Aeo325SitemapCandidate {
   redirect: boolean;
 }
 
-export interface Aeo325LegacySlugLocation {
-  slug: string;
-  path: string;
-  occurrences: number;
-}
-
 export interface Aeo325GuardrailConfig {
   items: Aeo325Item[];
   approvals: Aeo325Approval[];
-  legacySlugLocations: Aeo325LegacySlugLocation[];
+  preExistingSlugs: string[];
 }
 
 export type Aeo325OutputChannel = "html" | "service-jsonld" | "faq-jsonld" | "ai-data" | "feed" | "internal-link";
@@ -47,6 +41,7 @@ export type Aeo325OutputChannel = "html" | "service-jsonld" | "faq-jsonld" | "ai
 const EXPECTED_ITEM_COUNT = 325;
 const APPROVAL_FIELDS = ["ID", "approved", "approved_by", "approved_at", "page_mapping", "index_eligible"] as const;
 const TEXT_OUTPUT_EXTENSIONS = new Set([".html", ".json", ".jsonl", ".xml", ".txt", ".webmanifest", ".md"]);
+const ALLOWED_PRE_EXISTING_SLUGS = ["down-vest-cleaning", "gore-tex-jacket-cleaning"] as const;
 
 function itemId(item: Aeo325Item): string {
   return typeof item.id === "string" ? item.id : "";
@@ -133,18 +128,26 @@ export async function loadAeo325Guardrail(root: string): Promise<Aeo325Guardrail
 
   const baselinePath = join(configRoot, "public-url-baseline.json");
   const baseline = JSON.parse(await readFile(baselinePath, "utf8")) as {
-    pre_existing_slug_locations?: Aeo325LegacySlugLocation[];
+    pre_existing_slugs?: Array<{ slug?: string; reason?: string }>;
   };
-  const legacySlugLocations = baseline.pre_existing_slug_locations ?? [];
-  if (!Array.isArray(legacySlugLocations) || legacySlugLocations.some((entry) =>
-    !entry.slug ||
-    !entry.path ||
-    !Number.isSafeInteger(entry.occurrences) ||
-    entry.occurrences < 1
+  const preExistingSlugs = baseline.pre_existing_slugs;
+  if (!Array.isArray(preExistingSlugs) || preExistingSlugs.some((entry) =>
+    !entry ||
+    typeof entry.slug !== "string" ||
+    typeof entry.reason !== "string" ||
+    !entry.reason.trim()
   )) {
-    throw new Error("AEO325 public URL baseline has invalid pre_existing_slug_locations");
+    throw new Error("AEO325 public URL baseline has invalid pre_existing_slugs");
   }
-  return { items: itemDocument.items, approvals, legacySlugLocations };
+  const slugs = preExistingSlugs.map((entry) => entry.slug as string);
+  if (
+    slugs.length !== ALLOWED_PRE_EXISTING_SLUGS.length ||
+    new Set(slugs).size !== slugs.length ||
+    [...slugs].sort().some((slug, index) => slug !== [...ALLOWED_PRE_EXISTING_SLUGS].sort()[index])
+  ) {
+    throw new Error("AEO325 public URL baseline pre_existing_slugs must contain only the two established legacy slugs");
+  }
+  return { items: itemDocument.items, approvals, preExistingSlugs: slugs };
 }
 
 export function filterAeo325OutputRecords<T extends { ID: string }>(
@@ -186,15 +189,11 @@ export function assertNoUnapprovedAeo325Slugs(
   items: readonly Aeo325Item[],
   approvals: readonly Aeo325Approval[],
   outputs: readonly Aeo325PublicOutput[],
-  legacySlugLocations: readonly Aeo325LegacySlugLocation[] = []
+  preExistingSlugs: readonly string[] = []
 ): void {
   validateAeo325Approvals(items, approvals);
   const approvedIds = new Set(approvals.filter((row) => row.approved).map((row) => row.ID));
-  const legacyCounts = new Map(legacySlugLocations.map((entry) => [
-    `${entry.slug.toLowerCase()}\0${entry.path.replace(/\\/gu, "/")}`,
-    entry.occurrences
-  ]));
-  const observedLegacyCounts = new Map<string, number>();
+  const preExistingSlugSet = new Set(preExistingSlugs.map((slug) => slug.toLowerCase()));
   const unapprovedBySlug = new Map(
     items.filter((item) => !approvedIds.has(item.id)).map((item) => [item.slug.toLowerCase(), item.slug])
   );
@@ -205,14 +204,8 @@ export function assertNoUnapprovedAeo325Slugs(
     const source = `${normalizedPath}\n${output.contents}`.toLowerCase();
     for (const match of source.matchAll(slugTokens)) {
       const slug = unapprovedBySlug.get(match[0]);
-      if (!slug) continue;
-      const key = `${slug.toLowerCase()}\0${normalizedPath}`;
-      const maxOccurrences = legacyCounts.get(key);
-      const observedOccurrences = (observedLegacyCounts.get(key) ?? 0) + 1;
-      if (maxOccurrences === undefined || observedOccurrences > maxOccurrences) {
-        throw new Error(`unapproved AEO325 slug ${slug} appears in public output ${normalizedPath}`);
-      }
-      observedLegacyCounts.set(key, observedOccurrences);
+      if (!slug || preExistingSlugSet.has(slug.toLowerCase())) continue;
+      throw new Error(`unapproved AEO325 slug ${slug} appears in public output ${normalizedPath}`);
     }
   }
 }
@@ -241,5 +234,5 @@ async function listPublicOutputs(docsRoot: string): Promise<Aeo325PublicOutput[]
 export async function assertAeo325PublicOutputSafety(root: string, configRoot = root): Promise<void> {
   const config = await loadAeo325Guardrail(configRoot);
   const outputs = await listPublicOutputs(join(root, "docs"));
-  assertNoUnapprovedAeo325Slugs(config.items, config.approvals, outputs, config.legacySlugLocations);
+  assertNoUnapprovedAeo325Slugs(config.items, config.approvals, outputs, config.preExistingSlugs);
 }

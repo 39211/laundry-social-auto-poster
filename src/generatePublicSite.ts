@@ -208,292 +208,6 @@ interface ServicePageDefinition {
   faqs: ServiceFaq[];
 }
 
-interface Aeo325CopyParagraph {
-  text: string;
-  strongPrefix?: string;
-}
-
-interface Aeo325CopySection {
-  heading: string;
-  paragraphs: Aeo325CopyParagraph[];
-}
-
-interface Aeo325ManagedPageCopy {
-  path: string;
-  canonicalPath: string;
-  kind: "service" | "guide";
-  schemaKind: "service" | "article";
-  slug: string;
-  title: string;
-  h1: string;
-  description: string;
-  introduction: string;
-  sections: Aeo325CopySection[];
-  faqs: ServiceFaq[];
-  contentLastmod: string;
-}
-
-/** Owner-confirmed first-batch page copy from docs-internal/aeo325/final-*.md. */
-const AEO325_PAGE_COPIES: Aeo325ManagedPageCopy[] = [
-  {
-    path: "services/white-shoe-cleaning.html",
-    canonicalPath: "services/white-shoe-cleaning.html",
-    kind: "service",
-    schemaKind: "service",
-    slug: "white-shoe-cleaning",
-    title: "白鞋清潔｜台中西屯白鞋泛黃、鞋邊與內裡整理｜私享家洗衣店",
-    h1: "白鞋清潔",
-    description: "小白鞋的鞋面污痕、膠邊變色、縫線卡灰和鞋內悶濕，成因與位置不同，先分開檢查再討論清潔方式。",
-    introduction:
-      "小白鞋的鞋面污痕、膠邊變色、縫線卡灰和鞋內悶濕，成因與位置不同，先分開檢查再討論清潔方式。鞋面可能是布、網布、皮革或混合材質，照片能協助門市先辨認材質與痕跡位置。若同時在意鞋面、鞋邊和鞋內狀況，詢問時可以一起說明，讓門市分項檢視後再回覆。",
-    sections: [
-      {
-        heading: "兩項風險",
-        paragraphs: [
-          {
-            strongPrefix: "橡膠鞋邊變色。",
-            text: "若是材質本身變色，門市需先判斷可改善範圍，不能把表面灰塵與膠邊變色當成同一種污漬。"
-          },
-          {
-            strongPrefix: "鞋面纖維磨耗。",
-            text: "布面折痕、縫線或鞋頭若已有起毛，反覆摩擦可能讓毛邊和色差更明顯；不確定材質時先不要硬刷。"
-          }
-        ]
-      },
-      {
-        heading: "門市會先看什麼",
-        paragraphs: [
-          {
-            text: "門市會先看鞋面材質、膠邊狀態、縫線卡灰位置、鞋墊是否可拆及內裡狀況，再說明這雙鞋適合的處理範圍。店內有洗鞋機與烘鞋機；每雙鞋是否使用，會依鞋況判斷。鞋類交期為 7 天；清潔結果仍依鞋款材質與現況評估。"
-          }
-        ]
-      },
-      {
-        heading: "怎麼詢問",
-        paragraphs: [
-          {
-            text: "請拍鞋面、鞋邊、鞋內與整雙外觀，傳 LINE 說明最在意的位置，也告知先前是否刷洗或使用清潔劑；門市看過後再回覆能否承接及費用。"
-          }
-        ]
-      }
-    ],
-    faqs: [
-      { question: "膠邊變色能處理到和鞋面一樣白嗎？", answer: "不同鞋款的材質與變色狀況不同，門市會先看實物，再說明可改善範圍。" },
-      { question: "送洗前可以先用漂白水或硬刷嗎？", answer: "先確認材質；硬刷或漂白可能使毛邊、色差或膠邊痕跡更明顯。" },
-      { question: "要傳哪些照片詢問？", answer: "請拍鞋面、鞋邊、鞋內和整體外觀，並用 LINE 說明在意的痕跡位置。" }
-    ],
-    contentLastmod: "2026-10-18"
-  },
-  {
-    path: "guides/white-shoe-yellowing.html",
-    canonicalPath: "guides/white-shoe-yellowing.html",
-    kind: "guide",
-    schemaKind: "article",
-    slug: "white-shoe-yellowing",
-    title: "白鞋泛黃怎麼判斷？｜私享家洗衣店",
-    h1: "白鞋泛黃怎麼判斷？",
-    description: "白鞋泛黃時，先看變色在哪個位置：布面可能有污漬或洗劑殘留，橡膠鞋邊則可能是材質老化；兩處不能只用同一種方法處理。",
-    introduction:
-      "白鞋泛黃時，先看變色在哪個位置：布面可能有污漬或洗劑殘留，橡膠鞋邊則可能是材質老化；兩處不能只用同一種方法處理。若只有灰塵，與已變色的鞋邊不同，先辨位置會比較容易決定下一步。鞋面若有污痕或洗劑殘留，和橡膠鞋邊的材質老化不同，門市需先看位置與材質再評估。詢問時也可以標出布面和鞋邊各自變色的位置，讓門市分別檢視。",
-    sections: [
-      {
-        heading: "兩項風險",
-        paragraphs: [
-          {
-            strongPrefix: "橡膠鞋邊變色。",
-            text: "黃痕若來自材質本身，門市會依實物說明可改善的範圍，不先答應顏色結果。"
-          },
-          {
-            strongPrefix: "布面與縫線磨耗。",
-            text: "布面、網布與縫線的耐磨狀態不一樣；硬刷可能使纖維起毛或讓原有色差更顯眼。"
-          }
-        ]
-      },
-      {
-        heading: "門市會先看什麼",
-        paragraphs: [
-          {
-            text: "送洗前，門市會先看鞋面材質、膠邊變色、縫線卡灰、鞋墊與內裡，再決定是否適合清潔。店內有洗鞋機與烘鞋機；每雙鞋是否使用，會依鞋況判斷。鞋類交期為 7 天，實際可改善程度仍須看鞋況。"
-          }
-        ]
-      },
-      {
-        heading: "怎麼詢問",
-        paragraphs: [
-          {
-            text: "先拍鞋面、鞋邊、鞋內和整體外觀，標出最在意的位置，再把照片傳 LINE 請門市先評估；照片可供初步判斷，是否承接及可改善程度仍要看實際鞋況。"
-          }
-        ]
-      }
-    ],
-    faqs: [
-      { question: "布面黃痕和膠邊黃痕怎麼分？", answer: "先看變色位置與材質；布面與橡膠鞋邊要分開判斷。" },
-      { question: "鞋面起毛還能不能送洗？", answer: "門市需先看鞋面纖維與磨耗狀況，再回覆是否適合處理。" },
-      { question: "照片要拍哪些地方？", answer: "拍鞋面、鞋邊、鞋內和整雙外觀，並說明曾經做過的清潔方式。" }
-    ],
-    contentLastmod: "2026-10-18"
-  },
-  {
-    path: "services/luxury-bag-cleaning.html",
-    canonicalPath: "services/luxury-bag-cleaning.html",
-    kind: "service",
-    schemaKind: "service",
-    slug: "luxury-bag-cleaning",
-    title: "台中精品包送洗｜私享家洗衣店（西屯）",
-    h1: "精品包清潔",
-    description: "精品包送洗前，先說明包身是皮革、帆布、尼龍或混合材質，並指出要處理的是表面髒污、水痕還是霉點；不同材質與位置要分開評估。",
-    introduction:
-      "精品包送洗前，先說明包身是皮革、帆布、尼龍或混合材質，並指出要處理的是表面髒污、水痕還是霉點；不同材質與位置要分開評估。清潔只處理髒污與部分水痕，其他外觀或結構處理不會自動包含在清潔裡。詢問時可一併指出最在意的部位，讓照片中的污痕、水痕或霉點和清潔需求對應。",
-    sections: [
-      {
-        heading: "兩項風險",
-        paragraphs: [
-          {
-            strongPrefix: "皮革與接合處。",
-            text: "皮革與皮革提把不宜直接整包泡水；合成皮、真皮與布料接合處也要分開看，避免把不同材質當成相同物件處理。"
-          },
-          {
-            strongPrefix: "霉點與筆痕。",
-            text: "發霉或筆痕若用酒精或濕布用力擦，可能使皮面乾燥、色差明顯，或讓痕跡更深；先不要自行試擦。"
-          }
-        ]
-      },
-      {
-        heading: "門市會先看什麼",
-        paragraphs: [
-          {
-            text: "門市會先看包身材質、污痕位置、內裡與五金，再依實際狀況說明清潔範圍；特殊材質會先在不明顯位置試看。清潔項目不包含加色、塗層或結構處理；有這方面需求請先詢問門市。"
-          }
-        ]
-      },
-      {
-        heading: "怎麼詢問",
-        paragraphs: [
-          {
-            text: "請拍整個包、內裡、五金與最在意的位置，傳 LINE 說明曾經使用的清潔方式；門市看過照片後先評估是否承接，再確認費用與安排。"
-          }
-        ]
-      }
-    ],
-    faqs: [
-      { question: "皮革包可以整個泡水嗎？", answer: "皮革包不要整包浸水，先讓門市看材質與水痕位置。" },
-      { question: "清潔會包含加色或結構處理嗎？", answer: "加色、塗層或結構處理不屬於清潔項目；如有需要，請先傳照片詢問門市是否能承接。" },
-      { question: "送洗前要傳哪些照片？", answer: "請拍整包、內裡、五金和問題位置，再傳 LINE 先詢問。" }
-    ],
-    contentLastmod: "2026-10-18"
-  },
-  {
-    path: "guides/luxury-bag-mold.html",
-    canonicalPath: "guides/luxury-bag-mold.html",
-    kind: "guide",
-    schemaKind: "article",
-    slug: "luxury-bag-mold",
-    title: "精品包發霉先別擦｜私享家洗衣店",
-    h1: "精品包發霉先別擦",
-    description: "精品包出現白色霉點時，先不要用濕布來回擦，也不要急著把包封回防塵袋；先放在通風處並拍下外觀與內裡。",
-    introduction:
-      "精品包出現白色霉點時，先不要用濕布來回擦，也不要急著把包封回防塵袋；先放在通風處並拍下外觀與內裡。霉點浮在表面或已滲入皮層，後續能處理的範圍不同，應先由門市看實物或照片再討論。如果不確定霉點是否在表面或已進入皮層，先不要自行擦拭，保留目前狀況，讓門市依照片或實物評估。內裡與五金也要一併拍下，不能只看外面一小塊就判斷整包。",
-    sections: [
-      {
-        heading: "兩項風險",
-        paragraphs: [
-          {
-            strongPrefix: "皮革表面霉點。",
-            text: "若被濕擦，霉可能被帶進毛孔並留下色斑；先停止擦拭，保留原狀供評估。"
-          },
-          {
-            strongPrefix: "內裡、縫線與五金。",
-            text: "這些位置的狀況可能和外皮不同，門市需要分別檢查，不能只看外面一小塊就判斷整包。"
-          }
-        ]
-      },
-      {
-        heading: "門市會先看什麼",
-        paragraphs: [
-          {
-            text: "門市會先看霉點是在表面還是已進入皮層，再檢查內裡與五金；若已有色差，會先說明可處理範圍，不預先答應結果。皮革、麂皮與合成材質的狀況不同，是否承接以門市實際檢視為準。"
-          }
-        ]
-      },
-      {
-        heading: "怎麼詢問",
-        paragraphs: [
-          {
-            text: "請拍包包整體、霉點近照、內裡與五金，先放在通風處並把照片傳 LINE；門市評估後再回覆可否處理及後續安排。"
-          }
-        ]
-      }
-    ],
-    faqs: [
-      { question: "霉點可以先用酒精擦嗎？", answer: "先不要自行用酒精或濕布試擦，可能讓皮面乾燥或留下色差。" },
-      { question: "霉斑已經有色差還能處理嗎？", answer: "色差或滲入皮層的狀況需先看照片或實物，再說明可處理範圍。" },
-      { question: "送洗前要拍哪些地方？", answer: "請拍整體、霉點、內裡及五金，並傳 LINE 先評估。" }
-    ],
-    contentLastmod: "2026-10-18"
-  },
-  {
-    path: "guides/down-jacket-cleaning.html",
-    canonicalPath: "guides/down-jacket-cleaning.html",
-    kind: "guide",
-    schemaKind: "article",
-    slug: "down-jacket-cleaning",
-    title: "羽絨外套清潔指南｜私享家洗衣店",
-    h1: "羽絨外套清潔指南",
-    description: "羽絨外套能否清洗、適合哪種方式，先看洗標、外層結構、縫線和填充狀態；不能只依「羽絨」兩字套用同一程序。",
-    introduction:
-      "羽絨外套能否清洗、適合哪種方式，先看洗標、外層結構、縫線和填充狀態；不能只依「羽絨」兩字套用同一程序。若洗標不清楚，或外層有塗層、貼合布，先拍照詢問再安排送件。照片可一併呈現衣物整體、洗標與外層狀況，讓門市先了解需要評估的位置。",
-    sections: [
-      {
-        heading: "兩項風險",
-        paragraphs: [
-          {
-            strongPrefix: "塗層或貼合結構。",
-            text: "這類外層結構會影響衣物的處理限制，門市需先看洗標和外層狀態，再回覆是否適合承接。"
-          },
-          {
-            strongPrefix: "縫線與填充物。",
-            text: "車線鬆脫或小破口可能讓填充物在處理時跑出；送洗前請檢查領口、袖口與絎縫線。"
-          }
-        ]
-      },
-      {
-        heading: "門市會先看什麼",
-        paragraphs: [
-          {
-            text: "門市會先看洗標、塗層、走線、局部污漬和填充狀況，再說明可採用的方式及限制。店內有滾筒洗衣機與烘乾機；是否適用於這件羽絨衣，會先依洗標與衣況評估，並非每件衣物都採用相同洗程。承接及費用看過衣物與標籤後再確認。"
-          }
-        ]
-      },
-      {
-        heading: "怎麼詢問",
-        paragraphs: [
-          {
-            text: "請拍衣物整體、洗標、外層塗層、縫線破口及最在意的污漬位置，傳 LINE 請門市先評估；收到照片後再確認是否承接與後續安排。"
-          }
-        ]
-      }
-    ],
-    faqs: [
-      { question: "羽絨外套可以直接放家用洗衣機嗎？", answer: "先看洗標及外層結構，不要把不同衣物一概而論；有塗層或貼合布時先詢問門市。" },
-      { question: "洗標不見了或看不懂怎麼辦？", answer: "拍下衣物整體和洗標位置，傳 LINE 請門市看過後回覆下一步。" },
-      { question: "羽絨已經結塊還能送洗嗎？", answer: "先由門市看填充、表布及縫線狀態，再說明是否承接與可處理的範圍。" }
-    ],
-    contentLastmod: "2026-10-18"
-  }
-];
-
-const AEO325_MANAGED_PAGE_COPIES: Aeo325ManagedPageCopy[] = [
-  ...AEO325_PAGE_COPIES,
-  {
-    ...AEO325_PAGE_COPIES.find((page) => page.path === "guides/down-jacket-cleaning.html")!,
-    path: "services/down-jacket-cleaning.html",
-    kind: "service",
-    // This existing service URL stays canonicalized to its guide and never gets a second sitemap URL.
-    canonicalPath: "guides/down-jacket-cleaning.html",
-    schemaKind: "article"
-  }
-];
-
 export type { SupportPageDefinition } from "./publicSiteTypes";
 
 interface PublicImageReference {
@@ -4429,14 +4143,9 @@ function homepageContentLastmod(index: PublicPostIndex): string {
   return newestPostDate && newestPostDate > baseline ? newestPostDate : baseline;
 }
 
-function sitemapLastmodForUrl(url: string, index: PublicPostIndex, includeAeo325Lastmod = true): string | undefined {
+function sitemapLastmodForUrl(url: string, index: PublicPostIndex): string | undefined {
   if (url === index.canonical_url) {
     return homepageContentLastmod(index);
-  }
-
-  if (includeAeo325Lastmod) {
-    const managedAeo325Page = AEO325_MANAGED_PAGE_COPIES.find((page) => url.endsWith(`/${page.path}`));
-    if (managedAeo325Page) return managedAeo325Page.contentLastmod;
   }
 
   if (url === knowledgeHubUrl(index) || url.endsWith(`/${KNOWLEDGE_HUB_PATH}`)) {
@@ -4469,8 +4178,8 @@ function sitemapLastmodForUrl(url: string, index: PublicPostIndex, includeAeo325
   return undefined;
 }
 
-function sitemapUrlEntry(url: string, index: PublicPostIndex, includeAeo325Lastmod = true): string {
-  const lastmod = sitemapLastmodForUrl(url, index, includeAeo325Lastmod);
+function sitemapUrlEntry(url: string, index: PublicPostIndex): string {
+  const lastmod = sitemapLastmodForUrl(url, index);
   const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
   return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
 }
@@ -5946,7 +5655,7 @@ function buildConversionSection(index: PublicPostIndex, slug: string): string {
       </section>`;
 }
 
-function buildSitemapXml(index: PublicPostIndex, includeAeo325Lastmod = true): string {
+function buildSitemapXml(index: PublicPostIndex): string {
   const sitemapPosts = sitemapIndexablePostArticles(index);
   const urls = index.base_url_configured
     ? [
@@ -5958,7 +5667,7 @@ function buildSitemapXml(index: PublicPostIndex, includeAeo325Lastmod = true): s
       ]
     : [];
   const uniqueUrls = Array.from(new Set(urls)).filter((url) => !sitemapShouldOmitUrlForPublicSite(url, index, new Set()));
-  const items = uniqueUrls.map((url) => sitemapUrlEntry(url, index, includeAeo325Lastmod)).join("\n");
+  const items = uniqueUrls.map((url) => sitemapUrlEntry(url, index)).join("\n");
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -5971,7 +5680,7 @@ function buildSitemapXml(index: PublicPostIndex, includeAeo325Lastmod = true): s
     .join("\n");
 }
 
-function buildAiSitemapXml(index: PublicPostIndex, includeAeo325Lastmod = true): string {
+function buildAiSitemapXml(index: PublicPostIndex): string {
   const urls = index.base_url_configured
     ? [
         { loc: index.entrypoints.llms, purpose: "curated-context" },
@@ -6031,7 +5740,7 @@ function buildAiSitemapXml(index: PublicPostIndex, includeAeo325Lastmod = true):
     })
     .map((item) => {
       // Human sitemap URLs keep truthful lastmod; machine/AI-only assets omit lastmod unless known.
-      const lastmod = sitemapLastmodForUrl(item.loc, index, includeAeo325Lastmod);
+      const lastmod = sitemapLastmodForUrl(item.loc, index);
       const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
       return `  <url><loc>${escapeXml(item.loc)}</loc>${lastmodXml}<changefreq>daily</changefreq><!-- ${escapeXml(item.purpose)} --></url>`;
     })
@@ -10098,149 +9807,8 @@ function buildAiDiscovery(index: PublicPostIndex): Record<string, unknown> {
   return discovery;
 }
 
-function buildAeo325ManagedPageHtml(copy: Aeo325ManagedPageCopy, index: PublicPostIndex): string {
-  const canonical = publicUrl(copy.canonicalPath, index.base_url_configured ? index.base_url : undefined);
-  const homeHref = index.base_url_configured ? index.canonical_url : "../index.html";
-  const knowledgeHref = knowledgeHubHref(index, true);
-  const lineHref = trackedLineUrl(index, {
-    section: copy.kind === "service" ? "services" : "guide",
-    slug: copy.slug,
-    placement: "cta"
-  });
-  const faqEntities = copy.faqs.map((faq) => ({
-    "@type": "Question",
-    name: faq.question,
-    acceptedAnswer: { "@type": "Answer", text: faq.answer }
-  }));
-  const pageEntity = copy.schemaKind === "service"
-    ? {
-        "@type": "Service",
-        "@id": `${canonical}#service`,
-        name: copy.h1,
-        url: canonical,
-        description: copy.description,
-        provider: { "@type": "Organization", name: "私享家洗衣店" },
-        mainEntityOfPage: canonical
-      }
-    : {
-        "@type": "Article",
-        "@id": `${canonical}#article`,
-        headline: copy.title,
-        url: canonical,
-        description: copy.description,
-        dateModified: copy.contentLastmod,
-        inLanguage: "zh-Hant-TW",
-        publisher: { "@type": "Organization", name: "私享家洗衣店" },
-        mainEntityOfPage: canonical
-      };
-  const schema = {
-    "@context": "https://schema.org",
-    "@graph": [
-      pageEntity,
-      {
-        "@type": "FAQPage",
-        "@id": `${canonical}#faq`,
-        url: `${canonical}#faq`,
-        mainEntity: faqEntities
-      }
-    ]
-  };
-  const sections = copy.sections.map((section) => `
-      <section class="section surface">
-        <div class="page-shell">
-          <div class="section-header"><h2>${escapeHtml(section.heading)}</h2></div>
-          <div class="grid two">
-            ${section.paragraphs.map((paragraph) => `<article class="card"><p>${paragraph.strongPrefix ? `<strong>${escapeHtml(paragraph.strongPrefix)}</strong> ` : ""}${escapeHtml(paragraph.text)}</p></article>`).join("\n            ")}
-          </div>
-        </div>
-      </section>`).join("\n");
-  const faqs = copy.faqs.map((faq) => `
-            <article class="card">
-              <h3>${escapeHtml(faq.question)}</h3>
-              <p>${escapeHtml(faq.answer)}</p>
-            </article>`).join("\n");
-  const analyticsType = copy.kind === "service" ? "service" : "answer";
-  const updated = `<p class="last-updated">內容更新：<time datetime="${escapeHtml(copy.contentLastmod)}">${escapeHtml(copy.contentLastmod)}</time></p>`;
-
-  return `<!doctype html>
-<html lang="zh-Hant-TW">
-  <head>
-    <meta charset="utf-8" />
-    ${buildLegacyPathRedirectScript(index)}
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="${escapeHtml(copy.description)}" />
-    <meta name="robots" content="index, follow, max-image-preview:large" />
-    <meta name="googlebot" content="index, follow, max-image-preview:large" />
-    <meta name="author" content="私享家洗衣店" />
-    <link rel="canonical" href="${escapeHtml(canonical)}" />
-    <link rel="alternate" hreflang="zh-Hant-TW" href="${escapeHtml(canonical)}" />
-    <link rel="alternate" hreflang="x-default" href="${escapeHtml(canonical)}" />
-    <meta property="og:title" content="${escapeHtml(copy.title)}" />
-    <meta property="og:description" content="${escapeHtml(copy.description)}" />
-    <meta property="og:type" content="${copy.kind === "service" ? "website" : "article"}" />
-    <meta property="og:url" content="${escapeHtml(canonical)}" />
-    <meta property="og:site_name" content="私享家洗衣店" />
-    <meta property="og:locale" content="zh_TW" />
-    <script type="application/ld+json">${escapeJsonLd(schema)}</script>
-    <style>${buildPublicSiteCss()}</style>
-    <title>${escapeHtml(copy.title)}</title>
-    ${buildAnalyticsTag(index.ga4_measurement_id)}
-    ${buildSearchContentAnalyticsTag(index, true)}
-  </head>
-  <body ${searchAnalyticsBodyAttributes(analyticsType, copy.slug)}>
-    <header class="site-header">
-      <div class="site-header__inner">
-        <a class="brand-link" href="${escapeHtml(homeHref)}" aria-label="私享家洗衣店首頁">
-          <span class="brand-mark">私</span><span>私享家洗衣店</span>
-        </a>
-        <nav class="nav" aria-label="頁面導覽">
-          <a href="${escapeHtml(knowledgeHref)}">洗護知識庫</a>
-          <a href="${escapeHtml(lineHref)}">LINE 傳照片先評估</a>
-        </nav>
-      </div>
-    </header>
-    <main>
-      <nav class="breadcrumb" aria-label="麵包屑">
-        <ol><li><a href="${escapeHtml(homeHref)}">私享家洗衣店</a></li><li aria-current="page">${escapeHtml(copy.h1)}</li></ol>
-      </nav>
-      <section class="section page-hero">
-        <div class="page-shell">
-          <div class="hero-copy">
-            <span class="eyebrow">${copy.kind === "service" ? "服務說明" : "洗護指南"}</span>
-            <h1>${escapeHtml(copy.h1)}</h1>
-            <p class="lead">${escapeHtml(copy.introduction)}</p>
-            ${updated}
-            <div class="button-row">
-              <a class="button brand" href="${escapeHtml(lineHref)}">LINE 傳照片，先評估</a>
-              <a class="button secondary" href="#faq">常見問題</a>
-            </div>
-          </div>
-        </div>
-      </section>
-      ${sections}
-      <section class="section" id="faq">
-        <div class="page-shell">
-          <div class="section-header"><h2>常見問題</h2></div>
-          <div class="grid two">${faqs}
-          </div>
-        </div>
-      </section>
-    </main>
-    <footer class="site-footer">
-      <div class="page-shell">
-        <h2>私享家洗衣店</h2>
-        <p>有送洗需求，可拍照傳 LINE 先評估。</p>
-        <a href="${escapeHtml(lineHref)}">LINE 傳照片先評估</a>
-      </div>
-    </footer>
-  </body>
-</html>
-`.replace(/[ \t]+$/gmu, "");
-}
-
 export async function generatePublicSite(options: GeneratePublicSiteOptions = {}): Promise<string[]> {
   const root = projectRoot(options.root);
-  const useManagedAeo325PageCopies = root.toLocaleLowerCase() === SOURCE_PROJECT_ROOT.toLocaleLowerCase();
   await loadAeo325Guardrail(SOURCE_PROJECT_ROOT);
   const config = getConfig();
   const siteBaseUrl = normalizeBaseUrl(options.siteBaseUrl ?? options.baseUrl ?? config.publicSiteBaseUrl);
@@ -10448,8 +10016,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   await writeFile(outputs.llmsJsonl, buildLlmsJsonl(index), "utf8");
   await writeFile(outputs.wellKnownLlms, buildLlmsText(index), "utf8");
   await writeFile(outputs.robots, buildRobotsText(index), "utf8");
-  await writeFile(outputs.sitemap, buildSitemapXml(index, useManagedAeo325PageCopies), "utf8");
-  await writeFile(outputs.aiSitemap, buildAiSitemapXml(index, useManagedAeo325PageCopies), "utf8");
+  await writeFile(outputs.sitemap, buildSitemapXml(index), "utf8");
+  await writeFile(outputs.aiSitemap, buildAiSitemapXml(index), "utf8");
   const searchContentAnalytics = buildSearchContentAnalyticsScript();
   assertSearchContentAnalyticsScript(searchContentAnalytics);
   await writeFile(outputs.searchContentAnalytics, searchContentAnalytics, "utf8");
@@ -10522,13 +10090,6 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       }
     };
     await walkOverrides(overrideRoot);
-    await Promise.all(
-      useManagedAeo325PageCopies
-        ? AEO325_MANAGED_PAGE_COPIES.map((copy) =>
-            writeFile(join(docsRoot, ...copy.path.split("/")), buildAeo325ManagedPageHtml(copy, index), "utf8")
-          )
-        : []
-    );
     // Extract override metadata only from copied HTML pages.
     const overrideLastmods = new Map<string, string>();
     const overrideCanonicals = new Map<string, string>();
@@ -10591,7 +10152,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
           const urlObj = new URL(url);
           const pathname = urlObj.pathname.replace(/^\/+/, "");
           const posixPath = pathname || "index.html";
-          const lastmod = overrideLastmods.get(posixPath) || sitemapLastmodForUrl(url, index, useManagedAeo325PageCopies);
+          const lastmod = overrideLastmods.get(posixPath) || sitemapLastmodForUrl(url, index);
           const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
           return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
         })

@@ -219,24 +219,35 @@ describe("AEO325 publication guardrail", () => {
     }
   });
 
-  it("allows only the recorded base collisions and rejects any new occurrence", async () => {
+  it("allows only the two legacy slugs anywhere and rejects every other unapproved slug", async () => {
     const api = await guardrail();
     const config = await api.loadAeo325Guardrail(root);
 
+    expect([...config.preExistingSlugs].sort()).toEqual([
+      "down-vest-cleaning",
+      "gore-tex-jacket-cleaning"
+    ]);
+
     await expect(api.assertAeo325PublicOutputSafety(root)).resolves.toBeUndefined();
-    expect(() =>
-      api.assertNoUnapprovedAeo325Slugs(config.items, config.approvals, [
-        { path: "docs/new-page.html", contents: "down-vest-cleaning" }
-      ], config.legacySlugLocations)
-    ).toThrow("down-vest-cleaning");
-    const limitedLegacy = [{
-      slug: "down-vest-cleaning",
-      path: "docs/guides/down-jacket-cleaning.html",
-      occurrences: 1
-    }];
-    expect(() => api.assertNoUnapprovedAeo325Slugs(config.items, config.approvals, [
-      { path: "docs/guides/down-jacket-cleaning.html", contents: "down-vest-cleaning down-vest-cleaning" }
-    ], limitedLegacy)).toThrow("down-vest-cleaning");
+    const legacyOutputs = [
+      { path: "docs/new-page.html", contents: "down-vest-cleaning ".repeat(40) },
+      { path: "docs/another-new-file.json", contents: "gore-tex-jacket-cleaning" }
+    ];
+    expect(() => api.assertNoUnapprovedAeo325Slugs(
+      config.items,
+      config.approvals,
+      legacyOutputs,
+      config.preExistingSlugs
+    )).not.toThrow();
+    const nonExemptSlug = config.items.find((item) => !config.preExistingSlugs.includes(item.slug))?.slug;
+    expect(nonExemptSlug).toBeDefined();
+    if (!nonExemptSlug) throw new Error("Expected a non-exempt unapproved AEO325 slug");
+    expect(() => api.assertNoUnapprovedAeo325Slugs(
+      config.items,
+      config.approvals,
+      [{ path: "docs/new-page.html", contents: nonExemptSlug }],
+      config.preExistingSlugs
+    )).toThrow(nonExemptSlug);
   }, 30000);
 
   it("keeps visible FAQs and FAQ JSON-LD text identical on all managed page copies", async () => {

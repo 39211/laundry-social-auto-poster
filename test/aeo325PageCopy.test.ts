@@ -277,10 +277,17 @@ describe("AEO325 final page copy", () => {
     })).toBe(true);
   });
 
-  it("restores the luxury-bag store and pickup card text", () => {
-    const visibleText = textContent(mainHtml(readHtml("services/luxury-bag-cleaning.html")));
-    expect(visibleText).toContain("門市與收送");
-    expect(visibleText).toContain("04-2452-7411");
+  it("keeps the luxury-bag store and pickup card factual and bounded", () => {
+    const main = mainHtml(readHtml("services/luxury-bag-cleaning.html"));
+    const storeCard = balancedElements(main, "article").find((article) => {
+      const heading = article.inner.match(/<h3\b[^>]*>([\s\S]*?)<\/h3>/iu)?.[1] ?? "";
+      return textContent(heading) === "門市與收送";
+    });
+    expect(storeCard, "luxury-bag store and pickup card exists").toBeDefined();
+
+    const cardText = textContent(storeCard?.inner ?? "");
+    expect(cardText).toBe("門市與收送 門市在台中市西屯區青海路二段365號（至善國中對面），市話 04-2452-7411，LINE／手機 0968-327-653。週一至週五 10:00-20:00、週六 12:00-18:00、週日公休。免費收送、沒有最低消費。東海無門市（僅收送）。");
+    expect(cardText).not.toMatch(/台中全市|保證|承諾|滅菌/u);
   });
 
   it.each(TARGETS)("renders final H3-2 to H3-5 and every copy paragraph on $path", ({ path, finalFile, finalHeading }) => {

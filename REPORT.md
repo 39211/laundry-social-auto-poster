@@ -258,3 +258,6 @@ Validation: npx vitest run test/aeo325Guardrail.test.ts --reporter=verbose → 3
 ## AEO325-B-r4 — Item 3 exact URL path-segment matching
 
 The sitemap/RSS guard assertion now compares each URL pathname's slash-delimited segments to the exact slug, slug.html, or slug.htm. It no longer reports a slug that only appears as a substring in a dated feature-post segment. Regression evidence: before the path-segment implementation, the new feature-post case failed (1 failed / 38 filtered out); after the change, `npx vitest run test/aeo325Guardrail.test.ts -t "dated feature-post path|public sitemap" --reporter=verbose` passed both the collision case and the real sitemap/feed assertion (2 passed / 0 failed / 37 filtered out).
+## AEO325-B-r4 — Item 4 luxury-bag store/pickup card
+
+Updated only the existing card body in seo-overrides/services/luxury-bag-cleaning.html and copied it byte-for-byte to docs/services/luxury-bag-cleaning.html. The new PageCopy assertion checks the exact requested card text and rejects 台中全市, 保證, 承諾, and 滅菌. RED on old copy: 1 failed / 44 filtered out; GREEN after update: npx vitest run test/aeo325PageCopy.test.ts -t "luxury-bag store and pickup card" --reporter=verbose → 1 passed / 0 failed / 44 filtered out. SHA-256 of both page copies: 4F43E92F396C603BB409B9345A1C49B9A5522227DF37B6264F83BB6C8DF621BF.

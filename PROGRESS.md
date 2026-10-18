@@ -1,8 +1,24 @@
 ﻿# AEO325-B-r2 Progress
 
-STATUS| PARTIAL
+STATUS| IN_PROGRESS
 BASE| 766ada1c
 BRANCH| feat/aeo325-guardrail
+PARENT_HEAD| 37f617f6
+
+## r3 開工卡
+
+- Outcome：修正掃描副檔名／URL 形狀與 junction 走訪，拆永久 URL 集合 hash，補回白鞋店家卡容器、精品包門市卡及白鞋服務描述同步；維持豁免僅兩個既有 slug，更新 Draft PR #206。
+- Owner/maker：Codex；此 worktree 單一 writer。
+- Checker：本機 typecheck、指定與全套 Vitest、差異/bytes/PR readback；Opus 複審須交 Claude commander 路由，Codex 不自行派外部席。
+- Authority：使用者契約明確授權分節 commit、push `feat/aeo325-guardrail`、更新 Draft PR #206；不含 merge/deploy/IndexNow/GSC。
+- Acceptance：按 r3 的 1–7 項驗收；所有不完整項目在 REPORT/PAYLOAD 標 PARTIAL 或 NOT_DONE。
+
+## r3 項目狀態
+
+- 尚未開始實作；工作區起始乾淨，branch `feat/aeo325-guardrail`、HEAD/PR/remote branch 均為 `37f617f6a0e47d2ef666bb050dc850ef03285b09`，PR #206 為 OPEN/Draft。
+- 已確認 `D:\C-moved` 與 `D:\AI-Lanes-work` 存在，C: 可用空間約 18.8 GiB；本輪不產生大型素材。
+
+---
 
 ## 開工卡
 

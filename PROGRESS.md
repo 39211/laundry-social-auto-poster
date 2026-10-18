@@ -24,10 +24,8 @@ STATUS| PARTIAL
 - 2026-10-18：目標頁可見正文禁詞檢查為 0；FAQ 可見文字與 JSON-LD 相同；羽絨服務 canonical 仍指指南。sitemap、AI sitemap、RSS URL 集合 hash 與基底相同。
 - 2026-10-18：`npm run typecheck` PASS；`npx vitest run test/aeo325Guardrail.test.ts` 17/17 PASS；`npx vitest run --testTimeout 20000` 1,654 passed / 1 failed / 19 skipped。唯一失敗是既有 `docs/feed.json` 的 `2026-09-15 slot 0` 在當日 calendar 找不到相符 slot；兩份輸入均與 HEAD 相同，未改它們。
 
-## 下一步
+## 交付狀態
 
-- 更新最終 `PAYLOAD.md`，提交本輪程式與頁面變更，推送 `feat/aeo325-guardrail`，用指定 base 建 Draft PR；不合併、不部署。
-- STATUS 維持 PARTIAL：全套有一個未修既有資料錯誤；答案庫兩個舊 slug 仍在既有公開頁。完整生成器本身的 sitemap URL count 也與既有 docs 基線不同，需在 PR 明示。
-- 2026-10-18：第一批三項內容已套入六個既有 HTML，並將五個 sitemap、四個 AI sitemap 頁面 lastmod 設為 2026-10-18；RSS 不變。`git diff --check` PASS，URL 集合基線測試 PASS。
-
-- 2026-10-18：Draft PR #206 已建立並確認 isDraft=true、base ix/reel-v3-two-reference-images、head eat/aeo325-guardrail；PR URL：https://github.com/39211/laundry-social-auto-poster/pull/206。
+- Draft PR #206 已建立並確認為 Draft，base `fix/reel-v3-two-reference-images`，head 分支 `feat/aeo325-guardrail`；網址：https://github.com/39211/laundry-social-auto-poster/pull/206。
+- `PAYLOAD.md` 將在此交接狀態 commit 後，以最新 PR head 更新並貼入最後回覆；此檔由本機 `.git/info/exclude` 忽略，未加入 PR 分支，避免 HEAD 欄位自我引用。
+- STATUS 維持 PARTIAL：全套有一個既有 feed/calendar 資料錯誤；基底仍有兩個未核准 slug；完整產生器 sitemap URL 數也與 checked-in docs 基底不同。不合併、不部署、不送 IndexNow/GSC。

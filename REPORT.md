@@ -1,4 +1,90 @@
-﻿# AEO325-B-r2 Report
+﻿# AEO325-B-r3 交付報告（目前結果）
+
+STATUS| DONE
+BASE| 766ada1c
+IMPLEMENTATION_HEAD| dd52973
+BRANCH| feat/aeo325-guardrail
+PR| https://github.com/39211/laundry-social-auto-poster/pull/206
+
+r3 的結果取代下方保留的 B-r2 歷史紀錄；B-r2 的 PARTIAL/hash-lock 結論已由本輪移除永久 URL hash 鎖的修正取代。
+
+## Item 1 — 全文字掃描與目錄走訪
+
+- 掃描器只略過契約列出的二進位副檔名，副檔名不分大小寫；其餘輸出均以文字掃描。
+- HTML、JSON、JSONL、XML、TXT、MD、WEBMANIFEST 維持裸 slug 比對；其他文字只比對 slug.html 前置字元邊界或 /slug 後接 /、引號、問號、井字號、字串結尾這兩類 URL 形狀。
+- 目錄以 stat 判斷並跟進 junction/symlink，使用 realpath 集合防止循環；僅下列兩個既有 slug 豁免仍保留：down-vest-cleaning、gore-tex-jacket-cleaning。
+
+## Item 2 — 走訪層反例與突變自證
+
+- 新增 10 個臨時 docs 樹案例：JS、CSS、SVG、HTM、無副檔名、webmanifest 洩漏；PNG 二進位黑名單；只有裸 slug 的 CSS class；豁免 slug 的 JS URL；Windows junction 與回環。
+- TDD 紅測先新增案例後執行：21 passed / 6 failed；失敗涵蓋 JS、CSS、SVG、HTM、無副檔名與 junction。webmanifest 在原掃描器下已被讀取。
+- 指定的 production mutation ①暫時只讀 .html、②走訪暫時 return []，各自 27 tests 中 7 failed；復原後各自 27/27 passed。junction 與回環案例在本機均建立成功，未 skip。
+
+## Item 3 — 移除永久 URL 集合 hash 鎖
+
+- public-url-baseline.json 已移除 sitemap、AI sitemap、RSS 三組 count/SHA 欄位，保留 source_commit 與原有兩個 pre_existing_slugs。
+- Guardrail 測試改為確認三個 URL 集合沒有非豁免 AEO325 slug，並驗證六個目標 URL 的預期存在/缺席；主 sitemap 有五個目標，AI sitemap 有四個基線目標，services/down-jacket-cleaning 不在 sitemap。
+- PageCopy 保留 lastmod 斷言並移除整體 URL 集合/count 比對。永久 hash 鎖不能留下：日更會把最新貼文加入 sitemap 的最新 30 篇與 RSS，固定 hash 會在正常內容更新後讓 CI 變紅；本輪「未新增網址」只需作為一次性證據。
+
+## Item 4 — 三頁修正與 docs 同步
+
+- 白鞋服務頁的 #geo-entity 店家卡放回 section.section.surface 雙欄容器，另一欄放「怎麼詢問」新段落。
+- 精品包服務頁依 766ada1c 基底逐字補回「門市與收送」article/card，位於三段新文案之後、對應服務之前。
+- 白鞋泛黃指南兩個 white-shoe-cleaning.html#service 節點的 description，均與白鞋服務頁同一節點的新 description 完全一致；JSON-LD 可解析。
+- 三組 docs 與 seo-overrides 檔案 SHA-256 相同；PageCopy 新增結構與店家資訊斷言。暫時移除精品包門市卡時目標測試 1 failed，還原後 PageCopy 全檔 45/45 passed。
+
+## Item 5 — 基底 marker 數量檢查
+
+- 以 D:\AI-Lanes-work\_tmp\aeob\extract_aeo325_base_markers.py 從 766ada1c 程式重抽六頁 fixture，新增 link rel=alternate 數量與 inline gtag('config' 計數；六頁的 alternate 數量維持基底值（白鞋服務 7，其餘各 6），inline config 各 1。
+- PageCopy 斷言逐頁核對 alternate 數量，並要求 inline gtag config 存在。
+
+## Item 6 — 驗證結果
+
+- npm run typecheck：PASS。
+- npx vitest run test/aeo325Guardrail.test.ts test/aeo325PageCopy.test.ts：72 passed / 0 failed / 0 skipped。
+- 全套 npx vitest run --maxWorkers=4（使用 CI placeholder env PUBLIC_SITE_BASE_URL=https://example.invalid、PUBLIC_IMAGE_BASE_URL=https://example.invalid）：1709 passed / 1 failed / 19 skipped。唯一失敗是既有 test/publicSite.test.ts:2965 缺少 2026-09-15-0 calendar slot；Qinghai timeout 測試獨跑通過。
+- 三頁 docs/override 位元相同；未改 scripts、CI、src/generatePublicSite.ts、approvals.json 或 docs-internal/aeo325；沒有新增網址。
+
+## Item 7 — 推送與 PR
+
+- feat/aeo325-guardrail 已推送；PR #206 內文已加入 r3 摘要並讀回確認；PR 維持 OPEN / Draft，base 為 fix/reel-v3-two-reference-images，未 merge、部署或呼叫 IndexNow/GSC。
+- 本輪未由 Codex 自行派 Opus 或其他外部席位；如需獨立複審，交由 Claude commander 依其授權路由。PR 保持 Draft，供後續複審。
+
+## 37f617f6..HEAD 逐檔摘要
+
+依 git diff --stat 37f617f6..HEAD 與檔名讀回，以下逐檔說明本輪修改的 14 個檔案。
+
+| 檔案 | 一句話說明 |
+|---|---|
+| PROGRESS.md | 記錄 B-r3 開工卡、每項進度、驗證數字與交付 checkpoint。 |
+| REPORT.md | 加入本節作為目前 r3 報告並保留 B-r2 歷史。 |
+| PAYLOAD.md | 以 r3 狀態、七項交付結果與最終測試數字取代 B-r2 payload。 |
+| config/aeo325/public-url-baseline.json | 移除三份動態 URL 清單的 count/hash 鎖，保留來源 commit 與兩項既有豁免。 |
+| docs/guides/white-shoe-yellowing.html | 同步兩個 Service description 到白鞋服務頁的新導言摘要。 |
+| docs/services/luxury-bag-cleaning.html | 同步補回的「門市與收送」卡片。 |
+| docs/services/white-shoe-cleaning.html | 同步 #geo-entity 卡片回到原有雙欄容器的結構修正。 |
+| seo-overrides/guides/white-shoe-yellowing.html | 同步兩個 white-shoe-cleaning Service description。 |
+| seo-overrides/services/luxury-bag-cleaning.html | 從基底補回「門市與收送」卡片。 |
+| seo-overrides/services/white-shoe-cleaning.html | 將 #geo-entity 店家卡與「怎麼詢問」放回雙欄 section。 |
+| src/aeo325Guardrail.ts | 對非黑名單文字檔掃描 URL 形狀並以 stat/realpath 安全走訪目錄。 |
+| test/aeo325Guardrail.test.ts | 新增走訪層反例、slug 集合斷言並移除 sitemap/feed 固定 hash 測試。 |
+| test/aeo325PageCopy.test.ts | 驗證頁面結構、門市資訊、marker 數量與固定 lastmod，移除全 URL 集合比對。 |
+| test/fixtures/aeo325/base-page-markers.json | 記錄由基底重抽的 alternate 與 inline gtag config 數量。 |
+
+## 驗收摘要
+
+ITEM| 1 | DONE | 二進位黑名單、URL 形狀規則、stat/realpath 走訪
+ITEM| 2 | DONE | 走訪層反例 10 條；先紅後綠；兩個指定突變皆紅
+ITEM| 3 | DONE | 移除永久 URL hash 鎖，改以 slug 與受管 URL 預期斷言
+ITEM| 4 | DONE | 三頁修正 3/3、docs 同步、新增頁面斷言
+ITEM| 5 | DONE | 六頁 alternate 數量與 inline gtag config marker 補強
+ITEM| 6 | DONE | typecheck 通過；指定兩檔 72/72；全套唯一既有失敗 1
+ITEM| 7 | DONE | 推送分支、更新並讀回 Draft PR 內文
+TESTS| passed=1709 failed=1 skipped=19
+UNSURE| 無
+
+--- B-r2 歷史報告（保留原文；其 PARTIAL/hash-lock 結論已由上方 r3 結果取代）---
+# AEO325-B-r2 Report
 
 STATUS| PARTIAL
 BASE| 766ada1c

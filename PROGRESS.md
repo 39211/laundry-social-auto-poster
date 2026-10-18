@@ -1,6 +1,6 @@
-﻿# AEO325-B-r2 Progress
+﻿# AEO325-B-r3 Progress
 
-STATUS| IN_PROGRESS
+STATUS| DONE
 BASE| 766ada1c
 BRANCH| feat/aeo325-guardrail
 PARENT_HEAD| 37f617f6
@@ -24,9 +24,11 @@ PARENT_HEAD| 37f617f6
 - Item 4 DONE：白鞋 `#geo-entity` 已回到 `section.section.surface` 內的雙欄，詢問內容在另一欄；精品包逐字補回基底「門市與收送」article/card，置於三段新文案後、對應服務前；泛黃指南 Service description 與白鞋服務頁 `#service` 節點相同。三頁 docs/override 位元同步；六頁 JSON-LD 及 PageCopy 45/45 PASS。
 - Item 4 mutation 自證 DONE：暫時移除精品包門市卡時 PageCopy 目標測試 `1 failed`；還原後 PageCopy `45/45 passed`。
 - Item 5 DONE：基底 marker fixture 以 `D:\AI-Lanes-work\_tmp\aeob\extract_aeo325_base_markers.py` 從 commit `766ada1c` 程式重抽，為六頁新增 `link_rel_alternate_count`（6/7）與 `inline_gtag_config_count`（各 1）；PageCopy marker test 改比數量並明確要求 inline gtag config > 0，45/45 PASS。重抽命令：`python "D:/AI-Lanes-work/_tmp/aeob/extract_aeo325_base_markers.py"`。
-- Item 6 DONE：`npm run typecheck` PASS；指定兩檔 72/72 PASS；以 CI placeholder env `PUBLIC_SITE_BASE_URL=https://example.invalid`、`PUBLIC_IMAGE_BASE_URL=https://example.invalid` 執行 `npx vitest run --maxWorkers=4`，1709 passed / 1 failed / 19 skipped，唯一失敗是既有 `publicSite.test.ts:2965` 的 `2026-09-15-0` calendar slot fixture 缺項。default worker 全套有一個 5 秒負載逾時；該測試獨跑 PASS，4-worker 全套亦只剩上述既有失敗。
+- Item 6 DONE：npm run typecheck PASS；指定兩檔 72/72 PASS；CI placeholder env 下 npx vitest run --maxWorkers=4 為 1709 passed / 1 failed / 19 skipped，唯一失敗是既有 publicSite.test.ts:2965 缺少 2026-09-15-0 calendar slot；Qinghai timeout 測試獨跑 PASS。
 
 ---
+
+## B-r2 歷史紀錄（已由 r3 結果覆蓋）
 
 ## 開工卡
 
@@ -44,7 +46,7 @@ PARENT_HEAD| 37f617f6
 - Item 3 DONE，六頁各一個 commit：`311e9473` 白鞋服務、`b3d5c4ed` 白鞋指南、`de64ec0d` 精品包服務、`8b17fb2a` 精品包指南、`6f3e4c04` 羽絨服務、`c9fa40a9` 羽絨指南。六組 docs/override bytes 一致；四頁移除舊 HowTo。
 - Item 4 PARTIAL：主 sitemap 五個目標 lastmod 都是 `2026-10-18`；AI sitemap 更新四個原有目標。精品包服務 URL 基線未收錄於 AI sitemap；未新增 URL 以保持集合 hash。
 - Item 5 DONE：typecheck PASS；guardrail 17/17、page-copy 43/43 PASS；全套 1697 passed / 1 failed / 19 skipped。唯一失敗與開工基線相同。docs 無新 325 slug；三 sitemap/feed URL hashes 不變。
-- Item 6 DONE：`8196fb1f` 已 push；Draft PR #206 內文已更新。最終報告 checkpoint 也已 push，遠端 Git ref 與 PR API readback 的 head 相同；PR 為 OPEN/Draft、base `fix/reel-v3-two-reference-images`、branch `feat/aeo325-guardrail`。
+- Item 6 DONE：npm run typecheck PASS；指定兩檔 72/72 PASS；CI placeholder env 下 npx vitest run --maxWorkers=4 為 1709 passed / 1 failed / 19 skipped，唯一失敗是既有 publicSite.test.ts:2965 缺少 2026-09-15-0 calendar slot；Qinghai timeout 測試獨跑 PASS。
 - Item 7 DONE：`REPORT.md` 完成逐檔說明、驗證數字與 PARTIAL 原因；`PAYLOAD.md` 使用最終 remote head，並附於最終回覆。
 
 ## 限制與下一步
@@ -52,3 +54,6 @@ PARENT_HEAD| 37f617f6
 - 沒有在工作區根目錄跑 `npm run generate-public-site`；不合併、不部署、不呼叫 IndexNow/GSC。
 - 總狀態維持 PARTIAL，因 AI sitemap 基線不含 `/services/luxury-bag-cleaning.html`，新增會違反 URL 集合 hash 不變。
 - 收尾證據：最終 remote head 已寫入 `PAYLOAD.md`；Vault task summary 記錄最終 head、測試、PR readback 與 AI sitemap partial 原因。
+
+- Item 7 DONE：已推送 feat/aeo325-guardrail 並更新/讀回 Draft PR #206 的 r3 摘要；交付記錄 push 後再核對 remote branch 與 PR head 一致、狀態仍 OPEN / Draft。
+- r3 總狀態 DONE；PAYLOAD.md 的 HEAD 欄位記錄最後一個程式與測試驗證 commit dd52973，交付記錄 commit 的實際最終 SHA 以最終 GitHub/remote readback 為準。

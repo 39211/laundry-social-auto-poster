@@ -2,9 +2,11 @@ import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, unlink } from "node:fs/promises";
 import { writeFileWithRetry as writeFile } from "./fsRetry";
 import { dirname, join, posix, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
+import { assertAeo325PublicOutputSafety, loadAeo325Guardrail } from "./aeo325Guardrail";
 import { hasApprovedPost, loadApprovalLog, readJsonFile, writeJsonAtomic } from "./logging";
 import {
   contentCalendarPath,
@@ -40,6 +42,8 @@ import {
   assertSearchContentAnalyticsScript,
   buildSearchContentAnalyticsScript
 } from "./searchContentAnalytics";
+
+const SOURCE_PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 interface GeneratePublicSiteOptions {
   root?: string;
@@ -9805,6 +9809,7 @@ function buildAiDiscovery(index: PublicPostIndex): Record<string, unknown> {
 
 export async function generatePublicSite(options: GeneratePublicSiteOptions = {}): Promise<string[]> {
   const root = projectRoot(options.root);
+  await loadAeo325Guardrail(SOURCE_PROJECT_ROOT);
   const config = getConfig();
   const siteBaseUrl = normalizeBaseUrl(options.siteBaseUrl ?? options.baseUrl ?? config.publicSiteBaseUrl);
   if (options.deployment) {
@@ -10188,6 +10193,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     live: aiDiscovery as Record<string, unknown>,
     buildGeneratedAt: generatedAt
   });
+
+  await assertAeo325PublicOutputSafety(root, SOURCE_PROJECT_ROOT);
 
   return [...Object.values(outputs), ...postArticleOutputs];
 }

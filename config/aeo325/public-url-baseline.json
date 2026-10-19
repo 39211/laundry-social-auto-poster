@@ -1,0 +1,13 @@
+{
+  "source_commit": "0648e83ce3945040022badcb9b22087ff735a806",
+  "pre_existing_slugs": [
+    {
+      "slug": "down-vest-cleaning",
+      "reason": "Preserve the existing public URL and links while its AEO325 catalog row remains unapproved."
+    },
+    {
+      "slug": "gore-tex-jacket-cleaning",
+      "reason": "Preserve the existing public URL and links while its AEO325 catalog row remains unapproved."
+    }
+  ]
+}

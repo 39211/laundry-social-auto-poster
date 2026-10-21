@@ -21,6 +21,7 @@ import {
   resolveAcceptedIndexGrowthPages
 } from "../src/indexGrowthPages";
 import { PRODUCTION_PUBLIC_SITE_BASE_URL } from "../src/publicSiteTypes";
+import { assertPublicPostsMatchSources, type ConsistencyPost, type DiscoveryPost } from "./helpers/publicPostConsistency";
 import { NOINDEX_FOLLOW_LOCAL_PATHS } from "../scripts/check-sitemap-links";
 import {
   REQUIRED_SEARCH_CONTENT_EVENTS,
@@ -2898,26 +2899,12 @@ describe("generatePublicSite", () => {
     const docsRoot = join(process.cwd(), "docs");
     const [social, discovery, sitemap, imageMetadata] = await Promise.all([
       readFile(join(docsRoot, "social-posts.json"), "utf8").then((text) => JSON.parse(text)) as Promise<{
-        posts: Array<{
-          date: string;
-          slot: number;
-          topic: string;
-          facebook_caption: string;
-          instagram_caption: string;
-          image_path: string;
-          image_url: string;
-        }>;
+        base_url: string;
+        posts: ConsistencyPost[];
       }>,
       readFile(join(docsRoot, "ai-discovery.json"), "utf8").then((text) => JSON.parse(text)) as Promise<{
         generated_at: string;
-        published_posts: Array<{
-          date: string;
-          slot: number;
-          topic: string;
-          facebook_caption: string;
-          instagram_caption: string;
-          image_url: string;
-        }>;
+        published_posts: DiscoveryPost[];
       }>,
       readFile(join(docsRoot, "sitemap.xml"), "utf8"),
       readFile(join(process.cwd(), "docs-internal", "public-image-metadata.json"), "utf8")
@@ -2942,34 +2929,7 @@ describe("generatePublicSite", () => {
       .at(-1);
     expect(generatedDay >= (latestContentLastmod ?? ""), "generated_at must not predate public content").toBe(true);
 
-    const discoveryByKey = new Map(discovery.published_posts.map((post) => [`${post.date}-${post.slot}`, post]));
-    expect(discoveryByKey.size).toBe(social.posts.length);
-    const calendars = new Map<string, { slots: Array<Record<string, unknown>> }>();
-    for (const post of social.posts) {
-      const key = `${post.date}-${post.slot}`;
-      expect(discoveryByKey.get(key), key).toMatchObject({
-        topic: post.topic,
-        facebook_caption: post.facebook_caption,
-        instagram_caption: post.instagram_caption,
-        image_url: post.image_url
-      });
-      if (!calendars.has(post.date)) {
-        calendars.set(
-          post.date,
-          JSON.parse(await readFile(join(docsRoot, "content-calendar", `${post.date}.json`), "utf8")) as {
-            slots: Array<Record<string, unknown>>;
-          }
-        );
-      }
-      const slot = calendars.get(post.date)?.slots.find((item) => item.slot === post.slot);
-      expect(slot, key).toBeDefined();
-      expect(slot?.topic, key).toBe(post.topic);
-      expect(slot?.facebook_caption, key).toBe(post.facebook_caption);
-      expect(slot?.instagram_caption, key).toBe(post.instagram_caption);
-      if (slot?.media_type !== "mixed-carousel") {
-        expect(String(slot?.local_image_path ?? "").replace(/^docs\//u, ""), key).toBe(post.image_path);
-      }
-    }
+    await assertPublicPostsMatchSources(docsRoot, social.posts, discovery.published_posts, social.base_url);
 
     expect(imageMetadata.schema_version).toBe(1);
     const referencedImages = new Set<string>();

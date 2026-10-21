@@ -8,6 +8,12 @@ import { assertLocalSitemapHasNoFutureLastmod } from "./auditSitemap";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { docsContentCalendarPath, projectRoot, relativeAssetPath } from "./paths";
+import {
+  isFutureDatedPublicAssetPath,
+  omitFutureDatedPublicAssets,
+  stripFutureDatedPublicAssetIndexes,
+  taipeiRunDate
+} from "./publicAssetPublishGate";
 import { regeneratePublicImageMetadataSync } from "./publicImageMetadata";
 import { getZonedDateParts } from "./scheduler";
 import { submitIndexNow } from "./submitIndexNow";
@@ -240,13 +246,15 @@ export function assertMirroredReferencedAssets(
   docsRoot: string,
   mirrorRoot: string,
   referenced: string[],
-  relativePublishPaths: string[] = []
+  relativePublishPaths: string[] = [],
+  runDate?: string
 ): void {
   const discovered = relativePublishPaths.length > 0 ? collectReferencedPublicAssetPaths(docsRoot, relativePublishPaths) : [];
   const required = uniquePaths([...referenced, ...discovered]);
+  const publishable = runDate ? omitFutureDatedPublicAssets(required, runDate) : required;
   const missing: string[] = [];
   const mismatched: string[] = [];
-  for (const relativePath of required) {
+  for (const relativePath of publishable) {
     const source = join(docsRoot, ...relativePath.split("/"));
     const target = join(mirrorRoot, ...relativePath.split("/"));
     if (!existsSync(source)) {
@@ -310,13 +318,15 @@ function indexNowKeyPublishPaths(root: string): string[] {
     .map((entry) => `docs/${entry.name}`);
 }
 
-function copyDirectoryContents(source: string, target: string): void {
+function copyDirectoryContents(source: string, target: string, relativePrefix = "", runDate = ""): void {
   mkdirSync(target, { recursive: true });
   for (const entry of readdirSync(source, { withFileTypes: true })) {
+    const relativePath = relativePrefix ? `${relativePrefix}/${entry.name}` : entry.name;
+    if (runDate && isFutureDatedPublicAssetPath(relativePath, runDate)) continue;
     const sourcePath = join(source, entry.name);
     const targetPath = join(target, entry.name);
     if (entry.isDirectory()) {
-      copyDirectoryContents(sourcePath, targetPath);
+      copyDirectoryContents(sourcePath, targetPath, relativePath, runDate);
     } else if (entry.isFile()) {
       copyFileSync(sourcePath, targetPath);
     }
@@ -397,11 +407,13 @@ function copyMirrorPublishTree(
   docsRoot: string,
   mirrorRoot: string,
   date: string,
-  relativePaths: string[]
+  relativePaths: string[],
+  runDate: string
 ): string[] {
   const added: string[] = [];
   mkdirSync(mirrorRoot, { recursive: true });
   for (const relativePath of relativePaths) {
+    if (isFutureDatedPublicAssetPath(relativePath, runDate)) continue;
     const source = join(docsRoot, ...relativePath.split("/"));
     const target = join(mirrorRoot, ...relativePath.split("/"));
     const kind = mirrorPathKind(docsRoot, relativePath, date);
@@ -411,7 +423,7 @@ function copyMirrorPublishTree(
       copyFileSync(source, target);
     } else {
       if (kind === "replace-directory") rmSync(target, { recursive: true, force: true });
-      copyDirectoryContents(source, target);
+      copyDirectoryContents(source, target, relativePath, runDate);
     }
     added.push(relativePath);
   }
@@ -434,13 +446,17 @@ function assertStagedReferencedAssets(docsRoot: string, mirrorRoot: string, refe
   }
 }
 
-function publishRootPagesMirror(date: string, root: string, rootPagesRepo: string, paths: string[]): string {
+function publishRootPagesMirror(date: string, root: string, rootPagesRepo: string, paths: string[], now: Date): string {
   if (!rootPagesRepo) return "";
 
   const docsRoot = join(root, "docs");
   if (!existsSync(docsRoot)) return "Root Pages mirror skipped because docs/ does not exist.";
-  const relativePaths = mirrorRelativePaths(paths);
-  const referencedAssets = collectReferencedPublicAssetPaths(docsRoot, relativePaths);
+  const runDate = taipeiRunDate(now);
+  const relativePaths = omitFutureDatedPublicAssets(mirrorRelativePaths(paths), runDate);
+  const referencedAssets = omitFutureDatedPublicAssets(
+    collectReferencedPublicAssetPaths(docsRoot, relativePaths),
+    runDate
+  );
   if (referencedAssets.length > MAX_REFERENCED_PUBLIC_ASSETS) {
     throw new Error(
       `Refusing to publish: ${referencedAssets.length} referenced public assets exceed the selective-mirror budget of ${MAX_REFERENCED_PUBLIC_ASSETS}. Refusing to silently drop assets.`
@@ -450,7 +466,7 @@ function publishRootPagesMirror(date: string, root: string, rootPagesRepo: strin
   if (missingSource.length > 0) {
     throw new Error(`Refusing to publish: public site references missing assets: ${missingSource.join(", ")}.`);
   }
-  const mirrorPaths = uniquePaths([...relativePaths, ...referencedAssets]);
+  const mirrorPaths = omitFutureDatedPublicAssets(uniquePaths([...relativePaths, ...referencedAssets]), runDate);
   const cones = mirrorSparseCones(docsRoot, mirrorPaths, date);
 
   const mirrorRoot = mkdtempSync(join(tmpdir(), "laundry-root-pages-"));
@@ -469,9 +485,9 @@ function publishRootPagesMirror(date: string, root: string, rootPagesRepo: strin
     runGit(["config", "user.name", gitConfigValue(root, "user.name") || "Codex Automation"], mirrorRoot);
     runGit(["config", "user.email", gitConfigValue(root, "user.email") || "codex-automation@users.noreply.github.com"], mirrorRoot);
     checkoutMain(mirrorRoot);
-    const added = copyMirrorPublishTree(docsRoot, mirrorRoot, date, mirrorPaths);
+    const added = copyMirrorPublishTree(docsRoot, mirrorRoot, date, mirrorPaths, runDate);
     applyCnameTombstone(docsRoot, mirrorRoot);
-    assertMirroredReferencedAssets(docsRoot, mirrorRoot, referencedAssets, relativePaths);
+    assertMirroredReferencedAssets(docsRoot, mirrorRoot, referencedAssets, relativePaths, runDate);
     gitAddPaths(mirrorRoot, added, true);
     if (referencedAssets.length > 0) gitAddPaths(mirrorRoot, referencedAssets, true);
     assertStagedReferencedAssets(docsRoot, mirrorRoot, referencedAssets);
@@ -500,6 +516,10 @@ export function publishPagesAssets(
   if (!hasOrigin(root)) {
     return "Git remote origin is not configured; skipped GitHub Pages commit and push.";
   }
+
+  const runDate = taipeiRunDate(now);
+  // 索引裡的未來資產網址先拿掉，後面的引用掃描才不會把它們當成必須鏡像的檔。
+  stripFutureDatedPublicAssetIndexes(join(root, "docs"), runDate);
 
   const assetDir = relativeAssetPath(date, 1).replace(/\/slot-01\.png$/, "");
   const docsCalendar = docsContentCalendarPath(date, root);
@@ -542,10 +562,13 @@ export function publishPagesAssets(
     // scanned allowlist so selective mirror updates can refresh it safely.
     "docs/CNAME"
   ];
-  const paths = existingPublishPaths(root, [assetDir, ...publicSiteFiles, ...indexNowKeyPublishPaths(root)]);
+  const paths = omitFutureDatedPublicAssets(
+    existingPublishPaths(root, [assetDir, ...publicSiteFiles, ...indexNowKeyPublishPaths(root)]),
+    runDate
+  );
   const docsRoot = join(root, "docs");
   const referencedAssets = existsSync(docsRoot)
-    ? collectReferencedPublicAssetPaths(docsRoot, mirrorRelativePaths(paths))
+    ? omitFutureDatedPublicAssets(collectReferencedPublicAssetPaths(docsRoot, mirrorRelativePaths(paths)), runDate)
     : [];
   if (referencedAssets.length > MAX_REFERENCED_PUBLIC_ASSETS) {
     throw new Error(
@@ -584,7 +607,7 @@ export function publishPagesAssets(
   // early on "nothing to commit" skipped it, which left published URLs 404 with
   // everything looking done. The mirror runs either way.
   if (!hasStagedChanges(root, sourcePathsToStage)) {
-    const mirrorOnly = publishRootPagesMirror(date, root, rootPagesRepo, pathsToPublish);
+    const mirrorOnly = publishRootPagesMirror(date, root, rootPagesRepo, pathsToPublish, now);
     return [`No GitHub Pages changes to publish for ${date}.`, mirrorOnly].filter(Boolean).join("\n");
   }
 
@@ -592,15 +615,19 @@ export function publishPagesAssets(
     runGit(["commit", "-m", `Generate daily Pages assets ${date}`, `--pathspec-from-file=${pathspecFile}`], root);
   });
   runGit(["push"], root);
-  const mirrorResult = publishRootPagesMirror(date, root, rootPagesRepo, pathsToPublish);
-  return [`Published GitHub Pages assets for ${date}: ${assetDir}, ${docsCalendar}`, mirrorResult].filter(Boolean).join("\n");
+  const mirrorResult = publishRootPagesMirror(date, root, rootPagesRepo, pathsToPublish, now);
+  const publishedAssetDir = paths.includes(assetDir) ? `${assetDir}, ` : "";
+  return [`Published GitHub Pages assets for ${date}: ${publishedAssetDir}${docsCalendar}`, mirrorResult].filter(Boolean).join("\n");
 }
 
 export async function runPublishPagesCli(args: string[] = process.argv.slice(2)): Promise<void> {
   const config = getConfig();
-  const date = getOption(args, "date") || getZonedDateParts(new Date(), config.timezone).date;
+  const nowText = getOption(args, "now");
+  const now = nowText ? new Date(nowText) : new Date();
+  if (Number.isNaN(now.getTime())) throw new Error("--now must be an ISO timestamp.");
+  const date = getOption(args, "date") || getZonedDateParts(now, config.timezone).date;
   const root = projectRoot(getOption(args, "root"));
-  console.log(publishPagesAssets(date, root, config.publicRootPagesRepo || ""));
+  console.log(publishPagesAssets(date, root, config.publicRootPagesRepo || "", now));
   if (!getFlag(args, "skip-indexnow")) {
     try {
       const result = await submitIndexNow({ root, live: true });

@@ -350,6 +350,7 @@ export async function postInstagramReel(
         video_url: input.videoUrl,
         caption: input.caption,
         share_to_feed: "true",
+        ...((config.metaAiLabelEnabled ?? true) ? { is_ai_generated: "true" } : {}),
         access_token: config.metaAccessToken ?? ""
       }),
       config

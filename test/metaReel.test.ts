@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { getConfig } from "../src/config";
 import { postFacebookReel } from "../src/postFacebook";
 import { postInstagramReel } from "../src/postInstagram";
 import { NonRetryableError, withRetry } from "../src/retry";
@@ -26,6 +27,11 @@ const input: PostInput = {
   videoUrl: "https://39211.github.io/assets/2026-07-16/slot-02.mp4"
 };
 
+const defaultConfig: AppConfig = {
+  ...config,
+  metaAiLabelEnabled: getConfig({}).metaAiLabelEnabled
+};
+
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     status,
@@ -34,6 +40,94 @@ function jsonResponse(payload: unknown, status = 200): Response {
 }
 
 describe("Meta Reel publishers", () => {
+  it("defaults Meta AI disclosure to enabled", () => {
+    expect(getConfig({}).metaAiLabelEnabled).toBe(true);
+  });
+
+  it("adds AI disclosure to Facebook Reel finish, not start, by default", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ video_id: "video-1", upload_url: "https://rupload.test/video-1" }))
+      .mockResolvedValueOnce(jsonResponse({ success: true }))
+      .mockResolvedValueOnce(jsonResponse({ success: true }))
+      .mockResolvedValueOnce(jsonResponse({ status: { video_status: "ready" } })) as unknown as typeof fetch;
+
+    await postFacebookReel(input, defaultConfig, fetchImpl, {
+      maxAttempts: 1,
+      intervalMs: 0,
+      sleep: async () => undefined
+    });
+
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const startBody = (calls[0]?.[1] as RequestInit).body as URLSearchParams;
+    const finishBody = (calls[2]?.[1] as RequestInit).body as URLSearchParams;
+    expect(startBody.has("is_ai_generated")).toBe(false);
+    expect(finishBody.get("is_ai_generated")).toBe("true");
+  });
+
+  it("adds AI disclosure to scheduled Facebook Reel finish", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ video_id: "video-1", upload_url: "https://rupload.test/video-1" }))
+      .mockResolvedValueOnce(jsonResponse({ success: true }))
+      .mockResolvedValueOnce(jsonResponse({ success: true })) as unknown as typeof fetch;
+
+    await postFacebookReel({ ...input, scheduledPublishTime: 1_900_000_000 }, defaultConfig, fetchImpl);
+
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const finishBody = (calls[2]?.[1] as RequestInit).body as URLSearchParams;
+    expect(finishBody.get("video_state")).toBe("SCHEDULED");
+    expect(finishBody.get("is_ai_generated")).toBe("true");
+  });
+
+  it("adds AI disclosure to the default Instagram Reel container", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ id: "container-1" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "container-1", status_code: "FINISHED" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "published-1" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "published-1", media_type: "VIDEO", media_product_type: "REELS" })) as unknown as typeof fetch;
+
+    await postInstagramReel(input, defaultConfig, fetchImpl, {
+      maxAttempts: 1,
+      intervalMs: 0,
+      sleep: async () => undefined
+    });
+
+    const createBody = ((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as RequestInit)
+      .body as URLSearchParams;
+    expect(createBody.get("media_type")).toBe("REELS");
+    expect(createBody.get("is_ai_generated")).toBe("true");
+  });
+
+  it("omits AI disclosure from both Reel publishers when disabled", async () => {
+    const disabledConfig = { ...defaultConfig, metaAiLabelEnabled: false };
+    const facebookFetch = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ video_id: "video-1", upload_url: "https://rupload.test/video-1" }))
+      .mockResolvedValueOnce(jsonResponse({ success: true }))
+      .mockResolvedValueOnce(jsonResponse({ success: true }))
+      .mockResolvedValueOnce(jsonResponse({ status: { video_status: "ready" } })) as unknown as typeof fetch;
+    const instagramFetch = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ id: "container-1" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "container-1", status_code: "FINISHED" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "published-1" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "published-1", media_type: "VIDEO", media_product_type: "REELS" })) as unknown as typeof fetch;
+
+    await postFacebookReel(input, disabledConfig, facebookFetch, { maxAttempts: 1, intervalMs: 0, sleep: async () => undefined });
+    await postInstagramReel(input, disabledConfig, instagramFetch, { maxAttempts: 1, intervalMs: 0, sleep: async () => undefined });
+
+    const facebookCalls = (facebookFetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const facebookStart = (facebookCalls[0]?.[1] as RequestInit).body as URLSearchParams;
+    const facebookFinish = (facebookCalls[2]?.[1] as RequestInit).body as URLSearchParams;
+    const instagramCreate = ((instagramFetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as RequestInit)
+      .body as URLSearchParams;
+    expect(facebookStart.has("is_ai_generated")).toBe(false);
+    expect(facebookFinish.has("is_ai_generated")).toBe(false);
+    expect(instagramCreate.has("is_ai_generated")).toBe(false);
+  });
+
   it("uses the Facebook hosted Reel upload flow", async () => {
     const fetchImpl = vi
       .fn()

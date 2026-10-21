@@ -3,6 +3,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AppConfig } from "./types";
 
+declare module "./types" {
+  interface AppConfig {
+    metaAiLabelEnabled?: boolean;
+  }
+}
+
 // "dotenv/config" resolves .env relative to process.cwd(), which is wrong
 // whenever this module loads inside a subprocess launched from some other
 // working directory (e.g. a PowerShell script's `& tsx ...` call that never
@@ -46,6 +52,7 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     publicRootPagesRepo: env.PUBLIC_ROOT_PAGES_REPO || "",
     verifyPublicImageUrl: boolEnv(env.VERIFY_PUBLIC_IMAGE_URL, !dryRun),
     grokReelsEnabled: boolEnv(env.GROK_REELS_ENABLED, false),
+    metaAiLabelEnabled: boolEnv(env.META_AI_LABEL_ENABLED, true),
     ga4MeasurementId: /^G-[A-Z0-9]+$/i.test(env.PUBLIC_GA4_MEASUREMENT_ID?.trim() ?? "")
       ? env.PUBLIC_GA4_MEASUREMENT_ID?.trim().toUpperCase()
       : undefined,

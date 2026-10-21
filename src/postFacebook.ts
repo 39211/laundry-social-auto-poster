@@ -242,6 +242,7 @@ export async function postFacebookReel(
     video_state: input.scheduledPublishTime ? "SCHEDULED" : "PUBLISHED",
     description: input.caption
   });
+  if (config.metaAiLabelEnabled ?? true) finishBody.set("is_ai_generated", "true");
   if (input.scheduledPublishTime) {
     finishBody.set("scheduled_publish_time", String(input.scheduledPublishTime));
   }

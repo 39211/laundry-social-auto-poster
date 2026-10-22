@@ -16,6 +16,11 @@ import {
   WAVE4_BANNED_MARKERS,
   WAVE4_MERGED_PAGE_PATHS,
   WAVE4_PAGE_PATHS,
+  WAVE5_ANSWER_IDS,
+  WAVE5_EXTRA_BANNED_MARKERS,
+  WAVE5_MERGED_BLOCK_IDS,
+  WAVE5_MERGED_PAGE_PATHS,
+  WAVE5_PAGE_PATHS,
   WRITER_VOICE_MARKERS,
   checkSitemapLinks,
   faqJsonLdPageReferenceOffenders,
@@ -26,6 +31,9 @@ import {
   sitemapLinkReportFailed,
   wave3WriterVoiceHits,
   wave4BannedHits,
+  wave5BannedHits,
+  CONDITIONAL_WHOLE_PAIR_REFUSAL_SOURCE,
+  conditionalWholePairRefusalHits,
   writerVoiceHits
 } from "../scripts/check-sitemap-links";
 
@@ -82,6 +90,10 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(WAVE3_VOICE_PAGE_PATHS).toHaveLength(7);
     expect(WAVE4_PAGE_PATHS).toHaveLength(3);
     expect(WAVE4_MERGED_PAGE_PATHS).toHaveLength(6);
+    expect(WAVE5_PAGE_PATHS).toHaveLength(5);
+    expect(WAVE5_MERGED_PAGE_PATHS).toHaveLength(7);
+    expect(WAVE5_MERGED_BLOCK_IDS).toHaveLength(7);
+    expect(WAVE5_ANSWER_IDS).toHaveLength(12);
     expect(NOINDEX_FOLLOW_LOCAL_PATHS).toHaveLength(16);
     const root = repoRootFromHere();
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
@@ -132,6 +144,11 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/guides/casual-shoe-cleaning.html"]?.hubs).toContain("hubs/shoe-care.html");
     expect(report.inbound["/guides/suit-pants-crease.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/crossbody-bag-strap.html"]?.hubs).toContain("hubs/bag-care.html");
+    expect(report.inbound["/guides/shoe-waterproof-treatment.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/rubber-rain-boot-care.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/leather-shoe-salt-bloom.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/insulated-down-pants-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/bag-base-stud-check.html"]?.hubs).toContain("hubs/bag-care.html");
     const xml = readFileSync(join(root, "seo-overrides", "sitemap.xml"), "utf8");
     for (const path of LAYER1_PHRASE_PAGE_PATHS) {
       expect(xml, path).toContain(`<loc>https://sixiangjialaundry.com${path}</loc><lastmod>2026-10-14</lastmod>`);
@@ -268,6 +285,68 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+it("帶條件的就不整雙做要紅燈，整雙清洗與單獨的顏色移動不紅燈", () => {
+  expect(CONDITIONAL_WHOLE_PAIR_REFUSAL_SOURCE).toBe("就(?:不要|不)整雙做");
+  expect(conditionalWholePairRefusalHits("顏色移動就不整雙做")).toEqual(["就不整雙做"]);
+  expect(conditionalWholePairRefusalHits("不適合就不整雙做")).toEqual(["就不整雙做"]);
+  expect(conditionalWholePairRefusalHits("顏色移動就不要整雙做")).toEqual(["就不要整雙做"]);
+  expect(conditionalWholePairRefusalHits("不適合就不要整雙做")).toEqual(["就不要整雙做"]);
+  expect(conditionalWholePairRefusalHits("測試後顏色移動或絨面發亮，就不要整雙做")).toEqual(["就不要整雙做"]);
+  expect(conditionalWholePairRefusalHits("整雙清洗")).toEqual([]);
+  expect(conditionalWholePairRefusalHits("局部產品可能讓顏色移動")).toEqual([]);
+  expect(wave5BannedHits("顏色移動就不整雙做")).toEqual(["就不整雙做"]);
+  expect(wave5BannedHits("不適合就不要整雙做")).toEqual(["就不要整雙做"]);
+  expect(wave5BannedHits("整雙清洗")).toEqual([]);
+  expect(wave5BannedHits("局部產品可能讓顏色移動")).toEqual([]);
+});
+
+it("第 5 波新頁、新併入段落與新問答沒有禁詞，掃描不排除任何句子", () => {
+    expect(WAVE5_EXTRA_BANNED_MARKERS).toEqual(["第一", "最好", "最大", "最小", "最新", "最終"]);
+    expect(wave5BannedHits("沒有最低消費")).toEqual([]);
+    expect(wave5BannedHits("最好")).toEqual(["最好", "最"]);
+    const root = repoRootFromHere();
+    const hits: string[] = [];
+    for (const path of WAVE5_PAGE_PATHS) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      const found = wave5BannedHits(html);
+      if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
+      expect(html, path).toContain('rel="canonical" href="https://sixiangjialaundry.com' + path + '"');
+      expect(html, path).toContain('"dateModified":"2026-10-22"');
+    }
+    const blockPages = [...WAVE5_MERGED_PAGE_PATHS];
+    const foundIds = new Set<string>();
+    for (const path of blockPages) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      for (const id of WAVE5_MERGED_BLOCK_IDS) {
+        const match = html.match(new RegExp(`<section\\b[^>]*\\bdata-merged-block="${id}"[^>]*>[\\s\\S]*?<\\/section>`));
+        if (!match) continue;
+        foundIds.add(id);
+        const found = wave5BannedHits(match[0] ?? "");
+        if (found.length > 0) hits.push(`${path}#${id}: ${found.join("、")}`);
+      }
+    }
+    for (const id of WAVE5_MERGED_BLOCK_IDS) {
+      if (!foundIds.has(id)) hits.push(`缺少併入段落 ${id}`);
+    }
+    const answers = JSON.parse(readFileSync(join(root, "seo-overrides", "answers.json"), "utf8")) as {
+      answers: Array<{ id: string; question: string; answer: string; source_url: string }>;
+    };
+    const byId = new Map(answers.answers.map((entry) => [entry.id, entry]));
+    for (const id of WAVE5_ANSWER_IDS) {
+      const entry = byId.get(id);
+      if (!entry) {
+        hits.push(`缺少問答 ${id}`);
+        continue;
+      }
+      const found = wave5BannedHits(`${entry.question}\n${entry.answer}`);
+      if (found.length > 0) hits.push(`${id}: ${found.join("、")}`);
+      if (entry.answer.includes("本頁") || entry.answer.includes("這頁") || entry.question.includes("本頁") || entry.question.includes("這頁")) {
+        hits.push(`${id}: 問答自指`);
+      }
+    }
+    expect(hits).toEqual([]);
+  });
 
 describe("全站禁詞「只補」", () => {
   it("清單鎖定", () => {

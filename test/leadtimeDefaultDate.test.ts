@@ -182,7 +182,8 @@ describe("W-LEADTIME D+3 generation default", { timeout: 20000 }, () => {
 
   it("daily-generate toasts name 目標日, not 今天, when interpolating $date", () => {
     const generate = readScript("daily-generate.ps1");
-    expect(generate.match(/目標日 \(\$date\)/g)?.length).toBe(3);
+    // 4 since 2026-10-22: the calendar pre-generation failure toast also names the target day
+    expect(generate.match(/目標日 \(\$date\)/g)?.length).toBe(4);
     expect(generate).not.toMatch(/今天 \(\$date\)/);
   });
 

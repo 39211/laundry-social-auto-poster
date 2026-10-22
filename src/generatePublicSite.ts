@@ -5685,6 +5685,40 @@ function buildSitemapXml(index: PublicPostIndex): string {
     .join("\n");
 }
 
+export function applyOverrideLastmodsToSitemapXml(
+  xml: string,
+  overrideLastmods: ReadonlyMap<string, string>
+): string {
+  return xml
+    .split("\n")
+    .map((line) => {
+      if (line.trimStart().startsWith("<!--")) return line;
+      const locMatch = line.match(/<loc>([^<]+)<\/loc>/);
+      if (!locMatch) return line;
+
+      let posixPath: string;
+      try {
+        const url = locMatch[1];
+        if (!url) return line;
+        const pathname = new URL(url).pathname.replace(/^\/+/, "");
+        posixPath = pathname || "index.html";
+      } catch {
+        return line;
+      }
+
+      if (!overrideLastmods.has(posixPath)) return line;
+      const lastmod = overrideLastmods.get(posixPath);
+      if (lastmod === undefined) return line;
+      const lastmodXml = `<lastmod>${lastmod}</lastmod>`;
+      if (/<lastmod>[^<]*<\/lastmod>/.test(line)) {
+        return line.replace(/<lastmod>[^<]*<\/lastmod>/, lastmodXml);
+      }
+      const locEnd = line.indexOf(locMatch[0]) + locMatch[0].length;
+      return `${line.slice(0, locEnd)}${lastmodXml}${line.slice(locEnd)}`;
+    })
+    .join("\n");
+}
+
 function buildAiSitemapXml(index: PublicPostIndex): string {
   const urls = index.base_url_configured
     ? [
@@ -10216,6 +10250,26 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         console.log(`Updated sitemap with ${allUrls.length} total URLs (including ${overrideUrls.length} from overrides)`);
       } else {
         console.log("Updated sitemap with " + allUrls.length + " total URLs (including sitemap override)");
+      }
+    }
+
+    // onlyDocsPaths 沒要 ai-sitemap.xml 時，docs/ai-sitemap.xml 不會寫出，也不改它。
+    if (
+      index.base_url_configured &&
+      overrideLastmods.size > 0 &&
+      shouldWriteDocsPath("ai-sitemap.xml")
+    ) {
+      let existingAiSitemap: string | undefined;
+      try {
+        existingAiSitemap = await readFile(outputs.aiSitemap, "utf8");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+      if (existingAiSitemap !== undefined) {
+        const newAiSitemap = applyOverrideLastmodsToSitemapXml(existingAiSitemap, overrideLastmods);
+        if (newAiSitemap !== existingAiSitemap) {
+          await writeFile(outputs.aiSitemap, newAiSitemap, "utf8");
+        }
       }
     }
   } catch (error) {

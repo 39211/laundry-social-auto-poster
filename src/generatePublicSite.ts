@@ -54,6 +54,11 @@ interface GeneratePublicSiteOptions {
   statPublicAsset?: (filePath: string) => { isFile(): boolean };
   /** Fail closed unless the resolved public base URL is the production canonical host. */
   deployment?: boolean;
+  /**
+   * 只寫這些 docs/ 相對路徑（posix）。未設定時寫出整站。
+   * 有寫出的檔案內容與整站產線相同，只略過呼叫端不會讀的檔。
+   */
+  onlyDocsPaths?: readonly string[];
 }
 
 interface PublicPost {
@@ -9997,30 +10002,38 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   if (cnameHost) await writeFile(join(docsRoot, "CNAME"), `${cnameHost}\n`, "utf8");
   else await unlink(join(docsRoot, "CNAME")).catch(() => undefined);
 
-  await writeJsonAtomic(outputs.socialPosts, index);
-  await writeJsonAtomic(outputs.businessProfile, businessProfile);
-  await writeJsonAtomic(outputs.latest, latest);
-  await writeJsonAtomic(outputs.services, buildServicesJson(index));
-  await writeJsonAtomic(outputs.answers, buildAnswersJson(index));
-  await writeJsonAtomic(outputs.geoTargets, buildGeoTargetsJson(index));
-  await writeJsonAtomic(outputs.searchVisibility, buildSearchVisibilityJson(index));
-  await writeJsonAtomic(outputs.feed, buildJsonFeed(index));
-  await writeFile(outputs.rss, buildRssXml(index), "utf8");
-  await writeJsonAtomic(outputs.knowledgeGraph, buildKnowledgeGraph(index));
+  // 未設定 onlyDocsPaths 時每個路徑都會寫，順序與內容維持整站產線。
+  const onlyDocsPaths = options.onlyDocsPaths === undefined ? undefined : new Set(options.onlyDocsPaths);
+  const shouldWriteDocsPath = (relativePath: string): boolean =>
+    onlyDocsPaths === undefined || onlyDocsPaths.has(relativePath);
+
+  if (shouldWriteDocsPath("social-posts.json")) await writeJsonAtomic(outputs.socialPosts, index);
+  if (shouldWriteDocsPath("business-profile.json")) await writeJsonAtomic(outputs.businessProfile, businessProfile);
+  if (shouldWriteDocsPath("latest.json")) await writeJsonAtomic(outputs.latest, latest);
+  if (shouldWriteDocsPath("services.json")) await writeJsonAtomic(outputs.services, buildServicesJson(index));
+  if (shouldWriteDocsPath("answers.json")) await writeJsonAtomic(outputs.answers, buildAnswersJson(index));
+  if (shouldWriteDocsPath("geo-targets.json")) await writeJsonAtomic(outputs.geoTargets, buildGeoTargetsJson(index));
+  if (shouldWriteDocsPath("search-visibility.json")) await writeJsonAtomic(outputs.searchVisibility, buildSearchVisibilityJson(index));
+  if (shouldWriteDocsPath("feed.json")) await writeJsonAtomic(outputs.feed, buildJsonFeed(index));
+  if (shouldWriteDocsPath("rss.xml")) await writeFile(outputs.rss, buildRssXml(index), "utf8");
+  if (shouldWriteDocsPath("knowledge-graph.json")) await writeJsonAtomic(outputs.knowledgeGraph, buildKnowledgeGraph(index));
+  // syncPublishedAiDiscovery 在覆寫之後還要用這份 live 發現文件，所以一律組出，寫檔才依 onlyDocsPaths。
   const aiDiscovery = buildAiDiscovery(index);
-  await writeJsonAtomic(outputs.aiDiscovery, aiDiscovery);
-  await writeJsonAtomic(outputs.wellKnownAi, aiDiscovery);
-  await writeFile(outputs.llms, buildLlmsText(index), "utf8");
-  await writeFile(outputs.llmsLite, buildLlmsLiteText(index), "utf8");
-  await writeFile(outputs.llmsFull, buildLlmsFullText(index), "utf8");
-  await writeFile(outputs.llmsJsonl, buildLlmsJsonl(index), "utf8");
-  await writeFile(outputs.wellKnownLlms, buildLlmsText(index), "utf8");
-  await writeFile(outputs.robots, buildRobotsText(index), "utf8");
-  await writeFile(outputs.sitemap, buildSitemapXml(index), "utf8");
-  await writeFile(outputs.aiSitemap, buildAiSitemapXml(index), "utf8");
-  const searchContentAnalytics = buildSearchContentAnalyticsScript();
-  assertSearchContentAnalyticsScript(searchContentAnalytics);
-  await writeFile(outputs.searchContentAnalytics, searchContentAnalytics, "utf8");
+  if (shouldWriteDocsPath("ai-discovery.json")) await writeJsonAtomic(outputs.aiDiscovery, aiDiscovery);
+  if (shouldWriteDocsPath(".well-known/ai.json")) await writeJsonAtomic(outputs.wellKnownAi, aiDiscovery);
+  if (shouldWriteDocsPath("llms.txt")) await writeFile(outputs.llms, buildLlmsText(index), "utf8");
+  if (shouldWriteDocsPath("llms-lite.txt")) await writeFile(outputs.llmsLite, buildLlmsLiteText(index), "utf8");
+  if (shouldWriteDocsPath("llms-full.txt")) await writeFile(outputs.llmsFull, buildLlmsFullText(index), "utf8");
+  if (shouldWriteDocsPath("llms.jsonl")) await writeFile(outputs.llmsJsonl, buildLlmsJsonl(index), "utf8");
+  if (shouldWriteDocsPath(".well-known/llms.txt")) await writeFile(outputs.wellKnownLlms, buildLlmsText(index), "utf8");
+  if (shouldWriteDocsPath("robots.txt")) await writeFile(outputs.robots, buildRobotsText(index), "utf8");
+  if (shouldWriteDocsPath("sitemap.xml")) await writeFile(outputs.sitemap, buildSitemapXml(index), "utf8");
+  if (shouldWriteDocsPath("ai-sitemap.xml")) await writeFile(outputs.aiSitemap, buildAiSitemapXml(index), "utf8");
+  if (shouldWriteDocsPath(SEARCH_CONTENT_ANALYTICS_PATH)) {
+    const searchContentAnalytics = buildSearchContentAnalyticsScript();
+    assertSearchContentAnalyticsScript(searchContentAnalytics);
+    await writeFile(outputs.searchContentAnalytics, searchContentAnalytics, "utf8");
+  }
   if (indexNowKey) {
     const keyFileName = indexNowKeyFileName(indexNowKey);
     await writeFile(join(docsRoot, keyFileName), `${indexNowKey}\n`, "utf8");
@@ -10036,29 +10049,43 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         })
     );
   }
-  await writeFile(outputs.index, buildIndexHtml(index), "utf8");
-  await writeFile(outputs.knowledgeHub, buildKnowledgeHubHtml(index), "utf8");
-  await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
-  await writeFile(
-    outputs.lineRedirect,
-    buildLineRedirectHtml({
-      lineUrl: businessProfile.line_url,
-      measurementId: config.ga4MeasurementId
-    }),
-    "utf8"
-  );
-  await writeFile(outputs.compatibilityDocsIndex, buildNotFoundHtml(index), "utf8");
+  if (shouldWriteDocsPath("index.html")) await writeFile(outputs.index, buildIndexHtml(index), "utf8");
+  if (shouldWriteDocsPath(KNOWLEDGE_HUB_FILE)) await writeFile(outputs.knowledgeHub, buildKnowledgeHubHtml(index), "utf8");
+  if (shouldWriteDocsPath("404.html")) await writeFile(outputs.notFound, buildNotFoundHtml(index), "utf8");
+  if (shouldWriteDocsPath("go/line.html")) {
+    await writeFile(
+      outputs.lineRedirect,
+      buildLineRedirectHtml({
+        lineUrl: businessProfile.line_url,
+        measurementId: config.ga4MeasurementId
+      }),
+      "utf8"
+    );
+  }
+  if (shouldWriteDocsPath("docs/index.html")) await writeFile(outputs.compatibilityDocsIndex, buildNotFoundHtml(index), "utf8");
+  const servicePagesToWrite =
+    onlyDocsPaths === undefined
+      ? SERVICE_PAGE_DEFINITIONS
+      : SERVICE_PAGE_DEFINITIONS.filter((service) => shouldWriteDocsPath(servicePagePath(service)));
   await Promise.all(
-    SERVICE_PAGE_DEFINITIONS.map((service) =>
+    servicePagesToWrite.map((service) =>
       writeFile(join(servicesRoot, `${service.slug}.html`), buildServicePageHtml(service, index), "utf8")
     )
   );
+  const supportPagesToWrite =
+    onlyDocsPaths === undefined
+      ? SUPPORT_PAGE_DEFINITIONS
+      : SUPPORT_PAGE_DEFINITIONS.filter((page) => shouldWriteDocsPath(page.path));
   await Promise.all(
-    SUPPORT_PAGE_DEFINITIONS.map((page) => writeFile(join(docsRoot, page.path), buildSupportPageHtml(page, index), "utf8"))
+    supportPagesToWrite.map((page) => writeFile(join(docsRoot, page.path), buildSupportPageHtml(page, index), "utf8"))
   );
-  const postArticleOutputs = await writePostArticlePages(articlePosts, index, postsRoot);
-  await writeFile(outputs.nojekyll, "", "utf8");
-  const generatedSitemapXml = await readFile(outputs.sitemap, "utf8");
+  const postArticleOutputs =
+    onlyDocsPaths !== undefined && [...onlyDocsPaths].every((relativePath) => !relativePath.startsWith("posts/"))
+      ? []
+      : await writePostArticlePages(articlePosts, index, postsRoot);
+  if (shouldWriteDocsPath(".nojekyll")) await writeFile(outputs.nojekyll, "", "utf8");
+  // onlyDocsPaths 沒要 sitemap.xml 時檔案不會寫出；此時下方也不重建 sitemap。
+  const generatedSitemapXml = shouldWriteDocsPath("sitemap.xml") ? await readFile(outputs.sitemap, "utf8") : "";
 
   // Apply SEO overrides: copy hand-maintained pages from seo-overrides/ to docs/
   // These pages contain the full content from PR #7, #8, #9 (answer boxes, FAQs, internal links)
@@ -10068,6 +10095,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const noindexOverridePaths = new Set<string>();
   let overrideSitemapCopied = false;
   try {
+    const copyJobs: Array<{ fullPath: string; targetPath: string; posixPath: string; fsPath: string }> = [];
     const walkOverrides = async (dir: string, relPosixPath: string = ""): Promise<void> => {
       const entries = await readdir(dir, { withFileTypes: true });
       for (const entry of entries) {
@@ -10076,20 +10104,21 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         const rel = relPosixPath ? posix.join(relPosixPath, entry.name) : entry.name;
         if (entry.isDirectory()) {
           await walkOverrides(fullPath, rel);
-        } else if (entry.isFile() && entry.name !== "README.md") {
+        } else if (entry.isFile() && entry.name !== "README.md" && shouldWriteDocsPath(rel)) {
           // Convert posix path to native filesystem path for Windows compatibility
           const fsPath = rel.split("/").join(sep);
-          const targetPath = join(docsRoot, fsPath);
-          await mkdir(dirname(targetPath), { recursive: true });
-          await copyFile(fullPath, targetPath);
+          copyJobs.push({ fullPath, targetPath: join(docsRoot, fsPath), posixPath: rel, fsPath });
           if (rel === "sitemap.xml") overrideSitemapCopied = true;
-          if (rel.endsWith(".html")) {
-            overrideHtmlFiles.push({ posixPath: rel, fsPath });
-          }
         }
       }
     };
     await walkOverrides(overrideRoot);
+    // 目錄走訪順序維持原本的深度優先，複製本身平行做，避免一百多個小檔的往返超時。
+    await Promise.all([...new Set(copyJobs.map((job) => dirname(job.targetPath)))].map((dir) => mkdir(dir, { recursive: true })));
+    await Promise.all(copyJobs.map((job) => copyFile(job.fullPath, job.targetPath)));
+    for (const job of copyJobs) {
+      if (job.posixPath.endsWith(".html")) overrideHtmlFiles.push({ posixPath: job.posixPath, fsPath: job.fsPath });
+    }
     // Extract override metadata only from copied HTML pages.
     const overrideLastmods = new Map<string, string>();
     const overrideCanonicals = new Map<string, string>();
@@ -10100,22 +10129,33 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     if (overrideHtmlFiles.length > 0) {
       console.log(`Applied ${overrideHtmlFiles.length} SEO override HTML files`);
       // robots noindex pages stay on disk and can still be linked, but they are not sitemap URLs.
-      for (const { posixPath, fsPath } of overrideHtmlFiles) {
-        try {
-          const html = await readFile(join(docsRoot, fsPath), "utf8");
-          if (robotsMetaIsNoindex(html)) noindexOverridePaths.add(posixPath);
-          for (const link of html.matchAll(/<link\b[^>]*>/gi)) {
-            if (!/\brel\s*=\s*(["'])canonical\1/i.test(link[0])) continue;
-            const href = link[0].match(/\bhref\s*=\s*(["'])(.*?)\1/i);
-            if (href?.[2]) overrideCanonicals.set(posixPath, href[2]);
+      // 平行讀完再依原本的走訪順序寫入，結果與逐檔讀相同。
+      const overrideMeta = await Promise.all(
+        overrideHtmlFiles.map(async ({ posixPath, fsPath }) => {
+          try {
+            const html = await readFile(join(docsRoot, fsPath), "utf8");
+            let canonical: string | undefined;
+            for (const link of html.matchAll(/<link\b[^>]*>/gi)) {
+              if (!/\brel\s*=\s*(["'])canonical\1/i.test(link[0])) continue;
+              const href = link[0].match(/\bhref\s*=\s*(["'])(.*?)\1/i);
+              if (href?.[2]) canonical = href[2];
+            }
+            return {
+              posixPath,
+              noindex: robotsMetaIsNoindex(html),
+              canonical,
+              dateModified: html.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/)?.[1]
+            };
+          } catch {
+            // If we can't read or parse, fall back to sitemapLastmodForUrl
+            return { posixPath, noindex: false, canonical: undefined, dateModified: undefined };
           }
-          const dateModifiedMatch = html.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/);
-          if (dateModifiedMatch && dateModifiedMatch[1]) {
-            overrideLastmods.set(posixPath, dateModifiedMatch[1]);
-          }
-        } catch {
-          // If we can't read or parse, fall back to sitemapLastmodForUrl
-        }
+        })
+      );
+      for (const item of overrideMeta) {
+        if (item.noindex) noindexOverridePaths.add(item.posixPath);
+        if (item.canonical) overrideCanonicals.set(item.posixPath, item.canonical);
+        if (item.dateModified) overrideLastmods.set(item.posixPath, item.dateModified);
       }
     }
 
@@ -10132,7 +10172,12 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         return [url];
       });
 
-    if (index.base_url_configured && (overrideSitemapCopied || overrideUrls.length > 0)) {
+    // onlyDocsPaths 沒要 sitemap.xml 時，docs/sitemap.xml 不會寫出，也就不重建。
+    if (
+      index.base_url_configured &&
+      (overrideSitemapCopied || overrideUrls.length > 0) &&
+      shouldWriteDocsPath("sitemap.xml")
+    ) {
       const existingSitemap = await readFile(outputs.sitemap, "utf8");
       const existingUrls = Array.from(existingSitemap.matchAll(/<loc>([^<]+)<\/loc>/g))
         .map((match) => match[1])
@@ -10186,13 +10231,16 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
 
   await stripUnindexablePostsFromSitemaps(index, outputs.sitemap, outputs.aiSitemap);
   await stripExcludedPublicSitemaps(index, outputs.sitemap, outputs.aiSitemap, noindexOverridePaths);
-  await syncPublishedAiDiscovery({
-    docsRoot,
-    overrideRoot,
-    sitemapPath: outputs.sitemap,
-    live: aiDiscovery as Record<string, unknown>,
-    buildGeneratedAt: generatedAt
-  });
+  // 這一步以覆寫檔重寫 docs/ai-discovery.json（並補蓋 .well-known/ai.json 的 generated_at）；onlyDocsPaths 沒要 ai-discovery.json 時略過，避免讀到沒寫出的檔。
+  if (shouldWriteDocsPath("ai-discovery.json")) {
+    await syncPublishedAiDiscovery({
+      docsRoot,
+      overrideRoot,
+      sitemapPath: outputs.sitemap,
+      live: aiDiscovery as Record<string, unknown>,
+      buildGeneratedAt: generatedAt
+    });
+  }
 
   await assertAeo325PublicOutputSafety(root, SOURCE_PROJECT_ROOT);
 

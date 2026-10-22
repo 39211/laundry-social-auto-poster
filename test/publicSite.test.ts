@@ -1,8 +1,8 @@
-import { access, mkdir, open, readFile, readdir, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, open, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdtempSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   generatePublicSite,
   publicAcceptedIndexGrowthCount,
@@ -2636,13 +2636,37 @@ describe("generatePublicSite", () => {
     }
   });
 
-  it("publishes one crawlable knowledge hub and a non-duplicating GA4 search funnel", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-knowledge-funnel-"));
-    await writeBusinessProfile(root);
-    await writeCalendar(root, "2026-07-02");
-    await writeApprovalLog(root, "2026-07-02");
+  describe("knowledge hub crawl fixture", () => {
     const baseUrl = "https://example.com/laundry-social-auto-poster";
-    await generatePublicSite({ root, baseUrl, now: "2026-07-10T03:00:00.000Z" });
+    const now = "2026-07-10T03:00:00.000Z";
+    const crawlDocsPaths = [
+      "sitemap.xml",
+      "ai-sitemap.xml",
+      "index.html",
+      "knowledge/index.html",
+      "services/shoe-bag-care.html",
+      "guides/shoe-odor-source.html",
+      "scripts/search-content-analytics.js"
+    ] as const;
+    let crawlRoot = "";
+
+    beforeAll(async () => {
+      crawlRoot = mkdtempSync(join(tmpdir(), "laundry-knowledge-funnel-"));
+      await writeBusinessProfile(crawlRoot);
+      await writeCalendar(crawlRoot, "2026-07-02");
+      await writeApprovalLog(crawlRoot, "2026-07-02");
+      await generatePublicSite({
+        root: crawlRoot,
+        baseUrl,
+        now,
+        // 斷言只讀這幾個檔。整站仍會組出相同內容，但不把其餘約 80 個檔寫進暫存，
+        // 避免 Windows CI 在大量小檔上把單一測試拖過 5 秒。
+        onlyDocsPaths: crawlDocsPaths
+      });
+    });
+
+    it("publishes one crawlable knowledge hub and a non-duplicating GA4 search funnel", async () => {
+    const root = crawlRoot;
 
     const docsRoot = join(root, "docs");
     const [sitemap, aiSitemap, home, hub, service, answer, analytics] = await Promise.all([
@@ -2694,6 +2718,7 @@ describe("generatePublicSite", () => {
     }
     expect(analytics).not.toContain('send("line_click"');
     expect(analytics).not.toContain('send("generate_lead"');
+    });
   });
 
   it("fails closed when any required search-funnel event is removed or a lead event is duplicated", () => {
@@ -2722,23 +2747,30 @@ describe("generatePublicSite", () => {
     expect(() => assertSearchContentAnalyticsScript(missingServiceId)).toThrow(/missing runtime parameter: service_id/);
   });
 
-  it("keeps knowledge-hub links correct when generated without a public base URL", async () => {
-    const root = mkdtempSync(join(tmpdir(), "laundry-knowledge-relative-"));
-    await writeBusinessProfile(root);
-    await writeCalendar(root, "2026-07-02");
-    await writeApprovalLog(root, "2026-07-02");
-    await generatePublicSite({
-      root,
-      siteBaseUrl: "",
-      imageBaseUrl: "",
-      now: "2026-07-10T03:00:00.000Z"
-    });
+  describe("knowledge hub relative links", () => {
+    let relativeRoot = "";
 
-    const hub = await readFile(join(root, "docs", "knowledge", "index.html"), "utf8");
-    expect(hub).toContain('href="../services/shoe-bag-care.html"');
-    expect(hub).toContain('href="../guides/shoe-odor-source.html"');
-    expect(hub).not.toMatch(/href="(?:services|guides|local)\//u);
-  }, 15000);
+    beforeAll(async () => {
+      relativeRoot = mkdtempSync(join(tmpdir(), "laundry-knowledge-relative-"));
+      await writeBusinessProfile(relativeRoot);
+      await writeCalendar(relativeRoot, "2026-07-02");
+      await writeApprovalLog(relativeRoot, "2026-07-02");
+      await generatePublicSite({
+        root: relativeRoot,
+        siteBaseUrl: "",
+        imageBaseUrl: "",
+        now: "2026-07-10T03:00:00.000Z",
+        onlyDocsPaths: ["knowledge/index.html"]
+      });
+    }, 15000);
+
+    it("keeps knowledge-hub links correct when generated without a public base URL", async () => {
+      const hub = await readFile(join(relativeRoot, "docs", "knowledge", "index.html"), "utf8");
+      expect(hub).toContain('href="../services/shoe-bag-care.html"');
+      expect(hub).toContain('href="../guides/shoe-odor-source.html"');
+      expect(hub).not.toMatch(/href="(?:services|guides|local)\//u);
+    });
+  });
 
   it("keeps below-gate approved posts noindex as daily articles", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-daily-articles-"));
@@ -3696,20 +3728,7 @@ describe("seo overrides and URL path normalization", () => {
     }
     
     const tempSeoOverridesDir = join(root, "seo-overrides");
-    const copyDir = async (src: string, dest: string): Promise<void> => {
-      await mkdir(dest, { recursive: true });
-      const entries = await readdir(src, { withFileTypes: true });
-      for (const entry of entries) {
-        const srcPath = join(src, entry.name);
-        const destPath = join(dest, entry.name);
-        if (entry.isDirectory()) {
-          await copyDir(srcPath, destPath);
-        } else {
-          await writeFile(destPath, await readFile(srcPath));
-        }
-      }
-    };
-    await copyDir(repoSeoOverridesDir, tempSeoOverridesDir);
+    await cp(repoSeoOverridesDir, tempSeoOverridesDir, { recursive: true });
     const tempIndexOverride = join(tempSeoOverridesDir, "index.html");
     const tempIndexHtml = await readFile(tempIndexOverride, "utf8");
     await writeFile(
@@ -3748,25 +3767,31 @@ describe("seo overrides and URL path normalization", () => {
 
     expect(overrideFiles.length).toBeGreaterThan(60);
 
-    // Verify each override file is byte-identical
-    for (const file of overrideFiles) {
-      const sourceFile = join(tempSeoOverridesDir, file);
-      const generatedFile = join(docsRoot, file);
-      
-      expect(existsSync(generatedFile), `Generated file should exist: ${file}`).toBe(true);
-      
-      const sourceContent = await readFile(sourceFile);
-      const generatedContent = await readFile(generatedFile);
-      if (file.replaceAll("\\", "/") === "ai-discovery.json") {
+    // 先平行讀完再斷言，避免 Windows 上一百多個小檔的往返把這一則拖過 5 秒。
+    const compared = await Promise.all(
+      overrideFiles.map(async (file) => {
+        const sourceFile = join(tempSeoOverridesDir, file);
+        const generatedFile = join(docsRoot, file);
+        const generatedExists = existsSync(generatedFile);
+        const [sourceContent, generatedContent] = await Promise.all([
+          readFile(sourceFile),
+          generatedExists ? readFile(generatedFile) : Promise.resolve(Buffer.alloc(0))
+        ]);
+        return { file, generatedExists, sourceContent, generatedContent };
+      })
+    );
+    for (const item of compared) {
+      expect(item.generatedExists, `Generated file should exist: ${item.file}`).toBe(true);
+      if (item.file.replaceAll("\\", "/") === "ai-discovery.json") {
         // 覆寫檔整份蓋掉發現文件後，產生器只重寫貼文、文章計數與 generated_at。
         // 頁面文案仍須與覆寫檔一致；generated_at 不得早於這次 sitemap 的最新 lastmod。
-        const sourceJson = JSON.parse(sourceContent.toString("utf8")) as Record<string, unknown>;
-        const generatedJson = JSON.parse(generatedContent.toString("utf8")) as Record<string, unknown>;
-        expect(discoveryHandMaintainedFields(generatedJson), file).toEqual(discoveryHandMaintainedFields(sourceJson));
+        const sourceJson = JSON.parse(item.sourceContent.toString("utf8")) as Record<string, unknown>;
+        const generatedJson = JSON.parse(item.generatedContent.toString("utf8")) as Record<string, unknown>;
+        expect(discoveryHandMaintainedFields(generatedJson), item.file).toEqual(discoveryHandMaintainedFields(sourceJson));
         continue;
       }
 
-      expect(generatedContent.equals(sourceContent), `File should be byte-identical: ${file}`).toBe(true);
+      expect(item.generatedContent.equals(item.sourceContent), `File should be byte-identical: ${item.file}`).toBe(true);
     }
     
     // Verify sitemap contains override URLs and no /posts/ URLs
@@ -3788,6 +3813,18 @@ describe("seo overrides and URL path normalization", () => {
     // Should contain override HTML pages (except price-list.html which is noindex)
     const overrideHtmlFiles = overrideFiles.filter(f => f.endsWith(".html") && f !== "price-list.html");
     expect(overrideHtmlFiles.length).toBeGreaterThan(60);
+    const noindexPages = await Promise.all(
+      NOINDEX_FOLLOW_LOCAL_PATHS.map(async (path) => ({
+        path,
+        html: await readFile(join(docsRoot, path.slice(1)), "utf8")
+      }))
+    );
+    for (const { path, html } of noindexPages) {
+      expect(sitemap, path).not.toContain(`https://sixiangjialaundry.com${path}`);
+      expect(html, path).toContain('name="robots" content="noindex, follow"');
+    }
+    expect(sitemap).toContain("https://sixiangjialaundry.com/local/west-district-laundry-pickup.html");
+    expect(sitemap).toContain("https://sixiangjialaundry.com/local/fengjia-laundry-pickup.html");
     
     // This fixture has no approved posts, so its generated sitemap has no /posts/ URLs.
     const postsUrls = sitemapUrls.filter(url => url.includes("/posts/"));

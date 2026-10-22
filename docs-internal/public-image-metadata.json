@@ -1192,10 +1192,20 @@
       "height": 941,
       "webp_path": "assets/services/shoe-bag-care-hero-product.webp"
     },
+    "assets/services/sxj-card-duvet.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/services/sxj-card-duvet.webp"
+    },
     "assets/services/sxj-card-mold.png": {
       "width": 1080,
       "height": 1350,
       "webp_path": "assets/services/sxj-card-mold.webp"
+    },
+    "assets/services/sxj-card-pickup.png": {
+      "width": 1080,
+      "height": 1350,
+      "webp_path": "assets/services/sxj-card-pickup.webp"
     },
     "assets/services/white-shoe-cleaning-hero-product.png": {
       "width": 1672,

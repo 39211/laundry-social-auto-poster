@@ -89,6 +89,28 @@ Pop-Location
 
 $calendar = Join-Path $root "data\content-calendar\$date.json"
 $hasCalendar = Test-Path $calendar
+# 2026-10-22: tsx/esbuild can fail with spawn EPERM inside Codex's Windows
+# sandbox. Create a missing calendar here so the existing images-only path
+# can run; keep full Codex generation as the explicitly reported fallback.
+if (-not $hasCalendar) {
+    Write-Log "No calendar for $date; generating context and calendar outside the Codex sandbox."
+    Push-Location $root
+    cmd /c "npm.cmd run generate-context -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    $calendarContextCode = $LASTEXITCODE
+    $calendarGenerateCode = $null
+    if ($calendarContextCode -eq 0) {
+        cmd /c "npm.cmd run generate -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        $calendarGenerateCode = $LASTEXITCODE
+    }
+    Pop-Location
+    $hasCalendar = ($calendarContextCode -eq 0 -and $calendarGenerateCode -eq 0 -and (Test-Path $calendar))
+    if ($hasCalendar) {
+        Write-Log "Context and calendar for $date generated outside the Codex sandbox; continuing with existing-calendar checks."
+    } else {
+        Write-Log "Calendar pre-generation for $date failed (generate-context=$calendarContextCode, generate=$calendarGenerateCode, calendar=$hasCalendar); falling back to Codex generation."
+        Show-Toast "目標日 ($date) 的日曆預先生成失敗,將改用 Codex 備援生成,請看 log。"
+    }
+}
 $imagesReady = $false
 if ($hasCalendar) {
     Push-Location $root

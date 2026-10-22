@@ -22,6 +22,7 @@ import {
   COMMUNITY_PRACTICE_SOURCES,
   SEARCH_INTENT_CLUSTERS
 } from "./searchVisibilityStrategy";
+import { stripFutureDatedPublicAssetIndexes, taipeiRunDate } from "./publicAssetPublishGate";
 import { getZonedDateParts } from "./scheduler";
 import type { ApprovalLogEntry, CarouselItem, DailyContent, DailySlot, Platform } from "./types";
 import {
@@ -10194,6 +10195,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     buildGeneratedAt: generatedAt
   });
 
+  stripFutureDatedPublicAssetIndexes(docsRoot, taipeiRunDate(new Date(generatedAt)));
+
   await assertAeo325PublicOutputSafety(root, SOURCE_PROJECT_ROOT);
 
   return [...Object.values(outputs), ...postArticleOutputs];
@@ -10201,11 +10204,14 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  const now = getOption(args, "now");
+  if (now && Number.isNaN(new Date(now).getTime())) throw new Error("--now must be an ISO timestamp.");
   const outputs = await generatePublicSite({
     root: getOption(args, "root"),
     baseUrl: getOption(args, "base-url"),
     siteBaseUrl: getOption(args, "site-base-url"),
     imageBaseUrl: getOption(args, "image-base-url"),
+    now,
     deployment: true
   });
   console.log(`Public site indexes ready:\n${outputs.map((output) => `- ${output}`).join("\n")}`);

@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 8 頁。東勢、大甲、龍井不進這支。 */
-export const EXPECTED_LOC_COUNT = 153;
+/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁。東勢、大甲、龍井不進這支。 */
+export const EXPECTED_LOC_COUNT = 150;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -158,17 +158,14 @@ export const WAVE4_MERGED_PAGE_PATHS = [
 ] as const;
 
 
-/** B5 第 5 波 8 頁。lastmod 用 2026-10-22，不回寫前幾波。 */
+/** B5 第 5 波留下的 5 頁。lastmod 用 2026-10-22，不回寫前幾波。 */
 export const WAVE5_PAGE_LASTMOD = "2026-10-22";
 
 export const WAVE5_PAGE_PATHS = [
   "/guides/shoe-waterproof-treatment.html",
   "/guides/rubber-rain-boot-care.html",
   "/guides/leather-shoe-salt-bloom.html",
-  "/guides/corduroy-garment-care.html",
   "/guides/insulated-down-pants-care.html",
-  "/guides/velvet-garment-nap.html",
-  "/guides/bag-zipper-tape-check.html",
   "/guides/bag-base-stud-check.html"
 ] as const;
 
@@ -209,10 +206,7 @@ export const WAVE5_ANSWER_IDS = [
   "shoe-waterproof-treatment-page-summary",
   "rubber-rain-boot-care-page-summary",
   "leather-shoe-salt-bloom-page-summary",
-  "corduroy-garment-care-page-summary",
   "insulated-down-pants-care-page-summary",
-  "velvet-garment-nap-page-summary",
-  "bag-zipper-tape-check-page-summary",
   "bag-base-stud-check-page-summary",
   "soaked-shoe-wash-by-material-page-summary",
   "suede-nap-brush-page-summary",

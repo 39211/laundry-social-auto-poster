@@ -9523,26 +9523,6 @@
       ]
     },
     {
-      "id": "corduroy-garment-care-page-summary",
-      "type": "guide_summary",
-      "question": "燈芯絨可以水洗嗎？",
-      "answer": "先看洗標。不要和牛仔褲的磨白洗法混用。有掉色風險的，先在不明顯的小角落測試。價格看過實品再報。",
-      "source_url": "https://sixiangjialaundry.com/guides/corduroy-garment-care.html",
-      "local_intent": "燈芯絨怎麼洗：先看條絨方向，不要逆著刷",
-      "keywords": [
-        "燈芯絨"
-      ],
-      "area": "台中市",
-      "confidence": "business-owned-source",
-      "citation_guidance": "Use the answer as short factual context and cite source_url.",
-      "do_not_infer": [
-        "Do not infer pricing.",
-        "Do not guarantee like-new results, odor removal, or medical sterilization.",
-        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
-        "Do not infer that a price-list row means every condition is accepted."
-      ]
-    },
-    {
       "id": "insulated-down-pants-care-page-summary",
       "type": "guide_summary",
       "question": "羽絨褲可以照羽絨外套烘嗎？",
@@ -9551,46 +9531,6 @@
       "local_intent": "羽絨褲怎麼洗：褲檔和隔間，不要套外套",
       "keywords": [
         "羽絨褲"
-      ],
-      "area": "台中市",
-      "confidence": "business-owned-source",
-      "citation_guidance": "Use the answer as short factual context and cite source_url.",
-      "do_not_infer": [
-        "Do not infer pricing.",
-        "Do not guarantee like-new results, odor removal, or medical sterilization.",
-        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
-        "Do not infer that a price-list row means every condition is accepted."
-      ]
-    },
-    {
-      "id": "velvet-garment-nap-page-summary",
-      "type": "guide_summary",
-      "question": "絲絨衣服發黑是髒嗎？",
-      "answer": "先看是整片倒毛、一塊水圈，還是絨毛已經磨掉。倒毛會隨角度變深變淺。磨掉的絨清洗長不回來。",
-      "source_url": "https://sixiangjialaundry.com/guides/velvet-garment-nap.html",
-      "local_intent": "絲絨衣服怎麼洗：先看倒毛，不要照絨布鞋刷",
-      "keywords": [
-        "絲絨衣服"
-      ],
-      "area": "台中市",
-      "confidence": "business-owned-source",
-      "citation_guidance": "Use the answer as short factual context and cite source_url.",
-      "do_not_infer": [
-        "Do not infer pricing.",
-        "Do not guarantee like-new results, odor removal, or medical sterilization.",
-        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
-        "Do not infer that a price-list row means every condition is accepted."
-      ]
-    },
-    {
-      "id": "bag-zipper-tape-check-page-summary",
-      "type": "guide_summary",
-      "question": "拉鍊布發黑是氧化嗎？",
-      "answer": "布帶發黑多半是污垢、染色或發霉。金屬齒變色請看包包五金氧化。兩段分開拍。",
-      "source_url": "https://sixiangjialaundry.com/guides/bag-zipper-tape-check.html",
-      "local_intent": "包包拉鍊怎麼清：布帶、齒和拉頭分開",
-      "keywords": [
-        "包包拉鍊"
       ],
       "area": "台中市",
       "confidence": "business-owned-source",

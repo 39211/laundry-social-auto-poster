@@ -88,10 +88,10 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(WAVE3_VOICE_PAGE_PATHS).toHaveLength(7);
     expect(WAVE4_PAGE_PATHS).toHaveLength(3);
     expect(WAVE4_MERGED_PAGE_PATHS).toHaveLength(6);
-    expect(WAVE5_PAGE_PATHS).toHaveLength(8);
+    expect(WAVE5_PAGE_PATHS).toHaveLength(5);
     expect(WAVE5_MERGED_PAGE_PATHS).toHaveLength(7);
     expect(WAVE5_MERGED_BLOCK_IDS).toHaveLength(7);
-    expect(WAVE5_ANSWER_IDS).toHaveLength(15);
+    expect(WAVE5_ANSWER_IDS).toHaveLength(12);
     expect(NOINDEX_FOLLOW_LOCAL_PATHS).toHaveLength(16);
     const root = repoRootFromHere();
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
@@ -145,10 +145,7 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/guides/shoe-waterproof-treatment.html"]?.hubs).toContain("hubs/shoe-care.html");
     expect(report.inbound["/guides/rubber-rain-boot-care.html"]?.hubs).toContain("hubs/shoe-care.html");
     expect(report.inbound["/guides/leather-shoe-salt-bloom.html"]?.hubs).toContain("hubs/shoe-care.html");
-    expect(report.inbound["/guides/corduroy-garment-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/insulated-down-pants-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
-    expect(report.inbound["/guides/velvet-garment-nap.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
-    expect(report.inbound["/guides/bag-zipper-tape-check.html"]?.hubs).toContain("hubs/bag-care.html");
     expect(report.inbound["/guides/bag-base-stud-check.html"]?.hubs).toContain("hubs/bag-care.html");
     const xml = readFileSync(join(root, "seo-overrides", "sitemap.xml"), "utf8");
     for (const path of LAYER1_PHRASE_PAGE_PATHS) {

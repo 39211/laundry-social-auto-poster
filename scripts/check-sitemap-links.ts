@@ -220,9 +220,20 @@ export const WAVE5_ANSWER_IDS = [
 /** 第 5 波在第 4 波禁詞之外，再擋絕對化用字。只掃新頁與本波新併入段落。 */
 export const WAVE5_EXTRA_BANNED_MARKERS = ["第一", "最好", "最大", "最小", "最新", "最終"] as const;
 
+/**
+ * 帶條件的不做／不接：「顏色移動就不整雙做」「不適合就不整雙做」，以及「就不要整雙做」。
+ * 「整雙清洗」「不要整雙泡」和單獨的「顏色移動」不在這條。
+ */
+export const CONDITIONAL_WHOLE_PAIR_REFUSAL_SOURCE = "就(?:不要|不)整雙做";
+
+export function conditionalWholePairRefusalHits(text: string): string[] {
+  return [...text.matchAll(new RegExp(CONDITIONAL_WHOLE_PAIR_REFUSAL_SOURCE, "g"))].map((match) => match[0] ?? "");
+}
+
 export function wave5BannedHits(text: string): string[] {
   const hits: string[] = [...WAVE4_BANNED_MARKERS, ...WAVE5_EXTRA_BANNED_MARKERS].filter((marker) => text.includes(marker));
   if (text.replaceAll("最低消費", "").includes("最")) hits.push("最");
+  hits.push(...conditionalWholePairRefusalHits(text));
   return hits;
 }
 

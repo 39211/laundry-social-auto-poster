@@ -32,6 +32,8 @@ import {
   wave3WriterVoiceHits,
   wave4BannedHits,
   wave5BannedHits,
+  CONDITIONAL_WHOLE_PAIR_REFUSAL_SOURCE,
+  conditionalWholePairRefusalHits,
   writerVoiceHits
 } from "../scripts/check-sitemap-links";
 
@@ -282,6 +284,21 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
       .map((entry) => `${entry.file}: ${[...new Set(entry.types)].join(",")} ×${entry.types.length}`);
     expect(offenders).toEqual([]);
   });
+});
+
+it("帶條件的就不整雙做要紅燈，整雙清洗與單獨的顏色移動不紅燈", () => {
+  expect(CONDITIONAL_WHOLE_PAIR_REFUSAL_SOURCE).toBe("就(?:不要|不)整雙做");
+  expect(conditionalWholePairRefusalHits("顏色移動就不整雙做")).toEqual(["就不整雙做"]);
+  expect(conditionalWholePairRefusalHits("不適合就不整雙做")).toEqual(["就不整雙做"]);
+  expect(conditionalWholePairRefusalHits("顏色移動就不要整雙做")).toEqual(["就不要整雙做"]);
+  expect(conditionalWholePairRefusalHits("不適合就不要整雙做")).toEqual(["就不要整雙做"]);
+  expect(conditionalWholePairRefusalHits("測試後顏色移動或絨面發亮，就不要整雙做")).toEqual(["就不要整雙做"]);
+  expect(conditionalWholePairRefusalHits("整雙清洗")).toEqual([]);
+  expect(conditionalWholePairRefusalHits("局部產品可能讓顏色移動")).toEqual([]);
+  expect(wave5BannedHits("顏色移動就不整雙做")).toEqual(["就不整雙做"]);
+  expect(wave5BannedHits("不適合就不要整雙做")).toEqual(["就不要整雙做"]);
+  expect(wave5BannedHits("整雙清洗")).toEqual([]);
+  expect(wave5BannedHits("局部產品可能讓顏色移動")).toEqual([]);
 });
 
 it("第 5 波新頁、新併入段落與新問答沒有禁詞，掃描不排除任何句子", () => {

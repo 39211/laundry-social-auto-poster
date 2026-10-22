@@ -144,8 +144,8 @@ describe("daily calendar generation outside the Codex sandbox", () => {
     expect(result.version).toBe(5);
     expect(result.commands).toHaveLength(2);
     expect(result.commands.map((command) => command.name)).toEqual(["cmd", "cmd"]);
-    expect(result.commands[0].text).toContain("npm.cmd run generate-context -- --date $date");
-    expect(result.commands[1].text).toContain("npm.cmd run generate -- --date $date");
+    expect(result.commands[0]!.text).toContain("npm.cmd run generate-context -- --date $date");
+    expect(result.commands[1]!.text).toContain("npm.cmd run generate -- --date $date");
     for (const command of result.commands) {
       expect(command.pipeline).toContain("| Out-File -FilePath $logFile -Append -Encoding utf8");
       expect(command.text).not.toMatch(/codex/i);

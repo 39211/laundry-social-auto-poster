@@ -157,7 +157,7 @@ foreach ($offset in 1..3) {
     # Slot 2 (evening) and slot 3 (noon Reel). A red slot is logged and skipped;
     # it must not abort D+2/D+3. Live youtube-upload.ps1 stays the fallback.
     foreach ($ytSlot in 2, 3) {
-        $ytOut = cmd /c "npm.cmd run schedule-youtube -- --date $date --slot $ytSlot 2>&1"
+        $ytOut = cmd /c "npm.cmd run schedule-youtube -- --date $date --slot $ytSlot --live 2>&1"
         $ytOut | Out-File -FilePath $logFile -Append -Encoding utf8
         if ($LASTEXITCODE -ne 0) {
             Write-Log "YOUTUBE SCHEDULE FAIL ${date} slot ${ytSlot}"

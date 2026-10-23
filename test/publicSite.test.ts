@@ -520,7 +520,7 @@ describe("generatePublicSite", () => {
     expect(feed.version).toBe("https://jsonfeed.org/version/1.1");
     expect(feed.title).toBe("私享家洗衣店｜台中洗衣洗鞋洗包・全市免費收送・價格公開");
     expect(feed.items[0].tags).toEqual(["test"]);
-    expect(businessProfile.line_url).toBe("https://line.me/ti/p/4m-rA6hxf6");
+    expect(businessProfile.line_url).toBe("https://lin.ee/w8qGVqM");
     expect(businessProfile.google_maps_cid).toBe("0x41f4295a6302e177");
     expect(knowledgeGraph["@graph"].some((item: { "@type"?: string }) => item["@type"] === "Dataset")).toBe(true);
     expect(knowledgeGraph["@graph"].some((item: { "@type"?: string }) => item["@type"] === "SocialMediaPosting")).toBe(true);
@@ -593,7 +593,7 @@ describe("generatePublicSite", () => {
       // Entity consolidation: every owned profile, so the site, Maps listing,
       // YouTube channel, LINE and socials read as one business. LINE added 2026-09-24.
       sameAs: [
-        "https://line.me/ti/p/4m-rA6hxf6",
+        "https://lin.ee/w8qGVqM",
         "https://www.facebook.com/100083194756904/",
         "https://www.instagram.com/si_xiang_jia/",
         "https://www.youtube.com/channel/UCcVDFN7Ve-cD9duxRdM5VXQ",
@@ -637,13 +637,13 @@ describe("generatePublicSite", () => {
     expect(discovery.website.facebook_url).toBe("https://www.facebook.com/100083194756904/");
     expect(discovery.website.facebook_share_url).toBe("https://www.facebook.com/share/1BZF4VnihJ/");
     expect(discovery.website.instagram_url).toBe("https://www.instagram.com/si_xiang_jia/");
-    expect(discovery.website.line_url).toBe("https://line.me/ti/p/4m-rA6hxf6");
+    expect(discovery.website.line_url).toBe("https://lin.ee/w8qGVqM");
     expect(discovery.business_profile).toMatchObject({
       google_business_profile_name: "私享家 旗艦總店",
       address_text: "407 臺中市西屯區至善里青海路二段365號",
       google_maps_cid: "0x41f4295a6302e177",
       google_place_id: "ChIJ9dYthxMXaTQRd-ECY1op9EE",
-      line_url: "https://line.me/ti/p/4m-rA6hxf6",
+      line_url: "https://lin.ee/w8qGVqM",
       line_id: "0968327653",
       telephone_local: "04-2452-7411",
       mobile_or_line_local: "0968-327-653",
@@ -697,7 +697,7 @@ describe("generatePublicSite", () => {
     expect(llms).toContain("Address: 407 臺中市西屯區至善里青海路二段365號");
     expect(llms).toContain("Phone: 04-2452-7411");
     expect(llms).toContain("LINE / mobile estimates: 0968-327-653");
-    expect(llms).toContain("LINE: https://line.me/ti/p/4m-rA6hxf6");
+    expect(llms).toContain("LINE: https://lin.ee/w8qGVqM");
     expect(llms).toContain("Google Maps CID: 0x41f4295a6302e177");
     expect(llms).toContain("Google Place ID: ChIJ9dYthxMXaTQRd-ECY1op9EE");
     expect(llms).toContain("Holiday hours rule:");
@@ -814,7 +814,7 @@ describe("generatePublicSite", () => {
     expect(html).toContain("外套、寢具與布品收納前產品級檢查主圖 - 私享家洗衣店布品收納檢查示意圖");
     expect(html).toContain("04-2452-7411");
     expect(html).toContain("0968-327-653");
-    expect(html).toContain("https://line.me/ti/p/4m-rA6hxf6");
+    expect(html).toContain("https://lin.ee/w8qGVqM");
     expect(html).toContain("節日營業");
     expect(html).toContain("搜尋洗衣店時，讓地區和服務都說清楚。");
     expect(html).toContain("台中西屯洗衣店");
@@ -920,7 +920,7 @@ describe("generatePublicSite", () => {
     expect(taichungCitywidePickupHtml).toContain("<h1>台中洗衣收送怎麼約？</h1>");
     expect(taichungCitywidePickupHtml).toContain("台中市");
     expect(taichungCitywidePickupHtml).toContain("收送本身免費");
-    expect(taichungCitywidePickupHtml).toContain("https://line.me/ti/p/4m-rA6hxf6");
+    expect(taichungCitywidePickupHtml).toContain("https://lin.ee/w8qGVqM");
     expect(taichungCitywidePickupHtml).toContain("青海路二段365號");
     expect(taichungCitywidePickupHtml).toContain("收送免費不代表清潔免費");
     expect(taichungCitywidePickupHtml).toContain('"@type":"Service"');
@@ -1833,7 +1833,7 @@ describe("generatePublicSite", () => {
     expect(pickupHtml).toContain("<h1>台中洗衣收送怎麼約？</h1>");
     expect(pickupHtml).toContain("收送範圍為台中市");
     expect(pickupHtml).toContain("收送本身免費");
-    expect(pickupHtml).toContain("https://line.me/ti/p/4m-rA6hxf6");
+    expect(pickupHtml).toContain("https://lin.ee/w8qGVqM");
     expect(pickupHtml).toContain("西屯區青海路二段365號");
     expect(pickupHtml).toContain('"@type":"Service"');
     expect(pickupHtml).toContain('"@type":"AdministrativeArea"');

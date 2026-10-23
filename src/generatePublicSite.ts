@@ -1198,7 +1198,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       {
         heading: "怎麼預約？",
         body:
-          "預約與詢問以 LINE 為主。請先傳照片（整體、局部、材質標籤或最在意的痕跡），並簡單說明所在區域與想整理的品項。門市會先回覆方向，再與您約定收送。LINE：https://line.me/ti/p/4m-rA6hxf6"
+          "預約與詢問以 LINE 為主。請先傳照片（整體、局部、材質標籤或最在意的痕跡），並簡單說明所在區域與想整理的品項。門市會先回覆方向，再與您約定收送。LINE：https://lin.ee/w8qGVqM"
       },
       {
         heading: "誠實邊界",

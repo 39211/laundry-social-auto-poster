@@ -481,6 +481,7 @@ describe("SEO-SYNC-P1 public publication sync", () => {
     await generate(root);
     const html = await postHtml(root);
     const digest = createHash("sha256").update(html, "utf8").digest("hex");
-    expect(digest).toBe("f648f67fc4dacf337588b1efc343a2e5b4a84d1ae4ab4681b6f1c6f2d3d7d120");
+    // 整頁 HTML 的摘要。與上一版的差異只有官方 LINE 網址換成 https://lin.ee/w8qGVqM。
+    expect(digest).toBe("43f68b36ac6ef58288dc5f9e32128c32f84a1f8756216ea3b8a52cb79e6d382b");
   });
 });

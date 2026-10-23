@@ -1,0 +1,68 @@
+{
+ "shoe-washer-ZY20H-1-front.jpg": {
+  "from_upload": "6f23199a-image.jpg",
+  "bytes": 302154,
+  "sha256": "e6d05b3caf2143e12d8039db52f4890c3c03b8643b2bf96d7935e8a1b1cda1bf",
+  "note": "upload padded to 16 MiB: trimmed 16475062 bytes after EOI (5583 non-zero, first 24 hex=7b2261223a22547970655f636c6173732044662e4c5f7b5c, rest zeros); image itself complete but this is the client's downscaled copy, not the phone original"
+ },
+ "shoe-washer-ZY20H-1-rollers-and-hand-tools.jpg": {
+  "from_upload": "e53497e5-image.jpg",
+  "bytes": 3739176,
+  "sha256": "ef962c813e1390140699f6af6cc7c61be26f6d729bc13e2e5f521562220feb51",
+  "note": "complete"
+ },
+ "shoe-washer-ZY20H-1-round-head-brush.jpg": {
+  "from_upload": "f6be958b-image.jpg",
+  "bytes": 3831236,
+  "sha256": "a2b3183e6ae4f7fa5814be81f8a58753193cc52a7662452de1ca1fdd51b8f17e",
+  "note": "complete"
+ },
+ "shoe-washer-ZY20H-1-tufted-rollers-closeup.jpg": {
+  "from_upload": "5187b9b7-image.jpg",
+  "bytes": 3693261,
+  "sha256": "5300a4675520c89e7a88c8e07d7b19db6a376b6c6dad04e8fc48208b47e55030",
+  "note": "complete"
+ },
+ "shoe-dryer-ZY17A-40-front.jpg": {
+  "from_upload": "839bc612-image.jpg",
+  "bytes": 274319,
+  "sha256": "9aff5a0ff1855c80e25c0b0d5ee3a5ed27b2698aa93eaeac5ed218c89263aadd",
+  "note": "upload padded to 16 MiB: trimmed 16502897 bytes after EOI (5591 non-zero, first 24 hex=7b2261223a22547970655f636c6173732044662e4c5f7b5c, rest zeros); image itself complete but this is the client's downscaled copy, not the phone original"
+ },
+ "shoe-dryer-ZY17A-40-inside-a.jpg": {
+  "from_upload": "873e92ed-image.jpg",
+  "bytes": 2202689,
+  "sha256": "c9ca27464b4b6f729d65114b863a19aea1f493c1c3775848cfbb5bee48b4c4d3",
+  "note": "complete"
+ },
+ "shoe-dryer-ZY17A-40-inside-b.jpg": {
+  "from_upload": "8313e730-image.jpg",
+  "bytes": 2572674,
+  "sha256": "12338c897e65e261978b3393258945979a618e30ca9440704b11e5b61caf2ec4",
+  "note": "complete"
+ },
+ "washer-drum-running-20260919.mp4": {
+  "from_upload": "537fc304-VID_20260919_144737.mp4",
+  "bytes": 7789228,
+  "sha256": "75868d59b63ab71d0ba2fabe5ff35fb3c6ea6468b85fb2d31471f5c9c7b51e2e",
+  "note": "owner's phone, 1920x1080 30fps HEVC, 2.73 s"
+ },
+ "washer-drum-running-20260919-t02.jpg": {
+  "from": "washer-drum-running-20260919.mp4",
+  "at_s": 0.2,
+  "bytes": 182008,
+  "sha256": "2809d899a4c4069865bcb7c7a2c2f572a108b975499a3109d647be097eca4893"
+ },
+ "washer-drum-running-20260919-t13.jpg": {
+  "from": "washer-drum-running-20260919.mp4",
+  "at_s": 1.3,
+  "bytes": 196375,
+  "sha256": "fee1d8c460ed3d9dedfa6e9c6685054e7099687d80a6527dd1cd537453e80d2f"
+ },
+ "washer-drum-running-20260919-t25.jpg": {
+  "from": "washer-drum-running-20260919.mp4",
+  "at_s": 2.5,
+  "bytes": 199609,
+  "sha256": "9559902996d115306e1c8ca800cbc6f84fff1bcb124f3780f59ae6f4201d4f2f"
+ }
+}

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  applyOverrideLastmodsToSitemapXml,
   generatePublicSite,
   publicAcceptedIndexGrowthCount,
   publicSourceBaselineUrlCount,
@@ -2938,6 +2939,10 @@ describe("generatePublicSite", () => {
           instagram_caption: string;
           image_path: string;
           image_url: string;
+          feature_reel?: boolean;
+          category?: string;
+          calendar_path?: string;
+          article_path?: string;
         }>;
       }>,
       readFile(join(docsRoot, "ai-discovery.json"), "utf8").then((text) => JSON.parse(text)) as Promise<{
@@ -2985,6 +2990,13 @@ describe("generatePublicSite", () => {
         instagram_caption: post.instagram_caption,
         image_url: post.image_url
       });
+      if (post.feature_reel === true) {
+        expect(post.calendar_path, key).toBe(`feature-reels/${post.date}.json`);
+        expect(post.article_path, key).toBeDefined();
+        if (!post.article_path) continue;
+        expect(existsSync(join(docsRoot, post.article_path)), key).toBe(true);
+        continue;
+      }
       if (!calendars.has(post.date)) {
         calendars.set(
           post.date,
@@ -3433,6 +3445,91 @@ function taipeiCalendarDayOf(value: string): string {
 }
 
 describe("seo overrides and URL path normalization", () => {
+  it("applies override lastmods to sitemap XML while preserving other content", () => {
+    const xml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+      '  <url><loc>https://example.com/services/has-lastmod.html</loc><lastmod>2026-09-05</lastmod><changefreq>daily</changefreq><!-- keep-existing --></url>',
+      '  <url><loc>https://example.com/services/missing-lastmod.html</loc><changefreq>daily</changefreq><!-- insert-here --></url>',
+      '  <url><loc>https://example.com/services/no-match.html/</loc><lastmod>2026-09-05</lastmod><changefreq>daily</changefreq><!-- keep-slash --></url>',
+      '  <url><loc>https://example.com/services/unmatched.html</loc><lastmod>2026-09-05</lastmod><changefreq>daily</changefreq><!-- unchanged --></url>',
+      '  <!-- a comment remains unchanged -->',
+      '  <url><loc>not a URL</loc><lastmod>2026-09-05</lastmod></url>',
+      "</urlset>",
+      ""
+    ].join("\r\n");
+    const overrideLastmods = new Map([
+      ["services/has-lastmod.html", "2026-10-18"],
+      ["services/missing-lastmod.html", "2026-10-18"],
+      ["services/no-match.html/index.html", "2026-10-18"]
+    ]);
+    const expected = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+      '  <url><loc>https://example.com/services/has-lastmod.html</loc><lastmod>2026-10-18</lastmod><changefreq>daily</changefreq><!-- keep-existing --></url>',
+      '  <url><loc>https://example.com/services/missing-lastmod.html</loc><lastmod>2026-10-18</lastmod><changefreq>daily</changefreq><!-- insert-here --></url>',
+      '  <url><loc>https://example.com/services/no-match.html/</loc><lastmod>2026-09-05</lastmod><changefreq>daily</changefreq><!-- keep-slash --></url>',
+      '  <url><loc>https://example.com/services/unmatched.html</loc><lastmod>2026-09-05</lastmod><changefreq>daily</changefreq><!-- unchanged --></url>',
+      '  <!-- a comment remains unchanged -->',
+      '  <url><loc>not a URL</loc><lastmod>2026-09-05</lastmod></url>',
+      "</urlset>",
+      ""
+    ].join("\r\n");
+
+    expect(applyOverrideLastmodsToSitemapXml(xml, overrideLastmods)).toBe(expected);
+  });
+
+  it("applies overridden page dates to both public sitemaps", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-override-ai-sitemap-lastmod-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-04");
+    const baseUrl = "https://example.com";
+    const pagePath = join(root, "seo-overrides", "services", "white-shoe-cleaning.html");
+    await mkdir(join(root, "seo-overrides", "services"), { recursive: true });
+    await writeFile(
+      pagePath,
+      '<!doctype html><html><head><script type="application/ld+json">{"@context":"https://schema.org","dateModified":"2026-10-18"}</script></head><body>白鞋清潔</body></html>',
+      "utf8"
+    );
+    await generatePublicSite({ root, baseUrl, now: "2026-07-05T03:00:00.000Z" });
+
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const aiSitemap = await readFile(join(root, "docs", "ai-sitemap.xml"), "utf8");
+    const pageUrl = `${baseUrl}/services/white-shoe-cleaning.html`;
+    const expectedSitemapEntry = `<loc>${pageUrl}</loc><lastmod>2026-10-18</lastmod>`;
+
+    expect(sitemap).toContain(expectedSitemapEntry);
+    expect(aiSitemap).toContain(expectedSitemapEntry);
+  });
+
+  it("leaves ai-sitemap.xml untouched when onlyDocsPaths does not list it", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-override-ai-sitemap-only-docs-paths-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-04");
+    await writeApprovalLog(root, "2026-07-04");
+    const baseUrl = "https://example.com";
+    const now = "2026-07-05T03:00:00.000Z";
+    await generatePublicSite({ root, baseUrl, now });
+
+    const aiSitemapPath = join(root, "docs", "ai-sitemap.xml");
+    const aiSitemapBefore = await readFile(aiSitemapPath, "utf8");
+    const overrideHtml =
+      '<!doctype html><html><head><script type="application/ld+json">{"@context":"https://schema.org","dateModified":"2026-10-18"}</script></head><body>白鞋清潔</body></html>';
+    const overridePath = join(root, "seo-overrides", "services", "white-shoe-cleaning.html");
+    await mkdir(join(root, "seo-overrides", "services"), { recursive: true });
+    await writeFile(overridePath, overrideHtml, "utf8");
+    await generatePublicSite({
+      root,
+      baseUrl,
+      now,
+      onlyDocsPaths: ["services/white-shoe-cleaning.html"]
+    });
+
+    expect(await readFile(aiSitemapPath, "utf8")).toBe(aiSitemapBefore);
+    expect(await readFile(join(root, "docs", "services", "white-shoe-cleaning.html"), "utf8")).toBe(overrideHtml);
+  });
+
   it("lists self-canonical overrides but only copies overrides canonicalized elsewhere", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-override-canonical-"));
     await writeBusinessProfile(root);

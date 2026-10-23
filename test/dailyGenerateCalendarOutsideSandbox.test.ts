@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -172,7 +172,7 @@ describe("daily calendar generation outside the Codex sandbox", () => {
   it("generates in the project directory, logs output, rechecks the artifact and takes the existing branch", () => {
     const actual = scenario("success");
     expect(actual.calls.map((call) => call.step)).toEqual(["generate-context", "generate"]);
-    expect(actual.calls.every((call) => call.cwd === fixture)).toBe(true);
+    expect(actual.calls.every((call) => realpathSync.native(call.cwd) === realpathSync.native(fixture))).toBe(true);
     expect(actual.output).toContain("fake generate-context output");
     expect(actual.output).toContain("fake generate output");
     expect(actual.hasCalendar).toBe(true);

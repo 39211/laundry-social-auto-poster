@@ -52,7 +52,7 @@ it("recovers from two EBUSY copies using temp files and exponential backoff", as
   const delay = vi.fn(async (_ms: number) => {});
   await Reflect.apply(copyFileVerified, undefined, [src, target, target, VERIFIED_COPY_ATTEMPTS, delay]);
   expect(await readFile(target)).toEqual(source);
-  expect(delay.mock.calls.map(([ms]) => ms)).toEqual([200, 400]);
+  expect(delay.mock.calls.map(([ms]) => ms)).toEqual([250, 500]);
   expect(fault.destinations).toHaveLength(3);
   expect(fault.destinations.every((dest) => dest.startsWith(`${target}.tmp-${process.pid}-`))).toBe(true);
   expect((await readdir(root)).some((name) => name.includes(".tmp-"))).toBe(false);
@@ -64,7 +64,7 @@ it("recovers from two Windows UNKNOWN errno -4094 copies with backoff", async ()
   const delay = vi.fn(async (_ms: number) => {});
   await Reflect.apply(copyFileVerified, undefined, [src, target, target, VERIFIED_COPY_ATTEMPTS, delay]);
   expect(await readFile(target)).toEqual(source);
-  expect(delay.mock.calls.map(([ms]) => ms)).toEqual([200, 400]);
+  expect(delay.mock.calls.map(([ms]) => ms)).toEqual([250, 500]);
   expect(fault.destinations).toHaveLength(3);
 });
 

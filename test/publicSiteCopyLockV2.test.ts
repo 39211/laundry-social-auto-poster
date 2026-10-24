@@ -53,34 +53,34 @@ for (const [operation, code] of [["rename", "EPERM"], ["copy", "EACCES"]]) {
     const sleeps: number[] = [];
     await copyFileVerified(source, target, target, undefined, async (ms) => { sleeps.push(ms); });
     expect(await readFile(target, "utf8")).toBe("new");
-    expect(sleeps).toEqual([200, 400]);
+    expect(sleeps).toEqual([250, 500]);
     expect(await readdir(root)).toEqual(["source", "target"]);
   });
 }
-for (const remaining of [4, 5]) {
-  it(`copy has five attempts with ${remaining} locks`, async () => {
+for (const remaining of [5, 6]) {
+  it(`copy has six attempts with ${remaining} locks`, async () => {
     const { source, target } = await fixture();
     Object.assign(fault, { operation: "copy", remaining, code: "UNKNOWN", errno: -4094 });
     const sleeps: number[] = [];
     const result = copyFileVerified(source, target, target, undefined, async (ms) => { sleeps.push(ms); });
-    if (remaining === 5) await expect(result).rejects.toThrow(target);
+    if (remaining === 6) await expect(result).rejects.toThrow(target);
     else await result;
-    expect(fault.calls).toBe(5);
-    expect(sleeps).toEqual([200, 400, 800, 1600]);
+    expect(fault.calls).toBe(6);
+    expect(sleeps).toEqual([250, 500, 1000, 2000, 3000]);
   });
 }
-for (const [operation, remaining] of [["write", 2], ["rename", 2], ["write", 4], ["write", 5], ["rename", 5]] as const) {
+for (const [operation, remaining] of [["write", 2], ["rename", 2], ["write", 5], ["write", 6], ["rename", 6]] as const) {
   it(`writer retries ${operation} locked ${remaining} times atomically`, async () => {
     const { root, target } = await fixture();
     Object.assign(fault, { operation, remaining, code: "UNKNOWN", errno: -4094 });
     const sleeps: number[] = [];
     const writer = createWriteFileWithRetry({ write: writeFile, sleep: async (ms) => { sleeps.push(ms); } });
     const result = writer(target, "new", "utf8");
-    if (remaining === 5) await expect(result).rejects.toMatchObject({ code: "UNKNOWN" });
+    if (remaining === 6) await expect(result).rejects.toMatchObject({ code: "UNKNOWN" });
     else await result;
-    expect(fault.calls).toBe(Math.min(remaining + 1, 5));
-    expect(sleeps).toEqual([200, 400, 800, 1600].slice(0, Math.min(remaining, 4)));
-    expect(await actual.readFile(target, "utf8")).toBe(remaining === 5 ? "old" : "new");
+    expect(fault.calls).toBe(Math.min(remaining + 1, 6));
+    expect(sleeps).toEqual([250, 500, 1000, 2000, 3000].slice(0, Math.min(remaining, 5)));
+    expect(await actual.readFile(target, "utf8")).toBe(remaining === 6 ? "old" : "new");
     expect(await readdir(root)).toEqual(["source", "target"]);
   });
 }

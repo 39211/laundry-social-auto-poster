@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { copyFile, readFile, rename, unlink } from "node:fs/promises";
 
-export const VERIFIED_COPY_ATTEMPTS = 5;
-export const VERIFIED_COPY_BACKOFF_MS = [200, 400, 800, 1600] as const;
+export const VERIFIED_COPY_ATTEMPTS = 6;
+export const VERIFIED_COPY_BACKOFF_MS = [250, 500, 1000, 2000, 3000] as const;
 
 export function isLockedError(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
@@ -15,7 +15,7 @@ async function sha256(filePath: string): Promise<string> {
 }
 
 /**
- * 複製一個檔，最多試 5 次；先複製到同目錄暫存檔、比對 sha256，再 rename 成目標並再驗一次。
+ * 複製一個檔，最多試 6 次（fsRetry 的 writeFile 共用同一組次數與退避）；先複製到同目錄暫存檔、比對 sha256，再 rename 成目標並再驗一次。
  * 遇到 EBUSY、EPERM、EACCES 或 errno -4094 會退避重試；都失敗或都對不上就丟錯，錯誤訊息寫出是哪個檔，讓 CLI 以 exit 1 結束。
  */
 export async function copyFileVerified(

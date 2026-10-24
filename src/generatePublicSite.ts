@@ -10114,9 +10114,11 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       }
     };
     await walkOverrides(overrideRoot);
-    // 目錄走訪順序維持原本的深度優先，複製本身平行做，避免一百多個小檔的往返超時。
+    // 目錄走訪順序維持原本的深度優先，複製改成依序做，避免同時搶檔案鎖（EBUSY／-4094）。
     await Promise.all([...new Set(copyJobs.map((job) => dirname(job.targetPath)))].map((dir) => mkdir(dir, { recursive: true })));
-    await Promise.all(copyJobs.map((job) => copyFileVerified(job.fullPath, job.targetPath, `docs/${job.posixPath}`)));
+    for (const job of copyJobs) {
+      await copyFileVerified(job.fullPath, job.targetPath, `docs/${job.posixPath}`);
+    }
     for (const job of copyJobs) {
       if (job.posixPath.endsWith(".html")) overrideHtmlFiles.push({ posixPath: job.posixPath, fsPath: job.fsPath });
     }
@@ -10260,9 +10262,11 @@ async function main(): Promise<void> {
   console.log(`Public site indexes ready:\n${outputs.map((output) => `- ${output}`).join("\n")}`);
 }
 
+export function handlePublicSiteError(error: unknown): void {
+  console.error(error);
+  process.exitCode = 1;
+}
+
 if (isMain(import.meta.url)) {
-  main().catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  });
+  main().catch(handlePublicSiteError);
 }

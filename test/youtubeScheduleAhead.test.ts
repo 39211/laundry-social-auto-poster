@@ -193,7 +193,8 @@ describe("scheduleYouTubeShort", () => {
       slot: 1,
       root,
       now: NOW_D3,
-      fetchImpl: fakeFetch(calls)
+      fetchImpl: fakeFetch(calls),
+      live: true
     });
     expect(result.status).toBe("scheduled");
     expect(result.scheduled_publish_at).toBe("2026-08-29T04:15:00Z");
@@ -232,7 +233,8 @@ describe("scheduleYouTubeShort", () => {
       date: DATE,
       slot: 1,
       root,
-      fetchImpl: fakeFetch(calls)
+      fetchImpl: fakeFetch(calls),
+      live: true
     });
     expect("skipped" in result).toBe(false);
     const metadata = metadataFromUpload(calls);
@@ -266,7 +268,8 @@ describe("scheduleYouTubeShort", () => {
       slot: 1,
       root,
       now: NOW_D3,
-      fetchImpl: fakeFetch(calls)
+      fetchImpl: fakeFetch(calls),
+      live: true
     });
     expect(result).toEqual({ status: "skipped", reason: "already uploaded or scheduled" });
     expect(httpCount(calls)).toBe(0);
@@ -284,7 +287,8 @@ describe("scheduleYouTubeShort", () => {
       slot: 1,
       root,
       now: NOW_D3,
-      fetchImpl: fakeFetch(calls)
+      fetchImpl: fakeFetch(calls),
+      live: true
     });
     expect(result.status).toBe("skipped");
     expect(result.reason).toMatch(/video review/i);
@@ -306,7 +310,8 @@ describe("scheduleYouTubeShort", () => {
       slot: 1,
       root,
       now: NOW_D3,
-      fetchImpl: fakeFetch(morningCalls)
+      fetchImpl: fakeFetch(morningCalls),
+      live: true
     });
     expect(morning.status).toBe("scheduled");
     expect(morning.scheduled_publish_at).toBe("2026-08-29T04:15:00Z");
@@ -318,7 +323,8 @@ describe("scheduleYouTubeShort", () => {
       slot: 2,
       root,
       now: NOW_D3,
-      fetchImpl: fakeFetch(eveningCalls)
+      fetchImpl: fakeFetch(eveningCalls),
+      live: true
     });
     expect(evening.status).toBe("scheduled");
     expect(evening.scheduled_publish_at).toBe("2026-08-29T13:15:00Z");

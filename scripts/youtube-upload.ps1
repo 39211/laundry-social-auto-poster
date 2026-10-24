@@ -110,7 +110,7 @@ foreach ($slotNumber in @(2, 3)) {
     }
 
     Push-Location $root
-    $out = cmd /c "npm.cmd run post-youtube -- --date $date --slot $slotNumber 2>&1"
+    $out = cmd /c "npm.cmd run post-youtube -- --date $date --slot $slotNumber --live 2>&1"
     $code = $LASTEXITCODE
     Pop-Location
     $out | Add-Content -Path $logFile -Encoding UTF8

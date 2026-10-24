@@ -208,14 +208,14 @@ try {
         $problemRun = Invoke-IsolatedWrapper -ScriptPath $isolatedProd -FakeBin $fakeBin -TracePath $tracePath -FailDate $dates[0]
         Assert-Run -Name "problem-exit-1" -Condition ($problemRun.ExitCode -eq 1) -Details ("exit=" + $problemRun.ExitCode + " output=" + $problemRun.Output)
         $expectedAfterProblem = @(
-            "run schedule-youtube -- --date $($dates[0]) --slot 2",
-            "run schedule-youtube -- --date $($dates[0]) --slot 3",
+            "run schedule-youtube -- --date $($dates[0]) --slot 2 --live",
+            "run schedule-youtube -- --date $($dates[0]) --slot 3 --live",
             "run schedule-ahead -- --date $($dates[1]) --live",
-            "run schedule-youtube -- --date $($dates[1]) --slot 2",
-            "run schedule-youtube -- --date $($dates[1]) --slot 3",
+            "run schedule-youtube -- --date $($dates[1]) --slot 2 --live",
+            "run schedule-youtube -- --date $($dates[1]) --slot 3 --live",
             "run schedule-ahead -- --date $($dates[2]) --live",
-            "run schedule-youtube -- --date $($dates[2]) --slot 2",
-            "run schedule-youtube -- --date $($dates[2]) --slot 3"
+            "run schedule-youtube -- --date $($dates[2]) --slot 2 --live",
+            "run schedule-youtube -- --date $($dates[2]) --slot 3 --live"
         )
         $missingCalls = @($expectedAfterProblem | Where-Object { $problemRun.Calls -notcontains $_ })
         Assert-Run -Name "later-dates-youtube" -Condition ($missingCalls.Count -eq 0) -Details ("missing=" + ($missingCalls -join ", ") + " observed=" + ($problemRun.Calls -join ", "))

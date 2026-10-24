@@ -45,6 +45,7 @@ import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestP
 import { CONCEPT_COOLDOWN_DAYS } from "./reelConcepts";
 import { DAILY_SCHEDULE, findSlotByNumber, getZonedDateParts, resolveCurrentSlot } from "./scheduler";
 import { getSlotPublishTime } from "./publishTimes";
+import { recordSuccessfulPublish } from "./publishList";
 import type {
   AppConfig,
   DailySlot,
@@ -605,14 +606,29 @@ async function postOneSlot(
       };
       await appendPostLog(entry, root);
       outputs.push(entry);
+      await recordSuccessfulPublish({
+        status: entry.status,
+        dryRun: entry.dry_run,
+        root,
+        date,
+        slot: slot.slot,
+        topic: slot.topic,
+        platform,
+        publishedAt: entry.created_at,
+        caption: input.caption,
+        postId: entry.post_id,
+        mediaType: scheduledRow.published_media_type
+      });
       continue;
     }
 
+    let published: PostLogEntry | undefined;
     try {
       const result = await postPlatform(platform, input, config, fetchImpl);
       const entry = resultToLog(date, slot.slot, result, resolvedMedia, abVariant);
       await appendPostLog(entry, root);
       outputs.push(entry);
+      published = entry;
     } catch (error) {
       // A NonRetryableError from a commit point means the post may already be
       // live. Recording it as "failed" is what let the catch-up chain publish
@@ -643,6 +659,21 @@ async function postOneSlot(
       await appendPostLog(entry, root);
       outputs.push(entry);
       firstFailure = firstFailure ?? error;
+    }
+    if (published) {
+      await recordSuccessfulPublish({
+        status: published.status,
+        dryRun: published.dry_run,
+        root,
+        date,
+        slot: slot.slot,
+        topic: slot.topic,
+        platform,
+        publishedAt: published.created_at,
+        caption: input.caption,
+        postId: published.post_id,
+        mediaType: input.mediaType
+      });
     }
   }
   if (firstFailure !== undefined) throw firstFailure;

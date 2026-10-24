@@ -35,6 +35,9 @@ async function run(steps: Array<{ error?: unknown }>, path = "docs/rss.xml", dat
   };
   const writeRetry = createWriteFileWithRetry({
     write,
+    rename: async () => {},
+    read: async () => Buffer.from(data),
+    remove: async () => {},
     sleep: async (ms) => {
       sleeps.push(ms);
     }
@@ -55,7 +58,7 @@ describe("writeFileWithRetry", () => {
   it("T1 succeeds on the first attempt", async () => {
     const outcome = await run([{}]);
     expect(outcome.thrown).toBe(NOT_THROWN);
-    expect(outcome.calls).toEqual([{ file: "docs/rss.xml", data: "<rss/>", options: "utf8" }]);
+    expect(outcome.calls).toEqual([{ file: expect.stringMatching(/^docs\/rss\.xml\.tmp-/), data: expect.any(Buffer), options: "utf8" }]);
     expect(outcome.sleeps).toEqual([]);
     expect(outcome.lines).toEqual([]);
   });
@@ -66,10 +69,10 @@ describe("writeFileWithRetry", () => {
     const outcome = await run([{ error: first }, { error: second }, {}]);
     expect(outcome.thrown).toBe(NOT_THROWN);
     expect(outcome.calls).toHaveLength(3);
-    expect(outcome.sleeps).toEqual([250, 500]);
+    expect(outcome.sleeps).toEqual([200, 400]);
     expect(outcome.lines).toEqual([
-      "writeFile retry 1/6 docs/rss.xml: UNKNOWN\n",
-      "writeFile retry 2/6 docs/rss.xml: UNKNOWN\n"
+      "writeFile retry 1/5 docs/rss.xml: UNKNOWN\n",
+      "writeFile retry 2/5 docs/rss.xml: UNKNOWN\n"
     ]);
   });
 
@@ -82,19 +85,18 @@ describe("writeFileWithRetry", () => {
     expect(outcome.lines).toEqual([]);
   });
 
-  it("T4 rejects the last UNKNOWN after six attempts", async () => {
-    const errors = Array.from({ length: 6 }, (_, index) => ({ code: "UNKNOWN", n: index + 1 }));
+  it("T4 rejects the last UNKNOWN after five attempts", async () => {
+    const errors = Array.from({ length: 5 }, (_, index) => ({ code: "UNKNOWN", n: index + 1 }));
     const outcome = await run(errors.map((error) => ({ error })));
-    expect(outcome.thrown).toBe(errors[5]);
+    expect(outcome.thrown).toBe(errors[4]);
     expect(outcome.thrown).toMatchObject({ code: "UNKNOWN" });
-    expect(outcome.calls).toHaveLength(6);
-    expect(outcome.sleeps).toEqual([250, 500, 1000, 2000, 3000]);
+    expect(outcome.calls).toHaveLength(5);
+    expect(outcome.sleeps).toEqual([200, 400, 800, 1600]);
     expect(outcome.lines).toEqual([
-      "writeFile retry 1/6 docs/rss.xml: UNKNOWN\n",
-      "writeFile retry 2/6 docs/rss.xml: UNKNOWN\n",
-      "writeFile retry 3/6 docs/rss.xml: UNKNOWN\n",
-      "writeFile retry 4/6 docs/rss.xml: UNKNOWN\n",
-      "writeFile retry 5/6 docs/rss.xml: UNKNOWN\n"
+      "writeFile retry 1/5 docs/rss.xml: UNKNOWN\n",
+      "writeFile retry 2/5 docs/rss.xml: UNKNOWN\n",
+      "writeFile retry 3/5 docs/rss.xml: UNKNOWN\n",
+      "writeFile retry 4/5 docs/rss.xml: UNKNOWN\n"
     ]);
   });
 
@@ -104,8 +106,8 @@ describe("writeFileWithRetry", () => {
       const outcome = await run([{ error }, {}]);
       expect(outcome.thrown, code).toBe(NOT_THROWN);
       expect(outcome.calls, code).toHaveLength(2);
-      expect(outcome.sleeps, code).toEqual([250]);
-      expect(outcome.lines, code).toEqual([`writeFile retry 1/6 docs/rss.xml: ${code}\n`]);
+      expect(outcome.sleeps, code).toEqual([200]);
+      expect(outcome.lines, code).toEqual([`writeFile retry 1/5 docs/rss.xml: ${code}\n`]);
     }
   });
 

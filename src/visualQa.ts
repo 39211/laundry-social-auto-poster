@@ -1,13 +1,13 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { access, mkdir, readFile, readdir } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 import { readJsonFile, writeJsonAtomic } from "./logging";
-import { padSlot, projectRoot, rejectedConceptsPath, relativeCarouselAssetPath } from "./paths";
+import { padSlot, projectRoot, rejectedConceptsPath, relativeCarouselAssetPath, toRepoRelativePath } from "./paths";
 
 export const VISUAL_QA_AXES = [
   "OBJECT_IDENTITY",
@@ -120,12 +120,23 @@ export interface CarouselQaSidecar {
   slides: CarouselSlideRecord[];
 }
 
+export interface CarouselJudgeAttemptLogEntry {
+  attempt: number;
+  prompt_sha256: string;
+  stdout_sha256: string | null;
+  stdout_file: string;
+  verdict: VisualQaVerdict | null;
+  fail_class: VisualQaFailClass | null;
+  error?: "judge_failed" | "stdout_unreadable" | "evaluate_failed";
+}
+
 export interface CarouselQaRecord {
   topic: string;
   date?: string;
   slot?: number;
   verdict: VisualQaVerdict;
   fail_class: VisualQaFailClass | null;
+  judge_verdict: "PASS" | "FAIL" | null;
   axes: Record<CarouselQaAxis, AxisVerdict | "MISSING">;
   evidence: Partial<Record<CarouselQaAxis, string>>;
   frames_used: string[];
@@ -139,6 +150,9 @@ export interface CarouselQaRecord {
   reviewed_by: VisualQaReviewer;
   reviewed_at: string;
   mode: "warn" | "enforce";
+  judge_declared_change: boolean;
+  judge_attempt?: number;
+  judge_attempt_log?: CarouselJudgeAttemptLogEntry[];
 }
 
 export interface RejectedConceptEntry {
@@ -768,12 +782,16 @@ export async function evaluateFromDisk(input: {
   promptHash: string;
   runId: string;
   stillsMissing?: string[];
+  root?: string;
 }): Promise<VisualQaRecord> {
   const onDisk = await hashPngsInDir(input.qaDir);
   const expectedCanaries: Record<string, string> = {};
   input.sidecar.frames.forEach((frame, index) => {
     expectedCanaries[`IMAGE_${index + 1}`] = frame.canary;
   });
+  // sha256File needs the real (often absolute) path; the record field is
+  // repo-relative -- these records are tracked (docs/assets or
+  // data/visual-qa-fixtures) in a public repo.
   const reelSha256 = await sha256File(input.reelPath);
   const record = evaluateJudgeStdout({
     stdout: input.stdout,
@@ -782,7 +800,7 @@ export async function evaluateFromDisk(input: {
     reelSha256,
     promptHash: input.promptHash,
     runId: input.runId,
-    reel: input.reelPath,
+    reel: toRepoRelativePath(input.root ?? projectRoot(), input.reelPath),
     frames: input.sidecar.frames,
     stillsMissing: input.stillsMissing
   });
@@ -1347,6 +1365,73 @@ function emptyCarouselAxes(): Record<CarouselQaAxis, AxisVerdict | "MISSING"> {
   };
 }
 
+function countMarker(haystack: string, marker: string): number {
+  let count = 0;
+  let from = 0;
+  while (from < haystack.length) {
+    const idx = haystack.indexOf(marker, from);
+    if (idx < 0) break;
+    count += 1;
+    from = idx + marker.length;
+  }
+  return count;
+}
+
+function firstVisualQaBlockRaw(stdout: string): string | null {
+  const start = stdout.indexOf(VISUAL_QA_BEGIN);
+  const end = stdout.indexOf(VISUAL_QA_END);
+  if (start < 0 || end < 0 || end <= start) return null;
+  return stdout.slice(start + VISUAL_QA_BEGIN.length, end).trim().replace(/^\uFEFF/u, "");
+}
+
+function carouselBlockHasDuplicateVerdictOrAxis(raw: string): boolean {
+  const verdictHits = raw.match(/"verdict"\s*:\s*"(PASS|FAIL)"/gu);
+  if ((verdictHits?.length ?? 0) > 1) return true;
+  for (const axis of CAROUSEL_QA_AXES) {
+    const axisHits = raw.match(new RegExp(`"${axis}"\\s*:\\s*"(PASS|FAIL)"`, "gu"));
+    if ((axisHits?.length ?? 0) > 1) return true;
+  }
+  return false;
+}
+
+function carouselObserveCompareAxisCounts(
+  stdout: string
+): Record<"OBJECT_IDENTITY" | "SCENE" | "TOPIC_MATCH", number> | null {
+  const start = stdout.indexOf(VISUAL_QA_OBSERVE_BEGIN);
+  const end = stdout.indexOf(VISUAL_QA_OBSERVE_END);
+  if (start < 0 || end < 0 || end <= start) return null;
+  const raw = stdout.slice(start + VISUAL_QA_OBSERVE_BEGIN.length, end);
+  const counts = { OBJECT_IDENTITY: 0, SCENE: 0, TOPIC_MATCH: 0 };
+  for (const line of raw.split(/\r?\n/u)) {
+    const compareMatch = line.trim().match(/^COMPARE\s+(OBJECT_IDENTITY|SCENE|TOPIC_MATCH)\b/iu);
+    if (!compareMatch?.[1]) continue;
+    const axis = compareMatch[1].toUpperCase() as "OBJECT_IDENTITY" | "SCENE" | "TOPIC_MATCH";
+    counts[axis] += 1;
+  }
+  return counts;
+}
+
+/** Multiple VISUAL_QA blocks, a repeated COMPARE axis, or invalid JSON that repeats a verdict or carousel axis key. */
+function carouselJudgeStdoutAmbiguous(stdout: string): boolean {
+  if (countMarker(stdout, VISUAL_QA_BEGIN) > 1) return true;
+  const compareCounts = carouselObserveCompareAxisCounts(stdout);
+  if (
+    compareCounts &&
+    parseCarouselObserveBlock(stdout) &&
+    (compareCounts.OBJECT_IDENTITY > 1 || compareCounts.SCENE > 1 || compareCounts.TOPIC_MATCH > 1)
+  ) {
+    return true;
+  }
+  const raw = firstVisualQaBlockRaw(stdout);
+  if (raw === null) return false;
+  try {
+    JSON.parse(raw);
+    return false;
+  } catch {
+    return carouselBlockHasDuplicateVerdictOrAxis(raw);
+  }
+}
+
 export function evaluateCarouselJudgeStdout(input: {
   stdout: string;
   topic: string;
@@ -1376,7 +1461,9 @@ export function evaluateCarouselJudgeStdout(input: {
     model: "codex-exec-read-only",
     reviewed_by: "codex-visual-qa" as const,
     reviewed_at: input.reviewedAt ?? new Date().toISOString(),
-    mode: "warn" as const
+    mode: "warn" as const,
+    judge_verdict: null as "PASS" | "FAIL" | null,
+    judge_declared_change: false
   };
 
   if (Object.keys(input.slideSha256s).length === 0) {
@@ -1406,6 +1493,14 @@ export function evaluateCarouselJudgeStdout(input: {
     };
   }
 
+  if (carouselJudgeStdoutAmbiguous(input.stdout)) {
+    return {
+      ...base,
+      verdict: "FAIL_CLOSED",
+      fail_class: "unparseable"
+    };
+  }
+
   const block = parseVisualQaBlock(input.stdout, CAROUSEL_QA_AXES);
   if (!block) {
     return {
@@ -1414,6 +1509,8 @@ export function evaluateCarouselJudgeStdout(input: {
       fail_class: "unparseable"
     };
   }
+
+  base.judge_verdict = block.verdict === "PASS" || block.verdict === "FAIL" ? block.verdict : null;
 
   let missingAxis = false;
   let contentFail = false;
@@ -1439,11 +1536,18 @@ export function evaluateCarouselJudgeStdout(input: {
     };
   }
 
+  const observedCompare = parseCarouselObserveBlock(input.stdout)?.compare;
+  const judgeDeclaredChange =
+    observedCompare?.identityChange === true ||
+    observedCompare?.sceneChange === true ||
+    observedCompare?.topicMismatch === true;
+
   const expectedObs = Object.keys(input.expectedCanaries).length || input.slides.length;
   const obsDefects = carouselObservationDefects(parseCarouselObserveBlock(input.stdout), expectedObs);
   if (obsDefects.length > 0) {
     return {
       ...base,
+      judge_declared_change: judgeDeclaredChange,
       verdict: "FAIL_CLOSED",
       fail_class: "missing_observation"
     };
@@ -1452,6 +1556,7 @@ export function evaluateCarouselJudgeStdout(input: {
   if (detectCarouselRubricIncoherence(input.stdout, base.axes, input.topic)) {
     return {
       ...base,
+      judge_declared_change: judgeDeclaredChange,
       verdict: "FAIL_CLOSED",
       fail_class: "rubric_incoherent"
     };
@@ -1460,6 +1565,7 @@ export function evaluateCarouselJudgeStdout(input: {
   const verdict: VisualQaVerdict = contentFail || block.verdict === "FAIL" ? "FAIL" : "PASS";
   return {
     ...base,
+    judge_declared_change: judgeDeclaredChange,
     verdict,
     fail_class: contentFail ? "content" : null
   };
@@ -1497,6 +1603,220 @@ export async function evaluateCarouselFromDisk(input: {
   return record;
 }
 
+/** Live carousel judge may retry once; a supplied stdout file is replay-only. */
+export const CAROUSEL_JUDGE_LIVE_ATTEMPT_LIMIT = 2;
+
+/**
+ * Retry only when all four conditions hold:
+ * 1. fail_class is missing_observation.
+ * 2. OBJECT_IDENTITY, SCENE, and TOPIC_MATCH are all PASS.
+ * 3. The judge's own top-level VISUAL_QA verdict is not FAIL.
+ * 4. judge_declared_change is not true. That flag is taken only from COMPARE
+ *    lines the judge wrote (identityChange, sceneChange, topicMismatch), not
+ *    from OBS-token inference.
+ * An axis FAIL, a top-level FAIL, or a declared COMPARE change must not be
+ * retried. A retry adopts the next record and can wash an earlier failure
+ * into PASS.
+ */
+export function shouldRetryCarouselJudge(
+  record:
+    | (Pick<CarouselQaRecord, "fail_class" | "axes" | "judge_verdict"> & {
+        judge_declared_change?: boolean;
+      })
+    | null
+    | undefined
+): boolean {
+  if (record?.fail_class !== "missing_observation") return false;
+  if (record.judge_verdict === "FAIL") return false;
+  if (record.judge_declared_change === true) return false;
+  return (
+    record.axes?.OBJECT_IDENTITY === "PASS" &&
+    record.axes?.SCENE === "PASS" &&
+    record.axes?.TOPIC_MATCH === "PASS"
+  );
+}
+
+export function carouselJudgeAttemptLimit(stdoutSupplied: boolean): number {
+  return stdoutSupplied ? 1 : CAROUSEL_JUDGE_LIVE_ATTEMPT_LIMIT;
+}
+
+/**
+ * F20 fish-3 remaining: retrying with the same prompt still omitted OBS
+ * (2026-09-14 / 2026-09-16 live sidecars). Attempt 1 is identity. Attempt 2+
+ * prepends an OBS-forcing reminder; PASS/FAIL rules and fail-closed missing
+ * OBS stay unchanged.
+ */
+export function carouselJudgePromptForAttempt(input: {
+  basePrompt: string;
+  attempt: number;
+  slideCount: number;
+}): string {
+  if (input.attempt <= 1) return input.basePrompt;
+  const n = Math.max(1, Math.floor(input.slideCount));
+  const obsList = Array.from({ length: n }, (_, i) => `OBS_${i + 1}`).join(", ");
+  const reminder = [
+    `RETRY because the previous reply had axis JSON but no complete ${VISUAL_QA_OBSERVE_BEGIN} block.`,
+    "Do not generate or edit any image. Do not run a shell command.",
+    `Emit exactly ${n} observation lines (${obsList}) plus the three COMPARE lines inside the OBSERVE markers, then the VISUAL_QA JSON.`,
+    "Do not skip a field. Do not skip the OBSERVE markers. Canary lines still come first.",
+    "This retry does not change the PASS/FAIL rules.",
+    "",
+    input.basePrompt
+  ].join("\n");
+  assertCarouselJudgePromptSafe(reminder);
+  return reminder;
+}
+
+export async function collectCarouselJudgeStdout(input: {
+  runJudge: (attempt: number) => Promise<string> | string;
+  evaluate: (stdout: string) => Promise<CarouselQaRecord> | CarouselQaRecord;
+  attemptLimit: number;
+}): Promise<{ record: CarouselQaRecord; attempts: number; stdout: string }> {
+  const limit = Math.max(1, Math.floor(input.attemptLimit));
+  let stdout = "";
+  let record: CarouselQaRecord | undefined;
+  let attempts = 0;
+  while (attempts < limit) {
+    attempts += 1;
+    try {
+      stdout = await input.runJudge(attempts);
+      record = await input.evaluate(stdout);
+    } catch (err) {
+      if (record && shouldRetryCarouselJudge(record)) break;
+      throw err;
+    }
+    if (!shouldRetryCarouselJudge(record)) break;
+  }
+  if (!record) {
+    throw new Error("carousel judge produced no record");
+  }
+  return { record, attempts, stdout };
+}
+
+async function readableStdoutSha256(stdoutPath: string): Promise<string | null> {
+  try {
+    return hashText(await readFile(stdoutPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+export async function runCarouselJudgeLive(input: {
+  basePrompt: string;
+  slides: CarouselSlideRecord[];
+  qaDir: string;
+  sidecar: CarouselQaSidecar;
+  runId: string;
+  promptHash: string;
+  stdoutFile?: string;
+  runJudge: (req: {
+    attempt: number;
+    prompt: string;
+    images: string[];
+    stdoutPath: string;
+  }) => Promise<void> | void;
+  evaluateFromDisk?: typeof evaluateCarouselFromDisk;
+}): Promise<{ record: CarouselQaRecord; attempts: number; stdout: string }> {
+  const suppliedStdout = input.stdoutFile;
+  const replay = Boolean(suppliedStdout);
+  const evaluateFromDisk = input.evaluateFromDisk ?? evaluateCarouselFromDisk;
+  const limit = carouselJudgeAttemptLimit(replay);
+  const images = input.slides.map((slide) => join(input.qaDir, slide.name));
+  const log: CarouselJudgeAttemptLogEntry[] = [];
+  let sourceAttempt = 0;
+  let currentAttempt = 0;
+  let activePrompt = "";
+  let activeStdoutPath = "";
+
+  const rememberFailedAttempt = (
+    error: "judge_failed" | "stdout_unreadable" | "evaluate_failed",
+    stdoutSha: string | null
+  ): void => {
+    log.push({
+      attempt: currentAttempt,
+      prompt_sha256: hashText(activePrompt),
+      stdout_sha256: stdoutSha,
+      stdout_file: basename(activeStdoutPath),
+      verdict: null,
+      fail_class: null,
+      error
+    });
+  };
+
+  const collected = await collectCarouselJudgeStdout({
+    attemptLimit: limit,
+    runJudge: async (attempt) => {
+      currentAttempt = attempt;
+      activePrompt = carouselJudgePromptForAttempt({
+        basePrompt: input.basePrompt,
+        attempt,
+        slideCount: input.slides.length
+      });
+      activeStdoutPath = suppliedStdout
+        ? suppliedStdout
+        : attempt === 1
+          ? join(input.qaDir, "judge-stdout.txt")
+          : join(input.qaDir, `judge-stdout.attempt-${attempt}.txt`);
+      if (!replay) {
+        if (attempt > 1) {
+          await writeFile(join(input.qaDir, "judge-prompt-retry.txt"), activePrompt, "utf8");
+        }
+        try {
+          await input.runJudge({
+            attempt,
+            prompt: activePrompt,
+            images,
+            stdoutPath: activeStdoutPath
+          });
+        } catch (err) {
+          rememberFailedAttempt("judge_failed", await readableStdoutSha256(activeStdoutPath));
+          throw err;
+        }
+      }
+      try {
+        return await readFile(activeStdoutPath, "utf8");
+      } catch (err) {
+        rememberFailedAttempt("stdout_unreadable", null);
+        throw err;
+      }
+    },
+    evaluate: async (stdout) => {
+      try {
+        const record = await evaluateFromDisk({
+          qaDir: input.qaDir,
+          stdout,
+          sidecar: input.sidecar,
+          promptHash: input.promptHash,
+          runId: input.runId
+        });
+        sourceAttempt = currentAttempt;
+        log.push({
+          attempt: currentAttempt,
+          prompt_sha256: hashText(activePrompt),
+          stdout_sha256: hashText(stdout),
+          stdout_file: basename(activeStdoutPath),
+          verdict: record.verdict,
+          fail_class: record.fail_class
+        });
+        return record;
+      } catch (err) {
+        rememberFailedAttempt("evaluate_failed", hashText(stdout));
+        throw err;
+      }
+    }
+  });
+
+  return {
+    record: {
+      ...collected.record,
+      judge_attempt: sourceAttempt,
+      judge_attempt_log: log
+    },
+    attempts: collected.attempts,
+    stdout: collected.stdout
+  };
+}
+
 function ffmpegFontfile(): string {
   const consola = "C:/Windows/Fonts/consola.ttf";
   const arial = "C:/Windows/Fonts/arial.ttf";
@@ -1508,20 +1828,26 @@ export async function burnCarouselCanaries(input: {
   sources: string[];
   qaDir: string;
   canaries?: string[];
+  root?: string;
 }): Promise<CarouselSlideRecord[]> {
   await mkdir(input.qaDir, { recursive: true });
   const font = ffmpegFontfile();
+  const root = input.root ?? projectRoot();
   const slides: CarouselSlideRecord[] = [];
   for (const [index, source] of input.sources.entries()) {
     const canary = input.canaries?.[index] ?? randomCanary();
     const name = `slide-${String(index + 1).padStart(2, "0")}.png`;
     const dest = join(input.qaDir, name);
     const draw = `drawtext=fontfile='${font}':text='${canary}':x=16:y=h-56:fontsize=36:fontcolor=yellow:box=1:boxcolor=black@0.88:boxborderw=8`;
+    // `source` stays the real (often absolute) path for ffmpeg -i to open.
+    // What gets stored on the record is repo-relative: these records are
+    // written into docs/assets/**/*.visual-qa.json, which GitHub Pages
+    // publishes, and this repo is public.
     await execFileAsync("ffmpeg", ["-v", "error", "-y", "-i", source, "-vf", draw, dest]);
     slides.push({
       name,
       slide: index + 1,
-      source,
+      source: toRepoRelativePath(root, source),
       canary,
       sha256: await sha256File(dest)
     });

@@ -1,0 +1,17 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 720
+PlayResY: 1280
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Narration,Microsoft JhengHei,40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H73000000,-1,0,0,0,100,100,0,0,3,6,0,2,20,20,84,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.50,0:00:03.45,Narration,,0,0,0,,泥乾掉之後會把鞋底的溝整個填平
+Dialogue: 0,0:00:03.45,0:00:05.42,Narration,,0,0,0,,,抓地力就跟著沒了。
+Dialogue: 0,0:00:05.42,0:00:07.19,Narration,,0,0,0,,硬刷會傷到防水層,
+Dialogue: 0,0:00:07.19,0:00:09.36,Narration,,0,0,0,,要先泡開再慢慢帶出來。

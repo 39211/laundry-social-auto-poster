@@ -44,6 +44,7 @@ import { NonRetryableError, withRetry } from "./retry";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
 import { CONCEPT_COOLDOWN_DAYS } from "./reelConcepts";
 import { DAILY_SCHEDULE, findSlotByNumber, getZonedDateParts, resolveCurrentSlot } from "./scheduler";
+import { getSlotPublishTime } from "./publishTimes";
 import type {
   AppConfig,
   DailySlot,
@@ -99,14 +100,18 @@ export function isRetiredVideoAbsenceReason(reason: string): boolean {
   return RETIRED_VIDEO_ABSENCE_REASON.test(reason);
 }
 
-// A video that is not ready and a video check that crashed both have to fall back,
-// because neither may cancel an approved image post. They must not look the same
-// afterwards: the first is a pending gate, the second is a fault to go and fix.
+// Mixed-carousel companion video may fall back to the approved images: that is
+// the design. A planned Reel must not. Cover-image fallback is how 8/27-29
+// wrote posted-log success for stills that were supposed to be video.
 // Validation gates raise a plain Error; programmer faults arrive as an Error
 // subclass or a non-Error throw, and a filesystem error other than "not found"
 // means the file check itself failed rather than the file being absent.
 // A retired-line absence reason outranks its wrapper: recording it as a fault
 // would escalate a production line that no longer exists on every review round.
+export function slotRequiresPublishedVideo(slot: DailySlot): boolean {
+  return slot.media_type === "reel" || slot.slot === 3;
+}
+
 export function classifyVideoFailure(error: unknown): VideoDeferKind {
   const reason = error instanceof Error ? error.message : String(error);
   if (isRetiredVideoAbsenceReason(reason)) return "expected";
@@ -145,6 +150,10 @@ export async function resolveSlotPublishMedia(
     }
     return { mediaType: slot.media_type, videoDeferred: false, videoSha256 };
   } catch (error) {
+    if (slotRequiresPublishedVideo(slot)) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`Refusing image fallback for reel slot ${slot.slot}: ${reason}`);
+    }
     return {
       mediaType: slot.media_type === "mixed-carousel" ? "carousel" : "image",
       videoDeferred: true,
@@ -217,19 +226,22 @@ async function postPlatform(
 export function assertInsidePublishWindow(
   slotNumber: number,
   config: AppConfig,
-  now: Date = new Date()
+  now: Date = new Date(),
+  date = getZonedDateParts(now, config.timezone).date,
+  root = projectRoot()
 ): void {
   if (process.env.ALLOW_OFF_SCHEDULE_PUBLISH === "true") return;
   const schedule = findSlotByNumber(slotNumber);
   if (!schedule) return;
+  const slotTime = getSlotPublishTime(date, slotNumber, root);
   const { time } = getZonedDateParts(now, config.timezone);
   const [nowH = 0, nowM = 0] = time.split(":").map(Number);
-  const [slotH = 0, slotM = 0] = schedule.time.split(":").map(Number);
+  const [slotH = 0, slotM = 0] = slotTime.split(":").map(Number);
   const minutesNow = nowH * 60 + nowM;
   const minutesSlot = slotH * 60 + slotM;
   if (minutesNow < minutesSlot || minutesNow > minutesSlot + 240) {
     throw new Error(
-      `Refusing to live-publish slot ${slotNumber} at ${time}: its window is ${schedule.time} to four hours after. ` +
+      `Refusing to live-publish slot ${slotNumber} at ${time}: its window is ${slotTime} to four hours after. ` +
         "Off-schedule publishing reaches fewer people and bypasses the day's review; set ALLOW_OFF_SCHEDULE_PUBLISH=true only for a deliberate manual repair."
     );
   }
@@ -269,7 +281,7 @@ async function postOneSlot(
     const paused = await readPause(root);
     if (paused) throw new NonRetryableError(pauseMessage(paused));
   }
-  if (!config.dryRun && !preflightOnly) assertInsidePublishWindow(slot.slot, config, now);
+  if (!config.dryRun && !preflightOnly) assertInsidePublishWindow(slot.slot, config, now, date, root);
   // Single-flight per date+slot: scheduler retries, the patrol and a manual
   // run can overlap; two publishers that both read "no success yet" would
   // both post to Meta and both succeed (luna, high). flag wx makes the
@@ -564,11 +576,17 @@ async function postOneSlot(
         ? scheduledRows.find((row) => row.slot === slot.slot && row.platform === "facebook")
         : undefined;
     if (scheduledRow && !config.dryRun) {
+      // An unconfirmed schedule may or may not be in Meta's queue: record it
+      // as uncertain (never published again from here), not as a success.
+      const unconfirmed = scheduledRow.status === "uncertain";
       const entry: PostLogEntry = {
         date,
         slot: slot.slot,
         platform,
-        status: "success",
+        status: unconfirmed ? "uncertain" : "success",
+        ...(unconfirmed
+          ? { error: `Facebook schedule unconfirmed (${scheduledRow.error ?? "no id"}); check the Page's scheduled posts` }
+          : {}),
         dry_run: false,
         attempts: 0,
         published_media_type: scheduledRow.published_media_type,
@@ -582,7 +600,7 @@ async function postOneSlot(
         video_deferred_reason: resolvedMedia.videoDeferred ? resolvedMedia.videoDeferredReason : undefined,
         ...postedVideoShaFields(scheduledRow.video_sha256),
         ...(abVariant ? { ab_variant: abVariant } : {}),
-        post_id: scheduledRow.scheduled_post_id,
+        post_id: scheduledRow.scheduled_post_id || undefined,
         created_at: new Date().toISOString()
       };
       await appendPostLog(entry, root);
@@ -726,9 +744,11 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
     return [];
   }
 
-  const currentSchedule = options.slot ? findSlotByNumber(options.slot) : resolveCurrentSlot(now, config.timezone);
+  const currentSchedule = options.slot
+    ? findSlotByNumber(options.slot)
+    : resolveCurrentSlot(now, config.timezone, 29, date, root);
   const targetSchedules = options.allDue
-    ? DAILY_SCHEDULE.filter((item) => item.time <= getZonedDateParts(now, config.timezone).time)
+    ? DAILY_SCHEDULE.filter((item) => getSlotPublishTime(date, item.slot, root) <= getZonedDateParts(now, config.timezone).time)
     : currentSchedule
       ? [currentSchedule]
       : [];

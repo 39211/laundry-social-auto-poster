@@ -1,9 +1,66 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { submitIndexNow } from "../src/submitIndexNow";
+
+const TEST_KEY = "test-indexnow-key";
+const TEST_ORIGIN = "https://39211.github.io";
+
+interface FixturePage {
+  path: string;
+  robots?: string;
+  googlebot?: string;
+  body?: string;
+}
+
+async function writePages(root: string, pages: FixturePage[]): Promise<void> {
+  await mkdir(join(root, "docs"), { recursive: true });
+  const locs = pages.map((page) => `<url><loc>${TEST_ORIGIN}${page.path}</loc></url>`);
+  await writeFile(
+    join(root, "docs", "sitemap.xml"),
+    ['<?xml version="1.0" encoding="UTF-8"?>', "<urlset>", ...locs, "</urlset>", ""].join("\n"),
+    "utf8"
+  );
+  for (const page of pages) {
+    if (page.robots === undefined && page.googlebot === undefined && page.body === undefined) continue;
+    const relative = page.path.endsWith("/") ? `${page.path.slice(1)}index.html` : page.path.slice(1);
+    const filePath = join(root, "docs", relative);
+    await mkdir(dirname(filePath), { recursive: true });
+    const metas = [
+      page.robots !== undefined ? `<meta name="robots" content="${page.robots}" />` : "",
+      page.googlebot !== undefined ? `<meta name="googlebot" content="${page.googlebot}" />` : ""
+    ].filter(Boolean);
+    await writeFile(
+      filePath,
+      `<!doctype html><html><head>${metas.join("")}</head><body>${page.body ?? ""}</body></html>`,
+      "utf8"
+    );
+  }
+}
+
+async function submitLive(root: string): Promise<{ urlCount: number; urlList: string[]; endpoint: string }> {
+  await writeFile(join(root, "docs", `${TEST_KEY}.txt`), `${TEST_KEY}\n`, "utf8");
+  let endpoint = "";
+  let urlList: string[] = [];
+  const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (init?.body) {
+      endpoint = url;
+      urlList = (JSON.parse(String(init.body)) as { urlList: string[] }).urlList;
+    }
+    return new Response(url.endsWith(`${TEST_KEY}.txt`) ? TEST_KEY : "", { status: 200 });
+  }) as typeof fetch;
+  const result = await submitIndexNow({
+    root,
+    key: TEST_KEY,
+    live: true,
+    endpoint: "https://indexnow.example/submit",
+    fetchImpl
+  });
+  return { urlCount: result.urlCount, urlList, endpoint };
+}
 
 async function writeSitemap(root: string): Promise<void> {
   await mkdir(join(root, "docs"), { recursive: true });
@@ -76,5 +133,62 @@ describe("submitIndexNow", () => {
     expect(calls[1]?.url).toBe("https://indexnow.example/submit");
     expect(calls[1]?.init?.body).toContain("white-shoe-cleaning.html");
     expect(calls[1]?.init?.body).not.toContain("answers.json");
+  });
+
+  it("does not submit URLs whose path contains /posts/", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-indexnow-posts-"));
+    await writePages(root, [
+      { path: "/", robots: "index, follow" },
+      { path: "/services/white-shoe-cleaning.html", robots: "index, follow, max-image-preview:large" },
+      { path: "/posts/", robots: "index, follow" },
+      { path: "/posts/2026-10-08-slot-01.html", robots: "index, follow, max-image-preview:large" }
+    ]);
+
+    const submitted = await submitLive(root);
+
+    expect(submitted.endpoint).toBe("https://indexnow.example/submit");
+    expect(submitted.urlCount).toBe(2);
+    expect(submitted.urlList).toEqual([
+      "https://39211.github.io/",
+      "https://39211.github.io/services/white-shoe-cleaning.html"
+    ]);
+  });
+
+  it("does not submit pages whose robots or googlebot meta contains noindex", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-indexnow-noindex-"));
+    await writePages(root, [
+      { path: "/services/white-shoe-cleaning.html", robots: "index, follow", googlebot: "index, follow" },
+      { path: "/local/wuqi-laundry-pickup.html", robots: "noindex, follow" },
+      { path: "/local/daya-laundry-pickup.html", robots: "index, follow", googlebot: "noindex, follow" },
+      { path: "/services/taichung-laundry-price-list.html", robots: "NOINDEX, follow" }
+    ]);
+
+    const submitted = await submitLive(root);
+
+    expect(submitted.endpoint).toBe("https://indexnow.example/submit");
+    expect(submitted.urlCount).toBe(1);
+    expect(submitted.urlList).toEqual(["https://39211.github.io/services/white-shoe-cleaning.html"]);
+  });
+
+  it("submits a normal indexable page unchanged", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-indexnow-indexable-"));
+    await writePages(root, [
+      {
+        path: "/",
+        robots: "index, follow, max-image-preview:large",
+        googlebot: "index, follow, max-image-preview:large",
+        body: "這頁說明 noindex 政策，但本身可索引。"
+      },
+      { path: "/services/white-shoe-cleaning.html", robots: "index, follow", googlebot: "index, follow" }
+    ]);
+
+    const submitted = await submitLive(root);
+
+    expect(submitted.endpoint).toBe("https://indexnow.example/submit");
+    expect(submitted.urlCount).toBe(2);
+    expect(submitted.urlList).toEqual([
+      "https://39211.github.io/",
+      "https://39211.github.io/services/white-shoe-cleaning.html"
+    ]);
   });
 });

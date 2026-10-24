@@ -49,8 +49,38 @@ export function buildSearchContentAnalyticsScript(): string {
 
   if (pageType === "knowledge_hub") send("view_knowledge_hub");
   if (pageType === "answer") send("view_search_answer");
-  if (pageType === "service") send("view_service");
+  if (pageType === "service") {
+    send("view_service");
+    send("view_item", {
+      items: [{
+        item_id: contentId,
+        item_name: contentId,
+        item_category: "laundry_service"
+      }]
+    });
+  }
   if (pageType === "article") send("view_article");
+  if (typeof window.gtag === "function") {
+    window.gtag("set", "content_group", pageType);
+  }
+
+  let maxScroll = 0;
+  const onScroll = () => {
+    const doc = document.documentElement;
+    const bodyEl = document.body;
+    const height = Math.max(doc.scrollHeight, bodyEl.scrollHeight) - window.innerHeight;
+    if (height <= 0) return;
+    const percent = Math.round((window.scrollY / height) * 100);
+    if (percent >= 50 && maxScroll < 50) {
+      maxScroll = 50;
+      send("scroll_depth", { percent_scrolled: 50 });
+    }
+    if (percent >= 90 && maxScroll < 90) {
+      maxScroll = 90;
+      send("scroll_depth", { percent_scrolled: 90 });
+    }
+  };
+  document.addEventListener("scroll", onScroll, { passive: true });
 
   document.addEventListener("click", (event) => {
     const target = event.target;
@@ -72,8 +102,16 @@ export function buildSearchContentAnalyticsScript(): string {
       return;
     }
 
+    // Internal funnel steps must not classify another site's matching path.
+    if (targetUrl.origin !== new URL(window.location.href).origin) return;
+
     if (targetUrl.pathname.endsWith("/go/line.html")) {
-      send("click_line_cta", { cta_name: ctaName });
+      // Entry slugs are not acquisition sources. Never forward arbitrary URL data.
+      const sources = targetUrl.searchParams.getAll("source");
+      const source = sources.length === 1 ? sources[0] : "";
+      const linkSource = source === source.trim() && /^[a-z][a-z0-9_-]{0,99}$/.test(source)
+        ? source : "unknown";
+      send("click_line_cta", { cta_name: ctaName, link_source: linkSource });
       return;
     }
 
@@ -216,7 +254,7 @@ export function assertSearchContentAnalyticsScript(script: string): void {
     click_service_from_answer: ["service_id", "cta_name"],
     click_service_from_article: ["service_id", "cta_name"],
     click_phone: ["cta_name"],
-    click_line_cta: ["cta_name"]
+    click_line_cta: ["cta_name", "link_source"]
   };
   for (const event of observed) {
     const requiredParameters = [
@@ -232,9 +270,54 @@ export function assertSearchContentAnalyticsScript(script: string): void {
       }
     }
   }
+  const viewItem = observed.find((event) => event.name === "view_item");
+  const items = viewItem?.params.items;
+  if (!Array.isArray(items) || items.length !== 1 ||
+      !items[0] || items[0].item_id !== "runtime-check" ||
+      items[0].item_name !== "runtime-check" || items[0].item_category !== "laundry_service") {
+    throw new Error("search-content analytics view_item requires a valid GA4 items array");
+  }
+  const externalScenarios: RuntimeScenario[] = [
+    { pageType: "knowledge_hub", href: "https://external.example/guides/test.html" },
+    { pageType: "knowledge_hub", href: "https://external.example/local/test.html" },
+    { pageType: "knowledge_hub", href: "https://external.example/services/test.html" },
+    { pageType: "answer", href: "https://external.example/services/test.html" },
+    { pageType: "article", href: "https://external.example/services/test.html" },
+    { pageType: "home", href: "https://external.example/go/line.html" }
+  ];
+  for (const scenario of externalScenarios) {
+    const externalEvents = observeRuntimeEvents(script, scenario);
+    if (externalEvents.some((event) => event.name.startsWith("click_"))) {
+      throw new Error("search-content analytics must not classify external links as internal funnel steps");
+    }
+  }
   for (const forbidden of ["line_click", "generate_lead"]) {
     if (observedNames.has(forbidden)) {
       throw new Error(`search-content analytics emitted forbidden event at runtime: ${forbidden}`);
     }
+  }
+
+  for (const [href, expectedSource] of [
+    ["/go/line.html?source=runtime-check", "runtime-check"],
+    ["/go/line.html?source=footer", "footer"],
+    ["/go/line.html", "unknown"],
+    ["/go/line.html?source=home&source=footer", "unknown"],
+    ["/go/line.html?source=person%40example.test", "unknown"]
+  ]) {
+    const clicks = observeRuntimeEvents(script, { pageType: "home", href })
+      .filter((event) => event.name === "click_line_cta");
+    const click = clicks[0];
+    if (clicks.length !== 1 || !click || click.params.link_source !== expectedSource) {
+      throw new Error("search-content analytics link_source must preserve one valid entry slug or be unknown");
+    }
+    for (const parameter of ["source", "medium", "campaign", "utm_source", "utm_medium"]) {
+      if (parameter in click.params) {
+        throw new Error("search-content analytics link_source must not override acquisition parameters");
+      }
+    }
+  }
+  if (observeRuntimeEvents(script, { pageType: "home", href: "https://external.example/go/line.html?source=footer" })
+    .some((event) => event.name === "click_line_cta")) {
+    throw new Error("search-content analytics must not classify external links as internal funnel steps");
   }
 }

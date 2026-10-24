@@ -1,0 +1,93 @@
+{
+  "project": "New project 5",
+  "site": "https://sixiangjialaundry.com",
+  "as_of": "2026-09-02T05:50:00+08:00",
+  "milestone": {
+    "name": "first-100-page",
+    "status": "not_achieved",
+    "live_sitemap_urls": 33,
+    "pilot_live_urls": 1,
+    "isolated_candidate_urls": 23,
+    "last_known_gsc_indexed": 25,
+    "last_known_gsc_known_urls": 32,
+    "last_known_gsc_snapshot": "2026-09-01",
+    "milestones_150_200": "deferred_until_100_verified"
+  },
+  "live_evidence": {
+    "sitemap_http_status": 200,
+    "sitemap_url_count": 33,
+    "sitemap_contains_pilot": true,
+    "pilot_http_status": 200,
+    "pilot_content_sha256": "31ee6c48b4dac2dd752afe0e5ad0153b177291c254eeea995c10df0a4413e2d5",
+    "pilot_content_bytes": 41933,
+    "pilot_self_canonical": true,
+    "pilot_indexable_directive": "index, follow",
+    "pilot_answer_surface_terms": ["鞋子臭", "鞋內悶味", "鞋子除臭", "台中洗鞋除臭"],
+    "pilot_lastmod": "2026-08-30",
+    "root_pages_commit": "18e9bc512d77a5e5fb3662d8f77dae6ee1a347cf",
+    "project_pages_commit": "f23f7fe797960bfa3be674e28a1eca7d1a061899",
+    "github_actions_run": "33562731871",
+    "indexing_push_report": "output/operations/indexing-push-2026-09-02.json",
+    "indexing_push_audited_200": 33,
+    "indexing_push_thin_pages": 0,
+    "indexing_push_unreachable": 0,
+    "live_url_audit": {
+      "total": 33,
+      "http_200": 33,
+      "self_canonical": 33,
+      "noindex": 0,
+      "body_under_500_chars": 0,
+      "report": "reports/live-sitemap-url-audit-2026-09-02.md"
+    },
+    "indexnow_submitted_after_correction": 2,
+    "indexnow_reason": "live propagation completed; one corrective same-day submission",
+    "indexnow_status_after_correction": 200,
+    "indexnow_urls_after_correction": [
+      "https://sixiangjialaundry.com/",
+      "https://sixiangjialaundry.com/services/shoe-bag-care.html"
+    ],
+    "indexnow_semantic_sha256_after_correction": "a125282f00129913d2e55112dc76658eaabb8af2c8ae30da62baf3a9c95a5750",
+    "indexnow_propagation_report": "reports/indexnow-propagation-2026-09-02.md",
+    "live_sitemap_after_propagation": {
+      "checked_at": "2026-09-02T05:47:00+08:00",
+      "http_status": 200,
+      "root_lastmod": "2026-09-02",
+      "shoe_bag_lastmod": "2026-09-02",
+      "sitemap_contains_pilot": true,
+      "github_actions_run": "33562731871"
+    }
+  },
+  "gsc_evidence": {
+    "snapshot": "data/insights/gsc-index/2026-09-01.json",
+    "fresh_for_2026-09-02": false,
+    "indexed": 25,
+    "discovered_not_indexed": 6,
+    "crawled_not_indexed": 1,
+    "claim": "unmeasured_for_new_33_url_state"
+  },
+  "ga4_evidence": {
+    "report": "data/insights/ga4-traffic/2026-09-01.json",
+    "fresh_for_2026-09-02": false,
+    "sessions": 3,
+    "google_organic_sessions": 0,
+    "ai_sessions": 0,
+    "line_clicks": null,
+    "line_clicks_status": "unmeasured"
+  },
+  "decision_gate": {
+    "pilot_published_date": "2026-09-02",
+    "day_7": "2026-09-09",
+    "day_28": "2026-09-30",
+    "status": "PENDING",
+    "adopt_rule": "28 日內 indexed 且出現非品牌 GSC impressions，並有 GA4 organic 或 LINE 訊號",
+    "retest_rule": "只有 crawl 前進、資料不足或曝光無法判定",
+    "reject_rule": "資料完整且 28 日仍未收錄／被 canonical 合併，或無非品牌需求訊號",
+    "expansion_rule": "只有 ADOPT 才能每批增加 4–6 頁"
+  },
+  "scope_control": {
+    "unverified_candidates_not_live": 23,
+    "no_mass_thin_pages": true,
+    "no_duplicate_indexnow": true,
+    "google_indexing_claim": "unmeasured"
+  }
+}

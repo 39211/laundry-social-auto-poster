@@ -185,8 +185,10 @@ export function guideLinkFor(topic: string): string {
   if (/白鞋|泛黃/.test(topic)) return `${SITE}/guides/white-shoe-yellowing.html`;
   if (/雨|淋濕|進水/.test(topic)) return `${SITE}/guides/rainy-shoe-care.html`;
   if (/鞋|靴/.test(topic)) return `${SITE}/services/white-shoe-cleaning.html`;
-  if (/行李箱|行李/.test(topic)) return `${SITE}/guides/bag-handle-cleaning.html`;
+  if (/行李箱|行李/.test(topic)) return `${SITE}/guides/luggage-wheel-cleaning.html`;
   if (/包|提把|包角|背包/.test(topic)) return `${SITE}/guides/bag-handle-cleaning.html`;
+  if (/窗簾/.test(topic)) return `${SITE}/guides/curtain-cleaning.html`;
+  if (/地毯/.test(topic)) return `${SITE}/guides/carpet-cleaning.html`;
   if (/皮衣|皮革|發霉/.test(topic)) return `${SITE}/guides/leather-jacket-care.html`;
   if (/羽絨/.test(topic)) return `${SITE}/guides/down-jacket-cleaning.html`;
   if (/西裝|襯衫|肩線|領口/.test(topic)) return `${SITE}/guides/shirt-suit-dry-cleaning.html`;
@@ -202,12 +204,20 @@ function topicObject(topic: string): string {
   return match ? match[0] : "衣物";
 }
 
+function dryRunResult(): { status: "dry_run" } {
+  console.log("YT dry-run，未上傳");
+  return { status: "dry_run" };
+}
+
 export async function uploadShort(input: {
   date: string;
   slot?: number;
   root?: string;
   fetchImpl?: typeof fetch;
-}): Promise<YouTubeLogEntry | { skipped: string }> {
+  /** 只有 true 會上傳。省略時一律 dry-run，不讀 DRY_RUN。 */
+  live?: boolean;
+}): Promise<YouTubeLogEntry | { skipped: string } | { status: "dry_run" }> {
+  if (input.live !== true) return dryRunResult();
   const root = projectRoot(input.root);
   const slotNumber = input.slot ?? 2;
   const fetchImpl = input.fetchImpl ?? fetch;
@@ -286,12 +296,15 @@ export async function scheduleYouTubeShort(input: {
   root?: string;
   now?: Date;
   fetchImpl?: typeof fetch;
+  /** 只有 true 會上傳。省略時一律 dry-run，不讀 DRY_RUN。 */
+  live?: boolean;
 }): Promise<{
-  status: "scheduled" | "skipped";
+  status: "scheduled" | "skipped" | "dry_run";
   reason?: string;
   video_id?: string;
   scheduled_publish_at?: string;
 }> {
+  if (input.live !== true) return dryRunResult();
   const root = projectRoot(input.root);
   const slotNumber = input.slot;
   const fetchImpl = input.fetchImpl ?? fetch;
@@ -447,7 +460,7 @@ async function runAuthFlow(root: string): Promise<void> {
       consent.searchParams.set("client_id", clientId);
       consent.searchParams.set("redirect_uri", `http://127.0.0.1:${port}`);
       consent.searchParams.set("response_type", "code");
-      consent.searchParams.set("scope", "https://www.googleapis.com/auth/youtube.upload");
+      consent.searchParams.set("scope", "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly");
       consent.searchParams.set("access_type", "offline");
       consent.searchParams.set("prompt", "consent");
       console.log("\n請用瀏覽器開啟以下網址完成授權：\n");
@@ -484,8 +497,10 @@ async function runAuthFlow(root: string): Promise<void> {
   console.log("授權完成，refresh token 已寫入 .env(未顯示)。之後每天的 Reel 會自動上傳 YouTube。");
 }
 
-async function main(): Promise<void> {
-  const args = process.argv.slice(2);
+export async function runYouTubeCli(
+  args: string[],
+  deps: { fetchImpl?: typeof fetch; now?: Date } = {}
+): Promise<unknown> {
   const root = projectRoot(getOption(args, "root"));
 
   if (getFlag(args, "auth")) {
@@ -496,11 +511,19 @@ async function main(): Promise<void> {
   const config = getConfig();
   const date = getOption(args, "date") ?? getZonedDateParts(new Date(), config.timezone).date;
   const slot = getNumberOption(args, "slot") ?? 2;
-  // R6: --schedule-ahead takes the new path; omitting it leaves live uploadShort.
+  // 只有明確的 --live 會上傳。DRY_RUN 不能取消 --live，也不能在沒有 --live 時促成上傳。
+  const live = getFlag(args, "live");
+  // --schedule-ahead 走排程上傳；沒有它就走即時上傳。兩條都要 --live。
   const result = getFlag(args, "schedule-ahead")
-    ? await scheduleYouTubeShort({ date, slot, root })
-    : await uploadShort({ date, slot, root });
+    ? await scheduleYouTubeShort({ date, slot, root, now: deps.now, fetchImpl: deps.fetchImpl, live })
+    : await uploadShort({ date, slot, root, fetchImpl: deps.fetchImpl, live });
+  if (!live) return result;
   console.log(JSON.stringify(result, null, 2));
+  return result;
+}
+
+async function main(): Promise<void> {
+  await runYouTubeCli(process.argv.slice(2));
 }
 
 if (isMain(import.meta.url)) {

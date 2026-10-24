@@ -1,0 +1,10 @@
+{
+  "narration": true,
+  "generated_clip_audio_used": false,
+  "source": "post-ambient-bed",
+  "narr_delay_ms": 0,
+  "narration_engine": "retained v6f narration; see narration-timing-1021-v8-merged.json",
+  "narration_lines": "narration-lines-1021-v8.json (9 install lines; N9 combines spoken N9a+N9b); subs-1021-v8.ass are key-point captions, burned in",
+  "foley": "Retained v6f audio track; no source audio mixed from new shots.",
+  "assembled_by": "c1021 v10c"
+}

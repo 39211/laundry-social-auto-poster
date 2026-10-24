@@ -26,6 +26,23 @@ function Write-Log([string]$message) {
     ("[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $now, $message) | Out-File -FilePath $logFile -Append -Encoding utf8
 }
 
+function Get-PlannedObject([string]$Root, [string]$Date) {
+    $plannedObject = ""
+    try {
+        $planRaw = [IO.File]::ReadAllText((Join-Path $Root "data\slot1-plan.json"), [Text.UTF8Encoding]::new($false))
+        $plan = ConvertFrom-Json $planRaw
+        $plannedObject = $plan.$Date
+    } catch {}
+    if (-not $plannedObject) {
+        try {
+            $extendedPlanRaw = [IO.File]::ReadAllText((Join-Path $Root "data\slot1-plan-ext.json"), [Text.UTF8Encoding]::new($false))
+            $extendedPlan = ConvertFrom-Json $extendedPlanRaw
+            $plannedObject = $extendedPlan.$Date.object
+        } catch {}
+    }
+    return [string]$plannedObject
+}
+
 function Show-Toast([string]$text) {
     try {
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
@@ -72,6 +89,28 @@ Pop-Location
 
 $calendar = Join-Path $root "data\content-calendar\$date.json"
 $hasCalendar = Test-Path $calendar
+# 2026-10-22: tsx/esbuild can fail with spawn EPERM inside Codex's Windows
+# sandbox. Create a missing calendar here so the existing images-only path
+# can run; keep full Codex generation as the explicitly reported fallback.
+if (-not $hasCalendar) {
+    Write-Log "No calendar for $date; generating context and calendar outside the Codex sandbox."
+    Push-Location $root
+    cmd /c "npm.cmd run generate-context -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    $calendarContextCode = $LASTEXITCODE
+    $calendarGenerateCode = $null
+    if ($calendarContextCode -eq 0) {
+        cmd /c "npm.cmd run generate -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        $calendarGenerateCode = $LASTEXITCODE
+    }
+    Pop-Location
+    $hasCalendar = ($calendarContextCode -eq 0 -and $calendarGenerateCode -eq 0 -and (Test-Path $calendar))
+    if ($hasCalendar) {
+        Write-Log "Context and calendar for $date generated outside the Codex sandbox; continuing with existing-calendar checks."
+    } else {
+        Write-Log "Calendar pre-generation for $date failed (generate-context=$calendarContextCode, generate=$calendarGenerateCode, calendar=$hasCalendar); falling back to Codex generation."
+        Show-Toast "目標日 ($date) 的日曆預先生成失敗,將改用 Codex 備援生成,請看 log。"
+    }
+}
 $imagesReady = $false
 if ($hasCalendar) {
     Push-Location $root
@@ -134,18 +173,15 @@ function Publish-Site {
     cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     $ok = ($LASTEXITCODE -eq 0)
     if ($ok) {
-        cmd /c "npm.cmd run submit-indexnow -- --live 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-        # Daily indexing push and audit: resubmits today's changed URLs plus the
-        # landing pages, then verifies each is reachable and above the thin-page
-        # floor. Thin pages are what Google reports as "crawled, currently not
-        # indexed", so they get flagged the day they appear instead of silently
-        # sitting in the sitemap. Never blocks the publish result.
+        # One changed-URL IndexNow path only. indexing-push records the semantic
+        # sitemap fingerprint, so an unchanged sitemap is audited but never sent
+        # a second time. A notification is not evidence of Google indexing.
         cmd /c "npm.cmd run indexing-push -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
         if ($LASTEXITCODE -ne 0) {
             Write-Log "Indexing audit flagged thin or unreachable pages; see output\operations\indexing-push-$date.json"
             Show-Toast "$date 索引稽核有頁面過薄或連不到,請看 output\operations\indexing-push-$date.json"
         }
-        Write-Log "Public site pushed, IndexNow submitted, indexing audit run."
+        Write-Log "Public site pushed; changed-URL IndexNow decision and indexing audit recorded."
     } else {
         Write-Log "publish-pages failed; assets exist locally but are not online."
         Show-Toast "$date 的公開站沒推上去,發文會被公開資產檢查擋下,請看 log。"
@@ -163,6 +199,12 @@ if ($hasCalendar -and $imagesReady) {
     Invoke-DayCarouselVisualQa
     Lock-Day
     if (Publish-Site) { exit 0 } else { exit 1 }
+}
+
+function Get-LaundryCodexModel {
+    $model = ([string]$env:LAUNDRY_CODEX_MODEL).Trim()
+    if ($model) { return $model }
+    return "gpt-5.6-luna"
 }
 
 $codex = Join-Path $env:APPDATA "npm\codex.cmd"
@@ -214,12 +256,7 @@ if ($hasCalendar) {
     # four times in five days and then looped 帆布鞋/襯衫領 reruns on 08-10.
     # The repeat/mismatch gates still verify afterwards; this just makes the
     # first attempt the right one.
-    $plannedObject = ""
-    try {
-        $planRaw = [IO.File]::ReadAllText((Join-Path $root "data\slot1-plan.json"), [Text.UTF8Encoding]::new($false))
-        $plan = ConvertFrom-Json $planRaw
-        $plannedObject = $plan.$date
-    } catch {}
+    $plannedObject = Get-PlannedObject -Root $root -Date $date
     $planLine = ""
     if ($plannedObject) {
             $hookLine = ""
@@ -249,7 +286,7 @@ Push-Location $root
 # depends on two dedicated local accounts whose stored credentials this
 # machine's DPAPI can no longer decrypt. "unelevated" uses the current
 # login's own restricted token instead, sidestepping that credential store.
-$output = & $codex exec -C $root -s workspace-write -c 'windows.sandbox="unelevated"' $prompt 2>&1
+$output = & $codex exec -m (Get-LaundryCodexModel) -C $root -s workspace-write -c 'windows.sandbox="unelevated"' $prompt 2>&1
 $exitCode = $LASTEXITCODE
 Pop-Location
 $output | Out-File -FilePath $logFile -Append -Encoding utf8

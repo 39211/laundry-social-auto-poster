@@ -1,0 +1,12 @@
+<<<OBSERVE_BEGIN>>>
+IMAGE_1 canary=VR7R
+IMAGE_2 canary=R3VL
+OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=CLEAN hands=NONE scene=PINK_MAT_SLAT_WALL
+OBS_2 role=AFTER act=after laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=CLEAN hands=OK scene=PINK_MAT_SLAT_WALL
+COMPARE ACCESSORY_COLOR identity_change=NO
+COMPARE ORIENTATION identity_flip=NO
+COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"stills-blanket-pilling","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"Both acts show the same folded gray blanket with matching outline, material, and layer count.","ACCESSORY_COLOR":"No laces or hardware are visible in either act.","ORIENTATION":"The blanket retains the same three-quarter-right presentation in both acts.","STATE_ORDER":"The before act shows a rougher raised surface, while the after act shows a flatter, more uniform finish.","MIDDLE_NOT_WORSE":"No middle act is attached, so the comparison is before then after only.","HANDS":"The visible hands in the after act have normal anatomy and grip.","SCENE":"Both acts use the same white counter, pink mat, and slat-wall shop setting."},"frames_used":["before.png","after.png"]}
+<<<VISUAL_QA_END>>>

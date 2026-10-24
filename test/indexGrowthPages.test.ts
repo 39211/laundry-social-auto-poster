@@ -11,17 +11,20 @@ import {
   citationAnswerLength,
   claimProvenanceBinding,
   frozenSourceRecordHash,
+  isPostsSurfacePath,
   ngramJaccard,
   normalizeDiagnosticText,
   pageDiagnosticText,
   protectedSupportContentHash,
   resolveAcceptedIndexGrowthPages,
+  robotsMetaIsNoindex,
+  sitemapShouldOmitUrl,
   validateIndexGrowthPages
 } from "../src/indexGrowthPages";
 import type { FrozenSourceRecord, IndexGrowthPageDefinition } from "../src/indexGrowthPages";
 import { KNOWN_SERVICE_SLUGS } from "../src/publicSiteTypes";
 
-const TODAY = "2026-09-03";
+const TODAY = "2026-09-07";
 const CLONE_SLUG = "suede-shoe-cleaning-unseen-geo-clone";
 
 function catalogPage(slug: string): IndexGrowthPageDefinition {
@@ -221,8 +224,8 @@ describe("indexGrowthPages validator", () => {
       summary: "未來日期不能寫進 lastmod。",
       local_intent: "未來日期意圖",
       canonical_intent_slug: "future-lastmod",
-      content_lastmod: "2026-09-04",
-      content_revision: "2026-09-04#1"
+      content_lastmod: "2026-09-08",
+      content_revision: "2026-09-08#1"
     };
     const revisionMismatch = {
       ...base,
@@ -652,8 +655,8 @@ describe("indexGrowthPages fail-closed mutations", () => {
     if (!lock) throw new Error("missing rainy-bag lock");
     const originalRevision = lock.content_revision;
     const originalHash = lock.body_hash;
-    const nextDay = "2026-09-04";
-    const priorDay = "2026-09-03";
+    const nextDay = "2026-09-08";
+    const priorDay = "2026-09-07";
     const updatedCatalog = INDEX_GROWTH_CATALOG.map((page) =>
       page.slug === slug
         ? {
@@ -712,5 +715,33 @@ describe("indexGrowthPages fail-closed mutations", () => {
       true
     );
     expect(validateIndexGrowthPages(INDEX_GROWTH_CATALOG, { today: TODAY }).ok).toBe(true);
+  });
+});
+
+describe("sitemap omission", () => {
+  const noindexPaths = new Set(["local/dadu-laundry-pickup.html", "price-list.html"]);
+
+  it("omits /posts/ and robots noindex paths from both sitemaps", () => {
+    expect(isPostsSurfacePath("/posts/")).toBe(true);
+    expect(isPostsSurfacePath("/posts/2026-10-16-slot-01.html")).toBe(true);
+    expect(isPostsSurfacePath("/guides/hat-cleaning.html")).toBe(false);
+    expect(robotsMetaIsNoindex('<meta name="robots" content="noindex, follow" />')).toBe(true);
+    expect(robotsMetaIsNoindex('<meta name="robots" content="index, follow, max-image-preview:large" />')).toBe(
+      false
+    );
+    expect(sitemapShouldOmitUrl("https://sixiangjialaundry.com/posts/", noindexPaths)).toBe(true);
+    expect(
+      sitemapShouldOmitUrl("https://sixiangjialaundry.com/posts/2026-10-16-slot-01.html", noindexPaths)
+    ).toBe(true);
+    expect(sitemapShouldOmitUrl("https://sixiangjialaundry.com/local/dadu-laundry-pickup.html", noindexPaths)).toBe(
+      true
+    );
+    expect(sitemapShouldOmitUrl("https://sixiangjialaundry.com/price-list.html", noindexPaths)).toBe(true);
+    expect(
+      sitemapShouldOmitUrl("https://sixiangjialaundry.com/local/west-district-laundry-pickup.html", noindexPaths)
+    ).toBe(false);
+    expect(sitemapShouldOmitUrl("https://sixiangjialaundry.com/guides/casual-shoe-cleaning.html", noindexPaths)).toBe(
+      false
+    );
   });
 });

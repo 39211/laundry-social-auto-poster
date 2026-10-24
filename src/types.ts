@@ -87,6 +87,10 @@ export interface DailySlot {
   time: string;
   category: Category;
   topic: string;
+  /** Exact extension-plan item shared by the day's images. */
+  planned_object?: string;
+  /** Persisted declaration used when rebuilding stored image prompts. */
+  planned_category?: string;
   format?: string;
   media_type?: MediaType;
   instagram_caption: string;
@@ -107,7 +111,7 @@ export interface DailySlot {
   target_queries?: string[];
   evidence_type?: SearchEvidenceType;
   ten_day_review_metric?: string;
-  content_plan_source?: "growth-playbook" | "legacy-template";
+  content_plan_source?: "growth-playbook" | "legacy-template" | "slot1-plan-ext";
   local_image_path: string;
   public_image_url: string;
   local_video_path?: string;

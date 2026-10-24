@@ -1,0 +1,10 @@
+{
+  "narration": true,
+  "generated_clip_audio_used": false,
+  "source": "post-ambient-bed",
+  "narr_delay_ms": 0,
+  "narration_engine": "edge-tts zh-TW-HsiaoChenNeural rate +10% (audio-c / audio-r / audio-n4)",
+  "narration_lines": "narration-lines-1014-A-v14.json (8 lines, spoken); subs-1014-A-v14.ass = key-point captions, burned in.",
+  "foley": "Pixabay lo-fi music bed ducked under speech; the takes carry no audio stream into the mix. Source label post-ambient-bed is the only value ownerVideoReview accepts for post-produced audio",
+  "assembled_by": "A v14 cut source C:\\Users\\cyc39\\AI-Lanes\\p1014a\\cut-v16n; package prepared 2026-10-12."
+}

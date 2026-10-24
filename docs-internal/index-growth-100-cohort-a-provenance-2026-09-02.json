@@ -1,0 +1,158 @@
+{
+  "as_of": "2026-09-02",
+  "purpose": "Cohort A 離線候選頁的內容、檔案與部署邊界證據；不是發布許可。",
+  "source_worktree": "C:/Users/cyc39/.codex/worktrees/sxj-index-growth-pilot-minimal-20260902",
+  "offline_source_binding": {
+    "file": "docs/index.html",
+    "sha256": "1d679df877a81528ab1465640f06d77a73deee9774d5474c3adcbc6bdb3333f1",
+    "bytes": 95976,
+    "note": "Line references below are bound to this exact offline first-party build; it is not the live Pages deployment."
+  },
+  "release_policy": "HOLD_UNTIL_PILOT_ADOPT",
+  "live_baseline": {
+    "sitemap_url": "https://sixiangjialaundry.com/sitemap.xml",
+    "sitemap_url_count": 33,
+    "pilot_url": "https://sixiangjialaundry.com/guides/shoe-odor-source.html",
+    "pilot_http_status": 200,
+    "candidate_live_status": 404,
+    "note": "HTTP 200、sitemap 或 IndexNow 不等於 Google 已收錄。"
+  },
+  "candidates": [
+    {
+      "slug": "suede-shoe-cleaning",
+      "path": "docs/guides/suede-shoe-cleaning.html",
+      "sha256": "3fcd15593d6c5e23369c945a74e9a4123d84b35e1e53d158a2e06cfefa75ff33",
+      "bytes": 42584,
+      "body_chars": 1241,
+      "canonical": "https://sixiangjialaundry.com/guides/suede-shoe-cleaning.html",
+      "answer_surface": "麂皮變硬多半是絨毛倒伏，不要濕擦；先乾刷看方向。",
+      "jsonld_count": 1,
+      "asset_refs": 7,
+      "intent_terms": ["麂皮鞋清潔", "麂皮鞋變硬", "麂皮鞋發亮"],
+      "offline_source_match": {
+        "status": "MATCHED_IN_ISOLATED_FIRST_PARTY_BUILD",
+        "file": "docs/index.html",
+        "line": 761,
+        "exact_surface": "麂皮變硬多半是絨毛倒伏，不要濕擦；先乾刷看方向。",
+        "independent_case_evidence": "NOT_ESTABLISHED"
+      },
+      "validation": {
+        "structural": "PASS",
+        "claim_provenance": "PARTIAL_MATCH_ONLY",
+        "asset_provenance": "PENDING_RECHECK",
+        "live_http_status": 404
+      }
+    },
+    {
+      "slug": "canvas-shoe-mud",
+      "path": "docs/guides/canvas-shoe-mud.html",
+      "sha256": "0b0d6298c7d3196d12d31187eaa4e3b5d8c1011be3a8fdeab15f08ed446397bb",
+      "bytes": 42043,
+      "body_chars": 1159,
+      "canonical": "https://sixiangjialaundry.com/guides/canvas-shoe-mud.html",
+      "answer_surface": "帆布沾泥先等乾再處理；濕刷會把泥推進織紋。",
+      "jsonld_count": 1,
+      "asset_refs": 7,
+      "intent_terms": ["帆布鞋沾泥", "帆布鞋清潔", "帆布鞋泥巴"],
+      "offline_source_match": {
+        "status": "MATCHED_IN_ISOLATED_FIRST_PARTY_BUILD",
+        "file": "docs/index.html",
+        "line": 770,
+        "exact_surface": "帆布沾泥先等乾再處理；濕刷會把泥推進織紋。",
+        "independent_case_evidence": "NOT_ESTABLISHED"
+      },
+      "validation": {
+        "structural": "PASS",
+        "claim_provenance": "PARTIAL_MATCH_ONLY",
+        "asset_provenance": "PENDING_RECHECK",
+        "live_http_status": 404
+      }
+    },
+    {
+      "slug": "leather-shoe-water-marks",
+      "path": "docs/guides/leather-shoe-water-marks.html",
+      "sha256": "27ee1d06a84fbec30c5910ce38c8cee710aac0ffebd593ab90137a06228a0365",
+      "bytes": 42310,
+      "body_chars": 1158,
+      "canonical": "https://sixiangjialaundry.com/guides/leather-shoe-water-marks.html",
+      "answer_surface": "皮鞋雨痕先不要上油；水痕浮出後上油會鎖進皮裡。",
+      "jsonld_count": 1,
+      "asset_refs": 7,
+      "intent_terms": ["皮鞋水痕", "皮鞋淋雨", "皮鞋上油"],
+      "offline_source_match": {
+        "status": "MATCHED_IN_ISOLATED_FIRST_PARTY_BUILD",
+        "file": "docs/index.html",
+        "line": 779,
+        "exact_surface": "皮鞋雨痕先不要上油；水痕浮出後上油會鎖進皮裡。",
+        "independent_case_evidence": "NOT_ESTABLISHED"
+      },
+      "validation": {
+        "structural": "PASS",
+        "claim_provenance": "PARTIAL_MATCH_ONLY",
+        "asset_provenance": "PENDING_RECHECK",
+        "live_http_status": 404
+      }
+    },
+    {
+      "slug": "washing-machine-shoe-risk",
+      "path": "docs/guides/washing-machine-shoe-risk.html",
+      "sha256": "c02f3db93235f9d09f780088889432479007d2047fd10e1382e642710df37647",
+      "bytes": 42510,
+      "body_chars": 1200,
+      "canonical": "https://sixiangjialaundry.com/guides/washing-machine-shoe-risk.html",
+      "answer_surface": "鞋子不建議丟洗衣機；泡水與脫水會傷膠邊與內裡。",
+      "jsonld_count": 1,
+      "asset_refs": 7,
+      "intent_terms": ["鞋子可以丟洗衣機嗎", "鞋子洗衣機", "鞋子脫膠"],
+      "offline_source_match": {
+        "status": "MATCHED_IN_ISOLATED_FIRST_PARTY_BUILD",
+        "file": "docs/index.html",
+        "line": 797,
+        "exact_surface": "鞋子不建議丟洗衣機；泡水與脫水會傷膠邊與內裡。",
+        "independent_case_evidence": "NOT_ESTABLISHED"
+      },
+      "validation": {
+        "structural": "PASS",
+        "claim_provenance": "PARTIAL_MATCH_ONLY",
+        "asset_provenance": "PENDING_RECHECK",
+        "live_http_status": 404
+      }
+    },
+    {
+      "slug": "athletic-shoe-mixed-materials",
+      "path": "docs/guides/athletic-shoe-mixed-materials.html",
+      "sha256": "a7311e3a2f8322f49197eafd07bb2118a2d452e6436072a817488e61305030ac",
+      "bytes": 42685,
+      "body_chars": 1190,
+      "canonical": "https://sixiangjialaundry.com/guides/athletic-shoe-mixed-materials.html",
+      "answer_surface": "運動鞋要分網布、膠邊與內裡；不能同一種刷法。",
+      "jsonld_count": 1,
+      "asset_refs": 7,
+      "intent_terms": ["運動鞋清潔", "運動鞋混合材質", "網布鞋清潔"],
+      "offline_source_match": {
+        "status": "MATCHED_IN_ISOLATED_FIRST_PARTY_BUILD",
+        "file": "docs/index.html",
+        "line": 806,
+        "exact_surface": "運動鞋要分網布、膠邊與內裡；不能同一種刷法。",
+        "independent_case_evidence": "NOT_ESTABLISHED"
+      },
+      "validation": {
+        "structural": "PASS",
+        "claim_provenance": "PARTIAL_MATCH_ONLY",
+        "asset_provenance": "PENDING_RECHECK",
+        "live_http_status": 404
+      }
+    }
+  ],
+  "link_closure": {
+    "guide_targets_total": 10,
+    "existing_targets_live_200": 5,
+    "candidate_targets_live_404": 5,
+    "required_release_shape": "同批 overlay 五頁後重新驗證所有 guide 內鏈為 live 200；不可單頁放出。"
+  },
+  "measurement_gate": {
+    "day_7": "只判 GSC inspection 抓取、canonical 與資料新鮮度；未抓取不判詞有效或無效。",
+    "day_28": "只有非品牌 GSC impressions 且 GA4 organic 或 LINE click 有訊號，才可 ADOPT；缺欄位為 INCONCLUSIVE。",
+    "keyword_rule": "關鍵詞只作意圖映射與觀測白名單；無曝光不自動新增 URL，無效詞以同一意圖的已驗證詞替換。"
+  }
+}

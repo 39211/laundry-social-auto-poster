@@ -1,0 +1,77 @@
+{
+  "topic": "民宿床組一週要換幾輪？批量送洗前先數這 3 件事",
+  "date": "2026-09-09",
+  "slot": 1,
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "SCENE": "PASS",
+    "TOPIC_MATCH": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "四張主體皆為奶油白色、深藍滾邊的梭織被件，色系、物件類型與粗略材質一致。",
+    "SCENE": "四張皆呈現金屬工作檯與淺色磁磚牆，場景家族一致。",
+    "TOPIC_MATCH": "四張主體皆為床用被件，符合民宿床組送洗主題。"
+  },
+  "frames_used": [
+    "slide-01.png",
+    "slide-02.png",
+    "slide-03.png",
+    "slide-04.png"
+  ],
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-01.png",
+      "canary": "225H",
+      "sha256": "59d7d0794b089419332da22457ebbab5a0b9279c345081bc5cdbe7633477e16d"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-01-slide-02.png",
+      "canary": "S5UR",
+      "sha256": "8125737ffc8a1fe22bd8a89a1a62885966a3c25ad7a16e1e409e4db9da7034d8"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-01-slide-03.png",
+      "canary": "66GN",
+      "sha256": "a688d03a3600f910b226947e71ec02893ee5654e159dca2568629dd8e6bff9af"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-01-slide-04.png",
+      "canary": "MPUK",
+      "sha256": "922d60bd70e851db81e4b2b742871047bcfabb9d83cb626056df1e8cdf3718fa"
+    }
+  ],
+  "sources": [
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-01.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-01-slide-02.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-01-slide-03.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-09\\slot-01-slide-04.png"
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "225H",
+    "IMAGE_2": "S5UR",
+    "IMAGE_3": "66GN",
+    "IMAGE_4": "MPUK"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "225H",
+    "IMAGE_2": "S5UR",
+    "IMAGE_3": "66GN",
+    "IMAGE_4": "MPUK"
+  },
+  "prompt_hash": "94f4d2eb4591647b6be70356b5315e625ad5928c9d758abc6c83ed35213f601f",
+  "run_id": "carousel-qa-1788748052142",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-09-07T02:28:51.622Z",
+  "mode": "warn",
+  "verdict": "FAIL_CLOSED",
+  "fail_class": "missing_observation"
+}

@@ -17,7 +17,12 @@ import {
   writePostLog
 } from "../src/logging";
 import { videoRepairQueuePath } from "../src/paths";
-import { classifyVideoFailure, isRetiredVideoAbsenceReason, postCurrentSlot } from "../src/postCurrentSlot";
+import {
+  assertInsidePublishWindow,
+  classifyVideoFailure,
+  isRetiredVideoAbsenceReason,
+  postCurrentSlot
+} from "../src/postCurrentSlot";
 import { approvePost } from "../src/approvePost";
 
 async function exists(filePath: string): Promise<boolean> {
@@ -101,6 +106,31 @@ describe("postCurrentSlot dry-run integration", () => {
 
     const log = await loadPostLog("2026-05-15", root);
     expect(log).toHaveLength(2);
+  });
+
+  it("excludes an assigned future slot from the all-due live selection", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-all-due-assigned-time-"));
+    const date = "2026-10-06";
+    await generateDailyContent({ date, root, force: true });
+    await mkdir(join(root, "data", "publish-times"), { recursive: true });
+    await writeFile(join(root, "data", "publish-times", `${date}.json`), JSON.stringify({
+      date,
+      experiment: "afternoon-vs-usual-2026-10",
+      assigned_at: "2026-10-03T13:40:12.345Z",
+      slots: [{ slot: 1, time: "14:12", arm: "afternoon" }]
+    }));
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    const results = await postCurrentSlot({
+      root,
+      date,
+      now: `${date}T12:00:00+08:00`,
+      allDue: true,
+      dryRun: true,
+      verifyPublicImageUrl: false,
+      fetchImpl
+    });
+    expect(results).toEqual([]);
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("refuses to publish a tampered calendar without throwing", async () => {
@@ -753,5 +783,56 @@ describe("postCurrentSlot dry-run integration", () => {
 
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(await exists(join(root, "data", "posted-log", "2026-05-15.json"))).toBe(false);
+  });
+});
+
+describe("assertInsidePublishWindow", () => {
+  beforeEach(() => {
+    vi.stubEnv("ALLOW_OFF_SCHEDULE_PUBLISH", "false");
+  });
+
+  it("uses the assigned slot 2 time for the four-hour live publish window", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-slot2-publish-window-"));
+    const date = "2026-10-06";
+    const publishTimesDir = join(root, "data", "publish-times");
+    await mkdir(publishTimesDir, { recursive: true });
+    await writeFile(
+      join(publishTimesDir, `${date}.json`),
+      JSON.stringify({ date, slots: [{ slot: 2, time: "14:40" }] })
+    );
+
+    expect(() =>
+      assertInsidePublishWindow(2, getConfig(), new Date(`${date}T14:45:00+08:00`), date, root)
+    ).not.toThrow();
+    expect(() =>
+      assertInsidePublishWindow(2, getConfig(), new Date(`${date}T20:35:00+08:00`), date, root)
+    ).toThrow("its window is 14:40 to four hours after.");
+  });
+
+  it("allows slot 1 at 15:35 when that day's assigned time is 15:30", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-slot1-publish-window-"));
+    const date = "2026-10-06";
+    const publishTimesDir = join(root, "data", "publish-times");
+    await mkdir(publishTimesDir, { recursive: true });
+    await writeFile(
+      join(publishTimesDir, `${date}.json`),
+      JSON.stringify({ date, slots: [{ slot: 1, time: "15:30" }] })
+    );
+
+    expect(() =>
+      assertInsidePublishWindow(1, getConfig(), new Date(`${date}T15:35:00+08:00`), date, root)
+    ).not.toThrow();
+  });
+
+  it("keeps the existing default-time window when no daily time file exists", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-default-publish-window-"));
+    const date = "2026-10-06";
+
+    expect(() =>
+      assertInsidePublishWindow(2, getConfig(), new Date(`${date}T14:45:00+08:00`), date, root)
+    ).toThrow("its window is 20:30 to four hours after.");
+    expect(() =>
+      assertInsidePublishWindow(1, getConfig(), new Date(`${date}T15:35:00+08:00`), date, root)
+    ).toThrow("its window is 11:30 to four hours after.");
   });
 });

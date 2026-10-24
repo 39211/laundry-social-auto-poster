@@ -34,6 +34,25 @@ function jsonResponse(payload: unknown, status = 200): Response {
 }
 
 describe("postInstagramPhoto container readiness", () => {
+  it("does not add Reel AI disclosure to an Instagram photo container", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ id: "container-photo" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "container-photo", status_code: "FINISHED" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "published-photo" })) as unknown as typeof fetch;
+
+    await postInstagramPhoto(input, liveConfig, fetchImpl, {
+      maxAttempts: 1,
+      intervalMs: 0,
+      sleep: async () => undefined
+    });
+
+    const createBody = ((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as RequestInit)
+      .body as URLSearchParams;
+    expect(createBody.get("image_url")).toBe(input.imageUrl);
+    expect(createBody.has("is_ai_generated")).toBe(false);
+  });
+
   it("waits for FINISHED before publishing and does not write posted logs directly", async () => {
     const fetchImpl = vi
       .fn()

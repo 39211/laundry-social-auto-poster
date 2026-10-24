@@ -11,7 +11,7 @@ import {
   repeatingObjectGram,
   topicRepeatsInWindow
 } from "../src/contentPlan";
-import { SHARED_STILL_PROMPT } from "../src/reelConcepts";
+import { SHARED_STILL_PROMPT, fillStillPrompt } from "../src/reelConcepts";
 import { reelCoverPrompt, reelCoverSourceRel, scheduleReel } from "../src/scheduleReel";
 
 const config = getConfig({
@@ -141,9 +141,15 @@ describe("reel cover manifest is a copy or a shop-scene generation", () => {
 
   it("wraps a generated cover in SHARED_STILL_PROMPT when no before still exists", () => {
     const prompt = reelCoverPrompt(concept);
-    expect(prompt).toBe(SHARED_STILL_PROMPT.replace("[SUBJECT]", concept.before_subject));
+    expect(prompt).toBe(
+      fillStillPrompt(SHARED_STILL_PROMPT, concept.before_subject, concept.object_type)
+    );
     expect(prompt).toContain(concept.before_subject);
     expect(prompt).toContain("pink cutting mat");
+    // The shell carries two placeholders now; shipping either one unfilled
+    // sends the literal token to the image model.
+    expect(prompt).not.toContain("[SUBJECT]");
+    expect(prompt).not.toContain("[OPTICS]");
     expect(prompt).not.toMatch(/^Reel cover still:/);
     expect(prompt.length).toBeGreaterThan(concept.before_subject.length + 80);
   });

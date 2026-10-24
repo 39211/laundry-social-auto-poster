@@ -1,0 +1,18 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 720
+PlayResY: 1280
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Narration,Microsoft JhengHei,40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H73000000,-1,0,0,0,100,100,0,0,3,6,0,2,20,20,84,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.50,0:00:02.07,Narration,,0,0,0,,汗滲過去再乾掉,
+Dialogue: 0,0:00:02.07,0:00:03.65,Narration,,0,0,0,,就會留下一圈邊。
+Dialogue: 0,0:00:03.65,0:00:05.81,Narration,,0,0,0,,它幫你擋的是整張床墊,
+Dialogue: 0,0:00:05.81,0:00:08.77,Narration,,0,0,0,,所以換季的時候該跟被子一起洗過
+Dialogue: 0,0:00:08.77,0:00:09.36,Narration,,0,0,0,,一次。

@@ -26,7 +26,6 @@ describe("splitNarration", () => {
       expect(segments.join(""), concept.id).toBe(normalized);
       expect(segments.length, concept.id).toBeGreaterThanOrEqual(2);
       for (const segment of segments) {
-        // +2 is the documented orphan tolerance.
         expect(segment.length, concept.id).toBeLessThanOrEqual(SUB_MAX_CHARS + 2);
       }
     }
@@ -62,6 +61,42 @@ describe("splitNarration", () => {
     const segments = splitNarration(raw);
     expect(segments.join("")).toBe("甲 乙 丙");
     expect(segments.join("")).not.toBe(raw);
+  });
+
+  it("forces a new card after ？ so the answer is not packed onto the question", () => {
+    // 能洗嗎？(4) + 能洗，(3) = 7 ≤ SUB_MAX_CHARS, so the old packer merged them.
+    const segments = splitNarration("能洗嗎？能洗，");
+    expect(segments[0]).toBe("能洗嗎？");
+    expect(segments.join("")).toBe("能洗嗎？能洗，");
+    for (const segment of segments) {
+      if (segment.includes("？") || segment.includes("?")) {
+        expect(segment.endsWith("？") || segment.endsWith("?"), segment).toBe(true);
+      }
+    }
+  });
+
+  it("does not glue a 1-2 character orphan tail back onto a ？ card", () => {
+    // Guard: after 能洗嗎？ the 2-char 好。 must not ride on the question card.
+    // Mutation: drop !/[？?]$/u.test(prev) → ["能洗嗎？好。"].
+    expect(splitNarration("能洗嗎？好。")).toEqual(["能洗嗎？", "好。"]);
+    expect(splitNarration("能洗嗎？好。再看。")).toEqual(["能洗嗎？", "好。再看。"]);
+  });
+
+  it("ends every live card that contains ？ with ？", () => {
+    loadExtensions();
+    expect(REEL_CONCEPTS.length).toBeGreaterThanOrEqual(24);
+    for (const concept of REEL_CONCEPTS) {
+      const segments = splitNarration(concept.narration);
+      expect(segments.join(""), concept.id).toBe(concept.narration.replace(/\s+/gu, " ").trim());
+      for (const segment of segments) {
+        if (segment.includes("？") || segment.includes("?")) {
+          expect(
+            segment.endsWith("？") || segment.endsWith("?"),
+            `${concept.id} question card does not end with ？: ${segment}`
+          ).toBe(true);
+        }
+      }
+    }
   });
 });
 

@@ -43,6 +43,32 @@ function Write-Log([string]$m) {
     "[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $stamp, $m | Add-Content -Path $logFile -Encoding UTF8
 }
 
+function Publish-Site {
+    Push-Location $root
+    try {
+        $generateOutput = cmd /c "npm.cmd run generate-public-site 2>&1"
+        $generateCode = $LASTEXITCODE
+        $generateOutput | Add-Content -Path $logFile -Encoding UTF8
+        if ($generateCode -ne 0) {
+            Write-Log "Nightly generate-public-site failed (exit $generateCode); upload result is unchanged."
+            return
+        }
+
+        $publishOutput = cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1"
+        $publishCode = $LASTEXITCODE
+        $publishOutput | Add-Content -Path $logFile -Encoding UTF8
+        if ($publishCode -ne 0) {
+            Write-Log "Nightly publish-pages failed (exit $publishCode); upload result is unchanged."
+        } else {
+            Write-Log "Public site regenerated and pushed after the YouTube upload run."
+        }
+    } catch {
+        Write-Log ("Nightly public-site refresh failed: " + $_.Exception.Message + "; upload result is unchanged.")
+    } finally {
+        Pop-Location
+    }
+}
+
 function Show-Toast([string]$text) {
     try {
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
@@ -84,7 +110,7 @@ foreach ($slotNumber in @(2, 3)) {
     }
 
     Push-Location $root
-    $out = cmd /c "npm.cmd run post-youtube -- --date $date --slot $slotNumber 2>&1"
+    $out = cmd /c "npm.cmd run post-youtube -- --date $date --slot $slotNumber --live 2>&1"
     $code = $LASTEXITCODE
     Pop-Location
     $out | Add-Content -Path $logFile -Encoding UTF8
@@ -111,14 +137,21 @@ foreach ($slotNumber in @(2, 3)) {
 
 if ($needAuth) {
     Show-Toast "Reel 已發布，但 YouTube 還沒授權。跑一次 npm run youtube-auth 完成設定。"
-    exit 0
 }
-if ($failed) {
+if ($failed -and -not $needAuth) {
     Show-Toast "今天的 Reel 上傳 YouTube 失敗，請看 output\youtube-logs\$date.log"
-    exit 1
 }
 if (-not $anyUpload -and -not $anySkip) {
     Write-Log "No live Reel on slot 2 or 3 today; nothing to upload."
+}
+
+Publish-Site
+
+if ($needAuth) {
+    exit 0
+}
+if ($failed) {
+    exit 1
 }
 } finally {
     Remove-Item $singleFlight -Force -ErrorAction SilentlyContinue

@@ -1,0 +1,28 @@
+{
+  "name": "slot1-format-single-vs-carousel-2026-10",
+  "start_date": "2026-10-23",
+  "end_date": "2026-11-05",
+  "slots": [
+    { "date": "2026-10-23", "format": "carousel", "family": "season-weather" },
+    { "date": "2026-10-24", "format": "single", "family": "season-weather" },
+    { "date": "2026-10-25", "format": "carousel", "family": "pickup-delivery" },
+    { "date": "2026-10-26", "format": "single", "family": "home-textile" },
+    { "date": "2026-10-27", "format": "carousel", "family": "shoes" },
+    { "date": "2026-10-28", "format": "single", "family": "home-textile" },
+    { "date": "2026-10-29", "format": "carousel", "family": "luxury-leather" },
+    { "date": "2026-10-30", "format": "single", "family": "season-weather" },
+    { "date": "2026-10-31", "format": "carousel", "family": "home-textile" },
+    { "date": "2026-11-01", "format": "single", "family": "pickup-delivery" },
+    { "date": "2026-11-02", "format": "carousel", "family": "season-weather" },
+    { "date": "2026-11-03", "format": "single", "family": "shoes" },
+    { "date": "2026-11-04", "format": "carousel", "family": "home-textile" },
+    { "date": "2026-11-05", "format": "single", "family": "luxury-leather" }
+  ],
+  "preregistered": {
+    "primary_metric": "Instagram reach at the snapshot closest to 72 hours after publication, provided the snapshot is between 48 and 96 hours, divided by the median 72-hour reach of same-format posts published during the 28 days before that post.",
+    "secondary_metric": "Instagram views at the same 48-to-96-hour snapshot; report only and do not use for the decision.",
+    "analysis_unit": "Compare the single-image group with the carousel group.",
+    "decision_rule": "If the single-image group's median ratio is at least 0.30 above the carousel group's and a two-sided permutation test gives p < 0.10, change the default to single image. If the single-image group's median ratio is at least 0.30 below the carousel group's, keep carousel as the default. Otherwise extend the experiment by 14 days.",
+    "notes": "Each group has only seven posts, so results are directional. If publish-time-experiment.json is judged to need an extension on 2026-10-23, stratify the format analysis across the two time arms so both formats are evenly represented in each arm; do not randomize each format group independently. This change does not modify time assignment code."
+  }
+}

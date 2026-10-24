@@ -1,0 +1,17 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 720
+PlayResY: 1280
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Narration,Microsoft JhengHei,40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H73000000,-1,0,0,0,100,100,0,0,3,6,0,2,20,20,84,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.50,0:00:02.39,Narration,,0,0,0,,小孩踢地板磨出來的,
+Dialogue: 0,0:00:02.39,0:00:05.04,Narration,,0,0,0,,只要面料還在就一定洗得回來。
+Dialogue: 0,0:00:05.04,0:00:06.94,Narration,,0,0,0,,與其急著買新的一雙,
+Dialogue: 0,0:00:06.94,0:00:09.02,Narration,,0,0,0,,先看那層膠有沒有裂開。

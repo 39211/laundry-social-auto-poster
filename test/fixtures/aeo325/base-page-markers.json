@@ -1,0 +1,394 @@
+{
+  "source_commit": "766ada1c",
+  "pages": {
+    "services/white-shoe-cleaning.html": {
+      "meta_names": [
+        "author",
+        "description",
+        "googlebot",
+        "robots",
+        "theme-color",
+        "twitter:card",
+        "twitter:description",
+        "twitter:image",
+        "twitter:image:alt",
+        "twitter:title",
+        "viewport"
+      ],
+      "meta_properties": [
+        "og:description",
+        "og:image",
+        "og:image:alt",
+        "og:locale",
+        "og:site_name",
+        "og:title",
+        "og:type",
+        "og:url"
+      ],
+      "link_rels": [
+        "alternate",
+        "canonical"
+      ],
+      "jsonld_types": [
+        "AdministrativeArea",
+        "Answer",
+        "BreadcrumbList",
+        "CommunicateAction",
+        "ContactPoint",
+        "DryCleaningOrLaundry",
+        "EntryPoint",
+        "FAQPage",
+        "GeoCoordinates",
+        "ImageObject",
+        "ListItem",
+        "Offer",
+        "OfferCatalog",
+        "OpeningHoursSpecification",
+        "Place",
+        "PostalAddress",
+        "PropertyValue",
+        "Question",
+        "Service",
+        "WebPage",
+        "WebSite"
+      ],
+      "section_aside_ids": [
+        "convert",
+        "faq",
+        "geo-entity",
+        "index-gap-rail",
+        "shoe-types"
+      ],
+      "script_srcs": [
+        "https://sixiangjialaundry.com/scripts/search-content-analytics.js",
+        "https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"
+      ],
+      "link_rel_alternate_count": 7,
+      "inline_gtag_config_count": 1
+    },
+    "guides/white-shoe-yellowing.html": {
+      "meta_names": [
+        "author",
+        "description",
+        "googlebot",
+        "robots",
+        "theme-color",
+        "twitter:card",
+        "twitter:description",
+        "twitter:image",
+        "twitter:image:alt",
+        "twitter:title",
+        "viewport"
+      ],
+      "meta_properties": [
+        "og:description",
+        "og:image",
+        "og:image:alt",
+        "og:locale",
+        "og:site_name",
+        "og:title",
+        "og:type",
+        "og:url"
+      ],
+      "link_rels": [
+        "alternate",
+        "canonical"
+      ],
+      "jsonld_types": [
+        "AdministrativeArea",
+        "Answer",
+        "BreadcrumbList",
+        "CommunicateAction",
+        "ContactPoint",
+        "DryCleaningOrLaundry",
+        "EntryPoint",
+        "FAQPage",
+        "GeoCoordinates",
+        "HowTo",
+        "HowToStep",
+        "HowToSupply",
+        "ImageObject",
+        "ListItem",
+        "Offer",
+        "OfferCatalog",
+        "OpeningHoursSpecification",
+        "Place",
+        "PostalAddress",
+        "PropertyValue",
+        "Question",
+        "Service",
+        "WebPage",
+        "WebSite"
+      ],
+      "section_aside_ids": [
+        "aeo-u06",
+        "faq",
+        "index-gap-rail"
+      ],
+      "script_srcs": [
+        "https://sixiangjialaundry.com/scripts/search-content-analytics.js",
+        "https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"
+      ],
+      "link_rel_alternate_count": 6,
+      "inline_gtag_config_count": 1
+    },
+    "services/luxury-bag-cleaning.html": {
+      "meta_names": [
+        "author",
+        "description",
+        "googlebot",
+        "robots",
+        "theme-color",
+        "twitter:card",
+        "twitter:description",
+        "twitter:image",
+        "twitter:image:alt",
+        "twitter:title",
+        "viewport"
+      ],
+      "meta_properties": [
+        "og:description",
+        "og:image",
+        "og:image:alt",
+        "og:locale",
+        "og:site_name",
+        "og:title",
+        "og:type",
+        "og:url"
+      ],
+      "link_rels": [
+        "alternate",
+        "canonical"
+      ],
+      "jsonld_types": [
+        "AdministrativeArea",
+        "Answer",
+        "BreadcrumbList",
+        "CommunicateAction",
+        "ContactPoint",
+        "DryCleaningOrLaundry",
+        "EntryPoint",
+        "FAQPage",
+        "GeoCoordinates",
+        "HowTo",
+        "HowToStep",
+        "HowToSupply",
+        "ImageObject",
+        "ListItem",
+        "Offer",
+        "OfferCatalog",
+        "OpeningHoursSpecification",
+        "Place",
+        "PostalAddress",
+        "PropertyValue",
+        "Question",
+        "Service",
+        "WebPage",
+        "WebSite"
+      ],
+      "section_aside_ids": [
+        "faq",
+        "index-gap-rail"
+      ],
+      "script_srcs": [
+        "https://sixiangjialaundry.com/scripts/search-content-analytics.js",
+        "https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"
+      ],
+      "link_rel_alternate_count": 6,
+      "inline_gtag_config_count": 1
+    },
+    "guides/luxury-bag-mold.html": {
+      "meta_names": [
+        "author",
+        "description",
+        "googlebot",
+        "robots",
+        "theme-color",
+        "twitter:card",
+        "twitter:description",
+        "twitter:image",
+        "twitter:image:alt",
+        "twitter:title",
+        "viewport"
+      ],
+      "meta_properties": [
+        "og:description",
+        "og:image",
+        "og:image:alt",
+        "og:locale",
+        "og:site_name",
+        "og:title",
+        "og:type",
+        "og:url"
+      ],
+      "link_rels": [
+        "alternate",
+        "canonical"
+      ],
+      "jsonld_types": [
+        "AdministrativeArea",
+        "Answer",
+        "BreadcrumbList",
+        "CommunicateAction",
+        "ContactPoint",
+        "DryCleaningOrLaundry",
+        "EntryPoint",
+        "FAQPage",
+        "GeoCoordinates",
+        "HowTo",
+        "HowToStep",
+        "HowToSupply",
+        "ImageObject",
+        "ListItem",
+        "Offer",
+        "OfferCatalog",
+        "OpeningHoursSpecification",
+        "Place",
+        "PostalAddress",
+        "PropertyValue",
+        "Question",
+        "Service",
+        "WebPage",
+        "WebSite"
+      ],
+      "section_aside_ids": [
+        "faq",
+        "index-gap-rail"
+      ],
+      "script_srcs": [
+        "https://sixiangjialaundry.com/scripts/search-content-analytics.js",
+        "https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"
+      ],
+      "link_rel_alternate_count": 6,
+      "inline_gtag_config_count": 1
+    },
+    "services/down-jacket-cleaning.html": {
+      "meta_names": [
+        "author",
+        "description",
+        "googlebot",
+        "robots",
+        "theme-color",
+        "twitter:card",
+        "twitter:description",
+        "twitter:image",
+        "twitter:image:alt",
+        "twitter:title",
+        "viewport"
+      ],
+      "meta_properties": [
+        "og:description",
+        "og:image",
+        "og:image:alt",
+        "og:locale",
+        "og:site_name",
+        "og:title",
+        "og:type",
+        "og:url"
+      ],
+      "link_rels": [
+        "alternate",
+        "canonical"
+      ],
+      "jsonld_types": [
+        "AdministrativeArea",
+        "Answer",
+        "BreadcrumbList",
+        "CommunicateAction",
+        "ContactPoint",
+        "DryCleaningOrLaundry",
+        "EntryPoint",
+        "FAQPage",
+        "GeoCoordinates",
+        "ImageObject",
+        "ListItem",
+        "Offer",
+        "OfferCatalog",
+        "OpeningHoursSpecification",
+        "Place",
+        "PostalAddress",
+        "PropertyValue",
+        "Question",
+        "Service",
+        "WebPage",
+        "WebSite"
+      ],
+      "section_aside_ids": [
+        "consolidated-notice",
+        "faq"
+      ],
+      "script_srcs": [
+        "https://sixiangjialaundry.com/scripts/search-content-analytics.js",
+        "https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"
+      ],
+      "link_rel_alternate_count": 6,
+      "inline_gtag_config_count": 1
+    },
+    "guides/down-jacket-cleaning.html": {
+      "meta_names": [
+        "author",
+        "description",
+        "googlebot",
+        "robots",
+        "theme-color",
+        "twitter:card",
+        "twitter:description",
+        "twitter:image",
+        "twitter:image:alt",
+        "twitter:title",
+        "viewport"
+      ],
+      "meta_properties": [
+        "og:description",
+        "og:image",
+        "og:image:alt",
+        "og:locale",
+        "og:site_name",
+        "og:title",
+        "og:type",
+        "og:url"
+      ],
+      "link_rels": [
+        "alternate",
+        "canonical"
+      ],
+      "jsonld_types": [
+        "AdministrativeArea",
+        "Answer",
+        "BreadcrumbList",
+        "CommunicateAction",
+        "ContactPoint",
+        "DryCleaningOrLaundry",
+        "EntryPoint",
+        "FAQPage",
+        "GeoCoordinates",
+        "HowTo",
+        "HowToStep",
+        "HowToSupply",
+        "ImageObject",
+        "ListItem",
+        "Offer",
+        "OfferCatalog",
+        "OpeningHoursSpecification",
+        "Place",
+        "PostalAddress",
+        "PropertyValue",
+        "Question",
+        "Service",
+        "WebPage",
+        "WebSite"
+      ],
+      "section_aside_ids": [
+        "down-price-split",
+        "faq",
+        "index-gap-rail"
+      ],
+      "script_srcs": [
+        "https://sixiangjialaundry.com/scripts/search-content-analytics.js",
+        "https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"
+      ],
+      "link_rel_alternate_count": 6,
+      "inline_gtag_config_count": 1
+    }
+  }
+}

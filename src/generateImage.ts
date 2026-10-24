@@ -8,7 +8,9 @@ import {
   TOPIC_LABEL_PREFIX_RE
 } from "./contentPlan";
 import { generateDailyContent } from "./generateDailyContent";
+import { PUBLISHABLE_IMAGE_SOURCES, isPublishableImageSource } from "./imageSources";
 import { loadApprovedImageDigests, sha256 } from "./imageStamp";
+import { assertSlotMediaMutable, findSlotLocks, parseMediaGuardOverride, type SlotMediaOverride } from "./mediaMutationGuard";
 import {
   loadApprovalLog,
   loadDailyContent,
@@ -30,6 +32,16 @@ interface ImagePromptManifestItem {
   visual_route: VisualRoute;
   target_path: string;
   public_image_url: string;
+  /**
+   * Repo-relative images the generator should be shown as an identity
+   * reference. Every slide of a carousel is a separate stateless call that has
+   * never seen the other slides, which is why the judge keeps reporting a bear
+   * on slide 2 of a rabbit carousel (2026-09-14 slot 1) and dress shirts on
+   * slides 2-4 of a sofa carousel (2026-09-11 slot 1). No wording fixes a
+   * cross-call constraint; showing slide 1 to slides 2-4 does. Verified on
+   * 2026-09-10 against codex-cli 0.153.4 `exec -i`.
+   */
+  reference_images: string[];
 }
 
 // The boutique look was retired from the prompt code, but calendars written
@@ -127,6 +139,7 @@ export interface InvalidateSlotOptions {
   root: string;
   previous: DailySlot;
   next: DailySlot;
+  mediaGuardOverride?: SlotMediaOverride;
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -197,7 +210,12 @@ async function loadDayLockSlot1Topic(date: string, root: string): Promise<string
   return typeof lock?.slot1?.topic === "string" ? lock.slot1.topic : undefined;
 }
 
-async function slotMoveBlockReason(date: string, root: string, slot: DailySlot): Promise<string | undefined> {
+export async function slotMoveBlockReason(
+  date: string,
+  root: string,
+  slot: DailySlot,
+  mediaGuardOverride?: SlotMediaOverride
+): Promise<string | undefined> {
   const posts = await loadPostLog(date, root);
   if (posts.some((entry) => entry.slot === slot.slot && (entry.status === "posted" || entry.status === "success" || entry.status === "uncertain"))) {
     return "posted-log";
@@ -215,6 +233,21 @@ async function slotMoveBlockReason(date: string, root: string, slot: DailySlot):
     if (lockedTopic !== undefined && !topicsShareIdentity(lockedTopic, slot.topic)) {
       return "A3: day-lock topicIdentity differs from calendar";
     }
+  }
+
+  // R2: scheduled FB ownership and an IG cloud queue marker also protect the slot.
+  const locks = await findSlotLocks(root, date, slot.slot);
+  const slotLock = locks.find((lock) => lock.source === "scheduled-log" || lock.source === "ig-cloud-queue");
+  if (slotLock) {
+    const hasValidOverride = Boolean(mediaGuardOverride?.reason.trim() && mediaGuardOverride.actor.trim());
+    if (!hasValidOverride) return slotLock.source;
+    await assertSlotMediaMutable({
+      root,
+      date,
+      slot: slot.slot,
+      operation: "move stale slot image",
+      override: mediaGuardOverride
+    });
   }
   return undefined;
 }
@@ -331,7 +364,7 @@ export async function invalidateSlotImagesIfTopicChanged(
   const sources = await loadImageSources(date, root);
   refuseIfUnsafeToRegenerate(previous.topic, next, sources);
 
-  const block = await slotMoveBlockReason(date, root, next);
+  const block = await slotMoveBlockReason(date, root, next, options.mediaGuardOverride);
   if (block) {
     report.skipped.push({ slot: next.slot, reason: block });
     console.log(`A7 invalidate: slot ${next.slot} skipped (${block})`);
@@ -355,7 +388,8 @@ export async function invalidateSlotImagesIfTopicChanged(
  */
 export async function invalidateStaleImagesForDate(
   date: string,
-  root = projectRoot()
+  root = projectRoot(),
+  mediaGuardOverride?: SlotMediaOverride
 ): Promise<InvalidateReport> {
   const content = await loadDailyContent(date, root);
   if (!content) throw new Error(`No content calendar found for ${date}`);
@@ -370,7 +404,7 @@ export async function invalidateStaleImagesForDate(
 
     refuseIfUnsafeToRegenerate(stampedTopic, slot, sources);
 
-    const block = await slotMoveBlockReason(date, root, slot);
+    const block = await slotMoveBlockReason(date, root, slot, mediaGuardOverride);
     if (block) {
       report.skipped.push({ slot: slot.slot, reason: block });
       console.log(`A7 invalidate: slot ${slot.slot} skipped (${block})`);
@@ -437,25 +471,36 @@ export function summarizeMissingImages(date: string, missing: MissingCalendarIma
   return `${missing.length} calendar image(s) missing for ${date}.`;
 }
 
-export async function writeImagePromptManifest(date: string, root = projectRoot()): Promise<string> {
+export async function writeImagePromptManifest(
+  date: string,
+  root = projectRoot(),
+  mediaGuardOverride?: SlotMediaOverride
+): Promise<string> {
   await generateDailyContent({ date, root });
   // Inserted between calendar-ensure and the rebuild so 06:30's
   // generate-image-manifest + generate-missing-images pair actually sees holes.
-  await invalidateStaleImagesForDate(date, root);
+  await invalidateStaleImagesForDate(date, root, mediaGuardOverride);
   const content = await loadDailyContent(date, root);
   if (!content) throw new Error(`No content calendar found for ${date}`);
 
-  const manifest: ImagePromptManifestItem[] = content.slots.flatMap((slot) =>
-    imageAssetsForSlot(slot).map((asset) => ({
+  const manifest: ImagePromptManifestItem[] = content.slots.flatMap((slot) => {
+    const assets = imageAssetsForSlot(slot);
+    const hero = assets.find((asset) => asset.slide === 1)?.local_image_path;
+    return assets.map((asset) => ({
       slot: slot.slot,
       slide: asset.slide,
       topic: slot.topic,
       prompt: sanitizeImagePrompt(asset.image_prompt),
       visual_route: slot.visual_route,
       target_path: asset.local_image_path,
-      public_image_url: asset.public_image_url
-    }))
-  );
+      public_image_url: asset.public_image_url,
+      // Slide 1 is the object's first appearance, so it has nothing to match;
+      // every later slide is matched against it. The runner drops any
+      // attachment whose file is not on disk and generates without it, so a
+      // missing hero costs continuity on one slide rather than the whole slot.
+      reference_images: asset.slide > 1 && hero ? [hero] : []
+    }));
+  });
 
   const output = imagePromptManifestPath(date, root);
   await writeJsonAtomic(output, manifest);
@@ -483,7 +528,7 @@ export async function validatePublishableImages(date: string, root = projectRoot
         !sources.some(
           (source) =>
             source.slot === slot.slot &&
-            source.source === "gpt-image-2" &&
+            isPublishableImageSource(source.source) &&
             source.image_path === asset.local_image_path
         )
       )
@@ -491,7 +536,10 @@ export async function validatePublishableImages(date: string, root = projectRoot
   );
 
   if (missingSources.length > 0) {
-    throw new Error(`Missing gpt-image-2 source records:\n${missingSources.map((item) => `- ${item}`).join("\n")}`);
+    throw new Error(
+      `Missing publishable image source records (${PUBLISHABLE_IMAGE_SOURCES.join(" / ")}):\n` +
+        missingSources.map((item) => `- ${item}`).join("\n")
+    );
   }
 }
 
@@ -500,9 +548,10 @@ async function main(): Promise<void> {
   const config = getConfig();
   const date = getOption(args, "date") || getZonedDateParts(new Date(), config.timezone).date;
   const root = projectRoot(getOption(args, "root"));
+  const mediaGuardOverride = parseMediaGuardOverride(args);
 
   if (getFlag(args, "invalidate")) {
-    const report = await invalidateStaleImagesForDate(date, root);
+    const report = await invalidateStaleImagesForDate(date, root, mediaGuardOverride);
     console.log(JSON.stringify(report, null, 2));
     return;
   }
@@ -529,7 +578,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const output = await writeImagePromptManifest(date, root);
+  const output = await writeImagePromptManifest(date, root, mediaGuardOverride);
   console.log(`Image prompt manifest ready: ${output}`);
 }
 

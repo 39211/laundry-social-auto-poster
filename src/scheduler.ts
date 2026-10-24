@@ -1,4 +1,5 @@
 import { isMain } from "./cli";
+import { getSlotPublishTime } from "./publishTimes";
 import type { SlotSchedule } from "./types";
 
 export const DAILY_SCHEDULE: SlotSchedule[] = [
@@ -45,13 +46,15 @@ export function findSlotByNumber(slot: number): SlotSchedule {
 export function resolveCurrentSlot(
   now = new Date(),
   timezone = "Asia/Taipei",
-  windowMinutes = 29
+  windowMinutes = 29,
+  date?: string,
+  root = process.cwd()
 ): SlotSchedule | undefined {
   const { time } = getZonedDateParts(now, timezone);
   const current = minutesOfDay(time);
 
   return DAILY_SCHEDULE.find((item) => {
-    const scheduled = minutesOfDay(item.time);
+    const scheduled = minutesOfDay(date ? getSlotPublishTime(date, item.slot, root) : item.time);
     const delta = current - scheduled;
     return delta >= 0 && delta <= windowMinutes;
   });

@@ -1,0 +1,57 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\wool-coat\\wool-coat-shoulder-before.png",
+  "axes": {
+    "OBJECT_IDENTITY": "MISSING",
+    "ACCESSORY_COLOR": "MISSING",
+    "ORIENTATION": "MISSING",
+    "STATE_ORDER": "MISSING",
+    "MIDDLE_NOT_WORSE": "MISSING",
+    "HANDS": "MISSING",
+    "SCENE": "MISSING"
+  },
+  "evidence": {},
+  "frames_used": [],
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "NLJU",
+      "sha256": "60f04413486d38109beae97af67b4273eaba3c2f0236507dafe25fd07b16284c"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "HWQK",
+      "sha256": "82e5c4ffe39ef658d498902a0074232dee072712edc44debb826d5d39c2ef84d"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "UJ7A",
+      "sha256": "644533a891ca061101c5a25324042918cc7258e4dc23a8574d9e6cc88f8b4bcf"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "NLJU",
+    "IMAGE_2": "HWQK",
+    "IMAGE_3": "UJ7A"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "NLJU",
+    "IMAGE_2": "HWQK",
+    "IMAGE_3": "U77A"
+  },
+  "reel_sha256": "818ab37a0b815315fb8d1269ce6f537e7a6cde4d26e0a58d4e9cede9bfda0d61",
+  "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
+  "run_id": "cc42f1e1ad8f43299be01f30ac17ea75",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-09-03T06:05:22.263Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "FAIL_CLOSED",
+  "fail_class": "judge_blind"
+}

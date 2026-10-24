@@ -32,19 +32,30 @@ describe("slot times come from one place", () => {
     expect(body).not.toMatch(/"(19|20):30"/);
   });
 
-  // The PowerShell side cannot import from TypeScript, so its tables are copies
-  // by necessity. A copy that disagrees is the same bug in a different file.
-  it.each(["scripts/catchup-publish.ps1", "scripts/watchdog-patrol.ps1"])(
-    "%s carries the same evening time as the schedule",
-    (script) => {
-      const table = read(script).match(/\$slotTimes = @\{[^}]*\}/)?.[0];
+  it("has one PowerShell default table matching DAILY_SCHEDULE and shared by all four callers", () => {
+    const shared = read("scripts/publish-slot-times.ps1");
+    const table = shared.match(/function Get-DefaultSlotTimes\s*\{([^}]*)\}/)?.[1] ?? "";
+    const entries = table.match(/\d+\s*=\s*\[TimeSpan\]"\d{2}:\d{2}"/g) ?? [];
+    const parsed = Object.fromEntries(entries.map((entry) => {
+      const match = entry.match(/(\d+)\s*=\s*\[TimeSpan\]"(\d{2}:\d{2})"/);
+      if (!match) throw new Error(`unparseable default slot time: ${entry}`);
+      return [Number(match[1]), match[2]];
+    }));
 
-      expect(table).toBeTruthy();
-      expect(table).toContain(`2 = [TimeSpan]"${SCHEDULE_TIME[2]}"`);
-      expect(table).toContain(`1 = [TimeSpan]"${SCHEDULE_TIME[1]}"`);
-      expect(table).toContain(`3 = [TimeSpan]"${SCHEDULE_TIME[3]}"`);
+    expect(parsed).toEqual(SCHEDULE_TIME);
+    expect(entries).toHaveLength(DAILY_SCHEDULE.length);
+
+    for (const script of [
+      "scripts/catchup-publish.ps1",
+      "scripts/watchdog-patrol.ps1",
+      "scripts/publish-sentinel.ps1",
+      "scripts/publish-time-gate.ps1"
+    ]) {
+      const source = read(script);
+      expect(source).toMatch(/\.\s*(?:\(Join-Path \$PSScriptRoot "publish-slot-times\.ps1"\)|\$slotTimesLibrary)/u);
+      expect(source).not.toMatch(/\$[Ss]lotTimes\s*=\s*@\{[^}]*\d\s*=\s*\[TimeSpan\]"\d{2}:\d{2}"/su);
     }
-  );
+  });
 
   it("does not tell readers a cadence the pipeline does not run", () => {
     for (const file of ["src/generatePublicSite.ts", "src/growthPlaybook.ts"]) {

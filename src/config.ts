@@ -1,5 +1,20 @@
-import "dotenv/config";
+import { config as loadDotenv } from "dotenv";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AppConfig } from "./types";
+
+declare module "./types" {
+  interface AppConfig {
+    metaAiLabelEnabled?: boolean;
+  }
+}
+
+// "dotenv/config" resolves .env relative to process.cwd(), which is wrong
+// whenever this module loads inside a subprocess launched from some other
+// working directory (e.g. a PowerShell script's `& tsx ...` call that never
+// set -WorkingDirectory). Resolve relative to this file's own location
+// instead, so .env is found the same way no matter who spawned the process.
+loadDotenv({ path: join(dirname(fileURLToPath(import.meta.url)), "..", ".env") });
 
 function boolEnv(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined || value === "") return fallback;
@@ -37,6 +52,7 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     publicRootPagesRepo: env.PUBLIC_ROOT_PAGES_REPO || "",
     verifyPublicImageUrl: boolEnv(env.VERIFY_PUBLIC_IMAGE_URL, !dryRun),
     grokReelsEnabled: boolEnv(env.GROK_REELS_ENABLED, false),
+    metaAiLabelEnabled: boolEnv(env.META_AI_LABEL_ENABLED, true),
     ga4MeasurementId: /^G-[A-Z0-9]+$/i.test(env.PUBLIC_GA4_MEASUREMENT_ID?.trim() ?? "")
       ? env.PUBLIC_GA4_MEASUREMENT_ID?.trim().toUpperCase()
       : undefined,

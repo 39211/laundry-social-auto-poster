@@ -1,0 +1,22 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\blanket\\blanket-pilling-before.png",
+  "reel_sha256": "216ec8acd36ca191457878f2a8bb2d667c4c370e5509d40609561c90c986a34a",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "VR7R",
+      "sha256": "2ef3c1c128733ef17b5a1c7830c1af3599a56075ce2500e85301e5275325402d"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "R3VL",
+      "sha256": "72d3a1512e88dad955186e8fb0b5c511efaf8cd8652f2e866c3c4c73e12b4c6f"
+    }
+  ]
+}

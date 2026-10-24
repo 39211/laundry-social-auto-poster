@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeJsonAtomic } from "../src/logging";
-import { assertVideoReviewApproved, recordVideoReview } from "../src/videoReviewGate";
+import { assertVideoReviewApproved, recordVideoReview, selectVideoReviewForSlot } from "../src/videoReviewGate";
 
 async function fixture(): Promise<{ root: string; videoPath: string; prompt: string }> {
   const root = await mkdtemp(join(tmpdir(), "laundry-video-review-"));
@@ -102,5 +102,156 @@ describe("video review gate", () => {
         root
       })
     ).rejects.toThrow("changed after approval");
+  });
+
+  it("refuses to pick when two top-level records exist for the same slot (first approved, second pending)", async () => {
+    const { root, videoPath, prompt } = await fixture();
+    const now = new Date("2026-07-28T23:00:00.000Z");
+    const firstRecord = await recordVideoReview({
+      date: "2026-07-29",
+      slot: 1,
+      reviewRound: 1,
+      root,
+      now
+    });
+    // Manually construct a second top-level record with pending status
+    const secondRecord = {
+      date: "2026-07-29",
+      slot: 1,
+      video_path: videoPath,
+      video_sha256: firstRecord.video_sha256,
+      prompt_hash: firstRecord.prompt_hash,
+      review_round: 2,
+      full_decode: "pass" as const,
+      all_frame_physics_review: "pass" as const,
+      grok_review: "pass" as const,
+      sol_review: "pass" as const,
+      separate_zh_tw_tts_review: "pass" as const,
+      generated_clip_audio_used: false as const,
+      status: "pending" as const,
+      reviewed_at: new Date("2026-07-28T23:30:00.000Z").toISOString()
+    };
+    // Overwrite the reviews file to have both records at top level
+    await writeJsonAtomic(
+      join(root, "data", "video-reviews", "2026-07-29.json"),
+      [firstRecord, secondRecord]
+    );
+    await expect(
+      assertVideoReviewApproved({
+        date: "2026-07-29",
+        slot: 1,
+        videoPath,
+        videoPrompt: prompt,
+        root
+      })
+    ).rejects.toThrow("refusing to pick the first");
+  });
+
+  it("refuses to pick when two top-level records exist for the same slot (first pending, second approved)", async () => {
+    const { root, videoPath, prompt } = await fixture();
+    const now = new Date("2026-07-28T23:00:00.000Z");
+    // Manually construct a pending record first
+    const pendingRecord = {
+      date: "2026-07-29",
+      slot: 1,
+      video_path: videoPath,
+      video_sha256: "pending-sha256",
+      prompt_hash: "pending-prompt-hash",
+      review_round: 1,
+      full_decode: "pass" as const,
+      all_frame_physics_review: "pass" as const,
+      grok_review: "pass" as const,
+      sol_review: "pass" as const,
+      separate_zh_tw_tts_review: "pass" as const,
+      generated_clip_audio_used: false as const,
+      status: "pending" as const,
+      reviewed_at: new Date("2026-07-28T22:00:00.000Z").toISOString()
+    };
+    const approvedRecord = await recordVideoReview({
+      date: "2026-07-29",
+      slot: 1,
+      reviewRound: 2,
+      root,
+      now
+    });
+    // Manually overwrite to have both at top level (bypass recordVideoReview's superseded logic)
+    await writeJsonAtomic(
+      join(root, "data", "video-reviews", "2026-07-29.json"),
+      [pendingRecord, approvedRecord]
+    );
+    await expect(
+      assertVideoReviewApproved({
+        date: "2026-07-29",
+        slot: 1,
+        videoPath,
+        videoPrompt: prompt,
+        root
+      })
+    ).rejects.toThrow("refusing to pick the first");
+  });
+
+  it("accepts a record with superseded history nested inside (history does not count as duplicate)", async () => {
+    const { root, videoPath, prompt } = await fixture();
+    const first = await recordVideoReview({
+      date: "2026-07-29",
+      slot: 1,
+      reviewRound: 1,
+      root,
+      now: new Date("2026-07-28T20:00:00.000Z")
+    });
+    await writeFile(join(root, ...videoPath.split("/")), "re-cut-video", "utf8");
+    // Second call will automatically nest the first in superseded
+    await recordVideoReview({
+      date: "2026-07-29",
+      slot: 1,
+      reviewRound: 2,
+      root,
+      now: new Date("2026-07-28T21:00:00.000Z")
+    });
+    // This should succeed because superseded records are not counted as duplicates
+    await expect(
+      assertVideoReviewApproved({
+        date: "2026-07-29",
+        slot: 1,
+        videoPath,
+        videoPrompt: prompt,
+        root
+      })
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects when no record exists for the given slot", async () => {
+    const { root, videoPath, prompt } = await fixture();
+    // Slot 1 has no record, try to approve it
+    await expect(
+      assertVideoReviewApproved({
+        date: "2026-07-29",
+        slot: 1,
+        videoPath,
+        videoPrompt: prompt,
+        root
+      })
+    ).rejects.toThrow("Dual video review is missing for slot");
+  });
+
+  it("selectVideoReviewForSlot: returns undefined for empty array, single record, throws for duplicates", async () => {
+    const records = [
+      {
+        slot: 1,
+        status: "approved" as const
+      },
+      {
+        slot: 2,
+        status: "pending" as const
+      }
+    ];
+    // 0 matches
+    expect(selectVideoReviewForSlot(records, 99)).toBeUndefined();
+    // 1 match
+    expect(selectVideoReviewForSlot(records, 1)).toEqual({ slot: 1, status: "approved" });
+    // 2 matches
+    expect(() => selectVideoReviewForSlot([...records, { slot: 1, status: "pending" }], 1)).toThrow(
+      "refusing to pick the first"
+    );
   });
 });

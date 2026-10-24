@@ -1,0 +1,20 @@
+[
+ {
+  "clip": "05A-edge",
+  "request_id": "912321d0-9a48-9f7f-bd9b-1a74b91085cb",
+  "duration": 8,
+  "bytes": 3958213
+ },
+ {
+  "clip": "05B-metal",
+  "request_id": "13060a4f-f96f-93a2-8679-afad6472294c",
+  "duration": 6,
+  "bytes": 3054362
+ },
+ {
+  "clip": "05C-junction",
+  "request_id": "de4ceaca-67a5-9f1d-b009-0702c7c0a717",
+  "duration": 6,
+  "bytes": 5765903
+ }
+]

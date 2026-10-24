@@ -41,10 +41,14 @@ export interface SupportPageDefinition {
   category: SupportPageCategory;
   title: string;
   description: string;
+  /** Optional search snippet only; leaves visible copy, schema and social metadata unchanged. */
+  search_description?: string;
   h1: string;
   summary: string;
   keywords: string[];
   service_slug?: string;
+  /** Keep an existing fallback image when changing a guide's service links. */
+  image_service_slug?: KnownServiceSlug;
   local_intent: string;
   /** Stable YYYY-MM-DD used for sitemap lastmod when content last intentionally changed. */
   content_lastmod?: string;
@@ -57,6 +61,13 @@ export interface SupportPageDefinition {
   /** Crawlable related guide slugs. Existing pages omit this and keep their HTML shape. */
   related_slugs?: string[];
   hub_group?: "shoes" | "bags" | "textiles" | "decisions" | "local";
+  /** Hub-only routing cards with real contextual anchors (live-site content, 2026-08-29). */
+  hub_routes?: Array<{
+    label: string;
+    description: string;
+    serviceSlug?: string;
+    supportSlug?: string;
+  }>;
 }
 
 export type GscEvidenceState =

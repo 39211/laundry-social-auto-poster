@@ -1,0 +1,1154 @@
+import { spawnSync } from "node:child_process";
+import { realpathSync } from "node:fs";
+import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, utimes, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { generateDailyContent } from "../src/generateDailyContent";
+import { generateGrokVideos } from "../src/generateGrokVideo";
+import { slotMoveBlockReason } from "../src/generateImage";
+import { importGrokVideo } from "../src/importGrokVideo";
+import {
+  assertSlotMediaMutable,
+  findSlotLocks,
+  parseMediaGuardOverride,
+  SlotLockedError,
+  type SlotLock
+} from "../src/mediaMutationGuard";
+import { loadDailyContent, writeDailyContent, writeVideoSources } from "../src/logging";
+import { markImageSource } from "../src/markImageSource";
+import { REEL_CONCEPTS, REEL_SCHEDULE } from "../src/reelConcepts";
+import { healOneSlot, reelCoverSourceRel, restoreReelSlot, scheduleReel } from "../src/scheduleReel";
+import type { DailySlot, VideoSourceRecord } from "../src/types";
+import type { VideoMetadata } from "../src/videoMedia";
+
+const DATE = "2026-09-24";
+const SLOT = 2;
+const REPO_ROOT = fileURLToPath(new URL("..", import.meta.url));
+const TSX_CLI = fileURLToPath(new URL("../node_modules/tsx/dist/cli.mjs", import.meta.url));
+const GUARD_CLI = fileURLToPath(new URL("../src/mediaGuardCli.ts", import.meta.url));
+const SCHEDULE_CLI = fileURLToPath(new URL("../src/scheduleReel.ts", import.meta.url));
+const CONCEPT_ID = "leather-bag-corner";
+const EVENING_CONCEPT_ID = "handbag-handle";
+const OVERRIDE = { reason: "owner approved this slot repair", actor: "test-owner" };
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const roots: string[] = [];
+
+afterEach(async () => {
+  const cleanup = roots.splice(0);
+  await Promise.all(cleanup.map((root) => rm(root, { recursive: true, force: true, maxRetries: 10 })));
+});
+
+async function tempRoot(prefix = "media-mutation-guard-"): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), prefix));
+  roots.push(root);
+  return root;
+}
+
+// Node 的 mkdtemp 在 Windows runner 上常拿到 8.3 短路徑（RUNNER~1），
+// PowerShell 的 $PSScriptRoot 則展開成長路徑（runneradmin）。js 版 realpath
+// 不會把兩者收成同一條；native realpath 會，8.3 別名再對一次。空白目錄名
+// 必須整段留下，路徑被空白切開時對不到同一個目錄。
+function sameDirectory(filePath: string): string {
+  let resolved = filePath;
+  try {
+    resolved = realpathSync.native(filePath);
+  } catch {
+    resolved = filePath;
+  }
+  return resolved.replace(/\\/g, "/").replace(/\/Users\/RUNNER~1\//gi, "/Users/runneradmin/").toLowerCase();
+}
+
+async function writeJson(root: string, relativePath: string, value: unknown): Promise<void> {
+  const path = join(root, relativePath);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function dailySlot(slot: number): DailySlot {
+  return {
+    slot,
+    time: slot === 1 ? "11:30" : "20:30",
+    category: "情境文",
+    topic: "帆布包提把發黑",
+    format: "image-post",
+    media_type: "image",
+    instagram_caption: "caption",
+    facebook_caption: "caption",
+    image_prompt: "A used canvas bag on a shop counter.",
+    visual_route: "macro-detail",
+    traffic_route: "object-proof",
+    local_image_path: `docs/assets/${DATE}/slot-0${slot}.png`,
+    public_image_url: `https://example.invalid/assets/${DATE}/slot-0${slot}.png`,
+    status: "pending"
+  } as DailySlot;
+}
+
+async function addScheduledLock(root: string, slot = SLOT, detail = "scheduled-123"): Promise<void> {
+  await writeJson(root, `data/scheduled-log/${DATE}.json`, [
+    { date: DATE, slot, platform: "facebook", scheduled_post_id: detail, status: "scheduled" }
+  ]);
+}
+
+async function writeBytes(root: string, relativePath: string, bytes: Buffer | string): Promise<void> {
+  const path = join(root, relativePath);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, bytes);
+}
+
+async function writeCalendar(root: string, slots: DailySlot[], date = DATE): Promise<void> {
+  await writeDailyContent({ date, timezone: "Asia/Taipei", generated_at: `${date}T00:00:00.000Z`, slots }, root);
+}
+
+function conceptHook(conceptId = CONCEPT_ID): string {
+  const concept = REEL_CONCEPTS.find((item) => item.id === conceptId);
+  if (!concept) throw new Error(`Missing test concept: ${conceptId}`);
+  return concept.hook;
+}
+
+function outgoingReel(slot: number, topic = "舊 Reel X 的題目"): DailySlot {
+  return {
+    ...dailySlot(slot),
+    topic,
+    format: "reel",
+    media_type: "reel",
+    local_video_path: `docs/assets/${DATE}/slot-0${slot}.mp4`,
+    public_video_url: `https://example.invalid/assets/${DATE}/slot-0${slot}.mp4`
+  };
+}
+
+async function seedSourceReel(root: string, conceptId = CONCEPT_ID, variant: "10s" | "15s" = "10s") {
+  // Derive RUN_DIR from the production cover helper. reelAssetName uses no
+  // suffix for 10s and -15s for 15s; neither fixture reads the real output/.
+  const runDir = dirname(dirname(reelCoverSourceRel(conceptId)));
+  const name = variant === "15s" ? `${conceptId}-15s.mp4` : `${conceptId}.mp4`;
+  const video = Buffer.from(`new reel ${conceptId} ${variant}`);
+  await writeBytes(root, join(runDir, "reels", name), video);
+  await writeJson(root, join(runDir, "reels", `${name}.audio.json`), { narration: false });
+  await writeBytes(root, reelCoverSourceRel(conceptId), Buffer.concat([PNG_MAGIC, Buffer.from(`new ${conceptId} cover`)]));
+  return video;
+}
+
+async function seedOutgoingReel(root: string): Promise<{ video: Buffer; cover: Buffer }> {
+  await seedSourceReel(root);
+  await writeCalendar(root, [dailySlot(1), outgoingReel(SLOT)]);
+  const video = Buffer.from("original formal reel bytes");
+  const cover = Buffer.concat([PNG_MAGIC, Buffer.from("original formal cover")]);
+  await writeBytes(root, `docs/assets/${DATE}/slot-02.mp4`, video);
+  await writeBytes(root, `docs/assets/${DATE}/slot-02.png`, cover);
+  await writeJson(root, `data/video-runs/${DATE}/slot-02/run.json`, { status: "complete", ab_variant: "10s" });
+  await markImageSource({ root, date: DATE, slot: SLOT, source: "gpt-image-2", imagePath: `docs/assets/${DATE}/slot-02.png` });
+  await addScheduledLock(root);
+  return { video, cover };
+}
+
+async function seedExistingVideo(root: string): Promise<{ video: Buffer; record: VideoSourceRecord }> {
+  const video = Buffer.from("existing formal video bytes");
+  const record: VideoSourceRecord = {
+    date: DATE,
+    slot: SLOT,
+    source: "grok-imagine-video",
+    model: "grok-imagine-video-test",
+    video_path: `docs/assets/${DATE}/slot-02.mp4`,
+    request_id: "synthetic-existing-request",
+    source_route: "xai-api",
+    source_reference: "synthetic-existing-request",
+    duration_seconds: 10,
+    width: 720,
+    height: 1280,
+    frame_rate: 30,
+    video_codec: "h264",
+    audio_codec: "aac",
+    marked_at: `${DATE}T00:00:00.000Z`
+  };
+  await writeBytes(root, record.video_path, video);
+  await writeVideoSources(DATE, [record], root);
+  return { video, record };
+}
+
+async function seedRestore(root: string): Promise<{ video: Buffer; cover: Buffer; restoredCover: Buffer }> {
+  const original = await seedOutgoingReel(root);
+  await writeJson(root, `output/reel-backups/${DATE}/slot-02.slot.json`, {
+    date: DATE,
+    slot: dailySlot(SLOT),
+    manifest_entries: [],
+    image_sources: [],
+    saved_at: `${DATE}T00:00:00.000Z`
+  });
+  const restoredCover = Buffer.concat([PNG_MAGIC, Buffer.from("pre-reel cover")]);
+  await writeBytes(root, `output/reel-backups/${DATE}/slot-02.png`, restoredCover);
+  // There is no backed-up mp4: an unguarded restore would delete the formal clip.
+  return { ...original, restoredCover };
+}
+
+async function seedTwoSlotHeal(root: string): Promise<{ lockedVideo: Buffer; eveningVideo: Buffer }> {
+  await seedSourceReel(root, CONCEPT_ID, "15s");
+  const eveningVideo = await seedSourceReel(root, EVENING_CONCEPT_ID);
+  await writeCalendar(root, [dailySlot(1), dailySlot(2), outgoingReel(3, conceptHook())]);
+  const lockedVideo = Buffer.from("scheduled noon 10s reel");
+  await writeBytes(root, `docs/assets/${DATE}/slot-03.mp4`, lockedVideo);
+  for (const slot of [2, 3]) {
+    await writeBytes(root, `docs/assets/${DATE}/slot-0${slot}.png`, Buffer.concat([PNG_MAGIC, Buffer.from(`old slot ${slot}`)]));
+    await markImageSource({ root, date: DATE, slot, source: "gpt-image-2", imagePath: `docs/assets/${DATE}/slot-0${slot}.png` });
+  }
+  await writeJson(root, `data/video-runs/${DATE}/slot-03/run.json`, { status: "complete", ab_variant: "10s" });
+  await addScheduledLock(root, 3);
+  await writeJson(root, "data/ab-test-plan.json", [{
+    date: DATE,
+    noon: { conceptId: CONCEPT_ID, variant: "15s" },
+    evening: { conceptId: EVENING_CONCEPT_ID, variant: "10s" }
+  }]);
+  return { lockedVideo, eveningVideo };
+}
+
+function runSchedule(root: string, args: string[], env: NodeJS.ProcessEnv = {}) {
+  return spawnSync(process.execPath, [TSX_CLI, SCHEDULE_CLI, "--root", root, ...args], {
+    cwd: root,
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 45_000,
+    env: {
+      ...process.env,
+      MEDIA_GUARD_OVERRIDE_REASON: "",
+      PUBLIC_SITE_BASE_URL: "https://example.invalid",
+      PUBLIC_IMAGE_BASE_URL: "https://example.invalid",
+      ...env
+    }
+  });
+}
+
+describe("media mutation slot locks", () => {
+  it("R1 finds one Facebook scheduled-log lock and uses scheduled_post_id", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+
+    await expect(findSlotLocks(root, DATE, SLOT)).resolves.toEqual([
+      { source: "scheduled-log", detail: "scheduled-123" }
+    ] satisfies SlotLock[]);
+  });
+
+  it("R1 treats a scheduled uncertain Facebook row as a lock", async () => {
+    const root = await tempRoot();
+    await writeJson(root, `data/scheduled-log/${DATE}.json`, [
+      { date: DATE, slot: SLOT, platform: "facebook", status: "uncertain" }
+    ]);
+
+    await expect(findSlotLocks(root, DATE, SLOT)).resolves.toEqual([
+      { source: "scheduled-log", detail: "uncertain" }
+    ]);
+  });
+
+  it("R1 finds an IG cloud queue marker lock", async () => {
+    const root = await tempRoot();
+    const marker = join(root, "data", "ig-cloud", "queue", `${DATE}-slot${SLOT}.json`);
+    await mkdir(dirname(marker), { recursive: true });
+    await writeFile(marker, "{}", "utf8");
+
+    await expect(findSlotLocks(root, DATE, SLOT)).resolves.toEqual([
+      { source: "ig-cloud-queue", detail: "queued" }
+    ]);
+  });
+
+  it("R1 finds a non-dry-run posted success lock with platform and status", async () => {
+    const root = await tempRoot();
+    await writeJson(root, `data/posted-log/${DATE}.json`, [
+      { date: DATE, slot: SLOT, platform: "instagram", status: "success", dry_run: false }
+    ]);
+
+    await expect(findSlotLocks(root, DATE, SLOT)).resolves.toEqual([
+      { source: "posted-log", detail: "instagram success" }
+    ]);
+  });
+
+  it("R1 ignores posted-log dry runs", async () => {
+    const root = await tempRoot();
+    await writeJson(root, `data/posted-log/${DATE}.json`, [
+      { date: DATE, slot: SLOT, platform: "facebook", status: "success", dry_run: true }
+    ]);
+
+    await expect(findSlotLocks(root, DATE, SLOT)).resolves.toEqual([]);
+  });
+
+  it("R1 ignores posted-log failed rows", async () => {
+    const root = await tempRoot();
+    await writeJson(root, `data/posted-log/${DATE}.json`, [
+      { date: DATE, slot: SLOT, platform: "facebook", status: "failed", dry_run: false }
+    ]);
+
+    await expect(findSlotLocks(root, DATE, SLOT)).resolves.toEqual([]);
+  });
+
+  it("R1 treats non-dry-run posted uncertain rows as a lock", async () => {
+    const root = await tempRoot();
+    await writeJson(root, `data/posted-log/${DATE}.json`, [
+      { date: DATE, slot: SLOT, platform: "facebook", status: "uncertain", dry_run: false }
+    ]);
+
+    await expect(findSlotLocks(root, DATE, SLOT)).resolves.toEqual([
+      { source: "posted-log", detail: "facebook uncertain" }
+    ]);
+  });
+
+  it("R1 fails closed on unreadable scheduled JSON", async () => {
+    const root = await tempRoot();
+    const path = join(root, "data", "scheduled-log", `${DATE}.json`);
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, "{broken", "utf8");
+
+    await expect(findSlotLocks(root, DATE, SLOT)).resolves.toEqual([
+      { source: "scheduled-log", detail: "unreadable" }
+    ]);
+  });
+
+  it("R1 returns no locks when all three sources are absent", async () => {
+    const root = await tempRoot();
+    await expect(findSlotLocks(root, DATE, SLOT)).resolves.toEqual([]);
+  });
+
+  it("R1 assert succeeds for an unlocked slot", async () => {
+    const root = await tempRoot();
+    await expect(
+      assertSlotMediaMutable({ root, date: DATE, slot: SLOT, operation: "test replacement" })
+    ).resolves.toBeUndefined();
+  });
+
+  it("R1 assert throws SlotLockedError and names the source", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+
+    await expect(
+      assertSlotMediaMutable({ root, date: DATE, slot: SLOT, operation: "test replacement" })
+    ).rejects.toMatchObject({
+      name: "SlotLockedError",
+      message: expect.stringContaining("scheduled-log: scheduled-123")
+    });
+  });
+
+  it("R1 records a valid override with locks, reason, actor, and ISO time", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+
+    await expect(
+      assertSlotMediaMutable({
+        root,
+        date: DATE,
+        slot: SLOT,
+        operation: "replace test media",
+        override: { reason: "owner corrected the media", actor: "shop-owner" }
+      })
+    ).resolves.toBeUndefined();
+
+    const log = JSON.parse(
+      await readFile(join(root, "data", "media-mutation-log", `${DATE}.json`), "utf8")
+    ) as Array<Record<string, unknown>>;
+    expect(log).toHaveLength(1);
+    expect(log[0]).toMatchObject({
+      date: DATE,
+      slot: SLOT,
+      operation: "replace test media",
+      reason: "owner corrected the media",
+      actor: "shop-owner",
+      locks: [{ source: "scheduled-log", detail: "scheduled-123" }]
+    });
+    expect(log[0]?.at).toEqual(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T.*Z$/));
+  });
+
+  it("R1 treats an override with a blank reason as no override", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+
+    await expect(
+      assertSlotMediaMutable({
+        root,
+        date: DATE,
+        slot: SLOT,
+        operation: "test replacement",
+        override: { reason: "  ", actor: "shop-owner" }
+      })
+    ).rejects.toBeInstanceOf(SlotLockedError);
+  });
+
+  it("R3 posted-log success rejects a valid override before touching mp4, png, calendar or audit", async () => {
+    const root = await tempRoot();
+    const before = await seedOutgoingReel(root);
+    await rm(join(root, "data", "scheduled-log", `${DATE}.json`));
+    await seedSourceReel(root, CONCEPT_ID, "15s");
+    await writeCalendar(root, [dailySlot(1), outgoingReel(SLOT, conceptHook())]);
+    await writeJson(root, `data/posted-log/${DATE}.json`, [
+      { date: DATE, slot: SLOT, platform: "facebook", status: "success", dry_run: false }
+    ]);
+    const calendarPath = join(root, "data", "content-calendar", `${DATE}.json`);
+    const calendarBefore = await readFile(calendarPath);
+
+    await expect(scheduleReel({
+      date: DATE, conceptId: CONCEPT_ID, slot: SLOT, variant: "15s", root,
+      mediaGuardOverride: OVERRIDE
+    })).rejects.toMatchObject({
+      name: "SlotLockedError",
+      message: expect.stringContaining("已發布的媒體不能用 --force-regen-scheduled 覆寫")
+    });
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.mp4`))).resolves.toEqual(before.video);
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.png`))).resolves.toEqual(before.cover);
+    await expect(readFile(calendarPath)).resolves.toEqual(calendarBefore);
+    await expect(readFile(join(root, `data/media-mutation-log/${DATE}.json`))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("R3 posted-log plus scheduled-log still rejects a valid override without adding an audit row", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+    await writeJson(root, `data/posted-log/${DATE}.json`, [
+      { date: DATE, slot: SLOT, platform: "instagram", status: "success", dry_run: false }
+    ]);
+    const auditPath = `data/media-mutation-log/${DATE}.json`;
+    await writeJson(root, auditPath, [{ operation: "previous repair", slot: 3 }]);
+    const auditBefore = await readFile(join(root, auditPath));
+
+    await expect(assertSlotMediaMutable({
+      root, date: DATE, slot: SLOT, operation: "replace test media", override: OVERRIDE
+    })).rejects.toBeInstanceOf(SlotLockedError);
+    await expect(readFile(join(root, auditPath))).resolves.toEqual(auditBefore);
+  });
+});
+
+describe("R2 TypeScript entrypoint integration", () => {
+  it("generateImage.slotMoveBlockReason returns scheduled-log", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+
+    await expect(slotMoveBlockReason(DATE, root, dailySlot(SLOT))).resolves.toBe("scheduled-log");
+  });
+
+  it("generateImage.slotMoveBlockReason returns ig-cloud-queue", async () => {
+    const root = await tempRoot();
+    const marker = join(root, "data", "ig-cloud", "queue", `${DATE}-slot${SLOT}.json`);
+    await mkdir(dirname(marker), { recursive: true });
+    await writeFile(marker, "{}", "utf8");
+
+    await expect(slotMoveBlockReason(DATE, root, dailySlot(SLOT))).resolves.toBe("ig-cloud-queue");
+  });
+
+  it("scheduleReel --force refuses a locked slot without changing formal media bytes", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+    const videoPath = join(root, "docs", "assets", DATE, "slot-02.mp4");
+    const coverPath = join(root, "docs", "assets", DATE, "slot-02.png");
+    await mkdir(dirname(videoPath), { recursive: true });
+    await writeFile(videoPath, Buffer.from("original video bytes"));
+    await writeFile(coverPath, Buffer.from("original cover bytes"));
+    const videoBefore = await readFile(videoPath);
+    const coverBefore = await readFile(coverPath);
+
+    await expect(
+      scheduleReel({ date: DATE, conceptId: "leather-bag-corner", slot: SLOT, root, force: true })
+    ).rejects.toBeInstanceOf(SlotLockedError);
+    await expect(readFile(videoPath)).resolves.toEqual(videoBefore);
+    await expect(readFile(coverPath)).resolves.toEqual(coverBefore);
+  });
+
+  it("importGrokVideo refuses a locked slot before normalize and leaves formal bytes untouched", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+    const inputPath = join(root, "incoming.mp4");
+    const targetPath = join(root, "docs", "assets", DATE, "slot-02.mp4");
+    await mkdir(dirname(targetPath), { recursive: true });
+    await writeFile(inputPath, Buffer.from("incoming video bytes"));
+    await writeFile(targetPath, Buffer.from("formal video bytes"));
+    const before = await readFile(targetPath);
+    const validMetadata: VideoMetadata = {
+      duration_seconds: 10,
+      width: 1080,
+      height: 1920,
+      frame_rate: 30,
+      video_codec: "h264",
+      audio_codec: "aac",
+      audio_sample_rate: 48_000,
+      format_name: "mov,mp4"
+    };
+    const normalize = vi.fn(async (input: string, output: string) => copyFile(input, output));
+    const probe = vi.fn().mockResolvedValue(validMetadata);
+
+    await expect(
+      importGrokVideo({
+        date: DATE,
+        slot: SLOT,
+        inputPath,
+        sourceReference: "manual-test-reference",
+        root,
+        normalize,
+        probe
+      })
+    ).rejects.toBeInstanceOf(SlotLockedError);
+    expect(normalize).not.toHaveBeenCalled();
+    await expect(readFile(targetPath)).resolves.toEqual(before);
+  });
+
+  it("generateGrokVideos --force refuses a locked slot before backup or network", async () => {
+    const root = await tempRoot();
+    await generateDailyContent({ date: DATE, root });
+    const content = await loadDailyContent(DATE, root);
+    const reel = content?.slots.find((item) => item.slot === SLOT);
+    if (!content || !reel) throw new Error("test fixture did not create slot 2");
+    reel.media_type = "reel";
+    reel.format = "reel";
+    reel.local_video_path = `docs/assets/${DATE}/slot-02.mp4`;
+    reel.video_prompt = "A short test Reel without external calls.";
+    await writeDailyContent(content, root);
+    await addScheduledLock(root);
+    const targetPath = join(root, "docs", "assets", DATE, "slot-02.mp4");
+    await mkdir(dirname(targetPath), { recursive: true });
+    await writeFile(targetPath, Buffer.from("formal video bytes"));
+    const before = await readFile(targetPath);
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("network must not be reached by this test");
+    }) as unknown as typeof fetch;
+
+    await expect(
+      generateGrokVideos({
+        date: DATE,
+        slot: SLOT,
+        root,
+        live: true,
+        force: true,
+        env: { XAI_VIDEO_BILLING_ACK: "true", XAI_API_KEY: "unit-test-key" },
+        fetchImpl
+      })
+    ).rejects.toBeInstanceOf(SlotLockedError);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    await expect(readFile(targetPath)).resolves.toEqual(before);
+  });
+});
+
+describe("R3 media guard CLI", () => {
+  function runGuard(root: string, args: string[], environmentReason = "") {
+    return spawnSync(
+      process.execPath,
+      [
+        TSX_CLI,
+        GUARD_CLI,
+        "--root",
+        root,
+        "--date",
+        DATE,
+        "--slot",
+        String(SLOT),
+        "--operation",
+        "CLI test replacement",
+        ...args
+      ],
+      {
+        cwd: REPO_ROOT,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          MEDIA_GUARD_OVERRIDE_REASON: environmentReason,
+          PUBLIC_SITE_BASE_URL: "https://example.invalid",
+          PUBLIC_IMAGE_BASE_URL: "https://example.invalid"
+        }
+      }
+    );
+  }
+
+  it("returns exit 3 and writes the lock message to stderr for a locked slot", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+
+    const result = runGuard(root, []);
+    expect(result.status).toBe(3);
+    expect(result.stderr).toContain("locked");
+    expect(result.stderr).toContain("scheduled-log");
+  });
+
+  it("returns exit 0 and MEDIA_GUARD ok for an unlocked slot", async () => {
+    const root = await tempRoot();
+
+    const result = runGuard(root, []);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("MEDIA_GUARD| ok");
+  });
+
+  it("accepts the explicit CLI override only when its reason is present", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+
+    const result = runGuard(root, ["--force-regen-scheduled", "--reason", "approved repair"]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("MEDIA_GUARD| ok");
+    const log = JSON.parse(
+      await readFile(join(root, "data", "media-mutation-log", `${DATE}.json`), "utf8")
+    ) as Array<Record<string, unknown>>;
+    expect(log[0]).toMatchObject({ reason: "approved repair", slot: SLOT });
+    expect(log[0]?.actor).toBeTruthy();
+  });
+
+  it("accepts MEDIA_GUARD_OVERRIDE_REASON for PowerShell callers", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+
+    const result = runGuard(root, [], "PowerShell approved repair");
+    expect(result.status).toBe(0);
+    const log = JSON.parse(
+      await readFile(join(root, "data", "media-mutation-log", `${DATE}.json`), "utf8")
+    ) as Array<Record<string, unknown>>;
+    expect(log[0]?.reason).toBe("PowerShell approved repair");
+  });
+
+  it("treats --force-regen-scheduled without --reason as no override", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+
+    const result = runGuard(root, ["--force-regen-scheduled"]);
+    expect(result.status).toBe(3);
+    expect(result.stderr).toContain("locked");
+  });
+});
+
+describe("REGENGUARD-R2 restore and heal", () => {
+  it("F1 restore refuses a scheduled slot before changing calendar, mp4 or png bytes", async () => {
+    const root = await tempRoot();
+    const before = await seedRestore(root);
+    const calendarPath = join(root, "data", "content-calendar", `${DATE}.json`);
+    const calendarBefore = await readFile(calendarPath);
+
+    await expect(restoreReelSlot({ date: DATE, slotNumber: SLOT, root })).rejects.toBeInstanceOf(SlotLockedError);
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02.mp4"))).resolves.toEqual(before.video);
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02.png"))).resolves.toEqual(before.cover);
+    await expect(readFile(calendarPath)).resolves.toEqual(calendarBefore);
+    await expect(readFile(join(root, "data", "media-mutation-log", `${DATE}.json`))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("F1 --restore passes the explicit override and audits the restore operation", async () => {
+    const root = await tempRoot();
+    const before = await seedRestore(root);
+    const result = runSchedule(root, ["--restore", "--date", DATE, "--slot", String(SLOT),
+      "--force-regen-scheduled", "--reason", "approved restore"], { USERNAME: " " });
+
+    expect(result.status, result.stderr).toBe(0);
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02.mp4"))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02.png"))).resolves.toEqual(before.restoredCover);
+    expect((await loadDailyContent(DATE, root))?.slots.find((slot) => slot.slot === SLOT)?.media_type).toBe("image");
+    const audit = JSON.parse(await readFile(join(root, "data", "media-mutation-log", `${DATE}.json`), "utf8"));
+    expect(audit).toEqual([expect.objectContaining({ operation: "restore reel slot", reason: "approved restore", actor: "unknown" })]);
+  });
+
+  it("R3 restore refuses posted-log with override and preserves calendar, mp4, png and audit", async () => {
+    const root = await tempRoot();
+    const before = await seedRestore(root);
+    await writeJson(root, `data/posted-log/${DATE}.json`, [
+      { date: DATE, slot: SLOT, platform: "facebook", status: "success", dry_run: false }
+    ]);
+    const calendarPath = join(root, "data", "content-calendar", `${DATE}.json`);
+    const calendarBefore = await readFile(calendarPath);
+
+    await expect(restoreReelSlot({ date: DATE, slotNumber: SLOT, root, mediaGuardOverride: OVERRIDE }))
+      .rejects.toBeInstanceOf(SlotLockedError);
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.mp4`))).resolves.toEqual(before.video);
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.png`))).resolves.toEqual(before.cover);
+    await expect(readFile(calendarPath)).resolves.toEqual(calendarBefore);
+    await expect(readFile(join(root, `data/media-mutation-log/${DATE}.json`))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("F2 heal with an override still stops on approved-log and preserves the formal reel", async () => {
+    const root = await tempRoot();
+    const before = await seedOutgoingReel(root);
+    await writeJson(root, `data/approved-log/${DATE}.json`, [{
+      date: DATE, slot: SLOT, platform: "facebook", status: "approved", approved_by: "test-owner"
+    }]);
+
+    const result = await healOneSlot({ date: DATE, slotNumber: SLOT, conceptId: CONCEPT_ID, variant: "10s", root, mediaGuardOverride: OVERRIDE });
+
+    expect(result).toMatchObject({ action: "stopped", stopReason: "approved-log" });
+    expect(result.invalidate?.skipped).toContainEqual({ slot: SLOT, reason: "approved-log" });
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02.mp4"))).resolves.toEqual(before.video);
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02.png"))).resolves.toEqual(before.cover);
+  });
+
+  it("R3 same-topic variant repair stops on approved-log even with override", async () => {
+    const root = await tempRoot();
+    const before = await seedOutgoingReel(root);
+    await rm(join(root, "data", "scheduled-log", `${DATE}.json`));
+    await seedSourceReel(root, CONCEPT_ID, "15s");
+    await writeCalendar(root, [dailySlot(1), outgoingReel(SLOT, conceptHook())]);
+    await writeJson(root, `data/approved-log/${DATE}.json`, [
+      { date: DATE, slot: SLOT, platform: "facebook", status: "approved", approved_by: "test-owner" }
+    ]);
+    const calendarPath = join(root, "data", "content-calendar", `${DATE}.json`);
+    const calendarBefore = await readFile(calendarPath);
+
+    const result = await healOneSlot({
+      date: DATE, slotNumber: SLOT, conceptId: CONCEPT_ID, variant: "15s", root,
+      mediaGuardOverride: OVERRIDE
+    });
+
+    expect(result).toMatchObject({ action: "stopped", stopReason: "approved-log" });
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.mp4`))).resolves.toEqual(before.video);
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.png`))).resolves.toEqual(before.cover);
+    await expect(readFile(calendarPath)).resolves.toEqual(calendarBefore);
+    await expect(readFile(join(root, `data/media-mutation-log/${DATE}.json`))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("R4 M6 same-topic slot 3 variant heal without override stops on approved-log", async () => {
+    const root = await tempRoot();
+    const before = await seedTwoSlotHeal(root);
+    await rm(join(root, `data/scheduled-log/${DATE}.json`));
+    await writeJson(root, `data/approved-log/${DATE}.json`, [
+      { date: DATE, slot: 3, platform: "facebook", status: "approved", approved_by: "test-owner" }
+    ]);
+    expect(await findSlotLocks(root, DATE, 3)).toEqual([]);
+    const calendarPath = join(root, `data/content-calendar/${DATE}.json`);
+    const calendarBefore = await readFile(calendarPath);
+
+    const result = await healOneSlot({ date: DATE, slotNumber: 3, conceptId: CONCEPT_ID, variant: "15s", root });
+
+    expect(result).toMatchObject({ action: "stopped", stopReason: "approved-log" });
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-03.mp4`))).resolves.toEqual(before.lockedVideo);
+    await expect(readFile(calendarPath)).resolves.toEqual(calendarBefore);
+  });
+
+  it("R3 same-topic variant repair heals a scheduled-only slot with override", async () => {
+    const root = await tempRoot();
+    await seedOutgoingReel(root);
+    const newVideo = await seedSourceReel(root, CONCEPT_ID, "15s");
+    await writeCalendar(root, [dailySlot(1), outgoingReel(SLOT, conceptHook())]);
+
+    const result = await healOneSlot({
+      date: DATE, slotNumber: SLOT, conceptId: CONCEPT_ID, variant: "15s", root,
+      mediaGuardOverride: OVERRIDE
+    });
+
+    expect(result.action).toBe("healed");
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.mp4`))).resolves.toEqual(newVideo);
+    const audit = JSON.parse(await readFile(join(root, `data/media-mutation-log/${DATE}.json`), "utf8"));
+    expect(audit).toEqual([expect.objectContaining({ slot: SLOT, operation: "schedule reel", reason: OVERRIDE.reason })]);
+  });
+
+  it("F2 heal with an override still stops on protected-reel and preserves its cover and clip", async () => {
+    const root = await tempRoot();
+    const before = await seedOutgoingReel(root);
+
+    const result = await healOneSlot({ date: DATE, slotNumber: SLOT, conceptId: CONCEPT_ID, variant: "10s", root, mediaGuardOverride: OVERRIDE });
+
+    expect(result).toMatchObject({ action: "stopped", stopReason: "protected-reel" });
+    expect(result.invalidate?.skipped).toContainEqual({ slot: SLOT, reason: "protected-reel" });
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02.mp4"))).resolves.toEqual(before.video);
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02.png"))).resolves.toEqual(before.cover);
+  });
+
+  it("F2 heal with an override quarantines all old carousel slides and audits both operations", async () => {
+    const root = await tempRoot();
+    const newVideo = await seedSourceReel(root);
+    const carousel: DailySlot = {
+      ...dailySlot(SLOT),
+      topic: "舊輪播：靠墊",
+      image_prompt: "Carousel slide 1: old cushions",
+      media_type: "carousel",
+      format: "carousel-guide",
+      carousel_items: [1, 2, 3].map((slide) => ({
+        slide,
+        image_prompt: `Carousel slide ${slide}: old cushions`,
+        local_image_path: `docs/assets/${DATE}/slot-02${slide === 1 ? "" : `-slide-0${slide}`}.png`,
+        public_image_url: `https://example.invalid/slide-${slide}.png`
+      }))
+    };
+    await writeCalendar(root, [dailySlot(1), carousel]);
+    const slides = carousel.carousel_items ?? [];
+    for (const slide of slides) {
+      await writeBytes(root, slide.local_image_path, Buffer.concat([PNG_MAGIC, Buffer.from(`old slide ${slide.slide}`)]));
+      await markImageSource({ root, date: DATE, slot: SLOT, source: "gpt-image-2", imagePath: slide.local_image_path });
+    }
+    const oldBytes = await Promise.all(slides.map((slide) => readFile(join(root, slide.local_image_path))));
+    await addScheduledLock(root);
+
+    const result = await healOneSlot({ date: DATE, slotNumber: SLOT, conceptId: CONCEPT_ID, variant: "10s", root, mediaGuardOverride: OVERRIDE });
+
+    expect(result.action).toBe("healed");
+    expect(result.invalidate?.moved).toHaveLength(3);
+    for (const [index, slide] of slides.entries()) {
+      const moved = result.invalidate?.moved.find((entry) => entry.from === slide.local_image_path);
+      expect(moved?.to).toContain("_stale");
+      await expect(readFile(moved!.to)).resolves.toEqual(oldBytes[index]);
+    }
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02-slide-02.png"))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02-slide-03.png"))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02.mp4"))).resolves.toEqual(newVideo);
+    const audit = JSON.parse(await readFile(join(root, "data", "media-mutation-log", `${DATE}.json`), "utf8")) as Array<{ operation: string }>;
+    expect(audit.map((entry) => entry.operation)).toEqual(["move stale slot image", "schedule reel"]);
+  });
+
+  it("F3 heal returns media-locked for slot 3 and continues repairing unlocked slot 2", async () => {
+    const root = await tempRoot();
+    const before = await seedTwoSlotHeal(root);
+    const results = [];
+    for (const slotNumber of [3, 2]) {
+      results.push(await healOneSlot({
+        date: DATE, slotNumber,
+        conceptId: slotNumber === 3 ? CONCEPT_ID : EVENING_CONCEPT_ID,
+        variant: slotNumber === 3 ? "15s" : "10s", root
+      }));
+    }
+
+    expect(results[0]).toMatchObject({ action: "stopped", stopReason: "media-locked", invalidate: { moved: [], skipped: [], refused: [] } });
+    expect(results[1]).toMatchObject({ action: "healed", slotNumber: 2 });
+    const content = await loadDailyContent(DATE, root);
+    expect(content?.slots.find((slot) => slot.slot === 2)).toMatchObject({ media_type: "reel", topic: conceptHook(EVENING_CONCEPT_ID) });
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-03.mp4"))).resolves.toEqual(before.lockedVideo);
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02.mp4"))).resolves.toEqual(before.eveningVideo);
+  });
+
+  it("F3 --heal keeps exit 0 and repairs the next plan half after a media-locked stop", async () => {
+    const root = await tempRoot();
+    const before = await seedTwoSlotHeal(root);
+    const result = runSchedule(root, ["--heal", "--date", DATE]);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("slot 3 heal stopped (media-locked)");
+    expect(result.stdout).toContain("healed slot 2");
+    expect((await loadDailyContent(DATE, root))?.slots.find((slot) => slot.slot === 2)?.media_type).toBe("reel");
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-03.mp4"))).resolves.toEqual(before.lockedVideo);
+    await expect(readFile(join(root, "docs", "assets", DATE, "slot-02.mp4"))).resolves.toEqual(before.eveningVideo);
+  });
+
+  it("R3 --heal override requires --slot before either plan half changes", async () => {
+    const root = await tempRoot();
+    const before = await seedTwoSlotHeal(root);
+    const calendarPath = join(root, `data/content-calendar/${DATE}.json`);
+    const calendarBefore = await readFile(calendarPath);
+    const eveningCoverBefore = await readFile(join(root, `docs/assets/${DATE}/slot-02.png`));
+
+    const result = runSchedule(root, ["--heal", "--date", DATE,
+      "--force-regen-scheduled", "--reason", "repair slot 2 only"]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("requires --slot");
+    expect(result.stderr.trim()).toBe("--force-regen-scheduled requires --slot N when healing");
+    expect(result.stdout).not.toContain("heal stopped");
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-03.mp4`))).resolves.toEqual(before.lockedVideo);
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.png`))).resolves.toEqual(eveningCoverBefore);
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.mp4`))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(calendarPath)).resolves.toEqual(calendarBefore);
+    await expect(readFile(join(root, `data/media-mutation-log/${DATE}.json`))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("R4 M7 environment override requires --slot before either plan half changes", async () => {
+    const root = await tempRoot();
+    const before = await seedTwoSlotHeal(root);
+    const slot2Video = Buffer.from("original slot 2 video bytes");
+    await writeBytes(root, `docs/assets/${DATE}/slot-02.mp4`, slot2Video);
+    const calendarPath = join(root, `data/content-calendar/${DATE}.json`);
+    const calendarBefore = await readFile(calendarPath);
+
+    const result = runSchedule(root, ["--heal", "--date", DATE], {
+      MEDIA_GUARD_OVERRIDE_REASON: "repair one slot only",
+      USERNAME: "test-owner"
+    });
+
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("MEDIA_GUARD_OVERRIDE_REASON is set; healing with an override requires --slot N (unset the variable to heal both halves)");
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-03.mp4`))).resolves.toEqual(before.lockedVideo);
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.mp4`))).resolves.toEqual(slot2Video);
+    await expect(readFile(calendarPath)).resolves.toEqual(calendarBefore);
+  });
+
+  it("R4 M8 legacy slot 3 heal is a no-op for a scheduled Reel date without an A/B plan", async () => {
+    const entry = REEL_SCHEDULE[0];
+    if (!entry) throw new Error("REEL_SCHEDULE has no entry for the legacy heal fixture");
+    const root = await tempRoot();
+    await seedSourceReel(root, entry.conceptId);
+    await writeCalendar(root, [1, 2].map((slot) => ({
+      ...dailySlot(slot),
+      local_image_path: `docs/assets/${entry.date}/slot-0${slot}.png`
+    })), entry.date);
+    const slot2Video = Buffer.from("original legacy slot 2 video bytes");
+    await writeBytes(root, `docs/assets/${entry.date}/slot-02.mp4`, slot2Video);
+    const calendarPath = join(root, `data/content-calendar/${entry.date}.json`);
+    const calendarBefore = await readFile(calendarPath);
+
+    const result = runSchedule(root, ["--heal", "--date", entry.date, "--slot", "3"]);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("no reel scheduled for slot 3");
+    await expect(readFile(join(root, `docs/assets/${entry.date}/slot-02.mp4`))).resolves.toEqual(slot2Video);
+    await expect(readFile(calendarPath)).resolves.toEqual(calendarBefore);
+  });
+
+  it("R3 --heal override with --slot 2 leaves slot 3 bytes, calendar row and audit untouched", async () => {
+    const root = await tempRoot();
+    const before = await seedTwoSlotHeal(root);
+    await writeJson(root, `data/scheduled-log/${DATE}.json`, [
+      { date: DATE, slot: 3, platform: "facebook", status: "scheduled", scheduled_post_id: "noon-lock" },
+      { date: DATE, slot: 2, platform: "facebook", status: "scheduled", scheduled_post_id: "evening-lock" }
+    ]);
+    const slot3Before = (await loadDailyContent(DATE, root))?.slots.find((slot) => slot.slot === 3);
+    const slot3CoverBefore = await readFile(join(root, `docs/assets/${DATE}/slot-03.png`));
+
+    const result = runSchedule(root, ["--heal", "--date", DATE, "--slot", "2",
+      "--force-regen-scheduled", "--reason", "repair slot 2 only"]);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("healed slot 2");
+    expect(result.stdout).not.toContain("slot 3");
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-03.mp4`))).resolves.toEqual(before.lockedVideo);
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-03.png`))).resolves.toEqual(slot3CoverBefore);
+    expect((await loadDailyContent(DATE, root))?.slots.find((slot) => slot.slot === 3)).toEqual(slot3Before);
+    await expect(readFile(join(root, `docs/assets/${DATE}/slot-02.mp4`))).resolves.toEqual(before.eveningVideo);
+    const audit = JSON.parse(await readFile(join(root, `data/media-mutation-log/${DATE}.json`), "utf8"));
+    expect(audit.map((entry: { slot: number; operation: string }) => [entry.slot, entry.operation])).toEqual([
+      [2, "move stale slot image"], [2, "schedule reel"]
+    ]);
+  });
+
+  it("R3 heal rethrows a missing sidecar instead of reporting media-locked", async () => {
+    const root = await tempRoot();
+    await seedTwoSlotHeal(root);
+    const sidecar = join(root, dirname(dirname(reelCoverSourceRel(EVENING_CONCEPT_ID))),
+      "reels", `${EVENING_CONCEPT_ID}.mp4.audio.json`);
+    await rm(sidecar);
+
+    await expect(healOneSlot({
+      date: DATE, slotNumber: 2, conceptId: EVENING_CONCEPT_ID, variant: "10s", root
+    })).rejects.toMatchObject({ code: "ENOENT" });
+    const result = runSchedule(root, ["--heal", "--date", DATE, "--slot", "2"]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("ENOENT");
+    expect(result.stdout).not.toContain("heal stopped (media-locked)");
+  });
+});
+
+describe("REGENGUARD-R2 PowerShell root and missing videos", () => {
+  it.each(["generate-missing-images.ps1", "regenerate-boutique-images.ps1"])(
+    'F4 %s pins media-guard to --root "$root" and preserves the UTF-8 BOM', async (script) => {
+      const bytes = await readFile(join(REPO_ROOT, "scripts", script));
+      expect([...bytes.subarray(0, 3)]).toEqual([239, 187, 191]);
+      // Doubled quotes are the literal cmd /c quotes inside a PowerShell string.
+      expect(bytes.toString("utf8").replaceAll('""', '"')).toContain('media-guard -- --root "$root"');
+    }
+  );
+
+  it.each([
+    { script: "generate-missing-images.ps1", expectedExit: 1 },
+    { script: "regenerate-boutique-images.ps1", expectedExit: 0 }
+  ])("R3 $script passes the spaced fake root to media-guard under a failing npm.cmd", async ({ script, expectedExit }) => {
+    const root = await tempRoot("media guard spaced root ");
+    const scriptPath = join(root, "scripts", script);
+    const fakeBin = join(root, "fake bin");
+    const fakeAppData = join(root, "fake appdata");
+    const fakeProfile = join(root, "fake profile");
+    const npmLog = join(root, "npm-args.txt");
+    const rootLog = join(root, "npm-roots.txt");
+    await mkdir(dirname(scriptPath), { recursive: true });
+    await mkdir(fakeBin, { recursive: true });
+    await mkdir(join(fakeAppData, "npm"), { recursive: true });
+    await mkdir(join(fakeProfile, ".codex", "generated_images", "fixture"), { recursive: true });
+    await mkdir(join(root, "fake temp"), { recursive: true });
+    await copyFile(join(REPO_ROOT, "scripts", script), scriptPath);
+    const dates = script === "generate-missing-images.ps1"
+      ? [DATE]
+      : ["2026-07-31", "2026-08-01", "2026-08-02", "2026-08-03", "2026-08-04", "2026-08-05", "2026-08-07", "2026-08-09"];
+    const unlockedDate = script === "regenerate-boutique-images.ps1" ? "2026-08-09" : "";
+    const boutiqueImage = Buffer.concat([PNG_MAGIC, Buffer.from("original boutique image")]);
+    for (const date of dates) {
+      if (date !== unlockedDate) {
+        await writeJson(root, `data/scheduled-log/${date}.json`, [
+          { date, slot: 1, platform: "facebook", status: "scheduled", scheduled_post_id: "synthetic-lock" }
+        ]);
+      }
+      if (script === "regenerate-boutique-images.ps1") {
+        await writeBytes(root, `docs/assets/${date}/slot-01.png`, boutiqueImage);
+      }
+    }
+    const fakeNpm = [
+      "@echo off",
+      `>>"%FAKE_NPM_LOG%" echo(%*`,
+      "if /I \"%~2\"==\"media-guard\" (",
+      `  >>"%FAKE_ROOT_LOG%" echo(%~5`,
+      "  if /I \"%~7\"==\"%FAKE_UNLOCKED_DATE%\" exit /b 0",
+      "  exit /b 3",
+      ")",
+      "if /I \"%~2\"==\"generate-image-manifest\" if /I \"%~4\"==\"--list-missing\" if /I \"%~6\"==\"%FAKE_UNLOCKED_DATE%\" (",
+      "  echo Every image for %~6 was already present.",
+      "  exit /b 0",
+      ")",
+      "if /I \"%~2\"==\"validate-publishable-images\" if /I \"%~5\"==\"%FAKE_UNLOCKED_DATE%\" exit /b 0",
+      "echo 1 calendar image(s) missing",
+      "echo   - docs/assets/%~6/slot-01.png (synthetic)",
+      "exit /b 3",
+      ""
+    ].join("\r\n");
+    await writeFile(join(fakeBin, "npm.cmd"), fakeNpm, "utf8");
+    if (script === "generate-missing-images.ps1") {
+      await writeJson(root, `data/image-prompts/${DATE}.json`, [
+        { slot: 1, slide: 1, target_path: `docs/assets/${DATE}/slot-01.png`, prompt: "Synthetic image." }
+      ]);
+      const generatedImage = join(fakeProfile, ".codex", "generated_images", "fixture", "image.png");
+      await writeFile(generatedImage, Buffer.concat([PNG_MAGIC, Buffer.from("synthetic image")]));
+      const future = new Date(Date.now() + 60_000);
+      await utimes(generatedImage, future, future);
+      await writeFile(join(fakeAppData, "npm", "codex.cmd"),
+        "@echo off\r\nexit /b 0\r\n", "utf8");
+      await writeFile(join(fakeBin, "ffprobe.cmd"), "@echo off\r\necho 1122,1402\r\nexit /b 0\r\n", "utf8");
+      const env: NodeJS.ProcessEnv = { ...process.env };
+      delete env.Path;
+      env.PATH = `${fakeBin};${process.env.Path ?? process.env.PATH ?? ""}`;
+      env.APPDATA = fakeAppData;
+      env.USERPROFILE = fakeProfile;
+      env.TEMP = join(root, "fake temp");
+      env.FAKE_NPM_LOG = npmLog;
+      env.FAKE_ROOT_LOG = rootLog;
+      env.FAKE_UNLOCKED_DATE = unlockedDate;
+      const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath, "-Date", DATE], {
+        cwd: root, encoding: "utf8", windowsHide: true, timeout: 50_000, env
+      });
+      expect(result.error, `${result.stdout}\n${result.stderr}`).toBeUndefined();
+      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(expectedExit);
+      const npmCalls = await readFile(npmLog, "utf8");
+      expect(npmCalls, `${result.stdout}\n${result.stderr}`).toContain("run media-guard");
+      const calls = npmCalls.trim().split(/\r?\n/u);
+      const guardIndex = calls.findIndex((call) => call.startsWith("run media-guard ") && call.includes(`--date ${DATE}`));
+      expect(guardIndex).toBeGreaterThan(-1);
+      expect(calls.slice(guardIndex + 1).filter((call) => call.startsWith("run mark-image-source ") && call.includes(`--date ${DATE}`))).toEqual([]);
+      await expect(readFile(join(root, `docs/assets/${DATE}/slot-01.png`))).rejects.toMatchObject({ code: "ENOENT" });
+      const rootsPassed = (await readFile(rootLog, "utf8")).trim().split(/\r?\n/u);
+      expect(rootsPassed.map(sameDirectory)).toEqual([sameDirectory(root)]);
+    } else {
+      await copyFile(join(REPO_ROOT, "scripts", "generate-missing-images.ps1"), join(root, "scripts", "generate-missing-images.ps1"));
+      await writeJson(root, `data/image-prompts/${unlockedDate}.json`, []);
+      const env: NodeJS.ProcessEnv = { ...process.env };
+      delete env.Path;
+      env.PATH = `${fakeBin};${process.env.Path ?? process.env.PATH ?? ""}`;
+      env.APPDATA = fakeAppData;
+      env.USERPROFILE = fakeProfile;
+      env.TEMP = join(root, "fake temp");
+      env.FAKE_NPM_LOG = npmLog;
+      env.FAKE_ROOT_LOG = rootLog;
+      env.FAKE_UNLOCKED_DATE = unlockedDate;
+      const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath], {
+        cwd: root, encoding: "utf8", windowsHide: true, timeout: 50_000, env
+      });
+      expect(result.error, `${result.stdout}\n${result.stderr}`).toBeUndefined();
+      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(expectedExit);
+      const rootsPassed = (await readFile(rootLog, "utf8")).trim().split(/\r?\n/u);
+      expect(rootsPassed.map(sameDirectory)).toEqual(dates.map(() => sameDirectory(root)));
+      expect(await readFile(npmLog, "utf8")).toContain("run media-guard");
+      const calls = (await readFile(npmLog, "utf8")).trim().split(/\r?\n/u);
+      for (const lockedDate of dates.filter((date) => date !== unlockedDate)) {
+        const guardIndex = calls.findIndex((call) => call.startsWith("run media-guard ") && call.includes(`--date ${lockedDate}`));
+        expect(guardIndex).toBeGreaterThan(-1);
+        expect(calls.slice(guardIndex + 1).filter((call) =>
+          call.includes(`--date ${lockedDate}`) && /^run (?:generate-image-manifest|publish-pages)\b/u.test(call)
+        )).toEqual([]);
+        await expect(readFile(join(root, `docs/assets/${lockedDate}/slot-01.png`))).resolves.toEqual(boutiqueImage);
+      }
+      expect(calls.some((call) => call.startsWith("run generate-image-manifest ") && call.includes(`--date ${unlockedDate}`))).toBe(true);
+      expect(calls.some((call) => call.startsWith("run generate-image-manifest -- --list-missing ") && call.includes(`--date ${unlockedDate}`))).toBe(true);
+      expect(calls.some((call) => call.startsWith("run publish-pages ") && call.includes(`--date ${unlockedDate}`))).toBe(true);
+      await expect(readFile(join(root, `docs/assets/${unlockedDate}/slot-01.png`))).rejects.toMatchObject({ code: "ENOENT" });
+    }
+  }, 60_000);
+
+  it.each([false, true])("S4 missing video with force=%s refuses a locked slot before any fetch", async (force) => {
+    const root = await tempRoot();
+    await writeCalendar(root, [dailySlot(1), { ...outgoingReel(SLOT), video_prompt: "A short synthetic Reel." }]);
+    await addScheduledLock(root);
+    const target = join(root, "docs", "assets", DATE, "slot-02.mp4");
+    await expect(readFile(target)).rejects.toMatchObject({ code: "ENOENT" });
+    const fetchImpl = vi.fn(async () => { throw new Error("synthetic fetch must not be reached"); }) as unknown as typeof fetch;
+
+    await expect(generateGrokVideos({
+      date: DATE, slot: SLOT, root, live: true, force,
+      env: { XAI_VIDEO_BILLING_ACK: "true", XAI_API_KEY: "synthetic-test-key" }, fetchImpl
+    })).rejects.toBeInstanceOf(SlotLockedError);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    await expect(readFile(target)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("S5 existing video without force returns its source under a scheduled lock without mutation", async () => {
+    const root = await tempRoot();
+    const { video, record } = await seedExistingVideo(root);
+    await writeCalendar(root, [dailySlot(1), { ...outgoingReel(SLOT), video_prompt: "A short synthetic Reel." }]);
+    await addScheduledLock(root);
+    const fetchImpl = vi.fn(async () => { throw new Error("synthetic fetch must not be reached"); }) as unknown as typeof fetch;
+
+    await expect(generateGrokVideos({
+      date: DATE, slot: SLOT, root, live: true, force: false,
+      env: { XAI_VIDEO_BILLING_ACK: "true", XAI_API_KEY: "synthetic-test-key" }, fetchImpl
+    })).resolves.toEqual([record]);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    await expect(readFile(join(root, record.video_path))).resolves.toEqual(video);
+    await expect(readFile(join(root, "data", "media-mutation-log", `${DATE}.json`))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("S6 --force refuses a locked existing video before backup or network", async () => {
+    const root = await tempRoot();
+    const { video, record } = await seedExistingVideo(root);
+    await writeCalendar(root, [dailySlot(1), { ...outgoingReel(SLOT), video_prompt: "A short synthetic Reel." }]);
+    await addScheduledLock(root);
+    const target = join(root, record.video_path);
+    const fetchImpl = vi.fn(async () => { throw new Error("synthetic fetch must not be reached"); }) as unknown as typeof fetch;
+
+    await expect(generateGrokVideos({
+      date: DATE, slot: SLOT, root, live: true, force: true,
+      env: { XAI_VIDEO_BILLING_ACK: "true", XAI_API_KEY: "synthetic-test-key" }, fetchImpl
+    })).rejects.toBeInstanceOf(SlotLockedError);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    await expect(readFile(target)).resolves.toEqual(video);
+    await expect(readdir(dirname(target))).resolves.toEqual(["slot-02.mp4"]);
+  });
+});
+
+describe("REGENGUARD-R2 shared override parser and plan scope", () => {
+  it.each([
+    { label: "flag and trimmed reason/actor", args: ["--force-regen-scheduled", "--reason", " repair "], env: { USERNAME: " owner ", MEDIA_GUARD_OVERRIDE_REASON: "ignored" }, expected: { reason: "repair", actor: "owner" } },
+    { label: "flag without reason ignores the environment reason", args: ["--force-regen-scheduled"], env: { MEDIA_GUARD_OVERRIDE_REASON: "ignored" }, expected: undefined },
+    { label: "environment reason without flag", args: [], env: { MEDIA_GUARD_OVERRIDE_REASON: " repair ", USERNAME: "owner" }, expected: { reason: "repair", actor: "owner" } },
+    { label: "neither flag nor environment reason", args: ["--reason", "ignored"], env: {}, expected: undefined },
+    { label: "blank CLI reason ignores environment fallback", args: ["--force-regen-scheduled", "--reason", " "], env: { MEDIA_GUARD_OVERRIDE_REASON: "ignored" }, expected: undefined },
+    { label: "blank environment reason", args: [], env: { MEDIA_GUARD_OVERRIDE_REASON: " " }, expected: undefined },
+    { label: "empty USERNAME becomes unknown", args: ["--force-regen-scheduled", "--reason", "repair"], env: { USERNAME: "" }, expected: { reason: "repair", actor: "unknown" } },
+    { label: "whitespace USERNAME becomes unknown", args: [], env: { MEDIA_GUARD_OVERRIDE_REASON: "repair", USERNAME: " " }, expected: { reason: "repair", actor: "unknown" } }
+  ])("R6 parser: $label", ({ args, env, expected }) => {
+    expect(parseMediaGuardOverride(args, env)).toEqual(expected);
+  });
+
+  it("R6 mediaGuardCli accepts a whitespace USERNAME as unknown", async () => {
+    const root = await tempRoot();
+    await addScheduledLock(root);
+    const result = spawnSync(process.execPath, [TSX_CLI, GUARD_CLI, "--root", root, "--date", DATE,
+      "--slot", String(SLOT), "--operation", "CLI empty actor test"], {
+      cwd: root, encoding: "utf8", windowsHide: true, timeout: 20_000,
+      env: { ...process.env, USERNAME: " ", MEDIA_GUARD_OVERRIDE_REASON: " approved repair ",
+        PUBLIC_SITE_BASE_URL: "https://example.invalid", PUBLIC_IMAGE_BASE_URL: "https://example.invalid" }
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    const audit = JSON.parse(await readFile(join(root, "data", "media-mutation-log", `${DATE}.json`), "utf8"));
+    expect(audit).toEqual([expect.objectContaining({ actor: "unknown", reason: "approved repair" })]);
+  });
+
+  it.each([
+    { route: "explicit flag", args: ["--force-regen-scheduled", "--reason", "single slot only"], env: {} },
+    { route: "environment", args: [], env: { MEDIA_GUARD_OVERRIDE_REASON: "single slot only" } }
+  ])("R6 --plan never forwards the $route override into its multi-date schedule", async ({ args, env }) => {
+    const root = await tempRoot();
+    const entry = REEL_SCHEDULE[0];
+    if (!entry) throw new Error("REEL_SCHEDULE has no first entry for the plan fixture");
+    await seedSourceReel(root, entry.conceptId);
+    const slot = { ...dailySlot(SLOT), local_image_path: `docs/assets/${entry.date}/slot-02.png` };
+    await writeCalendar(root, [slot], entry.date);
+    const oldVideo = Buffer.from("scheduled plan video");
+    const oldCover = Buffer.concat([PNG_MAGIC, Buffer.from("scheduled plan cover")]);
+    await writeBytes(root, `docs/assets/${entry.date}/slot-02.mp4`, oldVideo);
+    await writeBytes(root, slot.local_image_path, oldCover);
+    await writeJson(root, `data/scheduled-log/${entry.date}.json`, [{
+      date: entry.date, slot: SLOT, platform: "facebook", scheduled_post_id: "plan-locked", status: "scheduled"
+    }]);
+
+    const result = runSchedule(root, ["--plan", ...args], { USERNAME: "test-owner", ...env });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("media is locked");
+    expect(result.stderr).toContain("scheduled-log: plan-locked");
+    await expect(readFile(join(root, "docs", "assets", entry.date, "slot-02.mp4"))).resolves.toEqual(oldVideo);
+    await expect(readFile(join(root, slot.local_image_path))).resolves.toEqual(oldCover);
+    await expect(readFile(join(root, "data", "media-mutation-log", `${entry.date}.json`))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+});

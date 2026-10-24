@@ -70,17 +70,24 @@ function credentials(env: NodeJS.ProcessEnv): GscCredentials {
   return { clientId, clientSecret, refreshToken, siteUrl };
 }
 
-async function accessToken(creds: GscCredentials, fetcher: typeof fetch): Promise<string> {
-  const response = await fetcher("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: creds.clientId,
-      client_secret: creds.clientSecret,
-      refresh_token: creds.refreshToken,
-      grant_type: "refresh_token"
-    }).toString()
-  });
+async function accessToken(creds: GscCredentials, fetcher: typeof fetch, timeoutMs: number): Promise<string> {
+  let response: Response;
+  try {
+    response = await fetcher("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: creds.clientId,
+        client_secret: creds.clientSecret,
+        refresh_token: creds.refreshToken,
+        grant_type: "refresh_token"
+      }).toString(),
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`GSC token refresh failed or timed out after ${timeoutMs}ms: ${reason}`);
+  }
   if (!response.ok) {
     throw new Error(`GSC token refresh failed: HTTP ${response.status} ${await response.text()}`);
   }
@@ -104,27 +111,75 @@ export function sitemapPageUrls(root = projectRoot()): string[] {
   return urls.filter((url) => !/\.(png|jpg|jpeg|webp|mp4)$/i.test(url));
 }
 
+/**
+ * One URL Inspection call per sitemap page, sequentially. Every call carries a
+ * deadline: on 2026-09-04 23:15 a single call that never returned held the loop
+ * for the Scheduled Task's whole PT10M limit (zero rows written, 267014
+ * TERMINATED), and the seo-exposure-review that follows in gsc-collect.ps1 never
+ * ran, so the day's verdict was lost. A stalled call now becomes one
+ * "inspection-failed" row and the loop moves on.
+ */
+export const DEFAULT_INSPECTION_TIMEOUT_MS = 20_000;
+/** Parallel inspections; 4 keeps 89 URLs at ~2.5 min and stays well inside the API's per-minute quota. */
+export const DEFAULT_INSPECTION_CONCURRENCY = 4;
+
 export async function inspectUrls(input: {
   urls: string[];
   root?: string;
   now?: Date;
   env?: NodeJS.ProcessEnv;
   fetchImpl?: typeof fetch;
+  /** Per-request deadline for the token refresh and each inspection call. */
+  requestTimeoutMs?: number;
+  /** How many inspection calls run at once; results keep sitemap order. */
+  concurrency?: number;
 }): Promise<IndexInspectionReport> {
   const fetcher = input.fetchImpl ?? fetch;
+  const timeoutMs = input.requestTimeoutMs ?? DEFAULT_INSPECTION_TIMEOUT_MS;
+  const concurrency = Math.max(1, input.concurrency ?? DEFAULT_INSPECTION_CONCURRENCY);
   const creds = credentials(input.env ?? process.env);
-  const token = await accessToken(creds, fetcher);
+  const token = await accessToken(creds, fetcher, timeoutMs);
   const now = input.now ?? new Date();
-  const rows: UrlInspectionRow[] = [];
 
-  for (const url of input.urls) {
-    const response = await fetcher("https://searchconsole.googleapis.com/v1/urlInspection/index:inspect", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ inspectionUrl: url, siteUrl: creds.siteUrl })
-    });
+  // Each call costs ~7 s at Google's end regardless of what we do; 89 sitemap
+  // URLs in sequence is ~10.5 min, past the Scheduled Task's PT10M. A small
+  // worker pool keeps the wall clock under the limit; rows keep sitemap order.
+  const rows: UrlInspectionRow[] = new Array(input.urls.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < input.urls.length) {
+      const index = next;
+      next += 1;
+      rows[index] = await inspectOne(input.urls[index]!);
+    }
+  };
+
+  async function inspectOne(url: string): Promise<UrlInspectionRow> {
+    let response: Response;
+    try {
+      response = await fetcher("https://searchconsole.googleapis.com/v1/urlInspection/index:inspect", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ inspectionUrl: url, siteUrl: creds.siteUrl }),
+        signal: AbortSignal.timeout(timeoutMs)
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      return {
+        url,
+        verdict: "ERROR",
+        coverage_state: "inspection-failed",
+        robots_txt_state: "",
+        indexing_state: "",
+        last_crawl_time: null,
+        page_fetch_state: "",
+        google_canonical: null,
+        user_canonical: null,
+        error: `request failed or timed out after ${timeoutMs}ms: ${reason}`.slice(0, 300)
+      };
+    }
     if (!response.ok) {
-      rows.push({
+      return {
         url,
         verdict: "ERROR",
         coverage_state: "inspection-failed",
@@ -135,8 +190,7 @@ export async function inspectUrls(input: {
         google_canonical: null,
         user_canonical: null,
         error: `HTTP ${response.status} ${await response.text()}`.slice(0, 300)
-      });
-      continue;
+      };
     }
     const payload = (await response.json()) as {
       inspectionResult?: {
@@ -153,7 +207,7 @@ export async function inspectUrls(input: {
       };
     };
     const status = payload.inspectionResult?.indexStatusResult ?? {};
-    rows.push({
+    return {
       url,
       verdict: status.verdict ?? "VERDICT_UNSPECIFIED",
       coverage_state: status.coverageState ?? "unknown",
@@ -163,8 +217,10 @@ export async function inspectUrls(input: {
       page_fetch_state: status.pageFetchState ?? "",
       google_canonical: status.googleCanonical ?? null,
       user_canonical: status.userCanonical ?? null
-    });
+    };
   }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, input.urls.length) }, () => worker()));
 
   const states: Record<string, number> = {};
   for (const row of rows) {

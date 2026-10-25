@@ -12,10 +12,18 @@ function errorCode(error: unknown): string | undefined {
   return typeof code === "string" ? code : undefined;
 }
 
+function errorErrno(error: unknown): number | undefined {
+  if (typeof error !== "object" || error === null || !("errno" in error)) return undefined;
+  const errno = (error as { errno?: unknown }).errno;
+  return typeof errno === "number" ? errno : undefined;
+}
+
 export function createWriteFileWithRetry(deps: {
   write: NodeWriteFile;
   sleep: (ms: number) => Promise<void>;
+  now?: () => Date;
 }): NodeWriteFile {
+  const now = deps.now ?? (() => new Date());
   const writeFileWithRetry: NodeWriteFile = async (file, data, options) => {
     let lastError: unknown;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
@@ -26,10 +34,15 @@ export function createWriteFileWithRetry(deps: {
         lastError = error;
         const code = errorCode(error);
         const retryable = code !== undefined && RETRYABLE_CODES.has(code);
-        if (!retryable || attempt >= MAX_ATTEMPTS) throw error;
+        if (!retryable) throw error;
+        const errno = errorErrno(error);
+        const errnoText = errno === undefined ? "" : ` errno=${errno}`;
+        process.stderr.write(
+          `${now().toISOString()} writeFile retry ${attempt}/${MAX_ATTEMPTS} ${String(file)}: ${code}${errnoText}\n`
+        );
+        if (attempt >= MAX_ATTEMPTS) throw error;
         const delay = RETRY_DELAYS_MS[attempt - 1];
         if (delay === undefined) throw error;
-        process.stderr.write(`writeFile retry ${attempt}/${MAX_ATTEMPTS} ${String(file)}: ${code}\n`);
         await deps.sleep(delay);
       }
     }

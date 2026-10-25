@@ -159,10 +159,11 @@ function Lock-Day {
 function Publish-Site {
     Push-Location $root
     cmd /c "npm.cmd run generate-public-site 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-    if ($LASTEXITCODE -ne 0) {
+    $siteExit = $LASTEXITCODE
+    if ($siteExit -ne 0) {
         # Publishing yesterday's docs/ over a failed regeneration silently
         # drifts the public site from the local package (luna, high).
-        Write-Log "generate-public-site failed; refusing to publish stale output."
+        Write-Log "generate-public-site failed (exit $siteExit); refusing to publish stale output."
         Pop-Location
         return $false
     }
@@ -191,7 +192,8 @@ function Publish-Site {
 }
 
 function Invoke-DayCarouselVisualQa {
-    & (Join-Path $PSScriptRoot "generate-missing-images.ps1") -Date $date -LogFile $logFile -QaOnly
+    # -SkipPublicSite：這一輪的 docs/ 只由下面的 Publish-Site 寫一次。
+    & (Join-Path $PSScriptRoot "generate-missing-images.ps1") -Date $date -LogFile $logFile -QaOnly -SkipPublicSite
 }
 
 if ($hasCalendar -and $imagesReady) {
@@ -235,7 +237,8 @@ if ($hasCalendar) {
     cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
     Pop-Location
 
-    & (Join-Path $PSScriptRoot "generate-missing-images.ps1") -Date $date -LogFile $logFile
+    # 補圖腳本不再寫 docs/。同一輪的第二次 generate-public-site 就是 Publish-Site（本檔寫檔那一行）。
+    & (Join-Path $PSScriptRoot "generate-missing-images.ps1") -Date $date -LogFile $logFile -SkipPublicSite
     if ($LASTEXITCODE -eq 0) {
         Write-Log "Images for $date are ready."
         # Third completion path. Both review families flagged that this branch
@@ -274,7 +277,7 @@ if ($hasCalendar) {
     $prompt = @"
 Run the 06:30 daily generation for $date (Asia/Taipei) exactly as defined in .agents/skills/daily-automation/SKILL.md.
 $planLine
-Generate the daily context, the content calendar, the image prompt manifest, the final images through the built-in image model, the image source records, and the video candidate manifest, then refresh the public site.
+Generate the daily context, the content calendar, the image prompt manifest, the final images through the built-in image model, the image source records, and the video candidate manifest. Do not run npm run generate-public-site and do not write docs/. This script writes the public site once after you exit.
 
 Stop and report if any required step cannot complete. Do not approve posts, do not write approved-log or posted-log entries, and do not publish to Facebook or Instagram: approval and publishing are separate stages.
 "@

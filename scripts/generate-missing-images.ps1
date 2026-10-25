@@ -10,7 +10,9 @@
 param(
     [Parameter(Mandatory = $true)][string]$Date,
     [string]$LogFile = "",
-    [switch]$QaOnly
+    [switch]$QaOnly,
+    # 每日排程會在 Publish-Site 再寫一次 docs/。這裡再寫，第二輪會撞上剛寫好的檔。
+    [switch]$SkipPublicSite
 )
 
 $ErrorActionPreference = "Continue"
@@ -351,12 +353,26 @@ if ($generated -gt 0) {
 
 Ensure-CarouselVisualQa $items $root $Date $LogFile
 
+# 06:30 同一輪的公開站只由 daily-generate.ps1 的 Publish-Site 寫一次。
+# 2026-10-25 06:32 這支腳本先寫 docs/rss.xml，Publish-Site 約 17 秒後再寫同檔，
+# 6 次重試都是 errno -4094。單獨執行（手動補圖、精品圖重產）仍要寫一次；
+# 寫失敗必須中止，不能只留一行 log 再讓 validate 的成功把失敗蓋掉
+# （llms.txt 會停在舊的 mtime，呼叫端卻以為這一輪成功）。
+if (-not $SkipPublicSite) {
+    Push-Location $root
+    $siteOut = cmd /c "npm.cmd run generate-public-site 2>&1"
+    $siteExit = $LASTEXITCODE
+    if ($LogFile) { $siteOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
+    else { $siteOut | ForEach-Object { Write-Host $_ } }
+    Pop-Location
+    if ($null -eq $siteExit -or $siteExit -ne 0) {
+        Write-Step "generate-public-site failed (exit $siteExit)."
+        if ($null -eq $siteExit) { exit 1 }
+        exit $siteExit
+    }
+}
+
 Push-Location $root
-$siteOut = cmd /c "npm.cmd run generate-public-site 2>&1"
-$siteExit = $LASTEXITCODE
-if ($LogFile) { $siteOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }
-else { $siteOut | ForEach-Object { Write-Host $_ } }
-if ($siteExit -ne 0) { Write-Step "generate-public-site failed (exit $siteExit)." }
 $valOut = cmd /c "npm.cmd run validate-publishable-images -- --date $Date 2>&1"
 $ok = ($LASTEXITCODE -eq 0)
 if ($LogFile) { $valOut | Out-File -FilePath $LogFile -Append -Encoding utf8 }

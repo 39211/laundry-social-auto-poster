@@ -37,6 +37,8 @@ jobs:
       # of the checkout except for the existing 2026-08-17 fixture. If a future
       # test genuinely needs another directory, add it explicitly; the failure
       # mode is a visible missing-file red, never a silent pass.
+      # dailyGenerateOneDocsWrite 要讀每日技能，確認 Codex 提示不再要求第二輪
+      # generate-public-site。只帶該技能目錄，不把整個 .agents 拉進來。
       - uses: actions/checkout@v4
         with:
           filter: blob:none
@@ -58,6 +60,7 @@ jobs:
             docs/services
             docs/assets/2026-08-17
             seo-overrides
+            .agents/skills/daily-automation
 
       - uses: actions/setup-node@v4
         with:

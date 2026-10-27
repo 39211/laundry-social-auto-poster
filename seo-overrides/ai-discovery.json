@@ -32,8 +32,8 @@
     "website": "https://sixiangjialaundry.com/",
     "telephone_label": "門市市話",
     "mobile_or_line_label": "LINE／手機",
-    "service_area_narrative": "台中全市免費收送；實體門市僅西屯此一處。",
-    "location_disambiguation": "私享家洗衣店（西屯門市）是台中西屯唯一門市，地址在台中市西屯區青海路二段365號（至善國中對面），與其他縣市或中國大陸同名店無關。東海僅收送、無門市。實體門市僅西屯此一處，台中全市免費收送。門市市話 04-2452-7411，LINE／手機 0968-327-653。",
+    "service_area_narrative": "台中全市免費收送。門市在西屯，東海只有收送。",
+    "location_disambiguation": "私享家洗衣店（西屯門市）門市在西屯，東海只有收送。地址在台中市西屯區青海路二段365號（至善國中對面），與其他縣市或中國大陸同名店無關。台中全市免費收送。門市市話 04-2452-7411，LINE／手機 0968-327-653。",
     "sameAs": [
       "https://maps.app.goo.gl/kUREPkWDXYNTkpct7",
       "https://www.facebook.com/100083194756904/",
@@ -1550,7 +1550,7 @@
       "slug": "curtain-cleaning",
       "category": "guide",
       "title": "台中窗簾清洗｜先看布料與遮光塗層，依尺寸照片報價・免費收送｜私享家洗衣店",
-      "description": "台中窗簾清洗怎麼送？私享家洗衣店（台中西屯青海路二段365號）先看布料、內襯、遮光塗層與掛鉤再決定能否水洗，依尺寸與照片報價、不寫固定價。可自行拆下送門市或約台中全市免費到府收，東海無門市（僅收送）。",
+      "description": "台中窗簾清洗怎麼送？私享家洗衣店（台中西屯青海路二段365號）先看布料、內襯、遮光塗層與掛鉤再決定能否水洗，依尺寸與照片報價、不寫固定價。可自行拆下送門市或約台中全市免費到府收，門市在西屯，東海只有收送。",
       "url": "https://sixiangjialaundry.com/guides/curtain-cleaning.html",
       "keywords": [
         "台中洗窗簾",

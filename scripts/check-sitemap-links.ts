@@ -343,6 +343,19 @@ export const FAQ_SELF_CONTAINED_PAGE_PATHS = [
   "/guides/pu-leather-peeling.html"
 ] as const;
 
+/**
+ * 2026-10-26：GSC 10/17–10/23 查詢詞補標題與 FAQ。
+ * 只改這幾頁的 sitemap lastmod，不回寫各波常數。
+ * school-uniform-care 不在追蹤名單，sitemap 直接改 lastmod。
+ */
+export const GSC_QUERY_LASTMOD_OVERRIDES: Readonly<Record<string, string>> = {
+  "/guides/pu-leather-peeling.html": "2026-10-26",
+  "/guides/suede-bag-care.html": "2026-10-26",
+  "/guides/leather-belt-care.html": "2026-10-26",
+  "/guides/sticky-bag-lining.html": "2026-10-26",
+  "/services/ironing-pressing.html": "2026-10-26"
+};
+
 /** FAQ JSON-LD 的問題與答案被單獨引用時，不能靠「本頁／這頁」才讀得懂。 */
 export const FAQ_JSONLD_PAGE_REFERENCE_MARKERS = ["本頁", "這頁"] as const;
 
@@ -526,19 +539,33 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
   const tracked = [
     ...NEW_PAGE_PATHS.map((path) => ({
       path,
-      lastmod: olderLastmod(
-        path,
-        wave4MergedLastmod.has(path)
-          ? WAVE4_PAGE_LASTMOD
-          : faqSelfContainedLastmod.has(path)
-            ? FAQ_SELF_CONTAINED_LASTMOD
-            : LAYER1_LASTMOD_OVERRIDES[path] ?? MERGED_PAGE_LASTMOD_OVERRIDES[path] ?? NEW_PAGE_LASTMOD
-      )
+      lastmod:
+        GSC_QUERY_LASTMOD_OVERRIDES[path] ??
+        olderLastmod(
+          path,
+          wave4MergedLastmod.has(path)
+            ? WAVE4_PAGE_LASTMOD
+            : faqSelfContainedLastmod.has(path)
+              ? FAQ_SELF_CONTAINED_LASTMOD
+              : LAYER1_LASTMOD_OVERRIDES[path] ?? MERGED_PAGE_LASTMOD_OVERRIDES[path] ?? NEW_PAGE_LASTMOD
+        )
     })),
-    ...WAVE2_PAGE_PATHS.map((path) => ({ path, lastmod: olderLastmod(path, WAVE2_PAGE_LASTMOD) })),
-    ...WAVE3_PAGE_PATHS.map((path) => ({ path, lastmod: olderLastmod(path, WAVE3_PAGE_LASTMOD) })),
-    ...WAVE4_PAGE_PATHS.map((path) => ({ path, lastmod: olderLastmod(path, WAVE4_PAGE_LASTMOD) })),
-    ...WAVE5_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE5_PAGE_LASTMOD }))
+    ...WAVE2_PAGE_PATHS.map((path) => ({
+      path,
+      lastmod: GSC_QUERY_LASTMOD_OVERRIDES[path] ?? olderLastmod(path, WAVE2_PAGE_LASTMOD)
+    })),
+    ...WAVE3_PAGE_PATHS.map((path) => ({
+      path,
+      lastmod: GSC_QUERY_LASTMOD_OVERRIDES[path] ?? olderLastmod(path, WAVE3_PAGE_LASTMOD)
+    })),
+    ...WAVE4_PAGE_PATHS.map((path) => ({
+      path,
+      lastmod: GSC_QUERY_LASTMOD_OVERRIDES[path] ?? olderLastmod(path, WAVE4_PAGE_LASTMOD)
+    })),
+    ...WAVE5_PAGE_PATHS.map((path) => ({
+      path,
+      lastmod: GSC_QUERY_LASTMOD_OVERRIDES[path] ?? olderLastmod(path, WAVE5_PAGE_LASTMOD)
+    }))
   ];
   for (const { path, lastmod } of tracked) {
     const hubs = hrefs.get(path) ?? [];

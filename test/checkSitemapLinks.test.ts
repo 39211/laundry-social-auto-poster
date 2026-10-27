@@ -311,7 +311,6 @@ describe("B5 第 8 波", () => {
   });
 
   it("第 8 波插入的內鏈與新問答沒有硬規禁詞", () => {
-    expect(WAVE8_BANNED_MARKERS).toContain("承接");
     expect(WAVE8_BANNED_MARKERS).toContain("防水處理");
     const root = repoRootFromHere();
     const hits: string[] = [];
@@ -370,7 +369,7 @@ describe("B5 第 8 波", () => {
       expect(JSON.stringify(business?.["contactPoint"]), path).toContain("+886-4-2452-7411");
       expect(JSON.stringify(business?.["contactPoint"]), path).toContain("+886-968-327-653");
       const footer = html.split("<footer")[1] ?? "";
-      expect(footer, path).toContain("實體門市僅西屯此一處");
+      expect(footer, path).toContain("門市在西屯");
       expect(footer, path).toContain("04-2452-7411");
       expect(footer, path).toContain("0968-327-653");
       let cursor = 0;

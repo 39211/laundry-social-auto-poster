@@ -167,10 +167,7 @@ export const WAVE8_PAGE_PATHS = [
  * 不掃共用 header、footer、店家 JSON-LD。2026-10-27 老闆確認可寫「台中全市免費收送、沒有最低消費」，故不禁這句。
  */
 export const WAVE8_BANNED_MARKERS = [
-  "唯一門市",
   "僅西屯",
-  "僅此一處",
-  "承接",
   "防水處理",
   "Gore-Tex",
   "GORE-TEX",

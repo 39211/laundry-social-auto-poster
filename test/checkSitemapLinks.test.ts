@@ -349,6 +349,46 @@ describe("B5 第 8 波", () => {
     expect(hits).toEqual([]);
     expect(seen.size).toBe(WAVE8_PAGE_PATHS.length);
   });
+
+  it("店家 JSON-LD 描述拿掉僅西屯與市話，每處修繕都有 LINE 問句", () => {
+    const ask = "能不能做、怎麼算，傳照片到 LINE @454foyks 問";
+    const root = repoRootFromHere();
+    const descHits: string[] = [];
+    const repairHits: string[] = [];
+    for (const path of WAVE8_PAGE_PATHS) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      const raw = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1] ?? "";
+      const graph = (JSON.parse(raw) as { "@graph": Array<Record<string, unknown>> })["@graph"];
+      const business = graph.find((node) => node["@type"] === "DryCleaningOrLaundry");
+      const blurbs = `${business?.["description"] ?? ""}\n${business?.["disambiguatingDescription"] ?? ""}`;
+      for (const term of ["僅西屯", "0968", "04-2452"]) {
+        if (blurbs.includes(term)) descHits.push(`${path} ${term}`);
+      }
+      expect(business?.["disambiguatingDescription"], path).toContain("門市在西屯");
+      expect(business?.["disambiguatingDescription"], path).toContain("LINE @454foyks");
+      expect(business?.["telephone"], path).toBe("+886-4-2452-7411");
+      expect(JSON.stringify(business?.["contactPoint"]), path).toContain("+886-4-2452-7411");
+      expect(JSON.stringify(business?.["contactPoint"]), path).toContain("+886-968-327-653");
+      const footer = html.split("<footer")[1] ?? "";
+      expect(footer, path).toContain("實體門市僅西屯此一處");
+      expect(footer, path).toContain("04-2452-7411");
+      expect(footer, path).toContain("0968-327-653");
+      let cursor = 0;
+      while (cursor < html.length) {
+        const at = html.indexOf("修繕", cursor);
+        if (at < 0) break;
+        const follow = html.slice(at, at + 80);
+        if (!follow.includes(ask)) repairHits.push(`${path} @${at}: ${follow}`);
+        cursor = at + 2;
+      }
+      expect(html, path).not.toContain("我們會修");
+    }
+    expect(descHits).toEqual([]);
+    expect(repairHits).toEqual([]);
+    const clasp = readFileSync(join(root, "seo-overrides", "guides", "bag-clasp-stuck-check.html"), "utf8");
+    expect(clasp).toContain("名牌包 $1500 起");
+    expect(clasp).not.toMatch(/名牌包 \$1500(?! 起)/);
+  });
 });
 
 describe("全站禁詞「只補」", () => {

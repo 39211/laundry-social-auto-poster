@@ -16,6 +16,8 @@ import {
   WAVE4_BANNED_MARKERS,
   WAVE4_MERGED_PAGE_PATHS,
   WAVE4_PAGE_PATHS,
+  WAVE7_BANNED_MARKERS,
+  WAVE7_PAGE_PATHS,
   WAVE5_ANSWER_IDS,
   WAVE5_EXTRA_BANNED_MARKERS,
   WAVE5_MERGED_BLOCK_IDS,
@@ -34,6 +36,7 @@ import {
   sitemapLinkReportFailed,
   wave3WriterVoiceHits,
   wave4BannedHits,
+  wave7BannedHits,
   wave5BannedHits,
   CONDITIONAL_WHOLE_PAIR_REFUSAL_SOURCE,
   conditionalWholePairRefusalHits,
@@ -100,6 +103,7 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(WAVE5_MERGED_PAGE_PATHS).toHaveLength(7);
     expect(WAVE5_MERGED_BLOCK_IDS).toHaveLength(7);
     expect(WAVE5_ANSWER_IDS).toHaveLength(12);
+    expect(WAVE7_PAGE_PATHS).toHaveLength(8);
     expect(NOINDEX_FOLLOW_LOCAL_PATHS).toHaveLength(16);
     const root = repoRootFromHere();
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
@@ -155,6 +159,14 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/guides/leather-shoe-salt-bloom.html"]?.hubs).toContain("hubs/shoe-care.html");
     expect(report.inbound["/guides/insulated-down-pants-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/bag-base-stud-check.html"]?.hubs).toContain("hubs/bag-care.html");
+    expect(report.inbound["/guides/dress-shirt-starch-risk.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/blanket-vs-duvet.html"]?.hubs).toContain("hubs/bedding-textile-care.html");
+    expect(report.inbound["/guides/pet-hair-on-coat.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/how-laundry-quote-works.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/services/office-shirt-subscription.html"]?.hubs).toContain("hubs/commercial-laundry.html");
+    expect(report.inbound["/hubs/commercial-laundry.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/makeup-on-bag-lining.html"]?.hubs).toContain("hubs/bag-care.html");
+    expect(report.inbound["/guides/leather-vest-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     const xml = readFileSync(join(root, "seo-overrides", "sitemap.xml"), "utf8");
     for (const path of LAYER1_PHRASE_PAGE_PATHS) {
       expect(xml, path).toContain(`<loc>https://sixiangjialaundry.com${path}</loc><lastmod>2026-10-14</lastmod>`);
@@ -270,6 +282,47 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
       const onScope = scopeUrls.some((url) => entry.source_url === url || entry.source_url.startsWith(`${url}#`));
       if (!onScope) continue;
       const found = wave4BannedHits(`${entry.question}\n${entry.answer}`);
+      if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
+    }
+    expect(hits).toEqual([]);
+  });
+
+  it("第 7 波新頁與問答沒有禁詞，掃描不排除任何句子", () => {
+    expect(WAVE7_BANNED_MARKERS).toEqual([
+      "本頁",
+      "這頁",
+      "另看",
+      "最常",
+      "最常見",
+      "每天",
+      "一口價",
+      "編價格",
+      "錢頁",
+      "重寫",
+      "同一頁",
+      "這裡",
+      "不寫",
+      "改看",
+      "仍看",
+      "留在",
+      "換頁",
+      "這句"
+    ]);
+    const root = repoRootFromHere();
+    const hits: string[] = [];
+    for (const path of WAVE7_PAGE_PATHS) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      const found = wave7BannedHits(html);
+      if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
+    }
+    const answers = JSON.parse(readFileSync(join(root, "seo-overrides", "answers.json"), "utf8")) as {
+      answers: Array<{ id: string; question: string; answer: string; source_url: string }>;
+    };
+    const scopeUrls = WAVE7_PAGE_PATHS.map((path) => `https://sixiangjialaundry.com${path}`);
+    for (const entry of answers.answers) {
+      const onScope = scopeUrls.some((url) => entry.source_url === url || entry.source_url.startsWith(`${url}#`));
+      if (!onScope) continue;
+      const found = wave7BannedHits(`${entry.question}\n${entry.answer}`);
       if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
     }
     expect(hits).toEqual([]);

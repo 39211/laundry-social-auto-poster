@@ -1192,7 +1192,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       {
         question: "洗衣有到府收送嗎?要多少錢?",
         answer:
-          "台中市全區免費到府收送。收送本身不另外收費；清潔仍依參考價與實際檢視計算。請用 LINE 0968327653 傳照片預約。"
+          "台中市全區免費到府收送。收送本身不另外收費；清潔仍依參考價與實際檢視計算。請用 LINE @454foyks 傳照片預約。"
       },
       {
         question: "乾洗跟水洗價格差在哪?",

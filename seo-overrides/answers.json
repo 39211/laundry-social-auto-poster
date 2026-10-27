@@ -1107,7 +1107,7 @@
       "id": "business-bulk-laundry-faq-01",
       "type": "faq",
       "question": "台中店家或公司有大量衣物可以送洗嗎？",
-      "answer": "可以先用 LINE 提供品項、件數與照片詢問；門市確認物件狀態與承接方式後，再安排台中市內免費收送。",
+      "answer": "可以先用 LINE 提供品項、件數與照片詢問；門市確認物件狀態後，再安排台中市內免費收送。",
       "service": "店家與公司大量衣物送洗",
       "source_url": "https://sixiangjialaundry.com/services/business-bulk-laundry.html#faq",
       "local_intent": "台中市 店家 公司 大量衣物 送洗 收送",

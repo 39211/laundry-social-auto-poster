@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁。東勢、大甲、龍井不進這支。 */
-export const EXPECTED_LOC_COUNT = 150;
+/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 8 波 9 頁。東勢、大甲、龍井不進這支。 */
+export const EXPECTED_LOC_COUNT = 159;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -145,6 +145,60 @@ export const WAVE4_PAGE_PATHS = [
   "/guides/casual-shoe-cleaning.html",
   "/guides/suit-pants-crease.html",
   "/guides/crossbody-bag-strap.html"
+] as const;
+
+/** B5 第 8 波 9 頁。lastmod 用這次上線日，不回寫前波。 */
+export const WAVE8_PAGE_LASTMOD = "2026-10-27";
+
+export const WAVE8_PAGE_PATHS = [
+  "/guides/shoe-collar-foam-check.html",
+  "/guides/shoe-lace-eyelet-check.html",
+  "/guides/shoe-toe-cap-wear.html",
+  "/guides/shoe-counter-lining-wear.html",
+  "/guides/new-shoe-dye-ruboff.html",
+  "/guides/bag-clasp-stuck-check.html",
+  "/guides/wool-sweater-pilling.html",
+  "/guides/leather-jacket-elbow-crease.html",
+  "/guides/garment-lining-detach.html"
+] as const;
+
+/**
+ * 第 8 波新頁正文、頁面層 JSON-LD（WebPage／HowTo／FAQ／麵包屑）與 data-wave8 插入塊。
+ * 不掃共用 header、footer、店家 JSON-LD。2026-10-27 老闆確認可寫「台中全市免費收送、沒有最低消費」，故不禁這句。
+ */
+export const WAVE8_BANNED_MARKERS = [
+  "僅西屯",
+  "防水處理",
+  "Gore-Tex",
+  "GORE-TEX",
+  "Gore",
+  "保證",
+  "殺菌",
+  "除臭",
+  "恢復原色",
+  "變白",
+  "0968-327-653",
+  "04-2452-7411",
+  "台中收送範圍",
+  "本頁",
+  "這頁",
+  "另看",
+  "最常",
+  "最常見",
+  "每天",
+  "一口價",
+  "編價格",
+  "錢頁",
+  "重寫",
+  "同一頁",
+  "這裡",
+  "不寫",
+  "改看",
+  "仍看",
+  "留在",
+  "換頁",
+  "這句",
+  "只補"
 ] as const;
 
 /** 第 4 波併進既有頁。不另計 sitemap 條數；lastmod 與頁面 dateModified 改為 2026-10-15。 */
@@ -438,6 +492,68 @@ export function wave4BannedHits(text: string): string[] {
   return WAVE4_BANNED_MARKERS.filter((marker) => text.includes(marker));
 }
 
+export function wave8BannedHits(text: string): string[] {
+  return WAVE8_BANNED_MARKERS.filter((marker) => text.includes(marker));
+}
+
+const WAVE8_COPY_TYPES = new Set(["WebPage", "HowTo", "FAQPage", "BreadcrumbList"]);
+
+function pushStrings(node: unknown, out: string[]): void {
+  if (typeof node === "string") {
+    out.push(node);
+    return;
+  }
+  if (Array.isArray(node)) {
+    node.forEach((item) => pushStrings(item, out));
+    return;
+  }
+  if (!node || typeof node !== "object") return;
+  Object.values(node as Record<string, unknown>).forEach((value) => pushStrings(value, out));
+}
+
+/** 第 8 波要審的文字：標題、摘要、main、頁面層 JSON-LD。不含店家節點與 header／footer。 */
+export function wave8AuditedText(html: string): string {
+  const chunks: string[] = [];
+  const title = html.match(/<title>([^<]*)<\/title>/);
+  if (title?.[1]) chunks.push(title[1]);
+  for (const match of html.matchAll(/<meta\b[^>]*>/gi)) {
+    const tag = match[0] ?? "";
+    const audited =
+      /name="description"|property="og:description"|name="twitter:description"|property="og:title"|name="twitter:title"|property="og:image:alt"|name="twitter:image:alt"/.test(
+        tag
+      );
+    if (!audited) continue;
+    const content = tag.match(/content="([^"]*)"/);
+    if (content?.[1]) chunks.push(content[1]);
+  }
+  const main = html.match(/<main>([\s\S]*?)<\/main>/);
+  if (main?.[1]) chunks.push(main[1]);
+  for (const match of html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(match[1] ?? "");
+    } catch {
+      chunks.push("JSON-LD 無法解析");
+      continue;
+    }
+    const graph = (parsed as { "@graph"?: unknown })["@graph"];
+    if (!Array.isArray(graph)) continue;
+    for (const node of graph) {
+      if (!node || typeof node !== "object") continue;
+      const type = (node as { "@type"?: unknown })["@type"];
+      if (typeof type === "string" && WAVE8_COPY_TYPES.has(type)) pushStrings(node, chunks);
+    }
+  }
+  return chunks.join("\n");
+}
+
+export function wave8InsertedBlocks(html: string): string[] {
+  return [
+    ...html.matchAll(/<article\b[^>]*\bdata-wave8="1"[^>]*>[\s\S]*?<\/article>/g),
+    ...html.matchAll(/<section\b[^>]*\bdata-wave8="1"[^>]*>[\s\S]*?<\/section>/g)
+  ].map((match) => match[0] ?? "");
+}
+
 export type SitemapLinkReport = {
   parseOk: boolean;
   locCount: number;
@@ -565,7 +681,8 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
     ...WAVE5_PAGE_PATHS.map((path) => ({
       path,
       lastmod: GSC_QUERY_LASTMOD_OVERRIDES[path] ?? olderLastmod(path, WAVE5_PAGE_LASTMOD)
-    }))
+    })),
+    ...WAVE8_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE8_PAGE_LASTMOD }))
   ];
   for (const { path, lastmod } of tracked) {
     const hubs = hrefs.get(path) ?? [];
@@ -612,7 +729,7 @@ export function formatSitemapLinkReport(report: SitemapLinkReport): string {
     `wrong_lastmod ${JSON.stringify(report.wrongLastmod)}`,
     "inbound:"
   ];
-  for (const path of [...NEW_PAGE_PATHS, ...WAVE2_PAGE_PATHS, ...WAVE3_PAGE_PATHS, ...WAVE4_PAGE_PATHS, ...WAVE5_PAGE_PATHS]) {
+  for (const path of [...NEW_PAGE_PATHS, ...WAVE2_PAGE_PATHS, ...WAVE3_PAGE_PATHS, ...WAVE4_PAGE_PATHS, ...WAVE5_PAGE_PATHS, ...WAVE8_PAGE_PATHS]) {
     const hit = report.inbound[path];
     lines.push(`${path}\t${hit?.count ?? 0}\t${(hit?.hubs ?? []).join(",")}`);
   }

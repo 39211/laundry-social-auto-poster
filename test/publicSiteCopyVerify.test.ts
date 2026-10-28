@@ -14,7 +14,7 @@ const interrupt = vi.hoisted(() => {
 vi.mock("node:fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs/promises")>();
   const copyFile = async (src: Parameters<typeof actual.copyFile>[0], dest: Parameters<typeof actual.copyFile>[1], mode?: number) => {
-    if (interrupt.times > 0 && String(dest).endsWith(interrupt.target)) {
+    if (interrupt.times > 0 && String(dest).replace(/\.tmp-.*$/, "").endsWith(interrupt.target)) {
       interrupt.times -= 1;
       const data = await actual.readFile(src);
       await actual.writeFile(dest, data.subarray(0, Math.floor(data.length / 2)));

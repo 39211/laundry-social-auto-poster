@@ -1,39 +1,47 @@
-import { writeFile as nodeWriteFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { readFile, rename, unlink, writeFile as nodeWriteFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { isLockedError, VERIFIED_COPY_ATTEMPTS, VERIFIED_COPY_BACKOFF_MS } from "./verifiedCopy";
 
 type NodeWriteFile = typeof nodeWriteFile;
-
-const RETRYABLE_CODES = new Set(["UNKNOWN", "EBUSY", "EPERM", "EACCES"]);
-const MAX_ATTEMPTS = 6;
-const RETRY_DELAYS_MS = [250, 500, 1000, 2000, 3000] as const;
-
-function errorCode(error: unknown): string | undefined {
-  if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
-  const code = (error as { code?: unknown }).code;
-  return typeof code === "string" ? code : undefined;
-}
 
 export function createWriteFileWithRetry(deps: {
   write: NodeWriteFile;
   sleep: (ms: number) => Promise<void>;
+  rename?: typeof rename;
+  read?: (file: string) => Promise<Buffer>;
+  remove?: typeof unlink;
 }): NodeWriteFile {
   const writeFileWithRetry: NodeWriteFile = async (file, data, options) => {
-    let lastError: unknown;
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    if (typeof file === "object" && !Buffer.isBuffer(file) && !(file instanceof URL)) {
+      throw new TypeError("writeFileWithRetry requires a file path");
+    }
+    const target = file instanceof URL ? fileURLToPath(file) : String(file);
+    const encoding = typeof options === "string" ? options : options?.encoding ?? "utf8";
+    // 先固定本次寫入的位元組，串流重試時也不會讀到空資料。
+    const chunks: Buffer[] = [];
+    if (typeof data === "string") chunks.push(Buffer.from(data, encoding));
+    else if (ArrayBuffer.isView(data)) chunks.push(Buffer.from(data.buffer, data.byteOffset, data.byteLength));
+    else for await (const chunk of data as AsyncIterable<string | NodeJS.ArrayBufferView> | Iterable<string | NodeJS.ArrayBufferView>) chunks.push(typeof chunk === "string" ? Buffer.from(chunk, encoding) : Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength));
+    const bytes = Buffer.concat(chunks);
+    const expected = createHash("sha256").update(bytes).digest("hex");
+    for (let attempt = 0; attempt < VERIFIED_COPY_ATTEMPTS; attempt += 1) {
+      const temporary = `${target}.tmp-${process.pid}-${randomUUID()}`;
       try {
-        await deps.write(file, data, options);
+        await deps.write(temporary, bytes, options);
+        await (deps.rename ?? rename)(temporary, target);
+        const actual = createHash("sha256").update(await (deps.read ?? readFile)(target)).digest("hex");
+        if (actual !== expected) throw new Error(`Write verification failed for ${target}: sha256 mismatch`);
         return;
       } catch (error) {
-        lastError = error;
-        const code = errorCode(error);
-        const retryable = code !== undefined && RETRYABLE_CODES.has(code);
-        if (!retryable || attempt >= MAX_ATTEMPTS) throw error;
-        const delay = RETRY_DELAYS_MS[attempt - 1];
-        if (delay === undefined) throw error;
-        process.stderr.write(`writeFile retry ${attempt}/${MAX_ATTEMPTS} ${String(file)}: ${code}\n`);
-        await deps.sleep(delay);
+        const code = (error as NodeJS.ErrnoException | null)?.code;
+        if ((!isLockedError(error) && code !== "UNKNOWN") || attempt + 1 >= VERIFIED_COPY_ATTEMPTS) throw error;
+        process.stderr.write(`writeFile retry ${attempt + 1}/${VERIFIED_COPY_ATTEMPTS} ${target}: ${code}\n`);
+      } finally {
+        await (deps.remove ?? unlink)(temporary).catch(() => {});
       }
+      await deps.sleep(VERIFIED_COPY_BACKOFF_MS[attempt]!);
     }
-    throw lastError;
   };
 
   return writeFileWithRetry;

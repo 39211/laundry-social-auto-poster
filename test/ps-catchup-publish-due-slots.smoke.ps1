@@ -160,15 +160,13 @@ try {
     $defaultCommands = @($defaultLate.Commands -split "`r?`n" | Where-Object { $_ })
     Assert-Case "no-daily-time-file-keeps-default-evening-path" ($defaultLate.ExitCode -eq 0 -and -not $defaultLate.DailyTimesExists -and $defaultLate.Log.Contains("Running post-current-slot --slot 2") -and @($defaultCommands | Where-Object { $_ -match "run first-comment" }).Count -eq 1 -and @($defaultCommands | Where-Object { $_ -match "run share-story" }).Count -eq 1 -and @($defaultCommands | Where-Object { $_ -match "run local-reach" }).Count -eq 1) ($defaultLate.Log + $defaultLate.Commands)
 
-    $oneSlotCalendar = '{"date":"2026-10-06","slots":[{"slot":1}]}'
-    $oneSlotApproved = '[{"slot":1}]'
-    $buildFail = Invoke-CatchupCase -Name "build-fail-stops" -Date $date -Time "11:30" -Calendar $oneSlotCalendar -Approved $oneSlotApproved -HeroStatus "404" -FailOn "generate-public-site"
+    $buildFail = Invoke-CatchupCase -Name "build-fail-stops" -Date $date -Time "11:30" -Calendar $calendar12 -Approved $approved12 -HeroStatus "404" -FailOn "generate-public-site"
     Assert-Case "generate-public-site-failure-stops-with-nonzero-exit" ($buildFail.ExitCode -eq 2 -and $buildFail.Commands -match "generate-public-site" -and $buildFail.Commands -notmatch "publish-pages" -and $buildFail.Commands -notmatch "post-current-slot" -and -not $buildFail.Log.Contains("Running post-current-slot") -and $buildFail.Log.Contains("stopping before any further step") -and $buildFail.Toast.Contains("generate-public-site")) ($buildFail.Log + $buildFail.Commands)
 
-    $pagesFail = Invoke-CatchupCase -Name "publish-pages-fail-stops" -Date $date -Time "11:30" -Calendar $oneSlotCalendar -Approved $oneSlotApproved -HeroStatus "404" -FailOn "publish-pages"
+    $pagesFail = Invoke-CatchupCase -Name "publish-pages-fail-stops" -Date $date -Time "11:30" -Calendar $calendar12 -Approved $approved12 -HeroStatus "404" -FailOn "publish-pages"
     Assert-Case "publish-pages-failure-stops-with-nonzero-exit" ($pagesFail.ExitCode -eq 2 -and $pagesFail.Commands -match "publish-pages" -and $pagesFail.Commands -notmatch "post-current-slot" -and -not $pagesFail.Log.Contains("Running post-current-slot") -and $pagesFail.Log.Contains("stopping before any further step")) ($pagesFail.Log + $pagesFail.Commands)
 
-    $buildOk = Invoke-CatchupCase -Name "build-ok-continues" -Date $date -Time "11:30" -Calendar $oneSlotCalendar -Approved $oneSlotApproved -HeroStatus "404"
+    $buildOk = Invoke-CatchupCase -Name "build-ok-continues" -Date $date -Time "11:30" -Calendar $calendar12 -Approved $approved12 -HeroStatus "404"
     Assert-Case "stale-site-build-ok-keeps-posting" ($buildOk.ExitCode -eq 0 -and $buildOk.Commands -match "generate-public-site" -and $buildOk.Commands -match "publish-pages" -and $buildOk.Log.Contains("Running post-current-slot")) ($buildOk.Log + $buildOk.Commands)
 } finally {
     $env:PATH = $savedPath

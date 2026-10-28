@@ -1,10 +1,11 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
-import { copyFile, mkdir, readFile, readdir, unlink } from "node:fs/promises";
+import { mkdir, readFile, readdir, unlink } from "node:fs/promises";
 import { writeFileWithRetry as writeFile } from "./fsRetry";
 import { dirname, join, posix, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
+import { copyFileVerified } from "./verifiedCopy";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
 import { assertAeo325PublicOutputSafety, loadAeo325Guardrail } from "./aeo325Guardrail";
 import { hasApprovedPost, loadApprovalLog, readJsonFile, writeJsonAtomic } from "./logging";
@@ -10115,7 +10116,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     await walkOverrides(overrideRoot);
     // 目錄走訪順序維持原本的深度優先，複製本身平行做，避免一百多個小檔的往返超時。
     await Promise.all([...new Set(copyJobs.map((job) => dirname(job.targetPath)))].map((dir) => mkdir(dir, { recursive: true })));
-    await Promise.all(copyJobs.map((job) => copyFile(job.fullPath, job.targetPath)));
+    await Promise.all(copyJobs.map((job) => copyFileVerified(job.fullPath, job.targetPath, `docs/${job.posixPath}`)));
     for (const job of copyJobs) {
       if (job.posixPath.endsWith(".html")) overrideHtmlFiles.push({ posixPath: job.posixPath, fsPath: job.fsPath });
     }

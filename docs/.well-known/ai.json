@@ -1,7 +1,7 @@
 {
   "schema_version": "2026-07-02",
   "standard_level": "standard",
-  "generated_at": "2026-10-22T22:33:39.403Z",
+  "generated_at": "2026-10-23T22:42:10.056Z",
   "website": {
     "name": "私享家洗衣店",
     "business_name": "私享家洗衣店",
@@ -669,6 +669,8 @@
       "https://i.ytimg.com/vi/70qUns7icUY/hqdefault.jpg",
       "https://sixiangjialaundry.com/assets/2026-10-22/slot-01.png",
       "https://sixiangjialaundry.com/assets/2026-10-22/slot-02.png",
+      "https://sixiangjialaundry.com/assets/2026-10-24/slot-01.png",
+      "https://sixiangjialaundry.com/assets/2026-10-24/slot-02.png",
       "https://sixiangjialaundry.com/assets/services/shoe-bag-care-hero-product.png",
       "https://sixiangjialaundry.com/assets/services/white-shoe-cleaning-hero-product.png",
       "https://sixiangjialaundry.com/assets/services/fabric-storage-hero-product.png",
@@ -2167,10 +2169,10 @@
       "min_visible_chars": 1200,
       "min_caption_chars": 80,
       "behavior": "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Only articles that clear the thickness gate carry index robots; eligible articles enter rss.xml and the posts hub. sitemap.xml includes the newest sitemap_max_indexable_posts eligible articles, ai-sitemap.xml includes eligible article URLs, and both sitemaps omit below-gate posts and override HTML with robots noindex.",
-      "indexable_article_count": 225,
+      "indexable_article_count": 227,
       "sitemap_max_indexable_posts": 30,
       "sitemap_indexable_post_count": 30,
-      "article_count": 225
+      "article_count": 227
     },
     "homepage_archive_policy": {
       "expanded_recent_days": 7,
@@ -2183,149 +2185,178 @@
   },
   "data_quality": {
     "public_base_url_configured": true,
-    "post_count": 235,
-    "latest_date": "2026-10-22",
+    "post_count": 237,
+    "latest_date": "2026-10-24",
     "all_posts_have_images": true,
     "all_posts_have_hashtags": false,
     "all_posts_have_routes": true,
     "all_posts_have_content_roles": true,
-    "posts_with_search_intent": 153,
-    "posts_with_target_queries": 151,
-    "posts_with_evidence_type": 129
+    "posts_with_search_intent": 154,
+    "posts_with_target_queries": 152,
+    "posts_with_evidence_type": 130
   },
-  "latest_date": "2026-10-22",
+  "latest_date": "2026-10-24",
   "latest_posts": [
     {
-      "id": "urn:sixiangjia:feature:2026-10-22:card-duvet-20261022",
-      "date": "2026-10-22",
-      "date_published": "2026-10-22T06:00:00.000Z",
-      "slot": 0,
-      "time": "14:00",
-      "title": "棉被摸起來乾，中間那層不一定乾｜私享家洗衣店",
-      "topic": "棉被摸起來乾，中間那層不一定乾｜私享家洗衣店",
-      "visual_route": "feature-reel",
-      "traffic_route": "feature-reel",
-      "content_role": "reach-answer",
-      "search_intent": "social-video",
-      "target_queries": [],
-      "evidence_type": "published-feature-reel",
-      "hashtags": [
-        "#私享家洗衣店",
-        "#台中洗衣店",
-        "#棉被清洗",
-        "#換季收納",
-        "#寢具清洗"
-      ],
-      "platforms": [
-        "facebook",
-        "youtube",
-        "instagram"
-      ],
-      "image_url": "https://i.ytimg.com/vi/70qUns7icUY/hqdefault.jpg",
-      "image_urls": [],
-      "carousel_items": [],
-      "media_type": "reel",
-      "video_url": "https://sixiangjialaundry.com/assets/services/sxj-card-duvet-916.mp4",
-      "facebook_caption": "棉被摸起來乾，中間那層不一定乾。\n\n沒乾透就收進櫃子，下一季打開就是那個味道。\n收進櫃子前先做三件事：先聞有沒有潮味，別用塑膠袋把潮氣封死，換季收納前洗一次。\n\n我會先確認填充物、尺寸與受潮程度，再決定烘法。\n難乾的大件約 10–14 天，以報價為準。\n體積大的棉被不用自己搬，台中全市免費收送。\n\n先拍整件、洗標、尺寸，傳 LINE → https://sixiangjialaundry.com/go/line.html?source=reel-card-duvet-20261022 （或加 LINE：0968327653）\n\n#私享家洗衣店 #台中洗衣店 #棉被清洗 #換季收納 #寢具清洗",
-      "instagram_caption": "棉被摸起來乾，中間那層不一定乾。\n\n沒乾透就收進櫃子，下一季打開就是那個味道。\n收進櫃子前先做三件事：先聞有沒有潮味，別用塑膠袋把潮氣封死，換季收納前洗一次。\n\n我會先確認填充物、尺寸與受潮程度，再決定烘法。\n難乾的大件約 10–14 天，以報價為準。\n體積大的棉被不用自己搬，台中全市免費收送。\n\n先拍整件、洗標、尺寸，傳 LINE：0968327653\n\n#私享家洗衣店 #台中洗衣店 #棉被清洗 #換季收納 #寢具清洗"
-    },
-    {
-      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-22.json#post-2026-10-22-slot-01",
-      "date": "2026-10-22",
-      "date_published": "2026-10-22T11:30:00+08:00",
+      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json#post-2026-10-24-slot-01",
+      "date": "2026-10-24",
+      "date_published": "2026-10-24T11:30:00+08:00",
       "slot": 1,
       "time": "11:30",
-      "title": "2026-10-22 11:30 汽座、嬰兒推車整台收，讓我們接手整理",
-      "topic": "汽座、嬰兒推車整台收，讓我們接手整理",
+      "title": "2026-10-24 11:30 毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處",
+      "topic": "毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處",
       "visual_route": "shop-inspection",
-      "traffic_route": "value-prop-lead",
+      "traffic_route": "share-worthy-care",
       "content_role": "reach-answer",
-      "search_intent": "",
-      "target_queries": [],
-      "evidence_type": "",
-      "hashtags": [],
+      "search_intent": "problem-diagnosis",
+      "target_queries": [
+        "台中棉被清洗",
+        "台中床組清洗",
+        "西屯寢具清洗",
+        "台中羽絨被送洗",
+        "台中外套清洗",
+        "棉被有潮味怎麼辦"
+      ],
+      "evidence_type": "first-party-inspection",
+      "hashtags": [
+        "#私享家洗衣店",
+        "#台中西屯洗衣店",
+        "#洗護日常",
+        "#送洗前檢查",
+        "#衣物送洗",
+        "#台中洗衣店"
+      ],
       "platforms": [
         "facebook",
         "instagram"
       ],
-      "image_url": "https://sixiangjialaundry.com/assets/2026-10-22/slot-01.png",
+      "image_url": "https://sixiangjialaundry.com/assets/2026-10-24/slot-01.png",
       "image_urls": [
-        "https://sixiangjialaundry.com/assets/2026-10-22/slot-01.png",
-        "https://sixiangjialaundry.com/assets/2026-10-22/slot-01-slide-02.png",
-        "https://sixiangjialaundry.com/assets/2026-10-22/slot-01-slide-03.png",
-        "https://sixiangjialaundry.com/assets/2026-10-22/slot-01-slide-04.png",
-        "https://sixiangjialaundry.com/assets/2026-10-22/slot-01-slide-05.png"
+        "https://sixiangjialaundry.com/assets/2026-10-24/slot-01.png"
       ],
-      "carousel_items": [
-        {
-          "slide": 1,
-          "image_prompt": "Create a portrait 4:5 carousel-cover composition using the supplied approved A1 image as the photographic source.\n\nPreserve the exact child's identity, natural smile, cheek shape, hairline, Stone canopy detail and late-afternoon lighting. Keep the visible child limited to the established head-and-neck area. Use a tighter crop or a clean editorial layout rather than extending the image downward into the shoulder area.\n\nPlace the photographic focus mainly in the lower seventy percent of the composition. Let the original softly defocused park background continue naturally into the upper thirty percent with the same light gradient, forming a quiet photographic area for a later title. The title area is for later graphic design.\n\nMaintain natural skin texture and the original fabric weave at the source image's photographic scale. Preserve the warm side light and soft background separation. The result should feel like a carefully art-directed family-documentary cover, with the same child and physical stroller detail as the film.\n\nThe title space is a continuous photographic extension of the existing softly defocused background, with the same color and illumination and a seamless transition into the image. Keep every surface plain for later typography. Preserve the existing lower crop of the photographed subject.\n\nReference images, attached in this order: 1) the approved A1 photograph, for the explicitly described continuity detail.\nPostproduction: approved source S1.png SHA256 52fe9f2e6ccab2327584d661c1f2f1ee19565a42156437c7e888ac2f518c35fe; resized to 1080x1350. Program drawn text: 他玩得很開心，你也忙了一整天。 / 汽座・推車整台收. Final SHA256 43b3a7f346ddf70053db1a2992ad062c8253d412ce20f32e77080185d16ad239. Source engine gpt-image-2; layout/typography are local postproduction.",
-          "local_image_path": "docs/assets/2026-10-22/slot-01.png",
-          "public_image_url": "https://sixiangjialaundry.com/assets/2026-10-22/slot-01.png"
-        },
-        {
-          "slide": 2,
-          "image_prompt": "Create a portrait 4:5 carousel image from the supplied approved B1 photograph.\n\nPreserve the exact Stone seat-pad corner, existing milk residue, small rice-cracker fragments, cream-knit sleeves and the mother's established hand positions. Keep the pad supported by the stroller and retain the small lifted outer edge.\n\nCompose the photographic detail in the lower seventy percent of the image, with a calm upper title area derived from the existing warm living-room palette. Preserve the original sixty-degree viewing direction and warm lamp illumination from camera-right.\n\nMaintain the distinction between the fine technical upholstery weave, the coarser sweater yarn, the thin uneven milk residue and the matte crumb fragments. Keep the same stain size and severity as the film. The final image should remain a close observation of an ordinary household detail, with all typography reserved for post-production.\n\nThe title space is a continuous photographic extension of the existing softly defocused background, with the same color and illumination and a seamless transition into the image. Keep every surface plain for later typography. Preserve the existing lower crop of the photographed subject.\n\nVisible milk residue is a faint dry watermark: very thin, matte discoloration embedded flat within the fabric weave, with softly faded edges and individual textile threads continuously readable through it. Any biscuit specks already needed in the scene are only three minute irregular flecks, each about two to three pixels across in the finished image. Preserve the ordinary textile relief around these light everyday traces.\n\nReference images, attached in this order: 1) the approved B1 photograph, for the explicitly described continuity detail.\nPostproduction: approved source S2.png SHA256 213e8d360c70275dbaa03ea0ee626c61daa905a9051dab0f738e77ab6915a827; resized to 1080x1350. Program drawn text: 回家整理，才發現還有一件事。 / 推車布套上的奶漬. Final SHA256 236137a1be532e006a3e6d96729afbf50d38e0b3eec527cc98ca173e281913a7. Source engine gpt-image-2; layout/typography are local postproduction.",
-          "local_image_path": "docs/assets/2026-10-22/slot-01-slide-02.png",
-          "public_image_url": "https://sixiangjialaundry.com/assets/2026-10-22/slot-01-slide-02.png"
-        },
-        {
-          "slide": 3,
-          "image_prompt": "Create a portrait 4:5 carousel image using the supplied approved C1 photograph as the sole photographic source.\n\nPreserve the same Joie car-seat outer side wing, charcoal fabric, adjoining outer seam, narrow shell edge, milk traces and small crumb cluster. Keep the composition restricted to the established exterior detail.\n\nPlace the upholstery detail in the lower seventy percent of the layout. Reserve the upper thirty percent for a later headline, using a quiet tone sampled from the existing garage and car-interior background.\n\nMaintain the original mixed lighting: a restrained warm contribution from frame-left and cooler garage light from the right. Preserve the charcoal color, exposure, fabric weave, seam geometry and ordinary surface variation. The image should match the film's object and condition rather than becoming a new catalog photograph. Deliver the photographic layout with plain title space.\n\nThe title space is a continuous photographic extension of the existing softly defocused background, with the same color and illumination and a seamless transition into the image. Keep every surface plain for later typography. Preserve the existing lower crop of the photographed subject.\n\nVisible milk residue is a faint dry watermark: very thin, matte discoloration embedded flat within the fabric weave, with softly faded edges and individual textile threads continuously readable through it. Any biscuit specks already needed in the scene are only three minute irregular flecks, each about two to three pixels across in the finished image. Preserve the ordinary textile relief around these light everyday traces.\n\nReference images, attached in this order: 1) the approved C1 photograph, for the explicitly described continuity detail.\nPostproduction: approved source S3.png SHA256 9086906b655c2b2254873212e7293cda59669419ce14d2e3f1e987fdec39990f; resized to 1080x1350. Program drawn text: 車上的汽座，也能整台交給我們。 / 外側布面與接縫整理. Final SHA256 b07778c167453e78ef1d5aeae481d84ed83d92e8e79e40d65ca8a0aae0ffa078. Source engine gpt-image-2; layout/typography are local postproduction.",
-          "local_image_path": "docs/assets/2026-10-22/slot-01-slide-03.png",
-          "public_image_url": "https://sixiangjialaundry.com/assets/2026-10-22/slot-01-slide-03.png"
-        },
-        {
-          "slide": 4,
-          "image_prompt": "Approved program layout: E3 left and E4 right; two cloth cleaning close-ups from GPT generated stills; pale upper title area. No additional image generation.\nPostproduction: approved source S4.png SHA256 2fe670c76bf7d01c41d51341b676125ab990393ce2597a7f942ed7d6f9748d90; resized to 1080x1350. Program drawn text: 拆下布套，處理好了再裝回。 / 奶漬局部處理 → 依洗標溫和水洗 → 陰乾. Final SHA256 8122f6cf13d084ff0f8ef340a51956802d7a5b67598ac2bc91a232f121ec4012. Source engine gpt-image-2; layout/typography are local postproduction.",
-          "local_image_path": "docs/assets/2026-10-22/slot-01-slide-04.png",
-          "public_image_url": "https://sixiangjialaundry.com/assets/2026-10-22/slot-01-slide-04.png"
-        },
-        {
-          "slide": 5,
-          "image_prompt": "Create a portrait 4:5 carousel image from the supplied approved P1 packing photograph.\n\nPreserve the two separate blue carriers on the stainless worktable: the larger, deeper car-seat package on the left and the smaller, shallower folded-stroller package on the right. Keep each item individually enclosed in clear protective film and entirely below its blue bag rim.\n\nMaintain the limited elevated view into the openings, the thin-film creases, the collapsed soft handles and the different package volumes. Preserve the woven blue material, actual seam positions and realistic support against the worktable.\n\nPlace both complete packages in the lower seventy percent of the composition. Reserve the upper thirty percent as a calm title area using the workshop's existing pale wall tone.\n\nKeep the original soft window light from camera-left, restrained stainless reflections and naturally shaped shadows. The final layout should read as two carefully packed items from the same film sequence, with all typography added afterward.\n\nThe title space is a continuous photographic extension of the existing softly defocused background, with the same color and illumination and a seamless transition into the image. Keep every surface plain for later typography. Preserve the existing lower crop of the photographed subject.\n\nReference images, attached in this order: 1) the approved P1 photograph, for the explicitly described continuity detail.\nPostproduction: approved source S5.png SHA256 25ddac93219b4594ada8b177178fc9bfe051ce31ead7835e73c30525af51181e; resized to 1080x1350. Program drawn text: 來回收送免費，一件也收。 / 大件約 10–14 天｜私享家｜汽座・推車清洗. Final SHA256 23d60b84875ceeb01e9c8b599540b14c2e1895745ab4a4adc10e039efa8dfdb5. Source engine gpt-image-2; layout/typography are local postproduction.",
-          "local_image_path": "docs/assets/2026-10-22/slot-01-slide-05.png",
-          "public_image_url": "https://sixiangjialaundry.com/assets/2026-10-22/slot-01-slide-05.png"
-        }
-      ],
-      "media_type": "carousel",
+      "carousel_items": [],
+      "media_type": "image",
       "video_url": "",
-      "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-22.json",
-      "facebook_caption": "他玩得很開心，你也忙了一整天。\n\n回家收東西，翻起推車座布的一小角，才看到奶漬；車上的汽座，縫裡也藏著餅乾屑。原本以為今天差不多了，又多一件要整理的事。\n\n這件事，可以讓我們接手。\n汽座和嬰兒推車都能整台收回店裡，不用你先拆布套。奶漬先局部處理，再依洗標溫和水洗、陰乾，裝回後，各自包好透明保護膜、裝袋送回。\n\n兩台都想整理，可以一起安排；只有一件也收。\n大件約 10–14 天，來回收送免費。\n\n想安排家裡的汽座或推車清洗，私訊我們，告訴我們要整理哪一件。",
-      "instagram_caption": "他玩得很開心，你也忙了一整天。\n\n回家收東西，翻起推車座布的一小角，才看到奶漬；車上的汽座，縫裡也藏著餅乾屑。原本以為今天差不多了，又多一件要整理的事。\n\n這件事，可以讓我們接手。\n汽座和嬰兒推車都能整台收回店裡，不用你先拆布套。奶漬先局部處理，再依洗標溫和水洗、陰乾，裝回後，各自包好透明保護膜、裝袋送回。\n\n兩台都想整理，可以一起安排；只有一件也收。\n大件約 10–14 天，來回收送免費。\n\n想安排家裡的汽座或推車清洗，私訊我們，告訴我們要整理哪一件。"
+      "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json",
+      "facebook_caption": "毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處。\n\n厚一點的布收進櫃子，摸起來乾不代表乾透。中間那層最慢。\n\n我會先摸厚的地方確認乾透了沒。收進去之前那一步，決定下次拿出來的味道。\n\n收之前想先整理一次？傳 LINE跟我們說，台中市區到府收。\n\n出處：門市當日看件\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #衣物送洗 #台中洗衣店",
+      "instagram_caption": "毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處。\n\n厚一點的布收進櫃子，摸起來乾不代表乾透。中間那層最慢。\n\n我會先摸厚的地方確認乾透了沒。收進去之前那一步，決定下次拿出來的味道。\n\n收之前想先整理一次？私訊跟我們說，台中市區到府收。\n\n出處：門市當日看件\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #衣物送洗 #台中洗衣店"
     },
     {
-      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-22.json#post-2026-10-22-slot-02",
-      "date": "2026-10-22",
-      "date_published": "2026-10-22T20:30:00+08:00",
+      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json#post-2026-10-24-slot-02",
+      "date": "2026-10-24",
+      "date_published": "2026-10-24T20:30:00+08:00",
       "slot": 2,
       "time": "20:30",
-      "title": "2026-10-22 20:30 孩子看著你笑，你也回個微笑",
-      "topic": "孩子看著你笑，你也回個微笑",
-      "visual_route": "shop-inspection",
-      "traffic_route": "object-proof",
+      "title": "2026-10-24 20:30 沙發毯久放後的灰味",
+      "topic": "沙發毯久放後的灰味",
+      "visual_route": "macro-detail",
+      "traffic_route": "share-worthy-care",
       "content_role": "evidence-conversion",
       "search_intent": "",
       "target_queries": [],
       "evidence_type": "",
-      "hashtags": [],
+      "hashtags": [
+        "#私享家洗衣店",
+        "#沙發毯清潔",
+        "#居家布品",
+        "#布品收納"
+      ],
       "platforms": [
         "facebook",
         "instagram"
       ],
-      "image_url": "https://sixiangjialaundry.com/assets/2026-10-22/slot-02.png",
+      "image_url": "https://sixiangjialaundry.com/assets/2026-10-24/slot-02.png",
       "image_urls": [
-        "https://sixiangjialaundry.com/assets/2026-10-22/slot-02.png"
+        "https://sixiangjialaundry.com/assets/2026-10-24/slot-02.png"
       ],
       "carousel_items": [],
-      "media_type": "reel",
-      "video_url": "https://sixiangjialaundry.com/assets/2026-10-22/slot-02.mp4",
-      "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-22.json",
-      "facebook_caption": "孩子看著你笑的時候，你也想好好回他一個笑。\n\n帶孩子出門的日常裡，推車座布上的奶漬、汽座縫裡的餅乾屑，往往回家整理才發現。今晚這支小日常，從那個「事情又多一件」的時刻開始。\n\n汽座、推車整台收，在店裡拆下布套，先局部處理奶漬，再依洗標溫和水洗、陰乾、裝回。畫面裡，裝回後的小折角還多看一眼、順平，再各自包膜、裝袋送回。\n\n大件約 10–14 天；來回收送免費，一件也收。\n等整理好送回，再回到你們自己的生活節奏。\n\n想安排清洗，私訊我們，告訴我們要整理汽座、推車，或兩件一起。",
-      "instagram_caption": "孩子看著你笑的時候，你也想好好回他一個笑。\n\n帶孩子出門的日常裡，推車座布上的奶漬、汽座縫裡的餅乾屑，往往回家整理才發現。今晚這支小日常，從那個「事情又多一件」的時刻開始。\n\n汽座、推車整台收，在店裡拆下布套，先局部處理奶漬，再依洗標溫和水洗、陰乾、裝回。畫面裡，裝回後的小折角還多看一眼、順平，再各自包膜、裝袋送回。\n\n大件約 10–14 天；來回收送免費，一件也收。\n等整理好送回，再回到你們自己的生活節奏。\n\n想安排清洗，私訊我們，告訴我們要整理汽座、推車，或兩件一起。"
+      "media_type": "image",
+      "video_url": "",
+      "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json",
+      "facebook_caption": "沙發毯放久了有灰味，不一定是明顯髒污，有時候是皮屑、灰塵和室內濕氣慢慢堆出來。\n\n常蓋、常折、常靠近地板的位置會比較容易卡味道，收起來前如果沒處理，下次拿出來會更悶。\n\n我們會看毯子厚度、纖維種類、味道位置和邊角灰塵，再判斷適合清洗、除味或收納前整理。\n\n私享家洗衣店｜台中市區免費到府收送\n\n拍起球處和邊緣兩張傳 LINE，我們先看。\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #沙發毯清潔 #居家布品 #布品收納",
+      "instagram_caption": "沙發毯放久了有灰味，不一定是明顯髒污，有時候是皮屑、灰塵和室內濕氣慢慢堆出來。\n\n常蓋、常折、常靠近地板的位置會比較容易卡味道，收起來前如果沒處理，下次拿出來會更悶。\n\n我們會看毯子厚度、纖維種類、味道位置和邊角灰塵，再判斷適合清洗、除味或收納前整理。\n\n私享家洗衣店｜台中市區免費到府收送\n\n拍起球處和邊緣兩張傳 LINE，我們先看。\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #沙發毯清潔 #居家布品 #布品收納"
     }
   ],
   "recent_posts": [
+    {
+      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json#post-2026-10-24-slot-02",
+      "date": "2026-10-24",
+      "date_published": "2026-10-24T20:30:00+08:00",
+      "slot": 2,
+      "time": "20:30",
+      "title": "2026-10-24 20:30 沙發毯久放後的灰味",
+      "topic": "沙發毯久放後的灰味",
+      "visual_route": "macro-detail",
+      "traffic_route": "share-worthy-care",
+      "content_role": "evidence-conversion",
+      "search_intent": "",
+      "target_queries": [],
+      "evidence_type": "",
+      "hashtags": [
+        "#私享家洗衣店",
+        "#沙發毯清潔",
+        "#居家布品",
+        "#布品收納"
+      ],
+      "platforms": [
+        "facebook",
+        "instagram"
+      ],
+      "image_url": "https://sixiangjialaundry.com/assets/2026-10-24/slot-02.png",
+      "image_urls": [
+        "https://sixiangjialaundry.com/assets/2026-10-24/slot-02.png"
+      ],
+      "carousel_items": [],
+      "media_type": "image",
+      "video_url": "",
+      "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json",
+      "facebook_caption": "沙發毯放久了有灰味，不一定是明顯髒污，有時候是皮屑、灰塵和室內濕氣慢慢堆出來。\n\n常蓋、常折、常靠近地板的位置會比較容易卡味道，收起來前如果沒處理，下次拿出來會更悶。\n\n我們會看毯子厚度、纖維種類、味道位置和邊角灰塵，再判斷適合清洗、除味或收納前整理。\n\n私享家洗衣店｜台中市區免費到府收送\n\n拍起球處和邊緣兩張傳 LINE，我們先看。\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #沙發毯清潔 #居家布品 #布品收納",
+      "instagram_caption": "沙發毯放久了有灰味，不一定是明顯髒污，有時候是皮屑、灰塵和室內濕氣慢慢堆出來。\n\n常蓋、常折、常靠近地板的位置會比較容易卡味道，收起來前如果沒處理，下次拿出來會更悶。\n\n我們會看毯子厚度、纖維種類、味道位置和邊角灰塵，再判斷適合清洗、除味或收納前整理。\n\n私享家洗衣店｜台中市區免費到府收送\n\n拍起球處和邊緣兩張傳 LINE，我們先看。\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #沙發毯清潔 #居家布品 #布品收納"
+    },
+    {
+      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json#post-2026-10-24-slot-01",
+      "date": "2026-10-24",
+      "date_published": "2026-10-24T11:30:00+08:00",
+      "slot": 1,
+      "time": "11:30",
+      "title": "2026-10-24 11:30 毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處",
+      "topic": "毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處",
+      "visual_route": "shop-inspection",
+      "traffic_route": "share-worthy-care",
+      "content_role": "reach-answer",
+      "search_intent": "problem-diagnosis",
+      "target_queries": [
+        "台中棉被清洗",
+        "台中床組清洗",
+        "西屯寢具清洗",
+        "台中羽絨被送洗",
+        "台中外套清洗",
+        "棉被有潮味怎麼辦"
+      ],
+      "evidence_type": "first-party-inspection",
+      "hashtags": [
+        "#私享家洗衣店",
+        "#台中西屯洗衣店",
+        "#洗護日常",
+        "#送洗前檢查",
+        "#衣物送洗",
+        "#台中洗衣店"
+      ],
+      "platforms": [
+        "facebook",
+        "instagram"
+      ],
+      "image_url": "https://sixiangjialaundry.com/assets/2026-10-24/slot-01.png",
+      "image_urls": [
+        "https://sixiangjialaundry.com/assets/2026-10-24/slot-01.png"
+      ],
+      "carousel_items": [],
+      "media_type": "image",
+      "video_url": "",
+      "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json",
+      "facebook_caption": "毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處。\n\n厚一點的布收進櫃子，摸起來乾不代表乾透。中間那層最慢。\n\n我會先摸厚的地方確認乾透了沒。收進去之前那一步，決定下次拿出來的味道。\n\n收之前想先整理一次？傳 LINE跟我們說，台中市區到府收。\n\n出處：門市當日看件\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #衣物送洗 #台中洗衣店",
+      "instagram_caption": "毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處。\n\n厚一點的布收進櫃子，摸起來乾不代表乾透。中間那層最慢。\n\n我會先摸厚的地方確認乾透了沒。收進去之前那一步，決定下次拿出來的味道。\n\n收之前想先整理一次？私訊跟我們說，台中市區到府收。\n\n出處：門市當日看件\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #衣物送洗 #台中洗衣店"
+    },
     {
       "id": "https://sixiangjialaundry.com/content-calendar/2026-10-22.json#post-2026-10-22-slot-02",
       "date": "2026-10-22",
@@ -3819,120 +3850,6 @@
       "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-10.json",
       "facebook_caption": "馬皮短靴穿久，摺痕變深。\n\n這次示範的這雙馬皮短靴，片中呈現：先看摺痕，也看皮況。扶穩靴身，海綿帶泡沫洗。隔著白紙，稍微整燙。拉鍊和鞋邊，膠帶已貼好。吹風機收乾，再看皮面。白布薄擦，保留皮面質感。保持原有皮革風貌。\n\n老實說：摺痕不保證全消，整燙與收乾都依皮況調整。鞋子交期約 7 天，依皮況與排程確認。\n\n拍照傳LINE，先評估。\n\n台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）\n\n#私享家洗衣店 #台中西屯洗衣店 #馬皮靴 #皮靴保養 #送洗前檢查",
       "instagram_caption": "馬皮短靴穿久，摺痕變深。\n\n這次示範的這雙馬皮短靴，片中呈現：先看摺痕，也看皮況。扶穩靴身，海綿帶泡沫洗。隔著白紙，稍微整燙。拉鍊和鞋邊，膠帶已貼好。吹風機收乾，再看皮面。白布薄擦，保留皮面質感。保持原有皮革風貌。\n\n老實說：摺痕不保證全消，整燙與收乾都依皮況調整。鞋子交期約 7 天，依皮況與排程確認。\n\n拍照傳LINE，先評估。\n\n台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）\n\n#私享家洗衣店 #台中西屯洗衣店 #馬皮靴 #皮靴保養 #送洗前檢查"
-    },
-    {
-      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-10.json#post-2026-10-10-slot-01",
-      "date": "2026-10-10",
-      "date_published": "2026-10-10T11:30:00+08:00",
-      "slot": 1,
-      "time": "11:30",
-      "title": "2026-10-10 11:30 馬皮短靴穿久沒新感：店裡怎麼處理",
-      "topic": "馬皮短靴穿久沒新感：店裡怎麼處理",
-      "visual_route": "shop-inspection",
-      "traffic_route": "value-prop-lead",
-      "content_role": "reach-answer",
-      "search_intent": "problem-diagnosis",
-      "target_queries": [
-        "台中皮靴清潔",
-        "馬皮靴保養",
-        "皮靴摺痕",
-        "精品鞋清潔",
-        "西屯洗鞋",
-        "台中洗鞋推薦"
-      ],
-      "evidence_type": "",
-      "hashtags": [
-        "#私享家洗衣店",
-        "#台中西屯洗衣店",
-        "#馬皮靴",
-        "#皮靴保養",
-        "#送洗前檢查"
-      ],
-      "platforms": [
-        "facebook",
-        "instagram"
-      ],
-      "image_url": "https://sixiangjialaundry.com/assets/2026-10-10/slot-01.png",
-      "image_urls": [
-        "https://sixiangjialaundry.com/assets/2026-10-10/slot-01.png",
-        "https://sixiangjialaundry.com/assets/2026-10-10/slot-01-slide-02.png",
-        "https://sixiangjialaundry.com/assets/2026-10-10/slot-01-slide-03.png",
-        "https://sixiangjialaundry.com/assets/2026-10-10/slot-01-slide-04.png"
-      ],
-      "carousel_items": [
-        {
-          "slide": 1,
-          "image_prompt": "A realistic smartphone photo, flat daylight, everything in focus, no blurry background. In the entryway of a customer's small Taiwanese apartment, the exact pair of black horse leather front-zip ankle boots from Photo 1 stands on the tiled floor in front of a plain shoe cabinet, both front zippers facing the camera, the deep worn creases across the toes and the uneven shine clearly visible; a few everyday things in the background, tidy, no people, no hands, no hang tags, no logos, no text.",
-          "local_image_path": "docs/assets/2026-10-10/slot-01.png",
-          "public_image_url": "https://sixiangjialaundry.com/assets/2026-10-10/slot-01.png"
-        },
-        {
-          "slide": 2,
-          "image_prompt": "Photo 1 shows this exact pair of boots (copy them exactly); Photo 2 shows the same step from the owner's own footage, so copy its layout and hand positions, but the forearms wear plain black long sleeves; Photo 3 shows the exact shape of the tool. Leave out the orange paper hang tag.\nVertical 9:16 portrait composition. An ordinary first-person smartphone photograph at the owner's stainless-steel washing bench. The same selected black horsehide ankle boot has its front zipper already open, with the left hand supporting the shaft through the opening at a fixed low working height above the bench, not presenting it toward the camera. The right hand holds a palm-sized soft yellow cleaning sponge with rounded edges and wet white foam against the leather. Irregular foam remains on already-worked areas and in the washing tray; the matching boot rests beside it. Include the reference red plastic basin and clear handled measuring jug. Both black-sleeved forearms remain continuously connected to the lower frame edges. No yellow tape, brush, readable text or logos; flat fluorescent light, real leather creases, no bokeh.\nThe matching second boot is not standing: it lies flat on its back in a wide puddle of white foam on the bench to the right, its front zipper facing up and its toe pointing toward the camera.",
-          "local_image_path": "docs/assets/2026-10-10/slot-01-slide-02.png",
-          "public_image_url": "https://sixiangjialaundry.com/assets/2026-10-10/slot-01-slide-02.png"
-        },
-        {
-          "slide": 3,
-          "image_prompt": "Vertical 9:16 portrait composition. An ordinary first-person smartphone photograph of the same selected black horsehide ankle boot at the stainless-steel workbench, with its yellow masking tape and white paper stuffing still in place. The left hand steadies the shaft while the sole remains supported, and the right hand presses a soft white cloth with only a faint pale-yellow smear against a small area of the boot's outer side. Both black-sleeved forearms connect continuously to the frame edges. An open clear glass jar containing yellow care paste stands nearby, untouched by either hand; the matching boot remains in the background. Preserve natural leather grain, worn folds and uneven sheen, not patent leather or a thick painted coating. Flat fluorescent light, no bokeh, readable text, logos or dipping action.",
-          "local_image_path": "docs/assets/2026-10-10/slot-01-slide-03.png",
-          "public_image_url": "https://sixiangjialaundry.com/assets/2026-10-10/slot-01-slide-03.png"
-        },
-        {
-          "slide": 4,
-          "image_prompt": "A realistic smartphone photo, flat fluorescent light, everything in focus. A plain off-white card lying flat on the shop's stainless-steel worktable beside the pair of black horse leather front-zip ankle boots from Photo 1; the card carries exactly three short lines of clean dark Traditional Chinese print, top to bottom: 「馬皮先看摺痕與皮況」「隔紙整燙再收乾」「摺痕不保證全消」, and nothing else is written anywhere; no hands, no logos.",
-          "local_image_path": "docs/assets/2026-10-10/slot-01-slide-04.png",
-          "public_image_url": "https://sixiangjialaundry.com/assets/2026-10-10/slot-01-slide-04.png"
-        }
-      ],
-      "media_type": "carousel",
-      "video_url": "",
-      "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-10.json",
-      "facebook_caption": "馬皮短靴穿久沒新感：店裡怎麼處理。\n\n馬皮短靴穿久了，先看鞋頭的摺痕，再看亮面是不是一塊一塊不平均。摺痕能改善多少、適合怎麼處理，要依皮況評估；亮面不均是否還有表面髒污或舊油蠟，要看實物確認。確認皮況後，再評估是否適合清潔與整燙，以及處理方式。\n\n送洗前先別做：拿鞋油厚厚塗一層、用吹風機貼近猛吹、拿濕布用力來回擦。\n\n在店裡，我們這樣做：先確認材質、結構與皮況；扶穩靴身，用海綿帶泡沫清洗；清潔段完成後，依皮況隔著白紙稍微整燙。拉鍊和鞋邊已貼好膠帶，靴口也已塞紙。吹風機控制風溫、移動著收乾；最後用白布薄擦，保留皮面質感。\n\n老實說：摺痕不保證全消，我們會保持原有的皮革風貌。鞋子交期約 7 天，依皮況與排程確認。\n\n拍整雙靴子的正面和鞋頭摺痕傳 LINE，先幫你看（照片先初評，必要時看實物）。\n\n台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）\n\n#私享家洗衣店 #台中西屯洗衣店 #馬皮靴 #皮靴保養 #送洗前檢查",
-      "instagram_caption": "馬皮短靴穿久沒新感：店裡怎麼處理。\n\n馬皮短靴穿久了，先看鞋頭的摺痕，再看亮面是不是一塊一塊不平均。摺痕能改善多少、適合怎麼處理，要依皮況評估；亮面不均是否還有表面髒污或舊油蠟，要看實物確認。確認皮況後，再評估是否適合清潔與整燙，以及處理方式。\n\n送洗前先別做：拿鞋油厚厚塗一層、用吹風機貼近猛吹、拿濕布用力來回擦。\n\n在店裡，我們這樣做：先確認材質、結構與皮況；扶穩靴身，用海綿帶泡沫清洗；清潔段完成後，依皮況隔著白紙稍微整燙。拉鍊和鞋邊已貼好膠帶，靴口也已塞紙。吹風機控制風溫、移動著收乾；最後用白布薄擦，保留皮面質感。\n\n老實說：摺痕不保證全消，我們會保持原有的皮革風貌。鞋子交期約 7 天，依皮況與排程確認。\n\n拍整雙靴子的正面和鞋頭摺痕傳 LINE，先幫你看（照片先初評，必要時看實物）。\n\n台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）\n\n#私享家洗衣店 #台中西屯洗衣店 #馬皮靴 #皮靴保養 #送洗前檢查"
-    },
-    {
-      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-09.json#post-2026-10-09-slot-02",
-      "date": "2026-10-09",
-      "date_published": "2026-10-09T20:30:00+08:00",
-      "slot": 2,
-      "time": "20:30",
-      "title": "2026-10-09 20:30 編織皮磨白，先別自己補色",
-      "topic": "編織皮磨白，先別自己補色",
-      "visual_route": "shop-inspection",
-      "traffic_route": "value-prop-lead",
-      "content_role": "evidence-conversion",
-      "search_intent": "problem-diagnosis",
-      "target_queries": [
-        "台中皮衣整新",
-        "編織皮外套",
-        "皮衣磨白",
-        "皮衣補色",
-        "西屯洗衣店",
-        "台中皮衣清潔"
-      ],
-      "evidence_type": "",
-      "hashtags": [
-        "#私享家洗衣店",
-        "#台中西屯洗衣店",
-        "#編織皮外套",
-        "#皮衣整新",
-        "#送洗前檢查"
-      ],
-      "platforms": [
-        "facebook",
-        "instagram"
-      ],
-      "image_url": "https://sixiangjialaundry.com/assets/2026-10-09/slot-02.png",
-      "image_urls": [
-        "https://sixiangjialaundry.com/assets/2026-10-09/slot-02.png"
-      ],
-      "carousel_items": [],
-      "media_type": "reel",
-      "video_url": "https://sixiangjialaundry.com/assets/2026-10-09/slot-02.mp4",
-      "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-09.json",
-      "facebook_caption": "編織皮磨白，先別自己補色。\n\n這次示範的是一件編織皮外套。就這件外套的畫面來看：磨白多在袖口、下襬。掛起來看，整件深淺不一。\n\n這次片中呈現的處理：掛起固定，分區整新。拉開下襬，側邊一起做。分兩次噴，不一次上滿。深淺拉近，編織紋還在。壓一下看，皮面要留軟。\n\n老實說：整新的目標是把深淺拉近，能改善多少依皮況，不保證完全一致。皮件交期約 14 天，依皮況與排程確認。\n\n拍照傳LINE，先評估。\n\n台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）\n\n#私享家洗衣店 #台中西屯洗衣店 #編織皮外套 #皮衣整新 #送洗前檢查",
-      "instagram_caption": "編織皮磨白，先別自己補色。\n\n這次示範的是一件編織皮外套。就這件外套的畫面來看：磨白多在袖口、下襬。掛起來看，整件深淺不一。\n\n這次片中呈現的處理：掛起固定，分區整新。拉開下襬，側邊一起做。分兩次噴，不一次上滿。深淺拉近，編織紋還在。壓一下看，皮面要留軟。\n\n老實說：整新的目標是把深淺拉近，能改善多少依皮況，不保證完全一致。皮件交期約 14 天，依皮況與排程確認。\n\n拍照傳LINE，先評估。\n\n台中免費收送 → LINE 預約：https://sixiangjialaundry.com/go/line.html?source=post （或加 LINE:0968327653）\n\n#私享家洗衣店 #台中西屯洗衣店 #編織皮外套 #皮衣整新 #送洗前檢查"
     }
   ],
   "published_posts": [
@@ -14575,6 +14492,85 @@
       "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-22.json",
       "facebook_caption": "孩子看著你笑的時候，你也想好好回他一個笑。\n\n帶孩子出門的日常裡，推車座布上的奶漬、汽座縫裡的餅乾屑，往往回家整理才發現。今晚這支小日常，從那個「事情又多一件」的時刻開始。\n\n汽座、推車整台收，在店裡拆下布套，先局部處理奶漬，再依洗標溫和水洗、陰乾、裝回。畫面裡，裝回後的小折角還多看一眼、順平，再各自包膜、裝袋送回。\n\n大件約 10–14 天；來回收送免費，一件也收。\n等整理好送回，再回到你們自己的生活節奏。\n\n想安排清洗，私訊我們，告訴我們要整理汽座、推車，或兩件一起。",
       "instagram_caption": "孩子看著你笑的時候，你也想好好回他一個笑。\n\n帶孩子出門的日常裡，推車座布上的奶漬、汽座縫裡的餅乾屑，往往回家整理才發現。今晚這支小日常，從那個「事情又多一件」的時刻開始。\n\n汽座、推車整台收，在店裡拆下布套，先局部處理奶漬，再依洗標溫和水洗、陰乾、裝回。畫面裡，裝回後的小折角還多看一眼、順平，再各自包膜、裝袋送回。\n\n大件約 10–14 天；來回收送免費，一件也收。\n等整理好送回，再回到你們自己的生活節奏。\n\n想安排清洗，私訊我們，告訴我們要整理汽座、推車，或兩件一起。"
+    },
+    {
+      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json#post-2026-10-24-slot-01",
+      "date": "2026-10-24",
+      "date_published": "2026-10-24T11:30:00+08:00",
+      "slot": 1,
+      "time": "11:30",
+      "title": "2026-10-24 11:30 毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處",
+      "topic": "毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處",
+      "visual_route": "shop-inspection",
+      "traffic_route": "share-worthy-care",
+      "content_role": "reach-answer",
+      "search_intent": "problem-diagnosis",
+      "target_queries": [
+        "台中棉被清洗",
+        "台中床組清洗",
+        "西屯寢具清洗",
+        "台中羽絨被送洗",
+        "台中外套清洗",
+        "棉被有潮味怎麼辦"
+      ],
+      "evidence_type": "first-party-inspection",
+      "hashtags": [
+        "#私享家洗衣店",
+        "#台中西屯洗衣店",
+        "#洗護日常",
+        "#送洗前檢查",
+        "#衣物送洗",
+        "#台中洗衣店"
+      ],
+      "platforms": [
+        "facebook",
+        "instagram"
+      ],
+      "image_url": "https://sixiangjialaundry.com/assets/2026-10-24/slot-01.png",
+      "image_urls": [
+        "https://sixiangjialaundry.com/assets/2026-10-24/slot-01.png"
+      ],
+      "carousel_items": [],
+      "media_type": "image",
+      "video_url": "",
+      "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json",
+      "facebook_caption": "毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處。\n\n厚一點的布收進櫃子，摸起來乾不代表乾透。中間那層最慢。\n\n我會先摸厚的地方確認乾透了沒。收進去之前那一步，決定下次拿出來的味道。\n\n收之前想先整理一次？傳 LINE跟我們說，台中市區到府收。\n\n出處：門市當日看件\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #衣物送洗 #台中洗衣店",
+      "instagram_caption": "毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處。\n\n厚一點的布收進櫃子，摸起來乾不代表乾透。中間那層最慢。\n\n我會先摸厚的地方確認乾透了沒。收進去之前那一步，決定下次拿出來的味道。\n\n收之前想先整理一次？私訊跟我們說，台中市區到府收。\n\n出處：門市當日看件\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #衣物送洗 #台中洗衣店"
+    },
+    {
+      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json#post-2026-10-24-slot-02",
+      "date": "2026-10-24",
+      "date_published": "2026-10-24T20:30:00+08:00",
+      "slot": 2,
+      "time": "20:30",
+      "title": "2026-10-24 20:30 沙發毯久放後的灰味",
+      "topic": "沙發毯久放後的灰味",
+      "visual_route": "macro-detail",
+      "traffic_route": "share-worthy-care",
+      "content_role": "evidence-conversion",
+      "search_intent": "",
+      "target_queries": [],
+      "evidence_type": "",
+      "hashtags": [
+        "#私享家洗衣店",
+        "#沙發毯清潔",
+        "#居家布品",
+        "#布品收納"
+      ],
+      "platforms": [
+        "facebook",
+        "instagram"
+      ],
+      "image_url": "https://sixiangjialaundry.com/assets/2026-10-24/slot-02.png",
+      "image_urls": [
+        "https://sixiangjialaundry.com/assets/2026-10-24/slot-02.png"
+      ],
+      "carousel_items": [],
+      "media_type": "image",
+      "video_url": "",
+      "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json",
+      "facebook_caption": "沙發毯放久了有灰味，不一定是明顯髒污，有時候是皮屑、灰塵和室內濕氣慢慢堆出來。\n\n常蓋、常折、常靠近地板的位置會比較容易卡味道，收起來前如果沒處理，下次拿出來會更悶。\n\n我們會看毯子厚度、纖維種類、味道位置和邊角灰塵，再判斷適合清洗、除味或收納前整理。\n\n私享家洗衣店｜台中市區免費到府收送\n\n拍起球處和邊緣兩張傳 LINE，我們先看。\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #沙發毯清潔 #居家布品 #布品收納",
+      "instagram_caption": "沙發毯放久了有灰味，不一定是明顯髒污，有時候是皮屑、灰塵和室內濕氣慢慢堆出來。\n\n常蓋、常折、常靠近地板的位置會比較容易卡味道，收起來前如果沒處理，下次拿出來會更悶。\n\n我們會看毯子厚度、纖維種類、味道位置和邊角灰塵，再判斷適合清洗、除味或收納前整理。\n\n私享家洗衣店｜台中市區免費到府收送\n\n拍起球處和邊緣兩張傳 LINE，我們先看。\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #沙發毯清潔 #居家布品 #布品收納"
     }
   ]
 }

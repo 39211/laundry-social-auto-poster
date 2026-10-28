@@ -8569,6 +8569,75 @@
         ],
         "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-22.json"
       }
+    },
+    {
+      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json#post-2026-10-24-slot-01",
+      "url": "https://sixiangjialaundry.com/posts/2026-10-24-slot-01.html",
+      "title": "2026-10-24 11:30 毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處",
+      "date_published": "2026-10-24T11:30:00+08:00",
+      "content_text": "毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處。\n\n厚一點的布收進櫃子，摸起來乾不代表乾透。中間那層最慢。\n\n我會先摸厚的地方確認乾透了沒。收進去之前那一步，決定下次拿出來的味道。\n\n收之前想先整理一次？傳 LINE跟我們說，台中市區到府收。\n\n出處：門市當日看件\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #衣物送洗 #台中洗衣店",
+      "summary": "毛衣收了一季要拿出來穿？先看肩膀和袖口這 2 處",
+      "image": "https://sixiangjialaundry.com/assets/2026-10-24/slot-01.png",
+      "tags": [
+        "私享家洗衣店",
+        "台中西屯洗衣店",
+        "洗護日常",
+        "送洗前檢查",
+        "衣物送洗",
+        "台中洗衣店"
+      ],
+      "_sixiangjia": {
+        "slot": 1,
+        "category": "知識文",
+        "visual_route": "shop-inspection",
+        "traffic_route": "share-worthy-care",
+        "content_role": "reach-answer",
+        "search_intent": "problem-diagnosis",
+        "target_queries": [
+          "台中棉被清洗",
+          "台中床組清洗",
+          "西屯寢具清洗",
+          "台中羽絨被送洗",
+          "台中外套清洗",
+          "棉被有潮味怎麼辦"
+        ],
+        "evidence_type": "first-party-inspection",
+        "platforms": [
+          "facebook",
+          "instagram"
+        ],
+        "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json"
+      }
+    },
+    {
+      "id": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json#post-2026-10-24-slot-02",
+      "url": "https://sixiangjialaundry.com/posts/2026-10-24-slot-02.html",
+      "title": "2026-10-24 20:30 沙發毯久放後的灰味",
+      "date_published": "2026-10-24T20:30:00+08:00",
+      "content_text": "沙發毯放久了有灰味，不一定是明顯髒污，有時候是皮屑、灰塵和室內濕氣慢慢堆出來。\n\n常蓋、常折、常靠近地板的位置會比較容易卡味道，收起來前如果沒處理，下次拿出來會更悶。\n\n我們會看毯子厚度、纖維種類、味道位置和邊角灰塵，再判斷適合清洗、除味或收納前整理。\n\n私享家洗衣店｜台中市區免費到府收送\n\n拍起球處和邊緣兩張傳 LINE，我們先看。\n\n直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)\n\n#私享家洗衣店 #沙發毯清潔 #居家布品 #布品收納",
+      "summary": "沙發毯久放後的灰味",
+      "image": "https://sixiangjialaundry.com/assets/2026-10-24/slot-02.png",
+      "tags": [
+        "私享家洗衣店",
+        "沙發毯清潔",
+        "居家布品",
+        "布品收納"
+      ],
+      "_sixiangjia": {
+        "slot": 2,
+        "category": "情境文",
+        "visual_route": "macro-detail",
+        "traffic_route": "share-worthy-care",
+        "content_role": "evidence-conversion",
+        "search_intent": "",
+        "target_queries": [],
+        "evidence_type": "",
+        "platforms": [
+          "facebook",
+          "instagram"
+        ],
+        "calendar_url": "https://sixiangjialaundry.com/content-calendar/2026-10-24.json"
+      }
     }
   ]
 }

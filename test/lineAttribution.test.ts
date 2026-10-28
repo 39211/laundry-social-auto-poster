@@ -13,7 +13,7 @@ import {
 
 const REPO_ROOT = process.cwd();
 const REPORT_SCRIPT = join(REPO_ROOT, "scripts", "line-attribution-report.ps1");
-const LINE_ME = "https://line.me/ti/p/4m-rA6hxf6";
+const LINE_ME = "https://lin.ee/w8qGVqM";
 
 async function writeBusinessProfile(root: string): Promise<void> {
   await mkdir(join(root, "data"), { recursive: true });
@@ -79,7 +79,8 @@ function hrefs(html: string): string[] {
 }
 
 function findBareLineMeHrefs(html: string): string[] {
-  return hrefs(html).filter((href) => /line\.me/i.test(href));
+  // 官方加好友網址已改到 lin.ee。裸 href 仍須被掃到，line.me 舊網址也繼續算。
+  return hrefs(html).filter((href) => /(?:line\.me|lin\.ee)/i.test(href));
 }
 
 function findLineRedirectHrefs(html: string): string[] {

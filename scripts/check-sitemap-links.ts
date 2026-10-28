@@ -3,8 +3,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁。東勢、大甲、龍井不進這支。 */
-export const EXPECTED_LOC_COUNT = 145;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -362,6 +360,50 @@ export function repoRootFromHere(): string {
   return join(dirname(fileURLToPath(import.meta.url)), "..");
 }
 
+/**
+ * 預期的 sitemap 網址數，從 seo-overrides 內容算出，不寫死：
+ * 每個 .html 若不是 noindex、且 canonical（沒寫就當自己）指向自己的網址，就必須在 sitemap。
+ * 目錄首頁（foo/index.html）的網址是 foo/；canonical 指向 foo/ 視為自己。
+ */
+export function expectedLocCountFromOverrides(root = repoRootFromHere()): number {
+  const base = join(root, "seo-overrides");
+  const robotsNoindex = (html: string): boolean =>
+    (html.match(/<meta\b[^>]*>/gi) ?? []).some(
+      (tag) => /\bname\s*=\s*["'](?:robots|googlebot)["']/i.test(tag) && /noindex/i.test(tag)
+    );
+  const canonicalOf = (html: string): string | undefined =>
+    (html.match(/<link\b[^>]*>/gi) ?? [])
+      .filter((tag) => /\brel\s*=\s*["']canonical["']/i.test(tag))
+      .map((tag) => tag.match(/\bhref\s*=\s*["']([^"']*)["']/i)?.[1])
+      .filter((href): href is string => Boolean(href))
+      .at(-1);
+  let count = 0;
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!entry.name.endsWith(".html")) continue;
+      const rel = full.slice(base.length + 1).split("\\").join("/");
+      const selfUrl =
+        rel === "index.html"
+          ? `${SITE_ORIGIN}/`
+          : rel.endsWith("/index.html")
+            ? `${SITE_ORIGIN}/${rel.slice(0, -"index.html".length)}`
+            : `${SITE_ORIGIN}/${rel}`;
+      const html = readFileSync(full, "utf8");
+      if (robotsNoindex(html)) continue;
+      const canonical = canonicalOf(html);
+      if (canonical && new URL(canonical, selfUrl).href !== selfUrl) continue;
+      count += 1;
+    }
+  };
+  walk(base);
+  return count;
+}
+
 function pathnameOf(loc: string): string {
   const url = new URL(loc);
   return url.pathname;
@@ -505,10 +547,10 @@ export function formatSitemapLinkReport(report: SitemapLinkReport): string {
   return lines.join("\n");
 }
 
-export function sitemapLinkReportFailed(report: SitemapLinkReport): boolean {
+export function sitemapLinkReportFailed(report: SitemapLinkReport, root = repoRootFromHere()): boolean {
   return (
     !report.parseOk ||
-    report.locCount !== EXPECTED_LOC_COUNT ||
+    report.locCount !== expectedLocCountFromOverrides(root) ||
     report.postsCount !== 0 ||
     report.missing.length > 0 ||
     report.duplicateLocs.length > 0 ||

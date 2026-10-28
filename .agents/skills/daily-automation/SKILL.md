@@ -39,7 +39,7 @@ Run for the current Asia/Taipei date:
 5. Run `npm run generate-image-manifest -- --date YYYY-MM-DD` and generate ONLY the missing images with built-in `image_gen` / gpt-image-2, once per missing manifest item, saving to the exact manifest path.
 6. After each saved image, run `npm run mark-image-source -- --date YYYY-MM-DD --slot X --path <manifest target_path> --source gpt-image-2` (the --path is required: carousels need one record per slide).
 7. Re-run `npm run validate-publishable-images -- --date YYYY-MM-DD`; the day is not done until it passes.
-8. Run `npm run generate-public-site` so `docs/llms.txt`, `docs/social-posts.json`, `docs/latest.json`, `docs/robots.txt`, and `docs/sitemap.xml` include the newest daily package. Site push and IndexNow are handled by the scheduled task; do not push.
+8. Do not run `npm run generate-public-site` and do not write `docs/`. The 06:30 script writes `docs/llms.txt`, `docs/social-posts.json`, `docs/latest.json`, `docs/robots.txt`, and `docs/sitemap.xml` once, in `Publish-Site`, after this generation exits, then pushes and records IndexNow. A second generation in the same round rewrites files the first pass just closed.
 
 ## Concept authoring duty (this is how the line keeps running)
 

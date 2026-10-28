@@ -969,6 +969,7 @@ describe("REGENGUARD-R2 PowerShell root and missing videos", () => {
       "  exit /b 0",
       ")",
       "if /I \"%~2\"==\"validate-publishable-images\" if /I \"%~5\"==\"%FAKE_UNLOCKED_DATE%\" exit /b 0",
+      "if /I \"%~2\"==\"generate-public-site\" exit /b 0",
       "echo 1 calendar image(s) missing",
       "echo   - docs/assets/%~6/slot-01.png (synthetic)",
       "exit /b 3",

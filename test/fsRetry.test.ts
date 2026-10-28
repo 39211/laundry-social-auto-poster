@@ -8,6 +8,12 @@ import { createWriteFileWithRetry, writeFileWithRetry } from "../src/fsRetry";
 type NodeWriteFile = typeof nodeWriteFile;
 
 const NOT_THROWN = Symbol("not-thrown");
+const RETRY_AT = "2026-10-25T06:32:27.123Z";
+
+function retryLine(attempt: number, code: string, errno?: number, stamp = RETRY_AT): string {
+  const errnoText = errno === undefined ? "" : ` errno=${errno}`;
+  return `${stamp} writeFile retry ${attempt}/6 docs/rss.xml: ${code}${errnoText}\n`;
+}
 
 function captureStderr(): { lines: string[]; restore: () => void } {
   const lines: string[] = [];
@@ -24,7 +30,12 @@ function captureStderr(): { lines: string[]; restore: () => void } {
   };
 }
 
-async function run(steps: Array<{ error?: unknown }>, path = "docs/rss.xml", data = "<rss/>") {
+async function run(
+  steps: Array<{ error?: unknown }>,
+  path = "docs/rss.xml",
+  data = "<rss/>",
+  now: () => Date = () => new Date(RETRY_AT)
+) {
   const calls: Array<{ file: unknown; data: unknown; options: unknown }> = [];
   const sleeps: number[] = [];
   const write: NodeWriteFile = async (file, fileData, options) => {
@@ -40,7 +51,8 @@ async function run(steps: Array<{ error?: unknown }>, path = "docs/rss.xml", dat
     remove: async () => {},
     sleep: async (ms) => {
       sleeps.push(ms);
-    }
+    },
+    now
   });
   const stderr = captureStderr();
   let thrown: unknown = NOT_THROWN;
@@ -70,10 +82,7 @@ describe("writeFileWithRetry", () => {
     expect(outcome.thrown).toBe(NOT_THROWN);
     expect(outcome.calls).toHaveLength(3);
     expect(outcome.sleeps).toEqual([250, 500]);
-    expect(outcome.lines).toEqual([
-      "writeFile retry 1/6 docs/rss.xml: UNKNOWN\n",
-      "writeFile retry 2/6 docs/rss.xml: UNKNOWN\n"
-    ]);
+    expect(outcome.lines).toEqual([retryLine(1, "UNKNOWN"), retryLine(2, "UNKNOWN")]);
   });
 
   it("T3 rejects ENOENT immediately with the same error", async () => {
@@ -93,11 +102,12 @@ describe("writeFileWithRetry", () => {
     expect(outcome.calls).toHaveLength(6);
     expect(outcome.sleeps).toEqual([250, 500, 1000, 2000, 3000]);
     expect(outcome.lines).toEqual([
-      "writeFile retry 1/6 docs/rss.xml: UNKNOWN\n",
-      "writeFile retry 2/6 docs/rss.xml: UNKNOWN\n",
-      "writeFile retry 3/6 docs/rss.xml: UNKNOWN\n",
-      "writeFile retry 4/6 docs/rss.xml: UNKNOWN\n",
-      "writeFile retry 5/6 docs/rss.xml: UNKNOWN\n"
+      retryLine(1, "UNKNOWN"),
+      retryLine(2, "UNKNOWN"),
+      retryLine(3, "UNKNOWN"),
+      retryLine(4, "UNKNOWN"),
+      retryLine(5, "UNKNOWN"),
+      retryLine(6, "UNKNOWN")
     ]);
   });
 
@@ -108,8 +118,54 @@ describe("writeFileWithRetry", () => {
       expect(outcome.thrown, code).toBe(NOT_THROWN);
       expect(outcome.calls, code).toHaveLength(2);
       expect(outcome.sleeps, code).toEqual([250]);
-      expect(outcome.lines, code).toEqual([`writeFile retry 1/6 docs/rss.xml: ${code}\n`]);
+      expect(outcome.lines, code).toEqual([retryLine(1, code)]);
     }
+  });
+
+  it("T7 stamps each UNKNOWN errno -4094 failure with its own ISO millisecond time", async () => {
+    const stamps = [
+      "2026-10-25T06:32:27.100Z",
+      "2026-10-25T06:32:27.351Z",
+      "2026-10-25T06:32:28.352Z",
+      "2026-10-25T06:32:30.353Z",
+      "2026-10-25T06:32:33.354Z",
+      "2026-10-25T06:32:36.355Z"
+    ];
+    let cursor = 0;
+    const errors = stamps.map(() => ({ code: "UNKNOWN", errno: -4094 }));
+    const outcome = await run(
+      errors.map((error) => ({ error })),
+      "docs/rss.xml",
+      "<rss/>",
+      () => new Date(stamps[cursor++] ?? stamps[stamps.length - 1]!)
+    );
+    expect(outcome.thrown).toBe(errors[5]);
+    expect(outcome.sleeps).toEqual([250, 500, 1000, 2000, 3000]);
+    expect(outcome.lines).toEqual(
+      stamps.map((stamp, index) => retryLine(index + 1, "UNKNOWN", -4094, stamp))
+    );
+    expect(cursor).toBe(6);
+  });
+
+  it("T8 retries UNKNOWN errno -4094 and bare errno -4094, then succeeds with errno in the log", async () => {
+    const outcome = await run([{ error: { code: "UNKNOWN", errno: -4094 } }, { error: { errno: -4094 } }, {}]);
+    expect(outcome.thrown).toBe(NOT_THROWN);
+    expect(outcome.calls).toHaveLength(3);
+    expect(outcome.sleeps).toEqual([250, 500]);
+    expect(outcome.lines).toEqual([
+      retryLine(1, "UNKNOWN", -4094),
+      `${RETRY_AT} writeFile retry 2/6 docs/rss.xml: none errno=-4094\n`
+    ]);
+  });
+
+  it("T9 logs the final failed attempt before throwing, then stops sleeping", async () => {
+    const errors = Array.from({ length: 6 }, () => ({ code: "EBUSY", errno: -4082 }));
+    const outcome = await run(errors.map((error) => ({ error })));
+    expect(outcome.thrown).toBe(errors[5]);
+    expect(outcome.calls).toHaveLength(6);
+    expect(outcome.sleeps).toHaveLength(5);
+    expect(outcome.lines).toHaveLength(6);
+    expect(outcome.lines[5]).toBe(retryLine(6, "EBUSY", -4082));
   });
 
   it("T6 default writer persists bytes under os.tmpdir()", async () => {

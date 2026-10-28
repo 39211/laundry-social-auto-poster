@@ -5,13 +5,21 @@ import { isLockedError, VERIFIED_COPY_ATTEMPTS, VERIFIED_COPY_BACKOFF_MS } from 
 
 type NodeWriteFile = typeof nodeWriteFile;
 
+function errorErrno(error: unknown): number | undefined {
+  if (typeof error !== "object" || error === null || !("errno" in error)) return undefined;
+  const errno = (error as { errno?: unknown }).errno;
+  return typeof errno === "number" ? errno : undefined;
+}
+
 export function createWriteFileWithRetry(deps: {
   write: NodeWriteFile;
   sleep: (ms: number) => Promise<void>;
   rename?: typeof rename;
   read?: (file: string) => Promise<Buffer>;
   remove?: typeof unlink;
+  now?: () => Date;
 }): NodeWriteFile {
+  const now = deps.now ?? (() => new Date());
   const writeFileWithRetry: NodeWriteFile = async (file, data, options) => {
     if (typeof file === "object" && !Buffer.isBuffer(file) && !(file instanceof URL)) {
       throw new TypeError("writeFileWithRetry requires a file path");
@@ -35,8 +43,14 @@ export function createWriteFileWithRetry(deps: {
         return;
       } catch (error) {
         const code = (error as NodeJS.ErrnoException | null)?.code;
-        if ((!isLockedError(error) && code !== "UNKNOWN") || attempt + 1 >= VERIFIED_COPY_ATTEMPTS) throw error;
-        process.stderr.write(`writeFile retry ${attempt + 1}/${VERIFIED_COPY_ATTEMPTS} ${target}: ${code}\n`);
+        if (!isLockedError(error) && code !== "UNKNOWN") throw error;
+        const errno = errorErrno(error);
+        const errnoText = errno === undefined ? "" : ` errno=${errno}`;
+        // 每次失敗都記錄時間；用完次數的最後一次也先寫 log 再丟錯。
+        process.stderr.write(
+          `${now().toISOString()} writeFile retry ${attempt + 1}/${VERIFIED_COPY_ATTEMPTS} ${target}: ${code ?? "none"}${errnoText}\n`
+        );
+        if (attempt + 1 >= VERIFIED_COPY_ATTEMPTS) throw error;
       } finally {
         await (deps.remove ?? unlink)(temporary).catch(() => {});
       }

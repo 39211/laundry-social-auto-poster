@@ -16,6 +16,12 @@ describe("catchup-publish uses the assigned daily slot windows", () => {
     expect(source).toContain("Calendar unreadable; falling back to slots 1, 2, 3.");
     expect(source).toContain("Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots");
     expect(source).toContain("Invoke-CatchupEveningSteps");
+    expect(source).toContain("stopping before any further step");
+    expect(source).not.toContain("posting continues");
+    expect(source).not.toContain("publicSiteRepushFailed");
+    const buildFailureStop = source.indexOf("stopping before any further step");
+    expect(buildFailureStop).toBeGreaterThan(source.indexOf("npm.cmd run generate-public-site"));
+    expect(buildFailureStop).toBeLessThan(source.indexOf("Running post-current-slot"));
     const smoke = await readFile(SMOKE, "utf8");
     expect(smoke).toContain("[IO.File]::Copy($productionSource, $production)");
     expect(smoke).toContain('"_watchdog.ps1"), "", [Text.UTF8Encoding]::new($true)');
@@ -37,6 +43,9 @@ describe("catchup-publish uses the assigned daily slot windows", () => {
     expect(output).toMatch(/CASE_OK name=calendar-missing-required-slot-hard-fails/u);
     expect(output).toMatch(/CASE_OK name=late-assigned-no-due-runs-evening-closeout/u);
     expect(output).toMatch(/CASE_OK name=no-daily-time-file-keeps-default-evening-path/u);
+    expect(output).toMatch(/CASE_OK name=generate-public-site-failure-stops-with-nonzero-exit/u);
+    expect(output).toMatch(/CASE_OK name=publish-pages-failure-stops-with-nonzero-exit/u);
+    expect(output).toMatch(/CASE_OK name=stale-site-build-ok-keeps-posting/u);
     expect(output).toMatch(/SMOKE_OK/u);
     expect(output).not.toMatch(/CASE_FAIL/u);
   }, 120000);

@@ -21,6 +21,7 @@ import {
   resolveAcceptedIndexGrowthPages
 } from "../src/indexGrowthPages";
 import { PRODUCTION_PUBLIC_SITE_BASE_URL } from "../src/publicSiteTypes";
+import { robotsMetaIsNoindex } from "../src/indexGrowthPages";
 import { NOINDEX_FOLLOW_LOCAL_PATHS } from "../scripts/check-sitemap-links";
 import {
   REQUIRED_SEARCH_CONTENT_EVENTS,
@@ -3835,21 +3836,56 @@ describe("seo overrides and URL path normalization", () => {
     expect(aiSitemapUrls.filter((url) => url.includes("/posts/"))).toEqual([]);
     expect(aiSitemap).not.toContain("/posts/");
 
-    const liveResponse = await fetch("https://sixiangjialaundry.com/sitemap.xml");
-    expect(liveResponse.ok, `live sitemap HTTP ${liveResponse.status}`).toBe(true);
-    const liveUrls = sitemapLocs(await liveResponse.text()).sort();
-    const liveNonPostUrls = liveUrls.filter((url) => !url.includes("/posts/"));
-    const livePostUrls = liveUrls.filter((url) => url.includes("/posts/"));
+    // 期望清單來自 repo 內 seo-overrides/（不連正式網站）：
+    // 每個可索引的覆寫頁（不是 noindex、不是 price-list、canonical 指向自己）都必須出現在產生器的 sitemap，
+    // 覆寫 sitemap.xml 裡列的可索引網址也一樣。數量由清單算出，不寫死。
+    const siteOrigin = "https://sixiangjialaundry.com";
+    const overrideUrlFor = (rel: string): string => {
+      const posixRel = rel.replaceAll("\\", "/");
+      return posixRel === "index.html" ? `${siteOrigin}/` : `${siteOrigin}/${posixRel}`;
+    };
+    const overrideHtmlRels = overrideFiles
+      .map((file) => file.replaceAll("\\", "/"))
+      .filter((file) => file.endsWith(".html"));
+    const noindexOverrideUrls = new Set<string>();
+    const expectedOverrideUrls = new Set<string>();
+    for (const rel of overrideHtmlRels) {
+      const html = await readFile(join(tempSeoOverridesDir, rel), "utf8");
+      const url = overrideUrlFor(rel);
+      if (robotsMetaIsNoindex(html)) {
+        noindexOverrideUrls.add(url);
+        continue;
+      }
+      if (rel === "price-list.html") continue;
+      const canonicalHref = [...html.matchAll(/<link\b[^>]*>/gi)]
+        .map((match) => match[0])
+        .filter((tag) => /\brel\s*=\s*(["'])canonical\1/i.test(tag))
+        .map((tag) => tag.match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2])
+        .filter((href): href is string => Boolean(href))
+        .at(-1);
+      if (canonicalHref && new URL(canonicalHref, url).href !== url) continue;
+      expectedOverrideUrls.add(url);
+    }
+    const overrideSitemapPath = join(tempSeoOverridesDir, "sitemap.xml");
+    if (existsSync(overrideSitemapPath)) {
+      for (const url of sitemapLocs(await readFile(overrideSitemapPath, "utf8"))) {
+        const pathname = new URL(url).pathname;
+        if (url.includes("/posts/") || noindexOverrideUrls.has(url)) continue;
+        // 覆寫 sitemap 列到、但覆寫目錄沒有 HTML 的網址由產生器自己的頁面提供，這裡只要求覆寫頁本身。
+        if (pathname.endsWith(".html") && !overrideHtmlRels.includes(pathname.slice(1))) continue;
+        if (pathname === "/" && !overrideHtmlRels.includes("index.html")) continue;
+        expectedOverrideUrls.add(url);
+      }
+    }
+    expect(expectedOverrideUrls.size, "seo-overrides must list indexable pages").toBeGreaterThan(60);
     const generatedUrls = [...sitemapUrls].sort();
-    expect(generatedUrls).toEqual(liveNonPostUrls);
-    expect(generatedUrls).toHaveLength(145);
+    const missingOverrideUrls = [...expectedOverrideUrls].filter((url) => !generatedUrls.includes(url)).sort();
+    expect(missingOverrideUrls, "generated sitemap must cover every indexable seo-overrides page").toEqual([]);
+    expect(generatedUrls.length).toBeGreaterThanOrEqual(expectedOverrideUrls.size);
+    for (const url of noindexOverrideUrls) {
+      expect(generatedUrls, `noindex override must stay out of sitemap: ${url}`).not.toContain(url);
+    }
     expect(generatedUrls.filter((url) => url.includes("/posts/"))).toEqual([]);
-    expect(livePostUrls.every((url) => url.startsWith("https://sixiangjialaundry.com/posts/"))).toBe(true);
-    // 30 indexable articles from src/generatePublicSite.ts (SITEMAP_MAX_INDEXABLE_POSTS) plus the posts home page.
-    expect(livePostUrls.length).toBeLessThanOrEqual(31);
-    // A deploy that drops the posts hub or every article must fail here, not pass on an empty list.
-    expect(livePostUrls).toContain("https://sixiangjialaundry.com/posts/");
-    expect(livePostUrls.filter((url) => url !== "https://sixiangjialaundry.com/posts/").length).toBeGreaterThan(0);
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
       const absolute = `https://sixiangjialaundry.com${path}`;
       expect(generatedUrls, path).not.toContain(absolute);

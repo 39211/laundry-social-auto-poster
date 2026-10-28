@@ -39,6 +39,14 @@ npm run generate-public-site
 
 `generate-public-site` only copies approved slots into the public SEO/AIO/GEO feeds. Before `data/approved-log/YYYY-MM-DD.json` exists, generated captions remain private draft content under `data/content-calendar/`.
 
+Site generation limits simultaneous file writes and override copies to 8 by default.
+Set `PUBLIC_SITE_WRITE_CONCURRENCY` to a positive integer, or pass
+`npm run generate-public-site -- --write-concurrency 4` to override it for one run.
+Invalid limits fail before output is written. A failed write stops queued work,
+waits for active writes to finish, and rejects generation. Catch-up publishing
+stops immediately with the failed command's exit code if site generation or
+site publishing fails, before any social post or follow-up.
+
 ## Public AI And SEO Feed
 
 The public hosting source is the static `docs/` directory. It can be served by GitHub Pages, Netlify, or any HTTPS static host. `PUBLIC_SITE_BASE_URL` controls the SEO/AIO/GEO canonical site and AI/search entry points. `PUBLIC_ROOT_PAGES_REPO` optionally mirrors the generated `docs/` contents into a root GitHub Pages repository such as `39211/39211.github.io`, so the public site can live at a short URL like `https://39211.github.io/`. `PUBLIC_IMAGE_BASE_URL` controls image asset URLs used by Meta publishing and public image metadata; it can be the same host or a separate image host.

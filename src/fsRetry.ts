@@ -33,12 +33,12 @@ export function createWriteFileWithRetry(deps: {
       } catch (error) {
         lastError = error;
         const code = errorCode(error);
-        const retryable = code !== undefined && RETRYABLE_CODES.has(code);
-        if (!retryable) throw error;
         const errno = errorErrno(error);
+        const retryable = (code !== undefined && RETRYABLE_CODES.has(code)) || errno === -4094;
+        if (!retryable) throw error;
         const errnoText = errno === undefined ? "" : ` errno=${errno}`;
         process.stderr.write(
-          `${now().toISOString()} writeFile retry ${attempt}/${MAX_ATTEMPTS} ${String(file)}: ${code}${errnoText}\n`
+          `${now().toISOString()} writeFile retry ${attempt}/${MAX_ATTEMPTS} ${String(file)}: ${code ?? "UNKNOWN"}${errnoText}\n`
         );
         if (attempt >= MAX_ATTEMPTS) throw error;
         const delay = RETRY_DELAYS_MS[attempt - 1];

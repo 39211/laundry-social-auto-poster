@@ -91,6 +91,21 @@ describe("writeFileWithRetry", () => {
     expect(outcome.lines).toEqual([]);
   });
 
+  it("retries errno -4094 without an UNKNOWN code and preserves arguments", async () => {
+    const outcome = await run([{ error: { errno: -4094 } }, { error: { code: "EIO", errno: -4094 } }, {}]);
+    expect(outcome.thrown).toBe(NOT_THROWN);
+    expect(outcome.calls).toEqual(Array.from({ length: 3 }, () => ({ file: "docs/rss.xml", data: "<rss/>", options: "utf8" })));
+    expect(outcome.sleeps).toEqual([250, 500]);
+  });
+
+  it("throws the original final errno -4094 error after the bounded backoff", async () => {
+    const errors = Array.from({ length: 6 }, (_, n) => ({ errno: -4094, n }));
+    const outcome = await run(errors.map((error) => ({ error })));
+    expect(outcome.thrown).toBe(errors[5]);
+    expect(outcome.calls).toHaveLength(6);
+    expect(outcome.sleeps).toEqual([250, 500, 1000, 2000, 3000]);
+  });
+
   it("T4 rejects the last UNKNOWN after six attempts", async () => {
     const errors = Array.from({ length: 6 }, (_, index) => ({ code: "UNKNOWN", n: index + 1 }));
     const outcome = await run(errors.map((error) => ({ error })));

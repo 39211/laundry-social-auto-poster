@@ -1,10 +1,11 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
-import { copyFile, mkdir, readFile, readdir, unlink } from "node:fs/promises";
+import { mkdir, readFile, readdir, unlink } from "node:fs/promises";
 import { writeFileWithRetry as writeFile } from "./fsRetry";
 import { dirname, join, posix, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadDotenv } from "dotenv";
 import { getOption, isMain } from "./cli";
+import { copyFileVerified } from "./verifiedCopy";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
 import { assertAeo325PublicOutputSafety, loadAeo325Guardrail } from "./aeo325Guardrail";
 import { hasApprovedPost, loadApprovalLog, readJsonFile, writeJsonAtomic } from "./logging";
@@ -1198,7 +1199,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       {
         heading: "怎麼預約？",
         body:
-          "預約與詢問以 LINE 為主。請先傳照片（整體、局部、材質標籤或最在意的痕跡），並簡單說明所在區域與想整理的品項。門市會先回覆方向，再與您約定收送。LINE：https://line.me/ti/p/4m-rA6hxf6"
+          "預約與詢問以 LINE 為主。請先傳照片（整體、局部、材質標籤或最在意的痕跡），並簡單說明所在區域與想整理的品項。門市會先回覆方向，再與您約定收送。LINE：https://lin.ee/w8qGVqM"
       },
       {
         heading: "誠實邊界",
@@ -10113,9 +10114,11 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       }
     };
     await walkOverrides(overrideRoot);
-    // 目錄走訪順序維持原本的深度優先，複製本身平行做，避免一百多個小檔的往返超時。
+    // 目錄走訪順序維持原本的深度優先，複製改成依序做，避免同時搶檔案鎖（EBUSY／-4094）。
     await Promise.all([...new Set(copyJobs.map((job) => dirname(job.targetPath)))].map((dir) => mkdir(dir, { recursive: true })));
-    await Promise.all(copyJobs.map((job) => copyFile(job.fullPath, job.targetPath)));
+    for (const job of copyJobs) {
+      await copyFileVerified(job.fullPath, job.targetPath, `docs/${job.posixPath}`);
+    }
     for (const job of copyJobs) {
       if (job.posixPath.endsWith(".html")) overrideHtmlFiles.push({ posixPath: job.posixPath, fsPath: job.fsPath });
     }
@@ -10259,9 +10262,11 @@ async function main(): Promise<void> {
   console.log(`Public site indexes ready:\n${outputs.map((output) => `- ${output}`).join("\n")}`);
 }
 
+export function handlePublicSiteError(error: unknown): void {
+  console.error(error);
+  process.exitCode = 1;
+}
+
 if (isMain(import.meta.url)) {
-  main().catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  });
+  main().catch(handlePublicSiteError);
 }

@@ -44,12 +44,19 @@ function Register-LaundryTask {
 
     try { Unregister-ScheduledTask -TaskName $Name -Confirm:$false -ErrorAction Stop } catch {}
 
-    # -WindowStyle Hidden: the visible console window these tasks used to open
-    # on the desktop got closed mid-run at 06:30 on 2026-08-03 (task result
-    # 0xC000013A, console interrupt), killing the morning site push. Hidden
-    # windows cannot be closed by accident.
-    $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$root\scripts\$Script`"" `
+    # 視窗必須隱藏。2026-08-03 06:30 桌面上的主控台被關掉，工作結果
+    # 0xC000013A（主控台中斷），早上的網站推送被砍掉。
+    # 2026-10-24（git push 被拒）與 2026-10-25（generate-public-site 寫
+    # docs/rss.xml，errno -4094）daily-generate.ps1 已走到 exit 1，
+    # LastTaskResult 仍是 0：外層沒有把 PowerShell 的結束碼交回排程器。
+    # 改由 wscript.exe //B 執行 run-hidden.vbs。wscript 自己沒有可被關掉的
+    # 主控台；vbs 以視窗樣式 0 與 -WindowStyle Hidden 隱藏 powershell，
+    # bWaitOnReturn=True 等待，再用 WScript.Quit 交回結束碼。
+    # 重新執行本腳本才會改掉已經登錄的工作。
+    $launcher = Join-Path $PSScriptRoot "run-hidden.vbs"
+    $target = Join-Path $PSScriptRoot $Script
+    $action = New-ScheduledTaskAction -Execute "wscript.exe" `
+        -Argument "//B //Nologo `"$launcher`" `"$target`"" `
         -WorkingDirectory $root
     # IgnoreNew: whether overlapping triggers (retry slots, patrol starts) run
     # concurrently used to depend on the host default; publishing scripts are

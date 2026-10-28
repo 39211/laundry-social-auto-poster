@@ -46,6 +46,9 @@ async function run(
   };
   const writeRetry = createWriteFileWithRetry({
     write,
+    rename: async () => {},
+    read: async () => Buffer.from(data),
+    remove: async () => {},
     sleep: async (ms) => {
       sleeps.push(ms);
     },
@@ -67,7 +70,7 @@ describe("writeFileWithRetry", () => {
   it("T1 succeeds on the first attempt", async () => {
     const outcome = await run([{}]);
     expect(outcome.thrown).toBe(NOT_THROWN);
-    expect(outcome.calls).toEqual([{ file: "docs/rss.xml", data: "<rss/>", options: "utf8" }]);
+    expect(outcome.calls).toEqual([{ file: expect.stringMatching(/^docs\/rss\.xml\.tmp-/), data: expect.any(Buffer), options: "utf8" }]);
     expect(outcome.sleeps).toEqual([]);
     expect(outcome.lines).toEqual([]);
   });
@@ -142,6 +145,27 @@ describe("writeFileWithRetry", () => {
       stamps.map((stamp, index) => retryLine(index + 1, "UNKNOWN", -4094, stamp))
     );
     expect(cursor).toBe(6);
+  });
+
+  it("T8 retries UNKNOWN errno -4094 and bare errno -4094, then succeeds with errno in the log", async () => {
+    const outcome = await run([{ error: { code: "UNKNOWN", errno: -4094 } }, { error: { errno: -4094 } }, {}]);
+    expect(outcome.thrown).toBe(NOT_THROWN);
+    expect(outcome.calls).toHaveLength(3);
+    expect(outcome.sleeps).toEqual([250, 500]);
+    expect(outcome.lines).toEqual([
+      retryLine(1, "UNKNOWN", -4094),
+      `${RETRY_AT} writeFile retry 2/6 docs/rss.xml: none errno=-4094\n`
+    ]);
+  });
+
+  it("T9 logs the final failed attempt before throwing, then stops sleeping", async () => {
+    const errors = Array.from({ length: 6 }, () => ({ code: "EBUSY", errno: -4082 }));
+    const outcome = await run(errors.map((error) => ({ error })));
+    expect(outcome.thrown).toBe(errors[5]);
+    expect(outcome.calls).toHaveLength(6);
+    expect(outcome.sleeps).toHaveLength(5);
+    expect(outcome.lines).toHaveLength(6);
+    expect(outcome.lines[5]).toBe(retryLine(6, "EBUSY", -4082));
   });
 
   it("T6 default writer persists bytes under os.tmpdir()", async () => {

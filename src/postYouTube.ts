@@ -14,6 +14,7 @@ import {
   writeJsonAtomic
 } from "./logging";
 import { projectRoot } from "./paths";
+import { recordSuccessfulPublish } from "./publishList";
 import { getZonedDateParts } from "./scheduler";
 import { utmCampaign, utmTagged } from "./utm";
 import { assertVideoReviewApproved } from "./videoReviewGate";
@@ -286,6 +287,20 @@ export async function uploadShort(input: {
     ...(abVariant ? { ab_variant: abVariant } : {})
   };
   await writeJsonAtomic(logPath, [...existing, entry]);
+  await recordSuccessfulPublish({
+    status: "success",
+    dryRun: false,
+    root,
+    date: input.date,
+    slot: slotNumber,
+    topic: slot.topic,
+    platform: "youtube",
+    publishedAt: entry.uploaded_at,
+    caption: description,
+    youtubeTitle: title,
+    postId: videoId,
+    mediaType: "reel"
+  });
   return entry;
 }
 
@@ -419,6 +434,20 @@ export async function scheduleYouTubeShort(input: {
     ...(abVariant ? { ab_variant: abVariant } : {})
   };
   await writeJsonAtomic(logPath, [...existing, entry]);
+  await recordSuccessfulPublish({
+    status: "scheduled",
+    dryRun: false,
+    root,
+    date: input.date,
+    slot: slotNumber,
+    topic: slot.topic,
+    platform: "youtube",
+    publishedAt: entry.uploaded_at,
+    caption: description,
+    youtubeTitle: title,
+    postId: videoId,
+    mediaType: "reel"
+  });
   return {
     status: "scheduled",
     video_id: videoId,

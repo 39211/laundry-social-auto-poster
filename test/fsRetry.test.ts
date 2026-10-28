@@ -3,7 +3,7 @@ import { writeFile as nodeWriteFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createWriteFileWithRetry, writeFileWithRetry } from "../src/fsRetry";
+import { createWriteFileWithRetry, MAX_CONCURRENT_WRITES, writeFileWithRetry } from "../src/fsRetry";
 
 type NodeWriteFile = typeof nodeWriteFile;
 
@@ -178,5 +178,83 @@ describe("writeFileWithRetry", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe("writeFileWithRetry concurrency cap", () => {
+  function countingWriter(failCodeFor?: (file: string) => string | undefined) {
+    let active = 0;
+    let peak = 0;
+    const write: NodeWriteFile = async (file) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 3));
+        const code = failCodeFor?.(String(file));
+        if (code) throw { code };
+      } finally {
+        active -= 1;
+      }
+    };
+    return { write, peak: () => peak };
+  }
+
+  it("caps simultaneous writes at 8 by default while all 60 writes still complete", async () => {
+    expect(MAX_CONCURRENT_WRITES).toBe(8);
+    const counter = countingWriter();
+    const writeRetry = createWriteFileWithRetry({
+      write: counter.write,
+      rename: async () => {},
+      read: async () => Buffer.from("x"),
+      remove: async () => {},
+      sleep: async () => {}
+    });
+    await Promise.all(Array.from({ length: 60 }, (_, index) => writeRetry(`docs/posts/page-${index}.html`, "x", "utf8")));
+    expect(counter.peak()).toBe(8);
+  });
+
+  it("honours a smaller injected cap and keeps it even when writes retry after -4094", async () => {
+    const failedOnce = new Set<string>();
+    const counter = countingWriter((file) => {
+      const key = file.replace(/\.tmp-.*$/u, "");
+      if (failedOnce.has(key)) return undefined;
+      failedOnce.add(key);
+      return "UNKNOWN";
+    });
+    const writeRetry = createWriteFileWithRetry({
+      write: counter.write,
+      rename: async () => {},
+      read: async () => Buffer.from("x"),
+      remove: async () => {},
+      sleep: async () => {},
+      maxConcurrentWrites: 2
+    });
+    const stderr = captureStderr();
+    try {
+      await Promise.all(Array.from({ length: 12 }, (_, index) => writeRetry(`docs/p-${index}.html`, "x", "utf8")));
+    } finally {
+      stderr.restore();
+    }
+    expect(counter.peak()).toBe(2);
+    expect(stderr.lines).toHaveLength(12);
+  });
+
+  it("releases the slot after a non-retryable error so later writes are not blocked", async () => {
+    const counter = countingWriter((file) => (file.startsWith("docs/bad") ? "ENOENT" : undefined));
+    const writeRetry = createWriteFileWithRetry({
+      write: counter.write,
+      rename: async () => {},
+      read: async () => Buffer.from("x"),
+      remove: async () => {},
+      sleep: async () => {},
+      maxConcurrentWrites: 1
+    });
+    const results = await Promise.allSettled([
+      writeRetry("docs/bad.html", "x", "utf8"),
+      writeRetry("docs/good-1.html", "x", "utf8"),
+      writeRetry("docs/good-2.html", "x", "utf8")
+    ]);
+    expect(results.map((result) => result.status)).toEqual(["rejected", "fulfilled", "fulfilled"]);
+    expect(counter.peak()).toBe(1);
   });
 });

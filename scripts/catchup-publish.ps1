@@ -184,7 +184,6 @@ if (-not (Test-Path $indexingRecord)) {
 # Checked against the hero image of the first approved slot: if the file is here
 # and the web says 404, the site is stale, so push it again.
 $heroLocal = Join-Path $root "docs\assets\$date\slot-01.png"
-$script:publicSiteRepushFailed = $false
 if (Test-Path $heroLocal) {
     # Read the host from .env rather than hardcoding it. The site moved to the
     # custom domain and this check kept asking github.io, which now answers 301
@@ -210,7 +209,14 @@ if (Test-Path $heroLocal) {
     # would re-push six times a day forever. Verified on this box: curl returns
     # 200 on the same URL that makes Invoke-WebRequest throw.
     # -L so a host that answers with a redirect is judged on where it lands.
-    $heroOutput = & curl.exe -s -S -L -o NUL -w "%{http_code}" --max-time 20 $heroUrl 2>&1
+    # CATCHUP_PUBLISH_HERO_STATUS is a test hook: it stands in for curl's HTTP status so the smoke test
+    # can force the "site is stale" branch without touching the network.
+    if ($env:CATCHUP_PUBLISH_HERO_STATUS) {
+        $heroOutput = $env:CATCHUP_PUBLISH_HERO_STATUS
+        $global:LASTEXITCODE = 0
+    } else {
+        $heroOutput = & curl.exe -s -S -L -o NUL -w "%{http_code}" --max-time 20 $heroUrl 2>&1
+    }
     if ($LASTEXITCODE -ne 0) {
         Write-Log "curl hero check failed (exit $LASTEXITCODE): $heroOutput"
         $heroLive = $true
@@ -222,27 +228,24 @@ if (Test-Path $heroLocal) {
         Write-Log "Local images exist for $date but $heroUrl is not live; re-publishing the site."
         Push-Location $root
         cmd /c "npm.cmd run generate-public-site 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-        if ($LASTEXITCODE -ne 0) {
-            Write-Log "generate-public-site failed (exit $LASTEXITCODE); refusing to continue."
-            Pop-Location
-            Show-Toast "$date 的公開站沒推上去(generate-public-site 失敗),請看 output\catch-up-logs\$date.log"
-            $script:publicSiteRepushFailed = $true
-        } else {
+        $buildExit = $LASTEXITCODE
+        if ($buildExit -eq 0) {
             cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-            if ($LASTEXITCODE -ne 0) {
-                Write-Log "publish-pages failed (exit $LASTEXITCODE); refusing to continue."
-                Pop-Location
-                Show-Toast "$date 的公開站沒推上去(publish-pages 失敗),請看 output\catch-up-logs\$date.log"
-                $script:publicSiteRepushFailed = $true
-            } else {
-                Pop-Location
-            }
+            $buildExit = $LASTEXITCODE
+            $failedStep = "publish-pages"
+        } else {
+            $failedStep = "generate-public-site"
+        }
+        Pop-Location
+        if ($buildExit -ne 0) {
+            # Stop here. Posting on a half-built site publishes links to pages that do not exist, and a
+            # later "success" exit would hide the build failure from Task Scheduler. Exit 2 is non-zero
+            # and distinct from the exit 1 used for lock/heal and posting failures.
+            Write-Log "$failedStep failed (exit $buildExit); stopping before any further step."
+            Show-Toast "$date 的公開站沒推上去($failedStep 失敗),已停止後續步驟,請看 output\catch-up-logs\$date.log"
+            exit 2
         }
     }
-}
-
-if ($script:publicSiteRepushFailed) {
-    Write-Log "public-site repush failed earlier; posting continues, poster validates image URLs itself"
 }
 
 if (-not (Test-Path $approvedPath)) {
@@ -418,4 +421,3 @@ if ($failed.Count -gt 0) {
 Invoke-CatchupEveningCloseout
 
 Write-Log "Catch-up run finished."
-if ($script:publicSiteRepushFailed) { Write-Log "public-site repush failed earlier; exiting 2 so Task Scheduler records it"; exit 2 }

@@ -13,6 +13,9 @@ $stub = Join-Path $binRoot "npm.cmd"
 $stubText = @'
 @echo off
 echo %*>> "%CATCHUP_PUBLISH_COMMANDS%"
+if not defined CATCHUP_PUBLISH_FAIL_ON exit /b 0
+echo %* | findstr /C:"%CATCHUP_PUBLISH_FAIL_ON%" >nul
+if not errorlevel 1 exit /b 1
 exit /b 0
 '@
 
@@ -34,7 +37,7 @@ function Assert-Case([string]$Name, [bool]$Ok, [string]$Evidence) {
 }
 
 function Invoke-CatchupCase {
-    param([string]$Name, [string]$Date, [string]$Time, [string]$Calendar, [string]$Approved, [string]$Posted = "[]", [string]$PublishTimes = "", [bool]$PublishTimesBom = $false, [string]$VideoQueue = "", [bool]$PlanOnly = $false)
+    param([string]$Name, [string]$Date, [string]$Time, [string]$Calendar, [string]$Approved, [string]$Posted = "[]", [string]$PublishTimes = "", [bool]$PublishTimesBom = $false, [string]$VideoQueue = "", [bool]$PlanOnly = $false, [string]$HeroStatus = "", [string]$FailOn = "")
     $caseRoot = Join-Path $tempRoot $Name
     [void][IO.Directory]::CreateDirectory((Join-Path $caseRoot "probe"))
     Write-Utf8 (Join-Path $caseRoot "data\content-calendar\$Date.json") $Calendar
@@ -46,6 +49,7 @@ function Invoke-CatchupCase {
         if ($PublishTimesBom) { Write-Utf8Bom $publishTimesPath $PublishTimes }
         else { Write-Utf8 $publishTimesPath $PublishTimes }
     }
+    if ($HeroStatus) { Write-Utf8 (Join-Path $caseRoot "docs\assets\$Date\slot-01.png") "png" }
     if ($VideoQueue) { Write-Utf8 (Join-Path $caseRoot "data\video-repair-queue\queue.json") $VideoQueue }
     $toast = Join-Path $caseRoot "probe\toasts.log"
     $commands = Join-Path $caseRoot "probe\commands.log"
@@ -56,6 +60,8 @@ function Invoke-CatchupCase {
     $env:CATCHUP_PUBLISH_TOAST_FILE = $toast
     $env:CATCHUP_PUBLISH_PLAN_ONLY = if ($PlanOnly) { "true" } else { "false" }
     $env:CATCHUP_PUBLISH_COMMANDS = $commands
+    $env:CATCHUP_PUBLISH_HERO_STATUS = $HeroStatus
+    $env:CATCHUP_PUBLISH_FAIL_ON = $FailOn
     $env:PATH = "$binRoot;$savedPath"
     $output = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $production 2>&1 | Out-String
     $exit = $LASTEXITCODE
@@ -72,7 +78,7 @@ function Invoke-CatchupCase {
 
 $savedPath = $env:PATH
 $saved = @{}
-foreach ($key in @("CATCHUP_PUBLISH_ROOT", "CATCHUP_PUBLISH_DATE", "CATCHUP_PUBLISH_TIME", "CATCHUP_PUBLISH_TOAST_FILE", "CATCHUP_PUBLISH_PLAN_ONLY", "CATCHUP_PUBLISH_COMMANDS")) {
+foreach ($key in @("CATCHUP_PUBLISH_ROOT", "CATCHUP_PUBLISH_DATE", "CATCHUP_PUBLISH_TIME", "CATCHUP_PUBLISH_TOAST_FILE", "CATCHUP_PUBLISH_PLAN_ONLY", "CATCHUP_PUBLISH_COMMANDS", "CATCHUP_PUBLISH_HERO_STATUS", "CATCHUP_PUBLISH_FAIL_ON")) {
     $saved[$key] = [Environment]::GetEnvironmentVariable($key, "Process")
 }
 $script:failed = $false
@@ -153,6 +159,17 @@ try {
     $defaultLate = Invoke-CatchupCase -Name "default-time-no-file-evening-closeout" -Date $date -Time "20:35" -Calendar $calendar12 -Approved $approved12 -Posted $posted1
     $defaultCommands = @($defaultLate.Commands -split "`r?`n" | Where-Object { $_ })
     Assert-Case "no-daily-time-file-keeps-default-evening-path" ($defaultLate.ExitCode -eq 0 -and -not $defaultLate.DailyTimesExists -and $defaultLate.Log.Contains("Running post-current-slot --slot 2") -and @($defaultCommands | Where-Object { $_ -match "run first-comment" }).Count -eq 1 -and @($defaultCommands | Where-Object { $_ -match "run share-story" }).Count -eq 1 -and @($defaultCommands | Where-Object { $_ -match "run local-reach" }).Count -eq 1) ($defaultLate.Log + $defaultLate.Commands)
+
+    $oneSlotCalendar = '{"date":"2026-10-06","slots":[{"slot":1}]}'
+    $oneSlotApproved = '[{"slot":1}]'
+    $buildFail = Invoke-CatchupCase -Name "build-fail-stops" -Date $date -Time "11:30" -Calendar $oneSlotCalendar -Approved $oneSlotApproved -HeroStatus "404" -FailOn "generate-public-site"
+    Assert-Case "generate-public-site-failure-stops-with-nonzero-exit" ($buildFail.ExitCode -eq 2 -and $buildFail.Commands -match "generate-public-site" -and $buildFail.Commands -notmatch "publish-pages" -and $buildFail.Commands -notmatch "post-current-slot" -and -not $buildFail.Log.Contains("Running post-current-slot") -and $buildFail.Log.Contains("stopping before any further step") -and $buildFail.Toast.Contains("generate-public-site")) ($buildFail.Log + $buildFail.Commands)
+
+    $pagesFail = Invoke-CatchupCase -Name "publish-pages-fail-stops" -Date $date -Time "11:30" -Calendar $oneSlotCalendar -Approved $oneSlotApproved -HeroStatus "404" -FailOn "publish-pages"
+    Assert-Case "publish-pages-failure-stops-with-nonzero-exit" ($pagesFail.ExitCode -eq 2 -and $pagesFail.Commands -match "publish-pages" -and $pagesFail.Commands -notmatch "post-current-slot" -and -not $pagesFail.Log.Contains("Running post-current-slot") -and $pagesFail.Log.Contains("stopping before any further step")) ($pagesFail.Log + $pagesFail.Commands)
+
+    $buildOk = Invoke-CatchupCase -Name "build-ok-continues" -Date $date -Time "11:30" -Calendar $oneSlotCalendar -Approved $oneSlotApproved -HeroStatus "404"
+    Assert-Case "stale-site-build-ok-keeps-posting" ($buildOk.ExitCode -eq 0 -and $buildOk.Commands -match "generate-public-site" -and $buildOk.Commands -match "publish-pages" -and $buildOk.Log.Contains("Running post-current-slot")) ($buildOk.Log + $buildOk.Commands)
 } finally {
     $env:PATH = $savedPath
     foreach ($key in $saved.Keys) { [Environment]::SetEnvironmentVariable($key, $saved[$key], "Process") }

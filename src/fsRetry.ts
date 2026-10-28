@@ -1,9 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, rename, unlink, writeFile as nodeWriteFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { createConcurrencyLimiter } from "./concurrencyLimit";
 import { isLockedError, VERIFIED_COPY_ATTEMPTS, VERIFIED_COPY_BACKOFF_MS } from "./verifiedCopy";
 
 type NodeWriteFile = typeof nodeWriteFile;
+
+/** 同時進行中的寫檔上限（含重試與等待）；產生公開站一次會丟出數百個 writeFile，不限制會同時搶檔案鎖（-4094）。 */
+export const MAX_CONCURRENT_WRITES = 8;
 
 function errorErrno(error: unknown): number | undefined {
   if (typeof error !== "object" || error === null || !("errno" in error)) return undefined;
@@ -18,9 +22,11 @@ export function createWriteFileWithRetry(deps: {
   read?: (file: string) => Promise<Buffer>;
   remove?: typeof unlink;
   now?: () => Date;
+  maxConcurrentWrites?: number;
 }): NodeWriteFile {
+  const limit = createConcurrencyLimiter(deps.maxConcurrentWrites ?? MAX_CONCURRENT_WRITES);
   const now = deps.now ?? (() => new Date());
-  const writeFileWithRetry: NodeWriteFile = async (file, data, options) => {
+  const writeOne: NodeWriteFile = async (file, data, options) => {
     if (typeof file === "object" && !Buffer.isBuffer(file) && !(file instanceof URL)) {
       throw new TypeError("writeFileWithRetry requires a file path");
     }
@@ -58,6 +64,7 @@ export function createWriteFileWithRetry(deps: {
     }
   };
 
+  const writeFileWithRetry: NodeWriteFile = (file, data, options) => limit(() => writeOne(file, data, options));
   return writeFileWithRetry;
 }
 

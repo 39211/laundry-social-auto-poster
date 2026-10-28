@@ -35,6 +35,9 @@ async function run(steps: Array<{ error?: unknown }>, path = "docs/rss.xml", dat
   };
   const writeRetry = createWriteFileWithRetry({
     write,
+    rename: async () => {},
+    read: async () => Buffer.from(data),
+    remove: async () => {},
     sleep: async (ms) => {
       sleeps.push(ms);
     }
@@ -55,7 +58,7 @@ describe("writeFileWithRetry", () => {
   it("T1 succeeds on the first attempt", async () => {
     const outcome = await run([{}]);
     expect(outcome.thrown).toBe(NOT_THROWN);
-    expect(outcome.calls).toEqual([{ file: "docs/rss.xml", data: "<rss/>", options: "utf8" }]);
+    expect(outcome.calls).toEqual([{ file: expect.stringMatching(/^docs\/rss\.xml\.tmp-/), data: expect.any(Buffer), options: "utf8" }]);
     expect(outcome.sleeps).toEqual([]);
     expect(outcome.lines).toEqual([]);
   });

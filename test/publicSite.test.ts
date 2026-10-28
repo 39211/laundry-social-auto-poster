@@ -21,6 +21,7 @@ import {
   resolveAcceptedIndexGrowthPages
 } from "../src/indexGrowthPages";
 import { PRODUCTION_PUBLIC_SITE_BASE_URL } from "../src/publicSiteTypes";
+import { robotsMetaIsNoindex } from "../src/indexGrowthPages";
 import { NOINDEX_FOLLOW_LOCAL_PATHS } from "../scripts/check-sitemap-links";
 import {
   REQUIRED_SEARCH_CONTENT_EVENTS,
@@ -520,7 +521,7 @@ describe("generatePublicSite", () => {
     expect(feed.version).toBe("https://jsonfeed.org/version/1.1");
     expect(feed.title).toBe("私享家洗衣店｜台中洗衣洗鞋洗包・全市免費收送・價格公開");
     expect(feed.items[0].tags).toEqual(["test"]);
-    expect(businessProfile.line_url).toBe("https://line.me/ti/p/4m-rA6hxf6");
+    expect(businessProfile.line_url).toBe("https://lin.ee/w8qGVqM");
     expect(businessProfile.google_maps_cid).toBe("0x41f4295a6302e177");
     expect(knowledgeGraph["@graph"].some((item: { "@type"?: string }) => item["@type"] === "Dataset")).toBe(true);
     expect(knowledgeGraph["@graph"].some((item: { "@type"?: string }) => item["@type"] === "SocialMediaPosting")).toBe(true);
@@ -593,7 +594,7 @@ describe("generatePublicSite", () => {
       // Entity consolidation: every owned profile, so the site, Maps listing,
       // YouTube channel, LINE and socials read as one business. LINE added 2026-09-24.
       sameAs: [
-        "https://line.me/ti/p/4m-rA6hxf6",
+        "https://lin.ee/w8qGVqM",
         "https://www.facebook.com/100083194756904/",
         "https://www.instagram.com/si_xiang_jia/",
         "https://www.youtube.com/channel/UCcVDFN7Ve-cD9duxRdM5VXQ",
@@ -637,13 +638,13 @@ describe("generatePublicSite", () => {
     expect(discovery.website.facebook_url).toBe("https://www.facebook.com/100083194756904/");
     expect(discovery.website.facebook_share_url).toBe("https://www.facebook.com/share/1BZF4VnihJ/");
     expect(discovery.website.instagram_url).toBe("https://www.instagram.com/si_xiang_jia/");
-    expect(discovery.website.line_url).toBe("https://line.me/ti/p/4m-rA6hxf6");
+    expect(discovery.website.line_url).toBe("https://lin.ee/w8qGVqM");
     expect(discovery.business_profile).toMatchObject({
       google_business_profile_name: "私享家 旗艦總店",
       address_text: "407 臺中市西屯區至善里青海路二段365號",
       google_maps_cid: "0x41f4295a6302e177",
       google_place_id: "ChIJ9dYthxMXaTQRd-ECY1op9EE",
-      line_url: "https://line.me/ti/p/4m-rA6hxf6",
+      line_url: "https://lin.ee/w8qGVqM",
       line_id: "0968327653",
       telephone_local: "04-2452-7411",
       mobile_or_line_local: "0968-327-653",
@@ -697,7 +698,7 @@ describe("generatePublicSite", () => {
     expect(llms).toContain("Address: 407 臺中市西屯區至善里青海路二段365號");
     expect(llms).toContain("Phone: 04-2452-7411");
     expect(llms).toContain("LINE / mobile estimates: 0968-327-653");
-    expect(llms).toContain("LINE: https://line.me/ti/p/4m-rA6hxf6");
+    expect(llms).toContain("LINE: https://lin.ee/w8qGVqM");
     expect(llms).toContain("Google Maps CID: 0x41f4295a6302e177");
     expect(llms).toContain("Google Place ID: ChIJ9dYthxMXaTQRd-ECY1op9EE");
     expect(llms).toContain("Holiday hours rule:");
@@ -814,7 +815,7 @@ describe("generatePublicSite", () => {
     expect(html).toContain("外套、寢具與布品收納前產品級檢查主圖 - 私享家洗衣店布品收納檢查示意圖");
     expect(html).toContain("04-2452-7411");
     expect(html).toContain("0968-327-653");
-    expect(html).toContain("https://line.me/ti/p/4m-rA6hxf6");
+    expect(html).toContain("https://lin.ee/w8qGVqM");
     expect(html).toContain("節日營業");
     expect(html).toContain("搜尋洗衣店時，讓地區和服務都說清楚。");
     expect(html).toContain("台中西屯洗衣店");
@@ -920,7 +921,7 @@ describe("generatePublicSite", () => {
     expect(taichungCitywidePickupHtml).toContain("<h1>台中洗衣收送怎麼約？</h1>");
     expect(taichungCitywidePickupHtml).toContain("台中市");
     expect(taichungCitywidePickupHtml).toContain("收送本身免費");
-    expect(taichungCitywidePickupHtml).toContain("https://line.me/ti/p/4m-rA6hxf6");
+    expect(taichungCitywidePickupHtml).toContain("https://lin.ee/w8qGVqM");
     expect(taichungCitywidePickupHtml).toContain("青海路二段365號");
     expect(taichungCitywidePickupHtml).toContain("收送免費不代表清潔免費");
     expect(taichungCitywidePickupHtml).toContain('"@type":"Service"');
@@ -1833,7 +1834,7 @@ describe("generatePublicSite", () => {
     expect(pickupHtml).toContain("<h1>台中洗衣收送怎麼約？</h1>");
     expect(pickupHtml).toContain("收送範圍為台中市");
     expect(pickupHtml).toContain("收送本身免費");
-    expect(pickupHtml).toContain("https://line.me/ti/p/4m-rA6hxf6");
+    expect(pickupHtml).toContain("https://lin.ee/w8qGVqM");
     expect(pickupHtml).toContain("西屯區青海路二段365號");
     expect(pickupHtml).toContain('"@type":"Service"');
     expect(pickupHtml).toContain('"@type":"AdministrativeArea"');
@@ -3835,21 +3836,56 @@ describe("seo overrides and URL path normalization", () => {
     expect(aiSitemapUrls.filter((url) => url.includes("/posts/"))).toEqual([]);
     expect(aiSitemap).not.toContain("/posts/");
 
-    const liveResponse = await fetch("https://sixiangjialaundry.com/sitemap.xml");
-    expect(liveResponse.ok, `live sitemap HTTP ${liveResponse.status}`).toBe(true);
-    const liveUrls = sitemapLocs(await liveResponse.text()).sort();
-    const liveNonPostUrls = liveUrls.filter((url) => !url.includes("/posts/"));
-    const livePostUrls = liveUrls.filter((url) => url.includes("/posts/"));
+    // 期望清單來自 repo 內 seo-overrides/（不連正式網站）：
+    // 每個可索引的覆寫頁（不是 noindex、不是 price-list、canonical 指向自己）都必須出現在產生器的 sitemap，
+    // 覆寫 sitemap.xml 裡列的可索引網址也一樣。數量由清單算出，不寫死。
+    const siteOrigin = "https://sixiangjialaundry.com";
+    const overrideUrlFor = (rel: string): string => {
+      const posixRel = rel.replaceAll("\\", "/");
+      return posixRel === "index.html" ? `${siteOrigin}/` : `${siteOrigin}/${posixRel}`;
+    };
+    const overrideHtmlRels = overrideFiles
+      .map((file) => file.replaceAll("\\", "/"))
+      .filter((file) => file.endsWith(".html"));
+    const noindexOverrideUrls = new Set<string>();
+    const expectedOverrideUrls = new Set<string>();
+    for (const rel of overrideHtmlRels) {
+      const html = await readFile(join(tempSeoOverridesDir, rel), "utf8");
+      const url = overrideUrlFor(rel);
+      if (robotsMetaIsNoindex(html)) {
+        noindexOverrideUrls.add(url);
+        continue;
+      }
+      if (rel === "price-list.html") continue;
+      const canonicalHref = [...html.matchAll(/<link\b[^>]*>/gi)]
+        .map((match) => match[0])
+        .filter((tag) => /\brel\s*=\s*(["'])canonical\1/i.test(tag))
+        .map((tag) => tag.match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2])
+        .filter((href): href is string => Boolean(href))
+        .at(-1);
+      if (canonicalHref && new URL(canonicalHref, url).href !== url) continue;
+      expectedOverrideUrls.add(url);
+    }
+    const overrideSitemapPath = join(tempSeoOverridesDir, "sitemap.xml");
+    if (existsSync(overrideSitemapPath)) {
+      for (const url of sitemapLocs(await readFile(overrideSitemapPath, "utf8"))) {
+        const pathname = new URL(url).pathname;
+        if (url.includes("/posts/") || noindexOverrideUrls.has(url)) continue;
+        // 覆寫 sitemap 列到、但覆寫目錄沒有 HTML 的網址由產生器自己的頁面提供，這裡只要求覆寫頁本身。
+        if (pathname.endsWith(".html") && !overrideHtmlRels.includes(pathname.slice(1))) continue;
+        if (pathname === "/" && !overrideHtmlRels.includes("index.html")) continue;
+        expectedOverrideUrls.add(url);
+      }
+    }
+    expect(expectedOverrideUrls.size, "seo-overrides must list indexable pages").toBeGreaterThan(60);
     const generatedUrls = [...sitemapUrls].sort();
-    expect(generatedUrls).toEqual(liveNonPostUrls);
-    expect(generatedUrls).toHaveLength(145);
+    const missingOverrideUrls = [...expectedOverrideUrls].filter((url) => !generatedUrls.includes(url)).sort();
+    expect(missingOverrideUrls, "generated sitemap must cover every indexable seo-overrides page").toEqual([]);
+    expect(generatedUrls.length).toBeGreaterThanOrEqual(expectedOverrideUrls.size);
+    for (const url of noindexOverrideUrls) {
+      expect(generatedUrls, `noindex override must stay out of sitemap: ${url}`).not.toContain(url);
+    }
     expect(generatedUrls.filter((url) => url.includes("/posts/"))).toEqual([]);
-    expect(livePostUrls.every((url) => url.startsWith("https://sixiangjialaundry.com/posts/"))).toBe(true);
-    // 30 indexable articles from src/generatePublicSite.ts (SITEMAP_MAX_INDEXABLE_POSTS) plus the posts home page.
-    expect(livePostUrls.length).toBeLessThanOrEqual(31);
-    // A deploy that drops the posts hub or every article must fail here, not pass on an empty list.
-    expect(livePostUrls).toContain("https://sixiangjialaundry.com/posts/");
-    expect(livePostUrls.filter((url) => url !== "https://sixiangjialaundry.com/posts/").length).toBeGreaterThan(0);
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
       const absolute = `https://sixiangjialaundry.com${path}`;
       expect(generatedUrls, path).not.toContain(absolute);

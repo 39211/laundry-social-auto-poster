@@ -35,7 +35,7 @@ describe("shoe guide intake cohort 2026-09-07", () => {
       expect(parentLinks[0]?.[0], item.slug).toContain(`/services/${item.parent}.html`);
       expect(html).toContain(`${baseUrl}/go/line.html?source=guide-${item.slug}-cta`);
       const redirect = await readFile(join(root, "docs/go/line.html"), "utf8");
-      expect(redirect).toContain("line.me");
+      expect(redirect).toContain("https://lin.ee/w8qGVqM");
       const page = publicSupportPages().find((entry) => entry.slug === item.slug)!;
       expect(html).toContain(`<p>${page.citation_answer}</p>`);
     }

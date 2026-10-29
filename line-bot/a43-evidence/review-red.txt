@@ -1,0 +1,18 @@
+test_unconfigured_status_does_not_claim_the_shop_is_registered (test_day_night_handover.NightHandoverTests.test_unconfigured_status_does_not_claim_the_shop_is_registered) ... FAIL
+
+======================================================================
+FAIL: test_unconfigured_status_does_not_claim_the_shop_is_registered (test_day_night_handover.NightHandoverTests.test_unconfigured_status_does_not_claim_the_shop_is_registered)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a43\repo\line-bot\test_day_night_handover.py", line 315, in test_unconfigured_status_does_not_claim_the_shop_is_registered
+    self.assertEqual(result["registered_owner"], "unknown")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'shop_or_other' != 'unknown'
+- shop_or_other
++ unknown
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.016s
+
+FAILED (failures=1)

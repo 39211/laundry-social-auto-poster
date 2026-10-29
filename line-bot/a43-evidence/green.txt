@@ -1,0 +1,51 @@
+test_already_ai_is_a_get_only_noop (test_day_night_handover.NightHandoverTests.test_already_ai_is_a_get_only_noop) ... ok
+test_daytime_handover_does_not_load_credentials_or_call_line (test_day_night_handover.NightHandoverTests.test_daytime_handover_does_not_load_credentials_or_call_line) ... ok
+test_dry_run_is_offline_and_does_not_load_credentials (test_day_night_handover.NightHandoverTests.test_dry_run_is_offline_and_does_not_load_credentials) ... ok
+test_get_failure_cannot_trigger_a_blind_put (test_day_night_handover.NightHandoverTests.test_get_failure_cannot_trigger_a_blind_put) ... ok
+test_get_finishes_in_daytime_without_put (test_day_night_handover.NightHandoverTests.test_get_finishes_in_daytime_without_put) ... ok
+test_invalid_base_cannot_be_registered (test_day_night_handover.NightHandoverTests.test_invalid_base_cannot_be_registered) ... ok
+test_missing_base_fails_before_loading_credentials (test_day_night_handover.NightHandoverTests.test_missing_base_fails_before_loading_credentials) ... ok
+test_other_endpoint_is_updated_and_verified (test_day_night_handover.NightHandoverTests.test_other_endpoint_is_updated_and_verified) ... ok
+test_persistent_readback_mismatch_exits_nonzero (test_day_night_handover.NightHandoverTests.test_persistent_readback_mismatch_exits_nonzero) ... ok
+test_status_identifies_ai_endpoint (test_day_night_handover.NightHandoverTests.test_status_identifies_ai_endpoint) ... ok
+test_status_prints_registered_owner_and_urls_without_writes (test_day_night_handover.NightHandoverTests.test_status_prints_registered_owner_and_urls_without_writes) ... ok
+test_accepts_success_table_url (test_day_night_handover.ParserTests.test_accepts_success_table_url) ... ok
+test_rejects_api_even_in_table (test_day_night_handover.ParserTests.test_rejects_api_even_in_table) ... ok
+test_rejects_arbitrary_url_mentions (test_day_night_handover.ParserTests.test_rejects_arbitrary_url_mentions) ... ok
+test_rejects_error_line_containing_a_table (test_day_night_handover.ParserTests.test_rejects_error_line_containing_a_table) ... ok
+test_rejects_historical_api_error (test_day_night_handover.ParserTests.test_rejects_historical_api_error) ... ok
+test_rejects_suffix_and_path_after_hostname (test_day_night_handover.ParserTests.test_rejects_suffix_and_path_after_hostname) ... ok
+test_rejects_tenant_in_error_line (test_day_night_handover.ParserTests.test_rejects_tenant_in_error_line) ... ok
+test_day_captures_base_without_line_requests (test_day_night_handover.PublishingTests.test_day_captures_base_without_line_requests) ... ok
+test_invalid_configuration_fails_closed_but_keeps_new_base (test_day_night_handover.PublishingTests.test_invalid_configuration_fails_closed_but_keeps_new_base) ... ok
+test_mismatch_has_one_initial_try_and_three_delayed_retries (test_day_night_handover.PublishingTests.test_mismatch_has_one_initial_try_and_three_delayed_retries) ... ok
+test_night_captures_base_puts_and_verifies (test_day_night_handover.PublishingTests.test_night_captures_base_puts_and_verifies) ... ok
+test_pending_retry_can_succeed_at_night (test_day_night_handover.PublishingTests.test_pending_retry_can_succeed_at_night) ... ok
+test_pending_retry_is_blocked_and_cleared_during_day (test_day_night_handover.PublishingTests.test_pending_retry_is_blocked_and_cleared_during_day) ... ok
+test_put_failure_records_status_without_exposing_token (test_day_night_handover.PublishingTests.test_put_failure_records_status_without_exposing_token) ... ok
+test_retry_stops_if_delay_crosses_into_day (test_day_night_handover.PublishingTests.test_retry_stops_if_delay_crosses_into_day) ... ok
+test_0959_is_night (test_day_night_handover.WindowTests.test_0959_is_night) ... ok
+test_1000_is_day (test_day_night_handover.WindowTests.test_1000_is_day) ... ok
+test_1959_is_day (test_day_night_handover.WindowTests.test_1959_is_day) ... ok
+test_2000_is_night (test_day_night_handover.WindowTests.test_2000_is_night) ... ok
+test_configured_day_window_can_cross_midnight (test_day_night_handover.WindowTests.test_configured_day_window_can_cross_midnight) ... ok
+test_midnight_is_night (test_day_night_handover.WindowTests.test_midnight_is_night) ... ok
+test_taipei_works_without_external_tzdata (test_day_night_handover.WindowTests.test_taipei_works_without_external_tzdata) ... ok
+test_utc_clock_is_converted_to_taipei (test_day_night_handover.WindowTests.test_utc_clock_is_converted_to_taipei) ... ok
+unittest.case.FunctionTestCase (test_parse_none) ... ok
+unittest.case.FunctionTestCase (test_parse_first_of_two) ... ok
+unittest.case.FunctionTestCase (test_parse_boxed) ... ok
+unittest.case.FunctionTestCase (test_set_webhook_ok) ... ok
+unittest.case.FunctionTestCase (test_set_webhook_mismatch) ... ok
+unittest.case.FunctionTestCase (test_reader_drains_after_url)
+F2: after the URL line, child still writes >20_000 bytes and must exit by itself. ... ok
+unittest.case.FunctionTestCase (test_webhook_retries_then_pending) ... ok
+unittest.case.FunctionTestCase (test_no_timeout_kills_process) ... ok
+unittest.case.FunctionTestCase (test_log_rotate) ... ok
+unittest.case.FunctionTestCase (test_g3_utf8_replace_and_reader_survives) ... ok
+unittest.case.FunctionTestCase (test_g17_timeout_log_distinguishes_exit) ... ok
+
+----------------------------------------------------------------------
+Ran 45 tests in 0.467s
+
+OK

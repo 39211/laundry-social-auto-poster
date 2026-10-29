@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """cloudflared quick tunnel keep-alive + LINE webhook endpoint updater. Stdlib only."""
 from __future__ import annotations
 
@@ -11,14 +11,23 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 CLOUDFLARED = Path(r"C:/Users/cyc39/AppData/Local/hermes/jarvis-lab/bin/cloudflared.exe")
 PUBLIC_BASE = Path(__file__).resolve().parent / "public_base.txt"
 SECRETS = Path(r"C:/Users/cyc39/laundry-repo/secrets/line-channel.json")
 LOG_PATH = Path(os.environ.get("LOCALAPPDATA") or ".") / "line-bot" / "tunnel.log"
-TUNNEL_RE = re.compile(r"https://[A-Za-z0-9-]+\.trycloudflare\.com")
+EVENTS_PATH = LOG_PATH.with_name("tunnel_events.jsonl")
+HANDOVER_CONFIG = Path(__file__).resolve().parent / "handover.json"
+TUNNEL_RE = re.compile(
+    r"https://(?!api\.)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)\.trycloudflare\.com",
+    re.IGNORECASE,
+)
+SUCCESS_URL_LINE = re.compile(
+    r"^(?:\d{4}-\d{2}-\d{2}T\S+\s+INF\s+)?\|\s*(https://[^\s|]+)\s*\|\s*$"
+)
 WEBHOOK_API = "https://api.line.me/v2/bot/channel/webhook/endpoint"
 LOG_ROTATE_BYTES = 2 * 1024 * 1024  # F15
 WEBHOOK_RETRY_DELAYS = (2, 5, 10)  # F4
@@ -29,11 +38,113 @@ PENDING_WEBHOOK = {"base_url": ""}
 
 
 def parse_tunnel_url(text: str) -> str:
-    """Return the first https://<sub>.trycloudflare.com in text, else ''."""
-    if not text:
-        return ""
-    m = TUNNEL_RE.search(text)
-    return m.group(0) if m else ""
+    """Accept only cloudflared's success-table URL row, never error prose."""
+    for line in (text or "").splitlines():
+        match = SUCCESS_URL_LINE.fullmatch(line.strip())
+        if match and TUNNEL_RE.fullmatch(match[1]):
+            return match[1]
+    return ""
+
+
+def validate_tunnel_base(value: str) -> str:
+    """Validate the file/registration input separately from console parsing."""
+    value = value.strip()
+    if not TUNNEL_RE.fullmatch(value):
+        raise ValueError("invalid AI quick-tunnel base URL")
+    return value
+
+
+def _minute_of_day(value: str) -> int:
+    if not isinstance(value, str) or not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value):
+        raise ValueError("handover times must use HH:MM")
+    hour, minute = map(int, value.split(":"))
+    return hour * 60 + minute
+
+
+def _timezone(name: str):
+    if not isinstance(name, str) or not name:
+        raise ValueError("handover timezone is required")
+    try:
+        return ZoneInfo(name)
+    except ZoneInfoNotFoundError:
+        # Windows may have no IANA tzdata. Current Taipei is fixed UTC+08:00;
+        # do not silently substitute this offset for any other configured zone.
+        if name == "Asia/Taipei":
+            return timezone(timedelta(hours=8), name)
+        raise ValueError("handover timezone is unavailable") from None
+
+
+def _validate_config(config: dict) -> dict:
+    if not isinstance(config, dict):
+        raise ValueError("handover configuration must be an object")
+    start = _minute_of_day(config.get("day_start"))
+    end = _minute_of_day(config.get("day_end"))
+    delay = config.get("night_takeover_delay_min")
+    if start == end:
+        raise ValueError("day_start and day_end must differ")
+    if type(delay) is not int or not 0 <= delay < (start - end) % 1440:
+        raise ValueError("takeover delay must fit inside the night window")
+    _timezone(config.get("tz"))
+    return config
+
+
+def load_handover_config() -> dict:
+    # Reload for each decision so a commander's configuration edit takes effect.
+    return _validate_config(json.loads(HANDOVER_CONFIG.read_text(encoding="utf-8-sig")))
+
+
+def _now(config: dict) -> datetime:
+    return datetime.now(_timezone(config["tz"]))
+
+
+def is_night_window(now: datetime | None = None, *, config: dict | None = None) -> bool:
+    config = load_handover_config() if config is None else _validate_config(config)
+    now = _now(config) if now is None else now
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("handover clock must be timezone-aware")
+    local = now.astimezone(_timezone(config["tz"]))
+    minute = local.hour * 60 + local.minute
+    start = _minute_of_day(config["day_start"])
+    end = _minute_of_day(config["day_end"])
+    # The shop owns [day_start, day_end), including a configured midnight span.
+    return (minute - start) % 1440 >= (end - start) % 1440
+
+
+def registration_window() -> str:
+    try:
+        return "night" if is_night_window() else "day"
+    except (OSError, ValueError, TypeError):
+        return "configuration_error"
+
+
+def _event(event: str, old_url: str = "", new_url: str = "",
+           put_status="not_attempted", verify_status="not_attempted", **details) -> None:
+    row = {
+        "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+        "event": event,
+        "old_url": old_url,
+        "new_url": new_url,
+        "put_status": put_status,
+        "verify_status": verify_status,
+        **details,
+    }
+    with _LOG_LOCK:
+        EVENTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with EVENTS_PATH.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(row, ensure_ascii=True) + "\n")
+
+
+def _registration_allowed(url: str) -> bool:
+    window = registration_window()
+    if window == "night":
+        return True
+    if window == "day":
+        _log("day window: shop is primary, not registering")
+        _event("skipped_day", new_url=url + "/line/webhook")
+    else:
+        _log("handover configuration invalid: not registering")
+        _event("configuration_error", new_url=url + "/line/webhook")
+    return False
 
 
 def _log(msg: str) -> None:
@@ -59,30 +170,68 @@ def _load_token() -> str:
     return data.get("line_channel_token") or data.get("channel_access_token") or ""
 
 
-def set_webhook_endpoint(base_url: str, token: str, http=urllib) -> str:
+def _http_read(request, http=urllib):
+    try:
+        response = http.request.urlopen(request, timeout=15)
+    except urllib.error.HTTPError as exc:
+        exc.close()
+        raise
+    try:
+        status = getattr(response, "status", None)
+        if status is None:
+            status = response.getcode() if hasattr(response, "getcode") else 200
+        return response.read(), status
+    finally:
+        if hasattr(response, "close"):
+            response.close()
+
+
+def get_webhook_info(token: str, http=urllib) -> dict:
+    request = http.request.Request(
+        WEBHOOK_API, headers={"Authorization": "Bearer " + token}, method="GET",
+    )
+    raw, status = _http_read(request, http)
+    data = json.loads(raw or "{}")
+    if not isinstance(data, dict) or not isinstance(data.get("endpoint"), str):
+        raise ValueError("invalid webhook endpoint response")
+    return {"endpoint": data["endpoint"], "active": data.get("active"), "http_status": status}
+
+
+class WebhookMismatchError(RuntimeError):
+    def __init__(self, endpoint: str):
+        super().__init__("webhook endpoint mismatch")
+        self.endpoint = endpoint
+
+
+def set_webhook_endpoint(base_url: str, token: str, http=urllib, *, old_url: str = "") -> str:
     """PUT webhook endpoint, then GET to confirm it matches. http is injectable."""
-    endpoint = (base_url or "").rstrip("/") + "/line/webhook"
+    endpoint = validate_tunnel_base(base_url) + "/line/webhook"
     headers = {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + token,
     }
     body = json.dumps({"endpoint": endpoint}).encode()
     put_req = http.request.Request(WEBHOOK_API, data=body, headers=headers, method="PUT")
-    http.request.urlopen(put_req, timeout=15).read()
-    get_req = http.request.Request(
-        WEBHOOK_API,
-        headers={"Authorization": "Bearer " + token},
-        method="GET",
-    )
-    raw = http.request.urlopen(get_req, timeout=15).read()
-    if isinstance(raw, str):
-        raw = raw.encode()
-    data = json.loads(raw.decode() or "{}")
-    got = (data.get("endpoint") or "").rstrip("/")
-    want = endpoint.rstrip("/")
-    if got != want:
-        raise RuntimeError("webhook endpoint mismatch")
-    return endpoint
+    put_status = verify_status = "not_attempted"
+    readback = ""
+    try:
+        _, put_status = _http_read(put_req, http)
+        info = get_webhook_info(token, http)
+        readback = info["endpoint"]
+        verify_status = "match" if readback == endpoint else "mismatch"
+        if readback != endpoint:
+            raise WebhookMismatchError(readback)
+        return endpoint
+    except Exception as exc:
+        status = exc.code if isinstance(exc, urllib.error.HTTPError) else type(exc).__name__
+        if put_status == "not_attempted":
+            put_status = status
+        elif verify_status == "not_attempted":
+            verify_status = status
+        raise
+    finally:
+        _event("webhook_update", old_url, endpoint, put_status, verify_status,
+               readback_url=readback)
 
 
 def _start_cloudflared() -> subprocess.Popen:
@@ -166,40 +315,57 @@ def _log_webhook_error(exc: BaseException) -> None:
         _log("webhook endpoint failed: " + type(exc).__name__)
 
 
-def _attempt_webhook(url: str, token: str) -> bool:
+def _attempt_webhook(url: str, token: str, http=urllib, *, old_url="", result=None) -> bool:
     try:
-        set_webhook_endpoint(url, token)
+        endpoint = set_webhook_endpoint(url, token, http=http, old_url=old_url)
+        if result is not None:
+            result.update(status="updated", line_endpoint=endpoint)
         _log("webhook endpoint updated")
         return True
     except Exception as e:  # noqa: BLE001
+        if result is not None:
+            result.update(status="mismatch" if isinstance(e, WebhookMismatchError) else "error",
+                          line_endpoint=e.endpoint if isinstance(e, WebhookMismatchError) else None)
         _log_webhook_error(e)
+        if isinstance(e, urllib.error.HTTPError):
+            e.close()
         return False
 
 
-def _set_webhook_with_retries(url: str, token: str, sleep=time.sleep) -> bool:
+def _set_webhook_with_retries(
+    url: str, token: str, sleep=time.sleep, http=urllib, *, old_url="", result=None,
+) -> bool:
     # F4: try now, then 3 retries at 2/5/10 seconds
-    if _attempt_webhook(url, token):
-        return True
-    for delay in WEBHOOK_RETRY_DELAYS:
-        sleep(delay)
-        if _attempt_webhook(url, token):
+    for delay in (0, *WEBHOOK_RETRY_DELAYS):
+        if delay:
+            sleep(delay)
+        # Recheck after every delay; a retry must never take the shop's day slot.
+        if not _registration_allowed(url):
+            return False
+        if _attempt_webhook(url, token, http=http, old_url=old_url, result=result):
             return True
     return False
 
 
 def _publish(url: str, token: str, sleep=time.sleep) -> None:
+    url = validate_tunnel_base(url)
+    old_url = PUBLIC_BASE.read_text(encoding="utf-8").strip() if PUBLIC_BASE.exists() else ""
     PUBLIC_BASE.write_text(url + "\n", encoding="utf-8")
     _log("public_base " + url)
+    _event("tunnel_url", old_url, url)
     if _set_webhook_with_retries(url, token, sleep=sleep):
         PENDING_WEBHOOK["base_url"] = ""
     else:
-        PENDING_WEBHOOK["base_url"] = url
+        PENDING_WEBHOOK["base_url"] = url if registration_window() == "night" else ""
 
 
 def _retry_pending_webhook(token: str) -> None:
     # F4: keep retrying on the 60s loop until LINE accepts the new URL
     url = PENDING_WEBHOOK.get("base_url") or ""
     if not url:
+        return
+    if not _registration_allowed(url):
+        PENDING_WEBHOOK["base_url"] = ""
         return
     if _attempt_webhook(url, token):
         PENDING_WEBHOOK["base_url"] = ""

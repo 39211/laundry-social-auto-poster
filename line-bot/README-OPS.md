@@ -24,7 +24,15 @@ Stop with `-Stop` (G9). It calls `Stop-Tracked` for `tunnel_manager`, then `staf
 powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\cyc39\laundry-repo\line-bot\run_line_bot.ps1" -Stop
 ```
 
-`tunnel_manager.py` launches `cloudflared tunnel --url http://127.0.0.1:8791 --no-autoupdate`. A resident reader thread drains stdout for the child's whole lifetime (otherwise cloudflared blocks after ~4 KB). Stdout is decoded as UTF-8 with `errors=replace`; reader errors are logged and the pipe is still read to EOF. On URL capture it writes `public_base.txt` and PUTs `https://<url>/line/webhook` to LINE, retrying 3 times (2/5/10 s) and then every 60 s until LINE accepts. If the child exits before publishing a URL it logs `cloudflared exited before publishing a url rc=<n>`; if it is still running after 90 s it logs `no tunnel url within 90s`. Then it kills that cloudflared, backs off 10/30/60 s, and retries forever (KeyboardInterrupt is the only exit). Do not run `tunnel_manager.main()` while another tunnel already owns 8791 / the live webhook.
+`tunnel_manager.py` launches `cloudflared tunnel --url http://127.0.0.1:8791 --no-autoupdate`. A resident reader thread drains stdout for the child's whole lifetime (otherwise cloudflared blocks after ~4 KB). Stdout is decoded as UTF-8 with `errors=replace`; reader errors are logged and the pipe is still read to EOF. URL capture accepts only the success-table URL row, excluding `api.trycloudflare.com` and error prose. Every accepted URL is written to `public_base.txt`.
+
+`handover.json` controls the shop's day window: by default `[10:00, 20:00)` in `Asia/Taipei`. In that window the manager logs `day window: shop is primary, not registering` and never registers an endpoint. Outside it, the manager PUTs the AI URL plus `/line/webhook`, GETs the endpoint and requires exact equality, retrying three times (2/5/10 s) before leaving a pending retry on the 60-second loop. Every retry rechecks the window; pending retries are cleared during the day. Invalid/missing configuration blocks registration. On Windows without IANA tzdata, current Taipei uses the standard-library UTC+08:00 fallback.
+
+`night_handover.py` reads the saved AI base, GETs LINE's registered endpoint, and only PUTs/GET-verifies when it differs and the night window is still open. An identical endpoint is a no-op. `--dry-run` prints offline intent without loading credentials or sending HTTP; `--status` performs only a GET and prints both endpoints, registered owner and LINE's `active` field. Registration and `active` do not measure endpoint reachability or message delivery. The commander can register the daily `day_end + night_takeover_delay_min` task with `register-night-handover-task.ps1` (default 20:05); changing these schedule fields requires re-registering the task. The registration script requires Windows `Taipei Standard Time` and offers `-WhatIf`. It is prepared only, not run as part of A4-3.
+
+Structured events append to `%LOCALAPPDATA%\line-bot\tunnel_events.jsonl`, including timestamps, old/new URLs, PUT status and verification status. `tunnel_url` records local base URLs; `webhook_update` records full webhook endpoints (`old_url` is empty when the previous LINE endpoint is unknown). No token or raw HTTP body is logged.
+
+If the child exits before publishing a URL the manager logs `cloudflared exited before publishing a url rc=<n>`; if it is still running after 90 s it logs `no tunnel url within 90s`. Then it kills that cloudflared, backs off 10/30/60 s, and retries forever (KeyboardInterrupt is the only exit). Do not run `tunnel_manager.main()` while another tunnel already owns 8791 / the live webhook.
 
 `tunnel.log` rotates to `tunnel.log.1` (overwriting the previous `.1`) when it grows past 2 MB. Service `.log` / `.err` files rotate the same way at 5 MB on the next start (G15).
 
@@ -145,11 +153,16 @@ Use the venv Python (pytest is not required):
 & "C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe" "C:\Users\cyc39\laundry-repo\line-bot\test_ehank_snapshot.py"
 & "C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe" "C:\Users\cyc39\laundry-repo\line-bot\test_isolation.py"
 & "C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe" "C:\Users\cyc39\laundry-repo\line-bot\test_webhook_security.py"
-& "C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe" "C:\Users\cyc39\laundry-repo\line-bot\test_tunnel_manager.py"
 & "C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe" "C:\Users\cyc39\laundry-repo\line-bot\test_staff_html.py"
 & "C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe" "C:\Users\cyc39\laundry-repo\line-bot\test_run_scripts.py"
 & "C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe" "C:\Users\cyc39\laundry-repo\line-bot\test_group_bind.py"
 & "C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe" "C:\Users\cyc39\laundry-repo\line-bot\test_purge.py"
 & "C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe" "C:\Users\cyc39\laundry-repo\line-bot\test_staff_inbox.py"
 & "C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe" "C:\Users\cyc39\laundry-repo\line-bot\test_handoff.py"
+```
+
+For A4-3's isolated tunnel/handover tests, use Python 3.14 from an approved checkout's `line-bot` directory. These tests use temporary worktree paths, fake clocks, dummy credentials and fake HTTP; pytest is not required:
+
+```powershell
+& "C:\Users\cyc39\AppData\Local\Python\pythoncore-3.14-64\python.exe" -B -X utf8 -m unittest -v test_day_night_handover test_tunnel_manager
 ```

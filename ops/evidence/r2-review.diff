@@ -1,0 +1,673 @@
+--- ops/backup-sxj-live.ps1.before
++++ ops/backup-sxj-live.ps1
+@@ -12,64 +12,74 @@
+ $ErrorActionPreference = 'Stop'
+ Set-StrictMode -Version 2.0
+ . (Join-Path $PSScriptRoot 'Recovery.Common.ps1')
+-$Root = Get-RecoveryFullPath $Root
+-$LocalStateRoot = Get-RecoveryFullPath $LocalStateRoot
+-$MdbPath = Get-RecoveryFullPath $MdbPath
+-$BackupRoot = Get-RecoveryFullPath $BackupRoot
+-Assert-RecoveryStoragePath $BackupRoot
+-foreach ($source in @($Root, $LocalStateRoot, $MdbPath)) { Assert-RecoveryDisjoint $source $BackupRoot }
+-if ($TaskXmlSource) {
+-    $TaskXmlSource = Get-RecoveryFullPath $TaskXmlSource
+-    Assert-RecoveryDisjoint $TaskXmlSource $BackupRoot
+-}
+-$entries = @()
+-Assert-RecoveryNoLinks (Join-Path $Root 'secrets') $Root
+-foreach ($file in @(Get-RecoveryFiles (Join-Path $Root 'secrets'))) {
+-    $relative = $file.FullName.Substring($Root.Length + 1).Replace('\','/')
+-    $entries += New-RecoveryEntry 'secrets' $relative $file.FullName
+-}
+-Assert-RecoveryNoLinks (Join-Path $Root '.env') $Root
+-$entries += New-RecoveryEntry 'secrets' '.env' (Join-Path $Root '.env')
+-Assert-RecoveryNoLinks (Join-Path $Root 'data') $Root
+-foreach ($file in @(Get-RecoveryFiles (Join-Path $Root 'data') -ExcludeMedia)) {
+-    $relative = $file.FullName.Substring($Root.Length + 1).Replace('\','/')
+-    $entries += New-RecoveryEntry 'data' $relative $file.FullName
+-}
+-$lineState = Join-Path $Root 'line-bot'
+-if (-not (Test-Path -LiteralPath $lineState -PathType Container)) { throw "Missing source directory: $lineState" }
+-Assert-RecoveryNoLinks $lineState $Root
+-foreach ($file in Get-ChildItem -LiteralPath $lineState -File -Force | Where-Object { $_.Extension -in @('.json','.txt') }) {
+-    Assert-RecoveryNoLinks $file.FullName $Root
+-    $entries += New-RecoveryEntry 'state' ('line-bot/' + $file.Name) $file.FullName
+-}
+-if (-not (Test-Path -LiteralPath $LocalStateRoot -PathType Container)) { throw "Missing source directory: $LocalStateRoot" }
+-foreach ($file in Get-ChildItem -LiteralPath $LocalStateRoot -File -Force | Where-Object { $_.Extension -eq '.jsonl' }) {
+-    Assert-RecoveryNoLinks $file.FullName $LocalStateRoot
+-    $entries += New-RecoveryEntry 'state' ('local/' + $file.Name) $file.FullName
+-}
+-Assert-RecoveryStoragePath $MdbPath
+-$entries += New-RecoveryEntry 'mdb' 'eHank.mdb' $MdbPath
+-$tasks = @(Get-RecoveryTasks $TaskXmlSource)
+-$entries += @($tasks | ForEach-Object { $_.Entry })
+-$seen = @{}
+-foreach ($entry in $entries) {
+-    if ($seen.ContainsKey($entry.BackupPath)) { throw "Duplicate inventory entry: $($entry.BackupPath)" }
+-    $seen[$entry.BackupPath] = $true
+-}
+-if ($DryRun) {
+-    return [pscustomobject]@{
+-        DryRun = $true; BackupRoot = $BackupRoot; FileCount = $entries.Count
+-        Files = @($entries | Select-Object Category,RelativePath,SourcePath,Size)
++$skipped = New-Object 'Collections.Generic.List[object]'
++$excludeFilePatterns = @('*.lock','*.pid','*.tmp')
++try {
++    $Root = Get-RecoveryFullPath $Root
++    $LocalStateRoot = Get-RecoveryFullPath $LocalStateRoot
++    $MdbPath = Get-RecoveryFullPath $MdbPath
++    $BackupRoot = Get-RecoveryFullPath $BackupRoot
++    Assert-RecoveryStoragePath $BackupRoot
++    foreach ($source in @($Root, $LocalStateRoot, $MdbPath)) { Assert-RecoveryDisjoint $source $BackupRoot }
++    if ($TaskXmlSource) {
++        $TaskXmlSource = Get-RecoveryFullPath $TaskXmlSource
++        Assert-RecoveryDisjoint $TaskXmlSource $BackupRoot
+     }
+-}
+-$directory = New-RecoveryDirectory $BackupRoot ''
+-foreach ($entry in $entries) {
+-    $destination = Join-RecoveryPath $directory $entry.BackupPath
+-    if ($entry.Category -eq 'tasks') {
+-        $task = $tasks | Where-Object { $_.Entry.BackupPath -eq $entry.BackupPath }
+-        Write-RecoveryTaskPayload $destination $task.Xml $entry
+-    } else { Copy-RecoveryPayload $entry.SourcePath $destination $entry }
+-}
+-Complete-RecoveryManifest $directory 'sxj-live-backup' $entries
+-Remove-RecoveryOldBackups $BackupRoot $Keep
+-[pscustomobject]@{ BackupDirectory = $directory; FileCount = $entries.Count; Verified = $true }
++    $entries = @()
++    Assert-RecoveryNoLinks (Join-Path $Root 'secrets') $Root
++    foreach ($file in @(Get-RecoveryFiles (Join-Path $Root 'secrets') -ExcludeFilePatterns $excludeFilePatterns)) {
++        $relative = $file.FullName.Substring($Root.Length + 1).Replace('\','/')
++        $entries += @(New-RecoveryEntry 'secrets' $relative $file.FullName -Skipped $skipped)
++    }
++    Assert-RecoveryNoLinks (Join-Path $Root '.env') $Root
++    $entries += @(New-RecoveryEntry 'secrets' '.env' (Join-Path $Root '.env') -Skipped $skipped)
++    Assert-RecoveryNoLinks (Join-Path $Root 'data') $Root
++    foreach ($file in @(Get-RecoveryFiles (Join-Path $Root 'data') -ExcludeMedia -ExcludeFilePatterns $excludeFilePatterns -Skipped $skipped)) {
++        $relative = $file.FullName.Substring($Root.Length + 1).Replace('\','/')
++        $entries += @(New-RecoveryEntry 'data' $relative $file.FullName -Skipped $skipped)
++    }
++    $lineState = Join-Path $Root 'line-bot'
++    if (-not (Test-Path -LiteralPath $lineState -PathType Container)) { throw "Missing source directory: $lineState" }
++    Assert-RecoveryNoLinks $lineState $Root
++    foreach ($file in @(Invoke-RecoverySourceRead $lineState { Get-ChildItem -LiteralPath $lineState -File -Force -ErrorAction Stop } $skipped) | Where-Object { $_.Extension -in @('.json','.txt') }) {
++        Assert-RecoveryNoLinks $file.FullName $Root
++        $entries += @(New-RecoveryEntry 'state' ('line-bot/' + $file.Name) $file.FullName -Skipped $skipped)
++    }
++    if (-not (Test-Path -LiteralPath $LocalStateRoot -PathType Container)) { throw "Missing source directory: $LocalStateRoot" }
++    foreach ($file in @(Invoke-RecoverySourceRead $LocalStateRoot { Get-ChildItem -LiteralPath $LocalStateRoot -File -Force -ErrorAction Stop } $skipped) | Where-Object { $_.Extension -eq '.jsonl' }) {
++        Assert-RecoveryNoLinks $file.FullName $LocalStateRoot
++        $entries += @(New-RecoveryEntry 'state' ('local/' + $file.Name) $file.FullName -Skipped $skipped)
++    }
++    Assert-RecoveryStoragePath $MdbPath
++    $entries += @(New-RecoveryEntry 'mdb' 'eHank.mdb' $MdbPath -Skipped $skipped)
++    $tasks = @(Get-RecoveryTasks $TaskXmlSource -Skipped $skipped -ExcludeFilePatterns $excludeFilePatterns)
++    $entries += @($tasks | ForEach-Object { $_.Entry })
++    $seen = @{}
++    foreach ($entry in $entries) {
++        if ($seen.ContainsKey($entry.BackupPath)) { throw "Duplicate inventory entry: $($entry.BackupPath)" }
++        $seen[$entry.BackupPath] = $true
++    }
++    if ($DryRun) {
++        return [pscustomobject]@{
++            DryRun = $true; BackupRoot = $BackupRoot; FileCount = $entries.Count
++            Files = @($entries | Select-Object Category,RelativePath,SourcePath,Size)
++            SkippedCount = $skipped.Count; Skipped = @($skipped.ToArray()); ExcludedFilePatterns = $excludeFilePatterns
++        }
++    }
++    $directory = New-RecoveryDirectory $BackupRoot ''
++    $copied = @()
++    foreach ($entry in $entries) {
++        $destination = Join-RecoveryPath $directory $entry.BackupPath
++        if ($entry.Category -eq 'tasks') {
++            $task = $tasks | Where-Object { $_.Entry.BackupPath -eq $entry.BackupPath }
++            Write-RecoveryTaskPayload $destination $task.Xml $entry
++        } elseif (-not (Copy-RecoveryBackupPayload $entry.SourcePath $destination $entry $skipped)) { continue }
++        $copied += $entry
++    }
++    Complete-RecoveryManifest $directory 'sxj-live-backup' $copied -Skipped $skipped.ToArray() -ExcludedFilePatterns $excludeFilePatterns
++    Remove-RecoveryOldBackups $BackupRoot $Keep
++    [pscustomobject]@{
++        BackupDirectory = $directory; FileCount = $copied.Count; Verified = $true
++        SkippedCount = $skipped.Count; Skipped = @($skipped.ToArray())
++    }
++} finally { Write-Host ('A5_BACKUP skipped={0}' -f $skipped.Count) }
+--- ops/Recovery.Common.ps1.before
++++ ops/Recovery.Common.ps1
+@@ -79,18 +79,45 @@
+     }
+ }
+ 
+-function Get-RecoveryFiles([string]$Root, [switch]$ExcludeMedia) {
++function Invoke-RecoverySourceRead([string]$Path, [scriptblock]$Read, [Collections.IList]$Skipped, [switch]$Required) {
++    try { & $Read }
++    catch {
++        if ($Required -or $null -eq $Skipped) { throw }
++        # PowerShell wraps .NET method failures. Retain the underlying IO type;
++        # never serialize exception messages that could contain source contents.
++        $exception = $_.Exception
++        $reason = $null
++        while ($null -ne $exception) {
++            if ($exception -is [IO.IOException] -or $exception -is [UnauthorizedAccessException]) {
++                $reason = $exception.GetType().Name
++            }
++            $exception = $exception.InnerException
++        }
++        if (-not $reason) { throw }
++        $null = $Skipped.Add([pscustomobject]@{ Path=$Path; Reason=$reason })
++    }
++}
++
++function Get-RecoveryFiles([string]$Root, [switch]$ExcludeMedia, [string[]]$ExcludeFilePatterns = @(), [Collections.IList]$Skipped) {
+     if (-not (Test-Path -LiteralPath $Root -PathType Container)) { throw "Missing source directory: $Root" }
+-    foreach ($item in Get-ChildItem -LiteralPath $Root -Force -ErrorAction Stop) {
++    foreach ($item in @(Invoke-RecoverySourceRead $Root { Get-ChildItem -LiteralPath $Root -Force -ErrorAction Stop } $Skipped)) {
+         if ($item.PSIsContainer -and $ExcludeMedia -and ($item.Name -eq 'photos' -or $item.Name -like 'video-*')) { continue }
++        if (-not $item.PSIsContainer -and @($ExcludeFilePatterns | Where-Object { $item.Name -like $_ }).Count -gt 0) { continue }
+         if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Source reparse point is not supported: $($item.FullName)" }
+-        if ($item.PSIsContainer) { Get-RecoveryFiles $item.FullName -ExcludeMedia:$ExcludeMedia }
++        if ($item.PSIsContainer) { Get-RecoveryFiles $item.FullName -ExcludeMedia:$ExcludeMedia -ExcludeFilePatterns $ExcludeFilePatterns -Skipped $Skipped }
+         else { $item }
+     }
+ }
+ 
+ function Get-RecoveryHash([string]$Path) {
+-    return (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
++    # Windows PowerShell's Get-FileHash replaces the original IO exception with
++    # FileReadError. Open/hash directly so callers can classify the real failure.
++    $stream = [IO.File]::OpenRead($Path)
++    try {
++        $sha = [Security.Cryptography.SHA256]::Create()
++        try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','').ToLowerInvariant() }
++        finally { $sha.Dispose() }
++    } finally { $stream.Dispose() }
+ }
+ 
+ function Write-RecoveryJson([string]$Path, $Value) {
+@@ -98,16 +125,18 @@
+     [IO.File]::WriteAllText($Path, $json, (New-Object Text.UTF8Encoding($false)))
+ }
+ 
+-function New-RecoveryEntry([string]$Category, [string]$RelativePath, [string]$SourcePath) {
++function New-RecoveryEntry([string]$Category, [string]$RelativePath, [string]$SourcePath, [Collections.IList]$Skipped) {
+     Assert-RecoveryRelative $RelativePath
+-    $item = Get-Item -LiteralPath $SourcePath -Force -ErrorAction Stop
+-    if ($item.PSIsContainer) { throw "Expected a file: $SourcePath" }
+-    return [pscustomobject][ordered]@{
+-        Category = $Category; RelativePath = $RelativePath.Replace('\','/')
+-        BackupPath = ('payload/' + $Category + '/' + $RelativePath.Replace('\','/'))
+-        SourcePath = $item.FullName; Size = [long]$item.Length; Sha256 = Get-RecoveryHash $item.FullName
+-        TaskName = ''; TaskPath = ''
+-    }
++    Invoke-RecoverySourceRead $SourcePath {
++        $item = Get-Item -LiteralPath $SourcePath -Force -ErrorAction Stop
++        if ($item.PSIsContainer) { throw "Expected a file: $SourcePath" }
++        [pscustomobject][ordered]@{
++            Category = $Category; RelativePath = $RelativePath.Replace('\','/')
++            BackupPath = ('payload/' + $Category + '/' + $RelativePath.Replace('\','/'))
++            SourcePath = $item.FullName; Size = [long]$item.Length; Sha256 = Get-RecoveryHash $item.FullName
++            TaskName = ''; TaskPath = ''
++        }
++    } $Skipped -Required:($Category -eq 'secrets')
+ }
+ 
+ function Read-RecoveryTaskXml([string]$Text) {
+@@ -212,22 +241,24 @@
+     }
+ }
+ 
+-function Get-RecoveryTasks([string]$TaskXmlSource) {
++function Get-RecoveryTasks([string]$TaskXmlSource, [Collections.IList]$Skipped, [string[]]$ExcludeFilePatterns = @()) {
+     if ($TaskXmlSource) {
+-        foreach ($file in Get-RecoveryFiles $TaskXmlSource) {
++        foreach ($file in Get-RecoveryFiles $TaskXmlSource -ExcludeFilePatterns $ExcludeFilePatterns -Skipped $Skipped) {
+             if ($file.Extension -ne '.xml') { continue }
+-            $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 -ErrorAction Stop
+-            $doc = Read-RecoveryTaskXml $text
+-            $uri = $doc.SelectSingleNode('/*[local-name()="Task"]/*[local-name()="RegistrationInfo"]/*[local-name()="URI"]')
+-            if (-not $uri) { throw "Fixture XML needs RegistrationInfo/URI: $($file.FullName)" }
+-            $taskId = $uri.InnerText
+-            $index = $taskId.LastIndexOf('\')
+-            if ($index -lt 0) { throw 'Task URI needs an absolute TaskPath.' }
+-            $name = $taskId.Substring($index + 1)
+-            if ($name -notmatch '^(Laundry-|AI-Daily-|SXJ-)') { continue }
+-            $taskPath = $taskId.Substring(0, $index + 1)
+-            $entry = New-RecoveryTaskEntry $name $taskPath $text $file.FullName
+-            [pscustomobject]@{ Entry = $entry; Xml = $text }
++            Invoke-RecoverySourceRead $file.FullName {
++                $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 -ErrorAction Stop
++                $doc = Read-RecoveryTaskXml $text
++                $uri = $doc.SelectSingleNode('/*[local-name()="Task"]/*[local-name()="RegistrationInfo"]/*[local-name()="URI"]')
++                if (-not $uri) { throw "Fixture XML needs RegistrationInfo/URI: $($file.FullName)" }
++                $taskId = $uri.InnerText
++                $index = $taskId.LastIndexOf('\')
++                if ($index -lt 0) { throw 'Task URI needs an absolute TaskPath.' }
++                $name = $taskId.Substring($index + 1)
++                if ($name -notmatch '^(Laundry-|AI-Daily-|SXJ-)') { return }
++                $taskPath = $taskId.Substring(0, $index + 1)
++                $entry = New-RecoveryTaskEntry $name $taskPath $text $file.FullName
++                [pscustomobject]@{ Entry = $entry; Xml = $text }
++            } $Skipped
+         }
+     } else {
+         foreach ($task in @(Get-ScheduledTask -ErrorAction Stop | Where-Object { $_.TaskName -match '^(Laundry-|AI-Daily-|SXJ-)' })) {
+@@ -302,16 +333,52 @@
+     Assert-RecoveryPayload $Destination $Entry
+ }
+ 
++function Copy-RecoveryBackupPayload([string]$Source, [string]$Destination, $Entry, [Collections.IList]$Skipped) {
++    $required = $Entry.Category -eq 'secrets'
++    $sourceStream = Invoke-RecoverySourceRead $Source { [IO.File]::OpenRead($Source) } $Skipped -Required:$required
++    if ($null -eq $sourceStream) { return $false }
++    try {
++        # Hold the same read handle through verification and copy. A lock acquired
++        # after inventory is skippable; changed bytes remain a hard failure.
++        $hash = Invoke-RecoverySourceRead $Source {
++            $sha = [Security.Cryptography.SHA256]::Create()
++            try { ([BitConverter]::ToString($sha.ComputeHash($sourceStream))).Replace('-','').ToLowerInvariant() }
++            finally { $sha.Dispose() }
++        } $Skipped -Required:$required
++        if ($null -eq $hash) { return $false }
++        if ($sourceStream.Length -ne $Entry.Size -or $hash -ne $Entry.Sha256) { throw "Source SHA256/size changed: $Source" }
++        $sourceStream.Position = 0
++        New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) -Force -ErrorAction Stop | Out-Null
++        $destinationStream = [IO.File]::Open($Destination, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
++        try {
++            $buffer = New-Object byte[] 81920
++            do {
++                $read = Invoke-RecoverySourceRead $Source { $sourceStream.Read($buffer, 0, $buffer.Length) } $Skipped -Required:$required
++                if ($null -eq $read) { break }
++                # Destination errors must never become skipped source records.
++                $destinationStream.Write($buffer, 0, $read)
++            } while ($read -gt 0)
++        } finally { $destinationStream.Dispose() }
++        if ($null -eq $read) {
++            Remove-Item -LiteralPath $Destination -Force -ErrorAction Stop
++            return $false
++        }
++        Assert-RecoveryPayload $Destination $Entry
++        return $true
++    } finally { $sourceStream.Dispose() }
++}
++
+ function Write-RecoveryTaskPayload([string]$Destination, [string]$Xml, $Entry) {
+     New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) -Force -ErrorAction Stop | Out-Null
+     [IO.File]::WriteAllText($Destination, $Xml, (New-Object Text.UTF8Encoding($false)))
+     Assert-RecoveryPayload $Destination $Entry
+ }
+ 
+-function Complete-RecoveryManifest([string]$Directory, [string]$Kind, [object[]]$Files) {
++function Complete-RecoveryManifest([string]$Directory, [string]$Kind, [object[]]$Files, [object[]]$Skipped = @(), [string[]]$ExcludedFilePatterns = @()) {
+     $m = [ordered]@{
+         SchemaVersion = 1; Kind = $Kind; Status = 'Complete'; CompletedUtc = [DateTime]::UtcNow.ToString('o')
+         Files = @($Files); ExcludedDataDirectories = @('photos','video-*')
++        Skipped = @($Skipped); ExcludedFilePatterns = @($ExcludedFilePatterns)
+     }
+     Write-RecoveryJson (Join-Path $Directory 'MANIFEST.json') $m
+     $null = Read-RecoveryManifest $Directory
+--- ops/tests/Recovery.Tests.ps1.before
++++ ops/tests/Recovery.Tests.ps1
+@@ -427,5 +427,214 @@
+         $r.RunAs | Should Be 'CurrentUser'
+     }
+ }
++function Invoke-R2BackupProcess($Fixture, [bool]$Preview) {
++    $assignments = @($Fixture.GetEnumerator() | ForEach-Object {
++        "'{0}'='{1}'" -f $_.Key, ([string]$_.Value).Replace("'", "''")
++    }) -join ';'
++    $scriptPath = (Join-Path $opsRoot 'backup-sxj-live.ps1').Replace("'", "''")
++    $code = '$ErrorActionPreference = ''Stop''; $ProgressPreference = ''SilentlyContinue''; $fixture = @{' + $assignments + '}; $result = & ''' + $scriptPath + ''' @fixture'
++    if ($Preview) { $code += ' -DryRun' }
++    $code += '; Write-Output (''A5_R2_RESULT_JSON='' + ($result | ConvertTo-Json -Depth 10 -Compress))'
++    $logBase = Join-Path $drillRoot ('r2-process-' + [guid]::NewGuid().ToString('N'))
++    # -File matches the supported production entry point and keeps Write-Host
++    # informational output out of -EncodedCommand's serialized stderr stream.
++    $wrapper = $logBase + '.ps1'
++    [IO.File]::WriteAllText($wrapper, $code, (New-Object Text.UTF8Encoding($true)))
++    $process = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -WindowStyle Hidden -Wait -PassThru `
++        -ArgumentList @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',('"' + $wrapper + '"')) `
++        -RedirectStandardOutput ($logBase + '.stdout') -RedirectStandardError ($logBase + '.stderr')
++    $stdout = [IO.File]::ReadAllText($logBase + '.stdout')
++    $stderr = [IO.File]::ReadAllText($logBase + '.stderr')
++    $jsonLine = @($stdout -split '\r?\n' | Where-Object { $_.StartsWith('A5_R2_RESULT_JSON=') })
++    $value = $null
++    if ($jsonLine.Count -gt 0) { $value = $jsonLine[-1].Substring('A5_R2_RESULT_JSON='.Length) | ConvertFrom-Json }
++    [pscustomobject]@{ ExitCode=$process.ExitCode; Stdout=$stdout; Stderr=$stderr; Value=$value }
++}
++
++Describe 'A5 r2 transient files and source read failures' -Tag 'R2' {
++    It 'excludes lock pid and tmp files before reading in <Mode>' -TestCases @(
++        @{Mode='DryRun';Preview=$true}, @{Mode='backup';Preview=$false}
++    ) {
++        param($Mode, $Preview)
++        $f = New-Fixture ('r2-excluded-' + $Mode)
++        foreach ($relative in @('data/arrival-notify.lock','data/nested/worker.PID','data/request.tmp','secrets/session.LOCK')) {
++            Write-Fixture (Join-Path $f.Root $relative) 'TRANSIENT-FIXTURE'
++        }
++        $before = Get-TreeStamp (Split-Path -Parent $f.Root)
++        $stream = [IO.File]::Open((Join-Path $f.Root 'data/arrival-notify.lock'), [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
++        try { $r = Invoke-R2BackupProcess $f $Preview }
++        finally { $stream.Dispose() }
++        $r.ExitCode | Should Be 0
++        $r.Stderr | Should BeNullOrEmpty
++        $r.Value.FileCount | Should Be 12
++        $r.Value.SkippedCount | Should Be 0
++        $r.Stdout | Should Match 'skipped=0'
++        if ($Preview) {
++            (Get-TreeStamp (Split-Path -Parent $f.Root)) | Should Be $before
++            $files = $r.Value.Files
++        } else {
++            $m = Read-Manifest $r.Value.BackupDirectory
++            @($m.Skipped).Count | Should Be 0
++            $files = $m.Files
++            foreach ($pattern in @('*.lock','*.pid','*.tmp')) { ($pattern -in $m.ExcludedFilePatterns) | Should Be $true }
++        }
++        @($files | Where-Object { $_.RelativePath -match '\.(lock|pid|tmp)$' }).Count | Should Be 0
++    }
++
++    It 'skips an exclusively locked <Kind> source in <Mode> without an error' -TestCases @(
++        @{Kind='data';Relative='data/leads/list.jsonl';Mode='DryRun';Preview=$true},
++        @{Kind='data';Relative='data/leads/list.jsonl';Mode='backup';Preview=$false},
++        @{Kind='state';Relative='line-bot/public_base.txt';Mode='DryRun';Preview=$true},
++        @{Kind='state';Relative='line-bot/public_base.txt';Mode='backup';Preview=$false},
++        @{Kind='local';Relative='tunnel_events.jsonl';Mode='DryRun';Preview=$true},
++        @{Kind='local';Relative='tunnel_events.jsonl';Mode='backup';Preview=$false},
++        @{Kind='mdb';Relative='';Mode='DryRun';Preview=$true},
++        @{Kind='mdb';Relative='';Mode='backup';Preview=$false},
++        @{Kind='tasks';Relative='Laundry-Backup.xml';Mode='DryRun';Preview=$true},
++        @{Kind='tasks';Relative='Laundry-Backup.xml';Mode='backup';Preview=$false}
++    ) {
++        param($Kind, $Relative, $Mode, $Preview)
++        $f = New-Fixture ('r2-locked-' + $Kind + '-' + $Mode)
++        $path = switch ($Kind) {
++            'local' { Join-Path $f.LocalStateRoot $Relative }
++            'mdb' { $f.MdbPath }
++            'tasks' { Join-Path $f.TaskXmlSource $Relative }
++            default { Join-Path $f.Root $Relative }
++        }
++        $before = Get-TreeStamp (Split-Path -Parent $f.Root)
++        $stream = [IO.File]::Open($path, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
++        try { $r = Invoke-R2BackupProcess $f $Preview }
++        finally { $stream.Dispose() }
++        $r.ExitCode | Should Be 0
++        $r.Stderr | Should BeNullOrEmpty
++        $r.Value.FileCount | Should Be 11
++        $r.Value.SkippedCount | Should Be 1
++        $r.Stdout | Should Match 'skipped=1'
++        if ($Preview) {
++            (Get-TreeStamp (Split-Path -Parent $f.Root)) | Should Be $before
++            $skipped = $r.Value.Skipped
++            $files = $r.Value.Files
++        } else {
++            $m = Read-Manifest $r.Value.BackupDirectory
++            $m.Status | Should Be 'Complete'
++            $skipped = $m.Skipped
++            $files = $m.Files
++        }
++        @($skipped).Count | Should Be 1
++        $skipped[0].Path | Should Be $path
++        $skipped[0].Reason | Should Match 'IOException'
++        @($files | Where-Object { $_.SourcePath -eq $path }).Count | Should Be 0
++        if (-not $Preview) {
++            foreach ($entry in $files) {
++                (Get-FileHash -LiteralPath (Join-Path $r.Value.BackupDirectory $entry.BackupPath) -Algorithm SHA256).Hash | Should Be $entry.Sha256
++            }
++        }
++    }
++
++    It 'fails exit 1 for locked critical <Relative> in <Mode>' -TestCases @(
++        @{Relative='.env';Mode='DryRun';Preview=$true}, @{Relative='.env';Mode='backup';Preview=$false},
++        @{Relative='secrets/line.json';Mode='DryRun';Preview=$true}, @{Relative='secrets/line.json';Mode='backup';Preview=$false}
++    ) {
++        param($Relative, $Mode, $Preview)
++        $f = New-Fixture ('r2-critical-' + $Relative.Replace('/','-') + '-' + $Mode)
++        $before = Get-TreeStamp (Split-Path -Parent $f.Root)
++        $stream = [IO.File]::Open((Join-Path $f.Root $Relative), [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
++        try { $r = Invoke-R2BackupProcess $f $Preview }
++        finally { $stream.Dispose() }
++        $r.ExitCode | Should Be 1
++        (Test-Path -LiteralPath $f.BackupRoot) | Should Be $false
++        (Get-TreeStamp (Split-Path -Parent $f.Root)) | Should Be $before
++    }
++
++    It 'records an access-denied task XML source in <Mode>' -TestCases @(
++        @{Mode='DryRun';Preview=$true}, @{Mode='backup';Preview=$false}
++    ) {
++        param($Mode, $Preview)
++        $f = New-Fixture ('r2-denied-' + $Mode)
++        $path = Join-Path $f.TaskXmlSource 'Laundry-Backup.xml'
++        $before = Get-TreeStamp (Split-Path -Parent $f.Root)
++        # The managed workspace disallows DACL changes. Inject the OS exception at
++        # the real task XML read boundary; all remaining backup operations are real.
++        Mock Get-Content { throw (New-Object UnauthorizedAccessException('Synthetic source read denied')) } `
++            -ParameterFilter { $LiteralPath -like '*r2-denied-*task-source*Laundry-Backup.xml' }
++        $r = & (Join-Path $opsRoot 'backup-sxj-live.ps1') @f -DryRun:$Preview
++        $r.FileCount | Should Be 11
++        $r.SkippedCount | Should Be 1
++        $skipped = $r.Skipped
++        if (-not $Preview) { $skipped = (Read-Manifest $r.BackupDirectory).Skipped }
++        $skipped[0].Path | Should Be $path
++        $skipped[0].Reason | Should Match 'UnauthorizedAccess'
++        if ($Preview) { (Get-TreeStamp (Split-Path -Parent $f.Root)) | Should Be $before }
++    }
++
++    It 'does not downgrade an access-denied required source into a skip' {
++        . (Join-Path $opsRoot 'Recovery.Common.ps1')
++        $skipped = New-Object 'Collections.Generic.List[object]'
++        $caught = $null
++        try {
++            Invoke-RecoverySourceRead '.env' { throw (New-Object UnauthorizedAccessException('Synthetic critical read denied')) } $skipped -Required
++        } catch { $caught = $_ }
++        $caught | Should Not BeNullOrEmpty
++        $caught.Exception.GetType().Name | Should Be 'UnauthorizedAccessException'
++        $skipped.Count | Should Be 0
++    }
++
++    It 'does not downgrade a destination write failure into a skipped source' {
++        $f = New-Fixture 'r2-destination-failure'
++        Mock New-Item { throw (New-Object UnauthorizedAccessException('Synthetic destination write denied')) } `
++            -ParameterFilter { $Path -like '*r2-destination-failure*payload*' }
++        { Invoke-Backup $f } | Should Throw
++        @(Get-ChildItem -LiteralPath $f.BackupRoot -Filter MANIFEST.json -Recurse).Count | Should Be 0
++    }
++
++    It 'copies a binary source across multiple stream buffers without losing bytes' {
++        $f = New-Fixture 'r2-multiple-buffers'
++        $bytes = New-Object byte[] (81920 * 2 + 17)
++        $bytes[81919] = 7; $bytes[81920] = 11; $bytes[$bytes.Length - 1] = 13
++        [IO.File]::WriteAllBytes($f.MdbPath, $bytes)
++        $expected = (Get-FileHash -LiteralPath $f.MdbPath -Algorithm SHA256).Hash
++        $b = Invoke-Backup $f
++        $m = Read-Manifest $b.BackupDirectory
++        $entry = $m.Files | Where-Object { $_.Category -eq 'mdb' }
++        $payload = Join-Path $b.BackupDirectory $entry.BackupPath
++        (Get-Item -LiteralPath $payload).Length | Should Be 163857
++        (Get-FileHash -LiteralPath $payload -Algorithm SHA256).Hash | Should Be $expected
++        $b.SkippedCount | Should Be 0
++    }
++
++    It 'still fails for changed source bytes after inventory instead of skipping them' {
++        $f = New-Fixture 'r2-source-changed'
++        $global:A5R2ChangedSource = $f.MdbPath
++        Mock Get-Date {
++            [IO.File]::WriteAllText($global:A5R2ChangedSource, 'CHANGED-AFTER-INVENTORY')
++            '20261030-0331'
++        } -ParameterFilter { $Format -eq 'yyyyMMdd-HHmm' }
++        try { { Invoke-Backup $f } | Should Throw }
++        finally { Remove-Variable A5R2ChangedSource -Scope Global }
++        @(Get-ChildItem -LiteralPath $f.BackupRoot -Filter MANIFEST.json -Recurse).Count | Should Be 0
++    }
++
++    It 'records a lock acquired after inventory and omits the uncopied payload' {
++        $f = New-Fixture 'r2-late-lock'
++        $global:A5R2LateLockPath = Join-Path $f.Root 'data/leads/list.jsonl'
++        $global:A5R2LateLock = $null
++        Mock Get-Date {
++            $global:A5R2LateLock = [IO.File]::Open($global:A5R2LateLockPath, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
++            '20261030-0330'
++        } -ParameterFilter { $Format -eq 'yyyyMMdd-HHmm' }
++        try { $b = Invoke-Backup $f }
++        finally {
++            if ($global:A5R2LateLock) { $global:A5R2LateLock.Dispose() }
++            Remove-Variable A5R2LateLock,A5R2LateLockPath -Scope Global
++        }
++        $b.FileCount | Should Be 11
++        $b.SkippedCount | Should Be 1
++        $m = Read-Manifest $b.BackupDirectory
++        @($m.Skipped).Count | Should Be 1
++        $m.Skipped[0].Path | Should Be (Join-Path $f.Root 'data/leads/list.jsonl')
++        (Test-Path -LiteralPath (Join-Path $b.BackupDirectory 'payload/data/data/leads/list.jsonl')) | Should Be $false
++        @($m.Files).Count | Should Be 11
++    }
++}
+ $clock.Stop()
+ Write-Host ('A5_DRILL elapsedSeconds={0:N3} root={1} realSchedulerWrites=0 livePathOperations=0' -f $clock.Elapsed.TotalSeconds, $drillRoot)
+--- ops/A5-PLAN.md.before
++++ ops/A5-PLAN.md
+@@ -16,3 +16,11 @@
+ 驗收焦點：backup→改壞→restore 全檔 SHA／大小一致；DryRun 與 WhatIf 零寫入；Only 選擇；所有 payload 先驗後寫；pre-restore 可核回；保留 14 份且保護不明目錄／連結；XML 範圍與巢狀 TaskPath；變造 MANIFEST 不可寫到目的地外；錯誤必須非零。
+ 
+ 限制：合成演練時間不能證明正式 30 分鐘 RTO；不檢查真 secrets、不執行正式排程或服務。真機驗收由總指揮在另行授權的維護時段完成。
++
++## r2 開工卡（2026-10-30）
++
++Outcome：預設排除 `*.lock`／`*.pid`／`*.tmp`；一般來源讀取遇到 IOException／UnauthorizedAccess 時略過並記錄 path／reason，只有 secrets／`.env` 讀取失敗中止；DryRun 與實際備份均顯示 skipped 數。
++
++Owner／最終 checker：Claude 總指揮；maker：本線 Codex。Authority：本次明確授權的 `ops/` 與兩份文件；不提交、不對現役執行正式備份、不另寫 Vault。原有未追蹤交付檔保留，r1 證據不覆蓋。
++
++驗收：新增 Pester r2 案例先紅後綠；使用 FileStream／FileShare.None 真實獨占鎖、UnauthorizedAccess 讀取邊界注入、PowerShell 子程序 exit code／stderr、DryRun 檔案樹快照與 MANIFEST／payload 獨立讀回。沙箱拒絕 DACL 變更，未把該測試環境錯誤當成程式紅燈。執行完整維運 Pester 集合；證據另存 `ops/evidence/r2-*`。正式資料量、服務與 RTO 不在本輪驗收範圍。
+--- docs-internal/RUNBOOK-RECOVERY.md.before
++++ docs-internal/RUNBOOK-RECOVERY.md
+@@ -15,7 +15,28 @@
+ . (Join-Path $ops 'Recovery.Common.ps1')
+ ```
+ 
+-備份是含憑證的明文檔案集合，目的地須限制 ACL 並另留受保護的離機副本。MANIFEST 的 SHA-256 用於損壞檢測，不是簽章或對抗整包被替換的證明。此卡排除 `data` 下任何層級的 `photos`、`video-*` 目錄；其他大型媒體、Python／Node 安裝、套件快取、憑證私鑰、整個 Windows、FXwash 程式本體不在備份中。逐檔驗證不等於跨檔交易快照；一致性要求高時先依核准維護流程暫停相關 writer，MDB 若鎖定／異動造成失敗就中止，不把不完整目錄當備份。
++備份是含憑證的明文檔案集合，目的地須限制 ACL 並另留受保護的離機副本。MANIFEST 的 SHA-256 用於損壞檢測，不是簽章或對抗整包被替換的證明。此卡排除 `data` 下任何層級的 `photos`、`video-*` 目錄；其他大型媒體、Python／Node 安裝、套件快取、憑證私鑰、整個 Windows、FXwash 程式本體不在備份中。逐檔驗證不等於跨檔交易快照；一致性要求高時先依核准維護流程暫停相關 writer。r2 起 MDB 與其他一般來源的讀取鎖定／拒讀會列入 skipped；來源內容異動、目的地寫入或驗證失敗仍中止，不能使用沒有有效 MANIFEST 的目錄。
++
++## r2｜鎖定與略過清單（2026-10-30）
++
++- 預設排除檔名 `*.lock`、`*.pid`、`*.tmp`，不分大小寫；遞迴套用於 secrets／data／離線 tasks 來源。state 原有副檔名白名單也不收這三類暫存檔。排除發生在開檔前，這些檔不算 skipped；MANIFEST 的 `ExcludedFilePatterns` 保留排除規則。
++- 讀取一般來源遇到 `IOException` 或 `UnauthorizedAccessException` 時繼續，將絕對 `Path` 與分類 `Reason` 加入 `MANIFEST.json` 的 `Skipped` 陣列。涵蓋清單階段與複製階段才出現的讀取鎖；讀不到的檔不會留在 Files，也不會留下未列出的半成品 payload。錯誤訊息與來源內容不寫入 Reason。
++- `secrets/` 內未排除的檔案與根目錄 `.env` 是必要來源，讀不到會失敗；使用 `powershell.exe -File` 執行回 exit `1`，不完成本次備份。缺少必要來源、路徑／junction 安全錯誤、壞 XML、SHA／大小異動或目的地寫入失敗仍會中止，不能以 skipped 隱藏。
++- DryRun 零檔案寫入，透過回傳物件的 `Skipped` 預覽，不寫 MANIFEST。兩種模式均顯示 `A5_BACKUP skipped=N`，回傳 `SkippedCount`；即使以變數接住結果，主控台仍會顯示 skipped 數。
++
++```powershell
++$preview = & (Join-Path $ops 'backup-sxj-live.ps1') -Root $liveRoot -LocalStateRoot $localState -MdbPath $mdb -BackupRoot $backupRoot -DryRun
++$preview | Select-Object FileCount,SkippedCount
++$preview.Skipped | Format-Table Path,Reason -AutoSize
++# 以下在 B 頁取得正式備份結果 $saved 後執行；本次 A5 r2 沒有執行正式備份。
++$manifest = Read-RecoveryManifest $saved.BackupDirectory
++$manifest.Skipped | Format-Table Path,Reason -AutoSize
++$manifest.Files | Group-Object Category | Select-Object Name,Count
++```
++
++`Status=Complete`／`Verified=True` 表示 Files 所列 payload 已完成驗證；備份可以帶有 skipped，不能據此推定每個來源都在包內。略過的備份同樣參與最近 14 份保留；做回退／整機還原前逐項確認 skipped 是否可接受。尤其 MDB 被略過時，本包沒有該 MDB 的還原能力，必須先確認有可用的 mdb 類別備份。DryRun 與正式執行之間 writer 狀態可能改變，正式 MANIFEST 才是該次結果。
++
++本機重跑：`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\test-recovery.ps1 -Tag R2`；完整維運回歸省略 `-Tag R2`。全部使用 `ops/_tmp/` 合成來源；真鎖由 FileStream／FileShare.None 建立，UnauthorizedAccess 在讀取邊界注入，沒有對現役路徑執行正式備份。先紅後綠與原始輸出見 [A5-RESULT 的 r2 段落](cards/A5-RESULT.md)。
+ 
+ ## A｜程序壞掉或重複：乾淨重啟與驗收
+ 
+@@ -97,7 +118,7 @@
+ & (Join-Path $ops 'rollback-code.ps1') -Root $liveRoot -ToTag 'sxj-live-2026-10-29'
+ ```
+ 
+-成功確認：`Verified=True` 且 MANIFEST 可完整讀驗；rollback 腳本僅輸出計畫，沒有執行 Git checkout 或啟停。A5 worktree 核實此 tag 指到 `4992668af2d36facb75aa493bded8a336145a31c`；正式操作仍以當下讀回與總指揮核准版本為準。A1 舊報告曾有尚未建 tag 的歷史，不拿舊紀錄覆蓋當下 ref。
++成功確認：`Verified=True` 且 MANIFEST 可完整讀驗，並已逐項核對 r2 的 `Skipped` 是否足以支援本次回退；rollback 腳本僅輸出計畫，沒有執行 Git checkout 或啟停。A5 worktree 核實此 tag 指到 `4992668af2d36facb75aa493bded8a336145a31c`；正式操作仍以當下讀回與總指揮核准版本為準。A1 舊報告曾有尚未建 tag 的歷史，不拿舊紀錄覆蓋當下 ref。
+ 
+ **2. 保護未提交工作，依 A 頁停乾淨，再 detach。** 先在事故紀錄保留「原 HEAD／原分支／哪幾個 watchdog 原本啟用」。工作區有 tracked 修改或 untracked 檔就停止，由總指揮先保存；腳本不 stash、commit、reset 或 clean。
+ 
+--- docs-internal/cards/A5-RESULT.md.before
++++ docs-internal/cards/A5-RESULT.md
+@@ -6,7 +6,39 @@
+ - Owner／正式驗收者：Claude 總指揮；maker：本線 Codex；另外使用一席同家族唯讀 reviewer，沒有外部艦隊或跨家族驗收。
+ - 開工卡：[ops/A5-PLAN.md](../../ops/A5-PLAN.md)。目前成功取得的 Obsidian 首頁、唯讀 Vault 搜尋與戰情板僅作背景；依本次明確的新增檔案範圍，任務紀錄保存在本報告，未另寫 Vault／`ai_vault.py manual`，未更新戰情板。
+ 
+-## 交付
++## r2｜第二輪鎖定與排除修正（2026-10-30）
++
++本輪要求：修正總指揮回報的現役 DryRun `FileReadError`；只修改 `ops/` 與本報告、RUNBOOK，不提交、不對現役執行正式備份。Owner／最終 checker 為 Claude 總指揮，maker 為本線 Codex；r1 的 reviewer 結論保留為歷史，本輪沒有新增其他 agent 或跨家族複審。任務摘要與證據留在本次允許路徑，不另寫 Vault／戰情板。
++
++已完成：
++
++- 備份預設在開檔前排除 `*.lock`、`*.pid`、`*.tmp`；排除項不算 skipped，規則寫入 `ExcludedFilePatterns`。
++- 一般來源讀取遇到 `IOException`／`UnauthorizedAccessException` 時略過，將絕對 `Path` 與分類 `Reason` 放入 MANIFEST 的 `Skipped`。涵蓋 data、state、LocalState、MDB、離線 XML，也涵蓋清單完成後才取得的鎖。實際 Files／FileCount 只含成功複製與驗證的檔案。
++- `secrets/` 未排除的檔案與根 `.env` 讀取失敗仍中止；以 `powershell.exe -File` 子程序驗證 exit `1`，不建立完成的備份。目的地寫入、SHA／大小異動、缺必要來源、路徑與 XML 安全錯誤仍失敗。
++- DryRun 保持零檔案寫入，透過回傳物件提供 `Skipped`；正式備份寫入 MANIFEST。兩者均印出 `A5_BACKUP skipped=N` 並回傳 `SkippedCount`。
++- 共用 hash 改用 FileStream／SHA-256，保留原始 IO 例外類型，避免 PowerShell 5.1 的 Get-FileHash 將其包成 `FileReadError`。備份複製持有同一個讀取 handle，來源讀取與目的地寫入分開處理；中途被略過的來源不會留下未列出的 payload。原 restore 的失敗規則不放寬。
++- RUNBOOK 已加入 r2 判讀與操作方式，並修正舊有「MDB 鎖定一律中止」的說法。
++
++| 驗收 | 本輪實測 |
++| --- | --- |
++| 先紅 | 原實作下 r2 初始 21 項：**5 passed／16 failed**，exit `1`。排除、一般真鎖、拒讀與晚到的鎖尚未符合新規格；必要來源失敗等既有護欄保留。 |
++| 後綠 | 同組 21 項：**21 passed／0 failed**，exit `0`；`33.11` 秒。成功子程序 stderr 為空，兩模式 skipped 計數可見；DryRun 檔案樹前後相同。 |
++| 完整維運回歸 | 原 28 項＋r2 23 項，**51 passed／0 failed／0 skipped**，exit `0`；Pester `85.8` 秒。另含跨 3 個 buffer 的 163857 bytes 檔案與清單後來源異動的拒絕測試。 |
++| 真鎖／必要來源 | FileStream／FileShare.None 獨占開啟；data、state、local、MDB、XML 在兩模式均被 skipped；鎖住的 `*.lock` 在讀取前排除；`secrets/line.json`／`.env` 兩模式均 exit `1`。 |
++| UnauthorizedAccess | 沙箱拒絕 DACL 修改，因此在實際 XML 讀取邊界注入 UnauthorizedAccessException；其餘備份／MANIFEST／檔案操作為真實執行。一般來源被記錄，必要來源不降級為 skip。沒有宣稱真 ACL 拒讀的端到端驗收。 |
++| Python 獨立產物讀回 | **PASS**：9 份 MANIFEST、101 個 payload、`172561 bytes`；7 筆 skipped 的 path／reason 正確，SHA／大小與來源位元相同，未列出／半成品 payload **0**。失敗案例沒有完成 MANIFEST，DryRun 沒有建立備份根。 |
++| 原 roundtrip 再驗 | **PASS**：12 個已還原檔 `1045 bytes`、12 個 pre-restore payload `1031 bytes`，逐檔 SHA／大小一致。 |
++| PowerShell parser | 7 份正式 `.ps1`／測試腳本，**0** 個解析錯誤。 |
++
++證據：[r2-red.txt](../../ops/evidence/r2-red.txt)、[r2-green.txt](../../ops/evidence/r2-green.txt)、[完整 51 項輸出](../../ops/evidence/r2-full-pester.txt)、[r2 Python 讀回](../../ops/evidence/r2-independent-readback.json)、[roundtrip 再驗](../../ops/evidence/r2-readback/core.json)、[parser](../../ops/evidence/r2-parser.json)。Pester 原始輸出採 UTF-16LE；Python 證據採 UTF-8。可重跑的獨立讀回工具為 [verify-r2-manifests.py](../../ops/verify-r2-manifests.py)。原 r1 證據未覆蓋；修改前副本另以 `.before` 副檔名保存在 `ops/evidence/r2-before/`，不會被 Pester 當成第二份測試。
++
++演練根：`C:\Users\cyc39\AI-Lanes\a5\repo\ops\_tmp\drill-379467b679684c89870665f5e0a679db`。本機原版透過 `powershell.exe -File`／Stop 設定測到一般真鎖會 exit `1`；沒有把這個結果冒充總指揮現役的「帶非終止錯誤但 exit 0」重現。本輪確認的是修正後一般鎖可略過且無錯誤輸出、必要來源失敗仍非零。
++
++測試環境修正也保留：`r2-red-harness.txt` 記錄 DACL 變更被拒；`r2-red-mock-scope.txt` 記錄 Pester 3 mock 範圍需限縮到特定 fixture。`r2-green-transport*.txt` 的失敗是 EncodedCommand 把 Write-Host 資訊序列化到 stderr；改用符合實際入口的 `-File` 子程序後，原 stderr 斷言保留且全通。未以這些測試架構問題冒充產品缺陷。
++
++限制與交接：`Verified=True`／`Status=Complete` 只保證 Files 已驗證，仍須逐項檢查 Skipped 是否足以支援還原；帶 skipped 的備份同樣計入最近 14 份保留。MDB 被略過時，本包不能還原該 MDB。正式資料量、跨檔一致性、現役備份／原生排程與 30 分鐘 RTO 仍未在本輪量測；未執行現役正式備份、服務啟停、排程註冊、git stage／commit／push。總指揮可在既有授權範圍重新讀驗候選與現役 DryRun，首次真實備份仍由總指揮依下方指令執行。
++
++## r1 交付（歷史紀錄保留）
+ 
+ | 檔案 | 已實作行為 |
+ | --- | --- |
+@@ -21,7 +53,7 @@
+ 
+ 主腳本均使用 ASCII 文字，避免 PowerShell 5.1 預設 cp950 造成非 ASCII 腳本解析問題。臨時演練目錄由 `ops/.gitignore` 排除；原始證據在 `ops/evidence/`。
+ 
+-## 最終驗證與證據
++## r1 最終驗證與證據
+ 
+ | 檢查 | 實際結果 |
+ | --- | --- |
+@@ -42,7 +74,7 @@
+ 
+ 本次沒有執行 npm／Python 業務測試；新增內容為獨立維運工具，沒有修改既有程式及其呼叫路徑。驗證集中在實際檔案復原流程、PowerShell 與原生介面的替身契約。
+ 
+-## 演練失敗、修正與複審
++## r1 演練失敗、修正與複審
+ 
+ 不是把第一個綠燈當完成。保留了初始缺實作、邊界失敗、測試架構錯誤與最終成功的原始輸出：
+ 
+@@ -71,15 +103,18 @@
+ # 先只列清單；確認範圍與缺件，不產生任何檔案。
+ $preview = & (Join-Path $ops 'backup-sxj-live.ps1') @backupArgs -DryRun
+ $preview.Files | Format-Table Category,RelativePath,SourcePath,Size -AutoSize
++$preview | Select-Object FileCount,SkippedCount
++$preview.Skipped | Format-Table Path,Reason -AutoSize
+ # 總指揮核對清單、來源一致性與目的地 ACL 後，才執行這兩段。
+ $backup = & (Join-Path $ops 'backup-sxj-live.ps1') @backupArgs
+ . (Join-Path $ops 'Recovery.Common.ps1')
+ $verifiedManifest = Read-RecoveryManifest $backup.BackupDirectory
+-$backup | Select-Object BackupDirectory,FileCount,Verified
++$backup | Select-Object BackupDirectory,FileCount,SkippedCount,Verified
+ $verifiedManifest.Files | Group-Object Category | Select-Object Name,Count
++$verifiedManifest.Skipped | Format-Table Path,Reason -AutoSize
+ ```
+ 
+-成功條件：備份腳本無錯誤、`Verified=True`，且 `Read-RecoveryManifest` 對新目錄全部 SHA／大小驗通，來源數量與清單相符；保留具體目錄於正式事故／備份紀錄。不能只憑排程 exit 0 宣稱備份存在。首次真實備份與 03:30 任務註冊是兩件事；註冊腳本只交付，這次沒有執行。
++成功條件：備份腳本無錯誤、`Verified=True`，且 `Read-RecoveryManifest` 對新目錄全部 SHA／大小驗通，已複製數量與 Files 相符，並逐項核對 Skipped 是否足以支援預定還原；保留具體目錄於正式事故／備份紀錄。不能只憑排程 exit 0 宣稱備份存在。首次真實備份與 03:30 任務註冊是兩件事；註冊腳本只交付，這次沒有執行。
+ 
+ ## 範圍、未驗證項與交接
+ 
+@@ -92,7 +127,7 @@
+ 
+ 九格✓（開工／證據／交接留於本次允許的檔案範圍；正式驗收限制如上）。
+ 
+-## 最終完整原始輸出
++## r1 最終完整原始輸出
+ 
+ ```text
+ 

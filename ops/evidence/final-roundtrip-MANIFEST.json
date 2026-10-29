@@ -1,0 +1,132 @@
+{
+  "SchemaVersion": 1,
+  "Kind": "sxj-live-backup",
+  "Status": "Complete",
+  "CompletedUtc": "2026-10-29T17:41:37.6152758Z",
+  "Files": [
+    {
+      "Category": "secrets",
+      "RelativePath": "secrets/line.json",
+      "BackupPath": "payload/secrets/secrets/line.json",
+      "SourcePath": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-b5fd751947974e1990d4ce69fa9c8481\\roundtrip\\source\\secrets\\line.json",
+      "Size": 38,
+      "Sha256": "d336c073e6b18b36369eb543b559031e8203bcd43adb314b69a47ef6f461ae36",
+      "TaskName": "",
+      "TaskPath": ""
+    },
+    {
+      "Category": "secrets",
+      "RelativePath": ".env",
+      "BackupPath": "payload/secrets/.env",
+      "SourcePath": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-b5fd751947974e1990d4ce69fa9c8481\\roundtrip\\source\\.env",
+      "Size": 12,
+      "Sha256": "64c88186e44105e82ee17f9e4616f563f78b8b938f28b2c608611812df3e44ba",
+      "TaskName": "",
+      "TaskPath": ""
+    },
+    {
+      "Category": "data",
+      "RelativePath": "data/leads/list.jsonl",
+      "BackupPath": "payload/data/data/leads/list.jsonl",
+      "SourcePath": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-b5fd751947974e1990d4ce69fa9c8481\\roundtrip\\source\\data\\leads\\list.jsonl",
+      "Size": 18,
+      "Sha256": "a8198524f58e72b56283ab71ebddada22840f108b46ef7165bb3fca9919c5558",
+      "TaskName": "",
+      "TaskPath": ""
+    },
+    {
+      "Category": "data",
+      "RelativePath": "data/posted-log/20261030.json",
+      "BackupPath": "payload/data/data/posted-log/20261030.json",
+      "SourcePath": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-b5fd751947974e1990d4ce69fa9c8481\\roundtrip\\source\\data\\posted-log\\20261030.json",
+      "Size": 13,
+      "Sha256": "e398848a61f020158676ca16bba062c68140e4d068a39df12497f477a20c4f73",
+      "TaskName": "",
+      "TaskPath": ""
+    },
+    {
+      "Category": "state",
+      "RelativePath": "line-bot/public_base.txt",
+      "BackupPath": "payload/state/line-bot/public_base.txt",
+      "SourcePath": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-b5fd751947974e1990d4ce69fa9c8481\\roundtrip\\source\\line-bot\\public_base.txt",
+      "Size": 26,
+      "Sha256": "ece7b64e5daf9d100679adb27e6cbb5402f382d95067c83fdaba697991170f68",
+      "TaskName": "",
+      "TaskPath": ""
+    },
+    {
+      "Category": "state",
+      "RelativePath": "line-bot/richmenu-id.json",
+      "BackupPath": "payload/state/line-bot/richmenu-id.json",
+      "SourcePath": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-b5fd751947974e1990d4ce69fa9c8481\\roundtrip\\source\\line-bot\\richmenu-id.json",
+      "Size": 13,
+      "Sha256": "57f9a16ec01fca7e00ef59d081f545d82aa56da1da9e3bf6b00e8f6e543730cc",
+      "TaskName": "",
+      "TaskPath": ""
+    },
+    {
+      "Category": "state",
+      "RelativePath": "line-bot/staff-target.txt",
+      "BackupPath": "payload/state/line-bot/staff-target.txt",
+      "SourcePath": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-b5fd751947974e1990d4ce69fa9c8481\\roundtrip\\source\\line-bot\\staff-target.txt",
+      "Size": 15,
+      "Sha256": "09a91efe737c98f882eb8c995b6abd260eca56864764ccaa04aad8298437910c",
+      "TaskName": "",
+      "TaskPath": ""
+    },
+    {
+      "Category": "state",
+      "RelativePath": "local/tunnel_events.jsonl",
+      "BackupPath": "payload/state/local/tunnel_events.jsonl",
+      "SourcePath": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-b5fd751947974e1990d4ce69fa9c8481\\roundtrip\\local-state\\tunnel_events.jsonl",
+      "Size": 13,
+      "Sha256": "8b7acde78c83b5d82f59e971fbb96b4a6169d488703f2eb3eb991e7531a299fe",
+      "TaskName": "",
+      "TaskPath": ""
+    },
+    {
+      "Category": "mdb",
+      "RelativePath": "eHank.mdb",
+      "BackupPath": "payload/mdb/eHank.mdb",
+      "SourcePath": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-b5fd751947974e1990d4ce69fa9c8481\\roundtrip\\fxwash\\eHank.mdb",
+      "Size": 19,
+      "Sha256": "85360caabd30d17efae18309e7c877126ad9f1d1f266156a1a45691af8244746",
+      "TaskName": "",
+      "TaskPath": ""
+    },
+    {
+      "Category": "tasks",
+      "RelativePath": "A5/AI-Daily-Test.xml",
+      "BackupPath": "payload/tasks/A5/AI-Daily-Test.xml",
+      "SourcePath": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-b5fd751947974e1990d4ce69fa9c8481\\roundtrip\\task-source\\A5\\AI-Daily-Test.xml",
+      "Size": 296,
+      "Sha256": "61a45a1e6a5cb9229fe08cf43b10fcdcd5515b8c5d60b8d70493bf6980f4a6d5",
+      "TaskName": "AI-Daily-Test",
+      "TaskPath": "\\A5\\"
+    },
+    {
+      "Category": "tasks",
+      "RelativePath": "Laundry-Backup.xml",
+      "BackupPath": "payload/tasks/Laundry-Backup.xml",
+      "SourcePath": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-b5fd751947974e1990d4ce69fa9c8481\\roundtrip\\task-source\\Laundry-Backup.xml",
+      "Size": 294,
+      "Sha256": "69dc002f74de89572b7950fef34d17259dfe8b9258b6e57ae44338e7222cb0a9",
+      "TaskName": "Laundry-Backup",
+      "TaskPath": "\\"
+    },
+    {
+      "Category": "tasks",
+      "RelativePath": "SXJ-Test.xml",
+      "BackupPath": "payload/tasks/SXJ-Test.xml",
+      "SourcePath": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-b5fd751947974e1990d4ce69fa9c8481\\roundtrip\\task-source\\SXJ-Test.xml",
+      "Size": 288,
+      "Sha256": "0436c336887d99d9f8553bacf4961b757564a0cae0093bceb8dfac40c900a306",
+      "TaskName": "SXJ-Test",
+      "TaskPath": "\\"
+    }
+  ],
+  "ExcludedDataDirectories": [
+    "photos",
+    "video-*"
+  ]
+}

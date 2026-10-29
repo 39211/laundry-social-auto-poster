@@ -1,0 +1,407 @@
+# Shared recovery primitives. ASCII only; compatible with Windows PowerShell 5.1.
+function Test-RecoveryServiceProcess($Process, [string]$BotRoot, [string[]]$PythonImages) {
+    if (-not $Process.CommandLine -or -not $Process.ExecutablePath -or $Process.ExecutablePath -notin $PythonImages) { return $false }
+    $exe = [regex]::Escape($Process.ExecutablePath)
+    foreach ($name in @('line_webhook','staff_server','tunnel_manager')) {
+        $script = [regex]::Escape((Join-Path $BotRoot ($name + '.py')))
+        # Match the launcher's exact exe, -u and one absolute script argument.
+        $pattern = '^\s*(?:"' + $exe + '"|' + $exe + ')\s+-u\s+(?:"' + $script + '"|' + $script + ')(?:\s|$)'
+        if ($Process.CommandLine -match $pattern) { return $true }
+    }
+    return $false
+}
+
+function Get-RecoveryFullPath([string]$Path) {
+    if ([string]::IsNullOrWhiteSpace($Path)) { throw 'An empty path is not allowed.' }
+    $full = [IO.Path]::GetFullPath($Path)
+    if ($full -eq [IO.Path]::GetPathRoot($full)) { throw "A volume root is not allowed: $full" }
+    return $full.TrimEnd('\', '/')
+}
+
+function Test-RecoveryWithin([string]$Path, [string]$Root) {
+    $child = Get-RecoveryFullPath $Path
+    $base = Get-RecoveryFullPath $Root
+    return ($child.Equals($base, [StringComparison]::OrdinalIgnoreCase) -or
+        $child.StartsWith($base + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase))
+}
+
+function Assert-RecoveryDisjoint([string]$Left, [string]$Right) {
+    if ((Test-RecoveryWithin $Left $Right) -or (Test-RecoveryWithin $Right $Left)) {
+        throw "Paths must not overlap: $Left ; $Right"
+    }
+}
+
+function Assert-RecoveryRelative([string]$Path) {
+    if ([string]::IsNullOrWhiteSpace($Path) -or [IO.Path]::IsPathRooted($Path) -or
+        $Path -match '[:*?"<>|\x00-\x1f]' -or $Path -match '(^|[\\/])(\.{1,2}|)([\\/]|$)') {
+        throw "Unsafe relative path: $Path"
+    }
+    foreach ($part in ($Path -split '[\\/]')) {
+        if ($part.EndsWith('.') -or $part.EndsWith(' ') -or $part -match '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)') {
+            throw "Unsafe Windows path component: $part"
+        }
+    }
+}
+
+function Join-RecoveryPath([string]$Root, [string]$Relative) {
+    Assert-RecoveryRelative $Relative
+    $path = Get-RecoveryFullPath (Join-Path $Root $Relative)
+    if (-not (Test-RecoveryWithin $path $Root)) { throw "Path escaped its root: $Relative" }
+    return $path
+}
+
+function Assert-RecoveryNoLinks([string]$Path, [string]$Boundary) {
+    # The explicitly selected boundary can be a known junction (laundry-repo).
+    # Anything below it must be a real file/directory, including ancestors of new files.
+    $cursor = Get-RecoveryFullPath $Path
+    $boundaryPath = Get-RecoveryFullPath $Boundary
+    if (-not (Test-RecoveryWithin $cursor $boundaryPath)) { throw 'Invalid link-check boundary.' }
+    while (-not $cursor.Equals($boundaryPath, [StringComparison]::OrdinalIgnoreCase)) {
+        if (Test-Path -LiteralPath $cursor) {
+            if ((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                throw "Reparse point is not allowed below the selected root: $cursor"
+            }
+        }
+        $cursor = Split-Path -Parent $cursor
+    }
+}
+
+function Assert-RecoveryStoragePath([string]$Path) {
+    # Backup/pre-restore storage must not contain ANY junction, even at its root.
+    $cursor = Get-RecoveryFullPath $Path
+    while ($cursor -and $cursor -ne [IO.Path]::GetPathRoot($cursor)) {
+        if (Test-Path -LiteralPath $cursor) {
+            if ((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                throw "Backup storage must not traverse a reparse point: $cursor"
+            }
+        }
+        $cursor = Split-Path -Parent $cursor
+    }
+}
+
+function Invoke-RecoverySourceRead([string]$Path, [scriptblock]$Read, [Collections.IList]$Skipped, [switch]$Required) {
+    try { & $Read }
+    catch {
+        if ($Required -or $null -eq $Skipped) { throw }
+        # PowerShell wraps .NET method failures. Retain the underlying IO type;
+        # never serialize exception messages that could contain source contents.
+        $exception = $_.Exception
+        $reason = $null
+        while ($null -ne $exception) {
+            if ($exception -is [IO.IOException] -or $exception -is [UnauthorizedAccessException]) {
+                $reason = $exception.GetType().Name
+            }
+            $exception = $exception.InnerException
+        }
+        if (-not $reason) { throw }
+        $null = $Skipped.Add([pscustomobject]@{ Path=$Path; Reason=$reason })
+    }
+}
+
+function Get-RecoveryFiles([string]$Root, [switch]$ExcludeMedia, [string[]]$ExcludeFilePatterns = @(), [Collections.IList]$Skipped) {
+    if (-not (Test-Path -LiteralPath $Root -PathType Container)) { throw "Missing source directory: $Root" }
+    foreach ($item in @(Invoke-RecoverySourceRead $Root { Get-ChildItem -LiteralPath $Root -Force -ErrorAction Stop } $Skipped)) {
+        if ($item.PSIsContainer -and $ExcludeMedia -and ($item.Name -eq 'photos' -or $item.Name -like 'video-*')) { continue }
+        if (-not $item.PSIsContainer -and @($ExcludeFilePatterns | Where-Object { $item.Name -like $_ }).Count -gt 0) { continue }
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Source reparse point is not supported: $($item.FullName)" }
+        if ($item.PSIsContainer) { Get-RecoveryFiles $item.FullName -ExcludeMedia:$ExcludeMedia -ExcludeFilePatterns $ExcludeFilePatterns -Skipped $Skipped }
+        else { $item }
+    }
+}
+
+function Get-RecoveryHash([string]$Path) {
+    # Windows PowerShell's Get-FileHash replaces the original IO exception with
+    # FileReadError. Open/hash directly so callers can classify the real failure.
+    $stream = [IO.File]::OpenRead($Path)
+    try {
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','').ToLowerInvariant() }
+        finally { $sha.Dispose() }
+    } finally { $stream.Dispose() }
+}
+
+function Write-RecoveryJson([string]$Path, $Value) {
+    $json = $Value | ConvertTo-Json -Depth 15
+    [IO.File]::WriteAllText($Path, $json, (New-Object Text.UTF8Encoding($false)))
+}
+
+function New-RecoveryEntry([string]$Category, [string]$RelativePath, [string]$SourcePath, [Collections.IList]$Skipped) {
+    Assert-RecoveryRelative $RelativePath
+    Invoke-RecoverySourceRead $SourcePath {
+        $item = Get-Item -LiteralPath $SourcePath -Force -ErrorAction Stop
+        if ($item.PSIsContainer) { throw "Expected a file: $SourcePath" }
+        [pscustomobject][ordered]@{
+            Category = $Category; RelativePath = $RelativePath.Replace('\','/')
+            BackupPath = ('payload/' + $Category + '/' + $RelativePath.Replace('\','/'))
+            SourcePath = $item.FullName; Size = [long]$item.Length; Sha256 = Get-RecoveryHash $item.FullName
+            TaskName = ''; TaskPath = ''
+        }
+    } $Skipped -Required:($Category -eq 'secrets')
+}
+
+function Read-RecoveryTaskXml([string]$Text) {
+    $settings = New-Object Xml.XmlReaderSettings
+    $settings.DtdProcessing = [Xml.DtdProcessing]::Prohibit
+    $settings.XmlResolver = $null
+    $reader = [Xml.XmlReader]::Create((New-Object IO.StringReader($Text)), $settings)
+    try {
+        $doc = New-Object Xml.XmlDocument
+        $doc.XmlResolver = $null
+        $doc.Load($reader)
+        if ($doc.DocumentElement.LocalName -ne 'Task' -or $doc.DocumentElement.NamespaceURI -ne 'http://schemas.microsoft.com/windows/2004/02/mit/task') {
+            throw 'Not a Windows scheduled task XML document.'
+        }
+        return ,$doc
+    } finally { $reader.Dispose() }
+}
+
+function Assert-RecoveryTaskIdentity([string]$TaskName, [string]$TaskPath) {
+    if ($TaskName -notmatch '^(Laundry-|AI-Daily-|SXJ-)' -or $TaskName -match '[\\/]') {
+        throw "Task name is outside the allowed scope: $TaskName"
+    }
+    Assert-RecoveryRelative $TaskName
+    if (-not $TaskPath.StartsWith('\') -or -not $TaskPath.EndsWith('\')) { throw "Invalid TaskPath: $TaskPath" }
+    if ($TaskPath -ne '\') { Assert-RecoveryRelative $TaskPath.Trim('\') }
+}
+
+function Get-RecoveryTaskRelative([string]$TaskName, [string]$TaskPath) {
+    Assert-RecoveryTaskIdentity $TaskName $TaskPath
+    return (($TaskPath.Trim('\') + '/' + $TaskName + '.xml').TrimStart('/')).Replace('\','/')
+}
+
+function Get-RecoveryXmlShape($Node) {
+    if (-not $Node) { return $null }
+    $attributes = @($Node.Attributes | Where-Object { $_.Prefix -ne 'xmlns' -and $_.Name -ne 'xmlns' } |
+        Sort-Object Name | ForEach-Object { $_.LocalName + '=' + $_.Value })
+    $children = @($Node.ChildNodes | Where-Object { $_.NodeType -eq [Xml.XmlNodeType]::Element } |
+        ForEach-Object { Get-RecoveryXmlShape $_ })
+    $value = ''
+    if ($children.Count -eq 0) { $value = $Node.InnerText.Trim() }
+    return [ordered]@{ Name=$Node.LocalName; Attributes=$attributes; Value=$value; Children=$children }
+}
+
+function Assert-RecoveryTaskEquivalent([string]$ExpectedXml, [string]$ActualXml) {
+    $expected = Read-RecoveryTaskXml $ExpectedXml
+    $actual = Read-RecoveryTaskXml $ActualXml
+    foreach ($section in @('Actions','Triggers','Principals','Settings')) {
+        $xpath = '/*[local-name()="Task"]/*[local-name()="' + $section + '"]'
+        $left = Get-RecoveryXmlShape ($expected.SelectSingleNode($xpath))
+        $right = Get-RecoveryXmlShape ($actual.SelectSingleNode($xpath))
+        if (($left | ConvertTo-Json -Depth 50 -Compress) -cne ($right | ConvertTo-Json -Depth 50 -Compress)) {
+            throw "Scheduled task readback differs in $section. Inspect normalized XML before proceeding."
+        }
+    }
+}
+
+function Assert-RecoveryTaskAccount([string]$Xml) {
+    $doc = Read-RecoveryTaskXml $Xml
+    foreach ($principal in $doc.SelectNodes('/*[local-name()="Task"]/*[local-name()="Principals"]/*[local-name()="Principal"]')) {
+        $logon = $principal.SelectSingleNode('*[local-name()="LogonType"]')
+        if ($logon -and $logon.InnerText -in @('Password','InteractiveOrPassword')) {
+            throw 'Task requires a password not contained in XML. Rebuild its principal with the owner before restore.'
+        }
+        foreach ($id in $principal.SelectNodes('*[local-name()="UserId" or local-name()="GroupId"]')) {
+            try {
+                if ($id.InnerText -like 'S-*') {
+                    $sid = New-Object Security.Principal.SecurityIdentifier($id.InnerText)
+                    $null = $sid.Translate([Security.Principal.NTAccount])
+                } else {
+                    $account = New-Object Security.Principal.NTAccount($id.InnerText)
+                    $null = $account.Translate([Security.Principal.SecurityIdentifier])
+                }
+            } catch { throw 'Task account cannot be resolved on this computer. Map the old SID/account before restore.' }
+        }
+    }
+}
+
+function Ensure-RecoveryTaskFolder([string]$TaskPath) {
+    if ($TaskPath -eq '\') { return }
+    $scheduler = New-Object -ComObject 'Schedule.Service'
+    $scheduler.Connect()
+    $folder = $scheduler.GetFolder('\')
+    foreach ($part in $TaskPath.Trim('\').Split('\')) {
+        try { $next = $folder.GetFolder($part) }
+        catch { $next = $folder.CreateFolder($part) }
+        $folder = $next
+    }
+}
+
+function New-RecoveryTaskEntry([string]$Name, [string]$TaskPath, [string]$Xml, [string]$Source) {
+    $relative = Get-RecoveryTaskRelative $Name $TaskPath
+    $doc = Read-RecoveryTaskXml $Xml
+    $uri = $doc.SelectSingleNode('/*[local-name()="Task"]/*[local-name()="RegistrationInfo"]/*[local-name()="URI"]')
+    if ($uri -and $uri.InnerText -ne ($TaskPath + $Name)) { throw "XML URI does not match task identity: $Name" }
+    $bytes = (New-Object Text.UTF8Encoding($false)).GetBytes($Xml)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { $hash = ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-','').ToLowerInvariant() }
+    finally { $sha.Dispose() }
+    return [pscustomobject][ordered]@{
+        Category = 'tasks'; RelativePath = $relative; BackupPath = ('payload/tasks/' + $relative)
+        SourcePath = $Source; Size = [long]$bytes.Length; Sha256 = $hash; TaskName = $Name; TaskPath = $TaskPath
+    }
+}
+
+function Get-RecoveryTasks([string]$TaskXmlSource, [Collections.IList]$Skipped, [string[]]$ExcludeFilePatterns = @()) {
+    if ($TaskXmlSource) {
+        foreach ($file in Get-RecoveryFiles $TaskXmlSource -ExcludeFilePatterns $ExcludeFilePatterns -Skipped $Skipped) {
+            if ($file.Extension -ne '.xml') { continue }
+            Invoke-RecoverySourceRead $file.FullName {
+                $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 -ErrorAction Stop
+                $doc = Read-RecoveryTaskXml $text
+                $uri = $doc.SelectSingleNode('/*[local-name()="Task"]/*[local-name()="RegistrationInfo"]/*[local-name()="URI"]')
+                if (-not $uri) { throw "Fixture XML needs RegistrationInfo/URI: $($file.FullName)" }
+                $taskId = $uri.InnerText
+                $index = $taskId.LastIndexOf('\')
+                if ($index -lt 0) { throw 'Task URI needs an absolute TaskPath.' }
+                $name = $taskId.Substring($index + 1)
+                if ($name -notmatch '^(Laundry-|AI-Daily-|SXJ-)') { return }
+                $taskPath = $taskId.Substring(0, $index + 1)
+                $entry = New-RecoveryTaskEntry $name $taskPath $text $file.FullName
+                [pscustomobject]@{ Entry = $entry; Xml = $text }
+            } $Skipped
+        }
+    } else {
+        foreach ($task in @(Get-ScheduledTask -ErrorAction Stop | Where-Object { $_.TaskName -match '^(Laundry-|AI-Daily-|SXJ-)' })) {
+            $text = Export-ScheduledTask -TaskName $task.TaskName -TaskPath $task.TaskPath -ErrorAction Stop
+            $entry = New-RecoveryTaskEntry $task.TaskName $task.TaskPath $text ('scheduled-task:' + $task.TaskPath + $task.TaskName)
+            [pscustomobject]@{ Entry = $entry; Xml = $text }
+        }
+    }
+}
+
+function Assert-RecoveryPayload([string]$Path, $Entry) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Missing payload: $($Entry.BackupPath)" }
+    if ((Get-Item -LiteralPath $Path -Force).Length -ne $Entry.Size -or (Get-RecoveryHash $Path) -ne $Entry.Sha256) {
+        throw "Payload SHA256/size mismatch: $($Entry.BackupPath)"
+    }
+}
+
+function Read-RecoveryManifest([string]$Directory) {
+    $base = Get-RecoveryFullPath $Directory
+    Assert-RecoveryStoragePath $base
+    $manifestPath = Join-Path $base 'MANIFEST.json'
+    Assert-RecoveryNoLinks $manifestPath $base
+    $m = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    if ($m.SchemaVersion -ne 1 -or $m.Kind -notin @('sxj-live-backup','sxj-pre-restore') -or $m.Status -ne 'Complete') {
+        throw 'Unsupported or incomplete recovery manifest.'
+    }
+    if (-not $m.CompletedUtc -or ($m.Kind -eq 'sxj-live-backup' -and @($m.Files).Count -eq 0)) { throw 'Manifest is empty or has no completion time.' }
+    $seen = @{}
+    foreach ($e in @($m.Files)) {
+        if ($e.Category -notin @('secrets','data','state','tasks','mdb')) { throw 'Unknown manifest category.' }
+        Assert-RecoveryRelative $e.RelativePath
+        Assert-RecoveryRelative $e.BackupPath
+        if ($e.BackupPath -ne ('payload/' + $e.Category + '/' + $e.RelativePath)) { throw 'Noncanonical backup path.' }
+        if ($e.Sha256 -notmatch '^[a-fA-F0-9]{64}$' -or $null -eq $e.Size -or $e.Size -lt 0) { throw 'Invalid SHA256 or size.' }
+        if ($e.Category -eq 'secrets' -and $e.RelativePath -ne '.env' -and $e.RelativePath -notlike 'secrets/*') { throw 'Invalid secrets destination.' }
+        if ($e.Category -eq 'data' -and $e.RelativePath -notlike 'data/*') { throw 'Invalid data destination.' }
+        if ($e.Category -eq 'state' -and $e.RelativePath -notmatch '^(line-bot/[^/]+\.(json|txt)|local/[^/]+\.jsonl)$') { throw 'Invalid state destination.' }
+        if ($e.Category -eq 'mdb' -and $e.RelativePath -ne 'eHank.mdb') { throw 'Invalid mdb destination.' }
+        if ($e.Category -eq 'tasks' -and $e.RelativePath -ne (Get-RecoveryTaskRelative $e.TaskName $e.TaskPath)) { throw 'Invalid task destination.' }
+        $key = $e.BackupPath.Replace('\','/').ToLowerInvariant()
+        if ($seen.ContainsKey($key)) { throw 'Duplicate manifest destination.' }
+        $seen[$key] = $true
+        $payload = Join-RecoveryPath $base $e.BackupPath
+        Assert-RecoveryNoLinks $payload $base
+        Assert-RecoveryPayload $payload $e
+        if ($e.Category -eq 'tasks') {
+            $xml = Get-Content -LiteralPath $payload -Raw -Encoding UTF8
+            $null = New-RecoveryTaskEntry $e.TaskName $e.TaskPath $xml $e.SourcePath
+        }
+    }
+    return $m
+}
+
+function New-RecoveryDirectory([string]$Parent, [string]$Prefix) {
+    Assert-RecoveryStoragePath $Parent
+    New-Item -ItemType Directory -Path $Parent -Force -ErrorAction Stop | Out-Null
+    $name = $Prefix + (Get-Date -Format 'yyyyMMdd-HHmm')
+    $candidate = Join-Path $Parent $name
+    $sameMinute = @(Get-ChildItem -LiteralPath $Parent -Directory -Force | Where-Object { $_.Name -eq $name -or $_.Name.StartsWith($name + '-', [StringComparison]::OrdinalIgnoreCase) })
+    # Retention may already have pruned the first unsuffixed backup. Never reuse
+    # that name while newer backups from the same minute remain.
+    if ((Test-Path -LiteralPath $candidate) -or $sameMinute.Count -gt 0) { $candidate += '-' + [guid]::NewGuid().ToString('N').Substring(0,12) }
+    New-Item -ItemType Directory -Path $candidate -ErrorAction Stop | Out-Null
+    return $candidate
+}
+
+function Copy-RecoveryPayload([string]$Source, [string]$Destination, $Entry) {
+    # Recheck the source against the captured inventory to catch concurrent changes.
+    Assert-RecoveryPayload $Source $Entry
+    New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) -Force -ErrorAction Stop | Out-Null
+    Copy-Item -LiteralPath $Source -Destination $Destination -Force -ErrorAction Stop
+    Assert-RecoveryPayload $Destination $Entry
+}
+
+function Copy-RecoveryBackupPayload([string]$Source, [string]$Destination, $Entry, [Collections.IList]$Skipped) {
+    $required = $Entry.Category -eq 'secrets'
+    $sourceStream = Invoke-RecoverySourceRead $Source { [IO.File]::OpenRead($Source) } $Skipped -Required:$required
+    if ($null -eq $sourceStream) { return $false }
+    try {
+        # Hold the same read handle through verification and copy. A lock acquired
+        # after inventory is skippable; changed bytes remain a hard failure.
+        $hash = Invoke-RecoverySourceRead $Source {
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try { ([BitConverter]::ToString($sha.ComputeHash($sourceStream))).Replace('-','').ToLowerInvariant() }
+            finally { $sha.Dispose() }
+        } $Skipped -Required:$required
+        if ($null -eq $hash) { return $false }
+        if ($sourceStream.Length -ne $Entry.Size -or $hash -ne $Entry.Sha256) { throw "Source SHA256/size changed: $Source" }
+        $sourceStream.Position = 0
+        New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) -Force -ErrorAction Stop | Out-Null
+        $destinationStream = [IO.File]::Open($Destination, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        try {
+            $buffer = New-Object byte[] 81920
+            do {
+                $read = Invoke-RecoverySourceRead $Source { $sourceStream.Read($buffer, 0, $buffer.Length) } $Skipped -Required:$required
+                if ($null -eq $read) { break }
+                # Destination errors must never become skipped source records.
+                $destinationStream.Write($buffer, 0, $read)
+            } while ($read -gt 0)
+        } finally { $destinationStream.Dispose() }
+        if ($null -eq $read) {
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction Stop
+            return $false
+        }
+        Assert-RecoveryPayload $Destination $Entry
+        return $true
+    } finally { $sourceStream.Dispose() }
+}
+
+function Write-RecoveryTaskPayload([string]$Destination, [string]$Xml, $Entry) {
+    New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) -Force -ErrorAction Stop | Out-Null
+    [IO.File]::WriteAllText($Destination, $Xml, (New-Object Text.UTF8Encoding($false)))
+    Assert-RecoveryPayload $Destination $Entry
+}
+
+function Complete-RecoveryManifest([string]$Directory, [string]$Kind, [object[]]$Files, [object[]]$Skipped = @(), [string[]]$ExcludedFilePatterns = @()) {
+    $m = [ordered]@{
+        SchemaVersion = 1; Kind = $Kind; Status = 'Complete'; CompletedUtc = [DateTime]::UtcNow.ToString('o')
+        Files = @($Files); ExcludedDataDirectories = @('photos','video-*')
+        Skipped = @($Skipped); ExcludedFilePatterns = @($ExcludedFilePatterns)
+    }
+    Write-RecoveryJson (Join-Path $Directory 'MANIFEST.json') $m
+    $null = Read-RecoveryManifest $Directory
+}
+
+function Remove-RecoveryOldBackups([string]$BackupRoot, [int]$Keep) {
+    $candidates = @()
+    foreach ($dir in Get-ChildItem -LiteralPath $BackupRoot -Directory -Force -ErrorAction Stop) {
+        if ($dir.Name -notmatch '^\d{8}-\d{4}(-[a-f0-9]{12})?$' -or $dir.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
+        if (-not (Test-Path -LiteralPath (Join-Path $dir.FullName 'MANIFEST.json') -PathType Leaf)) { continue }
+        try {
+            # Validate every candidate before counting/deleting it; unknown/failed backups survive.
+            $m = Read-RecoveryManifest $dir.FullName
+            if ($m.Kind -eq 'sxj-live-backup') { $candidates += [pscustomobject]@{ Directory = $dir.FullName; Time = [DateTime]::Parse($m.CompletedUtc).ToUniversalTime() } }
+        } catch { Write-Warning "Retention preserved an invalid/unknown directory: $($dir.FullName)" }
+    }
+    foreach ($old in @($candidates | Sort-Object Time -Descending | Select-Object -Skip $Keep)) {
+        $path = Get-RecoveryFullPath $old.Directory
+        if ((Split-Path -Parent $path) -ne (Get-RecoveryFullPath $BackupRoot)) { throw 'Retention boundary violation.' }
+        Assert-RecoveryStoragePath $path
+        # Read-RecoveryManifest also rejects links in payloads; inspect all other entries too.
+        $null = @(Get-RecoveryFiles $path)
+        Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop
+        Write-Verbose "Retention removed verified backup: $path"
+    }
+}

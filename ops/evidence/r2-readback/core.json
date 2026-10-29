@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "synthetic_only": true,
+  "formal_rto": "UNMEASURED",
+  "pester_total": 51,
+  "pester_elapsed_seconds": 85.579,
+  "drill_root": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db",
+  "restored_files_verified": 12,
+  "restored_bytes_verified": 1045,
+  "pre_restore_payloads_verified": 12,
+  "pre_restore_bytes_verified": 1031,
+  "sha256_and_size_all_equal": true,
+  "native_scheduler_writes": 0,
+  "live_path_operations": 0,
+  "backup_directory": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db\\roundtrip\\backups\\20261030-0212",
+  "pre_restore_directory": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db\\roundtrip\\pre-restore\\pre-restore-20261030-0212"
+}

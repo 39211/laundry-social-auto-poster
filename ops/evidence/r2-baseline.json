@@ -1,0 +1,26 @@
+[
+  {
+    "path": "ops/backup-sxj-live.ps1",
+    "sha256": "bc0a79167aa1f87663f9f44096a30461ff0b192a5106ba35efdd4c46b1935079"
+  },
+  {
+    "path": "ops/Recovery.Common.ps1",
+    "sha256": "07bb44e3533799f4524ee02ffeb908d474ca37e4472a4c6a071c566453ab421a"
+  },
+  {
+    "path": "ops/tests/Recovery.Tests.ps1",
+    "sha256": "d38860829c0d14b2e356fa6bf0eafe64e8d4e494783a373c2694758f174c13ca"
+  },
+  {
+    "path": "ops/A5-PLAN.md",
+    "sha256": "570dce26f4e7b515af71fb4bf1ea6e0dd5297559059ce03095dcce4855b93e53"
+  },
+  {
+    "path": "docs-internal/RUNBOOK-RECOVERY.md",
+    "sha256": "748e457d22f373873259262d4aeeb21fcb7f1bafad0dd1b18ba45c79476f658c"
+  },
+  {
+    "path": "docs-internal/cards/A5-RESULT.md",
+    "sha256": "9bdf984b07e1d65f672a1bca1c385a59cacb0d6d4a5572c8a2f55070a75ddfd2"
+  }
+]

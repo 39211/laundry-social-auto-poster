@@ -1,0 +1,203 @@
+# 私享家現役系統復原手冊
+
+本手冊的指令供總指揮在獲准的維護時段執行。A5 本線僅在 worktree 臨時目錄演練，沒有執行以下正式操作。30 分鐘是復原目標；正式資料量、服務與整機復原耗時尚未量測。先保存事故時間、當前 commit、備份位置、排程原啟用狀態；不要把 token、個資或完整命令列貼到公開報告。
+
+以下每個情境為一個獨立操作頁。共用入口（PowerShell 5.1；以有權限的維護帳號執行）：
+
+```powershell
+$ops = 'C:\Users\cyc39\AI-Lanes\a5\repo\ops'
+$liveRoot = 'C:\Users\cyc39\laundry-repo'
+$localState = Join-Path $env:LOCALAPPDATA 'line-bot'
+$mdb = 'C:\FXwash\eHank.mdb'
+$backupRoot = 'D:\AI-Lanes-work\_backups\sxj-live'
+$ErrorActionPreference = 'Stop'
+if (-not (Test-Path 'D:\C-moved') -or -not (Test-Path 'D:\AI-Lanes-work')) { throw 'D: 掛載不符，停止。' }
+. (Join-Path $ops 'Recovery.Common.ps1')
+```
+
+備份是含憑證的明文檔案集合，目的地須限制 ACL 並另留受保護的離機副本。MANIFEST 的 SHA-256 用於損壞檢測，不是簽章或對抗整包被替換的證明。此卡排除 `data` 下任何層級的 `photos`、`video-*` 目錄；其他大型媒體、Python／Node 安裝、套件快取、憑證私鑰、整個 Windows、FXwash 程式本體不在備份中。逐檔驗證不等於跨檔交易快照；一致性要求高時先依核准維護流程暫停相關 writer，MDB 若鎖定／異動造成失敗就中止，不把不完整目錄當備份。
+
+## A｜程序壞掉或重複：乾淨重啟與驗收
+
+**1. 先查現狀，保留受影響程序及原 watchdog 狀態。** 不依 PID 檔單獨判斷；現有 `-Stop` 會略過過期 PID。下面只選命令列明確屬於此 `line-bot` 路徑的三個入口，再收其子程序。
+
+```powershell
+$botRoot = Join-Path $liveRoot 'line-bot'
+$approvedPythonImages = @('C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe')
+$all = @(Get-CimInstance Win32_Process)
+$roots = @($all | Where-Object {
+    Test-RecoveryServiceProcess $_ $botRoot $approvedPythonImages
+})
+$owned = @{}; $queue = New-Object Collections.Queue
+foreach ($p in $roots) { $queue.Enqueue($p) }
+while ($queue.Count -gt 0) {
+    $p = $queue.Dequeue()
+    if ($owned.ContainsKey([int]$p.ProcessId)) { continue }
+    $owned[[int]$p.ProcessId] = $p
+    foreach ($child in @($all | Where-Object { $_.ParentProcessId -eq $p.ProcessId })) { $queue.Enqueue($child) }
+}
+$owned.Values | Select-Object ProcessId,ParentProcessId,CreationDate,CommandLine
+$watch = Get-ScheduledTask -TaskName 'Laundry-LINE-Bot' -TaskPath '\'
+$wasEnabled = [bool]$watch.Settings.Enabled
+$watch.Actions | Select-Object Execute,Arguments
+```
+
+成功確認：完整絕對 script argument 與已核准 Python 映像均符合，清單可解釋 launcher／child 關係。篩選 helper 不接受 `line-bot-old`、編輯器或 Python `-c`。若實際程序使用 junction 的實體路徑或另一個 Python 映像，先由總指揮核對，再調整 `$botRoot`／`$approvedPythonImages` 重查；不以相似檔名擴大停機。watchdog Action 必須指向此服務；其他已知啟動入口也逐一記錄，不能一次停掉所有 Laundry／SXJ 排程。
+
+**2. 暫停此 watchdog，停追蹤程序，再清理已核實的遺留程序。**
+
+```powershell
+if ($wasEnabled) { Disable-ScheduledTask -TaskName $watch.TaskName -TaskPath $watch.TaskPath | Out-Null }
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $botRoot 'run_line_bot.ps1') -Stop
+if ($LASTEXITCODE -ne 0) { throw 'Stop 失敗，停止後續啟動。' }
+# 只針對步驟 1 已捕捉的 PID；再比建立時間與命令列，避免 PID 重用。
+foreach ($saved in @($owned.Values | Sort-Object CreationDate -Descending)) {
+    $now = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $saved.ProcessId)
+    if ($now -and $now.CreationDate -eq $saved.CreationDate -and $now.CommandLine -ceq $saved.CommandLine) {
+        Stop-Process -Id $saved.ProcessId -Force
+    }
+}
+Get-NetTCPConnection -State Listen -LocalPort 8791,8792 -ErrorAction SilentlyContinue |
+    Select-Object LocalAddress,LocalPort,OwningProcess
+```
+
+成功確認：重新查三個入口沒有存活程序，8791／8792 沒有服務遺留 listener。任何外來 listener、無法辨識的孤兒或新程序都先停止流程並調查，不直接殺該 PID、不刪 PID 檔掩蓋問題。不要按 image name 結束全部 Python／cloudflared。
+
+**3. 啟動、Probe、再查唯一性，最後復原原先啟用的 watchdog。**
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $botRoot 'run_line_bot.ps1')
+if ($LASTEXITCODE -ne 0) { throw '啟動失敗。' }
+Start-Sleep -Seconds 5
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $botRoot 'run_line_bot.ps1') -Probe
+if ($LASTEXITCODE -ne 0) { throw 'Probe 非 0，事故尚未排除，保留 watchdog 停用。' }
+Get-CimInstance Win32_Process | Where-Object {
+    Test-RecoveryServiceProcess $_ $botRoot $approvedPythonImages
+} | Select-Object ProcessId,ParentProcessId,CreationDate,CommandLine
+Invoke-WebRequest 'http://127.0.0.1:8791/healthz' -UseBasicParsing
+if ($wasEnabled) { Enable-ScheduledTask -TaskName $watch.TaskName -TaskPath $watch.TaskPath | Out-Null }
+```
+
+成功確認：Probe exit `0`，三個入口各只有一棵已解釋的程序樹，healthz 的 PID 屬於 webhook 樹；不是只數 Windows 上所有 Python 程序。由總指揮核對當前 tunnel URL 與 LINE webhook 設定，經核准後做實機接收驗收；本線未發測試 LINE 訊息。重新開啟 watchdog 後再 Probe 一次，仍須 exit `0`。
+
+<div style="page-break-after: always;"></div>
+
+## B｜程式改壞：回退到已核准 tag
+
+**1. 先確認 tag 與目前版本，完成真實備份。** 指定 tag 不存在就停止，不自動建立或 fetch。
+
+```powershell
+git -C $liveRoot rev-parse HEAD
+git -C $liveRoot branch --show-current
+git -C $liveRoot rev-parse --verify 'refs/tags/sxj-live-2026-10-29^{commit}'
+if ($LASTEXITCODE -ne 0) { throw '沒有已核准 tag。' }
+$saved = & (Join-Path $ops 'backup-sxj-live.ps1') -Root $liveRoot -LocalStateRoot $localState -MdbPath $mdb -BackupRoot $backupRoot
+$null = Read-RecoveryManifest $saved.BackupDirectory
+$saved | Select-Object BackupDirectory,FileCount,Verified
+& (Join-Path $ops 'rollback-code.ps1') -Root $liveRoot -ToTag 'sxj-live-2026-10-29'
+```
+
+成功確認：`Verified=True` 且 MANIFEST 可完整讀驗；rollback 腳本僅輸出計畫，沒有執行 Git checkout 或啟停。A5 worktree 核實此 tag 指到 `4992668af2d36facb75aa493bded8a336145a31c`；正式操作仍以當下讀回與總指揮核准版本為準。A1 舊報告曾有尚未建 tag 的歷史，不拿舊紀錄覆蓋當下 ref。
+
+**2. 保護未提交工作，依 A 頁停乾淨，再 detach。** 先在事故紀錄保留「原 HEAD／原分支／哪幾個 watchdog 原本啟用」。工作區有 tracked 修改或 untracked 檔就停止，由總指揮先保存；腳本不 stash、commit、reset 或 clean。
+
+```powershell
+$dirty = @(git -C $liveRoot status --porcelain=v1 --untracked-files=all)
+if ($LASTEXITCODE -ne 0 -or $dirty.Count -gt 0) { throw '工作區不乾淨，先保存再回退。' }
+# 此處先完整執行 A 頁步驟 1–2，確認服務真的停乾淨。
+git -C $liveRoot checkout --detach --no-overwrite-ignore 'sxj-live-2026-10-29'
+if ($LASTEXITCODE -ne 0) { throw '回退失敗，不啟動服務。' }
+git -C $liveRoot rev-parse HEAD
+```
+
+成功確認：HEAD 等於核准 tag commit。`--no-overwrite-ignore` 可避免 checkout 靜默覆蓋與 tag 撞名的 ignored 檔；若被阻擋，由總指揮核對保留，不移除防護。secrets／data 的恢復另依 C 頁；程式回退不代表資料格式向後相容，先核對該版本讀寫的 schema。
+
+**3. 依 A 頁啟動與驗收。** Probe `0`、程序樹唯一、healthz 與 webhook 通路核對完成才結案。若仍故障，維持事故狀態；依記錄的原 HEAD 產生新的回退計畫，先確保工作樹乾淨再切回，不用 `reset --hard`。不要新增第二個活躍 worktree 執行同一現役服務，避免兩份 LINE／排程 writer。
+
+<div style="page-break-after: always;"></div>
+
+## C｜secrets／data 遺失：逐檔驗證後還原
+
+**1. 選定備份與類別，先驗全包，再預覽。** 請把 `$from` 改成事故前、總指揮核實的目錄，不自動挑最新（最新可能已含錯誤）。
+
+```powershell
+Get-ChildItem -LiteralPath $backupRoot -Directory | Select-Object Name,LastWriteTime
+$from = Join-Path $backupRoot '20261030-0330'  # 範例，必須換成存在且核准的備份
+$manifest = Read-RecoveryManifest $from
+$manifest.Files | Group-Object Category | Select-Object Name,Count
+& (Join-Path $ops 'restore-sxj-live.ps1') -From $from -Only secrets -Root $liveRoot -LocalStateRoot $localState -MdbPath $mdb -PreRestoreRoot $backupRoot -WhatIf
+```
+
+成功確認：全包 SHA-256／大小通過，類別數量合理，WhatIf 目的地正確且沒有新增 pre-restore。支援 `-Only secrets|data|state|tasks|mdb` 單一類別；省略則全還原。來源缺檔、SHA 不符、MANIFEST 不合法、內部 junction、目的地跳脫時一律 throw；透過 `powershell.exe -File` 執行會回非零。不要改 MANIFEST 來略過損壞。
+
+**2. 先依 A 頁停止相關 writer，再做還原。** data 類含發布／預約帳本；還原舊帳本可能造成重複發布或漏件，先由總指揮對帳，保持相應自動化停用。MDB 另先關閉使用它的 POS／writer。
+
+```powershell
+$restored = & (Join-Path $ops 'restore-sxj-live.ps1') -From $from -Only secrets -Root $liveRoot -LocalStateRoot $localState -MdbPath $mdb -PreRestoreRoot $backupRoot
+$restored | Select-Object RestoredCount,PreRestoreDirectory,Verified,TasksMode
+$pre = Read-RecoveryManifest $restored.PreRestoreDirectory
+$null = Read-RecoveryManifest $from
+# data/state/mdb 各自以同一命令替換 -Only；確認後才執行。
+```
+
+成功確認：回傳 `Verified=True`，每個目的檔複製後再核 SHA／大小；pre-restore 在首次覆寫前完整保存所有將被覆寫的既有檔／排程。當原目標全部不存在，pre 的 Files 可以是空陣列。重建的是備份所列檔案，不是整棵目錄鏡像，也不會刪除目標多出的檔案。
+
+**3. 需要回復覆寫前內容時，用同一 restore 指向 pre。**
+
+```powershell
+& (Join-Path $ops 'restore-sxj-live.ps1') -From $restored.PreRestoreDirectory -Only secrets -Root $liveRoot -LocalStateRoot $localState -MdbPath $mdb -PreRestoreRoot $backupRoot -WhatIf
+# 預覽核對通過後，去掉 -WhatIf 執行。
+Get-Content -LiteralPath (Join-Path $restored.PreRestoreDirectory 'ABSENT-BEFORE.json') -Raw -Encoding UTF8
+```
+
+成功確認：原先存在的檔可從 pre 再還原；這一步也有隔離實測。`ABSENT-BEFORE.json` 僅列出原先不存在的目的地，不會被當成刪除指令。新建檔／新排程不會自動撤回；若要移除，由總指揮另外核准精確路徑／TaskPath／TaskName，先核對其仍屬本次還原。空 pre 沒有既有檔可回復，restore 會明示中止。中途失敗也須保留 pre，先判斷已套用範圍，不把失敗稱為全量交易回復。
+
+還原完依 A 頁重啟與驗收。憑證若已撤銷、DPAPI 綁舊帳號或過期，檔案 SHA 相同仍需店主重新授權；本卡不驗讀真 token、不向 LINE／Meta／Google 發請求。
+
+<div style="page-break-after: always;"></div>
+
+## D｜整機重灌：從 Git＋備份重建
+
+**1. 重建磁碟、帳號與原路徑，先保持所有任務停用。** 先取得受保護離機備份、核准 Git remote／tag、獨立保存的媒體與軟體安裝資料。只剩同一顆 D: 的備份不能抵抗整碟毀損。安裝 Git／PowerShell／核准 Python 與 Node，對應套件依核准版本鎖檔安裝；本備份不含 venv，不能保證網路下載與套件安裝落在 30 分鐘內。
+
+```powershell
+# 對全新的空目錄執行；<approved-remote> 由總指揮填入，勿貼私密憑證。
+git clone --no-checkout <approved-remote> 'C:\Users\cyc39\Documents\New project 5'
+git -C 'C:\Users\cyc39\Documents\New project 5' checkout --detach --no-overwrite-ignore 'sxj-live-2026-10-29'
+if ($LASTEXITCODE -ne 0) { throw 'Git 重建失敗。' }
+# 只在不存在時建立 junction；若已存在就核對 LinkType/Target，不覆寫。
+New-Item -ItemType Junction -Path 'C:\Users\cyc39\laundry-repo' -Value 'C:\Users\cyc39\Documents\New project 5'
+Get-Item -LiteralPath $liveRoot | Select-Object FullName,LinkType,Target
+git -C $liveRoot rev-parse HEAD
+```
+
+成功確認：Git commit 與核准 tag 一致，junction 指到已核對的正式目錄，`D:\C-moved`／`D:\AI-Lanes-work` 存在。`line-bot/run_line_bot.ps1` 目前寫死 Python 為 `C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe`；須重建相容環境到該已核准位置，或另立修正卡更改 launcher；不要只裝系統 Python 就宣稱服務可跑。核對 cloudflared／POS 安裝及依賴，且不啟動服務。
+
+**2. 驗證備份，先還原檔案，最後才處理排程。** 選定 `$from` 後套用 C 頁的全包驗證及各類別命令；順序為 secrets → data → state → mdb，每步均要求 `Verified=True`。還原到同樣的絕對路徑，或使用 Root／LocalStateRoot／MdbPath 覆蓋；MDB 路徑不會隨 Root 自動改變。`TaskRestoreDirectory` 是離線 fixture 模式，正式回復排程時不要設定它。
+
+```powershell
+$null = Read-RecoveryManifest $from
+foreach ($category in @('secrets','data','state','mdb')) {
+    & (Join-Path $ops 'restore-sxj-live.ps1') -From $from -Only $category -Root $liveRoot -LocalStateRoot $localState -MdbPath $mdb -PreRestoreRoot $backupRoot
+}
+& (Join-Path $ops 'restore-sxj-live.ps1') -From $from -Only tasks -Root $liveRoot -LocalStateRoot $localState -MdbPath $mdb -PreRestoreRoot $backupRoot -WhatIf
+```
+
+成功確認：每類檔案 SHA／大小一致，唯讀核對後再決定 tasks 是否可用。XML 沒有排程密碼，原本機 SID／帳號在新機可能無法解析；腳本在任何覆寫前拒絕 Password／InteractiveOrPassword 或無法解析的 principal。店主須在受控介面重新設定帳號與登入權限；若修改 XML，先保留原包，建立一份受控的新備份並重算 MANIFEST，不能把未驗新包冒充原包。被備份的自動化可能在註冊時因 trigger 立即啟動，只有程式、憑證、帳本與所有依賴驗完才執行真正的 `-Only tasks`。新 TaskPath 由腳本建立；註冊後比較 Actions／Triggers／Principals／Settings，設定不同就報錯。Windows 正規化造成差異也先人工核對，不略過驗證。
+
+**3. 啟動依賴與服務，安排 03:30 備份，再驗實際產物。** 先按 A 頁驗收，再逐一核對需要的排程 Action 是否指向此正式目錄；XML 中所有程式路徑保持原值，不會替換成新 Root。只有三種前綴 `Laundry-*`、`AI-Daily-*`、`SXJ-*` 的任務在備份內；其他 Windows 設定另由總指揮重建。
+
+```powershell
+# 先預覽，實際註冊須由總指揮另行執行，A5 沒有執行。
+& (Join-Path $ops 'register-backup-task.ps1') -Root $liveRoot -LocalStateRoot $localState -MdbPath $mdb -BackupRoot $backupRoot -WhatIf
+# 複核後去掉 -WhatIf；預設 SYSTEM、每日 03:30，需提升權限且機器須可運作。
+Get-ScheduledTask -TaskName 'SXJ-Live-Daily-Backup' | Select-Object TaskName,TaskPath,State,Actions,Triggers,Principal
+Get-ScheduledTaskInfo -TaskName 'SXJ-Live-Daily-Backup' | Select-Object LastRunTime,LastTaskResult,NextRunTime
+# 隔日核對新目錄及 MANIFEST；LastTaskResult=0 本身不是備份成功的充分證據。
+$latest = Get-ChildItem -LiteralPath $backupRoot -Directory | Where-Object { $_.Name -match '^\d{8}-\d{4}(-[a-f0-9]{12})?$' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+$null = Read-RecoveryManifest $latest.FullName
+```
+
+成功確認：實際執行時間、Task Action／03:30 trigger／SYSTEM principal 正確，新備份檔與 MANIFEST 全驗通過；保留最近 14 份驗證完整備份，pre-restore 與不明目錄不自動清理。同一分鐘再次備份會加唯一尾碼，不覆蓋原份。若選 `-RunAs CurrentUser`，只有該使用者保持登入才能執行；預設 SYSTEM 不需存登入密碼，來源 LocalStateRoot 已在 Action 固定為註冊當下傳入路徑。電腦關機時 03:30 不會即時執行，StartWhenAvailable 會在可用時補跑；沒有承諾離線時間仍精準備份。
+
+Microsoft 依據：[Register-ScheduledTask 的 XML／TaskPath 介面](https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/register-scheduledtask?view=windowsserver2025-ps)；[SupportsShouldProcess 與 WhatIf](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_functions_cmdletbindingattribute?view=powershell-5.1)。`Register-ScheduledTask` 本身沒有 `-WhatIf`，本套腳本在外層 ShouldProcess 阻擋實際註冊；演練只使用 fake XML 與 mock provider。

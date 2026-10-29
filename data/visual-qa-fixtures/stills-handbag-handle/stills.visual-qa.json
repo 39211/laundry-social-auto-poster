@@ -2,21 +2,21 @@
   "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\handbag\\handbag-handle-before.png",
   "axes": {
     "OBJECT_IDENTITY": "FAIL",
-    "ACCESSORY_COLOR": "FAIL",
+    "ACCESSORY_COLOR": "PASS",
     "ORIENTATION": "FAIL",
-    "STATE_ORDER": "FAIL",
+    "STATE_ORDER": "PASS",
     "MIDDLE_NOT_WORSE": "FAIL",
     "HANDS": "PASS",
     "SCENE": "FAIL"
   },
   "evidence": {
-    "OBJECT_IDENTITY": "BEFORE and AFTER show a long gray pebbled bag with stitched teardrop handle bases, while MIDDLE shows a smaller tan structured bag with corner panels and metal handle rings.",
-    "ACCESSORY_COLOR": "Visible hardware changes from gray in BEFORE and AFTER to silver in MIDDLE.",
-    "ORIENTATION": "BEFORE and AFTER are three-quarter-right views, while MIDDLE is camera-on.",
-    "STATE_ORDER": "MIDDLE cannot establish in-progress treatment of the starting object because it shows a visibly different, more heavily mottled bag.",
-    "MIDDLE_NOT_WORSE": "MIDDLE is heavily mottled across the whole bag, exceeding the light soil declared for BEFORE.",
-    "HANDS": "MIDDLE shows two plausibly scaled hands using one brush without visible fusion or an extra hand.",
-    "SCENE": "BEFORE and AFTER use a metal counter with a clothing rack, while MIDDLE uses a pink mat and slat-wall bottle display."
+    "OBJECT_IDENTITY": "前後是灰褐色長提把寬包，中圖變成棕色短提把方包，另有金屬扣環及底角拼接。",
+    "ACCESSORY_COLOR": "三圖可見金屬拉鍊或扣環皆呈銀灰色。",
+    "ORIENTATION": "前後為斜側視角，中圖改為正面視角。",
+    "STATE_ORDER": "前圖提把有深色污痕，中圖有雙手、刷具與局部淺色處理區，後圖提把較均勻且未比前圖差。",
+    "MIDDLE_NOT_WORSE": "中圖包身有更廣泛的斑駁與暗斑，整體髒污重於前圖，提把局部淺色區不足以抵銷。",
+    "HANDS": "中圖兩手尺度合理，可見手指結構自然，未見融合或第三隻手。",
+    "SCENE": "前後是淺色檯面、吊掛衣物與金屬架，中圖改為粉紅切割墊及瓶罐板牆。"
   },
   "frames_used": [
     "before.png",
@@ -28,40 +28,40 @@
       "name": "before.png",
       "act": "before",
       "t": 0,
-      "canary": "X9ZG",
-      "sha256": "b2d2fa116567b67ab8ca5500cbca98bb97c1306da6c4aa86bcdfdd6bd47c9265"
+      "canary": "VYNG",
+      "sha256": "ff1a7a385f96b87cc8fa01b0218c175ad300856d00427d5441abf8a23d850dfc"
     },
     {
       "name": "middle.png",
       "act": "middle",
       "t": 0,
-      "canary": "RHZA",
-      "sha256": "c6f3b7224e76375e3416a6990cd232cfaf710d6aed57edb2a3eb038291ecded8"
+      "canary": "4BV5",
+      "sha256": "e8f996f26596ba13609a4187c4ddbb537b73cc60b3fc041f0d6669cde96e4809"
     },
     {
       "name": "after.png",
       "act": "after",
       "t": 0,
-      "canary": "ZANQ",
-      "sha256": "c902d4eae93c2e2576c89ccd9285809b8803a807f1bf22aed7e0e1f37cda3151"
+      "canary": "JCXF",
+      "sha256": "6791971e925be9c4ecf452fd611e3391b1f2e00278f9bfae20f667f78896cc94"
     }
   ],
   "canaries_expected": {
-    "IMAGE_1": "X9ZG",
-    "IMAGE_2": "RHZA",
-    "IMAGE_3": "ZANQ"
+    "IMAGE_1": "VYNG",
+    "IMAGE_2": "4BV5",
+    "IMAGE_3": "JCXF"
   },
   "canaries_reported": {
-    "IMAGE_1": "X9ZG",
-    "IMAGE_2": "RHZA",
-    "IMAGE_3": "ZANQ"
+    "IMAGE_1": "VYNG",
+    "IMAGE_2": "4BV5",
+    "IMAGE_3": "JCXF"
   },
   "reel_sha256": "04ac35a9166e942cc0500df3ccc4f622320b65e0896ae03c5a798e00a303aec9",
   "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
-  "run_id": "eeac72356be04ba8beef7c4e4838d8c5",
+  "run_id": "baf13469568346e789ef3d9c140711e3",
   "model": "codex-exec-read-only",
   "reviewed_by": "codex-visual-qa",
-  "reviewed_at": "2026-08-22T06:07:48.005Z",
+  "reviewed_at": "2026-09-30T06:01:39.912Z",
   "stills_missing": [],
   "mode": "warn",
   "verdict": "FAIL",

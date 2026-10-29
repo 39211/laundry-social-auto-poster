@@ -510,7 +510,9 @@
     "date": "2026-09-19",
     "noon": {
       "conceptId": "backpack-base",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "sweater-underarm",
@@ -521,19 +523,25 @@
   {
     "date": "2026-09-20",
     "noon": {
-      "conceptId": "hiking-boot-mud",
-      "variant": "10s"
+      "conceptId": "luggage-wheel",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "leather-belt-crease",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     }
   },
   {
     "date": "2026-09-21",
     "noon": {
-      "conceptId": "curtain-hem",
-      "variant": "10s"
+      "conceptId": "shirt-collar",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "handbag-handle",
@@ -544,19 +552,25 @@
   {
     "date": "2026-09-22",
     "noon": {
-      "conceptId": "plush-doll",
-      "variant": "10s"
+      "conceptId": "canvas-shoe-mud",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "wallet-edge-wear",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     }
   },
   {
     "date": "2026-09-23",
     "noon": {
-      "conceptId": "canvas-shoe-mud",
-      "variant": "10s"
+      "conceptId": "handbag-handle",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "canvas-shoe-mud",
@@ -567,19 +581,25 @@
   {
     "date": "2026-09-24",
     "noon": {
-      "conceptId": "shirt-collar",
-      "variant": "10s"
+      "conceptId": "curtain-hem",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "blanket-pilling",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     }
   },
   {
     "date": "2026-09-25",
     "noon": {
-      "conceptId": "luggage-wheel",
-      "variant": "10s"
+      "conceptId": "sweater-underarm",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "backpack-base",
@@ -591,7 +611,9 @@
     "date": "2026-09-26",
     "noon": {
       "conceptId": "leather-shoe-rain",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "curtain-hem",
@@ -602,19 +624,25 @@
   {
     "date": "2026-09-27",
     "noon": {
-      "conceptId": "leather-bag-corner",
-      "variant": "10s"
+      "conceptId": "denim-knee-fade",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "duvet-storage",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     }
   },
   {
     "date": "2026-09-28",
     "noon": {
-      "conceptId": "wool-coat-shoulder",
-      "variant": "10s"
+      "conceptId": "mattress-pad-sweat",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "leather-shoe-rain",
@@ -625,19 +653,25 @@
   {
     "date": "2026-09-29",
     "noon": {
-      "conceptId": "white-shoe-yellowing",
-      "variant": "10s"
+      "conceptId": "boot-mould-bloom",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "backpack-base",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     }
   },
   {
     "date": "2026-09-30",
     "noon": {
       "conceptId": "leather-belt-crease",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "shirt-collar",
@@ -648,12 +682,16 @@
   {
     "date": "2026-10-01",
     "noon": {
-      "conceptId": "mattress-pad-sweat",
-      "variant": "10s"
+      "conceptId": "heel-tip-scuff",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "plush-doll",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     }
   },
   {
@@ -664,15 +702,19 @@
       "paused": true
     },
     "noon": {
-      "conceptId": "white-shoe-rescue",
-      "variant": "10s"
+      "conceptId": "shirt-collar",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     }
   },
   {
     "date": "2026-10-03",
     "noon": {
-      "conceptId": "denim-knee-fade",
-      "variant": "10s"
+      "conceptId": "canvas-shoe-mud",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "wool-coat-shoulder",
@@ -684,7 +726,9 @@
     "date": "2026-10-04",
     "noon": {
       "conceptId": "wallet-edge-wear",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "white-shoe-rescue",
@@ -695,8 +739,10 @@
   {
     "date": "2026-10-05",
     "noon": {
-      "conceptId": "kids-shoe-toe",
-      "variant": "10s"
+      "conceptId": "suit-shoulder",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "heel-tip-scuff",
@@ -707,8 +753,10 @@
   {
     "date": "2026-10-06",
     "noon": {
-      "conceptId": "sweater-underarm",
-      "variant": "10s"
+      "conceptId": "leather-shoe-rain",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "leather-belt-crease",
@@ -719,8 +767,10 @@
   {
     "date": "2026-10-07",
     "noon": {
-      "conceptId": "duvet-storage",
-      "variant": "10s"
+      "conceptId": "denim-knee-fade",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "mattress-pad-sweat",
@@ -731,8 +781,10 @@
   {
     "date": "2026-10-08",
     "noon": {
-      "conceptId": "hiking-boot-mud",
-      "variant": "10s"
+      "conceptId": "curtain-hem",
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "blanket-pilling",
@@ -744,7 +796,9 @@
     "date": "2026-10-09",
     "noon": {
       "conceptId": "down-jacket-cuff",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "denim-knee-fade",
@@ -756,7 +810,9 @@
     "date": "2026-10-10",
     "noon": {
       "conceptId": "handbag-handle",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "wallet-edge-wear",
@@ -768,7 +824,9 @@
     "date": "2026-10-11",
     "noon": {
       "conceptId": "canvas-shoe-mud",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "kids-shoe-toe",
@@ -780,7 +838,9 @@
     "date": "2026-10-12",
     "noon": {
       "conceptId": "suit-shoulder",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "hiking-boot-mud",
@@ -792,7 +852,9 @@
     "date": "2026-10-13",
     "noon": {
       "conceptId": "backpack-base",
-      "variant": "10s"
+      "variant": "10s",
+      "paused": true,
+      "paused_reason": "owner 2026-09-18: library reels retired"
     },
     "evening": {
       "conceptId": "sweater-underarm",

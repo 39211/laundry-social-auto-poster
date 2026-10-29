@@ -1,0 +1,29 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\canvas-shoe\\canvas-shoe-mud-before.png",
+  "reel_sha256": "bf388baaa1b0c1f4c588cfc60ba90cab4734574e504860a9ade9f2f0f54b9468",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "KMC3",
+      "sha256": "cb073af4b51f20c09b3b6d6b56801333dd9223692238b46ce76bd63b318f6547"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "LMEM",
+      "sha256": "707ac0d03b61bafb0417dc42d048b1f282a93c873c4bd7141096f405c8b083cf"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "6WD7",
+      "sha256": "13179ee7b3e7b3a2eec731ede547bd9151f68af635bec03f5e59275917f5efef"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\kids-shoe\\kids-shoe-toe-before.png",
+  "reel": "C:/Users/cyc39/Documents/New project 5/data/reference-photos/kids-shoe/kids-shoe-toe-before.png",
   "axes": {
     "OBJECT_IDENTITY": "PASS",
     "ACCESSORY_COLOR": "PASS",
@@ -10,13 +10,13 @@
     "SCENE": "PASS"
   },
   "evidence": {
-    "OBJECT_IDENTITY": "The same white three-strap children's shoe, shell toe, side perforations, and sole outline appear in all acts.",
-    "ACCESSORY_COLOR": "No laces or hardware are visible in any frame.",
-    "ORIENTATION": "The shoe remains toe-left in all frames.",
-    "STATE_ORDER": "The moderately soiled shoe is brushed in the middle frame and appears clean in the after frame.",
-    "MIDDLE_NOT_WORSE": "The middle-frame shoe is no more heavily soiled than the before frame.",
-    "HANDS": "The visible hands have plausible scale and five distinct fingers.",
-    "SCENE": "All frames use the same pink mat and slat-wall counter setting."
+    "OBJECT_IDENTITY": "三張皆為同一外形的單隻白色童鞋，三條黏扣帶、貝殼紋鞋頭、側面孔洞與縫線位置一致。",
+    "ACCESSORY_COLOR": "三張皆未見鞋帶繩或獨立扣件，白色黏扣帶也保持同色，沒有可見的配件換色。",
+    "ORIENTATION": "三張鞋頭皆朝畫面左側，維持相同的斜側視角，沒有翻面或改成正面、俯視。",
+    "STATE_ORDER": "前段鞋頭溝紋有灰污，中段一手持刷接觸鞋頭、一手固定鞋身且鞋頭局部較白，後段托鞋展示時整體灰污減少。",
+    "MIDDLE_NOT_WORSE": "中段仍有鞋頭灰污，但鞋面與鞋底未呈現比前段更重的整體髒污、暗化或斑駁。",
+    "HANDS": "中段握刷與扶鞋、後段托鞋的手部比例和姿勢合理，可見手指未見融合、多指或第三隻手，部分手指被工具或鞋身遮住。",
+    "SCENE": "三張皆保留粉紅格線工作墊、灰白槽板牆與後方瓶罐陳列，場景連續一致。"
   },
   "frames_used": [
     "before.png",
@@ -28,40 +28,40 @@
       "name": "before.png",
       "act": "before",
       "t": 0,
-      "canary": "M7JW",
-      "sha256": "e530f7242ab8335b1d562bb3540f362b485c27b53f2b95e5d5d93d42aa025931"
+      "canary": "2PVS",
+      "sha256": "60863cad11a2d818330bf9d4cb67bfdd7e27c7090ac5ce548035f55e10cec030"
     },
     {
       "name": "middle.png",
       "act": "middle",
       "t": 0,
-      "canary": "N7TA",
-      "sha256": "735fbc2c253a6668a9041548cc54b693330ab48b2da3cd814e9d907173886de1"
+      "canary": "G6ZU",
+      "sha256": "2fffc166badc61feeb199f51084f68c4dbf750d60a06e04e68975b516c16aa28"
     },
     {
       "name": "after.png",
       "act": "after",
       "t": 0,
-      "canary": "T2JB",
-      "sha256": "84a4c9608a16299d13b1e8bedeb60afbcd1b48c0f2d89595c3a21f49bd6c95d5"
+      "canary": "Z8DQ",
+      "sha256": "5ce00a5700edfec658643ed5319788cb9712fad53e861ff3cd8190e868ba3a6c"
     }
   ],
   "canaries_expected": {
-    "IMAGE_1": "M7JW",
-    "IMAGE_2": "N7TA",
-    "IMAGE_3": "T2JB"
+    "IMAGE_1": "2PVS",
+    "IMAGE_2": "G6ZU",
+    "IMAGE_3": "Z8DQ"
   },
   "canaries_reported": {
-    "IMAGE_1": "M7JW",
-    "IMAGE_2": "N7TA",
-    "IMAGE_3": "T2JB"
+    "IMAGE_1": "2PVS",
+    "IMAGE_2": "G6ZU",
+    "IMAGE_3": "Z8DQ"
   },
   "reel_sha256": "949e5df2b7e3c908f175fd710774e21bf32a578306e2bf47065da214e30fe343",
   "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
-  "run_id": "6f31e1c74e3645d6b369f8403dfae893",
+  "run_id": "193b7c9e815e43a08931ffaa907f6e4c",
   "model": "codex-exec-read-only",
   "reviewed_by": "codex-visual-qa",
-  "reviewed_at": "2026-08-23T11:42:03.556Z",
+  "reviewed_at": "2026-10-06T06:01:29.288Z",
   "stills_missing": [],
   "mode": "warn",
   "verdict": "PASS",

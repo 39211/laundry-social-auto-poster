@@ -1,0 +1,69 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\backpack\\backpack-base-before.png",
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "PASS",
+    "STATE_ORDER": "FAIL",
+    "MIDDLE_NOT_WORSE": "PASS",
+    "HANDS": "PASS",
+    "SCENE": "FAIL"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "三格為同一灰色背包，輪廓、布料、配件與單件數量一致。",
+    "ACCESSORY_COLOR": "三格均無可見鞋帶，五金與扣件維持黑色。",
+    "ORIENTATION": "三格皆以同一底面朝向鏡頭，MIDDLE 僅較近裁切。",
+    "STATE_ORDER": "BEFORE 有重度髒污，MIDDLE 有刷具與局部刷痕但看不到手，未完整證明進行中狀態；AFTER 乾淨。",
+    "MIDDLE_NOT_WORSE": "MIDDLE 與 BEFORE 均為 HEAVY，沒有比 BEFORE 更重。",
+    "HANDS": "三格都沒有可見手指，沒有融合或第三隻手。",
+    "SCENE": "BEFORE 與 AFTER 是同一桌面及掛衣牆；MIDDLE 改為門口、淺色工作面與藍色籃架。"
+  },
+  "frames_used": [
+    "before.png",
+    "middle.png",
+    "after.png"
+  ],
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "XX9M",
+      "sha256": "225e579d62f98398c1335c99ca257ca11932c5d20c80ff6fc596e20ac8612612"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "GGY5",
+      "sha256": "41bfd2ace04cc70629c7149997b62c0bad46d30974a6b14a5949b0d2e0986e75"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "MX6M",
+      "sha256": "21c0f4b44c2f5ed3fbdd301f16417a9c43b3e1f4ff483893d8a9bfcb4c074784"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "XX9M",
+    "IMAGE_2": "GGY5",
+    "IMAGE_3": "MX6M"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "XX9M",
+    "IMAGE_2": "GGY5",
+    "IMAGE_3": "MX6M"
+  },
+  "reel_sha256": "30efbaa82f4027b2a546015a1c1529e9a4e405c93604b40eee8a89681d14dd11",
+  "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
+  "run_id": "c6cb928052cb424eb609292bb8fa10f4",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-09-22T06:03:14.549Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "FAIL",
+  "fail_class": "content"
+}

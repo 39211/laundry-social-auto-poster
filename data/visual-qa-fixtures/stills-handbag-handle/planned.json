@@ -3,18 +3,18 @@
         "name":  "before",
         "act":  "before",
         "t":  0,
-        "canary":  "X9ZG"
+        "canary":  "VYNG"
     },
     {
         "name":  "middle",
         "act":  "middle",
         "t":  0,
-        "canary":  "RHZA"
+        "canary":  "4BV5"
     },
     {
         "name":  "after",
         "act":  "after",
         "t":  0,
-        "canary":  "ZANQ"
+        "canary":  "JCXF"
     }
 ]

@@ -1,0 +1,69 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\canvas-shoe\\canvas-shoe-mud-before.png",
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "PASS",
+    "STATE_ORDER": "PASS",
+    "MIDDLE_NOT_WORSE": "PASS",
+    "HANDS": "PASS",
+    "SCENE": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "三幕皆為一雙米 beige 色低筒帆布鞋，橡膠鞋頭、鞋身縫線、銀色鞋眼與前後排列一致。",
+    "ACCESSORY_COLOR": "三幕鞋帶均為 TAN、鞋眼均為 SILVER，清潔後未見配件換色。",
+    "ORIENTATION": "三幕鞋頭均朝畫面左側，保持相同三分之四側視方向。",
+    "STATE_ORDER": "BEFORE 有大片泥斑；MIDDLE 雙手固定鞋身並以刷具接觸泥斑，接觸附近有局部淡化及檯面落泥；AFTER 泥斑消失。",
+    "MIDDLE_NOT_WORSE": "MIDDLE 與 BEFORE 整體均為 HEAVY，未見整雙鞋增加更廣或更深的髒污。",
+    "HANDS": "MIDDLE 可見兩手，持鞋與握刷比例合理，可見手指無融合或多指跡象，部分手指受握姿遮擋。",
+    "SCENE": "三幕皆為黑色檯面、金屬前緣，背景磁磚地板與衣物收納架一致。"
+  },
+  "frames_used": [
+    "before.png",
+    "middle.png",
+    "after.png"
+  ],
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "KMC3",
+      "sha256": "cb073af4b51f20c09b3b6d6b56801333dd9223692238b46ce76bd63b318f6547"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "LMEM",
+      "sha256": "707ac0d03b61bafb0417dc42d048b1f282a93c873c4bd7141096f405c8b083cf"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "6WD7",
+      "sha256": "13179ee7b3e7b3a2eec731ede547bd9151f68af635bec03f5e59275917f5efef"
+    }
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "KMC3",
+    "IMAGE_2": "LMEM",
+    "IMAGE_3": "6WD7"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "KMC3",
+    "IMAGE_2": "LMEM",
+    "IMAGE_3": "6WD7"
+  },
+  "reel_sha256": "bf388baaa1b0c1f4c588cfc60ba90cab4734574e504860a9ade9f2f0f54b9468",
+  "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
+  "run_id": "511d6012549f46a0a9537b0d8e317fa6",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-09-20T06:02:31.890Z",
+  "stills_missing": [],
+  "mode": "warn",
+  "verdict": "PASS",
+  "fail_class": null
+}

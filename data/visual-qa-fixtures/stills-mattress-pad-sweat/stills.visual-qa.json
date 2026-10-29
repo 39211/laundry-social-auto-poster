@@ -1,5 +1,5 @@
 {
-  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\mattress-pad\\mattress-pad-sweat-before.png",
+  "reel": "C:/Users/cyc39/Documents/New project 5/data/reference-photos/mattress-pad/mattress-pad-sweat-before.png",
   "axes": {
     "OBJECT_IDENTITY": "FAIL",
     "ACCESSORY_COLOR": "PASS",
@@ -10,13 +10,13 @@
     "SCENE": "PASS"
   },
   "evidence": {
-    "OBJECT_IDENTITY": "Before and after show a white grid-quilted pad, while middle shows a beige curved-quilted pad with mesh sides.",
-    "ACCESSORY_COLOR": "No laces or hardware are visible in any frame.",
-    "ORIENTATION": "All frames use the same general orientation family.",
-    "STATE_ORDER": "Before is lightly soiled, middle shows tool-assisted cleaning, and after is clean.",
-    "MIDDLE_NOT_WORSE": "The middle object is globally heavily soiled compared with the lightly soiled before object.",
-    "HANDS": "Visible hands have plausible scale and finger separation.",
-    "SCENE": "All frames show the same pink mat and slat-wall counter setting."
+    "OBJECT_IDENTITY": "前後是薄型、長方形方格絎縫墊，中段卻是較厚、弧線絎縫且有灰色網布側邊的墊子，結構不一致。",
+    "ACCESSORY_COLOR": "三張物件均無可見鞋帶或五金配件，沒有配件顏色變化。",
+    "ORIENTATION": "三張均從上方向下觀看墊面，未見朝向翻轉或觀看方向類別改變。",
+    "STATE_ORDER": "前段有淡黃色污痕，中段有雙手、抽洗工具及局部較淺的處理區域，後段整體較潔白且未比前段髒。",
+    "MIDDLE_NOT_WORSE": "中段大面積深褐色斑駁明顯重於前段的淡黃色污痕，工具旁的局部淺色區域不能抵消整體變髒。",
+    "HANDS": "中段與後段各有兩隻手，可見手指的形狀、關節及比例合理，未見融合或多餘手指。",
+    "SCENE": "三張均有粉紅格線墊、淺色櫃檯及後方槽板牆與瓶罐層架，場景一致。"
   },
   "frames_used": [
     "before.png",
@@ -28,40 +28,40 @@
       "name": "before.png",
       "act": "before",
       "t": 0,
-      "canary": "88X2",
-      "sha256": "6e685facc9d475220c378d9713483620b3e585c68791560e421c39cf7994ab38"
+      "canary": "TBE3",
+      "sha256": "ce550703d8b09b4a314ad93e85a3c8012828e9c61e1b5e18c32242cfe01493f2"
     },
     {
       "name": "middle.png",
       "act": "middle",
       "t": 0,
-      "canary": "R78U",
-      "sha256": "cf1761d52b50902948fc23ffd295073b39656e589d3a3526bf020bd1ab4dba8c"
+      "canary": "UQD9",
+      "sha256": "173c6d6bdacc93588fab9c37c395db8203e31d8065e5d7ec0122200b300026e2"
     },
     {
       "name": "after.png",
       "act": "after",
       "t": 0,
-      "canary": "P8AL",
-      "sha256": "538ecb3b10699eccf1b1a27fb337fd5ca4877b9ba990e50f3af5899cd41a44b8"
+      "canary": "9PP4",
+      "sha256": "51890343a7a788cea43c4da74861379e77a61e4addd10942fab0c9790b9756ae"
     }
   ],
   "canaries_expected": {
-    "IMAGE_1": "88X2",
-    "IMAGE_2": "R78U",
-    "IMAGE_3": "P8AL"
+    "IMAGE_1": "TBE3",
+    "IMAGE_2": "UQD9",
+    "IMAGE_3": "9PP4"
   },
   "canaries_reported": {
-    "IMAGE_1": "88X2",
-    "IMAGE_2": "R78U",
-    "IMAGE_3": "P8AL"
+    "IMAGE_1": "TBE3",
+    "IMAGE_2": "UQD9",
+    "IMAGE_3": "9PP4"
   },
   "reel_sha256": "f6112d5c3d2d11c83e35b85a7a5d81061af9aabdbff7117982808cf56a9433b3",
   "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
-  "run_id": "f9909e438f6347f39e3e48355f6e54b0",
+  "run_id": "bb5ca1fb3ae24d188c64af580ebdb122",
   "model": "codex-exec-read-only",
   "reviewed_by": "codex-visual-qa",
-  "reviewed_at": "2026-08-18T06:06:44.370Z",
+  "reviewed_at": "2026-10-04T06:01:49.586Z",
   "stills_missing": [],
   "mode": "warn",
   "verdict": "FAIL",

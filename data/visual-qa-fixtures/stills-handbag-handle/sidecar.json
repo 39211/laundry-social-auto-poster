@@ -8,22 +8,22 @@
       "name": "before.png",
       "act": "before",
       "t": 0,
-      "canary": "X9ZG",
-      "sha256": "b2d2fa116567b67ab8ca5500cbca98bb97c1306da6c4aa86bcdfdd6bd47c9265"
+      "canary": "VYNG",
+      "sha256": "ff1a7a385f96b87cc8fa01b0218c175ad300856d00427d5441abf8a23d850dfc"
     },
     {
       "name": "middle.png",
       "act": "middle",
       "t": 0,
-      "canary": "RHZA",
-      "sha256": "c6f3b7224e76375e3416a6990cd232cfaf710d6aed57edb2a3eb038291ecded8"
+      "canary": "4BV5",
+      "sha256": "e8f996f26596ba13609a4187c4ddbb537b73cc60b3fc041f0d6669cde96e4809"
     },
     {
       "name": "after.png",
       "act": "after",
       "t": 0,
-      "canary": "ZANQ",
-      "sha256": "c902d4eae93c2e2576c89ccd9285809b8803a807f1bf22aed7e0e1f37cda3151"
+      "canary": "JCXF",
+      "sha256": "6791971e925be9c4ecf452fd611e3391b1f2e00278f9bfae20f667f78896cc94"
     }
   ]
 }

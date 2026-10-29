@@ -1,7 +1,7 @@
 <<<OBSERVE_BEGIN>>>
-IMAGE_1 canary=97VJ
-IMAGE_2 canary=XWXF
-IMAGE_3 canary=XSPQ
+IMAGE_1 canary=QA4D
+IMAGE_2 canary=87PU
+IMAGE_3 canary=T9SM
 OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=NONE facing=TQ_LEFT soil=LIGHT hands=NONE scene=PINK_MAT_SLAT_WALL
 OBS_2 role=MIDDLE act=middle laces_color=NONE hardware_color=NONE facing=TQ_LEFT soil=LIGHT hands=OK scene=PINK_MAT_SLAT_WALL
 OBS_3 role=AFTER act=after laces_color=NONE hardware_color=NONE facing=TQ_LEFT soil=LIGHT hands=OK scene=PINK_MAT_SLAT_WALL
@@ -10,5 +10,5 @@ COMPARE ORIENTATION identity_flip=NO
 COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO
 <<<OBSERVE_END>>>
 <<<VISUAL_QA_BEGIN>>>
-{"reel":"stills-heel-tip-scuff","verdict":"FAIL","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"FAIL","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"三幕皆為單隻黑色高跟鞋，鞋口、米色內裡、鞋跟輪廓及底緣磨損位置一致。","ACCESSORY_COLOR":"三幕均無可見鞋帶或金屬配件，沒有配件變色。","ORIENTATION":"三幕鞋尖皆朝左，維持同側斜視角度。","STATE_ORDER":"中段有手與刷具，但鞋跟底緣未見明確局部改善，末幕仍保留明顯米色磨損，未呈現修復完成。","MIDDLE_NOT_WORSE":"中段整體髒污與斑駁程度和前幕相近，未見全鞋加重。","HANDS":"可見手部比例與姿勢合理，部分手指受遮擋，未見融合、額外手指或第三隻手。","SCENE":"三幕皆為粉紅格線墊、白色槽板牆與瓶罐架背景。"},"frames_used":["before.png","middle.png","after.png"]}
+{"reel":"stills-heel-tip-scuff","verdict":"FAIL","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"FAIL","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"三張均為單隻黑色高跟鞋，米褐色內裡、鞋口輪廓及鞋跟形狀一致。","ACCESSORY_COLOR":"三張均無可見鞋帶或金屬配件，沒有配件顏色變更。","ORIENTATION":"三張鞋頭均朝左，呈現相同側面方向。","STATE_ORDER":"MIDDLE 有手與刷具，但未見明確局部修復進展；AFTER 鞋跟底端仍保留明顯淺色磨損，完工狀態未成立。","MIDDLE_NOT_WORSE":"MIDDLE 整體污損程度與 BEFORE 相近，未見全鞋加重髒污或斑駁。","HANDS":"MIDDLE 與 AFTER 的可見手部比例及遮擋合理，未見手指融合、多餘手指或第三隻手。","SCENE":"三張均為粉紅格線工作墊、淺色橫槽牆與瓶罐架。"},"frames_used":["before.png","middle.png","after.png"]}
 <<<VISUAL_QA_END>>>

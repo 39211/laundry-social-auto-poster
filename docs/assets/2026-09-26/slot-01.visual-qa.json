@@ -1,0 +1,77 @@
+{
+  "topic": "皮鞋淋雨後先別只擦乾：先看縫線與內裡潮痕",
+  "date": "2026-09-26",
+  "slot": 1,
+  "axes": {
+    "OBJECT_IDENTITY": "PASS",
+    "SCENE": "PASS",
+    "TOPIC_MATCH": "PASS"
+  },
+  "evidence": {
+    "OBJECT_IDENTITY": "四張皆為同一雙棕色皮革鞋，鞋面皺褶、鞋帶與內裡深色潮痕一致。",
+    "SCENE": "四張皆在同一金屬檯面與水槽旁拍攝。",
+    "TOPIC_MATCH": "畫面主體為皮鞋，且清楚呈現鞋內裡的深色潮痕。"
+  },
+  "frames_used": [
+    "slide-01.png",
+    "slide-02.png",
+    "slide-03.png",
+    "slide-04.png"
+  ],
+  "slides": [
+    {
+      "name": "slide-01.png",
+      "slide": 1,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-26\\slot-01.png",
+      "canary": "92BY",
+      "sha256": "54713a8ac975535ee68ea556883b82e891ad2d33d995e3f4ef61b9488f9d7d9b"
+    },
+    {
+      "name": "slide-02.png",
+      "slide": 2,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-26\\slot-01-slide-02.png",
+      "canary": "KFQB",
+      "sha256": "5eafa9fa82464a2a423e51b666cf6633090aa0eced930d524d7c3612086bf55e"
+    },
+    {
+      "name": "slide-03.png",
+      "slide": 3,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-26\\slot-01-slide-03.png",
+      "canary": "B8XW",
+      "sha256": "184ef4fa72c5ab865bc2da6eeb4f54ba926614380cf4cc080c322e4ea459c329"
+    },
+    {
+      "name": "slide-04.png",
+      "slide": 4,
+      "source": "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-26\\slot-01-slide-04.png",
+      "canary": "RSJU",
+      "sha256": "6e09fe5512a790c57c8f7a9ffb3226a731a82e032e75ac8a384965906376d02a"
+    }
+  ],
+  "sources": [
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-26\\slot-01.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-26\\slot-01-slide-02.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-26\\slot-01-slide-03.png",
+    "C:\\Users\\cyc39\\Documents\\New project 5\\docs\\assets\\2026-09-26\\slot-01-slide-04.png"
+  ],
+  "canaries_expected": {
+    "IMAGE_1": "92BY",
+    "IMAGE_2": "KFQB",
+    "IMAGE_3": "B8XW",
+    "IMAGE_4": "RSJU"
+  },
+  "canaries_reported": {
+    "IMAGE_1": "92BY",
+    "IMAGE_2": "KFQB",
+    "IMAGE_3": "B8XW",
+    "IMAGE_4": "RSJU"
+  },
+  "prompt_hash": "3252f263509cb027299b116257e1aaf4ec04c864d3e33056fb861ba9eb0a11f0",
+  "run_id": "carousel-qa-1790116695461",
+  "model": "codex-exec-read-only",
+  "reviewed_by": "codex-visual-qa",
+  "reviewed_at": "2026-09-22T22:39:18.315Z",
+  "mode": "warn",
+  "verdict": "PASS",
+  "fail_class": null
+}

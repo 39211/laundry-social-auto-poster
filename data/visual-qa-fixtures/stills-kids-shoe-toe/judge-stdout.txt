@@ -1,14 +1,14 @@
 <<<OBSERVE_BEGIN>>>
-IMAGE_1 canary=M7JW
-IMAGE_2 canary=N7TA
-IMAGE_3 canary=T2JB
-OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=NONE facing=TQ_LEFT soil=MODERATE hands=NONE scene=OTHER
-OBS_2 role=MIDDLE act=middle laces_color=NONE hardware_color=NONE facing=TQ_LEFT soil=MODERATE hands=OK scene=OTHER
-OBS_3 role=AFTER act=after laces_color=NONE hardware_color=NONE facing=TQ_LEFT soil=CLEAN hands=OK scene=OTHER
+IMAGE_1 canary=2PVS
+IMAGE_2 canary=G6ZU
+IMAGE_3 canary=Z8DQ
+OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=NONE facing=TQ_LEFT soil=MODERATE hands=NONE scene=PINK_MAT_SLAT_WALL
+OBS_2 role=MIDDLE act=middle laces_color=NONE hardware_color=NONE facing=TQ_LEFT soil=MODERATE hands=OK scene=PINK_MAT_SLAT_WALL
+OBS_3 role=AFTER act=after laces_color=NONE hardware_color=NONE facing=TQ_LEFT soil=LIGHT hands=OK scene=PINK_MAT_SLAT_WALL
 COMPARE ACCESSORY_COLOR identity_change=NO
 COMPARE ORIENTATION identity_flip=NO
 COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO
 <<<OBSERVE_END>>>
 <<<VISUAL_QA_BEGIN>>>
-{"reel":"stills-kids-shoe-toe","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"The same white three-strap children's shoe, shell toe, side perforations, and sole outline appear in all acts.","ACCESSORY_COLOR":"No laces or hardware are visible in any frame.","ORIENTATION":"The shoe remains toe-left in all frames.","STATE_ORDER":"The moderately soiled shoe is brushed in the middle frame and appears clean in the after frame.","MIDDLE_NOT_WORSE":"The middle-frame shoe is no more heavily soiled than the before frame.","HANDS":"The visible hands have plausible scale and five distinct fingers.","SCENE":"All frames use the same pink mat and slat-wall counter setting."},"frames_used":["before.png","middle.png","after.png"]}
+{"reel":"stills-kids-shoe-toe","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"三張皆為同一外形的單隻白色童鞋，三條黏扣帶、貝殼紋鞋頭、側面孔洞與縫線位置一致。","ACCESSORY_COLOR":"三張皆未見鞋帶繩或獨立扣件，白色黏扣帶也保持同色，沒有可見的配件換色。","ORIENTATION":"三張鞋頭皆朝畫面左側，維持相同的斜側視角，沒有翻面或改成正面、俯視。","STATE_ORDER":"前段鞋頭溝紋有灰污，中段一手持刷接觸鞋頭、一手固定鞋身且鞋頭局部較白，後段托鞋展示時整體灰污減少。","MIDDLE_NOT_WORSE":"中段仍有鞋頭灰污，但鞋面與鞋底未呈現比前段更重的整體髒污、暗化或斑駁。","HANDS":"中段握刷與扶鞋、後段托鞋的手部比例和姿勢合理，可見手指未見融合、多指或第三隻手，部分手指被工具或鞋身遮住。","SCENE":"三張皆保留粉紅格線工作墊、灰白槽板牆與後方瓶罐陳列，場景連續一致。"},"frames_used":["before.png","middle.png","after.png"]}
 <<<VISUAL_QA_END>>>

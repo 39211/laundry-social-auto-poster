@@ -1,14 +1,14 @@
 <<<OBSERVE_BEGIN>>>
-IMAGE_1 canary=X9ZG
-IMAGE_2 canary=RHZA
-IMAGE_3 canary=ZANQ
-OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=GRAY facing=TQ_RIGHT soil=LIGHT hands=NONE scene=METAL_COUNTER_CLOTHING_RACK
-OBS_2 role=MIDDLE act=middle laces_color=NONE hardware_color=SILVER facing=CAMERA_ON soil=HEAVY hands=OK scene=PINK_MAT_SLAT_WALL
-OBS_3 role=AFTER act=after laces_color=NONE hardware_color=GRAY facing=TQ_RIGHT soil=CLEAN hands=NONE scene=METAL_COUNTER_CLOTHING_RACK
-COMPARE ACCESSORY_COLOR identity_change=YES
+IMAGE_1 canary=VYNG
+IMAGE_2 canary=4BV5
+IMAGE_3 canary=JCXF
+OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=SILVER facing=TQ_RIGHT soil=LIGHT hands=NONE scene=COUNTER_GARMENT_RACK
+OBS_2 role=MIDDLE act=middle laces_color=NONE hardware_color=SILVER facing=CAMERA_ON soil=MODERATE hands=OK scene=PINK_MAT_SLAT_WALL
+OBS_3 role=AFTER act=after laces_color=NONE hardware_color=SILVER facing=TQ_RIGHT soil=LIGHT hands=NONE scene=COUNTER_GARMENT_RACK
+COMPARE ACCESSORY_COLOR identity_change=NO
 COMPARE ORIENTATION identity_flip=YES
 COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=YES
 <<<OBSERVE_END>>>
 <<<VISUAL_QA_BEGIN>>>
-{"reel":"stills-handbag-handle","verdict":"FAIL","axes":{"OBJECT_IDENTITY":"FAIL","ACCESSORY_COLOR":"FAIL","ORIENTATION":"FAIL","STATE_ORDER":"FAIL","MIDDLE_NOT_WORSE":"FAIL","HANDS":"PASS","SCENE":"FAIL"},"evidence":{"OBJECT_IDENTITY":"BEFORE and AFTER show a long gray pebbled bag with stitched teardrop handle bases, while MIDDLE shows a smaller tan structured bag with corner panels and metal handle rings.","ACCESSORY_COLOR":"Visible hardware changes from gray in BEFORE and AFTER to silver in MIDDLE.","ORIENTATION":"BEFORE and AFTER are three-quarter-right views, while MIDDLE is camera-on.","STATE_ORDER":"MIDDLE cannot establish in-progress treatment of the starting object because it shows a visibly different, more heavily mottled bag.","MIDDLE_NOT_WORSE":"MIDDLE is heavily mottled across the whole bag, exceeding the light soil declared for BEFORE.","HANDS":"MIDDLE shows two plausibly scaled hands using one brush without visible fusion or an extra hand.","SCENE":"BEFORE and AFTER use a metal counter with a clothing rack, while MIDDLE uses a pink mat and slat-wall bottle display."},"frames_used":["before.png","middle.png","after.png"]}
+{"reel":"stills-handbag-handle","verdict":"FAIL","axes":{"OBJECT_IDENTITY":"FAIL","ACCESSORY_COLOR":"PASS","ORIENTATION":"FAIL","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"FAIL","HANDS":"PASS","SCENE":"FAIL"},"evidence":{"OBJECT_IDENTITY":"前後是灰褐色長提把寬包，中圖變成棕色短提把方包，另有金屬扣環及底角拼接。","ACCESSORY_COLOR":"三圖可見金屬拉鍊或扣環皆呈銀灰色。","ORIENTATION":"前後為斜側視角，中圖改為正面視角。","STATE_ORDER":"前圖提把有深色污痕，中圖有雙手、刷具與局部淺色處理區，後圖提把較均勻且未比前圖差。","MIDDLE_NOT_WORSE":"中圖包身有更廣泛的斑駁與暗斑，整體髒污重於前圖，提把局部淺色區不足以抵銷。","HANDS":"中圖兩手尺度合理，可見手指結構自然，未見融合或第三隻手。","SCENE":"前後是淺色檯面、吊掛衣物與金屬架，中圖改為粉紅切割墊及瓶罐板牆。"},"frames_used":["before.png","middle.png","after.png"]}
 <<<VISUAL_QA_END>>>

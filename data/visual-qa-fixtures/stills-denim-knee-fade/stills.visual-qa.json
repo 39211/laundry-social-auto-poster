@@ -1,22 +1,22 @@
 {
-  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\denim\\denim-knee-fade-before.png",
+  "reel": "C:/Users/cyc39/Documents/New project 5/data/reference-photos/denim/denim-knee-fade-before.png",
   "axes": {
     "OBJECT_IDENTITY": "PASS",
     "ACCESSORY_COLOR": "PASS",
     "ORIENTATION": "PASS",
     "STATE_ORDER": "PASS",
-    "MIDDLE_NOT_WORSE": "FAIL",
+    "MIDDLE_NOT_WORSE": "PASS",
     "HANDS": "PASS",
     "SCENE": "PASS"
   },
   "evidence": {
-    "OBJECT_IDENTITY": "All acts show the same single pair of dark-blue jeans with matching outline, seams, pockets, button, rivets, and fly.",
-    "ACCESSORY_COLOR": "The visible button and rivet hardware remains GOLD across all acts; no laces are present.",
-    "ORIENTATION": "The jeans remain in the same TOP_DOWN presentation across all acts.",
-    "STATE_ORDER": "The BEFORE shows untreated knee fading, the MIDDLE shows hands using a tool, and the AFTER is more even and not worse than the BEFORE.",
-    "MIDDLE_NOT_WORSE": "The MIDDLE has heavier whole-garment dark mottling than the MODERATE BEFORE, so the declared comparison requires failure.",
-    "HANDS": "The visible hands have plausible scale and anatomy without fused digits or an extra hand.",
-    "SCENE": "All acts retain the same pink mat, light counter, and slat-wall retail background."
+    "OBJECT_IDENTITY": "三張皆為一件深藍牛仔褲，前口袋、腰扣、皮帶環、褲管輪廓與布面細紋的位置一致。",
+    "ACCESSORY_COLOR": "三張均無綁帶，腰頭金屬扣均呈銀灰色，未見配件換色。",
+    "ORIENTATION": "三張皆從上方拍攝平放的褲子正面，腰頭朝畫面上方、褲腳朝下，沒有翻面或朝向反轉。",
+    "STATE_ORDER": "BEFORE 雙膝有明顯灰白區與皺摺，MIDDLE 可見雙手及金屬底工具接觸左膝附近且周邊部分布面較平整，AFTER 雙膝灰白區減少、整體更平整。",
+    "MIDDLE_NOT_WORSE": "MIDDLE 仍保留部分膝部灰白區，但整件褲子的斑駁程度未高於 BEFORE，沒有新增大範圍變暗或髒污。",
+    "HANDS": "MIDDLE 的兩手分別握工具與扶布，AFTER 的兩手分別握住褲邊，可見手指形態與比例合理，未見融合或第三隻手。",
+    "SCENE": "三張皆保留粉紅格線墊、白色工作檯及擺有瓶罐的橫槽牆背景。"
   },
   "frames_used": [
     "before.png",
@@ -28,42 +28,42 @@
       "name": "before.png",
       "act": "before",
       "t": 0,
-      "canary": "G6VJ",
-      "sha256": "4fb4be59696c21711ce65935beb888f2fe09ac4bece21dac04e6cb56a0fd6cb5"
+      "canary": "KMHZ",
+      "sha256": "a7f27d006cd7fbba80396b5373002964f191796f74e6c62996e925510f6ae977"
     },
     {
       "name": "middle.png",
       "act": "middle",
       "t": 0,
-      "canary": "VERV",
-      "sha256": "ea86cb3a301dbd528fe84b57ac3baf56695d72d4399862ac7dc860659d6040a2"
+      "canary": "TW7D",
+      "sha256": "1f65110f8ea530ca03bf729b6281bbb0a400adeb94c4d789eba0d78ef6520ad2"
     },
     {
       "name": "after.png",
       "act": "after",
       "t": 0,
-      "canary": "XQ6W",
-      "sha256": "084dceeffd0418f032568378b1a8ec384489a1d95b60a7481701f739a1955c66"
+      "canary": "GLQK",
+      "sha256": "97d139735e9e88de7d92639b02439ded0e76f3265d672146e66c3735a0e40624"
     }
   ],
   "canaries_expected": {
-    "IMAGE_1": "G6VJ",
-    "IMAGE_2": "VERV",
-    "IMAGE_3": "XQ6W"
+    "IMAGE_1": "KMHZ",
+    "IMAGE_2": "TW7D",
+    "IMAGE_3": "GLQK"
   },
   "canaries_reported": {
-    "IMAGE_1": "G6VJ",
-    "IMAGE_2": "VERV",
-    "IMAGE_3": "XQ6W"
+    "IMAGE_1": "KMHZ",
+    "IMAGE_2": "TW7D",
+    "IMAGE_3": "GLQK"
   },
   "reel_sha256": "3b220ac5a79803282690b70edba35da4a73bd9e3c7d973cf4c1a91e7d36dba82",
   "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
-  "run_id": "46512c34376943518da50edf5a7986d3",
+  "run_id": "46f615a79b104ccfaeb37be8d48cea29",
   "model": "codex-exec-read-only",
   "reviewed_by": "codex-visual-qa",
-  "reviewed_at": "2026-08-29T06:01:19.499Z",
+  "reviewed_at": "2026-10-05T06:02:06.549Z",
   "stills_missing": [],
   "mode": "warn",
-  "verdict": "FAIL",
-  "fail_class": "content"
+  "verdict": "PASS",
+  "fail_class": null
 }

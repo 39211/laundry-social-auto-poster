@@ -1,57 +1,69 @@
 {
   "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\wool-coat\\wool-coat-shoulder-before.png",
   "axes": {
-    "OBJECT_IDENTITY": "MISSING",
-    "ACCESSORY_COLOR": "MISSING",
-    "ORIENTATION": "MISSING",
-    "STATE_ORDER": "MISSING",
-    "MIDDLE_NOT_WORSE": "MISSING",
-    "HANDS": "MISSING",
-    "SCENE": "MISSING"
+    "OBJECT_IDENTITY": "PASS",
+    "ACCESSORY_COLOR": "PASS",
+    "ORIENTATION": "PASS",
+    "STATE_ORDER": "PASS",
+    "MIDDLE_NOT_WORSE": "PASS",
+    "HANDS": "PASS",
+    "SCENE": "PASS"
   },
-  "evidence": {},
-  "frames_used": [],
+  "evidence": {
+    "OBJECT_IDENTITY": "三張深灰外套的翻領、肩部輪廓與袖接縫一致。",
+    "ACCESSORY_COLOR": "三張均未見鞋帶或金屬配件，沒有可見配件變色。",
+    "ORIENTATION": "三張均由上方向下拍攝，衣領在左、肩袖在右，朝向一致。",
+    "STATE_ORDER": "起始肩線附近有灰白浮毛，中段雙手持刷整理且局部較深勻，完成時灰白區減少。",
+    "MIDDLE_NOT_WORSE": "中段整件外套未比起始增加髒污或斑駁，肩部仍有尚待整理的灰白區。",
+    "HANDS": "中段兩手握刷與扶衣的姿勢、可見手指結構及比例合理，未見融合或多餘手部。",
+    "SCENE": "三張皆保留粉紅裁切墊、白色槽板牆、玻璃層板與瓶罐背景。"
+  },
+  "frames_used": [
+    "before.png",
+    "middle.png",
+    "after.png"
+  ],
   "frames": [
     {
       "name": "before.png",
       "act": "before",
       "t": 0,
-      "canary": "NLJU",
-      "sha256": "60f04413486d38109beae97af67b4273eaba3c2f0236507dafe25fd07b16284c"
+      "canary": "MEH4",
+      "sha256": "cf9d4d04e13bedefbb1c6ea6dd68ae69c6bb9a7f2032bec0073e0673c4925338"
     },
     {
       "name": "middle.png",
       "act": "middle",
       "t": 0,
-      "canary": "HWQK",
-      "sha256": "82e5c4ffe39ef658d498902a0074232dee072712edc44debb826d5d39c2ef84d"
+      "canary": "Z8L3",
+      "sha256": "243bed1b63017e682a6adeb67f2124fa482e0a8f6af8656b76cdf383c1c5430e"
     },
     {
       "name": "after.png",
       "act": "after",
       "t": 0,
-      "canary": "UJ7A",
-      "sha256": "644533a891ca061101c5a25324042918cc7258e4dc23a8574d9e6cc88f8b4bcf"
+      "canary": "AKJM",
+      "sha256": "2773f5087d97ebf399e580e5a63f2bda524c8ffd618462181039a2d30ca6c5a6"
     }
   ],
   "canaries_expected": {
-    "IMAGE_1": "NLJU",
-    "IMAGE_2": "HWQK",
-    "IMAGE_3": "UJ7A"
+    "IMAGE_1": "MEH4",
+    "IMAGE_2": "Z8L3",
+    "IMAGE_3": "AKJM"
   },
   "canaries_reported": {
-    "IMAGE_1": "NLJU",
-    "IMAGE_2": "HWQK",
-    "IMAGE_3": "U77A"
+    "IMAGE_1": "MEH4",
+    "IMAGE_2": "Z8L3",
+    "IMAGE_3": "AKJM"
   },
   "reel_sha256": "818ab37a0b815315fb8d1269ce6f537e7a6cde4d26e0a58d4e9cede9bfda0d61",
   "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
-  "run_id": "cc42f1e1ad8f43299be01f30ac17ea75",
+  "run_id": "dfc607a5506f4c3f9b5aba31be778703",
   "model": "codex-exec-read-only",
   "reviewed_by": "codex-visual-qa",
-  "reviewed_at": "2026-09-03T06:05:22.263Z",
+  "reviewed_at": "2026-09-27T06:00:57.774Z",
   "stills_missing": [],
   "mode": "warn",
-  "verdict": "FAIL_CLOSED",
-  "fail_class": "judge_blind"
+  "verdict": "PASS",
+  "fail_class": null
 }

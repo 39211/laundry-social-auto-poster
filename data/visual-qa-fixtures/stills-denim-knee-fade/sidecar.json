@@ -1,5 +1,5 @@
 {
-  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\denim\\denim-knee-fade-before.png",
+  "reel": "C:/Users/cyc39/Documents/New project 5/data/reference-photos/denim/denim-knee-fade-before.png",
   "reel_sha256": "3b220ac5a79803282690b70edba35da4a73bd9e3c7d973cf4c1a91e7d36dba82",
   "treatment": "10s",
   "duration": 0,
@@ -8,22 +8,22 @@
       "name": "before.png",
       "act": "before",
       "t": 0,
-      "canary": "G6VJ",
-      "sha256": "4fb4be59696c21711ce65935beb888f2fe09ac4bece21dac04e6cb56a0fd6cb5"
+      "canary": "KMHZ",
+      "sha256": "a7f27d006cd7fbba80396b5373002964f191796f74e6c62996e925510f6ae977"
     },
     {
       "name": "middle.png",
       "act": "middle",
       "t": 0,
-      "canary": "VERV",
-      "sha256": "ea86cb3a301dbd528fe84b57ac3baf56695d72d4399862ac7dc860659d6040a2"
+      "canary": "TW7D",
+      "sha256": "1f65110f8ea530ca03bf729b6281bbb0a400adeb94c4d789eba0d78ef6520ad2"
     },
     {
       "name": "after.png",
       "act": "after",
       "t": 0,
-      "canary": "XQ6W",
-      "sha256": "084dceeffd0418f032568378b1a8ec384489a1d95b60a7481701f739a1955c66"
+      "canary": "GLQK",
+      "sha256": "97d139735e9e88de7d92639b02439ded0e76f3265d672146e66c3735a0e40624"
     }
   ]
 }

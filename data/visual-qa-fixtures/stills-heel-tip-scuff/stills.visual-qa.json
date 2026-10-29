@@ -1,5 +1,5 @@
 {
-  "reel": "C:\\Users\\cyc39\\laundry-repo\\data\\reference-photos\\high-heel\\heel-tip-scuff-before.png",
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\high-heel\\heel-tip-scuff-before.png",
   "axes": {
     "OBJECT_IDENTITY": "PASS",
     "ACCESSORY_COLOR": "PASS",
@@ -10,13 +10,13 @@
     "SCENE": "PASS"
   },
   "evidence": {
-    "OBJECT_IDENTITY": "三幕皆為單隻黑色高跟鞋，鞋口、米色內裡、鞋跟輪廓及底緣磨損位置一致。",
-    "ACCESSORY_COLOR": "三幕均無可見鞋帶或金屬配件，沒有配件變色。",
-    "ORIENTATION": "三幕鞋尖皆朝左，維持同側斜視角度。",
-    "STATE_ORDER": "中段有手與刷具，但鞋跟底緣未見明確局部改善，末幕仍保留明顯米色磨損，未呈現修復完成。",
-    "MIDDLE_NOT_WORSE": "中段整體髒污與斑駁程度和前幕相近，未見全鞋加重。",
-    "HANDS": "可見手部比例與姿勢合理，部分手指受遮擋，未見融合、額外手指或第三隻手。",
-    "SCENE": "三幕皆為粉紅格線墊、白色槽板牆與瓶罐架背景。"
+    "OBJECT_IDENTITY": "三張均為單隻黑色高跟鞋，米褐色內裡、鞋口輪廓及鞋跟形狀一致。",
+    "ACCESSORY_COLOR": "三張均無可見鞋帶或金屬配件，沒有配件顏色變更。",
+    "ORIENTATION": "三張鞋頭均朝左，呈現相同側面方向。",
+    "STATE_ORDER": "MIDDLE 有手與刷具，但未見明確局部修復進展；AFTER 鞋跟底端仍保留明顯淺色磨損，完工狀態未成立。",
+    "MIDDLE_NOT_WORSE": "MIDDLE 整體污損程度與 BEFORE 相近，未見全鞋加重髒污或斑駁。",
+    "HANDS": "MIDDLE 與 AFTER 的可見手部比例及遮擋合理，未見手指融合、多餘手指或第三隻手。",
+    "SCENE": "三張均為粉紅格線工作墊、淺色橫槽牆與瓶罐架。"
   },
   "frames_used": [
     "before.png",
@@ -28,40 +28,40 @@
       "name": "before.png",
       "act": "before",
       "t": 0,
-      "canary": "97VJ",
-      "sha256": "c32e0f01242b191058e4e5f03de0356ce9a0f688ab0ea19bb8d1f1d43fce3ec6"
+      "canary": "QA4D",
+      "sha256": "5efe1c10e158c2c9f37599388e1f1e08e70b5823417311566d4a0dcd2e29697d"
     },
     {
       "name": "middle.png",
       "act": "middle",
       "t": 0,
-      "canary": "XWXF",
-      "sha256": "120dbf29dd9ef5b323679c19c7569a0d7797b572d499bcdcafd953bbeb40baf6"
+      "canary": "87PU",
+      "sha256": "0a28df9d8a323adfe820ebb6855ff17b91666943a119796bcf5514075f72d7d2"
     },
     {
       "name": "after.png",
       "act": "after",
       "t": 0,
-      "canary": "XSPQ",
-      "sha256": "f062b7cf82bf43cbbf2f5b344a7a3c4b4b0e86eebb6bcc16c3086b87eddb15f8"
+      "canary": "T9SM",
+      "sha256": "3db10b95f9ed1585e4f9287c5b35645b33c7366c0ac88ce1b68685a2c35b9945"
     }
   ],
   "canaries_expected": {
-    "IMAGE_1": "97VJ",
-    "IMAGE_2": "XWXF",
-    "IMAGE_3": "XSPQ"
+    "IMAGE_1": "QA4D",
+    "IMAGE_2": "87PU",
+    "IMAGE_3": "T9SM"
   },
   "canaries_reported": {
-    "IMAGE_1": "97VJ",
-    "IMAGE_2": "XWXF",
-    "IMAGE_3": "XSPQ"
+    "IMAGE_1": "QA4D",
+    "IMAGE_2": "87PU",
+    "IMAGE_3": "T9SM"
   },
   "reel_sha256": "b43886decf4211cd97ae4dd653548b79503d615b455f13e416286f63bd0eac46",
   "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
-  "run_id": "a131f949dc384018874e9babfcb1228d",
+  "run_id": "14592e2ee6584b13aea72f137482807c",
   "model": "codex-exec-read-only",
   "reviewed_by": "codex-visual-qa",
-  "reviewed_at": "2026-09-07T17:16:49.084Z",
+  "reviewed_at": "2026-09-29T06:01:47.402Z",
   "stills_missing": [],
   "mode": "warn",
   "verdict": "FAIL",

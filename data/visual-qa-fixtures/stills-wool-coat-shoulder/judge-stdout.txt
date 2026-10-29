@@ -1,14 +1,14 @@
-IMAGE_1 canary=NLJU
-IMAGE_2 canary=HWQK
-IMAGE_3 canary=U77A
 <<<OBSERVE_BEGIN>>>
-OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=MODERATE hands=NONE scene=COUNTER
-OBS_2 role=MIDDLE act=middle laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=MODERATE hands=OK scene=COUNTER
-OBS_3 role=AFTER act=after laces_color=NONE hardware_color=NONE facing=TQ_RIGHT soil=LIGHT hands=NONE scene=COUNTER
+IMAGE_1 canary=MEH4
+IMAGE_2 canary=Z8L3
+IMAGE_3 canary=AKJM
+OBS_1 role=BEFORE act=before laces_color=NONE hardware_color=NONE facing=TOP_DOWN soil=LIGHT hands=NONE scene=PINK_MAT_SLAT_WALL
+OBS_2 role=MIDDLE act=middle laces_color=NONE hardware_color=NONE facing=TOP_DOWN soil=LIGHT hands=OK scene=PINK_MAT_SLAT_WALL
+OBS_3 role=AFTER act=after laces_color=NONE hardware_color=NONE facing=TOP_DOWN soil=CLEAN hands=NONE scene=PINK_MAT_SLAT_WALL
 COMPARE ACCESSORY_COLOR identity_change=NO
 COMPARE ORIENTATION identity_flip=NO
 COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO
 <<<OBSERVE_END>>>
 <<<VISUAL_QA_BEGIN>>>
-{"reel":"wool-coat-shoulder","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"All frames show the same black wool coat shoulder, collar, and seam outline on the same side of the garment."},"frames_used":["before.png","middle.png","after.png"]}
+{"reel":"stills-wool-coat-shoulder","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"三張深灰外套的翻領、肩部輪廓與袖接縫一致。","ACCESSORY_COLOR":"三張均未見鞋帶或金屬配件，沒有可見配件變色。","ORIENTATION":"三張均由上方向下拍攝，衣領在左、肩袖在右，朝向一致。","STATE_ORDER":"起始肩線附近有灰白浮毛，中段雙手持刷整理且局部較深勻，完成時灰白區減少。","MIDDLE_NOT_WORSE":"中段整件外套未比起始增加髒污或斑駁，肩部仍有尚待整理的灰白區。","HANDS":"中段兩手握刷與扶衣的姿勢、可見手指結構及比例合理，未見融合或多餘手部。","SCENE":"三張皆保留粉紅裁切墊、白色槽板牆、玻璃層板與瓶罐背景。"},"frames_used":["before.png","middle.png","after.png"]}
 <<<VISUAL_QA_END>>>

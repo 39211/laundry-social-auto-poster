@@ -1,5 +1,5 @@
 {
-  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\sweater\\sweater-underarm-before.png",
+  "reel": "C:/Users/cyc39/Documents/New project 5/data/reference-photos/sweater/sweater-underarm-before.png",
   "reel_sha256": "5cec0a401912753850ccf0089ce94845f8bed39b1eaf70fe7dcee596f0938c41",
   "treatment": "10s",
   "duration": 0,
@@ -8,22 +8,22 @@
       "name": "before.png",
       "act": "before",
       "t": 0,
-      "canary": "943U",
-      "sha256": "4d271c86a47781732811b31b3aae2fe515529a0bf618e33ace9138ff399c148e"
+      "canary": "M3WF",
+      "sha256": "e4e100992facb913407ff6e5bdd73936a0cec3d7ffb9786316425ca497ddab23"
     },
     {
       "name": "middle.png",
       "act": "middle",
       "t": 0,
-      "canary": "VTT5",
-      "sha256": "4d0c4d3ac1e636c198ca54b78a388118cec884b3d2be093757f6d98c5f0ce476"
+      "canary": "3DF2",
+      "sha256": "2acaf421e2a6923ee5473aff3c88185fb36274a0c9098f8e55f8c41ec12556f5"
     },
     {
       "name": "after.png",
       "act": "after",
       "t": 0,
-      "canary": "6DJT",
-      "sha256": "4ce5bb445a486378fbd2175f6450c9fdcf685cdd158d08ca36c8e84640163b80"
+      "canary": "Q82B",
+      "sha256": "88f3d4eb380f2de5042f350e044f9e118d0bc08bd2417ea0ab4b826492b2e89f"
     }
   ]
 }

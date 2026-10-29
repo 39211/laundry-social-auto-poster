@@ -1,0 +1,29 @@
+{
+  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\leather-bag\\leather-bag-corner-before.png",
+  "reel_sha256": "a15904cf698501e599e7430ce9468882ccea5f59030bafacb634925fa590ea02",
+  "treatment": "10s",
+  "duration": 0,
+  "frames": [
+    {
+      "name": "before.png",
+      "act": "before",
+      "t": 0,
+      "canary": "7WJX",
+      "sha256": "61968b135452e12229d5c04f91df48d0337072a1dee7ab5c186250038648289b"
+    },
+    {
+      "name": "middle.png",
+      "act": "middle",
+      "t": 0,
+      "canary": "LVCP",
+      "sha256": "82bd432668bc1275bb47a55b21399ef017cfabc2d29a71dd48d910ce89cd701c"
+    },
+    {
+      "name": "after.png",
+      "act": "after",
+      "t": 0,
+      "canary": "P9KX",
+      "sha256": "e712ce7c2f46e21c995618e4adb8bdffb1bc9b8c99ed1ab74e456f0c4c692eb7"
+    }
+  ]
+}

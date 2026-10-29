@@ -1,5 +1,5 @@
 {
-  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\sweater\\sweater-underarm-before.png",
+  "reel": "C:/Users/cyc39/Documents/New project 5/data/reference-photos/sweater/sweater-underarm-before.png",
   "axes": {
     "OBJECT_IDENTITY": "PASS",
     "ACCESSORY_COLOR": "PASS",
@@ -10,13 +10,13 @@
     "SCENE": "PASS"
   },
   "evidence": {
-    "OBJECT_IDENTITY": "All acts show the same cream knitted sweater with matching outline, knit pattern, neckline, seams, and sleeve structure.",
-    "ACCESSORY_COLOR": "No laces or hardware are visible in any act, so no accessory-color identity change occurs.",
-    "ORIENTATION": "The sweater retains the same three-quarter-right presentation across all acts.",
-    "STATE_ORDER": "The before act shows localized yellow underarm staining, the middle act shows hands treating it with a cloth, and the after act shows the area visibly cleaner.",
-    "MIDDLE_NOT_WORSE": "The middle sweater remains globally light-soiled like the before sweater and is not more mottled or darkened overall.",
-    "HANDS": "The visible hands have plausible scale and anatomy with no fused digits or extra hand.",
-    "SCENE": "All acts retain the same counter, pink cutting mat, slat wall, and product-shelf setting."
+    "OBJECT_IDENTITY": "三張均為同樣的米白針織毛衣，圓領、斜肩接縫、羅紋下襬與右袖輪廓一致。",
+    "ACCESSORY_COLOR": "三張均無可見鞋帶或金屬配件，沒有配件顏色改變。",
+    "ORIENTATION": "三張均從上方俯視平放毛衣，領口朝畫面上方、右袖朝右，未見翻面或朝向反轉。",
+    "STATE_ORDER": "BEFORE 腋下有黃褐污痕，MIDDLE 一手固定衣身、一手以白布處理同處且露出的污痕較淡，AFTER 同處呈較均勻的米白色。",
+    "MIDDLE_NOT_WORSE": "MIDDLE 衣身與袖面維持與 BEFORE 相近的米白色，未見整體污垢、暗沉或斑駁增加。",
+    "HANDS": "MIDDLE 與 AFTER 均僅見兩手，手指的可見部分及遮擋關係合理，未見多指、融合或比例異常。",
+    "SCENE": "三張均保留米色檯面、粉紅格線墊、灰色橫條牆與右側瓶罐架。"
   },
   "frames_used": [
     "before.png",
@@ -28,40 +28,40 @@
       "name": "before.png",
       "act": "before",
       "t": 0,
-      "canary": "943U",
-      "sha256": "4d271c86a47781732811b31b3aae2fe515529a0bf618e33ace9138ff399c148e"
+      "canary": "M3WF",
+      "sha256": "e4e100992facb913407ff6e5bdd73936a0cec3d7ffb9786316425ca497ddab23"
     },
     {
       "name": "middle.png",
       "act": "middle",
       "t": 0,
-      "canary": "VTT5",
-      "sha256": "4d0c4d3ac1e636c198ca54b78a388118cec884b3d2be093757f6d98c5f0ce476"
+      "canary": "3DF2",
+      "sha256": "2acaf421e2a6923ee5473aff3c88185fb36274a0c9098f8e55f8c41ec12556f5"
     },
     {
       "name": "after.png",
       "act": "after",
       "t": 0,
-      "canary": "6DJT",
-      "sha256": "4ce5bb445a486378fbd2175f6450c9fdcf685cdd158d08ca36c8e84640163b80"
+      "canary": "Q82B",
+      "sha256": "88f3d4eb380f2de5042f350e044f9e118d0bc08bd2417ea0ab4b826492b2e89f"
     }
   ],
   "canaries_expected": {
-    "IMAGE_1": "943U",
-    "IMAGE_2": "VTT5",
-    "IMAGE_3": "6DJT"
+    "IMAGE_1": "M3WF",
+    "IMAGE_2": "3DF2",
+    "IMAGE_3": "Q82B"
   },
   "canaries_reported": {
-    "IMAGE_1": "943U",
-    "IMAGE_2": "VTT5",
-    "IMAGE_3": "6DJT"
+    "IMAGE_1": "M3WF",
+    "IMAGE_2": "3DF2",
+    "IMAGE_3": "Q82B"
   },
   "reel_sha256": "5cec0a401912753850ccf0089ce94845f8bed39b1eaf70fe7dcee596f0938c41",
   "prompt_hash": "0eecb55496276baf439a9de0cd507be15978a65da98d49c52f4d1f6c45b69584",
-  "run_id": "7e8d77d155564647b19987fc15e92439",
+  "run_id": "b687a96b796547beb8071875c4e0057c",
   "model": "codex-exec-read-only",
   "reviewed_by": "codex-visual-qa",
-  "reviewed_at": "2026-08-30T06:01:21.969Z",
+  "reviewed_at": "2026-10-07T06:01:26.183Z",
   "stills_missing": [],
   "mode": "warn",
   "verdict": "PASS",

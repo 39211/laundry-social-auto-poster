@@ -1,5 +1,5 @@
 {
-  "reel": "C:\\Users\\cyc39\\Documents\\New project 5\\data\\reference-photos\\mattress-pad\\mattress-pad-sweat-before.png",
+  "reel": "C:/Users/cyc39/Documents/New project 5/data/reference-photos/mattress-pad/mattress-pad-sweat-before.png",
   "reel_sha256": "f6112d5c3d2d11c83e35b85a7a5d81061af9aabdbff7117982808cf56a9433b3",
   "treatment": "10s",
   "duration": 0,
@@ -8,22 +8,22 @@
       "name": "before.png",
       "act": "before",
       "t": 0,
-      "canary": "88X2",
-      "sha256": "6e685facc9d475220c378d9713483620b3e585c68791560e421c39cf7994ab38"
+      "canary": "TBE3",
+      "sha256": "ce550703d8b09b4a314ad93e85a3c8012828e9c61e1b5e18c32242cfe01493f2"
     },
     {
       "name": "middle.png",
       "act": "middle",
       "t": 0,
-      "canary": "R78U",
-      "sha256": "cf1761d52b50902948fc23ffd295073b39656e589d3a3526bf020bd1ab4dba8c"
+      "canary": "UQD9",
+      "sha256": "173c6d6bdacc93588fab9c37c395db8203e31d8065e5d7ec0122200b300026e2"
     },
     {
       "name": "after.png",
       "act": "after",
       "t": 0,
-      "canary": "P8AL",
-      "sha256": "538ecb3b10699eccf1b1a27fb337fd5ca4877b9ba990e50f3af5899cd41a44b8"
+      "canary": "9PP4",
+      "sha256": "51890343a7a788cea43c4da74861379e77a61e4addd10942fab0c9790b9756ae"
     }
   ]
 }

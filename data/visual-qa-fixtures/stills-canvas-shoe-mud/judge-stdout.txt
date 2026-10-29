@@ -1,0 +1,14 @@
+<<<OBSERVE_BEGIN>>>
+IMAGE_1 canary=KMC3
+IMAGE_2 canary=LMEM
+IMAGE_3 canary=6WD7
+OBS_1 role=BEFORE act=before laces_color=TAN hardware_color=SILVER facing=TQ_LEFT soil=HEAVY hands=NONE scene=OTHER
+OBS_2 role=MIDDLE act=middle laces_color=TAN hardware_color=SILVER facing=TQ_LEFT soil=HEAVY hands=OK scene=OTHER
+OBS_3 role=AFTER act=after laces_color=TAN hardware_color=SILVER facing=TQ_LEFT soil=CLEAN hands=NONE scene=OTHER
+COMPARE ACCESSORY_COLOR identity_change=NO
+COMPARE ORIENTATION identity_flip=NO
+COMPARE MIDDLE_NOT_WORSE globally_worse_than_before=NO
+<<<OBSERVE_END>>>
+<<<VISUAL_QA_BEGIN>>>
+{"reel":"stills-canvas-shoe-mud","verdict":"PASS","axes":{"OBJECT_IDENTITY":"PASS","ACCESSORY_COLOR":"PASS","ORIENTATION":"PASS","STATE_ORDER":"PASS","MIDDLE_NOT_WORSE":"PASS","HANDS":"PASS","SCENE":"PASS"},"evidence":{"OBJECT_IDENTITY":"三幕皆為一雙米 beige 色低筒帆布鞋，橡膠鞋頭、鞋身縫線、銀色鞋眼與前後排列一致。","ACCESSORY_COLOR":"三幕鞋帶均為 TAN、鞋眼均為 SILVER，清潔後未見配件換色。","ORIENTATION":"三幕鞋頭均朝畫面左側，保持相同三分之四側視方向。","STATE_ORDER":"BEFORE 有大片泥斑；MIDDLE 雙手固定鞋身並以刷具接觸泥斑，接觸附近有局部淡化及檯面落泥；AFTER 泥斑消失。","MIDDLE_NOT_WORSE":"MIDDLE 與 BEFORE 整體均為 HEAVY，未見整雙鞋增加更廣或更深的髒污。","HANDS":"MIDDLE 可見兩手，持鞋與握刷比例合理，可見手指無融合或多指跡象，部分手指受握姿遮擋。","SCENE":"三幕皆為黑色檯面、金屬前緣，背景磁磚地板與衣物收納架一致。"},"frames_used":["before.png","middle.png","after.png"]}
+<<<VISUAL_QA_END>>>

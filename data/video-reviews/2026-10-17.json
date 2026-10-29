@@ -1,0 +1,55 @@
+[
+  {
+    "date": "2026-10-17",
+    "slot": 2,
+    "video_path": "docs/assets/2026-10-17/slot-02.mp4",
+    "video_sha256": "e03f1d37fd1239f7599a14677676f5a85da8ee2aa1ce4f9b8f3c8ea7583bbf4e",
+    "prompt_hash": "11dfced657be438d80bfdee57c824f5c8b6c23ef5589f6f45236d3f125728707",
+    "review_round": 1,
+    "full_decode": "pass",
+    "all_frame_physics_review": "pass",
+    "grok_review": "pass",
+    "sol_review": "pass",
+    "separate_zh_tw_tts_review": "pass",
+    "generated_clip_audio_used": false,
+    "status": "approved",
+    "reviewed_at": "2026-10-12T04:32:51.081Z",
+    "reviewed_by": "owner-watched",
+    "superseded": [
+      {
+        "date": "2026-10-17",
+        "slot": 2,
+        "video_path": "docs/assets/2026-10-17/slot-02.mp4",
+        "video_sha256": "3c0b5339c93495e59f5dbda101506acf54a9fda8e51796ae5ed0964efc009615",
+        "prompt_hash": "d623137c5c0a5f52cfa076b1c1f4b0aa59ba217e9a136da60253e43f844ec724",
+        "review_round": 1,
+        "full_decode": "pass",
+        "all_frame_physics_review": "pass",
+        "grok_review": "pass",
+        "sol_review": "pass",
+        "separate_zh_tw_tts_review": "pass",
+        "generated_clip_audio_used": false,
+        "status": "approved",
+        "reviewed_at": "2026-10-09T01:58:50.591Z",
+        "reviewed_by": "owner-watched"
+      },
+      {
+        "date": "2026-10-17",
+        "slot": 2,
+        "video_path": "docs/assets/2026-10-17/slot-02.mp4",
+        "video_sha256": "2bfb9f2fdc3173eb71ee42f73787b7a915b70e815d536fccb1ec6e248a162d5b",
+        "prompt_hash": "b34c63e8150edca9166d74d19a0ea59e2270bbe965c820b90ca63085bf3cde97",
+        "review_round": 1,
+        "full_decode": "pass",
+        "all_frame_physics_review": "pass",
+        "grok_review": "pass",
+        "sol_review": "pass",
+        "separate_zh_tw_tts_review": "pass",
+        "generated_clip_audio_used": false,
+        "status": "approved",
+        "reviewed_at": "2026-10-09T15:38:51.650Z",
+        "reviewed_by": "owner-watched"
+      }
+    ]
+  }
+]

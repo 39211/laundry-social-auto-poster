@@ -1,0 +1,19 @@
+[
+  {
+    "date": "2026-10-18",
+    "slot": 2,
+    "video_path": "docs/assets/2026-10-18/slot-02.mp4",
+    "video_sha256": "2e63e77cb5c4bee2001417aa5512995dff9668d4a221c2fd35db82ba65fff8c2",
+    "prompt_hash": "504c160ef640a745f2b8201fe551bd2787f9d70bfa3904e7613528e5bbfb464c",
+    "review_round": 1,
+    "full_decode": "pass",
+    "all_frame_physics_review": "pass",
+    "grok_review": "pass",
+    "sol_review": "pass",
+    "separate_zh_tw_tts_review": "pass",
+    "generated_clip_audio_used": false,
+    "status": "approved",
+    "reviewed_at": "2026-10-09T01:58:56.586Z",
+    "reviewed_by": "owner-watched"
+  }
+]

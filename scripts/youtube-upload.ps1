@@ -69,6 +69,24 @@ function Publish-Site {
     }
 }
 
+function Test-LiveReelPostedEntry {
+    param($Entry, [int]$Slot)
+    if ($null -eq $Entry) { return $false }
+    if ($Entry.slot -ne $Slot) { return $false }
+    if ([string]$Entry.platform -ne "instagram") { return $false }
+    if ($Entry.dry_run) { return $false }
+    $status = [string]$Entry.status
+    if (@("success", "posted") -notcontains $status) { return $false }
+    return ([string]$Entry.published_media_type -eq "reel")
+}
+
+function Test-LiveReelHasSlot {
+    param($Entries, [int]$Slot)
+    # Wrap only the assigned, parsed value so PS 5.1 enumerates JSON array rows.
+    $reelLive = @(@($Entries) | Where-Object { Test-LiveReelPostedEntry $_ $Slot })
+    return ($reelLive.Count -gt 0)
+}
+
 function Show-Toast([string]$text) {
     try {
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
@@ -92,7 +110,6 @@ if (-not (Test-Path $postedPath)) { Write-Log "No posted-log yet; nothing to upl
 # misjudged as "no live Reel today". Same pitfall documented in
 # catchup-publish.ps1; same fix.
 $postedParsed = Get-Content $postedPath -Raw -Encoding utf8 | ConvertFrom-Json
-$posted = @($postedParsed)
 
 $failed = $false
 $anyUpload = $false
@@ -100,11 +117,7 @@ $anySkip = $false
 $needAuth = $false
 
 foreach ($slotNumber in @(2, 3)) {
-    $reelLive = @($posted | Where-Object {
-        $_.slot -eq $slotNumber -and $_.platform -eq "instagram" -and -not $_.dry_run -and
-        (@("success", "posted") -contains $_.status) -and $_.published_media_type -eq "reel"
-    })
-    if ($reelLive.Count -eq 0) {
+    if (-not (Test-LiveReelHasSlot $postedParsed $slotNumber)) {
         Write-Log "Slot $slotNumber has no live Reel today; skip."
         continue
     }

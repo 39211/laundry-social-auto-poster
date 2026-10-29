@@ -73,3 +73,10 @@ LINE 真客人最後互動紀錄:`data/line-unanswered.jsonl`、`staff-inbox.jso
 - 店裡 `webhook_server.py` 有 Gemini 圖片估價(`vision_service.py`,gemini-flash 常 503 後換模型)、Clothing_Memory.md 記錄;webhook_server.log **沒有時間戳**,無法算每日請求量 → 要加時間戳(下一張卡)。
 - 店裡 logs/data(含 customer_bindings、monitor_state)已拉一份到 ai 電腦 `C:\Users\cyc39\AI-Lanes\shop-pc-ops\20261029\`(不進 git,含客人 LINE userId)。
 - 店裡 `shop.json`:`mode: demo`、`product.plan: starter`、`payment.mode: disabled`、`acceptance.*` 全 false。影響待查(下一張卡)。
+
+## 10/29 23:55 店主拍板 + 進度
+- 通知文案保留金額(客人本人的單可以看到);「價格不寫」只適用宣傳內容。
+- **風險清單 R1(店主決定先不改)**:任何人輸入查得到的手機/客號即被綁定為該客(店機 `webhook_server.py:625–654`),之後會收到該客的入庫/完工通知(含品名金額)。目前綁定僅 2 筆。修法候選:店員確認後才綁、或手機+最近單號雙核對。
+- A3 其他發現(見 cards/A3-RESULT.md):push 失敗無重試且去重先更新 → 漏發;state 非原子寫入 → 重發/毀損;首啟基線查詢失敗 → 歷史全發;查件 `State=完工` 可取但 monitor 不發(條件不一致);mdb 鎖住時 mtime 不變就不再重查。這些進 A3-2 修補卡(店主已核方向:先量測、不改對客行為)。
+- A4-2 完成並獨立驗證:branch `feat/a4-2-shop-tunnel-observability` @ `2e8de7e7`,18 測試綠、拿掉重試 5 紅;部署文件 `shop-pc/DEPLOY-A4-2.md`。**部署時段:10/30 10:30–11:00(店主拍板),已排 10:30 自動接手。**
+- B4 工時表改為總計畫文件的分頁(店主每天在 Claude app 填),不寫程式。

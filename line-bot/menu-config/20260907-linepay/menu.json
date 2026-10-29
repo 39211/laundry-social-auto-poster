@@ -1,0 +1,83 @@
+{
+  "size": {
+    "width": 1522,
+    "height": 1033
+  },
+  "selected": true,
+  "name": "sxj-approved-green-linepay-20260907",
+  "chatBarText": "洗衣服務・LINE Pay",
+  "areas": [
+    {
+      "bounds": {
+        "x": 0,
+        "y": 136,
+        "width": 761,
+        "height": 568
+      },
+      "action": {
+        "type": "message",
+        "text": "拍照問價"
+      }
+    },
+    {
+      "bounds": {
+        "x": 761,
+        "y": 136,
+        "width": 761,
+        "height": 568
+      },
+      "action": {
+        "type": "message",
+        "text": "外收送預約"
+      }
+    },
+    {
+      "bounds": {
+        "x": 0,
+        "y": 704,
+        "width": 381,
+        "height": 329
+      },
+      "action": {
+        "type": "message",
+        "text": "價目表"
+      }
+    },
+    {
+      "bounds": {
+        "x": 381,
+        "y": 704,
+        "width": 380,
+        "height": 329
+      },
+      "action": {
+        "type": "message",
+        "text": "物件查詢"
+      }
+    },
+    {
+      "bounds": {
+        "x": 761,
+        "y": 704,
+        "width": 380,
+        "height": 329
+      },
+      "action": {
+        "type": "uri",
+        "uri": "https://qrcodepay.line.me/qr/payment/h1EXlL3%252FG1QNQwAb0CghtV3jC%252BC%252BJ%252FqidtC%252FBrHKAm3HlK%252Bt1FAh9Uu2NEOIN6Ut"
+      }
+    },
+    {
+      "bounds": {
+        "x": 1141,
+        "y": 704,
+        "width": 381,
+        "height": 329
+      },
+      "action": {
+        "type": "message",
+        "text": "店址"
+      }
+    }
+  ]
+}

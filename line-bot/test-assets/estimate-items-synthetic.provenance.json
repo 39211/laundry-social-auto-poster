@@ -1,0 +1,9 @@
+{
+  "file": "estimate-items-synthetic.png",
+  "sha256": "1553fa95f0ee24c3688d8a3a36c13c686aa8e2f53a1cdf40b131d1e5eb3b5f89",
+  "synthetic": true,
+  "source": "Built-in image generation tool, this LINE OA implementation task",
+  "intended_inventory": {"shirt": 1, "cotton_tshirts": 2, "shoe_pairs": 1, "folded_blankets_unknown_size": 1},
+  "human_visual_inspection": true,
+  "usage": "Synthetic test scene only; not a real customer photograph or shop cleaning result."
+}

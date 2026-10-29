@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>私享家 · 櫃台</title>
+<style>
+  :root { font-family: "Microsoft JhengHei", sans-serif; background:#1b1a18; color:#f4efe6; }
+  body { margin:0; padding:24px; }
+  h1 { font-weight:600; font-size:28px; margin:0 0 8px; }
+  .sub { color:#b08968; margin-bottom:16px; }
+  .card { background:#2a2724; border:1px solid #b08968; border-radius:12px; padding:18px 20px; margin-bottom:14px; }
+  .card.new { box-shadow:0 0 0 2px #c4a35a; }
+  .id { font-size:28px; letter-spacing:2px; }
+  .when { font-size:22px; margin-top:6px; }
+  .meta { color:#cbbba8; margin-top:8px; font-size:16px; white-space:pre-wrap; }
+  button { font-size:18px; padding:8px 16px; margin-top:12px; margin-right:8px; cursor:pointer; border-radius:8px; border:0; }
+  .ok { background:#c4a35a; color:#1b1a18; }
+  .ready { background:#6aa84f; color:#fff; }
+  .wait { background:#888; color:#fff; }
+  .gone { opacity:.45; }
+  input { font-size:18px; padding:8px 12px; border-radius:8px; border:0; width:220px; }
+  empty { display:block; padding:40px; color:#888; }
+</style>
+</head>
+<body>
+<h1>私享家櫃台</h1>
+<p class="sub">這頁開著就好。客人預約、外收、查件都會亮。查到可取或還沒好，按下面通知客人。</p>
+<div class="card">
+  <div>查洗衣系統</div>
+  <input id="q" placeholder="客號 / 手機 / 洗號">
+  <button class="ok" onclick="lookup()">查</button>
+  <div class="meta" id="hit"></div>
+  <button class="ready" onclick="ping('ready')">通知：可以取了</button>
+  <button class="wait" onclick="ping('not_ready')">通知：還沒好</button>
+</div>
+<div id="list"><empty>還沒有新單</empty></div>
+<script>
+const seen = new Set();
+let lastCust = "";
+document.getElementById('q').addEventListener('input', function(){ lastCust = ""; });
+function ding(){
+  try {
+    const c = new (window.AudioContext||window.webkitAudioContext)();
+    const o = c.createOscillator(); const g = c.createGain();
+    o.frequency.value = 880; o.connect(g); g.connect(c.destination);
+    o.start(); o.stop(c.currentTime+0.25);
+  } catch(e) {}
+}
+function kindLabel(x){
+  if (x.kind === 'estimate') return '預估價待確認';
+  if (x.kind === 'photo' || x.kind === 'photo_need') return '照片詢問';
+  if (x.kind === 'pickup_item') return '收送品項補充';
+  if (x.kind === 'ask') return '客人問了';
+  if (x.kind === 'pickup') return '外收';
+  if (x.kind === 'query') return '查件';
+  if (x.kind === 'book') return '到店需求';
+  return '客人需求';
+}
+async function load(){
+  const r = await fetch('/staff/api');
+  const rows = await r.json();
+  const box = document.getElementById('list');
+  box.replaceChildren();
+  if (!rows.length) {
+    const empty = document.createElement('empty');
+    empty.textContent = '還沒有新單';
+    box.appendChild(empty);
+    return;
+  }
+  rows.forEach(x => {
+    const card = document.createElement('div');
+    card.className = 'card ' + (x.status||'new') + (x.status==='done'?' gone':'');
+    const kindEl = document.createElement('div');
+    kindEl.textContent = kindLabel(x);
+    card.appendChild(kindEl);
+    const idEl = document.createElement('div');
+    idEl.className = 'id';
+    idEl.textContent = x.id || '';
+    if (x.status === 'new' && idEl.textContent && !seen.has(idEl.textContent)) { seen.add(idEl.textContent); ding(); }
+    card.appendChild(idEl);
+    const whenEl = document.createElement('div');
+    whenEl.className = 'when';
+    whenEl.textContent = (x.when||'').replace('T',' ');
+    card.appendChild(whenEl);
+    const metaEl = document.createElement('div');
+    metaEl.className = 'meta';
+    metaEl.textContent = (x.name||'客人') + '\u3000' + (x.item||'') + (x.need ? ('\n需求 ' + x.need) : '') + (x.address ? ('\n' + x.address) : '') + '\n' + (x.text||'');
+    card.appendChild(metaEl);
+    if (x.phone) {
+      const phone = document.createElement('div');
+      phone.className = 'meta';
+      phone.textContent = '電話：' + x.phone;
+      card.appendChild(phone);
+    }
+    if (x.estimate_summary) {
+      const estimate = document.createElement('div');
+      estimate.className = 'meta';
+      estimate.textContent = x.estimate_summary;
+      card.appendChild(estimate);
+    }
+    if (x.notification_pending) {
+      const pending = document.createElement('div');
+      pending.textContent = '群組通知尚未確認送出，請直接處理這筆待辦。';
+      pending.style.color = '#ffce86';
+      card.appendChild(pending);
+    }
+    const photos = [...new Set(Array.isArray(x.photos) && x.photos.length ? x.photos : (x.photo ? [x.photo] : []))];
+    photos.forEach(photo => {
+      const img = document.createElement('img');
+      img.src = '/photo/' + photo;
+      img.alt = '客人傳的照片';
+      img.style.cssText = 'max-width:320px;border-radius:8px;margin-top:10px;display:block';
+      card.appendChild(img);
+    });
+    if (x.status === 'new') {
+      const btn = document.createElement('button');
+      btn.className = 'ok';
+      btn.textContent = x.kind === 'pickup' || x.kind === 'book' ? '已接待' : '已處理';
+      btn.addEventListener('click', function(){ done(x.id); });
+      card.appendChild(btn);
+    } else {
+      card.appendChild(document.createTextNode(x.kind === 'pickup' || x.kind === 'book' ? '已接待' : '已處理'));
+    }
+    if (x.customer_no) {
+      const readyBtn = document.createElement('button');
+      readyBtn.className = 'ready';
+      readyBtn.textContent = '通知可取';
+      readyBtn.addEventListener('click', function(){ ping('ready', x.customer_no); });
+      card.appendChild(readyBtn);
+      const waitBtn = document.createElement('button');
+      waitBtn.className = 'wait';
+      waitBtn.textContent = '通知還沒好';
+      waitBtn.addEventListener('click', function(){ ping('not_ready', x.customer_no); });
+      card.appendChild(waitBtn);
+    }
+    box.appendChild(card);
+  });
+}
+async function done(id){
+  await fetch('/staff/done', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})});
+  load();
+}
+async function lookup(){
+  const q = document.getElementById('q').value.trim();
+  const r = await fetch('/staff/lookup', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({q})});
+  const j = await r.json();
+  lastCust = j.customer_no || q;
+  if (j.customer_no) document.getElementById('q').value = j.customer_no;
+  document.getElementById('hit').textContent = j.text || '沒對到';
+}
+async function ping(mode, cust){
+  const customer_no = cust || document.getElementById('q').value.trim() || lastCust;
+  const kind = (mode === 'ready') ? '可以取了' : '還沒好';
+  if (!confirm('要通知客號 ' + customer_no + '：' + kind + '？')) return;
+  const r = await fetch('/staff/notify', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({customer_no, mode})});
+  const j = await r.json();
+  document.getElementById('hit').textContent = (j.ok ? '已通知客人：' : '還沒綁 LINE，文案：') + (j.text||j.error||'');
+}
+load();
+setInterval(load, 4000);
+</script>
+</body>
+</html>

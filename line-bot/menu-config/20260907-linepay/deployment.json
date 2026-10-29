@@ -1,0 +1,11 @@
+{
+  "timeUtc": "2026-09-06T18:41:46.313600+00:00",
+  "richMenuId": "richmenu-3bd46a3ece56324de9a434458fe469f7",
+  "previousRichMenuId": "richmenu-fc50a630ed2e858959812ca31455d9c6",
+  "defaultReadbackMatches": true,
+  "remoteImageSha256Matches": true,
+  "remoteActionsMatch": true,
+  "paymentMode": "customer_enters_amount",
+  "mobilePaymentScreenVerified": false,
+  "previousMenuRetained": true
+}

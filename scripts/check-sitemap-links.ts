@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁、第 9 波 10 頁。東勢、大甲、龍井不進這支。 */
-export const EXPECTED_LOC_COUNT = 177;
+/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁、第 9 波 9 頁。東勢、大甲、龍井不進這支。 */
+export const EXPECTED_LOC_COUNT = 176;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -594,7 +594,7 @@ export function wave8InsertedBlocks(html: string): string[] {
   ].map((match) => match[0] ?? "");
 }
 
-/** B5 第 9 波 10 頁。lastmod 用這次上線日，不回寫前波。 */
+/** B5 第 9 波 9 頁。lastmod 用這次上線日，不回寫前波。 */
 export const WAVE9_PAGE_LASTMOD = "2026-10-29";
 
 export const WAVE9_PAGE_PATHS = [
@@ -606,7 +606,6 @@ export const WAVE9_PAGE_PATHS = [
   "/guides/bag-frame-gap.html",
   "/guides/leather-bag-crease-lighten.html",
   "/guides/knit-snag-check.html",
-  "/guides/garment-hem-thread-run.html",
   "/guides/coat-cuff-wear.html"
 ] as const;
 

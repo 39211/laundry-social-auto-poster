@@ -467,8 +467,8 @@ describe("B5 第 8 波", () => {
 });
 
 describe("B5 第 9 波", () => {
-  it("10 頁進 sitemap、各有 hub 入鏈，正文不踩硬規", () => {
-    expect(WAVE9_PAGE_PATHS).toHaveLength(10);
+  it("9 頁進 sitemap、各有 hub 入鏈，正文不踩硬規", () => {
+    expect(WAVE9_PAGE_PATHS).toHaveLength(9);
     const report = checkSitemapLinks();
     const root = repoRootFromHere();
     const price = readFileSync(join(root, "seo-overrides", "services", "taichung-laundry-price-list.html"), "utf8");
@@ -577,8 +577,33 @@ describe("B5 第 9 波", () => {
     expect(descHits).toEqual([]);
     expect(repairHits).toEqual([]);
     const frame = readFileSync(join(root, "seo-overrides", "guides", "bag-frame-gap.html"), "utf8");
-    expect(frame).toContain("名牌包 $1500 起");
-    expect(frame).not.toMatch(/名牌包 \$1500(?! 起)/);
+    expect(frame).not.toContain("名牌包 $1500");
+    expect(frame).not.toContain("是否另計");
+    expect(frame).toContain("傳照片到 LINE @454foyks 問");
+    const leather = readFileSync(join(root, "seo-overrides", "guides", "leather-bag-crease-lighten.html"), "utf8");
+    expect(leather).not.toContain("摺痕發白");
+    const heel = readFileSync(join(root, "seo-overrides", "guides", "shoe-heel-counter-collapse.html"), "utf8");
+    expect(heel).toContain("跟杯被踩軟");
+    expect(heel).not.toContain("鞋後跟塌了");
+    const phrase = "60 元起，實際價格現場由師傅報價";
+    const knit = readFileSync(join(root, "seo-overrides", "guides", "knit-snag-check.html"), "utf8");
+    const coat = readFileSync(join(root, "seo-overrides", "guides", "coat-cuff-wear.html"), "utf8");
+    expect(knit).toContain(phrase);
+    expect(coat).toContain(phrase);
+    for (const path of [
+      "/guides/shoe-outsole-tread-wear.html",
+      "/guides/shoe-heel-counter-collapse.html",
+      "/guides/shoe-welt-stitch-break.html",
+      "/guides/bag-structure-collapse.html",
+      "/guides/bag-zipper-tape-fray.html",
+      "/guides/bag-frame-gap.html",
+      "/guides/leather-bag-crease-lighten.html"
+    ]) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      expect(html, path).not.toContain("clothing-alteration-with-laundry");
+    }
+    const xml = readFileSync(join(root, "seo-overrides", "sitemap.xml"), "utf8");
+    expect(xml).not.toContain("garment-hem-thread-run");
   });
 });
 

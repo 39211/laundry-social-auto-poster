@@ -14,6 +14,7 @@ import http.server
 import json
 import re
 import sys
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -26,37 +27,53 @@ except Exception:
 
 ROOT = Path(__file__).resolve().parent.parent
 LOG_FILE = ROOT / "logs" / "webhook_server.log"
+
+
+class SafeWriter:
+    """Tee complete/partial writes with one local timestamp per output line."""
+
+    _lock = threading.RLock()
+
+    def __init__(self, console_writer, file_writer):
+        self.console = console_writer
+        self.file = file_writer
+        self._line_start = True
+
+    def write(self, s):
+        with self._lock:
+            parts = []
+            for part in s.splitlines(keepends=True):
+                if self._line_start:
+                    parts.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S "))
+                parts.append(part)
+                self._line_start = part.endswith(("\n", "\r"))
+            output = "".join(parts)
+            for writer in (self.file, self.console):
+                try:
+                    if writer is not None:
+                        writer.write(output)
+                except Exception:
+                    pass
+        return len(s)
+
+    def flush(self):
+        with self._lock:
+            for writer in (self.file, self.console):
+                try:
+                    if writer is not None:
+                        writer.flush()
+                except Exception:
+                    pass
+
+
+_log_fp = None
 try:
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     _log_fp = open(LOG_FILE, "a", encoding="utf-8", buffering=1)
-    class SafeWriter:
-        def __init__(self, console_writer, file_writer):
-            self.console = console_writer
-            self.file = file_writer
-        def write(self, s):
-            try:
-                self.file.write(s)
-            except Exception:
-                pass
-            try:
-                if self.console:
-                    self.console.write(s)
-            except Exception:
-                pass
-        def flush(self):
-            try:
-                self.file.flush()
-            except Exception:
-                pass
-            try:
-                if self.console:
-                    self.console.flush()
-            except Exception:
-                pass
-    sys.stdout = SafeWriter(sys.stdout, _log_fp)
-    sys.stderr = SafeWriter(sys.stderr, _log_fp)
 except Exception:
     pass
+sys.stdout = SafeWriter(sys.stdout, _log_fp)
+sys.stderr = SafeWriter(sys.stderr, _log_fp)
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:

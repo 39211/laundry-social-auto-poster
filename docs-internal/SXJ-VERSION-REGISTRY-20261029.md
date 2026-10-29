@@ -54,3 +54,22 @@ LINE 真客人最後互動紀錄:`data/line-unanswered.jsonl`、`staff-inbox.jso
 
 ## 待店主拍板
 - 主幹改定為 `laundry-social-auto-poster`、五庫降為零件庫(建議)。
+
+
+---
+
+## 10/29 16:40 更正(店主已拍板)
+
+- `C:\Users\cyc39\laundry-repo` 是指向 `Documents\New project 5` 的 junction,同一份 checkout,不是兩份。
+- **正式 LINE bot 在店裡公司洗衣電腦 `DESKTOP-HV0R4SN`(tailscale 100.116.147.80,ssh 別名 `shop-pc`,使用者 AN)**:`C:\LaundryStores\fxwash`(FXwash LINE 商品 v1.1 = P3 商品包實裝,9/21 安裝,webhook_server.py/lookup_service.py 10/28 手改),webhook 127.0.0.1:18791,`ssh -R 80:127.0.0.1:18791 nokey@localhost.run` 隧道,`tunnel_supervisor.py` 自動 PUT 網址給 LINE,`inbound_monitor.py` 追蹤 completed_dnos,排程 `FXwash-Daily-10AM`、`FXwash-Watchdog`,eHank.mdb 本機即時(10/29 17:16)。**那台沒有 git。**
+- ai 電腦 `line-bot/` 為舊版:已 Disable `Laundry-LINE-Bot` 排程、停掉 tunnel_manager(18664/18724)與 cloudflared(19140);line_webhook/staff_server 本機程序仍在(無對外),待下一張卡清理。
+- LINE 登記端點 16:08 為 `4091498c37af0d.lhr.life`,16:35 已變 `cbf8d77614cca1.lhr.life`:localhost.run 免費隧道網址會頻繁更換,全靠店裡 supervisor 補 PUT。
+- A1 完成:`release/sxj-live-2026-10` @ `4992668a`,tag `sxj-live-2026-10-29`,已推 origin;工作區僅剩 5 個 SUSPECT(見 cards/A1-RESULT.md)。
+- A4 完成:見 cards/A4-RESULT.md。
+
+## 10/29 19:05 補記(店主口述 + 實查)
+- **店裡電腦每天 20:00 關機、10:00 開店才開**(店主口述;沒有排程關機,是人工)。任何要連店裡電腦做的事只能在 10:00–20:00;20:00–10:00 正式 LINE bot 離線,夜間靠 LINE 後台的非營業時間原生回覆(待在 LINE OA 後台確認)。
+- 店裡 `inbound_monitor.py` 是**真發 LINE push**(無 dry_run 旗標),每 6 秒輪詢 eHank,對已綁定客人推入庫/完工通知 → A3「入庫通知」在店裡已經是 live,不需重做;要做的是驗證誤發與通知文案。
+- 店裡 `webhook_server.py` 有 Gemini 圖片估價(`vision_service.py`,gemini-flash 常 503 後換模型)、Clothing_Memory.md 記錄;webhook_server.log **沒有時間戳**,無法算每日請求量 → 要加時間戳(下一張卡)。
+- 店裡 logs/data(含 customer_bindings、monitor_state)已拉一份到 ai 電腦 `C:\Users\cyc39\AI-Lanes\shop-pc-ops\20261029\`(不進 git,含客人 LINE userId)。
+- 店裡 `shop.json`:`mode: demo`、`product.plan: starter`、`payment.mode: disabled`、`acceptance.*` 全 false。影響待查(下一張卡)。

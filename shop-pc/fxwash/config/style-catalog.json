@@ -1,0 +1,11 @@
+{
+  "catalog_version": 1,
+  "note": "風格只改視覺、語氣與版型；店名、地址、電話、營業時間、價格與付款規則一律以門市資料為準。",
+  "styles": [
+    {"key": "heritage_green_gold", "label": "雅緻深綠金", "palette": ["#123C31", "#F7F1E6", "#C9975B"], "menu_variant": "real_photo_hero"},
+    {"key": "warm_cream", "label": "奶油暖生活", "palette": ["#6A4B3C", "#FFF8ED", "#D69B67"], "menu_variant": "guided_cards"},
+    {"key": "clean_teal", "label": "清爽專業藍綠", "palette": ["#075E63", "#F4FBFA", "#E8B85C"], "menu_variant": "service_first"},
+    {"key": "friendly_sun", "label": "明亮親切橘綠", "palette": ["#2F5D50", "#FFF5E9", "#E28A57"], "menu_variant": "large_guidance"},
+    {"key": "modern_mono", "label": "黑白俐落銅色", "palette": ["#202827", "#F5F5F1", "#B5794A"], "menu_variant": "minimal_grid"}
+  ]
+}

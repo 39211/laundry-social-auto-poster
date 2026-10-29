@@ -1,0 +1,1465 @@
+{
+  "schema_version": 2,
+  "currency": "TWD",
+  "source": "eHank POS Dco",
+  "categories": {
+    "包包": [
+      {
+        "name": "短皮夾",
+        "price": 400,
+        "unit": "件"
+      },
+      {
+        "name": "長皮夾",
+        "price": 600,
+        "unit": "件"
+      },
+      {
+        "name": "書包OR背包",
+        "price": 600,
+        "unit": "件"
+      },
+      {
+        "name": "大書包",
+        "price": 800,
+        "unit": "件"
+      },
+      {
+        "name": "全布包",
+        "price": 500,
+        "unit": "件"
+      },
+      {
+        "name": "布混包",
+        "price": 900,
+        "unit": "件"
+      },
+      {
+        "name": "皮包包",
+        "price": 1000,
+        "unit": "件"
+      },
+      {
+        "name": "名牌包",
+        "price": 1500,
+        "unit": "件"
+      },
+      {
+        "name": "特殊名牌包",
+        "price": 2000,
+        "unit": "件"
+      }
+    ],
+    "皮件": [
+      {
+        "name": "皮帽子",
+        "price": 300,
+        "unit": "件"
+      },
+      {
+        "name": "皮衣",
+        "price": 1000,
+        "unit": "件"
+      },
+      {
+        "name": "特殊皮衣",
+        "price": 2000,
+        "unit": "件"
+      },
+      {
+        "name": "皮褲",
+        "price": 700,
+        "unit": "件"
+      },
+      {
+        "name": "皮短褲",
+        "price": 600,
+        "unit": "件"
+      },
+      {
+        "name": "皮裙",
+        "price": 600,
+        "unit": "件"
+      },
+      {
+        "name": "皮背心",
+        "price": 800,
+        "unit": "件"
+      },
+      {
+        "name": "皮帶",
+        "price": 400,
+        "unit": "件"
+      },
+      {
+        "name": "皮手套",
+        "price": 300,
+        "unit": "件"
+      }
+    ],
+    "衣服": [
+      {
+        "name": "女衣",
+        "price": 100,
+        "unit": "件"
+      },
+      {
+        "name": "襯衫",
+        "price": 70,
+        "unit": "件"
+      },
+      {
+        "name": "棉T",
+        "price": 70,
+        "unit": "件"
+      },
+      {
+        "name": "長T",
+        "price": 80,
+        "unit": "件"
+      },
+      {
+        "name": "帽T",
+        "price": 90,
+        "unit": "件"
+      },
+      {
+        "name": "短褲",
+        "price": 60,
+        "unit": "件"
+      },
+      {
+        "name": "長褲",
+        "price": 70,
+        "unit": "件"
+      },
+      {
+        "name": "西褲",
+        "price": 100,
+        "unit": "件"
+      },
+      {
+        "name": "牛仔褲",
+        "price": 80,
+        "unit": "件"
+      },
+      {
+        "name": "醫師服",
+        "price": 200,
+        "unit": "件"
+      },
+      {
+        "name": "羽絨背心",
+        "price": 200,
+        "unit": "件"
+      },
+      {
+        "name": "羽絨外套",
+        "price": 280,
+        "unit": "件"
+      },
+      {
+        "name": "西裝",
+        "price": 250,
+        "unit": "件"
+      },
+      {
+        "name": "西裝背心",
+        "price": 110,
+        "unit": "件"
+      },
+      {
+        "name": "短洋裝",
+        "price": 120,
+        "unit": "件"
+      },
+      {
+        "name": "中洋裝",
+        "price": 150,
+        "unit": "件"
+      },
+      {
+        "name": "長洋裝",
+        "price": 180,
+        "unit": "件"
+      },
+      {
+        "name": "禮服",
+        "price": 450,
+        "unit": "件"
+      },
+      {
+        "name": "毛衣",
+        "price": 180,
+        "unit": "件"
+      },
+      {
+        "name": "毛衣外套",
+        "price": 210,
+        "unit": "件"
+      },
+      {
+        "name": "圍巾",
+        "price": 110,
+        "unit": "件"
+      },
+      {
+        "name": "領帶",
+        "price": 100,
+        "unit": "件"
+      },
+      {
+        "name": "G-T外套",
+        "price": 250,
+        "unit": "件"
+      },
+      {
+        "name": "G-T外套2件式",
+        "price": 450,
+        "unit": "件"
+      },
+      {
+        "name": "帽子",
+        "price": 100,
+        "unit": "件"
+      },
+      {
+        "name": "薄外套",
+        "price": 150,
+        "unit": "件"
+      },
+      {
+        "name": "厚外套",
+        "price": 180,
+        "unit": "件"
+      },
+      {
+        "name": "針織衣",
+        "price": 150,
+        "unit": "件"
+      },
+      {
+        "name": "短大衣",
+        "price": 200,
+        "unit": "件"
+      },
+      {
+        "name": "中大衣",
+        "price": 250,
+        "unit": "件"
+      },
+      {
+        "name": "長大衣",
+        "price": 300,
+        "unit": "件"
+      },
+      {
+        "name": "短裙子",
+        "price": 80,
+        "unit": "件"
+      },
+      {
+        "name": "中裙子",
+        "price": 100,
+        "unit": "件"
+      },
+      {
+        "name": "長裙子",
+        "price": 120,
+        "unit": "件"
+      },
+      {
+        "name": "修改",
+        "price": 60,
+        "unit": "件"
+      },
+      {
+        "name": "整燙",
+        "price": 50,
+        "unit": "件"
+      }
+    ],
+    "床組": [
+      {
+        "name": "床組=床單+被套+枕套2",
+        "price": 350,
+        "unit": "件"
+      },
+      {
+        "name": "枕套",
+        "price": 30,
+        "unit": "件"
+      },
+      {
+        "name": "涼被",
+        "price": 180,
+        "unit": "件"
+      },
+      {
+        "name": "棉被(小)",
+        "price": 350,
+        "unit": "件"
+      },
+      {
+        "name": "棉被(大)",
+        "price": 500,
+        "unit": "件"
+      },
+      {
+        "name": "毛毯(小)",
+        "price": 200,
+        "unit": "件"
+      },
+      {
+        "name": "毛毯(中)",
+        "price": 300,
+        "unit": "件"
+      },
+      {
+        "name": "毛毯(大)",
+        "price": 450,
+        "unit": "件"
+      },
+      {
+        "name": "保潔墊",
+        "price": 150,
+        "unit": "件"
+      },
+      {
+        "name": "床單.被套(薄)",
+        "price": 150,
+        "unit": "件"
+      },
+      {
+        "name": "床單.被套(厚)",
+        "price": 180,
+        "unit": "件"
+      },
+      {
+        "name": "蠶絲.羊毛被子",
+        "price": 800,
+        "unit": "件"
+      },
+      {
+        "name": "羽絨被",
+        "price": 600,
+        "unit": "件"
+      },
+      {
+        "name": "枕頭 娃娃",
+        "price": 300,
+        "unit": "件"
+      }
+    ],
+    "高級": [
+      {
+        "name": "精品女衣",
+        "price": 120,
+        "unit": "件"
+      },
+      {
+        "name": "精品棉T",
+        "price": 100,
+        "unit": "件"
+      },
+      {
+        "name": "精品襯衫",
+        "price": 100,
+        "unit": "件"
+      },
+      {
+        "name": "精品帽T",
+        "price": 120,
+        "unit": "件"
+      },
+      {
+        "name": "精品長T",
+        "price": 110,
+        "unit": "件"
+      },
+      {
+        "name": "精品短褲",
+        "price": 90,
+        "unit": "件"
+      },
+      {
+        "name": "精品長褲",
+        "price": 100,
+        "unit": "件"
+      },
+      {
+        "name": "精品外套",
+        "price": 200,
+        "unit": "件"
+      },
+      {
+        "name": "精品厚外套",
+        "price": 230,
+        "unit": "件"
+      },
+      {
+        "name": "精品毛衣",
+        "price": 210,
+        "unit": "件"
+      },
+      {
+        "name": "精品毛衣外套",
+        "price": 240,
+        "unit": "件"
+      },
+      {
+        "name": "精品短洋裝",
+        "price": 150,
+        "unit": "件"
+      },
+      {
+        "name": "精品中洋裝",
+        "price": 180,
+        "unit": "件"
+      },
+      {
+        "name": "精品長洋裝",
+        "price": 210,
+        "unit": "件"
+      },
+      {
+        "name": "精品圍巾",
+        "price": 110,
+        "unit": "件"
+      },
+      {
+        "name": "精品帽子",
+        "price": 130,
+        "unit": "件"
+      },
+      {
+        "name": "精品手套",
+        "price": 110,
+        "unit": "件"
+      },
+      {
+        "name": "精品牛仔褲",
+        "price": 110,
+        "unit": "件"
+      },
+      {
+        "name": "精品短大衣",
+        "price": 250,
+        "unit": "件"
+      },
+      {
+        "name": "精品中大衣",
+        "price": 300,
+        "unit": "件"
+      },
+      {
+        "name": "精品長大衣",
+        "price": 350,
+        "unit": "件"
+      },
+      {
+        "name": "精品短裙子",
+        "price": 110,
+        "unit": "件"
+      },
+      {
+        "name": "精品中裙子",
+        "price": 130,
+        "unit": "件"
+      },
+      {
+        "name": "精品長裙子",
+        "price": 150,
+        "unit": "件"
+      },
+      {
+        "name": "精品背心",
+        "price": 150,
+        "unit": "件"
+      }
+    ],
+    "鞋子": [
+      {
+        "name": "一般運動鞋",
+        "price": 250,
+        "unit": "件"
+      },
+      {
+        "name": "皮運動鞋",
+        "price": 300,
+        "unit": "件"
+      },
+      {
+        "name": "混和運動鞋",
+        "price": 350,
+        "unit": "件"
+      },
+      {
+        "name": "童鞋",
+        "price": 150,
+        "unit": "件"
+      },
+      {
+        "name": "特殊鞋",
+        "price": 400,
+        "unit": "件"
+      },
+      {
+        "name": "名牌鞋",
+        "price": 600,
+        "unit": "件"
+      },
+      {
+        "name": "高跟鞋",
+        "price": 400,
+        "unit": "件"
+      },
+      {
+        "name": "皮鞋",
+        "price": 400,
+        "unit": "件"
+      },
+      {
+        "name": "大童鞋",
+        "price": 200,
+        "unit": "件"
+      },
+      {
+        "name": "麂皮鞋",
+        "price": 400,
+        "unit": "件"
+      },
+      {
+        "name": "一般登山鞋",
+        "price": 350,
+        "unit": "件"
+      },
+      {
+        "name": "高筒登山鞋",
+        "price": 500,
+        "unit": "件"
+      },
+      {
+        "name": "低靴子",
+        "price": 350,
+        "unit": "件"
+      },
+      {
+        "name": "中靴子",
+        "price": 450,
+        "unit": "件"
+      },
+      {
+        "name": "高靴子",
+        "price": 550,
+        "unit": "件"
+      },
+      {
+        "name": "拖鞋",
+        "price": 200,
+        "unit": "件"
+      },
+      {
+        "name": "高級拖鞋",
+        "price": 400,
+        "unit": "件"
+      },
+      {
+        "name": "涼鞋",
+        "price": 250,
+        "unit": "件"
+      }
+    ]
+  },
+  "items": [
+    {
+      "id": "20",
+      "category": "包包",
+      "name": "短皮夾",
+      "price": 400,
+      "unit": "件",
+      "mode": "7"
+    },
+    {
+      "id": "21",
+      "category": "包包",
+      "name": "長皮夾",
+      "price": 600,
+      "unit": "件",
+      "mode": "7"
+    },
+    {
+      "id": "22",
+      "category": "包包",
+      "name": "書包OR背包",
+      "price": 600,
+      "unit": "件",
+      "mode": "7"
+    },
+    {
+      "id": "23",
+      "category": "包包",
+      "name": "大書包",
+      "price": 800,
+      "unit": "件",
+      "mode": "7"
+    },
+    {
+      "id": "24",
+      "category": "包包",
+      "name": "全布包",
+      "price": 500,
+      "unit": "件",
+      "mode": "7"
+    },
+    {
+      "id": "25",
+      "category": "包包",
+      "name": "布混包",
+      "price": 900,
+      "unit": "件",
+      "mode": "7"
+    },
+    {
+      "id": "26",
+      "category": "包包",
+      "name": "皮包包",
+      "price": 1000,
+      "unit": "件",
+      "mode": "7"
+    },
+    {
+      "id": "27",
+      "category": "包包",
+      "name": "名牌包",
+      "price": 1500,
+      "unit": "件",
+      "mode": "7"
+    },
+    {
+      "id": "36",
+      "category": "包包",
+      "name": "特殊名牌包",
+      "price": 2000,
+      "unit": "件",
+      "mode": "7"
+    },
+    {
+      "id": "19",
+      "category": "皮件",
+      "name": "皮帽子",
+      "price": 300,
+      "unit": "件",
+      "mode": "7"
+    },
+    {
+      "id": "28",
+      "category": "皮件",
+      "name": "皮衣",
+      "price": 1000,
+      "unit": "件",
+      "mode": "8"
+    },
+    {
+      "id": "29",
+      "category": "皮件",
+      "name": "特殊皮衣",
+      "price": 2000,
+      "unit": "件",
+      "mode": "8"
+    },
+    {
+      "id": "30",
+      "category": "皮件",
+      "name": "皮褲",
+      "price": 700,
+      "unit": "件",
+      "mode": "8"
+    },
+    {
+      "id": "31",
+      "category": "皮件",
+      "name": "皮短褲",
+      "price": 600,
+      "unit": "件",
+      "mode": "8"
+    },
+    {
+      "id": "32",
+      "category": "皮件",
+      "name": "皮裙",
+      "price": 600,
+      "unit": "件",
+      "mode": "8"
+    },
+    {
+      "id": "33",
+      "category": "皮件",
+      "name": "皮背心",
+      "price": 800,
+      "unit": "件",
+      "mode": "8"
+    },
+    {
+      "id": "34",
+      "category": "皮件",
+      "name": "皮帶",
+      "price": 400,
+      "unit": "件",
+      "mode": "8"
+    },
+    {
+      "id": "88",
+      "category": "皮件",
+      "name": "皮手套",
+      "price": 300,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "37",
+      "category": "衣服",
+      "name": "女衣",
+      "price": 100,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "38",
+      "category": "衣服",
+      "name": "襯衫",
+      "price": 70,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "39",
+      "category": "衣服",
+      "name": "棉T",
+      "price": 70,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "40",
+      "category": "衣服",
+      "name": "長T",
+      "price": 80,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "41",
+      "category": "衣服",
+      "name": "帽T",
+      "price": 90,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "42",
+      "category": "衣服",
+      "name": "短褲",
+      "price": 60,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "43",
+      "category": "衣服",
+      "name": "長褲",
+      "price": 70,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "44",
+      "category": "衣服",
+      "name": "西褲",
+      "price": 100,
+      "unit": "件",
+      "mode": "2"
+    },
+    {
+      "id": "45",
+      "category": "衣服",
+      "name": "牛仔褲",
+      "price": 80,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "46",
+      "category": "衣服",
+      "name": "醫師服",
+      "price": 200,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "47",
+      "category": "衣服",
+      "name": "羽絨背心",
+      "price": 200,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "48",
+      "category": "衣服",
+      "name": "羽絨外套",
+      "price": 280,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "49",
+      "category": "衣服",
+      "name": "西裝",
+      "price": 250,
+      "unit": "件",
+      "mode": "2"
+    },
+    {
+      "id": "50",
+      "category": "衣服",
+      "name": "西裝背心",
+      "price": 110,
+      "unit": "件",
+      "mode": "2"
+    },
+    {
+      "id": "51",
+      "category": "衣服",
+      "name": "短洋裝",
+      "price": 120,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "52",
+      "category": "衣服",
+      "name": "中洋裝",
+      "price": 150,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "53",
+      "category": "衣服",
+      "name": "長洋裝",
+      "price": 180,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "54",
+      "category": "衣服",
+      "name": "禮服",
+      "price": 450,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "55",
+      "category": "衣服",
+      "name": "毛衣",
+      "price": 180,
+      "unit": "件",
+      "mode": "2"
+    },
+    {
+      "id": "56",
+      "category": "衣服",
+      "name": "毛衣外套",
+      "price": 210,
+      "unit": "件",
+      "mode": "2"
+    },
+    {
+      "id": "57",
+      "category": "衣服",
+      "name": "圍巾",
+      "price": 110,
+      "unit": "件",
+      "mode": "2"
+    },
+    {
+      "id": "58",
+      "category": "衣服",
+      "name": "領帶",
+      "price": 100,
+      "unit": "件",
+      "mode": "2"
+    },
+    {
+      "id": "59",
+      "category": "衣服",
+      "name": "G-T外套",
+      "price": 250,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "60",
+      "category": "衣服",
+      "name": "G-T外套2件式",
+      "price": 450,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "61",
+      "category": "衣服",
+      "name": "帽子",
+      "price": 100,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "76",
+      "category": "衣服",
+      "name": "薄外套",
+      "price": 150,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "77",
+      "category": "衣服",
+      "name": "厚外套",
+      "price": 180,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "78",
+      "category": "衣服",
+      "name": "針織衣",
+      "price": 150,
+      "unit": "件",
+      "mode": "2"
+    },
+    {
+      "id": "79",
+      "category": "衣服",
+      "name": "短大衣",
+      "price": 200,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "80",
+      "category": "衣服",
+      "name": "中大衣",
+      "price": 250,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "81",
+      "category": "衣服",
+      "name": "長大衣",
+      "price": 300,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "82",
+      "category": "衣服",
+      "name": "短裙子",
+      "price": 80,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "83",
+      "category": "衣服",
+      "name": "中裙子",
+      "price": 100,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "84",
+      "category": "衣服",
+      "name": "長裙子",
+      "price": 120,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "86",
+      "category": "衣服",
+      "name": "修改",
+      "price": 60,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "87",
+      "category": "衣服",
+      "name": "整燙",
+      "price": 50,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "62",
+      "category": "床組",
+      "name": "床組=床單+被套+枕套2",
+      "price": 350,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "63",
+      "category": "床組",
+      "name": "枕套",
+      "price": 30,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "64",
+      "category": "床組",
+      "name": "涼被",
+      "price": 180,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "65",
+      "category": "床組",
+      "name": "棉被(小)",
+      "price": 350,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "66",
+      "category": "床組",
+      "name": "棉被(大)",
+      "price": 500,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "67",
+      "category": "床組",
+      "name": "毛毯(小)",
+      "price": 200,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "68",
+      "category": "床組",
+      "name": "毛毯(中)",
+      "price": 300,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "69",
+      "category": "床組",
+      "name": "毛毯(大)",
+      "price": 450,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "70",
+      "category": "床組",
+      "name": "保潔墊",
+      "price": 150,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "71",
+      "category": "床組",
+      "name": "床單.被套(薄)",
+      "price": 150,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "72",
+      "category": "床組",
+      "name": "床單.被套(厚)",
+      "price": 180,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "73",
+      "category": "床組",
+      "name": "蠶絲.羊毛被子",
+      "price": 800,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "74",
+      "category": "床組",
+      "name": "羽絨被",
+      "price": 600,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "75",
+      "category": "床組",
+      "name": "枕頭 娃娃",
+      "price": 300,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "89",
+      "category": "高級",
+      "name": "精品女衣",
+      "price": 120,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "90",
+      "category": "高級",
+      "name": "精品棉T",
+      "price": 100,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "91",
+      "category": "高級",
+      "name": "精品襯衫",
+      "price": 100,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "92",
+      "category": "高級",
+      "name": "精品帽T",
+      "price": 120,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "93",
+      "category": "高級",
+      "name": "精品長T",
+      "price": 110,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "94",
+      "category": "高級",
+      "name": "精品短褲",
+      "price": 90,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "95",
+      "category": "高級",
+      "name": "精品長褲",
+      "price": 100,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "96",
+      "category": "高級",
+      "name": "精品外套",
+      "price": 200,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "97",
+      "category": "高級",
+      "name": "精品厚外套",
+      "price": 230,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "98",
+      "category": "高級",
+      "name": "精品毛衣",
+      "price": 210,
+      "unit": "件",
+      "mode": "2"
+    },
+    {
+      "id": "99",
+      "category": "高級",
+      "name": "精品毛衣外套",
+      "price": 240,
+      "unit": "件",
+      "mode": "2"
+    },
+    {
+      "id": "A0",
+      "category": "高級",
+      "name": "精品短洋裝",
+      "price": 150,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "A1",
+      "category": "高級",
+      "name": "精品中洋裝",
+      "price": 180,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "A2",
+      "category": "高級",
+      "name": "精品長洋裝",
+      "price": 210,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "A3",
+      "category": "高級",
+      "name": "精品圍巾",
+      "price": 110,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "A4",
+      "category": "高級",
+      "name": "精品帽子",
+      "price": 130,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "A5",
+      "category": "高級",
+      "name": "精品手套",
+      "price": 110,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "A6",
+      "category": "高級",
+      "name": "精品牛仔褲",
+      "price": 110,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "A7",
+      "category": "高級",
+      "name": "精品短大衣",
+      "price": 250,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "A8",
+      "category": "高級",
+      "name": "精品中大衣",
+      "price": 300,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "A9",
+      "category": "高級",
+      "name": "精品長大衣",
+      "price": 350,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "AA",
+      "category": "高級",
+      "name": "精品短裙子",
+      "price": 110,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "AB",
+      "category": "高級",
+      "name": "精品中裙子",
+      "price": 130,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "AC",
+      "category": "高級",
+      "name": "精品長裙子",
+      "price": 150,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "AD",
+      "category": "高級",
+      "name": "精品背心",
+      "price": 150,
+      "unit": "件",
+      "mode": "1"
+    },
+    {
+      "id": "01",
+      "category": "鞋子",
+      "name": "一般運動鞋",
+      "price": 250,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "02",
+      "category": "鞋子",
+      "name": "皮運動鞋",
+      "price": 300,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "03",
+      "category": "鞋子",
+      "name": "混和運動鞋",
+      "price": 350,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "04",
+      "category": "鞋子",
+      "name": "童鞋",
+      "price": 150,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "05",
+      "category": "鞋子",
+      "name": "特殊鞋",
+      "price": 400,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "06",
+      "category": "鞋子",
+      "name": "名牌鞋",
+      "price": 600,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "07",
+      "category": "鞋子",
+      "name": "高跟鞋",
+      "price": 400,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "08",
+      "category": "鞋子",
+      "name": "皮鞋",
+      "price": 400,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "09",
+      "category": "鞋子",
+      "name": "大童鞋",
+      "price": 200,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "10",
+      "category": "鞋子",
+      "name": "麂皮鞋",
+      "price": 400,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "11",
+      "category": "鞋子",
+      "name": "一般登山鞋",
+      "price": 350,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "12",
+      "category": "鞋子",
+      "name": "高筒登山鞋",
+      "price": 500,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "13",
+      "category": "鞋子",
+      "name": "低靴子",
+      "price": 350,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "14",
+      "category": "鞋子",
+      "name": "中靴子",
+      "price": 450,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "15",
+      "category": "鞋子",
+      "name": "高靴子",
+      "price": 550,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "16",
+      "category": "鞋子",
+      "name": "拖鞋",
+      "price": 200,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "17",
+      "category": "鞋子",
+      "name": "高級拖鞋",
+      "price": 400,
+      "unit": "件",
+      "mode": "5"
+    },
+    {
+      "id": "18",
+      "category": "鞋子",
+      "name": "涼鞋",
+      "price": 250,
+      "unit": "件",
+      "mode": "5"
+    }
+  ],
+  "notice": "線上預估依現有價目逐項初估；污漬、深層染色、特殊材質、尺寸與手工處理仍以現場師傅檢視為準。"
+}

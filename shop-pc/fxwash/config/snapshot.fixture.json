@@ -1,0 +1,27 @@
+{
+  "customers": [
+    {"customer_id": "demo-c001", "name": "示範客人", "phone": "0900000000", "mobile": ""}
+  ],
+  "pieces": [
+    {
+      "piece_id": "demo-p001",
+      "order_no": "D260001",
+      "customer_id": "demo-c001",
+      "item": "襯衫",
+      "status": "processing",
+      "price": 70,
+      "received_at": "2026-09-20",
+      "ready_at": ""
+    },
+    {
+      "piece_id": "demo-p002",
+      "order_no": "D260001",
+      "customer_id": "demo-c001",
+      "item": "運動鞋",
+      "status": "ready",
+      "price": 140,
+      "received_at": "2026-09-20",
+      "ready_at": "2026-09-21"
+    }
+  ]
+}

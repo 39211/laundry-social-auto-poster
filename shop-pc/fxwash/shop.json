@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "shop_id": "fxwash",
+  "mode": "demo",
+  "business": {
+    "name": "私享家",
+    "address": "台中市西屯區青海路二段365號",
+    "phone": "0968-327-653",
+    "map_url": "https://www.pixnet.net/pcard/fxwash/profile/info",
+    "tagline": "把衣物交給熟悉的人照顧",
+    "turnaround_note": "營業時間:10:00~20:00 星期六12:00~18:00 (星期日公休)"
+  },
+  "hours": {
+    "0": [
+      [
+        "10:00",
+        "20:00"
+      ]
+    ],
+    "1": [
+      [
+        "10:00",
+        "20:00"
+      ]
+    ],
+    "2": [
+      [
+        "10:00",
+        "20:00"
+      ]
+    ],
+    "3": [
+      [
+        "10:00",
+        "20:00"
+      ]
+    ],
+    "4": [
+      [
+        "10:00",
+        "20:00"
+      ]
+    ],
+    "5": [
+      [
+        "12:00",
+        "18:00"
+      ]
+    ],
+    "6": []
+  },
+  "pickup": {
+    "description": "外收送範圍與時段請洽門市專線預約",
+    "slots": {
+      "weekday": [
+        "10:00-12:00",
+        "14:00-17:00"
+      ],
+      "saturday": [
+        "12:00-15:00"
+      ]
+    }
+  },
+  "paths": {
+    "prices": "config/prices.json",
+    "menu_image": "config/menu.png",
+    "data_dir": "data",
+    "log_dir": "logs",
+    "backup_dir": "backups"
+  },
+  "server": {
+    "webhook_port": 18791,
+    "staff_port": 18792,
+    "public_base": "https://cbf8d77614cca1.lhr.life",
+    "webhook_path": "/line/webhook",
+    "webhook_url": "https://cbf8d77614cca1.lhr.life/line/webhook"
+  },
+  "lookup": {
+    "mode": "ehank_readonly",
+    "connector": "ehank_mdb",
+    "root_path": "C:\\LaundryStores\\fxwash\\bridge",
+    "root_env": "",
+    "snapshot_path": "data/snapshot.json",
+    "database_path": "",
+    "max_age_seconds": 300
+  },
+  "vision": {
+    "enabled": true,
+    "provider": "gemini",
+    "terms_version": "2026-09-v1",
+    "consent_required": true
+  },
+  "payment": {
+    "mode": "disabled",
+    "url": "",
+    "environment": "sandbox",
+    "currency": "TWD",
+    "order_prefix": "FXWASH"
+  },
+  "product": {
+    "plan": "starter",
+    "style": "heritage_green_gold",
+    "modules": [
+      "brand_oa",
+      "human_faq",
+      "staff_handoff",
+      "progress_lookup"
+    ]
+  },
+  "privacy": {
+    "notice_version": "2026-09-v1",
+    "photo_retention_days": 7
+  },
+  "acceptance": {
+    "owner_confirmed": false,
+    "real_phone_tested": false,
+    "photo_tested": false,
+    "location_tested": false,
+    "staff_group_tested": false,
+    "query_authorization_tested": false,
+    "payment_tested": false,
+    "backup_restore_tested": false,
+    "outage_recovery_tested": false
+  }
+}

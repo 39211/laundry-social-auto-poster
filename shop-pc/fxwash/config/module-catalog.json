@@ -1,0 +1,22 @@
+{
+  "catalog_version": 1,
+  "note": "此目錄是客戶選配說明；是否正式可用仍以門市設定、平台回讀與手機驗收為準。",
+  "plans": {
+    "starter": ["brand_oa", "human_faq", "staff_handoff", "progress_lookup"],
+    "growth": ["brand_oa", "human_faq", "staff_handoff", "progress_lookup", "pickup_booking", "photo_quote", "line_pay_qr"],
+    "pro": ["brand_oa", "human_faq", "staff_handoff", "progress_lookup", "pickup_booking", "photo_quote", "line_pay_qr", "loyalty", "broadcast_content"]
+  },
+  "modules": [
+    {"key": "brand_oa", "label": "品牌基礎與 LINE 選單（規劃／接線；不含平台發布）", "status": "ready", "note": "ready=規劃／接線清單，非 LINE 平台選單已發布"},
+    {"key": "human_faq", "label": "真人感客服回覆", "status": "ready"},
+    {"key": "staff_handoff", "label": "店員接手與群組通知", "status": "ready"},
+    {"key": "progress_lookup", "label": "查件進度與金額摘要", "status": "ready"},
+    {"key": "pickup_booking", "label": "外收送引導預約", "status": "prepared"},
+    {"key": "photo_quote", "label": "照片問價與人工複核", "status": "prepared"},
+    {"key": "line_pay_qr", "label": "LINE Pay 客人自行輸入／掃碼付款", "status": "ready"},
+    {"key": "line_pay_online", "label": "LINE Pay Online API", "status": "integration_required"},
+    {"key": "loyalty", "label": "集點卡與優惠券", "status": "prepared"},
+    {"key": "broadcast_content", "label": "LINE 圖文推播內容包", "status": "prepared"},
+    {"key": "social_content", "label": "FB／IG／YouTube／SEO 加購包", "status": "add_on"}
+  ]
+}

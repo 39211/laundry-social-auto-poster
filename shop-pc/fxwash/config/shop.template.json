@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "shop_id": "new-shop",
+  "mode": "demo",
+  "business": {
+    "name": "請填門市名稱",
+    "address": "請填門市地址",
+    "phone": "02-00000000",
+    "map_url": "https://maps.google.com/",
+    "tagline": "把衣物交給熟悉的人照顧",
+    "turnaround_note": "實際時間依衣物狀況與現場評估為準"
+  },
+  "hours": {
+    "0": [["10:00", "20:00"]],
+    "1": [["10:00", "20:00"]],
+    "2": [["10:00", "20:00"]],
+    "3": [["10:00", "20:00"]],
+    "4": [["10:00", "20:00"]],
+    "5": [["10:00", "20:00"]],
+    "6": []
+  },
+  "pickup": {
+    "description": "請填外收送範圍、費用與可預約時段",
+    "slots": {
+      "weekday": ["10:00-12:00", "14:00-17:00"],
+      "saturday": ["10:00-12:00"]
+    }
+  },
+  "paths": {
+    "prices": "config/prices.json",
+    "menu_image": "config/menu.png",
+    "data_dir": "data",
+    "log_dir": "logs",
+    "backup_dir": "backups"
+  },
+  "server": {
+    "webhook_port": 18791,
+    "staff_port": 18792,
+    "public_base": "",
+    "webhook_path": "/line/webhook",
+    "webhook_url": ""
+  },
+  "lookup": {
+    "mode": "manual",
+    "connector": "none",
+    "root_path": "",
+    "root_env": "",
+    "snapshot_path": "data/snapshot.json",
+    "database_path": "",
+    "max_age_seconds": 300
+  },
+  "vision": {
+    "enabled": false,
+    "provider": "",
+    "terms_version": "",
+    "consent_required": false
+  },
+  "payment": {
+    "mode": "disabled",
+    "url": "",
+    "environment": "sandbox",
+    "currency": "TWD",
+    "order_prefix": "SHOP"
+  },
+  "product": {
+    "plan": "starter",
+    "style": "heritage_green_gold",
+    "modules": [
+      "brand_oa",
+      "human_faq",
+      "staff_handoff",
+      "progress_lookup"
+    ]
+  },
+  "privacy": {
+    "notice_version": "2026-09-v1",
+    "photo_retention_days": 7
+  },
+  "acceptance": {
+    "owner_confirmed": false,
+    "real_phone_tested": false,
+    "photo_tested": false,
+    "location_tested": false,
+    "staff_group_tested": false,
+    "query_authorization_tested": false,
+    "payment_tested": false,
+    "backup_restore_tested": false,
+    "outage_recovery_tested": false
+  }
+}

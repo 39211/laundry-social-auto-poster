@@ -1,0 +1,19 @@
+{
+    "package":  "p3-line-oa-product-kit",
+    "version":  "1.1.0-candidate",
+    "installed_at_utc":  "2026-09-21T10:28:49.7668272Z",
+    "store_path":  "C:\\LaundryStores\\fxwash",
+    "status":  "demo_instance_created",
+    "validate":  {
+                     "exit_code":  0,
+                     "ok":  true,
+                     "stdout":  "{\r\n  \"command\": \"validate\",\r\n  \"errors\": [],\r\n  \"mode\": \"demo\",\r\n  \"shop\": \"C:\\\\LaundryStores\\\\fxwash\\\\shop.json\",\r\n  \"shop_id\": \"new-shop\",\r\n  \"valid\": true\r\n}\r\n"
+                 },
+    "next_actions":  [
+                         "編輯 shop.json，填入這家店自己的資料",
+                         "依店家環境設定 lookup.mode 與唯讀 connector",
+                         "在店家現場另行放入 secrets/line-channel.json，不要回傳商品包",
+                         "執行 python laundry.py validate --shop shop.json",
+                         "完成真 LINE、手機、店員群、查件、付款、備份還原與斷線驗收後，才執行 handover"
+                     ]
+}

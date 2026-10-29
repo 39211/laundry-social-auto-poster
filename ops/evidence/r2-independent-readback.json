@@ -1,0 +1,68 @@
+{
+  "status": "PASS",
+  "synthetic_only": true,
+  "formal_rto": "UNMEASURED",
+  "pester_total": 51,
+  "drill_root": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db",
+  "manifests_verified": 9,
+  "payloads_verified": 101,
+  "bytes_verified": 172561,
+  "skipped_records_verified": 7,
+  "unlisted_payloads": 0,
+  "cases": [
+    {
+      "case": "r2-excluded-backup",
+      "files": 12,
+      "skipped": 0,
+      "manifest": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db\\r2-excluded-backup\\backups\\20261030-0213\\MANIFEST.json"
+    },
+    {
+      "case": "r2-locked-data-backup",
+      "files": 11,
+      "skipped": 1,
+      "manifest": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db\\r2-locked-data-backup\\backups\\20261030-0213\\MANIFEST.json"
+    },
+    {
+      "case": "r2-locked-state-backup",
+      "files": 11,
+      "skipped": 1,
+      "manifest": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db\\r2-locked-state-backup\\backups\\20261030-0213\\MANIFEST.json"
+    },
+    {
+      "case": "r2-locked-local-backup",
+      "files": 11,
+      "skipped": 1,
+      "manifest": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db\\r2-locked-local-backup\\backups\\20261030-0213\\MANIFEST.json"
+    },
+    {
+      "case": "r2-locked-mdb-backup",
+      "files": 11,
+      "skipped": 1,
+      "manifest": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db\\r2-locked-mdb-backup\\backups\\20261030-0213\\MANIFEST.json"
+    },
+    {
+      "case": "r2-locked-tasks-backup",
+      "files": 11,
+      "skipped": 1,
+      "manifest": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db\\r2-locked-tasks-backup\\backups\\20261030-0213\\MANIFEST.json"
+    },
+    {
+      "case": "r2-denied-backup",
+      "files": 11,
+      "skipped": 1,
+      "manifest": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db\\r2-denied-backup\\backups\\20261030-0214\\MANIFEST.json"
+    },
+    {
+      "case": "r2-late-lock",
+      "files": 11,
+      "skipped": 1,
+      "manifest": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db\\r2-late-lock\\backups\\20261030-0330\\MANIFEST.json"
+    },
+    {
+      "case": "r2-multiple-buffers",
+      "files": 12,
+      "skipped": 0,
+      "manifest": "C:\\Users\\cyc39\\AI-Lanes\\a5\\repo\\ops\\_tmp\\drill-379467b679684c89870665f5e0a679db\\r2-multiple-buffers\\backups\\20261030-0214\\MANIFEST.json"
+    }
+  ]
+}

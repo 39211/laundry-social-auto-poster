@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "allowed_scope": [
+    "ops/",
+    "docs-internal/RUNBOOK-RECOVERY.md",
+    "docs-internal/cards/A5-RESULT.md"
+  ],
+  "tracked_diff": [],
+  "staged_diff": [],
+  "head": "dfd6cedb9861cd2264eefc87d979f28f1dfffecc",
+  "document_link_errors": [],
+  "ascii_ps1_files": 7,
+  "modified_original_files": [
+    {
+      "path": "ops/backup-sxj-live.ps1",
+      "sha256": "68ef5821014be3751a801849d7fe584460e8b47083d83d681303cb9d245794ca"
+    },
+    {
+      "path": "ops/Recovery.Common.ps1",
+      "sha256": "42b64d8a107cf70b61c61bd43843cb282fb4bb258190aa1bbb2fe772c45daeba"
+    },
+    {
+      "path": "ops/tests/Recovery.Tests.ps1",
+      "sha256": "6538924908a7ee9ed6b5c0d276e43e331fb2c2c12286ea229d0de3afde555c1b"
+    },
+    {
+      "path": "ops/A5-PLAN.md",
+      "sha256": "ed7e2fe97bf7b6da58fdcdd16082021750db3ea1019b7f3f313de8043fe02eaa"
+    },
+    {
+      "path": "docs-internal/RUNBOOK-RECOVERY.md",
+      "sha256": "d577cd821dd563f7a95753c3593b152e4fef25522df87c65f6465d5992ef2458"
+    },
+    {
+      "path": "docs-internal/cards/A5-RESULT.md",
+      "sha256": "7aa8a1589bc374550a97d39328732a3501aecc875b68b34fd4eb698518a67834"
+    }
+  ],
+  "added_verifier": "ops/verify-r2-manifests.py",
+  "evidence_directory": "ops/evidence",
+  "live_backup_executed": false,
+  "commit_executed": false
+}

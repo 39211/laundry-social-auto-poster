@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁。東勢、大甲、龍井不進這支。 */
-export const EXPECTED_LOC_COUNT = 167;
+/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁、第 9 波 10 頁。東勢、大甲、龍井不進這支。 */
+export const EXPECTED_LOC_COUNT = 177;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -594,6 +594,44 @@ export function wave8InsertedBlocks(html: string): string[] {
   ].map((match) => match[0] ?? "");
 }
 
+/** B5 第 9 波 10 頁。lastmod 用這次上線日，不回寫前波。 */
+export const WAVE9_PAGE_LASTMOD = "2026-10-29";
+
+export const WAVE9_PAGE_PATHS = [
+  "/guides/shoe-outsole-tread-wear.html",
+  "/guides/shoe-heel-counter-collapse.html",
+  "/guides/shoe-welt-stitch-break.html",
+  "/guides/bag-structure-collapse.html",
+  "/guides/bag-zipper-tape-fray.html",
+  "/guides/bag-frame-gap.html",
+  "/guides/leather-bag-crease-lighten.html",
+  "/guides/knit-snag-check.html",
+  "/guides/garment-hem-thread-run.html",
+  "/guides/coat-cuff-wear.html"
+] as const;
+
+/**
+ * 第 9 波新頁正文、頁面層 JSON-LD（WebPage／HowTo／FAQ／麵包屑）與 data-wave9 插入塊。
+ * 不掃共用 header、footer、店家 JSON-LD。沿用第 8 波硬規，並多擋「回白」。
+ */
+export const WAVE9_BANNED_MARKERS = [...WAVE8_BANNED_MARKERS, "回白"] as const;
+
+export function wave9BannedHits(text: string): string[] {
+  return WAVE9_BANNED_MARKERS.filter((marker) => text.includes(marker));
+}
+
+/** 第 9 波要審的文字與第 8 波相同範圍：標題、摘要、main、頁面層 JSON-LD。 */
+export function wave9AuditedText(html: string): string {
+  return wave8AuditedText(html);
+}
+
+export function wave9InsertedBlocks(html: string): string[] {
+  return [
+    ...html.matchAll(/<article\b[^>]*\bdata-wave9="1"[^>]*>[\s\S]*?<\/article>/g),
+    ...html.matchAll(/<section\b[^>]*\bdata-wave9="1"[^>]*>[\s\S]*?<\/section>/g)
+  ].map((match) => match[0] ?? "");
+}
+
 export type SitemapLinkReport = {
   parseOk: boolean;
   locCount: number;
@@ -723,7 +761,8 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
       lastmod: GSC_QUERY_LASTMOD_OVERRIDES[path] ?? olderLastmod(path, WAVE5_PAGE_LASTMOD)
     })),
     ...WAVE7_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE7_PAGE_LASTMOD })),
-    ...WAVE8_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE8_PAGE_LASTMOD }))
+    ...WAVE8_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE8_PAGE_LASTMOD })),
+    ...WAVE9_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE9_PAGE_LASTMOD }))
   ];
   for (const { path, lastmod } of tracked) {
     const hubs = hrefs.get(path) ?? [];
@@ -770,7 +809,7 @@ export function formatSitemapLinkReport(report: SitemapLinkReport): string {
     `wrong_lastmod ${JSON.stringify(report.wrongLastmod)}`,
     "inbound:"
   ];
-  for (const path of [...NEW_PAGE_PATHS, ...WAVE2_PAGE_PATHS, ...WAVE3_PAGE_PATHS, ...WAVE4_PAGE_PATHS, ...WAVE5_PAGE_PATHS, ...WAVE7_PAGE_PATHS, ...WAVE8_PAGE_PATHS]) {
+  for (const path of [...NEW_PAGE_PATHS, ...WAVE2_PAGE_PATHS, ...WAVE3_PAGE_PATHS, ...WAVE4_PAGE_PATHS, ...WAVE5_PAGE_PATHS, ...WAVE7_PAGE_PATHS, ...WAVE8_PAGE_PATHS, ...WAVE9_PAGE_PATHS]) {
     const hit = report.inbound[path];
     lines.push(`${path}\t${hit?.count ?? 0}\t${(hit?.hubs ?? []).join(",")}`);
   }

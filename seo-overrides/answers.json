@@ -10085,6 +10085,226 @@
         "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
         "Do not infer that a price-list row means every condition is accepted."
       ]
+    },
+    {
+      "id": "shoe-outsole-tread-wear-page-summary",
+      "type": "guide_summary",
+      "question": "鞋底花紋磨平就是開膠嗎？",
+      "answer": "先把整片大底翻過來拍，標出紋路還在和已經磨光的位置。花紋磨光洗不回來。換底屬修繕。能不能做、怎麼算，傳照片到 LINE @454foyks 問。不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。價目表鞋子欄原文：「一般運動鞋 $250、皮類運動鞋 $300、混合運動鞋 $350」以及「休閒鞋 $350、低靴子 $350、中靴子 $450、高靴子 $550、麂皮鞋 $400、高跟鞋 $400、特殊鞋 $400、名牌鞋 $600、皮鞋 $400」。全部是水洗參考價，乾洗、柔洗另計。參考價，看過實品再報價。門市在台中市西屯區，西屯門市收件。台中全市免費收送、沒有最低消費。LINE 官方 @454foyks（https://lin.ee/w8qGVqM）。",
+      "source_url": "https://sixiangjialaundry.com/guides/shoe-outsole-tread-wear.html",
+      "local_intent": "鞋底花紋磨平怎麼看",
+      "keywords": [
+        "鞋底花紋磨平",
+        "精品鞋鞋底磨損",
+        "大底磨光"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer pricing.",
+        "Do not guarantee like-new results, odor removal, or medical sterilization.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not infer that a price-list row means every condition is accepted."
+      ]
+    },
+    {
+      "id": "shoe-heel-counter-collapse-page-summary",
+      "type": "guide_summary",
+      "question": "鞋後跟塌了就是內裡磨破嗎？",
+      "answer": "從鞋後面拍跟口，看它還圓不圓。跟杯軟掉洗不回去。換跟杯屬修繕。能不能做、怎麼算，傳照片到 LINE @454foyks 問。不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。價目表鞋子欄原文：「一般運動鞋 $250、皮類運動鞋 $300、混合運動鞋 $350」以及「休閒鞋 $350、低靴子 $350、中靴子 $450、高靴子 $550、麂皮鞋 $400、高跟鞋 $400、特殊鞋 $400、名牌鞋 $600、皮鞋 $400」。全部是水洗參考價，乾洗、柔洗另計。參考價，看過實品再報價。門市在台中市西屯區，西屯門市收件。台中全市免費收送、沒有最低消費。LINE 官方 @454foyks（https://lin.ee/w8qGVqM）。",
+      "source_url": "https://sixiangjialaundry.com/guides/shoe-heel-counter-collapse.html",
+      "local_intent": "鞋後跟塌了怎麼看",
+      "keywords": [
+        "鞋後跟塌了",
+        "跟杯站不住",
+        "鞋口塌"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer pricing.",
+        "Do not guarantee like-new results, odor removal, or medical sterilization.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not infer that a price-list row means every condition is accepted."
+      ]
+    },
+    {
+      "id": "shoe-welt-stitch-break-page-summary",
+      "type": "guide_summary",
+      "question": "皮鞋沿條線斷了就是開膠嗎？",
+      "answer": "沿條那一圈近拍，標出線頭和空掉的針距。先不要再上鞋油把線蓋住。補線屬修繕。能不能做、怎麼算，傳照片到 LINE @454foyks 問。不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。價目表鞋子欄原文：「一般運動鞋 $250、皮類運動鞋 $300、混合運動鞋 $350」以及「休閒鞋 $350、低靴子 $350、中靴子 $450、高靴子 $550、麂皮鞋 $400、高跟鞋 $400、特殊鞋 $400、名牌鞋 $600、皮鞋 $400」。全部是水洗參考價，乾洗、柔洗另計。參考價，看過實品再報價。門市在台中市西屯區，西屯門市收件。台中全市免費收送、沒有最低消費。LINE 官方 @454foyks（https://lin.ee/w8qGVqM）。",
+      "source_url": "https://sixiangjialaundry.com/guides/shoe-welt-stitch-break.html",
+      "local_intent": "皮鞋沿條線斷了怎麼看",
+      "keywords": [
+        "皮鞋沿條線斷了",
+        "沿條車線",
+        "皮鞋線頭"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer pricing.",
+        "Do not guarantee like-new results, odor removal, or medical sterilization.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not infer that a price-list row means every condition is accepted."
+      ]
+    },
+    {
+      "id": "bag-structure-collapse-page-summary",
+      "type": "guide_summary",
+      "question": "包包站不住就是草編泡水變形嗎？",
+      "answer": "包包放平，從側面拍它還站不站得住。內撐板斷了先不要自己黏。換撐板屬修繕。能不能做、怎麼算，傳照片到 LINE @454foyks 問。不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。價目表包包欄原文：「背包 $500、全布包 $550、布混包 $900、短皮夾 $400、長皮夾 $600、一般包 $600、皮包包 $1000」，以及「名牌包 $1500 起」、特殊類名牌包 $2500。全部是水洗參考價，乾洗、柔洗另計。參考價，看過實品再報價。門市在台中市西屯區，西屯門市收件。台中全市免費收送、沒有最低消費。LINE 官方 @454foyks（https://lin.ee/w8qGVqM）。",
+      "source_url": "https://sixiangjialaundry.com/guides/bag-structure-collapse.html",
+      "local_intent": "包包站不住怎麼看",
+      "keywords": [
+        "包包站不住",
+        "包包塌陷",
+        "包包變形"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer pricing.",
+        "Do not guarantee like-new results, odor removal, or medical sterilization.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not infer that a price-list row means every condition is accepted."
+      ]
+    },
+    {
+      "id": "bag-zipper-tape-fray-page-summary",
+      "type": "guide_summary",
+      "question": "包包拉鍊布邊脫線就是轉鎖壞了嗎？",
+      "answer": "拉鍊整條拉一次，拍布帶離開包身的那一段。先不要用膠把布邊黏死。把布帶縫回去屬修繕。能不能做、怎麼算，傳照片到 LINE @454foyks 問。不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。價目表包包欄原文：「背包 $500、全布包 $550、布混包 $900、短皮夾 $400、長皮夾 $600、一般包 $600、皮包包 $1000」，以及「名牌包 $1500 起」、特殊類名牌包 $2500。全部是水洗參考價，乾洗、柔洗另計。參考價，看過實品再報價。門市在台中市西屯區，西屯門市收件。台中全市免費收送、沒有最低消費。LINE 官方 @454foyks（https://lin.ee/w8qGVqM）。",
+      "source_url": "https://sixiangjialaundry.com/guides/bag-zipper-tape-fray.html",
+      "local_intent": "包包拉鍊布邊脫線怎麼看",
+      "keywords": [
+        "包包拉鍊布邊脫線",
+        "拉鍊布帶離開",
+        "包包拉鍊起毛"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer pricing.",
+        "Do not guarantee like-new results, odor removal, or medical sterilization.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not infer that a price-list row means every condition is accepted."
+      ]
+    },
+    {
+      "id": "bag-frame-gap-page-summary",
+      "type": "guide_summary",
+      "question": "包口金屬框鬆了就是按扣壞了嗎？",
+      "answer": "口框合上，從正面拍縫有多寬，再拍鉸鏈那一側。先不要用力掰。調口框屬修繕。能不能做、怎麼算，傳照片到 LINE @454foyks 問。不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。價目表包包欄原文：「背包 $500、全布包 $550、布混包 $900、短皮夾 $400、長皮夾 $600、一般包 $600、皮包包 $1000」，以及「名牌包 $1500 起」、特殊類名牌包 $2500。全部是水洗參考價，乾洗、柔洗另計。參考價，看過實品再報價。門市在台中市西屯區，西屯門市收件。台中全市免費收送、沒有最低消費。LINE 官方 @454foyks（https://lin.ee/w8qGVqM）。",
+      "source_url": "https://sixiangjialaundry.com/guides/bag-frame-gap.html",
+      "local_intent": "包口金屬框鬆了怎麼看",
+      "keywords": [
+        "包口金屬框鬆了",
+        "口金留縫",
+        "包口合不緊"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer pricing.",
+        "Do not guarantee like-new results, odor removal, or medical sterilization.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not infer that a price-list row means every condition is accepted."
+      ]
+    },
+    {
+      "id": "leather-bag-crease-lighten-page-summary",
+      "type": "guide_summary",
+      "question": "皮包摺痕發白就是整片變黃嗎？",
+      "answer": "拍摺痕和旁邊還沒折到的皮，放在同一張對比。先不要上油把霧蓋住。把顏色補回去屬修繕。能不能做、怎麼算，傳照片到 LINE @454foyks 問。不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。價目表包包欄原文：「背包 $500、全布包 $550、布混包 $900、短皮夾 $400、長皮夾 $600、一般包 $600、皮包包 $1000」，以及「名牌包 $1500 起」、特殊類名牌包 $2500。全部是水洗參考價，乾洗、柔洗另計。參考價，看過實品再報價。門市在台中市西屯區，西屯門市收件。台中全市免費收送、沒有最低消費。LINE 官方 @454foyks（https://lin.ee/w8qGVqM）。",
+      "source_url": "https://sixiangjialaundry.com/guides/leather-bag-crease-lighten.html",
+      "local_intent": "皮包摺痕發白怎麼看",
+      "keywords": [
+        "皮包摺痕發白",
+        "皮包彎折變淺",
+        "皮包摺痕發霧"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer pricing.",
+        "Do not guarantee like-new results, odor removal, or medical sterilization.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not infer that a price-list row means every condition is accepted."
+      ]
+    },
+    {
+      "id": "knit-snag-check-page-summary",
+      "type": "guide_summary",
+      "question": "毛衣勾紗就是起球嗎？",
+      "answer": "先不要剪那根線。拍環有多長、從哪一針拉出來。把線勾回布面屬修繕。能不能做、怎麼算，傳照片到 LINE @454foyks 問。不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。價目表衣物欄原文：「毛衣 $150」，精品衣物欄原文：「精品毛衣 $210」。全部是水洗參考價，乾洗、柔洗另計。參考價，看過實品再報價。門市在台中市西屯區，西屯門市收件。台中全市免費收送、沒有最低消費。LINE 官方 @454foyks（https://lin.ee/w8qGVqM）。",
+      "source_url": "https://sixiangjialaundry.com/guides/knit-snag-check.html",
+      "local_intent": "毛衣勾紗怎麼看",
+      "keywords": [
+        "毛衣勾紗",
+        "毛衣拉出一根線",
+        "羊毛勾紗"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer pricing.",
+        "Do not guarantee like-new results, odor removal, or medical sterilization.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not infer that a price-list row means every condition is accepted."
+      ]
+    },
+    {
+      "id": "garment-hem-thread-run-page-summary",
+      "type": "guide_summary",
+      "question": "衣服下擺脫線就是裡布脫開嗎？",
+      "answer": "拍線頭和整圈底邊。先不要把整圈拆開。把底邊縫回去屬修繕。能不能做、怎麼算，傳照片到 LINE @454foyks 問。不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。價目表衣物欄原文：「襯衫 $70、長褲 $70、牛仔褲 $80」。全部是水洗參考價，乾洗、柔洗另計。參考價，看過實品再報價。門市在台中市西屯區，西屯門市收件。台中全市免費收送、沒有最低消費。LINE 官方 @454foyks（https://lin.ee/w8qGVqM）。",
+      "source_url": "https://sixiangjialaundry.com/guides/garment-hem-thread-run.html",
+      "local_intent": "衣服下擺脫線怎麼看",
+      "keywords": [
+        "衣服下擺脫線",
+        "褲腳車線散開",
+        "底邊線頭"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer pricing.",
+        "Do not guarantee like-new results, odor removal, or medical sterilization.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not infer that a price-list row means every condition is accepted."
+      ]
+    },
+    {
+      "id": "coat-cuff-wear-page-summary",
+      "type": "guide_summary",
+      "question": "外套袖口磨破就是手肘裂開嗎？",
+      "answer": "兩隻袖口都拍，標出磨穿的那一圈。羽毛從別的破洞跑出來要另外講。補袖口屬修繕。能不能做、怎麼算，傳照片到 LINE @454foyks 問。不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。價目表衣物欄原文：「厚外套 $180、羽絨外套 $280」，精品衣物欄原文：「精品外套 $200」。全部是水洗參考價，乾洗、柔洗另計。參考價，看過實品再報價。門市在台中市西屯區，西屯門市收件。台中全市免費收送、沒有最低消費。LINE 官方 @454foyks（https://lin.ee/w8qGVqM）。",
+      "source_url": "https://sixiangjialaundry.com/guides/coat-cuff-wear.html",
+      "local_intent": "外套袖口磨破怎麼看",
+      "keywords": [
+        "外套袖口磨破",
+        "袖口磨穿",
+        "手腕袖口"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer pricing.",
+        "Do not guarantee like-new results, odor removal, or medical sterilization.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not infer that a price-list row means every condition is accepted."
+      ]
     }
   ]
 }

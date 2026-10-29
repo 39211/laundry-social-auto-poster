@@ -17,6 +17,8 @@ Read:
 - `references/source-policy.md` for collection, tiers, deduplication, and the 2500-unit target.
 - `references/evidence-schema.md` before adding evidence.
 - `references/validation-rubric.md` before accepting screenplays, shooting scripts, frames, clips, masters, or campaign results.
+- `references/shoe-route-contact-review.md` before planning or reviewing shoe-cleaning footage; apply the owner's route, tool, dirt, grip, and wet/dry rejection cases.
+- For a shoe-specific shot plan, also read `data/anchors/shoes/workflow-v1/README.md`; bind exact shoe, zone/material, method, action, and state. Treat it as a production-method candidate, not a store-care SOP or proof of visual acceptance.
 
 ## Workflow
 
@@ -41,6 +43,7 @@ Read:
 - Prefer real store, customer-consented, object, and craft evidence. Label synthetic shots as concepts.
 - Approve the exact-ratio first frame before any video generation.
 - Use one observable action per raw clip. Six seconds is an internal reliability unit, not an xAI universal minimum.
+- Treat planned coordinates as review targets, not motion controls, unless the exact active transport sends documented frame/keyframe inputs. The shoe workflow README records the current transport boundary; never infer controls from a plan schema.
 - Preserve raw media, manifest, prompt hash, input hash, request ID, model, timestamps, and output hash.
 - xAI officially supports using a Grok subscription inside Hermes Agent, including Grok Imagine video. The approved subscription route is `provider=xai-oauth` through the local copx job engine; it must never automate grok.com and must never fall back to `XAI_API_KEY`.
 - Before using the subscription route, require the sanitized Hermes readiness report to show OAuth logged in, `video_gen` enabled, and dependencies ready. Submit each generation ID once, preserve the job record, and reconcile the same request instead of creating duplicates.

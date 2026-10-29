@@ -1,16 +1,19 @@
 # -*- coding: utf-8 -*-
+import io
 import json
 import os
 import subprocess
 import sys
 import tempfile
 import time
+import unittest
 import urllib.error
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import tunnel_manager as tm
+from a43_test_support import isolated_legacy_test
 
 PY = sys.executable
 
@@ -63,8 +66,8 @@ def test_parse_none():
 
 def test_parse_first_of_two():
     text = (
-        "visit https://alpha-one.trycloudflare.com now\n"
-        "also https://beta-two.trycloudflare.com later\n"
+        "| https://alpha-one.trycloudflare.com |\n"
+        "| https://beta-two.trycloudflare.com |\n"
     )
     assert tm.parse_tunnel_url(text) == "https://alpha-one.trycloudflare.com"
 
@@ -105,7 +108,7 @@ def test_reader_drains_after_url():
     child = tmp / "child.py"
     child.write_text(
         "import sys\n"
-        "sys.stdout.write('banner https://keep-drain.trycloudflare.com\\n')\n"
+        "sys.stdout.write('| https://keep-drain.trycloudflare.com |\\n')\n"
         "sys.stdout.flush()\n"
         "chunk = 'Z' * 1000\n"
         "for i in range(25):\n"
@@ -132,6 +135,7 @@ def test_reader_drains_after_url():
     t = getattr(proc, "_reader_thread", None)
     if t is not None:
         t.join(timeout=5)
+    proc.stdout.close()
     assert url == "https://keep-drain.trycloudflare.com", url
     assert rc == 0, rc
     log = tm.LOG_PATH.read_text(encoding="utf-8")
@@ -146,10 +150,10 @@ def test_webhook_retries_then_pending():
     sleeps = []
     n = {"c": 0}
 
-    def boom(base_url, token, http=None):
+    def boom(base_url, token, http=None, **kwargs):
         n["c"] += 1
         raise urllib.error.HTTPError(
-            tm.WEBHOOK_API, 503, "unavailable", None, None
+            tm.WEBHOOK_API, 503, "unavailable", None, io.BytesIO()
         )
 
     orig = tm.set_webhook_endpoint
@@ -213,7 +217,7 @@ def test_g3_utf8_replace_and_reader_survives():
     child = tmp / "child.py"
     child.write_text(
         "import sys\n"
-        "sys.stdout.buffer.write(b'https://g3-utf8.trycloudflare.com\\n')\n"
+        "sys.stdout.buffer.write(b'| https://g3-utf8.trycloudflare.com |\\n')\n"
         "sys.stdout.buffer.write(b'\\xff\\xfe not ascii\\n')\n"
         "sys.stdout.buffer.write(b'TAIL_G3\\n')\n"
         "sys.stdout.buffer.flush()\n",
@@ -235,6 +239,8 @@ def test_g3_utf8_replace_and_reader_survives():
         proc.kill()
         proc.wait(timeout=5)
         raise AssertionError("child blocked; reader died")
+    proc._reader_thread.join(timeout=5)
+    proc.stdout.close()
     tm.LOG_PATH = orig
     assert url == "https://g3-utf8.trycloudflare.com", url
     assert rc == 0, rc
@@ -250,16 +256,18 @@ def test_g17_timeout_log_distinguishes_exit():
     assert main.index("proc.poll()") < main.index("no tunnel url within 90s")
 
 
+for _name, _test in list(globals().items()):
+    if _name.startswith("test_") and callable(_test):
+        globals()[_name] = isolated_legacy_test(_test)
+
+
+def load_tests(loader, tests, pattern):
+    return unittest.TestSuite(
+        unittest.FunctionTestCase(function)
+        for name, function in globals().items()
+        if name.startswith("test_") and callable(function)
+    )
+
+
 if __name__ == "__main__":
-    test_parse_none()
-    test_parse_first_of_two()
-    test_parse_boxed()
-    test_set_webhook_ok()
-    test_set_webhook_mismatch()
-    test_reader_drains_after_url()
-    test_webhook_retries_then_pending()
-    test_no_timeout_kills_process()
-    test_log_rotate()
-    test_g3_utf8_replace_and_reader_survives()
-    test_g17_timeout_log_distinguishes_exit()
-    print("PASS", 11)
+    unittest.main()

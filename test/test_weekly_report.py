@@ -97,8 +97,62 @@ class WeeklyReportTests(unittest.TestCase):
         report = self.report()
         self.assertIn("| FB | 2 | 1 | 0 |", report)
         self.assertIn("| IG | 0 | 2 | 2 |", report)
-        self.assertIn("| YT | 1 | 1 | 0 |", report)
+        self.assertIn("| YT | 2 | 1 | 未知（已確認 0；2 筆待確認） |", report)
         self.assertRegex(report, r"\| TikTok \| 未知")
+
+    def test_youtube_uploads_use_upload_time_and_only_youtube_ledger(self):
+        upload = {"date": "2026-11-02", "slot": 2, "video_id": "yt-upload",
+                  "uploaded_at": "2026-10-25T16:00:00Z"}
+        self.write("youtube-log/2026-10-29.json", [
+            upload, upload,
+            {"date": "2026-10-25", "video_id": "yt-before", "uploaded_at": "2026-10-25T15:59:59Z"},
+            {"date": "2026-11-02", "video_id": "yt-after", "uploaded_at": "2026-11-01T16:00:00Z"},
+            {"date": "2026-10-29", "video_id": "yt-dry", "uploaded_at": "2026-10-29T10:00:00Z", "dry_run": True},
+        ])
+        self.write("youtube-log/2026-10-30.json", [])
+        stray = {"date": "2026-10-30", "platform": "youtube", "video_id": "not-yt-ledger",
+                 "status": "success", "video_status": "published", "uploaded_at": "2026-10-29T10:00:00Z",
+                 "published_at": "2026-10-30T10:00:00Z", "scheduled_publish_at": "2026-10-30T10:00:00Z"}
+        self.write("scheduled-log/2026-10-30.json", [stray])
+        self.write("posted-log/2026-10-30.json", [stray])
+        report = self.report()
+        self.assertIn("| YT | 1 | 0 | 未知（已確認 0；1 筆待確認） |", report)
+        self.assertIn("| 平台 | 上傳 | 預定公開 | 已確認公開 |", report)
+        self.assertIn("| FB | 2 | 1 | 0 |", report)
+        self.assertIn("| IG | 0 | 2 | 2 |", report)
+
+    def test_youtube_planned_publication_uses_schedule_time_without_assuming_publication(self):
+        first = {"date": "2026-10-26", "video_id": "yt-plan-start", "uploaded_at": "2026-10-22T10:00:00Z",
+                 "scheduled_publish_at": "2026-10-25T16:00:00Z", "video_status": "scheduled"}
+        self.write("youtube-log/2026-10-29.json", [
+            first, first,
+            {**first, "date": "2026-11-01", "video_id": "yt-plan-end", "scheduled_publish_at": "2026-11-01T15:59:59Z"},
+            {**first, "date": "2026-10-25", "video_id": "yt-plan-before", "scheduled_publish_at": "2026-10-25T15:59:59Z"},
+            {**first, "date": "2026-11-02", "video_id": "yt-plan-after", "scheduled_publish_at": "2026-11-01T16:00:00Z"},
+        ])
+        self.write("youtube-log/2026-10-30.json", [])
+        self.assertIn("| YT | 0 | 2 | 未知（已確認 0；2 筆待確認） |", self.report())
+
+    def test_youtube_confirmed_publication_requires_published_status_and_public_time(self):
+        scheduled = {"date": "2026-10-28", "slot": 2, "video_id": "yt-confirm",
+                     "uploaded_at": "2026-10-23T10:00:00Z", "scheduled_publish_at": "2026-10-28T06:00:00Z"}
+        unknown = "| YT | 0 | 1 | 未知（已確認 0；1 筆待確認） |"
+        cases = (
+            ("published-without-time", {"video_status": "published"}, unknown),
+            ("published-with-invalid-time", {"video_status": "published", "published_at": "invalid"}, unknown),
+            ("scheduled-with-time", {"video_status": "scheduled", "published_at": "2026-10-28T06:00:00Z"}, unknown),
+            ("success-without-video-status", {"status": "success", "published_at": "2026-10-28T06:00:00Z"}, unknown),
+            ("confirmed-week-start", {"video_status": "published", "published_at": "2026-10-25T16:00:00Z"}, "| YT | 0 | 1 | 1 |"),
+            ("confirmed-week-end", {"video_status": "published", "published_at": "2026-11-01T15:59:59Z"}, "| YT | 0 | 1 | 1 |"),
+            ("confirmed-next-week", {"video_status": "published", "published_at": "2026-11-01T16:00:00Z"}, "| YT | 0 | 1 | 0 |"),
+        )
+        self.write("youtube-log/2026-10-30.json", [])
+        for name, evidence, expected in cases:
+            with self.subTest(name=name):
+                self.write("youtube-log/2026-10-29.json", [
+                    {**scheduled, "video_status": "scheduled"}, {**scheduled, **evidence},
+                ])
+                self.assertIn(expected, self.report())
 
     def test_month_boundary_metrics_and_week_over_week_delta(self):
         report = self.report()

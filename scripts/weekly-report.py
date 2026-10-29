@@ -163,12 +163,14 @@ def lead_metrics(data, days, reader, now):
 
 def publication_metrics(data, start, end, now, reader):
     sets = {p: {k: set() for k in ("scheduled", "published", "failed", "uncertain")} for p in PLATFORMS}
+    sets["youtube"].update({k: set() for k in ("uploaded", "unconfirmed")})
     known = {p: set() for p in PLATFORMS}
     broken = set()
     parents = {}
     events = []
     failed_schedules = []
     approvals = set()
+    youtube_public_times = set()
 
     def find(key):
         parents.setdefault(key, key)
@@ -181,13 +183,15 @@ def publication_metrics(data, start, end, now, reader):
         if paths is None:
             broken.add(folder)
             continue
+        if folder == "youtube-log":
+            known["youtube"].update(("uploaded", "scheduled", "published"))
         for path in paths:
             # Approval fingerprints/digests are metadata, not publication rows.
             if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", path.stem):
                 continue
             obj = reader.json(path, folder + "/" + path.stem)
             if not isinstance(obj, list):
-                if start.date().isoformat() <= path.stem < end.date().isoformat():
+                if folder == "youtube-log" or start.date().isoformat() <= path.stem < end.date().isoformat():
                     broken.add(folder)
                     reader.warnings.add(f"{folder} 週內紀錄結構未知")
                 continue
@@ -197,6 +201,37 @@ def publication_metrics(data, start, end, now, reader):
                     continue
                 platform = ALIASES.get(str(row.get("platform", "youtube" if folder == "youtube-log" else "")).lower())
                 if platform is None:
+                    continue
+                if platform == "youtube" and folder not in ("youtube-log", "approved-log"):
+                    continue
+                if folder == "youtube-log":
+                    video_status = str(row.get("video_status", "")).lower()
+                    if row.get("dry_run") is True or video_status in ("dry_run", "dry-run", "skipped", "cancelled", "canceled"):
+                        continue
+                    uploaded = first_time(row, "uploaded_at")
+                    if uploaded and uploaded > now:
+                        continue
+                    identifier = str(row.get("video_id") or "")
+                    if not identifier:
+                        broken.add(folder)
+                        reader.warnings.add("youtube-log 有無影片 ID 的紀錄")
+                        continue
+                    logical = f"youtube:id:{identifier}"
+                    scheduled = first_time(row, "scheduled_publish_at")
+                    publication = first_time(row, "published_at")
+                    if uploaded and start <= uploaded < end:
+                        events.append(("youtube", "uploaded", logical))
+                    if scheduled and start <= scheduled < end:
+                        events.append(("youtube", "scheduled", logical))
+                    if video_status == "published" and publication and publication <= now:
+                        youtube_public_times.add(logical)
+                        if start <= publication < end:
+                            events.append(("youtube", "published", logical))
+                    else:
+                        times = (uploaded, scheduled, publication)
+                        fallback = parse_time(row.get("date", path.stem)) if not any(times) else None
+                        if any(stamp and start <= stamp < end for stamp in (*times, fallback)):
+                            events.append(("youtube", "unconfirmed", logical))
                     continue
                 status = str(row.get("status", row.get("video_status", ""))).lower()
                 if row.get("dry_run") is True or status in ("dry_run", "dry-run", "skipped", "cancelled", "canceled"):
@@ -241,8 +276,7 @@ def publication_metrics(data, start, end, now, reader):
                         events.append((platform, "uncertain", logical))
                     else:
                         events.append((platform, "scheduled", logical))
-                legacy_yt = folder == "youtube-log" and identifier and not scheduled and not status
-                if (status in ("success", "published") or legacy_yt) and identifier:
+                if status in ("success", "published") and identifier:
                     if publication and start <= publication < end and publication <= now:
                         events.append((platform, "published", logical))
                 if not is_schedule and status in ("failed", "error", "missed"):
@@ -250,6 +284,7 @@ def publication_metrics(data, start, end, now, reader):
                         events.append((platform, "failed", logical))
     for platform, kind, key in events:
         sets[platform][kind].add(find(key))
+    sets["youtube"]["unconfirmed"].difference_update(find(key) for key in youtube_public_times)
     failed_count = len({find(key) for key, _ in failed_schedules})
     latest = max((when for _, when in failed_schedules if when), default=None)
     return sets, known, broken, failed_count, latest, len(approvals)
@@ -442,6 +477,8 @@ def build_report(data, reports, bot, week, now, llm=False):
              f"成效：只計已結束的完整日 {completed}/7，與上週相同星期比較；今日不計。", "",
              "| 平台 | 排程 | 實發 | 失敗 |", "| --- | ---: | ---: | ---: |"]
     for platform, label in PLATFORMS.items():
+        if platform == "youtube":
+            continue
         cells = []
         for kind in ("scheduled", "published", "failed"):
             relevant = set(POST_FOLDERS) if kind == "failed" else {"scheduled-log", "feature-posted-log", "youtube-log"} if kind == "scheduled" else {"posted-log", "feature-posted-log", "youtube-log"}
@@ -455,6 +492,16 @@ def build_report(data, reports, bot, week, now, llm=False):
                 cell += f"（另 {len(posts[platform]['uncertain'])} 未確認）"
             cells.append(cell)
         lines.append(f"| {label} | " + " | ".join(cells) + " |")
+    youtube = posts["youtube"]
+    if "youtube-log" in broken:
+        youtube_cells = ["未知（youtube-log 缺檔／損壞）"] * 3
+    else:
+        confirmed = str(len(youtube["published"]))
+        if youtube["unconfirmed"]:
+            confirmed = f"未知（已確認 {confirmed}；{len(youtube['unconfirmed'])} 筆待確認）"
+        youtube_cells = [str(len(youtube["uploaded"])), str(len(youtube["scheduled"])), confirmed]
+    lines.extend(["", "| 平台 | 上傳 | 預定公開 | 已確認公開 |", "| --- | ---: | ---: | ---: |",
+                  "| YT | " + " | ".join(youtube_cells) + " |"])
     lines.extend(["", "| 成效／來源 | 本期（較上週） |", "| --- | ---: |",
                   f"| LINE 點擊 | {metrics['line'].display(previous['line'])} |"])
     for name, label in FUNNEL.items():
@@ -488,7 +535,7 @@ def build_report(data, reports, bot, week, now, llm=False):
     if source_coverage.complete and previous_coverage.complete:
         for source, platform in (("yt", "youtube"), ("fb", "facebook"), ("ig", "instagram"), ("tiktok", "tiktok")):
             delta = sources[source] - previous_sources[source]
-            if delta > 0 and "published" in known[platform] and not posts[platform]["published"]:
+            if delta > 0 and "published" in known[platform] and not posts[platform]["published"] and not posts[platform].get("unconfirmed"):
                 suggestions.append(f"來源 {source} 點擊增加 {delta}、該平台成功紀錄 0；核對歸因後安排一篇相關內容。")
     suggestions.extend(["核對已到期排程的實發證據，補齊 FB／IG／YT／TikTok 的記錄。",
                         "以來源前五的有效點擊決定一項內容測試，下週比較同口徑數字。",
@@ -498,6 +545,7 @@ def build_report(data, reports, bot, week, now, llm=False):
     lines.extend(["", "資料口徑與未知欄位：",
                   "發文為本機台帳去重筆數；0＝無該類記錄，不代表線上無發文。實發須成功＋ID；排程到期不自動視為實發。",
                   f"排程按預定日、實發按成功時間歸週；失敗為曾失敗項目，重試不重複；核准 {approvals} 筆僅供核對，不算排程。",
+                  "YT 只讀 youtube-log：上傳按 uploaded_at、預定公開按 scheduled_publish_at；已確認公開須 video_status=published＋published_at；缺確認／公開時間為未知。",
                   "鎖檔為產報時快照（run 超過 45 分、publish 超過 30 分），非每週發生次數；webhook 按含時間錯誤區塊計數。",
                   f"AI 端 LINE：查件 {queries}；通知成功記錄 {sends}；店機通知／查件：未知（無店機資料）。",
                   f"來源盤點：{source_note}。insights／匯出只盤點，不把重疊期間資料再加進 leads。",

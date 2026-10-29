@@ -1,5 +1,7 @@
 # B3 自動週報交付
 
+> r2 的 YouTube 口徑與 2026-W43 驗證見文末「r2：修正 YouTube 週報口徑」。下列原交付及 W44 樣本保留為 r1 歷史，YT 舊口徑由 r2 取代。
+
 狀態：本地交付完成；2026-10-30。工作目錄 `C:\Users\cyc39\AI-Lanes\b3\repo`，分支 `feat/b3-weekly-report`。只有卡片指定四個新增檔案；沒有修改既有檔、commit、LINE 傳送或排程註冊。
 
 ## 開工卡與交付
@@ -171,3 +173,68 @@ AI 端 LINE：查件 0；通知成功記錄 0；店機通知／查件：未知�
 讀取問題：無。
 工時:見 B4 工時表
 ```
+
+## r2：修正 YouTube 週報口徑（2026-10-30）
+
+狀態：指定三檔的修正與驗證完成；工作目錄 `C:\Users\cyc39\AI-Lanes\integ\repo`。依 `A1b-RESULT.md:92` 的「YT 路徑與台帳口徑」及 `:135` 的跨週風險修正；本段取代 r1 的 YT 說明，保留其他平台口徑。
+
+| 開工卡 | 本輪定義 |
+| --- | --- |
+| OUTCOME | YT 分列上傳／預定公開／已確認公開，缺公開證據顯示未知；W43 真實資料 dry-run 與三組先紅後綠測試 |
+| OWNER / MAKER | 店主；本席 Codex，單一 writer，未派其他 Agent |
+| CHECKER / EVIDENCE | 本席執行合成 CLI 測試、另段不匯入週報函式的原始資料加總、來源指紋與 FB／IG／TikTok 列前後比對；未經另一席複審 |
+| AUTHORITY | 只改 `scripts/weekly-report.py`、`test/test_weekly_report.py`、本檔；正式 data 唯讀，不 commit、不註冊排程、不發布 |
+
+### 修正內容
+
+- YT 只取 `data/youtube-log/<date>.json`，同一 `video_id` 去重；不從 `scheduled-log`、`posted-log` 或 `feature-posted-log` 補入 YT 數字。此次實讀 `scheduled-log` 共 113 列，platform 全部為 facebook。
+- **上傳**按 `uploaded_at`、**預定公開**按 `scheduled_publish_at` 歸台北 ISO 週；掃描所有日期檔，因此可正確區分提前上傳週與預定公開週，不拿檔名代替事件時間。
+- **已確認公開**須 `video_status=published`、有效 `published_at` 且公開時間落在該週／不晚於 `--as-of`。不以 `uploaded_at`、`created_at`、`at`、日期檔或到期排程代替公開時間；缺確認／公開時間的週內相關影片列「未知（已確認 N；M 筆待確認）」。同一影片後續已有公開時間時，不再讓舊 scheduled 紀錄重複造成未知。
+- YT 採獨立三欄小表，FB／IG／TikTok 保留原有排程／實發／失敗列；YT 公開未知時，也不再產生「該平台成功紀錄 0」的內容建議。
+
+### 先紅後綠與限制
+
+新增三個測試方法，涵蓋：上傳時間與唯一 YT 來源、提前上傳和預定公開分週、公開狀態加公開時間雙條件。另涵蓋 UTC 轉台北的週首／週末、重複 video ID、dry-run、published 缺時間／無效時間、scheduled 或只有 success 狀態、公開落在下一週，以及舊 scheduled 紀錄被後續確認解除。
+
+```text
+命令：python.exe -B -X utf8 -m unittest discover -s test -p test_weekly_report.py -v
+修改前基線：Ran 20 tests；OK
+先新增測試（尚未修改產報程式）：Ran 23 tests in 2.929s；FAILED (failures=10，含 subTest)
+修正後：Ran 23 tests in 2.914s；OK
+git diff --check：通過
+
+npm.cmd test：exit 1，vitest is not recognized
+```
+
+全庫 TypeScript 測試為 **BLOCKED（此 worktree 缺 vitest）**；未安裝套件或改 lockfile。Python 23 項通過包含來源唯讀、dry-run 不建輸出、輸出保護及 60 行限制，不代表全庫測試通過。
+
+### 2026-W43 真實 data 唯讀樣本
+
+來源：`C:\Users\cyc39\Documents\New project 5\data`，期間為台北 `2026-10-19 00:00` 至 `2026-10-26 00:00`（不含），固定截止時間 `2026-10-30T03:45:44+08:00`。執行命令：
+
+```powershell
+& 'C:\Users\cyc39\AppData\Local\Python\pythoncore-3.14-64\python.exe' -B -X utf8 'scripts/weekly-report.py' --week 2026-W43 --data-root 'C:\Users\cyc39\Documents\New project 5\data' --as-of '2026-10-30T03:45:44+08:00' --dry-run
+```
+
+以下 YT 列直接取自 dry-run stdout：
+
+```markdown
+| 平台 | 上傳 | 預定公開 | 已確認公開 |
+| --- | ---: | ---: | ---: |
+| YT | 1 | 4 | 未知（已確認 0；4 筆待確認） |
+```
+
+獨立讀取 58 列 youtube-log、使用標準庫時間換算與 video ID 集合重算：上傳 **1**、預定公開 **4**、已確認公開 **0**、待確認 **4**，逐欄符合週報。這個 0 僅是本機已確認數；四筆公開結果仍未知，不能解讀為線上零公開。未呼叫 YouTube API 或登入平台查證。
+
+FB／IG／TikTok 三列與同一份真實資料、同一截止時間的修改前輸出逐字相同：
+
+```markdown
+| FB | 15 | 14 | 0 |
+| IG | 未知（無該平台台帳） | 17 | 0 |
+| TikTok | 未知（無該平台台帳） | 未知（無該平台台帳） | 未知（無該平台台帳） |
+```
+
+- 真實來源 data 的 **2573 檔**，檔案集合、SHA-256、大小與 mtime_ns 組成的 manifest 摘要，在修改前基線與修正後 dry-run 前後均一致：`d18ee42786e5c145d033ac96f1623fc4236a174eae96ada581f924ecb94779cd`。
+- 修正後完整 dry-run 為 **55 行**；UTF-8／LF SHA-256：`f266a868c99a9188c88b5183ffbb98cbbb04d9307f58a5569835d5308d60fcdc`。只在記憶體核對完整樣本，YT 列嵌於本段，沒有另寫 `reports/weekly/`。
+- 已讀 Obsidian 首頁、live Current-Context、戰情板及相關 Vault 搜尋；已載入 Graphify／TDD。未發現整合樹既有 Graphify 圖，依三檔限制未建圖，直接核對限定來源程式碼。
+- 九格留痕缺項 4／9：本輪「只改三檔」優先，未另寫 Vault task_summary 或專案筆記；結果與可重跑證據集中於本段。未改排程腳本、正式資料或控制面；未 stage、commit、push、部署或註冊排程。

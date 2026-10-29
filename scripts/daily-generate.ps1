@@ -21,6 +21,9 @@ $date = if ($Date) { $Date } else { $now.AddDays(3).ToString("yyyy-MM-dd") }
 $logDir = Join-Path $root "output\daily-generate-logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $logFile = Join-Path $logDir "$date.log"
+$pipelineLibrary = Join-Path $PSScriptRoot '_pipeline-lock.ps1'
+if (-not (Test-Path -LiteralPath $pipelineLibrary)) { throw "Required pipeline lock library missing: $pipelineLibrary" }
+. $pipelineLibrary
 
 function Write-Log([string]$message) {
     ("[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f $now, $message) | Out-File -FilePath $logFile -Append -Encoding utf8
@@ -56,6 +59,12 @@ function Show-Toast([string]$text) {
         Write-Log ("Toast failed: " + $_.Exception.Message)
     }
 }
+
+$pipelineMutex = Enter-PipelineMutex -Name 'sxj-publish' -TimeoutSec 600
+try {
+Remove-StaleGitLock -RepoRoot $root
+# Hold through all generation paths: generate-missing-images and Codex can
+# refresh docs/ too, before the explicit Publish-Site function is called.
 
 # A calendar on its own does not mean the day is generated. Scheduling a Reel
 # into a future date writes that date's calendar months before its images exist,
@@ -327,3 +336,6 @@ if ((Test-Path $calendar) -and $imagesReadyNow) {
 }
 
 if (Publish-Site) { exit 0 } else { exit 1 }
+} finally {
+    Exit-PipelineMutex -Mutex $pipelineMutex
+}

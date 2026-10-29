@@ -20,7 +20,9 @@ if ($env:CATCHUP_PUBLISH_TIME) {
 $logDir = Join-Path $root "output\catch-up-logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $logFile = Join-Path $logDir "$date.log"
-. (Join-Path $PSScriptRoot "_watchdog.ps1")
+$pipelineLibrary = Join-Path $PSScriptRoot '_pipeline-lock.ps1'
+if (-not (Test-Path -LiteralPath $pipelineLibrary)) { throw "Required pipeline lock library missing: $pipelineLibrary" }
+. $pipelineLibrary
 . (Join-Path $PSScriptRoot "publish-slot-times.ps1")
 
 function Write-Log([string]$message) {
@@ -43,6 +45,169 @@ function Show-Toast([string]$text) {
         [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("LaundryCatchUp").Show($toast)
     } catch {
         Write-Log ("Toast failed: " + $_.Exception.Message)
+    }
+}
+
+function Get-PublishLastError($Output, [string]$Fallback) {
+    $lines = @($Output | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $errors = @($lines | Where-Object { $_ -match '^\s*(fatal:|\w*Error:|errno:|code:)' })
+    $line = if ($errors.Count -gt 0) { $errors[-1].Trim() } elseif ($lines.Count -gt 0) { $lines[-1].Trim() } else { $Fallback }
+    # Keep notices single-line and avoid copying credentials from tool output.
+    $line = $line -replace '(?i)Bearer\s+\S+', 'Bearer [REDACTED]'
+    $line = $line -replace '(?i)((?:access_token|token|secret|password|api_key)[=:]\s*)[^\s&]+', '$1[REDACTED]'
+    return ($line -replace '[\r\n\t]+', ' ')
+}
+
+function Get-PublishAlertState([string]$AlertDate) {
+    $path = Join-Path $root "data\publish-alerts\$AlertDate.json"
+    if (Test-Path -LiteralPath $path) {
+        $state = [IO.File]::ReadAllText($path) | ConvertFrom-Json -ErrorAction Stop
+        if ($null -eq $state -or $state.date -ne $AlertDate -or $null -eq $state.PSObject.Properties['reasons']) {
+            throw "Invalid publish-alert state for $AlertDate; preserving it to avoid duplicate notices."
+        }
+        return $state
+    }
+    # Midnight resets the daily notice budget, not consecutive failed attempts.
+    $directory = Join-Path $root 'data\publish-alerts'
+    $priorFile = $null
+    if (Test-Path -LiteralPath $directory) {
+        $priorFile = Get-ChildItem -LiteralPath $directory -Filter '*.json' -File -ErrorAction Stop |
+            Where-Object { $_.BaseName -match '^\d{4}-\d{2}-\d{2}$' -and $_.BaseName -lt $AlertDate } |
+            Sort-Object -Property BaseName -Descending | Select-Object -First 1
+    }
+    $failures = 0
+    $lastError = ''
+    if ($null -ne $priorFile) {
+        # No run on an offline day is not a successful publish-pages attempt.
+        $prior = [IO.File]::ReadAllText($priorFile.FullName) | ConvertFrom-Json -ErrorAction Stop
+        if ($null -ne $prior -and $prior.date -eq $priorFile.BaseName) {
+            $failures = [int]$prior.publish_pages_consecutive_failures
+            $lastError = [string]$prior.last_error
+        }
+    }
+    return [pscustomobject]@{ date = $AlertDate; publish_pages_consecutive_failures = $failures; last_error = $lastError; reasons = @() }
+}
+
+function Save-PublishAlertState($State) {
+    $directory = Join-Path $root 'data\publish-alerts'
+    [void][IO.Directory]::CreateDirectory($directory)
+    $path = Join-Path $directory ($State.date + '.json')
+    $temporary = $path + '.' + [guid]::NewGuid().ToString('n') + '.tmp'
+    try {
+        [IO.File]::WriteAllText($temporary, ($State | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
+        Move-Item -LiteralPath $temporary -Destination $path -Force -ErrorAction Stop
+    } finally {
+        if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
+    }
+}
+
+function Send-PublishStaffAlert([string]$Message, [string]$Key) {
+    $staffModule = Join-Path $root 'line-bot\staff_notify.py'
+    $python = 'C:\Users\cyc39\AppData\Local\Python\pythoncore-3.14-64\python.exe'
+    if (-not (Test-Path -LiteralPath $staffModule) -or -not (Test-Path -LiteralPath $python)) { return $false }
+    # Existing raw group-text interface. No customer inbox/handoff is fabricated.
+    # Pass Unicode/path data on stdin, never through a shell or Python source.
+    $bridge = "import json,os,sys,uuid; p=json.load(sys.stdin); os.environ['LAUNDRY_REPO_ROOT']=p['root']; sys.path.insert(0,os.path.join(p['root'],'line-bot')); import staff_notify as s; ok,err=s._post_to_group(s.group_id(),p['message'],str(uuid.uuid5(uuid.NAMESPACE_URL,p['key']))); sys.exit(0 if ok else 1)"
+    $start = New-Object Diagnostics.ProcessStartInfo
+    $start.FileName = $python
+    $start.Arguments = '-X utf8 -B -c "' + $bridge + '"'
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $start.RedirectStandardInput = $true
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $process = $null
+    try {
+        $process = [Diagnostics.Process]::Start($start)
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        $payload = @{ root = $root; message = $Message; key = $Key } | ConvertTo-Json -Compress
+        $asciiPayload = [regex]::Replace($payload, '[^\x00-\x7F]', { param($match) '\u{0:x4}' -f [int][char]$match.Value })
+        $process.StandardInput.WriteLine($asciiPayload)
+        $process.StandardInput.Close()
+        if (-not $process.WaitForExit(25000)) {
+            $process.Kill()
+            $process.WaitForExit()
+            Write-Log 'staff_notify timed out; using persisted alert and toast.'
+            return $false
+        }
+        if ($process.ExitCode -ne 0) {
+            Write-Log ("staff_notify failed (exit {0}); using persisted alert and toast." -f $process.ExitCode)
+        }
+        return ($process.ExitCode -eq 0)
+    } catch {
+        Write-Log ('staff_notify unavailable: ' + $_.Exception.GetType().Name)
+        return $false
+    } finally {
+        if ($null -ne $process) { $process.Dispose() }
+    }
+}
+
+function Invoke-CatchupPublishAlerts {
+    if ($env:CATCHUP_PUBLISH_PLAN_ONLY -eq 'true') { return }
+    $alertNow = if ($env:CATCHUP_PUBLISH_TIME) { $now } else { [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz) }
+    $day = [DateTime]::ParseExact($date, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
+    # Slot 2's 20:30 + 4h expiry is on the next date. Read yesterday too.
+    foreach ($alertDate in @($date, $day.AddDays(-1).ToString('yyyy-MM-dd'))) {
+        $calendarPath = Join-Path $root "data\content-calendar\$alertDate.json"
+        if ($alertDate -ne $date -and -not (Test-Path -LiteralPath $calendarPath)) { continue }
+        $state = Get-PublishAlertState $alertDate
+        if ($alertDate -eq $date) {
+            if ($script:publishPagesAttempted) {
+                if ($script:publishPagesSucceeded) { $state.publish_pages_consecutive_failures = 0; $state.last_error = '' }
+                else { $state.publish_pages_consecutive_failures = [int]$state.publish_pages_consecutive_failures + 1 }
+            }
+            if ($script:pipelineLastError) { $state.last_error = $script:pipelineLastError }
+        }
+        $slots = @(Get-EffectivePublishSlots -CalendarSlots (Get-CalendarSlots -Root $root -Date $alertDate))
+        $times = Get-SlotTimes -Root $root -Date $alertDate
+        $rows = @()
+        $postedPath = Join-Path $root "data\posted-log\$alertDate.json"
+        if (Test-Path -LiteralPath $postedPath) {
+            try {
+                # Windows PowerShell 5.1 emits a JSON array as one pipeline item.
+                $parsedRows = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($postedPath)) -ErrorAction Stop
+                $rows = @($parsedRows)
+            }
+            catch { $state.last_error = 'posted-log unreadable; no verified success record' }
+        }
+        $missing = @()
+        $expired = @()
+        $slotDay = [DateTime]::ParseExact($alertDate, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
+        foreach ($slot in $slots) {
+            $live = @($rows | Where-Object { $_.slot -eq $slot -and -not $_.dry_run -and @('success', 'posted') -contains $_.status })
+            if (@($live | Where-Object { $_.platform -eq 'facebook' }).Count -gt 0 -and
+                @($live | Where-Object { $_.platform -eq 'instagram' }).Count -gt 0) { continue }
+            $missing += $slot
+            if ($times.ContainsKey([int]$slot) -and $alertNow -ge $slotDay.Add($times[[int]$slot]).AddHours(4)) { $expired += $slot }
+        }
+        $pagesFailed = $alertDate -eq $date -and $script:publishPagesAttempted -and -not $script:publishPagesSucceeded -and [int]$state.publish_pages_consecutive_failures -ge 2
+        if ($expired.Count -gt 0 -or $pagesFailed) {
+            $reason = [string]$state.last_error
+            if (-not $reason) { $reason = 'posted-log 缺少 FB/IG 成功紀錄' }
+            $reasonKey = if ($reason -match 'index\.lock') { 'git-index-lock' } else { $reason.ToLowerInvariant() }
+            $hash = [Security.Cryptography.SHA256]::Create()
+            try { $key = [BitConverter]::ToString($hash.ComputeHash([Text.Encoding]::UTF8.GetBytes($reasonKey))).Replace('-', '').ToLowerInvariant() }
+            finally { $hash.Dispose() }
+            if (@($state.reasons | Where-Object { $_.key -eq $key }).Count -eq 0) {
+                $alertSlots = if ($expired.Count -gt 0) { $expired } else { $missing }
+                $subject = if (@($alertSlots).Count -gt 0) { 'slot {0} 未發出' -f ($alertSlots -join ',') } else { '公開站更新連續失敗（各 slot 已有成功紀錄）' }
+                $message = '[發布異常] {0} {1};原因:{2};看 output/catch-up-logs/{0}.log' -f $alertDate, $subject, $reason
+                $entry = [pscustomobject]@{ key = $key; reason = $reason; message = $message; attempted_at = $alertNow.ToString('o'); delivery = 'reserved' }
+                # Reserve while holding the pipeline mutex before any external call.
+                $state.reasons = @($state.reasons) + @($entry)
+                Save-PublishAlertState $state
+                if (Send-PublishStaffAlert -Message $message -Key "$root/$alertDate/$key") {
+                    $entry.delivery = 'line'
+                    Write-Log "Publish alert delivered via staff_notify for $alertDate (reason $key)."
+                } else {
+                    $entry.delivery = 'toast-fallback'
+                    Show-Toast $message
+                    Write-Log "Publish alert persisted with toast fallback for $alertDate (reason $key)."
+                }
+            }
+        }
+        Save-PublishAlertState $state
     }
 }
 
@@ -100,6 +265,19 @@ function Invoke-CatchupEveningCloseout {
     }
 }
 
+$script:publishPagesAttempted = $false
+$script:publishPagesSucceeded = $false
+$script:pipelineLastError = ''
+$pipelineMutex = $null
+try {
+$pipelineMutex = Enter-PipelineMutex -Name 'sxj-publish' -TimeoutSec 600
+# Refresh the clock after waiting so the existing 4h gate uses actual entry time.
+if (-not $env:CATCHUP_PUBLISH_TIME) {
+    $now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
+    if (-not $env:CATCHUP_PUBLISH_DATE) { $date = $now.ToString('yyyy-MM-dd'); $logFile = Join-Path $logDir "$date.log" }
+}
+Remove-StaleGitLock -RepoRoot $root
+. (Join-Path $PSScriptRoot "_watchdog.ps1")
 Write-Log "Catch-up run started (Taipei time $($now.ToString('HH:mm')))."
 
 # Restore today's scheduled Reel before publishing anything: a morning rewrite
@@ -121,6 +299,7 @@ Pop-Location
 # A failed heal means the calendar may still be clobbered; publishing an
 # unrepaired package is worse than publishing late (luna, high).
 if ($lockExit -ne 0 -or $healExit -ne 0 -or $reelHealExit -ne 0) {
+    $script:pipelineLastError = "Lock/heal step failed (lock=$lockExit heal=$healExit reel=$reelHealExit)"
     Write-Log "Lock/heal step failed (lock=$lockExit heal=$healExit reel=$reelHealExit); refusing to publish."
     Show-Toast "$date 自癒步驟失敗,補發已停止,請看 output\catch-up-logs\$date.log"
     exit 1
@@ -221,16 +400,24 @@ if (Test-Path $heroLocal) {
     if (-not $heroLive) {
         Write-Log "Local images exist for $date but $heroUrl is not live; re-publishing the site."
         Push-Location $root
-        cmd /c "npm.cmd run generate-public-site 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-        if ($LASTEXITCODE -ne 0) {
-            Write-Log "generate-public-site failed (exit $LASTEXITCODE); refusing to continue."
+        $siteOutput = cmd /c "npm.cmd run generate-public-site 2>&1"
+        $siteExit = $LASTEXITCODE
+        $siteOutput | Out-File -FilePath $logFile -Append -Encoding utf8
+        if ($siteExit -ne 0) {
+            $script:pipelineLastError = Get-PublishLastError $siteOutput "generate-public-site failed (exit $siteExit)"
+            Write-Log "generate-public-site failed (exit $siteExit); refusing to continue."
             Pop-Location
             Show-Toast "$date 的公開站沒推上去(generate-public-site 失敗),請看 output\catch-up-logs\$date.log"
             $script:publicSiteRepushFailed = $true
         } else {
-            cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-            if ($LASTEXITCODE -ne 0) {
-                Write-Log "publish-pages failed (exit $LASTEXITCODE); refusing to continue."
+            $script:publishPagesAttempted = $true
+            $pagesOutput = cmd /c "npm.cmd run publish-pages -- --date $date --skip-audit 2>&1"
+            $pagesExit = $LASTEXITCODE
+            $script:publishPagesSucceeded = ($pagesExit -eq 0)
+            $pagesOutput | Out-File -FilePath $logFile -Append -Encoding utf8
+            if ($pagesExit -ne 0) {
+                $script:pipelineLastError = Get-PublishLastError $pagesOutput "publish-pages failed (exit $pagesExit)"
+                Write-Log "publish-pages failed (exit $pagesExit); refusing to continue."
                 Pop-Location
                 Show-Toast "$date 的公開站沒推上去(publish-pages 失敗),請看 output\catch-up-logs\$date.log"
                 $script:publicSiteRepushFailed = $true
@@ -242,7 +429,8 @@ if (Test-Path $heroLocal) {
 }
 
 if ($script:publicSiteRepushFailed) {
-    Write-Log "public-site repush failed earlier; posting continues, poster validates image URLs itself"
+    Write-Log "Public-site refresh failed; no post-current-slot will run; exiting 2."
+    exit 2
 }
 
 if (-not (Test-Path $approvedPath)) {
@@ -347,6 +535,7 @@ foreach ($slot in $dueSlots) {
     $exitCode = $LASTEXITCODE
     Pop-Location
     $output | Out-File -FilePath $logFile -Append -Encoding utf8
+    if ($exitCode -ne 0) { $script:pipelineLastError = Get-PublishLastError $output "post-current-slot failed (exit $exitCode)" }
     # Fail-closed: a reel / noon slot 3 must never count a cover-image success
     # as published. That is the 8/27-29 failure mode.
     $requiresVideo = ($slot -eq 3)
@@ -418,4 +607,13 @@ if ($failed.Count -gt 0) {
 Invoke-CatchupEveningCloseout
 
 Write-Log "Catch-up run finished."
-if ($script:publicSiteRepushFailed) { Write-Log "public-site repush failed earlier; exiting 2 so Task Scheduler records it"; exit 2 }
+} finally {
+    if ($null -ne $pipelineMutex) {
+        try {
+            Invoke-CatchupPublishAlerts
+        } catch {
+            Write-Log ('Publish alert handling failed: ' + $_.Exception.Message)
+            Show-Toast "$date 發布告警處理失敗，請看 output/catch-up-logs/$date.log"
+        } finally { Exit-PipelineMutex -Mutex $pipelineMutex }
+    }
+}

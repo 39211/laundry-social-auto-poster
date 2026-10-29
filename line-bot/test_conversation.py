@@ -180,7 +180,7 @@ CASES = [
     ("運動鞋", "message", "quote", False, ["一般運動鞋", "250"]),
     ("營業時間", "message", "hours_day", False, ["現在有開"]),
     ("掉色", "message", "concern", False, ["掉色"]),
-    ("趕時間", "message", "concern", False, ["趕"]),
+    ("趕時間", "message", "concern", True, ["趕"]),  # 現有 urgent 路徑會通知店員
     ("發霉", "message", "concern", False, ["發霉"]),
     ("要洗多久", "message", "faq", False, ["三到五天"]),
     ("襯衫", "message", "quote", False, ["襯衫", "70"]),

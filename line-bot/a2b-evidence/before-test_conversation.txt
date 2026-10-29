@@ -1,0 +1,92 @@
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_conversation.py", line 128, in run
+    fn()
+    ~~^^
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_conversation.py", line 249, in test_cases
+    assert bool(meta["notify_staff"]) is bool(notify), (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 趕時間: notify True != False blob='你趕著要用，這個得請店裡看件量，現在還不能答應一定來得及。\n需求已留給店員。最晚幾點要拿，也一起告訴店員，方便核對。'
+FAIL cases
+PASS sticker
+PASS handle_list
+PASS can_wash
+PASS catalog
+PASS r4
+PASS cancel
+PASS fallback
+PASS no_line_pay
+PASS copy_r5
+PASS mainland
+PASS f1_qr
+PASS f2_cancel_empty
+PASS f3_addr_ack
+PASS f4_in_store
+PASS r3_guards
+PASS r3_norm
+PASS r3_hours_pay_k9
+PASS m2_suit
+PASS m3_query
+PASS q2_no_phone
+PASS m4_addr
+PASS m5_hi
+PASS m6_bag
+PASS m7_door
+PASS m8_image
+PASS x_photo_need
+PASS u5_photo_quote
+PASS l4_l5_welcome
+PASS d1_staff_pushed
+PASS v1_who_am_i
+PASS v2_meta_feedback
+PASS v3_human
+PASS v_replay
+PASS v4_three
+PASS v5_marks
+PASS v6_ack
+PASS voice_flows
+PASS voice_rotate
+PASS voice_phone_ex
+PASS voice_d3
+PASS voice_mut_a
+PASS voice_mut_b
+PASS voice_mut_c
+PASS slot_speech
+PASS m9_longest
+PASS z1_faq_nin
+PASS z2_human_btn
+PASS z3_photo_eta
+PASS z1_mut
+PASS z2_mut
+PASS z3_mut
+PASS c3_item_before
+PASS c3_later_see
+PASS c3_returning
+PASS c3_mut
+PASS c4_menu
+PASS c4_mut
+PASS struct
+PASS official
+---SAMPLE---
+謝謝→[ack] 不客氣，有需要再跟我說。
+窗簾可以洗嗎→[unknown_item] 這類不在常規價目，要看件才能報。 / 我先轉店裡，您方便的話拍張照給我。
+羽絨外套多少→[quote] 羽絨外套水洗大概 280。 / 實際以到店看件為準。
+星期日有開嗎→[hours_day] 星期日我們公休。 / 週一至週五 10:00-20:00；週六 12:00-18:00；週日公休 / 在至善國中對面。其他營業日直接帶來就好，不用預約。
+我要取消預約→[cancel] 目前沒有幫您留的時間。
+LV包→[quote] 名牌包水洗大概 1500。 / 實際以到店看件為準。
+我在店裡→[in_store] 好，跟櫃台說一聲從 LINE 來的，我們幫您看件。
+可以到府收件嗎→[pickup] 好啊，台中市區都免費去收。哪天方便？
+多少錢→[ask_price] 您是問哪一類的價錢？ / 棉被、鞋子、包包，還是衣服？
+西裝→[clarify] 西裝外套還是西裝褲？ / 價目目前列的是西裝背心；外套跟褲子建議到店看件。
+---END---
+RESULT PASS=59 FAIL=1 CASES=88
+FAILURES:
+cases
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_conversation.py", line 128, in run
+    fn()
+    ~~^^
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_conversation.py", line 249, in test_cases
+    assert bool(meta["notify_staff"]) is bool(notify), (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 趕時間: notify True != False blob='你趕著要用，這個得請店裡看件量，現在還不能答應一定來得及。\n需求已留給店員。最晚幾點要拿，也一起告訴店員，方便核對。'
+

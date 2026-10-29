@@ -1,0 +1,76 @@
+PASS parse pull_shop_mdb.ps1
+PASS parse register-mdb-pull-task.ps1
+PASS unreachable exit 3
+PASS unreachable structured log
+PASS unreachable temp cleanup
+PASS unreachable original unchanged
+PASS unreachable no backup mutation
+PASS unreachable batch/timeout arguments
+PASS scp-fail exit 3
+PASS scp-fail structured log
+PASS scp-fail temp cleanup
+PASS scp-fail original unchanged
+PASS scp-fail no backup mutation
+PASS scp-fail batch/timeout arguments
+PASS scp-fail batch/timeout arguments
+PASS timeout exit 3
+PASS timeout structured log
+PASS timeout temp cleanup
+PASS timeout original unchanged
+PASS timeout no backup mutation
+PASS timeout batch/timeout arguments
+PASS timeout batch/timeout arguments
+PASS invalid exit 1
+PASS invalid structured log
+PASS invalid temp cleanup
+PASS invalid original unchanged
+PASS invalid no backup mutation
+PASS invalid batch/timeout arguments
+PASS invalid batch/timeout arguments
+PASS small exit 1
+PASS small structured log
+PASS small temp cleanup
+PASS small original unchanged
+PASS small no backup mutation
+PASS small batch/timeout arguments
+PASS small batch/timeout arguments
+PASS changed exit 3
+PASS changed structured log
+PASS changed temp cleanup
+PASS changed original unchanged
+PASS changed no backup mutation
+PASS changed batch/timeout arguments
+PASS changed batch/timeout arguments
+PASS changed batch/timeout arguments
+PASS locked exit 2
+PASS locked structured log
+PASS locked temp cleanup
+PASS locked original unchanged
+PASS locked no backup mutation
+PASS locked batch/timeout arguments
+PASS locked batch/timeout arguments
+PASS locked batch/timeout arguments
+PASS good exit 0
+PASS good structured log
+PASS good temp cleanup
+PASS replacement installed
+PASS source mtime preserved
+PASS retain latest 7 backups
+PASS backup is prior original
+PASS unrelated backup directory file preserved
+PASS good batch/timeout arguments
+PASS good batch/timeout arguments
+PASS good batch/timeout arguments
+PASS DryRun metadata only, no scp
+PASS DryRun no destination directory or file
+PASS DryRun log metadata
+PASS first install via same-directory Move-Item
+PASS mock schedule 19 daily triggers within window
+PASS mock schedule current-user and no overlapping runs
+PASS real native wrapper quoting
+PASS real native wrapper timeout kills only owned child
+What if: Performing the operation "Read remote MDB metadata only" on target "shop-pc -> C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\.a2b-ps-test-8cd8bb326b87416ab73b187c813729b7\not-created\eHank.mdb".
+PASS DryRun WhatIf no writes or connection
+What if: Performing the operation "Register daily 10:30-19:30 MDB pull, every 30 minutes" on target "LineBot-PullShopMdb".
+PASS registration WhatIf returned without scheduler operation
+RESULT PASS=73 FAIL=0

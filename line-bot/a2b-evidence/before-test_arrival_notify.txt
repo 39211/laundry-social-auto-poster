@@ -1,0 +1,90 @@
+test_c01_baseline_only (test_arrival_notify.Cases.test_c01_baseline_only) ... ok
+test_c02_read_exception_holds (test_arrival_notify.Cases.test_c02_read_exception_holds) ... ok
+test_c03_zero_customers_hold (test_arrival_notify.Cases.test_c03_zero_customers_hold) ... ok
+test_c04_loc_blank_not_ready (test_arrival_notify.Cases.test_c04_loc_blank_not_ready) ... ok
+test_c05_phone_bind_accepted (test_arrival_notify.Cases.test_c05_phone_bind_accepted) ... ok
+test_c06_customer_no_need_bind (test_arrival_notify.Cases.test_c06_customer_no_need_bind) ... ok
+test_c07_owner_unknown (test_arrival_notify.Cases.test_c07_owner_unknown) ... ok
+test_c08_dry_run_no_http (test_arrival_notify.Cases.test_c08_dry_run_no_http) ... ok
+test_c09_missing_config_off (test_arrival_notify.Cases.test_c09_missing_config_off) ... ok
+test_c10_window_taipei_22 (test_arrival_notify.Cases.test_c10_window_taipei_22) ... ok
+test_c11_picked_suppressed (test_arrival_notify.Cases.test_c11_picked_suppressed) ... ok
+test_c12_quota_hold (test_arrival_notify.Cases.test_c12_quota_hold) ... ok
+test_c13_retry_same_key (test_arrival_notify.Cases.test_c13_retry_same_key) ... ok
+test_c14_http_409_accepted (test_arrival_notify.Cases.test_c14_http_409_accepted) ... ok
+test_c15_http_400_rejected (test_arrival_notify.Cases.test_c15_http_400_rejected) ... ok
+test_c16_uncertain_expired (test_arrival_notify.Cases.test_c16_uncertain_expired) ... ok
+test_c17_anomaly_hold (test_arrival_notify.Cases.test_c17_anomaly_hold) ... ok
+test_c18_crash_no_duplicate (test_arrival_notify.Cases.test_c18_crash_no_duplicate) ... ok
+test_c19_grouped_one_message (test_arrival_notify.Cases.test_c19_grouped_one_message) ... ok
+test_c20_settle_hold (test_arrival_notify.Cases.test_c20_settle_hold) ... ok
+test_c21_interval_hold (test_arrival_notify.Cases.test_c21_interval_hold) ... ok
+test_c22_amount_tpay (test_arrival_notify.Cases.test_c22_amount_tpay) ... ok
+test_c23_method_kept (test_arrival_notify.Cases.test_c23_method_kept) ... ok
+test_c24_method_replaced (test_arrival_notify.Cases.test_c24_method_replaced) ... ok
+test_c25_legacy_need_bind (test_arrival_notify.Cases.test_c25_legacy_need_bind) ... ok
+test_c26_no_repeat (test_arrival_notify.Cases.test_c26_no_repeat) ... ok
+test_c27_import_starts_no_thread (test_arrival_notify.Cases.test_c27_import_starts_no_thread) ... ok
+test_c28_cycle_survives (test_arrival_notify.Cases.test_c28_cycle_survives) ... ok
+test_c29_picked_not_ready (test_arrival_notify.Cases.test_c29_picked_not_ready) ... ok
+test_c30_bad_uid_need_bind (test_arrival_notify.Cases.test_c30_bad_uid_need_bind) ... ok
+test_r01_b_sent_next_cycle (test_arrival_notify.Relay.test_r01_b_sent_next_cycle) ... ok
+test_r02_retry_same_key_without_cap (test_arrival_notify.Relay.test_r02_retry_same_key_without_cap) ... ok
+test_r04_http_429_retryable (test_arrival_notify.Relay.test_r04_http_429_retryable) ... ok
+test_r05_binding_changed (test_arrival_notify.Relay.test_r05_binding_changed) ... ok
+test_r06_only_owner_pushed (test_arrival_notify.Relay.test_r06_only_owner_pushed) ... ok
+test_r07_only_owner_content (test_arrival_notify.Relay.test_r07_only_owner_content) ... ok
+test_r08_anomaly_sticky (test_arrival_notify.Relay.test_r08_anomaly_sticky) ... ok
+test_r09_atomic_bind_write (test_arrival_notify.Relay.test_r09_atomic_bind_write) ... ok
+test_r10_bind_unreadable (test_arrival_notify.Relay.test_r10_bind_unreadable) ... ok
+test_r11_need_bind_when_parsed (test_arrival_notify.Relay.test_r11_need_bind_when_parsed) ... ok
+test_r12_startup_survives (test_arrival_notify.Relay.test_r12_startup_survives) ... ERROR
+test_r13_all_gone_superseded (test_arrival_notify.Relay.test_r13_all_gone_superseded) ... ok
+test_r14_balance_new_message (test_arrival_notify.Relay.test_r14_balance_new_message) ... ok
+test_r15_requeue_still_ready (test_arrival_notify.Relay.test_r15_requeue_still_ready) ... ok
+test_r16_same_key_unchanged (test_arrival_notify.Relay.test_r16_same_key_unchanged) ... ok
+test_r17_new_piece_new_message (test_arrival_notify.Relay.test_r17_new_piece_new_message) ... ok
+test_r18_inflight_resent (test_arrival_notify.Relay.test_r18_inflight_resent) ... ok
+test_r19_one_key_after_crash (test_arrival_notify.Relay.test_r19_one_key_after_crash) ... ok
+test_r20_window_hold (test_arrival_notify.Relay.test_r20_window_hold) ... ok
+test_r21_dry_run_hold (test_arrival_notify.Relay.test_r21_dry_run_hold) ... ok
+test_r22_quota_hold (test_arrival_notify.Relay.test_r22_quota_hold) ... ok
+test_r23_token_hold (test_arrival_notify.Relay.test_r23_token_hold) ... ok
+test_r24_uncertain_24h_boundary (test_arrival_notify.Relay.test_r24_uncertain_24h_boundary) ... ok
+test_r25_http_sum (test_arrival_notify.Relay.test_r25_http_sum) ... ok
+test_r26_bind_locked (test_arrival_notify.Relay.test_r26_bind_locked) ... ok
+test_r27_any_accepted (test_arrival_notify.Relay.test_r27_any_accepted) ... ok
+test_r28_accepted_sticky (test_arrival_notify.Relay.test_r28_accepted_sticky) ... ok
+test_amount_qty_two_and_markup (test_arrival_notify.Rules.test_amount_qty_two_and_markup) ... ok
+test_anomaly_does_not_grow_and_eighty_is_allowed (test_arrival_notify.Rules.test_anomaly_does_not_grow_and_eighty_is_allowed) ... ok
+test_attempts_quota_token_and_bare_409 (test_arrival_notify.Rules.test_attempts_quota_token_and_bare_409) ... ok
+test_config_reread_bad_mode_and_cli (test_arrival_notify.Rules.test_config_reread_bad_mode_and_cli) ... ok
+test_first_run_does_not_anomaly_pause (test_arrival_notify.Rules.test_first_run_does_not_anomaly_pause) ... ok
+test_fixture_optional_arrival_fields_default_blank (test_arrival_notify.Rules.test_fixture_optional_arrival_fields_default_blank) ... ok
+test_lock_and_daemon_thread (test_arrival_notify.Rules.test_lock_and_daemon_thread) ... ok
+test_matched_by_three_ways (test_arrival_notify.Rules.test_matched_by_three_ways) ... ok
+test_money_rejects_non_integer_negative_and_non_numeric (test_arrival_notify.Rules.test_money_rejects_non_integer_negative_and_non_numeric) ... ok
+test_over_twenty_and_missing_price_skips_total (test_arrival_notify.Rules.test_over_twenty_and_missing_price_skips_total) ... ok
+test_tell_status_ex_passes_matched_by_and_does_not_downgrade (test_arrival_notify.Rules.test_tell_status_ex_passes_matched_by_and_does_not_downgrade) ... ok
+test_two_uids_and_no_backfill_after_later_bind (test_arrival_notify.Rules.test_two_uids_and_no_backfill_after_later_bind) ... ok
+test_upgrade_from_weaker_and_legacy_unknown (test_arrival_notify.Rules.test_upgrade_from_weaker_and_legacy_unknown) ... ok
+test_waiting_count_hides_names_and_missing_date_is_not_ready (test_arrival_notify.Rules.test_waiting_count_hides_names_and_missing_date_is_not_ready) ... ok
+test_window_edges_naive_clock_and_untrusted_sources (test_arrival_notify.Rules.test_window_edges_naive_clock_and_untrusted_sources) ... ok
+test_clean_failure_is_invalid (test_arrival_notify.Scorer.test_clean_failure_is_invalid) ... ok
+test_exact_id_is_red (test_arrival_notify.Scorer.test_exact_id_is_red) ... ok
+test_substring_collision_does_not_kill (test_arrival_notify.Scorer.test_substring_collision_does_not_kill) ... ok
+test_wrong_name_is_invalid_not_killed (test_arrival_notify.Scorer.test_wrong_name_is_invalid_not_killed) ... ok
+
+======================================================================
+ERROR: test_r12_startup_survives (test_arrival_notify.Relay.test_r12_startup_survives)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_arrival_notify.py", line 1385, in test_r12_startup_survives
+    real_run = line_webhook.app.run
+               ^^^^^^^^^^^^^^^^^^^^
+AttributeError: '_App' object has no attribute 'run'
+
+----------------------------------------------------------------------
+Ran 76 tests in 2.647s
+
+FAILED (errors=1)

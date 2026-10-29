@@ -1,0 +1,152 @@
+test_after_midnight_previous_evening_is_fresh (test_mdb_freshness.FreshnessTests.test_after_midnight_previous_evening_is_fresh) ... ERROR
+test_arrival_snapshot_carries_metadata (test_mdb_freshness.FreshnessTests.test_arrival_snapshot_carries_metadata) ... ERROR
+test_data_as_of_is_source_mtime_in_taipei (test_mdb_freshness.FreshnessTests.test_data_as_of_is_source_mtime_in_taipei) ... ERROR
+test_day_at_10_ends_night_exception (test_mdb_freshness.FreshnessTests.test_day_at_10_ends_night_exception) ... ERROR
+test_day_exactly_120_minutes_is_fresh (test_mdb_freshness.FreshnessTests.test_day_exactly_120_minutes_is_fresh) ... ERROR
+test_day_over_120_minutes_is_stale (test_mdb_freshness.FreshnessTests.test_day_over_120_minutes_is_stale) ... ERROR
+test_fresh_minutes_env_is_honored (test_mdb_freshness.FreshnessTests.test_fresh_minutes_env_is_honored) ... ERROR
+test_fresh_reply_ends_with_data_time (test_mdb_freshness.FreshnessTests.test_fresh_reply_ends_with_data_time) ... FAIL
+test_missing_mtime_holds_and_future_timestamp_is_stale (test_mdb_freshness.FreshnessTests.test_missing_mtime_holds_and_future_timestamp_is_stale) ... ERROR
+test_night_after_19_is_fresh (test_mdb_freshness.FreshnessTests.test_night_after_19_is_fresh) ... ERROR
+test_night_older_copy_is_stale (test_mdb_freshness.FreshnessTests.test_night_older_copy_is_stale) ... ERROR
+test_stale_arrival_holds_before_baseline_or_send_in_both_modes (test_mdb_freshness.FreshnessTests.test_stale_arrival_holds_before_baseline_or_send_in_both_modes) ... 
+  test_stale_arrival_holds_before_baseline_or_send_in_both_modes (test_mdb_freshness.FreshnessTests.test_stale_arrival_holds_before_baseline_or_send_in_both_modes) (mode='dry_run') ... FAIL
+  test_stale_arrival_holds_before_baseline_or_send_in_both_modes (test_mdb_freshness.FreshnessTests.test_stale_arrival_holds_before_baseline_or_send_in_both_modes) (mode='on') ... FAIL
+test_stale_reply_ends_with_business_hours_confirmation (test_mdb_freshness.FreshnessTests.test_stale_reply_ends_with_business_hours_confirmation) ... FAIL
+
+======================================================================
+ERROR: test_after_midnight_previous_evening_is_fresh (test_mdb_freshness.FreshnessTests.test_after_midnight_previous_evening_is_fresh)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 58, in test_after_midnight_previous_evening_is_fresh
+    self.assertFalse(self.row("2026-10-31T19:30:00+08:00", "2026-11-01T09:59:00+08:00").stale)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Lookup' object has no attribute 'stale'
+
+======================================================================
+ERROR: test_arrival_snapshot_carries_metadata (test_mdb_freshness.FreshnessTests.test_arrival_snapshot_carries_metadata)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 87, in test_arrival_snapshot_carries_metadata
+    self.assertEqual(snap.data_as_of, row.data_as_of)
+                     ^^^^^^^^^^^^^^^
+AttributeError: 'Snapshot' object has no attribute 'data_as_of'
+
+======================================================================
+ERROR: test_data_as_of_is_source_mtime_in_taipei (test_mdb_freshness.FreshnessTests.test_data_as_of_is_source_mtime_in_taipei)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 39, in test_data_as_of_is_source_mtime_in_taipei
+    self.assertEqual(row.data_as_of, "2026-10-30T12:00:00+08:00")
+                     ^^^^^^^^^^^^^^
+AttributeError: 'Lookup' object has no attribute 'data_as_of'
+
+======================================================================
+ERROR: test_day_at_10_ends_night_exception (test_mdb_freshness.FreshnessTests.test_day_at_10_ends_night_exception)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 61, in test_day_at_10_ends_night_exception
+    self.assertTrue(self.row("2026-10-30T19:30:00+08:00", "2026-10-31T10:00:00+08:00").stale)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Lookup' object has no attribute 'stale'
+
+======================================================================
+ERROR: test_day_exactly_120_minutes_is_fresh (test_mdb_freshness.FreshnessTests.test_day_exactly_120_minutes_is_fresh)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 45, in test_day_exactly_120_minutes_is_fresh
+    self.assertFalse(self.row("2026-10-30T10:00:00+08:00", "2026-10-30T12:00:00+08:00").stale)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Lookup' object has no attribute 'stale'
+
+======================================================================
+ERROR: test_day_over_120_minutes_is_stale (test_mdb_freshness.FreshnessTests.test_day_over_120_minutes_is_stale)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 42, in test_day_over_120_minutes_is_stale
+    self.assertTrue(self.row("2026-10-30T10:00:00+08:00", "2026-10-30T12:01:00+08:00").stale)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Lookup' object has no attribute 'stale'
+
+======================================================================
+ERROR: test_fresh_minutes_env_is_honored (test_mdb_freshness.FreshnessTests.test_fresh_minutes_env_is_honored)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 49, in test_fresh_minutes_env_is_honored
+    self.assertTrue(self.row("2026-10-30T11:00:00+08:00", "2026-10-30T12:00:00+08:00").stale)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Lookup' object has no attribute 'stale'
+
+======================================================================
+ERROR: test_missing_mtime_holds_and_future_timestamp_is_stale (test_mdb_freshness.FreshnessTests.test_missing_mtime_holds_and_future_timestamp_is_stale)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 64, in test_missing_mtime_holds_and_future_timestamp_is_stale
+    self.assertTrue(self.row("2026-10-30T13:00:00+08:00", "2026-10-30T12:00:00+08:00").stale)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Lookup' object has no attribute 'stale'
+
+======================================================================
+ERROR: test_night_after_19_is_fresh (test_mdb_freshness.FreshnessTests.test_night_after_19_is_fresh)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 52, in test_night_after_19_is_fresh
+    self.assertFalse(self.row("2026-10-30T19:00:00+08:00", "2026-10-30T23:59:00+08:00").stale)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Lookup' object has no attribute 'stale'
+
+======================================================================
+ERROR: test_night_older_copy_is_stale (test_mdb_freshness.FreshnessTests.test_night_older_copy_is_stale)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 55, in test_night_older_copy_is_stale
+    self.assertTrue(self.row("2026-10-30T18:59:00+08:00", "2026-10-30T23:00:00+08:00").stale)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Lookup' object has no attribute 'stale'
+
+======================================================================
+FAIL: test_fresh_reply_ends_with_data_time (test_mdb_freshness.FreshnessTests.test_fresh_reply_ends_with_data_time)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 78, in test_fresh_reply_ends_with_data_time
+    self.assertEqual(self.customer_copy(False).splitlines()[-1], "資料時間 10/30 12:00")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '金額先供您查閱，最後仍以門市實際結帳為準。' != '資料時間 10/30 12:00'
+- 金額先供您查閱，最後仍以門市實際結帳為準。
++ 資料時間 10/30 12:00
+
+
+======================================================================
+FAIL: test_stale_arrival_holds_before_baseline_or_send_in_both_modes (test_mdb_freshness.FreshnessTests.test_stale_arrival_holds_before_baseline_or_send_in_both_modes) (mode='dry_run')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 100, in test_stale_arrival_holds_before_baseline_or_send_in_both_modes
+    self.assertEqual(result["code"], "STALE_HOLD")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <MagicMock name='_dispatch().__getitem__()' id='2195816384896'> != 'STALE_HOLD'
+
+======================================================================
+FAIL: test_stale_arrival_holds_before_baseline_or_send_in_both_modes (test_mdb_freshness.FreshnessTests.test_stale_arrival_holds_before_baseline_or_send_in_both_modes) (mode='on')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 100, in test_stale_arrival_holds_before_baseline_or_send_in_both_modes
+    self.assertEqual(result["code"], "STALE_HOLD")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <MagicMock name='_dispatch().__getitem__()' id='2195816391952'> != 'STALE_HOLD'
+
+======================================================================
+FAIL: test_stale_reply_ends_with_business_hours_confirmation (test_mdb_freshness.FreshnessTests.test_stale_reply_ends_with_business_hours_confirmation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\a2b\repo\line-bot\test_mdb_freshness.py", line 81, in test_stale_reply_ends_with_business_hours_confirmation
+    self.assertEqual(self.customer_copy(True).splitlines()[-1], "以上是 10/30 12:00 的資料,最新狀態請於營業時間再確認")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '金額先供您查閱，最後仍以門市實際結帳為準。' != '以上是 10/30 12:00 的資料,最新狀態請於營業時間再確認'
+- 金額先供您查閱，最後仍以門市實際結帳為準。
++ 以上是 10/30 12:00 的資料,最新狀態請於營業時間再確認
+
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.099s
+
+FAILED (failures=4, errors=10)

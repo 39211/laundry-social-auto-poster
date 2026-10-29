@@ -1,6 +1,7 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import { mkdir, readFile, readdir, unlink } from "node:fs/promises";
 import { writeFileWithRetry as writeFile } from "./fsRetry";
+import { mapPublicSiteWrites, publicSiteWriteConcurrency } from "./publicSiteWrites";
 import { dirname, join, posix, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadDotenv } from "dotenv";
@@ -48,6 +49,8 @@ const SOURCE_PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..
 
 interface GeneratePublicSiteOptions {
   root?: string;
+  /** Local write-batch cap; the shared fsRetry ceiling remains independent. */
+  writeConcurrency?: number;
   baseUrl?: string;
   siteBaseUrl?: string;
   imageBaseUrl?: string;
@@ -4878,7 +4881,9 @@ async function writeApprovedPublicContentCalendar(
   });
 }
 
-async function writePostArticlePages(posts: PublicPost[], index: PublicPostIndex, postsRoot: string): Promise<string[]> {
+async function writePostArticlePages(
+  posts: PublicPost[], index: PublicPostIndex, postsRoot: string, writeConcurrency: number
+): Promise<string[]> {
   await mkdir(postsRoot, { recursive: true });
   const expected = new Set([...posts.map((post) => post.article_path.split("/").at(-1)!), "index.html"]);
   const existing = await readdir(postsRoot);
@@ -4889,7 +4894,8 @@ async function writePostArticlePages(posts: PublicPost[], index: PublicPostIndex
   );
 
   const paths = posts.map((post) => join(postsRoot, post.article_path.split("/").at(-1)!));
-  await Promise.all(paths.map((path, indexPosition) => writeFile(path, buildPostPageHtml(posts[indexPosition]!, index), "utf8")));
+  await mapPublicSiteWrites(paths, writeConcurrency, (path, indexPosition) =>
+    writeFile(path, buildPostPageHtml(posts[indexPosition]!, index), "utf8"));
   if (posts.length > 0) {
     const hubPath = join(postsRoot, "index.html");
     await writeFile(hubPath, buildPostsHubHtml(index), "utf8");
@@ -5803,10 +5809,11 @@ function sitemapShouldOmitUrlForPublicSite(
 async function stripUnindexablePostsFromSitemaps(
   index: PublicPostIndex,
   sitemapPath: string,
-  aiSitemapPath: string
+  aiSitemapPath: string,
+  writeConcurrency: number
 ): Promise<void> {
   if (indexablePostArticles(index).length > 0) return;
-  await Promise.all([sitemapPath, aiSitemapPath].map(stripPostsSurfaceUrlLines));
+  await mapPublicSiteWrites([sitemapPath, aiSitemapPath], writeConcurrency, stripPostsSurfaceUrlLines);
 }
 
 async function stripPostsSurfaceUrlLines(filePath: string): Promise<void> {
@@ -5831,10 +5838,12 @@ async function stripExcludedPublicSitemaps(
   index: PublicPostIndex,
   sitemapPath: string,
   aiSitemapPath: string,
-  noindexPosixPaths: ReadonlySet<string>
+  noindexPosixPaths: ReadonlySet<string>,
+  writeConcurrency: number
 ): Promise<void> {
-  await Promise.all(
-    [sitemapPath, aiSitemapPath].map((filePath) => stripExcludedSitemapLines(filePath, index, noindexPosixPaths))
+  await mapPublicSiteWrites(
+    [sitemapPath, aiSitemapPath], writeConcurrency,
+    (filePath) => stripExcludedSitemapLines(filePath, index, noindexPosixPaths)
   );
 }
 
@@ -9814,6 +9823,7 @@ function buildAiDiscovery(index: PublicPostIndex): Record<string, unknown> {
 }
 
 export async function generatePublicSite(options: GeneratePublicSiteOptions = {}): Promise<string[]> {
+  const writeConcurrency = publicSiteWriteConcurrency(options.writeConcurrency ?? process.env.PUBLIC_SITE_WRITE_CONCURRENCY);
   const root = projectRoot(options.root);
   await loadAeo325Guardrail(SOURCE_PROJECT_ROOT);
   const config = getConfig();
@@ -9826,8 +9836,10 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const generatedAt = (options.now ? new Date(options.now) : new Date()).toISOString();
   const publishThroughDate = getZonedDateParts(new Date(generatedAt), config.timezone).date;
   const dates = await listContentDates(root);
-  const calendars = await Promise.all(
-    dates.map(async (date) => {
+  // Atomic calendar writers share this directory and bypass fsRetry's limiter.
+  if (dates.length > 0) await mkdir(join(root, "docs", "content-calendar"), { recursive: true });
+  const calendars = await mapPublicSiteWrites(
+    dates, writeConcurrency, async (date) => {
       const calendar = await readPrivateDailyContent(date, root);
       if (!calendar) return undefined;
       if (calendar.date !== date) {
@@ -9852,7 +9864,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       }
       await writeApprovedPublicContentCalendar(calendar, publicSlots, root);
       return { calendar, approvedSlots: publicSlots };
-    })
+    }
   );
   const dailyPosts = calendars.flatMap((record) =>
     record ? record.approvedSlots.map((slot) => slotToPublicPost(record.calendar.date, slot, siteBaseUrl, imageBaseUrl)) : []
@@ -10068,22 +10080,21 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     onlyDocsPaths === undefined
       ? SERVICE_PAGE_DEFINITIONS
       : SERVICE_PAGE_DEFINITIONS.filter((service) => shouldWriteDocsPath(servicePagePath(service)));
-  await Promise.all(
-    servicePagesToWrite.map((service) =>
+  await mapPublicSiteWrites(
+    servicePagesToWrite, writeConcurrency, (service) =>
       writeFile(join(servicesRoot, `${service.slug}.html`), buildServicePageHtml(service, index), "utf8")
-    )
   );
   const supportPagesToWrite =
     onlyDocsPaths === undefined
       ? SUPPORT_PAGE_DEFINITIONS
       : SUPPORT_PAGE_DEFINITIONS.filter((page) => shouldWriteDocsPath(page.path));
-  await Promise.all(
-    supportPagesToWrite.map((page) => writeFile(join(docsRoot, page.path), buildSupportPageHtml(page, index), "utf8"))
+  await mapPublicSiteWrites(
+    supportPagesToWrite, writeConcurrency, (page) => writeFile(join(docsRoot, page.path), buildSupportPageHtml(page, index), "utf8")
   );
   const postArticleOutputs =
     onlyDocsPaths !== undefined && [...onlyDocsPaths].every((relativePath) => !relativePath.startsWith("posts/"))
       ? []
-      : await writePostArticlePages(articlePosts, index, postsRoot);
+      : await writePostArticlePages(articlePosts, index, postsRoot, writeConcurrency);
   if (shouldWriteDocsPath(".nojekyll")) await writeFile(outputs.nojekyll, "", "utf8");
   // onlyDocsPaths 沒要 sitemap.xml 時檔案不會寫出；此時下方也不重建 sitemap。
   const generatedSitemapXml = shouldWriteDocsPath("sitemap.xml") ? await readFile(outputs.sitemap, "utf8") : "";
@@ -10232,8 +10243,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     await injectHomepageRecentPosts(index, outputs.index);
   }
 
-  await stripUnindexablePostsFromSitemaps(index, outputs.sitemap, outputs.aiSitemap);
-  await stripExcludedPublicSitemaps(index, outputs.sitemap, outputs.aiSitemap, noindexOverridePaths);
+  await stripUnindexablePostsFromSitemaps(index, outputs.sitemap, outputs.aiSitemap, writeConcurrency);
+  await stripExcludedPublicSitemaps(index, outputs.sitemap, outputs.aiSitemap, noindexOverridePaths, writeConcurrency);
   // 這一步以覆寫檔重寫 docs/ai-discovery.json（並補蓋 .well-known/ai.json 的 generated_at）；onlyDocsPaths 沒要 ai-discovery.json 時略過，避免讀到沒寫出的檔。
   if (shouldWriteDocsPath("ai-discovery.json")) {
     await syncPublishedAiDiscovery({
@@ -10252,8 +10263,11 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  const concurrency = getOption(args, "write-concurrency");
+  const hasConcurrencyFlag = concurrency !== undefined || args.includes("--write-concurrency");
   const outputs = await generatePublicSite({
     root: getOption(args, "root"),
+    writeConcurrency: hasConcurrencyFlag ? Number(concurrency) : undefined,
     baseUrl: getOption(args, "base-url"),
     siteBaseUrl: getOption(args, "site-base-url"),
     imageBaseUrl: getOption(args, "image-base-url"),

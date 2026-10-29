@@ -1,0 +1,21 @@
+test_after_midnight_previous_evening_is_fresh (test_mdb_freshness.FreshnessTests.test_after_midnight_previous_evening_is_fresh) ... ok
+test_arrival_snapshot_carries_metadata (test_mdb_freshness.FreshnessTests.test_arrival_snapshot_carries_metadata) ... ok
+test_data_as_of_is_source_mtime_in_taipei (test_mdb_freshness.FreshnessTests.test_data_as_of_is_source_mtime_in_taipei) ... ok
+test_day_at_10_ends_night_exception (test_mdb_freshness.FreshnessTests.test_day_at_10_ends_night_exception) ... ok
+test_day_exactly_120_minutes_is_fresh (test_mdb_freshness.FreshnessTests.test_day_exactly_120_minutes_is_fresh) ... ok
+test_day_over_120_minutes_is_stale (test_mdb_freshness.FreshnessTests.test_day_over_120_minutes_is_stale) ... ok
+test_fresh_minutes_env_is_honored (test_mdb_freshness.FreshnessTests.test_fresh_minutes_env_is_honored) ... ok
+test_fresh_reply_ends_with_data_time (test_mdb_freshness.FreshnessTests.test_fresh_reply_ends_with_data_time) ... ok
+test_invalid_fresh_minutes_falls_back_to_120 (test_mdb_freshness.FreshnessTests.test_invalid_fresh_minutes_falls_back_to_120) ... ok
+test_mdb_changed_during_read_is_held (test_mdb_freshness.FreshnessTests.test_mdb_changed_during_read_is_held) ... ok
+test_missing_mtime_holds_and_future_timestamp_is_stale (test_mdb_freshness.FreshnessTests.test_missing_mtime_holds_and_future_timestamp_is_stale) ... ok
+test_night_after_19_is_fresh (test_mdb_freshness.FreshnessTests.test_night_after_19_is_fresh) ... ok
+test_night_older_copy_is_stale (test_mdb_freshness.FreshnessTests.test_night_older_copy_is_stale) ... ok
+test_rebaseline_stale_snapshot_does_not_write_state (test_mdb_freshness.FreshnessTests.test_rebaseline_stale_snapshot_does_not_write_state) ... ok
+test_stale_arrival_holds_before_baseline_or_send_in_both_modes (test_mdb_freshness.FreshnessTests.test_stale_arrival_holds_before_baseline_or_send_in_both_modes) ... ok
+test_stale_reply_ends_with_business_hours_confirmation (test_mdb_freshness.FreshnessTests.test_stale_reply_ends_with_business_hours_confirmation) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.054s
+
+OK

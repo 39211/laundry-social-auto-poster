@@ -2322,6 +2322,13 @@ def tell_status_ex(uid: str, query: str, *, notify_staff: bool = False) -> tuple
     import laundry_lookup
     row = laundry_lookup.lookup(query)
     text = laundry_lookup.guest_copy(row)
+    if row.data_as_of:
+        data_time = datetime.fromisoformat(row.data_as_of).strftime("%m/%d %H:%M")
+        footer = (f"以上是 {data_time} 的資料,最新狀態請於營業時間再確認"
+                  if row.stale else f"資料時間 {data_time}")
+        text += "\n" + footer
+    elif row.source == laundry_lookup.EHANK_SOURCE and row.stale:
+        text += "\n資料時間無法確認,最新狀態請於營業時間再確認"
     flag = laundry_lookup.guest_ready_flag(row)
     notified = False
     if row.found:

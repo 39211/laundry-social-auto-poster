@@ -75,6 +75,8 @@ def judge_mutation(clean: dict, failed_ids, expect_ids) -> str:
 class Shop:
     def __init__(self):
         self.root = Path(tempfile.mkdtemp(prefix="arrival-case-"))
+        # Fresh synthetic source metadata; no production MDB is accessed.
+        (self.root / "eHank.mdb").write_bytes(b"synthetic source metadata")
         self.customers = []
         self.garments = []
         self.reads = 0
@@ -88,6 +90,8 @@ class Shop:
         (self.root / "data").mkdir(parents=True, exist_ok=True)
         self._orig_inv = L.inventory
         L.REPO = self.root
+        L.EHANK_ROOT = self.root
+        os.environ.pop("LAUNDRY_LOOKUP_FIXTURE", None)
         L.BIND = self.root / "data" / "line-customer-bind.json"
         L.WATCH = self.root / "data" / "laundry-watch.json"
         L.inventory = self._inventory
@@ -745,6 +749,7 @@ class Rules(Isolated):
 
     def test_matched_by_three_ways(self):
         self.shop.deactivate()
+        os.environ["LAUNDRY_LOOKUP_FIXTURE"] = "1"
         self.assertEqual(L.lookup(PHONE).matched_by, "phone")
         self.assertEqual(L.lookup("0028").matched_by, "customer_no")
         self.assertEqual(L.lookup("W2001").matched_by, "wash_no")
@@ -753,6 +758,7 @@ class Rules(Isolated):
         import conversation as conv
 
         self.shop.deactivate()
+        os.environ["LAUNDRY_LOOKUP_FIXTURE"] = "1"
         conv.SESS = self.shop.root / "data" / "line-sessions.json"
         seen = []
         real = L.bind_uid

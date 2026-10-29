@@ -156,11 +156,14 @@ class Snapshot:
     customers: list
     garments: list
     source: str
+    data_as_of: str = ""
+    stale: bool = False
 
 
 def load_shop_snapshot() -> Snapshot:
-    customers, garments, source = laundry_lookup.inventory()
-    return Snapshot(list(customers or []), list(garments or []), str(source or ""))
+    snap = laundry_lookup.inventory_snapshot()
+    return Snapshot(list(snap.customers or []), list(snap.garments or []), str(snap.source or ""),
+                    data_as_of=snap.data_as_of, stale=snap.stale)
 
 
 def _empty_snapshot_untrusted(n_customers: int, n_pieces: int) -> bool:
@@ -971,6 +974,8 @@ def run_cycle(mode_override: str | None = None, clock=None) -> dict:
     except Exception:
         return _hold_after_read_exception(state)
     reads = 1
+    if snap.stale:
+        return {"code": "STALE_HOLD", "http": 0, "ehank_reads": reads, "cursor": "unchanged"}
     if isinstance(state, dict) and state.get("_corrupt"):
         return {"code": "READ_FAIL_HOLD", "http": 0, "ehank_reads": reads, "cursor": "unchanged"}
     if snap.source != laundry_lookup.EHANK_SOURCE or _empty_snapshot_untrusted(len(snap.customers), len(snap.garments)):
@@ -1072,6 +1077,8 @@ def rebaseline(clock=None) -> dict:
         snap = load_shop_snapshot()
     except Exception:
         return {"code": "READ_FAIL_HOLD", "http": 0, "cursor": "unchanged"}
+    if snap.stale:
+        return {"code": "STALE_HOLD", "http": 0, "cursor": "unchanged"}
     if snap.source != laundry_lookup.EHANK_SOURCE or _empty_snapshot_untrusted(len(snap.customers), len(snap.garments)):
         return {"code": "READ_FAIL_HOLD", "http": 0, "cursor": "unchanged"}
     known = _known_keys(snap.customers)

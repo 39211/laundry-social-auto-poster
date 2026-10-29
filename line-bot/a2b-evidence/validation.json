@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-30",
+  "cwd": "C:\\Users\\cyc39\\AI-Lanes\\a2b\\repo",
+  "checks": [
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": "warning: in the working copy of 'line-bot/arrival_notify.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'line-bot/conversation.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'line-bot/laundry_lookup.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'line-bot/test_arrival_notify.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'line-bot/test_conversation.py', LF will be replaced by CRLF the next time Git touches it\n"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--cached",
+        "--name-only"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "-c",
+        "core.quotepath=false",
+        "status",
+        "--porcelain",
+        "--untracked-files=all"
+      ],
+      "exit": 0,
+      "stdout": " M line-bot/arrival_notify.py\n M line-bot/conversation.py\n M line-bot/laundry_lookup.py\n M line-bot/test_arrival_notify.py\n M line-bot/test_conversation.py\n?? docs-internal/cards/A2b-RESULT.md\n?? line-bot/a2b-evidence/after-test_arrival_notify.txt\n?? line-bot/a2b-evidence/after-test_conversation.txt\n?? line-bot/a2b-evidence/after-test_ehank_snapshot.txt\n?? line-bot/a2b-evidence/after-test_mdb_freshness.txt\n?? line-bot/a2b-evidence/before-test_arrival_notify.txt\n?? line-bot/a2b-evidence/before-test_conversation.txt\n?? line-bot/a2b-evidence/before-test_ehank_snapshot.txt\n?? line-bot/a2b-evidence/before-test_mdb_freshness.txt\n?? line-bot/a2b-evidence/powershell-offline.txt\n?? line-bot/pull_shop_mdb.ps1\n?? line-bot/register-mdb-pull-task.ps1\n?? line-bot/run_a2b_tests.py\n?? line-bot/test_mdb_freshness.py\n?? line-bot/test_mdb_pull.ps1\n",
+      "stderr": "warning: could not open directory 'line-bot/.a2b-test-tmp/repo-8inyqirj/': Permission denied\nwarning: could not open directory 'line-bot/.a2b-test-tmp/repo-e09by06t/': Permission denied\nwarning: could not open directory 'line-bot/.a2b-test-tmp/repo-ucro4yl1/': Permission denied\nwarning: could not open directory 'line-bot/.a2b-test-tmp/repo-_x8ydp48/': Permission denied\n"
+    },
+    {
+      "scope_only": true,
+      "staged_files": 0,
+      "python_ast_parsed": 7,
+      "powershell_all_ascii": {
+        "pull_shop_mdb.ps1": true,
+        "register-mdb-pull-task.ps1": true,
+        "test_mdb_pull.ps1": true
+      }
+    }
+  ],
+  "sha256": {
+    "line-bot/arrival_notify.py": "34152644437615cd21c0c8f0237f64a7c60e012b93c004b3fdcde30a0e032d2f",
+    "line-bot/conversation.py": "b4fff689736f0cb7360fc4493fa24887064832d0b4a879833173a216ada12419",
+    "line-bot/laundry_lookup.py": "6ba56dfa91012925c67dcfb7164a9c28e35a8843f0cbc146c707e1549c0ea4c1",
+    "line-bot/test_arrival_notify.py": "8b111c0b6ccc4da457c25bc67eeec84580dadaa55e1877c6e5184c58bce10962",
+    "line-bot/test_conversation.py": "3b5410e62085782d6cb0e0351eb1ee1a2f320767a96aba953e208be38beb5e20",
+    "docs-internal/cards/A2b-RESULT.md": "e3c99435119d436a5bf5f639c83ceaa4734e34e9d5cdfca280d4e8b016fe3a5c",
+    "line-bot/a2b-evidence/after-test_arrival_notify.txt": "690000cb84d6c3a20f85e50708cbb6146c22f09d610cfe7d7240e00f4787564d",
+    "line-bot/a2b-evidence/after-test_conversation.txt": "a8d4b4883d31c4d29c920a2b78a6844f88b2a5d0ecf630d8811941f4c6599913",
+    "line-bot/a2b-evidence/after-test_ehank_snapshot.txt": "0562d864bf8f757d9cbb1612d19fd05afb826261e5d4edd183f44e77596bf34b",
+    "line-bot/a2b-evidence/after-test_mdb_freshness.txt": "0667721e88074958c63b240ac93eb7acf793882c6c0b3fc7fe23758f4f62b857",
+    "line-bot/a2b-evidence/before-test_arrival_notify.txt": "69284836abc028de592b37ef0fa9906e926fb5dc2bb5eee35a8c33b61a91a987",
+    "line-bot/a2b-evidence/before-test_conversation.txt": "bcd2b668cf903efd88ffbad3350b39fa5472a021945bbd7ba1b931a784e5933e",
+    "line-bot/a2b-evidence/before-test_ehank_snapshot.txt": "0f98c4eb17fae112ae1a1f41fa289a187a63760de2cc9edbd2f76bca995f4d7d",
+    "line-bot/a2b-evidence/before-test_mdb_freshness.txt": "fb7178704595845df7c0aa63cc38de0fce3d08e298273e8a0f6241e06afa0819",
+    "line-bot/a2b-evidence/powershell-offline.txt": "3df7d5a4cf80c9aef300e4e8d560e8020e71e008a284cc527e49c5c5a3e0220b",
+    "line-bot/pull_shop_mdb.ps1": "4ecd417a1d1615e37817f9fdc510227977e33226d434a178a4f4f4be07ec513a",
+    "line-bot/register-mdb-pull-task.ps1": "45d8e89a3f40f7980ef85fc8a372b958990b259dd33281435a6b9c5bf3be07a9",
+    "line-bot/run_a2b_tests.py": "cce732c0ea433afecce22bc82bf4a844eb3194639518e8c12f06c5bf9b64e3ae",
+    "line-bot/test_mdb_freshness.py": "59f461819f036006aabba3e5a1b2cd243709591f9c8312fae13e11f97de3e564",
+    "line-bot/test_mdb_pull.ps1": "48067778cb5c3db8ad5f20d3345379e190150f832ed6a54b37d820c1aa6d60c9"
+  },
+  "test_results": {
+    "freshness": 16,
+    "snapshot": 4,
+    "conversation_entries": 60,
+    "conversation_cases": 88,
+    "arrival": 76,
+    "powershell_checks": 73
+  },
+  "leftovers": [
+    "line-bot/.a2b-test-tmp/repo-ucro4yl1",
+    "line-bot/.a2b-test-tmp/repo-8inyqirj",
+    "line-bot/.a2b-test-tmp/repo-_x8ydp48",
+    "line-bot/.a2b-test-tmp/repo-e09by06t"
+  ]
+}

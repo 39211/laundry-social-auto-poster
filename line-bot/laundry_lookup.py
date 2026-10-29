@@ -1,8 +1,9 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """查私享家洗衣系統：入庫可取 / 還沒好。只讀 eHank/fixture，不寫 POS。"""
 from __future__ import annotations
 
 import json
+import math
 import os
 import sqlite3
 import sys
@@ -72,6 +73,8 @@ class Lookup:
     balance: int | None = None
     # phone / customer_no / wash_no；沒比中則空白。不改變 lookup 的比對規則。
     matched_by: str = ""
+    data_as_of: str = ""
+    stale: bool = False
 
     @property
     def found(self) -> bool:
@@ -374,11 +377,69 @@ def inventory() -> tuple[list[dict], list[dict], str]:
     return [], [], "none"
 
 
+@dataclass
+class InventorySnapshot:
+    customers: list[dict]
+    garments: list[dict]
+    source: str
+    data_as_of: str = ""
+    stale: bool = False
+
+
+def _now_taipei() -> datetime:
+    return datetime.now(_TAIPEI)
+
+
+def _mdb_stamp() -> tuple[int, int] | None:
+    try:
+        st = (EHANK_ROOT / "eHank.mdb").stat()
+        return st.st_mtime_ns, st.st_size
+    except OSError:
+        return None
+
+
+def inventory_snapshot() -> InventorySnapshot:
+    # Bracket the existing reader. A replacement during SELECT must not label
+    # old contents with the newer file's timestamp or trigger notifications.
+    before = _mdb_stamp() if os.environ.get("LAUNDRY_LOOKUP_FIXTURE") != "1" else None
+    customers, garments, source = inventory()
+    snap = InventorySnapshot(customers, garments, source)
+    if source != EHANK_SOURCE:
+        return snap
+    after = _mdb_stamp()
+    stamp = before or after
+    if stamp is None:
+        snap.stale = True
+        return snap
+    modified = datetime.fromtimestamp(stamp[0] / 1_000_000_000, _TAIPEI)
+    snap.data_as_of = modified.isoformat(timespec="seconds")
+    now = _now_taipei().astimezone(_TAIPEI)
+    try:
+        minutes = float(os.environ.get("LAUNDRY_FRESH_MINUTES", "120"))
+        if not math.isfinite(minutes) or minutes < 0:
+            minutes = 120
+    except ValueError:
+        minutes = 120
+    age = (now - modified).total_seconds()
+    snap.stale = age < 0 or age > minutes * 60
+    if now.hour >= 20 or now.hour < 10:
+        evening = now.replace(hour=19, minute=0, second=0, microsecond=0)
+        if now.hour < 10:
+            evening -= timedelta(days=1)
+        if evening <= modified <= now:
+            snap.stale = False
+    if before != after:
+        snap.stale = True
+    return snap
+
+
 def lookup(query: str) -> Lookup:
     q = (query or "").strip()
     if not q:
         return Lookup(query=q)
-    cust, pieces, source = inventory()
+    snap = inventory_snapshot()
+    cust, pieces, source = snap.customers, snap.garments, snap.source
+    freshness = {"data_as_of": snap.data_as_of, "stale": snap.stale}
     d = _digits(q)
     cid_hits: list[dict] = []
     phone_hits: list[dict] = []
@@ -409,9 +470,9 @@ def lookup(query: str) -> Lookup:
         seen.add(no)
         uniq.append(c)
     if len(uniq) > 1:
-        return Lookup(query=q, source=source, ambiguous=True, matched_by=matched_by)
+        return Lookup(query=q, source=source, ambiguous=True, matched_by=matched_by, **freshness)
     if not uniq:
-        return Lookup(query=q, source=source)
+        return Lookup(query=q, source=source, **freshness)
     c = uniq[0]
     no = str(c.get("no") or "")
     mine = [g for g in pieces if _cid_key(str(g.get("customer_no") or "")) == _cid_key(no)]
@@ -423,6 +484,7 @@ def lookup(query: str) -> Lookup:
         source=source,
         balance=_money(c.get("balance"), signed=True),
         matched_by=matched_by,
+        **freshness,
         pieces=[
             Piece(
                 wash_no=str(g.get("wash_no") or ""),

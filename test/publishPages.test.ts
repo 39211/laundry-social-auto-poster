@@ -191,6 +191,35 @@ describe("publishPagesAssets", () => {
     expect(mirrorTree).not.toContain(".env");
   }, 45000);
 
+  gitIt("publishes approved v4 assets and overlays campaign without removing historical files", () => {
+    const { root } = makeGitRepo();
+    const { root: mirror, origin: rootPagesOrigin } = makeGitRepo();
+    const date = "2026-05-15";
+    mkdirSync(join(mirror, "campaign"), { recursive: true });
+    mkdirSync(join(mirror, "posts"), { recursive: true });
+    writeFileSync(join(mirror, "campaign", "history.html"), "historical campaign");
+    writeFileSync(join(mirror, "posts", "history.html"), "historical post");
+    git(mirror, ["add", "campaign", "posts"]);
+    git(mirror, ["commit", "-m", "Historical public content"]);
+    git(mirror, ["push", "origin", "main"]);
+    mkdirSync(join(root, "docs", "assets", "v4"), { recursive: true });
+    mkdirSync(join(root, "docs", "campaign"), { recursive: true });
+    writeFileSync(join(root, "docs", "index.html"), '<!doctype html><link rel="stylesheet" href="assets/v4/sxj-v4.css"><script src="assets/v4/sxj-v4.js"></script><img src="assets/v4/home-hero.jpg">');
+    writeFileSync(join(root, "docs", "assets", "v4", "sxj-v4.css"), "body{color:black}");
+    writeFileSync(join(root, "docs", "assets", "v4", "sxj-v4.js"), "window.v4=true;");
+    writeFileSync(join(root, "docs", "assets", "v4", "home-hero.jpg"), "fixture image bytes");
+    writeFileSync(join(root, "docs", "campaign", "index.html"), "<!doctype html><title>Campaign</title>");
+    writeSitemap(root, "2026-01-01");
+    expect(collectReferencedPublicAssetPaths(join(root, "docs"), ["index.html"])).toEqual([
+      "assets/v4/home-hero.jpg", "assets/v4/sxj-v4.css", "assets/v4/sxj-v4.js"
+    ]);
+    expect(publishPagesAssets(date, root, rootPagesOrigin)).toContain("Mirrored public site to root Pages repo");
+    for (const path of ["assets/v4/sxj-v4.css", "assets/v4/sxj-v4.js", "assets/v4/home-hero.jpg", "campaign/index.html"])
+      expect(gitShow(rootPagesOrigin, `main:${path}`).length).toBeGreaterThan(0);
+    expect(gitShow(rootPagesOrigin, "main:campaign/history.html").toString()).toBe("historical campaign");
+    expect(gitShow(rootPagesOrigin, "main:posts/history.html").toString()).toBe("historical post");
+  }, 60000);
+
   gitIt("publishes approved post article pages alongside the rest of the SEO assets", () => {
     const { root } = makeGitRepo();
     const date = "2026-05-15";

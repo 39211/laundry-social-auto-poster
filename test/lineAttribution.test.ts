@@ -13,7 +13,7 @@ import {
 
 const REPO_ROOT = process.cwd();
 const REPORT_SCRIPT = join(REPO_ROOT, "scripts", "line-attribution-report.ps1");
-const LINE_ME = "https://line.me/ti/p/4m-rA6hxf6";
+const LINE_ME = "https://line.me/R/ti/p/%40454foyks";
 
 async function writeBusinessProfile(root: string): Promise<void> {
   await mkdir(join(root, "data"), { recursive: true });

@@ -234,3 +234,40 @@ Owner decisions recorded (Docs tables + SHOP-FACTS):
   - New 10:31 send_later trig_01PT7pr72cJgy6wxtW5BGRf5 has the new plan.
   - The old 10:32 trig_01MjFjKYYpFYVLaVSkU7pkqS could not be edited or disabled: the prompt change needs device approval, and disabling was denied by the classifier. When it fires, treat it as superseded.
   - 16:22 backfill check is unchanged.
+
+
+## 10/31 01:15 addendum
+
+### Owner decisions
+- **D14 A** (C4 list): contact no one. Next week the API writes the C5 controlled-test card.
+- **D15 B** (website wording): the website also changes to 「台中市免費到府收送」.
+
+### B1-3 status: feat/b1-3-wording @ 952392b2, WIP, pushed, not merged
+- Generator and site edits came from the API (Opus 5.5, $1.78).
+- Commander applied the seo-overrides phrase map deterministically: 349 replacements, 0 old variants left.
+- tsc is clean.
+
+vitest, run with only PUBLIC_SITE_BASE_URL set:
+
+| Run | Failing tests |
+|---|---|
+| Baseline | 28 (environment-related) |
+| B1-3 | 22, of which 5 are new |
+
+All 5 new failures are frozen-content guards:
+- PROTECTED_LIVE_COHORT_HASHES (5 cohort pages)
+- PROTECTED_INDEX_GROWTH_LOCKS shoe guides (indexGrowthPages.ts reverted for now)
+- luxuryShoeCase boundary 免費收送、無低消
+- seoSyncP1 frozen digest
+- checked-in docs/ai-discovery stale until regeneration
+
+Next steps:
+- The locks have been re-frozen before on owner instruction (comments dated 09-12 and 09-20). D15 B is that instruction.
+- After the 10/31 deploys:
+  - Change the locked bodies.
+  - Recompute the hashes with a script (do not have a model guess them).
+  - Add a "Re-frozen 2026-10-31 per owner D15" comment.
+  - Update the frozen digests.
+  - Run the full vitest.
+  - Merge, then let the 11/01 11:30 pipeline publish.
+- data/publishing-policy.json is git-ignored live data. Apply `api-jobs/b1-3/answer-live-data.md` after the merge.

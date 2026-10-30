@@ -287,7 +287,7 @@ describe("AEO325 final page copy", () => {
 
     const cardText = textContent(storeCard?.inner ?? "");
     expect(cardText).toBe("門市與收送 門市在台中市西屯區青海路二段365號（至善國中對面），市話 04-2452-7411，LINE／手機 0968-327-653。週一至週五 10:00-20:00、週六 12:00-18:00、週日公休。免費收送、沒有最低消費。東海無門市（僅收送）。");
-    expect(cardText).not.toMatch(/台中全市|保證|承諾|滅菌/u);
+    expect(cardText).not.toMatch(/台中全市|台中市全區|台中市全市|台中市區|台中全區|保證|承諾|滅菌/u);
   });
 
   it.each(TARGETS)("renders final H3-2 to H3-5 and every copy paragraph on $path", ({ path, finalFile, finalHeading }) => {
@@ -346,7 +346,7 @@ describe("AEO325 final page copy", () => {
     const blocks = jsonLdBlocks(html);
     const ownedTypes = new Set(["WebPage", "Service", "Article", "FAQPage", "BreadcrumbList"]);
     const strings = [copyVisibleText(html, copy), ...pageOwnedNodes(blocks, path, ownedTypes).flatMap(stringsIn)].join(" ");
-    const forbidden = /紫外線|臭氧|殺菌|滅菌|除菌|抑菌|徹底|杜絕|確保|絕不|不傷|專利|認證|食品級|原廠級|修復|還原|恢復機能|台中全市|台中市全區|全區免費|[0-9]{1,3}\s*[%％]/gu;
+    const forbidden = /紫外線|臭氧|殺菌|滅菌|除菌|抑菌|徹底|杜絕|確保|絕不|不傷|專利|認證|食品級|原廠級|修復|還原|恢復機能|台中全市|台中市全區|台中市全市|台中市區|台中全區|全區免費|[0-9]{1,3}\s*[%％]/gu;
     expect([...strings.matchAll(forbidden)].map((match) => match[0]), path).toEqual([]);
 
     const disinfection = [...copyVisibleText(html, copy).matchAll(/消毒/gu)];

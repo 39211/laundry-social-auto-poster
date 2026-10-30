@@ -61,9 +61,9 @@ describe("single-CTA experiment", () => {
     const concept = REEL_CONCEPTS[0]!;
     const before = captionsFor(concept, 0, "2026-09-09");
     const after = captionsFor(concept, 0, SINGLE_CTA_EXPERIMENT_START);
-    expect(before.instagram).toContain("私享家洗衣店｜台中市區免費到府收送");
-    expect(after.instagram).not.toContain("私享家洗衣店｜台中市區免費到府收送");
-    expect(after.facebook).not.toContain("私享家洗衣店｜台中市區免費到府收送");
+    expect(before.instagram).toContain("私享家洗衣店｜台中市免費到府收送");
+    expect(after.instagram).not.toContain("私享家洗衣店｜台中市免費到府收送");
+    expect(after.facebook).not.toContain("私享家洗衣店｜台中市免費到府收送");
     expect(after.instagram).not.toMatch(/(?:傳|轉)給他/);
     expect(after.facebook).not.toMatch(/(?:傳|轉)給他/);
     expect(askBlocks(after.instagram)).toHaveLength(1);

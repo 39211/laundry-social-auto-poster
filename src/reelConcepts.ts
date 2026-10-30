@@ -143,7 +143,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "luggage",
     hook: "先看輪子縫裡的灰",
     close: "輪灰收進櫃子會有味道，私訊我們",
-    narration: "旅行回來能不能推進櫃子？輪子底板都在地上磨，灰收進去下次打開就是味道。不用整咖搬來，台中市區免費到府收。",
+    narration: "旅行回來能不能推進櫃子？輪子底板都在地上磨，灰收進去下次打開就是味道。不用整咖搬來，台中市免費到府收。",
     before_subject:
       "one fabric suitcase on a floor mat, wheel treads packed with grey road grit, a dirt film across the lower panel darkest at the corner caps, zipper tape darkened at the pull",
     after_subject:

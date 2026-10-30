@@ -21,7 +21,7 @@ const config: AppConfig = {
 const input: PostInput = {
   date: "2026-07-16",
   slot: 2,
-  caption: "台中市全區免費到府收送",
+  caption: "台中市免費到府收送",
   imageUrl: "https://39211.github.io/assets/2026-07-16/slot-02.png",
   mediaType: "reel",
   videoUrl: "https://39211.github.io/assets/2026-07-16/slot-02.mp4"

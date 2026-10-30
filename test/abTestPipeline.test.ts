@@ -703,7 +703,7 @@ describe("A/B dual-reel pipeline", () => {
       // Local tags are part of the same shared ladder; the four generic Reel
       // tags carried none.
       expect(caption).toMatch(/#西屯|#台中洗衣店/);
-      expect(caption).toContain("私享家洗衣店｜台中市區免費到府收送");
+      expect(caption).toContain("私享家洗衣店｜台中市免費到府收送");
       const blocks = caption.split("\n\n");
       expect(blocks[1]).not.toBe("私享家洗衣店");
       expect(caption).not.toContain("先拍完整外觀和局部");

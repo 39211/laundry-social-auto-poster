@@ -156,3 +156,12 @@ ight_handover.py + egister-night-handover-task.ps1(20:05)。待部署到現役 
 - **A9 補發排程器**:Codex r1 完成(43 smoke、變異 14 紅、7 篇文案日期字檢查全 pass);**API 獨立審查 → SHIP WITH FIXES,11 項缺陷**(一天只准一筆、npm timeout + 殺樹、A7 mutex 契約驗證、原子寫隊列、日期字 regex 補台灣用法、掃所有欄位、隊列搬出 git 等)已派 Codex r2(進行中)。審查全文 `docs-internal/cards/A9-REVIEW-r1.md`。
 - 半成品 3 檔已封存 `D:\AI-Lanes-work\_archive\suspect-20261030\`(D7=A)。R11 新 POS:店主說是他另一個專案,本計畫不碰(D6)。
 - B2 其餘卡(待派 API):B2-1 內容端來源碰(contentPlan.ts + 測試,需 Codex 跑 vitest)、B2-3 離線比對匯出器、B2-4 週報 reader。
+
+## 10/30 22:00 晚班收工
+- **release/sxj-live-2026-10 @ c4316f7e**(含 A8-2、A9);feat/b2-attribution @ 78ad0528(B2-2/B2-3/B2-4,未合併);feat/a4-4-shop-night-skip @ 11e6f93a(未合併未部署)。全部已推 origin。
+- **A9 補發排程器已上線**:`Laundry-Backfill-1600` 每日 16:00(10/31 起,EndBoundary 11/07),現役 `scripts/backfill-publish.ps1`;seed 6 筆(10/27–10/29 各兩槽;**10/26 slot 2 當天沒產圖沒核准,不是漏發,移除**);首次執行會把 seed 複製成 `output/backfill/queue.json`;`-Stop` 可中止並停用排程。Codex r1→API 審查(11 項)→r2→r3(日期字只掃會發出去的 caption/first comment);我原生跑 smoke 129/129、live DryRun 第一筆 2026-10-27 s1 pass。
+- **B2-3 完成**:attribution_export.py(41 測,店機 3.11 連 B2-2 共 81 綠;變異終點邊界/跨日 → 紅)。**B2-4 完成**:weekly-report.py 讀 conversions 彙總出三欄(30 測綠;真資料 dry-run 52 行 exit 0)。B2 只剩 **B2-1 內容端來源碼**(改 contentPlan.ts caption,客人看得到,文案要店主拍板)與店機接線(webhook_server 套 ATTRIBUTION-HOOK、產 HMAC key、部署)。
+- **Schedule-Ahead 21:40 正常**:11/02 兩槽 FB 已預排(scheduled_post_id 皆有,無 uncertain)—— 停擺修好後第一次成功預排。
+- 夜間:店機 21:50 仍開著,endpoint 在 ai(21:50 handover PUT match);店機換網址會再搶,A4-4 明天部署後根治。ai Probe ok;mdb 20:44 已拉到 20:00 版本。
+- API 今日累計(含其他 session)US$20.83;本 session 今晚 8 筆約 US$9。
+- 明天 10/31:10:32 店機部署 A3-2 + A4-4(自動提醒已排);11:30 盯發文;16:00 第一篇補發(16:20 看 `output/backfill-logs/`);B2-1 文案問店主後派 API。

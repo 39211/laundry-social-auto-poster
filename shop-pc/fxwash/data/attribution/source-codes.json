@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "registry_version": "2026-10-30.1",
+  "entries": [
+    {
+      "source_code": "SXJ-261030-S1",
+      "content_id": "2026-10-30/slot-1",
+      "kind": "slot",
+      "date": "2026-10-30",
+      "slot": 1,
+      "feature_slug": null,
+      "placements": ["facebook", "instagram"],
+      "valid_from": "2026-10-30",
+      "retired_at": null
+    },
+    {
+      "source_code": "SXJ-261030-F01",
+      "content_id": "2026-10-30/feature-down-jacket",
+      "kind": "feature",
+      "date": "2026-10-30",
+      "slot": null,
+      "feature_slug": "down-jacket-care",
+      "placements": ["facebook", "instagram", "youtube"],
+      "valid_from": "2026-10-30",
+      "retired_at": null
+    }
+  ]
+}

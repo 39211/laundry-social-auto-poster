@@ -761,7 +761,16 @@ describe("generatePublicSite", () => {
       expect(card).not.toContain("<img");
       expect(card).not.toContain("<details");
       expect(card).not.toContain("免費");
+      // 聯絡行的 inline style 只准是純排版；卡片不得帶 script / 外部資源。
+      expect(card).not.toMatch(/<(script|link|iframe|img|video|source|style)\b/i);
+      expect(card).not.toMatch(/\bsrc\s*=/i);
+      expect(card).not.toMatch(/url\(|@import|expression\(|javascript:/i);
+      const contactStyle = card.match(/<p class="post-contact" style="([^"]*)"/)?.[1] ?? "";
+      expect(contactStyle).toMatch(/^[a-z-]+:[^;:()]+(;[a-z-]+:[^;:()]+)*;?$/);
     }
+    // 首頁不再出現 feature_reel 的「特色影片」佔位區塊。
+    expect(html).not.toContain("feature-video-placeholder");
+    expect(html).not.toContain("特色影片");
     expect(shoeBagCareHtml).toContain("<title>逢甲洗鞋・西屯洗鞋｜鞋包清潔先看材質｜私享家洗衣店</title>");
     expect(shoeBagCareHtml).toContain("<h1>逢甲洗鞋・西屯洗鞋</h1>");
     expect(shoeBagCareHtml).toContain(">店家資料</a>");

@@ -165,3 +165,72 @@ ight_handover.py + egister-night-handover-task.ps1(20:05)。待部署到現役 
 - 夜間:店機 21:50 仍開著,endpoint 在 ai(21:50 handover PUT match);店機換網址會再搶,A4-4 明天部署後根治。ai Probe ok;mdb 20:44 已拉到 20:00 版本。
 - API 今日累計(含其他 session)US$20.83;本 session 今晚 8 筆約 US$9。
 - 明天 10/31:10:32 店機部署 A3-2 + A4-4(自動提醒已排);11:30 盯發文;16:00 第一篇補發(16:20 看 `output/backfill-logs/`);B2-1 文案問店主後派 API。
+
+
+## 10/30 24:00 round (C4 / B1-2 / B2-5 / B2-6 / SD-1)
+
+All API jobs ran on Opus 5.5 (claude-opus-5-5), `--effort medium`. This round's spend, from usage-log:
+- c4 $1.14, b2-5 $1.05, c4-r2 $1.15, b1-2 $1.48, b2-6 $1.74.
+- sd-1: r1 cut off at max_tokens ($2.63); p1 fallback ($0.32, answer discarded); p1b refused ($1.02); p2 refused ($0.02).
+
+Owner decisions recorded (Docs tables + SHOP-FACTS):
+- C01–C04 A; C05 C (unchanged); C06 A; C07 A 「台中市免費到府收送」; C08 A; C09 現金、LINE Pay、轉帳; C10 A; C11 B (keep).
+- D6: POS is another project. D7 A. D8 A.
+- D11: B2-1 no source code for now. D12: keep 90 days, then weekly stats only. D13: B2 goes live tomorrow afternoon.
+
+### Status by card
+
+| Card | Branch @ commit | Status | Verification |
+|---|---|---|---|
+| C4 repurchase backtest | feat/c4-crm-backtest @ b97e8667; merged into release @ fb35e18b; pushed | Done | 54 tests; 12 of 13 mutations red (the remaining one is equivalent) |
+| B1-2 bot facts | feat/b1-2-bot-facts @ 6fbef128; pushed; not merged | Ready; shop deploy tomorrow, ai bot during the day | see below |
+| B2-5 webhook wiring | feat/b2-attribution @ 9cd60fc0 | Done, default OFF | 148 tests; 5 of 7 mutations red |
+| B2-6 90-day retention | feat/b2-attribution @ eba312b1 | Done | 168 tests; 6 of 7 mutations red |
+| SD-1 shop deploy scripts | feat/sd1-shop-bundles @ 555a166a | Ready for tomorrow | smoke 9 + 2 cases; 6 of 6 mutations red |
+
+**C4 notes**
+- r1 deduped by Did (the order id), which collapsed 36,946 pieces to 12,891. The error came from the commander's brief.
+- r2 dedupes by Did+Dno, giving 37,989 pieces (20 duplicates merged).
+- Real run over 28 months:
+  - The due rule's lift is 0.88, worse than the baseline.
+  - multi_lapsing (≥3 visits, 0.8–2.0× cycle) hits 55.4% vs 35.0%, lift 1.59, above 1 in all 28 months.
+- 76 candidates. The CSV is only in data/crm (git-ignored).
+- PII scan of the report: 0 names, 0 phones.
+- Commander text fixes: the Deh/Det labels, and a note on when the alternative rules were added.
+
+**B1-2 notes**
+- Edited with edit blocks, then two commander fixes:
+  - 地毯 moved into the 10–14 天 group (C03 A). The brief had listed 地毯 as uncovered by mistake.
+  - The pickup opener now includes 營業時間內約 (C08).
+- Shop: 51 tests.
+- line-bot:
+  - test_b1_facts 9/9.
+  - test_conversation 56/60 and guided 26/27; these are the same pass/fail sets as baseline.
+  - The pre-existing failures need line-bot/_sandbox_repo, which does not exist in the live tree either.
+- 6 of 6 mutations red.
+
+**B2-5 notes**
+- The two mutations that survived: BOM untested (low risk), and strip-when-ok, which is an equivalent mutant.
+
+**B2-6 notes**
+- The live ledger detects a replaced file through a .gen generation file and the file id.
+- Cutoff is floored to an ISO Monday. Retention below 30 days is refused.
+- Missing or immature weekly summaries are exported first.
+- Binding rows are kept minimally, proven by timeline equality.
+- The surviving mutation, R3, is still caught by the second guard.
+
+**SD-1 notes**
+- The Opus 5.5 API refused this task three times under its cyber classifier. The fallback-model answer was discarded, since the owner requires Opus 5.5 or later.
+- The commander generalized the proven a42 phase scripts into bundle-phase1, phase2 and rollback for A3-2, A4-4, B1-2 and B2.
+- Staging dirs `api-jobs/shop-deploy-1031/stage-*` are built, and their hashes equal the expected values.
+- Run sheet: shop-pc/DEPLOY-1031.md.
+
+### Live and other notes
+- 23:55: night endpoint = ai trycloudflare, active=True. The handover is OK.
+- Another Claude session committed 1f107f04 on release at 22:39 (Google 商家名稱「私享家洗衣店」 in business-profile). Two consequences:
+  - Two writers are now on release. Use explicit file lists and explicit merges.
+  - The live tree has dirty docs/ outputs from the daily pipeline; leave them alone.
+- 10/31 reminders:
+  - New 10:31 send_later trig_01PT7pr72cJgy6wxtW5BGRf5 has the new plan.
+  - The old 10:32 trig_01MjFjKYYpFYVLaVSkU7pkqS could not be edited or disabled: the prompt change needs device approval, and disabling was denied by the classifier. When it fires, treat it as superseded.
+  - 16:22 backfill check is unchanged.

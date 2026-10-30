@@ -80,3 +80,54 @@ LINE 真客人最後互動紀錄:`data/line-unanswered.jsonl`、`staff-inbox.jso
 - A3 其他發現(見 cards/A3-RESULT.md):push 失敗無重試且去重先更新 → 漏發;state 非原子寫入 → 重發/毀損;首啟基線查詢失敗 → 歷史全發;查件 `State=完工` 可取但 monitor 不發(條件不一致);mdb 鎖住時 mtime 不變就不再重查。這些進 A3-2 修補卡(店主已核方向:先量測、不改對客行為)。
 - A4-2 完成並獨立驗證:branch `feat/a4-2-shop-tunnel-observability` @ `2e8de7e7`,18 測試綠、拿掉重試 5 紅;部署文件 `shop-pc/DEPLOY-A4-2.md`。**部署時段:10/30 10:30–11:00(店主拍板),已排 10:30 自動接手。**
 - B4 工時表改為總計畫文件的分頁(店主每天在 Claude app 填),不寫程式。
+
+## 10/30 01:00 進度
+- 店主確認 20:30 是自己重開 ai 的 Laundry-LINE-Bot:**ai 電腦夜間(20:00–10:00)當備援,白天店機正式。**排程不要再停。
+- A4-3 完成(eat/a4-3-night-handover @ 2005f76a,46 測綠、拔日夜窗 6 紅):ai tunnel_manager 白天不 PUT、夜間才登記;嚴格網址擷取;
+ight_handover.py + egister-night-handover-task.ps1(20:05)。待部署到現役 line-bot + 重啟 tunnel_manager + 註冊排程。
+- A2-b 完成(eat/a2b-night-mdb-copy @ af280e3b,96 測綠、拔 stale 6 紅):pull_shop_mdb.ps1(10:30–19:30 每 30 分)、查件尾行「資料時間」、stale 時 arrival STALE_HOLD。待第一次手動拉檔 + 部署。
+- B1 完成(77 條、11 組衝突、20 待確認;docs-internal/SHOP-FACTS.md)。
+- worktrees:C:\Users\cyc39\AI-Lanes\a43\repo、C:\Users\cyc39\AI-Lanes\a2b\repo(部署後可移除)。工作樹目前停在 eat/a4-2-shop-tunnel-observability(與 release 程式相同,僅多 shop-pc/ 與文件)。
+
+## 10/30 02:10 重大發現:每日圖文自 10/26 起沒有真的發出去
+- 證據:`data/posted-log/` 最後一筆 2026-10-26(597 bytes,只有半天);`output/catch-up-logs/2026-10-27~29.log` 每一輪都是 `publish-pages failed (exit 1)` → 原因 `fatal: Unable to create .git/index.lock: File exists`(10/25 23:40 留下的 0-byte 過期鎖,A1 時我已於 10/29 17:45 移除)→ 公開站沒更新 → `post-current-slot` 因 `https://sixiangjialaundry.com/assets/<date>/slot-0X.png` 404 而失敗 → FB/IG 四天(10/26 下午起到 10/29)全部沒發;`reports/daily-progress.md` 的「發布完整(全槽)=False」也在講這件事。
+- 鎖移除後 10/29 14:00 起改成 `generate-public-site` 寫 `docs/llms-full.txt` 得到 `UNKNOWN errno -4094`(疑似兩個排程同分鐘同時產站互鎖,或防毒掃描);02:04 我手動跑 `npm run generate-public-site` 9 秒 exit 0,檔案可正常獨占開啟 → 不是持久故障。
+- 尚未手動 publish-pages(那是對外發布,等店主;10/30 11:30 的 catch-up 會自己重發)。10/30 11:30 要盯:publish-pages 是否 exit 0、slot-01.png 是否 200、posted-log 是否產生。
+- `scripts/_watchdog.ps1:29` 會把任何 Disabled 的 `Laundry-*` 排程自動重新啟用(20:30:03 log:`Watchdog re-enabled disabled task: Laundry-LINE-Bot`)—— 10/29 20:30 重開 LINE 排程的是它,不是店主手動;店主的決定(ai 夜間備援)不變。
+- YouTube:`youtube-upload.ps1` 只在 posted-log 有 IG live Reel 時才上傳;posted-log 缺 → 「No posted-log yet」;W43 排程 7 實發 0 要另查(10/23 改 dry-run 預設)。
+
+## 10/30 12:00 早班結果(店機 + ai 都動了,都有獨立驗證)
+
+### 現役版本(以此為準)
+- **release/sxj-live-2026-10 @ `c9f67b75`,tag `sxj-live-2026-10-30`**,已推 origin。= integration/20261030 @ 83a85615 + 06:30 管線自動 commit febe7478。現役工作樹 `Documents\New project 5`(= junction `laundry-repo`)已切到 release;管線每日 commit 會落在 release。
+- 殘留:工作樹 `stash@{0}` "wt-dirty-before-release-switch-20261030" 是切分支前的安全備份(內容已比對:兩個測試檔 HEAD 版較新,其餘相同),可 `git stash drop stash@{0}`。
+
+### 店機 DESKTOP-HV0R4SN(A4-2 已上線 10:50)
+- 四檔 SHA 與交付一致:webhook_server.py 161A4DD3…、tunnel_supervisor.py A7010A07…、test_tunnel_events.py 914C0E79…、test_webhook_log_ts.py 7DC89633…。備份 `C:\LaundryStores\fxwash\backups\A4-2-20261030-104930\`(含 files-before.xml / tasks-before.xml / shop-json-before.sha256)。staging 與腳本在 `C:\LaundryStores\A4-2-staging\`(a42-phase1.ps1 / a42-phase2.ps1)。
+- 店機 3.11 離線 18/18 綠。啟動改走 `FXwash-Watchdog`(Start-ScheduledTask)而不是 ssh 內 Start-Process,避免 ssh 斷線帶走子程序。中斷 10:49:34–10:50:01。
+- 證據:`logs\tunnel_events.jsonl` 10:50:06 url_detected→put_start→put_result 200→verify_result match;10:53:03 localhost.run 自己換網址(b7af4916f11039),supervisor 1 秒內 PUT+match → **A4-2 在正式環境已處理過一次真實換網址**。`webhook_server.log` 新行皆有 `YYYY-MM-DD HH:MM:SS`,舊行不回填。
+- 獨立驗證:ai 機 GET endpoint = 店機 new_url;`POST webhook/test` 200 OK,店機 log 10:52:11 有這筆。
+- 兩次自動回退(皆非程式問題):① PowerShell 單元素陣列被攤平成 CimInstance → `+` 失敗(改 `@()`);② embedded Python `python311._pth` 不含 cwd,`import runtime.webhook_server` 失敗(改 sys.path.insert runtime)。每次 watchdog 8 秒內拉回舊版。
+- 店機隧道網址今天至少換了 5 次(5c4e3b8d→b7af4916→3a74b943→2d2270e7…),每次都靠 supervisor PUT。
+
+### ai 機 line-bot(A4-3 + A2-b 已上線 11:29)
+- `laundry-repo\line-bot` 32 檔 = integration 內容(tunnel_manager F2211B7D…、laundry_lookup 48A8C8A4…、conversation 68C00867…、arrival_notify 8F2B068C…、night_handover 8886F83A…、handover.json E1442E42…)。備份 `D:\AI-Lanes-work\_backups\ai-linebot\manual-20261030-112743\`(MANIFEST.json);A8 腳本自己留的 `20261030-110210-…`、`20261030-111210-…` 兩份已回復過,可刪。
+- 離線測 46+16+76 全綠(venv python)。Probe exit 0,healthz ok。
+- 11:34:33 新 tunnel_manager 偵測到 `show-success-doll-dana.trycloudflare.com` → `tunnel_url` + **`skipped_day`(白天不 PUT)**,LINE endpoint 仍是店機 ✅。
+- **A2-b 第一次拉 mdb 成功**:10:54 `REPLACED` 54,693,888 bytes,source_mtime 10:54:20;ai `C:\FXwash\eHank.mdb` 從 10/17 舊檔更新;舊檔備份 `C:\FXwash\backups\eHank-20261030-1054.mdb`。`laundry_lookup.inventory_snapshot()` 讀到 source=ehank-mdb、data_as_of 10:54:20、stale=False、2254 客 / 1031 件。第一次嘗試 `SOURCE_CHANGED`(POS 營業中寫入,30 秒拷貝期間 mtime 變)→ 重試成功;營業高峰可能連續失敗,看 `%LOCALAPPDATA%\line-bot\mdb_pull.jsonl`。
+- **尚未註冊排程**(Cowork 分類器擋 -RegisterTasks;且屬 D9):`register-night-handover-task.ps1`(20:05 夜間接手)、`register-mdb-pull-task.ps1`(10:30–19:30 每 30 分)。**今晚 20:00 店機關機後若沒註冊,LINE 無人接。**
+
+### 部署事故(已復原,寫進 Error-Book)
+1. A8 `deploy-ai-linebot.ps1` 以 `Documents\New project 5` 當 Target → `run_line_bot.ps1` 的 `Start-Process -ArgumentList '-u', $scriptPath` 沒加引號,路徑有空白 → python 找不到 `C:\Users\cyc39\Documents\New` → 三服務起不來 → 自動回退也起不來。**Target 一律用 junction `C:\Users\cyc39\laundry-repo`。**
+2. A8 `Invoke-AiNative` 用 `ReadToEndAsync().Result`,子 powershell 起的 python 孫程序繼承 stdout 管線 → 孫程序活著就永不 EOF → 腳本卡死(11:12:46 起),等不到 90 秒 timeout(WaitForExit 已回但 .Result 掛住)。要改成不等孫程序管線(或改用 Start-ScheduledTask 啟動)。
+3. 停 → 複製 → 起 的空窗撞上 `Laundry-LINE-Bot` 每 5 分鐘 tick:tick 的 run_line_bot.ps1 本身跑 30 秒(CIM 慢),我在它還沒跑完時 Stop,它就把剛殺掉的舊版再起來 → 「bot processes remain」。**要等 tick 後 `Get-ScheduledTask State -eq Ready` 再動手。**
+4. 每次舊版 tunnel_manager 被重啟(回退、watchdog 拉起)就 PUT 自己的 trycloudflare 網址,白天搶走店機 endpoint:11:07–11:09、11:12–11:17(店機換網址自己搶回)、11:23–11:25。我各手動 PUT 店機網址回去(Set-LineEndpoint.ps1,GET 回讀 match)。影響:這三段客人訊息進到 ai 舊版 bot(有舊 mdb 10/17 → 可能回錯件況)。
+5. 新 tunnel_manager 前兩次 cloudflared 90 秒內沒吐出網址(reader 連一行都沒收到),第三次 70 秒後才整批出來。推測:同一 IP 30 分鐘內開了 6 個 quick tunnel 被 Cloudflare 節流;isolation 測 40 秒內正常。90 秒 timeout 偏緊,先觀察。
+6. `test_arrival_notify.test_r25_http_sum` 在 11:12 跑出 `PermissionError os.replace`(Windows 暫態),重跑綠;部署腳本要允許重試一次。
+
+### 11:30 每日圖文(4 天停擺後第一次)
+- 站已更新:`assets/2026-10-30/slot-01.png` 200(2.8 MB)、`posts/2026-10-30-slot-01.html` 200、IndexNow 200(207 URL)。
+- **IG slot 1 成功**(post_id 18390124216225851)。
+- **FB slot 1 沒發**:`data/scheduled-log/2026-10-30.json` 兩槽都是 10/27 23:14 schedule-ahead 寫下的 `uncertain`(「Missing or invalid image file」= 當時圖 404),狀態黏住「Not retrying」→ post-current-slot 直接沿用 uncertain 不發。11/01 兩槽同樣(10/29 21:40 寫的);10/28 也是。10/31 沒有 scheduled-log(10/28 的 schedule-ahead 沒產出)→ 明天 FB 會走直接發布。
+- Graph API 唯讀查證:Page `scheduled_posts` = 0 筆(所以「可能已排程」是假警報);Page feed 最後一篇自動貼文 10/26 11:30,10/29 17:28 一篇(推測店主手發)。
+- 解法(D10 待店主):把 10/30、11/01 的 FB uncertain 列清掉,讓 catch-up(12:00/14:00/20:30)或我手動 `post-current-slot --slot 1` 補發 FB;IG 已發同內容。

@@ -4,7 +4,7 @@
 
 ## Source Of Record
 - Canonical URL: https://sixiangjialaundry.com/
-- Generated at: 2026-10-29T06:40:10.868Z
+- Generated at: 2026-10-29T22:35:14.852Z
 - Timezone: Asia/Taipei
 - Base URL configured: yes
 
@@ -438,6 +438,8 @@
     "https://sixiangjialaundry.com/assets/2026-10-28/slot-02.png",
     "https://sixiangjialaundry.com/assets/2026-10-29/slot-01.png",
     "https://sixiangjialaundry.com/assets/2026-10-29/slot-02.png",
+    "https://sixiangjialaundry.com/assets/2026-10-30/slot-01.png",
+    "https://sixiangjialaundry.com/assets/2026-10-30/slot-02.png",
     "https://sixiangjialaundry.com/assets/services/shoe-bag-care-hero-product.png",
     "https://sixiangjialaundry.com/assets/services/white-shoe-cleaning-hero-product.png",
     "https://sixiangjialaundry.com/assets/services/fabric-storage-hero-product.png",
@@ -12946,4 +12948,98 @@ Instagram caption:
 直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)
 
 #私享家洗衣店 #童鞋清潔 #鞋子除味 #台中洗鞋
+
+### 2026-10-30 11:30 連日濕冷，衣服晾幾天仍不乾？先摸衣身和接縫這 2 處
+
+- id: https://sixiangjialaundry.com/content-calendar/2026-10-30.json#post-2026-10-30-slot-01
+- published local time: 2026-10-30T11:30:00+08:00
+- category: 知識文
+- platforms: facebook, instagram
+- visual_route: macro-detail
+- traffic_route: object-proof
+- search_intent: aftercare
+- target_queries: 台中棉被清洗 | 台中床組清洗 | 西屯寢具清洗 | 台中羽絨被送洗 | 台中外套清洗 | 棉被有潮味怎麼辦
+- evidence_type: customer-question
+- hashtags: #私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #衣物送洗 #台中洗衣店
+- image: https://sixiangjialaundry.com/assets/2026-10-30/slot-01.png
+- calendar: https://sixiangjialaundry.com/content-calendar/2026-10-30.json
+
+Facebook caption:
+
+連日濕冷，衣服晾幾天仍不乾？先摸衣身和接縫這 2 處。
+
+衣服收起來之前那一下沒檢查，下次拿出來通常就是味道的來源。
+
+我會先看髒污停在哪一層。浮在表面的和吃進纖維的，處理方式差很多。
+
+不確定該怎麼處理？拍一張傳 LINE給我們，先幫你看方向。
+
+出處：門市當日看件
+
+直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)
+
+#私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #衣物送洗 #台中洗衣店
+
+Instagram caption:
+
+連日濕冷，衣服晾幾天仍不乾？先摸衣身和接縫這 2 處。
+
+衣服收起來之前那一下沒檢查，下次拿出來通常就是味道的來源。
+
+我會先看髒污停在哪一層。浮在表面的和吃進纖維的，處理方式差很多。
+
+不確定該怎麼處理？拍一張私訊給我們，先幫你看方向。
+
+出處：門市當日看件
+
+直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)
+
+#私享家洗衣店 #台中西屯洗衣店 #洗護日常 #送洗前檢查 #衣物送洗 #台中洗衣店
+
+### 2026-10-30 20:30 週末大掃除後的布品分袋
+
+- id: https://sixiangjialaundry.com/content-calendar/2026-10-30.json#post-2026-10-30-slot-02
+- published local time: 2026-10-30T20:30:00+08:00
+- category: 情境文
+- platforms: facebook, instagram
+- visual_route: shop-inspection
+- traffic_route: value-prop-lead
+- search_intent: (legacy-unassigned)
+- target_queries: (legacy-unassigned)
+- evidence_type: (legacy-unassigned)
+- hashtags: #私享家洗衣店 #布品收納 #大掃除整理 #台中洗衣店
+- image: https://sixiangjialaundry.com/assets/2026-10-30/slot-02.png
+- calendar: https://sixiangjialaundry.com/content-calendar/2026-10-30.json
+
+Facebook caption:
+
+週末大掃除整理出來的布品，不建議全部塞同一袋，棉被、外套、抱枕的髒污來源不一樣。
+
+有些是睡眠味、有些是灰塵、有些是飲料或手汗痕，混在一起送洗前也比較難判斷處理順序。
+
+我們會在櫃台先分材質、厚度、味道和髒污位置，確認哪些適合一起整理，哪些需要分開處理。
+
+私享家洗衣店｜台中市區免費到府收送
+
+拍整體和最在意的位置兩張傳 LINE，我們先看。
+
+直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)
+
+#私享家洗衣店 #布品收納 #大掃除整理 #台中洗衣店
+
+Instagram caption:
+
+週末大掃除整理出來的布品，不建議全部塞同一袋，棉被、外套、抱枕的髒污來源不一樣。
+
+有些是睡眠味、有些是灰塵、有些是飲料或手汗痕，混在一起送洗前也比較難判斷處理順序。
+
+我們會在櫃台先分材質、厚度、味道和髒污位置，確認哪些適合一起整理，哪些需要分開處理。
+
+私享家洗衣店｜台中市區免費到府收送
+
+拍整體和最在意的位置兩張傳 LINE，我們先看。
+
+直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)
+
+#私享家洗衣店 #布品收納 #大掃除整理 #台中洗衣店
 

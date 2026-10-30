@@ -1,4 +1,4 @@
-import { access, cp, mkdir, open, readdir, readFile, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, open, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync, mkdtempSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -3445,6 +3445,83 @@ function taipeiCalendarDayOf(value: string): string {
 }
 
 describe("seo overrides and URL path normalization", () => {
+  it("applies override dates only inside the configured site base", () => {
+    const xml = [
+      '<url><loc>https://example.com/project/</loc><lastmod>2024-01-01</lastmod></url>',
+      '<url><loc>https://example.com/project</loc><lastmod>2024-01-01</lastmod></url>',
+      '<url><loc>https://example.com/project/services/white-shoe-cleaning.html</loc><lastmod>2024-01-01</lastmod></url>',
+      '<url><loc>https://example.com/project-other/services/white-shoe-cleaning.html</loc><lastmod>2024-01-01</lastmod></url>',
+      '<url><loc>https://example.com/services/white-shoe-cleaning.html</loc><lastmod>2024-01-01</lastmod></url>',
+      '<url><loc>https://other.example/project/services/white-shoe-cleaning.html</loc><lastmod>2024-01-01</lastmod></url>'
+    ].join("\r\n");
+    const expected = [
+      '<url><loc>https://example.com/project/</loc><lastmod>2026-06-11</lastmod></url>',
+      '<url><loc>https://example.com/project</loc><lastmod>2026-06-11</lastmod></url>',
+      '<url><loc>https://example.com/project/services/white-shoe-cleaning.html</loc><lastmod>2026-06-12</lastmod></url>',
+      '<url><loc>https://example.com/project-other/services/white-shoe-cleaning.html</loc><lastmod>2024-01-01</lastmod></url>',
+      '<url><loc>https://example.com/services/white-shoe-cleaning.html</loc><lastmod>2024-01-01</lastmod></url>',
+      '<url><loc>https://other.example/project/services/white-shoe-cleaning.html</loc><lastmod>2024-01-01</lastmod></url>'
+    ].join("\r\n");
+    expect(applyOverrideLastmodsToSitemapXml(xml, new Map([
+      ["index.html", "2026-06-11"],
+      ["services/white-shoe-cleaning.html", "2026-06-12"]
+    ]), "https://example.com/project")).toBe(expected);
+  });
+
+  it.each(["https://example.com", "https://example.com/project"])(
+    "keeps override dates consistent for both sitemaps at %s", async (baseUrl) => {
+      const root = mkdtempSync(join(tmpdir(), "laundry-override-date-contract-"));
+      try {
+        await writeBusinessProfile(root);
+        await writeCalendar(root, "2026-07-04");
+        await writeApprovalLog(root, "2026-07-04");
+        await mkdir(join(root, "seo-overrides", "services"), { recursive: true });
+        await writeFile(join(root, "seo-overrides", "services", "white-shoe-cleaning.html"),
+          '<script type="application/ld+json">{"dateModified":"2026-06-12"}</script>', "utf8");
+        await generatePublicSite({ root, baseUrl, now: "2026-07-05T03:00:00.000Z" });
+        for (const file of ["sitemap.xml", "ai-sitemap.xml"]) {
+          const xml = await readFile(join(root, "docs", file), "utf8");
+          expect(xml, file).toContain(`<loc>${baseUrl}/services/white-shoe-cleaning.html</loc><lastmod>2026-06-12</lastmod>`);
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    }
+  );
+
+  it.each([
+    ["https://example.com", "ai-sitemap.xml", "sitemap.xml"],
+    ["https://example.com/project", "ai-sitemap.xml", "sitemap.xml"],
+    ["https://example.com", "sitemap.xml", "ai-sitemap.xml"],
+    ["https://example.com/project", "sitemap.xml", "ai-sitemap.xml"]
+  ])("loads unselected override dates for %s %s without copying stale HTML", async (baseUrl, selected, untouched) => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-override-date-contract-"));
+    try {
+      await writeBusinessProfile(root);
+      await writeCalendar(root, "2026-07-04");
+      await writeApprovalLog(root, "2026-07-04");
+      const override = join(root, "seo-overrides", "services", "white-shoe-cleaning.html");
+      const page = join(root, "docs", "services", "white-shoe-cleaning.html");
+      await mkdir(join(root, "seo-overrides", "services"), { recursive: true });
+      await writeFile(override, '<script type="application/ld+json">{"dateModified":"2026-06-12"}</script>', "utf8");
+      const now = "2026-07-05T03:00:00.000Z";
+      await generatePublicSite({ root, baseUrl, now });
+      const beforePage = await readFile(page, "utf8");
+      const beforeUntouched = await readFile(join(root, "docs", untouched!), "utf8");
+      // The generated page is now stale; the authored override is the date source.
+      await writeFile(override, '<script type="application/ld+json">{"dateModified":"2026-06-13"}</script>', "utf8");
+      await generatePublicSite({ root, baseUrl, now, onlyDocsPaths: [selected!] });
+      const partial = await readFile(join(root, "docs", selected!), "utf8");
+      expect(partial).toContain(`<loc>${baseUrl}/services/white-shoe-cleaning.html</loc><lastmod>2026-06-13</lastmod>`);
+      expect(await readFile(page, "utf8")).toBe(beforePage);
+      expect(await readFile(join(root, "docs", untouched!), "utf8")).toBe(beforeUntouched);
+      await generatePublicSite({ root, baseUrl, now });
+      expect(await readFile(join(root, "docs", selected!), "utf8")).toBe(partial);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("applies override lastmods to sitemap XML while preserving other content", () => {
     const xml = [
       '<?xml version="1.0" encoding="UTF-8"?>',

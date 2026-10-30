@@ -844,7 +844,18 @@ describe("generatePublicSite", () => {
     expect(html).toContain('href="knowledge-graph.json"');
     expect(html).toContain('href=".well-known/ai.json"');
     expect(html).toContain('class="machine-details"');
-    expect(html).toContain('class="caption-details"');
+    expect(html).toContain('class="post-contact"');
+    expect(html).not.toContain('class="caption-details"');
+    // 首頁每張貼文卡片都有固定聯絡行與可點的 LINE 連結，且不放縮圖與收合文案。
+    const homeCards = html.match(/<article class="post-tile post-card">[\s\S]*?<\/article>/g) ?? [];
+    expect(homeCards.length).toBeGreaterThan(0);
+    for (const card of homeCards) {
+      expect(card).toContain("LINE 官方 @454foyks，或 LINE 0968327653，市話 04-2452-7411");
+      expect(card).toMatch(/<a [^>]*href="[^"]*go\/line\.html/);
+      expect(card).not.toContain("<img");
+      expect(card).not.toContain("<details");
+      expect(card).not.toContain("免費");
+    }
     expect(shoeBagCareHtml).toContain("<title>西屯洗鞋店怎麼選？逢甲、青海路洗鞋洗包價格與免費收送｜私享家洗衣店</title>");
     expect(shoeBagCareHtml).toContain("<h1>西屯洗鞋、逢甲洗鞋要多少錢？先看材質，一般運動鞋參考價 $250</h1>");
     // The price list states 一般運動鞋 as a single figure; the H1 must not add "起".

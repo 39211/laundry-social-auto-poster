@@ -271,3 +271,24 @@ Next steps:
   - Run the full vitest.
   - Merge, then let the 11/01 11:30 pipeline publish.
 - data/publishing-policy.json is git-ignored live data. Apply `api-jobs/b1-3/answer-live-data.md` after the merge.
+
+
+## 10/31 03:20 addendum (owner asked why I stopped; resumed)
+
+- **B1-3 r2** feat/b1-3-wording @ 62486804, pushed, NOT merged:
+  - Re-frozen by script-computed hashes, using ops/b1-3-lock-hashes.ts:
+    - 3 index-growth shoe guides
+    - 5 live cohort pages
+  - Old-vs-new projection diff: all area wording.
+  - luxuryShoeCase now checks visible text.
+  - seoSyncP1 digest re-pinned: old render sha = old pin, and the diff is wording plus wordCount.
+  - Full vitest: no new real failures. Two PowerShell tests are flaky; they pass alone on both trees.
+  - ai-discovery stays stale until docs are regenerated.
+  - No overlap with the live tree's dirty files.
+  - **Merge only after the 10/31 11:30 publish is verified** (locked day calendars 10/31-11/02 stay untouched).
+- **C5** merged into release @ 0ee10198:
+  - c5_assign/c5_evaluate/test_c5 plus the C5-CARD.
+  - 69 tests; mutations 5/6 red. The one surviving mutation is the double guard.
+  - Dry-run on the real list: 38/38, k=11, nothing written.
+  - The greeting text waits for owner approval.
+- API this addendum: b1-3 $1.78, c5 $0.96.

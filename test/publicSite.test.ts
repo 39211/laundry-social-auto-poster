@@ -605,7 +605,7 @@ describe("generatePublicSite", () => {
     expect(llms).toContain("[布品收納](https://example.com/laundry-social-auto-poster/services/fabric-storage.html)");
     expect(llms).toContain("[台中西屯洗衣店](https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html)");
     expect(llms).toContain(
-      "[台中全市免費洗衣收送](https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html)"
+      "[台中全市洗衣收送](https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html)"
     );
     expect(llms).toContain("Address: 407 臺中市西屯區至善里青海路二段365號");
     expect(llms).toContain("Phone: 04-2452-7411");
@@ -1678,7 +1678,7 @@ describe("generatePublicSite", () => {
     const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8"));
 
     expect(homepage).toContain(`href="${pickupUrl}"`);
-    expect(homepage).toContain("台中全市免費洗衣收送");
+    expect(homepage).toContain("台中全市洗衣收送");
     expect(homepage).toContain("id=\"citywide-pickup\"");
     expect(homepage).toContain("台中洗衣收送");
     expect(homepage).toContain("台中免費收送");
@@ -1873,7 +1873,7 @@ describe("generatePublicSite", () => {
       knowledgeGraph["@graph"].some(
         (item: { "@type"?: string; name?: string; areaServed?: { name?: string } }) =>
           item["@type"] === "Service" &&
-          item.name === "台中全市免費洗衣收送" &&
+          item.name === "台中全市洗衣收送" &&
           item.areaServed?.name === "台中市"
       )
     ).toBe(true);

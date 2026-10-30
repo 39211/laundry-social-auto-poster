@@ -481,5 +481,79 @@ class LedgerTests(_TempBase):
         self.assertIn("[ATTRIBUTION_DISABLED] no hmac secret", self.stderr.getvalue())
 
 
+class ReplacementTests(_TempBase):
+    """Another process (retention) rewrites the ledger under a live instance."""
+
+    def _kept_bytes(self, drop_ids):
+        lines = self.ledger_path.read_bytes().splitlines(keepends=True)
+        return b"".join(l for l in lines if json.loads(l)["event_id"] not in drop_ids)
+
+    def _rewrite_in_place(self, drop_ids):
+        kept = self._kept_bytes(drop_ids)
+        with open(self.ledger_path, "r+b") as handle:  # same file identity
+            handle.seek(0)
+            handle.write(kept)
+            handle.truncate()
+            handle.flush()
+            os.fsync(handle.fileno())
+
+    def _bump(self):
+        gen = attr.read_ledger_generation(self.data_dir)
+        (self.data_dir / "inquiries.jsonl.gen").write_text(str(max(gen, 0) + 1), encoding="ascii")
+
+    def _lagging_setup(self):
+        writer = self.make_ledger()
+        for i in (1, 2):
+            writer.record_message(make_event(webhook_id="E%d" % i), None, "v")
+        live = self.make_ledger()
+        self.assertEqual(live.status()["indexed_event_ids"], 2)
+        for i in range(3, 7):
+            writer.record_message(make_event(webhook_id="E%d" % i), None, "v")
+        return live
+
+    def _assert_recovered(self, live):
+        self.assertIsNone(live.record_message(make_event(webhook_id="E4"), None, "v"))
+        self.assertIsNotNone(live.record_message(make_event(webhook_id="E7"), None, "v"))
+        self.assertEqual(live.ledger_replaced_count, 1)
+        self.assertEqual(live.coverage_gaps, [])
+        self.assertEqual(live.status()["indexed_event_ids"], 6)
+        self.assertEqual([r["event_id"] for r in self.rows()], [OA + ":E%d" % i for i in range(2, 8)])
+
+    def test_generation_bump_forces_full_replay(self):
+        live = self._lagging_setup()
+        self._rewrite_in_place({OA + ":E1"})
+        self._bump()
+        # Bigger than the live offset: the shrink check alone could not notice.
+        self.assertGreater(self.ledger_path.stat().st_size, live._offset)
+        self._assert_recovered(live)
+
+    def test_replaced_file_detected_by_identity_without_generation(self):
+        live = self._lagging_setup()
+        if not os.stat(self.ledger_path).st_ino:
+            self.skipTest("file identity not available on this filesystem")
+        tmp = self.data_dir / "replacement.tmp"
+        tmp.write_bytes(self._kept_bytes({OA + ":E1"}))
+        os.replace(tmp, self.ledger_path)
+        self._assert_recovered(live)
+
+    def test_shrunk_file_is_replayed(self):
+        writer = self.make_ledger()
+        for i in (1, 2, 3):
+            writer.record_message(make_event(webhook_id="E%d" % i), None, "v")
+        self._rewrite_in_place({OA + ":E1", OA + ":E2"})
+        self.assertIsNone(writer.record_message(make_event(webhook_id="E3"), None, "v"))
+        self.assertIsNotNone(writer.record_message(make_event(webhook_id="E4"), None, "v"))
+        self.assertIn("ledger_shrunk", [g["kind"] for g in writer.coverage_gaps])
+        self.assertEqual(writer.status()["indexed_event_ids"], 2)
+
+    def test_generation_reader(self):
+        self.assertEqual(attr.read_ledger_generation(self.data_dir), 0)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        (self.data_dir / "inquiries.jsonl.gen").write_text("7\n", encoding="ascii")
+        self.assertEqual(attr.read_ledger_generation(self.data_dir), 7)
+        (self.data_dir / "inquiries.jsonl.gen").write_text("garbage", encoding="ascii")
+        self.assertEqual(attr.read_ledger_generation(self.data_dir), -1)
+
+
 if __name__ == "__main__":
     unittest.main()

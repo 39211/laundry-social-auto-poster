@@ -15,6 +15,10 @@ Hard rules implemented here:
     replaying the file at startup and caught up incrementally under the lock.
   * Corrupt / truncated lines are reported in `coverage_gaps`, never silently
     treated as complete data.
+  * Retention (B2-6) may replace the file under the lock. Every replacement bumps
+    `<data_dir>/inquiries.jsonl.gen`. When the generation or the file identity
+    changes, or the file shrinks, the in-memory index is rebuilt by a full
+    replay before the next append.
 """
 
 from __future__ import annotations
@@ -45,6 +49,7 @@ __all__ = [
     "classify_intent",
     "normalize_cid",
     "init_attribution",
+    "read_ledger_generation",
 ]
 
 # ---------------------------------------------------------------------------
@@ -56,6 +61,7 @@ POLICY_VERSION = "v1"
 INTENT_BASIS = "rule_v1"
 SOURCE_METHOD = "keyword"
 LEDGER_FILENAME = "inquiries.jsonl"
+GENERATION_SUFFIX = ".gen"  # <data_dir>/inquiries.jsonl.gen, bumped by every prune
 MAX_TOKEN_LEN = 40
 LOCK_TIMEOUT_MAX = 2.0
 STALE_LOCK_SECONDS = 30.0
@@ -197,6 +203,25 @@ def _read_secret(secret_path: Any) -> tuple:
     if len(data) >= MIN_SECRET_BYTES:
         return data, None
     return None, "invalid hmac secret"
+
+
+def read_ledger_generation(data_dir: Any) -> int:
+    """Return the ledger generation (0 when the file is missing, -1 when unreadable).
+
+    -1 never equals a real generation, so an unreadable value forces a replay.
+    """
+    path = Path(data_dir) / (LEDGER_FILENAME + GENERATION_SUFFIX)
+    try:
+        raw = path.read_bytes()
+    except FileNotFoundError:
+        return 0
+    except OSError:
+        return -1
+    try:
+        value = int(raw.decode("ascii").strip())
+    except Exception:
+        return -1
+    return value if value >= 0 else -1
 
 
 # ---------------------------------------------------------------------------
@@ -456,6 +481,7 @@ class AttributionLedger:
         self.data_dir = Path(data_dir)
         self.path = self.data_dir / LEDGER_FILENAME
         self.lock_path = self.data_dir / (LEDGER_FILENAME + ".lock")
+        self.gen_path = self.data_dir / (LEDGER_FILENAME + GENERATION_SUFFIX)
         self.lock_timeout = min(max(float(lock_timeout), 0.0), LOCK_TIMEOUT_MAX)
         self.stale_lock_seconds = max(float(stale_lock_seconds), 1.0)
         self.busy_cooldown = max(float(busy_cooldown), 0.0)
@@ -473,6 +499,9 @@ class AttributionLedger:
         self._line_no = 0  # number of complete lines already indexed
         self._gap_offsets: set = set()
         self._busy_until = 0.0
+        self._generation: Optional[int] = None  # generation seen at the last scan
+        self._file_id: Optional[tuple] = None  # (st_dev, st_ino) at the last scan
+        self.ledger_replaced_count = 0
 
         key, reason = _read_secret(secret_path)
         if key is None:
@@ -501,6 +530,7 @@ class AttributionLedger:
             "coverage_gaps": len(self.coverage_gaps),
             "coverage_gaps_dropped": self.coverage_gaps_dropped,
             "hash_key_version": self.hash_key_version,
+            "ledger_replaced": self.ledger_replaced_count,
         }
 
     def replay(self) -> dict:
@@ -692,16 +722,36 @@ class AttributionLedger:
         self._offset = 0
         self._line_no = 0
         self._gap_offsets.clear()
+        self._generation = None
+        self._file_id = None
 
     def _catch_up(self) -> int:
-        """Index lines appended since the last scan. Returns current file size."""
+        """Index lines appended since the last scan. Returns current file size.
+
+        If another process replaced the file (generation bumped or file identity
+        changed), byte offsets are meaningless: rebuild the index from scratch.
+        """
         try:
-            size = os.path.getsize(self.path)
+            st = os.stat(self.path)
+            size = st.st_size
+            ident = (st.st_dev, st.st_ino) if st.st_ino else None
         except FileNotFoundError:
-            size = 0
-        if size < self._offset:
+            size, ident = 0, None
+        gen = read_ledger_generation(self.data_dir)
+        replaced = self._generation is not None and (
+            gen != self._generation
+            or (ident is not None and self._file_id is not None and ident != self._file_id))
+        if replaced:
+            # Corrupt-line gaps carry byte offsets of the old file: drop them; the
+            # rescan reports whatever is still corrupt in the new file.
+            self.coverage_gaps = [g for g in self.coverage_gaps if g.get("kind") not in _CORRUPT_KINDS]
+            self._reset_index()
+            self.ledger_replaced_count += 1
+        elif size < self._offset:
             self._add_gap("ledger_shrunk", byte_offset=size)
             self._reset_index()
+        self._generation = gen
+        self._file_id = ident
         if size > self._offset:
             self._offset = self._scan(self._offset)
         return size

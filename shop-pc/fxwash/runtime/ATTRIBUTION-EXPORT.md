@@ -28,3 +28,36 @@
 Only `complete` means every input was covered. Never read a `lower_bound` zero as "no customers came".
 
 **Privacy.** The file holds counts only, with no LINE ids, Cid, names, phones or message text. Never edit `inquiries.jsonl` by hand.
+
+# Retention (B2-6)
+
+**Command.** From `C:\LaundryStores\fxwash`:
+`python -I -S -B runtime\attribution_retention.py --root .`
+- Optional settings:
+  - `--retention-days 90` (default 90; values below 30 are refused)
+  - `--lock-wait 10` (seconds)
+  - `--pos-json pieces.json` (used only if a week must be exported first)
+- Add `--dry-run` to see one line of counts without changing anything.
+
+**Schedule.** Run it every Monday right after the export, with the same Task Scheduler setup.
+
+**Exit codes.**
+- 0: done. This includes "nothing to remove".
+- 1: error. Nothing was pruned; read stderr.
+- 2: bad arguments, for example retention below 30 days.
+- 3: the ledger lock was busy. The ledger was not changed; just run it again later.
+
+**What is kept forever.** The weekly files `data\conversions\source-to-order-<week>.json` and their `history\`.
+- Before a week loses any rows, it must have a weekly file computed at least 14 days after that week ended.
+- If that file is missing or too early, the tool exports the week first. If that export fails, it prunes nothing.
+
+**What is removed.** Raw rows in `data\inquiries.jsonl` older than the cutoff.
+- The cutoff is today minus 90 days, rounded down to a Monday. Only whole weeks are removed.
+- No backup copy is kept.
+
+**What older rows stay anyway.**
+- Each customer's latest binding rows that are still in effect.
+- Corrections and bookings that belong to newer inquiries.
+- Rows the tool cannot classify safely.
+
+**Log.** Each run appends one line of counts to `data\attribution\prune-log.jsonl`. The running webhook notices the rewrite through `data\inquiries.jsonl.gen` and reloads by itself.

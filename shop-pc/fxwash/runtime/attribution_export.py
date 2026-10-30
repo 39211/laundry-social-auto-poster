@@ -45,6 +45,11 @@ TIMEZONE_NAME = "Asia/Taipei"
 TZ = asvc.TZ_TAIPEI
 UTC = timezone.utc
 WINDOW = timedelta(hours=168)
+# Longest attribution horizon after an inquiry. B7 accepts a binding that starts
+# before t_i + WINDOW (setup_policy: chosen.start < deadline), then opens its own
+# WINDOW from t_b. So every maturity_end <= t_i + 2 * WINDOW (14 days). I7 and
+# identity_ambiguous end earlier.
+MATURITY_HORIZON = 2 * WINDOW
 FAR_PAST = datetime(1970, 1, 1, tzinfo=UTC)
 FAR_FUTURE = datetime(2100, 1, 1, tzinfo=UTC)
 FINGERPRINT_LABEL = b"fxwash-attribution-key-fingerprint-v1"

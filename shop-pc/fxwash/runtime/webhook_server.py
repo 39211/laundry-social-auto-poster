@@ -86,6 +86,18 @@ from runtime.lookup_service import extract_phone, format_screenshot3_text, looku
 from runtime.vision_service import build_photo_quote_reply, download_line_image
 from shop_config import load_shop
 
+# Attribution ledger is optional (B2). Any import problem leaves the webhook exactly as before.
+# The top-level name is tried first (runtime dir on sys.path); the package path is the
+# fallback for launches where the script dir is not on sys.path (-I / ._pth embedded Python).
+try:
+    from attribution_service import extract_source, init_attribution
+except Exception:  # attribution is optional; never block the webhook
+    try:
+        from runtime.attribution_service import extract_source, init_attribution
+    except Exception:
+        extract_source = None
+        init_attribution = None
+
 LINE_REPLY_URL = "https://api.line.me/v2/bot/message/reply"
 PHONE_REGEX = re.compile(r"09\d{8}")
 CID_PREFIX_REGEX = re.compile(r"(?:客號|會員號|會員編號|會員|卡號|客戶編號|CID|NO\.?)\s*[:：#是為]?\s*([A-Za-z0-9]{1,8})", re.IGNORECASE)
@@ -552,6 +564,23 @@ def make_request_handler(shop, connector, creds):
     processed_tokens: set[str] = set()
     data_dir = shop.root / "data"
 
+    # Attribution ledger (B2, default OFF). shop.json is read only here, i.e. once at
+    # startup; changing the "attribution" key needs a webhook restart.
+    attr_ledger, attr_registry = None, None
+    if init_attribution is not None:
+        try:
+            _shop_cfg = json.loads((ROOT / "shop.json").read_text(encoding="utf-8-sig"))
+        except Exception:
+            _shop_cfg = {}
+        _attr_cfg = _shop_cfg.get("attribution") if isinstance(_shop_cfg, dict) else None
+        try:
+            attr_ledger, attr_registry = init_attribution(shop.root, _attr_cfg)  # never raises
+        except Exception:
+            attr_ledger, attr_registry = None, None
+            print("[ATTRIBUTION_DISABLED] init failed", file=sys.stderr)
+    else:
+        print("[ATTRIBUTION_DISABLED] module unavailable", file=sys.stderr)
+
     class WebhookHandler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200)
@@ -572,6 +601,29 @@ def make_request_handler(shop, connector, creds):
                 self.wfile.flush()
                 return
 
+            try:
+                data = json.loads(body.decode("utf-8"))
+            except Exception:
+                data = None
+
+            # Attribution: small local fsync'd append, bounded (<= 2 s lock wait), no network.
+            # Runs only when fully enabled; every failure is swallowed here and never
+            # changes the HTTP response.
+            attr_text = {}
+            if attr_ledger is not None and isinstance(data, dict):
+                attr_events = data.get("events")
+                for ev in attr_events if isinstance(attr_events, list) else []:
+                    try:
+                        src_res = None
+                        m = ev.get("message") if isinstance(ev, dict) else None
+                        if isinstance(m, dict) and m.get("type") == "text" and isinstance(m.get("text"), str):
+                            src_res = extract_source(m["text"], attr_registry)
+                            if src_res.source_status == "ok" and src_res.stripped_text:
+                                attr_text[id(ev)] = src_res.stripped_text
+                        attr_ledger.record_message(ev, src_res, attr_registry.registry_version)
+                    except Exception as exc:
+                        print("[ATTRIBUTION_ERROR] " + type(exc).__name__, file=sys.stderr)
+
             # Respond 200 OK immediately and flush buffer so LINE never times out
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
@@ -580,9 +632,7 @@ def make_request_handler(shop, connector, creds):
             self.wfile.write(b"OK")
             self.wfile.flush()
 
-            try:
-                data = json.loads(body.decode("utf-8"))
-            except Exception:
+            if data is None:
                 return
 
             events = data.get("events", [])
@@ -637,6 +687,9 @@ def make_request_handler(shop, connector, creds):
                     continue
 
                 user_text = msg.get("text", "").strip()
+                # Attribution: a registered source code is removed from the routed text.
+                if id(event) in attr_text:
+                    user_text = attr_text[id(event)]
                 print(f"[Webhook Text] User {user_id[:8]}...: '{user_text}'")
 
                 # 1. Phone number lookup (09xxxxxxxx, 09xx-xxx-xxx, with spaces, etc.)
@@ -648,6 +701,11 @@ def make_request_handler(shop, connector, creds):
                     phone_found = lookup_res.get("customer_phone") or phone_val
                     if cid_found and user_id:
                         save_binding(data_dir, user_id, cid_found, phone_found, cname_found)
+                        if attr_ledger is not None:
+                            try:
+                                attr_ledger.record_binding_observed(user_id, cid_found, "phone_lookup")
+                            except Exception as exc:
+                                print("[ATTRIBUTION_ERROR] " + type(exc).__name__, file=sys.stderr)
                     formatted_text = format_screenshot3_text(lookup_res, phone_val)
                     reply_message(reply_token, [{"type": "text", "text": formatted_text}], creds["token"])
                     continue
@@ -667,6 +725,11 @@ def make_request_handler(shop, connector, creds):
                             lookup_res["customer_phone"] = phone_found
                     if cid_found and user_id:
                         save_binding(data_dir, user_id, cid_found, phone_found, cname_found)
+                        if attr_ledger is not None:
+                            try:
+                                attr_ledger.record_binding_observed(user_id, cid_found, "cid_lookup")
+                            except Exception as exc:
+                                print("[ATTRIBUTION_ERROR] " + type(exc).__name__, file=sys.stderr)
                     formatted_text = format_screenshot3_text(lookup_res, f"客號 {cid}")
                     reply_message(reply_token, [{"type": "text", "text": formatted_text}], creds["token"])
                     continue

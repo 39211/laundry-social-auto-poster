@@ -11,6 +11,10 @@ if ($runnerExists) {
     function Get-AiBackupRoot { throw 'Runner missing' }
     function Get-AiPythonPath { throw 'Runner missing' }
     function Invoke-AiNative { param($FilePath, $Arguments, $WorkingDirectory) throw 'Runner missing' }
+    function Get-AiLiveTargetMap { throw 'Runner missing' }
+    function Get-AiTickState { throw 'Runner missing' }
+    function Start-AiBotTask { throw 'Runner missing' }
+    function Get-AiTickWindowDecision { throw 'Runner missing' }
 }
 $script:A8RealNative = (Get-Command Invoke-AiNative).ScriptBlock
 
@@ -33,6 +37,9 @@ Describe 'A8 isolated deployment acceptance' {
     BeforeEach {
         $script:Fixture = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
         $script:Source = Join-Path $script:Fixture 'source with spaces'
+        # A8-2: the runner now operates the live tree only through the junction and
+        # refuses other whitespace paths. The fixture target IS the live tree for the
+        # test because Get-AiLiveTargetMap is mocked to point its junction here.
         $script:Target = Join-Path $script:Fixture 'target with spaces'
         $script:Backups = Join-Path $script:Fixture 'backups'
         $script:Runtime = Join-Path $script:Fixture 'runtime'
@@ -43,6 +50,8 @@ Describe 'A8 isolated deployment acceptance' {
             'line-bot/evidence/after.txt')
         $script:Dirty = ''
         $script:FailOffline = ''
+        $script:FailOfflineOnce = ''
+        $script:FailOfflineSeen = @{}
         $script:PythonCalls = @()
         $script:Processes = @()
         $script:Stopped = @()
@@ -51,6 +60,13 @@ Describe 'A8 isolated deployment acceptance' {
         $script:Window = 'day'
         $script:Endpoint = 'https://shop-test.lhr.life/line/webhook'
         $script:Active = $true
+        # A8-2 tick-window: Ready, old last run, far next run -> Proceed.
+        $script:TickState = [pscustomobject]@{
+            Exists = $true; State = 'Ready';
+            LastRunTime = (Get-Date).AddMinutes(-30);
+            NextRunTime = (Get-Date).AddMinutes(30);
+            ControlScriptRunning = $false
+        }
         $script:SavedEnvironment = @{}
         foreach ($name in @('LOCALAPPDATA', 'A8_TEST_CALLS', 'A8_TEST_RUNTIME', 'A8_TEST_WINDOW', 'A8_TEST_PROBE', 'A8_TEST_EVENT')) {
             $script:SavedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
@@ -107,6 +123,28 @@ exit 0
         }
         Mock Get-AiBackupRoot { return $script:Backups }
         Mock Get-AiPythonPath { return $script:Python }
+        # A8-2: the live tree is the fixture target for the test. The junction equals
+        # the fixture target so Resolve-AiTarget treats it as the live junction and
+        # Start-AiBotTask accepts it. The whitespace in the path is still present, but
+        # the "refuse whitespace" rule only fires for NON-live paths, so a foreign
+        # whitespace path (other-target) is still refused by the runner.
+        Mock Get-AiLiveTargetMap {
+            return [pscustomobject]@{
+                Junction = $script:Target
+                Aliases  = @($script:Target)
+            }
+        }
+        # A8-2: read-only tick state is injected; the pure decision function still runs.
+        Mock Get-AiTickState { return $script:TickState }
+        # A8-2: Start goes through Start-ScheduledTask in production. In the test we run
+        # the fake control script's Start pass so calls.txt records 'Start' and the
+        # runtime pid/events are produced, matching old behaviour.
+        Mock Start-AiBotTask {
+            param($Context)
+            $shell = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
+            $control = Join-Path $Context.Target 'line-bot/run_line_bot.ps1'
+            $null = & $shell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $control
+        }
         # Real native execution is permitted only for PS1 files inside TestDrive.
         # An accidentally hard-coded live path fails closed before a child starts.
         Mock Invoke-AiNative {
@@ -120,6 +158,13 @@ exit 0
                 }
                 $code = 0
                 if ($script:FailOffline -and ($Arguments -contains $script:FailOffline)) { $code = 1 }
+                # A8-2 retry: fail only the first attempt for the named command.
+                if ($script:FailOfflineOnce -and ($Arguments -contains $script:FailOfflineOnce)) {
+                    if (-not $script:FailOfflineSeen.ContainsKey($script:FailOfflineOnce)) {
+                        $script:FailOfflineSeen[$script:FailOfflineOnce] = $true
+                        $code = 1
+                    }
+                }
                 return [pscustomobject]@{ ExitCode = $code; Output = 'synthetic offline test output' }
             }
             $fileIndex = [Array]::IndexOf([object[]]$Arguments, '-File')
@@ -339,6 +384,8 @@ exit 0
     It 'binds a backup manifest to its original target' {
         (Invoke-AiLinebotDeployment -Source $script:Source -Target $script:Target) | Should Be 0
         $backup = @(Get-ChildItem -LiteralPath $script:Backups -Directory)[0].FullName
+        # A different, non-whitespace path so the runner reaches the manifest-target
+        # check (a whitespace foreign path would be refused earlier; see dedicated case).
         $other = Join-Path $script:Fixture 'other-target'
         Write-A8Fixture (Join-Path $other 'line-bot/run_line_bot.ps1') 'throw "must never execute"'
         (Invoke-AiLinebotDeployment -Target $other -Rollback $backup) | Should Be 1
@@ -355,5 +402,106 @@ exit 0
         $script:Payload = @('line-bot/../secrets/channel.json')
         (Invoke-AiLinebotDeployment -Source $script:Source -Target $script:Target) | Should Be 1
         (Test-Path -LiteralPath $script:Calls) | Should Be $false
+    }
+
+    # --- A8-2 new cases -----------------------------------------------------
+
+    It 'maps a whitespace live target to the junction and operates there' {
+        # The junction equals the fixture target (a whitespace path). Resolve-AiTarget
+        # must treat it as live and normalize Root to the junction, not refuse it.
+        $resolved = Resolve-AiTarget $script:Target
+        $resolved.Live | Should Be $true
+        ([string]$resolved.Root).TrimEnd('\') | Should Be ([string]$script:Target).TrimEnd('\')
+        # A full deployment to this target succeeds (proves normalization is accepted).
+        (Invoke-AiLinebotDeployment -Source $script:Source -Target $script:Target) | Should Be 0
+    }
+
+    It 'refuses a foreign whitespace target before any backup or stop' {
+        $foreign = Join-Path $script:Fixture 'foreign dir with spaces'
+        Write-A8Fixture (Join-Path $foreign 'line-bot/run_line_bot.ps1') 'throw "must never execute"'
+        { Resolve-AiTarget $foreign } | Should Throw
+        (Invoke-AiLinebotDeployment -Source $script:Source -Target $foreign) | Should Be 1
+        (Test-Path -LiteralPath $script:Calls) | Should Be $false
+        @(Get-ChildItem -LiteralPath $script:Backups -Directory -Force).Count | Should Be 0
+    }
+
+    It 'does not hang when a grandchild keeps stdout open past the child exit' {
+        # A background powershell child sleeps 20 s with inherited handles; the direct
+        # child exits immediately. Invoke-AiNative must return within ~10 s with a
+        # truncation note rather than blocking for the full 20 s.
+        $script = Join-Path $script:Fixture 'grandchild.ps1'
+        $body = @'
+$ErrorActionPreference = 'Stop'
+# Spawn a detached grandchild that inherits the redirected stdout and holds it open.
+Start-Process -FilePath $PSHOME\powershell.exe `
+    -ArgumentList '-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 20; Write-Output grandchild-late' `
+    -NoNewWindow
+Write-Output 'parent-done'
+exit 0
+'@
+        [IO.File]::WriteAllText($script, $body, (New-Object Text.UTF8Encoding($false)))
+        $shell = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
+        $args = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $script)
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        $result = & $script:A8RealNative -FilePath $shell -Arguments $args -WorkingDirectory $script:Fixture -TimeoutSeconds 60 -DrainSeconds 4
+        $sw.Stop()
+        $sw.Elapsed.TotalSeconds | Should BeLessThan 15
+        $result.Truncated | Should Be $true
+        $result.Output | Should Match 'parent-done'
+    }
+
+    It 'proceeds in a tick-safe window when Ready with old last run and far next run' {
+        $now = Get-Date
+        $decision = Get-AiTickWindowDecision -Now $now `
+            -LastRunTime $now.AddMinutes(-30) -NextRunTime $now.AddMinutes(30) -State 'Ready'
+        $decision.Action | Should Be 'Proceed'
+        $decision.WaitSeconds | Should Be 0
+    }
+
+    It 'waits while a Laundry-LINE-Bot tick is Running' {
+        $now = Get-Date
+        $decision = Get-AiTickWindowDecision -Now $now `
+            -LastRunTime $now.AddMinutes(-30) -NextRunTime $now.AddMinutes(30) -State 'Running'
+        $decision.Action | Should Be 'WaitRunning'
+        $decision.WaitSeconds | Should BeGreaterThan 0
+    }
+
+    It 'waits when the next tick is too close' {
+        $now = Get-Date
+        $decision = Get-AiTickWindowDecision -Now $now `
+            -LastRunTime $now.AddMinutes(-30) -NextRunTime $now.AddSeconds(20) -State 'Ready'
+        $decision.Action | Should Be 'WaitNextTick'
+        $decision.WaitSeconds | Should BeGreaterThan 0
+    }
+
+    It 'succeeds when an offline test fails once then passes on retry and logs both attempts' {
+        $script:FailOfflineOnce = 'test_mdb_freshness'
+        (Invoke-AiLinebotDeployment -Source $script:Source -Target $script:Target) | Should Be 0
+        $log = @(Get-ChildItem -LiteralPath $script:Backups -Filter 'deploy-*.log')[0].FullName
+        $text = Get-Content -LiteralPath $log -Raw -Encoding UTF8
+        $text | Should Match 'attempt 1/2'
+        $text | Should Match 'attempt 2/2'
+        $text | Should Match 'RETRY'
+        $text | Should Match 'passed on retry'
+    }
+
+    It 'fails when an offline test fails on both attempts' {
+        $script:FailOffline = 'test_mdb_freshness'
+        (Invoke-AiLinebotDeployment -Source $script:Source -Target $script:Target) | Should Be 1
+        $log = @(Get-ChildItem -LiteralPath $script:Backups -Filter 'deploy-*.log')[0].FullName
+        $text = Get-Content -LiteralPath $log -Raw -Encoding UTF8
+        $text | Should Match 'attempt 1/2'
+        $text | Should Match 'attempt 2/2'
+        $text | Should Match 'both attempts'
+    }
+
+    It 'writes a rollback WARNING line about daytime tunnel_manager PUTs' {
+        (Invoke-AiLinebotDeployment -Source $script:Source -Target $script:Target) | Should Be 0
+        $backup = @(Get-ChildItem -LiteralPath $script:Backups -Directory)[0].FullName
+        (Invoke-AiLinebotDeployment -Target $script:Target -Rollback $backup) | Should Be 0
+        $log = @(Get-ChildItem -LiteralPath $script:Backups -Filter 'deploy-*.log' | Sort-Object LastWriteTime)[-1].FullName
+        $text = Get-Content -LiteralPath $log -Raw -Encoding UTF8
+        $text | Should Match 'WARNING rollback'
+        $text | Should Match 'tunnel_manager'
     }
 }

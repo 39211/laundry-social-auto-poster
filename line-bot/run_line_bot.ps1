@@ -174,7 +174,8 @@ function Start-Tracked {
     $errPath = Join-Path $LogDir ($Name + ".err")
     Rotate-IfLarge -Path $logPath
     Rotate-IfLarge -Path $errPath
-    $p = Start-Process -FilePath $Python -ArgumentList '-u', $scriptPath -RedirectStandardOutput $logPath -RedirectStandardError $errPath -WindowStyle Hidden -PassThru
+    # A8-2: quote the script path so a Root containing spaces reaches python as one argument.
+    $p = Start-Process -FilePath $Python -ArgumentList '-u', ('"{0}"' -f $scriptPath) -RedirectStandardOutput $logPath -RedirectStandardError $errPath -WindowStyle Hidden -PassThru
     Start-Sleep -Seconds 1
     $still = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
     if (-not $still) {

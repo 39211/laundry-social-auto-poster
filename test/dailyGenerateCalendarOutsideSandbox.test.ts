@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -20,7 +20,7 @@ interface Scenario {
   restoredLocation: boolean;
 }
 
-let result: {
+interface HarnessResult {
   version: number;
   commands: { name: string; text: string; pipeline: string; offset: number }[];
   preflightEnd: number;
@@ -29,10 +29,11 @@ let result: {
   imagesOnlyGuard: string;
   imagesOnlyEndsWithExit: boolean;
   cases: Scenario[];
-};
+}
 
-beforeAll(() => {
-  fixture = mkdtempSync(join(tmpdir(), "calendar outside sandbox-"));
+let result: HarnessResult;
+
+function runPreflight(scriptPath: string, fixture: string): HarnessResult {
   // Parse the actual scheduler, then run only its calendar assignments and
   // preflight block. cmd/Test-Path/log/toast are local fakes; no script body,
   // real npm, Codex, scheduled task, image generator or publisher is executed.
@@ -130,7 +131,12 @@ beforeAll(() => {
   const output = execFileSync("powershell.exe", [
     "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(harness, "utf16le").toString("base64")
   ], { encoding: "utf8", timeout: 20_000, windowsHide: true });
-  result = JSON.parse(output.replace(/^\uFEFF/u, "").trim());
+  return JSON.parse(output.replace(/^\uFEFF/u, "").trim());
+}
+
+beforeAll(() => {
+  fixture = mkdtempSync(join(tmpdir(), "calendar outside sandbox-"));
+  result = runPreflight(scriptPath, fixture);
 }, 25_000);
 
 afterAll(() => {
@@ -138,6 +144,10 @@ afterAll(() => {
 });
 
 const scenario = (name: string) => result.cases.find((item) => item.name === name)!;
+
+function assertProjectDirectory(calls: Scenario["calls"], expected: string): void {
+  expect(calls.every((call) => realpathSync.native(call.cwd) === realpathSync.native(expected))).toBe(true);
+}
 
 describe("daily calendar generation outside the Codex sandbox", () => {
   it("calls both npm steps directly from PowerShell before the existing Codex fallback", () => {
@@ -172,7 +182,7 @@ describe("daily calendar generation outside the Codex sandbox", () => {
   it("generates in the project directory, logs output, rechecks the artifact and takes the existing branch", () => {
     const actual = scenario("success");
     expect(actual.calls.map((call) => call.step)).toEqual(["generate-context", "generate"]);
-    expect(actual.calls.every((call) => realpathSync.native(call.cwd) === realpathSync.native(fixture))).toBe(true);
+    assertProjectDirectory(actual.calls, fixture);
     expect(actual.output).toContain("fake generate-context output");
     expect(actual.output).toContain("fake generate output");
     expect(actual.hasCalendar).toBe(true);
@@ -198,5 +208,22 @@ describe("daily calendar generation outside the Codex sandbox", () => {
 
   it("restores the caller's working directory for every success and failure case", () => {
     expect(result.cases.every((actual) => actual.restoredLocation)).toBe(true);
+  });
+
+  it("rejects a real preflight that enters another directory even under the fixture path", () => {
+    const wrongDirectory = join(fixture, "wrong working directory");
+    mkdirSync(wrongDirectory);
+    const wrongSource = source.replace(
+      /Push-Location \$root(?=\r?\n    cmd \/c "npm[.]cmd run generate-context)/u,
+      `Push-Location ${quotePS(wrongDirectory)}`
+    );
+    if (wrongSource === source) throw new Error("Expected the actual preflight directory switch");
+    const wrongScript = join(fixture, "wrong-cwd.ps1");
+    writeFileSync(wrongScript, wrongSource, "utf8");
+    const actual = runPreflight(wrongScript, fixture).cases.find((item) => item.name === "success")!;
+    expect(actual.calls.map((call) => call.step)).toEqual(["generate-context", "generate"]);
+    expect(actual.restoredLocation).toBe(true);
+    assertProjectDirectory(actual.calls, wrongDirectory);
+    expect(() => assertProjectDirectory(actual.calls, fixture)).toThrow();
   });
 });

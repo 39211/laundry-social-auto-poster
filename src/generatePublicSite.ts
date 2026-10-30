@@ -5685,9 +5685,30 @@ function buildSitemapXml(index: PublicPostIndex): string {
     .join("\n");
 }
 
+function overrideLastmodKeyForUrl(url: string, siteBaseUrl?: string): string | undefined {
+  try {
+    const target = new URL(url);
+    let pathname = target.pathname;
+    if (siteBaseUrl) {
+      const base = new URL(siteBaseUrl);
+      const prefix = base.pathname.replace(/\/+$/, "");
+      if (target.origin !== base.origin) return undefined;
+      if (pathname === prefix) pathname = "";
+      else if (pathname.startsWith(`${prefix}/`)) pathname = pathname.slice(prefix.length + 1);
+      else return undefined;
+    } else {
+      pathname = pathname.replace(/^\/+/, "");
+    }
+    return pathname || "index.html";
+  } catch {
+    return undefined;
+  }
+}
+
 export function applyOverrideLastmodsToSitemapXml(
   xml: string,
-  overrideLastmods: ReadonlyMap<string, string>
+  overrideLastmods: ReadonlyMap<string, string>,
+  siteBaseUrl?: string
 ): string {
   return xml
     .split("\n")
@@ -5696,15 +5717,8 @@ export function applyOverrideLastmodsToSitemapXml(
       const locMatch = line.match(/<loc>([^<]+)<\/loc>/);
       if (!locMatch) return line;
 
-      let posixPath: string;
-      try {
-        const url = locMatch[1];
-        if (!url) return line;
-        const pathname = new URL(url).pathname.replace(/^\/+/, "");
-        posixPath = pathname || "index.html";
-      } catch {
-        return line;
-      }
+      const posixPath = locMatch[1] ? overrideLastmodKeyForUrl(locMatch[1], siteBaseUrl) : undefined;
+      if (posixPath === undefined) return line;
 
       if (!overrideLastmods.has(posixPath)) return line;
       const lastmod = overrideLastmods.get(posixPath);
@@ -10126,6 +10140,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   // without requiring manual porting of 200+ FAQ items into TypeScript.
   const overrideRoot = join(root, "seo-overrides");
   const overrideHtmlFiles: Array<{ posixPath: string; fsPath: string }> = [];
+  const overrideDateSources: Array<{ posixPath: string; fullPath: string }> = [];
+  const needsOverrideDates = shouldWriteDocsPath("sitemap.xml") || shouldWriteDocsPath("ai-sitemap.xml");
   const noindexOverridePaths = new Set<string>();
   let overrideSitemapCopied = false;
   try {
@@ -10138,7 +10154,9 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         const rel = relPosixPath ? posix.join(relPosixPath, entry.name) : entry.name;
         if (entry.isDirectory()) {
           await walkOverrides(fullPath, rel);
-        } else if (entry.isFile() && entry.name !== "README.md" && shouldWriteDocsPath(rel)) {
+        } else if (entry.isFile() && entry.name !== "README.md") {
+          if (needsOverrideDates && rel.endsWith(".html")) overrideDateSources.push({ posixPath: rel, fullPath });
+          if (!shouldWriteDocsPath(rel)) continue;
           // Convert posix path to native filesystem path for Windows compatibility
           const fsPath = rel.split("/").join(sep);
           copyJobs.push({ fullPath, targetPath: join(docsRoot, fsPath), posixPath: rel, fsPath });
@@ -10153,7 +10171,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     for (const job of copyJobs) {
       if (job.posixPath.endsWith(".html")) overrideHtmlFiles.push({ posixPath: job.posixPath, fsPath: job.fsPath });
     }
-    // Extract override metadata only from copied HTML pages.
+    // Copied pages retain their existing metadata handling; unselected authored
+    // pages also supply dates when a sitemap is selected, without copying HTML.
     const overrideLastmods = new Map<string, string>();
     const overrideCanonicals = new Map<string, string>();
     const overrideCanonicalKeyForUrl = (url: string): string => {
@@ -10162,12 +10181,19 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     };
     if (overrideHtmlFiles.length > 0) {
       console.log(`Applied ${overrideHtmlFiles.length} SEO override HTML files`);
+    }
+    const copiedOverridePaths = new Set(overrideHtmlFiles.map(({ posixPath }) => posixPath));
+    const overrideMetadataFiles = [
+      ...overrideHtmlFiles.map(({ posixPath, fsPath }) => ({ posixPath, fullPath: join(docsRoot, fsPath) })),
+      ...overrideDateSources.filter(({ posixPath }) => !copiedOverridePaths.has(posixPath))
+    ];
+    if (overrideMetadataFiles.length > 0) {
       // robots noindex pages stay on disk and can still be linked, but they are not sitemap URLs.
       // 平行讀完再依原本的走訪順序寫入，結果與逐檔讀相同。
       const overrideMeta = await Promise.all(
-        overrideHtmlFiles.map(async ({ posixPath, fsPath }) => {
+        overrideMetadataFiles.map(async ({ posixPath, fullPath }) => {
           try {
-            const html = await readFile(join(docsRoot, fsPath), "utf8");
+            const html = await readFile(fullPath, "utf8");
             let canonical: string | undefined;
             for (const link of html.matchAll(/<link\b[^>]*>/gi)) {
               if (!/\brel\s*=\s*(["'])canonical\1/i.test(link[0])) continue;
@@ -10187,8 +10213,10 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         })
       );
       for (const item of overrideMeta) {
-        if (item.noindex) noindexOverridePaths.add(item.posixPath);
-        if (item.canonical) overrideCanonicals.set(item.posixPath, item.canonical);
+        if (copiedOverridePaths.has(item.posixPath)) {
+          if (item.noindex) noindexOverridePaths.add(item.posixPath);
+          if (item.canonical) overrideCanonicals.set(item.posixPath, item.canonical);
+        }
         if (item.dateModified) overrideLastmods.set(item.posixPath, item.dateModified);
       }
     }
@@ -10209,7 +10237,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     // onlyDocsPaths 沒要 sitemap.xml 時，docs/sitemap.xml 不會寫出，也就不重建。
     if (
       index.base_url_configured &&
-      (overrideSitemapCopied || overrideUrls.length > 0) &&
+      (overrideSitemapCopied || overrideUrls.length > 0 || overrideLastmods.size > 0) &&
       shouldWriteDocsPath("sitemap.xml")
     ) {
       const existingSitemap = await readFile(outputs.sitemap, "utf8");
@@ -10228,10 +10256,8 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       // Use override lastmods when available, otherwise keep the generated URL rule.
       const items = allUrls
         .map((url) => {
-          const urlObj = new URL(url);
-          const pathname = urlObj.pathname.replace(/^\/+/, "");
-          const posixPath = pathname || "index.html";
-          const lastmod = overrideLastmods.get(posixPath) || sitemapLastmodForUrl(url, index);
+          const posixPath = overrideLastmodKeyForUrl(url, siteBaseUrl);
+          const lastmod = (posixPath === undefined ? undefined : overrideLastmods.get(posixPath)) || sitemapLastmodForUrl(url, index);
           const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
           return `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}</url>`;
         })
@@ -10266,7 +10292,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       }
       if (existingAiSitemap !== undefined) {
-        const newAiSitemap = applyOverrideLastmodsToSitemapXml(existingAiSitemap, overrideLastmods);
+        const newAiSitemap = applyOverrideLastmodsToSitemapXml(existingAiSitemap, overrideLastmods, siteBaseUrl);
         if (newAiSitemap !== existingAiSitemap) {
           await writeFile(outputs.aiSitemap, newAiSitemap, "utf8");
         }

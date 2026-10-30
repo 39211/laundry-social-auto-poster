@@ -1,0 +1,32 @@
+A9 READ-ONLY REVIEW
+Reviewer: /root/a9_review, strict-reviewer, same GPT family.
+Authority: local read-only review; no source edits, external fleet, secrets,
+real npm publication, system task registration, LINE, or Meta operations.
+
+Finding R1: Stop and claim could race; an unconditional update could replace
+an owner's skipped entry, and a stale full-queue Stop could erase results.
+Resolution: a shared sidecar OS handle serializes queue transactions; Stop
+reads inside the lock; claim compares pending, and completion compares the
+owned failed reservation plus attempted_at. Failed claim exits before npm.
+Regression: stop-before-claim-prevents-publish and
+stop-preserved-when-attempt-completes both PASS.
+
+Finding R2: PowerShell 5.1 -File default parameter evaluation could see an
+empty PSScriptRoot. Real default-root DryRun failed before implementation fix.
+Resolution: both scripts derive RootPath in the body after parameter binding.
+Regression: default-root-dry-run-zero-writes and
+registrar-mocked-contract-default-root both PASS.
+
+A7 contract checked by reading scripts/_pipeline-lock.ps1: Write-PipelineLog
+delegates to A9 Write-Log when present; contention logs then exits 75.
+
+Reviewer confirmed current smoke 43/43, date mutant 14 failures out of 43,
+PS 5.1 parser and ASCII checks all zero, and real default-root DryRun with no
+queue sidecar created. No unclosed mandatory code findings.
+
+Final verdict: Can ship for local candidate delivery and commander acceptance.
+The completed A9-RESULT.md was checked against current evidence; no missing
+card deliverables or unclosed mandatory findings were identified.
+This is not proof
+of real deployment, scheduler registration, Meta publication, or completion
+of the seven backfill posts.

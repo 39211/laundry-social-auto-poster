@@ -1,0 +1,3 @@
+SMOKE_BLOCKED native File.Replace: Exception calling "Replace" with "3" argument(s): "Access to the path is denied."
+
+EXIT_CODE=2

@@ -1,0 +1,404 @@
+{
+  "real_repo": {
+    "exit_code": 0,
+    "stdout": "date=2026-10-26 slot=2 date_check=skip hits=2026-10-26\nDryRun action=skip\n",
+    "stderr": "",
+    "zero_writes": true,
+    "runtime_queue_exists": false
+  },
+  "seven": [
+    {
+      "date": "2026-10-26",
+      "slot": 2,
+      "date_check": "skip",
+      "hits": "2026-10-26",
+      "hit_fields": [
+        {
+          "field": "local_image_path",
+          "hits": [
+            "2026-10-26"
+          ]
+        }
+      ],
+      "exit_code": 0,
+      "stdout": "date=2026-10-26 slot=2 date_check=skip hits=2026-10-26\nDryRun action=skip\n",
+      "stderr": "",
+      "zero_writes": true
+    },
+    {
+      "date": "2026-10-27",
+      "slot": 1,
+      "date_check": "skip",
+      "hits": "2026-10-27, 2026-08-05, 2026-07-29",
+      "hit_fields": [
+        {
+          "field": "carousel_items[0].local_image_path",
+          "hits": [
+            "2026-10-27"
+          ]
+        },
+        {
+          "field": "carousel_items[1].local_image_path",
+          "hits": [
+            "2026-10-27"
+          ]
+        },
+        {
+          "field": "carousel_items[2].local_image_path",
+          "hits": [
+            "2026-10-27"
+          ]
+        },
+        {
+          "field": "carousel_items[3].local_image_path",
+          "hits": [
+            "2026-10-27"
+          ]
+        },
+        {
+          "field": "video_prompt",
+          "hits": [
+            "2026-08-05"
+          ]
+        },
+        {
+          "field": "video_candidate.grok_motion_prompt",
+          "hits": [
+            "2026-08-05"
+          ]
+        },
+        {
+          "field": "media_package.effective_date",
+          "hits": [
+            "2026-07-29"
+          ]
+        },
+        {
+          "field": "local_image_path",
+          "hits": [
+            "2026-10-27"
+          ]
+        },
+        {
+          "field": "local_video_path",
+          "hits": [
+            "2026-10-27"
+          ]
+        }
+      ],
+      "exit_code": 0,
+      "stdout": "date=2026-10-27 slot=1 date_check=skip hits=2026-10-27, 2026-08-05, 2026-07-29\nDryRun action=skip\n",
+      "stderr": "",
+      "zero_writes": true
+    },
+    {
+      "date": "2026-10-27",
+      "slot": 2,
+      "date_check": "skip",
+      "hits": "2026-10-27",
+      "hit_fields": [
+        {
+          "field": "local_image_path",
+          "hits": [
+            "2026-10-27"
+          ]
+        }
+      ],
+      "exit_code": 0,
+      "stdout": "date=2026-10-27 slot=2 date_check=skip hits=2026-10-27\nDryRun action=skip\n",
+      "stderr": "",
+      "zero_writes": true
+    },
+    {
+      "date": "2026-10-28",
+      "slot": 1,
+      "date_check": "skip",
+      "hits": "2026-10-28, 2026-08-05",
+      "hit_fields": [
+        {
+          "field": "carousel_items[0].local_image_path",
+          "hits": [
+            "2026-10-28"
+          ]
+        },
+        {
+          "field": "video_prompt",
+          "hits": [
+            "2026-08-05"
+          ]
+        },
+        {
+          "field": "video_candidate.grok_motion_prompt",
+          "hits": [
+            "2026-08-05"
+          ]
+        },
+        {
+          "field": "local_image_path",
+          "hits": [
+            "2026-10-28"
+          ]
+        },
+        {
+          "field": "local_video_path",
+          "hits": [
+            "2026-10-28"
+          ]
+        }
+      ],
+      "exit_code": 0,
+      "stdout": "date=2026-10-28 slot=1 date_check=skip hits=2026-10-28, 2026-08-05\nDryRun action=skip\n",
+      "stderr": "",
+      "zero_writes": true
+    },
+    {
+      "date": "2026-10-28",
+      "slot": 2,
+      "date_check": "skip",
+      "hits": "2026-10-28",
+      "hit_fields": [
+        {
+          "field": "local_image_path",
+          "hits": [
+            "2026-10-28"
+          ]
+        }
+      ],
+      "exit_code": 0,
+      "stdout": "date=2026-10-28 slot=2 date_check=skip hits=2026-10-28\nDryRun action=skip\n",
+      "stderr": "",
+      "zero_writes": true
+    },
+    {
+      "date": "2026-10-29",
+      "slot": 1,
+      "date_check": "skip",
+      "hits": "2026-10-29, 2026-08-05, 2026-07-29",
+      "hit_fields": [
+        {
+          "field": "carousel_items[0].local_image_path",
+          "hits": [
+            "2026-10-29"
+          ]
+        },
+        {
+          "field": "carousel_items[1].local_image_path",
+          "hits": [
+            "2026-10-29"
+          ]
+        },
+        {
+          "field": "carousel_items[2].local_image_path",
+          "hits": [
+            "2026-10-29"
+          ]
+        },
+        {
+          "field": "carousel_items[3].local_image_path",
+          "hits": [
+            "2026-10-29"
+          ]
+        },
+        {
+          "field": "video_prompt",
+          "hits": [
+            "2026-08-05"
+          ]
+        },
+        {
+          "field": "video_candidate.grok_motion_prompt",
+          "hits": [
+            "2026-08-05"
+          ]
+        },
+        {
+          "field": "media_package.effective_date",
+          "hits": [
+            "2026-07-29"
+          ]
+        },
+        {
+          "field": "local_image_path",
+          "hits": [
+            "2026-10-29"
+          ]
+        },
+        {
+          "field": "local_video_path",
+          "hits": [
+            "2026-10-29"
+          ]
+        }
+      ],
+      "exit_code": 0,
+      "stdout": "date=2026-10-29 slot=1 date_check=skip hits=2026-10-29, 2026-08-05, 2026-07-29\nDryRun action=skip\n",
+      "stderr": "",
+      "zero_writes": true
+    },
+    {
+      "date": "2026-10-29",
+      "slot": 2,
+      "date_check": "skip",
+      "hits": "2026-10-29",
+      "hit_fields": [
+        {
+          "field": "local_image_path",
+          "hits": [
+            "2026-10-29"
+          ]
+        }
+      ],
+      "exit_code": 0,
+      "stdout": "date=2026-10-29 slot=2 date_check=skip hits=2026-10-29\nDryRun action=skip\n",
+      "stderr": "",
+      "zero_writes": true
+    }
+  ],
+  "sources": [
+    {
+      "path": "data/content-calendar/2026-10-26.json",
+      "local": {
+        "sha256": "72f2ab25f9d430ea3cec0008f17f3962e610f6c3388cc490b6b1784f4d875413",
+        "bytes": 18837,
+        "mtime_ns": 1793362545718041600
+      },
+      "production": {
+        "sha256": "72f2ab25f9d430ea3cec0008f17f3962e610f6c3388cc490b6b1784f4d875413",
+        "bytes": 18837,
+        "mtime_ns": 1792684118387673200
+      },
+      "same_bytes": true,
+      "production_unchanged": true
+    },
+    {
+      "path": "data/content-calendar/2026-10-27.json",
+      "local": {
+        "sha256": "e4b52dc82ec1de5dee59edc34f3e36d62c11285453da0f5dcecc589d1971f2c2",
+        "bytes": 27913,
+        "mtime_ns": 1793362545720131200
+      },
+      "production": {
+        "sha256": "e4b52dc82ec1de5dee59edc34f3e36d62c11285453da0f5dcecc589d1971f2c2",
+        "bytes": 27913,
+        "mtime_ns": 1792794897864805300
+      },
+      "same_bytes": true,
+      "production_unchanged": true
+    },
+    {
+      "path": "data/content-calendar/2026-10-28.json",
+      "local": {
+        "sha256": "cfa62072a83cebdf870402af59ece0b95ed9c17222aeee9d0ae09fa917cb2001",
+        "bytes": 18816,
+        "mtime_ns": 1793362545724130300
+      },
+      "production": {
+        "sha256": "cfa62072a83cebdf870402af59ece0b95ed9c17222aeee9d0ae09fa917cb2001",
+        "bytes": 18816,
+        "mtime_ns": 1792881008804227900
+      },
+      "same_bytes": true,
+      "production_unchanged": true
+    },
+    {
+      "path": "data/content-calendar/2026-10-29.json",
+      "local": {
+        "sha256": "25c956c811d160e31d1b05e01b0adeafd609ee4d0fe1115cbaeb5fd5f946f9a3",
+        "bytes": 27944,
+        "mtime_ns": 1793362545725957700
+      },
+      "production": {
+        "sha256": "25c956c811d160e31d1b05e01b0adeafd609ee4d0fe1115cbaeb5fd5f946f9a3",
+        "bytes": 27944,
+        "mtime_ns": 1792967408733357500
+      },
+      "same_bytes": true,
+      "production_unchanged": true
+    }
+  ],
+  "before": {
+    "data\\backfill-seed.json": {
+      "sha256": "843dd8ec48406846cb1f3f5ab8afe0ae6a4ae41e969205b707621404dd669812",
+      "bytes": 773,
+      "mtime_ns": 1793364781968920500
+    },
+    "scripts\\backfill-publish.ps1": {
+      "sha256": "2e84240e0dc81a3c9c2007fca4c5b184f50ffd4bf833b08b0fba84e60b4f0c4e",
+      "bytes": 20511,
+      "mtime_ns": 1793365628694722200
+    },
+    "output\\backfill": null,
+    "output\\backfill-logs": null,
+    "data\\content-calendar\\2026-10-26.json": {
+      "sha256": "72f2ab25f9d430ea3cec0008f17f3962e610f6c3388cc490b6b1784f4d875413",
+      "bytes": 18837,
+      "mtime_ns": 1793362545718041600
+    },
+    "data\\content-calendar\\2026-10-27.json": {
+      "sha256": "e4b52dc82ec1de5dee59edc34f3e36d62c11285453da0f5dcecc589d1971f2c2",
+      "bytes": 27913,
+      "mtime_ns": 1793362545720131200
+    },
+    "data\\content-calendar\\2026-10-28.json": {
+      "sha256": "cfa62072a83cebdf870402af59ece0b95ed9c17222aeee9d0ae09fa917cb2001",
+      "bytes": 18816,
+      "mtime_ns": 1793362545724130300
+    },
+    "data\\content-calendar\\2026-10-29.json": {
+      "sha256": "25c956c811d160e31d1b05e01b0adeafd609ee4d0fe1115cbaeb5fd5f946f9a3",
+      "bytes": 27944,
+      "mtime_ns": 1793362545725957700
+    },
+    "data\\posted-log\\2026-10-26.json": {
+      "sha256": "36c1c08aefe429d9f22b7c3747fd4dab50942ea444ced8201189c5a2d6aeb91d",
+      "bytes": 597,
+      "mtime_ns": 1793362545738788700
+    },
+    "data\\posted-log\\2026-10-27.json": null,
+    "data\\posted-log\\2026-10-28.json": null,
+    "data\\posted-log\\2026-10-29.json": null
+  },
+  "after": {
+    "data\\backfill-seed.json": {
+      "sha256": "843dd8ec48406846cb1f3f5ab8afe0ae6a4ae41e969205b707621404dd669812",
+      "bytes": 773,
+      "mtime_ns": 1793364781968920500
+    },
+    "scripts\\backfill-publish.ps1": {
+      "sha256": "2e84240e0dc81a3c9c2007fca4c5b184f50ffd4bf833b08b0fba84e60b4f0c4e",
+      "bytes": 20511,
+      "mtime_ns": 1793365628694722200
+    },
+    "output\\backfill": null,
+    "output\\backfill-logs": null,
+    "data\\content-calendar\\2026-10-26.json": {
+      "sha256": "72f2ab25f9d430ea3cec0008f17f3962e610f6c3388cc490b6b1784f4d875413",
+      "bytes": 18837,
+      "mtime_ns": 1793362545718041600
+    },
+    "data\\content-calendar\\2026-10-27.json": {
+      "sha256": "e4b52dc82ec1de5dee59edc34f3e36d62c11285453da0f5dcecc589d1971f2c2",
+      "bytes": 27913,
+      "mtime_ns": 1793362545720131200
+    },
+    "data\\content-calendar\\2026-10-28.json": {
+      "sha256": "cfa62072a83cebdf870402af59ece0b95ed9c17222aeee9d0ae09fa917cb2001",
+      "bytes": 18816,
+      "mtime_ns": 1793362545724130300
+    },
+    "data\\content-calendar\\2026-10-29.json": {
+      "sha256": "25c956c811d160e31d1b05e01b0adeafd609ee4d0fe1115cbaeb5fd5f946f9a3",
+      "bytes": 27944,
+      "mtime_ns": 1793362545725957700
+    },
+    "data\\posted-log\\2026-10-26.json": {
+      "sha256": "36c1c08aefe429d9f22b7c3747fd4dab50942ea444ced8201189c5a2d6aeb91d",
+      "bytes": 597,
+      "mtime_ns": 1793362545738788700
+    },
+    "data\\posted-log\\2026-10-27.json": null,
+    "data\\posted-log\\2026-10-28.json": null,
+    "data\\posted-log\\2026-10-29.json": null
+  },
+  "scope": "Slot strings recursively scanned by unchanged production PS1; no OCR or live API calls."
+}

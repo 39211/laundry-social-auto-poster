@@ -1,0 +1,29 @@
+{
+  "checks": {
+    "scripts/register-backfill-task.ps1": true,
+    "test/fixtures/backfill-calendar-2026-10-27.json": true,
+    "data/backfill-seed.json": true,
+    "data/.gitignore": true,
+    "docs-internal/cards/A9-backfill-scheduler.md": true,
+    "all_src_ts_unchanged": true,
+    "seed_seven_pending": true,
+    "runtime_queue_not_created": true,
+    "legacy_queue_absent": true,
+    "r2_regex_unchanged": true,
+    "input_paths_unchanged": true,
+    "ps1_no_trailing_whitespace": true
+  },
+  "all_pass": true,
+  "changed_implementation_files": [
+    "scripts/backfill-publish.ps1",
+    "test/ps-backfill-publish.smoke.ps1"
+  ],
+  "preserved_preexisting_dirty_paths": [
+    "scripts/register-backfill-task.ps1",
+    "test/fixtures/backfill-calendar-2026-10-27.json",
+    "data/backfill-seed.json",
+    "data/.gitignore",
+    "docs-internal/cards/A9-backfill-scheduler.md"
+  ],
+  "no_external_actions": "No commit/stage/push, live npm publisher, task registration/disable, LINE/Meta, or secrets reads."
+}

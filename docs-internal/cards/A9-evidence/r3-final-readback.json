@@ -1,0 +1,101 @@
+{
+  "behavior-smoke": {
+    "exit_code": 2,
+    "summary": [
+      "SMOKE_BEHAVIOR_PARTIAL cases=128 failures=0 blocked=1 native_atomic_replace=NOT_VALIDATED"
+    ],
+    "failed_case_names": []
+  },
+  "date-guard-mutation": {
+    "exit_code": 1,
+    "summary": [
+      "SMOKE_FAIL cases=125 failures=51"
+    ],
+    "failed_case_names": [
+      "date-skip-today",
+      "date-skip-today-formal",
+      "date-skip-tomorrow",
+      "date-skip-yesterday",
+      "date-skip-monday",
+      "date-skip-sunday",
+      "date-skip-weekday",
+      "date-skip-this-week",
+      "date-skip-this-week-alt",
+      "date-skip-slash-date",
+      "date-skip-chinese-date",
+      "date-skip-iso-date",
+      "date-skip-worship-monday",
+      "date-skip-weekend",
+      "date-skip-next-week",
+      "date-skip-tonight",
+      "date-skip-day-after",
+      "date-skip-chinese-date-colloquial",
+      "date-skip-fullwidth-date",
+      "date-skip-october",
+      "date-skip-halloween",
+      "date-skip-worship-tuesday",
+      "date-skip-worship-wednesday",
+      "date-skip-worship-thursday",
+      "date-skip-worship-friday",
+      "date-skip-worship-saturday",
+      "date-skip-worship-sunday",
+      "date-skip-worship-sky",
+      "date-skip-weekend-alt",
+      "date-skip-last-week",
+      "date-skip-last-week-alt",
+      "date-skip-next-week-alt",
+      "date-skip-this-morning",
+      "date-skip-tomorrow-morning",
+      "date-skip-tomorrow-night",
+      "date-skip-day-before",
+      "first-comment-text-dry-run-skip-zero-writes",
+      "first-comment-text-weekend-skipped",
+      "first-comment-message-dry-run-skip-zero-writes",
+      "first-comment-message-weekend-skipped",
+      "first-comment-comment-dry-run-skip-zero-writes",
+      "first-comment-comment-weekend-skipped",
+      "first-comment-comment_text-dry-run-skip-zero-writes",
+      "first-comment-comment_text-weekend-skipped",
+      "bad-first-comments-no-publish",
+      "dry-run-date-skip-zero-writes",
+      "skip-does-not-consume-day",
+      "facebook_caption-iso-skipped",
+      "facebook_caption-hashtag-skipped",
+      "instagram_caption-iso-skipped",
+      "instagram_caption-hashtag-skipped"
+    ]
+  },
+  "week-regex-mutation": {
+    "exit_code": 1,
+    "summary": [
+      "SMOKE_FAIL cases=125 failures=2"
+    ],
+    "failed_case_names": [
+      "date-skip-this-week",
+      "date-skip-this-week-alt"
+    ]
+  },
+  "first-comment-mutation": {
+    "exit_code": 1,
+    "summary": [
+      "SMOKE_FAIL cases=125 failures=9"
+    ],
+    "failed_case_names": [
+      "first-comment-text-dry-run-skip-zero-writes",
+      "first-comment-text-weekend-skipped",
+      "first-comment-message-dry-run-skip-zero-writes",
+      "first-comment-message-weekend-skipped",
+      "first-comment-comment-dry-run-skip-zero-writes",
+      "first-comment-comment-weekend-skipped",
+      "first-comment-comment_text-dry-run-skip-zero-writes",
+      "first-comment-comment_text-weekend-skipped",
+      "bad-first-comments-no-publish"
+    ]
+  },
+  "source_sha256": "4bd89b3cd8c378a68560b05304eb7c816f5614262d39ce8bc6ac98a5aeb2f95d",
+  "seven_actual_previews_pass": true,
+  "ascii_and_parser_pass": true,
+  "report_readback_pass": true,
+  "python_helpers_parse": true,
+  "independent_review_performed": false
+}

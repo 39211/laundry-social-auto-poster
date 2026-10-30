@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-27",
+  "timezone": "Asia/Taipei",
+  "generated_at": "Fixture text.",
+  "slots": [
+    {
+      "slot": 1,
+      "time": "Fixture text.",
+      "category": "Fixture text.",
+      "topic": "Fixture text.",
+      "format": "Fixture text.",
+      "planned_object": "Fixture text.",
+      "planned_category": "Fixture text.",
+      "media_type": "Fixture text.",
+      "instagram_caption": "Fixture text.",
+      "facebook_caption": "Fixture text.",
+      "image_prompt": "Fixture text.",
+      "carousel_items": [
+        {
+          "slide": 1,
+          "image_prompt": "Fixture text.",
+          "local_image_path": "Fixture text.",
+          "public_image_url": "Fixture text."
+        },
+        {
+          "slide": 2,
+          "image_prompt": "Fixture text.",
+          "local_image_path": "Fixture text.",
+          "public_image_url": "Fixture text."
+        },
+        {
+          "slide": 3,
+          "image_prompt": "Fixture text.",
+          "local_image_path": "Fixture text.",
+          "public_image_url": "Fixture text."
+        },
+        {
+          "slide": 4,
+          "image_prompt": "Fixture text.",
+          "local_image_path": "Fixture text.",
+          "public_image_url": "Fixture text."
+        }
+      ],
+      "video_prompt": "Fixture text.",
+      "video_candidate": {
+        "status": "Fixture text.",
+        "memory_hook": "Fixture text.",
+        "conflict": "Fixture text.",
+        "single_action": "Fixture text.",
+        "payoff": "Fixture text.",
+        "cta": "Fixture text.",
+        "duration_seconds": 10,
+        "aspect_ratio": "Fixture text.",
+        "first_frame_direction": "Fixture text.",
+        "grok_motion_prompt": "Fixture text.",
+        "fallback_media_type": "Fixture text."
+      },
+      "media_package": {
+        "status": "Fixture text.",
+        "effective_date": "Fixture text.",
+        "image_count": 4,
+        "image_aspect_ratio": "Fixture text.",
+        "companion_video_required": true,
+        "video_master_aspect_ratio": "Fixture text.",
+        "instagram_delivery": "Fixture text.",
+        "facebook_delivery": "Fixture text.",
+        "platform_preflight_required": true,
+        "publish_authorized": false,
+        "included_in_kpi": false
+      },
+      "visual_route": "Fixture text.",
+      "traffic_route": "Fixture text.",
+      "content_role": "Fixture text.",
+      "views_target": 45,
+      "follower_target": 1,
+      "follow_cta": "Fixture text.",
+      "seo_sync_page": "Fixture text.",
+      "search_intent": "Fixture text.",
+      "target_queries": [
+        "Fixture text.",
+        "Fixture text.",
+        "Fixture text.",
+        "Fixture text.",
+        "Fixture text.",
+        "Fixture text."
+      ],
+      "evidence_type": "Fixture text.",
+      "ten_day_review_metric": "Fixture text.",
+      "content_plan_source": "Fixture text.",
+      "local_image_path": "Fixture text.",
+      "public_image_url": "Fixture text.",
+      "local_video_path": "Fixture text.",
+      "public_video_url": "Fixture text.",
+      "status": "Fixture text."
+    },
+    {
+      "slot": 2,
+      "time": "Fixture text.",
+      "category": "Fixture text.",
+      "topic": "Fixture text.",
+      "media_type": "Fixture text.",
+      "instagram_caption": "Fixture text.",
+      "facebook_caption": "Fixture text.",
+      "image_prompt": "Fixture text.",
+      "visual_route": "Fixture text.",
+      "traffic_route": "Fixture text.",
+      "content_role": "Fixture text.",
+      "content_plan_source": "Fixture text.",
+      "local_image_path": "Fixture text.",
+      "public_image_url": "Fixture text.",
+      "status": "Fixture text."
+    }
+  ],
+  "written_by": "Fixture text.",
+  "content_checksum": "Fixture text."
+}

@@ -1,0 +1,32 @@
+{
+    "powershell":  "5.1.26100.9711",
+    "scripts":  [
+                    {
+                        "path":  "scripts/backfill-publish.ps1",
+                        "parse_errors":  0,
+                        "non_ascii_bytes":  0,
+                        "sha256":  "2E84240E0DC81A3C9C2007FCA4C5B184F50FFD4BF833B08B0FBA84E60B4F0C4E",
+                        "messages":  [
+
+                                     ]
+                    },
+                    {
+                        "path":  "scripts/register-backfill-task.ps1",
+                        "parse_errors":  0,
+                        "non_ascii_bytes":  0,
+                        "sha256":  "90F81F42DE528EC2124A8BD142154E685B4CC5E317100EE56D057150C59495AA",
+                        "messages":  [
+
+                                     ]
+                    },
+                    {
+                        "path":  "test/ps-backfill-publish.smoke.ps1",
+                        "parse_errors":  0,
+                        "non_ascii_bytes":  0,
+                        "sha256":  "B8EA058592B40EFB7E7BC356A8B2E82A46572CF2A481341B912BBF4CFAB1EC0F",
+                        "messages":  [
+
+                                     ]
+                    }
+                ]
+}

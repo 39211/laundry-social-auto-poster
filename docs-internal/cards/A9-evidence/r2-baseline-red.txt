@@ -1,0 +1,305 @@
+CASE_OK name=advance-first-pending-only date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=attempt-result-and-log 
+CASE_OK name=tokens-redacted 
+CASE_FAIL name=same-day-second-run-blocked date=2026-10-27 slot=1 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-27 --slot 1 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=both-success-no-publish-before-date-check date=2026-10-26 slot=2 already_success=true; no publish.
+CASE_OK name=date-skip-today date=2026-10-26 slot=2 date_check=skip hits=今天
+CASE_OK name=date-skip-today-formal date=2026-10-26 slot=2 date_check=skip hits=今日
+CASE_OK name=date-skip-tomorrow date=2026-10-26 slot=2 date_check=skip hits=明天
+CASE_OK name=date-skip-yesterday date=2026-10-26 slot=2 date_check=skip hits=昨天
+CASE_OK name=date-skip-monday date=2026-10-26 slot=2 date_check=skip hits=週一
+CASE_OK name=date-skip-sunday date=2026-10-26 slot=2 date_check=skip hits=週日
+CASE_OK name=date-skip-weekday date=2026-10-26 slot=2 date_check=skip hits=星期三
+CASE_OK name=date-skip-this-week date=2026-10-26 slot=2 date_check=skip hits=本週
+CASE_OK name=date-skip-this-week-alt date=2026-10-26 slot=2 date_check=skip hits=這週
+CASE_OK name=date-skip-slash-date date=2026-10-26 slot=2 date_check=skip hits=10/26
+CASE_OK name=date-skip-chinese-date date=2026-10-26 slot=2 date_check=skip hits=10月29日
+CASE_OK name=date-skip-iso-date date=2026-10-26 slot=2 date_check=skip hits=2026-10-26
+CASE_FAIL name=date-skip-worship-monday date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_FAIL name=date-skip-weekend date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_FAIL name=date-skip-next-week date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_FAIL name=date-skip-tonight date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_FAIL name=date-skip-day-after date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_FAIL name=date-skip-chinese-date-colloquial date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_FAIL name=date-skip-fullwidth-date date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_FAIL name=date-skip-october date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_FAIL name=date-skip-halloween date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=nested-first-comment-skipped date=2026-10-26 slot=2 date_check=skip hits=10/28
+CASE_OK name=dry-run-zero-writes date=2026-10-26 slot=2 date_check=pass hits=
+DryRun action=publish
+CASE_OK name=default-root-dry-run-zero-writes date=2026-10-26 slot=2 date_check=pass hits=
+DryRun action=publish
+CASE_OK name=dry-run-date-skip-zero-writes date=2026-10-26 slot=2 date_check=skip hits=10/27
+DryRun action=skip
+CASE_OK name=npm-failure-failed-no-retry date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=9
+Backfill failed: npm exit=9; facebook=failed; instagram=failed; no automatic retry.
+CASE_OK name=posted-log-required-uncertain date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill failed: npm exit=0; facebook=success; instagram=uncertain; no automatic retry.
+CASE_OK name=posted-log-required-missing date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill failed: npm exit=0; facebook=missing; instagram=missing; no automatic retry.
+CASE_OK name=posted-log-required-partial date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill failed: npm exit=0; facebook=success; instagram=missing; no automatic retry.
+CASE_OK name=existing-uncertain-needs-human date=2026-10-26 slot=2 date_check=pass hits=
+Existing uncertain posted-log; no publish, no automatic retry.
+CASE_OK name=dry-records-do-not-count date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=posted-log-verdict-stderr date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+fake stderr diagnostic
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=posted-log-verdict-nonzero-success date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=9
+Backfill done: facebook=success instagram=success.
+CASE_OK name=empty-queue-exit-zero No pending backfill entries; no action.
+CASE_OK name=stop-preview-zero-writes Owner stop: pending=2; dry_run=True
+CASE_OK name=stop-all-pending-only Owner stop: pending=2; dry_run=False
+CASE_OK name=stopped-queue-no-publish No pending backfill entries; no action.
+CASE_OK name=stop-before-claim-prevents-publish date=2026-10-26 slot=2 date_check=pass hits=
+Selected entry stopped or claimed by another run; no publish.
+CASE_OK name=stop-preserved-when-attempt-completes date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+Owner stop: pending=1; dry_run=False
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=mutex-unavailable-exit-75 date=2026-10-26 slot=2 date_check=pass hits=
+mutex busy: sxj-publish
+CASE_OK name=mutex-released-after-failure date=2026-10-26 slot=2 date_check=pass hits=
+mutex enter: sxj-publish
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=9
+Backfill failed: npm exit=9; facebook=failed; instagram=failed; no automatic retry.
+mutex exit: fixture-owned-mutex
+CASE_OK name=bad-calendar-no-publish Backfill error: 傳入了無效的物件，必須有 ':' 或 '}'。 (6): {bad json
+CASE_OK name=bad-posted-no-publish Backfill error: posted-log must be a JSON array.
+CASE_OK name=registrar-whatif-no-registration What if: Performing the operation "Register scheduled task" on target "Laundry-Backfill-1600; daily=16:00; first=2026-10-31; last=2026-11-06; user=AI\cyc39; Interactive; Limited; limit=15m; IgnoreNew; root=C:\Users\cyc39\AppData\Local\Temp\a9-backfill-d5c7414df0674104903e6aea9ad3e0f7\registrar-whatif".
+CASE_OK name=registrar-existing-refused REGISTRAR_ERROR: Laundry-Backfill-1600 already exists; refusing to replace it.
+CASE_OK name=registrar-mocked-contract-capture Registered: Laundry-Backfill-1600; daily=16:00; first=2026-10-31; last=2026-11-06; user=AI\cyc39; Interactive; Limited; limit=15m; IgnoreNew; root=C:\Users\cyc39\AppData\Local\Temp\a9-backfill-d5c7414df0674104903e6aea9ad3e0f7\registrar-capture
+CASE_OK name=registrar-mocked-contract-default-root Registered: Laundry-Backfill-1600; daily=16:00; first=2026-10-31; last=2026-11-06; user=AI\cyc39; Interactive; Limited; limit=15m; IgnoreNew; root=C:\Users\cyc39\AppData\Local\Temp\a9-backfill-d5c7414df0674104903e6aea9ad3e0f7\registrar-default-root
+SMOKE_FAIL cases=52 failures=10
+
+EXIT_CODE=1

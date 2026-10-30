@@ -1,0 +1,32 @@
+{
+    "ps_version":  "5.1.26100.9711",
+    "checks":  [
+                   {
+                       "path":  "scripts/backfill-publish.ps1",
+                       "sha256":  "4BD89B3CD8C378A68560B05304EB7C816F5614262D39CE8BC6AC98A5AEB2F95D",
+                       "non_ascii_bytes":  0,
+                       "parser_errors":  0,
+                       "errors":  [
+
+                                  ]
+                   },
+                   {
+                       "path":  "scripts/register-backfill-task.ps1",
+                       "sha256":  "90F81F42DE528EC2124A8BD142154E685B4CC5E317100EE56D057150C59495AA",
+                       "non_ascii_bytes":  0,
+                       "parser_errors":  0,
+                       "errors":  [
+
+                                  ]
+                   },
+                   {
+                       "path":  "test/ps-backfill-publish.smoke.ps1",
+                       "sha256":  "F6708CFF89F60A9E70B0D5023010004EBDBBB6E25FEAA5662B983F330F42D4C6",
+                       "non_ascii_bytes":  0,
+                       "parser_errors":  0,
+                       "errors":  [
+
+                                  ]
+                   }
+               ]
+}

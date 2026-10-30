@@ -1,0 +1,223 @@
+--- r2/scripts/backfill-publish.ps1
++++ r3/scripts/backfill-publish.ps1
+@@ -158,20 +158,25 @@
+     return [pscustomobject]$state
+ }
+ 
+-function Get-CaptionStrings($Value) {
+-    if ($null -eq $Value) { return }
+-    if ($Value -is [string]) { $Value; return }
+-    if ($Value -is [System.Collections.IDictionary]) {
+-        foreach ($key in $Value.Keys) {
+-            if ($key -match '(?i)^(slot|date|time|id|.*url.*|image.*|asset.*)$') { continue }
+-            Get-CaptionStrings $Value[$key]
+-        }
+-    } elseif ($Value -is [System.Collections.IEnumerable]) {
+-        foreach ($child in $Value) { Get-CaptionStrings $child }
+-    } elseif ($Value -is [pscustomobject]) {
+-        foreach ($property in $Value.PSObject.Properties) {
+-            if ($property.Name -match '(?i)^(slot|date|time|id|.*url.*|image.*|asset.*)$') { continue }
+-            Get-CaptionStrings $property.Value
++function Get-CaptionStrings($Slot) {
++    # Only these two calendar fields are sent as publisher input.caption.
++    foreach ($name in @('facebook_caption', 'instagram_caption')) {
++        if ($Slot.$name -is [string]) { $Slot.$name }
++    }
++}
++
++function Get-FirstCommentStrings($Entry) {
++    $path = Join-Path $root ('data\first-comments\' + $Entry.date + '.json')
++    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return }
++    $raw = Get-Content -LiteralPath $path -Raw -Encoding UTF8
++    if (-not $raw.TrimStart().StartsWith('[')) { throw 'first-comments must be a JSON array.' }
++    $decoded = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
++    # The existing log is an array of slot/media_id/comment_id/created_at
++    # records, often with no saved text. Never scan those metadata strings.
++    foreach ($row in @($decoded)) {
++        if ($null -eq $row -or $row.slot -ne $Entry.slot) { continue }
++        foreach ($name in @('text', 'message', 'comment', 'comment_text')) {
++            if ($row.$name -is [string]) { $row.$name }
+         }
+     }
+ }
+@@ -187,7 +192,7 @@
+     return $slots[0]
+ }
+ 
+-function Get-DateTextHits($Slot) {
++function Get-DateTextHits($Slot, $Entry) {
+     # Unicode escapes are intentional: PS 5.1 source remains ASCII only.
+     $pattern = '\u4eca\u5929|\u4eca\u65e5|\u660e\u5929|\u6628\u5929|' +
+         '[\u9031\u5468][\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u65e5\u5929]|' +
+@@ -201,7 +206,9 @@
+         '\u4eca[\u665a\u65e9]|\u660e[\u65e9\u665a]|[\u524d\u5f8c]\u5929|\u5341\u6708|\u842c\u8056|' +
+         '(?<!\d)(?:0?[1-9]|1[0-2])\s*\uff0f\s*(?:0?[1-9]|[12]\d|3[01])(?!\d)'
+     $hits = @()
+-    foreach ($text in @(Get-CaptionStrings $Slot)) {
++    $texts = @(Get-CaptionStrings $Slot)
++    $texts += @(Get-FirstCommentStrings $Entry)
++    foreach ($text in $texts) {
+         foreach ($match in [regex]::Matches($text, $pattern)) {
+             if ($hits -cnotcontains $match.Value) { $hits += $match.Value }
+         }
+@@ -315,7 +322,7 @@
+             continue
+         }
+         $calendarSlot = Get-CalendarSlot $entry
+-        $dateHits = @(Get-DateTextHits -Slot $calendarSlot)
++        $dateHits = @(Get-DateTextHits -Slot $calendarSlot -Entry $entry)
+         $check = if ($dateHits.Count -gt 0) { 'skip' } else { 'pass' }
+         Write-Log ('date={0} slot={1} date_check={2} hits={3}' -f $entry.date, $entry.slot, $check, ($dateHits -join ', '))
+         if ($DryRun) { Write-Log ('DryRun action=' + $(if ($dateHits.Count -gt 0) { 'skip' } else { 'publish' })); exit 0 }
+
+--- r2/test/ps-backfill-publish.smoke.ps1
++++ r3/test/ps-backfill-publish.smoke.ps1
+@@ -1,5 +1,5 @@
+ [CmdletBinding()]
+-param([switch]$MutateDateGuard, [switch]$MutateWeekRegex, [switch]$UseAtomicReplaceShim)
++param([switch]$MutateDateGuard, [switch]$MutateWeekRegex, [switch]$MutateFirstCommentGuard, [switch]$UseAtomicReplaceShim)
+ 
+ $ErrorActionPreference = 'Stop'
+ try { [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch {}
+@@ -111,7 +111,7 @@
+             catch { Write-Output ('SMOKE_BLOCKED native File.Replace: ' + $_.Exception.Message); exit 2 }
+         }
+         if ($MutateDateGuard) {
+-            $needle = '$dateHits = @(Get-DateTextHits -Slot $calendarSlot)'
++            $needle = '$dateHits = @(Get-DateTextHits -Slot $calendarSlot -Entry $entry)'
+             if (-not $original.Contains($needle)) { throw 'Date guard mutation anchor missing.' }
+             $original = $original.Replace($needle, '$dateHits = @()')
+             Write-Output 'MUTATION date-text guard removed in temporary copy; production source unchanged.'
+@@ -122,7 +122,13 @@
+             $original = $original.Replace($needle, '')
+             Write-Output 'MUTATION this-week regex branch removed in temporary copy; production source unchanged.'
+         }
+-        if ($UseAtomicReplaceShim -or $MutateDateGuard -or $MutateWeekRegex) {
++        if ($MutateFirstCommentGuard) {
++            $needle = '$texts += @(Get-FirstCommentStrings $Entry)'
++            if (-not $original.Contains($needle)) { throw 'First comment mutation anchor missing.' }
++            $original = $original.Replace($needle, '# MUTATION: first comments ignored.')
++            Write-Output 'MUTATION first comment scan removed in temporary copy; production source unchanged.'
++        }
++        if ($UseAtomicReplaceShim -or $MutateDateGuard -or $MutateWeekRegex -or $MutateFirstCommentGuard) {
+             $script:production = Join-Path $fixture 'candidate-backfill-publish.ps1'
+             Write-Fixture $script:production $original
+         }
+@@ -293,8 +299,41 @@
+         $calendar.slots[1] | Add-Member NoteProperty first_comments ([pscustomobject]@{ instagram = @([pscustomobject]@{ text = '10/28 details' }) })
+         Write-Json $calendarPath $calendar
+         $probe = Invoke-Probe $case
+-        Assert-Case 'nested-first-comment-skipped' ((Read-Queue $case)[0].status -eq 'skipped' -and
+-            @($probe.Calls).Count -eq 0 -and (Read-Queue $case)[0].note.Contains('10/28')) $probe.Text.Trim()
++        Assert-Case 'calendar-inline-first-comment-not-scanned' ($probe.Code -eq 0 -and (Read-Queue $case)[0].status -eq 'done' -and
++            @($probe.Calls).Count -eq 1 -and $probe.Text.Contains('date_check=pass')) $probe.Text.Trim()
++
++        $weekend = [string][char]0x9031 + [char]0x672b
++        foreach ($field in @('text', 'message', 'comment', 'comment_text')) {
++            $case = New-Case ('first-comment-' + $field) -Single
++            $row = [ordered]@{ date = '2026-10-26'; slot = 2; media_id = 'fake-media'; comment_id = 'fake-comment'; created_at = '2026-10-26T03:30:31.438Z' }
++            $row[$field] = $weekend + ' care tips.'
++            Write-Json (Join-Path $case 'data\first-comments\2026-10-26.json') @($row)
++            $before = Get-Snapshot $case
++            $preview = Invoke-Probe $case @('-DryRun')
++            Assert-Case ('first-comment-' + $field + '-dry-run-skip-zero-writes') ($preview.Code -eq 0 -and
++                $before -ceq (Get-Snapshot $case) -and $preview.Text.Contains('date_check=skip') -and $preview.Text.Contains($weekend)) $preview.Text.Trim()
++            $probe = Invoke-Probe $case
++            Assert-Case ('first-comment-' + $field + '-weekend-skipped') ($probe.Code -eq 0 -and (Read-Queue $case)[0].status -eq 'skipped' -and
++                (Read-Queue $case)[0].note.Contains($weekend) -and @($probe.Calls).Count -eq 0) $probe.Text.Trim()
++        }
++        foreach ($mode in @('other-slot', 'metadata-only', 'empty')) {
++            $case = New-Case ('first-comment-' + $mode) -Single
++            $rows = @()
++            if ($mode -ne 'empty') {
++                $row = [ordered]@{ date = '2026-10-26'; slot = 2; media_id = 'fake-2026-10-26'; comment_id = 'fake-comment'; created_at = '2026-10-26T03:30:31.438Z' }
++                if ($mode -eq 'other-slot') { $row.slot = 1; $row.text = $weekend }
++                else { $row.note = $weekend; $row.local_image_path = '2026-10-26.png' }
++                $rows = @($row)
++            }
++            Write-Json (Join-Path $case 'data\first-comments\2026-10-26.json') $rows
++            $probe = Invoke-Probe $case
++            Assert-Case ('first-comment-' + $mode + '-ignored') ($probe.Code -eq 0 -and (Read-Queue $case)[0].status -eq 'done' -and
++                @($probe.Calls).Count -eq 1 -and $probe.Text.Contains('date_check=pass')) $probe.Text.Trim()
++        }
++        $case = New-Case 'bad-first-comments' -Single
++        Write-Fixture (Join-Path $case 'data\first-comments\2026-10-26.json') '{bad json'
++        $probe = Invoke-Probe $case
++        Assert-Case 'bad-first-comments-no-publish' ($probe.Code -eq 1 -and (Read-Queue $case)[0].status -eq 'failed' -and @($probe.Calls).Count -eq 0) $probe.Text.Trim()
+ 
+         $case = New-Case 'dry-run'
+         $before = Get-Snapshot $case
+@@ -468,17 +507,43 @@
+             Assert-Case ($outcome + '-does-not-consume-day') ($probe.Code -eq 0 -and [string]::IsNullOrEmpty($q[0].attempted_at) -and
+                 $q[1].status -eq 'done' -and @($probe.Calls).Count -eq 1 -and $probe.Calls[0] -eq '2026-10-27|1') $probe.Text.Trim()
+         }
+-        foreach ($field in @('hashtags', 'title', 'cta', 'body', 'text', 'comment', 'pinned_comment', 'nested')) {
++        foreach ($field in @('hashtags', 'title', 'cta', 'body', 'text', 'comment', 'pinned_comment', 'nested', 'local_image_path', 'video_prompt', 'media_package')) {
+             $case = New-Case ('text-field-' + $field) -Single
+             $path = Join-Path $case 'data\content-calendar\2026-10-26.json'
+             $calendar = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+             $value = if ($field -eq 'hashtags') { @('#' + [char]0x9031 + [char]0x672b + 'care') }
+                 elseif ($field -eq 'nested') { [pscustomobject]@{ arbitrary = @('safe', [pscustomobject]@{ arbitrary_text = '10/26' }) } }
++                elseif ($field -eq 'media_package') { [pscustomobject]@{ effective_date = '2026-10-26' } }
+                 else { '10/26' }
+             $calendar.slots[1] | Add-Member NoteProperty $field $value -Force
+             Write-Json $path $calendar
+             $probe = Invoke-Probe $case
+-            Assert-Case ('scan-field-' + $field) ($probe.Code -eq 0 -and (Read-Queue $case)[0].status -eq 'skipped' -and @($probe.Calls).Count -eq 0) $probe.Text.Trim()
++            Assert-Case ('internal-field-' + $field + '-not-scanned') ($probe.Code -eq 0 -and (Read-Queue $case)[0].status -eq 'done' -and
++                @($probe.Calls).Count -eq 1 -and $probe.Text.Contains('date_check=pass')) $probe.Text.Trim()
++        }
++        $case = New-Case 'internal-dates-clean-captions' -Single
++        $path = Join-Path $case 'data\content-calendar\2026-10-26.json'
++        $calendar = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
++        $calendar.slots[1].local_image_path = 'docs/assets/2026-10-26/slot-02.png'
++        $calendar.slots[1] | Add-Member NoteProperty video_prompt 'Shot reference 2026-08-05.'
++        $calendar.slots[1] | Add-Member NoteProperty media_package ([pscustomobject]@{ effective_date = '2026-07-29' })
++        Write-Json $path $calendar
++        $before = Get-Snapshot $case
++        $probe = Invoke-Probe $case @('-DryRun')
++        Assert-Case 'internal-dates-clean-captions-pass-zero-writes' ($probe.Code -eq 0 -and $before -ceq (Get-Snapshot $case) -and
++            $probe.Text.Contains('date_check=pass') -and $probe.Text.Contains('DryRun action=publish')) $probe.Text.Trim()
++        foreach ($field in @('facebook_caption', 'instagram_caption')) {
++            foreach ($kind in @('iso', 'hashtag')) {
++                $case = New-Case ($field + '-' + $kind) -Single
++                $path = Join-Path $case 'data\content-calendar\2026-10-26.json'
++                $calendar = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
++                $word = if ($kind -eq 'iso') { '2026-10-27' } else { $weekend }
++                $calendar.slots[1].$field = 'Care #' + $word
++                Write-Json $path $calendar
++                $probe = Invoke-Probe $case
++                Assert-Case ($field + '-' + $kind + '-skipped') ($probe.Code -eq 0 -and (Read-Queue $case)[0].status -eq 'skipped' -and
++                    (Read-Queue $case)[0].note.Contains($word) -and @($probe.Calls).Count -eq 0) $probe.Text.Trim()
++            }
+         }
+         $case = New-Case 'excluded-metadata' -Single
+         $path = Join-Path $case 'data\content-calendar\2026-10-26.json'
+@@ -489,11 +554,13 @@
+         Write-Json $path $calendar
+         $probe = Invoke-Probe $case
+         Assert-Case 'excluded-metadata-not-scanned' ($probe.Code -eq 0 -and (Read-Queue $case)[0].status -eq 'done' -and @($probe.Calls).Count -eq 1) $probe.Text.Trim()
+-        $sourceAst = [Management.Automation.Language.Parser]::ParseFile($source, [ref]$null, [ref]$null)
+-        $scanFunction = $sourceAst.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-CaptionStrings' }, $true)
+-        . ([scriptblock]::Create($scanFunction.Extent.Text))
+-        $strings = @(Get-CaptionStrings @{ title = '10/26'; image_text = 'excluded'; child = @{ url = 'excluded'; hashtags = @('#care', '10/27') } })
+-        Assert-Case 'dictionary-recursion-and-exclusions' ($strings.Count -eq 3 -and $strings -contains '10/26' -and $strings -contains '10/27' -and $strings -notcontains 'excluded')
++        $case = New-Case 'internal-text-cannot-replace-captions' -Single
++        $path = Join-Path $case 'data\content-calendar\2026-10-26.json'
++        $calendar = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
++        $calendar.slots[1].facebook_caption = ''; $calendar.slots[1].instagram_caption = ''
++        Write-Json $path $calendar
++        $probe = Invoke-Probe $case
++        Assert-Case 'internal-text-cannot-replace-missing-captions' ($probe.Code -eq 1 -and (Read-Queue $case)[0].status -eq 'failed' -and @($probe.Calls).Count -eq 0) $probe.Text.Trim()
+ 
+         foreach ($dry in @('false', 'true')) {
+             $case = New-Case ('dry-run-string-' + $dry) -Single
+@@ -538,7 +605,7 @@
+         Assert-Case 'disable-failure-logged-stop-persists' ($probe.Code -eq 0 -and (Read-Queue $case)[0].note -ceq 'owner stop' -and
+             $probe.Log.Contains('Scheduled task disable failed: fixture disable failure')) $probe.Text.Trim()
+ 
+-        if (-not $MutateDateGuard -and -not $MutateWeekRegex) {
++        if (-not $MutateDateGuard -and -not $MutateWeekRegex -and -not $MutateFirstCommentGuard) {
+             $case = New-Case 'npm-timeout' 'Care tips.' 'timeout'
+             $watch = [Diagnostics.Stopwatch]::StartNew()
+             $probe = Invoke-Probe $case @('-NpmTimeoutSec', '5') -CmdStub

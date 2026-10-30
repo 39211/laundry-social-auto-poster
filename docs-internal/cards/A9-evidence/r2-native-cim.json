@@ -1,0 +1,7 @@
+{
+    "operation":  "New-ScheduledTaskTrigger -Daily -At 2026-10-31T16:00:00 (construct only; no registration)",
+    "status":  "BLOCKED",
+    "task_registration_attempted":  false,
+    "error":  "拒絕存取 ",
+    "error_id":  "HRESULT 0x80041003,New-ScheduledTaskTrigger"
+}

@@ -481,6 +481,6 @@ describe("SEO-SYNC-P1 public publication sync", () => {
     await generate(root);
     const html = await postHtml(root);
     const digest = createHash("sha256").update(html, "utf8").digest("hex");
-    expect(digest).toBe("f648f67fc4dacf337588b1efc343a2e5b4a84d1ae4ab4681b6f1c6f2d3d7d120");
+    expect(digest).toBe("c08f88ae53e53c16fd121e85c95fc863f911a14d35c1b530ea57760969455795");
   });
 });

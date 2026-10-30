@@ -6687,9 +6687,37 @@ function renderLocalSolutionCard(page: SupportPageDefinition, href: string): str
       </article>`;
 }
 
-function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: BusinessProfile): string {
-  const imageSrc = visibleImageSrc(post, index);
-  const preview = captionPreview(post.facebook_caption);
+// 首頁貼文卡片固定聯絡行（2026-10-31 首頁修正單）。逐字固定，不要拆開或改標點。
+const HOME_CARD_CONTACT_LINE = "LINE 官方 @454foyks，或 LINE 0968327653，市話 04-2452-7411";
+
+// 只給首頁卡片用的文字對照表：貼文資料（topic、facebook_caption）一個字都不改，
+// /posts/ 與其他輸出完全不受影響。鍵是「日期-slot-兩位時段」。
+const HOME_CARD_TEXT_OVERRIDES: Record<string, { topic?: string; preview?: string }> = {
+  "2026-10-25-slot-01": {
+    topic: "冬衣收送分袋標籤要寫哪 2 項？",
+    preview: "冬衣收送分袋標籤要寫哪 2 項？"
+  },
+  "2026-10-17-slot-02": {
+    topic: "一雙也歡迎：台中全市免費收送、沒有最低消費。"
+  },
+  "2026-10-17-slot-01": {
+    topic: "只有一雙鞋？台中全市免費收送、沒有最低消費",
+    preview: "只有一雙鞋？台中全市免費收送、沒有最低消費。"
+  },
+  "2026-07-25-slot-02": {
+    topic: "下班不用再繞去洗衣店，收送從門口開始",
+    preview: "下班不用再繞去洗衣店，收送從門口開始；台中全市免費收送、沒有最低消費，待洗衣物可以從家門口完成交接。"
+  }
+};
+
+function homeCardKey(post: PublicPost): string {
+  return `${post.date}-slot-${String(post.slot).padStart(2, "0")}`;
+}
+
+function renderHomePostTile(post: PublicPost, index: PublicPostIndex, _profile: BusinessProfile): string {
+  const textOverride = HOME_CARD_TEXT_OVERRIDES[homeCardKey(post)];
+  const topic = textOverride?.topic ?? post.topic;
+  const preview = textOverride?.preview ?? captionPreview(post.facebook_caption);
   // Prefer this post's own article, then the article owning its caption; raw calendar JSON is
   // a last resort because a reader clicking "read full post" should never land on JSON.
   const canonicalArticle = canonicalArticleFor(post, index);
@@ -6698,24 +6726,14 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
       ? post.article_url
       : canonicalArticle.article_url
     : post.calendar_path;
+  const lineCardUrl = trackedLineUrl(index, { section: "home", placement: "inline" });
+  // 卡片不放縮圖、不放收合的完整文案；每張卡片都留一行固定聯絡與 LINE 連結。
   return `<article class="post-tile post-card">
-        <a href="${escapeHtml(imageSrc)}">
-          ${responsiveImageHtml({
-            imagePath: post.image_path,
-            src: imageSrc,
-            alt: `${post.topic} - ${profile.name}洗護內容照片`,
-            fallbackSize: POST_IMAGE_FALLBACK_SIZE,
-            loading: "lazy"
-          })}
-        </a>
         <div class="article-meta">${escapeHtml(post.date)} ${escapeHtml(post.time)}｜${escapeHtml(post.content_role)} / ${escapeHtml(post.visual_route)} / ${escapeHtml(post.traffic_route)}</div>
-        <h3>${escapeHtml(post.topic)}</h3>
+        <h3>${escapeHtml(topic)}</h3>
         <p class="post-caption post-preview">${escapeHtml(preview)}</p>
-        <details class="caption-details">
-          <summary>閱讀完整文案</summary>
-          <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
-        </details>
-        <a class="card-link" href="${escapeHtml(articleHref)}">閱讀文章</a>
+        <p class="post-contact" style="margin:0;font-size:14px;line-height:1.7">${escapeHtml(HOME_CARD_CONTACT_LINE)} <a href="${escapeHtml(lineCardUrl)}">用 LINE 詢問</a></p>
+        <a class="card-link" href="${escapeHtml(articleHref)}" aria-label="閱讀文章：${escapeHtml(topic)}">閱讀文章</a>
       </article>`;
 }
 

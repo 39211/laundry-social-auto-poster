@@ -93,6 +93,39 @@ function sha256File(path: string): string {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
+const V4_PUBLIC_ASSET_FILES = new Set([
+  "camp-halloween.jpg",
+  "camp-newyear.jpg",
+  "camp-winter.jpg",
+  "camp-xmas.jpg",
+  "hero-business.jpg",
+  "hero-luxury.jpg",
+  "hero-pickup.jpg",
+  "hero-shoes.jpg",
+  "home-hands.jpg",
+  "home-hero.jpg",
+  "principle-boundary.jpg",
+  "principle-material.jpg",
+  "principle-pickup.jpg",
+  "step-01.jpg",
+  "step-02.jpg",
+  "step-03.jpg",
+  "step-04.jpg",
+  "store-bench.jpg",
+  "store-counter.jpg",
+  "store-front.jpg",
+  "svc-baby.jpg",
+  "svc-bags.jpg",
+  "svc-bedding.jpg",
+  "svc-business.jpg",
+  "svc-luxury.jpg",
+  "svc-shoes.jpg",
+  "sxj-map.js",
+  "sxj-shell.css",
+  "sxj-v4.css",
+  "sxj-v4.js"
+]);
+
 export function isAllowlistedAssetFile(relativePath: string): boolean {
   const normalized = normalizeGitPath(relativePath);
   if (!normalized || /[%\\\0]/.test(normalized)) return false;
@@ -106,6 +139,7 @@ export function isAllowlistedAssetFile(relativePath: string): boolean {
   const dot = file.lastIndexOf(".");
   if (dot <= 0 || dot === file.length - 1) return false;
   const ext = file.slice(dot + 1).toLowerCase();
+  if (bucket === "v4") return V4_PUBLIC_ASSET_FILES.has(file);
   if (!ALLOWED_ASSET_EXTENSIONS.has(ext)) return false;
   if (bucket === "backgrounds" || bucket === "services") return true;
   return /^\d{4}-\d{2}-\d{2}$/.test(bucket);
@@ -360,7 +394,7 @@ function mirrorPathKind(docsRoot: string, relativePath: string, date: string): M
   const info = statSync(source);
   if (info.isDirectory()) {
     if (MIRROR_REPLACE_DIRS.has(relativePath)) return "replace-directory";
-    if (["assets/backgrounds", "assets/services", `assets/${date}`].includes(relativePath)) {
+    if (["campaign", "assets/v4", "assets/backgrounds", "assets/services", `assets/${date}`].includes(relativePath)) {
       return "overlay-directory";
     }
     throw new Error(`Refusing to mirror a non-allowlisted directory: docs/${relativePath}`);
@@ -507,6 +541,8 @@ export function publishPagesAssets(
     "docs/docs",
     "docs/assets/backgrounds",
     "docs/assets/services",
+    "docs/assets/v4",
+    "docs/campaign",
     "docs/content-calendar",
     "docs/posts",
     "docs/services",

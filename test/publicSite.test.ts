@@ -502,7 +502,7 @@ describe("generatePublicSite", () => {
       "@type": "DryCleaningOrLaundry",
       "@id": "https://example.com/laundry-social-auto-poster/#business",
       name: "私享家洗衣店",
-      alternateName: ["私享家 旗艦總店", "私享家 旗艦店", "私享家精品洗護"],
+      alternateName: ["私享家洗衣店", "私享家 旗艦總店", "私享家 旗艦店", "私享家精品洗護"],
       url: "https://example.com/laundry-social-auto-poster/",
       telephone: "+886-4-2452-7411",
       hasMap: "https://maps.app.goo.gl/kUREPkWDXYNTkpct7",
@@ -555,7 +555,7 @@ describe("generatePublicSite", () => {
     expect(discovery.website.instagram_url).toBe("https://www.instagram.com/si_xiang_jia/");
     expect(discovery.website.line_url).toBe("https://line.me/ti/p/4m-rA6hxf6");
     expect(discovery.business_profile).toMatchObject({
-      google_business_profile_name: "私享家 旗艦總店",
+      google_business_profile_name: "私享家洗衣店",
       address_text: "407 臺中市西屯區至善里青海路二段365號",
       google_maps_cid: "0x41f4295a6302e177",
       google_place_id: "ChIJ9dYthxMXaTQRd-ECY1op9EE",

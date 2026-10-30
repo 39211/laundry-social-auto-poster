@@ -1,4 +1,4 @@
-"""Offline A4-2 regression tests; never read channel secrets or open a tunnel."""
+"""Offline A4-2/A4-4 regression tests; never read channel secrets or open a tunnel."""
 
 from __future__ import annotations
 
@@ -6,9 +6,10 @@ import io
 import json
 import shutil
 import sys
+import threading
 import unittest
 from contextlib import ExitStack, redirect_stdout
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -24,6 +25,12 @@ from runtime import line_api, tunnel_supervisor as supervisor
 OLD_URL = "https://old-test.lhr.life/line/webhook"
 NEW_URL = "https://new-test.lhr.life/line/webhook"
 API_URL = "https://api.line.me/v2/bot/channel/webhook/endpoint"
+DEFAULTS = {"day_start": "10:00", "day_end": "20:00", "tz": "Asia/Taipei"}
+TZ8 = timezone(timedelta(hours=8))
+
+
+def at(hour, minute, day=1, second=0):
+    return datetime(2025, 6, day, hour, minute, second, tzinfo=TZ8)
 
 
 class FakeResponse:
@@ -80,12 +87,15 @@ class TunnelEventsTests(unittest.TestCase):
         self.shop_path.write_text('{"server": {}}', encoding="utf-8")
         self.shop = SimpleNamespace(root=self.work)
         self.calls = []
+        self.http = []
         self.put_urls = []
         self.expected_put_urls = []
         self.responses = []
+        self.day = True
         self.stack.enter_context(patch.object(supervisor, "EVENTS_PATH", self.events_path, create=True))
         self.stack.enter_context(patch.object(supervisor, "SHOP_PATH", self.shop_path))
         self.stack.enter_context(patch.object(supervisor, "load_shop", return_value=self.shop))
+        self.stack.enter_context(patch.object(supervisor, "DAY_CHECK_INTERVAL", 0))
         self.stack.enter_context(patch.object(line_api, "channel_credentials", return_value={"token": "offline-token", "secret": "offline-secret"}))
         self.stack.enter_context(patch.object(supervisor, "urlopen", side_effect=self.open_url, create=True))
         # Guard the old implementation's default-bound openers during RED too.
@@ -96,6 +106,7 @@ class TunnelEventsTests(unittest.TestCase):
 
     def open_url(self, request, timeout):
         method = request.get_method()
+        self.http.append((method, request.full_url))
         if request.full_url.endswith("/test"):
             self.assertEqual("POST", method)
             return FakeResponse({"success": True, "statusCode": 200, "reason": "OK"})
@@ -195,8 +206,14 @@ class TunnelEventsTests(unittest.TestCase):
         def stop_after_exit(seconds):
             if seconds == 3:
                 raise StopSupervisor()
+
+        def fake_window(now=None, config=None):
+            # Deterministic window regardless of the wall clock running the tests.
+            return self.day
+
         self.sleep.side_effect = stop_after_exit
         with patch.object(supervisor, "find_ssh", return_value="offline-ssh"), \
+             patch.object(supervisor, "is_day_window", side_effect=fake_window), \
              patch.object(supervisor.subprocess, "Popen", return_value=FakeProcess(lines, rc)), \
              patch.object(supervisor.time, "monotonic", side_effect=[100.0, 112.5]):
             with self.assertRaises(StopSupervisor):
@@ -229,6 +246,170 @@ class TunnelEventsTests(unittest.TestCase):
         self.assertEqual("tunnel_exit", records[0]["event"])
         self.assertEqual(23, records[0]["rc"])
         self.assertEqual(12.5, records[0]["alive_seconds"])
+
+    # ------------------------------------------------------------------ A4-4
+
+    def test_day_night_boundaries(self):
+        window = supervisor.is_day_window
+        self.assertFalse(window(at(9, 59, second=59), DEFAULTS))
+        self.assertTrue(window(at(10, 0), DEFAULTS))
+        self.assertTrue(window(at(19, 59, second=59), DEFAULTS))
+        self.assertFalse(window(at(20, 0), DEFAULTS))
+        self.assertFalse(window(at(0, 0), DEFAULTS))
+        # Aware times in other zones are converted: 02:00 UTC == 10:00 Taipei.
+        self.assertTrue(window(datetime(2025, 6, 1, 2, 0, tzinfo=timezone.utc), DEFAULTS))
+        self.assertFalse(window(datetime(2025, 6, 1, 1, 59, tzinfo=timezone.utc), DEFAULTS))
+        # Naive times are wall time in the configured zone.
+        self.assertTrue(window(datetime(2025, 6, 1, 10, 0), DEFAULTS))
+
+    def test_midnight_crossing_window(self):
+        config = {"day_start": "22:00", "day_end": "06:00", "tz": "Asia/Taipei"}
+        window = supervisor.is_day_window
+        self.assertFalse(window(at(21, 59), config))
+        self.assertTrue(window(at(22, 0), config))
+        self.assertTrue(window(at(0, 30), config))
+        self.assertTrue(window(at(5, 59), config))
+        self.assertFalse(window(at(6, 0), config))
+        self.assertFalse(window(at(12, 0), config))
+
+    def test_invalid_handover_config_falls_back_to_defaults(self):
+        variants = [
+            {"day_start": "25:00", "day_end": "20:00", "tz": "Asia/Taipei"},
+            "10:00-20:00",
+            {},
+            {"day_start": "10:00", "day_end": "10:00", "tz": "Asia/Taipei"},
+            {"day_start": "10:00", "day_end": "20:00"},
+            {"day_start": 10, "day_end": 20, "tz": "Asia/Taipei"},
+            {"day_start": "10:00", "day_end": "20:00", "tz": "Mars/Olympus_Mons"},
+        ]
+        for raw in variants:
+            with self.subTest(raw=raw):
+                self.shop_path.write_text(json.dumps({"server": {}, "handover": raw}), encoding="utf-8")
+                out = io.StringIO()
+                with redirect_stdout(out):
+                    config = supervisor.load_handover_config()
+                self.assertEqual(DEFAULTS, config)
+                self.assertEqual(1, len(out.getvalue().splitlines()))
+        for text in ('{"server": {}}', "{not json"):
+            with self.subTest(text=text):
+                self.shop_path.write_text(text, encoding="utf-8")
+                out = io.StringIO()
+                with redirect_stdout(out):
+                    self.assertEqual(DEFAULTS, supervisor.load_handover_config())
+                self.assertEqual(1, len(out.getvalue().splitlines()))
+        custom = {"day_start": "09:30", "day_end": "21:00", "tz": "Asia/Taipei"}
+        self.shop_path.write_text(json.dumps({"server": {}, "handover": custom}), encoding="utf-8")
+        self.assertEqual(custom, supervisor.load_handover_config(log=False))
+
+    def test_timezone_fallback_without_tzdata(self):
+        missing = supervisor.ZoneInfoNotFoundError("no tzdata")
+        with patch.object(supervisor, "ZoneInfo", side_effect=missing):
+            tz = supervisor._timezone("Asia/Taipei")
+            self.assertEqual(timedelta(hours=8), tz.utcoffset(None))
+            utc_ten = datetime(2025, 6, 1, 2, 0, tzinfo=timezone.utc)
+            self.assertTrue(supervisor.is_day_window(utc_ten, DEFAULTS))
+            self.assertIsInstance(supervisor.is_day_window(config=DEFAULTS), bool)
+            with self.assertRaises(ValueError):
+                supervisor._timezone("Europe/Berlin")
+            self.shop_path.write_text(json.dumps({"server": {}, "handover": {
+                "day_start": "10:00", "day_end": "20:00", "tz": "Europe/Berlin"}}), encoding="utf-8")
+            self.assertEqual(DEFAULTS, supervisor.load_handover_config(log=False))
+
+    def test_night_url_is_tracked_but_not_registered(self):
+        self.day = False
+        self.run_one_tunnel([NEW_URL + "\n"])
+        self.assertEqual([], self.http, "Night window must not make any HTTP call")
+        records = self.read_events()
+        self.assertEqual(["url_detected", "skipped_night", "tunnel_exit"], [r["event"] for r in records])
+        skipped = records[1]
+        self.assertEqual({"ts", "event", "old_url", "new_url", "put_status", "verify_status"},
+                         set(skipped))
+        self.assertEqual(("", NEW_URL), (skipped["old_url"], skipped["new_url"]))
+        self.assertEqual("not_attempted", skipped["put_status"])
+        self.assertEqual("not_attempted", skipped["verify_status"])
+        self.assertIsNotNone(datetime.fromisoformat(skipped["ts"]).utcoffset())
+        server = json.loads(self.shop_path.read_text(encoding="utf-8"))["server"]
+        self.assertEqual(NEW_URL, server["webhook_url"])
+        self.assertEqual("https://new-test.lhr.life", server["public_base"])
+
+    def test_flip_to_day_registers_once_with_day_start_event(self):
+        self.day = False
+        self.responses = [FakeResponse({}), FakeResponse({"endpoint": NEW_URL, "active": True})]
+
+        def lines():
+            yield NEW_URL + "\n"
+            self.day = True
+            yield "keepalive noise\n"
+            yield "more noise\n"
+
+        self.run_one_tunnel(lines())
+        self.assertEqual(["PUT", "GET"], self.calls)
+        records = self.read_events()
+        self.assertEqual(["url_detected", "skipped_night", "day_start_register", "put_start",
+                          "put_result", "verify_result", "tunnel_exit"], [r["event"] for r in records])
+        self.assertEqual(NEW_URL, records[2]["new_url"])
+        self.assertEqual("pending_day_url", records[2]["reason"])
+        self.assertEqual("match", records[5]["verify_status"])
+
+    def test_day_start_check_registers_and_clears_pending(self):
+        state = supervisor.HandoverState(dict(DEFAULTS))
+        state.last_day = False
+        state.previous_url = OLD_URL
+        state.current_url = NEW_URL
+        state.pending_day_url = NEW_URL
+        self.assertFalse(supervisor.check_day_start(state, at(9, 59)))
+        self.assertEqual([], self.http)
+        self.responses = [FakeResponse({}), FakeResponse({"endpoint": NEW_URL, "active": True})]
+        self.assertTrue(supervisor.check_day_start(state, at(10, 0)))
+        self.assertIsNone(state.pending_day_url)
+        self.assertFalse(supervisor.check_day_start(state, at(10, 1)))
+        self.assertEqual(["PUT", "GET"], self.calls)
+        start = [r for r in self.read_events() if r["event"] == "day_start_register"]
+        self.assertEqual([(OLD_URL, NEW_URL)], [(r["old_url"], r["new_url"]) for r in start])
+
+    def test_failed_day_start_keeps_pending_and_does_not_loop(self):
+        state = supervisor.HandoverState(dict(DEFAULTS))
+        state.last_day = False
+        state.current_url = NEW_URL
+        state.pending_day_url = NEW_URL
+        self.responses = [response for _ in range(4) for response in
+                          (FakeResponse({}), FakeResponse({"endpoint": OLD_URL, "active": True}))]
+        self.assertTrue(supervisor.check_day_start(state, at(10, 0)))
+        self.assertEqual(NEW_URL, state.pending_day_url)
+        self.assertFalse(supervisor.check_day_start(state, at(10, 1)))
+        self.assertEqual(["PUT", "GET"] * 4, self.calls)
+
+    def test_url_registered_yesterday_is_registered_again_next_day(self):
+        state = supervisor.HandoverState(dict(DEFAULTS))
+        state.last_day = True
+        state.current_url = NEW_URL
+        state.registered_url = NEW_URL
+        self.assertFalse(supervisor.check_day_start(state, at(19, 59)))
+        self.assertFalse(supervisor.check_day_start(state, at(20, 0)))
+        self.assertEqual("", state.registered_url)
+        self.assertEqual([], self.http)
+        self.responses = [FakeResponse({}), FakeResponse({"endpoint": NEW_URL, "active": True})]
+        self.assertTrue(supervisor.check_day_start(state, at(10, 0, day=2)))
+        self.assertEqual(["PUT", "GET"], self.calls)
+        start = [r for r in self.read_events() if r["event"] == "day_start_register"]
+        self.assertEqual(["not_registered_this_window"], [r["reason"] for r in start])
+
+    def test_flip_without_any_url_does_nothing(self):
+        state = supervisor.HandoverState(dict(DEFAULTS))
+        state.last_day = False
+        self.assertFalse(supervisor.check_day_start(state, at(10, 0)))
+        self.assertEqual([], self.http)
+        self.assertEqual([], self.read_events())
+
+    def test_day_watcher_thread_runs_periodic_check(self):
+        fired = threading.Event()
+        state = supervisor.HandoverState(dict(DEFAULTS))
+        with patch.object(supervisor, "check_day_start", side_effect=lambda s, now=None: fired.set()):
+            stop = supervisor._start_day_watcher(state, 0.01)
+            try:
+                self.assertTrue(fired.wait(2))
+            finally:
+                stop.set()
 
 
 if __name__ == "__main__":

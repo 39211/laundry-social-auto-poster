@@ -35,10 +35,10 @@ const SEO_FILES = [
 ];
 
 // Commander fix: the documented example `bannedWords` must be allowed too, so match the word anywhere in the name.
-const ALLOW_LIST_NAME = /(?:forbidden|banned)/iu;
-// Frozen, hash-locked page bodies (protected-content-hash locks). Changing their text needs a lock revision
-// (owner decision pending), so they are excluded here and tracked separately.
-const FROZEN_SOURCES = new Set(["indexGrowthPages.ts"]);
+const ALLOW_LIST_NAME = /(?:forbidden|banned|boilerplate)/iu;
+// BOILERPLATE_PHRASES (indexGrowthPages.ts) only strips repeated text before the similarity check;
+// it is not customer-facing, so a list whose name contains "boilerplate" is allowed as well.
+const FROZEN_SOURCES = new Set<string>();
 const REGEX_PRECEDING_KEYWORDS = new Set([
   "return", "typeof", "instanceof", "in", "of", "new", "delete", "void",
   "throw", "case", "do", "else", "yield", "await"

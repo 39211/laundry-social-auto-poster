@@ -481,6 +481,9 @@ describe("SEO-SYNC-P1 public publication sync", () => {
     await generate(root);
     const html = await postHtml(root);
     const digest = createHash("sha256").update(html, "utf8").digest("hex");
-    expect(digest).toBe("c08f88ae53e53c16fd121e85c95fc863f911a14d35c1b530ea57760969455795");
+    // Re-pinned 2026-10-31 for owner decision D15 (台中市免費到府收送). The commander diffed the old
+    // render (whose sha matched the previous pin c08f88ae…) against the new one: only pickup-area
+    // wording changed, plus a JSON-LD wordCount of 1927 -> 1914 that follows from it.
+    expect(digest).toBe("f0e6d5130aa03c57f3d4ffa3bbec8c560cb9a97b6d692f0dba28aa2aef911f9c");
   });
 });

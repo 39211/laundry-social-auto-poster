@@ -20,9 +20,13 @@ async function render(): Promise<string> {
 function verifyCase(html: string): void {
   const section = html.match(new RegExp(`<article class="card">\\s*<h3>${heading}</h3>\\s*<p>([\\s\\S]*?)</p>\\s*</article>`))?.[1];
   expect(section, "rendered owner-confirmed case is required").toBeDefined();
-  for (const text of ["泡沫清洗", "本案實收600元", "清洗時間約一週", "由私享家門市提供", "不是所有精品鞋的統一價格", "不是固定交件承諾", "免費收送、無低消", "清潔費另計"]) {
-    expect(section, `case boundary: ${text}`).toContain(text);
+  // B1-3: 「台中市免費收送」 is now auto-linked to the pickup page, so the factual boundaries are
+  // checked on the visible text (tags stripped); the link itself is asserted separately.
+  const visible = (section ?? "").replace(/<[^>]+>/g, "");
+  for (const text of ["泡沫清洗", "本案實收600元", "清洗時間約一週", "由私享家門市提供", "不是所有精品鞋的統一價格", "不是固定交件承諾", "台中市免費收送、無低消", "清潔費另計"]) {
+    expect(visible, `case boundary: ${text}`).toContain(text);
   }
+  expect(section).toContain("/services/taichung-citywide-laundry-pickup.html");
   expect(section).not.toContain("<img");
 }
 

@@ -286,7 +286,7 @@ def test_x_photo_need():
     msgs, meta = conv.handle_ex(uid2, "多久可以拿")
     blob = flatten(msgs)
     assert meta["intent"] == "faq", meta
-    assert "三到五天" in blob, blob
+    assert "5–7 天" in blob, blob
     assert "您" not in blob, blob
     assert meta["notify_staff"] is False, meta
 
@@ -590,7 +590,7 @@ def test_faq_answers_and_human():
     expected = {
         "會不會洗壞": ["不會硬收", "拍張照"],
         "會不會掉色": ["洗標", "不能只看深淺色就保證"],
-        "要洗多久": ["三到五天", "問櫃台"],
+        "要洗多久": ["5–7 天", "問櫃台"],
         "名牌敢洗嗎": ["看過再收", "拍張照"],
         "怎麼收費": ["水洗價", "價目表"],
     }

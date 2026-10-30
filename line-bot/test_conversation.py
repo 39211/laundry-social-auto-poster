@@ -182,7 +182,7 @@ CASES = [
     ("掉色", "message", "concern", False, ["掉色"]),
     ("趕時間", "message", "concern", True, ["趕"]),  # 現有 urgent 路徑會通知店員
     ("發霉", "message", "concern", False, ["發霉"]),
-    ("要洗多久", "message", "faq", False, ["三到五天"]),
+    ("要洗多久", "message", "faq", False, ["5–7 天"]),
     ("襯衫", "message", "quote", False, ["襯衫", "70"]),
     ("名牌包", "message", "quote", False, ["名牌包", "1500"]),
     # R1 新品名
@@ -231,7 +231,7 @@ CASES = [
     ("T-shirt", "message", "fallback", False, ["不太確定"]),
     ("洗特殊類名牌包多少錢", "message", "quote", False, ["特殊類名牌包", "2500"]),
     ("到門口了", "message", "in_store", True, ["櫃台"]),
-    ("你們幾點收件", "message", "hours_day", False, ["收送時間跟營業時間一樣"]),
+    ("你們幾點收件", "message", "hours_day", False, ["營業時間內約"]),
     ("拍照問價", "message", "photo_quote", False, ["拍給我看", "髒的地方"]),  # T1 主句
 ]
 
@@ -877,7 +877,7 @@ def test_m7_arrived_and_pickup_hours():
         _ALL_MSGS.append((f"m7:{text}", msgs))
         blob = flatten(msgs)
         assert meta["intent"] == "hours_day", (text, meta, blob)
-        assert "收送時間跟營業時間一樣" in blob, blob
+        assert "營業時間內約" in blob, blob
         assert "地址" not in blob
 
 
@@ -1421,7 +1421,7 @@ def test_z1_faq_no_nin_welcome_price_keep():
     m3, _ = conv.handle_ex(uid, "多久可以拿")
     flow = json.dumps(m1 + m2 + m3, ensure_ascii=False)
     assert "您" not in flow, flow
-    assert "三到五天" in flow, flow
+    assert "5–7 天" in flow, flow
 
     freeze_now("2026-09-05T23:00")
     try:

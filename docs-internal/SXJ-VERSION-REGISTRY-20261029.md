@@ -131,3 +131,10 @@ ight_handover.py + egister-night-handover-task.ps1(20:05)。待部署到現役 
 - **FB slot 1 沒發**:`data/scheduled-log/2026-10-30.json` 兩槽都是 10/27 23:14 schedule-ahead 寫下的 `uncertain`(「Missing or invalid image file」= 當時圖 404),狀態黏住「Not retrying」→ post-current-slot 直接沿用 uncertain 不發。11/01 兩槽同樣(10/29 21:40 寫的);10/28 也是。10/31 沒有 scheduled-log(10/28 的 schedule-ahead 沒產出)→ 明天 FB 會走直接發布。
 - Graph API 唯讀查證:Page `scheduled_posts` = 0 筆(所以「可能已排程」是假警報);Page feed 最後一篇自動貼文 10/26 11:30,10/29 17:28 一篇(推測店主手發)。
 - 解法(D10 待店主):把 10/30、11/01 的 FB uncertain 列清掉,讓 catch-up(12:00/14:00/20:30)或我手動 `post-current-slot --slot 1` 補發 FB;IG 已發同內容。
+
+## 10/30 12:55 店主拍板後(D9=A、D10=A)
+- **排程已註冊(ai)**:`Laundry-LINE-Night-Handover` 每日 20:05(venv python `night_handover.py`;`--status` GET 正常、`--dry-run` 判 day);`LineBot-PullShopMdb` 每日 10:30–19:30 每 30 分(19 個 trigger,ExecutionTimeLimit 4 分,MultipleInstances IgnoreNew)。`register-mdb-pull-task.ps1` 要帶 `-PullScript <絕對路徑>`,`$PSScriptRoot` 在 param 預設值為空。
+- **FB uncertain 已清**:備份 `D:\AI-Lanes-work\_backups\fb-uncertain-clear-20261030\`(scheduled-log 10/30 為重建版、11/01 原檔、posted-log 10/30 原檔);`data/scheduled-log/2026-10-30.json`、`2026-11-01.json` 改為 `[]`,`posted-log/2026-10-30.json` 移除 FB uncertain 列。跑 `scripts/catchup-publish.ps1` → **FB slot1 12:54 發出 post 102911372343400_1119587520824396**(Graph API feed 已見)。slot2 20:30 自動。
+- 12:04 catch-up 有「Publish alert delivered via staff_notify for 2026-10-29」:既有告警機制已把 10/29 缺發通知推到店員群(非 A7)。
+- 自動檢查點:20:12 驗夜間接手、20:40 驗 slot2 與夜間狀態(本 session send_later)。
+- 尚未做(等拍板):B3 週一 08:00、A5 03:30 排程註冊(屬持久化,一併等 D3/D4 時問);A3-2 店機部署;A7 部署;A8-2 修部署腳本(路徑引號 + 不等孫程序 + 等 tick Ready + 測試重跑一次)。

@@ -2,8 +2,14 @@
 """Execute a slot-image-plan through the hermes xAI (Grok Imagine) plugin.
 
 This is the formal version of the hand-run 2026-08-24 D+3 batch: the subscription
-OAuth route (hermes plugin resolves xai-oauth pool -> auth.json -> XAI_API_KEY),
-hero-then-edits identity locking, and a 4:5 center-crop to 1080x1350 PNG.
+OAuth route, hero-then-edits identity locking, and a 4:5 center-crop to
+1080x1350 PNG.
+
+Subscription only: hermes' resolver tries the xai-oauth pool first and then
+falls back to XAI_API_KEY (including ~/.hermes/.env), which is separately billed
+API usage that daily-automation policy forbids. The plugin would take that
+fallback silently, so the route is checked before every generation call and
+anything other than xai-oauth fails the slot instead.
 
 Decision-free by design: WHICH files to generate, WHICH prompt certifies each
 file, and the guard suffix all come from the plan JSON written by
@@ -31,6 +37,9 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 
 HERMES_AGENT_DIR = r"C:\Users\cyc39\AppData\Local\hermes\hermes-agent"
+# `provider` value hermes' resolve_xai_http_credentials() returns for the
+# subscription pool; the billed XAI_API_KEY fallback reports "xai".
+SUBSCRIPTION_ROUTE = "xai-oauth"
 
 # Grok's edit endpoint follows the source image's ratio, and 3:4 loses less to
 # the 4:5 crop than 9:16 portrait would. Same choice the accepted 08-24 batch
@@ -76,9 +85,24 @@ def to_45(src: Path, dest: Path) -> None:
     im.save(dest, "PNG")
 
 
+def assert_subscription_route() -> None:
+    """Raise unless hermes would authenticate with the xai-oauth subscription pool.
+
+    A resolver without a `provider` field cannot prove the route, so it is
+    refused too: failing a slot is recoverable, an unapproved bill is not.
+    """
+    from tools.xai_http import resolve_xai_http_credentials
+
+    route = str(resolve_xai_http_credentials().get("provider") or "").strip()
+    if route != SUBSCRIPTION_ROUTE:
+        raise RuntimeError(f"non-OAuth xAI credential refused (route={route or 'unknown'})")
+
+
 def generate_with_retry(provider, prompt: str, *, image_url=None, attempts: int = 2):
     last_error = None
     for attempt in range(1, attempts + 1):
+        # Outside the try: a refused route must fail the slot, not be retried.
+        assert_subscription_route()
         try:
             if image_url is None:
                 result = provider.generate(prompt, aspect_ratio=GEN_ASPECT)
@@ -125,6 +149,13 @@ def main() -> int:
             print("FATAL no xAI credentials available to the hermes plugin", flush=True)
             failed.append({"slot": 0, "reason": "no xAI credentials (hermes OAuth pool / auth.json / XAI_API_KEY all empty)"})
             items = []
+        else:
+            try:
+                assert_subscription_route()
+            except RuntimeError as exc:
+                print(f"FATAL {exc}", flush=True)
+                failed.append({"slot": 0, "reason": str(exc)})
+                items = []
 
     slots = sorted({item["slot"] for item in items})
     for slot in slots:

@@ -1,0 +1,495 @@
+TEST_ONLY ATOMIC_REPLACE_SHIM: temporary copy uses file copies; native atomicity is NOT validated.
+CASE_OK name=advance-first-pending-only date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=attempt-result-and-log 
+CASE_OK name=tokens-redacted 
+CASE_OK name=queue-backup-preserves-before-completion 
+CASE_OK name=same-day-second-run-blocked An entry was already attempted today; no action.
+CASE_OK name=next-day-advances-cmd-stub date=2026-10-27 slot=1 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-27 --slot 1 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=both-success-no-publish-before-date-check date=2026-10-26 slot=2 already_success=true; continue.
+No pending backfill entries; no action.
+CASE_OK name=date-skip-today date=2026-10-26 slot=2 date_check=skip hits=今天
+No pending backfill entries; no action.
+CASE_OK name=date-skip-today-formal date=2026-10-26 slot=2 date_check=skip hits=今日
+No pending backfill entries; no action.
+CASE_OK name=date-skip-tomorrow date=2026-10-26 slot=2 date_check=skip hits=明天
+No pending backfill entries; no action.
+CASE_OK name=date-skip-yesterday date=2026-10-26 slot=2 date_check=skip hits=昨天
+No pending backfill entries; no action.
+CASE_OK name=date-skip-monday date=2026-10-26 slot=2 date_check=skip hits=週一
+No pending backfill entries; no action.
+CASE_OK name=date-skip-sunday date=2026-10-26 slot=2 date_check=skip hits=週日
+No pending backfill entries; no action.
+CASE_OK name=date-skip-weekday date=2026-10-26 slot=2 date_check=skip hits=星期三
+No pending backfill entries; no action.
+CASE_OK name=date-skip-this-week date=2026-10-26 slot=2 date_check=skip hits=本週
+No pending backfill entries; no action.
+CASE_OK name=date-skip-this-week-alt date=2026-10-26 slot=2 date_check=skip hits=這週
+No pending backfill entries; no action.
+CASE_OK name=date-skip-slash-date date=2026-10-26 slot=2 date_check=skip hits=10/26
+No pending backfill entries; no action.
+CASE_OK name=date-skip-chinese-date date=2026-10-26 slot=2 date_check=skip hits=10月29日
+No pending backfill entries; no action.
+CASE_OK name=date-skip-iso-date date=2026-10-26 slot=2 date_check=skip hits=2026-10-26
+No pending backfill entries; no action.
+CASE_OK name=date-skip-worship-monday date=2026-10-26 slot=2 date_check=skip hits=禮拜一
+No pending backfill entries; no action.
+CASE_OK name=date-skip-weekend date=2026-10-26 slot=2 date_check=skip hits=週末
+No pending backfill entries; no action.
+CASE_OK name=date-skip-next-week date=2026-10-26 slot=2 date_check=skip hits=下週
+No pending backfill entries; no action.
+CASE_OK name=date-skip-tonight date=2026-10-26 slot=2 date_check=skip hits=今晚
+No pending backfill entries; no action.
+CASE_OK name=date-skip-day-after date=2026-10-26 slot=2 date_check=skip hits=後天
+No pending backfill entries; no action.
+CASE_OK name=date-skip-chinese-date-colloquial date=2026-10-26 slot=2 date_check=skip hits=10月26號
+No pending backfill entries; no action.
+CASE_OK name=date-skip-fullwidth-date date=2026-10-26 slot=2 date_check=skip hits=10／26
+No pending backfill entries; no action.
+CASE_OK name=date-skip-october date=2026-10-26 slot=2 date_check=skip hits=十月
+No pending backfill entries; no action.
+CASE_OK name=date-skip-halloween date=2026-10-26 slot=2 date_check=skip hits=萬聖
+No pending backfill entries; no action.
+CASE_OK name=date-skip-worship-tuesday date=2026-10-26 slot=2 date_check=skip hits=禮拜二
+No pending backfill entries; no action.
+CASE_OK name=date-skip-worship-wednesday date=2026-10-26 slot=2 date_check=skip hits=禮拜三
+No pending backfill entries; no action.
+CASE_OK name=date-skip-worship-thursday date=2026-10-26 slot=2 date_check=skip hits=禮拜四
+No pending backfill entries; no action.
+CASE_OK name=date-skip-worship-friday date=2026-10-26 slot=2 date_check=skip hits=禮拜五
+No pending backfill entries; no action.
+CASE_OK name=date-skip-worship-saturday date=2026-10-26 slot=2 date_check=skip hits=禮拜六
+No pending backfill entries; no action.
+CASE_OK name=date-skip-worship-sunday date=2026-10-26 slot=2 date_check=skip hits=禮拜日
+No pending backfill entries; no action.
+CASE_OK name=date-skip-worship-sky date=2026-10-26 slot=2 date_check=skip hits=禮拜天
+No pending backfill entries; no action.
+CASE_OK name=date-skip-weekend-alt date=2026-10-26 slot=2 date_check=skip hits=周末
+No pending backfill entries; no action.
+CASE_OK name=date-skip-last-week date=2026-10-26 slot=2 date_check=skip hits=上週
+No pending backfill entries; no action.
+CASE_OK name=date-skip-last-week-alt date=2026-10-26 slot=2 date_check=skip hits=上周
+No pending backfill entries; no action.
+CASE_OK name=date-skip-next-week-alt date=2026-10-26 slot=2 date_check=skip hits=下周
+No pending backfill entries; no action.
+CASE_OK name=date-skip-this-morning date=2026-10-26 slot=2 date_check=skip hits=今早
+No pending backfill entries; no action.
+CASE_OK name=date-skip-tomorrow-morning date=2026-10-26 slot=2 date_check=skip hits=明早
+No pending backfill entries; no action.
+CASE_OK name=date-skip-tomorrow-night date=2026-10-26 slot=2 date_check=skip hits=明晚
+No pending backfill entries; no action.
+CASE_OK name=date-skip-day-before date=2026-10-26 slot=2 date_check=skip hits=前天
+No pending backfill entries; no action.
+CASE_OK name=nested-first-comment-skipped date=2026-10-26 slot=2 date_check=skip hits=10/28
+No pending backfill entries; no action.
+CASE_OK name=dry-run-zero-writes date=2026-10-26 slot=2 date_check=pass hits=
+DryRun action=publish
+CASE_OK name=default-root-dry-run-zero-writes date=2026-10-26 slot=2 date_check=pass hits=
+DryRun action=publish
+CASE_OK name=dry-run-date-skip-zero-writes date=2026-10-26 slot=2 date_check=skip hits=10/27
+DryRun action=skip
+CASE_OK name=npm-failure-failed-no-retry date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=9
+Backfill failed: npm exit=9; facebook=failed; instagram=failed; no automatic retry.
+CASE_OK name=posted-log-required-uncertain date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill failed: npm exit=0; facebook=success; instagram=uncertain; no automatic retry.
+CASE_OK name=posted-log-required-missing date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill failed: npm exit=0; facebook=missing; instagram=missing; no automatic retry.
+CASE_OK name=posted-log-required-partial date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill failed: npm exit=0; facebook=success; instagram=missing; no automatic retry.
+CASE_OK name=existing-uncertain-needs-human date=2026-10-26 slot=2 date_check=pass hits=
+Existing uncertain posted-log; no publish, no automatic retry.
+CASE_OK name=dry-records-do-not-count date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=posted-log-verdict-stderr date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+fake stderr diagnostic
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=posted-log-verdict-nonzero-success date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=9
+Backfill done: facebook=success instagram=success.
+CASE_OK name=empty-queue-exit-zero No pending backfill entries; no action.
+CASE_OK name=stop-preview-zero-writes Owner stop: pending=2; dry_run=True
+CASE_OK name=stop-all-pending-only Disabled scheduled task Laundry-Backfill-1600.
+Owner stop: pending=2; dry_run=False
+CASE_OK name=stopped-queue-no-publish No pending backfill entries; no action.
+CASE_OK name=stop-before-claim-prevents-publish date=2026-10-26 slot=2 date_check=pass hits=
+Selected entry stopped, claimed, or daily budget consumed; no publish.
+CASE_OK name=stop-preserved-when-attempt-completes date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+Disabled scheduled task Laundry-Backfill-1600.
+Owner stop: pending=1; dry_run=False
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=mutex-unavailable-exit-75 date=2026-10-26 slot=2 date_check=pass hits=
+mutex busy: sxj-publish
+CASE_OK name=mutex-released-after-failure date=2026-10-26 slot=2 date_check=pass hits=
+mutex enter: sxj-publish
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=9
+Backfill failed: npm exit=9; facebook=failed; instagram=failed; no automatic retry.
+mutex exit: fixture-owned-mutex
+CASE_OK name=mutex-contract-false date=2026-10-26 slot=2 date_check=pass hits=
+Pipeline mutex unavailable; exit 75, no publish.
+CASE_OK name=mutex-contract-true date=2026-10-26 slot=2 date_check=pass hits=
+Pipeline mutex unavailable; exit 75, no publish.
+CASE_OK name=mutex-contract-null date=2026-10-26 slot=2 date_check=pass hits=
+Pipeline mutex unavailable; exit 75, no publish.
+CASE_OK name=mutex-contract-throw date=2026-10-26 slot=2 date_check=pass hits=
+Pipeline mutex unavailable: fixture unavailable
+CASE_OK name=mutex-contract-missing-timeout date=2026-10-26 slot=2 date_check=pass hits=
+A7 lock contract mismatch; no publish.
+CASE_OK name=mutex-contract-missing-enter date=2026-10-26 slot=2 date_check=pass hits=
+A7 lock contract mismatch; no publish.
+CASE_OK name=mutex-contract-load-throw date=2026-10-26 slot=2 date_check=pass hits=
+Lock library load failed: fixture load failed
+CASE_OK name=mutex-contract-syntax-error date=2026-10-26 slot=2 date_check=pass hits=
+Lock library load failed: 位於 C:\Users\cyc39\AppData\Local\Temp\a9-backfill-86b513bf5b504513baf8c1a72934c15e\mutex-syntax-error\scripts\_pipeline-lock.ps1:1 字元:38
++ function Enter-PipelineMutex { param(
++                                      ~
+函數參數清單中遺失 ')'。
+
+位於 C:\Users\cyc39\AppData\Local\Temp\a9-backfill-86b513bf5b504513baf8c1a72934c15e\mutex-syntax-error\scripts\_pipeline-lock.ps1:1 字元:30
++ function Enter-PipelineMutex { param(
++                              ~
+陳述式區塊或類型定義中缺少 '}'。
+CASE_OK name=mutex-contract-missing-exit date=2026-10-26 slot=2 date_check=pass hits=
+A7 lock contract mismatch; no publish.
+CASE_OK name=daily-budget-rechecked-after-mutex date=2026-10-26 slot=2 date_check=pass hits=
+An entry was already attempted today after mutex; no action.
+fixture released
+CASE_OK name=daily-done-blocks-without-queue-change An entry was already attempted today; no action.
+CASE_OK name=daily-failed-blocks-without-queue-change An entry was already attempted today; no action.
+CASE_OK name=skip-does-not-consume-day date=2026-10-26 slot=2 date_check=skip hits=10/26
+date=2026-10-27 slot=1 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-27 --slot 1 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=already-done-does-not-consume-day date=2026-10-26 slot=2 already_success=true; continue.
+date=2026-10-27 slot=1 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-27 --slot 1 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=scan-field-hashtags date=2026-10-26 slot=2 date_check=skip hits=週末
+No pending backfill entries; no action.
+CASE_OK name=scan-field-title date=2026-10-26 slot=2 date_check=skip hits=10/26
+No pending backfill entries; no action.
+CASE_OK name=scan-field-cta date=2026-10-26 slot=2 date_check=skip hits=10/26
+No pending backfill entries; no action.
+CASE_OK name=scan-field-body date=2026-10-26 slot=2 date_check=skip hits=10/26
+No pending backfill entries; no action.
+CASE_OK name=scan-field-text date=2026-10-26 slot=2 date_check=skip hits=10/26
+No pending backfill entries; no action.
+CASE_OK name=scan-field-comment date=2026-10-26 slot=2 date_check=skip hits=10/26
+No pending backfill entries; no action.
+CASE_OK name=scan-field-pinned_comment date=2026-10-26 slot=2 date_check=skip hits=10/26
+No pending backfill entries; no action.
+CASE_OK name=scan-field-nested date=2026-10-26 slot=2 date_check=skip hits=10/26
+No pending backfill entries; no action.
+CASE_OK name=excluded-metadata-not-scanned date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=dictionary-recursion-and-exclusions 
+CASE_OK name=dry-run-string-false date=2026-10-26 slot=2 already_success=true; continue.
+No pending backfill entries; no action.
+CASE_OK name=dry-run-string-true date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=partial-success-invokes-once-stub-skips-recorded-facebook date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=corrupt-queue-90 Backfill error: Queue must be a JSON array.
+CASE_OK name=corrupt-queue-91 Backfill error: 傳入了無效的物件，必須有 ':' 或 '}'。 (9): [{"date":
+CASE_OK name=corrupt-queue-92 Backfill error: Queue must be a JSON array.
+CASE_OK name=dry-run-seed-fallback-zero-writes date=2026-10-26 slot=2 date_check=pass hits=
+DryRun action=publish
+CASE_OK name=first-run-copies-seed-runtime-only date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+
+stderr:
+
+npm exit_code=0
+Backfill done: facebook=success instagram=success.
+CASE_OK name=stop-disables-only-named-task 
+CASE_OK name=disable-failure-logged-stop-persists Scheduled task disable failed: fixture disable failure
+Owner stop: pending=2; dry_run=False
+CASE_OK name=timeout-fails-minus-one-and-preserves-partial-output date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+taskkill exit_code=-1: ERROR: Access denied
+stdout:
+fake publisher output
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+[REDACTED]
+partial stdout before timeout
+
+stderr:
+partial stderr before timeout
+
+npm timed out after 5s; tree kill unconfirmed; commander reconciliation required; exit_code=-1.
+Backfill failed: npm exit=-1; facebook=missing; instagram=missing; no automatic retry.
+CASE_BLOCKED name=timeout-kills-publisher-and-grandchild-tree native taskkill denied; natural exit is not kill proof.
+CASE_OK name=timeout-no-same-day-retry An entry was already attempted today; no action.
+CASE_OK name=inherited-stdout-pipe-bounded date=2026-10-26 slot=2 date_check=pass hits=
+Running npm run post-current-slot -- --date 2026-10-26 --slot 2 --live
+stdout:
+[stdout not closed]
+stderr:
+partial stderr before timeout
+
+npm exit_code=0
+Backfill failed: npm exit=0; facebook=missing; instagram=missing; no automatic retry.
+CASE_OK name=bad-calendar-no-publish Backfill error: 傳入了無效的物件，必須有 ':' 或 '}'。 (6): {bad json
+CASE_OK name=bad-posted-no-publish Backfill error: posted-log must be a JSON array.
+CASE_OK name=registrar-whatif-no-registration What if: Performing the operation "Register scheduled task" on target "Laundry-Backfill-1600; daily=16:00; first=2026-10-31; last=2026-11-06; user=AI\cyc39; Interactive; Limited; limit=15m; IgnoreNew; root=C:\Users\cyc39\AppData\Local\Temp\a9-backfill-86b513bf5b504513baf8c1a72934c15e\registrar-whatif".
+CASE_OK name=registrar-existing-refused REGISTRAR_ERROR: Laundry-Backfill-1600 already exists; refusing to replace it.
+CASE_OK name=registrar-mocked-contract-capture Registered: Laundry-Backfill-1600; daily=16:00; first=2026-10-31; last=2026-11-06; user=AI\cyc39; Interactive; Limited; limit=15m; IgnoreNew; root=C:\Users\cyc39\AppData\Local\Temp\a9-backfill-86b513bf5b504513baf8c1a72934c15e\registrar-capture
+CASE_OK name=registrar-mocked-contract-default-root Registered: Laundry-Backfill-1600; daily=16:00; first=2026-10-31; last=2026-11-06; user=AI\cyc39; Interactive; Limited; limit=15m; IgnoreNew; root=C:\Users\cyc39\AppData\Local\Temp\a9-backfill-86b513bf5b504513baf8c1a72934c15e\registrar-default-root
+CASE_OK name=registrar-mocked-contract-late WARNING: Registered after first slot; fewer than 7 runs remain.
+Registered: Laundry-Backfill-1600; daily=16:00; first=2026-10-31; last=2026-11-06; user=AI\cyc39; Interactive; Limited; limit=15m; IgnoreNew; root=C:\Users\cyc39\AppData\Local\Temp\a9-backfill-86b513bf5b504513baf8c1a72934c15e\registrar-late
+CASE_OK name=registrar-expired-refused REGISTRAR_ERROR: The approved seven-day backfill window has ended.
+SMOKE_BEHAVIOR_PARTIAL cases=108 failures=0 blocked=1 native_atomic_replace=NOT_VALIDATED
+
+EXIT_CODE=2

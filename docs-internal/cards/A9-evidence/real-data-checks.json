@@ -1,0 +1,148 @@
+{
+  "source_root": "C:\\Users\\cyc39\\laundry-repo",
+  "worktree_root": "C:\\Users\\cyc39\\AI-Lanes\\a9\\repo",
+  "source_before": {
+    "data\\content-calendar\\2026-10-26.json": {
+      "sha256": "72f2ab25f9d430ea3cec0008f17f3962e610f6c3388cc490b6b1784f4d875413",
+      "bytes": 18837,
+      "mtime_ns": 1792684118387673200
+    },
+    "data\\content-calendar\\2026-10-27.json": {
+      "sha256": "e4b52dc82ec1de5dee59edc34f3e36d62c11285453da0f5dcecc589d1971f2c2",
+      "bytes": 27913,
+      "mtime_ns": 1792794897864805300
+    },
+    "data\\content-calendar\\2026-10-28.json": {
+      "sha256": "cfa62072a83cebdf870402af59ece0b95ed9c17222aeee9d0ae09fa917cb2001",
+      "bytes": 18816,
+      "mtime_ns": 1792881008804227900
+    },
+    "data\\content-calendar\\2026-10-29.json": {
+      "sha256": "25c956c811d160e31d1b05e01b0adeafd609ee4d0fe1115cbaeb5fd5f946f9a3",
+      "bytes": 27944,
+      "mtime_ns": 1792967408733357500
+    },
+    "data\\posted-log\\2026-10-26.json": {
+      "sha256": "36c1c08aefe429d9f22b7c3747fd4dab50942ea444ced8201189c5a2d6aeb91d",
+      "bytes": 597,
+      "mtime_ns": 1792985422653439800
+    },
+    "data\\posted-log\\2026-10-27.json": null,
+    "data\\posted-log\\2026-10-28.json": null,
+    "data\\posted-log\\2026-10-29.json": null
+  },
+  "source_after": {
+    "data\\content-calendar\\2026-10-26.json": {
+      "sha256": "72f2ab25f9d430ea3cec0008f17f3962e610f6c3388cc490b6b1784f4d875413",
+      "bytes": 18837,
+      "mtime_ns": 1792684118387673200
+    },
+    "data\\content-calendar\\2026-10-27.json": {
+      "sha256": "e4b52dc82ec1de5dee59edc34f3e36d62c11285453da0f5dcecc589d1971f2c2",
+      "bytes": 27913,
+      "mtime_ns": 1792794897864805300
+    },
+    "data\\content-calendar\\2026-10-28.json": {
+      "sha256": "cfa62072a83cebdf870402af59ece0b95ed9c17222aeee9d0ae09fa917cb2001",
+      "bytes": 18816,
+      "mtime_ns": 1792881008804227900
+    },
+    "data\\content-calendar\\2026-10-29.json": {
+      "sha256": "25c956c811d160e31d1b05e01b0adeafd609ee4d0fe1115cbaeb5fd5f946f9a3",
+      "bytes": 27944,
+      "mtime_ns": 1792967408733357500
+    },
+    "data\\posted-log\\2026-10-26.json": {
+      "sha256": "36c1c08aefe429d9f22b7c3747fd4dab50942ea444ced8201189c5a2d6aeb91d",
+      "bytes": 597,
+      "mtime_ns": 1792985422653439800
+    },
+    "data\\posted-log\\2026-10-27.json": null,
+    "data\\posted-log\\2026-10-28.json": null,
+    "data\\posted-log\\2026-10-29.json": null
+  },
+  "source_unchanged": true,
+  "queue_unchanged": true,
+  "dry_run_logs_unchanged": true,
+  "audit": [
+    {
+      "date": "2026-10-26",
+      "slot": 2,
+      "date_check": "pass",
+      "hits": "",
+      "text_fields": [
+        "instagram_caption",
+        "facebook_caption"
+      ],
+      "dry_run_zero_writes": true
+    },
+    {
+      "date": "2026-10-27",
+      "slot": 1,
+      "date_check": "pass",
+      "hits": "",
+      "text_fields": [
+        "instagram_caption",
+        "facebook_caption"
+      ],
+      "dry_run_zero_writes": true
+    },
+    {
+      "date": "2026-10-27",
+      "slot": 2,
+      "date_check": "pass",
+      "hits": "",
+      "text_fields": [
+        "instagram_caption",
+        "facebook_caption"
+      ],
+      "dry_run_zero_writes": true
+    },
+    {
+      "date": "2026-10-28",
+      "slot": 1,
+      "date_check": "pass",
+      "hits": "",
+      "text_fields": [
+        "instagram_caption",
+        "facebook_caption"
+      ],
+      "dry_run_zero_writes": true
+    },
+    {
+      "date": "2026-10-28",
+      "slot": 2,
+      "date_check": "pass",
+      "hits": "",
+      "text_fields": [
+        "instagram_caption",
+        "facebook_caption"
+      ],
+      "dry_run_zero_writes": true
+    },
+    {
+      "date": "2026-10-29",
+      "slot": 1,
+      "date_check": "pass",
+      "hits": "",
+      "text_fields": [
+        "instagram_caption",
+        "facebook_caption"
+      ],
+      "dry_run_zero_writes": true
+    },
+    {
+      "date": "2026-10-29",
+      "slot": 2,
+      "date_check": "pass",
+      "hits": "",
+      "text_fields": [
+        "instagram_caption",
+        "facebook_caption"
+      ],
+      "dry_run_zero_writes": true
+    }
+  ],
+  "default_root_entry_point": true,
+  "script_sha256": "4abe15dca5bed1dc35d9698e5d3710c66c5ccfaa8c7cdecf96d4518a57cdb6c0"
+}

@@ -1,0 +1,7 @@
+{
+  "source": "data\\content-calendar\\2026-10-27.json",
+  "source_sha256": "e4b52dc82ec1de5dee59edc34f3e36d62c11285453da0f5dcecc589d1971f2c2",
+  "fixture": "test\\fixtures\\backfill-calendar-2026-10-27.json",
+  "method": "Exact JSON keys, nesting, array lengths and value types copied from source; strings replaced with synthetic text, date and timezone restored.",
+  "source_unchanged": true
+}

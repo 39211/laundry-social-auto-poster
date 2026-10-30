@@ -1,0 +1,11 @@
+﻿Split-Path : Cannot bind argument to parameter 'Path' because it is an empty string.
+At C:\Users\cyc39\AI-Lanes\a9\repo\scripts\backfill-publish.ps1:3 char:45
++     [string]$RootPath = (Split-Path -Parent $PSScriptRoot),
++                                             ~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidData: (:) [Split-Path], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : ParameterArgumentValidationErrorEmptyStringNotAllowed,Microsoft.PowerShell.Commands.Spli 
+   tPathCommand
+ 
+EXIT_CODE=1
+QUEUE_AND_LOG_PATHS_UNCHANGED=True
+QUEUE_SIDECAR_EXISTS=False

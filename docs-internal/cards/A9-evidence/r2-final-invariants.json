@@ -1,0 +1,9 @@
+{
+  "seed_entries": 7,
+  "seed_all_pending": true,
+  "order_matches_card": true,
+  "runtime_queue_absent": true,
+  "legacy_queue_absent": true,
+  "root_gitignore_no_diff_verified": true,
+  "audit_fixture_source_sha": "e4b52dc82ec1de5dee59edc34f3e36d62c11285453da0f5dcecc589d1971f2c2"
+}

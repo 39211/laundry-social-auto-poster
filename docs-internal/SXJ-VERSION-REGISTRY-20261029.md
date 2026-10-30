@@ -138,3 +138,21 @@ ight_handover.py + egister-night-handover-task.ps1(20:05)。待部署到現役 
 - 12:04 catch-up 有「Publish alert delivered via staff_notify for 2026-10-29」:既有告警機制已把 10/29 缺發通知推到店員群(非 A7)。
 - 自動檢查點:20:12 驗夜間接手、20:40 驗 slot2 與夜間狀態(本 session send_later)。
 - 尚未做(等拍板):B3 週一 08:00、A5 03:30 排程註冊(屬持久化,一併等 D3/D4 時問);A3-2 店機部署;A7 部署;A8-2 修部署腳本(路徑引號 + 不等孫程序 + 等 tick Ready + 測試重跑一次)。
+
+## 10/30 20:10 晚班
+- 店主 19:50 拍板 4 題:D1=C(7 篇全補,10/31 起每天 16:00 一篇)、D3=A(A3-2 部署;因 19:50 才收到、店機 20:00 關機 → 改 10/31 10:32)、D4/D5=今晚 21:00 後部署 A7、告警推店員群、B3/A5 排程都註冊。
+- 已註冊 `Laundry-Weekly-Report`(週一 08:00,下次 11/2)與 `SXJ-Live-Daily-Backup`(03:30;註冊腳本預設 SYSTEM/Highest 需管理員,改以 current user + Limited 註冊,備份不需要管理員);A5 先手動跑一次:`D:\AI-Lanes-work\_backups\sxj-live\20261030-1952` 2207 檔 Verified=True。
+- **夜間接手實測**:20:05:02 `Laundry-LINE-Night-Handover` 跑了,`webhook_update` PUT 200 verify match(ai 網址)。但店機 20:06 還開著,其隧道換網址後 supervisor 又 PUT 回 lhr.life → ai 被蓋掉。原設計只在 20:05 跑一次,店機晚關機就會留下整夜死端點。**已把該排程改成 20:05 起每 15 分重跑到 09:55**(night_handover 是冪等的:endpoint 已是 ai → `already_ai` 不 PUT;白天 → `day_window` 不 PUT)。店機關機後最多 15 分鐘 ai 接手。
+- A9 補發排程器卡已派 Codex(worktree `C:\Users\cyc39\AI-Lanes\a9\repo`,branch feat/a9-backfill-scheduler),20:00 開工。
+- 自動檢查點:20:40 slot2 + 夜間狀態;21:00 A7 部署;10/31 10:32 A3-2 店機部署。
+
+## 10/30 21:15 晚班(店主 20:30 指示:剩餘幾天「先用完 API 額度不用計算」;所有產碼/設計/審查改走 Anthropic API,我只做執行與驗證)
+- **API 已開始用**(`C:\Users\cyc39\AI-Lanes\claude-api\claude_api.py`,Opus 5.5):今晚 6 筆,約 US$6。教訓:`--effort high` + 大任務 → 64000 token 全被 thinking 吃掉、答案空白(US$1.4 白花);改 `--effort medium --max-tokens 120000`,大任務拆兩段。提示檔與答案都在 `C:\Users\cyc39\AI-Lanes\api-jobs\<job>\`;`api-jobs\extract_files.py` 把 `=== FILE: ===` 區塊落檔。
+- **A8-2 完成並合進 release(a840cb18)**:deploy-ai-linebot.ps1 修四個實戰 bug(Target 一律正規化成 junction、Start 改走 `Start-ScheduledTask Laundry-LINE-Bot` + Probe 輪詢、管線讀取有上限不再卡死、tick-safe window 純函式、離線測試重試一次、回退印 WARNING);`run_line_bot.ps1` 補引號。35 Pester 綠(26 舊 + 9 新),變異「拿掉重試」→ 2 紅。**現役 `run_line_bot.ps1` 已是新版(只差引號)**。
+- **B2-2 完成(feat/b2-attribution @ 46091f1b,未合併未部署)**:`shop-pc/fxwash/runtime/attribution_service.py` + 40 unittest,**在店機 3.11 embedded 實跑 40/40 綠**(`C:\LaundryStores\B2-staging`);`ATTRIBUTION-HOOK.md` 是 webhook_server.py 的接線說明(我之後自己套);`tools/make_attribution_secret.py`、範例 `data/attribution/source-codes.json`。
+- **A4-4 完成(feat/a4-4-shop-night-skip @ 11e6f93a,未部署)**:店機 tunnel_supervisor 夜間(20:00–10:00)不 PUT、寫 `skipped_night`,白天開始時 `day_start_register` 補登;22 測試在店機 3.11 綠;變異「永遠白天」→ 4 紅。**今晚實測到的問題**:店主 21:00 後店機還開著,店機每次換網址就搶回 endpoint,ai 每 15 分搶回(ping-pong,兩邊 bot 都活著所以客人不受影響)。明天 10:32 與 A3-2 一起部署店機。
+- **A2-b 排程 bug 修好**:`LineBot-PullShopMdb` 從 13:00 起每 30 分都 rc=1 無 log —— 排程動作少了 `-ExecutionPolicy Bypass`(機器策略 Restricted)。已改排程動作並手動跑成功(20:44 REPLACED,source_mtime 20:00:08);register 腳本修正已 commit(3b3f335d)。
+- **A7**:release 切換時已在跑(12:04 告警推店員群即證據);現役目錄 smoke 36 案綠;等 21:40 Schedule-Ahead 跑過看 mutex。店主 D4/D5 = 21:00 後 + 推店員群 → 等同已完成。
+- **A9 補發排程器**:Codex r1 完成(43 smoke、變異 14 紅、7 篇文案日期字檢查全 pass);**API 獨立審查 → SHIP WITH FIXES,11 項缺陷**(一天只准一筆、npm timeout + 殺樹、A7 mutex 契約驗證、原子寫隊列、日期字 regex 補台灣用法、掃所有欄位、隊列搬出 git 等)已派 Codex r2(進行中)。審查全文 `docs-internal/cards/A9-REVIEW-r1.md`。
+- 半成品 3 檔已封存 `D:\AI-Lanes-work\_archive\suspect-20261030\`(D7=A)。R11 新 POS:店主說是他另一個專案,本計畫不碰(D6)。
+- B2 其餘卡(待派 API):B2-1 內容端來源碰(contentPlan.ts + 測試,需 Codex 跑 vitest)、B2-3 離線比對匯出器、B2-4 週報 reader。

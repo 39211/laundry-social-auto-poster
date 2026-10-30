@@ -6,6 +6,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import runpy
 import subprocess
@@ -23,6 +24,20 @@ EVENTS = {
     "click_service_from_answer": 1, "click_phone": 1, "click_line_cta": 2,
     "view_article": 4, "click_service_from_article": 1, "line_click": 3,
 }
+MAIN_W44 = "conversions/source-to-order-2026-W44.json"
+MISSING_LINE = "來源→收件：尚無資料（exporter 未產出）"
+
+
+def conv_row(code, inquiries, received=0, pending=0, unknown=0, i7_received=None, confirmed=0, cancelled=0):
+    """Synthetic summary row that satisfies received+pending+unknown+matured == inquiries."""
+    def policy(rec):
+        return {"received_inquiries": rec, "matched_received_pieces": rec, "candidate_only": 0,
+                "pending_window": pending, "unknown_inquiries": unknown,
+                "matured_no_receipt": inquiries - rec - pending - unknown,
+                "status": "complete", "reason_counts": {}}
+    return {"source_code": code, "inquiries": inquiries, "unique_line_users": inquiries,
+            "first_intent_counts": {}, "booking_confirmed": confirmed, "booking_cancelled": cancelled,
+            "I7": policy(received if i7_received is None else i7_received), "B7": policy(received)}
 
 
 class WeeklyReportTests(unittest.TestCase):
@@ -79,7 +94,19 @@ class WeeklyReportTests(unittest.TestCase):
 
     def write(self, name, value):
         path = self.data / name
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+
+    def conversion(self, week="2026-W44", revision=1, as_of="2026-11-01T23:00:00Z", rows=None,
+                   status="complete", **overrides):
+        doc = {"schema_version": 1, "policy_version": "p1", "registry_version": "r1",
+               "cohort_week": week, "timezone": "Asia/Taipei", "as_of": as_of, "revision": revision,
+               "supersedes": revision - 1 if revision > 1 else None, "shop_id": "shop-1",
+               "oa_scope": "oa-1", "pos_source_id": None, "status": status, "window_hours": 168,
+               "coverage": {"pos_completeness": "verified", "gap_intervals": []},
+               "rows": rows if rows is not None else [conv_row("yt-a", 5, received=2, pending=1)]}
+        doc.update(overrides)
+        return doc
 
     def invoke(self, *extra, week="2026-W44", as_of=AS_OF):
         cmd = [sys.executable, "-B", "-X", "utf8", str(SCRIPT), "--data-root", str(self.data),
@@ -92,6 +119,10 @@ class WeeklyReportTests(unittest.TestCase):
         result = self.invoke("--dry-run", *extra, **kwargs)
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout
+
+    @staticmethod
+    def heading(report):
+        return next(line for line in report.splitlines() if line.startswith("### 來源→收件"))
 
     def test_publication_tables_deduplicate_and_separate_scheduled_live_failed(self):
         report = self.report()
@@ -289,6 +320,111 @@ class WeeklyReportTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 2)
         self.assertTrue(occupied.exists(), "A failed exclusive create must not delete somebody else's file")
         self.assertEqual(occupied.read_text(encoding="utf-8"), "pre-existing unrelated content")
+
+    # ----- B2-4: source -> intake aggregate section -----
+
+    def test_conversions_pick_highest_revision_not_after_as_of_and_never_add(self):
+        r1 = self.conversion(revision=1, as_of="2026-11-01T20:00:00Z", rows=[conv_row("yt-a", 3, received=1)])
+        r2 = self.conversion(revision=2, as_of="2026-11-01T23:00:00Z", rows=[conv_row("yt-a", 5, received=2, pending=1)])
+        self.write("conversions/history/source-to-order-2026-W44.r1.json", r1)
+        self.write(MAIN_W44, r2)
+        report = self.report()
+        self.assertIn("第 2 版", self.heading(report))
+        self.assertIn("| yt-a | 5 | 2；待滿窗 1、未知 0 |", report)
+        self.assertNotIn("| yt-a | 8 |", report)
+        self.assertNotIn("| yt-a | 3 |", report)
+        # Revision 3 was exported after the report cut-off (09:00 > 08:00 Taipei): ignored.
+        self.write("conversions/history/source-to-order-2026-W44.r2.json", r2)
+        self.write(MAIN_W44, self.conversion(revision=3, as_of="2026-11-02T01:00:00Z", rows=[conv_row("yt-a", 9, received=4)]))
+        report = self.report()
+        self.assertIn("第 2 版", self.heading(report))
+        self.assertNotIn("第 3 版", report)
+        self.assertIn("| yt-a | 5 | 2；待滿窗 1、未知 0 |", report)
+        self.assertNotIn("| yt-a | 9 |", report)
+
+    def test_conversions_lower_bound_label_and_previous_week(self):
+        self.write(MAIN_W44, self.conversion(status="lower_bound"))
+        self.write("conversions/source-to-order-2026-W43.json",
+                   self.conversion(week="2026-W43", as_of="2026-10-26T01:00:00Z", rows=[conv_row("yt-a", 4)]))
+        heading = self.heading(self.report())
+        self.assertIn("（下限，資料不完整）", heading)
+        self.assertIn("上週詢問 4", heading)
+        self.write(MAIN_W44, self.conversion(status="complete"))
+        self.assertNotIn("（下限，資料不完整）", self.report())
+
+    def test_conversions_missing_file_is_unknown_line_not_zero(self):
+        report = self.report()
+        self.assertIn(MISSING_LINE, report)
+        self.assertNotIn("| 來源碼／內容", report)
+        self.assertNotIn("I7 詢問後七日", report)
+        # Current week present, previous week missing: previous is 未知, never 0.
+        self.write(MAIN_W44, self.conversion())
+        heading = self.heading(self.report())
+        self.assertIn("上週詢問 未知", heading)
+        self.assertNotIn("上週詢問 0", heading)
+
+    def test_conversions_case_states_add_up_and_broken_invariant_is_unknown(self):
+        rows = [conv_row("yt-a", 10, received=3, pending=2, unknown=1, i7_received=4, confirmed=2, cancelled=1),
+                conv_row("unknown", 2, unknown=2)]
+        self.write(MAIN_W44, self.conversion(rows=rows))
+        report = self.report()
+        self.assertIn("| yt-a | 10 | 3；待滿窗 2、未知 1 |", report)
+        self.assertIn("| 未知來源 | 2 | 0；待滿窗 0、未知 2 |", report)
+        self.assertIn("I7 詢問後七日有收件 4；確認預約 2；取消 1", report)
+        match = re.search(r"\| yt-a \| (\d+) \| (\d+)；待滿窗 (\d+)、未知 (\d+) \|", report)
+        inquiries, received, pending, unknown = map(int, match.groups())
+        matured = rows[0]["B7"]["matured_no_receipt"]
+        self.assertEqual(received + pending + unknown + matured, inquiries)
+        rows[0]["B7"]["matured_no_receipt"] += 1
+        self.write(MAIN_W44, self.conversion(rows=rows))
+        report = self.report()
+        self.assertIn("來源→收件：未知", report)
+        self.assertIn("不守恆", report)
+        self.assertNotIn("| yt-a |", report)
+
+    def test_conversions_truncate_to_five_largest_plus_unknown_within_60_lines(self):
+        codes = [f"src-{c}" for c in "abcdefgh"]
+        rows = [conv_row(code, 80 - 10 * i, received=1) for i, code in enumerate(codes)]
+        rows.append(conv_row("unknown", 5, unknown=5))
+        self.write(MAIN_W44, self.conversion(rows=rows))
+        report = self.report()
+        lines = report.splitlines()
+        self.assertLessEqual(len(lines), 60)
+        shown = [line for line in lines if line.startswith("| src-")]
+        self.assertEqual([line.split(" | ")[0] for line in shown], ["| " + code for code in codes[:5]])
+        self.assertIn("| 未知來源 | 5 | 0；待滿窗 0、未知 5 |", report)
+        self.assertIn("（其餘 3 個來源省略）", report)
+        self.assertNotIn("| src-f |", report)
+        # With the extra --llm line the budget shrinks; still capped, unknown kept.
+        report = self.report("--llm")
+        self.assertLessEqual(len(report.splitlines()), 60)
+        self.assertIn("| 未知來源 |", report)
+        self.assertRegex(report, r"（其餘 \d+ 個來源省略）")
+
+    def test_conversions_registry_label_and_fallback(self):
+        self.write(MAIN_W44, self.conversion(rows=[conv_row("yt-a", 5, received=2), conv_row("yt-b", 3),
+                                                   conv_row("unknown", 1, unknown=1)]))
+        report = self.report()
+        self.assertIn("| yt-a | 5 |", report)  # registry missing: code itself
+        self.write("attribution/source-codes.json", {"schema_version": 1, "registry_version": "r1", "entries": [
+            {"source_code": "yt-a", "content_id": "post-2026-10-26-1", "kind": "post", "placements": [],
+             "valid_from": "2026-10-01T00:00:00+08:00", "retired_at": None}]})
+        report = self.report()
+        self.assertIn("| yt-a／post-2026-10-26-1 | 5 |", report)
+        self.assertIn("| yt-b | 3 |", report)
+        self.assertIn("| 未知來源 | 1 |", report)
+
+    def test_conversions_incompatible_schema_is_unknown(self):
+        self.write(MAIN_W44, self.conversion(schema_version=2))
+        report = self.report()
+        self.assertIn("來源→收件：未知（schema_version 不相容", report)
+        self.assertNotIn("| 來源碼／內容", report)
+        self.assertNotIn(MISSING_LINE, report)
+        # Incompatible previous week is 未知 as well.
+        self.write(MAIN_W44, self.conversion())
+        self.write("conversions/source-to-order-2026-W43.json",
+                   self.conversion(week="2026-W43", as_of="2026-10-26T01:00:00Z", schema_version="2.0"))
+        self.assertIn("上週詢問 未知", self.heading(self.report()))
 
     def fingerprints(self):
         return {str(p.relative_to(self.root)): hashlib.sha256(p.read_bytes()).hexdigest()

@@ -6,9 +6,21 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import json
+
 import arrival_notify as A
 import conversation as C
 import laundry_lookup as L
+import tunnel_manager as tm
+
+# A4-6: the shipped weekly hours, pinned so these tests do not depend on the repo file.
+SHOP_HOURS = {
+    "day_start": "10:00",
+    "day_end": "20:00",
+    "days": {"5": ["12:00", "18:00"], "6": None},
+    "night_takeover_delay_min": 5,
+    "tz": "Asia/Taipei",
+}
 
 
 class FreshnessTests(unittest.TestCase):
@@ -20,7 +32,10 @@ class FreshnessTests(unittest.TestCase):
         self.mdb.write_bytes(b"synthetic metadata only")
         self.customers = [{"no": "0028", "phone": "0912345678"}]
         self.pieces = [{"customer_no": "0028", "wash_no": "W1", "status": "stock", "name": "shirt"}]
+        self.config = self.root / "handover.json"
+        self.config.write_text(json.dumps(SHOP_HOURS), encoding="utf-8")
         for patcher in (
+            patch.object(tm, "HANDOVER_CONFIG", self.config),
             patch.object(L, "EHANK_ROOT", self.root),
             patch.object(L, "inventory", return_value=(self.customers, self.pieces, L.EHANK_SOURCE)),
             patch.dict(os.environ, {"LAUNDRY_FRESH_MINUTES": "120", "LAUNDRY_LOOKUP_FIXTURE": "0"}),
@@ -58,7 +73,8 @@ class FreshnessTests(unittest.TestCase):
         self.assertFalse(self.row("2026-10-31T19:30:00+08:00", "2026-11-01T09:59:00+08:00").stale)
 
     def test_day_at_10_ends_night_exception(self):
-        self.assertTrue(self.row("2026-10-30T19:30:00+08:00", "2026-10-31T10:00:00+08:00").stale)
+        # A4-6 fixture update: was Fri 19:30 -> Sat 10:00, but Saturday now opens at 12:00.
+        self.assertTrue(self.row("2026-10-29T19:30:00+08:00", "2026-10-30T10:00:00+08:00").stale)
 
     def test_missing_mtime_holds_and_future_timestamp_is_stale(self):
         self.assertTrue(self.row("2026-10-30T13:00:00+08:00", "2026-10-30T12:00:00+08:00").stale)
@@ -126,3 +142,30 @@ class FreshnessTests(unittest.TestCase):
                 save.assert_not_called()
                 outbox.assert_not_called()
                 send.assert_not_called()
+
+    # ---- A4-6: closing time from the weekly hours ----
+
+    def test_saturday_night_copy_from_1759_is_fresh(self):
+        self.assertFalse(self.row("2026-10-31T17:59:00+08:00", "2026-10-31T21:00:00+08:00").stale)
+
+    def test_saturday_night_copy_before_1700_is_stale(self):
+        self.assertTrue(self.row("2026-10-31T16:59:00+08:00", "2026-10-31T21:00:00+08:00").stale)
+
+    def test_friday_night_copy_from_1759_is_stale(self):
+        self.assertTrue(self.row("2026-10-30T17:59:00+08:00", "2026-10-30T21:00:00+08:00").stale)
+
+    def test_sunday_with_saturday_final_copy_is_fresh(self):
+        self.assertFalse(self.row("2026-10-31T17:59:00+08:00", "2026-11-01T15:00:00+08:00").stale)
+
+    def test_sunday_with_friday_copy_is_stale(self):
+        self.assertTrue(self.row("2026-10-30T17:00:00+08:00", "2026-11-01T15:00:00+08:00").stale)
+
+    def test_monday_before_open_with_saturday_final_copy_is_fresh(self):
+        self.assertFalse(self.row("2026-10-31T17:30:00+08:00", "2026-11-02T09:00:00+08:00").stale)
+
+    def test_saturday_open_hours_use_plain_age_rule(self):
+        self.assertTrue(self.row("2026-10-30T19:30:00+08:00", "2026-10-31T13:00:00+08:00").stale)
+
+    def test_broken_hours_config_fails_safe_to_stale(self):
+        self.config.write_text('{"day_start": "oops"}', encoding="utf-8")
+        self.assertTrue(self.row("2026-10-31T17:59:00+08:00", "2026-10-31T21:00:00+08:00").stale)

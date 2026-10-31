@@ -8,6 +8,7 @@ import unittest
 import urllib.error
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import patch
 
 import tunnel_manager as tm
@@ -16,6 +17,7 @@ from a43_test_support import DEFAULT_CONFIG, TAIPEI, isolated_tunnel_case
 AI_BASE = "https://ai-night-test.trycloudflare.com"
 AI_ENDPOINT = AI_BASE + "/line/webhook"
 SHOP_ENDPOINT = "https://shop-test.lhr.life/line/webhook"
+SHOP_WEEK = dict(DEFAULT_CONFIG, days={"5": ["12:00", "18:00"], "6": None})
 
 
 class Response:
@@ -168,6 +170,67 @@ class WindowTests(IsolatedCase):
         with patch.object(tm, "ZoneInfo", side_effect=ZoneInfoNotFoundError, create=True):
             self.assert_window(datetime(2026, 10, 30, 20, tzinfo=TAIPEI), True)
 
+    # ---- A4-6: weekly hours (2026-10-30 Fri, 10-31 Sat, 11-01 Sun, 11-02 Mon) ----
+
+    def test_saturday_1830_is_night(self):
+        self.assert_window(datetime(2026, 10, 31, 18, 30, tzinfo=TAIPEI), True, SHOP_WEEK)
+
+    def test_saturday_1300_is_day(self):
+        self.assert_window(datetime(2026, 10, 31, 13, 0, tzinfo=TAIPEI), False, SHOP_WEEK)
+
+    def test_sunday_1400_is_night(self):
+        self.assert_window(datetime(2026, 11, 1, 14, 0, tzinfo=TAIPEI), True, SHOP_WEEK)
+
+    def test_monday_1400_is_day(self):
+        self.assert_window(datetime(2026, 11, 2, 14, 0, tzinfo=TAIPEI), False, SHOP_WEEK)
+
+    def test_friday_2030_is_night(self):
+        self.assert_window(datetime(2026, 10, 30, 20, 30, tzinfo=TAIPEI), True, SHOP_WEEK)
+
+    def test_weekly_boundaries(self):
+        cases = [
+            (datetime(2026, 10, 31, 11, 59), True),
+            (datetime(2026, 10, 31, 12, 0), False),
+            (datetime(2026, 10, 31, 17, 59), False),
+            (datetime(2026, 10, 31, 18, 0), True),
+            (datetime(2026, 11, 1, 10, 0), True),
+            (datetime(2026, 11, 2, 9, 59), True),
+            (datetime(2026, 11, 2, 10, 0), False),
+            (datetime(2026, 10, 30, 19, 59), False),
+        ]
+        for moment, night in cases:
+            with self.subTest(moment=moment):
+                self.assert_window(moment.replace(tzinfo=TAIPEI), night, SHOP_WEEK)
+        empty = dict(DEFAULT_CONFIG, days={"6": []})
+        self.assert_window(datetime(2026, 11, 1, 14, 0, tzinfo=TAIPEI), True, empty)
+
+    def test_registration_window_uses_weekday_from_file(self):
+        tm.HANDOVER_CONFIG.write_text(json.dumps(SHOP_WEEK), encoding="utf-8")
+        tm._now.return_value = datetime(2026, 10, 31, 18, 30, tzinfo=TAIPEI)
+        self.assertEqual(tm.registration_window(), "night")
+        tm._now.return_value = datetime(2026, 10, 31, 13, 0, tzinfo=TAIPEI)
+        self.assertEqual(tm.registration_window(), "day")
+
+    def test_invalid_days_value_is_configuration_error(self):
+        bad_values = [None, [], "x", {"7": None}, {"05": None}, {"5": "12:00-18:00"},
+                      {"5": ["12:00"]}, {"5": ["18:00", "12:00"]}, {"5": ["12:00", "12:00"]},
+                      {"5": ["12:00", "24:00"]}, {"5": [12, 18]}, {"5": False},
+                      {"5": ["12:00", "18:00", "19:00"]}]
+        for days in bad_values:
+            with self.subTest(days=days):
+                config = dict(DEFAULT_CONFIG, days=days)
+                tm.HANDOVER_CONFIG.write_text(json.dumps(config), encoding="utf-8")
+                self.assertEqual(tm.registration_window(), "configuration_error")
+                with self.assertRaises(ValueError):
+                    tm.is_night_window(datetime(2026, 10, 31, 13, tzinfo=TAIPEI), config=config)
+
+    def test_shipped_handover_json_has_weekly_overrides(self):
+        path = Path(tm.__file__).resolve().parent / "handover.json"
+        shipped = json.loads(path.read_text(encoding="utf-8-sig"))
+        tm._validate_config(shipped)
+        self.assertEqual(shipped["days"], {"5": ["12:00", "18:00"], "6": None})
+        self.assertEqual((shipped["day_start"], shipped["day_end"]), ("10:00", "20:00"))
+
 
 class PublishingTests(IsolatedCase):
     def test_day_captures_base_without_line_requests(self):
@@ -244,6 +307,76 @@ class PublishingTests(IsolatedCase):
         attempts = [row for row in self.events() if row["event"] == "webhook_update"]
         self.assertEqual([row["put_status"] for row in attempts], [503] * 4)
         self.assertNotIn("test-token", tm.EVENTS_PATH.read_text(encoding="utf-8"))
+
+
+class NightReclaimTests(IsolatedCase):
+    """A4-6: _night_reclaim with fake clock and fake LINE; no network."""
+
+    def setUp(self):
+        super().setUp()
+        self.state = {}
+        tm.HANDOVER_CONFIG.write_text(
+            json.dumps(dict(DEFAULT_CONFIG, night_takeover_delay_min=5)), encoding="utf-8")
+
+    def reclaim(self, now):
+        return tm._night_reclaim(AI_BASE, "test-token", self.state, now, sleep=self.sleeps.append)
+
+    def reclaim_events(self):
+        if not tm.EVENTS_PATH.exists():
+            return []
+        return [row for row in self.events() if row["event"] == "night_reclaim"]
+
+    def test_night_shop_endpoint_gets_one_put_verify_and_event(self):
+        self.clock(21)
+        self.assertEqual(self.reclaim(5000.0), "reclaimed")
+        self.assertEqual(self.http.calls, ["GET", "PUT", "GET"])
+        self.assertEqual(self.http.endpoint, AI_ENDPOINT)
+        events = self.reclaim_events()
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["old_url"], SHOP_ENDPOINT)
+        self.assertEqual(events[0]["new_url"], AI_ENDPOINT)
+        self.assertEqual(events[0]["status"], "updated")
+        self.assertEqual(tm.PENDING_WEBHOOK["base_url"], "")
+
+    def test_night_already_ai_does_not_put(self):
+        self.clock(21)
+        self.http.endpoint = AI_ENDPOINT
+        self.assertEqual(self.reclaim(5000.0), "already_ai")
+        self.assertEqual(self.http.calls, ["GET"])
+        self.assertEqual(self.reclaim_events(), [])
+
+    def test_day_makes_no_get_or_put(self):
+        self.clock(14)
+        self.assertEqual(self.reclaim(5000.0), "day")
+        self.assertEqual(self.http.calls, [])
+        self.token_loader.assert_not_called()
+        self.assertFalse(tm.EVENTS_PATH.exists())
+
+    def test_second_check_inside_900s_is_skipped(self):
+        self.clock(21)
+        self.assertEqual(self.reclaim(5000.0), "reclaimed")
+        self.http.endpoint = SHOP_ENDPOINT
+        calls = list(self.http.calls)
+        self.assertEqual(self.reclaim(5899.0), "skipped")
+        self.assertEqual(self.http.calls, calls)
+        self.assertEqual(self.reclaim(5900.0), "reclaimed")
+        self.assertEqual(self.http.calls, calls + ["GET", "PUT", "GET"])
+
+    def test_waits_takeover_delay_after_closing(self):
+        self.clock(20, 3)
+        self.assertEqual(self.reclaim(5000.0), "takeover_delay")
+        self.assertEqual(self.http.calls, [])
+        self.clock(20, 5)
+        self.assertEqual(self.reclaim(5001.0), "reclaimed")
+
+    def test_saturday_evening_is_reclaimed_and_saturday_noon_is_not(self):
+        tm.HANDOVER_CONFIG.write_text(json.dumps(SHOP_WEEK), encoding="utf-8")
+        tm._now.return_value = datetime(2026, 10, 31, 13, 0, tzinfo=TAIPEI)
+        self.assertEqual(self.reclaim(5000.0), "day")
+        self.assertEqual(self.http.calls, [])
+        tm._now.return_value = datetime(2026, 10, 31, 18, 30, tzinfo=TAIPEI)
+        self.assertEqual(self.reclaim(5001.0), "reclaimed")
+        self.assertEqual(self.http.calls, ["GET", "PUT", "GET"])
 
 
 class NightHandoverTests(IsolatedCase):

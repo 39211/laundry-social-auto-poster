@@ -459,6 +459,63 @@ def test_a45_main_restart_night_puts_new_url():
     assert not [e for e in events if e["event"] == "skipped_day"]
 
 
+# ---- A4-6: night reclaim inside main ----
+
+def test_a46_main_night_reclaim_every_900s_and_never_by_day():
+    url = "https://ai-live.trycloudflare.com"
+    shop = "https://shop-test.lhr.life/line/webhook"
+    for window in ("night", "day"):
+        clock = {"t": 1000.0}
+        gets = []
+        puts = []
+
+        def fake_sleep(seconds):
+            clock["t"] += seconds
+            if clock["t"] >= 2900.0:
+                raise KeyboardInterrupt
+
+        def fake_info(token, http=None):
+            gets.append(clock["t"])
+            return {"endpoint": shop, "active": True, "http_status": 200}
+
+        def fake_set(base_url, token, http=None, **kwargs):
+            puts.append(base_url)
+            return base_url + "/line/webhook"
+
+        saved = _a45_isolate()
+        patched = {name: getattr(tm, name) for name in (
+            "_load_token", "_start_cloudflared", "_wait_for_url", "registration_window",
+            "set_webhook_endpoint", "get_webhook_info", "_within_takeover_delay")}
+        tm._load_token = lambda: "dummy-token"
+        tm._start_cloudflared = A45FakeProc
+        tm._wait_for_url = lambda proc, timeout=90.0: url
+        tm.registration_window = lambda w=window: w
+        tm.set_webhook_endpoint = fake_set
+        tm.get_webhook_info = fake_info
+        tm._within_takeover_delay = lambda: False
+        tm.PENDING_WEBHOOK["base_url"] = ""
+        try:
+            rc = tm.main(sleep=fake_sleep, clock=lambda: clock["t"])
+            events = _a45_events()
+        finally:
+            for name, value in patched.items():
+                setattr(tm, name, value)
+            tm.PENDING_WEBHOOK["base_url"] = ""
+            _a45_restore(saved)
+        assert rc == 0
+        reclaims = [e for e in events if e["event"] == "night_reclaim"]
+        if window == "night":
+            assert gets == [1900.0, 2800.0], gets
+            assert puts == [url, url, url], puts
+            assert len(reclaims) == 2, reclaims
+            assert reclaims[0]["old_url"] == shop
+            assert reclaims[0]["new_url"] == url + "/line/webhook"
+            assert reclaims[0]["status"] == "updated"
+        else:
+            assert gets == [] and puts == [], (gets, puts)
+            assert reclaims == []
+
+
 for _name, _test in list(globals().items()):
     if _name.startswith("test_") and callable(_test):
         globals()[_name] = isolated_legacy_test(_test)

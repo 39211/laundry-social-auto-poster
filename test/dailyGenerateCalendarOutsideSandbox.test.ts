@@ -43,7 +43,15 @@ beforeAll(() => {
     $tokens = $null; $errors = $null
     $ast = [System.Management.Automation.Language.Parser]::ParseFile(${quotePS(scriptPath)}, [ref]$tokens, [ref]$errors)
     if ($errors.Count) { throw "Parse errors: $($errors.Count)" }
-    $statements = @($ast.EndBlock.Statements)
+    $statements = @(
+      foreach ($statement in $ast.EndBlock.Statements) {
+        if ($statement -is [System.Management.Automation.Language.TryStatementAst]) {
+          $statement.Body.Statements
+        } else {
+          $statement
+        }
+      }
+    )
     $calendarAssignment = @($statements | Where-Object {
       $_ -is [System.Management.Automation.Language.AssignmentStatementAst] -and $_.Left.Extent.Text -eq '$calendar'
     })

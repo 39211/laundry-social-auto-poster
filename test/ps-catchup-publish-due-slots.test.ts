@@ -17,7 +17,9 @@ describe("catchup-publish uses the assigned daily slot windows", () => {
     expect(source).toContain("Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots");
     expect(source).toContain("Invoke-CatchupEveningSteps");
     const smoke = await readFile(SMOKE, "utf8");
-    expect(smoke).toContain("[IO.File]::Copy($productionSource, $production)");
+    expect(smoke).toContain("[IO.File]::ReadAllText($productionSource)");
+    expect(smoke).toContain(".Replace(\"-Name 'sxj-publish'\", \"-Name '$mutexName'\")");
+    expect(smoke).toContain("[IO.File]::WriteAllText($production, $isolatedProductionText");
     expect(smoke).toContain('"_watchdog.ps1"), "", [Text.UTF8Encoding]::new($true)');
     expect(smoke).not.toMatch(/-File\s+\$productionSource\b/u);
   });

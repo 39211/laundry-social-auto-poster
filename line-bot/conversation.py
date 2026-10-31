@@ -1040,8 +1040,15 @@ def _natural_customer_question(uid: str, text: str, normalized: str) -> tuple[li
     return None
 
 
+def _shown_label(name: str) -> str:
+    """對客顯示的洗法標示；包與皮件的純天數標示依店主規則改顯示（見 ehank_prices.bag_turnaround_label）。"""
+    hit = lookup_item(name)
+    category = hit[2] if hit else ""
+    return ehank_prices.bag_turnaround_label(name, PRICE_LABELS.get(name) or "", category)
+
+
 def _menu_price(name: str, price) -> str:
-    label = PRICE_LABELS.get(name) or ""
+    label = _shown_label(name)
     shown = str(price)
     if label:
         shown = f"{shown}（{label}）"
@@ -2609,7 +2616,7 @@ def _suit_piece_bits() -> list[str]:
 
 def _suit_jacket_first() -> str:
     price = _price_of("西裝")
-    label = PRICE_LABELS.get("西裝") or ""
+    label = _shown_label("西裝")
     if label:
         return f"西裝上衣大概 {price}（{label}）。"
     return f"西裝上衣水洗大概 {price}。"
@@ -2660,7 +2667,7 @@ def quote(item: str, price, uid: str, aside: str = "") -> list[dict]:
     if item == "西裝" and _suit_parts_ready():
         return _suit_jacket_quote(uid)
     set_sess(uid, last_item=item, last_price=price, topic=None)
-    label = PRICE_LABELS.get(item) or ""
+    label = _shown_label(item)
     if label:
         first = f"{item}大概 {price}（{label}）。"
     else:

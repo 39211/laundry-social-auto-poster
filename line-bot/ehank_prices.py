@@ -11,7 +11,9 @@ import copy
 import dataclasses
 import json
 import os
+import re
 import sys
+import unicodedata
 from pathlib import Path
 
 # 現役 bot 不會設 LAUNDRY_EHANK_ROOT，所以預設指到店裡的 eHank 根目錄。
@@ -64,6 +66,48 @@ _SKIP_EXISTS = "bot 已有同名品項"
 
 _BASIS_VALUES = ("off", "default_mode", "water")
 _NO_LABEL_MODES = ("水洗", "一般")
+
+# B1-4 皮件／包交期，規則見 bag_turnaround_label。
+BAG_LEATHER_TURNAROUND = "14天"
+_DAY_ONLY_LABEL = re.compile(r"^\s*\d+\s*天\s*$")
+_BAG_CATEGORIES = frozenset({"包包"})
+_SHOE_CATEGORIES = frozenset({"鞋子"})
+_LEATHER_GOOD_MARKS = ("皮件", "皮夾", "皮帶", "皮手套")
+_BAG_FALSE_FRIENDS = ("包巾", "包被", "包裝", "包含", "包括")
+
+
+def is_bag_or_leather_good(name, category="") -> bool:
+    """包或皮件（皮夾、皮帶、皮手套）。皮鞋是鞋，皮衣是皮革衣物，都不算。"""
+    key = unicodedata.normalize("NFKC", _norm_name(name))
+    cat = unicodedata.normalize("NFKC", _norm_name(category))
+    if not key:
+        return False
+    if cat in _SHOE_CATEGORIES or "鞋" in key:
+        return False
+    if cat in _BAG_CATEGORIES:
+        return True
+    if any(mark in key for mark in _LEATHER_GOOD_MARKS):
+        return True
+    if "包" in key and not any(word in key for word in _BAG_FALSE_FRIENDS):
+        return True
+    return False
+
+
+def bag_turnaround_label(name, label, category="") -> str:
+    """店主 2026-10-31 拍板（SHOP-FACTS F21／C04，卡 B1-4）：皮件、包 14 天。
+
+    eHank 價目（店主自己的系統，不得修改）有些品項的標示只是天數，例如「10天」。
+    對客顯示時，包與皮件的標示若只是天數（含全形數字），一律顯示「14天」；
+    乾洗、水洗等不是純天數的標示不動，非包／皮件品項不動，價格不動。
+    """
+    text = "" if label is None else str(label)
+    if not text:
+        return text
+    if not is_bag_or_leather_good(name, category):
+        return text
+    if _DAY_ONLY_LABEL.match(unicodedata.normalize("NFKC", text)):
+        return BAG_LEATHER_TURNAROUND
+    return text
 
 
 @dataclasses.dataclass

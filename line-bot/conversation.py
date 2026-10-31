@@ -848,7 +848,7 @@ _FAQ_ANSWERS = {
         "方便拍整件和洗標給我們嗎？請店員看過，再跟你說處理方式。",
     ),
     "要洗多久": (
-        "一般件三到五天，名牌、皮革會再久一點。",
+        "一般衣物 5–7 天，鞋 7 天，厚棉被這類難乾的大件 10–14 天，皮件、包 14 天；其他品項看件後店裡跟你說交期。",
         "有趕著用的日子跟我說，我幫你問櫃台。",
     ),
     "名牌敢洗嗎": (
@@ -1025,8 +1025,8 @@ def _natural_customer_question(uid: str, text: str, normalized: str) -> tuple[li
     if any(k in n for k in ("付款方式", "怎麼付款", "如何付款", "可以刷卡嗎", "可以現金嗎", "可以轉帳嗎", "要發票嗎", "收據")):
         return (
             say(
-                "付款方式我先跟你說清楚：LINE Pay 要等店員確認金額後，再由你自己輸入付款。",
-                "現金、刷卡或收據需求，請讓店員依現場告訴你；預估價先不用付。",
+                "付款方式我先跟你說清楚：店裡收現金、LINE Pay、轉帳。LINE Pay 要等店員確認金額後，再由你自己輸入付款。",
+                "目前店裡收現金、LINE Pay、轉帳；收據需求請讓店員依現場告訴你，預估價先不用付。",
                 buttons=[("LINE Pay", "LINE Pay"), ("找真人", "找真人"), ("打電話", "電話")],
             ),
             "pay",
@@ -1672,8 +1672,8 @@ def start_pickup(uid: str, force_new: bool = False) -> list[dict]:
             uid,
             "pickup_new",
             (
-                "好啊，台中市區都免費去收。哪天方便？",
-                "可以，台中市區免費收。什麼時候方便？",
+                "好啊，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。哪天方便？",
+                "可以，台中市免費到府收送，沒有低消；營業時間內約，當天時段由店裡回覆。什麼時候方便？",
             ),
         ),
         actions=_pickup_when_actions(uid),
@@ -2258,7 +2258,7 @@ def _addr_divert_intent(t: str, n: str) -> str | None:
 
 def _hours_with_pickup_note(n: str) -> list[dict]:
     msgs = hours_reply(n)
-    extra = "收送時間跟營業時間一樣"
+    extra = "收送是營業時間內約，當天時段由店裡回覆"
     if msgs and msgs[-1].get("type") == "text":
         prev = msgs[-1].get("text") or ""
         msgs[-1]["text"] = (prev + "\n" + extra) if prev else extra
@@ -2720,7 +2720,7 @@ def concern(n: str, uid: str) -> list[dict] | None:
         )
     if any(k in n for k in ["多久", "幾天", "幾號取", "要洗多久"]):
         return say(
-            "一般件大概三到五天，名牌、皮革會再久一點。",
+            "一般衣物 5–7 天，鞋 7 天，厚棉被這類難乾的大件 10–14 天，皮件、包 14 天；其他品項看件後店裡跟您說交期。",
             "您有趕著用的日子嗎？",
             buttons=[("不急", "這週到店"), ("有點趕", "急件"), ("約時間", "預約到店")],
         )

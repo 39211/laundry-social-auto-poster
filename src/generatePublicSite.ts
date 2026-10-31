@@ -909,7 +909,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
   },
   {
     slug: "taichung-citywide-laundry-pickup",
-    name: "台中全市免費洗衣收送",
+    name: "台中全市洗衣收送",
     local_query_name: "台中洗衣收送",
     title: "台中免費收送洗衣｜全市到府、LINE 預約｜私享家洗衣店",
     description:
@@ -919,7 +919,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
       "私享家洗衣店提供台中全市免費收送服務。收送本身免費，且不以單次洗滌滿額作為收送條件——收送沒有最低消費門檻。門市位置仍在台中市西屯區青海路二段365號；收送範圍涵蓋台中市，不以西屯為限。預約與詢問以 LINE 為主，先傳照片說明衣物、鞋子、包包或布品狀況，再安排後續。",
     keywords: ["台中洗衣收送", "台中免費收送", "台中全市收送", "洗衣店收送", "私享家洗衣店", "LINE 預約洗衣"],
     image_hint: "收送",
-    image_alt: "台中全市免費洗衣收送服務說明｜私享家洗衣店",
+    image_alt: "台中全市洗衣收送服務說明｜私享家洗衣店",
     image_note: "AI 生成的門市與街景示意圖，呈現收送服務以西屯門市為起點；不是實際客戶物件照片。",
     allow_image_fallback: false,
     static_image_path: "assets/backgrounds/local-store-depth.png",
@@ -928,7 +928,7 @@ const SERVICE_PAGE_DEFINITIONS: ServicePageDefinition[] = [
     content_lastmod: "2026-07-22",
     area_served_name: "台中市",
     answer_summary:
-      "私享家洗衣店提供台中全市免費洗衣收送，且收送沒有最低消費門檻——不因件數少或單次金額未達標準而不收。門市在西屯區青海路二段365號，收送範圍為台中市，主要透過 LINE 預約與傳照片詢問；清潔與洗護費用仍依物件狀態另計。",
+      "台中全市免費收送、沒有最低消費。私享家洗衣店不因件數少或單次金額未達標準而不收。門市在西屯區青海路二段365號，收送範圍為台中市，主要透過 LINE 預約與傳照片詢問；清潔與洗護費用仍依物件狀態另計。",
     case_story: {
       label: "住在台中其他行政區，也能先用 LINE 問收送",
       situation:
@@ -3181,7 +3181,7 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
         // Free pickup/delivery only — never encode cleaning as price 0.
         ...(service.slug === "taichung-citywide-laundry-pickup"
           ? {
-              name: "台中全市免費洗衣收送",
+              name: "台中全市洗衣收送",
               description:
                 "台中市全市免費收送；清潔與洗護費用另計。預約以 LINE 為主。"
             }

@@ -37,8 +37,11 @@ TOP_LEVEL = {
     "privacy",
     "acceptance",
     "product",
+    # B2 attribution ledger (optional; validated by runtime/attribution_service.py,
+    # which disables itself on any bad value instead of stopping the webhook).
+    "attribution",
 }
-OPTIONAL_TOP_LEVEL = {"product"}
+OPTIONAL_TOP_LEVEL = {"product", "attribution"}
 REQUIRED_TOP_LEVEL = TOP_LEVEL - OPTIONAL_TOP_LEVEL
 SHOP_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{2,63}$")
 PHONE_RE = re.compile(r"^[0-9+()\- ]{8,24}$")

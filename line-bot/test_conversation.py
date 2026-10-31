@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import tempfile
 import traceback
@@ -137,27 +138,96 @@ def run(name, fn):
 setup_tmp()
 freeze_now("2026-09-05T13:00")  # 週六下午，店有開
 
+
+# T-1：價格一律在測試當下從 bot 自己的價目表讀（conv._price_of，就是報價用的那張，
+# 已套用店主 POS 對齊）。不寫死數字，店主改 POS 價後測試不會再過期。
+def _p(name: str) -> str:
+    v = conv._price_of(name)
+    return str(v) if v is not None else f"<價目表沒有 {name}>"
+
+
+def _price_re(price):
+    return re.compile(rf"(?<!\d){re.escape(str(price))}(?!\d)")
+
+
+def _has_price(blob: str, price) -> bool:
+    """T-1：完整數字比對（250 不會誤中 2500）。"""
+    return price is not None and _price_re(price).search(blob) is not None
+
+
+_SEG_SPLIT = re.compile(r"[\n。、，,；;：:]")
+
+
+def _price_segments(blob: str, price) -> list[str]:
+    """T-1：每個價格出現處，前面同一小句的文字（品名就在這裡）。"""
+    if price is None:
+        return []
+    return [_SEG_SPLIT.split(blob[: m.start()])[-1] for m in _price_re(price).finditer(blob)]
+
+
+def _assert_no_vest_price_as_suit(where: str, blob: str) -> None:
+    """T-1：背心價只能掛在「背心」旁邊，不能變成西裝上衣／外套的價。"""
+    jacket = conv._price_of("西裝")
+    pants = conv._price_of("西褲")
+    vest = conv._price_of("西裝背心")
+    if vest is None or vest == jacket:
+        return  # POS 上衣與背心同價時，文字無從分辨，不在這裡判
+    for seg in _price_segments(blob, vest):
+        ok = "背心" in seg or (
+            pants == vest and "西褲" in seg and "上衣" not in seg and "外套" not in seg
+        )
+        assert ok, f"{where}: vest price {vest} shown as {seg!r} in {blob!r}"
+
+
+def _assert_suit_jacket_quote(where: str, blob: str) -> None:
+    """T-1：西裝／西裝外套 = 三段式報價；上衣用上衣價，西褲、背心各自分開列。"""
+    jacket = conv._price_of("西裝")
+    pants = conv._price_of("西褲")
+    vest = conv._price_of("西裝背心")
+    assert None not in (jacket, pants, vest), (where, jacket, pants, vest)
+    assert any(
+        ("西裝上衣" in s or "西裝外套" in s) and "背心" not in s for s in _price_segments(blob, jacket)
+    ), f"{where}: 西裝上衣 {jacket} missing in {blob!r}"
+    assert any("西褲" in s for s in _price_segments(blob, pants)), f"{where}: 西褲 {pants} in {blob!r}"
+    assert any("西裝背心" in s for s in _price_segments(blob, vest)), f"{where}: 西裝背心 {vest} in {blob!r}"
+    _assert_no_vest_price_as_suit(where, blob)
+
+
+def _assert_suit_pants_quote(where: str, blob: str) -> None:
+    """T-1：西裝褲 = 西褲報價（表上的西褲價），背心價不能冒充。"""
+    pants = conv._price_of("西褲")
+    assert pants is not None, where
+    assert any("西褲" in s for s in _price_segments(blob, pants)), f"{where}: 西褲 {pants} in {blob!r}"
+    _assert_no_vest_price_as_suit(where, blob)
+
+
+_SUIT_JACKET_TEXTS = ("西裝", "西裝外套")
+_SUIT_PANTS_TEXTS = ("西裝褲",)
+
 # 客人句表：13 掉底 + 既有分支 + R1 新品名
 CASES = [
     # 掉底 13 列（含列內多句）
-    ("羽絨外套多少", "message", "quote", False, ["羽絨外套", "280"]),
-    ("西裝", "message", "clarify", False, ["西裝外套"]),
+    ("羽絨外套多少", "message", "quote", False, ["羽絨外套", _p("羽絨外套")]),  # T-1 價格讀表
+    # T-1：西裝現在是三段式報價（上衣／西褲／背心分開算）；背心不得冒充上衣，見 _assert_suit_jacket_quote
+    ("西裝", "message", "quote", False, ["西裝上衣", _p("西裝"), "西褲", "西裝背心"]),
     ("床單", "message", "clarify", False, ["薄"]),
-    ("枕頭", "message", "unknown_item", True, ["常規價目", "看件"]),
+    # T-1（總指揮補）：枕頭、娃娃已列入店裡 POS 價目表 → 直接報價（讀表）；未列品項的保護改由
+    # 窗簾可以洗嗎、安全帽兩列繼續把關（unknown_item + 通知店員）。
+    ("枕頭", "message", "quote", False, ["枕頭", _p("枕頭")]),
     ("多少錢", "message", "ask_price", False, ["棉被"]),
     ("可以到府收件嗎", "message", "pickup", False, ["方便"]),  # T1 收送入口改問時間，不再旁白地址
     ("洗好了嗎", "message", "query", False, ["完整手機號碼"]),
     ("我要取消預約", "message", "cancel", False, ["沒有"]),
     ("今天有開嗎", "message", "hours_day", False, ["現在有開"]),
     ("星期日有開嗎", "message", "hours_day", False, ["公休"]),
-    ("LV包", "message", "quote", False, ["名牌包", "1500"]),
+    ("LV包", "message", "quote", False, ["名牌包", _p("名牌包")]),  # T-1 價格讀表
     ("我在店裡", "message", "in_store", True, ["櫃台"]),
     ("謝謝", "message", "ack", False, ["不客氣"]),
     ("好", "message", "ack", False, ["有需要"]),
     ("ok", "message", "ack", False, ["有需要"]),
     ("😊", "message", "ack", False, ["有需要"]),
     ("窗簾可以洗嗎", "message", "unknown_item", True, ["常規價目"]),
-    ("娃娃", "message", "unknown_item", True, ["常規價目"]),
+    ("娃娃", "message", "quote", False, ["娃娃", _p("娃娃")]),  # T-1 讀表（已列入 POS）
     ("安全帽", "message", "unknown_item", True, ["常規價目"]),
     # 既有能接的分支
     ("你好", "message", "welcome", False, ["私享家"]),
@@ -176,31 +246,33 @@ CASES = [
     ("作品案例", "message", "works", False, ["作品"]),
     ("到店禮遇", "message", "courtesy", False, ["禮遇"]),
     ("我想洗", "message", "wash_ask", False, ["棉被"]),
-    ("皮衣", "message", "quote", False, ["皮衣", "1200"]),
-    ("運動鞋", "message", "quote", False, ["一般運動鞋", "250"]),
+    ("皮衣", "message", "quote", False, ["皮衣", _p("皮衣")]),  # T-1 價格讀表
+    ("運動鞋", "message", "quote", False, ["一般運動鞋", _p("一般運動鞋")]),  # T-1
     ("營業時間", "message", "hours_day", False, ["現在有開"]),
     ("掉色", "message", "concern", False, ["掉色"]),
     ("趕時間", "message", "concern", True, ["趕"]),  # 現有 urgent 路徑會通知店員
     ("發霉", "message", "concern", False, ["發霉"]),
     ("要洗多久", "message", "faq", False, ["5–7 天"]),
-    ("襯衫", "message", "quote", False, ["襯衫", "70"]),
-    ("名牌包", "message", "quote", False, ["名牌包", "1500"]),
+    # T-1：以下價格一律讀表，不寫死
+    ("襯衫", "message", "quote", False, ["襯衫", _p("襯衫")]),
+    ("名牌包", "message", "quote", False, ["名牌包", _p("名牌包")]),
     # R1 新品名
-    ("涼被", "message", "quote", False, ["涼被", "180"]),
-    ("睡袋", "message", "quote", False, ["睡袋", "250"]),
-    ("皮鞋", "message", "quote", False, ["皮鞋", "400"]),
-    ("名牌鞋", "message", "quote", False, ["名牌鞋", "600"]),
-    ("背包", "message", "quote", False, ["背包", "500"]),
-    ("帽T", "message", "quote", False, ["帽T", "80"]),
-    ("牛仔褲", "message", "quote", False, ["牛仔褲", "80"]),
-    ("短洋裝", "message", "quote", False, ["短洋裝", "120"]),
-    ("羽絨衣", "message", "quote", False, ["羽絨外套", "280"]),
-    ("Gucci包", "message", "quote", False, ["名牌包", "1500"]),
+    ("涼被", "message", "quote", False, ["涼被", _p("涼被")]),
+    ("睡袋", "message", "quote", False, ["睡袋", _p("睡袋")]),
+    ("皮鞋", "message", "quote", False, ["皮鞋", _p("皮鞋")]),
+    ("名牌鞋", "message", "quote", False, ["名牌鞋", _p("名牌鞋")]),
+    ("背包", "message", "quote", False, ["背包", _p("背包")]),
+    ("帽T", "message", "quote", False, ["帽T", _p("帽T")]),
+    ("牛仔褲", "message", "quote", False, ["牛仔褲", _p("牛仔褲")]),
+    ("短洋裝", "message", "quote", False, ["短洋裝", _p("短洋裝")]),
+    ("羽絨衣", "message", "quote", False, ["羽絨外套", _p("羽絨外套")]),
+    ("Gucci包", "message", "quote", False, ["名牌包", _p("名牌包")]),
     ("被套", "message", "clarify", False, ["薄"]),
     # r3 K1–K7（既有 55 句全留）
     ("包包多少", "message", "clarify", False, ["一般包", "皮包", "名牌"]),
-    ("外套", "message", "clarify", False, ["150", "180", "280"]),
-    ("外套多少", "message", "clarify", False, ["150", "180", "280"]),
+    # T-1 價格讀表
+    ("外套", "message", "clarify", False, [_p("薄外套"), _p("厚外套"), _p("羽絨外套")]),
+    ("外套多少", "message", "clarify", False, [_p("薄外套"), _p("厚外套"), _p("羽絨外套")]),
     ("洋裝", "message", "clarify", False, ["短"]),
     ("大衣", "message", "clarify", False, ["大衣"]),
     ("裙子", "message", "clarify", False, ["裙子"]),
@@ -224,12 +296,13 @@ CASES = [
     ("我人到了", "message", "in_store", True, ["櫃台"]),
     ("到店了", "message", "in_store", True, ["櫃台"]),
     # r4 M2–M7
-    ("西裝外套", "message", "clarify", False, ["西裝外套"]),
-    ("西裝褲", "message", "clarify", False, ["西裝褲"]),
-    ("西裝背心", "message", "quote", False, ["西裝背心", "80"]),
+    # T-1：西裝外套＝三段式報價、西裝褲＝西褲報價（價格讀表）；背心不冒充，見 test_cases 尾段
+    ("西裝外套", "message", "quote", False, ["西裝上衣", _p("西裝"), "西褲", "西裝背心"]),
+    ("西裝褲", "message", "quote", False, ["西褲", _p("西褲")]),
+    ("西裝背心", "message", "quote", False, ["西裝背心", _p("西裝背心")]),
     # V4：第一次掉底不通知、文案不再「轉店裡」；T-shirt 不含洗衣字走通用句
     ("T-shirt", "message", "fallback", False, ["不太確定"]),
-    ("洗特殊類名牌包多少錢", "message", "quote", False, ["特殊類名牌包", "2500"]),
+    ("洗特殊類名牌包多少錢", "message", "quote", False, ["特殊類名牌包", _p("特殊類名牌包")]),  # T-1 讀表
     ("到門口了", "message", "in_store", True, ["櫃台"]),
     ("你們幾點收件", "message", "hours_day", False, ["營業時間內約"]),
     ("拍照問價", "message", "photo_quote", False, ["拍給我看", "髒的地方"]),  # T1 主句
@@ -255,6 +328,11 @@ def test_cases():
         )
         for nd in needles:
             assert nd in blob, f"{text}: missing {nd!r} in {blob!r}"
+        # T-1：西裝類保留真正的保護——背心價不得當成上衣／外套的價
+        if text in _SUIT_JACKET_TEXTS:
+            _assert_suit_jacket_quote(text, blob)
+        if text in _SUIT_PANTS_TEXTS:
+            _assert_suit_pants_quote(text, blob)
         # ack 不得帶 Quick Reply
         if intent == "ack":
             for m in msgs:
@@ -679,18 +757,23 @@ def test_r3_hello_pay_hours_booking():
 
 
 def test_m2_suit_not_vest():
-    for text in ("西裝外套", "西裝外套多少", "西裝褲", "西裝褲多少錢"):
-        msgs, meta = conv.handle_ex("Um2suitxxxx", text)
+    # T-1：西裝外套／西裝褲現在直接逐件報價（不再反問）。保護不變：西裝外套不得用背心價，
+    # 價格讀表不寫死。每句各用新 uid，報價尾句輪替才不會吃掉「到店看件」這條原有斷言。
+    for i, text in enumerate(("西裝外套", "西裝外套多少", "西裝褲", "西裝褲多少錢")):
+        msgs, meta = conv.handle_ex(f"Um2suit{i:02d}xx", text)
         _ALL_MSGS.append((f"m2:{text}", msgs))
         blob = flatten(msgs)
-        assert meta["intent"] == "clarify", (text, meta, blob)
-        assert "80" not in blob, blob
+        assert meta["intent"] == "quote", (text, meta, blob)
+        if text.startswith("西裝褲"):
+            _assert_suit_pants_quote(text, blob)
+        else:
+            _assert_suit_jacket_quote(text, blob)
         assert "西裝背心水洗" not in blob, blob
         assert "到店看件" in blob, blob
     msgs, meta = conv.handle_ex("Um2vestxxxx", "西裝背心")
     blob = flatten(msgs)
     assert meta["intent"] == "quote"
-    assert "80" in blob
+    assert _has_price(blob, conv._price_of("西裝背心")), blob  # T-1 讀表
 
 
 def test_m3_query_unlock_and_accounts():
@@ -852,15 +935,21 @@ def test_m5_english_hi_not_substring():
 
 
 def test_m6_special_brand_bag():
+    # T-1：特殊類名牌包價、一般名牌包價都讀表（POS 由店主維護，現為 2000）；
+    # 保護不變：特殊款不得報成一般名牌包的價。
+    special = conv._price_of("特殊類名牌包")
+    plain = conv._price_of("名牌包")
+    assert special is not None, "特殊類名牌包 not in price table"
     msgs, meta = conv.handle_ex("Um6bagxxxxx", "洗特殊類名牌包多少錢")
     _ALL_MSGS.append(("m6-special-bag", msgs))
     blob = flatten(msgs)
     assert meta["intent"] == "quote", (meta, blob)
-    assert "2500" in blob, blob
-    assert "1500" not in blob, blob
+    assert _has_price(blob, special), (special, blob)
+    if plain != special:
+        assert not _has_price(blob, plain), (plain, blob)
     assert "特殊類名牌包" in blob, blob
     msgs, meta = conv.handle_ex("Um6plainbag", "特殊類名牌包")
-    assert "2500" in flatten(msgs)
+    assert _has_price(flatten(msgs), special), flatten(msgs)
 
 
 def test_m7_arrived_and_pickup_hours():
@@ -1560,14 +1649,18 @@ def test_m9_longest_item_quote():
     blob = flatten(msgs)
     assert meta["intent"] == "quote", (meta, blob)
     assert "羽絨外套" in blob, blob
-    assert "280" in blob, blob
+    assert _has_price(blob, conv._price_of("羽絨外套")), blob  # T-1 讀表
     msgs, meta = conv.handle_ex("Um9bagxxxxx", "我要洗特殊類名牌包")
     _ALL_MSGS.append(("m9-特殊類名牌包", msgs))
     blob = flatten(msgs)
     assert meta["intent"] == "quote", (meta, blob)
     assert "特殊類名牌包" in blob, blob
-    assert "2500" in blob, blob
-    assert "1500" not in blob, blob
+    # T-1：最長品名的價讀表；較短的「名牌包」價不得出現
+    special = conv._price_of("特殊類名牌包")
+    plain = conv._price_of("名牌包")
+    assert _has_price(blob, special), (special, blob)
+    if plain != special:
+        assert not _has_price(blob, plain), (plain, blob)
 
 
 def test_c3_pickup_item_before_confirm():

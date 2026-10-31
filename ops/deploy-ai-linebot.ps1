@@ -512,6 +512,29 @@ function Copy-AiPayload {
     }
 }
 
+# A8-3 (10/31): the PID file holds the venv launcher (python.exe in venv\Scripts) while /healthz
+# reports the interpreter child it spawns, so exact equality failed every real Start. Accept the
+# tracked pid itself or a process whose parent chain reaches it within 3 hops (run_line_bot.ps1 P1).
+$script:AiParentOf = {
+    param([int]$ProcessId)
+    $row = @(Get-CimInstance -ClassName Win32_Process -Filter ('ProcessId=' + $ProcessId) -ErrorAction SilentlyContinue)
+    if ($row.Count -eq 1 -and $row[0].ParentProcessId) { return [int]$row[0].ParentProcessId }
+    return 0
+}
+
+function Test-AiHealthzPidLineage {
+    param([int]$ReportedPid, [int]$TrackedPid, [scriptblock]$ParentOf)
+    if ($ReportedPid -le 0 -or $TrackedPid -le 0) { return $false }
+    $current = $ReportedPid
+    for ($hop = 0; $hop -le 3; $hop++) {
+        if ($current -eq $TrackedPid) { return $true }
+        $parent = [int](& $ParentOf $current)
+        if ($parent -le 0 -or $parent -eq $current) { return $false }
+        $current = $parent
+    }
+    return $false
+}
+
 function Start-AiBotAndProbe {
     param([hashtable]$Context, [int]$PollSeconds = 10, [int]$WindowSeconds = 180)
     Start-AiBotTask $Context
@@ -533,8 +556,11 @@ function Start-AiBotAndProbe {
     if (-not [int]::TryParse($raw, [ref]$trackedId) -or $trackedId -le 0) { throw 'Invalid new line_webhook PID file.' }
     $response = Invoke-WebRequest -Uri 'http://127.0.0.1:8791/healthz' -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
     if ($response.StatusCode -ne 200 -or ([string]$response.Content).Trim() -notmatch '^ok ([0-9]+)$') { throw 'Invalid healthz status/body.' }
-    if ([int]$Matches[1] -ne $trackedId) { throw 'healthz PID must exactly equal the new PID file (A8).' }
-    Write-AiDeployLog $Context ('PROBE verified: healthz ok ' + $trackedId + ' equals PID file.')
+    $reportedId = [int]$Matches[1]
+    if (-not (Test-AiHealthzPidLineage -ReportedPid $reportedId -TrackedPid $trackedId -ParentOf $script:AiParentOf)) {
+        throw ('healthz PID ' + $reportedId + ' is neither the new PID file ' + $trackedId + ' nor its descendant (A8-3).')
+    }
+    Write-AiDeployLog $Context ('PROBE verified: healthz ok ' + $reportedId + ' is PID file ' + $trackedId + ' or its descendant.')
 }
 
 function Restore-AiBackup {

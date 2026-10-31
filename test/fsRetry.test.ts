@@ -109,6 +109,66 @@ describe("writeFileWithRetry", () => {
     }
   });
 
+  it("T7 after six retryable failures an atomic replace is tried once and wins", async () => {
+    const replaced: Array<{ file: string; data: unknown }> = [];
+    const write: NodeWriteFile = async () => {
+      throw { code: "UNKNOWN" };
+    };
+    const writeRetry = createWriteFileWithRetry({
+      write,
+      sleep: async () => undefined,
+      replace: async (file, data) => {
+        replaced.push({ file, data });
+      }
+    });
+    const stderr = captureStderr();
+    try {
+      await writeRetry("docs/rss.xml", "<rss/>", "utf8");
+    } finally {
+      stderr.restore();
+    }
+    expect(replaced).toEqual([{ file: "docs/rss.xml", data: "<rss/>" }]);
+    expect(stderr.lines.at(-1)).toBe("writeFile atomic fallback ok docs/rss.xml: UNKNOWN\n");
+  });
+
+  it("T8 a failing atomic replace rethrows the last direct-write error; ENOENT never falls back", async () => {
+    const last = { code: "UNKNOWN", n: 6 };
+    let n = 0;
+    const writeRetry = createWriteFileWithRetry({
+      write: async () => {
+        n += 1;
+        throw n === 6 ? last : { code: "UNKNOWN", n };
+      },
+      sleep: async () => undefined,
+      replace: async () => {
+        throw { code: "EACCES" };
+      }
+    });
+    const stderr = captureStderr();
+    let thrown: unknown;
+    try {
+      await writeRetry("docs/rss.xml", "<rss/>", "utf8");
+    } catch (error) {
+      thrown = error;
+    } finally {
+      stderr.restore();
+    }
+    expect(thrown).toBe(last);
+    let replaceCalls = 0;
+    const enoent = { code: "ENOENT" };
+    const noFallback = createWriteFileWithRetry({
+      write: async () => {
+        throw enoent;
+      },
+      sleep: async () => undefined,
+      replace: async () => {
+        replaceCalls += 1;
+      }
+    });
+    await expect(noFallback("missing/x.xml", "x", "utf8")).rejects.toBe(enoent);
+    expect(replaceCalls).toBe(0);
+  });
+
   it("T6 default writer persists bytes under os.tmpdir()", async () => {
     const root = mkdtempSync(join(tmpdir(), "fs-retry-"));
     const file = join(root, "rss.xml");

@@ -1,9 +1,10 @@
 """Inquiry event ledger for LINE source attribution (B2 design, sections 2.2, 3, 4).
 
-Records minimal, privacy-safe `message_observed` / `binding_observed` rows to a
-local append-only JSONL (`<data_dir>/inquiries.jsonl`) so an offline job can
-later count inquiries per public content source code and match them against
-POS intake.
+Records minimal, privacy-safe `message_observed` / `binding_observed` /
+`follow_observed` rows to a local append-only JSONL (`<data_dir>/inquiries.jsonl`)
+so an offline job can later count inquiries per public content source code and
+match them against POS intake. Follow rows (B2-8a) only carry timing for the
+anonymous inquiry timeline; `unfollow` is never recorded.
 
 Hard rules implemented here:
   * stdlib only, no network, no POS access, no replies.
@@ -604,6 +605,71 @@ class AttributionLedger:
         except Exception as exc:
             _report_error(exc)
             return None
+
+    def record_follow(self, event: Any) -> Optional[dict]:
+        """Append a follow_observed row (B2-8a). Returns the row, or None if not recorded.
+
+        Only `follow` events from a 1:1 user source with a userId are recorded.
+        `unfollow`, group/room sources and everything else return None. Never raises.
+        """
+        if not self.enabled:
+            return None
+        try:
+            row = self._build_follow_row(event)
+            if row is None:
+                return None
+            return self._append(row)
+        except Exception as exc:
+            _report_error(exc)
+            return None
+
+    def _build_follow_row(self, event: Any) -> Optional[dict]:
+        if not isinstance(event, dict):
+            raise TypeError("event must be a dict")
+        if event.get("type") != "follow":
+            return None
+        src = event.get("source")
+        if not isinstance(src, dict) or src.get("type") != "user":
+            return None
+        user_id = src.get("userId")
+        if not isinstance(user_id, str) or not user_id:
+            return None
+        if event.get("replyToken") in _DUMMY_REPLY_TOKENS:
+            return None
+        follow = event.get("follow")
+        unblocked = isinstance(follow, dict) and follow.get("isUnblocked") is True
+
+        webhook_event_id = event.get("webhookEventId")
+        if isinstance(webhook_event_id, str) and _EVENT_ID_RE.fullmatch(webhook_event_id):
+            event_id = self.oa_scope + ":" + webhook_event_id
+            event_id_basis = "line"
+        else:
+            event_id = self.oa_scope + ":local-" + uuid.uuid4().hex
+            event_id_basis = "local"
+
+        recorded_at = _now_iso()
+        ts = _ms_to_iso(event.get("timestamp"))
+        ts_basis = "line"
+        if ts is None:
+            ts = recorded_at
+            ts_basis = "local"
+
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "policy_version": POLICY_VERSION,
+            "event_kind": "follow_observed",
+            "event_id": event_id,
+            "event_id_basis": event_id_basis,
+            "ts": ts,
+            "ts_basis": ts_basis,
+            "recorded_at": recorded_at,
+            "shop_id": self.shop_id,
+            "oa_scope": self.oa_scope,
+            "runtime_id": self.runtime_id,
+            "user_key": self._user_key(user_id),
+            "hash_key_version": self.hash_key_version,
+            "unblocked": unblocked,
+        }
 
     # -- row building -------------------------------------------------------
 

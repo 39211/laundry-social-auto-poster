@@ -8,12 +8,15 @@ import hashlib
 import hmac
 import io
 import json
+import re
 import shutil
 import tempfile
 import unittest
+from collections import Counter
 from contextlib import redirect_stderr, redirect_stdout
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 import attribution_export as ax
 import attribution_service as asvc
@@ -554,6 +557,269 @@ class CoverageTests(Base):
         rows = ax.load_pos_rows_from_connector(Snap())
         self.assertEqual([r["identity_hint"] for r in rows], [None, "identity_ambiguous", "identity_ambiguous"])
         self.assertEqual(ax.snapshot_through(Snap()), datetime(2026, 11, 20, 8, 0, tzinfo=TZ))
+
+
+# ---------------------------------------------------------------- inquiry timeline (B2-8a)
+
+MIN = timedelta(minutes=1)
+MINUTE_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}\+08:00$")
+FORBIDDEN_KEYS = {"user_key", "userId", "user_id", "cid", "inquiry_id", "event_id", "text",
+                  "message", "name", "phone"}
+TOP_KEYS = {"schema", "week", "tz", "as_of", "revision", "status", "entries", "follows_without_inquiry"}
+ENTRY_KEYS = {"first_minute", "follow_minute", "returning", "source_code", "I7", "B7"}
+LABEL_TO_FIELD = {"received": "received_inquiries", "pending_window": "pending_window",
+                  "unknown": "unknown_inquiries", "matured_no_receipt": "matured_no_receipt"}
+
+
+def tp(month, day, hh, mm, ss=0, us=0):
+    return datetime(2026, month, day, hh, mm, ss, us, tzinfo=TZ)
+
+
+def follow_row(user, at, eid, **changes):
+    row = {"schema_version": 1, "policy_version": "v1", "event_kind": "follow_observed",
+           "event_id": OA + ":" + eid, "event_id_basis": "line", "ts": iso(at), "ts_basis": "line",
+           "recorded_at": iso(at), "shop_id": SHOP, "oa_scope": OA, "runtime_id": "shop-pc",
+           "user_key": uk(user), "hash_key_version": HKV, "unblocked": False}
+    row.update(changes)
+    return row
+
+
+def comparable(doc):
+    d = json.loads(json.dumps(doc))
+    for k in ("as_of", "revision", "supersedes"):
+        d.pop(k, None)
+    d["coverage"].pop("exported_at", None)
+    return d
+
+
+class TimelineTests(Base):
+    def follow(self, user, at, **kw):
+        return self.L.event("follow_observed", user, at, unblocked=False, **kw)
+
+    def timeline(self, *a, **kw):
+        kw["dry_run"] = False
+        res = self.run_export(*a, **kw)
+        self.assertEqual(res.code, 0, res.message)
+        path = ax.timeline_output_path(self.root, WEEK)
+        self.assertEqual(res.timeline_path, path)
+        self.assertIsNone(res.timeline_error)
+        return res, json.loads(path.read_text(encoding="utf-8"))
+
+    def entry_map(self, tl):
+        return {e["first_minute"]: e for e in tl["entries"]}
+
+    def test_main_file_identical_with_and_without_follow_rows(self):
+        L = self.L
+        L.bind("alice", "K1", T0 - 30 * DAY)
+        L.msg("alice", T0, CODE1)
+        L.msg("bob", T0 + H, CODE2)
+        L.corrupt()
+        L.msg("carol", T0 + 2 * DAY)
+        base = list(L.items)
+        pieces = [piece("P1", "K1", T0 + DAY)]
+        plain = self.doc(pieces)
+        self.assertIn(4, [g["line_no"] for g in plain["coverage"]["gap_intervals"]])
+        f2 = follow_row("bob", T0 + H - 5 * MIN, "f2")
+        L.items = ([follow_row("alice", T0 - 10 * MIN, "f1")] + base[:2] + [f2, dict(f2)] + base[2:4]
+                   + [follow_row("dave", T0, "f3", shop_id="other-shop"),
+                      follow_row("erin", T0, "f4", hash_key_version="hk1-0000000000000000")]
+                   + base[4:]
+                   + [follow_row("frank", T0 + DAY, "f5", recorded_at=iso(AS_OF + 5 * DAY)),
+                      follow_row("gina", T0 + DAY, "f6", ts="garbage")])
+        tail = json.dumps(follow_row("hank", T0 + 3 * DAY, "f7")).encode("utf-8")
+        with_follows = self.doc(pieces, tail=tail)
+        self.assertEqual(comparable(plain), comparable(with_follows))
+        res = self.run_export(pieces, tail=tail, dry_run=False)
+        self.assertEqual(res.code, 0, res.message)
+        self.assertIn(b"follow_observed", (self.root / "data" / "inquiries.jsonl").read_bytes())
+        stored = json.loads(res.path.read_text(encoding="utf-8"))
+        self.assertEqual(comparable(plain), comparable(stored))
+        self.assertTrue(ax.timeline_output_path(self.root, WEEK).exists())
+
+    def test_label_counts_equal_main_totals(self):
+        self.L.bind("alice", "K1", T0 - 30 * DAY)
+        self.L.bind("carol", "K2", T0 - 30 * DAY)
+        self.L.bind("dave", "K3", T0 - 30 * DAY)
+        self.follow("alice", T0 - 5 * MIN)
+        self.L.msg("alice", T0, CODE1)
+        self.L.msg("bob", T0 + H, CODE1)
+        self.L.msg("carol", T0 + 2 * H, CODE2)
+        self.L.msg("dave", T0 + 6 * DAY)
+        self.L.msg("erin", T0 + 3 * DAY)
+        self.follow("frank", T0 + 4 * DAY)
+        pieces = [piece("P1", "K1", T0 + DAY)]
+        self.timeline(pieces, as_of=T0 + 10 * DAY)
+        res, tl = self.timeline(pieces, as_of=T0 + 10 * DAY)
+        doc = res.doc
+        self.assertEqual(len(tl["entries"]), sum(r["inquiries"] for r in doc["rows"]))
+        for view in ax.POLICIES:
+            counts = Counter(e[view] for e in tl["entries"])
+            self.assertTrue(set(counts) <= set(LABEL_TO_FIELD))
+            for label, name in LABEL_TO_FIELD.items():
+                self.assertEqual(counts.get(label, 0), sum(r[view][name] for r in doc["rows"]), (view, label))
+        self.assertEqual(len(Counter(e["I7"] for e in tl["entries"])), 4)
+        by_code = Counter(e["source_code"] for e in tl["entries"])
+        self.assertEqual(dict(by_code), {r["source_code"]: r["inquiries"] for r in doc["rows"] if r["inquiries"]})
+        self.assertEqual((tl["schema"], tl["week"], tl["tz"]), ("inquiry-timeline/v1", WEEK, "Asia/Taipei"))
+        self.assertEqual((tl["as_of"], tl["revision"], tl["status"]), (doc["as_of"], doc["revision"], doc["status"]))
+        self.assertEqual(tl["revision"], 2)
+        key = lambda e: (e["first_minute"], e["follow_minute"] or "", e["returning"], e["source_code"], e["I7"], e["B7"])
+        self.assertEqual(tl["entries"], sorted(tl["entries"], key=key))
+        self.assertEqual(self.entry_map(tl)["2026-10-26T10:00+08:00"]["follow_minute"], "2026-10-26T09:55+08:00")
+        self.assertEqual(tl["follows_without_inquiry"], ["2026-10-30T10:00+08:00"])
+
+    def test_follow_minute_window_and_flooring(self):
+        self.follow("a", tp(10, 27, 14, 1, 30, 500000))
+        self.L.msg("a", tp(10, 27, 14, 3, 59, 900000))
+        self.follow("b", tp(10, 28, 10, 0))
+        self.L.msg("b", tp(10, 28, 12, 0))
+        self.follow("c", tp(10, 29, 9, 59))
+        self.L.msg("c", tp(10, 29, 12, 0))
+        self.follow("d", tp(10, 30, 11, 0))
+        self.follow("d", tp(10, 30, 11, 30))
+        self.L.msg("d", tp(10, 30, 12, 0))
+        self.L.msg("e", tp(10, 31, 12, 0))
+        self.follow("e", tp(10, 31, 12, 0, 1))
+        self.L.msg("f", datetime(2026, 10, 28, 1, 5, 30, tzinfo=timezone.utc))
+        _, tl = self.timeline()
+        got = {k: v["follow_minute"] for k, v in self.entry_map(tl).items()}
+        self.assertEqual(got, {
+            "2026-10-27T14:03+08:00": "2026-10-27T14:01+08:00",
+            "2026-10-28T12:00+08:00": "2026-10-28T10:00+08:00",
+            "2026-10-29T12:00+08:00": None,
+            "2026-10-30T12:00+08:00": "2026-10-30T11:30+08:00",
+            "2026-10-31T12:00+08:00": None,
+            "2026-10-28T09:05+08:00": None,
+        })
+        self.assertEqual(tl["follows_without_inquiry"], ["2026-10-29T09:59+08:00", "2026-10-31T12:00+08:00"])
+        for e in tl["entries"]:
+            self.assertRegex(e["first_minute"], MINUTE_RE)
+            if e["follow_minute"] is not None:
+                self.assertRegex(e["follow_minute"], MINUTE_RE)
+            self.assertIs(e["returning"], False)
+        for m in tl["follows_without_inquiry"]:
+            self.assertRegex(m, MINUTE_RE)
+
+    def test_returning(self):
+        self.L.msg("r", T0 - 3 * DAY)
+        self.L.msg("r", T0 + H)
+        self.L.msg("n", T0 + 2 * H)
+        self.L.msg("s", T0 + 3 * H)
+        self.L.msg("s", T0 + 5 * H)
+        self.L.msg("m", T0 + DAY)
+        self.L.msg("m", T0 + 2 * DAY)
+        _, tl = self.timeline()
+        got = {k: v["returning"] for k, v in self.entry_map(tl).items()}
+        self.assertEqual(got, {
+            "2026-10-26T11:00+08:00": True,
+            "2026-10-26T12:00+08:00": False,
+            "2026-10-26T13:00+08:00": False,
+            "2026-10-27T10:00+08:00": False,
+            "2026-10-28T10:00+08:00": True,
+        })
+
+    def test_follows_without_inquiry(self):
+        self.L.msg("base", T0)
+        self.follow("x", T0 + 2 * DAY)
+        self.follow("y", T0 + 3 * DAY)
+        self.L.msg("y", T0 + 3 * DAY + 100 * MIN)
+        self.follow("z", T0 + 4 * DAY)
+        self.L.msg("z", T0 + 4 * DAY + 130 * MIN)
+        self.follow("w", T0 - 2 * DAY)
+        self.follow("v", tp(11, 1, 23, 59))
+        self.L.msg("v", tp(11, 2, 0, 30))
+        _, tl = self.timeline()
+        self.assertEqual(tl["follows_without_inquiry"], ["2026-10-28T10:00+08:00", "2026-10-30T10:00+08:00"])
+        got = {k: v["follow_minute"] for k, v in self.entry_map(tl).items()}
+        self.assertEqual(got, {"2026-10-26T10:00+08:00": None,
+                               "2026-10-29T11:40+08:00": "2026-10-29T10:00+08:00",
+                               "2026-10-30T12:10+08:00": None})
+
+    def test_no_follows_still_written_and_no_forbidden_keys(self):
+        self.L.bind("alice", "Z9Q7", T0 - 30 * DAY)
+        self.L.msg("alice", T0, CODE1)
+        self.L.msg("bob", T0 + H, CODE2)
+        _, plain = self.timeline([piece("P1", "Z9Q7", T0 + DAY)])
+        self.assertEqual(plain["follows_without_inquiry"], [])
+        self.follow("alice", T0 - MIN)
+        self.follow("carol", T0 + DAY)
+        _, tl = self.timeline([piece("P1", "Z9Q7", T0 + DAY)])
+        text = ax.timeline_output_path(self.root, WEEK).read_text(encoding="utf-8")
+        keys, strings = set(), []
+
+        def walk(value):
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    keys.add(k)
+                    walk(v)
+            elif isinstance(value, list):
+                for v in value:
+                    walk(v)
+            elif isinstance(value, str):
+                strings.append(value)
+
+        walk(tl)
+        self.assertEqual(keys & FORBIDDEN_KEYS, set())
+        self.assertEqual(set(tl), TOP_KEYS)
+        for e in tl["entries"]:
+            self.assertEqual(set(e), ENTRY_KEYS)
+        self.assertIsNone(re.search(r"U[0-9a-f]{32}", text))
+        needles = {KEY.hex(), "Z9Q7", "alice", "bob", "carol"}
+        for r in self.L.rows:
+            for name in ("user_key", "cid_key", "event_id", "message_key"):
+                if isinstance(r.get(name), str):
+                    needles.add(r[name])
+        for name in ("alice", "bob"):
+            needles.add(ax.make_inquiry_id(SHOP, OA, uk(name), date(2026, 10, 26)))
+        for value in needles:
+            self.assertNotIn(value, text)
+        self.assertEqual(list(ax.timeline_output_path(self.root, WEEK).parent.glob(".*tmp*")), [])
+
+    def test_dry_run_writes_nothing(self):
+        self.L.msg("alice", T0, CODE1)
+        self.follow("alice", T0 - MIN)
+        res = self.run_export(dry_run=True)
+        self.assertEqual(res.code, 0)
+        self.assertIsNone(res.timeline_path)
+        self.assertFalse(ax.output_path(self.root, WEEK).exists())
+        self.assertFalse(ax.timeline_output_path(self.root, WEEK).exists())
+
+    def test_failing_timeline_write_keeps_exit_code(self):
+        self.L.msg("alice", T0, CODE1)
+        self.follow("alice", T0 - MIN)
+        real = ax.atomic_write_bytes
+
+        def flaky(path, data):
+            if path.name.startswith("inquiry-timeline-"):
+                raise OSError("disk full " + uk("alice"))
+            return real(path, data)
+
+        err = io.StringIO()
+        with patch.object(ax, "atomic_write_bytes", flaky), redirect_stderr(err):
+            res = self.run_export(dry_run=False)
+        self.assertEqual(res.code, 0, res.message)
+        self.assertTrue(ax.output_path(self.root, WEEK).exists())
+        self.assertFalse(ax.timeline_output_path(self.root, WEEK).exists())
+        self.assertEqual(err.getvalue(), "[TIMELINE_ERROR] OSError\n")
+        self.assertIsNone(res.timeline_path)
+        self.assertEqual(res.timeline_error, "OSError")
+
+    def test_failing_timeline_build_and_cli_exit_code(self):
+        self.L.bind("alice", "K1", T0 - 30 * DAY)
+        self.L.msg("alice", T0, CODE1)
+        (self.root / "data" / "inquiries.jsonl").write_bytes(self.L.dump())
+        pos = self.root / "pieces.json"
+        pos.write_text(json.dumps([piece("P1", "K1", T0 + DAY)]), encoding="utf-8")
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(ax, "build_timeline", side_effect=ValueError("x")), \
+                redirect_stdout(out), redirect_stderr(err):
+            rc = ax.main(["--root", str(self.root), "--week", WEEK, "--as-of", iso(AS_OF),
+                          "--pos-json", str(pos)])
+        self.assertEqual(rc, 0)
+        self.assertTrue(out.getvalue().startswith("[ATTRIBUTION_EXPORT]"))
+        self.assertEqual(err.getvalue(), "[TIMELINE_ERROR] ValueError\n")
+        self.assertTrue(ax.output_path(self.root, WEEK).exists())
+        self.assertFalse(ax.timeline_output_path(self.root, WEEK).exists())
 
 
 if __name__ == "__main__":

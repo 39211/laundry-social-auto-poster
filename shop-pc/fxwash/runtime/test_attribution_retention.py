@@ -358,5 +358,49 @@ class RunTests(Base):
         self.assertEqual(len(ids), 12)
 
 
+class FollowRetentionTests(Base):
+    def add_follows(self):
+        old = self.L.event("follow_observed", "zoe", at(11, 3), unblocked=False)
+        new = self.L.event("follow_observed", "zoe", at(12, 9), unblocked=True)
+        self.full = self.L.dump()
+        self.ledger_path.write_bytes(self.full)
+        return old, new
+
+    @staticmethod
+    def ids_in(data):
+        out = set()
+        for line in data.splitlines():
+            try:
+                out.add(json.loads(line)["event_id"])
+            except ValueError:
+                pass
+        return out
+
+    def test_plan_prunes_old_follow_rows_keeps_recent(self):
+        old, new = self.add_follows()
+        plan = self.plan()
+        self.assertEqual(plan.removed, dict(EXPECTED_REMOVED, follow_observed=1))
+        self.assertEqual(plan.kept, dict(EXPECTED_KEPT, follow_observed=1))
+        self.assertEqual(plan.required_weeks, ["2026-W44", "2026-W48"])
+        ids = self.ids_in(plan.data)
+        self.assertNotIn(old["event_id"], ids)
+        self.assertIn(new["event_id"], ids)
+
+    def test_run_prunes_follow_rows_and_writes_timelines(self):
+        old, new = self.add_follows()
+        res = self.run_ret()
+        self.assertEqual(res.code, 0, res.line)
+        self.assertEqual(res.report["removed"].get("follow_observed"), 1)
+        ids = self.ids_in(self.ledger_path.read_bytes())
+        self.assertNotIn(old["event_id"], ids)
+        self.assertIn(new["event_id"], ids)
+        for week in ("2026-W44", "2026-W48"):
+            tl = json.loads(ax.timeline_output_path(self.root, week).read_text(encoding="utf-8"))
+            doc = json.loads(ax.output_path(self.root, week).read_text(encoding="utf-8"))
+            self.assertEqual(tl["schema"], "inquiry-timeline/v1")
+            self.assertEqual(tl["revision"], doc["revision"])
+            self.assertEqual(len(tl["entries"]), sum(r["inquiries"] for r in doc["rows"]))
+
+
 if __name__ == "__main__":
     unittest.main()

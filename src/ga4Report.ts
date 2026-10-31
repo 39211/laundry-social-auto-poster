@@ -48,7 +48,7 @@ export class Ga4NotConfiguredError extends Error {
   }
 }
 
-function credentials(env: NodeJS.ProcessEnv = process.env) {
+export function credentials(env: NodeJS.ProcessEnv = process.env) {
   const clientId = env.YT_CLIENT_ID ?? "";
   const clientSecret = env.YT_CLIENT_SECRET ?? "";
   // A separate refresh token from the YouTube one on purpose: re-consenting
@@ -71,7 +71,7 @@ export function isGa4Configured(env: NodeJS.ProcessEnv = process.env): boolean {
   return credentials(env).missing.length === 0;
 }
 
-async function accessToken(fetchImpl: typeof fetch, env: NodeJS.ProcessEnv): Promise<string> {
+export async function accessToken(fetchImpl: typeof fetch, env: NodeJS.ProcessEnv): Promise<string> {
   const { clientId, clientSecret, refreshToken } = credentials(env);
   const response = await fetchImpl(TOKEN_ENDPOINT, {
     method: "POST",

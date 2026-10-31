@@ -18,6 +18,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -53,6 +54,13 @@ CONTENT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:/#-]{0,79}")
 SECTION_TOP = 5
 SOURCE_TABLE = ("| 來源碼／內容 | 詢問數（詢問客日） | 綁定後七日有收件的詢問數 B7 |",
                 "| --- | ---: | --- |")
+
+# Invisible time-match inference (attribution_timematch.py, timematch/v1).
+TIMEMATCH_TITLE = "LINE 來源推測(隱形對時,非確定數字)"
+TIMEMATCH_ABSENT = "本週尚無對時資料(店機時間軸或 GA4 每分鐘資料還沒到)"
+TIMEMATCH_TABLE = ("| 來源 | 點擊 | 對到 | 巧合預期 | 多出 | 7天內收件 |",
+                   "| --- | ---: | ---: | ---: | ---: | --- |")
+TIMEMATCH_INTS = ("clicks", "matched", "matched_I7_received", "matched_I7_pending")
 
 
 def parse_time(value):
@@ -685,6 +693,95 @@ def fit_conversions(view, room):
     return ["", "來源→收件：表格省略（週報 60 行上限）；請直接查看匯出檔。"]
 
 
+# ---------------------------------------------------------------------------
+# Invisible time-match inference (data/conversions/timematch-<week>.json)
+# ---------------------------------------------------------------------------
+
+def timematch_number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def timematch_view(data, week, reader):
+    """Read the time-match file up front; 'short' is the one-line fallback."""
+    path = data / "conversions" / f"timematch-{week}.json"
+    label = f"conversions/timematch-{week}.json"
+    try:
+        exists = path.is_file()
+    except OSError:
+        exists = False
+    if not exists:
+        return {"short": f"{TIMEMATCH_TITLE}:{TIMEMATCH_ABSENT}"}
+    obj = reader.json(path, label)
+    reason, rows = None, []
+    if obj is None:
+        reason = "JSON 損壞或無法讀取"
+    elif not isinstance(obj, dict) or obj.get("schema") != "timematch/v1":
+        reason = "schema 不符"
+    elif obj.get("week") != week:
+        reason = "week 不符"
+    elif obj.get("label") != "推測":
+        reason = "缺推測標記"
+    else:
+        sources, totals, coverage = obj.get("sources"), obj.get("totals"), obj.get("clicks_coverage")
+        if not isinstance(sources, list) or not isinstance(totals, dict) or not isinstance(coverage, dict):
+            reason = "結構未知"
+        else:
+            for row in sources:
+                if (not isinstance(row, dict) or not isinstance(row.get("source"), str) or not row["source"].strip()
+                        or not all(count_value(row.get(key)) for key in TIMEMATCH_INTS)
+                        or not timematch_number(row.get("chance_expected"))
+                        or not timematch_number(row.get("excess"))):
+                    reason = "來源列無效"
+                    break
+                rows.append(row)
+            if reason is None and not (all(count_value(totals.get(key)) for key in ("clicks", "matched"))
+                                       and timematch_number(totals.get("chance_expected"))
+                                       and count_value(coverage.get("days_measured"))):
+                reason = "合計無效"
+    if reason is not None:
+        if obj is not None:
+            reader.warnings.add(f"{label} {reason},已略過")
+        return {"short": f"{TIMEMATCH_TITLE}:未知({reason};不補 0)"}
+    lower = "(店機時間軸為下限)" if obj.get("timeline_status") == "lower_bound" else ""
+    sentence = (f"推測:這是用 LINE 點擊時間和店機詢問時間對時得出的,樣本很小,不是確定數字;"
+                f"「巧合預期」是把點擊時間錯開後仍會對到的數量,「多出」明顯大於 0 才值得參考。"
+                f"本週合計點擊 {totals['clicks']}、對到 {totals['matched']}、巧合預期 {totals['chance_expected']:.1f};"
+                f"GA4 每分鐘資料 {coverage['days_measured']}/7 日{lower}。")
+
+    def table_row(row):
+        name = "未知來源" if row["source"].strip() == "unknown" else safe_label(row["source"].strip())
+        received = str(row["matched_I7_received"])
+        if row["matched_I7_pending"]:
+            received += f"(另 {row['matched_I7_pending']} 待滿窗)"
+        return (f"| {name} | {row['clicks']} | {row['matched']} | {row['chance_expected']:.1f} | "
+                f"{row['excess']:+.1f} | {received} |")
+
+    return {"heading": "### " + TIMEMATCH_TITLE, "sentence": sentence, "rows": [table_row(row) for row in rows],
+            "short": f"{TIMEMATCH_TITLE}:表格省略(週報 60 行上限);請看 conversions/timematch-{week}.json"}
+
+
+def fit_timematch(view, room):
+    """Uses only the room left after every other section; may return []."""
+    if "rows" not in view:
+        return ["", view["short"]] if room >= 2 else [view["short"]] if room == 1 else []
+    rows = view["rows"]
+
+    def build(keep):
+        out = ["", view["heading"], view["sentence"]]
+        if len(rows) - keep:
+            out.append(f"(其餘 {len(rows) - keep} 個來源省略)")
+        return out + (["", *TIMEMATCH_TABLE, *rows[:keep]] if keep else [])
+
+    full = build(len(rows))
+    if len(full) <= room:
+        return full
+    for keep in range(min(SECTION_TOP, len(rows)), 0, -1):
+        candidate = build(keep)
+        if len(candidate) <= room:
+            return candidate
+    return ["", view["short"]] if room >= 2 else [view["short"]] if room == 1 else []
+
+
 def build_report(data, reports, bot, week, now, llm=False):
     first = iso_week(week)
     start = datetime.combine(first, time(), TAIPEI)
@@ -703,6 +800,7 @@ def build_report(data, reports, bot, week, now, llm=False):
     queries, sends = line_counts(data, start, end, now, reader)
     source_note = inventory(data, reports, reader)
     conversions = conversion_view(data, week, previous_week, now, reader)
+    timematch = timematch_view(data, week, reader)
     failed = sum(len(items["failed"]) for items in posts.values())
     uncertain = sum(len(items["uncertain"]) for items in posts.values())
     published = sum(len(items["published"]) for items in posts.values())
@@ -798,6 +896,13 @@ def build_report(data, reports, bot, week, now, llm=False):
     if llm:
         tail.append("--llm：預留開關，未呼叫 API；仍使用規則建議。")
     lines.extend(fit_conversions(conversions, MAX_LINES - len(lines) - len(tail)))
+    timematch_lines = fit_timematch(timematch, MAX_LINES - len(lines) - len(tail))
+    if not timematch_lines:
+        # No line left under the 60-line cap: say so on the existing warnings line instead of dropping silently.
+        reader.warnings.add(timematch["short"])
+        warnings = "；".join(sorted(reader.warnings))
+        tail = [("讀取問題：" + safe_label(warnings, 480)) if line.startswith("讀取問題：") else line for line in tail]
+    lines.extend(timematch_lines)
     lines.extend(tail)
     if len(lines) > MAX_LINES:
         raise ValueError("週報超過 60 行")

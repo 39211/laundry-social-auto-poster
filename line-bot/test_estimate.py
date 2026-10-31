@@ -77,27 +77,67 @@ class Response:
         return json.dumps(self.body).encode()
 
 
-def inventory_item(name, quantity, certainty="clear", reason="", label=None):
-    return dict(name=name, quantity=quantity, certainty=certainty, reason=reason, label=label or name)
+PHOTO_FIELD_DEFAULTS = dict(brand="", model="", material="", color="", stain="", craft="", question="")
+PHOTO_PRICES = {
+    "包包": {"名牌包": 1500, "背包": 600},
+    "鞋子": {"名牌鞋": 600, "一般運動鞋": 250, "皮類運動鞋": 300, "混合運動鞋": 350},
+    "寢具": {"棉被單人": 350, "棉被雙人": 500},
+    "衣物": {"襯衫": 70},
+}
+TEXT_PRICES = {"衣物": {"襯衫": 70}, "鞋子": {"一般運動鞋": 250, "皮類運動鞋": 300, "混合運動鞋": 350}}
+
+
+def inventory_item(name, quantity, certainty="clear", reason="", label=None, **fields):
+    row = dict(name=name, quantity=quantity, certainty=certainty, reason=reason, label=label or name)
+    row.update(PHOTO_FIELD_DEFAULTS)
+    row.update(fields)
+    return row
+
+
+def photo_rows(*rows, prices=PHOTO_PRICES):
+    return photo_estimate.validate_result({"items": list(rows)}, set(estimate.catalog(prices)))
+
+
+def photo_render(*rows, prices=PHOTO_PRICES):
+    draft = estimate.from_photo(photo_rows(*rows, prices=prices), None, prices)
+    return draft, estimate.render(draft)
+
+
+def text_line(name, quantity, max_quantity=None, unit="件", reason=""):
+    return {"name": name, "quantity": quantity, "max_quantity": quantity if max_quantity is None else max_quantity,
+            "unit": unit, "reason": reason, "source": "text"}
 
 
 TRANSCRIPTS = []
 
 
 class ProviderTests(unittest.TestCase):
-    def invoke(self, effects):
+    def invoke(self, effects, env=None):
         body={'candidates':[{'finishReason':'STOP','content':{'parts':[{'text':json.dumps({'items':[inventory_item('混合運動鞋',1,'estimated','先按可見款式估')]})}]}}]}
         effects=[Response(body) if x=='ok' else x for x in effects]
-        with patch.dict(os.environ,{'GEMINI_API_KEY':'synthetic-key','LAUNDRY_PHOTO_ESTIMATE':'1','LAUNDRY_VISION_MODEL':'gemini-2.5-flash'}), \
+        settings={'GEMINI_API_KEY':'synthetic-key','LAUNDRY_PHOTO_ESTIMATE':'1','LAUNDRY_VISION_MODEL':'gemini-2.5-flash'}
+        settings.update(env or {})
+        with patch.dict(os.environ,settings), \
              patch.object(photo_estimate.urllib.request,'urlopen',side_effect=effects) as request, \
              patch.object(photo_estimate.time,'sleep'):
             result=ORIGINAL_INVENTORY([ROOT/'test-assets/estimate-items-synthetic.png'],['混合運動鞋'])
         return result,request
 
-    def test_503_recovers_with_same_model(self):
+    def test_503_recovers_with_fallback_model(self):
+        # 10/31 night: gemini-2.5-flash answered 429 (free-tier 5/min) and 503; the retry goes
+        # to the fallback model in plain JSON mode (flash-lite rejects SCHEMA with HTTP 400).
         result,request=self.invoke([urllib.error.HTTPError('synthetic',503,'busy',None,None),'ok'])
         self.assertTrue(result['ok']);self.assertEqual(request.call_count,2)
-        self.assertEqual(result['model'],'gemini-2.5-flash')
+        self.assertEqual(result['model'],'gemini-2.5-flash-lite')
+        first,second=[call.args[0] for call in request.call_args_list]
+        self.assertIn('/models/gemini-2.5-flash:',first.full_url)
+        self.assertIn('/models/gemini-2.5-flash-lite:',second.full_url)
+        self.assertIn('responseJsonSchema',json.loads(first.data)['generationConfig'])
+        self.assertNotIn('responseJsonSchema',json.loads(second.data)['generationConfig'])
+
+    def test_429_quota_also_uses_fallback(self):
+        result,request=self.invoke([urllib.error.HTTPError('synthetic',429,'quota',None,None),'ok'])
+        self.assertTrue(result['ok']);self.assertEqual(result['model'],'gemini-2.5-flash-lite')
 
     def test_provider_failure_is_bounded(self):
         result,request=self.invoke([urllib.error.HTTPError('synthetic',503,'busy',None,None)]*2)
@@ -118,31 +158,197 @@ class ProviderTests(unittest.TestCase):
         rendered=estimate.render(estimate.from_photo([result],None,{'鞋子':{'混合運動鞋':350}}))
         self.assertNotIn('已收現金',rendered);self.assertIn('350',rendered)
 
+    def test_prompt_uses_rules_part_of_knowledge_only(self):
+        folder = TEMP / 'knowledge-rules'
+        folder.mkdir(exist_ok=True)
+        (folder / 'Memory.md').write_text('# 鞋類\n- 合成規則甲：麂皮手工刷洗\n## 📝 動態紀錄\n- 合成紀錄乙：不能送出\n', encoding='utf-8')
+        (folder / 'Clothing_Memory.md').write_text('# 衣物\n- 合成規則丙：兩條褲管是褲子\n## 📝 動態紀錄\n- 合成紀錄丁\n', encoding='utf-8')
+        with patch.dict(os.environ, {'LAUNDRY_VISION_KNOWLEDGE_DIR': str(folder)}):
+            prompt = photo_estimate.build_prompt(['襯衫', '名牌包'])
+        for kept in ('合成規則甲', '合成規則丙', '不評論真偽', '品名：襯衫、名牌包', '分類提示'):
+            self.assertIn(kept, prompt)
+        for dropped in ('合成紀錄乙', '合成紀錄丁', '📝'):
+            self.assertNotIn(dropped, prompt)
+        result, request = self.invoke(['ok'], {'LAUNDRY_VISION_KNOWLEDGE_DIR': str(folder)})
+        self.assertTrue(result['ok'])
+        sent = json.loads(request.call_args[0][0].data)['contents'][0]['parts'][0]['text']
+        self.assertIn('合成規則甲', sent)
+        self.assertNotIn('合成紀錄乙', sent)
+
+    def test_missing_knowledge_dir_still_works(self):
+        missing = TEMP / 'no-such-knowledge-dir'
+        with patch.dict(os.environ, {'LAUNDRY_VISION_KNOWLEDGE_DIR': str(missing)}):
+            prompt = photo_estimate.build_prompt(['襯衫'])
+        self.assertNotIn('門市知識規則', prompt)
+        self.assertIn('品名：襯衫', prompt)
+        result, request = self.invoke(['ok'], {'LAUNDRY_VISION_KNOWLEDGE_DIR': str(missing)})
+        self.assertTrue(result['ok']); self.assertEqual(request.call_count, 1)
+
+    def test_new_fields_required_by_schema(self):
+        required = photo_estimate.SCHEMA['properties']['items']['items']['required']
+        names = {'襯衫'}
+        for field in ('brand', 'model', 'material', 'color', 'stain', 'craft', 'question'):
+            with self.subTest(field=field):
+                self.assertIn(field, required)
+                row = inventory_item('襯衫', 1)
+                del row[field]
+                with self.assertRaises(ValueError):
+                    photo_estimate.validate_result({'items': [row]}, names)
+                row = inventory_item('襯衫', 1)
+                row[field] = None
+                with self.assertRaises(ValueError):
+                    photo_estimate.validate_result({'items': [row]}, names)
+
+    def test_price_url_phone_payment_removed_from_text(self):
+        row = inventory_item('襯衫', 1, craft='領口會先酵素預浸，加強費用200元',
+                             question='要加強去漬嗎？請匯款到帳戶', stain='領口黃漬，詳見 https://evil.example.com')
+        item = photo_rows(row)[0]
+        self.assertEqual(item['craft'], '領口會先酵素預浸')
+        self.assertEqual(item['question'], '要加強去漬嗎？')
+        self.assertEqual(item['stain'], '領口黃漬')
+        cases = {'NT$300 加強處理': '', '請打0912345678詢問': '', '詳見 www.example.com': '',
+                 '可以先付款': '', '$ 50 加購': '', '低溫柔洗，三百元': '低溫柔洗', '已付現金': ''}
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(photo_rows(inventory_item('襯衫', 1, craft=text, question=text))[0]['craft'], expected)
+                self.assertEqual(photo_rows(inventory_item('襯衫', 1, craft=text, question=text))[0]['question'], expected)
+        self.assertEqual(photo_rows(inventory_item('襯衫', 1, brand='**LV**'))[0]['brand'], 'LV')
+
+    def test_field_length_limits(self):
+        long = '甲' * 200
+        item = photo_rows(inventory_item('襯衫', 1, brand=long, model=long, material=long, color=long,
+                                         stain=long, craft=long, question=long))[0]
+        limits = {'brand': 40, 'model': 40, 'material': 40, 'color': 20, 'stain': 80, 'craft': 80, 'question': 50}
+        for field, limit in limits.items():
+            self.assertEqual(len(item[field]), limit, field)
+
+    def test_merge_keeps_first_non_empty_fields(self):
+        merged = photo_rows(inventory_item('襯衫', 1, craft='低溫柔洗'),
+                            inventory_item('襯衫', 1, brand='Uniqlo', craft='整燙'))
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(merged[0]['quantity'], 2)
+        self.assertEqual(merged[0]['brand'], 'Uniqlo')
+        self.assertEqual(merged[0]['craft'], '低溫柔洗')
+
+
+class PhotoRenderTests(unittest.TestCase):
+    def test_brand_shown_only_when_provided(self):
+        draft, text = photo_render(inventory_item('名牌包', 1, 'estimated', '看得到包款', label='咖啡色手提包'))
+        self.assertNotIn('LV', text); self.assertNotIn('Louis', text)
+        self.assertIn('咖啡色手提包', text)
+        draft, text = photo_render(inventory_item('名牌包', 1, 'estimated', '看得到老花', label='咖啡色手提包',
+                                                  brand='LV', model='Monogram Speedy', material='塗層帆布、真皮把手'))
+        self.assertEqual(text.split('\n')[0],
+                         '這個是 LV Monogram Speedy（塗層帆布、真皮把手），門市分類【名牌包】，清洗費用 1,500 元，約 14 天。')
+
+    def test_luxury_bag_uses_catalogue_price(self):
+        draft, text = photo_render(inventory_item('名牌包', 1, 'estimated', '看得到經典老花', brand='LV'))
+        self.assertEqual(draft['total'], 1500)
+        self.assertEqual((draft['estimated_minimum'], draft['estimated_maximum']), (1500, 1500))
+        self.assertNotIn('先抓', text)
+        self.assertNotIn('estimate_assumption', '') if not draft['lines'][0]['estimate_assumption'] else self.fail()
+
+    def test_uncertain_still_a_range(self):
+        draft, text = photo_render(inventory_item('一般運動鞋', 1, 'uncertain', '材質看不清楚'))
+        self.assertIsNone(draft['confirmed_total'])
+        self.assertEqual((draft['estimated_minimum'], draft['estimated_maximum']), (250, 350))
+        self.assertIn('先抓 250–350 元', text)
+
+    def test_quantity_written_per_unit(self):
+        draft, text = photo_render(inventory_item('名牌鞋', 2, 'estimated', '', brand='Gucci', model='Ace'))
+        self.assertEqual(text.split('\n')[0],
+                         '這 2 雙是 Gucci Ace，門市分類【名牌鞋】，清洗費用每雙 600 元 × 2 雙＝1,200 元，約 7 天。')
+
+    def test_turnaround_per_group(self):
+        for name, days in (('名牌鞋', '7 天'), ('一般運動鞋', '7 天'), ('名牌包', '14 天'), ('背包', '14 天'),
+                           ('棉被雙人', '10–14 天'), ('襯衫', '5–7 天')):
+            with self.subTest(name=name):
+                draft, text = photo_render(inventory_item(name, 1, 'clear'))
+                self.assertIn(f'約 {days}。', text)
+                self.assertEqual(estimate.photo_turnaround(name, estimate.catalog(PHOTO_PRICES)[name]['category']), days)
+
+    def test_photo_only_render_shape(self):
+        draft, text = photo_render(
+            inventory_item('名牌包', 1, 'estimated', '', brand='LV', stain='提把邊角磨損',
+                           craft='會用皮革專用清潔再上保養乳', question='包內有筆痕嗎'),
+            inventory_item('一般運動鞋', 2, 'uncertain', '材質看不清楚'),
+            inventory_item('棉被雙人', None, 'uncertain', '尺寸要確認'))
+        rows = text.split('\n')
+        self.assertLessEqual(len(rows), 8)
+        self.assertNotIn(estimate.DISCLAIMER, text)
+        self.assertEqual(rows[-1], '實際以到店看件為準。')
+        self.assertIn('照片看到提把邊角磨損，會用皮革專用清潔再上保養乳。包內有筆痕嗎？', text)
+        self.assertNotIn('*', text)
+        draft, text = photo_render(inventory_item('名牌包', 1, 'estimated'),
+                                   inventory_item('名牌鞋', 2, 'clear'),
+                                   inventory_item('襯衫', 1, 'clear'))
+        self.assertEqual(draft['total'], 2770)
+        self.assertIn('這批合計 2,770 元。', text)
+        self.assertLessEqual(len(text.split('\n')), 8)
+        self.assertNotIn(estimate.DISCLAIMER, text)
+        self.assertTrue(text.endswith('實際以到店看件為準。'))
+
+    def test_mixed_text_and_photo_keeps_existing_render(self):
+        photo = estimate.from_photo(photo_rows(inventory_item('名牌包', 1, 'estimated')), None, PHOTO_PRICES)
+        mixed = estimate.update('襯衫3件', photo, PHOTO_PRICES)
+        self.assertEqual({x['source'] for x in mixed['lines']}, {'photo', 'text'})
+        text = estimate.render(mixed)
+        self.assertIn(estimate.DISCLAIMER, text)
+        self.assertNotIn('實際以到店看件為準。', text)
+
+    def test_text_render_is_byte_identical(self):
+        opening = '幫你算好了，先按一般水洗價：'
+        cases = [
+            ([text_line('襯衫', 3), text_line('一般運動鞋', 2, unit='雙')], [],
+             '\n'.join([opening, '', '襯衫 3件 × 70元＝210元', '一般運動鞋 2雙 × 250元＝500元', '',
+                        '這批預估 710 元。', '', estimate.DISCLAIMER])),
+            ([text_line('襯衫', 2), text_line('運動鞋', 1, unit='雙', reason='請確認一般、皮類或混合運動鞋'),
+              text_line('枕頭', None, unit='顆', reason='枕頭本體不是枕套，請補洗標或交店員看件')], [],
+             '\n'.join([opening, '', '襯衫 2件 × 70元＝140元', '', '這批先抓約 390–490 元。',
+                        '已確認品項小計 140 元。', '', '還有幾項先用區間抓：運動鞋 1雙：先抓 250–350 元。', '',
+                        '還沒加進去：枕頭（件數還沒說）。',
+                        '運動鞋是一般、皮類還是混合材質？可以按下面選；不確定就拍給我們看。', '', estimate.DISCLAIMER])),
+            ([text_line('襯衫', 5, 6)], ['去霉'],
+             '\n'.join([opening, '', '襯衫 5–6件 × 70元＝350–420元', '', '這批先抓約 350–420 元。',
+                        '已確認品項小計 350 元。', '另外待評估：去霉，尚未加計。', '', estimate.DISCLAIMER])),
+        ]
+        with patch.object(estimate, '_estimate_basis', lambda: 'off'), \
+             patch.object(estimate, '_adopted_label', lambda name: ''):
+            for lines, special, expected in cases:
+                with self.subTest(first=lines[0]['name'], count=len(lines)):
+                    draft = estimate.price({'lines': lines, 'special': special, 'revision': 1, 'source': 'text'}, TEXT_PRICES)
+                    self.assertEqual(estimate.render(draft), expected)
+
 
 class EngineTests(unittest.TestCase):
-    def test_estimated_photo_uses_catalog_with_assumption(self):
-        item=inventory_item('混合運動鞋',1,'estimated','先按混合運動鞋估')
-        draft=estimate.from_photo([item],None,conv.PRICES)
-        # Estimated photo rows are never treated as an exact payable total.
-        self.assertIsNone(draft['total'])
-        self.assertEqual((draft['estimated_minimum'], draft['estimated_maximum']), (250, 350))
-        self.assertIn('照片先初判', estimate.render(draft))
-        self.assertIn('現場看件',estimate.render(draft))
+    def test_estimated_photo_uses_single_catalog_price(self):
+        cat = estimate.catalog(conv.PRICES)
+        item = inventory_item('混合運動鞋', 1, 'estimated', '先按混合運動鞋估')
+        draft = estimate.from_photo([item], None, conv.PRICES)
+        unit = cat['混合運動鞋']['price']
+        # The amount is the catalogue row's price, never a model number.
+        self.assertEqual(draft['total'], unit)
+        self.assertEqual((draft['estimated_minimum'], draft['estimated_maximum']), (unit, unit))
+        self.assertEqual(draft['lines'][0]['estimate_assumption'], '')
+        text = estimate.render(draft)
+        self.assertIn(f'清洗費用 {unit:,} 元', text)
+        self.assertIn('約 7 天', text)
+        self.assertNotIn('照片先初判', text)
+        self.assertTrue(text.endswith('實際以到店看件為準。'))
+        self.assertNotIn(estimate.DISCLAIMER, text)
 
-    def test_estimated_photo_catalog_rows_widen_to_a_useful_range(self):
-        cases = {
-            "背包": (400, 2500),
-            "襯衫": (70, 100),
-            "皮鞋": (150, 600),
-            "涼被": (120, 800),
-        }
-        for name, expected in cases.items():
+    def test_estimated_photo_catalog_rows_get_their_catalog_price(self):
+        cat = estimate.catalog(conv.PRICES)
+        for name in ("背包", "襯衫", "皮鞋", "涼被"):
+            if name not in cat:
+                continue
             with self.subTest(name=name):
                 item = inventory_item(name, 1, "estimated", "照片看得到品類，但材質或款式仍要確認")
                 draft = estimate.from_photo([item], None, conv.PRICES)
-                self.assertIsNone(draft["confirmed_total"])
-                self.assertEqual((draft["estimated_minimum"], draft["estimated_maximum"]), expected)
-                self.assertIn("照片先初判", estimate.render(draft))
+                price = cat[name]["price"]
+                self.assertEqual(draft["confirmed_total"], price)
+                self.assertEqual((draft["estimated_minimum"], draft["estimated_maximum"]), (price, price))
+                self.assertNotIn("先抓", estimate.render(draft))
 
     def test_customer_screenshot_spoken_list(self):
         first = "我有一雙運動鞋 3 個襯衫 2 個 T 恤 還有一個床組 還有棉被 請幫我先報價"

@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
-"""現役修復：群組沒送到不標已通知；高價照片不報確定價。不碰正式 data、不發網路。"""
+"""現役修復：群組沒送到不標已通知。不碰正式 data、不發網路。
+
+10/31 店主要求照片報價要跟店機一樣明確(V1):高價品項不再一律降成區間;
+模型看得清楚(clear)就報那一列的價目,看不清楚(uncertain)才給區間。"""
 from __future__ import annotations
 
 import os
@@ -32,18 +35,21 @@ def test_staff_push_requires_group_delivery():
     assert conv._pack._npush == 1
 
 
-def test_high_price_photo_names_stay_estimated():
+def _row(name, certainty):
+    return {"name": name, "label": name, "quantity": 1, "certainty": certainty, "reason": "清楚",
+            "brand": "", "model": "", "material": "", "color": "", "stain": "", "craft": "", "question": ""}
+
+
+def test_high_price_photo_names_keep_model_certainty():
     names = {"皮鞋", "名牌鞋", "高跟鞋", "精品長大衣", "特殊皮衣", "特殊類名牌包", "襯衫"}
     for name in ("皮鞋", "名牌鞋", "高跟鞋", "精品長大衣", "特殊皮衣", "特殊類名牌包"):
-        rows = pe.validate_result(
-            {"items": [{"name": name, "label": name, "quantity": 1, "certainty": "clear", "reason": "清楚"}]},
-            names,
-        )
-        assert rows[0]["certainty"] == "estimated", (name, rows)
-        assert rows[0]["name"] == name
+        for certainty in ("clear", "estimated", "uncertain"):
+            rows = pe.validate_result({"items": [_row(name, certainty)]}, names)
+            assert rows[0]["certainty"] == certainty, (name, certainty, rows)
+            assert rows[0]["name"] == name
 
 
 if __name__ == "__main__":
     test_staff_push_requires_group_delivery()
-    test_high_price_photo_names_stay_estimated()
+    test_high_price_photo_names_keep_model_certainty()
     print("ok")

@@ -733,6 +733,15 @@ def price(draft: dict, prices: dict) -> dict:
     return draft
 
 
+_PHOTO_FIELDS = ("brand", "model", "material", "stain", "craft", "question")
+
+
+def _photo_text(value, limit=80) -> str:
+    if not isinstance(value, str):
+        return ""
+    return re.sub(r"[\s\x00-\x1f\x7f\u2028\u2029]+", " ", value).replace("*", "").strip()[:limit]
+
+
 def from_photo(items: list, previous: dict | None, prices: dict) -> dict:
     cat = catalog(prices)
     # The model analyses the whole batch, so previous photo rows are replaced, never added again.
@@ -747,18 +756,141 @@ def from_photo(items: list, previous: dict | None, prices: dict) -> dict:
                 known.update(quantity=None, max_quantity=None, reason="同款物件可能重複入鏡，請確認總件數")
             continue
         certainty = item.get("certainty", "uncertain")
-        reason = item.get("reason", "") if certainty != "clear" or name not in cat or quantity is None else ""
-        if not reason and (name not in cat or quantity is None):
-            reason = "照片中的款式或數量需確認"
-        lines.append({"name": name, "quantity": quantity, "max_quantity": quantity,
-                      "unit": cat.get(name, {}).get("unit", "件"), "reason": reason,
-                      "display": photo_display_label(name, certainty, prices),
-                      "photo_certainty": certainty,
-                      "photo_reason": item.get("reason", ""),
-                      "estimate_assumption": item.get("reason", "") if certainty == "estimated" and not reason else "",
-                      "source": "photo"})
+        # clear or estimated + catalogue name + int quantity => one catalogue price.
+        priced = (certainty in ("clear", "estimated") and name in cat
+                  and type(quantity) is int and 1 <= quantity <= 999)
+        reason = "" if priced else (item.get("reason", "") or "照片中的款式或數量需確認")
+        line = {"name": name, "quantity": quantity, "max_quantity": quantity,
+                "unit": cat.get(name, {}).get("unit", "件"), "reason": reason,
+                "display": photo_display_label(name, certainty, prices),
+                "photo_certainty": certainty,
+                "photo_reason": item.get("reason", ""),
+                "estimate_assumption": "",
+                "photo_category": cat.get(name, {}).get("category", ""),
+                "photo_label": _photo_text(item.get("label"), 40),
+                "source": "photo"}
+        for field in _PHOTO_FIELDS:
+            line[f"photo_{field}"] = _photo_text(item.get(field))
+        lines.append(line)
     draft.update(lines=lines, source="photo", revision=draft.get("revision", 0) + 1)
     return price(draft, prices)
+
+
+PHOTO_CLOSING = "實際以到店看件為準。"
+# Owner-fixed turnaround facts; nothing else is promised.
+PHOTO_TURNAROUND = {"shoe": "7 天", "bag": "14 天", "bedding": "10–14 天", "other": "5–7 天"}
+_PHOTO_UNIT_WORD = {"shoe": "雙", "bag": "個"}
+
+
+def photo_kind(name: str, category: str = "") -> str:
+    if category == "鞋子" or name in PHOTO_DISPLAY_GROUPS["鞋子"] or "鞋" in name:
+        return "shoe"
+    if name in PHOTO_DISPLAY_GROUPS["包包"] or ehank_prices.is_bag_or_leather_good(name, category):
+        return "bag"
+    if name in PHOTO_DISPLAY_GROUPS["寢具"]:
+        return "bedding"
+    return "other"
+
+
+def photo_turnaround(name: str, category: str = "") -> str:
+    return PHOTO_TURNAROUND[photo_kind(name, category)]
+
+
+def _photo_unit_word(line: dict) -> str:
+    kind = photo_kind(line["name"], line.get("photo_category", ""))
+    if kind in _PHOTO_UNIT_WORD:
+        return _PHOTO_UNIT_WORD[kind]
+    if line["name"] == "床組四件套":
+        return "套"
+    return "件"
+
+
+def _photo_priced_sentence(line: dict) -> str:
+    unit = _photo_unit_word(line)
+    name = line["name"]
+    q = line["quantity"]
+    high = line.get("max_quantity")
+    subject = " ".join(part for part in (line.get("photo_brand", ""), line.get("photo_model", "")) if part)
+    if not subject:
+        label = line.get("photo_label", "")
+        if label and label not in (name, "照片物件"):
+            subject = label
+    material = line.get("photo_material", "")
+    bracket = f"（{material}）" if material else ""
+    count = str(q) + (f"–{high}" if high not in (None, q) else "")
+    single = q == 1 and high in (None, 1)
+    lead = f"這{unit}" if single else f"這 {count} {unit}"
+    head = f"{lead}是 {subject}{bracket}，門市分類" if subject else f"{lead}{bracket}在門市分類"
+    subtotal = line["subtotal"]
+    max_subtotal = line.get("max_subtotal")
+    amount = f"{subtotal:,}" + (f"–{max_subtotal:,}" if max_subtotal not in (None, subtotal) else "")
+    if single:
+        fee = f"清洗費用 {amount} 元"
+    else:
+        fee = f"清洗費用每{unit} {line['unit_price']:,} 元 × {count} {unit}＝{amount} 元"
+    return f"{head}【{name}】，{fee}，約 {photo_turnaround(name, line.get('photo_category', ''))}。"
+
+
+def _photo_detail(line: dict) -> str:
+    edge = " 。，,；;"
+    stain = (line.get("photo_stain") or "").strip(edge)
+    craft = (line.get("photo_craft") or "").strip(edge)
+    question = (line.get("photo_question") or "").strip(edge)
+    segments = []
+    if stain:
+        segments.append(f"照片看到{stain}")
+    if craft:
+        segments.append(craft)
+    text = "，".join(segments) + ("。" if segments else "")
+    if question:
+        if not question.endswith(("？", "?")):
+            question += "？"
+        text += question
+    return text
+
+
+def render_photo(draft: dict) -> str:
+    """Short professional reply for drafts whose lines all come from photos."""
+    if draft.get("error"):
+        return draft["error"]
+    lines = draft.get("lines") or []
+    if not lines:
+        return "這份預估清單已清空。還有要估的品項，直接告訴我就好。"
+    priced = [line for line in lines if line.get("subtotal") is not None]
+    rest = [line for line in lines if line.get("subtotal") is None]
+    out = [_photo_priced_sentence(line) for line in priced]
+    detail = _photo_detail(lines[0])
+    if detail:
+        out.append(detail)
+    if len(priced) > 1:
+        low = sum(line["subtotal"] for line in priced)
+        high = sum(line.get("max_subtotal") or line["subtotal"] for line in priced)
+        amount = f"{low:,}" + (f"–{high:,}" if high != low else "")
+        out.append(f"這批合計 {amount} 元。" if not rest else f"上面 {len(priced)} 項合計 {amount} 元，其他品項還要確認。")
+    ranges = []
+    pending = []
+    for line in rest:
+        q = line.get("quantity")
+        high = line.get("max_quantity")
+        count = "數量待確認" if q is None else str(q) + (f"–{high}" if high != q else "") + line.get("unit", "件")
+        if line.get("range_min_subtotal") is not None:
+            note = "（照片先初判，材質／款式到店確認）" if line.get("photo_certainty") != "clear" else ""
+            ranges.append(f"{line.get('display') or line['name']} {count}：先抓 {line['range_min_subtotal']:,}–{line['range_max_subtotal']:,} 元{note}")
+        else:
+            pending.append(f"{line.get('display') or line['name']}" + (f" {count}" if q is not None else "（件數還沒說）"))
+    if ranges:
+        out.append("還有幾項先用區間抓：" + "、".join(ranges) + "。")
+    if pending:
+        out.append("還沒加進去：" + "、".join(pending) + "。")
+    if rest:
+        ask = clarification(draft)
+        if ask:
+            out.append(ask)
+    closing = PHOTO_CLOSING
+    if draft.get("special"):
+        closing = "另外待評估：" + "、".join(draft["special"]) + "，尚未加計。" + closing
+    out.append(closing)
+    return "\n".join(out)
 
 
 def render(draft: dict) -> str:
@@ -766,6 +898,8 @@ def render(draft: dict) -> str:
         return draft["error"]
     if not draft.get("lines"):
         return "這份預估清單已清空。還有要估的品項，直接告訴我就好。"
+    if all(line.get("source") == "photo" for line in draft["lines"]):
+        return render_photo(draft)
     out = [_opening_line(draft), ""]
     pending = []
     ranges = []

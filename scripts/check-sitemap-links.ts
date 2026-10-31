@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁、第 9 波 9 頁。東勢、大甲、龍井不進這支。 */
-export const EXPECTED_LOC_COUNT = 177;
+/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁、第 9 波 9 頁、洗標符號指南 1 頁、送洗前自我檢查 1 頁。東勢、大甲、龍井不進這支。 */
+export const EXPECTED_LOC_COUNT = 179;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -615,6 +615,11 @@ export const WAVE9_PAGE_PATHS = [
  */
 export const WAVE9_BANNED_MARKERS = [...WAVE8_BANNED_MARKERS, "回白"] as const;
 
+/** 送洗前自我檢查工具頁。lastmod 用上線日，不回寫前波。 */
+export const PREWASH_PAGE_LASTMOD = "2026-10-31";
+
+export const PREWASH_PAGE_PATHS = ["/guides/prewash-self-check.html"] as const;
+
 export function wave9BannedHits(text: string): string[] {
   return WAVE9_BANNED_MARKERS.filter((marker) => text.includes(marker));
 }
@@ -630,6 +635,11 @@ export function wave9InsertedBlocks(html: string): string[] {
     ...html.matchAll(/<section\b[^>]*\bdata-wave9="1"[^>]*>[\s\S]*?<\/section>/g)
   ].map((match) => match[0] ?? "");
 }
+
+/** 洗標符號文字指南（含 PDF 小抄）。lastmod 用上線日，不回寫前波。 */
+export const CARE_LABEL_PAGE_LASTMOD = "2026-10-31";
+
+export const CARE_LABEL_PAGE_PATHS = ["/guides/care-label-symbols-text-guide.html"] as const;
 
 export type SitemapLinkReport = {
   parseOk: boolean;
@@ -759,7 +769,9 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
       path,
       lastmod: GSC_QUERY_LASTMOD_OVERRIDES[path] ?? olderLastmod(path, WAVE5_PAGE_LASTMOD)
     })),
+    ...CARE_LABEL_PAGE_PATHS.map((path) => ({ path, lastmod: CARE_LABEL_PAGE_LASTMOD })),
     ...WAVE7_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE7_PAGE_LASTMOD })),
+    ...PREWASH_PAGE_PATHS.map((path) => ({ path, lastmod: PREWASH_PAGE_LASTMOD })),
     ...WAVE8_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE8_PAGE_LASTMOD })),
     ...WAVE9_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE9_PAGE_LASTMOD }))
   ];

@@ -8,6 +8,8 @@ import json
 import re
 import unicodedata
 
+import ehank_prices
+
 DISCLAIMER = "先給你抓預算，這不是最後應付款；實際以現場看件報價為準。材質、尺寸或特殊處理（如乾洗、去霉、修補）可能另外確認費用。"
 ALIASES = {
     "T-shirt": "棉T", "t-shirt": "棉T", "T恤": "棉T", "T桖": "棉T",
@@ -385,10 +387,20 @@ def _recorded_specials(specials: list[str], lines: list, refused_washes=None) ->
     return kept
 
 
+def _display_category(name: str) -> str:
+    try:
+        import conversation
+        hit = conversation.lookup_item(name)
+    except Exception:
+        return ""
+    return hit[2] if hit else ""
+
+
 def _mode_suffix(name: str) -> str:
     label = _adopted_label(name)
     if not label:
         return ""
+    label = ehank_prices.bag_turnaround_label(name, label, _display_category(name))
     return f"（{label}）"
 
 

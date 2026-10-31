@@ -17,6 +17,8 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
 import test_conversation as base  # noqa: E402
+import ehank_prices  # noqa: E402
+import estimate  # noqa: E402
 
 conv = base.conv
 
@@ -138,6 +140,89 @@ class B1FactsTest(unittest.TestCase):
     def test_pickup_time(self) -> None:
         blob = self.ask("收送時間")
         self.assertIn("營業時間", blob, blob)
+
+    # ---- B1-4：包、皮件一律 14 天 ----
+    def _with_labels(self, **labels) -> None:
+        saved = dict(conv.PRICE_LABELS)
+
+        def restore() -> None:
+            conv.PRICE_LABELS.clear()
+            conv.PRICE_LABELS.update(saved)
+
+        self.addCleanup(restore)
+        conv.PRICE_LABELS.update(labels)
+
+    def _quote_blob(self, item: str) -> str:
+        self.assertIsNotNone(conv.lookup_item(item), f"fixture prices lack {item}")
+        B1FactsTest._n += 1
+        uid = f"Ub1facts{B1FactsTest._n:03d}"
+        return base.flatten(conv.quote(item, conv._price_of(item), uid))
+
+    def test_bag_day_label_reply_says_14(self) -> None:
+        self.assertIsNotNone(conv.lookup_item("特殊類名牌包"))
+        self._with_labels(特殊類名牌包="10天")
+        blob = self.ask("洗特殊類名牌包多少錢")
+        self.assertIn("14天", blob, blob)
+        self.assertNotIn("10天", blob, blob)
+
+    def test_non_bag_day_label_kept(self) -> None:
+        self._with_labels(襯衫="10天")
+        blob = self._quote_blob("襯衫")
+        self.assertIn("（10天）", blob, blob)
+        self.assertNotIn("14天", blob, blob)
+
+    def test_bag_non_day_label_kept(self) -> None:
+        self._with_labels(名牌包="乾洗")
+        blob = self._quote_blob("名牌包")
+        self.assertIn("（乾洗）", blob, blob)
+        self.assertNotIn("14天", blob, blob)
+
+    def test_menu_price_bag_and_leather_clothing(self) -> None:
+        self._with_labels(特殊類名牌包="10天", 皮衣="10天")
+        self.assertEqual(conv._menu_price("特殊類名牌包", 2000), "2000（14天）")
+        self.assertEqual(conv._menu_price("皮衣", 1000), "1000（10天）")
+
+    def test_estimate_lines_use_14_for_bags(self) -> None:
+        import conversation
+        self.assertIs(conversation, conv)
+        cat = estimate.catalog(conv.PRICES)
+        for name in ("特殊類名牌包", "襯衫"):
+            self.assertIn(name, cat, f"fixture prices lack {name}")
+        self._with_labels(特殊類名牌包="10天", 襯衫="10天")
+        draft = estimate.price({
+            "lines": [
+                {"name": "特殊類名牌包", "quantity": 1, "max_quantity": 1, "unit": "個", "reason": "", "source": "text"},
+                {"name": "襯衫", "quantity": 1, "max_quantity": 1, "unit": "件", "reason": "", "source": "text"},
+            ],
+            "special": [], "revision": 1, "source": "text",
+        }, conv.PRICES)
+        text = estimate.render(draft)
+        bag = [ln for ln in text.splitlines() if ln.startswith("特殊類名牌包")]
+        shirt = [ln for ln in text.splitlines() if ln.startswith("襯衫")]
+        self.assertEqual(len(bag), 1, text)
+        self.assertEqual(len(shirt), 1, text)
+        self.assertTrue(bag[0].endswith("（14天）"), bag[0])
+        self.assertTrue(shirt[0].endswith("（10天）"), shirt[0])
+
+    def test_bag_label_helper(self) -> None:
+        f = ehank_prices.bag_turnaround_label
+        self.assertEqual(f("特殊類名牌包", "10天", "包包"), "14天")
+        self.assertEqual(f("短皮夾", "７天", "包包"), "14天")
+        self.assertEqual(f("名牌包", " １０ 天 ", "包包"), "14天")
+        self.assertEqual(f("一般包", "10天"), "14天")
+        self.assertEqual(f("皮帶", "10天", "皮革"), "14天")
+        self.assertEqual(f("皮手套", "21天", "皮革"), "14天")
+        self.assertEqual(f("名牌包", "乾洗", "包包"), "乾洗")
+        self.assertEqual(f("名牌包", "10天以上", "包包"), "10天以上")
+        self.assertEqual(f("名牌包", "", "包包"), "")
+        self.assertEqual(f("皮鞋", "10天", "鞋子"), "10天")
+        self.assertEqual(f("皮鞋", "10天"), "10天")
+        # 包鞋 (closed-toe shoes) contains 包 but is a shoe: 7-day rule, never the bag rule.
+        self.assertEqual(f("包鞋", "10天", "鞋子"), "10天")
+        self.assertEqual(f("包鞋", "10天"), "10天")
+        self.assertEqual(f("皮衣", "10天", "皮革"), "10天")
+        self.assertEqual(f("襯衫", "10天", "衣物"), "10天")
+        self.assertEqual(f("包巾", "10天"), "10天")
 
 
 def main() -> int:

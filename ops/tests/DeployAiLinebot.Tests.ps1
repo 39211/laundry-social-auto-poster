@@ -295,10 +295,37 @@ exit 0
         (Get-Content -LiteralPath (Join-Path $script:Target 'line-bot/tunnel_manager.py') -Raw) | Should Be 'old-manager'
     }
 
-    It 'requires exact healthz pid equality even when Probe itself succeeds' {
+    It 'rejects a healthz pid that is neither the PID file nor its descendant even when Probe itself succeeds' {
+        $script:HealthBody = 'ok 4343'
+        $script:Processes = @($script:Processes) + @([pscustomobject]@{ ProcessId = 4343; ParentProcessId = 777; Name = 'python.exe'; CommandLine = 'python.exe other.py'; CreationDate = (Get-Date) })
+        (Invoke-AiLinebotDeployment -Source $script:Source -Target $script:Target) | Should Be 1
+        (Get-Content -LiteralPath (Join-Path $script:Target 'line-bot/tunnel_manager.py') -Raw) | Should Be 'old-manager'
+    }
+
+    It 'rejects a healthz pid with no process row (no lineage evidence)' {
         $script:HealthBody = 'ok 4343'
         (Invoke-AiLinebotDeployment -Source $script:Source -Target $script:Target) | Should Be 1
         (Get-Content -LiteralPath (Join-Path $script:Target 'line-bot/tunnel_manager.py') -Raw) | Should Be 'old-manager'
+    }
+
+    It 'A8-3 accepts a healthz pid that is the venv child of the PID file launcher' {
+        $script:HealthBody = 'ok 4343'
+        $script:Processes = @($script:Processes) + @([pscustomobject]@{ ProcessId = 4343; ParentProcessId = 4242; Name = 'python.exe'; CommandLine = 'python.exe -u line_webhook.py'; CreationDate = (Get-Date) })
+        (Invoke-AiLinebotDeployment -Source $script:Source -Target $script:Target) | Should Be 0
+    }
+
+    It 'A8-3 lineage helper: self, child, grandchild accepted; foreign, cycle, zero and >3 hops rejected' {
+        $parents = @{ 11 = 10; 12 = 11; 13 = 12; 14 = 13; 20 = 99; 30 = 30 }
+        $parentOf = { param([int]$ProcessId) if ($parents.ContainsKey($ProcessId)) { return $parents[$ProcessId] } return 0 }.GetNewClosure()
+        (Test-AiHealthzPidLineage -ReportedPid 10 -TrackedPid 10 -ParentOf $parentOf) | Should Be $true
+        (Test-AiHealthzPidLineage -ReportedPid 11 -TrackedPid 10 -ParentOf $parentOf) | Should Be $true
+        (Test-AiHealthzPidLineage -ReportedPid 12 -TrackedPid 10 -ParentOf $parentOf) | Should Be $true
+        (Test-AiHealthzPidLineage -ReportedPid 13 -TrackedPid 10 -ParentOf $parentOf) | Should Be $true
+        (Test-AiHealthzPidLineage -ReportedPid 14 -TrackedPid 10 -ParentOf $parentOf) | Should Be $false
+        (Test-AiHealthzPidLineage -ReportedPid 20 -TrackedPid 10 -ParentOf $parentOf) | Should Be $false
+        (Test-AiHealthzPidLineage -ReportedPid 30 -TrackedPid 10 -ParentOf $parentOf) | Should Be $false
+        (Test-AiHealthzPidLineage -ReportedPid 0 -TrackedPid 10 -ParentOf $parentOf) | Should Be $false
+        (Test-AiHealthzPidLineage -ReportedPid 11 -TrackedPid 0 -ParentOf $parentOf) | Should Be $false
     }
 
     It 'rejects a daytime endpoint outside the lhr.life shop domain' {

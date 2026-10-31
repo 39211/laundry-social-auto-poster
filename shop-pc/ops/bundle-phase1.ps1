@@ -4,7 +4,7 @@
 # -CheckOnly: precheck only (window, python, staging hashes, requires hashes); zero writes. Exit 2 on refusal.
 # Commander-written (the API model refused this task under its cyber policy, 10/30 23:40); ASCII only, PS 5.1.
 param(
-  [Parameter(Mandatory = $true)][ValidateSet('A3-2', 'A4-4', 'B1-2', 'B2')][string]$Bundle,
+  [Parameter(Mandatory = $true)][ValidateSet('A3-2', 'A4-4', 'B1-2', 'B2', 'B2c')][string]$Bundle,
   [switch]$CheckOnly
 )
 $ErrorActionPreference = 'Stop'
@@ -49,19 +49,19 @@ $cfg = @{
   }
   'B1-2' = @{
     expected = [ordered]@{
-      'runtime\chat_service.py'    = '1B9E5A706F6D96E26C8633022880A92DCC7C6823AA8CB9024B72EE669B6F2E57'
+      'runtime\chat_service.py'    = '820710BADDB058F82DB684263C8833F0ABB68022B77D2263D4615517F2082444'
       'config\dialog_corpus.py'    = '9746F5E076571E4240275851976D0212E1829CA850AAF9493ADE5EC5B4655ECF'
       'config\Dialog_Phrases.json' = '455F608F81EC63A98685A4498DB5B6808D7908FA0931673010264D8C80118A1C'
       'runtime\test_b1_facts.py'   = 'C376B453156CD8868F526C4E37A6A817965061189341B3C78EB27C32F57A1017'
-      'build_expanded_corpus.py'    = '6755C6ED928C18069DA7BFAF9E5F6F4D5822A5EE6A1048DDA48A5C163F224719'
-      'build_expanded_corpus_v5.py' = '5A96D3987CD721FC2E8583F3C45EEA8B87BE092F82789460838E56DED1124A3C'
+      'build_expanded_corpus.py'    = '62C1AF48F9F08E0D5B289D315D1AC9993D99B6C733BF4B85822EC851179C94A3'
+      'build_expanded_corpus_v5.py' = '722E6CCAB37B919532A07373F0A1DD24A419D3A3BA47C86C9E3370EA79773D9B'
     }
     requires = @{
-      'runtime\chat_service.py'    = '36E170CE8556132ECF4F61218D45E51856D7D405279AF465E87CEE184AEDD027'
+      'runtime\chat_service.py'    = 'F99205BD2AA5A00990FA4464867E2939B78F0722BA8CAB0D186030F498878E7B'
       'config\dialog_corpus.py'    = '3A14B2DF52A003EB70BC222CA15A6F2E62E3E4264E2C303326A954DE974EC9D3'
       'config\Dialog_Phrases.json' = 'BE60A141403EA8317419DEF5D3C8DD15F4FA213EFB9580EACBE1E26F29AFF732'
-      'build_expanded_corpus.py'    = '43AE88B06706DED8836F01E64A786CF2961DF64267663A0E8547466EF446AB87'
-      'build_expanded_corpus_v5.py' = 'B7584969E3EB15FB5925D397383B957D27850B406B1E69B2443DDC4A90F7E352'
+      'build_expanded_corpus.py'    = 'C59D790B0391CC1391A3B23A4B083354E435A9C57DB8E47655AD565FD66DB332'
+      'build_expanded_corpus_v5.py' = 'F0514071A8F8F5C9CF62437C15BB2611486B371A18764130EFB1BD11E3222940'
     }
     stop     = @('webhook_server')
     tests    = @(, @('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_b1_facts.py'))
@@ -84,6 +84,19 @@ $cfg = @{
     requires = @{ 'runtime\webhook_server.py' = '161A4DD3473E3FC53FECE18BD6DB101F5035EE77E75E09B260970CFABB95BCA7' }
     stop     = @('webhook_server')
     tests    = @(, @('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_*attribution*.py'))
+    imports  = 'webhook_server'
+    state    = @()
+  }
+  'B2c'  = @{
+    # 10/31 14:04: shop_config rejected shop.json["attribution"]; every service calls load_shop,
+    # so all three restart together with the new shop_config (and shop.json is edited in between).
+    expected = [ordered]@{
+      'shop_config.py'                          = 'E68A05EBA38EF16666828E81CCCEB4DF40D4F1EAC10AAECFF491C872A40317E4'
+      'runtime\test_shop_config_attribution.py' = 'AF9FB10DB9BCA1F49C6090AF29DED3984A27FB14DE1015BCDAE13C044C6B6B47'
+    }
+    requires = @{ 'shop_config.py' = '81810FBA0032661E69D4B52968C22BBB9C5091C76254D3553495D19BF111CCE8'; 'runtime\webhook_server.py' = '22DDA24C08EED0C9A6850A1537E728FC695B75DDD529787D5097CE8F77D68748' }
+    stop     = @('webhook_server', 'tunnel_supervisor', 'inbound_monitor')
+    tests    = @(, @('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_shop_config_attribution.py'))
     imports  = 'webhook_server'
     state    = @()
   }

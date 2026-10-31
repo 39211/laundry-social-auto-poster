@@ -5,6 +5,12 @@ Dates are ISO weeks in UTC+08:00. By default report the last completed week.
 An explicit current week compares only completed calendar days with the same
 weekdays last week. Publication numbers are local ledger evidence, not a live
 platform check. Source directories are read-only; only --out receives output.
+
+The 來源→收件 section reads only the aggregate exports
+data/conversions/source-to-order-<ISO week>.json, plus archived revisions in
+data/conversions/history/. It picks the highest valid revision whose as_of is
+not later than the report cut-off, and never adds revisions together. Missing,
+empty, invalid or version-incompatible exports are shown as unknown, never 0.
 """
 
 import argparse
@@ -32,6 +38,21 @@ FUNNEL = {
 POST_FOLDERS = ("posted-log", "scheduled-log", "feature-posted-log", "youtube-log")
 STAMP = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?")
 ERROR = re.compile(r"\b(?:error|critical|exception|failed|traceback)\b|\w+Error:|\b5\d\d\b", re.I)
+MAX_LINES = 60
+
+# Source -> intake aggregate export (attribution_export.py), design 6.2.
+CONVERSION_KEYS = ("schema_version", "policy_version", "registry_version", "cohort_week", "timezone",
+                   "as_of", "revision", "supersedes", "shop_id", "oa_scope", "pos_source_id",
+                   "status", "coverage", "rows")
+POLICY_FIELDS = ("received_inquiries", "matched_received_pieces", "candidate_only",
+                 "pending_window", "unknown_inquiries", "matured_no_receipt")
+CASE_STATES = ("received_inquiries", "pending_window", "unknown_inquiries", "matured_no_receipt")
+CONVERSION_TIMEZONES = {"Asia/Taipei", "UTC+08:00", "+08:00"}
+SOURCE_CODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")
+CONTENT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:/#-]{0,79}")
+SECTION_TOP = 5
+SOURCE_TABLE = ("| 來源碼／內容 | 詢問數（詢問客日） | 綁定後七日有收件的詢問數 B7 |",
+                "| --- | ---: | --- |")
 
 
 def parse_time(value):
@@ -447,10 +468,229 @@ def inventory(data, reports, reader):
     return "；".join(notes)
 
 
+# ---------------------------------------------------------------------------
+# Source -> intake aggregate (data/conversions/source-to-order-<week>.json)
+# ---------------------------------------------------------------------------
+
+def schema_compatible(value):
+    """Reader understands schema major version 1 (int 1, or "1", "1.x")."""
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return value == 1
+    return isinstance(value, str) and re.fullmatch(r"1(?:\.\d+)*", value.strip()) is not None
+
+
+def version_present(value):
+    if isinstance(value, str):
+        return bool(value.strip())
+    return count_value(value) and value > 0
+
+
+def conversion_row(row):
+    """Validate one summary row; None when malformed or the case states do not add up."""
+    if not isinstance(row, dict) or not isinstance(row.get("source_code"), str) or not row["source_code"].strip():
+        return None
+    inquiries = row.get("inquiries")
+    if not count_value(inquiries) or not count_value(row.get("unique_line_users")):
+        return None
+    parsed = {"code": row["source_code"].strip(), "inquiries": inquiries}
+    for policy in ("I7", "B7"):
+        cell = row.get(policy)
+        if not isinstance(cell, dict) or not all(count_value(cell.get(field)) for field in POLICY_FIELDS):
+            return None
+        # received + pending + unknown + matured_no_receipt == inquiries, per policy.
+        if sum(cell[field] for field in CASE_STATES) != inquiries:
+            return None
+        parsed[policy] = {field: cell[field] for field in POLICY_FIELDS}
+    for key, name in (("booking_confirmed", "confirmed"), ("booking_cancelled", "cancelled")):
+        parsed[name] = row[key] if count_value(row.get(key)) else None
+    return parsed
+
+
+def check_conversion(obj, week):
+    """Return (parsed, None) for a usable export, else (None, reason)."""
+    if not isinstance(obj, dict):
+        return None, "結構未知"
+    missing = [key for key in CONVERSION_KEYS if key not in obj]
+    if missing:
+        return None, "缺欄位 " + "、".join(missing[:3])
+    if not schema_compatible(obj["schema_version"]):
+        return None, "schema_version 不相容"
+    if not version_present(obj["policy_version"]):
+        return None, "policy_version 無效"
+    if not version_present(obj["registry_version"]):
+        return None, "registry_version 無效"
+    if obj["cohort_week"] != week:
+        return None, "cohort_week 不符"
+    if obj["timezone"] not in CONVERSION_TIMEZONES:
+        return None, "timezone 不相容"
+    as_of = parse_time(obj["as_of"]) if isinstance(obj["as_of"], str) else None
+    if as_of is None:
+        return None, "as_of 無效"
+    revision = obj["revision"]
+    if not count_value(revision) or revision < 1:
+        return None, "revision 無效"
+    supersedes = obj["supersedes"]
+    if supersedes is not None and not (count_value(supersedes) and 1 <= supersedes < revision):
+        return None, "supersedes 無效"
+    if obj["status"] not in ("complete", "lower_bound"):
+        return None, "status 未知"
+    if not isinstance(obj["coverage"], dict) or not obj["coverage"]:
+        return None, "缺覆蓋聲明"
+    rows = obj["rows"]
+    if not isinstance(rows, list) or not rows:
+        return None, "rows 為空"
+    parsed, seen = [], set()
+    for index, row in enumerate(rows, 1):
+        item = conversion_row(row)
+        if item is None:
+            return None, f"第 {index} 列無效或狀態不守恆"
+        if item["code"] in seen:
+            return None, "來源碼重複"
+        seen.add(item["code"])
+        parsed.append(item)
+    return {"as_of": as_of, "revision": revision, "status": obj["status"], "rows": parsed}, None
+
+
+def select_conversion(data, week, now, reader):
+    """Pick the highest valid revision with as_of <= now; never combine revisions.
+
+    Returns (state, doc, reason); state is ok / missing / future / invalid.
+    """
+    folder = data / "conversions"
+    main = folder / f"source-to-order-{week}.json"
+    try:
+        paths = [main] if main.is_file() else []
+        history = folder / "history"
+        if history.is_dir():
+            paths += sorted(p for p in history.glob(f"source-to-order-{week}.r*.json") if p.is_file())
+    except OSError:
+        reader.warnings.add("conversions 目錄不可讀")
+        return "invalid", None, "conversions 目錄不可讀"
+    if not paths:
+        return "missing", None, None
+    valid, reasons, future = [], [], 0
+    for path in paths:
+        label = "conversions/" + path.relative_to(folder).as_posix()
+        obj = reader.json(path, label)
+        doc, reason = check_conversion(obj, week) if obj is not None else (None, "JSON 損壞或無法讀取")
+        if doc is None:
+            reasons.append(reason)
+            reader.warnings.add(f"{label} {reason}，已略過")
+        elif doc["as_of"] > now:
+            future += 1
+        else:
+            valid.append((doc["revision"], doc["as_of"], path == main, doc))
+    if valid:
+        return "ok", max(valid, key=lambda item: item[:3])[3], None
+    if future and not reasons:
+        return "future", None, "現有匯出晚於產報截止時間"
+    return "invalid", None, reasons[0] if reasons else "現有匯出晚於產報截止時間"
+
+
+def registry_labels(data, reader):
+    """source_code -> content_id from data/attribution/source-codes.json (unambiguous only)."""
+    path = data / "attribution" / "source-codes.json"
+    try:
+        exists = path.is_file()
+    except OSError:
+        exists = False
+    if not exists:
+        reader.warnings.add("source-codes.json 缺檔（以來源碼顯示）")
+        return {}
+    obj = reader.json(path, "source-codes")
+    if not isinstance(obj, dict) or not isinstance(obj.get("entries"), list):
+        if obj is not None:
+            reader.warnings.add("source-codes 結構未知（以來源碼顯示）")
+        return {}
+    found = {}
+    for entry in obj["entries"]:
+        if not isinstance(entry, dict):
+            continue
+        code, content = entry.get("source_code"), entry.get("content_id")
+        if (isinstance(code, str) and isinstance(content, str) and SOURCE_CODE.fullmatch(code)
+                and CONTENT_ID.fullmatch(content.strip())):
+            # Retired entries still label history; renames are never merged.
+            found.setdefault(code, set()).add(content.strip())
+    return {code: next(iter(ids)) for code, ids in found.items() if len(ids) == 1}
+
+
+def source_label(code, labels):
+    if code == "unknown":
+        return "未知來源"
+    if not SOURCE_CODE.fullmatch(code):
+        return "不合格來源碼"
+    return safe_label(f"{code}／{labels[code]}" if code in labels else code)
+
+
+def conversion_view(data, week, previous_week, now, reader):
+    """Read everything up front (so read problems reach the warnings line)."""
+    state, doc, reason = select_conversion(data, week, now, reader)
+    if state == "missing":
+        return {"lines": ["", "來源→收件：尚無資料（exporter 未產出）"]}
+    if state != "ok":
+        return {"lines": ["", f"來源→收件：未知（{safe_label(reason, 80)}；不補 0）"]}
+    previous_state, previous_doc, _ = select_conversion(data, previous_week, now, reader)
+    if previous_state == "ok":
+        previous = str(sum(row["inquiries"] for row in previous_doc["rows"]))
+        if previous_doc["status"] == "lower_bound":
+            previous += "（下限）"
+    elif previous_state == "missing":
+        previous = "未知（無匯出）"
+    else:
+        previous = "未知（匯出無效）"
+    labels = registry_labels(data, reader)
+    rows = doc["rows"]
+
+    def booking(key):
+        values = [row[key] for row in rows]
+        return str(sum(values)) if all(value is not None for value in values) else "未知（未記錄）"
+
+    heading = (f"### 來源→收件（{week} 詢問週，第 {doc['revision']} 版，匯出截至 {stamp_text(doc['as_of'])}；"
+               f"上週詢問 {previous}）" + ("（下限，資料不完整）" if doc["status"] == "lower_bound" else ""))
+    i7_line = (f"I7 詢問後七日有收件 {sum(row['I7']['received_inquiries'] for row in rows)}；"
+               f"確認預約 {booking('confirmed')}；取消 {booking('cancelled')}")
+
+    def table_row(row):
+        b7 = row["B7"]
+        return (f"| {source_label(row['code'], labels)} | {row['inquiries']} | "
+                f"{b7['received_inquiries']}；待滿窗 {b7['pending_window']}、未知 {b7['unknown_inquiries']} |")
+
+    named = sorted((row for row in rows if row["code"] != "unknown"), key=lambda row: (-row["inquiries"], row["code"]))
+    return {"heading": heading, "i7": i7_line, "named": [table_row(row) for row in named],
+            "unknown": [table_row(row) for row in rows if row["code"] == "unknown"]}
+
+
+def fit_conversions(view, room):
+    """Full table if it fits; else at most the 5 largest sources plus unknown."""
+    if "lines" in view:
+        return view["lines"]
+    named, unknown = view["named"], view["unknown"]
+
+    def build(keep):
+        omitted = len(named) - keep
+        out = [view["heading"], view["i7"]]
+        if omitted:
+            out.append(f"（其餘 {omitted} 個來源省略）")
+        return out + ["", *SOURCE_TABLE, *named[:keep], *unknown]
+
+    full = build(len(named))
+    if len(full) <= room:
+        return full
+    for keep in range(min(SECTION_TOP, len(named)), -1, -1):
+        candidate = build(keep)
+        if len(candidate) <= room:
+            return candidate
+    return ["", "來源→收件：表格省略（週報 60 行上限）；請直接查看匯出檔。"]
+
+
 def build_report(data, reports, bot, week, now, llm=False):
     first = iso_week(week)
     start = datetime.combine(first, time(), TAIPEI)
     end = start + timedelta(days=7)
+    previous_iso = (first - timedelta(days=7)).isocalendar()
+    previous_week = f"{previous_iso.year}-W{previous_iso.week:02}"
     reader = Reader()
     completed = max(0, min(7, (now.date() - first).days))
     days = [first + timedelta(days=i) for i in range(completed)]
@@ -462,6 +702,7 @@ def build_report(data, reports, bot, week, now, llm=False):
     tunnels, last_tunnel = tunnel_events(data, bot, start, end, now, reader)
     queries, sends = line_counts(data, start, end, now, reader)
     source_note = inventory(data, reports, reader)
+    conversions = conversion_view(data, week, previous_week, now, reader)
     failed = sum(len(items["failed"]) for items in posts.values())
     uncertain = sum(len(items["uncertain"]) for items in posts.values())
     published = sum(len(items["published"]) for items in posts.values())
@@ -473,7 +714,7 @@ def build_report(data, reports, bot, week, now, llm=False):
                   f"本機成功發文紀錄 {published} 篇；LINE 點擊 {metrics['line'].display(previous['line'])}。")
     status = "本週未結束" if start <= now < end else "未來週" if now < start else "已結束週"
     lines = [f"# 私享家週報 {week}", f"一句話結論：{conclusion}",
-             f"期間：{first}～{(end - timedelta(days=1)).date()}（台北）；截至 {stamp_text(now)}；{status}。",
+             f"期間：{first}～{(end - timedelta(days=1)).date()}（台北）；截至 {stamp_text(now)}；{status}。"
              f"成效：只計已結束的完整日 {completed}/7，與上週相同星期比較；今日不計。", "",
              "| 平台 | 排程 | 實發 | 失敗 |", "| --- | ---: | ---: | ---: |"]
     for platform, label in PLATFORMS.items():
@@ -516,11 +757,11 @@ def build_report(data, reports, bot, week, now, llm=False):
     else:
         lines.append(f"| 來源前 5 | {source_coverage.display()} |")
     schedule_count = str(schedule_failures) if not (broken & {"scheduled-log", "feature-posted-log", "youtube-log"}) else "未知（排程來源不完整）"
-    lines.extend(["", "| 異常 | 次數／筆數 | 最後一次時間 |", "| --- | ---: | --- |",
-                  f"| 失敗排程 | {schedule_count} | {stamp_text(last_failure) if schedule_failures else '—'} |",
-                  f"| 鎖檔殘留（目前快照） | {locks} | {last_lock} |",
-                  f"| webhook 錯誤 | {errors} | {last_error} |",
-                  f"| 隧道異常 | {tunnels} | {last_tunnel} |", "", "下週建議三件事（規則）："])
+    tail = ["", "| 異常 | 次數／筆數 | 最後一次時間 |", "| --- | ---: | --- |",
+            f"| 失敗排程 | {schedule_count} | {stamp_text(last_failure) if schedule_failures else '—'} |",
+            f"| 鎖檔殘留（目前快照） | {locks} | {last_lock} |",
+            f"| webhook 錯誤 | {errors} | {last_error} |",
+            f"| 隧道異常 | {tunnels} | {last_tunnel} |", "", "下週建議三件事（規則）："]
     suggestions = []
     if failed:
         suggestions.append(f"核對 {failed} 篇失敗紀錄，修復後先驗證成功狀態再補發。")
@@ -540,21 +781,25 @@ def build_report(data, reports, bot, week, now, llm=False):
     suggestions.extend(["核對已到期排程的實發證據，補齊 FB／IG／YT／TikTok 的記錄。",
                         "以來源前五的有效點擊決定一項內容測試，下週比較同口徑數字。",
                         "在 B4 工時表填入實際人工時間，對照本週產出。"])
-    lines.extend(f"{i}. {item}" for i, item in enumerate(suggestions[:3], 1))
+    tail.extend(f"{i}. {item}" for i, item in enumerate(suggestions[:3], 1))
     warnings = "；".join(sorted(reader.warnings))
-    lines.extend(["", "資料口徑與未知欄位：",
-                  "發文為本機台帳去重筆數；0＝無該類記錄，不代表線上無發文。實發須成功＋ID；排程到期不自動視為實發。",
-                  f"排程按預定日、實發按成功時間歸週；失敗為曾失敗項目，重試不重複；核准 {approvals} 筆僅供核對，不算排程。",
-                  "YT 只讀 youtube-log：上傳按 uploaded_at、預定公開按 scheduled_publish_at；已確認公開須 video_status=published＋published_at；缺確認／公開時間為未知。",
-                  "鎖檔為產報時快照（run 超過 45 分、publish 超過 30 分），非每週發生次數；webhook 按含時間錯誤區塊計數。",
-                  f"AI 端 LINE：查件 {queries}；通知成功記錄 {sends}；店機通知／查件：未知（無店機資料）。",
-                  f"來源盤點：{source_note}。insights／匯出只盤點，不把重疊期間資料再加進 leads。",
-                  "未知說明：缺日、未量測、無時間或無台帳均不補 0；LINE 點擊不等於詢問／訂單，轉換成效未知（無已驗證日帳）。",
-                  "讀取問題：" + (safe_label(warnings, 480) if warnings else "無。"),
-                  "工時:見 B4 工時表"])
+    # Consecutive lines render as one paragraph anyway; kept compact for the 60-line budget.
+    tail.extend(["", "資料口徑與未知欄位：",
+                 "發文為本機台帳去重筆數；0＝無該類記錄，不代表線上無發文。實發須成功＋ID；排程到期不自動視為實發。"
+                 f"排程按預定日、實發按成功時間歸週；失敗為曾失敗項目，重試不重複；核准 {approvals} 筆僅供核對，不算排程。"
+                 "YT 只讀 youtube-log：上傳按 uploaded_at、預定公開按 scheduled_publish_at；已確認公開須 video_status=published＋published_at；缺確認／公開時間為未知。",
+                 "鎖檔為產報時快照（run 超過 45 分、publish 超過 30 分），非每週發生次數；webhook 按含時間錯誤區塊計數。"
+                 f"AI 端 LINE：查件 {queries}；通知成功記錄 {sends}；店機通知／查件：未知（無店機資料）。"
+                 f"來源盤點：{source_note}。insights／匯出只盤點，不把重疊期間資料再加進 leads。"
+                 "未知說明：缺日、未量測、無時間或無台帳均不補 0；LINE 點擊不等於詢問／訂單，不與來源→收件表相加或相除；"
+                 "來源→收件只讀匯出彙總，B7 為有收件的詢問數，不是訂單或成交。",
+                 "讀取問題：" + (safe_label(warnings, 480) if warnings else "無。"),
+                 "工時:見 B4 工時表"])
     if llm:
-        lines.append("--llm：預留開關，未呼叫 API；仍使用規則建議。")
-    if len(lines) > 60:
+        tail.append("--llm：預留開關，未呼叫 API；仍使用規則建議。")
+    lines.extend(fit_conversions(conversions, MAX_LINES - len(lines) - len(tail)))
+    lines.extend(tail)
+    if len(lines) > MAX_LINES:
         raise ValueError("週報超過 60 行")
     return "\n".join(lines) + "\n"
 

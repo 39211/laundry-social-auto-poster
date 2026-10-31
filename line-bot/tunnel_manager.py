@@ -35,6 +35,8 @@ START_BACKOFFS = (10, 30, 60)  # F5
 # A4-5: restart a live-but-dead cloudflared (control stream failing, never re-registered)
 UNHEALTHY_RESTART_SECONDS = 180
 UNHEALTHY_RESTART_MIN_GAP_SECONDS = 600
+# A4-6: in the night window, check (GET) the registered LINE endpoint at most this often
+NIGHT_RECLAIM_SECONDS = 900
 TUNNEL_HEALTHY_MARK = "Registered tunnel connection"
 TUNNEL_FAILURE_MARKS = (
     "control stream encountered a failure",
@@ -93,8 +95,38 @@ def _validate_config(config: dict) -> dict:
         raise ValueError("day_start and day_end must differ")
     if type(delay) is not int or not 0 <= delay < (start - end) % 1440:
         raise ValueError("takeover delay must fit inside the night window")
+    _validate_days(config, delay)
     _timezone(config.get("tz"))
     return config
+
+
+_WEEKDAY_KEYS = frozenset(str(day) for day in range(7))
+
+
+def _validate_days(config: dict, delay: int) -> None:
+    """A4-6: optional per-weekday overrides, Python weekday keys "0" (Mon) .. "6" (Sun).
+
+    null or [] = shop closed all day (night window all day); ["HH:MM", "HH:MM"] =
+    same-day opening hours. Anything else is a configuration error.
+    """
+    if "days" not in config:
+        return
+    days = config["days"]
+    if not isinstance(days, dict):
+        raise ValueError("handover days must be an object")
+    for key, value in days.items():
+        if not isinstance(key, str) or key not in _WEEKDAY_KEYS:
+            raise ValueError("handover days keys must be weekday numbers 0-6")
+        if value is None or (isinstance(value, (list, tuple)) and len(value) == 0):
+            continue
+        if not isinstance(value, (list, tuple)) or len(value) != 2:
+            raise ValueError("handover day override must be null, [] or [open, close]")
+        opened = _minute_of_day(value[0])
+        closed = _minute_of_day(value[1])
+        if opened >= closed:
+            raise ValueError("handover day override must open before it closes")
+        if not delay < 1440 - (closed - opened):
+            raise ValueError("takeover delay must fit inside the night window")
 
 
 def load_handover_config() -> dict:
@@ -111,12 +143,66 @@ def is_night_window(now: datetime | None = None, *, config: dict | None = None) 
     now = _now(config) if now is None else now
     if now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("handover clock must be timezone-aware")
-    local = now.astimezone(_timezone(config["tz"]))
-    minute = local.hour * 60 + local.minute
-    start = _minute_of_day(config["day_start"])
-    end = _minute_of_day(config["day_end"])
-    # The shop owns [day_start, day_end), including a configured midnight span.
-    return (minute - start) % 1440 >= (end - start) % 1440
+    local = now.astimezone(_timezone(config["tz"])).replace(second=0, microsecond=0)
+    # The shop owns [open, close) of each weekday, including a configured midnight span.
+    return not _in_day_window(local, config)
+
+
+def _day_span(config: dict, weekday: int):
+    """(open_minute, close_minute) for a weekday, or None when the shop is closed."""
+    days = config.get("days") or {}
+    key = str(weekday)
+    if key in days:
+        value = days[key]
+        if not value:
+            return None
+        return _minute_of_day(value[0]), _minute_of_day(value[1])
+    return _minute_of_day(config["day_start"]), _minute_of_day(config["day_end"])
+
+
+def day_window_for(day, config: dict):
+    """Shop-open interval (aware datetimes) that starts on local date `day`, or None.
+
+    `config` must already be validated. A default span that crosses midnight closes
+    on the next calendar day.
+    """
+    span = _day_span(config, day.weekday())
+    if span is None:
+        return None
+    start, end = span
+    tz = _timezone(config["tz"])
+    opened = datetime(day.year, day.month, day.day, start // 60, start % 60, tzinfo=tz)
+    closed = datetime(day.year, day.month, day.day, end // 60, end % 60, tzinfo=tz)
+    if end <= start:
+        closed += timedelta(days=1)
+    return opened, closed
+
+
+def _in_day_window(local: datetime, config: dict) -> bool:
+    for back in (1, 0):
+        span = day_window_for(local.date() - timedelta(days=back), config)
+        if span is not None and span[0] <= local < span[1]:
+            return True
+    return False
+
+
+def last_shop_closing(now: datetime, *, config: dict | None = None):
+    """A4-6 shared helper: closing time of the latest open period that has ended.
+
+    Returns None during the day window or if no weekday is open. Used by the LINE
+    handover and by laundry_lookup freshness so both read the same weekly hours.
+    """
+    config = load_handover_config() if config is None else _validate_config(config)
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("handover clock must be timezone-aware")
+    local = now.astimezone(_timezone(config["tz"])).replace(second=0, microsecond=0)
+    if _in_day_window(local, config):
+        return None
+    for back in range(9):
+        span = day_window_for(local.date() - timedelta(days=back), config)
+        if span is not None and span[1] <= local:
+            return span[1]
+    return None
 
 
 def registration_window() -> str:
@@ -455,11 +541,69 @@ def _restart_if_unhealthy(proc, url: str, state: dict, now: float) -> bool:
     return True
 
 
+def _within_takeover_delay() -> bool:
+    """A4-6: True during the first night_takeover_delay_min minutes after closing."""
+    try:
+        config = load_handover_config()
+        now = _now(config)
+        closing = last_shop_closing(now, config=config)
+    except (OSError, ValueError, TypeError):
+        return True  # fail closed: no reclaim on a broken configuration
+    if closing is None:
+        return False
+    return now < closing + timedelta(minutes=config["night_takeover_delay_min"])
+
+
+def _night_reclaim(url: str, token: str, state: dict, now: float, *,
+                   sleep=time.sleep, http=urllib) -> str:
+    """A4-6: in the night window, at most every NIGHT_RECLAIM_SECONDS, GET the LINE
+    endpoint and take it back if it is not this ai endpoint. No HTTP in the day
+    window; every PUT still goes through _registration_allowed."""
+    window = registration_window()
+    if window != "night":
+        return window
+    last = state.get("last_check_at")
+    if last is not None and now - last < NIGHT_RECLAIM_SECONDS:
+        return "skipped"
+    if _within_takeover_delay():
+        return "takeover_delay"
+    state["last_check_at"] = now
+    try:
+        base = validate_tunnel_base(url)
+        current = get_webhook_info(token, http)["endpoint"]
+    except Exception as exc:  # noqa: BLE001
+        _log("night reclaim check failed")
+        _log_webhook_error(exc)
+        return "error"
+    endpoint = base + "/line/webhook"
+    if current == endpoint:
+        return "already_ai"
+    attempt = {}
+    updated = _set_webhook_with_retries(
+        base, token, sleep=sleep, http=http, old_url=current, result=attempt,
+    )
+    if updated:
+        status = "updated"
+        PENDING_WEBHOOK["base_url"] = ""
+    elif registration_window() == "night":
+        status = attempt.get("status") or "error"
+        PENDING_WEBHOOK["base_url"] = base
+    else:
+        status = "not_night"
+    _event("night_reclaim", current, endpoint,
+           put_status="attempted" if attempt else "not_attempted",
+           verify_status="match" if updated else attempt.get("status", "not_attempted"),
+           status=status)
+    _log("night reclaim: " + status)
+    return "reclaimed" if updated else "failed"
+
+
 def main(*, sleep=time.sleep, clock=time.monotonic) -> int:
     token = _load_token()
     proc = None
     backoff_i = 0
     restart_state = {"last_restart_at": None}  # A4-5
+    reclaim_state = {"last_check_at": None}  # A4-6
     try:
         while True:
             _log("starting cloudflared")
@@ -479,6 +623,8 @@ def main(*, sleep=time.sleep, clock=time.monotonic) -> int:
                 continue
             backoff_i = 0
             _publish(url, token)
+            # A4-6: a night publish just PUT+verified; next reclaim check in 900 s.
+            reclaim_state["last_check_at"] = clock() if registration_window() == "night" else None
             while True:
                 sleep(60)
                 _retry_pending_webhook(token)
@@ -487,6 +633,7 @@ def main(*, sleep=time.sleep, clock=time.monotonic) -> int:
                     break
                 if _restart_if_unhealthy(proc, url, restart_state, clock()):
                     break  # A4-5: outer loop restarts and republishes via _publish
+                _night_reclaim(url, token, reclaim_state, clock(), sleep=sleep)  # A4-6
     except KeyboardInterrupt:
         _log("interrupted")
         return 0

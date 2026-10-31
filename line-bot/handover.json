@@ -1,6 +1,7 @@
 {
   "day_start": "10:00",
   "day_end": "20:00",
+  "days": {"5": ["12:00", "18:00"], "6": null},
   "night_takeover_delay_min": 5,
   "tz": "Asia/Taipei"
 }

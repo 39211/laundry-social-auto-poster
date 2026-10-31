@@ -398,6 +398,27 @@ def _mdb_stamp() -> tuple[int, int] | None:
         return None
 
 
+# A4-6: a copy taken at most this many minutes before closing is that day's final copy.
+EVENING_COPY_LEAD_MINUTES = 60
+
+
+def _evening_threshold(now: datetime) -> datetime | None:
+    """Return (last shop closing - 60 min) while the shop is closed, else None.
+
+    Weekly hours come from line-bot/handover.json via tunnel_manager's shared
+    loader. Any problem returns None: only the plain age rule applies (fail safe).
+    """
+    try:
+        import tunnel_manager
+
+        closing = tunnel_manager.last_shop_closing(now)
+    except Exception:  # noqa: BLE001
+        return None
+    if closing is None:
+        return None
+    return closing - timedelta(minutes=EVENING_COPY_LEAD_MINUTES)
+
+
 def inventory_snapshot() -> InventorySnapshot:
     # Bracket the existing reader. A replacement during SELECT must not label
     # old contents with the newer file's timestamp or trigger notifications.
@@ -422,12 +443,9 @@ def inventory_snapshot() -> InventorySnapshot:
         minutes = 120
     age = (now - modified).total_seconds()
     snap.stale = age < 0 or age > minutes * 60
-    if now.hour >= 20 or now.hour < 10:
-        evening = now.replace(hour=19, minute=0, second=0, microsecond=0)
-        if now.hour < 10:
-            evening -= timedelta(days=1)
-        if evening <= modified <= now:
-            snap.stale = False
+    evening = _evening_threshold(now)
+    if evening is not None and evening <= modified <= now:
+        snap.stale = False
     if before != after:
         snap.stale = True
     return snap

@@ -32,6 +32,15 @@ WEBHOOK_API = "https://api.line.me/v2/bot/channel/webhook/endpoint"
 LOG_ROTATE_BYTES = 2 * 1024 * 1024  # F15
 WEBHOOK_RETRY_DELAYS = (2, 5, 10)  # F4
 START_BACKOFFS = (10, 30, 60)  # F5
+# A4-5: restart a live-but-dead cloudflared (control stream failing, never re-registered)
+UNHEALTHY_RESTART_SECONDS = 180
+UNHEALTHY_RESTART_MIN_GAP_SECONDS = 600
+TUNNEL_HEALTHY_MARK = "Registered tunnel connection"
+TUNNEL_FAILURE_MARKS = (
+    "control stream encountered a failure",
+    "Serve tunnel error",
+    "failed to serve tunnel connection",
+)
 _LOG_LOCK = threading.Lock()
 # F4: base_url that still needs set_webhook_endpoint after immediate retries failed
 PENDING_WEBHOOK = {"base_url": ""}
@@ -258,6 +267,7 @@ def _spawn_reader(proc: subprocess.Popen) -> threading.Event:
     """F2: resident reader -- drain stdout for the child's whole lifetime."""
     found = {"url": ""}
     got = threading.Event()
+    health = TunnelHealth()  # A4-5
 
     def reader() -> None:
         # G3: never let a decode/log error kill the reader before EOF
@@ -279,6 +289,7 @@ def _spawn_reader(proc: subprocess.Popen) -> threading.Event:
                     break
                 try:
                     _log("cloudflared: " + line.rstrip())
+                    health.observe(line, time.monotonic())  # A4-5
                     url = parse_tunnel_url(line)
                     if url and not found["url"]:
                         found["url"] = url
@@ -294,6 +305,7 @@ def _spawn_reader(proc: subprocess.Popen) -> threading.Event:
     proc._reader_thread = t  # type: ignore[attr-defined]
     proc._found_url = found  # type: ignore[attr-defined]
     proc._url_event = got  # type: ignore[attr-defined]
+    proc._health = health  # type: ignore[attr-defined]
     return got
 
 
@@ -385,10 +397,69 @@ def _kill_proc(proc: subprocess.Popen | None) -> None:
             pass
 
 
-def main() -> int:
+def classify_tunnel_line(line: str) -> str:
+    """A4-5: 'healthy', 'failing', or '' (line does not affect tunnel health)."""
+    text = line or ""
+    if TUNNEL_HEALTHY_MARK in text:
+        return "healthy"
+    if any(mark in text for mark in TUNNEL_FAILURE_MARKS):
+        return "failing"
+    return ""
+
+
+class TunnelHealth:
+    """A4-5: tunnel health from cloudflared lines. The caller supplies the clock."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.last_registered_at = None
+        self.failing_since = None
+
+    def observe(self, line: str, now: float) -> None:
+        kind = classify_tunnel_line(line)
+        with self._lock:
+            if kind == "healthy":
+                self.last_registered_at = now
+                self.failing_since = None
+            elif kind == "failing" and self.failing_since is None:
+                self.failing_since = now
+
+    def failing_seconds(self, now: float) -> float:
+        with self._lock:
+            if self.failing_since is None:
+                return 0.0
+            return max(0.0, now - self.failing_since)
+
+
+def should_restart_unhealthy(health: TunnelHealth, now: float, last_restart_at=None) -> bool:
+    """A4-5: pure decision; failing >= 180 s and no health restart in the last 600 s."""
+    if health.failing_seconds(now) < UNHEALTHY_RESTART_SECONDS:
+        return False
+    if last_restart_at is not None and now - last_restart_at < UNHEALTHY_RESTART_MIN_GAP_SECONDS:
+        return False
+    return True
+
+
+def _restart_if_unhealthy(proc, url: str, state: dict, now: float) -> bool:
+    """A4-5: kill a failing cloudflared; the caller then runs the normal start path."""
+    health = getattr(proc, "_health", None)
+    if health is None:
+        return False
+    if not should_restart_unhealthy(health, now, state.get("last_restart_at")):
+        return False
+    failing = int(health.failing_seconds(now))
+    state["last_restart_at"] = now
+    _log("tunnel unhealthy for " + str(failing) + "s without registration: restarting cloudflared")
+    _event("tunnel_unhealthy_restart", url, "", failing_seconds=failing)
+    _kill_proc(proc)
+    return True
+
+
+def main(*, sleep=time.sleep, clock=time.monotonic) -> int:
     token = _load_token()
     proc = None
     backoff_i = 0
+    restart_state = {"last_restart_at": None}  # A4-5
     try:
         while True:
             _log("starting cloudflared")
@@ -404,16 +475,18 @@ def main() -> int:
                 delay = START_BACKOFFS[min(backoff_i, len(START_BACKOFFS) - 1)]
                 backoff_i += 1
                 _log("retry cloudflared after " + str(delay) + "s")
-                time.sleep(delay)
+                sleep(delay)
                 continue
             backoff_i = 0
             _publish(url, token)
             while True:
-                time.sleep(60)
+                sleep(60)
                 _retry_pending_webhook(token)
                 if proc.poll() is not None:
                     _log("cloudflared exited rc=" + str(proc.returncode))
                     break
+                if _restart_if_unhealthy(proc, url, restart_state, clock()):
+                    break  # A4-5: outer loop restarts and republishes via _publish
     except KeyboardInterrupt:
         _log("interrupted")
         return 0

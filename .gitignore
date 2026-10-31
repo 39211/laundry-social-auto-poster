@@ -56,3 +56,5 @@ __pycache__/
 # reaching the public Pages site.
 docs/assets/**/*.frames/
 docs/assets/**/*.qa-frames/
+# B2 attribution ledger (shop runtime data, never commit; DEPLOY-B2 step 6)
+inquiries.jsonl*

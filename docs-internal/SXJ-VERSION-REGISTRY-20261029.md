@@ -328,3 +328,18 @@ Next steps:
   - ai: LineBot-PullShopConversions, Mon 11:10/15:10: allow-listed summary files only.
   - Tests 61/61 + 52/52; mutations 5/5 red.
 - **Finding, waits for owner:** the LINE bot price table quotes the 「特殊類名牌包」 price with 「10天」. The owner's rule is 皮件包 14 天. This is POS system data, so I did not change it.
+
+## 10/31 20:50 addendum (evening: LINE night path, Level-1 tracker, D19 source matching)
+
+- **A4-5** release @ 4cfca814: ai tunnel_manager restarts a dead cloudflared tunnel (180 s unhealthy, 600 s min gap). Trigger: ai tunnel dead 16:30-18:00 (LINE PUT 400).
+- **A4-6** release @ 76122dce: handover follows weekly hours (`line-bot/handover.json`: Sat 12-18, Sun closed) and reclaims the endpoint at night every 900 s. Live since 18:29; 20:02 handover check PASS (night, ai trycloudflare, 0 tunnel errors since 18:20).
+- **T-1** release @ 988184b0: the 7 pre-existing LINE bot test failures fixed.
+- **L1-1** release @ 32c6ac44: `scripts/level1_gates.py` nightly (23:40 via run_daily_progress_task.ps1) -> `reports/level1-gates.md`.
+- **D19 (owner, 19:4x):** no customer-visible source codes. Owner added: only methods the customer does not notice and that do not affect the inquiry.
+- **B2-8** release @ 8d0a56a0 (feat fbfc25a6). API Opus 5.5: 2 cards x 2 runs, $6.48 (first runs hit max_tokens at effort high / 64k; reran at medium / 128k).
+  - ai (live): `src/ga4LineClickMinutes.ts` -> `data/leads/clicks/<date>.json` (nightly via ga4-collect.ps1, last 3 days). Real run 10/21-10/30: Asia/Taipei, 0 bad minutes; minute totals >= daily ledger (ledger is collected at 23:10 and misses later/late-processed clicks, e.g. 10/30 3 vs 6).
+  - ai: `scripts/attribution_timematch.py` (-2/+20 min, one-to-one, 8 shifted-click chance baselines) -> `data/conversions/timematch-<week>.json`; weekly report section 「LINE 來源推測(隱形對時,非確定數字)」.
+  - shop (deploy 11/02 10:08, `b28-deploy.ps1`, stage = fbfc25a6 blobs, requires = B2 live hashes): follow_observed rows; export writes `inquiry-timeline-<week>.json` (minutes/flags/labels only; main file byte-identical); retention prunes follow rows; ai pull rejects timelines with id keys or LINE userId strings.
+  - Tests: vitest 12/12, python 41, shop 149 (also on CPython 3.11.15), pull 78/0; mutations 13/13 red; full vitest = only the 16 pre-existing failures (2 extra under load re-ran green alone).
+- **B1-3 site check 20:46:** no source file still has 「西屯免費到府收送」. The checker's 西屯 hits are local-page titles 「門市在西屯,一件也收、免費到府收送」 (true address). The home page says 「台中全市免費到府收送」 (same meaning, not the exact owner string).
+- **Posts 10/31:** slot 1 + slot 2, FB + IG all success.

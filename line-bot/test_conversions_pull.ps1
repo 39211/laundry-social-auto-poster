@@ -41,6 +41,11 @@ Assert-True (Test-ConversionFileName 'source-to-order-2026-W44.r12.json' 'histor
 Assert-True (-not (Test-ConversionFileName 'source-to-order-2026-W44.json' 'history')) 'weekly name refused inside history'
 Assert-True (-not (Test-ConversionFileName 'source-to-order-2026-W44.r1.json' '')) 'revision name refused in main folder'
 Assert-True (-not (Test-ConversionFileName 'source-to-order-2026-W44.json' 'secrets') -and -not (Test-ConversionFileName 'source-to-order-2026-W44.json' '..')) 'other folders refused'
+Assert-True (Test-TimelineFileName 'inquiry-timeline-2026-W44.json') 'timeline allow-list accepts weekly timeline'
+foreach ($bad in @('inquiry-timeline-2026-W44.r1.json', 'inquiry-timeline-2026-44.json', 'INQUIRY-TIMELINE-2026-W44.JSON',
+        'inquiry-timeline-2026-W44.json.bak', '..\inquiry-timeline-2026-W44.json', 'source-to-order-2026-W44.json', '')) {
+    Assert-True (-not (Test-TimelineFileName $bad)) "timeline allow-list rejects '$bad'"
+}
 
 function Write-TestFile([string]$Path, [string]$Text) {
     [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($Path))
@@ -86,7 +91,8 @@ try {
     Assert-True (($all -join ';') -ceq 'history\source-to-order-2026-W44.r1.json;source-to-order-2026-W44.json') 'only allow-listed files copied, no temp left'
     $record = Read-LastLog $log
     Assert-True ($record.listed -eq 3 -and $record.installed -eq 2 -and $record.invalid -eq 1 -and $record.ignored -eq 6 -and $record.exit -eq 2) 'log counts run 1'
-    Assert-True ((@($record.PSObject.Properties.Name) -join ',') -ceq 'ts,result,listed,ignored,unchanged,installed,invalid,failed,exit') 'log holds counts only'
+    Assert-True ((@($record.PSObject.Properties.Name) -join ',') -ceq 'ts,result,listed,ignored,unchanged,installed,invalid,failed,timeline,exit') 'log holds counts only'
+    Assert-True ($record.timeline -eq 'MISSING') 'no timeline at source gives MISSING'
 
     Remove-Item -LiteralPath (Join-Path $src 'source-to-order-2026-W45.json')
     $marker = [DateTime]::new(2020, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)
@@ -102,6 +108,60 @@ try {
     Assert-True ($code -eq 0 -and $record.installed -eq 1 -and $record.unchanged -eq 1) 'changed file replaced, exit 0'
     Assert-True ([IO.File]::ReadAllText((Join-Path $tgt 'source-to-order-2026-W44.json')) -ceq $valid44b) 'replacement content installed'
     Assert-True (@(Get-ChildItem -LiteralPath $tgt -Recurse -Filter '*.tmp' -Force).Count -eq 0) 'no temp files after replace'
+
+    # Timeline files (B2-8a): optional, validated, never change result or exit code.
+    $tlGood = '{"schema": "inquiry-timeline/v1", "week": "2026-W44", "tz": "Asia/Taipei", "as_of": "2026-11-25T10:00:00+08:00", "revision": 1, "status": "lower_bound", "entries": [{"first_minute": "2026-10-27T14:03+08:00", "follow_minute": "2026-10-27T14:01+08:00", "returning": false, "source_code": "unknown", "I7": "received", "B7": "pending_window"}], "follows_without_inquiry": ["2026-10-28T11:20+08:00"]}'
+    $tlUserKey = $tlGood.Replace('"returning": false', '"returning": false, "user_key": "abc"')
+    $tlUserId = $tlGood.Replace('"source_code": "unknown"', '"source_code": "U0123456789abcdef0123456789abcdef"')
+    $tlSchema = $tlGood.Replace('inquiry-timeline/v1', 'inquiry-timeline/v0')
+    $srcT = Join-Path $root 'shopT\conversions'
+    Write-TestFile (Join-Path $srcT 'source-to-order-2026-W44.json') $valid44
+    $repoT = Join-Path $root 'repoT'
+    $tgtT = Join-Path $repoT 'data\conversions'
+    [void][IO.Directory]::CreateDirectory((Split-Path -Parent $tgtT))
+    $logT = Join-Path $root 'pullT.jsonl'
+    $tlTarget = Join-Path $tgtT 'inquiry-timeline-2026-W44.json'
+
+    $code = Invoke-ConversionsPull -SourceRoot $srcT -TargetRoot $tgtT -LogPath $logT
+    $record = Read-LastLog $logT
+    Assert-True ($code -eq 0 -and $record.result -eq 'INSTALLED' -and $record.timeline -eq 'MISSING') 'timeline MISSING does not change the main result'
+    Assert-True (-not (@($record.PSObject.Properties.Name) -contains 'timematch_exit')) 'no timematch without an installed timeline'
+
+    $script:tmCalls = New-Object Collections.ArrayList
+    function Invoke-TimeMatch([string]$Python, [string]$ScriptPath, [string]$Week, [string]$WorkingDirectory, [int]$TimeoutSeconds) {
+        [void]$script:tmCalls.Add(@{ python = $Python; script = $ScriptPath; week = $Week; cwd = $WorkingDirectory })
+        return 7
+    }
+    Write-TestFile (Join-Path $repoT 'scripts\attribution_timematch.py') '# fake, never executed'
+    Write-TestFile (Join-Path $srcT 'inquiry-timeline-2026-W44.json') $tlGood
+    $code = Invoke-ConversionsPull -SourceRoot $srcT -TargetRoot $tgtT -LogPath $logT
+    $record = Read-LastLog $logT
+    Assert-True ($code -eq 0 -and $record.result -eq 'NOTHING_NEW' -and $record.timeline -eq 'INSTALLED') 'timeline INSTALLED, main result unchanged'
+    Assert-True ([IO.File]::ReadAllText($tlTarget) -ceq $tlGood) 'timeline content installed'
+    Assert-True ($script:tmCalls.Count -eq 1 -and $script:tmCalls[0].week -eq '2026-W44' -and $script:tmCalls[0].python -eq 'python' -and $script:tmCalls[0].script -eq (Join-Path $repoT 'scripts\attribution_timematch.py') -and $script:tmCalls[0].cwd -eq $repoT) 'timematch run once for that week'
+    Assert-True ($record.timematch_exit -eq 7) 'timematch exit logged and does not fail the pull'
+
+    $code = Invoke-ConversionsPull -SourceRoot $srcT -TargetRoot $tgtT -LogPath $logT
+    $record = Read-LastLog $logT
+    Assert-True ($code -eq 0 -and $record.timeline -eq 'NOTHING_NEW' -and $script:tmCalls.Count -eq 1) 'timeline NOTHING_NEW on second run, no timematch'
+    Assert-True (-not (@($record.PSObject.Properties.Name) -contains 'timematch_exit')) 'no timematch_exit when nothing installed'
+
+    foreach ($case in @(@('W45', $tlUserKey, 'user_key key'), @('W46', $tlUserId, 'U+32 hex string'), @('W47', $tlSchema, 'wrong schema'))) {
+        $tlName = 'inquiry-timeline-2026-' + $case[0] + '.json'
+        Write-TestFile (Join-Path $srcT $tlName) $case[1]
+        $code = Invoke-ConversionsPull -SourceRoot $srcT -TargetRoot $tgtT -LogPath $logT
+        $record = Read-LastLog $logT
+        Assert-True ($code -eq 0 -and $record.result -eq 'NOTHING_NEW' -and $record.timeline -eq 'REJECTED') "timeline REJECTED for $($case[2])"
+        Assert-True (-not [IO.File]::Exists((Join-Path $tgtT $tlName))) "rejected timeline not installed ($($case[2]))"
+        Remove-Item -LiteralPath (Join-Path $srcT $tlName)
+    }
+    Write-TestFile (Join-Path $srcT 'source-to-order-2026-W44.json') $valid44b
+    Write-TestFile (Join-Path $srcT 'inquiry-timeline-2026-W45.json') $tlUserKey
+    $code = Invoke-ConversionsPull -SourceRoot $srcT -TargetRoot $tgtT -LogPath $logT
+    $record = Read-LastLog $logT
+    Assert-True ($code -eq 0 -and $record.result -eq 'INSTALLED' -and $record.timeline -eq 'REJECTED') 'rejected timeline does not stop main install'
+    Assert-True ($script:tmCalls.Count -eq 1) 'no timematch for rejected timelines'
+    Assert-True (@(Get-ChildItem -LiteralPath $tgtT -Recurse -Filter '*.tmp' -Force).Count -eq 0) 'no timeline temp files left'
 
     # Whole script as a child process: exit code 2 reaches the caller.
     $src2 = Join-Path $root 'shop2\conversions'

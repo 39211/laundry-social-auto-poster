@@ -29,6 +29,29 @@ Only `complete` means every input was covered. Never read a `lower_bound` zero a
 
 **Privacy.** The file holds counts only, with no LINE ids, Cid, names, phones or message text. Never edit `inquiries.jsonl` by hand.
 
+# Inquiry timeline (B2-8a)
+
+**What it writes.** The same run also writes `data\conversions\inquiry-timeline-<week>.json`, right after the main file.
+- It is not written with `--dry-run`, or when there is nothing to export.
+- It carries the same `as_of`, `revision` and `status` as the main file of that run.
+
+**What it holds.** One entry per inquiry of the main file (one per customer-day). For each view, the label counts equal the main file's totals. Each entry has:
+- `first_minute`: the first message, to the minute, in Taipei time.
+- `follow_minute`: a LINE "add friend" (follow) up to 120 minutes before the first message, or null.
+- `returning`: whether the same customer wrote on an earlier day still in the ledger.
+- `source_code`: the code the main file counts, or `unknown`.
+- `I7` / `B7`: the inquiry's status label.
+
+`follows_without_inquiry` lists the minutes of follows in that week with no message within 120 minutes after.
+
+**Anonymous.** The file has no LINE ids, user keys, inquiry ids, event ids, Cid, names, phones, message text or per-customer counts. The ai PC rejects any timeline that contains such a key or a LINE id.
+
+**推測 only.** The ai PC matches these minutes against website LINE-button clicks by time. Everything derived from that match is an inference (推測), never a fact about a customer. Customers see nothing new and never type a code.
+
+**Main file unaffected.** `follow_observed` rows never change `source-to-order-<week>.json`.
+
+**If the timeline cannot be written.** The export prints `[TIMELINE_ERROR] <type>` and keeps its exit code.
+
 # Retention (B2-6)
 
 **Command.** From `C:\LaundryStores\fxwash`:

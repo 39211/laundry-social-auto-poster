@@ -426,6 +426,43 @@ class WeeklyReportTests(unittest.TestCase):
                    self.conversion(week="2026-W43", as_of="2026-10-26T01:00:00Z", schema_version="2.0"))
         self.assertIn("上週詢問 未知", self.heading(self.report()))
 
+    # ----- B2-8b: invisible time-match inference section -----
+
+    @staticmethod
+    def timematch_source(source, clicks, matched, received, pending, chance, excess):
+        return {"source": source, "clicks": clicks, "matched": matched, "matched_new_friend": 0,
+                "matched_returning": 0, "matched_follow_only": 0, "matched_I7_received": received,
+                "matched_I7_pending": pending, "chance_expected": chance, "excess": excess}
+
+    def test_timematch_present_shows_inference_table(self):
+        self.write("conversions/timematch-2026-W44.json", {
+            "schema": "timematch/v1", "week": "2026-W44", "generated_at": "2026-11-02T07:00:00+08:00",
+            "label": "推測", "method": {"before_min": 2, "after_min": 20,
+                                       "shifts_min": [-180, -120, -90, -60, 60, 90, 120, 180]},
+            "timeline_status": "complete", "timeline_revision": 3,
+            "clicks_coverage": {"days_measured": 7, "missing_days": []},
+            "sources": [self.timematch_source("reel-a", 3, 2, 1, 1, 0.4, 1.6),
+                        self.timematch_source("unknown", 1, 0, 0, 0, 0.1, -0.1)],
+            "totals": {"clicks": 4, "matched": 2, "chance_expected": 0.5, "inquiries": 3,
+                       "unmatched_inquiries": 1, "follows_without_inquiry": 0}})
+        report = self.report()
+        self.assertIn("### LINE 來源推測(隱形對時,非確定數字)", report)
+        self.assertIn("| 來源 | 點擊 | 對到 | 巧合預期 | 多出 | 7天內收件 |", report)
+        self.assertIn("| reel-a | 3 | 2 | 0.4 | +1.6 | 1(另 1 待滿窗) |", report)
+        self.assertIn("| 未知來源 | 1 | 0 | 0.1 | -0.1 | 0 |", report)
+        self.assertIn("推測:", report)
+        self.assertNotIn("本週尚無對時資料", report)
+        self.assertIn(MISSING_LINE, report)
+        self.assertLessEqual(len(report.splitlines()), 60)
+
+    def test_timematch_absent_is_one_line(self):
+        report = self.report()
+        absent = "本週尚無對時資料(店機時間軸或 GA4 每分鐘資料還沒到)"
+        self.assertEqual(sum(absent in line for line in report.splitlines()), 1)
+        self.assertNotIn("| 來源 | 點擊 | 對到", report)
+        self.assertIn(MISSING_LINE, report)
+        self.assertLessEqual(len(report.splitlines()), 60)
+
     def fingerprints(self):
         return {str(p.relative_to(self.root)): hashlib.sha256(p.read_bytes()).hexdigest()
                 for p in self.root.rglob("*") if p.is_file()}

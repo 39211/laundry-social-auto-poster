@@ -11,6 +11,10 @@ Implements B2 design sections 4.2, 5 and 6.2 (policy v1):
     at most once per policy (I7 and B7) to the nearest preceding eligible inquiry.
   * Output is data/conversions/source-to-order-<ISO week>.json. It holds
     aggregates only: no user_key, cid_key, event ids, names, phones or text.
+  * follow_observed rows (B2-8a) are removed before the main computation, so
+    the main file is identical with or without them. After the main file, the
+    anonymous data/conversions/inquiry-timeline-<ISO week>.json is written
+    (optional: failures print [TIMELINE_ERROR] <type> and never change the exit).
 
 stdlib only. Never writes to the ledger, the registry or the POS.
 """
@@ -61,6 +65,9 @@ UNKNOWN_SOURCE = "unknown"
 POLICIES = ("I7", "B7")
 BINDING_KINDS = frozenset({"binding_observed", "binding_confirmed", "binding_revoked"})
 BOOKING_KINDS = frozenset({"booking_confirmed", "booking_cancelled"})
+FOLLOW_KIND = "follow_observed"
+FOLLOW_LOOKBACK = timedelta(minutes=120)
+TIMELINE_SCHEMA = "inquiry-timeline/v1"
 
 ST_RECEIVED = "received"
 ST_PENDING = "pending"
@@ -70,6 +77,13 @@ STATUS_FIELDS = {
     ST_RECEIVED: "received_inquiries",
     ST_PENDING: "pending_window",
     ST_UNKNOWN: "unknown_inquiries",
+    ST_NO_RECEIPT: "matured_no_receipt",
+}
+# Per-inquiry labels in the timeline (B2-8a); same buckets as STATUS_FIELDS.
+TIMELINE_LABELS = {
+    ST_RECEIVED: "received",
+    ST_PENDING: "pending_window",
+    ST_UNKNOWN: "unknown",
     ST_NO_RECEIPT: "matured_no_receipt",
 }
 
@@ -396,6 +410,29 @@ def parse_ledger(data: bytes, *, as_of: datetime, shop_id: str, oa_scope: str,
         _accept_row(obj, line_no, ledger, seen, (as_of, shop_id, oa_scope, hash_key_version, prev, nexts[i]))
     ledger.rows.sort(key=lambda r: (r["_ts"], r["event_id"]))
     return ledger
+
+
+def split_follow_rows(data: bytes) -> tuple:
+    """Return (ledger bytes without follow_observed lines, [follow line bodies]).
+
+    The remaining bytes are exactly the ledger as if the follow rows had never
+    been written: same line numbers, same terminators, same corrupt lines.
+    """
+    terminated = data.endswith(b"\n")
+    parts = data.split(b"\n")
+    if terminated:
+        parts = parts[:-1]
+    last_idx = len(parts) - 1
+    chunks = []
+    follows = []
+    for idx, raw in enumerate(parts):
+        body = raw.rstrip(b"\r")
+        obj = _decode_row(body) if body.strip() else None
+        if obj is not None and obj.get("event_kind") == FOLLOW_KIND:
+            follows.append(body)
+            continue
+        chunks.append(raw if (idx == last_idx and not terminated) else raw + b"\n")
+    return b"".join(chunks), follows
 
 
 # ---------------------------------------------------------------------------
@@ -879,8 +916,12 @@ def compute_export(ledger: LedgerData, pos_rows: Iterable[dict], *, key: bytes, 
                    registry_version: str, registry_status: str = "ok",
                    pos_through: Optional[datetime] = None,
                    pos_completeness: str = POS_DET_UNVERIFIED,
-                   exported_at: Optional[datetime] = None) -> dict:
-    """Pure core: build the export document (revision fields filled in later)."""
+                   exported_at: Optional[datetime] = None,
+                   detail: Optional[dict] = None) -> dict:
+    """Pure core: build the export document (revision fields filled in later).
+
+    If `detail` is a dict it receives "cohort" and "states" (per-inquiry policy
+    states) for the timeline; the returned document is not affected."""
     week_start, week_end = iso_week_bounds(week)
     pos_through = min(pos_through or as_of, as_of)
     inqs = sorted(build_inquiries(ledger.rows, shop_id, oa_scope).values(),
@@ -896,6 +937,9 @@ def compute_export(ledger: LedgerData, pos_rows: Iterable[dict], *, key: bytes, 
                      default=week_end)
     file_complete = (not ledger.gaps and pos_completeness == POS_VERIFIED
                      and pos_through >= latest_end and as_of >= latest_end)
+    if detail is not None:
+        detail["cohort"] = cohort
+        detail["states"] = states
     return {
         "schema_version": SCHEMA_VERSION,
         "policy_version": POLICY_VERSION,
@@ -913,6 +957,57 @@ def compute_export(ledger: LedgerData, pos_rows: Iterable[dict], *, key: bytes, 
         "coverage": _coverage(ledger, pos, id_counts, pos_through, pos_completeness,
                               registry_status, exported_at or datetime.now(UTC)),
         "rows": summarize_rows(cohort, states, file_complete),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Inquiry timeline (B2-8a, anonymous, shared contract with B2-8b)
+# ---------------------------------------------------------------------------
+
+def timeline_minute(dt: datetime) -> str:
+    """Floor to the minute in Asia/Taipei: 'YYYY-MM-DDTHH:MM+08:00'."""
+    return dt.astimezone(TZ).strftime("%Y-%m-%dT%H:%M") + "+08:00"
+
+
+def build_timeline(doc: dict, cohort: list, states: dict, rows: list, follow_rows: list,
+                   week: str) -> dict:
+    """One entry per inquiry of the main file's cohort; no ids, keys or text."""
+    week_start, week_end = iso_week_bounds(week)
+    messages: dict = {}
+    for r in rows:
+        if r["event_kind"] == "message_observed" and isinstance(r.get("user_key"), str):
+            messages.setdefault(r["user_key"], []).append(r["_ts"])
+    follows: dict = {}
+    for r in follow_rows:
+        if r.get("event_kind") == FOLLOW_KIND and isinstance(r.get("user_key"), str):
+            follows.setdefault(r["user_key"], []).append(r["_ts"])
+    entries = []
+    for inq in cohort:
+        near = [f for f in follows.get(inq.user_key, ())
+                if inq.t_i - FOLLOW_LOOKBACK <= f <= inq.t_i]
+        entries.append({
+            "first_minute": timeline_minute(inq.t_i),
+            "follow_minute": timeline_minute(max(near)) if near else None,
+            "returning": any(taipei_day(m) < inq.day for m in messages.get(inq.user_key, ())),
+            "source_code": inq.source_code or UNKNOWN_SOURCE,
+            "I7": TIMELINE_LABELS[states["I7"][inq.inquiry_id].status],
+            "B7": TIMELINE_LABELS[states["B7"][inq.inquiry_id].status],
+        })
+    entries.sort(key=lambda e: (e["first_minute"], e["follow_minute"] or "", e["returning"],
+                                e["source_code"], e["I7"], e["B7"]))
+    orphans = sorted(
+        timeline_minute(f) for user, times in follows.items() for f in times
+        if week_start <= f < week_end
+        and not any(f <= m <= f + FOLLOW_LOOKBACK for m in messages.get(user, ())))
+    return {
+        "schema": TIMELINE_SCHEMA,
+        "week": week,
+        "tz": TIMEZONE_NAME,
+        "as_of": doc["as_of"],
+        "revision": doc["revision"],
+        "status": doc["status"],
+        "entries": entries,
+        "follows_without_inquiry": orphans,
     }
 
 
@@ -1035,6 +1130,15 @@ def output_path(root: Path, week: str) -> Path:
     return root / "data" / "conversions" / ("source-to-order-%s.json" % week)
 
 
+def timeline_output_path(root: Path, week: str) -> Path:
+    return root / "data" / "conversions" / ("inquiry-timeline-%s.json" % week)
+
+
+def write_timeline(path: Path, tdoc: dict) -> None:
+    data = (json.dumps(tdoc, ensure_ascii=True, sort_keys=True, indent=2) + "\n").encode("ascii")
+    atomic_write_bytes(path, data)
+
+
 def next_revision(path: Path) -> tuple:
     if not path.exists():
         return 1, None
@@ -1093,13 +1197,18 @@ class ExportResult:
     doc: Optional[dict]
     path: Optional[Path]
     message: str
+    timeline_path: Optional[Path] = None
+    timeline_error: Optional[str] = None
 
 
 def export_week(root: Any, week: str, as_of: datetime, pos_rows: Iterable[dict], *,
                 pos_through: Optional[datetime] = None,
                 pos_completeness: str = POS_DET_UNVERIFIED,
                 dry_run: bool = False) -> ExportResult:
-    """Read ledger + registry + secret under `root`, compute, and write (unless dry_run)."""
+    """Read ledger + registry + secret under `root`, compute, and write (unless dry_run).
+
+    After the main file, the anonymous inquiry timeline is written. It is optional:
+    a failure prints [TIMELINE_ERROR] <type> to stderr and never changes the code."""
     root = Path(root)
     iso_week_bounds(week)  # validate early
     settings = load_settings(root)
@@ -1109,22 +1218,39 @@ def export_week(root: Any, week: str, as_of: datetime, pos_rows: Iterable[dict],
     key, reason = asvc._read_secret(settings.secret_path)
     if key is None:
         raise ExportError("HMAC secret unavailable (%s)" % reason)
-    ledger = parse_ledger(ledger_path.read_bytes(), as_of=as_of, shop_id=settings.shop_id,
-                          oa_scope=settings.oa_scope, hash_key_version=hash_key_version(key))
+    hkv = hash_key_version(key)
+    # follow_observed rows never reach the main computation: the main file is exactly
+    # what it would be without them (B2-8a hard rule).
+    main_bytes, follow_lines = split_follow_rows(ledger_path.read_bytes())
+    ledger = parse_ledger(main_bytes, as_of=as_of, shop_id=settings.shop_id,
+                          oa_scope=settings.oa_scope, hash_key_version=hkv)
     registry = asvc.load_source_registry(settings.registry_path)
+    detail: dict = {}
     doc = compute_export(ledger, pos_rows, key=key, week=week, as_of=as_of,
                          shop_id=settings.shop_id, oa_scope=settings.oa_scope,
                          pos_source_id=settings.pos_source_id,
                          registry_version=registry.registry_version,
                          registry_status=registry.load_status, pos_through=pos_through,
-                         pos_completeness=pos_completeness)
+                         pos_completeness=pos_completeness, detail=detail)
     if sum(r["inquiries"] for r in doc["rows"]) == 0:
         return ExportResult(2, doc, None, "[ATTRIBUTION_EXPORT] nothing to export: no inquiries in " + week)
     path = output_path(root, week)
     doc["revision"], doc["supersedes"] = next_revision(path)
+    t_path, t_error = None, None
     if not dry_run:
         write_export(path, doc)
-    return ExportResult(0, doc, path, summary_line(doc, path, dry_run))
+        try:
+            follow_data = b"".join(line + b"\n" for line in follow_lines)
+            follows = parse_ledger(follow_data, as_of=as_of, shop_id=settings.shop_id,
+                                   oa_scope=settings.oa_scope, hash_key_version=hkv).rows
+            tdoc = build_timeline(doc, detail["cohort"], detail["states"], ledger.rows, follows, week)
+            target = timeline_output_path(root, week)
+            write_timeline(target, tdoc)
+            t_path = target
+        except Exception as exc:  # optional output: type name only, never the message
+            t_error = type(exc).__name__
+            asvc._stderr("[TIMELINE_ERROR] " + t_error)
+    return ExportResult(0, doc, path, summary_line(doc, path, dry_run), t_path, t_error)
 
 
 # ---------------------------------------------------------------------------

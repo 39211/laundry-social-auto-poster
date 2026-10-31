@@ -479,6 +479,79 @@ class WebhookAttributionTests(unittest.TestCase):
         for secret in (USER_ID, PLAIN, PHONE, "Test Name", "468789577898260001", HMAC_HEX, CHANNEL_SECRET):
             self.assertNotIn(secret, raw)
 
+    # -- follow (B2-8a) -------------------------------------------------------
+
+    def follow_event(self, unblocked=None, event_type="follow"):
+        self.n += 1
+        event = {
+            "type": event_type,
+            "mode": "active",
+            "webhookEventId": "01TESTFOLLOW%04d" % self.n,
+            "timestamp": 1793000000000 + self.n,
+            "source": {"type": "user", "userId": USER_ID},
+            "deliveryContext": {"isRedelivery": False},
+        }
+        if event_type == "follow":
+            event["replyToken"] = "rf%030d" % self.n
+        if unblocked is not None:
+            event["follow"] = {"isUnblocked": unblocked}
+        return event
+
+    def test_follow_event_exactly_one_row(self):
+        handler_cls = self.build_on()
+        event = self.follow_event(unblocked=True)
+        resp, out, err = self.post(handler_cls, [event])
+        self.assert_ok_200(resp)
+        self.assertEqual("", out)
+        self.assertEqual(REQUEST_LOG, err)
+        self.assertEqual([], self.calls)
+        rows = self.rows()
+        self.assertEqual(["follow_observed"], [r["event_kind"] for r in rows])
+        row = rows[0]
+        expected = hmac.new(bytes.fromhex(HMAC_HEX), ("fxwash|fxwash-line-oa|" + USER_ID).encode("utf-8"),
+                            hashlib.sha256).hexdigest()
+        self.assertEqual(expected, row["user_key"])
+        self.assertIs(True, row["unblocked"])
+        self.assertEqual("fxwash-line-oa:" + event["webhookEventId"], row["event_id"])
+        raw = self.ledger_path().read_text(encoding="utf-8")
+        for secret in (USER_ID, event["replyToken"], HMAC_HEX, CHANNEL_SECRET):
+            self.assertNotIn(secret, raw)
+        again = dict(event, deliveryContext={"isRedelivery": True})
+        resp, _, _ = self.post(handler_cls, [again])
+        self.assert_ok_200(resp)
+        self.assertEqual(1, len(self.rows()))
+
+    def test_follow_handling_identical_to_off(self):
+        event = self.follow_event(unblocked=False)
+        self.configure()
+        off = self.post(self.build(), [event])
+        off_calls = list(self.calls)
+        self.calls.clear()
+        on = self.post(self.build_on(), [event])
+        self.assertEqual(without_date(off[0]), without_date(on[0]))
+        self.assertEqual(off[1:], on[1:])
+        self.assertEqual(("", REQUEST_LOG), off[1:])
+        self.assertEqual([], off_calls)
+        self.assertEqual(off_calls, self.calls)
+        self.assertEqual(["follow_observed"], [r["event_kind"] for r in self.rows()])
+
+    def test_unfollow_no_row(self):
+        handler_cls = self.build_on()
+        resp, out, err = self.post(handler_cls, [self.follow_event(event_type="unfollow")])
+        self.assert_ok_200(resp)
+        self.assertEqual(("", REQUEST_LOG), (out, err))
+        self.assertEqual([], self.rows())
+
+    def test_follow_record_raises_webhook_unchanged(self):
+        handler_cls = self.build_on()
+        with patch.object(self.ledger, "record_follow", side_effect=RuntimeError("boom " + USER_ID)):
+            resp, _, err = self.post(handler_cls, [self.follow_event(), self.text_event(PLAIN)])
+        self.assert_ok_200(resp)
+        self.assertEqual([PLAIN], self.chat_texts())
+        self.assertEqual("[ATTRIBUTION_ERROR] RuntimeError\n" + REQUEST_LOG, err)
+        self.assertNotIn(USER_ID, err)
+        self.assertEqual(["message_observed"], [r["event_kind"] for r in self.rows()])
+
 
 if __name__ == "__main__":
     unittest.main()

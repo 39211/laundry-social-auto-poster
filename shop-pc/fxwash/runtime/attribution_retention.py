@@ -23,6 +23,8 @@ Safety rules:
   * Same `.lock` protocol as the webhook (O_CREAT|O_EXCL, stale-lock rule),
     bounded wait. Atomic rewrite: temp file in the same directory, fsync,
     os.replace, then the generation file is bumped. No backup of removed rows.
+  * follow_observed rows (B2-8a) are pruned by the same whole-week cutoff as
+    message_observed rows; they are never kept as "unclassifiable".
   * Output and logs contain counts only.
 
 stdlib only. Exit codes: 0 ok, 1 error (nothing pruned), 2 bad arguments,
@@ -59,6 +61,7 @@ MATURITY_HORIZON = ax.MATURITY_HORIZON
 EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_BUSY = 0, 1, 2, 3
 
 MESSAGE_KIND = "message_observed"
+FOLLOW_KIND = ax.FOLLOW_KIND
 TOMBSTONE_KIND = "unsend_tombstone"
 CORRECTION_KIND = "source_corrected"
 CORRUPT_LABEL = "corrupt_line"
@@ -210,14 +213,16 @@ def plan_prune(data: bytes, *, cutoff: datetime, shop_id: str, oa_scope: str,
             return None
         return ax.make_inquiry_id(shop_id, oa_scope, r["user_key"], ax.taipei_day(r["_ts"]))
 
-    remove = {r["event_id"] for r in rows if r["event_kind"] == MESSAGE_KIND and r["event_id"] in old}
+    # follow_observed rows go with their week exactly like message rows.
+    remove = {r["event_id"] for r in rows
+              if r["event_kind"] in (MESSAGE_KIND, FOLLOW_KIND) and r["event_id"] in old}
     kept_msgs = [r for r in rows if r["event_kind"] == MESSAGE_KIND and r["event_id"] not in remove]
     kept_keys = {r["message_key"] for r in kept_msgs if isinstance(r.get("message_key"), str)}
     kept_inqs = {inquiry_of(r) for r in kept_msgs} - {None}
 
     for r in rows:
         kind, eid = r["event_kind"], r["event_id"]
-        if eid not in old or kind == MESSAGE_KIND or kind in ax.BINDING_KINDS:
+        if eid not in old or kind in (MESSAGE_KIND, FOLLOW_KIND) or kind in ax.BINDING_KINDS:
             continue
         if kind == TOMBSTONE_KIND:
             if r.get("message_key") not in kept_keys:

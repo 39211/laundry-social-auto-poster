@@ -59,3 +59,31 @@ if ($exitAi -ne 0) {
 } else {
     Write-Log "Done."
 }
+
+# LINE clicks per minute for the invisible time-match (B2-8b). Yesterday and
+# the two days before it are re-fetched because GA4 fills in late events.
+# Informational only: the exit code left by the steps above is restored after
+# this step, so its failure never changes the scheduled task's outcome.
+$exitBeforeMinutes = $LASTEXITCODE
+$yesterday = $now.AddDays(-1).ToString("yyyy-MM-dd")
+Write-Log "Collecting GA4 LINE clicks per minute for $yesterday (3 days)."
+try {
+    Push-Location $root
+    try {
+        $outMin = cmd /c "npm.cmd run ga4-line-minutes -- --date $yesterday --days 3 2>&1"
+        $exitMin = $LASTEXITCODE
+    } finally {
+        Pop-Location
+    }
+    $outMin | ForEach-Object { Write-Log $_ }
+    if ($exitMin -eq 3) {
+        Write-Log "ga4-line-minutes exited 3: GA4 property time zone is not Asia/Taipei; minute clicks not recorded as measured."
+    } elseif ($exitMin -ne 0) {
+        Write-Log "ga4-line-minutes exited $exitMin; affected days stay unmeasured, older files kept."
+    } else {
+        Write-Log "Done."
+    }
+} catch {
+    Write-Log "ga4-line-minutes could not run: $($_.Exception.Message)"
+}
+$global:LASTEXITCODE = $exitBeforeMinutes

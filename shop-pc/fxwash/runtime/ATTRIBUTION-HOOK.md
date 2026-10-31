@@ -139,6 +139,33 @@ Customer-ID lookup branch:
 Composite ids such as `12/34` are logged as `identity_status = identity_ambiguous` with
 `cid_key = null`; `save_binding` behaviour is unchanged. `record_*` never raises.
 
+## 6. Follow rows (B2-8a)
+
+In the same attribution loop (before the 200), `follow` events go to `record_follow` instead of
+`record_message`, inside their own guard:
+
+```python
+                    if isinstance(ev, dict) and ev.get("type") == "follow":
+                        try:
+                            attr_ledger.record_follow(ev)
+                        except Exception as exc:
+                            print("[ATTRIBUTION_ERROR] " + type(exc).__name__, file=sys.stderr)
+                        continue
+```
+
+Row: `event_kind = "follow_observed"`, the same envelope as message rows (schema/policy version,
+`event_id` = oa_scope + ":" + webhookEventId, `ts` from the LINE timestamp, `recorded_at`, shop_id,
+oa_scope, runtime_id, HMAC `user_key`, hash_key_version) plus `unblocked` (from
+`follow.isUnblocked`, default false). The row holds no raw userId, replyToken, name or text. Redeliveries are deduped by
+`event_id`.
+
+Not recorded: `unfollow` (never), group/room sources, missing userId, ledger disabled. `record_follow`
+never raises. The follow handling (today: no reply) is unchanged; an attribution failure only adds
+one `[ATTRIBUTION_ERROR] <Type>` line.
+
+Purpose: only the anonymous per-inquiry timeline (`ATTRIBUTION-EXPORT.md`). Customers see nothing
+new and type no code. Any source matched from it is inferred (推測).
+
 ## Not changed
 
 replyToken dedupe, postback/image/text routing, replies, bindings file, logging. Note: the

@@ -613,6 +613,13 @@ def make_request_handler(shop, connector, creds):
             if attr_ledger is not None and isinstance(data, dict):
                 attr_events = data.get("events")
                 for ev in attr_events if isinstance(attr_events, list) else []:
+                    if isinstance(ev, dict) and ev.get("type") == "follow":
+                        # Follow rows (B2-8a): anonymous timing only; never affects replies.
+                        try:
+                            attr_ledger.record_follow(ev)
+                        except Exception as exc:
+                            print("[ATTRIBUTION_ERROR] " + type(exc).__name__, file=sys.stderr)
+                        continue
                     try:
                         src_res = None
                         m = ev.get("message") if isinstance(ev, dict) else None

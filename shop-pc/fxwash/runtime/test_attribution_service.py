@@ -555,5 +555,96 @@ class ReplacementTests(_TempBase):
         self.assertEqual(attr.read_ledger_generation(self.data_dir), -1)
 
 
+REPLY_TOKEN = "nHuyWiB7yP5Zw52FIkcQobQuGDXCTA"
+
+
+def make_follow(webhook_id="01JTESTFOLLOW00000000001", unblocked=None, source_type="user",
+                user_id=USER_ID, event_type="follow", redelivery=False):
+    event = make_event(webhook_id=webhook_id, source_type=source_type, user_id=user_id,
+                       event_type=event_type)
+    event["deliveryContext"] = {"isRedelivery": redelivery}
+    if unblocked is not None:
+        event["follow"] = {"isUnblocked": unblocked}
+    return event
+
+
+class FollowTests(_TempBase):
+    def test_follow_row_fields_and_no_raw_ids(self):
+        ledger = self.make_ledger()
+        row = ledger.record_follow(make_follow(unblocked=False))
+        self.assertIsNotNone(row)
+        expected = {
+            "schema_version", "policy_version", "event_kind", "event_id", "event_id_basis", "ts", "ts_basis",
+            "recorded_at", "shop_id", "oa_scope", "runtime_id", "user_key", "hash_key_version", "unblocked",
+        }
+        self.assertEqual(set(row), expected)
+        msg_row = ledger.record_message(make_event(webhook_id="M1"), None, "v")
+        self.assertTrue(set(row) - {"unblocked"} <= set(msg_row))
+        self.assertEqual(row["event_kind"], "follow_observed")
+        self.assertEqual(row["event_id"], OA + ":01JTESTFOLLOW00000000001")
+        self.assertEqual(row["event_id_basis"], "line")
+        self.assertEqual(row["ts"], "2026-10-30T10:00:00.123+08:00")
+        self.assertEqual(row["ts_basis"], "line")
+        self.assertTrue(row["recorded_at"].endswith("+08:00"))
+        self.assertEqual((row["shop_id"], row["oa_scope"], row["runtime_id"]), (SHOP, OA, RT))
+        self.assertEqual((row["schema_version"], row["policy_version"]), (1, "v1"))
+        self.assertEqual(row["user_key"], hmac_hex(SECRET, SHOP + "|" + OA + "|" + USER_ID))
+        self.assertEqual(row["user_key"], msg_row["user_key"])
+        self.assertEqual(row["hash_key_version"], ledger.hash_key_version)
+        self.assertIs(row["unblocked"], False)
+        self.assertEqual(self.rows()[0], row)
+        content = self.ledger_path.read_text(encoding="utf-8")
+        for needle in (USER_ID, REPLY_TOKEN, SECRET_HEX):
+            self.assertNotIn(needle, content)
+            self.assertNotIn(needle, self.stderr.getvalue())
+
+    def test_unblocked_flag(self):
+        ledger = self.make_ledger()
+        self.assertIs(ledger.record_follow(make_follow("F1", unblocked=True))["unblocked"], True)
+        self.assertIs(ledger.record_follow(make_follow("F2", unblocked=False))["unblocked"], False)
+        self.assertIs(ledger.record_follow(make_follow("F3"))["unblocked"], False)
+        self.assertIs(ledger.record_follow(make_follow("F4", unblocked="true"))["unblocked"], False)
+        odd = make_follow("F5")
+        odd["follow"] = "yes"
+        self.assertIs(ledger.record_follow(odd)["unblocked"], False)
+        self.assertEqual(len(self.rows()), 5)
+
+    def test_skipped_events(self):
+        ledger = self.make_ledger()
+        cases = [
+            make_follow("S1", event_type="unfollow"),
+            make_follow("S2", source_type="group"),
+            make_follow("S3", source_type="room"),
+            make_follow("S4", user_id=None),
+            make_event(webhook_id="S5"),
+        ]
+        for ev in cases:
+            self.assertIsNone(ledger.record_follow(ev))
+        self.assertIsNone(ledger.record_follow("not-a-dict"))
+        self.assertIn("[ATTRIBUTION_ERROR] TypeError", self.stderr.getvalue())
+        self.assertFalse(self.ledger_path.exists())
+
+    def test_redelivery_dedupe(self):
+        first = self.make_ledger()
+        self.assertIsNotNone(first.record_follow(make_follow("R1")))
+        self.assertIsNone(first.record_follow(make_follow("R1")))
+        self.assertIsNone(first.record_follow(make_follow("R1", redelivery=True)))
+        second = self.make_ledger()
+        self.assertIsNone(second.record_follow(make_follow("R1", redelivery=True)))
+        self.assertIsNotNone(second.record_follow(make_follow("R2")))
+        self.assertEqual([r["event_id"] for r in self.rows()], [OA + ":R1", OA + ":R2"])
+
+    def test_missing_webhook_event_id_uses_local_basis(self):
+        ledger = self.make_ledger()
+        row = ledger.record_follow(make_follow(webhook_id=None))
+        self.assertEqual(row["event_id_basis"], "local")
+        self.assertTrue(row["event_id"].startswith(OA + ":local-"))
+
+    def test_disabled_ledger_skips(self):
+        ledger = attr.AttributionLedger(self.data_dir, self.root / "nope.key", SHOP, OA, RT)
+        self.assertIsNone(ledger.record_follow(make_follow("D1")))
+        self.assertFalse(self.ledger_path.exists())
+
+
 if __name__ == "__main__":
     unittest.main()

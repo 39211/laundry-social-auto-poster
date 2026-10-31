@@ -39,7 +39,7 @@ $stubTemplate = @'
 import os, sys
 code = int(os.environ.get("__VAR__", "0"))
 with open(os.path.join("data", "stub_calls.txt"), "a") as f:
-    f.write("__NAME__|" + " ".join(sys.argv[1:]) + "|flags=%d%d%d\n" % (sys.flags.isolated, sys.flags.no_site, int(sys.dont_write_bytecode)))
+    f.write("__NAME__|" + " ".join(sys.argv[1:]) + "|flags=%d%d%d\n" % tuple(int(x in sys.orig_argv[1:len(sys.orig_argv) - len(sys.argv)]) for x in ("-I", "-S", "-B")))
 print("first stdout line NOISE-NOT-SUMMARY")
 print("__NAME__ summary rows=4 kept=2 exit=%d" % code)
 sys.stderr.write("ROW-CONTENT-MUST-NOT-BE-LOGGED\n")

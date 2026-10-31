@@ -263,13 +263,7 @@
               if (!link) return;
               var c = document.querySelector('link[rel="canonical"]');
               var url = (c && c.href) || location.href.split('#')[0];
-              url += (url.indexOf('?') > -1 ? '&' : '?') + 'utm_source=line_share&utm_medium=social&utm_campaign=guide_share';
               link.href = 'https://line.me/R/share?text=' + encodeURIComponent((document.title || '私享家洗衣店洗護指南') + '\n' + url);
-              link.addEventListener('click', function () {
-                if (typeof window.gtag === 'function') {
-                  window.gtag('event', 'line_share_click', { utm_source: 'line_share', utm_medium: 'social', transport_type: 'beacon' });
-                }
-              });
             })();
             </script>
           </div>

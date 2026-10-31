@@ -292,3 +292,39 @@ Next steps:
   - Dry-run on the real list: 38/38, k=11, nothing written.
   - The greeting text waits for owner approval.
 - API this addendum: b1-3 $1.78, c5 $0.96.
+
+
+## 10/31 13:30 addendum (shop deploy day)
+
+- **11:30 rss.xml outage -> hotfix 7dd4d248** (src/fsRetry.ts): after 6 retryable direct-write failures, one temp+rename write. 8 tests. The 12:00 run published slot 1 (FB and IG success).
+- **B1-3 merged** into release @ 70e42c91 (12:04, after the 11:30 publish).
+  - The 11:59 site generation came before the merge. The live home page still shows 0 copies of the new wording.
+  - Re-check after the 14:00 and 20:30 publishes.
+- **Shop deploys** (owner A, 10/31 ~11:40), all through `C:\LaundryStores\ops\bundle-phase1/2.ps1`:
+  - A3-2 12:12 PHASE2 PASS. State migrated: completed_keys=483.
+  - A4-4 12:13 PHASE2 PASS. PUT 200 + verify match; webhook/test 200.
+  - B1-2 12:22 PHASE2 PASS. Backup `fxwash\backups\B1-2-20261031-121807`.
+    - Found: shop files have mixed EOL. chat_service.py and both builders are LF; dialog_corpus.py and Dialog_Phrases.json are CRLF. That made the CRLF-based `requires` refuse.
+    - Fix: rebuilt the 3 LF files from git blobs (content identical modulo EOL) and pointed requires/expected at the real hashes.
+    - **Commander error:** phase2 was started without `-Backup` (a mandatory parameter), so PowerShell waited for input. The webhook was down 12:18:11-12:22:37 (about 4.5 min).
+    - Rule from now on: phase2's backup path is parsed from phase1 output (`b2-deploy.ps1`), and every ssh uses `-n` + `-NonInteractive`.
+    - Memory.md was edited in place (shoe 5~7 working days -> 7 days). CRLF kept; backup `Memory.md.before`.
+- **ai bot B1-2**: merged into release @ ccc627e9.
+  - Restarted 12:29 through the A8-2 functions (`restart-ai-bot-b12.ps1`): test_b1_facts 9/9, test_customer_questions 52/52, tunnel+handover 46.
+  - Day handover verified: endpoint still on the shop lhr.life, no daytime PUT.
+  - test_conversation.py (4 fail) and test_guided_flows.py (1 fail) fail with identical text on 70e42c91 and ccc627e9. This is pre-existing price-table drift, not B1-2.
+- **A8-3** release @ 08dc350a (fix f560d55f):
+  - Problem: the deploy runner required healthz pid == PID file, but the venv launcher's child answers healthz. Every real Start would have failed and rolled back.
+  - Fix: accept self or a descendant within 3 hops.
+  - Pester 38/38; mutations strict -> 2 red, always-true -> 3 red.
+- **B2 merged** into release @ 400b4a2c; .gitignore `inquiries.jsonl*` @ 07914a0e; pushed.
+  - weekly-report tests 30/30 on the merged tree.
+  - The shop deploy runs 14:00+ with `api-jobs/shop-deploy-1031/b2-deploy.ps1`:
+    - Phase A: code, attribution OFF.
+    - Phase B: `stage-B2/b2-enable.ps1` does the key, shop.json and restart.
+  - Positive ON evidence: `b2_selfcheck.py` builds the ledger the way startup does.
+- **B2-7** release @ df0c3400 (feat 7211a170). API, Opus 5.5, $1.55.
+  - Shop: FXwash-Attribution-Weekly, Mon 10:40: export, then 90-day retention (D12).
+  - ai: LineBot-PullShopConversions, Mon 11:10/15:10: allow-listed summary files only.
+  - Tests 61/61 + 52/52; mutations 5/5 red.
+- **Finding, waits for owner:** the LINE bot price table quotes the 「特殊類名牌包」 price with 「10天」. The owner's rule is 皮件包 14 天. This is POS system data, so I did not change it.

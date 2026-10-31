@@ -135,6 +135,40 @@ class ProviderTests(unittest.TestCase):
         self.assertIn('responseJsonSchema',json.loads(first.data)['generationConfig'])
         self.assertNotIn('responseJsonSchema',json.loads(second.data)['generationConfig'])
 
+    def invoke_default_chain(self, effects):
+        body={'candidates':[{'finishReason':'STOP','content':{'parts':[{'text':json.dumps({'items':[inventory_item('混合運動鞋',1,'estimated','先按可見款式估')]})}]}}]}
+        effects=[Response(body) if x=='ok' else x for x in effects]
+        env={k:v for k,v in os.environ.items() if k not in ('LAUNDRY_VISION_MODEL','LAUNDRY_VISION_FALLBACK_MODEL')}
+        env.update({'GEMINI_API_KEY':'synthetic-key','LAUNDRY_PHOTO_ESTIMATE':'1'})
+        with patch.dict(os.environ,env,clear=True), \
+             patch.object(photo_estimate.urllib.request,'urlopen',side_effect=effects) as request, \
+             patch.object(photo_estimate.time,'sleep'):
+            result=ORIGINAL_INVENTORY([ROOT/'test-assets/estimate-items-synthetic.png'],['混合運動鞋'])
+        return result,request
+
+    def test_default_chain_follows_shop_model_order(self):
+        # Unpinned production path: same order as the shop bot; each free-tier model has its own quota.
+        quota=urllib.error.HTTPError('synthetic',429,'quota',None,None)
+        result,request=self.invoke_default_chain([quota,quota,'ok'])
+        self.assertTrue(result['ok']);self.assertEqual(request.call_count,3)
+        urls=[call.args[0].full_url for call in request.call_args_list]
+        self.assertIn('/models/gemini-flash-latest:',urls[0])
+        self.assertIn('/models/gemini-2.5-flash:',urls[1])
+        self.assertIn('/models/gemini-flash-lite-latest:',urls[2])
+        self.assertEqual(result['model'],'gemini-flash-lite-latest')
+        self.assertIn('responseJsonSchema',json.loads(request.call_args_list[0].args[0].data)['generationConfig'])
+        self.assertNotIn('responseJsonSchema',json.loads(request.call_args_list[2].args[0].data)['generationConfig'])
+
+    def test_default_chain_is_bounded_to_three_calls(self):
+        busy=urllib.error.HTTPError('synthetic',503,'busy',None,None)
+        result,request=self.invoke_default_chain([busy]*5)
+        self.assertEqual(result,{'ok':False,'error':'provider_503'});self.assertEqual(request.call_count,3)
+
+    def test_schema_400_moves_to_next_model(self):
+        bad=urllib.error.HTTPError('synthetic',400,'schema too many states',None,None)
+        result,request=self.invoke_default_chain([bad,'ok'])
+        self.assertTrue(result['ok']);self.assertEqual(result['model'],'gemini-2.5-flash')
+
     def test_429_quota_also_uses_fallback(self):
         result,request=self.invoke([urllib.error.HTTPError('synthetic',429,'quota',None,None),'ok'])
         self.assertTrue(result['ok']);self.assertEqual(result['model'],'gemini-2.5-flash-lite')

@@ -270,14 +270,34 @@ FALLBACK_FORMAT = (
 )
 
 
+# Same order as the shop bot (shop-pc/fxwash/runtime/vision_service.py GEMINI_MODELS).
+DEFAULT_MODEL_CHAIN = ("gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.5-flash-lite")
+MAX_CALLS = 3
+TOTAL_SECONDS = 32
+PER_CALL_SECONDS = 15
+_MODEL_RE = re.compile(r"gemini-[a-zA-Z0-9.-]+")
+
+
+def model_chain() -> list[str]:
+    """LAUNDRY_VISION_MODEL set: [that, fallback]. Unset: the shop's chain. Invalid names -> []."""
+    pinned = os.environ.get("LAUNDRY_VISION_MODEL")
+    if pinned is not None:
+        if not _MODEL_RE.fullmatch(pinned):
+            return []
+        fallback = os.environ.get("LAUNDRY_VISION_FALLBACK_MODEL", "gemini-2.5-flash-lite")
+        return [pinned] + ([fallback] if _MODEL_RE.fullmatch(fallback) and fallback != pinned else [])
+    return list(DEFAULT_MODEL_CHAIN)
+
+
 def inventory(paths: list[Path], names: list[str]) -> dict:
     if not configured():
         return {"ok": False, "error": "not_configured"}
     if not 1 <= len(paths) <= MAX_PHOTOS:
         return {"ok": False, "error": "too_many_photos"}
-    model = os.environ.get("LAUNDRY_VISION_MODEL", "gemini-2.5-flash")
-    if not re.fullmatch(r"gemini-[a-zA-Z0-9.-]+", model):
+    chain = model_chain()
+    if not chain:
         return {"ok": False, "error": "invalid_model"}
+    model = chain[0]
     parts = [{"text": build_prompt(names)}]
     try:
         for path in paths:
@@ -294,39 +314,44 @@ def inventory(paths: list[Path], names: list[str]) -> dict:
         body = {"contents": [{"role": "user", "parts": parts}],
                 "generationConfig": {"temperature": 0, "maxOutputTokens": 8192,
                                      "responseMimeType": "application/json", "responseJsonSchema": SCHEMA}}
-        fallback = os.environ.get("LAUNDRY_VISION_FALLBACK_MODEL", "gemini-2.5-flash-lite")
-        if not re.fullmatch(r"gemini-[a-zA-Z0-9.-]+", fallback):
-            fallback = model
         result = None
-        for attempt in range(2):
-            # 10/31: the primary model answered 429 (quota) and 503 (overloaded) at night;
-            # the retry therefore goes to a different model, like the shop bot's model list.
-            use = model if attempt == 0 else fallback
-            body['generationConfig'].pop('thinkingConfig', None)
-            if attempt == 1:
-                # gemini-2.5-flash-lite answers 400 "schema ... too many states" for SCHEMA;
-                # plain JSON mode + our own validate_result keeps the same contract.
-                body['generationConfig'].pop('responseJsonSchema', None)
-                body['contents'][0]['parts'].insert(1, {"text": FALLBACK_FORMAT})
+        deadline = time.monotonic() + TOTAL_SECONDS
+        last_error = "provider_timeout"
+        for index, use in enumerate(chain[:MAX_CALLS]):
+            remaining = deadline - time.monotonic()
+            if remaining < 3:
+                break
+            # 10/31: gemini-2.5-flash answered 429 (free tier: 5/min, 20/day) and 503; every model
+            # has its own free quota, so each retry goes to the next model, like the shop bot.
+            gen = dict(body['generationConfig'])
+            plain = index > 0 or "lite" in use
+            if plain:
+                # flash-lite rejects SCHEMA ("too many states", HTTP 400): plain JSON mode with
+                # the format spelled out; validate_result still enforces the same contract.
+                gen.pop('responseJsonSchema', None)
             if use.startswith('gemini-2.5-flash'):
-                body['generationConfig']['thinkingConfig'] = {'thinkingBudget': 0}
+                gen['thinkingConfig'] = {'thinkingBudget': 0}
+            parts_now = list(parts) if not plain else [parts[0], {"text": FALLBACK_FORMAT}] + parts[1:]
+            payload = {"contents": [{"role": "user", "parts": parts_now}], "generationConfig": gen}
             req = urllib.request.Request(f"https://generativelanguage.googleapis.com/v1beta/models/{use}:generateContent",
-                    data=json.dumps(body).encode(), headers={"Content-Type": "application/json", "x-goog-api-key": os.environ["GEMINI_API_KEY"]})
+                    data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "x-goog-api-key": os.environ["GEMINI_API_KEY"]})
             try:
-                with urllib.request.urlopen(req, timeout=15) as response:
+                with urllib.request.urlopen(req, timeout=max(3, min(PER_CALL_SECONDS, remaining))) as response:
                     result = json.loads(response.read(512_000))
                 model = use
                 break
             except urllib.error.HTTPError as exc:
-                if attempt == 0 and exc.code in (429,500,502,503,504):
+                last_error = f"provider_{exc.code}"
+                if exc.code in (400, 404, 429, 500, 502, 503, 504):
                     time.sleep(0.5)
                     continue
-                return {"ok":False,"error":f"provider_{exc.code}"}
+                return {"ok": False, "error": last_error}
             except (urllib.error.URLError, TimeoutError):
-                if attempt == 0:
-                    time.sleep(0.5)
-                    continue
-                return {"ok":False,"error":"provider_timeout"}
+                last_error = "provider_timeout"
+                time.sleep(0.5)
+                continue
+        if result is None:
+            return {"ok": False, "error": last_error}
         candidate = result["candidates"][0]
         if candidate.get("finishReason") != "STOP":
             raise ValueError("incomplete inventory")

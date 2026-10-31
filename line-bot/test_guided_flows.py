@@ -587,12 +587,15 @@ def test_faq_answers_and_human():
     labs = [a.get("label") for a in qr_actions(msgs)]
     assert labs == ["會不會洗壞", "會不會掉色", "要洗多久", "名牌敢洗嗎", "怎麼收費"], labs
 
+    # T-1：怎麼收費斷言意思，不斷言單一字。價目基準是 POS 標準價時說「店裡系統的標準價」，
+    # 基準關閉時說「水洗價」，依 bot 當下的設定判斷；兩種都必須講到價目表與「實際以到店看件為準」。
+    basis_phrase = "店裡系統的標準價" if conv._standard_price_copy() else "水洗價"
     expected = {
         "會不會洗壞": ["不會硬收", "拍張照"],
         "會不會掉色": ["洗標", "不能只看深淺色就保證"],
         "要洗多久": ["5–7 天", "問櫃台"],
         "名牌敢洗嗎": ["看過再收", "拍張照"],
-        "怎麼收費": ["水洗價", "價目表"],
+        "怎麼收費": ["價目表", basis_phrase, "實際以到店看件為準"],
     }
     for q, needles in expected.items():
         msgs, meta = conv.handle_ex("Ufaqans" + q[:2], q)
@@ -603,6 +606,9 @@ def test_faq_answers_and_human():
         assert len(texts) >= 2, (q, texts)
         for nd in needles:
             assert nd in blob, (q, nd, blob)
+        if q == "怎麼收費":
+            # T-1：最後一句要給下一步（看價目表或拍給我）
+            assert "價目表" in texts[-1] or "拍給我" in texts[-1], (q, texts)
         types = qr_types(msgs)
         assert types, q
         labs = [a.get("label") for a in qr_actions(msgs)]

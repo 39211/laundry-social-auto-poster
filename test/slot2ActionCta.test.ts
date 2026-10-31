@@ -150,10 +150,10 @@ const SLOT2_2026_09_07_INSTAGRAM = [
   "#私享家洗衣店 #台中西屯洗衣店 #開學季 #白鞋清潔 #台中洗鞋 #洗鞋推薦 #球鞋清洗 #台中洗衣店 #西屯 #逢甲 #台中"
 ].join("\n\n");
 
-const VALUE_0909_FACEBOOK = "台中全區免費到府收，沒有低消、一件也收，傳 LINE說一聲就好。";
-const VALUE_0909_INSTAGRAM = "台中全區免費到府收，沒有低消、一件也收，私訊說一聲就好。";
-const VALUE_0926_FACEBOOK = "台中市區免費到府收送，沒有低消、一件也收，傳 LINE跟我們說你在哪一區就可以。";
-const VALUE_0926_INSTAGRAM = "台中市區免費到府收送，沒有低消、一件也收，私訊跟我們說你在哪一區就可以。";
+const VALUE_0909_FACEBOOK = "台中市免費到府收，沒有低消、一件也收，傳 LINE說一聲就好。";
+const VALUE_0909_INSTAGRAM = "台中市免費到府收，沒有低消、一件也收，私訊說一聲就好。";
+const VALUE_0926_FACEBOOK = "台中市免費到府收送，沒有低消、一件也收，傳 LINE跟我們說你在哪一區就可以。";
+const VALUE_0926_INSTAGRAM = "台中市免費到府收送，沒有低消、一件也收，私訊跟我們說你在哪一區就可以。";
 
 const SLOT2_2026_09_09_FACEBOOK = [
   "七夕約會後白鞋包包檢查，門市會先確認什麼。",
@@ -315,7 +315,7 @@ const SLOT2_2026_09_06_FACEBOOK = [
   "騎車族雨衣外套分開看，先看容易忽略的位置。",
   "厚一點的布收進櫃子，摸起來乾不代表乾透。中間那層最慢。",
   "我會先摸厚的地方確認乾透了沒。收進去之前那一步，決定下次拿出來的味道。",
-  "收之前想先整理一次？傳 LINE跟我們說，台中市區到府收。",
+  "收之前想先整理一次？傳 LINE跟我們說，台中市到府收。",
   "你衣櫃裡放最久沒動的是什麼？",
   "衣櫃塞到關不起來的朋友，這篇傳給他。",
   "追蹤私享家，之後會持續整理衣物、寢具和收納前的洗護判斷。",
@@ -328,7 +328,7 @@ const SLOT2_2026_09_06_INSTAGRAM = [
   "騎車族雨衣外套分開看，先看容易忽略的位置。",
   "厚一點的布收進櫃子，摸起來乾不代表乾透。中間那層最慢。",
   "我會先摸厚的地方確認乾透了沒。收進去之前那一步，決定下次拿出來的味道。",
-  "收之前想先整理一次？私訊跟我們說，台中市區到府收。",
+  "收之前想先整理一次？私訊跟我們說，台中市到府收。",
   "你衣櫃裡放最久沒動的是什麼？",
   "衣櫃塞到關不起來的朋友，這篇傳給他。",
   "追蹤私享家，之後會持續整理衣物、寢具和收納前的洗護判斷。",
@@ -831,13 +831,13 @@ describe("K-F8 dead branch and absorbed keys", () => {
   });
 });
 
-const CAMPAIGN_VALUE_FIRST = "私享家提供台中市全區免費到府收送。";
+const CAMPAIGN_VALUE_FIRST = "私享家提供台中市免費到府收送。";
 const CAMPAIGN_FACEBOOK =
-  "私享家提供台中市全區免費到府收送。家庭日常衣物可先分袋拍照，用 LINE 傳收件地址與方便聯絡的時段，再由我們確認收送安排。";
+  "私享家提供台中市免費到府收送。家庭日常衣物可先分袋拍照，用 LINE 傳收件地址與方便聯絡的時段，再由我們確認收送安排。";
 const CAMPAIGN_INSTAGRAM =
-  "私享家提供台中市全區免費到府收送。家庭日常衣物可先分袋拍照，用 直接私訊傳收件地址與方便聯絡的時段，再由我們確認收送安排。";
-const PICKUP_WE_COLLECT = "不用出門，台中市區我們去收。私訊說個地址和時間就好。";
-const PICKUP_QUESTION_BLOCK = "收之前想先整理一次？私訊跟我們說，台中市區到府收。";
+  "私享家提供台中市免費到府收送。家庭日常衣物可先分袋拍照，用 直接私訊傳收件地址與方便聯絡的時段，再由我們確認收送安排。";
+const PICKUP_WE_COLLECT = "不用出門，台中市我們到府收。私訊說個地址和時間就好。";
+const PICKUP_QUESTION_BLOCK = "收之前想先整理一次？私訊跟我們說，台中市到府收。";
 const PICKUP_BEDDING = "換季要整理寢具的話，私訊說一下數量就可以，我們去收。";
 const TEMPLATE_PHOTO_CHUAN = "旅行回來要整理，可以把外套、包底和輪邊照片傳來，我們幫你排優先順序。";
 const PLAYBOOK_XIAN_PAI =
@@ -873,7 +873,7 @@ describe("W1 sentence-level pickup value", () => {
   it("keeps the value sentence and drops photo/channel tails on the four spec examples", () => {
     expect(rewriteSlot2PickupValueBlock(CAMPAIGN_FACEBOOK)).toBe(CAMPAIGN_VALUE_FIRST);
     expect(rewriteSlot2PickupValueBlock(CAMPAIGN_INSTAGRAM)).toBe(CAMPAIGN_VALUE_FIRST);
-    expect(rewriteSlot2PickupValueBlock(PICKUP_WE_COLLECT)).toBe("不用出門，台中市區我們去收。");
+    expect(rewriteSlot2PickupValueBlock(PICKUP_WE_COLLECT)).toBe("不用出門，台中市我們到府收。");
     expect(rewriteSlot2PickupValueBlock(PICKUP_QUESTION_BLOCK)).toBe(PICKUP_QUESTION_BLOCK);
     expect(rewriteSlot2PickupValueBlock(PICKUP_BEDDING)).toBe(PICKUP_BEDDING);
   });
@@ -887,7 +887,7 @@ describe("W1 sentence-level pickup value", () => {
     expect(rewriteSlot2PickupValueBlock(CAMPAIGN_INSTAGRAM)).toBe(CAMPAIGN_VALUE_FIRST);
     expect(rewriteSlot2PickupValueBlockWithoutSentenceSplit(CAMPAIGN_INSTAGRAM)).toBe(CAMPAIGN_INSTAGRAM);
     expect(rewriteSlot2PickupValueBlockWithoutSentenceSplit(CAMPAIGN_INSTAGRAM)).toContain("拍照");
-    expect(rewriteSlot2PickupValueBlock(PICKUP_WE_COLLECT)).toBe("不用出門，台中市區我們去收。");
+    expect(rewriteSlot2PickupValueBlock(PICKUP_WE_COLLECT)).toBe("不用出門，台中市我們到府收。");
     expect(rewriteSlot2PickupValueBlockWithoutSentenceSplit(PICKUP_WE_COLLECT)).toBeUndefined();
   });
 });
@@ -975,7 +975,7 @@ describe("W4 bare 包 is an object by behavior", () => {
 const LINE_CHUAN_ONLY_BLOCK = "整理好之後用 LINE 傳地址就行。";
 const LINE_CHUAN_PHOTO_BLOCK = "照片用 LINE 傳地址就行。";
 const CHANNEL_RESIDUE_BLOCK = "免費先拍照。私訊好嗎？就這樣。";
-const VALUE_SENTENCE_KEPT_BLOCK = "台中市區免費到府收。私訊好嗎？就這樣。";
+const VALUE_SENTENCE_KEPT_BLOCK = "台中市免費到府收。私訊好嗎？就這樣。";
 
 describe("T1 shared SLOT2_GENERIC_CTA_RE includes LINE 傳", () => {
   it("detects a LINE 傳 block through the exported regex, not a test copy", () => {

@@ -26,7 +26,7 @@ describe("shoe guide intake cohort 2026-09-07", () => {
       expect(section, item.slug).toContain(item.boundary);
       expect(section, item.slug).toContain("收送無低消，清潔費另計");
       expect(section, item.slug).toContain(`<a href="${baseUrl}/services/taichung-laundry-price-list.html">台中洗衣價目表</a>`);
-      expect(section, item.slug).toContain(`<a href="${baseUrl}/services/taichung-citywide-laundry-pickup.html">台中全市免費洗衣收送</a>`);
+      expect(section, item.slug).toContain(`<a href="${baseUrl}/services/taichung-citywide-laundry-pickup.html">台中市免費洗衣收送</a>`);
       expect(html).toContain(`<link rel="canonical" href="${baseUrl}/guides/${item.slug}.html"`);
       expect(html).toContain('<meta name="robots" content="index, follow, max-image-preview:large"');
       expect(html).toContain(`<time datetime="2026-09-07">2026-09-07</time>`);

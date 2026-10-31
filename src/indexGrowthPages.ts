@@ -159,15 +159,17 @@ export const PROTECTED_LIVE_COHORT_SLUGS = [
   "donghai-laundry-pickup"
 ] as const;
 
+// Re-frozen 2026-10-31 on the owner's decision D15 (2026-10-30): pickup-area wording only
+// (台中市免費到府收送, no 市區/全區/全市), for curtain-cleaning, donghai-laundry-pickup, fengjia-laundry-pickup, luggage-wheel-cleaning, zhongke-office-laundry.
 export const PROTECTED_LIVE_COHORT_HASHES: Record<(typeof PROTECTED_LIVE_COHORT_SLUGS)[number], string> = {
   // Re-frozen 2026-09-20 on owner's instruction to unfreeze and update title & description
   // for high-ranking zero-click luggage query (pos 9.4, 12 impressions, 0 clicks)
   // adding '傳照片先估價・免運收送・一件也收' hooks to capture clicks.
-  "luggage-wheel-cleaning": "a2cf879ea2c113192564fa9a2d3a466330e8e29ea1fb86a59c6386c1c316aa5b",
-  "curtain-cleaning": "20fff04cbca946d659f10ff633360cde67abe56392bcd143641db9b86d1d405b",
+  "luggage-wheel-cleaning": "37a527f68b37166e5e1b27071ef74b9e2c624a436d673c89877bde46150feac5",
+  "curtain-cleaning": "2fb420545cd62955ffaf4072cbd37ce702e76062008faff16687e3e89d39d438",
   "carpet-cleaning": "44b570616fee285c8fad2401153e94ad5bd2c7f7679477623659f808c7507863",
-  "fengjia-laundry-pickup": "7c5e06aa9869c82bc30e220f03e0a20d349ee0114e72b40a213738f413027fb7",
-  "zhongke-office-laundry": "dc0511c1cacb7897aa11546b1be12a5bf90a9609e52c8f239c7052728175009b",
+  "fengjia-laundry-pickup": "86f44c99b5d1f4a5c413eae889554ad2746eff87158c9a080f9070f2e837fe92",
+  "zhongke-office-laundry": "519d26f5255bfe3e482a024fd8373ecd24e92e98db24a7dfce8fbb09ab70d4db",
   // Re-frozen 2026-09-12 on the owner's explicit instruction to unfreeze this one
   // page and rewrite its title. The guard is updated, not removed: it still fails
   // on an accidental edit, and this line records that one change was intended.
@@ -181,13 +183,15 @@ export const PROTECTED_LIVE_COHORT_HASHES: Record<(typeof PROTECTED_LIVE_COHORT_
   // served by free citywide pickup, and the new title says so.
   // 2026-10-07: the 別墅區厚件 section now quotes 羽絨被 600 and 羊毛被 800.
   // Hash is this branch's page after that sentence, not main's hash.
-  "donghai-laundry-pickup": "38458cdf00f27ffb21d3ebf9d34afabce077b7587c39f50d71fdc9c23ce9a060"
+  "donghai-laundry-pickup": "57a3355791e5c7d7175e00ab36248160e22b8b9d8089abea2118c8604b0f5d78"
 };
 
+// Re-frozen 2026-10-31 on the owner's decision D15 (2026-10-30): pickup-area wording only,
+// 台中全市免費洗衣收送 -> 台中市免費洗衣收送, for shoe-mold-surface-check, shoe-odor-source, suede-shoe-cleaning. content_revision unchanged.
 export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLock> = {
   "suede-shoe-cleaning": {
     content_revision: "2026-09-07#1",
-    body_hash: "3fb91768c79479acb1c3c446dc87838be0e3a4abb7ce5ea88f9db18a85fe9e59"
+    body_hash: "f2ca47abd79d125bf7bb201662df7ef37062b1fd0faf3f239d897980dc031b04"
   },
   "canvas-shoe-mud": {
     content_revision: "2026-08-30#1",
@@ -199,7 +203,7 @@ export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLo
   },
   "shoe-odor-source": {
     content_revision: "2026-09-07#1",
-    body_hash: "6ce6922b25e5e183fdbe1ddfcb5cbdd8ec290dcfe6b3b0670d87cd099aeac22c"
+    body_hash: "2e8abcc047656ac0c88b97f97c09c4b9fc54865304ed89b29fb602582cba5084"
   },
   "washing-machine-shoe-risk": {
     content_revision: "2026-08-30#1",
@@ -211,7 +215,7 @@ export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLo
   },
   "shoe-mold-surface-check": {
     content_revision: "2026-09-07#1",
-    body_hash: "34fe4ec6507f6a2d72380332bed53d5c58372e8af915fcfc12eaf049be15e391"
+    body_hash: "1edabe81cd7810255cea997b90ba11adf3e7599338137e4a55facba02d4b6703"
   },
   "shoe-sole-separation-limit": {
     content_revision: "2026-08-30#1",
@@ -1492,7 +1496,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "麂皮鞋送洗：先傳哪些照片、怎麼看費用",
         body:
-          "先拍整雙、自然光鞋面、發亮或水圈近照與材質標籤，用 LINE 說明是否淋雨、濕擦或用過噴劑。先在台中洗衣價目表看麂皮鞋的參考項目，不把一般網布運動鞋的價格套到麂皮；材質、染色與水痕仍要看過物件才報價。接著看台中全市免費洗衣收送：收送無低消，清潔費另計。預約時提供所在行政區及希望收件時段，由門市確認安排；不承諾固定處理天數，也不保證恢復原絨向。下方鞋包清潔入口可繼續查看送洗範圍。"
+          "先拍整雙、自然光鞋面、發亮或水圈近照與材質標籤，用 LINE 說明是否淋雨、濕擦或用過噴劑。先在台中洗衣價目表看麂皮鞋的參考項目，不把一般網布運動鞋的價格套到麂皮；材質、染色與水痕仍要看過物件才報價。接著看台中市免費洗衣收送：收送無低消，清潔費另計。預約時提供所在行政區及希望收件時段，由門市確認安排；不承諾固定處理天數，也不保證恢復原絨向。下方鞋包清潔入口可繼續查看送洗範圍。"
       }
     ],
     faqs: [
@@ -1654,7 +1658,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "鞋臭送洗：先說味道來源，再確認清潔費用",
         body:
-          "用 LINE 傳整雙、鞋內、可拆鞋墊正反面的照片，並說明味道是在淋雨後、連續穿著後，還是收納後出現；不能拆的鞋墊不要硬扯。台中洗衣價目表列的是各鞋款參考項目，不是保證除臭的套裝價；實際費用要看材質、鞋內狀況與需要處理的部位。不承諾固定除臭天數，也不保證無味。需要收件可看台中全市免費洗衣收送：收送無低消，清潔費另計。傳照片時一併說明所在行政區及希望收件時段，由門市確認安排；下方鞋包清潔入口可查看服務範圍。"
+          "用 LINE 傳整雙、鞋內、可拆鞋墊正反面的照片，並說明味道是在淋雨後、連續穿著後，還是收納後出現；不能拆的鞋墊不要硬扯。台中洗衣價目表列的是各鞋款參考項目，不是保證除臭的套裝價；實際費用要看材質、鞋內狀況與需要處理的部位。不承諾固定除臭天數，也不保證無味。需要收件可看台中市免費洗衣收送：收送無低消，清潔費另計。傳照片時一併說明所在行政區及希望收件時段，由門市確認安排；下方鞋包清潔入口可查看服務範圍。"
       }
     ],
     faqs: [
@@ -1816,7 +1820,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "發霉鞋送洗：特殊污況先評估，不套一般洗鞋價",
         body:
-          "先用 LINE 傳整雙、發霉位置、鞋內與可拆鞋墊背面的照片，說明放在哪裡、多久，以及是否已用酒精或清潔劑處理。台中洗衣價目表可查一般鞋款參考項目，但發霉屬特殊污況，是否適合清潔、處理範圍與費用要另行評估，不能把一般洗鞋價當成除霉全包價。留下色斑或鞋內異味時，不保證無斑、無味。台中全市免費洗衣收送的收送無低消，清潔費另計；先讓門市看照片並確認收件方式與時段，再安排收送。下方鞋包清潔入口可查看可處理範圍。"
+          "先用 LINE 傳整雙、發霉位置、鞋內與可拆鞋墊背面的照片，說明放在哪裡、多久，以及是否已用酒精或清潔劑處理。台中洗衣價目表可查一般鞋款參考項目，但發霉屬特殊污況，是否適合清潔、處理範圍與費用要另行評估，不能把一般洗鞋價當成除霉全包價。留下色斑或鞋內異味時，不保證無斑、無味。台中市免費洗衣收送的收送無低消，清潔費另計；先讓門市看照片並確認收件方式與時段，再安排收送。下方鞋包清潔入口可查看可處理範圍。"
       }
     ],
     faqs: [

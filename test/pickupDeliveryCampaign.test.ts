@@ -55,7 +55,7 @@ describe("Taichung free pickup-delivery campaign", () => {
       expect(slot.topic).toContain(expected.topicIncludes);
       expect(slot.facebook_caption).toContain(expected.storyIncludes);
       expect(slot.facebook_caption.split("\n\n")[1]).not.toBe("私享家洗衣店");
-      expect(slot.facebook_caption).toContain("台中市全區免費到府收送");
+      expect(slot.facebook_caption).toContain("台中市免費到府收送");
       expect(slot.facebook_caption).toContain("LINE");
       expect(slot.facebook_caption).toContain("#台中洗衣收送");
       expect(slot.facebook_caption).toContain("#免費到府收送");
@@ -119,13 +119,14 @@ describe("Taichung free pickup-delivery campaign", () => {
       expect(day.slots.filter((s) => s.slot <= 2)).toHaveLength(2);
       expect(day.slots[0]?.time).toBe("11:30");
       expect(day.slots[0]?.category).toBe("知識文");
-      expect(day.slots[0]?.facebook_caption).not.toContain("台中市全區免費到府收送");
+      // The campaign service message must stay out of the knowledge post.
+      expect(day.slots[0]?.facebook_caption).not.toContain("私享家提供台中市免費到府收送");
       // One clock: the playbook authors slot 2 at whatever DAILY_SCHEDULE
       // says, which is what the publish window enforces. This used to assert the
       // divergence, pinning a defect in place as though it were the spec.
       expect(day.slots[1]?.time).toBe("20:30");
       expect(day.slots[1]?.category).toBe("情境文");
-      expect(day.slots[1]?.facebook_caption).toContain("台中市全區免費到府收送");
+      expect(day.slots[1]?.facebook_caption).toContain("台中市免費到府收送");
     }
   });
 
@@ -155,7 +156,7 @@ describe("Taichung free pickup-delivery campaign", () => {
       content_role: "evidence-conversion",
       seo_sync_page: "/services/taichung-citywide-laundry-pickup.html"
     });
-    expect(conversion?.facebook_caption).toContain("台中市全區免費到府收送");
+    expect(conversion?.facebook_caption).toContain("台中市免費到府收送");
     expect(conversion?.image_prompt).toContain("完整頭部");
     expect(conversion?.image_prompt).toContain("沒有雨、沒有雨傘");
     expect(conversion?.local_video_path).toBeUndefined();
@@ -183,7 +184,7 @@ describe("Taichung free pickup-delivery campaign", () => {
       media_type: "image",
       seo_sync_page: "/services/taichung-citywide-laundry-pickup.html"
     });
-    expect(conversion?.facebook_caption).toContain("台中市全區免費收送");
+    expect(conversion?.facebook_caption).toContain("台中市免費收送");
     expect(conversion?.instagram_caption).toContain("私訊");
     expect(conversion?.image_prompt).toContain("運動上衣已從包內取出");
   });
@@ -201,7 +202,7 @@ describe("Taichung free pickup-delivery campaign", () => {
       expect(reach?.content_role).toBe("reach-answer");
       expect(pickup?.content_role).toBe("evidence-conversion");
       expect(pickup?.seo_sync_page).toBe("/services/taichung-citywide-laundry-pickup.html");
-      expect(pickup?.facebook_caption).toContain("台中市全區免費收送");
+      expect(pickup?.facebook_caption).toContain("台中市免費收送");
       expect(pickup?.instagram_caption).toContain("私訊");
       expect(pickup?.instagram_caption).not.toContain("LINE 諮詢");
       expect(reach?.facebook_caption).not.toContain("先看材質、髒污位置與既有磨損");

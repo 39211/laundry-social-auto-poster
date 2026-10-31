@@ -217,7 +217,7 @@ function reelActionCta(concept: ReelConcept, platform: "instagram" | "facebook")
   }
 }
 
-const FOLLOW_LINE = "私享家洗衣店｜台中市區免費到府收送";
+const FOLLOW_LINE = "私享家洗衣店｜台中市免費到府收送";
 
 export type ReelNarrationSource = "burned" | "registry" | "concept";
 

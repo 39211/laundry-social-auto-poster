@@ -56,7 +56,7 @@ describe("doctrine date gate", () => {
   });
 
   it("promo (scene-lock-only) topics keep the legacy prompt even after the start date", () => {
-    const prompts = buildCarouselImagePrompts({ date: "2026-09-12", slot: 1, topic: "私享家海報：台中全區免費收送" });
+    const prompts = buildCarouselImagePrompts({ date: "2026-09-12", slot: 1, topic: "私享家海報：台中市免費收送" });
     expect(prompts[0]).not.toContain("MATERIAL OPTICS:");
     expect(prompts[0]).toMatch(/scene-lock only/);
   });

@@ -552,7 +552,7 @@ function captionFromTemplate(template: SlotTemplate): string {
     template.context,
     template.inspection,
     template.cta,
-    `${brandLine}｜台中市區免費到府收送`,
+    `${brandLine}｜台中市免費到府收送`,
     template.hashtags.join(" ")
   ].join("\n\n");
 }
@@ -823,7 +823,7 @@ function actionCtaFor(slot: GrowthPlaybookSlot, platform: Platform): string {
       return [
         `不確定還救不救得回來？拍一張${channel}給我們，先幫你看。`,
         `想問問看能處理到什麼程度？拍一張${channel}就可以。`,
-        `台中全區免費到府收，沒有低消、一件也收，${channel}說一聲就好。`
+        `台中市免費到府收，沒有低消、一件也收，${channel}說一聲就好。`
       ];
     }
     if (page.includes("luxury-dry-cleaning")) {
@@ -840,14 +840,14 @@ function actionCtaFor(slot: GrowthPlaybookSlot, platform: Platform): string {
     }
     if (page.includes("bedding-duvet-cleaning")) {
       return [
-        `想收之前先清一次？${channel}跟我們說一聲，台中市區我們到府收。`,
+        `想收之前先清一次？${channel}跟我們說一聲，台中市我們到府收。`,
         `換季要整理寢具的話，${channel}說一下數量就可以，我們去收。`
       ];
     }
     if (page.includes("taichung-citywide-laundry-pickup") || page.includes("taichung-xitun")) {
       return [
-        `台中市區免費到府收送，沒有低消、一件也收，${channel}跟我們說你在哪一區就可以。`,
-        `不用出門，台中市區我們去收。${channel}說個地址和時間就好。`
+        `台中市免費到府收送，沒有低消、一件也收，${channel}跟我們說你在哪一區就可以。`,
+        `不用出門，台中市我們到府收。${channel}說個地址和時間就好。`
       ];
     }
     if (page.includes("school-uniform-care")) {
@@ -865,7 +865,7 @@ function actionCtaFor(slot: GrowthPlaybookSlot, platform: Platform): string {
     return [
       `不確定該怎麼處理？拍一張${channel}給我們，先幫你看方向。`,
       `想先問問看再決定？拍一張${channel}，我們幫你判斷。`,
-      `收之前想先整理一次？${channel}跟我們說，台中市區到府收。`,
+      `收之前想先整理一次？${channel}跟我們說，台中市到府收。`,
       `不知道該不該送洗？拍一張${channel}，我們老實跟你說。`
     ];
   })();
@@ -1944,7 +1944,7 @@ export function rewriteSlot2PickupValueBlock(block: string): string | undefined 
  * Single-CTA experiment: keep only the pickup value fact of a generic ask
  * block. Question and photo sentences go; in a value sentence the channel
  * clause (私訊跟我們說 / 傳 LINE 說一聲) is cut so the claim reads as a fact.
- * 「收之前想先整理一次？私訊跟我們說，台中市區到府收。」→「台中市區到府收。」
+ * 「收之前想先整理一次？私訊跟我們說，台中市到府收。」→「台中市到府收。」
  */
 export function singleCtaPickupValueFact(block: string): string | undefined {
   const kept: string[] = [];

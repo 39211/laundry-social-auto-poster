@@ -47,7 +47,7 @@ const CLUSTERS: ClusterDefinition[] = [
     id: "pickup_delivery",
     label: "台中免費收送",
     query: "台中 洗衣 免費收送 LINE 預約",
-    page_action: "維持單一台中全市免費收送主頁，補充通勤、鞋包與大量衣物的內部連結。",
+    page_action: "維持單一台中市免費收送主頁，補充通勤、鞋包與大量衣物的內部連結。",
     pattern: /收送|到府|門口|不用再|不方便到店/u
   },
   {

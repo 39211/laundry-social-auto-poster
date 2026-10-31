@@ -83,7 +83,7 @@ export const SEARCH_INTENT_CLUSTERS: SearchIntentCluster[] = [
     label: "免費收送與大量送洗",
     customer_goal: "確認台中哪些地區可收送、如何預約、哪些物件可先詢問，以及免費的範圍。",
     query_examples: ["台中洗衣收送", "台中免費收送洗衣", "台中到府收送洗衣", "台中公司大量衣物送洗", "台中床組到府收送"],
-    answer_pattern: "直接回答台中市全區、收送免費、清潔另計、LINE 預約，再說明要提供的照片、品項與地區。",
+    answer_pattern: "直接回答收送範圍為台中市、收送免費、清潔另計、LINE 預約，再說明要提供的照片、品項與地區。",
     evidence_required: ["pickup-logistics", "verified-business-fact"],
     primary_routes: [
       "/services/taichung-citywide-laundry-pickup.html",

@@ -107,7 +107,7 @@ describe("nightly 5 rewrite: honest conversion fields, generator not draft", () 
         "  ('價格線索', '參考價：運動鞋 $250', True),",
         "  ('價格線索', '運動鞋兩百五、250元', True),",
         "  ('價格線索', '運動鞋 250起', True),",
-        "  ('收送句', '台中市區到府收', True),",
+        "  ('收送句', '台中市到府收', True),",
         "  ('收送句', '先拍一張再決定', False),",
         "  ('聯絡方式', '加 LINE:0968327653', True),",
         "]",
@@ -120,7 +120,7 @@ describe("nightly 5 rewrite: honest conversion fields, generator not draft", () 
   });
 
   it("emits one 產生器沒寫收送 only when slot 1/2 miss pickup two days running", () => {
-    const pickup = "台中市區免費到府收送。你住哪一區？ LINE 0968";
+    const pickup = "台中市免費到府收送。你住哪一區？ LINE 0968";
     const noPickup = "看起來還好。直接點 https://x.test/go/line.html?source=post 加 LINE 0968";
     const got = callJson(
       [

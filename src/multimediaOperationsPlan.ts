@@ -113,7 +113,7 @@ export function buildMultimediaOperationsPlan(now = new Date()): MultimediaOpera
         "0.0–1.5 秒：直接說「這件也可以送洗」或具體痛點",
         "1.5–6.0 秒：Grok 原片只做一個物理動作",
         "6.0–9.5 秒：四圖證據細節快速蒙太奇",
-        "9.5–12.0 秒：台中市全區免費收送＋LINE CTA"
+        "9.5–12.0 秒：台中市免費收送＋LINE CTA"
       ],
       postproduction: [
         "動態標題、局部放大框、節奏切點與品牌色塊由後製完成",
@@ -159,7 +159,7 @@ export function buildMultimediaOperationsPlan(now = new Date()): MultimediaOpera
           video_required: true,
           video_hook: slot.video_candidate?.memory_hook ?? `${slot.topic}也可以送洗`,
           video_action: slot.video_candidate?.single_action ?? "單一物件、單一動作",
-          tts_script: `${slot.video_candidate?.memory_hook ?? slot.topic}。拍好全貌和細節，LINE 預約台中全區免費收送。`,
+          tts_script: `${slot.video_candidate?.memory_hook ?? slot.topic}。拍好全貌和細節，LINE 預約台中市免費收送。`,
           publish_authorized: false,
           included_in_kpi: false
         }))

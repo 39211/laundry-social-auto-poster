@@ -39,7 +39,7 @@ describe("video script quality", () => {
         instagram_carousel_derivative_resolution: "1080x1350",
         generated_clip_audio_used: false,
         tts_language: "zh-TW",
-        tts_script: `${candidate.memory_hook}。拍好全貌和細節，LINE 預約台中全區免費收送。`,
+        tts_script: `${candidate.memory_hook}。拍好全貌和細節，LINE 預約台中市免費收送。`,
         hook_variants: [
           candidate.memory_hook,
           `${subject}先別急著收`,

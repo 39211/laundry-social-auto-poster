@@ -70,7 +70,7 @@ describe("captionsFor re-airing lead (O-F1)", () => {
 
 describe("captionsFor question stacking (B)", () => {
   const CTA_BLOCK = /拍一張(?:私訊|傳 LINE)|說一下數量/;
-  const FOLLOW_LINE = "私享家洗衣店｜台中市區免費到府收送";
+  const FOLLOW_LINE = "私享家洗衣店｜台中市免費到府收送";
   const QUESTION_FOR_PLUSH = "家裡有沒有那種一直想洗、又不太敢洗的娃娃？";
   const QUESTION_FOR_DUVET = "你家的棉被大概多久整理一次？";
   const QUESTION_FOR_HANDBAG = "你那顆包的提把，摸起來也開始發黏了嗎？";

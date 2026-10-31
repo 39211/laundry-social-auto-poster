@@ -105,7 +105,7 @@ export async function writeVideoCandidateManifest(date: string, root = projectRo
         instagram_carousel_derivative_resolution: "1080x1350",
         generated_clip_audio_used: false,
         tts_language: "zh-TW",
-        tts_script: `${slot.video_candidate.memory_hook}。拍好全貌和細節，LINE 預約台中全區免費收送。`,
+        tts_script: `${slot.video_candidate.memory_hook}。拍好全貌和細節，LINE 預約台中市免費收送。`,
         hook_variants: [
           slot.video_candidate.memory_hook,
           `${hookSubject}先別急著收`,
@@ -117,7 +117,7 @@ export async function writeVideoCandidateManifest(date: string, root = projectRo
           "0.0-1.5s：大字動態鉤子，直接說明這件物品可以送洗",
           "1.5-6.0s：保留 Grok 單一動作，加入局部放大框與節奏切點",
           "6.0-9.5s：以四張圖中的證據細節做快速蒙太奇，不假造清潔前後",
-          "9.5-12.0s：LINE 預約與台中市全區免費收送品牌收尾"
+          "9.5-12.0s：LINE 預約與台中市免費收送品牌收尾"
         ],
         grok_review_required: true,
         sol_review_required: true,

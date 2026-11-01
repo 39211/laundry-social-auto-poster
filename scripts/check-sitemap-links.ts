@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁、第 9 波 9 頁、洗標符號指南 1 頁、送洗前自我檢查 1 頁。東勢、大甲、龍井不進這支。 */
-export const EXPECTED_LOC_COUNT = 179;
+/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁、第 9 波 9 頁、洗標符號指南 1 頁、送洗前自我檢查 1 頁、棉被羽絨被發霉 1 頁。東勢、大甲、龍井不進這支。 */
+export const EXPECTED_LOC_COUNT = 180;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -620,6 +620,11 @@ export const PREWASH_PAGE_LASTMOD = "2026-10-31";
 
 export const PREWASH_PAGE_PATHS = ["/guides/prewash-self-check.html"] as const;
 
+/** 棉被、羽絨被發霉怎麼辦（頭部詞改版新頁）。lastmod 用上線日，不回寫前波。 */
+export const BEDDING_MOLD_PAGE_LASTMOD = "2026-11-02";
+
+export const BEDDING_MOLD_PAGE_PATHS = ["/guides/bedding-duvet-mold.html"] as const;
+
 export function wave9BannedHits(text: string): string[] {
   return WAVE9_BANNED_MARKERS.filter((marker) => text.includes(marker));
 }
@@ -772,6 +777,7 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
     ...CARE_LABEL_PAGE_PATHS.map((path) => ({ path, lastmod: CARE_LABEL_PAGE_LASTMOD })),
     ...WAVE7_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE7_PAGE_LASTMOD })),
     ...PREWASH_PAGE_PATHS.map((path) => ({ path, lastmod: PREWASH_PAGE_LASTMOD })),
+    ...BEDDING_MOLD_PAGE_PATHS.map((path) => ({ path, lastmod: BEDDING_MOLD_PAGE_LASTMOD })),
     ...WAVE8_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE8_PAGE_LASTMOD })),
     ...WAVE9_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE9_PAGE_LASTMOD }))
   ];

@@ -3,6 +3,10 @@
 Pull the shop's password-protected Jet MDB without changing its reader/password.
 -DryRun reads remote metadata only. -WhatIf performs no connection or writes.
 Exit: 0 success/dry-run, 1 local/validation error, 2 locked, 3 remote failure.
+A2-c: a scheduled run retries only transient results (REMOTE_UNAVAILABLE,
+SOURCE_CHANGED, SCP_FAILED_OR_TIMEOUT): at most 3 attempts, 20 s apart, every
+MDB ssh/scp step ending within 140 s of the run start. Each attempt writes its
+own log line; the exit code is the last attempt's. -DryRun never retries.
 N1: afterwards, regardless of the MDB result, fetch the shop's read-only daily
 arrival-notify counts (runtime\notify_report.py, today and yesterday) and write
 data\gates\notify-<date>.json. That step never changes the exit code above and
@@ -93,16 +97,30 @@ function Write-MdbPullLog([string]$Path, [string]$Result, [long]$Bytes, $SourceM
     [IO.File]::AppendAllText($Path, $line + [Environment]::NewLine, (New-Object Text.UTF8Encoding $false))
 }
 
+function Get-PullStepTimeout([int]$TimeoutSeconds, [scriptblock]$Clock, [double]$DeadlineAt) {
+    # Per-process timeout for one MDB ssh/scp step; never runs past the run's pull deadline.
+    if ($null -eq $Clock) { return $TimeoutSeconds }
+    $left = [Math]::Floor($DeadlineAt - [double](& $Clock))
+    if ($left -lt 1) { throw 'Pull time budget exhausted' }
+    return [int][Math]::Min([double]$TimeoutSeconds, $left)
+}
+
 function Invoke-MdbPull {
     [CmdletBinding(SupportsShouldProcess = $true)]
-    param([switch]$DryRun, [string]$Destination, [string]$LogPath, [int]$TimeoutSeconds = 60)
+    param([switch]$DryRun, [string]$Destination, [string]$LogPath, [int]$TimeoutSeconds = 60,
+        # Optional run deadline (A2-c): $Clock returns monotonic seconds and every
+        # ssh/scp step ends by $DeadlineAt. Without $Clock each step gets $TimeoutSeconds.
+        [scriptblock]$Clock = $null, [double]$DeadlineAt = 0)
+    # The result string of this attempt is exposed as $script:MdbPullLastResult
+    # (set in finally), so the scheduled retry loop never parses the log.
+    $script:MdbPullLastResult = $null
     $action = if ($DryRun) { 'Read remote MDB metadata only' } else { 'Download, validate, backup and replace MDB' }
     if (-not $PSCmdlet.ShouldProcess('shop-pc -> ' + $Destination, $action)) { return 0 }
     $ErrorActionPreference = 'Stop'
     $result = 'LOCAL_ERROR'; $code = 1; $bytes = 0; $sourceMtime = $null
     $temp = $null; $targetHandle = $null
     try {
-        try { $before = Get-ShopMdbMetadata $TimeoutSeconds }
+        try { $before = Get-ShopMdbMetadata (Get-PullStepTimeout $TimeoutSeconds $Clock $DeadlineAt) }
         catch { $result = 'REMOTE_UNAVAILABLE'; $code = 3; return $code }
         $sourceMtime = $before.Mtime.ToString('o')
         if ($DryRun) { $bytes = $before.Bytes; $result = 'DRY_RUN'; $code = 0; return $code }
@@ -112,14 +130,14 @@ function Invoke-MdbPull {
         $temp = Join-Path $directory ('eHank-' + [guid]::NewGuid().ToString('N') + '.tmp')
         try {
             $reply = Invoke-ShopProcess 'scp.exe' @('-p', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10',
-                '-o', 'StrictHostKeyChecking=yes', 'shop-pc:C:/FXwash/eHank.mdb', $temp) $TimeoutSeconds
+                '-o', 'StrictHostKeyChecking=yes', 'shop-pc:C:/FXwash/eHank.mdb', $temp) (Get-PullStepTimeout $TimeoutSeconds $Clock $DeadlineAt)
         }
         catch { $result = 'SCP_FAILED_OR_TIMEOUT'; $code = 3; return $code }
         if ($reply.TimedOut -or $reply.Exit -ne 0) { $result = 'SCP_FAILED_OR_TIMEOUT'; $code = 3; return $code }
         if (-not [IO.File]::Exists($temp)) { $result = 'SCP_MISSING_FILE'; $code = 3; return $code }
         $bytes = (Get-Item -LiteralPath $temp).Length
         if ($bytes -ne $before.Bytes -or -not (Test-JetMdb $temp)) { $result = 'INVALID_MDB'; return $code }
-        try { $after = Get-ShopMdbMetadata $TimeoutSeconds }
+        try { $after = Get-ShopMdbMetadata (Get-PullStepTimeout $TimeoutSeconds $Clock $DeadlineAt) }
         catch { $result = 'REMOTE_UNAVAILABLE'; $code = 3; return $code }
         if ($after.Bytes -ne $before.Bytes -or $after.Mtime -ne $before.Mtime) {
             $result = 'SOURCE_CHANGED'; $code = 3; return $code
@@ -170,6 +188,7 @@ function Invoke-MdbPull {
     finally {
         if ($targetHandle) { $targetHandle.Dispose() }
         if ($temp -and [IO.File]::Exists($temp)) { [IO.File]::Delete($temp) }
+        $script:MdbPullLastResult = $result
         Write-MdbPullLog $LogPath $result $bytes $sourceMtime $code
     }
 }
@@ -347,12 +366,53 @@ function Invoke-NotifyPull {
     }
 }
 
+# A2-c: only these results are transient (tailscale hiccup, staff writing to the
+# POS database during the copy, scp failure/timeout) and worth another attempt.
+function Test-TransientPullResult([string]$Result) {
+    @('REMOTE_UNAVAILABLE', 'SOURCE_CHANGED', 'SCP_FAILED_OR_TIMEOUT') -ccontains $Result
+}
+
 function Invoke-ScheduledPull {
+    # A2-c retry and time budget. Task Scheduler kills the run at PT4M = 240 s.
+    #  - PullBudgetSeconds 140: every MDB ssh/scp step gets min(TimeoutSeconds,
+    #    seconds left until start+140) and is killed at that timeout, so no MDB
+    #    remote step outlives start+140 s, however many attempts ran.
+    #  - After that only local validate/backup/replace (<= ~10 s) and the N1
+    #    notify ssh (TimeoutSeconds 60 + ~2 s) remain, plus ~2 s of powershell
+    #    start-up before $Clock starts: ~2 + 140 + 10 + 62 = 214 s < 240 s.
+    #  - RetryDelaySeconds 20: lets a tailscale hiccup or a POS write burst pass.
+    #  - MinAttemptSeconds 70 (slowest observed successful run): another attempt
+    #    starts only if elapsed + 20 + 70 <= 140, i.e. elapsed <= 50 s.
+    #  - MaxAttempts 3. Typical: REMOTE_UNAVAILABLE at ~13 s -> attempt 2 at ~33 s
+    #    -> if unreachable again at ~46 s -> attempt 3 at ~66 s with 74 s left.
+    # Tests inject $Clock (seconds) and $Sleep so nothing sleeps for real.
     param([switch]$DryRun, [string]$Destination, [string]$LogPath, [int]$TimeoutSeconds = 60,
-        [string]$GatesDir, [string]$ShopRoot, [string]$ShopPython, [string[]]$NotifyDates)
+        [string]$GatesDir, [string]$ShopRoot, [string]$ShopPython, [string[]]$NotifyDates,
+        [ValidateRange(1, 5)][int]$MaxAttempts = 3, [ValidateRange(0, 60)][int]$RetryDelaySeconds = 20,
+        [ValidateRange(1, 150)][int]$PullBudgetSeconds = 140, [ValidateRange(0, 150)][int]$MinAttemptSeconds = 70,
+        [scriptblock]$Clock = $null, [scriptblock]$Sleep = $null)
+    if ($null -eq $Clock) {
+        $Clock = { [Diagnostics.Stopwatch]::GetTimestamp() / [double][Diagnostics.Stopwatch]::Frequency }
+    }
+    $startedAt = [double](& $Clock)
+    $deadlineAt = $startedAt + $PullBudgetSeconds
     $code = $null
     try {
-        $code = Invoke-MdbPull -DryRun:$DryRun -Destination $Destination -LogPath $LogPath -TimeoutSeconds $TimeoutSeconds
+        $attempt = 0
+        while ($true) {
+            $attempt++
+            $script:MdbPullLastResult = $null
+            $code = Invoke-MdbPull -DryRun:$DryRun -Destination $Destination -LogPath $LogPath -TimeoutSeconds $TimeoutSeconds -Clock $Clock -DeadlineAt $deadlineAt
+            $lastResult = $script:MdbPullLastResult
+            if ($DryRun -or $attempt -ge $MaxAttempts -or -not (Test-TransientPullResult $lastResult)) { break }
+            $elapsed = [double](& $Clock) - $startedAt
+            if ($elapsed + $RetryDelaySeconds + $MinAttemptSeconds -gt $PullBudgetSeconds) { break }
+            Write-Verbose ('MDB pull attempt ' + $attempt + ' result ' + $lastResult + '; retrying in ' + $RetryDelaySeconds + ' s')
+            if ($RetryDelaySeconds -gt 0) {
+                if ($null -ne $Sleep) { $null = & $Sleep $RetryDelaySeconds }
+                else { Start-Sleep -Seconds $RetryDelaySeconds }
+            }
+        }
     }
     finally {
         $notifyArgs = @{

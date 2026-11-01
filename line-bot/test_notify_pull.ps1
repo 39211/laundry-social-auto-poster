@@ -157,7 +157,9 @@ try {
     $mdbLog = Join-Path $root 'mdb.jsonl'
     $dest = Join-Path $root 'dest\eHank.mdb'
     $sched = @{ Destination = $dest; LogPath = $mdbLog; TimeoutSeconds = 60; GatesDir = (Join-Path $root 'gates-sched')
-        ShopRoot = 'C:/LaundryStores/fxwash'; ShopPython = 'python'; NotifyDates = $dates }
+        ShopRoot = 'C:/LaundryStores/fxwash'; ShopPython = 'python'; NotifyDates = $dates
+        # A2-c: one attempt, so these checks keep their log-line indexes and never sleep.
+        MaxAttempts = 1 }
     $script:mdbReply = [pscustomobject]@{ Exit = 255; TimedOut = $false; Output = '' }
     Set-NotifyReply 0 $good
     $code = Invoke-ScheduledPull @sched

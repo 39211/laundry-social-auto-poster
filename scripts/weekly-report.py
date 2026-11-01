@@ -62,6 +62,13 @@ TIMEMATCH_TABLE = ("| 來源 | 點擊 | 對到 | 巧合預期 | 多出 | 7天內
                    "| --- | ---: | ---: | ---: | ---: | --- |")
 TIMEMATCH_INTS = ("clicks", "matched", "matched_I7_received", "matched_I7_pending")
 
+# Time saved by automation (B4-1; owner decisions D21/D25): system estimate, always labelled 推測.
+TIME_SAVED_TITLE = "自動化省下的時間(推測)"
+TIME_SAVED_ABSENT = "自動化省下的時間:本週還沒有資料"
+TIME_SAVED_SENTENCE = ("推測:用店主估的每則分鐘數 × bot 自動接的詢問數;只算店裡電腦白天的詢問,晚上 ai 電腦的"
+                       "詢問還沒有分類,不算;詢問數是『每位客人每天算一次』。")
+TIME_SAVED_INTENTS = ("lookup", "quote")
+
 
 def parse_time(value):
     """Naive local logger timestamps mean Taipei; Unix timestamps mean UTC."""
@@ -513,6 +520,11 @@ def conversion_row(row):
         parsed[policy] = {field: cell[field] for field in POLICY_FIELDS}
     for key, name in (("booking_confirmed", "confirmed"), ("booking_cancelled", "cancelled")):
         parsed[name] = row[key] if count_value(row.get(key)) else None
+    intents = row.get("first_intent_counts")
+    # Only the categories priced in data/time-baseline.json; malformed counts mean unknown, never 0.
+    parsed["intents"] = ({key: intents[key] for key in TIME_SAVED_INTENTS}
+                         if isinstance(intents, dict) and all(count_value(intents.get(key)) for key in TIME_SAVED_INTENTS)
+                         else None)
     return parsed
 
 
@@ -782,6 +794,96 @@ def fit_timematch(view, room):
     return ["", view["short"]] if room >= 2 else [view["short"]] if room == 1 else []
 
 
+# ---------------------------------------------------------------------------
+# Time saved by automation (data/time-baseline.json + source-to-order export)
+# ---------------------------------------------------------------------------
+
+def minute_text(value):
+    return str(int(value)) if float(value).is_integer() else f"{value:.1f}"
+
+
+def time_baseline(data, reader):
+    """Owner-estimated minutes per handled inquiry; None when missing or invalid."""
+    path = data / "time-baseline.json"
+    try:
+        exists = path.is_file()
+    except OSError:
+        exists = False
+    if not exists:
+        return None
+    obj = reader.json(path, "time-baseline")
+    if obj is None:
+        return None
+    minutes = obj.get("minutes") if isinstance(obj, dict) else None
+    if (not isinstance(obj, dict) or obj.get("schema") != "time-baseline/v1" or not isinstance(minutes, dict)
+            or not all(timematch_number(minutes.get(key)) and minutes[key] > 0 for key in TIME_SAVED_INTENTS)):
+        reader.warnings.add("time-baseline 結構未知,已略過")
+        return None
+    return {key: minutes[key] for key in TIME_SAVED_INTENTS}
+
+
+def notify_summary(data, days, reader):
+    """Sum of sent over data/gates/notify-<day>.json; a missing day is unknown, never 0."""
+    if not days:
+        return "到店通知:本週還沒有已結束的日期"
+    total, missing = 0, 0
+    for day in days:
+        stamp = day.isoformat()
+        path = data / "gates" / f"notify-{stamp}.json"
+        try:
+            exists = path.is_file()
+        except OSError:
+            exists = False
+        obj = reader.json(path, f"gates/notify-{stamp}") if exists else None
+        if not isinstance(obj, dict) or obj.get("date") != stamp or not count_value(obj.get("sent")):
+            if obj is not None:
+                reader.warnings.add(f"gates/notify-{stamp} 結構未知,當作缺日")
+            missing += 1
+            continue
+        total += obj["sent"]
+    if missing == len(days):
+        return "到店通知:本週沒有資料"
+    if missing:
+        return f"到店通知:部分日期沒有資料(已見 {total} 則)"
+    return f"到店通知 {total} 則" + (f"(只計已結束的 {len(days)} 日)" if len(days) < 7 else "")
+
+
+def time_saved_view(data, week, days, now, reader, published):
+    """published is None when the publication ledgers are missing/broken."""
+    absent = {"oneline": TIME_SAVED_ABSENT, "short": TIME_SAVED_ABSENT}
+    state, doc, _ = select_conversion(data, week, now, reader)
+    baseline = time_baseline(data, reader)
+    if state != "ok" or baseline is None:
+        return absent
+    intents = [row["intents"] for row in doc["rows"]]
+    if any(item is None for item in intents):
+        return absent
+    lookup = sum(item["lookup"] for item in intents)
+    quote = sum(item["quote"] for item in intents)
+    minutes = lookup * baseline["lookup"] + quote * baseline["quote"]
+    calc = (f"查件 {lookup} 則 × {minute_text(baseline['lookup'])} 分 + "
+            f"照片/報價 {quote} 則 × {minute_text(baseline['quote'])} 分 = "
+            f"約 {minute_text(minutes)} 分鐘({minutes / 60:.1f} 小時)。"
+            + ("(詢問數為下限,資料不完整)" if doc["status"] == "lower_bound" else ""))
+    posts = f"每日圖文 {published} 篇" if published is not None else "每日圖文:未知(台帳缺失／損壞)"
+    counts = f"{notify_summary(data, days, reader)}、{posts}:以前沒有做,不算省下時間,只列數量。"
+    return {"lines": [calc, TIME_SAVED_SENTENCE, counts],
+            "oneline": f"{TIME_SAVED_TITLE}:{calc}{TIME_SAVED_SENTENCE}{counts}",
+            "short": f"{TIME_SAVED_TITLE}:約 {minute_text(minutes)} 分鐘({minutes / 60:.1f} 小時);明細省略(週報 60 行上限)"}
+
+
+def fit_time_saved(view, room):
+    """Uses only the room left after every other section; merges lines rather than dropping content."""
+    if "lines" in view:
+        calc, sentence, counts = view["lines"]
+        for body in ([calc, sentence, counts], [calc, sentence + counts], [calc + sentence + counts]):
+            candidate = ["", "### " + TIME_SAVED_TITLE, *body]
+            if len(candidate) <= room:
+                return candidate
+    one = view["oneline"]
+    return ["", one] if room >= 2 else [one] if room == 1 else []
+
+
 def build_report(data, reports, bot, week, now, llm=False):
     first = iso_week(week)
     start = datetime.combine(first, time(), TAIPEI)
@@ -806,6 +908,7 @@ def build_report(data, reports, bot, week, now, llm=False):
     published = sum(len(items["published"]) for items in posts.values())
     failure_summary = f"有 {failed} 篇曾失敗" + (f"、排程狀態未確認 {uncertain} 筆" if uncertain else "")
     missing_publication = bool(broken & {"posted-log", "feature-posted-log", "youtube-log"}) or not any("published" in kinds for kinds in known.values())
+    saved = time_saved_view(data, week, days, now, reader, None if missing_publication else published)
     conclusion = (failure_summary + "，優先修復發布流程。" if failed else
                   f"排程狀態未確認 {uncertain} 筆，先核對平台再決定是否補發。" if uncertain else
                   f"發文未知（台帳缺失／損壞）；LINE 點擊 {metrics['line'].display(previous['line'])}。" if missing_publication else
@@ -878,7 +981,7 @@ def build_report(data, reports, bot, week, now, llm=False):
                 suggestions.append(f"來源 {source} 點擊增加 {delta}、該平台成功紀錄 0；核對歸因後安排一篇相關內容。")
     suggestions.extend(["核對已到期排程的實發證據，補齊 FB／IG／YT／TikTok 的記錄。",
                         "以來源前五的有效點擊決定一項內容測試，下週比較同口徑數字。",
-                        "在 B4 工時表填入實際人工時間，對照本週產出。"])
+                        "對照「自動化省下的時間」與本週詢問，看哪一類最值得再交給 bot。"])
     tail.extend(f"{i}. {item}" for i, item in enumerate(suggestions[:3], 1))
     warnings = "；".join(sorted(reader.warnings))
     # Consecutive lines render as one paragraph anyway; kept compact for the 60-line budget.
@@ -891,8 +994,7 @@ def build_report(data, reports, bot, week, now, llm=False):
                  f"來源盤點：{source_note}。insights／匯出只盤點，不把重疊期間資料再加進 leads。"
                  "未知說明：缺日、未量測、無時間或無台帳均不補 0；LINE 點擊不等於詢問／訂單，不與來源→收件表相加或相除；"
                  "來源→收件只讀匯出彙總，B7 為有收件的詢問數，不是訂單或成交。",
-                 "讀取問題：" + (safe_label(warnings, 480) if warnings else "無。"),
-                 "工時:見 B4 工時表"])
+                 "讀取問題：" + (safe_label(warnings, 480) if warnings else "無。")])
     if llm:
         tail.append("--llm：預留開關，未呼叫 API；仍使用規則建議。")
     lines.extend(fit_conversions(conversions, MAX_LINES - len(lines) - len(tail)))
@@ -903,6 +1005,13 @@ def build_report(data, reports, bot, week, now, llm=False):
         warnings = "；".join(sorted(reader.warnings))
         tail = [("讀取問題：" + safe_label(warnings, 480)) if line.startswith("讀取問題：") else line for line in tail]
     lines.extend(timematch_lines)
+    saved_lines = fit_time_saved(saved, MAX_LINES - len(lines) - len(tail))
+    if not saved_lines:
+        # Same rule as the time-match section: no room left, say so on the warnings line.
+        reader.warnings.add(saved["short"])
+        warnings = "；".join(sorted(reader.warnings))
+        tail = [("讀取問題：" + safe_label(warnings, 480)) if line.startswith("讀取問題：") else line for line in tail]
+    lines.extend(saved_lines)
     lines.extend(tail)
     if len(lines) > MAX_LINES:
         raise ValueError("週報超過 60 行")

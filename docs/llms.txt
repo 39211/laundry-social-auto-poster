@@ -835,7 +835,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
   routes: content_role=evidence-conversion; visual_route=customer-consultation; traffic_route=value-prop-lead; search_intent=(legacy-unassigned)
   target_queries: (legacy-unassigned)
   evidence_type: (legacy-unassigned)
-  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中洗衣收送 #免費到府收送
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中洗衣收送 #台中全市免費收送
   image: https://sixiangjialaundry.com/assets/2026-07-25/slot-02.png
   calendar: https://sixiangjialaundry.com/content-calendar/2026-07-25.json
 - [2026-07-25 11:30 冷氣房外套聞起來沒事，也要翻開領口內側看](https://sixiangjialaundry.com/posts/2026-07-25-slot-01.html)
@@ -851,7 +851,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
   routes: content_role=evidence-conversion; visual_route=customer-consultation; traffic_route=value-prop-lead; search_intent=(legacy-unassigned)
   target_queries: (legacy-unassigned)
   evidence_type: (legacy-unassigned)
-  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中洗衣收送 #免費到府收送
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中洗衣收送 #台中全市免費收送
   image: https://sixiangjialaundry.com/assets/2026-07-22/slot-02.png
   calendar: https://sixiangjialaundry.com/content-calendar/2026-07-22.json
 - [2026-07-22 11:30 先看懂：行李箱布面與輪子灰塵](https://sixiangjialaundry.com/posts/2026-07-22-slot-01.html)
@@ -867,7 +867,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
   routes: content_role=evidence-conversion; visual_route=macro-detail; traffic_route=object-proof; search_intent=(legacy-unassigned)
   target_queries: (legacy-unassigned)
   evidence_type: (legacy-unassigned)
-  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中洗衣收送 #免費到府收送
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中洗衣收送 #台中全市免費收送
   image: https://sixiangjialaundry.com/assets/2026-07-20/slot-02.png
   calendar: https://sixiangjialaundry.com/content-calendar/2026-07-20.json
 - [2026-07-20 11:30 先看懂：白襯衫領口與腋下泛黃](https://sixiangjialaundry.com/posts/2026-07-20-slot-01.html)
@@ -883,7 +883,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
   routes: content_role=evidence-conversion; visual_route=customer-consultation; traffic_route=value-prop-lead; search_intent=(legacy-unassigned)
   target_queries: (legacy-unassigned)
   evidence_type: (legacy-unassigned)
-  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中洗衣收送 #免費到府收送
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中洗衣收送 #台中全市免費收送
   image: https://sixiangjialaundry.com/assets/2026-07-19/slot-02.png
   calendar: https://sixiangjialaundry.com/content-calendar/2026-07-19.json
 - [2026-07-19 11:30 先看懂：抱枕飲料痕與布面味道](https://sixiangjialaundry.com/posts/2026-07-19-slot-01.html)
@@ -899,7 +899,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
   routes: content_role=evidence-conversion; visual_route=customer-consultation; traffic_route=share-worthy-care; search_intent=(legacy-unassigned)
   target_queries: (legacy-unassigned)
   evidence_type: (legacy-unassigned)
-  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中洗衣收送 #免費到府收送
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中洗衣收送 #台中全市免費收送
   image: https://sixiangjialaundry.com/assets/2026-07-18/slot-02.png
   calendar: https://sixiangjialaundry.com/content-calendar/2026-07-18.json
 - [2026-07-18 11:30 先看懂：羽絨外套壓扁前的檢查](https://sixiangjialaundry.com/posts/2026-07-18-slot-01.html)
@@ -915,7 +915,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
   routes: content_role=evidence-conversion; visual_route=customer-consultation; traffic_route=value-prop-lead; search_intent=(legacy-unassigned)
   target_queries: (legacy-unassigned)
   evidence_type: (legacy-unassigned)
-  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中洗衣收送 #免費到府收送
+  hashtags: #私享家洗衣店 #台中西屯洗衣店 #台中洗衣收送 #台中全市免費收送
   image: https://sixiangjialaundry.com/assets/2026-07-16/slot-02.png
   calendar: https://sixiangjialaundry.com/content-calendar/2026-07-16.json
 - [2026-07-16 11:30 先看懂：皮鞋雨痕與皺摺邊緣](https://sixiangjialaundry.com/posts/2026-07-16-slot-01.html)

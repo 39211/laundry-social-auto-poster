@@ -82,4 +82,15 @@ describe("棉被、羽絨被發霉怎麼辦頁", () => {
     const hit = items.find((i) => i.id === "bedding-duvet-mold-page-summary");
     expect(hit?.source_url).toBe(`https://sixiangjialaundry.com${PATH}`);
   });
+
+  it("answers.json 本頁條目不含除霉／除臭／除味／殺菌／滅菌／另行報價等禁字，且用「發霉要看過實品再報價」", () => {
+    const answers = JSON.parse(read("answers.json"));
+    const items: Array<{ id: string; question?: string; answer?: string }> = answers.answers ?? [];
+    const hit = items.find((i) => i.id === "bedding-duvet-mold-page-summary");
+    expect(hit).toBeTruthy();
+    const text = JSON.stringify(hit).replaceAll("台中全市免費收送、沒有最低消費", "");
+    expect(text).not.toMatch(/除霉|除臭|除味|殺菌|滅菌|另行報價|保證|免費/);
+    expect(hit?.answer).toContain("發霉要看過實品再報價");
+    expect(hit?.answer).toContain("參考價，看過實品再報價");
+  });
 });

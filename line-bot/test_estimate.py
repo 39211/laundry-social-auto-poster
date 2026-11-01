@@ -61,6 +61,18 @@ import photo_estimate
 ORIGINAL_INVENTORY = photo_estimate.inventory
 import quote_flow as flow
 import conversation as conv
+
+# T-2: the arithmetic below was written against data/prices.json of 2026-10-08. At import the bot
+# aligns PRICES with the live eHank catalogue (price-align.json), which changes whenever the shop
+# edits a price, so the tests use a frozen copy of only the items they mention (not the whole price
+# list) and run as if the alignment were off.
+FROZEN_PRICES = ROOT / "test-assets" / "prices-test-subset.json"
+conv.PRICES.clear()
+conv.PRICES.update(json.loads(FROZEN_PRICES.read_text(encoding="utf-8")))
+conv.PRICE_LABELS.clear()
+conv.PRICE_BASIS = "off"
+conv.CATS.clear()
+conv.CATS.update({k: v for k, v in conv.PRICES.items() if isinstance(v, dict)})
 import customer_profile as profile
 import laundry_lookup as lookup
 import staff_notify as sn

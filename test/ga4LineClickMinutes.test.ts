@@ -88,7 +88,8 @@ describe("ga4 line_click per minute", () => {
       { minute: "2026-10-20T19:03+08:00", source: "reel-card-mold-20261020", count: 2 }
     ]);
     expect(typeof doc.fetched_at).toBe("string");
-    const body = calls[0].body;
+    expect(calls).toHaveLength(1);
+    const body = calls[0]!.body;
     expect(body.dimensions).toEqual([{ name: "dateHourMinute" }, { name: "customEvent:source" }]);
     expect(body.metrics).toEqual([{ name: "eventCount" }]);
     expect(body.dimensionFilter.filter).toEqual({

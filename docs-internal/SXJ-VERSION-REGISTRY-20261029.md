@@ -343,3 +343,16 @@ Next steps:
   - Tests: vitest 12/12, python 41, shop 149 (also on CPython 3.11.15), pull 78/0; mutations 13/13 red; full vitest = only the 16 pre-existing failures (2 extra under load re-ran green alone).
 - **B1-3 site check 20:46:** no source file still has 「西屯免費到府收送」. The checker's 西屯 hits are local-page titles 「門市在西屯,一件也收、免費到府收送」 (true address). The home page says 「台中全市免費到府收送」 (same meaning, not the exact owner string).
 - **Posts 10/31:** slot 1 + slot 2, FB + IG all success.
+
+## 11/01 12:15 addendum (shop closed day: photo replies, weekly hours, D1 skeleton, B4 estimate)
+
+- **V1** release @ ca8a8911 (feat c9cd0fb6): ai LINE bot photo replies follow the shop bot's 8-layer rules (item / brand only when visible / material / category / one price-table amount / turnaround / craft + question). Live 10/31 23:57.
+- **V1-2** release @ c2bbeb1f (feat 700b137b): photo model chain = the shop bot's order (gemini-flash-latest, 2.5-flash, flash-lite-latest, 2.5-flash-lite), max 3 calls / 32 s, lite models in plain JSON mode. Free tier only; owner declined paid billing. Live 11/01 00:17.
+- **A4-4 merge** 12a24bc1: live on the shop since 10/31, was never merged into release.
+- **A4-7 + N1** release @ e51169b1 (feat 13af3f35): shop LINE window follows weekly hours (Mon-Fri 10-20, Sat 12-18, Sun none); shop `runtime/notify_report.py` daily counts only, pulled to `data/gates/notify-<date>.json`. Shop deploy 11/02 10:08 with `monday-deploy.ps1` (after B2-8).
+- **A8-4** release @ 0ffe0a80: `Test-AiHandover` retries "not yet" night states 12 x 5 s; HandoverRetry 3/3, DeployAiLinebot 38/38.
+- **D1-0** release @ 71fb99e3: `docs-internal/D1-SHOP-ISOLATION-PLAN.md` (design only).
+- **D1-1** feat/d1-1-shops @ aa2fcec8, **not merged, not deployed** (D22: no go-live before Level 1): `shops/<id>/shop.json` + schema, `shops/_lib/shopctx.py` and `src/shopContext.ts` fail-closed loaders, synth-a/b + 14 invalid fixtures. Python 19 (3.14 and 3.11), vitest 26, tsc 0; mutations 10/10 red. Provenance test now checks values against the cited source files; it caught one wrong source in the plan (`paths.business_profile` -> `line-bot/conversation.py:37`, fixed). sxj has 4 fields pending owner confirmation.
+- **D25 (owner, 11/01 10:0x):** lookup 2 min, photo quote 2 min; arrival notices and daily posts were not done before -> counts only, not saved time.
+- **B4-1** release @ d6e7ed48 (feat 31bcbd1d), API Opus 5.5: weekly report section 「自動化省下的時間(推測)」 = shop export first_intent_counts x `data/time-baseline.json`; missing data -> one "no data" line, never 0. Removed the two lines that told the owner to fill a timesheet (D21). Tests 38 (6 new); mutations 6/6 red. W44 dry run shows "no data" (shop export not pulled yet), as expected.
+- **tsc fix** release @ ae479c7a: `test/ga4LineClickMinutes.test.ts` strict-index error; `tsc --noEmit` now 0 errors.

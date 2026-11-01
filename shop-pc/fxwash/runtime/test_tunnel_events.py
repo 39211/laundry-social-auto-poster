@@ -25,7 +25,20 @@ from runtime import line_api, tunnel_supervisor as supervisor
 OLD_URL = "https://old-test.lhr.life/line/webhook"
 NEW_URL = "https://new-test.lhr.life/line/webhook"
 API_URL = "https://api.line.me/v2/bot/channel/webhook/endpoint"
+# Legacy shop.json handover without "days": the same window every day.
 DEFAULTS = {"day_start": "10:00", "day_end": "20:00", "tz": "Asia/Taipei"}
+# A4-7 built-in defaults (fallback for a missing/invalid shop.json handover).
+SHOP_DEFAULTS = {"day_start": "10:00", "day_end": "20:00",
+                 "days": {"5": ["12:00", "18:00"], "6": None}, "tz": "Asia/Taipei"}
+# Literal copy of the ai PC's line-bot/handover.json (the ai file is never read).
+AI_HANDOVER_JSON = """{
+  "day_start": "10:00",
+  "day_end": "20:00",
+  "days": {"5": ["12:00", "18:00"], "6": null},
+  "night_takeover_delay_min": 5,
+  "tz": "Asia/Taipei"
+}"""
+# June 2025: day=1 Sun, 2 Mon, 5 Thu, 6 Fri, 7 Sat, 8 Sun, 9 Mon.
 TZ8 = timezone(timedelta(hours=8))
 
 
@@ -288,14 +301,14 @@ class TunnelEventsTests(unittest.TestCase):
                 out = io.StringIO()
                 with redirect_stdout(out):
                     config = supervisor.load_handover_config()
-                self.assertEqual(DEFAULTS, config)
+                self.assertEqual(SHOP_DEFAULTS, config)
                 self.assertEqual(1, len(out.getvalue().splitlines()))
         for text in ('{"server": {}}', "{not json"):
             with self.subTest(text=text):
                 self.shop_path.write_text(text, encoding="utf-8")
                 out = io.StringIO()
                 with redirect_stdout(out):
-                    self.assertEqual(DEFAULTS, supervisor.load_handover_config())
+                    self.assertEqual(SHOP_DEFAULTS, supervisor.load_handover_config())
                 self.assertEqual(1, len(out.getvalue().splitlines()))
         custom = {"day_start": "09:30", "day_end": "21:00", "tz": "Asia/Taipei"}
         self.shop_path.write_text(json.dumps({"server": {}, "handover": custom}), encoding="utf-8")
@@ -313,7 +326,7 @@ class TunnelEventsTests(unittest.TestCase):
                 supervisor._timezone("Europe/Berlin")
             self.shop_path.write_text(json.dumps({"server": {}, "handover": {
                 "day_start": "10:00", "day_end": "20:00", "tz": "Europe/Berlin"}}), encoding="utf-8")
-            self.assertEqual(DEFAULTS, supervisor.load_handover_config(log=False))
+            self.assertEqual(SHOP_DEFAULTS, supervisor.load_handover_config(log=False))
 
     def test_night_url_is_tracked_but_not_registered(self):
         self.day = False
@@ -410,6 +423,139 @@ class TunnelEventsTests(unittest.TestCase):
                 self.assertTrue(fired.wait(2))
             finally:
                 stop.set()
+
+    # ------------------------------------------------------------------ A4-7
+
+    def test_defaults_equal_ai_pc_handover(self):
+        ai = json.loads(AI_HANDOVER_JSON)
+        ai.pop("night_takeover_delay_min")
+        self.assertEqual(ai, supervisor.DEFAULT_HANDOVER)
+        self.assertEqual(SHOP_DEFAULTS, supervisor.DEFAULT_HANDOVER)
+        # Both sides agree on every minute of a whole week.
+        ai_full = json.loads(AI_HANDOVER_JSON)
+        for day in range(2, 9):
+            for minute in range(0, 1440, 15):
+                moment = at(minute // 60, minute % 60, day=day)
+                self.assertEqual(supervisor.is_day_window(moment, ai_full),
+                                 supervisor.is_day_window(moment, supervisor.DEFAULT_HANDOVER))
+
+    def test_saturday_window(self):
+        window = supervisor.is_day_window
+        self.assertFalse(window(at(10, 0, day=7), SHOP_DEFAULTS))
+        self.assertFalse(window(at(11, 59, day=7, second=59), SHOP_DEFAULTS))
+        self.assertTrue(window(at(12, 0, day=7), SHOP_DEFAULTS))
+        self.assertTrue(window(at(17, 59, day=7), SHOP_DEFAULTS))
+        self.assertTrue(window(at(17, 59, day=7, second=59), SHOP_DEFAULTS))
+        self.assertFalse(window(at(18, 0, day=7), SHOP_DEFAULTS))
+        self.assertFalse(window(at(19, 30, day=7), SHOP_DEFAULTS))
+
+    def test_sunday_is_night_all_day(self):
+        for hour, minute in ((0, 0), (10, 0), (11, 0), (12, 0), (17, 59), (19, 59), (23, 59)):
+            with self.subTest(hour=hour, minute=minute):
+                self.assertFalse(supervisor.is_day_window(at(hour, minute, day=8), SHOP_DEFAULTS))
+
+    def test_weekday_window(self):
+        window = supervisor.is_day_window
+        self.assertFalse(window(at(9, 59, day=9, second=59), SHOP_DEFAULTS))
+        self.assertTrue(window(at(10, 0, day=9), SHOP_DEFAULTS))
+        self.assertTrue(window(at(19, 59, day=6), SHOP_DEFAULTS))
+        self.assertFalse(window(at(20, 0, day=6), SHOP_DEFAULTS))
+
+    def test_no_day_start_register_on_sunday_then_monday_registers(self):
+        state = supervisor.HandoverState(dict(SHOP_DEFAULTS))
+        state.last_day = False
+        state.previous_url = OLD_URL
+        state.current_url = NEW_URL
+        state.pending_day_url = NEW_URL
+        for hour, minute in ((0, 5), (10, 0), (11, 0), (12, 0), (18, 0), (23, 59)):
+            self.assertFalse(supervisor.check_day_start(state, at(hour, minute, day=8)))
+        self.assertEqual([], self.http)
+        self.assertEqual([], self.read_events())
+        self.assertFalse(supervisor.check_day_start(state, at(9, 59, day=9)))
+        self.responses = [FakeResponse({}), FakeResponse({"endpoint": NEW_URL, "active": True})]
+        self.assertTrue(supervisor.check_day_start(state, at(10, 0, day=9)))
+        self.assertEqual(["PUT", "GET"], self.calls)
+        start = [r for r in self.read_events() if r["event"] == "day_start_register"]
+        self.assertEqual(1, len(start))
+        self.assertEqual("pending_day_url", start[0]["reason"])
+
+    def test_saturday_registers_at_noon_and_hands_over_at_18(self):
+        state = supervisor.HandoverState(dict(SHOP_DEFAULTS))
+        state.last_day = False
+        state.current_url = NEW_URL
+        state.pending_day_url = NEW_URL
+        self.assertFalse(supervisor.check_day_start(state, at(10, 0, day=7)))
+        self.assertFalse(supervisor.check_day_start(state, at(11, 59, day=7)))
+        self.assertEqual([], self.http)
+        self.responses = [FakeResponse({}), FakeResponse({"endpoint": NEW_URL, "active": True})]
+        self.assertTrue(supervisor.check_day_start(state, at(12, 0, day=7)))
+        self.assertEqual(NEW_URL, state.registered_url)
+        self.assertFalse(supervisor.check_day_start(state, at(17, 59, day=7)))
+        self.assertFalse(supervisor.check_day_start(state, at(18, 0, day=7)))
+        self.assertFalse(state.last_day)
+        self.assertEqual("", state.registered_url)
+        self.assertEqual(["PUT", "GET"], self.calls)
+
+    def test_invalid_days_fall_back_to_defaults(self):
+        base = {"day_start": "10:00", "day_end": "20:00", "tz": "Asia/Taipei"}
+        variants = [
+            {"7": None},
+            {"-1": None},
+            {"05": None},
+            {"Sat": None},
+            {"5": ["12:00"]},
+            {"5": ["12:00", "18:00", "19:00"]},
+            {"5": ["12:00", "12:00"]},
+            {"5": ["12:00", "25:00"]},
+            {"5": [12, 18]},
+            {"5": "closed"},
+            {"5": False},
+            {"5": {"start": "12:00", "end": "18:00"}},
+            [],
+            "weekdays",
+            None,
+        ]
+        for days in variants:
+            with self.subTest(days=days):
+                raw = dict(base, days=days)
+                self.shop_path.write_text(json.dumps({"server": {}, "handover": raw}), encoding="utf-8")
+                out = io.StringIO()
+                with redirect_stdout(out):
+                    config = supervisor.load_handover_config()
+                self.assertEqual(SHOP_DEFAULTS, config)
+                lines = out.getvalue().splitlines()
+                self.assertEqual(1, len(lines))
+                self.assertIn("using defaults", lines[0])
+                with self.assertRaises(ValueError):
+                    supervisor.is_day_window(at(12, 0), raw)
+
+    def test_handover_without_days_is_same_window_every_day(self):
+        custom = {"day_start": "09:30", "day_end": "21:00", "tz": "Asia/Taipei"}
+        self.shop_path.write_text(json.dumps({"server": {}, "handover": custom}), encoding="utf-8")
+        config = supervisor.load_handover_config(log=False)
+        self.assertEqual(custom, config)
+        self.assertNotIn("days", config)
+        for day in range(2, 9):
+            with self.subTest(day=day):
+                self.assertFalse(supervisor.is_day_window(at(9, 29, day=day), config))
+                self.assertTrue(supervisor.is_day_window(at(9, 30, day=day), config))
+                self.assertTrue(supervisor.is_day_window(at(20, 59, day=day), config))
+                self.assertFalse(supervisor.is_day_window(at(21, 0, day=day), config))
+
+    def test_valid_days_from_shop_json_and_crossing_day_window(self):
+        raw = {"day_start": "10:00", "day_end": "20:00", "tz": "Asia/Taipei",
+               "days": {"4": ["22:00", "02:00"], "6": None}}
+        self.shop_path.write_text(json.dumps({"server": {}, "handover": raw}), encoding="utf-8")
+        config = supervisor.load_handover_config(log=False)
+        self.assertEqual(raw, config)
+        window = supervisor.is_day_window
+        self.assertFalse(window(at(12, 0, day=6), config))   # Friday uses only its own window
+        self.assertTrue(window(at(23, 0, day=6), config))
+        self.assertTrue(window(at(1, 59, day=7), config))    # Friday's window continues
+        self.assertFalse(window(at(2, 0, day=7), config))
+        self.assertTrue(window(at(10, 0, day=7), config))    # Saturday: base window
+        self.assertFalse(window(at(23, 0, day=5), config))   # Thursday: base window
+        self.assertFalse(window(at(12, 0, day=8), config))   # Sunday: closed
 
 
 if __name__ == "__main__":

@@ -204,6 +204,12 @@
       .section { padding: 40px 0; }
       h1, h2, h3, p, li { overflow-wrap: anywhere; }
     }
+    .price-table-card, .table-wrap { overflow-x: auto; }
+    .price-table, .comparison-table { border-collapse: collapse; width: 100%; margin-top: 12px; background: #fff; }
+    .price-table th, .price-table td, .comparison-table th, .comparison-table td { border-bottom: 1px solid var(--color-line); text-align: left; padding: 10px 12px; vertical-align: top; }
+    .price-table thead th, .comparison-table thead th { color: var(--color-muted); letter-spacing: .02em; font-size: .85rem; }
+    .price-table tbody tr:last-child td, .comparison-table tbody tr:last-child td { border-bottom: none; }
+    .comparison-table caption { text-align: left; font-weight: 800; padding: 0 0 8px; color: var(--color-ink); }
   </style>
     <title>乾洗是什麼｜原理與洗標｜私享家洗衣店</title>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"></script>
@@ -241,7 +247,7 @@
           <div class="hero-copy">
             <span class="eyebrow">洗護指南</span>
             <h1>乾洗是什麼：乾洗劑、乾洗油與洗標解讀</h1>
-            <p class="lead" id="lead">乾洗的「乾」不是讓衣服保持乾燥來清潔，也不是只用空氣吹。它是不用水而用溶劑作為主要清洗介質，衣物仍會接觸液體。乾洗劑、乾洗油是這類清洗介質的用語，並不是在衣服上補一層油。乾洗名詞說明：油性與水性污漬的原理，以及洗標圓圈中的字母；不以名詞推定某件衣物適合的做法。門市在西屯，東海只有收送。結果依材質與損況而定，不保證恢復原色或變全新；不做除臭或醫療滅菌承諾。</p>
+            <p class="lead" id="lead">乾洗是什麼：乾洗是不用水、改用溶劑當主要清洗介質的清洗方式，衣物仍會接觸液體；「乾」是和水洗對比的名稱，不是讓衣服保持乾燥。乾洗劑、乾洗油是這類清洗介質的用語，不是在衣服上補一層油。溶劑對油性髒污有溶解作用，汗漬、水性污與混合污不會因此全部消失。門市在西屯，東海只有收送。結果依材質與損況而定，不保證恢復原色或變全新；不做除臭或醫療滅菌承諾。</p>
             <p class="last-updated">內容更新：<time datetime="2026-10-15">2026-10-15</time></p>
             <div class="button-row">
               <a class="button brand" href="https://sixiangjialaundry.com/go/line.html?source=guide-dry-cleaning-explained-cta">LINE 詢問</a>
@@ -258,6 +264,42 @@
               <picture><source type="image/webp" srcset="https://sixiangjialaundry.com/assets/services/fabric-storage-inspection.webp" /><img src="https://sixiangjialaundry.com/assets/services/fabric-storage-inspection.png" alt="門市人員檢查布料與洗標的示意圖｜乾洗是什麼：乾洗劑、乾洗油與洗標解讀" width="1254" height="1254" loading="eager" fetchpriority="high" /></picture>
               <figcaption>門市人員檢查布料與洗標的示意圖。不是客戶物件的前後對比。</figcaption>
             </figure>
+          </div>
+        </div>
+      </section>
+      <section class="section" id="quick-table">
+        <div class="page-shell">
+          <div class="section-header">
+            <span class="eyebrow">一表看懂</span>
+            <h2>乾洗是什麼：三個常見誤解與洗標圓圈怎麼讀</h2>
+          </div>
+          <div class="table-wrap">
+            <table class="comparison-table">
+              <caption>乾洗常見說法與實際意思</caption>
+              <thead>
+                <tr><th>常見說法</th><th>實際上</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>乾洗完全不用液體</td><td>仍使用液體。乾指主要介質不是水而是溶劑</td></tr>
+                <tr><td>乾洗油是補在衣服上的油</td><td>乾洗劑、乾洗油是清洗介質的用語，不是在衣服上補一層油</td></tr>
+                <tr><td>做過乾洗，每一處痕跡都會去掉</td><td>溶劑對油性髒污有溶解作用；汗漬、水性污與混合污不會全部消失，結果依材質與損況而定</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-wrap">
+            <table class="comparison-table">
+              <caption>洗標圓圈怎麼讀（專業清洗標示）</caption>
+              <thead>
+                <tr><th>標示</th><th>意思</th><th>要注意</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>圓圈</td><td>專業清洗標示</td><td>要連同字母和限制線一起讀</td></tr>
+                <tr><td>圓圈中的 P、F</td><td>乾洗的溶劑範圍。F 指碳氫溶劑；P 的範圍包含四氯乙烯及 F 允許的溶劑</td><td>字母是給專業處理者讀的限制，不是品牌縮寫，也不是購買藥劑的清單</td></tr>
+                <tr><td>圓圈下的橫線</td><td>需溫和處理</td><td>拍洗標時要攤開，不要讓橫線折進縫裡</td></tr>
+                <tr><td>打叉的圓圈</td><td>不可乾洗</td><td>不要只看見圓圈就判定可乾洗，字母、橫線和叉線都要保留</td></tr>
+                <tr><td>圓圈中的 W</td><td>專業濕洗</td><td>不等於家用洗衣機水洗</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </section>

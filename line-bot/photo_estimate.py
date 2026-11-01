@@ -12,10 +12,13 @@ import io
 import json
 import os
 import re
+import tempfile
+import threading
 import time
 import unicodedata
 import urllib.error
 import urllib.request
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from PIL import Image, ImageOps
@@ -289,7 +292,230 @@ def model_chain() -> list[str]:
     return list(DEFAULT_MODEL_CHAIN)
 
 
+# ---------------------------------------------------------------------------
+# Free-tier usage counter (V1-3). Counts only: model names and integers.
+# Never stores images, prompts, model output, items, prices, ids, keys or error text.
+# Recording is best effort and can never change what inventory() returns.
+# ---------------------------------------------------------------------------
+USAGE_SCHEMA = "vision-usage/v1"
+TAIPEI = timezone(timedelta(hours=8), "Asia/Taipei")  # fixed UTC+8, no DST
+_USAGE_KEYS = ("ok", "http_400", "http_404", "http_429", "http_5xx", "http_other", "timeout", "unusable")
+_USAGE_TOTALS = ("requests", "answered", "failed")
+_USAGE_LOCK = threading.Lock()
+_USAGE_LOCK_SECONDS = 2.0
+_USAGE_MAX_BYTES = 1_000_000
+_USAGE_MAX_MODEL_LEN = 80
+
+
+def usage_dir() -> Path:
+    raw = os.environ.get("LAUNDRY_VISION_USAGE_DIR", "").strip()
+    if raw:
+        return Path(raw)
+    return Path(__file__).resolve().parent.parent / "data" / "vision-usage"
+
+
+def _utc_now() -> datetime:
+    """Clock hook (tests patch this)."""
+    return datetime.now(timezone.utc)
+
+
+def _taipei_date(now: datetime | None = None):
+    now = _utc_now() if now is None else now
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return now.astimezone(TAIPEI).date()
+
+
+def usage_day(now: datetime | None = None) -> str:
+    return _taipei_date(now).isoformat()
+
+
+def _http_kind(code) -> str:
+    if not isinstance(code, int):
+        return "http_other"
+    if code == 400:
+        return "http_400"
+    if code == 404:
+        return "http_404"
+    if code == 429:
+        return "http_429"
+    if 500 <= code <= 599:
+        return "http_5xx"
+    return "http_other"
+
+
+class _UsageTrace:
+    """Per-call, in-memory tally. Holds model names and counters only."""
+
+    __slots__ = ("started", "counts", "in_flight", "got_200")
+
+    def __init__(self):
+        self.started = False
+        self.counts: dict[str, dict[str, int]] = {}
+        self.in_flight: str | None = None
+        self.got_200 = False
+
+    def begin(self, model: str) -> None:
+        try:
+            self.in_flight = model
+            self.got_200 = False
+        except Exception:
+            pass
+
+    def mark(self, kind: str) -> None:
+        try:
+            model = self.in_flight
+            self.in_flight = None
+            self.got_200 = False
+            if model and kind in _USAGE_KEYS:
+                slot = self.counts.setdefault(model, {})
+                slot[kind] = slot.get(kind, 0) + 1
+        except Exception:
+            pass
+
+    def finish(self, answered: bool) -> None:
+        """Classify the last attempt that left the loop without being counted."""
+        if self.in_flight is None:
+            return
+        if self.got_200:
+            self.mark("ok" if answered else "unusable")
+        else:
+            self.mark("http_other")
+
+
+def _fresh_day(day: str) -> dict:
+    return {"schema": USAGE_SCHEMA, "date": day, "requests": 0, "answered": 0, "failed": 0, "models": {}}
+
+
+def _valid_day(data, day: str) -> bool:
+    if not isinstance(data, dict) or data.get("schema") != USAGE_SCHEMA or data.get("date") != day:
+        return False
+    for key in _USAGE_TOTALS:
+        value = data.get(key)
+        if type(value) is not int or value < 0:
+            return False
+    models = data.get("models")
+    if not isinstance(models, dict):
+        return False
+    for model, slot in models.items():
+        if (not isinstance(model, str) or len(model) > _USAGE_MAX_MODEL_LEN
+                or not _MODEL_RE.fullmatch(model) or not isinstance(slot, dict)):
+            return False
+        for key, value in slot.items():
+            if key not in _USAGE_KEYS or type(value) is not int or value < 0:
+                return False
+    return True
+
+
+def _read_day(path: Path, day: str):
+    """Return (status, data); status is 'missing', 'ok', 'bad' (corrupt/foreign) or 'error' (cannot read)."""
+    try:
+        with path.open("rb") as fh:
+            raw = fh.read(_USAGE_MAX_BYTES + 1)
+    except FileNotFoundError:
+        return "missing", None
+    except OSError:
+        return "error", None
+    if len(raw) > _USAGE_MAX_BYTES:
+        return "bad", None
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, RecursionError):
+        return "bad", None
+    if not _valid_day(data, day):
+        return "bad", None
+    return "ok", data
+
+
+def _atomic_write(path: Path, text: str) -> None:
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.stem}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        try:
+            fh = os.fdopen(fd, "w", encoding="utf-8", newline="\n")
+        except BaseException:
+            os.close(fd)
+            raise
+        with fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp_name, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+
+def _store_usage(counts: dict, answered: bool) -> None:
+    """Merge one request into today's file (Asia/Taipei). May raise; callers swallow."""
+    day = usage_day()
+    directory = usage_dir()
+    if not _USAGE_LOCK.acquire(timeout=_USAGE_LOCK_SECONDS):
+        return
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{day}.json"
+        status, data = _read_day(path, day)
+        if status == "error":
+            return  # cannot read now; never overwrite what we could not read
+        if status == "bad":
+            # Keep the corrupt/foreign file for inspection, then start a fresh day file.
+            os.replace(path, path.with_name(path.name + ".bad"))
+            data = None
+        if data is None:
+            data = _fresh_day(day)
+        models = {model: dict(slot) for model, slot in data["models"].items()}
+        for model, slot in counts.items():
+            if not isinstance(model, str) or len(model) > _USAGE_MAX_MODEL_LEN or not _MODEL_RE.fullmatch(model):
+                continue
+            target = models.setdefault(model, {})
+            for key, value in slot.items():
+                if key in _USAGE_KEYS and type(value) is int and value > 0:
+                    target[key] = target.get(key, 0) + value
+        out = {
+            "schema": USAGE_SCHEMA,
+            "date": day,
+            "requests": data["requests"] + 1,
+            "answered": data["answered"] + (1 if answered else 0),
+            "failed": data["failed"] + (0 if answered else 1),
+            "models": {},
+        }
+        for model in sorted(models):
+            slot = {key: models[model][key] for key in _USAGE_KEYS if models[model].get(key)}
+            if slot:
+                out["models"][model] = slot
+        _atomic_write(path, json.dumps(out, ensure_ascii=True, indent=1) + "\n")
+    finally:
+        _USAGE_LOCK.release()
+
+
+def _record_usage(trace: _UsageTrace, answered: bool) -> None:
+    try:
+        trace.finish(answered)
+        _store_usage(trace.counts, answered)
+    except Exception:
+        # Best effort: a full disk, a read-only dir or a test audit hook must never reach the caller.
+        pass
+
+
 def inventory(paths: list[Path], names: list[str]) -> dict:
+    trace = _UsageTrace()
+    answered = False
+    try:
+        result = _inventory(paths, names, trace)
+        answered = isinstance(result, dict) and result.get("ok") is True
+        return result
+    finally:
+        if trace.started:
+            try:
+                _record_usage(trace, answered)
+            except Exception:
+                pass
+
+
+def _inventory(paths: list[Path], names: list[str], trace: _UsageTrace) -> dict:
     if not configured():
         return {"ok": False, "error": "not_configured"}
     if not 1 <= len(paths) <= MAX_PHOTOS:
@@ -317,6 +543,7 @@ def inventory(paths: list[Path], names: list[str]) -> dict:
         result = None
         deadline = time.monotonic() + TOTAL_SECONDS
         last_error = "provider_timeout"
+        trace.started = True
         for index, use in enumerate(chain[:MAX_CALLS]):
             remaining = deadline - time.monotonic()
             if remaining < 3:
@@ -335,18 +562,22 @@ def inventory(paths: list[Path], names: list[str]) -> dict:
             payload = {"contents": [{"role": "user", "parts": parts_now}], "generationConfig": gen}
             req = urllib.request.Request(f"https://generativelanguage.googleapis.com/v1beta/models/{use}:generateContent",
                     data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "x-goog-api-key": os.environ["GEMINI_API_KEY"]})
+            trace.begin(use)
             try:
                 with urllib.request.urlopen(req, timeout=max(3, min(PER_CALL_SECONDS, remaining))) as response:
+                    trace.got_200 = True
                     result = json.loads(response.read(512_000))
                 model = use
                 break
             except urllib.error.HTTPError as exc:
+                trace.mark(_http_kind(exc.code))
                 last_error = f"provider_{exc.code}"
                 if exc.code in (400, 404, 429, 500, 502, 503, 504):
                     time.sleep(0.5)
                     continue
                 return {"ok": False, "error": last_error}
             except (urllib.error.URLError, TimeoutError):
+                trace.mark("timeout")
                 last_error = "provider_timeout"
                 time.sleep(0.5)
                 continue
@@ -366,3 +597,56 @@ def inventory(paths: list[Path], names: list[str]) -> dict:
     except Exception:
         # Exception text can contain a path, API headers or provider payload; never forward it.
         return {"ok": False, "error": "unavailable"}
+
+
+def usage_report(days: int = 7, now: datetime | None = None) -> list[str]:
+    """Read-only summary, newest day first. A missing day is 'no data', never 0."""
+    base = usage_dir()
+    today = _taipei_date(now)
+    lines = []
+    for offset in range(days):
+        day = (today - timedelta(days=offset)).isoformat()
+        status, data = _read_day(base / f"{day}.json", day)
+        if status == "missing":
+            lines.append(f"{day}  no data")
+            continue
+        if status != "ok":
+            lines.append(f"{day}  unreadable")
+            continue
+        line = f"{day}  requests={data['requests']} answered={data['answered']} failed={data['failed']}"
+        for model in sorted(data["models"]):
+            slot = data["models"][model]
+            line += (f" | {model} ok={slot.get('ok', 0)} 429={slot.get('http_429', 0)}"
+                     f" 5xx={slot.get('http_5xx', 0)}")
+            other = sum(v for k, v in slot.items() if k not in ("ok", "http_429", "http_5xx"))
+            if other:
+                line += f" other={other}"
+        lines.append(line)
+    return lines
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    def days_arg(text: str) -> int:
+        try:
+            value = int(text)
+        except ValueError:
+            raise argparse.ArgumentTypeError("--days must be a whole number") from None
+        if not 1 <= value <= 366:
+            raise argparse.ArgumentTypeError("--days must be between 1 and 366")
+        return value
+
+    parser = argparse.ArgumentParser(prog="photo_estimate.py", description="Photo model usage (counts only).")
+    sub = parser.add_subparsers(dest="command", required=True)
+    usage = sub.add_parser("usage", help="print per-day photo model usage")
+    usage.add_argument("--days", type=days_arg, default=7, help="number of days to show (default 7)")
+    args = parser.parse_args(argv)
+    if args.command == "usage":
+        for line in usage_report(args.days):
+            print(line)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

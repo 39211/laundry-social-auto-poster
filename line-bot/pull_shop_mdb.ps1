@@ -3,13 +3,21 @@
 Pull the shop's password-protected Jet MDB without changing its reader/password.
 -DryRun reads remote metadata only. -WhatIf performs no connection or writes.
 Exit: 0 success/dry-run, 1 local/validation error, 2 locked, 3 remote failure.
+N1: afterwards, regardless of the MDB result, fetch the shop's read-only daily
+arrival-notify counts (runtime\notify_report.py, today and yesterday) and write
+data\gates\notify-<date>.json. That step never changes the exit code above and
+logs one JSON line {"logged_at","notify_report"} (no "ts") to the same log.
 #>
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [switch]$DryRun,
     [string]$Destination = 'C:\FXwash\eHank.mdb',
     [string]$LogPath = (Join-Path $env:LOCALAPPDATA 'line-bot\mdb_pull.jsonl'),
-    [ValidateRange(1, 60)][int]$TimeoutSeconds = 60
+    [ValidateRange(1, 60)][int]$TimeoutSeconds = 60,
+    [string]$GatesDir = '',
+    [string]$ShopRoot = 'C:/LaundryStores/fxwash',
+    # Shop embedded Python (same path the B2-7 deploy and tests use).
+    [string]$ShopPython = 'C:\LaundryStores\python-portable\python.exe'
 )
 
 function ConvertTo-NativeArgument([string]$Value) {
@@ -166,4 +174,196 @@ function Invoke-MdbPull {
     }
 }
 
-exit (Invoke-MdbPull -DryRun:$DryRun -Destination $Destination -LogPath $LogPath -TimeoutSeconds $TimeoutSeconds)
+# ---------------------------------------------------------------------------
+# N1: daily arrival-notify counts for Level-1 condition 2. Runs after the MDB
+# pull regardless of its result and never changes that result or exit code.
+# The outcome is one JSON line {"logged_at", "notify_report"} in the same log;
+# it has no "ts" field, so level1_gates.py never counts it as a pull.
+# ---------------------------------------------------------------------------
+
+function ConvertTo-PSSingleQuoted([string]$Value) { "'" + $Value.Replace("'", "''") + "'" }
+
+function Get-NotifyReportDates([DateTimeOffset]$Now) {
+    # Asia/Taipei is a fixed UTC+08:00 zone (no DST).
+    $local = $Now.ToOffset([TimeSpan]::FromHours(8))
+    $culture = [Globalization.CultureInfo]::InvariantCulture
+    @($local.ToString('yyyy-MM-dd', $culture), $local.AddDays(-1).ToString('yyyy-MM-dd', $culture))
+}
+
+function New-NotifyReportCommand([string]$ShopRoot, [string]$ShopPython, [string[]]$Dates) {
+    $dateArgs = (@($Dates | ForEach-Object { '--date ' + (ConvertTo-PSSingleQuoted $_) })) -join ' '
+    @(
+        '$ErrorActionPreference = ''Stop'''
+        ('Set-Location -LiteralPath ' + (ConvertTo-PSSingleQuoted $ShopRoot))
+        ('& ' + (ConvertTo-PSSingleQuoted $ShopPython) + ' -I -S -B ''runtime\notify_report.py'' --root . ' + $dateArgs)
+        'exit $LASTEXITCODE'
+    ) -join "`n"
+}
+
+function Invoke-NotifyReportRemote([string]$ShopRoot, [string]$ShopPython, [string[]]$Dates, [int]$TimeoutSeconds) {
+    $command = New-NotifyReportCommand $ShopRoot $ShopPython $Dates
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+    $arguments = @('-n', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'StrictHostKeyChecking=yes',
+        'shop-pc', ('powershell.exe -NoProfile -NonInteractive -EncodedCommand ' + $encoded))
+    try { $reply = Invoke-ShopProcess 'ssh.exe' $arguments $TimeoutSeconds }
+    catch { throw 'notify:ssh_start_failed' }
+    if ($reply.TimedOut) { throw 'notify:ssh_timeout' }
+    if ($reply.Exit -ne 0) { throw ('notify:ssh_exit_' + $reply.Exit) }
+    return [string]$reply.Output
+}
+
+function Get-NotifyField($Object, [string]$Name) {
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) { throw ('notify:missing_' + $Name) }
+    return $property.Value
+}
+
+function Get-NotifyCount($Object, [string]$Name) {
+    $value = Get-NotifyField $Object $Name
+    if (-not (($value -is [int] -or $value -is [long]) -and $value -ge 0)) { throw ('notify:count_' + $Name) }
+    return $value
+}
+
+function Test-IsJsonObject($Value) {
+    ($null -ne $Value) -and ($Value.GetType().FullName -eq 'System.Management.Automation.PSCustomObject')
+}
+
+function Test-ForbiddenNotifyContent($Node) {
+    if ($null -eq $Node) { return $false }
+    if ($Node -is [string]) { return ($Node -cmatch 'U[0-9a-f]{32}') }
+    if ($Node -is [array]) {
+        foreach ($item in $Node) { if (Test-ForbiddenNotifyContent $item) { return $true } }
+        return $false
+    }
+    if (Test-IsJsonObject $Node) {
+        foreach ($property in $Node.PSObject.Properties) {
+            if (@('uid', 'dno', 'did', 'messages', 'text') -contains $property.Name) { return $true }
+            if ($property.Name -cmatch 'U[0-9a-f]{32}') { return $true }
+            if (Test-ForbiddenNotifyContent $property.Value) { return $true }
+        }
+    }
+    return $false
+}
+
+function Get-ValidatedNotifyDays([string]$Text, [string[]]$Dates) {
+    $text = $Text.Trim()
+    if (-not $text) { throw 'notify:empty_output' }
+    if ($text -cmatch 'U[0-9a-f]{32}') { throw 'notify:line_user_id_like_value' }
+    try { $report = $text | ConvertFrom-Json -ErrorAction Stop }
+    catch { throw 'notify:invalid_json' }
+    if (-not (Test-IsJsonObject $report)) { throw 'notify:not_an_object' }
+    if (Test-ForbiddenNotifyContent $report) { throw 'notify:forbidden_content' }
+    if ((Get-NotifyField $report 'schema') -cne 'notify-report/v1') { throw 'notify:schema' }
+    $outbox = Get-NotifyField $report 'outbox'
+    # A missing outbox or skipped corrupt lines would make an unknown day look
+    # like "0 wrong sends"; write nothing so Level 1 stays no_data.
+    if ($outbox -ceq 'missing') { throw 'notify:outbox_missing' }
+    if ($outbox -cne 'ok') { throw 'notify:outbox_state' }
+    if ((Get-NotifyCount $report 'corrupt_lines') -gt 0) { throw 'notify:corrupt_lines' }
+    $daysProperty = $report.PSObject.Properties['days']
+    if ($null -eq $daysProperty -or $daysProperty.Value -isnot [array]) { throw 'notify:days' }
+    $days = $daysProperty.Value
+    if ($days.Count -ne $Dates.Count) { throw 'notify:day_count' }
+    $seen = @{}
+    $out = New-Object Collections.ArrayList
+    foreach ($day in $days) {
+        if (-not (Test-IsJsonObject $day)) { throw 'notify:day_not_object' }
+        $date = Get-NotifyField $day 'date'
+        if ($date -isnot [string] -or $Dates -cnotcontains $date -or $seen.ContainsKey($date)) { throw 'notify:date_mismatch' }
+        $seen[$date] = $true
+        $sent = Get-NotifyCount $day 'sent'
+        $wrong = Get-NotifyCount $day 'wrong_sends'
+        $duplicates = Get-NotifyCount $day 'duplicates'
+        $abandoned = Get-NotifyCount $day 'abandoned'
+        $noBinding = Get-NotifyCount $day 'no_binding'
+        $pending = Get-NotifyCount $day 'pending'
+        $reportedBy = Get-NotifyField $day 'reported_by'
+        if ($reportedBy -isnot [string] -or -not $reportedBy.Trim()) { throw 'notify:reported_by' }
+        $basis = Get-NotifyField $day 'wrong_sends_basis'
+        if ($basis -isnot [string] -or -not $basis.Trim()) { throw 'notify:wrong_sends_basis' }
+        $record = [ordered]@{
+            date = $date; sent = $sent; wrong_sends = $wrong; reported_by = $reportedBy
+            wrong_sends_basis = $basis; duplicates = $duplicates; abandoned = $abandoned
+            no_binding = $noBinding; pending = $pending; fetched_at = ''
+        }
+        [void]$out.Add($record)
+    }
+    return , $out
+}
+
+function Write-NotifyGateFile([string]$Directory, [string]$Date, [string]$Json) {
+    [void][IO.Directory]::CreateDirectory($Directory)
+    $target = Join-Path $Directory ('notify-' + $Date + '.json')
+    $temp = Join-Path $Directory ('notify-' + $Date + '.' + [guid]::NewGuid().ToString('N') + '.tmp')
+    try {
+        [IO.File]::WriteAllText($temp, $Json + "`n", (New-Object Text.UTF8Encoding $false))
+        if ([IO.File]::Exists($target)) { [IO.File]::Replace($temp, $target, [NullString]::Value, $true) }
+        else { [IO.File]::Move($temp, $target) }
+        $temp = $null
+    }
+    finally {
+        if ($temp -and [IO.File]::Exists($temp)) { [IO.File]::Delete($temp) }
+    }
+}
+
+function Write-NotifyPullLog([string]$Path, [string]$Status) {
+    [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Path)))
+    $line = [ordered]@{ logged_at = [DateTimeOffset]::Now.ToString('o'); notify_report = $Status } | ConvertTo-Json -Compress
+    [IO.File]::AppendAllText($Path, $line + [Environment]::NewLine, (New-Object Text.UTF8Encoding $false))
+}
+
+function Invoke-NotifyPull {
+    [CmdletBinding(SupportsShouldProcess = $true)]
+    param([switch]$DryRun, [string]$LogPath, [string]$GatesDir, [string]$ShopRoot = 'C:/LaundryStores/fxwash',
+        [string]$ShopPython = 'python', [int]$TimeoutSeconds = 60, [string[]]$Dates)
+    if (-not $PSCmdlet.ShouldProcess('shop-pc notify_report -> ' + $GatesDir, 'Fetch daily notify counts')) { return 'SKIPPED' }
+    $status = 'FAILED:error'
+    try {
+        $ErrorActionPreference = 'Stop'
+        if ($DryRun) { $status = 'SKIPPED'; return $status }
+        if (-not $Dates) { $Dates = Get-NotifyReportDates ([DateTimeOffset]::Now) }
+        foreach ($d in $Dates) { if ($d -notmatch '^\d{4}-\d{2}-\d{2}\z') { throw 'notify:bad_date' } }
+        if (-not $GatesDir) { throw 'notify:no_gates_dir' }
+        $output = Invoke-NotifyReportRemote $ShopRoot $ShopPython $Dates $TimeoutSeconds
+        $records = Get-ValidatedNotifyDays $output $Dates
+        $fetchedAt = [DateTimeOffset]::Now.ToString('o')
+        foreach ($record in $records) {
+            $record['fetched_at'] = $fetchedAt
+            Write-NotifyGateFile $GatesDir $record['date'] (ConvertTo-Json -InputObject $record -Compress)
+        }
+        $status = 'OK'
+        return $status
+    }
+    catch {
+        $message = [string]$_.Exception.Message
+        if ($message.StartsWith('notify:')) { $reason = $message.Substring(7) }
+        else { $reason = $_.Exception.GetType().Name }
+        $status = 'FAILED:' + ($reason -replace '[^A-Za-z0-9_.-]', '_')
+        return $status
+    }
+    finally {
+        try { Write-NotifyPullLog $LogPath $status }
+        catch { Write-Verbose ('notify_report log unavailable: ' + $_.Exception.GetType().Name) }
+    }
+}
+
+function Invoke-ScheduledPull {
+    param([switch]$DryRun, [string]$Destination, [string]$LogPath, [int]$TimeoutSeconds = 60,
+        [string]$GatesDir, [string]$ShopRoot, [string]$ShopPython, [string[]]$NotifyDates)
+    $code = $null
+    try {
+        $code = Invoke-MdbPull -DryRun:$DryRun -Destination $Destination -LogPath $LogPath -TimeoutSeconds $TimeoutSeconds
+    }
+    finally {
+        $notifyArgs = @{
+            DryRun = [bool]$DryRun; LogPath = $LogPath; GatesDir = $GatesDir; ShopRoot = $ShopRoot
+            ShopPython = $ShopPython; TimeoutSeconds = $TimeoutSeconds; Dates = $NotifyDates
+        }
+        try { $null = Invoke-NotifyPull @notifyArgs }
+        catch { Write-Verbose ('notify_report step error: ' + $_.Exception.GetType().Name) }
+    }
+    return $code
+}
+
+if (-not $GatesDir) { $GatesDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'data\gates' }
+exit (Invoke-ScheduledPull -DryRun:$DryRun -Destination $Destination -LogPath $LogPath -TimeoutSeconds $TimeoutSeconds -GatesDir $GatesDir -ShopRoot $ShopRoot -ShopPython $ShopPython)

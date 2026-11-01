@@ -9,6 +9,11 @@ A4-4: the shop PC owns the LINE endpoint only inside its day window (default
 10:00-20:00 Asia/Taipei). Outside it the URL is still tracked in shop.json but
 the PUT is skipped (skipped_night) and repeated once when the day window starts
 (day_start_register).
+
+A4-7: the day window is per weekday, same schema as the ai PC's
+line-bot/handover.json: optional "days" with Python weekday keys "0".."6",
+each ["HH:MM", "HH:MM"] or null (closed = night all day). Defaults follow the
+shop hours: Mon-Fri 10:00-20:00, Sat 12:00-18:00, Sunday closed.
 """
 
 from __future__ import annotations
@@ -50,8 +55,17 @@ SHOP_PATH = ROOT / "shop.json"
 EVENTS_PATH = ROOT / "logs" / "tunnel_events.jsonl"
 RETRY_DELAYS = (2, 5, 10)
 
-# Handover between the shop PC (day) and the ai PC (night).
-DEFAULT_HANDOVER = {"day_start": "10:00", "day_end": "20:00", "tz": "Asia/Taipei"}
+# Handover between the shop PC (day) and the ai PC (night). Same schema and
+# values as the ai PC's line-bot/handover.json (A4-7): Python weekday keys
+# "0".."6" override day_start/day_end; null = closed (night all day).
+DEFAULT_HANDOVER = {
+    "day_start": "10:00",
+    "day_end": "20:00",
+    "days": {"5": ["12:00", "18:00"], "6": None},
+    "tz": "Asia/Taipei",
+}
+WEEKDAY_KEYS = ("0", "1", "2", "3", "4", "5", "6")
+WEEKDAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 # Seconds between background night->day checks. The tunnel loop blocks on ssh
 # output, which can be silent for many minutes, so a small daemon timer makes
 # sure the 10:00 registration is not delayed until the next URL rotation.
@@ -147,6 +161,25 @@ def _timezone(name):
         raise ValueError("handover timezone is unavailable") from None
 
 
+def _validate_days(raw) -> dict:
+    """Validate the optional per-weekday override object (A4-7)."""
+    if not isinstance(raw, dict):
+        raise ValueError("handover days must be an object")
+    days = {}
+    for key, value in raw.items():
+        if key not in WEEKDAY_KEYS:
+            raise ValueError("handover days keys must be weekdays 0..6")
+        if value is None:
+            days[key] = None
+            continue
+        if not isinstance(value, list) or len(value) != 2:
+            raise ValueError("handover day window must be [start, end] or null")
+        if _minute_of_day(value[0]) == _minute_of_day(value[1]):
+            raise ValueError("handover day window start and end must differ")
+        days[key] = [value[0], value[1]]
+    return days
+
+
 def _validate_handover(raw) -> dict:
     if not isinstance(raw, dict):
         raise ValueError("handover configuration must be an object")
@@ -155,7 +188,35 @@ def _validate_handover(raw) -> dict:
     if start == end:
         raise ValueError("day_start and day_end must differ")
     _timezone(raw.get("tz"))
-    return {"day_start": raw["day_start"], "day_end": raw["day_end"], "tz": raw["tz"]}
+    config = {"day_start": raw["day_start"], "day_end": raw["day_end"], "tz": raw["tz"]}
+    # Without "days" the same window applies every day (pre-A4-7 meaning).
+    if "days" in raw:
+        config["days"] = _validate_days(raw["days"])
+    return config
+
+
+def _window_for(config: dict, weekday: int):
+    """(start_minute, end_minute) for a Python weekday, or None when closed."""
+    days = config.get("days") or {}
+    key = str(weekday)
+    if key in days:
+        value = days[key]
+        if value is None:
+            return None
+        return _minute_of_day(value[0]), _minute_of_day(value[1])
+    return _minute_of_day(config["day_start"]), _minute_of_day(config["day_end"])
+
+
+def _describe(config: dict) -> str:
+    text = f"{config['day_start']}-{config['day_end']}"
+    extra = []
+    days = config.get("days") or {}
+    for key in sorted(days):
+        value = days[key]
+        extra.append(f"{WEEKDAY_NAMES[int(key)]} " + ("closed" if value is None else f"{value[0]}-{value[1]}"))
+    if extra:
+        text += " (" + ", ".join(extra) + ")"
+    return f"{text} {config['tz']}"
 
 
 def load_handover_config(path=None, *, log: bool = True) -> dict:
@@ -172,20 +233,21 @@ def load_handover_config(path=None, *, log: bool = True) -> dict:
     except (OSError, ValueError, TypeError) as exc:
         reason = f"invalid ({type(exc).__name__})"
     if reason:
-        config = dict(DEFAULT_HANDOVER)
+        # A fresh copy: callers must never be able to mutate the defaults.
+        config = _validate_handover(DEFAULT_HANDOVER)
         if log:
-            print(f"[Tunnel Supervisor] handover config {reason}; using defaults "
-                  f"{config['day_start']}-{config['day_end']} {config['tz']}")
+            print(f"[Tunnel Supervisor] handover config {reason}; using defaults {_describe(config)}")
     elif log:
-        print(f"[Tunnel Supervisor] handover window {config['day_start']}-{config['day_end']} {config['tz']}")
+        print(f"[Tunnel Supervisor] handover window {_describe(config)}")
     return config
 
 
 def is_day_window(now=None, config=None) -> bool:
-    """True when the shop PC owns the endpoint: local time in [day_start, day_end).
+    """True when the shop PC owns the endpoint: local time inside that weekday's window.
 
-    A naive `now` is interpreted as wall time in the configured zone. A window
-    with day_start > day_end crosses midnight.
+    A naive `now` is interpreted as wall time in the configured zone. A weekday
+    whose window is null is night all day. A window with start > end crosses
+    midnight: it starts on its own weekday and ends on the next calendar day.
     """
     config = load_handover_config(log=False) if config is None else _validate_handover(config)
     tz = _timezone(config["tz"])
@@ -195,9 +257,19 @@ def is_day_window(now=None, config=None) -> bool:
         now = now.replace(tzinfo=tz)
     local = now.astimezone(tz)
     minute = local.hour * 60 + local.minute
-    start = _minute_of_day(config["day_start"])
-    end = _minute_of_day(config["day_end"])
-    return (minute - start) % 1440 < (end - start) % 1440
+    weekday = local.weekday()
+    today = _window_for(config, weekday)
+    if today is not None:
+        start, end = today
+        if start < end:
+            if start <= minute < end:
+                return True
+        elif minute >= start:
+            return True
+    yesterday = _window_for(config, (weekday - 1) % 7)
+    if yesterday is not None and yesterday[0] > yesterday[1] and minute < yesterday[1]:
+        return True
+    return False
 
 
 class HandoverState:

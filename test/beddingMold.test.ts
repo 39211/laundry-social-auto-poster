@@ -49,12 +49,12 @@ describe("棉被、羽絨被發霉怎麼辦頁", () => {
     const main = mainOf(html);
     // 電話是必留聯絡方式，不在禁用詞檢查內；其餘禁用詞（保證、殺菌、除臭、恢復原色、變白、回白…）全頁都不能出現。
     expect(wave9BannedHits(wave9AuditedText(html).replaceAll("04-2452-7411", ""))).toEqual([]);
-    for (const needle of [FULL, "參考價，看過實品再報價", "https://lin.ee/w8qGVqM", "@454foyks", "0968327653", "04-2452-7411", "發霉另行報價"]) {
+    for (const needle of [FULL, "參考價，看過實品再報價", "https://lin.ee/w8qGVqM", "@454foyks", "0968327653", "04-2452-7411", "發霉要看過實品再報價"]) {
       expect(main, needle).toContain(needle);
     }
     expect(main.replaceAll(FULL, "")).not.toContain("免費");
     expect(main).not.toMatch(/起\s*[，。；]|\$\d+\s*起/);
-    expect(main).not.toMatch(/除臭|保證|一定洗得掉/);
+    expect(main).not.toMatch(/除霉|除臭|除味|殺菌|滅菌|另行報價|保證|一定洗得掉|洗得掉。/);
   });
 
   it("價格只出現官方價目表的四個棉被價，且首段直接回答", () => {

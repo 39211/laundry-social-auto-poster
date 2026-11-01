@@ -2,6 +2,7 @@
 
 import hashlib
 from contextlib import redirect_stderr
+from datetime import date, timedelta
 import io
 import json
 import os
@@ -26,6 +27,12 @@ EVENTS = {
 }
 MAIN_W44 = "conversions/source-to-order-2026-W44.json"
 MISSING_LINE = "來源→收件：尚無資料（exporter 未產出）"
+TIME_SAVED_ABSENT = "自動化省下的時間:本週還沒有資料"
+TIME_SAVED_SENTENCE = ("推測:用店主估的每則分鐘數 × bot 自動接的詢問數;只算店裡電腦白天的詢問,晚上 ai 電腦的"
+                       "詢問還沒有分類,不算;詢問數是『每位客人每天算一次』。")
+TIMEMATCH_ABSENT_LINE = "LINE 來源推測(隱形對時,非確定數字):本週尚無對時資料(店機時間軸或 GA4 每分鐘資料還沒到)"
+ANOMALY_HEADER = "| 異常 | 次數／筆數 | 最後一次時間 |"
+NOTIFY_DAYS = [(date(2026, 10, 26) + timedelta(days=i)).isoformat() for i in range(7)]
 
 
 def conv_row(code, inquiries, received=0, pending=0, unknown=0, i7_received=None, confirmed=0, cancelled=0):
@@ -285,7 +292,8 @@ class WeeklyReportTests(unittest.TestCase):
     def test_llm_is_a_reserved_switch_and_report_at_most_60_lines(self):
         report = self.report("--llm")
         self.assertIn("未呼叫 API", report)
-        self.assertIn("工時:見 B4 工時表", report)
+        # D21: 店主不填工時表,週報不能叫他去填
+        self.assertNotIn("工時表", report)
         self.assertLessEqual(len(report.splitlines()), 60)
         self.assertIn("下週建議三件事", report)
         self.assertEqual(sum(line.startswith(("1. ", "2. ", "3. ")) for line in report.splitlines()), 3)
@@ -462,6 +470,131 @@ class WeeklyReportTests(unittest.TestCase):
         self.assertNotIn("| 來源 | 點擊 | 對到", report)
         self.assertIn(MISSING_LINE, report)
         self.assertLessEqual(len(report.splitlines()), 60)
+
+    # ----- B4-1: time saved by automation (推測) -----
+
+    def baseline(self, lookup=2, quote=2):
+        self.write("time-baseline.json", {"schema": "time-baseline/v1", "source": "店主 2026-11-01 (D25)",
+                                          "minutes": {"lookup": lookup, "quote": quote},
+                                          "not_saved": ["arrival_notify", "daily_posts"]})
+
+    def notify(self, sent=3, skip=()):
+        for day in NOTIFY_DAYS:
+            if day not in skip:
+                self.write(f"gates/notify-{day}.json", {"date": day, "sent": sent, "wrong_sends": 0})
+
+    def intent_export(self):
+        """lookup 6+4 = 10, quote 3+1 = 4 over all rows, including the unknown-source row."""
+        rows = [conv_row("yt-a", 9, received=2), conv_row("unknown", 5, unknown=5)]
+        rows[0]["first_intent_counts"] = {"quote": 3, "lookup": 6, "pickup": 0, "other": 0}
+        rows[1]["first_intent_counts"] = {"quote": 1, "lookup": 4, "pickup": 0, "other": 0}
+        self.write(MAIN_W44, self.conversion(rows=rows))
+
+    def split_saved(self, report):
+        """(new section lines, every other line) for a report that has the section."""
+        lines = report.splitlines()
+        starts = [i for i, line in enumerate(lines) if line.startswith(("### 自動化省下的時間", "自動化省下的時間"))]
+        self.assertEqual(len(starts), 1, report)
+        start = starts[0] - 1 if lines[starts[0] - 1] == "" else starts[0]
+        end = lines.index(ANOMALY_HEADER) - 1
+        return lines[start:end], lines[:start] + lines[end:]
+
+    def test_time_saved_normal_week_arithmetic(self):
+        self.baseline()
+        self.notify()
+        self.intent_export()
+        report = self.report()
+        self.assertIn("查件 10 則 × 2 分 + 照片/報價 4 則 × 2 分 = 約 28 分鐘(0.5 小時)。", report)
+        self.assertIn(TIME_SAVED_SENTENCE, report)
+        self.assertIn("到店通知 21 則、每日圖文 3 篇:以前沒有做,不算省下時間,只列數量。", report)
+        self.assertNotIn(TIME_SAVED_ABSENT, report)
+        self.assertLessEqual(len(report.splitlines()), 60)
+        section, _ = self.split_saved(report)
+        self.assertIn("自動化省下的時間(推測)", "\n".join(section))
+
+    def test_time_saved_fit_degrades_without_losing_content(self):
+        self.baseline()
+        self.notify()
+        self.intent_export()
+        ns = runpy.run_path(str(SCRIPT))
+        reader = ns["Reader"]()
+        days = [date(2026, 10, 26) + timedelta(days=i) for i in range(7)]
+        view = ns["time_saved_view"](self.data, "2026-W44", days, ns["parse_time"](AS_OF), reader, 3)
+        calc = "約 28 分鐘(0.5 小時)"
+        for room, size in ((9, 5), (5, 5), (4, 4), (3, 3), (2, 2), (1, 1), (0, 0)):
+            with self.subTest(room=room):
+                out = ns["fit_time_saved"](view, room)
+                self.assertEqual(len(out), size)
+                if size >= 3:
+                    self.assertEqual(out[:2], ["", "### 自動化省下的時間(推測)"])
+                if size:
+                    text = "\n".join(out)
+                    self.assertIn(calc, text)
+                    self.assertIn(TIME_SAVED_SENTENCE, text)
+                    self.assertIn("到店通知 21 則", text)
+        self.assertIn(calc, view["short"])
+
+    def test_time_saved_missing_export_or_baseline_is_one_no_data_line(self):
+        self.baseline()
+        self.notify()
+        cases = (("missing-export", lambda: None),
+                 ("export-without-intents", lambda: self.write(MAIN_W44, self.conversion())),
+                 ("missing-baseline", lambda: ((self.data / "time-baseline.json").unlink(), self.intent_export())))
+        for name, prepare in cases:
+            with self.subTest(name=name):
+                prepare()
+                report = self.report()
+                section, _ = self.split_saved(report)
+                self.assertEqual(section, ["", TIME_SAVED_ABSENT])
+                self.assertNotIn("分鐘(", report)
+                self.assertNotIn("× 2 分", report)
+                self.assertNotIn("到店通知", report)
+
+    def test_time_saved_missing_notify_day_is_partial_never_zero(self):
+        self.baseline()
+        self.intent_export()
+        self.notify(skip=("2026-10-28",))
+        report = self.report()
+        self.assertIn("到店通知:部分日期沒有資料(已見 18 則)", report)
+        self.assertNotIn("到店通知 18 則", report)
+        self.assertNotIn("到店通知 0", report)
+        shutil.rmtree(self.data / "gates")
+        report = self.report()
+        self.assertIn("到店通知:本週沒有資料", report)
+        self.assertNotIn("已見 0 則", report)
+        self.assertNotIn("到店通知 0", report)
+        self.assertIn("約 28 分鐘(0.5 小時)", report)
+
+    def test_time_saved_minutes_come_from_baseline_file(self):
+        self.baseline(lookup=3, quote=3)
+        self.notify()
+        self.intent_export()
+        report = self.report()
+        self.assertIn("查件 10 則 × 3 分 + 照片/報價 4 則 × 3 分 = 約 42 分鐘(0.7 小時)。", report)
+        self.assertNotIn("28 分鐘", report)
+
+    def test_time_saved_leaves_existing_sections_unchanged(self):
+        # Fixture without any new file: only the one no-data line, right after the time-match line.
+        report = self.report()
+        lines = report.splitlines()
+        section, rest = self.split_saved(report)
+        self.assertEqual(section, ["", TIME_SAVED_ABSENT])
+        self.assertFalse(any("自動化" in line for line in rest))
+        index = lines.index(TIME_SAVED_ABSENT)
+        self.assertEqual(lines[index - 2], TIMEMATCH_ABSENT_LINE)
+        self.assertEqual(lines[index + 1:index + 3], ["", ANOMALY_HEADER])
+        self.assertIn(MISSING_LINE, rest)
+        self.assertLessEqual(len(lines), 60)
+        # Before/after adding the baseline and notify files: everything except the new lines is identical.
+        self.intent_export()
+        _, before = self.split_saved(self.report())
+        self.baseline()
+        self.notify()
+        after_report = self.report()
+        section, after = self.split_saved(after_report)
+        self.assertEqual(after, before)
+        self.assertIn("約 28 分鐘(0.5 小時)", "\n".join(section))
+        self.assertLessEqual(len(after_report.splitlines()), 60)
 
     def fingerprints(self):
         return {str(p.relative_to(self.root)): hashlib.sha256(p.read_bytes()).hexdigest()

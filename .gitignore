@@ -16,6 +16,7 @@ data/*
 !data/slot1-plan-ext.json
 !data/slot1-format-experiment.json
 !data/reference-photos/
+!data/time-baseline.json
 data/posted-log/
 *.log
 .DS_Store

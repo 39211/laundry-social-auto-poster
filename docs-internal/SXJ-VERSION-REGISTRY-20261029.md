@@ -356,3 +356,10 @@ Next steps:
 - **D25 (owner, 11/01 10:0x):** lookup 2 min, photo quote 2 min; arrival notices and daily posts were not done before -> counts only, not saved time.
 - **B4-1** release @ d6e7ed48 (feat 31bcbd1d), API Opus 5.5: weekly report section 「自動化省下的時間(推測)」 = shop export first_intent_counts x `data/time-baseline.json`; missing data -> one "no data" line, never 0. Removed the two lines that told the owner to fill a timesheet (D21). Tests 38 (6 new); mutations 6/6 red. W44 dry run shows "no data" (shop export not pulled yet), as expected.
 - **tsc fix** release @ ae479c7a: `test/ga4LineClickMinutes.test.ts` strict-index error; `tsc --noEmit` now 0 errors.
+
+## 11/01 12:50 addendum (Level-1 freshness retry, photo usage counts, test debt)
+
+- **A2-c** release @ b3af8767 (fix a1ca4995), API Opus 5.5 $1.12: `line-bot/pull_shop_mdb.ps1` retries REMOTE_UNAVAILABLE / SOURCE_CHANGED / SCP_FAILED_OR_TIMEOUT up to 3x, 20 s apart, all MDB remote steps end within 140 s (task kill PT4M). Live from the 13:00 run (the task runs the repo file). Tests 97/0 + 81/0; mutations 6/6 red. Real-run check moved to the 23:50 night check (a manual run against the shop was declined by the permission check).
+- **V1-3** release @ bf6f7bd3 (feat 8e8550a0), API $0.56: photo-model usage counts per day -> `data/vision-usage/<date>.json` (numbers only); CLI `python line-bot/photo_estimate.py usage`. Needs an ai bot restart (planned 23:50). Tests 14/14; test_estimate failure set unchanged; mutations 7/7 red.
+- **T-2** release @ c1e8fd85 (fix fb08904c): test_estimate uses `test-assets/prices-test-subset.json` (24 items it mentions) instead of the live eHank-aligned catalogue: 13 failures -> 53/53. Known gap: range_min_subtotal not covered there.
+- **Sweep 11/01:** line-bot 29 test files, 24 green; 5 need a `_sandbox_repo` harness or call a renamed function (pre-existing, task T-3).

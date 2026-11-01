@@ -632,6 +632,24 @@ except Exception as exc:
 }
 
 function Test-AiHandover {
+    # 11/01 00:17: the check ran at :47 and tunnel_manager's PUT landed at :48 -> false FAILED.
+    # Not-yet states (endpoint not switched, fresh event not written) are polled for up to ~60 s;
+    # anything else (e.g. a daytime PUT) fails on the first look as before.
+    param([hashtable]$Context)
+    $attempts = 12
+    for ($i = 1; $i -le $attempts; $i++) {
+        try { Test-AiHandoverOnce $Context; return }
+        catch {
+            $message = $_.Exception.Message
+            $retryable = $message -match 'does not equal the AI endpoint|event is missing|evidence is missing|not active'
+            if (-not $retryable -or $i -eq $attempts) { throw }
+            Write-AiDeployLog $Context ('HANDOVER not yet (attempt ' + $i + '/' + $attempts + '): ' + $message)
+            Start-Sleep -Seconds 5
+        }
+    }
+}
+
+function Test-AiHandoverOnce {
     param([hashtable]$Context)
     $state = Get-AiEndpointState $Context
     if ($state.active -ne $true) { throw 'LINE webhook is not active.' }

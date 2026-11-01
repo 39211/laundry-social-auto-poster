@@ -105,6 +105,106 @@ try {
     $code = Invoke-MdbPull -Destination $absent -LogPath (Join-Path $root 'first-install.jsonl')
     Assert-True ($code -eq 0 -and (Get-Item -LiteralPath $absent).Length -eq 11MB) 'first install via same-directory Move-Item'
 
+    # A2-c: transient failures are retried inside one scheduled run. Reuses the fake
+    # transport above; the injected Sleep records the delay and switches the fake to
+    # $script:nextMode between attempts, so nothing sleeps for real. The clock is fake.
+    $script:nextMode = 'good'; $script:sleeps = New-Object Collections.ArrayList
+    $script:clockCalls = 0; $script:clockValues = @(0)
+    $fakeClock = {
+        $index = [Math]::Min($script:clockCalls, $script:clockValues.Count - 1)
+        $script:clockCalls++
+        [double]$script:clockValues[$index]
+    }
+    function Invoke-RetryCase([string]$Name, [string]$FirstMode, [string]$NextMode, [double[]]$ClockValues = @(0),
+        [hashtable]$Options = @{}, [switch]$Locked) {
+        $script:mode = $FirstMode; $script:nextMode = $NextMode; $script:metadataCalls = 0
+        $script:calls = New-Object Collections.ArrayList; $script:sleeps = New-Object Collections.ArrayList
+        $script:clockCalls = 0; $script:clockValues = $ClockValues
+        $dir = Join-Path $root ('retry ' + $Name)
+        [void][IO.Directory]::CreateDirectory($dir)
+        $dest = Join-Path $dir 'eHank.mdb'
+        $caseLog = Join-Path $dir 'pull.jsonl'
+        $params = @{
+            Destination = $dest; LogPath = $caseLog; TimeoutSeconds = 60; GatesDir = (Join-Path $dir 'gates')
+            ShopRoot = 'C:/LaundryStores/fxwash'; ShopPython = 'python'; NotifyDates = @('2026-10-31', '2026-10-30')
+            Clock = $fakeClock
+            Sleep = { param($Seconds) [void]$script:sleeps.Add($Seconds); $script:mode = $script:nextMode; $script:metadataCalls = 0 }
+        }
+        foreach ($key in @($Options.Keys)) { $params[$key] = $Options[$key] }
+        $lock = $null
+        if ($Locked) {
+            [IO.File]::WriteAllText($dest, 'old-database')
+            $lock = [IO.File]::Open($dest, 'Open', 'ReadWrite', 'None')
+        }
+        try { $code = Invoke-ScheduledPull @params }
+        finally { if ($lock) { $lock.Dispose() } }
+        $entries = @([IO.File]::ReadAllLines($caseLog) | Where-Object { $_.Length -gt 0 } | ForEach-Object { $_ | ConvertFrom-Json })
+        $pulls = @($entries | Where-Object { $null -ne $_.PSObject.Properties['ts'] })
+        $notifyLines = @($entries | Where-Object { $null -ne $_.PSObject.Properties['notify_report'] })
+        $mdbCalls = @($script:calls | Where-Object { $_.arguments -notcontains '-n' })
+        $notifyAt = @(for ($i = 0; $i -lt $script:calls.Count; $i++) { if ($script:calls[$i].arguments -contains '-n') { $i } })
+        [pscustomobject]@{
+            Code = $code; Pulls = $pulls.Count
+            Results = (@($pulls | ForEach-Object { $_.result }) -join ',')
+            Exits = (@($pulls | ForEach-Object { $_.exit }) -join ',')
+            Sleeps = (@($script:sleeps) -join ','); MdbCalls = $mdbCalls; NotifyCalls = $notifyAt.Count
+            NotifyLast = ($notifyLines.Count -eq 1 -and $null -ne $entries[$entries.Count - 1].PSObject.Properties['notify_report'])
+            NotifyAfterLast = ($notifyAt.Count -eq 1 -and $notifyAt[0] -eq $script:calls.Count - 1)
+            NotifyStatus = $(if ($notifyLines.Count -gt 0) { [string]$notifyLines[0].notify_report } else { '' })
+            Destination = $dest
+        }
+    }
+
+    Assert-True ((Test-TransientPullResult 'REMOTE_UNAVAILABLE') -and (Test-TransientPullResult 'SOURCE_CHANGED') -and (Test-TransientPullResult 'SCP_FAILED_OR_TIMEOUT')) 'retry: the three transient results are retryable'
+    $nonTransient = @(@('LOCKED', 'INVALID_MDB', 'SCP_MISSING_FILE', 'LOCAL_OR_VALIDATION_ERROR', 'LOCAL_ERROR', 'DRY_RUN', 'REPLACED', 'UNCHANGED', '') |
+        Where-Object { Test-TransientPullResult $_ })
+    Assert-True ($nonTransient.Count -eq 0) 'retry: non-transient results and successes are never retryable'
+
+    $r = Invoke-RetryCase 'unreachable-then-good' 'unreachable' 'good'
+    Assert-True ($r.Code -eq 0 -and $r.Pulls -eq 2 -and $r.Results -ceq 'REMOTE_UNAVAILABLE,REPLACED' -and $r.Exits -ceq '3,0' -and $script:MdbPullLastResult -ceq 'REPLACED') "retry: REMOTE_UNAVAILABLE then REPLACED -> exit 0, 2 pull lines (got $($r.Results))"
+    Assert-True ($r.Sleeps -ceq '20') 'retry: one default 20 s delay through the injected sleep'
+    Assert-True ((Get-Item -LiteralPath $r.Destination).Length -eq 11MB) 'retry: attempt 2 installed the replacement'
+    Assert-True ($r.NotifyLast -and $r.NotifyAfterLast) 'retry: notify once after the last attempt (transient then success)'
+
+    $r = Invoke-RetryCase 'changed-then-good' 'changed' 'good'
+    Assert-True ($r.Code -eq 0 -and $r.Results -ceq 'SOURCE_CHANGED,REPLACED' -and $r.Exits -ceq '3,0') "retry: SOURCE_CHANGED then REPLACED -> exit 0 (got $($r.Results))"
+    Assert-True ($r.NotifyLast -and $r.NotifyAfterLast) 'retry: notify once after the last attempt (source changed)'
+
+    $r = Invoke-RetryCase 'scp-timeout-then-good' 'timeout' 'good'
+    Assert-True ($r.Code -eq 0 -and $r.Results -ceq 'SCP_FAILED_OR_TIMEOUT,REPLACED') "retry: SCP_FAILED_OR_TIMEOUT then REPLACED -> exit 0 (got $($r.Results))"
+
+    $r = Invoke-RetryCase 'always-unreachable' 'unreachable' 'unreachable'
+    Assert-True ($r.Code -eq 3 -and $r.Pulls -eq 3 -and $r.Results -ceq 'REMOTE_UNAVAILABLE,REMOTE_UNAVAILABLE,REMOTE_UNAVAILABLE' -and $r.Exits -ceq '3,3,3') "retry: always unreachable -> 3 attempts, exit 3, 3 pull lines (got $($r.Results))"
+    Assert-True ($r.Sleeps -ceq '20,20' -and $r.MdbCalls.Count -eq 3) 'retry: always unreachable -> exactly 3 MDB attempts and 2 delays'
+    Assert-True ($r.NotifyLast -and $r.NotifyAfterLast -and $r.NotifyStatus -ceq 'FAILED:ssh_exit_255') 'retry: notify once after the third attempt'
+
+    $r = Invoke-RetryCase 'zero-delay' 'unreachable' 'good' @(0) @{ RetryDelaySeconds = 0 }
+    Assert-True ($r.Code -eq 3 -and $r.Pulls -eq 3 -and $r.Sleeps -ceq '') 'retry: delay 0 never calls sleep, attempt bound still 3'
+
+    $r = Invoke-RetryCase 'invalid' 'invalid' 'good'
+    Assert-True ($r.Code -eq 1 -and $r.Pulls -eq 1 -and $r.Results -ceq 'INVALID_MDB' -and $r.Sleeps -ceq '') "retry: INVALID_MDB -> exactly 1 attempt (got $($r.Results))"
+    Assert-True ($r.NotifyLast -and $r.NotifyAfterLast) 'retry: notify once after a non-transient attempt'
+
+    $r = Invoke-RetryCase 'locked' 'locked' 'good' -Locked
+    Assert-True ($r.Code -eq 2 -and $r.Pulls -eq 1 -and $r.Results -ceq 'LOCKED' -and $r.Sleeps -ceq '') "retry: LOCKED -> exactly 1 attempt (got $($r.Results))"
+    Assert-True ([IO.File]::ReadAllText($r.Destination) -eq 'old-database') 'retry: LOCKED original unchanged'
+
+    # Fake clock values: [0] run start, [1] attempt 1 first step, then every later reading.
+    $r = Invoke-RetryCase 'budget-after-1' 'unreachable' 'good' @(0, 5, 100)
+    Assert-True ($r.Code -eq 3 -and $r.Pulls -eq 1 -and $r.Sleeps -ceq '' -and $r.MdbCalls[0].timeout -eq 60) 'retry: elapsed 100 s after attempt 1 -> no second attempt'
+    $r = Invoke-RetryCase 'budget-boundary' 'unreachable' 'unreachable' @(0, 5, 50)
+    Assert-True ($r.Pulls -eq 3 -and $r.Sleeps -ceq '20,20') 'retry: elapsed 50 s (50+20+70 = 140) still retries'
+    $r = Invoke-RetryCase 'budget-over' 'unreachable' 'good' @(0, 5, 51)
+    Assert-True ($r.Pulls -eq 1 -and $r.Sleeps -ceq '') 'retry: elapsed 51 s -> no second attempt'
+    $r = Invoke-RetryCase 'deadline-cap' 'unreachable' 'good' @(0, 100)
+    Assert-True ($r.Pulls -eq 1 -and $r.MdbCalls.Count -eq 1 -and $r.MdbCalls[0].timeout -eq 40) 'retry: step timeout capped at the 140 s pull deadline'
+    $r = Invoke-RetryCase 'deadline-passed' 'unreachable' 'good' @(0, 140)
+    Assert-True ($r.Code -eq 3 -and $r.Results -ceq 'REMOTE_UNAVAILABLE' -and $r.MdbCalls.Count -eq 0) 'retry: no MDB process started past the pull deadline'
+
+    $r = Invoke-RetryCase 'dryrun' 'unreachable' 'good' @(0) @{ DryRun = $true }
+    Assert-True ($r.Code -eq 3 -and $r.Pulls -eq 1 -and $r.Results -ceq 'REMOTE_UNAVAILABLE' -and $r.Sleeps -ceq '' -and $r.MdbCalls.Count -eq 1) 'retry: DryRun unreachable -> exactly 1 attempt'
+    Assert-True ($r.NotifyLast -and $r.NotifyStatus -ceq 'SKIPPED' -and $r.NotifyCalls -eq 0) 'retry: DryRun notify step once (SKIPPED, no ssh)'
+
     # Mock all scheduler cmdlets; verify the actual registration script's triggers.
     $global:A2bScheduleTimes = New-Object Collections.ArrayList
     $global:A2bRegistered = $null

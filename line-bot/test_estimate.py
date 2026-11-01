@@ -24,6 +24,8 @@ os.environ["LAUNDRY_LOOKUP_FIXTURE"] = "1"
 os.environ["LAUNDRY_PHOTO_ESTIMATE"] = "0"
 ROOT = Path(__file__).resolve().parent
 TEMP = Path(tempfile.mkdtemp(prefix="sxj-estimate-tests-")).resolve()
+# V1-3: photo-model usage counts go to the isolated temp dir, never to the repo's data/.
+os.environ["LAUNDRY_VISION_USAGE_DIR"] = str(TEMP / "vision-usage")
 _read_text = Path.read_text
 
 

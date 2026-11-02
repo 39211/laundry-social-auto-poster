@@ -65,6 +65,14 @@ export interface PostCurrentSlotOptions {
   verifyPublicImageUrl?: boolean;
   preflightOnly?: boolean;
   fetchImpl?: typeof fetch;
+  /**
+   * Base backoff between publish retries (attempt N waits N * this). Production
+   * leaves it unset and gets withRetry's 500 ms. Tests that deliberately drive a
+   * failing platform pass 0 so the suite does not sit through real sleeps: two
+   * platforms x (500 + 1000 ms) is ~3 s on a fast box and >5 s on a loaded
+   * Windows runner.
+   */
+  retryDelayMs?: number;
 }
 
 async function assertLocalImagesExist(slot: DailySlot, root: string): Promise<void> {
@@ -189,7 +197,8 @@ async function postPlatform(
   platform: Platform,
   input: PostInput,
   config: AppConfig,
-  fetchImpl: typeof fetch
+  fetchImpl: typeof fetch,
+  retryDelayMs?: number
 ): Promise<PostResult> {
   const publish = input.mediaType === "reel"
     ? platform === "facebook" ? postFacebookReel : postInstagramReel
@@ -200,7 +209,7 @@ async function postPlatform(
     : input.mediaType === "carousel"
       ? platform === "facebook" ? postFacebookCarousel : postInstagramCarousel
       : platform === "facebook" ? postFacebookPhoto : postInstagramPhoto;
-  const { value, attempts } = await withRetry(() => publish(input, config, fetchImpl), 3);
+  const { value, attempts } = await withRetry(() => publish(input, config, fetchImpl), 3, retryDelayMs);
   return { ...value, attempts };
 }
 
@@ -259,7 +268,8 @@ async function postOneSlot(
   fetchImpl: typeof fetch,
   preflightOnly = false,
   abVariant?: AbVariant,
-  now: Date = new Date()
+  now: Date = new Date(),
+  retryDelayMs?: number
 ): Promise<PostLogEntry[]> {
   // The brake comes before the publish window, the lock, and every other
   // check: whatever else is true, a paused line does not put anything in front
@@ -591,7 +601,7 @@ async function postOneSlot(
     }
 
     try {
-      const result = await postPlatform(platform, input, config, fetchImpl);
+      const result = await postPlatform(platform, input, config, fetchImpl, retryDelayMs);
       const entry = resultToLog(date, slot.slot, result, resolvedMedia, abVariant);
       await appendPostLog(entry, root);
       outputs.push(entry);
@@ -760,7 +770,8 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
         options.fetchImpl ?? fetch,
         options.preflightOnly,
         abVariant,
-        now
+        now,
+        options.retryDelayMs
       ))
     );
   }

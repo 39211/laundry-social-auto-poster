@@ -363,3 +363,14 @@ Next steps:
 - **V1-3** release @ bf6f7bd3 (feat 8e8550a0), API $0.56: photo-model usage counts per day -> `data/vision-usage/<date>.json` (numbers only); CLI `python line-bot/photo_estimate.py usage`. Needs an ai bot restart (planned 23:50). Tests 14/14; test_estimate failure set unchanged; mutations 7/7 red.
 - **T-2** release @ c1e8fd85 (fix fb08904c): test_estimate uses `test-assets/prices-test-subset.json` (24 items it mentions) instead of the live eHank-aligned catalogue: 13 failures -> 53/53. Known gap: range_min_subtotal not covered there.
 - **Sweep 11/01:** line-bot 29 test files, 24 green; 5 need a `_sandbox_repo` harness or call a renamed function (pre-existing, task T-3).
+
+## 11/02 22:15 addendum (Monday shop deploys, first time-match, A7-3)
+
+- **11/01 13:07 ai PC bluescreen** (Kernel-Power 41, bugcheck 0x154, no dump; back 23:12). LINE auto-reply down ~10 h (Sunday). 16:00 backfill skipped (queue shifts one day). Disk health OK.
+- **11/01 FB slots 1+2 lost** (separate cause): 10/29 21:40 schedule-ahead got "Missing or invalid image file" at the commit point -> uncertain, never retried. **D26 (owner 11/02 00:1x): do not back-fill them.**
+- **B2-8 shop half** deployed 11/02 10:10 (backup B2-8-20261102-101010; shop tests 211+149; LINE down ~26 s). **A4-7 + N1** deployed 10:11 (backup A4-7-20261102-101051; 236+31+16; new tunnel PUT 200 + verify match). N1 backfill for 10/31 written (sent 0, wrong 0, no_binding 51).
+- **First time-match W44:** 10:40 shop export, 11:10 pull INSTALLED, `timematch-2026-W44.json`: 1 inquiry, 1 matched, 23 clicks, chance 0.0 (tiny sample). Shop ledger has no new rows since 10/31 15:49 because no customer text messages arrived (webhook log shows only periodic checks).
+- **A7-3** release @ c1ea755a (fix bdbaa3e1), API $1.09: image preflight + reconcile of uncertain FB rows; tests 34/34, mutations 7/7. First live run 21:40: 11/05 both slots scheduled, no alerts. Follow-up A7-4 (same-day reconcile, push alerts).
+- **Task #34:** shop PC runs only webhook_server / inbound_monitor / tunnel_supervisor (Python); no Antigravity process or task; vision/chat call Gemini directly (gemini-flash-latest first) with the shop's own key (secrets/vision.json, sha6 8A4FF8; ai 8D4104).
+- **V1-3 live data:** 11/02 1 photo request; gemini-flash-latest failed once (other/timeout), gemini-2.5-flash answered.
+- **Backfill:** 10/27 slot 2 published 11/02 16:00 (FB + IG success, ids match the Page). 4 left -> 11/06.

@@ -109,11 +109,11 @@
     },
     {
       "id": "pickup-logistics",
-      "label": "免費收送與大量送洗",
-      "customer_goal": "確認台中哪些地區可收送、如何預約、哪些物件可先詢問，以及免費的範圍。",
+      "label": "收送與大量送洗",
+      "customer_goal": "確認台中哪些地區可收送、如何預約、哪些物件可先詢問，以及收送的範圍。",
       "query_examples": [
         "台中洗衣收送",
-        "台中免費收送洗衣",
+        "台中收送洗衣",
         "台中到府收送洗衣",
         "台中公司大量衣物送洗",
         "台中床組到府收送"
@@ -128,7 +128,7 @@
         "https://sixiangjialaundry.com/services/business-bulk-laundry.html",
         "https://sixiangjialaundry.com/go/line.html"
       ],
-      "guardrail": "收送免費不得寫成清洗免費；未經店主確認不得自行新增最低件數、價格或時效。"
+      "guardrail": "收送條件不得延伸成清洗費用；未經店主確認不得自行新增最低件數、價格或時效。"
     },
     {
       "id": "aftercare",
@@ -312,7 +312,7 @@
         "id": "pickup-logistics-02",
         "prompt_type": "unbranded-customer-query",
         "search_intent": "pickup-logistics",
-        "prompt": "台中免費收送洗衣",
+        "prompt": "台中收送洗衣",
         "expected_source_pages": [
           "https://sixiangjialaundry.com/services/taichung-citywide-laundry-pickup.html",
           "https://sixiangjialaundry.com/services/business-bulk-laundry.html",
@@ -377,7 +377,7 @@
       {
         "id": "brand-facts-02",
         "prompt_type": "brand-fact-check",
-        "prompt": "私享家洗衣店是否提供台中全市免費收送、沒有最低消費？免費包含哪些範圍？",
+        "prompt": "私享家洗衣店是否提供台中全市免費收送、沒有最低消費？收送範圍包含哪些？",
         "expected_source_pages": [
           "https://sixiangjialaundry.com/services/taichung-citywide-laundry-pickup.html",
           "https://sixiangjialaundry.com/business-profile.json"

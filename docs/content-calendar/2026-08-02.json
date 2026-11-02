@@ -93,8 +93,8 @@
       "topic": "包包最先變舊的地方，是提把",
       "format": "reel",
       "media_type": "reel",
-      "instagram_caption": "包包最先變舊的地方，是提把。\n\n私享家洗衣店\n\n那不是灰塵，是手汗一天一天堆起來的。等到摸起來發黏，就比較難救了。\n\n有類似狀況，先拍完整外觀和局部，直接私訊傳給我們，我們會先幫你看方向。\n\n哪一件是你最不敢自己動手處理的？\n\n身邊有人的包正在磨邊角嗎？這篇傳給他。\n\n#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #洗護日常",
-      "facebook_caption": "包包最先變舊的地方，是提把。\n\n私享家洗衣店\n\n那不是灰塵，是手汗一天一天堆起來的。等到摸起來發黏，就比較難救了。\n\n有類似狀況，可以先拍正面、近照、邊角或洗標，再傳 LINE 讓我們初步判斷。\n\n哪一件是你最不敢自己動手處理的？\n\n#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #洗護日常",
+      "instagram_caption": "包包最先變舊的地方，是提把。\n\n私享家洗衣店\n\n那不是灰塵，是手汗一天一天堆起來的。等到摸起來發黏，就比較難救了。\n\n有類似狀況，先拍完整外觀和局部，直接私訊傳給我們，我們會先幫你看方向。\n\n哪一件是你最不敢自己動手處理的？\n\n身邊有人的包正在磨邊角嗎？這篇傳給他。\n\n#私享家洗衣店 #台中西屯洗衣店 #台中收送 #洗護日常",
+      "facebook_caption": "包包最先變舊的地方，是提把。\n\n私享家洗衣店\n\n那不是灰塵，是手汗一天一天堆起來的。等到摸起來發黏，就比較難救了。\n\n有類似狀況，可以先拍正面、近照、邊角或洗標，再傳 LINE 讓我們初步判斷。\n\n哪一件是你最不敢自己動手處理的？\n\n#私享家洗衣店 #台中西屯洗衣店 #台中收送 #洗護日常",
       "image_prompt": "Reel cover still: one everyday unbranded handbag, the handle darkened and slightly glossy where it is gripped",
       "video_prompt": "Animate the supplied image while preserving its exact composition, object placement, materials, surface wear, lighting direction and colour temperature. One restrained continuous action only: an extremely gentle push-in with slight natural handheld shake, as if held by a person. Keep every object in its original position and its original condition. Do not clean, repair, alter or transform the object. Do not add or remove anything. No hands in close-up and no finger detail. Do not add people, readable text, captions, logos, dialogue or music. No morphing, warping, flicker, jump cuts, sudden motion or collapsing geometry. Audio near-silent with only faint room tone. Natural restrained motion, stable first and final frames. Duration: 5 seconds. Aspect ratio: 9:16. Resolution: 720p.",
       "visual_route": "shop-inspection",
@@ -107,7 +107,7 @@
       "search_intent": "pickup-logistics",
       "target_queries": [
         "台中洗衣收送",
-        "台中免費收送洗衣",
+        "台中收送洗衣",
         "台中寢具送洗"
       ],
       "evidence_type": "pickup-logistics",

@@ -131,110 +131,110 @@ export const PROTECTED_LIVE_COHORT_SLUGS = [
 ] as const;
 
 export const PROTECTED_LIVE_COHORT_HASHES: Record<(typeof PROTECTED_LIVE_COHORT_SLUGS)[number], string> = {
-  "luggage-wheel-cleaning": "d0c13debf21d1087db91ea7b12d1e7ff336f4d302e7925c27ceffd6d5d1c0905",
-  "curtain-cleaning": "20fff04cbca946d659f10ff633360cde67abe56392bcd143641db9b86d1d405b",
-  "carpet-cleaning": "44b570616fee285c8fad2401153e94ad5bd2c7f7679477623659f808c7507863",
-  "fengjia-laundry-pickup": "7c5e06aa9869c82bc30e220f03e0a20d349ee0114e72b40a213738f413027fb7",
-  "zhongke-office-laundry": "dc0511c1cacb7897aa11546b1be12a5bf90a9609e52c8f239c7052728175009b",
-  "donghai-laundry-pickup": "ba13d23c3ed46dd3bac7983c3a9b6bbf422e49f0e7faaa381654d6cb8970ca46"
+  "luggage-wheel-cleaning": "87f8e9ed635663652cb16ade04307c6f9cf7cb2dee605bfbc2cb8c3d79c67eff",
+  "curtain-cleaning": "8d409b95be48fe967ee4c1b95c883a88770c8b4ff66714606ba6261e2bd49b65",
+  "carpet-cleaning": "6b47f3dedf28dbffd329acdfedab496df970099512a53a90e55797c8ea138e25",
+  "fengjia-laundry-pickup": "b6729d420d3e453c5319383b51b7efe2cccc72b9824dcef46fd4bffdbc5aeb5b",
+  "zhongke-office-laundry": "51a37e05965667d57966483ee46cbc0e321b6525c7ada34bebd9f583236f6624",
+  "donghai-laundry-pickup": "bdf7bb62145af9c27ab18c8ee981a4ed50cd4a9c2ab6f1a8647d71d464ddc879"
 };
 
 export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLock> = {
   "suede-shoe-cleaning": {
     content_revision: "2026-08-30#1",
-    body_hash: "d8e6beec999909c778ed5a4ffc456b78bba9a8c49bbe906d8e150ceaa2cec1ab"
+    body_hash: "49462e6a84c1232d1501a7c99c1bb3431f01fae1e48b5c80995cca76888f6a45"
   },
   "canvas-shoe-mud": {
     content_revision: "2026-08-30#1",
-    body_hash: "0dd63c4ef5df06e012f1280742d70085d7739ebb3c3140296d7f5b4f2f348343"
+    body_hash: "7f940046dd8106920ffd4a4888415691ea4bab540e2060fe003c47e6fbbb3c3d"
   },
   "leather-shoe-water-marks": {
     content_revision: "2026-08-30#1",
-    body_hash: "e5000287b1449c3fc010f8fdff4dcfde87cf3718c5366a16dff24f5cd648f215"
+    body_hash: "e9529a1ec9ac55e1fc06759e7920f31b4343016a2725af339ce66e2902262832"
   },
   "shoe-odor-source": {
     content_revision: "2026-08-30#1",
-    body_hash: "f63621b9d70217dfa598461b28167c44cf24b9090dd00522be5dc7cc5c8cfb5d"
+    body_hash: "a1987d4c0ca1e00db66ff6aa811dc6bcd7e4c3795705947d5bd699fe3ecf3aa4"
   },
   "washing-machine-shoe-risk": {
     content_revision: "2026-08-30#1",
-    body_hash: "738debaa0bf0d7709665e8bb6bfcaecdbb9d814eb5b33db64651a137ca305674"
+    body_hash: "bc586fe093177a3a94f70c6cde6e027ec4cb18ee894dae06614144a5e2cddab6"
   },
   "athletic-shoe-mixed-materials": {
     content_revision: "2026-08-30#1",
-    body_hash: "c77a44ea1fc2c27816ae1b6d0e279e573376125ed1efcba2a13a01323d50f03a"
+    body_hash: "7dd4181531d7f40e41dc7abf1a1b026055cb34a3f1c4751502b409a2f60cd12c"
   },
   "shoe-mold-surface-check": {
     content_revision: "2026-08-30#1",
-    body_hash: "1f2b991678d80fef53e0c74e03169df974708fef8ea1d88747febdc35cc9551d"
+    body_hash: "abb8a6b2778dd5f2bc9566b3b933753edec506a325dc82a91943766dd7a34ccc"
   },
   "shoe-sole-separation-limit": {
     content_revision: "2026-08-30#1",
-    body_hash: "db65b727ab12d4d07e3d8b094425f635dbefe0b9605bfc3b303373c264f19eb4"
+    body_hash: "303519d09110bcb6a7bbf172e9a496baf14cfd70a9956c1960202e7334d59c93"
   },
   "bag-color-transfer": {
     content_revision: "2026-08-30#1",
-    body_hash: "83735a82b3eff8d6b2e5533c5f62e82f5f39011bf16d0c12aed25157ef4950ec"
+    body_hash: "1a75aa2b5870902746c52c3f0543c66935fa7b03965785680658cfea2a22e5ec"
   },
   "bag-ink-marks": {
     content_revision: "2026-08-30#1",
-    body_hash: "de1868133776e037f171ea3ec01b9f49e386ab0d0c0b787a345c2e24b9e11db0"
+    body_hash: "90ad7ef1ae74231f7061726111670236dc1d1c1fa666cfd6cadf7f16bacfa552"
   },
   "bag-lining-care": {
     content_revision: "2026-08-30#1",
-    body_hash: "6dda38471538c5004ab48b8afb9fff36f018db4d75015cff162cb3b551de8130"
+    body_hash: "02c46d565df813793c8e9906733e322c9e9a932a80b3c486dde94394e5b97424"
   },
   "nylon-bag-care": {
     content_revision: "2026-08-30#1",
-    body_hash: "b16df670999449d4a6f46150a9aad55fd2b35db00c3791a346bc1cb146ae9a03"
+    body_hash: "e8a58a8a29bb71a8b163ddd1ffe7934f970e73d4d17c55d49776b1a5209e9f39"
   },
   "canvas-bag-care": {
     content_revision: "2026-08-30#1",
-    body_hash: "913903d6418ead4fcabdbcf613bd982426dfdc4562dc01b0ceeff5a1627ab651"
+    body_hash: "fe5a0712c4f93af89d82c4f28bf8aeccdd75797e77fbfc8b5fd97df1329a293e"
   },
   "backpack-cleaning-check": {
     content_revision: "2026-08-30#1",
-    body_hash: "0419de882651c6ede97a2027a5151298b854ab1779ef27edbbb4515b3bfc4a5d"
+    body_hash: "132cdfc188b7e4a9409359bde9ada38e24c968b8b9a2ba95004f792e2009fba1"
   },
   "bag-clean-vs-repair": {
     content_revision: "2026-08-30#1",
-    body_hash: "da5d477c0d48cf888f9dd68bfbe2347c0ff9a3db4dc9ea68f2a42b4d419195f7"
+    body_hash: "cffa4ec200b6c050787c3e4a7581150db246b3e3f720e82d0bd00438065926ca"
   },
   "wool-coat-dry-clean": {
     content_revision: "2026-08-30#1",
-    body_hash: "779195fdf4dbf040dfb2374a90338410fbe918777d3f14d1a6fb369968b746d7"
+    body_hash: "f5fc43e534b09ce5eebe3dc17954e60b2b7e4e7b9d2f36bf2813496e81ccf472"
   },
   "wool-knit-shrink-risk": {
     content_revision: "2026-08-30#1",
-    body_hash: "fe8e115ad0670a3261dff5ec45b8de358267716175682980c0aadca4f5d705c5"
+    body_hash: "839f0039e18b42fc8b809702972ae1bf9b1e8b336f05891e573155bda6d16c21"
   },
   "clothing-mold-airing": {
     content_revision: "2026-08-30#1",
-    body_hash: "785cfcf9bbe59b52e48468dbf12e3325ecab8e528ab6b2a7b6cb8963ca28410e"
+    body_hash: "3ef8a1e18ee76dcf0d911eb09ec054cb60d4d4b2e2a4fe5c6bbe355f03198599"
   },
   "vacuum-bag-storage-risk": {
     content_revision: "2026-08-30#1",
-    body_hash: "f4cae2e884d3b39a6486cdab917176c400878aa49cc35e360159464943b366e0"
+    body_hash: "8ebf7bbbd02979da6226a754ee9748b3f50b272058b830a756e46bc875c6b1ae"
   },
   "oil-vs-water-stain-choice": {
     content_revision: "2026-08-30#1",
-    body_hash: "4748481f4fc5f9554255afd4a3f7f0ca0c11ae4b69fc0c2effa563eb62c5adfa"
+    body_hash: "69eaf35f97d47943418b1377e95d9808ce0f80c497173c10da378c754b86f299"
   },
   "blanket-damp-check": {
     content_revision: "2026-08-30#1",
-    body_hash: "1fe873dfc9aec3fb5f0871a4b425e55f883f16f3825de4601c40bd7933355d00"
+    body_hash: "36b6f114f4373f1d21154b1b469e743d01f86bb104fc5672ae1fc64171dd1b8a"
   },
   "post-wash-drying-before-storage": {
     content_revision: "2026-08-30#1",
-    body_hash: "21bd717633a6aaab77d39e932e97db0fe4b41b9de2c867a71519ddc6669925dd"
+    body_hash: "d4c17a293214bb741d258b00e03e03a46bb283d8013c63e7f648911086071026"
   },
   "synthetic-vs-leather-handle": {
     content_revision: "2026-08-30#1",
-    body_hash: "25518feb653302d92ff1d43daae9e1b03a9a693bdecf6b26499b8a035fd900b0"
+    body_hash: "1b257cbde4cb71a071373173accc531851a19e148b6405230708be0f62a9400f"
   },
   "rainy-bag-care": {
     content_revision: "2026-08-30#1",
-    body_hash: "c7f76465c979ae13c3c4fdaf8db847ba3b278d3311da13cd31ea1bea9bb5ed3a"
+    body_hash: "6c546dd4ff6424e3f0518bdb5caa05732e0b39cc7c1a340ebca4944ed6148022"
   }
 };
 
@@ -1443,7 +1443,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍鞋面、發亮近照、鞋側與整體，用 LINE 傳給門市並說明是否淋雨或自行擦過。對應服務是鞋包清潔頁；台中市可約免費收送，清潔費另依物件判斷。本頁不報固定價。帆布濕泥的等乾判斷見帆布鞋指南，不要用同一套水洗想像處理麂皮。"
+          "拍鞋面、發亮近照、鞋側與整體，用 LINE 傳給門市並說明是否淋雨或自行擦過。對應服務是鞋包清潔頁；台中市可約到府收送，清潔費另依物件判斷。本頁不報固定價。帆布濕泥的等乾判斷見帆布鞋指南，不要用同一套水洗想像處理麂皮。"
       }
     ],
     faqs: [
@@ -1497,7 +1497,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "等表面不滴水後，拍整體、織紋近照、鞋底邊與鞋內。對應鞋包清潔頁，白鞋灰與黃另看白鞋泛黃指南。台中市可約免費收送；本頁不列金額，費用依實際檢視。不要為了趕收納把濕帆布塞進塑膠袋。"
+          "等表面不滴水後，拍整體、織紋近照、鞋底邊與鞋內。對應鞋包清潔頁，白鞋灰與黃另看白鞋泛黃指南。台中市可約到府收送；本頁不列金額，費用依實際檢視。不要為了趕收納把濕帆布塞進塑膠袋。"
       }
     ],
     faqs: [
@@ -1551,7 +1551,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍鞋面水圈、側邊、鞋內與整體，說明淋雨時間和有沒有上油。對應鞋包清潔頁；台中市可約免費收送。本頁不報皮鞋固定價。若同時有膠邊氧化，那是另一個問題，不要以為擦油能一併解決。"
+          "拍鞋面水圈、側邊、鞋內與整體，說明淋雨時間和有沒有上油。對應鞋包清潔頁；台中市可約到府收送。本頁不報皮鞋固定價。若同時有膠邊氧化，那是另一個問題，不要以為擦油能一併解決。"
       }
     ],
     faqs: [
@@ -1605,7 +1605,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍鞋內、鞋墊正反面與整體，並用一句話說明味道何時出現。對應鞋包清潔頁。台中市可約免費收送。本頁不承諾除臭天數或保證無味。若你打算整雙丟洗衣機，先看機洗風險頁。"
+          "拍鞋內、鞋墊正反面與整體，並用一句話說明味道何時出現。對應鞋包清潔頁。台中市可約到府收送。本頁不承諾除臭天數或保證無味。若你打算整雙丟洗衣機，先看機洗風險頁。"
       }
     ],
     faqs: [
@@ -1659,7 +1659,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "若還沒丟進洗衣機，保持原狀拍照。若已經機洗過，拍變形、開膠與掉色位置，讓門市先說能維持什麼。對應鞋包清潔頁；混合材質運動鞋另看材質分部位頁。台中市可約免費收送。本頁不列價、不保證機洗後能修復。"
+          "若還沒丟進洗衣機，保持原狀拍照。若已經機洗過，拍變形、開膠與掉色位置，讓門市先說能維持什麼。對應鞋包清潔頁；混合材質運動鞋另看材質分部位頁。台中市可約到府收送。本頁不列價、不保證機洗後能修復。"
       }
     ],
     faqs: [
@@ -1713,7 +1713,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍鞋面、膠邊、鞋內與整體四張，並指出最在意的是網布、膠還是味道。對應鞋包清潔頁；全白再對白鞋清潔。台中市可約免費收送。本頁不寫固定價，避免把品名價當成這雙鞋的報價。"
+          "拍鞋面、膠邊、鞋內與整體四張，並指出最在意的是網布、膠還是味道。對應鞋包清潔頁；全白再對白鞋清潔。台中市可約到府收送。本頁不寫固定價，避免把品名價當成這雙鞋的報價。"
       }
     ],
     faqs: [
@@ -1767,7 +1767,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍外觀、發霉近照、鞋內與鞋墊背面，說明放在哪裡多久。對應鞋包清潔頁。台中市可約免費收送。本頁不報發霉加價數字；特殊污況要看過物件。處理完也不要用塑膠袋立刻密封。"
+          "拍外觀、發霉近照、鞋內與鞋墊背面，說明放在哪裡多久。對應鞋包清潔頁。台中市可約到府收送。本頁不報發霉加價數字；特殊污況要看過物件。處理完也不要用塑膠袋立刻密封。"
       }
     ],
     faqs: [
@@ -1821,7 +1821,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍張開縫的近照、鞋底、鞋面與整體，說明是否進水或機洗過。對應鞋包清潔頁，目的是先取得誠實界線，不是先假設能修好。台中市可約免費收送。若只是膠邊灰，走運動鞋分部位或白鞋泛黃，不要用開膠頁硬套。"
+          "拍張開縫的近照、鞋底、鞋面與整體，說明是否進水或機洗過。對應鞋包清潔頁，目的是先取得誠實界線，不是先假設能修好。台中市可約到府收送。若只是膠邊灰，走運動鞋分部位或白鞋泛黃，不要用開膠頁硬套。"
       }
     ],
     faqs: [
@@ -1875,7 +1875,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍整包、色塊近照、摩擦位置與可能的來源衣物。對應鞋包清潔頁；若問題其實是邊油磨穿，走提把包角頁。台中市可約免費收送。本頁不報補色價，避免把清潔和修復混成一個數字。"
+          "拍整包、色塊近照、摩擦位置與可能的來源衣物。對應鞋包清潔頁；若問題其實是邊油磨穿，走提把包角頁。台中市可約到府收送。本頁不報補色價，避免把清潔和修復混成一個數字。"
       }
     ],
     faqs: [
@@ -1929,7 +1929,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍內裡筆痕、周圍內袋、外層對應位置與整包。對應鞋包清潔頁。內裡若同時有味道，另看內裡粉塵與味道頁。台中市可約免費收送。本頁不列去墨價，也不把去墨當成一定無痕的服務承諾。"
+          "拍內裡筆痕、周圍內袋、外層對應位置與整包。對應鞋包清潔頁。內裡若同時有味道，另看內裡粉塵與味道頁。台中市可約到府收送。本頁不列去墨價，也不把去墨當成一定無痕的服務承諾。"
       }
     ],
     faqs: [
@@ -1983,7 +1983,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍打開的主袋、內底、夾層與整包外觀。對應鞋包清潔頁。若主因是雨後包角，走雨後包包頁。台中市可約免費收送。本頁不報內裡單獨價，因為內袋結構差很多，要看過才能說範圍。"
+          "拍打開的主袋、內底、夾層與整包外觀。對應鞋包清潔頁。若主因是雨後包角，走雨後包包頁。台中市可約到府收送。本頁不報內裡單獨價，因為內袋結構差很多，要看過才能說範圍。"
       }
     ],
     faqs: [
@@ -2037,7 +2037,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍包身、提把油膜、底部與內裡。對應鞋包清潔頁。台中市可約免費收送。本頁不引用包類價目數字；品名是一般包還是背包，要對過物件再看價目表，避免把參考價當成這顆包的報價。"
+          "拍包身、提把油膜、底部與內裡。對應鞋包清潔頁。台中市可約到府收送。本頁不引用包類價目數字；品名是一般包還是背包，要對過物件再看價目表，避免把參考價當成這顆包的報價。"
       }
     ],
     faqs: [
@@ -2091,7 +2091,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍整包、四角、織紋近照與內底。對應鞋包清潔頁。台中市可約免費收送。本頁不報一般包金額；先對材質與磨耗，再決定要不要看價目表，避免把包角磨損當成可以洗掉的髒。"
+          "拍整包、四角、織紋近照與內底。對應鞋包清潔頁。台中市可約到府收送。本頁不報一般包金額；先對材質與磨耗，再決定要不要看價目表，避免把包角磨損當成可以洗掉的髒。"
       }
     ],
     faqs: [
@@ -2145,7 +2145,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍整包背面、底部、肩帶近照與打開的內袋。對應鞋包清潔頁；若同時送制服，制服走自己的指南。台中市可約免費收送。本頁不寫背包固定價，避免和實際結構落差。"
+          "拍整包背面、底部、肩帶近照與打開的內袋。對應鞋包清潔頁；若同時送制服，制服走自己的指南。台中市可約到府收送。本頁不寫背包固定價，避免和實際結構落差。"
       }
     ],
     faqs: [
@@ -2199,7 +2199,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍整包、最在意位置近照，並寫下你要的是去髒還是補色。對應鞋包清潔頁；查參考價請走價目表頁，不要在指南頁找保證數字。台中市可約免費收送。目標講清楚，門市才不會用清潔結果去回答修復期待。"
+          "拍整包、最在意位置近照，並寫下你要的是去髒還是補色。對應鞋包清潔頁；查參考價請走價目表頁，不要在指南頁找保證數字。台中市可約到府收送。目標講清楚，門市才不會用清潔結果去回答修復期待。"
       }
     ],
     faqs: [
@@ -2253,7 +2253,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應西屯洗衣",
         body:
-          "拍洗標、整件、領口袖口與最在意的油光。對應台中西屯洗衣店頁；決策背景見乾洗指南。台中市可約免費收送。查參考價請看價目表頁，本頁不重列數字，也不把乾洗理解成一定能恢復原尺寸。"
+          "拍洗標、整件、領口袖口與最在意的油光。對應台中西屯洗衣店頁；決策背景見乾洗指南。台中市可約到府收送。查參考價請看價目表頁，本頁不重列數字，也不把乾洗理解成一定能恢復原尺寸。"
       }
     ],
     faqs: [
@@ -2307,7 +2307,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應西屯洗衣",
         body:
-          "拍洗標、平放的整件、領口與起毬位置。對應台中西屯洗衣店頁。台中市可約免費收送。公開價目有毛衣品項，本頁不重寫數字，避免把品名價當成這件已縮絨毛衣的結果。"
+          "拍洗標、平放的整件、領口與起毬位置。對應台中西屯洗衣店頁。台中市可約到府收送。公開價目有毛衣品項，本頁不重寫數字，避免把品名價當成這件已縮絨毛衣的結果。"
       }
     ],
     faqs: [
@@ -2365,7 +2365,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應布品收納",
         body:
-          "拍整件、斑點近照、洗標與收納環境。對應布品收納頁；若是寢具，另看收納檢查或棉被清洗頁。台中市可約免費收送。處理後仍要乾燥再收，否則會再發。本頁不寫發霉加價，特殊污況要看過物件。"
+          "拍整件、斑點近照、洗標與收納環境。對應布品收納頁；若是寢具，另看收納檢查或棉被清洗頁。台中市可約到府收送。處理後仍要乾燥再收，否則會再發。本頁不寫發霉加價，特殊污況要看過物件。"
       }
     ],
     faqs: [
@@ -2419,7 +2419,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應布品收納",
         body:
-          "若已經壓出味道，拍打開當下的布品、袋子內側與洗標。對應布品收納頁。台中市可約免費收送。本頁不討論真空袋品牌，只討論乾燥這個前提；袋子本身不能代替清潔或除霉。"
+          "若已經壓出味道，拍打開當下的布品、袋子內側與洗標。對應布品收納頁。台中市可約到府收送。本頁不討論真空袋品牌，只討論乾燥這個前提；袋子本身不能代替清潔或除霉。"
       }
     ],
     faqs: [
@@ -2473,7 +2473,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應西屯洗衣",
         body:
-          "拍整體、污漬近照、洗標，並說明是油、汗還是不知道。對應台中西屯洗衣店頁。台中市可約免費收送。價目表把水洗參考價與乾洗另計分開，本頁不重列數字。"
+          "拍整體、污漬近照、洗標，並說明是油、汗還是不知道。對應台中西屯洗衣店頁。台中市可約到府收送。價目表把水洗參考價與乾洗另計分開，本頁不重列數字。"
       }
     ],
     faqs: [
@@ -2527,7 +2527,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應布品收納",
         body:
-          "拍整張、摺線、邊角與洗標。對應布品收納頁。體積仍可約台中市免費收送。若其實是帶填充的棉被，改走棉被清洗頁，不要用毯子頁硬套填充問題。本頁也不報未在公開價目表列出的毯子固定價。"
+          "拍整張、摺線、邊角與洗標。對應布品收納頁。體積仍可約台中市收送。若其實是帶填充的棉被，改走棉被清洗頁，不要用毯子頁硬套填充問題。本頁也不報未在公開價目表列出的毯子固定價。"
       }
     ],
     faqs: [
@@ -2581,7 +2581,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應布品收納",
         body:
-          "若你問的是收納前要不要洗，走寢具收納檢查；若問洗完怎麼收，用本頁。對應布品收納頁。台中市可約免費收送。本頁不承諾乾燥時數，因為厚度與天氣都會變。"
+          "若你問的是收納前要不要洗，走寢具收納檢查；若問洗完怎麼收，用本頁。對應布品收納頁。台中市可約到府收送。本頁不承諾乾燥時數，因為厚度與天氣都會變。"
       }
     ],
     faqs: [
@@ -2635,7 +2635,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍提把近照、起皮處、包身材質與整包。對應鞋包清潔頁。台中市可約免費收送。本頁不報皮包價，避免把合成皮提把當成名牌皮的修復承諾，也不把脫皮膜當成可以洗回去的髒。"
+          "拍提把近照、起皮處、包身材質與整包。對應鞋包清潔頁。台中市可約到府收送。本頁不報皮包價，避免把合成皮提把當成名牌皮的修復承諾，也不把脫皮膜當成可以洗回去的髒。"
       }
     ],
     faqs: [
@@ -2689,7 +2689,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應鞋包清潔",
         body:
-          "拍整包、四角、打開的內底與是否已上油。對應鞋包清潔頁。鞋子若也淋雨，鞋走雨天鞋子頁，包走本頁，分開拍。台中市可約免費收送。本頁不列包類價，也不把防塵袋當成淋雨後的收納解法。"
+          "拍整包、四角、打開的內底與是否已上油。對應鞋包清潔頁。鞋子若也淋雨，鞋走雨天鞋子頁，包走本頁，分開拍。台中市可約到府收送。本頁不列包類價，也不把防塵袋當成淋雨後的收納解法。"
       }
     ],
     faqs: [

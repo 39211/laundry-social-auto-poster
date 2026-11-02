@@ -113,14 +113,14 @@ function reelActionCta(concept: ReelConcept, platform: "instagram" | "facebook")
   }
 }
 
-const FOLLOW_LINE = "私享家洗衣店｜台中市區免費到府收送";
+const FOLLOW_LINE = "私享家洗衣店｜台中市區到府收送";
 
 export function captionsFor(
   concept: ReelConcept,
   airedBefore: number,
   date: string
 ): { instagram: string; facebook: string } {
-  const hashtags = ["#私享家洗衣店", "#台中西屯洗衣店", "#台中免費收送", "#洗護日常"].join(" ");
+  const hashtags = ["#私享家洗衣店", "#台中西屯洗衣店", "#台中收送", "#洗護日常"].join(" ");
   // Block 2 is the observation (narration), never the bare shop name — Instagram
   // folds there. Brand lives on the follow line with the free-pickup offer.
   //

@@ -77,7 +77,7 @@ TOPICS = {
         ],
         "foot": "越用力刷,布面越起毛,只會更舊。分不出來先別動它。",
         "cta": "拍一張,我告訴你是哪一種",
-        "price": lambda: "運動鞋 {一般運動鞋}・皮鞋 {皮鞋}・名牌鞋 {名牌鞋} 起｜台中免費到府收送".format(**PRICES["鞋子"]),
+        "price": lambda: "運動鞋 {一般運動鞋}・皮鞋 {皮鞋}・名牌鞋 {名牌鞋} 起｜台中到府收送".format(**PRICES["鞋子"]),
     },
     "luxury-bag": {
         "pair": (f"{REF}/bag-corner-before.png", f"{REF}/bag-corner-after.png"),
@@ -109,7 +109,7 @@ TOPICS = {
         # The hook is a smell, but a smell cannot be sent in a photo. The ask has
         # to land on the two rows that *are* visible -- the clumping and the spots.
         "cta": "拍一張,我告訴你要不要洗",
-        "price": lambda: "單人 {棉被單人}・雙人 {棉被雙人}・羽絨被 {羽絨被}・羊毛被 {羊毛被}｜台中免費到府收送".format(**PRICES["寢具"]),
+        "price": lambda: "單人 {棉被單人}・雙人 {棉被雙人}・羽絨被 {羽絨被}・羊毛被 {羊毛被}｜台中到府收送".format(**PRICES["寢具"]),
     },
 }
 

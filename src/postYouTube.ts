@@ -131,7 +131,7 @@ export function buildShortMetadata(input: { topic: string; caption: string; date
   // in title or description is what routes the upload into the Shorts shelf.
   // The geo suffix is what YouTube/Google video search matches for "台中洗鞋"
   // queries — the bare hook alone carries no locality at all.
-  const geoSuffix = /[鞋包靴]/.test(input.topic) ? "台中洗鞋洗包 免費收送" : "台中洗衣店 免費收送";
+  const geoSuffix = /[鞋包靴]/.test(input.topic) ? "台中洗鞋洗包 收送" : "台中洗衣店 收送";
   const title = `${input.topic}`.slice(0, 70) + `｜${geoSuffix} #Shorts`;
   // AI answer engines quote YouTube descriptions, so the first line has to
   // stand alone as a fact rather than continue the video, and the link has to
@@ -146,7 +146,7 @@ export function buildShortMetadata(input: { topic: string; caption: string; date
   // piece of content (iprinter pattern: reel <-> article share one headline).
   const articleUrl = `${SITE}/posts/${input.date}-slot-${String(input.slot ?? 2).padStart(2, "0")}.html`;
   const description = [
-    `台中西屯的私享家洗衣店在處理${topicObject(input.topic)}時的判斷方式;台中市全區免費到府收送,清潔費另依物件判斷。`,
+    `台中西屯的私享家洗衣店在處理${topicObject(input.topic)}時的判斷方式;台中全市免費收送、沒有最低消費,清潔費另依物件判斷。`,
     `這則紀錄的完整文章:${utmTagged(articleUrl, tracking)}`,
     input.caption.split("\n\n").slice(0, 3).join("\n\n"),
     priceLineFor(input.topic),

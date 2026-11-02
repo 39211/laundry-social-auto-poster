@@ -283,4 +283,10 @@ describe("Taichung free pickup-delivery campaign", () => {
       });
     }
   });
+
+  it("campaign page has exactly one h1", async () => {
+    const html = await readFile(join(process.cwd(), "seo-overrides/campaign/index.html"), "utf8");
+    expect(html.match(/<h1[\s>]/gi) ?? []).toHaveLength(1);
+    expect(html.match(/<\/h1>/gi) ?? []).toHaveLength(1);
+  });
 });

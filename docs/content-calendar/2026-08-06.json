@@ -94,8 +94,8 @@
       "topic": "帆布鞋沾泥，越用力刷越糟",
       "format": "reel",
       "media_type": "reel",
-      "instagram_caption": "帆布鞋沾泥，越用力刷越糟。\n\n私享家洗衣店\n\n濕的時候刷，泥會被推進織紋裡，布面也會起毛。等乾了再處理反而好救。\n\n有類似狀況，先拍完整外觀和局部，直接私訊傳給我們，我們會先幫你看方向。\n\n如果只能先救一樣，你會選鞋子還是包包？\n\n認識那種鞋子捨不得丟、又不知道怎麼救的人嗎？傳給他。\n\n#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #洗護日常",
-      "facebook_caption": "帆布鞋沾泥，越用力刷越糟。\n\n私享家洗衣店\n\n濕的時候刷，泥會被推進織紋裡，布面也會起毛。等乾了再處理反而好救。\n\n有類似狀況，可以先拍正面、近照、邊角或洗標，再傳 LINE 讓我們初步判斷。\n\n如果只能先救一樣，你會選鞋子還是包包？\n\n#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #洗護日常",
+      "instagram_caption": "帆布鞋沾泥，越用力刷越糟。\n\n私享家洗衣店\n\n濕的時候刷，泥會被推進織紋裡，布面也會起毛。等乾了再處理反而好救。\n\n有類似狀況，先拍完整外觀和局部，直接私訊傳給我們，我們會先幫你看方向。\n\n如果只能先救一樣，你會選鞋子還是包包？\n\n認識那種鞋子捨不得丟、又不知道怎麼救的人嗎？傳給他。\n\n#私享家洗衣店 #台中西屯洗衣店 #台中收送 #洗護日常",
+      "facebook_caption": "帆布鞋沾泥，越用力刷越糟。\n\n私享家洗衣店\n\n濕的時候刷，泥會被推進織紋裡，布面也會起毛。等乾了再處理反而好救。\n\n有類似狀況，可以先拍正面、近照、邊角或洗標，再傳 LINE 讓我們初步判斷。\n\n如果只能先救一樣，你會選鞋子還是包包？\n\n#私享家洗衣店 #台中西屯洗衣店 #台中收送 #洗護日常",
       "image_prompt": "Reel cover still: one pair of canvas shoes with dried mud worked into the woven fabric",
       "video_prompt": "Animate the supplied image while preserving its exact composition, object placement, materials, surface wear, lighting direction and colour temperature. One restrained continuous action only: an extremely gentle push-in with slight natural handheld shake, as if held by a person. Keep every object in its original position and its original condition. Do not clean, repair, alter or transform the object. Do not add or remove anything. No hands in close-up and no finger detail. Do not add people, readable text, captions, logos, dialogue or music. No morphing, warping, flicker, jump cuts, sudden motion or collapsing geometry. Audio near-silent with only faint room tone. Natural restrained motion, stable first and final frames. Duration: 5 seconds. Aspect ratio: 9:16. Resolution: 720p.",
       "visual_route": "shop-inspection",
@@ -109,7 +109,7 @@
       "target_queries": [
         "台中洗鞋",
         "台中帆布鞋清洗",
-        "台中免費收送洗衣"
+        "台中收送洗衣"
       ],
       "evidence_type": "pickup-logistics",
       "ten_day_review_metric": "比較 reach、views、收藏、分享、LINE 點擊、詢問與預約；缺失值保留 null。",

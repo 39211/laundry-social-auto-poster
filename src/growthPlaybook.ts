@@ -218,7 +218,7 @@ function companionVideoCandidate(
       conflict: pickupAction.conflict,
       single_action: pickupAction.actionZh,
       payoff: "不用自己扛去門市，先拍照、分袋，再用 LINE 預約收送。",
-      cta: "台中市全區免費收送；點個人檔案連結加 LINE 預約。",
+      cta: "台中市全區收送；點個人檔案連結加 LINE 預約。",
       duration_seconds: CHUANZHANG_RAW_SECONDS,
       aspect_ratio: "9:16",
       first_frame_direction: pickupFirstFrame,
@@ -357,7 +357,7 @@ const reviewWindows: ReviewWindow[] = [
     daily_views_target: 350,
     daily_follower_target: 2,
     review_metric:
-      "在地週：分開比較 Local Pack、自然搜尋與 AI 答案；檢查台中全區免費收送、西屯、青海路與洗鞋查詢帶來的 LINE 詢問與預約。"
+      "在地週：分開比較 Local Pack、自然搜尋與 AI 答案；檢查台中全區收送、西屯、青海路與洗鞋查詢帶來的 LINE 詢問與預約。"
   },
   {
     start_day: 61,
@@ -510,8 +510,8 @@ function concreteReachSpecial(input: ConcreteReachSpecialInput): SpecialSlot {
 
 function concretePickupSpecial(input: ConcretePickupSpecialInput): SpecialSlot {
   const hook = `${input.topic}。${input.hookDetail}`;
-  const serviceMessage = "私享家提供台中市全區免費收送，主要透過 LINE 預約。";
-  const followCta = `追蹤私享家，之後會持續整理台中免費收送與${input.followFocus}的實用方法。`;
+  const serviceMessage = "私享家提供台中市全區收送，主要透過 LINE 預約。";
+  const followCta = `追蹤私享家，之後會持續整理台中收送與${input.followFocus}的實用方法。`;
   const tags = captionTags(input.tags);
   return {
     format: "real-shop-photo",
@@ -553,13 +553,13 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
       service: "pickup-delivery",
       visual: "customer-consultation",
       traffic: "value-prop-lead",
-      tags: ["#台中洗衣收送", "#免費到府收送"],
+      tags: ["#台中洗衣收送", "#到府收送"],
       campaign: "taichung-free-pickup-delivery",
       hook: "忙到沒手再搬洗衣籃的家庭日常，接送與晚餐之間不該再塞進一趟送洗。",
       story:
         "家裡有小孩或長輩要照顧時，洗衣籃常常不是只有一件外套，而是球衣、校服、毛巾和大人衣服一起堆起來。真正卡住的不是願不願意洗，而是沒有多餘的手去搬、去停車、再搬回來。",
       service_message:
-        "私享家提供台中市全區免費到府收送。家庭日常衣物可先分袋拍照，用 LINE 傳收件地址與方便聯絡的時段，再由我們確認收送安排。",
+        "私享家提供台中全市免費收送、沒有最低消費。家庭日常衣物可先分袋拍照，用 LINE 傳收件地址與方便聯絡的時段，再由我們確認收送安排。",
       action_cta: "今天家裡堆著待洗物，直接在 LINE 傳收件地址、品項照片和方便聯絡的時間，我們再和你確認。",
       instagram_action_cta: "家庭衣物先分袋拍一張，LINE 傳地址與方便時間，我們再確認收送。",
       follow_cta: "追蹤私享家，之後會持續整理忙碌家庭也能輕鬆安排的送洗方式。",
@@ -576,13 +576,13 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
       service: "pickup-delivery",
       visual: "shop-inspection",
       traffic: "object-proof",
-      tags: ["#台中洗衣收送", "#免費到府收送"],
+      tags: ["#台中洗衣收送", "#到府收送"],
       campaign: "taichung-free-pickup-delivery",
       hook: "下班後洗衣籃不該再跟你一起加班，襯衫和外套可以先排進收送。",
       story:
         "辦公室通勤的人常常把襯衫、西裝外套和冷氣房薄外套一路拖到晚上。真正耗掉的不是清洗本身，而是找停車位、搬袋、再把乾淨衣物扛回家的那段時間。",
       service_message:
-        "私享家提供台中市全區免費到府收送。上班衣物可先分件拍照，用 LINE 傳品項與收件地址，再由門市確認收送內容。",
+        "私享家提供台中全市免費收送、沒有最低消費。上班衣物可先分件拍照，用 LINE 傳品項與收件地址，再由門市確認收送內容。",
       action_cta: "把要整理的上班衣物排開拍一張，LINE 傳照片、收件地址與聯絡方式即可開始確認。",
       instagram_action_cta: "襯衫、西裝和外套分開拍照，LINE 傳地址與品項，我們再確認收送。",
       follow_cta: "追蹤私享家，之後會繼續整理襯衫、西裝與通勤衣物的送洗判斷。",
@@ -597,13 +597,13 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
       service: "pickup-delivery",
       visual: "customer-consultation",
       traffic: "share-worthy-care",
-      tags: ["#台中洗衣收送", "#免費到府收送"],
+      tags: ["#台中洗衣收送", "#到府收送"],
       campaign: "taichung-free-pickup-delivery",
       hook: "整套床組不必再自己扛下樓，大件布品最難的通常是搬運而不是清洗。",
       story:
         "棉被、床包、保潔墊和枕頭套一起整理時，裝進袋子後體積會突然變得很有存在感。很多人不是不想洗大件，而是一想到下樓、塞車廂和再搬回家就先擱著。",
       service_message:
-        "私享家提供台中市全區免費到府收送。大件床組可以先拍整體、洗標與在意的位置，再用 LINE 傳收件地址，讓門市先確認品項。",
+        "私享家提供台中全市免費收送、沒有最低消費。大件床組可以先拍整體、洗標與在意的位置，再用 LINE 傳收件地址，讓門市先確認品項。",
       action_cta: "不用先把大件布品搬到店裡，LINE 傳照片、收件地址和聯絡方式，我們再和你確認收送。",
       instagram_action_cta: "大件床組先拍整體和洗標，LINE 傳照片與收件地址，我們再和你確認收送。",
       follow_cta: "追蹤私享家，之後會持續整理床組、棉被與大件布品的送洗方式。",
@@ -620,13 +620,13 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
       service: "pickup-delivery",
       visual: "customer-consultation",
       traffic: "value-prop-lead",
-      tags: ["#台中洗衣收送", "#免費到府收送"],
+      tags: ["#台中洗衣收送", "#到府收送"],
       campaign: "taichung-free-pickup-delivery",
       hook: "精品衣物最怕的不是送洗，是路上顛簸；自己塞進後車廂那一段最傷。",
       story:
         "禮服、西裝外套、絲質上衣或有飾件的精緻衣物，最需要被穩妥放置與分件確認。自己搬運時最容易發生的，往往是壓摺、磨到五金，或和重物擠在同一袋。",
       service_message:
-        "私享家提供台中市全區免費到府收送。精品與精緻衣物可先拍洗標、面料與飾件細節，用 LINE 傳收件地址，再由門市確認收送方式。",
+        "私享家提供台中全市免費收送、沒有最低消費。精品與精緻衣物可先拍洗標、面料與飾件細節，用 LINE 傳收件地址，再由門市確認收送方式。",
       action_cta: "精緻衣物想少一次搬運風險，直接在 LINE 傳照片、收件地址和聯絡方式。",
       instagram_action_cta: "先拍洗標、飾件和整體，LINE 傳地址與照片，我們再確認收送。",
       follow_cta: "追蹤私享家，之後會持續整理精品衣物與精緻材質的送洗前判斷。",
@@ -672,16 +672,16 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
       service: "pickup-delivery",
       visual: "macro-detail",
       traffic: "object-proof",
-      tags: ["#台中洗衣收送", "#免費到府收送"],
+      tags: ["#台中洗衣收送", "#到府收送"],
       campaign: "taichung-free-pickup-delivery",
       hook: "鞋包不用再塞進機車踏板出門，材質與邊角值得被穩妥收送。",
       story:
         "白鞋、皮鞋、日常包和托特包最怕在運送途中互相摩擦。自己載出門時，鞋面、提把和包角常常比清洗前先多出一道刮痕或壓痕。",
       service_message:
-        "私享家提供台中市全區免費到府收送。鞋子先拍鞋面、鞋底與內裡，包包拍提把、包角與整體，再用 LINE 傳地址與照片。",
+        "私享家提供台中全市免費收送、沒有最低消費。鞋子先拍鞋面、鞋底與內裡，包包拍提把、包角與整體，再用 LINE 傳地址與照片。",
       action_cta: "鞋包不用自己載出門，LINE 傳完整照片、收件地址與聯絡方式，我們再和你確認。",
       instagram_action_cta: "鞋面、鞋底、包角和提把先拍好，點個人檔案連結加 LINE，傳地址與照片，我們再確認收送。",
-      follow_cta: "追蹤私享家，之後會持續整理鞋包照護與台中免費收送的實用資訊。",
+      follow_cta: "追蹤私享家，之後會持續整理鞋包照護與台中收送的實用資訊。",
       direction:
         "真實生活感照片；玄關整齊放著白鞋、皮鞋與一只日常包，收送箱內有分隔保護，交接動作清楚，物件材質細節可見。"
     }
@@ -693,16 +693,16 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
       service: "pickup-delivery",
       visual: "macro-detail",
       traffic: "share-worthy-care",
-      tags: ["#台中洗衣收送", "#免費到府收送"],
+      tags: ["#台中洗衣收送", "#到府收送"],
       campaign: "taichung-free-pickup-delivery",
       hook: "下雨天最不想做的事，就是抱著待洗衣物出門；濕鞋和外套不必再冒雨跑一趟。",
       story:
         "台中一降雨，外套、傘旁滴水的鞋包和本來就想送洗的衣物會一起卡住。與其冒雨搬運、找車位又把濕氣帶上車，不如讓收送在門口完成。",
       service_message:
-        "私享家提供台中市全區免費到府收送。雨天衣物與鞋包可先拍照說明濕氣或泥水位置，用 LINE 傳收件地址，再由我們確認安排。",
+        "私享家提供台中全市免費收送、沒有最低消費。雨天衣物與鞋包可先拍照說明濕氣或泥水位置，用 LINE 傳收件地址，再由我們確認安排。",
       action_cta: "今天下雨又不想抱袋出門，直接在 LINE 傳照片、收件地址和方便聯絡時間。",
       instagram_action_cta: "雨天衣物先拍濕氣與髒污位置，LINE 傳地址與照片，我們再確認收送。",
-      follow_cta: "追蹤私享家，之後會持續分享雨天衣物鞋包與免費收送的實用判斷。",
+      follow_cta: "追蹤私享家，之後會持續分享雨天衣物鞋包與收送的實用判斷。",
       direction:
         "10 秒直式短影音；雨天公寓門口，濕潤路面與窗上雨痕，客人把防潮袋裝好的衣物與鞋盒放到門口，收送人員撐傘穩定接手；寫實克制、不出現文字。",
       video_prompt:
@@ -716,13 +716,13 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
       service: "pickup-delivery",
       visual: "customer-consultation",
       traffic: "value-prop-lead",
-      tags: ["#台中洗衣收送", "#免費到府收送"],
+      tags: ["#台中洗衣收送", "#到府收送"],
       campaign: "taichung-free-pickup-delivery",
       hook: "店家與公司的大量衣物也能一次收，制服、桌布和備品不必分好幾趟搬。",
       story:
         "餐飲制服、公司襯衫、門市桌布或活動用布品一次累積起來，最麻煩的是數量與分類，而不是單一污漬。自己分批搬運，往往比清洗本身更花人力。",
       service_message:
-        "私享家提供台中市全區免費到府收送。店家或公司批量衣物可先分類拍照、註明件數與材質，用 LINE 傳收件地址，再由門市確認收送安排。",
+        "私享家提供台中全市免費收送、沒有最低消費。店家或公司批量衣物可先分類拍照、註明件數與材質，用 LINE 傳收件地址，再由門市確認收送安排。",
       action_cta: "批量衣物先分類拍照並註明件數，LINE 傳收件地址與聯絡人，我們再和你確認。",
       instagram_action_cta: "制服、桌布或備品先分類拍，LINE 傳件數與地址，我們再確認收送。",
       follow_cta: "追蹤私享家，之後會持續整理店家與公司批量送洗的收送方式。",
@@ -763,22 +763,22 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
     },
     2: {
       format: "real-shop-photo",
-      topic: "下班不用再繞去洗衣店，台中免費收送從門口開始",
+      topic: "下班不用再繞去洗衣店，台中收送從門口開始",
       service: "pickup-delivery",
       visual: "customer-consultation",
       traffic: "value-prop-lead",
-      tags: ["#台中洗衣收送", "#免費到府收送"],
+      tags: ["#台中洗衣收送", "#到府收送"],
       campaign: "taichung-free-pickup-delivery",
       hook:
-        "下班不用再繞去洗衣店，台中免費收送從門口開始；台中市全區免費到府收送，待洗衣物可以從家門口完成交接。",
+        "下班不用再繞去洗衣店，台中收送從門口開始；台中全市免費收送、沒有最低消費，待洗衣物可以從家門口完成交接。",
       story:
         "通勤回家後再搬一大袋衣物出門，真正花時間的是繞路、停車與搬上搬下。把待洗物先分袋拍照，收送人員抵達後在門口完成交接，就能少跑一趟。",
       service_message:
-        "私享家提供台中市全區免費到府收送。衣物可先裝入大型藍色收納袋，用 LINE 傳品項照片、收件地址與方便聯絡的時間，再由我們確認安排。",
+        "私享家提供台中全市免費收送、沒有最低消費。衣物可先裝入大型藍色收納袋，用 LINE 傳品項照片、收件地址與方便聯絡的時間，再由我們確認安排。",
       action_cta: "現在就把待洗物拍一張，LINE 傳收件地址、品項照片和方便聯絡的時間，我們再和你確認收送。",
       instagram_action_cta:
         "把待洗物裝袋拍一張，點個人檔案連結加 LINE，傳地址、品項與方便時間，我們再確認收送。",
-      follow_cta: "追蹤私享家，之後會持續整理台中免費收送與各類物件的送洗方式。",
+      follow_cta: "追蹤私享家，之後會持續整理台中收送與各類物件的送洗方式。",
       direction:
         "寫實方形台灣公寓門口交接照片；攝影機固定在室外並拉近到雙方上半身和袋子，客人雙腳完整留在室內，只有大型藍色編織聚丙烯購物袋的前角跨在門檻上，袋子有黃色提把但沒有任何品牌或文字；收送人員完整頭部保留在畫面內，雙腳與身體都在室外，雙手自然接住袋子。沒有雨、沒有雨傘，人物不穿牆、不穿門、不穿模，袋子重量與手部受力合理，門框透視與人體比例真實，不加文字、標誌或浮水印。"
     }
@@ -820,28 +820,28 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
       service: "pickup-delivery",
       visual: "shop-inspection",
       traffic: "value-prop-lead",
-      tags: ["#台中免費收送", "#運動衣清洗"],
+      tags: ["#台中收送", "#運動衣清洗"],
       hook: "健身結束先把濕衣物拿出來，再決定怎麼送洗；拉鍊先別急著拉上。",
-      follow_cta: "追蹤私享家，之後會持續整理運動衣物與台中免費收送的實用方法。",
+      follow_cta: "追蹤私享家，之後會持續整理運動衣物與台中收送的實用方法。",
       direction:
         "寫實方形居家玄關整理照片；淺色長椅左側只有一個無品牌深灰色健身包，拉鍊完全打開，包體結構和兩條提把連接點完整合理；右側一件灰色短袖運動上衣已從包內取出並平整攤開，深色運動毛巾分開放置，旁邊只有一個無標籤透明水瓶。無人物、無手、無鞋、無雨、無清潔劑、無文字、無標誌、無浮水印；自然晚間室內光，真實布料濕氣與重量，不做髒污誇張或前後對比。",
       facebook_caption: [
         "健身結束最先要做的，不是把拉鍊拉起來；是把濕衣物從包裡拿出來。",
         brand,
         "汗濕運動衣、毛巾和乾淨物品一起悶在密閉包袋裡，濕氣與味道會停留在衣物內層、縫線和包內。回家後先分開取出，攤開通風，再確認洗標與汗濕範圍。",
-        "不要先噴香氛蓋味，也不要把濕毛巾繼續壓在衣物上。要安排送洗時，私享家提供台中市全區免費收送，主要透過 LINE 預約。",
+        "不要先噴香氛蓋味，也不要把濕毛巾繼續壓在衣物上。要安排送洗時，私享家提供台中市全區收送，主要透過 LINE 預約。",
         "先傳衣物數量、洗標、汗濕位置、所在區域與可配合時段，我們再確認收送安排。",
-        "追蹤私享家，之後會持續整理運動衣物與台中免費收送的實用方法。",
-        "#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #運動衣清洗"
+        "追蹤私享家，之後會持續整理運動衣物與台中收送的實用方法。",
+        "#私享家洗衣店 #台中西屯洗衣店 #台中收送 #運動衣清洗"
       ].join("\n\n"),
       instagram_caption: [
         "健身結束最先要做的，不是把拉鍊拉起來；是把濕衣物從包裡拿出來。",
         brand,
         "汗濕運動衣、毛巾和乾淨物品一起悶在密閉包袋裡，濕氣與味道會停留在衣物內層、縫線和包內。回家後先分開取出，攤開通風，再確認洗標與汗濕範圍。",
-        "不要先噴香氛蓋味，也不要把濕毛巾繼續壓在衣物上。要安排送洗時，私享家提供台中市全區免費收送，主要透過 LINE 預約。",
+        "不要先噴香氛蓋味，也不要把濕毛巾繼續壓在衣物上。要安排送洗時，私享家提供台中市全區收送，主要透過 LINE 預約。",
         "準備好衣物數量、洗標、汗濕位置、所在區域與可配合時段後，點個人檔案連結加 LINE，我們再確認收送安排。",
-        "追蹤私享家，之後會持續整理運動衣物與台中免費收送的實用方法。",
-        "#私享家洗衣店 #台中西屯洗衣店 #台中免費收送 #運動衣清洗"
+        "追蹤私享家，之後會持續整理運動衣物與台中收送的實用方法。",
+        "#私享家洗衣店 #台中西屯洗衣店 #台中收送 #運動衣清洗"
       ].join("\n\n")
     }
   },
@@ -864,7 +864,7 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
     }),
     2: concretePickupSpecial({
       topic: "下班前用 LINE 約好，運動衣不用再繞路送",
-      tags: ["#台中免費收送", "#運動衣清洗"],
+      tags: ["#台中收送", "#運動衣清洗"],
       hookDetail: "先把乾濕衣物分開，回家後就能直接交接。",
       situation:
         "健身後的上衣、毛巾與乾淨換洗衣物如果全部塞在同一袋，回家前就容易把濕氣壓在布料內層。先分開，收送時也更容易確認品項。",
@@ -878,7 +878,7 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
         conflict: "拉鍊即將關上，手在碰到拉鍊頭的瞬間停住。",
         single_action: "同一隻手把灰色運動上衣從打開的健身包內完整取出，平放到包包右側。",
         payoff: "濕衣物先拿出、分開、通風，再安排收送。",
-        cta: "台中市全區免費收送；點個人檔案連結加 LINE 預約。",
+        cta: "台中市全區收送；點個人檔案連結加 LINE 預約。",
         duration_seconds: 12,
         aspect_ratio: "9:16",
         first_frame_direction:
@@ -910,7 +910,7 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
     }),
     2: concretePickupSpecial({
       topic: "床單被套一次多袋，不用自己再扛下樓",
-      tags: ["#台中免費收送", "#床組清洗"],
+      tags: ["#台中收送", "#床組清洗"],
       hookDetail: "大件床組最花力氣的常是裝袋後的搬運。",
       situation:
         "床單、被套、保潔墊一起更換時，袋子會因布料體積變得又大又重。先按品項分袋，比全部硬塞進同一袋更容易確認。",
@@ -941,7 +941,7 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
     }),
     2: concretePickupSpecial({
       topic: "孩子的鞋一次整理，家長不用再多跑一趟",
-      tags: ["#台中免費收送", "#童鞋清潔"],
+      tags: ["#台中收送", "#童鞋清潔"],
       hookDetail: "先分雙拍照，收送時比較不會混在一起。",
       situation:
         "運動鞋、上學鞋與備用鞋同時要整理時，最容易漏掉的是左右鞋配對、尺寸與各自的在意位置。先分雙排好，比直接堆袋更清楚。",
@@ -955,7 +955,7 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
         conflict: "一隻童鞋正要被放進袋子，另一隻還單獨留在地墊上。",
         single_action: "同一隻成人手把手上的童鞋移回地墊，放到另一隻鞋旁完成左右配對。",
         payoff: "每雙先配對拍照，收送時不漏鞋、不混雙。",
-        cta: "台中市全區免費收送；點個人檔案連結加 LINE 預約。",
+        cta: "台中市全區收送；點個人檔案連結加 LINE 預約。",
         duration_seconds: 12,
         aspect_ratio: "9:16",
         first_frame_direction:
@@ -987,7 +987,7 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
     }),
     2: concretePickupSpecial({
       topic: "週五下班後，把襯衫與西裝排進 LINE 收送",
-      tags: ["#台中免費收送", "#襯衫清洗"],
+      tags: ["#台中收送", "#襯衫清洗"],
       hookDetail: "不用先繞去門市，先把品項與洗標拍清楚。",
       situation:
         "一週累積的襯衫、薄外套與西裝如果混在同一袋，領口、袖口和飾件容易被忽略。先分件平放或掛好，再確認各件洗標。",
@@ -1017,8 +1017,8 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
         "寫實方形門市檢查照片；一件無品牌深灰針織外套平放在乾淨櫃台，袖口、腋下與側腰有輕微真實毛羽但不誇張，洗標局部可見且不可讀；無人物、無手、無除毛器、無文字、無標誌、無浮水印。"
     }),
     2: concretePickupSpecial({
-      topic: "鞋包先拍四個角度，再約台中免費收送",
-      tags: ["#台中免費收送", "#鞋包照護"],
+      topic: "鞋包先拍四個角度，再約台中收送",
+      tags: ["#台中收送", "#鞋包照護"],
       hookDetail: "全貌、內裡、邊角與洗標先拍齊，門口交接會更清楚。",
       situation:
         "鞋子與日常包一起送洗時，最容易漏拍的是鞋內、鞋底、包角與提把固定點。先分物件拍攝，不要把所有東西疊在同一張照片。",
@@ -1032,7 +1032,7 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
         conflict: "包包壓住鞋子的一角，照片看不到包角與鞋底邊。",
         single_action: "同一隻手只把深藍包包向右移開，白鞋保持完全不動。",
         payoff: "鞋與包分開拍，全貌、內裡、邊角與洗標才看得清楚。",
-        cta: "台中市全區免費收送；點個人檔案連結加 LINE 預約。",
+        cta: "台中市全區收送；點個人檔案連結加 LINE 預約。",
         duration_seconds: 12,
         aspect_ratio: "9:16",
         first_frame_direction:
@@ -1063,8 +1063,8 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
         "寫實方形門市檢查照片；淺灰櫃台上一個白色枕套已與白色枕芯分開放置，枕套開口、縫線、局部淡淡油痕與洗標位置清楚，枕芯保持完整蓬鬆；無人物、無手、無文字、無標誌、無浮水印。"
     }),
     2: concretePickupSpecial({
-      topic: "一家人的床組換洗，一次約台中免費收送",
-      tags: ["#台中免費收送", "#寢具清洗"],
+      topic: "一家人的床組換洗，一次約台中收送",
+      tags: ["#台中收送", "#寢具清洗"],
       hookDetail: "先按房間或品項分袋，件數與洗標比較不會混在一起。",
       situation:
         "雙人床單、兒童床套、枕頭套與保潔墊同時更換時，全部塞在一起很難確認件數。分袋並拍一張全貌，收送前就能先對品項。",
@@ -1094,8 +1094,8 @@ const specialSlots: Record<string, Record<number, SpecialSlot>> = {
         "寫實方形門市檢查照片；乾淨淺灰櫃台上一個無品牌米灰化妝包完全打開，內裡底部、內袋縫線、拉鍊布邊與少量粉痕清楚可見，拉鍊頭與提帶結構完整；無人物、無手、無化妝品、無文字、無標誌、無浮水印。"
     }),
     2: concretePickupSpecial({
-      topic: "騎車通勤外套先攤開，再約台中免費收送",
-      tags: ["#台中免費收送", "#外套清洗"],
+      topic: "騎車通勤外套先攤開，再約台中收送",
+      tags: ["#台中收送", "#外套清洗"],
       hookDetail: "領口、袖口與背部先通風，別直接塞回置物箱。",
       situation:
         "通勤外套接觸汗氣、灰塵與安全帽內襯後，領口、袖口和背部最容易留住濕氣。回家先攤開，再確認洗標與在意位置。",
@@ -1298,7 +1298,7 @@ function followCtaFor(format: GrowthFormat, service: TopicSeed["service"]): stri
     return "追蹤私享家，之後會持續整理精品衣物與精緻材質的送洗前判斷。";
   }
   if (service === "pickup-delivery") {
-    return "追蹤私享家，之後會持續整理台中免費收送與各類物件的送洗判斷。";
+    return "追蹤私享家，之後會持續整理台中收送與各類物件的送洗判斷。";
   }
   return "追蹤私享家，之後會持續整理台中西屯在地送洗前的實用判斷。";
 }
@@ -1318,7 +1318,7 @@ function captionFor(topic: string, service: TopicSeed["service"], format: Growth
               : service === "luxury-dry"
                 ? "精品與精緻材質要先看洗標、面料、五金、飾件和既有磨損。"
                 : service === "pickup-delivery"
-                  ? "台中市全區提供免費到府收送，衣物、鞋包、床組與娃娃都能先用 LINE 傳照片與地址確認。"
+                  ? "台中全市免費收送、沒有最低消費，衣物、鞋包、床組與娃娃都能先用 LINE 傳照片與地址確認。"
         : "來店前先拍清楚位置，私享家比較能依物件狀態給你初步判斷。";
   const formatLine =
     format === "reel"
@@ -1559,7 +1559,7 @@ export function buildGrowthPlaybook(startDate = "2026-07-11", totalDays = 90): G
     source_method: [
       "參考 90 天日更 playbook 的北極星指標、三階段主題弧線、內容支柱、CTA、Hashtag、圖片方向與 10 日複盤方式。",
       "新版以搜尋查詢、原創內容、可引用答案、品牌提及、LINE 點擊、詢問與預約組成同一條可量測漏斗；引用與品牌提及分開記錄。",
-      "依客戶搜尋目的分成在地找店、問題判斷、服務選擇、信任證據、免費收送與雨季收納六個題組；每篇指定自然查詢與第一手證據，不建立只換地名的薄頁。",
+      "依客戶搜尋目的分成在地找店、問題判斷、服務選擇、信任證據、收送與雨季收納六個題組；每篇指定自然查詢與第一手證據，不建立只換地名的薄頁。",
       "28 天複盤固定比較 Google、ChatGPT Search、Perplexity、Copilot、Gemini 與 Grok；分開記錄品牌提及、可點擊引用、被引用頁、答案正確性與 LINE 轉換。",
       "改寫為私享家適用的成效模型：非粉觀看、平均觀看時間、收藏、分享、搜尋曝光、CTR、AI 引用、LINE 點擊與實際預約。",
       "節日節點採節日前預告海報，節日當天或連假後用真實門市照片補一篇。"

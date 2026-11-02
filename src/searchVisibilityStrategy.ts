@@ -80,17 +80,17 @@ export const SEARCH_INTENT_CLUSTERS: SearchIntentCluster[] = [
   },
   {
     id: "pickup-logistics",
-    label: "免費收送與大量送洗",
-    customer_goal: "確認台中哪些地區可收送、如何預約、哪些物件可先詢問，以及免費的範圍。",
-    query_examples: ["台中洗衣收送", "台中免費收送洗衣", "台中到府收送洗衣", "台中公司大量衣物送洗", "台中床組到府收送"],
-    answer_pattern: "直接回答台中市全區、收送免費、清潔另計、LINE 預約，再說明要提供的照片、品項與地區。",
+    label: "收送與大量送洗",
+    customer_goal: "確認台中哪些地區可收送、如何預約、哪些物件可先詢問，以及收送的範圍。",
+    query_examples: ["台中洗衣收送", "台中收送洗衣", "台中到府收送洗衣", "台中公司大量衣物送洗", "台中床組到府收送"],
+    answer_pattern: "直接回答台中市全區、，台中全市免費收送、沒有最低消費，清潔費另計、LINE 預約，再說明要提供的照片、品項與地區。",
     evidence_required: ["pickup-logistics", "verified-business-fact"],
     primary_routes: [
       "/services/taichung-citywide-laundry-pickup.html",
       "/services/business-bulk-laundry.html",
       "/go/line.html"
     ],
-    guardrail: "收送免費不得寫成清洗免費；未經店主確認不得自行新增最低件數、價格或時效。"
+    guardrail: "收送條件不得延伸成清洗費用；未經店主確認不得自行新增最低件數、價格或時效。"
   },
   {
     id: "aftercare",
@@ -220,7 +220,7 @@ const SERVICE_QUERY_MAP: Record<string, string[]> = {
   "bedding-duvet": ["台中床組清洗", "台中棉被清洗", "西屯寢具清洗", "棉被有潮味怎麼辦"],
   "plush-doll": ["台中娃娃清洗", "台中布偶清潔", "絨毛玩偶送洗", "娃娃可以洗嗎"],
   "luxury-dry": ["台中精品乾洗", "台中名牌衣物清潔", "精緻乾洗", "精品衣物怎麼洗"],
-  "pickup-delivery": ["台中洗衣收送", "台中免費收送洗衣", "台中到府收送洗衣", "台中公司大量衣物送洗"]
+  "pickup-delivery": ["台中洗衣收送", "台中收送洗衣", "台中到府收送洗衣", "台中公司大量衣物送洗"]
 };
 
 function clusterById(id: SearchIntentId): SearchIntentCluster {

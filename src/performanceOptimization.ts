@@ -26,7 +26,7 @@ const CLUSTERS: ClusterDefinition[] = [
     id: "business_bulk",
     label: "店家／公司大量送洗",
     query: "台中 店家 公司 大量衣物 送洗 收送",
-    page_action: "建立單一深度服務頁，回答適用品項、台中市免費收送、LINE 詢問方式與不承諾事項。",
+    page_action: "建立單一深度服務頁，回答適用品項、台中市收送、LINE 詢問方式與不承諾事項。",
     pattern: /店家|公司|大量/u
   },
   {
@@ -40,14 +40,14 @@ const CLUSTERS: ClusterDefinition[] = [
     id: "shirt_care",
     label: "白襯衫與衣物泛黃",
     query: "台中 白襯衫 領口 腋下 泛黃 送洗",
-    page_action: "把白襯衫輪播內容整理成可讀指南，連回衣物洗護與免費收送頁。",
+    page_action: "把白襯衫輪播內容整理成可讀指南，連回衣物洗護與收送頁。",
     pattern: /白襯衫|襯衫|領口|腋下/u
   },
   {
     id: "pickup_delivery",
-    label: "台中免費收送",
-    query: "台中 洗衣 免費收送 LINE 預約",
-    page_action: "維持單一台中全市免費收送主頁，補充通勤、鞋包與大量衣物的內部連結。",
+    label: "台中收送",
+    query: "台中 洗衣 收送 LINE 預約",
+    page_action: "維持單一台中全市收送主頁，補充通勤、鞋包與大量衣物的內部連結。",
     pattern: /收送|到府|門口|不用再|不方便到店/u
   },
   {

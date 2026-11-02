@@ -339,7 +339,7 @@ describe("generatePublicSite", () => {
     expect(index.base_url_configured).toBe(true);
     expect(index.canonical_url).toBe("https://example.com/laundry-social-auto-poster/");
     expect(index.open_graph).toMatchObject({
-      title: "私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋",
+      title: "私享家洗衣店｜台中收送・逢甲洗鞋・西屯洗鞋",
       type: "website",
       url: "https://example.com/laundry-social-auto-poster/",
       site_name: "私享家洗衣店",
@@ -434,7 +434,7 @@ describe("generatePublicSite", () => {
     expect(latest.date).toBe("2026-07-02");
     expect(latest.posts[0].hashtags).toEqual(["#test"]);
     expect(feed.version).toBe("https://jsonfeed.org/version/1.1");
-    expect(feed.title).toBe("私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋");
+    expect(feed.title).toBe("私享家洗衣店｜台中收送・逢甲洗鞋・西屯洗鞋");
     expect(feed.items[0].tags).toEqual(["test"]);
     expect(businessProfile.line_url).toBe("https://line.me/R/ti/p/%40454foyks");
     expect(businessProfile.google_maps_cid).toBe("0x41f4295a6302e177");
@@ -583,7 +583,7 @@ describe("generatePublicSite", () => {
       slug: "shoe-bag-care",
       name: "鞋包清潔",
       url: "https://example.com/laundry-social-auto-poster/services/shoe-bag-care.html",
-      answer_summary: "逢甲與西屯需要洗鞋，可先把鞋面、鞋底、鞋內與材質照片傳 LINE；私享家門市在青海路二段365號，會先說明清潔方式與可改善範圍，台中市可免費收送。",
+      answer_summary: "逢甲與西屯需要洗鞋，可先把鞋面、鞋底、鞋內與材質照片傳 LINE；私享家門市在青海路二段365號，會先說明清潔方式與可改善範圍，台中市可收送。",
       image_url: "https://example.com/laundry-social-auto-poster/assets/services/shoe-bag-care-hero-product.png",
       image_alt: "鞋包清潔前的包角、鞋面與皮革檢查主圖",
       faq_count: 6
@@ -605,7 +605,7 @@ describe("generatePublicSite", () => {
     expect(llms).toContain("[布品收納](https://example.com/laundry-social-auto-poster/services/fabric-storage.html)");
     expect(llms).toContain("[台中西屯洗衣店](https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html)");
     expect(llms).toContain(
-      "[台中全市免費洗衣收送](https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html)"
+      "[台中全市洗衣收送](https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html)"
     );
     expect(llms).toContain("Address: 407 臺中市西屯區至善里青海路二段365號");
     expect(llms).toContain("Phone: 04-2452-7411");
@@ -667,11 +667,11 @@ describe("generatePublicSite", () => {
     expect(aiSitemap).toContain("<!-- service-image-generated-product-image -->");
     expect(aiSitemap).toContain("<loc>https://example.com/laundry-social-auto-poster/knowledge-graph.json</loc>");
     expect(html).toContain('<link rel="canonical" href="https://example.com/laundry-social-auto-poster/"');
-    expect(html).toContain('<title>私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋</title>');
-    expect(html).toContain('name="description" content="找台中免費收送、逢甲洗鞋或西屯洗鞋？');
+    expect(html).toContain('<title>私享家洗衣店｜台中收送・逢甲洗鞋・西屯洗鞋</title>');
+    expect(html).toContain('name="description" content="找台中收送、逢甲洗鞋或西屯洗鞋？');
     expect(html).toContain('name="robots" content="index, follow, max-image-preview:large"');
     expect(html).toContain('hreflang="zh-Hant-TW"');
-    expect(html).toContain('property="og:title" content="私享家洗衣店｜台中免費收送・逢甲洗鞋・西屯洗鞋"');
+    expect(html).toContain('property="og:title" content="私享家洗衣店｜台中收送・逢甲洗鞋・西屯洗鞋"');
     expect(html).toContain('property="og:type" content="website"');
     expect(html).toContain('property="og:url" content="https://example.com/laundry-social-auto-poster/"');
     expect(html).toContain('property="og:image" content="https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-hero-product.png"');
@@ -683,7 +683,7 @@ describe("generatePublicSite", () => {
     expect(html).toContain('"@type":"FAQPage"');
     expect(html).toContain('"hasPart":[{"@id":"https://example.com/laundry-social-auto-poster/#homepage-faq"}');
     expect(html).toContain('"@type":"DryCleaningOrLaundry"');
-    expect(html).toContain("<h1>台中免費收送，逢甲・西屯洗鞋先看材質</h1>");
+    expect(html).toContain("<h1>台中收送，逢甲・西屯洗鞋先看材質</h1>");
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/shoe-bag-care.html"');
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/white-shoe-cleaning.html"');
     expect(html).toContain('href="https://example.com/laundry-social-auto-poster/services/fabric-storage.html"');
@@ -796,13 +796,13 @@ describe("generatePublicSite", () => {
     expect(taichungXitunLaundryHtml).toContain(
       "https://example.com/laundry-social-auto-poster/assets/services/fabric-storage-inspection.png"
     );
-    expect(taichungCitywidePickupHtml).toContain("<title>台中免費收送洗衣｜全市到府、LINE 預約｜私享家洗衣店</title>");
-    expect(taichungCitywidePickupHtml).toContain("<h1>台中免費收送洗衣</h1>");
+    expect(taichungCitywidePickupHtml).toContain("<title>台中收送洗衣｜全市到府、LINE 預約｜私享家洗衣店</title>");
+    expect(taichungCitywidePickupHtml).toContain("<h1>台中收送洗衣</h1>");
     expect(taichungCitywidePickupHtml).toContain("台中市");
-    expect(taichungCitywidePickupHtml).toContain("收送本身免費");
+    expect(taichungCitywidePickupHtml).toContain("台中全市免費收送、沒有最低消費");
     expect(taichungCitywidePickupHtml).toContain("https://line.me/R/ti/p/%40454foyks");
     expect(taichungCitywidePickupHtml).toContain("青海路二段365號");
-    expect(taichungCitywidePickupHtml).toContain("收送免費不代表清潔免費");
+    expect(taichungCitywidePickupHtml).toContain("清潔費另計");
     expect(taichungCitywidePickupHtml).toContain('"@type":"Service"');
     expect(taichungCitywidePickupHtml).toContain('"name":"台中市"');
     expect(taichungCitywidePickupHtml).not.toContain('"price":0');
@@ -1016,8 +1016,8 @@ describe("generatePublicSite", () => {
     expect(photoGuideHtml).toContain('class="answer-box"');
     expect(photoGuideHtml).toContain('"mainEntityOfPage":{"@id":"https://example.com/laundry-social-auto-poster/guides/photo-before-laundry.html#webpage"}');
     expect(whiteShoeGuideHtml).toContain("white-shoe-cleaning.html");
-    expect(serviceSearchGuideHtml).toContain("台中洗衣、洗鞋、洗包與免費收送怎麼找？");
-    expect(serviceSearchGuideHtml).toContain("台中洗衣免費收送");
+    expect(serviceSearchGuideHtml).toContain("台中洗衣、洗鞋、洗包與收送怎麼找？");
+    expect(serviceSearchGuideHtml).toContain("台中洗衣收送");
     expect(localShoePageHtml).toContain("shoe-bag-care.html");
     expect(localShoePageHtml).toContain("https://example.com/laundry-social-auto-poster/#business");
   });
@@ -1678,27 +1678,27 @@ describe("generatePublicSite", () => {
     const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8"));
 
     expect(homepage).toContain(`href="${pickupUrl}"`);
-    expect(homepage).toContain("台中全市免費洗衣收送");
+    expect(homepage).toContain("台中全市洗衣收送");
     expect(homepage).toContain("id=\"citywide-pickup\"");
     expect(homepage).toContain("台中洗衣收送");
-    expect(homepage).toContain("台中免費收送");
+    expect(homepage).toContain("台中收送");
     expect(homepage).toContain('"@type":"DryCleaningOrLaundry"');
     expect(homepage).toContain('"@type":"FAQPage"');
     expect(homepage).toContain('id="homepage-faq"');
-    expect(homepage).toContain("台中洗衣與免費收送常見問題");
-    expect(homepage).toContain("收送免費等於清潔免費嗎？");
+    expect(homepage).toContain("台中洗衣與收送常見問題");
+    expect(homepage).toContain("收送和清潔費是一起算的嗎？");
     expect(homepage).toContain('<html lang="zh-Hant-TW">');
     expect(homepage).toContain('<time datetime="2026-09-04">2026-09-04</time>');
-    expect(homepage).toContain("台中免費收送，逢甲・西屯洗鞋先看材質");
+    expect(homepage).toContain("台中收送，逢甲・西屯洗鞋先看材質");
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=home-cta`);
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=footer`);
     expect(homepage).toContain('"name":"台中市"');
     expect(homepage).not.toContain('"price":0');
     expect(homepage).not.toContain('"price":"0"');
 
-    expect(pickupHtml).toContain("<h1>台中免費收送洗衣</h1>");
+    expect(pickupHtml).toContain("<h1>台中收送洗衣</h1>");
     expect(pickupHtml).toContain("收送範圍為台中市");
-    expect(pickupHtml).toContain("收送本身免費");
+    expect(pickupHtml).toContain("台中全市免費收送、沒有最低消費");
     expect(pickupHtml).toContain("https://line.me/R/ti/p/%40454foyks");
     expect(pickupHtml).toContain("西屯區青海路二段365號");
     expect(pickupHtml).toContain('"@type":"Service"');
@@ -1717,16 +1717,16 @@ describe("generatePublicSite", () => {
     // a minimum") — the latter reads as "we won't say" and cannot be cited.
     expect(pickupHtml).toContain("收送沒有最低消費門檻");
     expect(pickupHtml).toContain("不以單次洗滌滿額作為收送條件");
-    expect(pickupHtml).toContain("免費收送有最低消費門檻嗎？");
+    expect(pickupHtml).toContain("收送有最低消費門檻嗎？");
     expect(pickupHtml).not.toContain("未在此承諾處理天數、最低消費金額");
     expect(homepage).toContain("沒有最低消費門檻");
     // Still honest about what "no threshold" does not cover.
-    expect(pickupHtml).toContain("收送免費不代表清潔免費");
+    expect(pickupHtml).toContain("清潔費另計");
 
     expect(homepage).toContain(`href="${businessBulkUrl}"`);
     expect(homepage).toContain("店家與公司大量送洗");
     expect(businessBulkHtml).toContain("<h1>台中店家・公司大量衣物送洗</h1>");
-    expect(businessBulkHtml).toContain("台中市全區免費收送");
+    expect(businessBulkHtml).toContain("台中市全區收送");
     expect(businessBulkHtml).toContain("清潔與洗護費用另依實際物件判斷");
     expect(businessBulkHtml).toContain('"@type":"Service"');
     expect(businessBulkHtml).toContain('"@type":"AdministrativeArea"');
@@ -1778,8 +1778,8 @@ describe("generatePublicSite", () => {
     expect(
       answers.answers.some(
         (item: { question: string; local_intent?: string }) =>
-          item.question === "台中市全區免費洗衣收送怎麼預約？" &&
-          item.local_intent === "台中市 洗衣免費收送 LINE 預約"
+          item.question === "台中市全區洗衣收送怎麼預約？" &&
+          item.local_intent === "台中市 洗衣收送 LINE 預約"
       )
     ).toBe(true);
     expect(
@@ -1805,7 +1805,7 @@ describe("generatePublicSite", () => {
     expect(
       geoTargets.local_intents.some(
         (item: { query: string; area: string; url: string }) =>
-          item.query === "台中市 洗衣免費收送" && item.area === "台中市" && item.url === pickupUrl
+          item.query === "台中市 洗衣收送" && item.area === "台中市" && item.url === pickupUrl
       )
     ).toBe(true);
     expect(
@@ -1873,7 +1873,7 @@ describe("generatePublicSite", () => {
       knowledgeGraph["@graph"].some(
         (item: { "@type"?: string; name?: string; areaServed?: { name?: string } }) =>
           item["@type"] === "Service" &&
-          item.name === "台中全市免費洗衣收送" &&
+          item.name === "台中全市洗衣收送" &&
           item.areaServed?.name === "台中市"
       )
     ).toBe(true);
@@ -2164,7 +2164,7 @@ describe("generatePublicSite", () => {
       "id=\"price-list\"",
       "<h3>價格怎麼決定</h3>",
       "<h3>儲值優惠</h3>",
-      "<h3>免費收送範圍與怎麼預約</h3>",
+      "<h3>收送範圍與怎麼預約</h3>",
       "<h3>門市地址與 LINE</h3>",
       "<h2>常見問題</h2>"
     ];
@@ -2177,7 +2177,7 @@ describe("generatePublicSite", () => {
     expect(html).toContain("滿 1000 送 100");
     expect(html).toContain("儲 3000 送 400");
     expect(html).toContain("儲 6000 送 1000");
-    expect(html).toContain("台中市全區免費到府收送");
+    expect(html).toContain("台中全市免費收送、沒有最低消費");
     expect(html).toContain("台中市西屯區青海路二段365號");
     expect(html).toContain("至善國中對面");
     expect(html).toContain("0968327653");
@@ -2570,7 +2570,7 @@ describe("generatePublicSite", () => {
     const thickCaption = [
       "白鞋鞋邊一圈灰，多半是髒不是黃。",
       "先看膠邊：灰是可以清的髒，黃是氧化，只能淡化、不保證回白。鞋內有濕悶味就先通風、取出鞋墊，不要高溫烘。",
-      "拍整體、鞋邊近照與鞋內，傳 LINE 門市先看材質，再說能整理到什麼程度。台中市全區可約免費收送。"
+      "拍整體、鞋邊近照與鞋內，傳 LINE 門市先看材質，再說能整理到什麼程度。台中市全區可約收送。"
     ].join("\n\n");
     calendar.slots[0]!.facebook_caption = thickCaption;
     calendar.slots[0]!.instagram_caption = thickCaption;

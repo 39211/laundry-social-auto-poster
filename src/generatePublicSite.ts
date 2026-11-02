@@ -5723,12 +5723,63 @@ function captionPreview(caption: string): string {
     .find(Boolean) ?? caption.trim();
 }
 
+/**
+ * Daily captions reuse topics and opening paragraphs, so several post pages used to
+ * share an identical <title> or meta description. When (and only when) a value is
+ * shared, the post's own visible date and time are appended so every page is
+ * distinguishable without inventing any content.
+ */
+interface PostMetaDuplicates {
+  topics: Map<string, number>;
+  descriptions: Map<string, number>;
+}
+
+const postMetaDuplicatesCache = new WeakMap<PublicPostIndex, PostMetaDuplicates>();
+
+function basePostDescription(post: PublicPost): string {
+  return captionPreview(post.facebook_caption).slice(0, 180);
+}
+
+function postMetaDuplicates(index: PublicPostIndex): PostMetaDuplicates {
+  const cached = postMetaDuplicatesCache.get(index);
+  if (cached) return cached;
+  const topics = new Map<string, number>();
+  const descriptions = new Map<string, number>();
+  for (const post of index.article_posts) {
+    topics.set(post.topic, (topics.get(post.topic) ?? 0) + 1);
+    const description = basePostDescription(post);
+    descriptions.set(description, (descriptions.get(description) ?? 0) + 1);
+  }
+  const result = { topics, descriptions };
+  postMetaDuplicatesCache.set(index, result);
+  return result;
+}
+
+function postMetaStamp(post: PublicPost): string {
+  return `${post.date} ${post.time}`.trim();
+}
+
+/** <title> / og:title / twitter:title text. The visible h1 and schema headline stay the plain topic. */
+function postMetaTopic(post: PublicPost, index: PublicPostIndex): string {
+  return (postMetaDuplicates(index).topics.get(post.topic) ?? 0) > 1
+    ? `${post.topic}（${postMetaStamp(post)}）`
+    : post.topic;
+}
+
+/** meta description / og:description / schema description. */
+function postMetaDescription(post: PublicPost, index: PublicPostIndex): string {
+  const base = basePostDescription(post);
+  return (postMetaDuplicates(index).descriptions.get(base) ?? 0) > 1
+    ? `${postMetaStamp(post)}｜${base}`.slice(0, 180)
+    : base;
+}
+
 function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object | undefined {
   if (!index.base_url_configured) return undefined;
   const businessNode = buildBusinessSchemaNode(index);
   if (!businessNode) return undefined;
   const profile = index.business_profile;
-  const description = captionPreview(post.facebook_caption).slice(0, 180);
+  const description = postMetaDescription(post, index);
   const graph: object[] = [
     businessNode,
     buildWebsiteSchemaNode(index),
@@ -5740,7 +5791,7 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       headline: post.topic,
       description,
       datePublished: post.date_published,
-      ...optionalSchemaDateModified(post.date_published ?? post.date),
+      ...optionalSchemaDateModified(postContentLastmod(post)),
       inLanguage: "zh-Hant-TW",
       author: { "@id": `${index.canonical_url}#business` },
       publisher: { "@id": `${index.canonical_url}#business` },
@@ -6521,7 +6572,8 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
     serviceHref: (item) => servicePageUrl(item, index),
     navLabel: "服務與內容"
   };
-  const description = captionPreview(post.facebook_caption).slice(0, 180);
+  const description = postMetaDescription(post, index);
+  const metaTopic = postMetaTopic(post, index);
 
   return `<!doctype html>
 <html lang="zh-Hant-TW">
@@ -6538,10 +6590,11 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
     <link rel="alternate" hreflang="zh-Hant-TW" href="${escapeHtml(canonical)}" />
     <link rel="alternate" hreflang="x-default" href="${escapeHtml(canonical)}" />
     <link rel="alternate" type="application/rss+xml" title="${escapeHtml(SITE_NAME)} 每日洗護紀錄" href="${escapeHtml(index.base_url_configured ? index.entrypoints.rss : "../rss.xml")}" />
-    <meta property="og:title" content="${escapeHtml(post.topic)}" />
+    <meta property="og:title" content="${escapeHtml(metaTopic)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
     <meta property="og:type" content="article" />
     <meta property="article:published_time" content="${escapeHtml(post.date_published)}" />
+    <meta property="article:modified_time" content="${escapeHtml(postContentLastmod(post) ?? post.date_published)}" />
     <meta property="og:url" content="${escapeHtml(canonical)}" />
     <meta property="og:site_name" content="${escapeHtml(profile.name)}" />
     <meta property="og:locale" content="${escapeHtml(SITE_LOCALE)}" />
@@ -6549,12 +6602,12 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
     <meta property="og:image:alt" content="${escapeHtml(`${post.topic} - ${profile.name}`)}" />
 ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.video_url)}" /><meta property="og:video:type" content="video/mp4" />
 ` : ""}    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="${escapeHtml(post.topic)}" />
+    <meta name="twitter:title" content="${escapeHtml(metaTopic)}" />
     <meta name="twitter:description" content="${escapeHtml(description)}" />
     <meta name="twitter:image" content="${escapeHtml(post.image_url)}" />
     ${schema ? `<script type="application/ld+json">${escapeJsonLd(schema)}</script>` : ""}
     <style>${buildPublicSiteCss()}</style>
-    <title>${escapeHtml(`${post.topic} | ${profile.name}`)}</title>
+    <title>${escapeHtml(`${metaTopic} | ${profile.name}`)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
     ${buildSearchContentAnalyticsTag(index, true)}
   </head>

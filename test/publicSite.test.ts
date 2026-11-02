@@ -1289,6 +1289,53 @@ describe("generatePublicSite", () => {
     expect(archiveHtml).toContain("2026-06-26 19:30");
   });
 
+  it("keeps post titles, descriptions and dateModified distinguishable and noindex", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-public-site-unique-meta-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeCalendar(root, "2026-07-03");
+    // Same topic and same opening paragraph, but a different full caption (so it keeps its own article page).
+    for (const dir of ["data", "docs"]) {
+      const file = join(root, dir, "content-calendar", "2026-07-03.json");
+      const calendar = JSON.parse(await readFile(file, "utf8"));
+      calendar.slots[0].facebook_caption = "FB caption #test\n\nA different second paragraph for the next day.";
+      await writeFile(file, `${JSON.stringify(calendar, null, 2)}\n`, "utf8");
+    }
+    await writeApprovalLog(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-03");
+
+    await generatePublicSite({
+      root,
+      baseUrl: "https://example.com/laundry-social-auto-poster",
+      now: "2026-07-04T01:00:00.000Z"
+    });
+
+    const first = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
+    const second = await readFile(join(root, "docs", "posts", "2026-07-03-slot-01.html"), "utf8");
+    const pick = (html: string, pattern: RegExp) => html.match(pattern)?.[1];
+    const titleOf = (html: string) => pick(html, /<title>(.*?)<\/title>/u);
+    const descOf = (html: string) => pick(html, /<meta name="description" content="(.*?)"/u);
+
+    // Same topic and same caption on two days: both stay unique, each carries its own date and time.
+    expect(titleOf(first)).not.toBe(titleOf(second));
+    expect(descOf(first)).not.toBe(descOf(second));
+    expect(titleOf(first)).toContain("2026-07-02 11:30");
+    expect(titleOf(second)).toContain("2026-07-03 11:30");
+    expect(descOf(first)).toContain("2026-07-02 11:30");
+    // The visible heading keeps the plain topic.
+    expect(first).toContain("<h1>Sneaker edge inspection</h1>");
+    // Both stay noindex and out of both sitemaps.
+    for (const html of [first, second]) {
+      expect(html).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
+      expect(html).toContain('<meta property="article:modified_time" content="2026-09-04" />');
+      expect(html).toContain('"dateModified":"2026-09-04"');
+    }
+    const sitemap = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    const aiSitemap = await readFile(join(root, "docs", "ai-sitemap.xml"), "utf8");
+    expect(sitemap).not.toContain("/posts/");
+    expect(aiSitemap).not.toContain("/posts/");
+  });
+
   it("keeps unapproved scheduled slots out of public SEO and AI feeds", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-unapproved-"));
     await writeBusinessProfile(root);
@@ -1860,7 +1907,9 @@ describe("generatePublicSite", () => {
     expect(pickupDateModified1).toBe("2026-07-22");
     expect(shoeBagDateModified1).toBe("2026-08-17");
     expect(guideDateModified1).toBe("2026-08-23");
-    expect(postDateModified1).toBe("2026-07-02T11:30:00+08:00");
+    // dateModified is the post page's real content date (publish date or the hand-set template date,
+    // whichever is later), not its publish timestamp.
+    expect(postDateModified1).toBe("2026-09-04");
     expect(homepage).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
     expect(pickupHtml).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
     expect(shoeBagHtml1).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);

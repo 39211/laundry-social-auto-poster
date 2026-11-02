@@ -460,7 +460,7 @@ describe("what the approval gate refuses", () => {
       vi.stubEnv("IG_USER_ID", "12345678901234567");
     }
 
-    function livePublishSlot1(fetchImpl: typeof fetch) {
+    function livePublishSlot1(fetchImpl: typeof fetch, retryDelayMs?: number) {
       return postCurrentSlot({
         root,
         date: DATE,
@@ -468,7 +468,8 @@ describe("what the approval gate refuses", () => {
         now: `${DATE}T11:30:00+08:00`,
         dryRun: false,
         verifyPublicImageUrl: false,
-        fetchImpl
+        fetchImpl,
+        retryDelayMs
       });
     }
 
@@ -527,7 +528,10 @@ describe("what the approval gate refuses", () => {
 
       stubLiveMetaEnv();
       const fetchImpl = vi.fn() as unknown as typeof fetch;
-      await expect(livePublishSlot1(fetchImpl)).rejects.not.toThrow(
+      // fetchImpl returns undefined, so each platform fails and is retried; with
+      // the default backoff that is 2 x (500 + 1000) ms of real sleeping, which
+      // is the whole cost of this test. The retries still happen, just with no wait.
+      await expect(livePublishSlot1(fetchImpl, 0)).rejects.not.toThrow(
         /images changed after approval|image-digest|digest file|digest entry/
       );
       expect(fetchImpl).toHaveBeenCalled();

@@ -62,11 +62,23 @@ jobs:
           node-version: "22"
           cache: "npm"
 
+      # Pin the interpreter instead of trusting whatever `python` is on PATH.
+      # The nightly-check helpers are covered both by plain python unittest (below)
+      # and, through one subprocess per file, by vitest.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - run: npm ci
 
       # visualQa.test.ts synthesizes a sample clip with a real ffmpeg call;
       # windows-latest does not ship it. choco is preinstalled on this image.
       - run: choco install ffmpeg -y
+
+      # Real python unittest run; the -v log lines are the proof it executed.
+      - run: python -m unittest discover -s test/py -v
+        env:
+          PYTHONUTF8: "1"
 
       - run: npx tsc --noEmit
 

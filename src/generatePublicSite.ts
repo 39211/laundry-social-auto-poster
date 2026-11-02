@@ -8436,6 +8436,39 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         await writeFile(outputs.sitemap, newSitemap, "utf8");
         console.log(`Updated sitemap with ${allUrls.length} total URLs (including ${overrideUrls.length} from overrides)`);
       }
+
+      // ai-sitemap 只列 src 定義的頁面；override 頁（指南、服務、在地頁）也要讓 AI 爬蟲從 ai-sitemap 找得到。
+      if (index.base_url_configured && overrideUrls.length > 0 && shouldWriteDocsPath("ai-sitemap.xml")) {
+        let existingAiSitemap = "";
+        try {
+          existingAiSitemap = await readFile(outputs.aiSitemap, "utf8");
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
+        if (existingAiSitemap.includes("</urlset>")) {
+          const aiSeen = new Set(
+            Array.from(existingAiSitemap.matchAll(/<loc>([^<]+)<\/loc>/g)).map((m) => m[1])
+          );
+          const aiLines: string[] = [];
+          for (const url of overrideUrls) {
+            if (aiSeen.has(url)) continue;
+            aiSeen.add(url);
+            const pathname = new URL(url).pathname.replace(/^\/+/, "");
+            const posixPath = pathname || "index.html";
+            const slug = posixPath.replace(/\.html$/u, "").replace(/\//g, "-");
+            const lastmod = overrideLastmods.get(posixPath) || sitemapLastmodForUrl(url, index);
+            const lastmodXml = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
+            aiLines.push(
+              `  <url><loc>${escapeXml(url)}</loc>${lastmodXml}<changefreq>daily</changefreq><!-- page-${escapeXml(slug)} --></url>`
+            );
+          }
+          if (aiLines.length > 0) {
+            const nextAiSitemap = existingAiSitemap.replace("</urlset>", `${aiLines.join("\n")}\n</urlset>`);
+            await writeFile(outputs.aiSitemap, nextAiSitemap, "utf8");
+            console.log(`Updated ai-sitemap with ${aiLines.length} override page URLs`);
+          }
+        }
+      }
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {

@@ -5,6 +5,7 @@ $OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path -Parent $PSScriptRoot
 $productionSource = Join-Path $root "scripts\catchup-publish.ps1"
 $slotTimesSource = Join-Path $root "scripts\publish-slot-times.ps1"
+$pipelineLockSource = Join-Path $root "scripts\_pipeline-lock.ps1"
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("catchup-due-smoke-" + [guid]::NewGuid().ToString("n"))
 $isolatedScripts = Join-Path $tempRoot "scripts"
 $production = Join-Path $isolatedScripts "catchup-publish.ps1"
@@ -79,8 +80,14 @@ $script:failed = $false
 try {
     [void][IO.Directory]::CreateDirectory($binRoot)
     [void][IO.Directory]::CreateDirectory($isolatedScripts)
-    [IO.File]::Copy($productionSource, $production)
+    $mutexName = 'a7-smoke-' + [guid]::NewGuid().ToString('n')
+    $productionText = [IO.File]::ReadAllText($productionSource)
+    $isolatedProductionText = $productionText.Replace("-Name 'sxj-publish'", "-Name '$mutexName'")
+    if ($isolatedProductionText -eq $productionText) { throw "Could not replace the production publish mutex name in the isolated copy" }
+    if ($isolatedProductionText.Contains("-Name 'sxj-publish'")) { throw "The isolated copy still contains the production publish mutex name" }
+    [IO.File]::WriteAllText($production, $isolatedProductionText, [Text.UTF8Encoding]::new($true))
     [IO.File]::Copy($slotTimesSource, (Join-Path $isolatedScripts "publish-slot-times.ps1"))
+    [IO.File]::Copy($pipelineLockSource, (Join-Path $isolatedScripts "_pipeline-lock.ps1"))
     [IO.File]::WriteAllText((Join-Path $isolatedScripts "_watchdog.ps1"), "", [Text.UTF8Encoding]::new($true))
     [IO.File]::WriteAllText($stub, $stubText, [Text.Encoding]::ASCII)
     $date = "2026-10-06"

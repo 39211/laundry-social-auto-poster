@@ -2939,6 +2939,7 @@ describe("generatePublicSite", () => {
           instagram_caption: string;
           image_path: string;
           image_url: string;
+          feature_reel?: unknown;
         }>;
       }>,
       readFile(join(docsRoot, "ai-discovery.json"), "utf8").then((text) => JSON.parse(text)) as Promise<{
@@ -2986,6 +2987,11 @@ describe("generatePublicSite", () => {
         instagram_caption: post.instagram_caption,
         image_url: post.image_url
       });
+      if (post.slot === 0) {
+        expect(post).toHaveProperty("feature_reel");
+        expect(post.image_path).toBe("");
+        continue;
+      }
       if (!calendars.has(post.date)) {
         calendars.set(
           post.date,

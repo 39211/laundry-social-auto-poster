@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,13 +45,18 @@ function liveConfig(): AppConfig {
 interface CapturedCall {
   url: string;
   body?: URLSearchParams;
+  method?: string;
 }
 
 function fakeFetch(calls: CapturedCall[]): typeof fetch {
   return (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     const body = init?.body instanceof URLSearchParams ? init.body : undefined;
-    calls.push({ url, body });
+    calls.push({ url, body, method: init?.method ?? "GET" });
+    // A7-3 image preflight: public image URLs are served as images.
+    if (init?.method === "HEAD") {
+      return new Response(null, { status: 200, headers: { "content-type": "image/png" } });
+    }
     const respond = (payload: unknown) =>
       new Response(JSON.stringify(payload), { status: 200, headers: { "content-type": "application/json" } });
     if (url.includes("/video_reels") && body?.get("upload_phase") === "start") {
@@ -575,8 +580,12 @@ describe("an unconfirmed Facebook schedule is recorded, never sent again", () =>
     const log = await loadScheduledLog(DATE, root);
     expect(log.find((row) => row.slot === 1)).toMatchObject({ status: "uncertain", scheduled_post_id: "" });
 
+    // A7-3: the second run now asks the Page about the uncertain row first.
+    // fakeFetch answers the Graph lookup with no post list, so the lookup is
+    // unavailable: the row stays as it was and nothing is sent again.
     const second = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE });
-    expect(second.find((row) => row.slot === 1)).toMatchObject({ action: "skipped", reason: "already scheduled" });
+    expect(second.find((row) => row.slot === 1)).toMatchObject({ action: "uncertain", reason: "reconcile_unavailable" });
+    expect((await loadScheduledLog(DATE, root)).find((row) => row.slot === 1)).toMatchObject({ status: "uncertain" });
     expect(commits()).toBe(1);
   });
 
@@ -723,5 +732,308 @@ describe("postCurrentSlot interlock with schedule-ahead", () => {
     const calls: CapturedCall[] = [];
     await postCurrentSlot({ date: DATE, slot: 1, root, now: IN_WINDOW, fetchImpl: fakeFetch(calls) });
     expect(calls.some((call) => call.url.includes("/111000111/photos"))).toBe(true);
+  });
+});
+
+describe("A7-3 image preflight before the commit point", () => {
+  let root: string;
+  const slot1At = String(Math.floor(new Date(`${DATE}T11:30:00+08:00`).getTime() / 1000));
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "sched-preflight-"));
+    await seedDay(root, [
+      slotFixture(1, "image", `預檢文案 ${DATE} 甲`),
+      slotFixture(2, "image", `預檢填充文案 ${DATE} 乙`)
+    ]);
+  });
+
+  /** fakeFetch, except requests to the public image host answer with `onImage`. */
+  function imageFetch(
+    calls: CapturedCall[],
+    onImage: (url: string, init?: RequestInit) => Response | Promise<Response>
+  ): typeof fetch {
+    const normal = fakeFetch(calls);
+    return (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("https://tester.github.io/")) {
+        calls.push({ url, method: init?.method ?? "GET" });
+        return onImage(url, init);
+      }
+      return normal(input, init);
+    }) as typeof fetch;
+  }
+
+  const graphCalls = (calls: CapturedCall[]) => calls.filter((call) => call.url.startsWith("https://graph.facebook.com/"));
+
+  it("defers on a 404 image and never calls the Facebook API", async () => {
+    const calls: CapturedCall[] = [];
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: imageFetch(calls, () => new Response(null, { status: 404, headers: { "content-type": "text/html" } })),
+      now: NOW_DAY_BEFORE
+    });
+    expect(results.map((row) => row.action)).toEqual(["deferred", "deferred"]);
+    expect(results[0]?.reason).toMatch(/^image_not_public: 404/u);
+    expect(graphCalls(calls)).toEqual([]);
+    // Deferred is not written as uncertain: the next run tries again.
+    expect(await loadScheduledLog(DATE, root)).toEqual([]);
+  });
+
+  it("schedules after a 200 image/* preflight, which runs before the commit", async () => {
+    const calls: CapturedCall[] = [];
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: imageFetch(calls, () => new Response(null, { status: 200, headers: { "content-type": "image/png" } })),
+      now: NOW_DAY_BEFORE
+    });
+    expect(results.map((row) => row.action)).toEqual(["scheduled", "scheduled"]);
+    const headIndex = calls.findIndex((call) => call.method === "HEAD" && call.url.endsWith("/slot-01.png"));
+    const commitIndex = calls.findIndex(
+      (call) => call.url.includes("/photos") && call.body?.get("scheduled_publish_time") === slot1At
+    );
+    expect(headIndex).toBeGreaterThanOrEqual(0);
+    expect(commitIndex).toBeGreaterThan(headIndex);
+  });
+
+  it("defers when the URL answers 200 but not with an image content type", async () => {
+    const calls: CapturedCall[] = [];
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: imageFetch(calls, () => new Response(null, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } })),
+      now: NOW_DAY_BEFORE
+    });
+    expect(results.map((row) => row.action)).toEqual(["deferred", "deferred"]);
+    expect(results[0]?.reason).toMatch(/^image_not_public: content-type text\/html/u);
+    expect(graphCalls(calls)).toEqual([]);
+  });
+
+  it("falls back to a ranged GET when HEAD is not allowed", async () => {
+    const calls: CapturedCall[] = [];
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: imageFetch(calls, (_url, init) => {
+        if (init?.method === "HEAD") return new Response(null, { status: 405 });
+        if (new Headers(init?.headers).get("range") === "bytes=0-0") {
+          return new Response("x", { status: 206, headers: { "content-type": "image/png" } });
+        }
+        return new Response(null, { status: 500 });
+      }),
+      now: NOW_DAY_BEFORE
+    });
+    expect(results.map((row) => row.action)).toEqual(["scheduled", "scheduled"]);
+  });
+
+  it("defers on a preflight timeout", async () => {
+    const calls: CapturedCall[] = [];
+    const results = await scheduleAheadFacebook({
+      date: DATE,
+      root,
+      config: liveConfig(),
+      fetchImpl: imageFetch(calls, () => new Promise<Response>(() => undefined)),
+      now: NOW_DAY_BEFORE,
+      preflightTimeoutMs: 20
+    });
+    expect(results.map((row) => row.action)).toEqual(["deferred", "deferred"]);
+    expect(results[0]?.reason).toMatch(/^image_not_public: timeout/u);
+    expect(graphCalls(calls)).toEqual([]);
+  });
+});
+
+describe("A7-3 reconcile uncertain rows against the Page", () => {
+  let root: string;
+  const slot1At = Math.floor(new Date(`${DATE}T11:30:00+08:00`).getTime() / 1000);
+  const AFTER_SLOT_1 = new Date(`${DATE}T12:00:00+08:00`);
+  const caption1 = `對帳測試文案：本週末烘衣機全面保養，請提前預約時段，謝謝大家的支持與耐心 ${DATE} 甲`;
+  const uncertainRow = {
+    date: DATE,
+    slot: 1,
+    platform: "facebook",
+    scheduled_post_id: "",
+    scheduled_publish_time: slot1At,
+    published_media_type: "image",
+    status: "uncertain",
+    error: "Missing or invalid image file (commit point; the post may already be live. Not retrying.)",
+    created_at: "2026-09-20T13:40:00.000Z"
+  };
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "sched-reconcile-"));
+    await seedDay(root, [slotFixture(1, "image", caption1), slotFixture(2, "image", `對帳填充文案 ${DATE} 乙`)]);
+    await mkdir(join(root, "data", "scheduled-log"), { recursive: true });
+    await writeFile(join(root, "data", "scheduled-log", `${DATE}.json`), JSON.stringify([uncertainRow]), "utf8");
+  });
+
+  function pageFetch(
+    calls: CapturedCall[],
+    page: { scheduled?: unknown[]; feed?: unknown[]; fail?: boolean }
+  ): typeof fetch {
+    const normal = fakeFetch(calls);
+    return (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      const isLookup =
+        method === "GET" && (url.includes("/111000111/scheduled_posts") || url.includes("/111000111/feed"));
+      if (!isLookup) return normal(input, init);
+      calls.push({ url, method });
+      const headers = { "content-type": "application/json" };
+      if (page.fail) {
+        return new Response(JSON.stringify({ error: { message: "Invalid OAuth access token test-token-value" } }), {
+          status: 400,
+          headers
+        });
+      }
+      const data = url.includes("/scheduled_posts") ? page.scheduled ?? [] : page.feed ?? [];
+      return new Response(JSON.stringify({ data }), { status: 200, headers });
+    }) as typeof fetch;
+  }
+
+  const run = (fetchImpl: typeof fetch, now: Date) =>
+    scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now });
+
+  /** Any Facebook post/schedule call carrying slot 1's caption. */
+  const slot1PostCalls = (calls: CapturedCall[]) =>
+    calls.filter(
+      (call) =>
+        call.method === "POST" &&
+        call.url.startsWith("https://graph.facebook.com/") &&
+        (call.body?.get("caption") === caption1 || call.body?.get("message") === caption1)
+    );
+
+  it("confirms the row when the Page's scheduled posts contain it", async () => {
+    const calls: CapturedCall[] = [];
+    const results = await run(
+      pageFetch(calls, {
+        scheduled: [
+          {
+            id: "111000111_777",
+            scheduled_publish_time: slot1At,
+            created_time: "2026-09-20T13:40:05+0000",
+            message: `${caption1}\n#洗衣`
+          }
+        ]
+      }),
+      NOW_DAY_BEFORE
+    );
+    expect(results.filter((row) => row.slot === 1)).toEqual([
+      expect.objectContaining({ action: "reconciled", scheduled_post_id: "111000111_777" })
+    ]);
+    expect(results.find((row) => row.slot === 2)?.action).toBe("scheduled");
+    expect(slot1PostCalls(calls)).toEqual([]);
+    const row = (await loadScheduledLog(DATE, root)).find((entry) => entry.slot === 1);
+    expect(row?.status).toBeUndefined();
+    expect(row?.error).toBeUndefined();
+    expect(row?.scheduled_post_id).toBe("111000111_777");
+  });
+
+  it("confirms a published post from the feed by created_time within 20 minutes, even after the slot", async () => {
+    const calls: CapturedCall[] = [];
+    const results = await run(
+      pageFetch(calls, { feed: [{ id: "111000111_888", created_time: "2026-09-21T03:35:00+0000", message: caption1 }] }),
+      AFTER_SLOT_1
+    );
+    expect(results.find((row) => row.slot === 1)).toMatchObject({ action: "reconciled", scheduled_post_id: "111000111_888" });
+    expect(slot1PostCalls(calls)).toEqual([]);
+  });
+
+  it("reschedules exactly once when not on the Page and the slot is still in the future", async () => {
+    const calls: CapturedCall[] = [];
+    // Same time, different caption: must not count as found.
+    const fetchImpl = pageFetch(calls, {
+      scheduled: [{ id: "111000111_999", scheduled_publish_time: slot1At, message: "完全不同的另一篇貼文內容" }]
+    });
+    const first = await run(fetchImpl, NOW_DAY_BEFORE);
+    expect(first.filter((row) => row.slot === 1)).toEqual([
+      expect.objectContaining({ action: "scheduled", scheduled_post_id: "fb-post-1" })
+    ]);
+    expect(first.find((row) => row.slot === 1)?.reason).toMatch(/rescheduled/u);
+    const log = await loadScheduledLog(DATE, root);
+    expect(log.filter((row) => row.slot === 1)).toHaveLength(1);
+    expect(log.find((row) => row.slot === 1)).toMatchObject({ scheduled_post_id: "fb-post-1" });
+    expect(log.find((row) => row.slot === 1)?.status).toBeUndefined();
+
+    const second = await run(fetchImpl, NOW_DAY_BEFORE);
+    expect(second.find((row) => row.slot === 1)).toMatchObject({ action: "skipped", reason: "already scheduled" });
+    expect(slot1PostCalls(calls)).toHaveLength(1);
+  });
+
+  it("marks a past slot lost, prints an ALERT, writes the alert file and never posts it", async () => {
+    const calls: CapturedCall[] = [];
+    const printed: string[] = [];
+    const errorSpy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      printed.push(args.map(String).join(" "));
+    });
+    let results;
+    try {
+      results = await run(pageFetch(calls, {}), AFTER_SLOT_1);
+    } finally {
+      errorSpy.mockRestore();
+    }
+    expect(results.find((row) => row.slot === 1)?.action).toBe("lost");
+    expect(results.find((row) => row.slot === 2)?.action).toBe("scheduled");
+    expect(printed.some((line) => line.startsWith(`ALERT FB_LOST ${DATE} slot 1`))).toBe(true);
+    expect(slot1PostCalls(calls)).toEqual([]);
+
+    const alertText = await readFile(join(root, "output", "alerts", `fb-lost-${DATE}-slot1.json`), "utf8");
+    expect(JSON.parse(alertText)).toMatchObject({ date: DATE, slot: 1, scheduled_publish_time: slot1At });
+    expect(alertText).not.toContain(caption1.slice(0, 12));
+    expect(alertText).not.toContain("test-token-value");
+    expect((await loadScheduledLog(DATE, root)).find((row) => row.slot === 1)).toEqual(uncertainRow);
+  });
+
+  it("keeps the row unchanged when the Graph lookup fails", async () => {
+    const calls: CapturedCall[] = [];
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    let results;
+    try {
+      results = await run(pageFetch(calls, { fail: true }), NOW_DAY_BEFORE);
+    } finally {
+      warnSpy.mockRestore();
+    }
+    expect(results.filter((row) => row.slot === 1)).toEqual([
+      expect.objectContaining({ action: "uncertain", reason: "reconcile_unavailable" })
+    ]);
+    expect(slot1PostCalls(calls)).toEqual([]);
+    expect((await loadScheduledLog(DATE, root)).find((row) => row.slot === 1)).toEqual(uncertainRow);
+  });
+
+  it("never prints or writes the access token", async () => {
+    const printed: string[] = [];
+    const capture = (...args: unknown[]) => {
+      printed.push(args.map(String).join(" "));
+    };
+    const spies = [
+      vi.spyOn(console, "log").mockImplementation(capture),
+      vi.spyOn(console, "error").mockImplementation(capture),
+      vi.spyOn(console, "warn").mockImplementation(capture)
+    ];
+    try {
+      const calls: CapturedCall[] = [];
+      const unavailable = await run(pageFetch(calls, { fail: true }), AFTER_SLOT_1);
+      const lost = await run(pageFetch(calls, {}), AFTER_SLOT_1);
+      printed.push(JSON.stringify(unavailable), JSON.stringify(lost));
+    } finally {
+      spies.forEach((spy) => spy.mockRestore());
+    }
+    expect(printed.some((line) => line.startsWith(`ALERT FB_UNCONFIRMED ${DATE} slot 1`))).toBe(true);
+    expect(printed.some((line) => line.startsWith(`ALERT FB_LOST ${DATE} slot 1`))).toBe(true);
+
+    const alertDir = join(root, "output", "alerts");
+    const files = await readdir(alertDir);
+    expect(files).toContain(`fb-lost-${DATE}-slot1.json`);
+    const written = await Promise.all([
+      ...files.map((file) => readFile(join(alertDir, file), "utf8")),
+      readFile(join(root, "data", "scheduled-log", `${DATE}.json`), "utf8")
+    ]);
+    for (const text of [...printed, ...written]) {
+      expect(text).not.toContain("test-token-value");
+    }
   });
 });

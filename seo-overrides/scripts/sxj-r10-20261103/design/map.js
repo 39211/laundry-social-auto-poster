@@ -3,8 +3,8 @@
   var root = document.querySelector('[data-sxj-map]'); if (!root) return;
   var NS = 'http://www.w3.org/2000/svg', STORE = [120.639961, 24.174057], HQ = '西屯區', OA = 'https://line.me/R/oaMessage/%40454foyks/?';
   var URBAN = ['西屯區', '南屯區', '北屯區', '中區', '東區', '西區', '南區', '北區'];
-  var NOTE = { '西屯區': '門市所在地。可直接到店，或約到府收送；逢甲、東海生活圈也由這裡出發。', '南屯區': '大樓多，可寄放管理室代收代送；厚被與換季衣物先傳照片。', '北區': '中國醫大與科博館生活圈，工作服與厚被可約收送。', '北屯區': '北屯沒有門市，由西屯門市安排收送。', '西區': '西區不是西屯，同樣免費收送。' };
-  var DEF = '由西屯門市安排免費到府收送，沒有最低消費，一件也收。';
+  var NOTE = { '西屯區': '門市所在地。可直接到店，或約到府收送；逢甲、東海生活圈也由這裡出發。', '南屯區': '大樓多，可寄放管理室代收代送；厚被與換季衣物先傳照片。', '北區': '中國醫大與科博館生活圈，工作服與厚被可約收送。', '北屯區': '北屯沒有門市，由西屯門市安排收送。', '西區': '西區不是西屯，同樣適用台中全市免費收送、沒有最低消費。' };
+  var DEF = '由西屯門市安排，台中全市免費收送、沒有最低消費，一件也收。';
   var all = root.querySelector('[data-map-all]'), core = root.querySelector('[data-map-core]');
   var list = [].slice.call(root.querySelectorAll('[data-d]')), btn = {}, shapes = {}, cur = null;
   list.forEach(function (b) { btn[b.getAttribute('data-d')] = b; });
@@ -15,11 +15,11 @@
     if (!btn[n]) return; if (cur) mark(cur, 'on', false); cur = n; mark(n, 'on', true);
     var i = list.indexOf(btn[n]) + 1, rg = btn[n].closest('[data-region]');
     if (nm) nm.textContent = n;
-    if (no) no.textContent = 'NO. ' + (i < 10 ? '0' : '') + i + ' / ' + list.length + '・' + (rg ? rg.getAttribute('data-region') : '') + (n === HQ ? '・門市' : '・免費收送');
+    if (no) no.textContent = 'NO. ' + (i < 10 ? '0' : '') + i + ' / ' + list.length + '・' + (rg ? rg.getAttribute('data-region') : '') + (n === HQ ? '・門市' : '・收送');
     if (nt) nt.textContent = NOTE[n] || DEF;
     if (ln) ln.setAttribute('href', OA + encodeURIComponent('你好，我在' + n + '，想預約收送。\n件數：＿＿\n方便時段：＿＿\n照片另傳。'));
   }
-  function bind(e, n) { if(e.tagName.toLowerCase()==='path'){ e.setAttribute('role','button');e.setAttribute('tabindex','0');e.setAttribute('aria-label',n+'免費收送');e.addEventListener('keydown',function(k){if(k.key==='Enter'||k.key===' '){k.preventDefault();select(n);root.dispatchEvent(new CustomEvent('sxj:map-keyboard',{bubbles:true,detail:{district:n}}));}}); } e.addEventListener('click', function () { select(n); }); e.addEventListener('mouseenter', function () { mark(n, 'hv', true); }); e.addEventListener('mouseleave', function () { mark(n, 'hv', false); }); }
+  function bind(e, n) { if(e.tagName.toLowerCase()==='path'){ e.setAttribute('role','button');e.setAttribute('tabindex','0');e.setAttribute('aria-label',n+'收送');e.addEventListener('keydown',function(k){if(k.key==='Enter'||k.key===' '){k.preventDefault();select(n);root.dispatchEvent(new CustomEvent('sxj:map-keyboard',{bubbles:true,detail:{district:n}}));}}); } e.addEventListener('click', function () { select(n); }); e.addEventListener('mouseenter', function () { mark(n, 'hv', true); }); e.addEventListener('mouseleave', function () { mark(n, 'hv', false); }); }
   list.forEach(function (b) { bind(b, b.getAttribute('data-d')); });
   if (ln) ln.addEventListener('click', function () { try { if (typeof window.gtag === 'function') window.gtag('event', 'line_click', { source: 'v4-map-' + cur, link_source: 'v4-map-' + cur, transport_type: 'beacon' }); } catch (e) {} });
   select(HQ);

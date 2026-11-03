@@ -1,4 +1,4 @@
-import { access, cp, mkdir, open, readdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, open, readdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { existsSync, mkdtempSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -2897,8 +2897,11 @@ describe("generatePublicSite", () => {
       return;
     }
     
+    // generatePublicSite 只讀 <root>/seo-overrides、不寫它，所以不必把 25 MB、近 250 個檔案整份複製進暫存目錄
+    // （Windows 上光這一步就吃掉整則測試近三成時間）。用目錄 junction 指回 repo 的原檔：不需要管理員權限，
+    // 也讓下面的逐檔比對直接拿 repo 原檔當基準。
     const tempSeoOverridesDir = join(root, "seo-overrides");
-    await cp(repoSeoOverridesDir, tempSeoOverridesDir, { recursive: true });
+    await symlink(repoSeoOverridesDir, tempSeoOverridesDir, "junction");
 
     const config = getConfig();
     await writeBusinessProfile(root);

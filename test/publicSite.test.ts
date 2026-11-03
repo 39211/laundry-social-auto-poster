@@ -2998,7 +2998,7 @@ describe("generatePublicSite", () => {
         expect(birkenstockEntry[1]).toBe(expectedLastmod);
       }
     }
-  });
+  }, 30000); // Copies and compares the complete public photo library on Windows.
 
   it("normalizes Windows-style paths to forward slashes for URLs", () => {
     // Unit test for path normalization logic

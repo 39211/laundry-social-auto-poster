@@ -39,6 +39,15 @@ npm run generate-public-site
 
 `generate-public-site` only copies approved slots into the public SEO/AIO/GEO feeds. Before `data/approved-log/YYYY-MM-DD.json` exists, generated captions remain private draft content under `data/content-calendar/`.
 
+Calendar and page write batches default to 8 concurrent jobs. Set
+`PUBLIC_SITE_WRITE_CONCURRENCY`, pass `--write-concurrency 2`, or use the
+`writeConcurrency` program option; explicit options override the environment.
+Limits must be positive safe integers and are validated before any output mutation.
+Calendar writers share a directory created before dispatch. A failed local batch
+stops dispatch, drains started jobs, and throws the original error. The shared
+atomic/SHA-verified writer still caps page writes at 8, so their effective cap is
+the smaller of the two limits. Override copies remain sequential and verified.
+
 ## Public AI And SEO Feed
 
 The public hosting source is the static `docs/` directory. It can be served by GitHub Pages, Netlify, or any HTTPS static host. `PUBLIC_SITE_BASE_URL` controls the SEO/AIO/GEO canonical site and AI/search entry points. `PUBLIC_ROOT_PAGES_REPO` optionally mirrors the generated `docs/` contents into a root GitHub Pages repository such as `39211/39211.github.io`, so the public site can live at a short URL like `https://39211.github.io/`. `PUBLIC_IMAGE_BASE_URL` controls image asset URLs used by Meta publishing and public image metadata; it can be the same host or a separate image host.

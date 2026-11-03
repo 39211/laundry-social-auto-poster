@@ -1,8 +1,9 @@
-import { access, cp, mkdir, open, readdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, open, readdir, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { existsSync, mkdtempSync, readdirSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, onTestFinished } from "vitest";
 import {
   generatePublicSite,
   publicAcceptedIndexGrowthCount,
@@ -134,6 +135,48 @@ async function exists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** 目錄下每個檔案（相對 posix 路徑）→ 原始位元組。用來在「產生器不該寫它」的輸入目錄前後各拍一張快照。 */
+async function snapshotTree(dir: string, rel = ""): Promise<Map<string, Buffer>> {
+  const entries = await readdir(join(dir, rel), { withFileTypes: true });
+  const parts = await Promise.all(
+    entries.map(async (entry): Promise<Map<string, Buffer>> => {
+      const childRel = rel ? `${rel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) return snapshotTree(dir, childRel);
+      return new Map([[childRel, await readFile(join(dir, childRel))]]);
+    })
+  );
+  return new Map(parts.flatMap((part) => [...part]));
+}
+
+const sha256 = (bytes: Buffer): string => createHash("sha256").update(bytes).digest("hex");
+
+/** 逐檔比檔案清單與 sha256；回傳每個差異的描述（空陣列代表完全一致）。 */
+function diffTreeSnapshots(before: Map<string, Buffer>, after: Map<string, Buffer>): string[] {
+  const diffs: string[] = [];
+  for (const [file, bytes] of before) {
+    const now = after.get(file);
+    if (now === undefined) diffs.push(`removed: ${file}`);
+    else if (sha256(now) !== sha256(bytes)) diffs.push(`changed: ${file}`);
+  }
+  for (const file of after.keys()) {
+    if (!before.has(file)) diffs.push(`added: ${file}`);
+  }
+  return diffs.sort();
+}
+
+/** 把 dir 還原成 before 快照（改過的寫回、被刪的補回、多出來的刪掉），讓失敗的測試不會把 repo 原檔留在被改過的狀態。 */
+async function restoreTreeFromSnapshot(dir: string, before: Map<string, Buffer>, after: Map<string, Buffer>): Promise<void> {
+  await Promise.all([
+    ...[...before].map(async ([file, bytes]) => {
+      const now = after.get(file);
+      if (now !== undefined && sha256(now) === sha256(bytes)) return;
+      await mkdir(join(dir, ...file.split("/").slice(0, -1)), { recursive: true });
+      await writeFile(join(dir, file), bytes);
+    }),
+    ...[...after.keys()].filter((file) => !before.has(file)).map((file) => rm(join(dir, file), { force: true }))
+  ]);
 }
 
 async function writeBusinessProfile(root: string): Promise<void> {
@@ -2897,8 +2940,19 @@ describe("generatePublicSite", () => {
       return;
     }
     
+    // generatePublicSite 只讀 <root>/seo-overrides、不該寫它，所以不把 25 MB、近 250 個檔案整份複製進暫存目錄，
+    // 改用目錄 junction（Windows 不需管理員權限）指回 repo 原檔。
+    // 因為產生器的輸入就是 repo 原檔本身，「產生後 docs/ 等於來源」自己就會自己跟自己比；
+    // 所以產生前先替 repo 端整棵樹（檔案清單＋sha256）拍快照，產生後再拍一次逐檔比，
+    // 產生器只要新增、刪除或改到任何一個 override 檔，這則測試就會紅（並把 repo 原檔還原）。
     const tempSeoOverridesDir = join(root, "seo-overrides");
-    await cp(repoSeoOverridesDir, tempSeoOverridesDir, { recursive: true });
+    const seoOverridesBefore = await snapshotTree(repoSeoOverridesDir);
+    await symlink(repoSeoOverridesDir, tempSeoOverridesDir, "junction");
+    // 清理時先拆 junction（unlink 只移除連結本身），再刪暫存目錄，絕不讓遞迴刪除經過 junction 碰到 repo 原檔。
+    onTestFinished(async () => {
+      await unlink(tempSeoOverridesDir);
+      await rm(root, { recursive: true, force: true });
+    });
 
     const config = getConfig();
     await writeBusinessProfile(root);
@@ -2908,6 +2962,13 @@ describe("generatePublicSite", () => {
       siteBaseUrl: "https://sixiangjialaundry.com/",
       imageBaseUrl: "https://sixiangjialaundry.com/"
     });
+
+    const seoOverridesAfter = await snapshotTree(repoSeoOverridesDir);
+    const seoOverrideDrift = diffTreeSnapshots(seoOverridesBefore, seoOverridesAfter);
+    if (seoOverrideDrift.length > 0) {
+      await restoreTreeFromSnapshot(repoSeoOverridesDir, seoOverridesBefore, seoOverridesAfter);
+    }
+    expect(seoOverrideDrift, "generatePublicSite must not add, remove or modify files in its seo-overrides input").toEqual([]);
 
     const docsRoot = join(root, "docs");
     const overrideFiles: string[] = [];
@@ -3012,5 +3073,47 @@ describe("generatePublicSite", () => {
     const url = new URL(normalized, siteBaseUrl.endsWith("/") ? siteBaseUrl : siteBaseUrl + "/").href;
     expect(url).toBe("https://example.com/guides/birkenstock-care.html");
     expect(url).not.toContain("\\");
+  });
+});
+
+describe("seo override input guard (snapshot + junction cleanup)", () => {
+  async function makeTree(): Promise<string> {
+    const dir = mkdtempSync(join(tmpdir(), "seo-guard-src-"));
+    await mkdir(join(dir, "guides"), { recursive: true });
+    await writeFile(join(dir, "a.html"), "<p>a</p>", "utf8");
+    await writeFile(join(dir, "guides", "b.html"), "<p>b</p>", "utf8");
+    await writeFile(join(dir, "c.txt"), "c", "utf8");
+    return dir;
+  }
+
+  it("reports a changed, a removed and an added file, and restores the tree", async () => {
+    const dir = await makeTree();
+    const before = await snapshotTree(dir);
+    expect(diffTreeSnapshots(before, await snapshotTree(dir))).toEqual([]);
+
+    await writeFile(join(dir, "a.html"), "<p>a changed</p>", "utf8");
+    await rm(join(dir, "guides", "b.html"));
+    await writeFile(join(dir, "new.html"), "<p>new</p>", "utf8");
+    const after = await snapshotTree(dir);
+    expect(diffTreeSnapshots(before, after)).toEqual(["added: new.html", "changed: a.html", "removed: guides/b.html"]);
+
+    await restoreTreeFromSnapshot(dir, before, after);
+    expect(diffTreeSnapshots(before, await snapshotTree(dir))).toEqual([]);
+    expect(await readFile(join(dir, "a.html"), "utf8")).toBe("<p>a</p>");
+  });
+
+  it("unlinking the junction first leaves the target files intact when the temp root is deleted", async () => {
+    const target = await makeTree();
+    const before = await snapshotTree(target);
+    const root = mkdtempSync(join(tmpdir(), "seo-guard-root-"));
+    const link = join(root, "seo-overrides");
+    await symlink(target, link, "junction");
+    expect((await snapshotTree(link)).size).toBe(before.size);
+
+    await unlink(link);
+    await rm(root, { recursive: true, force: true });
+
+    expect(existsSync(root)).toBe(false);
+    expect(diffTreeSnapshots(before, await snapshotTree(target))).toEqual([]);
   });
 });

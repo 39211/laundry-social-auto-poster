@@ -1,6 +1,6 @@
-import { access, mkdir, open, readdir, readFile, symlink, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, open, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdtempSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
@@ -2897,20 +2897,11 @@ describe("generatePublicSite", () => {
       return;
     }
     
-    // generatePublicSite 只讀 <root>/seo-overrides、不寫它，所以不必把 25 MB、近 250 個檔案整份複製進暫存目錄
-    // （Windows 上光這一步就吃掉整則測試近三成時間）。用目錄 junction 指回 repo 的原檔：不需要管理員權限，
-    // 也讓下面的逐檔比對直接拿 repo 原檔當基準。
     const tempSeoOverridesDir = join(root, "seo-overrides");
-    await symlink(repoSeoOverridesDir, tempSeoOverridesDir, "junction");
 
     const config = getConfig();
     await writeBusinessProfile(root);
     await writeCalendar(root, "2024-10-16", { carouselSlot1: true });
-    await generatePublicSite({
-      root,
-      siteBaseUrl: "https://sixiangjialaundry.com/",
-      imageBaseUrl: "https://sixiangjialaundry.com/"
-    });
 
     const docsRoot = join(root, "docs");
     const overrideFiles: string[] = [];
@@ -2929,14 +2920,29 @@ describe("generatePublicSite", () => {
         }
       }
     };
-    collectFiles(tempSeoOverridesDir);
+    // 檔案清單與比對基準一律取自 repo 原檔，不取自產生器吃進去的那份副本：
+    // 這樣產生器若改到自己的 override 輸入，副本與 repo 原檔不同，下面的逐檔比對會變紅。
+    collectFiles(repoSeoOverridesDir);
+
+    // 複製整份 override（含圖片）讓產生器吃，但改成平行：目錄先建好、檔案同時複製，
+    // 避免 fs.cp 逐檔循序往返在 Windows 上把這一則拖過 5 秒。
+    // 手寫 sitemap.xml 不在比對清單內（會被重建），但仍照原樣餵給產生器，讓輸入與修改前完全一致。
+    const filesToCopy = existsSync(join(repoSeoOverridesDir, "sitemap.xml")) ? [...overrideFiles, "sitemap.xml"] : overrideFiles;
+    await Promise.all([...new Set(filesToCopy.map((file) => dirname(join(tempSeoOverridesDir, file))))].map((dir) => mkdir(dir, { recursive: true })));
+    await Promise.all(filesToCopy.map((file) => copyFile(join(repoSeoOverridesDir, file), join(tempSeoOverridesDir, file))));
+
+    await generatePublicSite({
+      root,
+      siteBaseUrl: "https://sixiangjialaundry.com/",
+      imageBaseUrl: "https://sixiangjialaundry.com/"
+    });
 
     expect(overrideFiles.length).toBeGreaterThan(60);
 
     // 先平行讀完再斷言，避免 Windows 上一百多個小檔的往返把這一則拖過 5 秒。
     const compared = await Promise.all(
       overrideFiles.map(async (file) => {
-        const sourceFile = join(tempSeoOverridesDir, file);
+        const sourceFile = join(repoSeoOverridesDir, file);
         const generatedFile = join(docsRoot, file);
         const generatedExists = existsSync(generatedFile);
         const [sourceContent, generatedContent] = await Promise.all([

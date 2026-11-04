@@ -336,6 +336,20 @@ try {
             Write-Log 'Existing uncertain posted-log; no publish, no automatic retry.'
             exit 1
         }
+        # A Facebook row in this date's schedule log makes post-current-slot copy
+        # that row instead of posting (10/28: a stale 10/25 rejection was copied
+        # and only Instagram went out). Stop before either platform publishes.
+        $schedulePath = Join-Path $root ('data\scheduled-log\' + $entry.date + '.json')
+        if (Test-Path -LiteralPath $schedulePath -PathType Leaf) {
+            $scheduleRaw = Get-Content -LiteralPath $schedulePath -Raw -Encoding UTF8
+            $scheduleDecoded = ConvertFrom-Json -InputObject $scheduleRaw -ErrorAction Stop
+            $scheduleRows = @($scheduleDecoded)
+            if (@($scheduleRows | Where-Object { $null -ne $_ -and $_.slot -eq $entry.slot -and $_.platform -ceq 'facebook' }).Count -gt 0) {
+                [void](Set-QueueEntry $entry 'failed' 'Facebook schedule-log row exists for this slot; commander reconciliation required; no publish.' $state $attemptedAt)
+                Write-Log 'Existing Facebook schedule-log row; no publish, no automatic retry.'
+                exit 1
+            }
+        }
         $mutex = $null
         $lockOwned = $false
         try {

@@ -146,7 +146,7 @@ try {
     $final = $source.Substring($source.IndexOf('Pop-Location'))
 
     Assert-Guard -Name "exit-code-immediate" -Condition (
-        $command -match '\$out = cmd /c "npm\.cmd run schedule-ahead -- --date \$date --live 2>&1"\r?\n\s*\$scheduleExitCode = \$LASTEXITCODE'
+        $command -match '\$out = cmd /c "npm\.cmd run schedule-ahead -- --date \$date --live --notify-staff 2>&1"\r?\n\s*\$scheduleExitCode = \$LASTEXITCODE'
     )
     Assert-Guard -Name "exit-report-tail" -Condition (
         $command -match 'if \(\$scheduleExitCode -ne 0\) \{\s+Write-Log "SCHEDULE-AHEAD EXIT \$scheduleExitCode \$\{date\}"\s+\$problems \+= "\$date schedule-ahead-exit-\$scheduleExitCode"\s+@\(\$out\) \| Select-Object -Last 5 \| ForEach-Object \{ Write-Log \(\[string\]\$_\) \}\s+\}' -and
@@ -210,10 +210,10 @@ try {
         $expectedAfterProblem = @(
             "run schedule-youtube -- --date $($dates[0]) --slot 2 --live",
             "run schedule-youtube -- --date $($dates[0]) --slot 3 --live",
-            "run schedule-ahead -- --date $($dates[1]) --live",
+            "run schedule-ahead -- --date $($dates[1]) --live --notify-staff",
             "run schedule-youtube -- --date $($dates[1]) --slot 2 --live",
             "run schedule-youtube -- --date $($dates[1]) --slot 3 --live",
-            "run schedule-ahead -- --date $($dates[2]) --live",
+            "run schedule-ahead -- --date $($dates[2]) --live --notify-staff",
             "run schedule-youtube -- --date $($dates[2]) --slot 2 --live",
             "run schedule-youtube -- --date $($dates[2]) --slot 3 --live"
         )
@@ -222,7 +222,8 @@ try {
 
         $cleanRun = Invoke-IsolatedWrapper -ScriptPath $isolatedProd -FakeBin $fakeBin -TracePath $tracePath -FailDate ""
         Assert-Run -Name "clean-exit-0" -Condition ($cleanRun.ExitCode -eq 0 -and
-            @($cleanRun.Calls | Where-Object { $_ -like "run schedule-ahead*" }).Count -eq 3) -Details (
+            @($cleanRun.Calls | Where-Object { $_ -like "run schedule-ahead*" }).Count -eq 4 -and
+            @($cleanRun.Calls | Where-Object { $_ -like "run schedule-ahead*--audit-only*--notify-staff*" }).Count -eq 1) -Details (
             "exit=" + $cleanRun.ExitCode + " calls=" + $cleanRun.Calls.Count + " output=" + $cleanRun.Output
         )
     } finally {

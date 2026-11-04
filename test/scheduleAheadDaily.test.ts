@@ -29,7 +29,7 @@ describe("schedule-ahead-daily wrapper R1-R4", () => {
   it("R1 captures LASTEXITCODE immediately after schedule-ahead", async () => {
     const source = await readFile(PROD_SCRIPT, "utf8");
     expect(source).toMatch(
-      /\$out = cmd \/c "npm\.cmd run schedule-ahead -- --date \$date --live 2>&1"\r?\n\s*\$scheduleExitCode = \$LASTEXITCODE/u
+      /\$out = cmd \/c "npm\.cmd run schedule-ahead -- --date \$date --live --notify-staff 2>&1"\r?\n\s*\$scheduleExitCode = \$LASTEXITCODE/u
     );
   });
 

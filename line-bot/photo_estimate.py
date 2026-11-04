@@ -273,8 +273,10 @@ FALLBACK_FORMAT = (
 )
 
 
-# Same order as the shop bot (shop-pc/fxwash/runtime/vision_service.py GEMINI_MODELS).
-DEFAULT_MODEL_CHAIN = ("gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.5-flash-lite")
+# 11/05: gemini-2.5-flash first. On this free key gemini-flash-latest timed out on every
+# production photo (11/02: 2/2 timeouts at 15 s, then 2.5-flash answered) and returned 0 valid
+# answers in 10 tries (11/03 eval: 5xx/429/timeout). The shop bot still lists flash-latest first.
+DEFAULT_MODEL_CHAIN = ("gemini-2.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash-lite")
 MAX_CALLS = 3
 TOTAL_SECONDS = 32
 PER_CALL_SECONDS = 15
@@ -551,7 +553,8 @@ def _inventory(paths: list[Path], names: list[str], trace: _UsageTrace) -> dict:
             # 10/31: gemini-2.5-flash answered 429 (free tier: 5/min, 20/day) and 503; every model
             # has its own free quota, so each retry goes to the next model, like the shop bot.
             gen = dict(body['generationConfig'])
-            plain = index > 0 or "lite" in use
+            # 2.5-flash keeps the request shape that answered in production (plain JSON, no thinking).
+            plain = index > 0 or "lite" in use or use.startswith("gemini-2.5-flash")
             if plain:
                 # flash-lite rejects SCHEMA ("too many states", HTTP 400): plain JSON mode with
                 # the format spelled out; validate_result still enforces the same contract.

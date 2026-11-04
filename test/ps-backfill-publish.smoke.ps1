@@ -369,6 +369,22 @@ exit 0
         $probe = Invoke-Probe $case
         Assert-Case 'existing-uncertain-needs-human' ($probe.Code -eq 1 -and
             (Read-Queue $case)[0].status -eq 'failed' -and @($probe.Calls).Count -eq 0) $probe.Text.Trim()
+        $case = New-Case 'stale-schedule-row'
+        Write-Json (Join-Path $case 'data\scheduled-log\2026-10-26.json') @(
+            [ordered]@{ date = '2026-10-26'; slot = 2; platform = 'facebook'; status = 'uncertain'; error = 'Missing or invalid image file'; published_media_type = 'image'; created_at = '2026-10-23T13:40:27.042Z' },
+            [ordered]@{ date = '2026-10-26'; slot = 1; platform = 'facebook'; scheduled_post_id = 'fake-other-slot'; published_media_type = 'image'; created_at = '2026-10-23T13:40:26.440Z' }
+        )
+        $probe = Invoke-Probe $case
+        $staleEntry = (Read-Queue $case)[0]
+        Assert-Case 'stale-schedule-row-needs-human' ($probe.Code -eq 1 -and $staleEntry.status -eq 'failed' -and
+            [string]$staleEntry.note -like '*schedule-log row*' -and @($probe.Calls).Count -eq 0) $probe.Text.Trim()
+        $case = New-Case 'other-slot-schedule-row'
+        Write-Json (Join-Path $case 'data\scheduled-log\2026-10-26.json') @(
+            [ordered]@{ date = '2026-10-26'; slot = 1; platform = 'facebook'; scheduled_post_id = 'fake-other-slot'; published_media_type = 'image'; created_at = '2026-10-23T13:40:26.440Z' }
+        )
+        $probe = Invoke-Probe $case
+        Assert-Case 'other-slot-schedule-row-still-publishes' ($probe.Code -eq 0 -and
+            (Read-Queue $case)[0].status -eq 'done' -and @($probe.Calls).Count -eq 1) $probe.Text.Trim()
         $case = New-Case 'dry-run-success-not-live'
         Set-Posted $case 'success' 'success' $true
         $probe = Invoke-Probe $case

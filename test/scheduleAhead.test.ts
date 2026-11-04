@@ -1037,3 +1037,43 @@ describe("A7-3 reconcile uncertain rows against the Page", () => {
     }
   });
 });
+
+
+describe("A7-4 current-day audit never publishes", () => {
+  let root: string;
+  beforeEach(async () => { root = await mkdtemp(join(tmpdir(), "a74-audit-")); });
+  afterEach(async () => { if (root && root.includes("a74-audit-")) await rm(root, { recursive: true, force: true }); });
+  async function uncertain() {
+    await seedDay(root, [slotFixture(1, "image", "A74 unique caption"), slotFixture(2, "image", "A74 unused slot")]);
+    const dir = join(root, "data", "scheduled-log");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, `${DATE}.json`), JSON.stringify([{ date: DATE, slot: 1, platform: "facebook", status: "uncertain", scheduled_publish_time: Math.floor(new Date(`${DATE}T11:30:00+08:00`).getTime()/1000), created_at: NOW_DAY_BEFORE.toISOString() }]));
+  }
+  function readOnlyFetch() {
+    return vi.fn(async (_url: unknown, init?: RequestInit) => {
+      expect(init?.method ?? "GET").toBe("GET");
+      return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }) as unknown as typeof fetch;
+  }
+  it("checks today's elapsed uncertain row and raises a lost alert without POST", async () => {
+    await uncertain();
+    const results = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: readOnlyFetch(), now: new Date(`${DATE}T21:40:00+08:00`), auditOnly: true });
+    expect(results.some(row => row.action === "lost")).toBe(true);
+    expect((await loadScheduledLog(DATE, root))[0]?.status).toBe("uncertain");
+    expect(JSON.parse(await readFile(join(root, "output", "alerts", `fb-lost-${DATE}-slot1.json`), "utf8")).alert).toBe("FB_LOST");
+  });
+  it("keeps a future uncertain row instead of deleting and rebooking it", async () => {
+    await uncertain();
+    const results = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl: readOnlyFetch(), now: new Date(`${DATE}T07:00:00+08:00`), auditOnly: true });
+    expect(results[0]?.action).toBe("uncertain");
+    expect(results[0]?.reason).toBe("audit_only_not_confirmed_yet");
+    expect((await loadScheduledLog(DATE, root))).toHaveLength(1);
+  });
+  it("does not enter the ordinary posting path when no audit rows exist", async () => {
+    await seedDay(root, [slotFixture(1, "image", "A74 no scheduled rows"), slotFixture(2, "image", "A74 unused slot")]);
+    const fetchImpl = readOnlyFetch();
+    const results = await scheduleAheadFacebook({ date: DATE, root, config: liveConfig(), fetchImpl, now: NOW_DAY_BEFORE, auditOnly: true });
+    expect(results).toEqual([]);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});

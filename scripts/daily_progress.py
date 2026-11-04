@@ -163,6 +163,27 @@ def atomic_write(path, text):
         raise
 
 
+def facebook_alert_lines(target):
+    folder = os.path.join(ROOT, "output", "alerts")
+    if not os.path.isdir(folder):
+        return []
+    result = []
+    for name in sorted(os.listdir(folder)):
+        if not name.startswith("fb-lost-" + target + "-slot") or not name.endswith(".json"):
+            continue
+        alert = read_json(os.path.join(folder, name))
+        if not isinstance(alert, dict) or alert.get("alert") != "FB_LOST" or alert.get("date") != target:
+            result.append("- FB 排程警報檔無法確認，需人工核對。")
+            continue
+        receipt = read_json(os.path.join(folder, "notifications", name))
+        if isinstance(receipt, dict) and receipt.get("status") == "resolved":
+            result.append(f"- FB {target} 第 {alert.get('slot', '?')} 槽已核對確認，舊警報保留備查。")
+            continue
+        sent = isinstance(receipt, dict) and receipt.get("status") == "delivered"
+        result.append(f"- FB {target} 第 {alert.get('slot', '?')} 槽待人工核對；店員通知{'已送出' if sent else '尚未確認'}；未自動補發。")
+    return result
+
+
 def main():
     # The scheduler console decodes cp950; arrows and check marks kill print.
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -188,6 +209,8 @@ def main():
         downs += v == "↓"
         lines.append(f"| {label} | {fmt(yesterday.get(key))} | {fmt(today.get(key))} | {v} |")
     lines.append(f"| 發布完整(全槽) | {fmt(yesterday.get('published_all_slots'))} | {fmt(today.get('published_all_slots'))} | {'✓' if today.get('published_all_slots') else '✗' if today.get('published_all_slots') is not None else 'null'} |")
+    lines.append("")
+    lines.extend(facebook_alert_lines(target))
     lines.append("")
     lines.append(f"**結論:{ups} 項進步、{downs} 項退步**"
                  f"(null 表示未量測,不算 0、不算退步;generated {datetime.now().isoformat(timespec='seconds')})")

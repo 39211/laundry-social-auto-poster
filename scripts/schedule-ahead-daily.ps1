@@ -56,6 +56,14 @@ function Show-Toast([string]$text) {
 Push-Location $root
 $queued = @()
 $problems = @()
+# A7-4: settle today's uncertain rows without creating or retrying any post.
+$auditDate = (Get-Date).ToString('yyyy-MM-dd')
+Write-Log "=== AUDIT TODAY $auditDate (no publishing) ==="
+$auditOut = cmd /c "npm.cmd run schedule-ahead -- --date $auditDate --live --audit-only --notify-staff 2>&1"
+$auditExitCode = $LASTEXITCODE
+$auditOut | Out-File -FilePath $logFile -Append -Encoding utf8
+if ($auditExitCode -ne 0) { $problems += "$auditDate facebook-audit" }
+
 foreach ($offset in 1..3) {
     $date = $now.AddDays($offset).ToString("yyyy-MM-dd")
     Write-Log "=== D+$offset ($date) ==="
@@ -121,7 +129,7 @@ foreach ($offset in 1..3) {
     }
 
     # R1: Save the native exit code immediately, before logging or other dates.
-    $out = cmd /c "npm.cmd run schedule-ahead -- --date $date --live 2>&1"
+    $out = cmd /c "npm.cmd run schedule-ahead -- --date $date --live --notify-staff 2>&1"
     $scheduleExitCode = $LASTEXITCODE
     $out | Out-File -FilePath $logFile -Append -Encoding utf8
     if ($scheduleExitCode -ne 0) {

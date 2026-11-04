@@ -1,3 +1,4 @@
+import { deliverPendingFacebookAlerts } from "./facebookLostAlert";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
@@ -370,6 +371,7 @@ async function reconcileUncertainRows(args: {
   fetchImpl: typeof fetch;
   now: Date;
   slots: DailySlot[];
+  allowReschedule?: boolean;
 }): Promise<ReconcileOutcome> {
   const { date, root, config, fetchImpl, now, slots } = args;
   const outcome: ReconcileOutcome = { handled: new Map(), rescheduled: new Set() };
@@ -459,6 +461,10 @@ async function reconcileUncertainRows(args: {
       continue;
     }
 
+    if (!tooLate && args.allowReschedule === false) {
+      outcome.handled.set(slotNumber, { ...base, action: "uncertain", reason: "audit_only_not_confirmed_yet" });
+      continue;
+    }
     if (!tooLate) {
       // Confirmed absent on the Page and Meta can still take it: drop the row
       // so the normal path (with preflight) schedules it once more.
@@ -493,6 +499,8 @@ export async function scheduleAheadFacebook(input: {
   now?: Date;
   /** Image preflight timeout per request; default 10 s. Tests shorten it. */
   preflightTimeoutMs?: number;
+  /** Read Page evidence only; never create or retry a post. */
+  auditOnly?: boolean;
 }): Promise<ScheduleAheadResult[]> {
   const root = projectRoot(input.root);
   const config = input.config ?? getConfig();
@@ -501,25 +509,26 @@ export async function scheduleAheadFacebook(input: {
   const preflightTimeoutMs = input.preflightTimeoutMs ?? PREFLIGHT_TIMEOUT_MS;
 
   const paused = await readPause(root);
-  if (paused) {
+  if (paused && !input.auditOnly) {
     throw new Error(pauseMessage(paused));
   }
 
   if (!config.dryRun) {
     assertLiveMetaConfig(config);
-    assertPublicImageBaseUrl(config);
+    if (!input.auditOnly) assertPublicImageBaseUrl(config);
   }
 
   const content = await loadDailyContent(input.date, root);
   if (!content) throw new Error(`No content calendar for ${input.date}; generate the day first.`);
 
-  await ensurePublishTimes(input.date, root);
+  if (!input.auditOnly) await ensurePublishTimes(input.date, root);
   const approvals = await loadApprovalLog(input.date, root);
   // Settle every uncertain row of this date against the Page first (A7-3).
   // Dry runs never touch Graph; their uncertain rows read as "already scheduled".
   const reconciliation: ReconcileOutcome = config.dryRun
     ? { handled: new Map(), rescheduled: new Set() }
-    : await reconcileUncertainRows({ date: input.date, root, config, fetchImpl, now, slots: content.slots });
+    : await reconcileUncertainRows({ date: input.date, root, config, fetchImpl, now, slots: content.slots, allowReschedule: !input.auditOnly });
+  if (input.auditOnly) return [...reconciliation.handled.values()];
   const alreadyScheduled = await loadScheduledLog(input.date, root);
   const alreadyPosted = await loadPostLog(input.date, root);
   const results: ScheduleAheadResult[] = [];
@@ -740,7 +749,12 @@ async function main(): Promise<void> {
   if (!getFlag(args, "live")) {
     process.env.DRY_RUN = "true";
   }
-  const results = await scheduleAheadFacebook({ date, root: getOption(args, "root") });
+  const root = projectRoot(getOption(args, "root"));
+  const results = await scheduleAheadFacebook({ date, root, auditOnly: getFlag(args, "audit-only") });
+  if (getFlag(args, "notify-staff")) {
+    const notification = await deliverPendingFacebookAlerts({ root, date });
+    if (notification.pending > 0) { console.error(`STAFF_ALERT_PENDING ${date}: ${notification.pending}`); process.exitCode = 1; }
+  }
   console.log(JSON.stringify(results, null, 2));
   // Exit 1 so the run reads as failed wherever the exit code is looked at
   // (scripts/schedule-ahead-daily.ps1 only counts rows today; the publish-day

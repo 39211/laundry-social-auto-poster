@@ -140,13 +140,16 @@ class ProviderTests(unittest.TestCase):
     def test_503_recovers_with_fallback_model(self):
         # 10/31 night: gemini-2.5-flash answered 429 (free-tier 5/min) and 503; the retry goes
         # to the fallback model in plain JSON mode (flash-lite rejects SCHEMA with HTTP 400).
+        # 11/05: 2.5-flash itself also uses plain JSON with thinking off, the shape that answered
+        # in production on 11/02.
         result,request=self.invoke([urllib.error.HTTPError('synthetic',503,'busy',None,None),'ok'])
         self.assertTrue(result['ok']);self.assertEqual(request.call_count,2)
         self.assertEqual(result['model'],'gemini-2.5-flash-lite')
         first,second=[call.args[0] for call in request.call_args_list]
         self.assertIn('/models/gemini-2.5-flash:',first.full_url)
         self.assertIn('/models/gemini-2.5-flash-lite:',second.full_url)
-        self.assertIn('responseJsonSchema',json.loads(first.data)['generationConfig'])
+        self.assertNotIn('responseJsonSchema',json.loads(first.data)['generationConfig'])
+        self.assertEqual(json.loads(first.data)['generationConfig'].get('thinkingConfig'),{'thinkingBudget':0})
         self.assertNotIn('responseJsonSchema',json.loads(second.data)['generationConfig'])
 
     def invoke_default_chain(self, effects):
@@ -160,17 +163,21 @@ class ProviderTests(unittest.TestCase):
             result=ORIGINAL_INVENTORY([ROOT/'test-assets/estimate-items-synthetic.png'],['混合運動鞋'])
         return result,request
 
-    def test_default_chain_follows_shop_model_order(self):
-        # Unpinned production path: same order as the shop bot; each free-tier model has its own quota.
+    def test_default_chain_puts_proven_model_first(self):
+        # Unpinned production path: 2.5-flash first (flash-latest timed out on every production photo);
+        # each free-tier model has its own quota, so a 429 moves on to the next model.
         quota=urllib.error.HTTPError('synthetic',429,'quota',None,None)
         result,request=self.invoke_default_chain([quota,quota,'ok'])
         self.assertTrue(result['ok']);self.assertEqual(request.call_count,3)
         urls=[call.args[0].full_url for call in request.call_args_list]
-        self.assertIn('/models/gemini-flash-latest:',urls[0])
-        self.assertIn('/models/gemini-2.5-flash:',urls[1])
+        self.assertIn('/models/gemini-2.5-flash:',urls[0])
+        self.assertIn('/models/gemini-flash-latest:',urls[1])
         self.assertIn('/models/gemini-flash-lite-latest:',urls[2])
         self.assertEqual(result['model'],'gemini-flash-lite-latest')
-        self.assertIn('responseJsonSchema',json.loads(request.call_args_list[0].args[0].data)['generationConfig'])
+        first=json.loads(request.call_args_list[0].args[0].data)['generationConfig']
+        # 2.5-flash keeps the shape that answered in production: plain JSON, thinking off.
+        self.assertNotIn('responseJsonSchema',first)
+        self.assertEqual(first.get('thinkingConfig'),{'thinkingBudget':0})
         self.assertNotIn('responseJsonSchema',json.loads(request.call_args_list[2].args[0].data)['generationConfig'])
 
     def test_default_chain_is_bounded_to_three_calls(self):
@@ -181,7 +188,7 @@ class ProviderTests(unittest.TestCase):
     def test_schema_400_moves_to_next_model(self):
         bad=urllib.error.HTTPError('synthetic',400,'schema too many states',None,None)
         result,request=self.invoke_default_chain([bad,'ok'])
-        self.assertTrue(result['ok']);self.assertEqual(result['model'],'gemini-2.5-flash')
+        self.assertTrue(result['ok']);self.assertEqual(result['model'],'gemini-flash-latest')
 
     def test_429_quota_also_uses_fallback(self):
         result,request=self.invoke([urllib.error.HTTPError('synthetic',429,'quota',None,None),'ok'])

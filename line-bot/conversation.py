@@ -19,6 +19,7 @@ import ehank_prices
 import intents
 import quote_flow
 import journey_ux
+import ai_chat
 
 _SESSION_LOCK = threading.RLock()
 
@@ -396,7 +397,7 @@ def _voice_meta_intent(t: str, n: str) -> str | None:
     return None
 
 
-def _push_ask(uid: str, text: str) -> bool:
+def _push_ask(uid: str, text: str, *, require_delivery: bool = False) -> bool:
     try:
         import staff_notify
         case_id = "Q" + now_tw().strftime("%H%M%S") + uuid.uuid4().hex[:6]
@@ -412,9 +413,9 @@ def _push_ask(uid: str, text: str) -> bool:
                 "handoff": True,
             },
         )
-        _accept_staff_push(result)
+        delivered = _accept_staff_push(result)
         # 群組沒送到時 staff_pushed 仍是假，呼叫端要保持 notify_staff，webhook 才補得了。
-        return True
+        return delivered if require_delivery else True
     except Exception:
         return False
 
@@ -445,7 +446,7 @@ def _is_payment_claim(text: str) -> bool:
     compact = re.sub(r"[\s，。,.、！!？?：:；;「」『』（）()]+", "", raw)
     if any(mark in compact for mark in ("怎麼付款", "如何付款", "付款方式", "付款頁", "還沒付款", "尚未付款")):
         return False
-    return any(mark in compact for mark in _PAYMENT_CLAIM_MARKS)
+    return any(mark in compact for mark in (*_PAYMENT_CLAIM_MARKS, "刷了兩次", "扣了兩次", "有兩筆扣款"))
 
 
 def _push_payment_check(
@@ -883,12 +884,59 @@ def _unsupported_shop_question(uid: str, text: str) -> tuple[list[dict], str, bo
     )
 
 
+def _is_complaint(normalized: str) -> bool:
+    if any(mark in normalized for mark in (
+        "洗壞了", "破掉", "少一件", "少件",
+        "拿錯", "不見了", "客訴", "要賠",
+    )):
+        return True
+
+    if any(mark in normalized for mark in ("洗不乾淨", "沒洗乾淨")) and (
+        any(mark in normalized for mark in ("上次", "取回", "拿回", "洗完還是"))
+        or not any(mark in normalized for mark in ("還沒送洗", "還沒洗", "送洗前", "會不會", "擔心", "怕", "如果", "能不能", "洗不洗"))
+    ):
+        return True
+    if "不是我送洗的" in normalized or re.search(
+        r"(?:取回|拿回|領回).{0,12}(?:少了?|漏了?).{0,6}(?:腰帶|帽子|配件|鞋墊|一件|一雙)",
+        normalized,
+    ):
+        return True
+    if not any(word in normalized for word in ("自己洗", "我洗完", "我洗後")) and re.search(
+        r"(?:洗完|洗後|洗好拿回).{0,12}(?:標誌|標籤|鞋標|logo|扣子|拉鍊).{0,6}(?:掉了|脫落|不見)",
+        normalized,
+        re.IGNORECASE,
+    ):
+        return True
+
+    past_service = re.search(
+        r"上次.{0,12}(?:送洗|洗的|洗完)|(?:你們|店裡)(?:幫我)?洗(?:過|完|的)"
+        r"|(?:剛|今天|昨天|前天)(?:拿回|取回)",
+        normalized,
+    )
+    if not past_service:
+        return False
+    persistent_problem = re.search(
+        r"(?:還是|還有|仍然|依然)(?!會|能|可以).{0,8}(?:黃|髒|味道|異味|污漬|油漬|霉|斑)"
+        r"|(?:污漬|油漬|黃漬|黃斑|異味|霉斑|黴斑).{0,6}(?:還在|沒掉|沒去掉)",
+        normalized,
+    )
+    damage = re.search(r"(?:縮水|掉色|褪色|染色|變形|破損|發霉|發黴)(?:了|[，。！,.!]|$)", normalized)
+    return bool(persistent_problem or damage)
+
+
+_HYPOTHETICAL_DAMAGE = re.compile(r"如果|萬一|假如|要是|假設|會不會")
+
+
 def _complaint_reply(uid: str, text: str) -> tuple[list[dict], str, bool]:
     """客訴先接住並交給店員，避免機器人自行判責或承諾賠償。"""
-    notified = _push_ask(uid, f"客人需要處理客訴：{_clip_chars(text, 160)}")
+    compact = re.sub(r"\s+", "", text or "")
+    hypothetical = bool(_HYPOTHETICAL_DAMAGE.search(compact)) and not re.search(
+        r"上次|取回|拿回|領回|已經|昨天|前天|今天|剛", compact)
+    label = "客人詢問損壞／賠償" if hypothetical else "客人需要處理客訴"
+    notified = _push_ask(uid, f"{label}：{_clip_chars(text, 160)}")
     return (
         say(
-            "先別急，這種狀況我不在這裡亂判。",
+            "先別急，這種狀況我不在這裡亂判。" if hypothetical else "抱歉這次洗護結果讓你困擾。",
             f"我先交給店裡處理，請留手機或洗衣單號；急的話直接打 {PHONE} 會比較快。",
             buttons=[("找真人", "找真人"), ("打電話", "電話")],
         ),
@@ -897,14 +945,18 @@ def _complaint_reply(uid: str, text: str) -> tuple[list[dict], str, bool]:
     )
 
 
-def _photo_care_reply(uid: str) -> tuple[list[dict], str, bool]:
+def _photo_care_reply(
+    uid: str,
+    assessment: str = "這個要看材質和實際狀況，光用文字我不敢跟你保證。",
+    next_step: str = "拍整件一張，問題的地方再近拍一張；有洗標也一起拍，我先請店裡看。",
+) -> tuple[list[dict], str, bool]:
     """污漬、縮水等需要看件的問題，要求有用的照片資訊。"""
     set_sess(uid, wait="photo", photo_wait_ts=now_tw().isoformat(), photo_nudged=False)
     _pack.photo_funnel = False
     return (
         say(
-            "這個要看材質和實際狀況，光用文字我不敢跟你保證。",
-            "拍整件一張，問題的地方再近拍一張；有洗標也一起拍，我先請店裡看。",
+            assessment,
+            next_step,
             actions=[
                 {"type": "camera", "label": "📷 拍照"},
                 {"type": "cameraRoll", "label": "🖼 從相簿選"},
@@ -914,6 +966,213 @@ def _photo_care_reply(uid: str) -> tuple[list[dict], str, bool]:
         "photo_quote",
         False,
     )
+
+
+_STAIN_ITEM = re.compile(r"西裝(?:外套)?|白(?:色)?襯衫|襯衫|白衣|白T|羽絨(?:外套|衣|被)|毛衣|風衣|大衣|外套|洋裝|褲子|長褲|褲腳|裙子|裙|球鞋|(?:運動|麂皮|白|皮)?鞋(?:子|面|頭|底)?|靴子|真皮包|皮包|布包|包包|棉被|床單|衣服", re.IGNORECASE)
+_STAIN_MATERIAL = re.compile(r"麂皮|羊毛|蠶絲|真絲|絲質|帆布|真皮|皮革|合成皮|棉質|聚酯|尼龍")
+_STAIN_TYPES = (
+    ("黃斑", ("黃斑", "黃漬", "黃黃", "泛黃", "變黃")),
+    ("霉斑", ("黴斑", "霉斑", "發黴", "發霉", "黴點", "霉點")),
+    ("機油", ("機油",)),
+    ("油污", ("油污", "油漬", "油斑", "油點")),
+    ("墨水", ("墨水", "漏墨", "沾墨", "原子筆")),
+    ("乳膠漆", ("乳膠漆",)),
+    ("顏料", ("顏料", "油漆")),
+    ("水彩", ("水彩",)),
+    ("粉底", ("粉底",)),
+    ("口紅", ("口紅",)),
+    ("泥巴", ("泥巴", "泥土")),
+    ("醬油", ("醬油",)),
+    ("咖啡漬", ("咖啡",)),
+    ("深淺變色", ("一深一淺", "色差", "變色", "掉色")),
+)
+_STAIN_QUESTION = re.compile(
+    r"(?:洗|清|刷)(?:不洗|不清|不刷)?[得的](?:乾淨|干淨|掉|起來)|(?:洗|清|去|擦)得掉"
+    r"|(?:洗|清|去|擦)不掉|(?:能|可以|有沒有辦法|有辦法)(?:洗|清|去|擦|處理|弄|救)"
+    r"|還有救|有機會救|弄得起來|清回原色|洗回原色|會不會洗不乾淨|怎麼辦"
+    r"|(?:髒污|污漬)是什麼|是什麼污漬|是不是(?:咖啡|顏料|油漆)|是咖啡嗎"
+)
+_UNKNOWN_STAIN = re.compile(
+    r"(?:不知道|不確定).{0,8}(?:沾|弄|什麼污|什麼髒)|(?:沾|弄)到(?:了)?什麼"
+    r"|(?:像是?|可能是|是不是)(?:咖啡(?!色)|顏料|油漆|油污|霉|黴)|是(?:咖啡|顏料|油漆)嗎"
+    r"|(?:不知(?:道)?|不確定).{0,14}還是|(?:髒污|污漬)是什麼|是什麼污漬|咖啡色(?:的)?(?:印子|斑|污漬)"
+)
+_NO_STAIN_PHOTO = ("沒照片", "沒有照片", "還沒拍", "不方便拍", "不能拍", "拍不了")
+
+
+_STAIN_AGE = re.compile(r"今天|昨天|前天|上週|剛剛|很久|不記得.{0,6}時候|(?:\d+|[一二兩三四五六七八九十幾]+)(?:天|個月)(?:前)?")
+_STAIN_PLACE = re.compile(r"領口|領子|袖口|腋下|口袋|褲腳|鞋頭|鞋面|鞋底|包角")
+_STAIN_TREATMENT = re.compile(
+    r"(?:洗|擦|刷|漂|烘|處理)過|用過|用.{0,8}(?:擦|洗|刷)|沒(?:有)?處理|都沒動"
+    r"|^(?:沒|沒有|沒有喔|沒用過)[。！!]*$"
+)
+
+
+def _stain_before_wash(n: str, previous: dict | None = None, *, allow_multi: bool = True) -> tuple[str, str, dict] | None:
+    """Compose an assessment from supplied facts. A stain label is never a diagnosis."""
+    previous = previous or {}
+    items = list(dict.fromkeys(("裙子" if hit[0] == "裙" else hit[0]) for hit in _STAIN_ITEM.finditer(n)))
+    shoe_parts = {"鞋頭", "鞋底", "鞋面"}
+    if any(("鞋" in name or "靴" in name) and name not in shoe_parts for name in items):
+        items = [name for name in items if name not in shoe_parts]
+    if "褲子" in items or "長褲" in items:
+        items = [name for name in items if name != "褲腳"]
+    item = items[0] if items else previous.get("item", "")
+    unknown = bool(_UNKNOWN_STAIN.search(n))
+    description = n.replace("咖啡色", "")
+    # Treat an explicitly excluded source as a correction, not another stain.
+    sources = sorted({word for _, words in _STAIN_TYPES for word in words}, key=len, reverse=True)
+    description = re.sub(r"(?<!是)(?:不是|並非|沒有)(?:沾到|沾上|弄到|滴到|灑到|染到)?(?:" + "|".join(map(re.escape, sources)) + r")",
+                         "", description)
+    observed = [label for label, words in _STAIN_TYPES if any(w in description for w in words)]
+    issue = previous.get("issue") or ("來源不明的污漬" if unknown else "和".join(observed) or "污漬")
+    if not previous and not (_STAIN_QUESTION.search(n) or unknown):
+        return None
+    if not previous and not (observed or unknown or any(word in n for word in (
+        "污", "髒", "髒污", "斑", "洗不洗得", "洗得乾淨", "洗得干淨", "洗不乾淨",
+    ))):
+        return None
+    distinct_instances = bool(re.search(r"另一(?:件|雙|個)|第[二三23](?:件|雙|個)", n))
+    if len(items) > 1 or distinct_instances:
+        if not allow_multi:
+            return None
+        parts = re.split(r"[，,；;。]|(?:另外|還有|以及)|(?=另一(?:件|雙|個)|第[二三23](?:件|雙|個))", n)
+        clauses = []
+        for part in parts:
+            if any(name in part for name in items):
+                clauses.append(part)
+            elif clauses and part:
+                clauses[-1] += "，" + part
+        paired = []
+        seen = set()
+        ambiguous = False
+        for part in clauses:
+            mentioned = [name for name in items if name in part]
+            if len(mentioned) != 1 or not any(
+                word in part.replace("咖啡色", "") for _, words in _STAIN_TYPES for word in words
+            ):
+                continue
+            name = mentioned[0]
+            if name in seen and not distinct_instances:
+                ambiguous = True
+                break
+            hint = {"no_photo": any(word in n for word in _NO_STAIN_PHOTO)}
+            clause = re.sub(r"^(?:另一|第[二三23])(?:件|雙|個)", "", part)
+            answer = _stain_before_wash(clause, hint, allow_multi=False)
+            if answer:
+                paired.append(answer)
+                seen.add(name)
+        expected_count = max(3 if re.search(r"第[三3](?:件|雙|個)", n) else 2, len(items))
+        if not ambiguous and seen == set(items) and len(paired) == expected_count <= 3:
+            leads = "\n".join(
+                f"第{('一', '二', '三')[index]}件：{answer[0]}" if distinct_instances else answer[0]
+                for index, answer in enumerate(paired)
+            )
+            step = ("手邊沒照片也可以。先跟我說這幾處有沒有自己洗過或擦過？"
+                    if any(word in n for word in _NO_STAIN_PHOTO) else
+                    "方便的話，把各件污漬分開近拍，讓店裡分別看材質和範圍。")
+            return leads, step, {}
+        return "這幾件要分開看，材質和污漬可能不一樣。", "你想先處理哪一件？", {}
+    material_match = _STAIN_MATERIAL.search(n)
+    material = material_match[0] if material_match else previous.get("material", "")
+    no_photo = previous.get("no_photo", False) or any(word in n for word in _NO_STAIN_PHOTO)
+    age_known = previous.get("age_known", False) or bool(_STAIN_AGE.search(n))
+    treatment_known = previous.get("treatment_known", False) or bool(_STAIN_TREATMENT.search(n))
+    location = _STAIN_PLACE.search(n)
+    place = location[0] if location else previous.get("place", "")
+    facts = {"issue": issue, "item": item, "material": material, "place": place,
+             "no_photo": no_photo, "age_known": age_known, "treatment_known": treatment_known}
+    if not item:
+        lead = ("光靠描述還分不出是咖啡、顏料或別的東西，先不用猜。"
+                if unknown else f"{issue}可以先看看能改善多少。")
+        step = "是沾在什麼物件上？"
+        if not no_photo:
+            step += "手邊有照片的話，也可以近拍有污漬的地方。"
+        return lead, step, {**facts, "wait": "item"}
+
+    subject = material + item if material and material not in item else item
+    area = subject + place if place and place not in subject else subject
+    if unknown or issue == "來源不明的污漬":
+        lead = f"{area}那一塊可以先看看。光靠文字還分不出來源。"
+        if not no_photo:
+            lead += "照片能先看位置和範圍。"
+    elif issue == "黃斑":
+        label = "領口泛黃" if place == "領口" else (f"{place}黃斑" if place else "黃斑")
+        lead = f"{subject}的{label}可以先看看能改善多少。要看材質、斑留了多久和之前有沒有處理過。"
+    elif issue == "霉斑":
+        lead = f"{subject}的霉斑可以先看件。斑和材質本身的變色要分開看，能改善多少要看實物。"
+    elif issue == "油污":
+        lead = f"{area}{'的' if place else '上的'}油污可以先評估。衣料和油污留了多久，會影響能處理到什麼程度。"
+    elif issue == "深淺變色":
+        lead = f"{area}這種深淺差可以先看。得分清楚是表面髒污還是材質本身變色，才能判斷能改善多少。"
+    elif "和" in issue:
+        lead = f"{area}的{issue}得分開看，兩處能改善的程度可能不一樣。"
+    elif observed or issue != "污漬":
+        lead = f"{area}的{issue}可以先看。店裡要看材質和污漬留了多久，才能判斷能改善多少。"
+    else:
+        lead = f"{subject}上的污漬可以先評估。要看沾到的位置、材質和狀況，才好說能清到什麼程度。"
+    if any(word in item for word in ("鞋", "靴")):
+        step = f"方便的話，拍一張整雙鞋，再近拍{place or '鞋面髒的地方'}，讓我們看材質和污漬範圍。"
+    elif "包" in item:
+        step = "方便的話，拍整個包，再近拍斑點，讓店裡看看材質和受影響的範圍。"
+    else:
+        step = f"方便的話，近拍{place or '污漬'}，再補一張洗標，讓我們先看位置和布料適合怎麼處理。"
+    if "和" in issue:
+        step = "方便的話，兩處分開近拍，再補一張洗標，店裡比較能看出差別。"
+    if no_photo:
+        if not age_known:
+            return lead, "手邊沒照片也沒關係，大概是什麼時候沾到或發現的？", {**facts, "wait": "age"}
+        if not treatment_known:
+            return lead, "這一塊之前有自己洗過或擦過嗎？", {**facts, "wait": "treatment"}
+        step = "這些線索可以先用來評估。方便時把物件帶來，讓店裡確認適合怎麼做。"
+    return lead, step, {}
+
+
+def _care_assessment(n: str) -> str:
+    if "皮包" in n and any(word in n for word in ("霉味", "發霉", "黴味", "發黴")):
+        return "皮包霉味可以先看件。要看皮料和受影響的範圍，才能確認處理方式和費用。"
+    if "鞋" in n and any(word in n for word in ("會不會變黃", "會變黃", "會泛黃")):
+        return "鞋面洗後會不會泛黃，要先看材質和現在的狀況，店裡看過再跟你說。"
+    if not any(word in n for word in (
+        "洗得掉", "能洗掉", "洗得乾淨", "能處理", "可以處理", "怎麼處理",
+        "去得掉", "能去掉", "能弄", "還有救", "可以水洗", "能水洗", "要乾洗", "怎麼洗",
+        "會縮水", "會掉色", "能送洗", "可以送洗", "能洗嗎", "可以洗嗎",
+    )):
+        return ""
+    if any(word in n for word in ("黃黃", "泛黃", "黃漬", "污漬", "油漬", "咖啡漬", "染色", "血漬")):
+        subject = "領口泛黃" if "領口" in n and "黃" in n else "這處污漬"
+        return f"{subject}可以先評估。要看布料、洗標和污漬狀況，才能判斷能淡化多少。"
+    if any(word in n for word in ("鞋", "靴")) and any(word in n for word in ("脫膠", "開口", "裂", "掉漆")):
+        return "鞋子已經有受損的地方，先看鞋面和鞋底接縫，再確認能不能清潔或需另外處理。"
+    if any(word in n for word in ("羽絨", "羽毛被", "蠶絲", "羊毛", "毛衣", "西裝", "真絲", "麂皮")) and any(
+        word in n for word in ("水洗", "乾洗", "怎麼洗", "縮水", "掉色", "能處理", "可以處理")
+    ):
+        return "洗法要看洗標和實際材質，店裡看過才好確認適合的方式。"
+    if "娃娃" in n and any(word in n for word in ("音樂盒", "電池", "發聲")):
+        return "娃娃裡的發聲裝置能拆下來嗎？店裡要先看這個，才能確認能不能清潔。"
+    if any(word in n for word in ("娃娃", "地毯", "寵物墊", "安全座椅", "睡袋", "大型棉被")):
+        return "這類先確認能不能收件。請拍整件，順便告訴我大約尺寸和材質，方便店裡看。"
+    return ""
+
+
+def _short_item_followup(n: str, known_item: bool) -> tuple[str, str] | None:
+    match = re.fullmatch(
+        r"(?:那|所以|請問)?(這件|那件|這雙|那雙|這個|那個|它|這樣)?(?:這樣)?"
+        r"(可以嗎|還可以嗎|可以救嗎|有救嗎|能洗嗎|可以洗嗎|能處理嗎|多少(?:錢)?|費用(?:怎麼算)?"
+        r"|(?:要)?多久(?:好|能拿|可以拿|拿得到)?|(?:要)?幾天(?:好|能拿|可以拿)?)"
+        r"呢?[。！!]*",
+        n,
+    )
+    if not match or (not known_item and not match[1]):
+        return None
+    goal = match[2]
+    if goal in ("可以嗎", "還可以嗎"):
+        return ("clarify", goal) if known_item or goal == "還可以嗎" else None
+    if goal.startswith(("多少", "費用")):
+        return "price", goal
+    if goal.removeprefix("要").startswith(("多久", "幾天")):
+        return "time", goal
+    return "care", goal
 
 
 def _natural_customer_question(uid: str, text: str, normalized: str) -> tuple[list[dict], str, bool] | None:
@@ -1018,7 +1277,7 @@ def _natural_customer_question(uid: str, text: str, normalized: str) -> tuple[li
         return _photo_care_reply(uid)
 
     # 洗不乾淨、少件、拿錯、損傷屬於客訴，不能用通用估價話術帶過。
-    if any(k in n for k in ("洗不乾淨", "沒洗乾淨", "洗壞了", "破掉", "少一件", "少件", "拿錯", "不見了", "客訴", "要賠")):
+    if _is_complaint(re.sub(r"\s+", "", text)):
         return _complaint_reply(uid, text)
 
     # 付款方式不能亂猜；已付款宣稱已在前面進入核對案件。
@@ -2692,7 +2951,13 @@ def _is_rush_text(n: str) -> bool:
     # Negative phrases such as "不急" must not create an urgent task.
     positive = re.sub(r"(?:不(?:用|要|太)?|沒(?:有)?(?:那麼|很)?)(?:著|着)?急|不趕(?:時間)?|不是急件", "", n)
     return any(k in positive for k in ["急", "趕時間", "快一點"]) or bool(
-        re.search(r"(?:今天|今晚|當天|明天).{0,12}(?:拿到|取件|要取|要拿|要穿|要用|洗好|完成)|明天(?:要)?(?:出國|出差)", positive))
+        re.search(
+            r"(?:今天|今晚|當天|明天|(?:星期|禮拜|週|周)[一二三四五六日天])"
+            r".{0,12}(?:拿到|取件|要取|要拿|要穿|要用|洗好|完成|來得及)"
+            r"|明天(?:要)?(?:出國|出差)",
+            positive,
+        )
+    )
 
 
 def concern(n: str, uid: str) -> list[dict] | None:
@@ -3089,15 +3354,48 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
         if estimated is not None:
             return estimated
     elif event_type == "message":
+        # V2：找真人等轉接語句最優先（LAUNDRY_AI_CHAT=on 才生效），不清掉進行中的流程。
+        handed = ai_chat.handoff_first(sys.modules[__name__], uid, text)
+        if handed is not None:
+            return handed
         # 客訴、店內未啟用服務與明確的處理天數先處理，
         # 免得導覽層把「衣服／多久」帶到錯的分支；品項估價仍交給 quote_flow。
         early_text = (text or "").strip()
         early_n = early_text.replace(" ", "").replace("？", "").replace("?", "")
+        if _is_complaint(early_n):
+            msgs, intent, notify = _complaint_reply(uid, early_text)
+            return _pack(msgs, intent, notify)
+        compound = ai_chat.compound_payment_question(sys.modules[__name__], uid, early_text, event_id)
+        if compound is not None:
+            return compound
+        # A new pickup question takes priority over unfinished stain intake.
+        pickup_time = re.search(
+            r"(?:幾點|什麼時候|何時).{0,8}(?:去|過去|過來|到店|來)(?:拿|領|取)"
+            r"|(?:取件|領衣|取衣).{0,8}(?:幾點|營業時間|什麼時候)"
+            r"|(?:(?:星期|禮拜|週|周)[一二三四五六日天]|今天|明天)(?:上午|下午|晚上|中午|早上)?"
+            r".{0,8}(?:(?:能|可以)(?:去|來|過去|過來|到店)?(?:領|拿|取)(?:件|衣|衣服)?嗎"
+            r"|(?:領|拿|取)得到嗎)", early_n
+        )
+        pickup_status = re.search(r"(?:可以|能)(?:去|過去|過來|來)(?:拿|領|取)了嗎", early_n) or (
+            "好了沒" in early_n and ("洗好了沒" in early_n or _STAIN_ITEM.search(early_n))
+        )
+        if not _is_payment_claim(early_text) and (pickup_time or pickup_status):
+            pending = get_sess(uid) or {}
+            if pending.get("prewash_stain"):
+                clear = {"prewash_stain": "", "prewash_stain_at": ""}
+                if pending.get("wait") == "photo":
+                    clear.update(wait=None, photo_wait_ts="", photo_nudged=False)
+                set_sess(uid, **clear)
+            if pickup_time:
+                first = hours_reply(early_n)[0]["text"]
+                return _pack(say(first, f"門市時段：{HOURS}。收到可取件通知就能在營業時間來拿。要確認這件洗好了沒，可以先查進度。",
+                                 buttons=[("查件進度", "物件查詢")]), "hours_day")
+            msgs, notify = start_query(uid)
+            return _pack(msgs, "query", notify)
         # 只提前攔截導覽層容易誤判的類別；收送／查件仍走下方的狀態機，
         # 避免剛建立 pickup_when 又被當成「要離開流程」而遞迴。
         early_candidate = (
-            any(k in early_n for k in ("洗不乾淨", "沒洗乾淨", "洗壞", "破掉", "少一件", "少件", "拿錯", "不見", "客訴", "要賠"))
-            or any(k in early_n for k in ("洗衣精", "洗衣粉", "洗衣袋", "自助洗", "烘衣", "烘乾服務", "修改衣服"))
+            any(k in early_n for k in ("洗衣精", "洗衣粉", "洗衣袋", "自助洗", "烘衣", "烘乾服務", "修改衣服"))
             or any(k in early_n for k in ("會員優惠", "有會員嗎", "有集點嗎", "有優惠嗎", "有折扣嗎", "新客優惠"))
             or any(k in early_n for k in ("通常幾天", "一般幾天", "幾天拿得到", "多久拿得到", "何時可以取", "送洗要預約嗎", "洗衣要先預約嗎", "一定要預約嗎"))
         )
@@ -3106,9 +3404,132 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
             if early is not None and early[1] in ("complaint", "shop_question", "faq"):
                 msgs, intent, notify = early
                 return _pack(msgs, intent, notify)
+        # Keep booking controls ahead of questions that only add a deadline.
+        sess_now = get_sess(uid) or {}
+        wait_now = sess_now.get("wait") or ""
+        in_pickup = wait_now.startswith("pickup_")
+        starts_pickup = not wait_now and _is_pickup_text(early_n)
+        if "地址" in early_n and any(mark in early_n for mark in ("剛給", "剛傳", "已經給", "已經傳")) and any(
+            mark in early_n for mark in ("還要", "再給", "再傳", "重傳")
+        ):
+            reply = ("這筆收送的地址已經記到了，不用再傳。"
+                     if in_pickup and sess_now.get("pickup_addr")
+                     else "這邊還沒看到這筆收送已記好的地址。你是想確認這次的收件資料嗎？")
+            return _pack(say(reply), "pickup_address_question")
+        if "管理室" in early_n and any(mark in early_n for mark in ("放", "代收", "代交")):
+            note = "地址有記到了，" if in_pickup and sess_now.get("pickup_addr") else ""
+            return _pack(say(note + "管理室能不能交接，要先跟店裡確認。管理室方便代交嗎？",
+                             buttons=[("請店員確認", "找真人")]), "pickup_policy")
+        if re.search(r"(?:家人|我媽|我爸|朋友|別人).{0,8}(?:代領|幫我拿|幫我取)|代領|代取", early_n):
+            return _pack(say("家人代領要看這筆取件需要怎麼核對。手邊有洗衣單號嗎？可以給店裡查這筆。",
+                             buttons=[("找店員確認", "找真人")]), "pickup_policy")
+        if re.search(r"(?:先(?:拿|取|領)(?:其中)?|(?:只想|只要)(?:拿|取|領)其中)一(?:件|雙)", early_n):
+            return _pack(say("能不能先領其中一件，要先查這筆單。給店裡洗衣單號，順便說你想先拿哪一件。",
+                             buttons=[("找店員確認", "找真人")]), "pickup_policy")
+        if re.search(r"(?:放到|延到|晚點|改到)(?:下週|下禮拜|下星期|下個月)", early_n) and (
+            "沒空" in early_n or any(mark in early_n for mark in ("取件", "領", "寄放"))
+        ):
+            return _pack(say("你是想晚一點取件嗎？如果是，把洗衣單號和預計取件日給店裡，就能幫你確認寄放安排。"), "clarify_pickup")
+        if (in_pickup or starts_pickup) and not _is_cancel_text(early_n) and _is_rush_text(early_n):
+            rush = concern(early_n, uid)
+            if rush:
+                if starts_pickup:
+                    rush += start_pickup(uid)
+                else:
+                    rush[-1]["text"] += " 原本的收送資料已保留，可以接著填寫。"
+                return _pack(rush, "concern", True)
+        if wait_now in ("", "photo", "photo_need") and not (_is_cancel_text(early_n) or _is_payment_claim(early_text)):
+            item = sess_now.get("care_item") or ""
+            if not isinstance(item, str) or not _ts_within(sess_now.get("care_item_at", ""), minutes=10):
+                item = ""
+            catalog_item = lookup_item(item) if item else None
+            if not catalog_item and item != "皮包":
+                item = ""
+            correction = re.fullmatch(r"不是[^，,。]{1,24}[，,]?(?:我說的是|是)([^。！!]{1,24})[。！!]*", early_n)
+            if item and correction and not sess_now.get("estimate_draft"):
+                replacements = intents.match_item(correction[1], _flat_catalog())
+                if len(replacements) == 1 and lookup_item(replacements[0]):
+                    corrected_item = replacements[0]
+                    set_sess(uid, care_item=corrected_item, care_item_at=now_tw().isoformat())
+                    msgs, intent, notify = _photo_care_reply(uid, f"了解，是{corrected_item}。這件先看材質和洗標，再確認適合的洗法。")
+                    return _pack(msgs, intent, notify)
+            followup = _short_item_followup(early_n, bool(item)) if wait_now != "photo_need" else None
+            if followup:
+                goal, phrase = followup
+                if goal == "clarify":
+                    question = (f"你想先確認{item}能不能洗、費用，還是多久能拿？" if item else
+                                "你說的是哪一件？如果是想確認能不能洗，也可以直接傳照片。")
+                    return _pack(say(question), "clarify_item")
+                if item and goal == "time":
+                    category = catalog_item[2] if catalog_item else "皮革"
+                    days = {"衣物": "一般衣物約 5–7 天", "鞋子": "鞋約 7 天",
+                            "包包": "皮件、包約 14 天", "皮革": "皮件、包約 14 天"}.get(category)
+                    if days:
+                        return _pack(say(f"{item}的交期先抓這個範圍：{days}。有指定哪天要用嗎？"), "faq")
+                if item and goal == "price":
+                    if item == "皮包" or catalog_item[2] in ("皮革", "包包"):
+                        msgs, intent, notify = _photo_care_reply(uid, f"{item}的費用要看材質和剛提到的狀況，店裡看過再估。")
+                        return _pack(msgs, intent, notify)
+                    quoted = quote_flow.handle_text(sys.modules[__name__], uid, item + phrase, event_id)
+                    if quoted is not None:
+                        return quoted
+                    return _pack(
+                        _quote_item(uid, item, "這是基本估價，剛提到的狀況要看件才知道需不需要另外處理"),
+                        "quote",
+                    )
+                if item and goal == "care":
+                    msgs, intent, notify = _photo_care_reply(uid, f"{item}能不能洗要看材質和狀況，可以先傳照片給店裡看。")
+                    return _pack(msgs, intent, notify)
+                if not item and goal in ("time", "care"):
+                    question = "你想問哪一件多久能拿？衣物、鞋和皮包的時間不同。" if goal == "time" else "你想問哪一件能不能洗？告訴我品項，或直接傳照片就好。"
+                    return _pack(say(question), "clarify_item")
+            pending_stain = sess_now.get("prewash_stain")
+            carried = None
+            if isinstance(pending_stain, dict) and _ts_within(sess_now.get("prewash_stain_at", ""), minutes=10):
+                step = pending_stain.get("wait")
+                if len(early_n) <= 32 and not _is_query_text(early_n) and not _is_pickup_text(early_n):
+                    named_item = _STAIN_ITEM.search(early_n) and not re.search(
+                        r"多少錢|報價|估價|想預約|好了沒|幾天|找真人|取件", early_n
+                    )
+                    if ((step == "item" and named_item)
+                            or (step == "age" and _STAIN_AGE.search(early_n))
+                            or (step == "treatment" and _STAIN_TREATMENT.search(early_n))):
+                        carried = pending_stain
+            stain = _stain_before_wash(early_n, carried) if wait_now != "photo_need" else None
+            if stain:
+                assessment, next_step, pending = stain
+                items = intents.match_item(early_text, _flat_catalog())
+                item = items[0] if len(items) == 1 and lookup_item(items[0]) else ""
+                if not item and carried and carried.get("wait") != "item":
+                    item = sess_now.get("care_item") or ""
+                set_sess(uid, care_item=item, care_item_at=now_tw().isoformat() if item else "",
+                         prewash_stain=pending,
+                         prewash_stain_at=now_tw().isoformat() if pending else "")
+                if (carried and carried.get("no_photo")) or any(word in early_n for word in _NO_STAIN_PHOTO):
+                    return _pack(say(assessment, next_step, buttons=[("找店員", "找真人")]), "photo_quote")
+                msgs, intent, notify = _photo_care_reply(uid, assessment, next_step)
+                return _pack(msgs, intent, notify)
+            if pending_stain and not intents.is_ack(early_text):
+                set_sess(uid, prewash_stain="", prewash_stain_at="")
+            assessment = _care_assessment(early_n)
+            if assessment:
+                items = intents.match_item(early_text, _flat_catalog())
+                item = items[0] if len(items) == 1 and lookup_item(items[0]) else ""
+                if not items and assessment.startswith("皮包霉味"):
+                    item = "皮包"
+                set_sess(uid, care_item=item, care_item_at=now_tw().isoformat() if item else "")
+                msgs, intent, notify = _photo_care_reply(uid, assessment)
+                return _pack(msgs, intent, notify)
+            refers_back = re.search(r"(?:這|那)(?:一?件|雙|個|批)|(?:^|[，,])它", early_n)
+            if sess_now.get("care_item") and not (followup or refers_back or intents.is_ack(early_text) or starts_pickup):
+                set_sess(uid, care_item="", care_item_at="")
         navigated = journey_ux.handle(sys.modules[__name__], uid, text)
         if navigated is not None:
             return navigated
+        # V2：流程等待中、原步驟接不住的插話（off 時直接回 None）。
+        ai_mid = ai_chat.mid_flow(sys.modules[__name__], uid, text, event_id)
+        if ai_mid is not None:
+            return ai_mid
         sess_now = get_sess(uid) or {}
         wait_now = sess_now.get("wait") or ""
         if not wait_now or wait_now in ("photo", "photo_need"):
@@ -3864,6 +4285,10 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
                 False,
             )
 
+    # V2：沒有流程也沒對到時，先讓 AI 依規則回答；不確定或被擋下就照舊掉底。
+    ai_answer = ai_chat.no_flow_answer(sys.modules[__name__], uid, t, n)
+    if ai_answer is not None:
+        return ai_answer
     # V4／V5 fallback（覆寫 R3 文案與「長度≥2 就通知」）
     msgs, notify = _do_fallback(uid, t)
     return _pack(msgs, "fallback", notify)

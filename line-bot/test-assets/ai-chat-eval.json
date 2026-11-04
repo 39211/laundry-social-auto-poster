@@ -1,0 +1,195 @@
+{
+  "schema": "ai-chat-eval/v1",
+  "note": "Synthetic dialogues written like Taichung customers. No real names or phone numbers. 'fake' is the deterministic model answer used when --live is not given.",
+  "dialogues": [
+    {"id": "owner_booking_side", "title": "選收送時段時插問羽絨衣（老闆的情境）", "turns": [
+      {"say": "外收送預約"},
+      {"say": "羽絨衣可以水洗嗎", "fake": {"kind": "answer", "reply": "羽絨衣多數可以水洗，但要看洗標和填充狀況，洗後會低溫烘透讓羽絨蓬鬆。方便的話拍洗標給我們看。"}},
+      {"say": "明天下午"}
+    ]},
+    {"id": "handoff_mid_booking", "title": "選時段時找真人", "turns": [
+      {"say": "外收送預約"},
+      {"say": "找真人"}
+    ]},
+    {"id": "new_intent_mid_booking", "title": "收送中途改成拍照問價", "turns": [
+      {"say": "外收送預約"},
+      {"say": "改成拍照問價好了", "fake": {"kind": "new_intent", "reply": ""}}
+    ]},
+    {"id": "side_sunday_mid_booking", "title": "收送中途問週日", "turns": [
+      {"say": "外收送預約"},
+      {"say": "禮拜天你們有在嗎", "fake": {"kind": "answer", "reply": "週日公休喔，收送也是在營業時間內約，平日或週六都可以。"}}
+    ]},
+    {"id": "price_mid_booking", "title": "收送中途問西裝價錢（要走估價）", "turns": [
+      {"say": "外收送預約"},
+      {"say": "西裝外套洗一件多少錢", "fake": {"kind": "answer", "reply": "西裝外套大概三百塊。"}}
+    ]},
+    {"id": "query_forgot_phone", "title": "查件時忘記留哪支手機", "turns": [
+      {"say": "物件查詢"},
+      {"say": "我忘記當初留哪支手機了", "fake": {"kind": "staff", "reply": ""}}
+    ]},
+    {"id": "new_intent_query_mid", "title": "收送中途改查件", "turns": [
+      {"say": "外收送預約"},
+      {"say": "先幫我查一下洗好了沒", "fake": {"kind": "new_intent", "reply": ""}}
+    ]},
+    {"id": "care_suede", "title": "麂皮鞋淋雨變硬", "turns": [
+      {"say": "麂皮鞋淋到雨變得硬硬的還有救嗎", "fake": {"kind": "answer", "reply": "麂皮怕水，淋濕先放通風處自然陰乾，不要用吹風機。能改善多少要師傅看過才知道，方便拍整雙和變硬的地方給我們嗎？"}}
+    ]},
+    {"id": "care_white_shoes", "title": "白鞋發黃", "turns": [
+      {"say": "白鞋穿久鞋邊都發黃了洗得回來嗎", "fake": {"kind": "answer", "reply": "鞋邊發黃多半是膠底氧化，清洗能改善髒污，但氧化不一定能完全回白，師傅看過會先跟您說。可以先拍照給我們看看。"}}
+    ]},
+    {"id": "care_wool_coat", "title": "羊毛大衣怕縮", "turns": [
+      {"say": "羊毛大衣自己洗怕縮水，你們怎麼處理", "fake": {"kind": "answer", "reply": "羊毛遇水容易縮，店裡會依洗標和材質選合適的洗法，不會硬用水洗。送來時師傅會先看件再跟您確認。"}}
+    ]},
+    {"id": "care_moldy_bag", "title": "包包發霉", "turns": [
+      {"say": "包包放衣櫃一個夏天長霉了", "fake": {"kind": "answer", "reply": "皮包長霉先別用濕布用力擦，放通風處就好。霉斑能處理到什麼程度要師傅看過，拍整個包和發霉處給我們看看。"}}
+    ]},
+    {"id": "store_hours", "title": "營業時間", "turns": [
+      {"say": "你們禮拜六幾點開", "fake": {"kind": "answer", "reply": "週六 12:00-18:00 有開，週日公休。"}}
+    ]},
+    {"id": "store_parking", "title": "停車", "turns": [
+      {"say": "開車去店門口好停嗎", "fake": {"kind": "staff", "reply": ""}}
+    ]},
+    {"id": "pickup_area", "title": "到府收送範圍", "turns": [
+      {"say": "我住大里，也可以到府收送嗎", "fake": {"kind": "answer", "reply": "台中市都可以免費到府收送喔。按「外收送預約」選個時段就好。"}}
+    ]},
+    {"id": "turnaround", "title": "多久好", "turns": [
+      {"say": "一般衣服送洗通常幾天可以拿", "fake": {"kind": "answer", "reply": "一般衣物 5–7 天，鞋 7 天，難乾的大件 10–14 天，皮件和包 14 天。"}}
+    ]},
+    {"id": "price_item", "title": "問羽絨外套價錢", "turns": [
+      {"say": "洗一件羽絨外套大概多少", "fake": {"kind": "answer", "reply": "羽絨外套大概兩百多。"}}
+    ]},
+    {"id": "price_vague", "title": "問收費貴不貴", "turns": [
+      {"say": "你們收費會很貴嗎", "fake": {"kind": "answer", "reply": "我們算很便宜，一件 NT$70 起。"}}
+    ]},
+    {"id": "small_talk", "title": "閒聊天氣", "turns": [
+      {"say": "今天台中好冷喔", "fake": {"kind": "answer", "reply": "最近真的轉涼了，記得保暖。厚外套或棉被要整理送洗的話，隨時跟我說。"}}
+    ]},
+    {"id": "complaint", "title": "抱怨領口沒洗乾淨", "turns": [
+      {"say": "上次洗的襯衫領口還是黃黃的，有點失望", "fake": {"kind": "staff", "reply": ""}}
+    ]},
+    {"id": "handoff_no_flow", "title": "請老闆打電話", "turns": [
+      {"say": "可以請老闆打電話給我嗎"}
+    ]},
+    {"id": "unclear_1", "title": "看不懂的單字一", "turns": [
+      {"say": "欸", "fake": {"kind": "unsure", "reply": ""}}
+    ]},
+    {"id": "unclear_2", "title": "看不懂的單字二", "turns": [
+      {"say": "那個", "fake": {"kind": "unsure", "reply": ""}}
+    ]},
+    {"id": "unclear_3", "title": "看不懂的單字三", "turns": [
+      {"say": "喔喔", "fake": {"kind": "unsure", "reply": ""}}
+    ]},
+    {
+      "id": "complaint_persistent_stain",
+      "title": "取回衣物後污漬仍在",
+      "review_focus": "轉人工並留下原問題",
+      "turns": [
+        {
+          "say": "昨天拿回來的外套油漬還在"
+        }
+      ]
+    },
+    {
+      "id": "complaint_damage",
+      "title": "送洗後衣物縮水",
+      "review_focus": "轉人工，避免自行判責",
+      "turns": [
+        {
+          "say": "你們洗完的大衣縮水了"
+        }
+      ]
+    },
+    {
+      "id": "complaint_rewash_price",
+      "title": "反映沒洗好並問重洗費用",
+      "review_focus": "優先處理客訴",
+      "turns": [
+        {
+          "say": "上次洗的白鞋還有味道，重洗要多少錢"
+        }
+      ]
+    },
+    {
+      "id": "complaint_during_booking",
+      "title": "預約中反映上次洗護結果",
+      "review_focus": "轉人工，保留原預約時段",
+      "turns": [
+        {
+          "say": "外收送預約"
+        },
+        {
+          "say": "上次洗的襯衫領口還是黃黃的"
+        },
+        {
+          "say": "明天下午"
+        }
+      ]
+    },
+    {
+      "id": "repeat_service_price",
+      "title": "提到上次送洗但這次只是問價",
+      "review_focus": "正常估價",
+      "turns": [
+        {
+          "say": "上次洗的襯衫這次洗要多少"
+        }
+      ]
+    },
+    {
+      "id": "new_stain_question",
+      "title": "送洗前詢問泛黃能否處理",
+      "review_focus": "理解處理需求，給可執行下一步",
+      "turns": [
+        {
+          "say": "這件襯衫領口黃黃的，還沒送洗，洗得掉嗎"
+        }
+      ]
+    },
+    {
+      "id": "ambiguous_referent",
+      "title": "客人沒說是哪件衣物或什麼需求",
+      "review_focus": "先問一個能釐清指涉的問題",
+      "turns": [
+        {
+          "say": "那件這樣還可以嗎"
+        }
+      ]
+    },
+    {
+      "id": "compound_pickup_deadline",
+      "title": "同時想問收送及趕件",
+      "review_focus": "處理兩個需求，不保證趕件",
+      "turns": [
+        {
+          "say": "可以來收嗎？禮拜五要穿，來得及嗎"
+        }
+      ]
+    },
+    {
+      "id": "followup_deadline_context",
+      "title": "預約途中補充使用期限",
+      "review_focus": "理解期限是補充條件，保留預約",
+      "turns": [
+        {
+          "say": "外收送預約"
+        },
+        {
+          "say": "明天下午"
+        },
+        {
+          "say": "可是我週五就要穿"
+        }
+      ]
+    },
+    {
+      "id": "care_quote_combined",
+      "title": "問去霉風險及費用",
+      "review_focus": "分別回應材質風險和估價下一步",
+      "turns": [
+        {
+          "say": "皮包有霉味，能處理嗎？費用怎麼算"
+        }
+      ]
+    }
+  ]
+}

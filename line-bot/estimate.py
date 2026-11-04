@@ -247,6 +247,11 @@ def _quantity(after: str, before: str):
     # Read immediately after the noun, or an explicit measure immediately before it.
     tail = re.sub(r"^\s*(?:改成|改為|更正為|大概|大約|約|是|有|共|各|再加|加|[xX×*=：:]|要)?\s*", "", after)
     match = QUANTITY.match(tail)
+    # In 「襯衫洗一件」, only accept a measure after the verb when it has a unit.
+    if not match and (verb := re.match(r"洗\s*", tail)):
+        measured = QUANTITY.match(tail, verb.end())
+        if measured and measured.group("unit"):
+            match = measured
     correction = re.search(r"(?:改成|改為|更正為)\s*(.+)", after)
     if correction:
         match = QUANTITY.match(correction.group(1))

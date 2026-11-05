@@ -32,6 +32,14 @@ export function topicFamily(topic: string): Family {
   return "other";
 }
 const PREFERRED: Family[] = ["textile", "plush", "luggage", "boot"];
+
+// Dates before this were already published; their plan entries are frozen and
+// are not edited to make a test pass.
+const PUBLISHED_CUTOFF = "2026-11-06";
+// As-published same-day family collisions (slot 1 plan vs slot 2), by date (T-4b):
+//   09-23 slot 1 抱枕套和沙發套一起洗，先看洗標和布種免得色差 → textile
+//         slot 2 毛毯和床單換季收納前不能一起洗 (seed 週末換季整理先分類布品) → textile
+const PUBLISHED_SAME_DAY_FAMILY_EXCEPTIONS: Record<string, Family> = { "2026-09-23": "textile" };
 const TEN_DAY_REVIEW_SEED = "每十天公開一次洗護觀察";
 
 function daysApart(a: string, b: string): number {
@@ -79,7 +87,21 @@ describe("slot 2 topic plan (2026-09-11..10-08)", () => {
       if (!slot1 || !slot2 || slot2.format === "poster") continue;
       expect(slot2.seo_sync_page, day.date).not.toBe(slot1.seo_sync_page);
       const planned = slot1Plan[day.date];
-      if (planned) expect(topicFamily(slot2.topic), `${day.date} ${slot2.topic} vs ${planned}`).not.toBe(topicFamily(planned));
+      if (!planned) continue;
+      const excused = PUBLISHED_SAME_DAY_FAMILY_EXCEPTIONS[day.date];
+      if (excused) {
+        // Dated, published exception: it must still reproduce exactly, so a
+        // stale entry fails instead of silently excusing a different collision.
+        expect(day.date < PUBLISHED_CUTOFF, `${day.date} is not before ${PUBLISHED_CUTOFF}`).toBe(true);
+        expect(topicFamily(planned), `${day.date} slot 1 ${planned}`).toBe(excused);
+        expect(topicFamily(slot2.topic), `${day.date} slot 2 ${slot2.topic}`).toBe(excused);
+        continue;
+      }
+      expect(topicFamily(slot2.topic), `${day.date} ${slot2.topic} vs ${planned}`).not.toBe(topicFamily(planned));
+    }
+    for (const date of Object.keys(PUBLISHED_SAME_DAY_FAMILY_EXCEPTIONS)) {
+      expect(date < PUBLISHED_CUTOFF, `${date} is not before ${PUBLISHED_CUTOFF}`).toBe(true);
+      expect(windowDays.some((day) => day.date === date), `${date} exception is outside the window`).toBe(true);
     }
   });
 

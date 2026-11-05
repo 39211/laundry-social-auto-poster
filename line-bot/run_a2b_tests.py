@@ -15,6 +15,34 @@ import unittest
 import uuid
 
 
+_LOOPBACK_HOSTS = ("127.0.0.1", "::1", "localhost")
+# 這些測試是「腳本式」：自己的 __main__ 會在每個案例之間重置狀態、並用 sys.exit 回報結果，
+# 逐一包成 FunctionTestCase 會讓案例互相污染（例如 _staff.inbox 沒清空），所以整支照原樣跑。
+_SCRIPT_STYLE_MODULES = ("test_conversation", "test_guided_flows")
+
+
+def _is_loopback(address) -> bool:
+    host = address[0] if isinstance(address, tuple) and address else address
+    return host in _LOOPBACK_HOSTS
+
+
+def _remove_tree(path: Path) -> None:
+    """清掉暫存資料夾；Windows 上檔案偶爾還被占用，重試幾次，最後只警告、不改變測試結果。"""
+    import gc
+    import time
+
+    for _ in range(5):
+        gc.collect()
+        try:
+            shutil.rmtree(path)
+            return
+        except OSError:
+            time.sleep(0.4)
+    shutil.rmtree(path, ignore_errors=True)
+    if path.exists():
+        print(f"A2b: could not remove {path.name} (a test left a file open); delete it by hand", file=sys.stderr)
+
+
 def main() -> int:
     bot = Path(__file__).resolve().parent
     tmp_root = bot / (".a2b-test-tmp-" + uuid.uuid4().hex)
@@ -34,6 +62,21 @@ def main() -> int:
     data.mkdir()
     for name in ("prices.json", "business-profile.json"):
         shutil.copyfile(bot.parent / "data" / name, data / name)
+    # 追蹤中的 prices.json 缺幾個品項（西裝上衣、西褲、枕頭、娃娃）：它們的價來自店內 eHank 對齊，
+    # 沙盒沒有。只在沙盒副本補「合成價」讓報價類測試能跑；這些數字不是店裡的真實價。
+    prices_path = data / "prices.json"
+    prices_doc = json.loads(prices_path.read_text(encoding="utf-8"))
+    synthetic_prices = {
+        "衣物": {"西裝": 250, "西褲": 100},
+        "寢具": {"枕頭": 150},
+        "其他": {"娃娃": 300},
+    }
+    for category_name, extra in synthetic_prices.items():
+        category = prices_doc.get(category_name)
+        assert isinstance(category, dict), f"A2b: prices.json has no category {category_name!r}"
+        for item_name, price in extra.items():
+            category.setdefault(item_name, price)
+    prices_path.write_text(json.dumps(prices_doc, ensure_ascii=False, indent=2), encoding="utf-8")
     fixture = {
         "customers": [
             {"no": "0028", "name": "Synthetic A", "phone": "0912345678"},
@@ -78,6 +121,10 @@ def main() -> int:
     def audit(event, args):
         if event in ("open", "os.listdir", "os.scandir") and args and blocked(args[0]):
             raise PermissionError("A2b: production filesystem access forbidden")
+        if event == "socket.connect" and len(args) > 1 and _is_loopback(args[1]):
+            return
+        if event == "socket.getaddrinfo" and args and args[0] in _LOOPBACK_HOSTS:
+            return
         if event in ("socket.connect", "socket.getaddrinfo"):
             raise PermissionError("A2b: network forbidden")
 
@@ -98,7 +145,7 @@ def main() -> int:
         flask.Flask.run = no_server
     module_name = sys.argv[1]
     try:
-        if module_name == "test_conversation":
+        if module_name in _SCRIPT_STYLE_MODULES:
             runpy.run_module(module_name, run_name="__main__")
             return 0
         module = importlib.import_module(module_name)
@@ -110,7 +157,7 @@ def main() -> int:
         return 0 if result.wasSuccessful() else 1
     finally:
         # Only this task's resolved sandbox directory; never a production path.
-        shutil.rmtree(tmp_root)
+        _remove_tree(tmp_root)
 
 
 if __name__ == "__main__":

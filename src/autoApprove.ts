@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { approvePost } from "./approvePost";
 import { getFlag, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
-import { hasApprovedPost, loadApprovalLog, loadDailyContent, loadImageSources } from "./logging";
+import { hasApprovedPost, loadApprovalLog, loadDailyContent, loadImageSources, loadVideoSources } from "./logging";
 import { inspectDailyImageProvenance } from "./imageProvenance";
 import {
   hashImageFile,
@@ -20,6 +20,7 @@ import {
   checkSlotAgainstOwnerRules,
   formatOwnerRuleViolations,
   parseOwnerRulesMode,
+  storedReelDurationSeconds,
   type OwnerRuleViolation
 } from "./ownerContentRules";
 import { projectRoot } from "./paths";
@@ -364,10 +365,27 @@ export async function autoApprove(
   if (ownerRules.mode !== "off") {
     const ownerRuleSlots: Array<{ slot: number; violations: OwnerRuleViolation[] }> = [];
     const priceListAmounts = await loadPriceListAmounts(root);
+    // Reel length (rule 7) uses the duration stored in the video source record
+    // when the video was marked; no probe runs here. An unreadable record only
+    // leaves the duration unknown (the rule then warns), it never costs a day.
+    let videoSources: readonly object[] = [];
+    try {
+      videoSources = await loadVideoSources(date, root);
+    } catch (error) {
+      checks.push({
+        name: "owner_rules_video_sources",
+        ok: true,
+        detail: `could not read video sources for ${date}; reel length stays unknown (${error instanceof Error ? error.message : String(error)})`
+      });
+    }
     for (const slot of content.slots) {
       let violations: OwnerRuleViolation[];
       try {
-        violations = checkSlotAgainstOwnerRules(slot, { priceListAmounts });
+        const reelDurationSeconds = storedReelDurationSeconds(slot, videoSources);
+        violations = checkSlotAgainstOwnerRules(
+          slot,
+          reelDurationSeconds === undefined ? { priceListAmounts } : { priceListAmounts, reelDurationSeconds }
+        );
       } catch (error) {
         // The checker must never cost a day's posts in report mode; in block
         // mode an unproven slot stops the run like every other gate.

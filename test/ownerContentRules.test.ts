@@ -8,12 +8,15 @@ import * as generateVideo from "../src/generateVideo";
 import * as imageProvenance from "../src/imageProvenance";
 import * as imageStamp from "../src/imageStamp";
 import { loadDailyContent } from "../src/logging";
+import * as logging from "../src/logging";
 import * as mediaAssets from "../src/mediaAssets";
 import * as ownerRules from "../src/ownerContentRules";
 import {
   OWNER_CONTENT_RULES,
   checkSlotAgainstOwnerRules,
+  parseChineseAmount,
   parseOwnerRulesMode,
+  storedReelDurationSeconds,
   type OwnerRuleViolation
 } from "../src/ownerContentRules";
 
@@ -95,6 +98,22 @@ describe("rule 3: turnaround", () => {
     expect(rulesOf(check(caption("需要 3 到 4 個工作天")))).toEqual(["turnaround"]);
     expect(rulesOf(check(caption("三四天就洗好")))).toEqual(["turnaround"]);
     expect(rulesOf(check(caption("大約 1-2 週可取件")))).toEqual(["turnaround"]);
+  });
+});
+
+describe("rule 3: turnaround per item (R-1105b)", () => {
+  it("flags another item's span, wave-dash ranges and same-day promises", () => {
+    expect(rulesOf(check(caption("皮件包大約 7 天可以取件")))).toEqual(["turnaround"]);
+    expect(rulesOf(check(caption("棉被大約 5-7 天可以取件")))).toEqual(["turnaround"]);
+    expect(rulesOf(check(caption("一般衣物大約 3〜7 天可以取件")))).toEqual(["turnaround"]);
+    expect(rulesOf(check(caption("皮件包 7 天就能拿回")))).toEqual(["turnaround"]);
+    expect(rulesOf(check(caption("急件隔天就能拿回")))).toEqual(["turnaround"]);
+    expect(rulesOf(check(caption("24 小時內洗好")))).toEqual(["turnaround"]);
+  });
+  it("still passes each item's own span", () => {
+    expect(check(caption("皮件包大約 14 天可以取件"))).toEqual([]);
+    expect(check(caption("棉被大約 10-14 天可以取件"))).toEqual([]);
+    expect(check(caption("鞋子大約 7 天可以取件"))).toEqual([]);
   });
 });
 
@@ -314,6 +333,168 @@ describe("price list amounts (owner's own price list)", () => {
     expect(offList.map((v) => `${v.rule}/${v.severity}`)).toEqual(["price/block"]);
     const noList = checkSlotAgainstOwnerRules({ slot: 1, facebook_caption: "參考價：背包清洗 $500（水洗價）" });
     expect(noList.map((v) => `${v.rule}/${v.severity}`)).toEqual(["price/block"]);
+  });
+});
+
+const severities = (violations: OwnerRuleViolation[]) => violations.map((v) => `${v.rule}/${v.severity}`);
+
+describe("price list amounts written in Chinese numerals", () => {
+  it("parses the owner's numeral forms", () => {
+    expect(parseChineseAmount("七十")).toBe(70);
+    expect(parseChineseAmount("三百五十")).toBe(350);
+    expect(parseChineseAmount("三百五")).toBe(350);
+    expect(parseChineseAmount("一千二")).toBe(1200);
+    expect(parseChineseAmount("一千二百")).toBe(1200);
+    expect(parseChineseAmount("兩千")).toBe(2000);
+    expect(parseChineseAmount("七十五")).toBe(75);
+    expect(parseChineseAmount("十五")).toBe(15);
+    expect(parseChineseAmount("一千零五")).toBe(1005);
+    expect(parseChineseAmount("一千零五十")).toBe(1050);
+    expect(parseChineseAmount("兩萬五")).toBe(25000);
+    expect(parseChineseAmount("十五萬")).toBe(150000);
+  });
+
+  it("refuses ambiguous numerals", () => {
+    expect(parseChineseAmount("")).toBeNull();
+    expect(parseChineseAmount("三四")).toBeNull();
+    expect(parseChineseAmount("三四百")).toBeNull();
+    expect(parseChineseAmount("一〇〇")).toBeNull();
+    expect(parseChineseAmount("百千")).toBeNull();
+    expect(parseChineseAmount("一千二萬")).toBeNull();
+  });
+
+  it("reports an on-list Chinese-numeral amount as a warning", () => {
+    expect(severities(check(caption("每件七十元"), { priceListAmounts: [70] }))).toEqual(["price/warn"]);
+    expect(severities(check(caption("大衣三百五十元"), { priceListAmounts: [350] }))).toEqual(["price/warn"]);
+    expect(severities(check(caption("羽絨外套一千二百元"), { priceListAmounts: [1200] }))).toEqual(["price/warn"]);
+    expect(severities(check(caption("棉被一千二塊"), { priceListAmounts: [1200] }))).toEqual(["price/warn"]);
+    expect(severities(check(caption("皮包兩千元"), { priceListAmounts: [2000] }))).toEqual(["price/warn"]);
+  });
+
+  it("blocks off-list, ambiguous and digit-prefixed amounts", () => {
+    expect(severities(check(caption("每件七十五元"), { priceListAmounts: [70, 350] }))).toEqual(["price/block"]);
+    expect(severities(check(caption("每件七十元")))).toEqual(["price/block"]);
+    expect(severities(check(caption("大約三四百元"), { priceListAmounts: [300, 400] }))).toEqual(["price/block"]);
+    expect(severities(check(caption("大約5千元"), { priceListAmounts: [1000, 5000] }))).toEqual(["price/block"]);
+  });
+
+  it("judges each amount in mixed text on its own", () => {
+    const mixed = check(caption("運動鞋 350 元，大衣三百五十元，棉被七十五元"), { priceListAmounts: [350] });
+    expect(severities(mixed)).toEqual(["price/warn", "price/warn", "price/block"]);
+  });
+});
+
+describe("rule 7: reel length from stored video metadata", () => {
+  const REEL_PATH = "output/videos/2026-05-21/slot-2.mp4";
+  const reelSlot = {
+    slot: 2,
+    media_type: "reel",
+    local_video_path: REEL_PATH,
+    video_candidate: { duration_seconds: 10 }
+  };
+  const videoSource = (extra: Record<string, unknown> = {}) => ({
+    date: "2026-05-21",
+    slot: 2,
+    source: "grok-imagine-video",
+    video_path: REEL_PATH,
+    duration_seconds: 30,
+    ...extra
+  });
+  const checkWithStored = (slot: object, sources: object[]) => {
+    const seconds = storedReelDurationSeconds(slot, sources);
+    return check(slot, seconds === undefined ? {} : { reelDurationSeconds: seconds });
+  };
+
+  it("passes a stored duration inside 25-45 s", () => {
+    expect(storedReelDurationSeconds(reelSlot, [videoSource()])).toBe(30);
+    expect(checkWithStored(reelSlot, [videoSource()])).toEqual([]);
+    expect(checkWithStored(reelSlot, [videoSource({ duration_seconds: 25 })])).toEqual([]);
+    expect(checkWithStored(reelSlot, [videoSource({ duration_seconds: 45 })])).toEqual([]);
+  });
+
+  it("blocks a stored duration outside 25-45 s", () => {
+    const short = checkWithStored(reelSlot, [videoSource({ duration_seconds: 10 })]);
+    expect(severities(short)).toEqual(["reel_length/block"]);
+    expect(short[0]?.excerpt).toContain("10 秒");
+    const long = checkWithStored(reelSlot, [videoSource({ duration_seconds: 46.5 })]);
+    expect(severities(long)).toEqual(["reel_length/block"]);
+    expect(long[0]?.excerpt).toContain("46.5");
+  });
+
+  it("keeps the warning when nothing usable is stored", () => {
+    const none = checkWithStored(reelSlot, []);
+    expect(severities(none)).toEqual(["reel_length/warn"]);
+    expect(none[0]?.excerpt).toContain("規劃 10");
+    expect(storedReelDurationSeconds(reelSlot, [videoSource({ slot: 3 })])).toBeUndefined();
+    expect(storedReelDurationSeconds(reelSlot, [videoSource({ video_path: "output/videos/other.mp4" })])).toBeUndefined();
+    expect(storedReelDurationSeconds(reelSlot, [videoSource({ source: "other" })])).toBeUndefined();
+    expect(storedReelDurationSeconds(reelSlot, [videoSource({ duration_seconds: "30" })])).toBeUndefined();
+    expect(storedReelDurationSeconds(reelSlot, [videoSource({ duration_seconds: Number.NaN })])).toBeUndefined();
+    expect(
+      storedReelDurationSeconds(reelSlot, [videoSource(), videoSource({ duration_seconds: 12 })])
+    ).toBeUndefined();
+    expect(storedReelDurationSeconds({ slot: 2, media_type: "reel" }, [videoSource()])).toBeUndefined();
+    expect(severities(checkWithStored(reelSlot, [videoSource({ slot: 3 })]))).toEqual(["reel_length/warn"]);
+  });
+});
+
+describe("autoApprove passes the stored reel duration", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("hands each slot's stored video duration to the checker", async () => {
+    const date = "2026-05-21";
+    const { root } = await prepareDay(date);
+    vi.stubEnv("SXJ_OWNER_RULES", "report");
+    const content = await loadDailyContent(date, root);
+    if (!content) throw new Error("fixture calendar missing");
+    const records = content.slots
+      .filter((slot) => typeof slot.local_video_path === "string" && slot.local_video_path.length > 0)
+      .map((slot) => ({
+        date,
+        slot: slot.slot,
+        source: "grok-imagine-video",
+        model: "grok-imagine-video",
+        video_path: slot.local_video_path as string,
+        request_id: "test-request",
+        duration_seconds: 33,
+        width: 720,
+        height: 1280,
+        frame_rate: 24,
+        video_codec: "h264",
+        marked_at: "2026-05-21T00:00:00.000Z"
+      }));
+    vi.spyOn(logging, "loadVideoSources").mockResolvedValue(
+      records as unknown as Awaited<ReturnType<typeof logging.loadVideoSources>>
+    );
+    const spy = vi.spyOn(ownerRules, "checkSlotAgainstOwnerRules").mockImplementation(() => []);
+
+    const result = await autoApprove({ date, root, dryRun: true });
+
+    expect(spy).toHaveBeenCalledTimes(content.slots.length);
+    for (const [slotArg, opts] of spy.mock.calls) {
+      const videoPath = (slotArg as { local_video_path?: string }).local_video_path;
+      expect(opts?.reelDurationSeconds).toBe(videoPath ? 33 : undefined);
+      expect(opts?.priceListAmounts).toBeDefined();
+    }
+    expect(result.approved).toBe(true);
+  });
+
+  it("an unreadable video-source record leaves the duration unknown and does not cost the day", async () => {
+    const date = "2026-05-21";
+    const { root } = await prepareDay(date);
+    vi.stubEnv("SXJ_OWNER_RULES", "report");
+    vi.spyOn(logging, "loadVideoSources").mockRejectedValue(new Error("disk unreadable"));
+    const spy = vi.spyOn(ownerRules, "checkSlotAgainstOwnerRules").mockImplementation(() => []);
+
+    const result = await autoApprove({ date, root, dryRun: true });
+
+    expect(spy).toHaveBeenCalled();
+    for (const [, opts] of spy.mock.calls) expect(opts?.reelDurationSeconds).toBeUndefined();
+    expect(result.checks.find((c) => c.name === "owner_rules_video_sources")?.detail).toContain("unknown");
+    expect(result.approved).toBe(true);
   });
 });
 

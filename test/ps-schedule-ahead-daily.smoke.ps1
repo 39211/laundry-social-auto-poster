@@ -189,6 +189,15 @@ try {
         $isolatedProd = Join-Path $isolatedScripts "schedule-ahead-daily.ps1"
         [IO.File]::Copy($prod, $isolatedProd)
         [IO.File]::WriteAllText((Join-Path $isolatedScripts "_watchdog.ps1"), "", [Text.UTF8Encoding]::new($true))
+        # The wrapper takes the sxj-publish mutex per step. Stub the library so this
+        # smoke never touches the real Global\ mutex a live publisher may hold.
+        [IO.File]::WriteAllLines((Join-Path $isolatedScripts "_pipeline-lock.ps1"), @(
+            'function Enter-PipelineMutex {',
+            '    param([string]$Name = "sxj-publish", [int]$TimeoutSec = 600, [switch]$NoExit)',
+            '    return [pscustomobject]@{ Name = $Name }',
+            '}',
+            'function Exit-PipelineMutex { param($Mutex) }'
+        ), [Text.UTF8Encoding]::new($true))
         $fakeNpm = Join-Path $fakeBin "npm.cmd"
         [IO.File]::WriteAllLines($fakeNpm, @(
             '@echo off',

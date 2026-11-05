@@ -4,7 +4,7 @@
 
 ## Source Of Record
 - Canonical URL: https://sixiangjialaundry.com/
-- Generated at: 2026-11-05T05:00:07.615Z
+- Generated at: 2026-11-05T13:15:04.998Z
 - Timezone: Asia/Taipei
 - Base URL configured: yes
 
@@ -455,6 +455,7 @@
     "https://i.ytimg.com/vi/DOEwnXazKKM/hqdefault.jpg",
     "https://sixiangjialaundry.com/assets/2026-11-04/slot-01.png",
     "https://sixiangjialaundry.com/assets/2026-11-04/slot-02.png",
+    "https://i.ytimg.com/vi/Nvg7eYjoVIU/hqdefault.jpg",
     "https://sixiangjialaundry.com/assets/2026-11-05/slot-01.png",
     "https://sixiangjialaundry.com/assets/2026-11-05/slot-02.png",
     "https://sixiangjialaundry.com/assets/services/shoe-bag-care-hero-product.png",
@@ -13719,6 +13720,57 @@ Instagram caption:
 直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)
 
 #私享家洗衣店 #搬家整理 #寢具清潔 #窗簾清潔
+
+### 高領毛衣領口沾到粉底口紅，先別來回搓｜私享家洗衣店
+
+- id: urn:sixiangjia:feature:2026-11-05:reel-turtleneck-20261105
+- published local time: 2026-11-05T06:00:00.000Z
+- category: feature-reel
+- platforms: facebook, youtube, instagram
+- visual_route: feature-reel
+- traffic_route: feature-reel
+- search_intent: social-video
+- target_queries: (legacy-unassigned)
+- evidence_type: published-feature-reel
+- hashtags: #高領毛衣 #私享家洗衣店 #台中洗衣店 #衣服去漬 #毛衣清洗
+- image: https://i.ytimg.com/vi/Nvg7eYjoVIU/hqdefault.jpg
+- calendar: 
+
+Facebook caption:
+
+高領毛衣領口沾到粉底、口紅，先別來回搓。
+
+這次示範的是一件高領針織毛衣，領口內緣蹭到一點粉底和口紅。
+口紅有油蠟和色料，粉底常是水、油、色料混在一起，不能當成單純的水漬或油漬，可能需要分階段處理；清洗方式也不能只看纖維名稱，還要看洗標與衣物結構。
+沾到當下：表面有膏體，用乾淨鈍邊輕輕提走浮在上面的餘量；還有液體，就用乾淨白色吸水布輕觸吸取。不要拿濕紙巾或毛巾來回用力擦，也先別烘、別燙、別用熱風吹，熱可能讓殘漬更難處理。不要自己拿卸妝品、酒精、漂白去試，適合卸妝不等於適合衣物。
+
+我們先看洗標、材質與結構，評估污漬，再向你說明採用專業清洗或乾洗的理由；你同意後，才開始處理。專業去漬前，通常會先在不顯眼處測試，觀察是否掉色、暈色或出現外觀變化。
+清潔前後畫面為示意；能改善多少要看實物與處理史，不保證變全新。
+一般衣物約 5–7 天（特殊材質、重污另行確認）；不想跑一趟，台中全市免費收送。
+
+拍下領口污漬和洗標，傳 LINE 讓我們先看看：https://lin.ee/w8qGVqM （LINE ID：@454foyks）
+
+#高領毛衣 #私享家洗衣店 #台中洗衣店 #衣服去漬 #毛衣清洗
+
+音效：Hao0321 Studio（CC BY 4.0）
+
+Instagram caption:
+
+高領毛衣領口沾到粉底、口紅，先別來回搓。
+
+這次示範的是一件高領針織毛衣，領口內緣蹭到一點粉底和口紅。
+口紅有油蠟和色料，粉底常是水、油、色料混在一起，不能當成單純的水漬或油漬，可能需要分階段處理；清洗方式也不能只看纖維名稱，還要看洗標與衣物結構。
+沾到當下：表面有膏體，用乾淨鈍邊輕輕提走浮在上面的餘量；還有液體，就用乾淨白色吸水布輕觸吸取。不要拿濕紙巾或毛巾來回用力擦，也先別烘、別燙、別用熱風吹，熱可能讓殘漬更難處理。不要自己拿卸妝品、酒精、漂白去試，適合卸妝不等於適合衣物。
+
+我們先看洗標、材質與結構，評估污漬，再向你說明採用專業清洗或乾洗的理由；你同意後，才開始處理。專業去漬前，通常會先在不顯眼處測試，觀察是否掉色、暈色或出現外觀變化。
+清潔前後畫面為示意；能改善多少要看實物與處理史，不保證變全新。
+一般衣物約 5–7 天（特殊材質、重污另行確認）；不想跑一趟，台中全市免費收送。
+
+拍下領口污漬和洗標，傳 LINE 讓我們先看看：https://lin.ee/w8qGVqM （LINE ID：@454foyks）
+
+#高領毛衣 #私享家洗衣店 #台中洗衣店 #衣服去漬 #毛衣清洗
+
+音效：Hao0321 Studio（CC BY 4.0）
 
 ### 2026-11-05 11:30 Gucci Jackie 1961 精品肩背包五金邊有磨痕？先查扣件和包角
 

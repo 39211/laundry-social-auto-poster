@@ -243,9 +243,19 @@ def number(value: str) -> int | None:
     return result if 1 <= result <= 999 else None
 
 
+# A bare number followed by a size word is a size (27號, 30腰, 180x200), never a count.
+_SIZE_SPEC = re.compile(r"\s*\d+(?:\.\d+)?\s*(?:號半?|腰|吋|寸|碼|公分|cm|mm|歲|[xX×*]\s*\d+(?:\.\d+)?(?:\s*(?:cm|公分))?)\s*", re.IGNORECASE)
+
+
+def _skip_sizes(text: str) -> str:
+    while (size := _SIZE_SPEC.match(text)):
+        text = text[size.end():]
+    return text
+
+
 def _quantity(after: str, before: str):
     # Read immediately after the noun, or an explicit measure immediately before it.
-    tail = re.sub(r"^\s*(?:改成|改為|更正為|大概|大約|約|是|有|共|各|再加|加|[xX×*=：:]|要)?\s*", "", after)
+    tail = _skip_sizes(re.sub(r"^\s*(?:改成|改為|更正為|大概|大約|約|是|有|共|各|再加|加|[xX×*=：:]|要)?\s*", "", after))
     match = QUANTITY.match(tail)
     # In 「襯衫洗一件」, only accept a measure after the verb when it has a unit.
     if not match and (verb := re.match(r"洗\s*", tail)):
@@ -657,9 +667,10 @@ def update(text: str, previous: dict | None, prices: dict) -> dict | None:
             seen.add(name)
             changed = True
             if _quantity(after, "")[3] and quantities[index] == _quantity(after, ""):
-                tail_count = QUANTITY.match(after.strip())
+                rest = _skip_sizes(after.strip())
+                tail_count = QUANTITY.match(rest)
                 if tail_count:
-                    unknown = _unlisted(after.strip()[tail_count.end():].strip())
+                    unknown = _unlisted(rest[tail_count.end():].strip())
                     if unknown:
                         lines.append(unknown)
     if not changed:

@@ -19,6 +19,7 @@ const NEW_DATE = "2026-11-05";
 const OLD_DATE = "2026-10-08";
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 
+// CI 的 sparse-checkout 不含 docs/.well-known/。該檔已在 commit 裡改成包包發霉，測試只讀 CI 會拉下來的檔。
 const LIVE_GUIDE_FILES = [
   "seo-overrides/guides/luxury-bag-mold.html",
   "docs/guides/luxury-bag-mold.html",
@@ -26,7 +27,6 @@ const LIVE_GUIDE_FILES = [
   "seo-overrides/ai-discovery.json",
   "docs/answers.json",
   "docs/ai-discovery.json",
-  "docs/.well-known/ai.json",
   "docs/knowledge-graph.json",
   "docs/geo-targets.json",
   "docs/services.json"

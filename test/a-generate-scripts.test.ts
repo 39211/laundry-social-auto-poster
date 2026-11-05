@@ -255,7 +255,7 @@ describe("H2 tamper rebuild in daily-generate", () => {
         ? readdirSync(opsDir).filter((f) => new RegExp(`^calendar-quarantine-${DATE}-\\d{8}T\\d{6}Z\\.json$`).test(f))
         : [];
       expect(quarantined.length, r.output).toBe(1);
-      expect(readFileSync(join(opsDir, quarantined[0]), "utf8")).toBe('{"tampered":true}');
+      expect(readFileSync(join(opsDir, quarantined[0]!), "utf8")).toBe('{"tampered":true}');
       const toasts = ev.filter((l) => l.startsWith("TOAST "));
       expect(toasts.some((t) => t.includes(`calendar-quarantine-${DATE}-`))).toBe(true);
       expect(toasts.some((t) => t.includes(`calendar-tamper-${DATE}.json`)), "false 'rebuilt' toast").toBe(false);

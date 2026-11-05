@@ -337,7 +337,7 @@ function taipeiTime(unixSeconds: number): string {
   return `${new Date((unixSeconds + 8 * 3600) * 1000).toISOString().slice(0, 16).replace("T", " ")} (Asia/Taipei)`;
 }
 
-async function writeLostAlert(root: string, date: string, slot: number, slotTime: number): Promise<string> {
+async function writeLostAlert(root: string, date: string, slot: number, slotTime: number, reason?: string): Promise<string> {
   const fileName = `fb-lost-${date}-slot${slot}.json`;
   const dir = join(root, "output", "alerts");
   await mkdir(dir, { recursive: true });
@@ -350,6 +350,7 @@ async function writeLostAlert(root: string, date: string, slot: number, slotTime
     scheduled_publish_time: slotTime,
     scheduled_time: taipeiTime(slotTime),
     reason:
+      reason ??
       "Facebook scheduling was never confirmed and no matching post is on the Page; the slot time has passed " +
       "or is under 15 minutes away, so it was not published automatically. Back-fill is the owner's decision.",
     detected_at: new Date().toISOString()
@@ -357,14 +358,14 @@ async function writeLostAlert(root: string, date: string, slot: number, slotTime
   return `output/alerts/${fileName}`;
 }
 
-interface ReconcileOutcome {
+export interface ReconcileOutcome {
   /** Slots fully decided by reconciliation (reconciled / lost / still uncertain). */
   handled: Map<number, ScheduleAheadResult>;
   /** Slots whose uncertain row was removed; the normal path schedules them again. */
   rescheduled: Set<number>;
 }
 
-async function reconcileUncertainRows(args: {
+export async function reconcileUncertainRows(args: {
   date: string;
   root: string;
   config: AppConfig;
@@ -413,9 +414,23 @@ async function reconcileUncertainRows(args: {
     if (!posts) {
       outcome.handled.set(slotNumber, { ...base, action: "uncertain", reason: "reconcile_unavailable" });
       if (tooLate) {
+        // Console only was the 10/29 failure mode ("nobody was told"), and a
+        // Graph outage or an expired token is exactly when this branch runs.
+        // Write the same alert file FB_LOST uses so --notify-staff reaches the
+        // staff group once (receipt + idempotency key); a later confirmed row
+        // marks it resolved.
+        const alertPath = await writeLostAlert(
+          root,
+          date,
+          slotNumber,
+          slotTime,
+          "Facebook scheduling was never confirmed and the Page could not be checked; the slot time has passed or is " +
+            "under 15 minutes away, so it was not published automatically. Check the Page; back-fill is the owner's decision."
+        );
         console.error(
           `ALERT FB_UNCONFIRMED ${date} slot ${slotNumber}: Facebook scheduling for ${taipeiTime(slotTime)} was never ` +
-            "confirmed and the Page could not be checked. Look at the Page now; nothing is published automatically."
+            "confirmed and the Page could not be checked. Look at the Page now; nothing is published automatically. " +
+            `Alert file: ${alertPath}`
         );
       } else {
         console.warn(
@@ -461,6 +476,15 @@ async function reconcileUncertainRows(args: {
       continue;
     }
 
+    if (!tooLate && rows.some((row) => row.published_media_type === "reel")) {
+      // A Reel queued with video_state=SCHEDULED is not a Page post until it
+      // publishes, so /scheduled_posts and /feed cannot show it: "not found"
+      // is not evidence of absence, and rescheduling queued a second Reel.
+      // Keep the row (the live path then leaves Facebook alone); after slot
+      // time the feed confirms it or FB_LOST alerts the staff.
+      outcome.handled.set(slotNumber, { ...base, action: "uncertain", reason: "reel_not_verifiable_before_publish" });
+      continue;
+    }
     if (!tooLate && args.allowReschedule === false) {
       outcome.handled.set(slotNumber, { ...base, action: "uncertain", reason: "audit_only_not_confirmed_yet" });
       continue;

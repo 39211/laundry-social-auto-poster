@@ -151,8 +151,14 @@ function Get-PostedState($Entry) {
             ($null -eq $_.date -or $_.date -ceq $Entry.date)
         })
         # An older failure does not erase a later recorded success.
-        foreach ($status in @('success', 'uncertain', 'failed', 'posted', 'missed')) {
-            if (@($live | Where-Object { $_.status -ceq $status }).Count -gt 0) { $state[$platform] = $status; break }
+        # 'posted' is a live publish too (schedule-ahead's duplicate guard counts
+        # success and posted as live). Rank it with success and report success,
+        # so neither the pre-check nor the post-npm check republishes it.
+        foreach ($status in @('success', 'posted', 'uncertain', 'failed', 'missed')) {
+            if (@($live | Where-Object { $_.status -ceq $status }).Count -gt 0) {
+                $state[$platform] = if ($status -ceq 'posted') { 'success' } else { $status }
+                break
+            }
         }
     }
     return [pscustomobject]$state

@@ -1,10 +1,11 @@
 /**
- * 行銷經理 2026-11-05 裁定：這天起的新貼文（標題與正文）不得再帶
- * 功效向「除霉」、標準以外的「防水」、以及標準句以外的「免費」。
- * 更早的日曆、r6 檔與已上線歷史頁不在這道閘門裡，避免回頭改舊文。
+ * 2026-11-05 起的新貼文（標題與正文）不得再帶功效向「除霉」、標準以外的「防水」。
+ * 免費收送只允許「免費收送」；「台中全市」禁止出現。全站舊句另票替換，這道閘門不改歷史檔。
+ * 更早的日曆、r6 檔與已上線歷史頁不在這道閘門裡。
  */
 
-export const APPROVED_FREE_PICKUP_PHRASE = "台中全市免費收送、沒有最低消費";
+export const APPROVED_FREE_PICKUP_PHRASE = "免費收送";
+const BANNED_CITYWIDE_PHRASE = "台中全市";
 
 /** 含這天。更早的 date 直接放行。 */
 export const NEW_POST_COPY_GUARD_FROM = "2026-11-05";
@@ -13,7 +14,7 @@ export const NEW_POST_COPY_GUARD_FROM = "2026-11-05";
 const WATERPROOF_ALLOWED = ["防潑水", "防水透氣鞋"] as const;
 
 export type NewPostCopyField = "title" | "body";
-export type NewPostCopyRule = "除霉" | "防水" | "免費";
+export type NewPostCopyRule = "除霉" | "防水" | "免費" | "台中全市";
 
 export interface NewPostCopyViolation {
   rule: NewPostCopyRule;
@@ -55,6 +56,10 @@ export function findNewPostCopyViolations(text: string, field: NewPostCopyField)
     violations.push({ rule: "防水", field, excerpt: excerptAround(waterproof, "防水") });
   }
 
+  if (text.includes(BANNED_CITYWIDE_PHRASE)) {
+    violations.push({ rule: "台中全市", field, excerpt: excerptAround(text, BANNED_CITYWIDE_PHRASE) });
+  }
+
   const withoutApprovedFree = text.replaceAll(APPROVED_FREE_PICKUP_PHRASE, "");
   if (withoutApprovedFree.includes("免費")) {
     violations.push({ rule: "免費", field, excerpt: excerptAround(withoutApprovedFree, "免費") });
@@ -78,7 +83,7 @@ export function assertNewPostCopyAllowed(input: NewPostCopyInput): void {
     .map((item) => `${item.field} 含「${item.rule}」（${item.excerpt}）`)
     .join("；");
   throw new Error(
-    `新貼文（${input.date ?? "未標日期"}）不可發佈禁用措辭。${detail}。除霉請改寫成發霉語境；防水只允許「防潑水」與品類名「防水透氣鞋」；免費只允許「${APPROVED_FREE_PICKUP_PHRASE}」。`
+    `新貼文（${input.date ?? "未標日期"}）不可發佈禁用措辭。${detail}。除霉請改寫成發霉語境；防水只允許「防潑水」與品類名「防水透氣鞋」；免費只允許「${APPROVED_FREE_PICKUP_PHRASE}」，且不得出現「${BANNED_CITYWIDE_PHRASE}」。`
   );
 }
 

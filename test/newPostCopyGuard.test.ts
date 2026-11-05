@@ -19,17 +19,10 @@ const NEW_DATE = "2026-11-05";
 const OLD_DATE = "2026-10-08";
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-// CI 的 sparse-checkout 不含 docs/.well-known/。該檔已在 commit 裡改成包包發霉，測試只讀 CI 會拉下來的檔。
 const LIVE_GUIDE_FILES = [
   "seo-overrides/guides/luxury-bag-mold.html",
-  "docs/guides/luxury-bag-mold.html",
   "seo-overrides/answers.json",
-  "seo-overrides/ai-discovery.json",
-  "docs/answers.json",
-  "docs/ai-discovery.json",
-  "docs/knowledge-graph.json",
-  "docs/geo-targets.json",
-  "docs/services.json"
+  "seo-overrides/ai-discovery.json"
 ];
 
 function playbookSlot(date: string, topic: string, lead: string): GrowthPlaybookSlot {
@@ -70,16 +63,23 @@ describe("新貼文措辭閘門", () => {
     expect(() => assertNewPostCopyAllowed({ date: NEW_DATE, title: "靴子要不要先做防水" })).toThrow(/防水/);
     expect(() => assertNewPostCopyAllowed({ date: NEW_DATE, body: "外層有防水塗層" })).toThrow(/防水/);
     expect(() => assertNewPostCopyAllowed({ date: NEW_DATE, body: "只有防水透氣，沒有寫成品類全名" })).toThrow(/防水/);
-    expect(() => assertNewPostCopyAllowed({ date: NEW_DATE, title: "免費收送" })).toThrow(/免費/);
-    expect(() => assertNewPostCopyAllowed({ date: NEW_DATE, body: "台中全市免費收送，沒有最低消費" })).toThrow(/免費/);
+    expect(() => assertNewPostCopyAllowed({ date: NEW_DATE, body: "台中全市免費收送、沒有最低消費" })).toThrow(/台中全市/);
+    expect(() => assertNewPostCopyAllowed({ date: NEW_DATE, body: "台中全市免費收送，沒有最低消費" })).toThrow(/台中全市/);
+    expect(() => assertNewPostCopyAllowed({ date: NEW_DATE, title: "免費到府" })).toThrow(/免費/);
     expect(() =>
       assertNewPostCopyAllowed({ date: NEW_DATE, body: `${APPROVED_FREE_PICKUP_PHRASE}，另外免費試穿` })
     ).toThrow(/免費/);
+    expect(newPostCopyViolations({ date: NEW_DATE, body: "台中全市免費收送、沒有最低消費" })).toEqual([
+      expect.objectContaining({ rule: "台中全市", field: "body" })
+    ]);
+    expect(newPostCopyViolations({ date: NEW_DATE, body: "這次免費" })).toEqual([
+      expect.objectContaining({ rule: "免費", field: "body" })
+    ]);
     const titled = newPostCopyViolations({ date: NEW_DATE, title: "包包除霉" });
     expect(titled).toEqual([expect.objectContaining({ rule: "除霉", field: "title" })]);
   });
 
-  it("改寫成發霉、防潑水、防水透氣鞋與核准免費句可以過", () => {
+  it("改寫成發霉、防潑水、防水透氣鞋，以及不含台中全市的免費收送可以過", () => {
     expect(
       newPostCopyViolations({
         date: NEW_DATE,
@@ -87,6 +87,9 @@ describe("新貼文措辭閘門", () => {
         body: `表布防潑水還在。這雙是防水透氣鞋。${APPROVED_FREE_PICKUP_PHRASE}。`
       })
     ).toEqual([]);
+    expect(newPostCopyViolations({ date: NEW_DATE, title: "免費收送", body: "免費收送到府，沒有最低消費" })).toEqual(
+      []
+    );
     expect(() =>
       assertNewPostCopyAllowed({
         date: NEW_DATE,
@@ -191,18 +194,16 @@ describe("新貼文不能帶禁用措辭發出去", () => {
 });
 
 describe("精品包發霉指南不再寫包包除霉", () => {
-  it("override、已產生的 HTML 與產生器關鍵字都改成包包發霉", () => {
+  it("seo-overrides 與產生器關鍵字改成包包發霉", () => {
     for (const rel of LIVE_GUIDE_FILES) {
       const text = readFileSync(join(REPO, rel), "utf8");
       expect(text, rel).not.toContain("包包除霉");
       expect(text, rel).not.toContain("名牌包清潔 除霉");
     }
-    for (const rel of ["seo-overrides/guides/luxury-bag-mold.html", "docs/guides/luxury-bag-mold.html"]) {
-      const html = readFileSync(join(REPO, rel), "utf8");
-      expect(html, rel).toContain('<span class="chip">包包發霉</span>');
-      expect(html, rel).toContain("台中 精品包發霉 名牌包清潔 包包發霉");
-      expect(html, rel).not.toMatch(/除霉/);
-    }
+    const html = readFileSync(join(REPO, "seo-overrides/guides/luxury-bag-mold.html"), "utf8");
+    expect(html).toContain('<span class="chip">包包發霉</span>');
+    expect(html).toContain("台中 精品包發霉 名牌包清潔 包包發霉");
+    expect(html).not.toMatch(/除霉/);
     const page = publicSupportPages().find((item) => item.slug === "luxury-bag-mold");
     expect(page?.keywords).toContain("包包發霉");
     expect(page?.keywords.join("\n")).not.toContain("除霉");

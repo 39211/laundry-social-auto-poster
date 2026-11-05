@@ -177,7 +177,9 @@ class AiChatTests(unittest.TestCase):
         with mode("nonsense"):
             self.assertEqual(ai_chat.mode(), "off")
 
-    def test_off_is_byte_identical_to_today(self):
+    def test_off_mode_hooks_are_inert(self):
+        """Off == hooks patched to None. Not a pre-merge comparison: deterministic
+        conversation.py changes are live with AI off and need their own tests."""
         fake = Fake(SIDE_REPLY)
         ai_chat.set_model(fake)
         for name, steps in SCRIPTS.items():

@@ -89,6 +89,14 @@ class StoreFactTests(unittest.TestCase):
         self.assertIn("對面", facts)
         self.assertIsNotNone(ai_chat.check_reply("我們在至善國中對面喔。", facts))
 
+    def test_negated_fact_does_not_ground_opposite_claim(self):
+        facts = ai_chat.facts_text(conv) + "\n店門口沒有停車位。"
+        self.assertIsNone(ai_chat.check_reply("店門口有停車位喔。", facts))
+        self.assertIsNotNone(ai_chat.check_reply("店門口沒有停車位喔。", facts))
+
+    def test_scooter_parking_claim_needs_facts(self):
+        self.assertIsNone(ai_chat.check_reply("機車可以停門口騎樓喔。", ai_chat.facts_text(conv)))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

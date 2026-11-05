@@ -385,6 +385,13 @@ exit 0
         $probe = Invoke-Probe $case
         Assert-Case 'other-slot-schedule-row-still-publishes' ($probe.Code -eq 0 -and
             (Read-Queue $case)[0].status -eq 'done' -and @($probe.Calls).Count -eq 1) $probe.Text.Trim()
+        $case = New-Case 'schedule-log-unexpected-shape'
+        Write-Json (Join-Path $case 'data\scheduled-log\2026-10-26.json') ([ordered]@{
+            rows = @([ordered]@{ date = '2026-10-26'; slot = 2; platform = 'facebook'; status = 'uncertain' })
+        })
+        $probe = Invoke-Probe $case
+        Assert-Case 'unexpected-schedule-shape-needs-human' ($probe.Code -eq 1 -and
+            (Read-Queue $case)[0].status -eq 'failed' -and @($probe.Calls).Count -eq 0) $probe.Text.Trim()
         $case = New-Case 'dry-run-success-not-live'
         Set-Posted $case 'success' 'success' $true
         $probe = Invoke-Probe $case

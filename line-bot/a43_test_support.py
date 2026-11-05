@@ -58,6 +58,11 @@ def isolated_tunnel_case():
             stack.enter_context(patch("socket.create_connection", side_effect=AssertionError(
                 "real network is forbidden in A4-3 tests"
             )))
+            # A-TUNNEL H1: the origin probe would use the (forbidden) socket above; legacy
+            # cases assume the local bot is up. Probe tests override this per test.
+            stack.enter_context(patch.object(
+                tm, "_origin_listening", return_value=True, create=True,
+            ))
             yield root
     finally:
         # Only our newly created, non-junction case directory can be removed.

@@ -10,7 +10,7 @@ import {
   wave9BannedHits
 } from "../scripts/check-sitemap-links";
 
-const FULL = "台中全市免費收送、沒有最低消費";
+const FULL = "免費收送";
 const REF = "參考價，看過實品再報價";
 
 /** 11/05 週四批。價格只能是價目表上的水洗參考價；沒有列的品項不寫數字。 */
@@ -126,6 +126,7 @@ describe("11/05 週四新批 8 頁", () => {
           expect(main, needle).toContain(needle);
         }
         expect(main.replaceAll(FULL, "")).not.toContain("免費");
+        expect(main.replaceAll("台中全市洗衣收送", "").replaceAll("台中全市收送", "")).not.toContain("台中全市");
         expect(main.replaceAll("最低消費", "")).not.toContain("最");
         expect(main).not.toMatch(/賠|補償|保證|全新|殺菌|除臭|消毒/);
         expect(main).not.toMatch(/東海[^。；，]{0,12}(門市|店面)(?!，|。|；)/);
@@ -164,6 +165,7 @@ describe("11/05 週四新批 8 頁", () => {
         expect(hit?.answer).toContain(REF);
         const text = JSON.stringify(hit).replaceAll(FULL, "");
         expect(text).not.toMatch(/保證|免費|賠|補償|全新|殺菌|除臭/);
+        expect(text).not.toContain("台中全市");
       });
     });
   }

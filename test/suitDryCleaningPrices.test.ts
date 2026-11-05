@@ -50,14 +50,16 @@ describe("洗西裝服務頁價格", () => {
 
   it("沒有重複的「台中全市台中全市」", () => {
     expect(html).not.toContain("台中全市台中全市");
-    expect(html).toContain("台中全市免費收送、沒有最低消費");
+    expect(html).toContain("免費收送");
+    expect(html).not.toContain("台中全市免費收送");
+    expect(html.replaceAll("台中全市洗衣收送", "").replaceAll("台中全市收送", "")).not.toContain("台中全市");
   });
 
   it("頁面層 JSON-LD 仍可解析，聯絡方式與免費句都還在", () => {
     for (const match of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
       expect(() => JSON.parse(match[1] ?? "")).not.toThrow();
     }
-    for (const needle of ["@454foyks", "0968327653", "04-2452-7411", "台中全市免費收送、沒有最低消費", "參考價，看過實品再報價"]) {
+    for (const needle of ["@454foyks", "0968327653", "04-2452-7411", "免費收送", "參考價，看過實品再報價"]) {
       expect(html, needle).toContain(needle);
     }
   });

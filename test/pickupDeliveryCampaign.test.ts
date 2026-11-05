@@ -55,7 +55,8 @@ describe("Taichung free pickup-delivery campaign", () => {
       expect(slot.topic).toContain(expected.topicIncludes);
       expect(slot.facebook_caption).toContain(expected.storyIncludes);
       expect(slot.facebook_caption.split("\n\n")[1]).not.toBe("私享家洗衣店");
-      expect(slot.facebook_caption).toContain("台中全市免費收送、沒有最低消費");
+      expect(slot.facebook_caption).toContain("免費收送");
+      expect(slot.facebook_caption).not.toContain("台中全市");
       expect(slot.facebook_caption).toContain("LINE");
       expect(slot.facebook_caption).toContain("#台中洗衣收送");
       expect(slot.facebook_caption).toContain("#到府收送");
@@ -119,13 +120,15 @@ describe("Taichung free pickup-delivery campaign", () => {
       expect(day.slots.filter((s) => s.slot <= 2)).toHaveLength(2);
       expect(day.slots[0]?.time).toBe("11:30");
       expect(day.slots[0]?.category).toBe("知識文");
-      expect(day.slots[0]?.facebook_caption).not.toContain("台中全市免費收送、沒有最低消費");
+      expect(day.slots[0]?.facebook_caption).not.toContain("免費收送");
+      expect(day.slots[0]?.facebook_caption).not.toContain("台中全市");
       // One clock: the playbook authors slot 2 at whatever DAILY_SCHEDULE
       // says, which is what the publish window enforces. This used to assert the
       // divergence, pinning a defect in place as though it were the spec.
       expect(day.slots[1]?.time).toBe("20:30");
       expect(day.slots[1]?.category).toBe("情境文");
-      expect(day.slots[1]?.facebook_caption).toContain("台中全市免費收送、沒有最低消費");
+      expect(day.slots[1]?.facebook_caption).toContain("免費收送");
+      expect(day.slots[1]?.facebook_caption).not.toContain("台中全市");
     }
   });
 
@@ -155,7 +158,8 @@ describe("Taichung free pickup-delivery campaign", () => {
       content_role: "evidence-conversion",
       seo_sync_page: "/services/taichung-citywide-laundry-pickup.html"
     });
-    expect(conversion?.facebook_caption).toContain("台中全市免費收送、沒有最低消費");
+    expect(conversion?.facebook_caption).toContain("免費收送");
+    expect(conversion?.facebook_caption).not.toContain("台中全市");
     expect(conversion?.image_prompt).toContain("完整頭部");
     expect(conversion?.image_prompt).toContain("沒有雨、沒有雨傘");
     expect(conversion?.local_video_path).toBeUndefined();

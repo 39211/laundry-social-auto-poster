@@ -11,7 +11,7 @@ import {
 } from "../scripts/check-sitemap-links";
 
 const PATH = BEDDING_MOLD_PAGE_PATHS[0];
-const FULL = "台中全市免費收送、沒有最低消費";
+const FULL = "免費收送";
 const OFFICIAL_PRICES = ["$350", "$500", "$600", "$800"];
 
 function read(rel: string): string {
@@ -53,6 +53,7 @@ describe("棉被、羽絨被發霉怎麼辦頁", () => {
       expect(main, needle).toContain(needle);
     }
     expect(main.replaceAll(FULL, "")).not.toContain("免費");
+    expect(main.replaceAll("台中全市洗衣收送", "").replaceAll("台中全市收送", "")).not.toContain("台中全市");
     expect(main).not.toMatch(/起\s*[，。；]|\$\d+\s*起/);
     expect(main).not.toMatch(/除霉|除臭|除味|殺菌|滅菌|另行報價|保證|一定洗得掉|洗得掉。/);
   });
@@ -88,8 +89,9 @@ describe("棉被、羽絨被發霉怎麼辦頁", () => {
     const items: Array<{ id: string; question?: string; answer?: string }> = answers.answers ?? [];
     const hit = items.find((i) => i.id === "bedding-duvet-mold-page-summary");
     expect(hit).toBeTruthy();
-    const text = JSON.stringify(hit).replaceAll("台中全市免費收送、沒有最低消費", "");
+    const text = JSON.stringify(hit).replaceAll("免費收送", "");
     expect(text).not.toMatch(/除霉|除臭|除味|殺菌|滅菌|另行報價|保證|免費/);
+    expect(text).not.toContain("台中全市");
     expect(hit?.answer).toContain("發霉要看過實品再報價");
     expect(hit?.answer).toContain("參考價，看過實品再報價");
   });

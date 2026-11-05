@@ -10,7 +10,7 @@ import {
   wave9BannedHits
 } from "../scripts/check-sitemap-links";
 
-const FULL = "台中全市免費收送、沒有最低消費";
+const FULL = "免費收送";
 const REF = "參考價，看過實品再報價";
 
 /** 老闆與行銷經理核定的固定句，一字不改。賠償句只能在 FAQ；兩句都不進標題、description、頁面層 JSON-LD。 */
@@ -114,6 +114,7 @@ describe("11/02 第二批 2 頁（洗壞、縮水）", () => {
         }
         const rest = withoutFixed(main);
         expect(rest.replaceAll(FULL, "")).not.toContain("免費");
+        expect(rest.replaceAll("台中全市洗衣收送", "").replaceAll("台中全市收送", "")).not.toContain("台中全市");
         expect(rest.replaceAll("最低消費", "")).not.toContain("最");
         expect(rest).not.toMatch(/賠|補償|保證|全新|殺菌|除臭|消毒|絕不|全額|原價/);
         expect(rest).not.toMatch(/東海[^。；，]{0,12}(門市|店面)(?!，|。|；)/);
@@ -155,6 +156,7 @@ describe("11/02 第二批 2 頁（洗壞、縮水）", () => {
         expect(hit?.answer).toContain(REF);
         const text = JSON.stringify(hit).replaceAll(FULL, "");
         expect(text).not.toMatch(/保證|免費|賠|補償|全新|殺菌|除臭|還原(?!劑)|復原|拉回原尺寸|\$|%/);
+        expect(text).not.toContain("台中全市");
       });
     });
   }

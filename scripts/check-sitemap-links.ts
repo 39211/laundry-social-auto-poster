@@ -200,7 +200,7 @@ export const WAVE8_PAGE_PATHS = [
 
 /**
  * 第 8 波新頁正文、頁面層 JSON-LD（WebPage／HowTo／FAQ／麵包屑）與 data-wave8 插入塊。
- * 不掃共用 header、footer、店家 JSON-LD。2026-10-27 老闆確認可寫「台中全市免費收送、沒有最低消費」，故不禁這句。
+ * 不掃共用 header、footer、店家 JSON-LD。2026-10-27 曾核准整句「台中全市免費收送、沒有最低消費」；2026-11-06 起該句作廢，頁面改寫「免費收送」。本清單不把「免費收送」當禁詞。
  */
 export const WAVE8_BANNED_MARKERS = [
   "僅西屯",

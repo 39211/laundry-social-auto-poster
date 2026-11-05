@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
 /** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁、第 9 波 9 頁、洗標符號指南 1 頁、送洗前自我檢查 1 頁、棉被羽絨被發霉 1 頁、11/02 新批 8 頁（羊毛被、羽絨被、毛毯、外套、包包、西裝水洗、乾洗縮水、皮鞋價格）、11/02 第二批 2 頁（衣服送洗會洗壞嗎、毛衣縮水怎麼辦）。東勢、大甲、龍井不進這支。 */
-export const EXPECTED_LOC_COUNT = 192;
+export const EXPECTED_LOC_COUNT = 200;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -647,6 +647,20 @@ export const NEW_BATCH_1102B_PAGE_PATHS = [
   "/guides/sweater-shrunk-what-now.html"
 ] as const;
 
+/** 11/05 週四新批 8 頁。lastmod 用這次上線日，不回寫前波。 */
+export const NEW_BATCH_1105_PAGE_LASTMOD = "2026-11-05";
+
+export const NEW_BATCH_1105_PAGE_PATHS = [
+  "/guides/clothing-ink-stain.html",
+  "/guides/suede-jacket-cleaning.html",
+  "/guides/clothing-color-fading.html",
+  "/guides/waterproof-breathable-shoe-care.html",
+  "/guides/summer-quilt-washing.html",
+  "/guides/sweater-cleaning-price.html",
+  "/guides/mattress-protector-washing.html",
+  "/guides/shoe-insole-machine-wash.html"
+] as const;
+
 export function wave9BannedHits(text: string): string[] {
   return WAVE9_BANNED_MARKERS.filter((marker) => text.includes(marker));
 }
@@ -802,6 +816,7 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
     ...BEDDING_MOLD_PAGE_PATHS.map((path) => ({ path, lastmod: BEDDING_MOLD_PAGE_LASTMOD })),
     ...NEW_BATCH_1102_PAGE_PATHS.map((path) => ({ path, lastmod: NEW_BATCH_1102_PAGE_LASTMOD })),
     ...NEW_BATCH_1102B_PAGE_PATHS.map((path) => ({ path, lastmod: NEW_BATCH_1102B_PAGE_LASTMOD })),
+    ...NEW_BATCH_1105_PAGE_PATHS.map((path) => ({ path, lastmod: NEW_BATCH_1105_PAGE_LASTMOD })),
     ...WAVE8_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE8_PAGE_LASTMOD })),
     ...WAVE9_PAGE_PATHS.map((path) => ({ path, lastmod: WAVE9_PAGE_LASTMOD }))
   ];

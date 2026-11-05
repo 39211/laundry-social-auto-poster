@@ -121,6 +121,7 @@ if (-not $hasCalendar) {
     }
 }
 $imagesReady = $false
+$rebuildFailed = $false
 if ($hasCalendar) {
     Push-Location $root
     $tsx = Join-Path $root "node_modules\.bin\tsx.cmd"
@@ -137,16 +138,74 @@ if ($hasCalendar) {
     }
     if ($shouldRebuild) {
         Write-Log "Calendar tamper detected for $date; rebuilding from plan before the images-ready exit."
-        Show-Toast ("目標日 ($date) 的行事曆被外部寫手竄改,已從 plan 強制重建。證據: output\operations\calendar-tamper-$date.json")
         Push-Location $root
         cmd /c "npm.cmd run generate -- --date $date --force 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-        cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        $rebuildCode = $LASTEXITCODE
+        Pop-Location
+        if ($rebuildCode -eq 0 -and (Test-Path -LiteralPath $calendar)) {
+            # Reported only after it happened: this toast used to fire before the
+            # rebuild ran, so a failed rebuild still claimed success.
+            Write-Log "Calendar for $date rebuilt from plan."
+            Show-Toast ("目標日 ($date) 的行事曆被外部寫手竄改,已從 plan 強制重建。證據: output\operations\calendar-tamper-$date.json")
+            Push-Location $root
+            cmd /c "npm.cmd run generate-image-manifest -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+            $rebuildManifestCode = $LASTEXITCODE
+            Pop-Location
+            if ($rebuildManifestCode -ne 0) {
+                # The calendar itself is clean now. validate-publishable-images still
+                # gates the lock, and the images-only branch reruns the manifest.
+                Write-Log "generate-image-manifest after the rebuild exited $rebuildManifestCode; continuing to the image gate."
+            }
+        } else {
+            # A failed rebuild leaves the tampered (or half-rewritten) calendar in
+            # data\. Left there it would be locked here, healed TO by later
+            # day-lock --heal runs, and auto-approved and queued on Meta by
+            # schedule-ahead. Move it out so no stage treats it as the day.
+            $rebuildFailed = $true
+            $hasCalendar = $false
+            $operationsDir = Join-Path $root "output\operations"
+            New-Item -ItemType Directory -Force -Path $operationsDir | Out-Null
+            $quarantineName = "calendar-quarantine-$date-" + [DateTime]::UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'") + ".json"
+            $quarantine = Join-Path $operationsDir $quarantineName
+            $moved = $false
+            if (Test-Path -LiteralPath $calendar) {
+                try {
+                    Move-Item -LiteralPath $calendar -Destination $quarantine -ErrorAction Stop
+                    $moved = $true
+                } catch {
+                    Write-Log ("Quarantine move failed: " + $_.Exception.Message)
+                }
+            }
+            $calendarGone = -not (Test-Path -LiteralPath $calendar)
+            if ($moved) {
+                $calendarState = "moved to $quarantine"
+                $toastWhere = "已移到 output\operations\${quarantineName}"
+            } elseif ($calendarGone) {
+                $calendarState = "absent"
+                $toastWhere = "行事曆檔已不在"
+            } else {
+                $calendarState = "COULD NOT BE MOVED and is still in data\content-calendar"
+                $toastWhere = "且無法移出,後續核准仍可能用到它,請立即處理"
+            }
+            Write-Log "Tamper rebuild for $date failed (generate --force exit=$rebuildCode); calendar $calendarState; day not locked and not marked ready."
+            $records = @(
+                @((Join-Path $root "data\approved-log\$date.json"), (Join-Path $root "data\scheduled-log\$date.json")) |
+                    Where-Object { Test-Path -LiteralPath $_ }
+            )
+            $toastText = "目標日 (${date}) 行事曆被竄改且從 plan 重建失敗,${toastWhere}。未鎖定、未標記完成,請看 log。"
+            if ($records.Count -gt 0) {
+                Write-Log ("Approval/schedule records already exist for ${date}: " + ($records -join ', ') + "; Meta may still hold a queued post.")
+                $toastText += " 此日已有核准或預排紀錄,請到粉專檢查已排程的貼文。"
+            }
+            Show-Toast $toastText
+        }
+    }
+    if (-not $rebuildFailed) {
+        Push-Location $root
+        cmd /c "npm.cmd run validate-publishable-images -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+        $imagesReady = ($LASTEXITCODE -eq 0)
         Pop-Location
     }
-    Push-Location $root
-    cmd /c "npm.cmd run validate-publishable-images -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-    $imagesReady = ($LASTEXITCODE -eq 0)
-    Pop-Location
 }
 
 # Every path out of this script must end with the site publish chain: the
@@ -201,6 +260,14 @@ function Publish-Site {
 
 function Invoke-DayCarouselVisualQa {
     & (Join-Path $PSScriptRoot "generate-missing-images.ps1") -Date $date -LogFile $logFile -QaOnly
+}
+
+if ($rebuildFailed) {
+    # Failed tamper rebuild: no lock, no image backfill and no Codex regeneration
+    # on that date. The calendar is already out of data\, so the site refresh
+    # (kept on every failure path for SEO freshness) cannot render it.
+    Publish-Site | Out-Null
+    exit 1
 }
 
 if ($hasCalendar -and $imagesReady) {
@@ -295,7 +362,11 @@ Push-Location $root
 # depends on two dedicated local accounts whose stored credentials this
 # machine's DPAPI can no longer decrypt. "unelevated" uses the current
 # login's own restricted token instead, sidestepping that credential store.
-$output = & $codex exec -m (Get-LaundryCodexModel) -C $root -s workspace-write -c 'windows.sandbox="unelevated"' $prompt 2>&1
+# The prompt goes in on stdin ('-'), not argv. codex.cmd is a batch shim, and
+# PS 5.1 hands a multi-line, quote-bearing argument to cmd.exe unescaped, which
+# can drop the plan line and the no-approve/no-publish guardrail. Piped text is
+# encoded with $OutputEncoding (UTF-8, set at the top of this file).
+$output = $prompt | & $codex exec -m (Get-LaundryCodexModel) -C $root -s workspace-write -c 'windows.sandbox="unelevated"' '-' 2>&1
 $exitCode = $LASTEXITCODE
 Pop-Location
 $output | Out-File -FilePath $logFile -Append -Encoding utf8

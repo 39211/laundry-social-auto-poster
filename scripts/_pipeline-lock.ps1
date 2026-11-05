@@ -58,7 +58,10 @@ function Enter-PipelineMutex {
     [CmdletBinding()]
     param(
         [string]$Name = 'sxj-publish',
-        [ValidateRange(0, 2147483)][int]$TimeoutSec = 600
+        [ValidateRange(0, 2147483)][int]$TimeoutSec = 600,
+        # Return $null instead of exiting 75, for callers that skip one unit of
+        # work (one date) and must still report it. Default behaviour unchanged.
+        [switch]$NoExit
     )
     $mutex = $null
     $owned = $false
@@ -79,6 +82,10 @@ function Enter-PipelineMutex {
     }
     if (-not $owned) {
         if ($null -ne $mutex) { $mutex.Dispose() }
+        if ($NoExit) {
+            Write-PipelineLog "Pipeline mutex $Name not acquired; -NoExit caller skips the guarded work and must report it."
+            return $null
+        }
         exit 75
     }
     return $mutex

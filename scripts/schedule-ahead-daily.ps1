@@ -53,20 +53,47 @@ function Show-Toast([string]$text) {
     } catch {}
 }
 
+# Same named mutex daily-generate and the slot-time publishers hold. It is taken
+# per step (audit, then each date) and released in between, never for the whole
+# job: this job does network work for three dates (Meta queue, YouTube publishAt),
+# and a slot-time publisher waits at most 600 s before exiting 75. A step whose
+# lock times out is skipped and reported in the summary toast; the at-slot live
+# path keeps ownership of that date.
+$pipelineLibrary = Join-Path $PSScriptRoot '_pipeline-lock.ps1'
+if (-not (Test-Path -LiteralPath $pipelineLibrary)) { throw "Required pipeline lock library missing: $pipelineLibrary" }
+. $pipelineLibrary
+
 Push-Location $root
 $queued = @()
 $problems = @()
 # A7-4: settle today's uncertain rows without creating or retrying any post.
 $auditDate = (Get-Date).ToString('yyyy-MM-dd')
 Write-Log "=== AUDIT TODAY $auditDate (no publishing) ==="
-$auditOut = cmd /c "npm.cmd run schedule-ahead -- --date $auditDate --live --audit-only --notify-staff 2>&1"
-$auditExitCode = $LASTEXITCODE
-$auditOut | Out-File -FilePath $logFile -Append -Encoding utf8
-if ($auditExitCode -ne 0) { $problems += "$auditDate facebook-audit" }
+$auditLock = Enter-PipelineMutex -Name 'sxj-publish' -TimeoutSec 600 -NoExit
+if ($null -eq $auditLock) {
+    Write-Log "AUDIT SKIPPED ${auditDate}: pipeline mutex busy"
+    $problems += "$auditDate audit-pipeline-busy"
+} else {
+    try {
+        $auditOut = cmd /c "npm.cmd run schedule-ahead -- --date $auditDate --live --audit-only --notify-staff 2>&1"
+        $auditExitCode = $LASTEXITCODE
+        $auditOut | Out-File -FilePath $logFile -Append -Encoding utf8
+        if ($auditExitCode -ne 0) { $problems += "$auditDate facebook-audit" }
+    } finally {
+        Exit-PipelineMutex -Mutex $auditLock
+    }
+}
 
 foreach ($offset in 1..3) {
     $date = $now.AddDays($offset).ToString("yyyy-MM-dd")
     Write-Log "=== D+$offset ($date) ==="
+    $dateLock = Enter-PipelineMutex -Name 'sxj-publish' -TimeoutSec 600 -NoExit
+    if ($null -eq $dateLock) {
+        Write-Log "SKIP ${date}: pipeline mutex busy (daily-generate or a publisher holds it); live path keeps ownership"
+        $problems += "$date pipeline-busy"
+        continue
+    }
+    try {
 
     $calendar = Join-Path $root "data\content-calendar\$date.json"
     if (-not (Test-Path -LiteralPath $calendar)) {
@@ -171,6 +198,9 @@ foreach ($offset in 1..3) {
             Write-Log "YOUTUBE SCHEDULE FAIL ${date} slot ${ytSlot}"
             $problems += "$date youtube-slot-$ytSlot"
         }
+    }
+    } finally {
+        Exit-PipelineMutex -Mutex $dateLock
     }
 }
 Pop-Location

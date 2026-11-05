@@ -16,6 +16,7 @@ import {
   checkSlotAgainstOwnerRules,
   parseChineseAmount,
   parseOwnerRulesMode,
+  reelLengthRangeForSlot,
   storedReelDurationSeconds,
   type OwnerRuleViolation
 } from "../src/ownerContentRules";
@@ -182,15 +183,91 @@ describe("rule 6: slim_master", () => {
 });
 
 describe("rule 7: reel_length", () => {
-  it("warns when the duration is unknown and blocks outside 25-45 s", () => {
+  it("warns when the duration is unknown and blocks below the daily 10 s floor", () => {
     const unknown = check({ slot: 2, media_type: "reel", video_candidate: { duration_seconds: 10 } });
     expect(unknown).toHaveLength(1);
     expect(unknown[0]?.severity).toBe("warn");
     expect(unknown[0]?.excerpt).toContain("10");
-    const short = check({ slot: 2, media_type: "reel" }, { reelDurationSeconds: 10 });
+    const short = check({ slot: 2, media_type: "reel" }, { reelDurationSeconds: 8 });
     expect(short[0]?.severity).toBe("block");
     expect(check({ slot: 2, media_type: "reel" }, { reelDurationSeconds: 30 })).toEqual([]);
     expect(check({ slot: 1, media_type: "image" })).toEqual([]);
+  });
+});
+
+describe("rule 7: reel length depends on the task (C3-3)", () => {
+  const sev = (violations: OwnerRuleViolation[]) => violations.map((v) => `${v.rule}/${v.severity}`);
+  const dailyReel = { slot: 2, media_type: "reel", video_candidate: { duration_seconds: 10 } };
+  const craftedReel = {
+    slot: 2,
+    media_type: "reel",
+    video_candidate: { duration_seconds: 10, video_length_range: { min_seconds: 25, max_seconds: 45 } }
+  };
+  const TASK_RANGE = { min: 25, max: 45, source: "任務指定 25–45 秒" };
+
+  it("a 12 s daily automatic Reel has no reel_length finding", () => {
+    expect(check(dailyReel, { reelDurationSeconds: 12 })).toEqual([]);
+    expect(check(dailyReel, { reelDurationSeconds: 10 })).toEqual([]);
+  });
+
+  it("an 8 s daily automatic Reel is a finding against the daily floor", () => {
+    const short = check(dailyReel, { reelDurationSeconds: 8 });
+    expect(sev(short)).toEqual(["reel_length/block"]);
+    expect(short[0]?.excerpt).toContain("影片 8 秒");
+    expect(short[0]?.excerpt).toContain("每日自動 Reel ≥10 秒");
+  });
+
+  it("a daily automatic Reel has no maximum, only a warning above 60 s", () => {
+    expect(check(dailyReel, { reelDurationSeconds: 60 })).toEqual([]);
+    const long = check(dailyReel, { reelDurationSeconds: 75 });
+    expect(sev(long)).toEqual(["reel_length/warn"]);
+    expect(long[0]?.excerpt).toContain("超過 60 秒");
+  });
+
+  it("a slot with a 25–45 s task range and a 12 s video is a finding", () => {
+    const fromSlot = check(craftedReel, { reelDurationSeconds: 12 });
+    expect(sev(fromSlot)).toEqual(["reel_length/block"]);
+    expect(fromSlot[0]?.excerpt).toContain("影片 12 秒");
+    expect(fromSlot[0]?.excerpt).toContain("任務指定 25–45 秒");
+    const fromOpts = check(dailyReel, { reelDurationSeconds: 12, reelLengthRange: TASK_RANGE });
+    expect(sev(fromOpts)).toEqual(["reel_length/block"]);
+    expect(fromOpts[0]?.excerpt).toContain("任務指定 25–45 秒");
+    expect(sev(check(craftedReel, { reelDurationSeconds: 50 }))).toEqual(["reel_length/block"]);
+  });
+
+  it("a slot with a 25–45 s task range and a 30 s video has no finding", () => {
+    expect(reelLengthRangeForSlot(craftedReel)).toEqual(TASK_RANGE);
+    expect(check(craftedReel, { reelDurationSeconds: 30 })).toEqual([]);
+    expect(check(craftedReel, { reelDurationSeconds: 25 })).toEqual([]);
+    expect(check(craftedReel, { reelDurationSeconds: 45 })).toEqual([]);
+    expect(check(dailyReel, { reelDurationSeconds: 30, reelLengthRange: TASK_RANGE })).toEqual([]);
+  });
+
+  it("an unknown duration keeps the warning and names the range in use", () => {
+    const daily = check(dailyReel);
+    expect(sev(daily)).toEqual(["reel_length/warn"]);
+    expect(daily[0]?.excerpt).toContain("時長未知");
+    expect(daily[0]?.excerpt).toContain("每日自動 Reel ≥10 秒");
+    const crafted = check(craftedReel);
+    expect(sev(crafted)).toEqual(["reel_length/warn"]);
+    expect(crafted[0]?.excerpt).toContain("時長未知");
+    expect(crafted[0]?.excerpt).toContain("任務指定 25–45 秒");
+  });
+
+  it("an unusable task range falls back to the daily rule and says so", () => {
+    const broken = {
+      slot: 2,
+      media_type: "reel",
+      video_candidate: { video_length_range: { min_seconds: 45, max_seconds: 25 } }
+    };
+    const range = reelLengthRangeForSlot(broken);
+    expect(range.min).toBe(10);
+    expect(range.max).toBeUndefined();
+    expect(range.source).toContain("已忽略");
+    expect(check(broken, { reelDurationSeconds: 12 })).toEqual([]);
+    expect(
+      check(dailyReel, { reelDurationSeconds: 12, reelLengthRange: { min: Number.NaN, max: 45, source: "x" } })
+    ).toEqual([]);
   });
 });
 
@@ -216,7 +293,7 @@ const REEL_WARN: OwnerRuleViolation = {
   rule: "reel_length",
   severity: "warn",
   field: "video",
-  excerpt: "時長未知，須 25–45 秒"
+  excerpt: "時長未知，每日自動 Reel ≥10 秒"
 };
 
 // Builds a day in a temp root whose only open question is the owner-rules gate:
@@ -405,20 +482,29 @@ describe("rule 7: reel length from stored video metadata", () => {
     return check(slot, seconds === undefined ? {} : { reelDurationSeconds: seconds });
   };
 
-  it("passes a stored duration inside 25-45 s", () => {
-    expect(storedReelDurationSeconds(reelSlot, [videoSource()])).toBe(30);
-    expect(checkWithStored(reelSlot, [videoSource()])).toEqual([]);
-    expect(checkWithStored(reelSlot, [videoSource({ duration_seconds: 25 })])).toEqual([]);
-    expect(checkWithStored(reelSlot, [videoSource({ duration_seconds: 45 })])).toEqual([]);
+  // Owner-crafted video with a task-specified 25–45 s range (C3-3).
+  const craftedSlot = {
+    ...reelSlot,
+    video_candidate: { duration_seconds: 10, video_length_range: { min_seconds: 25, max_seconds: 45 } }
+  };
+
+  it("passes a stored duration inside the task's 25-45 s range", () => {
+    expect(storedReelDurationSeconds(craftedSlot, [videoSource()])).toBe(30);
+    expect(checkWithStored(craftedSlot, [videoSource()])).toEqual([]);
+    expect(checkWithStored(craftedSlot, [videoSource({ duration_seconds: 25 })])).toEqual([]);
+    expect(checkWithStored(craftedSlot, [videoSource({ duration_seconds: 45 })])).toEqual([]);
+    expect(checkWithStored(reelSlot, [videoSource({ duration_seconds: 12 })])).toEqual([]);
   });
 
-  it("blocks a stored duration outside 25-45 s", () => {
-    const short = checkWithStored(reelSlot, [videoSource({ duration_seconds: 10 })]);
+  it("blocks a stored duration outside the task's 25-45 s range or below the daily floor", () => {
+    const short = checkWithStored(craftedSlot, [videoSource({ duration_seconds: 10 })]);
     expect(severities(short)).toEqual(["reel_length/block"]);
     expect(short[0]?.excerpt).toContain("10 秒");
-    const long = checkWithStored(reelSlot, [videoSource({ duration_seconds: 46.5 })]);
+    const long = checkWithStored(craftedSlot, [videoSource({ duration_seconds: 46.5 })]);
     expect(severities(long)).toEqual(["reel_length/block"]);
     expect(long[0]?.excerpt).toContain("46.5");
+    const dailyShort = checkWithStored(reelSlot, [videoSource({ duration_seconds: 8 })]);
+    expect(severities(dailyShort)).toEqual(["reel_length/block"]);
   });
 
   it("keeps the warning when nothing usable is stored", () => {
@@ -478,6 +564,7 @@ describe("autoApprove passes the stored reel duration", () => {
       const videoPath = (slotArg as { local_video_path?: string }).local_video_path;
       expect(opts?.reelDurationSeconds).toBe(videoPath ? 33 : undefined);
       expect(opts?.priceListAmounts).toBeDefined();
+      expect(opts?.reelLengthRange?.source).toBe("每日自動 Reel ≥10 秒");
     }
     expect(result.approved).toBe(true);
   });

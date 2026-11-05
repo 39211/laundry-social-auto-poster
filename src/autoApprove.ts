@@ -20,8 +20,11 @@ import {
   checkSlotAgainstOwnerRules,
   formatOwnerRuleViolations,
   parseOwnerRulesMode,
+  reelLengthRangeForSlot,
   storedReelDurationSeconds,
-  type OwnerRuleViolation
+  type OwnerRuleViolation,
+  type OwnerRulesOptions,
+  type ReelLengthRange
 } from "./ownerContentRules";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
@@ -363,7 +366,12 @@ export async function autoApprove(
     });
   }
   if (ownerRules.mode !== "off") {
-    const ownerRuleSlots: Array<{ slot: number; violations: OwnerRuleViolation[] }> = [];
+    // reel_length_range (Reel slots only) shows which length range was applied and why.
+    const ownerRuleSlots: Array<{
+      slot: number;
+      violations: OwnerRuleViolation[];
+      reel_length_range?: ReelLengthRange;
+    }> = [];
     const priceListAmounts = await loadPriceListAmounts(root);
     // Reel length (rule 7) uses the duration stored in the video source record
     // when the video was marked; no probe runs here. An unreadable record only
@@ -380,12 +388,15 @@ export async function autoApprove(
     }
     for (const slot of content.slots) {
       let violations: OwnerRuleViolation[];
+      let reelLengthRange: ReelLengthRange | undefined;
       try {
+        // The allowed length depends on the task (C3-3): a daily automatic
+        // Reel is ≥10 s; an owner-crafted video carries its own range.
+        reelLengthRange = reelLengthRangeForSlot(slot);
         const reelDurationSeconds = storedReelDurationSeconds(slot, videoSources);
-        violations = checkSlotAgainstOwnerRules(
-          slot,
-          reelDurationSeconds === undefined ? { priceListAmounts } : { priceListAmounts, reelDurationSeconds }
-        );
+        const ownerOpts: OwnerRulesOptions = { priceListAmounts, reelLengthRange };
+        if (reelDurationSeconds !== undefined) ownerOpts.reelDurationSeconds = reelDurationSeconds;
+        violations = checkSlotAgainstOwnerRules(slot, ownerOpts);
       } catch (error) {
         // The checker must never cost a day's posts in report mode; in block
         // mode an unproven slot stops the run like every other gate.
@@ -394,7 +405,11 @@ export async function autoApprove(
         else checks.push({ name: `owner_rules_slot${slot.slot}`, ok: true, detail: `report-only: ${message}` });
         continue;
       }
-      ownerRuleSlots.push({ slot: slot.slot, violations });
+      ownerRuleSlots.push(
+        slot.media_type === "reel" && reelLengthRange
+          ? { slot: slot.slot, violations, reel_length_range: reelLengthRange }
+          : { slot: slot.slot, violations }
+      );
       const name = `owner_rules_slot${slot.slot}`;
       if (violations.length === 0) {
         record(name, true);

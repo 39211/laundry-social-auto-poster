@@ -10576,6 +10576,190 @@
         "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
         "Do not recommend or endorse any specific shrink-relaxing product."
       ]
+    },
+    {
+      "id": "clothing-ink-stain-page-summary",
+      "type": "guide_summary",
+      "question": "衣服畫到原子筆怎麼洗？",
+      "answer": "衣服畫到原子筆怎麼洗？先不要用水搓，也不要用酒精擦，墨容易暈開。拍整件、筆痕與洗標傳 LINE。衣服上的筆痕和包內裡的筆痕分開看。原子筆污漬沒有公開單價。參考價，看過實品再報價。",
+      "source_url": "https://sixiangjialaundry.com/guides/clothing-ink-stain.html",
+      "local_intent": "原子筆畫到衣服怎麼洗",
+      "keywords": [
+        "原子筆畫到衣服怎麼洗",
+        "衣服畫到原子筆",
+        "原子筆墨水 去除",
+        "原子筆 衣服"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen."
+      ]
+    },
+    {
+      "id": "suede-jacket-cleaning-page-summary",
+      "type": "guide_summary",
+      "question": "麂皮衣服怎麼洗？麂皮外套可以水洗嗎？",
+      "answer": "麂皮衣服怎麼洗？麂皮外套先別整件泡水或脫水。絨毛倒了用軟刷順毛；若還濕，門市會趁濕處理，麂皮可能染色。價目表沒有麂皮外套這一列，不標金額。參考價，看過實品再報價。",
+      "source_url": "https://sixiangjialaundry.com/guides/suede-jacket-cleaning.html",
+      "local_intent": "麂皮衣服怎麼洗",
+      "keywords": [
+        "麂皮衣服怎麼洗",
+        "麂皮外套怎麼洗",
+        "麂皮外套可以水洗嗎",
+        "仿麂皮清洗"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen."
+      ]
+    },
+    {
+      "id": "clothing-color-fading-page-summary",
+      "type": "guide_summary",
+      "question": "衣服褪色怎麼辦？可以補色嗎？",
+      "answer": "衣服褪色怎麼辦？先分自己變淡，還是被別件染上顏色。自己變淡時，清潔通常補不回原來的顏色。價目頁寫補色修補另計，沒有公開數字；能不能做，看過實品再說明。參考價，看過實品再報價。",
+      "source_url": "https://sixiangjialaundry.com/guides/clothing-color-fading.html",
+      "local_intent": "衣服褪色怎麼辦",
+      "keywords": [
+        "衣服褪色怎麼辦",
+        "褪色",
+        "衣服褪色補色店台中",
+        "衣服可以補色嗎"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen."
+      ]
+    },
+    {
+      "id": "waterproof-breathable-shoe-care-page-summary",
+      "type": "guide_summary",
+      "question": "防水透氣鞋可以水洗嗎？可以烘乾嗎？",
+      "answer": "防水透氣鞋可以水洗嗎？先看洗標，不要整雙泡水，也不要高溫烘。清潔不會把防潑找回來。登山鞋與雨季前的防潑水各看各的頁。價目表沒有這一列。參考價，看過實品再報價。洗鞋一般約一個禮拜可以拿。",
+      "source_url": "https://sixiangjialaundry.com/guides/waterproof-breathable-shoe-care.html",
+      "local_intent": "防水透氣鞋可以水洗嗎",
+      "keywords": [
+        "防水透氣鞋可以水洗嗎",
+        "防水透氣鞋怎麼洗",
+        "防水透氣鞋可以烘乾嗎",
+        "防潑水鞋可以水洗嗎"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen."
+      ]
+    },
+    {
+      "id": "summer-quilt-washing-page-summary",
+      "type": "guide_summary",
+      "question": "涼被可以水洗嗎？可以烘乾嗎？",
+      "answer": "涼被可以水洗嗎？先看洗標。洗標允許、機器轉得動、洗完攤得開，才考慮自己洗。烘乾只以洗標為準。私享家洗衣店（台中西屯）涼被水洗參考價 $180，參考價，看過實品再報價。",
+      "source_url": "https://sixiangjialaundry.com/guides/summer-quilt-washing.html",
+      "local_intent": "涼被可以水洗嗎",
+      "keywords": [
+        "涼被可以水洗嗎",
+        "涼被可以烘乾嗎",
+        "涼被送洗多少錢",
+        "涼被可以丟洗衣機嗎"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen."
+      ]
+    },
+    {
+      "id": "sweater-cleaning-price-page-summary",
+      "type": "guide_summary",
+      "question": "毛衣送洗多少錢？會縮水嗎？",
+      "answer": "毛衣送洗多少錢？毛衣 $150，參考價，看過實品再報價；毛衣外套 $180，參考價，看過實品再報價；精品毛衣 $210，參考價，看過實品再報價；精品毛衣外套 $240，參考價，看過實品再報價。會不會縮，看纖維與洗標，送洗前無法先說尺寸不變。羊絨沒有公開列。",
+      "source_url": "https://sixiangjialaundry.com/guides/sweater-cleaning-price.html",
+      "local_intent": "毛衣送洗多少錢",
+      "keywords": [
+        "毛衣送洗多少錢",
+        "毛衣會縮水嗎",
+        "精品毛衣送洗多少錢",
+        "毛衣外套送洗多少錢"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen."
+      ]
+    },
+    {
+      "id": "mattress-protector-washing-page-summary",
+      "type": "guide_summary",
+      "question": "保潔墊可以丟洗衣機嗎？可以烘乾嗎？",
+      "answer": "保潔墊可以丟洗衣機嗎？先看洗標、尺寸，以及有沒有膜或鬆緊固定。洗標允許、機器裝得下，才考慮自己洗。烘乾以洗標為準。保潔墊水洗參考價 $120，參考價，看過實品再報價。",
+      "source_url": "https://sixiangjialaundry.com/guides/mattress-protector-washing.html",
+      "local_intent": "保潔墊可以丟洗衣機嗎",
+      "keywords": [
+        "保潔墊可以丟洗衣機嗎",
+        "保潔墊可以烘乾嗎",
+        "保潔墊送洗多少錢",
+        "保潔墊怎麼洗"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen."
+      ]
+    },
+    {
+      "id": "shoe-insole-machine-wash-page-summary",
+      "type": "guide_summary",
+      "question": "鞋墊可以丟洗衣機嗎？",
+      "answer": "鞋墊可以丟洗衣機嗎？不建議，抽得起的鞋墊也不適合直接脫水。泡棉、皮、絨遇水和高速轉動可能變形或脫膠。黏死、縫死的不要把整雙鞋一起丟。價目表沒有鞋墊這一列。參考價，看過實品再報價。洗鞋一般約一個禮拜可以拿。",
+      "source_url": "https://sixiangjialaundry.com/guides/shoe-insole-machine-wash.html",
+      "local_intent": "鞋墊可以丟洗衣機嗎",
+      "keywords": [
+        "鞋墊可以丟洗衣機嗎",
+        "鞋墊可以洗嗎",
+        "鞋墊可以烘乾嗎",
+        "可拆鞋墊怎麼洗"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen."
+      ]
     }
   ]
 }

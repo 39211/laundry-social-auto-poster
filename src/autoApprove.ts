@@ -16,6 +16,12 @@ import { TOPIC_LABEL_PREFIX_RE } from "./contentPlan";
 import { imageAssetsForSlot } from "./mediaAssets";
 import { pauseMessage, readPause } from "./pause";
 import { validatePublishableReel } from "./generateVideo";
+import {
+  checkSlotAgainstOwnerRules,
+  formatOwnerRuleViolations,
+  parseOwnerRulesMode,
+  type OwnerRuleViolation
+} from "./ownerContentRules";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 import type { Platform } from "./types";
@@ -49,6 +55,22 @@ export interface AutoApproveResult {
   // model's C2PA manifest decides whether Meta shows its "AI info" label, and
   // a resize can drop it without anyone choosing to. Visibility, not a verdict.
   ai_provenance: { with_manifest: number; without_manifest: number; consistent: boolean };
+}
+
+// Every positive number on the shop's own price list; an unreadable list gives [] (amounts then block).
+async function loadPriceListAmounts(root: string): Promise<number[]> {
+  try {
+    const found = new Set<number>();
+    const walk = (value: unknown): void => {
+      if (typeof value === "number" && Number.isFinite(value) && value >= 20) found.add(value);
+      else if (Array.isArray(value)) value.forEach(walk);
+      else if (value && typeof value === "object") Object.values(value as Record<string, unknown>).forEach(walk);
+    };
+    walk(JSON.parse(await readFile(join(root, "data", "prices.json"), "utf8")));
+    return [...found];
+  } catch {
+    return [];
+  }
 }
 
 async function loadPolicy(root: string): Promise<PublishingPolicy | undefined> {
@@ -324,6 +346,75 @@ export async function autoApprove(
         ok: true,
         detail: `soft warning: 缺 ${missing.join("/")}`
       });
+    }
+  }
+
+  // Owner content rules (card C3). SXJ_OWNER_RULES=report (default) records
+  // and writes output/owner-rules/<date>.json but never blocks; =block turns a
+  // block-severity hit into a failing record() gate; =off skips it. "warn"
+  // (e.g. reel length unknown) never blocks. A dry run writes no report file.
+  const ownerRules = parseOwnerRulesMode(process.env.SXJ_OWNER_RULES);
+  if (ownerRules.unrecognized !== undefined) {
+    checks.push({
+      name: "owner_rules_mode",
+      ok: true,
+      detail: `SXJ_OWNER_RULES=${ownerRules.unrecognized} not recognised; running in report mode`
+    });
+  }
+  if (ownerRules.mode !== "off") {
+    const ownerRuleSlots: Array<{ slot: number; violations: OwnerRuleViolation[] }> = [];
+    const priceListAmounts = await loadPriceListAmounts(root);
+    for (const slot of content.slots) {
+      let violations: OwnerRuleViolation[];
+      try {
+        violations = checkSlotAgainstOwnerRules(slot, { priceListAmounts });
+      } catch (error) {
+        // The checker must never cost a day's posts in report mode; in block
+        // mode an unproven slot stops the run like every other gate.
+        const message = `owner rules checker failed: ${error instanceof Error ? error.message : String(error)}`;
+        if (ownerRules.mode === "block") record(`owner_rules_slot${slot.slot}`, false, message);
+        else checks.push({ name: `owner_rules_slot${slot.slot}`, ok: true, detail: `report-only: ${message}` });
+        continue;
+      }
+      ownerRuleSlots.push({ slot: slot.slot, violations });
+      const name = `owner_rules_slot${slot.slot}`;
+      if (violations.length === 0) {
+        record(name, true);
+        continue;
+      }
+      const detail = formatOwnerRuleViolations(violations);
+      const blocking = violations.some((violation) => violation.severity === "block");
+      if (ownerRules.mode === "block" && blocking) {
+        record(name, false, detail);
+      } else {
+        checks.push({
+          name,
+          ok: true,
+          detail: `${blocking ? "report-only (would block)" : "warning"}: ${detail}`
+        });
+      }
+    }
+    if (!options.dryRun) {
+      try {
+        const { mkdir: mkdirReport, writeFile: writeReport } = await import("node:fs/promises");
+        const reportDir = join(root, "output", "owner-rules");
+        await mkdirReport(reportDir, { recursive: true });
+        await writeReport(
+          join(reportDir, `${date}.json`),
+          JSON.stringify(
+            { date, mode: ownerRules.mode, checked_at: new Date().toISOString(), slots: ownerRuleSlots },
+            null,
+            2
+          ),
+          "utf8"
+        );
+      } catch (error) {
+        checks.push({
+          name: "owner_rules_report",
+          ok: true,
+          detail: `could not write output/owner-rules/${date}.json: ${error instanceof Error ? error.message : String(error)}`
+        });
+      }
     }
   }
 

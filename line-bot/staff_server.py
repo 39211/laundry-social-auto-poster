@@ -107,10 +107,35 @@ def staff_photo(rel: str):
 
 @app.post("/staff/notify")
 def staff_notify_guest():
-    body = request.get_json(silent=True) or {}
+    # A-STAFFSRV H1/H2: never pair a LINE uid with another customer's order and
+    # never send on an ambiguous or unknown free-text query.
+    # (staff.html only sends customer_no + mode; this guards hand-made or stale callers.)
+    import laundry_lookup
+
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        body = {}
+    uid = str(body.get("uid") or "").strip()
+    customer_no = str(body.get("customer_no") or "").strip()
+    query = str(body.get("q") or "").strip()
+    if not customer_no and query:
+        row = laundry_lookup.lookup(query)
+        if not row.found or row.ambiguous or not row.customer_no:
+            return jsonify(
+                {"ok": False, "error": "lookup_not_unique", "message": "查詢結果不唯一或查無此客，未發送"}
+            )
+        customer_no = str(row.customer_no)
+    if not uid and not customer_no:
+        return jsonify({"ok": False, "error": "missing_target", "message": "沒有指定客人，未發送"})
+    if uid and customer_no:
+        bound_uid = str(laundry_lookup.uid_for_customer(customer_no) or "")
+        if bound_uid != uid:
+            return jsonify(
+                {"ok": False, "error": "uid_customer_mismatch", "message": "LINE 帳號與客編不符，未發送"}
+            )
     result = staff_notify.notify_guest(
-        uid=body.get("uid") or "",
-        customer_no=body.get("customer_no") or body.get("q") or "",
+        uid=uid,
+        customer_no=customer_no,
         mode=body.get("mode") or "auto",
     )
     return jsonify(result)

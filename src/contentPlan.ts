@@ -615,8 +615,20 @@ function cleanHook(hook: string): string {
 // of the 180 posts and shoe-and-bag care another 49, so those two get four
 // each. Shoes and bags are separate: sharing a branch let a post whose hook was
 // about white shoes open with a sentence about handbags.
+/**
+ * First date on which the two posts of a day stop sharing their bridge and
+ * inspection blocks. Earlier dates keep the old index so the frozen caption
+ * snapshots (and anything already approved) stay byte-identical.
+ */
+export const SLOT_VARIANT_OFFSET_START_DATE = "2026-11-08";
+
 function pickFor(slot: GrowthPlaybookSlot, variants: string[]): string {
-  return variants[dayIndex(slot.date) % variants.length] ?? variants[0] ?? "";
+  // Offset by slot: both posts of one day used to print the same bridge and
+  // inspection lines whenever they shared a service page. Every block of one
+  // caption still uses the same index, so shoe/bag lists stay aligned.
+  const offset = slot.date >= SLOT_VARIANT_OFFSET_START_DATE ? slot.slot : 0;
+  const index = (dayIndex(slot.date) + offset) % variants.length;
+  return variants[index] ?? variants[0] ?? "";
 }
 
 /**
@@ -670,7 +682,7 @@ function careBridgeFor(slot: GrowthPlaybookSlot): string {
     if (page.includes("luxury-dry-cleaning")) {
       return [
         "精品最先出問題的是邊角。邊油磨掉補不回來，要在磨穿前處理。",
-        "私享家做精品乾洗和特殊處理：先看材質和五金再定工法，不是整件丟下去洗，洗壞的機率比一般水洗低很多。",
+        "精品要先看材質和五金，再決定怎麼處理。不是整件丟下去洗就好。",
         "同一個牌子會用不同的皮。看品牌決定怎麼洗，比看材質更容易出事。"
       ];
     }
@@ -1465,16 +1477,39 @@ export function recentAiredTopics(
   return topics;
 }
 
+/** Copy tied to a calendar moment; rebased onto another date it would publish a stale date. */
+const DATE_BOUND_COPY_RE =
+  /父親節|母親節|七夕|情人節|中秋|端午|春節|過年|除夕|元宵|清明|聖誕|跨年|連假|開學|暑假|寒假|梅雨|颱風|\d{1,2}\s*月|\d{1,2}\/\d{1,2}|[一二三四五六七八九十]{1,2}月/u;
+
+/** True when a playbook row's published copy only makes sense on its own date. */
+export function isDateBoundSlotCopy(slot: GrowthPlaybookSlot): boolean {
+  if (canonicalSeoSyncPage(slot.seo_sync_page).includes("school-uniform-care")) return true;
+  const text = [
+    slot.topic,
+    slot.hook,
+    slot.story,
+    slot.service_message,
+    slot.caption,
+    slot.facebook_caption,
+    slot.instagram_caption
+  ]
+    .filter((part): part is string => typeof part === "string")
+    .join("\n");
+  return DATE_BOUND_COPY_RE.test(text);
+}
+
 /** Swap a colliding slot-1 playbook row for the first later slot-1 that is clear. */
 export function resolveSlot1AgainstAired(
   playbookSlot: GrowthPlaybookSlot,
-  airedTopics: string[]
+  airedTopics: string[],
+  playbook?: { days: ReadonlyArray<{ slots: GrowthPlaybookSlot[] }> }
 ): GrowthPlaybookSlot {
   if (!topicRepeatsInWindow(playbookSlot.topic, airedTopics)) return playbookSlot;
-  const playbook = buildGrowthPlaybook();
-  for (const day of playbook.days) {
+  const book = playbook ?? buildGrowthPlaybook();
+  for (const day of book.days) {
     const candidate = day.slots.find((item) => item.slot === 1);
     if (!candidate || candidate.topic === playbookSlot.topic) continue;
+    if (isDateBoundSlotCopy(candidate)) continue;
     const rebased: GrowthPlaybookSlot = {
       ...candidate,
       date: playbookSlot.date,
@@ -1577,17 +1612,19 @@ function asPlaybookImageSlot(slot: GrowthPlaybookSlot): GrowthPlaybookSlot {
   };
 }
 
-function playbookSlotForPausedEvening(
+export function playbookSlotForPausedEvening(
   playbookSlot: GrowthPlaybookSlot,
-  occupiedTopics: string[]
+  occupiedTopics: string[],
+  playbook?: { days: ReadonlyArray<{ slots: GrowthPlaybookSlot[] }> }
 ): GrowthPlaybookSlot {
   const primary = asPlaybookImageSlot(playbookSlot);
   if (!topicRepeatsInWindow(primary.topic, occupiedTopics)) return primary;
 
-  const playbook = buildGrowthPlaybook();
-  for (const day of playbook.days) {
+  const book = playbook ?? buildGrowthPlaybook();
+  for (const day of book.days) {
     const candidate = day.slots.find((item) => item.slot === 2);
     if (!candidate || candidate.topic === playbookSlot.topic) continue;
+    if (isDateBoundSlotCopy(candidate)) continue;
     const rebased = asPlaybookImageSlot({
       ...candidate,
       date: playbookSlot.date,
@@ -1694,7 +1731,8 @@ const PRICE_LINES: Array<{ match: RegExp; line: string }> = [
   { match: /皮鞋|靴/, line: "參考價：皮鞋 $400、低靴 $350、高靴 $550（水洗價）" },
   { match: /皮衣/, line: "參考價：皮衣 $1200、特殊皮衣 $2000（發霉另計）" },
   { match: /襯衫|制服/, line: "參考價：襯衫 $70、整燙 $50（水洗價）" },
-  { match: /西裝|大衣/, line: "參考價：西裝背心 $80、長大衣 $300（水洗價，乾洗另計）" },
+  { match: /西裝背心/, line: "參考價：西裝背心 $80（水洗價，乾洗另計）" },
+  { match: /大衣/, line: "參考價：長大衣 $300（水洗價，乾洗另計）" },
   { match: /羽絨/, line: "參考價：羽絨外套 $280、羽絨被 $600（水洗價）" },
   { match: /棉被|床組|寢具|被套/, line: "參考價：棉被單人 $350、雙人 $500、床組四件套 $300（水洗價）" },
   { match: /窗簾|地毯/, line: "參考價：窗簾地毯依尺寸報價，LINE 傳照片先估" },

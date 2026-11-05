@@ -194,6 +194,83 @@ function resultToLog(
   };
 }
 
+// Slot-lock markers. Before each live publish the slot lock is rewritten to
+// name the platform in flight; when a post may be live but the posted log has
+// no row for it, the lock is kept and marked UNRECORDED_PUBLISH. A lock naming
+// a platform the posted log does not record is never reclaimed as stale:
+// "stale" used to mean "crashed run, safe to retry", but a run that stopped
+// between Meta's accept and the log write is exactly the double-publish case.
+const UNRECORDED_PUBLISH_MARKER = "UNRECORDED_PUBLISH";
+const IN_FLIGHT_MARKER = "IN_FLIGHT";
+
+interface SlotLockMarker {
+  marker: typeof UNRECORDED_PUBLISH_MARKER | typeof IN_FLIGHT_MARKER;
+  platform: Platform;
+  line: string;
+}
+
+function parseSlotLockMarkers(text: string): SlotLockMarker[] {
+  const markers: SlotLockMarker[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    const match = /^(UNRECORDED_PUBLISH|IN_FLIGHT) (facebook|instagram)(?:\s|$)/.exec(line);
+    if (match) {
+      markers.push({
+        marker: match[1] as SlotLockMarker["marker"],
+        platform: match[2] as Platform,
+        line
+      });
+    }
+  }
+  return markers;
+}
+
+// Replace the lock's content without ever leaving it empty or half-written: a
+// failed write keeps the previous marker, which is the fail-closed outcome.
+async function writeSlotLockState(lockFile: string, lines: string[]): Promise<void> {
+  const { rename, unlink, writeFile } = await import("node:fs/promises");
+  const { randomUUID } = await import("node:crypto");
+  const tempPath = `${lockFile}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(tempPath, `${lines.join("\n")}\n`, "utf8");
+    await rename(tempPath, lockFile);
+  } finally {
+    await unlink(tempPath).catch(() => undefined);
+  }
+}
+
+function sameLogRow(a: PostLogEntry, b: PostLogEntry): boolean {
+  return (
+    a.slot === b.slot &&
+    a.platform === b.platform &&
+    a.status === b.status &&
+    a.created_at === b.created_at &&
+    a.post_id === b.post_id
+  );
+}
+
+// A transient posted-log failure (JSON-lock timeout, Windows EPERM/EBUSY on
+// rename) must not turn into a missing or "failed" row. appendPostLog can also
+// reject after its rename landed, so a retry first checks the row is not
+// already there instead of appending a duplicate.
+async function appendPostLogDurably(entry: PostLogEntry, root: string): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    if (attempt > 1) {
+      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt - 1)));
+      const current = await loadPostLog(entry.date, root).catch(() => undefined);
+      if (current?.some((row) => sameLogRow(row, entry))) return;
+    }
+    try {
+      await appendPostLog(entry, root);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
 async function postPlatform(
   platform: Platform,
   input: PostInput,
@@ -281,13 +358,85 @@ async function postOneSlot(
     const paused = await readPause(root);
     if (paused) throw new NonRetryableError(pauseMessage(paused));
   }
-  if (!config.dryRun && !preflightOnly) assertInsidePublishWindow(slot.slot, config, now, date, root);
+  // Outside its window, a slot both platforms already recorded has nothing left
+  // to do: answer "skipped" instead of throwing. An --all-due run at 19:00 used
+  // to throw "outside window" for the 08:00 slot that went out this morning.
+  // Inside the window the full path still runs (gates, repair-queue resolution).
+  if (!config.dryRun && !preflightOnly) {
+    try {
+      assertInsidePublishWindow(slot.slot, config, now, date, root);
+    } catch (windowError) {
+      const recorded = await loadPostLog(date, root);
+      const platforms: Platform[] = ["facebook", "instagram"];
+      if (!platforms.every((platform) => hasRecordedPost(recorded, slot.slot, platform, false))) {
+        throw windowError;
+      }
+      return platforms.map((platform) => ({
+        date,
+        slot: slot.slot,
+        platform,
+        status: "skipped" as const,
+        dry_run: false,
+        attempts: 0,
+        ...(abVariant ? { ab_variant: abVariant } : {}),
+        created_at: new Date().toISOString()
+      }));
+    }
+  }
   // Single-flight per date+slot: scheduler retries, the patrol and a manual
   // run can overlap; two publishers that both read "no success yet" would
   // both post to Meta and both succeed (luna, high). flag wx makes the
   // check-and-claim atomic; a stale lock (>30 min) is treated as a crashed
   // run and reclaimed.
   let releaseLock: (() => Promise<void>) | undefined;
+  // Set while this run holds the slot lock (live runs only).
+  let heldLockFile: string | undefined;
+  // UNRECORDED_PUBLISH lines added by this run. They are rewritten with every
+  // later lock update, so the next platform's IN_FLIGHT line cannot drop them.
+  const pinnedLockLines: string[] = [];
+  const markLockInFlight = async (platform: Platform): Promise<void> => {
+    if (!heldLockFile) return;
+    await writeSlotLockState(heldLockFile, [
+      ...pinnedLockLines,
+      `${IN_FLIGHT_MARKER} ${platform} since ${new Date().toISOString()}`
+    ]);
+  };
+  // The attempt that just failed published nothing: drop its IN_FLIGHT line.
+  // If this write fails the line stays, which can only block (fail-closed).
+  const clearLockInFlight = async (): Promise<void> => {
+    if (!heldLockFile) return;
+    await writeSlotLockState(
+      heldLockFile,
+      pinnedLockLines.length > 0 ? pinnedLockLines : [new Date().toISOString()]
+    ).catch(() => undefined);
+  };
+  const pinUnrecordedPublish = async (
+    platform: Platform,
+    postId: string | undefined,
+    outcome: string,
+    logError: unknown
+  ): Promise<string> => {
+    const reason = logError instanceof Error ? logError.message : String(logError);
+    pinnedLockLines.push(
+      `${UNRECORDED_PUBLISH_MARKER} ${platform} post_id=${postId ?? "unknown"} at ${new Date().toISOString()}`
+    );
+    // Keep the lock: releasing it is what let the next run publish again.
+    releaseLock = undefined;
+    let pinNote = "";
+    if (heldLockFile) {
+      try {
+        await writeSlotLockState(heldLockFile, pinnedLockLines);
+      } catch (pinError) {
+        pinNote =
+          ` (Marking the lock also failed: ${pinError instanceof Error ? pinError.message : String(pinError)}.` +
+          ` It still carries this platform's IN_FLIGHT line, which blocks later runs the same way.)`;
+      }
+    }
+    return (
+      `${platform} ${date} slot ${slot.slot} ${outcome} (post_id ${postId ?? "unknown"}) but the posted log could not be written: ${reason}. ` +
+      `The slot stays locked: check the Page, record the post in the posted log by hand, then delete ${heldLockFile ?? "the slot lock"}.${pinNote}`
+    );
+  };
   if (!config.dryRun && !preflightOnly) {
     const { mkdir, writeFile, stat: statFile, unlink } = await import("node:fs/promises");
     const lockDir = join(root, "data", "publish-locks");
@@ -297,9 +446,31 @@ async function postOneSlot(
       await writeFile(lockFile, new Date().toISOString(), { flag: "wx" });
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+        const held = await readFile(lockFile, "utf8").catch((readError: NodeJS.ErrnoException) => {
+          if (readError.code === "ENOENT") return "";
+          throw readError;
+        });
+        const markers = parseSlotLockMarkers(held);
+        const recordedNow = markers.length > 0 ? await loadPostLog(date, root) : [];
+        const open = markers.filter(
+          (marker) => !hasRecordedPost(recordedNow, slot.slot, marker.platform, false)
+        );
+        const unrecorded = open.filter((marker) => marker.marker === UNRECORDED_PUBLISH_MARKER);
+        if (unrecorded.length > 0) {
+          throw new NonRetryableError(
+            `${date} slot ${slot.slot} went out but the posted log has no record of it (${unrecorded.map((m) => m.line).join("; ")}). ` +
+              `Check the Page, record the post in the posted log by hand, then delete ${lockFile}. Refusing to publish it again.`
+          );
+        }
         const age = Date.now() - (await statFile(lockFile)).mtimeMs;
         if (age < 30 * 60 * 1000) {
           throw new Error(`Another publisher holds the lock for ${date} slot ${slot.slot} (${Math.round(age / 1000)}s old); refusing to double-publish.`);
+        }
+        if (open.length > 0) {
+          throw new NonRetryableError(
+            `${date} slot ${slot.slot}: a run stopped while publishing ${open.map((m) => m.platform).join(", ")} and the posted log has no record (${open.map((m) => m.line).join("; ")}). ` +
+              `The post may be live: check the Page, record it or confirm it is absent, then delete ${lockFile}.`
+          );
         }
         await unlink(lockFile);
         await writeFile(lockFile, new Date().toISOString(), { flag: "wx" });
@@ -307,6 +478,7 @@ async function postOneSlot(
         throw error;
       }
     }
+    heldLockFile = lockFile;
     releaseLock = async () => {
       try {
         await unlink(lockFile);
@@ -556,6 +728,9 @@ async function postOneSlot(
   const scheduledRows = await loadScheduledLog(date, root).catch(() => []);
 
   let firstFailure: unknown;
+  // Posts that may be live without a posted-log row. These outrank every other
+  // failure in what this run reports.
+  const unrecordedMessages: string[] = [];
   for (const { platform, input } of platformInputs) {
     if (hasRecordedPost(existing, slot.slot, platform, config.dryRun)) {
       outputs.push({
@@ -603,16 +778,24 @@ async function postOneSlot(
         post_id: scheduledRow.scheduled_post_id || undefined,
         created_at: new Date().toISOString()
       };
-      await appendPostLog(entry, root);
-      outputs.push(entry);
+      try {
+        await appendPostLogDurably(entry, root);
+        outputs.push(entry);
+      } catch (logError) {
+        // Nothing is published from here (Meta holds the queued post), so a
+        // missing row only means the next run records it again. It must not
+        // cost Instagram its attempt.
+        firstFailure = firstFailure ?? logError;
+      }
       continue;
     }
 
+    let published: PostResult | undefined;
     try {
-      const result = await postPlatform(platform, input, config, fetchImpl);
-      const entry = resultToLog(date, slot.slot, result, resolvedMedia, abVariant);
-      await appendPostLog(entry, root);
-      outputs.push(entry);
+      // The lock names this platform BEFORE Meta is called, so a run that dies
+      // between Meta's accept and the log write leaves a lock no run reclaims.
+      await markLockInFlight(platform);
+      published = await postPlatform(platform, input, config, fetchImpl);
     } catch (error) {
       // A NonRetryableError from a commit point means the post may already be
       // live. Recording it as "failed" is what let the catch-up chain publish
@@ -640,11 +823,45 @@ async function postOneSlot(
         error: error instanceof Error ? error.message : String(error),
         created_at: new Date().toISOString()
       };
-      await appendPostLog(entry, root);
-      outputs.push(entry);
+      try {
+        await appendPostLogDurably(entry, root);
+        outputs.push(entry);
+      } catch (logError) {
+        if (commitUncertain && !config.dryRun) {
+          // The post may be live and no row says so: keep the slot locked.
+          unrecordedMessages.push(
+            await pinUnrecordedPublish(platform, undefined, "may have published", logError)
+          );
+        } else {
+          // Nothing went out, so a missing row only means the next run retries.
+          const logReason = logError instanceof Error ? logError.message : String(logError);
+          firstFailure =
+            firstFailure ??
+            new Error(`${entry.error ?? "publish failed"}; the posted log could not record this failure either: ${logReason}`);
+        }
+      }
+      if (!commitUncertain) await clearLockInFlight();
       firstFailure = firstFailure ?? error;
+      continue;
+    }
+
+    // A post Meta accepted is never logged as "failed": catch-up reads "failed"
+    // as "never went out" and publishes again.
+    const entry = resultToLog(date, slot.slot, published, resolvedMedia, abVariant);
+    try {
+      await appendPostLogDurably(entry, root);
+      outputs.push(entry);
+    } catch (logError) {
+      if (!config.dryRun && ["success", "posted", "uncertain"].includes(published.status)) {
+        unrecordedMessages.push(
+          await pinUnrecordedPublish(platform, published.post_id, "published", logError)
+        );
+      } else {
+        firstFailure = firstFailure ?? logError;
+      }
     }
   }
+  if (unrecordedMessages.length > 0) throw new NonRetryableError(unrecordedMessages.join(" | "));
   if (firstFailure !== undefined) throw firstFailure;
 
   if (!config.dryRun && !resolvedMedia.videoDeferred && (isReel || isMixedCarousel)) {
@@ -757,6 +974,12 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
 
   const abDay = planForDate(await loadAbTestPlan(root), date);
   const results: PostLogEntry[] = [];
+  // One slot's failure must not cost the other due slots their attempt. Every
+  // failure is collected and reported together at the end, not printed as it
+  // happens: a PowerShell 5.1 wrapper that merges stderr under
+  // $ErrorActionPreference='Stop' aborts on the first stderr line while this
+  // process is still publishing the next slot.
+  const slotFailures: Array<{ slot: number; error: unknown }> = [];
   for (const schedule of targetSchedules) {
     const slot = content.slots.find((item) => item.slot === schedule.slot);
     const presence = classifyCalendarSlotPresence(schedule.slot, Boolean(slot));
@@ -768,23 +991,43 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
       continue;
     }
     if (presence === "absent_fail" || !slot) {
-      throw new Error(`Content slot ${schedule.slot} is missing for ${date}`);
+      slotFailures.push({
+        slot: schedule.slot,
+        error: new Error(`Content slot ${schedule.slot} is missing for ${date}`)
+      });
+      continue;
     }
     const abVariant = planSlot(abDay, schedule.slot)?.variant;
-    results.push(
-      ...(await postOneSlot(
-        slot,
-        config,
-        date,
-        root,
-        options.fetchImpl ?? fetch,
-        options.preflightOnly,
-        abVariant,
-        now
-      ))
-    );
+    try {
+      results.push(
+        ...(await postOneSlot(
+          slot,
+          config,
+          date,
+          root,
+          options.fetchImpl ?? fetch,
+          options.preflightOnly,
+          abVariant,
+          now
+        ))
+      );
+    } catch (error) {
+      slotFailures.push({ slot: schedule.slot, error });
+    }
   }
 
+  // A single failure is rethrown unchanged (same type and message as before).
+  if (slotFailures.length === 1) throw slotFailures[0]!.error;
+  if (slotFailures.length > 1) {
+    const message =
+      `${slotFailures.length} slots failed for ${date}: ` +
+      slotFailures
+        .map(({ slot, error }) => `slot ${slot}: ${error instanceof Error ? error.message : String(error)}`)
+        .join(" | ");
+    throw slotFailures.some(({ error }) => error instanceof NonRetryableError)
+      ? new NonRetryableError(message)
+      : new Error(message);
+  }
   return results;
 }
 

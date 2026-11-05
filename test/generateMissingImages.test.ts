@@ -6,11 +6,26 @@ import { describe, expect, it } from "vitest";
 const ROOT = process.cwd();
 const PROD_SCRIPT = join(ROOT, "scripts", "generate-missing-images.ps1");
 const SMOKE_SCRIPT = join(ROOT, "test", "ps-carousel-slot-items.smoke.ps1");
+const ASPECT_SMOKE_SCRIPT = join(ROOT, "test", "ps-portrait-four-five.smoke.ps1");
 
 /** Slice by the next top-level `function`, not the first `}`. The body has a foreach. */
 function carouselSlotItemsFunction(source: string): string {
   const start = source.search(/function Get-CarouselSlotItems\b/u);
   if (start < 0) throw new Error("Get-CarouselSlotItems not found");
+  const next = source.indexOf("\nfunction ", start + 1);
+  return source.slice(start, next < 0 ? source.length : next);
+}
+
+function portraitVerdictFunction(source: string): string {
+  const start = source.search(/function Get-PortraitFourFiveVerdict\b/u);
+  if (start < 0) throw new Error("Get-PortraitFourFiveVerdict not found");
+  const next = source.indexOf("\nfunction ", start + 1);
+  return source.slice(start, next < 0 ? source.length : next);
+}
+
+function portraitProbeFunction(source: string): string {
+  const start = source.search(/function Test-PortraitFourFive\b/u);
+  if (start < 0) throw new Error("Test-PortraitFourFive not found");
   const next = source.indexOf("\nfunction ", start + 1);
   return source.slice(start, next < 0 ? source.length : next);
 }
@@ -21,7 +36,7 @@ function lastJsonObject(stdout: string): Record<string, unknown> {
     .map((line) => line.trim())
     .filter((line) => line.startsWith("{") && line.endsWith("}"));
   const line = lines.at(-1);
-  if (!line) throw new Error(`carousel slot smoke printed no JSON object\n${stdout}`);
+  if (!line) throw new Error(`generate-missing-images smoke printed no JSON object\n${stdout}`);
   return JSON.parse(line) as Record<string, unknown>;
 }
 
@@ -93,6 +108,59 @@ describe("Get-CarouselSlotItems PS-layer smoke (F20 fish-1)", () => {
         slot2_is_array: true,
         slot3_count: 0,
         slot3_is_array: true
+      });
+    },
+    30000
+  );
+});
+
+describe("Get-PortraitFourFiveVerdict PS-layer smoke (carousel 4:5 gate)", () => {
+  it("pins the production ratio to 4:5 ±0.01 and routes ffprobe through the pure verdict", async () => {
+    const source = await readFile(PROD_SCRIPT, "utf8");
+    const verdict = portraitVerdictFunction(source);
+    const probe = portraitProbeFunction(source);
+    expect(verdict).toMatch(/function Get-PortraitFourFiveVerdict\(/u);
+    expect(verdict).toMatch(/\$aspect\s*=\s*4\.0\s*\/\s*5\.0/u);
+    expect(verdict).toMatch(/-le\s+0\.01/u);
+    expect(verdict).not.toMatch(/3\.0\s*\/\s*4\.0/u);
+    expect(verdict).not.toMatch(/ffprobe/u);
+    expect(probe).toMatch(/return Get-PortraitFourFiveVerdict \$w \$h/u);
+    expect(probe).not.toMatch(/\$CarouselAspect/u);
+    expect(source).not.toMatch(/\$CarouselAspect\s*=/u);
+    expect(source).toContain("Test-PortraitFourFive $candidate.FullName");
+    expect(source).toContain("Test-PortraitFourFive $target");
+    expect(source).toContain("not portrait 4:5; discarding and asking again.");
+  });
+
+  it.runIf(process.platform === "win32")(
+    "invokes the production verdict: 4:5 passes, 3:4 fails, 0.01 band holds",
+    () => {
+      const result = spawnSync(
+        "powershell.exe",
+        ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ASPECT_SMOKE_SCRIPT],
+        { encoding: "utf8", cwd: ROOT, timeout: 30000 }
+      );
+      const out = `${result.stdout ?? ""}\n${result.stderr ?? ""}${result.error ? String(result.error) : ""}`;
+      expect(result.status, out).toBe(0);
+      expect(out).toMatch(/EXTRACT_OK name=Get-PortraitFourFiveVerdict/u);
+      expect(out).toMatch(/PIN_OK=ASPECT_4_5_TOL_0_01/u);
+      expect(out).toMatch(/CASE_OK name=portrait-1080x1350 ok=True/u);
+      expect(out).toMatch(/CASE_OK name=three-four-1080x1440 ok=False/u);
+      expect(out).toMatch(/CASE_OK name=landscape-1350x1080 ok=False/u);
+      expect(out).toMatch(/CASE_OK name=just-inside-1080x1334 ok=True/u);
+      expect(out).toMatch(/CASE_OK name=just-outside-1080x1333 ok=False/u);
+      expect(out).toMatch(/CASE_OK name=zero-width null=True/u);
+      expect(out).toMatch(/SMOKE_OK/u);
+      expect(out).not.toMatch(/CASE_FAIL/u);
+      expect(out).not.toMatch(/PIN_FAIL/u);
+      expect(lastJsonObject(out)).toEqual({
+        ok: true,
+        portrait_1080_1350: true,
+        three_four_1080_1440: false,
+        landscape_1350_1080: false,
+        just_inside_1080_1334: true,
+        just_outside_1080_1333: false,
+        zero_null: true
       });
     },
     30000

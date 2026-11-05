@@ -246,6 +246,35 @@ exit 0
         Assert-Case 'both-success-no-publish-before-date-check' ($probe.Code -eq 0 -and
             (Read-Queue $case)[0].status -eq 'done' -and @($probe.Calls).Count -eq 0) $probe.Text.Trim()
 
+        # A-BACKFILL H-2: a 'posted' row is a live publish too (schedule-ahead counts success and
+        # posted as live). It must not be treated as failed and republished.
+        $case = New-Case 'posted-is-live-date-check' ([string][char]0x4eca + [char]0x5929) -Single
+        Set-Posted $case 'posted' 'success'
+        $probe = Invoke-Probe $case
+        Assert-Case 'posted-fb-counts-as-live-before-date-check' ($probe.Code -eq 0 -and
+            (Read-Queue $case)[0].status -eq 'done' -and @($probe.Calls).Count -eq 0) $probe.Text.Trim()
+
+        $case = New-Case 'posted-is-live-no-publish' 'Shoe care tips.' -Single
+        Set-Posted $case 'posted' 'success'
+        $probe = Invoke-Probe $case
+        Assert-Case 'posted-fb-never-republished' ($probe.Code -eq 0 -and
+            (Read-Queue $case)[0].status -eq 'done' -and @($probe.Calls).Count -eq 0) $probe.Text.Trim()
+
+        $case = New-Case 'failed-then-posted' 'Shoe care tips.' -Single
+        Write-Json (Join-Path $case 'data\posted-log\2026-10-26.json') @(
+            [ordered]@{ date = '2026-10-26'; slot = '2'; platform = 'facebook'; status = 'failed'; dry_run = $false; attempts = 1; post_id = ''; created_at = '2026-10-26T03:30:12.496Z' },
+            [ordered]@{ date = '2026-10-26'; slot = '2'; platform = 'facebook'; status = 'posted'; dry_run = $false; attempts = 2; post_id = 'fake-fb'; created_at = '2026-10-26T03:40:12.496Z' },
+            [ordered]@{ date = '2026-10-26'; slot = '2'; platform = 'instagram'; status = 'success'; dry_run = $false; attempts = 1; post_id = 'fake-ig'; created_at = '2026-10-26T03:30:22.646Z' }
+        )
+        $probe = Invoke-Probe $case
+        Assert-Case 'failed-then-posted-fb-never-republished' ($probe.Code -eq 0 -and
+            (Read-Queue $case)[0].status -eq 'done' -and @($probe.Calls).Count -eq 0) $probe.Text.Trim()
+
+        $case = New-Case 'posted-dry-run-is-not-live' 'Shoe care tips.' -Single
+        Set-Posted $case 'posted' 'success' $true
+        $probe = Invoke-Probe $case
+        Assert-Case 'posted-dry-run-row-is-not-live' ($probe.Code -eq 0 -and @($probe.Calls).Count -eq 1) $probe.Text.Trim()
+
         # Hand-derived Unicode fixtures keep every script byte ASCII.
         # Removing the date guard must break these observable skip decisions.
         $words = @(

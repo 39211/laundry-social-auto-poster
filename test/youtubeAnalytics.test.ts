@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -151,6 +151,12 @@ async function writeLog(root: string, date: string, entries: unknown[]): Promise
   await writeFile(join(dir, `${date}.json`), `${JSON.stringify(entries, null, 2)}\n`, "utf8");
 }
 
+async function writeFeatureLog(root: string, date: string, entries: unknown[]): Promise<void> {
+  const dir = join(root, "data", "feature-posted-log");
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, `${date}.json`), `${JSON.stringify(entries, null, 2)}\n`, "utf8");
+}
+
 async function writeCorruptWindowLog(targetRoot: string): Promise<void> {
   const dir = join(targetRoot, "data", "youtube-log");
   await mkdir(dir, { recursive: true });
@@ -250,6 +256,82 @@ describe("YouTube Analytics collector", () => {
   afterEach(async () => {
     assertFetchTrace(fetchTrace);
     await rm(root, { recursive: true, force: true });
+  });
+
+  it("collects feature YouTube posts when the daily YouTube log directory is absent", async () => {
+    await writeFeatureLog(root, DATE, [
+      { platform: "youtube", slug: "feature-success", status: "success", post_id: "feature-success-id" },
+      {
+        platform: "youtube",
+        slug: "feature-scheduled",
+        status: "scheduled",
+        post_id: "feature-scheduled-id",
+        scheduled_publish_at: "2026-09-05T14:00:00+08:00"
+      },
+      { platform: "youtube", slug: "feature-failed", status: "failed", post_id: "failed-id" },
+      { platform: "instagram", slug: "wrong-platform", status: "success", post_id: "ig-id" }
+    ]);
+    const reelDirectory = join(root, "data", "feature-reels");
+    await mkdir(reelDirectory, { recursive: true });
+    await writeFile(join(reelDirectory, `${DATE}.json`), JSON.stringify({ youtube_title: "Feature title" }), "utf8");
+    const fetchImpl = (async () => {
+      throw new Error("missing credentials must prevent API calls");
+    }) as typeof fetch;
+
+    const report = await collectYouTubeAnalytics({ date: DATE, root, env: {}, fetchImpl });
+
+    expect(report.videos.map((video) => video.video_id)).toEqual(["feature-success-id", "feature-scheduled-id"]);
+    expect(report.videos.map((video) => video.title)).toEqual(["Feature title", "Feature title"]);
+    expect(report.videos[1]?.published_at).toBe("2026-09-05T14:00:00+08:00");
+    expect(fetchTrace.analyticsUrls).toHaveLength(0);
+    expect(fetchTrace.videoParts).toHaveLength(0);
+  });
+
+  it("keeps daily YouTube rows on duplicate IDs and skips failed, corrupt, and out-of-window feature entries", async () => {
+    await writeLog(root, DATE, [logEntry("daily-id", { title: "Daily title" })]);
+    await writeFeatureLog(root, DATE, [
+      { platform: "youtube", slug: "duplicate", status: "success", post_id: "daily-id" },
+      { platform: "youtube", slug: "feature", status: "success", post_id: "feature-id" },
+      {
+        platform: "youtube",
+        slug: "scheduled",
+        status: "scheduled",
+        post_id: "scheduled-id",
+        scheduled_publish_at: "2026-09-05T14:00:00+08:00"
+      },
+      { platform: "youtube", slug: "failed", status: "failed", post_id: "failed-id" },
+      { platform: "facebook", slug: "wrong-platform", status: "success", post_id: "fb-id" }
+    ]);
+    await writeFeatureLog(root, IN_WINDOW_DATE, [
+      { platform: "youtube", slug: "in-window", status: "success", post_id: "in-window-id" }
+    ]);
+    const featureDirectory = join(root, "data", "feature-posted-log");
+    await writeFile(join(featureDirectory, "2026-08-10.json"), "{not-json", "utf8");
+    await writeFeatureLog(root, OUT_WINDOW_DATE, [
+      { platform: "youtube", slug: "outside", status: "success", post_id: "outside-id" }
+    ]);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const fetchImpl = (async () => {
+      throw new Error("missing credentials must prevent API calls");
+    }) as typeof fetch;
+
+    try {
+      const report = await collectYouTubeAnalytics({ date: DATE, root, env: {}, fetchImpl });
+
+      expect(report.videos.map((video) => video.video_id)).toEqual([
+        "daily-id",
+        "in-window-id",
+        "feature-id",
+        "scheduled-id"
+      ]);
+      expect(report.videos[0]?.title).toBe("Daily title");
+      expect(report.videos[2]?.title).toBe("feature");
+      expect(warn).toHaveBeenCalledWith("[youtube-analytics] skipped 1 invalid feature-posted-log file(s)");
+      expect(fetchTrace.analyticsUrls).toHaveLength(0);
+      expect(fetchTrace.videoParts).toHaveLength(0);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("writes a measured report with API fields and Studio-only impressions as a string", async () => {

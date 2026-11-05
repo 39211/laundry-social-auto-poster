@@ -114,7 +114,8 @@ describe("11/02 第二批 2 頁（洗壞、縮水）", () => {
         }
         const rest = withoutFixed(main);
         expect(rest.replaceAll(FULL, "")).not.toContain("免費");
-        expect(rest.replaceAll("台中全市洗衣收送", "").replaceAll("台中全市收送", "")).not.toContain("台中全市");
+        expect(rest).toContain("台中洗衣收送");
+        expect(rest).not.toContain("台中全市");
         expect(rest.replaceAll("最低消費", "")).not.toContain("最");
         expect(rest).not.toMatch(/賠|補償|保證|全新|殺菌|除臭|消毒|絕不|全額|原價/);
         expect(rest).not.toMatch(/東海[^。；，]{0,12}(門市|店面)(?!，|。|；)/);

@@ -66,7 +66,8 @@ describe("送洗前自我檢查頁", () => {
       expect(main, needle).toContain(needle);
     }
     expect(main.replaceAll(FULL, "")).not.toContain("免費");
-    expect(main.replaceAll("台中全市洗衣收送", "").replaceAll("台中全市收送", "")).not.toContain("台中全市");
+    expect(main).toContain("台中洗衣收送");
+    expect(main).not.toContain("台中全市");
     expect(main).not.toMatch(/\d\s*元|\$\d/);
     expect(main).not.toMatch(/不保證|除臭|醫療滅菌|變全新/);
   });

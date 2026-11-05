@@ -45,7 +45,8 @@ describe("洗標符號文字指南", () => {
       expect(main, needle).toContain(needle);
     }
     expect(main.replaceAll(FULL, "")).not.toContain("免費");
-    expect(main.replaceAll("台中全市洗衣收送", "").replaceAll("台中全市收送", "")).not.toContain("台中全市");
+    expect(main).toContain("台中洗衣收送");
+    expect(main).not.toContain("台中全市");
     expect(main).not.toMatch(/\d\s*元|\$\d/);
     expect(main).not.toMatch(/完全符合|通過.{0,6}認證|符合 ?CNS/);
   });

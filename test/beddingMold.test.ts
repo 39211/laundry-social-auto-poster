@@ -53,7 +53,8 @@ describe("棉被、羽絨被發霉怎麼辦頁", () => {
       expect(main, needle).toContain(needle);
     }
     expect(main.replaceAll(FULL, "")).not.toContain("免費");
-    expect(main.replaceAll("台中全市洗衣收送", "").replaceAll("台中全市收送", "")).not.toContain("台中全市");
+    expect(main).toContain("台中洗衣收送");
+    expect(main).not.toContain("台中全市");
     expect(main).not.toMatch(/起\s*[，。；]|\$\d+\s*起/);
     expect(main).not.toMatch(/除霉|除臭|除味|殺菌|滅菌|另行報價|保證|一定洗得掉|洗得掉。/);
   });

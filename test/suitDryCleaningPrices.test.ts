@@ -50,9 +50,9 @@ describe("洗西裝服務頁價格", () => {
 
   it("沒有重複的「台中全市台中全市」", () => {
     expect(html).not.toContain("台中全市台中全市");
-    expect(html).toContain("免費收送");
-    expect(html).not.toContain("台中全市免費收送");
-    expect(html.replaceAll("台中全市洗衣收送", "").replaceAll("台中全市收送", "")).not.toContain("台中全市");
+    expect(html).toContain("台中洗衣收送");
+    expect(html).toContain("免費收送、沒有最低消費");
+    expect(html).not.toContain("台中全市");
   });
 
   it("頁面層 JSON-LD 仍可解析，聯絡方式與免費句都還在", () => {

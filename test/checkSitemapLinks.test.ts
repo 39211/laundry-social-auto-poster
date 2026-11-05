@@ -365,7 +365,7 @@ describe("B5 第 8 波", () => {
       if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
       const main = html.match(/<main>([\s\S]*?)<\/main>/)?.[1] ?? "";
       expect(main, path).toContain("免費收送");
-      expect(main.replaceAll("台中全市洗衣收送", "").replaceAll("台中全市收送", ""), path).not.toContain("台中全市");
+      expect(main, path).not.toContain("台中全市");
       expect(main, path).toContain("門市在台中市西屯區");
       expect(main, path).toContain("西屯門市收件");
       expect(main, path).toContain("參考價，看過實品再報價");
@@ -482,7 +482,7 @@ describe("B5 第 9 波", () => {
       if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
       const main = html.match(/<main>([\s\S]*?)<\/main>/)?.[1] ?? "";
       expect(main, path).toContain("免費收送");
-      expect(main.replaceAll("台中全市洗衣收送", "").replaceAll("台中全市收送", ""), path).not.toContain("台中全市");
+      expect(main, path).not.toContain("台中全市");
       expect(main, path).toContain("門市在台中市西屯區");
       expect(main, path).toContain("西屯門市收件");
       expect(main, path).toContain("參考價，看過實品再報價");

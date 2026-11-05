@@ -126,7 +126,8 @@ describe("11/05 週四新批 8 頁", () => {
           expect(main, needle).toContain(needle);
         }
         expect(main.replaceAll(FULL, "")).not.toContain("免費");
-        expect(main.replaceAll("台中全市洗衣收送", "").replaceAll("台中全市收送", "")).not.toContain("台中全市");
+        expect(main).toContain("台中洗衣收送");
+        expect(main).not.toContain("台中全市");
         expect(main.replaceAll("最低消費", "")).not.toContain("最");
         expect(main).not.toMatch(/賠|補償|保證|全新|殺菌|除臭|消毒/);
         expect(main).not.toMatch(/東海[^。；，]{0,12}(門市|店面)(?!，|。|；)/);

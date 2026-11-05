@@ -11,6 +11,15 @@ data/conversions/source-to-order-<ISO week>.json, plus archived revisions in
 data/conversions/history/. It picks the highest valid revision whose as_of is
 not later than the report cut-off, and never adds revisions together. Missing,
 empty, invalid or version-incompatible exports are shown as unknown, never 0.
+
+The LINE 晚上自動處理率 line reads data/line-usage/<date>.json through
+summarize()/describe() of line-bot/line_usage.py (same wording as the nightly
+progress report): the last completed day and the week's completed days. Missing
+days are 還沒有資料 / 推測, never 0%. It is a fixed two-line block (blank + one
+line) between the metrics tables and 來源→收件. It is fitted after the
+conversions table and before the time-match and time-saved sections, so no
+other section changes size because of line-usage data. Without room it moves to
+the warnings line.
 """
 
 import argparse
@@ -68,6 +77,10 @@ TIME_SAVED_ABSENT = "自動化省下的時間:本週還沒有資料"
 TIME_SAVED_SENTENCE = ("推測:用店主估的每則分鐘數 × bot 自動接的詢問數;只算店裡電腦白天的詢問,晚上 ai 電腦的"
                        "詢問還沒有分類,不算;詢問數是『每位客人每天算一次』。")
 TIME_SAVED_INTENTS = ("lookup", "quote")
+
+# LINE 晚上自動處理率 (L2-2): ai PC LINE bot daily counts written by line-bot/line_usage.py (L2-1).
+LINE_USAGE_TITLE = "LINE 晚上自動處理率"
+LINE_USAGE_FOLDER = "line-usage"
 
 
 def parse_time(value):
@@ -884,6 +897,58 @@ def fit_time_saved(view, room):
     return ["", one] if room >= 2 else [one] if room == 1 else []
 
 
+# ---------------------------------------------------------------------------
+# LINE 晚上自動處理率 (data/line-usage/<date>.json, written by line-bot/line_usage.py)
+# ---------------------------------------------------------------------------
+
+def load_line_usage():
+    """(summarize, describe) from line-bot/line_usage.py, or None when it cannot be loaded.
+
+    Compiled from source instead of imported: line-bot is not a package, and the
+    weekly report must not write bytecode next to the bot code.
+    """
+    try:
+        path = Path(__file__).resolve().parents[1] / "line-bot" / "line_usage.py"
+        namespace = {"__name__": "line_usage_for_weekly_report", "__file__": str(path)}
+        exec(compile(path.read_text(encoding="utf-8-sig"), str(path), "exec"), namespace)
+        return namespace["summarize"], namespace["describe"]
+    except Exception:
+        return None
+
+
+def line_usage_view(data, days):
+    """Always exactly one text line ('line'); 'short' is the warnings-line fallback.
+
+    Handled by the bot itself = (auto + ai) / text messages, plus to_staff and
+    not_understood, for the last completed day and for the week's completed days.
+    Missing data is 還沒有資料 (or 推測 with the day coverage), never 0%.
+    """
+    loaded = load_line_usage()
+    if loaded is None:
+        text = f"{LINE_USAGE_TITLE}：未知（line-bot/line_usage.py 無法載入；不補 0）"
+        return {"line": text, "short": text}
+    if not days:
+        text = f"{LINE_USAGE_TITLE}：本週還沒有已結束的日期"
+        return {"line": text, "short": text}
+    summarize, describe = loaded
+    folder = data / LINE_USAGE_FOLDER
+    last = days[-1]
+    period = f"本週已結束 {len(days)} 日（{days[0]}～{last}）"
+    try:
+        latest = describe(summarize(folder, [last]))
+        week = describe(summarize(folder, days))
+    except Exception:
+        text = f"{LINE_USAGE_TITLE}：未知（line-usage 計算失敗；不補 0）"
+        return {"line": text, "short": text}
+    return {"line": f"{LINE_USAGE_TITLE}：最近一天 {last}：{latest}。{period}：{week}。",
+            "short": f"{LINE_USAGE_TITLE}：{period}：{week}（週報 60 行上限，只列本週）"}
+
+
+def fit_line_usage(view, room):
+    """Fixed size: blank + one line, or nothing (the caller then moves 'short' to the warnings line)."""
+    return ["", view["line"]] if room >= 2 else []
+
+
 def build_report(data, reports, bot, week, now, llm=False):
     first = iso_week(week)
     start = datetime.combine(first, time(), TAIPEI)
@@ -903,6 +968,7 @@ def build_report(data, reports, bot, week, now, llm=False):
     source_note = inventory(data, reports, reader)
     conversions = conversion_view(data, week, previous_week, now, reader)
     timematch = timematch_view(data, week, reader)
+    line_usage = line_usage_view(data, days)
     failed = sum(len(items["failed"]) for items in posts.values())
     uncertain = sum(len(items["uncertain"]) for items in posts.values())
     published = sum(len(items["published"]) for items in posts.values())
@@ -997,7 +1063,17 @@ def build_report(data, reports, bot, week, now, llm=False):
                  "讀取問題：" + (safe_label(warnings, 480) if warnings else "無。")])
     if llm:
         tail.append("--llm：預留開關，未呼叫 API；仍使用規則建議。")
-    lines.extend(fit_conversions(conversions, MAX_LINES - len(lines) - len(tail)))
+    conversion_lines = fit_conversions(conversions, MAX_LINES - len(lines) - len(tail))
+    # LINE 晚上自動處理率: fixed 2-line block shown before 來源→收件. It is fitted after the conversions table
+    # (whose size must not change) and before time-match/time-saved, so whether it appears never depends on
+    # those sections or on line-usage data. No room: say so on the warnings line, like the other sections.
+    usage_lines = fit_line_usage(line_usage, MAX_LINES - len(lines) - len(conversion_lines) - len(tail))
+    if not usage_lines:
+        reader.warnings.add(line_usage["short"])
+        warnings = "；".join(sorted(reader.warnings))
+        tail = [("讀取問題：" + safe_label(warnings, 480)) if line.startswith("讀取問題：") else line for line in tail]
+    lines.extend(usage_lines)
+    lines.extend(conversion_lines)
     timematch_lines = fit_timematch(timematch, MAX_LINES - len(lines) - len(tail))
     if not timematch_lines:
         # No line left under the 60-line cap: say so on the existing warnings line instead of dropping silently.

@@ -58,7 +58,10 @@ PHOTO_HIGH_RISK_NAMES = {
 
 # A photo cannot prove the exact tariff row even when the object looks obvious:
 # fabric, care label, size, brand, and special treatment may change the price.
-# These names therefore stay estimated and are priced through catalogue ranges.
+# Before V1 these names were downgraded to "estimated" and priced through
+# catalogue ranges. validate_result no longer reads this set (nor
+# _HIGH_RISK_HINTS); a catalogue row with a count is priced at its catalogue
+# price by estimate.from_photo, whatever the model's certainty.
 PHOTO_HIGH_RISK_NAMES.update({
     "背包", "全布包", "布混包", "短皮夾", "長皮夾",
     "襯衫", "精品襯衫", "棉T", "長T", "帽T",

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""20260926 隔離、重複通知與六類照片估價。只讀寫 _sandbox_repo，不連網。"""
+"""20260926 隔離、重複通知與六類照片估價。只讀寫測試時產生的合成 _sandbox_repo（暫存目錄），不連網。"""
 from __future__ import annotations
 
 import base64
@@ -12,10 +12,33 @@ import sys
 import urllib.request
 from pathlib import Path
 
-_SANDBOX = Path(os.environ.get("LAUNDRY_REPO_ROOT", ""))
+import tempfile  # noqa: E402
+
+sys.dont_write_bytecode = True
+_ASSETS = Path(__file__).resolve().parent / "test-assets"
+if str(_ASSETS) not in sys.path:
+    sys.path.append(str(_ASSETS))
+import sandbox_repo  # noqa: E402
+
+# T-3: the fake repo root is generated in a temp dir (synthetic data, fake keys). Product modules bind REPO at
+# import time, so none of them may have been imported before this point (e.g. by a conftest).
+_EARLY = sorted(
+    name
+    for name in ("conversation", "customer_profile", "laundry_lookup", "line_pay", "line_webhook",
+                 "purge_test_rows", "quote_flow", "staff_notify", "staff_server")
+    if name in sys.modules
+)
+if _EARLY:
+    raise RuntimeError("product modules were imported before the T-3 sandbox: " + ", ".join(_EARLY))
+_SANDBOX = sandbox_repo.shared_sandbox(prefix="t3-linebot-fix-")
+os.environ["LAUNDRY_REPO_ROOT"] = str(_SANDBOX)
+os.environ["LAUNDRY_EHANK_ROOT"] = str(_SANDBOX / "no-ehank")
 _NORM = str(_SANDBOX).replace("\\", "/").rstrip("/").lower()
 if not _NORM.endswith("/_sandbox_repo") or "laundry-repo" in _NORM or "fxwash" in _NORM:
-    raise RuntimeError("LAUNDRY_REPO_ROOT must be this workspace _sandbox_repo before import")
+    raise RuntimeError("LAUNDRY_REPO_ROOT must be the generated T-3 _sandbox_repo before import")
+if not _SANDBOX.resolve().is_relative_to(Path(tempfile.gettempdir()).resolve()):
+    raise RuntimeError("the T-3 sandbox must live in the temp dir")
+sandbox_repo.install_write_guard()
 
 os.environ["LAUNDRY_LOOKUP_FIXTURE"] = "1"
 os.environ["LAUNDRY_PHOTO_ESTIMATE"] = "0"
@@ -267,34 +290,75 @@ def _photo_prices():
     }
 
 
-def test_six_high_price_photo_classes_stay_estimated_without_exact_total():
+_PHOTO_TEXT_FIELDS = dict(brand="", model="", material="", color="", stain="", craft="", question="")
+
+
+def _photo_item(name: str) -> dict:
+    # T-3: photo_estimate.validate_result now requires these text fields (photo_estimate._REQUIRED_TEXT, see
+    # test_estimate.test_new_fields_required_by_schema); empty strings mean "nothing seen".
+    return {"name": name, "label": name, "quantity": 1, "certainty": "clear", "reason": "清楚", **_PHOTO_TEXT_FIELDS}
+
+
+def test_six_high_price_photo_classes_keep_model_certainty_at_catalogue_price():
+    # T-3 round 2 (replaces ..._stay_estimated_at_catalogue_price; round 1 wrongly assumed the high-risk downgrade
+    # still applied). photo_estimate.validate_result: `certainty = row["certainty"] if name and quantity is not None
+    # else "uncertain"` - "The model's certainty is kept for catalogue rows; prices still come only from the
+    # catalogue." (module note: "Since V1 the model's certainty is kept for catalogue rows ..."). estimate.from_photo
+    # prices "clear" and "estimated" catalogue rows alike (test_estimate covers 皮鞋 and 名牌鞋), so the certainty never
+    # changes the amount. What must hold for all six: the amount is the catalogue's, a price written by the model is
+    # dropped, and without a count there is no amount at all.
     prices = _photo_prices()
+    cat = estimate.catalog(prices)
     names = set(SIX)
     for name in SIX:
-        rows = pe.validate_result(
-            {"items": [{"name": name, "label": name, "quantity": 1, "certainty": "clear", "reason": "清楚"}]},
-            names,
-        )
-        assert rows[0]["certainty"] == "estimated", (name, rows)
+        price = cat[name]["price"]
+        for certainty in ("clear", "estimated"):
+            raw = dict(_photo_item(name), certainty=certainty, price=1)
+            rows = pe.validate_result({"items": [raw]}, names)
+            assert rows[0]["certainty"] == certainty, (name, certainty, rows)
+            assert "price" not in rows[0], (name, rows)
+            draft = estimate.from_photo(rows, None, prices)
+            text = estimate.render(draft)
+            assert draft["lines"][0]["unit_price"] == price, (name, certainty, draft["lines"][0])
+            assert draft.get("total") == price, (name, certainty, text)
+            assert f"【{name}】" in text and f"清洗費用 {price:,} 元" in text, (name, certainty, text)
+        rows = pe.validate_result({"items": [dict(_photo_item(name), quantity=None)]}, names)
+        assert rows[0]["certainty"] == "uncertain", (name, rows)
         draft = estimate.from_photo(rows, None, prices)
         text = estimate.render(draft)
-        assert draft.get("confirmed_total") is None, (name, draft.get("confirmed_total"), text)
+        assert draft["lines"][0]["unit_price"] is None, (name, draft["lines"][0])
         assert draft.get("total") is None, (name, text)
-        assert "這批預估" not in text, (name, text)
-        assert not re.search(r"元＝\d", text), (name, text)
+        assert "清洗費用" not in text, (name, text)
 
 
-def test_hint_downgrades_name_absent_from_the_set():
+def test_hint_name_outside_the_catalogue_is_never_priced():
+    # T-3 round 2 (replaces test_hint_downgrades_name_absent_from_the_set): since V1 neither PHOTO_HIGH_RISK_NAMES nor
+    # _HIGH_RISK_HINTS is read by validate_result; the constants are kept "because other code may import it". The
+    # protection that remains: a name the catalogue does not list is blanked and never priced, and a listed name is
+    # priced only at its catalogue price.
     name = "新款皮鞋"
     assert name not in pe.PHOTO_HIGH_RISK_NAMES
     assert any(hint in name for hint in pe._HIGH_RISK_HINTS)
     for item in SIX:
         assert any(hint in item for hint in pe._HIGH_RISK_HINTS), item
-    rows = pe.validate_result(
-        {"items": [{"name": name, "label": name, "quantity": 1, "certainty": "clear", "reason": "清楚"}]},
-        {name},
-    )
-    assert rows[0]["certainty"] == "estimated", rows
+    prices = _photo_prices()
+    rows = pe.validate_result({"items": [_photo_item(name)]}, set(estimate.catalog(prices)))
+    assert rows[0]["name"] == "" and rows[0]["certainty"] == "uncertain", rows
+    draft = estimate.from_photo(rows, None, prices)
+    text = estimate.render(draft)
+    assert draft["lines"][0]["unit_price"] is None, draft["lines"][0]
+    assert draft.get("total") is None, text
+    assert "清洗費用" not in text, text
+    prices["鞋子"][name] = 350
+    rows = pe.validate_result({"items": [_photo_item(name)]}, set(estimate.catalog(prices)))
+    assert rows[0]["name"] == name and rows[0]["certainty"] == "clear", rows
+    draft = estimate.from_photo(rows, None, prices)
+    assert draft["lines"][0]["unit_price"] == 350 and draft.get("total") == 350, draft["lines"][0]
+
+
+def test_zz_no_writes_outside_temp():
+    # T-3: runs last; nothing may have written outside the temp dir or opened a real socket.
+    assert sandbox_repo.write_violations() == [], sandbox_repo.write_violations()
 
 
 def _selected(names: list[str]) -> list:

@@ -452,9 +452,16 @@ def _gemini_call(model: str, prompt: str, timeout: float) -> str:
         raise ModelError("unusable") from None
 
 
+# 11/05: chat uses the lite models. On the free key gemini-2.5-flash ran out after about a dozen
+# calls (HTTP 429) and gemini-flash-latest returned 5xx/timeouts, and photo estimates need the
+# 2.5-flash quota. Each free-tier model has its own quota; chat replies use plain JSON (no schema).
+CHAT_MODEL_CHAIN = ("gemini-2.5-flash-lite", "gemini-flash-lite-latest")
+
+
 def _chain() -> list[str]:
-    base = list(_PE.model_chain()) if _PE is not None else []
-    return base[:MAX_CALLS]  # Preserve the approved photo-estimate fallback order.
+    if _PE is None:
+        return []
+    return list(CHAT_MODEL_CHAIN)[:MAX_CALLS]
 
 
 def _note_call() -> None:

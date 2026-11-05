@@ -78,6 +78,12 @@ class StoreFactTests(unittest.TestCase):
                        {"kind": "answer", "reply": "羽絨衣要看洗標和填充物，可以拍洗標給我們看。"})
         self.assertIn("洗標", body)
 
+    def test_chat_models_leave_photo_quota_alone(self):
+        chain = ai_chat._chain()
+        self.assertEqual(chain[0], "gemini-2.5-flash-lite")
+        self.assertNotIn("gemini-2.5-flash", chain)
+        self.assertNotIn("gemini-flash-latest", chain)
+
     def test_landmark_from_facts_still_allowed(self):
         facts = ai_chat.facts_text(conv)
         self.assertIn("對面", facts)

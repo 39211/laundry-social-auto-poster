@@ -1568,6 +1568,11 @@ def booking_guard(dt: datetime) -> str | None:
         dt = dt.replace(tzinfo=None)
     if dt < now:
         return "已經過了"
+    return _closed_reason(dt)
+
+
+def _closed_reason(dt: datetime) -> str | None:
+    """只看營業日與時段，不看是否已過；問「現在有開嗎」用這個。"""
     wd = dt.weekday()
     hm = dt.hour * 60 + dt.minute
     if wd == 6:
@@ -2436,6 +2441,16 @@ def _is_in_store_text(t: str, n: str) -> bool:
     return intents.normalize(t) in _IN_STORE_EXACT
 
 
+# 「先不要取消」「要不要取消」：保留，不取消。
+_CANCEL_KEEP_RE = re.compile(r"(?:不要|不用|不想|不必|沒有要|沒要|先不|別|不)(?:先|幫我)?取消")
+# 問句、改期、延期：先不動預約，請客人按「取消預約」確認。
+_CANCEL_TENTATIVE = ("改期", "延期", "嗎", "可不可以", "能不能", "可以", "會不會", "如果", "萬一", "怎麼")
+
+
+def _cancel_is_tentative(n: str) -> bool:
+    return any(k in n for k in _CANCEL_TENTATIVE)
+
+
 def _is_cancel_text(n: str) -> bool:
     if any(k in n for k in ["取消", "不去了", "改期", "延期"]):
         return True
@@ -3174,7 +3189,7 @@ def hours_reply(n: str) -> list[dict]:
     hours, close = span
     if is_today:
         now = now_tw()
-        if booking_guard(now) is None:
+        if _closed_reason(now) is None:
             first = f"現在有開，到 {close}。"
         else:
             hm = now.hour * 60 + now.minute
@@ -4004,6 +4019,20 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
             return _pack(
                 say("目前沒有幫您留的時間。", buttons=[("約時間", "預約到店")]),
                 "cancel",
+                False,
+            )
+        when_s = (last.get("when") or "").replace("T", " ")
+        if _CANCEL_KEEP_RE.search(n):
+            return _pack(say(f"好，{when_s} 這筆先保留，沒有取消。"), "cancel_kept", False)
+        if _cancel_is_tentative(n):
+            retry = "外收送預約" if last.get("kind") == "pickup" else "預約到店"
+            return _pack(
+                say(
+                    f"{when_s} 這筆目前還保留著，我先不動它。",
+                    "確定要取消就按「取消預約」；想改時間就按「改時間」重新選。",
+                    buttons=[("取消預約", "取消預約"), ("改時間", retry)],
+                ),
+                "cancel_confirm",
                 False,
             )
         rec = {

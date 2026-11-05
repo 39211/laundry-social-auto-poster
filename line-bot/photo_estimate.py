@@ -100,7 +100,11 @@ _UNSAFE_CLAUSE = re.compile(
     r"|0\d[\d\s-]{6,}\d"
     r"|\d{7,}"
     r"|付款|已付|匯款|現金|轉帳"
-    r"|line\s*pay",
+    r"|line\s*pay"
+    # Promises and turnaround are shop facts; model text may never state them.
+    r"|保證|(?<!不)一定|絕對|百分之?百|100\s*%"
+    r"|[\d零〇一二兩三四五六七八九十]+\s*(?:個\s*)?(?:工作天|天|日|小時|週|禮拜|星期)"
+    r"|當天|隔天|明天|後天",
     re.IGNORECASE,
 )
 _EDGE_PUNCT = " ，,；;、"

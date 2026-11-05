@@ -3,7 +3,15 @@ import { join } from "node:path";
 import { approvePost } from "./approvePost";
 import { getFlag, getOption, isMain } from "./cli";
 import { getConfig } from "./config";
-import { hasApprovedPost, loadApprovalLog, loadDailyContent, loadImageSources, loadVideoSources } from "./logging";
+import {
+  hasApprovedPost,
+  hasRecordedPost,
+  loadApprovalLog,
+  loadDailyContent,
+  loadImageSources,
+  loadPostLog,
+  loadVideoSources
+} from "./logging";
 import { inspectDailyImageProvenance } from "./imageProvenance";
 import {
   hashImageFile,
@@ -27,6 +35,7 @@ import {
   type ReelLengthRange
 } from "./ownerContentRules";
 import { projectRoot } from "./paths";
+import { changedSinceApproval, slotFingerprint } from "./autoApproveGates";
 import { getZonedDateParts } from "./scheduler";
 import type { Platform } from "./types";
 
@@ -174,12 +183,26 @@ export async function autoApprove(
   }
   record("daily_content", true);
 
-  const provenance = await inspectDailyImageProvenance(date, root);
-  const aiProvenance = {
-    with_manifest: provenance.with_manifest,
-    without_manifest: provenance.without_manifest,
-    consistent: provenance.consistent
-  };
+  // Provenance is reported, never gated. An unreadable manifest or a parse
+  // error here used to throw out of the whole run, so no report was written
+  // and the day was lost over a field that gates nothing; it now reads as an
+  // inconsistent, empty tally instead.
+  let aiProvenance: { with_manifest: number; without_manifest: number; consistent: boolean };
+  try {
+    const provenance = await inspectDailyImageProvenance(date, root);
+    aiProvenance = {
+      with_manifest: provenance.with_manifest,
+      without_manifest: provenance.without_manifest,
+      consistent: provenance.consistent
+    };
+  } catch (error) {
+    aiProvenance = { with_manifest: 0, without_manifest: 0, consistent: false };
+    checks.push({
+      name: "ai_provenance_inspection",
+      ok: true,
+      detail: `report-only: could not inspect image provenance (${error instanceof Error ? error.message : String(error)})`
+    });
+  }
 
   const policySlots = policy?.slots?.map((item) => item.slot) ?? [];
   for (const slot of content.slots) {
@@ -459,10 +482,41 @@ export async function autoApprove(
   // unpublishable in practice, forever. Re-judging it runs every gate again and
   // rebuilds the snapshot from bytes that just passed those gates.
   const digestsOnDisk = (await loadApprovedImageDigests(root, date)) ?? {};
+  // Approval is a judgment about specific content: the fingerprint sidecar
+  // records the sha256 of each approved slot so publishing can refuse a
+  // package rewritten after its approval (luna, high — the already_approved
+  // short-circuit used to let any post-approval rewrite ride the old grant).
+  const fingerprintPath = join(root, "data", "approved-log", `${date}.fingerprints.json`);
+  const fingerprints: Record<string, string> = JSON.parse(
+    await readFile(fingerprintPath, "utf8").catch(() => "{}")
+  );
+  // A slot rewritten after approval (calendar or image bytes) is refused at
+  // publish, so it must be re-judged here; otherwise the run says "already
+  // approved" with exit 0 while the slot can never post.
+  const changedAfterApproval = new Set<number>();
+  const postLog = await loadPostLog(date, root);
+  for (const slot of content.slots) {
+    if (PLATFORMS.some((platform) => !hasApprovedPost(approvals, slot.slot, platform))) continue;
+    // Already live (or deliberately missed) everywhere: nothing left to publish,
+    // so a later change to its files must not raise a fresh blocker.
+    if (PLATFORMS.every((platform) => hasRecordedPost(postLog, slot.slot, platform, false))) continue;
+    if (
+      await changedSinceApproval(
+        slot,
+        imageAssetsForSlot(slot).map((asset) => asset.local_image_path),
+        fingerprints[String(slot.slot)],
+        digestsOnDisk[String(slot.slot)],
+        (path) => hashImageFile(root, path)
+      )
+    ) {
+      changedAfterApproval.add(slot.slot);
+    }
+  }
   const pending = content.slots.filter(
     (slot) =>
       PLATFORMS.some((platform) => !hasApprovedPost(approvals, slot.slot, platform)) ||
-      (imageAssetsForSlot(slot).length > 0 && !digestsOnDisk[String(slot.slot)])
+      (imageAssetsForSlot(slot).length > 0 && !digestsOnDisk[String(slot.slot)]) ||
+      changedAfterApproval.has(slot.slot)
   );
   if (pending.length === 0) {
     return {
@@ -493,11 +547,6 @@ export async function autoApprove(
   // records the sha256 of each approved slot so publishing can refuse a
   // package rewritten after its approval (luna, high — the already_approved
   // short-circuit used to let any post-approval rewrite ride the old grant).
-  const { createHash } = await import("node:crypto");
-  const fingerprintPath = join(root, "data", "approved-log", `${date}.fingerprints.json`);
-  const fingerprints: Record<string, string> = JSON.parse(
-    await readFile(fingerprintPath, "utf8").catch(() => "{}")
-  );
   const approvedDigests: ApprovedImageDigests =
     (await loadApprovedImageDigests(root, date)) ?? {};
 
@@ -511,6 +560,21 @@ export async function autoApprove(
       approvedSlots.push(slot.slot);
       continue;
     }
+    // What approval actually saw, hashed BEFORE consent. The fingerprint hashes
+    // the calendar slot, which contains no image bytes. An image that cannot be
+    // hashed used to be silently omitted, leaving a `{}` snapshot that the
+    // pending check counted as present; now the slot is refused instead.
+    const digests: Record<string, string> = {};
+    const unhashable: string[] = [];
+    for (const asset of imageAssetsForSlot(slot)) {
+      const digest = await hashImageFile(root, asset.local_image_path);
+      if (digest) digests[asset.local_image_path] = digest;
+      else unhashable.push(asset.local_image_path);
+    }
+    if (unhashable.length > 0) {
+      blockSlot(slot.slot, `could not hash image(s) at approval: ${unhashable.join(", ")}`);
+      continue;
+    }
     await approvePost({
       date,
       slot: slot.slot,
@@ -519,15 +583,7 @@ export async function autoApprove(
       note: "Unattended approval: publishing policy, content, publishable images and image sources all verified.",
       root
     });
-    fingerprints[String(slot.slot)] = createHash("sha256").update(JSON.stringify(slot)).digest("hex");
-    // What approval actually saw. The fingerprint above hashes the calendar
-    // slot, which contains no image bytes, so without this the pictures were
-    // the one part of a post nothing recorded at the moment of consent.
-    const digests: Record<string, string> = {};
-    for (const asset of imageAssetsForSlot(slot)) {
-      const digest = await hashImageFile(root, asset.local_image_path);
-      if (digest) digests[asset.local_image_path] = digest;
-    }
+    fingerprints[String(slot.slot)] = slotFingerprint(slot);
     approvedDigests[String(slot.slot)] = digests;
     approvedSlots.push(slot.slot);
   }

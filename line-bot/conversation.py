@@ -4296,3 +4296,26 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
 
 def handle(uid: str, text: str, event_type: str = "message") -> list[dict]:
     return handle_ex(uid, text, event_type)[0]
+
+
+# L2-1：外層薄包裝，回覆決定後只記一筆次數（line_usage）；回覆、流程、session、通知都不變。
+# 內部的巢狀呼叫（流程中插話再走一次 handle_ex、ai_chat._route_fresh）只算最外層一次。
+_handle_ex_core = handle_ex
+_USAGE_DEPTH = threading.local()
+
+
+def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = "") -> tuple[list[dict], dict]:
+    """IF-1 / R6：回 (messages, meta)，meta = {"intent", "notify_staff", "staff_pushed"}。"""
+    depth = getattr(_USAGE_DEPTH, "n", 0)
+    _USAGE_DEPTH.n = depth + 1
+    try:
+        result = _handle_ex_core(uid, text, event_type, event_id)
+    finally:
+        _USAGE_DEPTH.n = depth
+    if depth == 0:
+        try:
+            import line_usage
+            line_usage.count_reply(result, event_type, repo=REPO)
+        except Exception:
+            pass
+    return result

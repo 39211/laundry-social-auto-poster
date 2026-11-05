@@ -184,6 +184,40 @@ def facebook_alert_lines(target):
     return result
 
 
+LINE_USAGE_TITLE = "LINE 晚上自動處理率"
+SCRIPT_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def load_line_usage():
+    """line-bot/line_usage.py (stdlib only), loaded by path; None when unavailable."""
+    try:
+        import importlib.util
+        path = os.path.join(SCRIPT_REPO, "line-bot", "line_usage.py")
+        spec = importlib.util.spec_from_file_location("daily_line_usage", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    except Exception:
+        return None
+
+
+def line_usage_lines(target):
+    """Target day and the 7 days ending on it; missing data is never 0%."""
+    lines = ["### " + LINE_USAGE_TITLE]
+    module = load_line_usage()
+    if module is None:
+        return lines + ["- 未知(line_usage 模組無法載入,不補 0)"]
+    try:
+        end = datetime.strptime(target, "%Y-%m-%d").date()
+        week = [end - timedelta(days=i) for i in range(6, -1, -1)]
+        folder = os.path.join(ROOT, "data", "line-usage")
+        lines.append(f"- {target}:{module.describe(module.summarize(folder, [end]))}")
+        lines.append(f"- 近 7 天({week[0]}～{target}):{module.describe(module.summarize(folder, week))}")
+    except Exception:
+        lines.append("- 未知(讀取失敗,不補 0)")
+    return lines
+
+
 def main():
     # The scheduler console decodes cp950; arrows and check marks kill print.
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -211,6 +245,9 @@ def main():
     lines.append(f"| 發布完整(全槽) | {fmt(yesterday.get('published_all_slots'))} | {fmt(today.get('published_all_slots'))} | {'✓' if today.get('published_all_slots') else '✗' if today.get('published_all_slots') is not None else 'null'} |")
     lines.append("")
     lines.extend(facebook_alert_lines(target))
+    if lines[-1]:
+        lines.append("")
+    lines.extend(line_usage_lines(target))
     lines.append("")
     lines.append(f"**結論:{ups} 項進步、{downs} 項退步**"
                  f"(null 表示未量測,不算 0、不算退步;generated {datetime.now().isoformat(timespec='seconds')})")

@@ -34,11 +34,15 @@ def _no_network(*_a, **_k):
 
 
 urllib.request.urlopen = _no_network
-STAFF = ModuleType("staff_notify")
-STAFF.inbox = []
-STAFF.guest_name = lambda _uid: "測試客人"
-STAFF.push_inbox = lambda kind, rec, **_k: (STAFF.inbox.append((kind, rec)) or {"saved": True, "notified": True})
-sys.modules["staff_notify"] = STAFF
+_OLD_STAFF = sys.modules.get("staff_notify")
+if isinstance(getattr(_OLD_STAFF, "inbox", None), list):
+    STAFF = _OLD_STAFF  # another test file already installed the stub conversation is bound to
+else:
+    STAFF = ModuleType("staff_notify")
+    STAFF.inbox = []
+    STAFF.guest_name = lambda _uid: "測試客人"
+    STAFF.push_inbox = lambda kind, rec, **_k: (STAFF.inbox.append((kind, rec)) or {"saved": True, "notified": True})
+    sys.modules["staff_notify"] = STAFF
 _PAY = ModuleType("line_pay")
 _PAY.configured = lambda: False
 sys.modules["line_pay"] = _PAY
@@ -50,11 +54,18 @@ if hasattr(conv, "cprof") and hasattr(conv.cprof, "PROFILE_PATH"):
     conv.cprof.PROFILE_PATH = _TMP / "data" / "line-customer-profile.json"
 
 _NEXT = {"decision": None}
-ai_chat.set_model(lambda _model, _prompt, _timeout: json.dumps(_NEXT["decision"], ensure_ascii=False))
+_MODEL = lambda _model, _prompt, _timeout: json.dumps(_NEXT["decision"], ensure_ascii=False)  # noqa: E731
+ai_chat.set_model(_MODEL)
+
+
+def _base_facts() -> str:
+    """Owner facts without any landmark, so no location word is grounded by accident."""
+    return "交期：" + ai_chat.TURNAROUND_FACT + "。\n到府收送：" + ai_chat.PICKUP_FACT + "。"
 
 
 def _ask(uid: str, say: str, decision: dict) -> tuple[str, int]:
     _NEXT["decision"] = decision
+    ai_chat.set_model(_MODEL)  # other test files may have injected their own fake model
     before = len(STAFF.inbox)
     msgs = conv.handle(uid, say)
     body = " / ".join(m.get("text") or "" for m in msgs or [] if m.get("type") == "text")
@@ -96,6 +107,38 @@ class StoreFactTests(unittest.TestCase):
 
     def test_scooter_parking_claim_needs_facts(self):
         self.assertIsNone(ai_chat.check_reply("機車可以停門口騎樓喔。", ai_chat.facts_text(conv)))
+
+    # G-2: offline night-chat benchmark, 「附近有什麼好吃的」 -> 「隔壁有一家早餐店很好吃。」
+    def test_next_door_shop_claim_goes_to_staff(self):
+        if "隔壁" in ai_chat.facts_text(conv):
+            self.skipTest("live business profile mentions 隔壁")
+        body, staff = _ask("Usf003", "附近有什麼好吃的",
+                           {"kind": "answer", "reply": "隔壁有一家早餐店很好吃。"})
+        self.assertNotIn("早餐店", body)
+        self.assertNotIn("隔壁", body)
+        self.assertGreaterEqual(staff, 1)
+
+    def test_new_location_words_need_facts(self):
+        facts = _base_facts()
+        examples = {
+            "隔壁": "隔壁有一家早餐店很好吃。",
+            "樓下": "樓下有便利商店喔。",
+            "樓上": "樓上是住家喔。",
+            "巷口": "巷口有一間咖啡店。",
+            "轉角": "轉角就有一間文具店。",
+            "斜對面": "斜對面有一家文具店。",
+            "走過去": "走過去很近喔。",
+            "走路分鐘": "走路大概五分鐘就到了。",
+        }
+        for word, reply in examples.items():
+            with self.subTest(word=word):
+                self.assertIsNone(ai_chat.check_reply(reply, facts))
+                # Otherwise clean, so the live path sends it to staff instead of dropping it.
+                self.assertIsNotNone(ai_chat.check_reply(reply, facts, allow_store_claims=True))
+
+    def test_location_word_grounded_by_facts_still_allowed(self):
+        facts = _base_facts() + "\n地標：全家便利商店隔壁"
+        self.assertIsNotNone(ai_chat.check_reply("我們在全家便利商店隔壁喔。", facts))
 
 
 if __name__ == "__main__":

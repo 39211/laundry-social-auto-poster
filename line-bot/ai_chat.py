@@ -140,15 +140,19 @@ _HANDOFF_RE = re.compile(
 _HANDOFF_EXACT = frozenset({"真人", "客服", "店員", "老闆", "人工", "人工客服", "真人客服", "找人", "轉人工"})
 _HANDOFF_SKIP = frozenset({"找店員安排收送"})  # existing pickup button keeps its own path
 _HANDOFF_NEG = re.compile(r"(?:不用|不要|不必|免|別)(?:再)?(?:找|轉|叫)?(?:真人|人工|客服|店員|老闆)")
-# 「到了打給我」是收送時的聯絡方式，不是要找真人。
-_HANDOFF_ARRIVAL = re.compile(r"到了|到的時候|到樓下|到門口|抵達|來收的時候|收件時|送來時|送到時")
+# 「到了打給我」是收送時的聯絡方式，不是要找真人：只在「抵達詞＋緊接著打/撥」且沒點名找人時跳過。
+_HANDOFF_ARRIVAL = re.compile(
+    r"(?:到了|到的時候|到樓下|到門口|抵達|來收的時候|收件時|送來時|送到時)(?:再|就|請|麻煩|先)?(?:打|撥|call)")
+_HANDOFF_PERSON = re.compile(r"真人|人工|客服|店員|老闆|專人|櫃台")
 
 
 def is_handoff_text(text: str) -> bool:
     n = _compact(text)
     if not n or n in _HANDOFF_SKIP or len(n) > 40:
         return False
-    if _HANDOFF_NEG.search(n) or _HANDOFF_ARRIVAL.search(n):
+    if _HANDOFF_NEG.search(n):
+        return False
+    if _HANDOFF_ARRIVAL.search(n) and not _HANDOFF_PERSON.search(n):
         return False
     return n in _HANDOFF_EXACT or bool(_HANDOFF_RE.search(n))
 
@@ -205,7 +209,13 @@ _OTHER_TIME_RE = re.compile(
 _URL_RE = re.compile(r"https?://|www\.|\.(?:com|net|org|tw|io|me|ly|cc|co|app|link)\b")
 _BANNED = ("ai", "人工智慧", "模型", "gemini", "gpt", "機器人", "我是真人", "我是人類", "我是店員",
            "我是老闆", "醫", "藥", "律師", "法律", "訴訟", "提告", "消保")
-_GUARANTEE_RE = re.compile(r"(?<!不)保證|一定洗得|包您|包你")
+# G-2: promises. 絕對 blocks unless it is a warning (絕對不要/絕對不能); 一定/肯定 after 不 is a hedge.
+_GUARANTEE_RE = re.compile(
+    r"(?<!不)保證|一定洗得|包您|包你"
+    r"|絕對(?!不要|不能)"
+    r"|(?<!不)一定(?:沒問題|可以|會|能|洗得|處理得|弄得)"
+    r"|(?<!不)肯定(?:沒問題|可以|會)"
+    r"|百分之百|100\s*%|沒問題的啦")
 _SIMPLIFIED = set("们这个说时间为发么吗还对没会过谢让给钱价约预计应该现钟点头将样实机问题请")
 _ADDR_CHARS = "路街巷弄號段"
 
@@ -252,9 +262,10 @@ _ACTION_CLAIM_RE = re.compile(
 
 # Store details the owner has not given (parking, transit, building) must not be invented.
 # 11/05 live eval: the model answered parking with a made-up paid car park.
+# G-2: neighbour/location words (隔壁 etc.) the owner has not given are invented store details too.
 _STORE_CLAIM_RE = re.compile(
-    r"停車|車位|好停|臨停|停放|停在|騎樓|路邊|紅線|黃線|捷運|公車|站牌|火車站|高鐵|步行|走路"
-    r"|附近有|旁邊有|對面有|電梯|無障礙")
+    r"停車|車位|好停|臨停|停放|停在|騎樓|路邊|紅線|黃線|捷運|公車|站牌|火車站|高鐵|步行|走路.*分鐘|走路"
+    r"|附近有|旁邊有|對面有|斜對面|隔壁|樓下|樓上|巷口|轉角|走過去|電梯|無障礙")
 _CLAIM_BREAKS = ",，。.!！?？、;；:：\n "
 
 

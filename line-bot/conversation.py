@@ -885,17 +885,19 @@ def _unsupported_shop_question(uid: str, text: str) -> tuple[list[dict], str, bo
 
 
 def _is_complaint(normalized: str) -> bool:
-    # 「最少件數／至少件」是在問收件門檻，不是少件。
-    loose = normalized.replace("最少件", "").replace("至少件", "")
+    # 「最少件數／至少一件／最少要幾件」是在問收件門檻，不是少件。
+    loose = re.sub(r"(?:最少|至少|最低)[要收送]{0,2}(?:[一1]|幾)?件", "", normalized)
     if any(mark in loose for mark in (
         "洗壞了", "破掉", "少一件", "少件",
         "拿錯", "不見了", "客訴", "要賠",
     )):
         return True
 
+    # 只有「自己（在家）…洗不乾淨」才是送洗前的詢問；「你們洗不乾淨，我自己再洗」仍是客訴。
+    self_wash = re.search(r"自己(?:(?!你們|店裡).){0,6}(?:洗不乾淨|沒洗乾淨)", normalized)
     if any(mark in normalized for mark in ("洗不乾淨", "沒洗乾淨")) and (
         any(mark in normalized for mark in ("上次", "取回", "拿回", "洗完還是"))
-        or not any(mark in normalized for mark in ("還沒送洗", "還沒洗", "送洗前", "會不會", "擔心", "怕", "如果", "能不能", "洗不洗", "自己"))
+        or not (self_wash or any(mark in normalized for mark in ("還沒送洗", "還沒洗", "送洗前", "會不會", "擔心", "怕", "如果", "能不能", "洗不洗")))
     ):
         return True
     if "不是我送洗的" in normalized or re.search(
@@ -917,8 +919,11 @@ def _is_complaint(normalized: str) -> bool:
     )
     if not past_service:
         return False
+    # 「還有別的／其他…」只有在客人要再送新件時才是介紹新件；取回後說「還有其他地方黃黃的」仍是客訴。
+    new_order = re.search(r"(?:想|要)(?:再)?(?:送洗|拿(?:去|來|過去)洗)|再送洗", normalized)
+    skip_after = r"會|能|可以|一件|一雙|幾件" + (r"|別的|其他|另" if new_order else "")
     persistent_problem = re.search(
-        r"(?:還是|還有|仍然|依然)(?!會|能|可以|一件|一雙|幾件|別的|其他|另).{0,8}(?:黃|髒|味道|異味|污漬|油漬|霉|斑)"
+        r"(?:還是|還有|仍然|依然)(?!" + skip_after + r").{0,8}(?:黃|髒|味道|異味|污漬|油漬|霉|斑)"
         r"|(?:污漬|油漬|黃漬|黃斑|異味|霉斑|黴斑).{0,6}(?:還在|沒掉|沒去掉)",
         normalized,
     )
@@ -931,6 +936,7 @@ _HYPOTHETICAL_DAMAGE = re.compile(r"如果|萬一|假如|要是|假設|會不會
 _PAST_SERVICE_HINT = re.compile(
     r"上次|取回|拿回|領回|送洗的|送洗後|洗完|洗後|洗好|你們洗|店裡洗|幫我洗|洗壞"
     r"|(?:昨天|前天|剛)(?:拿|取|領)"
+    r"|拿錯|少(?:了)?一(?:件|雙)|少件|只(?:有)?回來|你們(?:把|給|弄)|客訴"
 )
 
 
@@ -3392,8 +3398,9 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
             "好了沒" in early_n and ("洗好了沒" in early_n or _STAIN_ITEM.search(early_n))
         )
         pending = get_sess(uid) or {}
-        # 收送步驟中「明天下午可以來拿嗎」是在回答收件時段，不能改答門市營業時間。
-        in_pickup_step = str(pending.get("wait") or "").startswith("pickup_")
+        # 選收件時段那一步的「明天下午可以來拿嗎」是在回答時段，不能改答門市營業時間。
+        # 只限 pickup_when 的時段問句；「洗好了沒／可以去拿了嗎」在任何步驟都還是查件。
+        in_pickup_step = pending.get("wait") == "pickup_when" and bool(pickup_time) and not pickup_status
         if not _is_payment_claim(early_text) and (pickup_time or pickup_status) and not in_pickup_step:
             if pending.get("prewash_stain"):
                 clear = {"prewash_stain": "", "prewash_stain_at": ""}
@@ -3480,7 +3487,10 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
                     category = catalog_item[2] if catalog_item else "皮革"
                     days = {"衣物": "一般衣物約 5–7 天", "鞋子": "鞋約 7 天",
                             "包包": "皮件、包約 14 天", "皮革": "皮件、包約 14 天"}.get(category)
-                    if re.search(r"棉被|羽絨被|蠶絲被|羊毛被|毛毯|毯子|地毯|睡袋|窗簾", item):
+                    # 店裡只給過「難乾的大件（像厚棉被）10–14 天」；毯類、窗簾、睡袋沒有交期，看件後由店裡說。
+                    if re.search(r"毯|窗簾|睡袋", item):
+                        return _pack(say(f"{item}的交期要店裡看過實際的件才說得準，可以先拍照給店裡看。有指定哪天要用嗎？"), "faq")
+                    if re.search(r"棉被|羽絨被|蠶絲被|羊毛被|被子|冬被|厚被", item):
                         days = "難乾的大件（像厚棉被）約 10–14 天，實際以店裡看件為準"
                     if days:
                         return _pack(say(f"{item}的交期先抓這個範圍：{days}。有指定哪天要用嗎？"), "faq")

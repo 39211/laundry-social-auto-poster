@@ -20,6 +20,7 @@ describe("catchup-publish uses the assigned daily slot windows", () => {
     expect(smoke).toContain("[IO.File]::Copy($productionSource, $production)");
     expect(smoke).toContain('"_watchdog.ps1"), "", [Text.UTF8Encoding]::new($true)');
     expect(smoke).not.toMatch(/-File\s+\$productionSource\b/u);
+    expect(smoke).toContain('Join-Path $isolatedScripts "_pipeline-lock.ps1"');
   });
 
   it.runIf(process.platform === "win32")("smokes the actual script with a command stub and isolated roots", () => {

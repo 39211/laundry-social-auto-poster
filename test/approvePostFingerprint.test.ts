@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, writeFile, access } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { approvePost } from "../src/approvePost";
 import { generateDailyContent } from "../src/generateDailyContent";
 import { loadApprovalLog, loadDailyContent, writeApprovalLog, writeDailyContent } from "../src/logging";
@@ -127,6 +127,16 @@ function approval(slot: number, platform: "facebook" | "instagram"): ApprovalLog
 async function approve(root: string, slot: number, platforms: Array<"facebook" | "instagram"> = ["facebook"]) {
   return approvePost({ date: DATE, slot, platforms, approvedBy: "Owner", root, force: true });
 }
+
+// postCurrentSlot calls assertPublicImageBaseUrl before any gate under test
+// (src/config.ts: "PUBLIC_IMAGE_BASE_URL is required before post-current-slot").
+// The main checkout's .env supplies it, but a git worktree has no .env. Pin it
+// for every test (before fixture generation, matching the .env condition) to an
+// RFC 2606 reserved host that can never resolve; fetch is additionally stubbed
+// to NETWORK_SENTINEL wherever a publish path runs. Restored by unstubAllEnvs.
+beforeEach(() => {
+  vi.stubEnv("PUBLIC_IMAGE_BASE_URL", "https://ci-test-placeholder.invalid");
+});
 
 afterEach(() => {
   appendFailure.enabled = false;

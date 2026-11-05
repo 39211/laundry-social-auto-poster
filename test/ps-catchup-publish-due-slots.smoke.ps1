@@ -5,6 +5,7 @@ $OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path -Parent $PSScriptRoot
 $productionSource = Join-Path $root "scripts\catchup-publish.ps1"
 $slotTimesSource = Join-Path $root "scripts\publish-slot-times.ps1"
+$pipelineLockSource = Join-Path $root "scripts\_pipeline-lock.ps1"
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("catchup-due-smoke-" + [guid]::NewGuid().ToString("n"))
 $isolatedScripts = Join-Path $tempRoot "scripts"
 $production = Join-Path $isolatedScripts "catchup-publish.ps1"
@@ -81,6 +82,18 @@ try {
     [void][IO.Directory]::CreateDirectory($isolatedScripts)
     [IO.File]::Copy($productionSource, $production)
     [IO.File]::Copy($slotTimesSource, (Join-Path $isolatedScripts "publish-slot-times.ps1"))
+    # catchup-publish.ps1 dot-sources _pipeline-lock.ps1 and throws if it is absent.
+    # Copy the real library, but move its mutex out of the production namespace:
+    # Global\sxj-publish is what the nightly publishers hold, and a smoke must
+    # neither wait on it nor delay them. Fail loudly if the expression moves.
+    $lockText = [IO.File]::ReadAllText($pipelineLockSource, [Text.UTF8Encoding]::new($false))
+    $productionMutexExpr = '(''Global\'' + $Name)'
+    $isolatedMutexExpr = "('Local\" + (Split-Path -Leaf $tempRoot) + "-' + `$Name)"
+    $firstMutexExpr = $lockText.IndexOf($productionMutexExpr, [StringComparison]::Ordinal)
+    if ($firstMutexExpr -lt 0 -or $lockText.IndexOf($productionMutexExpr, $firstMutexExpr + 1, [StringComparison]::Ordinal) -ge 0) {
+        throw "Smoke could not isolate the pipeline mutex; update this smoke to match scripts\_pipeline-lock.ps1."
+    }
+    [IO.File]::WriteAllText((Join-Path $isolatedScripts "_pipeline-lock.ps1"), $lockText.Replace($productionMutexExpr, $isolatedMutexExpr), [Text.UTF8Encoding]::new($true))
     [IO.File]::WriteAllText((Join-Path $isolatedScripts "_watchdog.ps1"), "", [Text.UTF8Encoding]::new($true))
     [IO.File]::WriteAllText($stub, $stubText, [Text.Encoding]::ASCII)
     $date = "2026-10-06"

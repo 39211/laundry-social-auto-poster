@@ -429,8 +429,7 @@ if (Test-Path $heroLocal) {
 }
 
 if ($script:publicSiteRepushFailed) {
-    Write-Log "Public-site refresh failed; no post-current-slot will run; exiting 2."
-    exit 2
+    Write-Log "public-site repush failed earlier; posting continues, poster validates image URLs itself"
 }
 
 if (-not (Test-Path $approvedPath)) {
@@ -607,6 +606,7 @@ if ($failed.Count -gt 0) {
 Invoke-CatchupEveningCloseout
 
 Write-Log "Catch-up run finished."
+if ($script:publicSiteRepushFailed) { Write-Log "public-site repush failed earlier; exiting 2 so Task Scheduler records it"; exit 2 }
 } finally {
     if ($null -ne $pipelineMutex) {
         try {

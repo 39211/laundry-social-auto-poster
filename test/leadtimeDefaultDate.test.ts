@@ -244,13 +244,24 @@ describe("W-LEADTIME D+3 generation default", { timeout: 20000 }, () => {
   });
 });
 
+// A guard is `if ($LASTEXITCODE -ne 0)` or `if ($xxxExit -ne 0)` where the script
+// itself captured `$xxxExit = $LASTEXITCODE`. catchup-publish.ps1 captures
+// $siteExit / $pagesExit so Get-PublishLastError can read that command's output.
+const LAST_EXIT_GUARD_RE = /if \(\$(LASTEXITCODE|\w+Exit) -ne 0\)/g;
+
 function extractLastExitGuardsWithToast(src: string): string[] {
-  const needle = "if ($LASTEXITCODE -ne 0)";
   const guards: string[] = [];
   let from = 0;
   while (from < src.length) {
-    const start = src.indexOf(needle, from);
-    if (start < 0) break;
+    LAST_EXIT_GUARD_RE.lastIndex = from;
+    const match = LAST_EXIT_GUARD_RE.exec(src);
+    if (!match) break;
+    const start = match.index;
+    const variable = match[1] ?? "";
+    if (variable !== "LASTEXITCODE" && !src.includes(`$${variable} = $LASTEXITCODE`)) {
+      from = start + match[0].length;
+      continue;
+    }
     const brace = src.indexOf("{", start);
     if (brace < 0) break;
     let depth = 0;
@@ -435,7 +446,11 @@ function runPublicSiteEndFragment(failed: boolean): { code: number; out: string 
   const marker = 'Write-Log "Catch-up run finished."';
   const idx = src.indexOf(marker);
   if (idx < 0) throw new Error("missing finished log for fragment");
-  const snippet = src.slice(idx);
+  // catchup-publish.ps1 runs inside the pipeline-mutex try/finally
+  // (scripts/_pipeline-lock.ps1: "Callers hold the returned mutex in try/finally").
+  // Stop at that try's `} finally {` so the fragment is a complete script.
+  const tryEnd = src.indexOf("\n} finally {", idx);
+  const snippet = tryEnd < 0 ? src.slice(idx) : src.slice(idx, tryEnd);
   const script = [
     `$script:publicSiteRepushFailed = $${failed}`,
     "function Write-Log([string]$message) { Write-Output $message }",

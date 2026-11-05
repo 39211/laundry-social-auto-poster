@@ -2444,11 +2444,14 @@ def _is_in_store_text(t: str, n: str) -> bool:
 # 「先不要取消」「要不要取消」：保留，不取消。
 _CANCEL_KEEP_RE = re.compile(r"(?:不要|不用|不想|不必|沒有要|沒要|先不|別|不)(?:先|幫我)?取消")
 # 問句、改期、延期：先不動預約，請客人按「取消預約」確認。
-_CANCEL_TENTATIVE = ("改期", "延期", "嗎", "可不可以", "能不能", "可以", "會不會", "如果", "萬一", "怎麼")
+# 「可以幫我取消」「好，可以，取消」是客氣／肯定的明確指令，照常取消；
+# 「可以取消嗎」「我可以取消預約」才算詢問。
+_CANCEL_TENTATIVE = ("改期", "延期", "嗎", "?", "？", "可不可以", "能不能", "可否", "能否", "會不會", "如果", "萬一", "怎麼")
+_CANCEL_ASK_RE = re.compile(r"可以\s*取消")
 
 
 def _cancel_is_tentative(n: str) -> bool:
-    return any(k in n for k in _CANCEL_TENTATIVE)
+    return any(k in n for k in _CANCEL_TENTATIVE) or bool(_CANCEL_ASK_RE.search(n))
 
 
 def _is_cancel_text(n: str) -> bool:

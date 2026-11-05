@@ -13,7 +13,9 @@
 //        field, carousel_items[].caption / .text / *_caption / *_text
 //   rule 6 (slim_master) -> prompts: *_prompt fields, video_candidate.*_prompt,
 //        carousel_items[].prompt / *_prompt
-//   rule 7 (reel_length) -> media_type "reel" slots
+//   rule 7 (reel_length) -> media_type "reel" slots; the measured duration
+//        comes in via opts.reelDurationSeconds (see storedReelDurationSeconds),
+//        video_candidate.duration_seconds is only the plan and never counts
 //
 // Table regexes must NOT carry the g flag: several are used with .test(),
 // which is stateful under g. findAll() builds its own global copy.
@@ -38,12 +40,15 @@ export interface OwnerRuleViolation {
 }
 
 export interface OwnerRulesOptions {
-  /** Known duration of the slot's Reel video in seconds. Omit when unknown. */
+  /** Measured duration of the slot's Reel video in seconds (e.g. from storedReelDurationSeconds).
+   *  Omit when unknown: the rule then only warns. */
   reelDurationSeconds?: number;
   /** Extra owner-approved price strings, added to the slot's owner_supplied_prices. */
   ownerSuppliedPrices?: readonly string[];
   /** Amounts on the shop's own price list (data/prices.json). A caption amount that is on the list
-   *  is reported as a warning, not a block: it is the owner's own number, not an invented one. */
+   *  is reported as a warning, not a block: it is the owner's own number, not an invented one.
+   *  Digit amounts (350) and Chinese-numeral amounts (三百五十, 一千二, 兩千) are matched alike;
+   *  a numeral that cannot be read unambiguously stays a block. */
   priceListAmounts?: readonly number[];
 }
 
@@ -63,6 +68,10 @@ export interface OwnerContentRuleTable {
     week_count: RegExp;
     context: RegExp;
     clause_delimiter: RegExp;
+    /** A clause naming one of these items may only carry that item's span(s). */
+    item_spans: ReadonlyArray<{ item: string; re: RegExp; spans: ReadonlyArray<readonly [number, number]> }>;
+    /** Same-day / next-day / hours promises; never one of the owner's spans. */
+    express: RegExp;
   };
   price: { owner_rule: string; patterns: readonly OwnerRulePattern[] };
   placeholder: { owner_rule: string; patterns: readonly OwnerRulePattern[] };
@@ -77,7 +86,7 @@ export interface OwnerContentRuleTable {
 }
 
 const NUM = String.raw`(?:\d+(?:\.\d+)?|[零〇一二兩三四五六七八九十廿]+)`;
-const RANGE = String.raw`\s*(?:-|–|—|~|至|到)\s*`;
+const RANGE = String.raw`\s*(?:-|–|—|~|〜|−|至|到)\s*`;
 
 export const OWNER_CONTENT_RULES: OwnerContentRuleTable = {
   // 1. 不標示 AI 生成
@@ -123,8 +132,14 @@ export const OWNER_CONTENT_RULES: OwnerContentRuleTable = {
     week_count: new RegExp(
       String.raw`(?<![\d.第])(${NUM})(?:${RANGE}(${NUM}))?\s*(?:個\s*(?:星期|禮拜|週|周)|星期|禮拜|週)(?![末年])`
     ),
-    context: /洗好|完成|可取|取件|交件|交期|工作天|天內|天後|週內|週後|需要|大約|(?<![預節契邀相赴制])約(?![定好會束])/,
-    clause_delimiter: /[,，。．!！?？;；\n]/
+    context: /洗好|完成|可取|取件|交件|交期|工作天|天內|天後|週內|週後|需要|大約|拿回|拿到|領回|取回|(?<![預節契邀相赴制])約(?![定好會束])/,
+    clause_delimiter: /[,，。．!！?？;；\n]/,
+    item_spans: [
+      { item: "鞋", re: /鞋/, spans: [[7, 7]] },
+      { item: "皮件/包", re: /皮件|皮包|包包|背包|提包|皮革/, spans: [[14, 14]] },
+      { item: "難乾大件", re: /難乾|大件|棉被|被子|被套|毯|窗簾|睡袋/, spans: [[10, 14], [14, 14]] }
+    ],
+    express: /(?:當天|當日|隔天|隔日|次日|翌日|\d+(?:\.\d+)?\s*(?:個)?\s*小時)\s*(?:內|之內)?\s*(?:就|即)?\s*(?:可以|可|能)?\s*(?:洗好|洗完|交件|拿回|拿到|取回|完工)/
   },
   // 4. 不寫價格，除非店主當次給（owner_supplied_prices）
   price: {
@@ -362,6 +377,116 @@ function parseCount(raw: string): [number, number] | null {
   return null;
 }
 
+const CN_UNIT: Record<string, number> = { 十: 10, 百: 100, 千: 1000 };
+
+/**
+ * Parses a Chinese-numeral amount: 七十=70, 三百五十=350, 三百五=350, 一千二=1200,
+ * 一千二百=1200, 兩千=2000, 一千零五=1005, 十五=15, 兩萬五=25000.
+ * Returns null for anything that cannot be read unambiguously (三四 / 三四百 ranges,
+ * digit-by-digit 一〇〇, units out of order such as 百千), so the caller keeps blocking.
+ */
+export function parseChineseAmount(raw: string): number | null {
+  const chars = Array.from(raw);
+  if (chars.length === 0) return null;
+  let total = 0; // the 萬 part
+  let section = 0; // below 萬
+  let sectionUnit = Number.POSITIVE_INFINITY;
+  let lastUnit = 0;
+  let pending: number | null = null;
+  let zero = false;
+  let wan = false;
+  for (const ch of chars) {
+    if (ch === "零" || ch === "〇") {
+      if (pending !== null) return null;
+      zero = true;
+      continue;
+    }
+    const digit = CN_DIGIT[ch];
+    if (digit !== undefined) {
+      if (pending !== null) return null;
+      pending = digit;
+      continue;
+    }
+    const unit = CN_UNIT[ch];
+    if (unit !== undefined) {
+      if (unit >= sectionUnit) return null;
+      let multiplier: number;
+      if (pending !== null) multiplier = pending;
+      else if (lastUnit === 0 && !zero) multiplier = 1; // leading 十/百/千 means one
+      else return null;
+      section += multiplier * unit;
+      sectionUnit = unit;
+      lastUnit = unit;
+      pending = null;
+      zero = false;
+      continue;
+    }
+    if (ch === "萬") {
+      if (wan) return null;
+      // 一千二萬 could be 1,200 萬 or 1,002 萬: refuse rather than guess.
+      if (pending !== null && !zero && sectionUnit !== Number.POSITIVE_INFINITY && sectionUnit !== 10) return null;
+      let value = section + (pending ?? 0);
+      if (value === 0) {
+        if (lastUnit !== 0 || zero) return null;
+        value = 1;
+      }
+      total = value * 10000;
+      section = 0;
+      sectionUnit = Number.POSITIVE_INFINITY;
+      lastUnit = 10000;
+      pending = null;
+      zero = false;
+      wan = true;
+      continue;
+    }
+    return null;
+  }
+  if (pending !== null) {
+    // 一千零五 adds 5; 一千二 / 三百五 / 兩萬五 abbreviate the next lower unit.
+    section += zero || lastUnit === 0 ? pending : pending * (lastUnit / 10);
+  }
+  return total + section;
+}
+
+/** Amounts in one price hit. Empty when any amount cannot be read (the hit then blocks). */
+function priceHitAmounts(hitText: string, precededByDigit: boolean): number[] {
+  const digitAmounts = (hitText.match(/\d+/g) ?? []).map(Number);
+  if (digitAmounts.length > 0) return digitAmounts;
+  // 「5千元」: the Chinese pattern only sees 千元, which would read as 1000.
+  if (precededByDigit) return [];
+  const runs = hitText.match(/[零〇一二兩三四五六七八九十百千萬]+/g) ?? [];
+  const amounts: number[] = [];
+  for (const run of runs) {
+    const value = parseChineseAmount(run);
+    if (value === null) return [];
+    amounts.push(value);
+  }
+  return amounts;
+}
+
+/**
+ * Duration the pipeline stored for the slot's video when the video source was
+ * marked (VideoSourceRecord.duration_seconds, probe results). Matches the same
+ * record validatePublishableReel accepts: same slot, grok-imagine-video source,
+ * same video_path. Unknown (undefined) when there is no such record, when a
+ * matching record carries no valid duration, or when matching records disagree.
+ * Pure: the caller loads the records (autoApprove uses loadVideoSources).
+ */
+export function storedReelDurationSeconds(slot: object, sources: readonly object[]): number | undefined {
+  const record = slot as Record<string, unknown>;
+  const path = record.local_video_path;
+  if (typeof path !== "string" || path.length === 0) return undefined;
+  const durations = new Set<number>();
+  for (const entry of sources) {
+    if (!isObject(entry)) continue;
+    if (entry.slot !== record.slot || entry.source !== "grok-imagine-video" || entry.video_path !== path) continue;
+    const seconds = entry.duration_seconds;
+    if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) return undefined;
+    durations.add(seconds);
+  }
+  return durations.size === 1 ? [...durations][0] : undefined;
+}
+
 function plannedVideoSeconds(record: Record<string, unknown>): number | undefined {
   const candidate = record.video_candidate;
   if (isObject(candidate) && typeof candidate.duration_seconds === "number") return candidate.duration_seconds;
@@ -438,10 +563,20 @@ export function checkSlotAgainstOwnerRules(slot: object, opts: OwnerRulesOptions
         if (first && second !== null) {
           const low = first[0] * multiplier;
           const high = (second ?? first)[1] * multiplier;
-          allowed = turnaround.allowed_spans.some(([a, b]) => a === low && b === high);
+          const same = ([a, b]: readonly [number, number]) => a === low && b === high;
+          const clause = text.slice(cs, ce);
+          const items = turnaround.item_spans.filter((item) => item.re.test(clause));
+          allowed =
+            items.length === 0
+              ? turnaround.allowed_spans.some(same)
+              : items.every((item) => item.spans.some(same));
         }
         if (!allowed) add("turnaround", "block", field, text, hit.start, hit.end);
       }
+    }
+    for (const hit of findAll(text, turnaround.express)) {
+      if (inUrl(hit.start, hit.end)) continue;
+      add("turnaround", "block", field, text, hit.start, hit.end);
     }
 
     // 4. Price
@@ -457,7 +592,8 @@ export function checkSlotAgainstOwnerRules(slot: object, opts: OwnerRulesOptions
       for (const hit of findAll(text, pattern.re)) {
         if (inUrl(hit.start, hit.end)) continue;
         if (allowedSpans.some(([s, e]) => hit.start >= s && hit.end <= e)) continue;
-        const amounts = (text.slice(hit.start, hit.end).match(/\d+/g) ?? []).map(Number);
+        const precededByDigit = hit.start > 0 && /\d/.test(text.charAt(hit.start - 1));
+        const amounts = priceHitAmounts(text.slice(hit.start, hit.end), precededByDigit);
         const onList = amounts.length > 0 && amounts.every((amount) => (opts.priceListAmounts ?? []).includes(amount));
         add("price", onList ? "warn" : "block", field, text, hit.start, hit.end);
       }

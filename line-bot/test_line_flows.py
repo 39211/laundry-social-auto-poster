@@ -190,7 +190,9 @@ def test_menu_store_booking():
     msgs = conv.handle(uid, "預約到店")
     assert picker_data(msgs).startswith("action=reserve")
     future = conv.now_tw() + timedelta(days=1)
-    while future.weekday() == 6:
+    # Pick a weekday: Saturday opens at 12:00 and Sunday is closed, so an 11:00 slot on either is refused and the
+    # test used to fail whenever it ran on a Friday (T-3 round 2).
+    while future.weekday() >= 5:
         future += timedelta(days=1)
     future = future.replace(hour=11, minute=0, second=0, microsecond=0)
     done = conv.handle_postback(

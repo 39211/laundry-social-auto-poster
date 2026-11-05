@@ -19,9 +19,16 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-SANDBOX = ROOT / "_sandbox_repo"
+sys.dont_write_bytecode = True
+if str(ROOT / "test-assets") not in sys.path:
+    sys.path.append(str(ROOT / "test-assets"))
+import sandbox_repo  # noqa: E402  (T-3: synthetic fake repo root, replaces the lost _sandbox_repo/)
+
+SANDBOX = sandbox_repo.shared_sandbox()
 NO_EHANK = str(SANDBOX / "no-ehank")
-PY = r"C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe"
+PY = sys.executable
+if not sandbox_repo.harness_mode():
+    sandbox_repo.install_write_guard()
 
 os.environ["LAUNDRY_REPO_ROOT"] = str(SANDBOX)
 os.environ["LAUNDRY_LOOKUP_FIXTURE"] = "1"
@@ -58,8 +65,9 @@ KEPT_PRICES = {
     "休閒鞋": 350,
     "高爾夫球鞋": 150,
 }
-REPORT_DEFAULT = (16, 14, 10)
-REPORT_WATER = (11, 2, 10)
+# T-3: (changed, labels only, unmapped) of the synthetic sandbox; see test-assets/sandbox_repo.py.
+REPORT_DEFAULT = (6, 3, 8)
+REPORT_WATER = (2, 1, 8)
 DCO_SQL = "SELECT Dname, M1, M2, M3, m4, m5, m6, m7, m8, DefMode FROM Dco"
 CPY_SQL = "SELECT Mode1, Mode2, Mode3, Mode4, Mode5, Mode6, Mode7, Mode8 FROM Cpy"
 REFUSAL = "洗法另計，不能直接套用一般水洗價"
@@ -331,21 +339,22 @@ class PriceAlignTests(unittest.TestCase):
                 "枕頭", "娃娃", "皮手套", "大書包", "大童鞋", "高級拖鞋",
             }
             self.assertEqual(after, (before - removed) | added)
-            self.assertEqual(len(after), 122)
+            # T-3: 44 sandbox items - 3 retired + 16 added (was 122 with the lost full price list).
+            self.assertEqual(len(after), 57)
 
     def test_P15_report_default_mode(self):
         with Probe():
             result = ehank_prices.align(_base_prices(), basis="default_mode", repo=SANDBOX)
-            self.assertEqual(len(result.changed), 16)
-            self.assertEqual(len(result.labeled_only), 14)
+            self.assertEqual(len(result.changed), 6)
+            self.assertEqual(len(result.labeled_only), 3)
             self.assertEqual(len(result.unmapped), 8)
             buf = io.StringIO()
             with redirect_stdout(buf):
                 code = ehank_prices.main(["--report", "--basis", "default_mode"])
             text = buf.getvalue()
             self.assertEqual(code, 0)
-            self.assertIn("改價 16\n", text)
-            self.assertIn("只加標示 14\n", text)
+            self.assertIn("改價 6\n", text)
+            self.assertIn("只加標示 3\n", text)
             self.assertIn("對不到 8\n", text)
             self.assertIn("新增 16\n", text)
             self.assertIn("移除 3\n", text)
@@ -354,16 +363,16 @@ class PriceAlignTests(unittest.TestCase):
     def test_P16_report_water(self):
         with Probe():
             result = ehank_prices.align(_base_prices(), basis="water", repo=SANDBOX)
-            self.assertEqual(len(result.changed), 11)
-            self.assertEqual(len(result.labeled_only), 2)
+            self.assertEqual(len(result.changed), 2)
+            self.assertEqual(len(result.labeled_only), 1)
             self.assertEqual(len(result.unmapped), 8)
             buf = io.StringIO()
             with redirect_stdout(buf):
                 code = ehank_prices.main(["--report", "--basis", "water"])
             text = buf.getvalue()
             self.assertEqual(code, 0)
-            self.assertIn("改價 11\n", text)
-            self.assertIn("只加標示 2\n", text)
+            self.assertIn("改價 2\n", text)
+            self.assertIn("只加標示 1\n", text)
             self.assertIn("對不到 8\n", text)
             self.assertIn("新增 16\n", text)
             self.assertIn("移除 3\n", text)
@@ -713,6 +722,13 @@ class ScorerTests(unittest.TestCase):
             {"pkg.Class.test_foo", "pkg.Class.test_foo_bar"},
         )
         self.assertEqual(verdict, "EQUIVALENT")
+
+
+class ZzWriteGuardTests(unittest.TestCase):
+    """T-3: runs last; nothing in this process may write outside the temp dir or open a real socket."""
+
+    def test_no_writes_outside_temp(self):
+        self.assertEqual(sandbox_repo.write_violations(), [])
 
 
 PriceAlignTests.__module__ = "test_ehank_prices"

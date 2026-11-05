@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import socket
 import subprocess
 import sys
 import threading
@@ -29,9 +30,13 @@ SUCCESS_URL_LINE = re.compile(
     r"^(?:\d{4}-\d{2}-\d{2}T\S+\s+INF\s+)?\|\s*(https://[^\s|]+)\s*\|\s*$"
 )
 WEBHOOK_API = "https://api.line.me/v2/bot/channel/webhook/endpoint"
+# A-TUNNEL H1: the local bot the tunnel forwards to; must be listening before a PUT
+ORIGIN_HOST = "127.0.0.1"
+ORIGIN_PORT = 8791
 LOG_ROTATE_BYTES = 2 * 1024 * 1024  # F15
 WEBHOOK_RETRY_DELAYS = (2, 5, 10)  # F4
 START_BACKOFFS = (10, 30, 60)  # F5
+CRASH_BACKOFFS = (10, 60, 300)  # A-TUNNEL H2: unexpected supervisor errors
 # A4-5: restart a live-but-dead cloudflared (control stream failing, never re-registered)
 UNHEALTHY_RESTART_SECONDS = 180
 UNHEALTHY_RESTART_MIN_GAP_SECONDS = 600
@@ -224,9 +229,12 @@ def _event(event: str, old_url: str = "", new_url: str = "",
         **details,
     }
     with _LOG_LOCK:
-        EVENTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with EVENTS_PATH.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(row, ensure_ascii=True) + "\n")
+        try:
+            EVENTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with EVENTS_PATH.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(row, ensure_ascii=True) + "\n")
+        except OSError:
+            pass  # A-TUNNEL H2: telemetry must never stop a handover or the supervisor
 
 
 def _registration_allowed(url: str) -> bool:
@@ -245,8 +253,8 @@ def _registration_allowed(url: str) -> bool:
 def _log(msg: str) -> None:
     # F15: rotate tunnel.log to tunnel.log.1 when larger than 2 MB
     with _LOG_LOCK:
-        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         try:
+            LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
             if LOG_PATH.exists() and LOG_PATH.stat().st_size > LOG_ROTATE_BYTES:
                 rotated = Path(str(LOG_PATH) + ".1")
                 if rotated.exists():
@@ -256,8 +264,11 @@ def _log(msg: str) -> None:
             pass
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         line = f"{ts} {msg}\n"
-        with LOG_PATH.open("a", encoding="utf-8") as f:
-            f.write(line)
+        try:
+            with LOG_PATH.open("a", encoding="utf-8") as f:
+                f.write(line)
+        except OSError:
+            pass  # A-TUNNEL H2: a locked or full log must not kill the supervisor
 
 
 def _load_token() -> str:
@@ -335,7 +346,7 @@ def _start_cloudflared() -> subprocess.Popen:
             str(CLOUDFLARED),
             "tunnel",
             "--url",
-            "http://127.0.0.1:8791",
+            "http://" + ORIGIN_HOST + ":" + str(ORIGIN_PORT),
             "--no-autoupdate",
         ],
         stdout=subprocess.PIPE,
@@ -413,7 +424,24 @@ def _log_webhook_error(exc: BaseException) -> None:
         _log("webhook endpoint failed: " + type(exc).__name__)
 
 
+def _origin_listening(timeout: float = 2.0) -> bool:
+    """A-TUNNEL H1: the local bot must accept connections before LINE is pointed at it."""
+    try:
+        with socket.create_connection((ORIGIN_HOST, ORIGIN_PORT), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
 def _attempt_webhook(url: str, token: str, http=urllib, *, old_url="", result=None) -> bool:
+    if not _origin_listening():
+        # Never take the LINE slot for a bot that cannot answer; callers keep it pending.
+        if result is not None:
+            result.update(status="origin_down", line_endpoint=None)
+        _log("local bot " + ORIGIN_HOST + ":" + str(ORIGIN_PORT)
+             + " not listening: not registering")
+        _event("origin_down", old_url, url + "/line/webhook")
+        return False
     try:
         endpoint = set_webhook_endpoint(url, token, http=http, old_url=old_url)
         if result is not None:
@@ -561,6 +589,14 @@ def _night_reclaim(url: str, token: str, state: dict, now: float, *,
     window; every PUT still goes through _registration_allowed."""
     window = registration_window()
     if window != "night":
+        if window == "configuration_error":
+            # A-TUNNEL H3: fail closed, but loudly (at most every NIGHT_RECLAIM_SECONDS).
+            last_error = state.get("last_config_error_at")
+            if last_error is None or now - last_error >= NIGHT_RECLAIM_SECONDS:
+                state["last_config_error_at"] = now
+                _log("handover configuration invalid: night takeover blocked")
+                _event("configuration_error", new_url=url + "/line/webhook",
+                       status="takeover_blocked")
         return window
     last = state.get("last_check_at")
     if last is not None and now - last < NIGHT_RECLAIM_SECONDS:
@@ -602,38 +638,53 @@ def main(*, sleep=time.sleep, clock=time.monotonic) -> int:
     token = _load_token()
     proc = None
     backoff_i = 0
+    crash_i = 0  # A-TUNNEL H2: cleared only by a clean 60 s cycle
     restart_state = {"last_restart_at": None}  # A4-5
     reclaim_state = {"last_check_at": None}  # A4-6
     try:
         while True:
-            _log("starting cloudflared")
-            proc = _start_cloudflared()
-            url = _wait_for_url(proc, 90.0)
-            if not url:
-                # G17: distinguish child-exited from a real 90s wait
-                if proc.poll() is not None:
-                    _log("cloudflared exited before publishing a url rc=" + str(proc.returncode))
-                else:
-                    _log("no tunnel url within 90s")
+            try:
+                _log("starting cloudflared")
+                proc = _start_cloudflared()
+                url = _wait_for_url(proc, 90.0)
+                if not url:
+                    # G17: distinguish child-exited from a real 90s wait
+                    if proc.poll() is not None:
+                        _log("cloudflared exited before publishing a url rc="
+                             + str(proc.returncode))
+                    else:
+                        _log("no tunnel url within 90s")
+                    _kill_proc(proc)
+                    delay = START_BACKOFFS[min(backoff_i, len(START_BACKOFFS) - 1)]
+                    backoff_i += 1
+                    _log("retry cloudflared after " + str(delay) + "s")
+                    sleep(delay)
+                    continue
+                backoff_i = 0
+                _publish(url, token)
+                # A4-6: a night publish just PUT+verified; next reclaim check in 900 s.
+                reclaim_state["last_check_at"] = (
+                    clock() if registration_window() == "night" else None)
+                while True:
+                    sleep(60)
+                    _retry_pending_webhook(token)
+                    if proc.poll() is not None:
+                        _log("cloudflared exited rc=" + str(proc.returncode))
+                        break
+                    if _restart_if_unhealthy(proc, url, restart_state, clock()):
+                        break  # A4-5: outer loop restarts and republishes via _publish
+                    _night_reclaim(url, token, reclaim_state, clock(), sleep=sleep)  # A4-6
+                    crash_i = 0
+            except Exception as exc:  # noqa: BLE001
+                # A-TUNNEL H2: one unexpected error must not end the supervisor (the finally
+                # below would kill the tunnel LINE points at). Restart with bounded backoff.
                 _kill_proc(proc)
-                delay = START_BACKOFFS[min(backoff_i, len(START_BACKOFFS) - 1)]
-                backoff_i += 1
-                _log("retry cloudflared after " + str(delay) + "s")
+                delay = CRASH_BACKOFFS[min(crash_i, len(CRASH_BACKOFFS) - 1)]
+                crash_i += 1
+                _log("supervisor error " + type(exc).__name__
+                     + ": restarting cloudflared after " + str(delay) + "s")
+                _event("supervisor_error", error=type(exc).__name__, retry_after_s=delay)
                 sleep(delay)
-                continue
-            backoff_i = 0
-            _publish(url, token)
-            # A4-6: a night publish just PUT+verified; next reclaim check in 900 s.
-            reclaim_state["last_check_at"] = clock() if registration_window() == "night" else None
-            while True:
-                sleep(60)
-                _retry_pending_webhook(token)
-                if proc.poll() is not None:
-                    _log("cloudflared exited rc=" + str(proc.returncode))
-                    break
-                if _restart_if_unhealthy(proc, url, restart_state, clock()):
-                    break  # A4-5: outer loop restarts and republishes via _publish
-                _night_reclaim(url, token, reclaim_state, clock(), sleep=sleep)  # A4-6
     except KeyboardInterrupt:
         _log("interrupted")
         return 0

@@ -134,7 +134,8 @@ describe("GSC 尚未索引頁的內鏈句", () => {
         expect(text, link.anchor).not.toContain(word);
       }
       expect(text, link.anchor).not.toMatch(/\$\d+/);
-      expect(text.replaceAll("台中全市免費收送、沒有最低消費", ""), link.anchor).not.toContain("免費");
+      expect(text.replaceAll("免費收送", ""), link.anchor).not.toContain("免費");
+      expect(text, link.anchor).not.toContain("台中全市");
     }
   });
 });

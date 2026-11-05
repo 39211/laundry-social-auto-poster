@@ -364,7 +364,8 @@ describe("B5 第 8 波", () => {
       const found = wave8BannedHits(wave8AuditedText(html));
       if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
       const main = html.match(/<main>([\s\S]*?)<\/main>/)?.[1] ?? "";
-      expect(main, path).toContain("台中全市免費收送、沒有最低消費");
+      expect(main, path).toContain("免費收送");
+      expect(main, path).not.toContain("台中全市");
       expect(main, path).toContain("門市在台中市西屯區");
       expect(main, path).toContain("西屯門市收件");
       expect(main, path).toContain("參考價，看過實品再報價");
@@ -419,7 +420,8 @@ describe("B5 第 8 波", () => {
       const found = wave8BannedHits(`${entry.question}\n${entry.answer}`);
       if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
       expect(entry.answer, entry.id).toContain("參考價，看過實品再報價");
-      expect(entry.answer, entry.id).toContain("台中全市免費收送、沒有最低消費");
+      expect(entry.answer, entry.id).toContain("免費收送");
+      expect(entry.answer, entry.id).not.toContain("台中全市");
     }
     expect(hits).toEqual([]);
     expect(seen.size).toBe(WAVE8_PAGE_PATHS.length);
@@ -479,7 +481,8 @@ describe("B5 第 9 波", () => {
       const found = wave9BannedHits(wave9AuditedText(html));
       if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
       const main = html.match(/<main>([\s\S]*?)<\/main>/)?.[1] ?? "";
-      expect(main, path).toContain("台中全市免費收送、沒有最低消費");
+      expect(main, path).toContain("免費收送");
+      expect(main, path).not.toContain("台中全市");
       expect(main, path).toContain("門市在台中市西屯區");
       expect(main, path).toContain("西屯門市收件");
       expect(main, path).toContain("參考價，看過實品再報價");
@@ -535,7 +538,8 @@ describe("B5 第 9 波", () => {
       const found = wave9BannedHits(`${entry.question}\n${entry.answer}`);
       if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
       expect(entry.answer, entry.id).toContain("參考價，看過實品再報價");
-      expect(entry.answer, entry.id).toContain("台中全市免費收送、沒有最低消費");
+      expect(entry.answer, entry.id).toContain("免費收送");
+      expect(entry.answer, entry.id).not.toContain("台中全市");
     }
     expect(hits).toEqual([]);
     expect(seen.size).toBe(WAVE9_PAGE_PATHS.length);

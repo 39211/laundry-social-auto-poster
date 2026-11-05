@@ -648,7 +648,7 @@ describe("generatePublicSite", () => {
     expect(llms).toContain("[布品收納](https://example.com/laundry-social-auto-poster/services/fabric-storage.html)");
     expect(llms).toContain("[台中西屯洗衣店](https://example.com/laundry-social-auto-poster/services/taichung-xitun-laundry.html)");
     expect(llms).toContain(
-      "[台中全市洗衣收送](https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html)"
+      "[台中洗衣收送](https://example.com/laundry-social-auto-poster/services/taichung-citywide-laundry-pickup.html)"
     );
     expect(llms).toContain("Address: 407 臺中市西屯區至善里青海路二段365號");
     expect(llms).toContain("Phone: 04-2452-7411");
@@ -842,7 +842,8 @@ describe("generatePublicSite", () => {
     expect(taichungCitywidePickupHtml).toContain("<title>台中收送洗衣｜全市到府、LINE 預約｜私享家洗衣店</title>");
     expect(taichungCitywidePickupHtml).toContain("<h1>台中收送洗衣</h1>");
     expect(taichungCitywidePickupHtml).toContain("台中市");
-    expect(taichungCitywidePickupHtml).toContain("台中全市免費收送、沒有最低消費");
+    expect(taichungCitywidePickupHtml).toContain("免費收送");
+    expect(taichungCitywidePickupHtml).not.toContain("台中全市免費");
     expect(taichungCitywidePickupHtml).toContain("https://line.me/R/ti/p/%40454foyks");
     expect(taichungCitywidePickupHtml).toContain("青海路二段365號");
     expect(taichungCitywidePickupHtml).toContain("清潔費另計");
@@ -1103,7 +1104,7 @@ describe("generatePublicSite", () => {
     expect(localHtml).toContain("收送邊界");
     expect(localHtml).toContain("至善國中對面");
     expect(localHtml).toContain("青海路二段365號");
-    expect(localHtml).toContain("台中市全市");
+    expect(localHtml).toContain("台中市，免費收送、沒有最低消費");
     expect(localHtml).toContain("麂皮");
     expect(localHtml).toContain("帆布");
     expect(localHtml).toContain("膠氧化");
@@ -1768,7 +1769,8 @@ describe("generatePublicSite", () => {
     const discovery = JSON.parse(await readFile(join(root, "docs", "ai-discovery.json"), "utf8"));
 
     expect(homepage).toContain(`href="${pickupUrl}"`);
-    expect(homepage).toContain("台中全市洗衣收送");
+    expect(homepage).toContain("台中洗衣收送");
+    expect(homepage).not.toContain("台中全市");
     expect(homepage).toContain("id=\"citywide-pickup\"");
     expect(homepage).toContain("台中洗衣收送");
     expect(homepage).toContain("台中收送");
@@ -1788,7 +1790,8 @@ describe("generatePublicSite", () => {
 
     expect(pickupHtml).toContain("<h1>台中收送洗衣</h1>");
     expect(pickupHtml).toContain("收送範圍為台中市");
-    expect(pickupHtml).toContain("台中全市免費收送、沒有最低消費");
+    expect(pickupHtml).toContain("免費收送");
+    expect(pickupHtml).not.toContain("台中全市免費");
     expect(pickupHtml).toContain("https://line.me/R/ti/p/%40454foyks");
     expect(pickupHtml).toContain("西屯區青海路二段365號");
     expect(pickupHtml).toContain('"@type":"Service"');
@@ -1965,7 +1968,7 @@ describe("generatePublicSite", () => {
       knowledgeGraph["@graph"].some(
         (item: { "@type"?: string; name?: string; areaServed?: { name?: string } }) =>
           item["@type"] === "Service" &&
-          item.name === "台中全市洗衣收送" &&
+          item.name === "台中洗衣收送" &&
           item.areaServed?.name === "台中市"
       )
     ).toBe(true);
@@ -2269,7 +2272,8 @@ describe("generatePublicSite", () => {
     expect(html).toContain("滿 1000 送 100");
     expect(html).toContain("儲 3000 送 400");
     expect(html).toContain("儲 6000 送 1000");
-    expect(html).toContain("台中全市免費收送、沒有最低消費");
+    expect(html).toContain("免費收送");
+    expect(html).not.toContain("台中全市免費");
     expect(html).toContain("台中市西屯區青海路二段365號");
     expect(html).toContain("至善國中對面");
     expect(html).toContain("0968327653");

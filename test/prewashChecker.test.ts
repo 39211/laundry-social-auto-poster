@@ -11,7 +11,7 @@ import {
 } from "../scripts/check-sitemap-links";
 
 const PATH = PREWASH_PAGE_PATHS[0];
-const FULL = "台中全市免費收送、沒有最低消費";
+const FULL = "免費收送";
 
 type RuleLine = [string | null, string];
 type Rule = { id: string; src: string; title: string; lines: RuleLine[] };
@@ -66,6 +66,8 @@ describe("送洗前自我檢查頁", () => {
       expect(main, needle).toContain(needle);
     }
     expect(main.replaceAll(FULL, "")).not.toContain("免費");
+    expect(main).toContain("台中洗衣收送");
+    expect(main).not.toContain("台中全市");
     expect(main).not.toMatch(/\d\s*元|\$\d/);
     expect(main).not.toMatch(/不保證|除臭|醫療滅菌|變全新/);
   });

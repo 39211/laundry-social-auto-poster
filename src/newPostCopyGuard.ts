@@ -1,6 +1,7 @@
 /**
  * 2026-11-05 起的新貼文（標題與正文）不得再帶功效向「除霉」、標準以外的「防水」。
- * 免費收送只允許「免費收送」；「台中全市」禁止出現。全站舊句另票替換，這道閘門不改歷史檔。
+ * 免費收送只允許「免費收送」；可見文字裡的「台中全市」禁止出現。
+ * 網址、href／src、路徑與檔名不掃，citywide slug 可以留。這道閘門不改歷史檔。
  * 更早的日曆、r6 檔與已上線歷史頁不在這道閘門裡。
  */
 
@@ -42,6 +43,17 @@ function excerptAround(text: string, needle: string): string {
   return text.slice(start, end).replace(/\s+/gu, " ");
 }
 
+/** 可見文字。網址、href／src、路徑、citywide slug 與檔名先拿掉，避免擋到連結。 */
+function visibleCopy(text: string): string {
+  return text
+    .replace(/\b(?:href|src)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/giu, " ")
+    .replace(/https?:\/\/[^\s<>"']+/giu, " ")
+    .replace(/\]\([^)\s]*\)/gu, "]")
+    .replace(/(?:^|[\s"'=])(?:\/|\.\/|\.\.\/)[^\s<>"']+/gu, " ")
+    .replace(/(?:^|[\s"'=])[^\s<>"']*citywide[^\s<>"']*/giu, " ")
+    .replace(/(?:^|[\s"'=])[^\s<>"']+\.(?:html?|json|md|txt|png|jpe?g|webp|pdf)\b/giu, " ");
+}
+
 export function findNewPostCopyViolations(text: string, field: NewPostCopyField): NewPostCopyViolation[] {
   const violations: NewPostCopyViolation[] = [];
   if (text.includes("除霉")) {
@@ -56,8 +68,13 @@ export function findNewPostCopyViolations(text: string, field: NewPostCopyField)
     violations.push({ rule: "防水", field, excerpt: excerptAround(waterproof, "防水") });
   }
 
-  if (text.includes(BANNED_CITYWIDE_PHRASE)) {
-    violations.push({ rule: "台中全市", field, excerpt: excerptAround(text, BANNED_CITYWIDE_PHRASE) });
+  const visible = visibleCopy(text);
+  if (visible.includes(BANNED_CITYWIDE_PHRASE)) {
+    violations.push({
+      rule: "台中全市",
+      field,
+      excerpt: excerptAround(visible, BANNED_CITYWIDE_PHRASE)
+    });
   }
 
   const withoutApprovedFree = text.replaceAll(APPROVED_FREE_PICKUP_PHRASE, "");

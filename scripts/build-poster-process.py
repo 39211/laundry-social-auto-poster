@@ -4,7 +4,7 @@
 不是抄 Quick快客的版型,是學它「把收送流程本身當成一則內容」這個做法——
 私享家的知識海報系列(build-poster-knowledge.py)教的是「怎麼判斷」,這張教的是
 「送到我們手上之後會怎麼樣」。四個步驟全部來自網站首頁已經在用的流程說明與
-既有的收送政策(台中全市免費收送、沒有最低消費),沒有新編一套流程。
+既有的收送政策(免費收送、沒有最低消費),沒有新編一套流程。
 
 Run (from the repo root; `python` on PATH does NOT have qrcode/Pillow):
   "C:/Users/cyc39/AppData/Local/Python/pythoncore-3.14-64/python.exe" \

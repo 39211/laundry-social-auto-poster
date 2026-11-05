@@ -12,7 +12,7 @@ import {
 
 const PATH = CARE_LABEL_PAGE_PATHS[0];
 const PDF_URL = "https://sixiangjialaundry.com/guides/care-label-text-cheatsheet.pdf";
-const FULL = "台中全市免費收送、沒有最低消費";
+const FULL = "免費收送";
 
 function pageHtml(): string {
   return readFileSync(join(repoRootFromHere(), "seo-overrides", PATH.slice(1)), "utf8");
@@ -45,6 +45,8 @@ describe("洗標符號文字指南", () => {
       expect(main, needle).toContain(needle);
     }
     expect(main.replaceAll(FULL, "")).not.toContain("免費");
+    expect(main).toContain("台中洗衣收送");
+    expect(main).not.toContain("台中全市");
     expect(main).not.toMatch(/\d\s*元|\$\d/);
     expect(main).not.toMatch(/完全符合|通過.{0,6}認證|符合 ?CNS/);
   });

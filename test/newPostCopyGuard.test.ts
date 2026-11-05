@@ -90,6 +90,30 @@ describe("新貼文措辭閘門", () => {
     expect(newPostCopyViolations({ date: NEW_DATE, title: "免費收送", body: "免費收送到府，沒有最低消費" })).toEqual(
       []
     );
+    expect(
+      newPostCopyViolations({
+        date: NEW_DATE,
+        body: "詳見 https://sixiangjialaundry.com/services/taichung-citywide-laundry-pickup.html"
+      })
+    ).toEqual([]);
+    expect(
+      newPostCopyViolations({
+        date: NEW_DATE,
+        body: '看 <a href="/services/taichung-citywide-laundry-pickup.html">台中洗衣收送</a>'
+      })
+    ).toEqual([]);
+    expect(
+      newPostCopyViolations({
+        date: NEW_DATE,
+        body: "檔名 taichung-citywide-laundry-pickup.html 可以留"
+      })
+    ).toEqual([]);
+    expect(() =>
+      assertNewPostCopyAllowed({
+        date: NEW_DATE,
+        body: '<a href="/services/taichung-citywide-laundry-pickup.html">台中全市收送</a>'
+      })
+    ).toThrow(/台中全市/);
     expect(() =>
       assertNewPostCopyAllowed({
         date: NEW_DATE,

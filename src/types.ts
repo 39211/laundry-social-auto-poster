@@ -47,6 +47,13 @@ export interface VideoCandidatePlan {
   first_frame_direction: string;
   grok_motion_prompt: string;
   fallback_media_type: "image";
+  /**
+   * Card C3-3: Reel length is set per task. Present only when the video is
+   * the owner's own crafted short (owner: 25–45 s); the owner-rules checker then
+   * judges the measured length against this range. Absent means a daily
+   * automatic Reel (at least 10 s, no maximum, warning above 60 s).
+   */
+  video_length_range?: { min_seconds: number; max_seconds: number };
 }
 
 export interface CompanionMediaPackagePlan {

@@ -15,7 +15,11 @@
 //        carousel_items[].prompt / *_prompt
 //   rule 7 (reel_length) -> media_type "reel" slots; the measured duration
 //        comes in via opts.reelDurationSeconds (see storedReelDurationSeconds),
-//        video_candidate.duration_seconds is only the plan and never counts
+//        video_candidate.duration_seconds is only the plan and never counts.
+//        The allowed range depends on the task (owner 2026-11-05): a daily
+//        automatic Reel is at least 10 s with no maximum (warning above 60 s);
+//        an owner-crafted video carries video_candidate.video_length_range
+//        (e.g. 25–45 s). opts.reelLengthRange overrides both.
 //
 // Table regexes must NOT carry the g flag: several are used with .test(),
 // which is stateful under g. findAll() builds its own global copy.
@@ -39,10 +43,21 @@ export interface OwnerRuleViolation {
   excerpt: string;
 }
 
+/** Allowed Reel length for one task. No max means no upper limit (a warning above 60 s). */
+export interface ReelLengthRange {
+  min: number;
+  max?: number;
+  /** Why this range applies, shown in findings and the report (e.g. 「每日自動 Reel ≥10 秒」). */
+  source: string;
+}
+
 export interface OwnerRulesOptions {
   /** Measured duration of the slot's Reel video in seconds (e.g. from storedReelDurationSeconds).
    *  Omit when unknown: the rule then only warns. */
   reelDurationSeconds?: number;
+  /** Allowed Reel length for this task (e.g. from reelLengthRangeForSlot). Omitted or invalid:
+   *  the slot's video_candidate.video_length_range, else the daily automatic Reel default. */
+  reelLengthRange?: ReelLengthRange;
   /** Extra owner-approved price strings, added to the slot's owner_supplied_prices. */
   ownerSuppliedPrices?: readonly string[];
   /** Amounts on the shop's own price list (data/prices.json). A caption amount that is on the list
@@ -82,7 +97,11 @@ export interface OwnerContentRuleTable {
     negation: RegExp;
     sentence_delimiter: RegExp;
   };
-  reel_length: { owner_rule: string; min_seconds: number; max_seconds: number };
+  reel_length: {
+    owner_rule: string;
+    /** Daily automatic Reel: the default when the task names no range. */
+    daily_auto: { min_seconds: number; warn_above_seconds: number; source: string };
+  };
 }
 
 const NUM = String.raw`(?:\d+(?:\.\d+)?|[零〇一二兩三四五六七八九十廿]+)`;
@@ -178,11 +197,11 @@ export const OWNER_CONTENT_RULES: OwnerContentRuleTable = {
     negation: /不要|不得|不可|不能|請勿|勿|禁止|避免|別把|別讓|別畫|\b(?:do not|don't|never|avoid|not|without)\b/i,
     sentence_delimiter: /[。.!！?？;；\n]/
   },
-  // 7. Reel 25–45 秒
+  // 7. Reel 長度依任務（店主 2026-11-05）
   reel_length: {
-    owner_rule: "7. Reel 長度 25–45 秒（時長未知時只警告）",
-    min_seconds: 25,
-    max_seconds: 45
+    owner_rule:
+      "7. Reel 長度依任務：每日自動 Reel ≥10 秒（超過 60 秒警告）；店主自製短片依任務指定（例 25–45 秒）；時長未知時只警告",
+    daily_auto: { min_seconds: 10, warn_above_seconds: 60, source: "每日自動 Reel ≥10 秒" }
   }
 };
 
@@ -497,6 +516,48 @@ function formatSeconds(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+function dailyReelLengthRange(): ReelLengthRange {
+  const daily = OWNER_CONTENT_RULES.reel_length.daily_auto;
+  return { min: daily.min_seconds, source: daily.source };
+}
+
+/** The range as given, or undefined when it cannot be used (non-finite, min <= 0, max < min, no source). */
+function validReelLengthRange(range: ReelLengthRange | undefined): ReelLengthRange | undefined {
+  if (!isObject(range)) return undefined;
+  const { min, max, source } = range;
+  if (typeof min !== "number" || !Number.isFinite(min) || min <= 0) return undefined;
+  if (max !== undefined && (typeof max !== "number" || !Number.isFinite(max) || max < min)) return undefined;
+  if (typeof source !== "string" || source.trim().length === 0) return undefined;
+  return max === undefined ? { min, source } : { min, max, source };
+}
+
+/**
+ * Allowed Reel length for a slot's task (card C3-3). An owner-crafted video
+ * carries video_candidate.video_length_range ({ min_seconds, max_seconds });
+ * everything else is a daily automatic Reel (≥10 s, no maximum). An unusable
+ * range falls back to the daily rule and says so in the source text.
+ */
+export function reelLengthRangeForSlot(slot: object): ReelLengthRange {
+  const record = slot as Record<string, unknown>;
+  const candidate = record.video_candidate;
+  if (!isObject(candidate) || candidate.video_length_range === undefined) return dailyReelLengthRange();
+  const raw = candidate.video_length_range;
+  if (isObject(raw)) {
+    const min = raw.min_seconds;
+    const max = raw.max_seconds;
+    if (typeof min === "number" && typeof max === "number") {
+      const range = validReelLengthRange({
+        min,
+        max,
+        source: `任務指定 ${formatSeconds(min)}–${formatSeconds(max)} 秒`
+      });
+      if (range) return range;
+    }
+  }
+  const daily = dailyReelLengthRange();
+  return { ...daily, source: `${daily.source}（任務長度設定無效，已忽略）` };
+}
+
 /**
  * Checks one calendar slot against the owner's rules. Accepts any object so a
  * DailySlot, a raw calendar JSON slot or a test fixture can be passed as-is.
@@ -620,26 +681,29 @@ export function checkSlotAgainstOwnerRules(slot: object, opts: OwnerRulesOptions
     }
   }
 
-  // 7. Reel length
+  // 7. Reel length: the allowed range comes from the task (card C3-3).
   if (record.media_type === "reel") {
     const reel = rules.reel_length;
+    const range = validReelLengthRange(opts.reelLengthRange) ?? reelLengthRangeForSlot(record);
+    const pushReel = (severity: OwnerRuleSeverity, note: string): void => {
+      out.push({ rule: "reel_length", severity, field: "video", excerpt: note.slice(0, EXCERPT_MAX) });
+    };
     const duration = opts.reelDurationSeconds;
     if (typeof duration === "number" && Number.isFinite(duration)) {
-      if (duration < reel.min_seconds || duration > reel.max_seconds) {
-        out.push({
-          rule: "reel_length",
-          severity: "block",
-          field: "video",
-          excerpt: `影片 ${formatSeconds(duration)} 秒，須 ${reel.min_seconds}–${reel.max_seconds} 秒`.slice(0, EXCERPT_MAX)
-        });
+      const seconds = formatSeconds(duration);
+      if (duration < range.min || (range.max !== undefined && duration > range.max)) {
+        pushReel("block", `影片 ${seconds} 秒，${range.source}`);
+      } else if (range.max === undefined && duration > reel.daily_auto.warn_above_seconds) {
+        pushReel("warn", `影片 ${seconds} 秒，超過 ${reel.daily_auto.warn_above_seconds} 秒（${range.source}）`);
       }
     } else {
       const planned = plannedVideoSeconds(record);
-      const note =
+      pushReel(
+        "warn",
         planned === undefined
-          ? `時長未知，須 ${reel.min_seconds}–${reel.max_seconds} 秒`
-          : `時長未知（規劃 ${formatSeconds(planned)} 秒），須 ${reel.min_seconds}–${reel.max_seconds} 秒`;
-      out.push({ rule: "reel_length", severity: "warn", field: "video", excerpt: note.slice(0, EXCERPT_MAX) });
+          ? `時長未知，${range.source}`
+          : `時長未知（規劃 ${formatSeconds(planned)} 秒），${range.source}`
+      );
     }
   }
 

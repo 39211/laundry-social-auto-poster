@@ -243,7 +243,19 @@ _ACTION_CLAIM_RE = re.compile(
 )
 
 
-def check_reply(reply, facts: str, customer_text: str = "") -> str | None:
+# Store details the owner has not given (parking, transit, building) must not be invented.
+# 11/05 live eval: the model answered parking with a made-up paid car park.
+_STORE_CLAIM_RE = re.compile(r"停車|車位|好停|捷運|公車|火車站|高鐵|附近有|旁邊有|對面有|電梯|無障礙")
+
+
+def _ungrounded_store_claim(reply, facts: str) -> bool:
+    if not isinstance(reply, str):
+        return False
+    probe = unicodedata.normalize("NFKC", reply)
+    return any(m.group(0) not in facts for m in _STORE_CLAIM_RE.finditer(probe))
+
+
+def check_reply(reply, facts: str, customer_text: str = "", *, allow_store_claims: bool = False) -> str | None:
     if isinstance(reply, str) and _ACTION_CLAIM_RE.search(reply):
         return None
     """Return the cleaned reply or None when it breaks an owner rule."""
@@ -273,6 +285,8 @@ def check_reply(reply, facts: str, customer_text: str = "") -> str | None:
     if sum(1 for ch in text if _is_emoji(ch)) > 1:
         return None
     if _echoes_address(customer_text, text, facts):
+        return None
+    if not allow_store_claims and _ungrounded_store_claim(text, facts):
         return None
     out = ""
     used = 0
@@ -899,6 +913,9 @@ def mid_flow(conv, uid: str, text: str, event_id: str = ""):
                 record(conv, {"fallbacks": 1})
                 return None
         kind = decision["kind"]
+        if kind == "answer" and _ungrounded_store_claim(decision.get("reply"), facts_text(conv)) and check_reply(
+                decision.get("reply"), facts_text(conv), t, allow_store_claims=True) is not None:
+            kind = "staff"  # otherwise-clean answer that invents a store detail: ask the shop instead
         reply = check_reply(decision["reply"], facts_text(conv), t) if kind == "answer" else None
         if m == "shadow":
             if kind == "answer" and reply is None:
@@ -956,6 +973,9 @@ def no_flow_answer(conv, uid: str, t: str, n: str):
         kind = decision["kind"]
         if kind in ("step_answer", "new_intent"):
             kind = "unsure"
+        if kind == "answer" and _ungrounded_store_claim(decision.get("reply"), facts_text(conv)) and check_reply(
+                decision.get("reply"), facts_text(conv), t, allow_store_claims=True) is not None:
+            kind = "staff"  # otherwise-clean answer that invents a store detail: ask the shop instead
         reply = check_reply(decision["reply"], facts_text(conv), t) if kind == "answer" else None
         if m == "shadow":
             if kind == "answer" and reply is None:

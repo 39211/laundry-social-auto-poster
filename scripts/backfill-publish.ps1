@@ -344,8 +344,10 @@ try {
             $scheduleRaw = Get-Content -LiteralPath $schedulePath -Raw -Encoding UTF8
             $scheduleDecoded = ConvertFrom-Json -InputObject $scheduleRaw -ErrorAction Stop
             $scheduleRows = @($scheduleDecoded)
-            if (@($scheduleRows | Where-Object { $null -ne $_ -and $_.slot -eq $entry.slot -and $_.platform -ceq 'facebook' }).Count -gt 0) {
-                [void](Set-QueueEntry $entry 'failed' 'Facebook schedule-log row exists for this slot; commander reconciliation required; no publish.' $state $attemptedAt)
+            # Fail closed on anything we cannot read row by row ({} wrapper, nulls, rows without slot/platform).
+            $unreadableRows = @($scheduleRows | Where-Object { $null -eq $_ -or $null -eq $_.PSObject.Properties['slot'] -or $null -eq $_.PSObject.Properties['platform'] })
+            if ($unreadableRows.Count -gt 0 -or @($scheduleRows | Where-Object { $null -ne $_ -and $_.slot -eq $entry.slot -and $_.platform -ceq 'facebook' }).Count -gt 0) {
+                [void](Set-QueueEntry $entry 'failed' 'Facebook schedule-log row exists for this slot (or the schedule log is unreadable); commander reconciliation required; no publish.' $state $attemptedAt)
                 Write-Log 'Existing Facebook schedule-log row; no publish, no automatic retry.'
                 exit 1
             }

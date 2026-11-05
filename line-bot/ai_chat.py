@@ -140,13 +140,15 @@ _HANDOFF_RE = re.compile(
 _HANDOFF_EXACT = frozenset({"真人", "客服", "店員", "老闆", "人工", "人工客服", "真人客服", "找人", "轉人工"})
 _HANDOFF_SKIP = frozenset({"找店員安排收送"})  # existing pickup button keeps its own path
 _HANDOFF_NEG = re.compile(r"(?:不用|不要|不必|免|別)(?:再)?(?:找|轉|叫)?(?:真人|人工|客服|店員|老闆)")
+# 「到了打給我」是收送時的聯絡方式，不是要找真人。
+_HANDOFF_ARRIVAL = re.compile(r"到了|到的時候|到樓下|到門口|抵達|來收的時候|收件時|送來時|送到時")
 
 
 def is_handoff_text(text: str) -> bool:
     n = _compact(text)
     if not n or n in _HANDOFF_SKIP or len(n) > 40:
         return False
-    if _HANDOFF_NEG.search(n):
+    if _HANDOFF_NEG.search(n) or _HANDOFF_ARRIVAL.search(n):
         return False
     return n in _HANDOFF_EXACT or bool(_HANDOFF_RE.search(n))
 
@@ -195,6 +197,11 @@ _MONEY_RE = re.compile(
 _CN_AMOUNT_RE = re.compile(r"[一二兩三四五六七八九十]\s*[百千萬]")
 _CN_DAYS_RE = re.compile(r"[一二兩三四五六七八九十半]\s*(?:個)?(?:工作)?(?:天|日|週|星期|禮拜|小時|個月)")
 _DAY_SPAN_RE = re.compile(r"(\d+)(?:\s*[–\-~至到]\s*(\d+))?\s*(?:個)?(?:工作)?(?:天|日)")
+# Any other duration or relative day is an unapproved turnaround promise.
+_OTHER_TIME_RE = re.compile(
+    r"\d+\s*(?:個\s*)?(?:小時|鐘頭|分鐘|月|週|星期|禮拜)(?![一二三四五六日天末])"
+    r"|明天|後天|隔天|隔日|當天|當日|明日|即日|今天(?:就|可以|能)|馬上|立刻|快洗"
+)
 _URL_RE = re.compile(r"https?://|www\.|\.(?:com|net|org|tw|io|me|ly|cc|co|app|link)\b")
 _BANNED = ("ai", "人工智慧", "模型", "gemini", "gpt", "機器人", "我是真人", "我是人類", "我是店員",
            "我是老闆", "醫", "藥", "律師", "法律", "訴訟", "提告", "消保")
@@ -245,14 +252,26 @@ _ACTION_CLAIM_RE = re.compile(
 
 # Store details the owner has not given (parking, transit, building) must not be invented.
 # 11/05 live eval: the model answered parking with a made-up paid car park.
-_STORE_CLAIM_RE = re.compile(r"停車|車位|好停|捷運|公車|火車站|高鐵|附近有|旁邊有|對面有|電梯|無障礙")
+_STORE_CLAIM_RE = re.compile(
+    r"停車|車位|好停|臨停|停放|停在|騎樓|路邊|紅線|黃線|捷運|公車|站牌|火車站|高鐵|步行|走路"
+    r"|附近有|旁邊有|對面有|電梯|無障礙")
+_CLAIM_BREAKS = ",，。.!！?？、;；:：\n "
 
 
 def _ungrounded_store_claim(reply, facts: str) -> bool:
+    # R-1105b: grounded only when the keyword AND up to two characters before it (same clause)
+    # appear together in the facts, so "沒有停車位" in the facts cannot ground "有停車位".
     if not isinstance(reply, str):
         return False
     probe = unicodedata.normalize("NFKC", reply)
-    return any(m.group(0) not in facts for m in _STORE_CLAIM_RE.finditer(probe))
+    known = unicodedata.normalize("NFKC", facts or "")
+    for m in _STORE_CLAIM_RE.finditer(probe):
+        lead = probe[max(0, m.start() - 2):m.start()]
+        for ch in _CLAIM_BREAKS:
+            lead = lead.rsplit(ch, 1)[-1]
+        if lead + m.group(0) not in known:
+            return True
+    return False
 
 
 def check_reply(reply, facts: str, customer_text: str = "", *, allow_store_claims: bool = False) -> str | None:
@@ -267,7 +286,8 @@ def check_reply(reply, facts: str, customer_text: str = "", *, allow_store_claim
         return None
     probe = unicodedata.normalize("NFKC", text)
     low = probe.lower()
-    if _MONEY_RE.search(probe) or _CN_AMOUNT_RE.search(probe) or _CN_DAYS_RE.search(probe):
+    if (_MONEY_RE.search(probe) or _CN_AMOUNT_RE.search(probe) or _CN_DAYS_RE.search(probe)
+            or _OTHER_TIME_RE.search(probe)):
         return None
     allowed = set(re.findall(r"\d+", unicodedata.normalize("NFKC", facts))) | {"5", "7", "10", "14"}
     if any(d not in allowed for d in re.findall(r"\d+", probe)):

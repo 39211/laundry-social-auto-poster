@@ -1104,7 +1104,7 @@ describe("generatePublicSite", () => {
     expect(localHtml).toContain("收送邊界");
     expect(localHtml).toContain("至善國中對面");
     expect(localHtml).toContain("青海路二段365號");
-    expect(localHtml).toContain("台中市全市");
+    expect(localHtml).toContain("台中市，免費收送、沒有最低消費");
     expect(localHtml).toContain("麂皮");
     expect(localHtml).toContain("帆布");
     expect(localHtml).toContain("膠氧化");

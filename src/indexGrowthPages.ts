@@ -134,9 +134,9 @@ export const PROTECTED_LIVE_COHORT_HASHES: Record<(typeof PROTECTED_LIVE_COHORT_
   "luggage-wheel-cleaning": "fbf0dbb26e86ce9d42df8fce69e5f4d47a1e07692f28ac1fd442972e7c19a827",
   "curtain-cleaning": "56b00efc67ede7ab3e60ea6f256255dd608ac8d802be938b583f4e95c671907c",
   "carpet-cleaning": "40d363dbc678120438a79cacefd079ad753c2b57c72855f71d5c582f302e1dea",
-  "fengjia-laundry-pickup": "989061d1081540b54e2bc07efcc4127abafdb54c983a9232bf711a66da9ab85c",
-  "zhongke-office-laundry": "51a37e05965667d57966483ee46cbc0e321b6525c7ada34bebd9f583236f6624",
-  "donghai-laundry-pickup": "1c561ea7bef3a47cd912e5801faabfb3cc2cbfc52ce38807e994b15f2a6df5ec"
+  "fengjia-laundry-pickup": "37008be8e67dec6bdb289400f5100bfa135fb8ba1a92e9ff7fec9fb42305f157",
+  "zhongke-office-laundry": "d7289117de4e7d2e1f76595e015a252f477c73b64f11ddaa1efb911a843c1e39",
+  "donghai-laundry-pickup": "4d68fb5ff5b652d6d701b64e9b5c01d97ead5abd6ac9892b0411623b3405393a"
 };
 
 export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLock> = {

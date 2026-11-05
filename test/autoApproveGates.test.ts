@@ -13,6 +13,10 @@ import { loadApprovalLog, loadDailyContent, writeDailyContent, writeImageSources
 import * as mediaAssets from "../src/mediaAssets";
 import type { PostLogEntry } from "../src/types";
 
+// These run several real autoApprove passes against a temp tree; on a busy
+// machine (full suite in parallel) the default 5 s was not enough.
+vi.setConfig({ testTimeout: 30_000 });
+
 const IMG = "output/images/2026-11-06/slot1.png";
 const slot = { slot: 1, topic: "白鞋鞋面發黃", local_image_path: IMG, status: "pending" };
 

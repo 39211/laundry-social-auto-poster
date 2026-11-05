@@ -211,6 +211,28 @@ function Invoke-CatchupPublishAlerts {
     }
 }
 
+# Windows PowerShell 5.1 ConvertFrom-Json writes a JSON array as ONE pipeline
+# item, so @(ConvertFrom-Json $raw) is a one-element array wrapping every row
+# and a per-row Where-Object on it never matches (A-CATCHUP H1/H2). Assign the
+# parse result first, then enumerate the variable.
+# Returns $null when the file is absent, the row array otherwise; throws when
+# the file exists but cannot be parsed, so callers can fail closed.
+function Read-CatchupPostedRows([string]$PostedPath) {
+    if (-not (Test-Path -LiteralPath $PostedPath)) { return $null }
+    $raw = [IO.File]::ReadAllText($PostedPath, [Text.UTF8Encoding]::new($false))
+    if ([string]::IsNullOrWhiteSpace($raw)) { throw "posted-log is empty: $PostedPath" }
+    $parsed = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
+    $rows = @($parsed | Where-Object { $null -ne $_ })
+    # Leading comma: a bare empty array would reach the caller as $null.
+    return ,$rows
+}
+
+# Live row: either status string (as hasRecordedPost accepts), never a dry run.
+function Test-CatchupLiveRow($Row, [int]$Slot) {
+    if ($null -eq $Row) { return $false }
+    return ($Row.slot -eq $Slot -and -not $Row.dry_run -and (@('success', 'posted') -contains $Row.status))
+}
+
 function Invoke-CatchupSocialFollowup {
     Push-Location $root
     cmd /c "npm.cmd run first-comment -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
@@ -503,6 +525,11 @@ if ($missingRequiredCalendarSlots.Count -gt 0) {
 }
 
 $failed = @()
+# Live posts that must not be reported as "補發失敗" (that invites a manual
+# duplicate): a reel that went out as an image, and a run whose result the
+# posted-log cannot confirm. Both still exit 1.
+$reelAsImage = @()
+$unverified = @()
 foreach ($slot in $dueSlots) {
     # Slot 3 is optional on older 2-slot calendars. Missing ≠ failed: log once
     # and continue so catch-up still publishes slots 1/2 without a toast or
@@ -534,7 +561,9 @@ foreach ($slot in $dueSlots) {
     $exitCode = $LASTEXITCODE
     Pop-Location
     $output | Out-File -FilePath $logFile -Append -Encoding utf8
-    if ($exitCode -ne 0) { $script:pipelineLastError = Get-PublishLastError $output "post-current-slot failed (exit $exitCode)" }
+    # Becomes the alert reason only once the slot is really judged failed below;
+    # a reconciled non-zero exit must not leave a stale reason behind.
+    $slotError = if ($exitCode -ne 0) { Get-PublishLastError $output "post-current-slot failed (exit $exitCode)" } else { '' }
     # Fail-closed: a reel / noon slot 3 must never count a cover-image success
     # as published. That is the 8/27-29 failure mode.
     $requiresVideo = ($slot -eq 3)
@@ -550,25 +579,32 @@ foreach ($slot in $dueSlots) {
     } catch {
         Write-Log ("Could not read calendar media_type for slot $slot : " + $_.Exception.Message)
     }
+    $postedRows = $null
+    $postedUnreadable = $false
+    try {
+        $postedRows = Read-CatchupPostedRows (Join-Path $root "data\posted-log\$date.json")
+    } catch {
+        $postedUnreadable = $true
+        Write-Log ("posted-log for $date unreadable after slot ${slot}: " + $_.Exception.Message)
+    }
+    # A run whose outcome must be checked (reel slot, or non-zero exit) cannot be
+    # judged from an unreadable posted-log: neither published nor failed.
+    if ($postedUnreadable -and ($requiresVideo -or $exitCode -ne 0)) {
+        $script:pipelineLastError = "posted-log unreadable; slot $slot result unverified"
+        Write-Log "Slot $slot result unverified (exit $exitCode): posted-log unreadable; not treating as published or failed."
+        $unverified += $slot
+        continue
+    }
     $reelImageFallback = $false
     if ($requiresVideo) {
-        try {
-            $postedPath = Join-Path $root "data\posted-log\$date.json"
-            if (Test-Path $postedPath) {
-                $postedRaw = [IO.File]::ReadAllText($postedPath, [Text.UTF8Encoding]::new($false))
-                $entries = @(ConvertFrom-Json $postedRaw)
-                $reelImageFallback = @($entries | Where-Object {
-                    $_.slot -eq $slot -and -not $_.dry_run -and (@("success", "posted") -contains $_.status) -and
-                    $_.published_media_type -eq "image"
-                }).Count -gt 0
-            }
-        } catch {
-            Write-Log ("Reel image-fallback log check failed: " + $_.Exception.Message)
-        }
+        $reelImageFallback = @($postedRows | Where-Object {
+            (Test-CatchupLiveRow $_ $slot) -and $_.published_media_type -eq "image"
+        }).Count -gt 0
     }
     if ($reelImageFallback) {
+        $script:pipelineLastError = "slot $slot reel published as image"
         Write-Log "Slot $slot is a reel but posted-log recorded IMAGE success; refusing to treat as published."
-        $failed += $slot
+        $reelAsImage += $slot
         continue
     }
     if ($exitCode -ne 0) {
@@ -578,16 +614,16 @@ foreach ($slot in $dueSlots) {
         # The posted-log is the ground truth, so consult it before declaring
         # failure.
         $postedOk = $false
-        try {
-            $postedRaw = [IO.File]::ReadAllText((Join-Path $root "data\posted-log\$date.json"), [Text.UTF8Encoding]::new($false))
-            $entries = @(ConvertFrom-Json $postedRaw)
-            $igOk = @($entries | Where-Object { $_.slot -eq $slot -and $_.platform -eq "instagram" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status) }).Count -gt 0
-            $fbOk = @($entries | Where-Object { $_.slot -eq $slot -and $_.platform -eq "facebook" -and -not $_.dry_run -and (@("success", "posted") -contains $_.status) }).Count -gt 0
+        if ($null -ne $postedRows) {
+            $liveRows = @($postedRows | Where-Object { Test-CatchupLiveRow $_ $slot })
+            $igOk = @($liveRows | Where-Object { $_.platform -eq "instagram" }).Count -gt 0
+            $fbOk = @($liveRows | Where-Object { $_.platform -eq "facebook" }).Count -gt 0
             $postedOk = $igOk -and $fbOk
-        } catch {}
+        }
         if ($postedOk) {
             Write-Log "Slot $slot exited $exitCode but the posted-log records success on both platforms; treating as published."
         } else {
+            $script:pipelineLastError = $slotError
             Write-Log "Slot $slot failed with exit code $exitCode."
             $failed += $slot
         }
@@ -598,10 +634,16 @@ foreach ($slot in $dueSlots) {
 
 Invoke-CatchupSocialFollowup
 
+if ($reelAsImage.Count -gt 0) {
+    Show-Toast ("今天 slot {0} 應發影片,但 posted-log 記錄為圖片已發出。貼文已上線,請勿重發;請看 output\catch-up-logs\{1}.log" -f ($reelAsImage -join ", "), $date)
+}
+if ($unverified.Count -gt 0) {
+    Show-Toast ("今天 slot {0} 的發文結果無法確認(posted-log 讀不到),可能已上線,請勿直接重發;請看 output\catch-up-logs\{1}.log" -f ($unverified -join ", "), $date)
+}
 if ($failed.Count -gt 0) {
     Show-Toast ("今天 slot {0} 補發失敗,請看 output\catch-up-logs\{1}.log" -f ($failed -join ", "), $date)
-    exit 1
 }
+if ($failed.Count -gt 0 -or $reelAsImage.Count -gt 0 -or $unverified.Count -gt 0) { exit 1 }
 
 Invoke-CatchupEveningCloseout
 

@@ -86,6 +86,21 @@ def _actions(draft):
     ]
 
 
+def _fresh(conv, uid, draft):
+    """Re-price a stored draft with today's price list before it is shown or sent.
+
+    If anything priced changed (POS sync, retired row, pricing rule), bump the
+    revision and save it, so buttons on the old reply cannot send stale numbers.
+    """
+    if not draft:
+        return draft
+    repriced = estimate.price(draft, conv.PRICES)
+    if repriced != draft:
+        repriced["revision"] = draft.get("revision", 0) + 1
+        conv.set_sess(uid, estimate_draft=repriced)
+    return repriced
+
+
 def _show(conv, draft):
     return [conv.text_msg(estimate.render(draft), actions=_actions(draft))]
 
@@ -161,7 +176,7 @@ def _analyse(conv, uid):
         return [conv.text_msg("這批照片比較多，先請店員整批核對，避免漏算。也可以直接打品項和件數，我先幫你加總。")]
     key = hashlib.sha256(json.dumps(sess.get("estimate_photo_hashes", [])).encode()).hexdigest()
     if sess.get("estimate_photo_cache") == key and sess.get("estimate_draft"):
-        return _show(conv, sess["estimate_draft"])
+        return _show(conv, _fresh(conv, uid, sess["estimate_draft"]))
     paths = [(PHOTOS_ROOT / p.removeprefix("photos/")).resolve() for p in relative_paths]
     if not all(p.is_relative_to(PHOTOS_ROOT.resolve()) and p.is_file() for p in paths):
         return [conv.text_msg("有照片目前讀不到，先請店員看件。也可以補傳一次。")]
@@ -219,7 +234,7 @@ def handle_text(conv, uid, text, event_id=""):
             return _result(cached_reply(conv, uid, event_id))
         sess = conv.get_sess(uid)
         staff_pushed = False
-        draft = sess.get("estimate_draft")
+        draft = _fresh(conv, uid, sess.get("estimate_draft"))
         text = text.strip()
         if text in ("幫我估這批", "幫我估這批照片", "照片估價", "照片幫我報價", "重新辨識照片"):
             messages = _analyse(conv, uid)
@@ -275,7 +290,7 @@ def handle_postback(conv, uid, data, event_id=""):
         if action == "estimate_photos":
             messages = _analyse(conv, uid)
         else:
-            draft = conv.get_sess(uid).get("estimate_draft")
+            draft = _fresh(conv, uid, conv.get_sess(uid).get("estimate_draft"))
             if not draft or not draft.get("lines"):
                 return [conv.text_msg("這份估價已經沒有內容，請重新傳品項或照片。")]
             if values.get("revision", [""])[0] != str(draft["revision"]) or values.get("case", [""])[0] != draft.get("case_id"):

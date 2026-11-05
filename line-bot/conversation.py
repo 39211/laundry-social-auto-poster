@@ -712,6 +712,35 @@ def _pack(msgs: list[dict], intent: str, notify_staff: bool = False) -> tuple[li
     }
 
 
+class _PerThreadAttrs:
+    """_pack 的 uid／text／_npush／photo_funnel 每個執行緒各一份，兩位客人同時進來不會互相蓋掉。
+
+    呼叫方式不變：_pack(...)、_pack.uid = …、getattr(_pack, "_npush", 0)。
+    """
+
+    def __init__(self, fn):
+        object.__setattr__(self, "_fn", fn)
+        object.__setattr__(self, "_tls", threading.local())
+        for name in ("__module__", "__name__", "__qualname__", "__doc__"):
+            object.__setattr__(self, name, getattr(fn, name, None))
+        object.__setattr__(self, "__wrapped__", fn)
+
+    def __call__(self, *args, **kwargs):
+        return object.__getattribute__(self, "_fn")(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(object.__getattribute__(self, "_tls"), name)
+
+    def __setattr__(self, name, value):
+        setattr(object.__getattribute__(self, "_tls"), name, value)
+
+    def __delattr__(self, name):
+        delattr(object.__getattribute__(self, "_tls"), name)
+
+
+_pack = _PerThreadAttrs(_pack)
+
+
 def auto_query_available() -> bool:
     """洗衣系統有正本才走自動查詢；source==none 一律交辦櫃台。"""
     try:
@@ -1230,7 +1259,7 @@ def _natural_customer_question(uid: str, text: str, normalized: str) -> tuple[li
     if any(k in n for k in ("收送免費嗎", "到府收送多少", "收送要錢嗎", "有收送費嗎", "哪一區可以收")):
         return (
             say(
-                "收送要看地址和安排的時段，我不先亂報費用。",
+                "台中市免費到府收送，營業時間內約，當天時段由店裡回覆。",
                 "你先按外收送，把時間、位置和手機留給我，店員確認後會跟你說。",
                 buttons=[("開始安排", "外收送預約"), ("找真人", "找真人")],
             ),
@@ -1962,7 +1991,7 @@ def start_pickup(uid: str, force_new: bool = False) -> list[dict]:
             "pickup_new",
             (
                 "好啊，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。哪天方便？",
-                "可以，台中市免費到府收送，沒有低消；營業時間內約，當天時段由店裡回覆。什麼時候方便？",
+                "可以，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。什麼時候方便？",
             ),
         ),
         actions=_pickup_when_actions(uid),
@@ -2444,11 +2473,14 @@ def _is_in_store_text(t: str, n: str) -> bool:
 # 「先不要取消」「要不要取消」：保留，不取消。
 _CANCEL_KEEP_RE = re.compile(r"(?:不要|不用|不想|不必|沒有要|沒要|先不|別|不)(?:先|幫我)?取消")
 # 問句、改期、延期：先不動預約，請客人按「取消預約」確認。
-_CANCEL_TENTATIVE = ("改期", "延期", "嗎", "可不可以", "能不能", "可以", "會不會", "如果", "萬一", "怎麼")
+# 「可以幫我取消」「好，可以，取消」是客氣／肯定的明確指令，照常取消；
+# 「可以取消嗎」「我可以取消預約」才算詢問。
+_CANCEL_TENTATIVE = ("改期", "延期", "嗎", "?", "？", "可不可以", "能不能", "可否", "能否", "會不會", "如果", "萬一", "怎麼")
+_CANCEL_ASK_RE = re.compile(r"可以\s*取消")
 
 
 def _cancel_is_tentative(n: str) -> bool:
-    return any(k in n for k in _CANCEL_TENTATIVE)
+    return any(k in n for k in _CANCEL_TENTATIVE) or bool(_CANCEL_ASK_RE.search(n))
 
 
 def _is_cancel_text(n: str) -> bool:
@@ -3225,6 +3257,11 @@ def _quote_item(uid: str, name: str, aside: str = "") -> list[dict]:
 
 
 def handle_postback(uid: str, data: str, params: dict, event_id: str = "") -> list[dict]:
+    # 不沿用同一執行緒上一個事件（可能是別的客人）的 _pack 狀態。
+    _pack.uid = uid
+    _pack.text = ""
+    _pack._npush = 0
+    _pack.photo_funnel = False
     estimated = quote_flow.handle_postback(sys.modules[__name__], uid, data, event_id)
     if estimated is not None:
         return estimated

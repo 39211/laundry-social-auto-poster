@@ -243,8 +243,9 @@ def number(value: str) -> int | None:
     return result if 1 <= result <= 999 else None
 
 
-# A bare number followed by a size word is a size (27號, 30腰, 180x200), never a count.
-_SIZE_SPEC = re.compile(r"\s*\d+(?:\.\d+)?\s*(?:號半?|腰|吋|寸|碼|公分|cm|mm|歲|[xX×*]\s*\d+(?:\.\d+)?(?:\s*(?:cm|公分))?)\s*", re.IGNORECASE)
+# A bare number followed by a size word is a size (27號, 30腰, 3XL, 180x200), never a count.
+# 3XL only when glued to the digit; 「棉T 2 XL」 stays a count of 2.
+_SIZE_SPEC = re.compile(r"\s*\d+(?:\.\d+)?\s*(?:號半?|腰|吋|寸|碼|公分|cm|mm|歲|(?<=\d)X{1,4}L(?![A-Za-z])|[xX×*]\s*\d+(?:\.\d+)?(?:\s*(?:cm|公分))?)\s*", re.IGNORECASE)
 
 
 def _skip_sizes(text: str) -> str:

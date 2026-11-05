@@ -4,7 +4,7 @@
 
 ## Source Of Record
 - Canonical URL: https://sixiangjialaundry.com/
-- Generated at: 2026-11-05T14:50:09.143Z
+- Generated at: 2026-11-05T22:37:57.671Z
 - Timezone: Asia/Taipei
 - Base URL configured: yes
 
@@ -458,6 +458,8 @@
     "https://i.ytimg.com/vi/Nvg7eYjoVIU/hqdefault.jpg",
     "https://sixiangjialaundry.com/assets/2026-11-05/slot-01.png",
     "https://sixiangjialaundry.com/assets/2026-11-05/slot-02.png",
+    "https://sixiangjialaundry.com/assets/2026-11-06/slot-01.png",
+    "https://sixiangjialaundry.com/assets/2026-11-06/slot-02.png",
     "https://sixiangjialaundry.com/assets/services/shoe-bag-care-hero-product.png",
     "https://sixiangjialaundry.com/assets/services/white-shoe-cleaning-hero-product.png",
     "https://sixiangjialaundry.com/assets/services/fabric-storage-hero-product.png",
@@ -13869,4 +13871,98 @@ Instagram caption:
 直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)
 
 #私享家洗衣店 #包包清潔 #內袋清潔 #上班包保養
+
+### 2026-11-06 11:30 包包提把的手汗與邊油痕
+
+- id: https://sixiangjialaundry.com/content-calendar/2026-11-06.json#post-2026-11-06-slot-01
+- published local time: 2026-11-06T11:30:00+08:00
+- category: 知識文
+- platforms: facebook, instagram
+- visual_route: macro-detail
+- traffic_route: object-proof
+- search_intent: (legacy-unassigned)
+- target_queries: (legacy-unassigned)
+- evidence_type: (legacy-unassigned)
+- hashtags: #私享家洗衣店 #包包清潔 #提把清潔 #精品洗護
+- image: https://sixiangjialaundry.com/assets/2026-11-06/slot-01.png
+- calendar: https://sixiangjialaundry.com/content-calendar/2026-11-06.json
+
+Facebook caption:
+
+包包提把如果開始變黏、變暗，通常不是單純灰塵，而是手汗、保養品和摩擦慢慢堆在表面。
+
+提把和包角是最常被碰到的位置，處理方式如果太強，可能讓皮革變乾、帆布起毛，或讓原本的邊油痕更明顯。
+
+我們會先分辨提把是皮革、合成皮還是布面，再看邊油、縫線和轉角磨耗，判斷能清到什麼程度、哪些痕跡需要保守處理。
+
+包包提把變暗時，可以拍近照和整包照片，我們先幫你看材質狀態。
+
+私享家洗衣店｜台中市免費到府收送
+
+直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)
+
+#私享家洗衣店 #包包清潔 #提把清潔 #精品洗護
+
+Instagram caption:
+
+包包提把如果開始變黏、變暗，通常不是單純灰塵，而是手汗、保養品和摩擦慢慢堆在表面。
+
+提把和包角是最常被碰到的位置，處理方式如果太強，可能讓皮革變乾、帆布起毛，或讓原本的邊油痕更明顯。
+
+我們會先分辨提把是皮革、合成皮還是布面，再看邊油、縫線和轉角磨耗，判斷能清到什麼程度、哪些痕跡需要保守處理。
+
+包包提把變暗時，可以拍近照和整包照片，我們先幫你看材質狀態。
+
+私享家洗衣店｜台中市免費到府收送
+
+直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)
+
+#私享家洗衣店 #包包清潔 #提把清潔 #精品洗護
+
+### 2026-11-06 20:30 換季收鞋前的鞋底邊緣清潔
+
+- id: https://sixiangjialaundry.com/content-calendar/2026-11-06.json#post-2026-11-06-slot-02
+- published local time: 2026-11-06T20:30:00+08:00
+- category: 情境文
+- platforms: facebook, instagram
+- visual_route: macro-detail
+- traffic_route: object-proof
+- search_intent: (legacy-unassigned)
+- target_queries: (legacy-unassigned)
+- evidence_type: (legacy-unassigned)
+- hashtags: #私享家洗衣店 #換季收納 #鞋子清潔 #鞋子保養
+- image: https://sixiangjialaundry.com/assets/2026-11-06/slot-02.png
+- calendar: https://sixiangjialaundry.com/content-calendar/2026-11-06.json
+
+Facebook caption:
+
+換季收鞋前，鞋面看起來乾淨還不夠，鞋底邊緣和鞋內味道也要一起看。
+
+鞋子收進盒子後，殘留泥灰和濕氣會被關在裡面，下次拿出來才會發現變黃、變味或邊緣更暗。
+
+我們會看鞋底邊、鞋墊、內裡和鞋面材質，判斷清潔範圍和收納前乾燥需求。
+
+私享家洗衣店｜台中市免費到府收送
+
+拍鞋面和鞋底兩張傳 LINE，我們先看。
+
+直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)
+
+#私享家洗衣店 #換季收納 #鞋子清潔 #鞋子保養
+
+Instagram caption:
+
+換季收鞋前，鞋面看起來乾淨還不夠，鞋底邊緣和鞋內味道也要一起看。
+
+鞋子收進盒子後，殘留泥灰和濕氣會被關在裡面，下次拿出來才會發現變黃、變味或邊緣更暗。
+
+我們會看鞋底邊、鞋墊、內裡和鞋面材質，判斷清潔範圍和收納前乾燥需求。
+
+私享家洗衣店｜台中市免費到府收送
+
+拍鞋面和鞋底兩張傳 LINE，我們先看。
+
+直接點這裡問:https://sixiangjialaundry.com/go/line.html?source=post (或加 LINE:0968327653)
+
+#私享家洗衣店 #換季收納 #鞋子清潔 #鞋子保養
 

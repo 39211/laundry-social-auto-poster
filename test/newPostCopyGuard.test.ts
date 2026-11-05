@@ -1,13 +1,14 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, extname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getConfig } from "../src/config";
 import { dailySlotFromPlaybook, stampDailyContentWrite } from "../src/contentPlan";
 import type { GrowthPlaybookSlot } from "../src/growthPlaybook";
 import { publicSupportPages } from "../src/generatePublicSite";
+import { INDEX_GROWTH_CATALOG } from "../src/indexGrowthPages";
 import {
   APPROVED_FREE_PICKUP_PHRASE,
   assertNewPostCopyAllowed,
@@ -232,5 +233,104 @@ describe("精品包發霉指南不再寫包包除霉", () => {
     expect(page?.keywords).toContain("包包發霉");
     expect(page?.keywords.join("\n")).not.toContain("除霉");
     expect(page?.local_intent).toBe("台中 精品包發霉 名牌包清潔 包包發霉");
+  });
+});
+
+const VISIBLE_COPY_ROOTS = ["seo-overrides", "src"] as const;
+const VISIBLE_TEXT_EXTENSIONS = new Set([
+  ".html",
+  ".json",
+  ".js",
+  ".ts",
+  ".mjs",
+  ".cjs",
+  ".css",
+  ".txt",
+  ".md",
+  ".xml",
+  ".svg"
+]);
+const REWRITTEN_VISIBLE_COPY = [
+  ["seo-overrides/guides/leather-jacket-care.html", "真皮、合成皮、麂皮發霉時，做專業清潔補油"],
+  ["seo-overrides/guides/clothing-mold-airing.html", "不是發霉處理方法"],
+  ["seo-overrides/guides/shoe-mold-surface-check.html", "當成發霉清潔全包價"],
+  ["seo-overrides/guides/shoe-odor-source.html", "不要用除臭噴霧當發霉處理"],
+  ["seo-overrides/guides/vacuum-bag-storage-risk.html", "不能代替清潔或發霉處理"],
+  ["seo-overrides/journal/2026-09/index.html", "要先處理發霉再清潔"],
+  ["seo-overrides/scripts/sxj-r10-20261103/r6-posts.json", "要先處理發霉再清潔"]
+] as const;
+const PICKUP_SENTENCE = "免費收送、沒有最低消費";
+
+function visibleCopyFiles(root: string): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const full = join(root, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "__tests__" || entry.name === "node_modules") continue;
+      files.push(...visibleCopyFiles(full));
+      continue;
+    }
+    if (!entry.isFile()) continue;
+    if (entry.name.includes(".test.") || entry.name.includes("Guard")) continue;
+    if (!VISIBLE_TEXT_EXTENSIONS.has(extname(entry.name).toLowerCase())) continue;
+    files.push(full);
+  }
+  return files;
+}
+
+function containsChuMei(text: string): boolean {
+  return text.includes("除霉");
+}
+
+describe("可見 seo-overrides 與 src 不得再出現除霉", () => {
+  it("文字檔沒有除霉", () => {
+    const hits: string[] = [];
+    for (const relRoot of VISIBLE_COPY_ROOTS) {
+      for (const file of visibleCopyFiles(join(REPO, relRoot))) {
+        const text = readFileSync(file, "utf8");
+        if (containsChuMei(text)) hits.push(relative(REPO, file));
+      }
+    }
+    expect(hits).toEqual([]);
+  });
+
+  it("指定句子改成發霉，排除霉改成排除發霉", () => {
+    for (const [rel, phrase] of REWRITTEN_VISIBLE_COPY) {
+      const text = readFileSync(join(REPO, rel), "utf8");
+      expect(text, rel).toContain(phrase);
+      expect(containsChuMei(text), rel).toBe(false);
+      expect(text, rel).not.toContain("台中全市");
+      expect(text, rel).not.toContain("防霉");
+    }
+    const r6 = readFileSync(join(REPO, "seo-overrides/scripts/sxj-r10-20261103/r6-posts.json"), "utf8");
+    expect(r6).toContain("不能排除發霉");
+    expect(r6).toContain("台中免費收送");
+    for (const rel of [
+      "seo-overrides/guides/leather-jacket-care.html",
+      "seo-overrides/guides/clothing-mold-airing.html",
+      "seo-overrides/guides/shoe-mold-surface-check.html",
+      "seo-overrides/guides/shoe-odor-source.html",
+      "seo-overrides/guides/vacuum-bag-storage-risk.html"
+    ]) {
+      expect(readFileSync(join(REPO, rel), "utf8"), rel).toContain(PICKUP_SENTENCE);
+    }
+    const sourcePhrases: Record<string, string> = {
+      "shoe-odor-source": "不要用除臭噴霧當發霉處理",
+      "clothing-mold-airing": "不是發霉處理方法",
+      "vacuum-bag-storage-risk": "不能代替清潔或發霉處理"
+    };
+    for (const [slug, phrase] of Object.entries(sourcePhrases)) {
+      const page = INDEX_GROWTH_CATALOG.find((item) => item.slug === slug);
+      const blob = JSON.stringify(page);
+      expect(blob, slug).toContain(phrase);
+      expect(containsChuMei(blob), slug).toBe(false);
+      expect(blob, slug).not.toContain("台中全市");
+      expect(blob, slug).not.toContain("防霉");
+    }
+  });
+
+  it("台中全市仍會被新貼文閘門擋下，標準句可以過", () => {
+    expect(() => assertNewPostCopyAllowed({ date: NEW_DATE, body: `台中全市${PICKUP_SENTENCE}` })).toThrow(/台中全市/);
+    expect(() => assertNewPostCopyAllowed({ date: NEW_DATE, body: PICKUP_SENTENCE })).not.toThrow();
   });
 });

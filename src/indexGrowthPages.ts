@@ -154,7 +154,7 @@ export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLo
   },
   "shoe-odor-source": {
     content_revision: "2026-08-30#1",
-    body_hash: "a1987d4c0ca1e00db66ff6aa811dc6bcd7e4c3795705947d5bd699fe3ecf3aa4"
+    body_hash: "4c5a19d7c2ec7277640f89e5904a32ed7c60da5fddab247e73f41d79e30b28c2"
   },
   "washing-machine-shoe-risk": {
     content_revision: "2026-08-30#1",
@@ -210,11 +210,11 @@ export const PROTECTED_INDEX_GROWTH_LOCKS: Record<string, ProtectedIndexGrowthLo
   },
   "clothing-mold-airing": {
     content_revision: "2026-08-30#1",
-    body_hash: "3ef8a1e18ee76dcf0d911eb09ec054cb60d4d4b2e2a4fe5c6bbe355f03198599"
+    body_hash: "a53f17b9c31a1ab8ab3567074c2f1ae9f649696ce4126e49cc281f9d911541d0"
   },
   "vacuum-bag-storage-risk": {
     content_revision: "2026-08-30#1",
-    body_hash: "8ebf7bbbd02979da6226a754ee9748b3f50b272058b830a756e46bc875c6b1ae"
+    body_hash: "33d6a1e35c8ece23a5a454c52d8490ad0e8b9aa40f0060a21941205bd79db7b5"
   },
   "oil-vs-water-stain-choice": {
     content_revision: "2026-08-30#1",
@@ -1595,7 +1595,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "三種味道不要當成同一題",
         body:
-          "雨水味偏潮、帶布料濕氣；汗味集中在鞋墊與前掌；櫃子悶味常整雙都有、還可能混到防塵袋的塑膠味。門市會問時間線，再看鞋墊可否拆、內裡磨耗、有沒有發霉斑點。白鞋清潔頁看的是灰與黃；本頁只回答味道來源。發霉另走鞋子發霉判斷，不要用除臭噴霧當除霉。"
+          "雨水味偏潮、帶布料濕氣；汗味集中在鞋墊與前掌；櫃子悶味常整雙都有、還可能混到防塵袋的塑膠味。門市會問時間線，再看鞋墊可否拆、內裡磨耗、有沒有發霉斑點。白鞋清潔頁看的是灰與黃；本頁只回答味道來源。發霉另走鞋子發霉判斷，不要用除臭噴霧當黴斑處理。"
       },
       {
         heading: "停手條件與清潔限度",
@@ -2345,7 +2345,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         name: "從密閉空間拿出來",
         text:
-          "衣櫃、真空袋、旅行箱取出後先掛通風，不要再套塑膠。避免擾動：不要戶外抖、不要刷霉屑；近看時戴口罩與手套，這是基本防護，不是除霉方法。"
+          "衣櫃、真空袋、旅行箱取出後先掛通風，不要再套塑膠。避免擾動：不要戶外抖、不要刷霉屑；近看時戴口罩與手套，這是基本防護，不是黴斑處理方法。"
       },
       { name: "看斑點顏色", text: "表面白粉和已經留下綠黑斑，可改善程度不同。" },
       { name: "分材質", text: "棉、羊毛、皮衣內裡，耐受不同。皮衣走皮衣頁，不要當棉T洗。" },
@@ -2419,7 +2419,7 @@ const RAW_ACCEPTED_INDEX_GROWTH_PAGE_BODIES: IndexGrowthPageDefinition[] = [
       {
         heading: "送洗前對應布品收納",
         body:
-          "若已經壓出味道，拍打開當下的布品、袋子內側與洗標。對應布品收納頁。台中市可約到府收送。本頁不討論真空袋品牌，只討論乾燥這個前提；袋子本身不能代替清潔或除霉。"
+          "若已經壓出味道，拍打開當下的布品、袋子內側與洗標。對應布品收納頁。台中市可約到府收送。本頁不討論真空袋品牌，只討論乾燥這個前提；袋子本身不能代替清潔或黴斑處理。"
       }
     ],
     faqs: [

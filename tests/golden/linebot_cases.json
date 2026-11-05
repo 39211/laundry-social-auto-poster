@@ -1,0 +1,670 @@
+{
+  "format": "linebot-golden-cases/1",
+  "default_clock": "2030-01-09T14:00:00+08:00",
+  "notes": [
+    "synthetic only",
+    "2030-01-09 is a Wednesday; 2030-01-12 is Saturday; 2030-01-13 is Sunday (closed)",
+    "lookup cases use only fixture customers 0028 / 1947 and phones 0900000001 / 0900000002",
+    "addresses are fictional test addresses (測試路)"
+  ],
+  "cases": [
+    {
+      "id": "greeting-follow-morning",
+      "topic": "greeting",
+      "title": "加好友（平日早上）",
+      "clock": "2030-01-09T09:30:00+08:00",
+      "turns": [{"type": "follow"}]
+    },
+    {
+      "id": "greeting-follow-night-sticker",
+      "topic": "greeting",
+      "title": "加好友後傳貼圖（平日晚上）",
+      "clock": "2030-01-09T21:30:00+08:00",
+      "turns": [{"type": "follow"}, {"type": "sticker"}]
+    },
+    {
+      "id": "greeting-hello-text",
+      "topic": "greeting",
+      "title": "打招呼「你好」",
+      "turns": [{"type": "message", "text": "你好"}]
+    },
+    {
+      "id": "greeting-hi-english",
+      "topic": "greeting",
+      "title": "英文打招呼 hi",
+      "clock": "2030-01-12T13:00:00+08:00",
+      "turns": [{"type": "message", "text": "hi"}]
+    },
+    {
+      "id": "greeting-late-night-hello",
+      "topic": "greeting",
+      "title": "深夜打招呼",
+      "clock": "2030-01-10T02:10:00+08:00",
+      "turns": [{"type": "message", "text": "哈囉"}]
+    },
+    {
+      "id": "hours-weekday-afternoon",
+      "topic": "hours",
+      "title": "營業時間（平日下午）",
+      "clock": "2030-01-09T15:00:00+08:00",
+      "turns": [{"type": "message", "text": "你們今天開到幾點"}]
+    },
+    {
+      "id": "hours-weekday-after-close",
+      "topic": "hours",
+      "title": "平日打烊後問有沒有開",
+      "clock": "2030-01-09T20:30:00+08:00",
+      "turns": [{"type": "message", "text": "現在有開嗎"}]
+    },
+    {
+      "id": "hours-saturday-before-open",
+      "topic": "hours",
+      "title": "週六開門前問營業",
+      "clock": "2030-01-12T10:30:00+08:00",
+      "turns": [{"type": "message", "text": "今天有營業嗎"}]
+    },
+    {
+      "id": "hours-sunday-closed",
+      "topic": "hours",
+      "title": "週日公休當天問",
+      "clock": "2030-01-13T14:00:00+08:00",
+      "turns": [{"type": "message", "text": "今天開嗎"}]
+    },
+    {
+      "id": "hours-ask-sunday-weekday",
+      "topic": "hours",
+      "title": "平日問禮拜天開不開",
+      "turns": [{"type": "message", "text": "禮拜天開嗎"}]
+    },
+    {
+      "id": "hours-pickup-time-question",
+      "topic": "hours",
+      "title": "問幾點可以收件（營業時間，不進外收）",
+      "turns": [{"type": "message", "text": "幾點可以收件"}]
+    },
+    {
+      "id": "hours-late-night-tomorrow",
+      "topic": "hours",
+      "title": "深夜問明天幾點開",
+      "clock": "2030-01-10T01:30:00+08:00",
+      "turns": [{"type": "message", "text": "明天幾點開"}]
+    },
+    {
+      "id": "address-where-is-shop",
+      "topic": "address",
+      "title": "問店在哪",
+      "turns": [{"type": "message", "text": "你們店在哪"}]
+    },
+    {
+      "id": "address-single-word",
+      "topic": "address",
+      "title": "只打「地址」",
+      "turns": [{"type": "message", "text": "地址"}]
+    },
+    {
+      "id": "address-parking",
+      "topic": "address",
+      "title": "問有沒有停車",
+      "clock": "2030-01-12T15:00:00+08:00",
+      "turns": [{"type": "message", "text": "有沒有停車"}]
+    },
+    {
+      "id": "address-how-to-go-sunday",
+      "topic": "address",
+      "title": "週日問怎麼走",
+      "clock": "2030-01-13T11:00:00+08:00",
+      "turns": [{"type": "message", "text": "怎麼走"}]
+    },
+    {
+      "id": "address-location-no-flow",
+      "topic": "address",
+      "title": "沒有流程時傳位置",
+      "turns": [{"type": "location", "text": "台中市西屯區測試路1號"}]
+    },
+    {
+      "id": "pickup-full-booking-location",
+      "topic": "pickup",
+      "title": "外收完整流程（時段、傳位置、電話、品項、確認）",
+      "turns": [
+        {"type": "message", "text": "外收送預約"},
+        {"type": "message", "text": "明天下午"},
+        {"type": "location", "text": "台中市西屯區測試路1號"},
+        {"type": "message", "text": "0900000001"},
+        {"type": "message", "text": "衣服"},
+        {"type": "postback", "data": "action=pickup_confirm", "params": {}}
+      ]
+    },
+    {
+      "id": "pickup-cancel-midway",
+      "topic": "pickup",
+      "title": "外收選完時段後取消",
+      "turns": [
+        {"type": "message", "text": "外收送預約"},
+        {"type": "message", "text": "明天上午"},
+        {"type": "message", "text": "算了不用了"}
+      ]
+    },
+    {
+      "id": "pickup-typed-address",
+      "topic": "pickup",
+      "title": "外收改用打字地址",
+      "turns": [
+        {"type": "message", "text": "外收"},
+        {"type": "message", "text": "後天上午"},
+        {"type": "message", "text": "我用打字的"},
+        {"type": "message", "text": "台中市西屯區測試路2號"},
+        {"type": "message", "text": "0900000002"},
+        {"type": "message", "text": "棉被"},
+        {"type": "postback", "data": "action=pickup_confirm", "params": {}}
+      ]
+    },
+    {
+      "id": "pickup-datetimepicker-other",
+      "topic": "pickup",
+      "title": "外收用其他時間選擇器",
+      "turns": [
+        {"type": "message", "text": "外收送預約"},
+        {"type": "postback", "data": "action=pickup_when", "params": {"datetime": "2030-01-10T15:00"}},
+        {"type": "location", "text": "台中市西屯區測試路3號"},
+        {"type": "message", "text": "0900000001"},
+        {"type": "message", "text": "鞋子"}
+      ]
+    },
+    {
+      "id": "pickup-sunday-rejected",
+      "topic": "pickup",
+      "title": "外收選到週日被擋，再選平日",
+      "turns": [
+        {"type": "message", "text": "外收送預約"},
+        {"type": "postback", "data": "action=pickup_when", "params": {"datetime": "2030-01-13T11:00"}},
+        {"type": "message", "text": "明天上午"}
+      ]
+    },
+    {
+      "id": "pickup-interrupt-hours-question",
+      "topic": "pickup",
+      "title": "等地址時插問營業時間",
+      "turns": [
+        {"type": "message", "text": "外收送預約"},
+        {"type": "message", "text": "明天下午"},
+        {"type": "message", "text": "我用打字的"},
+        {"type": "message", "text": "你們幾點關門"},
+        {"type": "message", "text": "台中市西屯區測試路1號"}
+      ]
+    },
+    {
+      "id": "pickup-interrupt-price-question",
+      "topic": "pickup",
+      "title": "等位置時插問價錢",
+      "turns": [
+        {"type": "message", "text": "到府收送"},
+        {"type": "message", "text": "明天上午"},
+        {"type": "message", "text": "棉被多少錢"},
+        {"type": "location", "text": "台中市西屯區測試路4號"}
+      ]
+    },
+    {
+      "id": "pickup-saturday-late-slots",
+      "topic": "pickup",
+      "title": "週六傍晚開始外收（時段跳日）",
+      "clock": "2030-01-12T16:30:00+08:00",
+      "turns": [{"type": "message", "text": "到府收送"}]
+    },
+    {
+      "id": "pickup-fee-question",
+      "topic": "pickup",
+      "title": "問收送要不要錢",
+      "turns": [{"type": "message", "text": "收送要錢嗎"}]
+    },
+    {
+      "id": "pickup-day-postback",
+      "topic": "pickup",
+      "title": "外收用日期按鈕 postback",
+      "clock": "2030-01-09T10:30:00+08:00",
+      "turns": [
+        {"type": "message", "text": "外收送預約"},
+        {"type": "postback", "data": "action=pickup_day", "params": {}}
+      ]
+    },
+    {
+      "id": "booking-reserve-weekday",
+      "topic": "booking",
+      "title": "預約到店選平日時間",
+      "turns": [
+        {"type": "message", "text": "預約到店"},
+        {"type": "postback", "data": "action=reserve&item=", "params": {"datetime": "2030-01-10T15:00"}}
+      ]
+    },
+    {
+      "id": "booking-reserve-sunday-rejected",
+      "topic": "booking",
+      "title": "預約到店選週日被擋",
+      "turns": [
+        {"type": "message", "text": "預約到店"},
+        {"type": "postback", "data": "action=reserve&item=", "params": {"datetime": "2030-01-13T15:00"}}
+      ]
+    },
+    {
+      "id": "booking-reserve-then-cancel",
+      "topic": "booking",
+      "title": "預約到店後取消",
+      "turns": [
+        {"type": "message", "text": "預約到店"},
+        {"type": "postback", "data": "action=reserve&item=", "params": {"datetime": "2030-01-11T11:00"}},
+        {"type": "message", "text": "取消"}
+      ]
+    },
+    {
+      "id": "price-item-shirt",
+      "topic": "price",
+      "title": "問襯衫價錢",
+      "turns": [{"type": "message", "text": "襯衫多少錢"}]
+    },
+    {
+      "id": "price-items-with-quantity",
+      "topic": "price",
+      "title": "品名加數量估價",
+      "turns": [{"type": "message", "text": "3件襯衫2條長褲多少"}]
+    },
+    {
+      "id": "price-quilt-clarify",
+      "topic": "price",
+      "title": "棉被反問後選雙人",
+      "turns": [
+        {"type": "message", "text": "棉被"},
+        {"type": "message", "text": "雙人棉被"}
+      ]
+    },
+    {
+      "id": "price-shoes-clarify",
+      "topic": "price",
+      "title": "鞋子反問後選運動鞋",
+      "turns": [
+        {"type": "message", "text": "鞋子"},
+        {"type": "message", "text": "運動鞋"}
+      ]
+    },
+    {
+      "id": "price-suit-jacket",
+      "topic": "price",
+      "title": "西裝逐件報價",
+      "turns": [{"type": "message", "text": "西裝"}]
+    },
+    {
+      "id": "price-menu-then-bedding",
+      "topic": "price",
+      "title": "價目表後看寢具",
+      "turns": [
+        {"type": "message", "text": "價目表"},
+        {"type": "message", "text": "寢具"}
+      ]
+    },
+    {
+      "id": "price-coat-clarify",
+      "topic": "price",
+      "title": "外套反問後選羽絨外套",
+      "turns": [
+        {"type": "message", "text": "外套"},
+        {"type": "message", "text": "羽絨外套"}
+      ]
+    },
+    {
+      "id": "price-ask-only-then-bag",
+      "topic": "price",
+      "title": "只問多少錢，再選包包、名牌包",
+      "turns": [
+        {"type": "message", "text": "多少錢"},
+        {"type": "message", "text": "包包"},
+        {"type": "message", "text": "名牌包"}
+      ]
+    },
+    {
+      "id": "price-dry-clean-question",
+      "topic": "price",
+      "title": "問乾洗怎麼算",
+      "turns": [{"type": "message", "text": "乾洗怎麼算"}]
+    },
+    {
+      "id": "turnaround-faq-how-long",
+      "topic": "turnaround",
+      "title": "要洗多久",
+      "turns": [{"type": "message", "text": "要洗多久"}]
+    },
+    {
+      "id": "turnaround-usual-days",
+      "topic": "turnaround",
+      "title": "通常幾天拿得到",
+      "turns": [{"type": "message", "text": "通常幾天拿得到"}]
+    },
+    {
+      "id": "turnaround-quilt-days",
+      "topic": "turnaround",
+      "title": "棉被要洗幾天",
+      "clock": "2030-01-12T14:00:00+08:00",
+      "turns": [{"type": "message", "text": "棉被要洗幾天"}]
+    },
+    {
+      "id": "turnaround-rush-tomorrow",
+      "topic": "turnaround",
+      "title": "明天要穿來得及嗎（急件）",
+      "turns": [{"type": "message", "text": "明天要穿來得及嗎"}]
+    },
+    {
+      "id": "turnaround-shoes-how-long",
+      "topic": "turnaround",
+      "title": "鞋子多久可以拿",
+      "turns": [{"type": "message", "text": "鞋子多久可以拿"}]
+    },
+    {
+      "id": "photo-quote-then-image-need",
+      "topic": "photo",
+      "title": "拍照問價、傳照片、選局部髒污",
+      "turns": [
+        {"type": "message", "text": "拍照問價"},
+        {"type": "image", "text": "photos/coat-front.jpg"},
+        {"type": "message", "text": "局部髒污"}
+      ]
+    },
+    {
+      "id": "photo-image-ask-other",
+      "topic": "photo",
+      "title": "直接傳照片後想問別的",
+      "turns": [
+        {"type": "image", "text": "photos/shoe-side.jpg"},
+        {"type": "message", "text": "我想問別的"},
+        {"type": "message", "text": "多久可以拿"}
+      ]
+    },
+    {
+      "id": "photo-image-estimate-postback",
+      "topic": "photo",
+      "title": "傳兩張照片後按先估這批",
+      "turns": [
+        {"type": "image", "text": "photos/bag-front.jpg"},
+        {"type": "image", "text": "photos/bag-corner.jpg"},
+        {"type": "message", "text": "整件都髒"},
+        {"type": "postback", "data": "action=estimate_photos", "params": {}}
+      ]
+    },
+    {
+      "id": "photo-image-error",
+      "topic": "photo",
+      "title": "照片接收失敗",
+      "turns": [{"type": "image_error"}]
+    },
+    {
+      "id": "photo-stain-question-then-image",
+      "topic": "photo",
+      "title": "問領口泛黃再傳照片",
+      "turns": [
+        {"type": "message", "text": "白襯衫領口泛黃洗得掉嗎"},
+        {"type": "image", "text": "photos/shirt-collar.jpg"}
+      ]
+    },
+    {
+      "id": "photo-quote-exit-to-menu",
+      "topic": "photo",
+      "title": "拍照模式中改看價目表",
+      "turns": [
+        {"type": "message", "text": "拍照問價"},
+        {"type": "message", "text": "價目表"}
+      ]
+    },
+    {
+      "id": "photo-natural-ask-no-photo",
+      "topic": "photo",
+      "title": "照片可以估嗎，之後說沒照片",
+      "clock": "2030-01-09T21:00:00+08:00",
+      "turns": [
+        {"type": "message", "text": "照片可以估嗎"},
+        {"type": "message", "text": "現在沒照片"}
+      ]
+    },
+    {
+      "id": "lookup-phone-0028-clothes",
+      "topic": "lookup",
+      "title": "查件：手機 0900000001、衣服",
+      "turns": [
+        {"type": "message", "text": "物件查詢"},
+        {"type": "message", "text": "0900000001"},
+        {"type": "message", "text": "衣服"}
+      ]
+    },
+    {
+      "id": "lookup-phone-1947-shoes",
+      "topic": "lookup",
+      "title": "查件進度：手機 0900000002、鞋子",
+      "clock": "2030-01-12T13:30:00+08:00",
+      "turns": [
+        {"type": "message", "text": "查件進度"},
+        {"type": "message", "text": "0900000002"},
+        {"type": "message", "text": "鞋子"}
+      ]
+    },
+    {
+      "id": "lookup-natural-code-0028",
+      "topic": "lookup",
+      "title": "我的衣服好了嗎，給客號 0028",
+      "turns": [
+        {"type": "message", "text": "我的衣服好了嗎"},
+        {"type": "message", "text": "0028"}
+      ]
+    },
+    {
+      "id": "lookup-code-1947",
+      "topic": "lookup",
+      "title": "物件查詢給客號 1947",
+      "turns": [
+        {"type": "message", "text": "物件查詢"},
+        {"type": "message", "text": "1947"}
+      ]
+    },
+    {
+      "id": "lookup-bad-then-good-phone",
+      "topic": "lookup",
+      "title": "查件先給錯號碼再給正確手機",
+      "turns": [
+        {"type": "message", "text": "物件查詢"},
+        {"type": "message", "text": "123"},
+        {"type": "message", "text": "0900000001"}
+      ]
+    },
+    {
+      "id": "lookup-leave-for-hours",
+      "topic": "lookup",
+      "title": "查件中改問營業時間",
+      "turns": [
+        {"type": "message", "text": "物件查詢"},
+        {"type": "message", "text": "你們幾點關門"}
+      ]
+    },
+    {
+      "id": "handover-find-human",
+      "topic": "handover",
+      "title": "找真人",
+      "turns": [{"type": "message", "text": "找真人"}]
+    },
+    {
+      "id": "handover-and-back",
+      "topic": "handover",
+      "title": "找真人後道謝，再回到價目",
+      "turns": [
+        {"type": "message", "text": "找真人"},
+        {"type": "message", "text": "謝謝"},
+        {"type": "message", "text": "價目表"}
+      ]
+    },
+    {
+      "id": "handover-natural-request",
+      "topic": "handover",
+      "title": "口語要求真人",
+      "turns": [{"type": "message", "text": "我要跟真人講"}]
+    },
+    {
+      "id": "handover-night",
+      "topic": "handover",
+      "title": "打烊後找真人",
+      "clock": "2030-01-09T22:30:00+08:00",
+      "turns": [
+        {"type": "message", "text": "找真人"},
+        {"type": "message", "text": "好"}
+      ]
+    },
+    {
+      "id": "handover-who-am-i",
+      "topic": "handover",
+      "title": "問是不是機器人再找真人",
+      "turns": [
+        {"type": "message", "text": "你是機器人嗎"},
+        {"type": "message", "text": "找真人"}
+      ]
+    },
+    {
+      "id": "handover-faq-still-human",
+      "topic": "handover",
+      "title": "我還是想問人",
+      "clock": "2030-01-13T16:00:00+08:00",
+      "turns": [{"type": "message", "text": "我還是想問人"}]
+    },
+    {
+      "id": "complaint-past-damage",
+      "topic": "complaint",
+      "title": "上次送洗外套洗壞了",
+      "turns": [{"type": "message", "text": "上次送洗的外套洗壞了"}]
+    },
+    {
+      "id": "complaint-missing-piece",
+      "topic": "complaint",
+      "title": "取回少一件",
+      "turns": [{"type": "message", "text": "取回來少一件"}]
+    },
+    {
+      "id": "complaint-hypothetical-compensation",
+      "topic": "complaint",
+      "title": "如果洗壞了會賠嗎（假設）",
+      "turns": [{"type": "message", "text": "如果洗壞了要賠嗎"}]
+    },
+    {
+      "id": "complaint-persistent-stain",
+      "topic": "complaint",
+      "title": "你們洗完還是有黃斑",
+      "turns": [{"type": "message", "text": "你們洗完還是黃黃的"}]
+    },
+    {
+      "id": "complaint-hypothetical-shrink",
+      "topic": "complaint",
+      "title": "萬一縮水怎麼辦（假設）",
+      "turns": [{"type": "message", "text": "萬一縮水怎麼辦"}]
+    },
+    {
+      "id": "complaint-wrong-item-then-phone",
+      "topic": "complaint",
+      "title": "拿錯件後留手機",
+      "clock": "2030-01-12T17:00:00+08:00",
+      "turns": [
+        {"type": "message", "text": "拿錯了，這件不是我送洗的"},
+        {"type": "message", "text": "0900000002"}
+      ]
+    },
+    {
+      "id": "richmenu-faq-then-answer",
+      "topic": "richmenu",
+      "title": "常見問題後選會不會洗壞",
+      "turns": [
+        {"type": "message", "text": "常見問題"},
+        {"type": "message", "text": "會不會洗壞"}
+      ]
+    },
+    {
+      "id": "richmenu-pre-wash-notes",
+      "topic": "richmenu",
+      "title": "送洗前必看",
+      "turns": [{"type": "message", "text": "送洗前必看"}]
+    },
+    {
+      "id": "richmenu-line-pay",
+      "topic": "richmenu",
+      "title": "LINE Pay",
+      "turns": [{"type": "message", "text": "LINE Pay"}]
+    },
+    {
+      "id": "richmenu-wash-flow",
+      "topic": "richmenu",
+      "title": "我要洗東西 → 衣服 → 襯衫",
+      "turns": [
+        {"type": "message", "text": "我要洗東西"},
+        {"type": "message", "text": "衣服"},
+        {"type": "message", "text": "襯衫"}
+      ]
+    },
+    {
+      "id": "richmenu-works",
+      "topic": "richmenu",
+      "title": "作品案例",
+      "turns": [{"type": "message", "text": "作品案例"}]
+    },
+    {
+      "id": "richmenu-courtesy",
+      "topic": "richmenu",
+      "title": "到店禮遇",
+      "turns": [{"type": "message", "text": "到店禮遇"}]
+    },
+    {
+      "id": "unknown-gibberish",
+      "topic": "unknown",
+      "title": "亂打字",
+      "turns": [{"type": "message", "text": "asdfgh"}]
+    },
+    {
+      "id": "unknown-three-fallbacks",
+      "topic": "unknown",
+      "title": "連續三句聽不懂轉真人",
+      "clock": "2030-01-10T23:40:00+08:00",
+      "turns": [
+        {"type": "message", "text": "嗯嗯那個"},
+        {"type": "message", "text": "就是說啊"},
+        {"type": "message", "text": "隨便"}
+      ]
+    },
+    {
+      "id": "unknown-ack-hao",
+      "topic": "unknown",
+      "title": "極短回覆「好」",
+      "turns": [{"type": "message", "text": "好"}]
+    },
+    {
+      "id": "unknown-ack-ok",
+      "topic": "unknown",
+      "title": "極短回覆 ok",
+      "turns": [{"type": "message", "text": "ok"}]
+    },
+    {
+      "id": "unknown-ack-thanks-twice",
+      "topic": "unknown",
+      "title": "連續道謝（回覆不重複）",
+      "turns": [
+        {"type": "message", "text": "謝謝"},
+        {"type": "message", "text": "謝謝"}
+      ]
+    },
+    {
+      "id": "unknown-sticker-only",
+      "topic": "unknown",
+      "title": "只傳貼圖",
+      "clock": "2030-01-13T10:00:00+08:00",
+      "turns": [{"type": "sticker"}]
+    },
+    {
+      "id": "unknown-shop-product",
+      "topic": "unknown",
+      "title": "問有沒有賣洗衣精",
+      "turns": [{"type": "message", "text": "你們有賣洗衣精嗎"}]
+    },
+    {
+      "id": "unknown-unusual-item",
+      "topic": "unknown",
+      "title": "非常規品項（娃娃）",
+      "turns": [{"type": "message", "text": "娃娃可以送洗嗎"}]
+    }
+  ]
+}

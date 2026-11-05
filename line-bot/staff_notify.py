@@ -20,6 +20,8 @@ INBOX = REPO / "data" / "staff-inbox.jsonl"
 BOOK = REPO / "data" / "line-bookings.jsonl"
 TARGET = REPO / "data" / "staff-target.json"
 _IO_LOCK = threading.RLock()
+# A-WEBHOOK-2: serializes group pushes only; never taken while holding _IO_LOCK.
+_PUSH_LOCK = threading.Lock()
 
 # Handoff is deliberately append-only, just like the existing status events.
 # The customer-facing bot must stop before it can create a second answer, and
@@ -491,8 +493,9 @@ def _flush_undelivered(gid: str) -> None:
         ok, _err = _post_to_group(gid, text, key)
         attempted += 1
         if ok:
-            with _undelivered_path().open("a", encoding="utf-8") as f:
-                f.write(json.dumps({"kind": "delivery_ack", "delivery_key": key}) + "\n")
+            with _IO_LOCK:
+                with _undelivered_path().open("a", encoding="utf-8") as f:
+                    f.write(json.dumps({"kind": "delivery_ack", "delivery_key": key}) + "\n")
         else:
             break
         if attempted >= 10:
@@ -655,7 +658,9 @@ def push_group(row: dict) -> bool:
     if not gid:
         _record_undelivered(row, text, "GroupNotBound", delivery_key=key)
         return False
-    with _IO_LOCK:
+    # A-WEBHOOK-2: do not hold the file lock across network I/O; webhook threads need it
+    # for handoff checks on every customer event.
+    with _PUSH_LOCK:
         _flush_undelivered(gid)
         ok, err = _post_to_group(gid, text, key)
     if not ok:

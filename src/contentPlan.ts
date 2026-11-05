@@ -15,6 +15,7 @@ import {
   type GrowthPlaybookSlot
 } from "./growthPlaybook";
 import { getConfig } from "./config";
+import { assertDailySlotMayShip } from "./newPostCopyGuard";
 import { contentCalendarPath, postedLogPath, projectRoot, relativeAssetPath, relativeCarouselAssetPath, relativeVideoAssetPath, slot1PlanPath } from "./paths";
 import { DAILY_SCHEDULE, getZonedDateParts } from "./scheduler";
 import type {
@@ -2270,7 +2271,7 @@ export function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfi
         : "image";
   assertPlaybookCaptionQuality(slot, facebookCaption);
   assertPlaybookCaptionQuality(slot, instagramCaption);
-  return {
+  const built: DailySlot = {
     slot: slot.slot,
     time: slot.time,
     category: slot.slot === 1 ? "知識文" : "情境文",
@@ -2308,12 +2309,14 @@ export function dailySlotFromPlaybook(slot: GrowthPlaybookSlot, config: AppConfi
         : undefined,
     status: "pending"
   };
+  assertDailySlotMayShip(slot.date, built);
+  return built;
 }
 
 function dailySlotFromTemplate(date: string, schedule: (typeof DAILY_SCHEDULE)[number], config: AppConfig): DailySlot {
   const template = templateFor(date, schedule.category);
   const caption = captionFromTemplate(template);
-  return {
+  const built: DailySlot = {
     slot: schedule.slot,
     time: schedule.time,
     category: schedule.category,
@@ -2332,6 +2335,8 @@ function dailySlotFromTemplate(date: string, schedule: (typeof DAILY_SCHEDULE)[n
       : "",
     status: "pending"
   };
+  assertDailySlotMayShip(date, built);
+  return built;
 }
 
 export interface BuildDailyContentOptions {
@@ -2398,13 +2403,16 @@ export function buildDailyContent(
     // The teaser only exists when tomorrow's slot-1 topic is committed in the
     // plan and today's slot 1 actually came from that plan; a playbook fallback
     // day must not promise a topic the plan may still move.
-    if (slot.slot !== 1 || slot1Decision?.source !== "slot1-plan" || !nextPlannedTopic) return slot;
-    if (nextPlannedTopic === slot.topic) return slot;
-    return {
-      ...slot,
-      facebook_caption: withNextEpisodeTeaser(slot.facebook_caption, nextPlannedTopic),
-      instagram_caption: withNextEpisodeTeaser(slot.instagram_caption, nextPlannedTopic)
-    };
+    const finished =
+      slot.slot !== 1 || slot1Decision?.source !== "slot1-plan" || !nextPlannedTopic || nextPlannedTopic === slot.topic
+        ? slot
+        : {
+            ...slot,
+            facebook_caption: withNextEpisodeTeaser(slot.facebook_caption, nextPlannedTopic),
+            instagram_caption: withNextEpisodeTeaser(slot.instagram_caption, nextPlannedTopic)
+          };
+    assertDailySlotMayShip(date, finished);
+    return finished;
   });
 
   return stampDailyContentWrite({

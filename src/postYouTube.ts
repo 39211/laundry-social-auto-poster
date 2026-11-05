@@ -13,6 +13,7 @@ import {
   readJsonFile,
   writeJsonAtomic
 } from "./logging";
+import { assertNewPostCopyAllowed } from "./newPostCopyGuard";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
 import { utmCampaign, utmTagged } from "./utm";
@@ -161,6 +162,19 @@ export function buildShortMetadata(input: { topic: string; caption: string; date
   return { title, description };
 }
 
+function assertYouTubeShortCopy(
+  date: string,
+  slot: { topic?: string; facebook_caption?: string; instagram_caption?: string },
+  title: string,
+  description: string
+): void {
+  assertNewPostCopyAllowed({
+    date,
+    title: `${slot.topic ?? ""}\n${title}`,
+    body: `${slot.facebook_caption ?? ""}\n${slot.instagram_caption ?? ""}\n${description}`
+  });
+}
+
 // R8: custom domain is the canonical host; the github.io origin 301s but drops
 // a hop that some AI crawlers will not follow, including UTM query strings.
 const SITE = "https://sixiangjialaundry.com";
@@ -252,6 +266,7 @@ export async function uploadShort(input: {
     date: input.date,
     slot: slotNumber
   });
+  assertYouTubeShortCopy(input.date, slot, title, description);
 
   const metadata = {
     snippet: { title, description, categoryId: "22", defaultLanguage: "zh-Hant" },
@@ -381,6 +396,7 @@ export async function scheduleYouTubeShort(input: {
     date: input.date,
     slot: slotNumber
   });
+  assertYouTubeShortCopy(input.date, slot, title, description);
 
   // R2: private + publishAt; keep the synthetic-media declaration the live path sends.
   const metadata = {

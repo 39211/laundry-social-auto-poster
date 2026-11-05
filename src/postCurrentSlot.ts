@@ -36,6 +36,7 @@ import {
   isApprovedSlotDigestMap
 } from "./imageStamp";
 import { imageAssetsForSlot } from "./mediaAssets";
+import { assertDailySlotMayShip } from "./newPostCopyGuard";
 import { pauseMessage, readPause } from "./pause";
 import { projectRoot } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
@@ -279,6 +280,8 @@ async function postOneSlot(
     const paused = await readPause(root);
     if (paused) throw new NonRetryableError(pauseMessage(paused));
   }
+  // 暫停之後、進 Meta 之前。2026-11-05 起的新貼文帶禁用措辭就停；更早的日曆不擋。
+  assertDailySlotMayShip(date, slot);
   if (!config.dryRun && !preflightOnly) assertInsidePublishWindow(slot.slot, config, now);
   // Single-flight per date+slot: scheduler retries, the patrol and a manual
   // run can overlap; two publishers that both read "no success yet" would

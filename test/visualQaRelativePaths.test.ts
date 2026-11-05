@@ -6,6 +6,7 @@
 // records must be repo-relative with forward slashes; the code paths that
 // still need a real, resolvable path (ffmpeg -i, sha256File) must keep
 // getting one.
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -14,6 +15,14 @@ import { afterEach, describe, expect, it } from "vitest";
 import { toRepoRelativePath } from "../src/paths";
 import { burnCarouselCanaries, evaluateFromDisk } from "../src/visualQa";
 import { handleCarousel } from "../src/visualQaCli";
+
+// burnCarouselCanaries shells out to bare `ffmpeg` (src/visualQa.ts:
+// execFileAsync("ffmpeg", ...)), so it needs ffmpeg on PATH. Probe the same way.
+const ffmpegProbe = spawnSync("ffmpeg", ["-version"], { stdio: "ignore", windowsHide: true, timeout: 15_000 });
+const hasFfmpeg = !ffmpegProbe.error && ffmpegProbe.status === 0;
+const FFMPEG_SKIP_REASON =
+  "ffmpeg is not on PATH (spawn ffmpeg ENOENT); burnCarouselCanaries needs a real ffmpeg - install it or add it to PATH to run this test";
+if (!hasFfmpeg) console.warn(`[visualQaRelativePaths] skipping 1 test: ${FFMPEG_SKIP_REASON}`);
 
 const dirs: string[] = [];
 function tmp(prefix: string): string {
@@ -53,7 +62,7 @@ describe("burnCarouselCanaries stores a repo-relative source, not the absolute o
     "base64"
   );
 
-  it("records slides[].source as repo-relative (docs/assets/...) when the source lives under root", async () => {
+  it.skipIf(!hasFfmpeg)("records slides[].source as repo-relative (docs/assets/...) when the source lives under root", async () => {
     const root = tmp("vq-relpath-root-");
     const assetDir = join(root, "docs", "assets", "2026-09-30");
     await mkdir(assetDir, { recursive: true });

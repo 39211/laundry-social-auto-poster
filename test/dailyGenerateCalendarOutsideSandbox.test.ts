@@ -22,6 +22,7 @@ interface Scenario {
 
 let result: {
   version: number;
+  heldUnderPipelineMutex: boolean;
   commands: { name: string; text: string; pipeline: string; offset: number }[];
   preflightEnd: number;
   codexOffset: number;
@@ -43,7 +44,16 @@ beforeAll(() => {
     $tokens = $null; $errors = $null
     $ast = [System.Management.Automation.Language.Parser]::ParseFile(${quotePS(scriptPath)}, [ref]$tokens, [ref]$errors)
     if ($errors.Count) { throw "Parse errors: $($errors.Count)" }
-    $statements = @($ast.EndBlock.Statements)
+    # The generation body runs inside the pipeline-mutex try/finally
+    # (scripts/_pipeline-lock.ps1: "Callers hold the returned mutex in try/finally"),
+    # so the preflight lives in the statement block holding the unique $calendar
+    # assignment, not in the script's top-level EndBlock.
+    $calendarAnywhere = @($ast.FindAll({ param($n)
+      $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$calendar'
+    }, $true))
+    if ($calendarAnywhere.Count -ne 1) { throw 'Expected unique calendar/imagesReady assignments' }
+    $preflightBlock = $calendarAnywhere[0].Parent
+    $statements = @($preflightBlock.Statements)
     $calendarAssignment = @($statements | Where-Object {
       $_ -is [System.Management.Automation.Language.AssignmentStatementAst] -and $_.Left.Extent.Text -eq '$calendar'
     })
@@ -51,6 +61,10 @@ beforeAll(() => {
       $_ -is [System.Management.Automation.Language.AssignmentStatementAst] -and $_.Left.Extent.Text -eq '$imagesReady'
     })
     if ($calendarAssignment.Count -ne 1 -or $imagesAssignment.Count -ne 1) { throw 'Expected unique calendar/imagesReady assignments' }
+    $mutexTry = $preflightBlock.Parent
+    $heldUnderMutex = ($mutexTry -is [System.Management.Automation.Language.TryStatementAst] -and
+      [object]::ReferenceEquals($mutexTry.Body, $preflightBlock) -and $null -ne $mutexTry.Finally -and
+      $mutexTry.Finally.Extent.Text -match 'Exit-PipelineMutex')
     $preflight = @($statements | Where-Object {
       $_.Extent.StartOffset -ge $calendarAssignment[0].Extent.StartOffset -and
       $_.Extent.EndOffset -lt $imagesAssignment[0].Extent.StartOffset
@@ -120,7 +134,7 @@ beforeAll(() => {
       }
     })
     @{
-      version = $PSVersionTable.PSVersion.Major; commands = @($npmCommands)
+      version = $PSVersionTable.PSVersion.Major; commands = @($npmCommands); heldUnderPipelineMutex = [bool]$heldUnderMutex
       preflightEnd = $preflight[-1].Extent.EndOffset; codexOffset = $codexCall[0].Extent.StartOffset
       imagesOnlyOffset = $imagesOnly[0].Extent.StartOffset; imagesOnlyGuard = $imagesOnly[0].Clauses[0].Item1.Extent.Text
       imagesOnlyEndsWithExit = ($imagesOnly[0].Clauses[0].Item2.Statements[-1] -is [System.Management.Automation.Language.ExitStatementAst])
@@ -142,6 +156,7 @@ const scenario = (name: string) => result.cases.find((item) => item.name === nam
 describe("daily calendar generation outside the Codex sandbox", () => {
   it("calls both npm steps directly from PowerShell before the existing Codex fallback", () => {
     expect(result.version).toBe(5);
+    expect(result.heldUnderPipelineMutex).toBe(true);
     expect(result.commands).toHaveLength(2);
     expect(result.commands.map((command) => command.name)).toEqual(["cmd", "cmd"]);
     expect(result.commands[0]!.text).toContain("npm.cmd run generate-context -- --date $date");

@@ -8,13 +8,14 @@ import "./config";
 import { readJsonFile, writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
+import { readFeaturePostedLogRange, readFeatureReelYoutubeTitle } from "./featurePostedLog";
 
 // Nightly YouTube Analytics collector. Writes data/insights/youtube/<date>.json.
-// No consumer currently reads that directory; wiring it into the 72h loop is
-// later work. Impressions and CTR exist only in YouTube Studio; the Analytics
-// API does not expose them, so those fields are the literal
-// "not-available-via-api" rather than a number. Unmeasured and not-yet-ready
-// values stay null -- never zero-filled.
+// youtubeAnalyticsHealth.ts reads these reports; downstream review rows are
+// not currently joined into the 72-hour review. Impressions and CTR exist only
+// in YouTube Studio; the Analytics API does not expose them, so those fields
+// are the literal "not-available-via-api" rather than a number. Unmeasured
+// and not-yet-ready values stay null -- never zero-filled.
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const ANALYTICS_URL = "https://youtubeanalytics.googleapis.com/v2/reports";
@@ -649,12 +650,11 @@ function metricsFromAnalyticsPayload(payload: unknown): {
 
 async function loadWindowEntries(root: string, endDate: string): Promise<YouTubeLogEntry[]> {
   const dir = join(root, "data", "youtube-log");
-  let names: string[];
+  let names: string[] = [];
   try {
     names = await readdir(dir);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw error;
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
   const startDate = youtubeLogWindowStart(endDate);
   const entries: YouTubeLogEntry[] = [];
@@ -672,6 +672,28 @@ async function loadWindowEntries(root: string, endDate: string): Promise<YouTube
       if (!videoId || seen.has(videoId)) continue;
       seen.add(videoId);
       entries.push(row);
+    }
+  }
+
+  const featureLogs = await readFeaturePostedLogRange(root, startDate, endDate);
+  if (featureLogs.skippedFiles > 0) {
+    console.warn(`[youtube-analytics] skipped ${featureLogs.skippedFiles} invalid feature-posted-log file(s)`);
+  }
+  for (const { date, rows } of featureLogs.dates) {
+    let title: string | undefined;
+    for (const row of rows) {
+      if (row.platform !== "youtube" || (row.status !== "success" && row.status !== "scheduled")) continue;
+      const videoId = typeof row.post_id === "string" ? row.post_id.trim() : "";
+      if (!videoId || seen.has(videoId)) continue;
+      seen.add(videoId);
+      title ??= await readFeatureReelYoutubeTitle(root, date);
+      const slug = typeof row.slug === "string" ? row.slug : "";
+      entries.push({
+        date,
+        video_id: videoId,
+        title: title || slug || videoId,
+        scheduled_publish_at: typeof row.scheduled_publish_at === "string" ? row.scheduled_publish_at : undefined
+      });
     }
   }
   return entries;

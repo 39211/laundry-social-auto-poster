@@ -2,6 +2,7 @@ import { readdir } from "node:fs/promises";
 import type { AppConfig, DailySlot, PostLogEntry } from "./types";
 import { loadDailyContent, loadPostLog, writeJsonAtomic } from "./logging";
 import { instagramInsightsReportPath, postedLogDirectory, projectRoot } from "./paths";
+import { readFeaturePostedLogRange } from "./featurePostedLog";
 
 // Watch-through metrics matter more than any other number we collect: 2026
 // reach research puts Reels holding past three seconds at 5-10x the reach of
@@ -61,6 +62,8 @@ export interface InstagramPostedInsightRow {
   status: PostLogEntry["status"];
   attempts: number;
   created_at: string;
+  source?: "feature";
+  slug?: string;
   topic?: string;
   visual_route?: DailySlot["visual_route"];
   traffic_route?: DailySlot["traffic_route"];
@@ -371,15 +374,23 @@ export async function fetchPostedInstagramInsights(
   const root = projectRoot(options.root);
   const metrics = normalizeMetrics(options.metrics);
   const postedLogDates = await postedLogDatesInRange(options.since, options.until, root);
+  const featureLogs = await readFeaturePostedLogRange(root, options.since, options.until);
+  if (featureLogs.skippedFiles > 0) {
+    console.warn(`[instagram-insights] skipped ${featureLogs.skippedFiles} invalid feature-posted-log file(s)`);
+  }
   const rows: InstagramPostedInsightRow[] = [];
   let instagramPosts = 0;
   let skippedRows = 0;
+  const dailyPostIds = new Set<string>();
 
   for (const date of postedLogDates) {
     const [postLog, dailyContent] = await Promise.all([loadPostLog(date, root), loadDailyContent(date, root)]);
     const slotByNumber = new Map(dailyContent?.slots.map((slot) => [slot.slot, slot]));
 
     for (const post of postLog) {
+      if (post.platform === "instagram" && typeof post.post_id === "string" && post.post_id.trim()) {
+        dailyPostIds.add(post.post_id.trim());
+      }
       if (!isSuccessfulLiveInstagramPost(post)) {
         skippedRows += post.platform === "instagram" ? 1 : 0;
         continue;
@@ -407,6 +418,41 @@ export async function fetchPostedInstagramInsights(
         traffic_route: slot?.traffic_route,
         hashtags: slot?.instagram_caption.match(/#[\p{L}\p{N}_]+/gu) ?? [],
         caption_length: slot?.instagram_caption.length,
+        insights_status: insight.insights_status,
+        insights_ok: insight.insights_ok,
+        metrics: simplifyInstagramInsights(insight.raw),
+        error: insight.error,
+        raw: insight.raw
+      });
+    }
+  }
+
+  const seenFeaturePostIds = new Set<string>();
+  for (const { date, rows: featureRows } of featureLogs.dates) {
+    for (const post of featureRows) {
+      if (post.platform !== "instagram" || post.status !== "success") continue;
+      const postId = typeof post.post_id === "string" ? post.post_id.trim() : "";
+      if (!postId || dailyPostIds.has(postId) || seenFeaturePostIds.has(postId)) continue;
+      seenFeaturePostIds.add(postId);
+      instagramPosts += 1;
+      const insight = await fetchInstagramMediaInsights({
+        postId,
+        config: options.config,
+        metrics,
+        fetchImpl: options.fetchImpl,
+        publishedMediaType: "reels"
+      });
+
+      rows.push({
+        date,
+        slot: 0,
+        post_id: postId,
+        status: "success",
+        attempts: 1,
+        created_at: typeof post.at === "string" ? post.at : "",
+        source: "feature",
+        slug: typeof post.slug === "string" ? post.slug : "",
+        hashtags: [],
         insights_status: insight.insights_status,
         insights_ok: insight.insights_ok,
         metrics: simplifyInstagramInsights(insight.raw),

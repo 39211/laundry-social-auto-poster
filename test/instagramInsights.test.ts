@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -100,6 +100,12 @@ function platformFetch(options: { mediaProductType?: string; publishedAsReel?: b
     }
     return new Response(JSON.stringify({}), { status: 404 });
   }) as unknown as typeof fetch;
+}
+
+async function writeFeatureLog(root: string, date: string, rows: unknown[]): Promise<void> {
+  const directory = join(root, "data", "feature-posted-log");
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, `${date}.json`), `${JSON.stringify(rows, null, 2)}\n`, "utf8");
 }
 
 describe("Instagram media insights client", () => {
@@ -386,6 +392,33 @@ describe("Instagram media insights client", () => {
     expect(row.traffic_route).toBeTruthy();
     expect(row.hashtags).toContain("#私享家洗衣店");
     expect(row.caption_length).toBeGreaterThan(50);
+    expect(Object.keys(JSON.parse(JSON.stringify(row)))).toEqual([
+      "date",
+      "slot",
+      "post_id",
+      "status",
+      "attempts",
+      "created_at",
+      "topic",
+      "visual_route",
+      "traffic_route",
+      "hashtags",
+      "caption_length",
+      "insights_status",
+      "insights_ok",
+      "metrics",
+      "raw"
+    ]);
+    expect(Object.keys(JSON.parse(JSON.stringify(report)))).toEqual([
+      "since",
+      "until",
+      "generated_at",
+      "graph_api_version",
+      "metrics",
+      "source",
+      "rows"
+    ]);
+    expect(Object.keys(report.source)).toEqual(["posted_log_dates", "instagram_posts", "skipped_rows"]);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
 
     const [url, init] = vi.mocked(fetchImpl).mock.calls[0] ?? [];
@@ -396,6 +429,100 @@ describe("Instagram media insights client", () => {
         Authorization: `Bearer ${config.metaAnalyticsAccessToken}`
       }
     });
+  });
+
+  it("collects successful feature Instagram Reels when no daily posted log exists", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-ig-feature-only-"));
+    const date = "2026-11-06";
+    await writeFeatureLog(root, date, [
+      { platform: "instagram", slug: "feature-reel", status: "success", post_id: "feature-ig", at: `${date}T06:00:00Z` },
+      { platform: "instagram", slug: "failed", status: "failed", post_id: "failed-ig" },
+      { platform: "instagram", slug: "scheduled", status: "scheduled", post_id: "scheduled-ig" },
+      { platform: "youtube", slug: "wrong-platform", status: "success", post_id: "feature-yt" }
+    ]);
+    const fetchImpl = platformFetch({ publishedAsReel: true });
+
+    const report = await fetchPostedInstagramInsights({
+      since: date,
+      until: date,
+      root,
+      config,
+      metrics: ["reach", "ig_reels_avg_watch_time"],
+      fetchImpl
+    });
+
+    expect(report.source).toEqual({ posted_log_dates: [], instagram_posts: 1, skipped_rows: 0 });
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]).toMatchObject({
+      date,
+      slot: 0,
+      post_id: "feature-ig",
+      status: "success",
+      source: "feature",
+      slug: "feature-reel",
+      insights_ok: true,
+      metrics: { reach: 46, ig_reels_avg_watch_time: 3900 }
+    });
+    expect(Object.keys(report.rows[0] ?? {})).toContain("source");
+    expect(insightUrls(fetchImpl)).toHaveLength(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("prefers daily Instagram rows for duplicate IDs and skips failed, non-Instagram, corrupt, and out-of-range feature data", async () => {
+    const root = await mkdtemp(join(tmpdir(), "laundry-ig-feature-merge-"));
+    const date = "2026-11-06";
+    await writePostLog(
+      date,
+      [
+        {
+          date,
+          slot: 1,
+          platform: "instagram",
+          status: "success",
+          dry_run: false,
+          attempts: 1,
+          published_media_type: "reel",
+          post_id: "daily-shared-id",
+          created_at: `${date}T06:00:00Z`
+        }
+      ],
+      root
+    );
+    await writeFeatureLog(root, date, [
+      { platform: "instagram", slug: "duplicate", status: "success", post_id: "daily-shared-id", at: `${date}T06:01:00Z` },
+      { platform: "instagram", slug: "feature", status: "success", post_id: "feature-id", at: `${date}T06:02:00Z` },
+      { platform: "instagram", slug: "failed", status: "failed", post_id: "failed-id" },
+      { platform: "instagram", slug: "scheduled", status: "scheduled", post_id: "scheduled-id" },
+      { platform: "facebook", slug: "wrong-platform", status: "success", post_id: "feature-fb" }
+    ]);
+    const featureDirectory = join(root, "data", "feature-posted-log");
+    await writeFile(join(featureDirectory, "2026-11-05.json"), "{not-json", "utf8");
+    await writeFeatureLog(root, "2026-11-07", [
+      { platform: "instagram", slug: "outside", status: "success", post_id: "outside-ig" }
+    ]);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const fetchImpl = platformFetch({ publishedAsReel: true });
+
+    try {
+      const report = await fetchPostedInstagramInsights({
+        since: "2026-11-05",
+        until: date,
+        root,
+        config,
+        metrics: ["reach"],
+        fetchImpl
+      });
+
+      expect(report.source).toEqual({ posted_log_dates: [date], instagram_posts: 2, skipped_rows: 0 });
+      expect(report.rows.map((row) => row.post_id)).toEqual(["daily-shared-id", "feature-id"]);
+      expect(report.rows[0]).not.toHaveProperty("source");
+      expect(report.rows[0]).not.toHaveProperty("slug");
+      expect(report.rows[1]).toMatchObject({ source: "feature", slug: "feature", slot: 0 });
+      expect(warn).toHaveBeenCalledWith("[instagram-insights] skipped 1 invalid feature-posted-log file(s)");
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("uses posted-log published_media_type to split Reel vs non-Reel insight requests", async () => {

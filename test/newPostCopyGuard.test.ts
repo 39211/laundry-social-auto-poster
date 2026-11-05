@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -21,8 +21,20 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const LIVE_GUIDE_FILES = [
   "seo-overrides/guides/luxury-bag-mold.html",
+  "docs/guides/luxury-bag-mold.html",
   "seo-overrides/answers.json",
   "seo-overrides/ai-discovery.json"
+];
+
+/** 已發佈 discovery。docs 根目錄的 JSON 不在 CI cone sparse-checkout 裡，缺檔時只在 CI 略過。 */
+const PUBLISHED_DISCOVERY_FILES = [
+  "docs/answers.json",
+  "docs/geo-targets.json",
+  "docs/ai-discovery.json",
+  "docs/.well-known/ai.json",
+  "docs/services.json",
+  "docs/llms.jsonl",
+  "docs/knowledge-graph.json"
 ];
 
 function playbookSlot(date: string, topic: string, lead: string): GrowthPlaybookSlot {
@@ -194,19 +206,38 @@ describe("新貼文不能帶禁用措辭發出去", () => {
 });
 
 describe("精品包發霉指南不再寫包包除霉", () => {
-  it("seo-overrides 與產生器關鍵字改成包包發霉", () => {
+  it("seo-overrides、已發佈指南與產生器關鍵字改成包包發霉", () => {
     for (const rel of LIVE_GUIDE_FILES) {
       const text = readFileSync(join(REPO, rel), "utf8");
       expect(text, rel).not.toContain("包包除霉");
       expect(text, rel).not.toContain("名牌包清潔 除霉");
     }
-    const html = readFileSync(join(REPO, "seo-overrides/guides/luxury-bag-mold.html"), "utf8");
-    expect(html).toContain('<span class="chip">包包發霉</span>');
-    expect(html).toContain("台中 精品包發霉 名牌包清潔 包包發霉");
-    expect(html).not.toMatch(/除霉/);
+    for (const rel of [
+      "seo-overrides/guides/luxury-bag-mold.html",
+      "docs/guides/luxury-bag-mold.html"
+    ]) {
+      const html = readFileSync(join(REPO, rel), "utf8");
+      expect(html, rel).toContain('<span class="chip">包包發霉</span>');
+      expect(html, rel).not.toContain('<span class="chip">包包除霉</span>');
+      expect(html, rel).toContain("台中 精品包發霉 名牌包清潔 包包發霉");
+      expect(html, rel).not.toMatch(/除霉/);
+    }
+    for (const rel of PUBLISHED_DISCOVERY_FILES) {
+      const path = join(REPO, rel);
+      // CI 的 cone sparse-checkout 含 docs/guides 與 docs/.well-known，不含 docs 根目錄的 JSON。
+      if (!existsSync(path)) {
+        if (process.env.CI === "true" && rel !== "docs/.well-known/ai.json") continue;
+        throw new Error(`缺少已發佈 discovery：${rel}`);
+      }
+      const text = readFileSync(path, "utf8");
+      expect(text, rel).not.toContain("包包除霉");
+      expect(text, rel).not.toContain("名牌包清潔 除霉");
+    }
     const page = publicSupportPages().find((item) => item.slug === "luxury-bag-mold");
     expect(page?.keywords).toContain("包包發霉");
+    expect(page?.keywords).not.toContain("包包除霉");
     expect(page?.keywords.join("\n")).not.toContain("除霉");
     expect(page?.local_intent).toBe("台中 精品包發霉 名牌包清潔 包包發霉");
+    expect(page?.local_intent).not.toContain("除霉");
   });
 });

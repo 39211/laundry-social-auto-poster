@@ -612,9 +612,19 @@ export function checkSlotAgainstOwnerRules(slot: object, opts: OwnerRulesOptions
       [turnaround.week_count, 7]
     ];
     for (const [re, multiplier] of counters) {
+      // An item binds to the count it introduces, not to every count in the
+      // clause: the shop's own list 「一般衣物 5-7 天、鞋 7 天、…、皮件包 14 天」 put
+      // 鞋/包/大件 against 5-7 and blocked a true sentence. Item scope runs from
+      // the previous count in this clause (or clause start) to the next 、 (or
+      // clause end); context words are still judged on the whole clause.
+      let previousEnd = -1;
       for (const hit of findAll(text, re)) {
         if (inUrl(hit.start, hit.end)) continue;
         const [cs, ce] = boundsAround(text, hit.start, hit.end, turnaround.clause_delimiter);
+        const scopeStart = previousEnd > cs ? previousEnd : cs;
+        previousEnd = hit.end;
+        const enumerator = text.indexOf("、", hit.end);
+        const itemScope = text.slice(scopeStart, enumerator !== -1 && enumerator < ce ? enumerator : ce);
         if (!turnaround.context.test(text.slice(cs, ce))) continue;
         const firstRaw = hit.groups[1];
         const secondRaw = hit.groups[2];
@@ -625,8 +635,7 @@ export function checkSlotAgainstOwnerRules(slot: object, opts: OwnerRulesOptions
           const low = first[0] * multiplier;
           const high = (second ?? first)[1] * multiplier;
           const same = ([a, b]: readonly [number, number]) => a === low && b === high;
-          const clause = text.slice(cs, ce);
-          const items = turnaround.item_spans.filter((item) => item.re.test(clause));
+          const items = turnaround.item_spans.filter((item) => item.re.test(itemScope));
           allowed =
             items.length === 0
               ? turnaround.allowed_spans.some(same)

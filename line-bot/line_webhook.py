@@ -6,6 +6,7 @@ import os
 import re
 import sys
 import urllib.request
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -88,6 +89,12 @@ def log_unanswered(user_id: str, text: str):
             )
             + "\n"
         )
+
+
+def _card_id(prefix: str) -> str:
+    """A-WEBHOOK-3: staff card id. set_status()/release_handoff() key on it, so it must never
+    repeat (the old prefix+HHMMSS repeated daily and for two customers in the same second)."""
+    return prefix + datetime.now().strftime("%Y%m%d%H%M%S") + uuid.uuid4().hex[:6]
 
 
 def reply(reply_token: str, messages: list):
@@ -263,44 +270,52 @@ def line_webhook():
                 msgs = conv.handle(uid, text, "message")
                 unanswered = any("再說一次我聽一下" in (m.get("text") or "") for m in msgs)
                 meta = {}
-            if unanswered:
-                log_unanswered(uid, text)
-                if unanswered and not meta.get("staff_pushed"):
-                    ask_text = text
-                    try:
-                        prefix = conv.recent_staff_ask_prefix(uid)
-                    except Exception:
-                        prefix = ""
-                    if prefix:
-                        ask_text = prefix + (text or "")
-                    ask_row = {
-                        "id": "Q" + datetime.now().strftime("%H%M%S"),
-                        "uid": uid,
-                        "when": datetime.now().isoformat(timespec="minutes"),
-                        "name": staff_notify.guest_name(uid),
-                        "text": ask_text,
-                    }
-                    if event_id:
-                        ask_row["event_id"] = event_id
-                    staff_notify.push_inbox("ask", ask_row)
+            # A-WEBHOOK-1: reply first; staff side effects below do network I/O.
             respond(rt, msgs)
+            if unanswered:
+                try:
+                    log_unanswered(uid, text)
+                    if not meta.get("staff_pushed"):
+                        ask_text = text
+                        try:
+                            prefix = conv.recent_staff_ask_prefix(uid)
+                        except Exception:
+                            prefix = ""
+                        if prefix:
+                            ask_text = prefix + (text or "")
+                        ask_row = {
+                            "id": _card_id("Q"),
+                            "uid": uid,
+                            "when": datetime.now().isoformat(timespec="minutes"),
+                            "name": staff_notify.guest_name(uid),
+                            "text": ask_text,
+                        }
+                        if event_id:
+                            ask_row["event_id"] = event_id
+                        staff_notify.push_inbox("ask", ask_row)
+                except Exception as e:  # noqa: BLE001
+                    # A-WEBHOOK-4: a staff-side failure must not 500 the batch
+                    print("staff notify error:", type(e).__name__, file=sys.stderr)
         elif et == "message" and ev.get("message", {}).get("type") == "sticker":
             # M8: sticker 走 handle_ex，notify 時一併進看板
             handle_ex = getattr(conv, "handle_ex", None)
             if handle_ex:
                 msgs, meta = handle_ex(uid, "", "sticker")
-                if meta.get("notify_staff") and not meta.get("staff_pushed"):
-                    sticker_row = {
-                        "id": "Q" + datetime.now().strftime("%H%M%S"),
-                        "uid": uid,
-                        "when": datetime.now().isoformat(timespec="minutes"),
-                        "name": staff_notify.guest_name(uid),
-                        "text": "[客人傳了照片]",
-                    }
-                    if event_id:
-                        sticker_row["event_id"] = event_id
-                    staff_notify.push_inbox("ask", sticker_row)
                 respond(rt, msgs)
+                if meta.get("notify_staff") and not meta.get("staff_pushed"):
+                    try:
+                        sticker_row = {
+                            "id": _card_id("Q"),
+                            "uid": uid,
+                            "when": datetime.now().isoformat(timespec="minutes"),
+                            "name": staff_notify.guest_name(uid),
+                            "text": "[客人傳了貼圖]",
+                        }
+                        if event_id:
+                            sticker_row["event_id"] = event_id
+                        staff_notify.push_inbox("ask", sticker_row)
+                    except Exception as e:  # noqa: BLE001
+                        print("staff notify error:", type(e).__name__, file=sys.stderr)
             else:
                 respond(rt, conv.handle(uid, "", "sticker"))
         elif et == "message" and ev.get("message", {}).get("type") == "image":
@@ -312,10 +327,11 @@ def line_webhook():
             if handle_ex:
                 quote_flow.PHOTOS_ROOT = PHOTOS_ROOT
                 msgs, meta = handle_ex(uid, rel or "", "image" if rel else "image_error", event_id=event_id)
+                respond(rt, msgs)
                 if rel and meta.get("notify_staff") and not meta.get("staff_pushed"):
                     try:
                         photo_row = {
-                            "id": "P" + datetime.now().strftime("%H%M%S"),
+                            "id": _card_id("P"),
                             "uid": uid,
                             "when": datetime.now().isoformat(timespec="minutes"),
                             "name": staff_notify.guest_name(uid),
@@ -328,25 +344,28 @@ def line_webhook():
                             photo_row["event_id"] = event_id
                         staff_notify.push_inbox("photo", photo_row)
                     except Exception as e:  # noqa: BLE001
-                        print("photo inbox error:", e, file=sys.stderr)
+                        print("photo inbox error:", type(e).__name__, file=sys.stderr)
                 if (not rel) and meta.get("notify_staff") and not meta.get("staff_pushed"):
-                    miss_row = {
-                        "id": "Q" + datetime.now().strftime("%H%M%S"),
-                        "uid": uid,
-                        "when": datetime.now().isoformat(timespec="minutes"),
-                        "name": staff_notify.guest_name(uid),
-                        "text": "客人傳了照片（存檔失敗）",
-                        "note": "[客人傳了照片]",
-                    }
-                    if event_id:
-                        miss_row["event_id"] = event_id
-                    staff_notify.push_inbox("ask", miss_row)
-                respond(rt, msgs)
+                    try:
+                        miss_row = {
+                            "id": _card_id("Q"),
+                            "uid": uid,
+                            "when": datetime.now().isoformat(timespec="minutes"),
+                            "name": staff_notify.guest_name(uid),
+                            "text": "客人傳了照片（存檔失敗）",
+                            "note": "[客人傳了照片]",
+                        }
+                        if event_id:
+                            miss_row["event_id"] = event_id
+                        staff_notify.push_inbox("ask", miss_row)
+                    except Exception as e:  # noqa: BLE001
+                        print("staff notify error:", type(e).__name__, file=sys.stderr)
             else:
+                respond(rt, conv.handle(uid, "", "image"))
                 if rel:
                     try:
                         legacy_photo = {
-                            "id": "P" + datetime.now().strftime("%H%M%S"),
+                            "id": _card_id("P"),
                             "uid": uid,
                             "when": datetime.now().isoformat(timespec="minutes"),
                             "name": staff_notify.guest_name(uid),
@@ -358,28 +377,30 @@ def line_webhook():
                             legacy_photo["event_id"] = event_id
                         staff_notify.push_inbox("photo", legacy_photo)
                     except Exception as e:  # noqa: BLE001
-                        print("photo inbox error:", e, file=sys.stderr)
-                respond(rt, conv.handle(uid, "", "image"))
+                        print("photo inbox error:", type(e).__name__, file=sys.stderr)
         elif et == "message" and ev.get("message", {}).get("type") == "location":
             loc = ev.get("message") or {}
             addr = (loc.get("address") or loc.get("title") or "").strip()
             handle_ex = getattr(conv, "handle_ex", None)
             if handle_ex:
                 msgs, meta = handle_ex(uid, addr, "location")
-                if meta.get("notify_staff"):
-                    log_unanswered(uid, addr or "[location]")
-                if meta.get("notify_staff") and not meta.get("staff_pushed"):
-                    loc_row = {
-                        "id": "Q" + datetime.now().strftime("%H%M%S"),
-                        "uid": uid,
-                        "when": datetime.now().isoformat(timespec="minutes"),
-                        "name": staff_notify.guest_name(uid),
-                        "text": addr or "[location]",
-                    }
-                    if event_id:
-                        loc_row["event_id"] = event_id
-                    staff_notify.push_inbox("ask", loc_row)
                 respond(rt, msgs)
+                try:
+                    if meta.get("notify_staff"):
+                        log_unanswered(uid, addr or "[location]")
+                    if meta.get("notify_staff") and not meta.get("staff_pushed"):
+                        loc_row = {
+                            "id": _card_id("Q"),
+                            "uid": uid,
+                            "when": datetime.now().isoformat(timespec="minutes"),
+                            "name": staff_notify.guest_name(uid),
+                            "text": addr or "[location]",
+                        }
+                        if event_id:
+                            loc_row["event_id"] = event_id
+                        staff_notify.push_inbox("ask", loc_row)
+                except Exception as e:  # noqa: BLE001
+                    print("staff notify error:", type(e).__name__, file=sys.stderr)
             else:
                 respond(rt, conv.handle(uid, addr, "location"))
     return (jsonify({"retry": True}), 503) if failed_estimate_replies else jsonify({})

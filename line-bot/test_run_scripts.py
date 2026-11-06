@@ -129,7 +129,7 @@ def test_f6_recursive_stop_source():
         + stop
         + "\r\n"
         + "$scriptPath = Join-Path $Root 'fake_svc.py'\r\n"
-        + "$p = Start-Process -FilePath $Py -ArgumentList '-u', $scriptPath "
+        + "$p = Start-Process -FilePath $Py -ArgumentList '-u', ('\"{0}\"' -f $scriptPath) "
         + "-WorkingDirectory $Root -WindowStyle Hidden -PassThru\r\n"
         + "Set-Content -Path (Join-Path $LogDir 'fake_svc.pid') -Value ([string]$p.Id) -Encoding ASCII\r\n"
         + "$deadline = (Get-Date).AddSeconds(15)\r\n"
@@ -255,7 +255,7 @@ def test_p1_healthz_pid_match_tree():
         + match_fn
         + "\r\n"
         + "$scriptPath = Join-Path $Root 'parent.py'\r\n"
-        + "$p = Start-Process -FilePath $Py -ArgumentList '-u', $scriptPath "
+        + "$p = Start-Process -FilePath $Py -ArgumentList '-u', ('\"{0}\"' -f $scriptPath) "
         + "-WorkingDirectory $Root -WindowStyle Hidden -PassThru\r\n"
         + "$deadline = (Get-Date).AddSeconds(15)\r\n"
         + "while (-not (Test-Path (Join-Path $Root 'child.pid'))) {\r\n"

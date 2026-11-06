@@ -87,7 +87,7 @@
 |---|---|---|
 | 文章頁可索引＋固定骨架＋FAQ＋總覽＋RSS | `generatePublicSite.ts` | publicSite 32/32 |
 | 上一則／下一則（Day N 串接） | 文章頁「延伸閱讀」前兩列 | 已重產、頁面可見 |
-| 出處行「出處：門市當日看件」(刻意 <12 字,月重複檢查把長句當累贅重複) | `withSharedCaptionRules` → 排在參考價之後、LINE 之前、hashtag 前 | `test/iprinterPostingRules.test.ts` |
+| 出處行「出處：門市當日看件」;2026-11-08 起（店主 2026-11-06 決定）改為「出處：門市實務整理」,日期以前與未帶日期的呼叫維持舊字(刻意 <12 字,月重複檢查把長句當累贅重複) | `withSharedCaptionRules` → 排在參考價之後、LINE 之前、hashtag 前 | `test/iprinterPostingRules.test.ts` |
 | 下一集：<明日主題> | `buildDailyContent` slot 1；只在今日 slot 1 來自 slot1-plan 且明日主題已排定時出現 | 同上（helper 幂等） |
 | Shorts 描述第二行＝文章網址（帶 utm） | `postYouTube.ts buildShortMetadata` | 同上 |
 | 反轉句 hook ×2 | `data/hooks-bank.json` hooks[2]、[3] 原地取代（不 append） | 人工核對 |

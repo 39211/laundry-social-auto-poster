@@ -1828,7 +1828,22 @@ function withUpgradedHashtags(caption: string, topic: string, date?: string): st
 // characters on purpose: captionQuality treats longer identical blocks as
 // accidental month-wide repetition, and a long boilerplate sentence would be.
 export const PROVENANCE_LINE = "出處：門市當日看件";
+/**
+ * Owner decision 2026-11-06: the line stops claiming a same-day look at a
+ * garment and says the text is the shop's organised working practice. It is
+ * date-gated like every other caption change: a caption dated before the start
+ * date -- and a call that passes no date, which is how the frozen snapshots call
+ * it -- keeps the original wording byte-for-byte, and a caption that already
+ * carries any "出處：" line is never rewritten (withProvenanceLine is idempotent).
+ * Still under 12 characters, for the same month-wide repetition reason.
+ */
+export const PROVENANCE_LINE_REVISED = "出處：門市實務整理";
+export const PROVENANCE_LINE_REVISED_START_DATE = "2026-11-08";
 const PROVENANCE_PREFIX = "出處：";
+
+export function provenanceLineFor(date?: string): string {
+  return date !== undefined && date >= PROVENANCE_LINE_REVISED_START_DATE ? PROVENANCE_LINE_REVISED : PROVENANCE_LINE;
+}
 const NEXT_EPISODE_PREFIX = "下一集：";
 
 function insertBeforeClosingBlocks(caption: string, line: string, stopAt: (block: string) => boolean): string {
@@ -1839,11 +1854,11 @@ function insertBeforeClosingBlocks(caption: string, line: string, stopAt: (block
   return blocks.join("\n\n");
 }
 
-export function withProvenanceLine(caption: string): string {
+export function withProvenanceLine(caption: string, date?: string): string {
   if (caption.includes(PROVENANCE_PREFIX)) return caption;
   return insertBeforeClosingBlocks(
     caption,
-    PROVENANCE_LINE,
+    provenanceLineFor(date),
     (block) => block.includes(LINE_POST_PATH) || block.startsWith("#")
   );
 }
@@ -1865,7 +1880,11 @@ export function withSharedCaptionRules(
   tracking?: CaptionTracking,
   date?: string
 ): string {
-  return withUpgradedHashtags(withProvenanceLine(withPriceLine(withLineContact(caption, tracking), topic)), topic, date);
+  return withUpgradedHashtags(
+    withProvenanceLine(withPriceLine(withLineContact(caption, tracking), topic), date),
+    topic,
+    date
+  );
 }
 
 function isSlot2ActionCtaClosingBlock(block: string): boolean {

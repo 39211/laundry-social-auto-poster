@@ -18,6 +18,7 @@
 
 - `estimate.py`：純計算，價格只能來自 `data/prices.json`；衣物件、鞋雙、四件床組套、枕套與包個。四件床組不猜套內構成，不把已包含的枕套重複計費。
 - `photo_estimate.py`：Gemini只產出物件候選與數量；程式重新按價目計算。圖片縮至1280px並移除EXIF，不附客人姓名、電話、地址或聊天歷史。圖片中原本可見的內容仍會送到辨識供應商。
+- 辨識精準度（11/06）：提示詞要求鞋靴以「雙」計（一雙 quantity 是 1）、被照片邊緣截斷的物件不計、certainty 只看照片裡直接看得到的證據；程式端另有「精品名冊檢查」`apply_roster_guard`：名牌鞋／名牌包／特殊類名牌包的 brand 不在 Memory.md 名冊內（或看不清）時改為 uncertain（需店員確認，不給確定價）；名冊內品牌的鞋、包若被模型歸在一般品名，改列名牌鞋／名牌包並標 estimated。可選環境變數 `LAUNDRY_VISION_THINKING_BUDGET`（0–2048，預設 0 = 關閉）讓 gemini-2.5-flash 先想再答，會變慢。
 - 使用服務程序既有 `GEMINI_API_KEY`，不在程式或檔案保存金鑰。`LAUNDRY_PHOTO_ESTIMATE=0` 關閉自動判讀，仍可傳圖請店員看件；未設定金鑰時也是此退路。模型預設 `gemini-2.5-flash`，可用 `LAUNDRY_VISION_MODEL` 指定相容模型。
 - `quote_flow.py`：草稿、案件、版本、圖片關聯與事件去重。已受理回覆不重發；回覆失敗保留原文，再收到同一事件時重用，不重算或重通知。LINE後台需開啟webhook redelivery，才能由LINE重送失敗事件。
 - `staff_notify.py`：完整手機、需求、同案清單及待辦；未知狀態不稱作已安排或已付款。通知失敗保留在看板，補送只確認成功的項目；不把12筆中的前10筆成功當作全部成功。

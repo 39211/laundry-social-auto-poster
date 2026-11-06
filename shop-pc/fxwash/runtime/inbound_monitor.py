@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -83,6 +84,37 @@ def find_user_ids_for_customer(bindings: dict[str, dict], customer_id: str) -> l
     return matched_uids
 
 
+PHONE_MIN_DIGITS = 9
+
+
+def normalize_phone_digits(value) -> str:
+    """Digits only; a +886 / 886 prefix becomes 0 (so +886-912-345-678 is 0912345678)."""
+    digits = re.sub(r"\D", "", str(value or ""))
+    if digits.startswith("886") and len(digits) in (11, 12):
+        digits = "0" + digits[3:]
+    return digits
+
+
+def _cid_variants(customer_id) -> set[str]:
+    clean_id = str(customer_id or "").strip()
+    return {clean_id, clean_id.zfill(4), clean_id.lstrip("0") or "0"}
+
+
+def phone_only_bindings(bindings: dict[str, dict]) -> dict[str, str]:
+    """LINE sign-ups saved before the customer had a POS record: no customer_id, phone only.
+    A binding that carries a customer_id is never matched by phone."""
+    found = {}
+    for uid, info in bindings.items():
+        if not isinstance(info, dict):
+            continue
+        if str(info.get("customer_id") or "").strip():
+            continue
+        phone = normalize_phone_digits(info.get("phone"))
+        if len(phone) >= PHONE_MIN_DIGITS:
+            found[uid] = phone
+    return found
+
+
 RETRY_DELAYS = (6, 30, 120, 600, 3600)
 READY_QUERY = (
     "SELECT Did, Dno, Cid, State, Dname, Price, Datei, Loc FROM Det "
@@ -148,6 +180,8 @@ class InboundMonitor:
         self.completed_keys = {tuple(key) for key in self.state.get("completed_keys", [])}
         self.legacy_dnos = set(self.state.get("completed_dnos", []))
         self.events = {}
+        self._phone_book = None
+        self._phone_book_failed = False
         self.last_mtime = None
         self.scan_due = True
         self.query_failures = 0
@@ -269,6 +303,35 @@ class InboundMonitor:
                 self._append(updated)
                 self._send(updated)
 
+    def _phone_fallback(self, bindings: dict, customer_id: str) -> list[str]:
+        """Read-only fallback for an event whose customer has no customer_id binding: match
+        phone-only bindings against the customer's Tel/Mtel. Cus is read at most once per scan,
+        and only when a phone-only binding exists. A failed read keeps today's behaviour."""
+        candidates = phone_only_bindings(bindings)
+        if not candidates:
+            return []
+        if self._phone_book is None:
+            if self._phone_book_failed:
+                return []
+            try:
+                rows = self.run_query("SELECT Cid, Tel, Mtel FROM Cus")
+            except Exception as exc:
+                self._phone_book_failed = True
+                print(f"[PHONE_FALLBACK_UNAVAILABLE] error_type={type(exc).__name__}", file=sys.stderr)
+                return []
+            book = {}
+            for row in rows:
+                cid = str(row[0] or "").strip()
+                phones = {normalize_phone_digits(v) for v in row[1:3]}
+                phones = {ph for ph in phones if ph}
+                if cid and phones:
+                    book.setdefault(cid, set()).update(phones)
+            self._phone_book = book
+        wanted = set()
+        for variant in _cid_variants(customer_id):
+            wanted |= self._phone_book.get(variant, set())
+        return [uid for uid, phone in candidates.items() if phone in wanted]
+
     def _notify(self, kind: str, row, bindings: dict) -> bool:
         did, dno, cid, state, dname, price = (str(v or "").strip() for v in row[:6])
         key = (kind, dno, did)
@@ -279,7 +342,7 @@ class InboundMonitor:
             messages = sample["messages"]
         else:
             cust_id = cid if cid and not cid.startswith("@") else state
-            uids = find_user_ids_for_customer(bindings, cust_id) or [""]
+            uids = find_user_ids_for_customer(bindings, cust_id) or self._phone_fallback(bindings, cust_id) or [""]
             if kind == "intake":
                 pdate = str(row[7] or "").strip()
                 msg = (
@@ -349,6 +412,8 @@ class InboundMonitor:
         self.legacy_dnos.clear()
 
         bindings = load_bindings(self.data_dir)
+        self._phone_book = None
+        self._phone_book_failed = False
         blocked = False
         for row in new_intakes:
             settled = self._notify("intake", row, bindings)

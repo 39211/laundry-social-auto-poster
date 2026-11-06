@@ -5,6 +5,7 @@ import math
 import os
 import re
 import sys
+import urllib.error
 import urllib.request
 import uuid
 from datetime import datetime
@@ -97,6 +98,27 @@ def _card_id(prefix: str) -> str:
     return prefix + datetime.now().strftime("%Y%m%d%H%M%S") + uuid.uuid4().hex[:6]
 
 
+def _line_error_detail(exc) -> str:
+    """LINE's own reason for a refused call (e.g. 'Invalid reply token'), logged next to
+    'reply error'. Only LINE's wording and the offending field path are kept: never our
+    message text, the reply token or the channel token."""
+    try:
+        body = json.loads(exc.read(4096).decode("utf-8", "replace"))
+    except Exception:  # noqa: BLE001
+        return ""
+    if not isinstance(body, dict):
+        return ""
+    parts = []
+    if isinstance(body.get("message"), str):
+        parts.append(body["message"][:120])
+    details = body.get("details")
+    if isinstance(details, list):
+        for d in details[:3]:
+            if isinstance(d, dict):
+                parts.append("%s: %s" % (str(d.get("property") or "")[:60], str(d.get("message") or "")[:80]))
+    return ("[" + " | ".join(parts)[:300] + "]") if parts else ""
+
+
 def reply(reply_token: str, messages: list):
     if not messages or not reply_token:
         return True
@@ -112,7 +134,8 @@ def reply(reply_token: str, messages: list):
         urllib.request.urlopen(req, timeout=10)
         return True
     except Exception as e:  # noqa: BLE001
-        print("reply error:", e, file=sys.stderr)
+        detail = _line_error_detail(e)
+        print("reply error:", e, *([detail] if detail else []), file=sys.stderr)
         return False
 
 
@@ -191,6 +214,9 @@ def line_webhook():
         uid = src.get("userId") or "?"
         rt = ev.get("replyToken") or ""
         et = ev.get("type")
+        if (ev.get("deliveryContext") or {}).get("isRedelivery"):
+            # LINE re-sent an event it did not see us accept; its reply token may already be spent.
+            print("redelivery:", et or "?", file=sys.stderr)
         if src.get("type") == "group":
             gid = src.get("groupId") or ""
             # G1: join never binds and does not reply

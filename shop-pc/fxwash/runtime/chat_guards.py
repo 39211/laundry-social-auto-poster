@@ -34,9 +34,9 @@ COMPLAINT_LINE = (
 # Owner turnaround: 一般衣物 5–7 天、鞋 7 天、難乾的大件 10–14 天、皮件包 14 天
 _ALLOWED_DAY_SPANS = frozenset({"5-7", "7", "10-14", "14"})
 _ALLOWED_DIGITS = frozenset({"5", "7", "10", "14"})
-# Grounded store claims (owner-confirmed): 台中市免費到府收送; 一件也收 (owner answered 「是」 on 11/05).
-# 「沒有低消」 is NOT grounded until the owner reconfirms it.
-_GROUNDED_CLAIM_RE = re.compile(r"[台臺]中市?免費到府收送|一件也收")
+# Grounded store claims (owner-confirmed): 台中市免費到府收送; 一件也收 (owner 「是」, 11/05);
+# 沒有低消 (owner 「成立,繼續用」, 11/06). Anything else about minimums or fees stays ungrounded.
+_GROUNDED_CLAIM_RE = re.compile(r"[台臺]中市?免費到府收送|一件也收|沒有低消")
 
 
 def _compact(text) -> str:

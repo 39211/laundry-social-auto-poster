@@ -55,6 +55,9 @@ Describe 'A8 isolated deployment acceptance' {
         $script:PythonCalls = @()
         $script:Processes = @()
         $script:Stopped = @()
+        $script:ExitingIds = @()
+        $script:ExitingSeen = @()
+        $script:RecycledIds = @()
         $script:Listeners = @()
         $script:HealthBody = 'ok 4242'
         $script:Window = 'day'
@@ -184,9 +187,21 @@ exit 0
             param($ClassName, $Filter)
             $rows = @($script:Processes | Where-Object { $script:Stopped -notcontains $_.ProcessId })
             if ($Filter -match '^ProcessId=(\d+)$') {
-                return @($rows | Where-Object { $_.ProcessId -eq [int]$Matches[1] })
+                $id = [int]$Matches[1]
+                $one = @($rows | Where-Object { $_.ProcessId -eq $id })
+                if ($one.Count -eq 1 -and $script:ExitingIds -contains $id) {
+                    # Dying child: still listed, but its command line is already blank.
+                    $script:ExitingSeen += $id
+                    return @([pscustomobject]@{ ProcessId = $id; Name = $one[0].Name; CommandLine = $null; CreationDate = $one[0].CreationDate })
+                }
+                if ($one.Count -eq 1 -and $script:RecycledIds -contains $id) {
+                    # The PID now belongs to a different live program.
+                    return @([pscustomobject]@{ ProcessId = $id; Name = 'python.exe'; CommandLine = 'python C:\other\recycled.py'; CreationDate = 'later' })
+                }
+                return $one
             }
-            return $rows
+            # Once the dying child was looked at, it is gone for every later full listing.
+            return @($rows | Where-Object { $script:ExitingSeen -notcontains $_.ProcessId })
         }
         Mock Stop-Process { param($Id) $script:Stopped += $Id }
         Mock Get-NetTCPConnection { return $script:Listeners }
@@ -280,6 +295,33 @@ exit 0
         )
         (Invoke-AiLinebotDeployment -Source $script:Source -Target $script:Target) | Should Be 0
         ($script:Stopped -join ',') | Should Be '8111,8112'
+    }
+
+    It 'treats a scoped child that is already exiting (blank command line) as stopped, not as an identity change' {
+        $bot = Join-Path $script:Target 'line-bot'
+        $script:Processes = @(
+            [pscustomobject]@{ ProcessId = 8111; Name = 'python.exe'; CommandLine = ('python "' + $bot + '\line_webhook.py"'); CreationDate = 'same' },
+            [pscustomobject]@{ ProcessId = 8112; Name = 'python.exe'; CommandLine = ('python "' + $bot + '\staff_server.py"'); CreationDate = 'same' }
+        )
+        $script:ExitingIds = @(8112)
+        (Invoke-AiLinebotDeployment -Source $script:Source -Target $script:Target) | Should Be 0
+        ($script:Stopped -join ',') | Should Be '8111'
+        $script:ExitingSeen.Count | Should Be 1
+    }
+
+    It 'still refuses to stop a PID that now runs a different live program' {
+        $bot = Join-Path $script:Target 'line-bot'
+        $script:Processes = @(
+            [pscustomobject]@{ ProcessId = 8111; Name = 'python.exe'; CommandLine = ('python "' + $bot + '\line_webhook.py"'); CreationDate = 'same' }
+        )
+        $script:RecycledIds = @(8111)
+        (Invoke-AiLinebotDeployment -Source $script:Source -Target $script:Target) | Should Be 1
+        $script:Stopped.Count | Should Be 0
+        # The refusal must come from the identity check itself, not from a later safety net.
+        $logs = @(Get-ChildItem -LiteralPath $script:Backups -Filter 'deploy-*.log')
+        $logs.Count | Should Be 1
+        (Get-Content -LiteralPath $logs[0].FullName -Raw -Encoding UTF8) | Should Match 'Process identity changed: 8111'
+        (Get-Content -LiteralPath (Join-Path $script:Target 'line-bot/tunnel_manager.py') -Raw) | Should Be 'old-manager'
     }
 
     It 'does not copy payload when either bot port remains occupied' {

@@ -444,6 +444,10 @@ function Stop-AiBot {
         # Recheck identity immediately before stopping to avoid a recycled PID.
         $current = @(Get-CimInstance -ClassName Win32_Process -Filter ('ProcessId=' + [int]$row.ProcessId) -ErrorAction Stop)
         if ($current.Count -eq 0) { continue }
+        # A child that exits together with its parent can linger for a moment with a blank command line
+        # (11/06 11:07, pid 21356). That is "going away", not a different process; the checks after this
+        # loop still prove that ports 8791/8792 are free and no scoped process remains.
+        if ($current.Count -eq 1 -and [string]::IsNullOrEmpty([string]$current[0].CommandLine)) { continue }
         if ($current.Count -ne 1 -or $current[0].CommandLine -ne $row.CommandLine -or $current[0].CreationDate -ne $row.CreationDate) {
             throw ('Process identity changed: ' + $row.ProcessId)
         }

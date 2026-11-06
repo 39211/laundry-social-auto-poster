@@ -1083,7 +1083,7 @@
                     }
                   ]
                 },
-                "text": "週一至週五 10:00-20:00；週六 12:00-18:00；週日公休\n在至善國中對面。送洗不用預約，營業時間帶來就好。\n收送是營業時間內約，當天時段由店裡回覆",
+                "text": "週一至週五 10:00-20:00；週六 12:00-18:00；週日公休\n在至善國中對面。送洗不用預約，營業時間帶來就好。\n外收時段：週三晚上 18:00–20:00、週四週五 12:00–20:00、週六 12:00–18:00；週日、週一、週二不收件，當天時段由店裡回覆",
                 "type": "text"
               }
             ],
@@ -1493,15 +1493,15 @@
         "bookings": [
           {
             "address": "台中市西屯區測試路1號",
-            "id": "W011014003bca",
+            "id": "W011012003bca",
             "item": "衣服",
             "kind": "pickup",
             "name": "客人",
             "phone": "0900000001",
-            "slot": "明天下午（14:00–18:00）",
+            "slot": "明天中午過後（12:00–20:00）",
             "ts": "<TS#1>",
             "uid": "U675ca52453b81de5f3ac64b54cf03bca",
-            "when": "2030-01-10T14:00"
+            "when": "2030-01-10T12:00"
           }
         ],
         "changed_inputs": [],
@@ -1513,16 +1513,16 @@
         ],
         "removed_inputs": [],
         "session": {
-          "last_booking": "W011014003bca",
+          "last_booking": "W011012003bca",
           "pickup_addr": "台中市西屯區測試路1號",
           "pickup_confirm_key": "<HEX#1>",
           "pickup_form_id": "<HEX#2>",
-          "pickup_id": "W011014003bca",
+          "pickup_id": "W011012003bca",
           "pickup_item": "衣服",
           "pickup_phone": "0900000001",
           "pickup_returning": false,
-          "pickup_slot": "明天下午（14:00–18:00）",
-          "pickup_when": "2030-01-10T14:00",
+          "pickup_slot": "明天中午過後（12:00–20:00）",
+          "pickup_when": "2030-01-10T12:00",
           "ts": "<TS#1>",
           "variant_idx": {
             "pickup_addr_ack": 0,
@@ -1558,32 +1558,32 @@
                   "items": [
                     {
                       "action": {
-                        "label": "今天下午",
-                        "text": "今天下午",
+                        "label": "今天晚上",
+                        "text": "今天晚上",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天上午",
-                        "text": "明天上午",
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天下午",
-                        "text": "明天下午",
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "後天上午",
-                        "text": "後天上午",
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
                         "type": "message"
                       },
                       "type": "action"
@@ -1602,7 +1602,7 @@
                     }
                   ]
                 },
-                "text": "好啊，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。哪天方便？",
+                "text": "好啊，台中市免費到府收送，一件也收；外收是週三晚上、週四到週六中午過後，當天時段由店裡回覆。哪天方便？",
                 "type": "text"
               }
             ],
@@ -1780,7 +1780,7 @@
                             "color": "#2C2824",
                             "flex": 5,
                             "size": "sm",
-                            "text": "明天下午（14:00–18:00）",
+                            "text": "明天中午過後（12:00–20:00）",
                             "type": "text",
                             "weight": "bold",
                             "wrap": true
@@ -1935,15 +1935,15 @@
               "kind": "pickup",
               "payload": {
                 "address": "台中市西屯區測試路1號",
-                "id": "W011014003bca",
+                "id": "W011012003bca",
                 "item": "衣服",
                 "kind": "pickup",
                 "name": "客人",
                 "phone": "0900000001",
-                "slot": "明天下午（14:00–18:00）",
+                "slot": "明天中午過後（12:00–20:00）",
                 "ts": "<TS#1>",
                 "uid": "U675ca52453b81de5f3ac64b54cf03bca",
-                "when": "2030-01-10T14:00"
+                "when": "2030-01-10T12:00"
               }
             }
           ],
@@ -1956,7 +1956,7 @@
           "output": {
             "messages": [
               {
-                "text": "收送資料已送出，想約明天下午兩點到六點去收，單號 W011014003bca。請店員確認安排，有調整會用你留的電話聯絡。",
+                "text": "收送資料已送出，想約明天中午十二點到晚上八點去收，單號 W011012003bca。請店員確認安排，有調整會用你留的電話聯絡。",
                 "type": "text"
               }
             ]
@@ -2015,32 +2015,32 @@
                   "items": [
                     {
                       "action": {
-                        "label": "今天下午",
-                        "text": "今天下午",
+                        "label": "今天晚上",
+                        "text": "今天晚上",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天上午",
-                        "text": "明天上午",
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天下午",
-                        "text": "明天下午",
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "後天上午",
-                        "text": "後天上午",
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
                         "type": "message"
                       },
                       "type": "action"
@@ -2059,7 +2059,7 @@
                     }
                   ]
                 },
-                "text": "好啊，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。哪天方便？",
+                "text": "好啊，台中市免費到府收送，一件也收；外收是週三晚上、週四到週六中午過後，當天時段由店裡回覆。哪天方便？",
                 "type": "text"
               }
             ],
@@ -2074,7 +2074,7 @@
           "effects": [],
           "input": {
             "event_id": "<EVENT#2>",
-            "text": "明天上午",
+            "text": "明天下午",
             "type": "message"
           },
           "output": {
@@ -2140,15 +2140,15 @@
         "bookings": [
           {
             "address": "台中市西屯區測試路2號",
-            "id": "W01111000bcc7",
+            "id": "W01111200bcc7",
             "item": "棉被",
             "kind": "pickup",
             "name": "客人",
             "phone": "0900000002",
-            "slot": "後天上午（10:00–12:00）",
+            "slot": "後天中午過後（12:00–20:00）",
             "ts": "<TS#1>",
             "uid": "U77e73e5ab8a2bc71469775ce7feebcc7",
-            "when": "2030-01-11T10:00"
+            "when": "2030-01-11T12:00"
           }
         ],
         "changed_inputs": [],
@@ -2160,16 +2160,16 @@
         ],
         "removed_inputs": [],
         "session": {
-          "last_booking": "W01111000bcc7",
+          "last_booking": "W01111200bcc7",
           "pickup_addr": "台中市西屯區測試路2號",
           "pickup_confirm_key": "<HEX#1>",
           "pickup_form_id": "<HEX#2>",
-          "pickup_id": "W01111000bcc7",
+          "pickup_id": "W01111200bcc7",
           "pickup_item": "棉被",
           "pickup_phone": "0900000002",
           "pickup_returning": false,
-          "pickup_slot": "後天上午（10:00–12:00）",
-          "pickup_when": "2030-01-11T10:00",
+          "pickup_slot": "後天中午過後（12:00–20:00）",
+          "pickup_when": "2030-01-11T12:00",
           "ts": "<TS#1>",
           "variant_idx": {
             "pickup_addr_ack": 0,
@@ -2205,32 +2205,32 @@
                   "items": [
                     {
                       "action": {
-                        "label": "今天下午",
-                        "text": "今天下午",
+                        "label": "今天晚上",
+                        "text": "今天晚上",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天上午",
-                        "text": "明天上午",
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天下午",
-                        "text": "明天下午",
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "後天上午",
-                        "text": "後天上午",
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
                         "type": "message"
                       },
                       "type": "action"
@@ -2249,7 +2249,7 @@
                     }
                   ]
                 },
-                "text": "好啊，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。哪天方便？",
+                "text": "好啊，台中市免費到府收送，一件也收；外收是週三晚上、週四到週六中午過後，當天時段由店裡回覆。哪天方便？",
                 "type": "text"
               }
             ],
@@ -2264,7 +2264,7 @@
           "effects": [],
           "input": {
             "event_id": "<EVENT#2>",
-            "text": "後天上午",
+            "text": "後天下午",
             "type": "message"
           },
           "output": {
@@ -2448,7 +2448,7 @@
                             "color": "#2C2824",
                             "flex": 5,
                             "size": "sm",
-                            "text": "後天上午（10:00–12:00）",
+                            "text": "後天中午過後（12:00–20:00）",
                             "type": "text",
                             "weight": "bold",
                             "wrap": true
@@ -2603,15 +2603,15 @@
               "kind": "pickup",
               "payload": {
                 "address": "台中市西屯區測試路2號",
-                "id": "W01111000bcc7",
+                "id": "W01111200bcc7",
                 "item": "棉被",
                 "kind": "pickup",
                 "name": "客人",
                 "phone": "0900000002",
-                "slot": "後天上午（10:00–12:00）",
+                "slot": "後天中午過後（12:00–20:00）",
                 "ts": "<TS#1>",
                 "uid": "U77e73e5ab8a2bc71469775ce7feebcc7",
-                "when": "2030-01-11T10:00"
+                "when": "2030-01-11T12:00"
               }
             }
           ],
@@ -2624,7 +2624,7 @@
           "output": {
             "messages": [
               {
-                "text": "收送資料已送出，想約後天早上十點到十二點去收，單號 W01111000bcc7。請店員確認安排，有調整會用你留的電話聯絡。",
+                "text": "收送資料已送出，想約後天中午十二點到晚上八點去收，單號 W01111200bcc7。請店員確認安排，有調整會用你留的電話聯絡。",
                 "type": "text"
               }
             ]
@@ -2651,8 +2651,8 @@
           "pickup_item": "鞋子",
           "pickup_phone": "0900000001",
           "pickup_returning": false,
-          "pickup_slot": "明天下午（14:00–18:00）",
-          "pickup_when": "2030-01-10T14:00",
+          "pickup_slot": "明天 15:00",
+          "pickup_when": "2030-01-10T15:00",
           "ts": "<TS#1>",
           "variant_idx": {
             "pickup_addr_ack": 0,
@@ -2687,32 +2687,32 @@
                   "items": [
                     {
                       "action": {
-                        "label": "今天下午",
-                        "text": "今天下午",
+                        "label": "今天晚上",
+                        "text": "今天晚上",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天上午",
-                        "text": "明天上午",
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天下午",
-                        "text": "明天下午",
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "後天上午",
-                        "text": "後天上午",
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
                         "type": "message"
                       },
                       "type": "action"
@@ -2731,7 +2731,7 @@
                     }
                   ]
                 },
-                "text": "好啊，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。哪天方便？",
+                "text": "好啊，台中市免費到府收送，一件也收；外收是週三晚上、週四到週六中午過後，當天時段由店裡回覆。哪天方便？",
                 "type": "text"
               }
             ],
@@ -2907,7 +2907,7 @@
                             "color": "#2C2824",
                             "flex": 5,
                             "size": "sm",
-                            "text": "明天下午（14:00–18:00）",
+                            "text": "明天 15:00",
                             "type": "text",
                             "weight": "bold",
                             "wrap": true
@@ -3075,8 +3075,8 @@
           "pickup_item": "",
           "pickup_phone": "",
           "pickup_returning": false,
-          "pickup_slot": "明天上午（10:00–12:00）",
-          "pickup_when": "2030-01-10T10:00",
+          "pickup_slot": "明天中午過後（12:00–20:00）",
+          "pickup_when": "2030-01-10T12:00",
           "ts": "<TS#1>",
           "variant_idx": {
             "pickup_ask_addr": 0,
@@ -3107,32 +3107,32 @@
                   "items": [
                     {
                       "action": {
-                        "label": "今天下午",
-                        "text": "今天下午",
+                        "label": "今天晚上",
+                        "text": "今天晚上",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天上午",
-                        "text": "明天上午",
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天下午",
-                        "text": "明天下午",
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "後天上午",
-                        "text": "後天上午",
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
                         "type": "message"
                       },
                       "type": "action"
@@ -3151,7 +3151,7 @@
                     }
                   ]
                 },
-                "text": "好啊，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。哪天方便？",
+                "text": "好啊，台中市免費到府收送，一件也收；外收是週三晚上、週四到週六中午過後，當天時段由店裡回覆。哪天方便？",
                 "type": "text"
               }
             ],
@@ -3183,32 +3183,32 @@
                   "items": [
                     {
                       "action": {
-                        "label": "今天下午",
-                        "text": "今天下午",
+                        "label": "今天晚上",
+                        "text": "今天晚上",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天上午",
-                        "text": "明天上午",
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天下午",
-                        "text": "明天下午",
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "後天上午",
-                        "text": "後天上午",
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
                         "type": "message"
                       },
                       "type": "action"
@@ -3237,7 +3237,7 @@
           "effects": [],
           "input": {
             "event_id": "<EVENT#3>",
-            "text": "明天上午",
+            "text": "明天下午",
             "type": "message"
           },
           "output": {
@@ -3287,14 +3287,525 @@
         ],
         "removed_inputs": [],
         "session": {
+          "pickup_addr": "",
+          "pickup_form_id": "<HEX#1>",
+          "pickup_id": "",
+          "pickup_item": "",
+          "pickup_phone": "",
+          "pickup_returning": false,
+          "pickup_slot": "明天中午過後（12:00–20:00）",
+          "pickup_when": "2030-01-10T12:00",
+          "ts": "<TS#1>",
+          "variant_idx": {
+            "pickup_ask_addr": 0,
+            "pickup_new": 0
+          },
+          "wait": "pickup_loc"
+        }
+      },
+      "id": "pickup-no-pickup-day-rejected",
+      "setup": {
+        "effects": [],
+        "staff_notify": "real module; push_inbox and guest_name replaced by record-only stubs"
+      },
+      "title": "外收選到週二（不收件）被擋，再選週四",
+      "topic": "pickup",
+      "turns": [
+        {
+          "effects": [],
+          "input": {
+            "event_id": "<EVENT#1>",
+            "text": "外收送預約",
+            "type": "message"
+          },
+          "output": {
+            "messages": [
+              {
+                "quickReply": {
+                  "items": [
+                    {
+                      "action": {
+                        "label": "今天晚上",
+                        "text": "今天晚上",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "data": "action=pickup_when",
+                        "initial": "2030-01-09T15:00",
+                        "label": "其他時間",
+                        "max": "2030-01-30T14:00",
+                        "min": "2030-01-09T14:00",
+                        "mode": "datetime",
+                        "type": "datetimepicker"
+                      },
+                      "type": "action"
+                    }
+                  ]
+                },
+                "text": "好啊，台中市免費到府收送，一件也收；外收是週三晚上、週四到週六中午過後，當天時段由店裡回覆。哪天方便？",
+                "type": "text"
+              }
+            ],
+            "meta": {
+              "intent": "pickup",
+              "notify_staff": false,
+              "staff_pushed": false
+            }
+          }
+        },
+        {
+          "effects": [],
+          "input": {
+            "event_id": "<EVENT#2>",
+            "text": "週二下午",
+            "type": "message"
+          },
+          "output": {
+            "messages": [
+              {
+                "text": "那個時間沒有外收（週二不收件）。",
+                "type": "text"
+              },
+              {
+                "quickReply": {
+                  "items": [
+                    {
+                      "action": {
+                        "label": "今天晚上",
+                        "text": "今天晚上",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "data": "action=pickup_when",
+                        "initial": "2030-01-09T15:00",
+                        "label": "其他時間",
+                        "max": "2030-01-30T14:00",
+                        "min": "2030-01-09T14:00",
+                        "mode": "datetime",
+                        "type": "datetimepicker"
+                      },
+                      "type": "action"
+                    }
+                  ]
+                },
+                "text": "外收時段：週三晚上 18:00–20:00、週四週五 12:00–20:00、週六 12:00–18:00；週日、週一、週二不收件。選一個方便的：",
+                "type": "text"
+              }
+            ],
+            "meta": {
+              "intent": "pickup",
+              "notify_staff": false,
+              "staff_pushed": false
+            }
+          }
+        },
+        {
+          "effects": [],
+          "input": {
+            "event_id": "<EVENT#3>",
+            "text": "明天下午",
+            "type": "message"
+          },
+          "output": {
+            "messages": [
+              {
+                "quickReply": {
+                  "items": [
+                    {
+                      "action": {
+                        "label": "📍 傳送目前位置",
+                        "type": "location"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "我用打字的",
+                        "text": "我用打字的",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    }
+                  ]
+                },
+                "text": "地址在哪？按下面傳位置最快。",
+                "type": "text"
+              }
+            ],
+            "meta": {
+              "intent": "pickup",
+              "notify_staff": false,
+              "staff_pushed": false
+            }
+          }
+        }
+      ],
+      "uid": "Udece8b86193867c9e8cf8f5dc6f1f05f"
+    },
+    {
+      "clock_taipei": "2030-01-09 14:00 Wed",
+      "final_state": {
+        "bookings": [],
+        "changed_inputs": [],
+        "created_files": [
+          "data/line-sessions.json",
+          "data/line-usage/2030-01-09.json"
+        ],
+        "removed_inputs": [],
+        "session": {
+          "pickup_addr": "",
+          "pickup_form_id": "<HEX#1>",
+          "pickup_id": "",
+          "pickup_item": "",
+          "pickup_phone": "",
+          "pickup_returning": false,
+          "pickup_slot": "今天晚上（18:00–20:00）",
+          "pickup_when": "2030-01-09T18:00",
+          "ts": "<TS#1>",
+          "variant_idx": {
+            "pickup_ask_addr": 0,
+            "pickup_new": 0
+          },
+          "wait": "pickup_loc"
+        }
+      },
+      "id": "pickup-outside-window-rejected",
+      "setup": {
+        "effects": [],
+        "staff_notify": "real module; push_inbox and guest_name replaced by record-only stubs"
+      },
+      "title": "外收選到時段外（週四上午、週三下午三點）被擋",
+      "topic": "pickup",
+      "turns": [
+        {
+          "effects": [],
+          "input": {
+            "event_id": "<EVENT#1>",
+            "text": "外收送預約",
+            "type": "message"
+          },
+          "output": {
+            "messages": [
+              {
+                "quickReply": {
+                  "items": [
+                    {
+                      "action": {
+                        "label": "今天晚上",
+                        "text": "今天晚上",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "data": "action=pickup_when",
+                        "initial": "2030-01-09T15:00",
+                        "label": "其他時間",
+                        "max": "2030-01-30T14:00",
+                        "min": "2030-01-09T14:00",
+                        "mode": "datetime",
+                        "type": "datetimepicker"
+                      },
+                      "type": "action"
+                    }
+                  ]
+                },
+                "text": "好啊，台中市免費到府收送，一件也收；外收是週三晚上、週四到週六中午過後，當天時段由店裡回覆。哪天方便？",
+                "type": "text"
+              }
+            ],
+            "meta": {
+              "intent": "pickup",
+              "notify_staff": false,
+              "staff_pushed": false
+            }
+          }
+        },
+        {
+          "effects": [],
+          "input": {
+            "event_id": "<EVENT#2>",
+            "text": "明天上午",
+            "type": "message"
+          },
+          "output": {
+            "messages": [
+              {
+                "text": "那個時間沒有外收（週四外收是 12:00–20:00）。",
+                "type": "text"
+              },
+              {
+                "quickReply": {
+                  "items": [
+                    {
+                      "action": {
+                        "label": "今天晚上",
+                        "text": "今天晚上",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "data": "action=pickup_when",
+                        "initial": "2030-01-09T15:00",
+                        "label": "其他時間",
+                        "max": "2030-01-30T14:00",
+                        "min": "2030-01-09T14:00",
+                        "mode": "datetime",
+                        "type": "datetimepicker"
+                      },
+                      "type": "action"
+                    }
+                  ]
+                },
+                "text": "外收時段：週三晚上 18:00–20:00、週四週五 12:00–20:00、週六 12:00–18:00；週日、週一、週二不收件。選一個方便的：",
+                "type": "text"
+              }
+            ],
+            "meta": {
+              "intent": "pickup",
+              "notify_staff": false,
+              "staff_pushed": false
+            }
+          }
+        },
+        {
+          "effects": [],
+          "input": {
+            "data": "action=pickup_when",
+            "event_id": "<EVENT#3>",
+            "params": {
+              "datetime": "2030-01-09T15:00"
+            },
+            "type": "postback"
+          },
+          "output": {
+            "messages": [
+              {
+                "text": "那個時間沒有外收（週三外收是 18:00–20:00）。",
+                "type": "text"
+              },
+              {
+                "quickReply": {
+                  "items": [
+                    {
+                      "action": {
+                        "label": "今天晚上",
+                        "text": "今天晚上",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "data": "action=pickup_when",
+                        "initial": "2030-01-09T15:00",
+                        "label": "其他時間",
+                        "max": "2030-01-30T14:01",
+                        "min": "2030-01-09T14:01",
+                        "mode": "datetime",
+                        "type": "datetimepicker"
+                      },
+                      "type": "action"
+                    }
+                  ]
+                },
+                "text": "外收時段：週三晚上 18:00–20:00、週四週五 12:00–20:00、週六 12:00–18:00；週日、週一、週二不收件。選一個方便的：",
+                "type": "text"
+              }
+            ]
+          }
+        },
+        {
+          "effects": [],
+          "input": {
+            "event_id": "<EVENT#4>",
+            "text": "今天晚上",
+            "type": "message"
+          },
+          "output": {
+            "messages": [
+              {
+                "quickReply": {
+                  "items": [
+                    {
+                      "action": {
+                        "label": "📍 傳送目前位置",
+                        "type": "location"
+                      },
+                      "type": "action"
+                    },
+                    {
+                      "action": {
+                        "label": "我用打字的",
+                        "text": "我用打字的",
+                        "type": "message"
+                      },
+                      "type": "action"
+                    }
+                  ]
+                },
+                "text": "地址在哪？按下面傳位置最快。",
+                "type": "text"
+              }
+            ],
+            "meta": {
+              "intent": "pickup",
+              "notify_staff": false,
+              "staff_pushed": false
+            }
+          }
+        }
+      ],
+      "uid": "U12c870b361eb72f4109eb2823ce124c3"
+    },
+    {
+      "clock_taipei": "2030-01-09 14:00 Wed",
+      "final_state": {
+        "bookings": [],
+        "changed_inputs": [],
+        "created_files": [
+          "data/line-sessions.json",
+          "data/line-usage/2030-01-09.json"
+        ],
+        "removed_inputs": [],
+        "session": {
           "pickup_addr": "台中市西屯區測試路1號",
           "pickup_form_id": "<HEX#1>",
           "pickup_id": "",
           "pickup_item": "",
           "pickup_phone": "",
           "pickup_returning": false,
-          "pickup_slot": "明天下午（14:00–18:00）",
-          "pickup_when": "2030-01-10T14:00",
+          "pickup_slot": "明天中午過後（12:00–20:00）",
+          "pickup_when": "2030-01-10T12:00",
           "ts": "<TS#1>",
           "variant_idx": {
             "pickup_addr_ack": 0,
@@ -3327,32 +3838,32 @@
                   "items": [
                     {
                       "action": {
-                        "label": "今天下午",
-                        "text": "今天下午",
+                        "label": "今天晚上",
+                        "text": "今天晚上",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天上午",
-                        "text": "明天上午",
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天下午",
-                        "text": "明天下午",
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "後天上午",
-                        "text": "後天上午",
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
                         "type": "message"
                       },
                       "type": "action"
@@ -3371,7 +3882,7 @@
                     }
                   ]
                 },
-                "text": "好啊，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。哪天方便？",
+                "text": "好啊，台中市免費到府收送，一件也收；外收是週三晚上、週四到週六中午過後，當天時段由店裡回覆。哪天方便？",
                 "type": "text"
               }
             ],
@@ -3537,8 +4048,8 @@
           "pickup_item": "",
           "pickup_phone": "",
           "pickup_returning": false,
-          "pickup_slot": "明天上午（10:00–12:00）",
-          "pickup_when": "2030-01-10T10:00",
+          "pickup_slot": "明天中午過後（12:00–20:00）",
+          "pickup_when": "2030-01-10T12:00",
           "ts": "<TS#1>",
           "variant_idx": {
             "pickup_addr_ack": 0,
@@ -3571,32 +4082,32 @@
                   "items": [
                     {
                       "action": {
-                        "label": "今天下午",
-                        "text": "今天下午",
+                        "label": "今天晚上",
+                        "text": "今天晚上",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天上午",
-                        "text": "明天上午",
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天下午",
-                        "text": "明天下午",
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "後天上午",
-                        "text": "後天上午",
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
                         "type": "message"
                       },
                       "type": "action"
@@ -3615,7 +4126,7 @@
                     }
                   ]
                 },
-                "text": "好啊，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。哪天方便？",
+                "text": "好啊，台中市免費到府收送，一件也收；外收是週三晚上、週四到週六中午過後，當天時段由店裡回覆。哪天方便？",
                 "type": "text"
               }
             ],
@@ -3630,7 +4141,7 @@
           "effects": [],
           "input": {
             "event_id": "<EVENT#2>",
-            "text": "明天上午",
+            "text": "明天下午",
             "type": "message"
           },
           "output": {
@@ -3782,32 +4293,32 @@
                   "items": [
                     {
                       "action": {
-                        "label": "今天下午",
-                        "text": "今天下午",
+                        "label": "今天中午過後",
+                        "text": "今天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "後天上午",
-                        "text": "後天上午",
+                        "label": "星期三晚上",
+                        "text": "星期三晚上",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "後天下午",
-                        "text": "後天下午",
+                        "label": "星期四中午過後",
+                        "text": "星期四中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "星期二上午",
-                        "text": "星期二上午",
+                        "label": "星期五中午過後",
+                        "text": "星期五中午過後",
                         "type": "message"
                       },
                       "type": "action"
@@ -3826,7 +4337,7 @@
                     }
                   ]
                 },
-                "text": "好啊，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。哪天方便？",
+                "text": "好啊，台中市免費到府收送，一件也收；外收是週三晚上、週四到週六中午過後，當天時段由店裡回覆。哪天方便？",
                 "type": "text"
               }
             ],
@@ -3869,7 +4380,7 @@
           "output": {
             "messages": [
               {
-                "text": "台中市免費到府收送，營業時間內約，當天時段由店裡回覆。",
+                "text": "台中市免費到府收送，外收是週三晚上、週四到週六中午過後，當天時段由店裡回覆。",
                 "type": "text"
               },
               {
@@ -3924,8 +4435,8 @@
           "pickup_item": "",
           "pickup_phone": "",
           "pickup_returning": false,
-          "pickup_slot": "今天上午（10:00–12:00）",
-          "pickup_when": "2030-01-09T10:00",
+          "pickup_slot": "今天晚上（18:00–20:00）",
+          "pickup_when": "2030-01-09T18:00",
           "ts": "<TS#1>",
           "variant_idx": {
             "pickup_ask_addr": 0,
@@ -3956,32 +4467,32 @@
                   "items": [
                     {
                       "action": {
-                        "label": "今天上午",
-                        "text": "今天上午",
+                        "label": "今天晚上",
+                        "text": "今天晚上",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "今天下午",
-                        "text": "今天下午",
+                        "label": "明天中午過後",
+                        "text": "明天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天上午",
-                        "text": "明天上午",
+                        "label": "後天中午過後",
+                        "text": "後天中午過後",
                         "type": "message"
                       },
                       "type": "action"
                     },
                     {
                       "action": {
-                        "label": "明天下午",
-                        "text": "明天下午",
+                        "label": "星期六中午過後",
+                        "text": "星期六中午過後",
                         "type": "message"
                       },
                       "type": "action"
@@ -4000,7 +4511,7 @@
                     }
                   ]
                 },
-                "text": "好啊，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。哪天方便？",
+                "text": "好啊，台中市免費到府收送，一件也收；外收是週三晚上、週四到週六中午過後，當天時段由店裡回覆。哪天方便？",
                 "type": "text"
               }
             ],

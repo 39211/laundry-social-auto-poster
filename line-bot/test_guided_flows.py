@@ -987,7 +987,7 @@ def _slot_message_labels(msgs) -> list[str]:
 
 def test_p3_new_guest_time_first_zero_notify():
     setup_tmp()
-    freeze_now("2026-09-08T13:00")
+    freeze_now("2026-09-10T13:00")  # 週四：在外收時段內（店主 11/07）
     uid = "Up3newguest01"
     msgs, meta = conv.handle_ex(uid, "外收送預約")
     blob = flatten(msgs)
@@ -1052,11 +1052,14 @@ def test_p2_returning_two_taps():
 def test_p4_slot_filters():
     setup_tmp()
     cases = [
-        ("2026-09-08T09:00", ["今天上午", "今天下午", "明天上午", "明天下午"]),
-        ("2026-09-08T13:00", ["今天下午", "明天上午", "明天下午", "後天上午"]),
-        ("2026-09-08T19:00", ["明天上午", "明天下午", "後天上午", "後天下午"]),
-        ("2026-09-05T17:30", ["後天上午", "後天下午", "星期二上午", "星期二下午"]),
-        ("2026-09-06T10:00", ["明天上午", "明天下午", "後天上午", "後天下午"]),
+        # 店主 11/07 外收時段：週三晚上 18–20、週四週五 12–20、週六 12–18；週日、週一、週二不收件。
+        ("2026-09-08T09:00", ["明天晚上", "後天中午過後", "星期五中午過後", "星期六中午過後"]),
+        ("2026-09-08T13:00", ["明天晚上", "後天中午過後", "星期五中午過後", "星期六中午過後"]),
+        ("2026-09-08T19:00", ["明天晚上", "後天中午過後", "星期五中午過後", "星期六中午過後"]),
+        ("2026-09-05T16:59", ["今天中午過後", "星期三晚上", "星期四中午過後", "星期五中午過後"]),
+        ("2026-09-05T17:30", ["星期三晚上", "星期四中午過後", "星期五中午過後", "星期六中午過後"]),
+        ("2026-09-06T10:00", ["星期三晚上", "星期四中午過後", "星期五中午過後", "星期六中午過後"]),
+        ("2026-09-10T13:00", ["今天中午過後", "明天中午過後", "後天中午過後", "星期三晚上"]),
     ]
     uid = "Up4slots0001"
     for when, expect in cases:
@@ -1065,6 +1068,7 @@ def test_p4_slot_filters():
         labs = _slot_message_labels(msgs)
         assert labs == expect, (when, labs, expect)
         assert "星期日" not in "".join(labs)
+        assert "星期一" not in "".join(labs) and "星期二" not in "".join(labs), labs
         assert "今天" not in labs or when.startswith("2026-09-08T09") or when.startswith("2026-09-08T13")
         types = qr_types(msgs)
         assert types.count("datetimepicker") == 1, (when, types)
@@ -1073,14 +1077,14 @@ def test_p4_slot_filters():
         if when == "2026-09-08T19:00":
             assert "今天上午" not in labs and "今天下午" not in labs, labs
         if when == "2026-09-05T17:30":
-            assert "今天" not in "".join(labs), labs
+            assert "今天" not in "".join(labs), labs  # 週六 17:00 後不再給當天
         if when == "2026-09-06T10:00":
             assert "今天" not in "".join(labs), labs
 
 
 def test_p3_phone_validate():
     setup_tmp()
-    freeze_now("2026-09-08T13:00")
+    freeze_now("2026-09-10T13:00")  # 週四：在外收時段內（店主 11/07）
     uid = "Up3phone0001"
     conv.handle_ex(uid, "外收送預約")
     conv.handle_ex(uid, "今天下午")
@@ -1126,7 +1130,7 @@ def test_p7_query_reuse_phone():
 
 def test_p8_guest_sees_id_and_mask():
     setup_tmp()
-    freeze_now("2026-09-08T13:00")
+    freeze_now("2026-09-10T13:00")  # 週四：在外收時段內（店主 11/07）
     uid = "Up8guest0001"
     conv.handle_ex(uid, "外收送預約")
     conv.handle_ex(uid, "今天下午")
@@ -1155,7 +1159,7 @@ def _book_n():
 
 def test_q1_old_path_address_first():
     setup_tmp()
-    freeze_now("2026-09-08T13:00")
+    freeze_now("2026-09-10T13:00")  # 週四：在外收時段內（店主 11/07）
     uid = "Uq1oldpath01"
     conv.handle_ex(uid, "外收送預約")
     msgs, meta = conv.handle_ex(uid, "台中市西屯區文華路100號")
@@ -1186,12 +1190,12 @@ def test_q1_old_path_address_first():
 
 def test_q2_old_postback_not_direct_save():
     setup_tmp()
-    freeze_now("2026-09-08T13:00")
+    freeze_now("2026-09-10T13:00")  # 週四：在外收時段內（店主 11/07）
     uid = "Uq2oldpb0001"
     conv.handle_ex(uid, "外收送預約")
     conv.handle_ex(uid, "台中市西屯區文華路100號")
     n_before = _book_n()
-    msgs = conv.handle_postback(uid, "action=pickup&item=", {"datetime": "2026-09-08T15:00"})
+    msgs = conv.handle_postback(uid, "action=pickup&item=", {"datetime": "2026-09-10T15:00"})
     blob = flatten(msgs)
     assert _book_n() == n_before
     assert "電話" in blob or "確認" in blob, blob
@@ -1208,12 +1212,12 @@ def test_q2_old_postback_not_direct_save():
     assert last.get("phone") == "0912345678"
     assert last.get("kind") == "pickup"
     slot = last.get("slot") or ""
-    assert "9/8" in slot and "週二" in slot and "15:00" in slot, slot
+    assert "9/10" in slot and "週四" in slot and "15:00" in slot, slot
 
 
 def test_q1_out_of_order_phone_addr_slot():
     setup_tmp()
-    freeze_now("2026-09-08T13:00")
+    freeze_now("2026-09-10T13:00")  # 週四：在外收時段內（店主 11/07）
     uid = "Uq1shuffle01"
     conv.handle_ex(uid, "外收送預約")
     msgs, _meta = conv.handle_ex(uid, "0912345678")

@@ -1259,7 +1259,7 @@ def _natural_customer_question(uid: str, text: str, normalized: str) -> tuple[li
     if any(k in n for k in ("收送免費嗎", "到府收送多少", "收送要錢嗎", "有收送費嗎", "哪一區可以收")):
         return (
             say(
-                "台中市免費到府收送，營業時間內約，當天時段由店裡回覆。",
+                "台中市免費到府收送，" + PICKUP_WINDOWS_SHORT + "，當天時段由店裡回覆。",
                 "你先按外收送，把時間、位置和手機留給我，店員確認後會跟你說。",
                 buttons=[("開始安排", "外收送預約"), ("找真人", "找真人")],
             ),
@@ -1779,6 +1779,29 @@ def save_booking(uid: str, when: str, item: str, kind: str = "book", extra: dict
 
 _WD_SLOT = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
 
+# 店主 11/07 定案的外收時段，鍵是 weekday()；週日、週一、週二不收件。
+PICKUP_WINDOWS = {2: (18, 20), 3: (12, 20), 4: (12, 20), 5: (12, 18)}
+PICKUP_WINDOWS_TEXT = "外收時段：週三晚上 18:00–20:00、週四週五 12:00–20:00、週六 12:00–18:00；週日、週一、週二不收件"
+PICKUP_WINDOWS_SHORT = "外收是週三晚上、週四到週六中午過後"
+
+
+def _pickup_part(start_hour: int) -> str:
+    return "晚上" if start_hour >= 18 else "中午過後"
+
+
+def pickup_window_reason(dt: datetime) -> str | None:
+    """店主定的外收時段外回原因（給客人看）；時段內回 None。"""
+    wd = dt.weekday()
+    day = _WD_SLOT[wd].replace("星期", "週")
+    win = PICKUP_WINDOWS.get(wd)
+    if not win:
+        return f"{day}不收件"
+    start_h, end_h = win
+    hm = dt.hour * 60 + dt.minute
+    if start_h * 60 <= hm < end_h * 60:
+        return None
+    return f"{day}外收是 {start_h:02d}:00–{end_h:02d}:00"
+
 
 def _profile_file() -> Path:
     official_prof = REPO / "data" / "line-customer-profile.json"
@@ -1829,7 +1852,7 @@ def pickup_can_shortcut(uid: str) -> bool:
 def slot_still_open(now: datetime, start: datetime, end: datetime) -> bool:
     """P4：已過的時段不給。週六下午 17:00 之後跳下一個營業日。"""
     cutoff = end
-    if start.weekday() == 5 and start.hour == 14:
+    if start.weekday() == 5:
         cutoff = start.replace(hour=17, minute=0, second=0, microsecond=0)
     return now < cutoff
 
@@ -1845,14 +1868,12 @@ def _day_word(now: datetime, day: datetime) -> str:
     return _WD_SLOT[day.weekday()]
 
 
-def _slot_bounds(day: datetime, which: str):
-    wd = day.weekday()
-    if wd == 6:
+def _slot_bounds(day: datetime):
+    """那天的外收時段（店主 11/07）；不收件的日子回 None。"""
+    win = PICKUP_WINDOWS.get(day.weekday())
+    if not win:
         return None
-    if which == "am":
-        start_h, end_h = (12, 14) if wd == 5 else (10, 12)
-    else:
-        start_h, end_h = 14, 18
+    start_h, end_h = win
     start = day.replace(hour=start_h, minute=0, second=0, microsecond=0)
     end = day.replace(hour=end_h, minute=0, second=0, microsecond=0)
     return start, end
@@ -1863,17 +1884,11 @@ def iter_pickup_slots(now: datetime | None = None, limit: int = 4) -> list[dict]
     out: list[dict] = []
     day = now.replace(hour=0, minute=0, second=0, microsecond=0)
     for _ in range(16):
-        if day.weekday() != 6:
-            for which in ("am", "pm"):
-                bounds = _slot_bounds(day, which)
-                if not bounds:
-                    continue
-                start, end = bounds
-                if not slot_still_open(now, start, end):
-                    continue
-                word = _day_word(now, day)
-                half = "上午" if which == "am" else "下午"
-                label = word + half
+        bounds = _slot_bounds(day)
+        if bounds:
+            start, end = bounds
+            if slot_still_open(now, start, end):
+                label = _day_word(now, day) + _pickup_part(start.hour)
                 span = f"{start.strftime('%H:%M')}–{end.strftime('%H:%M')}"
                 out.append(
                     {
@@ -1891,31 +1906,9 @@ def iter_pickup_slots(now: datetime | None = None, limit: int = 4) -> list[dict]
 
 
 def _slot_meta_for_dt(dt: datetime) -> tuple[str, str]:
-    """回 (when 存檔用起點, 人看的 slot 字)。落在固定區間就對齊區間，否則用實際時間。"""
+    """回 (when 存檔用起點, 人看的 slot 字)。外收時段一段好幾小時，客人自己挑的時間照原樣留給店員。"""
     now = now_tw()
     day = dt.replace(hour=0, minute=0, second=0, microsecond=0)
-    wd = dt.weekday()
-    hm = dt.hour * 60 + dt.minute
-    which = None
-    if wd == 5:
-        if 12 * 60 <= hm < 14 * 60:
-            which = "am"
-        elif 14 * 60 <= hm < 18 * 60:
-            which = "pm"
-    elif wd != 6:
-        if 10 * 60 <= hm < 12 * 60:
-            which = "am"
-        elif 14 * 60 <= hm < 18 * 60:
-            which = "pm"
-    if which:
-        bounds = _slot_bounds(day, which)
-        if bounds:
-            start, end = bounds
-            word = _day_word(now, day)
-            half = "上午" if which == "am" else "下午"
-            label = word + half
-            span = f"{start.strftime('%H:%M')}–{end.strftime('%H:%M')}"
-            return dt_fmt(start), f"{label}（{span}）"
     word = _day_word(now, day)
     stamp = dt.strftime("%H:%M")
     return dt_fmt(dt), f"{word} {stamp}"
@@ -1990,8 +1983,8 @@ def start_pickup(uid: str, force_new: bool = False) -> list[dict]:
             uid,
             "pickup_new",
             (
-                "好啊，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。哪天方便？",
-                "可以，台中市免費到府收送，一件也收；營業時間內約，當天時段由店裡回覆。什麼時候方便？",
+                "好啊，台中市免費到府收送，一件也收；" + PICKUP_WINDOWS_SHORT + "，當天時段由店裡回覆。哪天方便？",
+                "可以，台中市免費到府收送，一件也收；" + PICKUP_WINDOWS_SHORT + "，當天時段由店裡回覆。什麼時候方便？",
             ),
         ),
         actions=_pickup_when_actions(uid),
@@ -2094,6 +2087,36 @@ def pickup_confirm_flex(item: str, when: str, address: str, phone: str = "", slo
     }
 
 
+_PICKUP_PART_HOURS = {"上午": (9, 12), "早上": (9, 12), "中午": (11, 14), "下午": (12, 18), "傍晚": (17, 19), "晚上": (18, 22)}
+_PICKUP_DAY_PART_RE = re.compile(
+    r"^(今天|明天|後天|(?:星期|禮拜|週|周)[一二三四五六日天])(上午|早上|中午|下午|傍晚|晚上)(?:可以嗎|方便嗎|可以|好了|好)?$"
+)
+
+
+def _pickup_day_part(raw: str):
+    """「明天下午」「週四晚上」這種只講哪天＋哪段的回答 → (那天的 date, 那段的小時範圍)；其他說法回 None。"""
+    m = _PICKUP_DAY_PART_RE.match((raw or "").strip())
+    if not m:
+        return None
+    now = now_tw()
+    word = m.group(1)
+    offsets = {"今天": 0, "明天": 1, "後天": 2}
+    if word in offsets:
+        day = (now + timedelta(days=offsets[word])).date()
+    else:
+        day = (now + timedelta(days=(_WD[word[-1]] - now.weekday()) % 7)).date()
+    return day, _PICKUP_PART_HOURS[m.group(2)]
+
+
+def _pickup_part_miss(raw: str) -> str | None:
+    """講了哪天＋哪段、但不在外收時段：回給客人看的原因。不是這種說法回 None。"""
+    target = _pickup_day_part(raw)
+    if not target:
+        return None
+    day, (lo, _hi) = target
+    return pickup_window_reason(datetime(day.year, day.month, day.day, lo)) or "那段已經過了"
+
+
 def _match_pickup_slot(n: str) -> dict | None:
     raw = (n or "").strip()
     for opt in iter_pickup_slots(limit=8):
@@ -2104,6 +2127,12 @@ def _match_pickup_slot(n: str) -> dict | None:
         day = (now_tw() + timedelta(days=day_off[raw])).date()
         for opt in iter_pickup_slots(limit=12):
             if opt["start"].date() == day:
+                return opt
+    target = _pickup_day_part(raw)
+    if target:
+        day, (lo, hi) = target
+        for opt in iter_pickup_slots(limit=12):
+            if opt["start"].date() == day and opt["start"].hour < hi and opt["end"].hour > lo:
                 return opt
     return None
 
@@ -2156,7 +2185,7 @@ _HOUR_SPEECH = {
     23: "十一",
 }
 _SLOT_SPAN_RE = re.compile(
-    r"^(?P<pre>.*?)(?P<half>上午|下午)[（(](?P<h1>\d{1,2}):(?P<m1>\d{2})[–\-](?P<h2>\d{1,2}):(?P<m2>\d{2})[）)]$"
+    r"^(?P<pre>.*?)(?P<half>上午|下午|晚上|中午過後)[（(](?P<h1>\d{1,2}):(?P<m1>\d{2})[–\-](?P<h2>\d{1,2}):(?P<m2>\d{2})[）)]$"
 )
 _SLOT_PICK_RE = re.compile(
     r"^(?P<date>\d{1,2}/\d{1,2})[（(](?P<wd>週.)[）)]\s*(?P<h>\d{1,2}):(?P<m>\d{2}) 前後$"
@@ -2190,6 +2219,11 @@ def slot_speech(slot: str) -> str:
         h2, m2 = int(m.group("h2")), int(m.group("m2"))
         half = m.group("half")
         pre = m.group("pre")
+        if half == "中午過後":
+            tail = "晚上" if h2 >= 19 else "傍晚"
+            return f"{pre}中午{_clock_speech(h1, m1)}到{tail}{_clock_speech(h2, m2)}"
+        if half == "晚上":
+            return f"{pre}晚上{_clock_speech(h1, m1)}到{_clock_speech(h2, m2)}"
         if h1 == 12 and h2 == 14:
             tod = "中午"
         elif half == "上午":
@@ -2309,9 +2343,7 @@ def _ask_pickup_phone(uid: str) -> list[dict]:
 
 
 def _apply_pickup_when(uid: str, dt: datetime, slot: str = "") -> list[dict]:
-    if slot:
-        when_s, slot_s = dt_fmt(dt), slot
-    else:
+    if not slot:
         reason = booking_guard(dt)
         if reason:
             return say(
@@ -2319,6 +2351,16 @@ def _apply_pickup_when(uid: str, dt: datetime, slot: str = "") -> list[dict]:
                 "再選一個方便的時間。",
                 actions=_pickup_when_actions(uid),
             )
+    window = pickup_window_reason(dt)
+    if window:
+        return say(
+            f"那個時間沒有外收（{window}）。",
+            PICKUP_WINDOWS_TEXT + "。選一個方便的：",
+            actions=_pickup_when_actions(uid),
+        )
+    if slot:
+        when_s, slot_s = dt_fmt(dt), slot
+    else:
         when_s, slot_s = _slot_meta_for_dt(dt)
     set_sess(uid, pickup_when=when_s, pickup_slot=slot_s)
     return _pickup_next_missing(uid)
@@ -2589,7 +2631,7 @@ def _addr_divert_intent(t: str, n: str) -> str | None:
 
 def _hours_with_pickup_note(n: str) -> list[dict]:
     msgs = hours_reply(n)
-    extra = "收送是營業時間內約，當天時段由店裡回覆"
+    extra = PICKUP_WINDOWS_TEXT + "，當天時段由店裡回覆"
     if msgs and msgs[-1].get("type") == "text":
         prev = msgs[-1].get("text") or ""
         msgs[-1]["text"] = (prev + "\n" + extra) if prev else extra
@@ -3285,8 +3327,8 @@ def handle_postback(uid: str, data: str, params: dict, event_id: str = "") -> li
             if opt["start"].date() == day:
                 return _apply_pickup_when(uid, opt["start"], opt["slot"])
         return say(
-            "那個時間我們沒開。",
-            "再選一個方便的時間。",
+            "那天沒有外收。",
+            PICKUP_WINDOWS_TEXT + "。選一個方便的：",
             actions=_pickup_when_actions(uid),
         )
     if "action=pickup_when" in raw:
@@ -3761,6 +3803,13 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
         opt = _match_pickup_slot(n)
         if opt:
             return _pack(_apply_pickup_when(uid, opt["start"], opt["slot"]), "pickup", False)
+        miss = _pickup_part_miss(n)
+        if miss:
+            return _pack(
+                say(f"那個時間沒有外收（{miss}）。", PICKUP_WINDOWS_TEXT + "。選一個方便的：", actions=_pickup_when_actions(uid)),
+                "pickup",
+                False,
+            )
         spoken_dt = journey_ux.spoken_datetime(sys.modules[__name__], n)
         if spoken_dt is not None:
             slot = _pickup_slot_spoken(spoken_dt) if not booking_guard(spoken_dt) else ''

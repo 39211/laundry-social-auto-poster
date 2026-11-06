@@ -140,7 +140,7 @@
       "title": "外收選完時段後取消",
       "turns": [
         {"type": "message", "text": "外收送預約"},
-        {"type": "message", "text": "明天上午"},
+        {"type": "message", "text": "明天下午"},
         {"type": "message", "text": "算了不用了"}
       ]
     },
@@ -150,7 +150,7 @@
       "title": "外收改用打字地址",
       "turns": [
         {"type": "message", "text": "外收"},
-        {"type": "message", "text": "後天上午"},
+        {"type": "message", "text": "後天下午"},
         {"type": "message", "text": "我用打字的"},
         {"type": "message", "text": "台中市西屯區測試路2號"},
         {"type": "message", "text": "0900000002"},
@@ -177,7 +177,28 @@
       "turns": [
         {"type": "message", "text": "外收送預約"},
         {"type": "postback", "data": "action=pickup_when", "params": {"datetime": "2030-01-13T11:00"}},
-        {"type": "message", "text": "明天上午"}
+        {"type": "message", "text": "明天下午"}
+      ]
+    },
+    {
+      "id": "pickup-no-pickup-day-rejected",
+      "topic": "pickup",
+      "title": "外收選到週二（不收件）被擋，再選週四",
+      "turns": [
+        {"type": "message", "text": "外收送預約"},
+        {"type": "message", "text": "週二下午"},
+        {"type": "message", "text": "明天下午"}
+      ]
+    },
+    {
+      "id": "pickup-outside-window-rejected",
+      "topic": "pickup",
+      "title": "外收選到時段外（週四上午、週三下午三點）被擋",
+      "turns": [
+        {"type": "message", "text": "外收送預約"},
+        {"type": "message", "text": "明天上午"},
+        {"type": "postback", "data": "action=pickup_when", "params": {"datetime": "2030-01-09T15:00"}},
+        {"type": "message", "text": "今天晚上"}
       ]
     },
     {
@@ -198,7 +219,7 @@
       "title": "等位置時插問價錢",
       "turns": [
         {"type": "message", "text": "到府收送"},
-        {"type": "message", "text": "明天上午"},
+        {"type": "message", "text": "明天下午"},
         {"type": "message", "text": "棉被多少錢"},
         {"type": "location", "text": "台中市西屯區測試路4號"}
       ]

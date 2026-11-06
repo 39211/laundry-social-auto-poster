@@ -139,7 +139,8 @@ class B1FactsTest(unittest.TestCase):
 
     def test_pickup_time(self) -> None:
         blob = self.ask("收送時間")
-        self.assertIn("營業時間", blob, blob)
+        self.assertIn("週三晚上", blob, blob)  # 店主 11/07 外收時段
+        self.assertIn("中午過後", blob, blob)
 
     # ---- B1-4：包、皮件一律 14 天 ----
     def _with_labels(self, **labels) -> None:

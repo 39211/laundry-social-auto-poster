@@ -38,7 +38,7 @@ class JourneyTests(t.FlowTests):
         return result
 
     def prepare_pickup(self):
-        for s in ['外收送預約','明天下午','台中市西屯區測試路100號','0900000000','鞋子']:
+        for s in ['外收送預約','明天晚上','台中市西屯區測試路100號','0900000000','鞋子']:
             self.send(s)
 
     def test_every_menu_during_pending_steps(self):
@@ -53,7 +53,7 @@ class JourneyTests(t.FlowTests):
                 self.assertNotEqual(t.conv.get_sess(self.uid).get('pickup_item'),text)
 
     def test_ack_keeps_pickup_and_cancel_clears_draft(self):
-        self.send('外收送預約');self.send('明天下午');self.send('好')
+        self.send('外收送預約');self.send('明天晚上');self.send('好')
         self.assertEqual(t.conv.get_sess(self.uid)['wait'],'pickup_loc')
         self.send('我用打字的');self.send('先不用了')
         self.assertIsNone(t.conv.get_sess(self.uid).get('wait'))
@@ -108,8 +108,8 @@ class JourneyTests(t.FlowTests):
         self.assertIsNone(t.conv.get_sess(self.uid).get('wait'))
 
     def test_spoken_time_and_pay_text_agree_with_menu(self):
-        self.send('外收送預約');self.send('明天下午三點可以嗎')
-        self.assertEqual(t.conv.get_sess(self.uid)['pickup_when'],'2026-09-09T15:00')
+        self.send('外收送預約');self.send('明天晚上七點可以嗎')
+        self.assertEqual(t.conv.get_sess(self.uid)['pickup_when'],'2026-09-09T19:00')
         self.assertEqual(t.conv.get_sess(self.uid)['wait'],'pickup_loc')
         self.send('LINE Pay')
         self.assertIn('自行輸入',self.reply_text())

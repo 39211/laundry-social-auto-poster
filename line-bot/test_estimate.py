@@ -811,7 +811,7 @@ class FlowTests(unittest.TestCase):
         self.send("襯衫3件、一般運動鞋2雙")
         data = self.action("安排收送")
         self.send(kind="postback", data=data)
-        self.send(kind="postback", data="action=pickup_when", params={"datetime": "2026-09-09T14:00"})
+        self.send(kind="postback", data="action=pickup_when", params={"datetime": "2026-09-09T18:30"})  # 週三晚上
         self.send("測試市測試區測試路123號", kind="location")
         self.send("0912345678")
         self.assertFalse(conv.BOOK.exists())

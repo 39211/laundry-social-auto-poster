@@ -29,7 +29,7 @@
 | F10 收送服務範圍 | 網站與部分圖文寫台中全市／全區；kit 語料與部分圖文寫市區，shop.json 只說洽門市。實際範圍與統一用詞待店主確認，見 C07。 | 來源衝突 | [taichung-citywide-laundry-pickup.html:665](<C:/Users/cyc39/Documents/New project 5/docs/services/taichung-citywide-laundry-pickup.html:665>)；[contentPlan.ts:826](<C:/Users/cyc39/Documents/New project 5/src/contentPlan.ts:826>)；[Dialog_Phrases.json:327](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:327>)；[shop.json:53](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/shop.json:53>) | bot／圖文／網站 |
 | F11 免費所指的費用 | 網站與圖文明寫收送免費；清潔／洗護另計。此處不抄清潔費金額，也不據此承諾其他免費服務。 | 來源一致 | [taichung-citywide-laundry-pickup.html:677](<C:/Users/cyc39/Documents/New project 5/docs/services/taichung-citywide-laundry-pickup.html:677>)；[contentPlan.ts:849](<C:/Users/cyc39/Documents/New project 5/src/contentPlan.ts:849>) | 圖文／網站；bot 費用門檻見下一條 |
 | F12 最低消費／最低件數 | 網站與圖文說沒有低消、一件也收；bot 語料說滿額收送。適用條件待店主確認，見 C06。 | 來源衝突 | [Dialog_Phrases.json:324](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:324>)；[dialog_corpus.py:315](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/dialog_corpus.py:315>)；[contentPlan.ts:849](<C:/Users/cyc39/Documents/New project 5/src/contentPlan.ts:849>)；[taichung-citywide-laundry-pickup.html:677](<C:/Users/cyc39/Documents/New project 5/docs/services/taichung-citywide-laundry-pickup.html:677>) | bot／圖文／網站 |
-| F13 收送時段 | kit 設定平日 10:00–12:00、14:00–17:00，週六 12:00–15:00；舊 bot 說跟營業時間一樣，網站另有 10:00–20:00 與依當下安排兩種說法。待店主確認，見 C08。 | 來源衝突 | [shop.json:55](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/shop.json:55>)；[shop.json:59](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/shop.json:59>)；[conversation.py:2261](<C:/Users/cyc39/Documents/New project 5/line-bot/conversation.py:2261>)；[taichung-citywide-laundry-pickup.html:673](<C:/Users/cyc39/Documents/New project 5/docs/services/taichung-citywide-laundry-pickup.html:673>) | bot／網站；圖文會邀約但未列固定時段 |
+| F13 收送時段 | 店主 11/07 定：週三晚上 18:00–20:00、週四週五 12:00–20:00、週六 12:00–18:00；週日、週一、週二不收件（見 C08）。夜間 bot 已照此改；網站仍寫「營業時間 10:00–20:00 內約定」、kit 設定仍是舊時段，待改。 | 店主已定（網站待改） | [shop.json:55](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/shop.json:55>)；[shop.json:59](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/shop.json:59>)；[conversation.py:2261](<C:/Users/cyc39/Documents/New project 5/line-bot/conversation.py:2261>)；[taichung-citywide-laundry-pickup.html:673](<C:/Users/cyc39/Documents/New project 5/docs/services/taichung-citywide-laundry-pickup.html:673>) | bot／網站；圖文會邀約但未列固定時段 |
 | F14 預約時提供的資料 | 收送需先安排：提供品項／照片、大致地址、聯絡電話與方便時段；本檔只記欄位，不收錄任何客戶實值。 | 來源一致 | [Dialog_Phrases.json:330](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:330>)；[conversation.py:935](<C:/Users/cyc39/Documents/New project 5/line-bot/conversation.py:935>)；[taichung-citywide-laundry-pickup.html:673](<C:/Users/cyc39/Documents/New project 5/docs/services/taichung-citywide-laundry-pickup.html:673>) | bot／圖文／網站 |
 | F15 即日車趟／到達鐘點 | 未找到可對外保證的當日可收或固定到達鐘點；網站要求 LINE 詢問當下安排。待店主確認當次車趟。 | 待店主確認 | [zhongke-office-laundry.html:463](<C:/Users/cyc39/Documents/New project 5/docs/local/zhongke-office-laundry.html:463>)；[clinic-uniform-laundry.html:294](<C:/Users/cyc39/Documents/New project 5/docs/services/clinic-uniform-laundry.html:294>) | bot／圖文／網站 |
 | F16 變更、取消與管理室代收 | 語料有提前傳訊變更／取消，以及大樓管理室可配合的說法；個別地點的允許條件、最後變更時間未找到，待店主確認。 | 待店主確認 | [Dialog_Phrases.json:326](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:326>)；[Dialog_Phrases.json:341](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:341>) | bot；圖文／網站未找到完整同一規則 |
@@ -148,7 +148,7 @@
 | C05 | C 維持現狀 | 圖文 withPriceLine、店機 bot 價目參考、網站參考價都不動 |
 | C06 | A | 收送沒有低消、一件也收 |
 | C07 | A | 「台中市免費到府收送」（不說市區、不說全區或全市） |
-| C08 | A | 「營業時間內約，當天時段由店裡回覆」（店機 shop.json 的 pickup.slots 只是設定，不對客顯示，不改） |
+| C08 | 店主 11/07 改定 | 外收時段：週三晚上 18:00–20:00、週四週五 12:00–20:00、週六 12:00–18:00；週日、週一、週二不收件；當天時段由店裡回覆（取代原本的「營業時間內約」；店機 shop.json 的 pickup.slots 只是設定，不對客顯示，不改） |
 | C09 | 店主寫 | 付款方式：現金、LINE Pay、轉帳（不說信用卡、刷卡、街口） |
 | C10 | A | 「看件後說可改善範圍，不保證」 |
 | C11 | B 保留 | 網站三頁主圖圖說維持現狀 |
@@ -234,6 +234,8 @@
 - **網站同頁 原文**：「實際可收時段由門市看過照片後在 LINE 回覆」— [taichung-citywide-laundry-pickup.html:665](<C:/Users/cyc39/Documents/New project 5/docs/services/taichung-citywide-laundry-pickup.html:665>)。
 
 判讀：設定的窄時段、營業時間與依當下安排不是同一個可對外保證的窗口。週六營業另為 12:00–18:00；最終收送窗口待店主確認，不能把一般營業時間直接當車趟。
+
+店主 11/07 定案：外收只在週三晚上 18:00–20:00、週四週五 12:00–20:00、週六 12:00–18:00；週日、週一、週二不收件。
 
 ### C09 支付方式的肯定承諾與先問店員
 

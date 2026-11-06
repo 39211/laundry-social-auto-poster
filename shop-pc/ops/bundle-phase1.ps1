@@ -4,7 +4,7 @@
 # -CheckOnly: precheck only (window, python, staging hashes, requires hashes); zero writes. Exit 2 on refusal.
 # Commander-written (the API model refused this task under its cyber policy, 10/30 23:40); ASCII only, PS 5.1.
 param(
-  [Parameter(Mandatory = $true)][ValidateSet('A3-2', 'A4-4', 'B1-2', 'B2', 'B2c')][string]$Bundle,
+  [Parameter(Mandatory = $true)][ValidateSet('A3-2', 'A4-4', 'B1-2', 'B2', 'B2c', 'SP1')][string]$Bundle,
   [switch]$CheckOnly
 )
 $ErrorActionPreference = 'Stop'
@@ -84,6 +84,25 @@ $cfg = @{
     requires = @{ 'runtime\webhook_server.py' = '161A4DD3473E3FC53FECE18BD6DB101F5035EE77E75E09B260970CFABB95BCA7' }
     stop     = @('webhook_server')
     tests    = @(, @('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_*attribution*.py'))
+    imports  = 'webhook_server'
+    state    = @()
+  }
+  'SP1'  = @{
+    # 11/06 SP-1: daytime chat guards (complaint and staff routing, grounded-claim check, no-fabricated-fact lines).
+    # Built on the live B1-2 chat_service.py and the live B2-8-era webhook_server.py (both hashes pinned below).
+    # Hashes are of the LF blobs committed on feat/sp1-chat-guards-1106; the shop files are LF.
+    expected = [ordered]@{
+      'runtime\chat_guards.py'          = '3E68B6C9B9C7E53C1205E5E2A07519A0F1810DFFF464F8DA09B71EBC45C842D2'
+      'runtime\chat_service.py'         = 'A111A02EE0636C2FECC203A5DC18BE921129D97F8CBC99865C2E1D797EBABF81'
+      'runtime\webhook_server.py'       = '057A0F456295909609A96388A6DDFA657E3CF898DBC4E2FAFE297796D2D5C797'
+      'runtime\test_sp1_chat_guards.py' = 'D55D0945F597E96534445B4D5193862AD0B92D19B5DA692E58E6CDCC07EC4482'
+    }
+    requires = @{
+      'runtime\chat_service.py'   = '820710BADDB058F82DB684263C8833F0ABB68022B77D2263D4615517F2082444'
+      'runtime\webhook_server.py' = '8583BF4C1E5D6A0405E85D90F989F42A1EAF2EB433FC05BB6B94F533B3CAE08A'
+    }
+    stop     = @('webhook_server')
+    tests    = @(, @('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_sp1_chat_guards.py'))
     imports  = 'webhook_server'
     state    = @()
   }

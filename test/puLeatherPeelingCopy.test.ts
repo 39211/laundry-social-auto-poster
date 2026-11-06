@@ -9,6 +9,16 @@ const TITLE = "合成皮掉屑怎麼處理？脫皮先停手，能做與不能�
 const OPENING =
   "合成皮若已老化掉屑、脫皮，無法靠清洗恢復；先別反覆擦拭，拍照傳到 LINE 問，能否處理需看過實品再說明。";
 const PICKUP = "免費收送、沒有最低消費";
+/**
+ * 改前基線：main 的 seo-overrides/guides/pu-leather-peeling.html
+ * 字面 `@454foyks` 次數。2026-11-06 以 `git show main:...` 計得 9。
+ * URL 裡的 `%40454foyks` 不算。
+ */
+const LINE_ID_BASELINE = 9;
+
+function lineIdCount(html: string): number {
+  return html.split("@454foyks").length - 1;
+}
 const BANNED = [
   "換皮",
   "改色",
@@ -134,5 +144,12 @@ describe("合成皮掉屑指南措辭", () => {
     expect(generated).toBe(source);
     expect(generated).toContain(`<title>${TITLE}</title>`);
     expect(generated).toContain(OPENING);
+    expect(lineIdCount(generated)).toBeGreaterThanOrEqual(LINE_ID_BASELINE);
+    expect(generated).toContain(
+      "不可以。清洗補不回已經掉下的膜，也不能讓脫落停止，不保證恢復原來的皮面或變全新。拍照傳到 LINE @454foyks 問，能否處理需看過實品再說明。"
+    );
+    expect(generated).toContain(
+      "不能。已經掉下的膜，清洗補不回去，也不保證不再掉屑，不保證恢復原來的皮面或變全新。拍照傳到 LINE @454foyks 問，能否處理需看過實品再說明。"
+    );
   });
 });

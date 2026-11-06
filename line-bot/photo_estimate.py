@@ -30,6 +30,7 @@ PHOTO_TEXT_FIELDS = {"brand": 40, "model": 40, "material": 40, "color": 20,
 _ITEM_PROPERTIES = {
     "name": {"type": "string"}, "label": {"type": "string"},
     "quantity": {"type": ["integer", "null"], "minimum": 1, "maximum": 999},
+    "view": {"type": "string", "enum": ["whole", "partial"]},
     "certainty": {"type": "string", "enum": ["clear", "estimated", "uncertain"]},
     "reason": {"type": "string"},
 }
@@ -38,7 +39,7 @@ _REQUIRED_TEXT = ("name", "label", "certainty", "reason", *PHOTO_TEXT_FIELDS)
 SCHEMA = {
     "type": "object", "properties": {"items": {"type": "array", "maxItems": 30,
     "items": {"type": "object", "properties": _ITEM_PROPERTIES,
-        "required": ["name", "label", "quantity", "certainty", "reason", *PHOTO_TEXT_FIELDS]}}},
+        "required": ["name", "label", "quantity", "view", "certainty", "reason", *PHOTO_TEXT_FIELDS]}}},
     "required": ["items"]}
 
 
@@ -187,14 +188,18 @@ _EXPERT_PROMPT = (
     "決定價目分級的特徵（衣長、尺寸、材質）、物件沒有被遮住或截斷。這些都看得到才用 clear；任何一項看不到或要靠猜"
     "（例如只拍到領口看不出衣長、沒有參照物看不出被子尺寸、品牌logo看不清）就用 estimated，並在 question 問一個能補上那項資訊的"
     "簡短問題（例如：可以拍整件的全身照嗎）；連品類或數量都做不出初判才用 uncertain。"
-    "不可因為「到店才能百分之百確定」就一律 estimated，也不可在關鍵資訊看不到時用 clear。\n"
+    "不可因為「到店才能百分之百確定」就一律 estimated，也不可在關鍵資訊看不到時用 clear。"
+    "另外每件物件都要先填 view（寫在 certainty 之前）：合併這件物件的所有照片來看，整件從頭到尾"
+    "（衣物的領口到下擺或褲口、整雙鞋、包的整體）都入鏡填 whole；只拍到一部分"
+    "（只有領口、袖口、鞋頭、包的一角，其餘被畫面邊緣截斷或被遮住）填 partial。"
+    "只要任何一張照片拍到整件就是 whole。view 是 partial 時 certainty 一定不可以是 clear，question 請對方補拍整件。\n"
     "9. 照片裡沒有衣物、鞋、包、皮件或寢具時，回一列 name 空字串、quantity null、certainty uncertain，reason 說明原因。\n"
     "10. 只露出一小部分、被照片邊緣截斷的物件（例如桌面上方被裁掉的其他鞋）不計入 quantity；整張照片只有它時才計入。"
     "有這種截斷物件時，在某一列的 reason 簡短註明。\n"
     "11. 名牌鞋、名牌包、特殊類名牌包與所有「精品」開頭的品名，只有 brand 屬於後面【國際精品奢牌名冊】時才可選；"
     "品牌不在名冊或看不清品牌時，不可選這些品名，改依材質與尺寸選一般品名，certainty 用 estimated，reason 寫明原因。"
     "名冊內品牌的鞋一律選名牌鞋。\n"
-    "【欄位】label：物件簡稱（例如：黑色後背包，不含品牌）；brand：品牌或空字串；model：款式型號或空字串；"
+    "【欄位】view：whole 或 partial（見第8條）；label：物件簡稱（例如：黑色後背包，不含品牌）；brand：品牌或空字串；model：款式型號或空字串；"
     "material：主要材質，拼接可用頓號；color：顏色；stain：照片看得到的污漬、磨損、氧化、脫膠或瑕疵，沒有就空字串；"
     "craft：一句話說店裡會怎麼處理；question：一個簡短追問（例如污漬多久了、要不要補膠、可否拍洗標），不需要就空字串；"
     "reason：一句判斷依據。\n"
@@ -279,9 +284,16 @@ def validate_result(data: dict, names: set[str]) -> list[dict]:
         certainty = row["certainty"] if name and quantity is not None else "uncertain"
         if certainty == "uncertain":
             reason = reason or "款式、材質或數量還需要確認"
+        partial = row.get("view") == "partial" and certainty == "clear"
+        if partial:
+            # 11/06 rule 8: a partly visible item (only the collar of a coat, one corner of a bag) is never "clear".
+            certainty = "estimated"
+            reason = reason or "照片只拍到一部分，款式或尺寸還需要確認"
         item = {"name": name, "label": label, "quantity": quantity, "certainty": certainty, "reason": reason}
         for field, limit in PHOTO_TEXT_FIELDS.items():
             item[field] = _field(row[field], limit)
+        if partial and not item["question"]:
+            item["question"] = "可以補拍整件的照片嗎"
         out.append(item)
     return _merge_items(out)
 
@@ -358,9 +370,10 @@ def apply_roster_guard(items: list[dict], names: set[str]) -> list[dict]:
 # Plain JSON mode has no server-side schema, so the fallback model gets the exact shape in words;
 # validate_result still rejects anything that does not match SCHEMA.
 FALLBACK_FORMAT = (
-    '輸出格式（必須完全照做）：只輸出一個 JSON 物件 {"items":[...]}，每個物件都要有這 12 個欄位，並且照這個順序寫：'
+    '輸出格式（必須完全照做）：只輸出一個 JSON 物件 {"items":[...]}，每個物件都要有這 13 個欄位，並且照這個順序寫：'
     '"label"(簡短物件名)、"reason"(先寫判斷依據：看到什麼證據；鞋靴先寫數到幾隻、折合幾雙)、"brand"、"model"、"material"、"color"、'
     '"stain"、"craft"、"question"、"name"(品名清單中的一個或空字串)、"quantity"(整數或 null)、'
+    '"view"("whole"=這件整件都入鏡/"partial"=只拍到一部分，寫在 certainty 之前；partial 時 certainty 不可是 clear)、'
     '"certainty"("clear"/"estimated"/"uncertain")；沒有內容的字串欄位填空字串。不要輸出其他文字。'
 )
 

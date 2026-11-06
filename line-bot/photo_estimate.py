@@ -180,11 +180,20 @@ _EXPERT_PROMPT = (
     "4. 不評論真偽，不說正品、仿品、真假或公司貨。\n"
     "5. brand 只在照片中清楚看見品牌logo、經典老花或花紋、或五金刻字時才填寫，否則填空字串；不可只因顏色、光澤、形狀猜品牌。"
     "model 只在款式能清楚辨識時填寫，否則空字串。\n"
-    "6. 同一件的正面、背面、近照不重複計件；不同實物即使相似也不能合併。鞋以雙計，不以單隻計；配對或數量不確定填 null。\n"
+    "6. 同一件的正面、背面、近照不重複計件；不同實物即使相似也不能合併。鞋、靴一律以「雙」計：左右腳成對才算 1 雙，"
+    "先數出完整看得到的單隻，再除以 2 換成雙數，絕不可把單隻當成 1 件（一雙鞋 quantity 是 1，不是 2）；只剩單隻或配對不確定填 null。\n"
     "7. 棉被、毛毯尺寸看不出來時 quantity 填 null 並用 uncertain；枕芯不是枕套；看不出是整套就不可選床組四件套。\n"
-    "8. certainty：品類、數量和價目分類都看得出來用 clear；分類有把握但材質或尺寸細節要到店確認用 estimated；"
-    "連品類或數量都不清楚才用 uncertain。\n"
+    "8. certainty 只看照片裡「直接看得到」的證據：品類、數量（鞋以雙計）、品牌（名牌類要看到品牌，且在名冊內）、"
+    "決定價目分級的特徵（衣長、尺寸、材質）、物件沒有被遮住或截斷。這些都看得到才用 clear；任何一項看不到或要靠猜"
+    "（例如只拍到領口看不出衣長、沒有參照物看不出被子尺寸、品牌logo看不清）就用 estimated，並在 question 問一個能補上那項資訊的"
+    "簡短問題（例如：可以拍整件的全身照嗎）；連品類或數量都做不出初判才用 uncertain。"
+    "不可因為「到店才能百分之百確定」就一律 estimated，也不可在關鍵資訊看不到時用 clear。\n"
     "9. 照片裡沒有衣物、鞋、包、皮件或寢具時，回一列 name 空字串、quantity null、certainty uncertain，reason 說明原因。\n"
+    "10. 只露出一小部分、被照片邊緣截斷的物件（例如桌面上方被裁掉的其他鞋）不計入 quantity；整張照片只有它時才計入。"
+    "有這種截斷物件時，在某一列的 reason 簡短註明。\n"
+    "11. 名牌鞋、名牌包、特殊類名牌包與所有「精品」開頭的品名，只有 brand 屬於後面【國際精品奢牌名冊】時才可選；"
+    "品牌不在名冊或看不清品牌時，不可選這些品名，改依材質與尺寸選一般品名，certainty 用 estimated，reason 寫明原因。"
+    "名冊內品牌的鞋一律選名牌鞋。\n"
     "【欄位】label：物件簡稱（例如：黑色後背包，不含品牌）；brand：品牌或空字串；model：款式型號或空字串；"
     "material：主要材質，拼接可用頓號；color：顏色；stain：照片看得到的污漬、磨損、氧化、脫膠或瑕疵，沒有就空字串；"
     "craft：一句話說店裡會怎麼處理；question：一個簡短追問（例如污漬多久了、要不要補膠、可否拍洗標），不需要就空字串；"
@@ -277,13 +286,82 @@ def validate_result(data: dict, names: set[str]) -> list[dict]:
     return _merge_items(out)
 
 
+# ---------------------------------------------------------------------------
+# Luxury-roster guard (11/06). The shop's own rule (Memory.md, "國際精品奢牌名冊"): shoes and bags of a roster
+# brand are 名牌鞋 / 名牌包; a brand that is not on the roster is not priced as 名牌. The model sometimes
+# calls a well-known but non-roster brand luxury (Longchamp -> 名牌包) and even claims the brand is on the roster,
+# so the roster is checked here, in code, on the brand text the model returned.
+# ---------------------------------------------------------------------------
+LUXURY_ROSTER = (
+    ("hermes", "愛馬仕"), ("chanel", "香奈兒"), ("louisvuitton", "lv", "路易威登"), ("christiandior", "dior", "迪奧"),
+    ("goyard", "高雅德"), ("celine", "思琳"), ("saintlaurent", "ysl", "聖羅蘭"), ("balenciaga", "巴黎世家"),
+    ("givenchy", "紀梵希"), ("cartier", "卡地亞"), ("vancleefarpels", "梵克雅寶"),
+    ("gucci", "古馳"), ("prada", "普拉達"), ("bottegaveneta", "bv", "葆蝶家"), ("fendi", "芬迪"), ("miumiu",),
+    ("loropiana", "諾悠翩雅"), ("salvatoreferragamo", "ferragamo", "菲拉格慕"), ("tods", "tod"), ("valentino", "華倫天奴"),
+    ("versace", "凡賽斯"), ("brunellocucinelli",), ("giorgioarmani",),
+    ("burberry", "博柏利"), ("loewe", "羅意威"), ("alexandermcqueen", "mcqueen", "麥昆"), ("chloe",), ("stellamccartney",),
+    ("moncler", "盟可睞"), ("canadagoose", "加拿大鵝"), ("veilance",),
+    ("christianlouboutin", "louboutin"), ("jimmychoo",), ("manoloblahnik",), ("rogervivier",),
+    ("goldengoose", "ggdb"), ("giuseppezanotti",), ("renecaovilla",), ("berluti",),
+    ("thombrowne",), ("chromehearts", "克羅心"), ("fearofgod",), ("rickowens",), ("offwhite",),
+    ("maisonmargiela", "margiela"), ("amiri",), ("palmangels",), ("balmain",), ("mcm",),
+)
+# Aliases of 3 characters or fewer (lv, bv, ysl, mcm, tod) must equal the whole brand text; longer ones may be contained in it.
+LUXURY_ITEM_NAMES = frozenset({"名牌鞋", "名牌包", "特殊類名牌包"})
+ROSTER_SHOE_NAMES = frozenset({
+    "一般運動鞋", "皮類運動鞋", "混合運動鞋", "高爾夫球鞋", "一般登山鞋", "高筒登山鞋", "童鞋", "涼鞋", "拖鞋", "休閒鞋",
+    "低靴子", "中靴子", "高靴子", "麂皮鞋", "高跟鞋", "特殊鞋", "皮鞋", "大童鞋", "高級拖鞋",
+})
+ROSTER_BAG_NAMES = frozenset({"一般包", "皮包包", "背包", "全布包", "布混包", "大書包"})
+_RANK = {"clear": 0, "estimated": 1, "uncertain": 2}
+
+
+def _brand_key(text) -> str:
+    # NFKD splits accents off their letters (Hermes with a grave accent), the regex then drops them.
+    text = unicodedata.normalize("NFKD", text if isinstance(text, str) else "").lower()
+    return re.sub(r"[^0-9a-z\u4e00-\u9fff]", "", text)
+
+
+def roster_brand(brand) -> str:
+    """The roster entry the model's brand text names, or '' (empty brand text never matches)."""
+    key = _brand_key(brand)
+    if not key:
+        return ""
+    for entry in LUXURY_ROSTER:
+        for alias in entry:
+            if key == alias or (len(alias) > 3 and alias in key):
+                return entry[0]
+    return ""
+
+
+def apply_roster_guard(items: list[dict], names: set[str]) -> list[dict]:
+    out = []
+    for source in items:
+        item = dict(source)
+        name = item.get("name") or ""
+        on_roster = bool(roster_brand(item.get("brand")))
+        if name in LUXURY_ITEM_NAMES and not on_roster:
+            item["certainty"] = "uncertain"
+            item["reason"] = "品牌不在精品名冊或看不清，需店員確認是否按名牌計價"
+        elif on_roster and name in ROSTER_SHOE_NAMES and "名牌鞋" in names:
+            item["name"] = "名牌鞋"
+            item["certainty"] = item["certainty"] if _RANK.get(item["certainty"], 2) >= 1 else "estimated"
+            item["reason"] = "品牌在精品名冊，鞋類依門市規則改列名牌鞋"
+        elif on_roster and name in ROSTER_BAG_NAMES and "名牌包" in names:
+            item["name"] = "名牌包"
+            item["certainty"] = item["certainty"] if _RANK.get(item["certainty"], 2) >= 1 else "estimated"
+            item["reason"] = "品牌在精品名冊，包款依門市規則改列名牌包"
+        out.append(item)
+    return _merge_items(out)
+
+
 # Plain JSON mode has no server-side schema, so the fallback model gets the exact shape in words;
 # validate_result still rejects anything that does not match SCHEMA.
 FALLBACK_FORMAT = (
-    '輸出格式（必須完全照做）：只輸出一個 JSON 物件 {"items":[...]}，每個物件都要有這 12 個欄位：'
-    '"name"(品名清單中的一個或空字串)、"label"(簡短物件名)、"quantity"(整數或 null)、'
-    '"certainty"("clear"/"estimated"/"uncertain")、"reason"、"brand"、"model"、"material"、"color"、'
-    '"stain"、"craft"、"question"；沒有內容的字串欄位填空字串。不要輸出其他文字。'
+    '輸出格式（必須完全照做）：只輸出一個 JSON 物件 {"items":[...]}，每個物件都要有這 12 個欄位，並且照這個順序寫：'
+    '"label"(簡短物件名)、"reason"(先寫判斷依據：看到什麼證據；鞋靴先寫數到幾隻、折合幾雙)、"brand"、"model"、"material"、"color"、'
+    '"stain"、"craft"、"question"、"name"(品名清單中的一個或空字串)、"quantity"(整數或 null)、'
+    '"certainty"("clear"/"estimated"/"uncertain")；沒有內容的字串欄位填空字串。不要輸出其他文字。'
 )
 
 
@@ -295,6 +373,13 @@ MAX_CALLS = 3
 TOTAL_SECONDS = 32
 PER_CALL_SECONDS = 15
 _MODEL_RE = re.compile(r"gemini-[a-zA-Z0-9.-]+")
+
+
+def thinking_budget() -> int:
+    """Thinking tokens for gemini-2.5-flash. 0 (default) = off, the shape that answered in production.
+    LAUNDRY_VISION_THINKING_BUDGET=<0..2048> turns it on; anything else means 0."""
+    raw = os.environ.get("LAUNDRY_VISION_THINKING_BUDGET", "").strip()
+    return int(raw) if raw.isdigit() and int(raw) <= 2048 else 0
 
 
 def model_chain() -> list[str]:
@@ -574,7 +659,7 @@ def _inventory(paths: list[Path], names: list[str], trace: _UsageTrace) -> dict:
                 # the format spelled out; validate_result still enforces the same contract.
                 gen.pop('responseJsonSchema', None)
             if use.startswith('gemini-2.5-flash'):
-                gen['thinkingConfig'] = {'thinkingBudget': 0}
+                gen['thinkingConfig'] = {'thinkingBudget': 0 if 'lite' in use else thinking_budget()}
             parts_now = list(parts) if not plain else [parts[0], {"text": FALLBACK_FORMAT}] + parts[1:]
             payload = {"contents": [{"role": "user", "parts": parts_now}], "generationConfig": gen}
             req = urllib.request.Request(f"https://generativelanguage.googleapis.com/v1beta/models/{use}:generateContent",
@@ -608,7 +693,7 @@ def _inventory(paths: list[Path], names: list[str], trace: _UsageTrace) -> dict:
         if isinstance(data, list):
             # Plain JSON mode (fallback model) may return the bare items array.
             data = {"items": data}
-        return {"ok": True, "items": validate_result(data, set(names)), "model": model}
+        return {"ok": True, "items": apply_roster_guard(validate_result(data, set(names)), set(names)), "model": model}
     except urllib.error.HTTPError as exc:
         return {"ok": False, "error": f"provider_{exc.code}"}
     except Exception:

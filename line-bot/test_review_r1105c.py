@@ -84,10 +84,18 @@ class TurnaroundTests(_Isolated):
         return body
 
     def test_items_without_an_owner_turnaround_get_no_day_range(self):
-        for item in ("窗簾", "地毯"):
+        # 11/06: the owner put 毛毯、窗簾、沙發套 (and, per his C03 list, 地毯) into 難乾的大件 10–14 天; 睡袋 still has none.
+        for item in ("睡袋",):
             with self.subTest(item=item):
                 body = self.ask_days(item)
                 self.assertNotIn("10–14", body)
+                self.assertNotIn("5–7", body)
+
+    def test_owner_bulky_items_get_the_bulky_range(self):
+        for item in ("毛毯", "窗簾", "沙發套", "地毯"):
+            with self.subTest(item=item):
+                body = self.ask_days(item)
+                self.assertIn("10–14", body)
                 self.assertNotIn("5–7", body)
 
     def test_quilt_called_bei_zi_gets_bulky_turnaround(self):

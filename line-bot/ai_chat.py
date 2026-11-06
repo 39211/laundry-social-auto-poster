@@ -49,7 +49,7 @@ STAFF_LINE = "這個我請店員確認後回覆您。"
 PRICE_LINE = "價錢要看品項跟狀況，我用店裡的價目幫您估：打品名和數量，或直接拍照給我都可以。"
 HANDOFF_KEEP_LINE = "剛剛填的資料我先幫您留著，之後想接著辦再跟我說。"
 
-TURNAROUND_FACT = "一般衣物 5–7 天、鞋 7 天、難乾的大件（像厚棉被）10–14 天、皮件和包 14 天；其他品項看件後由店裡說交期"
+TURNAROUND_FACT = "一般衣物 5–7 天、鞋 7 天、難乾的大件（像厚棉被、毛毯、地毯、窗簾、沙發套）10–14 天、皮件和包 14 天；其他品項看件後由店裡說交期"
 PICKUP_FACT = "台中市免費到府收送，時段由店裡確認"
 _ALLOWED_DAY_SPANS = frozenset({"5-7", "7", "10-14", "14"})
 
@@ -240,14 +240,14 @@ def _echoes_address(customer: str, reply: str, facts: str) -> bool:
 
 
 def _duration_is_grounded(text: str) -> bool:
-    categories = re.compile(r"難乾[^，。！？；、]*|厚棉被|大件|皮件|皮包|包包|包|鞋[^，。！？；、\d]*|一般衣物|一般衣服|衣物|衣服")
+    categories = re.compile(r"難乾[^，。！？；、]*|厚棉被|毛毯|地毯|窗簾|沙發套|大件|皮件|皮包|包包|包|鞋[^，。！？；、\d]*|一般衣物|一般衣服|衣物|衣服")
     previous = 0
     for match in _DAY_SPAN_RE.finditer(text):
         labels = list(categories.finditer(text[previous:match.start()]))
         if not labels:
             return False
         label = labels[-1].group()
-        expected = "10-14" if any(x in label for x in ("難乾", "厚棉被", "大件")) else "14" if any(x in label for x in ("皮", "包")) else "7" if "鞋" in label else "5-7"
+        expected = "10-14" if any(x in label for x in ("難乾", "厚棉被", "毛毯", "地毯", "窗簾", "沙發套", "大件")) else "14" if any(x in label for x in ("皮", "包")) else "7" if "鞋" in label else "5-7"
         actual = match.group(1) + ("-" + match.group(2) if match.group(2) else "")
         if actual != expected:
             return False

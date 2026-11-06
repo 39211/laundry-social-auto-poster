@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   PROVENANCE_LINE,
+  PROVENANCE_LINE_REVISED,
+  PROVENANCE_LINE_REVISED_START_DATE,
   linePostRedirectUrl,
   withNextEpisodeTeaser,
   withProvenanceLine,
@@ -48,6 +50,52 @@ describe("iprinter posting rules (2026-09-04)", () => {
     const once = withProvenanceLine(baseCaption);
     expect(withProvenanceLine(once)).toBe(once);
     expect(once.split("出處：")).toHaveLength(2);
+  });
+
+  describe("provenance wording change (owner decision 2026-11-06)", () => {
+    const tracking = { source: "facebook", campaign: "test", siteBaseUrl: "https://sixiangjialaundry.com" } as const;
+    const withDate = (date?: string) => withSharedCaptionRules(baseCaption, "白鞋鞋邊泛灰", tracking, date);
+
+    it("pins both wordings literally, each short enough to stay under the repetition check", () => {
+      expect(PROVENANCE_LINE).toBe("出處：門市當日看件");
+      expect(PROVENANCE_LINE_REVISED).toBe("出處：門市實務整理");
+      expect(PROVENANCE_LINE_REVISED.startsWith("出處：")).toBe(true);
+      expect(PROVENANCE_LINE_REVISED.length).toBeLessThan(12);
+      expect(PROVENANCE_LINE_REVISED_START_DATE).toBe("2026-11-08");
+    });
+
+    it("keeps the original wording with no date and for every date before the start date", () => {
+      for (const date of [undefined, "2026-09-04", "2026-10-28", "2026-11-07"]) {
+        const caption = withDate(date);
+        expect(caption).toContain(PROVENANCE_LINE);
+        expect(caption).not.toContain(PROVENANCE_LINE_REVISED);
+      }
+      expect(withProvenanceLine(baseCaption)).toContain(PROVENANCE_LINE);
+      expect(withProvenanceLine(baseCaption, "2026-11-07")).toContain(PROVENANCE_LINE);
+    });
+
+    it("switches to the revised wording on the start date and after, exactly once, in the same position", () => {
+      for (const date of [PROVENANCE_LINE_REVISED_START_DATE, "2026-11-09", "2026-12-31"]) {
+        const caption = withDate(date);
+        expect(caption).toContain(PROVENANCE_LINE_REVISED);
+        expect(caption).not.toContain("門市當日看件");
+        expect(caption.split("出處：")).toHaveLength(2);
+        const provenance = blockIndex(caption, "出處：");
+        expect(provenance).toBeLessThan(blockIndex(caption, LINE_POST));
+        expect(blockIndex(caption, LINE_POST)).toBeLessThan(caption.split("\n\n").findIndex((b) => b.startsWith("#")));
+      }
+      // only the wording differs: swapping the line back reproduces the old caption exactly
+      expect(withDate("2026-11-08").replace(PROVENANCE_LINE_REVISED, PROVENANCE_LINE)).toBe(withDate("2026-11-07"));
+    });
+
+    it("never rewrites a caption that already carries a provenance line, whichever wording", () => {
+      const old = withDate("2026-11-07");
+      expect(withSharedCaptionRules(old, "白鞋鞋邊泛灰", tracking, "2026-11-20")).toContain(PROVENANCE_LINE);
+      expect(withProvenanceLine(old, "2026-11-20")).toBe(old);
+      const revised = withDate("2026-11-08");
+      expect(withProvenanceLine(revised, "2026-11-08")).toBe(revised);
+      expect(revised.split("出處：")).toHaveLength(2);
+    });
   });
 
   it("adds the next-episode teaser ahead of provenance and LINE, and never twice", () => {

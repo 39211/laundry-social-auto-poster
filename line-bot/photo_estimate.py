@@ -320,6 +320,7 @@ LUXURY_ROSTER = (
 )
 # Aliases of 3 characters or fewer (lv, bv, ysl, mcm, tod) must equal the whole brand text; longer ones may be contained in it.
 LUXURY_ITEM_NAMES = frozenset({"名牌鞋", "名牌包", "特殊類名牌包"})
+LUXURY_BAG_NAMES = frozenset({"名牌包", "特殊類名牌包"})
 ROSTER_SHOE_NAMES = frozenset({
     "一般運動鞋", "皮類運動鞋", "混合運動鞋", "高爾夫球鞋", "一般登山鞋", "高筒登山鞋", "童鞋", "涼鞋", "拖鞋", "休閒鞋",
     "低靴子", "中靴子", "高靴子", "麂皮鞋", "高跟鞋", "特殊鞋", "皮鞋", "大童鞋", "高級拖鞋",
@@ -346,13 +347,37 @@ def roster_brand(brand) -> str:
     return ""
 
 
+def _plain_bag_class(item: dict, names: set[str]) -> str:
+    """Ordinary bag class (owner 11/06: bags up to about NT$20-30k are 皮包包 / 布混包 / 全布包 / 背包) from the material and
+    label the model reported; "" when they say nothing usable or the catalogue lacks that class."""
+    text = " ".join(str(item.get(key) or "") for key in ("material", "label"))
+    leather = "皮" in text or "pu" in text.lower()
+    cloth = any(word in text for word in ("布", "尼龍", "帆", "織", "棉"))
+    if "背包" in text:
+        want = "背包"
+    elif leather and cloth:
+        want = "布混包"
+    elif cloth:
+        want = "全布包"
+    elif leather:
+        want = "皮包包"
+    else:
+        return ""
+    return want if want in names else ""
+
+
 def apply_roster_guard(items: list[dict], names: set[str]) -> list[dict]:
     out = []
     for source in items:
         item = dict(source)
         name = item.get("name") or ""
         on_roster = bool(roster_brand(item.get("brand")))
-        if name in LUXURY_ITEM_NAMES and not on_roster:
+        plain = _plain_bag_class(item, names) if name in LUXURY_BAG_NAMES and not on_roster else ""
+        if plain:
+            item["name"] = plain
+            item["certainty"] = item["certainty"] if _RANK.get(item["certainty"], 2) >= 1 else "estimated"
+            item["reason"] = f"品牌不在精品名冊，包款依材質歸入{plain}"
+        elif name in LUXURY_ITEM_NAMES and not on_roster:
             item["certainty"] = "uncertain"
             item["reason"] = "品牌不在精品名冊或看不清，需店員確認是否按名牌計價"
         elif on_roster and name in ROSTER_SHOE_NAMES and "名牌鞋" in names:

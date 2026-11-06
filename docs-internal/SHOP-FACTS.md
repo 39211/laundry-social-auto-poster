@@ -41,9 +41,9 @@
 |---|---|---|---|---|
 | F18 一般衣物標準交期 | 5–7 天。以本卡店主硬規則為準；不自行改成工作天。下游 3–4 個工作天、三到五天等說法見 C01。 | 店主已定 | [B1-shop-facts.md:10](<C:/Users/cyc39/Documents/New project 5/docs-internal/cards/B1-shop-facts.md:10>)；[Dialog_Phrases.json:61](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:61>)；[conversation.py:851](<C:/Users/cyc39/Documents/New project 5/line-bot/conversation.py:851>) | bot／圖文／網站皆應採用；本卡未改下游 |
 | F19 鞋類標準交期 | 7 天。白鞋網站已如此寫；bot 的 5–7 個工作天、4–5 個工作天及泛用 3–4 個工作天仍衝突，見 C02。 | 店主已定 | [B1-shop-facts.md:10](<C:/Users/cyc39/Documents/New project 5/docs-internal/cards/B1-shop-facts.md:10>)；[white-shoe-cleaning.html:576](<C:/Users/cyc39/Documents/New project 5/docs/services/white-shoe-cleaning.html:576>)；[Dialog_Phrases.json:62](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:62>)；[chat_service.py:195](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/runtime/chat_service.py:195>) | bot／圖文／網站皆應採用；網站部分頁一致 |
-| F20 難乾的大件交期 | 10–14 天。僅適用本卡所說難乾的大件，不擴張成全部床組一律相同；厚棉被短交期說法見 C03。 | 店主已定 | [B1-shop-facts.md:10](<C:/Users/cyc39/Documents/New project 5/docs-internal/cards/B1-shop-facts.md:10>)；[Dialog_Phrases.json:64](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:64>) | bot／圖文／網站皆應採用；未改下游 |
+| F20 難乾的大件交期 | 10–14 天。僅適用本卡所說難乾的大件，不擴張成全部床組一律相同；厚棉被短交期說法見 C03。店主 11/06 加定：毛毯、窗簾、沙發套也報 10–14 天（睡袋、娃娃、皮衣仍不報天數）。 | 店主已定 | [B1-shop-facts.md:10](<C:/Users/cyc39/Documents/New project 5/docs-internal/cards/B1-shop-facts.md:10>)；[Dialog_Phrases.json:64](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:64>) | bot／圖文／網站皆應採用；未改下游 |
 | F21 皮件包標準交期 | 14 天。皮件與包類網站已如此寫；bot 包包／精品皮件與小皮件天數不同，見 C04。 | 店主已定 | [B1-shop-facts.md:10](<C:/Users/cyc39/Documents/New project 5/docs-internal/cards/B1-shop-facts.md:10>)；[luxury-bag-cleaning.html:493](<C:/Users/cyc39/Documents/New project 5/docs/services/luxury-bag-cleaning.html:493>)；[Dialog_Phrases.json:67](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:67>)；[Dialog_Phrases.json:79](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:79>) | bot／圖文／網站皆應採用；網站部分頁一致 |
-| F22 未明列品項的細分交期 | 窗簾、帽子、薄被、修改等是否另有交期，以及皮衣是否包含在「皮件包」用語內，未找到本次店主定義；待店主確認，不把語料細分天數升格成已定規則。 | 待店主確認 | [B1-shop-facts.md:10](<C:/Users/cyc39/Documents/New project 5/docs-internal/cards/B1-shop-facts.md:10>)；[B1-shop-facts.md:13](<C:/Users/cyc39/Documents/New project 5/docs-internal/cards/B1-shop-facts.md:13>)；[Dialog_Phrases.json:75](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:75>)；[Dialog_Phrases.json:83](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:83>) | bot／圖文／網站 |
+| F22 未明列品項的細分交期 | 帽子、薄被、修改等是否另有交期（窗簾已於 11/06 由店主定為 10–14 天，見 F20），以及皮衣是否包含在「皮件包」用語內，未找到本次店主定義；待店主確認，不把語料細分天數升格成已定規則。 | 待店主確認 | [B1-shop-facts.md:10](<C:/Users/cyc39/Documents/New project 5/docs-internal/cards/B1-shop-facts.md:10>)；[B1-shop-facts.md:13](<C:/Users/cyc39/Documents/New project 5/docs-internal/cards/B1-shop-facts.md:13>)；[Dialog_Phrases.json:75](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:75>)；[Dialog_Phrases.json:83](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:83>) | bot／圖文／網站 |
 | F23 急件與特殊截止日 | 可先告知急用日期，交師傅／櫃台確認排程；未找到可無條件保證的急件完成時間，待店主確認當次可行性。 | 待店主確認 | [Dialog_Phrases.json:65](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/config/Dialog_Phrases.json:65>)；[conversation.py:852](<C:/Users/cyc39/Documents/New project 5/line-bot/conversation.py:852>)；[chat_service.py:97](<C:/Users/cyc39/Documents/New project 5/shop-pc/fxwash/runtime/chat_service.py:97>) | bot／網站；圖文不得自行承諾 |
 
 ## 服務項目與不接的東西
@@ -143,7 +143,7 @@
 |---|---|---|
 | C01 | A | 一般衣物 5–7 天（單位是「天」，不是工作天） |
 | C02 | A | 鞋 7 天（皮鞋保養也一樣，不另外算） |
-| C03 | A | 厚棉被、羽絨被、地毯這類難乾的大件 10–14 天；薄被單、床單、枕套算一般衣物，5–7 天 |
+| C03 | A | 厚棉被、羽絨被、地毯這類難乾的大件 10–14 天；薄被單、床單、枕套算一般衣物，5–7 天（店主 11/06 加定：毛毯、窗簾、沙發套同為 10–14 天） |
 | C04 | A | 包、皮件、小皮件（皮夾）都是 14 天 |
 | C05 | C 維持現狀 | 圖文 withPriceLine、店機 bot 價目參考、網站參考價都不動 |
 | C06 | A | 收送沒有低消、一件也收 |
@@ -153,7 +153,7 @@
 | C10 | A | 「看件後說可改善範圍，不保證」 |
 | C11 | B 保留 | 網站三頁主圖圖說維持現狀 |
 
-其他品項（皮衣、窗簾、娃娃等）沒有定交期，對客說「看件後店裡跟您說交期」。這幾項的天數「待店主確認」。
+其他品項（皮衣、娃娃、睡袋等）沒有定交期，對客說「看件後店裡跟您說交期」。這幾項的天數「待店主確認」。
 
 ## 衝突清單
 

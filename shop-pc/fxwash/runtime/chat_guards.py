@@ -96,14 +96,14 @@ _PROMISE_RE = re.compile(
 
 def _duration_is_grounded(text: str) -> bool:
     # night bot: every day span must follow the category it belongs to
-    categories = re.compile(r"難乾[^，。！？；、]*|厚棉被|大件|皮件|皮包|包包|包|鞋[^，。！？；、\d]*|一般衣物|一般衣服|衣物|衣服")
+    categories = re.compile(r"難乾[^，。！？；、]*|厚棉被|毛毯|地毯|窗簾|沙發套|大件|皮件|皮包|包包|包|鞋[^，。！？；、\d]*|一般衣物|一般衣服|衣物|衣服")
     previous = 0
     for match in _DAY_SPAN_RE.finditer(text):
         labels = list(categories.finditer(text[previous:match.start()]))
         if not labels:
             return False
         label = labels[-1].group()
-        expected = "10-14" if any(x in label for x in ("難乾", "厚棉被", "大件")) else "14" if any(x in label for x in ("皮", "包")) else "7" if "鞋" in label else "5-7"
+        expected = "10-14" if any(x in label for x in ("難乾", "厚棉被", "毛毯", "地毯", "窗簾", "沙發套", "大件")) else "14" if any(x in label for x in ("皮", "包")) else "7" if "鞋" in label else "5-7"
         actual = match.group(1) + ("-" + match.group(2) if match.group(2) else "")
         if actual != expected:
             return False

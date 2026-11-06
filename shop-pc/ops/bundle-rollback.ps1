@@ -3,7 +3,7 @@
 # the new monitor may already have sent; keep the monitor STOPPED, keep every file, print MANUAL_RECONCILE_REQUIRED, exit 3.
 # Exit: 0 rolled back, 1 error, 3 manual reconcile required. Commander-written 10/30; ASCII only, PS 5.1.
 param(
-  [Parameter(Mandatory = $true)][ValidateSet('A3-2', 'A4-4', 'B1-2', 'B2')][string]$Bundle,
+  [Parameter(Mandatory = $true)][ValidateSet('A3-2', 'A4-4', 'B1-2', 'B2', 'SP1')][string]$Bundle,
   [Parameter(Mandatory = $true)][string]$Backup
 )
 $ErrorActionPreference = 'Stop'
@@ -17,7 +17,7 @@ function Stop-Verified($p) {
   Say ("stopped pid {0} {1}" -f $p.ProcessId, $p.Name)
 }
 $root = 'C:\LaundryStores\fxwash'
-$rx = @{ 'A3-2' = 'LaundryStores\\fxwash\\runtime\\inbound_monitor\.py'; 'A4-4' = 'LaundryStores\\fxwash\\runtime\\tunnel_supervisor\.py'; 'B1-2' = 'LaundryStores\\fxwash\\runtime\\webhook_server\.py'; 'B2' = 'LaundryStores\\fxwash\\runtime\\webhook_server\.py' }
+$rx = @{ 'A3-2' = 'LaundryStores\\fxwash\\runtime\\inbound_monitor\.py'; 'A4-4' = 'LaundryStores\\fxwash\\runtime\\tunnel_supervisor\.py'; 'B1-2' = 'LaundryStores\\fxwash\\runtime\\webhook_server\.py'; 'B2' = 'LaundryStores\\fxwash\\runtime\\webhook_server\.py'; 'SP1' = 'LaundryStores\\fxwash\\runtime\\webhook_server\.py' }
 $tasks = @(Import-Clixml -LiteralPath (Join-Path $Backup 'tasks-before.xml'))
 $files = @(Import-Clixml -LiteralPath (Join-Path $Backup 'files-before.xml'))
 

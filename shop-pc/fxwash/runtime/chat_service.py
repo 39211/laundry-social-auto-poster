@@ -17,6 +17,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from config import dialog_corpus
+from runtime import chat_guards  # SP-1: required; no silent fallback to an unguarded chat
 from runtime.photo_session import get_photo_session
 
 GEMINI_MODELS = [
@@ -172,18 +173,48 @@ def call_gemini_chat(user_text: str, api_key: str, shop_root: Path, user_id: str
     return None
 
 
+def first_text_reply(user_text: str, user_id: str = "") -> str | None:
+    """SP-1 step 0: complaint, damage, loss or compensation talk (also hypothetical) goes to staff.
+
+    webhook_server calls this before phone / customer-number / menu routing; generate_chat_reply
+    calls it again before the model. Returns the fixed complaint reply, or None.
+    """
+    if not chat_guards.is_complaint(user_text):
+        return None
+    chat_guards.notify_staff("complaint", user_id)
+    return chat_guards.COMPLAINT_LINE
+
+
 def generate_chat_reply(user_text: str, shop_root: Path, user_id: str = "") -> str:
     """Generate intelligent humanized reply with Gemini AI, fallback seamlessly to expanded corpus."""
+    # 0. SP-1: complaint / damage talk never reaches the model, the photo replies or the corpus.
+    complaint_reply = first_text_reply(user_text, user_id)
+    if complaint_reply is not None:
+        return complaint_reply
+
     api_key = get_gemini_api_key(shop_root)
 
     # 1. Try Gemini Conversational AI first for ultra-contextual reply
+    #    SP-1: every AI text passes chat_guards.guard_ai_reply before it is returned.
+    #    REJECT (price, day count, number, URL, action claim, promise) -> non-AI steps 2 and 3.
+    #    STAFF (store fact the owner has not confirmed) -> STAFF_LINE.
     if api_key and len(user_text.strip()) > 1:
+        ai_reply = None
         try:
             ai_reply = call_gemini_chat(user_text, api_key, shop_root, user_id=user_id)
-            if ai_reply and len(ai_reply) > 8:
-                return ai_reply
         except Exception as e:
             print(f"[Chat] Gemini chat call failed: {e}", file=sys.stderr)
+        if ai_reply and len(ai_reply) > 8:
+            try:
+                verdict, reason = chat_guards.guard_ai_reply(ai_reply)
+            except Exception as exc:  # a broken check never lets unchecked text through
+                verdict, reason = chat_guards.REJECT, f"check failed ({type(exc).__name__})"
+            if verdict == chat_guards.OK:
+                return ai_reply
+            if verdict == chat_guards.STAFF:
+                chat_guards.notify_staff(reason, user_id)
+                return chat_guards.STAFF_LINE
+            print(f"[Chat Guard] AI reply rejected ({reason}); using non-AI reply", file=sys.stderr)
 
     # 2. Check if user is replying to recent photo session for fallback
     session = get_photo_session(shop_root, user_id) if user_id else None
@@ -193,11 +224,11 @@ def generate_chat_reply(user_text: str, shop_root: Path, user_id: str = "") -> s
         # If user talks about stains, time, or confirmation
         lower_t = user_text.lower()
         if any(w in lower_t for w in ("洗得掉", "救得", "能救", "去得掉", "乾淨", "痕跡")):
-            return f"只要沒用熱水或漂白劑搓過，通常有機會淡化，能改善多少要師傅看件後說明，不保證。歡迎直接帶到門市（至善國中對面好停車），讓師傅現場評估最精準。"
+            return "只要沒用熱水或漂白劑搓過，通常有機會淡化，能改善多少要師傅看件後說明，不保證。歡迎直接帶到門市（至善國中對面），讓師傅現場評估最精準。"
         if any(w in lower_t for w in ("幾天", "多久", "時間", "何時", "急")):
             return f"這件{cat}的交期：一般衣物 5–7 天、鞋 7 天、厚棉被這類難乾的大件 10–14 天、皮件和包 14 天，其他品項看件後店裡跟您說交期。若有急用，送來時跟師傅說一聲，我們盡量幫您調整喔！"
         if any(w in lower_t for w in ("好", "可以", "謝謝", "明天", "等下", "過去", "拿去", "送去", "去洗")):
-            return "好的！送洗免預約，營業時間直接帶過來門市（至善國中對面好停車）就可以囉，期待為您服務！"
+            return "好的！送洗免預約，營業時間直接帶過來門市（至善國中對面）就可以囉，期待為您服務！"
 
     # 3. Fallback to 550+ phrase corpus with intent matching & anti-repetition memory
     return dialog_corpus.get_human_reply(user_text)

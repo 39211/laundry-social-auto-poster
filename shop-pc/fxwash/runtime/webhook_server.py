@@ -80,7 +80,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from connectors.base import connector_from_shop
-from runtime.chat_service import generate_chat_reply
+from runtime.chat_service import first_text_reply, generate_chat_reply
 from runtime.line_api import channel_credentials
 from runtime.lookup_service import extract_phone, format_screenshot3_text, lookup_by_customer_id, lookup_by_phone
 from runtime.vision_service import build_photo_quote_reply, download_line_image
@@ -669,8 +669,8 @@ def make_request_handler(shop, connector, creds):
                     params = event.get("postback", {}).get("params", {})
                     dt = params.get("datetime") or params.get("date") or ""
                     resp_text = (
-                        f"好的，已為您記下預約到店時間：{dt}！\n"
-                        f"門市在至善國中正對面（青海路二段365號好停車），營業時間直接送過來就可以囉！"
+                        f"收到，您選的時間是：{dt}。\n"
+                        "這裡選的時間不會自動通知店裡，要確認時段請在營業時間直接打給店裡；門市在至善國中正對面（青海路二段365號）。"
                     )
                     reply_message(reply_token, [{"type": "text", "text": resp_text}], creds["token"])
                     continue
@@ -698,6 +698,13 @@ def make_request_handler(shop, connector, creds):
                 if id(event) in attr_text:
                     user_text = attr_text[id(event)]
                 print(f"[Webhook Text] User {user_id[:8]}...: '{user_text}'")
+
+                # 0. SP-1: complaint / damage / compensation talk goes to staff before any lookup,
+                #    menu or AI routing (e.g. a complaint starting with the lookup keyword list).
+                complaint_reply = first_text_reply(user_text, user_id)
+                if complaint_reply is not None:
+                    reply_message(reply_token, [{"type": "text", "text": complaint_reply}], creds["token"])
+                    continue
 
                 # 1. Phone number lookup (09xxxxxxxx, 09xx-xxx-xxx, with spaces, etc.)
                 phone_val = extract_phone(user_text)

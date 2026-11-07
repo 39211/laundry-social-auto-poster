@@ -4457,7 +4457,9 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
         result = _handle_ex_core(uid, text, event_type, event_id)
     finally:
         _USAGE_DEPTH.n = depth
-    if depth == 0:
+    # 只有真正的 bot 行程（line_webhook 以 __main__ 啟動時設 LAUNDRY_LINE_USAGE=on）才記用量；
+    # 測試直接呼叫 handle_ex 不記，免得灌水店主看的每日／每週數字（11/06 曾記 7553 則）。
+    if depth == 0 and os.environ.get("LAUNDRY_LINE_USAGE", "").strip().lower() == "on":
         try:
             import line_usage
             line_usage.count_reply(result, event_type, repo=REPO)

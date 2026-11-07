@@ -69,9 +69,10 @@ class UsageCase(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory(prefix="l21-")
         self.dir = Path(self._tmp.name) / "line-usage"
-        self._env = {k: os.environ.get(k) for k in ("LAUNDRY_LINE_USAGE_DIR", "LAUNDRY_AI_CHAT")}
+        self._env = {k: os.environ.get(k) for k in ("LAUNDRY_LINE_USAGE_DIR", "LAUNDRY_AI_CHAT", "LAUNDRY_LINE_USAGE")}
         os.environ["LAUNDRY_LINE_USAGE_DIR"] = str(self.dir)
         os.environ["LAUNDRY_AI_CHAT"] = "off"
+        os.environ["LAUNDRY_LINE_USAGE"] = "on"  # the hook tests below act as the real bot process
         line_usage._WARNED = False
 
     def tearDown(self):

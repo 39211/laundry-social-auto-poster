@@ -387,13 +387,15 @@ describe("O04 行銷 CSV", () => {
   });
 });
 
-describe("O04 本頁目錄只在這 6 頁", () => {
-  it("seo-overrides 裡只有這 6 個指南頁有 page-toc，對照頁沒有", () => {
+describe("O04 本頁目錄範圍", () => {
+  it("seo-overrides 裡只有既有 6 個指南頁與鞋包服務頁有 page-toc，對照頁沒有", () => {
     const hits = htmlFiles(join(ROOT, "seo-overrides"))
       .filter((file) => readNormalized(file).includes("page-toc"))
       .map((file) => relative(ROOT, file).split("\\").join("/"))
       .sort();
-    expect(hits).toEqual(PAGES.map((slug) => `seo-overrides/guides/${slug}.html`).sort());
+    expect(hits).toEqual(
+      [...PAGES.map((slug) => `seo-overrides/guides/${slug}.html`), "seo-overrides/services/shoe-bag-care.html"].sort()
+    );
     expect(readRepo("seo-overrides/guides/birkenstock-care.html")).not.toContain("page-toc");
     expect(readRepo("seo-overrides/guides/suede-shoe-cleaning.html")).not.toContain("page-toc");
   });

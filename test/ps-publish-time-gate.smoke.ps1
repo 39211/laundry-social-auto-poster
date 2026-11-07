@@ -36,7 +36,10 @@ function Invoke-GateCase {
     $env:PUBLISH_GATE_TIME = $Time
     $env:PUBLISH_GATE_CATCHUP_CMD = $caseStub
     $env:PUBLISH_GATE_TOAST_FILE = $toastPath
-    $output = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $gate -RootPath $caseRoot 2>&1 | Out-String
+    # The process boundary is fake; exact path detection is exercised below with explicit rows.
+    $runner = Join-Path $caseRoot 'gate-runner.ps1'
+    Write-Utf8 $runner 'param($GatePath,$FixtureRoot); function Get-CimInstance { [CmdletBinding()] param($ClassName); return @() }; & $GatePath -RootPath $FixtureRoot; exit $LASTEXITCODE'
+    $output = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $runner -GatePath $gate -FixtureRoot $caseRoot 2>&1 | Out-String
     $exit = $LASTEXITCODE
     $callsPath = Join-Path $caseRoot "calls.txt"
     [pscustomobject]@{
@@ -70,7 +73,7 @@ try {
     $notDue = Invoke-GateCase -Name "not-due" -Time "11:29"
     Assert-GateCase "not-due-no-call" ($notDue.ExitCode -eq 0 -and -not $notDue.Calls.Contains("CATCHUP")) $notDue.TextLog.Trim()
 
-    $liveIg = '[{"slot":1,"platform":"instagram","status":"success","dry_run":false}]'
+    $liveIg = '[{"slot":1,"platform":"instagram","status":"success","dry_run":false},{"slot":1,"platform":"facebook","status":"success","dry_run":false}]'
     $posted = Invoke-GateCase -Name "instagram-already-posted" -Time "11:45" -Posted $liveIg
     Assert-GateCase "instagram-posted-no-call" ($posted.ExitCode -eq 0 -and -not $posted.Calls.Contains("CATCHUP")) $posted.TextLog.Trim()
 
@@ -82,7 +85,7 @@ try {
     $eveningDue = Invoke-GateCase -Name "early-evening-due-unposted" -Time "19:10" -PublishTimes $earlyEveningTimes
     Assert-GateCase "early-evening-due-unposted-calls-once" ($eveningDue.ExitCode -eq 0 -and ([regex]::Matches($eveningDue.Calls, "CATCHUP")).Count -eq 1) $eveningDue.TextLog.Trim()
 
-    $postedEveningIg = '[{"slot":2,"platform":"instagram","status":"success","dry_run":false}]'
+    $postedEveningIg = '[{"slot":2,"platform":"instagram","status":"success","dry_run":false},{"slot":2,"platform":"facebook","status":"success","dry_run":false}]'
     $eveningPosted = Invoke-GateCase -Name "early-evening-instagram-already-posted" -Time "19:10" -Posted $postedEveningIg -PublishTimes $earlyEveningTimes
     Assert-GateCase "early-evening-posted-no-call" ($eveningPosted.ExitCode -eq 0 -and -not $eveningPosted.Calls.Contains("CATCHUP")) $eveningPosted.TextLog.Trim()
 

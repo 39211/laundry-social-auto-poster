@@ -73,14 +73,14 @@ $timeWarning = $null
 $slotTimes = Get-SlotTimes -Root $root -Date $date -WarningMessage ([ref]$timeWarning)
 if ($timeWarning) { Write-GateLog ([string]$timeWarning) }
 
-$postedInstagramSlots = @()
+$postedPairs = @()
 $postedPath = Join-Path $root ("data\posted-log\{0}.json" -f $date)
 if (Test-Path -LiteralPath $postedPath) {
     try {
         $posted = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($postedPath, [Text.UTF8Encoding]::new($false))) -ErrorAction Stop
-        $postedInstagramSlots = @(@($posted) | Where-Object {
-            $null -ne $_ -and $_.platform -eq "instagram" -and -not $_.dry_run -and @("success", "posted") -contains [string]$_.status
-        } | ForEach-Object { [int]$_.slot } | Sort-Object -Unique)
+        $postedPairs = @(@($posted) | Where-Object {
+            $null -ne $_ -and $_.dry_run -eq $false -and @("success", "posted") -contains [string]$_.status
+        } | ForEach-Object { '{0}:{1}' -f [int]$_.slot, ([string]$_.platform).ToLowerInvariant() } | Sort-Object -Unique)
     } catch {
         Write-GateLog ("posted-log unreadable; skipping safely: " + $_.Exception.Message)
         exit 1
@@ -96,8 +96,8 @@ foreach ($slot in $effectivePublishSlots) {
     $scheduled = [TimeSpan]$slotTimes[[int]$slot]
     if ($nowTime -lt $scheduled -or $nowTime -ge ($scheduled + [TimeSpan]::FromHours(4))) { continue }
     $dueSlots += [int]$slot
-    if ($postedInstagramSlots -contains [int]$slot) {
-        Write-GateLog ("No publish needed: slot {0} already has a live Instagram record." -f $slot)
+    if ($postedPairs -contains ("{0}:instagram" -f $slot) -and $postedPairs -contains ("{0}:facebook" -f $slot)) {
+        Write-GateLog ("No publish needed: slot {0} has live Facebook and Instagram records." -f $slot)
         continue
     }
     $needed += [int]$slot
@@ -110,7 +110,7 @@ if ($missingRequiredCalendarSlots.Count -gt 0) {
     exit 1
 }
 if ($needed.Count -eq 0) {
-    Write-GateLog "No due Instagram slot needs catch-up."
+    Write-GateLog "No due Facebook/Instagram slot needs catch-up."
     exit 0
 }
 

@@ -31,6 +31,7 @@ import re
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from publish_recovery_report import recovery_summary
 
 RULES_VERSION = 1
 STREAK_TARGET = 7
@@ -421,7 +422,7 @@ def planned_slots(assets_root, day):
     return found
 
 
-def evaluate_posts(day, policy, posted_log_path, assets_root=None):
+def _evaluate_posts(day, policy, posted_log_path, assets_root=None):
     iso = day.isoformat()
     if policy is None:
         return _result("no_data", "發文計畫檔讀不到(data/publishing-policy.json)")
@@ -468,6 +469,17 @@ def evaluate_posts(day, policy, posted_log_path, assets_root=None):
     if problems:
         return _result("fail", "、".join(problems), **details)
     return _result("pass", "排程 {0} 個(slot/平台)全部成功".format(len(pairs)), **details)
+
+
+def evaluate_posts(day, policy, posted_log_path, assets_root=None):
+    result = _evaluate_posts(day, policy, posted_log_path, assets_root)
+    recovery = recovery_summary(posted_log_path.parent.parent / "gates", [day])
+    if recovery["text"]:
+        result["reason"] += "；" + recovery["text"]
+        result["status"] = "no_data" if recovery["unverified"] else "fail"
+        result["details"]["recovery_needs_manual"] = recovery["manual"]
+        result["details"]["notification_pending"] = recovery["pending"]
+    return result
 
 
 # ------------------------------------------------------------ day + streaks

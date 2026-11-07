@@ -714,9 +714,10 @@ describe("postCurrentSlot interlock with schedule-ahead", () => {
     );
 
     const calls: CapturedCall[] = [];
-    await postCurrentSlot({ date: DATE, slot: 1, root, now: IN_WINDOW, fetchImpl: fakeFetch(calls) });
+    await expect(postCurrentSlot({ date: DATE, slot: 1, root, now: IN_WINDOW, fetchImpl: fakeFetch(calls) }))
+      .rejects.toThrow("needs_manual:");
 
-    expect(calls.some((call) => call.url.includes("/111000111/"))).toBe(false);
+    expect(calls.some((call) => call.url.includes("/111000111/") && call.method === "POST")).toBe(false);
     const log = await loadPostLog(DATE, root);
     const fb = log.find((row) => row.platform === "facebook");
     expect(fb).toMatchObject({ status: "uncertain", attempts: 0 });

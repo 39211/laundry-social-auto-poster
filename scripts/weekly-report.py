@@ -32,6 +32,7 @@ import os
 from pathlib import Path
 import re
 import sys
+from publish_recovery_report import recovery_summary
 
 
 TAIPEI = timezone(timedelta(hours=8))
@@ -331,6 +332,9 @@ def publication_metrics(data, start, end, now, reader):
                 if not is_schedule and status in ("failed", "error", "missed"):
                     if publication and start <= publication < end and publication <= now:
                         events.append((platform, "failed", logical))
+                if not is_schedule and status == "uncertain":
+                    if publication and start <= publication < end and publication <= now:
+                        events.append((platform, "uncertain", logical))
     for platform, kind, key in events:
         sets[platform][kind].add(find(key))
     sets["youtube"]["unconfirmed"].difference_update(find(key) for key in youtube_public_times)
@@ -980,6 +984,9 @@ def build_report(data, reports, bot, week, now, llm=False):
                   f"發文未知（台帳缺失／損壞）；LINE 點擊 {metrics['line'].display(previous['line'])}。" if missing_publication else
                   f"本機成功發文紀錄 {published} 篇；LINE 點擊 {metrics['line'].display(previous['line'])}。")
     status = "本週未結束" if start <= now < end else "未來週" if now < start else "已結束週"
+    recovery = recovery_summary(data / "gates", days)
+    if recovery["text"]:
+        conclusion += " " + recovery["text"] + "。"
     lines = [f"# 私享家週報 {week}", f"一句話結論：{conclusion}",
              f"期間：{first}～{(end - timedelta(days=1)).date()}（台北）；截至 {stamp_text(now)}；{status}。"
              f"成效：只計已結束的完整日 {completed}/7，與上週相同星期比較；今日不計。", "",

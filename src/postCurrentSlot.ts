@@ -41,6 +41,8 @@ import { projectRoot } from "./paths";
 import { postFacebookCarousel, postFacebookPhoto, postFacebookReel } from "./postFacebook";
 import { postInstagramCarousel, postInstagramPhoto, postInstagramReel } from "./postInstagram";
 import { NonRetryableError, withRetry } from "./retry";
+import { claimRecoveryRetry, finishRecovery, markRecoveryManual, preparePublicationRecovery, type RecoveryDecision, type RecoveryInput } from "./publishRecovery";
+import type { StaffAlertSender } from "./facebookLostAlert";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
 import { CONCEPT_COOLDOWN_DAYS } from "./reelConcepts";
 import { DAILY_SCHEDULE, findSlotByNumber, getZonedDateParts, resolveCurrentSlot } from "./scheduler";
@@ -66,6 +68,7 @@ export interface PostCurrentSlotOptions {
   verifyPublicImageUrl?: boolean;
   preflightOnly?: boolean;
   fetchImpl?: typeof fetch;
+  recoverySender?: StaffAlertSender;
 }
 
 async function assertLocalImagesExist(slot: DailySlot, root: string): Promise<void> {
@@ -286,7 +289,8 @@ async function postPlatform(
     : input.mediaType === "carousel"
       ? platform === "facebook" ? postFacebookCarousel : postInstagramCarousel
       : platform === "facebook" ? postFacebookPhoto : postInstagramPhoto;
-  const { value, attempts } = await withRetry(() => publish(input, config, fetchImpl), 3);
+  // Live retries must pass platform readback and the persistent one-retry budget.
+  const { value, attempts } = await withRetry(() => publish(input, config, fetchImpl), config.dryRun ? 3 : 1);
   return { ...value, attempts };
 }
 
@@ -348,7 +352,9 @@ async function postOneSlot(
   fetchImpl: typeof fetch,
   preflightOnly = false,
   abVariant?: AbVariant,
-  now: Date = new Date()
+  now: Date = new Date(),
+  recoverySender?: StaffAlertSender,
+  runtimeStartedAt = Date.now()
 ): Promise<PostLogEntry[]> {
   // The brake comes before the publish window, the lock, and every other
   // check: whatever else is true, a paused line does not put anything in front
@@ -357,31 +363,6 @@ async function postOneSlot(
   if (!config.dryRun && !preflightOnly) {
     const paused = await readPause(root);
     if (paused) throw new NonRetryableError(pauseMessage(paused));
-  }
-  // Outside its window, a slot both platforms already recorded has nothing left
-  // to do: answer "skipped" instead of throwing. An --all-due run at 19:00 used
-  // to throw "outside window" for the 08:00 slot that went out this morning.
-  // Inside the window the full path still runs (gates, repair-queue resolution).
-  if (!config.dryRun && !preflightOnly) {
-    try {
-      assertInsidePublishWindow(slot.slot, config, now, date, root);
-    } catch (windowError) {
-      const recorded = await loadPostLog(date, root);
-      const platforms: Platform[] = ["facebook", "instagram"];
-      if (!platforms.every((platform) => hasRecordedPost(recorded, slot.slot, platform, false))) {
-        throw windowError;
-      }
-      return platforms.map((platform) => ({
-        date,
-        slot: slot.slot,
-        platform,
-        status: "skipped" as const,
-        dry_run: false,
-        attempts: 0,
-        ...(abVariant ? { ab_variant: abVariant } : {}),
-        created_at: new Date().toISOString()
-      }));
-    }
   }
   // Single-flight per date+slot: scheduler retries, the patrol and a manual
   // run can overlap; two publishers that both read "no success yet" would
@@ -487,7 +468,36 @@ async function postOneSlot(
       }
     };
   }
+  const recoveryInputs = new Map<Platform, RecoveryInput>();
+  const recovery = new Map<Platform, RecoveryDecision>();
   try {
+  if (!config.dryRun && !preflightOnly) {
+    for (const platform of ["facebook", "instagram"] as const) {
+      const input = { root, date, slot, platform, config, now, fetchImpl, sender: recoverySender, startedAt: runtimeStartedAt };
+      recoveryInputs.set(platform, input);
+      const decision = await preparePublicationRecovery(input);
+      if (decision) {
+        recovery.set(platform, decision);
+        if (decision.action === "confirmed") {
+          // Recording an existing platform post is not a new publish. It must
+          // survive an expired retry window or unavailable original assets.
+          const entry: PostLogEntry = { date, slot: slot.slot, platform, status: "success", dry_run: false,
+            attempts: 0, post_id: decision.postId, created_at: now.toISOString() };
+          await appendPostLogDurably(entry, root);
+          await finishRecovery(input, decision, entry);
+          recovery.delete(platform);
+        }
+      }
+    }
+    try { assertInsidePublishWindow(slot.slot, config, now, date, root); }
+    catch (windowError) {
+      const recorded = await loadPostLog(date, root);
+      if (!["facebook", "instagram"].every(platform => recorded.some(row => row.slot === slot.slot &&
+        row.platform === platform && !row.dry_run && ["success", "posted"].includes(row.status)))) throw windowError;
+      return (["facebook", "instagram"] as const).map(platform => ({ date, slot: slot.slot, platform,
+        status: "skipped", dry_run: false, attempts: 0, ...(abVariant ? { ab_variant: abVariant } : {}), created_at: now.toISOString() }));
+    }
+  }
   // The approval fingerprint pins WHAT was approved: a slot rewritten after
   // its approval must not publish on the old grant (luna, high). Absent
   // sidecar = legacy day, no check; present sidecar with a different hash =
@@ -621,13 +631,16 @@ async function postOneSlot(
     : undefined;
   const publicMediaUrl = videoUrl ?? imageUrl;
 
-  if (config.verifyPublicImageUrl) {
-    if (isReel) await verifyPublicAssetUrl(publicMediaUrl, fetchImpl);
-    else {
-      for (const url of imageUrls) await verifyPublicImageUrl(url, fetchImpl);
-      if (isMixedCarousel && videoUrl) await verifyPublicAssetUrl(videoUrl, fetchImpl);
+  const verifyMedia = async () => {
+    if (config.verifyPublicImageUrl) {
+      if (isReel) await verifyPublicAssetUrl(publicMediaUrl, fetchImpl);
+      else {
+        for (const url of imageUrls) await verifyPublicImageUrl(url, fetchImpl);
+        if (isMixedCarousel && videoUrl) await verifyPublicAssetUrl(videoUrl, fetchImpl);
+      }
     }
-  }
+  };
+  if (preflightOnly || config.dryRun) await verifyMedia();
 
   const existing = await loadPostLog(date, root);
   const approvals = await loadApprovalLog(date, root);
@@ -725,14 +738,28 @@ async function postOneSlot(
   // day-audit see the slot covered, then continues to Instagram, which has no
   // API scheduling and still publishes live from this machine.
   const { loadScheduledLog } = await import("./scheduleAhead");
-  const scheduledRows = await loadScheduledLog(date, root).catch(() => []);
+  const scheduledRows = await loadScheduledLog(date, root).catch(error => {
+    if (recovery.get("facebook")?.action === "manual") return [];
+    throw error;
+  });
 
   let firstFailure: unknown;
   // Posts that may be live without a posted-log row. These outrank every other
   // failure in what this run reports.
   const unrecordedMessages: string[] = [];
-  for (const { platform, input } of platformInputs) {
-    if (hasRecordedPost(existing, slot.slot, platform, config.dryRun)) {
+  platformLoop: for (const { platform, input } of platformInputs) {
+    let decision = recovery.get(platform);
+    const recoveryInput = recoveryInputs.get(platform)!;
+    if (decision?.action === "manual") {
+      const entry: PostLogEntry = { date, slot: slot.slot, platform, status: "uncertain", dry_run: false,
+        attempts: 0, error: `needs_manual:${decision.record.reason}`, created_at: now.toISOString() };
+      if (!existing.some(row => row.slot === slot.slot && row.platform === platform && !row.dry_run &&
+        ["failed", "uncertain"].includes(row.status))) await appendPostLogDurably(entry, root);
+      outputs.push(entry);
+      firstFailure = firstFailure ?? new NonRetryableError(`needs_manual:${decision.record.reason}`);
+      continue;
+    }
+    if (!decision && hasRecordedPost(existing, slot.slot, platform, config.dryRun)) {
       outputs.push({
         date,
         slot: slot.slot,
@@ -748,9 +775,17 @@ async function postOneSlot(
 
     const scheduledRow =
       platform === "facebook"
-        ? scheduledRows.find((row) => row.slot === slot.slot && row.platform === "facebook")
+        ? scheduledRows.find((row) => row.slot === slot.slot)
         : undefined;
     if (scheduledRow && !config.dryRun) {
+      if (decision?.action === "retry") {
+        await markRecoveryManual(recoveryInput, decision.record, "facebook_schedule_exists");
+        const error = "needs_manual:facebook_schedule_exists";
+        outputs.push({ date, slot: slot.slot, platform, status: "uncertain", dry_run: false,
+          attempts: 0, error, created_at: now.toISOString() });
+        firstFailure = firstFailure ?? new NonRetryableError(error);
+        continue;
+      }
       // An unconfirmed schedule may or may not be in Meta's queue: record it
       // as uncertain (never published again from here), not as a success.
       const unconfirmed = scheduledRow.status === "uncertain";
@@ -791,12 +826,26 @@ async function postOneSlot(
     }
 
     let published: PostResult | undefined;
+    // A first failure in the last sentinel run must not wait for another wake-up.
+    // The only loop continuation is a newly read-back, unspent recovery decision.
+    for (;;) {
     try {
+      if (!config.dryRun) await verifyMedia();
+      if (decision?.action === "retry") await claimRecoveryRetry(recoveryInput, decision);
       // The lock names this platform BEFORE Meta is called, so a run that dies
       // between Meta's accept and the log write leaves a lock no run reclaims.
       await markLockInFlight(platform);
       published = await postPlatform(platform, input, config, fetchImpl);
+      break;
     } catch (error) {
+      // A final readback/queue check stopped before transport. Preserve its
+      // manual reason and unused retry budget; it is not a failed send.
+      if (decision?.action === "retry" && decision.record.status === "needs_manual") {
+        outputs.push({ date, slot: slot.slot, platform, status: "uncertain", dry_run: false,
+          attempts: 0, error: `needs_manual:${decision.record.reason}`, created_at: now.toISOString() });
+        firstFailure = firstFailure ?? error;
+        continue platformLoop;
+      }
       // A NonRetryableError from a commit point means the post may already be
       // live. Recording it as "failed" is what let the catch-up chain publish
       // the same slot again two hours later.
@@ -807,7 +856,7 @@ async function postOneSlot(
         platform,
         status: commitUncertain ? "uncertain" : "failed",
         dry_run: config.dryRun,
-        attempts: 3,
+        attempts: 1,
         published_media_type: input.mediaType,
         video_status: resolvedMedia.videoDeferred
           ? "VIDEO_DEFERRED"
@@ -841,8 +890,22 @@ async function postOneSlot(
         }
       }
       if (!commitUncertain) await clearLockInFlight();
+      if (decision?.action === "retry") await markRecoveryManual(recoveryInput, decision.record, "retry_failed");
+      else if (!config.dryRun) {
+        const next = await preparePublicationRecovery(recoveryInput, error);
+        if (next) {
+          decision = next;
+          recovery.set(platform, next);
+          if (next.action === "retry") continue;
+          if (next.action === "confirmed") {
+            published = { platform, status: "success", dry_run: false, attempts: 0, post_id: next.postId };
+            break;
+          }
+        }
+      }
       firstFailure = firstFailure ?? error;
-      continue;
+      continue platformLoop;
+    }
     }
 
     // A post Meta accepted is never logged as "failed": catch-up reads "failed"
@@ -850,6 +913,7 @@ async function postOneSlot(
     const entry = resultToLog(date, slot.slot, published, resolvedMedia, abVariant);
     try {
       await appendPostLogDurably(entry, root);
+      if (decision) await finishRecovery(recoveryInput, decision, entry);
       outputs.push(entry);
     } catch (logError) {
       if (!config.dryRun && ["success", "posted", "uncertain"].includes(published.status)) {
@@ -890,6 +954,13 @@ async function postOneSlot(
   }
 
   return outputs;
+  } catch (error) {
+    for (const [platform, decision] of recovery) {
+      if (decision.record.status !== "resolved" && decision.record.status !== "needs_manual") {
+        await markRecoveryManual(recoveryInputs.get(platform)!, decision.record, "publish_precondition_failed");
+      }
+    }
+    throw error;
   } finally {
     if (releaseLock) await releaseLock();
   }
@@ -925,6 +996,7 @@ export function refuseTamperedPublish(date: string, reasons: string[]): void {
 }
 
 export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Promise<PostLogEntry[]> {
+  const runtimeStartedAt = Date.now();
   const root = projectRoot(options.root);
   const baseConfig = getConfig();
   const config: AppConfig = {
@@ -1008,7 +1080,9 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
           options.fetchImpl ?? fetch,
           options.preflightOnly,
           abVariant,
-          now
+          now,
+          options.recoverySender,
+          runtimeStartedAt
         ))
       );
     } catch (error) {

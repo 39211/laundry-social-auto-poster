@@ -83,7 +83,8 @@ describe("publish-sentinel F19 live-post predicate", () => {
     expect(notice).toContain('Write-Log ("UNCERTAIN: "');
     expect(notice).toContain('Show-Toast "發布結果不明:');
     expect(notice).toContain("先去粉專/IG 看貼文有沒有上;有就不用管。沒有的話，請依來源處理：");
-    expect(notice).toContain("data\\posted-log\\$Date.json 裡那一列刪掉再跑補發");
+    expect(notice).toContain("保留發布原紀錄；系統先回讀平台，不能確認時不重發");
+    expect(notice).not.toContain("刪掉再跑補發");
   });
 
   // R5 / R4: Inspect the flow without executing sync, catchup or notifications.
@@ -102,7 +103,7 @@ describe("publish-sentinel F19 live-post predicate", () => {
     const readback = main.indexOf("$parsed = Get-Content $logPath -Raw -Encoding UTF8 | ConvertFrom-Json", sync);
     const liveReadback = main.indexOf("$posted = @(Get-LivePostedPairs $parsed)", readback);
     const recheck = main.indexOf("$missing = @(Get-MissingDuePairs $due $posted", liveReadback);
-    const catchupGuard = main.indexOf("if ($missing.Count -gt 0)", recheck);
+    const catchupGuard = main.indexOf("if ($recoveryPairs.Count -gt 0)", recheck);
     expect(guard).toBeGreaterThan(0);
     expect(sync).toBeGreaterThan(guard);
     expect(readback).toBeGreaterThan(sync);
@@ -112,7 +113,7 @@ describe("publish-sentinel F19 live-post predicate", () => {
     expect(main.slice(guard, sync)).toContain("try {");
     expect(main.slice(sync, readback)).toContain("$LASTEXITCODE -ne 0");
     expect(main.slice(sync, readback)).toMatch(/catch \{\r?\n\s+Write-Log \("IG cloud sync failed: "/u);
-    expect(main).toContain("$list = Format-PublishPairs $missing");
+    expect(main).toContain("$list = Format-PublishPairs $recoveryPairs");
     expect(main).toContain("$s = Format-PublishPairs $still");
     expect(main.match(/IG 由雲端發,還沒有結果。/gu)).toHaveLength(2);
   });

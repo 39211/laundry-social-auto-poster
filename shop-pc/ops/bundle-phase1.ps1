@@ -4,7 +4,7 @@
 # -CheckOnly: precheck only (window, python, staging hashes, requires hashes); zero writes. Exit 2 on refusal.
 # Commander-written (the API model refused this task under its cyber policy, 10/30 23:40); ASCII only, PS 5.1.
 param(
-  [Parameter(Mandatory = $true)][ValidateSet('A3-2', 'A4-4', 'B1-2', 'B2', 'B2c', 'SP1', 'BED')][string]$Bundle,
+  [Parameter(Mandatory = $true)][ValidateSet('A3-2', 'A4-4', 'B1-2', 'B2', 'B2c', 'B2-8', 'A4-7', 'SP1', 'BED')][string]$Bundle,
   [switch]$CheckOnly
 )
 $ErrorActionPreference = 'Stop'
@@ -146,6 +146,47 @@ $cfg = @{
     stop     = @('webhook_server', 'tunnel_supervisor', 'inbound_monitor')
     tests    = @(, @('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_shop_config_attribution.py'))
     imports  = 'webhook_server'
+    state    = @()
+  }
+  'B2-8' = @{
+    # B2-8a (D19 invisible time-match): follow_observed rows + anonymous inquiry timeline.
+    # Stage = git blobs of fbfc25a6 (LF). requires = the B2 versions now live on the shop.
+    expected = [ordered]@{
+      'runtime\webhook_server.py'             = '8583BF4C1E5D6A0405E85D90F989F42A1EAF2EB433FC05BB6B94F533B3CAE08A'
+      'runtime\attribution_service.py'        = 'BDEE06416DA73949D7CE56D264CE8DD9A74C9169F8C41EF28BDACE1407FBDCB4'
+      'runtime\attribution_export.py'         = '34A5CA7A2826D326BFFFB19CF7435F858405B4334E932A2872CF07F3ABB850A5'
+      'runtime\attribution_retention.py'      = '1B7F0E349FAFCF6DC371F444A42BA02CF659316F0AED510CFEDF81E9096D029F'
+      'runtime\test_webhook_attribution.py'   = '87881692D1FD429DCB8A1F4E32B6A447772E7B4E30CE02EEA4B9D16DB95F34C2'
+      'runtime\test_attribution_service.py'   = 'B9D8F4F324E60632B778B1D7BD5563B5BA74C49AAC284FA32D4ED06DF40BA282'
+      'runtime\test_attribution_export.py'    = '4FB17D4436C676587F958310A6DFB29C276C08920C87D6F116726C531E690DD2'
+      'runtime\test_attribution_retention.py' = '81AFB040F81346600A95E8ED8F6554DEF2725E2902ECA241E6F1FBDC52CD286C'
+      'runtime\ATTRIBUTION-HOOK.md'           = '0D94E7C7203B8A0313E7E6056F8312480FAADB9D13B94A8D05B47D5B0C6449DD'
+      'runtime\ATTRIBUTION-EXPORT.md'         = '49B5CE76010036075472A64CB81BD0F26E4D72944945705500888E06501997BF'
+    }
+    requires = @{
+      'runtime\webhook_server.py'        = '22DDA24C08EED0C9A6850A1537E728FC695B75DDD529787D5097CE8F77D68748'
+      'runtime\attribution_service.py'   = 'B32B19F083895F6E68EF72413AFC6BDDE2829CBCC9C96DA8AC0C95BA892F7634'
+      'runtime\attribution_export.py'    = '3400FB5C204D44AD3D5B6E1DD567240BFD151F9BF5A224FA96B0A5CC5EAAE78A'
+      'runtime\attribution_retention.py' = '028524B0B474E190971907CF1140C639A216E003D9F7856C17B6AA100AE84248'
+    }
+    stop     = @('webhook_server')
+    tests    = @(, @('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_*attribution*.py'))
+    imports  = 'webhook_server'
+    state    = @()
+  }
+  'A4-7' = @{
+    # A4-7 weekly-hours window (tunnel_supervisor) + N1 read-only notify_report CLI. Stage = 13af3f35 blobs.
+    expected = [ordered]@{
+      'runtime\tunnel_supervisor.py' = 'F82DED67A3B614EE7D1C466B139B612D555463F3CE7FE720E76F81279502CA03'
+      'runtime\test_tunnel_events.py' = '27F41BB6208FB5489E1C73628CD6C8E4D4E76036F3480DCC0F03E38841D35690'
+      'runtime\notify_report.py' = '058862DAA83F40F84747E02FC858568F99346EE2AD635C41F02B2F86AFE83D4E'
+      'runtime\test_notify_report.py' = '7EE455C4793196616BE9D3DA8B9EB9CB245A0F55EC54BDCF1701E721417D6AD0'
+    }
+    requires = @{ 'runtime\tunnel_supervisor.py' = '9EA3149A2F09E5DBB7894B71CB7095B249BF4B6C34C2F4EABB5D8830B2A9FA8E' }
+    stop     = @('tunnel_supervisor')
+    tests    = @(@('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_tunnel_events.py'),
+                 @('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_notify_report.py'))
+    imports  = 'tunnel_supervisor'
     state    = @()
   }
 }

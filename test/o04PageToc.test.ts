@@ -8,8 +8,8 @@ import { repoRootFromHere } from "../scripts/check-sitemap-links";
 /**
  * O04：6 個既有指南頁加本頁目錄與穩定 H2 id。
  * 目錄文字與 id 以行銷 PASS 的兩份 CSV 為準。
- * 下面的 sha256 是 main e890511a82b5b2f9300999a68c56cadebb92c1f6 上、LF 原文的雜湊。
- * CI 只抓 PR commit 時仍用這個鎖；本機有 main 時再跟 git show 對一次。
+ * 下面的 sha256 是凍結基準 e890511a82b5b2f9300999a68c56cadebb92c1f6 上、LF 原文的雜湊。
+ * CI 只抓 PR commit、拿不到該 commit 時仍用這個鎖；git show 只對這個凍結 SHA，淺層 checkout 拿不到就回 undefined 並跳過比對。
  */
 const ROOT = repoRootFromHere();
 const PROPOSED_CSV = "test/fixtures/o04/proposed-changes.csv";
@@ -449,7 +449,7 @@ describe("O04 六個指南頁", () => {
       }
     });
 
-    it(`${slug} 相對 main 只多了目錄、H2 id 與 TOC CSS`, () => {
+    it(`${slug} 相對凍結基準 e890511 只多了目錄、H2 id 與 TOC CSS`, () => {
       const html = readRepo(rel);
       const stripped = withoutTocAdditions(html, rows.map((row) => row.id));
       expect(sha256(stripped), slug).toBe(MAIN_SHA256[slug]);
@@ -470,10 +470,10 @@ describe("O04 六個指南頁", () => {
         expect(countOf(html, price), price).toBeGreaterThan(0);
         expect(countOf(html, price), price).toBe(countOf(stripped, price));
       }
-      const fromMain = gitBlob("main", rel) ?? gitBlob("origin/main", rel);
-      if (fromMain !== undefined) {
-        expect(fromMain, slug).toBe(stripped);
-        expect(sha256(fromMain), slug).toBe(MAIN_SHA256[slug]);
+      const fromBaseline = gitBlob("e890511a82b5b2f9300999a68c56cadebb92c1f6", rel);
+      if (fromBaseline !== undefined) {
+        expect(fromBaseline, slug).toBe(stripped);
+        expect(sha256(fromBaseline), slug).toBe(MAIN_SHA256[slug]);
       }
     });
   }

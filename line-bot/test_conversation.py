@@ -304,7 +304,7 @@ CASES = [
     ("T-shirt", "message", "fallback", False, ["不太確定"]),
     ("洗特殊類名牌包多少錢", "message", "quote", False, ["特殊類名牌包", _p("特殊類名牌包")]),  # T-1 讀表
     ("到門口了", "message", "in_store", True, ["櫃台"]),
-    ("你們幾點收件", "message", "hours_day", False, ["營業時間內約"]),
+    ("你們幾點收件", "message", "hours_day", False, ["外收時段", "週二不收件"]),
     ("拍照問價", "message", "photo_quote", False, ["拍給我看", "髒的地方"]),  # T1 主句
 ]
 
@@ -966,7 +966,7 @@ def test_m7_arrived_and_pickup_hours():
         _ALL_MSGS.append((f"m7:{text}", msgs))
         blob = flatten(msgs)
         assert meta["intent"] == "hours_day", (text, meta, blob)
-        assert "營業時間內約" in blob, blob
+        assert "外收時段" in blob and "週三晚上" in blob, blob
         assert "地址" not in blob
 
 
@@ -1240,7 +1240,7 @@ _VOICE_FORBIDDEN = (
 def test_voice_three_flows_no_machine_talk():
     """人味：三條流程走到底，回覆不含機器口吻。"""
     setup_tmp()
-    freeze_now("2026-09-08T13:00")
+    freeze_now("2026-09-10T13:00")  # 週四：在外收時段內（店主 11/07）
     orig = L.inventory
     L.inventory = lambda: ([], [], "none")
     blobs = []
@@ -1363,7 +1363,7 @@ def test_voice_phone_example_only_on_error():
 def test_voice_d3_notify_timing_unchanged():
     """D3：只改字，通知時機不變。"""
     setup_tmp()
-    freeze_now("2026-09-08T13:00")
+    freeze_now("2026-09-10T13:00")  # 週四：在外收時段內（店主 11/07）
     orig = L.inventory
     L.inventory = lambda: ([], [], "none")
     _staff.inbox.clear()
@@ -1665,7 +1665,7 @@ def test_m9_longest_item_quote():
 
 def test_c3_pickup_item_before_confirm():
     setup_tmp()
-    freeze_now("2026-09-08T13:00")
+    freeze_now("2026-09-10T13:00")  # 週四：在外收時段內（店主 11/07）
     _staff.inbox.clear()
     uid = "Uc3newitem01"
     asked_before = False
@@ -1694,7 +1694,7 @@ def test_c3_pickup_item_before_confirm():
 
 def test_c3_later_see_no_warn_flag():
     setup_tmp()
-    freeze_now("2026-09-08T13:00")
+    freeze_now("2026-09-10T13:00")  # 週四：在外收時段內（店主 11/07）
     _staff.inbox.clear()
     uid = "Uc3latersee1"
     conv.handle_ex(uid, "外收送預約")

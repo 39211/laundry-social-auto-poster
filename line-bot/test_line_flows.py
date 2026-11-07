@@ -166,10 +166,9 @@ def test_menu_pickup_then_address():
     assert pdata.startswith("action=pickup_when") or pdata == "", pdata
     assert not (pdata == "action=pickup" or pdata.startswith("action=pickup&")), pdata
     n_before = len(conv.BOOK.read_text(encoding="utf-8").splitlines()) if conv.BOOK.exists() else 0
-    future = conv.now_tw() + timedelta(days=1)
-    while future.weekday() == 6:
+    future = (conv.now_tw() + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0)
+    while conv.pickup_window_reason(future):  # 店主 11/07：外收只在週三晚上、週四到週六中午過後
         future += timedelta(days=1)
-    future = future.replace(hour=15, minute=0, second=0, microsecond=0)
     done = conv.handle_postback(uid, "action=pickup&item=", {"datetime": future.strftime("%Y-%m-%dT%H:%M")})
     blob = texts(done)
     n_mid = len(conv.BOOK.read_text(encoding="utf-8").splitlines()) if conv.BOOK.exists() else 0

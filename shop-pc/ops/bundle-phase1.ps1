@@ -4,7 +4,7 @@
 # -CheckOnly: precheck only (window, python, staging hashes, requires hashes); zero writes. Exit 2 on refusal.
 # Commander-written (the API model refused this task under its cyber policy, 10/30 23:40); ASCII only, PS 5.1.
 param(
-  [Parameter(Mandatory = $true)][ValidateSet('A3-2', 'A4-4', 'B1-2', 'B2', 'B2c', 'SP1')][string]$Bundle,
+  [Parameter(Mandatory = $true)][ValidateSet('A3-2', 'A4-4', 'B1-2', 'B2', 'B2c', 'SP1', 'BED')][string]$Bundle,
   [switch]$CheckOnly
 )
 $ErrorActionPreference = 'Stop'
@@ -105,6 +105,35 @@ $cfg = @{
     tests    = @(, @('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_sp1_chat_guards.py'))
     imports  = 'webhook_server'
     state    = @()
+  }
+  'BED'  = @{
+    # 11/07: bulky items (blanket / curtain / sofa cover) 10-14 days (fix/bedding-days-1106, owner 11/06) and
+    # arrival notices for phone-only LINE sign-ups (fix/notify-phone-binding-1107, owner 11/07).
+    # webhook_server.py is NOT shipped: the shop's own agent changed it on 11/06; it is pinned and only restarted.
+    # Staged files keep the live files' line endings (Dialog_Phrases, dialog_corpus, inbound_monitor are CRLF).
+    expected = [ordered]@{
+      'runtime\chat_guards.py' = 'FD92B3D2DDAC786A333668909650A0216B82184AE96D5B7C5AFA3718B3F0E4AE'
+      'runtime\chat_service.py' = '4396234D4607AA5A818918ABFA13D5D7ABA36ADCE5F565105FCAD36F22314AB1'
+      'build_expanded_corpus.py' = '23BDB5070B8AE672B9C8BEF2007AE03E8D888E03813C60867FEC8E23637F6A2B'
+      'config\Dialog_Phrases.json' = '3873E28958031AB7E3D295BFA301FD9651A4A4424DCA9AA0F281DE766676074F'
+      'config\dialog_corpus.py' = 'D802D17FE82368345AE99EB72E85E8E62C1413824D6DB00153AFE01B5C80C198'
+      'runtime\inbound_monitor.py' = '0A951D52CA7E4552E8B360DC3ADA3119E018B19E54566C2283BCDC748537BA3F'
+      'runtime\test_bulky_days_1106.py' = 'C4F81C72C1F97E901819B772F52E3D583D041EF8E1962DA77FB30DC193B42DD1'
+      'runtime\test_notify_phone_binding_1107.py' = 'ECAB1E2D65AC44DB84CCC33E35A154D82F52965C0396BD3112067421BB57778F'
+    }
+    requires = @{
+      'runtime\chat_guards.py' = '3E68B6C9B9C7E53C1205E5E2A07519A0F1810DFFF464F8DA09B71EBC45C842D2'
+      'runtime\chat_service.py' = 'A111A02EE0636C2FECC203A5DC18BE921129D97F8CBC99865C2E1D797EBABF81'
+      'build_expanded_corpus.py' = '62C1AF48F9F08E0D5B289D315D1AC9993D99B6C733BF4B85822EC851179C94A3'
+      'config\Dialog_Phrases.json' = '455F608F81EC63A98685A4498DB5B6808D7908FA0931673010264D8C80118A1C'
+      'config\dialog_corpus.py' = '9746F5E076571E4240275851976D0212E1829CA850AAF9493ADE5EC5B4655ECF'
+      'runtime\inbound_monitor.py' = '8D3EC62976805CD61805CCCB524F763B04B453A56DD9F52C48151222CD15F160'
+      'runtime\webhook_server.py' = 'A90113EF316F23D2E2A2808C7B73050C3BBD9A68CFE6696E46C7B05BCFAC123E'
+    }
+    stop     = @('webhook_server', 'inbound_monitor')
+    tests    = @(@('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_bulky_days_1106.py'), @('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_notify_phone_binding_1107.py'), @('-I', '-S', '-B', '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'test_inbound_monitor.py'))
+    imports  = 'webhook_server'
+    state    = @('data\monitor_state.json', 'data\notify_outbox.jsonl')
   }
   'B2c'  = @{
     # 10/31 14:04: shop_config rejected shop.json["attribution"]; every service calls load_shop,

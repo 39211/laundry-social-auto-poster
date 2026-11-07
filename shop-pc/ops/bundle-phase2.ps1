@@ -3,7 +3,7 @@
 # Prints PASS/FAIL per check; exit 0 only when all pass. Never prints uid, message text or data-file content.
 # Commander-written 10/30; ASCII only, PS 5.1.
 param(
-  [Parameter(Mandatory = $true)][ValidateSet('A3-2', 'A4-4', 'B1-2', 'B2', 'B2c', 'SP1')][string]$Bundle,
+  [Parameter(Mandatory = $true)][ValidateSet('A3-2', 'A4-4', 'B1-2', 'B2', 'B2c', 'SP1', 'BED')][string]$Bundle,
   [Parameter(Mandatory = $true)][string]$Backup,
   [int]$WaitSeconds = 60
 )
@@ -18,7 +18,7 @@ $svcRx = @{
   'tunnel_supervisor' = 'LaundryStores\\fxwash\\runtime\\tunnel_supervisor\.py'
   'inbound_monitor'   = 'LaundryStores\\fxwash\\runtime\\inbound_monitor\.py'
 }
-$stopOf = @{ 'A3-2' = 'inbound_monitor'; 'A4-4' = 'tunnel_supervisor'; 'B1-2' = 'webhook_server'; 'B2' = 'webhook_server'; 'B2c' = 'tunnel_supervisor'; 'SP1' = 'webhook_server' }
+$stopOf = @{ 'A3-2' = 'inbound_monitor'; 'A4-4' = 'tunnel_supervisor'; 'B1-2' = 'webhook_server'; 'B2' = 'webhook_server'; 'B2c' = 'tunnel_supervisor'; 'SP1' = 'webhook_server'; 'BED' = 'webhook_server' }
 $script:fails = 0
 function Check([string]$name, [bool]$ok, [string]$detail) {
   if ($ok) { Say "PASS $name $detail" } else { $script:fails++; Say "FAIL $name $detail" }
@@ -42,8 +42,12 @@ do {
 foreach ($s in $svcRx.Keys) { Check "process_single $s" ($counts[$s] -eq 1) "count=$($counts[$s])" }
 foreach ($p in $mine) { Check "restarted $($stopOf[$Bundle])" ($p.CreationDate -ge $t0.AddSeconds(-2)) ("pid {0} created={1}" -f $p.ProcessId, $p.CreationDate.ToString('HH:mm:ss')) }
 foreach ($p in $mine) { Check "portable python" ($p.ExecutablePath -eq $py) $p.ExecutablePath }
+if ($Bundle -eq 'BED') {
+  # BED stops two services; the second one must be new as well
+  foreach ($p in @(Find-Proc $svcRx['inbound_monitor'])) { Check 'restarted inbound_monitor' ($p.CreationDate -ge $t0.AddSeconds(-2)) ("pid {0} created={1}" -f $p.ProcessId, $p.CreationDate.ToString('HH:mm:ss')) }
+}
 
-if (@('A4-4', 'B1-2', 'B2', 'B2c', 'SP1') -contains $Bundle) {
+if (@('A4-4', 'B1-2', 'B2', 'B2c', 'SP1', 'BED') -contains $Bundle) {
   $listen = Get-NetTCPConnection -LocalPort 18791 -State Listen -ErrorAction SilentlyContinue
   Check 'webhook 18791 listening' ([bool]$listen) $(if ($listen) { "pid $($listen.OwningProcess)" } else { 'none' })
 }
@@ -70,7 +74,7 @@ if (@('A4-4', 'B2c') -contains $Bundle) {
   Check $(if ($day) { 'tunnel PUT 200 + verify match' } else { 'tunnel skipped_night' }) $okEv "events=$($seen.Count)"
 }
 
-if ($Bundle -eq 'A3-2') {
+if (@('A3-2', 'BED') -contains $Bundle) {
   Start-Sleep -Seconds 10
   Push-Location -LiteralPath $root
   try {
@@ -110,7 +114,7 @@ sys.exit(0 if ok else 1)
   Check 'no_log_marker inbound monitor' ($bad -eq 0) "files=$($logs.Count) hits=$bad"
 }
 
-if (@('B1-2', 'B2', 'B2c', 'SP1') -contains $Bundle) {
+if (@('B1-2', 'B2', 'B2c', 'SP1', 'BED') -contains $Bundle) {
   $wl = Join-Path $root 'logs\webhook_server.log'
   # Only lines logged since this phase2 started (webhook lines carry a 'yyyy-MM-dd HH:mm:ss ' prefix);
   # 10/31 14:20 a tail-30 window still held the 14:04 traceback and gave a false FAIL.

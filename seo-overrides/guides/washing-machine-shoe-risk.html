@@ -336,6 +336,33 @@
       .section { padding: 40px 0; }
       h1, h2, h3, p, li { overflow-wrap: anywhere; }
     }
+    .page-toc {
+      max-width: var(--max-page);
+      margin: 0 auto;
+      padding: 8px 20px 0;
+    }
+    .page-toc strong {
+      color: var(--color-ink);
+      display: block;
+      font-size: 1rem;
+      margin: 18px 0 8px;
+    }
+    .page-toc ol {
+      background: var(--color-surface);
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      list-style: decimal;
+      margin: 0 0 8px;
+      padding: 14px 18px 14px 2.2rem;
+    }
+    .page-toc li {
+      color: var(--color-ink);
+    }
+    .page-toc a {
+      color: var(--color-blue-strong);
+      font-weight: 700;
+    }
+    h2[id]{scroll-margin-top:6rem}
   </style>
     <title>鞋子可以丟洗衣機洗嗎？先看 3 個機洗風險｜私享家洗衣店</title>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"></script>
@@ -400,11 +427,19 @@
         </div>
         </div>
       </section>
+      <nav class="page-toc" aria-label="本頁目錄">
+        <strong>本頁目錄</strong>
+        <ol>
+          <li><a href="#machine-wash-high-risk">哪些鞋況丟洗衣機風險高</a></li>
+          <li><a href="#assess-shoe-condition">先看清楚鞋子目前的狀態</a></li>
+          <li><a href="#shop-judgment-limits">門市判斷與處理界線</a></li>
+        </ol>
+      </nav>
       <section class="section" id="quick-table">
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">一表看懂</span>
-            <h2>鞋子丟洗衣機：哪些情況風險最高</h2>
+            <h2 id="machine-wash-high-risk">鞋子丟洗衣機：哪些情況風險最高</h2>
           </div>
           <div class="table-wrap">
             <table class="comparison-table">
@@ -449,7 +484,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">怎麼判斷</span>
-            <h2>先把狀態判斷清楚。</h2>
+            <h2 id="assess-shoe-condition">先把狀態判斷清楚。</h2>
             <p class="section-copy">私享家洗衣店（台中市西屯區青海路二段365號）說明整雙鞋進家用洗衣機的風險：脫水傷結構、泡水傷膠邊與內裡，應先看材質再決定。</p>
           </div>
           <div class="grid three">
@@ -483,7 +518,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">門市判斷</span>
-            <h2>門市判斷與處理界線</h2>
+            <h2 id="shop-judgment-limits">門市判斷與處理界線</h2>
           </div>
           <div class="grid three">
             <article class="card">

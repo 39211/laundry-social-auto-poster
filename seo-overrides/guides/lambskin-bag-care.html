@@ -204,6 +204,33 @@
       .section { padding: 40px 0; }
       h1, h2, h3, p, li { overflow-wrap: anywhere; }
     }
+    .page-toc {
+      max-width: var(--max-page);
+      margin: 0 auto;
+      padding: 8px 20px 0;
+    }
+    .page-toc strong {
+      color: var(--color-ink);
+      display: block;
+      font-size: 1rem;
+      margin: 18px 0 8px;
+    }
+    .page-toc ol {
+      background: var(--color-surface);
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      list-style: decimal;
+      margin: 0 0 8px;
+      padding: 14px 18px 14px 2.2rem;
+    }
+    .page-toc li {
+      color: var(--color-ink);
+    }
+    .page-toc a {
+      color: var(--color-blue-strong);
+      font-weight: 700;
+    }
+    h2[id]{scroll-margin-top:6rem}
   </style>
     <title>小羊皮包怎麼洗？會留痕嗎？台中收送評估｜私享家</title>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"></script>
@@ -261,12 +288,20 @@
           </div>
         </div>
       </section>
+      <nav class="page-toc" aria-label="本頁目錄">
+        <strong>本頁目錄</strong>
+        <ol>
+          <li><a href="#lambskin-can-clean">小羊皮先看狀況別急著擦</a></li>
+          <li><a href="#scratch-dent-stain">刮痕、壓痕與沾色怎麼分</a></li>
+          <li><a href="#what-to-photograph">送洗前先拍哪些地方</a></li>
+        </ol>
+      </nav>
 
       <section class="section surface">
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">怎麼判斷</span>
-            <h2>小羊皮包可以清、要先看、先別擦</h2>
+            <h2 id="lambskin-can-clean">小羊皮包可以清、要先看、先別擦</h2>
             <p class="section-copy">小羊皮越擦越容易擦出光澤不均。先停手比先處理安全。</p>
           </div>
           <div class="grid three">
@@ -290,7 +325,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">再看仔細一點</span>
-            <h2>刮痕、壓痕、沾色，各是什麼</h2>
+            <h2 id="scratch-dent-stain">刮痕、壓痕、沾色，各是什麼</h2>
           </div>
           
           <p>刮痕是皮面被劃開或被擠壓出一條線。很淺、只是表面亮度不同的，處理後有時比較不明顯；已經劃破、看得到底下纖維的，是破損，不是髒。小羊皮常做成菱格車線的款式，突起的地方容易被磨，磨白也屬於磨耗。</p>
@@ -305,7 +340,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">送洗流程</span>
-            <h2>小羊皮包送洗前先拍哪裡</h2>
+            <h2 id="what-to-photograph">小羊皮包送洗前先拍哪裡</h2>
             <p class="section-copy">可以自己送到西屯門市，也可以約免費收送、沒有最低消費。收送時間依區域再排，不先寫死幾點。</p>
           </div>
           <div class="grid three">

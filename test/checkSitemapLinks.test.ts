@@ -222,9 +222,13 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(WAVE3_EXTRA_WRITER_VOICE_MARKERS).toEqual(["這頁", "本頁", "這句", "一口價", "另看"]);
     const root = repoRootFromHere();
     const hits: string[] = [];
+    // O04 核准目錄標題是「本頁目錄」。麂皮包、皮帶頁屬於第 3 波整頁掃描，
+    // 這個導覽名稱會命中「本頁」。只拿掉 page-toc 這個 nav，其餘 HTML 仍整頁掃描。
+    const tocTitleExempt = new Set(["/guides/suede-bag-care.html", "/guides/leather-belt-care.html"]);
     for (const path of WAVE3_VOICE_PAGE_PATHS) {
       const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
-      const found = wave3WriterVoiceHits(html);
+      const prose = tocTitleExempt.has(path) ? html.replace(/<nav class="page-toc"[\s\S]*?<\/nav>/g, "") : html;
+      const found = wave3WriterVoiceHits(prose);
       if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
     }
     const answers = JSON.parse(readFileSync(join(root, "seo-overrides", "answers.json"), "utf8")) as {

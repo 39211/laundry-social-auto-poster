@@ -204,6 +204,33 @@
       .section { padding: 40px 0; }
       h1, h2, h3, p, li { overflow-wrap: anywhere; }
     }
+    .page-toc {
+      max-width: var(--max-page);
+      margin: 0 auto;
+      padding: 8px 20px 0;
+    }
+    .page-toc strong {
+      color: var(--color-ink);
+      display: block;
+      font-size: 1rem;
+      margin: 18px 0 8px;
+    }
+    .page-toc ol {
+      background: var(--color-surface);
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      list-style: decimal;
+      margin: 0 0 8px;
+      padding: 14px 18px 14px 2.2rem;
+    }
+    .page-toc li {
+      color: var(--color-ink);
+    }
+    .page-toc a {
+      color: var(--color-blue-strong);
+      font-weight: 700;
+    }
+    h2[id]{scroll-margin-top:6rem}
   </style>
     <title>麂皮包會洗壞嗎？台中收送評估｜私享家洗衣</title>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"></script>
@@ -262,12 +289,23 @@
           </div>
         </div>
       </section>
+      <nav class="page-toc" aria-label="本頁目錄">
+        <strong>本頁目錄</strong>
+        <ol>
+          <li><a href="#suede-body-vs-edge">麂皮袋身與皮邊分開看</a></li>
+          <li><a href="#nap-water-ring-oil">倒絨、水圈與油斑分開記</a></li>
+          <li><a href="#lining-damp-not-washable">內襯潮不代表外層能水洗</a></li>
+          <li><a href="#structure-and-seams">先看包身挺度與接縫</a></li>
+          <li><a href="#photo-nap-and-pocket">送洗前拍清楚絨向與內袋</a></li>
+          <li><a href="#not-deer-skin-method">鹿皮別直接套用麂皮刷法</a></li>
+        </ol>
+      </nav>
 
       <section class="section surface">
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">怎麼判斷</span>
-            <h2>麂皮袋身與皮邊不能當同一材質</h2>
+            <h2 id="suede-body-vs-edge">麂皮袋身與皮邊不能當同一材質</h2>
             <p class="section-copy">看袋身標示之外，也要找提把、封邊和內袋資料，避免只辨出外層就決定整包洗法。</p>
           </div>
           <div class="grid three">
@@ -291,7 +329,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">再看仔細一點</span>
-            <h2>倒絨、水圈與油斑各自記錄</h2>
+            <h2 id="nap-water-ring-oil">倒絨、水圈與油斑各自記錄</h2>
           </div>
           
           <p>倒絨會隨看包的方向改變深淺。把正面、背面與側面放在相近光線下拍，尤其保留靠身體的那一面；某一處看起來暗，不必先刷成和周圍一樣。若絨毛已磨短、露底或壓成光亮帶，也要另記，避免把磨耗列成可清掉的污漬。</p>
@@ -306,7 +344,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">內外層限制</span>
-            <h2>內襯潮濕不等於外層可水洗</h2>
+            <h2 id="lining-damp-not-washable">內襯潮濕不等於外層可水洗</h2>
           </div>
           
           <p>內襯沾飲料、瓶子漏水，先記下濕的位置和是否到達包底。看到布內襯，不表示包外也能浸水；水分可能接觸襯板與皮邊，內袋布料容許的處理也不能代替整包的條件。</p>
@@ -320,7 +358,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">袋身檢查</span>
-            <h2>包身挺度與接縫先看</h2>
+            <h2 id="structure-and-seams">包身挺度與接縫先看</h2>
           </div>
           
           <p>把包自然放置時，觀察底部能否平放、袋口是否歪斜，拍下目前輪廓，不要先塞滿物品把變形撐住。柔軟垂墜與原本塌陷要依包型區分，可附使用前照片供說明，不以清潔保證原本挺度。</p>
@@ -334,7 +372,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">送洗流程</span>
-            <h2>送洗前拍絨向與內袋</h2>
+            <h2 id="photo-nap-and-pocket">送洗前拍絨向與內袋</h2>
             <p class="section-copy">從袋身輪廓到藏在裡面的潮濕處，照片分組整理，讓不同材料的問題各有位置。</p>
           </div>
           <div class="grid three">
@@ -468,7 +506,7 @@
       <section class="section">
         <div class="page-shell">
           <div class="section-header">
-            <h2>鹿皮是短絨，不要套麂皮刷法</h2>
+            <h2 id="not-deer-skin-method">鹿皮是短絨，不要套麂皮刷法</h2>
           </div>
           <p>鹿皮的絨短，摸起來軟，水一碰常常先變深。麂皮的絨比較長，倒伏會發亮。小羊皮多半是光面，刮一下就留下亮痕，看<a href="https://sixiangjialaundry.com/guides/lambskin-bag-care.html" data-editorial="1">小羊皮包怎麼清</a>。三種皮不要用同一支刷。送洗前寫是鹿皮，或拍內標。</p>
           <p>浮灰在表面。水痕是一塊較深的印。刮痕是皮被帶起，不是髒。三張照片分開。不要先逆著刷。特殊皮先在不明顯的小角落試。試過的地方變深、變黏、絨倒不回來，就停。不要整只泡水，不要用酒精擦。</p>

@@ -210,6 +210,33 @@
     .price-table thead th, .comparison-table thead th { color: var(--color-muted); letter-spacing: .02em; font-size: .85rem; }
     .price-table tbody tr:last-child td, .comparison-table tbody tr:last-child td { border-bottom: none; }
     .comparison-table caption { text-align: left; font-weight: 800; padding: 0 0 8px; color: var(--color-ink); }
+    .page-toc {
+      max-width: var(--max-page);
+      margin: 0 auto;
+      padding: 8px 20px 0;
+    }
+    .page-toc strong {
+      color: var(--color-ink);
+      display: block;
+      font-size: 1rem;
+      margin: 18px 0 8px;
+    }
+    .page-toc ol {
+      background: var(--color-surface);
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      list-style: decimal;
+      margin: 0 0 8px;
+      padding: 14px 18px 14px 2.2rem;
+    }
+    .page-toc li {
+      color: var(--color-ink);
+    }
+    .page-toc a {
+      color: var(--color-blue-strong);
+      font-weight: 700;
+    }
+    h2[id]{scroll-margin-top:6rem}
   </style>
     <title>包包黏黏的怎麼處理：內裡塗層老化不是髒｜私享家洗衣</title>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"></script>
@@ -269,11 +296,20 @@
           </div>
         </div>
       </section>
+      <nav class="page-toc" aria-label="本頁目錄">
+        <strong>本頁目錄</strong>
+        <ol>
+          <li><a href="#sticky-lining-overview">內裡黏黏的先怎麼看</a></li>
+          <li><a href="#lining-cleanable-limits">能不能清先看別自己刮</a></li>
+          <li><a href="#sticky-is-material">變黏是材料本身的問題</a></li>
+          <li><a href="#what-to-photograph">內裡變黏先拍哪些地方</a></li>
+        </ol>
+      </nav>
       <section class="section" id="quick-table">
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">一表看懂</span>
-            <h2>包包內裡黏黏的：可以清、要先看、別自己處理</h2>
+            <h2 id="sticky-lining-overview">包包內裡黏黏的：可以清、要先看、別自己處理</h2>
           </div>
           <div class="table-wrap">
             <table class="comparison-table">
@@ -295,7 +331,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">怎麼判斷</span>
-            <h2>內裡可以清、要先看、別自己刮</h2>
+            <h2 id="lining-cleanable-limits">內裡可以清、要先看、別自己刮</h2>
             <p class="section-copy">黏的內裡會一直吸灰。越擦越黏，就是塗層在分解。</p>
           </div>
           <div class="grid three">
@@ -319,7 +355,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">再看仔細一點</span>
-            <h2>黏是材料本身，不是沾到東西</h2>
+            <h2 id="sticky-is-material">黏是材料本身，不是沾到東西</h2>
           </div>
           
           <p>會變黏的內裡，大多是布上面加了一層塗層。塗層讓內裡防水、好擦，但它有壽命：遇到濕熱、密閉、長時間不用，會慢慢分解。分解的第一個訊號就是黏，接著起皺、剝落，掉出的屑常是黑色或白色。很多人以為是沾到糖或飲料，擦了又擦，結果越擦越黏。</p>
@@ -334,7 +370,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">送洗流程</span>
-            <h2>內裡變黏時先拍哪裡</h2>
+            <h2 id="what-to-photograph">內裡變黏時先拍哪裡</h2>
             <p class="section-copy">可以自己送到西屯門市，也可以約免費收送、沒有最低消費。收送時間依區域再排，不先寫死幾點。</p>
           </div>
           <div class="grid three">

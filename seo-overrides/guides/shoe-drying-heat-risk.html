@@ -204,6 +204,33 @@
       .section { padding: 40px 0; }
       h1, h2, h3, p, li { overflow-wrap: anywhere; }
     }
+    .page-toc {
+      max-width: var(--max-page);
+      margin: 0 auto;
+      padding: 8px 20px 0;
+    }
+    .page-toc strong {
+      color: var(--color-ink);
+      display: block;
+      font-size: 1rem;
+      margin: 18px 0 8px;
+    }
+    .page-toc ol {
+      background: var(--color-surface);
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-card);
+      list-style: decimal;
+      margin: 0 0 8px;
+      padding: 14px 18px 14px 2.2rem;
+    }
+    .page-toc li {
+      color: var(--color-ink);
+    }
+    .page-toc a {
+      color: var(--color-blue-strong);
+      font-weight: 700;
+    }
+    h2[id]{scroll-margin-top:6rem}
   </style>
     <title>鞋子可以烘乾嗎｜熱風風險｜私享家洗衣店</title>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZKHW4MTBZJ"></script>
@@ -261,12 +288,22 @@
           </div>
         </div>
       </section>
+      <nav class="page-toc" aria-label="本頁目錄">
+        <strong>本頁目錄</strong>
+        <ol>
+          <li><a href="#drying-devices">三種烘乾設備要分開看</a></li>
+          <li><a href="#heat-sensitive-parts">鞋膠、塗層與鞋墊怕熱嗎</a></li>
+          <li><a href="#care-label-and-manual">先看洗標與設備說明</a></li>
+          <li><a href="#dryness-and-ventilation">先通風陰乾，再確認鞋內乾透</a></li>
+          <li><a href="#damaged-shoes">鞋子變形或開膠先停用</a></li>
+        </ol>
+      </nav>
 
       <section class="section surface">
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">怎麼判斷</span>
-            <h2>烘鞋機、烘衣機與吹風機要分開</h2>
+            <h2 id="drying-devices">烘鞋機、烘衣機與吹風機要分開</h2>
             <p class="section-copy">設備寫著能乾燥鞋子，也不等於這雙鞋適用。把熱源、翻動和鞋子的既有損況分開看。</p>
           </div>
           <div class="grid three">
@@ -290,7 +327,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">再看仔細一點</span>
-            <h2>鞋膠、塗層與鞋墊的受熱限制</h2>
+            <h2 id="heat-sensitive-parts">鞋膠、塗層與鞋墊的受熱限制</h2>
           </div>
           
           <p>一雙鞋有不同層次。鞋面看得到的布、皮革或薄膜，下面可能接著襯布與泡棉，鞋底另用膠黏合。熱進入各層的速度不同，外面沒有皺縮，膠層也可能已經受到影響。不能用某一小塊布的耐熱程度，推定整雙鞋可以烘。</p>
@@ -305,7 +342,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">使用依據</span>
-            <h2>洗標與設備說明比通用溫度可靠</h2>
+            <h2 id="care-label-and-manual">洗標與設備說明比通用溫度可靠</h2>
           </div>
           
           <p>鞋盒、鞋內標示與品牌對該鞋款的保養說明，要和乾燥設備的限制一起看。若鞋款禁止熱乾燥，設備有鞋類模式也不能直接套用。資料不完整時，先保留材質標籤和款式資訊照片，不要用網路上的一組溫度與時間試整雙鞋。</p>
@@ -318,7 +355,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">乾燥確認</span>
-            <h2>鞋內乾燥確認與通風安排</h2>
+            <h2 id="dryness-and-ventilation">鞋內乾燥確認與通風安排</h2>
           </div>
           
           <p>先把鞋放在通風、避開直接曝曬與熱源的位置。可拆鞋墊、鞋帶拿出來，讓鞋口敞開；不可拆的部分不要硬拆。吸水紙可鬆放在鞋腔，潮了就更換，不要塞到鞋頭鼓起，也不要用帶色印刷紙接觸淺色內裡。</p>
@@ -332,7 +369,7 @@
         <div class="page-shell">
           <div class="section-header">
             <span class="eyebrow">送洗流程</span>
-            <h2>已變形或開膠的鞋先停用</h2>
+            <h2 id="damaged-shoes">已變形或開膠的鞋先停用</h2>
             <p class="section-copy">發現受熱後的異常，先停止穿用與加熱，整理照片詢問，不要反覆試不同熱源。</p>
           </div>
           <div class="grid three">

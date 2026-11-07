@@ -449,4 +449,6 @@ if __name__ == "__main__":
             sys.stderr.write(type(exc).__name__ + "\n")
 
     _start_background_jobs()
+    # 只有正式啟動的 bot 記 LINE 用量；import 這個模組的測試不記（見 conversation.handle_ex）。
+    os.environ.setdefault("LAUNDRY_LINE_USAGE", "on")
     app.run(host="127.0.0.1", port=8791)

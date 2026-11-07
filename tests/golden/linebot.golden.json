@@ -6,8 +6,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -141,8 +140,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -296,8 +294,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -431,8 +428,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-12.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -566,8 +562,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-10.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -700,9 +695,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -767,9 +760,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -834,9 +825,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-12.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -901,9 +890,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-13.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -968,9 +955,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -1035,9 +1020,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -1102,9 +1085,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-10.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -1169,9 +1150,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -1237,8 +1216,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -1303,9 +1281,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-12.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -1370,9 +1346,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-13.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -1437,9 +1411,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -1508,8 +1480,7 @@
         "created_files": [
           "data/line-bookings.jsonl",
           "data/line-customer-profile.json",
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -1971,8 +1942,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -2155,8 +2125,7 @@
         "created_files": [
           "data/line-bookings.jsonl",
           "data/line-customer-profile.json",
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -2639,8 +2608,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -3064,8 +3032,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -3282,8 +3249,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -3502,8 +3468,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -3793,8 +3758,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -4037,8 +4001,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -4251,8 +4214,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-12.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -4356,9 +4318,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -4424,8 +4384,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -4578,8 +4537,7 @@
         "changed_inputs": [],
         "created_files": [
           "data/line-bookings.jsonl",
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -4881,9 +4839,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -5103,8 +5059,7 @@
         "changed_inputs": [],
         "created_files": [
           "data/line-bookings.jsonl",
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -5440,8 +5395,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -5532,8 +5486,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -5706,8 +5659,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -5859,8 +5811,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -6294,9 +6245,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -6362,8 +6311,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -7414,8 +7362,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -7559,8 +7506,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -8032,9 +7978,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -8115,9 +8059,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -8190,9 +8132,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -8265,9 +8205,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-12.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -8341,8 +8279,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -8417,9 +8354,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -8493,8 +8428,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -8708,8 +8642,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -8930,8 +8863,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -9232,9 +9164,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -9286,8 +9216,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -9453,8 +9382,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -10218,8 +10146,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -10367,8 +10294,7 @@
         "changed_inputs": [],
         "created_files": [
           "data/line-customer-bind.json",
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -10523,8 +10449,7 @@
         "changed_inputs": [],
         "created_files": [
           "data/line-customer-bind.json",
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-12.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -10962,8 +10887,7 @@
         "changed_inputs": [],
         "created_files": [
           "data/line-customer-bind.json",
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -11057,8 +10981,7 @@
         "changed_inputs": [],
         "created_files": [
           "data/line-customer-bind.json",
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -11152,8 +11075,7 @@
         "changed_inputs": [],
         "created_files": [
           "data/line-customer-bind.json",
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -11287,8 +11209,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -11384,8 +11305,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -11445,8 +11365,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -12211,9 +12130,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -12269,8 +12186,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -12354,8 +12270,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -12463,9 +12378,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-13.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -12520,9 +12433,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -12601,9 +12512,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -12682,9 +12591,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -12763,9 +12670,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -12845,8 +12750,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -12920,8 +12824,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-12.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -13054,8 +12957,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -13198,8 +13100,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -13277,8 +13178,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -13340,8 +13240,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -13561,9 +13460,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -13769,9 +13666,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -13872,8 +13767,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -13947,8 +13841,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-10.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -14106,8 +13999,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -14155,8 +14047,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -14204,8 +14095,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {
@@ -14273,9 +14163,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-13.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -14315,9 +14203,7 @@
       "final_state": {
         "bookings": [],
         "changed_inputs": [],
-        "created_files": [
-          "data/line-usage/2030-01-09.json"
-        ],
+        "created_files": [],
         "removed_inputs": [],
         "session": null
       },
@@ -14397,8 +14283,7 @@
         "bookings": [],
         "changed_inputs": [],
         "created_files": [
-          "data/line-sessions.json",
-          "data/line-usage/2030-01-09.json"
+          "data/line-sessions.json"
         ],
         "removed_inputs": [],
         "session": {

@@ -1,5 +1,5 @@
 ﻿# PS-layer smoke for Test-LiveReelPostedEntry / Test-LiveReelHasSlot
-# in scripts/youtube-upload.ps1. Extracts the production functions via AST
+# in scripts/lib/live-reel.ps1. Extracts the shared functions via AST
 # (does not run the script body, so it never takes the single-flight lock
 # or uploads).
 #
@@ -13,6 +13,7 @@ $OutputEncoding = [Text.UTF8Encoding]::new($false)
 
 $root = Split-Path -Parent $PSScriptRoot
 $prod = Join-Path $root "scripts\youtube-upload.ps1"
+$helper = Join-Path $root "scripts\lib\live-reel.ps1"
 if (-not (Test-Path -LiteralPath $prod)) {
     Write-Output "MISSING_PROD=$prod"
     exit 2
@@ -20,7 +21,12 @@ if (-not (Test-Path -LiteralPath $prod)) {
 
 $errs = $null
 $tokens = $null
-$ast = [System.Management.Automation.Language.Parser]::ParseFile($prod, [ref]$tokens, [ref]$errs)
+[void][System.Management.Automation.Language.Parser]::ParseFile($prod, [ref]$tokens, [ref]$errs)
+if ($errs -and $errs.Count -gt 0) {
+    Write-Output "PARSE_FAIL=uploader: $errs"
+    exit 2
+}
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($helper, [ref]$tokens, [ref]$errs)
 if ($errs -and $errs.Count -gt 0) {
     $head = @($errs | ForEach-Object { $_.ToString() } | Select-Object -First 3) -join "; "
     Write-Output "PARSE_FAIL=$head"
@@ -53,6 +59,9 @@ Write-Output ("EXTRACT_OK name=" + $entryFn.Name)
 Write-Output ("EXTRACT_OK name=" + $slotFn.Name)
 
 $prodText = [IO.File]::ReadAllText($prod)
+$sharedOk = $prodText.Contains('. (Join-Path $PSScriptRoot "lib\live-reel.ps1")') -and
+    $prodText -notmatch 'function Test-LiveReel(?:PostedEntry|HasSlot)\b'
+if (-not $sharedOk) { Write-Output "SHARED_FAIL=uploader must source the shared predicates" }
 $wrapOk = $false
 if (
     $prodText -match '\$postedParsed = Get-Content \$postedPath -Raw -Encoding utf8 \| ConvertFrom-Json' -and
@@ -212,7 +221,7 @@ if ($equivalenceFailed) {
     Write-Output ("CASE_OK name=legacy-equivalence samples=" + $equivalenceSamples.Count + " comparisons=" + $equivalenceChecks)
 }
 
-if (-not $wrapOk) { $failed = $true }
+if (-not $wrapOk -or -not $sharedOk) { $failed = $true }
 
 if ($failed) {
     Write-Output "SMOKE_FAIL"

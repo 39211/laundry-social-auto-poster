@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
 const PROD_SCRIPT = join(ROOT, "scripts", "youtube-upload.ps1");
+const SHARED_SCRIPT = join(ROOT, "scripts", "lib", "live-reel.ps1");
 const SMOKE_SCRIPT = join(ROOT, "test", "ps-youtube-live-reel.smoke.ps1");
 
 function functionSlice(source: string, name: string): string {
@@ -27,8 +28,11 @@ function lastJsonObject(stdout: string): Record<string, unknown> {
 describe("youtube-upload live Reel predicate (F20 fish-1 sister wrap)", () => {
   it("pins assign-then-wrap and routes the slot loop through the pure helpers", async () => {
     const source = await readFile(PROD_SCRIPT, "utf8");
-    const entry = functionSlice(source, "Test-LiveReelPostedEntry");
-    const hasSlot = functionSlice(source, "Test-LiveReelHasSlot");
+    const shared = await readFile(SHARED_SCRIPT, "utf8");
+    const entry = functionSlice(shared, "Test-LiveReelPostedEntry");
+    const hasSlot = functionSlice(shared, "Test-LiveReelHasSlot");
+    expect(source).toContain('. (Join-Path $PSScriptRoot "lib\\live-reel.ps1")');
+    expect(source).not.toMatch(/function Test-LiveReel(?:PostedEntry|HasSlot)\b/u);
     expect(entry).toMatch(/function Test-LiveReelPostedEntry\b/u);
     expect(entry).toContain('if ($Entry.dry_run) { return $false }');
     expect(entry).toContain('@("success", "posted") -notcontains $status');

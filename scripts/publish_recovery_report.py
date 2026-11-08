@@ -19,7 +19,7 @@ def recovery_summary(gates, days):
                 if obj["status"] != "resolved":
                     label = "{0} slot{1} {2}".format(iso[5:], obj["slot"], "FB" if obj["platform"] == "facebook" else "IG")
                     manual.append(label)
-                    if obj.get("notification") != "delivered":
+                    if obj.get("notification") not in ("delivered", "suppressed"):
                         pending += 1
             except (OSError, ValueError, TypeError, AttributeError):
                 unverified = True

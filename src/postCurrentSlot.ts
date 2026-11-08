@@ -69,6 +69,7 @@ export interface PostCurrentSlotOptions {
   preflightOnly?: boolean;
   fetchImpl?: typeof fetch;
   recoverySender?: StaffAlertSender;
+  backfill?: boolean;
 }
 
 async function assertLocalImagesExist(slot: DailySlot, root: string): Promise<void> {
@@ -354,7 +355,8 @@ async function postOneSlot(
   abVariant?: AbVariant,
   now: Date = new Date(),
   recoverySender?: StaffAlertSender,
-  runtimeStartedAt = Date.now()
+  runtimeStartedAt = Date.now(),
+  backfill = false
 ): Promise<PostLogEntry[]> {
   // The brake comes before the publish window, the lock, and every other
   // check: whatever else is true, a paused line does not put anything in front
@@ -473,7 +475,7 @@ async function postOneSlot(
   try {
   if (!config.dryRun && !preflightOnly) {
     for (const platform of ["facebook", "instagram"] as const) {
-      const input = { root, date, slot, platform, config, now, fetchImpl, sender: recoverySender, startedAt: runtimeStartedAt };
+      const input = { root, date, slot, platform, config, now, fetchImpl, sender: recoverySender, startedAt: runtimeStartedAt, backfill };
       recoveryInputs.set(platform, input);
       const decision = await preparePublicationRecovery(input);
       if (decision) {
@@ -489,7 +491,7 @@ async function postOneSlot(
         }
       }
     }
-    try { assertInsidePublishWindow(slot.slot, config, now, date, root); }
+    try { if (!backfill) assertInsidePublishWindow(slot.slot, config, now, date, root); }
     catch (windowError) {
       const recorded = await loadPostLog(date, root);
       if (!["facebook", "instagram"].every(platform => recorded.some(row => row.slot === slot.slot &&
@@ -890,7 +892,7 @@ async function postOneSlot(
         }
       }
       if (!commitUncertain) await clearLockInFlight();
-      if (decision?.action === "retry") await markRecoveryManual(recoveryInput, decision.record, "retry_failed");
+      if (decision?.action === "retry") await markRecoveryManual(recoveryInput, decision.record, backfill ? "backfill_failed" : "retry_failed");
       else if (!config.dryRun) {
         const next = await preparePublicationRecovery(recoveryInput, error);
         if (next) {
@@ -996,6 +998,12 @@ export function refuseTamperedPublish(date: string, reasons: string[]): void {
 }
 
 export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Promise<PostLogEntry[]> {
+  // Explicit one-slot approval; neither an old date nor the off-schedule env
+  // override may silently turn an automatic retry into an approved backfill.
+  if (options.backfill && (!options.date || !/^\d{4}-\d{2}-\d{2}$/.test(options.date) ||
+    !options.slot || !DAILY_SCHEDULE.some(schedule => schedule.slot === options.slot) || options.allDue)) {
+    throw new NonRetryableError("--backfill requires an explicit --date and --slot, without --all-due");
+  }
   const runtimeStartedAt = Date.now();
   const root = projectRoot(options.root);
   const baseConfig = getConfig();
@@ -1015,7 +1023,7 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
   // publish an old package as new (luna, high). Deliberate repairs go through
   // ALLOW_OFF_SCHEDULE_PUBLISH, same as off-window publishing.
   const today = getZonedDateParts(now, config.timezone).date;
-  if (!config.dryRun && !options.preflightOnly && date !== today && process.env.ALLOW_OFF_SCHEDULE_PUBLISH !== "true") {
+  if (!config.dryRun && !options.preflightOnly && !options.backfill && date !== today && process.env.ALLOW_OFF_SCHEDULE_PUBLISH !== "true") {
     throw new Error(
       `Refusing to live-publish ${date} on ${today}: live runs are same-day only. Set ALLOW_OFF_SCHEDULE_PUBLISH=true only for a deliberate manual repair.`
     );
@@ -1082,7 +1090,8 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
           abVariant,
           now,
           options.recoverySender,
-          runtimeStartedAt
+          runtimeStartedAt,
+          options.backfill
         ))
       );
     } catch (error) {
@@ -1105,14 +1114,14 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
   return results;
 }
 
-async function main(): Promise<void> {
-  const args = process.argv.slice(2);
-  const results = await postCurrentSlot({
+export function parsePostCurrentSlotOptions(args: string[]): PostCurrentSlotOptions {
+  return {
     now: getOption(args, "now"),
     date: getOption(args, "date"),
     slot: getNumberOption(args, "slot"),
     dryRun: getFlag(args, "live") ? false : getFlag(args, "dry-run") ? true : undefined,
     allDue: getFlag(args, "all-due"),
+    backfill: getFlag(args, "backfill"),
     root: getOption(args, "root"),
     preflightOnly: getFlag(args, "preflight-only"),
     verifyPublicImageUrl: getFlag(args, "check-url")
@@ -1120,7 +1129,11 @@ async function main(): Promise<void> {
       : getFlag(args, "skip-url-check")
         ? false
         : undefined
-  });
+  };
+}
+
+async function main(): Promise<void> {
+  const results = await postCurrentSlot(parsePostCurrentSlotOptions(process.argv.slice(2)));
 
   console.log(JSON.stringify(results, null, 2));
 }

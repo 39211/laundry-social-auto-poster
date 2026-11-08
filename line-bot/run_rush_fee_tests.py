@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""RUSH r1 mutation proof. Reuse the existing offline A2b/LINE-ACK runner.
+"""RUSH r1/r2 mutation proof. Reuse the existing offline A2b/LINE-ACK runner.
 
 Mutate only the imported conversation module in a disposable worker. Product
 files remain unchanged; a red result must be the named assertion, not an error.
@@ -24,6 +24,7 @@ MUTATIONS = {
     "removed": "test_saved_and_unsaved_wording_is_only_appended",
     "duplicated": "test_saved_and_unsaved_wording_is_only_appended",
     "non_rush": "test_non_rush_replies_have_no_notice",
+    "pickup_space": "test_pickup_saved_and_unsaved_have_no_sentence_space",
 }
 
 
@@ -33,9 +34,14 @@ class MutationLoader(importlib.abc.MetaPathFinder, importlib.abc.Loader):
         if mutation in ("removed", "duplicated"):
             old = f'_RUSH_FEE_NOTICE = "{NOTICE}"'
             new = f'_RUSH_FEE_NOTICE = "{NOTICE * (2 if mutation == "duplicated" else 0)}"'
-        else:
+        elif mutation == "non_rush":
             old = 'def wash_ask() -> list[dict]:\n    return say(\n        "好。",'
             new = 'def wash_ask() -> list[dict]:\n    return say(\n        "好。" + _RUSH_FEE_NOTICE,'
+        elif mutation == "pickup_space":
+            old = 'rush[-1]["text"] += "原本的收送資料已保留，可以接著填寫。"'
+            new = 'rush[-1]["text"] += " 原本的收送資料已保留，可以接著填寫。"'
+        else:
+            raise ValueError("unknown mutation")
         if self.source.count(old) != 1:
             raise RuntimeError("mutation target changed")
         self.source = self.source.replace(old, new)

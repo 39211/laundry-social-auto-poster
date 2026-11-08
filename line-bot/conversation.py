@@ -3571,7 +3571,7 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
                 if starts_pickup:
                     rush += start_pickup(uid)
                 else:
-                    rush[-1]["text"] += " 原本的收送資料已保留，可以接著填寫。"
+                    rush[-1]["text"] += "原本的收送資料已保留，可以接著填寫。"
                 return _pack(rush, "concern", True)
         if wait_now in ("", "photo", "photo_need") and not (_is_cancel_text(early_n) or _is_payment_claim(early_text)):
             item = sess_now.get("care_item") or ""

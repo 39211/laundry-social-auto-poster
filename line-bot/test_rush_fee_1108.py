@@ -108,6 +108,26 @@ class RushFeeTests(_Isolated):
                 for key in ("wait", "pickup_item", "pickup_addr"):
                     self.assertEqual(after[key], before[key])
 
+    def test_pickup_saved_and_unsaved_have_no_sentence_space(self):
+        for saved, original in ((True, SAVED), (False, UNSAVED)):
+            for wait in ("pickup_item", "pickup_when", "pickup_loc", "pickup_addr", "pickup_phone", "pickup_confirm"):
+                with self.subTest(saved=saved, wait=wait):
+                    self.ask.return_value = saved
+                    uid = self.uid("pickupspace")
+                    conv.set_sess(uid, wait=wait, pickup_item="襯衫", pickup_addr="合成測試路一號")
+                    before = conv.get_sess(uid)
+                    messages, meta = conv.handle_ex(uid, "急件，明天要穿")
+                    text = self.check_notice(messages)
+                    self.assertNotIn("。 ", text)
+                    self.assertEqual([m["text"] for m in messages], [
+                        ORIGINAL_RUSH,
+                        original + NOTICE + "原本的收送資料已保留，可以接著填寫。",
+                    ])
+                    self.assertTrue(meta["notify_staff"])
+                    after = conv.get_sess(uid)
+                    for key in ("wait", "pickup_item", "pickup_addr"):
+                        self.assertEqual(after[key], before[key])
+
     def test_query_wait_steps(self):
         for wait in ("query", "query_phone", "query_item"):
             with self.subTest(wait=wait):

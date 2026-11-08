@@ -236,6 +236,18 @@ def _finish_event_reply(span):
     span.reply_lost = span.reply_result in ("failed", "unknown") and not span.retry_requested
 
 
+def _event_error(span, exc):
+    # Event failure is separate from transport success: a post-send storage
+    # failure must not erase an accepted/unknown send or authorize a resend.
+    span.event_failed = True
+    if span.reply_result == "not_needed":
+        span.reply_result = "failed"
+        span.reply_failure = "unexpected"
+    elif span.reply_result == "failed" and span.reply_failure in ("", "other"):
+        span.reply_failure = "unexpected"
+    print("event error:", type(exc).__name__, file=sys.stderr)
+
+
 def _handle_event(ev, span):
     def respond(reply_token, messages, *, remember=True, customer=True):
         # Every customer branch passes here, including empty/early-return replies.
@@ -263,27 +275,41 @@ def _handle_event(ev, span):
             span.reply_failure = "unknown"
             span.dedup = "unknown_skipped"
             return
-        with event_log.measure("reply"):
-            deliver = getattr(conv, "reply_with_hints", None)
-            if customer and callable(deliver):
-                incoming = (ev.get("message") or {}).get("text") or ""
-                accepted = deliver(uid, incoming, messages, lambda outgoing: reply(reply_token, outgoing))
-            else:
-                accepted = reply(reply_token, messages)
-        if accepted is True:
-            span.reply_result = "accepted"
-            span.reply_failure = ""
-            if customer and quote_flow.seen_event(conv, uid, event_id):
+        attempted = False
+
+        def send(outgoing):
+            nonlocal attempted
+            attempted = True
+            accepted = reply(reply_token, outgoing)
+            # Capture LINE's outcome before deliver persists hint state.
+            if accepted is True:
+                span.reply_result = "accepted"
+                span.reply_failure = ""
+            return accepted
+
+        try:
+            with event_log.measure("reply"):
+                deliver = getattr(conv, "reply_with_hints", None)
+                if customer and callable(deliver):
+                    incoming = (ev.get("message") or {}).get("text") or ""
+                    deliver(uid, incoming, messages, send)
+                else:
+                    send(messages)
+        except Exception:
+            if attempted and span.reply_result not in ("accepted", "unknown"):
+                span.reply_result = "unknown"
+                span.reply_failure = "unknown"
+            raise
+        finally:
+            if span.reply_result == "accepted" and customer and quote_flow.seen_event(conv, uid, event_id):
                 quote_flow.mark_reply_accepted(conv, uid, event_id)
-        elif span.reply_result != "unknown":
-            span.reply_result = "failed"
-        if span.reply_result != "unknown":
-            try:
-                reply_state.finish(span.trace.repo, span.event_ref)
-            except OSError as exc:
-                if span.reply_result != "accepted":
-                    span.reply_failure = "state_unavailable"
-                print("reply state error:", type(exc).__name__, file=sys.stderr)
+            if span.reply_result != "unknown":
+                try:
+                    reply_state.finish(span.trace.repo, span.event_ref)
+                except OSError as exc:
+                    if span.reply_result != "accepted":
+                        span.reply_failure = "state_unavailable"
+                    print("reply state error:", type(exc).__name__, file=sys.stderr)
 
     src = ev.get("source") or {}
     uid = src.get("userId") or "?"
@@ -545,13 +571,28 @@ def line_webhook():
             if not isinstance(ev, dict):
                 http_status = 400
                 return "bad event", http_status
-            with trace.event(ev.get("webhookEventId"), ev.get("type"),
-                             (ev.get("deliveryContext") or {}).get("isRedelivery")) as span:
-                _handle_event(ev, span)
-                _finish_event_reply(span)
+            delivery = ev.get("deliveryContext")
+            redelivered = delivery.get("isRedelivery") if isinstance(delivery, dict) else False
+            with trace.event(ev.get("webhookEventId"), ev.get("type"), redelivered) as span:
+                try:
+                    _handle_event(ev, span)
+                except Exception as exc:
+                    _event_error(span, exc)
+                try:
+                    _finish_event_reply(span)
+                except Exception as exc:
+                    _event_error(span, exc)
+                    span.retry_requested = False
+                    span.reply_lost = span.reply_result in ("failed", "unknown")
             retry_requested |= span.retry_requested
         http_status = 503 if retry_requested else 200
         return (jsonify({"retry": True}), http_status) if retry_requested else jsonify({})
+    except Exception as exc:
+        with trace.event(None, "other") as span:
+            _event_error(span, exc)
+            span.reply_lost = True
+        http_status = 503 if any(row["retry_requested"] for row in trace.events) else 200
+        return (jsonify({"retry": True}), http_status) if http_status == 503 else jsonify({})
     finally:
         trace.finish(http_status)
 

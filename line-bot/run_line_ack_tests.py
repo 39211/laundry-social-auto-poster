@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """Offline LINE-ACK evidence runner. Reuses A2b isolation; needs no pytest.
 
-Mutants are compiled in child processes through an import loader. Product files
-are never overwritten. The parent cleans only the child-reported A2b temp tree:
-test_estimate installs an audit guard which forbids A2b's outer-tree cleanup.
+Mutants are compiled inside A2b's actual test worker through an import loader.
+Product files are never overwritten. A2b's owning parent retains its normal
+cleanup and production/network guards.
 """
 from __future__ import annotations
 
@@ -16,14 +16,14 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 import time
 import unittest
 
 HERE = Path(__file__).resolve().parent
-SOURCES = ("line_event_log.py", "line_reply_state.py", "line_webhook.py", "quote_flow.py", "conversation.py", "staff_notify.py")
+SOURCES = ("line_event_log.py", "line_reply_state.py", "line_webhook.py", "quote_flow.py", "conversation.py", "staff_notify.py",
+           "reply_hints.py", "test_reply_hints.py")
 MUTATIONS = {
     "no_correlation": ("line_event_log", "WebhookTests.test_five_deliveries_are_three_correlated_events"),
     "empty_token_accepted": ("line_webhook", "WebhookTests.test_empty_token_is_not_accepted_and_keeps_cache"),
@@ -32,6 +32,12 @@ MUTATIONS = {
     "unknown_503": ("line_webhook", "WebhookTests.test_unknown_is_acked_and_never_resends_cached_reply"),
     "redelivery_4xx_503": ("line_webhook", "WebhookTests.test_all_4xx_and_redelivery_failures_are_acked_and_lost"),
     "no_retry_cap": ("line_reply_state", "WebhookTests.test_first_network_failure_requests_one_retry_then_acks_even_without_redelivery_flag"),
+    "no_event_boundary": ("line_webhook", "WebhookTests.test_unexpected_handler_error_is_logged_acked_and_batch_continues"),
+    "accepted_hint_error_becomes_unknown": ("line_webhook", "WebhookTests.test_hint_write_error_after_acceptance_does_not_resend_or_claim_hint"),
+    "clear_unknown_pending": ("line_webhook", "WebhookTests.test_unexpected_transport_error_keeps_pending_and_never_replays"),
+    "hints_opening_shift": ("reply_hints", "HintTests.test_independent_markers_reset_at_next_open"),
+    "hints_calendar_rest": ("reply_hints", "HintTests.test_n608_fixed_rest_table_uses_current_2000_close"),
+    "hints_drop_other_customers": ("reply_hints", "HintTests.test_successful_write_prunes_only_records_older_than_fourteen_days"),
 }
 
 
@@ -74,6 +80,31 @@ def mutated_source(module, mutation):
     replies.pop(event_id, None)
     conv.set_sess(uid, estimate_reply_accepted=(accepted + [event_id])[-100:], estimate_replies=replies)
 '''
+    elif mutation == "no_event_boundary":
+        old = '''                try:
+                    _handle_event(ev, span)
+                except Exception as exc:
+                    _event_error(span, exc)'''
+        new = '                _handle_event(ev, span)'
+    elif mutation == "accepted_hint_error_becomes_unknown":
+        old = '            if attempted and span.reply_result not in ("accepted", "unknown"):'
+        new = '            if attempted and span.reply_result != "unknown":'
+    elif mutation == "clear_unknown_pending":
+        old = '''            if span.reply_result != "unknown":
+                try:
+                    reply_state.finish(span.trace.repo, span.event_ref)'''
+        new = '''            if True:
+                try:
+                    reply_state.finish(span.trace.repo, span.event_ref)'''
+    elif mutation == "hints_opening_shift":
+        old = 'openings.append(day.replace(hour=hour, minute=minute'
+        new = 'openings.append(day.replace(hour=hour + 1, minute=minute'
+    elif mutation == "hints_calendar_rest":
+        old = 'rest = following.isoformat() if following'
+        new = 'rest = now.date().isoformat() if following'
+    elif mutation == "hints_drop_other_customers":
+        old = 'data[uid] = {**(data.get(uid) or {}), **marks}'
+        new = 'data = {uid: {**(data.get(uid) or {}), **marks}}'
     else:
         raise ValueError("unknown mutation")
     if source.count(old) != 1:
@@ -98,35 +129,53 @@ class MutationLoader(importlib.abc.MetaPathFinder, importlib.abc.Loader):
         exec(compile(self.source, module.__file__, "exec"), module.__dict__)
 
 
-def child(module_name, mutation):
+def worker(module_name, tmp_root, mutation):
     if mutation:
         loader = MutationLoader(mutation)
         sys.meta_path.insert(0, loader)
         original = unittest.defaultTestLoader.loadTestsFromModule
 
         def selected(module, *args, **kwargs):
-            if module.__name__ == "test_line_ack":
+            if module.__name__ == module_name:
                 return unittest.defaultTestLoader.loadTestsFromName(loader.test, module)
             return original(module, *args, **kwargs)
 
         unittest.defaultTestLoader.loadTestsFromModule = selected
-    # Keep A2b's production/network guards, real Flask when installed, fake keys,
-    # synthetic fixture and inherited temp ACL. Only defer its final cleanup.
+    import run_a2b_tests
+    return run_a2b_tests._run_module(Path(tmp_root), module_name)
+
+
+def child(module_name, mutation):
+    # fa6fa981 moved module execution into --worker. Inject there, not in this
+    # parent where an import loader would be silently lost on subprocess spawn.
     runner = HERE / "run_a2b_tests.py"
     tree = ast.parse(runner.read_text(encoding="utf-8-sig"))
-    cleanup = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "_remove_tree")
-    cleanup.body = ast.parse('print("ACK_TEST_TMP|" + str(path), flush=True)').body
+    main = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "main")
+    calls = [n for n in ast.walk(main) if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Attribute) and isinstance(n.func.value, ast.Name)
+             and n.func.value.id == "subprocess" and n.func.attr == "run"]
+    if len(calls) != 1 or not isinstance(calls[0].args[0], ast.List):
+        raise RuntimeError("A2b worker entry changed; refusing ineffective mutation")
+    argv = calls[0].args[0].elts
+    if len(argv) != 8 or not isinstance(argv[5], ast.Constant) or argv[5].value != "--worker":
+        raise RuntimeError("A2b worker arguments changed; refusing ineffective mutation")
+    argv[4] = ast.Constant(str(Path(__file__).resolve()))
+    if mutation:
+        argv.extend([ast.Constant("--mutation"), ast.Constant(mutation)])
     ast.fix_missing_locations(tree)
     sys.argv = [str(runner), module_name]
-    sys.modules["__main__"].__file__ = str(runner)
     namespace = dict(__name__="__main__", __file__=str(runner))
     exec(compile(tree, str(runner), "exec"), namespace)
 
 
 def run_one(module, output, *, label=None, mutation=None):
     env = os.environ.copy()
+    paths = [str(HERE), str(HERE / "tests")]
+    flask_site = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local")) / "hermes/jarvis-memory/venv/Lib/site-packages"
+    if (flask_site / "flask/__init__.py").is_file():
+        paths.append(str(flask_site))
     env.update(PYTHONDONTWRITEBYTECODE="1", LAUNDRY_LINE_EVENTS="off", LAUNDRY_LINE_USAGE="off",
-               LAUNDRY_AI_CHAT="off", PYTHONPATH=str(HERE / "tests"))
+               LAUNDRY_AI_CHAT="off", PYTHONPATH=os.pathsep.join(paths))
     # Windows Python may have no tzdata package. Reuse installed, local TZif
     # data; do not install packages or change the machine's timezone/settings.
     zoneinfo = Path(sys.prefix) / "Lib/site-packages/pytz/zoneinfo"
@@ -143,15 +192,9 @@ def run_one(module, output, *, label=None, mutation=None):
         code, raw = 124, (exc.stdout or b"") + (exc.stderr or b"")
     log = raw.decode("utf-8", "replace")
     (output / f"{label or module}.log").write_text(log, encoding="utf-8")
-    for line in log.splitlines():
-        if line.startswith("ACK_TEST_TMP|"):
-            path = Path(line.split("|", 1)[1]).resolve()
-            if path.parent != HERE or not path.name.startswith(".a2b-test-tmp-") or path.is_symlink():
-                raise RuntimeError("refusing cleanup outside child-owned A2b tree")
-            if not getattr(path.lstat(), "st_file_attributes", 0) & 0x400:
-                shutil.rmtree(path, ignore_errors=True)
     row = {"module": module, "exit": code, "seconds": round(time.monotonic() - started, 3),
-           "failures": re.findall(r"^(?:FAIL|ERROR): (.+)$", log, re.M)}
+           "failures": re.findall(r"^(?:FAIL|ERROR): (.+)$", log, re.M),
+           "cases": [int(n) for n in re.findall(r"Ran (\d+) tests?", log)]}
     print(json.dumps(row, ensure_ascii=True), flush=True)
     return row
 
@@ -163,11 +206,14 @@ def fingerprints():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--child", help=argparse.SUPPRESS)
+    parser.add_argument("--worker", nargs=2, help=argparse.SUPPRESS)
     parser.add_argument("--mutation", choices=MUTATIONS, help=argparse.SUPPRESS)
     parser.add_argument("--full", action="store_true", help="run the existing suite too")
     parser.add_argument("--suite-only", action="store_true", help="only the existing suite (for the frozen base)")
     parser.add_argument("--output", type=Path, default=HERE / ".lineack-evidence")
     args = parser.parse_args()
+    if args.worker:
+        return worker(*args.worker, args.mutation)
     if args.child:
         child(args.child, args.mutation)
         return 0
@@ -179,16 +225,21 @@ def main():
     report = {"python": sys.executable, "sources_before": before, "suite": []}
     if not args.suite_only:
         report["green_before"] = run_one("test_line_ack", output, label="task-green-before")
+        report["hints_green_before"] = run_one("test_reply_hints", output, label="hints-green-before")
         report["mutations"] = []
-        for mutation, (_, name) in MUTATIONS.items():
-            row = run_one("test_line_ack", output, label=mutation, mutation=mutation)
+        for mutation, (product, name) in MUTATIONS.items():
+            module = "test_reply_hints" if product == "reply_hints" else "test_line_ack"
+            row = run_one(module, output, label=mutation, mutation=mutation)
             # Require this specific test's assertion failure, not an unrelated
             # import/setup error which merely happened to exit nonzero.
             target = name.rsplit(".", 1)[-1]
-            killed = row["exit"] == 1 and any(f.startswith(target + " (") for f in row["failures"])
+            log = (output / f"{mutation}.log").read_text(encoding="utf-8")
+            killed = (row["exit"] == 1 and row["cases"] == [1]
+                      and f"FAIL: {target} (" in log and "ERROR:" not in log)
             row.update(mutation=mutation, target_test=name, killed=killed)
             report["mutations"].append(row)
         report["green_restored"] = run_one("test_line_ack", output, label="task-green-restored")
+        report["hints_green_restored"] = run_one("test_reply_hints", output, label="hints-green-restored")
         report["sources_after"] = fingerprints()
         report["sources_unchanged"] = before == report["sources_after"]
     if args.full or args.suite_only:
@@ -201,7 +252,8 @@ def main():
                 (output / "results.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
     (output / "results.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
     if not args.suite_only:
-        if report["green_before"]["exit"] or report["green_restored"]["exit"] or not report["sources_unchanged"] or not all(r["killed"] for r in report["mutations"]):
+        if (any(report[k]["exit"] for k in ("green_before", "green_restored", "hints_green_before", "hints_green_restored"))
+                or not report["sources_unchanged"] or not all(r["killed"] for r in report["mutations"])):
             return 1
     return 1 if any(r["exit"] for r in report["suite"]) else 0
 

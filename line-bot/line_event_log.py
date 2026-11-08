@@ -102,6 +102,7 @@ class EventSpan:
         self.reply_failure = ""
         self.reply_lost = False
         self.retry_requested = False
+        self.event_failed = False
         self.dedup = "new"
         self.to_staff = False
         self.timings = dict.fromkeys(STAGES, 0.0)
@@ -118,6 +119,7 @@ class EventSpan:
     def __exit__(self, kind, value, traceback):
         try:
             self.processing.__exit__(kind, value, traceback)
+            self.event_failed |= kind is not None
             if kind is not None and self.reply_result == "not_needed":
                 self.reply_result = "failed"
             # Constructed explicitly: never merge event/request/meta dictionaries.
@@ -131,6 +133,7 @@ class EventSpan:
                 "reply_result": self.reply_result, "redelivered": self.redelivered,
                 "reply_failure": self.reply_failure, "reply_lost": self.reply_lost,
                 "retry_requested": self.retry_requested,
+                "event_failed": self.event_failed,
                 "dedup": self.dedup, "to_staff": self.to_staff,
             })
         finally:
@@ -165,6 +168,7 @@ class RequestTrace:
                 "reply_result": next((s for s in ("unknown", "failed", "accepted") if s in outcomes), "not_needed"),
                 "reply_lost": any(r["reply_lost"] for r in self.events),
                 "retry_requested": any(r["retry_requested"] for r in self.events),
+                "event_failed": any(r["event_failed"] for r in self.events),
                 "redelivered": any(r["redelivered"] for r in self.events), "dedup": "not_applicable",
                 "to_staff": any(r["to_staff"] for r in self.events), "http_status": int(http_status),
                 "event_count": len(self.events),

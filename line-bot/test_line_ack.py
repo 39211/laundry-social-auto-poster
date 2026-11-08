@@ -202,7 +202,7 @@ class WebhookTests(unittest.TestCase):
             self.assertNotIn(sensitive, raw)
         allowed = {"schema", "kind", "request_ref", "event_ref", "event_type", "received_at", "started_at",
                    "finished_at", "duration_ms", "stages_ms", "reply_result", "redelivered", "dedup", "to_staff", "http_status",
-                   "reply_failure", "reply_lost", "retry_requested"}
+                   "reply_failure", "reply_lost", "retry_requested", "event_failed"}
         for row in self.rows():
             self.assertEqual(allowed, set(row))
             self.assertRegex(row["event_ref"], r"^[0-9a-f]{64}$")
@@ -341,6 +341,111 @@ class WebhookTests(unittest.TestCase):
         self.assertEqual([], self.rows())
         self.assertEqual(403, self.rows("request")[0]["http_status"])
         self.assertFalse(self.count_dir.exists())
+
+    def test_unexpected_handler_error_is_logged_acked_and_batch_continues(self):
+        with mock.patch.object(conv, "handle_ex", side_effect=[RuntimeError(TEXT), (MESSAGES, {})]), \
+                mock.patch("sys.stderr", new_callable=io.StringIO) as errors:
+            response = self.post([event(), event(eid="later-event")])
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(["failed", "accepted"], [r["reply_result"] for r in self.rows()])
+        self.assertEqual([True, False], [r["event_failed"] for r in self.rows()])
+        self.assertEqual("unexpected", self.rows()[0]["reply_failure"])
+        self.assertTrue(self.rows()[0]["reply_lost"])
+        self.assertFalse(self.rows()[0]["retry_requested"])
+        self.assertTrue(self.rows("request")[0]["event_failed"])
+        self.assertEqual(2, self.counts()["received"])
+        self.assertEqual(1, self.counts()["reply_failed"])
+        self.assertEqual(1, self.counts()["replied_ok"])
+        self.assertNotIn(TEXT, errors.getvalue())
+        self.assertIn("RuntimeError", errors.getvalue())
+        raw = "".join(p.read_text(encoding="utf-8") for p in self.log_dir.glob("*.jsonl"))
+        for private in (UID, EID, TOKEN, TEXT):
+            self.assertNotIn(private, raw)
+
+    def test_hint_preparation_error_releases_unsent_pending_without_marking_hints(self):
+        import reply_hints
+        import line_reply_state
+        with mock.patch.object(reply_hints, "prepare", side_effect=ValueError(TEXT)):
+            response = self.post([event()])
+        self.assertEqual(200, response.status_code)
+        row = self.rows()[0]
+        self.assertTrue(row["event_failed"])
+        self.assertEqual("failed", row["reply_result"])
+        self.assertTrue(row["reply_lost"])
+        self.assertFalse(row["retry_requested"])
+        self.assertFalse(line_reply_state.pending(self.folder, row["event_ref"]))
+        self.assertEqual(0, self.reply_attempts)
+        self.assertFalse(reply_hints.state_path(conv).exists())
+        self.assertEqual(200, self.post([event(redelivered=True)]).status_code)
+        self.assertEqual(1, self.reply_attempts)
+
+    def test_unexpected_transport_error_keeps_pending_and_never_replays(self):
+        with mock.patch.object(hook, "reply", side_effect=RuntimeError(TEXT)) as send:
+            self.assertEqual(200, self.post([event()]).status_code)
+            self.assertEqual(200, self.post([event(redelivered=True)]).status_code)
+            self.assertEqual(200, self.post([event()]).status_code)
+        self.assertEqual(1, send.call_count)
+        self.assertEqual(["unknown"] * 3, [r["reply_result"] for r in self.rows()])
+        self.assertEqual([True, False, False], [r["event_failed"] for r in self.rows()])
+        self.assertTrue(all(r["reply_lost"] and not r["retry_requested"] for r in self.rows()))
+        self.assertFalse(flow.reply_accepted(conv, UID, EID))
+        self.assertEqual(MESSAGES, flow.cached_reply(conv, UID, EID))
+
+    def test_hint_write_error_after_acceptance_does_not_resend_or_claim_hint(self):
+        import reply_hints
+        messages = [{"type": "text", "text": "synthetic response"}, conv.shop_card()]
+        with mock.patch.object(conv, "handle_ex", return_value=(messages, {})), \
+                mock.patch.object(reply_hints, "_write", side_effect=OSError(TEXT)):
+            response = self.post([event()])
+        self.assertEqual(200, response.status_code)
+        row = self.rows()[0]
+        self.assertTrue(row["event_failed"])
+        self.assertEqual("accepted", row["reply_result"])
+        self.assertFalse(row["reply_lost"])
+        self.assertTrue(flow.reply_accepted(conv, UID, EID))
+        self.assertFalse(reply_hints.state_path(conv).exists())
+        self.assertEqual(200, self.post([event(redelivered=True)]).status_code)
+        self.assertEqual(1, self.reply_attempts)
+        self.assertEqual("accepted_skipped", self.rows()[-1]["dedup"])
+
+    def test_acceptance_storage_error_keeps_pending_to_prevent_duplicate(self):
+        with mock.patch.object(flow, "mark_reply_accepted", side_effect=RuntimeError(TEXT)):
+            self.assertEqual(200, self.post([event()]).status_code)
+        self.assertTrue(self.rows()[0]["event_failed"])
+        self.assertEqual("accepted", self.rows()[0]["reply_result"])
+        self.assertEqual(200, self.post([event(redelivered=True)]).status_code)
+        self.assertEqual(1, self.reply_attempts)
+        self.assertEqual("unknown_skipped", self.rows()[-1]["dedup"])
+
+    def test_unexpected_retry_budget_error_acks_lost_and_is_logged(self):
+        import line_reply_state
+        self.reply_error = urllib.error.URLError(ConnectionRefusedError("synthetic refusal"))
+        with mock.patch.object(line_reply_state, "claim_retry", side_effect=RuntimeError(TEXT)):
+            self.assertEqual(200, self.post([event()]).status_code)
+        row = self.rows()[0]
+        self.assertTrue(row["event_failed"])
+        self.assertEqual("network", row["reply_failure"])
+        self.assertTrue(row["reply_lost"])
+        self.assertFalse(row["retry_requested"])
+
+    def test_malformed_delivery_context_is_logged_without_losing_other_events(self):
+        broken = event()
+        broken["deliveryContext"] = [TEXT]
+        self.assertEqual(200, self.post([broken, event(eid="valid-after-malformed")]).status_code)
+        self.assertEqual(2, self.counts()["received"])
+        self.assertEqual([True, False], [r["event_failed"] for r in self.rows()])
+        self.assertEqual(1, self.reply_attempts)
+
+    def test_handler_error_does_not_erase_another_events_bounded_retry(self):
+        self.reply_error = urllib.error.URLError(ConnectionRefusedError("synthetic refusal"))
+        with mock.patch.object(conv, "handle_ex", side_effect=[(MESSAGES, {}), RuntimeError(TEXT)]):
+            self.assertEqual(503, self.post([event(), event(eid="broken-handler")]).status_code)
+        self.assertEqual([True, False], [r["retry_requested"] for r in self.rows()])
+        self.assertEqual([False, True], [r["event_failed"] for r in self.rows()])
+        self.assertEqual([False, True], [r["reply_lost"] for r in self.rows()])
+        self.assertTrue(all(r["http_status"] == 503 for r in self.rows()))
+        self.assertEqual(200, self.post([event(redelivered=True)]).status_code)
+        self.assertFalse(self.rows()[-1]["retry_requested"])
 
     def test_import_style_calls_do_not_write_without_explicit_switch(self):
         for value in ("", "off", "true", "1"):

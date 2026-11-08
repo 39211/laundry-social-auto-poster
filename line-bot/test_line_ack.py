@@ -79,6 +79,7 @@ class WebhookTests(unittest.TestCase):
         self.log_dir = self.folder / "safe-logs"
         self.count_dir = self.folder / "data" / "line-events"
         self.sent = []
+        self.reply_attempts = 0
         self.reply_error = None
         self.time = datetime(2026, 11, 8, 10, tzinfo=telemetry.TAIPEI)
         self.handler_calls = []
@@ -118,8 +119,10 @@ class WebhookTests(unittest.TestCase):
 
     def http(self, req, **kwargs):
         if req.full_url.endswith("/message/reply"):
-            if self.reply_error:
-                raise self.reply_error
+            self.reply_attempts += 1
+            error = self.reply_error.pop(0) if isinstance(self.reply_error, list) else self.reply_error
+            if error:
+                raise error
             self.sent.append(json.loads(req.data))
         return HttpResponse()
 
@@ -150,17 +153,19 @@ class WebhookTests(unittest.TestCase):
         self.assertEqual(3, len(self.sent))
         self.assertEqual(3, len(self.handler_calls))
         counts = self.counts()
-        self.assertEqual([5, 3, 0, 0, 0, 2, 2, 2], [counts[k] for k in telemetry.COUNTERS])
+        self.assertEqual([5, 3, 0, 0, 0, 2, 2, 2, 0], [counts[k] for k in telemetry.COUNTERS])
 
     def test_empty_token_is_not_accepted_and_keeps_cache(self):
         with mock.patch.object(hook.urllib.request, "urlopen") as send:
             self.assertIs(False, hook.reply("", MESSAGES))
             send.assert_not_called()
-        self.assertEqual(503, self.post([event(token="")]).status_code)
+        self.assertEqual(200, self.post([event(token="")]).status_code)
         self.assertFalse(flow.reply_accepted(conv, UID, EID))
         self.assertEqual(MESSAGES, flow.cached_reply(conv, UID, EID))
         self.assertEqual("failed", self.rows()[0]["reply_result"])
         self.assertEqual(1, self.counts()["reply_failed"])
+        self.assertTrue(self.rows()[0]["reply_lost"])
+        self.assertEqual(1, self.counts()["reply_lost"])
         self.assertEqual(200, self.post([event(redelivered=True)]).status_code)
         self.assertEqual(1, len(self.sent))
 
@@ -179,10 +184,11 @@ class WebhookTests(unittest.TestCase):
 
     def test_missing_cache_is_failed_and_not_accepted(self):
         conv.set_sess(UID, estimate_events=[EID], estimate_replies={})
-        self.assertEqual(503, self.post([event(redelivered=True)]).status_code)
+        self.assertEqual(200, self.post([event(redelivered=True)]).status_code)
         self.assertFalse(flow.reply_accepted(conv, UID, EID))
         self.assertFalse(flow.has_cached_reply(conv, UID, EID))
         self.assertEqual("cache_missing", self.rows()[0]["dedup"])
+        self.assertTrue(self.rows()[0]["reply_lost"])
         self.assertEqual([], self.sent)
 
     def test_safe_log_contains_no_original_identifiers_or_payload(self):
@@ -195,7 +201,8 @@ class WebhookTests(unittest.TestCase):
                           "private-photo.jpg", "private-other-id", "synthetic-channel-token"):
             self.assertNotIn(sensitive, raw)
         allowed = {"schema", "kind", "request_ref", "event_ref", "event_type", "received_at", "started_at",
-                   "finished_at", "duration_ms", "stages_ms", "reply_result", "redelivered", "dedup", "to_staff", "http_status"}
+                   "finished_at", "duration_ms", "stages_ms", "reply_result", "redelivered", "dedup", "to_staff", "http_status",
+                   "reply_failure", "reply_lost", "retry_requested"}
         for row in self.rows():
             self.assertEqual(allowed, set(row))
             self.assertRegex(row["event_ref"], r"^[0-9a-f]{64}$")
@@ -245,15 +252,17 @@ class WebhookTests(unittest.TestCase):
 
     def test_http_rejection_is_failed_and_timeout_is_unknown(self):
         errors = [urllib.error.HTTPError("https://example.invalid", 400, "rejected", {}, io.BytesIO(b'{}')),
-                  urllib.error.URLError("synthetic timeout")]
+                  urllib.error.URLError(TimeoutError("synthetic timeout"))]
         for i, exc in enumerate(errors):
             self.reply_error = exc
-            self.assertEqual(503, self.post([event(eid=f"error-{i}")]).status_code)
+            self.assertEqual(200, self.post([event(eid=f"error-{i}")]).status_code)
         self.assertEqual(["failed", "unknown"], [r["reply_result"] for r in self.rows()])
         self.assertEqual([1, 1], [self.counts()[k] for k in ("reply_failed", "reply_unknown")])
+        self.assertEqual(2, self.counts()["reply_lost"])
 
     def test_failed_event_makes_whole_batch_retry_and_other_events_finish(self):
-        self.assertEqual(503, self.post([event(token=""), event(eid="second-event")]).status_code)
+        self.reply_error = [urllib.error.URLError(ConnectionRefusedError("synthetic refusal")), None]
+        self.assertEqual(503, self.post([event(), event(eid="second-event")]).status_code)
         self.assertEqual(1, len(self.sent))
         self.assertEqual([503, 503], [r["http_status"] for r in self.rows()])
 
@@ -266,7 +275,8 @@ class WebhookTests(unittest.TestCase):
             for ev in inputs:
                 eid = ev["webhookEventId"]
                 ev["replyToken"] = ""
-                self.assertEqual(503, self.post([ev]).status_code, eid)
+                self.assertEqual(200, self.post([ev]).status_code, eid)
+                self.assertTrue(self.rows()[-1]["reply_lost"])
                 self.assertTrue(flow.seen_event(conv, UID, eid))
                 self.assertTrue(flow.has_cached_reply(conv, UID, eid))
                 ev["replyToken"] = TOKEN
@@ -280,7 +290,8 @@ class WebhookTests(unittest.TestCase):
         for i, data in enumerate(inputs):
             ev = event(eid=f"postback-{i}", kind="postback", data=data, token="")
             ev["postback"]["params"] = {"datetime": "2026-11-12T15:00"} if i == 0 else {}
-            self.assertEqual(503, self.post([ev]).status_code)
+            self.assertEqual(200, self.post([ev]).status_code)
+            self.assertTrue(self.rows()[-1]["reply_lost"])
             self.assertTrue(flow.seen_event(conv, UID, ev["webhookEventId"]))
             ev["replyToken"] = TOKEN
             self.assertEqual(200, self.post([ev]).status_code)
@@ -338,6 +349,155 @@ class WebhookTests(unittest.TestCase):
         self.assertFalse(self.count_dir.exists())
         self.assertFalse(self.log_dir.exists())
 
+    def test_unknown_is_acked_and_never_resends_cached_reply(self):
+        for error in (TimeoutError("synthetic timeout"), urllib.error.URLError(TimeoutError("wrapped timeout"))):
+            eid = type(error).__name__
+            self.reply_error = error
+            self.assertEqual(200, self.post([event(eid=eid)]).status_code)
+            self.reply_error = None
+            self.assertEqual(200, self.post([event(eid=eid, redelivered=True)]).status_code)
+            self.assertEqual(200, self.post([event(eid=eid)]).status_code)
+            self.assertFalse(flow.reply_accepted(conv, UID, eid))
+            self.assertEqual(MESSAGES, flow.cached_reply(conv, UID, eid))
+        self.assertEqual(2, self.reply_attempts)
+        self.assertEqual([], self.sent)
+        self.assertEqual(2, len(self.handler_calls))
+        self.assertEqual(["new", "unknown_skipped", "unknown_skipped"] * 2, [r["dedup"] for r in self.rows()])
+        self.assertTrue(all(r["reply_lost"] and r["reply_result"] == "unknown" for r in self.rows()))
+        self.assertEqual(6, self.counts()["reply_lost"])
+        self.assertEqual(4, self.counts()["duplicate_skipped"])
+        markers = list((self.folder / "data" / "line-reply-state").iterdir())
+        self.assertEqual(2, len(markers))
+        for path in markers:
+            self.assertRegex(path.name, r"^[0-9a-f]{64}\.pending$")
+            self.assertEqual(b"1", path.read_bytes())
+
+    def test_all_4xx_and_redelivery_failures_are_acked_and_lost(self):
+        cases = [(False, code) for code in (400, 401, 403, 408, 409, 429)]
+        cases += [(True, code) for code in (400, 429, 500, 503)]
+        cases += [(True, None)]
+        for i, (redelivered, code) in enumerate(cases):
+            self.reply_error = (urllib.error.HTTPError("https://example.invalid", code, "synthetic refusal", {}, io.BytesIO(b'{}'))
+                                if code else urllib.error.URLError(ConnectionRefusedError("synthetic refusal")))
+            self.assertEqual(200, self.post([event(eid=f"terminal-{i}", redelivered=redelivered)]).status_code)
+            row = self.rows()[-1]
+            self.assertEqual("failed", row["reply_result"])
+            self.assertTrue(row["reply_lost"])
+            self.assertFalse(row["retry_requested"])
+        self.assertEqual(len(cases), self.counts()["reply_lost"])
+
+    def test_reset_after_send_is_unknown_and_never_retried(self):
+        # A broken/reset connection can follow LINE accepting the request. It
+        # cannot be classified like a definite pre-send connection refusal.
+        for i, error in enumerate((ConnectionResetError("synthetic reset"),
+                                    urllib.error.URLError(ConnectionResetError("wrapped reset")))):
+            self.reply_error = error
+            self.assertEqual(200, self.post([event(eid=f"reset-{i}")]).status_code)
+            self.reply_error = None
+            self.assertEqual(200, self.post([event(eid=f"reset-{i}", redelivered=True)]).status_code)
+        self.assertEqual(2, self.reply_attempts)
+        self.assertTrue(all(r["reply_result"] == "unknown" and r["reply_lost"] for r in self.rows()))
+
+    def test_first_network_failure_requests_one_retry_then_acks_even_without_redelivery_flag(self):
+        self.reply_error = urllib.error.URLError(ConnectionRefusedError("synthetic refusal"))
+        self.assertEqual(503, self.post([event()]).status_code)
+        self.assertTrue(self.rows()[0]["retry_requested"])
+        self.assertFalse(self.rows()[0]["reply_lost"])
+        self.assertEqual(0, self.counts()["reply_lost"])
+        # Recreate module state: the allowance must survive a new process/import,
+        # not merely a flag attached to the previous request.
+        import importlib
+        import line_reply_state
+        importlib.reload(line_reply_state)
+        for _ in range(2):
+            self.assertEqual(200, self.post([event()]).status_code)
+        self.assertEqual([False, True, True], [r["reply_lost"] for r in self.rows()])
+        self.assertEqual(2, self.counts()["reply_lost"])
+        self.assertEqual(1, len(self.handler_calls))
+        self.assertEqual(3, self.reply_attempts)
+        self.assertFalse(flow.reply_accepted(conv, UID, EID))
+        self.assertEqual(MESSAGES, flow.cached_reply(conv, UID, EID))
+        markers = list((self.folder / "data" / "line-reply-state").iterdir())
+        self.assertEqual([self.rows()[0]["event_ref"] + ".retry"], [p.name for p in markers])
+        self.assertEqual(b"1", markers[0].read_bytes())
+
+    def test_first_line_5xx_retries_but_redelivery_400_is_lost(self):
+        self.reply_error = urllib.error.HTTPError("https://example.invalid", 503, "synthetic outage", {}, io.BytesIO(b'{}'))
+        self.assertEqual(503, self.post([event()]).status_code)
+        self.reply_error = urllib.error.HTTPError("https://example.invalid", 400, "synthetic used token", {}, io.BytesIO(b'{}'))
+        self.assertEqual(200, self.post([event(redelivered=True)]).status_code)
+        self.assertEqual(["line_5xx", "line_4xx"], [r["reply_failure"] for r in self.rows()])
+        self.assertEqual([False, True], [r["reply_lost"] for r in self.rows()])
+        self.assertEqual(1, self.counts()["reply_lost"])
+        self.assertFalse(flow.reply_accepted(conv, UID, EID))
+
+    def test_retry_can_deliver_cached_reply_once_then_skips_accepted(self):
+        self.reply_error = urllib.error.URLError(ConnectionRefusedError("synthetic refusal"))
+        self.assertEqual(503, self.post([event()]).status_code)
+        self.reply_error = None
+        self.assertEqual(200, self.post([event(redelivered=True)]).status_code)
+        self.assertEqual(200, self.post([event(redelivered=True)]).status_code)
+        self.assertEqual(2, self.reply_attempts)
+        self.assertEqual(1, len(self.sent))
+        self.assertTrue(flow.reply_accepted(conv, UID, EID))
+        self.assertEqual(0, self.counts()["reply_lost"])
+
+    def test_empty_token_and_empty_messages_is_not_needed(self):
+        self.assertEqual(200, self.post([event(token="", kind="postback", data="tab=prices")]).status_code)
+        self.assertEqual("not_needed", self.rows()[0]["reply_result"])
+        self.assertFalse(self.rows()[0]["reply_lost"])
+        self.assertEqual(0, self.counts()["reply_lost"])
+        self.assertEqual(1, self.counts()["no_reply_needed"])
+        self.assertEqual(0, self.reply_attempts)
+
+    def test_uncorrelated_failure_never_requests_unbounded_retry(self):
+        self.reply_error = urllib.error.URLError(ConnectionRefusedError("synthetic refusal"))
+        self.assertEqual(200, self.post([event(eid="")]).status_code)
+        self.assertEqual("", self.rows()[0]["event_ref"])
+        self.assertTrue(self.rows()[0]["reply_lost"])
+        self.assertEqual(1, self.reply_attempts)
+
+    def test_unknown_in_retrying_batch_is_not_resent_on_batch_redelivery(self):
+        self.reply_error = [TimeoutError("synthetic timeout"), urllib.error.URLError(ConnectionRefusedError("synthetic refusal"))]
+        self.assertEqual(503, self.post([event(), event(eid="retryable")]).status_code)
+        self.reply_error = urllib.error.HTTPError("https://example.invalid", 400, "synthetic used token", {}, io.BytesIO(b'{}'))
+        self.assertEqual(200, self.post([event(redelivered=True), event(eid="retryable", redelivered=True)]).status_code)
+        self.assertEqual(3, self.reply_attempts)
+        self.assertEqual([True, False, True, True], [r["reply_lost"] for r in self.rows()])
+        self.assertEqual(3, self.counts()["reply_lost"])
+
+    def test_r1_counter_state_adds_lost_without_resetting_previous_counts(self):
+        self.assertEqual(200, self.post([event()]).status_code)
+        for path in (self.count_dir / "2026-11-08.json", self.count_dir / ".state" / "2026-11-08.json"):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data.pop("reply_lost", None)
+            path.write_text(json.dumps(data), encoding="utf-8")
+        self.reply_error = urllib.error.HTTPError("https://example.invalid", 400, "synthetic refusal", {}, io.BytesIO(b'{}'))
+        self.assertEqual(200, self.post([event(eid="after-upgrade")]).status_code)
+        self.assertEqual(2, self.counts()["received"])
+        self.assertEqual(1, self.counts()["replied_ok"])
+        self.assertEqual(1, self.counts()["reply_lost"])
+
+    def test_unavailable_reply_guard_acks_lost_without_sending(self):
+        import line_reply_state
+        with mock.patch.object(line_reply_state, "begin", side_effect=PermissionError("synthetic ACL")):
+            self.assertEqual(200, self.post([event()]).status_code)
+        self.assertEqual(0, self.reply_attempts)
+        self.assertTrue(self.rows()[0]["reply_lost"])
+        self.assertEqual("state_unavailable", self.rows()[0]["reply_failure"])
+        self.assertFalse(flow.reply_accepted(conv, UID, EID))
+        self.assertEqual(MESSAGES, flow.cached_reply(conv, UID, EID))
+
+    def test_unavailable_retry_budget_acks_lost_instead_of_issuing_503(self):
+        import line_reply_state
+        self.reply_error = urllib.error.URLError(ConnectionRefusedError("synthetic refusal"))
+        with mock.patch.object(line_reply_state, "claim_retry", side_effect=PermissionError("synthetic ACL")):
+            self.assertEqual(200, self.post([event()]).status_code)
+        self.assertEqual(1, self.reply_attempts)
+        self.assertTrue(self.rows()[0]["reply_lost"])
+        self.assertFalse(self.rows()[0]["retry_requested"])
+        self.assertEqual(1, self.counts()["reply_lost"])
+
 
 class AtomicMarkTests(unittest.TestCase):
     def test_parallel_marks_preserve_both_acceptances_and_remove_both_caches(self):
@@ -388,7 +548,7 @@ class TelemetryTests(unittest.TestCase):
         telemetry._count_events(self.folder, day, rows[:3])
         telemetry._count_events(self.folder, day, rows[3:])
         data = json.loads((self.folder / "2026-11-08.json").read_text(encoding="utf-8"))
-        self.assertEqual([5, 1, 1, 1, 1, 2, 2, 1], [data[k] for k in telemetry.COUNTERS])
+        self.assertEqual([5, 1, 1, 1, 1, 2, 2, 1, 0], [data[k] for k in telemetry.COUNTERS])
         self.assertEqual([30, 50, 50], [data[k] for k in ("processing_ms_p50", "processing_ms_p95", "processing_ms_max")])
         self.assertEqual(set(telemetry.COUNTERS) | {"processing_ms_p50", "processing_ms_p95", "processing_ms_max"}, set(data))
         self.assertTrue(all(type(v) is int for v in data.values()))

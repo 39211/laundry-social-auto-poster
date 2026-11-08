@@ -28,11 +28,11 @@ from pathlib import Path
 
 TAIPEI = timezone(timedelta(hours=8))
 COUNTERS = ("received", "replied_ok", "reply_failed", "reply_unknown", "to_staff",
-            "no_reply_needed", "redelivered", "duplicate_skipped")
+            "no_reply_needed", "redelivered", "duplicate_skipped", "reply_lost")
 STAGES = ("processing", "reply", "staff_notify", "storage")
 EVENT_TYPES = {"message", "postback", "follow", "unfollow", "join", "leave",
                "memberJoined", "memberLeft", "unsend", "videoPlayComplete", "beacon", "accountLink"}
-SKIPPED = {"accepted_skipped", "not_needed_skipped", "handoff_skipped"}
+SKIPPED = {"accepted_skipped", "not_needed_skipped", "handoff_skipped", "unknown_skipped"}
 _CURRENT = contextvars.ContextVar("line_event_span", default=None)
 _LOCK = threading.Lock()
 _WARNED = False
@@ -77,10 +77,11 @@ def timed(stage, *, to_staff=False):
     return decorate
 
 
-def reply_result(value):
+def reply_result(value, failure=""):
     span = _CURRENT.get()
     if span is not None:
         span.reply_result = value
+        span.reply_failure = failure
 
 
 def note_staff(meta):
@@ -98,6 +99,9 @@ class EventSpan:
         self.event_type = event_type if isinstance(event_type, str) and event_type in EVENT_TYPES else "other"
         self.redelivered = bool(redelivered)
         self.reply_result = "not_needed"
+        self.reply_failure = ""
+        self.reply_lost = False
+        self.retry_requested = False
         self.dedup = "new"
         self.to_staff = False
         self.timings = dict.fromkeys(STAGES, 0.0)
@@ -125,6 +129,8 @@ class EventSpan:
                 "duration_ms": round(max(0.0, time.perf_counter() - self.started) * 1000, 3),
                 "stages_ms": {k: round(v, 3) for k, v in self.timings.items()},
                 "reply_result": self.reply_result, "redelivered": self.redelivered,
+                "reply_failure": self.reply_failure, "reply_lost": self.reply_lost,
+                "retry_requested": self.retry_requested,
                 "dedup": self.dedup, "to_staff": self.to_staff,
             })
         finally:
@@ -157,6 +163,8 @@ class RequestTrace:
                 "duration_ms": round(max(0.0, time.perf_counter() - self.started) * 1000, 3),
                 "stages_ms": {k: round(sum(r["stages_ms"][k] for r in self.events), 3) for k in STAGES},
                 "reply_result": next((s for s in ("unknown", "failed", "accepted") if s in outcomes), "not_needed"),
+                "reply_lost": any(r["reply_lost"] for r in self.events),
+                "retry_requested": any(r["retry_requested"] for r in self.events),
                 "redelivered": any(r["redelivered"] for r in self.events), "dedup": "not_applicable",
                 "to_staff": any(r["to_staff"] for r in self.events), "http_status": int(http_status),
                 "event_count": len(self.events),
@@ -246,6 +254,10 @@ def _count_events(directory, day, events):
         keys = (*COUNTERS, "processing_ms_p50", "processing_ms_p95", "processing_ms_max", "processing_ms_histogram")
         if state.exists():
             data = json.loads(state.read_text(encoding="utf-8"))
+            # The only supported schema upgrade: preserve r1's exact numeric
+            # state/histogram and start the newly introduced counter at zero.
+            if isinstance(data, dict) and set(data) == set(keys) - {"reply_lost"}:
+                data["reply_lost"] = 0
             if set(data) != set(keys) or any(type(data[k]) is not int or data[k] < 0 for k in keys[:-1]):
                 raise ValueError("invalid event counter")
         else:
@@ -265,6 +277,7 @@ def _count_events(directory, day, events):
             data["redelivered"] += int(row["redelivered"])
             data["duplicate_skipped"] += int(row["dedup"] in SKIPPED)
             data["to_staff"] += int(row["to_staff"])
+            data["reply_lost"] += int(row.get("reply_lost", False))
             bucket = str(math.ceil(max(0, row["duration_ms"])))
             histogram[bucket] = histogram.get(bucket, 0) + 1
         ordered = sorted((int(k), v) for k, v in histogram.items())

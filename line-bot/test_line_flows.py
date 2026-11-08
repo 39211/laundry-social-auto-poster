@@ -288,6 +288,7 @@ def test_image_event_notifies_staff():
     import base64
     import hashlib
     import hmac
+    from unittest import mock
 
     lw = importlib.import_module("line_webhook")
     body = json.dumps(
@@ -304,16 +305,25 @@ def test_image_event_notifies_staff():
     ).encode()
     sig = base64.b64encode(hmac.new(lw.SECRET, body, hashlib.sha256).digest()).decode()
     before = sn.INBOX.read_text(encoding="utf-8") if sn.INBOX.exists() else ""
-    r = lw.app.test_client().post(
-        "/line/webhook",
-        data=body,
-        content_type="application/json",
-        headers={"X-Line-Signature": sig},
-    )
-    # The offline interceptor rejects the customer reply too. LINE-ACK r1 now
-    # requests redelivery consistently for image failures, while still saving
-    # the staff task and keeping the pending customer reply.
-    assert r.status_code == 503, r.status_code
+    logs = conv.SESS.parent / "image-event-logs"
+    with mock.patch.dict(os.environ, {"LAUNDRY_LINE_EVENTS": "on",
+            "LAUNDRY_LINE_EVENT_LOG_DIR": str(logs),
+            "LAUNDRY_LINE_EVENTS_DIR": str(conv.SESS.parent / "image-event-counts")}):
+        r = lw.app.test_client().post(
+            "/line/webhook",
+            data=body,
+            content_type="application/json",
+            headers={"X-Line-Signature": sig},
+        )
+    # The interceptor raises a generic OSError after entering urlopen: delivery
+    # is unknown, not a known connection refusal. r2 ACKs it to avoid duplicates.
+    assert r.status_code == 200, r.status_code
+    events = [json.loads(raw) for path in logs.glob("*.jsonl")
+              for raw in path.read_text(encoding="utf-8").splitlines() if json.loads(raw)["kind"] == "event"]
+    assert len(events) == 1, events
+    assert events[0]["reply_result"] == "unknown", events[0]
+    assert events[0]["reply_lost"] is True, events[0]
+    assert events[0]["retry_requested"] is False, events[0]
     import quote_flow
     assert not quote_flow.reply_accepted(conv, "Uimgm8testxxxx", "1")
     assert quote_flow.has_cached_reply(conv, "Uimgm8testxxxx", "1")

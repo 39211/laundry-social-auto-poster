@@ -18,6 +18,7 @@ import line_pay
 import staff_notify
 import quote_flow
 import line_event_log as event_log
+import line_reply_state as reply_state
 
 REPO = Path(os.environ.get("LAUNDRY_REPO_ROOT", r"C:/Users/cyc39/laundry-repo"))
 SECRETS = json.loads((REPO / "secrets/line-channel.json").read_text(encoding="utf-8"))
@@ -137,7 +138,19 @@ def reply(reply_token: str, messages: list):
         event_log.reply_result("accepted")
         return True
     except Exception as e:  # noqa: BLE001
-        event_log.reply_result("failed" if isinstance(e, urllib.error.HTTPError) or not sent else "unknown")
+        reason = e.reason if isinstance(e, urllib.error.URLError) else e
+        if isinstance(e, urllib.error.HTTPError):
+            failure = "line_5xx" if 500 <= e.code < 600 else "line_4xx" if 400 <= e.code < 500 else "other"
+        elif not sent:
+            failure = "local"
+        elif isinstance(reason, (TimeoutError, ConnectionResetError, ConnectionAbortedError, BrokenPipeError)) or (
+                isinstance(e, urllib.error.URLError) and any(t in str(reason).lower() for t in ("timed out", "timeout"))):
+            failure = "unknown"
+        elif isinstance(e, (urllib.error.URLError, ConnectionRefusedError)):
+            failure = "network"
+        else:
+            failure = "unknown"
+        event_log.reply_result("unknown" if failure == "unknown" else "failed", failure)
         detail = _line_error_detail(e)
         print("reply error:", e, *([detail] if detail else []), file=sys.stderr)
         return False
@@ -196,6 +209,33 @@ def pay_cancel():
     return "已取消付款。回 LINE 可以改約或改用到店付。"
 
 
+def _skip_uncertain_reply(span):
+    try:
+        if not reply_state.pending(span.trace.repo, span.event_ref):
+            return False
+        span.reply_result = "unknown"
+        span.reply_failure = "unknown"
+        span.dedup = "unknown_skipped"
+    except OSError as exc:
+        span.reply_result = "failed"
+        span.reply_failure = "state_unavailable"
+        print("reply state error:", type(exc).__name__, file=sys.stderr)
+    return True
+
+
+def _finish_event_reply(span):
+    eligible = (span.reply_result == "failed" and span.reply_failure in ("network", "line_5xx")
+                and not span.redelivered)
+    if eligible:
+        try:
+            span.retry_requested = reply_state.claim_retry(span.trace.repo, span.event_ref)
+        except OSError as exc:
+            # No durable allowance, no retry. Optional telemetry failures still
+            # never affect delivery; this guard is separate control state.
+            print("reply state error:", type(exc).__name__, file=sys.stderr)
+    span.reply_lost = span.reply_result in ("failed", "unknown") and not span.retry_requested
+
+
 def _handle_event(ev, span):
     def respond(reply_token, messages, *, remember=True, customer=True):
         # Every customer branch passes here, including empty/early-return replies.
@@ -208,8 +248,21 @@ def _handle_event(ev, span):
             return
         if not reply_token:
             span.reply_result = "failed"
+            span.reply_failure = "missing_token"
             return
         span.reply_result = "failed"
+        span.reply_failure = "other"
+        try:
+            claimed = reply_state.begin(span.trace.repo, span.event_ref)
+        except OSError as exc:
+            span.reply_failure = "state_unavailable"
+            print("reply state error:", type(exc).__name__, file=sys.stderr)
+            return
+        if not claimed:
+            span.reply_result = "unknown"
+            span.reply_failure = "unknown"
+            span.dedup = "unknown_skipped"
+            return
         with event_log.measure("reply"):
             deliver = getattr(conv, "reply_with_hints", None)
             if customer and callable(deliver):
@@ -219,16 +272,26 @@ def _handle_event(ev, span):
                 accepted = reply(reply_token, messages)
         if accepted is True:
             span.reply_result = "accepted"
+            span.reply_failure = ""
             if customer and quote_flow.seen_event(conv, uid, event_id):
                 quote_flow.mark_reply_accepted(conv, uid, event_id)
         elif span.reply_result != "unknown":
             span.reply_result = "failed"
+        if span.reply_result != "unknown":
+            try:
+                reply_state.finish(span.trace.repo, span.event_ref)
+            except OSError as exc:
+                if span.reply_result != "accepted":
+                    span.reply_failure = "state_unavailable"
+                print("reply state error:", type(exc).__name__, file=sys.stderr)
 
     src = ev.get("source") or {}
     uid = src.get("userId") or "?"
     rt = ev.get("replyToken") or ""
     et = ev.get("type")
     event_id = ev.get("webhookEventId") or (ev.get("message") or {}).get("id") or ""
+    if not (src.get("type") != "group" and quote_flow.reply_accepted(conv, uid, event_id)) and _skip_uncertain_reply(span):
+        return
     if (ev.get("deliveryContext") or {}).get("isRedelivery"):
         # LINE re-sent an event it did not see us accept; its reply token may already be spent.
         print("redelivery:", span.event_type, file=sys.stderr)
@@ -303,6 +366,7 @@ def _handle_event(ev, span):
             if not has_cache(conv, uid, event_id):
                 span.dedup = "cache_missing"
                 span.reply_result = "failed"
+                span.reply_failure = "cache_missing"
             else:
                 span.dedup = "retry_cached" if cached else "not_needed_skipped"
                 respond(rt, cached, remember=False)
@@ -476,7 +540,7 @@ def line_webhook():
         if not isinstance(payload, dict) or not isinstance(payload.get("events", []), list):
             http_status = 400
             return "bad payload", http_status
-        failed_replies = False
+        retry_requested = False
         for ev in payload.get("events", []):
             if not isinstance(ev, dict):
                 http_status = 400
@@ -484,9 +548,10 @@ def line_webhook():
             with trace.event(ev.get("webhookEventId"), ev.get("type"),
                              (ev.get("deliveryContext") or {}).get("isRedelivery")) as span:
                 _handle_event(ev, span)
-            failed_replies |= span.reply_result in ("failed", "unknown")
-        http_status = 503 if failed_replies else 200
-        return (jsonify({"retry": True}), http_status) if failed_replies else jsonify({})
+                _finish_event_reply(span)
+            retry_requested |= span.retry_requested
+        http_status = 503 if retry_requested else 200
+        return (jsonify({"retry": True}), http_status) if retry_requested else jsonify({})
     finally:
         trace.finish(http_status)
 

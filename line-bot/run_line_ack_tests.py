@@ -23,12 +23,15 @@ import time
 import unittest
 
 HERE = Path(__file__).resolve().parent
-SOURCES = ("line_event_log.py", "line_webhook.py", "quote_flow.py", "conversation.py", "staff_notify.py")
+SOURCES = ("line_event_log.py", "line_reply_state.py", "line_webhook.py", "quote_flow.py", "conversation.py", "staff_notify.py")
 MUTATIONS = {
     "no_correlation": ("line_event_log", "WebhookTests.test_five_deliveries_are_three_correlated_events"),
     "empty_token_accepted": ("line_webhook", "WebhookTests.test_empty_token_is_not_accepted_and_keeps_cache"),
     "unlocked_mark": ("quote_flow", "AtomicMarkTests.test_parallel_marks_preserve_both_acceptances_and_remove_both_caches"),
     "log_failure_propagates": ("line_event_log", "WebhookTests.test_log_write_failure_does_not_break_customer_reply"),
+    "unknown_503": ("line_webhook", "WebhookTests.test_unknown_is_acked_and_never_resends_cached_reply"),
+    "redelivery_4xx_503": ("line_webhook", "WebhookTests.test_all_4xx_and_redelivery_failures_are_acked_and_lost"),
+    "no_retry_cap": ("line_reply_state", "WebhookTests.test_first_network_failure_requests_one_retry_then_acks_even_without_redelivery_flag"),
 }
 
 
@@ -46,7 +49,20 @@ def mutated_source(module, mutation):
         except Exception as exc:
             _warn(exc)'''
         new = '        _append_records(log_dir(), self.received_at.date(), records)'
-    else:
+    elif mutation in ("unknown_503", "redelivery_4xx_503"):
+        old = '''    eligible = (span.reply_result == "failed" and span.reply_failure in ("network", "line_5xx")
+                and not span.redelivered)'''
+        extra = ('span.reply_result == "unknown"' if mutation == "unknown_503" else
+                 '(span.redelivered and span.reply_failure == "line_4xx")')
+        new = old + '\n    eligible = eligible or ' + extra
+    elif mutation == "no_retry_cap":
+        old = '    return bool(event_ref) and _create_once(_marker(repo, event_ref, "retry"))'
+        new = '''    if not event_ref:
+        return False
+    path = _marker(repo, event_ref, "retry")
+    path.unlink(missing_ok=True)
+    return _create_once(path)'''
+    elif mutation == "unlocked_mark":
         tree = ast.parse(source)
         node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "mark_reply_accepted")
         lines = source.splitlines(keepends=True)
@@ -58,6 +74,8 @@ def mutated_source(module, mutation):
     replies.pop(event_id, None)
     conv.set_sess(uid, estimate_reply_accepted=(accepted + [event_id])[-100:], estimate_replies=replies)
 '''
+    else:
+        raise ValueError("unknown mutation")
     if source.count(old) != 1:
         raise RuntimeError("mutation target changed; refusing an ineffective mutant")
     return source.replace(old, new)
@@ -164,7 +182,11 @@ def main():
         report["mutations"] = []
         for mutation, (_, name) in MUTATIONS.items():
             row = run_one("test_line_ack", output, label=mutation, mutation=mutation)
-            row.update(mutation=mutation, target_test=name, killed=row["exit"] == 1 and bool(row["failures"]))
+            # Require this specific test's assertion failure, not an unrelated
+            # import/setup error which merely happened to exit nonzero.
+            target = name.rsplit(".", 1)[-1]
+            killed = row["exit"] == 1 and any(f.startswith(target + " (") for f in row["failures"])
+            row.update(mutation=mutation, target_test=name, killed=killed)
             report["mutations"].append(row)
         report["green_restored"] = run_one("test_line_ack", output, label="task-green-restored")
         report["sources_after"] = fingerprints()

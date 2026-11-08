@@ -67,12 +67,14 @@ async function withJsonFileLock<T>(filePath: string, operation: () => Promise<T>
       handle = await open(lockPath, "wx");
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
-      if (code !== "EEXIST") throw error;
+      // Windows can report EPERM while a just-closed lock is pending deletion.
+      // Wait under the same deadline; never bypass the lock or reclaim it on EPERM.
+      if (code !== "EEXIST" && code !== "EPERM") throw error;
 
       const lockAgeMs = await stat(lockPath)
         .then((info) => Date.now() - info.mtimeMs)
         .catch(() => 0);
-      if (lockAgeMs > JSON_LOCK_STALE_MS) {
+      if (code === "EEXIST" && lockAgeMs > JSON_LOCK_STALE_MS) {
         await unlink(lockPath).catch(() => undefined);
         continue;
       }

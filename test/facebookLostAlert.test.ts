@@ -37,4 +37,14 @@ describe("A7-4 existing staff-group alert delivery", () => {
     await seed(); await writeFile(join(root,"output","alerts",`fb-lost-${DATE}-slot1.json`),JSON.stringify({alert:"FB_LOST",date:DATE,slot:2}));
     const sender=vi.fn(async(_message: string, _key: string)=>true); expect((await deliverPendingFacebookAlerts({root,date:DATE,sender})).pending).toBe(1); expect(sender).not.toHaveBeenCalled();
   });
+  it.each(["resolved", "needs_manual"])("does not duplicate the recovery handler's %s notice", async status => {
+    await seed();
+    await mkdir(join(root, "data", "gates"), { recursive: true });
+    await writeFile(join(root, "data", "gates", `publish-recovery-${DATE}-slot1-facebook.json`), JSON.stringify({
+      date: DATE, slot: 1, platform: "facebook", status, notification: "delivered"
+    }));
+    const sender = vi.fn(async () => true);
+    expect(await deliverPendingFacebookAlerts({ root, date: DATE, sender })).toEqual({ delivered: 0, pending: 0 });
+    expect(sender).not.toHaveBeenCalled();
+  });
 });

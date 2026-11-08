@@ -168,12 +168,13 @@ class RequestTimeoutError extends Error {}
  * fetchImpl with a hard deadline. Races a timer as well as aborting, so even a
  * fetch implementation that ignores the signal cannot hang the run.
  */
-async function fetchWithTimeout(
+async function fetchWithTimeout<T = Response>(
   fetchImpl: typeof fetch,
   url: string,
   init: RequestInit,
-  timeoutMs: number
-): Promise<Response> {
+  timeoutMs: number,
+  consume?: (response: Response) => Promise<T>
+): Promise<T> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_, reject) => {
@@ -183,7 +184,9 @@ async function fetchWithTimeout(
     }, timeoutMs);
   });
   try {
-    return await Promise.race([fetchImpl(url, { ...init, signal: controller.signal }), deadline]);
+    const request = fetchImpl(url, { ...init, signal: controller.signal }).then(async response =>
+      consume ? consume(response) : response as unknown as T);
+    return await Promise.race([request, deadline]);
   } catch (error) {
     if (controller.signal.aborted) throw new RequestTimeoutError(`timed out after ${timeoutMs} ms`);
     throw error;
@@ -251,6 +254,9 @@ interface GraphPagePost {
   created_time?: string;
   scheduled_publish_time?: number | string;
   message?: string;
+  caption?: string;
+  timestamp?: string;
+  queued?: boolean;
 }
 
 interface GraphPostList {
@@ -265,20 +271,32 @@ async function readGraphPostList(firstUrl: string, fetchImpl: typeof fetch): Pro
   const posts: GraphPagePost[] = [];
   let next: string | undefined = firstUrl;
   for (let page = 0; next && page < GRAPH_MAX_PAGES; page += 1) {
-    const response = await fetchWithTimeout(fetchImpl, next, { method: "GET" }, GRAPH_LOOKUP_TIMEOUT_MS);
+    let response: Response;
     let payload: GraphPostList | null;
     try {
-      payload = (await response.json()) as GraphPostList | null;
+      // Keep the same deadline/AbortController active until the body is parsed.
+      ({ response, payload } = await fetchWithTimeout(fetchImpl, next, { method: "GET" }, GRAPH_LOOKUP_TIMEOUT_MS,
+        async result => ({ response: result, payload: await result.json() as GraphPostList | null })));
     } catch {
-      throw new Error(`Graph lookup returned an unreadable body (HTTP ${response.status})`);
+      throw new Error("Graph lookup failed or returned an unreadable body");
     }
     if (!response.ok || !payload || typeof payload !== "object" || payload.error || !Array.isArray(payload.data)) {
       throw new Error(`Graph lookup failed (HTTP ${response.status})`);
     }
+    if (payload.paging !== undefined && (!payload.paging || typeof payload.paging !== "object" || Array.isArray(payload.paging))) {
+      throw new Error("Graph lookup returned malformed pagination");
+    }
+    if (payload.data.some((post) => !post || typeof post !== "object" || typeof post.id !== "string" || !post.id)) {
+      throw new Error("Graph lookup returned malformed post rows");
+    }
     posts.push(...payload.data);
-    const candidate = payload.paging?.next;
-    next = typeof candidate === "string" && candidate.startsWith(GRAPH_ORIGIN) ? candidate : undefined;
+    const candidate: unknown = payload.paging?.next;
+    if (candidate !== undefined && (typeof candidate !== "string" || !candidate.startsWith(GRAPH_ORIGIN))) {
+      throw new Error("Graph pagination could not be completed");
+    }
+    next = candidate;
   }
+  if (next) throw new Error("Graph lookup exceeded the pagination limit");
   return posts;
 }
 
@@ -296,7 +314,52 @@ async function fetchPagePosts(config: AppConfig, fetchImpl: typeof fetch, sinceU
   feed.searchParams.set("access_token", config.metaAccessToken ?? "");
   const queued = await readGraphPostList(scheduled.toString(), fetchImpl);
   const published = await readGraphPostList(feed.toString(), fetchImpl);
-  return [...queued, ...published];
+  return [...queued.map((post) => ({ ...post, queued: true })), ...published];
+}
+
+export type PublicationEvidence =
+  | { state: "published"; postId: string }
+  | { state: "absent" | "pending" | "unknown" };
+
+/** Uses the existing bounded, paginated Page reader; no local ledger proves absence. */
+export async function readPublicationEvidence(args: {
+  config: AppConfig; fetchImpl: typeof fetch; platform: "facebook" | "instagram";
+  caption: string; slotTime: number;
+}): Promise<PublicationEvidence> {
+  const { config, fetchImpl, platform, caption, slotTime } = args;
+  if (!caption.trim()) return { state: "unknown" };
+  try {
+    let posts: GraphPagePost[];
+    if (platform === "facebook") {
+      posts = await fetchPagePosts(config, fetchImpl, slotTime - 24 * 3600);
+    } else {
+      const url = new URL(`${GRAPH_ORIGIN}${config.graphApiVersion}/${config.instagramUserId}/media`);
+      url.searchParams.set("fields", "id,caption,timestamp");
+      url.searchParams.set("limit", "100");
+      url.searchParams.set("access_token", config.metaAccessToken ?? "");
+      posts = await readGraphPostList(url.toString(), fetchImpl);
+    }
+    // An empty/incomplete observation can hide the target post. Validate every
+    // row before even accepting a positive match; it is never negative proof.
+    if (!posts.length || posts.some(post => {
+      const text = post.message ?? post.caption;
+      return typeof text !== "string" || !normalizeText(text) ||
+        toUnixSeconds(post.scheduled_publish_time ?? post.created_time ?? post.timestamp) === undefined;
+    })) return { state: "unknown" };
+    const exactCaption = normalizeText(caption);
+    const matches = posts.filter(post => {
+      const actual = normalizeText(post.message ?? post.caption ?? "");
+      return !!actual && (actual.startsWith(captionPrefix(caption)) || exactCaption.startsWith(actual));
+    });
+    // A queued match or a match whose time cannot be established is never absence.
+    const published = matches.find(post => !post.queued && normalizeText(post.message ?? post.caption ?? "") === exactCaption && (() => {
+      const at = toUnixSeconds(post.scheduled_publish_time ?? post.created_time ?? post.timestamp);
+      return at !== undefined && at >= slotTime - 20 * 60 && at < slotTime + 4 * 3600;
+    })());
+    if (published?.id) return { state: "published", postId: published.id };
+    if (matches.length) return { state: "pending" };
+    return { state: "absent" };
+  } catch { return { state: "unknown" }; }
 }
 
 function toUnixSeconds(value: unknown): number | undefined {

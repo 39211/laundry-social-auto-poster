@@ -179,12 +179,12 @@ function Write-UncertainNotice($Pairs, [string]$Date) {
             }
         }
         if ($scheduledUncertain) {
-            "$label 是 FB 排程結果不明：把 data\scheduled-log\$Date.json 裡這格 facebook 那一列，以及 data\posted-log\$Date.json 裡這格 facebook 那一列都刪掉，再跑補發。"
+            "$label 是 FB 排程結果不明：保留排程與發布原紀錄；系統先回讀平台，確認未發且可重試才在當日時窗內補一次；其餘需要人處理。"
         } elseif ($cloudOwned) {
             $resultPath = "results/{0}-slot{1}.json" -f $Date, $slot
             "$label 是雲端 IG：不要刪本機 data\posted-log\$Date.json 那一列；去雲端 repo 的 $resultPath 看結果，確認雲端沒發，就照 PR 132 README 把開關切 off 讓電腦收回，或等下一輪自動收回。"
         } else {
-            "$label 是本機送出後未確認：把 data\posted-log\$Date.json 裡那一列刪掉再跑補發。"
+            "$label 是本機送出後未確認：保留發布原紀錄；系統先回讀平台，不能確認時不重發；需要人處理。"
         }
     })
     Show-Toast "發布結果不明:$list。先去粉專/IG 看貼文有沒有上;有就不用管。沒有的話，請依來源處理：$($guidance -join ' ')"
@@ -265,10 +265,13 @@ if ($cloudMissing.Count -gt 0) {
     $missing = @(Get-MissingDuePairs $due $posted | Where-Object { $uncertain -notcontains $_ })
 }
 
-# R3: Uncertain pairs alert the owner without triggering catchup.
+# OPS-L1-10: route local uncertainty through the publisher's readback gate.
 Write-UncertainNotice $uncertain $d
-if ($missing.Count -gt 0) {
-    $list = Format-PublishPairs $missing
+$cloudUncertain = @(Get-CloudOwnedIgPairs $uncertain $d $RootPath)
+$recoverableUncertain = @($uncertain | Where-Object { $cloudUncertain -notcontains $_ })
+$recoveryPairs = @(@($missing) + @($recoverableUncertain) | Sort-Object -Unique)
+if ($recoveryPairs.Count -gt 0) {
+    $list = Format-PublishPairs $recoveryPairs
     $cloudNote = ""
     if (@(Get-CloudOwnedIgPairs $missing $d $RootPath).Count -gt 0) {
         $cloudNote = "IG 由雲端發,還沒有結果。"

@@ -350,14 +350,14 @@ $igUnknown = '{"slot":1,"platform":"instagram","status":"uncertain","dry_run":fa
 $igCloudUnknown = '{"slot":1,"platform":"instagram","status":"uncertain","dry_run":false,"error":"cloud: publish outcome uncertain"}'
 $scheduledUnknown = '[{"slot":1,"platform":"facebook","status":"uncertain","scheduled_post_id":"schedule-id"}]'
 $scheduledEmptyId = '[{"slot":1,"platform":"facebook","scheduled_post_id":""}]'
-$localAdvice = "data\posted-log\$probeDate.json 裡那一列刪掉再跑補發"
-$scheduleAdvice = "data\scheduled-log\$probeDate.json 裡這格 facebook 那一列，以及 data\posted-log\$probeDate.json 裡這格 facebook 那一列都刪掉，再跑補發"
+$localAdvice = "保留發布原紀錄；系統先回讀平台，不能確認時不重發；需要人處理"
+$scheduleAdvice = "保留排程與發布原紀錄；系統先回讀平台，確認未發且可重試才在當日時窗內補一次；其餘需要人處理"
 $cloudAdvice = "不要刪本機 data\posted-log\$probeDate.json 那一列；去雲端 repo 的 results/$probeDate-slot1.json 看結果，確認雲端沒發，就照 PR 132 README 把開關切 off 讓電腦收回，或等下一輪自動收回"
 try {
     $localIg = Invoke-MainCase -Name "local-ig" -Posted "[$fbLive,$igUnknown]"
     Assert-Bool -Name "main-uncertain-toast" -Got ($localIg.Toasts.Contains("發布結果不明:slot 1 的 IG")) -Expect $true
     Assert-Bool -Name "main-local-commit-point-advice" -Got ($localIg.Toasts.Contains($localAdvice) -and -not $localIg.Toasts.Contains("雲端 repo")) -Expect $true
-    Assert-Pairs -Name "main-uncertain-no-catchup" -Got $localIg.CatchupCalls -Expect "0"
+    Assert-Pairs -Name "main-uncertain-readback-catchup" -Got $localIg.CatchupCalls -Expect "1"
 
     $stillMissing = Invoke-MainCase -Name "ig-still-missing" -Posted "[$fbLive]"
     Assert-Bool -Name "main-ig-still-missing-no-success" -Got ($stillMissing.Toasts.Contains("補發成功")) -Expect $false
@@ -387,7 +387,7 @@ try {
     $cloudError = Invoke-MainCase -Name "cloud-error" -Posted "[$fbLive,$igCloudUnknown]"
     Assert-Bool -Name "main-cloud-error-advice" -Got ($cloudError.Toasts.Contains($cloudAdvice) -and -not $cloudError.Toasts.Contains($localAdvice)) -Expect $true
     $otherCloudError = Invoke-MainCase -Name "cloud-other-pair" -Posted "[$fbLive,$igUnknown,{`"slot`":3,`"platform`":`"instagram`",`"status`":`"uncertain`",`"error`":`"cloud: other slot`"}]"
-    Assert-Bool -Name "main-cloud-error-scoped-to-pair" -Got ($otherCloudError.Toasts.Contains("slot 1 的 IG 是本機送出後未確認：把 $localAdvice") -and $otherCloudError.Toasts.Contains("results/$probeDate-slot3.json")) -Expect $true
+    Assert-Bool -Name "main-cloud-error-scoped-to-pair" -Got ($otherCloudError.Toasts.Contains("slot 1 的 IG 是本機送出後未確認：$localAdvice") -and $otherCloudError.Toasts.Contains("results/$probeDate-slot3.json")) -Expect $true
 
     # S07 regression: the catchup stub reintroduces an uncertain FB row.
     $scheduledAfter = Invoke-MainCase -Name "scheduled-after-catchup" -Posted "[$igLive]" -Scheduled $scheduledUnknown -AfterCatchup "[$fbUnknown,$igLive]"

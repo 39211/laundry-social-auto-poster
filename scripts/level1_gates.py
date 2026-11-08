@@ -36,12 +36,12 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from publish_recovery_report import recovery_summary
 
-RULES_VERSION = 3
+RULES_VERSION = 4
 CHECKLIST_TARGET = 3
 SERVICE_GAP_SECONDS = 5 * 60
 CHECKLIST_STATUSES = ("pass", "fail", "no_data", "not_ready", "not_applicable")
 CHECKLIST_TITLES = {
-    "1": "夜間 AI 準時接手與交還", "2": "客人訊息都有回覆或轉真人",
+    "1": "夜間 AI 準時接手、交還與持續運作", "2": "客人訊息都有回覆或轉真人",
     "3": "對客事實與黃金對話", "4": "估價、照片與寢具流程",
     "5": "轉真人送到店員", "6": "到件通知送出與綁定改善",
     "7": "到件通知零重發與零誤發", "8": "營業時間資料間隔不超過 60 分",
@@ -76,7 +76,8 @@ class PolicyError(ValueError):
 
 
 class Paths:
-    def __init__(self, root, mdb_log=None, hours_module=None, out_root=None, service_logs=None):
+    def __init__(self, root, mdb_log=None, hours_module=None, out_root=None, service_logs=None,
+                 heartbeat_log_dir=None):
         root = Path(root)
         self.root = root
         self.policy = root / "data" / "publishing-policy.json"
@@ -84,16 +85,20 @@ class Paths:
         self.gates_dir = root / "data" / "gates"
         self.handover = root / "line-bot" / "handover.json"
         self.hours_module = Path(hours_module) if hours_module else root / "line-bot" / "tunnel_manager.py"
+        base = os.environ.get("LOCALAPPDATA")
         if mdb_log:
             self.mdb_log = Path(mdb_log)
         else:
-            base = os.environ.get("LOCALAPPDATA")
             self.mdb_log = Path(base) / "line-bot" / "mdb_pull.jsonl" if base else None
         # Explicit paths also keep synthetic tests away from the live runtime.
         runtime = self.mdb_log.parent if self.mdb_log else None
         self.service_logs = ([Path(p) for p in service_logs] if service_logs is not None else
-                             [runtime / name for name in ("tunnel_events.jsonl", "healthz.jsonl")]
+                             [runtime / "tunnel_events.jsonl"]
                              if runtime else [])
+        # An injected MDB source must not cause tests to read live heartbeats.
+        heartbeat_base = root if mdb_log else Path(base) if base else None
+        self.heartbeat_log_dir = (Path(heartbeat_log_dir) if heartbeat_log_dir is not None else
+                                  heartbeat_base / "sxj-heartbeat" / "log" if heartbeat_base else None)
         self.out_root = Path(out_root) if out_root else root
         self.ops_dir = self.out_root / "output" / "operations"
         self.report = self.out_root / "reports" / "level1-gates.md"
@@ -515,13 +520,14 @@ def _daily(path, day):
 
 
 def read_service_records(paths):
-    """Read operational metadata only; never return URLs or raw log payloads."""
-    records, bad = [], 0
-    ai_events = {"night_reclaim", "webhook_update", "handover_noop", "handover", "night_handover"}
+    """State changes prove transitions only, never periodic service coverage."""
+    records, bad, available = [], 0, False
+    ai_events = {"night_reclaim", "webhook_update"}
     shop_events = {"day_handover", "handover_to_shop", "handover_return", "handover"}
     for path in paths:
         try:
             with Path(path).open(encoding="utf-8-sig") as handle:
+                available = True
                 for line in handle:
                     if not line.strip():
                         continue
@@ -533,73 +539,156 @@ def read_service_records(paths):
                     if not isinstance(row, dict):
                         bad += 1
                         continue
+                    event = row.get("event")
+                    if not isinstance(event, str) or event not in ai_events | shop_events:
+                        continue
                     stamp = parse_ts(row.get("ts"), TAIPEI_FALLBACK)
                     if stamp is None:
                         bad += 1
                         continue
-                    event = row.get("event")
                     owner = row.get("registered_owner", row.get("owner"))
                     verified = row.get("verify_status") == "match"
                     if event in shop_events and owner == "shop" and verified:
                         records.append((stamp, "shop"))
                     elif event in ai_events and verified and owner in (None, "ai"):
                         records.append((stamp, "ai"))
-                    elif event == "healthz" and (row.get("ok") is True or row.get("status") == "ok"):
-                        records.append((stamp, "healthy"))
         except FileNotFoundError:
             continue
         except (OSError, UnicodeError):
             bad += 1
-    return sorted(set(records)), bad
+    return sorted(set(records)), bad, available
 
 
-def evaluate_service(day, paths):
-    """Calendar-day approximation: previous night until 09:50, then tonight.
+def _service_transition(records, bad, available, expected, owner, evidence):
+    label = "接手" if owner == "ai" else "交還"
+    actual = next((stamp for stamp, kind in records
+                   if expected <= stamp < expected + timedelta(days=1) and kind == owner), None)
+    details = {"expected_at": expected.isoformat(), "actual_at": actual.isoformat() if actual else None}
+    if not available or bad:
+        return _gate("no_data", label + "事件檔缺失或有無法核對的行", evidence, **details)
+    on_time = actual is not None and (actual - expected).total_seconds() <= SERVICE_GAP_SECONDS
+    reason = label + ("於指定時間後 5 分內驗證相符" if on_time else "缺指定時間後 5 分內驗證相符的事件")
+    return _gate("pass" if on_time else "fail", reason, evidence, **details)
 
-    Sunday is AI-owned for the entire date. A successful healthz observation
-    proves liveness only, never webhook ownership or a handover to the shop.
+
+def evaluate_heartbeat(opening, closing, folder):
+    """Only the sampler's minute-by-minute LIVE channel checks prove coverage.
+
+    Filenames are UTC dates, as in heartbeat_sampler._write_log. Ping delivery
+    and the aggregate exit code do not measure the customer service channel.
     """
-    records, bad = read_service_records(paths)
-    evidence = list(paths) or ["tunnel_events.jsonl", "healthz.jsonl"]
-    start = datetime.combine(day, datetime.min.time(), TAIPEI_FALLBACK)
-    end = start + timedelta(days=1)
-    missing, failures, transitions = [], [], {}
-    windows = [(start, end)]
-    if day.weekday() != 6:
-        expected_takeover = start.replace(hour=18 if day.weekday() == 5 else 20, minute=5)
-        expected_handover = start.replace(hour=9, minute=50)
-        windows = [(start, expected_handover), (expected_takeover, end)]
-        for label, expected, owner, cutoff in (("takeover", expected_takeover, "ai", end),
-                                                ("handover", expected_handover, "shop", expected_takeover)):
-            actual = next((t for t, kind in records if expected <= t < cutoff and kind == owner), None)
-            transitions[label + "_at"] = actual.isoformat() if actual else None
-            if actual is None:
-                missing.append("缺" + ("接手" if owner == "ai" else "交還") + "確認紀錄")
-            elif (actual - expected).total_seconds() > SERVICE_GAP_SECONDS:
-                failures.append(("接手" if owner == "ai" else "交還") + "超過指定時間後 5 分")
-    gaps, observations = [], 0
-    for opening, closing in windows:
-        times = sorted({t for t, kind in records if opening <= t <= closing and kind in ("ai", "healthy")})
-        observations += len(times)
-        if len(times) < 2:
-            missing.append("AI 主責區間紀錄不足")
+    first, last = (stamp.astimezone(timezone.utc).date() for stamp in (opening, closing))
+    evidence = ([Path(folder) / f"{first + timedelta(days=n)}.jsonl"
+                 for n in range((last - first).days + 1)] if folder is not None else [])
+    records, bad, available = {}, 0, False
+    channels = ("bot", "local", "public", "line")
+    unmeasured = {"OK", "BLOCKED", "SKIPPED_OUTSIDE_AI", "UNMEASURED_DRY_RUN"}
+    priority = {"healthy": 0, "unknown": 1, "failed": 2}
+    for path in evidence:
+        try:
+            with path.open(encoding="utf-8-sig") as handle:
+                available = True
+                for line in handle:
+                    if not line.strip():
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except ValueError:
+                        bad += 1
+                        continue
+                    stamp = parse_ts(row.get("time"), TAIPEI_FALLBACK) if isinstance(row, dict) else None
+                    if stamp is None:
+                        bad += 1
+                        continue
+                    if not opening <= stamp <= closing:
+                        continue
+                    checks = row.get("checks")
+                    values = [checks.get(key) for key in channels] if isinstance(checks, dict) else []
+                    state = "unknown"
+                    if row.get("mode") == "LIVE" and values:
+                        if all(value == "OK" for value in values):
+                            state = "healthy"
+                        elif any(isinstance(value, str) and value not in unmeasured for value in values):
+                            state = "failed"
+                    # A duplicate success cannot erase a failed/unmeasured sample.
+                    records[stamp] = max((records.get(stamp, state), state), key=priority.get)
+        except FileNotFoundError:
             continue
-        gaps.extend((b - a).total_seconds() for a, b in zip(times, times[1:]))
-        # Missing edge coverage is unknown; it is not an observed outage.
-        if ((times[0] - opening).total_seconds() > SERVICE_GAP_SECONDS
-                or (closing - times[-1]).total_seconds() > SERVICE_GAP_SECONDS):
-            missing.append("AI 主責區間邊界缺監測紀錄")
-    maximum = max(gaps, default=None)
+        except (OSError, UnicodeError):
+            bad += 1
+    evidence = evidence or ["%LOCALAPPDATA%/sxj-heartbeat/log/"]
+    if not available:
+        return _gate("no_data", "缺固定週期心跳日誌，無法判定中間沒停機", evidence,
+                     coverage_start=opening.isoformat(), coverage_end=closing.isoformat())
+    times = sorted(records)
+    maximum = max(((b - a).total_seconds() for a, b in zip(times, times[1:])), default=None)
+    failure_start, longest_failure = None, 0
+    for stamp in times:
+        state = records[stamp]
+        if state == "failed":
+            failure_start = stamp if failure_start is None else failure_start
+        if failure_start is not None:
+            if state != "unknown":
+                longest_failure = max(longest_failure, (stamp - failure_start).total_seconds())
+            if state != "failed":
+                failure_start = None
+    failures, missing = [], []
     if maximum is not None and maximum > SERVICE_GAP_SECONDS:
-        failures.append("AI 主責區間最大紀錄間隔 {0:.3f} 秒，超過 300 秒".format(maximum))
-    if bad:
-        missing.append("監測紀錄有無法核對的行")
+        failures.append("固定週期心跳相鄰紀錄間隔 {0:.3f} 秒，超過 300 秒".format(maximum))
+    if longest_failure > SERVICE_GAP_SECONDS:
+        failures.append("客服通路連續失敗 {0:.3f} 秒，超過 300 秒".format(longest_failure))
+    if len(times) < 2:
+        missing.append("AI 主責區間心跳紀錄不足")
+    elif ((times[0] - opening).total_seconds() > SERVICE_GAP_SECONDS
+          or (closing - times[-1]).total_seconds() > SERVICE_GAP_SECONDS):
+        missing.append("AI 主責區間邊界缺心跳紀錄")
+    if bad or "unknown" in records.values():
+        missing.append("心跳有損毀或未實測客服通路的紀錄")
     status = "fail" if failures else "no_data" if missing else "pass"
-    reason = "；".join(dict.fromkeys(failures + missing)) if failures or missing else "{0}最大紀錄間隔 {1:.3f} 秒".format(
-        "週日全天 AI；" if day.weekday() == 6 else "接手、交還在 5 分內；", maximum)
-    return _gate(status, reason + "（事件／healthz 間隔近似停機，非實測可用性）", evidence,
-                 approximation=True, max_observed_gap_seconds=maximum, observations=observations,
-                 coverage_start=start.isoformat(), coverage_end=end.isoformat(), **transitions)
+    reason = "；".join(failures + missing) if failures or missing else "固定週期心跳間隔與客服通路連續失敗均未超過 5 分"
+    return _gate(status, reason, evidence, max_observed_gap_seconds=maximum,
+                 max_channel_failure_seconds=longest_failure, observations=len(times),
+                 coverage_start=opening.isoformat(), coverage_end=closing.isoformat())
+
+
+def evaluate_service(day, paths, hours, config):
+    """One night: tonight's takeover through the following 09:50.
+
+    Sunday/closed dates start at 00:00 (AI all day). State-change logs are
+    used only for a/b; c exclusively reads the fixed-period heartbeat sampler.
+    """
+    records, bad, available = read_service_records(paths.service_logs)
+    evidence = paths.service_logs or ["tunnel_events.jsonl"]
+    midnight = datetime.combine(day, datetime.min.time(), TAIPEI_FALLBACK)
+    tomorrow = day + timedelta(days=1)
+    opening = midnight.replace(hour=18 if day.weekday() == 5 else 20, minute=5)
+    closing = (midnight + timedelta(days=1)).replace(hour=9, minute=50)
+    def closed(when):
+        if when.weekday() == 6:
+            return True
+        if hours is None or config is None:
+            return None
+        return hours.day_window_for(when, config) is None
+    if closed(day) is True:
+        opening = midnight
+        takeover = _gate("not_applicable", "週日或店休日全天 AI，無當晚接手切換", [paths.handover])
+    else:
+        takeover = _service_transition(records, bad, available, opening, "ai", evidence)
+    if closed(tomorrow) is True:
+        handover = _gate("not_applicable", "隔天週日或店休日，不交還店家", [paths.handover])
+    elif closed(tomorrow) is None:
+        handover = _gate("no_data", "缺營業設定，無法確認隔天是否需要交還", [paths.handover])
+    else:
+        handover = _service_transition(records, bad, available, closing, "shop", evidence)
+    subchecks = {"a": takeover, "b": handover,
+                 "c": evaluate_heartbeat(opening, closing, paths.heartbeat_log_dir)}
+    statuses = [item["status"] for item in subchecks.values()]
+    status = "fail" if "fail" in statuses else "no_data" if "no_data" in statuses else "pass"
+    reason = "；".join(key + " " + label + "：" + subchecks[key]["status"]
+                       for key, label in (("a", "接手"), ("b", "交還"), ("c", "中間沒停機")))
+    result = _gate(status, reason, dict.fromkeys(p for item in subchecks.values() for p in item["evidence"]))
+    result["subchecks"] = subchecks
+    return result
 
 
 def evaluate_accounting(day, path, usage_path=None):
@@ -814,7 +903,7 @@ def evaluate_checklist(day, paths, hours, config, now, conditions=None):
     if posts["status"] == "not_required":
         posts["status"] = "not_applicable"
     return {
-        "1": evaluate_service(day, paths.service_logs),
+        "1": evaluate_service(day, paths, hours, config),
         "2": evaluate_accounting(day, paths.root / "data" / "line-events" / (iso + ".json")),
         "3": evaluate_test_evidence(day, check_path, ("copy_audit", "golden"), now),
         "4": evaluate_test_evidence(day, check_path, ("line_full",), now),
@@ -1030,6 +1119,12 @@ def render_report(evaluations, now, newest=None):
         lines.append("| {0}. {1} | {2} | {3} | {4} |".format(
             key, title, _check_status(latest, key), _plain(item.get("reason", "缺該日檢查資料")),
             "；".join(_plain(p) for p in item.get("evidence", []))))
+        if key == "1":
+            for subkey, label in (("a", "接手"), ("b", "交還"), ("c", "中間沒停機")):
+                sub = (item.get("subchecks") or {}).get(subkey, {})
+                lines.append("| 1{0}. {1} | {2} | {3} | {4} |".format(
+                    subkey, label, sub.get("status", "no_data"), _plain(sub.get("reason", "缺子判定資料")),
+                    "；".join(_plain(p) for p in sub.get("evidence", []))))
     lines += ["", "## 最近每日驗收", "", "| 日期 | 算過項目 | 當天全過且無事故 |", "|---|---|---|"]
     if day is not None:
         for when in sorted((d for d in evaluations if day-timedelta(days=REPORT_DAYS-1) <= d <= day), reverse=True):
@@ -1046,11 +1141,13 @@ def main(argv=None, now=None):
     parser.add_argument("--root", help="repo root holding data/, line-bot/, output/, reports/")
     parser.add_argument("--out-root", help="separate output root; --root remains read-only")
     parser.add_argument("--mdb-log", help="override path of mdb_pull.jsonl")
+    parser.add_argument("--heartbeat-log-dir", help="override fixed-period sxj-heartbeat/log directory")
     parser.add_argument("--hours-module", help="override path of line-bot/tunnel_manager.py")
     args = parser.parse_args(argv)
 
     root = Path(args.root or os.environ.get("LEVEL1_GATES_ROOT") or DEFAULT_ROOT)
-    paths = Paths(root, mdb_log=args.mdb_log, hours_module=args.hours_module, out_root=args.out_root)
+    paths = Paths(root, mdb_log=args.mdb_log, hours_module=args.hours_module, out_root=args.out_root,
+                  heartbeat_log_dir=args.heartbeat_log_dir)
     hours = None
     try:
         hours = load_hours_module(paths.hours_module)

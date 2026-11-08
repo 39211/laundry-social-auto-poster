@@ -1,4 +1,4 @@
-"""Kill OPS-L1-12's seven required mutants in task-owned copies, then restore."""
+"""Kill OPS-L1-12 r3's three new and seven retained mutants, then restore."""
 import hashlib
 import json
 import os
@@ -39,6 +39,15 @@ def main():
          'return _gate("no_data", "當日 posted-log', "test_10_no_failures_is_not_applicable"),
         ("service_gap_sixty_minutes", "SERVICE_GAP_SECONDS = 5 * 60", "SERVICE_GAP_SECONDS = 60 * 60",
          "test_01_records_pass_gap_fail_and_sparse_no_data"),
+        ("service_c_uses_tunnel_intervals", '"c": evaluate_heartbeat(opening, closing, paths.heartbeat_log_dir)}',
+         '"c": {**evaluate_heartbeat(opening, closing, paths.heartbeat_log_dir), '
+         '"status": "fail" if max(((b[0] - a[0]).total_seconds() '
+         'for a, b in zip(records, records[1:])), default=0) > SERVICE_GAP_SECONDS else "pass"}}',
+         "test_01_c_sparse_tunnel_continuous_heartbeat_passes"),
+        ("service_c_missing_log_is_fail", 'return _gate("no_data", "缺固定週期心跳日誌',
+         'return _gate("fail", "缺固定週期心跳日誌', "test_01_c_missing_heartbeat_is_no_data"),
+        ("service_c_missing_log_is_pass", 'return _gate("no_data", "缺固定週期心跳日誌',
+         'return _gate("pass", "缺固定週期心跳日誌', "test_01_c_missing_heartbeat_is_no_data"),
     )
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONUTF8="1")
     runs = []
@@ -50,6 +59,7 @@ def main():
         failed = re.findall(r"^FAIL: (\w+) \(([^)]+)\)", output, re.M)
         return {"name": label, "exit_code": result.returncode,
                 "assertion_failures": [owner if owner.endswith("." + name) else owner + "." + name for name, owner in failed],
+                "tests_run": int(re.search(r"Ran (\d+) tests?", output).group(1)),
                 "error_count": len(re.findall(r"^ERROR:", output, re.M)), "log": str(work / (label + ".txt"))}
     try:
         baseline = run("baseline")
@@ -67,7 +77,8 @@ def main():
             target.write_bytes(original)
     finally:
         target.write_bytes(original)
-        proof = {"runs": runs, "original_sha256": hashlib.sha256(original).hexdigest(),
+        proof = {"task": "OPS-L1-12 r3", "expected_mutants": len(mutants),
+                 "runs": runs, "original_sha256": hashlib.sha256(original).hexdigest(),
                  "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                  "candidate_unchanged": (ROOT / files[0]).read_bytes() == original,
                  "copy_restored": target.read_bytes() == original}

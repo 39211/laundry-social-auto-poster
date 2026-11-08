@@ -23,6 +23,12 @@ class ChecklistTests(Base):
         self.assertIn("12 項有 0 項算過", report.splitlines()[2])
         self.assertIn("連續全過 0 天", report.splitlines()[2])
         self.assertEqual(paths.ops_dir, output / "output/operations")
+        with mock.patch.dict("os.environ", {"LOCALAPPDATA": str(self.tmp / "localappdata")}):
+            defaults = lg.Paths(self.tmp)
+            self.assertEqual(defaults.heartbeat_log_dir, self.tmp / "localappdata/sxj-heartbeat/log")
+            self.assertEqual(defaults.service_logs, [self.tmp / "localappdata/line-bot/tunnel_events.jsonl"])
+            injected = lg.Paths(self.tmp, mdb_log=self.tmp / "pulls.jsonl")
+            self.assertTrue(injected.heartbeat_log_dir.is_relative_to(self.tmp))
         with mock.patch("sys.dont_write_bytecode", False):
             module = self.tmp / "hours.py"
             module.write_text("VALUE = 7\n", encoding="utf-8")
@@ -41,32 +47,52 @@ class ChecklistTests(Base):
         return self.write_json(f"data/gates/{name}-{day}.json", {"date": str(day), **payload})
 
     def check(self, number, day=FRIDAY):
-        paths = lg.Paths(self.tmp, mdb_log=self.tmp / "pulls.jsonl")
+        paths = lg.Paths(self.tmp, mdb_log=self.tmp / "pulls.jsonl",
+                         heartbeat_log_dir=self.tmp / "heartbeat")
         return lg.evaluate_checklist(day, paths, self.hours, self.config,
                                      at(day + timedelta(days=1), "08:00"))[str(number)]
 
     def service(self, day=FRIDAY, takeover_delay=0, handover_delay=0, gap=False, sparse=False):
-        start = at(day, "00:00")
-        end = start + timedelta(days=1)
-        takeover = at(day, "18:05" if day.weekday() == 5 else "20:05")
-        handover = at(day, "09:50")
-        windows = [(start, end)] if day.weekday() == 6 else [(start, handover), (takeover, end)]
+        start = at(day, "00:00" if day.weekday() == 6 else "18:05" if day.weekday() == 5 else "20:05")
+        handover = at(day + timedelta(days=1), "09:50")
         rows = []
-        for opening, closing in windows:
-            cursor = opening
-            while cursor <= closing:
-                if not gap or cursor != opening + timedelta(minutes=10):
-                    rows.append({"ts": cursor.isoformat(), "event": "healthz", "ok": True})
-                cursor += timedelta(minutes=5)
         if day.weekday() != 6:
-            rows += [{"ts": (takeover + timedelta(seconds=takeover_delay)).isoformat(),
-                      "event": "handover_noop", "verify_status": "match"},
-                     {"ts": (handover + timedelta(seconds=handover_delay)).isoformat(),
-                      "event": "day_handover", "registered_owner": "shop", "verify_status": "match"}]
+            rows.append({"ts": (start + timedelta(seconds=takeover_delay)).isoformat(),
+                         "event": "night_reclaim", "verify_status": "match"})
+        if (day + timedelta(days=1)).weekday() != 6:
+            rows.append({"ts": (handover + timedelta(seconds=handover_delay)).isoformat(),
+                         "event": "day_handover", "registered_owner": "shop", "verify_status": "match"})
+        self.events(rows)
+        heartbeats, cursor = [], start
+        while cursor <= handover:
+            if not gap or not start + timedelta(minutes=10) <= cursor < start + timedelta(minutes=15):
+                heartbeats.append({"time": cursor.astimezone(lg.timezone.utc).isoformat(),
+                                   "mode": "LIVE", "code": "OK",
+                                   "checks": {k: "OK" for k in ("bot", "local", "public", "line")}})
+            cursor += timedelta(minutes=1)
         if sparse:
-            rows = rows[-1:]
-        (self.tmp / "tunnel_events.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+            heartbeats = heartbeats[:1]
+        self.heartbeats(heartbeats)
         return rows
+
+    def events(self, rows):
+        (self.tmp / "tunnel_events.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+
+    def heartbeats(self, rows):
+        folder = self.tmp / "heartbeat"
+        folder.mkdir(exist_ok=True)
+        for path in folder.glob("*.jsonl"):
+            path.unlink()
+        by_day = {}
+        for row in rows:
+            day = datetime.fromisoformat(row["time"]).astimezone(lg.timezone.utc).date()
+            by_day.setdefault(day, []).append(row)
+        for day, values in by_day.items():
+            (folder / f"{day}.jsonl").write_text("".join(json.dumps(row) + "\n" for row in values), encoding="utf-8")
+
+    def heartbeat_rows(self):
+        return [json.loads(line) for path in sorted((self.tmp / "heartbeat").glob("*.jsonl"))
+                for line in path.read_text(encoding="utf-8").splitlines()]
 
     def accounting(self, **changes):
         payload = {"received": 10, "replied_ok": 7, "reply_failed": 0, "to_staff": 3, "no_reply_needed": 0}
@@ -100,21 +126,25 @@ class ChecklistTests(Base):
     def test_01_records_pass_gap_fail_and_sparse_no_data(self):
         self.service()
         self.assertEqual(self.check(1)["status"], "pass")
-        self.assertEqual(self.check(1)["details"]["max_observed_gap_seconds"], 300)
-        self.assertTrue(self.check(1)["details"]["approximation"])
+        self.assertEqual(self.check(1)["subchecks"]["c"]["details"]["max_observed_gap_seconds"], 60)
         self.service(gap=True)
         self.assertEqual(self.check(1)["status"], "fail")
-        self.assertEqual(self.check(1)["details"]["max_observed_gap_seconds"], 600)
+        self.assertEqual(self.check(1)["subchecks"]["c"]["details"]["max_observed_gap_seconds"], 360)
         self.service(sparse=True)
         self.assertEqual(self.check(1)["status"], "no_data")
 
     def test_01_saturday_1805_sunday_full_day(self):
         self.service(SATURDAY)
         self.assertEqual(self.check(1, SATURDAY)["status"], "pass")
+        self.assertEqual(self.check(1, SATURDAY)["subchecks"]["b"]["status"], "not_applicable")
         self.service(SATURDAY, takeover_delay=2*3600)
         self.assertEqual(self.check(1, SATURDAY)["status"], "fail")
         self.service(SUNDAY)
-        self.assertEqual(self.check(1, SUNDAY)["status"], "pass")
+        result = self.check(1, SUNDAY)
+        self.assertEqual(result["status"], "pass")
+        self.assertEqual(result["subchecks"]["a"]["status"], "not_applicable")
+        self.assertEqual(result["subchecks"]["c"]["details"]["coverage_start"], at(SUNDAY, "00:00").isoformat())
+        self.assertEqual(result["subchecks"]["c"]["details"]["coverage_end"], at(SUNDAY + timedelta(days=1), "09:50").isoformat())
         self.service(SUNDAY, sparse=True)
         self.assertEqual(self.check(1, SUNDAY)["status"], "no_data")
 
@@ -126,24 +156,20 @@ class ChecklistTests(Base):
             self.assertEqual(self.check(1)["status"], "fail")
 
     def test_01_healthz_cannot_prove_ownership_and_metadata_stays_private(self):
-        rows = self.service()
-        rows = [r for r in rows if r["event"] == "healthz"]
-        rows.append({"ts": at(FRIDAY, "20:05").isoformat(), "event": "webhook_update",
-                     "verify_status": "mismatch", "new_url": "DO_NOT_ECHO_URL", "uid": "PRIVATE_UID"})
-        (self.tmp / "tunnel_events.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+        self.service()
+        self.events([{"ts": at(FRIDAY, "20:05").isoformat(), "event": "healthz", "ok": True},
+                     {"ts": at(FRIDAY, "20:05").isoformat(), "event": "webhook_update",
+                      "verify_status": "mismatch", "new_url": "DO_NOT_ECHO_URL", "uid": "PRIVATE_UID"}])
         result = self.check(1)
-        self.assertEqual(result["status"], "no_data")
+        self.assertEqual(result["subchecks"]["a"]["status"], "fail")
         self.assertNotIn("DO_NOT_ECHO", json.dumps(result))
         self.assertNotIn("PRIVATE_UID", json.dumps(result))
 
-    def test_01_separate_healthz_source_utc_and_corrupt_log(self):
+    def test_01_transition_utc_and_corrupt_log(self):
         rows = self.service()
-        events, health = [], []
         for row in rows:
             row["ts"] = datetime.fromisoformat(row["ts"]).astimezone(lg.timezone.utc).isoformat()
-            (health if row["event"] == "healthz" else events).append(row)
-        for name, subset in (("tunnel_events.jsonl", events), ("healthz.jsonl", health)):
-            (self.tmp / name).write_text("".join(json.dumps(r) + "\n" for r in subset), encoding="utf-8")
+        self.events(rows)
         self.assertEqual(self.check(1)["status"], "pass")
         with (self.tmp / "tunnel_events.jsonl").open("a", encoding="utf-8") as handle:
             handle.write("broken\n")
@@ -152,26 +178,151 @@ class ChecklistTests(Base):
         self.assertEqual(self.check(1)["status"], "no_data")
 
     def test_01_known_gap_fails_even_with_missing_handover(self):
-        self.service(gap=True)
-        path = self.tmp / "tunnel_events.jsonl"
-        path.write_text("\n".join(s for s in path.read_text(encoding="utf-8").splitlines()
-                                   if json.loads(s)["event"] != "day_handover"), encoding="utf-8")
-        self.assertEqual(self.check(1)["status"], "fail")
+        rows = self.service(gap=True)
+        self.events([row for row in rows if row["event"] != "day_handover"])
+        result = self.check(1)
+        self.assertEqual(result["status"], "fail")
+        self.assertEqual(result["subchecks"]["b"]["status"], "fail")
+        self.assertEqual(result["subchecks"]["c"]["status"], "fail")
 
     def test_01_301_second_gap_fails_and_unobserved_edges_are_no_data(self):
+        self.service()
+        rows = self.heartbeat_rows()[::5]
+        self.heartbeats(rows)
+        self.assertEqual(self.check(1)["subchecks"]["c"]["status"], "pass")
+        rows[2]["time"] = (datetime.fromisoformat(rows[2]["time"]) + timedelta(seconds=1)).isoformat()
+        self.heartbeats(rows)
+        result = self.check(1)["subchecks"]["c"]
+        self.assertEqual(result["status"], "fail")
+        self.assertEqual(result["details"]["max_observed_gap_seconds"], 301)
+        self.service()
+        rows = self.heartbeat_rows()[::5][2:]
+        self.heartbeats(rows)
+        result = self.check(1)["subchecks"]["c"]
+        self.assertEqual(result["status"], "no_data")
+        self.assertEqual(result["details"]["max_observed_gap_seconds"], 300)
+
+    def test_01_a_b_pass_fail_no_data_and_next_day_only(self):
+        for key, event in (("a", "night_reclaim"), ("b", "day_handover")):
+            with self.subTest(key=key):
+                rows = self.service()
+                self.assertEqual(self.check(1)["subchecks"][key]["status"], "pass")
+                self.events([r for r in rows if r["event"] != event])
+                self.assertEqual(self.check(1)["subchecks"][key]["status"], "fail")
+                self.events([{**r, "verify_status": "mismatch"} if r["event"] == event else r for r in rows])
+                self.assertEqual(self.check(1)["subchecks"][key]["status"], "fail")
+                (self.tmp / "tunnel_events.jsonl").unlink()
+                self.assertEqual(self.check(1)["subchecks"][key]["status"], "no_data")
         rows = self.service()
+        rows[1]["ts"] = at(FRIDAY, "09:50").isoformat()
+        self.events(rows)
+        self.assertEqual(self.check(1)["subchecks"]["b"]["status"], "fail")
+
+    def test_01_a_only_reclaim_or_webhook_update_proves_takeover(self):
+        for event, expected in (("night_reclaim", "pass"), ("webhook_update", "pass"),
+                                ("handover_noop", "fail"), ("night_handover", "fail")):
+            rows = self.service()
+            rows[0]["event"] = event
+            self.events(rows)
+            self.assertEqual(self.check(1)["subchecks"]["a"]["status"], expected)
+
+    def test_01_b_closed_next_day_is_not_applicable(self):
+        self.service()
+        config = copy.deepcopy(self.config)
+        config["days"]["5"] = None
+        paths = lg.Paths(self.tmp, mdb_log=self.tmp / "pulls.jsonl", heartbeat_log_dir=self.tmp / "heartbeat")
+        result = lg.evaluate_checklist(FRIDAY, paths, self.hours, config, at(SATURDAY, "12:00"))["1"]
+        self.assertEqual(result["subchecks"]["b"]["status"], "not_applicable")
+
+    def test_01_c_sparse_tunnel_continuous_heartbeat_passes(self):
+        rows = self.service()
+        # Two state-change events are nearly fourteen hours apart; neither is a heartbeat.
+        result = self.check(1)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(result["subchecks"]["c"]["status"], "pass")
+        self.events([])
+        self.assertEqual(self.check(1)["subchecks"]["c"]["status"], "pass")
+        (self.tmp / "tunnel_events.jsonl").unlink()
+        self.assertEqual(self.check(1)["subchecks"]["c"]["status"], "pass")
+
+    def test_01_c_missing_heartbeat_is_no_data(self):
+        self.service()
+        # Neither a continuous healthz file nor frequent noops may substitute for the sampler.
+        rows = self.heartbeat_rows()
+        (self.tmp / "healthz.jsonl").write_text("".join(json.dumps(
+            {"ts": row["time"], "event": "healthz", "ok": True}) + "\n" for row in rows), encoding="utf-8")
+        with (self.tmp / "tunnel_events.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write("".join(json.dumps({"ts": row["time"], "event": "handover_noop",
+                                            "verify_status": "match"}) + "\n" for row in rows))
+        self.heartbeats([])
+        result = self.check(1)
+        self.assertEqual(result["subchecks"]["a"]["status"], "pass")
+        self.assertEqual(result["subchecks"]["b"]["status"], "pass")
+        self.assertEqual(result["subchecks"]["c"]["status"], "no_data")
+        self.assertEqual(result["status"], "no_data")
+        (self.tmp / "heartbeat").rmdir()
+        self.assertEqual(self.check(1)["subchecks"]["c"]["status"], "no_data")
+
+    def test_01_c_channel_failure_over_five_minutes(self):
+        for key in ("bot", "local", "public", "line"):
+            for minutes, expected in ((5, "pass"), (6, "fail")):
+                with self.subTest(channel=key, minutes=minutes):
+                    self.service()
+                    rows = self.heartbeat_rows()
+                    for row in rows[10:10+minutes]:
+                        row["checks"][key] = key.upper() + "_ERROR"
+                    self.heartbeats(rows)
+                    result = self.check(1)["subchecks"]["c"]
+                    self.assertEqual(result["status"], expected)
+                    self.assertEqual(result["details"]["max_channel_failure_seconds"], minutes * 60)
+        self.service()
+        rows = self.heartbeat_rows()
+        for row in rows[-7:]:
+            row["checks"]["line"] = "LINE_ERROR"
+        self.heartbeats(rows)
+        self.assertEqual(self.check(1)["subchecks"]["c"]["status"], "fail")
+
+    def test_01_c_failure_is_not_ping_delivery_or_code(self):
+        self.service()
+        rows = self.heartbeat_rows()
         for row in rows:
-            if row["ts"] == at(FRIDAY, "00:10").isoformat():
-                row["ts"] = (at(FRIDAY, "00:10") + timedelta(seconds=1)).isoformat()
-        path = self.tmp / "tunnel_events.jsonl"
-        path.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
-        self.assertEqual(self.check(1)["status"], "fail")
-        self.assertEqual(self.check(1)["details"]["max_observed_gap_seconds"], 301)
-        rows = [r for r in self.service() if not (r["event"] == "healthz" and
-                at(FRIDAY, "00:00") <= datetime.fromisoformat(r["ts"]) < at(FRIDAY, "00:10"))]
-        path.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
-        self.assertEqual(self.check(1)["status"], "no_data")
-        self.assertEqual(self.check(1)["details"]["max_observed_gap_seconds"], 300)
+            row.update(code="DELIVERY_ERROR", exit_code=1, delivery={"channel": "TIMEOUT"})
+        self.heartbeats(rows)
+        self.assertEqual(self.check(1)["subchecks"]["c"]["status"], "pass")
+
+    def test_01_c_dry_run_corrupt_missing_and_out_of_period_logs_are_no_data(self):
+        for change in ("dry", "checks", "time", "corrupt", "out_of_period", "partial"):
+            with self.subTest(change=change):
+                self.service()
+                rows = self.heartbeat_rows()
+                if change == "dry":
+                    for row in rows:
+                        row["mode"] = "DRY_RUN"
+                elif change == "checks":
+                    for row in rows:
+                        row["checks"] = {}
+                elif change == "time":
+                    for row in rows:
+                        row["time"] = datetime.fromisoformat(row["time"]).replace(tzinfo=None).isoformat()
+                elif change == "out_of_period":
+                    for row in rows:
+                        row["time"] = (datetime.fromisoformat(row["time"]) - timedelta(days=2)).isoformat()
+                elif change == "partial":
+                    rows = rows[:10]
+                self.heartbeats(rows)
+                if change == "corrupt":
+                    path = next((self.tmp / "heartbeat").glob("*.jsonl"))
+                    with path.open("a", encoding="utf-8") as handle:
+                        handle.write("broken\n")
+                self.assertEqual(self.check(1)["subchecks"]["c"]["status"], "no_data")
+
+    def test_01_report_has_separate_a_b_c_results(self):
+        self.service()
+        receipt = day_receipt(FRIDAY)
+        receipt["checklist"]["1"] = self.check(1)
+        report = lg.render_report({FRIDAY: receipt}, at(SATURDAY, "12:00"), FRIDAY)
+        for label in ("1a. 接手", "1b. 交還", "1c. 中間沒停機"):
+            self.assertIn("| " + label + " | pass |", report)
 
     def test_02_transfer_is_answered_and_gap_fails(self):
         self.accounting()
@@ -420,11 +571,12 @@ class ChecklistStreakTests(unittest.TestCase):
         receipt = day_receipt(FRIDAY)
         self.assertEqual(lg.checklist_summary({FRIDAY: receipt}, SATURDAY)["consecutive_days"], 0)
 
-    def test_r1_rule_version_cannot_count_towards_r2_streak(self):
-        receipt = day_receipt(FRIDAY)
-        receipt["rules_version"] = 2
-        self.assertFalse(lg.checklist_summary({FRIDAY: receipt}, FRIDAY)["day_passed"])
-        self.assertEqual(lg.checklist_summary({FRIDAY: receipt}, FRIDAY)["consecutive_days"], 0)
+    def test_old_rule_versions_cannot_count_towards_r3_streak(self):
+        for version in (2, 3):
+            receipt = day_receipt(FRIDAY)
+            receipt["rules_version"] = version
+            self.assertFalse(lg.checklist_summary({FRIDAY: receipt}, FRIDAY)["day_passed"])
+            self.assertEqual(lg.checklist_summary({FRIDAY: receipt}, FRIDAY)["consecutive_days"], 0)
 
 
 if __name__ == "__main__":

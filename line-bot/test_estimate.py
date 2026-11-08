@@ -591,6 +591,9 @@ class FlowTests(unittest.TestCase):
         lookup.BIND, lookup.WATCH = self.tmp / "bind.json", self.tmp / "watch.json"
         lookup.FIXTURE, lookup.DB_HINT = self.tmp / "fixture.json", self.tmp / "db-hint.txt"
         lw.INBOX_LOG, lw.PHOTOS_ROOT = self.tmp / "unanswered.jsonl", self.tmp / "photos"
+        # The durable HMAC reply guards belong to the same isolated repo. Keep
+        # the audit hook strict instead of allowing writes to the outer fixture.
+        lw.REPO = self.tmp
         flow.PHOTOS_ROOT = lw.PHOTOS_ROOT
         sn.bind_group("Csynthetic-test-group")
         sn._beep = lambda: None
@@ -604,7 +607,7 @@ class FlowTests(unittest.TestCase):
         self.seq = 0
         self.uid = "Usynthetic-estimate"
         self.fail_push = False
-        self.fail_reply = False
+        self.reply_error = None
         self.client = lw.app.test_client()
         lw.app.testing = True
         urllib.request.urlopen = self.fake_http
@@ -617,8 +620,8 @@ class FlowTests(unittest.TestCase):
         self.calls.append((req.full_url, body, dict(req.header_items())))
         if self.fail_push and req.full_url.endswith("/push"):
             raise TimeoutError("synthetic timeout")
-        if self.fail_reply and req.full_url.endswith("/reply"):
-            raise TimeoutError("synthetic reply failure")
+        if self.reply_error and req.full_url.endswith("/reply"):
+            raise self.reply_error
         return Response()
 
     def fake_inventory(self, paths, names):
@@ -626,10 +629,11 @@ class FlowTests(unittest.TestCase):
         self.vision_calls.append(paths)
         return {"ok": True, "items": [inventory_item("襯衫", 3), inventory_item("一般運動鞋", 2)]}
 
-    def send(self, text=None, kind="text", data=None, params=None, eid=None, status=200):
+    def send(self, text=None, kind="text", data=None, params=None, eid=None, status=200, redelivered=False):
         self.seq += 1
         event = {"type": "message", "source": {"type": "user", "userId": self.uid},
-                 "replyToken": f"reply-{self.seq}", "webhookEventId": eid or f"event-{self.seq}"}
+                 "replyToken": f"reply-{self.seq}", "webhookEventId": eid or f"event-{self.seq}",
+                 "deliveryContext": {"isRedelivery": redelivered}}
         if kind == "postback":
             event.update(type="postback", postback={"data": data, "params": params or {}})
         else:
@@ -786,16 +790,32 @@ class FlowTests(unittest.TestCase):
 
     def test_failed_customer_reply_can_redeliver_without_reestimating(self):
         self.send(kind="image")
-        self.fail_reply = True
+        # r2 retries a definite connection refusal, never an ambiguous timeout.
+        self.reply_error = urllib.error.URLError(ConnectionRefusedError("synthetic refusal"))
         first = self.send(kind="postback", data="action=estimate_photos", eid="failed-reply", status=503)
-        self.fail_reply = False
-        second = self.send(kind="postback", data="action=estimate_photos", eid="failed-reply")
+        self.reply_error = None
+        second = self.send(kind="postback", data="action=estimate_photos", eid="failed-reply", redelivered=True)
         self.assertEqual(first[0]["messages"], second[0]["messages"])
         self.assertEqual(len(self.vision_calls), 1)
         self.assertEqual(len(self.pushes()), 2)
         count = len(self.calls)
         self.send(kind="postback", data="action=estimate_photos", eid="failed-reply")
         self.assertEqual(len(self.calls), count)
+
+    def test_unknown_customer_reply_is_not_resent_or_reestimated(self):
+        self.send(kind="image")
+        self.reply_error = TimeoutError("synthetic ambiguous reply")
+        first = self.send(kind="postback", data="action=estimate_photos", eid="unknown-reply", status=200)
+        self.assertEqual(1, len(first))
+        self.reply_error = None
+        count = len(self.calls)
+        second = self.send(kind="postback", data="action=estimate_photos", eid="unknown-reply", redelivered=True)
+        self.assertEqual([], second)
+        self.assertEqual(count, len(self.calls))
+        self.assertEqual(1, len(self.vision_calls))
+        self.assertEqual(2, len(self.pushes()))
+        self.assertFalse(flow.reply_accepted(conv, self.uid, "unknown-reply"))
+        self.assertTrue(flow.has_cached_reply(conv, self.uid, "unknown-reply"))
 
     def test_clear_rejects_old_case_and_no_payment(self):
         self.send("襯衫3件")

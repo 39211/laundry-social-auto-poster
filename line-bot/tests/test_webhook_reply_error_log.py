@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-"""A-WEBHOOK-5: a refused LINE reply logs LINE's own reason (not our text, not tokens), and a
-redelivered event is marked in the log. Reply behaviour (True/False) is unchanged. No network."""
+"""A-WEBHOOK-5: safe LINE reply errors and redelivery markers. No network.
+
+LINE-ACK r1: empty token/messages send nothing and must not report acceptance.
+"""
 import importlib.util
 import io
 import json
@@ -95,8 +97,8 @@ class ReplyErrorLogTest(_HookBase):
     def test_empty_token_or_messages_do_not_call_line(self):
         mod = self.real_module()
         with mock.patch.object(mod.urllib.request, "urlopen") as op:
-            self.assertTrue(mod.reply("", [{"type": "text", "text": "x"}]))
-            self.assertTrue(mod.reply(REPLY_TOKEN, []))
+            self.assertIs(mod.reply("", [{"type": "text", "text": "x"}]), False)
+            self.assertIs(mod.reply(REPLY_TOKEN, []), False)
         op.assert_not_called()
 
 

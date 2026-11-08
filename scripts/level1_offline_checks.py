@@ -1,7 +1,8 @@
 """OPS-L1-12 offline evidence producer. Copies source, never customer data.
 
-Run on the actual check date. Evidence is not backdated and is not handset or
-production acceptance. Raw child output contains synthetic test cases only.
+Run on the actual check date. The scheduled job may read allowlisted source
+from its repo, but all tests run on a separate snapshot. Evidence is not
+backdated and is not handset or production acceptance.
 """
 from __future__ import annotations
 
@@ -15,10 +16,14 @@ import re
 import runpy
 import subprocess
 import sys
+import time
 import uuid
 
 TAIPEI = timezone(timedelta(hours=8))
 ROOT = Path(__file__).resolve().parents[1]
+GOLDEN_TIMEOUT_SECONDS = 300
+RUN_BUDGET_SECONDS = 600  # Leave room in Laundry-Day-Audit's existing 15-min limit.
+DEFAULT_WORK_ROOT = Path("D:/AI-Lanes-work/level1-offline-checks")
 
 
 def child(snapshot, script, arguments):
@@ -79,6 +84,7 @@ def parse_result(output, returncode, golden=False):
 
 
 def run_check(snapshot, script, args, logs, label, env, timeout=90):
+    started = time.monotonic()
     try:
         result = subprocess.run([sys.executable, "-B", "-X", "utf8", str(Path(__file__).resolve()),
                                  "--child", str(snapshot), script, *args],
@@ -88,11 +94,16 @@ def run_check(snapshot, script, args, logs, label, env, timeout=90):
         row = parse_result(output, result.returncode, script.startswith("tests/golden/"))
         row["exit_code"] = result.returncode
     except (OSError, subprocess.TimeoutExpired) as exc:
-        output = "Runner unavailable: " + type(exc).__name__
+        # Keep synthetic partial output to distinguish timeouts from assertions.
+        parts = (exc.stdout, exc.stderr) if isinstance(exc, subprocess.TimeoutExpired) else ()
+        output = "".join(p.decode("utf-8", errors="replace") if isinstance(p, bytes) else p or "" for p in parts)
+        output += "\nRunner unavailable: " + type(exc).__name__
         row = {"status": "no_data", "tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+        row["runner_error"] = type(exc).__name__
     log = logs / (label.replace("/", "_") + ".txt")
     log.write_text(output, encoding="utf-8")
-    return {**row, "log": str(log), "suite": label}
+    return {**row, "log": str(log), "suite": label, "timeout_seconds": timeout,
+            "elapsed_seconds": round(time.monotonic() - started, 3)}
 
 
 def combine(rows):
@@ -107,15 +118,23 @@ def discover_modules(bot):
             if not any(part.startswith(".") or part == "__pycache__" for part in p.relative_to(bot).parts)]
 
 
-def produce(root, out_root, now=None):
-    now = now or datetime.now(TAIPEI)
+def produce(root, out_root, now=None, work_root=DEFAULT_WORK_ROOT):
+    started_at = now or datetime.now(TAIPEI)
+    started = time.monotonic()
     root, out_root = Path(root).resolve(), Path(out_root).resolve()
-    # This tool is only for a branch checkout. It never snapshots a live bot.
+    work_root = Path(work_root).resolve()
+    # The parent copies code only. Children cannot read the live repo or POS.
     forbidden = [Path(p).resolve() for p in ("C:/Users/cyc39/laundry-repo", "C:/Users/cyc39/Documents/New project 5", "C:/fxwash")]
-    if any(root == p or root.is_relative_to(p) or out_root == p or out_root.is_relative_to(p) for p in forbidden):
-        raise ValueError("Run from an isolated worktree and use a separate output root")
+    pos = forbidden[-1]
+    if any(p == pos or p.is_relative_to(pos) for p in (root, out_root)):
+        raise ValueError("POS cannot be a source or output root")
+    if any(work_root == p or work_root.is_relative_to(p) for p in forbidden):
+        raise ValueError("Test workspace must be outside production and POS")
+    if work_root.drive.upper() == "D:" and not all(Path(p).is_dir() for p in ("D:/C-moved", "D:/AI-Lanes-work")):
+        raise ValueError("D: workspace unavailable; no fallback to C:")
     ops = out_root / "output/operations"
-    work = ops / ("ops-l1-12-offline-" + uuid.uuid4().hex)
+    ops.mkdir(parents=True, exist_ok=True)
+    work = work_root / ("ops-l1-12-offline-" + uuid.uuid4().hex)
     snapshot = work / "snapshot"
     logs = work / "logs"
     logs.mkdir(parents=True)
@@ -140,22 +159,33 @@ def produce(root, out_root, now=None):
            ("TOKEN", "SECRET", "PASSWORD", "COOKIE", "API_KEY", "LAUNDRY", "SXJ_"))}
     env.update(PYTHONDONTWRITEBYTECODE="1", PYTHONHASHSEED="0", PYTHONUTF8="1",
                LOCALAPPDATA=str(work / "localappdata"), TEMP=str(work), TMP=str(work))
-    audit_rows = [run_check(snapshot, "line-bot/run_a2b_tests.py", ["tests." + name], logs, name, env)
+    def bounded_check(script, args, label, timeout=90):
+        remaining = RUN_BUDGET_SECONDS - (time.monotonic() - started)
+        if remaining <= 0:
+            return {"status": "no_data", "tests": 0, "failures": 0, "errors": 0, "skipped": 0,
+                    "suite": label, "runner_error": "DailyBudgetExceeded"}
+        return run_check(snapshot, script, args, logs, label, env, timeout=min(timeout, remaining))
+
+    audit_rows = [bounded_check("line-bot/run_a2b_tests.py", ["tests." + name], name)
                   for name in ("test_audit_a_conv", "test_audit_a_quote")]
     print("copy_audit: " + combine(audit_rows)["status"], flush=True)
-    golden = run_check(snapshot, "tests/golden/run_golden.py", ["check"], logs, "golden", env)
+    golden = bounded_check("tests/golden/run_golden.py", ["check"], "golden", GOLDEN_TIMEOUT_SECONDS)
     print("golden: " + golden["status"], flush=True)
     full = []
     for module_name in discover_modules(snapshot / "line-bot"):
         if module_name in ("tests.test_audit_a_conv", "tests.test_audit_a_quote"):
             continue  # included exactly once below
-        row = run_check(snapshot, "line-bot/run_a2b_tests.py", [module_name], logs, module_name, env)
+        row = bounded_check("line-bot/run_a2b_tests.py", [module_name], module_name)
         full.append(row)
         print("line_full: {0} {1}".format(module_name, row["status"]), flush=True)
     handoff = next((r for r in full if r["suite"] == "test_handoff"), None)
-    receipt = {"schema": "level1-offline-checks/v1", "date": now.astimezone(TAIPEI).date().isoformat(),
-               "generated_at": now.isoformat(timespec="seconds"), "offline": True,
-               "scope": "current worktree snapshot; not production or handset acceptance",
+    finished_at = now or datetime.now(TAIPEI)
+    receipt = {"schema": "level1-offline-checks/v1", "date": started_at.astimezone(TAIPEI).date().isoformat(),
+               "generated_at": finished_at.isoformat(timespec="seconds"), "offline": True,
+               "started_at": started_at.isoformat(timespec="seconds"),
+               "elapsed_seconds": round(time.monotonic() - started, 3),
+               "golden_timeout_seconds": GOLDEN_TIMEOUT_SECONDS, "budget_seconds": RUN_BUDGET_SECONDS,
+               "scope": "allowlisted repo source snapshot; not production or handset acceptance",
                "source_manifest": manifest, "snapshot": str(snapshot),
                "checks": {"copy_audit": combine(audit_rows), "golden": golden,
                           "line_full": combine(full + audit_rows), "handoff": combine([handoff] if handoff else [])}}
@@ -173,8 +203,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--out-root", type=Path, default=ROOT)
+    parser.add_argument("--work-root", type=Path, default=DEFAULT_WORK_ROOT,
+                        help="isolated snapshots and logs (default: D:/AI-Lanes-work/level1-offline-checks)")
     args = parser.parse_args(argv)
-    produce(args.root, args.out_root)
+    produce(args.root, args.out_root, work_root=args.work_root)
     return 0
 
 

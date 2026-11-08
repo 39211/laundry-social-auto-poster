@@ -1,4 +1,4 @@
-"""Kill OPS-L1-12's four required mutants in task-owned copies, then restore."""
+"""Kill OPS-L1-12's seven required mutants in task-owned copies, then restore."""
 import hashlib
 import json
 import os
@@ -33,6 +33,12 @@ def main():
          "test_no_data_breaks_streak"),
         ("transfer_is_unanswered", "answered = replied + staff", "answered = replied",
          "test_02_transfer_is_answered_and_gap_fails"),
+        ("nightly_one_minute_only", "on_time = opening <= stamp <= closing",
+         "on_time = (stamp.hour, stamp.minute) == (23, 40)", "test_12_nightly_window_and_missing_report"),
+        ("no_failure_is_no_data", 'return _gate("not_applicable", "當日 posted-log',
+         'return _gate("no_data", "當日 posted-log', "test_10_no_failures_is_not_applicable"),
+        ("service_gap_sixty_minutes", "SERVICE_GAP_SECONDS = 5 * 60", "SERVICE_GAP_SECONDS = 60 * 60",
+         "test_01_records_pass_gap_fail_and_sparse_no_data"),
     )
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONUTF8="1")
     runs = []
@@ -70,7 +76,7 @@ def main():
     proof["runs"].append(restored)
     (work / "proof.json").write_text(json.dumps(proof, ensure_ascii=False, indent=2), encoding="utf-8")
     assert restored["exit_code"] == 0 and proof["candidate_unchanged"] and proof["copy_restored"], proof
-    print("MUTANTS_KILLED=4 RESTORED_GREEN=true " + str(work / "proof.json"), flush=True)
+    print("MUTANTS_KILLED={0} RESTORED_GREEN=true {1}".format(len(mutants), work / "proof.json"), flush=True)
 
 
 if __name__ == "__main__":

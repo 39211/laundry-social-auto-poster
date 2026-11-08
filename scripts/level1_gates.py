@@ -36,8 +36,9 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from publish_recovery_report import recovery_summary
 
-RULES_VERSION = 2
+RULES_VERSION = 3
 CHECKLIST_TARGET = 3
+SERVICE_GAP_SECONDS = 5 * 60
 CHECKLIST_STATUSES = ("pass", "fail", "no_data", "not_ready", "not_applicable")
 CHECKLIST_TITLES = {
     "1": "夜間 AI 準時接手與交還", "2": "客人訊息都有回覆或轉真人",
@@ -45,7 +46,7 @@ CHECKLIST_TITLES = {
     "5": "轉真人送到店員", "6": "到件通知送出與綁定改善",
     "7": "到件通知零重發與零誤發", "8": "營業時間資料間隔不超過 60 分",
     "9": "當天排程貼文全部發出", "10": "貼文失敗已重試成功或通知送達",
-    "11": "重開機自動恢復與停機通知", "12": "23:40 有當晚新報告",
+    "11": "重開機自動恢復與停機通知", "12": "22:00 至隔日 01:00 有當晚新報告",
 }
 STREAK_TARGET = 7
 REPORT_DAYS = 30
@@ -75,7 +76,7 @@ class PolicyError(ValueError):
 
 
 class Paths:
-    def __init__(self, root, mdb_log=None, hours_module=None, out_root=None):
+    def __init__(self, root, mdb_log=None, hours_module=None, out_root=None, service_logs=None):
         root = Path(root)
         self.root = root
         self.policy = root / "data" / "publishing-policy.json"
@@ -88,6 +89,11 @@ class Paths:
         else:
             base = os.environ.get("LOCALAPPDATA")
             self.mdb_log = Path(base) / "line-bot" / "mdb_pull.jsonl" if base else None
+        # Explicit paths also keep synthetic tests away from the live runtime.
+        runtime = self.mdb_log.parent if self.mdb_log else None
+        self.service_logs = ([Path(p) for p in service_logs] if service_logs is not None else
+                             [runtime / name for name in ("tunnel_events.jsonl", "healthz.jsonl")]
+                             if runtime else [])
         self.out_root = Path(out_root) if out_root else root
         self.ops_dir = self.out_root / "output" / "operations"
         self.report = self.out_root / "reports" / "level1-gates.md"
@@ -508,50 +514,115 @@ def _daily(path, day):
     return value if state == "ok" and isinstance(value, dict) and value.get("date") == str(day) else None
 
 
-def evaluate_service(day, path):
-    data = _daily(path, day)
-    missing = "缺每日接手、交還與完整停機區間；tunnel 事件不能證明全天可用"
-    if data is None or data.get("complete") is not True:
-        return _gate("no_data", missing, [path])
+def read_service_records(paths):
+    """Read operational metadata only; never return URLs or raw log payloads."""
+    records, bad = [], 0
+    ai_events = {"night_reclaim", "webhook_update", "handover_noop", "handover", "night_handover"}
+    shop_events = {"day_handover", "handover_to_shop", "handover_return", "handover"}
+    for path in paths:
+        try:
+            with Path(path).open(encoding="utf-8-sig") as handle:
+                for line in handle:
+                    if not line.strip():
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except ValueError:
+                        bad += 1
+                        continue
+                    if not isinstance(row, dict):
+                        bad += 1
+                        continue
+                    stamp = parse_ts(row.get("ts"), TAIPEI_FALLBACK)
+                    if stamp is None:
+                        bad += 1
+                        continue
+                    event = row.get("event")
+                    owner = row.get("registered_owner", row.get("owner"))
+                    verified = row.get("verify_status") == "match"
+                    if event in shop_events and owner == "shop" and verified:
+                        records.append((stamp, "shop"))
+                    elif event in ai_events and verified and owner in (None, "ai"):
+                        records.append((stamp, "ai"))
+                    elif event == "healthz" and (row.get("ok") is True or row.get("status") == "ok"):
+                        records.append((stamp, "healthy"))
+        except FileNotFoundError:
+            continue
+        except (OSError, UnicodeError):
+            bad += 1
+    return sorted(set(records)), bad
+
+
+def evaluate_service(day, paths):
+    """Calendar-day approximation: previous night until 09:50, then tonight.
+
+    Sunday is AI-owned for the entire date. A successful healthz observation
+    proves liveness only, never webhook ownership or a handover to the shop.
+    """
+    records, bad = read_service_records(paths)
+    evidence = list(paths) or ["tunnel_events.jsonl", "healthz.jsonl"]
     start = datetime.combine(day, datetime.min.time(), TAIPEI_FALLBACK)
     end = start + timedelta(days=1)
-    if (parse_ts(data.get("coverage_start"), TAIPEI_FALLBACK) != start
-            or parse_ts(data.get("coverage_end"), TAIPEI_FALLBACK) != end
-            or not _valid_count(data.get("max_downtime_seconds"))):
-        return _gate("no_data", "停機統計沒有涵蓋完整一天或秒數缺漏", [path])
+    missing, failures, transitions = [], [], {}
+    windows = [(start, end)]
     if day.weekday() != 6:
         expected_takeover = start.replace(hour=18 if day.weekday() == 5 else 20, minute=5)
         expected_handover = start.replace(hour=9, minute=50)
-        actual_takeover = parse_ts(data.get("takeover_at"), TAIPEI_FALLBACK)
-        actual_handover = parse_ts(data.get("handover_at"), TAIPEI_FALLBACK)
-        if actual_takeover is None or actual_handover is None:
-            return _gate("no_data", "缺接手或交還的實際時間", [path])
-        if (actual_takeover.replace(second=0, microsecond=0) != expected_takeover
-                or actual_handover.replace(second=0, microsecond=0) != expected_handover):
-            return _gate("fail", "接手或交還沒有在指定分鐘完成", [path])
-    seconds = data["max_downtime_seconds"]
-    return _gate("pass" if seconds <= 300 else "fail",
-                 "{0}最大停機 {1} 秒".format("週日全天 AI；" if day.weekday() == 6 else "準時接手交還；", seconds),
-                 [path], max_downtime_seconds=seconds)
+        windows = [(start, expected_handover), (expected_takeover, end)]
+        for label, expected, owner, cutoff in (("takeover", expected_takeover, "ai", end),
+                                                ("handover", expected_handover, "shop", expected_takeover)):
+            actual = next((t for t, kind in records if expected <= t < cutoff and kind == owner), None)
+            transitions[label + "_at"] = actual.isoformat() if actual else None
+            if actual is None:
+                missing.append("缺" + ("接手" if owner == "ai" else "交還") + "確認紀錄")
+            elif (actual - expected).total_seconds() > SERVICE_GAP_SECONDS:
+                failures.append(("接手" if owner == "ai" else "交還") + "超過指定時間後 5 分")
+    gaps, observations = [], 0
+    for opening, closing in windows:
+        times = sorted({t for t, kind in records if opening <= t <= closing and kind in ("ai", "healthy")})
+        observations += len(times)
+        if len(times) < 2:
+            missing.append("AI 主責區間紀錄不足")
+            continue
+        gaps.extend((b - a).total_seconds() for a, b in zip(times, times[1:]))
+        # Missing edge coverage is unknown; it is not an observed outage.
+        if ((times[0] - opening).total_seconds() > SERVICE_GAP_SECONDS
+                or (closing - times[-1]).total_seconds() > SERVICE_GAP_SECONDS):
+            missing.append("AI 主責區間邊界缺監測紀錄")
+    maximum = max(gaps, default=None)
+    if maximum is not None and maximum > SERVICE_GAP_SECONDS:
+        failures.append("AI 主責區間最大紀錄間隔 {0:.3f} 秒，超過 300 秒".format(maximum))
+    if bad:
+        missing.append("監測紀錄有無法核對的行")
+    status = "fail" if failures else "no_data" if missing else "pass"
+    reason = "；".join(dict.fromkeys(failures + missing)) if failures or missing else "{0}最大紀錄間隔 {1:.3f} 秒".format(
+        "週日全天 AI；" if day.weekday() == 6 else "接手、交還在 5 分內；", maximum)
+    return _gate(status, reason + "（事件／healthz 間隔近似停機，非實測可用性）", evidence,
+                 approximation=True, max_observed_gap_seconds=maximum, observations=observations,
+                 coverage_start=start.isoformat(), coverage_end=end.isoformat(), **transitions)
 
 
-def evaluate_accounting(day, path, usage_path):
+def evaluate_accounting(day, path, usage_path=None):
     # Deliberately never open line-unanswered, sessions, inbox, webhook logs or
     # by_intent. line-usage counts decisions, not received/delivered events.
-    data = _daily(path, day)
-    evidence = [path, usage_path]
-    allowed = {"date", "complete", "received", "replied", "to_staff"}
-    if (data is None or set(data) != allowed or data.get("complete") is not True
-            or not all(_valid_count(data.get(k)) for k in ("received", "replied", "to_staff"))):
+    state, data = load_json(path)
+    evidence = [path]
+    counts = {"received", "replied_ok", "reply_failed", "to_staff", "no_reply_needed"}
+    allowed = counts | {"date", "schema", "generated_at", "complete"}
+    if (state != "ok" or not isinstance(data, dict) or not set(data) <= allowed
+            or data.get("date", str(day)) != str(day) or data.get("complete", True) is not True
+            or not all(_valid_count(data.get(k)) for k in counts)):
         return _gate("no_data", "缺完整收訊、回覆送達與轉真人的互斥筆數；usage 分類不能代替送達證據", evidence)
-    received, replied, staff = (data[k] for k in ("received", "replied", "to_staff"))
+    received, replied, staff = (data[k] for k in ("received", "replied_ok", "to_staff"))
     answered = replied + staff
+    answered += data["no_reply_needed"]
     if answered > received:
         return _gate("no_data", "回覆與轉真人筆數超過收訊，統計互相矛盾", evidence)
     unanswered = received - answered
-    return _gate("pass" if unanswered == 0 else "fail",
-                 "收訊 {0}、回覆 {1}、轉真人 {2}、沒回 {3} 筆".format(received, replied, staff, unanswered),
-                 evidence, received=received, replied=replied, to_staff=staff, unanswered=unanswered)
+    return _gate("pass" if unanswered == 0 and data["reply_failed"] == 0 else "fail",
+                 "收訊 {0}、回覆 {1}、轉真人 {2}、免回 {3}、沒回 {4}、回覆失敗 {5} 筆".format(
+                     received, replied, staff, data["no_reply_needed"], unanswered, data["reply_failed"]),
+                 evidence, **{k: data[k] for k in counts}, unanswered=unanswered)
 
 
 def evaluate_test_evidence(day, path, keys, now):
@@ -644,25 +715,30 @@ def evaluate_recovery(day, paths):
     iso = str(day)
     receipt_paths = sorted(paths.gates_dir.glob("publish-recovery-{0}-slot*-*.json".format(iso)))
     posted = paths.posted_log_dir / (iso + ".json")
-    evidence = receipt_paths or [paths.gates_dir / ("publish-recovery-" + iso + "-slot*-*.json"), posted]
+    evidence = [posted] + (receipt_paths or [paths.gates_dir / ("publish-recovery-" + iso + "-slot*-*.json")])
     unresolved = set()
     state, rows = load_json(posted)
-    succeeded = set()
-    if state == "ok" and isinstance(rows, list):
-        for row in rows:
-            if not isinstance(row, dict) or row.get("dry_run") is not False or row.get("date", iso) != iso:
-                continue
-            slot, platform = _row_slot(row.get("slot")), row.get("platform")
-            if slot is None or platform not in ("facebook", "instagram"):
-                continue
-            pair = (slot, platform)
-            if row.get("status") == "success":
-                succeeded.add(pair)
-            elif row.get("status") in ("failed", "uncertain"):
-                unresolved.add(pair)
-    unresolved -= succeeded
+    if state != "ok" or not isinstance(rows, list) or any(not isinstance(r, dict) for r in rows):
+        return _gate("no_data", "缺當日完整 posted-log，無法確認是否有貼文失敗", [posted])
+    invalid_log = False
+    for row in rows:
+        if row.get("dry_run") is True:
+            continue
+        slot, platform = _row_slot(row.get("slot")), row.get("platform")
+        if (row.get("dry_run") is not False or row.get("date", iso) != iso or slot is None
+                or platform not in ("facebook", "instagram")
+                or row.get("status") not in ("success", "posted", "failed", "uncertain", "skipped")):
+            invalid_log = True
+            continue
+        if row["status"] in ("failed", "uncertain"):
+            unresolved.add((slot, platform))
+    if not unresolved:
+        if invalid_log:
+            return _gate("no_data", "posted-log 有無法核對的列，不能推定沒有貼文失敗", evidence)
+        return _gate("not_applicable", "當日 posted-log 沒有貼文失敗，沒有需要補發的事", [posted])
+    # A later success does not erase the fact that failure handling was needed.
     handled = set()
-    invalid = False
+    invalid = invalid_log
     failed = False
     for path in receipt_paths:
         match = re.fullmatch(r"publish-recovery-(\d{4}-\d{2}-\d{2})-slot([1-3])-(facebook|instagram)\.json", path.name)
@@ -692,8 +768,11 @@ def evaluate_restart(day, path):
 
 
 def evaluate_nightly(day, path):
-    data = _daily(path, day)
-    if data is None or not isinstance(data.get("generated_at"), str):
+    state, data = load_json(path)
+    if state == "missing":
+        return _gate("fail", "當晚日結報告沒有產出", [path])
+    if (state != "ok" or not isinstance(data, dict) or data.get("date") != str(day)
+            or not isinstance(data.get("generated_at"), str)):
         return _gate("no_data", "缺當晚日結報告或產出時間", [path])
     value = data["generated_at"]
     try:
@@ -701,11 +780,11 @@ def evaluate_nightly(day, path):
         stamp = stamp.replace(tzinfo=TAIPEI_FALLBACK) if stamp.tzinfo is None else stamp.astimezone(TAIPEI_FALLBACK)
     except ValueError:
         return _gate("no_data", "日結報告產出時間無法核對", [path])
-    if stamp.date() != day:
-        return _gate("no_data", "報告日期與實際產出日期不符，不能沿用舊報告", [path])
-    on_time = (stamp.hour, stamp.minute) == (23, 40)
+    opening = datetime.combine(day, datetime.min.time(), TAIPEI_FALLBACK).replace(hour=22)
+    closing = (opening + timedelta(days=1)).replace(hour=1)
+    on_time = opening <= stamp <= closing
     return _gate("pass" if on_time else "fail", "當晚報告於 {0:%H:%M} 產出{1}".format(
-        stamp, "" if on_time else "，未在 23:40 這一分鐘"), [path], generated_at=stamp.isoformat())
+        stamp, "" if on_time else "，超出當日 22:00 至隔日 01:00"), [path], generated_at=stamp.isoformat())
 
 
 def evaluate_incidents(day, path):
@@ -735,8 +814,8 @@ def evaluate_checklist(day, paths, hours, config, now, conditions=None):
     if posts["status"] == "not_required":
         posts["status"] = "not_applicable"
     return {
-        "1": evaluate_service(day, gate("ai-service")),
-        "2": evaluate_accounting(day, gate("line-accounting"), paths.root / "data" / "line-usage" / (iso + ".json")),
+        "1": evaluate_service(day, paths.service_logs),
+        "2": evaluate_accounting(day, paths.root / "data" / "line-events" / (iso + ".json")),
         "3": evaluate_test_evidence(day, check_path, ("copy_audit", "golden"), now),
         "4": evaluate_test_evidence(day, check_path, ("line_full",), now),
         "5": evaluate_test_evidence(day, check_path, ("handoff",), now),
@@ -956,9 +1035,6 @@ def render_report(evaluations, now, newest=None):
         for when in sorted((d for d in evaluations if day-timedelta(days=REPORT_DAYS-1) <= d <= day), reverse=True):
             daily = checklist_summary({when: evaluations[when]}, when)
             lines.append("| {0} | {1}/12 | {2} |".format(when, daily["passed"], "是" if daily["day_passed"] else "否"))
-    legacy = _render_legacy_report({d: v for d, v in evaluations.items() if day is None or d <= day}, now)
-    legacy = legacy[legacy.index("## Level 1:"):].replace("## Level 1:", "### 舊版三項趨勢:", 1)
-    lines += ["", "## 舊版三項趨勢（相容資料，不能當 12 項驗收）", "", legacy.rstrip()]
     return "\n".join(lines) + "\n"
 
 

@@ -178,4 +178,26 @@ if ($ok) {
     Show-Toast ("$date 有缺口:" + ($gaps -join ";") + "。$clickLine。報告:output\day-reports\$date.json")
 }
 
+# OPS-L1-12 offline checks begin
+# Runs as the existing ordinary-user task; never invoke this whole audit for tests.
+# Only the small receipt stays in the repo. Snapshots/logs stay on D:.
+try {
+    if (-not (Test-Path -LiteralPath 'D:\C-moved' -PathType Container) -or
+        -not (Test-Path -LiteralPath 'D:\AI-Lanes-work' -PathType Container)) {
+        throw 'Offline checks: D: workspace unavailable'
+    }
+    $level1Python = 'C:/Users/cyc39/AppData/Local/Python/pythoncore-3.14-64/python.exe'
+    & $level1Python -B -X utf8 (Join-Path $PSScriptRoot 'level1_offline_checks.py') `
+        --root $root --out-root $root --work-root 'D:/AI-Lanes-work/level1-offline-checks' 2>&1 |
+        Out-File -FilePath $logFile -Append -Encoding utf8
+    if ($LASTEXITCODE -ne 0) {
+        "WARN level1 offline producer exit $LASTEXITCODE; inspect receipt, never infer PASS" |
+            Out-File -FilePath $logFile -Append -Encoding utf8
+    }
+} catch {
+    ("WARN level1 offline producer unavailable: " + $_.Exception.GetType().Name) |
+        Out-File -FilePath $logFile -Append -Encoding utf8
+}
+# OPS-L1-12 offline checks end
+
 exit 0

@@ -184,12 +184,105 @@ class HintTests(unittest.TestCase):
             self.assertIn(conv.HOURS, blob(self.reply_to("營業時間")))
             for text in ("不用預約嗎", "送洗要預約嗎", "要不要預約"):
                 self.assertIn("送洗不用預約", blob(self.reply_to(text)))
+                # 回覆另有實質內容時，也須靠主動詢問例外保留免預約答覆。
+                messages = [conv.text_msg(conv.HOURS + "\n" + hints.WALK_IN[0])]
+                result, _ = hints.prepare(conv, messages, text, self.state()["Uhint-customer"], self.time)
+                self.assertEqual(messages, result)
 
     def test_explicit_question_never_loses_requested_card(self):
         now = self.time
         row = {"business_day": hints.periods(conv, now)[0]}
-        result, _ = hints.prepare(conv, [conv.shop_card()], "地址在哪", row, now)
-        self.assertEqual([conv.shop_card()], result)
+        messages = [conv.text_msg("門市資訊如下。"), conv.shop_card()]
+        result, _ = hints.prepare(conv, messages, "地址在哪", row, now)
+        self.assertEqual(messages, result)
+
+    def test_direct_walk_in_phrases_keep_complete_reply_after_notice(self):
+        for text in ("直接到店", "直接拿去", "直接送去"):
+            with self.subTest(text=text):
+                uid = "Uwalkin-" + text
+                self.reply_to("今天有開嗎", uid=uid)
+                self.reply_to(uid=uid)
+                for _ in range(2):
+                    result = self.reply_to(text, uid=uid)
+                    self.assertEqual("可以，送洗不用預約，營業時間直接帶來就好。", result[0]["text"])
+                    self.assertIn(conv.HOURS, blob(result))
+                    self.assertTrue(all(m["text"].strip(" ，。！？\n") not in ("", "可以", "好")
+                                        for m in result if m.get("type") == "text"))
+
+    def test_explicit_walk_in_phrases_keep_full_contextual_answer(self):
+        day = hints.periods(conv, self.time)[0]
+        row = {"business_day": day, "card_day": day, "walkin_day": day}
+        messages = [conv.text_msg("可以，" + hints.WALK_IN[0] + "請帶好衣物。"), conv.text_msg(conv.HOURS)]
+        for text in ("直接到店", "直接拿去", "直接送去"):
+            with self.subTest(text=text):
+                result, _ = hints.prepare(conv, messages, text, row, self.time)
+                self.assertEqual(messages, result)
+
+    def test_deduplication_preserves_nonempty_shell_remainders(self):
+        day = hints.periods(conv, self.time)[0]
+        row = {"business_day": day, "card_day": day, "walkin_day": day}
+        for shell in ("可以，", "好。", "好的，", "。！？", "所以，", "可以，所以，", "還有："):
+            with self.subTest(shell=shell):
+                messages = [conv.text_msg(shell + hints.WALK_IN[0]), conv.text_msg(conv.HOURS)]
+                original = deepcopy(messages)
+                result, _ = hints.prepare(conv, messages, "今天有開嗎", row, self.time)
+                self.assertEqual(original, result)
+                self.assertEqual(original, messages)
+        # 保留空殼原句的保護不能停用正常去重。
+        result, _ = hints.prepare(conv, [conv.text_msg(conv.HOURS + "\n" + hints.WALK_IN[0])],
+                                  "今天有開嗎", row, self.time)
+        self.assertEqual([conv.text_msg(conv.HOURS)], result)
+
+    def test_greeting_then_hours_each_hint_once(self):
+        day = hints.periods(conv, self.time)[0]
+        self.assertEqual(1, self.card_count(self.reply_to()))
+        self.assertEqual({"card_day": day}, self.state()["Uhint-customer"])
+        hours = self.reply_to("今天有開嗎")
+        self.assertIn(conv.HOURS + "\n" + hints.WALK_IN[1], blob(hours))
+        self.assertEqual({"card_day": day, "walkin_day": day}, self.state()["Uhint-customer"])
+        self.assertEqual(0, self.card_count(self.reply_to()))
+        self.assertNotIn("不用預約", blob(self.reply_to("今天有開嗎")))
+
+    def test_walk_in_then_greeting_each_hint_once(self):
+        day = hints.periods(conv, self.time)[0]
+        self.assertIn(hints.WALK_IN[0], blob(self.reply_to("直接到店")))
+        self.assertEqual({"walkin_day": day}, self.state()["Uhint-customer"])
+        self.assertEqual(1, self.card_count(self.reply_to()))
+        self.assertEqual({"card_day": day, "walkin_day": day}, self.state()["Uhint-customer"])
+        self.assertEqual(0, self.card_count(self.reply_to()))
+        self.assertNotIn("不用預約", blob(self.reply_to("今天有開嗎")))
+
+    def test_independent_markers_reset_at_next_open(self):
+        for when, expected in (("2026-09-08T21:00", True), ("2026-09-09T00:01", False),
+                               ("2026-09-09T09:59", False), ("2026-09-09T10:00", True)):
+            with self.subTest(when=when):
+                self.at(when)
+                self.assertEqual(int(expected), self.card_count(self.reply_to()))
+                self.assertEqual(expected, "不用預約" in blob(self.reply_to("今天有開嗎")))
+
+    def test_legacy_business_day_suppresses_both_hints_until_next_open(self):
+        day = hints.periods(conv, self.time)[0]
+        hints.state_path(conv).write_text(json.dumps({"Uhint-customer": {"business_day": day}}), encoding="utf-8")
+        self.assertEqual(0, self.card_count(self.reply_to()))
+        self.assertNotIn("不用預約", blob(self.reply_to("今天有開嗎")))
+        self.assertIn(hints.WALK_IN[0], blob(self.reply_to("直接到店")))
+        self.assertIn(hints.WALK_IN[0], blob(self.reply_to("要不要預約")))
+        self.at("2026-09-09T10:00")
+        self.assertEqual(1, self.card_count(self.reply_to()))
+        self.assertIn(hints.WALK_IN[1], blob(self.reply_to("今天有開嗎")))
+        # 新欄位優先於仍保留的舊欄位，次營業日也各只主動提示一次。
+        self.assertEqual(0, self.card_count(self.reply_to()))
+        self.assertNotIn("不用預約", blob(self.reply_to("今天有開嗎")))
+
+    def test_failed_walk_in_send_does_not_consume_card_or_walk_in(self):
+        self.accepted = False
+        self.reply_to("直接到店")
+        self.assertEqual({}, self.state())
+        self.accepted = True
+        self.assertEqual(1, self.card_count(self.reply_to()))
+        importlib.reload(hints)
+        self.assertIn(hints.WALK_IN[1], blob(self.reply_to("今天有開嗎")))
+        self.assertNotIn("不用預約", blob(self.reply_to("今天有開嗎")))
 
     def test_repeated_card_only_falls_back_without_recording(self):
         self.at("2026-09-08T21:00")
@@ -245,6 +338,9 @@ class HintTests(unittest.TestCase):
             "Uold-business-only": {"business_day": old},
             "Uold-rest-only": {"rest": old},
             "Uold-offset": {"business_day": "2026-08-25T14:00:00+02:00", "rest": old},
+            "Uold-card-only": {"card_day": old},
+            "Uold-walkin-only": {"walkin_day": old},
+            "Uold-all": {"business_day": old, "card_day": old, "walkin_day": old, "rest": old},
         }
         retained = {
             "Urecent-business": {"business_day": "2026-09-08T10:00:00+08:00", "rest": old},
@@ -252,11 +348,15 @@ class HintTests(unittest.TestCase):
             "Ucutoff-business": {"business_day": cutoff, "rest": old},
             "Ucutoff-rest": {"business_day": old, "rest": cutoff},
             "Urecent-offset": {"business_day": "2026-08-25T13:00:01+00:00"},
+            "Urecent-card": {"business_day": old, "card_day": "2026-09-08T10:00:00+08:00", "rest": old},
+            "Urecent-walkin": {"card_day": old, "walkin_day": "2026-09-08T10:00:00+08:00"},
+            "Ucutoff-card": {"card_day": cutoff, "walkin_day": old},
+            "Ucutoff-walkin": {"card_day": old, "walkin_day": cutoff},
         }
         hints.state_path(conv).write_text(json.dumps({**expired, **retained}), encoding="utf-8")
         self.reply_to()
         self.assertEqual({**retained, "Uhint-customer": {
-            "business_day": "2026-09-08T10:00:00+08:00",
+            "card_day": "2026-09-08T10:00:00+08:00",
             "rest": "2026-09-09T10:00:00+08:00",
         }}, self.state())
 
@@ -265,6 +365,8 @@ class HintTests(unittest.TestCase):
             "Uinvalid": {"business_day": "unknown", "rest": "2026-08-01T10:00:00+08:00"},
             "Unaive": {"business_day": "2026-08-01T10:00:00"},
             "Uwrong-type": {"rest": 123},
+            "Uinvalid-card": {"card_day": "unknown"},
+            "Uinvalid-walkin": {"walkin_day": "unknown"},
         }
         hints.state_path(conv).write_text(json.dumps(state), encoding="utf-8")
         self.assertTrue(self.reply_to())
@@ -327,7 +429,7 @@ class HintTests(unittest.TestCase):
         self.reply_to()
         state = self.state()
         self.assertEqual({"Uhint-customer"}, set(state))
-        self.assertEqual({"business_day", "rest"}, set(state["Uhint-customer"]))
+        self.assertEqual({"card_day", "rest"}, set(state["Uhint-customer"]))
         for value in state["Uhint-customer"].values():
             datetime.fromisoformat(value)
         importlib.reload(hints)
@@ -442,7 +544,19 @@ print(json.dumps({"accepted":ok, "cards":sum(m == conv.shop_card() for m in sent
             futures = [pool.submit(conv.reply_with_hints, uid, "你好", [conv.text_msg("你好。"), conv.shop_card()], send) for uid in uids]
             self.assertTrue(all(f.result(timeout=5) for f in futures))
         self.assertEqual(set(uids), set(self.state()))
-        self.assertTrue(all(set(row) == {"business_day", "rest"} for row in self.state().values()))
+        self.assertTrue(all(set(row) == {"card_day", "rest"} for row in self.state().values()))
+
+    def test_simultaneous_card_and_walk_in_preserve_both_markers(self):
+        messages = ([conv.text_msg("你好。"), conv.shop_card()],
+                    [conv.text_msg(conv.HOURS + "\n" + hints.WALK_IN[0])])
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(conv.reply_with_hints, "Uparallel-hints", "測試", reply, lambda outgoing: True)
+                       for reply in messages]
+            self.assertTrue(all(f.result(timeout=5) for f in futures))
+        day = hints.periods(conv, self.time)[0]
+        self.assertEqual({"card_day": day, "walkin_day": day}, self.state()["Uparallel-hints"])
+        result, _ = hints.prepare(conv, messages[0] + messages[1], "測試", self.state()["Uparallel-hints"], self.time)
+        self.assertEqual([conv.text_msg("你好。"), conv.text_msg(conv.HOURS)], result)
 
     def test_hours_configuration_is_shared_by_replies_and_periods(self):
         biz = deepcopy(conv.BIZ)

@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
 
 OFF_HOURS = "現在是非營業時間，店員上班後會回覆你。"
@@ -72,7 +73,7 @@ def _prune(data: dict, now: datetime) -> None:
         try:
             expired = all(
                 not row.get(key) or datetime.fromisoformat(row[key]) < cutoff
-                for key in ("business_day", "rest")
+                for key in ("business_day", "card_day", "walkin_day", "rest")
             )
         except (AttributeError, TypeError, ValueError):
             # 無法判讀的時間不當成過期，也不阻斷其他客人的成功記錄。
@@ -85,20 +86,31 @@ def prepare(conv, messages: list[dict], text: str, row: dict, now: datetime) -> 
     business, rest = periods(conv, now)
     asked_address = any(word in text for word in ADDRESS_WORDS)
     asked_reservation = "預約" in text
-    seen_business = bool(business and row.get("business_day") == business)
+    asked_walk_in = asked_reservation or any(word in text for word in ("直接到店", "直接拿去", "直接送去"))
+    # 舊格式視為兩種提示都已講過；個別新欄位一旦存在就優先使用。
+    seen_card = bool(business and row.get("card_day", row.get("business_day")) == business)
+    seen_walkin = bool(business and row.get("walkin_day", row.get("business_day")) == business)
     card = conv.shop_card()
     outgoing = []
     for message in deepcopy(messages):
-        if seen_business and not asked_address and message == card:
+        if seen_card and not asked_address and message == card:
             continue
-        if message.get("type") == "text" and seen_business and not asked_reservation:
-            body = message.get("text") or ""
-            for line in WALK_IN:
-                body = body.replace(line, "")
+        if message.get("type") == "text":
+            original = body = message.get("text") or ""
+            if seen_walkin and not asked_walk_in:
+                for line in WALK_IN:
+                    body = body.replace(line, "")
             # 時間回覆中的順帶地標也屬主動地址提示；被問地點仍保留地址與地圖。
-            if not asked_address:
-                body = body.replace(f"\n在{conv.LANDMARK}。", "")
-            message["text"] = body.strip()
+            if seen_card and not asked_address:
+                body = body.replace(f"\n在{conv.LANDMARK}。", "\n")
+            if body != original:
+                # 刪句不能留下標點、應聲或連接詞；全空仍沿用下方過濾／回退。
+                core = re.sub(r"[\W_]+", "", body)
+                if body.strip() and (not core or re.fullmatch(
+                    r"(?:可以|好的?|嗯|然後|所以|還有|以及|不過|但是?|和|與|或|而且|另外|並且)+", core
+                )):
+                    body = original
+                message["text"] = body.strip()
         if message.get("type") == "text" and not (message.get("text") or "").strip():
             continue
         outgoing.append(message)
@@ -107,13 +119,14 @@ def prepare(conv, messages: list[dict], text: str, row: dict, now: datetime) -> 
         # 去重不能讓客人收不到回覆；回退時不消耗任何提示額度。
         return deepcopy(messages[:5]), {}
     marks = {}
+    if business and not asked_address and any(m == card for m in outgoing):
+        marks["card_day"] = business
     if business and any(
-        (m == card and not asked_address)
-        or (m.get("type") == "text" and not asked_reservation
+        (m.get("type") == "text" and not asked_reservation
             and any(line in (m.get("text") or "") for line in WALK_IN))
         for m in outgoing
     ):
-        marks["business_day"] = business
+        marks["walkin_day"] = business
     if rest and row.get("rest") != rest:
         for message in outgoing:
             if message.get("type") != "text":

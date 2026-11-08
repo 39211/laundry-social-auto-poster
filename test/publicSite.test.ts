@@ -22,7 +22,7 @@ import {
   resolveAcceptedIndexGrowthPages
 } from "../src/indexGrowthPages";
 import { PRODUCTION_PUBLIC_SITE_BASE_URL } from "../src/publicSiteTypes";
-import { NOINDEX_FOLLOW_LOCAL_PATHS } from "../scripts/check-sitemap-links";
+import { EXPECTED_LOC_COUNT, NOINDEX_FOLLOW_LOCAL_PATHS } from "../scripts/check-sitemap-links";
 import {
   REQUIRED_SEARCH_CONTENT_EVENTS,
   assertSearchContentAnalyticsScript,
@@ -2708,10 +2708,11 @@ describe("generatePublicSite", () => {
     // The thin caption also renders as noindex (same policy applies to all slots).
     expect(thin).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
     
-    // All slot posts are excluded from sitemap.xml and posts/ hub is also excluded when no posts are indexable.
+    // 0 篇可索引：文章頁與清單頁都不進 sitemap。清單頁即使以後有可索引文章也不進，見下一則。
     expect(sitemapLocs(sitemap)).not.toContain(thickUrl);
     expect(sitemapLocs(sitemap)).not.toContain(thinUrl);
     expect(sitemapLocs(sitemap)).not.toContain(`${baseUrl}/posts/`);
+    expect(sitemapLocs(sitemap)).not.toContain(`${baseUrl}/posts`);
     
     // AI sitemap excludes post articles but may still include other post-related resources (calendars, images).
     expect(aiSitemap).not.toContain(thickUrl);
@@ -2725,9 +2726,10 @@ describe("generatePublicSite", () => {
     // Discovery contract reflects that no posts are indexable under the new policy.
     expect(discovery.content_contract.daily_article_policy).toMatchObject({ indexable_article_count: 0, article_count: 2 });
 
-    // Hub lists both posts but is itself noindex (no indexable posts means hub is not indexed).
+    // 清單頁一律 noindex，不看可索引文章篇數。
     expect(hub).toContain(`<link rel="canonical" href="${baseUrl}/posts/"`);
     expect(hub).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
+    expect(hub).toContain('name="googlebot" content="noindex, follow, max-image-preview:large"');
     expect(hub).toContain('"@type":"CollectionPage"');
     expect(hub).toContain(thickUrl);
     expect(hub).toContain(thinUrl);
@@ -2744,6 +2746,7 @@ describe("generatePublicSite", () => {
     await writeApprovalLog(root, "2026-07-02");
     const baseUrl = "https://sixiangjialaundry.com";
     const postsHub = `${baseUrl}/posts/`;
+    const postsHubNoSlash = `${baseUrl}/posts`;
     const postsSlot = `${baseUrl}/posts/2026-07-02-slot-01.html`;
     const keptGuide = `${baseUrl}/guides/posts-hub-policy-marker.html`;
     await mkdir(join(root, "seo-overrides", "guides"), { recursive: true });
@@ -2754,6 +2757,7 @@ describe("generatePublicSite", () => {
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
         `  <url><loc>${keptGuide}</loc><lastmod>2026-09-29</lastmod></url>`,
         `  <url><loc>${postsHub}</loc><lastmod>2026-09-24</lastmod></url>`,
+        `  <url><loc>${postsHubNoSlash}</loc><lastmod>2026-09-24</lastmod></url>`,
         `  <url><loc>${postsSlot}</loc><lastmod>2026-09-24</lastmod></url>`,
         "</urlset>",
         ""
@@ -2767,6 +2771,7 @@ describe("generatePublicSite", () => {
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
         `  <url><loc>${keptGuide}</loc><lastmod>2026-09-29</lastmod><changefreq>daily</changefreq><!-- kept-guide --></url>`,
         `  <url><loc>${postsHub}</loc><lastmod>2026-10-05</lastmod><changefreq>daily</changefreq><!-- daily-article-hub --></url>`,
+        `  <url><loc>${postsHubNoSlash}</loc><lastmod>2026-10-05</lastmod><changefreq>daily</changefreq><!-- daily-article-hub-noslash --></url>`,
         `  <url><loc>${postsSlot}</loc><lastmod>2026-10-05</lastmod><changefreq>daily</changefreq><!-- daily-article-slot --></url>`,
         "</urlset>",
         ""
@@ -2803,16 +2808,129 @@ describe("generatePublicSite", () => {
     expect(hub).not.toContain('content="index, follow');
     expect(slot).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
     expect(sitemapLocs(sitemap)).not.toContain(postsHub);
+    expect(sitemapLocs(sitemap)).not.toContain(postsHubNoSlash);
     expect(sitemapLocs(sitemap)).not.toContain(postsSlot);
     expect(sitemap).not.toContain("/posts/");
+    expect(sitemap).not.toContain(`${baseUrl}/posts<`);
     expect(sitemapLocs(aiSitemap)).not.toContain(postsHub);
+    expect(sitemapLocs(aiSitemap)).not.toContain(postsHubNoSlash);
     expect(sitemapLocs(aiSitemap)).not.toContain(postsSlot);
     expect(aiSitemap).not.toContain("/posts/");
+    expect(aiSitemap).not.toContain(`${baseUrl}/posts<`);
     expect(sitemapLocs(sitemap)).toContain(keptGuide);
     expect(sitemapLocs(aiSitemap)).toContain(keptGuide);
     expect(rss).not.toContain("<item>");
     expect(rss).not.toContain(postsHub);
     expect(rss).not.toContain(postsSlot);
+  });
+
+  it("keeps the posts listing noindex and out of both sitemaps when some articles are simulated indexable", async () => {
+    const baseUrl = "https://sixiangjialaundry.com";
+    const postsHub = `${baseUrl}/posts/`;
+    const postsHubNoSlash = `${baseUrl}/posts`;
+    const postsSlot = `${baseUrl}/posts/2026-07-02-slot-01.html`;
+    const otherSlot = `${baseUrl}/posts/2026-07-02-slot-02.html`;
+    const keptGuide = `${baseUrl}/guides/posts-hub-policy-marker.html`;
+    const simulatedPostId = `${baseUrl}/content-calendar/2026-07-02.json#post-2026-07-02-slot-01`;
+    const generate = (root: string) =>
+      generatePublicSite({
+        root,
+        siteBaseUrl: `${baseUrl}/`,
+        imageBaseUrl: `${baseUrl}/`,
+        now: "2026-07-03T03:00:00.000Z",
+        simulateIndexablePostIds: [simulatedPostId]
+      });
+
+    const builderRoot = mkdtempSync(join(tmpdir(), "laundry-posts-listing-simulated-"));
+    await writeBusinessProfile(builderRoot);
+    await writeCalendar(builderRoot, "2026-07-02");
+    await writeApprovalLog(builderRoot, "2026-07-02");
+    await generate(builderRoot);
+
+    const builderDocs = join(builderRoot, "docs");
+    const [builderHub, builderSlot, builderSitemap, builderAi] = await Promise.all([
+      readFile(join(builderDocs, "posts", "index.html"), "utf8"),
+      readFile(join(builderDocs, "posts", "2026-07-02-slot-01.html"), "utf8"),
+      readFile(join(builderDocs, "sitemap.xml"), "utf8"),
+      readFile(join(builderDocs, "ai-sitemap.xml"), "utf8")
+    ]);
+    expect(builderHub).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
+    expect(builderHub).toContain('name="googlebot" content="noindex, follow, max-image-preview:large"');
+    expect(builderHub).not.toContain('content="index, follow');
+    expect(builderSlot).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
+    expect(sitemapLocs(builderSitemap)).toContain(postsSlot);
+    expect(sitemapLocs(builderSitemap)).not.toContain(otherSlot);
+    expect(sitemapLocs(builderSitemap)).not.toContain(postsHub);
+    expect(sitemapLocs(builderSitemap)).not.toContain(postsHubNoSlash);
+    expect(sitemapLocs(builderAi)).toContain(postsSlot);
+    expect(sitemapLocs(builderAi)).not.toContain(otherSlot);
+    expect(sitemapLocs(builderAi)).not.toContain(postsHub);
+    expect(sitemapLocs(builderAi)).not.toContain(postsHubNoSlash);
+
+    const root = mkdtempSync(join(tmpdir(), "laundry-posts-listing-simulated-override-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    await mkdir(join(root, "seo-overrides", "guides"), { recursive: true });
+    await writeFile(
+      join(root, "seo-overrides", "sitemap.xml"),
+      [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        `  <url><loc>${keptGuide}</loc><lastmod>2026-09-29</lastmod></url>`,
+        `  <url><loc>${postsHub}</loc><lastmod>2026-09-24</lastmod></url>`,
+        `  <url><loc>${postsHubNoSlash}</loc><lastmod>2026-09-24</lastmod></url>`,
+        `  <url><loc>${postsSlot}</loc><lastmod>2026-09-24</lastmod></url>`,
+        `  <url><loc>${otherSlot}</loc><lastmod>2026-09-24</lastmod></url>`,
+        "</urlset>",
+        ""
+      ].join("\n"),
+      "utf8"
+    );
+    await writeFile(
+      join(root, "seo-overrides", "ai-sitemap.xml"),
+      [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        `  <url><loc>${keptGuide}</loc><lastmod>2026-09-29</lastmod><changefreq>daily</changefreq><!-- kept-guide --></url>`,
+        `  <url><loc>${postsHub}</loc><lastmod>2026-10-05</lastmod><changefreq>daily</changefreq><!-- daily-article-hub --></url>`,
+        `  <url><loc>${postsHubNoSlash}</loc><lastmod>2026-10-05</lastmod><changefreq>daily</changefreq><!-- daily-article-hub-noslash --></url>`,
+        `  <url><loc>${postsSlot}</loc><lastmod>2026-10-05</lastmod><changefreq>daily</changefreq><!-- daily-article-slot --></url>`,
+        `  <url><loc>${otherSlot}</loc><lastmod>2026-10-05</lastmod><changefreq>daily</changefreq><!-- daily-article-other --></url>`,
+        "</urlset>",
+        ""
+      ].join("\n"),
+      "utf8"
+    );
+    await writeFile(
+      join(root, "seo-overrides", "guides", "posts-hub-policy-marker.html"),
+      '<!doctype html><html><head><meta name="robots" content="index, follow" /></head><body><p>marker</p></body></html>\n',
+      "utf8"
+    );
+    await generate(root);
+    await generate(root);
+
+    const docsRoot = join(root, "docs");
+    const [hub, slot, sitemap, aiSitemap] = await Promise.all([
+      readFile(join(docsRoot, "posts", "index.html"), "utf8"),
+      readFile(join(docsRoot, "posts", "2026-07-02-slot-01.html"), "utf8"),
+      readFile(join(docsRoot, "sitemap.xml"), "utf8"),
+      readFile(join(docsRoot, "ai-sitemap.xml"), "utf8")
+    ]);
+    expect(hub).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
+    expect(hub).toContain('name="googlebot" content="noindex, follow, max-image-preview:large"');
+    expect(hub).not.toContain('content="index, follow');
+    expect(slot).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
+    expect(sitemapLocs(sitemap)).not.toContain(postsHub);
+    expect(sitemapLocs(sitemap)).not.toContain(postsHubNoSlash);
+    expect(sitemapLocs(aiSitemap)).not.toContain(postsHub);
+    expect(sitemapLocs(aiSitemap)).not.toContain(postsHubNoSlash);
+    expect(sitemapLocs(sitemap)).toContain(postsSlot);
+    expect(sitemapLocs(aiSitemap)).toContain(postsSlot);
+    expect(sitemapLocs(sitemap)).toContain(otherSlot);
+    expect(sitemapLocs(aiSitemap)).toContain(otherSlot);
+    expect(sitemapLocs(sitemap)).toContain(keptGuide);
+    expect(sitemapLocs(aiSitemap)).toContain(keptGuide);
   });
 
   it("keeps checked-in public feeds, calendars, HTML, and image metadata consistent", async () => {
@@ -3029,16 +3147,30 @@ describe("generatePublicSite", () => {
         html: await readFile(join(docsRoot, path.slice(1)), "utf8")
       }))
     );
+    const aiSitemap = await readFile(join(docsRoot, "ai-sitemap.xml"), "utf8");
+    const aiSitemapUrls = sitemapLocs(aiSitemap);
     for (const { path, html } of noindexPages) {
-      expect(sitemap, path).not.toContain(`https://sixiangjialaundry.com${path}`);
+      const url = `https://sixiangjialaundry.com${path}`;
+      expect(sitemapUrls.filter((item) => item === url), path).toEqual([]);
+      expect(aiSitemapUrls.filter((item) => item === url), path).toEqual([]);
       expect(html, path).toContain('name="robots" content="noindex, follow"');
     }
     expect(sitemap).toContain("https://sixiangjialaundry.com/local/west-district-laundry-pickup.html");
     expect(sitemap).toContain("https://sixiangjialaundry.com/local/fengjia-laundry-pickup.html");
-    
+    for (const path of [
+      "/guides/xitun-laundry-how-to-choose.html",
+      "/guides/taichung-shoe-cleaning-how-to-choose.html"
+    ]) {
+      const url = `https://sixiangjialaundry.com${path}`;
+      expect(sitemapUrls.filter((item) => item === url), path).toHaveLength(1);
+      expect(aiSitemapUrls.filter((item) => item === url), path).toHaveLength(1);
+    }
+    expect(EXPECTED_LOC_COUNT).toBe(201);
+
     // Should have no /posts/ URLs (all slot posts are noindex)
-    const postsUrls = sitemapUrls.filter(url => url.includes("/posts/"));
+    const postsUrls = sitemapUrls.filter(url => url.includes("/posts/") || url.endsWith("/posts"));
     expect(postsUrls).toEqual([]);
+    expect(aiSitemapUrls.filter((url) => url.includes("/posts/") || url.endsWith("/posts"))).toEqual([]);
     
     // Windows path separator check: no sitemap <loc> should contain backslashes
     const backslashUrls = sitemapUrls.filter(url => url.includes("\\"));

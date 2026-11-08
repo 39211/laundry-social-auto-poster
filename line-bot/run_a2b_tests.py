@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 import runpy
 import shutil
+import stat
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -26,37 +28,41 @@ def _is_loopback(address) -> bool:
     return host in _LOOPBACK_HOSTS
 
 
-def _remove_tree(path: Path) -> None:
-    """清掉暫存資料夾；Windows 上檔案偶爾還被占用，重試幾次，最後只警告、不改變測試結果。"""
+def _remove_tree(path: Path, token: str) -> None:
+    """只清掉本次建立且未經連結轉向的樹；清理失敗也不能回報全綠。"""
     import gc
     import time
 
+    path = Path(path).absolute()
+    if (path.name != ".a2b-test-tmp-" + token or path.is_symlink() or path.is_junction()
+            or path.resolve() != path):
+        raise ValueError("A2b: refusing cleanup of an unowned or redirected directory")
+    if (path / ".a2b-owner").read_text(encoding="ascii") != token:
+        raise ValueError("A2b: cleanup owner marker mismatch")
+    pending = [path]
+    while pending:
+        for child in pending.pop().iterdir():
+            info = child.lstat()
+            if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+                raise ValueError("A2b: cleanup refuses reparse points")
+            if stat.S_ISDIR(info.st_mode):
+                pending.append(child)
     for _ in range(5):
         gc.collect()
         try:
             shutil.rmtree(path)
             return
-        except OSError:
+        except OSError as exc:
+            last_error = exc
             time.sleep(0.4)
-    shutil.rmtree(path, ignore_errors=True)
-    if path.exists():
-        print(f"A2b: could not remove {path.name} (a test left a file open); delete it by hand", file=sys.stderr)
+    raise RuntimeError(f"A2b: could not remove owned directory {path.name}") from last_error
 
 
-def main() -> int:
+def _run_module(tmp_root: Path, module_name: str) -> int:
     bot = Path(__file__).resolve().parent
-    tmp_root = bot / (".a2b-test-tmp-" + uuid.uuid4().hex)
-    tmp_root.mkdir(exist_ok=True)
-    tempfile.tempdir = str(tmp_root)
-    os.environ.update(TMP=str(tmp_root), TEMP=str(tmp_root), PYTHONDONTWRITEBYTECODE="1")
-    # Python 3.14's Windows mode=0o700 temp ACL excludes the sandbox identity.
-    # Normal mkdir inherits this already restricted worktree's usable ACL.
-    def inherited_tempdir(suffix=None, prefix=None, dir=None):
-        path = Path(dir or tempfile.gettempdir()) / ((prefix or "tmp") + uuid.uuid4().hex + (suffix or ""))
-        path.mkdir(mode=0o755)
-        return str(path)
-
-    tempfile.mkdtemp = inherited_tempdir
+    sys.path.insert(0, str(bot / "test-assets"))
+    from offline_temp import install_temp_root
+    install_temp_root(tmp_root)
     sandbox = Path(tempfile.mkdtemp(prefix="repo-"))
     data = sandbox / "data"
     data.mkdir()
@@ -143,21 +149,38 @@ def main() -> int:
         def no_server(*args, **kwargs):
             raise AssertionError("A2b: starting a server is forbidden")
         flask.Flask.run = no_server
-    module_name = sys.argv[1]
+    if module_name in _SCRIPT_STYLE_MODULES:
+        runpy.run_module(module_name, run_name="__main__")
+        return 0
+    module = importlib.import_module(module_name)
+    suite = unittest.defaultTestLoader.loadTestsFromModule(module)
+    for name, fn in vars(module).items():
+        if name.startswith("test_") and inspect.isfunction(fn):
+            suite.addTest(unittest.FunctionTestCase(fn))
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    return 0 if result.wasSuccessful() else 1
+
+
+def main() -> int:
+    if len(sys.argv) == 4 and sys.argv[1] == "--worker":
+        return _run_module(Path(sys.argv[3]), sys.argv[2])
+    if len(sys.argv) != 2:
+        raise SystemExit("usage: run_a2b_tests.py MODULE")
+    bot = Path(__file__).resolve().parent
+    parent = Path(os.environ.get("A2B_TEST_TMP_PARENT", str(bot))).resolve(strict=True)
+    if not parent.is_relative_to(bot):
+        raise ValueError("A2b: temp parent must stay inside line-bot")
+    token = uuid.uuid4().hex
+    tmp_root = parent / (".a2b-test-tmp-" + token)
+    tmp_root.mkdir()
+    (tmp_root / ".a2b-owner").write_text(token, encoding="ascii")
     try:
-        if module_name in _SCRIPT_STYLE_MODULES:
-            runpy.run_module(module_name, run_name="__main__")
-            return 0
-        module = importlib.import_module(module_name)
-        suite = unittest.defaultTestLoader.loadTestsFromModule(module)
-        for name, fn in vars(module).items():
-            if name.startswith("test_") and inspect.isfunction(fn):
-                suite.addTest(unittest.FunctionTestCase(fn))
-        result = unittest.TextTestRunner(verbosity=2).run(suite)
-        return 0 if result.wasSuccessful() else 1
+        # Audit hooks cannot be uninstalled. Keep each suite's strict hook in a
+        # worker; the owning parent removes its tree after that process exits.
+        return subprocess.run([sys.executable, "-B", "-X", "utf8", str(Path(__file__).resolve()),
+                               "--worker", sys.argv[1], str(tmp_root)], check=False).returncode
     finally:
-        # Only this task's resolved sandbox directory; never a production path.
-        _remove_tree(tmp_root)
+        _remove_tree(tmp_root, token)
 
 
 if __name__ == "__main__":

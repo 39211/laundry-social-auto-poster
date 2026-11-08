@@ -35,7 +35,7 @@ class MobileReplyTests(unittest.TestCase):
         text = estimate.render(value)
         self.assertEqual(text.count("照片看到袖口灰漬"), 1)
         self.assertEqual(text.count("局部預處理"), 1)
-        self.assertIn("襯衫（合成品牌一等 30 件，棉）：", text)
+        self.assertIn("襯衫（30 件，棉，品牌不一）：", text)
         self.assertIn("2,100", text)
         self.assertIn("30", text)
         self.assertNotIn("另外", text)
@@ -166,7 +166,7 @@ class MobileReplyTests(unittest.TestCase):
         self.assertEqual(len(asked), 1)
         self.assertEqual(asked[0]["brand"], "品牌丆")
         self.assertIn(asked[0]["question"], estimate.render(value))
-        self.assertIn("關於 品牌丆 襯衫，污漬多久了？", estimate.render(value))
+        self.assertIn("關於品牌丆 襯衫，污漬多久了？", estimate.render(value))
 
 
 class FlowBudgetTests(unittest.TestCase):

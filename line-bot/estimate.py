@@ -990,12 +990,14 @@ def _photo_group_titles(grouped: list, labels: dict) -> list[tuple]:
         if numbered:
             unit = "批" if plural else _photo_unit_word(detail)
             name = f"第{_photo_order(peers.index(i) + 1)}{unit}{name}"
-        identity = " ".join(x for x in (detail.get("photo_brand"), detail.get("photo_model")) if x)
+        identity = " ".join(x for x in (brands[i], detail.get("photo_model")) if x)
         if plural:
             count = f"{quantity} {_photo_unit_word(detail)}" if quantity is not None else "數量待確認"
-            identity = f"{identity}等 {count}" if identity and len(members) > 1 else "，".join(filter(None, (identity, count)))
+            identity = "，".join(filter(None, (identity, count)))
         if detail.get("photo_material"):
             identity += ("，" if identity else "") + detail["photo_material"]
+        if len({d.get("photo_brand", "") for d, _, _ in members}) > 1:
+            identity += "，品牌不一"
         head = name + (f"（{identity}）" if identity else "") + "："
         # Distinct brands disambiguate same-name items; otherwise use the same
         # ordinal as the heading. A multi-brand batch must not name just one brand.
@@ -1012,7 +1014,8 @@ def _photo_addressed_question(question: str, subject: str, plural: bool) -> str:
     question = re.sub(r"^(?:這|那|該)(?:件|雙|個|項)(?:衣物|物品)?", "", question)
     if plural:
         question = question.replace("這件", "這批物品")
-    return f"關於 {subject}，{question}"
+    separator = " " if re.match(r"[A-Za-z0-9]", subject) else ""
+    return f"關於{separator}{subject}，{question}"
 
 
 def _photo_sections(draft: dict, notice: str = "") -> list[dict]:

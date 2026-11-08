@@ -74,7 +74,7 @@ class _BindProbe:
             tempfile.mkdtemp(prefix="g1-missing-")
         ) / "staff-bind-token.txt"
         sn.bind_group = lambda gid: self.bound.append(gid)
-        lw.reply = lambda rt, msgs: self.replies.append({"rt": rt, "msgs": msgs})
+        lw.reply = lambda rt, msgs: self.replies.append({"rt": rt, "msgs": msgs}) or True
 
     def close(self):
         lw.BIND_TOKEN_FILE = self._orig_path

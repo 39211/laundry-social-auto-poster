@@ -21,6 +21,7 @@ import quote_flow
 import journey_ux
 import ai_chat
 import reply_hints
+import line_event_log as event_log
 
 _SESSION_LOCK = threading.RLock()
 
@@ -210,6 +211,7 @@ def dt_fmt(d: datetime) -> str:
     return d.strftime("%Y-%m-%dT%H:%M")
 
 
+@event_log.timed("storage")
 def _load_sess() -> dict:
     if SESS.exists():
         try:
@@ -219,6 +221,7 @@ def _load_sess() -> dict:
     return {}
 
 
+@event_log.timed("storage")
 def _save_sess(data: dict) -> None:
     SESS.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=SESS.parent, delete=False) as f:
@@ -1690,7 +1693,7 @@ def last_active_booking(uid: str) -> dict | None:
 
 def append_book(rec: dict) -> None:
     BOOK.parent.mkdir(parents=True, exist_ok=True)
-    with BOOK.open("a", encoding="utf-8") as f:
+    with event_log.measure("storage"), BOOK.open("a", encoding="utf-8") as f:
         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
@@ -1767,7 +1770,7 @@ def save_booking(uid: str, when: str, item: str, kind: str = "book", extra: dict
         rec["estimate_summary"] = estimate.render(draft)
         rec["estimate_case"] = estimate_link.get("case")
         rec["estimate_revision"] = draft["revision"]
-    with BOOK.open("a", encoding="utf-8") as f:
+    with event_log.measure("storage"), BOOK.open("a", encoding="utf-8") as f:
         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     try:
         import staff_notify

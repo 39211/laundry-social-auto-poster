@@ -9,6 +9,7 @@ import { repoRootFromHere } from "../scripts/check-sitemap-links";
  * O04：6 個既有指南頁加本頁目錄與穩定 H2 id。
  * 目錄文字與 id 以行銷 PASS 的兩份 CSV 為準。
  * 下面的 sha256 是凍結基準 e890511a82b5b2f9300999a68c56cadebb92c1f6 上、LF 原文的雜湊。
+ * washing-machine-shoe-risk 例外：凍結原文先套收送用語替換，再套錨文字替換，鎖的是兩道之後的 stripped sha256。其餘 5 頁仍對凍結原文。
  * CI 只抓 PR commit、拿不到該 commit 時仍用這個鎖；git show 只對這個凍結 SHA，淺層 checkout 拿不到就回 undefined 並跳過比對。
  */
 const ROOT = repoRootFromHere();
@@ -40,8 +41,8 @@ const EXPECTED_COUNTS = {
 const MAIN_SHA256 = {
   "sticky-bag-lining": "805b489649b208a36ec7fcf7a9070682d1ba7b3ca1dcd6b5209bcda7ca0a8975",
   "suede-bag-care": "fd5d854736e94675df45f8ce6d8b2b29cb3981d19bb4e60b9304907e7e3dfa90",
-  // 這一筆不是 e890511a82b5b2f9300999a68c56cadebb92c1f6 的原文雜湊，而是該凍結原文把「東海無門市、全市可收送」換成「東海無門市、免費收送、沒有最低消費」之後的 stripped sha256。
-  "washing-machine-shoe-risk": "d3938c5892ac62acab854d2552338d9700be692611b951c6e71fba830b509492",
+  // 這一筆不是 e890511 原文雜湊。凍結原文先把「東海無門市、全市可收送」換成「東海無門市、免費收送、沒有最低消費」，再把「>台中洗鞋專頁</a>」換成「>洗鞋材質總覽</a>」之後的 stripped sha256。
+  "washing-machine-shoe-risk": "11a8f19c2cd1ef9bf52a7722815c09a458dba849ac92f00ea2f0802c6a8fbba4",
   "lambskin-bag-care": "427a03ce23140db27c7b16b2c8ebae57721174f6ab26e100140e46b81687de5c",
   "leather-belt-care": "74d82511a2e418f5fca6298ad31b7051739e365270b1111163152e504557a26e",
   "shoe-drying-heat-risk": "4204ca5917e2c2c6ec636568a1d3aed1b41e63610415aa7c335f232fa3be6833"
@@ -476,9 +477,12 @@ describe("O04 六個指南頁", () => {
       const fromBaseline = gitBlob("e890511a82b5b2f9300999a68c56cadebb92c1f6", rel);
       if (fromBaseline !== undefined) {
         if (slug === "washing-machine-shoe-risk") {
-          const expected = fromBaseline.replaceAll("東海無門市、全市可收送", "東海無門市、免費收送、沒有最低消費");
+          const expected = fromBaseline
+            .replaceAll("東海無門市、全市可收送", "東海無門市、免費收送、沒有最低消費")
+            .replaceAll(">台中洗鞋專頁</a>", ">洗鞋材質總覽</a>");
           expect(stripped, slug).toBe(expected);
           expect(sha256(stripped), slug).toBe(MAIN_SHA256[slug]);
+          expect(sha256(expected), slug).toBe(MAIN_SHA256[slug]);
         } else {
           expect(fromBaseline, slug).toBe(stripped);
           expect(sha256(fromBaseline), slug).toBe(MAIN_SHA256[slug]);

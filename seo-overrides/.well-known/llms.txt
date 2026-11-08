@@ -95,7 +95,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [店家與公司大量衣物送洗](https://sixiangjialaundry.com/services/business-bulk-laundry.html): service SEO page with NAP, image, FAQ, and structured data.
 - [台中洗衣收送](https://sixiangjialaundry.com/services/taichung-citywide-laundry-pickup.html): service SEO page with NAP, image, FAQ, and structured data.
 - [台中洗衣價目表](https://sixiangjialaundry.com/services/taichung-laundry-price-list.html): service SEO page with NAP, image, FAQ, and structured data.
-- [台中洗鞋專頁](https://sixiangjialaundry.com/hubs/shoe-care.html): hub page for shoe material routing, $250 reference price, and free pickup and delivery, no minimum spend.。參考價，看過實品再報價。
+- [洗鞋材質總覽](https://sixiangjialaundry.com/hubs/shoe-care.html): hub page for shoe material routing, $250 reference price, and free pickup and delivery, no minimum spend.。參考價，看過實品再報價。
 - [寢具與布品專頁](https://sixiangjialaundry.com/hubs/bedding-textile-care.html): hub page for bedding prices plus made-to-measure curtains and carpets.
 - [台中各區收送專頁](https://sixiangjialaundry.com/hubs/local-pickup.html): hub page stating the only store is in Xitun and other districts are pickup only.
 - [西屯門市收件](https://sixiangjialaundry.com/about/sixiangjia-taichung-only.html): entity page separating this store from same-name shops in Hsinchu or mainland China.

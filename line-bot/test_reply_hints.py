@@ -191,6 +191,93 @@ class HintTests(unittest.TestCase):
         result, _ = hints.prepare(conv, [conv.shop_card()], "地址在哪", row, now)
         self.assertEqual([conv.shop_card()], result)
 
+    def test_repeated_card_only_falls_back_without_recording(self):
+        self.at("2026-09-08T21:00")
+        state = {"Uhint-customer": {"business_day": "2026-09-08T10:00:00+08:00"}}
+        hints.state_path(conv).write_text(json.dumps(state), encoding="utf-8")
+        messages = [conv.shop_card()]
+        original = deepcopy(messages)
+        with mock.patch.object(conv, "handle_ex", return_value=(messages, {})):
+            eid = self.post()
+        result = next((outgoing for token, outgoing in self.sent if token == eid), [])
+        self.assertTrue(result)
+        self.assertEqual(original, result)
+        self.assertTrue(all(m.get("text", "").strip() for m in result if m.get("type") == "text"))
+        self.assertEqual(state, self.state())
+        self.assertEqual(original, messages)
+
+    def test_repeated_walk_in_only_falls_back_without_recording(self):
+        self.at("2026-09-08T21:00")
+        state = {"Uhint-customer": {"business_day": "2026-09-08T10:00:00+08:00"}}
+        hints.state_path(conv).write_text(json.dumps(state), encoding="utf-8")
+        for line in hints.WALK_IN:
+            with self.subTest(line=line):
+                messages = [conv.text_msg(line)]
+                original = deepcopy(messages)
+                with mock.patch.object(conv, "handle_ex", return_value=(messages, {})):
+                    result = self.reply_to()
+                self.assertEqual(original, result)
+                self.assertTrue(result)
+                self.assertTrue(all(m["text"].strip() for m in result))
+                self.assertEqual(state, self.state())
+                self.assertEqual(original, messages)
+
+    def test_deduplication_drops_empty_text_and_keeps_real_reply(self):
+        state = {"Uhint-customer": {"business_day": "2026-09-08T10:00:00+08:00"}}
+        hints.state_path(conv).write_text(json.dumps(state), encoding="utf-8")
+        answer = conv.text_msg("已收到你的問題。")
+        messages = [conv.text_msg(" \n" + line + "\n ") for line in hints.WALK_IN]
+        messages += [answer, conv.shop_card()]
+        original = deepcopy(messages)
+        with mock.patch.object(conv, "handle_ex", return_value=(messages, {})):
+            result = self.reply_to()
+        self.assertEqual([answer], result)
+        self.assertTrue(all(m["text"].strip() for m in result))
+        self.assertEqual(state, self.state())
+        self.assertEqual(original, messages)
+
+    def test_successful_write_prunes_only_records_older_than_fourteen_days(self):
+        self.at("2026-09-08T21:00")
+        old = "2026-08-25T20:59:59+08:00"
+        cutoff = "2026-08-25T21:00:00+08:00"
+        expired = {
+            "Uold-both": {"business_day": old, "rest": old},
+            "Uold-business-only": {"business_day": old},
+            "Uold-rest-only": {"rest": old},
+            "Uold-offset": {"business_day": "2026-08-25T14:00:00+02:00", "rest": old},
+        }
+        retained = {
+            "Urecent-business": {"business_day": "2026-09-08T10:00:00+08:00", "rest": old},
+            "Urecent-rest": {"business_day": old, "rest": "2026-09-09T10:00:00+08:00"},
+            "Ucutoff-business": {"business_day": cutoff, "rest": old},
+            "Ucutoff-rest": {"business_day": old, "rest": cutoff},
+            "Urecent-offset": {"business_day": "2026-08-25T13:00:01+00:00"},
+        }
+        hints.state_path(conv).write_text(json.dumps({**expired, **retained}), encoding="utf-8")
+        self.reply_to()
+        self.assertEqual({**retained, "Uhint-customer": {
+            "business_day": "2026-09-08T10:00:00+08:00",
+            "rest": "2026-09-09T10:00:00+08:00",
+        }}, self.state())
+
+    def test_pruning_preserves_unknown_timestamps_without_blocking_reply(self):
+        state = {
+            "Uinvalid": {"business_day": "unknown", "rest": "2026-08-01T10:00:00+08:00"},
+            "Unaive": {"business_day": "2026-08-01T10:00:00"},
+            "Uwrong-type": {"rest": 123},
+        }
+        hints.state_path(conv).write_text(json.dumps(state), encoding="utf-8")
+        self.assertTrue(self.reply_to())
+        for uid, row in state.items():
+            self.assertEqual(row, self.state()[uid])
+
+    def test_failed_send_does_not_prune_existing_records(self):
+        state = {"Uold": {"business_day": "2026-08-01T10:00:00+08:00"}}
+        hints.state_path(conv).write_text(json.dumps(state), encoding="utf-8")
+        self.accepted = False
+        self.assertTrue(self.reply_to())
+        self.assertEqual(state, self.state())
+
     def test_human_handoff_does_not_send_or_mark(self):
         self.at("2026-09-08T21:00")
         for state in ("HANDOFF_PENDING", "HUMAN_ACTIVE"):
@@ -340,6 +427,9 @@ print(json.dumps({"accepted":ok, "cards":sum(m == conv.shop_card() for m in sent
 
     def test_two_customers_simultaneous_writes_preserve_both(self):
         self.at("2026-09-08T21:00")
+        expired = {"Uexpired": {"business_day": "2026-08-01T10:00:00+08:00",
+                                 "rest": "2026-08-02T10:00:00+08:00"}}
+        hints.state_path(conv).write_text(json.dumps(expired), encoding="utf-8")
         barrier = threading.Barrier(2)
         uids = ["Uparallel-A", "Uparallel-B"]
         self.assertIsNot(conv.quote_flow._lock(uids[0]), conv.quote_flow._lock(uids[1]))

@@ -66,6 +66,21 @@ def _write(path: Path, data: dict) -> None:
         temp.unlink(missing_ok=True)
 
 
+def _prune(data: dict, now: datetime) -> None:
+    cutoff = now - timedelta(days=14)
+    for uid, row in list(data.items()):
+        try:
+            expired = all(
+                not row.get(key) or datetime.fromisoformat(row[key]) < cutoff
+                for key in ("business_day", "rest")
+            )
+        except (AttributeError, TypeError, ValueError):
+            # 無法判讀的時間不當成過期，也不阻斷其他客人的成功記錄。
+            continue
+        if expired:
+            del data[uid]
+
+
 def prepare(conv, messages: list[dict], text: str, row: dict, now: datetime) -> tuple[list[dict], dict]:
     business, rest = periods(conv, now)
     asked_address = any(word in text for word in ADDRESS_WORDS)
@@ -84,8 +99,13 @@ def prepare(conv, messages: list[dict], text: str, row: dict, now: datetime) -> 
             if not asked_address:
                 body = body.replace(f"\n在{conv.LANDMARK}。", "")
             message["text"] = body.strip()
+        if message.get("type") == "text" and not (message.get("text") or "").strip():
+            continue
         outgoing.append(message)
     outgoing = outgoing[:5]
+    if not outgoing:
+        # 去重不能讓客人收不到回覆；回退時不消耗任何提示額度。
+        return deepcopy(messages[:5]), {}
     marks = {}
     if business and any(
         (m == card and not asked_address)
@@ -127,5 +147,6 @@ def deliver(conv, uid: str, text: str, messages: list[dict], send) -> bool:
             with conv._SESSION_LOCK:
                 data = _read(path)
                 data[uid] = {**(data.get(uid) or {}), **marks}
+                _prune(data, now)
                 _write(path, data)
         return accepted

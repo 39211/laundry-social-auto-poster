@@ -73,7 +73,7 @@ def _prune(data: dict, now: datetime) -> None:
         try:
             expired = all(
                 not row.get(key) or datetime.fromisoformat(row[key]) < cutoff
-                for key in ("business_day", "card_day", "walkin_day", "rest")
+                for key in ("card_day", "walkin_day", "rest")
             )
         except (AttributeError, TypeError, ValueError):
             # 無法判讀的時間不當成過期，也不阻斷其他客人的成功記錄。
@@ -87,9 +87,8 @@ def prepare(conv, messages: list[dict], text: str, row: dict, now: datetime) -> 
     asked_address = any(word in text for word in ADDRESS_WORDS)
     asked_reservation = "預約" in text
     asked_walk_in = asked_reservation or any(word in text for word in ("直接到店", "直接拿去", "直接送去"))
-    # 舊格式視為兩種提示都已講過；個別新欄位一旦存在就優先使用。
-    seen_card = bool(business and row.get("card_day", row.get("business_day")) == business)
-    seen_walkin = bool(business and row.get("walkin_day", row.get("business_day")) == business)
+    seen_card = bool(business and row.get("card_day") == business)
+    seen_walkin = bool(business and row.get("walkin_day") == business)
     card = conv.shop_card()
     outgoing = []
     for message in deepcopy(messages):

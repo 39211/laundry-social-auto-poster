@@ -191,7 +191,7 @@ class HintTests(unittest.TestCase):
 
     def test_explicit_question_never_loses_requested_card(self):
         now = self.time
-        row = {"business_day": hints.periods(conv, now)[0]}
+        row = {"card_day": hints.periods(conv, now)[0]}
         messages = [conv.text_msg("門市資訊如下。"), conv.shop_card()]
         result, _ = hints.prepare(conv, messages, "地址在哪", row, now)
         self.assertEqual(messages, result)
@@ -211,7 +211,7 @@ class HintTests(unittest.TestCase):
 
     def test_explicit_walk_in_phrases_keep_full_contextual_answer(self):
         day = hints.periods(conv, self.time)[0]
-        row = {"business_day": day, "card_day": day, "walkin_day": day}
+        row = {"card_day": day, "walkin_day": day}
         messages = [conv.text_msg("可以，" + hints.WALK_IN[0] + "請帶好衣物。"), conv.text_msg(conv.HOURS)]
         for text in ("直接到店", "直接拿去", "直接送去"):
             with self.subTest(text=text):
@@ -220,7 +220,7 @@ class HintTests(unittest.TestCase):
 
     def test_deduplication_preserves_nonempty_shell_remainders(self):
         day = hints.periods(conv, self.time)[0]
-        row = {"business_day": day, "card_day": day, "walkin_day": day}
+        row = {"card_day": day, "walkin_day": day}
         for shell in ("可以，", "好。", "好的，", "。！？", "所以，", "可以，所以，", "還有："):
             with self.subTest(shell=shell):
                 messages = [conv.text_msg(shell + hints.WALK_IN[0]), conv.text_msg(conv.HOURS)]
@@ -260,9 +260,13 @@ class HintTests(unittest.TestCase):
                 self.assertEqual(int(expected), self.card_count(self.reply_to()))
                 self.assertEqual(expected, "不用預約" in blob(self.reply_to("今天有開嗎")))
 
-    def test_legacy_business_day_suppresses_both_hints_until_next_open(self):
+    def test_legacy_business_day_is_ignored_and_each_hint_sent_once(self):
         day = hints.periods(conv, self.time)[0]
         hints.state_path(conv).write_text(json.dumps({"Uhint-customer": {"business_day": day}}), encoding="utf-8")
+        self.assertEqual(1, self.card_count(self.reply_to()))
+        self.assertIn(hints.WALK_IN[1], blob(self.reply_to("今天有開嗎")))
+        self.assertEqual({"business_day": day, "card_day": day, "walkin_day": day},
+                         self.state()["Uhint-customer"])
         self.assertEqual(0, self.card_count(self.reply_to()))
         self.assertNotIn("不用預約", blob(self.reply_to("今天有開嗎")))
         self.assertIn(hints.WALK_IN[0], blob(self.reply_to("直接到店")))
@@ -270,7 +274,19 @@ class HintTests(unittest.TestCase):
         self.at("2026-09-09T10:00")
         self.assertEqual(1, self.card_count(self.reply_to()))
         self.assertIn(hints.WALK_IN[1], blob(self.reply_to("今天有開嗎")))
-        # 新欄位優先於仍保留的舊欄位，次營業日也各只主動提示一次。
+        # 舊欄位不參與判斷，次營業日也各只主動提示一次。
+        self.assertEqual(0, self.card_count(self.reply_to()))
+        self.assertNotIn("不用預約", blob(self.reply_to("今天有開嗎")))
+
+    def test_unknown_state_fields_do_not_block_or_suppress_hints(self):
+        day = hints.periods(conv, self.time)[0]
+        unknown = {"future_day": day, "metadata": {"card_day": day},
+                   "future_list": [None, 123, True]}
+        hints.state_path(conv).write_text(json.dumps({"Uhint-customer": unknown}), encoding="utf-8")
+        self.assertEqual(1, self.card_count(self.reply_to()))
+        self.assertIn(hints.WALK_IN[1], blob(self.reply_to("今天有開嗎")))
+        self.assertEqual({**unknown, "card_day": day, "walkin_day": day},
+                         self.state()["Uhint-customer"])
         self.assertEqual(0, self.card_count(self.reply_to()))
         self.assertNotIn("不用預約", blob(self.reply_to("今天有開嗎")))
 
@@ -286,7 +302,7 @@ class HintTests(unittest.TestCase):
 
     def test_repeated_card_only_falls_back_without_recording(self):
         self.at("2026-09-08T21:00")
-        state = {"Uhint-customer": {"business_day": "2026-09-08T10:00:00+08:00"}}
+        state = {"Uhint-customer": {"card_day": "2026-09-08T10:00:00+08:00"}}
         hints.state_path(conv).write_text(json.dumps(state), encoding="utf-8")
         messages = [conv.shop_card()]
         original = deepcopy(messages)
@@ -301,7 +317,7 @@ class HintTests(unittest.TestCase):
 
     def test_repeated_walk_in_only_falls_back_without_recording(self):
         self.at("2026-09-08T21:00")
-        state = {"Uhint-customer": {"business_day": "2026-09-08T10:00:00+08:00"}}
+        state = {"Uhint-customer": {"walkin_day": "2026-09-08T10:00:00+08:00"}}
         hints.state_path(conv).write_text(json.dumps(state), encoding="utf-8")
         for line in hints.WALK_IN:
             with self.subTest(line=line):
@@ -316,7 +332,8 @@ class HintTests(unittest.TestCase):
                 self.assertEqual(original, messages)
 
     def test_deduplication_drops_empty_text_and_keeps_real_reply(self):
-        state = {"Uhint-customer": {"business_day": "2026-09-08T10:00:00+08:00"}}
+        state = {"Uhint-customer": {"card_day": "2026-09-08T10:00:00+08:00",
+                                   "walkin_day": "2026-09-08T10:00:00+08:00"}}
         hints.state_path(conv).write_text(json.dumps(state), encoding="utf-8")
         answer = conv.text_msg("已收到你的問題。")
         messages = [conv.text_msg(" \n" + line + "\n ") for line in hints.WALK_IN]
@@ -334,24 +351,25 @@ class HintTests(unittest.TestCase):
         old = "2026-08-25T20:59:59+08:00"
         cutoff = "2026-08-25T21:00:00+08:00"
         expired = {
-            "Uold-both": {"business_day": old, "rest": old},
-            "Uold-business-only": {"business_day": old},
+            "Uold-both": {"card_day": old, "walkin_day": old, "rest": old},
             "Uold-rest-only": {"rest": old},
-            "Uold-offset": {"business_day": "2026-08-25T14:00:00+02:00", "rest": old},
+            "Uold-offset": {"card_day": "2026-08-25T14:00:00+02:00", "rest": old},
             "Uold-card-only": {"card_day": old},
             "Uold-walkin-only": {"walkin_day": old},
             "Uold-all": {"business_day": old, "card_day": old, "walkin_day": old, "rest": old},
+            "Ulegacy-recent-only": {"business_day": "2026-09-08T10:00:00+08:00"},
+            "Ulegacy-invalid": {"business_day": {"value": "unknown"}, "card_day": old},
+            "Uunknown-recent": {"future_day": "2026-09-08T10:00:00+08:00", "rest": old},
         }
         retained = {
-            "Urecent-business": {"business_day": "2026-09-08T10:00:00+08:00", "rest": old},
-            "Urecent-rest": {"business_day": old, "rest": "2026-09-09T10:00:00+08:00"},
-            "Ucutoff-business": {"business_day": cutoff, "rest": old},
-            "Ucutoff-rest": {"business_day": old, "rest": cutoff},
-            "Urecent-offset": {"business_day": "2026-08-25T13:00:01+00:00"},
+            "Urecent-rest": {"card_day": old, "rest": "2026-09-09T10:00:00+08:00"},
+            "Ucutoff-rest": {"card_day": old, "rest": cutoff},
+            "Urecent-offset": {"card_day": "2026-08-25T13:00:01+00:00"},
             "Urecent-card": {"business_day": old, "card_day": "2026-09-08T10:00:00+08:00", "rest": old},
             "Urecent-walkin": {"card_day": old, "walkin_day": "2026-09-08T10:00:00+08:00"},
             "Ucutoff-card": {"card_day": cutoff, "walkin_day": old},
             "Ucutoff-walkin": {"card_day": old, "walkin_day": cutoff},
+            "Urecent-unknown": {"business_day": {"value": "unknown"}, "walkin_day": cutoff},
         }
         hints.state_path(conv).write_text(json.dumps({**expired, **retained}), encoding="utf-8")
         self.reply_to()
@@ -362,8 +380,8 @@ class HintTests(unittest.TestCase):
 
     def test_pruning_preserves_unknown_timestamps_without_blocking_reply(self):
         state = {
-            "Uinvalid": {"business_day": "unknown", "rest": "2026-08-01T10:00:00+08:00"},
-            "Unaive": {"business_day": "2026-08-01T10:00:00"},
+            "Uinvalid": {"card_day": "unknown", "rest": "2026-08-01T10:00:00+08:00"},
+            "Unaive": {"card_day": "2026-08-01T10:00:00"},
             "Uwrong-type": {"rest": 123},
             "Uinvalid-card": {"card_day": "unknown"},
             "Uinvalid-walkin": {"walkin_day": "unknown"},
@@ -374,7 +392,7 @@ class HintTests(unittest.TestCase):
             self.assertEqual(row, self.state()[uid])
 
     def test_failed_send_does_not_prune_existing_records(self):
-        state = {"Uold": {"business_day": "2026-08-01T10:00:00+08:00"}}
+        state = {"Uold": {"card_day": "2026-08-01T10:00:00+08:00"}}
         hints.state_path(conv).write_text(json.dumps(state), encoding="utf-8")
         self.accepted = False
         self.assertTrue(self.reply_to())
@@ -529,7 +547,7 @@ print(json.dumps({"accepted":ok, "cards":sum(m == conv.shop_card() for m in sent
 
     def test_two_customers_simultaneous_writes_preserve_both(self):
         self.at("2026-09-08T21:00")
-        expired = {"Uexpired": {"business_day": "2026-08-01T10:00:00+08:00",
+        expired = {"Uexpired": {"card_day": "2026-08-01T10:00:00+08:00",
                                  "rest": "2026-08-02T10:00:00+08:00"}}
         hints.state_path(conv).write_text(json.dumps(expired), encoding="utf-8")
         barrier = threading.Barrier(2)

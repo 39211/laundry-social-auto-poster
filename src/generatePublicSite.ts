@@ -52,6 +52,12 @@ interface GeneratePublicSiteOptions {
    * 有寫出的檔案內容與整站產線相同，只略過呼叫端不會讀的檔。
    */
   onlyDocsPaths?: readonly string[];
+  /**
+   * 僅供測試模擬「這些文章 id 可索引」。正式產生不傳，預設不啟用。
+   * 不改 renderPostArticle 的 indexable: false，文章頁 robots 仍是 noindex。
+   * 只讓 sitemap 與 strip 走「有可索引文章」那條路。
+   */
+  simulateIndexablePostIds?: readonly string[];
 }
 
 interface PublicPost {
@@ -4532,12 +4538,13 @@ function buildSitemapXml(index: PublicPostIndex): string {
         knowledgeHubUrl(index),
         ...Object.values(index.entrypoints.service_pages),
         ...Object.values(index.entrypoints.support_pages),
-        ...(indexablePostArticles(index).length > 0
-          ? [postsHubUrl(index), ...indexablePostArticles(index).map((post) => post.article_url)]
-          : [])
+        // 文章頁仍只在可索引時列入。清單頁 /posts 與 /posts/ 一律不進這份 sitemap。
+        ...indexablePostArticles(index)
+          .map((post) => post.article_url)
+          .filter((url) => !isPostsListingUrl(url))
       ]
     : [];
-  const uniqueUrls = Array.from(new Set(urls));
+  const uniqueUrls = Array.from(new Set(urls)).filter((url) => !isPostsListingUrl(url));
   const items = uniqueUrls.map((url) => sitemapUrlEntry(url, index)).join("\n");
 
   return [
@@ -4577,13 +4584,13 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
         { loc: index.entrypoints.feed, purpose: "updates-feed" },
         { loc: index.entrypoints.social_posts, purpose: "post-records" },
         { loc: index.entrypoints.latest, purpose: "latest-package" },
-        // Only articles that cleared the thickness gate carry index robots; the
-        // rest stay out of every sitemap so the two surfaces never contradict.
+        // 文章頁仍只在可索引時列入；RSS 也維持這個門檻。清單頁 /posts 與 /posts/ 一律不進。
         ...(indexablePostArticles(index).length > 0
           ? [
-              { loc: postsHubUrl(index), purpose: "daily-article-hub" },
               { loc: index.entrypoints.rss, purpose: "rss-feed" },
-              ...indexablePostArticles(index).map((post) => ({ loc: post.article_url, purpose: `daily-article-${post.id}` }))
+              ...indexablePostArticles(index)
+                .filter((post) => !isPostsListingUrl(post.article_url))
+                .map((post) => ({ loc: post.article_url, purpose: `daily-article-${post.id}` }))
             ]
           : []),
         ...allServiceImages(index).map((image) => ({ loc: image.image_url, purpose: `service-image-${image.source_type}` })),
@@ -4595,7 +4602,7 @@ function buildAiSitemapXml(index: PublicPostIndex): string {
   const seen = new Set<string>();
   const items = urls
     .filter((item) => {
-      if (seen.has(item.loc)) return false;
+      if (isPostsListingUrl(item.loc) || seen.has(item.loc)) return false;
       seen.add(item.loc);
       return true;
     })
@@ -4623,6 +4630,16 @@ function metaRobotsIsNoindex(html: string): boolean {
   return /\bnoindex\b/i.test(tag);
 }
 
+/** 清單頁本身。有無結尾斜線都算；`/posts/*.html` 文章頁不算。 */
+function isPostsListingUrl(url: string): boolean {
+  try {
+    const pathname = new URL(url, "https://sixiangjialaundry.com").pathname.replace(/\/+$/u, "") || "/";
+    return pathname === "/posts";
+  } catch {
+    return false;
+  }
+}
+
 /** `/posts/` hub 與 slot 文章。0 篇可索引時這兩份 sitemap 都不得收錄。 */
 function isPostsSurfaceUrl(url: string): boolean {
   try {
@@ -4634,20 +4651,21 @@ function isPostsSurfaceUrl(url: string): boolean {
 }
 
 /**
- * buildSitemapXml / buildAiSitemapXml 在 indexable_article_count === 0 時已略過 /posts/。
- * 之後 seo-overrides 會整檔蓋掉 sitemap（ai-sitemap 若存在也會），重建 union 會把 hub 帶回來。
- * 覆寫結束後再剝一次，重跑產生器也不會回彈。其他 URL 與 lastmod 保持原行。
+ * seo-overrides 可能整檔蓋掉 sitemap（ai-sitemap 若存在也會），重建 union 會把清單頁帶回來。
+ * 0 篇可索引：剝掉整個 /posts/*。
+ * 有可索引文章：仍剝掉清單頁 /posts 與 /posts/，文章 URL 留著。不得提早 return。
+ * 其他 URL 與 lastmod 保持原行。
  */
 async function stripUnindexablePostsFromSitemaps(
   index: PublicPostIndex,
   sitemapPath: string,
   aiSitemapPath: string
 ): Promise<void> {
-  if (indexablePostArticles(index).length > 0) return;
-  await Promise.all([sitemapPath, aiSitemapPath].map(stripPostsSurfaceUrlLines));
+  const shouldStrip = indexablePostArticles(index).length > 0 ? isPostsListingUrl : isPostsSurfaceUrl;
+  await Promise.all([sitemapPath, aiSitemapPath].map((filePath) => stripSitemapUrlLines(filePath, shouldStrip)));
 }
 
-async function stripPostsSurfaceUrlLines(filePath: string): Promise<void> {
+async function stripSitemapUrlLines(filePath: string, shouldStrip: (url: string) => boolean): Promise<void> {
   let xml = "";
   try {
     xml = await readFile(filePath, "utf8");
@@ -4659,7 +4677,7 @@ async function stripPostsSurfaceUrlLines(filePath: string): Promise<void> {
     .split("\n")
     .filter((line) => {
       const loc = line.match(/<loc>([^<]*)<\/loc>/u)?.[1];
-      return !loc || !isPostsSurfaceUrl(loc);
+      return !loc || !shouldStrip(loc);
     })
     .join("\n");
   if (next !== xml) await writeFile(filePath, next, "utf8");
@@ -6332,9 +6350,9 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   const render: PostArticleRender = {
     mainHtml,
     visibleChars,
-    // Hardcoded false per 2026-09-24 policy: all daily slot posts are noindex,follow
-    // to focus SEO on the curated service/guide pages. This keeps slot posts out of
-    // sitemap.xml and prevents the posts/ hub from appearing when no slots are indexable.
+    // 2026-09-24：每日 slot 文章固定 noindex,follow，把索引留給服務頁與指南。
+    // 這是字面 false，不是可預設成 true 的參數。文章頁是否進兩份 sitemap 仍只看這個值。
+    // /posts/ 清單頁另外一律 noindex，與這裡的篇數無關。
     indexable: false,
     reasons,
     faqs,
@@ -6344,7 +6362,12 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
   return render;
 }
 
+/** 測試用。正式路徑不寫入；文章頁的 indexable 仍是字面 false。 */
+const simulatedIndexablePostIds = new WeakMap<PublicPostIndex, ReadonlySet<string>>();
+
 function indexablePostArticles(index: PublicPostIndex): PublicPost[] {
+  const simulated = simulatedIndexablePostIds.get(index);
+  if (simulated) return sortedArticlePosts(index).filter((post) => simulated.has(post.id));
   return sortedArticlePosts(index).filter((post) => renderPostArticle(post, index).indexable);
 }
 
@@ -6410,7 +6433,6 @@ function buildPostsHubHtml(index: PublicPostIndex): string {
   const lineNav = trackedLineUrl(index, { section: "posts", slug: "hub", placement: "nav" });
   const lineCta = trackedLineUrl(index, { section: "posts", slug: "hub", placement: "cta" });
   const lineFooter = trackedLineUrl(index, { section: "posts", slug: "hub", placement: "footer" });
-  const indexable = new Set(indexablePostArticles(index).map((post) => post.id));
   const articles = sortedArticlePosts(index).sort((a, b) => (a.date < b.date ? 1 : -1));
   const lastmod = postsHubContentLastmod(index);
   const schema = buildPostsHubSchema(index);
@@ -6451,8 +6473,8 @@ function buildPostsHubHtml(index: PublicPostIndex): string {
     ${buildLegacyPathRedirectScript(index)}
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="${escapeHtml(POSTS_HUB_DESCRIPTION)}" />
-    <meta name="robots" content="${postRobotsContent(indexable.size > 0)}" />
-    <meta name="googlebot" content="${postRobotsContent(indexable.size > 0)}" />
+    <meta name="robots" content="${postRobotsContent(false)}" />
+    <meta name="googlebot" content="${postRobotsContent(false)}" />
     <meta name="author" content="${escapeHtml(profile.name)}" />
     <meta name="theme-color" content="#f7f8fb" />
     <link rel="canonical" href="${escapeHtml(canonical)}" />
@@ -8222,6 +8244,10 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     posts,
     article_posts: articlePosts
   };
+  const simulatedIds = options.simulateIndexablePostIds;
+  if (simulatedIds && simulatedIds.length > 0) {
+    simulatedIndexablePostIds.set(index, new Set(simulatedIds));
+  }
   index.open_graph = buildOpenGraph(index);
 
   const latestDate = index.latest_date;

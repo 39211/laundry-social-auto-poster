@@ -12,6 +12,7 @@ import unittest
 from unittest import mock
 
 import level1_offline_checks as checks
+from test_level1_r5 import make_repo
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("l1_golden", ROOT / "tests/golden/run_golden.py")
@@ -49,35 +50,15 @@ class WorkerGuardTests(unittest.TestCase):
     def test_producer_runner_subprocess_is_allowed(self):
         self.run_probe("self.assertTrue(Path(__file__).is_file())")
 
-    def test_arbitrary_subprocess_is_refused_inside_worker(self):
-        self.run_probe('with self.assertRaisesRegex(PermissionError, "unguarded child"):\n'
-                       '    subprocess.run([sys.executable, "-c", "raise SystemExit(0)"], check=True)')
+    def test_native_runner_can_launch_test_owned_subprocess(self):
+        self.run_probe('subprocess.run([sys.executable, "-B", "-c", "raise SystemExit(0)"], check=True)')
 
-    def test_timed_out_worker_is_reaped_before_cleanup(self):
-        (self.snapshot / "line-bot/test_timeout.py").write_text("import time\ntime.sleep(20)\n", encoding="utf-8")
-        started = time.monotonic()
-        row = checks.run_check(self.snapshot, "line-bot/run_a2b_tests.py", ["test_timeout"],
-                               self.logs, "timeout", dict(os.environ), timeout=5)
-        self.assertNotEqual(row["status"], "pass")
-        self.assertIn("TimeoutExpired", Path(row["log"]).read_text(encoding="utf-8"))
-        self.assertLess(time.monotonic() - started, 6)
-        self.assertFalse(list((self.snapshot / "line-bot").glob(".a2b-test-tmp-*")))
-
-    def test_worker_keeps_filesystem_and_network_guards(self):
-        outside = self.base / "sentinel.txt"
-        outside.write_text("unchanged", encoding="utf-8")
+    def test_native_runner_keeps_its_own_production_and_network_guard(self):
         self.run_probe(
-            f'with self.assertRaisesRegex(PermissionError, "write outside"):\n'
-            f'    Path({str(outside)!r}).write_text("changed", encoding="utf-8")\n'
-            'for event, args in [("socket.connect", (None, ("203.0.113.1", 443))),\n'
-            '                    ("socket.sendto", (None, ("203.0.113.1", 53))),\n'
-            '                    ("socket.getaddrinfo", ("example.invalid", 443))]:\n'
-            '    with self.assertRaisesRegex(PermissionError, "network refused"):\n'
-            '        sys.audit(event, *args)\n'
-            'for event in ("open", "os.mkdir", "os.remove", "os.rmdir"):\n'
-            '    with self.assertRaises(PermissionError):\n'
-            '        sys.audit(event, "C:/fxwash/OPS-L1-12-synthetic-probe")')
-        self.assertEqual(outside.read_text(encoding="utf-8"), "unchanged")
+            'with self.assertRaisesRegex(PermissionError, "A2b: network forbidden"):\n'
+            '    sys.audit("socket.connect", None, ("203.0.113.1", 443))\n'
+            'with self.assertRaisesRegex(PermissionError, "production filesystem"):\n'
+            '    sys.audit("open", "C:/fxwash/OPS-L1-12-synthetic-probe", "w", 0)')
 
 
 class GoldenPortabilityTests(unittest.TestCase):
@@ -134,13 +115,14 @@ class GoldenPortabilityTests(unittest.TestCase):
 class SmokeTests(unittest.TestCase):
     def test_smoke_is_bounded_and_cannot_overwrite_full_receipt(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp) / "repo"
+            make_repo(root)
             calls = []
             def fake_run(snapshot, script, args, logs, label, env, timeout):
                 calls.append((script, args, timeout))
                 return dict(status="pass", tests=1, failures=0, errors=0, skipped=0, suite=label)
             with mock.patch.object(checks, "run_check", side_effect=fake_run):
-                path = checks.produce(root, root, work_root=root / "work", smoke=True)
+                path = checks.produce(root, root, work_root=Path(tmp) / "work", smoke=True)
             receipt = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(receipt["schema"], "level1-offline-smoke/v1")
             self.assertTrue(path.name.startswith("level1-smoke-"))

@@ -40,7 +40,8 @@ const EXPECTED_COUNTS = {
 const MAIN_SHA256 = {
   "sticky-bag-lining": "805b489649b208a36ec7fcf7a9070682d1ba7b3ca1dcd6b5209bcda7ca0a8975",
   "suede-bag-care": "fd5d854736e94675df45f8ce6d8b2b29cb3981d19bb4e60b9304907e7e3dfa90",
-  "washing-machine-shoe-risk": "720bd2012a4347b888adc39a7601260dacb244dc98d800ef1ee42f480d370163",
+  // 這一筆不是 e890511a82b5b2f9300999a68c56cadebb92c1f6 的原文雜湊，而是該凍結原文把「東海無門市、全市可收送」換成「東海無門市、免費收送、沒有最低消費」之後的 stripped sha256。
+  "washing-machine-shoe-risk": "d3938c5892ac62acab854d2552338d9700be692611b951c6e71fba830b509492",
   "lambskin-bag-care": "427a03ce23140db27c7b16b2c8ebae57721174f6ab26e100140e46b81687de5c",
   "leather-belt-care": "74d82511a2e418f5fca6298ad31b7051739e365270b1111163152e504557a26e",
   "shoe-drying-heat-risk": "4204ca5917e2c2c6ec636568a1d3aed1b41e63610415aa7c335f232fa3be6833"
@@ -474,8 +475,14 @@ describe("O04 六個指南頁", () => {
       }
       const fromBaseline = gitBlob("e890511a82b5b2f9300999a68c56cadebb92c1f6", rel);
       if (fromBaseline !== undefined) {
-        expect(fromBaseline, slug).toBe(stripped);
-        expect(sha256(fromBaseline), slug).toBe(MAIN_SHA256[slug]);
+        if (slug === "washing-machine-shoe-risk") {
+          const expected = fromBaseline.replaceAll("東海無門市、全市可收送", "東海無門市、免費收送、沒有最低消費");
+          expect(stripped, slug).toBe(expected);
+          expect(sha256(stripped), slug).toBe(MAIN_SHA256[slug]);
+        } else {
+          expect(fromBaseline, slug).toBe(stripped);
+          expect(sha256(fromBaseline), slug).toBe(MAIN_SHA256[slug]);
+        }
       }
     });
   }

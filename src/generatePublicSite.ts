@@ -6552,6 +6552,11 @@ function buildRssXml(index: PublicPostIndex): string {
     .join("\n");
 }
 
+/** 貼文文件 title。og／twitter 仍只用 metaTopic；topic 已含店名時不再接上 ` | ${profile.name}`。 */
+export function postDocumentTitle(metaTopic: string, profileName: string): string {
+  return metaTopic.includes(profileName) ? metaTopic : `${metaTopic} | ${profileName}`;
+}
+
 function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
   const profile = index.business_profile;
   const postSource = { section: "posts" as const, date: post.date, slot: post.slot };
@@ -6607,7 +6612,7 @@ ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.vid
     <meta name="twitter:image" content="${escapeHtml(post.image_url)}" />
     ${schema ? `<script type="application/ld+json">${escapeJsonLd(schema)}</script>` : ""}
     <style>${buildPublicSiteCss()}</style>
-    <title>${escapeHtml(`${metaTopic} | ${profile.name}`)}</title>
+    <title>${escapeHtml(postDocumentTitle(metaTopic, profile.name))}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
     ${buildSearchContentAnalyticsTag(index, true)}
   </head>

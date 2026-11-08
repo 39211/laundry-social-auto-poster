@@ -3479,6 +3479,7 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
         if estimated is not None:
             return estimated
     elif event_type == "message":
+        ai_chat.observe_photo_subject(sys.modules[__name__], uid, text)
         # V2：找真人等轉接語句最優先（LAUNDRY_AI_CHAT=on 才生效），不清掉進行中的流程。
         handed = ai_chat.handoff_first(sys.modules[__name__], uid, text)
         if handed is not None:

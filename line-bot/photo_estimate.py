@@ -98,6 +98,7 @@ _UNSAFE_CLAUSE = re.compile(
     r"|[零〇一二兩三四五六七八九十百千萬]\s*(?:元|塊錢)"
     r"|(?<![A-Za-z])(?:NT|TWD)\s*\$?\s*\d"
     r"|\$\s*\d"
+    r"|(?:費用|收費|價格|價錢|報價|加價|清洗費|金額)[^，,。；;！？]*[\d零〇一二兩三四五六七八九十百千萬]"
     r"|https?://|www\."
     r"|[A-Za-z0-9-]+\.(?:com|net|org|tw|io|me|ly|cc|co|app|link)(?![A-Za-z])"
     r"|\+?886[\s-]?\d"
@@ -134,7 +135,10 @@ def scrub_clauses(text: str) -> str:
 
 
 def _field(value: str, limit: int) -> str:
-    text = clean_text(value, 1000).replace("*", "").replace("`", "").replace("#", "")
+    text = re.sub(r"[Ａ-Ｚａ-ｚ０-９]", lambda m: unicodedata.normalize("NFKC", m[0]), clean_text(value, 1000))
+    text = text.replace("*", "").replace("`", "").replace("#", "")
+    # Model prose cannot assert authenticity, identify itself, or invent shop facts.
+    text = re.sub(r"[^，,。；;！？、]*?(?:\bAI\b|人工智慧|人工智能|真品|正品|仿冒|假貨|保真)[^，,。；;！？、]*[，,。；;！？、]?", "", text, flags=re.I)
     return scrub_clauses(text)[:limit].strip(_EDGE_PUNCT)
 
 
@@ -236,18 +240,24 @@ def build_prompt(names: list[str]) -> str:
 
 
 def _merge_items(items: list[dict]) -> list[dict]:
-    """Merge repeated model rows so one photographed item is not charged twice."""
+    """Keep tariff totals and every physical item's diagnostic evidence separately."""
     merged = []
     positions = {}
     certainty_rank = {"clear": 0, "estimated": 1, "uncertain": 2}
     for item in items:
+        diagnoses = [dict((k, v) for k, v in part.items() if k != "diagnoses")
+                     for part in item.get("diagnoses", [item])]
         name = item.get("name") or ""
         if not name or name not in positions:
             if name:
                 positions[name] = len(merged)
-            merged.append(dict(item))
+            entry = dict(item)
+            if "diagnoses" in item:
+                entry["diagnoses"] = diagnoses
+            merged.append(entry)
             continue
         current = merged[positions[name]]
+        current.setdefault("diagnoses", [dict(current)]).extend(diagnoses)
         for field in PHOTO_TEXT_FIELDS:
             if not current.get(field) and item.get(field):
                 current[field] = item[field]
@@ -292,6 +302,8 @@ def validate_result(data: dict, names: set[str]) -> list[dict]:
         item = {"name": name, "label": label, "quantity": quantity, "certainty": certainty, "reason": reason}
         for field, limit in PHOTO_TEXT_FIELDS.items():
             item[field] = _field(row[field], limit)
+        if re.search(r"疑似|可能|不確定|看不清|無法辨|像是|應該", item["brand"]):
+            item["brand"] = ""
         if partial and not item["question"]:
             item["question"] = "可以補拍整件的照片嗎"
         out.append(item)
@@ -662,7 +674,6 @@ def _inventory(paths: list[Path], names: list[str], trace: _UsageTrace) -> dict:
     chain = model_chain()
     if not chain:
         return {"ok": False, "error": "invalid_model"}
-    model = chain[0]
     parts = [{"text": build_prompt(names)}]
     try:
         for path in paths:
@@ -679,7 +690,6 @@ def _inventory(paths: list[Path], names: list[str], trace: _UsageTrace) -> dict:
         body = {"contents": [{"role": "user", "parts": parts}],
                 "generationConfig": {"temperature": 0, "maxOutputTokens": 8192,
                                      "responseMimeType": "application/json", "responseJsonSchema": SCHEMA}}
-        result = None
         deadline = time.monotonic() + TOTAL_SECONDS
         last_error = "provider_timeout"
         trace.started = True
@@ -707,8 +717,18 @@ def _inventory(paths: list[Path], names: list[str], trace: _UsageTrace) -> dict:
                 with urllib.request.urlopen(req, timeout=max(3, min(PER_CALL_SECONDS, remaining))) as response:
                     trace.got_200 = True
                     result = json.loads(response.read(512_000))
-                model = use
-                break
+                candidate = result["candidates"][0]
+                if candidate.get("finishReason") != "STOP":
+                    raise ValueError("incomplete inventory")
+                content = "".join(part.get("text", "") for part in candidate["content"]["parts"] if not part.get("thought"))
+                data = json.loads(content)
+                if isinstance(data, list):
+                    data = {"items": data}
+                items = apply_roster_guard(validate_result(data, set(names)), set(names))
+                if time.monotonic() > deadline:
+                    trace.mark("timeout")
+                    return {"ok": False, "error": "provider_timeout"}
+                return {"ok": True, "items": items, "model": use}
             except urllib.error.HTTPError as exc:
                 trace.mark(_http_kind(exc.code))
                 last_error = f"provider_{exc.code}"
@@ -721,17 +741,11 @@ def _inventory(paths: list[Path], names: list[str], trace: _UsageTrace) -> dict:
                 last_error = "provider_timeout"
                 time.sleep(0.5)
                 continue
-        if result is None:
-            return {"ok": False, "error": last_error}
-        candidate = result["candidates"][0]
-        if candidate.get("finishReason") != "STOP":
-            raise ValueError("incomplete inventory")
-        content = "".join(part.get("text", "") for part in candidate["content"]["parts"] if not part.get("thought"))
-        data = json.loads(content)
-        if isinstance(data, list):
-            # Plain JSON mode (fallback model) may return the bare items array.
-            data = {"items": data}
-        return {"ok": True, "items": apply_roster_guard(validate_result(data, set(names)), set(names)), "model": model}
+            except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+                trace.mark("unusable")
+                last_error = "unavailable"
+                continue
+        return {"ok": False, "error": last_error}
     except urllib.error.HTTPError as exc:
         return {"ok": False, "error": f"provider_{exc.code}"}
     except Exception:

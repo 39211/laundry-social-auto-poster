@@ -35,7 +35,7 @@ class MobileReplyTests(unittest.TestCase):
         text = estimate.render(value)
         self.assertEqual(text.count("照片看到袖口灰漬"), 1)
         self.assertEqual(text.count("局部預處理"), 1)
-        self.assertRegex(text, r"第\s*1[–－-]30\s*件")
+        self.assertIn("襯衫（合成品牌一等 30 件，棉）：", text)
         self.assertIn("2,100", text)
         self.assertIn("30", text)
         self.assertNotIn("另外", text)
@@ -141,7 +141,7 @@ class MobileReplyTests(unittest.TestCase):
 
     def test_same_range_endpoints_are_one_approximate_amount(self):
         text = self.text(row("一般運動鞋", certainty="uncertain", reason="看不到洗標"))
-        self.assertIn("約 250 元", text)
+        self.assertIn("預估 250 元", text)  # r3 avoids repeating 約 before money and time.
         self.assertNotIn("250–250", text)
 
     def test_compact_budget_keeps_low_confidence_display_label(self):
@@ -166,7 +166,7 @@ class MobileReplyTests(unittest.TestCase):
         self.assertEqual(len(asked), 1)
         self.assertEqual(asked[0]["brand"], "品牌丆")
         self.assertIn(asked[0]["question"], estimate.render(value))
-        self.assertIn("第7件（品牌丆）：污漬多久了？", estimate.render(value))
+        self.assertIn("關於 品牌丆 襯衫，污漬多久了？", estimate.render(value))
 
 
 class FlowBudgetTests(unittest.TestCase):

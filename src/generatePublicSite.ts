@@ -4984,7 +4984,7 @@ function buildGeoTargetsJson(index: PublicPostIndex): object {
         pickup_delivery_fee: "free",
         cleaning_fee: "quoted separately after item review",
         booking_channel: "LINE",
-        note: "Citywide pickup and delivery does not mean cleaning is free."
+        note: "Free pickup and delivery does not mean cleaning is free."
       }
     },
     coordinates: {

@@ -310,7 +310,13 @@ def test_image_event_notifies_staff():
         content_type="application/json",
         headers={"X-Line-Signature": sig},
     )
-    assert r.status_code == 200, r.status_code
+    # The offline interceptor rejects the customer reply too. LINE-ACK r1 now
+    # requests redelivery consistently for image failures, while still saving
+    # the staff task and keeping the pending customer reply.
+    assert r.status_code == 503, r.status_code
+    import quote_flow
+    assert not quote_flow.reply_accepted(conv, "Uimgm8testxxxx", "1")
+    assert quote_flow.has_cached_reply(conv, "Uimgm8testxxxx", "1")
     after = sn.INBOX.read_text(encoding="utf-8") if sn.INBOX.exists() else ""
     assert "[客人傳了照片]" in after, after
     assert after != before

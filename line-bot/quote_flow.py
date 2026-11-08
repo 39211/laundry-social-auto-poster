@@ -8,11 +8,13 @@ import os
 import re
 import threading
 import uuid
+from contextlib import nullcontext
 from pathlib import Path
 from urllib.parse import parse_qs
 
 import estimate
 import photo_estimate
+import line_event_log as event_log
 
 PHOTOS_ROOT = (
     Path(os.environ["LAUNDRY_REPO_ROOT"]) / "data" / "photos"
@@ -35,26 +37,42 @@ def cached_reply(conv, uid, event_id):
     return ((conv._load_sess().get(uid) or {}).get("estimate_replies") or {}).get(event_id, [])
 
 
+def has_cached_reply(conv, uid, event_id):
+    """An intentional empty reply differs from a lost cache entry."""
+    return event_id in ((conv._load_sess().get(uid) or {}).get("estimate_replies") or {})
+
+
 def reply_accepted(conv, uid, event_id):
     return event_id in ((conv._load_sess().get(uid) or {}).get("estimate_reply_accepted") or [])
 
 
+@event_log.timed("storage")
 def mark_reply_accepted(conv, uid, event_id):
-    row = conv._load_sess().get(uid) or {}
-    accepted = list(row.get("estimate_reply_accepted") or [])
-    replies = row.get("estimate_replies") or {}
-    replies.pop(event_id, None)
-    conv.set_sess(uid, estimate_reply_accepted=(accepted + [event_id])[-100:], estimate_replies=replies)
+    if not event_id:
+        return
+    # Same lock order as quote processing. Include the read, not just set_sess.
+    with _lock(uid), getattr(conv, "_SESSION_LOCK", nullcontext()):
+        row = conv._load_sess().get(uid) or {}
+        accepted = list(row.get("estimate_reply_accepted") or [])
+        replies = dict(row.get("estimate_replies") or {})
+        replies.pop(event_id, None)
+        if event_id not in accepted:
+            accepted.append(event_id)
+        conv.set_sess(uid, estimate_reply_accepted=accepted[-100:], estimate_replies=replies)
 
 
+@event_log.timed("storage")
 def _remember(conv, uid, event_id, messages=None):
     if event_id:
-        row = conv._load_sess().get(uid) or {}
-        events = list(row.get("estimate_events") or [])
-        replies = row.get("estimate_replies") or {}
-        if messages is not None:
-            replies[event_id] = messages
-        conv.set_sess(uid, estimate_events=(events + [event_id])[-100:], estimate_replies=dict(list(replies.items())[-100:]))
+        with _lock(uid), getattr(conv, "_SESSION_LOCK", nullcontext()):
+            row = conv._load_sess().get(uid) or {}
+            events = list(row.get("estimate_events") or [])
+            replies = dict(row.get("estimate_replies") or {})
+            if messages is not None:
+                replies[event_id] = messages
+            if event_id not in events:
+                events.append(event_id)
+            conv.set_sess(uid, estimate_events=events[-100:], estimate_replies=dict(list(replies.items())[-100:]))
 
 
 def _result(messages, staff_pushed=False):
@@ -292,9 +310,13 @@ def handle_postback(conv, uid, data, event_id=""):
         else:
             draft = _fresh(conv, uid, conv.get_sess(uid).get("estimate_draft"))
             if not draft or not draft.get("lines"):
-                return [conv.text_msg("這份估價已經沒有內容，請重新傳品項或照片。")]
+                messages = [conv.text_msg("這份估價已經沒有內容，請重新傳品項或照片。")]
+                _remember(conv, uid, event_id, messages)
+                return messages
             if values.get("revision", [""])[0] != str(draft["revision"]) or values.get("case", [""])[0] != draft.get("case_id"):
-                return [conv.text_msg("清單有更新，先看這份最新的。確認後再按下方按鈕。"), *_show(conv, draft)]
+                messages = [conv.text_msg("清單有更新，先看這份最新的。確認後再按下方按鈕。"), *_show(conv, draft)]
+                _remember(conv, uid, event_id, messages)
+                return messages
             if action == "estimate_send":
                 if conv.get_sess(uid).get("estimate_sent_revision") != draft["revision"]:
                     _notify(conv, uid, "estimate", draft=draft)
@@ -304,6 +326,8 @@ def handle_postback(conv, uid, data, event_id=""):
                 items = "、".join(f"{x['name']} {x['quantity'] if x['quantity'] is not None else '待確認'}{x['unit']}" for x in draft["lines"])
                 conv.set_sess(uid, pickup_item=items, estimate_for_pickup={"case": _case(conv, uid), "revision": draft["revision"]})
             else:
-                return [conv.text_msg("這個選項已更新，請用最新估價下方的按鈕。")]
+                messages = [conv.text_msg("這個選項已更新，請用最新估價下方的按鈕。")]
+                _remember(conv, uid, event_id, messages)
+                return messages
         _remember(conv, uid, event_id, messages)
         return messages

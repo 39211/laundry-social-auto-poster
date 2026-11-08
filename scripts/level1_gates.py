@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Level-1 gate tracker (task card L1-1: single shop usable every day).
+"""Read-only Level-1 checklist (OPS-L1-12), with the legacy three metrics.
 
-Evaluates one Asia/Taipei calendar date (default: yesterday) against the owner's
-three Level-1 conditions, writes output/operations/level1-gates-<date>.json and
-rebuilds reports/level1-gates.md (newest first, last 30 days, current streaks).
+Evaluates twelve gates for one completed Taipei date (default: yesterday).
+Writes output/operations/level1-gates-<date>.json and reports/level1-gates.md.
+--out-root separates all output from read-only live sources. Missing evidence
+is no_data; item 11 stays not_ready. Three full calendar days plus complete
+zero-customer-impact incident receipts are required. Legacy APIs below keep
+their old seven-day semantics for existing consumers, not release acceptance.
 
   1. freshness: max gap between successful MDB pulls inside that day's opening
      hours (opening -> first pull, pull -> pull, last pull -> closing) <= 60 min.
@@ -33,7 +36,17 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from publish_recovery_report import recovery_summary
 
-RULES_VERSION = 1
+RULES_VERSION = 2
+CHECKLIST_TARGET = 3
+CHECKLIST_STATUSES = ("pass", "fail", "no_data", "not_ready", "not_applicable")
+CHECKLIST_TITLES = {
+    "1": "夜間 AI 準時接手與交還", "2": "客人訊息都有回覆或轉真人",
+    "3": "對客事實與黃金對話", "4": "估價、照片與寢具流程",
+    "5": "轉真人送到店員", "6": "到件通知送出與綁定改善",
+    "7": "到件通知零重發與零誤發", "8": "營業時間資料間隔不超過 60 分",
+    "9": "當天排程貼文全部發出", "10": "貼文失敗已重試成功或通知送達",
+    "11": "重開機自動恢復與停機通知", "12": "23:40 有當晚新報告",
+}
 STREAK_TARGET = 7
 REPORT_DAYS = 30
 MAX_STREAK_WALK = 3660
@@ -62,7 +75,7 @@ class PolicyError(ValueError):
 
 
 class Paths:
-    def __init__(self, root, mdb_log=None, hours_module=None):
+    def __init__(self, root, mdb_log=None, hours_module=None, out_root=None):
         root = Path(root)
         self.root = root
         self.policy = root / "data" / "publishing-policy.json"
@@ -75,8 +88,9 @@ class Paths:
         else:
             base = os.environ.get("LOCALAPPDATA")
             self.mdb_log = Path(base) / "line-bot" / "mdb_pull.jsonl" if base else None
-        self.ops_dir = root / "output" / "operations"
-        self.report = root / "reports" / "level1-gates.md"
+        self.out_root = Path(out_root) if out_root else root
+        self.ops_dir = self.out_root / "output" / "operations"
+        self.report = self.out_root / "reports" / "level1-gates.md"
 
 
 # ---------------------------------------------------------------- io helpers
@@ -115,7 +129,8 @@ def load_hours_module(path):
     if spec is None or spec.loader is None:
         raise ImportError("cannot load hours helpers")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    # exec_module may write __pycache__ beside a read-only/live input module.
+    exec(compile(Path(path).read_text(encoding="utf-8-sig"), str(path), "exec"), module.__dict__)
     return module
 
 
@@ -482,12 +497,290 @@ def evaluate_posts(day, policy, posted_log_path, assets_root=None):
     return result
 
 
+# ----------------------------------------------------------- 12-item checklist
+
+def _gate(status, reason, evidence, **details):
+    return {**_result(status, reason, **details), "evidence": [str(p) for p in evidence]}
+
+
+def _daily(path, day):
+    state, value = load_json(path)
+    return value if state == "ok" and isinstance(value, dict) and value.get("date") == str(day) else None
+
+
+def evaluate_service(day, path):
+    data = _daily(path, day)
+    missing = "缺每日接手、交還與完整停機區間；tunnel 事件不能證明全天可用"
+    if data is None or data.get("complete") is not True:
+        return _gate("no_data", missing, [path])
+    start = datetime.combine(day, datetime.min.time(), TAIPEI_FALLBACK)
+    end = start + timedelta(days=1)
+    if (parse_ts(data.get("coverage_start"), TAIPEI_FALLBACK) != start
+            or parse_ts(data.get("coverage_end"), TAIPEI_FALLBACK) != end
+            or not _valid_count(data.get("max_downtime_seconds"))):
+        return _gate("no_data", "停機統計沒有涵蓋完整一天或秒數缺漏", [path])
+    if day.weekday() != 6:
+        expected_takeover = start.replace(hour=18 if day.weekday() == 5 else 20, minute=5)
+        expected_handover = start.replace(hour=9, minute=50)
+        actual_takeover = parse_ts(data.get("takeover_at"), TAIPEI_FALLBACK)
+        actual_handover = parse_ts(data.get("handover_at"), TAIPEI_FALLBACK)
+        if actual_takeover is None or actual_handover is None:
+            return _gate("no_data", "缺接手或交還的實際時間", [path])
+        if (actual_takeover.replace(second=0, microsecond=0) != expected_takeover
+                or actual_handover.replace(second=0, microsecond=0) != expected_handover):
+            return _gate("fail", "接手或交還沒有在指定分鐘完成", [path])
+    seconds = data["max_downtime_seconds"]
+    return _gate("pass" if seconds <= 300 else "fail",
+                 "{0}最大停機 {1} 秒".format("週日全天 AI；" if day.weekday() == 6 else "準時接手交還；", seconds),
+                 [path], max_downtime_seconds=seconds)
+
+
+def evaluate_accounting(day, path, usage_path):
+    # Deliberately never open line-unanswered, sessions, inbox, webhook logs or
+    # by_intent. line-usage counts decisions, not received/delivered events.
+    data = _daily(path, day)
+    evidence = [path, usage_path]
+    allowed = {"date", "complete", "received", "replied", "to_staff"}
+    if (data is None or set(data) != allowed or data.get("complete") is not True
+            or not all(_valid_count(data.get(k)) for k in ("received", "replied", "to_staff"))):
+        return _gate("no_data", "缺完整收訊、回覆送達與轉真人的互斥筆數；usage 分類不能代替送達證據", evidence)
+    received, replied, staff = (data[k] for k in ("received", "replied", "to_staff"))
+    answered = replied + staff
+    if answered > received:
+        return _gate("no_data", "回覆與轉真人筆數超過收訊，統計互相矛盾", evidence)
+    unanswered = received - answered
+    return _gate("pass" if unanswered == 0 else "fail",
+                 "收訊 {0}、回覆 {1}、轉真人 {2}、沒回 {3} 筆".format(received, replied, staff, unanswered),
+                 evidence, received=received, replied=replied, to_staff=staff, unanswered=unanswered)
+
+
+def evaluate_test_evidence(day, path, keys, now):
+    data = _daily(path, day)
+    if (data is None or data.get("schema") != "level1-offline-checks/v1"
+            or data.get("offline") is not True or not isinstance(data.get("checks"), dict)):
+        return _gate("no_data", "缺暫存複本離線測試結果，不能用 runner 退出碼當全綠", [path])
+    generated = parse_ts(data.get("generated_at"), TAIPEI_FALLBACK)
+    if generated is None or generated.date() != day or generated > now:
+        return _gate("no_data", "測試證據不是該日產生或時間無法核對，不能回填歷史通過", [path])
+    states = []
+    total = 0
+    for key in keys:
+        row = data["checks"].get(key)
+        if (not isinstance(row, dict) or row.get("status") not in ("pass", "fail", "no_data")
+                or not all(_valid_count(row.get(k)) for k in ("tests", "failures", "errors", "skipped"))):
+            states.append("no_data")
+            continue
+        total += row["tests"]
+        if row["failures"] or row["errors"] or row["status"] == "fail":
+            states.append("fail")
+        elif row["tests"] == 0 or row["skipped"] or row["status"] != "pass":
+            states.append("no_data")
+        else:
+            states.append("pass")
+    status = "fail" if "fail" in states else "no_data" if "no_data" in states else "pass"
+    reason = {"pass": "離線測試全部通過，共 {0} 例".format(total),
+              "fail": "離線測試有失敗或錯誤，已保留結果檔", "no_data": "測試結果有缺漏、跳過或沒有實際案例"}[status]
+    return _gate(status, reason, [path], tests=total, suites=list(keys))
+
+
+def _business(day, config, hours):
+    return None if config is None or hours is None else hours.day_window_for(day, config) is not None
+
+
+def evaluate_notify_delivery(day, paths, config, hours):
+    path = paths.gates_dir / "notify-{0}.json".format(day)
+    business = _business(day, config, hours)
+    data = _daily(path, day)
+    if business is False and (data is None or data.get("sent") == 0):
+        return _gate("not_applicable", "公休日沒有到件通知需求", [path, paths.handover])
+    if business is None or data is None or not all(_valid_count(data.get(k)) for k in ("sent", "no_binding", "abandoned")):
+        return _gate("no_data", "缺店機每日 sent、no_binding、abandoned 或營業時間", [path, paths.handover])
+    if data.get("outbox") == "missing" or data.get("corrupt_lines", 0) != 0:
+        return _gate("no_data", "店機通知來源缺漏或有損毀行，不能當零", [path])
+    if data["sent"] == 0:
+        return _gate("fail", "營業日沒有發出到件通知；未綁定 {0} 筆".format(data["no_binding"]), [path])
+    previous = day - timedelta(days=1)
+    for _ in range(14):
+        if _business(previous, config, hours):
+            break
+        previous -= timedelta(days=1)
+    prior_path = paths.gates_dir / "notify-{0}.json".format(previous)
+    prior = _daily(prior_path, previous)
+    evidence = [path, prior_path]
+    if (prior is None or not all(_valid_count(prior.get(k)) for k in ("sent", "no_binding", "abandoned"))
+            or prior.get("outbox") == "missing" or prior.get("corrupt_lines", 0) != 0):
+        return _gate("no_data", "缺前一營業日未綁定比例，無法判斷有沒有下降", evidence)
+    denominator = sum(data[k] for k in ("sent", "no_binding", "abandoned"))
+    prior_denominator = sum(prior[k] for k in ("sent", "no_binding", "abandoned"))
+    if prior_denominator == 0:
+        return _gate("no_data", "前一營業日沒有通知樣本，不能用零當比較基準", evidence)
+    improved = data["no_binding"] == 0 or data["no_binding"] * prior_denominator < prior["no_binding"] * denominator
+    return _gate("pass" if improved else "fail",
+                 "已發 {0} 則；未綁定 {1}/{2}，前一營業日 {3}/{4}{5}".format(
+                     data["sent"], data["no_binding"], denominator, prior["no_binding"], prior_denominator,
+                     "（下降或維持零）" if improved else "（沒有下降）"), evidence)
+
+
+def evaluate_notify_safety(day, path, config, hours):
+    data = _daily(path, day)
+    if data is None:
+        if _business(day, config, hours) is False and not path.exists():
+            return _gate("not_applicable", "公休日沒有到件通知需求", [path])
+        return _gate("no_data", "缺店機重發與誤發統計", [path])
+    for key in ("duplicates", "wrong_sends"):
+        if _valid_count(data.get(key)) and data[key] > 0:
+            return _gate("fail", "到件通知{0} {1} 筆".format("重發" if key == "duplicates" else "誤發", data[key]), [path])
+    if data.get("wrong_sends_basis") == "auto_duplicate_deliveries":
+        return _gate("no_data", "目前 wrong_sends 只量重發；缺寄錯對象的獨立核對與完整性證據", [path])
+    if (not all(_valid_count(data.get(k)) for k in ("sent", "duplicates", "wrong_sends"))
+            or data.get("outbox") == "missing" or data.get("corrupt_lines") != 0):
+        return _gate("no_data", "通知來源完整性或零重發、零誤發數字缺漏", [path])
+    if data.get("wrong_sends_basis") != "reviewed_all_deliveries":
+        return _gate("no_data", "目前 wrong_sends 只量重發；缺寄錯對象的獨立核對", [path], duplicates=data["duplicates"])
+    return _gate("pass", "已核對零重發、零誤發", [path])
+
+
+def evaluate_recovery(day, paths):
+    iso = str(day)
+    receipt_paths = sorted(paths.gates_dir.glob("publish-recovery-{0}-slot*-*.json".format(iso)))
+    posted = paths.posted_log_dir / (iso + ".json")
+    evidence = receipt_paths or [paths.gates_dir / ("publish-recovery-" + iso + "-slot*-*.json"), posted]
+    unresolved = set()
+    state, rows = load_json(posted)
+    succeeded = set()
+    if state == "ok" and isinstance(rows, list):
+        for row in rows:
+            if not isinstance(row, dict) or row.get("dry_run") is not False or row.get("date", iso) != iso:
+                continue
+            slot, platform = _row_slot(row.get("slot")), row.get("platform")
+            if slot is None or platform not in ("facebook", "instagram"):
+                continue
+            pair = (slot, platform)
+            if row.get("status") == "success":
+                succeeded.add(pair)
+            elif row.get("status") in ("failed", "uncertain"):
+                unresolved.add(pair)
+    unresolved -= succeeded
+    handled = set()
+    invalid = False
+    failed = False
+    for path in receipt_paths:
+        match = re.fullmatch(r"publish-recovery-(\d{4}-\d{2}-\d{2})-slot([1-3])-(facebook|instagram)\.json", path.name)
+        data = _daily(path, day)
+        if (match is None or data is None or data.get("slot") != int(match[2]) or data.get("platform") != match[3]
+                or data.get("status") not in ("needs_manual", "retry_pending", "retry_claimed", "resolved")
+                or not _valid_count(data.get("retry_attempts")) or data["retry_attempts"] > 1):
+            invalid = True
+            continue
+        if ((data["status"] == "resolved" and data["retry_attempts"] == 1)
+                or data.get("notification") == "delivered"):
+            handled.add((int(match[2]), match[3]))
+        else:
+            failed = True
+    if failed or unresolved - handled:
+        return _gate("fail", "貼文失敗尚未重試成功，也沒有通知送達證據", evidence)
+    if invalid:
+        return _gate("no_data", "補發結果檔無法核對身分、次數或狀態", evidence)
+    if not handled:
+        return _gate("no_data", "當天沒有補發或通知送達結果，尚未驗證失敗處理", evidence)
+    return _gate("pass", "{0} 筆失敗處理已重試成功或通知送達".format(len(handled)), evidence)
+
+
+def evaluate_restart(day, path):
+    # OPS-L1-12: deployment is explicitly not ready. No file or test can override this.
+    return _gate("not_ready", "尚未上線：重開機自動恢復與停機通知還沒完成", [path])
+
+
+def evaluate_nightly(day, path):
+    data = _daily(path, day)
+    if data is None or not isinstance(data.get("generated_at"), str):
+        return _gate("no_data", "缺當晚日結報告或產出時間", [path])
+    value = data["generated_at"]
+    try:
+        stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        stamp = stamp.replace(tzinfo=TAIPEI_FALLBACK) if stamp.tzinfo is None else stamp.astimezone(TAIPEI_FALLBACK)
+    except ValueError:
+        return _gate("no_data", "日結報告產出時間無法核對", [path])
+    if stamp.date() != day:
+        return _gate("no_data", "報告日期與實際產出日期不符，不能沿用舊報告", [path])
+    on_time = (stamp.hour, stamp.minute) == (23, 40)
+    return _gate("pass" if on_time else "fail", "當晚報告於 {0:%H:%M} 產出{1}".format(
+        stamp, "" if on_time else "，未在 23:40 這一分鐘"), [path], generated_at=stamp.isoformat())
+
+
+def evaluate_incidents(day, path):
+    data = _daily(path, day)
+    if data is None or data.get("complete") is not True or not _valid_count(data.get("customer_affected")):
+        return _gate("no_data", "缺完整客人受影響事故統計，不能宣稱上線無事故", [path])
+    count = data["customer_affected"]
+    return _gate("pass" if count == 0 else "fail", "客人受影響事故 {0} 件".format(count), [path], customer_affected=count)
+
+
+def evaluate_checklist(day, paths, hours, config, now, conditions=None):
+    iso = str(day)
+    gate = lambda name: paths.gates_dir / (name + "-" + iso + ".json")
+    check_path = paths.root / "output" / "operations" / ("level1-checks-" + iso + ".json")
+    state, policy = load_json(paths.policy)
+    freshness = (conditions or {}).get("freshness") or evaluate_freshness(day, config, hours, read_pull_log(paths.mdb_log))
+    freshness = {**freshness, "evidence": [str(paths.mdb_log or "mdb_pull.jsonl"), str(paths.handover)]}
+    if freshness["status"] == "not_required":
+        freshness["status"] = "not_applicable"
+    # Preserve the existing commander-defined produced-slot schedule and OPS-L1-10
+    # recovery override; this card extends acceptance, not publishing policy.
+    posts = dict((conditions or {}).get("posts") or evaluate_posts(
+        day, policy if state == "ok" else None, paths.posted_log_dir / (iso + ".json"),
+        assets_root=paths.root / "docs" / "assets"))
+    posts["evidence"] = [str(paths.policy), str(paths.posted_log_dir / (iso + ".json")),
+                         str(paths.root / "docs" / "assets" / iso)]
+    if posts["status"] == "not_required":
+        posts["status"] = "not_applicable"
+    return {
+        "1": evaluate_service(day, gate("ai-service")),
+        "2": evaluate_accounting(day, gate("line-accounting"), paths.root / "data" / "line-usage" / (iso + ".json")),
+        "3": evaluate_test_evidence(day, check_path, ("copy_audit", "golden"), now),
+        "4": evaluate_test_evidence(day, check_path, ("line_full",), now),
+        "5": evaluate_test_evidence(day, check_path, ("handoff",), now),
+        "6": evaluate_notify_delivery(day, paths, config, hours),
+        "7": evaluate_notify_safety(day, gate("notify"), config, hours),
+        "8": freshness, "9": posts, "10": evaluate_recovery(day, paths),
+        "11": evaluate_restart(day, gate("restart")),
+        "12": evaluate_nightly(day, paths.root / "output" / "day-reports" / (iso + ".json")),
+    }
+
+
+def _check_status(evaluation, key):
+    checklist = evaluation.get("checklist")
+    item = checklist.get(key) if isinstance(checklist, dict) else None
+    return item.get("status", "no_data") if isinstance(item, dict) else "no_data"
+
+
+def _day_passed(evaluation):
+    return (isinstance(evaluation, dict) and evaluation.get("rules_version") == RULES_VERSION
+            and all(_check_status(evaluation, key) in ("pass", "not_applicable") for key in CHECKLIST_TITLES)
+            and (evaluation.get("incidents") or {}).get("status") == "pass")
+
+
+def checklist_summary(evaluations, newest=None):
+    newest = newest if newest is not None else max(evaluations, default=None)
+    latest = evaluations.get(newest, {})
+    passed = sum(_check_status(latest, key) in ("pass", "not_applicable") for key in CHECKLIST_TITLES)
+    count, cursor = 0, newest
+    while cursor is not None and count < MAX_STREAK_WALK:
+        if not _day_passed(evaluations.get(cursor)):
+            break
+        count += 1
+        cursor -= timedelta(days=1)
+    return {"newest": newest, "passed": passed, "day_passed": _day_passed(latest),
+            "consecutive_days": count, "met": count >= CHECKLIST_TARGET,
+            "blocked": [key for key in CHECKLIST_TITLES if _check_status(latest, key) not in ("pass", "not_applicable")]}
+
+
 # ------------------------------------------------------------ day + streaks
 
 def evaluate_day(day, paths, hours, config, now):
     iso = day.isoformat()
     policy_state, policy = load_json(paths.policy)
-    return {
+    evaluation = {
         "date": iso,
         "rules_version": RULES_VERSION,
         "generated_at": now.isoformat(timespec="seconds"),
@@ -506,6 +799,9 @@ def evaluate_day(day, paths, hours, config, now):
                                     assets_root=Path(paths.root) / "docs" / "assets"),
         },
     }
+    evaluation["checklist"] = evaluate_checklist(day, paths, hours, config, now, evaluation["conditions"])
+    evaluation["incidents"] = evaluate_incidents(day, paths.gates_dir / ("incidents-" + iso + ".json"))
+    return evaluation
 
 
 def load_evaluations(ops_dir):
@@ -525,6 +821,13 @@ def load_evaluations(ops_dir):
         state, data = load_json(path)
         if state == "ok" and isinstance(data, dict) and data.get("date") == stem \
                 and isinstance(data.get("conditions"), dict):
+            checklist = data.get("checklist")
+            if isinstance(checklist, dict):
+                # Cached/self-reported green cannot enable a feature explicitly
+                # declared not deployed. Keep the disk receipt untouched.
+                checklist["11"] = evaluate_restart(day, "data/gates/restart-{0}.json".format(stem))
+            elif "checklist" in data:
+                data["checklist"] = {}
             out[day] = data
     return out
 
@@ -575,7 +878,7 @@ def _cell(evaluation, condition):
     return "{0}:{1}".format(status, reason) if reason else status
 
 
-def render_report(evaluations, now):
+def _render_legacy_report(evaluations, now):
     summary = level1_summary(evaluations)
     newest = summary["newest"]
     lines = [
@@ -620,18 +923,58 @@ def render_report(evaluations, now):
     return "\n".join(lines) + "\n"
 
 
+def _plain(value):
+    return str(value).replace("|", "/").replace("\r", " ").replace("\n", " ")
+
+
+def render_report(evaluations, now, newest=None):
+    summary = checklist_summary(evaluations, newest)
+    day = summary["newest"]
+    latest = evaluations.get(day, {})
+    lines = ["# Level 1 每日 12 項驗收", "",
+             "截至 {0}：12 項有 {1} 項算過，{2} 項未過。連續全過 {3} 天（目標 3 天）。".format(
+                 day or "尚無已結束日期", summary["passed"], 12-summary["passed"], summary["consecutive_days"]), ""]
+    for key in summary["blocked"]:
+        item = (latest.get("checklist") or {}).get(key, {})
+        lines.append("- 第 {0} 項：{1}。".format(key, _plain(item.get("reason", "缺該日檢查資料"))))
+    incident = latest.get("incidents") or {"status": "no_data", "reason": "缺完整客人受影響事故統計"}
+    if incident.get("status") != "pass":
+        lines.append("- 無事故條件：{0}。".format(_plain(incident.get("reason", "無法確認"))))
+    lines += ["", "## Level 1:{0}".format("已達成" if summary["met"] else "未達成"), "",
+              "12 項全部 pass / not_applicable，且有完整零客人受影響事故統計，才算當天過。",
+              "fail、no_data、not_ready、漏日期或舊版三項紀錄都會中斷連續天數；未提供資料不等於零。",
+              "第 11 項尚未上線，固定未就緒；目前不能達成連 3 天。", "",
+              "更新：{0}".format(now.isoformat(timespec="seconds")), "",
+              "| 項目 | 結果 | 白話原因 | 證據路徑 |", "|---|---|---|---|"]
+    for key, title in CHECKLIST_TITLES.items():
+        item = (latest.get("checklist") or {}).get(key, {})
+        lines.append("| {0}. {1} | {2} | {3} | {4} |".format(
+            key, title, _check_status(latest, key), _plain(item.get("reason", "缺該日檢查資料")),
+            "；".join(_plain(p) for p in item.get("evidence", []))))
+    lines += ["", "## 最近每日驗收", "", "| 日期 | 算過項目 | 當天全過且無事故 |", "|---|---|---|"]
+    if day is not None:
+        for when in sorted((d for d in evaluations if day-timedelta(days=REPORT_DAYS-1) <= d <= day), reverse=True):
+            daily = checklist_summary({when: evaluations[when]}, when)
+            lines.append("| {0} | {1}/12 | {2} |".format(when, daily["passed"], "是" if daily["day_passed"] else "否"))
+    legacy = _render_legacy_report({d: v for d, v in evaluations.items() if day is None or d <= day}, now)
+    legacy = legacy[legacy.index("## Level 1:"):].replace("## Level 1:", "### 舊版三項趨勢:", 1)
+    lines += ["", "## 舊版三項趨勢（相容資料，不能當 12 項驗收）", "", legacy.rstrip()]
+    return "\n".join(lines) + "\n"
+
+
 # ----------------------------------------------------------------------- main
 
 def main(argv=None, now=None):
     parser = argparse.ArgumentParser(description="Level-1 gate tracker (task card L1-1)")
     parser.add_argument("date", nargs="?", help="YYYY-MM-DD (default: yesterday in Asia/Taipei)")
     parser.add_argument("--root", help="repo root holding data/, line-bot/, output/, reports/")
+    parser.add_argument("--out-root", help="separate output root; --root remains read-only")
     parser.add_argument("--mdb-log", help="override path of mdb_pull.jsonl")
     parser.add_argument("--hours-module", help="override path of line-bot/tunnel_manager.py")
     args = parser.parse_args(argv)
 
     root = Path(args.root or os.environ.get("LEVEL1_GATES_ROOT") or DEFAULT_ROOT)
-    paths = Paths(root, mdb_log=args.mdb_log, hours_module=args.hours_module)
+    paths = Paths(root, mdb_log=args.mdb_log, hours_module=args.hours_module, out_root=args.out_root)
     hours = None
     try:
         hours = load_hours_module(paths.hours_module)
@@ -661,14 +1004,14 @@ def main(argv=None, now=None):
     out_path = paths.ops_dir / "level1-gates-{0}.json".format(target.isoformat())
     atomic_write(out_path, json.dumps(evaluation, ensure_ascii=False, indent=1) + "\n")
     evaluations = load_evaluations(paths.ops_dir)
-    atomic_write(paths.report, render_report(evaluations, now))
+    atomic_write(paths.report, render_report(evaluations, now, target))
 
-    summary = level1_summary(evaluations)
+    summary = checklist_summary(evaluations, target)
     print("level1-gates {0} (generated {1})".format(target.isoformat(), now.isoformat(timespec="seconds")))
-    for condition in CONDITIONS:
-        result = evaluation["conditions"][condition]
-        print("  {0}: {1} - {2} (streak {3})".format(condition, result["status"], result["reason"],
-                                                     summary["streaks"][condition]))
+    for key in CHECKLIST_TITLES:
+        result = evaluation["checklist"][key]
+        print("  {0}: {1} - {2}".format(key, result["status"], result["reason"]))
+    print("  consecutive_days: {0}; incidents: {1}".format(summary["consecutive_days"], evaluation["incidents"]["status"]))
     print("  level1_met: {0}".format(summary["met"]))
     return 0
 

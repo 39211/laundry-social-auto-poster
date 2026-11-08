@@ -8,6 +8,7 @@ import hmac
 import importlib
 import json
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import line_webhook as lw
@@ -118,6 +119,9 @@ def test_handoff_state_claim_release_and_event_dedup():
 
 def test_webhook_handoff_stops_ai_records_all_event_types_and_resumes():
     tmp, original = _patch_store()
+    original_clock = lw.conv.now_tw
+    # 此案例驗證解除接手，固定在營業中；休息提示另由 test_reply_hints 以假時鐘驗。
+    lw.conv.now_tw = lambda: datetime(2026, 9, 8, 14, tzinfo=lw.conv.TZ)
     try:
         uid = "Uhandoff-webhook"
         sn.push_inbox(
@@ -226,6 +230,7 @@ def test_webhook_handoff_stops_ai_records_all_event_types_and_resumes():
         assert response.status_code == 200
         assert calls == [[{"type": "text", "text": "人工已解除，我來幫你看。"}]], calls
     finally:
+        lw.conv.now_tw = original_clock
         lw.conv.handle_ex = original_handle_ex
         lw.conv.handle_postback = original_handle_postback
         _restore_store(original)

@@ -202,7 +202,12 @@ def line_webhook():
     failed_estimate_replies = []
 
     def respond(reply_token, messages):
-        accepted = reply(reply_token, messages)
+        deliver = getattr(conv, "reply_with_hints", None)
+        if callable(deliver) and reply_token and messages:
+            incoming = (ev.get("message") or {}).get("text") or ""
+            accepted = deliver(uid, incoming, messages, lambda outgoing: reply(reply_token, outgoing))
+        else:
+            accepted = reply(reply_token, messages)
         if quote_flow.seen_event(conv, uid, event_id):
             if accepted is False:
                 failed_estimate_replies.append(event_id)

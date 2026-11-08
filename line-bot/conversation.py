@@ -20,6 +20,7 @@ import intents
 import quote_flow
 import journey_ux
 import ai_chat
+import reply_hints
 
 _SESSION_LOCK = threading.RLock()
 
@@ -1235,10 +1236,10 @@ def _natural_customer_question(uid: str, text: str, normalized: str) -> tuple[li
         return _unsupported_shop_question(uid, text)
 
     # 客人說明洗衣流程時，先講清楚送洗不用預約；外收送才需要安排時間。
-    if any(k in n for k in ("送洗要預約嗎", "洗衣要預約嗎", "需要預約嗎", "一定要預約嗎", "要先預約嗎")):
+    if any(k in n for k in ("送洗要預約嗎", "洗衣要預約嗎", "需要預約嗎", "一定要預約嗎", "要先預約嗎", "不用預約嗎", "要不要預約")):
         return (
             say(
-                "一般送洗不用預約，營業時間直接帶來就可以。",
+                "可以，送洗不用預約，營業時間直接帶來就好。",
                 "如果是到府收送，才需要先選時間、留地址和手機。",
                 buttons=[("安排收送", "外收送預約"), ("看店址", "位置"), ("打電話", "電話")],
             ),
@@ -1603,19 +1604,19 @@ def booking_guard(dt: datetime) -> str | None:
 def _closed_reason(dt: datetime) -> str | None:
     """只看營業日與時段，不看是否已過；問「現在有開嗎」用這個。"""
     wd = dt.weekday()
+    span = _span_for(wd)
+    if span is None:
+        return "週日公休" if wd == 6 else f"{_WD_LABEL[wd]}公休"
     hm = dt.hour * 60 + dt.minute
-    if wd == 6:
-        return "週日公休"
-    if wd == 5:
-        if hm < 12 * 60:
-            return "週六中午 12:00 才開門"
-        if hm >= 18 * 60:
-            return "週六 18:00 已打烊"
-        return None
-    if hm < 10 * 60:
-        return "平日 10:00 才開門"
-    if hm >= 20 * 60:
-        return "平日 20:00 已打烊"
+    opening, closing = span[0].split("-")
+    oh, om = map(int, opening.split(":"))
+    ch, cm = map(int, closing.split(":"))
+    label = "週六" if wd == 5 else "平日"
+    if hm < oh * 60 + om:
+        label += "中午" if wd == 5 and opening == "12:00" else ""
+        return f"{label} {opening} 才開門"
+    if hm >= ch * 60 + cm:
+        return f"{label} {closing} 已打烊"
     return None
 
 
@@ -2475,7 +2476,7 @@ def _pickup_commit(uid: str, confirm_key: str = "") -> list[dict]:
                 f"收送資料已送出，想約{spoken}去收，單號 {bid}。請店員確認安排，有調整會用你留的電話聯絡。",
                 f"記下來了，希望{spoken}去收，單號 {bid}。請店員確認安排，有調整會用你留的電話聯絡。",
             ),
-        ),
+        ) + "\n方便的話，接著傳衣物照片，店員比較好安排。",
     )
 
 
@@ -3243,6 +3244,19 @@ def _hours_target(n: str) -> tuple[int, str, bool]:
 
 
 def _span_for(wd: int):
+    # 現役 business-profile.json 是營業時間設定；舊離線 fixture 未提供此欄時
+    # 保留原本的 _span_for 預設，其他判斷與提示一律共用本函式。
+    specs = BIZ.get("opening_hours_specification")
+    if isinstance(specs, list):
+        day_name = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")[wd]
+        for spec in specs:
+            days = spec.get("dayOfWeek", [])
+            if isinstance(days, str):
+                days = [days]
+            if day_name in [d.rsplit("/", 1)[-1] for d in days]:
+                opening, closing = spec["opens"], spec["closes"]
+                return f"{opening}-{closing}", closing
+        return None
     if wd == 6:
         return None
     if wd == 5:
@@ -3267,10 +3281,9 @@ def hours_reply(n: str) -> list[dict]:
             first = f"現在有開，到 {close}。"
         else:
             hm = now.hour * 60 + now.minute
-            if now.weekday() == 5:
-                open_hm, open_s = 12 * 60, "12:00"
-            else:
-                open_hm, open_s = 10 * 60, "10:00"
+            open_s = hours.split("-", 1)[0]
+            oh, om = map(int, open_s.split(":"))
+            open_hm = oh * 60 + om
             if hm < open_hm:
                 first = f"今天還沒開，{open_s} 開。"
             else:
@@ -4441,6 +4454,11 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
 
 def handle(uid: str, text: str, event_type: str = "message") -> list[dict]:
     return handle_ex(uid, text, event_type)[0]
+
+
+def reply_with_hints(uid: str, text: str, messages: list[dict], send) -> bool:
+    """只有 webhook 的真實送出路徑記錄提示，純組回覆不寫提示標記。"""
+    return reply_hints.deliver(sys.modules[__name__], uid, text, messages, send)
 
 
 # L2-1：外層薄包裝，回覆決定後只記一筆次數（line_usage）；回覆、流程、session、通知都不變。

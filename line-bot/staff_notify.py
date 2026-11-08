@@ -14,6 +14,8 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+import line_event_log as event_log
+
 REPO = Path(os.environ.get("LAUNDRY_REPO_ROOT", r"C:/Users/cyc39/laundry-repo"))
 SECRETS = REPO / "secrets/line-channel.json"
 INBOX = REPO / "data" / "staff-inbox.jsonl"
@@ -197,6 +199,7 @@ def _token() -> str:
     return json.loads(SECRETS.read_text(encoding="utf-8")).get("line_channel_token", "")
 
 
+@event_log.timed("staff_notify")
 def guest_name(uid: str) -> str:
     if not uid or uid == "?":
         return "客人"
@@ -209,6 +212,7 @@ def guest_name(uid: str) -> str:
         return "客人"
 
 
+@event_log.timed("storage")
 def _append_group_notified(event_id: str, kind: str) -> None:
     """群組真的送到之後才留下紀錄，重送才知道不用再推。"""
     if not event_id:
@@ -219,6 +223,7 @@ def _append_group_notified(event_id: str, kind: str) -> None:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
+@event_log.timed("staff_notify", to_staff=True)
 def push_inbox(kind: str, payload: dict, *, notify: bool = True) -> dict:
     INBOX.parent.mkdir(parents=True, exist_ok=True)
     row = {"kind": kind, **payload, "status": "new"}
@@ -226,7 +231,7 @@ def push_inbox(kind: str, payload: dict, *, notify: bool = True) -> dict:
     duplicate = False
     already_notified = False
     handoff = None
-    with _IO_LOCK:
+    with event_log.measure("storage"), _IO_LOCK:
         notified_ids = set()
         if INBOX.exists():
             for raw in INBOX.read_text(encoding="utf-8").splitlines():

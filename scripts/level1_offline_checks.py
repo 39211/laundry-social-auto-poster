@@ -6,6 +6,7 @@ their own isolation; the producer does not install or inject an audit hook.
 from __future__ import annotations
 
 import argparse
+import ast
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
@@ -29,6 +30,26 @@ OFFLINE_SITE_PACKAGES = Path("C:/Users/cyc39/AppData/Local/hermes/jarvis-memory/
 DEFAULT_WORK_ROOT = Path("D:/AI-Lanes-work/level1-offline-checks")
 # Same source set as verify_linebot_full.py, plus golden harness/fixtures.
 ARCHIVE_PATHS = ("line-bot", "data", "shop-pc/fxwash/config/Memory.md", "tests/golden")
+
+# Opt in to the native runner's existing runpy(__main__) branch without editing
+# the archived runner. Its parent still owns temp creation/cleanup; its worker
+# still installs synthetic data, offline_temp, Flask and filesystem/network guards.
+SCRIPT_LAUNCHER = """
+import subprocess
+import sys
+import run_a2b_tests as native
+
+def launch(command, **options):
+    worker = (
+        "import sys; from pathlib import Path; import run_a2b_tests as native; "
+        "native._SCRIPT_STYLE_MODULES += (sys.argv[1],); "
+        "raise SystemExit(native._run_module(Path(sys.argv[2]), sys.argv[1]))"
+    )
+    return subprocess.run([sys.executable, '-B', '-X', 'utf8', '-c', worker,
+                           sys.argv[1], command[-1]], **options)
+
+raise SystemExit(native.main(launch_worker=launch))
+"""
 
 
 def no_data(reason):
@@ -99,7 +120,7 @@ def run_process(command, *, cwd, env, timeout):
         return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
 
-def run_check(snapshot, script, args, logs, label, env, timeout=90):
+def run_check(snapshot, script, args, logs, label, env, timeout=90, *, script_mode=False):
     started = time.monotonic()
     runner = snapshot / script
     try:
@@ -107,10 +128,18 @@ def run_check(snapshot, script, args, logs, label, env, timeout=90):
             raise FileNotFoundError(script)
         # Match trunk: basename module, cwd=line-bot, both import dirs on PYTHONPATH.
         native_args = [args[0].split(".")[-1]] if script == "line-bot/run_a2b_tests.py" else args
-        result = run_process([sys.executable, "-B", "-X", "utf8", str(runner), *native_args],
+        command = [sys.executable, "-B", "-X", "utf8", str(runner), *native_args]
+        if script_mode:
+            command = [sys.executable, "-B", "-X", "utf8", "-c", SCRIPT_LAUNCHER, *native_args]
+        result = run_process(command,
                              cwd=runner.parent, env=env, timeout=timeout)
         output = result.stdout + result.stderr
-        row = parse_result(output, result.returncode, script.startswith("tests/golden/"))
+        if script_mode:
+            passed = result.returncode == 0
+            row = dict(status="pass" if passed else "fail", tests=1, failures=0,
+                       errors=0 if passed else 1, skipped=0, failed_tests=[])
+        else:
+            row = parse_result(output, result.returncode, script.startswith("tests/golden/"))
         row["exit_code"] = result.returncode
         if row["status"] == "fail" and not row["failed_tests"]:
             row["failure_detail"] = "No test name reported; see module log."
@@ -123,7 +152,13 @@ def run_check(snapshot, script, args, logs, label, env, timeout=90):
         row = no_data(type(exc).__name__)
         if isinstance(exc, RuntimeError):
             row["runner_error"] = "ProcessTreeCleanupFailed"
-    log = logs / (label.replace("/", "_") + ".txt")
+        if script_mode and isinstance(exc, (subprocess.TimeoutExpired, RuntimeError)):
+            row.update(status="fail", tests=1, errors=1)
+    if script_mode:
+        row["execution_mode"] = "script"
+        if row["status"] == "fail":
+            row["failure_detail"] = "\n".join(output.splitlines()[-20:])[-4000:]
+    log = logs / (label.replace("/", "_") + (".script" if script_mode else "") + ".txt")
     log.write_text(output, encoding="utf-8")
     return {**row, "log": str(log), "suite": label, "timeout_seconds": timeout,
             "elapsed_seconds": round(time.monotonic() - started, 3)}
@@ -138,6 +173,30 @@ def discover_modules(bot):
     """Same corpus and order as the verified trunk script."""
     return (sorted(p.stem for p in bot.glob("test_*.py")) +
             sorted("tests." + p.stem for p in (bot / "tests").glob("test_*.py")))
+
+
+def has_script_entry(bot, module):
+    """Inspect the same basename the native runner imports; never import here."""
+    name = module.split(".")[-1] + ".py"
+    path = bot / name
+    if not path.is_file():
+        path = bot / "tests" / name
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+    except (OSError, SyntaxError, UnicodeError):
+        return False
+    for node in tree.body:
+        if not isinstance(node, ast.If) or not isinstance(node.test, ast.Compare):
+            continue
+        test = node.test
+        if len(test.ops) != 1 or not isinstance(test.ops[0], ast.Eq):
+            continue
+        pair = (test.left, test.comparators[0])
+        if any(isinstance(a, ast.Name) and a.id == "__name__" and
+               isinstance(b, ast.Constant) and b.value == "__main__"
+               for a, b in (pair, pair[::-1])):
+            return True
+    return False
 
 
 def create_snapshot(root, snapshot, timeout):
@@ -206,12 +265,13 @@ def produce(root, out_root, now=None, work_root=DEFAULT_WORK_ROOT, smoke=False):
                LOCALAPPDATA=str(work / "localappdata"), TEMP=str(work), TMP=str(work))
     halted = None
 
-    def bounded_check(script, args, label, timeout=90):
+    def bounded_check(script, args, label, timeout=90, *, script_mode=False):
         nonlocal halted
         remaining = budget - (time.monotonic() - started)
-        if setup_error or halted or remaining <= 0:
+        if setup_error or halted or remaining <= 0 or timeout <= 0:
             return {**no_data(setup_error or halted or "DailyBudgetExceeded"), "suite": label}
-        row = run_check(snapshot, script, args, logs, label, env, timeout=min(timeout, remaining))
+        options = {"script_mode": True} if script_mode else {}
+        row = run_check(snapshot, script, args, logs, label, env, timeout=min(timeout, remaining), **options)
         if row.get("runner_error") == "ProcessTreeCleanupFailed":
             halted = "ProcessTreeCleanupFailed"
         return row
@@ -227,7 +287,15 @@ def produce(root, out_root, now=None, work_root=DEFAULT_WORK_ROOT, smoke=False):
     for module in modules:
         if module in ("tests.test_audit_a_conv", "tests.test_audit_a_quote"):
             continue
+        module_started = time.monotonic()
         row = bounded_check("line-bot/run_a2b_tests.py", [module], module)
+        if (row["status"] == "no_data" and row["tests"] == 0 and row.get("exit_code") == 0
+                and has_script_entry(bot, module)):
+            discovery = row
+            row = bounded_check("line-bot/run_a2b_tests.py", [module], module,
+                                timeout=90 - (time.monotonic() - module_started), script_mode=True)
+            row["discovery"] = discovery
+            row["elapsed_seconds"] = round(time.monotonic() - module_started, 3)
         full.append(row)
         print("line_full: {0} {1}".format(module, row["status"]), flush=True)
     handoff = next((r for r in full if r["suite"] == "test_handoff"), None)

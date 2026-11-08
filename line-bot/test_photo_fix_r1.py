@@ -42,8 +42,10 @@ class ReplyTests(unittest.TestCase):
             row(stain="領口黃漬", craft="先測試再局部處理", question="污漬多久了"),
             row("一般運動鞋", stain="鞋頭泥漬", craft="鞋面與鞋底分區清潔", question="曾經自行刷洗嗎")))
         for value in ("領口黃漬", "先測試再局部處理", "污漬多久了？", "鞋頭泥漬",
-                      "鞋面與鞋底分區清潔", "曾經自行刷洗嗎？", "320", "5–7 天", "7 天"):
+                      "鞋面與鞋底分區清潔", "320", "5–7 天", "7 天"):
             self.assertIn(value, result)
+        self.assertEqual(result.count("？"), 1)  # r2: one question per batch.
+        self.assertNotIn("曾經自行刷洗嗎", result)
 
     def test_mixed_text_keeps_photo_diagnosis(self):
         result = estimate.render(estimate.update("棉T2件", draft(row(
@@ -95,27 +97,28 @@ class ReplyTests(unittest.TestCase):
             value = estimate.from_photo(pe.validate_result({"items": [row(name)]}, {name}), None, prices)
             self.assertIn("約 10–14 天", estimate.render(value))
 
-    def test_five_message_budget_preserves_all_fees_before_evidence_craft_questions(self):
+    def test_mobile_budget_merges_repeated_diagnoses_and_preserves_fees(self):
         items = [row(brand="品牌" + chr(0x4e00+i), material="棉", stain="污況"+"灰"*60,
                      craft="處理"+"柔"*65, question="追問"+"何"*40) for i in range(30)]
         result = draft(*items)
         messages = quote_flow._show(conv, result)
-        self.assertLessEqual(len(messages), 5)
-        self.assertTrue(all(0 < len(m["text"]) <= 900 for m in messages))
+        self.assertLessEqual(len(messages), 3)
+        self.assertTrue(all(0 < len(m["text"]) <= 400 for m in messages))
         text = "\n".join(m["text"] for m in messages)
-        for i in range(30):
-            self.assertIn("品牌" + chr(0x4e00+i), text)
+        self.assertIn("品牌一", text)
+        self.assertIn("等 30 件", text)
+        self.assertEqual(len(estimate.photo_followup_items(result)), 30)
         self.assertIn("2,100", text)
-        self.assertNotIn("追問", text)
+        self.assertLessEqual(text.count("？"), 1)
         self.assertIn("污況", text)
         self.assertTrue(messages[-1].get("quickReply"))
 
-    def test_maximum_length_fields_still_fit_five_messages_and_keep_tariff_counts(self):
+    def test_maximum_length_fields_still_fit_three_messages_and_keep_tariff_counts(self):
         items = [row(brand=chr(0x4e00+i)*40, model="款"*40, material="棉"*40,
                      stain="灰"*80, craft="柔"*80, question="何"*50) for i in range(30)]
         messages = quote_flow._show(conv, draft(*items))
-        self.assertLessEqual(len(messages), 5)
-        self.assertTrue(all(len(m["text"]) <= 900 for m in messages))
+        self.assertLessEqual(len(messages), 3)
+        self.assertTrue(all(len(m["text"]) <= 400 for m in messages))
         self.assertIn("2,100", "\n".join(m["text"] for m in messages))
 
     def test_thirty_distinct_tariffs_keep_each_price_and_turnaround_with_long_metadata(self):
@@ -125,7 +128,8 @@ class ReplyTests(unittest.TestCase):
                      craft="柔"*80, question="何"*50) for name in names]
         value = estimate.from_photo(pe.validate_result({"items": items}, set(names)), None, prices)
         messages = quote_flow._show(conv, value)
-        self.assertLessEqual(len(messages), 5)
+        self.assertLessEqual(len(messages), 3)
+        self.assertTrue(all(len(m["text"]) <= 400 for m in messages))
         text = "\n".join(m["text"] for m in messages)
         for name in names:
             self.assertIn(name, text)
@@ -195,12 +199,14 @@ class FollowupTests(unittest.TestCase):
                      row("背包", brand="MUJI", material="帆布", stain="底部灰漬", craft="分區清潔", question="曾刷洗嗎"))
         self.analyse("synthetic-b", row(brand="SyntheticB", material="麻", stain="袖口茶漬", craft="先確認纖維", question="用過漂白水嗎"))
         def decoded_context(prompt):
-            raw = next(line for line in prompt.splitlines() if line.startswith('[{"name":'))
+            raw = next((line for line in prompt.splitlines() if line.startswith('[{"name":')), "")
+            self.assertTrue(raw, "photo follow-up context missing from the real prompt")
             return json.dumps(json.loads(raw), ensure_ascii=False)
         a = decoded_context(self.ask("synthetic-a"))
         b = decoded_context(self.ask("synthetic-b"))
-        for value in ("Uniqlo", "棉", "領口黃漬", "先測色牢度", "多久了", "MUJI", "底部灰漬", "曾刷洗嗎"):
+        for value in ("Uniqlo", "棉", "領口黃漬", "先測色牢度", "多久了", "MUJI", "底部灰漬", "分區清潔"):
             self.assertIn(value, a)
+        self.assertNotIn("曾刷洗嗎", a)  # r2: this suppressed question was never asked.
         self.assertNotIn("SyntheticB", a)
         self.assertIn("袖口茶漬", b)
         self.assertNotIn("Uniqlo", b)
@@ -223,7 +229,8 @@ class FollowupTests(unittest.TestCase):
     def test_low_confidence_context_contains_missing_evidence(self):
         self.analyse("synthetic-a", row("一般運動鞋", certainty="uncertain", reason="看不到洗標，看不出材質"))
         prompt = self.ask("synthetic-a")
-        raw = next(line for line in prompt.splitlines() if line.startswith('[{"name":'))
+        raw = next((line for line in prompt.splitlines() if line.startswith('[{"name":')), "")
+        self.assertTrue(raw, "missing evidence was not passed to the real prompt")
         self.assertIn("看不到洗標", json.dumps(json.loads(raw), ensure_ascii=False))
 
     def test_latest_batch_replaces_previous_object_and_new_named_object_drops_context(self):

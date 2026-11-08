@@ -101,8 +101,8 @@ def _fresh(conv, uid, draft):
     return repriced
 
 
-def _show(conv, draft, max_messages=5):
-    texts = estimate.render_messages(draft, max_messages=max_messages)
+def _show(conv, draft, max_messages=estimate.PHOTO_MAX_MESSAGES, notice=""):
+    texts = estimate.render_messages(draft, max_messages=max_messages, notice=notice)
     return [conv.text_msg(text, actions=_actions(draft) if index == len(texts) - 1 else None)
             for index, text in enumerate(texts)]
 
@@ -211,22 +211,22 @@ def _analyse(conv, uid):
         line.get("subtotal") is not None or line.get("range_min_subtotal") is not None
         for line in draft.get("lines", [])
     )
+    notice = "" if has_quote_line else "這批費用先交店員看件確認，照片裡還缺的資料列在下面。"
     conv.set_sess(uid, estimate_photo_context={"at": conv.now_tw().isoformat(),
-                  "items": estimate.photo_followup_items(draft, max_messages=5 if has_quote_line else 4)})
+                  "items": estimate.photo_followup_items(draft, notice=notice)})
     if not has_quote_line:
         conv.set_sess(uid, estimate_vision_status="manual_required", wait=None)
         if sess.get("estimate_vision_help_requested") != key:
             _notify(conv, uid, "photo_need", text="照片辨識沒有足夠把握，請店員看件報價")
             conv.set_sess(uid, estimate_vision_help_requested=key)
-        texts = estimate.render_messages(draft, max_messages=4)
+        texts = estimate.render_messages(draft, notice=notice)
         actions = [
                 {"type": "camera", "label": "補拍整件"},
                 {"type": "cameraRoll", "label": "補傳洗標"},
                 {"type": "message", "label": "請店員看", "text": "請店員看照片"},
             ]
-        return [conv.text_msg("這批費用先交店員看件確認，照片裡還缺的資料列在下面。"),
-                *[conv.text_msg(text, actions=actions if i == len(texts) - 1 else None)
-                  for i, text in enumerate(texts)]]
+        return [conv.text_msg(text, actions=actions if i == len(texts) - 1 else None)
+                for i, text in enumerate(texts)]
     conv.set_sess(uid, estimate_draft=draft, estimate_photo_cache=key, estimate_vision_status="ok", wait=None)
     _notify(conv, uid, "estimate", draft=draft)
     return _show(conv, draft)
@@ -298,7 +298,7 @@ def handle_postback(conv, uid, data, event_id=""):
             if not draft or not draft.get("lines"):
                 return [conv.text_msg("這份估價已經沒有內容，請重新傳品項或照片。")]
             if values.get("revision", [""])[0] != str(draft["revision"]) or values.get("case", [""])[0] != draft.get("case_id"):
-                return [conv.text_msg("清單有更新，先看這份最新的。確認後再按下方按鈕。"), *_show(conv, draft, max_messages=4)]
+                return _show(conv, draft, notice="清單有更新，先看這份最新的。確認後再按下方按鈕。")
             if action == "estimate_send":
                 if conv.get_sess(uid).get("estimate_sent_revision") != draft["revision"]:
                     _notify(conv, uid, "estimate", draft=draft)

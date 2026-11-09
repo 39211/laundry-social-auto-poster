@@ -22,7 +22,7 @@ function stubFetch(eventReport: unknown, sourceReport: unknown = eventReport) {
       return new Response(JSON.stringify({ access_token: "token" }), { status: 200 });
     }
     const body = typeof init?.body === "string" ? init.body : "";
-    return new Response(JSON.stringify(body.includes("customEvent:source") ? sourceReport : eventReport), { status: 200 });
+    return new Response(JSON.stringify(body.includes("customEvent:link_source") ? sourceReport : eventReport), { status: 200 });
   }) as unknown as typeof fetch;
 }
 

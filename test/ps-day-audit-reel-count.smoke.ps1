@@ -63,7 +63,15 @@ $pythonLiteral = "'C:/Users/cyc39/AppData/Local/Python/pythoncore-3.14-64/python
 if (-not $source.Contains($pythonLiteral)) { throw 'Missing offline producer boundary' }
 $pythonStub = Join-Path $scripts 'python-stub.ps1'
 $source = $source.Replace($pythonLiteral, "'" + $pythonStub.Replace("'", "''") + "'")
-[IO.File]::WriteAllText($pythonStub, '$global:ytgapEffects.Add("level1"); exit 0', $utf8)
+[IO.File]::WriteAllText($pythonStub, @'
+if (@($args | Where-Object { "$_" -like '*bot_readiness_audit.py' }).Count) {
+    $global:ytgapEffects.Add('readiness')
+    $global:readinessResult | ConvertTo-Json -Compress
+    if ($global:readinessResult.status -eq 'fail') { exit 1 }
+    exit 0
+}
+$global:ytgapEffects.Add('level1'); exit 0
+'@, $utf8)
 [IO.File]::WriteAllText((Join-Path $scripts '_watchdog.ps1'), '$global:ytgapEffects.Add("watchdog")', $utf8)
 Copy-Item -LiteralPath (Join-Path $root 'scripts\lib\live-reel.ps1') -Destination (Join-Path $scripts 'lib\live-reel.ps1')
 $audit = Join-Path $scripts 'day-audit.ps1'
@@ -101,7 +109,8 @@ function New-Fixture {
 function Invoke-Case {
     param([string]$Name, [hashtable]$Media, [int]$Live, [int]$Uploaded = 0,
         [int[]]$CalendarSlots = @(1, 2), [object[]]$YouTube = @(),
-        [switch]$MissingComments, [switch]$Duplicate, [switch]$DefaultMode)
+        [switch]$MissingComments, [switch]$Duplicate, [switch]$DefaultMode,
+        [string]$ReadyStatus = 'pass', [string]$ReadyReason = 'ready')
     $date = '2026-01-31'
     $fixtureArg = ''
     if ($DefaultMode) {
@@ -112,6 +121,7 @@ function Invoke-Case {
         -MissingComments:$MissingComments -Duplicate:$Duplicate -Date $date -Fixture $fixtureArg
     $before = Get-InputHashes $fixture
     $global:ytgapEffects.Clear()
+    $global:readinessResult = @{ status = $ReadyStatus; reason = $ReadyReason }
     try {
         if ($DefaultMode) { & $audit | Out-Null }
         else { & $audit -RootPath $fixture -Date $date -AuditOnly | Out-Null }
@@ -123,7 +133,7 @@ function Invoke-Case {
             $expectedEffects = @('watchdog')
             if ($Live -gt $Uploaded) { $expectedEffects += 'scheduler:Laundry-YouTube-Upload' }
             if ($MissingComments) { $expectedEffects += "cmd:/c npm.cmd run first-comment -- --date $date 2>&1" }
-            $expectedEffects += "cmd:/c npm.cmd run ga4-report -- --date $date 2>&1", 'toast', 'level1'
+            $expectedEffects += "cmd:/c npm.cmd run ga4-report -- --date $date 2>&1", 'readiness', 'toast', 'level1'
             Assert-Equal @($global:ytgapEffects.ToArray()) $expectedEffects 'default effects'
         }
         $reportPath = Join-Path $fixture "output\day-reports\$date.json"
@@ -131,7 +141,17 @@ function Invoke-Case {
         Assert-Equal $report.youtube.live_reels $Live 'live_reels'
         Assert-Equal $report.youtube.uploaded $Uploaded 'uploaded'
         Assert-Equal ($report.youtube.live_reels - $report.youtube.uploaded) ($Live - $Uploaded) 'youtube gap'
-        Assert-Equal $report.ok (($Live -le $Uploaded) -and -not $MissingComments) 'ok'
+        Assert-Equal $report.ok (($Live -le $Uploaded) -and -not $MissingComments -and ((-not $DefaultMode) -or $ReadyStatus -ne 'fail')) 'ok'
+        if ($DefaultMode) {
+            Assert-Equal $report.bot_readiness.status $ReadyStatus 'bot readiness status'
+            Assert-Equal $report.bot_readiness.reason $ReadyReason 'bot readiness reason'
+            if ($ReadyStatus -eq 'fail') {
+                $log = [IO.File]::ReadAllText((Join-Path $fixture "output\day-reports\$date.log"))
+                Assert-Equal ($log.Contains('FAIL LINE bot readiness: ' + $ReadyReason)) $true 'readiness failure logged'
+            }
+        } else {
+            Assert-Equal $report.bot_readiness.status 'not_applicable' 'offline readiness skipped'
+        }
         Assert-Equal $report.date $date 'date'
         Assert-Equal @($report.missing_posts) @() 'missing_posts'
         $expectedMissing = @(if ($MissingComments) { $CalendarSlots })
@@ -152,7 +172,7 @@ function Invoke-Case {
         }
         if ($DefaultMode -and $MissingComments) { $actions += "posted first comments for slot $($CalendarSlots -join ',')" }
         Assert-Equal @($report.rescue_actions) $actions 'rescue_actions'
-        $keys = @('date', 'generated_at', 'ok', 'slots', 'missing_posts', 'missing_comments', 'youtube', 'tomorrow', 'rescue_actions', 'line_clicks', 'line_click_sources')
+        $keys = @('date', 'generated_at', 'ok', 'slots', 'missing_posts', 'missing_comments', 'youtube', 'tomorrow', 'rescue_actions', 'line_clicks', 'line_click_sources', 'bot_readiness')
         Assert-Equal @($report.PSObject.Properties.Name) $keys 'report schema'
         Assert-Equal (Get-InputHashes $fixture) $before 'inputs unchanged'
         if (-not $DefaultMode) {
@@ -176,6 +196,10 @@ Invoke-Case -Name 'slot3-without-calendar-entry' -Media @{ 1 = 'image'; 2 = 'ima
 Invoke-Case -Name 'duplicate-posts-count-once' -Media @{ 1 = 'image'; 2 = 'reel' } -Live 1 -Duplicate
 Invoke-Case -Name 'audit-only-missing-comments' -Media @{ 1 = 'image'; 2 = 'reel' } -Live 1 -MissingComments
 Invoke-Case -Name 'default-invocation-effects' -Media @{ 1 = 'image'; 2 = 'reel' } -Live 1 -MissingComments -DefaultMode
+Invoke-Case -Name 'night-missing-config' -Media @{ 1 = 'image'; 2 = 'image' } -Live 0 -DefaultMode `
+    -ReadyStatus 'fail' -ReadyReason 'vision_configured=False: GEMINI_API_KEY LAUNDRY_PHOTO_ESTIMATE'
+Invoke-Case -Name 'day-shop-owns' -Media @{ 1 = 'image'; 2 = 'image' } -Live 0 -DefaultMode `
+    -ReadyStatus 'not_applicable' -ReadyReason 'shop_day_window'
 
 Write-Output "RESULT passed=$script:passed failed=$script:failed fixtures=$work"
 if ($script:failed) { Write-Output 'SMOKE_FAIL'; exit 1 }

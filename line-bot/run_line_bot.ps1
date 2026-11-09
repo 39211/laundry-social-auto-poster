@@ -191,6 +191,118 @@ function Write-ProbeLine {
     [Console]::Out.Flush()
 }
 
+# Reviewed against runtime os.environ reads; never import arbitrary HKCU names.
+function Get-BotConfigNames {
+    return @(
+        'GEMINI_API_KEY', 'LAUNDRY_AI_CHAT', 'LAUNDRY_PHOTO_ESTIMATE',
+        'LAUNDRY_CHAT_USAGE_DIR', 'LAUNDRY_REPO_ROOT', 'LAUNDRY_EHANK_ROOT',
+        'LAUNDRY_LOOKUP_FIXTURE', 'LAUNDRY_FRESH_MINUTES',
+        'LAUNDRY_LINE_USAGE', 'LAUNDRY_LINE_USAGE_DIR', 'LAUNDRY_LINE_EVENTS',
+        'LAUNDRY_LINE_EVENT_LOG_DIR', 'LAUNDRY_LINE_EVENTS_DIR',
+        'LAUNDRY_VISION_KNOWLEDGE_DIR', 'LAUNDRY_VISION_THINKING_BUDGET',
+        'LAUNDRY_VISION_MODEL', 'LAUNDRY_VISION_FALLBACK_MODEL', 'LAUNDRY_VISION_USAGE_DIR'
+    )
+}
+
+function Get-BotUserValue {
+    param([string]$Name)
+    return [Environment]::GetEnvironmentVariable($Name, 'User')
+}
+
+function Invoke-BotStart {
+    $restores = @{}
+    $receipt = [ordered]@{}
+    $receiptTemp = Join-Path $LogDir ('bot_config_receipt.' + [Guid]::NewGuid().ToString('N') + '.tmp')
+    try {
+        foreach ($name in (Get-BotConfigNames)) {
+            $value = [Environment]::GetEnvironmentVariable($name, 'Process')
+            $source = 'process'
+            if ([string]::IsNullOrEmpty($value)) {
+                $userValue = Get-BotUserValue -Name $name
+                if (-not [string]::IsNullOrEmpty($userValue)) {
+                    $restores[$name] = $value
+                    [Environment]::SetEnvironmentVariable($name, $userValue, 'Process')
+                    $value = $userValue
+                    $source = 'registry'
+                } else { $source = 'missing' }
+            }
+            $receipt[$name] = [ordered]@{ present = (-not [string]::IsNullOrEmpty($value)); source = $source }
+        }
+        [IO.File]::WriteAllText($receiptTemp, ($receipt | ConvertTo-Json -Depth 3), [Text.UTF8Encoding]::new($false))
+        Move-Item -LiteralPath $receiptTemp -Destination (Join-Path $LogDir 'bot_config_receipt.json') -Force
+        Start-Tracked -Name 'line_webhook' -Rel 'line_webhook.py' | ForEach-Object { Write-ProbeLine $_ }
+        Start-Tracked -Name 'staff_server' -Rel 'staff_server.py' | ForEach-Object { Write-ProbeLine $_ }
+        Start-Tracked -Name 'tunnel_manager' -Rel 'tunnel_manager.py' | ForEach-Object { Write-ProbeLine $_ }
+        return (Invoke-Probe)
+    } catch {
+        # Exceptions can contain paths or configuration values. Emit a fixed reason only.
+        Write-ProbeLine 'start failed: configuration receipt or child startup'
+        return 1
+    } finally {
+        foreach ($name in $restores.Keys) {
+            [Environment]::SetEnvironmentVariable($name, $restores[$name], 'Process')
+        }
+        if (Test-Path -LiteralPath $receiptTemp) { Remove-Item -LiteralPath $receiptTemp -Force }
+    }
+}
+
+# No proxy, redirects or external destination; bounded read, no response logging.
+function Read-BotEndpoint {
+    param([ValidateSet('/healthz', '/readyz')][string]$Path)
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $iar = $client.BeginConnect('127.0.0.1', 8791, $null, $null)
+        if (-not $iar.AsyncWaitHandle.WaitOne(3000, $false)) { throw 'timeout' }
+        $client.EndConnect($iar)
+        $stream = $client.GetStream()
+        $stream.ReadTimeout = 3000
+        $stream.WriteTimeout = 3000
+        $payload = [Text.Encoding]::ASCII.GetBytes("GET $Path HTTP/1.0`r`nHost: 127.0.0.1:8791`r`nConnection: close`r`n`r`n")
+        $stream.Write($payload, 0, $payload.Length)
+        $text = ''
+        $buf = New-Object byte[] 512
+        $timer = [Diagnostics.Stopwatch]::StartNew()
+        while ($text.Length -lt 8192 -and $timer.ElapsedMilliseconds -lt 3000) {
+            $nread = $stream.Read($buf, 0, $buf.Length)
+            if ($nread -le 0) { break }
+            $text += [Text.Encoding]::UTF8.GetString($buf, 0, $nread)
+        }
+        if ($text.Length -ge 8192 -or $timer.ElapsedMilliseconds -ge 3000) { throw 'limit' }
+        if ($text -notmatch '\AHTTP/1\.[01] 200(?: |\r)') { throw 'status' }
+        $parts = $text -split "`r`n`r`n", 2
+        if ($parts.Count -ne 2) { throw 'body' }
+        return $parts[1].Trim()
+    } finally { $client.Close() }
+}
+
+function Test-BotReady {
+    param([int]$HealthPid)
+    try {
+        $ready = ConvertFrom-Json (Read-BotEndpoint -Path '/readyz')
+        if ($ready.pid -isnot [int] -or $ready.pid -ne $HealthPid -or $HealthPid -le 0 -or
+            $ready.vision_configured -isnot [bool] -or $ready.ai_chat -isnot [bool] -or
+            $ready.missing -isnot [array]) { throw 'schema' }
+        $valid = $true
+        if (-not $ready.vision_configured) {
+            Write-ProbeLine 'readyz fail: vision_configured=False; check GEMINI_API_KEY LAUNDRY_PHOTO_ESTIMATE'
+            $valid = $false
+        }
+        if (-not $ready.ai_chat) {
+            Write-ProbeLine 'readyz fail: ai_chat=False; check LAUNDRY_AI_CHAT GEMINI_API_KEY'
+            $valid = $false
+        }
+        if ($ready.missing.Count -gt 0) {
+            Write-ProbeLine 'readyz fail: missing configuration'
+            $valid = $false
+        }
+        if ($valid) { Write-ProbeLine 'readyz ok' }
+        return $valid
+    } catch {
+        Write-ProbeLine 'readyz fail: unavailable, malformed or pid mismatch'
+        return $false
+    }
+}
+
 # F7: Probe -- print liveness of three processes and healthz; 0=all up, 1=missing
 # G6: healthz body must be "ok <pid>" matching line_webhook.pid
 # P1: reported pid may equal tracked pid or be a descendant of it
@@ -204,56 +316,23 @@ function Invoke-Probe {
         if (-not $alive) { $allAlive = $false }
     }
     $health = "fail"
-    $client = New-Object System.Net.Sockets.TcpClient
+    $hzPid = -1
     try {
-        $iar = $client.BeginConnect("127.0.0.1", 8791, $null, $null)
-        $ok = $iar.AsyncWaitHandle.WaitOne(3000, $false)
-        if ($ok) {
-            $client.EndConnect($iar)
-            $stream = $client.GetStream()
-            $stream.ReadTimeout = 3000
-            $stream.WriteTimeout = 3000
-            $payload = [System.Text.Encoding]::ASCII.GetBytes("GET /healthz HTTP/1.0`r`nHost: 127.0.0.1:8791`r`nConnection: close`r`n`r`n")
-            $stream.Write($payload, 0, $payload.Length)
-            $text = ""
-            $buf = New-Object byte[] 512
-            try {
-                while ($text.Length -lt 2048) {
-                    $nread = $stream.Read($buf, 0, $buf.Length)
-                    if ($nread -le 0) { break }
-                    $text += [System.Text.Encoding]::ASCII.GetString($buf, 0, $nread)
-                    if ($text.Contains("`r`n`r`n") -and ($text -match "ok (\d+)")) { break }
-                }
-            } catch {}
-            if ($text.Length -gt 0) {
-                if ($text -match "HTTP/1\.[01] 200") { $health = "ok" }
-                $hzPid = -1
-                if ($text -match "ok (\d+)") { $hzPid = [int]$Matches[1] }
-                $tracked = Get-TrackedPid -Name "line_webhook"
-                if ($health -eq "ok") {
-                    if ($hzPid -lt 0) {
-                        Write-ProbeLine ("healthz foreign pid= tracked=" + $tracked)
-                        $health = "fail"
-                    } elseif (Test-HealthzPidMatch -ReportedPid $hzPid -TrackedPid $tracked) {
-                        if ($hzPid -eq $tracked) {
-                            Write-ProbeLine ("healthz ok pid=" + $hzPid)
-                        } else {
-                            Write-ProbeLine ("healthz ok pid=" + $hzPid + " (child of " + $tracked + ")")
-                        }
-                    } else {
-                        Write-ProbeLine ("healthz foreign pid=" + $hzPid + " tracked=" + $tracked)
-                        $health = "fail"
-                    }
-                }
+        $body = Read-BotEndpoint -Path '/healthz'
+        if ($body -match '\Aok (\d+)\z') {
+            $hzPid = [int]$Matches[1]
+            $tracked = Get-TrackedPid -Name 'line_webhook'
+            if (Test-HealthzPidMatch -ReportedPid $hzPid -TrackedPid $tracked) {
+                $health = 'ok'
+                Write-ProbeLine ("healthz ok pid=" + $hzPid)
+            } else {
+                Write-ProbeLine ("healthz foreign pid=" + $hzPid + " tracked=" + $tracked)
             }
         }
-    } catch {
-        $health = "fail"
-    } finally {
-        try { $client.Close() } catch {}
-    }
+    } catch { $health = 'fail' }
     Write-ProbeLine ("healthz " + $health)
-    if ($health -ne "ok") { $allAlive = $false }
+    if ($health -ne 'ok') { $allAlive = $false }
+    if (-not (Test-BotReady -HealthPid $hzPid)) { $allAlive = $false }
     if ($allAlive) { return 0 }
     return 1
 }
@@ -277,6 +356,4 @@ if ($Stop) {
     exit 0
 }
 
-Start-Tracked -Name "line_webhook" -Rel "line_webhook.py"
-Start-Tracked -Name "staff_server" -Rel "staff_server.py"
-Start-Tracked -Name "tunnel_manager" -Rel "tunnel_manager.py"
+exit (Invoke-BotStart)

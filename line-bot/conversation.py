@@ -81,6 +81,7 @@ INK = "#2C2824"
 GOLD = "#B08968"
 NAVY = "#3D3229"
 GREEN = "#06C755"
+_RUSH_FEE_NOTICE = "急件可能另計費用，由店員報價。"
 
 _FEATURED_NAMES = {
     "寢具": ["棉被單人", "棉被雙人", "羽絨羊毛被", "羽絨被", "涼被"],
@@ -836,7 +837,8 @@ def _ack_photo_need_msgs(uid: str, raw: str, n: str) -> list[dict]:
     spoken = _photo_need_spoken(raw, n)
     set_sess(uid, photo_need=need, wait=None, photo_ts="")
     _push_photo_need(uid, need)
-    return say(f"好，{spoken}，和照片放在同一筆，讓店員接著評估。",
+    fee_notice = _RUSH_FEE_NOTICE if _is_rush_text(n) and _RUSH_FEE_NOTICE not in spoken else ""
+    return say(f"好，{spoken}，和照片放在同一筆，讓店員接著評估。" + fee_notice,
                actions=[{"type": "postback", "label": "先估這批", "data": "action=estimate_photos", "displayText": "幫我估這批照片"}])
 
 
@@ -2590,7 +2592,7 @@ def _is_photo_quote(n: str) -> bool:
     )
 
 
-def photo_quote_reply(uid: str = "") -> list[dict]:
+def photo_quote_reply(uid: str = "", *, rush: bool = False) -> list[dict]:
     return say(
         _pick_variant(uid, "photo_quote_1", ("好啊，拍給我看。", "可以，直接拍。")),
         _pick_variant(
@@ -2600,7 +2602,7 @@ def photo_quote_reply(uid: str = "") -> list[dict]:
                 "整件一張，髒的地方再補一張，我比較好抓價錢。",
                 "整件拍一張，有髒污或洗標的地方再一張。",
             ),
-        ),
+        ) + (_RUSH_FEE_NOTICE if rush else ""),
         actions=[
             {"type": "camera", "label": "📷 拍照"},
             {"type": "cameraRoll", "label": "🖼 從相簿選"},
@@ -3079,7 +3081,7 @@ def concern(n: str, uid: str) -> list[dict] | None:
         return say(
             "你趕著要用，這個得請店裡看件量，現在還不能答應一定來得及。",
             ("需求已留給店員。最晚幾點要拿，也一起告訴店員，方便核對。" if saved else
-             "這次需求沒能存下來，麻煩直接打給店裡，才不會耽誤你。"),
+             "這次需求沒能存下來，麻煩直接打給店裡，才不會耽誤你。") + _RUSH_FEE_NOTICE,
             actions=[{"type": "uri", "label": "打給店裡", "uri": "tel:" + PHONE}],
         )
     if any(k in n for k in ["掉色", "褪色", "染色"]):
@@ -3113,7 +3115,7 @@ def concern(n: str, uid: str) -> list[dict] | None:
         return say("深色相對穩。", "您是要送鞋子，還是衣服？", buttons=[("鞋子", "鞋子"), ("衣服", "衣服"), ("約時間", "預約到店")])
     if n in ("今天取", "明天取"):
         return say(
-            "我先幫您問店裡，不一定留得住。",
+            "我先幫您問店裡，不一定留得住。" + _RUSH_FEE_NOTICE,
             f"您也可以直接打 {PHONE}，比較快。要我先幫您留一個到店時間嗎？",
             buttons=[("約時間", "預約到店"), ("我自己打", "電話")],
         )
@@ -3569,7 +3571,7 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
                 if starts_pickup:
                     rush += start_pickup(uid)
                 else:
-                    rush[-1]["text"] += " 原本的收送資料已保留，可以接著填寫。"
+                    rush[-1]["text"] += "原本的收送資料已保留，可以接著填寫。"
                 return _pack(rush, "concern", True)
         if wait_now in ("", "photo", "photo_need") and not (_is_cancel_text(early_n) or _is_payment_claim(early_text)):
             item = sess_now.get("care_item") or ""
@@ -4077,7 +4079,7 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
     if _is_photo_quote(n):
         set_sess(uid, wait="photo", photo_wait_ts=now_tw().isoformat(), photo_nudged=False)
         _pack.photo_funnel = False
-        return _pack(photo_quote_reply(uid), "photo_quote", False)
+        return _pack(photo_quote_reply(uid, rush=_is_rush_text(n)), "photo_quote", False)
 
     if n in ("常見問題", "FAQ", "faq"):
         return _pack(faq_menu(), "faq", False)

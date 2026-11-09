@@ -226,7 +226,7 @@ function Invoke-BackfillNpm($Entry) {
     $command = Get-Command -Name $NpmCommand -CommandType Application, ExternalScript -ErrorAction Stop
     $path = $command.Source
     if ($path -match '["\r\n%!]' -or $path -notmatch '\.(cmd|ps1|exe)$') { throw 'Unsupported npm command path.' }
-    $arguments = 'run post-current-slot -- --date {0} --slot {1} --live' -f $Entry.date, $Entry.slot
+    $arguments = 'run post-current-slot -- --date {0} --slot {1} --live --backfill' -f $Entry.date, $Entry.slot
     $start = New-Object Diagnostics.ProcessStartInfo
     $start.WorkingDirectory = $root
     $start.UseShellExecute = $false

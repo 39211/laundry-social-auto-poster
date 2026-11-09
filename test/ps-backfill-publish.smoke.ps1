@@ -154,8 +154,8 @@ Start-Sleep -Seconds $Seconds
         Write-Fixture (Join-Path $fixture 'fake npm.ps1') @'
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch {}
-if ($args.Count -ne 8 -or $args[0] -ne 'run' -or $args[1] -ne 'post-current-slot' -or
-    $args[2] -ne '--' -or $args[3] -ne '--date' -or $args[5] -ne '--slot' -or $args[7] -ne '--live') { exit 90 }
+if ($args.Count -ne 9 -or $args[0] -ne 'run' -or $args[1] -ne 'post-current-slot' -or
+    $args[2] -ne '--' -or $args[3] -ne '--date' -or $args[5] -ne '--slot' -or $args[7] -ne '--live' -or $args[8] -ne '--backfill') { exit 90 }
 if ($env:ALLOW_OFF_SCHEDULE_PUBLISH -ne 'true') { exit 91 }
 $root = (Get-Location).Path
 if (-not (Test-Path -LiteralPath (Join-Path $root 'fake-mode.json'))) { exit 92 }

@@ -129,17 +129,20 @@ class VisionUsageTest(unittest.TestCase):
         self.assertEqual(data["models"][CHAIN[1]], {"ok": 1})
 
     def test_unusable_finish_reason(self):
-        result, fake = self.run_inventory([ok_response(finish="MAX_TOKENS")])
+        result, fake = self.run_inventory([ok_response(finish="MAX_TOKENS") for _ in range(3)])
         self.assertEqual(result, {"ok": False, "error": "unavailable"})
-        self.assertEqual(fake.call_count, 1)
+        self.assertEqual(fake.call_count, 3)
         data = self.load()
         self.assertEqual((data["requests"], data["answered"], data["failed"]), (1, 0, 1))
-        self.assertEqual(data["models"][CHAIN[0]], {"unusable": 1})
+        for model in CHAIN[:3]:
+            self.assertEqual(data["models"][model], {"unusable": 1})
 
     def test_unusable_bad_json(self):
-        result, _ = self.run_inventory([ok_response(text="not json at all")])
+        result, fake = self.run_inventory([ok_response(text="not json at all") for _ in range(3)])
         self.assertEqual(result, {"ok": False, "error": "unavailable"})
-        self.assertEqual(self.load()["models"][CHAIN[0]], {"unusable": 1})
+        self.assertEqual(fake.call_count, 3)
+        for model in CHAIN[:3]:
+            self.assertEqual(self.load()["models"][model], {"unusable": 1})
 
     def test_two_calls_accumulate(self):
         self.run_inventory([ok_response()])

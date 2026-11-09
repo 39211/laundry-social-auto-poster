@@ -119,8 +119,10 @@ def _fresh(conv, uid, draft):
     return repriced
 
 
-def _show(conv, draft):
-    return [conv.text_msg(estimate.render(draft), actions=_actions(draft))]
+def _show(conv, draft, max_messages=estimate.PHOTO_MAX_MESSAGES, notice=""):
+    texts = estimate.render_messages(draft, max_messages=max_messages, notice=notice)
+    return [conv.text_msg(text, actions=_actions(draft) if index == len(texts) - 1 else None)
+            for index, text in enumerate(texts)]
 
 
 def _notify(conv, uid, kind, *, text="", draft=None):
@@ -163,7 +165,7 @@ def photo_received(conv, uid, relative, event_id=""):
         hashes.append(digest)
         conv.set_sess(uid, estimate_photos=paths, estimate_photo_hashes=hashes, photo_path=relative,
                       photo_ts=conv.now_tw().isoformat(), wait=conv._PHOTO_NEED_WAIT,
-                      photo_need=sess.get("photo_need", ""), estimate_photo_cache="")
+                      photo_need=sess.get("photo_need", ""), estimate_photo_cache="", estimate_photo_context=None)
         _case(conv, uid)
         staff_pushed = False
         if first:
@@ -179,7 +181,7 @@ def photo_received(conv, uid, relative, event_id=""):
         actions = [{"type": "postback", "label": "幫我估這批", "data": "action=estimate_photos", "displayText": "幫我估這批照片"},
                    {"type": "camera", "label": "再拍一張"}, {"type": "cameraRoll", "label": "選照片"},
                    {"type": "message", "label": "只請店員看", "text": "請店員看照片"}]
-        copy = "照片收到了。傳完按「幫我估這批」，我先看款式和件數，幫你抓預算。哪裡想加強清潔，也可以一起說。\n\n按估價會使用 Google AI 辨識照片；不想使用也可以按「只請店員看」。" if first else f"收到，這批目前有{len(paths)}張照片；同件不同角度不會按照片張數計費。傳完按「幫我估這批」就好。"
+        copy = "照片收到了。傳完按「幫我估這批」，我先看款式和件數，幫你抓預算。哪裡想加強清潔，也可以一起說。\n\n按估價會使用 Google 的照片辨識服務；不想使用也可以按「只請店員看」。" if first else f"收到，這批目前有{len(paths)}張照片；同件不同角度不會按照片張數計費。傳完按「幫我估這批」就好。"
         messages = [conv.text_msg(copy, actions=actions)]
         _remember(conv, uid, event_id, messages)
         return _result(messages, staff_pushed=staff_pushed)
@@ -227,20 +229,22 @@ def _analyse(conv, uid):
         line.get("subtotal") is not None or line.get("range_min_subtotal") is not None
         for line in draft.get("lines", [])
     )
+    notice = "" if has_quote_line else "這批費用先交店員看件確認，照片裡還缺的資料列在下面。"
+    conv.set_sess(uid, estimate_photo_context={"at": conv.now_tw().isoformat(),
+                  "items": estimate.photo_followup_items(draft, notice=notice)})
     if not has_quote_line:
         conv.set_sess(uid, estimate_vision_status="manual_required", wait=None)
         if sess.get("estimate_vision_help_requested") != key:
             _notify(conv, uid, "photo_need", text="照片辨識沒有足夠把握，請店員看件報價")
             conv.set_sess(uid, estimate_vision_help_requested=key)
-        return [conv.text_msg(
-            "照片我有收到，但這次我不敢硬猜價格，先交店員看比較準。\n\n"
-            "如果方便，可以補一張整件照或洗標；也可以直接打品項和數量，我先幫你加總。",
-            actions=[
+        texts = estimate.render_messages(draft, notice=notice)
+        actions = [
                 {"type": "camera", "label": "補拍整件"},
                 {"type": "cameraRoll", "label": "補傳洗標"},
                 {"type": "message", "label": "請店員看", "text": "請店員看照片"},
-            ],
-        )]
+            ]
+        return [conv.text_msg(text, actions=actions if i == len(texts) - 1 else None)
+                for i, text in enumerate(texts)]
     conv.set_sess(uid, estimate_draft=draft, estimate_photo_cache=key, estimate_vision_status="ok", wait=None)
     _notify(conv, uid, "estimate", draft=draft)
     return _show(conv, draft)
@@ -270,7 +274,7 @@ def handle_text(conv, uid, text, event_id=""):
             else:
                 return None
         elif text in ("重新估價", "清空估價"):
-            conv.set_sess(uid, estimate_draft=None, estimate_photos=[], estimate_photo_hashes=[], estimate_photo_cache="", estimate_case="", estimate_sent_revision=None, estimate_for_pickup=None, photo_need="", photo_path="", wait=None)
+            conv.set_sess(uid, estimate_draft=None, estimate_photos=[], estimate_photo_hashes=[], estimate_photo_cache="", estimate_photo_context=None, estimate_case="", estimate_sent_revision=None, estimate_for_pickup=None, photo_need="", photo_path="", wait=None)
             messages = [conv.text_msg("好，重新列一份。把這批品項和數量告訴我，或傳照片就可以。")]
         else:
             # An explicit price question can leave lookup mode. Pickup addresses
@@ -314,7 +318,7 @@ def handle_postback(conv, uid, data, event_id=""):
                 _remember(conv, uid, event_id, messages)
                 return messages
             if values.get("revision", [""])[0] != str(draft["revision"]) or values.get("case", [""])[0] != draft.get("case_id"):
-                messages = [conv.text_msg("清單有更新，先看這份最新的。確認後再按下方按鈕。"), *_show(conv, draft)]
+                messages = _show(conv, draft, notice="清單有更新，先看這份最新的。確認後再按下方按鈕。")
                 _remember(conv, uid, event_id, messages)
                 return messages
             if action == "estimate_send":

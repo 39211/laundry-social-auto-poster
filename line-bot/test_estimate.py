@@ -332,7 +332,9 @@ class PhotoRenderTests(unittest.TestCase):
         self.assertLessEqual(len(rows), 8)
         self.assertNotIn(estimate.DISCLAIMER, text)
         self.assertEqual(rows[-1], '實際以到店看件為準。')
-        self.assertIn('照片看到提把邊角磨損，會用皮革專用清潔再上保養乳。包內有筆痕嗎？', text)
+        for detail in ('照片看到提把邊角磨損', '會用皮革專用清潔再上保養乳', '可以補拍洗標或材質標示嗎？'):
+            self.assertIn(detail, text)
+        self.assertNotIn('包內有筆痕嗎', text)  # r2: missing evidence gets the one question.
         self.assertNotIn('*', text)
         draft, text = photo_render(inventory_item('名牌包', 1, 'estimated'),
                                    inventory_item('名牌鞋', 2, 'clear'),

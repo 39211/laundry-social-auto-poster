@@ -764,11 +764,23 @@ def from_photo(items: list, previous: dict | None, prices: dict) -> dict:
     # The model analyses the whole batch, so previous photo rows are replaced, never added again.
     draft = copy.deepcopy(previous or {"lines": [], "special": [], "revision": 0})
     lines = [x for x in draft["lines"] if x.get("source") == "text"]
+    for line in lines:
+        line.pop("photo_items", None)  # Only the newly analysed batch supplies evidence.
     for item in items:
         name = item["name"] or item["label"][:40]
         quantity = item["quantity"]
         known = next((x for x in lines if x["name"] == name), None)
+        diagnoses = []
+        for part in item.get("diagnoses", [item]):
+            detail = {"name": name, "quantity": part.get("quantity"),
+                      "photo_certainty": part.get("certainty", "uncertain"),
+                      "photo_reason": _photo_text(part.get("reason"), 100),
+                      "photo_label": _photo_text(part.get("label"), 40)}
+            for field in _PHOTO_FIELDS:
+                detail[f"photo_{field}"] = _photo_text(part.get(field))
+            diagnoses.append(detail)
         if known:
+            known.setdefault("photo_items", []).extend(diagnoses)
             if known.get("source") == "photo":
                 known.update(quantity=None, max_quantity=None, reason="同款物件可能重複入鏡，請確認總件數")
             continue
@@ -785,7 +797,7 @@ def from_photo(items: list, previous: dict | None, prices: dict) -> dict:
                 "estimate_assumption": "",
                 "photo_category": cat.get(name, {}).get("category", ""),
                 "photo_label": _photo_text(item.get("label"), 40),
-                "source": "photo"}
+                "source": "photo", "photo_items": diagnoses}
         for field in _PHOTO_FIELDS:
             line[f"photo_{field}"] = _photo_text(item.get(field))
         lines.append(line)
@@ -804,7 +816,7 @@ def photo_kind(name: str, category: str = "") -> str:
         return "shoe"
     if name in PHOTO_DISPLAY_GROUPS["包包"] or ehank_prices.is_bag_or_leather_good(name, category):
         return "bag"
-    if name in PHOTO_DISPLAY_GROUPS["寢具"]:
+    if name in PHOTO_DISPLAY_GROUPS["寢具"] or re.search(r"毛毯|窗簾|沙發套|地毯", name):
         return "bedding"
     return "other"
 
@@ -866,48 +878,300 @@ def _photo_detail(line: dict) -> str:
     return text
 
 
-def render_photo(draft: dict) -> str:
-    """Short professional reply for drafts whose lines all come from photos."""
-    if draft.get("error"):
-        return draft["error"]
-    lines = draft.get("lines") or []
-    if not lines:
-        return "這份預估清單已清空。還有要估的品項，直接告訴我就好。"
-    priced = [line for line in lines if line.get("subtotal") is not None]
-    rest = [line for line in lines if line.get("subtotal") is None]
-    out = [_photo_priced_sentence(line) for line in priced]
-    detail = _photo_detail(lines[0])
-    if detail:
-        out.append(detail)
-    if len(priced) > 1:
-        low = sum(line["subtotal"] for line in priced)
-        high = sum(line.get("max_subtotal") or line["subtotal"] for line in priced)
-        amount = f"{low:,}" + (f"–{high:,}" if high != low else "")
-        out.append(f"這批合計 {amount} 元。" if not rest else f"上面 {len(priced)} 項合計 {amount} 元，其他品項還要確認。")
-    ranges = []
-    pending = []
-    for line in rest:
-        q = line.get("quantity")
-        high = line.get("max_quantity")
-        count = "數量待確認" if q is None else str(q) + (f"–{high}" if high != q else "") + line.get("unit", "件")
-        if line.get("range_min_subtotal") is not None:
-            note = "（照片先初判，材質／款式到店確認）" if line.get("photo_certainty") != "clear" else ""
-            ranges.append(f"{line.get('display') or line['name']} {count}：先抓 {line['range_min_subtotal']:,}–{line['range_max_subtotal']:,} 元{note}")
+PHOTO_MESSAGE_CHARS = 400
+PHOTO_MAX_MESSAGES = 3
+PHOTO_MAX_DIAGNOSES = 5
+PHOTO_DETAIL_CHARS = 40
+
+
+def _one_photo_question(value: str) -> str:
+    # Never let a model's list of questions become several customer requests.
+    first = re.split(r"[？?。；;，,]", value or "", maxsplit=1)[0].strip(" ，,")
+    return first + "？" if first else ""
+
+
+def _photo_excerpt(value: str, fallback: str) -> str:
+    """Keep whole clauses; an overlong unbroken clause earns a complete fallback."""
+    # Question clauses belong only in the globally selected question, even if a
+    # provider misplaced them in stain/craft. Drop the clause, not just its '?'.
+    value = re.sub(r"[^，,。；;！？!?]*[？?]", "", value or "").strip(" 。，,；;！？!?")
+    if len(value) <= PHOTO_DETAIL_CHARS:
+        return value
+    kept = []
+    for clause in re.split(r"[，,。；;！？!?]", value):
+        clause = clause.strip()
+        if len("，".join(kept + [clause])) > PHOTO_DETAIL_CHARS:
+            break
+        if clause:
+            kept.append(clause)
+    return "，".join(kept) or fallback
+
+
+def _photo_diagnosis_key(detail: dict) -> tuple:
+    # Only punctuation/spacing variants are equivalent, never fuzzy similarity:
+    # e.g. 領口泛黃 and 領口未泛黃 must not merge. Compare full stored evidence,
+    # not its shortened customer excerpt. Brand differences alone may be grouped.
+    def normalized(value):
+        return re.sub(r"[\s，,。；;！？!?、]+", "", unicodedata.normalize("NFKC", value or ""))
+    return tuple(normalized(detail.get(field)) for field in (
+        "name", "photo_model", "photo_material", "photo_certainty", "photo_reason", "photo_stain", "photo_craft"))
+
+
+def _photo_question_priority(detail: dict) -> int:
+    if detail.get("photo_certainty") != "clear" and re.search(
+            r"不清|看不到|看不出|只拍|未拍|缺|無法|需|待|不確定", detail.get("photo_reason") or ""):
+        return 0
+    question = _one_photo_question(detail.get("photo_question"))
+    if re.search(r"多久|何時|什麼時候|時間|來源|沾到|怎麼沾", question):
+        return 1
+    if re.search(r"曾|自行|自己|刷洗|洗過|漂白|去漬劑", question):
+        return 2
+    return 3
+
+
+def _photo_question(detail: dict) -> str:
+    question = _one_photo_question(detail.get("photo_question"))
+    if _photo_question_priority(detail) == 0 and not re.search(r"補|拍|洗標|材質|款式|尺寸|數量|幾件", question):
+        reason = detail.get("photo_reason") or ""
+        if re.search(r"洗標|材質", reason):
+            return "可以補拍洗標或材質標示嗎？"
+        if "數量" in reason:
+            return "這項總共有幾件呢？"
+        return "可以補拍整件與尺寸標示嗎？"
+    return question
+
+
+def _photo_evidence(detail: dict) -> str:
+    stain = (detail.get("photo_stain") or "").strip(" 。，,；;")
+    pieces = ["照片看到" + stain] if stain else []
+    if detail.get("photo_certainty") != "clear":
+        reason = (detail.get("photo_reason") or "").strip(" 。，,；;")
+        # A vague confidence label does not tell a customer which evidence is missing.
+        if reason and re.search(r"不清|看不到|看不出|只拍|未拍|缺|無法|需|待|不確定", reason):
+            pieces.append(reason)
+        elif not detail.get("photo_material"):
+            pieces.append("照片看不出材質，還需要洗標或材質近照確認")
         else:
-            pending.append(f"{line.get('display') or line['name']}" + (f" {count}" if q is not None else "（件數還沒說）"))
-    if ranges:
-        out.append("還有幾項先用區間抓：" + "、".join(ranges) + "。")
-    if pending:
-        out.append("還沒加進去：" + "、".join(pending) + "。")
-    if rest:
-        ask = clarification(draft)
-        if ask:
-            out.append(ask)
-    closing = PHOTO_CLOSING
+            pieces.append("照片還無法確認款式細節，需要整件與標示近照")
+    # Missing evidence must remain explicit even if a long stain clause was cut.
+    if len(pieces) > 1:
+        pieces = pieces[1:] + pieces[:1]
+    return _photo_excerpt("，".join(pieces), "照片污況細節較多，需到店核對")
+
+
+def _photo_order(number: int) -> str:
+    digits = "零一二三四五六七八九"
+    if number < 10:
+        return digits[number]
+    if number < 100:
+        tens, units = divmod(number, 10)
+        return (digits[tens] if tens > 1 else "") + "十" + (digits[units] if units else "")
+    return str(number)
+
+
+def _photo_group_titles(grouped: list, labels: dict) -> list[tuple]:
+    """Give every group one identity, also used when its diagnosis is omitted."""
+    names, brands = [], []
+    for members in grouped:
+        detail = members[0][0]
+        group_labels = {labels[id(d)] for d, _, _ in members}
+        names.append(labels[id(detail)] if len(group_labels) == 1 else detail["name"])
+        values = {d.get("photo_brand", "") for d, _, _ in members}
+        brands.append(next(iter(values)) if len(values) == 1 else "")
+    titles = []
+    for i, members in enumerate(grouped):
+        detail = members[0][0]
+        name = names[i]
+        quantity = (sum(d["quantity"] for d, _, _ in members)
+                    if all(type(d.get("quantity")) is int for d, _, _ in members) else None)
+        plural = len(members) > 1 or (quantity is not None and quantity > 1)
+        peers = [j for j, other in enumerate(names) if other == name]
+        numbered = len(peers) > 1 and (not brands[i] or sum(brands[j] == brands[i] for j in peers) > 1)
+        if numbered:
+            unit = "批" if plural else _photo_unit_word(detail)
+            name = f"第{_photo_order(peers.index(i) + 1)}{unit}{name}"
+        identity = " ".join(x for x in (brands[i], detail.get("photo_model")) if x)
+        if plural:
+            count = f"{quantity} {_photo_unit_word(detail)}" if quantity is not None else "數量待確認"
+            identity = "，".join(filter(None, (identity, count)))
+        if detail.get("photo_material"):
+            identity += ("，" if identity else "") + detail["photo_material"]
+        if len({d.get("photo_brand", "") for d, _, _ in members}) > 1:
+            identity += "，品牌不一"
+        head = name + (f"（{identity}）" if identity else "") + "："
+        # Distinct brands disambiguate same-name items; otherwise use the same
+        # ordinal as the heading. A multi-brand batch must not name just one brand.
+        subject = name if numbered else " ".join(filter(None, (brands[i], name)))
+        if plural and not numbered:
+            subject = "這批" + subject
+        compact = name + (f"（{brands[i]}）" if len(peers) > 1 and not numbered else "") + "："
+        titles.append((head, compact, subject, plural))
+    return titles
+
+
+def _photo_addressed_question(question: str, subject: str, plural: bool) -> str:
+    # A follow-up is a sentence, never a second item-heading-shaped line.
+    question = re.sub(r"^(?:這|那|該)(?:件|雙|個|項)(?:衣物|物品)?", "", question)
+    if plural:
+        question = question.replace("這件", "這批物品")
+    separator = " " if re.match(r"[A-Za-z0-9]", subject) else ""
+    return f"關於{separator}{subject}，{question}"
+
+
+def _photo_sections(draft: dict, notice: str = "") -> list[dict]:
+    """Priority: tariff/count/fee/time, then evidence, craft, and one question."""
+    sections = [{"core": notice}] if notice else []
+    groups = {}
+    candidates = []
+    labels = {}
+    references = {}
+    ordinal = 0
+    lines = draft.get("lines") or []
+    for line in lines:
+        details = line.get("photo_items") or ([line] if line.get("source") == "photo" else [])
+        display = dict(line)
+        if len(details) > 1:
+            for field in _PHOTO_FIELDS + ("label",):
+                display.pop("photo_" + field, None)
+        if line.get("subtotal") is not None:
+            core = _photo_priced_sentence(display)
+        else:
+            q, high = line.get("quantity"), line.get("max_quantity")
+            count = "數量待確認" if q is None else str(q) + (f"–{high}" if high not in (None, q) else "") + line.get("unit", "件")
+            if line.get("range_min_subtotal") is not None:
+                low, high_fee = line['range_min_subtotal'], line['range_max_subtotal']
+                fee = f"預估 {low:,} 元" if low == high_fee else f"先抓 {low:,}–{high_fee:,} 元"
+            else:
+                fee = "費用待看件確認，還沒加進去"
+            turnaround = ("約 " + photo_turnaround(line["name"], line["photo_category"])) if line.get("photo_category") else "交期待品項確認"
+            core = f"{line.get('display') or line['name']} {count}：{fee}，{turnaround}。"
+        if line.get("subtotal") is not None:
+            q, high = line["quantity"], line.get("max_quantity")
+            count = str(q) + (f"–{high}" if high not in (None, q) else "")
+            amount = f"{line['subtotal']:,}"
+            if line.get("max_subtotal") not in (None, line["subtotal"]):
+                amount += f"–{line['max_subtotal']:,}"
+            compact_core = f"【{line['name']}】{count}{_photo_unit_word(line)} {amount}元，約 {photo_turnaround(line['name'], line.get('photo_category', ''))}。"
+        else:
+            compact_core = f"【{line.get('display') or line['name']}】{count}：{fee}，{turnaround}。"
+            if line.get("range_min_subtotal") is None:
+                compact_core = f"【{line.get('display') or line['name']}】{count}，費用待看件，{turnaround}。"
+        sections.append({"core": core, "compact_core": compact_core})
+        for index, detail in enumerate(details):
+            q = detail.get("quantity")
+            size = q if type(q) is int else 1
+            member = (detail, ordinal + 1, ordinal + size)
+            ordinal += size
+            label = detail.get("photo_label")
+            if not label or label == "照片物件":
+                label = line["name"]
+            labels[id(detail)] = (line.get("display") or line["name"]) if line.get("subtotal") is None else label
+            key = _photo_diagnosis_key(detail)
+            groups.setdefault(key, []).append(member)
+            question = _photo_question(detail)
+            if question:
+                candidates.append((detail, question))
+    priced = [x for x in lines if x.get("subtotal") is not None]
+    if len(priced) > 1:
+        low = sum(x["subtotal"] for x in priced)
+        high = sum(x.get("max_subtotal") or x["subtotal"] for x in priced)
+        amount = f"{low:,}" + (f"–{high:,}" if high != low else "")
+        mixed = any(x.get("source") == "text" for x in lines)
+        prefix = "這批預估" if mixed else "這批合計"
+        suffix = "，其他品項還要確認" if len(priced) != len(lines) else ""
+        sections.append({"core": f"{prefix} {amount} 元{suffix}。"})
+    grouped = list(groups.values())
+    titles = _photo_group_titles(grouped, labels)
+    for members, (_, _, subject, plural) in zip(grouped, titles):
+        for detail, _, _ in members:
+            references[id(detail)] = (subject, plural)
+    for members, (head, compact, _, _) in list(zip(grouped, titles))[:PHOTO_MAX_DIAGNOSES]:
+        detail = members[0][0]
+        sections.append({"core": head, "compact_core": compact,
+                         "evidence": _photo_evidence(detail),
+                         "craft": _photo_excerpt(detail.get("photo_craft"), "處理細節到店確認"),
+                         "members": members})
+    omitted = [d for members in grouped[PHOTO_MAX_DIAGNOSES:] for d, _, _ in members]
+    if omitted:
+        if all(type(d.get("quantity")) is int for d in omitted):
+            remaining = sum(d["quantity"] for d in omitted)
+            sections.append({"core": f"另外 {remaining} 件到店一起看。"})
+        else:
+            sections.append({"core": f"另外 {len(omitted)} 項數量待確認，到店一起看。"})
+    # One question for the whole batch, including a high-priority omitted group.
+    if candidates:
+        detail, question = min(candidates, key=lambda item: _photo_question_priority(item[0]))
+        subject, plural = references[id(detail)]
+        addressed = _photo_addressed_question(question, subject, plural)
+        sections.append({"core": "", "question": addressed, "question_detail": detail})
+    closing = DISCLAIMER if any(x.get("source") == "text" for x in lines) else PHOTO_CLOSING
     if draft.get("special"):
         closing = "另外待評估：" + "、".join(draft["special"]) + "，尚未加計。" + closing
-    out.append(closing)
-    return "\n".join(out)
+    sections.append({"core": closing})
+    return sections
+
+
+def _section_text(section: dict) -> str:
+    description = "".join(section[key] + "。" for key in ("evidence", "craft") if section.get(key))
+    if ("members" in section and not description) or ("question_detail" in section and not section.get("question")):
+        return ""
+    return section["core"] + description + section.get("question", "")
+
+
+def _pack_photo_sections(sections: list[dict]) -> list[str]:
+    messages = []
+    for section in sections:
+        text = _section_text(section)
+        if not text:
+            continue
+        if messages and len(messages[-1]) + len(text) + 1 <= PHOTO_MESSAGE_CHARS:
+            messages[-1] += "\n" + text
+        else:
+            messages.append(text)
+    return messages
+
+
+def _bounded_photo_sections(draft: dict, max_messages: int = PHOTO_MAX_MESSAGES, notice: str = "") -> list[dict]:
+    sections = _photo_sections(draft, notice)
+    max_messages = max(1, min(max_messages, PHOTO_MAX_MESSAGES))
+
+    def fits():
+        messages = _pack_photo_sections(sections)
+        return len(messages) <= max_messages and all(len(text) <= PHOTO_MESSAGE_CHARS for text in messages)
+
+    # Long identity fields are optional; compact summaries preserve every tariff,
+    # count, amount and turnaround before sacrificing diagnostic evidence.
+    if not fits():
+        for section in sections:
+            section["core"] = section.get("compact_core", section["core"])
+    for priority in ("question", "craft", "evidence"):
+        for section in reversed(sections):
+            if fits():
+                return sections
+            section.pop(priority, None)
+    return sections
+
+
+def photo_followup_items(draft: dict, max_messages: int = PHOTO_MAX_MESSAGES, notice: str = "") -> list[dict]:
+    # Only questions that survived the customer-message budget count as asked.
+    asked = {id(s["question_detail"]): s["question"] for s in _bounded_photo_sections(draft, max_messages, notice)
+             if s.get("question") and "question_detail" in s}
+    details = [d for line in draft.get("lines", [])
+               for d in (line.get("photo_items") or ([line] if line.get("source") == "photo" else []))]
+    return [dict(name=d["name"], quantity=d.get("quantity"),
+                 **{field: d.get("photo_" + field, "") for field in ("brand", "model", "material", "stain", "craft")},
+                 reason=d.get("photo_reason", ""), certainty=d.get("photo_certainty", "uncertain"),
+                 question=asked.get(id(d), "")) for d in details]
+
+
+def render_messages(draft: dict, max_messages: int = PHOTO_MAX_MESSAGES, notice: str = "") -> list[str]:
+    if not draft.get("error") and any(x.get("source") == "photo" or x.get("photo_items") for x in draft.get("lines", [])):
+        return _pack_photo_sections(_bounded_photo_sections(draft, max_messages, notice))
+    return ([notice] if notice else []) + [render(draft)]
+
+
+def render_photo(draft: dict) -> str:
+    return "\n".join(_pack_photo_sections(_bounded_photo_sections(draft)))
 
 
 def render(draft: dict) -> str:
@@ -915,7 +1179,7 @@ def render(draft: dict) -> str:
         return draft["error"]
     if not draft.get("lines"):
         return "這份預估清單已清空。還有要估的品項，直接告訴我就好。"
-    if all(line.get("source") == "photo" for line in draft["lines"]):
+    if any(line.get("source") == "photo" or line.get("photo_items") for line in draft["lines"]):
         return render_photo(draft)
     out = [_opening_line(draft), ""]
     pending = []

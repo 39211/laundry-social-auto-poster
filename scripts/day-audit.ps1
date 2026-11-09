@@ -3,19 +3,29 @@
 # last-chance rescue live in Task Scheduler itself. Evidence-based only -- it
 # reads posted-log / first-comments / youtube-log / tomorrow's assets, never
 # exit codes or claims.
+param(
+    [string]$RootPath = (Split-Path -Parent $PSScriptRoot),
+    [ValidatePattern('^\d{4}-\d{2}-\d{2}$')]
+    [ValidateScript({ [void][DateTime]::ParseExact($_, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture); $true })]
+    [string]$Date,
+    [switch]$AuditOnly
+)
+
 $ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
-$root = Split-Path -Parent $PSScriptRoot
+$root = $RootPath
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
 $now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
-$date = $now.ToString("yyyy-MM-dd")
-$tomorrow = $now.AddDays(1).ToString("yyyy-MM-dd")
+$auditDay = if ($Date) { [DateTime]::ParseExact($Date, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture) } else { $now }
+$date = $auditDay.ToString("yyyy-MM-dd")
+$tomorrow = $auditDay.AddDays(1).ToString("yyyy-MM-dd")
 
 $reportDir = Join-Path $root "output\day-reports"
 New-Item -ItemType Directory -Force -Path $reportDir | Out-Null
 $logFile = Join-Path $reportDir "$date.log"
-. (Join-Path $PSScriptRoot "_watchdog.ps1")
+if (-not $AuditOnly) { . (Join-Path $PSScriptRoot "_watchdog.ps1") }
+. (Join-Path $PSScriptRoot "lib\live-reel.ps1")
 
 function Read-Json([string]$path) {
     # ConvertFrom-Json must be called in argument form, never piped: in PS 5.1
@@ -70,7 +80,7 @@ $liveIgSlots = @($expectedSlots | Where-Object { $slotState["$_"].instagram })
 $missingComments = @($liveIgSlots | Where-Object { $_ -notin $commentSlots })
 
 # --- YouTube ------------------------------------------------------------------
-$liveReels = @($liveIgSlots | Where-Object { $_ -in 2, 3 }).Count
+$liveReels = @(@(2, 3) | Where-Object { Test-LiveReelHasSlot $posted $_ }).Count
 $yt = @(Read-Json (Join-Path $root "data\youtube-log\$date.json"))
 $ytCount = @($yt | Where-Object { $_.video_id }).Count
 $ytGap = $liveReels - $ytCount
@@ -95,10 +105,14 @@ if ($planRow) {
 # --- last-chance rescues ---------------------------------------------------------
 $actions = @()
 if ($ytGap -gt 0) {
-    Start-ScheduledTask -TaskName "Laundry-YouTube-Upload" -ErrorAction SilentlyContinue
-    $actions += "started YouTube upload ($ytCount/$liveReels)"
+    if (-not $AuditOnly) {
+        Start-ScheduledTask -TaskName "Laundry-YouTube-Upload" -ErrorAction SilentlyContinue
+        $actions += "started YouTube upload ($ytCount/$liveReels)"
+    } else {
+        $actions += "would start YouTube upload ($ytCount/$liveReels)"
+    }
 }
-if ($missingComments.Count -gt 0) {
+if ($missingComments.Count -gt 0 -and -not $AuditOnly) {
     Push-Location $root
     $fcOut = cmd /c "npm.cmd run first-comment -- --date $date 2>&1"
     $fcExit = $LASTEXITCODE
@@ -123,13 +137,15 @@ if ($missingComments.Count -gt 0) {
 # else. On 08-14 that file recorded 14 clicks -- the first non-zero this
 # programme has ever measured, after thirty days of nothing -- and not one
 # thing surfaced it. A number nobody sees is worth the same as no number.
-Push-Location $root
-cmd /c "npm.cmd run ga4-report -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
-Pop-Location
+if (-not $AuditOnly) {
+    Push-Location $root
+    cmd /c "npm.cmd run ga4-report -- --date $date 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8
+    Pop-Location
+}
 
 $clicks = $null
 $clickSources = ""
-$ledger = Read-Json (Join-Path $root "data\leads\$($now.ToString('yyyy-MM')).json")
+$ledger = Read-Json (Join-Path $root "data\leads\$($auditDay.ToString('yyyy-MM')).json")
 if ($ledger -and $ledger.days -and $ledger.days.$date) {
     $today = $ledger.days.$date
     $clicks = $today.line_clicks_total
@@ -166,37 +182,41 @@ $report | ConvertTo-Json -Depth 5 | Out-File -FilePath $reportPath -Encoding utf
 # The clicks number rides on both branches. It is the only number on this line
 # that tracks whether any of the work reached a person, so it must not be
 # something you see only on a day that also went wrong.
-if ($ok) {
-    Show-Toast "$date 全部完成:$($expectedSlots.Count) 檔已發、頭香齊、YT $ytCount/$liveReels、明日備料 OK。$clickLine"
-} else {
-    $gaps = @()
-    if ($missingPosts.Count -gt 0) { $gaps += "缺發文 slot $($missingPosts -join ',')" }
-    if ($missingComments.Count -gt 0) { $gaps += "缺頭香 slot $($missingComments -join ',')" }
-    if ($ytGap -gt 0) { $gaps += "YT 缺 $ytGap" }
-    if (-not $tomorrowCalendar) { $gaps += "明日行事曆缺" }
-    if ($tomorrowReels -like "missing*") { $gaps += "明日影片素材缺" }
-    Show-Toast ("$date 有缺口:" + ($gaps -join ";") + "。$clickLine。報告:output\day-reports\$date.json")
+if (-not $AuditOnly) {
+    if ($ok) {
+        Show-Toast "$date 全部完成:$($expectedSlots.Count) 檔已發、頭香齊、YT $ytCount/$liveReels、明日備料 OK。$clickLine"
+    } else {
+        $gaps = @()
+        if ($missingPosts.Count -gt 0) { $gaps += "缺發文 slot $($missingPosts -join ',')" }
+        if ($missingComments.Count -gt 0) { $gaps += "缺頭香 slot $($missingComments -join ',')" }
+        if ($ytGap -gt 0) { $gaps += "YT 缺 $ytGap" }
+        if (-not $tomorrowCalendar) { $gaps += "明日行事曆缺" }
+        if ($tomorrowReels -like "missing*") { $gaps += "明日影片素材缺" }
+        Show-Toast ("$date 有缺口:" + ($gaps -join ";") + "。$clickLine。報告:output\day-reports\$date.json")
+    }
 }
 
 # OPS-L1-12 offline checks begin
-# Runs as the existing ordinary-user task; never invoke this whole audit for tests.
+# Runs as the existing ordinary-user task; offline tests must use -AuditOnly.
 # Only the small receipt stays in the repo. Snapshots/logs stay on D:.
-try {
-    if (-not (Test-Path -LiteralPath 'D:\C-moved' -PathType Container) -or
-        -not (Test-Path -LiteralPath 'D:\AI-Lanes-work' -PathType Container)) {
-        throw 'Offline checks: D: workspace unavailable'
-    }
-    $level1Python = 'C:/Users/cyc39/AppData/Local/Python/pythoncore-3.14-64/python.exe'
-    & $level1Python -B -X utf8 (Join-Path $PSScriptRoot 'level1_offline_checks.py') `
-        --root $root --out-root $root --work-root 'D:/AI-Lanes-work/level1-offline-checks' 2>&1 |
-        Out-File -FilePath $logFile -Append -Encoding utf8
-    if ($LASTEXITCODE -ne 0) {
-        "WARN level1 offline producer exit $LASTEXITCODE; inspect receipt, never infer PASS" |
+if (-not $AuditOnly) {
+    try {
+        if (-not (Test-Path -LiteralPath 'D:\C-moved' -PathType Container) -or
+            -not (Test-Path -LiteralPath 'D:\AI-Lanes-work' -PathType Container)) {
+            throw 'Offline checks: D: workspace unavailable'
+        }
+        $level1Python = 'C:/Users/cyc39/AppData/Local/Python/pythoncore-3.14-64/python.exe'
+        & $level1Python -B -X utf8 (Join-Path $PSScriptRoot 'level1_offline_checks.py') `
+            --root $root --out-root $root --work-root 'D:/AI-Lanes-work/level1-offline-checks' 2>&1 |
+            Out-File -FilePath $logFile -Append -Encoding utf8
+        if ($LASTEXITCODE -ne 0) {
+            "WARN level1 offline producer exit $LASTEXITCODE; inspect receipt, never infer PASS" |
+                Out-File -FilePath $logFile -Append -Encoding utf8
+        }
+    } catch {
+        ("WARN level1 offline producer unavailable: " + $_.Exception.GetType().Name) |
             Out-File -FilePath $logFile -Append -Encoding utf8
     }
-} catch {
-    ("WARN level1 offline producer unavailable: " + $_.Exception.GetType().Name) |
-        Out-File -FilePath $logFile -Append -Encoding utf8
 }
 # OPS-L1-12 offline checks end
 

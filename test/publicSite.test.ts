@@ -3159,13 +3159,20 @@ describe("generatePublicSite", () => {
     expect(sitemap).toContain("https://sixiangjialaundry.com/local/fengjia-laundry-pickup.html");
     for (const path of [
       "/guides/xitun-laundry-how-to-choose.html",
-      "/guides/taichung-shoe-cleaning-how-to-choose.html"
+      "/guides/taichung-shoe-cleaning-how-to-choose.html",
+      "/guides/ski-snow-jacket-cleaning.html",
+      "/guides/sherpa-teddy-fleece-jacket.html",
+      "/guides/fleece-jacket-pilling.html",
+      "/guides/faux-fur-collar-cleaning.html",
+      "/guides/luxury-down-jacket-cleaning.html",
+      "/guides/down-jacket-feather-leak.html",
+      "/guides/knit-shoulder-bump-stretch.html"
     ]) {
       const url = `https://sixiangjialaundry.com${path}`;
       expect(sitemapUrls.filter((item) => item === url), path).toHaveLength(1);
       expect(aiSitemapUrls.filter((item) => item === url), path).toHaveLength(1);
     }
-    expect(EXPECTED_LOC_COUNT).toBe(201);
+    expect(EXPECTED_LOC_COUNT).toBe(208);
 
     // Should have no /posts/ URLs (all slot posts are noindex)
     const postsUrls = sitemapUrls.filter(url => url.includes("/posts/") || url.endsWith("/posts"));

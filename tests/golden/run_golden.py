@@ -125,6 +125,14 @@ def canonical_text(obj: Any) -> str:
     return canonical_bytes(obj).decode("utf-8")
 
 
+def comparison_bytes(data: bytes) -> bytes:
+    """Exclude only observed machine capability; keep all content and guard policy."""
+    doc = json.loads(data)
+    if isinstance(doc, dict) and isinstance(doc.get("harness"), dict):
+        doc["harness"].pop("zoneinfo_asia_taipei", None)
+    return canonical_bytes(doc)
+
+
 _SURROGATE_RE = re.compile("[\ud800-\udfff]")
 
 
@@ -610,6 +618,28 @@ class Normalizer:
             self._labels[(kind, value)] = f"<{kind}#{self._counts[kind]}>"
         return self._labels[(kind, value)]
 
+    def _timestamp(self, value: str) -> str:
+        # The frozen naive clock explicitly represents Taipei, even on hosts
+        # without tzdata. Number equal instants equally, preserving distinct
+        # timestamps and their reuse relationships instead of erasing all TS IDs.
+        try:
+            stamp = _REAL_DATETIME.fromisoformat(value)
+            if stamp.tzinfo is None:
+                stamp = stamp.replace(tzinfo=TAIPEI)
+            if re.fullmatch(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})", value):
+                # Legacy goldens keep minute-only naive times literally. Keep
+                # that exact wall time (including its minute) in both modes;
+                # do not broaden placeholder masking over customer text.
+                return stamp.astimezone(TAIPEI).replace(tzinfo=None).isoformat(sep=value[10], timespec="minutes")
+            # fromisoformat truncates sub-microsecond digits; keep them so the
+            # existing nanosecond-capable regex cannot merge distinct instants.
+            fraction = re.search(r":\d{2}\.(\d+)", value)
+            tail = fraction[1][6:].rstrip("0") if fraction else ""
+            value = stamp.astimezone(_dtmod.timezone.utc).isoformat(timespec="microseconds") + tail
+        except ValueError:
+            pass
+        return self._number("TS", value)
+
     def text(self, s: str) -> str:
         for pattern, label in self._paths:
             s = pattern.sub(label, s)
@@ -617,7 +647,7 @@ class Normalizer:
             s = s.replace(eid, label)
         s = _ADDR_RE.sub("<ADDR>", s)
         s = _UUID_RE.sub(lambda m: self._number("UUID", m.group(0).lower()), s)
-        s = _TS_RE.sub(lambda m: self._number("TS", m.group(0)), s)
+        s = _TS_RE.sub(lambda m: self._timestamp(m.group(0)), s)
         for real in self._real_dates:
             s = s.replace(real, "<REAL_DATE>")
         s = _HEX_RE.sub(lambda m: self._number("HEX", m.group(0)), s)
@@ -1128,10 +1158,11 @@ def cmd_run(args: argparse.Namespace) -> int:
         _write_bytes(golden, first)
         print(f"RECORDED: {count} cases, double run byte-identical -> {golden.name} ({len(first)} bytes)")
         return EXIT_OK
-    if first == expected:
+    actual_content, expected_content = comparison_bytes(first), comparison_bytes(expected)
+    if actual_content == expected_content:
         print(f"OK: {count} cases byte-identical to {golden.name} (double run identical)")
         return EXIT_OK
-    print(first_difference(first, expected, "this run", "golden"))
+    print(first_difference(actual_content, expected_content, "this run", "golden"))
     return EXIT_DIFF
 
 
@@ -1157,12 +1188,12 @@ def cmd_matrix(args: argparse.Namespace) -> int:
                 print(f"HARNESS ERROR in the {label} subprocess (exit {rc})", file=sys.stderr)
                 return EXIT_HARNESS
             actual = out.read_bytes()
-            if actual == expected and rc == EXIT_OK:
+            if comparison_bytes(actual) == comparison_bytes(expected) and rc == EXIT_OK:
                 print(f"[OK] {label}: transcript byte-identical to {golden.name}", flush=True)
                 continue
             status = EXIT_DIFF
             print(f"[DIFF] {label}: subprocess exit {rc}", flush=True)
-            if actual != expected:
+            if comparison_bytes(actual) != comparison_bytes(expected):
                 print(first_difference(actual, expected, label, "golden"), flush=True)
     finally:
         _safe_rmtree(work, MATRIX_PREFIX)

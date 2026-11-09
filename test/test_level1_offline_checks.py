@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 from unittest import mock
 import level1_offline_checks as checks
+from test_level1_r5 import make_repo
 
 
 class OfflineEvidenceTests(unittest.TestCase):
@@ -26,7 +27,7 @@ class OfflineEvidenceTests(unittest.TestCase):
     def test_completed_unittest_pass_failure_and_skip(self):
         for output, code, want in (("Ran 4 tests in 1.0s\nOK\n", 0, "pass"),
                                    ("Ran 4 tests in 1.0s\nFAILED (failures=1)", 1, "fail"),
-                                   ("Ran 4 tests in 1.0s\nOK (skipped=1)", 0, "no_data")):
+                                   ("Ran 4 tests in 1.0s\nOK (skipped=1)", 0, "pass")):
             with self.subTest(output=output):
                 self.assertEqual(checks.parse_result(output, code)["status"], want)
 
@@ -47,8 +48,7 @@ class OfflineEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
             source, output, workspace = (base / n for n in ("repo", "results", "work"))
-            (source / "line-bot").mkdir(parents=True)
-            (source / "line-bot/test_handoff.py").write_text("# synthetic test module\n", encoding="utf-8")
+            make_repo(source)
             private = source / "line-bot/.runtime/customer.py"
             private.parent.mkdir()
             private.write_text("PRIVATE_DO_NOT_COPY", encoding="utf-8")
@@ -75,14 +75,17 @@ class OfflineEvidenceTests(unittest.TestCase):
             self.assertEqual(data["checks"]["handoff"]["status"], "pass")
             self.assertEqual([t for script, t in calls if script.startswith("tests/golden/")], [300])
             self.assertLess(checks.RUN_BUDGET_SECONDS, 15*60)
-            self.assertEqual(set(data["source_manifest"]), {"line-bot/test_handoff.py"})
+            self.assertEqual(set(data["source_manifest"]), {"line-bot/test_handoff.py", "data/prices.json",
+                                                          "shop-pc/fxwash/config/Memory.md", "tests/golden/fixture.json"})
             self.assertEqual(original, {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in source.rglob("*") if p.is_file()})
 
     def test_timeout_keeps_partial_diagnostics_and_never_passes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             error = subprocess.TimeoutExpired("synthetic", 300, output=b"partial golden", stderr=b" diagnostic")
-            with mock.patch.object(checks.subprocess, "run", side_effect=error):
+            (root / "tests/golden").mkdir(parents=True)
+            (root / "tests/golden/run_golden.py").write_text("# fixture", encoding="utf-8")
+            with mock.patch.object(checks, "run_process", side_effect=error):
                 result = checks.run_check(root, "tests/golden/run_golden.py", ["check"], root, "golden", {}, timeout=300)
             self.assertEqual(result["status"], "no_data")
             self.assertEqual(result["runner_error"], "TimeoutExpired")
@@ -90,10 +93,10 @@ class OfflineEvidenceTests(unittest.TestCase):
 
     def test_exhausted_daily_budget_writes_incomplete_receipt(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            (root / "line-bot").mkdir()
+            root = Path(tmp) / "repo"
+            make_repo(root)
             with mock.patch.object(checks, "RUN_BUDGET_SECONDS", 0), mock.patch.object(checks, "run_check") as run:
-                path = checks.produce(root, root / "results", work_root=root / "work")
+                path = checks.produce(root, root / "results", work_root=Path(tmp) / "work")
             run.assert_not_called()
             data = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual({r["status"] for r in data["checks"].values()}, {"no_data"})

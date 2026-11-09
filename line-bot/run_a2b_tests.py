@@ -161,7 +161,7 @@ def _run_module(tmp_root: Path, module_name: str) -> int:
     return 0 if result.wasSuccessful() else 1
 
 
-def main() -> int:
+def main(*, launch_worker=None) -> int:
     if len(sys.argv) == 4 and sys.argv[1] == "--worker":
         return _run_module(Path(sys.argv[3]), sys.argv[2])
     if len(sys.argv) != 2:
@@ -177,7 +177,8 @@ def main() -> int:
     try:
         # Audit hooks cannot be uninstalled. Keep each suite's strict hook in a
         # worker; the owning parent removes its tree after that process exits.
-        return subprocess.run([sys.executable, "-B", "-X", "utf8", str(Path(__file__).resolve()),
+        launch = subprocess.run if launch_worker is None else launch_worker
+        return launch([sys.executable, "-B", "-X", "utf8", str(Path(__file__).resolve()),
                                "--worker", sys.argv[1], str(tmp_root)], check=False).returncode
     finally:
         _remove_tree(tmp_root, token)

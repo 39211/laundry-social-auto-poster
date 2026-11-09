@@ -2959,10 +2959,8 @@ export function buildLineRedirectHtml(input: { lineUrl: string; measurementId?: 
         try {
           if (typeof window.gtag === 'function') {
             window.gtag('event', 'line_click', {
-              // Both names on purpose: the property's custom dimension is
-              // registered against one of them, and a rename on the GA4 side
-              // must not silently empty the breakdown again.
-              source: source,
+              // UI placement belongs in the dedicated event-scoped custom
+              // dimension; do not reuse GA4's traffic-source name here.
               link_source: source,
               page_referrer: document.referrer || '',
               transport_type: 'beacon',

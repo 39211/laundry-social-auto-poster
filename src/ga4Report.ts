@@ -140,9 +140,9 @@ export async function fetchLineClicks(input: {
 
   // Event counts are asked for with eventName, a built-in dimension, so the
   // entire on-site funnel is collected without any custom-dimension setup.
-  // The per-source line_click breakdown needs
-  // customEvent:source, which only exists once someone registers "source" as a
-  // custom dimension in the GA4 property -- and even then only from that day
+  // The per-source line_click breakdown uses the dedicated event-scoped
+  // customEvent:link_source dimension. Keeping UI placement out of "source"
+  // prevents it from being confused with acquisition/session traffic source
   // forward. Splitting the two calls means a missing registration costs the
   // breakdown, not the number.
   const eventPayload = await runReport("eventName", GA4_SEARCH_FUNNEL_EVENTS);
@@ -164,7 +164,7 @@ export async function fetchLineClicks(input: {
   let sourcePayload: Awaited<ReturnType<typeof runReport>> | null = null;
   let breakdownUnavailable: string | undefined;
   try {
-    sourcePayload = await runReport("customEvent:source", ["line_click"]);
+    sourcePayload = await runReport("customEvent:link_source", ["line_click"]);
     if (sourcePayload.error) {
       breakdownUnavailable = sourcePayload.error.message;
       sourcePayload = null;

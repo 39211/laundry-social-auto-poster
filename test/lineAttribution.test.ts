@@ -92,15 +92,12 @@ function lineRedirectContractHolds(html: string): boolean {
   const hasReferrer = /page_referrer\s*:/.test(html);
   const hasNoscript = /<noscript>[\s\S]*http-equiv=["']refresh["'][\s\S]*<\/noscript>/i.test(html);
   const stillRedirects = /location\.replace\(destination\)/.test(html);
-  // GA4's registered dimension is customEvent:source, so link_source alone
-  // leaves the breakdown empty if the property is ever re-mapped; both names
-  // ship. And a source that can be empty is a click nobody can learn from:
-  // 2026-08-26 held three line_clicks with an empty source, so the value now
-  // falls back to the referrer and then to a literal, never to nothing.
+  // The GA4 property registers link_source as the event-scoped LINE entrance
+  // dimension. UI placement must not also be sent as the generic source field.
   const hasSourceAlias = /(^|[^_\w])source\s*:\s*source/m.test(html);
   const neverEmpty = /params\.get\(['"]source['"]\)\s*\|\|[\s\S]{0,80}\|\|\s*['"]unknown['"]/u.test(html);
   return (
-    sendsEvent && hasLinkSource && hasReferrer && hasNoscript && stillRedirects && hasSourceAlias && neverEmpty
+    sendsEvent && hasLinkSource && hasReferrer && hasNoscript && stillRedirects && !hasSourceAlias && neverEmpty
   );
 }
 

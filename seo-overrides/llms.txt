@@ -154,6 +154,13 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [洗完沒乾透就收，等於把潮氣封回去](https://sixiangjialaundry.com/guides/post-wash-drying-before-storage.html): guide page for answer-engine and local-intent searches.
 - [提把先分真皮或合成皮，再決定能不能擦](https://sixiangjialaundry.com/guides/synthetic-vs-leather-handle.html): guide page for answer-engine and local-intent searches.
 - [雨後包包：先通風看包角與內裡](https://sixiangjialaundry.com/guides/rainy-bag-care.html): guide page for answer-engine and local-intent searches.
+- [雪衣、滑雪外套怎麼洗？出國回來要送洗嗎？](https://sixiangjialaundry.com/guides/ski-snow-jacket-cleaning.html): guide page for answer-engine and local-intent searches.
+- [羊羔絨、泰迪絨外套怎麼洗？洗完會結塊變硬嗎？](https://sixiangjialaundry.com/guides/sherpa-teddy-fleece-jacket.html): guide page for answer-engine and local-intent searches.
+- [刷毛、搖粒絨外套起球、變硬怎麼辦？](https://sixiangjialaundry.com/guides/fleece-jacket-pilling.html): guide page for answer-engine and local-intent searches.
+- [外套毛領、帽緣毛怎麼洗？可以拆下來嗎？](https://sixiangjialaundry.com/guides/faux-fur-collar-cleaning.html): guide page for answer-engine and local-intent searches.
+- [精品羽絨外套可以送洗嗎？](https://sixiangjialaundry.com/guides/luxury-down-jacket-cleaning.html): guide page for answer-engine and local-intent searches.
+- [羽絨外套一直漏毛正常嗎？送洗會更嚴重嗎？](https://sixiangjialaundry.com/guides/down-jacket-feather-leak.html): guide page for answer-engine and local-intent searches.
+- [毛衣掛完肩膀凸起、洗完變長怎麼辦？](https://sixiangjialaundry.com/guides/knit-shoulder-bump-stretch.html): guide page for answer-engine and local-intent searches.
 - [JSON Feed](https://sixiangjialaundry.com/feed.json): chronological update feed for readers and AI ingestion.
 - [Knowledge graph](https://sixiangjialaundry.com/knowledge-graph.json): Schema.org JSON-LD business, dataset, post, and image entities.
 - [AI discovery index](https://sixiangjialaundry.com/ai-discovery.json): machine-readable map of every AI/SEO endpoint.

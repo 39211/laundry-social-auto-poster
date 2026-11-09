@@ -158,7 +158,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [羊羔絨、泰迪絨外套怎麼洗？洗完會結塊變硬嗎？](https://sixiangjialaundry.com/guides/sherpa-teddy-fleece-jacket.html): guide page for answer-engine and local-intent searches.
 - [刷毛、搖粒絨外套起球、變硬怎麼辦？](https://sixiangjialaundry.com/guides/fleece-jacket-pilling.html): guide page for answer-engine and local-intent searches.
 - [外套毛領、帽緣毛怎麼洗？可以拆下來嗎？](https://sixiangjialaundry.com/guides/faux-fur-collar-cleaning.html): guide page for answer-engine and local-intent searches.
-- [精品羽絨外套可以送洗嗎？加拿大鵝、Moncler 這類要注意什麼？](https://sixiangjialaundry.com/guides/luxury-down-jacket-cleaning.html): guide page for answer-engine and local-intent searches.
+- [精品羽絨外套可以送洗嗎？](https://sixiangjialaundry.com/guides/luxury-down-jacket-cleaning.html): guide page for answer-engine and local-intent searches.
 - [羽絨外套一直漏毛正常嗎？送洗會更嚴重嗎？](https://sixiangjialaundry.com/guides/down-jacket-feather-leak.html): guide page for answer-engine and local-intent searches.
 - [毛衣掛完肩膀凸起、洗完變長怎麼辦？](https://sixiangjialaundry.com/guides/knit-shoulder-bump-stretch.html): guide page for answer-engine and local-intent searches.
 - [JSON Feed](https://sixiangjialaundry.com/feed.json): chronological update feed for readers and AI ingestion.

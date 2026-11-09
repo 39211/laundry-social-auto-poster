@@ -10765,7 +10765,7 @@
       "id": "ski-snow-jacket-cleaning-page-summary",
       "type": "guide_summary",
       "question": "雪衣、滑雪外套怎麼洗？出國回來要送洗嗎？",
-      "answer": "雪衣、滑雪外套先別整件丟進家用洗衣機。出國回來先看外層鹽痕、裡布與口袋是否還潮，還潮就不要收進壓縮袋。價目表沒有雪衣這一列。參考價，看過實品再報價。免費收送、沒有最低消費。",
+      "answer": "雪衣、滑雪外套先別整件丟進家用洗衣機。出國回來先看外層鹽痕、裡布與口袋是否還潮，還潮就不要收進壓縮袋。清潔不等於恢復防潑水或防水性能。一般厚雪衣、滑雪外套可看厚外套水洗參考價 $180，參考價，看過實品再報價；羽絨填充的看羽絨外套水洗參考價 $280，參考價，看過實品再報價。雪褲、連身雪衣傳照片到 LINE，看過實品再報價。免費收送、沒有最低消費。",
       "source_url": "https://sixiangjialaundry.com/guides/ski-snow-jacket-cleaning.html",
       "local_intent": "雪衣怎麼洗",
       "keywords": [
@@ -10789,7 +10789,7 @@
       "id": "sherpa-teddy-fleece-jacket-page-summary",
       "type": "guide_summary",
       "question": "羊羔絨、泰迪絨外套怎麼洗？洗完會結塊變硬嗎？",
-      "answer": "羊羔絨、泰迪絨外套是布面貼絨，不是羊毛，也不是羽絨。高溫烘和強力脫水容易讓絨倒、結塊、摸起來變硬。價目表沒有這一列。參考價，看過實品再報價。免費收送、沒有最低消費。",
+      "answer": "羊羔絨、泰迪絨外套是布面貼絨，不是羊毛，也不是羽絨。高溫烘和強力脫水容易讓絨倒、結塊、摸起來變硬。結塊或倒伏洗完能回到哪裡，要看材質與損況，看過實品再說，不承諾回到原絨向或變蓬鬆。厚外套水洗參考價 $180，參考價，看過實品再報價；毛衣外套形制用毛衣外套水洗參考價 $180，參考價，看過實品再報價。免費收送、沒有最低消費。",
       "source_url": "https://sixiangjialaundry.com/guides/sherpa-teddy-fleece-jacket.html",
       "local_intent": "羊羔絨外套怎麼洗",
       "keywords": [
@@ -10813,7 +10813,7 @@
       "id": "fleece-jacket-pilling-page-summary",
       "type": "guide_summary",
       "question": "刷毛、搖粒絨外套起球、變硬怎麼辦？",
-      "answer": "刷毛、搖粒絨外套的小球是合成纖維，和羊毛毛衣起球不是同一件事。用力刮容易把薄的刷毛刮破。變硬多半是烘太熱或洗劑沒沖開。價目表沒有刷毛外套這一列。參考價，看過實品再報價。免費收送、沒有最低消費。",
+      "answer": "刷毛、搖粒絨外套的小球是合成纖維，和羊毛毛衣起球不是同一件事。用力刮容易把薄的刷毛刮破。起球只能評估改善，不承諾去掉或回到原表面。變硬多半是烘太熱或洗劑沒沖開。厚外套水洗參考價 $180，參考價，看過實品再報價。免費收送、沒有最低消費。",
       "source_url": "https://sixiangjialaundry.com/guides/fleece-jacket-pilling.html",
       "local_intent": "刷毛外套起球",
       "keywords": [
@@ -10860,15 +10860,15 @@
     {
       "id": "luxury-down-jacket-cleaning-page-summary",
       "type": "guide_summary",
-      "question": "精品羽絨外套可以送洗嗎？加拿大鵝、Moncler 這類要注意什麼？",
-      "answer": "精品羽絨外套可以先傳照片問能不能收。加拿大鵝、Moncler 這些名字只用來指有布章、毛領或品牌洗標的羽絨外套。一般羽絨外套水洗參考價是羽絨外套 $280，參考價，看過實品再報價。有布章或品牌洗標的不套那一列。免費收送、沒有最低消費。",
+      "question": "精品羽絨外套可以送洗嗎？",
+      "answer": "精品羽絨外套可以先傳照片問能不能收。這不是品牌授權、指定或合作洗護。一般羽絨外套水洗參考價是羽絨外套 $280，參考價，看過實品再報價。有毛領、徽章、特殊塗層或厚填充的不套那一列，也不套精品外套。怎麼洗看羽絨外套指南。免費收送、沒有最低消費。",
       "source_url": "https://sixiangjialaundry.com/guides/luxury-down-jacket-cleaning.html",
       "local_intent": "精品羽絨外套可以送洗嗎",
       "keywords": [
         "精品羽絨外套送洗",
-        "加拿大鵝外套可以洗嗎",
-        "Moncler 羽絨外套",
-        "羽絨外套布章"
+        "羽絨外套布章",
+        "羽絨外套徽章",
+        "精品羽絨怎麼送洗"
       ],
       "area": "台中市",
       "confidence": "business-owned-source",
@@ -10885,7 +10885,7 @@
       "id": "down-jacket-feather-leak-page-summary",
       "type": "guide_summary",
       "question": "羽絨外套一直漏毛正常嗎？送洗會更嚴重嗎？",
-      "answer": "車縫偶爾帶出幾根羽絲，和同一個位置一直冒絨不是同一件事。破口已經張開時，水與脫水可能讓更多羽絲從那個口出來，所以要先拍照。清潔不包含把破口車起來。羽絨外套 $280，參考價，看過實品再報價。免費收送、沒有最低消費。",
+      "answer": "車縫偶爾帶出幾根羽絲，和同一個位置一直冒絨不是同一件事。破口已經張開時，水與脫水可能讓更多羽絲從那個口出來，所以要先拍照。不承諾送洗後不再漏，也不承諾補洞或修隔間。屬修繕，不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。羽絨外套水洗參考價 $280，參考價，看過實品再報價。免費收送、沒有最低消費。",
       "source_url": "https://sixiangjialaundry.com/guides/down-jacket-feather-leak.html",
       "local_intent": "羽絨外套一直漏毛",
       "keywords": [

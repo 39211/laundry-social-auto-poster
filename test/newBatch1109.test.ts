@@ -12,13 +12,15 @@ import {
 
 const FULL = "免費收送";
 const REF = "參考價，看過實品再報價";
+const NOT_BRAND_CARE = "不是品牌授權、指定或合作洗護";
+const LEAK_REPAIR = "屬修繕，不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。";
 
-/** 11/09 入冬冬衣。價格只能是厚外套、羽絨外套、長大衣的水洗參考價；沒有列的品項不寫數字。 */
+/** 11/09 入冬冬衣。金額只沿用價目表已有的水洗參考價，並緊接參考價句。 */
 const PAGES = [
   {
     slug: "ski-snow-jacket-cleaning",
     h1: "雪衣、滑雪外套怎麼洗？出國回來要送洗嗎？",
-    prices: [],
+    prices: ["$180", "$280"],
     hub: "hubs/luxury-garment-care.html",
     inbound: [
       "guides/gore-tex-jacket-cleaning.html",
@@ -29,7 +31,7 @@ const PAGES = [
   {
     slug: "sherpa-teddy-fleece-jacket",
     h1: "羊羔絨、泰迪絨外套怎麼洗？洗完會結塊變硬嗎？",
-    prices: [],
+    prices: ["$180"],
     hub: "hubs/luxury-garment-care.html",
     inbound: [
       "guides/wool-coat-dry-clean.html",
@@ -40,7 +42,7 @@ const PAGES = [
   {
     slug: "fleece-jacket-pilling",
     h1: "刷毛、搖粒絨外套起球、變硬怎麼辦？",
-    prices: [],
+    prices: ["$180"],
     hub: "hubs/luxury-garment-care.html",
     inbound: [
       "guides/wool-sweater-pilling.html",
@@ -61,7 +63,7 @@ const PAGES = [
   },
   {
     slug: "luxury-down-jacket-cleaning",
-    h1: "精品羽絨外套可以送洗嗎？加拿大鵝、Moncler 這類要注意什麼？",
+    h1: "精品羽絨外套可以送洗嗎？",
     prices: ["$280"],
     hub: "hubs/luxury-garment-care.html",
     inbound: [
@@ -162,7 +164,7 @@ describe("11/09 入冬冬衣 7 頁", () => {
         expect(main).not.toMatch(/賠|補償|保證|全新|殺菌|除臭|消毒/);
         expect(main).not.toMatch(/東海[^。；，]{0,12}(門市|店面)(?!，|。|；)/);
         expect(main).toContain("東海只有收送");
-        expect(main).not.toMatch(/合作|授權|經銷|原廠/);
+        expect(main.replaceAll(NOT_BRAND_CARE, "")).not.toMatch(/合作|授權|經銷|原廠/);
         expect((main.match(/data-editorial="1"/g) ?? []).length).toBeGreaterThanOrEqual(3);
       });
 
@@ -201,4 +203,33 @@ describe("11/09 入冬冬衣 7 頁", () => {
       });
     });
   }
+
+  it("行銷改字：精品羽絨不寫品牌，漏毛不寫改衣金額，雪衣寫防潑水界線", () => {
+    const brandNeedles = [
+      "加拿大" + "鵝",
+      "Mon" + "cler",
+      "Canada" + " Goose",
+      "盟可" + "睞",
+      "盟可" + "瞰",
+      "The North" + " Face"
+    ];
+    const bundle = [
+      read("guides/luxury-down-jacket-cleaning.html"),
+      read("answers.json"),
+      read("llms.txt"),
+      read(".well-known/llms.txt")
+    ].join("\n");
+    for (const needle of brandNeedles) {
+      expect(bundle, needle).not.toContain(needle);
+    }
+    const luxury = mainOf(read("guides/luxury-down-jacket-cleaning.html"));
+    expect(luxury).toContain(NOT_BRAND_CARE);
+    expect(luxury).not.toContain("$200");
+    const leak = mainOf(read("guides/down-jacket-feather-leak.html"));
+    expect(leak).toContain(LEAK_REPAIR);
+    expect(leak).not.toMatch(/60\s*元|\$60|修改衣服/);
+    const ski = mainOf(read("guides/ski-snow-jacket-cleaning.html"));
+    expect(ski).toContain("清潔不等於恢復防潑水或防水性能");
+    expect(ski).not.toMatch(/頭盔|雪靴|雪衣價|防泼水/);
+  });
 });

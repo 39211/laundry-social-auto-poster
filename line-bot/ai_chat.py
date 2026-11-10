@@ -37,7 +37,7 @@ LOG = logging.getLogger("ai_chat")
 
 MODES = ("off", "shadow", "on")
 TOTAL_SECONDS = 10.0       # hard budget for the whole AI decision (LINE reply token safety)
-PER_CALL_SECONDS = 6.0
+PER_CALL_SECONDS = 4.5      # 11/10: gemini-3.8-flash often needs >50s; leave 3.5 Flash ~5s of the 10s budget
 MIN_CALL_SECONDS = 1.5
 MAX_CALLS = 2
 MAX_REPLY_CHARS = 90

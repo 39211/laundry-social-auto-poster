@@ -13,7 +13,7 @@ import {
 const FULL = "免費收送";
 const REF = "參考價，看過實品再報價";
 
-/** 11/11 第二批：價格意圖 7 頁。金額只用 data/prices.json 且與官網價目表一致的列（涼鞋、高爾夫球鞋兩列兩邊不一致，不放）。 */
+/** 11/11 第二批：價格意圖 7 頁。金額只用 data/prices.json 且與官網價目表一致的列（涼鞋 $200、高爾夫球鞋 $400，老闆 11/11 03:16 確認；prices.json 已改成同值）。 */
 const PAGES = [
   { slug: "taichung-shoe-cleaning-price", prices: [150, 200, 250, 300, 350, 400, 600], hub: "hubs/shoe-care.html", inbound: ["services/shoe-bag-care.html", "guides/leather-shoe-cleaning-price.html", "guides/taichung-shoe-cleaning-how-to-choose.html"] },
   { slug: "boot-hiking-shoe-cleaning-price", prices: [350, 450, 500, 550], hub: "hubs/shoe-care.html", inbound: ["guides/boot-shaft-cleaning.html", "guides/hiking-shoe-cleaning.html", "guides/sheepskin-boot-cleaning.html"] },
@@ -94,7 +94,8 @@ describe("11/11 第二批價格意圖 7 頁", () => {
       it("正文與頁面層 JSON-LD 不踩硬規，聯絡與界線句都在", () => {
         const html = ov(path);
         const main = mainOf(html);
-        const audited = wave9AuditedText(html).replaceAll("04-2452-7411", "");
+        // 行銷裁定 M1 指定的否定句「不保證全部乾淨」是核定句，先拿掉再查禁字；其餘「保證」仍禁。
+        const audited = wave9AuditedText(html).replaceAll("04-2452-7411", "").replaceAll("不保證全部乾淨", "");
         expect(wave9BannedHits(audited)).toEqual([]);
         for (const needle of [FULL, REF, "https://lin.ee/w8qGVqM", "@454foyks", "0968327653", "04-2452-7411", "東海只有收送", "青海路二段365號", "台中洗衣收送"]) {
           expect(main, needle).toContain(needle);
@@ -102,7 +103,7 @@ describe("11/11 第二批價格意圖 7 頁", () => {
         expect(main.replaceAll(FULL, "")).not.toContain("免費");
         expect(main).not.toContain("台中全市");
         expect(main.replaceAll("最低消費", "")).not.toContain("最");
-        expect(main).not.toMatch(/賠|補償|保證|全新|殺菌|除臭|消毒/);
+        expect(main.replaceAll("不保證全部乾淨", "")).not.toMatch(/賠|補償|保證|全新|殺菌|除臭|消毒/);
         expect(main).not.toMatch(/東海[^。；，]{0,12}(門市|店面)(?!，|。|；)/);
         expect(main).not.toContain("上色覆蓋");
         expect(main).not.toContain("皮包");
@@ -121,8 +122,6 @@ describe("11/11 第二批價格意圖 7 頁", () => {
         for (const p of page.prices) expect(official.has(p), `${page.slug} $${p} 不在 prices.json`).toBe(true);
         // 「起」只准出現在站上本來就寫「起」的名牌包
         for (const m of main.matchAll(/\$(\d+) 起/g)) expect(m[1], page.slug).toBe("1500");
-        // 不放兩邊不一致的列
-        expect(main).not.toMatch(/(涼鞋|高爾夫球鞋)[^。]{0,6}\$/);
       });
 
       it("表格每一列的品項與金額和 prices.json 對得上", () => {
@@ -170,4 +169,67 @@ describe("11/11 第二批價格意圖 7 頁", () => {
       });
     });
   }
+});
+
+describe("11/11 涼鞋、高爾夫球鞋價格對齊官網價目表", () => {
+  it("prices.json 涼鞋 200、高爾夫球鞋 400，不再留 150", () => {
+    const table = priceTable();
+    expect(table.get("涼鞋")).toBe(200);
+    expect(table.get("高爾夫球鞋")).toBe(400);
+  });
+
+  it("官網價目頁與洗鞋頁寫的是 $200／$400", () => {
+    for (const rel of ["services/taichung-laundry-price-list.html", "services/shoe-bag-care.html"]) {
+      const html = ov(rel);
+      expect(html, rel).toMatch(/涼鞋 \$200/);
+      expect(html, rel).toMatch(/高爾夫球鞋 \$400/);
+      expect(html, rel).not.toMatch(/(涼鞋|高爾夫球鞋)\s*\$150/);
+    }
+  });
+
+  it("洗鞋價格頁價目表有涼鞋 $200、高爾夫球鞋 $400，且都帶參考價句", () => {
+    const main = mainOf(ov("guides/taichung-shoe-cleaning-price.html"));
+    expect(main).toContain(`<tr><td>涼鞋</td><td>$200，${REF}</td>`);
+    expect(main).toContain(`<tr><td>高爾夫球鞋</td><td>$400，${REF}</td>`);
+    expect(main).not.toContain("涼鞋、高爾夫球鞋不在上表");
+  });
+});
+
+describe("行銷裁定 M1–M4（PR #325）", () => {
+  it("M1：洗鞋頁 FAQ 改成「麂皮鞋可以送洗嗎？」，不再問水洗", () => {
+    const main = mainOf(ov("guides/taichung-shoe-cleaning-price.html"));
+    expect(main).toContain("麂皮鞋可以送洗嗎？");
+    expect(main).toContain(`可以。麂皮鞋清潔參考價 $400，${REF}。麂皮盡量少碰水，不能下水強洗，髒污盡量加強處理，不保證全部乾淨；`);
+    expect(main).not.toContain("麂皮鞋能水洗嗎");
+    expect(main).not.toMatch(/麂皮鞋水洗參考價/);
+  });
+
+  it("M2：洗鞋頁價目表麂皮鞋列備註", () => {
+    const main = mainOf(ov("guides/taichung-shoe-cleaning-price.html"));
+    expect(main).toMatch(/<tr><td>麂皮鞋<\/td><td>\$400，[^<]*<\/td><td>清潔參考價；麂皮盡量少碰水<\/td>/);
+  });
+
+  it("M3：皮衣價格頁（含 description、JSON-LD 頁面節點、answers.json）不寫水洗參考價", () => {
+    const html = ov("guides/leather-garment-cleaning-price.html");
+    const main = mainOf(html);
+    expect(main).not.toContain("水洗");
+    expect(main).toContain("清潔參考價");
+    expect(main).toContain("<th>清潔參考價</th>");
+    expect(main).not.toContain("水洗價，乾洗");
+    expect(main).toContain("乾洗、柔洗與發霉特殊污漬另計");
+    const desc = html.match(/<meta name="description" content="(.*?)"/)?.[1] ?? "";
+    expect(desc).not.toContain("水洗");
+    const webPage = pageNodes(html).find((node) => node["@type"] === "WebPage");
+    expect(JSON.stringify(webPage)).not.toContain("水洗");
+    const answers = JSON.parse(ov("answers.json")).answers as Array<{ id: string; answer: string }>;
+    expect(answers.find((a) => a.id === "leather-garment-cleaning-price-page-summary")?.answer).not.toContain("水洗");
+    // title 不動
+    expect(html).toContain("<title>皮衣送洗多少錢？");
+  });
+
+  it("M4：寢具頁大件天數改成「至少 10–14 天」", () => {
+    const main = mainOf(ov("guides/bedding-blanket-sleeping-bag-cleaning-price.html"));
+    expect(main.match(/毛毯、睡袋等大件至少 10–14 天，實際日期收件時確認/g)?.length).toBe(2);
+    expect(main).not.toContain("寢具大件一般約");
+  });
 });

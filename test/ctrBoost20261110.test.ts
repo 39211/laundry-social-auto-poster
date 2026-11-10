@@ -160,7 +160,7 @@ describe("2026-11-10 CTR 裁定文案", () => {
     expect(shoeBag).toContain('<a href="/guides/new-shoe-dye-ruboff.html">新鞋掉色怎麼辦</a>');
     expect(shoeBag).toContain('<a href="/guides/washing-machine-shoe-risk.html">鞋子可以丟洗衣機嗎</a>');
     expect(shoeBag).toContain('<a href="/guides/shoe-drying-heat-risk.html">鞋子可以烘乾嗎</a>');
-    expect(meta(shoeBag, /<title>([^<]*)<\/title>/u)).toBe("台中洗鞋多少錢？運動鞋 $250、麂皮鞋 $400｜台中收送｜私享家");
+    expect(meta(shoeBag, /<title>([^<]*)<\/title>/u)).toBe("台中洗鞋店｜運動鞋 $250、麂皮鞋 $400、免費收送｜私享家洗衣店（西屯）");
     const dye = read("guides/new-shoe-dye-ruboff.html");
     expect(dye).toContain(
       '<a href="https://sixiangjialaundry.com/guides/washing-machine-shoe-risk.html" data-editorial="1">鞋子可以丟洗衣機洗嗎</a>；這頁只講新鞋染料蹭色。'

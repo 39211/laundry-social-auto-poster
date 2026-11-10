@@ -140,8 +140,12 @@ describe("11/11 發霉問句價格與報價問句 5 頁", () => {
       it("價格只出現價目表上的價，每個數字旁都有參考價句", () => {
         const main = mainOf(read(path));
         const prices = main.match(/\$\d+/g) ?? [];
-        const tagged = main.match(/\$\d+，參考價，看過實品再報價/g) ?? [];
-        expect(tagged).toHaveLength(prices.length);
+        // 行銷 Q1：含金額的句子（以 。；與表格格為界）句尾帶一次參考價句。
+        const sentences = main.replace(/<[^>]+>/g, "\n").split(/[。；\n]/u);
+        for (const sentence of sentences.filter((x) => /\$\d+/.test(x))) {
+          expect(sentence, sentence).toContain(REF);
+          expect((sentence.match(/參考價，看過實品再報價/g) ?? []).length, sentence).toBe(1);
+        }
         expect([...new Set(prices)].sort()).toEqual([...page.prices].sort());
         expect(main.match(/\$\d+\s*起/g) ?? []).toEqual([]);
       });
@@ -195,6 +199,37 @@ describe("11/11 發霉問句價格與報價問句 5 頁", () => {
       expect(html, page.slug).not.toMatch(/防水(?!透氣)/u);
       expect(html, page.slug).not.toContain("名牌包 $1500 起；皆為水洗參考價");
       expect(mainOf(html).match(/\$\d+\s*起/g) ?? [], page.slug).toEqual([]);
+    }
+  });
+
+  it("行銷裁定 M1–M5 與 Q2：不用「第一」、洗鞋天數用標準句、拖鞋不寫水洗價、制服 FAQ 不問為什麼、精品表拆成 22＋3", () => {
+    const rd = (slug: string) => read(`guides/${slug}.html`);
+    for (const slug of ["uniform-cleaning-price", "luxury-garment-cleaning-price", "slipper-cleaning-price"]) {
+      expect(rd(slug), slug).not.toContain("第一");
+      expect(rd(slug), slug).not.toMatch(/5[–-]7 天|急件/u);
+    }
+    const slipper = rd("slipper-cleaning-price");
+    expect(slipper).toContain("洗鞋一般約一個禮拜可以拿，實際日期收件時確認");
+    expect(slipper).not.toContain("水洗");
+    expect(slipper).toContain("拖鞋清潔參考價 $200");
+    expect((slipper.match(/完整價目看/g) ?? []).length).toBe(1);
+    const uniform = rd("uniform-cleaning-price");
+    expect(uniform).toContain("護士服和醫師服的價格怎麼分？");
+    expect(uniform).not.toContain("為什麼價格不同");
+    expect(uniform).toContain("洗標要先看，才知道乾洗或水洗");
+    const luxury = rd("luxury-garment-cleaning-price");
+    const tables = luxury.match(/<table class="comparison-table">[\s\S]*?<\/table>/g) ?? [];
+    const priceTables = tables.filter((t) => /<caption>精品/u.test(t) && /參考價/u.test(t) && !/先看哪四處/u.test(t));
+    expect(priceTables).toHaveLength(2);
+    expect(((priceTables[0] ?? "").match(/<tr><td>/g) ?? []).length).toBe(22);
+    expect(((priceTables[1] ?? "").match(/<tr><td>/g) ?? []).length).toBe(3);
+    for (const name of ["精品圍巾", "精品手套", "精品帽子"]) expect(priceTables[1]).toContain(name);
+    expect(priceTables[1]).toContain("清潔參考價");
+    expect(priceTables[1]).not.toContain("水洗");
+    const answers: Array<{ id: string; answer: string }> = JSON.parse(read("answers.json")).answers;
+    for (const slug of ["uniform", "luxury-garment", "slipper"]) {
+      const a = answers.find((x) => x.id === `${slug}-cleaning-price-page-summary`)?.answer ?? "";
+      expect(a, slug).not.toMatch(/第一|5[–-]7 天|急件/u);
     }
   });
 });

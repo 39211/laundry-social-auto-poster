@@ -50,4 +50,18 @@ describe("11/11 全站缺口補齊（B 批）", () => {
       expect(html, rel).toContain("<h2>洗衣收送要錢嗎？</h2>");
     }
   });
+
+  it("行銷裁定 A：#325 七頁的直接答案框最後一句都是「免費收送、沒有最低消費。」", () => {
+    const slugs = [
+      "leather-garment-cleaning-price", "bag-mold-cleaning-price", "bedding-blanket-sleeping-bag-cleaning-price", "boot-hiking-shoe-cleaning-price",
+      "dress-skirt-gown-cleaning-price", "everyday-clothes-cleaning-price", "taichung-shoe-cleaning-price"
+    ];
+    for (const slug of slugs) {
+      const html = readFileSync(join(ROOT, `guides/${slug}.html`), "utf8");
+      const box = html.match(/<div class="answer-box">([\s\S]*?)<\/div>/u)?.[1] ?? "";
+      const text = box.replace(/<[^>]+>/gu, "").trim();
+      expect(text.endsWith("免費收送、沒有最低消費。"), slug).toBe(true);
+      expect(text.split("免費收送、沒有最低消費").length - 1, slug).toBe(1);
+    }
+  });
 });

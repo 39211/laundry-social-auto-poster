@@ -23,16 +23,24 @@ class ReadyzTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json(), {
             'pid': os.getpid(), 'vision_configured': False, 'ai_chat': False,
-            'missing': ['GEMINI_API_KEY', 'LAUNDRY_AI_CHAT'],
+            'missing': ['GEMINI_API_KEY', 'LAUNDRY_AI_CHAT'], 'chat_claude': False,
         })
 
     def test_configured_and_no_values(self):
         os.environ.update(GEMINI_API_KEY='synthetic-private-marker', LAUNDRY_AI_CHAT='on')
         row = self.get().get_json()
         self.assertEqual(row, {'pid': os.getpid(), 'vision_configured': True,
-                               'ai_chat': True, 'missing': []})
+                               'ai_chat': True, 'missing': [], 'chat_claude': False})
         self.assertNotIn('synthetic-private-marker', str(row))
         self.assertNotIn('://', str(row))
+
+    def test_claude_key_is_reported_as_a_boolean_only(self):
+        os.environ.update(GEMINI_API_KEY='synthetic-private-marker', LAUNDRY_AI_CHAT='on',
+                          CLAUDE_API_CREDIT_KEY='synthetic-claude-marker')
+        row = self.get().get_json()
+        self.assertIs(row['chat_claude'], True)
+        self.assertIs(row['ai_chat'], True)
+        self.assertNotIn('synthetic-claude-marker', str(row))
 
     def test_disabled_vision_and_chat_modes(self):
         os.environ.update(GEMINI_API_KEY='synthetic-private-marker', LAUNDRY_PHOTO_ESTIMATE='0')

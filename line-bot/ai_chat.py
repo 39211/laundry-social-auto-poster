@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import re
 import threading
@@ -39,7 +40,7 @@ MODES = ("off", "shadow", "on")
 TOTAL_SECONDS = 10.0       # hard budget for the whole AI decision (LINE reply token safety)
 PER_CALL_SECONDS = 4.5      # 11/10: gemini-3.8-flash often needs >50s; leave 3.5 Flash ~5s of the 10s budget
 MIN_CALL_SECONDS = 1.5
-MAX_CALLS = 2
+MAX_CALLS = 3
 MAX_REPLY_CHARS = 90
 MAX_SENTENCES = 3
 KNOWLEDGE_CHARS = 4000
@@ -95,6 +96,13 @@ _MODEL_FN = None          # tests / eval inject a fake: fn(model, prompt, timeou
 call_count = 0            # model attempts in this process (eval uses it for free-tier spacing)
 _CALL_LOCK = threading.Lock()
 _USAGE_LOCK = threading.Lock()
+_CLAUDE_USAGE_LOCK = threading.Lock()
+_CLAUDE_USAGE_BLOCKED = set()  # paths whose accounting write failed in this process
+_CHAT_MODEL_RE = re.compile(r"(?:claude-[a-z0-9.-]+|gemini-[a-zA-Z0-9.-]+)")
+_CLAUDE_PRICES = {  # estimated USD per million input/output tokens (owner's rates)
+    "claude-sonnet-5-5": (2.0, 10.0),
+    "claude-haiku-5-5": (0.10, 0.50),
+}
 
 
 class ModelError(Exception):
@@ -116,9 +124,9 @@ def mode() -> str:
 
 
 def available() -> bool:
-    if _PE is None:
-        return False
-    return _MODEL_FN is not None or bool(os.environ.get("LAUNDRY_CHAT_GEMINI_KEY") or os.environ.get("GEMINI_API_KEY"))
+    return _MODEL_FN is not None or bool(os.environ.get("CLAUDE_API_CREDIT_KEY")
+                                        or os.environ.get("LAUNDRY_CHAT_GEMINI_KEY")
+                                        or os.environ.get("GEMINI_API_KEY"))
 
 
 # ---------------------------------------------------------------------------
@@ -525,8 +533,109 @@ def _gemini_call(model: str, prompt: str, timeout: float) -> str:
         raise ModelError("unusable") from None
 
 
-# NIGHT24: owner-selected chat chain; lite is never an eligible override.
+def _claude_usage_path() -> Path:
+    return usage_dir() / f"claude-{_PE.usage_day()}.json"
+
+
+def _read_claude_usage(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {"calls": 0, "input_tokens": 0, "output_tokens": 0, "estimated_usd": 0.0}
+    if (not isinstance(data, dict)
+            or set(data) != {"calls", "input_tokens", "output_tokens", "estimated_usd"}
+            or any(type(data[k]) is not int or data[k] < 0
+                   for k in ("calls", "input_tokens", "output_tokens"))
+            or type(data["estimated_usd"]) not in (int, float)
+            or not math.isfinite(data["estimated_usd"]) or data["estimated_usd"] < 0):
+        raise ValueError("invalid Claude usage counters")
+    return data
+
+
+def _claude_allowed() -> bool:
+    if not os.environ.get("CLAUDE_API_CREDIT_KEY") or _PE is None:
+        return False
+    try:
+        limit = float(os.environ.get("LAUNDRY_CLAUDE_DAILY_USD", "3.0"))
+        if not math.isfinite(limit) or limit < 0:
+            limit = 3.0
+    except ValueError:
+        limit = 3.0
+    try:
+        with _CLAUDE_USAGE_LOCK:
+            path = _claude_usage_path()
+            return path not in _CLAUDE_USAGE_BLOCKED and _read_claude_usage(path)["estimated_usd"] < limit
+    except (OSError, ValueError, OverflowError):
+        return False  # unreadable accounting must not reset the daily budget
+
+
+def _record_claude_usage(model: str, usage: dict) -> None:
+    if (not isinstance(usage, dict)
+            or any(type(usage.get(k)) is not int or usage[k] < 0
+                   for k in ("input_tokens", "output_tokens"))):
+        raise ModelError("unusable")
+    # Other explicitly selected Claude names use the Sonnet estimate until rates are supplied.
+    input_rate, output_rate = _CLAUDE_PRICES.get(model, _CLAUDE_PRICES["claude-sonnet-5-5"])
+    cost = (usage["input_tokens"] * input_rate + usage["output_tokens"] * output_rate) / 1_000_000
+    with _CLAUDE_USAGE_LOCK:
+        path = _claude_usage_path()
+        try:
+            data = _read_claude_usage(path)
+            data["calls"] += 1
+            data["input_tokens"] += usage["input_tokens"]
+            data["output_tokens"] += usage["output_tokens"]
+            data["estimated_usd"] = round(data["estimated_usd"] + cost, 10)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            _PE._atomic_write(path, json.dumps(data, ensure_ascii=True) + "\n")
+        except (OSError, ValueError, OverflowError):
+            _CLAUDE_USAGE_BLOCKED.add(path)
+            raise ModelError("http_other") from None
+
+
+def _claude_call(model: str, prompt: str, timeout: float) -> str:
+    key = os.environ.get("CLAUDE_API_CREDIT_KEY", "")
+    if not key or not _claude_allowed():
+        raise ModelError("http_other")
+    effort = os.environ.get("LAUNDRY_CLAUDE_EFFORT", "low").strip().lower()
+    if effort not in ("low", "medium", "high"):
+        effort = "low"
+    body = {"model": model, "max_tokens": 2048,
+            "messages": [{"role": "user", "content": prompt}], "output_config": {"effort": effort}}
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages", data=json.dumps(body).encode("utf-8"),
+        headers={"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read(256_000))
+    except urllib.error.HTTPError as exc:
+        kind = _PE._http_kind(exc.code)
+        exc.close()
+        raise ModelError(kind) from None
+    except (urllib.error.URLError, TimeoutError, OSError):
+        raise ModelError("timeout") from None
+    except ValueError:
+        raise ModelError("unusable") from None
+    try:
+        # Truncated/refused responses still consume tokens and must be charged before rejection.
+        _record_claude_usage(model, data["usage"])
+        if data.get("stop_reason") != "end_turn":
+            raise ModelError("unusable")
+        return "".join(block["text"] for block in data["content"] if block.get("type") == "text")
+    except ModelError:
+        raise
+    except (KeyError, TypeError, AttributeError):
+        raise ModelError("unusable") from None
+
+
+def _model_call(model: str, prompt: str, timeout: float) -> str:
+    return (_claude_call if model.startswith("claude-") else _gemini_call)(model, prompt, timeout)
+
+
+# NIGHT24: owner-selected chat chains; lite is never an eligible override.
 CHAT_MODEL_CHAIN = ("gemini-3.8-flash", "gemini-3.5-flash")
+CLAUDE_CHAT_CHAIN = ("claude-sonnet-5-5", "claude-haiku-5-5", "gemini-3.5-flash")
 
 
 def _chain() -> list[str]:
@@ -534,8 +643,11 @@ def _chain() -> list[str]:
         return []
     raw = os.environ.get("LAUNDRY_CHAT_MODELS", "")
     models = [name.strip() for name in raw.split(",")]
-    models = [name for name in models if _PE._MODEL_RE.fullmatch(name) and "lite" not in name.lower()]
-    return list(dict.fromkeys(models or CHAT_MODEL_CHAIN))[:MAX_CALLS]
+    allowed = _claude_allowed()
+    models = [name for name in models if _CHAT_MODEL_RE.fullmatch(name) and "lite" not in name.lower()
+              and (allowed or not name.startswith("claude-"))]
+    default = CLAUDE_CHAT_CHAIN if allowed else CHAT_MODEL_CHAIN
+    return list(dict.fromkeys(models or default))[:MAX_CALLS]
 
 
 def _note_call() -> None:
@@ -547,9 +659,11 @@ def _note_call() -> None:
 def _worker(prompt: str, deadline: float, trace, box: dict) -> None:
     try:
         _local.model_trace = trace
-        fn = _MODEL_FN or _gemini_call
+        fn = _MODEL_FN or _model_call
         chain = _chain()
         for index, model in enumerate(chain):
+            if model.startswith("claude-") and not _claude_allowed():
+                continue  # another request (or the preceding model) may have reached today's cap
             remaining = deadline - time.monotonic()
             if remaining < MIN_CALL_SECONDS:
                 break
@@ -641,7 +755,7 @@ def _valid(data, day: str) -> bool:
         if key not in COUNT_KEYS or type(value) is not int or value < 0:
             return False
     for model, slot in models.items():
-        if (not isinstance(model, str) or len(model) > 80 or not _PE._MODEL_RE.fullmatch(model)
+        if (not isinstance(model, str) or len(model) > 80 or not _CHAT_MODEL_RE.fullmatch(model)
                 or not isinstance(slot, dict)):
             return False
         for key, value in slot.items():
@@ -681,7 +795,7 @@ def _store(conv, counts: dict, models: dict) -> None:
                 cnt[key] = cnt.get(key, 0) + value
         mods = {m: dict(s) for m, s in data["models"].items()}
         for model, slot in models.items():
-            if not isinstance(model, str) or len(model) > 80 or not _PE._MODEL_RE.fullmatch(model):
+            if not isinstance(model, str) or len(model) > 80 or not _CHAT_MODEL_RE.fullmatch(model):
                 continue
             target = mods.setdefault(model, {})
             for key, value in slot.items():

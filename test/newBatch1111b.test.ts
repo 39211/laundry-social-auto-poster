@@ -106,6 +106,8 @@ describe("11/11 第二批價格意圖 7 頁", () => {
         expect(main.replaceAll("不保證全部乾淨", "")).not.toMatch(/賠|補償|保證|全新|殺菌|除臭|消毒/);
         expect(main).not.toMatch(/東海[^。；，]{0,12}(門市|店面)(?!，|。|；)/);
         expect(main).not.toContain("上色覆蓋");
+        // 工程CEO：只准寫「防潑水」或「防水透氣」，不寫單獨的「防水」
+        expect(html.replaceAll("防水透氣", "").replaceAll("防潑水", "")).not.toContain("防水");
         expect(main).not.toContain("皮包");
         expect(main).toContain("只能淡化");
         expect((main.match(/data-editorial="1"/g) ?? []).length).toBeGreaterThanOrEqual(3);

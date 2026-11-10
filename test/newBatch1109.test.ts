@@ -235,7 +235,7 @@ describe("11/09 入冬冬衣 7 頁", () => {
     expect(leak).toContain(LEAK_REPAIR);
     expect(leak).not.toMatch(/60\s*元|\$60|修改衣服/);
     const ski = mainOf(read("guides/ski-snow-jacket-cleaning.html"));
-    expect(ski).toContain("清潔不等於恢復防潑水或防水性能");
+    expect(ski).toContain("清潔不等於恢復防潑水或防水透氣性能");
     expect(ski).not.toMatch(/頭盔|雪靴|雪衣價|防泼水/);
   });
 });

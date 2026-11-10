@@ -35,4 +35,19 @@ describe("11/11 全站缺口補齊（B 批）", () => {
       expect(main, name).toContain("沒有最低消費");
     }
   });
+
+  it("頁尾「洗衣收送要錢嗎？」H2 的 19 頁：直接答案框最後一句也寫免費收送、沒有最低消費（行銷 Q3）", () => {
+    const rels = [
+      "guides/coin-laundry-vs-pickup.html", "guides/trench-coat-cleaning.html", "guides/wallet-cleaning-check.html", "services/postpartum-center-laundry.html",
+      ...["central-district", "dadu", "dali", "daya", "east-district", "houli", "shalu", "shengang", "south-district", "taiping", "tanzi", "west-district", "wufeng", "wuqi", "wuri"].map((d) => `local/${d}-laundry-pickup.html`)
+    ];
+    expect(rels.length).toBe(19);
+    for (const rel of rels) {
+      const html = readFileSync(join(ROOT, rel), "utf8");
+      const box = html.match(/<div class="answer-box">([\s\S]*?)<\/div>/u);
+      expect(box, rel).not.toBeNull();
+      expect((box?.[1] ?? "").replace(/<[^>]+>/gu, "").trim().endsWith("免費收送、沒有最低消費。"), rel).toBe(true);
+      expect(html, rel).toContain("<h2>洗衣收送要錢嗎？</h2>");
+    }
+  });
 });

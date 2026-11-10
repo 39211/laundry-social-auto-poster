@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -195,5 +195,53 @@ describe("11/11 發霉問句 8 頁", () => {
       expect(main, page.slug).not.toContain("上色覆蓋");
       expect(main, page.slug).toContain("只能淡化");
     }
+  });
+
+  it("行銷裁定 M1：meta 與 JSON-LD 的聯絡句用「LINE 官方 @454foyks，或 LINE 0968327653」", () => {
+    for (const page of PAGES) {
+      const html = read(`guides/${page.slug}.html`);
+      expect(html, page.slug).not.toContain("LINE @454foyks／0968327653");
+      expect(html, page.slug).toContain("LINE 官方 @454foyks，或 LINE 0968327653");
+    }
+  });
+
+  it("行銷裁定 M2/M3/M4：皮帶與麂皮寫清潔參考價、羊毛大衣 meta 補乾洗另計", () => {
+    const belt = read("guides/leather-belt-mold.html");
+    expect(belt).toContain("皮帶清潔參考價 $400");
+    expect(belt).not.toContain("皮帶水洗參考價");
+    const suede = read("guides/suede-shoe-mold.html");
+    expect(suede).toContain("麂皮鞋清潔參考價 $400");
+    expect(suede).not.toContain("麂皮鞋水洗參考價");
+    const coat = read("guides/wool-coat-mold-cleaning.html");
+    expect(coat).toContain("長大衣水洗參考價 $300，參考價，看過實品再報價。乾洗另計。");
+  });
+
+  it("老闆 11/11：全站只有鞋子膠邊（球鞋鞋底）可寫上色覆蓋，其他一律只能淡化", () => {
+    const allowed = new Set([
+      "seo-overrides/services/shoe-bag-care.html",
+      "seo-overrides/guides/taichung-shoe-cleaning-how-to-choose.html",
+      "seo-overrides/answers.json",
+      "seo-overrides/llms.txt",
+      "seo-overrides/.well-known/llms.txt"
+    ]);
+    const root = repoRootFromHere();
+    const walk = (dir: string, out: string[] = []): string[] => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, e.name);
+        if (e.isDirectory()) walk(full, out);
+        else if (/\.(html|json|txt)$/.test(e.name)) out.push(full);
+      }
+      return out;
+    };
+    const hits = walk(join(root, "seo-overrides"))
+      .filter((f) => readFileSync(f, "utf8").includes("上色覆蓋"))
+      .map((f) => f.slice(root.length + 1).replaceAll("\\", "/"))
+      .filter((f) => !allowed.has(f));
+    expect(hits).toEqual([]);
+    const shoeBag = read("services/shoe-bag-care.html");
+    expect(shoeBag).toContain(
+      "五、污漬與發黃多半只能淡化；球鞋鞋底膠邊發黃可以改用上色覆蓋處理，看過實品再說明；磨耗只能維持，不保證變全新，也不做除臭承諾"
+    );
+    expect(shoeBag).not.toContain("五、膠邊發黃洗不掉");
   });
 });

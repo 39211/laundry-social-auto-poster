@@ -103,6 +103,9 @@ _OPENAI_CALL_LOCK = threading.Lock()  # text and photos share admission, includi
 _OPENAI_USAGE_BLOCKED = set()
 _CHAT_MODEL_RE = re.compile(r"(?:gpt-[a-z0-9.-]+|claude-[a-z0-9.-]+|gemini-[a-zA-Z0-9.-]+)")
 _OPENAI_PRICES = (2.0, 10.0)  # owner-specified estimate per million input/output tokens
+# OpenAI Fast mode guide: GPT-5.6 Sol Fast is 2x Standard; GPT-6.1 Sol is assumed the same.
+# https://developers.openai.com/api/docs/guides/fast-mode#how-is-fast-mode-billed
+_OPENAI_FAST_COST_MULTIPLIER = 2.0
 _CLAUDE_PRICES = {  # estimated USD per million input/output tokens (owner's rates)
     "claude-sonnet-5-5": (2.0, 10.0),
     "claude-haiku-5-5": (0.10, 0.50),
@@ -670,7 +673,7 @@ def _openai_allowed() -> bool:
         return False  # unreadable accounting never creates a fresh budget
 
 
-def _record_openai_usage(usage: dict, path: Path) -> None:
+def _record_openai_usage(usage: dict, path: Path, service_tier: str | None = None) -> None:
     with _OPENAI_USAGE_LOCK:
         if (not isinstance(usage, dict)
                 or any(type(usage.get(k)) is not int or usage[k] < 0
@@ -685,6 +688,7 @@ def _record_openai_usage(usage: dict, path: Path) -> None:
             # output_tokens already includes reasoning tokens; do not add them twice.
             cost = (usage["input_tokens"] * _OPENAI_PRICES[0]
                     + usage["output_tokens"] * _OPENAI_PRICES[1]) / 1_000_000
+            cost *= _OPENAI_FAST_COST_MULTIPLIER if service_tier == "fast" else 1.0
             data["estimated_usd"] = round(data["estimated_usd"] + cost, 10)
             if not math.isfinite(data["estimated_usd"]):
                 raise ValueError("invalid OpenAI cost")
@@ -716,6 +720,9 @@ def _openai_request(model: str, content: list[dict], timeout: float,
         body = {"model": model, "input": [{"role": "user", "content": content}],
                 "reasoning": {"effort": effort}, "max_output_tokens": max_output_tokens,
                 "text": {"format": text_format}}
+        service_tier = os.environ.get("LAUNDRY_OPENAI_SERVICE_TIER", "fast").strip().lower()
+        if service_tier != "default":
+            body["service_tier"] = "fast"
         req = urllib.request.Request(
             "https://api.openai.com/v1/responses", data=json.dumps(body).encode("utf-8"),
             headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"}, method="POST",
@@ -736,7 +743,7 @@ def _openai_request(model: str, content: list[dict], timeout: float,
             raise ModelError("unusable") from None
         try:
             # Incomplete/refused responses can still cost tokens; account before rejecting.
-            _record_openai_usage(data.get("usage"), path)
+            _record_openai_usage(data.get("usage"), path, data.get("service_tier"))
             if data.get("status") != "completed":
                 raise ModelError("unusable")
             text = "".join(block["text"] for message in data["output"] if message.get("type") == "message"

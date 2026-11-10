@@ -47,11 +47,15 @@ class Response:
         return self.raw[:limit]
 
 
-def openai_response(value=ANSWER, *, status="completed", input_tokens=1000, output_tokens=100, output=None):
-    return Response({"status": status, "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens,
+def openai_response(value=ANSWER, *, status="completed", input_tokens=1000, output_tokens=100,
+                    output=None, service_tier=None):
+    payload = {"status": status, "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens,
                      "output_tokens_details": {"reasoning_tokens": 50}},
                      "output": output if output is not None else [{"type": "message", "content": [
-                         {"type": "output_text", "text": json.dumps(value)}]}]})
+                         {"type": "output_text", "text": json.dumps(value)}]}]}
+    if service_tier is not None:
+        payload["service_tier"] = service_tier
+    return Response(payload)
 
 
 def claude_response():
@@ -133,9 +137,86 @@ class OpenAISolTests(unittest.TestCase):
         self.assertTrue(body.pop("input") == [{"role": "user", "content": [
             {"type": "input_text", "text": self.prompt}]}], "prompt routing mismatch")
         self.assertEqual(body, {"model": GPT, "reasoning": {"effort": "low"}, "max_output_tokens": 2048,
-                                "text": {"format": {"type": "json_object"}}})
+                                "text": {"format": {"type": "json_object"}}, "service_tier": "fast"})
         self.assertGreater(call.call_args.kwargs["timeout"], 0)
         self.assertLessEqual(call.call_args.kwargs["timeout"], 2.5)
+
+    def test_text_service_tier_allowlist_and_default(self):
+        for value, expected in ((None, "fast"), ("fast", "fast"), (" FAST ", "fast"),
+                                ("default", None), (" DEFAULT ", None),
+                                ("", "fast"), ("invalid", "fast"), ("auto", "fast"), ("priority", "fast")):
+            tier_env = {} if value is None else {"LAUNDRY_OPENAI_SERVICE_TIER": value}
+            with self.subTest(value=value), mock.patch.dict(os.environ, tier_env), \
+                    mock.patch.object(chat.urllib.request, "urlopen", return_value=openai_response()) as http:
+                chat._openai_call(GPT, self.prompt, 1)
+                body = json.loads(http.call_args.args[0].data)
+                if expected is None:
+                    self.assertNotIn("service_tier", body)
+                else:
+                    self.assertEqual(body.get("service_tier"), expected)
+
+    def test_photo_service_tier_allowlist_and_default(self):
+        for value, expected in ((None, "fast"), ("fast", "fast"), ("default", None), ("invalid", "fast")):
+            tier_env = {} if value is None else {"LAUNDRY_OPENAI_SERVICE_TIER": value}
+            with self.subTest(value=value), mock.patch.dict(os.environ, tier_env), \
+                    mock.patch.object(photo.urllib.request, "urlopen",
+                                      return_value=openai_response({"items": [ITEM]})) as http:
+                self.assertTrue(self.inventory()["ok"])
+                body = json.loads(http.call_args.args[0].data)
+                if expected is None:
+                    self.assertNotIn("service_tier", body)
+                else:
+                    self.assertEqual(body.get("service_tier"), expected)
+
+    def test_actual_response_tier_controls_text_and_photo_costs(self):
+        expected = {"calls": 0, "input_tokens": 0, "output_tokens": 0, "estimated_usd": 0.0}
+        for route in ("text", "photo"):
+            for requested in ("fast", "default"):
+                for actual, cost in (("fast", 0.006), ("default", 0.003), (None, 0.003)):
+                    value = ANSWER if route == "text" else {"items": [ITEM]}
+                    with self.subTest(route=route, requested=requested, actual=actual), \
+                            mock.patch.dict(os.environ, {"LAUNDRY_OPENAI_SERVICE_TIER": requested}), \
+                            mock.patch.object(chat.urllib.request, "urlopen",
+                                              return_value=openai_response(value, service_tier=actual)):
+                        if route == "text":
+                            chat._openai_call(GPT, self.prompt, 1)
+                        else:
+                            self.assertTrue(self.inventory()["ok"])
+                        expected["calls"] += 1
+                        expected["input_tokens"] += 1000
+                        expected["output_tokens"] += 100
+                        expected["estimated_usd"] = round(expected["estimated_usd"] + cost, 10)
+                        self.assertEqual(self.ledger(), expected)
+
+    def test_fast_cost_reaches_shared_daily_cap_at_two_standard_dollars(self):
+        os.environ["LAUNDRY_OPENAI_DAILY_USD"] = "4.0"
+        with mock.patch.object(chat.urllib.request, "urlopen", side_effect=[
+                openai_response(input_tokens=250000, output_tokens=50000, service_tier="fast"),
+                openai_response({"items": [ITEM]}, input_tokens=250000, output_tokens=50000,
+                                service_tier="fast")]) as http:
+            chat._openai_call(GPT, self.prompt, 1)
+            self.assertEqual(self.ledger()["estimated_usd"], 2.0)
+            self.assertTrue(chat._openai_allowed())
+            self.assertTrue(self.inventory()["ok"])
+        self.assertEqual(http.call_count, 2)
+        self.assertEqual(self.ledger(), {"calls": 2, "input_tokens": 500000, "output_tokens": 100000,
+                                        "estimated_usd": 4.0})
+        self.assertFalse(chat._openai_allowed())
+        self.assertNotIn(GPT, chat._chain())
+        self.assertNotIn(GPT, photo.model_chain())
+        with mock.patch.object(chat.urllib.request, "urlopen") as http:
+            with self.assertRaises(chat.ModelError):
+                chat._openai_call(GPT, self.prompt, 1)
+            http.assert_not_called()
+
+    def test_incomplete_fast_response_is_charged_before_rejection(self):
+        with mock.patch.object(chat.urllib.request, "urlopen",
+                               return_value=openai_response(status="incomplete", service_tier="fast")):
+            with self.assertRaises(chat.ModelError) as caught:
+                chat._openai_call(GPT, self.prompt, 1)
+        self.assertEqual(caught.exception.kind, "unusable")
+        self.assertEqual(self.ledger(), {"calls": 1, "input_tokens": 1000, "output_tokens": 100,
+                                        "estimated_usd": 0.006})
 
     def test_effort_allowlist_and_invalid_fallback(self):
         for value, expected in (("low", "low"), ("medium", "medium"), (" HIGH ", "high"),
@@ -352,6 +433,7 @@ class OpenAISolTests(unittest.TestCase):
         body = json.loads(req.data)
         self.assertEqual(req.full_url, "https://api.openai.com/v1/responses")
         self.assertEqual(body["model"], GPT)
+        self.assertEqual(body["service_tier"], "fast")
         self.assertEqual(body["max_output_tokens"], 4096)
         self.assertEqual(body["reasoning"], {"effort": "low"})
         self.assertEqual(body["text"]["format"], {"type": "json_schema", "name": "photo_inventory",
@@ -583,11 +665,11 @@ class OpenAISolTests(unittest.TestCase):
         self.assertEqual(set(present), {"pid", "vision_configured", "ai_chat", "missing", "chat_claude"})
         self.assertTrue(self.key not in str(present))
 
-    def test_launcher_allows_all_four_openai_settings(self):
+    def test_launcher_allows_all_openai_settings(self):
         launcher = (Path(__file__).parent / "run_line_bot.ps1").read_text(encoding="ascii")
         allowlist = launcher.split("function Get-BotConfigNames {", 1)[1].split("\n}", 1)[0]
         for name in ("OPENAI_API_KEY", "LAUNDRY_OPENAI_EFFORT", "LAUNDRY_OPENAI_DAILY_USD",
-                     "LAUNDRY_CHAT_PER_CALL_SECONDS"):
+                     "LAUNDRY_CHAT_PER_CALL_SECONDS", "LAUNDRY_OPENAI_SERVICE_TIER"):
             self.assertIn("'" + name + "'", allowlist)
 
 

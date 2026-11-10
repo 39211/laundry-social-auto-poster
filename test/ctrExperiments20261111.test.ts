@@ -213,12 +213,23 @@ describe("2026-11-11 CTR 實驗已核文案", () => {
     );
   });
 
-  it("嵌入頁使用 youtube-nocookie、AI 句 figcaption，且沒有舊句與 VideoObject", () => {
+  it("影片入口使用可播放的嵌入或觀看連結，保留 AI 句且沒有 VideoObject", () => {
     for (const [path, id, title, line, phone] of VIDEOS) {
       const html = read(path);
-      expect(html, path).toContain(
-        `<iframe src="https://www.youtube-nocookie.com/embed/${id}" title="${title}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="width:100%;max-width:720px;aspect-ratio:16/9;border:0"></iframe>`
-      );
+      const watchFallback = id === "74jq98-izu4";
+      const videoUrl = watchFallback
+        ? `https://www.youtube.com/watch?v=${id}`
+        : `https://www.youtube-nocookie.com/embed/${id}`;
+      if (watchFallback) {
+        expect(html, path).toContain(
+          `<a href="${videoUrl}" target="_blank" rel="noopener noreferrer">在 YouTube 觀看：${title}</a>`
+        );
+        expect(html, path).not.toContain(`youtube-nocookie.com/embed/${id}`);
+      } else {
+        expect(html, path).toContain(
+          `<iframe src="${videoUrl}" title="${title}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="width:100%;max-width:720px;aspect-ratio:16/9;border:0"></iframe>`
+        );
+      }
       expect(html, path).toContain(`<figcaption>${FIGCAPTION}</figcaption>`);
       expect(html, path).not.toContain("屬情境示意");
       expect(html, path).not.toContain('"@type":"VideoObject"');
@@ -226,7 +237,7 @@ describe("2026-11-11 CTR 實驗已核文案", () => {
       expect(html.split("@454foyks").length - 1, path).toBeGreaterThanOrEqual(line);
       expect(html.split("0968327653").length - 1, path).toBeGreaterThanOrEqual(phone);
       const leadEnd = html.indexOf("</p>", html.indexOf('class="lead"'));
-      const figureAt = html.indexOf(`youtube-nocookie.com/embed/${id}`);
+      const figureAt = html.indexOf(videoUrl);
       if (path !== "services/taichung-citywide-laundry-pickup.html") {
         const updated = html.indexOf('class="last-updated"');
         expect(leadEnd, path).toBeGreaterThan(-1);

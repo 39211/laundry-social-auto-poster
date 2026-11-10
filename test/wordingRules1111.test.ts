@@ -186,12 +186,18 @@ describe("2026-11-11 行銷裁定 M1–M6 價目表與皮件用字", () => {
   });
 
   it("行銷複核 R325P-1：表內有皮／麂皮／名牌的 #325 價格頁，表頭、備註與表下句不整張標水洗", () => {
+    const tableUnder: Record<string, string> = {
+      "taichung-shoe-cleaning-price": "上表是清潔參考價，看過實品再報價；發霉與特殊污漬另外說明。",
+      "bag-mold-cleaning-price": "上表是清潔參考價，看過實品再報價；乾洗、柔洗與發霉另計，特殊污漬另外說明。"
+    };
     for (const slug of ["taichung-shoe-cleaning-price", "bag-mold-cleaning-price"]) {
       const html = readFileSync(join(ROOT, "guides", `${slug}.html`), "utf8");
       expect(html, slug).not.toContain("水洗價");
       expect(html, slug).not.toContain("水洗參考價");
-      expect(html, slug).toContain("上表是清潔參考價；乾洗、柔洗另計，發霉與特殊污漬要看過實品再報價。");
+      expect(html, slug).not.toContain("上表是清潔參考價；乾洗、柔洗另計，發霉與特殊污漬要看過實品再報價。");
       expect(html, slug).toContain("<th>清潔參考價</th>");
     }
+    expect(readFileSync(join(ROOT, "guides", "taichung-shoe-cleaning-price.html"), "utf8")).toContain(tableUnder["taichung-shoe-cleaning-price"] ?? "");
+    expect(readFileSync(join(ROOT, "guides", "bag-mold-cleaning-price.html"), "utf8")).toContain(tableUnder["bag-mold-cleaning-price"] ?? "");
   });
 });

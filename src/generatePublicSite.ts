@@ -1,3 +1,4 @@
+import { syncAiSitemapAuthoredDates } from "./aiSitemapAuthoredDates";
 import { syncHomepageContentDates } from "./homepageContentDates";
 import { resolvePostTopicCare } from "./postTopicCare";
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
@@ -5806,10 +5807,15 @@ function sitemapShouldOmitUrlForPublicSite(
 async function stripUnindexablePostsFromSitemaps(
   index: PublicPostIndex,
   sitemapPath: string,
-  aiSitemapPath: string
+  aiSitemapPath: string,
+  selected: (path: string) => boolean = () => true
 ): Promise<void> {
   if (indexablePostArticles(index).length > 0) return;
-  await Promise.all([sitemapPath, aiSitemapPath].map(stripPostsSurfaceUrlLines));
+  await Promise.all(
+    [sitemapPath, aiSitemapPath]
+      .filter((path) => selected(path === sitemapPath ? "sitemap.xml" : "ai-sitemap.xml"))
+      .map(stripPostsSurfaceUrlLines)
+  );
 }
 
 async function stripPostsSurfaceUrlLines(filePath: string): Promise<void> {
@@ -5834,10 +5840,13 @@ async function stripExcludedPublicSitemaps(
   index: PublicPostIndex,
   sitemapPath: string,
   aiSitemapPath: string,
-  noindexPosixPaths: ReadonlySet<string>
+  noindexPosixPaths: ReadonlySet<string>,
+  selected: (path: string) => boolean = () => true
 ): Promise<void> {
   await Promise.all(
-    [sitemapPath, aiSitemapPath].map((filePath) => stripExcludedSitemapLines(filePath, index, noindexPosixPaths))
+    [sitemapPath, aiSitemapPath]
+      .filter((path) => selected(path === sitemapPath ? "sitemap.xml" : "ai-sitemap.xml"))
+      .map((filePath) => stripExcludedSitemapLines(filePath, index, noindexPosixPaths))
   );
 }
 
@@ -10088,6 +10097,7 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
   const noindexOverridePaths = new Set<string>();
   let overrideSitemapCopied = false;
   try {
+    const authoredHtml: Array<{ fullPath: string; posixPath: string }> = [];
     const copyJobs: Array<{ fullPath: string; targetPath: string; posixPath: string; fsPath: string }> = [];
     const walkOverrides = async (dir: string, relPosixPath: string = ""): Promise<void> => {
       const entries = await readdir(dir, { withFileTypes: true });
@@ -10097,7 +10107,9 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
         const rel = relPosixPath ? posix.join(relPosixPath, entry.name) : entry.name;
         if (entry.isDirectory()) {
           await walkOverrides(fullPath, rel);
-        } else if (entry.isFile() && entry.name !== "README.md" && shouldWriteDocsPath(rel)) {
+        } else if (entry.isFile() && entry.name !== "README.md") {
+          if (rel.endsWith(".html")) authoredHtml.push({ fullPath, posixPath: rel });
+          if (!shouldWriteDocsPath(rel)) continue;
           // Convert posix path to native filesystem path for Windows compatibility
           const fsPath = rel.split("/").join(sep);
           copyJobs.push({ fullPath, targetPath: join(docsRoot, fsPath), posixPath: rel, fsPath });
@@ -10111,6 +10123,19 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     await Promise.all(copyJobs.map((job) => copyFile(job.fullPath, job.targetPath)));
     for (const job of copyJobs) {
       if (job.posixPath.endsWith(".html")) overrideHtmlFiles.push({ posixPath: job.posixPath, fsPath: job.fsPath });
+    }
+    // AI dates also need unselected authored sources, but never copy those pages.
+    // This normalization does not add/remove URLs or alter canonical/noindex policy.
+    if (shouldWriteDocsPath("ai-sitemap.xml") && index.base_url_configured) {
+      const dates = new Map<string, string>();
+      await Promise.all(authoredHtml.map(async ({ fullPath, posixPath }) => {
+        const html = await readFile(fullPath, "utf8");
+        const date = html.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/)?.[1];
+        if (date) dates.set(posixPath, date);
+      }));
+      const xml = await readFile(outputs.aiSitemap, "utf8");
+      const normalized = syncAiSitemapAuthoredDates(xml, siteBaseUrl || "", dates);
+      if (normalized !== xml) await writeFile(outputs.aiSitemap, normalized, "utf8");
     }
     // Extract override metadata only from copied HTML pages.
     const overrideLastmods = new Map<string, string>();
@@ -10237,8 +10262,9 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     }
   }
 
-  await stripUnindexablePostsFromSitemaps(index, outputs.sitemap, outputs.aiSitemap);
-  await stripExcludedPublicSitemaps(index, outputs.sitemap, outputs.aiSitemap, noindexOverridePaths);
+  // Cleanup is a write too: do not mutate unselected pre-existing sitemap files.
+  await stripUnindexablePostsFromSitemaps(index, outputs.sitemap, outputs.aiSitemap, shouldWriteDocsPath);
+  await stripExcludedPublicSitemaps(index, outputs.sitemap, outputs.aiSitemap, noindexOverridePaths, shouldWriteDocsPath);
   // 這一步以覆寫檔重寫 docs/ai-discovery.json（並補蓋 .well-known/ai.json 的 generated_at）；onlyDocsPaths 沒要 ai-discovery.json 時略過，避免讀到沒寫出的檔。
   if (shouldWriteDocsPath("ai-discovery.json")) {
     await syncPublishedAiDiscovery({

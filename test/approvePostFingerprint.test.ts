@@ -246,7 +246,7 @@ describe("approvePost fingerprints", () => {
     expect(await exists(digestPath(root))).toBe(false);
   });
 
-  it("T8 non-forced approval reaches the publish fetch", async () => {
+  it.each([true, false])("T8 non-forced approval reaches the expected fetch (verifyPublicImageUrl=%s)", async (verifyPublicImageUrl) => {
     const { root, slot, slots } = await healthyFixture();
     const entries = await approvePost({ date: DATE, slot: 1, platforms: ["facebook", "instagram"], approvedBy: "Owner", root });
     expect(entries).toHaveLength(2);
@@ -257,17 +257,34 @@ describe("approvePost fingerprints", () => {
     vi.stubEnv("META_ACCESS_TOKEN", "ci-test-placeholder-token");
     vi.stubEnv("FB_PAGE_ID", "000000000000000");
     vi.stubEnv("IG_USER_ID", "000000000000000");
-    vi.stubGlobal("fetch", noNetwork);
+    // Each path gets fresh approval/post state. Reusing the verification-failure
+    // fixture would exercise recovery rather than the initial Meta publish.
+    const fetchMock = vi.fn(noNetwork);
+    vi.stubGlobal("fetch", fetchMock);
     await expect(postCurrentSlot({
       date: DATE, slot: 1, root, now: NOW, dryRun: false,
-      verifyPublicImageUrl: true, fetchImpl: noNetwork
-    })).rejects.toThrow(/NETWORK_SENTINEL/);
-    // The Meta call wraps a transport error as an unknown publish outcome;
-    // reaching that wrapper also proves both platform approval checks passed.
+      verifyPublicImageUrl, fetchImpl: fetchMock
+    })).rejects.toThrow(verifyPublicImageUrl ? /NETWORK_SENTINEL/ : /Facebook photo publish response was lost/);
+    if (verifyPublicImageUrl) {
+      const probes = fetchMock.mock.calls.filter(([, request]) => request?.method === "HEAD");
+      expect(probes).toHaveLength(2); // One image probe for each platform.
+      for (const [url] of probes) expect(String(url)).toMatch(/^https:\/\/ci-test-placeholder[.]invalid\//);
+      expect(fetchMock.mock.calls.some(([, request]) => request?.method === "POST")).toBe(false);
+    } else {
+      const facebookPublishes = fetchMock.mock.calls.filter(([url, request]) =>
+        /^https:\/\/graph[.]facebook[.]com\/[^/]+\/000000000000000\/photos$/.test(String(url)) && request?.method === "POST");
+      expect(facebookPublishes).toHaveLength(1);
+      expect(fetchMock.mock.calls.some(([, request]) => request?.method === "HEAD")).toBe(false);
+    }
+
+    // An ambiguous failure must still enter recovery on retry, never blindly
+    // issue another publish. All readback requests also hit the offline stub.
+    fetchMock.mockClear();
     await expect(postCurrentSlot({
       date: DATE, slot: 1, root, now: NOW, dryRun: false,
-      verifyPublicImageUrl: false, fetchImpl: noNetwork
-    })).rejects.toThrow(/Facebook photo publish response was lost/);
+      verifyPublicImageUrl: false, fetchImpl: fetchMock
+    })).rejects.toThrow(/needs_manual:readback_unknown/);
+    expect(fetchMock.mock.calls.every(([, request]) => !request?.method || request.method === "GET")).toBe(true);
   });
 
   it("T9a rejects partial re-approval with changed fingerprint without writes", async () => {

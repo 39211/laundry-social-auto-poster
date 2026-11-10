@@ -82,7 +82,8 @@ _HIGH_RISK_HINTS = ("鞋", "包", "皮", "大衣", "洋裝", "裙", "被", "毯"
 
 
 def configured() -> bool:
-    return bool(os.environ.get("GEMINI_API_KEY")) and os.environ.get("LAUNDRY_PHOTO_ESTIMATE", "1") != "0"
+    return bool(os.environ.get("OPENAI_API_KEY") or os.environ.get("GEMINI_API_KEY")) \
+        and os.environ.get("LAUNDRY_PHOTO_ESTIMATE", "1") != "0"
 
 
 def clean_text(value, limit):
@@ -422,7 +423,7 @@ DEFAULT_MODEL_CHAIN = ("gemini-2.5-flash", "gemini-flash-latest", "gemini-3.5-fl
 MAX_CALLS = 3
 TOTAL_SECONDS = 32
 PER_CALL_SECONDS = 15
-_MODEL_RE = re.compile(r"gemini-[a-zA-Z0-9.-]+")
+_MODEL_RE = re.compile(r"(?:gpt-[a-z0-9.-]+|gemini-[a-zA-Z0-9.-]+)")
 
 
 def thinking_budget() -> int:
@@ -436,10 +437,15 @@ def model_chain() -> list[str]:
     """LAUNDRY_VISION_MODEL set: [that, fallback]. Unset: the shop's chain. Invalid names -> []."""
     pinned = os.environ.get("LAUNDRY_VISION_MODEL")
     if pinned is not None:
-        if not _MODEL_RE.fullmatch(pinned):
+        if not _MODEL_RE.fullmatch(pinned) or "lite" in pinned.lower():
             return []
         fallback = os.environ.get("LAUNDRY_VISION_FALLBACK_MODEL", "gemini-3.5-flash")
-        return [pinned] + ([fallback] if _MODEL_RE.fullmatch(fallback) and fallback != pinned else [])
+        return [pinned] + ([fallback] if _MODEL_RE.fullmatch(fallback) and fallback != pinned
+                           and "lite" not in fallback.lower() else [])
+    if os.environ.get("OPENAI_API_KEY"):
+        import ai_chat  # lazy: ai_chat imports this module for its existing utilities
+        if ai_chat._openai_allowed():
+            return ["gpt-6.1-sol", *DEFAULT_MODEL_CHAIN]
     return list(DEFAULT_MODEL_CHAIN)
 
 
@@ -674,6 +680,7 @@ def _inventory(paths: list[Path], names: list[str], trace: _UsageTrace) -> dict:
     chain = model_chain()
     if not chain:
         return {"ok": False, "error": "invalid_model"}
+    import ai_chat  # share OpenAI admission/accounting without an import-time cycle
     parts = [{"text": build_prompt(names)}]
     try:
         for path in paths:
@@ -693,15 +700,46 @@ def _inventory(paths: list[Path], names: list[str], trace: _UsageTrace) -> dict:
         deadline = time.monotonic() + TOTAL_SECONDS
         last_error = "provider_timeout"
         trace.started = True
-        for index, use in enumerate(chain[:MAX_CALLS]):
+        gemini_index = 0
+        # The optional OpenAI attempt must not evict the third existing Gemini fallback.
+        call_limit = MAX_CALLS + (1 if chain[0].startswith("gpt-") else 0)
+        for use in chain[:call_limit]:
+            is_openai = use.startswith("gpt-")
+            if is_openai and not ai_chat._openai_allowed():
+                continue
             remaining = deadline - time.monotonic()
             if remaining < 3:
                 break
+            if is_openai:
+                trace.begin(use)
+                try:
+                    content = [{"type": "input_text", "text": parts[0]["text"]}] + [
+                        {"type": "input_image", "image_url": "data:image/jpeg;base64," + part["inlineData"]["data"]}
+                        for part in parts[1:]]
+                    raw = ai_chat._openai_request(use, content, max(3, min(PER_CALL_SECONDS, remaining)),
+                        4096, {"type": "json_schema", "name": "photo_inventory", "schema": SCHEMA, "strict": False})
+                    trace.got_200 = True
+                    data = json.loads(raw)
+                    if isinstance(data, list):
+                        data = {"items": data}
+                    items = apply_roster_guard(validate_result(data, set(names)), set(names))
+                    if time.monotonic() > deadline:
+                        trace.mark("timeout")
+                        return {"ok": False, "error": "provider_timeout"}
+                    return {"ok": True, "items": items, "model": use}
+                except ai_chat.ModelError as exc:
+                    trace.mark(exc.kind if exc.kind in _USAGE_KEYS else "http_other")
+                    last_error = "provider_timeout" if exc.kind == "timeout" else "unavailable"
+                except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+                    trace.mark("unusable")
+                    last_error = "unavailable"
+                continue
             # 10/31: gemini-2.5-flash answered 429 (free tier: 5/min, 20/day) and 503; every model
             # has its own free quota, so each retry goes to the next model, like the shop bot.
             gen = dict(body['generationConfig'])
             # 2.5-flash keeps the request shape that answered in production (plain JSON, no thinking).
-            plain = index > 0 or "lite" in use or use.startswith("gemini-2.5-flash")
+            plain = gemini_index > 0 or "lite" in use or use.startswith("gemini-2.5-flash")
+            gemini_index += 1
             if plain:
                 # flash-lite rejects SCHEMA ("too many states", HTTP 400): plain JSON mode with
                 # the format spelled out; validate_result still enforces the same contract.

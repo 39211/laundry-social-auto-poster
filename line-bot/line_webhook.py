@@ -626,7 +626,8 @@ def readyz():
         missing.append("LAUNDRY_AI_CHAT")
     return jsonify(pid=os.getpid(), vision_configured=vision_configured,
                    ai_chat=bool(chat_enabled), missing=missing,
-                   chat_claude=bool(os.environ.get("CLAUDE_API_CREDIT_KEY")))
+                   chat_claude=bool(os.environ.get("CLAUDE_API_CREDIT_KEY")),
+                   chat_openai=bool(os.environ.get("OPENAI_API_KEY")))
 
 
 if __name__ == "__main__":

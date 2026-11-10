@@ -3,7 +3,15 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), "seo-overrides", path), "utf8");
-const schemaBlocks = (html: string) => [...html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)].map((match) => JSON.parse(match[1]));
+const schemaBlocks = (html: string) => {
+  const matches = [...html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)];
+  if (matches.length === 0) throw new Error("Missing JSON-LD");
+  return matches.map((match) => {
+    const raw = match[1];
+    if (raw === undefined) throw new Error("Missing JSON-LD body");
+    return JSON.parse(raw);
+  });
+};
 
 describe("2026-11-10 public service copy corrections", () => {
   it("keeps combination wash subtotals and identifies optional extra charges", () => {

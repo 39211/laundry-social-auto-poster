@@ -3166,13 +3166,21 @@ describe("generatePublicSite", () => {
       "/guides/faux-fur-collar-cleaning.html",
       "/guides/luxury-down-jacket-cleaning.html",
       "/guides/down-jacket-feather-leak.html",
-      "/guides/knit-shoulder-bump-stretch.html"
+      "/guides/knit-shoulder-bump-stretch.html",
+      "/guides/suit-mold-cleaning.html",
+      "/guides/down-jacket-mold-cleaning.html",
+      "/guides/plush-doll-mold-cleaning.html",
+      "/guides/wool-coat-mold-cleaning.html",
+      "/guides/sweater-mold-cleaning.html",
+      "/guides/leather-belt-mold.html",
+      "/guides/suede-shoe-mold.html",
+      "/guides/shirt-collar-mold-spots.html"
     ]) {
       const url = `https://sixiangjialaundry.com${path}`;
       expect(sitemapUrls.filter((item) => item === url), path).toHaveLength(1);
       expect(aiSitemapUrls.filter((item) => item === url), path).toHaveLength(1);
     }
-    expect(EXPECTED_LOC_COUNT).toBe(208);
+    expect(EXPECTED_LOC_COUNT).toBe(216);
 
     // Should have no /posts/ URLs (all slot posts are noindex)
     const postsUrls = sitemapUrls.filter(url => url.includes("/posts/") || url.endsWith("/posts"));

@@ -125,3 +125,48 @@ describe("2026-11-11 全站用語同步（皮革／麂皮不寫水洗價、起�
     }
   });
 });
+
+describe("2026-11-11 行銷裁定 M1–M6 價目表與皮件用字", () => {
+  const rd = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
+  const priceList = () => rd("services/taichung-laundry-price-list.html");
+
+  it("價目表沒有空括號「（）」，H1 與卡片不寫 $30 起", () => {
+    const html = priceList();
+    expect(html).not.toContain("（）");
+    expect(html).toContain("$30 到 $2500。參考價，看過實品再報價。");
+    expect(html).not.toContain("$30<small>起</small>");
+  });
+
+  it("價目表皮類、麂皮、名牌列與 Offer 備註用清潔參考價，不寫水洗參考價", () => {
+    const html = priceList();
+    for (const name of ["皮類運動鞋", "麂皮鞋", "名牌鞋", "皮鞋", "名牌包", "特殊類名牌包", "皮衣"]) {
+      const m = html.match(new RegExp(`"name":"${name}","description":"([^"]*)"`, "u"));
+      expect(m, name).not.toBeNull();
+      expect(m![1], name).not.toContain("水洗");
+      expect(m![1], name).toContain("清潔參考價");
+    }
+  });
+
+  it("一句同時有皮／麂皮／名牌與水洗價的句子已改成清潔參考價（非凍結頁）", () => {
+    for (const rel of ["answers.json", "llms.txt", "hubs/shoe-care.html", "hubs/bag-care.html", "guides/bag-cleaning-price.html", "services/luxury-bag-cleaning.html"]) {
+      const text = rd(rel);
+      for (const seg of text.split(/[。\n]/u)) {
+        if (/水洗價|水洗參考價/u.test(seg) && /皮|麂皮|名牌/u.test(seg) && !/乾洗跟水洗價格差/u.test(seg)) {
+          throw new Error(`${rel}: ${seg.slice(0, 80)}`);
+        }
+      }
+    }
+  });
+
+  it("rainy-shoe-care 不再寫「公開：」", () => {
+    expect(rd("guides/rainy-shoe-care.html")).not.toContain("公開：一般運動鞋");
+  });
+
+  it("generatePublicSite.ts 與頁面同步：皮類列用清潔參考價、priceRange NT$30 起、沒有 250起／400起", () => {
+    const src = readFileSync(join(__dirname, "..", "src", "generatePublicSite.ts"), "utf8");
+    expect(src).toContain('priceRange: "NT$30 起"');
+    expect(src).toContain('{ item: "麂皮鞋", price: "$400(清潔參考價)" }');
+    expect(src).not.toMatch(/運動鞋水洗價250起|麂皮鞋400起|運動鞋250起/u);
+    expect(src).not.toContain("（）。");
+  });
+});

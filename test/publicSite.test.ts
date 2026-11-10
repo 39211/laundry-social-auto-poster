@@ -3840,6 +3840,25 @@ describe("seo overrides and URL path normalization", () => {
         continue;
       }
 
+      if (item.file.replaceAll("\\", "/") === "ai-sitemap.xml") {
+        // Only authored lastmods may differ; membership, order, and metadata stay exact.
+        const dates = new Map(compared.filter((page) => page.file.endsWith(".html")).map((page) => [
+          page.file.replaceAll("\\", "/"),
+          page.sourceContent.toString("utf8").match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/)?.[1]
+        ]));
+        const expected = item.sourceContent.toString("utf8").replace(/<url\b[^>]*>[\s\S]*?<\/url>/g, (entry) => {
+          const loc = entry.match(/<loc>([^<]+)<\/loc>/)?.[1];
+          if (!loc) return entry;
+          const url = new URL(loc);
+          if (url.origin !== "https://sixiangjialaundry.com" || url.search || url.hash) return entry;
+          const path = url.pathname.slice(1) || "index.html";
+          const date = dates.get(path.endsWith("/") ? path + "index.html" : path);
+          return date ? entry.replace(/(<lastmod>)[^<]*(<\/lastmod>)/, `$1${date}$2`) : entry;
+        });
+        expect(item.generatedContent.toString("utf8"), item.file).toBe(expected);
+        continue;
+      }
+
       expect(item.generatedContent.equals(item.sourceContent), `File should be byte-identical: ${item.file}`).toBe(true);
     }
     

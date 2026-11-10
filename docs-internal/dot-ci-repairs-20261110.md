@@ -87,3 +87,29 @@ Failed assertion names:
 - reelSubtitlesCli end to end writes a portrait ASS file from a narration file and real durations
 - seo overrides and URL path normalization seo override files should be byte-identical after generation
 - carousel CLI surface visualQaCli accepts --carousel emit-prompt for a file list
+
+## Same-environment baseline comparison
+
+With the same materialized inputs, Node, clean environment and outbound HTTP block, exact 4359659 baseline ran **2026 passed / 43 failed / 53 skipped**. The first repair candidate ran **2047 passed / 40 failed / 54 skipped**, with **zero new failed assertion names**. The three removed failures are AEO325 lastmod, fingerprint T8 and checked-in public-feed consistency. The additional unexecuted test is the Windows wrong-cwd negative control; Linux cannot validate it.
+
+Local image metadata regeneration also completed with 277 records and identical pre/post blob hash `ed8ecd24bfb4338fa3a6851fbeac4526378760c4`. The sparse checkout lacks 274 webp binaries, which the tool reports as warnings; this does not establish missing production assets.
+
+## Durable date follow-up
+
+The initial data-only correction exposed a generator defect: authored dates were applied to sitemap.xml, but not ai-sitemap.xml. Added a date-only AI-sitemap normalizer so regeneration cannot revert the corrected lastmods. It keeps URL membership, order, other metadata, and entries with no lastmod unchanged; it accepts only matching origin and site-base boundaries. Authored HTML supplies dates even when only the AI sitemap is selected. Unselected HTML/sitemap output is not rewritten, including by the existing post/noindex cleanup stages. Full generation retains those cleanup stages.
+
+The AI-sitemap part of the byte-identity test now expects only this authored-date normalization, while preserving the rest of the XML byte-for-byte. Other file identity checks and the live sitemap equality/cap assertions remain unchanged. Independent golden integration fixtures assert exact expected XML rather than deriving their expected dates with the production helper.
+
+Exact 4359659 generator source failed all three initial new integration cases on stale lastmod assertions (not missing imports). The fixed generator passed the three integration tests plus seoSyncP0a/seoSyncP1, 26 tests total. Final focused/full and Windows results are recorded separately below.
+
+## Initial head Windows CI
+
+[Run 42761948758](https://github.com/39211/laundry-social-auto-poster/actions/runs/42761948758) for initial repair head `e2e3118c6d00bf304e039271dd6edfd4448c9a2c`: **2120 passed / 2 failed / 19 skipped**. All four original repair targets passed; the Windows cwd suite passed all 10 cases. Remaining failures: untouched live145/213 drift; seoSyncP0a's sitemap-cap test timed out at its unchanged 5000ms limit and cleanup reported ENOTEMPTY. That same test passed in 572ms on the prior #316 CI; timing variability is evidence, not proof of the new failure's full cause. No timeout was raised. This historical run does not validate the later generator follow-up.
+
+## Final durable candidate validation
+
+- Focused date/SEO regressions: **28 passed**, default test timeouts. Includes both `/project` and `/project/` root spellings, foreign hosts, outside-prefix URLs, query/fragment URLs, missing lastmods, exact XML metadata, and unselected-output byte preservation.
+- Final complete offline Linux run: **2052 passed / 40 failed / 54 skipped**, exit 1. Compared with same-environment exact4359659 baseline, **no new failed assertion names**; the same three original assertion failures are eliminated. PowerShell is still not available locally.
+- TypeScript noEmit and registry checks passed again after the generator change. Independent review of the final production/test delta found no Critical/Important issue.
+- Known nonblocking extraction limitation: the authored date reader follows the existing generator's first JSON-LD `dateModified` and YYYY-MM-DD shape convention. More complex future pages containing multiple dated entities or invalid calendar dates need a targeted schema-date contract; the four current corrected targets have verified authored dates.
+- Windows CI for the final commit must be read independently; the earlier e2e3118 run is not acceptance of this follow-up.

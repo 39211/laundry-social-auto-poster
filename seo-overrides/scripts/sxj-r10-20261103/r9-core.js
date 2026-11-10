@@ -55,4 +55,3 @@ if(quick){quick.addEventListener('click',e=>{if(e.target.closest('[data-fast-ite
 if(map){map.addEventListener('sxj:map-keyboard',e=>queueMicrotask(()=>mapToQuick(e.detail.district)));map.addEventListener('click',e=>{if(e.target.closest('[data-d],svg path'))queueMicrotask(()=>mapToQuick(q('[data-mi-name]',map).textContent.trim()));});map.addEventListener('change',e=>{if(e.target.matches('[data-map-select]'))queueMicrotask(()=>mapToQuick(e.target.value));});quickToMap();}
 const dots=q('.r5-season-dots'),controls=q('.season-controls');if(dots&&controls)controls.append(dots);
 })();
-

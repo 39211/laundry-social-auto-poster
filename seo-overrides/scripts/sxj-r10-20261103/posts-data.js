@@ -18,4 +18,3 @@ const api={thumbnail,stale:false,async load(){
  return [...unique.values()].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
 }};window.SXJPosts=api;
 })();
-

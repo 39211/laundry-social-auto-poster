@@ -78,7 +78,7 @@ describe("11/11 發霉問句第二波 4 頁（挑店、流程）", () => {
     expect(report.wrongLastmod).toEqual([]);
     expect(report.missingFromSitemap).toEqual([]);
     expect(report.missingInbound).toEqual([]);
-    expect(report.locCount).toBe(236);
+    expect(report.locCount).toBe(243);
     const llms = read("llms.txt");
     const wellKnown = read(".well-known/llms.txt");
     for (const page of PAGES) {

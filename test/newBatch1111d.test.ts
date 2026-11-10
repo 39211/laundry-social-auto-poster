@@ -19,10 +19,10 @@ const LEAK_REPAIR = "屬修繕，不包含在清潔內；能不能處理、是�
 const PAGES = [
   {
     slug: "curtain-cleaning-price",
-    h1: "窗簾送洗價格怎麼算？台中洗窗簾沒有固定價，要拍什麼才能報價",
+    h1: "窗簾送洗價格怎麼算？台中洗窗簾沒有固定價，先傳照片到 LINE 問",
     prices: ["$150", "$500"],
     hub: "hubs/bedding-textile-care.html",
-    stopH: "報價前先別這樣做",
+    stopH: "傳 LINE 前先別這樣做",
     inbound: ["services/curtain-carpet-cleaning.html", "guides/curtain-mold-cleaning.html", "services/taichung-laundry-price-list.html"]
   },
   {
@@ -30,7 +30,7 @@ const PAGES = [
     h1: "洗地毯價格怎麼算？台中地毯送洗沒有固定價，先看乾不乾",
     prices: ["$200", "$400"],
     hub: "hubs/bedding-textile-care.html",
-    stopH: "報價前先別這樣做",
+    stopH: "傳 LINE 前先別這樣做",
     inbound: ["services/curtain-carpet-cleaning.html", "guides/carpet-mold-cleaning.html", "services/taichung-laundry-price-list.html"]
   },
   {
@@ -248,6 +248,24 @@ describe("11/11 發霉問句價格與報價問句 5 頁", () => {
       const hit = items.find((x) => x.id === `${slug}-page-summary`);
       expect(hit?.confidence, slug).toBeUndefined();
       expect(hit?.answer, slug).not.toMatch(/依尺寸|10[–-]14 天/u);
+    }
+  });
+
+  it("行銷 round-3 R328-3：窗簾、地毯價格頁標題、H2、表頭、小標不寫報價流程字樣", () => {
+    for (const slug of ["curtain-cleaning-price", "carpet-cleaning-price"]) {
+      const html = read(`guides/${slug}.html`);
+      for (const old of ["要拍什麼才能報價", "報價看哪四件事", "為什麼影響報價", "報價前先別這樣做", "問能不能收、怎麼報價"]) {
+        expect(html, `${slug} ${old}`).not.toContain(old);
+      }
+      expect(html, slug).toContain("傳 LINE 前先別這樣做");
+      expect(html, slug).toContain("問能不能收；免費收送、沒有最低消費。");
+    }
+    expect(read("guides/curtain-cleaning-price.html")).toContain("傳 LINE 問窗簾，先附這四樣");
+    expect(read("guides/carpet-cleaning-price.html")).toContain("傳 LINE 問地毯，先附這四樣");
+    for (const f of ["llms.txt", ".well-known/llms.txt"]) {
+      const txt = read(f);
+      expect(txt, f).toContain("窗簾送洗價格怎麼算？台中洗窗簾沒有固定價，先傳照片到 LINE 問");
+      expect(txt, f).not.toContain("要拍什麼才能報價");
     }
   });
 });

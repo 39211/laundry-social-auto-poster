@@ -91,7 +91,8 @@ class StoreFactTests(unittest.TestCase):
 
     def test_chat_models_leave_photo_quota_alone(self):
         chain = ai_chat._chain()
-        self.assertEqual(chain[0], "gemini-2.5-flash-lite")
+        self.assertEqual(chain, ["gemini-3.8-flash", "gemini-3.5-flash"])
+        self.assertFalse(any("lite" in model.lower() for model in chain))
         self.assertNotIn("gemini-2.5-flash", chain)
         self.assertNotIn("gemini-flash-latest", chain)
 

@@ -154,6 +154,9 @@ _WHO_AM_I_QR = [("找真人", "找真人"), ("我要洗東西", "我要洗東西
 _META_FEEDBACK_REPLY = "抱歉，剛剛講得太制式了。你想先問哪件事？也可以直接請店員接著回。"
 _META_FEEDBACK_QR = [("拍照問價", "拍照問價"), ("找真人", "找真人")]
 _HUMAN_REPLY = "好，我把需求轉給店裡，請店員接著回。若已經打烊，會等營業時間處理。"
+QUERY_CODE_PROMPT = "請給我送洗時留的完整手機號碼（09 開頭十碼），也可以提供收據洗號。"
+# Last protected reply topic only; no new customer transcript or persistent golden state.
+_RECENT_QUERY_BLOCKS: dict[str, datetime] = {}
 _FALLBACK_QR = [
     ("拍照問價", "拍照問價"),
     ("看價目表", "看價目表"),
@@ -710,6 +713,8 @@ def _pack(msgs: list[dict], intent: str, notify_staff: bool = False) -> tuple[li
         if sess_now.get("last_fallback_n"):
             set_sess(uid, last_fallback_n=0)
     staff_pushed = bool(getattr(_pack, "_npush", 0))
+    if uid:
+        _remember_query_context(uid, intent, bool(notify_staff) or staff_pushed)
     return msgs, {
         "intent": intent,
         "notify_staff": bool(notify_staff),
@@ -2502,6 +2507,45 @@ def _is_query_code(text: str) -> bool:
     return bool(q and _QUERY_CODE_RE.fullmatch(q))
 
 
+def _is_standalone_query_code(text: str) -> bool:
+    """閒置只收完整手機或七碼數字洗號；英數 fixture 僅供明確查件流程。"""
+    raw = (text or "").strip()
+    if re.fullmatch(r"09[0-9\s-]+", raw) and normalize_mobile(raw):
+        return True
+    return bool(re.fullmatch(r"[0-9]{7}", raw))
+
+
+def _remember_query_context(uid: str, intent: str, notified: bool) -> None:
+    protected = notified or intent in ("complaint", "human", "quote", "ask_price", "prices", "price_category") or intent.startswith(("pickup", "photo", "estimate", "ai_staff"))
+    now = now_tw()
+    with _SESSION_LOCK:
+        for key, stamp in list(_RECENT_QUERY_BLOCKS.items()):
+            if now - stamp > timedelta(minutes=30):
+                _RECENT_QUERY_BLOCKS.pop(key, None)
+        if protected:
+            _RECENT_QUERY_BLOCKS[uid] = now
+        else:
+            _RECENT_QUERY_BLOCKS.pop(uid, None)
+
+
+def _idle_query_allowed(uid: str, sess: dict) -> bool:
+    if sess.get("wait"):
+        return False
+    with _SESSION_LOCK:
+        stamp = _RECENT_QUERY_BLOCKS.get(uid)
+    if stamp is not None and now_tw() - stamp <= timedelta(minutes=30):
+        return False
+    # Existing persisted context still protects a recent flow after a process restart.
+    if any(_ts_within(sess.get(key) or "", 30) for key in ("photo_ts", "photo_wait_ts", "care_item_at")):
+        return False
+    if any(sess.get(key) for key in ("topic", "last_item", "estimate_draft", "pickup_id")):
+        try:
+            return datetime.now() - datetime.fromisoformat(sess.get("ts", "")) > timedelta(minutes=30)
+        except (TypeError, ValueError):
+            return False
+    return True
+
+
 def _looks_like_address(text: str) -> bool:
     """M4：地址至少含數字或路／街／巷／弄／號／段／區／村／里。"""
     s = text or ""
@@ -2566,6 +2610,9 @@ def _is_query_text(n: str) -> bool:
             "可以取",
             "取件",
             "查進度",
+            "清洗狀態",
+            "洗滌狀態",
+            "查詢進度",
             "查件進度",
             "送洗進度",
             "洗衣進度",
@@ -2688,7 +2735,7 @@ def start_query(uid: str) -> tuple[list[dict], bool]:
     set_sess(uid, wait="query", query_misses=0)
     return say(
         "我幫你看店裡有沒有入庫、能不能取。",
-        "請給我送洗時留的完整手機號碼（09 開頭十碼），也可以提供收據洗號。",
+        QUERY_CODE_PROMPT,
     ), False
 
 
@@ -3666,6 +3713,16 @@ def handle_ex(uid: str, text: str, event_type: str = "message", event_id: str = 
             refers_back = re.search(r"(?:這|那)(?:一?件|雙|個|批)|(?:^|[，,])它", early_n)
             if sess_now.get("care_item") and not (followup or refers_back or intents.is_ack(early_text) or starts_pickup):
                 set_sess(uid, care_item="", care_item_at="")
+        # 查件碼先於對話模型；其他流程正在收資料時仍由原步驟接手。
+        query_wait = (get_sess(uid) or {}).get("wait") or ""
+        if (query_wait == "query" and _is_query_code(early_text) and not _query_should_leave(early_text, early_n)) or (
+            not query_wait and _idle_query_allowed(uid, sess_now) and _is_standalone_query_code(early_text)
+        ):
+            msgs, notified = tell_status_ex(uid, early_text)
+            return _pack(msgs, "query", notified)
+        if _is_query_text(early_n) and not _is_hours_query(early_n):
+            msgs, notified = start_query(uid)
+            return _pack(msgs, "query", notified)
         navigated = journey_ux.handle(sys.modules[__name__], uid, text)
         if navigated is not None:
             return navigated

@@ -3903,21 +3903,14 @@ describe("seo overrides and URL path normalization", () => {
     expect(aiSitemapUrls.filter((url) => url.includes("/posts/"))).toEqual([]);
     expect(aiSitemap).not.toContain("/posts/");
 
-    const liveResponse = await fetch("https://sixiangjialaundry.com/sitemap.xml");
-    expect(liveResponse.ok, `live sitemap HTTP ${liveResponse.status}`).toBe(true);
-    const liveUrls = sitemapLocs(await liveResponse.text()).sort();
-    const liveNonPostUrls = liveUrls.filter((url) => !url.includes("/posts/"));
-    const livePostUrls = liveUrls.filter((url) => url.includes("/posts/"));
+    // The publisher release owns this exact local set; production overlays
+    // laundry@main and adds journal months. Its separate required composition
+    // gate uses the real root merger and retains the live drift alarm.
     const generatedUrls = [...sitemapUrls].sort();
-    expect(generatedUrls).toEqual(liveNonPostUrls);
+    const sourceUrls = sitemapLocs(await readFile(join(tempSeoOverridesDir, "sitemap.xml"), "utf8")).sort();
+    expect(generatedUrls).toEqual(sourceUrls);
     expect(generatedUrls).toHaveLength(145);
     expect(generatedUrls.filter((url) => url.includes("/posts/"))).toEqual([]);
-    expect(livePostUrls.every((url) => url.startsWith("https://sixiangjialaundry.com/posts/"))).toBe(true);
-    // 30 indexable articles from src/generatePublicSite.ts (SITEMAP_MAX_INDEXABLE_POSTS) plus the posts home page.
-    expect(livePostUrls.length).toBeLessThanOrEqual(31);
-    // A deploy that drops the posts hub or every article must fail here, not pass on an empty list.
-    expect(livePostUrls).toContain("https://sixiangjialaundry.com/posts/");
-    expect(livePostUrls.filter((url) => url !== "https://sixiangjialaundry.com/posts/").length).toBeGreaterThan(0);
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
       const absolute = `https://sixiangjialaundry.com${path}`;
       expect(generatedUrls, path).not.toContain(absolute);

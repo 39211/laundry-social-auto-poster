@@ -178,3 +178,46 @@ jobs:
       # and fail on drift so the committed file is always reproducible.
       - run: npm run regen-public-image-metadata
       - run: git diff --exit-code -- docs-internal/public-image-metadata.json
+
+  production-composition:
+    # Independent of the unit-test job: drift remains visible even when an
+    # unrelated Windows or publishing test fails.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            scripts
+            docs/about
+            docs/guides
+            docs/hubs
+            docs/knowledge
+            docs/local
+            docs/posts
+            docs/services
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Same sources as production; resolved immutable SHAs are logged.
+      - uses: actions/checkout@v4
+        with:
+          repository: 39211/laundry-social-auto-poster
+          ref: main
+          path: .ci-production-overlay
+          filter: blob:none
+          sparse-checkout: seo-overrides
+      - uses: actions/checkout@v4
+        with:
+          repository: 39211/39211.github.io
+          ref: main
+          path: .ci-production-root
+          filter: blob:none
+          sparse-checkout: .github/scripts
+      - name: Test composition failure controls
+        run: python -m unittest discover -s scripts -p "test_production_composition.py"
+      - name: Validate production composition and live drift
+        run: python scripts/check-production-composition.py --generated-root docs --overlay-repo .ci-production-overlay --root-repo .ci-production-root

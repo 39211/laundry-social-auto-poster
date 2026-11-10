@@ -2051,7 +2051,7 @@ describe("generatePublicSite", () => {
       },
       {
         slug: "white-shoe-yellowing",
-        answer: "白鞋灰多半是髒、可清；黃在膠邊是氧化，只能淡化，不保證回白。",
+        answer: "白鞋灰多半是髒、可清；黃在膠邊是氧化，洗不掉，可以改用上色覆蓋處理，看過實品再說明。",
         serviceNeedle: "white-shoe-cleaning.html"
       },
       {
@@ -2101,7 +2101,7 @@ describe("generatePublicSite", () => {
     const llms = await readFile(join(root, "docs", "llms.txt"), "utf8");
     const threeAnswers = [
       "娃娃可以洗，但不能亂洗；怕的是脫水結塊與五官脫落，要先固定再手洗。",
-      "白鞋灰多半是髒、可清；黃在膠邊是氧化，只能淡化，不保證回白。",
+      "白鞋灰多半是髒、可清；黃在膠邊是氧化，洗不掉，可以改用上色覆蓋處理，看過實品再說明。",
       "行李箱收進櫃子前先看輪子；輪子與底板灰收進去，下次打開就是味道。"
     ];
     for (const answer of threeAnswers) {

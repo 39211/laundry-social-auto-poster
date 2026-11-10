@@ -185,6 +185,13 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [精品衣服送洗多少錢？精品襯衫、外套、洋裝、大衣價格怎麼分](https://sixiangjialaundry.com/guides/luxury-garment-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [制服送洗多少錢？護士服、醫師服、學生制服價格怎麼分](https://sixiangjialaundry.com/guides/uniform-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [拖鞋送洗多少錢？一般拖鞋與勃肯拖鞋怎麼分](https://sixiangjialaundry.com/guides/slipper-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [台中洗鞋多少錢？運動鞋、皮鞋、麂皮鞋、名牌鞋價格怎麼分](https://sixiangjialaundry.com/guides/taichung-shoe-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [靴子、登山鞋送洗多少錢？低靴、中靴、高靴與登山鞋價格怎麼分](https://sixiangjialaundry.com/guides/boot-hiking-shoe-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [皮衣送洗多少錢？皮衣、皮褲、皮裙、皮背心價格怎麼分](https://sixiangjialaundry.com/guides/leather-garment-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [襯衫、褲子、T恤送洗多少錢？日常衣物價格怎麼分](https://sixiangjialaundry.com/guides/everyday-clothes-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [洋裝、裙子、旗袍、禮服送洗多少錢？價格怎麼分](https://sixiangjialaundry.com/guides/dress-skirt-gown-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [床單被套、毛毯、睡袋送洗多少錢？寢具價格怎麼分](https://sixiangjialaundry.com/guides/bedding-blanket-sleeping-bag-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [包包發霉送洗多少錢？能不能洗、價格怎麼分](https://sixiangjialaundry.com/guides/bag-mold-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [JSON Feed](https://sixiangjialaundry.com/feed.json): chronological update feed for readers and AI ingestion.
 - [Knowledge graph](https://sixiangjialaundry.com/knowledge-graph.json): Schema.org JSON-LD business, dataset, post, and image entities.
 - [AI discovery index](https://sixiangjialaundry.com/ai-discovery.json): machine-readable map of every AI/SEO endpoint.

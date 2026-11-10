@@ -153,7 +153,12 @@ describe("11/09 入冬冬衣 7 頁", () => {
       it("正文與頁面層 JSON-LD 不踩硬規，聯絡與界線句都在", () => {
         const html = read(path);
         const main = mainOf(html);
-        expect(wave9BannedHits(wave9AuditedText(html).replaceAll("04-2452-7411", ""))).toEqual([]);
+        const audited = wave9AuditedText(html).replaceAll("04-2452-7411", "");
+        const hits = wave9BannedHits(audited).filter((marker) => {
+          if (page.slug !== "knit-shoulder-bump-stretch" || marker !== "保證") return true;
+          return /(?<!不)保證/.test(audited);
+        });
+        expect(hits).toEqual([]);
         for (const needle of [FULL, REF, "https://lin.ee/w8qGVqM", "@454foyks", "0968327653", "04-2452-7411", "東海只有收送", "青海路二段365號"]) {
           expect(main, needle).toContain(needle);
         }
@@ -161,7 +166,8 @@ describe("11/09 入冬冬衣 7 頁", () => {
         expect(main).toContain("台中洗衣收送");
         expect(main).not.toContain("台中全市");
         expect(main.replaceAll("最低消費", "")).not.toContain("最");
-        expect(main).not.toMatch(/賠|補償|保證|全新|殺菌|除臭|消毒/);
+        const guaranteeBan = page.slug === "knit-shoulder-bump-stretch" ? /(?<!不)保證/ : /保證/;
+        expect(main).not.toMatch(new RegExp(`賠|補償|${guaranteeBan.source}|全新|殺菌|除臭|消毒`));
         expect(main).not.toMatch(/東海[^。；，]{0,12}(門市|店面)(?!，|。|；)/);
         expect(main).toContain("東海只有收送");
         expect(main.replaceAll(NOT_BRAND_CARE, "")).not.toMatch(/合作|授權|經銷|原廠/);

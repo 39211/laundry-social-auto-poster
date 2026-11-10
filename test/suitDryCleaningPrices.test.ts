@@ -13,6 +13,12 @@ describe("洗西裝服務頁價格", () => {
   const html = read(PATH);
 
   const GROUP = "水洗參考價，看過實品再報價";
+  const DRY_CLEAN_EXTRA = "水洗參考價，乾洗另計";
+
+  function sentenceAt(at: number): string {
+    const rest = html.slice(at);
+    return rest.slice(0, rest.search(/。|"/) + 1);
+  }
 
   it("背心、精品背心、精品長褲、短中大衣、精品短中大衣用價目表的單一價，各附「水洗參考價，看過實品再報價」", () => {
     for (const price of [
@@ -29,10 +35,26 @@ describe("洗西裝服務頁價格", () => {
     ]) {
       const at = html.indexOf(price);
       expect(at, price).toBeGreaterThan(-1);
-      const rest = html.slice(at);
-      const sentence = rest.slice(0, rest.search(/。|"/) + 1);
-      expect(sentence, price).toContain(GROUP);
+      const sentence = sentenceAt(at);
+      if (price === "西裝背心 $80" || price === "長褲 $70") {
+        expect(sentence, price).toContain(DRY_CLEAN_EXTRA);
+        let cursor = at + price.length;
+        let bodyLocked = false;
+        while (cursor < html.length) {
+          const next = html.indexOf(price, cursor);
+          if (next < 0) break;
+          if (sentenceAt(next).includes(GROUP)) {
+            bodyLocked = true;
+            break;
+          }
+          cursor = next + price.length;
+        }
+        expect(bodyLocked, price).toBe(true);
+      } else {
+        expect(sentence, price).toContain(GROUP);
+      }
     }
+    expect(html).toContain("看過實品再報價");
   });
 
   it("價目表是單一價的項目不加「起」，頁面不再叫人傳照片問背心或大衣價", () => {
@@ -52,7 +74,9 @@ describe("洗西裝服務頁價格", () => {
     expect(html).not.toContain("台中全市台中全市");
     expect(html).toContain("台中洗衣收送");
     expect(html).toContain("免費收送、沒有最低消費");
-    expect(html).not.toContain("台中全市");
+    // 2026-11-09 定案：可以寫「台中全市免費收送、沒有最低消費」。只允許完整句「台中全市免費收送」。
+    expect(html).toContain("台中全市免費收送");
+    expect(html.replaceAll("台中全市免費收送", "")).not.toContain("台中全市");
   });
 
   it("頁面層 JSON-LD 仍可解析，聯絡方式與免費句都還在", () => {

@@ -30,7 +30,7 @@
 
 ## 逐頁改寫與驗證
 
-見 [逐頁全文](dot-seo-page-rewrites-20261110.md) 與 [完整驗證紀錄](dot-seo-validation-20261110.md)。30 篇以真實公開資料產生，均保留原 canonical、發布日期與既有索引條件；最短文章 1,629 可見字，30/30 仍可索引，沒有放寬 1,200 字閘門。
+見 [逐頁全文](dot-seo-page-rewrites-20261110.md) 與 [完整驗證紀錄](dot-seo-validation-20261110.md)。30 篇以真實公開資料產生，均保留原 canonical、發布日期與既有索引條件；最短文章 1,564 可見字，30/30 仍可索引，沒有放寬 1,200 字閘門。
 
 網站專用 editorial_title / editorial_description / editorial_content 與原 topic、facebook_caption、instagram_caption 分開。#315 與 #58 優先採網站標題；標示為 FB/IG 原文的檢視仍保留歷史原稿，完整改寫由「閱讀全文」取得。
 
@@ -41,3 +41,8 @@
 - root overlay 的 GENERATED_OWNED 包含 posts/、rss.xml、feed.json、ai-sitemap.xml；overlay_files() 不覆寫 generated posts。不要改成從舊 static posts 蓋回。
 - 新來源案例要同時檢查主題標題、正文、FAQ、related links、keywords 與 schema，不只補 title。原始 social 投稿、憑證、價格及服務承諾不在本修補範圍。
 - 未合併／未部署的 PR 不能描述成正式站已修好。Windows CI 需對該 PR exact head 查驗，不能採用其他分支的綠燈。
+
+
+## Expanded object-specific correction
+
+dot additionally corrected concrete legacy-topic misclassifications for shoe toe-cap ribbon, belts, wallets, ties, and paired cushion/sofa covers. New rules precede broad object rules and do not invent bag handles, shirt cuffs, or a beverage spill. Five regression tests cover these counterexamples. See the latest validation section for exact test limits and failed CI; this remains a draft pending integration and validation.

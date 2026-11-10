@@ -485,6 +485,6 @@ describe("SEO-SYNC-P1 public publication sync", () => {
     // FAQ/keywords, no unrelated service table/internal intent labels, truthful
     // content-update date and matching schema. Publication-link behavior is
     // independently covered above; approved social source records stay unchanged.
-    expect(digest).toBe("8a4bf665869a5148aae64f9ec3fdb011cbe493fc9a0073c0be9288ed6859c316");
+    expect(digest).toBe("a448e9d34bc0135b75f32a28a110361af372acd0319fdb5bc0a57e9cc47d8b27");
   });
 });

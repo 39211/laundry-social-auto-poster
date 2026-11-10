@@ -37,6 +37,19 @@ describe('topic-specific post care', () => {
     expect(result.faqs.length).toBeGreaterThan(0);
     expect(JSON.stringify(result)).not.toMatch(/NT\$|\$\d|免費|沒有低消|一件也收|每季一到兩次|洗壞的機率/);
   });
+  it.each([
+    ['香奈兒雙色鞋包頭起毛先看羅緞', '鞋頭羅緞與飾面', /提把|內袋|包角/],
+    ['皮帶摺痕發白裂', '皮帶摺痕與裂紋', /提把|包角|內袋/],
+    ['長夾邊角開始起毛', '長夾邊角與摺位', /提把|包角/],
+    ['領帶沾污先看洗標', '領帶面料與內襯', /袖口|肩部|制服/],
+    ['抱枕套和沙發套一起洗，先看洗標和布種免得色差', '抱枕套與沙發套色澤', /飲料|填充/]
+  ])('does not invent object parts or stain scenarios for %s', (topic, family, absent) => {
+    const care = resolvePostTopicCare(topic as string)!;
+    expect(care.family).toBe(family);
+    expect(JSON.stringify(care)).not.toMatch(absent as RegExp);
+    expect(care.paragraphs).toHaveLength(2);
+    expect(care.paragraphs.every(p => p.length > 40)).toBe(true);
+  });
   it('keeps unknown topics unknown, including misleading caption keywords', () => {
     expect(resolvePostTopicCare('')).toBeUndefined();
     expect(resolvePostTopicCare('孩子看著你笑，你也回個微笑')).toBeUndefined();

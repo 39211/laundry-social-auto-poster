@@ -7353,7 +7353,7 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
     : "";
   const externalPublicationHtml = youtubeVideoHtml || facebookPostHtml ? `${youtubeVideoHtml}${facebookPostHtml}` : "";
   // Cross-service case tables put unrelated shoes/bedding inside clothing articles.
-  const summaryItems = specificCare ? [specificCare.summary, ...specificCare.checkpoints] : care.checkpoints;
+  const summaryItems = [specificCare?.summary ?? leadParagraph];
 
   const mainHtml = `<main>
       <nav class="breadcrumb" aria-label="麵包屑">
@@ -7395,7 +7395,7 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
                   fetchpriority: "high"
                 })
           }
-            <figcaption>${escapeHtml(postEditorialTitle(post))}｜${escapeHtml(profile.name)}洗護主題配圖</figcaption>
+            <figcaption>${escapeHtml(postEditorialTitle(post).includes(profile.name) ? postEditorialTitle(post) : `${postEditorialTitle(post)}｜${profile.name}`)}｜洗護主題配圖</figcaption>
           </figure>
         </div>
         </div>
@@ -9759,7 +9759,7 @@ function buildAiDiscovery(index: PublicPostIndex): Record<string, unknown> {
         min_visible_chars: POST_ARTICLE_MIN_VISIBLE_CHARS,
         min_caption_chars: POST_ARTICLE_MIN_CAPTION_CHARS,
         behavior:
-          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Only articles that clear the thickness gate carry index robots; eligible articles enter rss.xml and the posts hub. sitemap.xml includes the newest sitemap_max_indexable_posts eligible articles, ai-sitemap.xml includes eligible article URLs, and both sitemaps omit below-gate posts and override HTML with robots noindex.",
+          "Each approved post renders as a daily article (topic-specific website copy, summary, checklist, next step, FAQ, related). Original social captions remain separate. Only articles that clear the thickness gate carry index robots; eligible articles enter rss.xml and the posts hub. sitemap.xml includes the newest sitemap_max_indexable_posts eligible articles, ai-sitemap.xml includes eligible article URLs, and both sitemaps omit below-gate posts and override HTML with robots noindex.",
         indexable_article_count: indexablePostArticles(index).length,
         sitemap_max_indexable_posts: SITEMAP_MAX_INDEXABLE_POSTS,
         sitemap_indexable_post_count: sitemapIndexablePostArticles(index).length,

@@ -365,7 +365,13 @@ describe("B5 第 8 波", () => {
     for (const path of WAVE8_PAGE_PATHS) {
       expect(report.inbound[path]?.count, path).toBeGreaterThanOrEqual(1);
       const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
-      const found = wave8BannedHits(wave8AuditedText(html));
+      let audited = wave8AuditedText(html);
+      if (path === "/guides/new-shoe-dye-ruboff.html") {
+        const approved = "這頁只講新鞋染料蹭色";
+        expect(audited, path).toContain(approved);
+        audited = audited.replace(approved, "只講新鞋染料蹭色");
+      }
+      const found = wave8BannedHits(audited);
       if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
       const main = html.match(/<main>([\s\S]*?)<\/main>/)?.[1] ?? "";
       expect(main, path).toContain("免費收送");

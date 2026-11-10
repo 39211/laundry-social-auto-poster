@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -9,6 +9,10 @@ const scriptPath = resolve(process.env.DGFIX_DAILY_GENERATE_SCRIPT || "scripts/d
 const quotePS = (value: string) => `'${value.replace(/'/g, "''")}'`;
 const source = readFileSync(scriptPath, "utf8");
 let fixture: string;
+// Compare filesystem identities, not the casing/spelling PowerShell chooses
+// for a Windows path (including short paths and junctions).
+const sameDirectory = (actual: string, expected: string) =>
+  realpathSync.native(actual) === realpathSync.native(expected);
 
 interface Scenario {
   name: string;
@@ -34,6 +38,7 @@ let result: {
 
 beforeAll(() => {
   fixture = mkdtempSync(join(tmpdir(), "calendar outside sandbox-"));
+  mkdirSync(join(fixture, "wrong-subdirectory"));
   // Parse the actual scheduler, then run only its calendar assignments and
   // preflight block. cmd/Test-Path/log/toast are local fakes; no script body,
   // real npm, Codex, scheduled task, image generator or publisher is executed.
@@ -108,6 +113,7 @@ beforeAll(() => {
     $cases = @(
       @{ name = 'existing'; exists = $true; contextCode = 0; generateCode = 0; writesCalendar = $true },
       @{ name = 'success'; exists = $false; contextCode = 0; generateCode = 0; writesCalendar = $true },
+      @{ name = 'wrong-directory'; exists = $false; contextCode = 0; generateCode = 0; writesCalendar = $true },
       @{ name = 'context-failed'; exists = $false; contextCode = 17; generateCode = 0; writesCalendar = $true },
       @{ name = 'generate-failed'; exists = $false; contextCode = 0; generateCode = 23; writesCalendar = $false },
       @{ name = 'generate-failed-after-write'; exists = $false; contextCode = 0; generateCode = 23; writesCalendar = $true },
@@ -125,7 +131,12 @@ beforeAll(() => {
       $logFile = Join-Path $root "$($case.name).log"
       $global:LASTEXITCODE = 0
       $before = (Get-Location).Path
-      . ([scriptblock]::Create($preflightText))
+      # The negative control executes the same harness with an actually wrong
+      # Push-Location target, rather than manufacturing a mismatched cwd string.
+      $casePreflight = if ($case.name -eq 'wrong-directory') {
+        $preflightText.Replace('Push-Location $root', 'Push-Location (Join-Path $root "wrong-subdirectory")')
+      } else { $preflightText }
+      . ([scriptblock]::Create($casePreflight))
       $output = if ([IO.File]::Exists($logFile)) { [IO.File]::ReadAllText($logFile) } else { '' }
       @{
         name = $case.name; hasCalendar = [bool]$hasCalendar
@@ -187,13 +198,22 @@ describe("daily calendar generation outside the Codex sandbox", () => {
   it("generates in the project directory, logs output, rechecks the artifact and takes the existing branch", () => {
     const actual = scenario("success");
     expect(actual.calls.map((call) => call.step)).toEqual(["generate-context", "generate"]);
-    expect(actual.calls.every((call) => call.cwd === fixture)).toBe(true);
+    expect(actual.calls.every((call) => sameDirectory(call.cwd, fixture))).toBe(true);
     expect(actual.output).toContain("fake generate-context output");
     expect(actual.output).toContain("fake generate output");
     expect(actual.hasCalendar).toBe(true);
     expect(actual.toasts).toEqual([]);
     expect(result.imagesOnlyGuard).toBe("$hasCalendar");
     expect(result.imagesOnlyEndsWithExit).toBe(true);
+  });
+
+  it("rejects a real wrong-subdirectory execution as the project directory", () => {
+    const actual = scenario("wrong-directory");
+    expect(actual.calls.map((call) => call.step)).toEqual(["generate-context", "generate"]);
+    for (const call of actual.calls) {
+      expect(sameDirectory(call.cwd, join(fixture, "wrong-subdirectory"))).toBe(true);
+      expect(sameDirectory(call.cwd, fixture)).toBe(false);
+    }
   });
 
   it.each([

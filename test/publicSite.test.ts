@@ -1,3 +1,4 @@
+import { assertPublicFeatureContract } from "./helpers/publicFeatureContract";
 import { access, cp, mkdir, open, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdtempSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -3028,6 +3029,11 @@ describe("generatePublicSite", () => {
         instagram_caption: post.instagram_caption,
         image_url: post.image_url
       });
+      if (post.slot === 0) {
+        assertPublicFeatureContract(post);
+        continue;
+      }
+      expect((post as Record<string, unknown>).feature_reel, key).not.toBe(true);
       if (!calendars.has(post.date)) {
         calendars.set(
           post.date,

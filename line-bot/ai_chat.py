@@ -548,15 +548,19 @@ def _worker(prompt: str, deadline: float, trace, box: dict) -> None:
     try:
         _local.model_trace = trace
         fn = _MODEL_FN or _gemini_call
-        for model in _chain():
+        chain = _chain()
+        for index, model in enumerate(chain):
             remaining = deadline - time.monotonic()
             if remaining < MIN_CALL_SECONDS:
                 break
             _note_call()
             trace.started = True
             trace.begin(model)
+            # The last model may use whatever is left of the total budget: when 3.8 fails fast
+            # (free-tier 429/503), a slow-but-working 3.5 answer must not be cut at PER_CALL_SECONDS.
+            cap = remaining if index == len(chain) - 1 else min(PER_CALL_SECONDS, remaining)
             try:
-                raw = fn(model, prompt, max(0.5, min(PER_CALL_SECONDS, remaining)))
+                raw = fn(model, prompt, max(0.5, cap))
             except ModelError as exc:
                 trace.mark(exc.kind if exc.kind in _PE._USAGE_KEYS else "http_other")
                 continue

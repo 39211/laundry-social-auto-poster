@@ -169,6 +169,22 @@ class Night24ModelTests(unittest.TestCase):
             self.assertEqual(self.decide(), ANSWER)
         self.assertEqual(models, ["gemini-3.8-flash", "gemini-3.5-flash"])
 
+    def test_last_model_gets_the_remaining_budget_after_a_fast_failure(self):
+        # 11/10 live: gemini-3.8-flash answered 429 (free tier 20/day) in 0.3s while 3.5 Flash took ~6s;
+        # a 4.5s per-call cap then dropped the 3.5 answer although 9.7s of the 10s budget were left.
+        timeouts = []
+        def call(model, _prompt, timeout):
+            timeouts.append((model, timeout))
+            if model == "gemini-3.8-flash":
+                raise chat.ModelError("http_429")
+            return json.dumps(ANSWER)
+        with mock.patch.object(chat, "_MODEL_FN", call):
+            self.assertEqual(self.decide(), ANSWER)
+        self.assertEqual([m for m, _ in timeouts], ["gemini-3.8-flash", "gemini-3.5-flash"])
+        self.assertLessEqual(timeouts[0][1], chat.PER_CALL_SECONDS)
+        self.assertGreater(timeouts[1][1], chat.PER_CALL_SECONDS + 3)
+        self.assertLessEqual(timeouts[1][1], chat.TOTAL_SECONDS)
+
     def test_unrelated_400_does_not_retry_same_model(self):
         error = urllib.error.HTTPError("synthetic", 400, "bad request", {}, io.BytesIO(b"invalid schema"))
         with mock.patch.object(chat.urllib.request, "urlopen", side_effect=[error, Response(ANSWER)]) as call:

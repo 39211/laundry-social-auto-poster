@@ -96,7 +96,7 @@ describe("11/05 週四新批 8 頁", () => {
     expect(report.wrongLastmod).toEqual([]);
     expect(report.missingFromSitemap).toEqual([]);
     expect(report.missingInbound).toEqual([]);
-    expect(report.locCount).toBe(216);
+    expect(report.locCount).toBe(223);
     for (const page of PAGES) {
       const path = `/guides/${page.slug}.html`;
       expect(report.inbound[path]?.hubs, path).toContain(page.hub);

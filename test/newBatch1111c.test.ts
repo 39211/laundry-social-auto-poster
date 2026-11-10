@@ -177,8 +177,12 @@ describe("11/11 發霉問句第二批 11 頁", () => {
       it("價格只出現價目表上的價，每個數字旁都有參考價句", () => {
         const main = mainOf(read(path));
         const prices = main.match(/\$\d+/g) ?? [];
-        const tagged = main.match(/\$\d+，參考價，看過實品再報價/g) ?? [];
-        expect(tagged).toHaveLength(prices.length);
+        // 行銷 Q1：每個含金額的句子（以 。；與表格格為界）句尾帶一次參考價句，不必每個金額各貼一次。
+        const sentences = main.replace(/<[^>]+>/g, "\n").split(/[。；\n]/u);
+        for (const sentence of sentences.filter((x) => /\$\d+/.test(x))) {
+          expect(sentence, sentence).toContain(REF);
+          expect((sentence.match(/參考價，看過實品再報價/g) ?? []).length, sentence).toBe(1);
+        }
         expect([...new Set(prices)].sort()).toEqual([...page.prices].sort());
         expect(main.match(/\$\d+\s*起/g) ?? []).toEqual([]);
       });
@@ -202,7 +206,7 @@ describe("11/11 發霉問句第二批 11 頁", () => {
         const items: Array<{ id: string; source_url: string; answer: string }> = answers.answers ?? [];
         const hit = items.find((item) => item.id === `${page.slug}-page-summary`);
         expect(hit?.source_url).toBe(`https://sixiangjialaundry.com/${path}`);
-        expect(hit?.answer).toContain(REF);
+        expect(hit?.answer).toContain("看過實品再報價");
         const text = JSON.stringify(hit).replaceAll(FULL, "");
         expect(text).not.toMatch(/保證|免費|賠|補償|全新|殺菌|除臭/);
         expect(text).not.toContain("台中全市");
@@ -232,6 +236,34 @@ describe("11/11 發霉問句第二批 11 頁", () => {
       expect(html, page.slug).not.toMatch(/防水(?!透氣)/u);
       expect(html, page.slug).not.toContain("名牌包 $1500 起；皆為水洗參考價");
       expect(mainOf(html).match(/\$\d+\s*起/g) ?? [], page.slug).toEqual([]);
+    }
+  });
+
+  it("行銷裁定 M1–M7：title 不寫起算價、洗鞋天數用標準句、不寫沒有急件費、帽子皮帽不先說天數、行李箱與帆布鞋不寫定價邏輯", () => {
+    const body = (slug: string) => read(`guides/${slug}.html`);
+    const boot = body("boot-mold-cleaning");
+    expect(boot).toContain("低靴 $350 參考價｜私享家洗衣店");
+    expect(boot).not.toContain("起算價");
+    for (const slug of ["boot-mold-cleaning", "slipper-mold-cleaning", "canvas-shoe-mold-cleaning", "snow-boot-mold-cleaning"]) {
+      const html = body(slug);
+      expect(html, slug).toContain("洗鞋一般約一個禮拜可以拿");
+      expect(html, slug).not.toMatch(/5[–-]7 天|急件/u);
+    }
+    const hat = body("hat-mold-cleaning");
+    expect(hat).toContain("布帽、毛帽一般約 7 天可以拿，實際日期收件時確認；皮帽不先說天數，看過實物再說明");
+    const luggage = body("luggage-mold-cleaning");
+    expect(luggage).toContain("行李箱沒有固定價，傳尺寸與照片到 LINE，看過實品再報價");
+    expect(luggage).not.toContain("依尺寸");
+    const canvasShoe = body("canvas-shoe-mold-cleaning");
+    expect(canvasShoe).toContain("價目表沒有帆布鞋單獨一列，鞋面是布的先對照一般運動鞋 $250，皮或混合材質對照 $300／$350");
+    expect(canvasShoe).toContain("帆布鞋（先對照一般運動鞋）");
+    expect(canvasShoe).not.toContain("依一般運動鞋");
+    const snow = mainOf(body("snow-boot-mold-cleaning"));
+    expect(snow).not.toMatch(/看過實品再報價，參考價，看過實品再報價/u);
+    const answers: Array<{ id: string; answer: string }> = JSON.parse(read("answers.json")).answers;
+    for (const slug of ["boot", "slipper", "canvas-shoe", "snow-boot"]) {
+      const a = answers.find((x) => x.id === `${slug}-mold-cleaning-page-summary`)?.answer ?? "";
+      expect(a, slug).not.toMatch(/5[–-]7 天|急件/u);
     }
   });
 });

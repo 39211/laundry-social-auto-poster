@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁、第 9 波 9 頁、洗標符號指南 1 頁、送洗前自我檢查 1 頁、棉被羽絨被發霉 1 頁、11/02 新批 8 頁（羊毛被、羽絨被、毛毯、外套、包包、西裝水洗、乾洗縮水、皮鞋價格）、11/02 第二批 2 頁（衣服送洗會洗壞嗎、毛衣縮水怎麼辦），再加選店指南 1 頁（#245 改 self canonical 後漏列），再加 11/09 入冬冬衣 7 頁，再加 11/11 發霉問句 8 頁。東勢、大甲、龍井不進這支。再加 11/11 價格意圖第二批 7 頁。再加 11/11 發霉問句第二批 11 頁。再加 11/11 價格與報價問句 5 頁。 */
-export const EXPECTED_LOC_COUNT = 239;
+/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁、第 9 波 9 頁、洗標符號指南 1 頁、送洗前自我檢查 1 頁、棉被羽絨被發霉 1 頁、11/02 新批 8 頁（羊毛被、羽絨被、毛毯、外套、包包、西裝水洗、乾洗縮水、皮鞋價格）、11/02 第二批 2 頁（衣服送洗會洗壞嗎、毛衣縮水怎麼辦），再加選店指南 1 頁（#245 改 self canonical 後漏列），再加 11/09 入冬冬衣 7 頁，再加 11/11 發霉問句 8 頁。東勢、大甲、龍井不進這支。再加 11/11 價格意圖第二批 7 頁。再加 11/11 發霉問句第二批 11 頁。再加 11/11 價格與報價問句 5 頁。再加 11/11 第二波 4 頁（挑店、流程）。 */
+export const EXPECTED_LOC_COUNT = 243;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -716,6 +716,16 @@ export const NEW_BATCH_1111D_PAGE_PATHS = [
   "/guides/slipper-cleaning-price.html"
 ] as const;
 
+/** 11/11 第二波 4 頁（挑店、流程）。 */
+export const NEW_BATCH_1111E_PAGE_LASTMOD = "2026-11-11";
+
+export const NEW_BATCH_1111E_PAGE_PATHS = [
+  "/guides/luxury-laundry-shop-how-to-choose.html",
+  "/guides/curtain-carpet-laundry-shop-how-to-choose.html",
+  "/guides/taichung-bag-cleaning-how-to-choose.html",
+  "/guides/laundry-pickup-process-turnaround.html"
+] as const;
+
 /** 11/11 第二批 7 頁（價格意圖：洗鞋、靴子登山鞋、皮革、日常衣物、洋裝禮服、寢具、包包發霉）。lastmod 用這次上線日，不回寫前波。 */
 export const NEW_BATCH_1111B_PAGE_LASTMOD = "2026-11-11";
 
@@ -887,6 +897,7 @@ export function checkSitemapLinks(root = repoRootFromHere()): SitemapLinkReport 
     ...NEW_BATCH_1105_PAGE_PATHS.map((path) => ({ path, lastmod: NEW_BATCH_1105_PAGE_LASTMOD })),
     ...NEW_BATCH_1109_PAGE_PATHS.map((path) => ({ path, lastmod: NEW_BATCH_1109_PAGE_LASTMOD })),
     ...NEW_BATCH_1111_PAGE_PATHS.map((path) => ({ path, lastmod: NEW_BATCH_1111_PAGE_LASTMOD })),
+    ...NEW_BATCH_1111E_PAGE_PATHS.map((path) => ({ path, lastmod: NEW_BATCH_1111E_PAGE_LASTMOD })),
     ...NEW_BATCH_1111D_PAGE_PATHS.map((path) => ({ path, lastmod: NEW_BATCH_1111D_PAGE_LASTMOD })),
     ...NEW_BATCH_1111C_PAGE_PATHS.map((path) => ({ path, lastmod: NEW_BATCH_1111C_PAGE_LASTMOD })),
     ...NEW_BATCH_1111B_PAGE_PATHS.map((path) => ({ path, lastmod: NEW_BATCH_1111B_PAGE_LASTMOD })),

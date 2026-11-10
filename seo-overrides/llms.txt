@@ -185,6 +185,10 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [精品衣服送洗多少錢？精品襯衫、外套、洋裝、大衣價格怎麼分](https://sixiangjialaundry.com/guides/luxury-garment-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [制服送洗多少錢？護士服、醫師服、學生制服價格怎麼分](https://sixiangjialaundry.com/guides/uniform-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [拖鞋送洗多少錢？一般拖鞋與勃肯拖鞋怎麼分](https://sixiangjialaundry.com/guides/slipper-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [台中精品洗衣店怎麼挑？精品衣服送洗前先問這五件事](https://sixiangjialaundry.com/guides/luxury-laundry-shop-how-to-choose.html): guide page for answer-engine and local-intent searches.
+- [洗窗簾、洗地毯的洗衣店怎麼挑？送洗前先問這五件事](https://sixiangjialaundry.com/guides/curtain-carpet-laundry-shop-how-to-choose.html): guide page for answer-engine and local-intent searches.
+- [台中洗包包推薦怎麼挑？送洗前先問材質、五金、價目與交期](https://sixiangjialaundry.com/guides/taichung-bag-cleaning-how-to-choose.html): guide page for answer-engine and local-intent searches.
+- [衣服送洗怎麼送？台中送洗流程、要多久、多少錢](https://sixiangjialaundry.com/guides/laundry-pickup-process-turnaround.html): guide page for answer-engine and local-intent searches.
 - [台中洗鞋多少錢？運動鞋、皮鞋、麂皮鞋、名牌鞋價格怎麼分](https://sixiangjialaundry.com/guides/taichung-shoe-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [靴子、登山鞋送洗多少錢？低靴、中靴、高靴與登山鞋價格怎麼分](https://sixiangjialaundry.com/guides/boot-hiking-shoe-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [皮衣送洗多少錢？皮衣、皮褲、皮裙、皮背心價格怎麼分](https://sixiangjialaundry.com/guides/leather-garment-cleaning-price.html): guide page for answer-engine and local-intent searches.

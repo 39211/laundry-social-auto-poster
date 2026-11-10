@@ -98,7 +98,7 @@ describe("11/11 發霉問句 8 頁", () => {
     expect(report.wrongLastmod).toEqual([]);
     expect(report.missingFromSitemap).toEqual([]);
     expect(report.missingInbound).toEqual([]);
-    expect(report.locCount).toBe(232);
+    expect(report.locCount).toBe(241);
     const llms = read("llms.txt");
     const wellKnown = read(".well-known/llms.txt");
     for (const page of PAGES) {

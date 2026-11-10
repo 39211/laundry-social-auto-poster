@@ -40,13 +40,23 @@ const EXPECTED_COUNTS = {
 
 const MAIN_SHA256 = {
   "sticky-bag-lining": "805b489649b208a36ec7fcf7a9070682d1ba7b3ca1dcd6b5209bcda7ca0a8975",
-  "suede-bag-care": "fd5d854736e94675df45f8ce6d8b2b29cb3981d19bb4e60b9304907e7e3dfa90",
-  // 這一筆不是 e890511 原文雜湊。凍結原文先把「東海無門市、全市可收送」換成「東海無門市、免費收送、沒有最低消費」，再把「>台中洗鞋專頁</a>」換成「>洗鞋材質總覽</a>」之後的 stripped sha256。
-  "washing-machine-shoe-risk": "11a8f19c2cd1ef9bf52a7722815c09a458dba849ac92f00ea2f0802c6a8fbba4",
-  "lambskin-bag-care": "427a03ce23140db27c7b16b2c8ebae57721174f6ab26e100140e46b81687de5c",
+  "suede-bag-care": "ba022c5ff5682c48c67fba0f6b70cfa9d9e5002c2cf6e8a2382986e3e9c5d725",
+  // 這一筆不是 e890511 原文雜湊。凍結原文先把「東海無門市、全市可收送」換成「東海無門市、免費收送、沒有最低消費」，再把「>台中洗鞋專頁</a>」換成「>洗鞋材質總覽</a>」之後的 stripped sha256。2026-11-10 CTR 再改 title／meta 並加新鞋掉色內鏈，雜湊改鎖改寫後的 stripped 檔。
+  "washing-machine-shoe-risk": "65878dffe394e9ad3b6d9b1864965450bc07e7617f52a80454f7c8fb7cbb7de4",
+  "lambskin-bag-care": "3cab8b49d86a8325b2a96f5a36180960fd76f937812baa632bf7c5ec7cd91c08",
   "leather-belt-care": "74d82511a2e418f5fca6298ad31b7051739e365270b1111163152e504557a26e",
-  "shoe-drying-heat-risk": "4204ca5917e2c2c6ec636568a1d3aed1b41e63610415aa7c335f232fa3be6833"
+  "shoe-drying-heat-risk": "cbdf4b441a29a12810547d05671bc0e6f92385ee933b24f8eaa2567981769046"
 } as const satisfies Record<PageSlug, string>;
+
+/** 2026-11-10 行銷裁定改了這 4 頁的 title／meta。洗衣機頁另加一則內鏈。目錄契約仍在，但不再要求與 e890511 逐字相同。 */
+const CTR_COPY_SLUGS = new Set<PageSlug>([
+  "suede-bag-care",
+  "washing-machine-shoe-risk",
+  "lambskin-bag-care",
+  "shoe-drying-heat-risk"
+]);
+
+const CTR_CITYWIDE_META = new Set<PageSlug>(["suede-bag-care", "lambskin-bag-care", "shoe-drying-heat-risk"]);
 
 const SHOE_DRYING_IDS = [
   "drying-devices",
@@ -464,8 +474,14 @@ describe("O04 六個指南頁", () => {
       expect(html.match(/"dateModified":"(\d{4}-\d{2}-\d{2})"/u)?.[1], slug).toBe(
         stripped.match(/"dateModified":"(\d{4}-\d{2}-\d{2})"/u)?.[1]
       );
-      expect(countOf(html, "台中全市"), slug).toBe(0);
-      expect(countOf(stripped, "台中全市"), slug).toBe(0);
+      const main = html.match(/<main>([\s\S]*?)<\/main>/u)?.[1] ?? "";
+      if (CTR_CITYWIDE_META.has(slug)) {
+        expect(countOf(main, "台中全市"), slug).toBe(0);
+        expect(html, slug).toContain("台中全市免費收送、沒有最低消費");
+      } else {
+        expect(countOf(html, "台中全市"), slug).toBe(0);
+        expect(countOf(stripped, "台中全市"), slug).toBe(0);
+      }
       for (const needle of CONTACTS) {
         expect(countOf(html, needle), `${slug} ${needle}`).toBeGreaterThanOrEqual(countOf(stripped, needle));
       }
@@ -475,7 +491,7 @@ describe("O04 六個指南頁", () => {
         expect(countOf(html, price), price).toBe(countOf(stripped, price));
       }
       const fromBaseline = gitBlob("e890511a82b5b2f9300999a68c56cadebb92c1f6", rel);
-      if (fromBaseline !== undefined) {
+      if (fromBaseline !== undefined && !CTR_COPY_SLUGS.has(slug)) {
         if (slug === "washing-machine-shoe-risk") {
           const expected = fromBaseline
             .replaceAll("東海無門市、全市可收送", "東海無門市、免費收送、沒有最低消費")

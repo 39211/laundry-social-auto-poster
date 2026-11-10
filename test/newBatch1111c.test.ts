@@ -19,7 +19,7 @@ const LEAK_REPAIR = "屬修繕，不包含在清潔內；能不能處理、是�
 const PAGES = [
   {
     slug: "curtain-mold-cleaning",
-    h1: "窗簾發霉怎麼辦？能送洗嗎、要多久、怎麼報價",
+    h1: "窗簾發霉怎麼辦？先通風、拍照，傳照片到 LINE 問",
     prices: [],
     hub: "hubs/bedding-textile-care.html",
     inbound: ["services/curtain-carpet-cleaning.html", "hubs/local-pickup.html"]
@@ -69,7 +69,7 @@ const PAGES = [
   {
     slug: "canvas-shoe-mold-cleaning",
     h1: "帆布鞋發霉怎麼辦？還能穿嗎、洗鞋要多久、怎麼估價",
-    prices: ["$250", "$300", "$350"],
+    prices: [],
     hub: "hubs/shoe-care.html",
     inbound: ["guides/white-shoe-yellowing.html"]
   },
@@ -89,7 +89,7 @@ const PAGES = [
   },
   {
     slug: "carpet-mold-cleaning",
-    h1: "地毯發霉怎麼辦？能送洗嗎、要多久、怎麼報價",
+    h1: "地毯發霉怎麼辦？先通風、拍照，傳照片到 LINE 問",
     prices: [],
     hub: "hubs/bedding-textile-care.html",
     inbound: ["services/curtain-carpet-cleaning.html", "hubs/bedding-textile-care.html"]
@@ -206,7 +206,7 @@ describe("11/11 發霉問句第二批 11 頁", () => {
         const items: Array<{ id: string; source_url: string; answer: string }> = answers.answers ?? [];
         const hit = items.find((item) => item.id === `${page.slug}-page-summary`);
         expect(hit?.source_url).toBe(`https://sixiangjialaundry.com/${path}`);
-        expect(hit?.answer).toContain("看過實品再報價");
+        expect(hit?.answer).toMatch(/看過實品再報價|傳照片到 LINE 問/u);
         const text = JSON.stringify(hit).replaceAll(FULL, "");
         expect(text).not.toMatch(/保證|免費|賠|補償|全新|殺菌|除臭/);
         expect(text).not.toContain("台中全市");
@@ -255,15 +255,34 @@ describe("11/11 發霉問句第二批 11 頁", () => {
     expect(luggage).toContain("行李箱沒有固定價，傳尺寸與照片到 LINE，看過實品再報價");
     expect(luggage).not.toContain("依尺寸");
     const canvasShoe = body("canvas-shoe-mold-cleaning");
-    expect(canvasShoe).toContain("價目表沒有帆布鞋單獨一列，鞋面是布的先對照一般運動鞋 $250，皮或混合材質對照 $300／$350");
-    expect(canvasShoe).toContain("帆布鞋（先對照一般運動鞋）");
-    expect(canvasShoe).not.toContain("依一般運動鞋");
+    expect(canvasShoe).toContain("價目表沒有帆布鞋單獨一列，帆布鞋傳照片到 LINE，看過實品再報價");
+    expect(mainOf(canvasShoe).match(/\$\d+/g) ?? []).toEqual([]);
+    expect(canvasShoe).not.toMatch(/對照一般運動鞋|依一般運動鞋|皮類運動鞋|混合運動鞋/u);
+    expect(canvasShoe).toContain("帆布鞋發霉怎麼報價");
     const snow = mainOf(body("snow-boot-mold-cleaning"));
     expect(snow).not.toMatch(/看過實品再報價，參考價，看過實品再報價/u);
     const answers: Array<{ id: string; answer: string }> = JSON.parse(read("answers.json")).answers;
     for (const slug of ["boot", "slipper", "canvas-shoe", "snow-boot"]) {
       const a = answers.find((x) => x.id === `${slug}-mold-cleaning-page-summary`)?.answer ?? "";
       expect(a, slug).not.toMatch(/5[–-]7 天|急件/u);
+    }
+  });
+
+  it("行銷複核 R327-2：窗簾、地毯發霉頁不是正式服務，只寫「傳照片到 LINE 問」，不寫依尺寸報價與天數，answers 不標老闆來源", () => {
+    for (const slug of ["curtain-mold-cleaning", "carpet-mold-cleaning"]) {
+      const html = read(`guides/${slug}.html`);
+      expect(html, slug).toContain("傳照片到 LINE 問");
+      expect(html, slug).not.toContain("依尺寸");
+      expect(html, slug).not.toMatch(/10[–-]14 天/u);
+      expect(html, slug).not.toContain("要多久、怎麼報價");
+      const title = html.match(/<title>([^<]*)<\/title>/u)?.[1] ?? "";
+      expect(title, slug).not.toMatch(/要多久|怎麼報價/u);
+    }
+    const items: Array<{ id: string; confidence?: string; answer: string }> = JSON.parse(read("answers.json")).answers;
+    for (const slug of ["curtain-mold-cleaning", "carpet-mold-cleaning"]) {
+      const hit = items.find((x) => x.id === `${slug}-page-summary`);
+      expect(hit?.confidence, slug).toBeUndefined();
+      expect(hit?.answer, slug).not.toMatch(/依尺寸|10[–-]14 天/u);
     }
   });
 });

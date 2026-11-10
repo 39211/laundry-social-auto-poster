@@ -9,7 +9,8 @@ import { repoRootFromHere } from "../scripts/check-sitemap-links";
  * O04：6 個既有指南頁加本頁目錄與穩定 H2 id。
  * 目錄文字與 id 以行銷 PASS 的兩份 CSV 為準。
  * 下面的 sha256 是凍結基準 e890511a82b5b2f9300999a68c56cadebb92c1f6 上、LF 原文的雜湊。
- * washing-machine-shoe-risk 例外：凍結原文先套收送用語替換，再套錨文字替換，鎖的是兩道之後的 stripped sha256。其餘 5 頁仍對凍結原文。
+ * washing-machine-shoe-risk 例外：凍結原文先套收送用語替換，再套錨文字替換，鎖的是兩道之後的 stripped sha256。
+ * sticky-bag-lining、suede-bag-care 的 sha256 於 2026-11-10 CTR 實驗更新為核定文案後的 stripped 檔。其餘頁仍對凍結原文。
  * CI 只抓 PR commit、拿不到該 commit 時仍用這個鎖；git show 只對這個凍結 SHA，淺層 checkout 拿不到就回 undefined 並跳過比對。
  */
 const ROOT = repoRootFromHere();
@@ -39,8 +40,10 @@ const EXPECTED_COUNTS = {
 } as const satisfies Record<PageSlug, number>;
 
 const MAIN_SHA256 = {
-  "sticky-bag-lining": "805b489649b208a36ec7fcf7a9070682d1ba7b3ca1dcd6b5209bcda7ca0a8975",
-  "suede-bag-care": "ba022c5ff5682c48c67fba0f6b70cfa9d9e5002c2cf6e8a2382986e3e9c5d725",
+  // 2026-11-10 CTR 實驗更新：title、meta 與分流段改為核定文案後的 stripped sha256。
+  "sticky-bag-lining": "f00ded5cbded4a4178421da29dd8e8194ff1551a2c419eddaf86dedeabb1b7f9",
+  // 2026-11-10 CTR 實驗更新：加上「麂皮外套怎麼洗」內鏈後的 stripped sha256。
+  "suede-bag-care": "b875e5f55d09d6b14897ecfc89b123384bd4b6437ef00f2f16880ae100e5de37",
   // 這一筆不是 e890511 原文雜湊。凍結原文先把「東海無門市、全市可收送」換成「東海無門市、免費收送、沒有最低消費」，再把「>台中洗鞋專頁</a>」換成「>洗鞋材質總覽</a>」之後的 stripped sha256。2026-11-10 CTR 再改 title／meta 並加新鞋掉色內鏈，雜湊改鎖改寫後的 stripped 檔。
   "washing-machine-shoe-risk": "65878dffe394e9ad3b6d9b1864965450bc07e7617f52a80454f7c8fb7cbb7de4",
   "lambskin-bag-care": "3cab8b49d86a8325b2a96f5a36180960fd76f937812baa632bf7c5ec7cd91c08",
@@ -48,8 +51,9 @@ const MAIN_SHA256 = {
   "shoe-drying-heat-risk": "cbdf4b441a29a12810547d05671bc0e6f92385ee933b24f8eaa2567981769046"
 } as const satisfies Record<PageSlug, string>;
 
-/** 2026-11-10 行銷裁定改了這 4 頁的 title／meta。洗衣機頁另加一則內鏈。目錄契約仍在，但不再要求與 e890511 逐字相同。 */
+/** 2026-11-10 行銷裁定改了 title／meta。洗衣機頁另加一則內鏈。sticky-bag-lining 於同日 CTR 實驗再改 title、meta 與分流段。目錄契約仍在，但不再要求與 e890511 逐字相同。 */
 const CTR_COPY_SLUGS = new Set<PageSlug>([
+  "sticky-bag-lining",
   "suede-bag-care",
   "washing-machine-shoe-risk",
   "lambskin-bag-care",

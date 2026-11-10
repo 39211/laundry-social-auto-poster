@@ -5,7 +5,10 @@ import { describe, expect, it } from "vitest";
 import { generatePublicSite } from "../src/generatePublicSite";
 import { repoRootFromHere } from "../scripts/check-sitemap-links";
 
-const TITLE = "合成皮掉屑怎麼處理？脫皮先停手，能做與不能做｜私享家洗衣店";
+const TITLE = "合成皮掉屑處理：先停手、留屑，清潔補不回已掉的皮膜｜私享家洗衣店";
+/** 2026-11-10 核定 lead 第一句。舊開頭仍緊接在這句後面。 */
+const LEAD_OPENING = "合成皮掉屑處理，第一步是停手：不乾擦、不濕擦、不用膠布黏，屑先收進透明袋。";
+/** answers.json 摘要未改，仍以這句開頭。 */
 const OPENING =
   "合成皮若已老化掉屑、脫皮，無法靠清洗恢復；先別反覆擦拭，拍照傳到 LINE 問，能否處理需看過實品再說明。";
 const PICKUP = "免費收送、沒有最低消費";
@@ -58,9 +61,10 @@ describe("合成皮掉屑指南措辭", () => {
     expect(webpage?.name).toBe(TITLE);
     const lead = mainOf(html).match(/<p class="lead"[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? "";
     const firstParagraph = mainOf(html).match(/<p[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? "";
-    expect(lead.startsWith(OPENING)).toBe(true);
-    expect(firstParagraph.startsWith(OPENING)).toBe(true);
-    expect(lead.match(/^[^。]*。/)?.[0]).toBe(OPENING);
+    expect(lead.startsWith(LEAD_OPENING)).toBe(true);
+    expect(firstParagraph.startsWith(LEAD_OPENING)).toBe(true);
+    expect(lead.match(/^[^。]*。/)?.[0]).toBe(LEAD_OPENING);
+    expect(lead).toContain(OPENING);
   });
 
   it("正文保留清洗限制，不承諾復原、不再掉屑、洗白或全新，收送只寫免費收送", async () => {
@@ -143,6 +147,7 @@ describe("合成皮掉屑指南措辭", () => {
     const source = await readFile(join(repo, "seo-overrides", "guides", "pu-leather-peeling.html"), "utf8");
     expect(generated).toBe(source);
     expect(generated).toContain(`<title>${TITLE}</title>`);
+    expect(generated).toContain(LEAD_OPENING);
     expect(generated).toContain(OPENING);
     expect(lineIdCount(generated)).toBeGreaterThanOrEqual(LINE_ID_BASELINE);
     expect(generated).toContain(

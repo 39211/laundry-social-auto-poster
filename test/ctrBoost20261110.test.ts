@@ -18,7 +18,7 @@ const PAGES = [
     path: "guides/birkenstock-care.html",
     title: "勃肯鞋臭怎麼辦？軟木鞋床與 EVA 臭味先分開｜台中送洗｜私享家洗衣店",
     description:
-      "勃肯鞋臭、勃肯 EVA 臭？味道多半在軟木鞋床吸汗，不是鞋面；整雙泡水或丟洗衣機易變形開膠。休閒鞋水洗參考價 $350、麂皮鞋 $400，參考價，看過實品再報價。台中全市免費收送、沒有最低消費。LINE @454foyks／0968327653。",
+      "勃肯鞋臭、勃肯 EVA 臭？先分軟木鞋床款與全 EVA 款，材質不同，清潔方式也不同；軟木鞋床款不要整雙泡水或丟洗衣機。休閒鞋水洗參考價 $350、麂皮鞋 $400，參考價，看過實品再報價。台中全市免費收送、沒有最低消費。LINE @454foyks／0968327653。",
     h1: "勃肯鞋臭怎麼辦？先看軟木鞋床，不要整雙泡水",
     line: 5,
     phone: 3
@@ -135,7 +135,10 @@ describe("2026-11-10 CTR 裁定文案", () => {
 
   it("勃肯首段加句用「不承諾除味」，南屯首段有與 meta 相同的價句", () => {
     const birken = meta(read("guides/birkenstock-care.html"), /<p class="lead"[^>]*>([\s\S]*?)<\/p>/u);
-    expect(birken).toContain("勃肯 EVA 底若發臭，跟鞋床吸汗是兩件事，先拍鞋床與大底再評估，不承諾除味。");
+    expect(birken).toContain("全 EVA 款沒有軟木鞋床，不能套用軟木吸汗的說明");
+    expect(birken).toContain("先拍鞋床與大底再評估，不承諾除味。");
+    expect(birken).toContain("以下三層材質與清潔說明以有麂皮鞋面、軟木鞋床及大底的款式為例，不適用全 EVA 款。");
+    expect(birken).not.toContain("勃肯鞋是三層材質");
     const nantun = meta(read("local/nantun-shoe-cleaning.html"), /<p class="lead"[^>]*>([\s\S]*?)<\/p>/u);
     expect(nantun).toContain("一般運動鞋水洗參考價 $250、麂皮鞋 $400，參考價，看過實品再報價；洗鞋一般約一個禮拜可以拿。");
   });

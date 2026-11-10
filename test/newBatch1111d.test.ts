@@ -169,7 +169,7 @@ describe("11/11 發霉問句價格與報價問句 5 頁", () => {
         const items: Array<{ id: string; source_url: string; answer: string }> = answers.answers ?? [];
         const hit = items.find((item) => item.id === `${page.slug}-page-summary`);
         expect(hit?.source_url).toBe(`https://sixiangjialaundry.com/${path}`);
-        expect(hit?.answer).toContain(REF);
+        expect(hit?.answer).toMatch(/參考價，看過實品再報價|傳照片到 LINE 問/u);
         const text = JSON.stringify(hit).replaceAll(FULL, "");
         expect(text).not.toMatch(/保證|免費|賠|補償|全新|殺菌|除臭/);
         expect(text).not.toContain("台中全市");
@@ -230,6 +230,22 @@ describe("11/11 發霉問句價格與報價問句 5 頁", () => {
     for (const slug of ["uniform", "luxury-garment", "slipper"]) {
       const a = answers.find((x) => x.id === `${slug}-cleaning-price-page-summary`)?.answer ?? "";
       expect(a, slug).not.toMatch(/第一|5[–-]7 天|急件/u);
+    }
+  });
+
+  it("行銷複核 R328-1：窗簾、地毯價格頁不是正式服務，只寫「傳照片到 LINE 問」，不寫依尺寸報價與天數，answers 不標老闆來源", () => {
+    for (const slug of ["curtain-cleaning-price", "carpet-cleaning-price"]) {
+      const html = read(`guides/${slug}.html`);
+      expect(html, slug).toContain("窗簾、地毯傳照片到 LINE 問");
+      expect(html, slug).not.toContain("依尺寸");
+      expect(html, slug).not.toMatch(/10[–-]14 天/u);
+      expect(html, slug).not.toContain("大件交期");
+    }
+    const items: Array<{ id: string; confidence?: string; answer: string }> = JSON.parse(read("answers.json")).answers;
+    for (const slug of ["curtain-cleaning-price", "carpet-cleaning-price"]) {
+      const hit = items.find((x) => x.id === `${slug}-page-summary`);
+      expect(hit?.confidence, slug).toBeUndefined();
+      expect(hit?.answer, slug).not.toMatch(/依尺寸|10[–-]14 天/u);
     }
   });
 });

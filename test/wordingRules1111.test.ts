@@ -169,4 +169,20 @@ describe("2026-11-11 行銷裁定 M1–M6 價目表與皮件用字", () => {
     expect(src).not.toMatch(/運動鞋水洗價250起|麂皮鞋400起|運動鞋250起/u);
     expect(src).not.toContain("（）。");
   });
+
+  it("行銷複核 R326-2/3：generator 皮／麂皮／名牌的「公開」句用清潔參考價，帆布鞋不帶金額", () => {
+    const src = readFileSync(join(__dirname, "..", "src", "generatePublicSite.ts"), "utf8");
+    for (const line of src.split("\n")) {
+      if (/公開水洗價：/u.test(line)) {
+        expect(/皮|麂皮|名牌/u.test(line.split("公開水洗價：")[1]?.split("。")[0] ?? ""), line.slice(0, 60)).toBe(false);
+      }
+    }
+    expect(src).toContain("公開清潔參考價：一般運動鞋 250、皮類運動鞋 300");
+    expect(src).toContain("公開清潔參考價：一般運動鞋 250、皮鞋 400、麂皮鞋 400");
+    expect(src).toContain("公開清潔參考價：一般包 600、皮包 1000、名牌包 1500 起");
+    expect(src).toContain("公開參考價：精品襯衫 100、精品外套 200、精品長大衣 350");
+    expect(src).toContain("帆布鞋傳照片到 LINE，看過實品再報價。");
+    expect(src).not.toContain("帆布鞋先對照一般運動鞋");
+  });
 });
+

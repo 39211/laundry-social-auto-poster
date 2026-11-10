@@ -169,7 +169,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [皮帶發霉還有救嗎？能洗嗎、多少錢](https://sixiangjialaundry.com/guides/leather-belt-mold.html): guide page for answer-engine and local-intent searches.
 - [麂皮鞋發霉怎麼辦？不要濕擦、不要硬刷](https://sixiangjialaundry.com/guides/suede-shoe-mold.html): guide page for answer-engine and local-intent searches.
 - [襯衫領口發霉黑點怎麼洗？先分霉點、汗黃、漿膜](https://sixiangjialaundry.com/guides/shirt-collar-mold-spots.html): guide page for answer-engine and local-intent searches.
-- [窗簾發霉怎麼辦？能送洗嗎、要多久、怎麼報價](https://sixiangjialaundry.com/guides/curtain-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [窗簾發霉怎麼辦？先通風、拍照，傳照片到 LINE 問](https://sixiangjialaundry.com/guides/curtain-mold-cleaning.html): guide page for answer-engine and local-intent searches.
 - [書包、背包發霉怎麼辦？能送洗嗎、怎麼估價](https://sixiangjialaundry.com/guides/backpack-mold-cleaning.html): guide page for answer-engine and local-intent searches.
 - [帽子發霉怎麼辦？棒球帽、毛帽、皮帽能送洗嗎](https://sixiangjialaundry.com/guides/hat-mold-cleaning.html): guide page for answer-engine and local-intent searches.
 - [制服發霉怎麼辦？能送洗嗎、要多久、怎麼估價](https://sixiangjialaundry.com/guides/uniform-mold-cleaning.html): guide page for answer-engine and local-intent searches.
@@ -179,7 +179,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [帆布鞋發霉怎麼辦？還能穿嗎、洗鞋要多久、怎麼估價](https://sixiangjialaundry.com/guides/canvas-shoe-mold-cleaning.html): guide page for answer-engine and local-intent searches.
 - [行李箱發霉怎麼辦？內袋、拉鍊、輪子能送洗嗎](https://sixiangjialaundry.com/guides/luggage-mold-cleaning.html): guide page for answer-engine and local-intent searches.
 - [雪靴發霉怎麼辦？內毛發霉能送洗嗎、怎麼估價](https://sixiangjialaundry.com/guides/snow-boot-mold-cleaning.html): guide page for answer-engine and local-intent searches.
-- [地毯發霉怎麼辦？能送洗嗎、要多久、怎麼報價](https://sixiangjialaundry.com/guides/carpet-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [地毯發霉怎麼辦？先通風、拍照，傳照片到 LINE 問](https://sixiangjialaundry.com/guides/carpet-mold-cleaning.html): guide page for answer-engine and local-intent searches.
 - [窗簾送洗價格怎麼算？台中洗窗簾沒有固定價，要拍什麼才能報價](https://sixiangjialaundry.com/guides/curtain-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [洗地毯價格怎麼算？台中地毯送洗沒有固定價，先看乾不乾](https://sixiangjialaundry.com/guides/carpet-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [精品衣服送洗多少錢？精品襯衫、外套、洋裝、大衣價格怎麼分](https://sixiangjialaundry.com/guides/luxury-garment-cleaning-price.html): guide page for answer-engine and local-intent searches.

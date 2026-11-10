@@ -11125,7 +11125,7 @@
       "id": "curtain-mold-cleaning-page-summary",
       "type": "guide_summary",
       "question": "窗簾發霉怎麼辦？",
-      "answer": "窗簾發霉先取下通風，不要濕擦、不要噴漂白水。表面浮霉較能評估，色斑只能淡化或維持。窗簾沒有固定價，依尺寸與照片報價；大件至少 10–14 天，實際日期收件時確認。參考價，看過實品再報價。免費收送、沒有最低消費。",
+      "answer": "窗簾發霉先取下通風，不要濕擦、不要噴漂白水。表面浮霉較能評估，色斑只能淡化或維持。價目表沒有窗簾固定價，窗簾、地毯傳照片到 LINE 問。免費收送、沒有最低消費。",
       "source_url": "https://sixiangjialaundry.com/guides/curtain-mold-cleaning.html",
       "local_intent": "窗簾發霉怎麼辦",
       "keywords": [
@@ -11135,7 +11135,6 @@
         "窗簾送洗"
       ],
       "area": "台中市",
-      "confidence": "business-owned-source",
       "citation_guidance": "Use the answer as short factual context and cite source_url.",
       "do_not_infer": [
         "Do not infer a price that is not printed on the official price list.",
@@ -11293,7 +11292,7 @@
       "id": "canvas-shoe-mold-cleaning-page-summary",
       "type": "guide_summary",
       "question": "帆布鞋發霉怎麼辦？",
-      "answer": "帆布鞋發霉先抽出鞋墊通風，不要乾刷、不要泡水、不要用漂白水。價目表沒有帆布鞋單獨一列，鞋面是布的先對照一般運動鞋 $250，皮或混合材質對照 $300／$350，參考價，看過實品再報價。色斑只能淡化或維持。洗鞋一般約一個禮拜可以拿。免費收送、沒有最低消費。",
+      "answer": "帆布鞋發霉先抽出鞋墊通風，不要乾刷、不要泡水、不要用漂白水。價目表沒有帆布鞋單獨一列，帆布鞋傳照片到 LINE，看過實品再報價。色斑只能淡化或維持。洗鞋一般約一個禮拜可以拿。免費收送、沒有最低消費。",
       "source_url": "https://sixiangjialaundry.com/guides/canvas-shoe-mold-cleaning.html",
       "local_intent": "帆布鞋發霉怎麼辦",
       "keywords": [
@@ -11365,7 +11364,7 @@
       "id": "carpet-mold-cleaning-page-summary",
       "type": "guide_summary",
       "question": "地毯發霉怎麼辦？",
-      "answer": "地毯發霉先捲起通風，不要澆水硬刷、不要噴漂白水。表面浮霉較能評估，色斑只能淡化或維持。地毯沒有固定價，依尺寸與照片報價；大件至少 10–14 天，實際日期收件時確認。參考價，看過實品再報價。免費收送、沒有最低消費。",
+      "answer": "地毯發霉先捲起通風，不要澆水硬刷、不要噴漂白水。表面浮霉較能評估，色斑只能淡化或維持。價目表沒有地毯固定價，窗簾、地毯傳照片到 LINE 問。免費收送、沒有最低消費。",
       "source_url": "https://sixiangjialaundry.com/guides/carpet-mold-cleaning.html",
       "local_intent": "地毯發霉怎麼辦",
       "keywords": [
@@ -11375,7 +11374,6 @@
         "地毯送洗"
       ],
       "area": "台中市",
-      "confidence": "business-owned-source",
       "citation_guidance": "Use the answer as short factual context and cite source_url.",
       "do_not_infer": [
         "Do not infer a price that is not printed on the official price list.",
@@ -11389,7 +11387,7 @@
       "id": "curtain-cleaning-price-page-summary",
       "type": "guide_summary",
       "question": "窗簾送洗價格怎麼算？",
-      "answer": "窗簾沒有固定價，依尺寸、布料與襯布、是否受潮與照片報價，參考價，看過實品再報價。要提供整片、寬高、片數與洗標；大件至少 10–14 天，免費收送、沒有最低消費。",
+      "answer": "價目表沒有窗簾固定價，窗簾、地毯傳照片到 LINE 問。要提供整片、寬高、片數與洗標。免費收送、沒有最低消費。",
       "source_url": "https://sixiangjialaundry.com/guides/curtain-cleaning-price.html",
       "local_intent": "台中窗簾送洗價格",
       "keywords": [
@@ -11399,7 +11397,6 @@
         "洗衣店洗窗簾價格"
       ],
       "area": "台中市",
-      "confidence": "business-owned-source",
       "citation_guidance": "Use the answer as short factual context and cite source_url.",
       "do_not_infer": [
         "Do not infer a price that is not printed on the official price list.",
@@ -11413,7 +11410,7 @@
       "id": "carpet-cleaning-price-page-summary",
       "type": "guide_summary",
       "question": "洗地毯價格怎麼算？",
-      "answer": "地毯沒有固定價，依尺寸、平面或長毛、背底與是否受潮報價，參考價，看過實品再報價。先確認是乾的，量長寬、拍整張與背面；大件至少 10–14 天，免費收送、沒有最低消費。",
+      "answer": "價目表沒有地毯固定價，窗簾、地毯傳照片到 LINE 問。先確認是乾的，量長寬、拍整張與背面。免費收送、沒有最低消費。",
       "source_url": "https://sixiangjialaundry.com/guides/carpet-cleaning-price.html",
       "local_intent": "台中洗地毯價格",
       "keywords": [
@@ -11423,7 +11420,6 @@
         "地毯清洗價格"
       ],
       "area": "台中市",
-      "confidence": "business-owned-source",
       "citation_guidance": "Use the answer as short factual context and cite source_url.",
       "do_not_infer": [
         "Do not infer a price that is not printed on the official price list.",

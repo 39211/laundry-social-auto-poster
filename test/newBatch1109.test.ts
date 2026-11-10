@@ -119,7 +119,7 @@ describe("11/09 入冬冬衣 7 頁", () => {
     expect(report.wrongLastmod).toEqual([]);
     expect(report.missingFromSitemap).toEqual([]);
     expect(report.missingInbound).toEqual([]);
-    expect(report.locCount).toBe(241);
+    expect(report.locCount).toBe(236);
     const llms = read("llms.txt");
     const wellKnown = read(".well-known/llms.txt");
     for (const page of PAGES) {

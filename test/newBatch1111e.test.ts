@@ -52,51 +52,6 @@ const PAGES = [
     hub: "hubs/local-pickup.html",
     stopH: "送洗前先別這樣做",
     inbound: ["services/taichung-citywide-laundry-pickup.html", "guides/how-laundry-quote-works.html", "guides/photo-before-laundry.html", "guides/taichung-laundry-service-search.html"]
-  },
-  {
-    slug: "dali-shoe-cleaning",
-    dir: "local",
-    h1: "大里洗鞋怎麼送？成功路的日常鞋和仁化的工作鞋分開約",
-    prices: ["$150", "$250", "$300", "$350", "$400"],
-    hub: "hubs/shoe-care.html",
-    stopH: "約收之前，這幾件事先別做",
-    inbound: ["local/dali-laundry-pickup.html", "guides/taichung-shoe-cleaning-how-to-choose.html", "hubs/local-pickup.html"]
-  },
-  {
-    slug: "taiping-shoe-cleaning",
-    dir: "local",
-    h1: "太平洗鞋怎麼送？勤益租屋的球鞋和長億家庭的童鞋分開約",
-    prices: ["$150", "$250", "$350"],
-    hub: "hubs/shoe-care.html",
-    stopH: "約收之前，這幾件事先別做",
-    inbound: ["local/taiping-laundry-pickup.html", "guides/kids-shoe-cleaning.html", "hubs/local-pickup.html"]
-  },
-  {
-    slug: "wuri-shoe-cleaning",
-    dir: "local",
-    h1: "烏日洗鞋怎麼送？學田、三和住家約時間窗，站區不是收件點",
-    prices: ["$150", "$250", "$300", "$350", "$400"],
-    hub: "hubs/shoe-care.html",
-    stopH: "約收之前，這幾件事先別做",
-    inbound: ["local/wuri-laundry-pickup.html", "guides/taichung-shoe-cleaning-how-to-choose.html", "hubs/local-pickup.html"]
-  },
-  {
-    slug: "fengyuan-shoe-cleaning",
-    dir: "local",
-    h1: "豐原洗鞋怎麼送？通勤皮鞋和透天全家的鞋分開約",
-    prices: ["$150", "$250", "$350", "$400"],
-    hub: "hubs/shoe-care.html",
-    stopH: "約收之前，這幾件事先別做",
-    inbound: ["local/fengyuan-laundry-pickup.html", "guides/taichung-shoe-cleaning-how-to-choose.html", "hubs/local-pickup.html"]
-  },
-  {
-    slug: "tanzi-shoe-cleaning",
-    dir: "local",
-    h1: "潭子洗鞋怎麼送？車站、慈濟與加工區的鞋分開約",
-    prices: ["$150", "$250", "$350", "$400"],
-    hub: "hubs/shoe-care.html",
-    stopH: "約收之前，這幾件事先別做",
-    inbound: ["local/tanzi-laundry-pickup.html", "guides/taichung-shoe-cleaning-how-to-choose.html", "hubs/local-pickup.html"]
   }
 ];
 
@@ -113,8 +68,8 @@ function pageNodes(html: string): Array<Record<string, unknown>> {
   return JSON.parse(raw)["@graph"] ?? [];
 }
 
-describe("11/11 發霉問句第二波 9 頁（挑店、流程、區域洗鞋）", () => {
-  it("路徑清單與頁面一一對應，共 9 頁", () => {
+describe("11/11 發霉問句第二波 4 頁（挑店、流程）", () => {
+  it("路徑清單與頁面一一對應，共 4 頁", () => {
     expect([...NEW_BATCH_1111E_PAGE_PATHS]).toEqual(PAGES.map((page) => `/${page.dir}/${page.slug}.html`));
   });
 
@@ -123,7 +78,7 @@ describe("11/11 發霉問句第二波 9 頁（挑店、流程、區域洗鞋）"
     expect(report.wrongLastmod).toEqual([]);
     expect(report.missingFromSitemap).toEqual([]);
     expect(report.missingInbound).toEqual([]);
-    expect(report.locCount).toBe(241);
+    expect(report.locCount).toBe(236);
     const llms = read("llms.txt");
     const wellKnown = read(".well-known/llms.txt");
     for (const page of PAGES) {
@@ -181,8 +136,12 @@ describe("11/11 發霉問句第二波 9 頁（挑店、流程、區域洗鞋）"
       it("價格只出現價目表上的價，每個數字旁都有參考價句", () => {
         const main = mainOf(read(path));
         const prices = main.match(/\$\d+/g) ?? [];
-        const tagged = main.match(/\$\d+，參考價，看過實品再報價/g) ?? [];
-        expect(tagged).toHaveLength(prices.length);
+        // 行銷 Q1：含金額的句子（以 。；與表格格為界）句尾帶一次參考價句。
+        const sentences = main.replace(/<[^>]+>/g, "\n").split(/[。；\n]/u);
+        for (const sentence of sentences.filter((x) => /\$\d+/.test(x))) {
+          expect(sentence, sentence).toContain(REF);
+          expect((sentence.match(/參考價，看過實品再報價/g) ?? []).length, sentence).toBe(1);
+        }
         expect([...new Set(prices)].sort()).toEqual([...page.prices].sort());
         expect(main.match(/\$\d+\s*起/g) ?? []).toEqual([]);
       });
@@ -206,7 +165,7 @@ describe("11/11 發霉問句第二波 9 頁（挑店、流程、區域洗鞋）"
         const items: Array<{ id: string; source_url: string; answer: string }> = answers.answers ?? [];
         const hit = items.find((item) => item.id === `${page.slug}-page-summary`);
         expect(hit?.source_url).toBe(`https://sixiangjialaundry.com/${path}`);
-        expect(hit?.answer).toContain(REF);
+        expect(hit?.answer).toMatch(/參考價，看過實品再報價|傳照片到 LINE 問/u);
         const text = JSON.stringify(hit).replaceAll(FULL, "");
         expect(text).not.toMatch(/保證|免費|賠|補償|全新|殺菌|除臭/);
         expect(text).not.toContain("台中全市");
@@ -237,5 +196,56 @@ describe("11/11 發霉問句第二波 9 頁（挑店、流程、區域洗鞋）"
       expect(html, page.slug).not.toContain("名牌包 $1500 起；皆為水洗參考價");
       expect(mainOf(html).match(/\$\d+\s*起/g) ?? [], page.slug).toEqual([]);
     }
+  });
+
+  it("行銷裁定 M1–M7：不用「第一」、洗鞋標準天數句、不寫沒有急件費、不評「好的店」、不寫會先拆飾件", () => {
+    for (const page of PAGES) {
+      const html = read(`${page.dir}/${page.slug}.html`);
+      expect(html, page.slug).not.toContain("第一");
+      expect(html, page.slug).not.toMatch(/5[–-]7 天|急件/u);
+      expect(html, page.slug).not.toContain("好的店");
+    }
+    const flow = read("guides/laundry-pickup-process-turnaround.html");
+    expect(flow).toContain("洗鞋一般約一個禮拜可以拿");
+    expect(flow).toContain("棉被這類大件");
+    expect(flow).not.toContain("窗簾、地毯、棉被這類大件");
+    expect((flow.match(/完整價目看/g) ?? []).length).toBeLessThanOrEqual(1);
+    const bag = read("guides/taichung-bag-cleaning-how-to-choose.html");
+    expect(bag).toContain("包包清潔參考價");
+    expect(bag).not.toContain("水洗");
+    const lux = read("guides/luxury-laundry-shop-how-to-choose.html");
+    expect(lux).toContain("送洗前先拍近照，看過實物再說明怎麼處理");
+    expect(lux).not.toContain("要先拆");
+  });
+
+  it("行銷裁定 M3：窗簾地毯未確認是正式服務，只寫「傳照片到 LINE 問」，不寫依尺寸報價與交期，answers 不標老闆來源", () => {
+    const html = read("guides/curtain-carpet-laundry-shop-how-to-choose.html");
+    expect(html).toContain("傳照片到 LINE 問");
+    expect(html).not.toContain("依尺寸");
+    expect(html).not.toMatch(/10[–-]14 天/u);
+    const items: Array<{ id: string; confidence?: string; answer: string }> = JSON.parse(read("answers.json")).answers;
+    const hit = items.find((item) => item.id === "curtain-carpet-laundry-shop-how-to-choose-page-summary");
+    expect(hit?.answer).toContain("價目表沒有窗簾與地毯的固定價，能不能收、怎麼報價，傳照片到 LINE 問。");
+    expect(hit?.answer).not.toMatch(/依尺寸|10[–-]14 天/u);
+    expect(hit?.confidence).toBeUndefined();
+  });
+
+  it("行銷裁定 M8：區域洗鞋 5 頁已拆出；洗鞋收送併入台中洗衣收送頁的「洗鞋也一樣收送」，只寫老闆給的事實", () => {
+    for (const slug of ["dali", "taiping", "wuri", "fengyuan", "tanzi"]) {
+      expect(() => read(`local/${slug}-shoe-cleaning.html`), slug).toThrow();
+      expect(read("sitemap.xml")).not.toContain(`${slug}-shoe-cleaning`);
+      expect(read("llms.txt")).not.toContain(`${slug}-shoe-cleaning`);
+      expect(read("answers.json")).not.toContain(`${slug}-shoe-cleaning`);
+      expect(read("hubs/shoe-care.html")).not.toContain(`${slug}-shoe-cleaning`);
+      expect(read("hubs/local-pickup.html")).not.toContain(`${slug}-shoe-cleaning`);
+    }
+    const page = read("services/taichung-citywide-laundry-pickup.html");
+    const section = page.match(/<section class="section" id="shoe-pickup">([\s\S]*?)<\/section>/u)?.[1] ?? "";
+    expect(section).toContain("<h2>洗鞋也一樣收送</h2>");
+    expect(section).toContain("洗鞋一般約一個禮拜可以拿，實際日期收件時確認");
+    expect(section).toContain("東海沒有門市，只有收送");
+    expect(section).toContain("皮類運動鞋 $300、皮鞋 $400 為清潔參考價");
+    expect(section).not.toMatch(/5[–-]7 天|急件|營區|醫院|勤益|長億|慈濟/u);
+    expect(read("hubs/local-pickup.html")).toContain("services/taichung-citywide-laundry-pickup.html#shoe-pickup");
   });
 });

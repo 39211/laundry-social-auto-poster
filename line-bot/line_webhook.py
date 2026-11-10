@@ -603,6 +603,31 @@ def healthz():
     return f"ok {os.getpid()}", 200, {"Content-Type": "text/plain; charset=utf-8"}
 
 
+@app.get("/readyz")
+def readyz():
+    # The public tunnel reaches this same loopback listener. Reject its Host and
+    # forwarding headers as well as non-loopback peers; never trust proxy headers.
+    if (request.remote_addr != "127.0.0.1"
+            or request.host not in {"127.0.0.1", "127.0.0.1:8791"}
+            or any(name.lower().startswith(("x-forwarded-", "cf-"))
+                   or name.lower() == "forwarded" for name in request.headers.keys())):
+        abort(403)
+    import ai_chat
+    import photo_estimate
+
+    vision_configured = bool(photo_estimate.configured())
+    chat_enabled = ai_chat.mode() == "on" and ai_chat.available()
+    missing = []
+    if not os.environ.get("GEMINI_API_KEY"):
+        missing.append("GEMINI_API_KEY")
+    if os.environ.get("LAUNDRY_PHOTO_ESTIMATE", "1") == "0":
+        missing.append("LAUNDRY_PHOTO_ESTIMATE")
+    if ai_chat.mode() != "on":
+        missing.append("LAUNDRY_AI_CHAT")
+    return jsonify(pid=os.getpid(), vision_configured=vision_configured,
+                   ai_chat=bool(chat_enabled), missing=missing)
+
+
 if __name__ == "__main__":
     # 只有真正啟動服務才輪詢。import 這個模組不得啟動執行緒。
     def _start_background_jobs():

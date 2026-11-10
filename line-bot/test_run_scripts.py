@@ -209,19 +209,34 @@ def test_f7_idempotent_and_probe_source():
 
 
 def test_f7_probe_runs_without_starting():
-    # -Command + quoted path: -File splits on spaces in some hosts
-    cmd = "& '" + str(RUN_PS1).replace("'", "''") + "' -Probe; exit $LASTEXITCODE"
+    # Exercise the real Probe, with transport and inventory boundaries replaced.
+    # The old test contacted the running bot and shared LOCALAPPDATA receipt paths.
+    src = RUN_PS1.read_text(encoding="ascii")
+    functions = '\n'.join(extract_ps_function(src, name) for name in (
+        'Write-ProbeLine', 'Test-BotReady', 'Invoke-Probe'))
+    cmd = functions + '''
+function Test-TrackedAlive { param($Name) return $true }
+function Get-TrackedPid { param($Name) return 2468 }
+function Test-HealthzPidMatch { param($ReportedPid, $TrackedPid) return ($ReportedPid -eq $TrackedPid) }
+function Read-BotEndpoint {
+    param($Path)
+    if ($Path -eq '/healthz') { return 'ok 2468' }
+    return '{"pid":2468,"vision_configured":false,"ai_chat":false,"missing":["GEMINI_API_KEY"]}'
+}
+exit (Invoke-Probe)
+'''
     r = subprocess.run(
         [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", cmd],
         capture_output=True,
         timeout=20,
     )
     out = (r.stdout or b"").decode("ascii", "replace") + (r.stderr or b"").decode("ascii", "replace")
-    assert r.returncode in (0, 1), (r.returncode, out)
+    assert r.returncode == 1, (r.returncode, out)
     assert "line_webhook" in out, out
     assert "staff_server" in out, out
     assert "tunnel_manager" in out, out
     assert "healthz" in out, out
+    assert "readyz fail" in out, out
     match_fn = extract_ps_function(RUN_PS1.read_text(encoding="ascii"), "Test-CmdMatches")
     assert "$Root" in match_fn
     assert "test_" in match_fn

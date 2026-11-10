@@ -58,6 +58,21 @@ function Show-Toast([string]$text) {
     } catch {}
 }
 
+function Get-BotReadinessAudit {
+    try {
+        $python = 'C:/Users/cyc39/AppData/Local/Python/pythoncore-3.14-64/python.exe'
+        $raw = & $python -B -X utf8 (Join-Path $PSScriptRoot 'bot_readiness_audit.py') 2>$null
+        $code = $LASTEXITCODE
+        $result = ConvertFrom-Json ($raw -join "`n")
+        if ($result.status -notin @('pass', 'fail', 'not_applicable') -or
+            $result.reason -notmatch '\A[a-zA-Z0-9_=;: ]+\z' -or
+            ($code -ne 0 -and $result.status -ne 'fail')) { throw 'invalid receipt' }
+        return @{ status = $result.status; reason = $result.reason }
+    } catch {
+        return @{ status = 'fail'; reason = 'readiness_audit_unavailable' }
+    }
+}
+
 # --- posts ------------------------------------------------------------------
 $posted = @(Read-Json (Join-Path $root "data\posted-log\$date.json"))
 $slotState = @{}
@@ -162,7 +177,20 @@ $clickLine = if ($null -eq $clicks) { "LINE 點擊:查不到" }
              else { "LINE 點擊 $clicks" }
 
 # --- report -----------------------------------------------------------------------
+# Current configuration cannot establish readiness for a historical date.
+# AuditOnly remains offline; the ordinary nightly task calls the shared night helper.
+$botReadiness = @{ status = 'not_applicable'; reason = 'historical_date' }
+if ($AuditOnly) {
+    $botReadiness.reason = 'offline_audit'
+} elseif ($date -eq $now.ToString('yyyy-MM-dd')) {
+    $botReadiness = Get-BotReadinessAudit
+    if ($botReadiness.status -eq 'fail') {
+        ('FAIL LINE bot readiness: ' + $botReadiness.reason) |
+            Out-File -FilePath $logFile -Append -Encoding utf8
+    }
+}
 $ok = ($missingPosts.Count -eq 0) -and ($missingComments.Count -eq 0) -and ($ytGap -le 0) -and $tomorrowCalendar -and ($tomorrowReels -eq "ready" -or $tomorrowReels -eq "unknown")
+$ok = $ok -and ($botReadiness.status -ne 'fail')
 $report = [ordered]@{
     date              = $date
     generated_at      = $now.ToString("yyyy-MM-ddTHH:mm:ss")
@@ -175,6 +203,7 @@ $report = [ordered]@{
     rescue_actions    = $actions
     line_clicks       = $clicks
     line_click_sources = $clickSources
+    bot_readiness     = $botReadiness
 }
 $reportPath = Join-Path $reportDir "$date.json"
 $report | ConvertTo-Json -Depth 5 | Out-File -FilePath $reportPath -Encoding utf8
@@ -192,6 +221,7 @@ if (-not $AuditOnly) {
         if ($ytGap -gt 0) { $gaps += "YT 缺 $ytGap" }
         if (-not $tomorrowCalendar) { $gaps += "明日行事曆缺" }
         if ($tomorrowReels -like "missing*") { $gaps += "明日影片素材缺" }
+        if ($botReadiness.status -eq 'fail') { $gaps += ('LINE bot: ' + $botReadiness.reason) }
         Show-Toast ("$date 有缺口:" + ($gaps -join ";") + "。$clickLine。報告:output\day-reports\$date.json")
     }
 }

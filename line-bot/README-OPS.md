@@ -1,6 +1,6 @@
 # LINE bot operations
 
-Public Flask (`line_webhook.py`) listens on `127.0.0.1:8791` and exposes only `/line/webhook`, `/img/<name>`, `/pay/confirm`, `/pay/cancel`, `/healthz`. Staff UI is a separate process (`staff_server.py`) on `127.0.0.1:8792` and is not on the Cloudflare tunnel.
+Public Flask (`line_webhook.py`) listens on `127.0.0.1:8791` and exposes `/line/webhook`, `/img/<name>`, `/pay/confirm`, `/pay/cancel`, `/healthz`. The same app also has a loopback-only `/readyz` that rejects public Host names and proxy headers. Staff UI is a separate process (`staff_server.py`) on `127.0.0.1:8792` and is not on the Cloudflare tunnel.
 
 Python: `C:\Users\cyc39\AppData\Local\hermes\jarvis-memory\venv\Scripts\python.exe`
 
@@ -74,7 +74,7 @@ These routes are behind the same 127.0.0.1:8792 Host guard as the staff page.
 powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\cyc39\laundry-repo\line-bot\run_line_bot.ps1" -Probe
 ```
 
-Prints `alive=` / `pid=` for the three tracked processes and the body/status of `http://127.0.0.1:8791/healthz`. `/healthz` returns `ok <pid>` (this process only). Probe parses that pid and compares it to `line_webhook.pid`. If they differ it prints `healthz foreign pid=<n> tracked=<m>` and fails (this catches an old Flask still bound to 8791). Exit code 0 = all three alive and healthz 200 with matching pid; 1 = something missing; 2 = `-Stop` and `-Probe` used together. Probe never starts or stops processes.
+Prints `alive=` / `pid=` for the three tracked processes, `/healthz` liveness and `/readyz` readiness. `/healthz` remains exactly `ok <pid>`; the pid must match the tracked webhook or a descendant. `/readyz` must have the same pid, boolean `vision_configured` and `ai_chat`, and an empty `missing` list. Exit 0 means every check passed; 1 means missing processes, unavailable/malformed endpoints, pid mismatch or disabled capabilities; 2 means conflicting `-Stop`/`-Probe`. Probe never starts/stops processes, reads HKCU or rewrites the configuration receipt.
 
 ## Scheduled task (watchdog)
 
@@ -166,3 +166,15 @@ For A4-3's isolated tunnel/handover tests, use Python 3.14 from an approved chec
 ```powershell
 & "C:\Users\cyc39\AppData\Local\Python\pythoncore-3.14-64\python.exe" -B -X utf8 -m unittest -v test_day_night_handover test_tunnel_manager
 ```
+
+## Configuration recovery and readiness (OPS-ENVGUARD r1)
+
+Before starting children, the launcher checks the fixed `Get-BotConfigNames` allowlist against its process environment. Empty or absent entries are recovered from HKCU Environment when present. Existing entries, including explicit off/zero settings, take precedence. Only the launcher's process environment is changed temporarily; children inherit the recovered settings, and the launcher restores its environment in `finally`. User and system environment settings are never written. Unknown registry names are never imported.
+
+`%LOCALAPPDATA%\line-bot\bot_config_receipt.json` contains variable names mapped to `present` (boolean) and `source` (`process`, `registry`, `missing`). It never contains configuration values. The receipt describes this launch attempt; if a child was already running and skipped, its actual configuration is still determined by `/readyz`. A receipt write failure prevents new child startup and returns nonzero.
+
+`/readyz` returns only `pid`, `vision_configured`, `ai_chat`, and `missing`. Vision uses `photo_estimate.configured()`. Chat requires `ai_chat.mode()` to be on and `ai_chat.available()` to be true. Shadow/off/unknown modes are not ready. Missing or disabled requirements are named without returning their values. This checks configuration, not external API validity, quota or actual customer replies. Requests require a loopback peer, a loopback Host and no forwarding headers.
+
+Normal startup finishes by running the same Probe checks. A readiness failure returns nonzero with a fixed diagnostic and leaves any already-running processes alone.
+
+The current-date ordinary `scripts/day-audit.ps1` run calls `scripts/bot_readiness_audit.py`. It uses `tunnel_manager.is_night_window` and checks `/readyz` only during that window. A missing/disabled capability or unreadable response marks `bot_readiness.status=fail`, sets the daily report's `ok=false`, and appends a clear failure line to the existing day-report log. Daytime returns `not_applicable`. Historical-date runs and `-AuditOnly` do not query the running bot. This belongs in the current nightly audit rather than the historical Level-1 evaluator: a present-time HTTP response cannot prove a completed day's readiness.

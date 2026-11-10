@@ -179,10 +179,11 @@ class PromptAndBudgetTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         sent = json.loads(request.call_args_list[0].args[0].data)["generationConfig"]
         self.assertEqual(sent["thinkingConfig"], {"thinkingBudget": 512})
+        # Owner 11/10: never Lite. A pinned flash-lite is refused outright, so no request is sent at all.
         result, request = PipelineTests().run_inventory([item("一般運動鞋", "Nike")],
                                                         env={"LAUNDRY_VISION_THINKING_BUDGET": "512", "LAUNDRY_VISION_MODEL": "gemini-2.5-flash-lite"})
-        sent = json.loads(request.call_args_list[0].args[0].data)["generationConfig"]
-        self.assertEqual(sent["thinkingConfig"], {"thinkingBudget": 0})
+        self.assertEqual(result, {"ok": False, "error": "invalid_model"})
+        self.assertEqual(request.call_args_list, [])
 
 
 if __name__ == "__main__":

@@ -169,7 +169,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [皮帶發霉還有救嗎？能洗嗎、多少錢](https://sixiangjialaundry.com/guides/leather-belt-mold.html): guide page for answer-engine and local-intent searches.
 - [麂皮鞋發霉怎麼辦？不要濕擦、不要硬刷](https://sixiangjialaundry.com/guides/suede-shoe-mold.html): guide page for answer-engine and local-intent searches.
 - [襯衫領口發霉黑點怎麼洗？先分霉點、汗黃、漿膜](https://sixiangjialaundry.com/guides/shirt-collar-mold-spots.html): guide page for answer-engine and local-intent searches.
-- [窗簾發霉怎麼辦？能送洗嗎、要多久、怎麼報價](https://sixiangjialaundry.com/guides/curtain-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [窗簾發霉怎麼辦？先通風、拍照，傳照片到 LINE 問](https://sixiangjialaundry.com/guides/curtain-mold-cleaning.html): guide page for answer-engine and local-intent searches.
 - [書包、背包發霉怎麼辦？能送洗嗎、怎麼估價](https://sixiangjialaundry.com/guides/backpack-mold-cleaning.html): guide page for answer-engine and local-intent searches.
 - [帽子發霉怎麼辦？棒球帽、毛帽、皮帽能送洗嗎](https://sixiangjialaundry.com/guides/hat-mold-cleaning.html): guide page for answer-engine and local-intent searches.
 - [制服發霉怎麼辦？能送洗嗎、要多久、怎麼估價](https://sixiangjialaundry.com/guides/uniform-mold-cleaning.html): guide page for answer-engine and local-intent searches.
@@ -179,7 +179,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [帆布鞋發霉怎麼辦？還能穿嗎、洗鞋要多久、怎麼估價](https://sixiangjialaundry.com/guides/canvas-shoe-mold-cleaning.html): guide page for answer-engine and local-intent searches.
 - [行李箱發霉怎麼辦？內袋、拉鍊、輪子能送洗嗎](https://sixiangjialaundry.com/guides/luggage-mold-cleaning.html): guide page for answer-engine and local-intent searches.
 - [雪靴發霉怎麼辦？內毛發霉能送洗嗎、怎麼估價](https://sixiangjialaundry.com/guides/snow-boot-mold-cleaning.html): guide page for answer-engine and local-intent searches.
-- [地毯發霉怎麼辦？能送洗嗎、要多久、怎麼報價](https://sixiangjialaundry.com/guides/carpet-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [地毯發霉怎麼辦？先通風、拍照，傳照片到 LINE 問](https://sixiangjialaundry.com/guides/carpet-mold-cleaning.html): guide page for answer-engine and local-intent searches.
 - [JSON Feed](https://sixiangjialaundry.com/feed.json): chronological update feed for readers and AI ingestion.
 - [Knowledge graph](https://sixiangjialaundry.com/knowledge-graph.json): Schema.org JSON-LD business, dataset, post, and image entities.
 - [AI discovery index](https://sixiangjialaundry.com/ai-discovery.json): machine-readable map of every AI/SEO endpoint.

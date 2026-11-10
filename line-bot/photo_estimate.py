@@ -418,7 +418,7 @@ FALLBACK_FORMAT = (
 # 11/05: gemini-2.5-flash first. On this free key gemini-flash-latest timed out on every
 # production photo (11/02: 2/2 timeouts at 15 s, then 2.5-flash answered) and returned 0 valid
 # answers in 10 tries (11/03 eval: 5xx/429/timeout). The shop bot still lists flash-latest first.
-DEFAULT_MODEL_CHAIN = ("gemini-2.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash-lite")
+DEFAULT_MODEL_CHAIN = ("gemini-2.5-flash", "gemini-flash-latest", "gemini-3.5-flash")
 MAX_CALLS = 3
 TOTAL_SECONDS = 32
 PER_CALL_SECONDS = 15
@@ -438,7 +438,7 @@ def model_chain() -> list[str]:
     if pinned is not None:
         if not _MODEL_RE.fullmatch(pinned):
             return []
-        fallback = os.environ.get("LAUNDRY_VISION_FALLBACK_MODEL", "gemini-2.5-flash-lite")
+        fallback = os.environ.get("LAUNDRY_VISION_FALLBACK_MODEL", "gemini-3.5-flash")
         return [pinned] + ([fallback] if _MODEL_RE.fullmatch(fallback) and fallback != pinned else [])
     return list(DEFAULT_MODEL_CHAIN)
 

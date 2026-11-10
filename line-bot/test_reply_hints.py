@@ -17,6 +17,7 @@ import test_guided_flows as g
 import reply_hints as hints
 
 conv, lw = g.conv, g.lw
+OFF_HOURS = "現在是非營業時間，店員上班後會回覆你。"
 PHOTO_INVITE = "方便的話，接著傳衣物照片，店員比較好安排。"
 
 
@@ -123,39 +124,39 @@ class HintTests(unittest.TestCase):
             self.at(when)
             self.assertEqual(expected, self.card_count(self.reply_to()), when)
 
-    def test_n608_fixed_rest_table_uses_current_2000_close(self):
+    def test_night_and_midnight_never_add_off_hours(self):
         for when, expected in (("2026-09-08T20:30", 1), ("2026-09-08T20:40", 0),
                                ("2026-09-09T01:00", 0), ("2026-09-09T10:00", 0),
                                ("2026-09-09T19:00", 0), ("2026-09-09T20:00", 1)):
             self.at(when)
-            self.assertEqual(expected, blob(self.reply_to("襯衫多少？")).count(hints.OFF_HOURS), when)
+            self.assertEqual(0, blob(self.reply_to("襯衫多少？")).count(OFF_HOURS), when)
 
-    def test_saturday_early_close_and_sunday_share_one_rest(self):
+    def test_saturday_and_sunday_never_add_off_hours(self):
         for when, expected in (("2026-09-12T17:59", 0), ("2026-09-12T18:00", 1),
                                ("2026-09-13T00:01", 0), ("2026-09-13T18:00", 0),
                                ("2026-09-14T09:59", 0), ("2026-09-14T10:00", 0)):
             self.at(when)
-            self.assertEqual(expected, blob(self.reply_to("襯衫多少？")).count(hints.OFF_HOURS), when)
+            self.assertEqual(0, blob(self.reply_to("襯衫多少？")).count(OFF_HOURS), when)
 
-    def test_friday_rest_ends_at_saturday_noon(self):
+    def test_friday_to_saturday_never_add_off_hours(self):
         self.at("2026-09-11T20:00")
-        self.assertIn(hints.OFF_HOURS, blob(self.reply_to("襯衫多少？")))
+        self.assertNotIn(OFF_HOURS, blob(self.reply_to("襯衫多少？")))
         self.at("2026-09-12T10:00")
-        self.assertNotIn(hints.OFF_HOURS, blob(self.reply_to("襯衫多少？")))
+        self.assertNotIn(OFF_HOURS, blob(self.reply_to("襯衫多少？")))
         self.at("2026-09-12T12:00")
-        self.assertNotIn(hints.OFF_HOURS, blob(self.reply_to("襯衫多少？")))
+        self.assertNotIn(OFF_HOURS, blob(self.reply_to("襯衫多少？")))
         self.at("2026-09-12T18:00")
-        self.assertIn(hints.OFF_HOURS, blob(self.reply_to("襯衫多少？")))
+        self.assertNotIn(OFF_HOURS, blob(self.reply_to("襯衫多少？")))
 
-    def test_failed_send_does_not_record_and_next_reply_retries_both_hints(self):
+    def test_failed_send_retries_card_without_off_hours(self):
         self.at("2026-09-08T21:00")
         self.accepted = False
         failed = self.reply_to()
         self.assertEqual({}, self.state())
-        self.assertIn(hints.OFF_HOURS, blob(failed))
+        self.assertNotIn(OFF_HOURS, blob(failed))
         self.accepted = True
         success = self.reply_to()
-        self.assertIn(hints.OFF_HOURS, blob(success))
+        self.assertNotIn(OFF_HOURS, blob(success))
         self.assertEqual(1, self.card_count(success))
         self.assertEqual(0, self.card_count(self.reply_to()))
 
@@ -163,7 +164,7 @@ class HintTests(unittest.TestCase):
         self.at("2026-09-08T21:00")
         self.post(token=False)
         self.assertEqual({}, self.state())
-        self.assertIn(hints.OFF_HOURS, blob(self.reply_to()))
+        self.assertNotIn(OFF_HOURS, blob(self.reply_to()))
 
     def test_unknown_transport_result_does_not_record(self):
         self.accepted = None
@@ -360,10 +361,10 @@ class HintTests(unittest.TestCase):
             "Ulegacy-recent-only": {"business_day": "2026-09-08T10:00:00+08:00"},
             "Ulegacy-invalid": {"business_day": {"value": "unknown"}, "card_day": old},
             "Uunknown-recent": {"future_day": "2026-09-08T10:00:00+08:00", "rest": old},
-        }
-        retained = {
             "Urecent-rest": {"card_day": old, "rest": "2026-09-09T10:00:00+08:00"},
             "Ucutoff-rest": {"card_day": old, "rest": cutoff},
+        }
+        retained = {
             "Urecent-offset": {"card_day": "2026-08-25T13:00:01+00:00"},
             "Urecent-card": {"business_day": old, "card_day": "2026-09-08T10:00:00+08:00", "rest": old},
             "Urecent-walkin": {"card_day": old, "walkin_day": "2026-09-08T10:00:00+08:00"},
@@ -375,14 +376,13 @@ class HintTests(unittest.TestCase):
         self.reply_to()
         self.assertEqual({**retained, "Uhint-customer": {
             "card_day": "2026-09-08T10:00:00+08:00",
-            "rest": "2026-09-09T10:00:00+08:00",
         }}, self.state())
 
     def test_pruning_preserves_unknown_timestamps_without_blocking_reply(self):
         state = {
             "Uinvalid": {"card_day": "unknown", "rest": "2026-08-01T10:00:00+08:00"},
             "Unaive": {"card_day": "2026-08-01T10:00:00"},
-            "Uwrong-type": {"rest": 123},
+            "Uwrong-type": {"card_day": "unknown", "rest": 123},
             "Uinvalid-card": {"card_day": "unknown"},
             "Uinvalid-walkin": {"walkin_day": "unknown"},
         }
@@ -408,15 +408,15 @@ class HintTests(unittest.TestCase):
         # 解除接手後，前面被攔下的回覆沒有消耗兩項提示。
         resumed = self.reply_to()
         self.assertEqual(1, self.card_count(resumed))
-        self.assertIn(hints.OFF_HOURS, blob(resumed))
+        self.assertNotIn(OFF_HOURS, blob(resumed))
 
     def test_human_request_explains_rest_once_without_duplicate_f26(self):
         self.at("2026-09-08T21:00")
         reply = blob(self.reply_to("我想找真人客服"))
         self.assertIn("營業時間處理", reply)
-        self.assertNotIn(hints.OFF_HOURS, reply)
-        self.assertIn("rest", self.state()["Uhint-customer"])
-        self.assertNotIn(hints.OFF_HOURS, blob(self.reply_to("襯衫多少？")))
+        self.assertNotIn(OFF_HOURS, reply)
+        self.assertNotIn("rest", self.state().get("Uhint-customer", {}))
+        self.assertNotIn(OFF_HOURS, blob(self.reply_to("襯衫多少？")))
 
     def test_five_messages_keep_last_quick_reply(self):
         self.at("2026-09-08T21:00")
@@ -427,7 +427,7 @@ class HintTests(unittest.TestCase):
             result = self.reply_to("測試")
         self.assertEqual(5, len(result))
         self.assertEqual(original[-1], result[-1])
-        self.assertTrue(result[0]["text"].startswith(hints.OFF_HOURS + "\n"))
+        self.assertEqual(original, result)
         self.assertEqual(original, messages)
 
     def test_unsent_sixth_hint_is_not_recorded(self):
@@ -440,14 +440,14 @@ class HintTests(unittest.TestCase):
         self.at("2026-09-08T21:00")
         conv.reply_with_hints("Uhint-customer", "你好", [conv.shop_card()], lambda outgoing: True)
         self.assertNotIn("rest", self.state()["Uhint-customer"])
-        self.assertIn(hints.OFF_HOURS, blob(self.reply_to("襯衫多少？")))
+        self.assertNotIn(OFF_HOURS, blob(self.reply_to("襯衫多少？")))
 
     def test_record_survives_module_restart_and_only_contains_uid_and_times(self):
         self.at("2026-09-08T21:00")
         self.reply_to()
         state = self.state()
         self.assertEqual({"Uhint-customer"}, set(state))
-        self.assertEqual({"card_day", "rest"}, set(state["Uhint-customer"]))
+        self.assertEqual({"card_day"}, set(state["Uhint-customer"]))
         for value in state["Uhint-customer"].values():
             datetime.fromisoformat(value)
         importlib.reload(hints)
@@ -455,7 +455,7 @@ class HintTests(unittest.TestCase):
         self.at("2026-09-09T01:00")
         result = self.reply_to()
         self.assertEqual(0, self.card_count(result))
-        self.assertNotIn(hints.OFF_HOURS, blob(result))
+        self.assertNotIn(OFF_HOURS, blob(result))
 
     def test_record_survives_fresh_python_process(self):
         self.at("2026-09-08T21:00")
@@ -465,11 +465,12 @@ from pathlib import Path
 from datetime import datetime
 import conversation as conv
 import reply_hints as hints
+OFF_HOURS = "現在是非營業時間，店員上班後會回覆你。"
 conv.SESS = Path(sys.argv[1])
 conv.now_tw = lambda: datetime.fromisoformat("2026-09-09T01:00:00+08:00")
 sent = []
 ok = conv.reply_with_hints("Uhint-customer", "你好", [conv.text_msg("你好。"), conv.shop_card()], lambda messages: sent.extend(messages) or True)
-print(json.dumps({"accepted":ok, "cards":sum(m == conv.shop_card() for m in sent), "off_hours":any(hints.OFF_HOURS in m.get("text", "") for m in sent)}))
+print(json.dumps({"accepted":ok, "cards":sum(m == conv.shop_card() for m in sent), "off_hours":any(OFF_HOURS in m.get("text", "") for m in sent)}))
 '''
         result = subprocess.run([sys.executable, "-B", "-X", "utf8", "-c", child, str(conv.SESS)],
                                 capture_output=True, text=True, timeout=30)
@@ -512,7 +513,7 @@ print(json.dumps({"accepted":ok, "cards":sum(m == conv.shop_card() for m in sent
             self.assertTrue(first.result(timeout=5))
             self.assertTrue(second.result(timeout=5))
         self.assertEqual(1, sum(self.card_count(m) for m in replies))
-        self.assertEqual(1, sum(blob(m).count(hints.OFF_HOURS) for m in replies))
+        self.assertEqual(0, sum(blob(m).count(OFF_HOURS) for m in replies))
 
     def test_simultaneous_signed_webhooks_only_one_of_each_hint(self):
         self.at("2026-09-08T21:00")
@@ -543,7 +544,7 @@ print(json.dumps({"accepted":ok, "cards":sum(m == conv.shop_card() for m in sent
             second.result(timeout=5)
         self.assertEqual(2, len(self.sent))
         self.assertEqual(1, sum(self.card_count(m) for _, m in self.sent))
-        self.assertEqual(1, sum(blob(m).count(hints.OFF_HOURS) for _, m in self.sent))
+        self.assertEqual(0, sum(blob(m).count(OFF_HOURS) for _, m in self.sent))
 
     def test_two_customers_simultaneous_writes_preserve_both(self):
         self.at("2026-09-08T21:00")
@@ -562,7 +563,7 @@ print(json.dumps({"accepted":ok, "cards":sum(m == conv.shop_card() for m in sent
             futures = [pool.submit(conv.reply_with_hints, uid, "你好", [conv.text_msg("你好。"), conv.shop_card()], send) for uid in uids]
             self.assertTrue(all(f.result(timeout=5) for f in futures))
         self.assertEqual(set(uids), set(self.state()))
-        self.assertTrue(all(set(row) == {"card_day", "rest"} for row in self.state().values()))
+        self.assertTrue(all(set(row) == {"card_day"} for row in self.state().values()))
 
     def test_simultaneous_card_and_walk_in_preserve_both_markers(self):
         messages = ([conv.text_msg("你好。"), conv.shop_card()],
@@ -583,7 +584,7 @@ print(json.dumps({"accepted":ok, "cards":sum(m == conv.shop_card() for m in sent
             self.at("2026-09-08T11:29")
             self.assertIsNotNone(conv._closed_reason(self.time))
             self.assertIn("11:30", blob(conv.hours_reply("今天有開嗎")))
-            self.assertTrue(hints.periods(conv, self.time)[1].endswith("11:30:00+08:00"))
+            self.assertEqual("", hints.periods(conv, self.time)[1])
             self.at("2026-09-08T11:30")
             self.assertIsNone(conv._closed_reason(self.time))
             self.assertEqual("", hints.periods(conv, self.time)[1])

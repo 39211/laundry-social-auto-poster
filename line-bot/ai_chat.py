@@ -37,7 +37,7 @@ LOG = logging.getLogger("ai_chat")
 
 MODES = ("off", "shadow", "on")
 TOTAL_SECONDS = 10.0       # hard budget for the whole AI decision (LINE reply token safety)
-PER_CALL_SECONDS = 6.0
+PER_CALL_SECONDS = 4.5      # 11/10: gemini-3.8-flash often needs >50s; leave 3.5 Flash ~5s of the 10s budget
 MIN_CALL_SECONDS = 1.5
 MAX_CALLS = 2
 MAX_REPLY_CHARS = 90
@@ -118,7 +118,7 @@ def mode() -> str:
 def available() -> bool:
     if _PE is None:
         return False
-    return _MODEL_FN is not None or bool(os.environ.get("GEMINI_API_KEY"))
+    return _MODEL_FN is not None or bool(os.environ.get("LAUNDRY_CHAT_GEMINI_KEY") or os.environ.get("GEMINI_API_KEY"))
 
 
 # ---------------------------------------------------------------------------
@@ -459,28 +459,61 @@ def parse_decision(raw) -> dict | None:
     return {"kind": kind, "reply": reply[:400]}
 
 
+def _thinking_level(model: str) -> str:
+    override = os.environ.get("LAUNDRY_CHAT_THINKING", "").strip().lower()
+    if override in ("minimal", "low", "medium", "high"):
+        return override
+    return "minimal" if model.startswith("gemini-3.5-") else "low"
+
+
 def _gemini_call(model: str, prompt: str, timeout: float) -> str:
-    key = os.environ.get("GEMINI_API_KEY", "")
+    key = os.environ.get("LAUNDRY_CHAT_GEMINI_KEY") or os.environ.get("GEMINI_API_KEY", "")
     if not key:
         raise ModelError("http_other")
     gen = {"temperature": 0.2, "maxOutputTokens": 1024, "responseMimeType": "application/json"}
     if model.startswith("gemini-2.5-flash"):
         gen["thinkingConfig"] = {"thinkingBudget": 0}
+    elif model.startswith("gemini-3"):
+        gen["thinkingConfig"] = {"thinkingLevel": _thinking_level(model)}
     body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}], "generationConfig": gen}
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json", "x-goog-api-key": key},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read(256_000))
-    except urllib.error.HTTPError as exc:
-        raise ModelError(_PE._http_kind(exc.code)) from None
-    except (urllib.error.URLError, TimeoutError, OSError):
-        raise ModelError("timeout") from None
-    except ValueError:
-        raise ModelError("unusable") from None
+    deadline = time.monotonic() + timeout
+    for attempt in range(2):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ModelError("timeout")
+        req = urllib.request.Request(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+            data=json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json", "x-goog-api-key": key},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=remaining) as resp:
+                data = json.loads(resp.read(256_000))
+            break
+        except urllib.error.HTTPError as exc:
+            unsupported = False
+            if exc.code == 400 and attempt == 0 and "thinkingLevel" in gen.get("thinkingConfig", {}):
+                try:
+                    error = exc.read(16_384).decode("utf-8", "replace").lower()
+                    unsupported = bool(re.search(r"thinking[ _]?level", error)) and any(
+                        word in error for word in ("not supported", "unsupported"))
+                except Exception:
+                    pass
+                finally:
+                    exc.close()
+            if unsupported and gen["thinkingConfig"]["thinkingLevel"] != "low":
+                gen["thinkingConfig"] = {"thinkingLevel": "low"}
+                trace = getattr(_local, "model_trace", None)
+                if trace is not None:
+                    trace.mark(_PE._http_kind(400))
+                    trace.begin(model)
+                _note_call()
+                continue
+            raise ModelError(_PE._http_kind(exc.code)) from None
+        except (urllib.error.URLError, TimeoutError, OSError):
+            raise ModelError("timeout") from None
+        except ValueError:
+            raise ModelError("unusable") from None
     try:
         cand = data["candidates"][0]
         if cand.get("finishReason") != "STOP":
@@ -492,16 +525,17 @@ def _gemini_call(model: str, prompt: str, timeout: float) -> str:
         raise ModelError("unusable") from None
 
 
-# 11/05: chat uses the lite models. On the free key gemini-2.5-flash ran out after about a dozen
-# calls (HTTP 429) and gemini-flash-latest returned 5xx/timeouts, and photo estimates need the
-# 2.5-flash quota. Each free-tier model has its own quota; chat replies use plain JSON (no schema).
-CHAT_MODEL_CHAIN = ("gemini-2.5-flash-lite", "gemini-flash-lite-latest")
+# NIGHT24: owner-selected chat chain; lite is never an eligible override.
+CHAT_MODEL_CHAIN = ("gemini-3.8-flash", "gemini-3.5-flash")
 
 
 def _chain() -> list[str]:
     if _PE is None:
         return []
-    return list(CHAT_MODEL_CHAIN)[:MAX_CALLS]
+    raw = os.environ.get("LAUNDRY_CHAT_MODELS", "")
+    models = [name.strip() for name in raw.split(",")]
+    models = [name for name in models if _PE._MODEL_RE.fullmatch(name) and "lite" not in name.lower()]
+    return list(dict.fromkeys(models or CHAT_MODEL_CHAIN))[:MAX_CALLS]
 
 
 def _note_call() -> None:
@@ -512,6 +546,7 @@ def _note_call() -> None:
 
 def _worker(prompt: str, deadline: float, trace, box: dict) -> None:
     try:
+        _local.model_trace = trace
         fn = _MODEL_FN or _gemini_call
         for model in _chain():
             remaining = deadline - time.monotonic()
@@ -543,6 +578,8 @@ def _worker(prompt: str, deadline: float, trace, box: dict) -> None:
             return
     except BaseException:
         return
+    finally:
+        _local.model_trace = None
 
 
 def _decide(conv, text: str, wait: str, *, subject: str = "", photo_context: list | None = None) -> dict | None:
@@ -880,7 +917,8 @@ def _order_answer(conv, uid: str, item: str) -> str:
             return "這邊目前不能直接查進度。你可以打給店裡，報洗衣單上的洗號請櫃台查。"
         bound = laundry_lookup.bound_customer(uid)
         if not bound:
-            return "查進度用洗衣單上的洗號就行。你手邊有洗號嗎？"
+            conv.set_sess(uid, wait="query", query_misses=0)
+            return conv.QUERY_CODE_PROMPT
         row = laundry_lookup.lookup(bound)
     except TimeoutError:
         return "剛才查進度逾時，還沒拿到結果，原本留的資料不用再給一次。急著取件的話，可以直接打給店裡。"

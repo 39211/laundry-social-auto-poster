@@ -119,7 +119,7 @@ class VisionUsageTest(unittest.TestCase):
         self.assertEqual((data["requests"], data["answered"], data["failed"]), (1, 0, 1))
         for model in CHAIN[:3]:
             self.assertEqual(data["models"][model], {"http_5xx": 1})
-        self.assertNotIn(CHAIN[3], data["models"])
+        self.assertEqual(set(data["models"]), set(CHAIN[:3]))
 
     def test_timeout_counted(self):
         result, _ = self.run_inventory([TimeoutError("timed out"), ok_response()])

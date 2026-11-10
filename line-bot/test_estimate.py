@@ -139,15 +139,15 @@ class ProviderTests(unittest.TestCase):
 
     def test_503_recovers_with_fallback_model(self):
         # 10/31 night: gemini-2.5-flash answered 429 (free-tier 5/min) and 503; the retry goes
-        # to the fallback model in plain JSON mode (flash-lite rejects SCHEMA with HTTP 400).
+        # to the fallback model in plain JSON mode. NIGHT24 removes lite defaults.
         # 11/05: 2.5-flash itself also uses plain JSON with thinking off, the shape that answered
         # in production on 11/02.
         result,request=self.invoke([urllib.error.HTTPError('synthetic',503,'busy',None,None),'ok'])
         self.assertTrue(result['ok']);self.assertEqual(request.call_count,2)
-        self.assertEqual(result['model'],'gemini-2.5-flash-lite')
+        self.assertEqual(result['model'],'gemini-3.5-flash')
         first,second=[call.args[0] for call in request.call_args_list]
         self.assertIn('/models/gemini-2.5-flash:',first.full_url)
-        self.assertIn('/models/gemini-2.5-flash-lite:',second.full_url)
+        self.assertIn('/models/gemini-3.5-flash:',second.full_url)
         self.assertNotIn('responseJsonSchema',json.loads(first.data)['generationConfig'])
         self.assertEqual(json.loads(first.data)['generationConfig'].get('thinkingConfig'),{'thinkingBudget':0})
         self.assertNotIn('responseJsonSchema',json.loads(second.data)['generationConfig'])
@@ -172,8 +172,8 @@ class ProviderTests(unittest.TestCase):
         urls=[call.args[0].full_url for call in request.call_args_list]
         self.assertIn('/models/gemini-2.5-flash:',urls[0])
         self.assertIn('/models/gemini-flash-latest:',urls[1])
-        self.assertIn('/models/gemini-flash-lite-latest:',urls[2])
-        self.assertEqual(result['model'],'gemini-flash-lite-latest')
+        self.assertIn('/models/gemini-3.5-flash:',urls[2])
+        self.assertEqual(result['model'],'gemini-3.5-flash')
         first=json.loads(request.call_args_list[0].args[0].data)['generationConfig']
         # 2.5-flash keeps the shape that answered in production: plain JSON, thinking off.
         self.assertNotIn('responseJsonSchema',first)
@@ -192,7 +192,7 @@ class ProviderTests(unittest.TestCase):
 
     def test_429_quota_also_uses_fallback(self):
         result,request=self.invoke([urllib.error.HTTPError('synthetic',429,'quota',None,None),'ok'])
-        self.assertTrue(result['ok']);self.assertEqual(result['model'],'gemini-2.5-flash-lite')
+        self.assertTrue(result['ok']);self.assertEqual(result['model'],'gemini-3.5-flash')
 
     def test_provider_failure_is_bounded(self):
         result,request=self.invoke([urllib.error.HTTPError('synthetic',503,'busy',None,None)]*2)

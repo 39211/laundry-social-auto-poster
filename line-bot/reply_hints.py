@@ -1,25 +1,27 @@
-"""送出邊界的提示去重；只保存既有 uid 及營業／休息區間的時間鍵。"""
+"""送出邊界的提示去重；只保存既有 uid 及營業日的時間鍵。"""
 from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timedelta
+import hashlib
 import json
 import os
 from pathlib import Path
 import re
 import tempfile
 
-OFF_HOURS = "現在是非營業時間，店員上班後會回覆你。"
 WALK_IN = (
     "送洗不用預約，營業時間直接帶來就好。",
     "送洗不用預約，營業時間帶來就好。",
     "其他營業日直接帶來就好，不用預約。",
 )
 ADDRESS_WORDS = ("地址", "位置", "地圖", "怎麼去", "怎麼走", "在哪", "店址", "門市資訊", "停車")
+# 沿用 journey_ux 已有的重複回覆轉接句，不另造服務承諾。
+REPEAT_HANDOFF = "抱歉，剛剛沒有接到你的意思。我把這個問題交給店員接著回。"
 
 
 def periods(conv, now: datetime) -> tuple[str, str]:
-    """營業日＝上次開門至下次開門；休息鍵＝下次開門。共用現役 _span_for。"""
+    """營業日＝上次開門至下次開門；保留空的舊休息鍵介面。"""
     openings = []
     for offset in range(-7, 8):
         day = now + timedelta(days=offset)
@@ -29,10 +31,8 @@ def periods(conv, now: datetime) -> tuple[str, str]:
         hour, minute = map(int, span[0].split("-", 1)[0].split(":"))
         openings.append(day.replace(hour=hour, minute=minute, second=0, microsecond=0))
     previous = max((d for d in openings if d <= now), default=None)
-    following = min((d for d in openings if d > now), default=None)
     business = previous.isoformat() if previous else ""
-    rest = following.isoformat() if following and conv._closed_reason(now) is not None else ""
-    return business, rest
+    return business, ""
 
 
 def state_path(conv) -> Path:
@@ -73,7 +73,7 @@ def _prune(data: dict, now: datetime) -> None:
         try:
             expired = all(
                 not row.get(key) or datetime.fromisoformat(row[key]) < cutoff
-                for key in ("card_day", "walkin_day", "rest")
+                for key in ("card_day", "walkin_day")
             )
         except (AttributeError, TypeError, ValueError):
             # 無法判讀的時間不當成過期，也不阻斷其他客人的成功記錄。
@@ -83,7 +83,7 @@ def _prune(data: dict, now: datetime) -> None:
 
 
 def prepare(conv, messages: list[dict], text: str, row: dict, now: datetime) -> tuple[list[dict], dict]:
-    business, rest = periods(conv, now)
+    business, _ = periods(conv, now)
     asked_address = any(word in text for word in ADDRESS_WORDS)
     asked_reservation = "預約" in text
     asked_walk_in = asked_reservation or any(word in text for word in ("直接到店", "直接拿去", "直接送去"))
@@ -126,19 +126,6 @@ def prepare(conv, messages: list[dict], text: str, row: dict, now: datetime) -> 
         for m in outgoing
     ):
         marks["walkin_day"] = business
-    if rest and row.get("rest") != rest:
-        for message in outgoing:
-            if message.get("type") != "text":
-                continue
-            body = message.get("text") or ""
-            # 找真人的既有回覆若已交代打烊後處理，這則不再疊加 F26。
-            explained = any(word in body for word in ("營業時間處理", "上班後會回覆", "開門後回覆"))
-            if not explained:
-                if len(OFF_HOURS) + 1 + len(body) > 5000:
-                    continue
-                message["text"] = OFF_HOURS + "\n" + body
-            marks["rest"] = rest
-            break
     return outgoing, marks
 
 
@@ -153,7 +140,39 @@ def deliver(conv, uid: str, text: str, messages: list[dict], send) -> bool:
         outgoing, marks = prepare(conv, messages, text, row, now)
         if not outgoing:
             return False
+        # 只記真正送出的問句雜湊；不同客人、失敗重送、非問句回覆各自獨立。
+        question_path = path.with_name("line-reply-questions.json")
+        with conv._SESSION_LOCK:
+            previous = _read(question_path).get(uid) or []
+        questions = []
+        repeated = False
+        guarded = []
+        for message in outgoing:
+            body = message.get("text") or ""
+            question = message.get("type") == "text" and (
+                body == conv.QUERY_CODE_PROMPT or bool(re.search(r"[？?]|[嗎呢][。！!…]*$", body))
+            )
+            digest = hashlib.sha256(body.encode("utf-8")).hexdigest() if question else ""
+            if digest and digest in previous:
+                if not repeated:
+                    guarded.append(conv.text_msg(REPEAT_HANDOFF))
+                repeated = True
+            else:
+                guarded.append(message)
+                if digest:
+                    questions.append(digest)
+        outgoing = guarded
         accepted = send(outgoing)
+        if accepted is True and (questions or previous):
+            with conv._SESSION_LOCK:
+                question_state = _read(question_path)
+                if questions:
+                    question_state[uid] = questions
+                else:
+                    question_state.pop(uid, None)
+                _write(question_path, question_state)
+        if accepted is True and repeated:
+            conv._push_ask(uid, "客人連續收到相同問句：" + text)
         if accepted is True and marks:
             # 不用送出前讀到的整份資料回寫，避免其他客人的成功紀錄被蓋掉。
             with conv._SESSION_LOCK:

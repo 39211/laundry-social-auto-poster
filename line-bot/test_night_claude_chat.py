@@ -410,7 +410,7 @@ class ClaudeChatTests(unittest.TestCase):
         self.assertIs(present.pop("chat_claude"), True)
         self.assertIs(absent.pop("chat_claude"), False)
         self.assertEqual(present, absent)
-        self.assertEqual(set(present), {"pid", "vision_configured", "ai_chat", "missing"})
+        self.assertEqual(set(present), {"pid", "vision_configured", "ai_chat", "missing", "chat_openai"})
         self.assertTrue(self.key not in str(present))
 
     def test_readyz_claude_only_enables_chat_without_claiming_vision_ready(self):

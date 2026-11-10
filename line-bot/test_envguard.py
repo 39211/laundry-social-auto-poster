@@ -23,14 +23,14 @@ class ReadyzTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json(), {
             'pid': os.getpid(), 'vision_configured': False, 'ai_chat': False,
-            'missing': ['GEMINI_API_KEY', 'LAUNDRY_AI_CHAT'], 'chat_claude': False,
+            'missing': ['GEMINI_API_KEY', 'LAUNDRY_AI_CHAT'], 'chat_claude': False, 'chat_openai': False,
         })
 
     def test_configured_and_no_values(self):
         os.environ.update(GEMINI_API_KEY='synthetic-private-marker', LAUNDRY_AI_CHAT='on')
         row = self.get().get_json()
         self.assertEqual(row, {'pid': os.getpid(), 'vision_configured': True,
-                               'ai_chat': True, 'missing': [], 'chat_claude': False})
+                               'ai_chat': True, 'missing': [], 'chat_claude': False, 'chat_openai': False})
         self.assertNotIn('synthetic-private-marker', str(row))
         self.assertNotIn('://', str(row))
 
@@ -41,6 +41,16 @@ class ReadyzTests(unittest.TestCase):
         self.assertIs(row['chat_claude'], True)
         self.assertIs(row['ai_chat'], True)
         self.assertNotIn('synthetic-claude-marker', str(row))
+
+    def test_openai_only_enables_chat_and_vision_and_reports_boolean(self):
+        os.environ.update(OPENAI_API_KEY='synthetic-openai-marker', LAUNDRY_AI_CHAT='on')
+        row = self.get().get_json()
+        self.assertIs(row['chat_openai'], True)
+        self.assertIs(row['chat_claude'], False)
+        self.assertIs(row['ai_chat'], True)
+        self.assertIs(row['vision_configured'], True)
+        self.assertEqual(row['missing'], ['GEMINI_API_KEY'])  # existing readiness field is unchanged
+        self.assertNotIn('synthetic-openai-marker', str(row))
 
     def test_disabled_vision_and_chat_modes(self):
         os.environ.update(GEMINI_API_KEY='synthetic-private-marker', LAUNDRY_PHOTO_ESTIMATE='0')
@@ -101,7 +111,7 @@ class ReadyzTests(unittest.TestCase):
                     key = node.slice
                 if isinstance(key, ast.Constant) and isinstance(key.value, str):
                     name = key.value
-                    if name == 'GEMINI_API_KEY' or name.startswith(('LAUNDRY_', 'LINE_')):
+                    if name in ('GEMINI_API_KEY', 'CLAUDE_API_CREDIT_KEY', 'OPENAI_API_KEY') or name.startswith(('LAUNDRY_', 'LINE_')):
                         names.add(name)
         for name in names:
             self.assertIn("'" + name + "'", allowlist, name)

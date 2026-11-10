@@ -98,7 +98,11 @@ _CALL_LOCK = threading.Lock()
 _USAGE_LOCK = threading.Lock()
 _CLAUDE_USAGE_LOCK = threading.Lock()
 _CLAUDE_USAGE_BLOCKED = set()  # paths whose accounting write failed in this process
-_CHAT_MODEL_RE = re.compile(r"(?:claude-[a-z0-9.-]+|gemini-[a-zA-Z0-9.-]+)")
+_OPENAI_USAGE_LOCK = threading.Lock()
+_OPENAI_CALL_LOCK = threading.Lock()  # text and photos share admission, including the HTTP call
+_OPENAI_USAGE_BLOCKED = set()
+_CHAT_MODEL_RE = re.compile(r"(?:gpt-[a-z0-9.-]+|claude-[a-z0-9.-]+|gemini-[a-zA-Z0-9.-]+)")
+_OPENAI_PRICES = (2.0, 10.0)  # owner-specified estimate per million input/output tokens
 _CLAUDE_PRICES = {  # estimated USD per million input/output tokens (owner's rates)
     "claude-sonnet-5-5": (2.0, 10.0),
     "claude-haiku-5-5": (0.10, 0.50),
@@ -124,7 +128,8 @@ def mode() -> str:
 
 
 def available() -> bool:
-    return _MODEL_FN is not None or bool(os.environ.get("CLAUDE_API_CREDIT_KEY")
+    return _MODEL_FN is not None or bool(os.environ.get("OPENAI_API_KEY")
+                                        or os.environ.get("CLAUDE_API_CREDIT_KEY")
                                         or os.environ.get("LAUNDRY_CHAT_GEMINI_KEY")
                                         or os.environ.get("GEMINI_API_KEY"))
 
@@ -629,13 +634,139 @@ def _claude_call(model: str, prompt: str, timeout: float) -> str:
         raise ModelError("unusable") from None
 
 
+def _openai_usage_path() -> Path:
+    return usage_dir() / f"openai-{_PE.usage_day()}.json"
+
+
+def _read_openai_usage(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {"calls": 0, "input_tokens": 0, "output_tokens": 0, "estimated_usd": 0.0}
+    if (not isinstance(data, dict)
+            or set(data) != {"calls", "input_tokens", "output_tokens", "estimated_usd"}
+            or any(type(data[k]) is not int or data[k] < 0
+                   for k in ("calls", "input_tokens", "output_tokens"))
+            or type(data["estimated_usd"]) not in (int, float)
+            or not math.isfinite(data["estimated_usd"]) or data["estimated_usd"] < 0):
+        raise ValueError("invalid OpenAI usage counters")
+    return data
+
+
+def _openai_allowed() -> bool:
+    if not os.environ.get("OPENAI_API_KEY") or _PE is None:
+        return False
+    try:
+        limit = float(os.environ.get("LAUNDRY_OPENAI_DAILY_USD", "4.0"))
+        if not math.isfinite(limit) or limit < 0:
+            limit = 4.0
+    except ValueError:
+        limit = 4.0
+    try:
+        with _OPENAI_USAGE_LOCK:
+            path = _openai_usage_path()
+            return path not in _OPENAI_USAGE_BLOCKED and _read_openai_usage(path)["estimated_usd"] < limit
+    except (OSError, ValueError, OverflowError, RecursionError):
+        return False  # unreadable accounting never creates a fresh budget
+
+
+def _record_openai_usage(usage: dict, path: Path) -> None:
+    with _OPENAI_USAGE_LOCK:
+        if (not isinstance(usage, dict)
+                or any(type(usage.get(k)) is not int or usage[k] < 0
+                       for k in ("input_tokens", "output_tokens"))):
+            _OPENAI_USAGE_BLOCKED.add(path)
+            raise ModelError("unusable")
+        try:
+            data = _read_openai_usage(path)
+            data["calls"] += 1
+            data["input_tokens"] += usage["input_tokens"]
+            data["output_tokens"] += usage["output_tokens"]
+            # output_tokens already includes reasoning tokens; do not add them twice.
+            cost = (usage["input_tokens"] * _OPENAI_PRICES[0]
+                    + usage["output_tokens"] * _OPENAI_PRICES[1]) / 1_000_000
+            data["estimated_usd"] = round(data["estimated_usd"] + cost, 10)
+            if not math.isfinite(data["estimated_usd"]):
+                raise ValueError("invalid OpenAI cost")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            _PE._atomic_write(path, json.dumps(data, ensure_ascii=True) + "\n")
+        except (OSError, ValueError, OverflowError, RecursionError):
+            _OPENAI_USAGE_BLOCKED.add(path)
+            raise ModelError("http_other") from None
+
+
+def _openai_request(model: str, content: list[dict], timeout: float,
+                    max_output_tokens: int, text_format: dict) -> str:
+    """Shared Responses transport/accounting. Photo calls import this lazily after module load."""
+    key = os.environ.get("OPENAI_API_KEY", "")
+    if not key:
+        raise ModelError("http_other")
+    deadline = time.monotonic() + timeout
+    if not _OPENAI_CALL_LOCK.acquire(timeout=max(0, timeout)):
+        raise ModelError("timeout")
+    try:
+        # Serialise admission through accounting, so a waiting text/photo cannot overspend
+        # after its predecessor has crossed the daily cap. Waiting consumes its call budget.
+        if not _openai_allowed():
+            raise ModelError("http_other")
+        path = _openai_usage_path()  # charge the admitted Taipei day, including across midnight
+        effort = os.environ.get("LAUNDRY_OPENAI_EFFORT", "low").strip().lower()
+        if effort not in ("low", "medium", "high"):
+            effort = "low"
+        body = {"model": model, "input": [{"role": "user", "content": content}],
+                "reasoning": {"effort": effort}, "max_output_tokens": max_output_tokens,
+                "text": {"format": text_format}}
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/responses", data=json.dumps(body).encode("utf-8"),
+            headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"}, method="POST",
+        )
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ModelError("timeout")
+        try:
+            with urllib.request.urlopen(req, timeout=remaining) as resp:
+                data = json.loads(resp.read(512_000))
+        except urllib.error.HTTPError as exc:
+            kind = _PE._http_kind(exc.code)
+            exc.close()
+            raise ModelError(kind) from None
+        except (urllib.error.URLError, TimeoutError, OSError):
+            raise ModelError("timeout") from None
+        except (ValueError, RecursionError):
+            raise ModelError("unusable") from None
+        try:
+            # Incomplete/refused responses can still cost tokens; account before rejecting.
+            _record_openai_usage(data.get("usage"), path)
+            if data.get("status") != "completed":
+                raise ModelError("unusable")
+            text = "".join(block["text"] for message in data["output"] if message.get("type") == "message"
+                           for block in message["content"] if block.get("type") == "output_text")
+            if not text.strip():
+                raise ModelError("unusable")
+            return text
+        except ModelError:
+            raise
+        except (KeyError, TypeError, AttributeError):
+            raise ModelError("unusable") from None
+    finally:
+        _OPENAI_CALL_LOCK.release()
+
+
+def _openai_call(model: str, prompt: str, timeout: float) -> str:
+    return _openai_request(model, [{"type": "input_text", "text": prompt}], timeout,
+                           2048, {"type": "json_object"})
+
+
 def _model_call(model: str, prompt: str, timeout: float) -> str:
+    if model.startswith("gpt-"):
+        return _openai_call(model, prompt, timeout)
     return (_claude_call if model.startswith("claude-") else _gemini_call)(model, prompt, timeout)
 
 
 # NIGHT24: owner-selected chat chains; lite is never an eligible override.
 CHAT_MODEL_CHAIN = ("gemini-3.8-flash", "gemini-3.5-flash")
 CLAUDE_CHAT_CHAIN = ("claude-sonnet-5-5", "claude-haiku-5-5", "gemini-3.5-flash")
+OPENAI_CHAT_CHAIN = ("gpt-6.1-sol", "claude-sonnet-5-5", "gemini-3.5-flash")
 
 
 def _chain() -> list[str]:
@@ -644,10 +775,21 @@ def _chain() -> list[str]:
     raw = os.environ.get("LAUNDRY_CHAT_MODELS", "")
     models = [name.strip() for name in raw.split(",")]
     allowed = _claude_allowed()
+    openai = _openai_allowed()
     models = [name for name in models if _CHAT_MODEL_RE.fullmatch(name) and "lite" not in name.lower()
-              and (allowed or not name.startswith("claude-"))]
-    default = CLAUDE_CHAT_CHAIN if allowed else CHAT_MODEL_CHAIN
+              and (allowed or not name.startswith("claude-"))
+              and (openai or not name.startswith("gpt-"))]
+    default = ([name for name in OPENAI_CHAT_CHAIN if allowed or not name.startswith("claude-")]
+               if openai else CLAUDE_CHAT_CHAIN if allowed else CHAT_MODEL_CHAIN)
     return list(dict.fromkeys(models or default))[:MAX_CALLS]
+
+
+def _per_call_seconds() -> float:
+    try:
+        value = float(os.environ.get("LAUNDRY_CHAT_PER_CALL_SECONDS", str(PER_CALL_SECONDS)))
+    except ValueError:
+        return PER_CALL_SECONDS
+    return value if math.isfinite(value) and 1.5 <= value <= 9.0 else PER_CALL_SECONDS
 
 
 def _note_call() -> None:
@@ -662,6 +804,8 @@ def _worker(prompt: str, deadline: float, trace, box: dict) -> None:
         fn = _MODEL_FN or _model_call
         chain = _chain()
         for index, model in enumerate(chain):
+            if model.startswith("gpt-") and not _openai_allowed():
+                continue
             if model.startswith("claude-") and not _claude_allowed():
                 continue  # another request (or the preceding model) may have reached today's cap
             remaining = deadline - time.monotonic()
@@ -672,7 +816,7 @@ def _worker(prompt: str, deadline: float, trace, box: dict) -> None:
             trace.begin(model)
             # The last model may use whatever is left of the total budget: when 3.8 fails fast
             # (free-tier 429/503), a slow-but-working 3.5 answer must not be cut at PER_CALL_SECONDS.
-            cap = remaining if index == len(chain) - 1 else min(PER_CALL_SECONDS, remaining)
+            cap = remaining if index == len(chain) - 1 else min(_per_call_seconds(), remaining)
             try:
                 raw = fn(model, prompt, max(0.5, cap))
             except ModelError as exc:

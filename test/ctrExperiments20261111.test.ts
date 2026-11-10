@@ -213,21 +213,16 @@ describe("2026-11-11 CTR 實驗已核文案", () => {
     );
   });
 
-  it("影片入口使用可播放的嵌入或觀看連結，保留 AI 句且沒有 VideoObject", () => {
+  it("影片使用隱私嵌入與毛衣備援連結，保留 AI 句且沒有 VideoObject", () => {
     for (const [path, id, title, line, phone] of VIDEOS) {
       const html = read(path);
-      const watchFallback = id === "74jq98-izu4";
-      const videoUrl = watchFallback
-        ? `https://www.youtube.com/watch?v=${id}`
-        : `https://www.youtube-nocookie.com/embed/${id}`;
-      if (watchFallback) {
+      const videoUrl = `https://www.youtube-nocookie.com/embed/${id}`;
+      expect(html, path).toContain(
+        `<iframe src="${videoUrl}" title="${title}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="width:100%;max-width:720px;aspect-ratio:16/9;border:0"></iframe>`
+      );
+      if (id === "74jq98-izu4") {
         expect(html, path).toContain(
-          `<a href="${videoUrl}" target="_blank" rel="noopener noreferrer">在 YouTube 觀看：${title}</a>`
-        );
-        expect(html, path).not.toContain(`youtube-nocookie.com/embed/${id}`);
-      } else {
-        expect(html, path).toContain(
-          `<iframe src="${videoUrl}" title="${title}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="width:100%;max-width:720px;aspect-ratio:16/9;border:0"></iframe>`
+          `<a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer">在 YouTube 觀看：${title}</a>`
         );
       }
       expect(html, path).toContain(`<figcaption>${FIGCAPTION}</figcaption>`);

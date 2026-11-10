@@ -11,6 +11,7 @@ import { repoRootFromHere } from "../scripts/check-sitemap-links";
  * 下面的 sha256 是凍結基準 e890511a82b5b2f9300999a68c56cadebb92c1f6 上、LF 原文的雜湊。
  * washing-machine-shoe-risk 例外：凍結原文先套收送用語替換，再套錨文字替換，鎖的是兩道之後的 stripped sha256。
  * sticky-bag-lining、suede-bag-care 的 sha256 於 2026-11-10 CTR 實驗更新為核定文案後的 stripped 檔。其餘頁仍對凍結原文。
+ * 2026-11-10 大詞修正包再把六頁成交連結加上兩個核定錨文字；洗衣機頁另在 lead 後加一句。雜湊改鎖這次之後的 stripped 檔。leather-belt-care 仍對 e890511，只多這兩個錨文字。
  * CI 只抓 PR commit、拿不到該 commit 時仍用這個鎖；git show 只對這個凍結 SHA，淺層 checkout 拿不到就回 undefined 並跳過比對。
  */
 const ROOT = repoRootFromHere();
@@ -40,15 +41,18 @@ const EXPECTED_COUNTS = {
 } as const satisfies Record<PageSlug, number>;
 
 const MAIN_SHA256 = {
-  // 2026-11-10 CTR 實驗更新：title、meta 與分流段改為核定文案後的 stripped sha256。
-  "sticky-bag-lining": "f00ded5cbded4a4178421da29dd8e8194ff1551a2c419eddaf86dedeabb1b7f9",
-  // 2026-11-10 CTR 實驗更新：加上「麂皮外套怎麼洗」內鏈後的 stripped sha256。
-  "suede-bag-care": "b875e5f55d09d6b14897ecfc89b123384bd4b6437ef00f2f16880ae100e5de37",
-  // 這一筆不是 e890511 原文雜湊。凍結原文先把「東海無門市、全市可收送」換成「東海無門市、免費收送、沒有最低消費」，再把「>台中洗鞋專頁</a>」換成「>洗鞋材質總覽</a>」之後的 stripped sha256。2026-11-10 CTR 再改 title／meta 並加新鞋掉色內鏈，雜湊改鎖改寫後的 stripped 檔。
-  "washing-machine-shoe-risk": "65878dffe394e9ad3b6d9b1864965450bc07e7617f52a80454f7c8fb7cbb7de4",
-  "lambskin-bag-care": "3cab8b49d86a8325b2a96f5a36180960fd76f937812baa632bf7c5ec7cd91c08",
-  "leather-belt-care": "74d82511a2e418f5fca6298ad31b7051739e365270b1111163152e504557a26e",
-  "shoe-drying-heat-risk": "cbdf4b441a29a12810547d05671bc0e6f92385ee933b24f8eaa2567981769046"
+  // 2026-11-10 CTR 實驗更新 title、meta 與分流段。同日大詞修正包在成交連結加上兩個核定錨文字後的 stripped sha256。
+  "sticky-bag-lining": "c5b1a3c4c790a69cf4594dd85d06573d12390e0d6d46a4819798f19398de8598",
+  // 2026-11-10 CTR 實驗加上「麂皮外套怎麼洗」內鏈。同日大詞修正包在成交連結加上兩個核定錨文字後的 stripped sha256。
+  "suede-bag-care": "54a410e6d83afa9b9af938f6cd9a3b1008cd6ba2b1937d68b1e611e874f6d21b",
+  // 這一筆不是 e890511 原文雜湊。凍結原文先把「東海無門市、全市可收送」換成「東海無門市、免費收送、沒有最低消費」，再把「>台中洗鞋專頁</a>」換成「>洗鞋材質總覽</a>」。2026-11-10 CTR 再改 title／meta 並加新鞋掉色內鏈。同日大詞修正包在 lead 後加挑店句，並在成交連結加上兩個核定錨文字，雜湊改鎖改寫後的 stripped 檔。
+  "washing-machine-shoe-risk": "4fc45b55cf7ad21af316f034f17d86ff8fd5daa26a005521ef6032abfec98845",
+  // 2026-11-10 大詞修正包在成交連結加上兩個核定錨文字後的 stripped sha256。
+  "lambskin-bag-care": "2d359f6596e8b132b058f0d482dc36a9cd05ca6f0aa83c990b809336dde4149b",
+  // 2026-11-10 大詞修正包在成交連結加上兩個核定錨文字後的 stripped sha256。對 e890511 的比對只允許多這兩個錨文字。
+  "leather-belt-care": "9ff5147c3dfd0967f0c0dcc24dbbf6bbc3e2109d4f9dd39bdb022e1103f8ba33",
+  // 2026-11-10 大詞修正包在成交連結加上兩個核定錨文字後的 stripped sha256。
+  "shoe-drying-heat-risk": "b1359d7dad2f971b4f64ad0450077e9aa482f0b8d8cefeec38616f08b1dff7d2"
 } as const satisfies Record<PageSlug, string>;
 
 /** 2026-11-10 行銷裁定改了 title／meta。洗衣機頁另加一則內鏈。sticky-bag-lining 於同日 CTR 實驗再改 title、meta 與分流段。目錄契約仍在，但不再要求與 e890511 逐字相同。 */
@@ -503,6 +507,14 @@ describe("O04 六個指南頁", () => {
           expect(stripped, slug).toBe(expected);
           expect(sha256(stripped), slug).toBe(MAIN_SHA256[slug]);
           expect(sha256(expected), slug).toBe(MAIN_SHA256[slug]);
+        } else if (slug === "leather-belt-care") {
+          const approvedFooter = fromBaseline.replace(
+            `            <a href="https://sixiangjialaundry.com/hubs/local-pickup.html">台中各區收送</a>\n          </div>`,
+            `            <a href="https://sixiangjialaundry.com/hubs/local-pickup.html">台中各區收送</a>\n            <a href="https://sixiangjialaundry.com/guides/taichung-shoe-cleaning-how-to-choose.html">台中洗鞋推薦怎麼挑</a>\n            <a href="https://sixiangjialaundry.com/guides/taichung-laundry-service-search.html">台中洗衣推薦怎麼挑</a>\n          </div>`
+          );
+          expect(approvedFooter, slug).not.toBe(fromBaseline);
+          expect(stripped, slug).toBe(approvedFooter);
+          expect(sha256(stripped), slug).toBe(MAIN_SHA256[slug]);
         } else {
           expect(fromBaseline, slug).toBe(stripped);
           expect(sha256(fromBaseline), slug).toBe(MAIN_SHA256[slug]);

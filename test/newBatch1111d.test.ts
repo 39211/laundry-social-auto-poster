@@ -240,6 +240,8 @@ describe("11/11 發霉問句價格與報價問句 5 頁", () => {
       expect(html, slug).not.toContain("依尺寸");
       expect(html, slug).not.toMatch(/10[–-]14 天/u);
       expect(html, slug).not.toContain("大件交期");
+      expect(html, slug).not.toMatch(/決定報價|無法報價|尺寸決定處理|不給尺寸/u);
+      expect(html, slug).toMatch(/不能報一[片張]多少錢/u);
     }
     const items: Array<{ id: string; confidence?: string; answer: string }> = JSON.parse(read("answers.json")).answers;
     for (const slug of ["curtain-cleaning-price", "carpet-cleaning-price"]) {

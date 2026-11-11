@@ -216,6 +216,41 @@ function Get-BotUserValue {
     return [Environment]::GetEnvironmentVariable($Name, 'User')
 }
 
+# 11/11 owner: customers are answered by the shop's own code (shop copy, 127.0.0.1:18791).
+# Started here so the logon + every-5-minute task brings it back after a crash or reboot.
+# Only while the tunnel points at it; never stopped by -Stop; old logs are kept, not overwritten.
+function Start-ShopCopy {
+    param([string]$CopyRoot = 'D:\AI-Lanes-work\nightrun\live', [int]$Port = 18791,
+          [string]$Py = 'C:\Users\cyc39\AppData\Local\Python\pythoncore-3.14-64\python.exe')
+    if ([Environment]::GetEnvironmentVariable('LAUNDRY_TUNNEL_ORIGIN_PORT', 'Process') -ne [string]$Port) {
+        return 'shop_copy skip: tunnel not on shop copy'
+    }
+    $busy = Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if ($busy) { return ('shop_copy alive pid=' + @($busy)[0].OwningProcess) }
+    $server = Join-Path $CopyRoot 'runtime\webhook_server.py'
+    if (-not (Test-Path -LiteralPath $server)) { return 'shop_copy missing: no shop copy tree' }
+    $logs = Join-Path $CopyRoot 'logs'
+    New-Item -ItemType Directory -Force -Path $logs | Out-Null
+    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    foreach ($n in @('webhook_server.log', 'webhook_server.err.log')) {
+        $f = Join-Path $logs $n
+        if (Test-Path -LiteralPath $f) { Rename-Item -LiteralPath $f -NewName ($n -replace '\.log$', ('.' + $stamp + '.log')) }
+    }
+    $old = @{ PYTHONIOENCODING = $env:PYTHONIOENCODING; PYTHONUNBUFFERED = $env:PYTHONUNBUFFERED }
+    try {
+        $env:PYTHONIOENCODING = 'utf-8'
+        $env:PYTHONUNBUFFERED = '1'
+        $p = Start-Process -FilePath $Py -ArgumentList @('-X', 'utf8', 'runtime\webhook_server.py', [string]$Port) `
+             -WorkingDirectory $CopyRoot -WindowStyle Hidden -PassThru `
+             -RedirectStandardOutput (Join-Path $logs 'webhook_server.log') `
+             -RedirectStandardError (Join-Path $logs 'webhook_server.err.log')
+    } finally {
+        $env:PYTHONIOENCODING = $old.PYTHONIOENCODING
+        $env:PYTHONUNBUFFERED = $old.PYTHONUNBUFFERED
+    }
+    return ('shop_copy started pid=' + $p.Id)
+}
+
 function Invoke-BotStart {
     $restores = @{}
     $receipt = [ordered]@{}
@@ -240,6 +275,7 @@ function Invoke-BotStart {
         Start-Tracked -Name 'line_webhook' -Rel 'line_webhook.py' | ForEach-Object { Write-ProbeLine $_ }
         Start-Tracked -Name 'staff_server' -Rel 'staff_server.py' | ForEach-Object { Write-ProbeLine $_ }
         Start-Tracked -Name 'tunnel_manager' -Rel 'tunnel_manager.py' | ForEach-Object { Write-ProbeLine $_ }
+        try { Write-ProbeLine (Start-ShopCopy) } catch { Write-ProbeLine 'shop_copy start failed' }
         return (Invoke-Probe)
     } catch {
         # Exceptions can contain paths or configuration values. Emit a fixed reason only.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import sqlite3
 import sys
 import threading
@@ -384,6 +385,9 @@ class InventorySnapshot:
     source: str
     data_as_of: str = ""
     stale: bool = False
+    # Customer lookup may confirm this version; notification freshness stays mtime-based.
+    _mdb_stamp: tuple[int, int] | None = field(default=None, repr=False)
+    _mdb_changed: bool = field(default=False, repr=False)
 
 
 def _now_taipei() -> datetime:
@@ -429,6 +433,8 @@ def inventory_snapshot() -> InventorySnapshot:
         return snap
     after = _mdb_stamp()
     stamp = before or after
+    snap._mdb_stamp = stamp
+    snap._mdb_changed = before != after
     if stamp is None:
         snap.stale = True
         return snap
@@ -451,13 +457,98 @@ def inventory_snapshot() -> InventorySnapshot:
     return snap
 
 
+def _parse_pull_time(value: str) -> tuple[datetime, int]:
+    # .NET's round-trip format has seven fractional digits; datetime alone
+    # truncates to six. Keep integer nanoseconds for the tolerance boundaries.
+    match = re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.(\d{1,9}))?(?:Z|[+-]\d{2}:\d{2})", value
+    )
+    if match is None:
+        raise ValueError("Invalid pull timestamp")
+    moment = datetime.fromisoformat(value)
+    nanos = int(moment.replace(microsecond=0).timestamp()) * 1_000_000_000
+    return moment, nanos + int((match[1] or "").ljust(9, "0"))
+
+
+def _pull_confirmed_at(stamp: tuple[int, int], now: datetime) -> datetime | None:
+    """Confirm only the last real pull in a bounded tail, for this MDB version.
+
+    Notify-report rows and dry runs are not pulls. A failed/mismatched last pull
+    or any read/parse error must not resurrect an earlier successful pull.
+    """
+    try:
+        override = os.environ.get("LAUNDRY_MDB_PULL_LOG")
+        if override:
+            path = Path(override)
+        else:
+            local = os.environ.get("LOCALAPPDATA")
+            if not local:
+                return None
+            path = Path(local) / "line-bot" / "mdb_pull.jsonl"
+        limit = 64 * 1024
+        with path.open("rb") as stream:
+            stream.seek(0, os.SEEK_END)
+            start = max(0, stream.tell() - limit)
+            stream.seek(start)
+            tail = stream.read(limit)
+        if start:
+            # The first line may start before the window (including mid-UTF-8).
+            tail = tail.partition(b"\n")[2]
+        for line in reversed(tail.decode("utf-8-sig").splitlines()):
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if not isinstance(row, dict) or "ts" not in row or row.get("result") == "DRY_RUN":
+                continue
+            if row.get("result") != "REPLACED" or type(row.get("exit")) is not int or row["exit"] != 0:
+                return None
+            if type(row.get("bytes")) is not int or row["bytes"] != stamp[1]:
+                return None
+            confirmed, confirmed_ns = _parse_pull_time(row["ts"])
+            _, source_ns = _parse_pull_time(row["source_mtime"])
+            if abs(source_ns - stamp[0]) > 2_000_000_000:
+                return None
+            confirmed = confirmed.astimezone(_TAIPEI)
+            now_ns = int(now.replace(microsecond=0).timestamp()) * 1_000_000_000 + now.microsecond * 1000
+            if confirmed_ns - now_ns > 120_000_000_000:
+                return None
+            return confirmed
+    except Exception:  # noqa: BLE001 -- confirmation is optional; preserve legacy freshness.
+        return None
+    return None
+
+
+def _lookup_freshness(snap: InventorySnapshot) -> dict:
+    freshness = {"data_as_of": snap.data_as_of, "stale": snap.stale}
+    if snap.source != EHANK_SOURCE or snap._mdb_stamp is None:
+        return freshness
+    now = _now_taipei().astimezone(_TAIPEI)
+    confirmed = _pull_confirmed_at(snap._mdb_stamp, now)
+    if confirmed is None:
+        return freshness
+    # Apply the same age/closing rules to customer confirmation only. In
+    # particular, a slightly future confirmation still has a negative age.
+    try:
+        minutes = float(os.environ.get("LAUNDRY_FRESH_MINUTES", "120"))
+        if not math.isfinite(minutes) or minutes < 0:
+            minutes = 120
+    except ValueError:
+        minutes = 120
+    age = (now - confirmed).total_seconds()
+    stale = age < 0 or age > minutes * 60
+    evening = _evening_threshold(now)
+    if evening is not None and evening <= confirmed <= now:
+        stale = False
+    return {"data_as_of": confirmed.isoformat(timespec="seconds"), "stale": stale or snap._mdb_changed}
+
+
 def lookup(query: str) -> Lookup:
     q = (query or "").strip()
     if not q:
         return Lookup(query=q)
     snap = inventory_snapshot()
     cust, pieces, source = snap.customers, snap.garments, snap.source
-    freshness = {"data_as_of": snap.data_as_of, "stale": snap.stale}
+    freshness = _lookup_freshness(snap)
     d = _digits(q)
     cid_hits: list[dict] = []
     phone_hits: list[dict] = []

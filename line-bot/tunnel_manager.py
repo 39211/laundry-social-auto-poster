@@ -32,7 +32,20 @@ SUCCESS_URL_LINE = re.compile(
 WEBHOOK_API = "https://api.line.me/v2/bot/channel/webhook/endpoint"
 # A-TUNNEL H1: the local bot the tunnel forwards to; must be listening before a PUT
 ORIGIN_HOST = "127.0.0.1"
-ORIGIN_PORT = 8791
+# 11/11 owner: customers are answered by the shop's own code (shop copy on 18791).
+# Only the two known local bots are accepted; anything else falls back to this bot.
+ALLOWED_ORIGIN_PORTS = (8791, 18791)
+
+
+def _origin_port() -> int:
+    try:
+        value = int(os.environ.get("LAUNDRY_TUNNEL_ORIGIN_PORT", "") or 8791)
+    except ValueError:
+        return 8791
+    return value if value in ALLOWED_ORIGIN_PORTS else 8791
+
+
+ORIGIN_PORT = _origin_port()
 LOG_ROTATE_BYTES = 2 * 1024 * 1024  # F15
 WEBHOOK_RETRY_DELAYS = (2, 5, 10)  # F4
 START_BACKOFFS = (10, 30, 60)  # F5

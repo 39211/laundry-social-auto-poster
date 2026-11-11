@@ -27,7 +27,7 @@ const PAGES = [
   {
     slug: "down-jacket-mold-cleaning",
     h1: "羽絨外套發霉怎麼辦？能送洗嗎、羽絨會不會結塊",
-    prices: ["$280"],
+    prices: ["$200", "$280"],
     hub: "hubs/luxury-garment-care.html",
     inbound: ["services/down-jacket-cleaning.html", "guides/down-clump-after-wash.html", "guides/down-jacket-cleaning.html"]
   },

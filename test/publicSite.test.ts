@@ -289,6 +289,48 @@ async function pngPixelSize(filePath: string): Promise<{ width: number; height: 
 }
 
 describe("generatePublicSite", () => {
+  it("exports separate website editorial fields without changing approved social source text", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-editorial-copy-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-07-02");
+    await writeApprovalLog(root, "2026-07-02");
+    const sourcePath = join(root, "data", "content-calendar", "2026-07-02.json");
+    const calendar = JSON.parse(await readFile(sourcePath, "utf8"));
+    calendar.slots[0].topic = "冬衣預約收送服務要備什麼？列可收時段和件數，店家服務免費";
+    const source = JSON.stringify(calendar);
+    await writeFile(sourcePath, source);
+    await generatePublicSite({ root, baseUrl: "https://example.com", now: "2026-11-10T00:00:00Z" });
+    expect(await readFile(sourcePath, "utf8")).toBe(source);
+    const index = JSON.parse(await readFile(join(root, "docs", "social-posts.json"), "utf8"));
+    expect(index.posts[0].topic).toBe(calendar.slots[0].topic);
+    expect(index.posts[0].facebook_caption).toBe(calendar.slots[0].facebook_caption);
+    expect(index.posts[0].editorial_title).toBe("冬衣預約收送要備什麼？先整理件數、時段與衣物狀況");
+    expect(index.posts[0].editorial_description).toContain("件數");
+    expect(index.posts[0].editorial_content).toContain("交接");
+    const html = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
+    expect(html).not.toContain("店家服務免費");
+  });
+
+  it("synchronizes override homepage dates after daily insertion without using build time", async () => {
+    const root = mkdtempSync(join(tmpdir(), "laundry-home-date-repair-"));
+    await writeBusinessProfile(root);
+    await writeCalendar(root, "2026-11-09");
+    await writeApprovalLog(root, "2026-11-09");
+    await mkdir(join(root, "seo-overrides"), { recursive: true });
+    const home = '<html><head><script type="application/ld+json">{"@graph":[{"@type":"WebPage","url":"https://example.com/","dateModified":"2026-11-03"},{"@type":"Organization","dateModified":"2026-01-02"}]}</script></head><body><!-- SXJ:RECENT_POSTS -->old<!-- /SXJ:RECENT_POSTS --></body></html>';
+    await writeFile(join(root, "seo-overrides", "index.html"), home);
+    const options = { root, siteBaseUrl: "https://example.com", imageBaseUrl: "https://example.com", onlyDocsPaths: ["index.html", "sitemap.xml"] };
+    await generatePublicSite({ ...options, now: "2026-11-10T00:00:00Z" });
+    const html = await readFile(join(root, "docs", "index.html"), "utf8");
+    const xml = await readFile(join(root, "docs", "sitemap.xml"), "utf8");
+    expect(html).toContain('"dateModified":"2026-11-09"');
+    expect(html).toContain('"dateModified":"2026-01-02"');
+    expect(xml).toContain('<loc>https://example.com/</loc><lastmod>2026-11-09</lastmod>');
+    await generatePublicSite({ ...options, now: "2026-11-11T00:00:00Z" });
+    expect(await readFile(join(root, "docs", "index.html"), "utf8")).toBe(html);
+    expect(await readFile(join(root, "docs", "sitemap.xml"), "utf8")).toBe(xml);
+  });
+
   it("changes only the Qinghai search meta description and preserves every other rendered byte", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-qinghai-snippet-"));
     await writeBusinessProfile(root);
@@ -1303,7 +1345,7 @@ describe("generatePublicSite", () => {
     expect(latest.posts.map((post: { date: string }) => post.date)).toEqual([today, today]);
     expect(homepage).toContain(`${today} 11:30`);
     expect(homepage).not.toContain(tomorrow);
-    expect(jsonLdGraphs(homepage).find((graph) => graph["@type"] === "WebPage")?.dateModified).toBe("2026-09-05");
+    expect(jsonLdGraphs(homepage).find((graph) => graph["@type"] === "WebPage")?.dateModified).toBe("2026-11-10");
     expect(llms).not.toContain(tomorrow);
     expect(sitemap).not.toContain(`content-calendar/${tomorrow}.json`);
     expect(sitemap).not.toContain(`<lastmod>${tomorrow}</lastmod>`);
@@ -1823,7 +1865,7 @@ describe("generatePublicSite", () => {
     expect(homepage).toContain("台中洗衣與免費收送常見問題");
     expect(homepage).toContain("收送免費等於清潔免費嗎？");
     expect(homepage).toContain('<html lang="zh-Hant-TW">');
-    expect(homepage).toContain('<time datetime="2026-09-05">2026-09-05</time>');
+    expect(homepage).toContain('<time datetime="2026-11-10">2026-11-10</time>');
     expect(homepage).toContain("台中洗鞋洗包洗衣，台中市免費到府收送、價格公開");
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=home-cta`);
     expect(homepage).toContain(`${baseUrl}/go/line.html?source=footer`);
@@ -1894,7 +1936,7 @@ describe("generatePublicSite", () => {
     expect(sitemap1).not.toContain("<lastmod>2026-07-10T03:00:00.000Z</lastmod>");
     expect(sitemap1).toMatch(
       new RegExp(
-        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-09-05</lastmod>`
+        `<loc>${baseUrl.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/</loc><lastmod>2026-11-10</lastmod>`
       )
     );
     expect(sitemap1).toMatch(
@@ -1995,11 +2037,11 @@ describe("generatePublicSite", () => {
     const postHtml1 = await readFile(join(root, "docs", "posts", "2026-07-02-slot-01.html"), "utf8");
     const postDateModified1 = findArticleDateModified(postHtml1);
 
-    expect(homepageDateModified1).toBe("2026-09-05");
+    expect(homepageDateModified1).toBe("2026-11-10");
     expect(pickupDateModified1).toBe("2026-09-05");
     expect(shoeBagDateModified1).toBe("2026-09-05");
     expect(guideDateModified1).toBe("2026-08-23");
-    expect(postDateModified1).toBe("2026-07-02T11:30:00+08:00");
+    expect(postDateModified1).toBe("2026-11-10");
     expect(homepage).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
     expect(pickupHtml).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
     expect(shoeBagHtml1).not.toContain(`"dateModified":"2026-07-10T03:00:00.000Z"`);
@@ -2806,8 +2848,8 @@ describe("generatePublicSite", () => {
     // The below-gate caption keeps this otherwise complete article out of indexable surfaces.
     expect(thick).toContain('name="robots" content="noindex, follow, max-image-preview:large"');
     expect(thick).toContain('<h2 id="summary">重點摘要</h2>');
-    expect(thick).toContain('<h2 id="store-note">門市筆記</h2>');
-    expect(thick).toContain("<table");
+    expect(thick).toContain('<h2 id="store-note">原始洗護紀錄</h2>');
+    expect(thick).not.toContain("<table"); // No unrelated service-wide case table.
     expect(thick).toContain("常見問題");
     expect(thick).toContain("延伸閱讀");
     expect(thick).toContain('"@type":"FAQPage"');

@@ -1,3 +1,5 @@
+import { syncHomepageContentDates } from "./homepageContentDates";
+import { resolvePostTopicCare } from "./postTopicCare";
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, unlink } from "node:fs/promises";
 import { writeFileWithRetry as writeFile } from "./fsRetry";
@@ -62,6 +64,9 @@ interface GeneratePublicSiteOptions {
 }
 
 interface PublicPost {
+  editorial_title?: string;
+  editorial_description?: string;
+  editorial_content?: string;
   id: string;
   date: string;
   date_published: string;
@@ -4123,7 +4128,7 @@ function knowledgeHubContentLastmod(): string | undefined {
  * any of it. It is deliberately a hand-set constant -- claiming "everything
  * changed today" on every build is how a sitemap's lastmod stops being trusted.
  */
-const POST_TEMPLATE_CONTENT_LASTMOD = "2026-09-04";
+const POST_TEMPLATE_CONTENT_LASTMOD = "2026-11-10";
 
 function postContentLastmod(post: PublicPost): string | undefined {
   const own = toSitemapLastmodDate(post.date_published) ?? toSitemapLastmodDate(post.date);
@@ -6928,12 +6933,30 @@ function captionPreview(caption: string): string {
     .find(Boolean) ?? caption.trim();
 }
 
+function postEditorialTitle(post: PublicPost): string {
+  // “服務免費” can imply that cleaning is free. Only pickup/delivery is free.
+  return post.topic === "冬衣預約收送服務要備什麼？列可收時段和件數，店家服務免費"
+    ? "冬衣預約收送要備什麼？先整理件數、時段與衣物狀況"
+    : post.topic;
+}
+
+function postEditorialDescription(post: PublicPost): string {
+  const care = resolvePostTopicCare(post);
+  if (!care) return captionPreview(post.facebook_caption).slice(0, 180);
+  const subject = postEditorialTitle(post).replace(/\s*[｜|].*$/u, "").replace(/[？?。！!]+$/u, "");
+  return `${subject}：${care.description}`.slice(0, 180);
+}
+
+function postEditorialContent(post: PublicPost): string {
+  return resolvePostTopicCare(post)?.paragraphs.join("\n\n") ?? post.facebook_caption;
+}
+
 function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object | undefined {
   if (!index.base_url_configured) return undefined;
   const businessNode = buildBusinessSchemaNode(index);
   if (!businessNode) return undefined;
   const profile = index.business_profile;
-  const description = captionPreview(post.facebook_caption).slice(0, 180);
+  const description = postEditorialDescription(post);
   const videoReferences = [
     ...(post.video_url ? [{ "@id": `${post.article_url}#video` }] : []),
     ...(post.youtube_video ? [{ "@id": `${post.article_url}#youtube-video` }] : [])
@@ -6946,10 +6969,10 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       "@id": `${post.article_url}#article`,
       url: post.article_url,
       mainEntityOfPage: { "@id": `${post.article_url}#webpage` },
-      headline: post.topic,
+      headline: postEditorialTitle(post),
       description,
       datePublished: post.date_published,
-      ...optionalSchemaDateModified(post.date_published ?? post.date),
+      ...optionalSchemaDateModified(postContentLastmod(post)),
       inLanguage: "zh-Hant-TW",
       author: { "@id": `${index.canonical_url}#business` },
       publisher: { "@id": `${index.canonical_url}#business` },
@@ -6960,7 +6983,7 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
         : {}),
       about: { "@id": `${index.canonical_url}#business` },
       keywords: Array.from(
-        new Set([...post.target_queries, ...post.hashtags.map((tag) => tag.replace(/^#/, ""))])
+        new Set(resolvePostTopicCare(post)?.keywords ?? [...post.target_queries, ...post.hashtags.map((tag) => tag.replace(/^#/, ""))])
       ),
       articleSection: careContextFor(post.topic).family,
       wordCount: renderPostArticle(post, index).visibleChars
@@ -6979,7 +7002,7 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       "@type": "WebPage",
       "@id": `${post.article_url}#webpage`,
       url: post.article_url,
-      name: post.topic,
+      name: postEditorialTitle(post),
       description,
       inLanguage: "zh-Hant-TW",
       isPartOf: { "@id": `${index.canonical_url}#website` },
@@ -6995,7 +7018,7 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
             "@id": `${post.article_url}#image`,
             contentUrl: post.image_url,
             ...postImageSchemaSize(post),
-            caption: `${post.topic} - ${profile.name}`
+            caption: `${postEditorialTitle(post)} - ${profile.name}`
           }
         ]
       : []),
@@ -7005,7 +7028,7 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
       itemListElement: [
         { "@type": "ListItem", position: 1, name: profile.name, item: index.canonical_url },
         { "@type": "ListItem", position: 2, name: "每日洗護紀錄", item: postsHubUrl(index) },
-        { "@type": "ListItem", position: 3, name: post.topic, item: post.article_url }
+        { "@type": "ListItem", position: 3, name: postEditorialTitle(post), item: post.article_url }
       ]
     }
   ];
@@ -7013,7 +7036,7 @@ function buildPostPageSchema(post: PublicPost, index: PublicPostIndex): object |
     graph.push({
       "@type": "VideoObject",
       "@id": `${post.article_url}#video`,
-      name: post.topic,
+      name: postEditorialTitle(post),
       description,
       ...(post.image_url ? { thumbnailUrl: post.image_url } : {}),
       contentUrl: post.video_url,
@@ -7196,7 +7219,7 @@ const DEFAULT_CARE_CONTEXT: CareContext = {
 };
 
 function careContextFor(topic: string): CareContext {
-  return CARE_CONTEXTS.find((entry) => entry.match.test(topic))?.context ?? DEFAULT_CARE_CONTEXT;
+  return resolvePostTopicCare(topic) ?? CARE_CONTEXTS.find((entry) => entry.match.test(topic))?.context ?? DEFAULT_CARE_CONTEXT;
 }
 
 // Post pages used to carry only the caption and were kept out of the indexable
@@ -7301,20 +7324,21 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
     .map((slug) => SUPPORT_PAGE_DEFINITIONS.find((page) => page.slug === slug))
     .filter((page): page is SupportPageDefinition => Boolean(page));
   const imageSrc = visibleImageSrc(post, index);
-  const description = captionPreview(post.facebook_caption).slice(0, 180);
+  const description = postEditorialDescription(post);
+  const specificCare = resolvePostTopicCare(post);
   const captionParagraphs = post.facebook_caption
     .split(/\n{2,}/u)
     .map((paragraph) => paragraph.trim())
     .filter((paragraph) => paragraph.length > 0 && !/^#/u.test(paragraph));
   // GEO guidance (2026): the extractable answer block should carry roughly 40-60
   // characters, so a one-line opener is topped up with the next paragraph.
-  let leadParagraph = captionParagraphs[0] ?? description;
-  for (const paragraph of captionParagraphs.slice(1)) {
+  let leadParagraph = specificCare?.summary ?? captionParagraphs[0] ?? description;
+  for (const paragraph of specificCare ? [] : captionParagraphs.slice(1)) {
     if (leadParagraph.replace(/\s+/gu, "").length >= 40) break;
     leadParagraph = `${leadParagraph} ${paragraph}`;
   }
-  const hashtags = post.hashtags.map((tag) => `<span class="chip">${escapeHtml(tag)}</span>`).join("\n");
-  const targetQueries = post.target_queries.map((query) => `<span class="chip">${escapeHtml(query)}</span>`).join("\n");
+  const hashtags = (specificCare ? specificCare.keywords.map((tag) => `#${tag}`) : post.hashtags).map((tag) => `<span class="chip">${escapeHtml(tag)}</span>`).join("\n");
+  const targetQueries = (specificCare?.keywords ?? post.target_queries).map((query) => `<span class="chip">${escapeHtml(query)}</span>`).join("\n");
   const youtubeVideoHtml = post.youtube_video
     ? `<section class="article-social-video" aria-label="YouTube 影片">
         <div class="page-shell">
@@ -7328,40 +7352,24 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
     ? `<p class="post-source"><a href="${escapeHtml(post.facebook_post_url)}" target="_blank" rel="noopener noreferrer">在 Facebook 看原文</a></p>`
     : "";
   const externalPublicationHtml = youtubeVideoHtml || facebookPostHtml ? `${youtubeVideoHtml}${facebookPostHtml}` : "";
-  const caseRows = (service?.case_studies ?? [])
-    .slice(0, 3)
-    .map(
-      (study) => `<tr>
-                <td>${escapeHtml(study.object)}</td>
-                <td>${escapeHtml(study.material)}</td>
-                <td>${escapeHtml(study.inspection)}</td>
-                <td>${escapeHtml(study.boundary)}</td>
-              </tr>`
-    )
-    .join("\n");
-  const summaryItems = [
-    `這則紀錄的物件族：${care.family}。門市先看材質與痕跡位置，再說能整理到什麼程度。`,
-    post.search_intent ? `這篇在回答的問題類型：${post.search_intent}。` : "",
-    post.target_queries.length > 0 ? `常見搜尋：${post.target_queries.join("、")}。` : "",
-    service ? `對應服務：${service.name}。${service.answer_summary}` : "",
-    "下一步：拍整體、近照與最在意的痕跡傳 LINE，或約台中市免費收送。"
-  ].filter(Boolean);
+  // Cross-service case tables put unrelated shoes/bedding inside clothing articles.
+  const summaryItems = [specificCare?.summary ?? leadParagraph];
 
   const mainHtml = `<main>
       <nav class="breadcrumb" aria-label="麵包屑">
         <ol>
           <li><a href="${escapeHtml(homeHref)}">${escapeHtml(profile.name)}</a></li>
           <li><a href="${escapeHtml(hubHref)}">每日洗護紀錄</a></li>
-          <li aria-current="page">${escapeHtml(post.topic)}</li>
+          <li aria-current="page">${escapeHtml(postEditorialTitle(post))}</li>
         </ol>
       </nav>
       <section class="section page-hero">
         <div class="page-shell grid two">
         <div class="hero-copy">
           <span class="eyebrow">${post.feature_reel ? "特色影片" : `每日洗護紀錄｜Day ${articleNumber}`}｜${escapeHtml(post.date)} ${escapeHtml(post.time)}</span>
-          <h1>${escapeHtml(post.topic)}</h1>
+          <h1>${escapeHtml(postEditorialTitle(post))}</h1>
           <p class="lead">${escapeHtml(description)}</p>
-          <p class="last-updated">發布日期：<time datetime="${escapeHtml(post.date)}">${escapeHtml(post.date)}</time>｜作者：${escapeHtml(profile.name)}</p>
+          <p class="last-updated">發布日期：<time datetime="${escapeHtml(post.date)}">${escapeHtml(post.date)}</time>｜內容更新：<time datetime="${escapeHtml(postContentLastmod(post) ?? post.date)}">${escapeHtml(postContentLastmod(post) ?? post.date)}</time>｜作者：${escapeHtml(profile.name)}</p>
           <div class="button-row">
             <a class="button brand" href="${escapeHtml(lineCta)}">LINE 傳照片詢問</a>
             <a class="button secondary" href="${escapeHtml(serviceHref)}">${escapeHtml(service?.name ?? "服務說明")}</a>
@@ -7375,19 +7383,19 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
           <figure class="service-photo">
           ${
             post.feature_reel && !post.video_url && !imageSrc
-              ? `<div class="feature-video-placeholder" aria-label="${escapeHtml(post.topic)} 影片">特色影片</div>`
+              ? `<div class="feature-video-placeholder" aria-label="${escapeHtml(postEditorialTitle(post))} 影片">特色影片</div>`
               : post.video_url
-              ? `<video src="${escapeHtml(post.video_url)}" poster="${escapeHtml(webpSrcFor(post.image_path, imageSrc) ?? imageSrc)}" controls playsinline preload="metadata" aria-label="${escapeHtml(`${post.topic} - ${profile.name}`)}"></video>`
+              ? `<video src="${escapeHtml(post.video_url)}" poster="${escapeHtml(webpSrcFor(post.image_path, imageSrc) ?? imageSrc)}" controls playsinline preload="metadata" aria-label="${escapeHtml(`${postEditorialTitle(post)} - ${profile.name}`)}"></video>`
               : responsiveImageHtml({
                   imagePath: post.image_path,
                   src: imageSrc,
-                  alt: `${post.topic} - ${profile.name}`,
+                  alt: `${postEditorialTitle(post)} - ${profile.name}`,
                   fallbackSize: POST_IMAGE_FALLBACK_SIZE,
                   loading: "eager",
                   fetchpriority: "high"
                 })
           }
-            <figcaption>${escapeHtml(post.topic)}｜${escapeHtml(profile.name)}門市紀錄</figcaption>
+            <figcaption>${escapeHtml(postEditorialTitle(post).includes(profile.name) ? postEditorialTitle(post) : `${postEditorialTitle(post)}｜${profile.name}`)}｜洗護主題配圖</figcaption>
           </figure>
         </div>
         </div>
@@ -7398,33 +7406,12 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
           <ul>
             ${summaryItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("\n            ")}
           </ul>
-          <h2 id="store-note">門市筆記</h2>
-          <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
+          <h2 id="store-note">${specificCare ? "清潔前怎麼判斷" : "原始洗護紀錄"}</h2>
+          ${specificCare ? specificCare.paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("\n          ") : `<p class="post-caption">${escapeHtml(postEditorialContent(post))}</p>`}
           <h2 id="checkpoints">${escapeHtml(care.family)}的檢查重點</h2>
           <ol>
             ${care.checkpoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("\n            ")}
           </ol>
-          ${
-            caseRows
-              ? `<h2 id="boundaries">材質與處理界線</h2>
-          <p>以下是${escapeHtml(service?.name ?? "門市")}常見的送件情境與處理界線，用來協助送洗前判斷；不是特定客戶成果，也不代表效果保證。</p>
-          <div class="table-wrap">
-            <table class="comparison-table">
-              <thead>
-                <tr>
-                  <th>物件</th>
-                  <th>材質</th>
-                  <th>門市先看</th>
-                  <th>處理界線</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${caseRows}
-              </tbody>
-            </table>
-          </div>`
-              : ""
-          }
           <h2 id="next-step">下一步</h2>
           <p>拍整體、近照、材質位置與最在意的痕跡，傳 LINE 或帶到${escapeHtml(profile.address_text)}門市；台中市可約免費收送，收送不收費、清潔與洗護費依物件狀態另計。</p>
           <div class="button-row">
@@ -7459,18 +7446,18 @@ function renderPostArticle(post: PublicPost, index: PublicPostIndex): PostArticl
             <ul class="article-related__list">
               ${
                 previousArticle
-                  ? `<li class="article-related__item">上一則｜<a class="article-related__link" href="${escapeHtml(previousArticle.article_url)}">Day ${articleNumber - 1}：${escapeHtml(previousArticle.topic)}</a></li>`
+                  ? `<li class="article-related__item">上一則｜<a class="article-related__link" href="${escapeHtml(previousArticle.article_url)}">Day ${articleNumber - 1}：${escapeHtml(postEditorialTitle(previousArticle))}</a></li>`
                   : ""
               }
               ${
                 nextArticle
-                  ? `<li class="article-related__item">下一則｜<a class="article-related__link" href="${escapeHtml(nextArticle.article_url)}">Day ${articleNumber + 1}：${escapeHtml(nextArticle.topic)}</a></li>`
+                  ? `<li class="article-related__item">下一則｜<a class="article-related__link" href="${escapeHtml(nextArticle.article_url)}">Day ${articleNumber + 1}：${escapeHtml(postEditorialTitle(nextArticle))}</a></li>`
                   : ""
               }
               ${relatedPosts
                 .map(
                   (item) =>
-                    `<li class="article-related__item"><a class="article-related__link" href="${escapeHtml(item.article_url)}">${escapeHtml(item.topic)}</a>（${escapeHtml(item.date)}）</li>`
+                    `<li class="article-related__item"><a class="article-related__link" href="${escapeHtml(item.article_url)}">${escapeHtml(postEditorialTitle(item))}</a>（${escapeHtml(item.date)}）</li>`
                 )
                 .join("\n              ")}
               ${relatedGuides
@@ -7604,7 +7591,7 @@ function buildPostsHubSchema(index: PublicPostIndex): object | undefined {
         itemListElement: articles.map((post, position) => ({
           "@type": "ListItem",
           position: position + 1,
-          name: post.topic,
+          name: postEditorialTitle(post),
           url: post.article_url
         }))
       },
@@ -7648,19 +7635,19 @@ function buildPostsHubHtml(index: PublicPostIndex): string {
       return `<article class="card article-card">
           ${
             post.feature_reel && !imageSrc
-              ? `<div class="feature-video-placeholder" aria-label="${escapeHtml(post.topic)} 影片">特色影片</div>`
+              ? `<div class="feature-video-placeholder" aria-label="${escapeHtml(postEditorialTitle(post))} 影片">特色影片</div>`
               : responsiveImageHtml({
                   imagePath: post.image_path,
                   src: imageSrc,
-                  alt: `${post.topic} - ${profile.name}`,
+                  alt: `${postEditorialTitle(post)} - ${profile.name}`,
                   fallbackSize: POST_IMAGE_FALLBACK_SIZE,
                   loading: "lazy"
                 })
           }
           <div class="article-meta">${post.feature_reel ? "特色影片" : `Day ${render.articleNumber}`}｜${escapeHtml(post.date)} ${escapeHtml(post.time)}｜${escapeHtml(careContextFor(post.topic).family)}</div>
-          <h3><a href="${escapeHtml(post.article_url)}">${escapeHtml(post.topic)}</a></h3>
-          <p>${escapeHtml(captionPreview(post.facebook_caption))}</p>
-          <a class="card-link" href="${escapeHtml(post.article_url)}" aria-label="閱讀文章：${escapeHtml(post.topic)}">閱讀文章</a>
+          <h3><a href="${escapeHtml(post.article_url)}">${escapeHtml(postEditorialTitle(post))}</a></h3>
+          <p>${escapeHtml(postEditorialDescription(post))}</p>
+          <a class="card-link" href="${escapeHtml(post.article_url)}" aria-label="閱讀文章：${escapeHtml(postEditorialTitle(post))}">閱讀文章</a>
         </article>`;
     })
     .join("\n");
@@ -7764,11 +7751,11 @@ function buildRssXml(index: PublicPostIndex): string {
   const items = articles
     .map(
       (post) => `    <item>
-      <title>${escapeXml(post.topic)}</title>
+      <title>${escapeXml(postEditorialTitle(post))}</title>
       <link>${escapeXml(post.article_url)}</link>
       <guid isPermaLink="true">${escapeXml(post.article_url)}</guid>
       <pubDate>${escapeXml(rssDate(post.date_published))}</pubDate>
-      <description>${escapeXml(captionPreview(post.facebook_caption))}</description>
+      <description>${escapeXml(postEditorialDescription(post))}</description>
       ${post.image_url ? `<enclosure url="${escapeXml(post.image_url)}" type="${rssEnclosureMimeType(post.image_url)}" length="0" />` : ""}
     </item>`
     )
@@ -7793,7 +7780,7 @@ function buildRssXml(index: PublicPostIndex): string {
     .join("\n");
 }
 
-function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
+export function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
   const profile = index.business_profile;
   const postSource = { section: "posts" as const, date: post.date, slot: post.slot };
   const lineNav = trackedLineUrl(index, { ...postSource, placement: "nav" });
@@ -7813,7 +7800,7 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
     serviceHref: (item) => servicePageUrl(item, index),
     navLabel: "服務與內容"
   };
-  const description = captionPreview(post.facebook_caption).slice(0, 180);
+  const description = postEditorialDescription(post);
 
   return `<!doctype html>
 <html lang="zh-Hant-TW">
@@ -7830,7 +7817,7 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
     <link rel="alternate" hreflang="zh-Hant-TW" href="${escapeHtml(canonical)}" />
     <link rel="alternate" hreflang="x-default" href="${escapeHtml(canonical)}" />
     <link rel="alternate" type="application/rss+xml" title="${escapeHtml(SITE_NAME)} 每日洗護紀錄" href="${escapeHtml(index.base_url_configured ? index.entrypoints.rss : "../rss.xml")}" />
-    <meta property="og:title" content="${escapeHtml(post.topic)}" />
+    <meta property="og:title" content="${escapeHtml(postEditorialTitle(post))}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
     <meta property="og:type" content="article" />
     <meta property="article:published_time" content="${escapeHtml(post.date_published)}" />
@@ -7838,15 +7825,15 @@ function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
     <meta property="og:site_name" content="${escapeHtml(profile.name)}" />
     <meta property="og:locale" content="${escapeHtml(SITE_LOCALE)}" />
 ${post.image_url ? `    <meta property="og:image" content="${escapeHtml(post.image_url)}" />
-    <meta property="og:image:alt" content="${escapeHtml(`${post.topic} - ${profile.name}`)}" />` : ""}
+    <meta property="og:image:alt" content="${escapeHtml(`${postEditorialTitle(post)} - ${profile.name}`)}" />` : ""}
 ${post.video_url ? `    <meta property="og:video" content="${escapeHtml(post.video_url)}" /><meta property="og:video:type" content="video/mp4" />
 ` : ""}    <meta name="twitter:card" content="${post.image_url ? "summary_large_image" : "summary"}" />
-    <meta name="twitter:title" content="${escapeHtml(post.topic)}" />
+    <meta name="twitter:title" content="${escapeHtml(postEditorialTitle(post))}" />
     <meta name="twitter:description" content="${escapeHtml(description)}" />
     ${post.image_url ? `<meta name="twitter:image" content="${escapeHtml(post.image_url)}" />` : ""}
     ${schema ? `<script type="application/ld+json">${escapeJsonLd(schema)}</script>` : ""}
     <style>${buildPublicSiteCss(Boolean(post.feature_reel || post.youtube_video))}</style>
-    <title>${escapeHtml(`${post.topic} | ${profile.name}`)}</title>
+    <title>${escapeHtml(postEditorialTitle(post).includes(profile.name) ? postEditorialTitle(post) : `${postEditorialTitle(post)} | ${profile.name}`)}</title>
     ${buildAnalyticsTag(index.ga4_measurement_id)}
     ${buildSearchContentAnalyticsTag(index, true)}
   </head>
@@ -8006,7 +7993,7 @@ function renderLocalSolutionCard(page: SupportPageDefinition, href: string): str
 
 function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: BusinessProfile): string {
   const imageSrc = visibleImageSrc(post, index);
-  const preview = captionPreview(post.facebook_caption);
+  const preview = postEditorialDescription(post);
   // Prefer this post's own article, then the article owning its caption; raw calendar JSON is
   // a last resort because a reader clicking "read full post" should never land on JSON.
   const canonicalArticle = canonicalArticleFor(post, index);
@@ -8017,26 +8004,26 @@ function renderHomePostTile(post: PublicPost, index: PublicPostIndex, profile: B
     : post.calendar_path;
   const imageMarkup =
     post.feature_reel && !imageSrc
-      ? `<div class="feature-video-placeholder" aria-label="${escapeHtml(post.topic)} 影片">特色影片</div>`
+      ? `<div class="feature-video-placeholder" aria-label="${escapeHtml(postEditorialTitle(post))} 影片">特色影片</div>`
       : `<a href="${escapeHtml(imageSrc)}">
           ${responsiveImageHtml({
             imagePath: post.image_path,
             src: imageSrc,
-            alt: `${post.topic} - ${profile.name}洗護內容照片`,
+            alt: `${postEditorialTitle(post)} - ${profile.name}洗護內容照片`,
             fallbackSize: POST_IMAGE_FALLBACK_SIZE,
             loading: "lazy"
           })}
         </a>`;
   return `<article class="post-tile post-card">
         ${imageMarkup}
-        <div class="article-meta">${escapeHtml(post.date)} ${escapeHtml(post.time)}｜${escapeHtml(post.content_role)} / ${escapeHtml(post.visual_route)} / ${escapeHtml(post.traffic_route)}</div>
-        <h3>${escapeHtml(post.topic)}</h3>
+        <div class="article-meta">${escapeHtml(post.date)} ${escapeHtml(post.time)}｜洗護紀錄</div>
+        <h3>${escapeHtml(postEditorialTitle(post))}</h3>
         <p class="post-caption post-preview">${escapeHtml(preview)}</p>
         <details class="caption-details">
           <summary>閱讀完整文案</summary>
-          <p class="post-caption">${escapeHtml(post.facebook_caption)}</p>
+          <p class="post-caption">${escapeHtml(postEditorialContent(post))}</p>
         </details>
-        <a class="card-link" href="${escapeHtml(articleHref)}" aria-label="閱讀文章：${escapeHtml(post.topic)}">閱讀文章</a>
+        <a class="card-link" href="${escapeHtml(articleHref)}" aria-label="閱讀文章：${escapeHtml(postEditorialTitle(post))}">閱讀文章</a>
       </article>`;
 }
 
@@ -9772,7 +9759,7 @@ function buildAiDiscovery(index: PublicPostIndex): Record<string, unknown> {
         min_visible_chars: POST_ARTICLE_MIN_VISIBLE_CHARS,
         min_caption_chars: POST_ARTICLE_MIN_CAPTION_CHARS,
         behavior:
-          "Each approved post renders as a daily article (summary, store note, checklist, material table, next step, FAQ, related). Only articles that clear the thickness gate carry index robots; eligible articles enter rss.xml and the posts hub. sitemap.xml includes the newest sitemap_max_indexable_posts eligible articles, ai-sitemap.xml includes eligible article URLs, and both sitemaps omit below-gate posts and override HTML with robots noindex.",
+          "Each approved post renders as a daily article (topic-specific website copy, summary, checklist, next step, FAQ, related). Original social captions remain separate. Only articles that clear the thickness gate carry index robots; eligible articles enter rss.xml and the posts hub. sitemap.xml includes the newest sitemap_max_indexable_posts eligible articles, ai-sitemap.xml includes eligible article URLs, and both sitemaps omit below-gate posts and override HTML with robots noindex.",
         indexable_article_count: indexablePostArticles(index).length,
         sitemap_max_indexable_posts: SITEMAP_MAX_INDEXABLE_POSTS,
         sitemap_indexable_post_count: sitemapIndexablePostArticles(index).length,
@@ -9864,6 +9851,13 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
     options.statPublicAsset ?? statSync
   );
   const posts = [...postsWithPublicationDetails, ...featurePosts];
+  // Website-only copy is separate from immutable approved social captions.
+  for (const post of posts) {
+    if (!resolvePostTopicCare(post)) continue;
+    post.editorial_title = postEditorialTitle(post);
+    post.editorial_description = postEditorialDescription(post);
+    post.editorial_content = postEditorialContent(post);
+  }
   posts.sort((a, b) => a.date.localeCompare(b.date) || a.slot - b.slot);
   const articlePosts = [...uniqueArticlePosts(postsWithPublicationDetails), ...featurePosts];
 
@@ -10226,6 +10220,21 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
 
   if (overrideHtmlFiles.some(({ posixPath }) => posixPath === "index.html")) {
     await injectHomepageRecentPosts(index, outputs.index);
+    // The override's static date predates daily insertion. Update only this
+    // homepage node/URL, from included approved content, never from build time.
+    if (shouldWriteDocsPath("sitemap.xml")) {
+      const dates = syncHomepageContentDates({
+        html: await readFile(outputs.index, "utf8"),
+        sitemapXml: await readFile(outputs.sitemap, "utf8"),
+        canonicalUrl: index.canonical_url,
+        includedPostDates: index.posts.map((post) => post.date)
+      });
+      if (dates.reason) console.warn(`Homepage dates unchanged: ${dates.reason}`);
+      else if (dates.changed) {
+        await writeFile(outputs.index, dates.html, "utf8");
+        await writeFile(outputs.sitemap, dates.sitemapXml, "utf8");
+      }
+    }
   }
 
   await stripUnindexablePostsFromSitemaps(index, outputs.sitemap, outputs.aiSitemap);

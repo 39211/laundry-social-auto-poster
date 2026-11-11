@@ -1,0 +1,39 @@
+test_429_keeps_today (test_ai_chat.AiChatTests.test_429_keeps_today) ... ok
+test_care_questions_use_known_item_and_give_photo_next_step (test_ai_chat.AiChatTests.test_care_questions_use_known_item_and_give_photo_next_step) ... ok
+test_check_reply_rules (test_ai_chat.AiChatTests.test_check_reply_rules) ... ok
+test_compound_reply_uses_each_real_result_and_keeps_booking (test_ai_chat.AiChatTests.test_compound_reply_uses_each_real_result_and_keeps_booking) ... ok
+test_contextual_care_followups_use_the_known_item (test_ai_chat.AiChatTests.test_contextual_care_followups_use_the_known_item) ... ok
+test_default_mode_is_off (test_ai_chat.AiChatTests.test_default_mode_is_off) ... ok
+test_failed_handoff_says_it_did_not_reach_staff (test_ai_chat.AiChatTests.test_failed_handoff_says_it_did_not_reach_staff) ... ok
+test_handoff_detection (test_ai_chat.AiChatTests.test_handoff_detection) ... ok
+test_handoff_mid_booking_keeps_state (test_ai_chat.AiChatTests.test_handoff_mid_booking_keeps_state) ... ok
+test_handoff_variants_no_flow (test_ai_chat.AiChatTests.test_handoff_variants_no_flow) ... ok
+test_knowledge_excludes_history_prices_and_identifiers (test_ai_chat.AiChatTests.test_knowledge_excludes_history_prices_and_identifiers) ... ok
+test_known_new_intent_mid_flow_uses_existing_router (test_ai_chat.AiChatTests.test_known_new_intent_mid_flow_uses_existing_router) ... ok
+test_new_care_wordings_and_ambiguous_item (test_ai_chat.AiChatTests.test_new_care_wordings_and_ambiguous_item) ... ok
+test_new_price_and_booking_stay_available_with_ai_off (test_ai_chat.AiChatTests.test_new_price_and_booking_stay_available_with_ai_off) ... ok
+test_no_photo_intake_keeps_item_time_and_treatment (test_ai_chat.AiChatTests.test_no_photo_intake_keeps_item_time_and_treatment) ... ok
+test_off_mid_booking_never_calls_model (test_ai_chat.AiChatTests.test_off_mid_booking_never_calls_model) ... ok
+test_off_mode_hooks_are_inert (test_ai_chat.AiChatTests.test_off_mode_hooks_are_inert)
+Off == hooks patched to None. Not a pre-merge comparison: deterministic ... ok
+test_past_wash_complaints_route_to_staff_with_ai_off (test_ai_chat.AiChatTests.test_past_wash_complaints_route_to_staff_with_ai_off) ... ok
+test_pickup_deadline_is_answered_and_preserves_booking (test_ai_chat.AiChatTests.test_pickup_deadline_is_answered_and_preserves_booking) ... ok
+test_prewash_stains_answer_the_reported_condition (test_ai_chat.AiChatTests.test_prewash_stains_answer_the_reported_condition) ... ok
+test_price_mid_flow_goes_to_router_without_model (test_ai_chat.AiChatTests.test_price_mid_flow_goes_to_router_without_model) ... ok
+test_price_reply_rejected_falls_back (test_ai_chat.AiChatTests.test_price_reply_rejected_falls_back) ... ok
+test_private_customer_input_never_reaches_model (test_ai_chat.AiChatTests.test_private_customer_input_never_reaches_model) ... ok
+test_reply_length_bounded (test_ai_chat.AiChatTests.test_reply_length_bounded) ... ok
+test_research_questions_preserve_meaning_across_routes (test_ai_chat.AiChatTests.test_research_questions_preserve_meaning_across_routes) ... ok
+test_shadow_replies_equal_off (test_ai_chat.AiChatTests.test_shadow_replies_equal_off) ... ok
+test_side_question_mid_booking (test_ai_chat.AiChatTests.test_side_question_mid_booking) ... ok
+test_store_policy_questions_get_one_relevant_next_step (test_ai_chat.AiChatTests.test_store_policy_questions_get_one_relevant_next_step) ... ok
+test_timeout_keeps_today (test_ai_chat.AiChatTests.test_timeout_keeps_today) ... ok
+test_turnaround_is_tied_to_the_item_category (test_ai_chat.AiChatTests.test_turnaround_is_tied_to_the_item_category) ... ok
+test_unknown_stain_can_continue_after_one_item_question (test_ai_chat.AiChatTests.test_unknown_stain_can_continue_after_one_item_question) ... ok
+test_unverified_actions_and_ambiguous_items_are_not_confirmed (test_ai_chat.AiChatTests.test_unverified_actions_and_ambiguous_items_are_not_confirmed) ... ok
+test_usage_counts_contain_no_text (test_ai_chat.AiChatTests.test_usage_counts_contain_no_text) ... ok
+
+----------------------------------------------------------------------
+Ran 33 tests in 4.944s
+
+OK

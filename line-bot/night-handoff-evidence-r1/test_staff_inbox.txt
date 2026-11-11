@@ -1,0 +1,23 @@
+unittest.case.FunctionTestCase (test_g12_interleaved_append) ... ok
+unittest.case.FunctionTestCase (test_g12_legacy_status_field_still_shown) ... ok
+unittest.case.FunctionTestCase (test_n2_photo_not_booking) ... ok
+unittest.case.FunctionTestCase (test_x4_photo_need_followup) ... ok
+unittest.case.FunctionTestCase (test_n2_unknown_kind_not_booking) ... ok
+unittest.case.FunctionTestCase (test_n3_query_keeps_item) ... ok
+unittest.case.FunctionTestCase (test_p6_pickup_group_has_phone) ... ok
+unittest.case.FunctionTestCase (test_q4_pickup_group_marks_missing) ... ok
+unittest.case.FunctionTestCase (test_p6_pickup_item_followup) ... ok
+unittest.case.FunctionTestCase (test_n4_photo_route) ... ok
+unittest.case.FunctionTestCase (test_c1_push_failure_records) ... ok
+unittest.case.FunctionTestCase (test_c1_http_status_in_error) ... ok
+unittest.case.FunctionTestCase (test_c1_retry_summary_then_clear) ... ok
+unittest.case.FunctionTestCase (test_c1_push_user_records_failure) ... ok
+unittest.case.FunctionTestCase (test_c1_mutation_no_record_turns_red) ... ok
+unittest.case.FunctionTestCase (test_c2_quota_warn_once_and_none) ... ok
+unittest.case.FunctionTestCase (test_c2_mutation_warn_every_time_turns_red) ... ok
+unittest.case.FunctionTestCase (test_c3_push_text_item_and_later_see) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 0.333s
+
+OK

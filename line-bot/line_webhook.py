@@ -8,6 +8,7 @@ import sys
 import urllib.error
 import urllib.request
 import uuid
+from contextlib import nullcontext
 from datetime import datetime
 from pathlib import Path
 
@@ -19,6 +20,7 @@ import staff_notify
 import quote_flow
 import line_event_log as event_log
 import line_reply_state as reply_state
+import tunnel_manager
 
 REPO = Path(os.environ.get("LAUNDRY_REPO_ROOT", r"C:/Users/cyc39/laundry-repo"))
 SECRETS = json.loads((REPO / "secrets/line-channel.json").read_text(encoding="utf-8"))
@@ -249,6 +251,9 @@ def _event_error(span, exc):
 
 
 def _handle_event(ev, span):
+    night_handoff_case = ""
+    handoff_photo = None
+
     def respond(reply_token, messages, *, remember=True, customer=True):
         # Every customer branch passes here, including empty/early-return replies.
         # Cache before attempting LINE; only an actual accepted send clears it.
@@ -279,13 +284,33 @@ def _handle_event(ev, span):
 
         def send(outgoing):
             nonlocal attempted
-            attempted = True
-            accepted = reply(reply_token, outgoing)
-            # Capture LINE's outcome before deliver persists hint state.
-            if accepted is True:
-                span.reply_result = "accepted"
-                span.reply_failure = ""
-            return accepted
+            # The same per-customer RLock is used by reply_with_hints. Add the
+            # notice after its filtering, and serialize read/send/mark per case.
+            with quote_flow._lock(uid) if night_handoff_case else nullcontext():
+                if night_handoff_case and staff_notify.night_handoff_reply_sent(uid, event_id):
+                    span.reply_result = "not_needed"
+                    span.reply_failure = ""
+                    span.dedup = "accepted_skipped"
+                    return False
+                notice = bool(night_handoff_case and not staff_notify.night_handoff_notice_sent(uid, night_handoff_case))
+                if notice:
+                    outgoing = [dict(m) for m in outgoing[:5]]
+                    line = "店員上班後也會看到您的訊息，先由我幫您。"
+                    for message in outgoing:
+                        if message.get("type") == "text":
+                            message["text"] = (message.get("text") or "") + "\n" + line
+                            break
+                    else:
+                        outgoing = outgoing[:4] + [{"type": "text", "text": line}]
+                attempted = True
+                accepted = reply(reply_token, outgoing)
+                # Capture LINE's outcome before any post-send storage can fail.
+                if accepted is True:
+                    span.reply_result = "accepted"
+                    span.reply_failure = ""
+                    if night_handoff_case:
+                        staff_notify.mark_night_handoff_reply(uid, night_handoff_case, event_id, notice=notice)
+                return accepted
 
         try:
             with event_log.measure("reply"):
@@ -337,21 +362,31 @@ def _handle_event(ev, span):
             staff_notify.bind_group(gid)
             respond(rt, [{"type": "text", "text": "好，之後預約會打到這個群。"}], customer=False)
         return
-    # Human handoff is a hard stop at the webhook boundary.  We still
-    # persist every customer event (and download photos), but never call
-    # conversation/AI or reply to the customer until staff releases it.
+    # Persist handoff messages/photos first. Only a pending case in the shared
+    # night window may continue to the normal conversation and reply guards.
     handoff_event_seen = getattr(staff_notify, "handoff_event_seen", None)
-    if callable(handoff_event_seen) and handoff_event_seen(uid, event_id):
+    captured = callable(handoff_event_seen) and handoff_event_seen(uid, event_id)
+    handoff_active = getattr(staff_notify, "handoff_active", None)
+    active = callable(handoff_active) and handoff_active(uid)
+    handoff_state = getattr(staff_notify, "handoff_state", None)
+    state = handoff_state(uid) if active and callable(handoff_state) else {}
+    night_pending = False
+    if state.get("state") == "HANDOFF_PENDING":
+        try:
+            night_pending = bool(tunnel_manager.is_night_window())
+        except Exception as exc:  # noqa: BLE001
+            print("night handoff window error:", type(exc).__name__, file=sys.stderr)
+    if captured and not night_pending:
         span.dedup = "handoff_skipped"
         span.to_staff = True
         return
-    handoff_active = getattr(staff_notify, "handoff_active", None)
-    if callable(handoff_active) and handoff_active(uid):
+    if active and not captured:
         span.to_staff = True
         saved_photo = ""
         message = ev.get("message") or {}
         if et == "message" and message.get("type") == "image":
             saved_photo = _handle_image_save(uid, str(message.get("id") or ""))
+            handoff_photo = saved_photo
         handoff_text = ""
         handoff_address = ""
         handoff_data = ""
@@ -370,11 +405,10 @@ def _handle_event(ev, span):
         elif et == "follow":
             handoff_text = "[客人重新加入]"
         record_handoff = getattr(staff_notify, "record_handoff_message", None)
-        handoff_state = getattr(staff_notify, "handoff_state", None)
         if callable(record_handoff) and callable(handoff_state):
             record_handoff(
                 uid,
-                handoff_state(uid).get("case_id") or "",
+                state.get("case_id") or "",
                 event_id,
                 et or "message",
                 text=handoff_text,
@@ -382,7 +416,14 @@ def _handle_event(ev, span):
                 address=handoff_address,
                 data=handoff_data,
             )
-        return
+    if active:
+        span.to_staff = True
+        if not night_pending:
+            return
+        night_handoff_case = state.get("case_id") or ""
+        if staff_notify.night_handoff_reply_sent(uid, event_id):
+            span.dedup = "accepted_skipped"
+            return
     if quote_flow.seen_event(conv, uid, event_id):
         if quote_flow.reply_accepted(conv, uid, event_id):
             span.dedup = "accepted_skipped"
@@ -467,7 +508,7 @@ def _handle_event(ev, span):
         # W2 / N1: 只發一次。存檔成功發 photo；失敗才退路 ask
         msg = ev.get("message") or {}
         mid = str(msg.get("id") or "")
-        rel = _handle_image_save(uid, mid)
+        rel = handoff_photo if handoff_photo is not None else _handle_image_save(uid, mid)
         handle_ex = getattr(conv, "handle_ex", None)
         if handle_ex:
             quote_flow.PHOTOS_ROOT = PHOTOS_ROOT

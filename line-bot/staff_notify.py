@@ -26,9 +26,8 @@ _IO_LOCK = threading.RLock()
 _PUSH_LOCK = threading.Lock()
 
 # Handoff is deliberately append-only, just like the existing status events.
-# The customer-facing bot must stop before it can create a second answer, and
-# the state must survive a webhook reload.  A staff action is the only way back
-# to BOT_ACTIVE; there is no time-based auto-resume.
+# The state survives a webhook reload. A staff action is the only way back
+# to BOT_ACTIVE; pending cases can still receive bot help in the night window.
 HANDOFF_STATES = {"BOT_ACTIVE", "HANDOFF_PENDING", "HUMAN_ACTIVE"}
 _HANDOFF_ACTIVE = {"HANDOFF_PENDING", "HUMAN_ACTIVE"}
 _AUTO_HANDOFF_KINDS = {"photo_need", "human"}
@@ -88,6 +87,40 @@ def handoff_event_seen(uid: str, event_id: str) -> bool:
             and row.get("event_id") == wanted
             for row in (_iter_handoff_rows_unlocked() or ())
         )
+
+
+def night_handoff_notice_sent(uid: str, case_id: str) -> bool:
+    """Case-scoped notice state outlives both the bot and conversation sessions."""
+    with _IO_LOCK:
+        return any(
+            row.get("kind") == "night_handoff_reply" and row.get("notice") is True
+            and row.get("uid") == uid and row.get("case_id") == case_id
+            for row in (_iter_handoff_rows_unlocked() or ())
+        )
+
+
+def night_handoff_reply_sent(uid: str, event_id: str) -> bool:
+    """Captured is not replied; accepted events stay deduplicated after cache expiry."""
+    if not event_id:
+        return False
+    with _IO_LOCK:
+        return any(
+            row.get("kind") == "night_handoff_reply"
+            and row.get("uid") == uid and row.get("event_id") == event_id
+            for row in (_iter_handoff_rows_unlocked() or ())
+        )
+
+
+def mark_night_handoff_reply(uid: str, case_id: str, event_id: str, *, notice: bool) -> None:
+    """Append only after LINE accepts the reply; never create a staff card."""
+    with _IO_LOCK:
+        if night_handoff_reply_sent(uid, event_id):
+            return
+        INBOX.parent.mkdir(parents=True, exist_ok=True)
+        with INBOX.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"kind": "night_handoff_reply", "uid": uid, "case_id": case_id,
+                                "event_id": event_id, "notice": bool(notice),
+                                "ts": datetime.now().isoformat(timespec="seconds")}, ensure_ascii=False) + "\n")
 
 
 def _append_handoff_unlocked(
@@ -249,6 +282,12 @@ def push_inbox(kind: str, payload: dict, *, notify: bool = True) -> dict:
         if duplicate:
             already_notified = row["event_id"] in notified_ids
         else:
+            if kind == "human" or (kind == "ask" and row.get("handoff")):
+                uid = str(row.get("uid") or "")
+                current = _latest_handoff_unlocked(uid) if uid else None
+                if current and current.get("state") in _HANDOFF_ACTIVE:
+                    # A repeated human/complaint request belongs to the open case.
+                    row["id"] = row["case_id"] = current.get("case_id") or row.get("id")
             with INBOX.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
             if kind in _AUTO_HANDOFF_KINDS or row.get("handoff"):
@@ -303,7 +342,7 @@ def list_inbox() -> list[dict]:
             continue
         if not isinstance(row, dict):
             continue
-        if row.get("kind") in {"delivery_payload", "group_notified"}:
+        if row.get("kind") in {"delivery_payload", "group_notified", "night_handoff_reply"}:
             continue
         # G12: status and handoff events are append-only control records, not cards.
         if row.get("kind") in {"status", "handoff"}:

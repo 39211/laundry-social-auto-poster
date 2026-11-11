@@ -1,0 +1,7 @@
+unittest.case.FunctionTestCase (test_handoff_state_claim_release_and_event_dedup) ... ok
+unittest.case.FunctionTestCase (test_webhook_handoff_stops_ai_records_all_event_types_and_resumes) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.319s
+
+OK

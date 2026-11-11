@@ -1,0 +1,12 @@
+unittest.case.FunctionTestCase (test_public_staff_gone) ... ok
+unittest.case.FunctionTestCase (test_webhook_sig) ... ok
+unittest.case.FunctionTestCase (test_healthz) ... ok
+unittest.case.FunctionTestCase (test_img_traversal) ... ok
+unittest.case.FunctionTestCase (test_staff_host_guard) ... ok
+unittest.case.FunctionTestCase (test_pay_confirm_nonfinite) ... ok
+unittest.case.FunctionTestCase (test_pay_confirm_bad_tid) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.115s
+
+OK

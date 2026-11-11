@@ -1,0 +1,15 @@
+test_allowlist_covers_runtime_environment_reads (test_envguard.ReadyzTests.test_allowlist_covers_runtime_environment_reads) ... ok
+test_claude_key_is_reported_as_a_boolean_only (test_envguard.ReadyzTests.test_claude_key_is_reported_as_a_boolean_only) ... ok
+test_configured_and_no_values (test_envguard.ReadyzTests.test_configured_and_no_values) ... ok
+test_disabled_vision_and_chat_modes (test_envguard.ReadyzTests.test_disabled_vision_and_chat_modes) ... ok
+test_healthz_unchanged (test_envguard.ReadyzTests.test_healthz_unchanged) ... ok
+test_loopback_only_even_behind_tunnel (test_envguard.ReadyzTests.test_loopback_only_even_behind_tunnel) ... ok
+test_missing_configuration_is_false (test_envguard.ReadyzTests.test_missing_configuration_is_false) ... ok
+test_on_without_key_and_normalized_on (test_envguard.ReadyzTests.test_on_without_key_and_normalized_on) ... ok
+test_openai_only_enables_chat_and_vision_and_reports_boolean (test_envguard.ReadyzTests.test_openai_only_enables_chat_and_vision_and_reports_boolean) ... ok
+test_uses_real_capability_predicates (test_envguard.ReadyzTests.test_uses_real_capability_predicates) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.344s
+
+OK

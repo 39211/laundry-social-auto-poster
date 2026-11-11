@@ -1,0 +1,128 @@
+{
+  "at": "2026-11-11T02:45:37.528881+00:00",
+  "python": "C:\\Users\\cyc39\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+  "flask": "3.1.3 (existing local installation, no packages installed)",
+  "pythonpath": "C:/Users/cyc39/AppData/Local/hermes/jarvis-memory/venv/Lib/site-packages",
+  "command": "python -B -X utf8 run_a2b_tests.py <module>",
+  "modules": [
+    {
+      "module": "test_night_handoff",
+      "exit_code": 0,
+      "tests_run": 18,
+      "failures": [],
+      "errors": [],
+      "log": "test_night_handoff.txt"
+    },
+    {
+      "module": "tests.test_webhook_reply_first",
+      "exit_code": 0,
+      "tests_run": 15,
+      "failures": [],
+      "errors": [],
+      "log": "tests.test_webhook_reply_first.txt"
+    },
+    {
+      "module": "tests.test_webhook_reply_error_log",
+      "exit_code": 0,
+      "tests_run": 12,
+      "failures": [],
+      "errors": [],
+      "log": "tests.test_webhook_reply_error_log.txt"
+    },
+    {
+      "module": "tests.test_tunnel_manager_a_tunnel",
+      "exit_code": 0,
+      "tests_run": 15,
+      "failures": [],
+      "errors": [],
+      "log": "tests.test_tunnel_manager_a_tunnel.txt"
+    },
+    {
+      "module": "test_handoff",
+      "exit_code": 0,
+      "tests_run": 2,
+      "failures": [],
+      "errors": [],
+      "log": "test_handoff.txt"
+    },
+    {
+      "module": "test_night24",
+      "exit_code": 0,
+      "tests_run": 16,
+      "failures": [],
+      "errors": [],
+      "log": "test_night24.txt"
+    },
+    {
+      "module": "test_ai_chat",
+      "exit_code": 0,
+      "tests_run": 33,
+      "failures": [],
+      "errors": [],
+      "log": "test_ai_chat.txt"
+    },
+    {
+      "module": "test_envguard",
+      "exit_code": 0,
+      "tests_run": 10,
+      "failures": [],
+      "errors": [],
+      "log": "test_envguard.txt"
+    },
+    {
+      "module": "test_webhook_security",
+      "exit_code": 0,
+      "tests_run": 7,
+      "failures": [],
+      "errors": [],
+      "log": "test_webhook_security.txt"
+    },
+    {
+      "module": "test_line_ack",
+      "exit_code": 0,
+      "tests_run": 43,
+      "failures": [],
+      "errors": [],
+      "log": "test_line_ack.txt"
+    },
+    {
+      "module": "test_staff_inbox",
+      "exit_code": 0,
+      "tests_run": 18,
+      "failures": [],
+      "errors": [],
+      "log": "test_staff_inbox.txt"
+    },
+    {
+      "module": "tests.test_staff_notify_push_lock",
+      "exit_code": 0,
+      "tests_run": 2,
+      "failures": [],
+      "errors": [],
+      "log": "tests.test_staff_notify_push_lock.txt"
+    },
+    {
+      "module": "test_reply_hints",
+      "exit_code": 0,
+      "tests_run": 42,
+      "failures": [],
+      "errors": [],
+      "log": "test_reply_hints.txt"
+    },
+    {
+      "module": "test_day_night_handover",
+      "exit_code": 0,
+      "tests_run": 50,
+      "failures": [],
+      "errors": [],
+      "log": "test_day_night_handover.txt"
+    }
+  ],
+  "tests_total": 283,
+  "source_sha256": {
+    "line_webhook.py": "f9dfb9fd1e8471cf9ba6e99b96c0cae5740a09b2f13dd50012d3b1ee800a806f",
+    "staff_notify.py": "52b156fb57a9dddc5384858a8e327e890394b1eafa9be38d082158b0a355a0cb",
+    "test_handoff.py": "9897861f013589f5fa88f2c53a3b6341da5ec0f7f28ea5daa361df104c54bc29",
+    "test_night_handoff.py": "b36672cee275c1db41842b84dcfc70ddb188a2c417979cb8b2cd26f998ce41f7"
+  }
+}

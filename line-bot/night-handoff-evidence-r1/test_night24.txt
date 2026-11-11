@@ -1,0 +1,21 @@
+test_complaint_wrong_item_then_phone_keeps_golden_behavior (test_night24.Night24Tests.test_complaint_wrong_item_then_phone_keeps_golden_behavior) ... ok
+test_existing_session_context_is_protected (test_night24.Night24Tests.test_existing_session_context_is_protected) ... ok
+test_explicit_query_then_wash_number_reaches_result (test_night24.Night24Tests.test_explicit_query_then_wash_number_reaches_result) ... ok
+test_failed_question_send_does_not_consume_guard (test_night24.Night24Tests.test_failed_question_send_does_not_consume_guard) ... ok
+test_follow_never_adds_off_hours_or_records_rest (test_night24.Night24Tests.test_follow_never_adds_off_hours_or_records_rest) ... ok
+test_idle_phone_or_wash_number_looks_up_immediately (test_night24.Night24Tests.test_idle_phone_or_wash_number_looks_up_immediately) ... ok
+test_legacy_rest_is_ignored_even_with_invalid_value (test_night24.Night24Tests.test_legacy_rest_is_ignored_even_with_invalid_value) ... ok
+test_nonquestion_breaks_consecutive_question_guard (test_night24.Night24Tests.test_nonquestion_breaks_consecutive_question_guard) ... ok
+test_only_codes_not_sentences_or_english_are_idle_lookup (test_night24.Night24Tests.test_only_codes_not_sentences_or_english_are_idle_lookup) ... ok
+test_order_answer_sets_wait_and_resets_misses (test_night24.Night24Tests.test_order_answer_sets_wait_and_resets_misses) ... ok
+test_other_waits_are_not_stolen_by_idle_lookup (test_night24.Night24Tests.test_other_waits_are_not_stolen_by_idle_lookup) ... ok
+test_pickup_phone_step_keeps_phone (test_night24.Night24Tests.test_pickup_phone_step_keeps_phone) ... ok
+test_recent_topics_and_thirty_minute_window (test_night24.Night24Tests.test_recent_topics_and_thirty_minute_window) ... ok
+test_repeated_query_prompt_survives_expired_session (test_night24.Night24Tests.test_repeated_query_prompt_survives_expired_session) ... ok
+test_repeated_question_is_replaced_and_handed_to_staff (test_night24.Night24Tests.test_repeated_question_is_replaced_and_handed_to_staff) ... ok
+test_two_misses_use_existing_staff_handoff (test_night24.Night24Tests.test_two_misses_use_existing_staff_handoff) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 1.017s
+
+OK

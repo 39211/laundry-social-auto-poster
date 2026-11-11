@@ -14,6 +14,7 @@ from pathlib import Path
 import line_webhook as lw
 import staff_notify as sn
 import staff_server as ss
+import tunnel_manager
 
 
 def _patch_store():
@@ -120,8 +121,10 @@ def test_handoff_state_claim_release_and_event_dedup():
 def test_webhook_handoff_stops_ai_records_all_event_types_and_resumes():
     tmp, original = _patch_store()
     original_clock = lw.conv.now_tw
+    original_night = tunnel_manager.is_night_window
     # 此案例驗證解除接手，固定在營業中；休息提示另由 test_reply_hints 以假時鐘驗。
     lw.conv.now_tw = lambda: datetime(2026, 9, 8, 14, tzinfo=lw.conv.TZ)
+    tunnel_manager.is_night_window = lambda: False
     try:
         uid = "Uhandoff-webhook"
         sn.push_inbox(
@@ -231,6 +234,7 @@ def test_webhook_handoff_stops_ai_records_all_event_types_and_resumes():
         assert calls == [[{"type": "text", "text": "人工已解除，我來幫你看。"}]], calls
     finally:
         lw.conv.now_tw = original_clock
+        tunnel_manager.is_night_window = original_night
         lw.conv.handle_ex = original_handle_ex
         lw.conv.handle_postback = original_handle_postback
         _restore_store(original)

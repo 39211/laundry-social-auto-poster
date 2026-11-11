@@ -1,0 +1,25 @@
+unittest.case.FunctionTestCase (test_handoff_state_claim_release_and_event_dedup) ... ERROR
+unittest.case.FunctionTestCase (test_webhook_handoff_stops_ai_records_all_event_types_and_resumes) ... ok
+
+======================================================================
+ERROR: unittest.case.FunctionTestCase (test_handoff_state_claim_release_and_event_dedup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_handoff.py", line 76, in test_handoff_state_claim_release_and_event_dedup
+    assert ss.app.test_client().post(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        "/staff/claim",
+        ^^^^^^^^^^^^^^^
+        json={"id": "EST-H1", "actor": "店員甲"},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        headers={"Host": "127.0.0.1:8792"},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).json["ok"]
+    ^
+TypeError: _install_flask_shim.<locals>._App.test_client.<locals>._Client.post() got an unexpected keyword argument 'json'
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.119s
+
+FAILED (errors=1)
+

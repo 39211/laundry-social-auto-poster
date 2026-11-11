@@ -234,4 +234,32 @@ describe("行銷裁定 M1–M4（PR #325）", () => {
     expect(main.match(/毛毯、睡袋等大件至少 10–14 天，實際日期收件時確認/g)?.length).toBe(2);
     expect(main).not.toContain("寢具大件一般約");
   });
+
+  it("寢具搜尋與分享摘要保留薄床單及單人毛毯的價格條件", () => {
+    const html = ov("guides/bedding-blanket-sleeping-bag-cleaning-price.html");
+    const webPage = pageNodes(html).find((node) => node["@type"] === "WebPage");
+    const descriptions = [
+      html.match(/<meta name="description" content="([^"]*)"/)?.[1],
+      html.match(/<meta property="og:description" content="([^"]*)"/)?.[1],
+      html.match(/<meta name="twitter:description" content="([^"]*)"/)?.[1],
+      webPage?.description
+    ];
+    for (const description of descriptions) {
+      expect(description).toContain("薄床單被套 $150");
+      expect(description).toContain("單人毛毯 $200");
+      expect(description).not.toContain("參考價：床單被套 $150");
+      expect(description).toBe(descriptions[0]);
+    }
+    const titles = [
+      html.match(/<title>([^<]*)<\/title>/)?.[1],
+      html.match(/<meta property="og:title" content="([^"]*)"/)?.[1],
+      html.match(/<meta name="twitter:title" content="([^"]*)"/)?.[1],
+      webPage?.name
+    ];
+    for (const title of titles) {
+      expect(title).toContain("？單人毛毯 $200");
+      expect(title).not.toContain("？毛毯 $200");
+      expect(title).toBe(titles[0]);
+    }
+  });
 });

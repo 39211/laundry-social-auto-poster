@@ -1,0 +1,20 @@
+test_broken_config_at_night_is_reported_and_rate_limited (tests.test_tunnel_manager_a_tunnel.ConfigErrorReportedTest.test_broken_config_at_night_is_reported_and_rate_limited) ... ok
+test_day_window_stays_silent (tests.test_tunnel_manager_a_tunnel.ConfigErrorReportedTest.test_day_window_stays_silent) ... ok
+test_cloudflared_is_pointed_at_the_same_origin (tests.test_tunnel_manager_a_tunnel.OriginProbeTest.test_cloudflared_is_pointed_at_the_same_origin) ... ok
+test_night_reclaim_does_not_take_slot_for_dead_bot (tests.test_tunnel_manager_a_tunnel.OriginProbeTest.test_night_reclaim_does_not_take_slot_for_dead_bot) ... ok
+test_no_put_when_local_bot_is_down (tests.test_tunnel_manager_a_tunnel.OriginProbeTest.test_no_put_when_local_bot_is_down) ... ok
+test_pending_retry_registers_once_bot_is_back (tests.test_tunnel_manager_a_tunnel.OriginProbeTest.test_pending_retry_registers_once_bot_is_back) ... ok
+test_probe_false_when_connection_refused (tests.test_tunnel_manager_a_tunnel.OriginProbeTest.test_probe_false_when_connection_refused) ... ok
+test_probe_targets_configured_origin (tests.test_tunnel_manager_a_tunnel.OriginProbeTest.test_probe_targets_configured_origin) ... ok
+test_publish_keeps_url_pending_when_bot_down (tests.test_tunnel_manager_a_tunnel.OriginProbeTest.test_publish_keeps_url_pending_when_bot_down) ... ok
+test_put_still_happens_when_local_bot_is_up (tests.test_tunnel_manager_a_tunnel.OriginProbeTest.test_put_still_happens_when_local_bot_is_up) ... ok
+test_crash_backoff_grows_and_is_capped (tests.test_tunnel_manager_a_tunnel.SupervisorSurvivesTest.test_crash_backoff_grows_and_is_capped) ... ok
+test_crash_backoff_resets_after_a_clean_cycle (tests.test_tunnel_manager_a_tunnel.SupervisorSurvivesTest.test_crash_backoff_resets_after_a_clean_cycle) ... ok
+test_main_survives_cloudflared_start_failure (tests.test_tunnel_manager_a_tunnel.SupervisorSurvivesTest.test_main_survives_cloudflared_start_failure) ... ok
+test_unwritable_event_log_does_not_block_night_publish (tests.test_tunnel_manager_a_tunnel.SupervisorSurvivesTest.test_unwritable_event_log_does_not_block_night_publish) ... ok
+test_unwritable_text_log_does_not_raise (tests.test_tunnel_manager_a_tunnel.SupervisorSurvivesTest.test_unwritable_text_log_does_not_raise) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.266s
+
+OK

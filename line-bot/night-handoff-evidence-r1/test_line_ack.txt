@@ -1,0 +1,110 @@
+test_parallel_marks_preserve_both_acceptances_and_remove_both_caches (test_line_ack.AtomicMarkTests.test_parallel_marks_preserve_both_acceptances_and_remove_both_caches) ... ok
+test_nested_stage_times_are_exclusive_and_context_is_reset (test_line_ack.TelemetryTests.test_nested_stage_times_are_exclusive_and_context_is_reset) ... ok
+test_numeric_counts_and_exact_percentiles_survive_reload (test_line_ack.TelemetryTests.test_numeric_counts_and_exact_percentiles_survive_reload) ... ok
+test_receive_date_is_taipei_even_when_clock_is_utc (test_line_ack.TelemetryTests.test_receive_date_is_taipei_even_when_clock_is_utc) ... ok
+test_retention_keeps_fourteen_taipei_days_and_other_files (test_line_ack.TelemetryTests.test_retention_keeps_fourteen_taipei_days_and_other_files) ... ok
+test_acceptance_storage_error_keeps_pending_to_prevent_duplicate (test_line_ack.WebhookTests.test_acceptance_storage_error_keeps_pending_to_prevent_duplicate) ... event error: RuntimeError
+ok
+test_all_4xx_and_redelivery_failures_are_acked_and_lost (test_line_ack.WebhookTests.test_all_4xx_and_redelivery_failures_are_acked_and_lost) ... reply error: HTTP Error 400: synthetic refusal
+reply error: HTTP Error 401: synthetic refusal
+reply error: HTTP Error 403: synthetic refusal
+reply error: HTTP Error 408: synthetic refusal
+reply error: HTTP Error 409: synthetic refusal
+reply error: HTTP Error 429: synthetic refusal
+redelivery: message
+reply error: HTTP Error 400: synthetic refusal
+redelivery: message
+reply error: HTTP Error 429: synthetic refusal
+redelivery: message
+reply error: HTTP Error 500: synthetic refusal
+redelivery: message
+reply error: HTTP Error 503: synthetic refusal
+redelivery: message
+reply error: <urlopen error synthetic refusal>
+ok
+test_all_message_branches_remember_replies_and_retry_consistently (test_line_ack.WebhookTests.test_all_message_branches_remember_replies_and_retry_consistently) ... ok
+test_booking_and_pickup_and_expired_quote_postbacks_share_finalizer (test_line_ack.WebhookTests.test_booking_and_pickup_and_expired_quote_postbacks_share_finalizer) ... ok
+test_counter_view_write_failure_recovers_from_saved_numeric_state (test_line_ack.WebhookTests.test_counter_view_write_failure_recovers_from_saved_numeric_state) ... LINE event telemetry skipped (OSError)
+redelivery: message
+ok
+test_counter_write_failure_does_not_break_reply_or_safe_log (test_line_ack.WebhookTests.test_counter_write_failure_does_not_break_reply_or_safe_log) ... LINE event telemetry skipped (OSError)
+ok
+test_empty_messages_are_not_needed_and_never_clear_cache (test_line_ack.WebhookTests.test_empty_messages_are_not_needed_and_never_clear_cache) ... ok
+test_empty_token_and_empty_messages_is_not_needed (test_line_ack.WebhookTests.test_empty_token_and_empty_messages_is_not_needed) ... ok
+test_empty_token_is_not_accepted_and_keeps_cache (test_line_ack.WebhookTests.test_empty_token_is_not_accepted_and_keeps_cache) ... redelivery: message
+ok
+test_failed_event_makes_whole_batch_retry_and_other_events_finish (test_line_ack.WebhookTests.test_failed_event_makes_whole_batch_retry_and_other_events_finish) ... reply error: <urlopen error synthetic refusal>
+ok
+test_first_line_5xx_retries_but_redelivery_400_is_lost (test_line_ack.WebhookTests.test_first_line_5xx_retries_but_redelivery_400_is_lost) ... reply error: HTTP Error 503: synthetic outage
+redelivery: message
+reply error: HTTP Error 400: synthetic used token
+ok
+test_first_network_failure_requests_one_retry_then_acks_even_without_redelivery_flag (test_line_ack.WebhookTests.test_first_network_failure_requests_one_retry_then_acks_even_without_redelivery_flag) ... reply error: <urlopen error synthetic refusal>
+reply error: <urlopen error synthetic refusal>
+reply error: <urlopen error synthetic refusal>
+ok
+test_five_deliveries_are_three_correlated_events (test_line_ack.WebhookTests.test_five_deliveries_are_three_correlated_events) ... redelivery: message
+redelivery: message
+ok
+test_group_bind_uses_original_reply_without_customer_hints (test_line_ack.WebhookTests.test_group_bind_uses_original_reply_without_customer_hints) ... ok
+test_handler_error_does_not_erase_another_events_bounded_retry (test_line_ack.WebhookTests.test_handler_error_does_not_erase_another_events_bounded_retry) ... reply error: <urlopen error synthetic refusal>
+event error: RuntimeError
+redelivery: message
+reply error: <urlopen error synthetic refusal>
+ok
+test_handoff_and_group_and_ignored_events_are_still_logged (test_line_ack.WebhookTests.test_handoff_and_group_and_ignored_events_are_still_logged) ... ok
+test_hint_preparation_error_releases_unsent_pending_without_marking_hints (test_line_ack.WebhookTests.test_hint_preparation_error_releases_unsent_pending_without_marking_hints) ... event error: ValueError
+redelivery: message
+ok
+test_hint_write_error_after_acceptance_does_not_resend_or_claim_hint (test_line_ack.WebhookTests.test_hint_write_error_after_acceptance_does_not_resend_or_claim_hint) ... event error: OSError
+redelivery: message
+ok
+test_http_rejection_is_failed_and_timeout_is_unknown (test_line_ack.WebhookTests.test_http_rejection_is_failed_and_timeout_is_unknown) ... reply error: HTTP Error 400: rejected
+reply error: <urlopen error synthetic timeout>
+ok
+test_import_style_calls_do_not_write_without_explicit_switch (test_line_ack.WebhookTests.test_import_style_calls_do_not_write_without_explicit_switch) ... ok
+test_invalid_signature_is_logged_without_counting_untrusted_events (test_line_ack.WebhookTests.test_invalid_signature_is_logged_without_counting_untrusted_events) ... ok
+test_log_write_failure_does_not_break_customer_reply (test_line_ack.WebhookTests.test_log_write_failure_does_not_break_customer_reply) ... LINE event telemetry skipped (PermissionError)
+ok
+test_malformed_delivery_context_is_logged_without_losing_other_events (test_line_ack.WebhookTests.test_malformed_delivery_context_is_logged_without_losing_other_events) ... event error: AttributeError
+ok
+test_missing_cache_is_failed_and_not_accepted (test_line_ack.WebhookTests.test_missing_cache_is_failed_and_not_accepted) ... redelivery: message
+ok
+test_quote_early_returns_are_remembered_even_without_webhook (test_line_ack.WebhookTests.test_quote_early_returns_are_remembered_even_without_webhook) ... ok
+test_r1_counter_state_adds_lost_without_resetting_previous_counts (test_line_ack.WebhookTests.test_r1_counter_state_adds_lost_without_resetting_previous_counts) ... reply error: HTTP Error 400: synthetic refusal
+ok
+test_reset_after_send_is_unknown_and_never_retried (test_line_ack.WebhookTests.test_reset_after_send_is_unknown_and_never_retried) ... reply error: synthetic reset
+reply error: <urlopen error wrapped reset>
+ok
+test_retry_can_deliver_cached_reply_once_then_skips_accepted (test_line_ack.WebhookTests.test_retry_can_deliver_cached_reply_once_then_skips_accepted) ... reply error: <urlopen error synthetic refusal>
+redelivery: message
+redelivery: message
+ok
+test_safe_log_contains_no_original_identifiers_or_payload (test_line_ack.WebhookTests.test_safe_log_contains_no_original_identifiers_or_payload) ... ok
+test_staff_notification_and_storage_are_measured (test_line_ack.WebhookTests.test_staff_notification_and_storage_are_measured) ... ok
+test_unavailable_reply_guard_acks_lost_without_sending (test_line_ack.WebhookTests.test_unavailable_reply_guard_acks_lost_without_sending) ... reply state error: PermissionError
+ok
+test_unavailable_retry_budget_acks_lost_instead_of_issuing_503 (test_line_ack.WebhookTests.test_unavailable_retry_budget_acks_lost_instead_of_issuing_503) ... reply error: <urlopen error synthetic refusal>
+reply state error: PermissionError
+ok
+test_uncorrelated_failure_never_requests_unbounded_retry (test_line_ack.WebhookTests.test_uncorrelated_failure_never_requests_unbounded_retry) ... reply error: <urlopen error synthetic refusal>
+ok
+test_unexpected_handler_error_is_logged_acked_and_batch_continues (test_line_ack.WebhookTests.test_unexpected_handler_error_is_logged_acked_and_batch_continues) ... ok
+test_unexpected_retry_budget_error_acks_lost_and_is_logged (test_line_ack.WebhookTests.test_unexpected_retry_budget_error_acks_lost_and_is_logged) ... reply error: <urlopen error synthetic refusal>
+event error: RuntimeError
+ok
+test_unexpected_transport_error_keeps_pending_and_never_replays (test_line_ack.WebhookTests.test_unexpected_transport_error_keeps_pending_and_never_replays) ... event error: RuntimeError
+ok
+test_unknown_in_retrying_batch_is_not_resent_on_batch_redelivery (test_line_ack.WebhookTests.test_unknown_in_retrying_batch_is_not_resent_on_batch_redelivery) ... reply error: synthetic timeout
+reply error: <urlopen error synthetic refusal>
+redelivery: message
+reply error: HTTP Error 400: synthetic used token
+ok
+test_unknown_is_acked_and_never_resends_cached_reply (test_line_ack.WebhookTests.test_unknown_is_acked_and_never_resends_cached_reply) ... reply error: synthetic timeout
+reply error: <urlopen error wrapped timeout>
+ok
+
+----------------------------------------------------------------------
+Ran 43 tests in 6.851s
+
+OK

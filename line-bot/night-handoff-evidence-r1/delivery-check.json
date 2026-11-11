@@ -1,0 +1,35 @@
+{
+  "verified": true,
+  "tests": 283,
+  "modules": 14,
+  "mutations": [
+    {
+      "name": "a-night-still-returns",
+      "red_failures": 14,
+      "green_tests": 18
+    },
+    {
+      "name": "b-notice-every-message",
+      "red_failures": 3,
+      "green_tests": 18
+    },
+    {
+      "name": "c-human-active-replies",
+      "red_failures": 1,
+      "green_tests": 18
+    }
+  ],
+  "code_sha256": {
+    "line_webhook.py": "f9dfb9fd1e8471cf9ba6e99b96c0cae5740a09b2f13dd50012d3b1ee800a806f",
+    "staff_notify.py": "52b156fb57a9dddc5384858a8e327e890394b1eafa9be38d082158b0a355a0cb",
+    "test_handoff.py": "9897861f013589f5fa88f2c53a3b6341da5ec0f7f28ea5daa361df104c54bc29",
+    "test_night_handoff.py": "b36672cee275c1db41842b84dcfc70ddb188a2c417979cb8b2cd26f998ce41f7"
+  },
+  "report_utf8_no_bom": true,
+  "report_tail_exact": true,
+  "report_bytes": 8698,
+  "report_sha256": "f6e75862d2862390b3d302d27c89fa87980edfc0cd006d4011614f057a7913f9",
+  "git_diff_check": true,
+  "all_git_changes_in_line_bot": true,
+  "temporary_test_dirs_cleaned": true
+}

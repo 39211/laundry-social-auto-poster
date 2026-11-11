@@ -1,0 +1,24 @@
+test_image_save_failed_card_ids_do_not_collide (tests.test_webhook_reply_first.OtherMessageKindsTest.test_image_save_failed_card_ids_do_not_collide) ... ok
+test_image_save_failed_reply_first (tests.test_webhook_reply_first.OtherMessageKindsTest.test_image_save_failed_reply_first) ... ok
+test_image_saved_reply_first_and_unique_id (tests.test_webhook_reply_first.OtherMessageKindsTest.test_image_saved_reply_first_and_unique_id) ... ok
+test_image_staff_error_does_not_drop_next_reply (tests.test_webhook_reply_first.OtherMessageKindsTest.test_image_staff_error_does_not_drop_next_reply) ... photo inbox error: OSError
+ok
+test_legacy_image_card_ids_do_not_collide (tests.test_webhook_reply_first.OtherMessageKindsTest.test_legacy_image_card_ids_do_not_collide) ... ok
+test_legacy_image_path_reply_first (tests.test_webhook_reply_first.OtherMessageKindsTest.test_legacy_image_path_reply_first) ... ok
+test_location_card_ids_do_not_collide (tests.test_webhook_reply_first.OtherMessageKindsTest.test_location_card_ids_do_not_collide) ... ok
+test_location_reply_first (tests.test_webhook_reply_first.OtherMessageKindsTest.test_location_reply_first) ... ok
+test_location_staff_error_does_not_drop_next_reply (tests.test_webhook_reply_first.OtherMessageKindsTest.test_location_staff_error_does_not_drop_next_reply) ... staff notify error: OSError
+ok
+test_sticker_card_ids_do_not_collide (tests.test_webhook_reply_first.OtherMessageKindsTest.test_sticker_card_ids_do_not_collide) ... ok
+test_sticker_reply_first_and_card_says_sticker (tests.test_webhook_reply_first.OtherMessageKindsTest.test_sticker_reply_first_and_card_says_sticker) ... ok
+test_sticker_staff_error_does_not_drop_next_reply (tests.test_webhook_reply_first.OtherMessageKindsTest.test_sticker_staff_error_does_not_drop_next_reply) ... staff notify error: OSError
+ok
+test_reply_is_sent_before_staff_side_effects (tests.test_webhook_reply_first.ReplyFirstTest.test_reply_is_sent_before_staff_side_effects) ... ok
+test_staff_card_ids_do_not_collide (tests.test_webhook_reply_first.ReplyFirstTest.test_staff_card_ids_do_not_collide) ... ok
+test_staff_write_error_does_not_drop_later_replies (tests.test_webhook_reply_first.ReplyFirstTest.test_staff_write_error_does_not_drop_later_replies) ... staff notify error: OSError
+ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 1.245s
+
+OK

@@ -1,0 +1,172 @@
+test_failed_send_retries_cache_without_losing_first_notice (test_night_handoff.NightHandoffTests.test_failed_send_retries_cache_without_losing_first_notice) ... FAIL
+test_first_text_gets_final_line_and_other_payload_is_unchanged (test_night_handoff.NightHandoffTests.test_first_text_gets_final_line_and_other_payload_is_unchanged) ... FAIL
+test_five_text_messages_stay_five (test_night_handoff.NightHandoffTests.test_five_text_messages_stay_five) ... FAIL
+test_human_active_day_stays_silent_and_records (test_night_handoff.NightHandoffTests.test_human_active_day_stays_silent_and_records) ... ok
+test_human_active_night_stays_silent_and_records (test_night_handoff.NightHandoffTests.test_human_active_night_stays_silent_and_records) ... ok
+test_new_case_gets_its_own_first_notice (test_night_handoff.NightHandoffTests.test_new_case_gets_its_own_first_notice) ... FAIL
+test_nontext_reply_reserves_a_slot_for_notice_within_five (test_night_handoff.NightHandoffTests.test_nontext_reply_reserves_a_slot_for_notice_within_five) ... 
+  test_nontext_reply_reserves_a_slot_for_notice_within_five (test_night_handoff.NightHandoffTests.test_nontext_reply_reserves_a_slot_for_notice_within_five) (count=1) ... FAIL
+  test_nontext_reply_reserves_a_slot_for_notice_within_five (test_night_handoff.NightHandoffTests.test_nontext_reply_reserves_a_slot_for_notice_within_five) (count=5) ... FAIL
+test_notice_survives_reload_and_expired_conversation_session (test_night_handoff.NightHandoffTests.test_notice_survives_reload_and_expired_conversation_session) ... FAIL
+test_pending_day_stays_silent_and_records (test_night_handoff.NightHandoffTests.test_pending_day_stays_silent_and_records) ... ok
+test_pending_night_replies_records_and_adds_notice_only_once (test_night_handoff.NightHandoffTests.test_pending_night_replies_records_and_adds_notice_only_once) ... FAIL
+test_photo_is_retained_for_staff_and_normal_conversation (test_night_handoff.NightHandoffTests.test_photo_is_retained_for_staff_and_normal_conversation) ... FAIL
+test_real_human_and_complaint_flow_reuses_the_open_case (test_night_handoff.NightHandoffTests.test_real_human_and_complaint_flow_reuses_the_open_case) ... FAIL
+test_redelivery_after_accepted_reply_sends_once (test_night_handoff.NightHandoffTests.test_redelivery_after_accepted_reply_sends_once) ... FAIL
+test_redelivery_after_record_before_conversation_failure_does_not_go_silent (test_night_handoff.NightHandoffTests.test_redelivery_after_record_before_conversation_failure_does_not_go_silent) ... redelivery: message
+FAIL
+test_uncertain_send_does_not_resend (test_night_handoff.NightHandoffTests.test_uncertain_send_does_not_resend) ... redelivery: message
+FAIL
+test_window_error_is_day_logs_one_safe_line_and_records (test_night_handoff.NightHandoffTests.test_window_error_is_day_logs_one_safe_line_and_records) ... FAIL
+
+======================================================================
+FAIL: test_failed_send_retries_cache_without_losing_first_notice (test_night_handoff.NightHandoffTests.test_failed_send_retries_cache_without_losing_first_notice)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 192, in test_failed_send_retries_cache_without_losing_first_notice
+    self.assertEqual(self.post(ev).status_code, 503)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 503
+
+======================================================================
+FAIL: test_first_text_gets_final_line_and_other_payload_is_unchanged (test_night_handoff.NightHandoffTests.test_first_text_gets_final_line_and_other_payload_is_unchanged)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 221, in test_first_text_gets_final_line_and_other_payload_is_unchanged
+    self.assertEqual(self.sent, [expected])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [] != [[{'type': 'image', 'originalContentUrl': [201 chars]樣'}]]
+
+Second list contains 1 additional elements.
+First extra element 0:
+[{'type': 'image', 'originalContentUrl': 'https://example.invalid/1', 'previewImageUrl': 'https://example.invalid/1'}, {'type': 'text', 'text': '第一行\n第二行\n店員上班後也會看到您的訊息，先由我幫您。', 'quickReply': {'items': []}}, {'type': 'text', 'text': '後面的文字維持原樣'}]
+
+- []
++ [[{'originalContentUrl': 'https://example.invalid/1',
++    'previewImageUrl': 'https://example.invalid/1',
++    'type': 'image'},
++   {'quickReply': {'items': []},
++    'text': '第一行\n第二行\n店員上班後也會看到您的訊息，先由我幫您。',
++    'type': 'text'},
++   {'text': '後面的文字維持原樣', 'type': 'text'}]]
+
+======================================================================
+FAIL: test_five_text_messages_stay_five (test_night_handoff.NightHandoffTests.test_five_text_messages_stay_five)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 229, in test_five_text_messages_stay_five
+    self.assertEqual(len(self.sent), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_new_case_gets_its_own_first_notice (test_night_handoff.NightHandoffTests.test_new_case_gets_its_own_first_notice)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 132, in test_new_case_gets_its_own_first_notice
+    self.assertEqual(len(self.sent), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_nontext_reply_reserves_a_slot_for_notice_within_five (test_night_handoff.NightHandoffTests.test_nontext_reply_reserves_a_slot_for_notice_within_five) (count=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 243, in test_nontext_reply_reserves_a_slot_for_notice_within_five
+    self.assertTrue(self.sent)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^
+AssertionError: [] is not true
+
+======================================================================
+FAIL: test_nontext_reply_reserves_a_slot_for_notice_within_five (test_night_handoff.NightHandoffTests.test_nontext_reply_reserves_a_slot_for_notice_within_five) (count=5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 243, in test_nontext_reply_reserves_a_slot_for_notice_within_five
+    self.assertTrue(self.sent)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^
+AssertionError: [] is not true
+
+======================================================================
+FAIL: test_notice_survives_reload_and_expired_conversation_session (test_night_handoff.NightHandoffTests.test_notice_survives_reload_and_expired_conversation_session)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 117, in test_notice_survives_reload_and_expired_conversation_session
+    self.assertEqual(len(self.sent), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_pending_night_replies_records_and_adds_notice_only_once (test_night_handoff.NightHandoffTests.test_pending_night_replies_records_and_adds_notice_only_once)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 105, in test_pending_night_replies_records_and_adds_notice_only_once
+    self.assertEqual(self.handled, [(self.uid, "可以先幫我嗎", "message", "event-1")])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [] != [('U-night-handoff', '可以先幫我嗎', 'message', 'event-1')]
+
+Second list contains 1 additional elements.
+First extra element 0:
+('U-night-handoff', '可以先幫我嗎', 'message', 'event-1')
+
+- []
++ [('U-night-handoff', '可以先幫我嗎', 'message', 'event-1')]
+
+======================================================================
+FAIL: test_photo_is_retained_for_staff_and_normal_conversation (test_night_handoff.NightHandoffTests.test_photo_is_retained_for_staff_and_normal_conversation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 251, in test_photo_is_retained_for_staff_and_normal_conversation
+    self.assertEqual(len(self.handled), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_real_human_and_complaint_flow_reuses_the_open_case (test_night_handoff.NightHandoffTests.test_real_human_and_complaint_flow_reuses_the_open_case)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 269, in test_real_human_and_complaint_flow_reuses_the_open_case
+    self.assertEqual(len(self.sent), 2)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 2
+
+======================================================================
+FAIL: test_redelivery_after_accepted_reply_sends_once (test_night_handoff.NightHandoffTests.test_redelivery_after_accepted_reply_sends_once)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 164, in test_redelivery_after_accepted_reply_sends_once
+    self.assertEqual(len(self.sent), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_redelivery_after_record_before_conversation_failure_does_not_go_silent (test_night_handoff.NightHandoffTests.test_redelivery_after_record_before_conversation_failure_does_not_go_silent)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 178, in test_redelivery_after_record_before_conversation_failure_does_not_go_silent
+    self.assertEqual(len(self.sent), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_uncertain_send_does_not_resend (test_night_handoff.NightHandoffTests.test_uncertain_send_does_not_resend)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 210, in test_uncertain_send_does_not_resend
+    self.assertEqual(len(self.sent), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_window_error_is_day_logs_one_safe_line_and_records (test_night_handoff.NightHandoffTests.test_window_error_is_day_logs_one_safe_line_and_records)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\cyc39\AI-Lanes\wt\nighthandoff\line-bot\test_night_handoff.py", line 157, in test_window_error_is_day_logs_one_safe_line_and_records
+    self.assertEqual(len(err.getvalue().strip().splitlines()), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.309s
+
+FAILED (failures=14)
+

@@ -1,0 +1,31 @@
+test_accepted_redelivery_stays_suppressed_after_session_cache_is_gone (test_night_handoff.NightHandoffTests.test_accepted_redelivery_stays_suppressed_after_session_cache_is_gone) ... redelivery: message
+ok
+test_failed_send_retries_cache_without_losing_first_notice (test_night_handoff.NightHandoffTests.test_failed_send_retries_cache_without_losing_first_notice) ... redelivery: message
+redelivery: message
+ok
+test_first_text_gets_final_line_and_other_payload_is_unchanged (test_night_handoff.NightHandoffTests.test_first_text_gets_final_line_and_other_payload_is_unchanged) ... ok
+test_five_text_messages_stay_five (test_night_handoff.NightHandoffTests.test_five_text_messages_stay_five) ... ok
+test_human_active_day_stays_silent_and_records (test_night_handoff.NightHandoffTests.test_human_active_day_stays_silent_and_records) ... ok
+test_human_active_night_stays_silent_and_records (test_night_handoff.NightHandoffTests.test_human_active_night_stays_silent_and_records) ... ok
+test_new_case_gets_its_own_first_notice (test_night_handoff.NightHandoffTests.test_new_case_gets_its_own_first_notice) ... ok
+test_nontext_reply_reserves_a_slot_for_notice_within_five (test_night_handoff.NightHandoffTests.test_nontext_reply_reserves_a_slot_for_notice_within_five) ... ok
+test_notice_survives_reload_and_expired_conversation_session (test_night_handoff.NightHandoffTests.test_notice_survives_reload_and_expired_conversation_session) ... ok
+test_pending_day_stays_silent_and_records (test_night_handoff.NightHandoffTests.test_pending_day_stays_silent_and_records) ... ok
+test_pending_night_replies_records_and_adds_notice_only_once (test_night_handoff.NightHandoffTests.test_pending_night_replies_records_and_adds_notice_only_once) ... ok
+test_photo_is_retained_for_staff_and_normal_conversation (test_night_handoff.NightHandoffTests.test_photo_is_retained_for_staff_and_normal_conversation) ... redelivery: message
+ok
+test_photo_need_keeps_its_estimate_case_identifier (test_night_handoff.NightHandoffTests.test_photo_need_keeps_its_estimate_case_identifier) ... ok
+test_real_human_and_complaint_flow_reuses_the_open_case (test_night_handoff.NightHandoffTests.test_real_human_and_complaint_flow_reuses_the_open_case) ... ok
+test_redelivery_after_accepted_reply_sends_once (test_night_handoff.NightHandoffTests.test_redelivery_after_accepted_reply_sends_once) ... redelivery: message
+ok
+test_redelivery_after_record_before_conversation_failure_does_not_go_silent (test_night_handoff.NightHandoffTests.test_redelivery_after_record_before_conversation_failure_does_not_go_silent) ... event error: RuntimeError
+redelivery: message
+redelivery: message
+ok
+test_uncertain_send_does_not_resend (test_night_handoff.NightHandoffTests.test_uncertain_send_does_not_resend) ... ok
+test_window_error_is_day_logs_one_safe_line_and_records (test_night_handoff.NightHandoffTests.test_window_error_is_day_logs_one_safe_line_and_records) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 1.045s
+
+OK

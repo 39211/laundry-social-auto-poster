@@ -50,7 +50,7 @@ const MAIN_SHA256 = {
   // 2026-11-10 大詞修正包在成交連結加上兩個核定錨文字後的 stripped sha256。
   "lambskin-bag-care": "2d359f6596e8b132b058f0d482dc36a9cd05ca6f0aa83c990b809336dde4149b",
   // 2026-11-10 大詞修正包在成交連結加上兩個核定錨文字後的 stripped sha256。對 e890511 的比對只允許多這兩個錨文字。
-  "leather-belt-care": "9ff5147c3dfd0967f0c0dcc24dbbf6bbc3e2109d4f9dd39bdb022e1103f8ba33",
+  "leather-belt-care": "12ce49cf44db7d4167d51f866d367a25296f1f321192720274a9a4a206b4df43",
   // 2026-11-10 大詞修正包在成交連結加上兩個核定錨文字後的 stripped sha256。
   "shoe-drying-heat-risk": "b1359d7dad2f971b4f64ad0450077e9aa482f0b8d8cefeec38616f08b1dff7d2"
 } as const satisfies Record<PageSlug, string>;
@@ -88,7 +88,7 @@ const SKIP_HEADINGS = [
 const CONTACTS = ["@454foyks", "0968-327-653", "0968327653", "04-2452-7411"] as const;
 
 const PRICE_PHRASES = {
-  "leather-belt-care": "皮帶水洗參考價 $400",
+  "leather-belt-care": "皮帶清潔參考價 $400",
   "washing-machine-shoe-risk": "一般運動鞋水洗參考價 $250"
 } as const satisfies Partial<Record<PageSlug, string>>;
 
@@ -497,6 +497,10 @@ describe("O04 六個指南頁", () => {
       if (price !== undefined) {
         expect(countOf(html, price), price).toBeGreaterThan(0);
         expect(countOf(html, price), price).toBe(countOf(stripped, price));
+        if (slug === "leather-belt-care") {
+          expect(html, slug).not.toContain("皮帶水洗參考價");
+          expect(stripped, slug).not.toContain("皮帶水洗參考價");
+        }
       }
       const fromBaseline = gitBlob("e890511a82b5b2f9300999a68c56cadebb92c1f6", rel);
       if (fromBaseline !== undefined && !CTR_COPY_SLUGS.has(slug)) {
@@ -508,10 +512,20 @@ describe("O04 六個指南頁", () => {
           expect(sha256(stripped), slug).toBe(MAIN_SHA256[slug]);
           expect(sha256(expected), slug).toBe(MAIN_SHA256[slug]);
         } else if (slug === "leather-belt-care") {
-          const approvedFooter = fromBaseline.replace(
-            `            <a href="https://sixiangjialaundry.com/hubs/local-pickup.html">台中各區收送</a>\n          </div>`,
-            `            <a href="https://sixiangjialaundry.com/hubs/local-pickup.html">台中各區收送</a>\n            <a href="https://sixiangjialaundry.com/guides/taichung-shoe-cleaning-how-to-choose.html">台中洗鞋推薦怎麼挑</a>\n            <a href="https://sixiangjialaundry.com/guides/taichung-laundry-service-search.html">台中洗衣推薦怎麼挑</a>\n          </div>`
-          );
+          // 11/11 行銷改 5 處價格句（水洗參考價→清潔參考價），基準仍是 e890511；逐句寫死字串，不用正規式。
+          const approvedFooter = fromBaseline
+            .replace(
+              `            <a href="https://sixiangjialaundry.com/hubs/local-pickup.html">台中各區收送</a>\n          </div>`,
+              `            <a href="https://sixiangjialaundry.com/hubs/local-pickup.html">台中各區收送</a>\n            <a href="https://sixiangjialaundry.com/guides/taichung-shoe-cleaning-how-to-choose.html">台中洗鞋推薦怎麼挑</a>\n            <a href="https://sixiangjialaundry.com/guides/taichung-laundry-service-search.html">台中洗衣推薦怎麼挑</a>\n          </div>`
+            )
+            .replaceAll("皮帶水洗參考價 $400，水洗參考價，看過實品再報價", "皮帶清潔參考價 $400，參考價，看過實品再報價")
+            .replaceAll("皮帶水洗參考價 $400，參考價，看過實品再報價。", "皮帶清潔參考價 $400，參考價，看過實品再報價。")
+            .replaceAll("價目表皮帶水洗參考價 $400，但不要整條泡水。", "價目表皮帶清潔參考價 $400，但不要整條泡水。")
+            .replaceAll("皮帶水洗參考價 $400。參考價，看過實品再報價。", "皮帶清潔參考價 $400。參考價，看過實品再報價。")
+            .replaceAll(
+              "價目表皮帶水洗參考價 $400；實際金額依材質與狀況，看過實品再報。參考價，看過實品再報價。",
+              "價目表皮帶清潔參考價 $400；實際金額依材質與狀況，看過實品再報價。"
+            );
           expect(approvedFooter, slug).not.toBe(fromBaseline);
           expect(stripped, slug).toBe(approvedFooter);
           expect(sha256(stripped), slug).toBe(MAIN_SHA256[slug]);

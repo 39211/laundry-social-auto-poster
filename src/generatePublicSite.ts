@@ -1501,7 +1501,7 @@ const LEGACY_SUPPORT_PAGE_DEFINITIONS: SupportPageDefinition[] = [
     faqs: [
       {
         question: "皮衣發霉還有救嗎？",
-        answer: "表面霉點大多能明顯改善；霉斑已滲入皮層或造成色差的，以淡化和抑制擴散為目標，不保證完全復原，評估時會先講清楚。"
+        answer: "表面霉點大多能改善；霉斑已滲入皮層或造成色差的，以淡化和抑制擴散為目標，不保證完全復原，評估時會先講清楚。"
       },
       {
         question: "皮衣可以送一般乾洗嗎？",

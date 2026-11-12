@@ -71,7 +71,7 @@ export const REEL_CONCEPTS: ReelConcept[] = [
     object_type: "plush-doll",
     hook: "先看五官是繡是黏",
     close: "黏的五官怕脫水，私訊我們",
-    narration: "娃娃能洗，但洗法差很多。怕的不是水，是脫水。填充會結塊，五官會掉。手洗低溫烘，五官先固定，拍來報價。",
+    narration: "娃娃能洗，但洗法差很多。怕的不是水，是脫水。填充會結塊，五官會掉。照洗標，可烘的低溫烘，不能烘的用除溼技術。拍來報價。",
     before_subject:
       "one unbranded plush toy, fur on the hugged cheek and belly flattened into a dull grey mat, a darker soil ring around the neck seam, one glass eye with a single dusty catchlight",
     after_subject:

@@ -176,6 +176,11 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [洋裝、裙子、旗袍、禮服送洗多少錢？價格怎麼分](https://sixiangjialaundry.com/guides/dress-skirt-gown-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [床單被套、毛毯、睡袋送洗多少錢？寢具價格怎麼分](https://sixiangjialaundry.com/guides/bedding-blanket-sleeping-bag-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [包包發霉送洗多少錢？能不能洗、價格怎麼分](https://sixiangjialaundry.com/guides/bag-mold-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [麂皮碰水變硬怎麼辦？先別再濕擦｜私享家洗衣店](https://sixiangjialaundry.com/guides/suede-water-hardened.html): guide page for answer-engine and local-intent searches.
+- [鞋子被牛仔褲染色怎麼辦？先別漂白、先別烘｜私享家洗衣店](https://sixiangjialaundry.com/guides/shoes-dyed-by-jeans.html): guide page for answer-engine and local-intent searches.
+- [皮鞋摺痕能不能處理？清洗消不掉摺痕｜私享家洗衣店](https://sixiangjialaundry.com/guides/leather-shoe-crease-limit.html): guide page for answer-engine and local-intent searches.
+- [嬰兒推車、娃娃推車怎麼清洗？整台送來再拆布｜私享家洗衣店](https://sixiangjialaundry.com/guides/stroller-cleaning.html): guide page for answer-engine and local-intent searches.
+- [麂皮、仿麂皮、麂皮絨怎麼分？送洗差在哪｜私享家洗衣店](https://sixiangjialaundry.com/guides/suede-faux-suede-fabric.html): guide page for answer-engine and local-intent searches.
 - [JSON Feed](https://sixiangjialaundry.com/feed.json): chronological update feed for readers and AI ingestion.
 - [Knowledge graph](https://sixiangjialaundry.com/knowledge-graph.json): Schema.org JSON-LD business, dataset, post, and image entities.
 - [AI discovery index](https://sixiangjialaundry.com/ai-discovery.json): machine-readable map of every AI/SEO endpoint.

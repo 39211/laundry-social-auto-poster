@@ -144,12 +144,12 @@ class LogTests(Fixtures):
 
     def test_batch_events_and_handoff_ack_are_counted_once(self):
         self.logs(self.post(), self.incoming(), self.success(), self.incoming(),
-                  '[Handoff] push owner=SYNTHETIC success=True', self.success())
+                  '[Handoff] push owner=SYNTHETIC success=True')
         row = self.night()
         self.assertEqual('pass', row['status'])
         self.assertEqual(2, row['details']['received'])
-        self.assertEqual(2, row['details']['replied_ok'])
-        self.assertEqual(0, row['details']['to_staff'])
+        self.assertEqual(1, row['details']['replied_ok'])
+        self.assertEqual(1, row['details']['to_staff'])
         self.assertEqual(1, row['details']['handoff_push_ok'])
 
     def test_staff_push_without_reply_can_answer_but_failure_cannot(self):

@@ -1,7 +1,7 @@
 """Current shop runtime evidence. Never emit customer text or raw test output."""
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, deque
 from datetime import date, datetime, timedelta, timezone
 import hashlib
 import heapq
@@ -121,7 +121,10 @@ LINE = re.compile(r'^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) (.*)$')
 # Real runtime: log_message prints f"[Webhook] {args[0]} - {args[1]}" where args[0] is the bare
 # requestline (no quotes), e.g. `[Webhook] POST /line/webhook HTTP/1.1 - 200`. Quotes stay optional.
 POST = re.compile(r'^\[Webhook\] "?POST /line/webhook HTTP/1\.[01]"? - (\d{3})$')
-SUCCESS = re.compile(r'^\[Webhook Reply Success\] HTTP 2\d\d$')
+SUCCESS = re.compile(r'^\[(?:Webhook|Onboarding) Reply Success\] HTTP 2\d\d$')
+OWNER_PUSH = re.compile(r'^\[OwnerNotify\] Pushed \S+ card to owner \S+\.\.\. success=(True|False)$')
+HANDOFF_PUSH = re.compile(r'^\[Handoff\] push owner=\S+ success=(True|False)$')
+REPLY_WINDOW_SECONDS = 180
 COUNTS = ('received', 'replied_ok', 'reply_failed', 'to_staff', 'no_reply_needed')
 
 
@@ -174,7 +177,8 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
         'source_errors', 'stderr_sources', 'ordering_conflicts', 'unanswered_guard',
         'unanswered_paused', 'unanswered_reply_failed', 'unanswered_silent',
         'unanswered_unknown', 'unconfirmed_test_candidates', 'unattributed_replied_ok',
-        'unattributed_to_staff', 'unattributed_reply_failed', 'unattributed_push_failed'), 0))
+        'unattributed_to_staff', 'unattributed_reply_failed', 'unattributed_push_failed',
+        'unanswered_push_failed', 'unverified_onboarding', 'unanswered_onboarding'), 0))
     nodes, edges, incoming_edges = {}, {}, Counter()
     for index, source in enumerate(sources):
         covers_day = False
@@ -191,7 +195,11 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
                         ts = datetime.strptime(m[1], '%Y-%m-%d %H:%M:%S').replace(tzinfo=TAIPEI)
                     except ValueError:
                         continue
-                    if ts.date() != day or not start_hour <= ts.hour < end_hour:
+                    if ts.date() != day:
+                        continue
+                    clock_seconds = ts.hour * 3600 + ts.minute * 60 + ts.second
+                    if (not start_hour <= ts.hour < end_hour
+                            and not end_hour * 3600 <= clock_seconds <= end_hour * 3600 + REPLY_WINDOW_SECONDS):
                         continue
                     covers_day = True
                     key = hashlib.sha256(line.encode('utf-8')).digest()
@@ -207,8 +215,8 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
         if covers_day:
             stats['day_source_files'] += 1
             stats['stderr_sources'] += source.name.endswith('.err.log')
-        # Tee/redirect artifacts can put a duplicate before its POST boundary.
-        # The final occurrence preserves the canonical request's file order.
+        # Tee/redirect artifacts can duplicate records in different positions.
+        # The final occurrence preserves the canonical file's order.
         last = {key: pos for pos, key in enumerate(local)}
         unique = [key for pos, key in enumerate(local) if last[key] == pos]
         for left, right in zip(unique, unique[1:]):
@@ -234,26 +242,15 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
         stats['source_errors'] += 1
         ordered.extend(row for key, row in sorted(nodes.items(), key=lambda item: item[1][:3]) if key not in visited)
     records = ordered
-    pending = None
-    request_open, request_events, request_controls = False, 0, 0
+    pending, events = deque(), []
+    latest = None
 
-    def finish():
-        nonlocal pending
-        if pending is None:
-            return
-        p, pending = pending, None
+    def finish(p):
+        if not p['counted']:
+            return  # tail events consume their outcomes but are outside the shop denominator
         if p['synthetic']:
             stats['excluded_synthetic_events'] += 1
             stats['excluded_reply_failed'] += p['failed']
-            return
-        if p['unknown']:
-            # POST-only requests may have zero events. An orphan reply proves
-            # delivery but supplies no customer/type/test provenance.
-            stats['unattributed_replied_ok'] += p['reply']
-            stats['unattributed_to_staff'] += not p['reply'] and p['push'] and not p['push_failed']
-            stats['unattributed_reply_failed'] += p['failed']
-            stats['unattributed_push_failed'] += p['push_failed']
-            stats['unanswered_unknown'] += not p['reply'] and not (p['push'] and not p['push_failed'])
             return
         stats['unconfirmed_test_candidates'] += p['test_candidate']
         counts['received'] += 1
@@ -266,7 +263,7 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
         result = 'unanswered'
         if p['reply']:
             result = 'replied_ok'
-        elif p['push'] and not p['push_failed']:
+        elif p['push']:
             result = 'to_staff'
         if result != 'unanswered':
             counts[result] += 1
@@ -274,83 +271,102 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
             stats['paused_unanswered'] += 1
             stats['ambiguous'] += 1  # pause alone never proves staff delivery
         if result == 'unanswered':
+            unverified = p['onboarding'] and not p['failed'] and not p['push_failed']
+            stats['unverified_onboarding'] += unverified
             category = ('reply_failed' if p['failed'] else
+                        'push_failed' if p['push_failed'] else 'onboarding' if unverified else
                         'paused' if p['paused'] else 'guard' if p['guard'] else 'silent')
             stats['unanswered_' + category] += 1
         if p['guard']:
             stats['guard_' + result] += 1
 
-    def start(prefix=None, unknown=False):
-        nonlocal pending, request_events
-        finish()
-        request_events += 1
-        pending = dict(reply=False, push=False, push_failed=False, paused=False,
-                       failed=False, invalid_token=False, guard=False,
-                       test_candidate=prefix in UNCONFIRMED_TEST_PREFIXES,
-                       unknown=unknown, synthetic=prefix in SYNTHETIC_PREFIXES)
-        if unknown:
+    def start(ts, prefix):
+        nonlocal latest
+        latest = dict(ts=ts, reply=False, push=False, push_failed=False, paused=False,
+                      failed=False, invalid_token=False, guard=False, onboarding=False, closed=False,
+                      counted=start_hour <= ts.hour < end_hour,
+                      prefix_hash=hashlib.sha256(prefix.encode('utf-8')).digest(),
+                      test_candidate=prefix in UNCONFIRMED_TEST_PREFIXES,
+                      synthetic=prefix in SYNTHETIC_PREFIXES)
+        events.append(latest)
+        pending.append(latest)
+        return latest
+
+    def expire(ts):
+        while pending and (ts - pending[0]['ts']).total_seconds() > REPLY_WINDOW_SECONDS:
+            pending.popleft()['closed'] = True
+
+    def nearby(p, ts):
+        # SafeWriter's tee can invert timestamps slightly while preserving file
+        # order. Absolute distance keeps that tolerance bounded to the same 180s.
+        return p is not None and abs((ts - p['ts']).total_seconds()) <= REPLY_WINDOW_SECONDS
+
+    def outcome(ts, kind, invalid_token=False):
+        # Each terminal marker consumes exactly one oldest still-open event.
+        # Failures are terminal too: an unrelated later success cannot erase one.
+        if pending and nearby(pending[0], ts):
+            p = pending.popleft()
+            p['closed'] = True
+            p[kind] = True
+            p['invalid_token'] = invalid_token
+        else:
+            if not start_hour <= ts.hour < end_hour:
+                return  # orphan outcomes after closing have no in-window provenance
             stats['unattributed_events'] += 1
             stats['ambiguous'] += 1
+            key = {'reply': 'replied_ok', 'push': 'to_staff', 'failed': 'reply_failed',
+                   'push_failed': 'push_failed'}[kind]
+            stats['unattributed_' + key] += 1
 
-    def finish_request():
-        nonlocal request_open, request_events, request_controls
-        finish()
-        if request_open and not request_events and not request_controls:
-            # Sticker/follow/unfollow/empty/malformed requests share POST-only
-            # output. Their type and even batch size cannot be reconstructed.
-            stats['unknown_requests'] += 1
-            start(unknown=True)
-            finish()
-        request_open, request_events, request_controls = False, 0, 0
-
-    for _, _, _, text in records:
+    for ts, _, _, text in records:
+        expire(ts)
         stats['observed_lines'] += 1
         post = POST.fullmatch(text)
         incoming = TEXT_EVENT.match(text) or IMAGE_EVENT.fullmatch(text)
         paused = PAUSED_EVENT.match(text)
         if post:
-            finish_request()
-            request_open = post[1] == '200'
-            stats['inbound_posts' if request_open else 'rejected_posts'] += 1
+            # Access logs are emitted when HTTP requests END, before async
+            # processing finishes. They are observations, never event boundaries.
+            if start_hour <= ts.hour < end_hour or any(p['counted'] for p in pending):
+                stats['inbound_posts' if post[1] == '200' else 'rejected_posts'] += 1
         elif incoming:
-            start(prefix=incoming[1])
+            start(ts, incoming[1])
         elif text == VERIFICATION:
-            finish()
-            request_controls += 1
             stats['verification_pings'] += 1
             stats['excluded_verification_events'] += 1
         elif text.startswith('[Webhook] Duplicate replyToken received:'):
-            finish()
-            request_controls += 1
             stats['duplicate_tokens'] += 1
             stats['duplicate_no_reply_needed'] += 1  # transport, not another customer turn
         elif SUCCESS.fullmatch(text):
-            if pending is None or pending['reply']:
-                start(unknown=True)  # e.g. postback: no dedicated inbound marker
-            pending['reply'] = True
-        elif text.startswith('[ERROR] Failed to send LINE reply:'):
-            if pending is None or pending['reply']:
-                start(unknown=True)
-            pending['failed'] = True
-            pending['invalid_token'] |= 'invalid reply token' in text.lower()
-        elif text.startswith('[Handoff] push owner='):
-            if pending is None:
-                start(unknown=True)
-            pending['push'] |= text.endswith(' success=True')
-            pending['push_failed'] |= not text.endswith(' success=True')
+            outcome(ts, 'reply')
+        elif text.startswith(('[ERROR] Failed to send LINE reply:',
+                              '[ERROR] Failed to send onboarding reply:')):
+            outcome(ts, 'failed', invalid_token='invalid reply token' in text.lower())
+        elif (push := OWNER_PUSH.fullmatch(text) or HANDOFF_PUSH.fullmatch(text)):
+            outcome(ts, 'push' if push[1] == 'True' else 'push_failed')
         elif text.startswith(('[Handoff] push failed:', '[Handoff] notification failed:')):
-            if pending is None:
-                start(unknown=True)
-            pending['push_failed'] = True
+            outcome(ts, 'push_failed')
         elif paused:
-            if pending is None or pending['reply']:
-                start(prefix=paused[1])  # paused image has no Webhook Image line
-            pending['paused'] = True
-        elif text.startswith('[Chat Guard]'):
-            if pending is None:
-                start(unknown=True)
-            pending['guard'] = True
-    finish_request()
+            same = (nearby(latest, ts) and not latest['paused']
+                    and (not latest['closed'] or latest['push'])
+                    and latest['prefix_hash'] == hashlib.sha256(paused[1].encode('utf-8')).digest())
+            p = latest if same else start(ts, paused[1])  # paused images have no Image marker
+            p['paused'] = True
+        elif text.startswith(('[Chat Guard]', '[Onboarding]', '[Binding Saved]')):
+            if (nearby(latest, ts)
+                    and (not latest['closed'] or not text.startswith('[Chat Guard]'))):
+                latest['guard' if text.startswith('[Chat Guard]') else 'onboarding'] = True
+            elif start_hour <= ts.hour < end_hour:
+                stats['ambiguous'] += 1
+    for event in events:
+        finish(event)
+    # No request/event identity is logged. Surplus POSTs stay unknown counts,
+    # never invented customer turns or boundaries between asynchronous markers.
+    stats['unknown_requests'] = max(0, stats['inbound_posts'] - sum(p['counted'] for p in events)
+                                   - stats['verification_pings'] - stats['duplicate_tokens']
+                                   - stats['unattributed_events'])
+    stats['unanswered_unknown'] += stats['unknown_requests']
+    stats['ambiguous'] += stats['unknown_requests']
     details = dict(counts, **stats)
     details['unanswered'] = counts['received'] - sum(counts[k] for k in ('replied_ok', 'to_staff', 'no_reply_needed'))
     details['complete'] = False  # sparse traffic cannot prove full-day coverage
@@ -359,12 +375,12 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
     if (counts['reply_failed'] or stats['handoff_push_failed'] or stats['unattributed_reply_failed']
             or stats['unattributed_push_failed']):
         status, reason = 'fail', '有客戶回覆或店員推播失敗'
-    elif any(stats['unanswered_' + category] for category in ('guard', 'reply_failed', 'silent')):
+    elif any(stats['unanswered_' + category] for category in ('guard', 'reply_failed', 'push_failed', 'silent')):
         status, reason = 'fail', '有客戶收訊但未見回覆或店員推播'
     elif not counts['received'] or not stats['inbound_posts']:
         status, reason = 'no_data', '沒有可核對的該日客戶事件；不能填零'
-    elif stats['ambiguous'] or stats['source_errors'] or stats['stderr_sources']:
-        status, reason = 'no_data', '有未知活動、未證實的 pause、來源缺口或只有 stderr 副本'
+    elif stats['unverified_onboarding'] or stats['ambiguous'] or stats['source_errors'] or stats['stderr_sources']:
+        status, reason = 'no_data', '有未驗證 onboarding、未知活動、未證實的 pause、來源缺口或只有 stderr 副本'
     else:
         status, reason = 'pass', '已觀測客戶事件均見回覆或店員推播（非全天完整性證明）'
     return gate(status, reason, sources, **details)
@@ -391,8 +407,14 @@ def produce_shop_replies(day, source_log, out_path, *, now=None, start_hour=10, 
     closing = datetime.combine(day, datetime.min.time(), TAIPEI) + timedelta(hours=end_hour)
     row = reply_log_counts(day, [source_log], start_hour, end_hour)
     details = row['details']
+    if (not all(k in details for k in COUNTS)
+            or not all(value is None or type(value) is int and value >= 0
+                       for value in (details[k] for k in COUNTS))
+            or any(details[k] is None for k in COUNTS) and not all(details[k] is None for k in COUNTS)):
+        raise ValueError('ShopReplyCountsIncompleteOrInvalid')
     complete = (coverage_complete is True and now >= closing and not details['source_errors']
                 and not details['ambiguous'] and not details['handoff_push_failed']
+                and not details['unverified_onboarding']
                 and (details['received'] is None or details['inbound_posts'] > 0)
                 and not source_log.name.endswith('.err.log'))
     receipt = dict(schema='shop-replies/v1', date=str(day), generated_at=now.isoformat(timespec='seconds'),
@@ -404,11 +426,33 @@ def produce_shop_replies(day, source_log, out_path, *, now=None, start_hour=10, 
     return out_path
 
 
+def produce_shop_replies_from_morning_sync(source_log, out_dir, *, synced_at=None,
+                                          coverage_complete=False, start_hour=10, end_hour=20):
+    """DATASYNC hook: D+1's stable full pull (>=10:05 Taipei) produces D's receipt.
+
+    The 19:45 pull cannot cover the shop's 20:00 closing. The shop PC is off
+    afterwards, so use the next morning's pull; the D+1 23:40 scorer scores D.
+    Caller must attest the pulled copy covers the full previous shop window.
+    This function performs no sync, runtime, scheduler or network operations.
+    """
+    synced_at = synced_at or datetime.now(TAIPEI)
+    if synced_at.utcoffset() is None:
+        raise ValueError('MorningSyncRequiresAwareTimestamp')
+    local = synced_at.astimezone(TAIPEI)
+    if (local.hour, local.minute) < (10, 5):
+        raise ValueError('MorningSyncBefore1005')
+    day = local.date() - timedelta(days=1)
+    out_path = Path(out_dir) / f'shop-replies-{day}.json'
+    return produce_shop_replies(day, source_log, out_path, now=local,
+                                start_hour=start_hour, end_hour=end_hour,
+                                coverage_complete=coverage_complete)
+
+
 def shop_counts(day, path, now):
     data = load(path)
     allowed = set(COUNTS) | {'schema', 'date', 'generated_at', 'complete', 'window'}
     generated = stamp(data.get('generated_at')) if isinstance(data, dict) else None
-    valid = (isinstance(data, dict) and set(data) <= allowed and data.get('schema') == 'shop-replies/v1'
+    valid = (isinstance(data, dict) and set(data) == allowed and data.get('schema') == 'shop-replies/v1'
              and data.get('date') == str(day) and data.get('complete') is True
              and data.get('window') == 'shop_day' and generated is not None
              and generated.date() >= day and generated <= now

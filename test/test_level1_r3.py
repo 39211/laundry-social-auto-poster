@@ -75,6 +75,7 @@ class CustomerRules(Fixtures):
     def test_probe_image_and_paused_image_use_the_same_marker(self):
         row = self.night(POST, '[Webhook Image] Received image 100 from UL1TEST_...', FAIL,
                          POST, '[Handoff] paused user=UL1TEST_ until=2026-11-12 23:00',
+                         PUSH,
                          POST, TEXT, OK)
         self.assertEqual(2, row['details'].get('excluded_synthetic_events'))
         self.assertEqual(1, row['details']['received'])
@@ -97,7 +98,13 @@ class CustomerRules(Fixtures):
         self.assertEqual(1,row['details']['reply_failed'])
 
     def test_unanswered_breakdown_is_disjoint_and_unknown_never_becomes_no_reply_needed(self):
-        row = self.night(POST,TEXT,GUARD,POST,TEXT,PAUSE,POST,TEXT,FAIL,POST,TEXT,POST)
+        # Expire each open event before the next terminal marker; POST itself
+        # never ends an async event. The extra POST still has unknown provenance.
+        path = self.write('shop/logs/webhook_server.log',
+                          self.lines(POST, TEXT, GUARD) + self.lines(POST, TEXT, PAUSE, offset=190) +
+                          self.lines(POST, TEXT, FAIL, offset=380) +
+                          self.lines(POST, TEXT, offset=570) + self.lines(POST, offset=760))
+        row = s.night_counts(DAY, path.parent)
         for category in ('guard','paused','reply_failed','silent','unknown'):
             self.assertEqual(1,row['details'].get('unanswered_'+category),category)
         self.assertEqual(4,row['details']['unanswered'])
@@ -162,11 +169,13 @@ class CustomerRules(Fixtures):
         self.assertEqual('no_data', row['status'])
         self.assertEqual(1, row['details'].get('unattributed_events'))
 
-    def test_reply_failure_is_per_event_even_if_logged_twice_then_successful(self):
+    def test_extra_terminal_markers_cannot_erase_a_failure_or_double_count_the_event(self):
         row = self.night(POST, TEXT, FAIL, FAIL, OK)
         self.assertEqual('fail', row['status'])
         self.assertEqual(1, row['details']['reply_failed'])
-        self.assertEqual(1, row['details']['replied_ok'])
+        self.assertEqual(0, row['details']['replied_ok'])
+        self.assertEqual(1, row['details']['unattributed_reply_failed'])
+        self.assertEqual(1, row['details']['unattributed_replied_ok'])
 
     def test_silent_text_and_failed_owner_push_stay_red(self):
         self.assertEqual('fail', self.night(POST, TEXT)['status'])
@@ -174,7 +183,9 @@ class CustomerRules(Fixtures):
         self.assertEqual('fail', row['status'])
 
     def test_unknown_replies_cannot_mask_a_separate_silent_customer(self):
-        row = self.night(POST,TEXT,POST,OK)
+        path = self.write('shop/logs/webhook_server.log', self.lines(POST, TEXT) +
+                          self.lines(POST, OK, offset=181))
+        row = s.night_counts(DAY, path.parent)
         self.assertEqual('fail',row['status'])
         self.assertEqual(1,row['details']['unanswered_silent'])
         self.assertEqual(1,row['details']['unattributed_events'])

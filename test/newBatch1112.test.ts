@@ -16,7 +16,7 @@ const REF = "參考價，看過實品再報價";
 const SEE = "價格看過實品再報";
 const SHOE_TIME = "洗鞋一般約一個禮拜可以拿，實際日期收件時確認";
 const CLOTH_TIME = "一般約 7 天可以拿，實際日期收件時確認";
-const REPAIR = "屬修繕，不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。";
+const REPAIR = "想把摺痕壓平或補皮屬修繕，不是清潔項目，可以傳照片到 LINE 問。";
 const BIG = "推車或比較大件的物品至少 10～14 天才能交件";
 
 /** 11/12 週四新頁。毛衣洗完變大、變長、變硬不另開：既有肩線頁的 title 與 H2 已是該問句。 */
@@ -171,10 +171,9 @@ describe("11/12 週四新頁 5 頁", () => {
         const audited = wave9AuditedText(html).replaceAll("04-2452-7411", "");
         expect(wave9BannedHits(audited)).toEqual([]);
         expect(html).toContain("LINE 官方 @454foyks，或 LINE 0968327653");
-        for (const needle of [
+        const needles = [
           FULL,
           CITY,
-          REF,
           "https://lin.ee/w8qGVqM",
           "@454foyks",
           "0968327653",
@@ -184,7 +183,11 @@ describe("11/12 週四新頁 5 頁", () => {
           "青海路二段365號",
           "只能淡化",
           "示意圖（AI 生成）"
-        ]) {
+        ];
+        // 推車沒有參考價，行銷 M6 刪掉重複的「參考價，看過實品再報價」，只留「價格看過實品再報」。
+        if (page.slug === "stroller-cleaning") needles.push(SEE);
+        else needles.push(REF);
+        for (const needle of needles) {
           expect(main, needle).toContain(needle);
         }
         expect(main.replaceAll(CITY, "").replaceAll(FULL, "")).not.toContain("免費");
@@ -234,7 +237,8 @@ describe("11/12 週四新頁 5 頁", () => {
         };
         const hit = answers.answers.find((item) => item.id === `${page.slug}-page-summary`);
         expect(hit?.source_url).toBe(`https://sixiangjialaundry.com/${path}`);
-        expect(hit?.answer).toContain(REF);
+        if (page.slug === "stroller-cleaning") expect(hit?.answer).toContain(SEE);
+        else expect(hit?.answer).toContain(REF);
         const text = JSON.stringify(hit).replaceAll(CITY, "").replaceAll(FULL, "");
         expect(text).not.toMatch(/保證|免費|賠|補償|全新|殺菌|除臭/);
         expect(text).not.toContain("台中全市");

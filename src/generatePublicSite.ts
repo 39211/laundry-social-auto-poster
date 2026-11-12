@@ -8,6 +8,7 @@ import { getOption, isMain } from "./cli";
 import { getConfig, hasUsablePublicImageBaseUrl } from "./config";
 import { assertAeo325PublicOutputSafety, loadAeo325Guardrail } from "./aeo325Guardrail";
 import { hasApprovedPost, loadApprovalLog, readJsonFile, writeJsonAtomic } from "./logging";
+import { slotRetirement } from "./slotRetirements";
 import {
   contentCalendarPath,
   docsContentCalendarPath,
@@ -9838,7 +9839,13 @@ export async function generatePublicSite(options: GeneratePublicSiteOptions = {}
       }
 
       const approvals = await loadApprovalLog(date, root);
-      const approvedSlots = calendar.slots.filter((slot) => isSlotFullyApproved(approvals, slot.slot));
+      const approvedCandidates = calendar.slots.filter((slot) => isSlotFullyApproved(approvals, slot.slot));
+      const posted = approvedCandidates.some((slot) => slotRetirement(date, slot.slot, root).retired)
+        ? await readPublicationRows<DailyPostedLogRow>(join(root, "data", "posted-log", `${date}.json`))
+        : [];
+      const approvedSlots = approvedCandidates.filter((slot) =>
+        !slotRetirement(date, slot.slot, root).retired || posted.some(row => row.slot === slot.slot &&
+          row.dry_run === false && (row.status === "success" || row.status === "posted")));
       let publicSlots: DailySlot[];
       try {
         publicSlots = approvedSlots.map((slot) =>

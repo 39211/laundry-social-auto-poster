@@ -183,6 +183,14 @@ export async function autoApprove(
   }
   record("daily_content", true);
 
+  // A verified calendar with every daily slot retired has no consent to grant.
+  // Expired social publishing policy/assets must not turn that into an alarm.
+  if (content.slots.length === 0) return {
+    date, approved: false, already_approved: true, approved_slots: [], blockers: [],
+    checks: [{ name: "daily_content", ok: true }, { name: "no_active_slots", ok: true }],
+    ai_provenance: { with_manifest: 0, without_manifest: 0, consistent: true }
+  };
+
   // Provenance is reported, never gated. An unreadable manifest or a parse
   // error here used to throw out of the whole run, so no report was written
   // and the day was lost over a field that gates nothing; it now reads as an

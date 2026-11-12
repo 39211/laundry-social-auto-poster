@@ -24,14 +24,14 @@ describe("slot retirement policy and calendar", () => {
     expect(slotRetirement("2027-01-01", 3, root).retired).toBe(false);
   });
   it.each(["missing", "{broken", "{}", '{"version":1,"retirements":[{"slot":2,"from":"2026-02-30","reason":"x"}]}'])
-    ("fails closed with diagnostics for %s, leaving slots 1 and 3 usable", async raw => {
+    ("fails closed with diagnostics for %s, leaving optional slot 3 usable", async raw => {
       const file = join(root, "src/slot-retirements.json");
       if (raw === "missing") await unlink(file); else await writeFile(file, raw);
       expect(loadSlotRetirements(root).error).toMatch(/fail closed/);
       expect(slotRetirement(date, 2, root).retired).toBe(true);
       // r3 revokes N2: historical decisions are unchanged even with damaged settings.
       expect(slotRetirement("2026-11-15", 2, root)).toEqual({ retired: false });
-      expect(slotRetirement(date, 1, root).retired).toBe(false);
+      expect(slotRetirement(date, 1, root).retired).toBe(true);
       expect(slotRetirement("2026-11-15", 1, root).retired).toBe(false);
       expect(slotRetirement(date, 3, root).retired).toBe(false);
     });

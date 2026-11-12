@@ -110,6 +110,7 @@ export async function calculateRollingPublishingSla(
     const entries = await loadPostLog(date, root);
     const calendar = await readJsonFile<DailyContent | undefined>(contentCalendarPath(date, root), undefined);
     const savedRetired = calendar ? calendarRetiredSlots(calendar) : [];
+    if (hasNoScheduledSlots(calendar, date, root)) continue;
     for (const schedule of DAILY_SCHEDULE) {
       if (slotRetirement(date, schedule.slot, root).retired || savedRetired.includes(schedule.slot)) continue;
       if (date > endDate || (date === endDate && getSlotPublishTime(date, schedule.slot, root) > time)) continue;
@@ -130,6 +131,14 @@ export async function calculateRollingPublishingSla(
     target: SLA_TARGET,
     target_met: fulfillmentRate === null ? null : fulfillmentRate >= SLA_TARGET
   };
+}
+
+/** An intentionally empty day also has no optional noon Reel to fulfil. */
+function hasNoScheduledSlots(calendar: DailyContent | undefined, date: string, root: string): boolean {
+  if (!calendar || !Array.isArray(calendar.slots)) return false;
+  const saved = calendarRetiredSlots(calendar);
+  return [1, 2].every(slot => saved.includes(slot) || slotRetirement(date, slot, root).retired) &&
+    calendar.slots.every(slot => slotRetirement(date, slot.slot, root).retired);
 }
 
 export async function runPublishingSlaCheck(options: {
@@ -158,7 +167,7 @@ export async function runPublishingSlaCheck(options: {
     const retirement = slotRetirement(date, checkpoint.slot, root);
     const calendar = await readJsonFile<DailyContent | undefined>(contentCalendarPath(date, root), undefined);
     const savedRetired = calendar ? calendarRetiredSlots(calendar).includes(checkpoint.slot) : false;
-    if (retirement.retired || savedRetired) return {
+    if (retirement.retired || savedRetired || hasNoScheduledSlots(calendar, date, root)) return {
       generated_at: now.toISOString(), date, checkpoint, checkpoint_status: "pass",
       message: retirement.reason ?? "Slot omitted when this calendar was written; no publication expected.", rolling_14_days: rolling
     };

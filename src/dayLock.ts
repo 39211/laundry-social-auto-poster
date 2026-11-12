@@ -4,6 +4,8 @@ import { getConfig } from "./config";
 import { loadDailyContent, readJsonFile, writeDailyContent, writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
+import { slotRetirement } from "./slotRetirements";
+import { unlink } from "node:fs/promises";
 import type { DailySlot } from "./types";
 
 // Locks a day's slot 1 once its images exist, and restores it when something
@@ -27,6 +29,7 @@ function lockPath(date: string, root: string): string {
 }
 
 export async function lockDay(date: string, root = projectRooted()): Promise<string> {
+  if (await releaseRetiredLock(date, root)) return "slot 1 retired; no lock";
   const content = await loadDailyContent(date, root);
   const slot1 = content?.slots.find((slot) => slot.slot === 1);
   if (!slot1) return "no slot 1 to lock";
@@ -60,6 +63,7 @@ export async function lockDay(date: string, root = projectRooted()): Promise<str
 }
 
 export async function healDay(date: string, root = projectRooted()): Promise<string> {
+  if (await releaseRetiredLock(date, root)) return "slot 1 retired; no lock";
   const lock = await readJsonFile<DayLock | null>(lockPath(date, root), null);
   if (!lock) return "no lock";
   const content = await loadDailyContent(date, root);
@@ -82,6 +86,13 @@ export async function healDay(date: string, root = projectRooted()): Promise<str
   };
   await writeDailyContent(restored, root);
   return `restored slot 1 to "${lock.slot1.topic.slice(0, 24)}" (was "${slot1.topic.slice(0, 24)}")`;
+}
+
+async function releaseRetiredLock(date: string, root: string): Promise<boolean> {
+  if (!slotRetirement(date, 1, root).retired) return false;
+  try { await unlink(lockPath(date, root)); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  return true;
 }
 
 function projectRooted(): string {

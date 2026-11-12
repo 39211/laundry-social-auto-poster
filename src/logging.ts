@@ -118,9 +118,10 @@ export async function loadDailyContent(
   const content = omitRuntimeCalendarFlags(raw);
   // Slot 3 is the optional noon Reel for dual-length A/B days. Existing
   // calendars stay at 2 slots; new days and healed A/B days may carry 3.
-  const minimumSlots = calendarRetiredSlots(content).includes(2) ? 1 : 2;
+  const savedRetired = calendarRetiredSlots(content);
+  const minimumSlots = 2 - [1, 2].filter(slot => savedRetired.includes(slot)).length;
   if (!Array.isArray(content.slots) || content.slots.length < minimumSlots || content.slots.length > 3) {
-    throw new Error(`Invalid daily content for ${date}: expected ${minimumSlots === 1 ? "1 to 3" : "2 or 3"} slots.`);
+    throw new Error(`Invalid daily content for ${date}: expected ${minimumSlots < 2 ? `${minimumSlots} to 3` : "2 or 3"} slots.`);
   }
   const inspection = inspectDailyContentIntegrity(content, { today: options.today, root });
   if (inspection.tampered) {
@@ -131,7 +132,8 @@ export async function loadDailyContent(
   // look like checksum tampering; unrelated edits still fail the raw inspection.
   const slots = content.slots.filter(slot => !slotRetirement(date, slot.slot, root).retired);
   if (slots.length === content.slots.length) return content;
-  const active = { ...content, slots };
+  const retiredSlots = [...new Set([...savedRetired, ...content.slots.filter(slot => !slots.includes(slot)).map(slot => slot.slot)])].sort((a, b) => a - b);
+  const active = { ...content, slots, retired_slots: retiredSlots };
   return { ...active, content_checksum: calendarSlotsChecksum(active, { root }) };
 }
 

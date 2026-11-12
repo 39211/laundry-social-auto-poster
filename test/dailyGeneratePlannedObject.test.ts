@@ -31,6 +31,7 @@ function runProductionLookup(root: string, date: string): { version: number; obj
   const script = `
     $ErrorActionPreference = 'Stop'
     $ProgressPreference = 'SilentlyContinue'
+    . ${quotePS(resolve("scripts/slot-retirements.ps1"))}
     [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
     $tokens = $null; $errors = $null
     $ast = [System.Management.Automation.Language.Parser]::ParseFile(${quotePS(resolve("scripts/daily-generate.ps1"))}, [ref]$tokens, [ref]$errors)

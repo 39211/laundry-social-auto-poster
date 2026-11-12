@@ -7,6 +7,10 @@ interface SlotRetirement { slot: number; from: string; reason: string }
 export interface RetirementPolicy { retirements: SlotRetirement[]; error?: string }
 export interface RetirementDecision { retired: boolean; reason?: string; error?: string }
 
+// Also read by the offline PS/Python transport fallback when node cannot run.
+// Keep the historical boundary here, separate from removable owner policy rows.
+export const RETIREMENT_FAILURE_BOUNDARY = "2026-11-16";
+
 function validDate(date: unknown): date is string {
   return typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
     Number.isFinite(Date.parse(`${date}T00:00:00Z`)) && new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) === date;
@@ -38,11 +42,10 @@ export function loadSlotRetirements(root = projectRoot(), date?: string): Retire
   } catch (error) {
     // Missing/corrupt deployment settings must not alter pre-retirement history.
     // This fallback lower bound lives only in the single policy reader.
-    const fallbackFrom = "2026-11-16";
-    if (date && retirementTaipeiDate(date) < fallbackFrom) return { retirements: [] };
+    if (date && retirementTaipeiDate(date) < RETIREMENT_FAILURE_BOUNDARY) return { retirements: [] };
     // Do not echo raw JSON or file contents to operational logs.
     const code = (error as NodeJS.ErrnoException).code;
-    return { retirements: [], error: `slot-retirements: ${code ?? "invalid configuration"}; slot 2 is blocked (fail closed)` };
+    return { retirements: [], error: `slot-retirements: ${code ?? "invalid configuration"}; slots 1 and 2 are blocked (fail closed)` };
   }
 }
 
@@ -54,7 +57,8 @@ export function slotRetirement(date: string | Date, slot: number, root = project
   if (policy.error) {
     const key = `${root}:${policy.error}`;
     if (!reported.has(key)) { reported.add(key); console.warn(policy.error); }
-    return { retired: slot === 2, reason: slot === 2 ? policy.error : undefined, error: policy.error };
+    const retired = slot === 1 || slot === 2;
+    return { retired, reason: retired ? policy.error : undefined, error: policy.error };
   }
   const entry = policy.retirements.find(row => row.slot === slot && calendarDate >= row.from);
   return entry ? { retired: true, reason: `slot ${slot} retired from ${entry.from}: ${entry.reason}` } : { retired: false };
@@ -75,7 +79,7 @@ if (isMain(import.meta.url)) {
     const candidates = [...new Set([1, 2, 3, ...policy.retirements.map(row => row.slot)])];
     console.log(JSON.stringify({ date: retirementTaipeiDate(date), retiredSlots: candidates.filter(slot => slotRetirement(date, slot, root).retired), error: policy.error }));
   } catch {
-    console.log(JSON.stringify({ retiredSlots: [2], error: "slot-retirements CLI failed; slot 2 blocked" }));
+    console.log(JSON.stringify({ retiredSlots: [1, 2], error: "slot-retirements CLI failed; slots 1 and 2 blocked" }));
     process.exitCode = 1;
   }
 }

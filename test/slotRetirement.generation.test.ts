@@ -26,7 +26,7 @@ describe("slot retirement generation", () => {
       evening: { conceptId: "shirt-collar", variant: "15s" as const }
     }));
     expect(buildDailyContent("2026-11-15", config, { root, abPlan: plan }).slots.map(s => s.slot)).toEqual([1, 2]);
-    expect(buildDailyContent("2026-11-16", config, { root, abPlan: plan }).slots.map(s => s.slot)).toEqual([1]);
+    expect(buildDailyContent("2026-11-16", config, { root, abPlan: plan }).slots.map(s => s.slot)).toEqual([]);
   });
   it("does not resurrect the paused evening image fallback; keeps optional slot 3", () => {
     const date = "2026-11-16";
@@ -34,14 +34,14 @@ describe("slot retirement generation", () => {
       noon: { conceptId: "shirt-collar", variant: "10s" },
       evening: { conceptId: "shirt-collar", variant: "15s", paused: true }
     }] });
-    expect(content.slots.map(s => s.slot)).toEqual([1, 3]);
+    expect(content.slots.map(s => s.slot)).toEqual([3]);
   });
   it("regenerates slot 2 again after removing the retirement entry", async () => {
     await writeFile(join(root, "src/slot-retirements.json"), JSON.stringify({ version: 1, retirements: [] }));
     expect(buildDailyContent("2026-11-16", config, { root }).slots.map(s => s.slot)).toEqual([1, 2]);
   });
-  it("still generates slot 1 when the retirement file is corrupt", async () => {
+  it("generates neither daily slot when the retirement file is corrupt", async () => {
     await writeFile(join(root, "src/slot-retirements.json"), "broken");
-    expect(buildDailyContent("2026-11-16", config, { root }).slots.map(s => s.slot)).toEqual([1]);
+    expect(buildDailyContent("2026-11-16", config, { root }).slots.map(s => s.slot)).toEqual([]);
   });
 });

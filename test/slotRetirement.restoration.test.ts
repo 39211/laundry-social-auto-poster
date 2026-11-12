@@ -188,7 +188,7 @@ describe("F2 historical dates ignore missing or invalid policy", () => {
     expect(warn).not.toHaveBeenCalled();
     expect(slotRetirement("2026-11-16", 2, root)).toMatchObject({ retired: true, error: expect.stringContaining("fail closed") });
     expect(slotRetirement("2026-11-15T16:00:00Z", 2, root).retired).toBe(true);
-    expect(slotRetirement("2026-11-16", 1, root).retired).toBe(false);
+    expect(slotRetirement("2026-11-16", 1, root).retired).toBe(true);
     expect(slotRetirement("2026-11-16", 3, root).retired).toBe(false);
   });
 });

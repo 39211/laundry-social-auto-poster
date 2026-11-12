@@ -67,9 +67,9 @@ describe("slot retirement execution gates (all paths isolated)", () => {
     await approveFixture();
     if (bad) await unlink(join(root, "src/slot-retirements.json"));
     const results = await postCurrentSlot({ root, date, allDue: true, now: `${date}T21:00:00+08:00`, dryRun: true, verifyPublicImageUrl: false, fetchImpl: noNetwork as unknown as typeof fetch });
-    expect(results.map(row => row.slot)).toEqual([1, 1]);
-    expect(vi.mocked(postFacebookPhoto).mock.calls.map(call => call[0].slot)).toEqual([1]);
-    expect(vi.mocked(postInstagramPhoto).mock.calls.map(call => call[0].slot)).toEqual([1]);
+    expect(results.map(row => row.slot)).toEqual(bad ? [] : [1, 1]);
+    expect(vi.mocked(postFacebookPhoto).mock.calls.map(call => call[0].slot)).toEqual(bad ? [] : [1]);
+    expect(vi.mocked(postInstagramPhoto).mock.calls.map(call => call[0].slot)).toEqual(bad ? [] : [1]);
     expect((await loadPostLog(date, root)).every(row => row.slot === 1)).toBe(true);
     expect(noNetwork).not.toHaveBeenCalled();
   });

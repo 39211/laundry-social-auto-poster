@@ -39,9 +39,9 @@ describe("nightly audit uses the shared retirement reader", () => {
     const after = run("2026-11-16"); expect(after.slots).toEqual([1]); expect(after.findings).toEqual([]);
     expect(await readFile(join(cwd, "scripts/nightly_optimize.py"), "utf8")).toContain('today_cal = active_calendar(load(');
   }, 30000);
-  it.each(["missing", "broken"])("fails closed for %s and continues to audit slot 1", async mode => {
+  it.each(["missing", "broken"])("fails closed for %s for both daily slots", async mode => {
     if (mode === "missing") await unlink(join(root, "src/slot-retirements.json"));
     else await writeFile(join(root, "src/slot-retirements.json"), "broken");
-    const result = run("2026-11-16"); expect(result.slots).toEqual([1]); expect(result.findings).toEqual([]); expect(result.stderr).toContain("fail closed");
+    const result = run("2026-11-16"); expect(result.slots).toEqual([]); expect(result.findings).toEqual([]); expect(result.stderr).toContain("fail closed");
   }, 30000);
 });

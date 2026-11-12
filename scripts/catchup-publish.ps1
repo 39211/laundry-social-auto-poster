@@ -339,7 +339,7 @@ $approvedPath = Join-Path $root "data\approved-log\$date.json"
 # until a human deleted the log. That failure mode got much more likely once
 # approval started demanding image evidence per slot, so re-judge whenever any
 # calendar slot is still missing its approval, not only when none has one.
-$needsJudging = $true
+$needsJudging = @(Get-EffectivePublishSlots -CalendarSlots (Get-CalendarSlots -Root $root -Date $date) -Root $root -Date $date).Count -gt 0
 if (Test-Path $approvedPath) {
     try {
         $calendarPath = Join-Path $root "data\content-calendar\$date.json"
@@ -455,7 +455,7 @@ if ($script:publicSiteRepushFailed) {
     Write-Log "public-site repush failed earlier; posting continues, poster validates image URLs itself"
 }
 
-if (-not (Test-Path $approvedPath)) {
+if (-not (Test-Path $approvedPath) -and @(Get-EffectivePublishSlots -CalendarSlots (Get-CalendarSlots -Root $root -Date $date) -Root $root -Date $date).Count -gt 0) {
     Write-Log "No approved-log for $date. Nothing can be published yet."
     Show-Toast "今天 ($date) 還沒有審核紀錄,請執行 Codex 審核流程,否則今天不會發文。"
     exit 0

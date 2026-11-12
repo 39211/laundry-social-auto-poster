@@ -44,6 +44,10 @@ describe("A-BACKFILL reconcileUncertainRows", () => {
   let root: string;
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), "sched-reconcile-"));
+    // These cases exercise reconciliation with slot 1 explicitly restored.
+    // Missing-policy fail-closed and retired-row suppression have separate witnesses.
+    await mkdir(join(root, "src"));
+    await writeFile(join(root, "src/slot-retirements.json"), JSON.stringify({ version: 1, retirements: [] }));
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
   });

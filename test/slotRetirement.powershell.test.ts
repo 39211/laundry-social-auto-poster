@@ -35,10 +35,10 @@ describe.runIf(process.platform === "win32")("slot retirement PowerShell operati
     expect(output).toContain('"missing":[]');
     expect(output).toMatch(/1,3\s*$/);
   }, 45000);
-  it("shared PS reader fails closed on missing and malformed config without removing slot 1", async () => {
+  it("shared PS reader fails closed on missing and malformed config for both daily slots", async () => {
     await writeFile(join(root, "src/slot-retirements.json"), "broken");
     const output = ps(`. ${quote(join(cwd, "scripts/publish-slot-times.ps1"))}; $t=Get-SlotTimes -Root ${quote(root)} -Date '${date}'; 'ACTIVE='+(@($t.Keys|Sort-Object)-join ',')`);
-    expect(output).toContain("fail closed"); expect(output).toContain("ACTIVE=1,3");
+    expect(output).toContain("fail closed"); expect(output).toContain("ACTIVE=3");
   }, 45000);
   it("sentinel with old slot 2 calendar/uncertain ledger emits no missed-slot toast and never invokes catchup", async () => {
     await seedRetirementCalendar(root, date);

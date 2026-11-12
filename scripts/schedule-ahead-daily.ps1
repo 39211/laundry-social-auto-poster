@@ -108,6 +108,18 @@ foreach ($offset in 1..3) {
         continue
     }
 
+    # No approval-log is required for a day with no active social slots.
+    # Keep an existing optional slot 3 in the expectation.
+    $calendarData = [IO.File]::ReadAllText($calendar, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
+    $expectedSlots = @(1, 2)
+    if (@($calendarData.slots | ForEach-Object { $_.slot }) -contains 3) { $expectedSlots += 3 }
+    $savedRetired = @($calendarData.retired_slots)
+    $expectedSlots = @(Remove-RetiredPublishSlots -Slots $expectedSlots -Root $root -Date $date | Where-Object { $savedRetired -notcontains $_ })
+    if ($expectedSlots.Count -eq 0) {
+        Write-Log "${date}: no active social slots; no approval or scheduling required."
+        continue
+    }
+
     # Same order daily-approve uses for today; each idempotent for a date that
     # already carries locks/approvals.
     cmd /c "npm.cmd run day-lock -- --date $date --heal 2>&1" | Out-File -FilePath $logFile -Append -Encoding utf8

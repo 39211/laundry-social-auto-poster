@@ -30,7 +30,22 @@
             if ($null -eq $result.retiredSlots -or $result.date -cne $Date) { throw 'retirement reader returned invalid data' }
         } finally { $process.Dispose() }
     } catch {
-        $result = [pscustomobject]@{ retiredSlots = @(2); error = 'slot-retirements reader unavailable; slot 2 blocked (fail closed)' }
+        # node may be unavailable. Bootstrap only the failure boundary from the
+        # SAME reader source; do not duplicate policy dates in script callers.
+        $historical = $false
+        try {
+            $source = [IO.File]::ReadAllText($cli, [Text.UTF8Encoding]::new($false))
+            $boundary = [regex]::Match($source, 'export const RETIREMENT_FAILURE_BOUNDARY = "(\d{4}-\d{2}-\d{2})";')
+            if (-not $boundary.Success) { throw 'failure boundary unavailable' }
+            $day = $Date
+            if ($Date -notmatch '^\d{4}-\d{2}-\d{2}$') {
+                $instant = [DateTimeOffset]::Parse($Date, [Globalization.CultureInfo]::InvariantCulture)
+                $day = [TimeZoneInfo]::ConvertTime($instant, [TimeZoneInfo]::FindSystemTimeZoneById('Taipei Standard Time')).ToString('yyyy-MM-dd')
+            }
+            $historical = $day -clt $boundary.Groups[1].Value
+        } catch {}
+        $result = if ($historical) { [pscustomobject]@{ retiredSlots = @(); error = $null } }
+                  else { [pscustomobject]@{ retiredSlots = @(1, 2); error = 'slot-retirements reader unavailable; slots 1 and 2 blocked (fail closed)' } }
     }
     if ($result.error) {
         if (Get-Command Write-Log -ErrorAction SilentlyContinue) { Write-Log ([string]$result.error) }

@@ -36,6 +36,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from publish_recovery_report import recovery_summary
 import level1_shop as shop
+from slot_retirements import retired_slots
 
 RULES_VERSION = 5
 CHECKLIST_TARGET = 3
@@ -466,6 +467,18 @@ def _evaluate_posts(day, policy, posted_log_path, assets_root=None):
         pairs = [p for p in pairs if p[0] in planned]
         if not pairs:
             note = note or "當天沒有產出任何排程內容(暫停的時段不算)"
+    root = Path(posted_log_path).parent.parent.parent
+    _, calendar = load_json(root / "data" / "content-calendar" / (iso + ".json"))
+    if isinstance(calendar, dict) and isinstance(calendar.get("slots"), list):
+        retired = set(retired_slots(root, iso))
+        present = {s.get("slot") for s in calendar["slots"] if isinstance(s, dict)}
+        saved = calendar.get("retired_slots", [])
+        if not isinstance(saved, list):
+            saved = []
+        retired.update(s for s in saved if type(s) is int and s > 0 and s not in present)
+        # Saved omissions survive policy removal; actual as-aired rows are not
+        # changed, only the checklist's expected publications.
+        pairs = [p for p in pairs if p[0] not in retired]
     if not pairs:
         return _result("not_required", note or "當天沒有排程的發文")
     state, rows = load_json(posted_log_path)

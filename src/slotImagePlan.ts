@@ -87,6 +87,7 @@ export async function buildSlotImagePlan(date: string, root = projectRoot()): Pr
 
   const blockers: string[] = [];
   const items: SlotImagePlanItem[] = [];
+  if (content.slots.length === 0) return { date, generated_at: new Date().toISOString(), items, blockers };
 
   const manifest = await loadImagePromptManifest(root, date);
   if (!manifest) {

@@ -5,6 +5,7 @@ import { verifyPublicAssetUrl } from "./githubPages";
 import { loadDailyContent, loadPostLog, readJsonFile, writeJsonAtomic } from "./logging";
 import { projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
+import { slotRetirement } from "./slotRetirements";
 
 // Re-shares the day's live posts to Instagram Stories.
 //
@@ -84,6 +85,7 @@ export async function shareLivePostsToStories(options: { date?: string; root?: s
   const results: Array<{ slot: number; story_id?: string; skipped?: string }> = [];
 
   for (const slot of content?.slots ?? []) {
+    if (slotRetirement(date, slot.slot, root).retired) continue;
     if (existing.some((entry) => entry.slot === slot.slot)) {
       results.push({ slot: slot.slot, skipped: "already shared" });
       continue;

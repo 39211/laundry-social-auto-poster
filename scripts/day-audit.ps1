@@ -211,6 +211,7 @@ $report = [ordered]@{
     bot_readiness     = $botReadiness
 }
 $reportPath = Join-Path $reportDir "$date.json"
+if ($expectedSlots.Count -eq 0) { $report['expected_slots'] = @() }
 $report | ConvertTo-Json -Depth 5 | Out-File -FilePath $reportPath -Encoding utf8
 
 # The clicks number rides on both branches. It is the only number on this line

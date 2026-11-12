@@ -74,7 +74,9 @@ def metrics_for(d):
     line_clicks = None
     if report:
         slots = report.get("slots") if "slots" in report else None
-        if slots is None or slots == {} or slots == []:
+        if report.get("expected_slots") == []:
+            published_ok = not report.get("missing_posts")
+        elif slots is None or slots == {} or slots == []:
             published_ok = None
         else:
             flags = [v for slot in slots.values() for v in slot.values()]

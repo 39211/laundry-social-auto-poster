@@ -3127,6 +3127,7 @@ export function buildDailyContent(
   const root = projectRoot(options.root);
   const abPlan = options.abPlan ?? loadAbTestPlanSync(root);
   const dayPlan = planForDate(abPlan, date);
+  const slot1Active = !slotRetirement(date, 1, root).retired;
   const noonSlotUnavailable = planSlot(dayPlan, 3) === undefined;
   const eveningPaused = Boolean(dayPlan?.evening?.paused) && planSlot(dayPlan, 2) === undefined;
   const occupiedTopics = eveningPaused
@@ -3134,14 +3135,14 @@ export function buildDailyContent(
     : [];
   const airedTopics =
     options.airedTopics ??
-    (options.applyAiredCooldown
+    (slot1Active && options.applyAiredCooldown
       ? recentAiredTopics(date, SLOT1_AIRED_REPEAT_WINDOW_DAYS, root, options.today)
       : []);
 
   const playbookSlots = playbookSlotsForDate(date);
-  const rawSlot1 = playbookSlots?.find((slot) => slot.slot === 1);
-  const slot1Plan = options.applySlot1Plan ? loadSlot1PlanSync(root) : {};
-  const slot1PlanExt = options.applySlot1Plan ? loadSlot1PlanExtSync(root) : {};
+  const rawSlot1 = slot1Active ? playbookSlots?.find((slot) => slot.slot === 1) : undefined;
+  const slot1Plan = slot1Active && options.applySlot1Plan ? loadSlot1PlanSync(root) : {};
+  const slot1PlanExt = slot1Active && options.applySlot1Plan ? loadSlot1PlanExtSync(root) : {};
   const plannedTopic = slot1Plan[date];
   const extendedPlan = slot1PlanExt[date];
   const nextPlannedTopic = slot1Plan[addUtcDays(date, 1)];
@@ -3197,8 +3198,7 @@ export function buildDailyContent(
     timezone: config.timezone,
     generated_at: new Date().toISOString(),
     slots,
-    ...(!slots.some(slot => slot.slot === 2) && slotRetirement(date, 2, root).retired ? { retired_slots: [2] } : {})
-  });
+  }, { root });
 }
 
 /** Identity writeDailyContent stamps. External Codex patches do not know this string. */

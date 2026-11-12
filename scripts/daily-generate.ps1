@@ -13,6 +13,7 @@ $ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "slot-retirements.ps1")
 
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
 $now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
@@ -30,6 +31,7 @@ function Write-Log([string]$message) {
 }
 
 function Get-PlannedObject([string]$Root, [string]$Date) {
+    if (@(Remove-RetiredPublishSlots -Slots @(1) -Root $Root -Date $Date).Count -eq 0) { return '' }
     $plannedObject = ""
     try {
         $planRaw = [IO.File]::ReadAllText((Join-Path $Root "data\slot1-plan.json"), [Text.UTF8Encoding]::new($false))

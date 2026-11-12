@@ -293,7 +293,7 @@ def audit_clock_hour(audit_day, now_day, now_hour):
 # --- end helpers ---
 
 # Main-workflow dependency: keep the standalone/pythonw-safe helper head importable.
-from slot_retirements import active_calendar
+from slot_retirements import active_calendar, retired_slots
 
 _now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
 try:
@@ -354,6 +354,8 @@ for path, label, need in (
     ("data/slot1-plan.json", "每日主題表", 14),
     ("data/ab-test-plan.json", "影片排程表", 14),
 ):
+    if path == "data/slot1-plan.json" and 1 in retired_slots(ROOT, ds):
+        continue
     data = load(path)
     if not data:
         add("HIGH", "計畫殘量", f"{label} 讀不到", path, "檢查檔案是否損毀")
@@ -378,7 +380,7 @@ plan = load("data/slot1-plan.json", {})
 recent = {}
 for i in range(-7, 8):
     d = (TODAY + timedelta(days=i)).isoformat()
-    if d in plan:
+    if d in plan and 1 not in retired_slots(ROOT, d):
         recent.setdefault(plan[d], []).append(d)
 for topic, days in recent.items():
     if len(days) > 1:

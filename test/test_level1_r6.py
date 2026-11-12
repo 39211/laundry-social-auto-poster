@@ -65,7 +65,7 @@ class ScriptModuleTests(unittest.TestCase):
         corpus = [name for name in checks.discover_modules(self.source / "line-bot")
                   if name != "test_linebot_fix_20260926"]
         with mock.patch.object(checks, "discover_modules", return_value=corpus):
-            path = checks.produce(self.source, self.base / "out", work_root=self.base / "work")
+            path = checks.produce_legacy(self.source, self.base / "out", work_root=self.base / "work")
         self.receipt = json.loads(path.read_text(encoding="utf-8"))
         self.bot = Path(self.receipt["snapshot"]) / "line-bot"
         self.full = self.receipt["checks"]["line_full"]

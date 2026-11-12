@@ -122,7 +122,7 @@ class SmokeTests(unittest.TestCase):
                 calls.append((script, args, timeout))
                 return dict(status="pass", tests=1, failures=0, errors=0, skipped=0, suite=label)
             with mock.patch.object(checks, "run_check", side_effect=fake_run):
-                path = checks.produce(root, root, work_root=Path(tmp) / "work", smoke=True)
+                path = checks.produce_legacy(root, root, work_root=Path(tmp) / "work", smoke=True)
             receipt = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(receipt["schema"], "level1-offline-smoke/v1")
             self.assertTrue(path.name.startswith("level1-smoke-"))

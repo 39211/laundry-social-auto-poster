@@ -66,7 +66,7 @@ class OfflineEvidenceTests(unittest.TestCase):
             stamp = datetime(2026, 11, 8, 22, 50, tzinfo=checks.TAIPEI)
             with mock.patch.object(checks, "run_check", side_effect=fake_run), \
                     mock.patch.dict(checks.os.environ, {"LAUNDRY_TEST_TOKEN": "SYNTHETIC"}):
-                path = checks.produce(source, output, now=stamp, work_root=workspace)
+                path = checks.produce_legacy(source, output, now=stamp, work_root=workspace)
             self.assertEqual(path, output / "output/operations/level1-checks-2026-11-08.json")
             data = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(data["date"], "2026-11-08")
@@ -95,8 +95,8 @@ class OfflineEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "repo"
             make_repo(root)
-            with mock.patch.object(checks, "RUN_BUDGET_SECONDS", 0), mock.patch.object(checks, "run_check") as run:
-                path = checks.produce(root, root / "results", work_root=Path(tmp) / "work")
+            with mock.patch.object(checks, "LEGACY_RUN_BUDGET_SECONDS", 0), mock.patch.object(checks, "run_check") as run:
+                path = checks.produce_legacy(root, root / "results", work_root=Path(tmp) / "work")
             run.assert_not_called()
             data = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual({r["status"] for r in data["checks"].values()}, {"no_data"})
@@ -104,20 +104,20 @@ class OfflineEvidenceTests(unittest.TestCase):
     def test_workspace_in_production_is_rejected_before_mkdir(self):
         with mock.patch.object(checks.Path, "mkdir") as mkdir:
             with self.assertRaises(ValueError):
-                checks.produce(Path.cwd(), Path.cwd(), work_root="C:/Users/cyc39/laundry-repo/output/snapshot")
+                checks.produce_legacy(Path.cwd(), Path.cwd(), work_root="C:/Users/cyc39/laundry-repo/output/snapshot")
         mkdir.assert_not_called()
 
     def test_missing_d_drive_never_falls_back_to_c(self):
         with mock.patch.object(checks.Path, "is_dir", return_value=False), mock.patch.object(checks.Path, "mkdir") as mkdir:
             with self.assertRaises(ValueError):
-                checks.produce(Path.cwd(), Path.cwd(), work_root="D:/AI-Lanes-work/level1-offline-checks")
+                checks.produce_legacy(Path.cwd(), Path.cwd(), work_root="D:/AI-Lanes-work/level1-offline-checks")
         mkdir.assert_not_called()
 
     def test_pos_cannot_be_source_or_output(self):
         with mock.patch.object(checks.Path, "mkdir") as mkdir:
             for source, output in (("C:/fxwash", Path.cwd()), (Path.cwd(), "C:/fxwash")):
                 with self.assertRaises(ValueError):
-                    checks.produce(source, output, work_root=Path.cwd() / "work")
+                    checks.produce_legacy(source, output, work_root=Path.cwd() / "work")
         mkdir.assert_not_called()
 
     def test_day_audit_invokes_producer_in_isolation_without_running_rescues(self):

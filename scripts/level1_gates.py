@@ -35,8 +35,9 @@ import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from publish_recovery_report import recovery_summary
+import level1_shop as shop
 
-RULES_VERSION = 4
+RULES_VERSION = 5
 CHECKLIST_TARGET = 3
 SERVICE_GAP_SECONDS = 5 * 60
 CHECKLIST_STATUSES = ("pass", "fail", "no_data", "not_ready", "not_applicable")
@@ -77,7 +78,7 @@ class PolicyError(ValueError):
 
 class Paths:
     def __init__(self, root, mdb_log=None, hours_module=None, out_root=None, service_logs=None,
-                 heartbeat_log_dir=None):
+                 heartbeat_log_dir=None, day_cover_log=None, shop_root=None, checks_root=None):
         root = Path(root)
         self.root = root
         self.policy = root / "data" / "publishing-policy.json"
@@ -92,6 +93,10 @@ class Paths:
             self.mdb_log = Path(base) / "line-bot" / "mdb_pull.jsonl" if base else None
         # Explicit paths also keep synthetic tests away from the live runtime.
         runtime = self.mdb_log.parent if self.mdb_log else None
+        self.day_cover_log = Path(day_cover_log) if day_cover_log else runtime / 'day_cover.jsonl' if runtime else None
+        # Injected test inputs must never fall through to real customer logs.
+        self.shop_root = Path(shop_root) if shop_root else root / 'missing-shop-runtime' if mdb_log else shop.LIVE
+        self.checks_root = Path(checks_root) if checks_root else root
         self.service_logs = ([Path(p) for p in service_logs] if service_logs is not None else
                              [runtime / "tunnel_events.jsonl"]
                              if runtime else [])
@@ -680,8 +685,17 @@ def evaluate_service(day, paths, hours, config):
         handover = _gate("no_data", "缺營業設定，無法確認隔天是否需要交還", [paths.handover])
     else:
         handover = _service_transition(records, bad, available, closing, "shop", evidence)
+    if day >= shop.CUTOVER and closed(tomorrow) is False:
+        window = hours.day_window_for(tomorrow, config)
+        handover = shop.day_ownership(tomorrow, paths.day_cover_log,
+                                      window[0].hour, window[1].hour)
     subchecks = {"a": takeover, "b": handover,
                  "c": evaluate_heartbeat(opening, closing, paths.heartbeat_log_dir)}
+    if day >= shop.CUTOVER:
+        # The old sampler probes the retired repo bot. Sparse webhook activity
+        # and ownership polls cannot certify continuous availability of 18791.
+        subchecks['c'] = _gate('no_data', '缺現役 shop runtime 的固定週期客服通路心跳，無法判定中間沒停機',
+                               [paths.shop_root / 'logs', paths.heartbeat_log_dir or 'sxj-heartbeat/log'])
     statuses = [item["status"] for item in subchecks.values()]
     status = "fail" if "fail" in statuses else "no_data" if "no_data" in statuses else "pass"
     reason = "；".join(key + " " + label + "：" + subchecks[key]["status"]
@@ -887,7 +901,7 @@ def evaluate_incidents(day, path):
 def evaluate_checklist(day, paths, hours, config, now, conditions=None):
     iso = str(day)
     gate = lambda name: paths.gates_dir / (name + "-" + iso + ".json")
-    check_path = paths.root / "output" / "operations" / ("level1-checks-" + iso + ".json")
+    check_path = paths.checks_root / "output" / "operations" / ("level1-checks-" + iso + ".json")
     state, policy = load_json(paths.policy)
     freshness = (conditions or {}).get("freshness") or evaluate_freshness(day, config, hours, read_pull_log(paths.mdb_log))
     freshness = {**freshness, "evidence": [str(paths.mdb_log or "mdb_pull.jsonl"), str(paths.handover)]}
@@ -902,12 +916,17 @@ def evaluate_checklist(day, paths, hours, config, now, conditions=None):
                          str(paths.root / "docs" / "assets" / iso)]
     if posts["status"] == "not_required":
         posts["status"] = "not_applicable"
+    current = day >= shop.CUTOVER
     return {
         "1": evaluate_service(day, paths, hours, config),
-        "2": evaluate_accounting(day, paths.root / "data" / "line-events" / (iso + ".json")),
-        "3": evaluate_test_evidence(day, check_path, ("copy_audit", "golden"), now),
-        "4": evaluate_test_evidence(day, check_path, ("line_full",), now),
-        "5": evaluate_test_evidence(day, check_path, ("handoff",), now),
+        "2": (shop.accounting(day, paths.shop_root / 'logs', gate('shop-replies'), now) if current else
+              evaluate_accounting(day, paths.root / "data" / "line-events" / (iso + ".json"))),
+        "3": (shop.test_evidence(day, check_path, 'facts', now, paths.shop_root) if current else
+              evaluate_test_evidence(day, check_path, ("copy_audit", "golden"), now)),
+        "4": (shop.test_evidence(day, check_path, 'flows', now, paths.shop_root) if current else
+              evaluate_test_evidence(day, check_path, ("line_full",), now)),
+        "5": (shop.test_evidence(day, check_path, 'handoff', now, paths.shop_root) if current else
+              evaluate_test_evidence(day, check_path, ("handoff",), now)),
         "6": evaluate_notify_delivery(day, paths, config, hours),
         "7": evaluate_notify_safety(day, gate("notify"), config, hours),
         "8": freshness, "9": posts, "10": evaluate_recovery(day, paths),
@@ -924,6 +943,7 @@ def _check_status(evaluation, key):
 
 def _day_passed(evaluation):
     return (isinstance(evaluation, dict) and evaluation.get("rules_version") == RULES_VERSION
+            and not evaluation.get('partial_day')
             and all(_check_status(evaluation, key) in ("pass", "not_applicable") for key in CHECKLIST_TITLES)
             and (evaluation.get("incidents") or {}).get("status") == "pass")
 
@@ -1102,6 +1122,8 @@ def render_report(evaluations, now, newest=None):
     lines = ["# Level 1 每日 12 項驗收", "",
              "截至 {0}：12 項有 {1} 項算過，{2} 項未過。連續全過 {3} 天（目標 3 天）。".format(
                  day or "尚無已結束日期", summary["passed"], 12-summary["passed"], summary["consecutive_days"]), ""]
+    if latest.get('partial_day'):
+        lines += ['當日尚未結束：這是截至產生時間的暫看結果，不計全天通過或連續天數。', '']
     for key in summary["blocked"]:
         item = (latest.get("checklist") or {}).get(key, {})
         lines.append("- 第 {0} 項：{1}。".format(key, _plain(item.get("reason", "缺該日檢查資料"))))
@@ -1143,11 +1165,16 @@ def main(argv=None, now=None):
     parser.add_argument("--mdb-log", help="override path of mdb_pull.jsonl")
     parser.add_argument("--heartbeat-log-dir", help="override fixed-period sxj-heartbeat/log directory")
     parser.add_argument("--hours-module", help="override path of line-bot/tunnel_manager.py")
+    parser.add_argument('--day-cover-log', help='override count-only day_cover.jsonl source')
+    parser.add_argument('--shop-root', help='current shop runtime (default: nightrun/live)')
+    parser.add_argument('--checks-root', help='read isolated test receipt from a separate root')
+    parser.add_argument('--partial-day', action='store_true', help='allow today as an explicitly incomplete preview')
     args = parser.parse_args(argv)
 
     root = Path(args.root or os.environ.get("LEVEL1_GATES_ROOT") or DEFAULT_ROOT)
     paths = Paths(root, mdb_log=args.mdb_log, hours_module=args.hours_module, out_root=args.out_root,
-                  heartbeat_log_dir=args.heartbeat_log_dir)
+                  heartbeat_log_dir=args.heartbeat_log_dir, day_cover_log=args.day_cover_log,
+                  shop_root=args.shop_root, checks_root=args.checks_root)
     hours = None
     try:
         hours = load_hours_module(paths.hours_module)
@@ -1168,12 +1195,14 @@ def main(argv=None, now=None):
             parser.error("date must be a real calendar date")
     else:
         target = today - timedelta(days=1)
-    if target >= today:
+    if target > today or target == today and not args.partial_day:
         print("ERROR {0} has not finished yet in Asia/Taipei; evaluate a past date".format(target),
               file=sys.stderr)
         return 2
 
     evaluation = evaluate_day(target, paths, hours, config, now)
+    if target == today:
+        evaluation['partial_day'] = True
     out_path = paths.ops_dir / "level1-gates-{0}.json".format(target.isoformat())
     atomic_write(out_path, json.dumps(evaluation, ensure_ascii=False, indent=1) + "\n")
     evaluations = load_evaluations(paths.ops_dir)

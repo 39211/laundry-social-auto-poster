@@ -1,7 +1,7 @@
-"""OPS-L1-12: committed HEAD archive, native offline runners, sequential modules.
+"""OPS-L1-12: current shop code copy, offline per-file tests, 300-second budget.
 
 Only the dated receipt is written to the source/output repository. Tests use
-their own isolation; the producer does not install or inject an audit hook.
+their own isolation. Pre-cutover replay helpers are retained for historical tests.
 """
 from __future__ import annotations
 
@@ -23,7 +23,8 @@ import uuid
 TAIPEI = timezone(timedelta(hours=8))
 ROOT = Path(__file__).resolve().parents[1]
 GOLDEN_TIMEOUT_SECONDS = 300
-RUN_BUDGET_SECONDS = 780  # Reserve two minutes of Day-Audit's 15-minute limit.
+RUN_BUDGET_SECONDS = 300
+LEGACY_RUN_BUDGET_SECONDS = 780
 SMOKE_BUDGET_SECONDS = 25
 SMOKE_MODULE = "test_bulky_days_1106"
 OFFLINE_SITE_PACKAGES = Path("C:/Users/cyc39/AppData/Local/hermes/jarvis-memory/venv/Lib/site-packages")
@@ -89,7 +90,7 @@ def parse_result(output, returncode, golden=False):
     return dict(status=status, tests=tests, **counts, failed_tests=failed_tests)
 
 
-def run_process(command, *, cwd, env, timeout):
+def run_process(command, *, cwd, env, timeout, kill_tree=True):
     """Run the native runner directly; stop its owned process tree on timeout."""
     options = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
                else {"start_new_session": True})
@@ -99,7 +100,11 @@ def run_process(command, *, cwd, env, timeout):
             stdout, stderr = process.communicate(timeout=timeout)
         except subprocess.TimeoutExpired as exc:
             # Only this Popen PID and its descendants; never kill by image name.
-            if os.name == "nt":
+            if not kill_tree:
+                # Current shop workers prohibit subprocess creation before loading
+                # tests; this Popen PID is the entire owned execution surface.
+                process.kill()
+            elif os.name == "nt":
                 try:
                     stopped = subprocess.run(["taskkill.exe", "/PID", str(process.pid), "/T", "/F"],
                                              capture_output=True, timeout=5)
@@ -237,7 +242,8 @@ def check_paths(root, out_root, work_root, receipt):
         raise ValueError("D: workspace unavailable; no fallback to C:")
 
 
-def produce(root, out_root, now=None, work_root=DEFAULT_WORK_ROOT, smoke=False):
+def produce_legacy(root, out_root, now=None, work_root=DEFAULT_WORK_ROOT, smoke=False):
+    """Historical pre-cutover replay only. Never used by the daily entry point."""
     started_at = now or datetime.now(TAIPEI)
     started = time.monotonic()
     root, out_root, work_root = (Path(p).resolve() for p in (root, out_root, work_root))
@@ -247,7 +253,7 @@ def produce(root, out_root, now=None, work_root=DEFAULT_WORK_ROOT, smoke=False):
     work = work_root / ("ops-l1-12-offline-" + uuid.uuid4().hex)
     snapshot, logs = work / "snapshot", work / "logs"
     logs.mkdir(parents=True)
-    budget = SMOKE_BUDGET_SECONDS if smoke else RUN_BUDGET_SECONDS
+    budget = SMOKE_BUDGET_SECONDS if smoke else LEGACY_RUN_BUDGET_SECONDS
     head, manifest, setup_error = None, {}, None
     try:
         head, manifest = create_snapshot(root, snapshot, min(60, budget))
@@ -318,6 +324,11 @@ def produce(root, out_root, now=None, work_root=DEFAULT_WORK_ROOT, smoke=False):
     return path
 
 
+def produce(root, out_root, now=None, work_root=DEFAULT_WORK_ROOT, smoke=False, **options):
+    from level1_shop import produce_shop
+    return produce_shop(root, out_root, now, work_root, smoke, **options)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
@@ -325,11 +336,15 @@ def main(argv=None):
     parser.add_argument("--work-root", type=Path, default=DEFAULT_WORK_ROOT,
                         help="isolated snapshots and logs (default: D:/AI-Lanes-work/level1-offline-checks)")
     parser.add_argument("--smoke", action="store_true", help="copy audit + handoff + one module; separate non-daily receipt")
+    from level1_shop import LIVE, ACCEPTED
+    parser.add_argument('--shop-root', type=Path, default=LIVE)
+    parser.add_argument('--accepted-root', type=Path, default=ACCEPTED)
     args = parser.parse_args(argv)
-    path = produce(args.root, args.out_root, work_root=args.work_root, smoke=args.smoke)
+    path = produce(args.root, args.out_root, work_root=args.work_root, smoke=args.smoke,
+                   live=args.shop_root, accepted=args.accepted_root)
     if args.smoke:
         rows = json.loads(path.read_text(encoding="utf-8"))["checks"]
-        return 0 if all(rows[k]["status"] == "pass" for k in ("copy_audit", "handoff", "line_full")) else 1
+        return 0 if all(r['status'] == 'pass' for r in rows.values()) else 1
     return 0
 
 

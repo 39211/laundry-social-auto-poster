@@ -101,7 +101,7 @@ class ArchiveTests(unittest.TestCase):
             (root / "line-bot/test_dirty.py").write_text("do not execute", encoding="utf-8")
             before = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
                       for p in root.rglob("*") if p.is_file()}
-            path = checks.produce(root, root, work_root=base / "work")
+            path = checks.produce_legacy(root, root, work_root=base / "work")
             after = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
                      for p in root.rglob("*") if p.is_file() and p != path}
             self.assertEqual(before, after)
@@ -118,7 +118,7 @@ class ArchiveTests(unittest.TestCase):
         root = Path.cwd()
         with mock.patch.object(checks.Path, "mkdir") as mkdir:
             with self.assertRaises(ValueError):
-                checks.produce(root, root, work_root=root / "unsafe")
+                checks.produce_legacy(root, root, work_root=root / "unsafe")
         mkdir.assert_not_called()
 
     def test_snapshot_failure_produces_no_data_and_no_runners(self):
@@ -126,7 +126,7 @@ class ArchiveTests(unittest.TestCase):
             base = Path(tmp)
             (base / "repo").mkdir()
             with mock.patch.object(checks, "run_check") as run:
-                receipt = checks.produce(base / "repo", base / "out", work_root=base / "work")
+                receipt = checks.produce_legacy(base / "repo", base / "out", work_root=base / "work")
             run.assert_not_called()
             data = json.loads(receipt.read_text(encoding="utf-8"))
             self.assertTrue(data["snapshot_error"].startswith("SnapshotUnavailable:"))
@@ -189,7 +189,7 @@ class NativeProcessTests(unittest.TestCase):
             def broken(*args, **kwargs):
                 return {**checks.no_data("ProcessTreeCleanupFailed"), "suite": args[4]}
             with mock.patch.object(checks, "run_check", side_effect=broken) as run:
-                path = checks.produce(base / "repo", base / "out", work_root=base / "work")
+                path = checks.produce_legacy(base / "repo", base / "out", work_root=base / "work")
             self.assertEqual(run.call_count, 1)
             data = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual({r["status"] for r in data["checks"].values()}, {"no_data"})

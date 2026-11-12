@@ -11288,6 +11288,126 @@
         "Do not treat a reference price as a flat quote before the item is seen.",
         "Do not describe brand names as a partnership or authorization."
       ]
+    },
+    {
+      "id": "suede-water-hardened-page-summary",
+      "type": "guide_summary",
+      "question": "麂皮碰水變硬怎麼辦？",
+      "answer": "麂皮碰水變硬，先不要濕擦、烘或上油。水會把絨毛壓實。還沒泡水、只是絨毛倒了發亮，看麂皮鞋清潔。水痕顏色只能淡化，結果依材質與損況而定。麂皮鞋清潔參考價 $400，參考價，看過實品再報價。洗鞋一般約一個禮拜可以拿，實際日期收件時確認。台中全市免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/suede-water-hardened.html",
+      "local_intent": "麂皮碰水變硬怎麼辦",
+      "keywords": [
+        "麂皮碰水變硬",
+        "麂皮變硬",
+        "麂皮淋雨變硬",
+        "麂皮泡水"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen.",
+        "Do not describe brand names as a partnership or authorization."
+      ]
+    },
+    {
+      "id": "shoes-dyed-by-jeans-page-summary",
+      "type": "guide_summary",
+      "question": "鞋子被牛仔褲染色怎麼辦？",
+      "answer": "鞋子被牛仔褲染色，是褲料染料沾到鞋面，不是新鞋蹭襪，也不是衣服互染。先不要漂白、不要烘。沾上的顏色只能淡化，結果依材質與損況而定。牛仔褲 $80，參考價，看過實品再報價。洗鞋一般約一個禮拜可以拿，實際日期收件時確認。台中全市免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/shoes-dyed-by-jeans.html",
+      "local_intent": "鞋子被牛仔褲染色怎麼辦",
+      "keywords": [
+        "鞋子被牛仔褲染色",
+        "牛仔褲染料沾鞋",
+        "鞋被褲子染色",
+        "深色牛仔褲沾色"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen.",
+        "Do not describe brand names as a partnership or authorization."
+      ]
+    },
+    {
+      "id": "leather-shoe-crease-limit-page-summary",
+      "type": "guide_summary",
+      "question": "皮鞋摺痕能不能處理？",
+      "answer": "皮鞋摺痕，清洗不能消除。摺痕是彎折留下的形狀。想把摺痕壓平或補皮，屬修繕，不包含在清潔內；能不能處理、是否另計，要看過實品由門市說明。皮鞋清潔參考價 $400，參考價，看過實品再報價。洗鞋一般約一個禮拜可以拿，實際日期收件時確認。台中全市免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/leather-shoe-crease-limit.html",
+      "local_intent": "皮鞋摺痕能不能處理",
+      "keywords": [
+        "皮鞋摺痕",
+        "皮鞋摺痕處理",
+        "皮鞋彎折",
+        "皮鞋清洗摺痕"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen.",
+        "Do not describe brand names as a partnership or authorization."
+      ]
+    },
+    {
+      "id": "stroller-cleaning-page-summary",
+      "type": "guide_summary",
+      "question": "嬰兒推車、娃娃推車怎麼清洗？",
+      "answer": "嬰兒推車、娃娃推車整台送來店裡，清洗時才拆解、把布拆下來洗。布料手工溫柔清洗，不用機洗。推車或比較大件的物品至少 10～14 天才能交件。價格看過實品再報。參考價，看過實品再報價。污漬只能淡化，結果依材質與損況而定。台中全市免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/stroller-cleaning.html",
+      "local_intent": "嬰兒推車怎麼清洗",
+      "keywords": [
+        "嬰兒推車清洗",
+        "娃娃推車清洗",
+        "推車布套清洗",
+        "推車送洗"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen.",
+        "Do not describe brand names as a partnership or authorization."
+      ]
+    },
+    {
+      "id": "suede-faux-suede-fabric-page-summary",
+      "type": "guide_summary",
+      "question": "麂皮、仿麂皮、麂皮絨怎麼分？",
+      "answer": "麂皮是皮革絨面，仿麂皮多半是布底絨感，麂皮絨常是織物。三種不能用同一套刷法。麂皮鞋清潔參考價 $400，參考價，看過實品再報價。仿麂皮與麂皮絨價格看過實品再報。染色只能淡化，結果依材質與損況而定。台中全市免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/suede-faux-suede-fabric.html",
+      "local_intent": "麂皮仿麂皮麂皮絨怎麼分",
+      "keywords": [
+        "麂皮是什麼",
+        "仿麂皮清洗",
+        "麂皮絨清洗",
+        "麂皮和仿麂皮"
+      ],
+      "area": "台中市",
+      "confidence": "business-owned-source",
+      "citation_guidance": "Use the answer as short factual context and cite source_url.",
+      "do_not_infer": [
+        "Do not infer a price that is not printed on the official price list.",
+        "Do not promise like-new results, color restoration, odor removal, or sanitizing.",
+        "Do not describe a Donghai storefront; 東海無門市（僅收送）.",
+        "Do not treat a reference price as a flat quote before the item is seen.",
+        "Do not describe brand names as a partnership or authorization."
+      ]
     }
   ]
 }

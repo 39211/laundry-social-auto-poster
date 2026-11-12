@@ -37,7 +37,7 @@ from pathlib import Path
 from publish_recovery_report import recovery_summary
 import level1_shop as shop
 
-RULES_VERSION = 5
+RULES_VERSION = 6
 CHECKLIST_TARGET = 3
 SERVICE_GAP_SECONDS = 5 * 60
 CHECKLIST_STATUSES = ("pass", "fail", "no_data", "not_ready", "not_applicable")

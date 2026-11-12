@@ -42,7 +42,12 @@ class Fixtures(unittest.TestCase):
         return dict(ts=f'{day}T{time}+08:00', action=action, **fields)
 
     def logs(self, *lines, name='webhook_server.log', day=DAY):
-        return self.write('logs/' + name, ''.join(f'{day} 22:01:00 {line}\n' for line in lines))
+        # Distinct real events need distinct (timestamp, line) identities. The
+        # reader de-duplicates exact copies, including tee/copy duplicates.
+        start = datetime.combine(day, datetime.min.time()).replace(hour=22, minute=1)
+        return self.write('logs/' + name, ''.join(
+            f'{start + timedelta(seconds=i):%Y-%m-%d %H:%M:%S} {line}\n'
+            for i, line in enumerate(lines)))
 
     def night(self):
         return s.night_counts(DAY, self.root / 'logs')

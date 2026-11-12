@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 import hashlib
+import heapq
 import json
 import os
 from pathlib import Path
@@ -95,10 +96,13 @@ def day_ownership(day, path, start_hour=10, end_hour=20):
                     rows.append((ts, shop, ai))
     except (OSError, UnicodeError):
         return gate('no_data', '缺 day_cover 日間所有權紀錄', [path])
-    ai_count = sum(r[2] for r in rows)
     first = min((r[0] for r in rows if r[1]), default=None)
     expected = datetime.combine(day, datetime.min.time(), TAIPEI).replace(hour=start_hour)
+    timely = first is not None and (first - expected).total_seconds() <= 300
+    grace = sum(ai and timely and ts < first for ts, _, ai in rows)
+    ai_count = sum(r[2] for r in rows) - grace
     details = dict(observations=len(rows), ai_cover_checks=ai_count,
+                   grace_ai_checks=grace,
                    expected_at=expected.isoformat(), actual_at=first.isoformat() if first else None)
     if ai_count:
         return gate('fail', '日間仍由 AI PC 代班，未完整交還店機', [path], **details)
@@ -106,7 +110,6 @@ def day_ownership(day, path, start_hour=10, end_hour=20):
         return gate('no_data', 'day_cover 缺該日日間紀錄或有損毀行', [path], **details)
     if first is None:
         return gate('no_data', '日間紀錄未驗證店機持有 LINE', [path], **details)
-    timely = (first - expected).total_seconds() <= 300
     return gate('pass' if timely else 'fail',
                 'day_cover 確認店機於開店後 5 分內持有 LINE' if timely else '首筆店機持有紀錄晚於開店後 5 分',
                 [path], **details)
@@ -122,110 +125,283 @@ SUCCESS = re.compile(r'^\[Webhook Reply Success\] HTTP 2\d\d$')
 COUNTS = ('received', 'replied_ok', 'reply_failed', 'to_staff', 'no_reply_needed')
 
 
-def night_counts(day, log_dir):
-    """Parse event boundaries; use canonical tee log, err only as a fallback.
+TEXT_EVENT = re.compile(r"^\[Webhook Text\] User (\S+)\.\.\.: '")
+IMAGE_EVENT = re.compile(r'^\[Webhook Image\] Received image \S+ from (\S+)\.\.\.$')
+PAUSED_EVENT = re.compile(r'^\[Handoff\] paused user=(\S+) until=')
+# Proposed explicit test namespace: unlike a LINE U+32-hex ID, UL1TEST_ cannot
+# belong to a real customer. Tools have NOT been changed by this card.
+# _shop_copy_probe.py currently sends U + 31 zeroes + 1; its truncated U0000000
+# is also a valid real-user prefix, so retain it as an unconfirmed candidate.
+# Never infer synthetic traffic from content, invalid tokens, IPs or headers.
+SYNTHETIC_PREFIXES = frozenset({'UL1TEST_'})
+UNCONFIRMED_TEST_PREFIXES = frozenset({'U0000000'})
+VERIFICATION = '[Webhook] Received LINE test webhook verification ping. Skipping dummy token.'
 
-    received counts text/image/paused-image events, NOT HTTP requests. A
-    handoff with a successful customer reply counts once as replied_ok.
-    Paused-only turns cannot prove an earlier owner push and stay unmeasured.
+
+def night_sources(log_dir, include_siblings=True):
+    """Every live* tree, canonical tee per tree; stderr is a fallback, not added."""
+    log_dir = Path(log_dir)
+    dirs = [log_dir]
+    if include_siblings and log_dir.parent.name.startswith('live'):
+        dirs = sorted(p / 'logs' for p in log_dir.parent.parent.glob('live*') if p.is_dir())
+    sources = []
+    for folder in dirs:
+        paths = [folder / n for n in ('webhook_server.log', 'webhook_server.err.log')]
+        source = next((p for p in paths if p.is_file()), None)
+        if source is not None:
+            sources.append(source)
+    return sources
+
+
+def reply_log_counts(day, sources, start_hour=0, end_hour=24):
+    """One counts-only parser shared by night and pulled shop-day log copies.
+
+    Only (timestamp, complete line) identifies mirrored records. Raw lines and
+    their hashes stay in memory and never enter the result. Identical legitimate
+    lines within the same second are indistinguishable under this log format.
+    Unknown activity stays in unresolved diagnostic counts. It never invents
+    a customer in the received denominator or becomes no_reply_needed.
     """
-    paths = [Path(log_dir) / n for n in ('webhook_server.log', 'webhook_server.err.log')]
-    source = next((p for p in paths if p.is_file()), None)
-    if source is None:
-        return gate('no_data', '缺夜間 shop webhook 日誌', paths)
+    sources = list(map(Path, sources))
     counts = Counter({k: 0 for k in COUNTS})
-    stats = Counter(inbound_posts=0, rejected_posts=0, handoff_push_ok=0,
-                    handoff_push_failed=0, paused=0, chat_guard=0,
-                    ambiguous=0, observed_lines=0, verification_pings=0, duplicate_tokens=0)
+    stats = Counter(dict.fromkeys((
+        'inbound_posts', 'rejected_posts', 'handoff_push_ok', 'handoff_push_failed',
+        'paused', 'chat_guard', 'ambiguous', 'observed_lines', 'verification_pings',
+        'duplicate_tokens', 'duplicate_no_reply_needed', 'excluded_synthetic_events',
+        'excluded_verification_events', 'excluded_reply_failed', 'guard_replied_ok',
+        'guard_to_staff', 'guard_unanswered', 'paused_unanswered', 'invalid_token_events',
+        'unknown_requests', 'unattributed_events', 'duplicate_lines', 'day_source_files',
+        'source_errors', 'stderr_sources', 'ordering_conflicts', 'unanswered_guard',
+        'unanswered_paused', 'unanswered_reply_failed', 'unanswered_silent',
+        'unanswered_unknown', 'unconfirmed_test_candidates', 'unattributed_replied_ok',
+        'unattributed_to_staff', 'unattributed_reply_failed', 'unattributed_push_failed'), 0))
+    nodes, edges, incoming_edges = {}, {}, Counter()
+    for index, source in enumerate(sources):
+        covers_day = False
+        local = []
+        try:
+            before = source.stat()
+            with source.open(encoding='utf-8-sig', errors='replace') as stream:
+                for number, line in enumerate(stream):
+                    line = line.rstrip('\r\n')
+                    m = LINE.match(line)
+                    if not m:
+                        continue  # continuation bodies are not delivery evidence
+                    try:
+                        ts = datetime.strptime(m[1], '%Y-%m-%d %H:%M:%S').replace(tzinfo=TAIPEI)
+                    except ValueError:
+                        continue
+                    if ts.date() != day or not start_hour <= ts.hour < end_hour:
+                        continue
+                    covers_day = True
+                    key = hashlib.sha256(line.encode('utf-8')).digest()
+                    if key in nodes:
+                        stats['duplicate_lines'] += 1
+                    nodes[key] = (ts, index, number, m[2])
+                    local.append(key)
+            after = source.stat()
+            if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+                stats['source_errors'] += 1  # no stable snapshot; cannot certify green
+        except OSError:
+            stats['source_errors'] += 1
+        if covers_day:
+            stats['day_source_files'] += 1
+            stats['stderr_sources'] += source.name.endswith('.err.log')
+        # Tee/redirect artifacts can put a duplicate before its POST boundary.
+        # The final occurrence preserves the canonical request's file order.
+        last = {key: pos for pos, key in enumerate(local)}
+        unique = [key for pos, key in enumerate(local) if last[key] == pos]
+        for left, right in zip(unique, unique[1:]):
+            children = edges.setdefault(left, set())
+            if right not in children:
+                children.add(right)
+                incoming_edges[right] += 1
+    # Keep each file's ordering constraints. Timestamp orders only independent
+    # chains, never reorders a reply ahead of its own inbound line.
+    ready = [(*row[:3], key) for key, row in nodes.items() if not incoming_edges[key]]
+    heapq.heapify(ready)
+    ordered, visited = [], set()
+    while ready:
+        *_, key = heapq.heappop(ready)
+        visited.add(key)
+        ordered.append(nodes[key])
+        for child in edges.get(key, ()):
+            incoming_edges[child] -= 1
+            if not incoming_edges[child]:
+                heapq.heappush(ready, (*nodes[child][:3], child))
+    if len(visited) != len(nodes):
+        stats['ordering_conflicts'] += 1
+        stats['source_errors'] += 1
+        ordered.extend(row for key, row in sorted(nodes.items(), key=lambda item: item[1][:3]) if key not in visited)
+    records = ordered
     pending = None
+    request_open, request_events, request_controls = False, 0, 0
 
     def finish():
         nonlocal pending
         if pending is None:
             return
-        if pending['reply']:
-            counts['replied_ok'] += 1
-        elif pending['push'] and not pending['push_failed']:
-            counts['to_staff'] += 1
-        elif pending['paused']:
-            stats['ambiguous'] += 1
-        pending = None
+        p, pending = pending, None
+        if p['synthetic']:
+            stats['excluded_synthetic_events'] += 1
+            stats['excluded_reply_failed'] += p['failed']
+            return
+        if p['unknown']:
+            # POST-only requests may have zero events. An orphan reply proves
+            # delivery but supplies no customer/type/test provenance.
+            stats['unattributed_replied_ok'] += p['reply']
+            stats['unattributed_to_staff'] += not p['reply'] and p['push'] and not p['push_failed']
+            stats['unattributed_reply_failed'] += p['failed']
+            stats['unattributed_push_failed'] += p['push_failed']
+            stats['unanswered_unknown'] += not p['reply'] and not (p['push'] and not p['push_failed'])
+            return
+        stats['unconfirmed_test_candidates'] += p['test_candidate']
+        counts['received'] += 1
+        counts['reply_failed'] += p['failed']
+        stats['invalid_token_events'] += p['invalid_token']
+        stats['handoff_push_ok'] += p['push']
+        stats['handoff_push_failed'] += p['push_failed']
+        stats['paused'] += p['paused']
+        stats['chat_guard'] += p['guard']
+        result = 'unanswered'
+        if p['reply']:
+            result = 'replied_ok'
+        elif p['push'] and not p['push_failed']:
+            result = 'to_staff'
+        if result != 'unanswered':
+            counts[result] += 1
+        elif p['paused']:
+            stats['paused_unanswered'] += 1
+            stats['ambiguous'] += 1  # pause alone never proves staff delivery
+        if result == 'unanswered':
+            category = ('reply_failed' if p['failed'] else
+                        'paused' if p['paused'] else 'guard' if p['guard'] else 'silent')
+            stats['unanswered_' + category] += 1
+        if p['guard']:
+            stats['guard_' + result] += 1
 
-    try:
-        with source.open(encoding='utf-8-sig', errors='replace') as stream:
-            for line in stream:
-                m = LINE.match(line.rstrip('\r\n'))
-                if not m:
-                    continue  # multiline bodies and old un-timestamped lines are not evidence
-                try:
-                    ts = datetime.strptime(m[1], '%Y-%m-%d %H:%M:%S').replace(tzinfo=TAIPEI)
-                except ValueError:
-                    continue
-                if ts.date() != day:
-                    continue
-                stats['observed_lines'] += 1
-                text = m[2]
-                post = POST.fullmatch(text)
-                if post:
-                    finish()
-                    stats['inbound_posts' if post[1] == '200' else 'rejected_posts'] += 1
-                elif text.startswith(('[Webhook Text] User ', '[Webhook Image] Received image ')):
-                    finish()
-                    counts['received'] += 1
-                    pending = dict(reply=False, push=False, push_failed=False, paused=False)
-                elif SUCCESS.fullmatch(text):
-                    if pending is None or pending['reply']:
-                        stats['ambiguous'] += 1  # postback or missing event boundary
-                    else:
-                        pending['reply'] = True
-                elif text.startswith('[ERROR] Failed to send LINE reply:'):
-                    counts['reply_failed'] += 1
-                elif text.startswith('[Handoff] push owner='):
-                    ok = text.endswith(' success=True')
-                    stats['handoff_push_ok' if ok else 'handoff_push_failed'] += 1
-                    if pending is None:
-                        stats['ambiguous'] += 1
-                    else:
-                        pending['push'] |= ok
-                        pending['push_failed'] |= not ok
-                elif text.startswith(('[Handoff] push failed:', '[Handoff] notification failed:')):
-                    stats['handoff_push_failed'] += 1
-                    if pending is not None:
-                        pending['push_failed'] = True
-                elif text.startswith('[Handoff] paused user='):
-                    stats['paused'] += 1
-                    if pending is not None and pending['reply']:
-                        finish()
-                    if pending is None:  # paused image has no Webhook Image line
-                        counts['received'] += 1
-                        pending = dict(reply=False, push=False, push_failed=False, paused=True)
-                    else:
-                        pending['paused'] = True
-                elif text.startswith('[Chat Guard]'):
-                    stats['chat_guard'] += 1
-                elif text == '[Webhook] Received LINE test webhook verification ping. Skipping dummy token.':
-                    stats['verification_pings'] += 1
-                elif text.startswith('[Webhook] Duplicate replyToken received:'):
-                    stats['duplicate_tokens'] += 1
+    def start(prefix=None, unknown=False):
+        nonlocal pending, request_events
         finish()
-    except OSError:
-        return gate('no_data', '夜間日誌無法讀取', [source])
-    details = dict(counts)
-    details.update(stats)
-    details['unanswered'] = counts['received'] - counts['replied_ok'] - counts['to_staff']
-    details['complete'] = False  # a sparse log never certifies a full calendar day
-    if not stats['observed_lines'] or not counts['received'] or not stats['inbound_posts']:
-        status, reason = 'no_data', '夜間日誌沒有可核對的該日客戶事件；不能填零'
+        request_events += 1
+        pending = dict(reply=False, push=False, push_failed=False, paused=False,
+                       failed=False, invalid_token=False, guard=False,
+                       test_candidate=prefix in UNCONFIRMED_TEST_PREFIXES,
+                       unknown=unknown, synthetic=prefix in SYNTHETIC_PREFIXES)
+        if unknown:
+            stats['unattributed_events'] += 1
+            stats['ambiguous'] += 1
+
+    def finish_request():
+        nonlocal request_open, request_events, request_controls
+        finish()
+        if request_open and not request_events and not request_controls:
+            # Sticker/follow/unfollow/empty/malformed requests share POST-only
+            # output. Their type and even batch size cannot be reconstructed.
+            stats['unknown_requests'] += 1
+            start(unknown=True)
+            finish()
+        request_open, request_events, request_controls = False, 0, 0
+
+    for _, _, _, text in records:
+        stats['observed_lines'] += 1
+        post = POST.fullmatch(text)
+        incoming = TEXT_EVENT.match(text) or IMAGE_EVENT.fullmatch(text)
+        paused = PAUSED_EVENT.match(text)
+        if post:
+            finish_request()
+            request_open = post[1] == '200'
+            stats['inbound_posts' if request_open else 'rejected_posts'] += 1
+        elif incoming:
+            start(prefix=incoming[1])
+        elif text == VERIFICATION:
+            finish()
+            request_controls += 1
+            stats['verification_pings'] += 1
+            stats['excluded_verification_events'] += 1
+        elif text.startswith('[Webhook] Duplicate replyToken received:'):
+            finish()
+            request_controls += 1
+            stats['duplicate_tokens'] += 1
+            stats['duplicate_no_reply_needed'] += 1  # transport, not another customer turn
+        elif SUCCESS.fullmatch(text):
+            if pending is None or pending['reply']:
+                start(unknown=True)  # e.g. postback: no dedicated inbound marker
+            pending['reply'] = True
+        elif text.startswith('[ERROR] Failed to send LINE reply:'):
+            if pending is None or pending['reply']:
+                start(unknown=True)
+            pending['failed'] = True
+            pending['invalid_token'] |= 'invalid reply token' in text.lower()
+        elif text.startswith('[Handoff] push owner='):
+            if pending is None:
+                start(unknown=True)
+            pending['push'] |= text.endswith(' success=True')
+            pending['push_failed'] |= not text.endswith(' success=True')
+        elif text.startswith(('[Handoff] push failed:', '[Handoff] notification failed:')):
+            if pending is None:
+                start(unknown=True)
+            pending['push_failed'] = True
+        elif paused:
+            if pending is None or pending['reply']:
+                start(prefix=paused[1])  # paused image has no Webhook Image line
+            pending['paused'] = True
+        elif text.startswith('[Chat Guard]'):
+            if pending is None:
+                start(unknown=True)
+            pending['guard'] = True
+    finish_request()
+    details = dict(counts, **stats)
+    details['unanswered'] = counts['received'] - sum(counts[k] for k in ('replied_ok', 'to_staff', 'no_reply_needed'))
+    details['complete'] = False  # sparse traffic cannot prove full-day coverage
+    if not counts['received']:
         details.update({k: None for k in (*COUNTS, 'unanswered')})
-    elif counts['reply_failed'] or stats['handoff_push_failed']:
-        status, reason = 'fail', '夜間有回覆或店員推播失敗'
-    elif details['unanswered'] > stats['ambiguous']:
-        status, reason = 'fail', '夜間有收訊但未見回覆或店員推播'
-    elif stats['ambiguous'] or source.name.endswith('.err.log'):
-        status, reason = 'no_data', '夜間事件無法完整對帳，或只有 stderr 副本'
+    if (counts['reply_failed'] or stats['handoff_push_failed'] or stats['unattributed_reply_failed']
+            or stats['unattributed_push_failed']):
+        status, reason = 'fail', '有客戶回覆或店員推播失敗'
+    elif any(stats['unanswered_' + category] for category in ('guard', 'reply_failed', 'silent')):
+        status, reason = 'fail', '有客戶收訊但未見回覆或店員推播'
+    elif not counts['received'] or not stats['inbound_posts']:
+        status, reason = 'no_data', '沒有可核對的該日客戶事件；不能填零'
+    elif stats['ambiguous'] or stats['source_errors'] or stats['stderr_sources']:
+        status, reason = 'no_data', '有未知活動、未證實的 pause、來源缺口或只有 stderr 副本'
     else:
-        status, reason = 'pass', '夜間已觀測事件均見回覆或店員推播（非全天完整性證明）'
-    return gate(status, reason, [source], **details)
+        status, reason = 'pass', '已觀測客戶事件均見回覆或店員推播（非全天完整性證明）'
+    return gate(status, reason, sources, **details)
+
+
+def night_counts(day, log_dir, *, include_siblings=True):
+    return reply_log_counts(day, night_sources(log_dir, include_siblings))
+
+
+def produce_shop_replies(day, source_log, out_path, *, now=None, start_hour=10, end_hour=20,
+                         coverage_complete=False):
+    """Read a pulled shop log; write only the existing shop-replies/v1 schema.
+
+    Caller attests a complete, stable copy of the WHOLE configured shop window.
+    A 19:50 sync cannot certify a window ending at 20:00. No SSH/scheduler/LINE
+    calls, no inference of event type from content, no write beside the input.
+    """
+    source_log, out_path = Path(source_log).resolve(), Path(out_path).resolve()
+    now = now or datetime.now(TAIPEI)
+    if (not source_log.is_file() or out_path.is_relative_to(source_log.parent)
+            or now.utcoffset() is None or type(start_hour) is not int or type(end_hour) is not int
+            or not 0 <= start_hour < end_hour <= 24):
+        raise ValueError('ShopLogUnavailableOrInvalidOutputWindow')
+    closing = datetime.combine(day, datetime.min.time(), TAIPEI) + timedelta(hours=end_hour)
+    row = reply_log_counts(day, [source_log], start_hour, end_hour)
+    details = row['details']
+    complete = (coverage_complete is True and now >= closing and not details['source_errors']
+                and not details['ambiguous'] and not details['handoff_push_failed']
+                and (details['received'] is None or details['inbound_posts'] > 0)
+                and not source_log.name.endswith('.err.log'))
+    receipt = dict(schema='shop-replies/v1', date=str(day), generated_at=now.isoformat(timespec='seconds'),
+                   window='shop_day', complete=complete,
+                   **{k: details[k] if details[k] is not None else 0 for k in COUNTS})
+    # No arbitrary caller fields or raw parser diagnostics enter the v1 receipt.
+    from level1_gates import atomic_write
+    atomic_write(out_path, json.dumps(receipt, ensure_ascii=True, indent=2) + '\n')
+    return out_path
 
 
 def shop_counts(day, path, now):

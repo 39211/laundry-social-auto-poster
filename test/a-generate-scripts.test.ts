@@ -1,3 +1,4 @@
+import { installLegacySlotRetirementFixture } from "./helpers/legacySlotRetirementFixture";
 // RP-2 / A-GENERATE regression tests. Windows-only: they run the real
 // scripts/*.ps1 under powershell.exe (5.1) inside a throw-away sandbox.
 // Stubbed: npm/git/tsx/codex (.cmd fakes), _pipeline-lock.ps1 (no Global\sxj-publish),
@@ -128,6 +129,7 @@ function makeSandbox(): string {
   for (const sub of ["scripts", "bin", join("node_modules", ".bin"), join("data", "content-calendar"), join("appdata", "npm")]) {
     mkdirSync(join(dir, sub), { recursive: true });
   }
+  installLegacySlotRetirementFixture(dir);
   copyScript("daily-generate.ps1", dir);
   copyScript("schedule-ahead-daily.ps1", dir);
   writeFileSync(join(dir, "scripts", "_pipeline-lock.ps1"), STUB_LOCK);

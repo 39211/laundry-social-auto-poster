@@ -95,7 +95,7 @@ export async function generate72HourReview(options: { root?: string; asOf?: Date
 
   for (const file of files.filter((name) => /^\d{4}-\d{2}-\d{2}\.json$/.test(name)).sort()) {
     const date = file.slice(0, 10);
-    const [posts, content] = await Promise.all([loadPostLog(date, root), loadDailyContent(date, root)]);
+    const [posts, content] = await Promise.all([loadPostLog(date, root), loadDailyContent(date, root, { includeRetiredSlots: true })]);
     for (const slot of [1, 2]) {
       const fb = successfulLive(posts, slot, "facebook");
       const ig = successfulLive(posts, slot, "instagram");

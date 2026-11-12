@@ -1,11 +1,13 @@
 import { getOption, isMain } from "./cli";
 import { getConfig } from "./config";
-import { loadPostLog } from "./logging";
+import { loadPostLog, readJsonFile } from "./logging";
+import { calendarRetiredSlots } from "./contentPlan";
 import { postCurrentSlot } from "./postCurrentSlot";
 import { getSlotPublishTime } from "./publishTimes";
-import { projectRoot } from "./paths";
+import { contentCalendarPath, projectRoot } from "./paths";
 import { DAILY_SCHEDULE, getZonedDateParts } from "./scheduler";
-import type { Platform, PostLogEntry } from "./types";
+import { slotRetirement } from "./slotRetirements";
+import type { DailyContent, Platform, PostLogEntry } from "./types";
 
 const PLATFORMS: Platform[] = ["facebook", "instagram"];
 const SLA_TARGET = 0.95;
@@ -106,7 +108,10 @@ export async function calculateRollingPublishingSla(
   for (let offset = 0; offset < 14; offset += 1) {
     const date = addDays(startDate, offset);
     const entries = await loadPostLog(date, root);
+    const calendar = await readJsonFile<DailyContent | undefined>(contentCalendarPath(date, root), undefined);
+    const savedRetired = calendar ? calendarRetiredSlots(calendar) : [];
     for (const schedule of DAILY_SCHEDULE) {
+      if (slotRetirement(date, schedule.slot, root).retired || savedRetired.includes(schedule.slot)) continue;
       if (date > endDate || (date === endDate && getSlotPublishTime(date, schedule.slot, root) > time)) continue;
       dueSlots += 1;
       if (PLATFORMS.every((platform) => isLiveSuccess(entries, schedule.slot, platform))) {
@@ -150,6 +155,13 @@ export async function runPublishingSlaCheck(options: {
   const rolling = await calculateRollingPublishingSla(root, now, config.timezone);
 
   try {
+    const retirement = slotRetirement(date, checkpoint.slot, root);
+    const calendar = await readJsonFile<DailyContent | undefined>(contentCalendarPath(date, root), undefined);
+    const savedRetired = calendar ? calendarRetiredSlots(calendar).includes(checkpoint.slot) : false;
+    if (retirement.retired || savedRetired) return {
+      generated_at: now.toISOString(), date, checkpoint, checkpoint_status: "pass",
+      message: retirement.reason ?? "Slot omitted when this calendar was written; no publication expected.", rolling_14_days: rolling
+    };
     if (checkpoint.mode === "preflight") {
       await postCurrentSlot({
         root,

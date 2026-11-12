@@ -98,7 +98,8 @@ describe("buildDailyContent noon pause", () => {
     expect(content.slots.some((slot) => slot.slot === 3)).toBe(false);
 
     const templateRoot = await tempRoot();
-    const templateDate = "2099-12-31";
+    // Outside the playbook, before slot-2 retirement: no policy fixture needed.
+    const templateDate = "2026-11-15";
     const templateContent = buildDailyContent(templateDate, config, {
       root: templateRoot,
       abPlan: [dayPlan(templateDate, true, true)]

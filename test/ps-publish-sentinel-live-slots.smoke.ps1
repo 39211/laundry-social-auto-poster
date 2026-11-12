@@ -1,4 +1,5 @@
-﻿# PS-layer smoke for live-post helpers in scripts/publish-sentinel.ps1.
+﻿. (Join-Path $PSScriptRoot "helpers/legacy-slot-retirement-fixture.ps1")
+# PS-layer smoke for live-post helpers in scripts/publish-sentinel.ps1.
 # Helper cases use AST extraction. Main-flow cases execute the real body in
 # isolated Temp roots with stub catchup/npx, fixed time and file-backed toasts.
 #
@@ -298,6 +299,7 @@ function Invoke-MainCase {
         [string]$Calendar = "", [string]$PublishTimes = "", [string]$Time = "11:50"
     )
     $caseRoot = Join-Path $mainRoot $Name
+    Install-LegacySlotRetirementFixture $caseRoot
     [void][IO.Directory]::CreateDirectory((Join-Path $caseRoot "output"))
     [void][IO.Directory]::CreateDirectory((Join-Path $caseRoot "probe"))
     Write-ProbeFile (Join-Path $caseRoot "data\posted-log\$probeDate.json") $Posted

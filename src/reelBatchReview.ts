@@ -297,7 +297,7 @@ export async function reviewBatch(options: { asOf?: string; root?: string } = {}
 
   for (const entry of REEL_SCHEDULE) {
     const concept = REEL_CONCEPTS.find((item) => item.id === entry.conceptId);
-    const content = await loadDailyContent(entry.date, root);
+    const content = await loadDailyContent(entry.date, root, { includeRetiredSlots: true });
     const posts = await loadPostLog(entry.date, root);
     const live = await findLiveReelSlot(entry.date, entry.conceptId, posts, root);
     // Only a real hit names a slot to look the cosmetic hook fallback up in;

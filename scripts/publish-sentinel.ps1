@@ -202,7 +202,9 @@ if ($null -eq $calendarSlots) { Write-Log "行事曆讀不到、用預設到期�
 $slotTimeWarning = $null
 $slotTimes = Get-SlotTimes -Root $RootPath -Date $d -WarningMessage ([ref]$slotTimeWarning)
 if ($slotTimeWarning) { Write-Log ([string]$slotTimeWarning) }
+$activeRetirementSlots = @(Remove-RetiredPublishSlots -Slots @(1, 2, 3) -Root $RootPath -Date $d)
 $dueCalendarSlots = @(Get-EffectivePublishSlots -CalendarSlots $calendarSlots)
+$dueCalendarSlots = @(Remove-RetiredPublishSlots -Slots $dueCalendarSlots -Root $RootPath -Date $d)
 $due = @(Get-DueSlots -Time $t -SlotTimes $slotTimes -CalendarSlots $dueCalendarSlots)
 
 # R1-R3: Every read separates live pairs from uncertain submissions.
@@ -214,6 +216,7 @@ if (Test-Path -LiteralPath $logPath) {
         $parsed = Get-Content $logPath -Raw -Encoding UTF8 | ConvertFrom-Json
         $posted = @(Get-LivePostedPairs $parsed)
         $uncertain = @(Get-UncertainPairs $parsed)
+        $uncertain = @($uncertain | Where-Object { $activeRetirementSlots -contains [int](($_ -split ":")[0]) })
     } catch {
         Write-Log ("posted-log unreadable: " + $_.Exception.Message)
         Show-Toast "posted-log 讀不了,發布狀態不明,快看 log。"
@@ -221,7 +224,7 @@ if (Test-Path -LiteralPath $logPath) {
 }
 
 $missing = @(Get-MissingDuePairs $due $posted | Where-Object { $uncertain -notcontains $_ })
-$missingRequiredCalendarSlots = @(Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots)
+$missingRequiredCalendarSlots = @(Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots -Root $RootPath -Date $d)
 if ($missingRequiredCalendarSlots.Count -gt 0) {
     Write-Log ("Calendar missing required slot(s): {0}; refusing automatic recovery." -f ($missingRequiredCalendarSlots -join ","))
     if ($missing.Count -gt 0) {
@@ -257,6 +260,7 @@ if ($cloudMissing.Count -gt 0) {
             $parsed = Get-Content $logPath -Raw -Encoding UTF8 | ConvertFrom-Json
             $posted = @(Get-LivePostedPairs $parsed)
             $uncertain = @(Get-UncertainPairs $parsed)
+        $uncertain = @($uncertain | Where-Object { $activeRetirementSlots -contains [int](($_ -split ":")[0]) })
         } catch {
             # Preserve the last known uncertain pairs if sync readback fails.
             Write-Log ("posted-log unreadable after IG sync: " + $_.Exception.Message)
@@ -287,6 +291,7 @@ if ($recoveryPairs.Count -gt 0) {
             $parsed2 = Get-Content $logPath -Raw -Encoding UTF8 | ConvertFrom-Json
             $posted2 = @(Get-LivePostedPairs $parsed2)
             $uncertain2 = @(Get-UncertainPairs $parsed2)
+        $uncertain2 = @($uncertain2 | Where-Object { $activeRetirementSlots -contains [int](($_ -split ":")[0]) })
         } catch {
             Write-Log ("posted-log unreadable after catchup: " + $_.Exception.Message)
         }

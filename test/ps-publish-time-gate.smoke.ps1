@@ -1,4 +1,5 @@
-﻿$ErrorActionPreference = "Stop"
+﻿. (Join-Path $PSScriptRoot "helpers/legacy-slot-retirement-fixture.ps1")
+$ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path -Parent $PSScriptRoot
@@ -21,6 +22,7 @@ function Write-Utf8([string]$Path, [string]$Text) {
 function Invoke-GateCase {
     param([string]$Name, [string]$Time, [string]$Posted = "", [string]$Calendar = '{"slots":[{"slot":1},{"slot":2}]}', [string]$PublishTimes = "", [string]$TriggerLog = "")
     $caseRoot = Join-Path $tempRoot $Name
+    Install-LegacySlotRetirementFixture $caseRoot
     [void][IO.Directory]::CreateDirectory($caseRoot)
     [void][IO.Directory]::CreateDirectory((Join-Path $caseRoot "probe"))
     $caseStub = Join-Path $caseRoot "gate-catchup.cmd"

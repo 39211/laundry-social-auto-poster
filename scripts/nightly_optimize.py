@@ -292,6 +292,9 @@ def audit_clock_hour(audit_day, now_day, now_hour):
 
 # --- end helpers ---
 
+# Main-workflow dependency: keep the standalone/pythonw-safe helper head importable.
+from slot_retirements import active_calendar
+
 _now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
 try:
     TODAY = parse_audit_date(sys.argv[1:], today=_now.date())
@@ -304,7 +307,7 @@ ts = TOMORROW.isoformat()
 
 
 # --- 1. Tomorrow has to be ready tonight, not at 06:30 -----------------------
-cal = load(f"data/content-calendar/{ts}.json")
+cal = active_calendar(load(f"data/content-calendar/{ts}.json"), ROOT, ts)
 # MERGE 1a/1b/1c: one 明日就緒鏈. Tomorrow's calendar is often still missing
 # at 23:10; that is normal. What protects the morning is that Generate is
 # registered, has a next run, and can wake the machine.
@@ -323,7 +326,7 @@ if chain_breaks:
 # REWRITE 1d: at 23:10 today's images must already exist (06:30 has run).
 # Tomorrow's PNGs are not supposed to exist yet (ERROR-BOOK A7/B9).
 # Fix keeps the W-A7B invalidate chain; only the date is today, not tomorrow.
-today_cal = load(f"data/content-calendar/{ds}.json")
+today_cal = active_calendar(load(f"data/content-calendar/{ds}.json"), ROOT, ds)
 if today_cal:
     for s in today_cal.get("slots", []):
         n = s.get("slot")
@@ -389,8 +392,8 @@ for topic, days in recent.items():
 # template. Question marks are tested after stripping URLs; price no longer
 # treats a bare 起 (關不起來) as a price cue.
 yesterday = (TODAY - timedelta(days=1)).isoformat()
-yday_cal = load(f"data/content-calendar/{yesterday}.json")
-copy_today = today_cal if today_cal is not None else load(f"data/content-calendar/{ds}.json")
+yday_cal = active_calendar(load(f"data/content-calendar/{yesterday}.json"), ROOT, yesterday)
+copy_today = today_cal if today_cal is not None else active_calendar(load(f"data/content-calendar/{ds}.json"), ROOT, ds)
 for row in conversion_generator_findings(yday_cal, copy_today, yesterday, ds):
     add(row["severity"], row["area"], row["what"], row["evidence"], row["fix"])
 

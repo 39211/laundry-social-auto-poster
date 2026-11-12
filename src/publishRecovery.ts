@@ -1,3 +1,4 @@
+import { assertSlotActive } from "./slotRetirements";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { existingStaffGroup, type StaffAlertSender } from "./facebookLostAlert";
@@ -7,6 +8,7 @@ import { getSlotPublishTime } from "./publishTimes";
 import { getZonedDateParts } from "./scheduler";
 import { NonRetryableError, requestNeverSent } from "./retry";
 import type { AppConfig, DailySlot, Platform, PostLogEntry } from "./types";
+
 
 export interface RecoveryRecord {
   date: string; slot: number; platform: Platform;
@@ -69,6 +71,7 @@ function inWindow(input: RecoveryInput): boolean {
 }
 
 export async function preparePublicationRecovery(input: RecoveryInput, failedAttempt?: unknown): Promise<RecoveryDecision | undefined> {
+  assertSlotActive(input.date, input.slot.slot, input.root);
   const { loadScheduledLog, readPublicationEvidence } = await import("./scheduleAhead");
   const rows = await loadPostLog(input.date, input.root);
   const pair = rows.filter(row => row.slot === input.slot.slot && row.platform === input.platform && row.dry_run === false);
@@ -165,6 +168,7 @@ export async function preparePublicationRecovery(input: RecoveryInput, failedAtt
 }
 
 export async function claimRecoveryRetry(input: RecoveryInput, decision: RecoveryDecision): Promise<void> {
+  assertSlotActive(input.date, input.slot.slot, input.root);
   const stop = async (reason: string): Promise<never> => {
     await markRecoveryManual(input, decision.record, reason);
     throw new NonRetryableError(`needs_manual:${reason}`);

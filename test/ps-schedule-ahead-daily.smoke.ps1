@@ -1,4 +1,5 @@
-﻿# R4：從正式腳本的 AST 只抽取純函式；不執行排程、通知或網路主流程。
+﻿. (Join-Path $PSScriptRoot "helpers/legacy-slot-retirement-fixture.ps1")
+# R4：從正式腳本的 AST 只抽取純函式；不執行排程、通知或網路主流程。
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
@@ -188,6 +189,7 @@ try {
         }
         $isolatedProd = Join-Path $isolatedScripts "schedule-ahead-daily.ps1"
         [IO.File]::Copy($prod, $isolatedProd)
+        Install-LegacySlotRetirementFixture $caseRoot
         [IO.File]::WriteAllText((Join-Path $isolatedScripts "_watchdog.ps1"), "", [Text.UTF8Encoding]::new($true))
         # The wrapper takes the sxj-publish mutex per step. Stub the library so this
         # smoke never touches the real Global\ mutex a live publisher may hold.

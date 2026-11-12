@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { assertSlotActive } from "./slotRetirements";
 import { join } from "node:path";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import {
@@ -41,6 +42,7 @@ function parsePlatforms(value: string | undefined): Platform[] {
 
 export async function approvePost(options: ApprovePostOptions): Promise<ApprovalLogEntry[]> {
   const root = projectRoot(options.root);
+  assertSlotActive(options.date, options.slot, root);
 
   // The owner's brake stops every consent path, including this manual one.
   // --force still overrides unproven image evidence; it does not override pause.

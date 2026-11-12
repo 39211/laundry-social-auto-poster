@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$RootPath = '',
     [string]$NpmCommand = 'npm.cmd',
@@ -10,6 +10,7 @@ param(
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch {}
 if ([string]::IsNullOrWhiteSpace($RootPath)) { $RootPath = Split-Path -Parent $PSScriptRoot }
+. (Join-Path $PSScriptRoot "slot-retirements.ps1")
 $root = (Resolve-Path -LiteralPath $RootPath -ErrorAction Stop).ProviderPath
 $queuePath = Join-Path $root 'output\backfill\queue.json'
 $seedPath = Join-Path $root 'data\backfill-seed.json'
@@ -319,6 +320,12 @@ try {
         $pending = @($queue | Where-Object { $_.status -ceq 'pending' })
         if ($pending.Count -eq 0) { Write-Log 'No pending backfill entries; no action.'; exit 0 }
         $entry = $pending[0]
+        if (@(Remove-RetiredPublishSlots -Slots @([int]$entry.slot) -Root $root -Date $entry.date) -notcontains [int]$entry.slot) {
+            Write-Log ('Retired slot skipped: {0} slot {1}; no publish.' -f $entry.date, $entry.slot)
+            if ($DryRun) { exit 0 }
+            [void](Set-QueueEntry $entry 'skipped' 'Slot retired by src/slot-retirements.json; no publish.' $null '')
+            continue
+        }
         $state = Get-PostedState $entry
         if ($state.facebook -ceq 'success' -and $state.instagram -ceq 'success') {
             if ($DryRun) { Write-Log ('date={0} slot={1} already_success=true; no publish.' -f $entry.date, $entry.slot); exit 0 }

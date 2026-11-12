@@ -3,8 +3,11 @@ import { mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/
 import type { FileHandle } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { getFlag, getOption, isMain } from "./cli";
+import { slotRetirement } from "./slotRetirements";
 import {
   inspectDailyContentIntegrity,
+  calendarSlotsChecksum,
+  calendarRetiredSlots,
   omitRuntimeCalendarFlags,
   stampDailyContentWrite,
   type StampedDailyContent
@@ -97,6 +100,8 @@ async function withJsonFileLock<T>(filePath: string, operation: () => Promise<T>
 
 export interface LoadDailyContentOptions {
   today?: string;
+  /** Read-only as-aired metrics must retain metadata for actual ledger entries. */
+  includeRetiredSlots?: boolean;
 }
 
 export async function loadDailyContent(
@@ -113,20 +118,28 @@ export async function loadDailyContent(
   const content = omitRuntimeCalendarFlags(raw);
   // Slot 3 is the optional noon Reel for dual-length A/B days. Existing
   // calendars stay at 2 slots; new days and healed A/B days may carry 3.
-  if (!Array.isArray(content.slots) || content.slots.length < 2 || content.slots.length > 3) {
-    throw new Error(`Invalid daily content for ${date}: expected 2 or 3 slots.`);
+  const minimumSlots = calendarRetiredSlots(content).includes(2) ? 1 : 2;
+  if (!Array.isArray(content.slots) || content.slots.length < minimumSlots || content.slots.length > 3) {
+    throw new Error(`Invalid daily content for ${date}: expected ${minimumSlots === 1 ? "1 to 3" : "2 or 3"} slots.`);
   }
   const inspection = inspectDailyContentIntegrity(content, { today: options.today, root });
   if (inspection.tampered) {
     return { ...content, tampered: true };
   }
-  return content;
+  if (options.includeRetiredSlots) return content;
+  // Verify persisted bytes before projection. A legitimate retirement must not
+  // look like checksum tampering; unrelated edits still fail the raw inspection.
+  const slots = content.slots.filter(slot => !slotRetirement(date, slot.slot, root).retired);
+  if (slots.length === content.slots.length) return content;
+  const active = { ...content, slots };
+  return { ...active, content_checksum: calendarSlotsChecksum(active, { root }) };
 }
 
 export async function writeDailyContent(content: DailyContent, root = projectRoot()): Promise<void> {
+  const active = { ...content, slots: content.slots.filter(slot => !slotRetirement(content.date, slot.slot, root).retired) };
   await writeJsonAtomic(
     contentCalendarPath(content.date, root),
-    stampDailyContentWrite(omitRuntimeCalendarFlags(content as StampedDailyContent), { root })
+    stampDailyContentWrite(omitRuntimeCalendarFlags(active as StampedDailyContent), { root })
   );
 }
 

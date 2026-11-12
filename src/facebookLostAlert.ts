@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdir, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { writeJsonAtomic } from "./logging";
+import { slotRetirement } from "./slotRetirements";
 
 export type StaffAlertSender = (message: string, key: string) => Promise<boolean>;
 
@@ -27,6 +28,7 @@ export async function deliverPendingFacebookAlerts(input: { root: string; date: 
     if (!match) continue;
     const slot = Number(match[1]);
     if (!Number.isSafeInteger(slot) || slot < 1 || slot > 99) continue;
+    if (slotRetirement(input.date, slot, input.root).retired) continue;
     const path = join(receipts, name);
     let alreadyDelivered = false;
     try { alreadyDelivered = JSON.parse(await readFile(path, "utf8")).status === "delivered"; } catch { /* missing receipt retries with the same idempotency key */ }

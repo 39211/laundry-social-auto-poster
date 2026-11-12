@@ -384,7 +384,7 @@ export async function fetchPostedInstagramInsights(
   const dailyPostIds = new Set<string>();
 
   for (const date of postedLogDates) {
-    const [postLog, dailyContent] = await Promise.all([loadPostLog(date, root), loadDailyContent(date, root)]);
+    const [postLog, dailyContent] = await Promise.all([loadPostLog(date, root), loadDailyContent(date, root, { includeRetiredSlots: true })]);
     const slotByNumber = new Map(dailyContent?.slots.map((slot) => [slot.slot, slot]));
 
     for (const post of postLog) {

@@ -87,7 +87,7 @@ if (Test-Path -LiteralPath $postedPath) {
     }
 }
 
-$effectivePublishSlots = @(Get-EffectivePublishSlots -CalendarSlots $calendarSlots)
+$effectivePublishSlots = @(Get-EffectivePublishSlots -CalendarSlots $calendarSlots -Root $root -Date $date)
 $dueSlots = @()
 $needed = @()
 $nowTime = [TimeSpan]::ParseExact($time, 'hh\:mm', [Globalization.CultureInfo]::InvariantCulture)
@@ -102,7 +102,7 @@ foreach ($slot in $effectivePublishSlots) {
     }
     $needed += [int]$slot
 }
-$missingRequiredCalendarSlots = @(Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots)
+$missingRequiredCalendarSlots = @(Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots -Root $root -Date $date)
 if ($missingRequiredCalendarSlots.Count -gt 0) {
     Write-GateLog ("Calendar missing required slot(s): {0}; mandatory due slot(s) still included: {1}." -f `
         ($missingRequiredCalendarSlots -join ","), ($dueSlots -join ","))

@@ -1,3 +1,4 @@
+import { assertSlotActive, slotRetirement } from "./slotRetirements";
 import { readFileSync } from "node:fs";
 import { access, copyFile, mkdir, readFile, rm } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -461,6 +462,8 @@ export async function scheduleReel(input: {
   mediaGuardOverride?: SlotMediaOverride;
 }): Promise<void> {
   const root = projectRoot(input.root);
+  const slotNumber = input.slot ?? 2;
+  assertSlotActive(input.date, slotNumber, root);
   const config = getConfig();
   const rejected = await loadRejectedConcepts(root);
   if (isConceptRejected(rejected, input.conceptId)) {
@@ -469,7 +472,6 @@ export async function scheduleReel(input: {
   const concept = REEL_CONCEPTS.find((item) => item.id === input.conceptId);
   if (!concept) throw new Error(`Unknown concept: ${input.conceptId}`);
 
-  const slotNumber = input.slot ?? 2;
   // R2: schedule-reel's existing --force cannot bypass the media lock.
   await assertSlotMediaMutable({
     root,
@@ -775,6 +777,7 @@ export async function restoreReelSlot(input: {
   mediaGuardOverride?: SlotMediaOverride;
 }): Promise<{ restored: string[] }> {
   const root = projectRoot(input.root);
+  assertSlotActive(input.date, input.slotNumber, root);
   const dir = reelBackupDir(input.date, root);
   const tag = `slot-${padSlot(input.slotNumber)}`;
   const snapshotPath = join(dir, `${tag}.slot.json`);
@@ -951,6 +954,8 @@ export async function healOneSlot(input: {
   root: string;
   mediaGuardOverride?: SlotMediaOverride;
 }): Promise<HealSlotResult> {
+  const retirement = slotRetirement(input.date, input.slotNumber, input.root);
+  if (retirement.retired) return healStopped(input, retirement.reason ?? "slot retired");
   const rejected = await loadRejectedConcepts(input.root);
   if (isConceptRejected(rejected, input.conceptId)) {
     console.log(
@@ -1049,6 +1054,7 @@ export async function healOneSlot(input: {
   console.log(`${input.date}: healed slot ${input.slotNumber} back to ${input.conceptId} (${input.variant}).`);
   return { date: input.date, slotNumber: input.slotNumber, action: "healed", invalidate };
 }
+
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);

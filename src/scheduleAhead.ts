@@ -1,3 +1,4 @@
+import { slotRetirement } from "./slotRetirements";
 import { deliverPendingFacebookAlerts } from "./facebookLostAlert";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -36,6 +37,7 @@ import type { AppConfig, DailySlot, PostInput, PostResult } from "./types";
 // Every media byte is transferred to Meta at scheduling time (unpublished
 // photo uploads, Reel file_url pull), so the public Pages site being up at
 // publish time is NOT required either.
+
 
 export interface ScheduledLogEntry {
   date: string;
@@ -444,6 +446,7 @@ export async function reconcileUncertainRows(args: {
   const uncertain = entries.filter(
     (entry) =>
       entry.status === "uncertain" &&
+      !slotRetirement(date, entry.slot, root).retired &&
       !entries.some((other) => other.slot === entry.slot && other.status !== "uncertain")
   );
   if (uncertain.length === 0) return outcome;
@@ -621,6 +624,7 @@ export async function scheduleAheadFacebook(input: {
   const results: ScheduleAheadResult[] = [];
 
   for (const slot of content.slots) {
+    if (slotRetirement(input.date, slot.slot, root).retired) continue;
     const publishAt = slotPublishUnixTime(input.date, slot.slot, root);
     const secondsOut = publishAt - Math.floor(now.getTime() / 1000);
 

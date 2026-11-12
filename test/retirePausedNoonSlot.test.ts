@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { approvePost } from "../src/approvePost";
 import { buildDailyContent } from "../src/contentPlan";
 import { getConfig } from "../src/config";
@@ -12,11 +12,19 @@ import { retirePausedNoonSlot } from "../src/retirePausedNoonSlot";
 import type { AbDayPlan } from "../src/abTestPlan";
 import type { DailyContent, DailySlot } from "../src/types";
 
-const DATE = "2099-12-31";
+// Slot-3-only regression context before slot-2 retirement, without a policy fixture.
+const DATE = "2026-11-15";
 const roots: string[] = [];
+
+beforeEach(() => {
+  // Preserve the original future-calendar/tamper semantics without a 2099 slot 2.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-12T00:00:00Z"));
+});
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
@@ -63,7 +71,7 @@ async function tempRoot(options: {
   const content: DailyContent = {
     date: DATE,
     timezone: "Asia/Taipei",
-    generated_at: "2099-12-31T00:00:00.000Z",
+    generated_at: "2026-11-15T00:00:00.000Z",
     slots
   };
   await writeDailyContent(content, root);

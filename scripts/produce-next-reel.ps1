@@ -30,6 +30,7 @@ $ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "slot-retirements.ps1")
 # Single-flight (luna, high): the scheduler retry, the patrol rescue and a
 # manual run can overlap; this script is not re-entrant. An exclusive-create
 # lock file makes the second instance exit instead of racing; a lock older
@@ -1067,11 +1068,12 @@ function Set-CanonicalForDate {
 if ($windowDays.Count -gt 0) {
     foreach ($day in $windowDays) {
         Set-CanonicalForDate -ForDate $day.date -ConceptId $day.noon.conceptId -Variant $day.noon.variant
-        Set-CanonicalForDate -ForDate $day.date -ConceptId $day.evening.conceptId -Variant $day.evening.variant
+        $eveRetired = @(Remove-RetiredPublishSlots -Slots @(2) -Root $root -Date $day.date).Count -eq 0
+        if (-not $eveRetired) { Set-CanonicalForDate -ForDate $day.date -ConceptId $day.evening.conceptId -Variant $day.evening.variant }
         $noonAsset = Get-ReelAssetPath $day.noon.conceptId $day.noon.variant
         # A paused half must not hold the day hostage: requiring its asset would
         # block the noon post that is still meant to go out.
-        $evePaused = $day.evening.paused -eq $true
+        $evePaused = ($day.evening.paused -eq $true) -or $eveRetired
         $eveAsset = Get-ReelAssetPath $day.evening.conceptId $day.evening.variant
         $eveReady = $evePaused -or (Test-Path $eveAsset)
         if (-not ((Test-Path $noonAsset) -and $eveReady)) {
@@ -1090,6 +1092,10 @@ if ($windowDays.Count -gt 0) {
             # The half stays in the plan file rather than being deleted, so the
             # concept rotation and the runway maths still see it and a later
             # decision to resume is one flag away -- but it is not scheduled.
+            if (@(Remove-RetiredPublishSlots -Slots @([int]$half.slot) -Root $root -Date $day.date) -notcontains [int]$half.slot) {
+                Write-Log "Plan day $($day.date) slot $($half.slot): retired; not scheduling."
+                continue
+            }
             if ($half.plan.paused -eq $true) {
                 Write-Log "Plan day $($day.date) $($half.name): paused by plan (capacity 7->3); not scheduling."
                 continue
@@ -1140,6 +1146,10 @@ if ($windowDays.Count -gt 0) {
         Write-Log "$concept has no publish date; leaving it unscheduled."
         Show-Toast "$concept 成片完成，但排程表沒有它的發布日，需要手動處理。"
         exit 1
+    }
+    if (@(Remove-RetiredPublishSlots -Slots @(2) -Root $root -Date $publishDate).Count -eq 0) {
+        Write-Log "Slot 2 retired for $publishDate; leaving the finished asset unscheduled."
+        exit 0
     }
     Push-Location $root
     cmd /c "npm.cmd run schedule-reel -- --date $publishDate --concept $concept --slot 2 --variant 10s 2>&1" | Add-Content -Path $logFile -Encoding UTF8

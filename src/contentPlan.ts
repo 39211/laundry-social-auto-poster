@@ -31,6 +31,7 @@ import {
   slot1PlanPath
 } from "./paths";
 import { DAILY_SCHEDULE, getZonedDateParts } from "./scheduler";
+import { slotRetirement } from "./slotRetirements";
 import type {
   AppConfig,
   CarouselItem,
@@ -3152,7 +3153,7 @@ export function buildDailyContent(
   }
   const resolvedSlot1 = slot1Decision?.slot;
   const slots: DailySlot[] = DAILY_SCHEDULE.filter(
-    (schedule) => !(schedule.slot === 3 && noonSlotUnavailable)
+    (schedule) => !(schedule.slot === 3 && noonSlotUnavailable) && !slotRetirement(date, schedule.slot, root).retired
   ).map((schedule) => {
     const playbookSlot =
       schedule.slot === 1 && resolvedSlot1
@@ -3195,7 +3196,8 @@ export function buildDailyContent(
     date,
     timezone: config.timezone,
     generated_at: new Date().toISOString(),
-    slots
+    slots,
+    ...(!slots.some(slot => slot.slot === 2) && slotRetirement(date, 2, root).retired ? { retired_slots: [2] } : {})
   });
 }
 
@@ -3223,7 +3225,13 @@ export interface CalendarChecksumOptions {
 
 export const CALENDAR_HMAC_KEY_NAME = ".calendar-hmac-key";
 
-export type CalendarChecksumEnvelope = Pick<DailyContent, "date" | "timezone" | "generated_at" | "slots">;
+export type CalendarChecksumEnvelope = Pick<DailyContent, "date" | "timezone" | "generated_at" | "slots" | "retired_slots">;
+
+/** Persisted write-time evidence only: never infer past omissions from today's policy. */
+export function calendarRetiredSlots(content: Pick<DailyContent, "slots" | "retired_slots">): number[] {
+  if (!Array.isArray(content.retired_slots) || !Array.isArray(content.slots)) return [];
+  return content.retired_slots.filter(slot => Number.isInteger(slot) && slot > 0 && !content.slots.some(item => item.slot === slot));
+}
 
 function normalizeForChecksum(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalizeForChecksum);
@@ -3272,7 +3280,8 @@ function calendarChecksumPayload(content: CalendarChecksumEnvelope): string {
       date: content.date,
       timezone: content.timezone,
       generated_at: content.generated_at,
-      slots: content.slots
+      slots: content.slots,
+      ...(content.retired_slots === undefined ? {} : { retired_slots: content.retired_slots })
     })
   );
 }
@@ -3323,11 +3332,17 @@ export function stampDailyContentWrite(
 ): StampedDailyContent {
   ensureCalendarHmacKey(options.root);
   const stripped = omitRuntimeCalendarFlags(content as StampedDailyContent);
+  // Only writers consult the current policy; signed omissions survive re-stamping.
+  const retiredSlots = [...new Set([
+    ...calendarRetiredSlots(stripped),
+    ...DAILY_SCHEDULE.filter(schedule => slotRetirement(content.date, schedule.slot, options.root).retired).map(schedule => schedule.slot)
+  ])].filter(slot => !stripped.slots.some(item => item.slot === slot)).sort((a, b) => a - b);
   const rest = {
     date: stripped.date,
     timezone: stripped.timezone,
     generated_at: stripped.generated_at,
-    slots: stripped.slots
+    slots: stripped.slots,
+    ...(retiredSlots.length ? { retired_slots: retiredSlots } : {})
   };
   return {
     ...rest,
@@ -3369,12 +3384,18 @@ export function inspectDailyContentIntegrity(
   const wrongWriter = !missingWriter && writtenBy !== CALENDAR_WRITTEN_BY;
   const weak = !readCalendarHmacKey(options.root);
   const preAdoption = content.date < CALENDAR_STAMP_ADOPTION_DATE;
+  const invalidRetirements = content.retired_slots !== undefined && (
+    !Array.isArray(content.retired_slots) || !Array.isArray(content.slots) ||
+    calendarRetiredSlots(content).length !== content.retired_slots.length ||
+    new Set(content.retired_slots).size !== content.retired_slots.length
+  );
 
-  if ((missingWriter || missingChecksum) && (!actionable || preAdoption) && !mismatch && !wrongWriter) {
+  if ((missingWriter || missingChecksum) && (!actionable || preAdoption) && !mismatch && !wrongWriter && !invalidRetirements) {
     return { tampered: false, legacy: true, shouldRebuild: false, reasons: [], weak: false };
   }
 
   const reasons: string[] = [];
+  if (invalidRetirements) reasons.push("invalid retired_slots snapshot");
   if (missingWriter) reasons.push("missing written_by");
   if (missingChecksum) reasons.push("missing content_checksum");
   if (mismatch) reasons.push("content_checksum mismatch");

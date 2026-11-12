@@ -138,6 +138,8 @@ export interface DailyContent {
   timezone: string;
   generated_at: string;
   slots: DailySlot[];
+  /** Write-time omissions, retained when the current retirement policy is removed. */
+  retired_slots?: number[];
 }
 
 export interface ImageSourceRecord {

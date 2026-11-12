@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -101,6 +101,10 @@ describe("--all-due evening run", () => {
 
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), "publish-alldue-"));
+    // A normal deployment includes the source policy. Missing-file behavior is
+    // covered separately; these historical publishing cases need a valid file.
+    await mkdir(join(root, "src"), { recursive: true });
+    await writeFile(join(root, "src/slot-retirements.json"), await readFile(join(process.cwd(), "src/slot-retirements.json")));
     savedOffSchedule = process.env.ALLOW_OFF_SCHEDULE_PUBLISH;
     delete process.env.ALLOW_OFF_SCHEDULE_PUBLISH;
 

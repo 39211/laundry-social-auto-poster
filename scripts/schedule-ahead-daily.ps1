@@ -11,6 +11,7 @@ $ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "slot-retirements.ps1")
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
 $now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
 $logDir = Join-Path $root "output\schedule-ahead-logs"
@@ -169,6 +170,7 @@ foreach ($offset in 1..3) {
         try {
             $rows = [IO.File]::ReadAllText($scheduledLog, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
             # R3: Count only confirmed rows and keep operator action visible.
+            $rows = @($rows | Where-Object { @(Remove-RetiredPublishSlots -Slots @([int]$_.slot) -Root $root -Date $date) -contains [int]$_.slot })
             $summary = Get-ScheduledRowSummary $rows
             $queued += "{0}x{1}" -f $date, $summary.Confirmed
             if ($summary.Uncertain -gt 0) {
@@ -191,7 +193,7 @@ foreach ($offset in 1..3) {
     # R7: YouTube Shorts platform-side publishAt after this date's FB queue.
     # Slot 2 (evening) and slot 3 (noon Reel). A red slot is logged and skipped;
     # it must not abort D+2/D+3. Live youtube-upload.ps1 stays the fallback.
-    foreach ($ytSlot in 2, 3) {
+    foreach ($ytSlot in @(Remove-RetiredPublishSlots -Slots @(2, 3) -Root $root -Date $date)) {
         $ytOut = cmd /c "npm.cmd run schedule-youtube -- --date $date --slot $ytSlot --live 2>&1"
         $ytOut | Out-File -FilePath $logFile -Append -Encoding utf8
         if ($LASTEXITCODE -ne 0) {

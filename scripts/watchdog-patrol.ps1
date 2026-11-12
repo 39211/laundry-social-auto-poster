@@ -158,7 +158,7 @@ if ($null -eq $calendarSlots) {
     "[{0:yyyy-MM-dd HH:mm:ss}] Calendar unreadable; falling back to slots 1, 2, 3." -f $now | Add-Content -Path $logFile -Encoding UTF8
     $calendarSlots = [int[]]@(1, 2, 3)
 }
-$missingRequiredCalendarSlots = @(Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots)
+$missingRequiredCalendarSlots = @(Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots -Root $root -Date $date)
 if ($missingRequiredCalendarSlots.Count -gt 0) {
     $line = "[{0:yyyy-MM-dd HH:mm:ss}] Calendar missing required slot(s): {1}; refusing patrol rescue." -f $now, ($missingRequiredCalendarSlots -join ",")
     $line | Add-Content -Path $logFile -Encoding UTF8

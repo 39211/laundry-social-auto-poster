@@ -192,7 +192,7 @@ export async function fetchPostedFacebookInsights(
   let skippedRows = 0;
 
   for (const date of postedLogDates) {
-    const [postLog, dailyContent] = await Promise.all([loadPostLog(date, root), loadDailyContent(date, root)]);
+    const [postLog, dailyContent] = await Promise.all([loadPostLog(date, root), loadDailyContent(date, root, { includeRetiredSlots: true })]);
     const slotByNumber = new Map(dailyContent?.slots.map((slot) => [slot.slot, slot]));
     for (const post of postLog) {
       if (!isSuccessfulLiveFacebookPost(post)) {

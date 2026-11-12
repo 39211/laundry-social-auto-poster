@@ -4,8 +4,10 @@ import { loadAbTestPlan, type AbDayPlan, type AbVariant } from "./abTestPlan";
 import { getOption, isMain } from "./cli";
 import { getConfig } from "./config";
 import { loadPostLog, readJsonFile } from "./logging";
-import { projectRoot } from "./paths";
+import { contentCalendarPath, projectRoot } from "./paths";
 import { getZonedDateParts } from "./scheduler";
+import { slotRetirement } from "./slotRetirements";
+import { calendarRetiredSlots } from "./contentPlan";
 
 interface MetricBag {
   reach?: number | null;
@@ -143,6 +145,8 @@ export async function buildAbTestReport(options: {
   for (const day of plan) {
     if (day.date > asOf) continue;
     const posts = await loadPostLog(day.date, root);
+    const calendar = await readJsonFile<import("./types").DailyContent | undefined>(contentCalendarPath(day.date, root), undefined);
+    const savedRetired = calendar ? calendarRetiredSlots(calendar) : [];
     const ytLog = await readJsonFile<Array<{ slot: number; video_id?: string }>>(
       join(root, "data", "youtube-log", `${day.date}.json`),
       []
@@ -164,6 +168,7 @@ export async function buildAbTestReport(options: {
       const livePlatforms = (["facebook", "instagram"] as const).filter((platform) =>
         liveEntries.some((entry) => entry.platform === platform)
       );
+      if (liveEntries.length === 0 && (slotRetirement(day.date, half.slot, root).retired || savedRetired.includes(half.slot))) continue;
 
       let variant: ReportVariant = "unattributed";
       if (liveEntries.length === 0) {

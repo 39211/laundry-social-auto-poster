@@ -159,7 +159,7 @@ function Invoke-CatchupPublishAlerts {
             }
             if ($script:pipelineLastError) { $state.last_error = $script:pipelineLastError }
         }
-        $slots = @(Get-EffectivePublishSlots -CalendarSlots (Get-CalendarSlots -Root $root -Date $alertDate))
+        $slots = @(Get-EffectivePublishSlots -CalendarSlots (Get-CalendarSlots -Root $root -Date $alertDate) -Root $root -Date $alertDate)
         $times = Get-SlotTimes -Root $root -Date $alertDate
         $rows = @()
         $postedPath = Join-Path $root "data\posted-log\$alertDate.json"
@@ -252,7 +252,7 @@ function Invoke-CatchupEveningCloseout {
         try {
             $parsed = ConvertFrom-Json -InputObject (Get-Content -Path $queuePath -Raw -Encoding utf8)
             $queue = @($parsed)
-            $open = @($queue | Where-Object { $_.status -eq "VIDEO_DEFERRED" -and -not $_.dry_run })
+            $open = @($queue | Where-Object { $_.status -eq "VIDEO_DEFERRED" -and -not $_.dry_run -and (@(Remove-RetiredPublishSlots -Slots @([int]$_.source_slot) -Root $root -Date $_.source_date) -contains [int]$_.source_slot) })
             $faults = @($open | Where-Object { $_.defer_kind -eq "unexpected" -and -not $_.frozen_at })
 
             if ($faults.Count -gt 0) {
@@ -347,6 +347,7 @@ if (Test-Path $approvedPath) {
             ConvertFrom-Json).slots | ForEach-Object { $_.slot }
         $approvedSlots = ([IO.File]::ReadAllText($approvedPath, [Text.UTF8Encoding]::new($false)) |
             ConvertFrom-Json) | ForEach-Object { $_.slot } | Sort-Object -Unique
+        $calendarSlots = @(Remove-RetiredPublishSlots -Slots @($calendarSlots) -Root $root -Date $date)
         $needsJudging = @($calendarSlots | Where-Object { $approvedSlots -notcontains $_ }).Count -gt 0
     } catch {
         # Unreadable either file: re-judging is the safe direction, since
@@ -475,7 +476,7 @@ if ($slotTimeWarning) { Write-Log ([string]$slotTimeWarning) }
 $slotWindows = Get-CatchupSlotWindows -NowTime $now.TimeOfDay -SlotTimes $slotTimes -CalendarSlots $calendarSlots -RecoveryWindow $recoveryWindow
 $dueSlots = @($slotWindows.DueSlots)
 $staleSlots = @($slotWindows.StaleSlots)
-$missingRequiredCalendarSlots = @(Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots)
+$missingRequiredCalendarSlots = @(Get-MissingRequiredCalendarSlots -CalendarSlots $calendarSlots -Root $root -Date $date)
 if ($env:CATCHUP_PUBLISH_PLAN_ONLY -eq "true") {
     [pscustomobject]@{ date = $date; due_slots = @($dueSlots); stale_slots = @($staleSlots) } | ConvertTo-Json -Compress
     exit 0

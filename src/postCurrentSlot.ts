@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { inspectDailyContentIntegrity } from "./contentPlan";
+import { calendarRetiredSlots, inspectDailyContentIntegrity } from "./contentPlan";
 import { getFlag, getNumberOption, getOption, isMain } from "./cli";
 import { assertLiveMetaConfig, assertPublicImageBaseUrl, getConfig } from "./config";
 import { generateDailyContent } from "./generateDailyContent";
@@ -46,6 +46,7 @@ import type { StaffAlertSender } from "./facebookLostAlert";
 import { loadAbTestPlan, planForDate, planSlot, type AbVariant } from "./abTestPlan";
 import { CONCEPT_COOLDOWN_DAYS } from "./reelConcepts";
 import { DAILY_SCHEDULE, findSlotByNumber, getZonedDateParts, resolveCurrentSlot } from "./scheduler";
+import { slotRetirement } from "./slotRetirements";
 import { getSlotPublishTime } from "./publishTimes";
 import type {
   AppConfig,
@@ -1061,6 +1062,9 @@ export async function postCurrentSlot(options: PostCurrentSlotOptions = {}): Pro
   // process is still publishing the next slot.
   const slotFailures: Array<{ slot: number; error: unknown }> = [];
   for (const schedule of targetSchedules) {
+    if (calendarRetiredSlots(content).includes(schedule.slot)) continue;
+    const retirement = slotRetirement(date, schedule.slot, root);
+    if (retirement.retired) { console.log(`${date}: ${retirement.reason}; skipping`); continue; }
     const slot = content.slots.find((item) => item.slot === schedule.slot);
     const presence = classifyCalendarSlotPresence(schedule.slot, Boolean(slot));
     if (presence === "absent_skip") {

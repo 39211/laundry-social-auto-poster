@@ -1,3 +1,4 @@
+import { installLegacySlotRetirementFixture } from "./helpers/legacySlotRetirementFixture";
 // RP-3 regression: catchup-publish.ps1 posted-log handling under Windows
 // PowerShell 5.1 (pwsh 7 enumerates JSON arrays and hides the bug).
 // Hermetic: only catchup-publish.ps1 is real. The lock library, slot-time
@@ -73,6 +74,7 @@ function runCatchup(o: { postedRaw: string; time: string; due: string; postExit:
     copyFileSync(path.join(repoRoot, "scripts", "catchup-publish.ps1"), path.join(scripts, "catchup-publish.ps1"));
     writeFileSync(path.join(scripts, "_pipeline-lock.ps1"), LOCK_STUB.replace(/\n/g, "\r\n"), "utf8");
     writeFileSync(path.join(scripts, "publish-slot-times.ps1"), SLOT_STUB.replace(/\n/g, "\r\n"), "utf8");
+    installLegacySlotRetirementFixture(root);
     writeFileSync(path.join(scripts, "_watchdog.ps1"), "# test stub\r\n", "utf8");
     writeFileSync(path.join(root, "npm.cmd"), FAKE_NPM, "ascii");
     writeJson(path.join(root, "data", "content-calendar", `${DATE}.json`), { date: DATE, slots: CALENDAR });

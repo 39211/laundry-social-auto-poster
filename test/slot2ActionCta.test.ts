@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getConfig } from "../src/config";
 import {
   assertPlaybookCaptionQuality,
@@ -693,10 +694,21 @@ describe("B 包 is an object, not 包裡, and mixed families take the first one"
 });
 
 describe("K-F4 template path after the playbook window", () => {
+  // Caption-only regression: model the supported restored policy explicitly.
+  // The default production policy intentionally emits no slot 2 on this date.
+  let restoredRoot: string;
+  beforeEach(async () => {
+    const parent = join(process.cwd(), "output/slot2off/tmp");
+    await mkdir(parent, { recursive: true });
+    restoredRoot = await mkdtemp(join(parent, "restored-caption-"));
+    await mkdir(join(restoredRoot, "src"));
+    await writeFile(join(restoredRoot, "src/slot-retirements.json"), JSON.stringify({ version: 1, retirements: [] }));
+  });
+  afterEach(async () => { await rm(restoredRoot, { recursive: true, force: true }); });
   const TEMPLATE_PHOTO_ASK = "搬家後要整理布品，可以拍寢具、窗簾下擺和洗標給我們看。";
 
   it("closes 2026-11-20 slot 2 with the same action sentence and drops the template photo ask", () => {
-    const content = buildDailyContent("2026-11-20", config);
+    const content = buildDailyContent("2026-11-20", config, { root: restoredRoot });
     const slot2 = content.slots.find((slot) => slot.slot === 2)!;
     expect(slot2.content_plan_source).toBe("legacy-template");
     const expected = slot2ActionCta(slot2.topic);
@@ -714,7 +726,7 @@ describe("K-F4 template path after the playbook window", () => {
   it("mutation: r2 detector leaves the template photo ask in place", () => {
     expect(looksLikeGenericSlot2Cta(TEMPLATE_PHOTO_ASK)).toBe(true);
     expect(looksLikeGenericSlot2CtaR2(TEMPLATE_PHOTO_ASK)).toBe(false);
-    const content = buildDailyContent("2026-11-20", config);
+    const content = buildDailyContent("2026-11-20", config, { root: restoredRoot });
     const slot2 = content.slots.find((slot) => slot.slot === 2)!;
     const expected = slot2ActionCta(slot2.topic);
     const r2Blocks = slot2.facebook_caption

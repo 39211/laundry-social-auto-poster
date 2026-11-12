@@ -1,3 +1,5 @@
+import { slotRetirement } from "./slotRetirements";
+import { calendarRetiredSlots } from "./contentPlan";
 import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildGrowthPlaybook, type GrowthPlaybookSlot } from "./growthPlaybook";
@@ -389,7 +391,7 @@ export async function buildOperationsDashboard(
         ]);
 
         return Promise.all(
-          day.slots.map(async (plan): Promise<OperationsSlotRow> => {
+          day.slots.filter(plan => !slotRetirement(day.date, plan.slot, root).retired && !(calendar && calendarRetiredSlots(calendar).includes(plan.slot))).map(async (plan): Promise<OperationsSlotRow> => {
             const future = day.date > now.date;
             const due = day.date < now.date || (day.date === now.date && plan.time <= now.time);
             const actual = actualSlot(calendar, plan.slot);

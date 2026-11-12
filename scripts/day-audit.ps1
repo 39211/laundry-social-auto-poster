@@ -15,6 +15,7 @@ $ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = $RootPath
+. (Join-Path $PSScriptRoot "publish-slot-times.ps1")
 $tz = [TimeZoneInfo]::FindSystemTimeZoneById("Taipei Standard Time")
 $now = [TimeZoneInfo]::ConvertTime([DateTime]::UtcNow, $tz)
 $auditDay = if ($Date) { [DateTime]::ParseExact($Date, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture) } else { $now }
@@ -85,6 +86,8 @@ foreach ($slot in 1, 2, 3) {
 $calendar = Read-Json (Join-Path $root "data\content-calendar\$date.json")
 $hasSlot3 = @(@($calendar.slots) | Where-Object { $_.slot -eq 3 }).Count -gt 0
 $expectedSlots = if ($hasSlot3) { @(1, 2, 3) } else { @(1, 2) }
+$savedRetired = @(Get-CalendarRetiredSlots -Root $root -Date $date)
+$expectedSlots = @(Remove-RetiredPublishSlots -Slots $expectedSlots -Root $root -Date $date | Where-Object { $savedRetired -notcontains $_ })
 $missingPosts = @($expectedSlots | Where-Object { -not ($slotState["$_"].instagram -and $slotState["$_"].facebook) })
 
 # --- first comments ----------------------------------------------------------
@@ -108,7 +111,9 @@ $planRow = $abPlan | Where-Object { $_.date -eq $tomorrow } | Select-Object -Fir
 if ($planRow) {
     $reelDir = Join-Path $root "output\reels-run\2026-07-29\reels"
     $need = @()
-    foreach ($half in @($planRow.noon, $planRow.evening)) {
+    foreach ($part in @(@{ slot = 3; half = $planRow.noon }, @{ slot = 2; half = $planRow.evening })) {
+        if (@(Remove-RetiredPublishSlots -Slots @([int]$part.slot) -Root $root -Date $tomorrow) -notcontains [int]$part.slot) { continue }
+        $half = $part.half
         if ($null -eq $half) { continue }
         $suffix = if ($half.variant -eq "15s") { "-15s" } else { "" }
         $need += "$($half.conceptId)$suffix.mp4"

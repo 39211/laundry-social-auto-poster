@@ -1,4 +1,5 @@
-﻿$ErrorActionPreference = "Stop"
+﻿. (Join-Path $PSScriptRoot "helpers/legacy-slot-retirement-fixture.ps1")
+$ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
 
@@ -37,6 +38,7 @@ function Assert-Case([string]$Name, [bool]$Ok, [string]$Evidence) {
 function Invoke-CatchupCase {
     param([string]$Name, [string]$Date, [string]$Time, [string]$Calendar, [string]$Approved, [string]$Posted = "[]", [string]$PublishTimes = "", [bool]$PublishTimesBom = $false, [string]$VideoQueue = "", [bool]$PlanOnly = $false)
     $caseRoot = Join-Path $tempRoot $Name
+    Install-LegacySlotRetirementFixture $caseRoot
     [void][IO.Directory]::CreateDirectory((Join-Path $caseRoot "probe"))
     Write-Utf8 (Join-Path $caseRoot "data\content-calendar\$Date.json") $Calendar
     Write-Utf8 (Join-Path $caseRoot "data\approved-log\$Date.json") $Approved
@@ -82,6 +84,7 @@ try {
     [void][IO.Directory]::CreateDirectory($isolatedScripts)
     [IO.File]::Copy($productionSource, $production)
     [IO.File]::Copy($slotTimesSource, (Join-Path $isolatedScripts "publish-slot-times.ps1"))
+    Install-LegacySlotRetirementFixture $tempRoot
     # catchup-publish.ps1 dot-sources _pipeline-lock.ps1 and throws if it is absent.
     # Copy the real library, but move its mutex out of the production namespace:
     # Global\sxj-publish is what the nightly publishers hold, and a smoke must

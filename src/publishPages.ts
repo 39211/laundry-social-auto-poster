@@ -182,7 +182,18 @@ function assertNoSecretsInPublishTargets(root: string, paths: string[]): void {
 }
 
 function existingPublishPaths(root: string, paths: string[]): string[] {
-  return paths.filter((path) => existsSync(join(root, ...path.split("/"))));
+  return paths.filter((path) => {
+    const fullPath = join(root, ...path.split("/"));
+    if (!existsSync(fullPath)) return false;
+
+    const info = statSync(fullPath);
+    if (!info.isDirectory()) return true;
+
+    // Git cannot stage an empty directory. Keep it in the pathspec only when
+    // it contains files or has tracked descendants (including deleted files),
+    // so empty folders cannot make `git commit --pathspec-from-file` fail.
+    return collectFiles(root, path).length > 0 || gitTracksPath(root, path);
+  });
 }
 
 function isAssetPublishPath(relativePath: string): boolean {

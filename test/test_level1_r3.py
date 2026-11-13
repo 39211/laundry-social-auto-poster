@@ -33,6 +33,14 @@ class Fixtures(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        self.ownership_sources = dict(
+            tunnel_logs=[self.write('ownership/tunnel_events.jsonl', json.dumps(dict(
+                ts=f'{DAY}T00:00:00+08:00', event='handover_noop', verify_status='match',
+                new_url='https://synthetic.trycloudflare.com/line/webhook')) + '\n')],
+            day_cover_log=self.write('ownership/day_cover.jsonl', ''))
+
+    def night_counts(self, day, log_dir):
+        return s.night_counts(day, log_dir, **self.ownership_sources)
 
     def write(self, relative, value):
         path = self.root / relative
@@ -47,7 +55,7 @@ class Fixtures(unittest.TestCase):
 
     def night(self, *bodies):
         path = self.write('shop/logs/webhook_server.log', self.lines(*bodies))
-        return s.night_counts(DAY, path.parent)
+        return self.night_counts(DAY, path.parent)
 
 
 class CustomerRules(Fixtures):
@@ -104,7 +112,7 @@ class CustomerRules(Fixtures):
                           self.lines(POST, TEXT, GUARD) + self.lines(POST, TEXT, PAUSE, offset=190) +
                           self.lines(POST, TEXT, FAIL, offset=380) +
                           self.lines(POST, TEXT, offset=570) + self.lines(POST, offset=760))
-        row = s.night_counts(DAY, path.parent)
+        row = self.night_counts(DAY, path.parent)
         for category in ('guard','paused','reply_failed','silent','unknown'):
             self.assertEqual(1,row['details'].get('unanswered_'+category),category)
         self.assertEqual(4,row['details']['unanswered'])
@@ -185,7 +193,7 @@ class CustomerRules(Fixtures):
     def test_unknown_replies_cannot_mask_a_separate_silent_customer(self):
         path = self.write('shop/logs/webhook_server.log', self.lines(POST, TEXT) +
                           self.lines(POST, OK, offset=181))
-        row = s.night_counts(DAY, path.parent)
+        row = self.night_counts(DAY, path.parent)
         self.assertEqual('fail',row['status'])
         self.assertEqual(1,row['details']['unanswered_silent'])
         self.assertEqual(1,row['details']['unattributed_events'])
@@ -206,7 +214,7 @@ class ContinuityRules(Fixtures):
         data = (self.lines(TEXT,offset=2) + self.lines(OK,offset=1) + self.lines(POST) +
                 self.lines(TEXT,offset=2) + self.lines(OK,offset=1))
         self.write('night/live/logs/webhook_server.log',data)
-        row = s.night_counts(DAY,self.root/'night/live/logs')
+        row = self.night_counts(DAY,self.root/'night/live/logs')
         self.assertEqual('pass',row['status'])
         self.assertEqual(1,row['details']['received'])
         self.assertEqual(1,row['details']['replied_ok'])
@@ -216,7 +224,7 @@ class ContinuityRules(Fixtures):
         post,text,ok = (self.lines(POST),self.lines(TEXT,offset=1),self.lines(OK,offset=2))
         self.write('night/live/logs/webhook_server.log',post+text+ok)
         self.write('night/live-20261112-r1/logs/webhook_server.log',post+ok+text)
-        row = s.night_counts(DAY,self.root/'night/live/logs')
+        row = self.night_counts(DAY,self.root/'night/live/logs')
         self.assertNotEqual('pass',row['status'])
         self.assertEqual(1,row['details'].get('ordering_conflicts'))
 
@@ -224,7 +232,7 @@ class ContinuityRules(Fixtures):
         self.write('night/live/logs/webhook_server.log', self.lines(POST, TEXT, OK))
         self.write('night/live-20261112-r2/logs/webhook_server.log', self.lines(POST, TEXT, offset=10))
         self.write('night/live-20261111-r1/logs/webhook_server.log', self.lines(POST, TEXT, OK, day=DAY-timedelta(days=1)))
-        row = s.night_counts(DAY, self.root / 'night/live/logs')
+        row = self.night_counts(DAY, self.root / 'night/live/logs')
         self.assertEqual('fail', row['status'])
         self.assertEqual(2, row['details']['received'])
         self.assertEqual(1, row['details']['unanswered'])
@@ -234,7 +242,7 @@ class ContinuityRules(Fixtures):
         first = self.lines(POST, TEXT, OK)
         self.write('night/live/logs/webhook_server.log', first + self.lines(POST, TEXT, OK, offset=10))
         self.write('night/live-20261112-r2/logs/webhook_server.log', first)
-        row = s.night_counts(DAY, self.root / 'night/live/logs')
+        row = self.night_counts(DAY, self.root / 'night/live/logs')
         self.assertEqual(2, row['details']['received'])
         self.assertEqual(2, row['details']['replied_ok'])
         self.assertEqual(3, row['details'].get('duplicate_lines'))
@@ -242,21 +250,21 @@ class ContinuityRules(Fixtures):
     def test_split_request_can_finish_in_a_later_tree(self):
         self.write('night/live-20261112-r1/logs/webhook_server.log', self.lines(POST, TEXT))
         self.write('night/live/logs/webhook_server.log', self.lines(OK, offset=2))
-        row = s.night_counts(DAY, self.root / 'night/live/logs')
+        row = self.night_counts(DAY, self.root / 'night/live/logs')
         self.assertEqual('pass', row['status'])
         self.assertEqual(1, row['details']['received'])
         self.assertEqual(1, row['details']['replied_ok'])
 
     def test_missing_current_log_does_not_hide_renamed_tree(self):
         self.write('night/live-20261112-r1/logs/webhook_server.log', self.lines(POST, TEXT, OK))
-        row = s.night_counts(DAY, self.root / 'night/live/logs')
+        row = self.night_counts(DAY, self.root / 'night/live/logs')
         self.assertEqual('pass', row['status'])
         self.assertEqual(1, row['details']['received'])
 
     def test_reading_an_archived_live_tree_also_discovers_its_siblings(self):
         self.write('night/live/logs/webhook_server.log',self.lines(POST,TEXT,OK))
         self.write('night/live-20261112-r1/logs/webhook_server.log',self.lines(POST,TEXT,offset=10))
-        row = s.night_counts(DAY,self.root/'night/live-20261112-r1/logs')
+        row = self.night_counts(DAY,self.root/'night/live-20261112-r1/logs')
         self.assertEqual(2,row['details']['received'])
         self.assertEqual('fail',row['status'])
 
@@ -264,17 +272,17 @@ class ContinuityRules(Fixtures):
         data = self.lines(POST, TEXT, OK)
         self.write('shop/logs/webhook_server.log', data)
         self.write('shop/logs/webhook_server.err.log', data + self.lines(POST, TEXT, offset=10))
-        row = s.night_counts(DAY, self.root / 'shop/logs')
+        row = self.night_counts(DAY, self.root / 'shop/logs')
         self.assertEqual('pass', row['status'])
         self.assertEqual(1, row['details']['received'])
         (self.root / 'shop/logs/webhook_server.log').unlink()
-        self.assertNotEqual('pass', s.night_counts(DAY, self.root / 'shop/logs')['status'])
+        self.assertNotEqual('pass', self.night_counts(DAY, self.root / 'shop/logs')['status'])
 
     def test_exact_dedup_does_not_collapse_different_lines_at_the_same_second(self):
         data = ''.join(self.lines(body, offset=1) for body in (POST, TEXT, OK))
         self.write('night/live/logs/webhook_server.log', data)
         self.write('night/live-20261112-r1/logs/webhook_server.log', data)
-        row = s.night_counts(DAY, self.root / 'night/live/logs')
+        row = self.night_counts(DAY, self.root / 'night/live/logs')
         self.assertEqual('pass', row['status'])
         self.assertEqual(1, row['details']['received'])
 

@@ -25,6 +25,11 @@ class Fixtures(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
+        self.ownership_sources = dict(
+            tunnel_logs=[self.write('ownership/tunnel_events.jsonl', json.dumps(dict(
+                ts=f'{DAY}T00:00:00+08:00', event='handover_noop', verify_status='match',
+                new_url='https://synthetic.trycloudflare.com/line/webhook')) + '\n')],
+            day_cover_log=self.write('ownership/day_cover.jsonl', ''))
 
     def write(self, name, text):
         path = self.root / name
@@ -50,7 +55,7 @@ class Fixtures(unittest.TestCase):
             for i, line in enumerate(lines)))
 
     def night(self):
-        return s.night_counts(DAY, self.root / 'logs')
+        return s.night_counts(DAY, self.root / 'logs', **self.ownership_sources)
 
     def post(self):
         # Exact shape the runtime's log_message writes (bare requestline, no quotes).
@@ -202,12 +207,13 @@ class LogTests(Fixtures):
 
     def test_missing_shop_half_stays_null_and_failure_dominates_missing(self):
         self.logs(self.post(), self.incoming(), self.success())
-        row = s.accounting(DAY, self.root / 'logs', self.root / 'missing', NOW)
+        row = s.accounting(DAY, self.root / 'logs', self.root / 'missing', NOW, **self.ownership_sources)
         self.assertEqual('no_data', row['status'])
         self.assertIsNone(row['details']['received'])
         self.assertEqual('pass', row['subchecks']['night']['status'])
         self.logs(self.post(), self.incoming(), '[ERROR] Failed to send LINE reply: SYNTHETIC')
-        self.assertEqual('fail', s.accounting(DAY, self.root / 'logs', self.root / 'missing', NOW)['status'])
+        self.assertEqual('fail', s.accounting(DAY, self.root / 'logs', self.root / 'missing', NOW,
+                                            **self.ownership_sources)['status'])
 
     def test_shop_schema_complete_disjoint_nonnegative_counts_and_time(self):
         self.assertEqual('pass', s.shop_counts(DAY, self.shop_receipt(), NOW)['status'])

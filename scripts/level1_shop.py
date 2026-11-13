@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import Counter, deque
+from bisect import bisect_right
 from datetime import date, datetime, timedelta, timezone
 import hashlib
 import heapq
@@ -131,14 +132,72 @@ COUNTS = ('received', 'replied_ok', 'reply_failed', 'to_staff', 'no_reply_needed
 TEXT_EVENT = re.compile(r"^\[Webhook Text\] User (\S+)\.\.\.: '")
 IMAGE_EVENT = re.compile(r'^\[Webhook Image\] Received image \S+ from (\S+)\.\.\.$')
 PAUSED_EVENT = re.compile(r'^\[Handoff\] paused user=(\S+) until=')
-# Proposed explicit test namespace: unlike a LINE U+32-hex ID, UL1TEST_ cannot
-# belong to a real customer. Tools have NOT been changed by this card.
-# _shop_copy_probe.py currently sends U + 31 zeroes + 1; its truncated U0000000
-# is also a valid real-user prefix, so retain it as an unconfirmed candidate.
+# Explicit test namespace: unlike a LINE U+32-hex ID, UL1TEST_ cannot belong to
+# a real customer. Historical U0000000 is still only an unconfirmed candidate.
 # Never infer synthetic traffic from content, invalid tokens, IPs or headers.
 SYNTHETIC_PREFIXES = frozenset({'UL1TEST_'})
 UNCONFIRMED_TEST_PREFIXES = frozenset({'U0000000'})
 VERIFICATION = '[Webhook] Received LINE test webhook verification ping. Skipping dummy token.'
+BINDING = re.compile(r'^\[Binding Saved\] User: (\S{8})\.\.\. -> CID: ')
+AI_WEBHOOK = re.compile(r'https://[a-z0-9-]+\.trycloudflare\.com/line/webhook')
+
+
+class OwnershipTimeline:
+    """Verified LINE endpoint observations; carry state until the next observation.
+
+    Journals are read-only and may include the preceding day's takeover. Missing,
+    corrupt or changing sources leave ownership unknown, never implicitly AI.
+    Only timestamps and owner states survive parsing; endpoints stay in memory.
+    """
+    def __init__(self, tunnel_logs=(), day_cover_log=None):
+        tunnel_logs = list(tunnel_logs)
+        self.sources = tunnel_logs + ([day_cover_log] if day_cover_log is not None else [])
+        self.errors = int(not tunnel_logs) + int(day_cover_log is None)
+        points = {}
+        for source, kind in ([(p, 'tunnel') for p in tunnel_logs]
+                             + ([(day_cover_log, 'cover')] if day_cover_log is not None else [])):
+            try:
+                source = Path(source)
+                before = source.stat()
+                with source.open(encoding='utf-8-sig') as stream:
+                    for line in stream:
+                        if not line.strip():
+                            continue
+                        try:
+                            row = json.loads(line)
+                        except ValueError:
+                            self.errors += 1
+                            continue
+                        ts = stamp(row.get('ts')) if isinstance(row, dict) else None
+                        if ts is None:
+                            self.errors += 1
+                            continue
+                        state = None
+                        if kind == 'tunnel' and row.get('event') in ('webhook_update', 'night_reclaim', 'handover_noop'):
+                            state = ('ai' if row.get('verify_status') == 'match'
+                                     and AI_WEBHOOK.fullmatch(str(row.get('new_url', ''))) else 'unknown')
+                        elif kind == 'cover':
+                            action = row.get('action')
+                            if action in ('switched_to_ai', 'handed_back_to_shop'):
+                                state = (('ai' if action == 'switched_to_ai' else 'shop')
+                                         if row.get('verify') == 'match' else 'unknown')
+                            elif action == 'shop_fixed_no_cover':
+                                state = 'unknown' if row.get('check_error') else 'shop'
+                            elif action == 'already_ai':
+                                state = 'ai'  # producer emits only after GET endpoint == AI target
+                        if state is not None:
+                            points.setdefault(ts, set()).add(state)
+                after = source.stat()
+                self.errors += (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns)
+            except (OSError, UnicodeError):
+                self.errors += 1
+        self.times = sorted(points)
+        self.states = [next(iter(points[ts])) if len(points[ts]) == 1 else 'unknown' for ts in self.times]
+        self.observations = len(self.times)
+
+    def at(self, ts):
+        index = bisect_right(self.times, ts) - 1
+        return self.states[index] if not self.errors and index >= 0 else 'unknown'
 
 
 def night_sources(log_dir, include_siblings=True):
@@ -156,7 +215,7 @@ def night_sources(log_dir, include_siblings=True):
     return sources
 
 
-def reply_log_counts(day, sources, start_hour=0, end_hour=24):
+def reply_log_counts(day, sources, start_hour=0, end_hour=24, *, ownership=None):
     """One counts-only parser shared by night and pulled shop-day log copies.
 
     Only (timestamp, complete line) identifies mirrored records. Raw lines and
@@ -178,7 +237,14 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
         'unanswered_paused', 'unanswered_reply_failed', 'unanswered_silent',
         'unanswered_unknown', 'unconfirmed_test_candidates', 'unattributed_replied_ok',
         'unattributed_to_staff', 'unattributed_reply_failed', 'unattributed_push_failed',
-        'unanswered_push_failed', 'unverified_onboarding', 'unanswered_onboarding'), 0))
+        'unanswered_push_failed', 'unverified_onboarding', 'unanswered_onboarding',
+        'outside_ai_window', 'outside_ai_window_posts', 'outside_ai_window_outcomes',
+        'ownership_unknown_events', 'ownership_unknown_activity'), 0))
+    stats['ownership_source_errors'] = ownership.errors if ownership is not None else 0
+    stats['ownership_observations'] = ownership.observations if ownership is not None else 0
+
+    def owner_at(ts):
+        return ownership.at(ts) if ownership is not None else 'ai'
     nodes, edges, incoming_edges = {}, {}, Counter()
     for index, source in enumerate(sources):
         covers_day = False
@@ -248,9 +314,14 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
     def finish(p):
         if not p['counted']:
             return  # tail events consume their outcomes but are outside the shop denominator
+        if p['owner'] == 'shop':
+            stats['outside_ai_window'] += 1
         if p['synthetic']:
             stats['excluded_synthetic_events'] += 1
             stats['excluded_reply_failed'] += p['failed']
+            return
+        if p['owner'] != 'ai':
+            stats['ownership_unknown_events'] += p['owner'] == 'unknown'
             return
         stats['unconfirmed_test_candidates'] += p['test_candidate']
         counts['received'] += 1
@@ -285,6 +356,7 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
         latest = dict(ts=ts, reply=False, push=False, push_failed=False, paused=False,
                       failed=False, invalid_token=False, guard=False, onboarding=False, closed=False,
                       counted=start_hour <= ts.hour < end_hour,
+                      owner=owner_at(ts),
                       prefix_hash=hashlib.sha256(prefix.encode('utf-8')).digest(),
                       test_candidate=prefix in UNCONFIRMED_TEST_PREFIXES,
                       synthetic=prefix in SYNTHETIC_PREFIXES)
@@ -312,6 +384,10 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
         else:
             if not start_hour <= ts.hour < end_hour:
                 return  # orphan outcomes after closing have no in-window provenance
+            if owner_at(ts) != 'ai':
+                stats['ownership_unknown_activity' if owner_at(ts) == 'unknown'
+                      else 'outside_ai_window_outcomes'] += 1
+                return
             stats['unattributed_events'] += 1
             stats['ambiguous'] += 1
             key = {'reply': 'replied_ok', 'push': 'to_staff', 'failed': 'reply_failed',
@@ -327,16 +403,21 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
         if post:
             # Access logs are emitted when HTTP requests END, before async
             # processing finishes. They are observations, never event boundaries.
-            if start_hour <= ts.hour < end_hour or any(p['counted'] for p in pending):
+            if ((start_hour <= ts.hour < end_hour and owner_at(ts) == 'ai')
+                    or any(p['counted'] and p['owner'] == 'ai' for p in pending)):
                 stats['inbound_posts' if post[1] == '200' else 'rejected_posts'] += 1
+            elif start_hour <= ts.hour < end_hour:
+                stats['ownership_unknown_activity' if owner_at(ts) == 'unknown' else 'outside_ai_window_posts'] += 1
         elif incoming:
             start(ts, incoming[1])
         elif text == VERIFICATION:
-            stats['verification_pings'] += 1
-            stats['excluded_verification_events'] += 1
+            if owner_at(ts) == 'ai':
+                stats['verification_pings'] += 1
+                stats['excluded_verification_events'] += 1
         elif text.startswith('[Webhook] Duplicate replyToken received:'):
-            stats['duplicate_tokens'] += 1
-            stats['duplicate_no_reply_needed'] += 1  # transport, not another customer turn
+            if owner_at(ts) == 'ai':
+                stats['duplicate_tokens'] += 1
+                stats['duplicate_no_reply_needed'] += 1  # transport, not another customer turn
         elif SUCCESS.fullmatch(text):
             outcome(ts, 'reply')
         elif text.startswith(('[ERROR] Failed to send LINE reply:',
@@ -352,17 +433,26 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
                     and latest['prefix_hash'] == hashlib.sha256(paused[1].encode('utf-8')).digest())
             p = latest if same else start(ts, paused[1])  # paused images have no Image marker
             p['paused'] = True
-        elif text.startswith(('[Chat Guard]', '[Onboarding]', '[Binding Saved]')):
-            if (nearby(latest, ts)
-                    and (not latest['closed'] or not text.startswith('[Chat Guard]'))):
-                latest['guard' if text.startswith('[Chat Guard]') else 'onboarding'] = True
-            elif start_hour <= ts.hour < end_hour:
+        elif text.startswith('[Chat Guard]'):
+            if nearby(latest, ts) and not latest['closed']:
+                latest['guard'] = True
+            elif start_hour <= ts.hour < end_hour and owner_at(ts) == 'ai':
+                stats['ambiguous'] += 1
+        elif text.startswith(('[Onboarding]', '[Binding Saved]')):
+            binding = BINDING.match(text)
+            prefix_hash = (hashlib.sha256(binding[1].encode('utf-8')).digest() if binding else
+                           latest['prefix_hash'] if text.startswith('[Onboarding]') and nearby(latest, ts) else None)
+            candidates = [p for p in pending if nearby(p, ts) and p['prefix_hash'] == prefix_hash]
+            for p in candidates:
+                p['onboarding'] = True
+            if (not candidates and not nearby(latest, ts)
+                    and start_hour <= ts.hour < end_hour and owner_at(ts) == 'ai'):
                 stats['ambiguous'] += 1
     for event in events:
         finish(event)
     # No request/event identity is logged. Surplus POSTs stay unknown counts,
     # never invented customer turns or boundaries between asynchronous markers.
-    stats['unknown_requests'] = max(0, stats['inbound_posts'] - sum(p['counted'] for p in events)
+    stats['unknown_requests'] = max(0, stats['inbound_posts'] - sum(p['counted'] and p['owner'] == 'ai' for p in events)
                                    - stats['verification_pings'] - stats['duplicate_tokens']
                                    - stats['unattributed_events'])
     stats['unanswered_unknown'] += stats['unknown_requests']
@@ -379,6 +469,8 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
         status, reason = 'fail', '有客戶收訊但未見回覆或店員推播'
     elif not counts['received'] or not stats['inbound_posts']:
         status, reason = 'no_data', '沒有可核對的該日客戶事件；不能填零'
+    elif (stats['ownership_source_errors'] or stats['ownership_unknown_events'] or stats['ownership_unknown_activity']):
+        status, reason = 'no_data', 'LINE 所有權未知或接管紀錄不完整；未知事件不列客戶'
     elif stats['unverified_onboarding'] or stats['ambiguous'] or stats['source_errors'] or stats['stderr_sources']:
         status, reason = 'no_data', '有未驗證 onboarding、未知活動、未證實的 pause、來源缺口或只有 stderr 副本'
     else:
@@ -386,8 +478,11 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24):
     return gate(status, reason, sources, **details)
 
 
-def night_counts(day, log_dir, *, include_siblings=True):
-    return reply_log_counts(day, night_sources(log_dir, include_siblings))
+def night_counts(day, log_dir, *, include_siblings=True, tunnel_logs=(), day_cover_log=None):
+    ownership = OwnershipTimeline(tunnel_logs, day_cover_log)
+    row = reply_log_counts(day, night_sources(log_dir, include_siblings), ownership=ownership)
+    row['evidence'].extend(map(str, ownership.sources))
+    return row
 
 
 def produce_shop_replies(day, source_log, out_path, *, now=None, start_hour=10, end_hour=20,
@@ -468,8 +563,9 @@ def shop_counts(day, path, now):
                 '店機日間收訊、送達與轉真人互斥計數', [path], **details)
 
 
-def accounting(day, log_dir, shop_path, now):
-    halves = {'night': night_counts(day, log_dir), 'shop_day': shop_counts(day, shop_path, now)}
+def accounting(day, log_dir, shop_path, now, *, tunnel_logs=(), day_cover_log=None):
+    halves = {'night': night_counts(day, log_dir, tunnel_logs=tunnel_logs, day_cover_log=day_cover_log),
+              'shop_day': shop_counts(day, shop_path, now)}
     states = [r['status'] for r in halves.values()]
     status = 'fail' if 'fail' in states else 'no_data' if 'no_data' in states else 'pass'
     # Never add a missing half as zero. Detail summaries contain only counts.

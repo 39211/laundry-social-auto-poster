@@ -38,7 +38,7 @@ from publish_recovery_report import recovery_summary
 import level1_shop as shop
 from slot_retirements import retired_slots
 
-RULES_VERSION = 7
+RULES_VERSION = 8
 CHECKLIST_TARGET = 3
 SERVICE_GAP_SECONDS = 5 * 60
 CHECKLIST_STATUSES = ("pass", "fail", "no_data", "not_ready", "not_applicable")
@@ -932,7 +932,8 @@ def evaluate_checklist(day, paths, hours, config, now, conditions=None):
     current = day >= shop.CUTOVER
     return {
         "1": evaluate_service(day, paths, hours, config),
-        "2": (shop.accounting(day, paths.shop_root / 'logs', gate('shop-replies'), now) if current else
+        "2": (shop.accounting(day, paths.shop_root / 'logs', gate('shop-replies'), now,
+                              tunnel_logs=paths.service_logs, day_cover_log=paths.day_cover_log) if current else
               evaluate_accounting(day, paths.root / "data" / "line-events" / (iso + ".json"))),
         "3": (shop.test_evidence(day, check_path, 'facts', now, paths.shop_root) if current else
               evaluate_test_evidence(day, check_path, ("copy_audit", "golden"), now)),

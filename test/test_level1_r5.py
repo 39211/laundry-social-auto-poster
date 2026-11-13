@@ -164,12 +164,13 @@ class NativeProcessTests(unittest.TestCase):
                     checks.run_process([sys.executable, "-B", str(runner)], cwd=base,
                                        env=dict(os.environ), timeout=0.8)
             except RuntimeError as exc:
-                if os.name != "nt" or "Access denied" not in str(exc):
+                denied = ("Access denied", "The user name or password is incorrect")
+                if os.name != "nt" or not any(message in str(exc) for message in denied):
                     raise
                 # Restricted Codex token denies taskkill /T. Let this short-lived
                 # synthetic child exit; never label unverified tree cleanup PASS.
                 time.sleep(2.5)
-                self.skipTest("taskkill /T Access denied in sandbox; normal-user replay required")
+                self.skipTest("taskkill /T denied by restricted Windows token; normal-user replay required")
             self.assertTrue((base / "ready").is_file(), "worker must actually have started")
             time.sleep(1.5)
             self.assertFalse((base / "late").exists(), "descendant survived the timeout")

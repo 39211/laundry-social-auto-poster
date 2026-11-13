@@ -36,9 +36,10 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from publish_recovery_report import recovery_summary
 import level1_shop as shop
+import level1_receipts as receipts
 from slot_retirements import retired_slots
 
-RULES_VERSION = 9
+RULES_VERSION = 10
 CHECKLIST_TARGET = 3
 SERVICE_GAP_SECONDS = 5 * 60
 CHECKLIST_STATUSES = ("pass", "fail", "no_data", "not_ready", "not_applicable")
@@ -187,11 +188,11 @@ def parse_ts(text, tz):
         value = value[:-1] + "+00:00"
     try:
         parsed = datetime.fromisoformat(value)
-    except ValueError:
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed.astimezone(tz)
+    except (ValueError, OverflowError):
         return None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        return None
-    return parsed.astimezone(tz)
 
 
 def read_pull_log(path):
@@ -669,11 +670,12 @@ def evaluate_heartbeat(opening, closing, folder):
                  coverage_start=opening.isoformat(), coverage_end=closing.isoformat())
 
 
-def evaluate_service(day, paths, hours, config):
+def evaluate_service(day, paths, hours, config, now=None):
     """One night: tonight's takeover through the following 09:50.
 
     Sunday/closed dates start at 00:00 (AI all day). State-change logs are
-    used only for a/b; c exclusively reads the fixed-period heartbeat sampler.
+    used for a/b. From CUTOVER, c reads periodic tunnel observations but
+    requires a separately measured answer from the current night shop copy.
     """
     records, bad, available = read_service_records(paths.service_logs)
     evidence = paths.service_logs or ["tunnel_events.jsonl"]
@@ -703,12 +705,8 @@ def evaluate_service(day, paths, hours, config):
         handover = shop.day_ownership(tomorrow, paths.day_cover_log,
                                       window[0].hour, window[1].hour)
     subchecks = {"a": takeover, "b": handover,
-                 "c": evaluate_heartbeat(opening, closing, paths.heartbeat_log_dir)}
-    if day >= shop.CUTOVER:
-        # The old sampler probes the retired repo bot. Sparse webhook activity
-        # and ownership polls cannot certify continuous availability of 18791.
-        subchecks['c'] = _gate('no_data', '缺現役 shop runtime 的固定週期客服通路心跳，無法判定中間沒停機',
-                               [paths.shop_root / 'logs', paths.heartbeat_log_dir or 'sxj-heartbeat/log'])
+                 "c": receipts.night_continuity(day, paths.service_logs, now) if day >= shop.CUTOVER else
+                      evaluate_heartbeat(opening, closing, paths.heartbeat_log_dir)}
     statuses = [item["status"] for item in subchecks.values()]
     status = "fail" if "fail" in statuses else "no_data" if "no_data" in statuses else "pass"
     reason = "；".join(key + " " + label + "：" + subchecks[key]["status"]
@@ -808,7 +806,7 @@ def evaluate_notify_delivery(day, paths, config, hours):
                      "（下降或維持零）" if improved else "（沒有下降）"), evidence)
 
 
-def evaluate_notify_safety(day, path, config, hours):
+def evaluate_notify_safety(day, path, config, hours, now=None, receipt_path=None):
     data = _daily(path, day)
     if data is None:
         if _business(day, config, hours) is False and not path.exists():
@@ -817,6 +815,23 @@ def evaluate_notify_safety(day, path, config, hours):
     for key in ("duplicates", "wrong_sends"):
         if _valid_count(data.get(key)) and data[key] > 0:
             return _gate("fail", "到件通知{0} {1} 筆".format("重發" if key == "duplicates" else "誤發", data[key]), [path])
+    if day >= shop.CUTOVER:
+        receipt_path = receipt_path or path.with_name('notify-recipients-' + str(day) + '.json')
+        evidence = [path, receipt_path]
+        if (not all(_valid_count(data.get(k)) for k in
+                    ('sent', 'duplicates', 'wrong_sends', 'abandoned', 'no_binding', 'pending'))
+                or data.get('reported_by') != 'shop-notify-report'
+                or data.get('wrong_sends_basis') not in
+                   ('auto_duplicate_deliveries', 'reviewed_all_deliveries')
+                or 'outbox' in data and data['outbox'] != 'ok'
+                or 'corrupt_lines' in data and
+                   (not _valid_count(data['corrupt_lines']) or data['corrupt_lines'] != 0)):
+            return _gate('no_data', '店機通知計數或來源完整性不符', evidence)
+        # pull_shop_mdb validates outbox/corrupt_lines before writing its daily
+        # gate, but drops those fields. The independent receipt must retain them.
+        result = receipts.recipient_consistency(day, data, receipt_path, now)
+        result['evidence'] = list(map(str, evidence))
+        return result
     if data.get("wrong_sends_basis") == "auto_duplicate_deliveries":
         return _gate("no_data", "目前 wrong_sends 只量重發；缺寄錯對象的獨立核對與完整性證據", [path])
     if (not all(_valid_count(data.get(k)) for k in ("sent", "duplicates", "wrong_sends"))
@@ -931,7 +946,7 @@ def evaluate_checklist(day, paths, hours, config, now, conditions=None):
         posts["status"] = "not_applicable"
     current = day >= shop.CUTOVER
     return {
-        "1": evaluate_service(day, paths, hours, config),
+        "1": evaluate_service(day, paths, hours, config, now),
         "2": (shop.accounting(day, paths.shop_root / 'logs', gate('shop-replies'), now,
                               tunnel_logs=paths.service_logs, day_cover_log=paths.day_cover_log) if current else
               evaluate_accounting(day, paths.root / "data" / "line-events" / (iso + ".json"))),
@@ -942,7 +957,7 @@ def evaluate_checklist(day, paths, hours, config, now, conditions=None):
         "5": (shop.test_evidence(day, check_path, 'handoff', now, paths.shop_root) if current else
               evaluate_test_evidence(day, check_path, ("handoff",), now)),
         "6": evaluate_notify_delivery(day, paths, config, hours),
-        "7": evaluate_notify_safety(day, gate("notify"), config, hours),
+        "7": evaluate_notify_safety(day, gate("notify"), config, hours, now),
         "8": freshness, "9": posts, "10": evaluate_recovery(day, paths),
         "11": evaluate_restart(day, gate("restart")),
         "12": evaluate_nightly(day, paths.root / "output" / "day-reports" / (iso + ".json")),
@@ -1178,6 +1193,7 @@ def main(argv=None, now=None):
     parser.add_argument("--out-root", help="separate output root; --root remains read-only")
     parser.add_argument("--mdb-log", help="override path of mdb_pull.jsonl")
     parser.add_argument("--heartbeat-log-dir", help="override fixed-period sxj-heartbeat/log directory")
+    parser.add_argument('--tunnel-log', action='append', help='read-only tunnel_events.jsonl source (repeatable)')
     parser.add_argument("--hours-module", help="override path of line-bot/tunnel_manager.py")
     parser.add_argument('--day-cover-log', help='override count-only day_cover.jsonl source')
     parser.add_argument('--shop-root', help='current shop runtime (default: nightrun/live)')
@@ -1187,6 +1203,7 @@ def main(argv=None, now=None):
 
     root = Path(args.root or os.environ.get("LEVEL1_GATES_ROOT") or DEFAULT_ROOT)
     paths = Paths(root, mdb_log=args.mdb_log, hours_module=args.hours_module, out_root=args.out_root,
+                  service_logs=args.tunnel_log,
                   heartbeat_log_dir=args.heartbeat_log_dir, day_cover_log=args.day_cover_log,
                   shop_root=args.shop_root, checks_root=args.checks_root)
     hours = None

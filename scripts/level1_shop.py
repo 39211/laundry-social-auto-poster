@@ -59,7 +59,7 @@ def stamp(value):
     try:
         ts = datetime.fromisoformat(value.replace('Z', '+00:00'))
         return ts.astimezone(TAIPEI) if ts.utcoffset() is not None else None
-    except (ValueError, TypeError, AttributeError):
+    except (ValueError, TypeError, AttributeError, OverflowError):
         return None
 
 

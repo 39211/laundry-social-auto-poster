@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Proposed periodic night-copy answer observation",
+  "description": "One proposed row in tunnel_events.jsonl. Existing real registration-only shapes cannot satisfy this contract. A reply-path-no-send producer is a separate card; HTTP 200 or a registration match alone must never set night_copy_answered=true.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "event", "ts", "runtime", "probe", "registration_match", "night_copy_answered"],
+  "properties": {
+    "schema": {"const": "night-service-observation/v1"},
+    "event": {"const": "night_service_observation"},
+    "ts": {"type": "string", "format": "date-time"},
+    "runtime": {"const": "shop-18791"},
+    "probe": {"const": "reply-path-no-send/v1"},
+    "registration_match": {"type": "boolean"},
+    "night_copy_answered": {"type": "boolean"}
+  }
+}

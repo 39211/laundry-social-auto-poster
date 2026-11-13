@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daily count-only independent arrival recipient consistency receipt",
+  "description": "Producer specification in CHANGES-r7.md. No producer is installed by r7. Scorer additionally checks count sums, daily notify totals, complete Taipei day coverage and timestamps.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "date", "timezone", "reported_by", "basis", "generated_at", "coverage_start", "coverage_end", "complete", "snapshot", "outbox", "orders", "bindings", "sent", "duplicates", "checked", "customer_id_matches", "phone_unique_matches", "wrong_recipient", "unverifiable", "corrupt_lines"],
+  "properties": {
+    "schema": {"const": "notify-recipient-consistency/v1"},
+    "date": {"type": "string", "format": "date"},
+    "timezone": {"const": "Asia/Taipei"},
+    "reported_by": {"const": "shop-recipient-consistency"},
+    "basis": {"const": "order-customer-vs-recipient-binding/v1"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "coverage_start": {"type": "string", "format": "date-time"},
+    "coverage_end": {"type": "string", "format": "date-time"},
+    "complete": {"type": "boolean"},
+    "snapshot": {"enum": ["at_send", "current", "missing"]},
+    "outbox": {"enum": ["ok", "missing", "invalid"]},
+    "orders": {"enum": ["ok", "missing", "invalid"]},
+    "bindings": {"enum": ["ok", "missing", "invalid"]},
+    "sent": {"type": "integer", "minimum": 0},
+    "duplicates": {"type": "integer", "minimum": 0},
+    "checked": {"type": "integer", "minimum": 0},
+    "customer_id_matches": {"type": "integer", "minimum": 0},
+    "phone_unique_matches": {"type": "integer", "minimum": 0},
+    "wrong_recipient": {"type": "integer", "minimum": 0},
+    "unverifiable": {"type": "integer", "minimum": 0},
+    "corrupt_lines": {"type": "integer", "minimum": 0}
+  }
+}

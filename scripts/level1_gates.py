@@ -38,7 +38,7 @@ from publish_recovery_report import recovery_summary
 import level1_shop as shop
 from slot_retirements import retired_slots
 
-RULES_VERSION = 8
+RULES_VERSION = 9
 CHECKLIST_TARGET = 3
 SERVICE_GAP_SECONDS = 5 * 60
 CHECKLIST_STATUSES = ("pass", "fail", "no_data", "not_ready", "not_applicable")

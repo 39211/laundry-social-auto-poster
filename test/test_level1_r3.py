@@ -22,7 +22,7 @@ TEXT = "[Webhook Text] User U2468ace...: 'SYNTHETIC ONLY'"
 PROBE = "[Webhook Text] User UL1TEST_...: 'SYNTHETIC ONLY'"
 GUARD = '[Chat Guard] AI reply rejected (synthetic); using non-AI reply'
 FAIL = '[ERROR] Failed to send LINE reply: HTTP Error 400: Bad Request | {"message":"Invalid reply token"}'
-PAUSE = '[Handoff] paused user=U2468ace until=2026-11-12 23:00'
+PAUSE = '[Handoff] paused user=U2468ace until=23:00'
 PUSH = '[Handoff] push owner=U7654321 success=True'
 PING = '[Webhook] Received LINE test webhook verification ping. Skipping dummy token.'
 DUP = '[Webhook] Duplicate replyToken received: abc12345..., ignoring.'
@@ -82,8 +82,7 @@ class CustomerRules(Fixtures):
 
     def test_probe_image_and_paused_image_use_the_same_marker(self):
         row = self.night(POST, '[Webhook Image] Received image 100 from UL1TEST_...', FAIL,
-                         POST, '[Handoff] paused user=UL1TEST_ until=2026-11-12 23:00',
-                         PUSH,
+                         POST, '[Handoff] paused user=UL1TEST_ until=23:00',
                          POST, TEXT, OK)
         self.assertEqual(2, row['details'].get('excluded_synthetic_events'))
         self.assertEqual(1, row['details']['received'])
@@ -144,10 +143,12 @@ class CustomerRules(Fixtures):
             self.assertEqual(1, row['details'].get('paused_unanswered'))
             self.assertNotEqual('pass', row['status'])
 
-    def test_paused_can_only_be_to_staff_with_this_turns_push(self):
+    def test_pause_after_completed_push_is_another_turn_without_proven_origin(self):
         row = self.night(POST, TEXT, PUSH, PAUSE)
         self.assertEqual(1, row['details']['to_staff'])
-        self.assertEqual(0, row['details']['unanswered'])
+        self.assertEqual(2, row['details']['received'])
+        self.assertEqual(1, row['details']['unanswered'])
+        self.assertEqual(0, row['details']['to_staff_paused'])
 
     def test_duplicate_transport_is_no_reply_needed_and_not_a_new_customer_turn(self):
         row = self.night(POST, TEXT, OK, DUP, POST, DUP)

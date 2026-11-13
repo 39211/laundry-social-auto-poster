@@ -122,16 +122,22 @@ LINE = re.compile(r'^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) (.*)$')
 # Real runtime: log_message prints f"[Webhook] {args[0]} - {args[1]}" where args[0] is the bare
 # requestline (no quotes), e.g. `[Webhook] POST /line/webhook HTTP/1.1 - 200`. Quotes stay optional.
 POST = re.compile(r'^\[Webhook\] "?POST /line/webhook HTTP/1\.[01]"? - (\d{3})$')
-SUCCESS = re.compile(r'^\[(?:Webhook|Onboarding) Reply Success\] HTTP 2\d\d$')
-OWNER_PUSH = re.compile(r'^\[OwnerNotify\] Pushed \S+ card to owner \S+\.\.\. success=(True|False)$')
+SUCCESS = re.compile(r'^\[(Webhook|Onboarding) Reply Success\] HTTP 2\d\d$')
+# instore/delivery cards announce a booking, not a transfer to staff.
+OWNER_PUSH = re.compile(r'^\[OwnerNotify\] Pushed (?:handoff|staff) card to owner \S+\.\.\. success=(True|False)$')
+OWNER_CARD = re.compile(r'^\[OwnerNotify\] Pushed \S+ card to owner \S+\.\.\. success=(True|False)$')
 HANDOFF_PUSH = re.compile(r'^\[Handoff\] push owner=\S+ success=(True|False)$')
+STAFF_GUARD = re.compile(r'^\[Chat Guard\] STAFF reason=\S+ user=(\S{8})\.\.\.$')
 REPLY_WINDOW_SECONDS = 180
-COUNTS = ('received', 'replied_ok', 'reply_failed', 'to_staff', 'no_reply_needed')
+HANDOFF_PAUSE_SECONDS = 7200
+LEGACY_COUNTS = ('received', 'replied_ok', 'reply_failed', 'to_staff', 'no_reply_needed')
+COUNTS = (*LEGACY_COUNTS, 'to_staff_paused')
+HANDLED_COUNTS = ('replied_ok', 'to_staff', 'to_staff_paused', 'no_reply_needed')
 
 
 TEXT_EVENT = re.compile(r"^\[Webhook Text\] User (\S+)\.\.\.: '")
 IMAGE_EVENT = re.compile(r'^\[Webhook Image\] Received image \S+ from (\S+)\.\.\.$')
-PAUSED_EVENT = re.compile(r'^\[Handoff\] paused user=(\S+) until=')
+PAUSED_EVENT = re.compile(r'^\[Handoff\] paused user=(\S+) until=((?:[01]\d|2[0-3]):[0-5]\d)$')
 # Explicit test namespace: unlike a LINE U+32-hex ID, UL1TEST_ cannot belong to
 # a real customer. Historical U0000000 is still only an unconfirmed candidate.
 # Never infer synthetic traffic from content, invalid tokens, IPs or headers.
@@ -239,12 +245,20 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24, *, ownership=None)
         'unattributed_to_staff', 'unattributed_reply_failed', 'unattributed_push_failed',
         'unanswered_push_failed', 'unverified_onboarding', 'unanswered_onboarding',
         'outside_ai_window', 'outside_ai_window_posts', 'outside_ai_window_outcomes',
-        'ownership_unknown_events', 'ownership_unknown_activity'), 0))
+        'ownership_unknown_events', 'ownership_unknown_activity', 'ignored_owner_cards',
+        'guard_to_staff_paused', 'context_lines'), 0))
     stats['ownership_source_errors'] = ownership.errors if ownership is not None else 0
     stats['ownership_observations'] = ownership.observations if ownership is not None else 0
 
     def owner_at(ts):
         return ownership.at(ts) if ownership is not None else 'ai'
+    window_start = datetime.combine(day, datetime.min.time(), TAIPEI) + timedelta(hours=start_hour)
+    window_end = datetime.combine(day, datetime.min.time(), TAIPEI) + timedelta(hours=end_hour)
+    context_start = window_start - timedelta(seconds=HANDOFF_PAUSE_SECONDS + REPLY_WINDOW_SECONDS)
+
+    def in_window(ts):
+        return window_start <= ts < window_end
+
     nodes, edges, incoming_edges = {}, {}, Counter()
     for index, source in enumerate(sources):
         covers_day = False
@@ -261,13 +275,12 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24, *, ownership=None)
                         ts = datetime.strptime(m[1], '%Y-%m-%d %H:%M:%S').replace(tzinfo=TAIPEI)
                     except ValueError:
                         continue
-                    if ts.date() != day:
+                    # Prior turns can prove a still-active pause across midnight
+                    # or the shop opening. They never enter today's denominator.
+                    if (ts.date() > day or ts < context_start
+                            or ts > window_end + timedelta(seconds=REPLY_WINDOW_SECONDS)):
                         continue
-                    clock_seconds = ts.hour * 3600 + ts.minute * 60 + ts.second
-                    if (not start_hour <= ts.hour < end_hour
-                            and not end_hour * 3600 <= clock_seconds <= end_hour * 3600 + REPLY_WINDOW_SECONDS):
-                        continue
-                    covers_day = True
+                    covers_day |= ts >= window_start
                     key = hashlib.sha256(line.encode('utf-8')).digest()
                     if key in nodes:
                         stats['duplicate_lines'] += 1
@@ -310,6 +323,7 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24, *, ownership=None)
     records = ordered
     pending, events = deque(), []
     latest = None
+    staff_events, unmatched_staff, handoff_proofs = [], [], {}
 
     def finish(p):
         if not p['counted']:
@@ -336,6 +350,8 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24, *, ownership=None)
             result = 'replied_ok'
         elif p['push']:
             result = 'to_staff'
+        elif p['paused_proven']:
+            result = 'to_staff_paused'
         if result != 'unanswered':
             counts[result] += 1
         elif p['paused']:
@@ -355,7 +371,8 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24, *, ownership=None)
         nonlocal latest
         latest = dict(ts=ts, reply=False, push=False, push_failed=False, paused=False,
                       failed=False, invalid_token=False, guard=False, onboarding=False, closed=False,
-                      counted=start_hour <= ts.hour < end_hour,
+                      paused_proven=False, staff_at=None, handoff_seen=False,
+                      counted=in_window(ts),
                       owner=owner_at(ts),
                       prefix_hash=hashlib.sha256(prefix.encode('utf-8')).digest(),
                       test_candidate=prefix in UNCONFIRMED_TEST_PREFIXES,
@@ -373,71 +390,152 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24, *, ownership=None)
         # order. Absolute distance keeps that tolerance bounded to the same 180s.
         return p is not None and abs((ts - p['ts']).total_seconds()) <= REPLY_WINDOW_SECONDS
 
-    def outcome(ts, kind, invalid_token=False):
-        # Each terminal marker consumes exactly one oldest still-open event.
+    def unattributed(ts, kind):
+        if not in_window(ts):
+            return  # orphan tail/context outcomes have no in-window provenance
+        if owner_at(ts) != 'ai':
+            stats['ownership_unknown_activity' if owner_at(ts) == 'unknown'
+                  else 'outside_ai_window_outcomes'] += 1
+            return
+        stats['unattributed_events'] += 1
+        stats['ambiguous'] += 1
+        key = {'reply': 'replied_ok', 'push': 'to_staff', 'failed': 'reply_failed',
+               'push_failed': 'push_failed'}[kind]
+        stats['unattributed_' + key] += 1
+
+    def outcome(ts, kind, invalid_token=False, onboarding=None):
+        # Reply functions are separate lanes: missing onboarding telemetry must
+        # never consume a later webhook reply (or failure), and vice versa.
         # Failures are terminal too: an unrelated later success cannot erase one.
-        if pending and nearby(pending[0], ts):
-            p = pending.popleft()
+        p = next((p for p in pending if nearby(p, ts) and p['ts'].date() == ts.date()
+                  and (onboarding is None or p['onboarding'] == onboarding)), None)
+        if p is not None:
+            pending.remove(p)
             p['closed'] = True
             p[kind] = True
             p['invalid_token'] = invalid_token
         else:
-            if not start_hour <= ts.hour < end_hour:
-                return  # orphan outcomes after closing have no in-window provenance
-            if owner_at(ts) != 'ai':
-                stats['ownership_unknown_activity' if owner_at(ts) == 'unknown'
-                      else 'outside_ai_window_outcomes'] += 1
-                return
-            stats['unattributed_events'] += 1
-            stats['ambiguous'] += 1
-            key = {'reply': 'replied_ok', 'push': 'to_staff', 'failed': 'reply_failed',
-                   'push_failed': 'push_failed'}[kind]
-            stats['unattributed_' + key] += 1
+            unattributed(ts, kind)
+
+    def handoff_push(ts, success):
+        # The print identifies the OWNER, not the customer. Onboarding can
+        # hand off without a STAFF print, so every open turn is a possible
+        # origin; a lone STAFF guard cannot disambiguate a competing customer.
+        candidates = [p for p in staff_events if nearby(p, ts)]
+        # Even after the ACK, another owner's result can still arrive. Retain
+        # every identified origin, including guardless onboarding origins.
+        previous_origins = [p for p in events if p['handoff_seen'] and nearby(p, ts)]
+        origins = [p for p in pending if nearby(p, ts)]
+        prefixes = {p['prefix_hash'] for p in origins + candidates + previous_origins}
+        if (len(prefixes) != 1
+                or any(abs((ts - guard).total_seconds()) <= REPLY_WINDOW_SECONDS for guard in unmatched_staff)):
+            unattributed(ts, 'push' if success else 'push_failed')
+            return
+        eligible = candidates or origins + previous_origins
+        if not eligible:
+            unattributed(ts, 'push' if success else 'push_failed')
+            return
+        p = eligible[0]
+        if not p['handoff_seen']:
+            handoff_proofs.pop(p['prefix_hash'], None)
+        p['handoff_seen'] = True
+        p['push' if success else 'push_failed'] = True
+        # Push plus acknowledgment are one customer turn. Keep its reply lane
+        # open until the acknowledgment arrives or the ordinary window expires.
+        if (success and p['owner'] == 'ai' and not p['synthetic']
+                and (p['staff_at'] is not None or not p['guard'])):
+            handoff_proofs[p['prefix_hash']] = dict(started=p['staff_at'] or p['ts'], pushed=ts)
+
+    def pause_proven(p, ts, until):
+        proof = handoff_proofs.get(p['prefix_hash'])
+        if proof is None:
+            return False
+        started, pushed = proof['started'], proof['pushed']
+        # Runtime stores start+7200, but prints only HH:MM. Match that minute
+        # to this handoff, including midnight and a push crossing a minute.
+        expiry = started + timedelta(seconds=HANDOFF_PAUSE_SECONDS)
+        hour, minute = map(int, until.split(':'))
+        printed = expiry.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if printed < expiry - timedelta(hours=12):
+            printed += timedelta(days=1)
+        elif printed > expiry + timedelta(hours=12):
+            printed -= timedelta(days=1)
+        return (started <= pushed <= ts < expiry
+                and printed <= pushed + timedelta(seconds=HANDOFF_PAUSE_SECONDS)
+                and expiry < printed + timedelta(minutes=1))
 
     for ts, _, _, text in records:
         expire(ts)
-        stats['observed_lines'] += 1
+        stats['observed_lines' if ts >= window_start else 'context_lines'] += 1
         post = POST.fullmatch(text)
         incoming = TEXT_EVENT.match(text) or IMAGE_EVENT.fullmatch(text)
         paused = PAUSED_EVENT.match(text)
         if post:
             # Access logs are emitted when HTTP requests END, before async
             # processing finishes. They are observations, never event boundaries.
-            if ((start_hour <= ts.hour < end_hour and owner_at(ts) == 'ai')
+            if ((in_window(ts) and owner_at(ts) == 'ai')
                     or any(p['counted'] and p['owner'] == 'ai' for p in pending)):
                 stats['inbound_posts' if post[1] == '200' else 'rejected_posts'] += 1
-            elif start_hour <= ts.hour < end_hour:
+            elif in_window(ts):
                 stats['ownership_unknown_activity' if owner_at(ts) == 'unknown' else 'outside_ai_window_posts'] += 1
         elif incoming:
             start(ts, incoming[1])
         elif text == VERIFICATION:
-            if owner_at(ts) == 'ai':
+            if in_window(ts) and owner_at(ts) == 'ai':
                 stats['verification_pings'] += 1
                 stats['excluded_verification_events'] += 1
         elif text.startswith('[Webhook] Duplicate replyToken received:'):
-            if owner_at(ts) == 'ai':
+            if in_window(ts) and owner_at(ts) == 'ai':
                 stats['duplicate_tokens'] += 1
                 stats['duplicate_no_reply_needed'] += 1  # transport, not another customer turn
-        elif SUCCESS.fullmatch(text):
-            outcome(ts, 'reply')
+        elif success := SUCCESS.fullmatch(text):
+            outcome(ts, 'reply', onboarding=success[1] == 'Onboarding')
         elif text.startswith(('[ERROR] Failed to send LINE reply:',
                               '[ERROR] Failed to send onboarding reply:')):
-            outcome(ts, 'failed', invalid_token='invalid reply token' in text.lower())
-        elif (push := OWNER_PUSH.fullmatch(text) or HANDOFF_PUSH.fullmatch(text)):
+            outcome(ts, 'failed', invalid_token='invalid reply token' in text.lower(),
+                    onboarding=text.startswith('[ERROR] Failed to send onboarding reply:'))
+        elif push := HANDOFF_PUSH.fullmatch(text):
+            handoff_push(ts, push[1] == 'True')
+        elif push := OWNER_PUSH.fullmatch(text):
             outcome(ts, 'push' if push[1] == 'True' else 'push_failed')
+        elif OWNER_CARD.fullmatch(text):
+            if in_window(ts) and owner_at(ts) == 'ai':
+                stats['ignored_owner_cards'] += 1
         elif text.startswith(('[Handoff] push failed:', '[Handoff] notification failed:')):
-            outcome(ts, 'push_failed')
+            handoff_push(ts, False)
         elif paused:
-            same = (nearby(latest, ts) and not latest['paused']
-                    and (not latest['closed'] or latest['push'])
-                    and latest['prefix_hash'] == hashlib.sha256(paused[1].encode('utf-8')).digest())
-            p = latest if same else start(ts, paused[1])  # paused images have no Image marker
+            prefix_hash = hashlib.sha256(paused[1].encode('utf-8')).digest()
+            # Other customers' text can interleave with this customer's pause
+            # print. Match the oldest eligible turn of this prefix, not latest.
+            # A handoff origin still awaiting its ACK, or an older onboarding
+            # reply, cannot be the newly paused turn (including an image).
+            p = next((p for p in pending if nearby(p, ts) and p['prefix_hash'] == prefix_hash
+                      and not p['guard'] and not p['onboarding'] and not p['push']), None)
+            if p is None:
+                p = start(ts, paused[1])  # paused images have no Image marker
             p['paused'] = True
+            p['paused_proven'] = pause_proven(p, ts, paused[2])
+            # A paused turn has no AI reply by design, even without sufficient
+            # proof. It must not consume another customer's later reply.
+            p['closed'] = True
+            pending.remove(p)
         elif text.startswith('[Chat Guard]'):
-            if nearby(latest, ts) and not latest['closed']:
-                latest['guard'] = True
-            elif start_hour <= ts.hour < end_hour and owner_at(ts) == 'ai':
+            staff = STAFF_GUARD.fullmatch(text)
+            prefix_hash = hashlib.sha256(staff[1].encode('utf-8')).digest() if staff else None
+            candidates = [p for p in pending if nearby(p, ts)
+                          and p['prefix_hash'] == prefix_hash] if staff else []
+            p = candidates[-1] if candidates else latest if not staff else None
+            if nearby(p, ts) and not p['closed']:
+                p['guard'] = True
+                if staff:
+                    p['staff_at'] = ts
+                    if p not in staff_events:
+                        staff_events.append(p)
+                    handoff_proofs.pop(prefix_hash, None)
+            elif in_window(ts) and owner_at(ts) == 'ai':
                 stats['ambiguous'] += 1
+            if staff and p is None:
+                unmatched_staff.append(ts)
         elif text.startswith(('[Onboarding]', '[Binding Saved]')):
             binding = BINDING.match(text)
             prefix_hash = (hashlib.sha256(binding[1].encode('utf-8')).digest() if binding else
@@ -446,7 +544,7 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24, *, ownership=None)
             for p in candidates:
                 p['onboarding'] = True
             if (not candidates and not nearby(latest, ts)
-                    and start_hour <= ts.hour < end_hour and owner_at(ts) == 'ai'):
+                    and in_window(ts) and owner_at(ts) == 'ai'):
                 stats['ambiguous'] += 1
     for event in events:
         finish(event)
@@ -458,7 +556,7 @@ def reply_log_counts(day, sources, start_hour=0, end_hour=24, *, ownership=None)
     stats['unanswered_unknown'] += stats['unknown_requests']
     stats['ambiguous'] += stats['unknown_requests']
     details = dict(counts, **stats)
-    details['unanswered'] = counts['received'] - sum(counts[k] for k in ('replied_ok', 'to_staff', 'no_reply_needed'))
+    details['unanswered'] = counts['received'] - sum(counts[k] for k in HANDLED_COUNTS)
     details['complete'] = False  # sparse traffic cannot prove full-day coverage
     if not counts['received']:
         details.update({k: None for k in (*COUNTS, 'unanswered')})
@@ -546,6 +644,10 @@ def produce_shop_replies_from_morning_sync(source_log, out_dir, *, synced_at=Non
 def shop_counts(day, path, now):
     data = load(path)
     allowed = set(COUNTS) | {'schema', 'date', 'generated_at', 'complete', 'window'}
+    # Existing v1 receipts predate the separate paused counter; their five
+    # required counts remain valid, with no retrospectively invented pauses.
+    if isinstance(data, dict) and set(data) == allowed - {'to_staff_paused'}:
+        data = dict(data, to_staff_paused=0)
     generated = stamp(data.get('generated_at')) if isinstance(data, dict) else None
     valid = (isinstance(data, dict) and set(data) == allowed and data.get('schema') == 'shop-replies/v1'
              and data.get('date') == str(day) and data.get('complete') is True
@@ -554,7 +656,7 @@ def shop_counts(day, path, now):
              and all(type(data.get(k)) is int and data[k] >= 0 for k in COUNTS))
     if not valid:
         return gate('no_data', '缺完整 shop-replies/v1 店機日間計數收據', [path])
-    answered = sum(data[k] for k in ('replied_ok', 'to_staff', 'no_reply_needed'))
+    answered = sum(data[k] for k in HANDLED_COUNTS)
     if answered > data['received'] or data['reply_failed'] > data['received']:
         return gate('no_data', '店機收據計數互相矛盾', [path])
     details = {k: data[k] for k in COUNTS}
@@ -575,7 +677,7 @@ def accounting(day, log_dir, shop_path, now, *, tunnel_logs=(), day_cover_log=No
     for name, row in halves.items():
         text = name + '：' + row['status']
         if type(row['details'].get('received')) is int:
-            text += '（收訊 {received}、回覆 {replied_ok}、轉真人 {to_staff}、失敗 {reply_failed}）'.format(**row['details'])
+            text += '（收訊 {received}、回覆 {replied_ok}、轉真人 {to_staff}、交接暫停 {to_staff_paused}、失敗 {reply_failed}）'.format(**row['details'])
         summaries.append(text)
     result = gate(status, '；'.join(summaries),
                   [p for r in halves.values() for p in r['evidence']], **totals)

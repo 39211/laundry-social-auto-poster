@@ -19,8 +19,8 @@ PROBE = "[Webhook Text] User UL1TEST_...: 'SYNTHETIC ONLY'"
 OK = '[Webhook Reply Success] HTTP 200'
 FAIL = '[ERROR] Failed to send LINE reply: HTTP Error 400: Bad Request'
 GUARD = '[Chat Guard] AI reply rejected (synthetic); using non-AI reply'
-OWNER_OK = '[OwnerNotify] Pushed instore card to owner U7654321... success=True'
-OWNER_FAIL = '[OwnerNotify] Pushed delivery card to owner U7654321... success=False'
+OWNER_OK = '[OwnerNotify] Pushed staff card to owner U7654321... success=True'
+OWNER_FAIL = '[OwnerNotify] Pushed staff card to owner U7654321... success=False'
 ONBOARDING = '[Onboarding] lookup_by_phone note: SYNTHETIC'
 BINDING = '[Binding Saved] User: U2468ace... -> CID: SYNTHETIC, Phone: SYNTHETIC, Name: SYNTHETIC'
 ONBOARD_OK = '[Onboarding Reply Success] HTTP 200'
@@ -103,20 +103,20 @@ class AsyncMatching(Fixtures):
 
 
 class OwnerNotifications(Fixtures):
-    def test_successful_summary_push_is_fifo_to_staff_evidence(self):
+    def test_successful_explicit_staff_push_is_fifo_to_staff_evidence(self):
         row = self.counts([(0, TEXT), (1, GUARD), (2, TEXT2), (3, POST),
                            (60, OWNER_OK), (61, OK)])
         self.assertEqual('pass', row['status'])
         self.assertEqual((1, 1, 1), tuple(row['details'][k] for k in
                          ('to_staff', 'replied_ok', 'guard_to_staff')))
 
-    def test_failed_summary_push_never_answers_the_event(self):
+    def test_failed_explicit_staff_push_never_answers_the_event(self):
         row = self.counts([(0, TEXT), (1, POST), (60, OWNER_FAIL)])
         self.assertEqual('fail', row['status'])
         self.assertEqual((0, 0, 1, 1), tuple(row['details'][k] for k in
                          ('to_staff', 'handoff_push_ok', 'handoff_push_failed', 'unanswered')))
 
-    def test_late_summary_push_is_unattributed_and_cannot_answer(self):
+    def test_late_explicit_staff_push_is_unattributed_and_cannot_answer(self):
         row = self.counts([(0, TEXT), (1, POST), (181, OWNER_OK)])
         self.assertEqual((0, 1, 1), tuple(row['details'][k] for k in
                          ('to_staff', 'unanswered_silent', 'unattributed_to_staff')))
@@ -147,7 +147,7 @@ class OnboardingEvidence(Fixtures):
         self.assertEqual(0, row['details'].get('unverified_onboarding'))
 
     def test_binding_activity_after_confirmed_reply_does_not_remove_delivery_evidence(self):
-        row = self.counts([(0, TEXT), (1, POST), (60, ONBOARD_OK), (61, BINDING)])
+        row = self.counts([(0, TEXT), (1, POST), (2, ONBOARDING), (60, ONBOARD_OK), (61, BINDING)])
         self.assertEqual('pass', row['status'])
         self.assertEqual(1, row['details']['replied_ok'])
         self.assertEqual(0, row['details']['unverified_onboarding'])

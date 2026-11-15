@@ -57,7 +57,7 @@ describe("11/11 第二批價格意圖 7 頁", () => {
     expect(report.wrongLastmod).toEqual([]);
     expect(report.missingFromSitemap).toEqual([]);
     expect(report.missingInbound).toEqual([]);
-    expect(report.locCount).toBe(223);
+    expect(report.locCount).toBe(228);
     const llms = ov("llms.txt");
     const wellKnown = ov(".well-known/llms.txt");
     for (const page of PAGES) {

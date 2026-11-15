@@ -293,6 +293,14 @@ interface BusinessProfile {
 
 const SITE_NAME = "私享家洗衣店";
 const SITE_TITLE = "私享家洗衣店｜台中收送・逢甲洗鞋・西屯洗鞋";
+/** WebSite.alternateName: short names only (Google site name guidance). Not a slogan. */
+export const SITE_WEBSITE_ALTERNATE_NAMES = ["私享家", "私享家精品洗護", "sixiangjialaundry.com"] as const;
+const WEBSITE_SLOGAN_ALTERNATE_NAMES = [
+  "私享家洗衣店｜台中西屯洗衣・洗鞋洗包・免費收送、沒有最低消費",
+  "私享家洗衣店｜台中洗衣洗鞋洗包・全市收送・價格公開",
+  "私享家洗衣店｜台中洗衣洗鞋洗包・台中市免費到府收送・價格公開",
+  SITE_TITLE
+] as const;
 const SITE_DESCRIPTION =
   "找台中收送、逢甲洗鞋或西屯洗鞋？私享家洗衣店提供台中市全區收送，門市在西屯青海路二段365號，可先用 LINE 傳照片預約。";
 const KNOWLEDGE_HUB_PATH = "knowledge/";
@@ -3221,7 +3229,7 @@ function buildWebsiteSchemaNode(index: PublicPostIndex): object {
     "@type": "WebSite",
     "@id": `${index.canonical_url}#website`,
     name: index.business_profile.name,
-    alternateName: SITE_TITLE,
+    alternateName: [...SITE_WEBSITE_ALTERNATE_NAMES],
     url: index.canonical_url,
     inLanguage: "zh-Hant-TW",
     description: SITE_DESCRIPTION,
@@ -6572,10 +6580,44 @@ function buildRssXml(index: PublicPostIndex): string {
     .join("\n");
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** 去掉結尾重複的「｜店名」或「 | 店名」，只留一次。 */
+export function collapseTrailingBrandName(text: string, profileName: string): string {
+  const trailing = new RegExp(`(?:\\s*[｜|]\\s*${escapeRegExp(profileName)})+$`);
+  const collapsed = text.replace(trailing, "");
+  if (collapsed === text) return text;
+  if (collapsed.includes(profileName)) return collapsed;
+  const sep = text.slice(collapsed.length).includes("｜") ? "｜" : " | ";
+  return `${collapsed}${sep}${profileName}`;
+}
+
 /** 貼文文件 title。og／twitter 仍只用 metaTopic；topic 已含店名時不再接上 ` | ${profile.name}`。 */
 export function postDocumentTitle(metaTopic: string, profileName: string): string {
-  return metaTopic.includes(profileName) ? metaTopic : `${metaTopic} | ${profileName}`;
+  const collapsed = collapseTrailingBrandName(metaTopic, profileName);
+  return collapsed.includes(profileName) ? collapsed : `${collapsed} | ${profileName}`;
 }
+
+/** 把標語型 WebSite.alternateName 改成短名陣列；其他 JSON-LD 不動。 */
+export function rewriteWebsiteAlternateName(html: string): string {
+  const replacement = `"alternateName":${JSON.stringify([...SITE_WEBSITE_ALTERNATE_NAMES])}`;
+  let next = html;
+  for (const slogan of WEBSITE_SLOGAN_ALTERNATE_NAMES) {
+    next = next.split(`"alternateName":"${slogan}"`).join(replacement);
+  }
+  return next;
+}
+
+/** 只改 <title>，用來修已產出的 feature-reel 頁。 */
+export function rewritePostDocumentTitle(html: string, profileName: string): string {
+  return html.replace(/<title>([^<]*)<\/title>/u, (full, raw: string) => {
+    const next = postDocumentTitle(raw, profileName);
+    return next === raw ? full : `<title>${next}</title>`;
+  });
+}
+
 
 function buildPostPageHtml(post: PublicPost, index: PublicPostIndex): string {
   const profile = index.business_profile;

@@ -383,7 +383,7 @@ function stripAllowed(text: string): string {
 
 describe("2026-11-10 大詞修正包核定句", () => {
   it("seo-overrides HTML 檔數與改前相同", () => {
-    expect(htmlFiles(join(root(), "seo-overrides"))).toHaveLength(249); // 234 + 11/11 發霉問句 8 頁 + 11/11 價格意圖第二批 7 頁
+    expect(htmlFiles(join(root(), "seo-overrides"))).toHaveLength(253); // 249 + 11/16 燈芯絨、毛海羊駝、羊皮毛一體、鋪棉 4 頁
   });
 
   for (const page of PAGES) {

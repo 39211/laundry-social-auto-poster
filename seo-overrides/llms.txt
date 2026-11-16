@@ -176,6 +176,7 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [洋裝、裙子、旗袍、禮服送洗多少錢？價格怎麼分](https://sixiangjialaundry.com/guides/dress-skirt-gown-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [床單被套、毛毯、睡袋送洗多少錢？寢具價格怎麼分](https://sixiangjialaundry.com/guides/bedding-blanket-sleeping-bag-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [包包發霉送洗多少錢？能不能洗、價格怎麼分](https://sixiangjialaundry.com/guides/bag-mold-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [羊毛被可以烘嗎？先看洗標烘乾符號，不能烘乾的用除溼乾燥](https://sixiangjialaundry.com/guides/wool-duvet-drying.html): guide page for answer-engine and local-intent searches.
 - [JSON Feed](https://sixiangjialaundry.com/feed.json): chronological update feed for readers and AI ingestion.
 - [Knowledge graph](https://sixiangjialaundry.com/knowledge-graph.json): Schema.org JSON-LD business, dataset, post, and image entities.
 - [AI discovery index](https://sixiangjialaundry.com/ai-discovery.json): machine-readable map of every AI/SEO endpoint.

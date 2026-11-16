@@ -9,9 +9,10 @@ const URL = `https://sixiangjialaundry.com${PATH}`;
 const LASTMOD = "2026-11-16";
 const TITLE = "羊毛被可以烘嗎？先看洗標烘乾符號，不能烘乾的用除溼乾燥｜私享家洗衣店";
 const DESCRIPTION =
-  "羊毛被可以烘嗎？先看這件洗標上的烘乾符號，不替材質下一定可以烘或一定不能烘的結論。私享家的羊毛被基本上都只能乾洗；洗標不能烘乾的，用店裡的除溼技術快速乾燥。價目表羊毛被 $800，參考價，看過實品再報價。台中全市免費收送、沒有最低消費。";
+  "羊毛被可以烘嗎？先看這件洗標上的烘乾符號，不替材質下一定可以烘或一定不能烘的結論。私享家的羊毛被基本上都只能乾洗；洗標不能烘乾的，用店裡的除溼技術快速乾燥。台中全市免費收送、沒有最低消費。";
 const H1 = "羊毛被可以烘嗎？怎麼乾？";
-const REF = "參考價，看過實品再報價";
+const PRICE =
+  "價目表上羊毛被 $800 是水洗價；羊毛被基本上只能乾洗，乾洗另計，看過實品再報價。";
 const BANNED = [
   "保證",
   "全新",
@@ -68,7 +69,7 @@ describe("2026-11-16 羊毛被可以烘嗎", () => {
     const hit = answers.answers.find((item) => item.id === `${SLUG}-page-summary`);
     expect(hit?.source_url).toBe(URL);
     expect(hit?.local_intent).toBe("羊毛被可以烘嗎");
-    expect(hit?.answer).toContain(REF);
+    expect(hit?.answer).toContain(PRICE);
     expect(hit?.answer).toContain("只能淡化");
     expect(JSON.stringify(hit)).not.toMatch(/保證|全新|陰乾|除臭|殺菌|除蟎/);
     for (const oldPage of [
@@ -90,6 +91,7 @@ describe("2026-11-16 羊毛被可以烘嗎", () => {
     expect(html.match(/<meta property="og:title" content="(.*?)"/)?.[1]).toBe(TITLE);
     expect(html.match(/<meta name="twitter:title" content="(.*?)"/)?.[1]).toBe(TITLE);
     expect(html.match(/<meta name="description" content="(.*?)"/)?.[1]).toBe(DESCRIPTION);
+    expect(DESCRIPTION).not.toContain("$800");
     expect(html.match(/<meta property="og:description" content="(.*?)"/)?.[1]).toBe(DESCRIPTION);
     expect(html.match(/<meta name="twitter:description" content="(.*?)"/)?.[1]).toBe(DESCRIPTION);
     const h1 = main.match(/<h1>(.*?)<\/h1>/)?.[1] ?? "";
@@ -111,26 +113,37 @@ describe("2026-11-16 羊毛被可以烘嗎", () => {
     expect(main).not.toContain("<img");
   });
 
-  it("正文只鎖烘與乾燥，價格只有羊毛被 $800，且不踩禁用詞", () => {
+  it("正文只鎖烘與乾燥，價格句全頁兩次，且不踩禁用詞", () => {
     expect(main).toContain("烘乾符號");
-    expect(main).toContain("基本上都只能乾洗");
-    expect(main).toContain("單獨一件");
-    expect(main).toContain("依洗標");
+    expect(main).toContain("單獨一件清洗、依洗標");
     expect(main).toContain("除溼技術快速乾燥");
     expect(main).toContain("只能淡化");
     expect(main).toContain("特殊處理劑");
+    expect(main).toContain("不替任何材質下一定可以烘或一定不能烘的結論");
     expect(main).toContain("台中全市免費收送、沒有最低消費");
     expect(main).toContain("青海路二段365號");
     expect(main).toContain("@454foyks");
     expect(main).toContain("0968327653");
     expect(main).toContain("東海只有收送");
     expect(main).toContain("羊毛被可以水洗嗎");
+    expect(main).not.toContain("這幾件事先講清楚");
+    expect(main).not.toContain("所以上面這一列不是看過實品前的成交價");
+    expect(main).not.toContain("參考價，看過實品再報價");
+    expect(main).not.toContain("基本上都只能乾洗");
     expect(main).not.toMatch(/\d+\s*天/);
     expect(main).not.toContain("一個禮拜");
-    const prices = main.match(/\$\d+/g) ?? [];
-    const tagged = main.match(/\$\d+，參考價，看過實品再報價/g) ?? [];
-    expect(tagged).toHaveLength(prices.length);
-    expect([...new Set(prices)]).toEqual(["$800"]);
+    const faqs = main.match(/<article class="card" data-aeo-faq>[\s\S]*?<\/article>/g) ?? [];
+    expect(faqs).toHaveLength(6);
+    const body = faqs.reduce((text, block) => text.replace(block, ""), main);
+    expect(body.split(PRICE)).toHaveLength(2);
+    expect(faqs[5]).toContain(PRICE);
+    expect(faqs.slice(0, 5).join("")).not.toContain("$800");
+    expect(body.split("台中全市免費收送、沒有最低消費")).toHaveLength(2);
+    expect(body.split("單獨一件清洗、依洗標")).toHaveLength(2);
+    expect(body.split("不替任何材質下一定可以烘或一定不能烘的結論")).toHaveLength(2);
+    expect(body.split("除溼技術快速乾燥")).toHaveLength(2);
+    expect(html.split(PRICE)).toHaveLength(3);
+    expect(html.match(/\$800/g)).toHaveLength(2);
     for (const word of BANNED) expect(main, word).not.toContain(word);
     expect(main.replaceAll("最低消費", "")).not.toContain("最");
     expect(main.replaceAll("免費收送", "")).not.toContain("免費");

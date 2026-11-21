@@ -3181,13 +3181,39 @@ describe("generatePublicSite", () => {
       "/guides/everyday-clothes-cleaning-price.html",
       "/guides/dress-skirt-gown-cleaning-price.html",
       "/guides/bedding-blanket-sleeping-bag-cleaning-price.html",
-      "/guides/bag-mold-cleaning-price.html"
+      "/guides/bag-mold-cleaning-price.html",
+      "/guides/curtain-mold-cleaning.html",
+      "/guides/backpack-mold-cleaning.html",
+      "/guides/hat-mold-cleaning.html",
+      "/guides/uniform-mold-cleaning.html",
+      "/guides/boot-mold-cleaning.html",
+      "/guides/slipper-mold-cleaning.html",
+      "/guides/canvas-bag-mold-cleaning.html",
+      "/guides/canvas-shoe-mold-cleaning.html",
+      "/guides/luggage-mold-cleaning.html",
+      "/guides/snow-boot-mold-cleaning.html",
+      "/guides/carpet-mold-cleaning.html",
+      "/guides/curtain-cleaning-price.html",
+      "/guides/carpet-cleaning-price.html",
+      "/guides/luxury-garment-cleaning-price.html",
+      "/guides/uniform-cleaning-price.html",
+      "/guides/slipper-cleaning-price.html",
+      "/guides/luxury-laundry-shop-how-to-choose.html",
+      "/guides/curtain-carpet-laundry-shop-how-to-choose.html",
+      "/guides/taichung-bag-cleaning-how-to-choose.html",
+      "/guides/laundry-pickup-process-turnaround.html",
+      "/guides/suede-water-hardened.html",
+      "/guides/shoes-dyed-by-jeans.html",
+      "/guides/leather-shoe-crease-limit.html",
+      "/guides/stroller-cleaning.html",
+      "/guides/suede-faux-suede-fabric.html",
+      "/guides/wool-duvet-drying.html"
     ]) {
       const url = `https://sixiangjialaundry.com${path}`;
       expect(sitemapUrls.filter((item) => item === url), path).toHaveLength(1);
       expect(aiSitemapUrls.filter((item) => item === url), path).toHaveLength(1);
     }
-    expect(EXPECTED_LOC_COUNT).toBe(223);
+    expect(EXPECTED_LOC_COUNT).toBe(249);
 
     // Should have no /posts/ URLs (all slot posts are noindex)
     const postsUrls = sitemapUrls.filter(url => url.includes("/posts/") || url.endsWith("/posts"));

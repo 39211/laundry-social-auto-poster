@@ -176,6 +176,32 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [洋裝、裙子、旗袍、禮服送洗多少錢？價格怎麼分](https://sixiangjialaundry.com/guides/dress-skirt-gown-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [床單被套、毛毯、睡袋送洗多少錢？寢具價格怎麼分](https://sixiangjialaundry.com/guides/bedding-blanket-sleeping-bag-cleaning-price.html): guide page for answer-engine and local-intent searches.
 - [包包發霉送洗多少錢？能不能洗、價格怎麼分](https://sixiangjialaundry.com/guides/bag-mold-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [窗簾發霉怎麼辦？先通風、拍照，傳照片到 LINE 問](https://sixiangjialaundry.com/guides/curtain-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [書包、背包發霉怎麼辦？能送洗嗎、怎麼估價](https://sixiangjialaundry.com/guides/backpack-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [帽子發霉怎麼辦？棒球帽、毛帽、皮帽能送洗嗎](https://sixiangjialaundry.com/guides/hat-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [制服發霉怎麼辦？能送洗嗎、要多久、怎麼估價](https://sixiangjialaundry.com/guides/uniform-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [靴子發霉怎麼辦？皮靴、麂皮靴還能穿嗎、怎麼估價](https://sixiangjialaundry.com/guides/boot-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [拖鞋發霉怎麼辦？EVA、勃肯拖鞋還能穿嗎、怎麼估價](https://sixiangjialaundry.com/guides/slipper-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [帆布包發霉怎麼辦？能送洗嗎、怎麼估價](https://sixiangjialaundry.com/guides/canvas-bag-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [帆布鞋發霉怎麼辦？還能穿嗎、洗鞋要多久、怎麼估價](https://sixiangjialaundry.com/guides/canvas-shoe-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [行李箱發霉怎麼辦？內袋、拉鍊、輪子能送洗嗎](https://sixiangjialaundry.com/guides/luggage-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [雪靴發霉怎麼辦？內毛發霉能送洗嗎、怎麼估價](https://sixiangjialaundry.com/guides/snow-boot-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [地毯發霉怎麼辦？先通風、拍照，傳照片到 LINE 問](https://sixiangjialaundry.com/guides/carpet-mold-cleaning.html): guide page for answer-engine and local-intent searches.
+- [窗簾送洗價格怎麼算？台中洗窗簾沒有固定價，先傳照片到 LINE 問](https://sixiangjialaundry.com/guides/curtain-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [洗地毯價格怎麼算？台中地毯送洗沒有固定價，先看乾不乾](https://sixiangjialaundry.com/guides/carpet-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [精品衣服送洗多少錢？精品襯衫、外套、洋裝、大衣價格怎麼分](https://sixiangjialaundry.com/guides/luxury-garment-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [制服送洗多少錢？護士服、醫師服、學生制服價格怎麼分](https://sixiangjialaundry.com/guides/uniform-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [拖鞋送洗多少錢？一般拖鞋與勃肯拖鞋怎麼分](https://sixiangjialaundry.com/guides/slipper-cleaning-price.html): guide page for answer-engine and local-intent searches.
+- [台中精品洗衣店怎麼挑？精品衣服送洗前先問這五件事](https://sixiangjialaundry.com/guides/luxury-laundry-shop-how-to-choose.html): guide page for answer-engine and local-intent searches.
+- [洗窗簾、洗地毯的洗衣店怎麼挑？送洗前先問這五件事](https://sixiangjialaundry.com/guides/curtain-carpet-laundry-shop-how-to-choose.html): guide page for answer-engine and local-intent searches.
+- [台中洗包包推薦怎麼挑？送洗前先問材質、五金、價目與交期](https://sixiangjialaundry.com/guides/taichung-bag-cleaning-how-to-choose.html): guide page for answer-engine and local-intent searches.
+- [衣服送洗怎麼送？台中送洗流程、要多久、多少錢](https://sixiangjialaundry.com/guides/laundry-pickup-process-turnaround.html): guide page for answer-engine and local-intent searches.
+- [麂皮碰水變硬怎麼辦？先別再濕擦｜私享家洗衣店](https://sixiangjialaundry.com/guides/suede-water-hardened.html): guide page for answer-engine and local-intent searches.
+- [鞋子被牛仔褲染色怎麼辦？先別漂白、先別烘｜私享家洗衣店](https://sixiangjialaundry.com/guides/shoes-dyed-by-jeans.html): guide page for answer-engine and local-intent searches.
+- [皮鞋摺痕能不能處理？清洗消不掉摺痕｜私享家洗衣店](https://sixiangjialaundry.com/guides/leather-shoe-crease-limit.html): guide page for answer-engine and local-intent searches.
+- [嬰兒推車、娃娃推車怎麼清洗？整台送來再拆布｜私享家洗衣店](https://sixiangjialaundry.com/guides/stroller-cleaning.html): guide page for answer-engine and local-intent searches.
+- [麂皮、仿麂皮、麂皮絨怎麼分？送洗差在哪｜私享家洗衣店](https://sixiangjialaundry.com/guides/suede-faux-suede-fabric.html): guide page for answer-engine and local-intent searches.
+- [羊毛被可以烘嗎？先看洗標烘乾符號，不能烘乾的用除溼乾燥](https://sixiangjialaundry.com/guides/wool-duvet-drying.html): guide page for answer-engine and local-intent searches.
 - [JSON Feed](https://sixiangjialaundry.com/feed.json): chronological update feed for readers and AI ingestion.
 - [Knowledge graph](https://sixiangjialaundry.com/knowledge-graph.json): Schema.org JSON-LD business, dataset, post, and image entities.
 - [AI discovery index](https://sixiangjialaundry.com/ai-discovery.json): machine-readable map of every AI/SEO endpoint.

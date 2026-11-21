@@ -205,6 +205,9 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [嬰兒推車、娃娃推車怎麼清洗？整台送來再拆布｜私享家洗衣店](https://sixiangjialaundry.com/guides/stroller-cleaning.html): guide page for answer-engine and local-intent searches.
 - [麂皮、仿麂皮、麂皮絨怎麼分？送洗差在哪｜私享家洗衣店](https://sixiangjialaundry.com/guides/suede-faux-suede-fabric.html): guide page for answer-engine and local-intent searches.
 - [羊毛被可以烘嗎？先看洗標烘乾符號，不能烘乾的用除溼乾燥](https://sixiangjialaundry.com/guides/wool-duvet-drying.html): guide page for answer-engine and local-intent searches.
+- [勃肯 EVA 拖鞋會臭嗎？味道從哪來、能不能送洗](https://sixiangjialaundry.com/guides/birkenstock-eva-slipper-odor.html): guide page for answer-engine and local-intent searches.
+- [皮包表面黏黏的怎麼辦？先分黏在哪](https://sixiangjialaundry.com/guides/leather-bag-surface-sticky.html): guide page for answer-engine and local-intent searches.
+- [台中修改衣服多少錢？改衣 $60 起，現場由師傅報價](https://sixiangjialaundry.com/guides/clothing-alteration-price.html): guide page for answer-engine and local-intent searches.
 - [JSON Feed](https://sixiangjialaundry.com/feed.json): chronological update feed for readers and AI ingestion.
 - [Knowledge graph](https://sixiangjialaundry.com/knowledge-graph.json): Schema.org JSON-LD business, dataset, post, and image entities.
 - [AI discovery index](https://sixiangjialaundry.com/ai-discovery.json): machine-readable map of every AI/SEO endpoint.

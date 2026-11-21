@@ -74,7 +74,7 @@ function htmlFiles(dir: string, acc: string[] = []): string[] {
 describe("2026-11-21 只上新頁", () => {
   it("26 頁進 sitemap、llms、answers，且不要求既有頁加入鏈", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(249);
+    expect(report.locCount).toBe(252);
     expect(report.missing).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(report.duplicateLocs).toEqual([]);
@@ -99,6 +99,10 @@ describe("2026-11-21 只上新頁", () => {
 
   it("新頁正文沒有禁字，金額旁有參考價與看過實品再報價，既有頁沒有被加進這些網址", () => {
     const newFiles = new Set(PAGES.map((page) => `guides/${page.slug}.html`));
+    /** 2026-11-22 點擊加強的 3 個新頁也是新頁，可以連到這 26 頁；既有頁仍然一條都不能加。 */
+    for (const slug of ["birkenstock-eva-slipper-odor", "leather-bag-surface-sticky", "clothing-alteration-price"]) {
+      newFiles.add(`guides/${slug}.html`);
+    }
     for (const page of PAGES) {
       const html = read(`seo-overrides/guides/${page.slug}.html`);
       const main = mainOf(html);

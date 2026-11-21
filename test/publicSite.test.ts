@@ -894,7 +894,7 @@ describe("generatePublicSite", () => {
     expect(html).toContain('content="https://assets.example.net/laundry/assets/services/fabric-storage-hero-product.png"');
     expect(sitemap).toContain("<loc>https://tester.github.io/laundry-social-auto-poster/</loc>");
     expect(sitemap).not.toContain("https://assets.example.net/laundry/assets/services/fabric-storage-hero-product.png");
-  }, 20000); // windows-latest 上產生整站曾超過預設 5 秒。
+  });
 
   it("writes guide and local support pages into SEO and AI indexes", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-support-pages-"));
@@ -1713,7 +1713,7 @@ describe("generatePublicSite", () => {
     expect(await exists(join(root, "docs", "stale-indexnow-key-2025.txt"))).toBe(false);
     const keyFile = await readFile(join(root, "docs", "laundry-test-key-2026.txt"), "utf8");
     expect(keyFile).toBe("laundry-test-key-2026\n");
-  }, 20000); // windows-latest 上產生整站曾超過預設 5 秒。
+  });
 
   it("allows OAI-SearchBot to crawl the same AI entry points as other bot agents", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-oai-searchbot-"));
@@ -1738,7 +1738,7 @@ describe("generatePublicSite", () => {
     for (const crawler of ["GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended"]) {
       expect(robots).toContain(`User-agent: ${crawler}`);
     }
-  }, 20000); // windows-latest 上產生整站曾超過預設 5 秒。
+  });
 
   it("publishes citywide free pickup page with internal links, schema, sitemap, and stable lastmod", async () => {
     const root = mkdtempSync(join(tmpdir(), "laundry-public-site-citywide-pickup-"));

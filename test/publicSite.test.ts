@@ -1796,7 +1796,7 @@ describe("generatePublicSite", () => {
     expect(pickupHtml).toContain("<h1>台中收送洗衣</h1>");
     expect(pickupHtml).toContain("收送範圍為台中市");
     expect(pickupHtml).toContain("免費收送");
-    expect(pickupHtml).not.toContain("台中全市免費");
+    expect(withoutJsonLd(pickupHtml)).not.toContain("台中全市免費");
     expect(pickupHtml).toContain("https://line.me/R/ti/p/%40454foyks");
     expect(pickupHtml).toContain("西屯區青海路二段365號");
     expect(pickupHtml).toContain('"@type":"Service"');

@@ -46,7 +46,8 @@ const MAIN_SHA256 = {
   // 2026-11-10 CTR 實驗加上「麂皮外套怎麼洗」內鏈。同日大詞修正包在成交連結加上兩個核定錨文字後的 stripped sha256。
   "suede-bag-care": "54a410e6d83afa9b9af938f6cd9a3b1008cd6ba2b1937d68b1e611e874f6d21b",
   // 這一筆不是 e890511 原文雜湊。凍結原文先把「東海無門市、全市可收送」換成「東海無門市、免費收送、沒有最低消費」，再把「>台中洗鞋專頁</a>」換成「>洗鞋材質總覽</a>」。2026-11-10 CTR 再改 title／meta 並加新鞋掉色內鏈。同日大詞修正包在 lead 後加挑店句，並在成交連結加上兩個核定錨文字，雜湊改鎖改寫後的 stripped 檔。
-  "washing-machine-shoe-risk": "4fc45b55cf7ad21af316f034f17d86ff8fd5daa26a005521ef6032abfec98845",
+  // 2026-11-22 N19：只換 #business 共用目錄（#offer-catalog）的 JSON-LD，雜湊改鎖換目錄後的 stripped 檔；可見正文不動。
+  "washing-machine-shoe-risk": "0a90f3419420ba8735e0c4808d7d6b65ae756a783e767dbc09d07633bba27768",
   // 2026-11-10 大詞修正包在成交連結加上兩個核定錨文字後的 stripped sha256。
   "lambskin-bag-care": "2d359f6596e8b132b058f0d482dc36a9cd05ca6f0aa83c990b809336dde4149b",
   // 2026-11-10 大詞修正包在成交連結加上兩個核定錨文字後的 stripped sha256。對 e890511 的比對只允許多這兩個錨文字。
@@ -486,6 +487,12 @@ describe("O04 六個指南頁", () => {
       if (CTR_CITYWIDE_META.has(slug)) {
         expect(countOf(main, "台中全市"), slug).toBe(0);
         expect(html, slug).toContain("台中全市免費收送、沒有最低消費");
+      } else if (slug === "washing-machine-shoe-risk") {
+        // N19（2026-11-22，工程CEO 准做條件 3）：#business 共用目錄（#offer-catalog）的行銷核定句含「台中全市免費收送」，
+        // 只出現在 JSON-LD。這頁的「台中全市」次數改只數 <main> 可見正文；另外 5 頁仍照原斷言。
+        expect(countOf(main, "台中全市"), slug).toBe(0);
+        const strippedMain = stripped.match(/<main>([\s\S]*?)<\/main>/u)?.[1] ?? "";
+        expect(countOf(strippedMain, "台中全市"), slug).toBe(0);
       } else {
         expect(countOf(html, "台中全市"), slug).toBe(0);
         expect(countOf(stripped, "台中全市"), slug).toBe(0);

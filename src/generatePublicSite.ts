@@ -37,6 +37,7 @@ import {
   assertSearchContentAnalyticsScript,
   buildSearchContentAnalyticsScript
 } from "./searchContentAnalytics";
+import { OFFER_CATALOG_AREA_SERVED, OFFER_CATALOG_COPY } from "./offerCatalogCopy";
 
 interface GeneratePublicSiteOptions {
   root?: string;
@@ -3179,26 +3180,25 @@ function buildBusinessSchema(index: PublicPostIndex): object | undefined {
     knowsAbout: Array.from(new Set([...profile.service_topics, ...LOCAL_SEARCH_QUERY_TARGETS])),
     hasOfferCatalog: {
       "@type": "OfferCatalog",
+      "@id": `${index.canonical_url}#offer-catalog`,
       name: "私享家洗衣店服務目錄",
-      itemListElement: SERVICE_PAGE_DEFINITIONS.map((service) => ({
-        "@type": "Offer",
-        itemOffered: {
-          "@type": "Service",
-          name: service.name,
-          serviceType: service.name,
-          description: service.answer_summary,
-          areaServed: serviceAreaServedSchema(service),
-          url: servicePageUrl(service, index)
-        },
-        // Free pickup/delivery only — never encode cleaning as price 0.
-        ...(service.slug === "taichung-citywide-laundry-pickup"
-          ? {
-              name: "台中洗衣收送",
-              description:
-                "台中市收送；清潔與洗護費用另計。預約以 LINE 為主。"
-            }
-          : {})
-      }))
+      itemListElement: SERVICE_PAGE_DEFINITIONS.map((service) => {
+        const copy = OFFER_CATALOG_COPY[service.slug];
+        if (!copy) throw new Error(`OFFER_CATALOG_COPY 缺少 ${service.slug}`);
+        return {
+          "@type": "Offer",
+          itemOffered: {
+            "@type": "Service",
+            name: service.name,
+            serviceType: service.name,
+            description: copy.description,
+            areaServed: OFFER_CATALOG_AREA_SERVED,
+            url: servicePageUrl(service, index)
+          },
+          // Free pickup/delivery only — never encode cleaning as price 0.
+          ...(copy.offer ? { name: copy.offer.name, description: copy.offer.description } : {})
+        };
+      })
     }
   };
   return schema;

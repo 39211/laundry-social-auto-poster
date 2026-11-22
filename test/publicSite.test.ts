@@ -29,6 +29,11 @@ import {
   buildSearchContentAnalyticsScript
 } from "../src/searchContentAnalytics";
 
+/** N19（2026-11-22）：「台中全市」次數只數 ld+json 以外的文字；#business 共用目錄（#offer-catalog）的核定句只在 JSON-LD。 */
+function withoutJsonLd(text: string): string {
+  return text.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/gu, "");
+}
+
 async function writeCalendar(root: string, date: string, options: { carouselSlot1?: boolean } = {}): Promise<void> {
   await Promise.all([
     mkdir(join(root, "data", "content-calendar"), { recursive: true }),
@@ -843,7 +848,7 @@ describe("generatePublicSite", () => {
     expect(taichungCitywidePickupHtml).toContain("<h1>台中收送洗衣</h1>");
     expect(taichungCitywidePickupHtml).toContain("台中市");
     expect(taichungCitywidePickupHtml).toContain("免費收送");
-    expect(taichungCitywidePickupHtml).not.toContain("台中全市免費");
+    expect(withoutJsonLd(taichungCitywidePickupHtml)).not.toContain("台中全市免費");
     expect(taichungCitywidePickupHtml).toContain("https://line.me/R/ti/p/%40454foyks");
     expect(taichungCitywidePickupHtml).toContain("青海路二段365號");
     expect(taichungCitywidePickupHtml).toContain("清潔費另計");
@@ -1770,7 +1775,7 @@ describe("generatePublicSite", () => {
 
     expect(homepage).toContain(`href="${pickupUrl}"`);
     expect(homepage).toContain("台中洗衣收送");
-    expect(homepage).not.toContain("台中全市");
+    expect(withoutJsonLd(homepage)).not.toContain("台中全市");
     expect(homepage).toContain("id=\"citywide-pickup\"");
     expect(homepage).toContain("台中洗衣收送");
     expect(homepage).toContain("台中收送");
@@ -2273,7 +2278,7 @@ describe("generatePublicSite", () => {
     expect(html).toContain("儲 3000 送 400");
     expect(html).toContain("儲 6000 送 1000");
     expect(html).toContain("免費收送");
-    expect(html).not.toContain("台中全市免費");
+    expect(withoutJsonLd(html)).not.toContain("台中全市免費");
     expect(html).toContain("台中市西屯區青海路二段365號");
     expect(html).toContain("至善國中對面");
     expect(html).toContain("0968327653");

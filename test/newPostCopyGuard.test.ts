@@ -16,6 +16,11 @@ import {
 } from "../src/newPostCopyGuard";
 import { postCurrentSlot } from "../src/postCurrentSlot";
 
+/** N19（2026-11-22）：「台中全市」次數只數 ld+json 以外的文字；#business 共用目錄（#offer-catalog）的核定句只在 JSON-LD。 */
+function withoutJsonLd(text: string): string {
+  return text.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/gu, "");
+}
+
 const NEW_DATE = "2026-11-05";
 const OLD_DATE = "2026-10-08";
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -299,7 +304,7 @@ describe("可見 seo-overrides 與 src 不得再出現除霉", () => {
       const text = readFileSync(join(REPO, rel), "utf8");
       expect(text, rel).toContain(phrase);
       expect(containsChuMei(text), rel).toBe(false);
-      expect(text, rel).not.toContain("台中全市");
+      expect(withoutJsonLd(text), rel).not.toContain("台中全市");
       expect(text, rel).not.toContain("防霉");
     }
     const r6 = readFileSync(join(REPO, "seo-overrides/scripts/sxj-r10-20261103/r6-posts.json"), "utf8");

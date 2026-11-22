@@ -227,3 +227,42 @@ describe("N19 價格頁 #reference-prices", () => {
     expect(offers).toBe(110);
   });
 });
+
+describe("N19 JSON-LD 的「台中全市」只出現在完整核定句", () => {
+  const SENTENCE = "台中全市免費收送、沒有最低消費";
+
+  it("所有 override 頁的 ld+json 裡，每個「台中全市」都屬於「台中全市免費收送、沒有最低消費」", () => {
+    let sentences = 0;
+    for (const page of pages) {
+      for (const m of page.html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gu)) {
+        const block = m[1] ?? "";
+        sentences += block.split(SENTENCE).length - 1;
+        expect(block.replaceAll(SENTENCE, ""), page.rel).not.toContain("台中全市");
+      }
+    }
+    // 168 頁 × 目錄裡 3 句（鞋包清潔、台中西屯洗衣店、店家大量）
+    expect(sentences).toBeGreaterThanOrEqual(168 * 3);
+  });
+
+  it("generator 目錄文案表也只用完整核定句", () => {
+    for (const [slug, copy] of Object.entries(OFFER_CATALOG_COPY)) {
+      const text = `${copy.description}${copy.offer?.name ?? ""}${copy.offer?.description ?? ""}`;
+      expect(text.replaceAll(SENTENCE, ""), slug).not.toContain("台中全市");
+    }
+  });
+});
+
+describe("N19 包包價格頁發霉句", () => {
+  it("description 用頁面可見原句，不再寫「發霉、特殊污漬另計」", () => {
+    const html = readFileSync(join(OVERRIDES, "guides/bag-cleaning-price.html"), "utf8");
+    const clause = "發霉、特殊污漬與特殊材質要看過實品再報價";
+    expect(visibleText(html)).toContain(clause);
+    const node = jsonLdBlocks(html)
+      .flatMap((block) => ((block as Json)["@graph"] as Json[] | undefined) ?? [])
+      .find((n) => n["@id"] === `${BASE}guides/bag-cleaning-price.html#reference-prices`);
+    expect(node?.description).toBe(
+      "包包參考價：背包 $500、一般包 $600、皮包 $1000、名牌包 $1500 起、特殊類名牌包 $2500；乾洗、柔洗另計，發霉、特殊污漬與特殊材質要看過實品再報價。"
+    );
+    expect(html).not.toContain("發霉、特殊污漬另計");
+  });
+});

@@ -3,6 +3,11 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { repoRootFromHere } from "../scripts/check-sitemap-links";
 
+/** N19（2026-11-22）：「台中全市」次數只數 ld+json 以外的文字；#business 共用目錄（#offer-catalog）的核定句只在 JSON-LD。 */
+function withoutJsonLd(text: string): string {
+  return text.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/gu, "");
+}
+
 /** O10：既有鞋頁補小白鞋／球鞋／網狀球鞋用詞。title／H1／首段對照 CSV；兩則 meta 採行銷必改句。 */
 const PAGES = [
   {
@@ -97,7 +102,7 @@ describe("O10 既有鞋頁口語用詞", () => {
       for (const word of PROMISE_WORDS) {
         expect(surface, word).not.toContain(word);
       }
-      expect(html).not.toContain("台中全市");
+      expect(withoutJsonLd(html)).not.toContain("台中全市");
       expect(html).not.toContain("除霉");
     });
   }
@@ -116,7 +121,7 @@ describe("O10 既有鞋頁口語用詞", () => {
     const html = readOverride("services/white-shoe-cleaning.html");
     expect(html).toContain("不建議直接漂白或硬刷");
     expect(html).toContain("免費收送、沒有最低消費");
-    expect(html).not.toContain("台中全市");
+    expect(withoutJsonLd(html)).not.toContain("台中全市");
   });
 
   it("鞋 hub 只加一句導覽與四個內鏈，不改 title、H1 與價目", () => {
@@ -137,7 +142,7 @@ describe("O10 既有鞋頁口語用詞", () => {
     for (const href of HUB_LINKS) {
       expect(paragraph).toContain(`href="${href}"`);
     }
-    expect(html).not.toContain("台中全市");
+    expect(withoutJsonLd(html)).not.toContain("台中全市");
     expect(html).not.toContain("除霉");
   });
 });

@@ -16,6 +16,16 @@ import {
   WAVE4_BANNED_MARKERS,
   WAVE4_MERGED_PAGE_PATHS,
   WAVE4_PAGE_PATHS,
+  WAVE7_BANNED_MARKERS,
+  WAVE7_PAGE_PATHS,
+  WAVE5_ANSWER_IDS,
+  WAVE5_EXTRA_BANNED_MARKERS,
+  WAVE5_MERGED_BLOCK_IDS,
+  WAVE5_MERGED_PAGE_PATHS,
+  WAVE5_PAGE_PATHS,
+  WAVE8_BANNED_MARKERS,
+  WAVE8_PAGE_LASTMOD,
+  WAVE8_PAGE_PATHS,
   WRITER_VOICE_MARKERS,
   checkSitemapLinks,
   faqJsonLdPageReferenceOffenders,
@@ -26,6 +36,19 @@ import {
   sitemapLinkReportFailed,
   wave3WriterVoiceHits,
   wave4BannedHits,
+  wave7BannedHits,
+  wave5BannedHits,
+  CONDITIONAL_WHOLE_PAIR_REFUSAL_SOURCE,
+  conditionalWholePairRefusalHits,
+  wave8AuditedText,
+  wave8BannedHits,
+  wave8InsertedBlocks,
+  WAVE9_BANNED_MARKERS,
+  WAVE9_PAGE_LASTMOD,
+  WAVE9_PAGE_PATHS,
+  wave9AuditedText,
+  wave9BannedHits,
+  wave9InsertedBlocks,
   writerVoiceHits
 } from "../scripts/check-sitemap-links";
 
@@ -82,6 +105,11 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(WAVE3_VOICE_PAGE_PATHS).toHaveLength(7);
     expect(WAVE4_PAGE_PATHS).toHaveLength(3);
     expect(WAVE4_MERGED_PAGE_PATHS).toHaveLength(6);
+    expect(WAVE5_PAGE_PATHS).toHaveLength(5);
+    expect(WAVE5_MERGED_PAGE_PATHS).toHaveLength(7);
+    expect(WAVE5_MERGED_BLOCK_IDS).toHaveLength(7);
+    expect(WAVE5_ANSWER_IDS).toHaveLength(12);
+    expect(WAVE7_PAGE_PATHS).toHaveLength(8);
     expect(NOINDEX_FOLLOW_LOCAL_PATHS).toHaveLength(16);
     const root = repoRootFromHere();
     for (const path of NOINDEX_FOLLOW_LOCAL_PATHS) {
@@ -132,6 +160,19 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(report.inbound["/guides/casual-shoe-cleaning.html"]?.hubs).toContain("hubs/shoe-care.html");
     expect(report.inbound["/guides/suit-pants-crease.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     expect(report.inbound["/guides/crossbody-bag-strap.html"]?.hubs).toContain("hubs/bag-care.html");
+    expect(report.inbound["/guides/shoe-waterproof-treatment.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/rubber-rain-boot-care.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/leather-shoe-salt-bloom.html"]?.hubs).toContain("hubs/shoe-care.html");
+    expect(report.inbound["/guides/insulated-down-pants-care.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/bag-base-stud-check.html"]?.hubs).toContain("hubs/bag-care.html");
+    expect(report.inbound["/guides/dress-shirt-starch-risk.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/blanket-vs-duvet.html"]?.hubs).toContain("hubs/bedding-textile-care.html");
+    expect(report.inbound["/guides/pet-hair-on-coat.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/how-laundry-quote-works.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/services/office-shirt-subscription.html"]?.hubs).toContain("hubs/commercial-laundry.html");
+    expect(report.inbound["/hubs/commercial-laundry.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
+    expect(report.inbound["/guides/makeup-on-bag-lining.html"]?.hubs).toContain("hubs/bag-care.html");
+    expect(report.inbound["/guides/leather-vest-cleaning.html"]?.hubs).toContain("hubs/luxury-garment-care.html");
     const xml = readFileSync(join(root, "seo-overrides", "sitemap.xml"), "utf8");
     for (const path of LAYER1_PHRASE_PAGE_PATHS) {
       expect(xml, path).toContain(`<loc>https://sixiangjialaundry.com${path}</loc><lastmod>2026-10-14</lastmod>`);
@@ -181,9 +222,13 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(WAVE3_EXTRA_WRITER_VOICE_MARKERS).toEqual(["這頁", "本頁", "這句", "一口價", "另看"]);
     const root = repoRootFromHere();
     const hits: string[] = [];
+    // O04 核准目錄標題是「本頁目錄」。麂皮包、皮帶頁屬於第 3 波整頁掃描，
+    // 這個導覽名稱會命中「本頁」。只拿掉 page-toc 這個 nav，其餘 HTML 仍整頁掃描。
+    const tocTitleExempt = new Set(["/guides/suede-bag-care.html", "/guides/leather-belt-care.html"]);
     for (const path of WAVE3_VOICE_PAGE_PATHS) {
       const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
-      const found = wave3WriterVoiceHits(html);
+      const prose = tocTitleExempt.has(path) ? html.replace(/<nav class="page-toc"[\s\S]*?<\/nav>/g, "") : html;
+      const found = wave3WriterVoiceHits(prose);
       if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
     }
     const answers = JSON.parse(readFileSync(join(root, "seo-overrides", "answers.json"), "utf8")) as {
@@ -252,6 +297,47 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(hits).toEqual([]);
   });
 
+  it("第 7 波新頁與問答沒有禁詞，掃描不排除任何句子", () => {
+    expect(WAVE7_BANNED_MARKERS).toEqual([
+      "本頁",
+      "這頁",
+      "另看",
+      "最常",
+      "最常見",
+      "每天",
+      "一口價",
+      "編價格",
+      "錢頁",
+      "重寫",
+      "同一頁",
+      "這裡",
+      "不寫",
+      "改看",
+      "仍看",
+      "留在",
+      "換頁",
+      "這句"
+    ]);
+    const root = repoRootFromHere();
+    const hits: string[] = [];
+    for (const path of WAVE7_PAGE_PATHS) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      const found = wave7BannedHits(html);
+      if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
+    }
+    const answers = JSON.parse(readFileSync(join(root, "seo-overrides", "answers.json"), "utf8")) as {
+      answers: Array<{ id: string; question: string; answer: string; source_url: string }>;
+    };
+    const scopeUrls = WAVE7_PAGE_PATHS.map((path) => `https://sixiangjialaundry.com${path}`);
+    for (const entry of answers.answers) {
+      const onScope = scopeUrls.some((url) => entry.source_url === url || entry.source_url.startsWith(`${url}#`));
+      if (!onScope) continue;
+      const found = wave7BannedHits(`${entry.question}\n${entry.answer}`);
+      if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
+    }
+    expect(hits).toEqual([]);
+  });
+
   it("FAQ JSON-LD 的問題與答案不含本頁或這頁", () => {
     expect(FAQ_JSONLD_PAGE_REFERENCE_MARKERS).toEqual(["本頁", "這頁"]);
     expect(faqJsonLdPageReferenceOffenders()).toEqual([]);
@@ -268,6 +354,334 @@ describe("seo-overrides B4＋B5 sitemap 與 hub 入鏈", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe("B5 第 8 波", () => {
+  it("9 頁進 sitemap、各有 hub 入鏈，正文不踩硬規", () => {
+    expect(WAVE8_PAGE_PATHS).toHaveLength(9);
+    const report = checkSitemapLinks();
+    const root = repoRootFromHere();
+    const price = readFileSync(join(root, "seo-overrides", "services", "taichung-laundry-price-list.html"), "utf8");
+    const hits: string[] = [];
+    for (const path of WAVE8_PAGE_PATHS) {
+      expect(report.inbound[path]?.count, path).toBeGreaterThanOrEqual(1);
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      let audited = wave8AuditedText(html);
+      if (path === "/guides/new-shoe-dye-ruboff.html") {
+        const approved = "這頁只講新鞋染料蹭色";
+        expect(audited, path).toContain(approved);
+        audited = audited.replace(approved, "只講新鞋染料蹭色");
+      }
+      const found = wave8BannedHits(audited);
+      if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
+      const main = html.match(/<main>([\s\S]*?)<\/main>/)?.[1] ?? "";
+      expect(main, path).toContain("免費收送");
+      expect(main, path).not.toContain("台中全市");
+      expect(main, path).toContain("門市在台中市西屯區");
+      expect(main, path).toContain("西屯門市收件");
+      expect(main, path).toContain("參考價，看過實品再報價");
+      expect(main, path).toContain("https://lin.ee/w8qGVqM");
+      expect(main, path).toContain("@454foyks");
+      expect(main, path).toContain("怎麼送洗");
+      for (const amount of main.match(/[\u4e00-\u9fffA-Z0-9]+ \$\d+/g) ?? []) {
+        expect(price, `${path} ${amount}`).toContain(amount);
+      }
+      expect(html, path).toContain(`<time datetime="${WAVE8_PAGE_LASTMOD}">`);
+      expect(html, path).toContain(`"dateModified":"${WAVE8_PAGE_LASTMOD}"`);
+    }
+    expect(hits).toEqual([]);
+    const xml = readFileSync(join(root, "seo-overrides", "sitemap.xml"), "utf8");
+    for (const path of WAVE8_PAGE_PATHS) {
+      expect(xml, path).toContain(
+        `<loc>https://sixiangjialaundry.com${path}</loc><lastmod>${WAVE8_PAGE_LASTMOD}</lastmod>`
+      );
+    }
+  });
+
+  it("第 8 波插入的內鏈與新問答沒有硬規禁詞", () => {
+    expect(WAVE8_BANNED_MARKERS).toContain("防水處理");
+    const root = repoRootFromHere();
+    const hits: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(full);
+          continue;
+        }
+        if (!entry.name.endsWith(".html") && entry.name !== "answers.json") continue;
+        const text = readFileSync(full, "utf8");
+        if (entry.name.endsWith(".html")) {
+          for (const block of wave8InsertedBlocks(text)) {
+            const found = wave8BannedHits(block);
+            if (found.length > 0) hits.push(`${full}: ${found.join("、")}`);
+          }
+        }
+      }
+    };
+    walk(join(root, "seo-overrides"));
+    const answers = JSON.parse(readFileSync(join(root, "seo-overrides", "answers.json"), "utf8")) as {
+      answers: Array<{ id: string; question: string; answer: string; source_url: string }>;
+    };
+    const wave8Urls = new Set(WAVE8_PAGE_PATHS.map((path) => `https://sixiangjialaundry.com${path}`));
+    const seen = new Set<string>();
+    for (const entry of answers.answers) {
+      if (!wave8Urls.has(entry.source_url)) continue;
+      seen.add(entry.source_url);
+      const found = wave8BannedHits(`${entry.question}\n${entry.answer}`);
+      if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
+      expect(entry.answer, entry.id).toContain("參考價，看過實品再報價");
+      expect(entry.answer, entry.id).toContain("免費收送");
+      expect(entry.answer, entry.id).not.toContain("台中全市");
+    }
+    expect(hits).toEqual([]);
+    expect(seen.size).toBe(WAVE8_PAGE_PATHS.length);
+  });
+
+  it("店家 JSON-LD 描述拿掉僅西屯與市話，每處修繕都有 LINE 問句", () => {
+    const ask = "能不能做、怎麼算，傳照片到 LINE @454foyks 問";
+    const root = repoRootFromHere();
+    const descHits: string[] = [];
+    const repairHits: string[] = [];
+    for (const path of WAVE8_PAGE_PATHS) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      const raw = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1] ?? "";
+      const graph = (JSON.parse(raw) as { "@graph": Array<Record<string, unknown>> })["@graph"];
+      const business = graph.find((node) => node["@type"] === "DryCleaningOrLaundry");
+      const blurbs = `${business?.["description"] ?? ""}\n${business?.["disambiguatingDescription"] ?? ""}`;
+      for (const term of ["僅西屯", "0968", "04-2452"]) {
+        if (blurbs.includes(term)) descHits.push(`${path} ${term}`);
+      }
+      expect(business?.["disambiguatingDescription"], path).toContain("門市在西屯");
+      expect(business?.["disambiguatingDescription"], path).toContain("LINE @454foyks");
+      expect(business?.["telephone"], path).toBe("+886-4-2452-7411");
+      expect(JSON.stringify(business?.["contactPoint"]), path).toContain("+886-4-2452-7411");
+      expect(JSON.stringify(business?.["contactPoint"]), path).toContain("+886-968-327-653");
+      const footer = html.split("<footer")[1] ?? "";
+      expect(footer, path).toContain("門市在西屯");
+      expect(footer, path).toContain("04-2452-7411");
+      expect(footer, path).toContain("0968-327-653");
+      let cursor = 0;
+      while (cursor < html.length) {
+        const at = html.indexOf("修繕", cursor);
+        if (at < 0) break;
+        const follow = html.slice(at, at + 80);
+        if (!follow.includes(ask)) repairHits.push(`${path} @${at}: ${follow}`);
+        cursor = at + 2;
+      }
+      expect(html, path).not.toContain("我們會修");
+    }
+    expect(descHits).toEqual([]);
+    expect(repairHits).toEqual([]);
+    const clasp = readFileSync(join(root, "seo-overrides", "guides", "bag-clasp-stuck-check.html"), "utf8");
+    expect(clasp).toContain("名牌包 $1500 起");
+    expect(clasp).not.toMatch(/名牌包 \$1500(?! 起)/);
+  });
+});
+
+describe("B5 第 9 波", () => {
+  it("9 頁進 sitemap、各有 hub 入鏈，正文不踩硬規", () => {
+    expect(WAVE9_PAGE_PATHS).toHaveLength(9);
+    const report = checkSitemapLinks();
+    const root = repoRootFromHere();
+    const price = readFileSync(join(root, "seo-overrides", "services", "taichung-laundry-price-list.html"), "utf8");
+    const hits: string[] = [];
+    for (const path of WAVE9_PAGE_PATHS) {
+      expect(report.inbound[path]?.count, path).toBeGreaterThanOrEqual(1);
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      const found = wave9BannedHits(wave9AuditedText(html));
+      if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
+      const main = html.match(/<main>([\s\S]*?)<\/main>/)?.[1] ?? "";
+      expect(main, path).toContain("免費收送");
+      expect(main, path).not.toContain("台中全市");
+      expect(main, path).toContain("門市在台中市西屯區");
+      expect(main, path).toContain("西屯門市收件");
+      expect(main, path).toContain("參考價，看過實品再報價");
+      expect(main, path).toContain("https://lin.ee/w8qGVqM");
+      expect(main, path).toContain("@454foyks");
+      expect(main, path).toContain("怎麼送洗");
+      for (const amount of main.match(/[\u4e00-\u9fffA-Z0-9]+ \$\d+/g) ?? []) {
+        expect(price, `${path} ${amount}`).toContain(amount);
+      }
+      expect(html, path).toContain(`<time datetime="${WAVE9_PAGE_LASTMOD}">`);
+      expect(html, path).toContain(`"dateModified":"${WAVE9_PAGE_LASTMOD}"`);
+    }
+    expect(hits).toEqual([]);
+    const xml = readFileSync(join(root, "seo-overrides", "sitemap.xml"), "utf8");
+    for (const path of WAVE9_PAGE_PATHS) {
+      expect(xml, path).toContain(
+        `<loc>https://sixiangjialaundry.com${path}</loc><lastmod>${WAVE9_PAGE_LASTMOD}</lastmod>`
+      );
+    }
+  });
+
+  it("第 9 波插入的內鏈與新問答沒有硬規禁詞", () => {
+    expect(WAVE9_BANNED_MARKERS).toContain("防水處理");
+    expect(WAVE9_BANNED_MARKERS).toContain("回白");
+    const root = repoRootFromHere();
+    const hits: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(full);
+          continue;
+        }
+        if (!entry.name.endsWith(".html") && entry.name !== "answers.json") continue;
+        const text = readFileSync(full, "utf8");
+        if (entry.name.endsWith(".html")) {
+          for (const block of wave9InsertedBlocks(text)) {
+            const found = wave9BannedHits(block);
+            if (found.length > 0) hits.push(`${full}: ${found.join("、")}`);
+          }
+        }
+      }
+    };
+    walk(join(root, "seo-overrides"));
+    const answers = JSON.parse(readFileSync(join(root, "seo-overrides", "answers.json"), "utf8")) as {
+      answers: Array<{ id: string; question: string; answer: string; source_url: string }>;
+    };
+    const wave9Urls = new Set(WAVE9_PAGE_PATHS.map((path) => `https://sixiangjialaundry.com${path}`));
+    const seen = new Set<string>();
+    for (const entry of answers.answers) {
+      if (!wave9Urls.has(entry.source_url)) continue;
+      seen.add(entry.source_url);
+      const found = wave9BannedHits(`${entry.question}\n${entry.answer}`);
+      if (found.length > 0) hits.push(`${entry.id}: ${found.join("、")}`);
+      expect(entry.answer, entry.id).toContain("參考價，看過實品再報價");
+      expect(entry.answer, entry.id).toContain("免費收送");
+      expect(entry.answer, entry.id).not.toContain("台中全市");
+    }
+    expect(hits).toEqual([]);
+    expect(seen.size).toBe(WAVE9_PAGE_PATHS.length);
+  });
+
+  it("店家 JSON-LD 描述拿掉僅西屯與市話，每處修繕都有 LINE 問句", () => {
+    const ask = "能不能做、怎麼算，傳照片到 LINE @454foyks 問";
+    const root = repoRootFromHere();
+    const descHits: string[] = [];
+    const repairHits: string[] = [];
+    for (const path of WAVE9_PAGE_PATHS) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      const raw = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1] ?? "";
+      const graph = (JSON.parse(raw) as { "@graph": Array<Record<string, unknown>> })["@graph"];
+      const business = graph.find((node) => node["@type"] === "DryCleaningOrLaundry");
+      const blurbs = `${business?.["description"] ?? ""}\n${business?.["disambiguatingDescription"] ?? ""}`;
+      for (const term of ["僅西屯", "0968", "04-2452"]) {
+        if (blurbs.includes(term)) descHits.push(`${path} ${term}`);
+      }
+      expect(business?.["disambiguatingDescription"], path).toContain("門市在西屯");
+      expect(business?.["disambiguatingDescription"], path).toContain("LINE @454foyks");
+      expect(business?.["telephone"], path).toBe("+886-4-2452-7411");
+      expect(JSON.stringify(business?.["contactPoint"]), path).toContain("+886-4-2452-7411");
+      expect(JSON.stringify(business?.["contactPoint"]), path).toContain("+886-968-327-653");
+      const footer = html.split("<footer")[1] ?? "";
+      expect(footer, path).toContain("門市在西屯");
+      expect(footer, path).toContain("04-2452-7411");
+      expect(footer, path).toContain("0968-327-653");
+      let cursor = 0;
+      while (cursor < html.length) {
+        const at = html.indexOf("修繕", cursor);
+        if (at < 0) break;
+        const follow = html.slice(at, at + 80);
+        if (!follow.includes(ask)) repairHits.push(`${path} @${at}: ${follow}`);
+        cursor = at + 2;
+      }
+      expect(html, path).not.toContain("我們會修");
+    }
+    expect(descHits).toEqual([]);
+    expect(repairHits).toEqual([]);
+    const frame = readFileSync(join(root, "seo-overrides", "guides", "bag-frame-gap.html"), "utf8");
+    expect(frame).not.toContain("名牌包 $1500");
+    expect(frame).not.toContain("是否另計");
+    expect(frame).toContain("傳照片到 LINE @454foyks 問");
+    const leather = readFileSync(join(root, "seo-overrides", "guides", "leather-bag-crease-lighten.html"), "utf8");
+    expect(leather).not.toContain("摺痕發白");
+    const heel = readFileSync(join(root, "seo-overrides", "guides", "shoe-heel-counter-collapse.html"), "utf8");
+    expect(heel).toContain("跟杯被踩軟");
+    expect(heel).not.toContain("鞋後跟塌了");
+    const phrase = "60 元起，實際價格現場由師傅報價";
+    const knit = readFileSync(join(root, "seo-overrides", "guides", "knit-snag-check.html"), "utf8");
+    const coat = readFileSync(join(root, "seo-overrides", "guides", "coat-cuff-wear.html"), "utf8");
+    expect(knit).toContain(phrase);
+    expect(coat).toContain(phrase);
+    for (const path of [
+      "/guides/shoe-outsole-tread-wear.html",
+      "/guides/shoe-heel-counter-collapse.html",
+      "/guides/shoe-welt-stitch-break.html",
+      "/guides/bag-structure-collapse.html",
+      "/guides/bag-zipper-tape-fray.html",
+      "/guides/bag-frame-gap.html",
+      "/guides/leather-bag-crease-lighten.html"
+    ]) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      expect(html, path).not.toContain("clothing-alteration-with-laundry");
+    }
+    const xml = readFileSync(join(root, "seo-overrides", "sitemap.xml"), "utf8");
+    expect(xml).not.toContain("garment-hem-thread-run");
+  });
+});
+
+it("帶條件的就不整雙做要紅燈，整雙清洗與單獨的顏色移動不紅燈", () => {
+  expect(CONDITIONAL_WHOLE_PAIR_REFUSAL_SOURCE).toBe("就(?:不要|不)整雙做");
+  expect(conditionalWholePairRefusalHits("顏色移動就不整雙做")).toEqual(["就不整雙做"]);
+  expect(conditionalWholePairRefusalHits("不適合就不整雙做")).toEqual(["就不整雙做"]);
+  expect(conditionalWholePairRefusalHits("顏色移動就不要整雙做")).toEqual(["就不要整雙做"]);
+  expect(conditionalWholePairRefusalHits("不適合就不要整雙做")).toEqual(["就不要整雙做"]);
+  expect(conditionalWholePairRefusalHits("測試後顏色移動或絨面發亮，就不要整雙做")).toEqual(["就不要整雙做"]);
+  expect(conditionalWholePairRefusalHits("整雙清洗")).toEqual([]);
+  expect(conditionalWholePairRefusalHits("局部產品可能讓顏色移動")).toEqual([]);
+  expect(wave5BannedHits("顏色移動就不整雙做")).toEqual(["就不整雙做"]);
+  expect(wave5BannedHits("不適合就不要整雙做")).toEqual(["就不要整雙做"]);
+  expect(wave5BannedHits("整雙清洗")).toEqual([]);
+  expect(wave5BannedHits("局部產品可能讓顏色移動")).toEqual([]);
+});
+
+it("第 5 波新頁、新併入段落與新問答沒有禁詞，掃描不排除任何句子", () => {
+    expect(WAVE5_EXTRA_BANNED_MARKERS).toEqual(["第一", "最好", "最大", "最小", "最新", "最終"]);
+    expect(wave5BannedHits("沒有最低消費")).toEqual([]);
+    expect(wave5BannedHits("最好")).toEqual(["最好", "最"]);
+    const root = repoRootFromHere();
+    const hits: string[] = [];
+    for (const path of WAVE5_PAGE_PATHS) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      const found = wave5BannedHits(html);
+      if (found.length > 0) hits.push(`${path}: ${found.join("、")}`);
+      expect(html, path).toContain('rel="canonical" href="https://sixiangjialaundry.com' + path + '"');
+      expect(html, path).toContain('"dateModified":"2026-10-22"');
+    }
+    const blockPages = [...WAVE5_MERGED_PAGE_PATHS];
+    const foundIds = new Set<string>();
+    for (const path of blockPages) {
+      const html = readFileSync(join(root, "seo-overrides", path.slice(1)), "utf8");
+      for (const id of WAVE5_MERGED_BLOCK_IDS) {
+        const match = html.match(new RegExp(`<section\\b[^>]*\\bdata-merged-block="${id}"[^>]*>[\\s\\S]*?<\\/section>`));
+        if (!match) continue;
+        foundIds.add(id);
+        const found = wave5BannedHits(match[0] ?? "");
+        if (found.length > 0) hits.push(`${path}#${id}: ${found.join("、")}`);
+      }
+    }
+    for (const id of WAVE5_MERGED_BLOCK_IDS) {
+      if (!foundIds.has(id)) hits.push(`缺少併入段落 ${id}`);
+    }
+    const answers = JSON.parse(readFileSync(join(root, "seo-overrides", "answers.json"), "utf8")) as {
+      answers: Array<{ id: string; question: string; answer: string; source_url: string }>;
+    };
+    const byId = new Map(answers.answers.map((entry) => [entry.id, entry]));
+    for (const id of WAVE5_ANSWER_IDS) {
+      const entry = byId.get(id);
+      if (!entry) {
+        hits.push(`缺少問答 ${id}`);
+        continue;
+      }
+      const found = wave5BannedHits(`${entry.question}\n${entry.answer}`);
+      if (found.length > 0) hits.push(`${id}: ${found.join("、")}`);
+      if (entry.answer.includes("本頁") || entry.answer.includes("這頁") || entry.question.includes("本頁") || entry.question.includes("這頁")) {
+        hits.push(`${id}: 問答自指`);
+      }
+    }
+    expect(hits).toEqual([]);
+  });
 
 describe("全站禁詞「只補」", () => {
   it("清單鎖定", () => {

@@ -475,15 +475,16 @@ describe("SEO-SYNC-P1 public publication sync", () => {
     expect(hub).toContain("特色影片｜2026-07-03");
   });
 
-  it("leaves a post with no publication records byte-identical to the pre-sync renderer", async () => {
+  it("keeps the reviewed editorial render stable for a post with no publication records", async () => {
     const root = newRoot();
     await seedCalendar(root);
     await generate(root);
     const html = await postHtml(root);
     const digest = createHash("sha256").update(html, "utf8").digest("hex");
-    // Re-pinned 2026-10-31 for owner decision D15 (台中市免費到府收送). The commander diffed the old
-    // render (whose sha matched the previous pin c08f88ae…) against the new one: only pickup-area
-    // wording changed, plus a JSON-LD wordCount of 1927 -> 1914 that follows from it.
-    expect(digest).toBe("f0e6d5130aa03c57f3d4ffa3bbec8c560cb9a97b6d692f0dba28aa2aef911f9c");
+    // Re-pinned 2026-11-10 for the owner's editorial rewrite: topic-specific body,
+    // FAQ/keywords, no unrelated service table/internal intent labels, truthful
+    // content-update date and matching schema. Publication-link behavior is
+    // independently covered above; approved social source records stay unchanged.
+    expect(digest).toBe("a448e9d34bc0135b75f32a28a110361af372acd0319fdb5bc0a57e9cc47d8b27");
   });
 });

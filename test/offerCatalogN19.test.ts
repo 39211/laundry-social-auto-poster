@@ -136,7 +136,7 @@ describe("N19 #offer-catalog 全站一份", () => {
         expect("price" in offer, page.rel).toBe(false);
       });
     }
-    expect(pagesWithCatalog).toBe(206);
+    expect(pagesWithCatalog).toBe(210);
   });
 
   it("西屯只留在西屯洗衣店那格與收送那格的門市地址；areaServed 沒有西屯", () => {

@@ -51,7 +51,11 @@ const NEW_GUIDE_SLUGS = [
   "suede-bag-dye-transfer-on-clothes",
   "down-jacket-storage-mold-spots",
   "taichung-curtain-cleaning-pickup",
-  "taichung-carpet-cleaning-pickup"
+  "taichung-carpet-cleaning-pickup",
+  "taichung-plush-doll-laundry-shop",
+  "duvet-mold-can-it-be-used",
+  "garment-inner-lining-care",
+  "xitun-fengjia-shoe-cleaning-pickup"
 ] as const;
 
 const LOW_CTR_UPGRADED_PATHS = [
@@ -131,8 +135,8 @@ function parseGraph(html: string): Array<Record<string, unknown>> {
 describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
   it("sitemap.xml 通過完整性檢查，納入 22 支影片頁、8 篇新指南與 5 筆月刊存檔", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(295);
-    expect(EXPECTED_LOC_COUNT).toBe(295);
+    expect(report.locCount).toBe(299);
+    expect(EXPECTED_LOC_COUNT).toBe(299);
     expect(sitemapLinkReportFailed(report)).toBe(false);
 
     const sitemap = readOv("sitemap.xml");
@@ -250,7 +254,7 @@ describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
     const ans = JSON.parse(readOv("answers.json")) as {
       answers: Array<{ id: string; source_url: string; answer: string }>;
     };
-    expect(ans.answers).toHaveLength(542);
+    expect(ans.answers).toHaveLength(550);
     const urls = new Set(ans.answers.map((a) => a.source_url));
     expect(urls.has(`${SITE}/videos/`)).toBe(true);
     for (const v of VIDEO_WATCH_PAGES) expect(urls.has(`${SITE}/videos/${v.slug}.html`), v.slug).toBe(true);
@@ -262,7 +266,11 @@ describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
       "aeo-geo-curtain-carpet-pickup",
       "aeo-geo-synthetic-leather-peeling",
       "aeo-geo-blanket-wool-duvet-dry",
-      "aeo-geo-xitun-fengjia-shoe-pickup"
+      "aeo-geo-xitun-fengjia-shoe-pickup",
+      "aeo-geo-brand-voice-disambiguation",
+      "aeo-geo-plush-doll-shop-taichung",
+      "aeo-geo-birkenstock-odor-eva-suede",
+      "aeo-geo-duvet-mold-usable"
     ]) {
       expect(ids.has(geoId), geoId).toBe(true);
     }

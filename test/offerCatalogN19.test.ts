@@ -212,19 +212,89 @@ describe("N19 價格頁 #reference-prices", () => {
     expect(html).not.toMatch(/"name":"名牌包","description":"[^"]*","priceCurrency":"TWD","price":1500/u);
   });
 
-  it("價目表 #price-catalog 仍是 110 筆，沒有被這次改到", () => {
+  it("價目表 #price-catalog 仍是 110 筆，且每筆品名與金額完全對齊 data/prices.json，皮類不寫水洗", () => {
     const html = readFileSync(join(OVERRIDES, "services/taichung-laundry-price-list.html"), "utf8");
-    let offers = 0;
+    const pricesJson = JSON.parse(readFileSync(join(ROOT, "data/prices.json"), "utf8")) as Record<
+      string,
+      Record<string, number | string>
+    >;
+    const flatPrices = new Map<string, number | string>();
+    for (const [cat, group] of Object.entries(pricesJson)) {
+      if (cat === "note" || typeof group !== "object" || !group) continue;
+      for (const [itemName, val] of Object.entries(group)) {
+        flatPrices.set(itemName, val);
+        if (itemName === "修改") flatPrices.set("改衣", val);
+      }
+    }
+
+    const catalogOffers: Json[] = [];
     for (const block of jsonLdBlocks(html)) {
       walk(block, (node) => {
         if (node["@id"] === `${BASE}services/taichung-laundry-price-list.html#price-catalog` && Array.isArray(node.itemListElement)) {
           walk(node.itemListElement, (child) => {
-            if (child["@type"] === "Offer") offers += 1;
+            if (child["@type"] === "Offer") catalogOffers.push(child);
           });
         }
       });
     }
-    expect(offers).toBe(110);
+    expect(catalogOffers).toHaveLength(110);
+
+    const leatherInPriceList = new Set([
+      "皮類運動鞋",
+      "麂皮鞋",
+      "名牌鞋",
+      "皮鞋",
+      "名牌包",
+      "特殊類名牌包",
+      "皮衣",
+      "特殊皮衣",
+      "皮背心",
+      "皮褲",
+      "皮裙",
+      "皮短褲",
+      "皮帽子",
+      "皮帶"
+    ]);
+
+    for (const offer of catalogOffers) {
+      const name = String(offer.name);
+      const expected = flatPrices.get(name);
+      expect(expected, `data/prices.json missing ${name}`).toBeDefined();
+      const desc = String(offer.description ?? "");
+      if (leatherInPriceList.has(name)) {
+        expect(desc, `#price-catalog ${name}`).not.toContain("水洗");
+        expect(desc, `#price-catalog ${name}`).toContain("清潔參考價");
+      }
+      if (name === "名牌包") {
+        expect("price" in offer).toBe(false);
+        expect((offer.priceSpecification as Json)?.minPrice).toBe(1500);
+      } else if (name === "改衣") {
+        expect("price" in offer).toBe(false);
+        expect((offer.priceSpecification as Json)?.minPrice).toBe(60);
+      } else {
+        expect(offer.price, name).toBe(expected);
+      }
+    }
+  });
+
+  it("皮鞋與皮衣價格頁 #reference-prices 補齊乾洗柔洗、發霉、特殊污漬與修繕另計條件，且全頁無「水洗」", () => {
+    const shoeHtml = readFileSync(join(OVERRIDES, "guides/leather-shoe-cleaning-price.html"), "utf8");
+    expect(shoeHtml).not.toContain("水洗");
+    const shoeNode = jsonLdBlocks(shoeHtml)
+      .flatMap((block) => ((block as Json)["@graph"] as Json[] | undefined) ?? [])
+      .find((n) => n["@id"] === `${BASE}guides/leather-shoe-cleaning-price.html#reference-prices`);
+    expect(shoeNode?.description).toBe(
+      "皮鞋清潔參考價 $400；乾洗、柔洗另計，發霉、特殊污漬與特殊材質要看過實品再報價；補色、修補另計，屬修繕，不包含在清潔內。"
+    );
+
+    const garmentHtml = readFileSync(join(OVERRIDES, "guides/leather-garment-cleaning-price.html"), "utf8");
+    expect(garmentHtml).not.toContain("水洗");
+    const garmentNode = jsonLdBlocks(garmentHtml)
+      .flatMap((block) => ((block as Json)["@graph"] as Json[] | undefined) ?? [])
+      .find((n) => n["@id"] === `${BASE}guides/leather-garment-cleaning-price.html#reference-prices`);
+    expect(garmentNode?.description).toBe(
+      "皮衣清潔參考價 $1200、特殊皮衣 $2000；乾洗、柔洗另計，皮革發霉與特殊污漬要看過實品再報價。"
+    );
   });
 });
 

@@ -74,7 +74,7 @@ function htmlFiles(dir: string, acc: string[] = []): string[] {
 describe("2026-11-21 只上新頁", () => {
   it("26 頁進 sitemap、llms、answers，且不要求既有頁加入鏈", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(252);
+    expect(report.locCount).toBe(287);
     expect(report.missing).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(report.duplicateLocs).toEqual([]);
@@ -101,6 +101,25 @@ describe("2026-11-21 只上新頁", () => {
     const newFiles = new Set(PAGES.map((page) => `guides/${page.slug}.html`));
     /** 2026-11-22 點擊加強的 3 個新頁也是新頁，可以連到這 26 頁；既有頁仍然一條都不能加。 */
     for (const slug of ["birkenstock-eva-slipper-odor", "leather-bag-surface-sticky", "clothing-alteration-price"]) {
+      newFiles.add(`guides/${slug}.html`);
+    }
+    /** 2026-11-23 GSC 未索引與影片補齊：22 個 /videos/ 頁＋8 篇新指南也是新頁。 */
+    newFiles.add("videos/index.html");
+    for (const slug of [
+      "duvet-inner-drying-check", "down-jacket-cuff-cleaning", "leather-bag-mold-darkening",
+      "snow-boot-water-mark-cleaning", "light-shoe-drying-yellowing", "wool-coat-hotpot-stain",
+      "wool-sweater-pilling-care", "single-pair-shoe-pickup", "concierge-contactless-pickup",
+      "single-item-laundry-pickup", "canvas-shoe-wash-full-process", "bag-mold-dont-wipe-first",
+      "white-tee-chocolate-icecream-stain", "turtleneck-collar-makeup-stain", "sequin-dress-cleaning-check",
+      "tencel-bedding-care-label", "seasonal-storage-collar-cuff-check", "qipao-storage-yellow-spots",
+      "dry-cleaning-solvent-explained", "jeans-dye-transfer-on-shoes", "cashmere-scarf-shrunk-hardened"
+    ]) {
+      newFiles.add(`videos/${slug}.html`);
+    }
+    for (const slug of [
+      "padded-cotton-jacket-care", "corduroy-garment-care", "mohair-alpaca-coat-care", "shearling-coat-care",
+      "wool-duvet-sun-drying", "nylon-jacket-oil-stain", "backpack-cleaning-price", "shoe-spin-dry-risk"
+    ]) {
       newFiles.add(`guides/${slug}.html`);
     }
     for (const page of PAGES) {

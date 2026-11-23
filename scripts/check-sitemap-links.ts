@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SITE_ORIGIN = "https://sixiangjialaundry.com";
-/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁、第 9 波 9 頁、洗標符號指南 1 頁、送洗前自我檢查 1 頁、棉被羽絨被發霉 1 頁、11/02 新批 8 頁（羊毛被、羽絨被、毛毯、外套、包包、西裝水洗、乾洗縮水、皮鞋價格）、11/02 第二批 2 頁（衣服送洗會洗壞嗎、毛衣縮水怎麼辦），再加選店指南 1 頁（#245 改 self canonical 後漏列），再加 11/09 入冬冬衣 7 頁，再加 11/11 發霉問句 8 頁。東勢、大甲、龍井不進這支。再加 11/11 價格意圖第二批 7 頁。再加 #327/#328/#330/#334/#340 拆出的 26 個新頁（不改既有頁入鏈，所以不列入 hub 入鏈清單）。再加 2026-11-22 點擊加強 3 個新頁（勃肯 EVA、皮包表面黏、修改衣服價格），同樣不改既有頁入鏈。 */
-export const EXPECTED_LOC_COUNT = 252;
+/** 149 減掉 16 個遠區收送套版，再加 B5 第 2 波 5 頁、第 3 波 4 頁、第 4 波 3 頁、第 5 波 5 頁、第 7 波 8 頁、第 8 波 9 頁、第 9 波 9 頁、洗標符號指南 1 頁、送洗前自我檢查 1 頁、棉被羽絨被發霉 1 頁、11/02 新批 8 頁（羊毛被、羽絨被、毛毯、外套、包包、西裝水洗、乾洗縮水、皮鞋價格）、11/02 第二批 2 頁（衣服送洗會洗壞嗎、毛衣縮水怎麼辦），再加選店指南 1 頁（#245 改 self canonical 後漏列），再加 11/09 入冬冬衣 7 頁，再加 11/11 發霉問句 8 頁。東勢、大甲、龍井不進這支。再加 11/11 價格意圖第二批 7 頁。再加 #327/#328/#330/#334/#340 拆出的 26 個新頁（不改既有頁入鏈，所以不列入 hub 入鏈清單）。再加 2026-11-22 點擊加強 3 個新頁（勃肯 EVA、皮包表面黏、修改衣服價格），同樣不改既有頁入鏈。再加 2026-11-23 GSC 未索引與影片補齊：實務影片庫 1 頁＋21 支影片觀賞頁＋8 篇指南頁＋5 筆既有月刊存檔（/journal/2026-07..11/）。 */
+export const EXPECTED_LOC_COUNT = 287;
 
 /**
  * 2026-10-07 同意：這 16 個遠區收送套版改 noindex,follow，移出 sitemap。
@@ -952,6 +952,7 @@ export const SITEWIDE_BANNED_MARKERS = ["只補"] as const;
 
 export function sitewideBannedOffenders(root = repoRootFromHere()): string[] {
   const offenders: string[] = [];
+  const markerBuffers = SITEWIDE_BANNED_MARKERS.map((marker) => [marker, Buffer.from(marker, "utf8")] as const);
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name);
@@ -959,8 +960,8 @@ export function sitewideBannedOffenders(root = repoRootFromHere()): string[] {
         walk(full);
         continue;
       }
-      const text = readFileSync(full, "utf8");
-      const found = SITEWIDE_BANNED_MARKERS.filter((marker) => text.includes(marker));
+      const raw = readFileSync(full);
+      const found = markerBuffers.filter(([, buf]) => raw.includes(buf)).map(([marker]) => marker);
       if (found.length > 0) offenders.push(`${full.slice(root.length).split("\\").join("/")}: ${found.join("、")}`);
     }
   };

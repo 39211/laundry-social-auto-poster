@@ -43,7 +43,32 @@ const NEW_GUIDE_SLUGS = [
   "wool-duvet-sun-drying",
   "nylon-jacket-oil-stain",
   "backpack-cleaning-price",
-  "shoe-spin-dry-risk"
+  "shoe-spin-dry-risk",
+  "synthetic-leather-peeling-care",
+  "faux-suede-water-wash",
+  "blanket-tumble-dry-guide",
+  "luggage-cleaning-service-price",
+  "suede-bag-dye-transfer-on-clothes",
+  "down-jacket-storage-mold-spots",
+  "taichung-curtain-cleaning-pickup",
+  "taichung-carpet-cleaning-pickup"
+] as const;
+
+const LOW_CTR_UPGRADED_PATHS = [
+  "guides/curtain-cleaning.html",
+  "guides/wool-duvet-washing.html",
+  "guides/dry-cleaning-guide.html",
+  "local/donghai-laundry-pickup.html",
+  "local/nantun-laundry-pickup.html",
+  "local/north-district-laundry-pickup.html",
+  "local/beitun-shoe-cleaning.html",
+  "guides/clothing-alteration-with-laundry.html",
+  "guides/bedding-duvet-cleaning.html",
+  "guides/backpack-cleaning-check.html",
+  "local/fengyuan-laundry-pickup.html",
+  "guides/rainy-shoe-care.html",
+  "guides/dry-cleaning-explained.html",
+  "guides/coin-laundry-vs-pickup.html"
 ] as const;
 
 const STUCK_CORE_PATHS = [
@@ -106,8 +131,8 @@ function parseGraph(html: string): Array<Record<string, unknown>> {
 describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
   it("sitemap.xml 通過完整性檢查，納入 22 支影片頁、8 篇新指南與 5 筆月刊存檔", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(287);
-    expect(EXPECTED_LOC_COUNT).toBe(287);
+    expect(report.locCount).toBe(295);
+    expect(EXPECTED_LOC_COUNT).toBe(295);
     expect(sitemapLinkReportFailed(report)).toBe(false);
 
     const sitemap = readOv("sitemap.xml");
@@ -225,10 +250,47 @@ describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
     const ans = JSON.parse(readOv("answers.json")) as {
       answers: Array<{ id: string; source_url: string; answer: string }>;
     };
-    expect(ans.answers).toHaveLength(528);
+    expect(ans.answers).toHaveLength(542);
     const urls = new Set(ans.answers.map((a) => a.source_url));
     expect(urls.has(`${SITE}/videos/`)).toBe(true);
     for (const v of VIDEO_WATCH_PAGES) expect(urls.has(`${SITE}/videos/${v.slug}.html`), v.slug).toBe(true);
     for (const slug of NEW_GUIDE_SLUGS) expect(urls.has(`${SITE}/guides/${slug}.html`), slug).toBe(true);
+    const ids = new Set(ans.answers.map((a) => a.id));
+    for (const geoId of [
+      "aeo-geo-taichung-shoe-price",
+      "aeo-geo-taichung-bag-clean",
+      "aeo-geo-curtain-carpet-pickup",
+      "aeo-geo-synthetic-leather-peeling",
+      "aeo-geo-blanket-wool-duvet-dry",
+      "aeo-geo-xitun-fengjia-shoe-pickup"
+    ]) {
+      expect(ids.has(geoId), geoId).toBe(true);
+    }
+  });
+
+  it("14 個高曝光低 CTR 舊頁改寫後 title／description 四欄一致且無禁詞", () => {
+    for (const rel of LOW_CTR_UPGRADED_PATHS) {
+      const html = readOv(rel);
+      const t = html.match(/<title>([^<]*)<\/title>/u)?.[1] ?? "";
+      const ogT = html.match(/<meta\s+property="og:title"\s+content="([^"]*)"/u)?.[1] ?? "";
+      const twT = html.match(/<meta\s+name="twitter:title"\s+content="([^"]*)"/u)?.[1] ?? "";
+      const d = html.match(/<meta\s+name="description"\s+content="([^"]*)"/u)?.[1] ?? "";
+      const ogD = html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/u)?.[1] ?? "";
+      const twD = html.match(/<meta\s+name="twitter:description"\s+content="([^"]*)"/u)?.[1] ?? "";
+      const graph = parseGraph(html);
+      const wp = graph.find((n) => n["@type"] === "WebPage");
+      expect(t.length, rel).toBeGreaterThan(10);
+      expect(ogT, rel).toBe(t);
+      expect(twT, rel).toBe(t);
+      expect(wp?.["name"], rel).toBe(t);
+      expect(d.length, rel).toBeGreaterThan(20);
+      expect(ogD, rel).toBe(d);
+      expect(twD, rel).toBe(d);
+      expect(wp?.["description"], rel).toBe(d);
+      for (const word of BANNED_IN_MAIN) {
+        expect(t, `${rel} title ${word}`).not.toContain(word);
+        expect(d, `${rel} desc ${word}`).not.toContain(word);
+      }
+    }
   });
 });

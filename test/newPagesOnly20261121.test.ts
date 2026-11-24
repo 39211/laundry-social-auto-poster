@@ -74,7 +74,7 @@ function htmlFiles(dir: string, acc: string[] = []): string[] {
 describe("2026-11-21 只上新頁", () => {
   it("26 頁進 sitemap、llms、answers，且不要求既有頁加入鏈", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(319);
+    expect(report.locCount).toBe(344);
     expect(report.missing).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(report.duplicateLocs).toEqual([]);
@@ -123,7 +123,14 @@ describe("2026-11-21 只上新頁", () => {
       "blanket-washing-machine-size-limit", "blanket-cleaning-price", "wool-duvet-dry-cleaning-price", "down-duvet-mold-and-sun-drying", "blanket-mold-odor-cleaning",
       "plush-doll-cleaning-price", "large-plush-doll-washing", "plush-doll-washing-machine-risk", "plush-doll-battery-music-box-care", "claw-machine-keychain-plush-cleaning",
       "leather-jacket-mold-cleaning-price", "leather-jacket-alcohol-wipe-risk", "leather-skirt-pants-washing-guide",
-      "duvet-quilt-cleaning-price", "ironing-pressing-price", "down-jacket-cleaning-price"
+      "duvet-quilt-cleaning-price", "ironing-pressing-price", "down-jacket-cleaning-price",
+      "where-to-iron-clothes-taichung", "suit-and-dress-steam-pressing", "shirt-ironing-wrinkle-and-starch",
+      "pu-leather-jacket-peeling-fix", "faux-leather-bag-strap-peeling", "bag-leather-sticky-humidity-clean", "bag-inside-lining-sticky-peeling",
+      "clothing-fading-recolor-vs-clean", "white-clothes-dyed-by-dark-laundry", "ballpoint-pen-ink-on-clothes", "jeans-dye-transfer-on-shoes-and-bags",
+      "birkenstock-cork-suede-footbed-clean", "suede-shoe-rain-water-stains", "mesh-and-knit-sneaker-cleaning-price", "taichung-beitun-nantun-shoe-pickup",
+      "bag-mold-cleaning-cost-and-limit", "vachetta-leather-water-stain-care", "nylon-canvas-backpack-mold-wash",
+      "taichung-clothes-laundry-pickup-guide", "taichung-luxury-clothes-dry-cleaning", "gore-tex-jacket-dry-clean-or-wash", "down-jacket-washing-machine-clump",
+      "luggage-cleaning-cost-by-size", "taichung-clothing-alteration-pickup", "plush-doll-specialty-shop-taichung"
     ]) {
       newFiles.add(`guides/${slug}.html`);
     }

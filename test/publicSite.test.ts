@@ -3218,7 +3218,7 @@ describe("generatePublicSite", () => {
       expect(sitemapUrls.filter((item) => item === url), path).toHaveLength(1);
       expect(aiSitemapUrls.filter((item) => item === url), path).toHaveLength(1);
     }
-    expect(EXPECTED_LOC_COUNT).toBe(319);
+    expect(EXPECTED_LOC_COUNT).toBe(344);
 
     // Should have no /posts/ URLs (all slot posts are noindex)
     const postsUrls = sitemapUrls.filter(url => url.includes("/posts/") || url.endsWith("/posts"));

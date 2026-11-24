@@ -383,7 +383,7 @@ function stripAllowed(text: string): string {
 
 describe("2026-11-10 大詞修正包核定句", () => {
   it("seo-overrides HTML 檔數與改前相同", () => {
-    expect(htmlFiles(join(root(), "seo-overrides"))).toHaveLength(365); // 249 + #327/#328/#330/#334/#340 新頁 26 頁 + 2026-11-22 新頁 3 頁 + 2026-11-23 影片庫 22 頁 + 新指南 20 頁 + 2026-11-25 Wave-4 20 頁 + Wave-5 25 頁
+    expect(htmlFiles(join(root(), "seo-overrides"))).toHaveLength(390); // 249 + #327/#328/#330/#334/#340 新頁 26 頁 + 2026-11-22 新頁 3 頁 + 2026-11-23 影片庫 22 頁 + 新指南 20 頁 + 2026-11-25 Wave-4 20 頁 + Wave-5 25 頁
   });
 
   for (const page of PAGES) {

@@ -74,7 +74,7 @@ function htmlFiles(dir: string, acc: string[] = []): string[] {
 describe("2026-11-21 只上新頁", () => {
   it("26 頁進 sitemap、llms、answers，且不要求既有頁加入鏈", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(344);
+    expect(report.locCount).toBe(369);
     expect(report.missing).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(report.duplicateLocs).toEqual([]);
@@ -130,7 +130,32 @@ describe("2026-11-21 只上新頁", () => {
       "birkenstock-cork-suede-footbed-clean", "suede-shoe-rain-water-stains", "mesh-and-knit-sneaker-cleaning-price", "taichung-beitun-nantun-shoe-pickup",
       "bag-mold-cleaning-cost-and-limit", "vachetta-leather-water-stain-care", "nylon-canvas-backpack-mold-wash",
       "taichung-clothes-laundry-pickup-guide", "taichung-luxury-clothes-dry-cleaning", "gore-tex-jacket-dry-clean-or-wash", "down-jacket-washing-machine-clump",
-      "luggage-cleaning-cost-by-size", "taichung-clothing-alteration-pickup", "plush-doll-specialty-shop-taichung"
+      "luggage-cleaning-cost-by-size", "taichung-clothing-alteration-pickup", "plush-doll-specialty-shop-taichung",
+      "mattress-protector-machine-wash-and-dry",
+      "duvet-washing-machine-vs-laundry-shop",
+      "wool-blanket-water-wash-vs-dry-clean",
+      "down-duvet-machine-wash-and-price",
+      "cotton-duvet-mold-laundry-service",
+      "trench-coat-washing-machine-risk",
+      "wool-coat-water-wash-shrink-guide",
+      "sweater-shrink-unshrink-limit",
+      "silk-shirt-and-dress-washing-guide",
+      "clothes-mold-laundry-can-it-be-washed",
+      "padded-jacket-clump-after-wash",
+      "dryer-machine-shoe-drying-risk",
+      "shoes-dyeing-socks-why-and-fix",
+      "glued-insole-how-to-clean-shoes",
+      "synthetic-leather-shoe-peeling-check",
+      "nubuck-vs-suede-shoe-care-guide",
+      "school-backpack-washing-machine-risk",
+      "hiking-backpack-cleaning-service",
+      "wallet-sticky-and-mold-cleaning",
+      "bag-peeling-vs-clean-limit",
+      "bag-zipper-stuck-and-hardware-tarnish",
+      "what-is-dry-cleaning-and-price",
+      "color-bleeding-and-dye-transfer-meaning",
+      "taichung-curtain-laundry-price-and-pickup",
+      "fengyuan-donghai-laundry-and-shoe-pickup"
     ]) {
       newFiles.add(`guides/${slug}.html`);
     }

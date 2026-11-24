@@ -72,7 +72,7 @@ function guide(slug: string): string {
 describe("2026-11-22 點擊加強新頁", () => {
   it("3 頁進 sitemap、llms、answers，lastmod 2026-11-22", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(319);
+    expect(report.locCount).toBe(344);
     expect(report.missing).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(report.duplicateLocs).toEqual([]);
@@ -82,7 +82,7 @@ describe("2026-11-22 點擊加強新頁", () => {
     const answers = JSON.parse(read("seo-overrides/answers.json")) as {
       answers: Array<{ id: string; source_url: string; answer: string }>;
     };
-    expect(answers.answers).toHaveLength(570);
+    expect(answers.answers).toHaveLength(595);
     for (const page of PAGES) {
       const url = `https://sixiangjialaundry.com/guides/${page.slug}.html`;
       expect(sitemap, page.slug).toContain(`<loc>${url}</loc><lastmod>2026-11-22</lastmod>`);
@@ -171,7 +171,32 @@ describe("2026-11-22 點擊加強新頁", () => {
       "leather-skirt-pants-washing-guide",
       "duvet-quilt-cleaning-price",
       "ironing-pressing-price",
-      "down-jacket-cleaning-price"
+      "down-jacket-cleaning-price",
+      "where-to-iron-clothes-taichung",
+      "suit-and-dress-steam-pressing",
+      "shirt-ironing-wrinkle-and-starch",
+      "pu-leather-jacket-peeling-fix",
+      "faux-leather-bag-strap-peeling",
+      "bag-leather-sticky-humidity-clean",
+      "bag-inside-lining-sticky-peeling",
+      "clothing-fading-recolor-vs-clean",
+      "white-clothes-dyed-by-dark-laundry",
+      "ballpoint-pen-ink-on-clothes",
+      "jeans-dye-transfer-on-shoes-and-bags",
+      "birkenstock-cork-suede-footbed-clean",
+      "suede-shoe-rain-water-stains",
+      "mesh-and-knit-sneaker-cleaning-price",
+      "taichung-beitun-nantun-shoe-pickup",
+      "bag-mold-cleaning-cost-and-limit",
+      "vachetta-leather-water-stain-care",
+      "nylon-canvas-backpack-mold-wash",
+      "taichung-clothes-laundry-pickup-guide",
+      "taichung-luxury-clothes-dry-cleaning",
+      "gore-tex-jacket-dry-clean-or-wash",
+      "down-jacket-washing-machine-clump",
+      "luggage-cleaning-cost-by-size",
+      "taichung-clothing-alteration-pickup",
+      "plush-doll-specialty-shop-taichung"
     ]);
     const root = repoRootFromHere();
     const leaks: string[] = [];

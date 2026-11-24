@@ -72,7 +72,7 @@ function guide(slug: string): string {
 describe("2026-11-22 點擊加強新頁", () => {
   it("3 頁進 sitemap、llms、answers，lastmod 2026-11-22", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(344);
+    expect(report.locCount).toBe(369);
     expect(report.missing).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(report.duplicateLocs).toEqual([]);
@@ -82,7 +82,7 @@ describe("2026-11-22 點擊加強新頁", () => {
     const answers = JSON.parse(read("seo-overrides/answers.json")) as {
       answers: Array<{ id: string; source_url: string; answer: string }>;
     };
-    expect(answers.answers).toHaveLength(595);
+    expect(answers.answers).toHaveLength(620);
     for (const page of PAGES) {
       const url = `https://sixiangjialaundry.com/guides/${page.slug}.html`;
       expect(sitemap, page.slug).toContain(`<loc>${url}</loc><lastmod>2026-11-22</lastmod>`);
@@ -196,7 +196,32 @@ describe("2026-11-22 點擊加強新頁", () => {
       "down-jacket-washing-machine-clump",
       "luggage-cleaning-cost-by-size",
       "taichung-clothing-alteration-pickup",
-      "plush-doll-specialty-shop-taichung"
+      "plush-doll-specialty-shop-taichung",
+      "mattress-protector-machine-wash-and-dry",
+      "duvet-washing-machine-vs-laundry-shop",
+      "wool-blanket-water-wash-vs-dry-clean",
+      "down-duvet-machine-wash-and-price",
+      "cotton-duvet-mold-laundry-service",
+      "trench-coat-washing-machine-risk",
+      "wool-coat-water-wash-shrink-guide",
+      "sweater-shrink-unshrink-limit",
+      "silk-shirt-and-dress-washing-guide",
+      "clothes-mold-laundry-can-it-be-washed",
+      "padded-jacket-clump-after-wash",
+      "dryer-machine-shoe-drying-risk",
+      "shoes-dyeing-socks-why-and-fix",
+      "glued-insole-how-to-clean-shoes",
+      "synthetic-leather-shoe-peeling-check",
+      "nubuck-vs-suede-shoe-care-guide",
+      "school-backpack-washing-machine-risk",
+      "hiking-backpack-cleaning-service",
+      "wallet-sticky-and-mold-cleaning",
+      "bag-peeling-vs-clean-limit",
+      "bag-zipper-stuck-and-hardware-tarnish",
+      "what-is-dry-cleaning-and-price",
+      "color-bleeding-and-dye-transfer-meaning",
+      "taichung-curtain-laundry-price-and-pickup",
+      "fengyuan-donghai-laundry-and-shoe-pickup"
     ]);
     const root = repoRootFromHere();
     const leaks: string[] = [];

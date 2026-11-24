@@ -109,6 +109,34 @@ const WAVE5_GUIDE_SLUGS = [
   "plush-doll-specialty-shop-taichung"
 ] as const;
 
+const WAVE6_GUIDE_SLUGS = [
+  "mattress-protector-machine-wash-and-dry",
+  "duvet-washing-machine-vs-laundry-shop",
+  "wool-blanket-water-wash-vs-dry-clean",
+  "down-duvet-machine-wash-and-price",
+  "cotton-duvet-mold-laundry-service",
+  "trench-coat-washing-machine-risk",
+  "wool-coat-water-wash-shrink-guide",
+  "sweater-shrink-unshrink-limit",
+  "silk-shirt-and-dress-washing-guide",
+  "clothes-mold-laundry-can-it-be-washed",
+  "padded-jacket-clump-after-wash",
+  "dryer-machine-shoe-drying-risk",
+  "shoes-dyeing-socks-why-and-fix",
+  "glued-insole-how-to-clean-shoes",
+  "synthetic-leather-shoe-peeling-check",
+  "nubuck-vs-suede-shoe-care-guide",
+  "school-backpack-washing-machine-risk",
+  "hiking-backpack-cleaning-service",
+  "wallet-sticky-and-mold-cleaning",
+  "bag-peeling-vs-clean-limit",
+  "bag-zipper-stuck-and-hardware-tarnish",
+  "what-is-dry-cleaning-and-price",
+  "color-bleeding-and-dye-transfer-meaning",
+  "taichung-curtain-laundry-price-and-pickup",
+  "fengyuan-donghai-laundry-and-shoe-pickup"
+] as const;
+
 const ORPHAN_FIXED_SLUGS = [
   "corduroy-garment-care",
   "nylon-jacket-oil-stain",
@@ -192,8 +220,8 @@ function parseGraph(html: string): Array<Record<string, unknown>> {
 describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
   it("sitemap.xml 通過完整性檢查，納入 22 支影片頁、8 篇新指南與 5 筆月刊存檔", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(344);
-    expect(EXPECTED_LOC_COUNT).toBe(344);
+    expect(report.locCount).toBe(369);
+    expect(EXPECTED_LOC_COUNT).toBe(369);
     expect(sitemapLinkReportFailed(report)).toBe(false);
 
     const sitemap = readOv("sitemap.xml");
@@ -311,13 +339,14 @@ describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
     const ans = JSON.parse(readOv("answers.json")) as {
       answers: Array<{ id: string; source_url: string; answer: string }>;
     };
-    expect(ans.answers).toHaveLength(595);
+    expect(ans.answers).toHaveLength(620);
     const urls = new Set(ans.answers.map((a) => a.source_url));
     expect(urls.has(`${SITE}/videos/`)).toBe(true);
     for (const v of VIDEO_WATCH_PAGES) expect(urls.has(`${SITE}/videos/${v.slug}.html`), v.slug).toBe(true);
     for (const slug of NEW_GUIDE_SLUGS) expect(urls.has(`${SITE}/guides/${slug}.html`), slug).toBe(true);
     for (const slug of WAVE4_GUIDE_SLUGS) expect(urls.has(`${SITE}/guides/${slug}.html`), slug).toBe(true);
     for (const slug of WAVE5_GUIDE_SLUGS) expect(urls.has(`${SITE}/guides/${slug}.html`), slug).toBe(true);
+    for (const slug of WAVE6_GUIDE_SLUGS) expect(urls.has(`${SITE}/guides/${slug}.html`), slug).toBe(true);
     const ids = new Set(ans.answers.map((a) => a.id));
     for (const geoId of [
       "aeo-geo-taichung-shoe-price",
@@ -363,7 +392,7 @@ describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
 
   it("知識庫納入全部 40 篇新指南、3 篇原孤島頁皆有 >= 5 條站內入鏈，且 Wave-4 20 頁符合價格／禁字／無影片規範", () => {
     const knowledgeHtml = readOv("knowledge/index.html");
-    for (const slug of [...NEW_GUIDE_SLUGS, ...WAVE4_GUIDE_SLUGS, ...WAVE5_GUIDE_SLUGS]) {
+    for (const slug of [...NEW_GUIDE_SLUGS, ...WAVE4_GUIDE_SLUGS, ...WAVE5_GUIDE_SLUGS, ...WAVE6_GUIDE_SLUGS]) {
       expect(knowledgeHtml, `knowledge missing ${slug}`).toContain(`href="${SITE}/guides/${slug}.html"`);
     }
 
@@ -398,7 +427,7 @@ describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
 
     const sitemap = readOv("sitemap.xml");
     const llms = readOv("llms.txt");
-    for (const slug of [...WAVE4_GUIDE_SLUGS, ...WAVE5_GUIDE_SLUGS]) {
+    for (const slug of [...WAVE4_GUIDE_SLUGS, ...WAVE5_GUIDE_SLUGS, ...WAVE6_GUIDE_SLUGS]) {
       const rel = `guides/${slug}.html`;
       const html = readOv(rel);
       const main = mainOf(html);

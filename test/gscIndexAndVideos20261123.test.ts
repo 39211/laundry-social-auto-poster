@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -56,6 +56,35 @@ const NEW_GUIDE_SLUGS = [
   "duvet-mold-can-it-be-used",
   "garment-inner-lining-care",
   "xitun-fengjia-shoe-cleaning-pickup"
+] as const;
+
+const WAVE4_GUIDE_SLUGS = [
+  "suede-jacket-water-wash-or-dry-clean",
+  "suede-jacket-mold-and-oil-stain",
+  "suede-jacket-cleaning-price",
+  "suede-garment-shirt-skirt-care",
+  "blanket-washing-machine-size-limit",
+  "blanket-cleaning-price",
+  "wool-duvet-dry-cleaning-price",
+  "down-duvet-mold-and-sun-drying",
+  "blanket-mold-odor-cleaning",
+  "plush-doll-cleaning-price",
+  "large-plush-doll-washing",
+  "plush-doll-washing-machine-risk",
+  "plush-doll-battery-music-box-care",
+  "claw-machine-keychain-plush-cleaning",
+  "leather-jacket-mold-cleaning-price",
+  "leather-jacket-alcohol-wipe-risk",
+  "leather-skirt-pants-washing-guide",
+  "duvet-quilt-cleaning-price",
+  "ironing-pressing-price",
+  "down-jacket-cleaning-price"
+] as const;
+
+const ORPHAN_FIXED_SLUGS = [
+  "corduroy-garment-care",
+  "nylon-jacket-oil-stain",
+  "shearling-coat-care"
 ] as const;
 
 const LOW_CTR_UPGRADED_PATHS = [
@@ -135,8 +164,8 @@ function parseGraph(html: string): Array<Record<string, unknown>> {
 describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
   it("sitemap.xml 通過完整性檢查，納入 22 支影片頁、8 篇新指南與 5 筆月刊存檔", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(299);
-    expect(EXPECTED_LOC_COUNT).toBe(299);
+    expect(report.locCount).toBe(319);
+    expect(EXPECTED_LOC_COUNT).toBe(319);
     expect(sitemapLinkReportFailed(report)).toBe(false);
 
     const sitemap = readOv("sitemap.xml");
@@ -254,11 +283,12 @@ describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
     const ans = JSON.parse(readOv("answers.json")) as {
       answers: Array<{ id: string; source_url: string; answer: string }>;
     };
-    expect(ans.answers).toHaveLength(550);
+    expect(ans.answers).toHaveLength(570);
     const urls = new Set(ans.answers.map((a) => a.source_url));
     expect(urls.has(`${SITE}/videos/`)).toBe(true);
     for (const v of VIDEO_WATCH_PAGES) expect(urls.has(`${SITE}/videos/${v.slug}.html`), v.slug).toBe(true);
     for (const slug of NEW_GUIDE_SLUGS) expect(urls.has(`${SITE}/guides/${slug}.html`), slug).toBe(true);
+    for (const slug of WAVE4_GUIDE_SLUGS) expect(urls.has(`${SITE}/guides/${slug}.html`), slug).toBe(true);
     const ids = new Set(ans.answers.map((a) => a.id));
     for (const geoId of [
       "aeo-geo-taichung-shoe-price",
@@ -298,6 +328,71 @@ describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
       for (const word of BANNED_IN_MAIN) {
         expect(t, `${rel} title ${word}`).not.toContain(word);
         expect(d, `${rel} desc ${word}`).not.toContain(word);
+      }
+    }
+  });
+
+  it("知識庫納入全部 40 篇新指南、3 篇原孤島頁皆有 >= 5 條站內入鏈，且 Wave-4 20 頁符合價格／禁字／無影片規範", () => {
+    const knowledgeHtml = readOv("knowledge/index.html");
+    for (const slug of [...NEW_GUIDE_SLUGS, ...WAVE4_GUIDE_SLUGS]) {
+      expect(knowledgeHtml, `knowledge missing ${slug}`).toContain(`href="${SITE}/guides/${slug}.html"`);
+    }
+
+    const overridesDir = join(repoRootFromHere(), "seo-overrides");
+    const walkHtml = (dir: string, acc: string[] = []): string[] => {
+      for (const name of readdirSync(dir)) {
+        const full = join(dir, name);
+        if (statSync(full).isDirectory()) walkHtml(full, acc);
+        else if (name.endsWith(".html")) acc.push(full);
+      }
+      return acc;
+    };
+    const allHtml = walkHtml(overridesDir).map((f) => ({
+      rel: f.slice(overridesDir.length + 1).replaceAll("\\", "/"),
+      txt: readFileSync(f, "utf8")
+    }));
+    for (const slug of ORPHAN_FIXED_SLUGS) {
+      const needle = `/guides/${slug}.html`;
+      const inlinks = allHtml.filter((p) => p.rel !== `guides/${slug}.html` && p.txt.includes(needle));
+      expect(inlinks.length, `${slug} inbound count`).toBeGreaterThanOrEqual(5);
+    }
+
+    const pricesJson = JSON.parse(readFileSync(join(repoRootFromHere(), "data", "prices.json"), "utf8")) as Record<
+      string,
+      Record<string, number> | string
+    >;
+    const allowedPrices = new Set<string>();
+    for (const [cat, val] of Object.entries(pricesJson)) {
+      if (cat === "note" || typeof val !== "object" || !val) continue;
+      for (const p of Object.values(val)) allowedPrices.add(`$${p}`);
+    }
+
+    const sitemap = readOv("sitemap.xml");
+    const llms = readOv("llms.txt");
+    for (const slug of WAVE4_GUIDE_SLUGS) {
+      const rel = `guides/${slug}.html`;
+      const html = readOv(rel);
+      const main = mainOf(html);
+      const url = `${SITE}/guides/${slug}.html`;
+
+      expect(sitemap, slug).toContain(`<loc>${url}</loc><lastmod>2026-11-25</lastmod>`);
+      expect(llms, slug).toContain(url);
+      expect(html, slug).toContain(`<link rel="canonical" href="${url}" />`);
+      expect(html, slug).not.toContain("<video");
+      expect(html, slug).not.toContain("<iframe");
+      for (const word of BANNED_IN_MAIN) expect(main, `${slug} ${word}`).not.toContain(word);
+      for (const word of SITEWIDE_BANNED_MARKERS) expect(html, `${slug} ${word}`).not.toContain(word);
+      expect(main, `${slug} 台中全市`).not.toContain("台中全市");
+      expect(main, slug).toContain("東海只有收送");
+      expect(main, slug).toContain("青海路二段365號");
+
+      const priceMatches = main.match(/\$\d+/g) ?? [];
+      if (priceMatches.length > 0) {
+        expect(main, slug).toContain("參考價");
+        expect(main, slug).toContain("看過實品再報價");
+        for (const p of priceMatches) {
+          expect(allowedPrices.has(p), `${slug} unexpected price ${p}`).toBe(true);
+        }
       }
     }
   });

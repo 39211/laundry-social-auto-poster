@@ -72,7 +72,7 @@ function guide(slug: string): string {
 describe("2026-11-22 點擊加強新頁", () => {
   it("3 頁進 sitemap、llms、answers，lastmod 2026-11-22", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(299);
+    expect(report.locCount).toBe(319);
     expect(report.missing).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(report.duplicateLocs).toEqual([]);
@@ -82,7 +82,7 @@ describe("2026-11-22 點擊加強新頁", () => {
     const answers = JSON.parse(read("seo-overrides/answers.json")) as {
       answers: Array<{ id: string; source_url: string; answer: string }>;
     };
-    expect(answers.answers).toHaveLength(550);
+    expect(answers.answers).toHaveLength(570);
     for (const page of PAGES) {
       const url = `https://sixiangjialaundry.com/guides/${page.slug}.html`;
       expect(sitemap, page.slug).toContain(`<loc>${url}</loc><lastmod>2026-11-22</lastmod>`);
@@ -151,7 +151,27 @@ describe("2026-11-22 點擊加強新頁", () => {
       "luxury-garment-cleaning-price",
       "laundry-pickup-process-turnaround",
       "synthetic-leather-peeling-care",
-      "garment-inner-lining-care"
+      "garment-inner-lining-care",
+      "suede-jacket-water-wash-or-dry-clean",
+      "suede-jacket-mold-and-oil-stain",
+      "suede-jacket-cleaning-price",
+      "suede-garment-shirt-skirt-care",
+      "blanket-washing-machine-size-limit",
+      "blanket-cleaning-price",
+      "wool-duvet-dry-cleaning-price",
+      "down-duvet-mold-and-sun-drying",
+      "blanket-mold-odor-cleaning",
+      "plush-doll-cleaning-price",
+      "large-plush-doll-washing",
+      "plush-doll-washing-machine-risk",
+      "plush-doll-battery-music-box-care",
+      "claw-machine-keychain-plush-cleaning",
+      "leather-jacket-mold-cleaning-price",
+      "leather-jacket-alcohol-wipe-risk",
+      "leather-skirt-pants-washing-guide",
+      "duvet-quilt-cleaning-price",
+      "ironing-pressing-price",
+      "down-jacket-cleaning-price"
     ]);
     const root = repoRootFromHere();
     const leaks: string[] = [];

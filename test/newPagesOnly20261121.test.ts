@@ -74,7 +74,7 @@ function htmlFiles(dir: string, acc: string[] = []): string[] {
 describe("2026-11-21 只上新頁", () => {
   it("26 頁進 sitemap、llms、answers，且不要求既有頁加入鏈", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(299);
+    expect(report.locCount).toBe(319);
     expect(report.missing).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(report.duplicateLocs).toEqual([]);
@@ -118,7 +118,12 @@ describe("2026-11-21 只上新頁", () => {
     }
     for (const slug of [
       "padded-cotton-jacket-care", "corduroy-garment-care", "mohair-alpaca-coat-care", "shearling-coat-care",
-      "wool-duvet-sun-drying", "nylon-jacket-oil-stain", "backpack-cleaning-price", "shoe-spin-dry-risk", "synthetic-leather-peeling-care", "faux-suede-water-wash", "blanket-tumble-dry-guide", "luggage-cleaning-service-price", "suede-bag-dye-transfer-on-clothes", "down-jacket-storage-mold-spots", "taichung-curtain-cleaning-pickup", "taichung-carpet-cleaning-pickup", "taichung-plush-doll-laundry-shop", "duvet-mold-can-it-be-used", "garment-inner-lining-care", "xitun-fengjia-shoe-cleaning-pickup"
+      "wool-duvet-sun-drying", "nylon-jacket-oil-stain", "backpack-cleaning-price", "shoe-spin-dry-risk", "synthetic-leather-peeling-care", "faux-suede-water-wash", "blanket-tumble-dry-guide", "luggage-cleaning-service-price", "suede-bag-dye-transfer-on-clothes", "down-jacket-storage-mold-spots", "taichung-curtain-cleaning-pickup", "taichung-carpet-cleaning-pickup", "taichung-plush-doll-laundry-shop", "duvet-mold-can-it-be-used", "garment-inner-lining-care", "xitun-fengjia-shoe-cleaning-pickup",
+      "suede-jacket-water-wash-or-dry-clean", "suede-jacket-mold-and-oil-stain", "suede-jacket-cleaning-price", "suede-garment-shirt-skirt-care",
+      "blanket-washing-machine-size-limit", "blanket-cleaning-price", "wool-duvet-dry-cleaning-price", "down-duvet-mold-and-sun-drying", "blanket-mold-odor-cleaning",
+      "plush-doll-cleaning-price", "large-plush-doll-washing", "plush-doll-washing-machine-risk", "plush-doll-battery-music-box-care", "claw-machine-keychain-plush-cleaning",
+      "leather-jacket-mold-cleaning-price", "leather-jacket-alcohol-wipe-risk", "leather-skirt-pants-washing-guide",
+      "duvet-quilt-cleaning-price", "ironing-pressing-price", "down-jacket-cleaning-price"
     ]) {
       newFiles.add(`guides/${slug}.html`);
     }

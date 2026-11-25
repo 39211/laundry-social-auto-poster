@@ -53,10 +53,11 @@ const PAGES = [
     phone: 6
   },
   {
+    // 2026-11-26 豪鑫核准（N20 行銷裁定）：description 首句改成到府收件准用句；title 不動。
     path: "services/taichung-citywide-laundry-pickup.html",
     title: "衣服送洗怎麼約？台中全市免費收送、沒有最低消費，一件也收｜私享家洗衣店",
     description:
-      "衣服送洗怎麼約？台中全市免費收送、沒有最低消費，洗衣、洗鞋、洗包一件也收。先用 LINE 傳照片確認材質狀態，再約收件時間（LINE 官方 @454foyks，或 LINE 0968327653）。洗鞋一般約一個禮拜可以拿。參考價，看過實品再報價。",
+      "台中到府收件、洗好送回：台中全市免費收送、沒有最低消費，一件也收。先用 LINE 傳照片確認材質狀態，再約收件時間（LINE 官方 @454foyks，或 LINE 0968327653）。洗鞋一般約一個禮拜可以拿。參考價，看過實品再報價。",
     h1: '<h1 data-reveal="" style="flex:1 1 560px;margin:0;font-size:clamp(48px,8vw,132px);line-height:0.98;letter-spacing:-0.045em;font-weight:900">免費收送，<br><span style="color:var(--color-accent)">一件也收。</span></h1>',
     line: 14,
     phone: 5

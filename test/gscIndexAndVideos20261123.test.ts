@@ -220,8 +220,8 @@ function parseGraph(html: string): Array<Record<string, unknown>> {
 describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
   it("sitemap.xml 通過完整性檢查，納入 22 支影片頁、8 篇新指南與 5 筆月刊存檔", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(369);
-    expect(EXPECTED_LOC_COUNT).toBe(369);
+    expect(report.locCount).toBe(379);
+    expect(EXPECTED_LOC_COUNT).toBe(379);
     expect(sitemapLinkReportFailed(report)).toBe(false);
 
     const sitemap = readOv("sitemap.xml");
@@ -339,7 +339,7 @@ describe("2026-11-23 GSC 未索引與影片觀賞頁補齊", () => {
     const ans = JSON.parse(readOv("answers.json")) as {
       answers: Array<{ id: string; source_url: string; answer: string }>;
     };
-    expect(ans.answers).toHaveLength(620);
+    expect(ans.answers).toHaveLength(630);
     const urls = new Set(ans.answers.map((a) => a.source_url));
     expect(urls.has(`${SITE}/videos/`)).toBe(true);
     for (const v of VIDEO_WATCH_PAGES) expect(urls.has(`${SITE}/videos/${v.slug}.html`), v.slug).toBe(true);

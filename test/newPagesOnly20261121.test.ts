@@ -74,7 +74,7 @@ function htmlFiles(dir: string, acc: string[] = []): string[] {
 describe("2026-11-21 只上新頁", () => {
   it("26 頁進 sitemap、llms、answers，且不要求既有頁加入鏈", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(369);
+    expect(report.locCount).toBe(379);
     expect(report.missing).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(report.duplicateLocs).toEqual([]);
@@ -155,7 +155,17 @@ describe("2026-11-21 只上新頁", () => {
       "what-is-dry-cleaning-and-price",
       "color-bleeding-and-dye-transfer-meaning",
       "taichung-curtain-laundry-price-and-pickup",
-      "fengyuan-donghai-laundry-and-shoe-pickup"
+      "fengyuan-donghai-laundry-and-shoe-pickup",
+      "valet-laundry-pricing-guide",
+      "fine-laundry-vs-regular-wash",
+      "cloth-shoe-washing-guide",
+      "wool-duvet-accidentally-washed",
+      "trench-coat-tumble-dry-limit",
+      "what-is-wool-felting",
+      "genuine-leather-bag-wash-limit",
+      "leather-jacket-wash-or-not",
+      "pants-tumble-dry-shrink",
+      "wool-cotton-quilt-washing"
     ]) {
       newFiles.add(`guides/${slug}.html`);
     }

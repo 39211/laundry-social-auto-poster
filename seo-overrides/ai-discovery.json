@@ -642,7 +642,17 @@
     "https://sixiangjialaundry.com/guides/what-is-dry-cleaning-and-price.html",
     "https://sixiangjialaundry.com/guides/color-bleeding-and-dye-transfer-meaning.html",
     "https://sixiangjialaundry.com/guides/taichung-curtain-laundry-price-and-pickup.html",
-    "https://sixiangjialaundry.com/guides/fengyuan-donghai-laundry-and-shoe-pickup.html"
+    "https://sixiangjialaundry.com/guides/fengyuan-donghai-laundry-and-shoe-pickup.html",
+    "https://sixiangjialaundry.com/guides/valet-laundry-pricing-guide.html",
+    "https://sixiangjialaundry.com/guides/fine-laundry-vs-regular-wash.html",
+    "https://sixiangjialaundry.com/guides/cloth-shoe-washing-guide.html",
+    "https://sixiangjialaundry.com/guides/wool-duvet-accidentally-washed.html",
+    "https://sixiangjialaundry.com/guides/trench-coat-tumble-dry-limit.html",
+    "https://sixiangjialaundry.com/guides/what-is-wool-felting.html",
+    "https://sixiangjialaundry.com/guides/genuine-leather-bag-wash-limit.html",
+    "https://sixiangjialaundry.com/guides/leather-jacket-wash-or-not.html",
+    "https://sixiangjialaundry.com/guides/pants-tumble-dry-shrink.html",
+    "https://sixiangjialaundry.com/guides/wool-cotton-quilt-washing.html"
   ],
   "capabilities": {
     "supports_daily_updates": true,
@@ -4942,6 +4952,86 @@
       "description": "在台中豐原、東海商圈或北區想找洗衣店推薦、洗鞋、襯衫送洗或改衣服，卻不想特地載著大包小包跑門市？私享家唯一門市在西屯區青海路二段365號（至善國中對面），東海、豐原、北區無實體分店，均由門市專車提供免費收送、沒有最低消費。襯衫 $70、一般運動鞋 $250、整燙 $50、修改 $60 起（參考價，看過實品再報價）。",
       "url": "https://sixiangjialaundry.com/guides/fengyuan-donghai-laundry-and-shoe-pickup.html",
       "lastmod": "2026-11-25"
+    },
+    {
+      "slug": "valet-laundry-pricing-guide",
+      "category": "guide",
+      "title": "代客洗衣是什麼？代洗代烘怎麼計價｜私享家洗衣店",
+      "description": "代客洗衣、代洗代烘是把衣物交給店家洗烘摺，不是自助投幣。私享家按品項參考價，厚外套 $180、運動鞋 $250 起、名牌包 $1500 起，看過實品再報價。台中市全區免費收送、沒有最低消費。",
+      "url": "https://sixiangjialaundry.com/guides/valet-laundry-pricing-guide.html",
+      "lastmod": "2026-11-26"
+    },
+    {
+      "slug": "fine-laundry-vs-regular-wash",
+      "category": "guide",
+      "title": "精緻洗衣是什麼？和一般洗衣差在哪｜私享家洗衣店",
+      "description": "精緻洗衣、專業洗衣是單件看洗標、內裡與飾件，水洗和只能乾洗的衣物分開，不是整袋丟進同一槽。厚外套 $180、長大衣 $300、名牌包 $1500 起，參考價，看過實品再報價。",
+      "url": "https://sixiangjialaundry.com/guides/fine-laundry-vs-regular-wash.html",
+      "lastmod": "2026-11-26"
+    },
+    {
+      "slug": "cloth-shoe-washing-guide",
+      "category": "guide",
+      "title": "布鞋怎麼洗？能不能丟洗衣機｜私享家洗衣店",
+      "description": "布鞋先看洗標、膠底接縫與鞋墊。帆布或棉布休閒鞋不要整雙丟洗衣機，也不能用家用烘衣機。布鞋沒有單獨公開價，看過實品再報價。洗鞋 5～7 天。",
+      "url": "https://sixiangjialaundry.com/guides/cloth-shoe-washing-guide.html",
+      "lastmod": "2026-11-26"
+    },
+    {
+      "slug": "wool-duvet-accidentally-washed",
+      "category": "guide",
+      "title": "羊毛被不小心水洗了怎麼辦｜私享家洗衣店",
+      "description": "羊毛被已經下水，先不要再烘、不要拉、不要曬烈日。變厚變硬且織紋糊掉是縮絨，尺寸回不去。織紋還在的只能盡量整理。大件約 10～14 天，看過實品再報價。",
+      "url": "https://sixiangjialaundry.com/guides/wool-duvet-accidentally-washed.html",
+      "lastmod": "2026-11-26"
+    },
+    {
+      "slug": "trench-coat-tumble-dry-limit",
+      "category": "guide",
+      "title": "風衣可以烘乾嗎？先看洗標與塗層｜私享家洗衣店",
+      "description": "風衣可以烘乾嗎，先看洗標。沒有烘乾符號就不要丟家用烘衣機。塗層、皮扣與雙層內裡遇高熱容易發黏、變硬、皺摺定住。不能烘的用店內除溼技術快速乾燥。",
+      "url": "https://sixiangjialaundry.com/guides/trench-coat-tumble-dry-limit.html",
+      "lastmod": "2026-11-26"
+    },
+    {
+      "slug": "what-is-wool-felting",
+      "category": "guide",
+      "title": "縮絨是什麼？毛衣變硬變小怎麼判斷｜私享家洗衣店",
+      "description": "縮絨是羊毛、羊絨的鱗片在水、熱、摩擦下咬住，布變厚、變硬、變小，織目糊掉。這和棉布熱縮不同。織紋糊掉就拉不回原來尺寸。看過實品再報價。",
+      "url": "https://sixiangjialaundry.com/guides/what-is-wool-felting.html",
+      "lastmod": "2026-11-26"
+    },
+    {
+      "slug": "genuine-leather-bag-wash-limit",
+      "category": "guide",
+      "title": "真皮包可以水洗嗎？洗皮包前先看｜私享家洗衣店",
+      "description": "真皮包不要整只泡水，也不要丟洗衣機。確認是真皮之後做局部清潔。水痕與發黃只能淡化。皮包 $1000、名牌包 $1500 起，參考價，看過實品再報價。內裡重黏約 14 天。",
+      "url": "https://sixiangjialaundry.com/guides/genuine-leather-bag-wash-limit.html",
+      "lastmod": "2026-11-26"
+    },
+    {
+      "slug": "leather-jacket-wash-or-not",
+      "category": "guide",
+      "title": "皮外套可以水洗嗎？怎麼洗先看洗標｜私享家洗衣店",
+      "description": "皮外套不要當布外套丟洗衣機，也不要整件泡水。洗標寫只能乾洗就照洗標，但要先分光面皮、塗層皮或麂皮。發黃只能淡化。皮外套不寫固定價，看過實品再報價。",
+      "url": "https://sixiangjialaundry.com/guides/leather-jacket-wash-or-not.html",
+      "lastmod": "2026-11-26"
+    },
+    {
+      "slug": "pants-tumble-dry-shrink",
+      "category": "guide",
+      "title": "褲子烘乾縮水怎麼辦｜私享家洗衣店",
+      "description": "褲子烘乾變短，先分棉質熱縮或羊毛縮絨。棉褲布紋還在，多半是受熱收縮，再高熱不會拉回原尺寸。不能烘的用店內除溼技術快速乾燥。看過實品再報價。",
+      "url": "https://sixiangjialaundry.com/guides/pants-tumble-dry-shrink.html",
+      "lastmod": "2026-11-26"
+    },
+    {
+      "slug": "wool-cotton-quilt-washing",
+      "category": "guide",
+      "title": "羊毛棉被可以洗嗎？和純羊毛被差在哪｜私享家洗衣店",
+      "description": "羊毛棉被先看洗標的表布與填充。含羊毛的填充遇水攪拌仍可能縮絨，不能直接套純棉被或純羊毛被的做法。不能烘的用店內除溼技術快速乾燥。大件約 10～14 天。",
+      "url": "https://sixiangjialaundry.com/guides/wool-cotton-quilt-washing.html",
+      "lastmod": "2026-11-26"
     }
   ],
   "content_contract": {

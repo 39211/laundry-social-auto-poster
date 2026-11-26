@@ -72,7 +72,7 @@ function guide(slug: string): string {
 describe("2026-11-22 點擊加強新頁", () => {
   it("3 頁進 sitemap、llms、answers，lastmod 2026-11-22", () => {
     const report = checkSitemapLinks();
-    expect(report.locCount).toBe(369);
+    expect(report.locCount).toBe(379);
     expect(report.missing).toEqual([]);
     expect(report.missingInbound).toEqual([]);
     expect(report.duplicateLocs).toEqual([]);
@@ -82,7 +82,7 @@ describe("2026-11-22 點擊加強新頁", () => {
     const answers = JSON.parse(read("seo-overrides/answers.json")) as {
       answers: Array<{ id: string; source_url: string; answer: string }>;
     };
-    expect(answers.answers).toHaveLength(620);
+    expect(answers.answers).toHaveLength(630);
     for (const page of PAGES) {
       const url = `https://sixiangjialaundry.com/guides/${page.slug}.html`;
       expect(sitemap, page.slug).toContain(`<loc>${url}</loc><lastmod>2026-11-22</lastmod>`);

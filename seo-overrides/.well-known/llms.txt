@@ -358,6 +358,16 @@ This is the curated AI entry point. Read this file first, then choose the smalle
 - [乾洗是什麼原理？與水洗差別、必乾洗衣物與公開參考價](https://sixiangjialaundry.com/guides/what-is-dry-cleaning-and-price.html): guide page for high-intent and long-tail search queries.
 - [衣服串色、色移是什麼意思？混洗染色急救與送洗參考價](https://sixiangjialaundry.com/guides/color-bleeding-and-dye-transfer-meaning.html): guide page for high-intent and long-tail search queries.
 - [洗衣店可以洗窗簾嗎？台中窗簾送洗檢查重點與免費收送](https://sixiangjialaundry.com/guides/taichung-curtain-laundry-price-and-pickup.html): guide page for high-intent and long-tail search queries.
+- [代客洗衣是什麼？代洗代烘怎麼計價](https://sixiangjialaundry.com/guides/valet-laundry-pricing-guide.html): guide page for high-intent and long-tail search queries.
+- [精緻洗衣是什麼？和一般洗衣差在哪](https://sixiangjialaundry.com/guides/fine-laundry-vs-regular-wash.html): guide page for high-intent and long-tail search queries.
+- [布鞋怎麼洗？能不能丟洗衣機](https://sixiangjialaundry.com/guides/cloth-shoe-washing-guide.html): guide page for high-intent and long-tail search queries.
+- [羊毛被不小心水洗了怎麼辦](https://sixiangjialaundry.com/guides/wool-duvet-accidentally-washed.html): guide page for high-intent and long-tail search queries.
+- [風衣可以烘乾嗎？先看洗標與塗層](https://sixiangjialaundry.com/guides/trench-coat-tumble-dry-limit.html): guide page for high-intent and long-tail search queries.
+- [縮絨是什麼？毛衣變硬變小怎麼判斷](https://sixiangjialaundry.com/guides/what-is-wool-felting.html): guide page for high-intent and long-tail search queries.
+- [真皮包可以水洗嗎？洗皮包前先看](https://sixiangjialaundry.com/guides/genuine-leather-bag-wash-limit.html): guide page for high-intent and long-tail search queries.
+- [皮外套可以水洗嗎？怎麼洗先看洗標](https://sixiangjialaundry.com/guides/leather-jacket-wash-or-not.html): guide page for high-intent and long-tail search queries.
+- [褲子烘乾縮水怎麼辦](https://sixiangjialaundry.com/guides/pants-tumble-dry-shrink.html): guide page for high-intent and long-tail search queries.
+- [羊毛棉被可以洗嗎？和純羊毛被差在哪](https://sixiangjialaundry.com/guides/wool-cotton-quilt-washing.html): guide page for high-intent and long-tail search queries.
 - [JSON Feed](https://sixiangjialaundry.com/feed.json): chronological update feed for readers and AI ingestion.
 - [Knowledge graph](https://sixiangjialaundry.com/knowledge-graph.json): Schema.org JSON-LD business, dataset, post, and image entities.
 - [AI discovery index](https://sixiangjialaundry.com/ai-discovery.json): machine-readable map of every AI/SEO endpoint.

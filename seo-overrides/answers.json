@@ -15304,6 +15304,274 @@
           "週日公休"
         ]
       }
+    },
+    {
+      "id": "valet-laundry-pricing-guide-page-summary",
+      "type": "guide_summary",
+      "question": "代客洗衣是什麼？代洗代烘怎麼計價",
+      "answer": "代客洗衣是把衣服、鞋子或包包交給洗衣店完成洗、烘、摺；代洗代烘是同一件事的另一種說法。私享家洗衣店做的是依洗標單件處理，加上到府收送，不是自助投幣店，因此不公布投幣價格。計價按品項：厚外套 $180、羽絨外套 $280、長大衣 $300、一般運動鞋 $250 起、童鞋 $150、涼鞋 $200、麂皮鞋 $400、高爾夫球鞋 $400、一般包 $600、背包 $500、皮包 $1000、名牌包 $1500 起、特殊類名牌包 $2500。改衣 60 元起，由現場師傅報價。以上是參考價，看過實品再報價。沒有列出來的品項不寫數字。台中市全區免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/valet-laundry-pricing-guide.html",
+      "local_intent": "台中市全區免費收送",
+      "keywords": [
+        "代客洗衣",
+        "代洗代烘",
+        "洗衣服務",
+        "衣物送洗",
+        "專業洗衣"
+      ],
+      "store": {
+        "name": "私享家洗衣店",
+        "branch": "西屯門市",
+        "address": "台中市西屯區青海路二段365號（至善國中對面）",
+        "phone": "04-2452-7411",
+        "line_url": "https://lin.ee/w8qGVqM",
+        "line_id": "0968327653",
+        "line_official_id": "@454foyks",
+        "hours": [
+          "週一至週五 10:00-20:00",
+          "週六 12:00-18:00",
+          "週日公休"
+        ]
+      }
+    },
+    {
+      "id": "fine-laundry-vs-regular-wash-page-summary",
+      "type": "guide_summary",
+      "question": "精緻洗衣是什麼？和一般洗衣差在哪",
+      "answer": "精緻洗衣、專業洗衣指單件看洗標、內裡、扣件與塗層，把可以水洗和只能乾洗的衣物分開，不是把一袋衣服丟進同一槽。和一般水洗的差別在判斷與分流，不在店名。洗標允許水洗的棉質可以走水洗；羊毛、絲、有皮飾或有塗層的要分開。污漬與發黃只能淡化，盡量處理，不能把改善程度說死。計價仍按件，例如厚外套 $180、羽絨外套 $280、長大衣 $300、名牌包 $1500 起。參考價，看過實品再報價。衣物、西裝乾洗約 7 天。台中市全區免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/fine-laundry-vs-regular-wash.html",
+      "local_intent": "台中市全區免費收送",
+      "keywords": [
+        "精緻洗衣",
+        "精緻洗衣店",
+        "專業洗衣",
+        "專業洗衣店"
+      ],
+      "store": {
+        "name": "私享家洗衣店",
+        "branch": "西屯門市",
+        "address": "台中市西屯區青海路二段365號（至善國中對面）",
+        "phone": "04-2452-7411",
+        "line_url": "https://lin.ee/w8qGVqM",
+        "line_id": "0968327653",
+        "line_official_id": "@454foyks",
+        "hours": [
+          "週一至週五 10:00-20:00",
+          "週六 12:00-18:00",
+          "週日公休"
+        ]
+      }
+    },
+    {
+      "id": "cloth-shoe-washing-guide-page-summary",
+      "type": "guide_summary",
+      "question": "布鞋怎麼洗？能不能丟洗衣機",
+      "answer": "布鞋先看洗標、鞋面是帆布還是棉布、膠底接縫有沒有開、鞋墊能不能取出。整雙丟進洗衣機，滾筒會拉扯膠底接縫，鞋墊和布面也容易變形、起毛。家用烘衣機不要用來烘布鞋。洗標不能烘乾的，送洗後用店內除溼技術快速乾燥。布鞋沒有單獨列公開價，看過實品再報價。若鞋面其實是網布運動鞋，一般運動鞋 $250 起，參考價，看過實品再報價。洗鞋 5～7 天。台中市全區免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/cloth-shoe-washing-guide.html",
+      "local_intent": "台中市全區免費收送",
+      "keywords": [
+        "布鞋怎麼洗",
+        "洗布鞋價格",
+        "布鞋可以丟洗衣機洗嗎",
+        "布鞋送洗"
+      ],
+      "store": {
+        "name": "私享家洗衣店",
+        "branch": "西屯門市",
+        "address": "台中市西屯區青海路二段365號（至善國中對面）",
+        "phone": "04-2452-7411",
+        "line_url": "https://lin.ee/w8qGVqM",
+        "line_id": "0968327653",
+        "line_official_id": "@454foyks",
+        "hours": [
+          "週一至週五 10:00-20:00",
+          "週六 12:00-18:00",
+          "週日公休"
+        ]
+      }
+    },
+    {
+      "id": "wool-duvet-accidentally-washed-page-summary",
+      "type": "guide_summary",
+      "question": "羊毛被不小心水洗了怎麼辦",
+      "answer": "羊毛被已經下水，先不要再烘、不要拉、不要放烈日下曬。摸起來變厚、變硬、織紋糊成一片，是羊毛鱗片咬住，原來的厚度與尺寸回不去。織紋還清楚、只是稍微緊，有時能整理得比較平，改善到哪裡要看過實品，不能把改善程度說死。大件約 10～14 天。羊毛被不寫固定價，看過實品再報價。台中市全區免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/wool-duvet-accidentally-washed.html",
+      "local_intent": "台中市全區免費收送",
+      "keywords": [
+        "羊毛被水洗了怎麼辦",
+        "羊毛被不小心水洗"
+      ],
+      "store": {
+        "name": "私享家洗衣店",
+        "branch": "西屯門市",
+        "address": "台中市西屯區青海路二段365號（至善國中對面）",
+        "phone": "04-2452-7411",
+        "line_url": "https://lin.ee/w8qGVqM",
+        "line_id": "0968327653",
+        "line_official_id": "@454foyks",
+        "hours": [
+          "週一至週五 10:00-20:00",
+          "週六 12:00-18:00",
+          "週日公休"
+        ]
+      }
+    },
+    {
+      "id": "trench-coat-tumble-dry-limit-page-summary",
+      "type": "guide_summary",
+      "question": "風衣可以烘乾嗎？先看洗標與塗層",
+      "answer": "風衣可以烘乾嗎，先看洗標。洗標沒有烘乾符號，或標示不能烘乾，就不要丟家用烘衣機。多數風衣外層有防潑塗層，腰帶或袖口可能有皮扣，裡布和表布不是同一種布。高熱會讓塗層發黏、皮扣變硬，兩層布縮的速度不同，皺摺會定住。不能烘乾的風衣，送洗後用店內除溼技術快速乾燥。衣物、西裝乾洗約 7 天。風衣沒有單獨列公開價，看過實品再報價。台中市全區免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/trench-coat-tumble-dry-limit.html",
+      "local_intent": "台中市全區免費收送",
+      "keywords": [
+        "風衣可以烘乾嗎",
+        "風衣怎麼洗"
+      ],
+      "store": {
+        "name": "私享家洗衣店",
+        "branch": "西屯門市",
+        "address": "台中市西屯區青海路二段365號（至善國中對面）",
+        "phone": "04-2452-7411",
+        "line_url": "https://lin.ee/w8qGVqM",
+        "line_id": "0968327653",
+        "line_official_id": "@454foyks",
+        "hours": [
+          "週一至週五 10:00-20:00",
+          "週六 12:00-18:00",
+          "週日公休"
+        ]
+      }
+    },
+    {
+      "id": "what-is-wool-felting-page-summary",
+      "type": "guide_summary",
+      "question": "縮絨是什麼？毛衣變硬變小怎麼判斷",
+      "answer": "縮絨是羊毛、羊絨這類動物纖維的鱗片，在水、熱和摩擦一起出現時互相咬住，布變厚、變硬、變小，織目糊掉。棉褲丟烘衣機後變短，多半還看得到布紋，和縮絨不同。毛衣變硬變小時，織紋還清楚可能只是洗緊；織紋糊成氈就是縮絨，硬拉拉不回原來的尺寸與蓬鬆。羊絨起毛球不等於已經縮絨。洗標寫只能乾洗就照洗標。衣物、西裝乾洗約 7 天。毛衣不寫固定價，看過實品再報價。台中市全區免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/what-is-wool-felting.html",
+      "local_intent": "台中市全區免費收送",
+      "keywords": [
+        "縮絨",
+        "毛衣變硬變小"
+      ],
+      "store": {
+        "name": "私享家洗衣店",
+        "branch": "西屯門市",
+        "address": "台中市西屯區青海路二段365號（至善國中對面）",
+        "phone": "04-2452-7411",
+        "line_url": "https://lin.ee/w8qGVqM",
+        "line_id": "0968327653",
+        "line_official_id": "@454foyks",
+        "hours": [
+          "週一至週五 10:00-20:00",
+          "週六 12:00-18:00",
+          "週日公休"
+        ]
+      }
+    },
+    {
+      "id": "genuine-leather-bag-wash-limit-page-summary",
+      "type": "guide_summary",
+      "question": "真皮包可以水洗嗎？洗皮包前先看",
+      "answer": "真皮包不要整只泡水，也不要丟洗衣機。真皮會把水喝進去，乾了常留下深淺差；五金、邊油和內裡塗層也不適合長時間泡水。確認是真皮之後，清潔是看塗層、油份、五金與內裡，做局部處理。水痕、發黃與霉斑只能淡化，盡量處理，不能把改善程度說死。先在不明顯角落測試。皮包 $1000、名牌包 $1500 起、特殊類名牌包 $2500、一般包 $600，都是參考價，看過實品再報價。內裡若要重黏，約 14 天。台中市全區免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/genuine-leather-bag-wash-limit.html",
+      "local_intent": "台中市全區免費收送",
+      "keywords": [
+        "真皮包 清潔",
+        "洗皮包",
+        "洗 皮包",
+        "名牌包清洗價格"
+      ],
+      "store": {
+        "name": "私享家洗衣店",
+        "branch": "西屯門市",
+        "address": "台中市西屯區青海路二段365號（至善國中對面）",
+        "phone": "04-2452-7411",
+        "line_url": "https://lin.ee/w8qGVqM",
+        "line_id": "0968327653",
+        "line_official_id": "@454foyks",
+        "hours": [
+          "週一至週五 10:00-20:00",
+          "週六 12:00-18:00",
+          "週日公休"
+        ]
+      }
+    },
+    {
+      "id": "leather-jacket-wash-or-not-page-summary",
+      "type": "guide_summary",
+      "question": "皮外套可以水洗嗎？怎麼洗先看洗標",
+      "answer": "皮外套不要當布外套丟進洗衣機，也不要整件泡水。洗標寫只能乾洗，就照洗標。一般衣物的乾洗流程可能把皮的油脂帶走，皮面接著變硬，所以要先分是光面皮、塗層皮還是麂皮，不能和西裝同一套做法。酒精或濕布用力擦，顏色差可能更明顯。發黃與色差只能淡化，盡量處理，不能把改善程度說死。手肘一道橫裂是彎折，不是洗得掉的髒。皮外套不寫固定價，看過實品再報價。交期要看皮種，先用 LINE 問，不要把布料西裝約 7 天或麂皮外套 14 天直接套到每一件。台中市全區免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/leather-jacket-wash-or-not.html",
+      "local_intent": "台中市全區免費收送",
+      "keywords": [
+        "皮外套怎麼洗",
+        "皮衣 清洗",
+        "皮衣可以水洗"
+      ],
+      "store": {
+        "name": "私享家洗衣店",
+        "branch": "西屯門市",
+        "address": "台中市西屯區青海路二段365號（至善國中對面）",
+        "phone": "04-2452-7411",
+        "line_url": "https://lin.ee/w8qGVqM",
+        "line_id": "0968327653",
+        "line_official_id": "@454foyks",
+        "hours": [
+          "週一至週五 10:00-20:00",
+          "週六 12:00-18:00",
+          "週日公休"
+        ]
+      }
+    },
+    {
+      "id": "pants-tumble-dry-shrink-page-summary",
+      "type": "guide_summary",
+      "question": "褲子烘乾縮水怎麼辦",
+      "answer": "褲子烘乾之後變短，先分布料。棉、卡其、聚酯混紡丟家用烘衣機變短，多半是纖維受熱收縮，布紋通常還在，這不是羊毛縮絨。羊毛或羊毛混紡又硬又厚、織紋糊掉，才要當縮絨看。已經烘小的棉褲不要再高熱。蒸汽整燙有時能把摺線和一部分尺寸整理得比較平，已經熱縮定型的腰圍與褲長回不到原來的數字，不能把改善程度說死。洗標不能烘乾的，送洗後用店內除溼技術快速乾燥。衣物、西裝乾洗約 7 天；只整燙約 2 天。褲子不寫固定價，看過實品再報價。台中市全區免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/pants-tumble-dry-shrink.html",
+      "local_intent": "台中市全區免費收送",
+      "keywords": [
+        "褲子烘乾縮水怎麼辦"
+      ],
+      "store": {
+        "name": "私享家洗衣店",
+        "branch": "西屯門市",
+        "address": "台中市西屯區青海路二段365號（至善國中對面）",
+        "phone": "04-2452-7411",
+        "line_url": "https://lin.ee/w8qGVqM",
+        "line_id": "0968327653",
+        "line_official_id": "@454foyks",
+        "hours": [
+          "週一至週五 10:00-20:00",
+          "週六 12:00-18:00",
+          "週日公休"
+        ]
+      }
+    },
+    {
+      "id": "wool-cotton-quilt-washing-page-summary",
+      "type": "guide_summary",
+      "question": "羊毛棉被可以洗嗎？和純羊毛被差在哪",
+      "answer": "羊毛棉被先看洗標上的表布和填充。填充含羊毛比例高，遇水又攪拌，仍可能縮絨、結塊，不能因為表布是棉就整床丟洗衣機。表布是棉、填充以聚酯為主，風險不同，仍要看尺寸與洗標能不能水洗、中心乾不乾得透。家用烘衣機不要用來烘這類被子。洗標不能烘乾的，送洗後用店內除溼技術快速乾燥。大件約 10～14 天。這類被子不寫固定價，看過實品再報價。台中市全區免費收送、沒有最低消費。",
+      "source_url": "https://sixiangjialaundry.com/guides/wool-cotton-quilt-washing.html",
+      "local_intent": "台中市全區免費收送",
+      "keywords": [
+        "羊毛棉被可以洗嗎"
+      ],
+      "store": {
+        "name": "私享家洗衣店",
+        "branch": "西屯門市",
+        "address": "台中市西屯區青海路二段365號（至善國中對面）",
+        "phone": "04-2452-7411",
+        "line_url": "https://lin.ee/w8qGVqM",
+        "line_id": "0968327653",
+        "line_official_id": "@454foyks",
+        "hours": [
+          "週一至週五 10:00-20:00",
+          "週六 12:00-18:00",
+          "週日公休"
+        ]
+      }
     }
   ]
 }
